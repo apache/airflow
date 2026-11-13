@@ -43,6 +43,7 @@ from airflow.dag_processing.bundles._filesystem import (
 )
 from airflow.dag_processing.bundles.artifact_store import (
     ArtifactStore,
+    ArtifactStoreBusyError,
     BundleManifestNotFoundError,
     BundleManifestRefDurabilityError,
     PublishedSnapshot,
@@ -161,7 +162,7 @@ class FilesystemArtifactStore(ArtifactStore):
 
     def write_state(self, payload: dict[str, Any]) -> None:
         with _raise_storage_error(f"write automatic-publication state {self._state_path}"):
-            _ensure_public_dir(self._state_path.parent, root=self._root)
+            self._ensure_publication_dir(self._state_path.parent)
             try:
                 _write_json_atomically(self._state_path, payload)
             except BundleManifestRefDurabilityError as e:
@@ -172,7 +173,7 @@ class FilesystemArtifactStore(ArtifactStore):
                 ) from e
 
     @contextmanager
-    def publication_guard(self):
+    def publication_guard(self, *, wait: bool = True):
         """Serialize publishers through a lock stored with the authoritative snapshots."""
         with _raise_storage_error(f"open publication lock {self._lock_path}"):
             self._ensure_publication_dir(self._lock_path.parent)
@@ -195,7 +196,7 @@ class FilesystemArtifactStore(ArtifactStore):
                 except OSError:
                     if os.fstat(fd).st_uid == os.geteuid():
                         raise
-            self._acquire_publication_lock(lock_file)
+            self._acquire_publication_lock(lock_file, wait=wait)
             published = False
             try:
                 with _raise_storage_error(f"remove leftovers of failed publications under {self._root}"):
@@ -215,7 +216,7 @@ class FilesystemArtifactStore(ArtifactStore):
                     # The publication's own error tells callers how to recover; keep it.
                     log.warning("Cannot release publication lock %s", self._lock_path, exc_info=True)
 
-    def _acquire_publication_lock(self, lock_file) -> None:
+    def _acquire_publication_lock(self, lock_file, *, wait: bool) -> None:
         deadline = time.monotonic() + self._lock_timeout
         next_log_time = time.monotonic()
         while True:
@@ -230,6 +231,10 @@ class FilesystemArtifactStore(ArtifactStore):
                 ) from e
             else:
                 return
+            if not wait:
+                raise ArtifactStoreBusyError(
+                    f"Publication lock {self._lock_path} is held by another publisher"
+                )
             now = time.monotonic()
             if now >= deadline:
                 raise BundleManifestError(

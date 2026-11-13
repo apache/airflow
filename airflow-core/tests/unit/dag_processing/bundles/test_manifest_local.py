@@ -18,15 +18,18 @@
 from __future__ import annotations
 
 import errno
+import fcntl
 import gc
 import importlib
 import json
 import logging
 import os
 import pickle
+import re
 import shutil
 import stat
 import sys
+from contextlib import contextmanager
 from importlib.util import cache_from_source
 from pathlib import Path
 from unittest import mock
@@ -130,6 +133,10 @@ def _get_snapshots_dir(bundle: ManifestLocalDagBundle) -> Path:
 
 def _get_snapshot_dir(bundle: ManifestLocalDagBundle, version: str) -> Path:
     return _get_snapshots_dir(bundle) / version
+
+
+def _get_state_path(bundle: ManifestLocalDagBundle) -> Path:
+    return _get_published_root(bundle) / "_state" / bundle.name / "auto-publish.json"
 
 
 def _publish(bundle: ManifestLocalDagBundle, source: Path, *, materialize_snapshot: bool = True):
@@ -1467,7 +1474,7 @@ def _make_auto_bundle(tmp_path: Path, *, source: Path | None = None, stability: 
 
 
 def _read_state(bundle: ManifestLocalDagBundle) -> dict:
-    return json.loads(Path(bundle.auto_publish_state_path).read_text())
+    return json.loads(_get_state_path(bundle).read_text())
 
 
 def _point_symlink(link: Path, target: Path) -> None:
@@ -1475,8 +1482,22 @@ def _point_symlink(link: Path, target: Path) -> None:
     _create_symlink_or_skip(target, link, target_is_directory=True)
 
 
-def _has_event(caplog, fragment: str, level: str) -> bool:
-    return any(fragment in entry["event"] and entry["log_level"] == level for entry in caplog.entries)
+def _event(fragment: str, level: str) -> dict:
+    """A structured ``caplog`` match for an event that contains ``fragment``."""
+    return {"event": re.compile(f".*{re.escape(fragment)}", re.DOTALL), "log_level": level}
+
+
+@contextmanager
+def _hold_publication_lock(bundle: ManifestLocalDagBundle):
+    """Hold the bundle's publication lock as another publisher in the middle of publishing would."""
+    lock_path = _get_published_root(bundle) / "_locks" / f"{bundle.name}.lock"
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    fd = os.open(lock_path, os.O_CREAT | os.O_RDWR, 0o664)
+    try:
+        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        yield
+    finally:
+        os.close(fd)
 
 
 class TestAutomaticPublication:
@@ -1521,7 +1542,7 @@ class TestAutomaticPublication:
         with pytest.raises(BundleManifestError, match="source_path configured for automatic publication"):
             publish_manifest_local_dag_bundle(bundle=bundle, source_path=explicit_source)
 
-        assert not Path(bundle.manifest_ref_path).exists()
+        assert not _get_ref_path(bundle).exists()
 
     def test_bootstrap_reports_not_ready_without_blocking(self, tmp_path):
         bundle = _make_auto_bundle(tmp_path, stability=30)
@@ -1535,7 +1556,7 @@ class TestAutomaticPublication:
             assert raised.value.retry_after == 30
             assert pickle.loads(pickle.dumps(raised.value)).retry_after == 30
             assert not bundle.is_initialized
-            assert not Path(bundle.manifest_ref_path).exists()
+            assert not _get_ref_path(bundle).exists()
 
             traveller.move_to(110)
             with pytest.raises(BundleNotReadyError) as raised:
@@ -1563,7 +1584,7 @@ class TestAutomaticPublication:
                 bundle.initialize()
 
         assert raised.value.retry_after == 30
-        assert not Path(bundle.manifest_ref_path).exists()
+        assert not _get_ref_path(bundle).exists()
         assert _read_state(bundle)["first_observed_at"] == 130
 
     def test_fresh_instance_uses_shared_stability_candidate(self, tmp_path):
@@ -1648,12 +1669,12 @@ class TestAutomaticPublication:
             traveller.move_to(149)
             bundle.refresh()
             assert bundle.get_current_version().version == old_version
-            assert _has_event(caplog, "waiting until it has remained unchanged for 30 seconds", "info")
+            assert _event("waiting until it has remained unchanged for 30 seconds", "info") in caplog
 
             traveller.move_to(150)
             bundle.refresh()
 
-        assert _has_event(caplog, "Automatically published bundle source", "info")
+        assert _event("Automatically published bundle source", "info") in caplog
         assert bundle.get_current_version().version != old_version
         assert (bundle.path / "dags/example.py").read_text() == "print('candidate two')"
 
@@ -1739,7 +1760,7 @@ class TestAutomaticPublication:
             first.refresh()
             assert _read_state(first)["first_observed_at"] == 180
             assert first.get_current_version().version == version_b
-            assert json.loads(Path(first.manifest_ref_path).read_text())["version"] == version_b
+            assert json.loads(_get_ref_path(first).read_text())["version"] == version_b
 
             traveller.move_to(209)
             first.refresh()
@@ -1749,7 +1770,7 @@ class TestAutomaticPublication:
             first.refresh()
 
         assert first.get_current_version().version == version_a
-        assert json.loads(Path(first.manifest_ref_path).read_text())["version"] == version_a
+        assert json.loads(_get_ref_path(first).read_text())["version"] == version_a
 
     def test_delayed_observation_cannot_overwrite_newer_candidate(self, tmp_path):
         source_a = tmp_path / "source-a"
@@ -1768,7 +1789,7 @@ class TestAutomaticPublication:
             original_state = _read_state(bundle)
 
             _point_symlink(source_link, source_b)
-            delayed_source = bundle._prepare_publish_source()
+            delayed_source = bundle.prepare_publish_source()
             _point_symlink(source_link, source_a)
             traveller.move_to(140)
             with pytest.raises(BundleManifestSourceChangedError, match="source changed"):
@@ -1789,24 +1810,140 @@ class TestAutomaticPublication:
             traveller.move_to(130)
             second.refresh()
 
-        assert _has_event(caplog, "keeping the current release", "warning")
+        assert _event("keeping the current release", "warning") in caplog
         assert second.get_current_version().version == old_version
         assert _read_state(second) == state_payload
+        state_path = second._store.state_locator
+        with pytest.raises(
+            BundleManifestError,
+            match=f"{re.escape(state_path)} records another one.*delete {re.escape(state_path)}",
+        ):
+            second._get_auto_publish_candidate_readiness(second.prepare_publish_source())
 
-    def test_relative_and_absolute_source_paths_share_a_candidate(
-        self, tmp_path, changed_source, monkeypatch
-    ):
-        _, old_version = changed_source
+    def test_rejects_relative_source_path(self, tmp_path, monkeypatch):
         monkeypatch.chdir(tmp_path)
-        relative = _make_auto_bundle(tmp_path, source=Path("source"), stability=30)
-        absolute = _make_auto_bundle(tmp_path, stability=30)
+        (tmp_path / "source").mkdir()
+
+        with pytest.raises(TypeError, match="source_path must be an absolute path, got 'source'"):
+            _make_bundle(tmp_path, source_path="source")
+
+    def test_equivalent_absolute_source_paths_share_a_candidate(self, tmp_path, changed_source):
+        _, old_version = changed_source
+        (tmp_path / "elsewhere").mkdir()
+        roundabout = _make_auto_bundle(
+            tmp_path, source=tmp_path / "elsewhere" / ".." / "source", stability=30
+        )
+        direct = _make_auto_bundle(tmp_path, stability=30)
 
         with time_machine.travel(100, tick=False) as traveller:
-            relative.refresh()
+            roundabout.refresh()
             traveller.move_to(130)
-            absolute.refresh()
+            direct.refresh()
 
-        assert absolute.get_current_version().version != old_version
+        assert direct.get_current_version().version != old_version
+
+    def test_publication_lock_held_elsewhere_keeps_current_release(self, tmp_path, changed_source, caplog):
+        _, old_version = changed_source
+        # A refresh that waited for the lock would fail after a second instead of skipping it.
+        bundle = _make_auto_bundle(tmp_path, publication_lock_timeout=1)
+
+        with _hold_publication_lock(bundle):
+            bundle.refresh()
+
+        assert {
+            "event": "Another publisher holds the publication lock; keeping the current release until "
+            f"the next refresh. bundle={BUNDLE_NAME}",
+            "log_level": "info",
+        } in caplog
+        assert bundle.get_current_version().version == old_version
+
+    def test_stable_source_waits_for_a_free_lock_to_publish(self, tmp_path, changed_source, caplog):
+        _, old_version = changed_source
+        bundle = _make_auto_bundle(tmp_path, stability=30, publication_lock_timeout=1)
+
+        with time_machine.travel(100, tick=False) as traveller:
+            bundle.refresh()
+            traveller.move_to(130)
+            with _hold_publication_lock(bundle):
+                bundle.refresh()
+            assert bundle.get_current_version().version == old_version
+            assert _event("holds the publication lock", "info") in caplog
+
+            bundle.refresh()
+
+        assert bundle.get_current_version().version != old_version
+
+    def test_confirmed_source_resets_a_replaced_candidate_without_waiting(self, tmp_path, caplog):
+        bundle = _make_auto_bundle(tmp_path, publication_lock_timeout=1)
+        _write_file(tmp_path / "source", "dags/example.py", "print('dag')")
+        bundle.initialize()
+        version = bundle.get_current_version().version
+        state_path = _get_state_path(bundle)
+        # Another replica recorded a newer observation of the source, since reverted here.
+        state_path.write_text(json.dumps({**_read_state(bundle), "source_signature": "sha256:newer"}))
+
+        with _hold_publication_lock(bundle):
+            bundle.refresh()
+
+        assert _event("holds the publication lock", "info") in caplog
+        assert bundle.get_current_version().version == version
+        assert _read_state(bundle)["source_signature"] == "sha256:newer"
+
+    def test_waiting_for_stability_does_not_take_the_publication_lock(self, tmp_path, changed_source, caplog):
+        _, old_version = changed_source
+        bundle = _make_auto_bundle(tmp_path, stability=30, publication_lock_timeout=1)
+
+        with time_machine.travel(100, tick=False) as traveller:
+            bundle.refresh()
+            traveller.move_to(110)
+            with _hold_publication_lock(bundle):
+                bundle.refresh()
+
+        assert _event("holds the publication lock", "info") not in caplog
+        assert _event("waiting until it has remained unchanged for 30 seconds", "info") in caplog
+        assert bundle.get_current_version().version == old_version
+
+    def test_refresh_of_confirmed_source_does_not_take_the_publication_lock(self, tmp_path, caplog):
+        bundle = _make_auto_bundle(tmp_path, publication_lock_timeout=1)
+        _write_file(tmp_path / "source", "dags/example.py", "print('dag')")
+        bundle.initialize()
+        version = bundle.get_current_version().version
+
+        with _hold_publication_lock(bundle):
+            bundle.refresh()
+
+        assert _event("holds the publication lock", "info") not in caplog
+        assert bundle.get_current_version().version == version
+
+    def test_first_publication_reports_not_ready_while_lock_held(self, tmp_path):
+        bundle = _make_auto_bundle(tmp_path, stability=30, publication_lock_timeout=1)
+        _write_file(tmp_path / "source", "dags/example.py", "print('dag')")
+
+        with (
+            _hold_publication_lock(bundle),
+            pytest.raises(BundleNotReadyError, match="holds the publication lock") as raised,
+        ):
+            bundle.initialize()
+
+        assert raised.value.retry_after == 0
+        assert not _get_ref_path(bundle).exists()
+
+    def test_local_bundle_without_source_cannot_prepare_one(self, tmp_path):
+        with pytest.raises(BundleManifestError, match="requires source_path"):
+            _make_bundle(tmp_path).prepare_publish_source()
+
+    @mock.patch.object(
+        store_module.FilesystemArtifactStore,
+        "write_ref",
+        autospec=True,
+        side_effect=BundleManifestRefDurabilityError(ref_locator="latest.json", version=None),
+    )
+    def test_unconfirmed_durability_of_a_first_reference_is_raised(self, mock_write_ref, tmp_path):
+        bundle = _make_auto_bundle(tmp_path)
+        _write_file(tmp_path / "source", "dags/example.py", "print('dag')")
+
+        with pytest.raises(BundleManifestRefDurabilityError):
+            bundle.initialize()
 
     def test_zero_stability_still_rejects_publishers_of_a_different_source(self, tmp_path, caplog):
         first = _make_auto_bundle(tmp_path)
@@ -1820,7 +1957,7 @@ class TestAutomaticPublication:
 
         second.initialize()
 
-        assert _has_event(caplog, "keeping the current release", "warning")
+        assert _event("keeping the current release", "warning") in caplog
         assert second.get_current_version().version == version
         assert _read_state(second) == state_payload
 
@@ -1836,14 +1973,14 @@ class TestAutomaticPublication:
         bundle.refresh()
 
         assert other.version != version
-        assert json.loads(Path(bundle.manifest_ref_path).read_text())["version"] == version
+        assert json.loads(_get_ref_path(bundle).read_text())["version"] == version
         assert bundle.get_current_version().version == version
 
     def test_failed_first_publication_serves_a_release_published_meanwhile(self, tmp_path, caplog):
         other_source = tmp_path / "other-source"
         _write_file(other_source, "dags/example.py", "print('other')")
         other = _publish(_make_bundle(tmp_path), other_source)
-        ref_path = Path(_make_bundle(tmp_path).manifest_ref_path)
+        ref_path = _get_ref_path(_make_bundle(tmp_path))
         ref_path.unlink()
         bundle = _make_auto_bundle(tmp_path)
         _write_file(tmp_path / "source", "dags/example.py", "print('dag')")
@@ -1859,7 +1996,7 @@ class TestAutomaticPublication:
         ):
             bundle.initialize()
 
-        assert _has_event(caplog, "keeping the current release", "warning")
+        assert _event("keeping the current release", "warning") in caplog
         assert bundle.get_current_version().version == other.version
 
     @mock.patch.object(ManifestLocalDagBundle, "_get_auto_publish_candidate_readiness", autospec=True)
@@ -1882,7 +2019,7 @@ class TestAutomaticPublication:
         assert not any(entry["log_level"] == "warning" for entry in caplog.entries)
 
     def test_bootstrap_source_change_during_publication_reports_not_ready(self, tmp_path, caplog):
-        bundle = _make_auto_bundle(tmp_path)
+        bundle = _make_auto_bundle(tmp_path, stability=30)
         source_file = _write_file(tmp_path / "source", "dags/example.py", "print('dag')")
         materialize = store_module._materialize_manifest_snapshot
 
@@ -1890,23 +2027,27 @@ class TestAutomaticPublication:
             materialize(**kwargs)
             source_file.write_text("print('changed again')")
 
-        with mock.patch.object(
-            store_module,
-            "_materialize_manifest_snapshot",
-            autospec=True,
-            side_effect=materialize_then_change_source,
-        ):
-            with pytest.raises(BundleNotReadyError, match="changed while its first release") as raised:
+        with time_machine.travel(100, tick=False) as traveller:
+            with pytest.raises(BundleNotReadyError):
                 bundle.initialize()
+            traveller.move_to(130)
+            with mock.patch.object(
+                store_module,
+                "_materialize_manifest_snapshot",
+                autospec=True,
+                side_effect=materialize_then_change_source,
+            ):
+                with pytest.raises(BundleNotReadyError, match="changed while its first release") as raised:
+                    bundle.initialize()
 
         assert isinstance(raised.value.__cause__, BundleManifestSourceChangedError)
         assert raised.value.retry_after == 0
-        assert not Path(bundle.manifest_ref_path).exists()
+        assert not _get_ref_path(bundle).exists()
 
     def test_unconfirmed_reference_durability_serves_the_replacement(self, tmp_path, caplog):
         def replace_without_confirming_durability(store, payload):
-            store_module._write_json_atomically(Path(store.ref_path), payload)
-            raise BundleManifestRefDurabilityError(ref_path=store.ref_path, version=payload["version"])
+            store_module._write_json_atomically(_get_ref_path(bundle), payload)
+            raise BundleManifestRefDurabilityError(ref_locator=store.ref_locator, version=payload["version"])
 
         bundle = _make_auto_bundle(tmp_path)
         source_file = _write_file(tmp_path / "source", "dags/example.py", "print('old')")
@@ -1922,12 +2063,10 @@ class TestAutomaticPublication:
         ):
             bundle.refresh()
 
-        new_version = json.loads(Path(bundle.manifest_ref_path).read_text())["version"]
+        new_version = json.loads(_get_ref_path(bundle).read_text())["version"]
         assert new_version != old_version
         assert bundle.get_current_version().version == new_version
-        assert _has_event(
-            caplog, "durability could not be confirmed; serving the current reference", "warning"
-        )
+        assert _event("durability could not be confirmed; serving the current reference", "warning") in caplog
 
     @pytest.mark.parametrize(
         "error",
@@ -1948,7 +2087,7 @@ class TestAutomaticPublication:
             bundle.refresh()
 
         mock_write_state.assert_called_once()
-        assert _has_event(caplog, "keeping the current release", "warning")
+        assert _event("keeping the current release", "warning") in caplog
         assert bundle.get_current_version().version == old_version
 
     def test_missing_reference_is_restored_from_confirmed_source(self, tmp_path):
@@ -1957,10 +2096,10 @@ class TestAutomaticPublication:
         bundle.initialize()
         version = bundle.get_current_version().version
 
-        Path(bundle.manifest_ref_path).unlink()
+        _get_ref_path(bundle).unlink()
         bundle.refresh()
 
-        assert json.loads(Path(bundle.manifest_ref_path).read_text())["version"] == version
+        assert json.loads(_get_ref_path(bundle).read_text())["version"] == version
         assert bundle.get_current_version().version == version
 
     def test_missing_published_snapshot_is_restored_from_confirmed_source(self, tmp_path):
@@ -1968,13 +2107,13 @@ class TestAutomaticPublication:
         _write_file(tmp_path / "source", "dags/example.py", "print('dag')")
         bundle.initialize()
         version = bundle.get_current_version().version
-        published_version_path = Path(bundle.published_versions_dir) / version
+        published_version_path = _get_snapshot_dir(bundle, version)
 
         remove_bundle_tree_forcefully(published_version_path)
         bundle.refresh()
 
         assert published_version_path.is_dir()
-        assert json.loads(Path(bundle.manifest_ref_path).read_text())["version"] == version
+        assert json.loads(_get_ref_path(bundle).read_text())["version"] == version
 
     def test_publish_failure_keeps_serving_current_release(self, tmp_path, caplog):
         bundle = _make_auto_bundle(tmp_path)
@@ -1991,7 +2130,7 @@ class TestAutomaticPublication:
         ):
             bundle.refresh()
 
-        assert _has_event(caplog, "keeping the current release", "warning")
+        assert _event("keeping the current release", "warning") in caplog
         assert bundle.get_current_version().version == version
         assert (bundle.path / "dags/example.py").read_text() == "print('old')"
 
@@ -2024,13 +2163,13 @@ class TestAutomaticPublication:
         first = _make_auto_bundle(tmp_path, stability=30)
         second = _make_auto_bundle(tmp_path, stability=30)
         build_manifest = bundle_module.build_bundle_version_manifest
-        original_ref = json.loads(Path(first.manifest_ref_path).read_text())
+        original_ref = json.loads(_get_ref_path(first).read_text())
 
         def build_manifest_then_replace_candidate(**kwargs):
             result = build_manifest(**kwargs)
             state_payload = _read_state(second)
             state_payload["source_signature"] = "sha256:another-candidate"
-            Path(second.auto_publish_state_path).write_text(json.dumps(state_payload))
+            _get_state_path(second).write_text(json.dumps(state_payload))
             return result
 
         with time_machine.travel(100, tick=False) as traveller:
@@ -2040,7 +2179,7 @@ class TestAutomaticPublication:
             if confirm_source:
                 second.refresh()
                 assert second.get_current_version().version != old_version
-                _write_manifest_ref(second.manifest_ref_path, original_ref)
+                _write_manifest_ref(_get_ref_path(second), original_ref)
 
             with mock.patch.object(
                 bundle_module,
@@ -2090,19 +2229,19 @@ class TestAutomaticPublication:
             replacement = replace_state(_read_state(first))
             if not isinstance(replacement, str):
                 replacement = json.dumps(replacement)
-            Path(first.auto_publish_state_path).write_text(replacement)
+            _get_state_path(first).write_text(replacement)
 
             traveller.move_to(130)
             second.refresh()
 
-        assert _has_event(caplog, "restarting the source stability period", level)
+        assert _event("restarting the source stability period", level) in caplog
         assert _read_state(second)["first_observed_at"] == 130
         assert second.get_current_version().version == old_version
 
     def test_newer_shared_state_schema_keeps_current_release(self, tmp_path, changed_source, caplog):
         _, old_version = changed_source
         bundle = _make_auto_bundle(tmp_path, stability=30)
-        state_path = Path(bundle.auto_publish_state_path)
+        state_path = _get_state_path(bundle)
         state_path.parent.mkdir(parents=True)
         future_state = {
             "schema_version": bundle_module.AUTO_PUBLISH_STATE_SCHEMA_VERSION + 1,
@@ -2114,7 +2253,7 @@ class TestAutomaticPublication:
         with time_machine.travel(130, tick=False):
             bundle.refresh()
 
-        assert _has_event(caplog, "keeping the current release", "warning")
+        assert _event("keeping the current release", "warning") in caplog
         assert json.loads(state_path.read_text()) == future_state
         assert bundle.get_current_version().version == old_version
 
@@ -2127,12 +2266,12 @@ class TestAutomaticPublication:
             first.refresh()
             traveller.move_to(130)
             second.refresh()
-            assert second._get_auto_publish_candidate_readiness(second._prepare_publish_source()) == (
+            assert second._get_auto_publish_candidate_readiness(second.prepare_publish_source()) == (
                 False,
                 30,
             )
 
-        assert _has_event(caplog, "timestamp is in the future", "warning")
+        assert _event("timestamp is in the future", "warning") in caplog
         assert second.get_current_version().version == old_version
         assert _read_state(second)["first_observed_at"] == 200
 
@@ -2159,10 +2298,10 @@ class TestAutomaticPublication:
         ):
             bundle.refresh()
 
-        assert _has_event(caplog, "Bundle source changed while publishing it automatically", "debug")
+        assert _event("Bundle source changed while publishing it automatically", "debug") in caplog
         assert not any(entry["log_level"] == "warning" for entry in caplog.entries)
         assert bundle.get_current_version().version == version
-        assert json.loads(Path(bundle.manifest_ref_path).read_text())["version"] == version
+        assert json.loads(_get_ref_path(bundle).read_text())["version"] == version
         assert (bundle.path / "dags/example.py").read_text() == "print('old')"
 
     @mock.patch.object(
@@ -2197,17 +2336,17 @@ class TestAutomaticPublication:
 
         mock_publish.assert_not_called()
         assert not (pinned.path / "dags/new.py").exists()
-        assert not Path(pinned.auto_publish_state_path).exists()
+        assert not _get_state_path(pinned).exists()
 
     def test_empty_source_requires_explicit_opt_in(self, tmp_path):
         bundle = _make_auto_bundle(tmp_path)
         with pytest.raises(BundleManifestError, match="Refusing to auto-publish empty"):
             bundle.initialize()
-        assert not Path(bundle.manifest_ref_path).exists()
+        assert not _get_ref_path(bundle).exists()
 
         allowed = _make_auto_bundle(tmp_path, allow_empty_source=True)
         allowed.initialize()
-        assert json.loads(Path(allowed.manifest_ref_path).read_text())["file_count"] == 0
+        assert json.loads(_get_ref_path(allowed).read_text())["file_count"] == 0
 
     def test_retargeted_source_overlap_keeps_current_release(self, tmp_path, caplog):
         real_source = tmp_path / "real-source"
@@ -2218,9 +2357,9 @@ class TestAutomaticPublication:
         bundle.initialize()
         version = bundle.get_current_version().version
 
-        _point_symlink(source_link, Path(bundle.published_root))
+        _point_symlink(source_link, _get_published_root(bundle))
         bundle.refresh()
 
-        assert _has_event(caplog, "keeping the current release", "warning")
+        assert _event("keeping the current release", "warning") in caplog
         assert bundle.get_current_version().version == version
-        assert json.loads(Path(bundle.manifest_ref_path).read_text())["version"] == version
+        assert json.loads(_get_ref_path(bundle).read_text())["version"] == version

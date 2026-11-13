@@ -237,6 +237,19 @@ Manifest-backed local Dag bundles
 releases under a shared ``published_root``. Airflow parses and runs only verified, read-only copies of those
 releases, never the source directory.
 
+.. note::
+
+    Airflow does not automatically delete published snapshots under ``versions/<bundle>`` in ``published_root``.
+    Each distinct published version stores a complete bundle snapshot, so repeated deployments can grow storage
+    without limit. Local bundle cache cleanup does not remove these authoritative snapshots. Provision and
+    monitor shared storage capacity accordingly.
+
+    Prune a snapshot manually only after establishing that it is not the current release and no pinned Dag run
+    can need it for execution, retry, rerun or callback. Airflow does not identify versions that are safe to delete.
+    Coordinate removal with publishers and readers so it cannot race with republishing or fetching that version.
+    Snapshots are read-only; remove them as their owning publisher's OS user after restoring owner write
+    permission (``chmod -R u+w``).
+
 Automatic publication
 ~~~~~~~~~~~~~~~~~~~~~
 
@@ -288,15 +301,21 @@ stability period that another one started. The bundle's publication lock makes c
 same source safe, and publishing content that is already published only confirms the current release. The
 shared document only coordinates publishers; the release reference alone decides which release Airflow serves.
 
+A refresh reads the shared document without the publication lock and takes the lock only to update the document
+or to publish. It never waits for the lock: while another publisher holds it, for example to copy a large
+snapshot, the refresh keeps the current release, or reports the bundle as not ready yet before the first
+release, and tries again later.
+
 Automatic publication has these operational requirements:
 
 - ``source_path`` must be one directory on a filesystem shared by every automatic publisher of the bundle, such
   as the same network filesystem as ``published_root``. Separate copies on each host do not work, even with
   identical files: their modification and change times differ, so each host keeps restarting the stability
   period that the others are waiting on and no release is ever published.
-- Configure every automatic publisher of a bundle with the same absolute ``source_path``. A publisher configured
-  with a different source is rejected, also when ``source_stability_seconds`` is ``0``, and keeps serving the
-  current release.
+- Configure every automatic publisher of a bundle with the same absolute ``source_path``; a relative path is
+  rejected. A publisher configured with a different source is rejected, also when ``source_stability_seconds``
+  is ``0``, and keeps serving the current release. To move the source, reconfigure every publisher, then delete
+  ``_state/<bundle>/auto-publish.json`` under ``published_root``; the error names the file.
 - Each automatic publisher must be able to read ``source_path`` and write to the bundle's ``refs/<bundle>``,
   ``versions/<bundle>``, ``_state/<bundle>`` and ``_locks`` directories under ``published_root``. Workers that
   run pinned versions need only read access to ``published_root``.
@@ -318,8 +337,8 @@ snapshot of that version and never publish; callbacks that the Dag processor run
 already serves. Anything that loads the bundle without a version runs the automatic publication check as well:
 tasks and executor callbacks of a Dag run that has no bundle version, for example because bundle versioning is
 disabled, and CLI commands that parse the bundle on the host they run on, such as ``airflow dags reserialize``
-and ``airflow dags test``. Each such process takes the publication lock when it starts and, once the source is
-stable, hashes it.
+and ``airflow dags test``. Each such process hashes the source once it is stable, and takes the publication lock
+when it updates the shared document or publishes.
 It needs the same access as a Dag processor; without it, it logs a warning and runs the current release.
 
 

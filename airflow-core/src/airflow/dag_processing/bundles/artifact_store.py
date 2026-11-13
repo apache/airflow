@@ -75,6 +75,14 @@ class ArtifactStoreConflictError(BundleManifestError):
     """
 
 
+class ArtifactStoreBusyError(BundleManifestError):
+    """
+    Raised by ``publication_guard(wait=False)`` when another publisher holds the publication lock.
+
+    The guard was not entered, so nothing was read or written; the caller retries later.
+    """
+
+
 @dataclass(frozen=True)
 class PublishedSnapshot:
     """
@@ -169,7 +177,7 @@ class ArtifactStore(ABC):
         """
 
     @abstractmethod
-    def publication_guard(self) -> AbstractContextManager[None]:
+    def publication_guard(self, *, wait: bool = True) -> AbstractContextManager[None]:
         """
         Protect a publisher's read-check-write section against concurrent publishers.
 
@@ -177,6 +185,9 @@ class ArtifactStore(ABC):
         removes leftovers of earlier failed publications; or, for a store that writes no
         temporary artifacts, the scope of the conditions ``write_ref`` and ``write_state``
         apply. Entering such a guard discards conditions from reads made before it.
+
+        With ``wait`` false, a lock held by another publisher raises ``ArtifactStoreBusyError``
+        instead of being waited for. A guard that is not a lock never waits.
         """
 
     @abstractmethod
