@@ -101,6 +101,7 @@ from airflow.providers.openlineage.utils.utils import (
     is_asset_event_from_asset_watcher,
     is_dag_run_asset_triggered,
     is_dag_run_state_set_manually,
+    is_task_instance_state_set_manually,
     is_valid_uuid,
     translate_airflow_asset,
 )
@@ -6952,6 +6953,14 @@ class TestAssetWatcherEventHelpers:
     def test_get_asset_event_output_datasets_skips_untranslatable_asset(self, _):
         assert get_asset_event_output_datasets(_build_listener_asset_event()) == []
 
+    @patch(
+        "airflow.providers.openlineage.utils.utils.Asset",
+        autospec=True,
+        side_effect=ValueError("no normalizer for this URI"),
+    )
+    def test_get_asset_event_output_datasets_skips_asset_failing_normalization(self, _):
+        assert get_asset_event_output_datasets(_build_listener_asset_event()) == []
+
 
 @pytest.mark.parametrize(
     ("msg", "expected"),
@@ -6966,3 +6975,16 @@ class TestAssetWatcherEventHelpers:
 )
 def test_is_dag_run_state_set_manually(msg, expected):
     assert is_dag_run_state_set_manually(msg) is expected
+
+
+@pytest.mark.parametrize(
+    ("error", "expected"),
+    [
+        pytest.param("TaskInstance's state was manually set to `failed`.", True, id="api-server"),
+        pytest.param("Executor reported that the task instance finished", False, id="scheduler"),
+        pytest.param(RuntimeError("boom"), False, id="exception"),
+        pytest.param(None, False, id="no-error"),
+    ],
+)
+def test_is_task_instance_state_set_manually(error, expected):
+    assert is_task_instance_state_set_manually(error) is expected

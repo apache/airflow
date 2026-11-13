@@ -1697,6 +1697,16 @@ def is_dag_run_state_set_manually(msg: str | None) -> bool:
     return msg is not None and msg.startswith("Dag Run's state was manually set to")
 
 
+def is_task_instance_state_set_manually(error: None | str | BaseException) -> bool:
+    """
+    Return whether a task instance failure listener call reports a state set manually through the UI or API.
+
+    The listener hooks carry no explicit flag for it, so this relies on the error the API server passes since
+    Airflow 3.0.
+    """
+    return isinstance(error, str) and error.startswith("TaskInstance's state was manually set to")
+
+
 def is_dag_run_asset_triggered(
     dag_run: DagRun,
 ):
@@ -2796,7 +2806,13 @@ def get_airflow_asset_event_run_facet(
 def get_asset_event_output_datasets(asset_event: ListenerAssetEvent) -> list[OpenLineageDataset]:
     """Return the asset of an asset event as an OpenLineage dataset, or nothing if it cannot be translated."""
     asset = asset_event.asset
-    dataset = translate_airflow_asset(Asset(name=asset.name, uri=asset.uri, extra=asset.extra), None)
+    try:
+        # The URI is normalized by the provider of its scheme, which may fail here, e.g. when the triggerer has
+        # other providers installed than the Dag processor that accepted the asset.
+        dataset = translate_airflow_asset(Asset(name=asset.name, uri=asset.uri, extra=asset.extra), None)
+    except Exception as err:
+        log.debug("Asset `%s` could not be translated to an OpenLineage dataset: %s", asset.uri, err)
+        return []
     if dataset is None:
         log.debug("Asset `%s` could not be translated to an OpenLineage dataset.", asset.uri)
         return []

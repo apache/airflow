@@ -79,7 +79,7 @@ def get_provider_info():
                         "version_added": "1.8.0",
                     },
                     "asset_watcher_event_queue_size": {
-                        "description": "Maximum number of asset watcher events waiting to be emitted in a process, e.g. the triggerer.\nThese events are emitted from a background thread, so the triggerer never waits for them; once\nthe limit is reached, further events are dropped with a warning. Each waiting event holds its\ntrigger payload in memory. Set to 0 for no limit, or to a negative number to emit no asset\nwatcher events at all.\n",
+                        "description": "Maximum number of asset watcher events waiting to be emitted in a process, e.g. the triggerer.\nThese events are emitted from a background thread, so the triggerer never waits for them; once\nthe limit is reached, further events are dropped with a warning. Each waiting event holds its\ntrigger payload in memory. Set to 0 or a negative number to emit no asset watcher events at all.\n",
                         "default": "100",
                         "example": None,
                         "type": "integer",

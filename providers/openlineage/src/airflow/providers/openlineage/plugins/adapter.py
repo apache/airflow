@@ -49,6 +49,7 @@ from airflow.providers.openlineage.utils.utils import (
     OpenLineageRedactor,
     build_dag_run_ol_run_id,
     build_task_instance_ol_run_id,
+    get_airflow_asset_event_run_facet,
     get_airflow_debug_facet,
     get_airflow_state_run_facet,
     get_dag_job_dependency_facet,
@@ -58,9 +59,9 @@ from airflow.utils.helpers import prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
     from datetime import datetime
 
+    from airflow.listeners.types import AssetEvent as ListenerAssetEvent
     from airflow.providers.openlineage.extractors import OperatorLineage
     from airflow.providers.openlineage.plugins.facets import AirflowDagRunFacet, AirflowRunFacet
     from airflow.sdk.execution_time.secrets_masker import SecretsMasker, _secrets_masker
@@ -580,10 +581,10 @@ class OpenLineageAdapter(LoggingMixin):
 
     def asset_watcher_event(
         self,
+        asset_event: ListenerAssetEvent,
         run_id: str,
         job_name: str,
         event_time: datetime,
-        run_facets: Mapping[str, RunFacet],
         outputs: list,
     ) -> None:
         """
@@ -591,16 +592,17 @@ class OpenLineageAdapter(LoggingMixin):
 
         Both events carry the full set of facets, so either one alone describes the asset event.
         """
-        run_facets = {**run_facets, **get_airflow_debug_facet()}
         for event_type in (RunState.START, RunState.COMPLETE):
             # Each event gets its own job, run, facets and datasets, so nothing done to one while it is emitted
-            # reaches the other
+            # reaches the other. The facets are built again rather than copied, which costs less for a large
+            # trigger payload.
+            run_facets = {**get_airflow_asset_event_run_facet(asset_event), **get_airflow_debug_facet()}
             self.emit(
                 RunEvent(
                     eventType=event_type,
                     eventTime=event_time.isoformat(),
                     job=self._build_job(job_name=job_name, job_type=_JOB_TYPE_ASSET_WATCHER),
-                    run=self._build_run(run_id=run_id, run_facets=copy.deepcopy(run_facets)),
+                    run=self._build_run(run_id=run_id, run_facets=run_facets),
                     inputs=[],
                     outputs=copy.deepcopy(outputs),
                     producer=_PRODUCER,
