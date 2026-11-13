@@ -737,6 +737,12 @@ metrics:
     legacy_name: "ti.deferred.{queue}.{dag_id}.{task_id}"
     name_variables: ["queue", "dag_id", "task_id"]
 
+  - name: "ti.awaiting_input"
+    description: "Number of tasks waiting for human input in a given Dag."
+    type: "gauge"
+    legacy_name: "ti.awaiting_input.{queue}.{dag_id}.{task_id}"
+    name_variables: ["queue", "dag_id", "task_id"]
+
   - name: "ol.event.size"
     description: "Size in bytes of an OpenLineage event by event type and operator."
     type: "gauge"
