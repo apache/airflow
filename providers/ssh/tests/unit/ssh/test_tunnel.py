@@ -19,6 +19,8 @@ from __future__ import annotations
 
 import socket
 import threading
+import time
+from typing import TYPE_CHECKING
 from unittest import mock
 
 import paramiko
@@ -26,6 +28,9 @@ import pytest
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.ssh.tunnel import SSHTunnel
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 @pytest.fixture
@@ -169,3 +174,57 @@ class TestSSHTunnel:
             tunnel._stop_forwarding()
             if tunnel._server_socket is not None:
                 tunnel._server_socket.close()
+
+
+def _wait_until(condition: Callable[[], bool], timeout: float = 5.0) -> bool:
+    """Return whether ``condition`` became true within ``timeout`` seconds, checking every 50 ms."""
+    end = time.monotonic() + timeout
+    while not condition():
+        if time.monotonic() >= end:
+            return False
+        threading.Event().wait(0.05)
+    return True
+
+
+def _round_trip(port: int, message: bytes) -> bytes:
+    with socket.create_connection(("localhost", port), timeout=5) as conn:
+        conn.sendall(message)
+        return conn.recv(100)
+
+
+class TestSSHTunnelForwarding:
+    @pytest.mark.usefixtures("over_1024_open_fds")
+    def test_forwards_with_descriptors_above_fd_setsize(self, in_process_ssh_client):
+        with SSHTunnel(in_process_ssh_client, "db.internal", 5432) as tunnel:
+            sequential = [_round_trip(tunnel.local_bind_port, b"ping-%d" % i) for i in range(5)]
+            concurrent = [
+                socket.create_connection(("localhost", tunnel.local_bind_port), timeout=5) for _ in range(5)
+            ]
+            try:
+                for i, conn in enumerate(concurrent):
+                    conn.sendall(b"pong-%d" % i)
+                replies = [conn.recv(100) for conn in concurrent]
+            finally:
+                for conn in concurrent:
+                    conn.close()
+
+        assert sequential == [b"ping-%d" % i for i in range(5)]
+        assert replies == [b"pong-%d" % i for i in range(5)]
+
+    @pytest.mark.parametrize("remote_closes", [False, True], ids=["client-closes", "remote-closes"])
+    def test_closed_connections_are_unregistered(
+        self, in_process_ssh_client, in_process_ssh_server, remote_closes
+    ):
+        in_process_ssh_server.close_forwarded_after_echo = remote_closes
+        with SSHTunnel(in_process_ssh_client, "db.internal", 5432) as tunnel:
+            with socket.create_connection(("localhost", tunnel.local_bind_port), timeout=5) as conn:
+                conn.sendall(b"ping")
+                assert conn.recv(100) == b"ping"
+                if remote_closes:
+                    # The tunnel closes the local end once the remote end closes the channel.
+                    assert conn.recv(100) == b""
+            selector = tunnel._selector
+            assert selector is not None
+            # The forwarding thread unregisters the connection asynchronously; only the listening
+            # socket and the shutdown socket stay registered.
+            assert _wait_until(lambda: len(selector.get_map()) == 2)
