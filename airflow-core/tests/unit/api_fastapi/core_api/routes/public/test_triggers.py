@@ -365,6 +365,29 @@ class TestGetTriggers:
         assert response.status_code == 200
         assert sorted(_name(t) for t in response.json()["triggers"]) == expected
 
+    def test_pagination_counts_multi_watcher_trigger_once(self, test_client, session, triggers):
+        _watcher(session, "second_failing", triggers["failing"])
+        session.commit()
+
+        response = test_client.get("/triggers", params={"order_by": "id"})
+        assert response.status_code == 200
+        expected_ids = [trigger["id"] for trigger in response.json()["triggers"]]
+        assert response.json()["total_entries"] == 5
+        assert len(expected_ids) == len(set(expected_ids)) == 5
+
+        paged_ids = []
+        for offset in range(5):
+            page = test_client.get(
+                "/triggers",
+                params={"order_by": "id", "limit": 1, "offset": offset},
+            )
+            assert page.status_code == 200
+            assert page.json()["total_entries"] == 5
+            assert len(page.json()["triggers"]) == 1
+            paged_ids.append(page.json()["triggers"][0]["id"])
+
+        assert paged_ids == expected_ids
+
     def test_filter_by_asset(self, test_client, triggers):
         response = test_client.get("/triggers", params={"asset_id": triggers["pending_asset"].id})
 
@@ -636,6 +659,26 @@ class TestGetTriggers:
     def test_should_respond_403_to_a_user_who_can_read_no_owner(self, unauthorized_test_client, triggers):
         assert unauthorized_test_client.get("/triggers").status_code == 403
         assert unauthorized_test_client.get(f"/triggers/{triggers['sensor'].id}").status_code == 403
+
+    @mock.patch(f"{BASE_AUTH}.get_authorized_dag_ids", autospec=True)
+    def test_large_authorized_dag_set_does_not_exceed_sql_parameter_limit(
+        self, mock_dag_ids, test_client, triggers
+    ):
+        authorized_dags = {f"synthetic_dag_{index}" for index in range(70_000)}
+        authorized_dags.add("dag_sensor")
+        mock_dag_ids.return_value = authorized_dags
+
+        response = test_client.get("/triggers")
+        assert response.status_code == 200
+        trigger_ids = {item["id"] for item in response.json()["triggers"]}
+        assert str(triggers["sensor"].id) in {str(value) for value in trigger_ids}
+        assert str(triggers["queued"].id) not in {str(value) for value in trigger_ids}
+
+        response = test_client.get(f"/triggers/{triggers['sensor'].id}")
+        assert response.status_code == 200
+
+        response = test_client.get(f"/triggers/{triggers['queued'].id}")
+        assert response.status_code == 404
 
 
 class TestGetTrigger:
