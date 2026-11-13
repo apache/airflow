@@ -427,6 +427,23 @@ manager, before sending the vote — should run against the source package in
    `gradle/wrapper/gradle-wrapper.properties` to fill in
    `<GRADLE-DISTRIBUTION-URL>` and `<GRADLE-DISTRIBUTION-SHA>`.
 
+   Run `gradle wrapper` with that same Gradle version. The task configures
+   `buildSrc`, and a different Gradle resolves a `kotlin-dsl` plugin version that
+   `verification-metadata.xml` does not pin, so strict verification fails before
+   the wrapper is written. If your installed Gradle differs, download the pinned
+   distribution, check it against the same SHA-256, and use it directly:
+
+   ```bash
+   curl -LO <GRADLE-DISTRIBUTION-URL>
+   echo "<GRADLE-DISTRIBUTION-SHA>  gradle-<GRADLE-VERSION>-bin.zip" | shasum -a 256 -c
+   unzip -q gradle-<GRADLE-VERSION>-bin.zip
+   cd apache-airflow-java-sdk-<VERSION>
+   ../gradle-<GRADLE-VERSION>/bin/gradle build
+   ```
+
+   That Gradle version must also support the JDK it runs on; for example,
+   Gradle 8.14 cannot run on JDK 26.
+
 6. **Staged-binary smoke test.** Resolve the staged Nexus artifacts from a
    throwaway project to confirm they're actually consumable, following the
    same pattern as the "Dry-run against a local repository" step: point a

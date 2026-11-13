@@ -1132,8 +1132,9 @@ Or if you just want to publish a few selected providers, you can run:
 > [Fixing released documentation](#fixing-released-documentation) in the Misc section below for
 > the `-docs` branch workaround.
 
-There is also a manual way of running the workflows (see at the end of the document, this should normally
-not be needed unless there is some problem with workflow automation above)
+You can also run each workflow by hand from the GitHub UI, as described in
+[Publishing the documentation by the release manager](../docs/README.md#publishing-the-documentation-by-the-release-manager).
+This should normally not be needed unless there is some problem with the workflow automation above.
 
 ## Prepare issue in GitHub to keep status of testing
 
@@ -2073,10 +2074,11 @@ at `apache/airflow`, so it also works for release-manager setups where the
 apache/airflow clone is configured as `origin`. Set tags for the providers in the
 repository.
 
-Sometimes in cases when there is a connectivity issue to GitHub, it might be possible that local tags get created
-and lead to annoying errors. The default behavior would be to clean such local tags up.
-
-If you want to disable this behavior, set the env **CLEAN_LOCAL_TAGS** to false.
+By default (`--clean-tags`), the command recreates tags that already exist and force-pushes them, so
+you can re-run it after a failed push. Don't re-run it after a successful push: it would replace every
+published tag with a new tag object and change the tag dates that the provider metadata uses as release
+dates. Pass `--no-clean-tags` (or set `CLEAN_TAGS=false`) to make it stop at the first tag that already
+exists locally.
 
 As when [pushing the RC tags](#push-the-rc-tags), check out the wave tag first — `tag-providers`
 tags `HEAD`, so the final tags must be created from the wave commit and not from whatever the
@@ -2176,7 +2178,7 @@ If the wave releases a provider for the first time, open the `apache/airflow-sit
 command fails otherwise, and lists the PR to merge when it completes - see
 [Update airflow-site index for new providers](#update-airflow-site-index-for-new-providers).
 
-If you need to exclude some providers from the documentation you need to add `--exclude-providers` flag
+If you need to exclude some providers from the documentation you need to add `--exclude-docs` flag
 with space separated list of excluded providers.
 
 ```shell script
@@ -2202,8 +2204,9 @@ Or if you just want to publish a few selected providers, you can run:
 > [Fixing released documentation](#fixing-released-documentation) in the Misc section below for
 > the `-docs` branch workaround.
 
-There is also a manual way of running the workflows (see at the end of the document, this should normally
-not be needed unless there is some problem with workflow automation above)
+You can also run each workflow by hand from the GitHub UI, as described in
+[Publishing the documentation by the release manager](../docs/README.md#publishing-the-documentation-by-the-release-manager).
+This should normally not be needed unless there is some problem with the workflow automation above.
 
 > [!NOTE]
 > The **Provider Registry** at `airflow.apache.org/registry/` is rebuilt automatically as part of the
