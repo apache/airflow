@@ -1,0 +1,20 @@
+{
+  "type": "object",
+  "required": ["kind", "title", "body"],
+  "additionalProperties": false,
+  "properties": {
+    "kind": {
+      "type": "string",
+      "enum": ["commit", "pull_request", "github_comment"],
+      "description": "What was drafted."
+    },
+    "title": {
+      "type": "string",
+      "description": "The commit subject or PR title, exactly as it would be used. Empty for a GitHub comment."
+    },
+    "body": {
+      "type": "string",
+      "description": "The commit message body, the PR description, or the full comment text, exactly as it would be posted."
+    }
+  }
+}

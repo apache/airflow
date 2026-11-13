@@ -1556,7 +1556,7 @@ repos:
         pass_filenames: false
         require_serial: true
       - id: check-eval-hash
-        name: Verify skill-eval ran on current AGENTS.md and cases
+        name: Verify skill-eval ran on current AGENTS.md, skills and cases
         env:
           PYTHONPYCACHEPREFIX: .build/pycache
         entry: ./scripts/ci/prek/check_eval_hash.py
@@ -1564,7 +1564,9 @@ repos:
         files: >
           (?x)
           ^AGENTS\.md$|
+          ^\.agents/skills/[^/]+/SKILL\.md$|
           ^dev/skill-evals/cases/|
+          ^dev/skill-evals/skills/|
           ^dev/skill-evals/last-eval-hash\.txt$
         pass_filenames: false
       - id: update-pyproject-toml

@@ -64,6 +64,9 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 AGENTS_SRC = REPO_ROOT / "AGENTS.md"
 CASES_DIR = SCRIPT_DIR / "cases"
 HASH_FILE = SCRIPT_DIR / "last-eval-hash.txt"
+# One suite per skill: cases/*.yaml, the output-schema.json its answers follow, and
+# the last-eval-hash.txt a SKILL_NAME run records.
+SKILL_EVALS_DIR = SCRIPT_DIR / "skills"
 
 # Tool state lives under .build (repo-scoped, established cleanup culture);
 # per-run reports go to files/ per the AGENTS.md output convention.
@@ -72,7 +75,7 @@ RESULTS_FILE = REPO_ROOT / "files" / "skill-evals" / "results.json"
 
 # Shared with the check-eval-hash prek hook so recorded and verified hashes can't drift.
 sys.path.insert(0, str(REPO_ROOT / "scripts" / "ci" / "prek"))
-from check_eval_hash import compute_guidance_hash, write_recorded_hash  # noqa: E402
+from check_eval_hash import compute_guidance_hash, compute_skill_hash, write_recorded_hash  # noqa: E402
 
 OUTPUT_FORMAT = {
     "type": "json_schema",
@@ -229,13 +232,19 @@ def remove_worktree(wt_dir: Path) -> None:
     run(["git", "-C", str(REPO_ROOT), "worktree", "remove", "--force", str(wt_dir)])
 
 
-def build_provider(label: str, working_dir: Path, model: str | None, skill_name: str | None = None) -> dict:
+def build_provider(
+    label: str,
+    working_dir: Path,
+    model: str | None,
+    skill_name: str | None = None,
+    output_format: dict = OUTPUT_FORMAT,
+) -> dict:
     config: dict = {
         "apiKeyRequired": False,
         "setting_sources": ["project"],
         "append_allowed_tools": ["Read", "Grep", "Glob"],
         "working_dir": str(working_dir),
-        "output_format": OUTPUT_FORMAT,
+        "output_format": output_format,
     }
     if model:
         config["model"] = model
@@ -245,7 +254,11 @@ def build_provider(label: str, working_dir: Path, model: str | None, skill_name:
 
 
 def build_codex_provider(
-    label: str, working_dir: Path, model: str | None, detect_skill_usage: bool = False
+    label: str,
+    working_dir: Path,
+    model: str | None,
+    detect_skill_usage: bool = False,
+    output_format: dict = OUTPUT_FORMAT,
 ) -> dict:
     config = {
         "approval_policy": "never",
@@ -254,7 +267,7 @@ def build_codex_provider(
             "project_doc_max_bytes": CODEX_PROJECT_DOC_MAX_BYTES,
         },
         "network_access_enabled": False,
-        "output_schema": OUTPUT_FORMAT["schema"],
+        "output_schema": output_format["schema"],
         "sandbox_mode": "read-only",
         "web_search_mode": "disabled",
         "working_dir": str(working_dir),
@@ -307,6 +320,23 @@ def main() -> int:
             print(f"Error: {skill_src} not found", file=sys.stderr)
             return 1
 
+    # A skill with its own suite runs only that suite's cases, against its own output
+    # schema, and records its own hash. Without one, SKILL_NAME runs the AGENTS.md cases.
+    skill_suite = SKILL_EVALS_DIR / skill_name if skill_name else None
+    if skill_suite is not None and not (skill_suite / "cases").is_dir():
+        skill_suite = None
+    output_format = OUTPUT_FORMAT
+    cases_glob = f"{CASES_DIR}/*.yaml"
+    hash_file = HASH_FILE
+    if skill_suite is not None:
+        schema_file = skill_suite / "output-schema.json"
+        if not schema_file.is_file():
+            print(f"Error: {schema_file} not found — every skill suite needs one", file=sys.stderr)
+            return 1
+        output_format = {"type": "json_schema", "schema": json.loads(schema_file.read_text())}
+        cases_glob = f"{skill_suite}/cases/*.yaml"
+        hash_file = skill_suite / "last-eval-hash.txt"
+
     # Parse flags — argv (hook entry args) plus single-value env knobs,
     # since `prek run` can't forward arguments. No filter knob on purpose:
     # a lingering export must not be able to change what the proof claims.
@@ -332,7 +362,10 @@ def main() -> int:
         check_claude_md_symlink(base_branch)
 
     # Hash before building arms so edits made mid-run aren't recorded as tested.
-    guidance_hash = compute_guidance_hash(AGENTS_SRC, CASES_DIR)
+    if skill_suite is not None and skill_src is not None:
+        guidance_hash = compute_skill_hash(skill_src, skill_suite)
+    else:
+        guidance_hash = compute_guidance_hash(AGENTS_SRC, CASES_DIR)
 
     # Temp dir for config and worktrees
     work_dir = Path(tempfile.mkdtemp())
@@ -387,8 +420,10 @@ def main() -> int:
         # Generate config (JSON — valid promptfoo config, keeps the script stdlib-only)
         def provider(label: str, arm: Path, selected_skill: str | None = None) -> dict:
             if runtime == "codex":
-                return build_codex_provider(label, arm, model, detect_skill_usage=bool(selected_skill))
-            return build_provider(label, arm, model, selected_skill)
+                return build_codex_provider(
+                    label, arm, model, detect_skill_usage=bool(selected_skill), output_format=output_format
+                )
+            return build_provider(label, arm, model, selected_skill, output_format=output_format)
 
         providers = [provider("main", arm_main, skill_name)]
         if arm_working:
@@ -404,7 +439,7 @@ def main() -> int:
             "prompts": ["{{request}}"],
             "providers": providers,
             "defaultTest": default_test,
-            "tests": f"file://{SCRIPT_DIR}/cases/*.yaml",
+            "tests": f"file://{cases_glob}",
         }
         config_path = work_dir / "promptfooconfig.json"
         config_path.write_text(json.dumps(config, indent=2))
@@ -441,9 +476,9 @@ def main() -> int:
         partial_run = any(arg.startswith("--filter") for arg in promptfoo_args)
         provider_errors = count_provider_errors(RESULTS_FILE)
         if result.returncode in (0, 100) and not partial_run and not provider_errors:
-            write_recorded_hash(guidance_hash, HASH_FILE)
+            write_recorded_hash(guidance_hash, hash_file, skill_name if skill_suite is not None else None)
             print()
-            print(f"Recorded eval run in {HASH_FILE.relative_to(REPO_ROOT)} — commit it with your change.")
+            print(f"Recorded eval run in {hash_file.relative_to(REPO_ROOT)} — commit it with your change.")
         elif partial_run:
             print()
             print("Partial run (--filter*) — hash not recorded; run the full case set to update it.")
