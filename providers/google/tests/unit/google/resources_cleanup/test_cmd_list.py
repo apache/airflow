@@ -24,7 +24,9 @@ import pytest
 from airflow_google_provider_resource_cleanup.commands import cmd_list
 from airflow_google_provider_resource_cleanup.commands.cmd_list import (
     GCPProjectConfig,
+    _get_archived_dataflow_job_names,
     _print_resources,
+    _remove_archived_dataflow_jobs,
     _sync_resources,
     handle_list,
 )
@@ -34,11 +36,15 @@ from airflow_google_provider_resource_cleanup.commands.cmd_list import (
     ("asset_type", "expected_asset_arg"),
     [
         (None, ""),
+        ("dataflow", ' --asset-types="dataflow.googleapis.com.*"'),
         ("compute", ' --asset-types="compute.googleapis.com.*"'),
     ],
 )
 def test_sync_resources(asset_type, expected_asset_arg):
-    with patch.object(cmd_list, "run_command") as mock_run:
+    with (
+        patch.object(cmd_list, "run_command") as mock_run,
+        patch.object(cmd_list, "_remove_archived_dataflow_jobs") as mock_remove_archived,
+    ):
         resource_file = Path("/tmp/res.json")
         _sync_resources("test-project", resource_file, asset_type)
 
@@ -48,6 +54,59 @@ def test_sync_resources(asset_type, expected_asset_arg):
             f' "{str(resource_file)}"'
         )
         mock_run.assert_called_once_with(expected_cmd)
+        if asset_type in (None, "dataflow"):
+            mock_remove_archived.assert_called_once_with("test-project", resource_file)
+        else:
+            mock_remove_archived.assert_not_called()
+
+
+def test_get_archived_dataflow_job_names():
+    with patch.object(cmd_list.subprocess, "run") as mock_run:
+        mock_run.return_value.stdout = (
+            "//dataflow.googleapis.com/jobs/one\n\n//dataflow.googleapis.com/jobs/two\n"
+        )
+
+        result = _get_archived_dataflow_job_names("test-project")
+
+    assert result == {
+        "//dataflow.googleapis.com/jobs/one",
+        "//dataflow.googleapis.com/jobs/two",
+    }
+    mock_run.assert_called_once_with(
+        [
+            "gcloud",
+            "asset",
+            "search-all-resources",
+            "--scope=projects/test-project",
+            "--asset-types=dataflow.googleapis.com/Job",
+            "--read-mask=name,versionedResources",
+            "--filter=versionedResources.resource.jobMetadata.userDisplayProperties.archived=true",
+            "--format=value(name)",
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+
+def test_remove_archived_dataflow_jobs(tmp_path, capsys):
+    resource_file = tmp_path / "resources.json"
+    resources = [
+        {"name": "//dataflow.googleapis.com/jobs/archived", "assetType": "dataflow.googleapis.com/Job"},
+        {"name": "//dataflow.googleapis.com/jobs/active", "assetType": "dataflow.googleapis.com/Job"},
+        {"name": "//compute.googleapis.com/instances/one", "assetType": "compute.googleapis.com/Instance"},
+    ]
+    cmd_list.dump_json(resource_file, resources)
+
+    with patch.object(
+        cmd_list,
+        "_get_archived_dataflow_job_names",
+        return_value={"//dataflow.googleapis.com/jobs/archived"},
+    ):
+        _remove_archived_dataflow_jobs("test-project", resource_file)
+
+    assert cmd_list.load_json(resource_file) == resources[1:]
+    assert "Excluded 1 already archived Dataflow job(s)." in capsys.readouterr().out
 
 
 def test_print_resources(capsys, config_mock):

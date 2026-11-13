@@ -18,18 +18,48 @@
 from __future__ import annotations
 
 import argparse
+import subprocess
 from pathlib import Path
 
 import airflow_google_provider_resource_cleanup.constants as c
 from airflow_google_provider_resource_cleanup.helpers import (
     GCPProjectConfig,
     check_white_list,
+    dump_json,
     ensure_path,
     get_resources_file,
     init_directories,
     load_json,
     run_command,
 )
+
+DATAFLOW_JOB_ASSET_TYPE = "dataflow.googleapis.com/Job"
+
+
+def _get_archived_dataflow_job_names(project_id: str) -> set[str]:
+    command = [
+        "gcloud",
+        "asset",
+        "search-all-resources",
+        f"--scope=projects/{project_id}",
+        f"--asset-types={DATAFLOW_JOB_ASSET_TYPE}",
+        "--read-mask=name,versionedResources",
+        "--filter=versionedResources.resource.jobMetadata.userDisplayProperties.archived=true",
+        "--format=value(name)",
+    ]
+    result = subprocess.run(command, check=True, capture_output=True, text=True)
+    return {name for name in result.stdout.splitlines() if name}
+
+
+def _remove_archived_dataflow_jobs(project_id: str, resource_file: Path) -> None:
+    resources = load_json(resource_file)
+    if not isinstance(resources, list):
+        raise TypeError(f'Expected resources file "{resource_file}" to contain a JSON list.')
+
+    archived_job_names = _get_archived_dataflow_job_names(project_id)
+    resources = [resource for resource in resources if resource.get("name") not in archived_job_names]
+    dump_json(resource_file, resources)
+    print(f"Excluded {len(archived_job_names)} already archived Dataflow job(s).")
 
 
 def _sync_resources(system_tests_project, resource_file: Path, resource_type: str | None = None):
@@ -46,6 +76,8 @@ def _sync_resources(system_tests_project, resource_file: Path, resource_type: st
         )
 
     run_command(cmd)
+    if resource_type in (None, "dataflow"):
+        _remove_archived_dataflow_jobs(system_tests_project, resource_file)
 
 
 def _print_resources(resources_file, cfg: GCPProjectConfig):
