@@ -536,6 +536,33 @@ class TestImapHook:
         assert attachments[0][0] == decoded_name
 
     @patch(imaplib_string)
+    def test_retrieve_mail_attachments_from_mail_with_non_utf8_body(self, mock_imaplib):
+        mock_conn = _create_fake_imap(mock_imaplib, with_mail=True)
+        mock_conn.fetch.return_value = (
+            "OK",
+            [
+                (
+                    b"",
+                    b"Content-Type: multipart/mixed; boundary=123\r\n\r\n--123\r\n"
+                    b"Content-Type: text/plain; charset=iso-8859-1\r\n"
+                    b"Content-Transfer-Encoding: 8bit\r\n\r\nd\xe9j\xe0 envoy\xe9\r\n--123\r\n"
+                    b'Content-Disposition: attachment; filename="test1.csv"\r\n'
+                    b"Content-Transfer-Encoding: base64\r\n\r\nSWQsTmFtZQoxLEZlbGl4\r\n--123\r\n"
+                    b"Content-Type: text/plain; charset=iso-8859-1\r\n"
+                    b'Content-Disposition: attachment; filename="notes.txt"\r\n'
+                    b"Content-Transfer-Encoding: 8bit\r\n\r\nd\xe9j\xe0\r\n--123--",
+                )
+            ],
+        )
+
+        with ImapHook() as imap_hook:
+            csv_attachments = imap_hook.retrieve_mail_attachments(name="test1.csv")
+            text_attachments = imap_hook.retrieve_mail_attachments(name="notes.txt")
+
+        assert csv_attachments == [("test1.csv", b"Id,Name\n1,Felix")]
+        assert text_attachments == [("notes.txt", b"d\xe9j\xe0")]
+
+    @patch(imaplib_string)
     def test_has_mail_attachment_with_rfc2047_encoded_filename(self, mock_imaplib):
         encoded_name = "=?UTF-8?B?0YLQtdGB0YIuY3N2?="
         _create_fake_imap(mock_imaplib, with_mail=True, attachment_name=encoded_name)

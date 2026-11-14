@@ -279,7 +279,10 @@ class ImapHook(BaseHook):
             raise RuntimeError("The 'mail_client' should be initialized before!")
         _, data = self.mail_client.fetch(mail_id, "(RFC822)")
         mail_body = data[0][1]  # type: ignore # The mail body is always in this specific location
-        mail_body_str = mail_body.decode("utf-8")  # type: ignore
+        # A raw message is not guaranteed to be UTF-8, e.g. an 8bit text part in latin-1.
+        # Keep undecodable bytes as surrogates, as the email package does for bytes input,
+        # so that such a mail does not abort the processing of the whole folder.
+        mail_body_str = mail_body.decode("utf-8", errors="surrogateescape")  # type: ignore
         return mail_body_str
 
     def _check_mail_body(
