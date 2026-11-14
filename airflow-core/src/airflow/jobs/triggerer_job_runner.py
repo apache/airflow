@@ -1347,6 +1347,7 @@ class TriggerDetails(TypedDict):
 
     task: asyncio.Task
     is_watcher: bool
+    for_task: bool
     name: str
     events: int
 
@@ -1714,6 +1715,7 @@ class TriggerRunner:
                     name=trigger_name,
                 ),
                 "is_watcher": isinstance(trigger_instance, BaseEventTrigger),
+                "for_task": workload.ti is not None,
                 "name": trigger_name,
                 "events": 0,
             }
@@ -1780,6 +1782,9 @@ class TriggerRunner:
                         trigger_id=trigger_id,
                     )
                     # TODO: better formatting of the exception?
+                    self.failed_triggers.append((trigger_id, saved_exc))
+                elif saved_exc is not None and not details["for_task"]:
+                    # An event already resumed a deferred task, but an asset watcher is re-created
                     self.failed_triggers.append((trigger_id, saved_exc))
                 del self.triggers[trigger_id]
             await asyncio.sleep(0)
