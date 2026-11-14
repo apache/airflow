@@ -740,15 +740,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                 self.running_triggers.discard(id)
                 self.cancelling_triggers.discard(id)
                 self.releasing_triggers.discard(id)
-                if factory := self.logger_cache.pop(id, None):
-                    try:
-                        factory.upload_to_remote()
-                    except Exception:
-                        log.exception("Failed to upload trigger logs to remote", trigger_id=id)
-                    finally:
-                        # Close the FD explicitly even if upload raised, otherwise the file
-                        # handle leaks for every failed upload.
-                        factory.close()
+                self.finalize_trigger_log(id)
 
             self.check_for_unhandled_triggers(msg.running_ids)
 
@@ -937,6 +929,26 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             with attempt, create_session() as session:
                 Trigger.clean_unused(session=session)
 
+    def finalize_trigger_log(self, trigger_id: int) -> None:
+        """
+        Upload and close the log file of a trigger that no longer runs here.
+
+        Every path that drops an id from ``running_triggers`` has to call it: re-creation
+        reuses the log path, so a leftover entry is lost.
+        """
+        if factory := self.logger_cache.pop(trigger_id, None):
+            try:
+                factory.upload_to_remote()
+            except Exception:
+                log.exception("Failed to upload trigger logs to remote", trigger_id=trigger_id)
+            finally:
+                # Close the FD explicitly even if upload raised, otherwise the file handle
+                # leaks for every failed upload. close() flushes, so it can raise too.
+                try:
+                    factory.close()
+                except Exception:
+                    log.exception("Failed to close trigger log file", trigger_id=trigger_id)
+
     def check_for_unhandled_triggers(self, running_ids: set[int] | None) -> None:
         """
         Re-create triggers we track as running that the runner has no coroutine for.
@@ -953,6 +965,8 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         self.running_triggers -= unhandled
         self.cancelling_triggers -= unhandled
         self.releasing_triggers -= unhandled
+        for trigger_id in unhandled:
+            self.finalize_trigger_log(trigger_id)
         stats.incr("triggers.state_mismatch", len(unhandled), tags=prune_dict({"team_name": self.team_name}))
 
     def handle_failed_triggers(self):

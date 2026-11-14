@@ -4523,6 +4523,36 @@ class TestCheckForUnhandledTriggers:
 
         assert build.call_args.args[1] == {2, 3}
 
+    def test_recovered_trigger_log_is_finalized(self, jobless_supervisor, mocker):
+        """Re-creation reuses the log path, so recovery has to upload and close it first."""
+        mocker.patch("airflow.jobs.triggerer_job_runner.stats.incr", autospec=True)
+        factory = MagicMock(spec=TriggerLoggingFactory)
+        jobless_supervisor.logger_cache[42] = factory
+        jobless_supervisor.running_triggers = {42}
+
+        jobless_supervisor.check_for_unhandled_triggers(set())
+
+        factory.upload_to_remote.assert_called_once()
+        factory.close.assert_called_once()
+        assert 42 not in jobless_supervisor.logger_cache
+
+    def test_recovery_survives_a_log_file_that_cannot_be_closed(self, jobless_supervisor, mocker):
+        """An unwritable log file must not strand the remaining ids, nor reach the runner."""
+        incr = mocker.patch("airflow.jobs.triggerer_job_runner.stats.incr", autospec=True)
+        factories = {}
+        for trigger_id in (1, 2):
+            factory = MagicMock(spec=TriggerLoggingFactory)
+            factory.close.side_effect = OSError("no space left on device")
+            factories[trigger_id] = factory
+        jobless_supervisor.logger_cache.update(factories)
+        jobless_supervisor.running_triggers = {1, 2}
+
+        jobless_supervisor.check_for_unhandled_triggers(set())
+
+        assert not jobless_supervisor.logger_cache
+        assert all(factory.close.called for factory in factories.values())
+        assert mocker.call("triggers.state_mismatch", 2, tags={}) in incr.call_args_list
+
     def test_message_without_running_ids_is_ignored(self, jobless_supervisor):
         """``None`` means the message carried no information, which must not read as "nothing running"."""
         jobless_supervisor.running_triggers = {1, 2, 3}
