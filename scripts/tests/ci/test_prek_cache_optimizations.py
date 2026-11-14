@@ -271,6 +271,7 @@ def test_selected_hooks_match_the_hooks_each_job_runs():
         "ci-arm.yml:mypy-providers",
         "generate-constraints.yml:generate-constraints-matrix",
         "prod-packages-build.yml:build-prod-packages",
+        "test-providers-branch-tip.yml:providers-branch-tip-compatibility-tests",
         "test-providers.yml:prepare-install-verify-provider-distributions",
         "test-providers.yml:providers-compatibility-tests-matrix",
     ]

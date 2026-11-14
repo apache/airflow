@@ -4164,6 +4164,104 @@ def test_provider_compatibility_matrix_excludes_current_unreleased_version(mock_
 
 
 @pytest.mark.parametrize(
+    ("files", "github_event", "pr_labels", "default_branch", "expected"),
+    [
+        pytest.param((), GithubEvents.SCHEDULE, (), "main", "true", id="Canary run on main"),
+        pytest.param(
+            (), GithubEvents.SCHEDULE, (), "v3-4-test", "false", id="Canary run on a release branch"
+        ),
+        pytest.param(
+            ("providers/ftp/src/airflow/providers/ftp/hooks/ftp.py",),
+            GithubEvents.PULL_REQUEST,
+            ("full tests needed",),
+            "main",
+            "true",
+            id="Full tests needed label",
+        ),
+        pytest.param(
+            (".github/workflows/test-providers-branch-tip.yml",),
+            GithubEvents.PULL_REQUEST,
+            (),
+            "main",
+            "true",
+            id="Change to the branch tip workflow",
+        ),
+        pytest.param(
+            ("providers/ftp/src/airflow/providers/ftp/hooks/ftp.py",),
+            GithubEvents.PULL_REQUEST,
+            (),
+            "main",
+            "false",
+            id="Provider change",
+        ),
+        pytest.param(
+            ("scripts/ci/docker-compose/base.yml",),
+            GithubEvents.PULL_REQUEST,
+            (),
+            "main",
+            "false",
+            id="Environment file that forces full tests",
+        ),
+    ],
+)
+def test_run_providers_branch_tip_compatibility_tests(
+    files: tuple[str, ...],
+    github_event: GithubEvents,
+    pr_labels: tuple[str, ...],
+    default_branch: str,
+    expected: str,
+):
+    stderr = SelectiveChecks(
+        files=files,
+        commit_ref=NEUTRAL_COMMIT,
+        github_event=github_event,
+        pr_labels=pr_labels,
+        default_branch=default_branch,
+    )
+    assert_outputs_are_printed({"run-providers-branch-tip-compatibility-tests": expected}, str(stderr))
+
+
+def _build_compat_entry(airflow_version: str, remove_providers: str = "") -> dict[str, str]:
+    return {
+        "python-version": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
+        "airflow-version": airflow_version,
+        "remove-providers": remove_providers,
+        "run-unit-tests": "true",
+    }
+
+
+@pytest.mark.parametrize(
+    ("matrix", "expected"),
+    [
+        pytest.param(
+            [_build_compat_entry("3.3.2"), _build_compat_entry("3.4.0", remove_providers="edge3")],
+            _build_compat_entry("3.4.0", remove_providers="edge3"),
+            id="Latest release",
+        ),
+        pytest.param(
+            [_build_compat_entry("3.10.1"), _build_compat_entry("3.9.4")],
+            _build_compat_entry("3.10.1"),
+            id="Versions compare as numbers",
+        ),
+        pytest.param([], {}, id="No released version"),
+    ],
+)
+def test_providers_branch_tip_compatibility_tests_latest_release(
+    matrix: list[dict[str, str]], expected: dict[str, str], monkeypatch
+):
+    monkeypatch.setattr("airflow_breeze.utils.selective_checks.PROVIDERS_COMPATIBILITY_TESTS_MATRIX", matrix)
+    stderr = SelectiveChecks(
+        files=(),
+        commit_ref=NEUTRAL_COMMIT,
+        github_event=GithubEvents.PULL_REQUEST,
+        default_branch="main",
+    )
+    assert_outputs_are_printed(
+        {"providers-branch-tip-compatibility-tests-latest-release": json.dumps(expected)}, str(stderr)
+    )
+
+
+@pytest.mark.parametrize(
     ("files", "expected_outputs", "default_branch", "pr_labels"),
     [
         pytest.param(

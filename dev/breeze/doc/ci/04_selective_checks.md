@@ -533,6 +533,14 @@ together using `pytest-xdist` (pytest-xdist distributes the tests among parallel
   the tests: the job installs the prek hooks on the host before the sources are hidden. Such a change cannot change their result: a Task SDK change selects all providers,
   but the compatibility tests install the released Task SDK. The other provider test jobs still run.
   Full-test runs and the `upgrade to newer dependencies` case run them as before.
+* The provider branch tip compatibility tests (`Provider branch tip compatibility tests`) run the provider
+  tests from `main` against Airflow built from the tips of the release branches, the code of the next
+  Airflow release. Selective checks pass the latest release in the compatibility matrix; the job lists the
+  `vX-Y-test` branches of the repository and tests those whose `X.Y` is at least the `X.Y` of that release
+  and that have a `constraints-X-Y` branch. A branch tip moves independently of the pull request, so the
+  tests run only on `main`: on canary runs, with the `full tests needed` label, and when
+  `.github/workflows/test-providers-branch-tip.yml` changes. Like `run-openlineage-e2e-compat-tests`, the
+  output ignores `full_tests_needed`.
 * `PROD Image building` is enabled when kubernetes tests are run.
 * `Generate constraints` runs when the PROD image is built, because that build reads the
   `constraints-source-providers` file, or when `generate-pypi-constraints` is on. The PyPI constraints and
@@ -796,6 +804,7 @@ GitHub Actions to pass the list of parameters to a command to execute
 | postgres-exclude                                        | Which versions of Postgres to exclude for tests as JSON array                                           | []                                       |      |
 | postgres-versions                                       | Which versions of Postgres to use for tests as JSON array                                               | \['12'\]                                 |      |
 | prod-image-build                                        | Whether PROD image build is needed                                                                      | true                                     |      |
+| providers-branch-tip-compatibility-tests-latest-release | The latest release in the compatibility matrix (airflow_version, python_version, removed_providers): the release branch tip tests cover the vX-Y-test branches from its X.Y on | \{\}                                     |      |
 | providers-compatibility-tests-matrix                    | Matrix of providers compatibility tests: (python_version, airflow_version, removed_providers). Excludes unbuilt python versions and the entry whose airflow_version equals the current branch version (unreleased on a vX-Y-test branch until GA) | \[{}\]                                   |      |
 | providers-test-types-list-as-strings-in-json            | Which test types should be run for unit tests for providers                                             | Providers Providers\[-google\]           | *    |
 | providers-split-test-types-list-as-strings-in-json      | Provider test types for the jobs running them in parallel in the CI image (one per provider on RunsOn)  | Providers Providers\[-google\]           | *    |
@@ -815,6 +824,7 @@ GitHub Actions to pass the list of parameters to a command to execute
 | run-kubernetes-tests                                    | Whether Kubernetes tests should be run ("true"/"false")                                                 | true                                     |      |
 | run-lang-sdk-xcom-e2e-tests                             | Whether language SDK XCom backend e2e tests should be run — on coordinator-side XCom backend, base XCom class, object storage backend, or the mode's compose override/suite changes ("true"/"false") | true                                     |      |
 | run-mypy                                                | Whether mypy check is supposed to run in this build                                                     | true                                     |      |
+| run-providers-branch-tip-compatibility-tests            | Whether the provider tests from main run against Airflow built from the release branch tips: canary runs, the `full tests needed` label, or a change to their workflow; only on main, off on component branches | false                                    |      |
 | run-providers-compatibility-tests                       | Whether the provider tests run against released Airflow versions: false when every changed file is hidden from them (Task SDK or core Python sources, Task SDK tests, their docs); off on component branches | true                                     |      |
 | run-shared-distributions-tests                          | Whether the shared distributions tests run: `shared/`, `devel-common/`, `dev/mypy/`, the root `pyproject.toml` or `uv.lock` changed; off on component branches | true                                     |      |
 | run-system-tests                                        | Whether system tests should be run ("true"/"false")                                                     | true                                     |      |

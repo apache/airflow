@@ -1,0 +1,267 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+---
+# Runs the provider tests from main against Airflow built from the tips of the release branches, the
+# code of the next Airflow release before it is released. The compatibility tests of
+# `test-providers.yml` only cover released versions from PyPI.
+#
+# Each branch tip is resolved to one commit for the whole run, and built into wheels once, the way a
+# release is built (with the compiled UI). The test jobs install those wheels from `dist`, so the resolver
+# cannot replace them with a released Airflow of the same version number.
+name: Provider branch tip compatibility tests
+
+permissions:
+  contents: read
+on:  # yamllint disable-line rule:truthy
+  workflow_call:
+    inputs:
+      runners:
+        description: "The array of labels (in json form) determining runners."
+        required: true
+        type: string
+      platform:
+        description: "Platform for the build - 'linux/amd64' or 'linux/arm64'"
+        required: true
+        type: string
+      latest-release:
+        description: >
+          JSON object of the latest Airflow release in the compatibility matrix (airflow-version,
+          python-version, remove-providers). The vX-Y-test branches from its X.Y on are tested.
+        required: true
+        type: string
+      providers-test-types-list-as-strings-in-json:
+        description: "List of parallel provider test types as string"
+        required: true
+        type: string
+      use-uv:
+        description: "Whether to use uv to build the image (true/false)"
+        required: true
+        type: string
+
+jobs:
+  find-branch-tips:
+    name: "Find release branch tips"
+    runs-on: ["ubuntu-slim"]
+    outputs:
+      targets: ${{ steps.find.outputs.targets }}
+    steps:
+      - name: "Resolve the release branches from the latest release on to their current commits"
+        id: find
+        shell: bash
+        env:
+          LATEST_RELEASE: ${{ inputs.latest-release }}
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: "apache/airflow"
+        run: |
+          set -euo pipefail
+          if ! jq -e 'has("airflow-version")' <<< "${LATEST_RELEASE}" > /dev/null; then
+            echo "No released Airflow version to start from"
+            echo "targets=[]" >> "${GITHUB_OUTPUT}"
+            exit 0
+          fi
+          gh api --paginate "repos/${REPOSITORY}/git/matching-refs/heads/constraints-" \
+            --jq '.[].ref | ltrimstr("refs/heads/")' > "${RUNNER_TEMP}/constraints-branches.txt"
+          # Versions compare as numbers: the API lists v2-10-test before v2-9-test.
+          gh api --paginate "repos/${REPOSITORY}/git/matching-refs/heads/v" --jq '.[]' \
+            | jq -s -c --argjson release "${LATEST_RELEASE}" --arg repository "${REPOSITORY}" \
+                --rawfile constraints "${RUNNER_TEMP}/constraints-branches.txt" '
+                ($release["airflow-version"] | split(".")[:2] | map(tonumber)) as $floor
+                | ($constraints | split("\n")) as $constraint_branches
+                | [ .[]
+                    | (.ref | capture("^refs/heads/v(?<major>[0-9]+)-(?<minor>[0-9]+)-test$")) as $v
+                    | select([($v.major | tonumber), ($v.minor | tonumber)] >= $floor)
+                    | {
+                        repository: $repository,
+                        branch: "v\($v.major)-\($v.minor)-test",
+                        sha: .object.sha,
+                        "airflow-constraints-reference": "constraints-\($v.major)-\($v.minor)",
+                        "python-version": $release["python-version"],
+                        "remove-providers": $release["remove-providers"]
+                      }
+                    | . + {"has-constraints": (."airflow-constraints-reference" | IN($constraint_branches[]))}
+                  ]' > "${RUNNER_TEMP}/branch-tips.json"
+          jq -r '.[] | select(."has-constraints") | "\(.branch): \(.sha)"' "${RUNNER_TEMP}/branch-tips.json"
+          # The constraints branch of a new release branch is created after the branch itself.
+          jq -r '.[] | select(."has-constraints" | not)
+            | "::notice::\(.branch): skipped, \(."airflow-constraints-reference") does not exist yet"' \
+            "${RUNNER_TEMP}/branch-tips.json"
+          # The branch of a release in the matrix always has its constraints branch, so not finding it
+          # means the lookup is broken, and passing would test nothing.
+          release_branch=$(jq -r '."airflow-version" | split(".") | "v\(.[0])-\(.[1])-test"' \
+            <<< "${LATEST_RELEASE}")
+          if ! jq -e --arg branch "${release_branch}" 'any(.[]; .branch == $branch and ."has-constraints")' \
+              "${RUNNER_TEMP}/branch-tips.json" > /dev/null; then
+            echo "::error::${release_branch} or its constraints branch not found in ${REPOSITORY}"
+            exit 1
+          fi
+          echo "targets=$(jq -c '[.[] | select(."has-constraints") | del(."has-constraints")]' \
+            "${RUNNER_TEMP}/branch-tips.json")" >> "${GITHUB_OUTPUT}"
+
+  build-airflow:
+    timeout-minutes: 30
+    name: "Build Airflow from ${{ matrix.target.branch }}"
+    needs: [find-branch-tips]
+    if: needs.find-branch-tips.outputs.targets != '[]'
+    runs-on: ${{ format(fromJSON(inputs.runners)[0], '8+16', '32+64') }}
+    strategy:
+      fail-fast: false
+      matrix:
+        target: ${{ fromJSON(needs.find-branch-tips.outputs.targets) }}
+    env:
+      GITHUB_REPOSITORY: ${{ github.repository }}
+      VERBOSE: "true"
+    steps:
+      - name: "Cleanup repo"
+        shell: bash
+        run: sudo rm -rf ${GITHUB_WORKSPACE}/*
+      # The branch is checked out in place of main, so the steps below run its own breeze and build
+      # scripts, which match its sources.
+      - name: "Checkout ${{ matrix.target.branch }} ( ${{ matrix.target.sha }} )"
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          repository: ${{ matrix.target.repository }}
+          ref: ${{ matrix.target.sha }}
+          persist-credentials: false
+      - name: "Install Breeze from ${{ matrix.target.branch }}"
+        uses: ./.github/actions/breeze
+      - name: "Prepare airflow and task-sdk distributions: wheel"
+        run: |
+          breeze release-management prepare-airflow-distributions --distribution-format wheel
+          breeze release-management prepare-task-sdk-distributions --distribution-format wheel
+      - name: "Check that the wheels were built from ${{ matrix.target.sha }}"
+        env:
+          SHA: ${{ matrix.target.sha }}
+        run: |
+          git_version=$(unzip -p dist/apache_airflow_core-*.whl airflow/git_version)
+          echo "git_version of the airflow-core wheel: ${git_version}"
+          if [[ "${git_version}" != ".release:${SHA}" ]]; then
+            echo "::error::Expected .release:${SHA}"
+            exit 1
+          fi
+      - name: "Upload airflow and task-sdk wheels"
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
+        with:
+          name: "airflow-wheels-${{ matrix.target.branch }}"
+          path: ./dist/*.whl
+          retention-days: '7'
+          if-no-files-found: 'error'
+
+  providers-branch-tip-compatibility-tests:
+    timeout-minutes: 80
+    # yamllint disable rule:line-length
+    name: Compat ${{ matrix.target.branch }}:P${{ matrix.target.python-version }}:${{ matrix.test-types.description }}
+    needs: [find-branch-tips, build-airflow]
+    runs-on: ${{ format(fromJSON(inputs.runners)[0], '8+16', '32+64') }}
+    strategy:
+      fail-fast: false
+      matrix:
+        target: ${{ fromJSON(needs.find-branch-tips.outputs.targets) }}
+        test-types: ${{ fromJSON(inputs.providers-test-types-list-as-strings-in-json) }}
+    env:
+      GITHUB_REPOSITORY: ${{ github.repository }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GITHUB_USERNAME: ${{ github.actor }}
+      INCLUDE_NOT_READY_PROVIDERS: "true"
+      PYTHON_MAJOR_MINOR_VERSION: "${{ matrix.target.python-version }}"
+      VERBOSE: "true"
+      CLEAN_AIRFLOW_INSTALLATION: "true"
+    steps:
+      - name: "Cleanup repo"
+        shell: bash
+        run: sudo rm -rf ${GITHUB_WORKSPACE}/*
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - name: "Prepare breeze & CI image: ${{ matrix.target.python-version }}"
+        uses: ./.github/actions/prepare_breeze_and_image
+        with:
+          platform: ${{ inputs.platform }}
+          python: ${{ matrix.target.python-version }}
+          use-uv: ${{ inputs.use-uv }}
+          make-mnt-writeable-and-cleanup: true
+      - name: "Install prek"
+        uses: ./.github/actions/install-prek
+        id: prek
+        with:
+          platform: ${{ inputs.platform }}
+          save-cache: false
+          # The hatch_build.py files of the fab, edge3 and common.ai providers run these hooks.
+          hooks: compile-fab-assets compile-edge-assets compile-common-ai-provider-assets
+      - name: "Cleanup dist files"
+        run: rm -fv ./dist/*
+      - name: "Prepare provider distributions: wheel"
+        run: >
+          breeze release-management prepare-provider-distributions --include-not-ready-providers
+          --distribution-format wheel --skip-tag-check
+      - name: "Remove incompatible ${{ matrix.target.branch }} provider distributions"
+        env:
+          REMOVE_PROVIDERS: ${{ matrix.target.remove-providers }}
+        run: |
+          for provider in ${REMOVE_PROVIDERS}; do
+            echo "Removing incompatible provider: ${provider}"
+            rm -vf dist/apache_airflow_providers_${provider/./_}-*
+          done
+        if: matrix.target.remove-providers != ''
+      - name: "Download airflow and task-sdk wheels of ${{ matrix.target.branch }}"
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333  # v8.0.2
+        with:
+          name: "airflow-wheels-${{ matrix.target.branch }}"
+          path: ./dist
+      - name: Check amount of disk space available
+        run: df -H
+        shell: bash
+      # A branch tip can have the version number of a released Airflow, so only git_version tells which
+      # one is installed. The tests below install Airflow the same way and hide their output when they
+      # pass. No --backend here: breeze remembers the last one used, and the tests below take it.
+      - name: "Check that Airflow installed from the wheels was built from ${{ matrix.target.sha }}"
+        env:
+          AIRFLOW_CONSTRAINTS_REFERENCE: "${{ matrix.target.airflow-constraints-reference }}"
+          SHA: ${{ matrix.target.sha }}
+        run: |
+          breeze shell --quiet \
+            --use-distributions-from-dist \
+            --distribution-format wheel \
+            --use-airflow-version wheel \
+            --airflow-constraints-reference "${AIRFLOW_CONSTRAINTS_REFERENCE}" \
+            --install-airflow-with-constraints \
+            --providers-skip-constraints \
+            'python -c "import importlib.metadata as m, importlib.util as u, pathlib as p; print(\"Installed apache-airflow-core\", m.version(\"apache-airflow-core\"), \"git_version:\", (p.Path(u.find_spec(\"airflow\").origin).parent / \"git_version\").read_text())"' \
+            | tee "${RUNNER_TEMP}/installed-airflow.txt"
+          if ! grep -q "^Installed apache-airflow-core .* git_version: \.release:${SHA}" \
+              "${RUNNER_TEMP}/installed-airflow.txt"; then
+            echo "::error::Expected Airflow installed from the wheels to be built from ${SHA}"
+            exit 1
+          fi
+      - name: >
+          Run provider unit tests on ${{ matrix.target.branch }} ( ${{ matrix.target.sha }} ):Python
+          ${{ matrix.target.python-version }}:${{ matrix.test-types.description }}
+        env:
+          PROVIDERS_TEST_TYPES: "${{ matrix.test-types.test_types }}"
+          AIRFLOW_CONSTRAINTS_REFERENCE: "${{ matrix.target.airflow-constraints-reference }}"
+          REMOVE_PROVIDERS: "${{ matrix.target.remove-providers }}"
+        run: >
+          breeze testing providers-tests --run-in-parallel
+          --parallel-test-types "${PROVIDERS_TEST_TYPES}"
+          --use-distributions-from-dist
+          --distribution-format wheel
+          --use-airflow-version wheel
+          --airflow-constraints-reference "${AIRFLOW_CONSTRAINTS_REFERENCE}"
+          --install-airflow-with-constraints
+          --providers-skip-constraints
+          --skip-providers "${REMOVE_PROVIDERS}"
