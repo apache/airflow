@@ -63,7 +63,7 @@ Body: {{ task.body }}
 Options: {{ task.options }}
 Is Multiple Option: {{ task.multiple }}
 Default Options: {{ task.defaults }}
-Params: {{ task.params }}
+Params: {{ task.hitl_params }}
 """
 )
 hitl_success_callback = LocalLogNotifier(

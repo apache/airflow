@@ -243,7 +243,9 @@ class HITLOperator(BaseOperator):
     :param multiple: Whether the user can select one or multiple options.
     :param params: dictionary of parameter definitions that are in the format of Dag params such that
         a Form Field can be rendered. Entered data is validated (schema, required fields) like for a Dag run
-        and added to XCom of the task result.
+        and added to XCom of the task result. The fields are kept in ``hitl_params``, not in the task's
+        ``params``: they are filled in after the task starts, so they are not validated when it starts
+        and are not part of ``{{ params }}``.
     :param response_timeout: Maximum time to wait for a human response. On Airflow 3.3+ this is
         enforced by the scheduler's ``awaiting_input`` timeout sweep; on older versions it is passed
         to the triggerer. This is separate from ``execution_timeout``, which controls the execution
@@ -291,14 +293,18 @@ class HITLOperator(BaseOperator):
         self.defaults = [defaults] if isinstance(defaults, str) else defaults
         self.multiple = multiple
 
-        self.params: ParamsDict = params if isinstance(params, ParamsDict) else ParamsDict(params or {})
+        hitl_params = params if isinstance(params, ParamsDict) else ParamsDict(params or {})
         if hasattr(ParamsDict, "filter_params_by_source"):
             # Params that exist only in Dag level does not make sense to appear in HITLOperator
-            self.params = ParamsDict.filter_params_by_source(self.params, source="task")
-        elif self.params:
+            hitl_params = ParamsDict.filter_params_by_source(hitl_params, source="task")
+        elif hitl_params:
             self.log.debug(
                 "ParamsDict.filter_params_by_source not available; HITLOperator will also include Dag level params."
             )
+        # The form fields are filled in after the task starts, so they are kept out of the task's params:
+        # the Task SDK validates every task param when it builds the task context, before execute() runs.
+        self.hitl_params: ParamsDict = hitl_params
+        self.params = ParamsDict()
 
         self.notifiers: Sequence[BaseNotifier] = (
             [notifiers] if isinstance(notifiers, BaseNotifier) else notifiers or []
@@ -344,7 +350,7 @@ class HITLOperator(BaseOperator):
 
     def validate_params(self) -> None:
         """
-        Validate the `params` attribute of the instance.
+        Validate the form fields (``hitl_params``) of the instance.
 
         Note: Value validation (e.g., required fields, schema) is intentionally skipped here
         because HITLOperator params represent form fields that are filled by a human at runtime.
@@ -355,7 +361,7 @@ class HITLOperator(BaseOperator):
         Raises:
             ValueError: If ``"_options"`` key is present in ``params``, which is not allowed.
         """
-        validate_params(self.params)
+        validate_params(self.hitl_params)
 
     def validate_defaults(self) -> None:
         """
@@ -403,8 +409,14 @@ class HITLOperator(BaseOperator):
     @property
     def serialized_params(self) -> dict[str, dict[str, Any]]:
         if not AIRFLOW_V_3_1_3_PLUS:
-            return self.params.dump() if isinstance(self.params, ParamsDict) else self.params
-        return {k: self.params.get_param(k).serialize() for k in self.params}
+            return self.hitl_params.dump()
+        serialized = {k: self.hitl_params.get_param(k).serialize() for k in self.hitl_params}
+        # A field without a default serializes its value as NOTSET, which the request to the API server
+        # can't carry; the form shows None as an empty field.
+        return {
+            k: {**spec, "value": spec["value"] if is_arg_set(spec["value"]) else None}
+            for k, spec in serialized.items()
+        }
 
     def execute_complete(self, context: Context, event: dict[str, Any]) -> Any:
         if "error" in event:
@@ -441,7 +453,7 @@ class HITLOperator(BaseOperator):
 
     def validate_params_input(self, params_input: Mapping) -> None:
         """Check whether user provide valid params input."""
-        validate_params_input(params_input, self.params)
+        validate_params_input(params_input, self.hitl_params)
 
     def generate_link_to_ui(
         self,
@@ -477,7 +489,7 @@ class HITLOperator(BaseOperator):
             query_param["_options"] = options
 
         if params_input:
-            if diff := set(params_input.keys()) - set(self.params.keys()):
+            if diff := set(params_input.keys()) - set(self.hitl_params.keys()):
                 raise ValueError(f"params {diff} are not valid params")
             query_param.update(params_input)
 

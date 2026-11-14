@@ -72,6 +72,12 @@ pytestmark = pytest.mark.db_test
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 INTERVAL = datetime.timedelta(hours=12)
 
+# Form fields the reviewer must fill in: none of them has a default that passes its own schema.
+FORM_FIELDS_WITHOUT_A_VALID_DEFAULT = [
+    pytest.param({"type": "boolean"}, id="no_default"),
+    pytest.param({"default": "maybe", "type": "boolean"}, id="default_outside_its_schema"),
+]
+
 
 def _run_execute_until_park(op: HITLOperator, context: Any) -> None:
     """
@@ -213,7 +219,25 @@ class TestHITLOperator:
             multiple=False,
             params=params,
         )
-        assert expected_key in op.params
+        assert expected_key in op.hitl_params
+        assert expected_key not in op.params
+
+    @pytest.mark.parametrize("form_field", FORM_FIELDS_WITHOUT_A_VALID_DEFAULT)
+    def test_form_fields_are_not_validated_when_the_task_starts(
+        self, dag_maker: DagMaker, get_context_from_model_ti: Any, form_field: dict[str, Any]
+    ) -> None:
+        """The Task SDK validates every task param when it builds the context, before execute()."""
+        with dag_maker("test_dag", params={"env": "prod"}, serialized=True):
+            task = HITLEntryOperator(
+                task_id="hitl_test", subject="This is subject", params={"flag": Param(**form_field)}
+            )
+        dr = dag_maker.create_dagrun()
+
+        context = get_context_from_model_ti(dr.get_task_instance("hitl_test"), task)
+
+        assert context["params"] == {"env": "prod"}
+        assert "flag" in task.hitl_params
+        assert "flag" not in task.params
 
     def test_validate_defaults(self) -> None:
         hitl_op = HITLOperator(
@@ -335,6 +359,41 @@ class TestHITLOperator:
                 "poke_interval": 5.0,
             }
 
+    @pytest.mark.parametrize("form_field", FORM_FIELDS_WITHOUT_A_VALID_DEFAULT)
+    def test_execute_with_form_fields_without_a_valid_default(
+        self, dag_maker: DagMaker, session: Session, form_field: dict[str, Any]
+    ) -> None:
+        with dag_maker("test_dag"):
+            task = HITLEntryOperator(
+                task_id="hitl_test", subject="This is subject", params={"flag": Param(**form_field)}
+            )
+        dr = dag_maker.create_dagrun()
+        ti = dag_maker.run_ti(task.task_id, dr)
+
+        if AIRFLOW_V_3_3_PLUS:
+            assert ti.state == TaskInstanceState.AWAITING_INPUT
+        else:
+            assert ti.state == TaskInstanceState.DEFERRED
+        hitl_detail_model = session.scalar(select(HITLDetail).where(HITLDetail.ti_id == ti.id))
+        assert hitl_detail_model is not None
+        # A field without a default reaches the form as an empty field.
+        default = form_field.get("default")
+        expected_params: dict[str, Any]
+        if AIRFLOW_V_3_2_PLUS:
+            expected_params = {
+                "flag": {
+                    "value": default,
+                    "description": None,
+                    "schema": {"type": "boolean"},
+                    "source": "task",
+                }
+            }
+        elif AIRFLOW_V_3_1_3_PLUS:
+            expected_params = {"flag": {"value": default, "description": None, "schema": {"type": "boolean"}}}
+        else:
+            expected_params = {"flag": None}
+        assert hitl_detail_model.params == expected_params
+
     @pytest.mark.skipif(not AIRFLOW_V_3_1_3_PLUS, reason="This only works on Airflow >= 3.1.3")
     @pytest.mark.parametrize(
         ("input_params", "expected_params"),
@@ -368,6 +427,16 @@ class TestHITLOperator:
                     "input": {
                         "value": 1,
                         "schema": {},
+                        "description": None,
+                    }
+                },
+            ),
+            (
+                {"input": Param(type="boolean")},
+                {
+                    "input": {
+                        "value": None,
+                        "schema": {"type": "boolean"},
                         "description": None,
                     }
                 },
