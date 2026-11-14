@@ -56,8 +56,9 @@ class LogSenderTest {
 
   @AfterEach
   fun cancelChannel() {
-    // Once its channel is closed, LogSender queues messages again. Later tests rely on this queuing.
     channel.cancel(null)
+    // Later tests rely on LogSender putting messages in LogSender.messages, which it stops doing after detachAndFlush.
+    LogSender.reset()
   }
 
   @Test
@@ -262,27 +263,30 @@ class LogSenderTest {
     }
 
   @Test
-  @DisplayName("Should put a message in LogSender.messages, and give back its room, if the message waits for room during detachAndFlush")
-  fun detachAndFlushKeepsWaitingMessageQueued() {
-    withChannel { channel ->
-      val fillers = fillRoom()
-      val sender = thread { LogSender.send(largeMessage("waiting")) }
-      awaitWaiting(sender)
-      val detacher = thread { LogSender.detachAndFlush() }
-      // The detacher thread waits for the queued lines only after it has stopped queuing new lines. So once
-      // that thread waits, LogSender queues no more lines.
-      awaitWaiting(detacher)
+  @DisplayName("Should print a warning to stderr, and give back its room, if the warning waits for room during detachAndFlush")
+  fun detachAndFlushPrintsWaitingWarning() {
+    val stderr = ByteArrayOutputStream()
+    withErrors(PrintStream(stderr, true)) {
+      withChannel { channel ->
+        val fillers = fillRoom()
+        val sender = thread { LogSender.send(largeMessage("waiting", Level.WARNING)) }
+        awaitWaiting(sender)
+        val detacher = thread { LogSender.detachAndFlush() }
+        // The detacher thread waits for the queued lines only after it has stopped queuing new lines. So once
+        // that thread waits, LogSender queues no more lines.
+        awaitWaiting(detacher)
 
-      val written = readLines(channel, 1 + fillers.size).map { it.event().removeSuffix(LARGE_EVENT) }
-      detacher.join()
-      sender.join()
-      Assertions.assertEquals(listOf("first") + fillers, written)
-      Assertions.assertEquals(listOf("waiting"), LogSender.messages.map { it.event.removeSuffix(LARGE_EVENT) })
-      Assertions.assertEquals(0, channel.availableForRead, "nothing else should be written")
+        val written = readLines(channel, 1 + fillers.size).map { it.event().removeSuffix(LARGE_EVENT) }
+        detacher.join()
+        sender.join()
+        Assertions.assertEquals(listOf("first") + fillers, written)
+        Assertions.assertEquals(0, channel.availableForRead, "nothing else should be written")
+      }
     }
+    Assertions.assertEquals(listOf("waiting"), printedEvents(stderr))
+    Assertions.assertTrue(LogSender.messages.isEmpty(), "nothing writes LogSender.messages after detachAndFlush")
 
-    // The waiting message took room before LogSender put the message in LogSender.messages. If LogSender did not
-    // give that room back, this line could not be queued, because it needs all the room.
+    // This line needs all the room, so it is queued only if LogSender gave back the room the waiting message took.
     withChannel { channel ->
       thread { LogSender.send(message("z".repeat(LogSender.PENDING_CHARS))) }
       Assertions.assertEquals("zzzzz", readLines(channel, 1).single().event().take(5))
@@ -290,25 +294,30 @@ class LogSenderTest {
   }
 
   @Test
-  @DisplayName("Should put a message in LogSender.messages without waiting for room once detachAndFlush has stopped queuing")
-  fun keepsMessageAfterDetachWithoutWaitingForRoom() =
-    withChannel { channel ->
-      val fillers = fillRoom()
-      val waiting = thread { LogSender.send(largeMessage("waiting")) }
-      awaitWaiting(waiting)
-      val detacher = thread { LogSender.detachAndFlush() }
-      awaitWaiting(detacher)
+  @DisplayName("Should print a warning to stderr without waiting for room once detachAndFlush has stopped queuing, and drop an info line")
+  fun printsWarningAfterDetachWithoutWaitingForRoom() {
+    val stderr = ByteArrayOutputStream()
+    withErrors(PrintStream(stderr, true)) {
+      withChannel { channel ->
+        val fillers = fillRoom()
+        val waiting = thread { LogSender.send(largeMessage("waiting")) }
+        awaitWaiting(waiting)
+        val detacher = thread { LogSender.detachAndFlush() }
+        awaitWaiting(detacher)
 
-      // If this message asked for room, it would wait behind the waiting thread.
-      val late = thread { LogSender.send(message("late")) }
-      late.join(TimeUnit.SECONDS.toMillis(10))
-      Assertions.assertFalse(late.isAlive, "a message that stays in LogSender.messages should not wait for room")
+        // If this message asked for room, it would wait behind the waiting thread.
+        val late = thread { LogSender.send(message("late", Level.WARNING)) }
+        late.join(TimeUnit.SECONDS.toMillis(10))
+        Assertions.assertFalse(late.isAlive, "a message sent after detachAndFlush should not wait for room")
 
-      readLines(channel, 1 + fillers.size)
-      detacher.join()
-      waiting.join()
-      Assertions.assertEquals(listOf("late", "waiting"), LogSender.messages.map { it.event.removeSuffix(LARGE_EVENT) })
+        readLines(channel, 1 + fillers.size)
+        detacher.join()
+        waiting.join()
+      }
     }
+    Assertions.assertEquals(listOf("late"), printedEvents(stderr), "the waiting message is an info line, so it should be dropped")
+    Assertions.assertTrue(LogSender.messages.isEmpty(), "nothing writes LogSender.messages after detachAndFlush")
+  }
 
   @Test
   @DisplayName("Should queue a line from a logger that does not wait for room, even when another thread is waiting for room")
@@ -446,20 +455,47 @@ class LogSenderTest {
     }
 
   @Test
-  @DisplayName("Should write messages sent before detachAndFlush and keep messages sent after detachAndFlush in LogSender.messages")
-  fun detachAndFlushKeepsLaterMessagesQueued() =
-    withChannel { channel ->
-      LogSender.send(message("before"))
-      LogSender.detachAndFlush()
-      LogSender.send(message("after"))
+  @DisplayName("Should write messages sent before detachAndFlush and, after it, print warnings and errors to stderr and drop info lines")
+  fun printsWarningsSentAfterDetach() {
+    val stderr = ByteArrayOutputStream()
+    withErrors(PrintStream(stderr, true)) {
+      withChannel { channel ->
+        LogSender.send(message("before"))
+        LogSender.detachAndFlush()
+        LogSender.send(message("info after"))
+        LogSender.send(message("warning after", Level.WARNING))
+        LogSender.send(message("error after", Level.ERROR))
 
-      Assertions.assertEquals("before", readLines(channel, 1).single().event())
-      Assertions.assertEquals(
-        listOf("after"),
-        LogSender.messages.map { it.event },
-        "a message sent after detachAndFlush should stay in LogSender.messages",
-      )
-      Assertions.assertEquals(0, channel.availableForRead, "nothing else should be written")
+        Assertions.assertEquals("before", readLines(channel, 1).single().event())
+        Assertions.assertEquals(0, channel.availableForRead, "nothing else should be written")
+      }
+    }
+    Assertions.assertEquals(listOf("warning after", "error after"), printedEvents(stderr))
+    Assertions.assertTrue(LogSender.messages.isEmpty(), "nothing writes LogSender.messages after detachAndFlush")
+  }
+
+  @Test
+  @DisplayName("Should put messages in LogSender.messages again after reset")
+  fun queuesMessagesAgainAfterReset() =
+    withChannel { _ ->
+      LogSender.detachAndFlush()
+      LogSender.reset()
+      LogSender.send(message("after reset"))
+
+      Assertions.assertEquals(listOf("after reset"), LogSender.messages.map { it.event })
+    }
+
+  @Test
+  @DisplayName("Should put messages in LogSender.messages again when a channel set by configure after detachAndFlush closes")
+  fun queuesMessagesAgainAfterNewChannelCloses() =
+    withChannel { _ ->
+      LogSender.detachAndFlush()
+      val next = ByteChannel(autoFlush = true)
+      LogSender.configure(next)
+      next.cancel(null)
+      LogSender.send(message("after the new channel closed"))
+
+      Assertions.assertEquals(listOf("after the new channel closed"), LogSender.messages.map { it.event })
     }
 
   @Test
@@ -532,7 +568,6 @@ class LogSenderTest {
         // Nothing reads the channel, so the waiting thread gets room back only if the queued lines fail.
         waiting.join(TimeUnit.SECONDS.toMillis(10))
         Assertions.assertFalse(waiting.isAlive, "the waiting thread should get room back")
-        Assertions.assertEquals(listOf("waiting"), LogSender.messages.map { it.event.removeSuffix(LARGE_EVENT) })
       }
     }
 
@@ -664,13 +699,33 @@ class LogSenderTest {
 
   private fun JsonObject.event(): String = this["event"]!!.jsonPrimitive.content
 
-  private fun message(event: String) = LogMessage(event, emptyMap(), "test", Level.INFO)
+  /** The events of the log lines printed to [stderr], without the reports of failed writes. */
+  private fun printedEvents(stderr: ByteArrayOutputStream): List<String> =
+    stderr
+      .toString()
+      .lines()
+      .filter { it.startsWith("{") }
+      .map {
+        Json
+          .parseToJsonElement(it)
+          .jsonObject
+          .event()
+          .removeSuffix(LARGE_EVENT)
+      }
+
+  private fun message(
+    event: String,
+    level: Level = Level.INFO,
+  ) = LogMessage(event, emptyMap(), "test", level)
 
   /**
    * A message whose event is [name] followed by [LARGE_EVENT]. The message does not fit in a ByteChannel's 1 MiB buffer, so it is not
    * fully written until the test reads the channel.
    */
-  private fun largeMessage(name: String = "") = message(name + LARGE_EVENT)
+  private fun largeMessage(
+    name: String = "",
+    level: Level = Level.INFO,
+  ) = message(name + LARGE_EVENT, level)
 
   private companion object {
     val LARGE_EVENT = "x".repeat(2 * 1024 * 1024)

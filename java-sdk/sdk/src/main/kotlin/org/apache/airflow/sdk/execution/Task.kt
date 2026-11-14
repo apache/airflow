@@ -155,7 +155,8 @@ internal object TaskRunner {
       // The serve coroutine's own cancellation cannot reach this blocking call, so the exception comes
       // from the task.
       logger.error("Error executing task", mapOf("ti" to request.ti, "error" to e, "trace" to e.stackTraceToString()))
-      TaskResult.failure(request.tiContext.shouldRetry)
+      // A task that cannot see a stop request would fail the same way on every retry.
+      TaskResult.failure(request.tiContext.shouldRetry && e !is TaskCannotSeeStopRequestException)
     }
   }
 }

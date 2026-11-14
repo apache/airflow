@@ -59,8 +59,10 @@ internal class Cancellation : AutoCloseable {
   }
 
   private fun throwIfTaskCannotSeeRequest() {
-    check(held) {
-      "Only a StoppableTask can see a stop request. Implement StoppableTask, or give an annotated task an @Airflow.OnKill method"
+    if (!held) {
+      throw TaskCannotSeeStopRequestException(
+        "Only a StoppableTask can see a stop request. Implement StoppableTask, or give an annotated task an @Airflow.OnKill method",
+      )
     }
   }
 
@@ -105,7 +107,13 @@ internal class Cancellation : AutoCloseable {
       return false
     }
     return try {
-      logger.warning("Asking the task to stop", mapOf("signal" to signal))
+      val hook = hook
+      if (hook == null) {
+        // finish() clears hook once execute returns or throws. The signal trap stays open until the SDK sends the result.
+        logger.warning("Holding the signal until the SDK has sent the task's result", mapOf("signal" to signal))
+      } else {
+        logger.warning("Asking the task to stop", mapOf("signal" to signal))
+      }
       // Record first: a task that stores state and then checks sees the request, onKill sees the state, or both.
       requested.countDown()
       hook?.invoke()
@@ -124,6 +132,11 @@ internal class Cancellation : AutoCloseable {
 
 /** Thrown by [Cancellation.hold] when the SDK can catch neither stop signal in this JVM. */
 internal class CannotCatchStopSignalsException(
+  message: String,
+) : IllegalStateException(message)
+
+/** Thrown by [Context.isCancelled] and [Context.awaitCancellation] when the running task is not a [StoppableTask]. */
+internal class TaskCannotSeeStopRequestException(
   message: String,
 ) : IllegalStateException(message)
 
