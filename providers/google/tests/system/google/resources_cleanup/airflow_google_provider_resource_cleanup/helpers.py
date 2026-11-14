@@ -21,6 +21,7 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import subprocess
 from dataclasses import asdict, dataclass, field, fields
 from pathlib import Path
 from typing import Any
@@ -33,7 +34,13 @@ def run_command(cmd: str, log_prefix: str = ""):
     os.system(cmd)
 
 
-async def run_command_async(cmd: str, log_prefix: str = ""):
+async def run_command_async(
+    cmd: str,
+    log_prefix: str = "",
+    *,
+    check: bool = False,
+    ignore_not_found: bool = False,
+) -> bool | None:
     print(f'{log_prefix}Executing the command: "{cmd}"...')
     process = await asyncio.create_subprocess_shell(
         cmd,
@@ -42,10 +49,28 @@ async def run_command_async(cmd: str, log_prefix: str = ""):
     )
     stdout, stderr = await process.communicate()
     print(f"{log_prefix}Command exited with code: {process.returncode}")
-    if stdout:
-        print(f"{log_prefix}Stdout:\n{stdout.decode().strip()}")
-    if stderr:
-        print(f"{log_prefix}Stderr:\n{stderr.decode().strip()}")
+    # communicate() returns None for a stream that was not piped.
+    stdout_text = (stdout or b"").decode().strip()
+    stderr_text = (stderr or b"").decode().strip()
+    if stdout_text:
+        print(f"{log_prefix}Stdout:\n{stdout_text}")
+    if stderr_text:
+        print(f"{log_prefix}Stderr:\n{stderr_text}")
+    if process.returncode:
+        if ignore_not_found and any(
+            marker in stderr_text.lower() for marker in ("not_found", "not found", "does not exist")
+        ):
+            print(f"{log_prefix}Resource no longer exists.")
+            return False
+        if check:
+            raise subprocess.CalledProcessError(
+                process.returncode,
+                cmd,
+                output=stdout_text,
+                stderr=stderr_text,
+            )
+
+    return None
 
 
 def get_resources_file(
