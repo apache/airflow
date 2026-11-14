@@ -21,6 +21,7 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 
 from sqlalchemy import select
 
+from airflow import settings
 from airflow.configuration import conf
 from airflow.jobs.job import Job
 from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
@@ -58,6 +59,7 @@ class HealthServer(BaseHTTPRequestHandler):
 
 def serve_health_check():
     """Start a http server to serve scheduler health check."""
+    settings.ensure_initialized()
     health_check_host = conf.get("scheduler", "SCHEDULER_HEALTH_CHECK_SERVER_HOST")
     health_check_port = conf.getint("scheduler", "SCHEDULER_HEALTH_CHECK_SERVER_PORT")
     httpd = HTTPServer((health_check_host, health_check_port), HealthServer)

@@ -591,6 +591,67 @@ def test_explicit_sql_alchemy_conn_async_is_not_rewritten(explicit_async_uri):
         settings.configure_vars()
 
 
+class TestEnsureInitialized:
+    @pytest.mark.parametrize(
+        ("initialized", "orm", "expected_calls"),
+        [
+            (False, True, [call(orm=True)]),
+            (False, False, [call(orm=False)]),
+            (True, True, []),
+        ],
+    )
+    @mock.patch("airflow.settings.initialize", autospec=True)
+    def test_initializes_once(self, mock_initialize, monkeypatch, initialized, orm, expected_calls):
+        monkeypatch.setattr(settings, "_initialized", initialized)
+
+        settings.ensure_initialized(orm=orm)
+
+        assert mock_initialize.mock_calls == expected_calls
+
+    @mock.patch("airflow.settings.atexit.register", autospec=True)
+    @mock.patch("airflow.settings.conf.mask_secrets", autospec=True)
+    @mock.patch("airflow.settings.configure_orm", autospec=True)
+    def test_initialize_without_orm_skips_only_the_engine(
+        self, mock_configure_orm, mock_mask_secrets, mock_atexit_register, monkeypatch
+    ):
+        monkeypatch.setattr(settings, "_initialized", False)
+        monkeypatch.setattr(settings, "_initialized_without_orm", False)
+
+        settings.initialize(orm=False)
+        settings.ensure_initialized(orm=False)
+
+        mock_configure_orm.assert_not_called()
+        mock_mask_secrets.assert_called_once_with()
+
+    @pytest.mark.parametrize(
+        ("env", "expected_calls"),
+        [
+            ({}, [call()]),
+            ({"_AIRFLOW__REEXECUTED_PROCESS": "1"}, []),
+            ({"PYTHON_OPERATORS_VIRTUAL_ENV_MODE": "1"}, []),
+        ],
+        ids=["regular-process", "reexecuted-task-process", "virtualenv-operator-process"],
+    )
+    @mock.patch("airflow.settings.configure_orm", autospec=True)
+    def test_configures_orm_once_when_a_later_caller_needs_it(
+        self, mock_configure_orm, monkeypatch, env, expected_calls
+    ):
+        monkeypatch.delenv("_AIRFLOW__REEXECUTED_PROCESS", raising=False)
+        monkeypatch.delenv("PYTHON_OPERATORS_VIRTUAL_ENV_MODE", raising=False)
+        for name, value in env.items():
+            monkeypatch.setenv(name, value)
+        monkeypatch.setattr(settings, "_initialized", True)
+        monkeypatch.setattr(settings, "_initialized_without_orm", True)
+
+        settings.ensure_initialized(orm=False)
+        assert mock_configure_orm.mock_calls == []
+
+        settings.ensure_initialized()
+        settings.ensure_initialized()
+
+        assert mock_configure_orm.mock_calls == expected_calls
+
+
 class TestDisposeOrm:
     """Tests for dispose_orm() async engine disposal."""
 

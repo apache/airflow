@@ -1330,7 +1330,11 @@ def startup(msg: StartupDetails) -> tuple[RuntimeTaskInstance, Context, Logger]:
         # with the properly initialized SUPERVISOR_COMMS global variable.
         # If we re-executed the module with `python -m`, it would load as __main__ and future
         # imports would get a fresh copy without the initialized globals.
-        rexec_python_code = "from airflow.sdk.execution_time.task_runner import main; main()"
+        rexec_python_code = (
+            "from airflow.sdk.execution_time.supervisor import _initialize_core_settings; "
+            "_initialize_core_settings(); "
+            "from airflow.sdk.execution_time.task_runner import main; main()"
+        )
         cmd = ["sudo", "-E", "-H", "-u", run_as_user, sys.executable, "-c", rexec_python_code]
         log.info(
             "Running command",

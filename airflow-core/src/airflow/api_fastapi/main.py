@@ -38,7 +38,10 @@ if sys.version_info >= (3, 12) and (
         stacklevel=2,
     )
 
+from airflow import settings
 from airflow.api_fastapi.app import cached_app
+
+settings.ensure_initialized()
 
 # There is no way to pass the apps to this file from Airflow CLI
 # because fastapi dev command does not accept any additional arguments

@@ -32,6 +32,7 @@ import time
 from contextlib import nullcontext
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+from importlib.machinery import ModuleSpec
 from operator import attrgetter
 from random import randint
 from textwrap import dedent
@@ -6517,6 +6518,44 @@ class TestChildExecMain:
         supervisor._child_exec_main()
 
         assert calls == ["nondumpable", "fork_main"]
+
+    def test_initializes_core_settings_before_importing_the_target(self, monkeypatch):
+        calls: list[str] = []
+
+        def resolve_target(dotted):
+            calls.append("resolve_target")
+            return supervisor._subprocess_main
+
+        monkeypatch.setattr(supervisor, "_make_process_nondumpable", lambda: None)
+        monkeypatch.setattr(supervisor, "_initialize_core_settings", lambda: calls.append("initialize"))
+        monkeypatch.setattr(supervisor, "_fork_main", lambda *a: calls.append("fork_main"))
+        monkeypatch.setattr(supervisor, "_resolve_child_target", resolve_target)
+        monkeypatch.setattr(supervisor, "socket", lambda fileno: MagicMock())
+        monkeypatch.setenv("_AIRFLOW_CHILD_TARGET", "airflow.sdk.execution_time.supervisor:_subprocess_main")
+
+        supervisor._child_exec_main()
+
+        assert calls == ["initialize", "resolve_target", "fork_main"]
+
+    @pytest.mark.parametrize(
+        ("core_spec", "expected_calls"),
+        [
+            (MagicMock(spec=ModuleSpec), [mock.call(orm=False)]),
+            (None, []),
+        ],
+        ids=["core-installed", "core-missing"],
+    )
+    @mock.patch("airflow.settings.ensure_initialized", autospec=True)
+    @mock.patch.object(supervisor, "find_spec", autospec=True)
+    def test_initialize_core_settings(
+        self, mock_find_spec, mock_ensure_initialized, core_spec, expected_calls
+    ):
+        mock_find_spec.return_value = core_spec
+
+        supervisor._initialize_core_settings()
+
+        mock_find_spec.assert_called_once_with("airflow.settings")
+        assert mock_ensure_initialized.mock_calls == expected_calls
 
     def test_uses_fds_0123_and_inherits_log_channel(self, monkeypatch):
         """_child_exec_main wraps FDs 0/1/2 as sockets and passes log_fd=3 (inherited log channel)."""
