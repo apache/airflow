@@ -1321,6 +1321,96 @@ def test_assign_unassigned_with_qeueus(session, create_triggerer, create_trigger
     )
 
 
+@pytest.mark.need_serialized_dag
+@pytest.mark.parametrize(
+    ("scenario", "expect_claim_attempt"),
+    [
+        pytest.param("no_triggers", False, id="no_triggers"),
+        pytest.param("owned_by_alive_triggerer", False, id="owned_by_alive_triggerer"),
+        pytest.param("unassigned_on_foreign_queue", False, id="unassigned_on_foreign_queue"),
+        pytest.param("unassigned", True, id="unassigned"),
+        pytest.param("owned_by_stale_triggerer", True, id="owned_by_stale_triggerer"),
+    ],
+)
+@patch.object(Trigger, "get_sorted_triggers", autospec=True, return_value=[])
+def test_assign_unassigned_probe_gates_sorted_queries(
+    mock_get_sorted_triggers,
+    session,
+    create_triggerer,
+    create_trigger,
+    time_machine,
+    scenario,
+    expect_claim_attempt,
+):
+    """
+    assign_unassigned probes for claimable triggers first and only runs the three sorted,
+    row-locking queries of get_sorted_triggers when the probe finds one.
+    """
+    time_now = timezone.datetime(2026, 1, 1)
+    time_machine.move_to(time_now, tick=False)
+    triggerer = create_triggerer(session, State.RUNNING, latest_heartbeat=time_now)
+    session.commit()
+
+    if scenario != "no_triggers":
+        owner_id = None
+        if scenario == "owned_by_alive_triggerer":
+            owner_id = triggerer.id
+        elif scenario == "owned_by_stale_triggerer":
+            stale_triggerer = create_triggerer(
+                session, State.RUNNING, latest_heartbeat=time_now - datetime.timedelta(seconds=100)
+            )
+            session.commit()
+            owner_id = stale_triggerer.id
+        create_trigger(
+            session=session,
+            name=scenario,
+            logical_date=time_now,
+            triggerer_id=owner_id,
+            queue="foreign_q" if scenario == "unassigned_on_foreign_queue" else None,
+        )
+        session.commit()
+
+    Trigger.assign_unassigned(triggerer.id, capacity=100, health_check_threshold=30)
+
+    assert mock_get_sorted_triggers.called is expect_claim_attempt
+
+
+@pytest.mark.need_serialized_dag
+def test_assign_unassigned_query_counts(session, create_triggerer, create_trigger, time_machine):
+    """
+    An idle assignment loop (every trigger owned by an alive triggerer) must stay at two
+    statements, the capacity count and the existence probe; this idle half is what fails
+    without the probe. The second half only caps the claim path's cost and checks that a
+    claimable trigger is still picked up.
+    """
+    time_now = timezone.datetime(2026, 1, 1)
+    time_machine.move_to(time_now, tick=False)
+    triggerer = create_triggerer(session, State.RUNNING, latest_heartbeat=time_now)
+    session.commit()
+    create_trigger(
+        session=session, name="owned", logical_date=time_now, triggerer_id=triggerer.id, queue=None
+    )
+    session.commit()
+
+    with assert_queries_count(2):
+        Trigger.assign_unassigned(triggerer.id, capacity=100, health_check_threshold=30)
+
+    unassigned_trigger = create_trigger(
+        session=session,
+        name="unassigned",
+        logical_date=time_now + datetime.timedelta(hours=1),
+        triggerer_id=None,
+        queue=None,
+    )
+    session.commit()
+
+    # count + probe + the three sorted queries + the claiming UPDATE
+    with assert_queries_count(6):
+        Trigger.assign_unassigned(triggerer.id, capacity=100, health_check_threshold=30)
+    session.expire_all()
+    assert session.get(Trigger, unassigned_trigger.id).triggerer_id == triggerer.id
+
+
 def test_queue_column_max_len_matches_ti_column_max_len() -> None:
     """Ensures that the `trigger.queue` column has the same max length as the `task_instance.queue` column."""
     expected_queue_col_max_length_from_ti = TaskInstance.queue.property.columns[0].type.length
@@ -2065,6 +2155,42 @@ def test_assign_unassigned_multi_team(
 
     assert (session.get(Trigger, trigger_team.id).triggerer_id == job.id) == expect_team_assigned
     assert (session.get(Trigger, trigger_global.id).triggerer_id == job.id) == expect_global_assigned
+
+
+@pytest.mark.need_serialized_dag
+@conf_vars({("core", "multi_team"): "True"})
+@pytest.mark.parametrize(
+    ("triggerer_team", "trigger_team", "expect_claim_attempt"),
+    [
+        pytest.param(None, "testing", False, id="global_triggerer_team_trigger"),
+        pytest.param("testing", None, False, id="team_triggerer_global_trigger"),
+        pytest.param("testing", "testing", True, id="team_triggerer_team_trigger"),
+    ],
+)
+@patch.object(Trigger, "get_sorted_triggers", autospec=True, return_value=[])
+def test_assign_unassigned_probe_applies_team_filter(
+    mock_get_sorted_triggers,
+    session,
+    create_triggerer,
+    create_trigger,
+    testing_team,
+    time_machine,
+    triggerer_team,
+    trigger_team,
+    expect_claim_attempt,
+):
+    """With multi-team enabled, only a trigger of the triggerer's own team opens the probe gate."""
+    time_now = timezone.datetime(2026, 1, 1)
+    time_machine.move_to(time_now, tick=False)
+    triggerer = create_triggerer(session, State.RUNNING, latest_heartbeat=time_now)
+    session.commit()
+    trigger = create_trigger(session=session, name="unassigned", logical_date=time_now)
+    trigger.team_name = trigger_team
+    session.commit()
+
+    Trigger.assign_unassigned(triggerer.id, capacity=100, health_check_threshold=30, team_name=triggerer_team)
+
+    assert mock_get_sorted_triggers.called is expect_claim_attempt
 
 
 @pytest.mark.need_serialized_dag
