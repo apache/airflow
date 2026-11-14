@@ -173,6 +173,26 @@ class TestAwsS3Hook:
                 ("DOC-EXAMPLE-BUCKET1", "test #2.png"),
                 id="virtual hosted style with #",
             ),
+            pytest.param(
+                "s3://test/this/is/not/a-real-key?.txt",
+                ("test", "this/is/not/a-real-key?.txt"),
+                id="s3 style with ?",
+            ),
+            pytest.param(
+                "s3://test/this/is/not/a-real-key?",
+                ("test", "this/is/not/a-real-key?"),
+                id="s3 style with trailing ?",
+            ),
+            pytest.param(
+                "s3a://test/a?b=c/d.txt",
+                ("test", "a?b=c/d.txt"),
+                id="s3a style with ? and =",
+            ),
+            pytest.param(
+                "s3://test/this/is/a-key.txt\n",
+                ("test", "this/is/a-key.txt"),
+                id="s3 style with trailing newline",
+            ),
         ],
     )
     def test_parse_s3_url(self, url: str, expected: tuple[str, str]):
@@ -493,6 +513,13 @@ class TestAwsS3Hook:
         assert hook.check_for_key(f"s3://{s3_bucket}//a") is True
         assert hook.check_for_key("b", s3_bucket) is False
         assert hook.check_for_key(f"s3://{s3_bucket}//b") is False
+
+    def test_check_for_key_with_question_mark_in_url(self, s3_bucket):
+        hook = S3Hook()
+        hook.get_bucket(s3_bucket).put_object(Key="dir/report?.csv", Body=b"a")
+
+        assert hook.check_for_key(f"s3://{s3_bucket}/dir/report?.csv") is True
+        assert hook.check_for_key(f"s3://{s3_bucket}/dir/report") is False
 
     def test_get_key(self, s3_bucket):
         hook = S3Hook()
