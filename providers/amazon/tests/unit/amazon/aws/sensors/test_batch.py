@@ -92,6 +92,28 @@ class TestBatchSensor:
             deferrable_batch_sensor.execute({})
         assert isinstance(exc.value.trigger, BatchJobTrigger), "Trigger is not a BatchJobTrigger"
 
+    def test_execute_in_deferrable_mode_passes_aws_configs(self):
+        """Asserts that verify and botocore_config survive into the serialized trigger payload."""
+        sensor = BatchSensor(
+            task_id="task",
+            job_id=JOB_ID,
+            region_name=AWS_REGION,
+            verify="/custom/ca_bundle.pem",
+            botocore_config={"read_timeout": 45},
+            deferrable=True,
+        )
+
+        with pytest.raises(TaskDeferred) as exc:
+            sensor.execute({})
+
+        trigger = exc.value.trigger
+        assert isinstance(trigger, BatchJobTrigger)
+
+        _, kwargs = trigger.serialize()
+        assert kwargs.get("region_name") == AWS_REGION
+        assert kwargs.get("verify") == "/custom/ca_bundle.pem"
+        assert kwargs.get("botocore_config") == {"read_timeout": 45}
+
     def test_execute_failure_in_deferrable_mode(self, deferrable_batch_sensor: BatchSensor):
         """Tests that an AirflowException is raised in case of error event"""
 
