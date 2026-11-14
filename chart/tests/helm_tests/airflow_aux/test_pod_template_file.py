@@ -56,6 +56,82 @@ class TestPodTemplateFile:
         assert jmespath.search("spec.containers[0].image", docs[0]) is not None
         assert jmespath.search("spec.containers[0].name", docs[0]) == "base"
 
+    def test_should_not_carry_metadata_db_credentials(self):
+        """KubernetesExecutor task pods run Dag-author code and must not hold DB credentials.
+
+        The task SDK reaches the Execution API rather than the metadata database, so the
+        task pod has no functional need for the connection string. Unlike Celery workers
+        there is no KEDA exception here: KEDA does not scale task pods.
+        """
+        docs = render_chart(
+            values={
+                "airflowVersion": "3.4.0",
+                "workers": {"kubernetes": {"kerberosSidecar": {"enabled": True}}},
+            },
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+        metadata_db_vars = {"AIRFLOW__DATABASE__SQL_ALCHEMY_CONN", "AIRFLOW_CONN_AIRFLOW_DB"}
+        spec = docs[0]["spec"]
+        assert "worker-kerberos" in [container["name"] for container in spec["initContainers"]]
+        for container in spec["containers"] + spec["initContainers"]:
+            names = {env["name"] for env in container.get("env", [])}
+            assert not (names & metadata_db_vars), (
+                f"metadata DB env present in task-pod container {container['name']}"
+            )
+
+    @pytest.mark.parametrize(
+        "option",
+        ["sql_alchemy_engine_args", "sql_alchemy_engine_args_cmd", "sql_alchemy_engine_args_secret"],
+    )
+    def test_engine_args_cleared_in_task_pods(self, option):
+        """Task pods fall back to SQLite, which rejects engine args meant for the real database."""
+        docs = render_chart(
+            values={
+                "airflowVersion": "3.4.0",
+                "config": {"database": {option: '{"executemany_mode": "values"}'}},
+                "workers": {"kubernetes": {"kerberosSidecar": {"enabled": True}}},
+            },
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+        spec = docs[0]["spec"]
+        for name, containers in (("base", spec["containers"]), ("worker-kerberos", spec["initContainers"])):
+            env = next(container["env"] for container in containers if container["name"] == name)
+            assert {"name": "AIRFLOW__DATABASE__SQL_ALCHEMY_ENGINE_ARGS", "value": "{}"} in env
+
+    def test_migration_check_disabled_in_task_pods(self):
+        """CLI commands exit on the empty SQLite fallback when they check migrations."""
+        docs = render_chart(
+            values={
+                "airflowVersion": "3.4.0",
+                "workers": {"kubernetes": {"kerberosSidecar": {"enabled": True}}},
+            },
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+        env = jmespath.search("spec.initContainers[?name=='worker-kerberos'].env[]", docs[0])
+        assert {"name": "AIRFLOW__DATABASE__CHECK_MIGRATIONS", "value": "False"} in env
+
+    def test_kerberos_sidecar_keeps_sql_alchemy_conn_before_airflow_3_4(self):
+        """`airflow kerberos` opens the metadata DB at startup there."""
+        docs = render_chart(
+            values={
+                "airflowVersion": "3.3.2",
+                "workers": {"kubernetes": {"kerberosSidecar": {"enabled": True}}},
+            },
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+        names = jmespath.search("spec.initContainers[?name=='worker-kerberos'].env[].name", docs[0])
+        assert "AIRFLOW__DATABASE__SQL_ALCHEMY_CONN" in names
+        assert "AIRFLOW_CONN_AIRFLOW_DB" not in names
+
+    def test_engine_args_untouched_when_not_configured(self):
+        docs = render_chart(show_only=["templates/pod-template-file.yaml"], chart_dir=self.temp_chart_dir)
+        names = jmespath.search("spec.containers[0].env[].name", docs[0])
+        assert "AIRFLOW__DATABASE__SQL_ALCHEMY_ENGINE_ARGS" not in names
+
     def test_should_add_an_init_container_if_git_sync_is_true(self):
         docs = render_chart(
             values={

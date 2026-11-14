@@ -81,8 +81,8 @@ How it works
   from the cache are not part of ``usage``; with ``enable_hitl_review`` the
   ``run_id`` and ``usage`` reflect the initial model run, not the human-feedback
   regenerations; and a run that resumes after a tool approval (see
-  :doc:`tool_approval`) continues as ``<task-instance id>-resumed-<n>`` after
-  pause ``n``, which is the ``run_id`` the operator pushes, with ``usage``
+  :doc:`tool_approval`) without ``durable`` continues as ``<task-instance id>-resumed-<n>``
+  after pause ``n``, which is the ``run_id`` the operator pushes, with ``usage``
   covering every part.
   Airflow 2 has no task-instance id, so there the key is
   ``<dag_id>/<run_id>/<task_id>/<map_index>/<try_number>``, and spans carry the five
@@ -116,14 +116,13 @@ How it works
   schema-compare subclasses (and their decorator forms) -- the match is on the exact
   operator name, so a subclass of your own does not get the tab automatically. Like the
   span-level cost above, the tab's number is a best-effort ``genai-prices`` estimate, not
-  provider-reported billing. With a custom XCom backend that offloads large values to external storage (e.g. ``common.io`` with
-  ``xcom_objectstorage_threshold`` set low), the tab reads the stored reference rather than
-  the real value, since the public XCom endpoint it calls never runs the backend's
-  ``deserialize_value``: the model name badge would show the reference string (e.g. an
-  ``s3://...`` path) instead of the model, and ``usage`` would come back as that same
-  string rather than an object -- the tab treats a non-object ``usage`` as absent and
-  hides the stat boxes instead of rendering ``undefined`` in each one. The skills XCom
-  comes back as that string too, so the skills section is hidden.
+  provider-reported billing. With a custom XCom backend that keeps large values in external
+  storage (e.g. ``common.io`` with ``xcom_objectstorage_threshold`` set low), the tab cannot
+  show those values: the public XCom endpoint it calls returns the reference the backend
+  stored in the database, since the API server never runs the backend's
+  ``deserialize_value``. The tab lists the model name, usage or skills kept that way with
+  their reference (e.g. an ``s3://...`` path) instead of rendering them. A model name that is
+  itself a URI, such as one vLLM serves from ``--model s3://...``, is listed that way too.
 * **Content is off by default.** Only token counts, model id, latency, tool
   names, and finish reason are recorded. Prompt and completion text is never
   emitted unless you opt in (see below).

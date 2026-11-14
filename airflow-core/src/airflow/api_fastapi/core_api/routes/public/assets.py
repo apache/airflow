@@ -80,7 +80,7 @@ from airflow.api_fastapi.core_api.security import (
     requires_access_asset_alias,
     requires_access_dag,
 )
-from airflow.api_fastapi.core_api.services.public.assets import serialize_asset_events
+from airflow.api_fastapi.core_api.services.public.assets import load_source_region, serialize_asset_events
 from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.assets.manager import asset_manager
 from airflow.configuration import conf
@@ -479,7 +479,7 @@ def get_asset_events(
     )
 
     assets_event_select = assets_event_select.options(
-        subqueryload(AssetEvent.created_dagruns), joinedload(AssetEvent.asset)
+        subqueryload(AssetEvent.created_dagruns), joinedload(AssetEvent.asset), load_source_region()
     )
     # Materialize here (not lazily during response serialization) so the regexp query runs while the
     # dependency-applied timeout is still active.

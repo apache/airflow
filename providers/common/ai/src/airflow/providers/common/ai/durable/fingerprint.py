@@ -44,8 +44,9 @@ as base64.  So a value that is not a JSON type but renders the same way on every
 attempt -- a ``datetime`` or ``Decimal`` tool argument, a dataclass in
 ``tool_choice`` -- still produces a usable fingerprint.
 The ``capability_id`` of a tool from a capability without an ``id`` is left out
-of the request parameters, since it is random per run, and so is
-``deferred_capability_ids`` (see ``_normalize_params``).
+of the request parameters, since it is random per run, and so are
+``deferred_capability_ids`` and the ``airflow`` key of a tool's metadata, which
+only decides whether the tool replays (see ``_normalize_params``).
 
 That rendering is hashed as it is, with two exceptions.  Both are found by
 dumping the payload a second time in pydantic's python mode, which has the same
@@ -105,8 +106,9 @@ from typing import TYPE_CHECKING, Any, Literal
 from pydantic import TypeAdapter
 from pydantic_ai.messages import ModelMessagesTypeAdapter
 from pydantic_ai.models import ModelRequestParameters
-from pydantic_core import to_jsonable_python
+from pydantic_core import PydanticSerializationError, to_jsonable_python
 
+from airflow.providers.common.ai.durable.base import TOOL_CONFIG_KEY
 from airflow.providers.common.ai.utils.masking import mask_secrets
 from airflow.providers.common.ai.utils.prompt_cache import PROMPT_CACHE_SETTING_NAMES
 from airflow.providers.common.ai.utils.task_logger import get_task_logger
@@ -116,6 +118,7 @@ if TYPE_CHECKING:
 
     from pydantic_ai.messages import ModelMessage
     from pydantic_ai.settings import ModelSettings
+    from pydantic_ai.tools import DeferredToolRequests
 
 log = get_task_logger()
 
@@ -217,11 +220,13 @@ def _strip_volatile(messages_dump: list[dict[str, Any]]) -> list[dict[str, Any]]
 
 def _normalize_params(params_dump: dict[str, Any]) -> dict[str, Any]:
     """
-    Drop capability ids and sort set-valued fields from dumped request parameters.
+    Drop capability ids and the replay opt-out, and sort set-valued fields, in dumped request parameters.
 
     A capability without an explicit ``id`` gets a random one per run (``<toolset:d0d75e>``),
     stamped on its tools' ``capability_id``, so hashing it would make every retry miss the
-    cache. A set dumps in iteration order, which differs between processes (``PYTHONHASHSEED``),
+    cache. A tool's ``airflow`` metadata decides only whether the tool replays, and the model
+    never sees it, so turning it on or off between attempts leaves the requests' fingerprints
+    as they were. A set dumps in iteration order, which differs between processes (``PYTHONHASHSEED``),
     and a retry runs in a new process, so ``revealed_tool_names`` is sorted.
     ``deferred_capability_ids`` is a set of explicit ids and is dropped rather than sorted: a
     deferred capability's id reaches the model through the capability catalog in the
@@ -230,7 +235,16 @@ def _normalize_params(params_dump: dict[str, Any]) -> dict[str, Any]:
     cleaned = {k: v for k, v in params_dump.items() if k != "deferred_capability_ids"}
     cleaned["revealed_tool_names"] = sorted(cleaned["revealed_tool_names"])
     for key in ("function_tools", "output_tools"):
-        cleaned[key] = [{k: v for k, v in tool.items() if k != "capability_id"} for tool in cleaned[key]]
+        cleaned[key] = [_normalize_tool(tool) for tool in cleaned[key]]
+    return cleaned
+
+
+def _normalize_tool(tool: dict[str, Any]) -> dict[str, Any]:
+    cleaned = {k: v for k, v in tool.items() if k != "capability_id"}
+    metadata = cleaned.get("metadata")
+    if isinstance(metadata, dict):
+        # Empty metadata hashes like none, so ``{}`` and ``{"airflow": False}`` match too.
+        cleaned["metadata"] = {k: v for k, v in metadata.items() if k != TOOL_CONFIG_KEY} or None
     return cleaned
 
 
@@ -473,6 +487,12 @@ def _guide(adapter: TypeAdapter[Any], payload: Any) -> tuple[Any, bool]:
         guide = adapter.dump_python(payload)
     except TypeError:
         return None, False
+    except PydanticSerializationError as exc:
+        # pydantic-ai 2.66 serializes a tool return through a wrapping field serializer, and pydantic
+        # re-raises the ``TypeError`` from inside it as this error, keeping only its message.
+        if "unhashable type" not in str(exc):
+            raise
+        return None, False
     return guide, _check_guide(guide)
 
 
@@ -532,7 +552,7 @@ def fingerprint_model_request(
     The ``ModelRequestParameters`` object is hashed (tool definitions, output
     mode and schema, native tools, ...) so any change to what is sent to the
     model invalidates the cached response; only each tool's ``capability_id`` and
-    ``deferred_capability_ids`` are left out.
+    ``airflow`` metadata key, and ``deferred_capability_ids``, are left out.
 
     Returns ``None`` when the request cannot be fingerprinted. The journal then
     replays the step without verification, and only right after a step that
@@ -622,3 +642,22 @@ def fingerprint_tool_call(
             step=step,
         )
         return None
+
+
+def fingerprint_deferred_tool_requests(requests: DeferredToolRequests) -> str | None:
+    """
+    Fingerprint tool calls waiting to be settled, such as approved, from each call's :func:`fingerprint_tool_call`.
+
+    The answer recorded for these calls then replays only for calls with the same names,
+    arguments and call ids, which a replayed model response keeps. ``None`` when any call
+    cannot be fingerprinted.
+    """
+    calls = {
+        kind: [
+            fingerprint_tool_call(call.tool_name, call.args_as_dict(), call.tool_call_id) for call in pending
+        ]
+        for kind, pending in (("approvals", requests.approvals), ("calls", requests.calls))
+    }
+    if any(fingerprint is None for pending in calls.values() for fingerprint in pending):
+        return None
+    return _digest(calls)

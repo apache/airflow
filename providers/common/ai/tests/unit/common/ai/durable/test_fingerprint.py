@@ -55,7 +55,7 @@ from pydantic_ai.messages import (
 from pydantic_ai.models import ModelRequestParameters
 from pydantic_ai.models.function import FunctionModel
 from pydantic_ai.settings import ToolOrOutput
-from pydantic_ai.tools import ToolDefinition
+from pydantic_ai.tools import DeferredToolRequests, ToolDefinition
 from pydantic_core import to_jsonable_python
 
 from airflow.providers.common.ai.durable import fingerprint as fingerprint_module
@@ -69,6 +69,7 @@ from airflow.providers.common.ai.durable.fingerprint import (
     _seed_free,
     _template,
     _unpaired,
+    fingerprint_deferred_tool_requests,
     fingerprint_model_request,
     fingerprint_tool_call,
 )
@@ -200,10 +201,11 @@ class TestModelRequestFingerprint:
                 {"parameters_json_schema": {"type": "object", "properties": {"q": {"type": "string"}}}},
                 id="schema",
             ),
+            pytest.param({"metadata": {"scopes": ["read"]}}, id="metadata"),
         ],
     )
     def test_changes_with_tool_content_next_to_the_capability_id(self, tools_param, change):
-        """Only ``capability_id`` is dropped from a tool definition; what the model sees still counts."""
+        """Only ``capability_id`` and the ``airflow`` metadata key are dropped from a tool definition."""
         base = {"name": "t", "parameters_json_schema": {"type": "object"}, "capability_id": "lookup"}
         fp1 = fingerprint_model_request(
             "m", make_messages(), None, ModelRequestParameters(**{tools_param: [ToolDefinition(**base)]})
@@ -216,6 +218,21 @@ class TestModelRequestFingerprint:
         )
 
         assert fp1 != fp2
+
+    @pytest.mark.parametrize("tools_param", ["function_tools", "output_tools"])
+    @pytest.mark.parametrize(
+        "other_metadata", [None, {}, {"scopes": ["read"]}], ids=["no-metadata", "empty", "with-other-keys"]
+    )
+    def test_stable_across_the_replay_opt_out(self, tools_param, other_metadata):
+        """Whether a tool replays is not part of the request, so turning it on or off between attempts keeps the match."""
+
+        def fingerprint(metadata):
+            tool = ToolDefinition(name="t", parameters_json_schema={"type": "object"}, metadata=metadata)
+            return fingerprint_model_request(
+                "m", make_messages(), None, ModelRequestParameters(**{tools_param: [tool]})
+            )
+
+        assert fingerprint({**(other_metadata or {}), "airflow": False}) == fingerprint(other_metadata)
 
     def test_changes_with_revealed_tool_names(self):
         fp1 = fingerprint_model_request(
@@ -2027,3 +2044,41 @@ class TestDigestsAcrossHashSeeds:
 
         assert first is not None
         assert first == second
+
+
+class TestDeferredToolRequests:
+    """The calls an approval answer is for: it must not replay for any other call."""
+
+    @staticmethod
+    def _approvals(*calls: tuple[str, dict[str, Any], str]) -> DeferredToolRequests:
+        return DeferredToolRequests(
+            approvals=[ToolCallPart(name, args, tool_call_id=i) for name, args, i in calls]
+        )
+
+    def test_the_same_calls_hash_the_same(self):
+        calls = ("refund", {"order_id": 1}, "c-1"), ("refund", {"order_id": 2}, "c-2")
+        assert fingerprint_deferred_tool_requests(
+            self._approvals(*calls)
+        ) == fingerprint_deferred_tool_requests(self._approvals(*calls))
+
+    @pytest.mark.parametrize(
+        "changed",
+        [
+            pytest.param(("refund", {"order_id": 2}, "c-1"), id="arguments"),
+            pytest.param(("refund", {"order_id": 1}, "c-9"), id="call-id"),
+            pytest.param(("cancel", {"order_id": 1}, "c-1"), id="tool"),
+        ],
+    )
+    def test_a_different_call_hashes_differently(self, changed):
+        before = fingerprint_deferred_tool_requests(self._approvals(("refund", {"order_id": 1}, "c-1")))
+        assert fingerprint_deferred_tool_requests(self._approvals(changed)) != before
+
+    def test_an_approval_and_an_external_call_hash_differently(self):
+        call = ToolCallPart("refund", {"order_id": 1}, tool_call_id="c-1")
+        assert fingerprint_deferred_tool_requests(
+            DeferredToolRequests(approvals=[call])
+        ) != fingerprint_deferred_tool_requests(DeferredToolRequests(calls=[call]))
+
+    def test_a_call_that_cannot_be_fingerprinted_leaves_none(self):
+        with patch.object(fingerprint_module, "fingerprint_tool_call", autospec=True, return_value=None):
+            assert fingerprint_deferred_tool_requests(self._approvals(("refund", {}, "c-1"))) is None
