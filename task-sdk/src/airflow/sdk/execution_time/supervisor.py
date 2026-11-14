@@ -1941,7 +1941,12 @@ class ActivitySubprocess(WatchedSubprocess):
             with _remote_logging_conn(self.client):
                 upload_to_remote(self.process_log, self.ti)
         except Exception:
-            self.process_log.exception("Failed to upload remote logs", ti_id=self.id, pid=self.pid)
+            try:
+                self.process_log.exception("Failed to upload remote logs", ti_id=self.id, pid=self.pid)
+            except Exception:
+                log.exception(
+                    "Failed to write remote log upload error to task log", ti_id=self.id, pid=self.pid
+                )
 
     def _monitor_subprocess(self):
         """

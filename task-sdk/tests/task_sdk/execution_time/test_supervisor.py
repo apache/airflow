@@ -5543,6 +5543,56 @@ def test_logs_uploaded_even_when_state_update_fails(mocker):
     upload_logs.assert_called_once_with()
 
 
+@pytest.mark.parametrize("state_update_fails", [False, True], ids=["completed", "state-update-failed"])
+def test_upload_error_logging_does_not_override_task_completion(mocker, caplog, state_update_fails):
+    def unavailable_remote_processor(logger, method, event):
+        raise OSError("remote log stream unavailable")
+
+    process_log = structlog.wrap_logger(
+        structlog.PrintLogger(), processors=[unavailable_remote_processor]
+    ).bind()
+    proc = ActivitySubprocess(
+        process_log=process_log,
+        id=TI_ID,
+        pid=12345,
+        stdin=mocker.MagicMock(spec=socket.socket),
+        client=mocker.MagicMock(spec=sdk_client.Client),
+        process=mocker.MagicMock(spec=psutil.Process),
+    )
+    proc.ti = mocker.MagicMock(spec=TaskInstance)
+
+    def finish_process(self):
+        self._exit_code = 0
+
+    mocker.patch.object(ActivitySubprocess, "_monitor_subprocess", autospec=True, side_effect=finish_process)
+    state_error = httpx2.ConnectError("state update unavailable")
+    mocker.patch.object(
+        ActivitySubprocess,
+        "update_task_state_if_needed",
+        autospec=True,
+        side_effect=state_error if state_update_fails else None,
+    )
+    mocker.patch(
+        "airflow.sdk.execution_time.supervisor._remote_logging_conn",
+        autospec=True,
+        return_value=nullcontext(),
+    )
+    mocker.patch("airflow.sdk.log.upload_to_remote", autospec=True, side_effect=OSError("upload failed"))
+
+    if state_update_fails:
+        with pytest.raises(httpx2.ConnectError) as raised:
+            proc.wait()
+        assert raised.value is state_error
+    else:
+        assert proc.wait() == 0
+
+    assert {
+        "event": "Failed to write remote log upload error to task log",
+        "ti_id": TI_ID,
+        "pid": 12345,
+    } in caplog
+
+
 def test_remote_logging_conn_sets_process_context(monkeypatch, mocker):
     """
     Test that _remote_logging_conn sets _AIRFLOW_PROCESS_CONTEXT=client.
