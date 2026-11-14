@@ -63,6 +63,9 @@ HOOK_MODULE = "airflow.providers.cncf.kubernetes.hooks.kubernetes"
 
 CONN_ID = "kubernetes-test-id"
 ASYNC_CONFIG_PATH = "/files/path/to/config/file"
+MUTUALLY_EXCLUSIVE_CONFIG_ERROR = (
+    "config_file/kube_config_path, kube_config, in_cluster, and config_dict are mutually exclusive"
+)
 POD_NAME = "test-pod"
 NAMESPACE = "test-namespace"
 JOB_NAME = "test-job"
@@ -1049,7 +1052,7 @@ class TestKubernetesHookIncorrectConfiguration:
         kubernetes_hook = KubernetesHook()
         with (
             mock.patch.dict("os.environ", AIRFLOW_CONN_KUBERNETES_DEFAULT=conn_uri),
-            pytest.raises(AirflowException, match="Invalid connection configuration"),
+            pytest.raises(AirflowException, match=MUTUALLY_EXCLUSIVE_CONFIG_ERROR),
         ):
             kubernetes_hook.get_conn()
 
@@ -1262,14 +1265,44 @@ class TestAsyncKubernetesHook:
         assert kube_client is None
 
     @pytest.mark.asyncio
-    async def test_load_config_with_several_params(self, sdk_connection_not_found):
+    @pytest.mark.parametrize(
+        "connection_extras",
+        [
+            pytest.param({}, id="no_connection_extras"),
+            pytest.param({"kube_config_path": ASYNC_CONFIG_PATH}, id="overrides_connection_kube_config_path"),
+        ],
+    )
+    @mock.patch(f"{HOOK_MODULE}.async_config.load_kube_config", autospec=True)
+    async def test_load_config_with_config_file(self, mock_load_kube_config, connection_extras, tmp_path):
+        kubeconfig_file = tmp_path / "config"
+        kubeconfig_file.write_text("{}")
+
+        hook = AsyncKubernetesHook(connection_extras=connection_extras, config_file=str(kubeconfig_file))
+        await hook._load_config()
+
+        mock_load_kube_config.assert_awaited_once_with(
+            config_file=str(kubeconfig_file),
+            client_configuration=hook.client_configuration,
+            context=None,
+        )
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("competing_kwargs", "connection_extras"),
+        [
+            pytest.param({"in_cluster": True}, {}, id="in_cluster"),
+            pytest.param({"config_dict": {"test": "kube"}}, {}, id="config_dict"),
+            pytest.param({}, {"kube_config": '{"test": "kube"}'}, id="kube_config"),
+        ],
+    )
+    async def test_load_config_with_mutually_exclusive_params(self, competing_kwargs, connection_extras):
         hook = AsyncKubernetesHook(
-            conn_id=CONN_ID,
-            in_cluster=True,
+            connection_extras=connection_extras,
             config_file=ASYNC_CONFIG_PATH,
             cluster_context=None,
+            **competing_kwargs,
         )
-        with pytest.raises(AirflowException):
+        with pytest.raises(AirflowException, match=MUTUALLY_EXCLUSIVE_CONFIG_ERROR):
             await hook._load_config()
 
     @pytest.mark.parametrize(
