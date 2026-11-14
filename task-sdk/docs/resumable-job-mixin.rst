@@ -103,7 +103,45 @@ to check the current state of the job:
   waiting.
 * If the job already completed successfully, the mixin calls ``get_job_result`` and returns
   immediately without resubmitting.
-* If the job is in a terminal failure state, the mixin falls through and submits a fresh job.
+* If the job is in a terminal failure state and ``resume_on_retry`` is set, the mixin calls
+  ``resume_failed_job``. If that returns an identifier, the mixin polls it instead of starting over.
+  Otherwise it submits a fresh job.
+
+Resuming a failed job
+---------------------
+
+.. versionadded:: 3.5.0
+
+Some external systems can rerun a failed job from where it stopped, for example by repairing a
+Databricks run or redriving a Step Functions execution. To use that on retry, override the optional
+``resume_failed_job`` method:
+
+``resume_failed_job(external_id, status, context)``
+    Ask the external system to resume the failed job. Return the identifier to poll, which can be the
+    same one or a new one. Return ``None`` to submit a fresh job instead. The default returns ``None``.
+
+If ``resume_failed_job`` raises, the mixin logs a warning and submits a fresh job, so a failed
+resume never leaves a retry worse off.
+
+``resume_on_retry`` turns this on or off per task. It defaults to ``True``. Set it to ``False`` to
+always submit a fresh job when a retry finds the stored job failed:
+
+.. code-block:: python
+
+    run_spark = MyBatchOperator(
+        task_id="run_spark",
+        resume_on_retry=False,
+    )
+
+Clearing a task discards its stored identifier by default, so a cleared task starts a fresh job. If
+the clear keeps task state, the next try treats the stored job like a retry does.
+
+How ``durable`` and ``resume_on_retry`` combine when a retry finds the stored job failed:
+
+* ``durable=True, resume_on_retry=True`` (the default): the mixin resumes the failed job.
+* ``durable=True, resume_on_retry=False``: the mixin submits a fresh job.
+* ``durable=False``: no identifier is stored, so there is nothing to resume. Every try submits a
+  fresh job, whatever ``resume_on_retry`` is set to.
 
 .. note::
 
