@@ -20,7 +20,7 @@ import type { TFunction } from "i18next";
 
 import type { HITLDetail, HITLDetailHistory, TaskInstanceState } from "openapi/requests/types.gen";
 
-import type { ParamSchema, ParamSpec, ParamsSpec } from "src/queries/useDagParams";
+import type { ParamSchema, ParamSpec, ParamsSpec, ParamValue } from "src/queries/useDagParams";
 
 export type HITLResponseParams = {
   chosen_options?: Array<string>;
@@ -113,7 +113,7 @@ export const getHITLParamsDict = (
       // If the task is not multiple, we only show the first option
       value:
         getChosenOptionsValue(hitlDetail) ??
-        (hitlDetail.multiple ? preloadedHITLOptions : preloadedHITLOptions[0]),
+        (hitlDetail.multiple ? preloadedHITLOptions : (preloadedHITLOptions[0] ?? null)),
     };
   }
 
@@ -135,7 +135,8 @@ export const getHITLParamsDict = (
 
       // Values arrive as stored JSON, so an object param's value is already an object. A string is
       // never parsed: a JSON-looking string would render as "[object Object]" and go back as an object.
-      const finalValue = hitlDetail.params_input?.[key] ?? (isWrapped ? paramData.value : value);
+      const finalValue = (hitlDetail.params_input?.[key] ?? (isWrapped ? paramData.value : value)) as
+        ParamValue | undefined;
 
       const description: string =
         paramData && typeof paramData.description === "string" ? paramData.description : "";
@@ -172,7 +173,7 @@ export const getHITLParamsDict = (
       paramsDict[key] = {
         description,
         schema,
-        value: finalValue ?? paramData?.value,
+        value: finalValue ?? paramData?.value ?? null,
       };
     });
   }
@@ -188,9 +189,7 @@ export const getHITLFormData = (paramsDict: ParamsSpec, option?: string): HITLRe
     if (typeof chosenOptionsValue === "string" && chosenOptionsValue) {
       chosenOptions = [chosenOptionsValue];
     } else if (Array.isArray(chosenOptionsValue) && chosenOptionsValue.length > 0) {
-      chosenOptions = chosenOptionsValue.filter(
-        (value): value is string => value !== null && value !== undefined,
-      );
+      chosenOptions = chosenOptionsValue.filter((value): value is string => typeof value === "string");
     }
   } else {
     chosenOptions = [option];

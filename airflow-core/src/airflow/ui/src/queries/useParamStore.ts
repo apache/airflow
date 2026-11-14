@@ -18,7 +18,7 @@
  */
 import { create } from "zustand";
 
-import type { ParamsSpec, ParamSpec } from "src/queries/useDagParams";
+import type { ParamsSpec, ParamSpec, ParamValue } from "src/queries/useDagParams";
 
 export const paramPlaceholder: ParamSpec = {
   description: null,
@@ -65,7 +65,7 @@ const createParamStore = () =>
           return {};
         }
 
-        const parsedConf = JSON.parse(confString) as Record<string, unknown>;
+        const parsedConf = JSON.parse(confString) as Record<string, ParamValue>;
         const baseDict =
           Object.keys(state.initialParamDict).length > 0 ? state.initialParamDict : state.paramsDict;
 
@@ -81,7 +81,7 @@ const createParamStore = () =>
               {
                 description: baseParam.description ?? null,
                 schema: baseParam.schema,
-                value: parsedConf[key],
+                value: parsedConf[key] ?? null,
               },
             ]);
           }
