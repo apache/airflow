@@ -241,7 +241,7 @@ def find_properties(body: str) -> list[dict[str, str]]:
         for row in re.findall(r"<tr[^>]*>(.*?)</tr>", macro_body[: max(table_end, 0)], re.S):
             cells = re.findall(r"<t([dh])[^>]*>(.*?)</t\1>", row, re.S)
             if len(cells) >= 2:
-                rows.setdefault(get_text(cells[0][1]).rstrip(":"), cells[1][1])
+                rows.setdefault(get_text(cells[0][1]).rstrip(": "), cells[1][1])
         blocks.append(rows)
     return blocks
 

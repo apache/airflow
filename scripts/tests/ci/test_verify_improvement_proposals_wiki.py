@@ -233,6 +233,23 @@ def test_properties_after_macro_parameters_are_read(wiki, parameters):
     assert wiki.find_badge(wiki.find_properties(body)[0]["State"]) == "Completed"
 
 
+@pytest.mark.parametrize(
+    "key",
+    [
+        pytest.param("<strong>State</strong>:", id="colon-after-bold"),
+        pytest.param("<strong>State:</strong>", id="colon-in-bold"),
+        pytest.param("<p><strong>State</strong> :</p>", id="space-before-colon"),
+    ],
+)
+def test_property_key_with_a_formatted_colon_is_read(wiki, key):
+    body = (
+        '<ac:structured-macro ac:name="details"><ac:rich-text-body><table><tbody>'
+        f"<tr><td>{key}</td><td>{badge('Completed')}</td></tr>"
+        "</tbody></table></ac:rich-text-body></ac:structured-macro>"
+    )
+    assert wiki.find_badge(wiki.find_properties(body)[0]["State"]) == "Completed"
+
+
 def test_macro_with_many_parameters_and_no_body_is_read_in_linear_time(wiki):
     body = '<ac:structured-macro ac:name="details"><ac:parameter>' + "</ac:parameter><ac:parameter>" * 24
     start = time.monotonic()
