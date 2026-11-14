@@ -156,7 +156,11 @@ Set up your checkout and fork once:
       gh workflow enable ci-amd.yml -R <you>/airflow
 
    GitHub Actions must also be enabled in your fork and allow all actions: ``Tests (AMD)`` uses
-   actions from other repositories.
+   actions from other repositories. When your fork's Actions settings block the workflow, its run
+   ends in "Startup failure" before any job runs, and the fork CI monitor reports
+   ``Fork CI / Tests (AMD)`` as failed with "could not start". Open the run in your fork for GitHub's
+   error, which can also be an invalid workflow file, fix the settings under
+   **Settings > Actions > General** in your fork, and push again.
 
    Keep the workflow enabled for as long as you have open pull requests. If it gets disabled, from
    your fork's Actions tab or by GitHub after 60 days without activity in your fork, the fork CI

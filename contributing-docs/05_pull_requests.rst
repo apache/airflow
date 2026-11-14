@@ -272,7 +272,7 @@ and approves them automatically when all of these hold:
 
 If your PR's CI runs in your fork (it carries the ``fork ci required`` label), the CI run in
 ``apache/airflow`` only checks that, so none of the rules above apply. The ``CI run started`` check
-waits until the fork CI monitor sees your fork's run, usually within 15 minutes, and then links it. Its runs are approved
+waits until the fork CI monitor sees your fork's run, usually within 5 to 10 minutes, and then links it. Its runs are approved
 automatically unless the PR changes files that decide which CI jobs run and on which runners:
 anything under ``.github/``, ``dev/breeze/src/`` or ``scripts/ci/prek/``, or
 ``dev/breeze/pyproject.toml``, ``dev/breeze/uv.lock`` or ``scripts/ci/install_breeze.sh``. Then
