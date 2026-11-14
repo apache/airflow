@@ -24,6 +24,8 @@ from typing import TYPE_CHECKING, Any
 from pydantic import BaseModel
 from pydantic_ai.messages import ToolCallPart
 
+from airflow.providers.common.ai.observability import emit_usage_metrics
+
 if TYPE_CHECKING:
     from pydantic_ai.result import AgentRunResult
     from pydantic_ai.usage import RunUsage
@@ -55,6 +57,14 @@ def log_run_summary(
         usage.total_tokens,
     )
     _log_cache_and_cost(logger, usage)
+
+    emit_usage_metrics(
+        model=model_name,
+        requests=usage.requests,
+        input_tokens=usage.input_tokens,
+        output_tokens=usage.output_tokens,
+        cost=float(usage.cost) if usage.cost is not None else None,
+    )
 
     if tool_names := _extract_tool_sequence(result):
         logger.info("Tool call sequence: %s", " -> ".join(tool_names))
