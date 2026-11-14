@@ -24,8 +24,8 @@ from fastapi import Depends
 from sqlalchemy import false, select
 
 from airflow.api_fastapi.common.db.common import (
-    SessionDep,
-    paginated_select,
+    AsyncSessionDep,
+    paginated_select_async,
 )
 from airflow.api_fastapi.common.parameters import (
     QueryDagTagPatternSearch,
@@ -43,7 +43,7 @@ dag_tags_router = AirflowRouter(tags=["DAG"], prefix="/dagTags")
 
 
 @dag_tags_router.get("", dependencies=[Depends(requires_access_dag(method="GET"))])
-def get_dag_tags(
+async def get_dag_tags(
     limit: QueryLimit,
     offset: QueryOffset,
     order_by: Annotated[
@@ -58,7 +58,7 @@ def get_dag_tags(
     tag_name_pattern: QueryDagTagPatternSearch,
     tag_name_prefix_pattern: QueryDagTagPrefixPatternSearch,
     readable_tags_filter: ReadableTagsFilterDep,
-    session: SessionDep,
+    session: AsyncSessionDep,
 ) -> DAGTagCollectionResponse:
     """Get all Dag tags."""
     query = (
@@ -67,7 +67,7 @@ def get_dag_tags(
         .where(DagModel.is_stale == false())
         .group_by(DagTag.name)
     )
-    dag_tags_select, total_entries = paginated_select(
+    dag_tags_select, total_entries = await paginated_select_async(
         statement=query,
         filters=[tag_name_pattern, tag_name_prefix_pattern, readable_tags_filter],
         order_by=order_by,
@@ -75,5 +75,5 @@ def get_dag_tags(
         limit=limit,
         session=session,
     )
-    dag_tags: Sequence = session.execute(dag_tags_select).scalars().all()
+    dag_tags: Sequence = (await session.execute(dag_tags_select)).scalars().all()
     return DAGTagCollectionResponse(tags=[x for x in dag_tags], total_entries=total_entries)
