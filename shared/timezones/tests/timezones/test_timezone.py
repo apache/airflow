@@ -219,3 +219,11 @@ def test_from_timestamp_fixed_timezone(utc_offset):
     from_ts = timezone.from_timestamp(0, tz=FixedTimezone(utc_offset))
     assert from_ts == pendulum.DateTime(1970, 1, 1, tzinfo=timezone.utc)
     assert from_ts.utcoffset() == datetime.timedelta(seconds=utc_offset)
+
+
+def test_get_default_timezone_returns_the_initialized_timezone(monkeypatch):
+    monkeypatch.setattr(timezone._Timezone, "initialized_timezone", timezone.utc)
+
+    timezone.initialize("Asia/Tokyo")
+
+    assert timezone.get_default_timezone() == pendulum.timezone("Asia/Tokyo")
