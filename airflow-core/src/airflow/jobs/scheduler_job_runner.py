@@ -178,6 +178,14 @@ MAX_PARTITION_DAG_RUNS_PER_LOOP = 500
 # Max number of ADRQ rows deleted per statement, to keep the bind parameter count bounded.
 _ADRQ_DELETE_CHUNK_SIZE = 500
 
+# Caps how many dag_ids the cap log lists and how many per-Dag audit rows
+# are written per callback run. The backlog's distinct dag_id count is unbounded, so
+# writing it straight into a log field or one DB row per Dag without a cap risks
+# an unbounded payload. 20 is enough for an operator to diagnose which Dags are
+# backlogged without letting the log field or the per-run row count run away.
+# Internal constant, not a user setting, for the same reason as the constant above.
+MAX_PARTITION_CAP_BACKLOG_DAG_IDS_LOGGED = 20
+
 MAX_TI_REFILL_QUERIES_PER_LOOP = 3
 """
 Max extra task instance queries per critical section to fill a partially selected batch.
@@ -341,6 +349,22 @@ def _get_current_dr_task_concurrency(states: Iterable[TaskInstanceState]) -> Sub
     )
 
 
+def _build_pending_partitioned_apdr_filters() -> tuple[ColumnElement[bool], ...]:
+    """
+    Build the predicates selecting the pending APDRs the scheduler can act on.
+
+    Callers join ``DagModel`` on ``target_dag_id``. The per-tick fetch and the periodic cap
+    backlog count share these predicates: counting rows the fetch can never select produces a
+    false cap warning.
+    """
+    return (
+        AssetPartitionDagRun.created_dag_run_id.is_(None),
+        DagModel.is_paused.is_(False),
+        DagModel.is_draining.is_(False),
+        DagModel.is_stale.is_(False),
+    )
+
+
 class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
     """
     SchedulerJobRunner runs for a specific time interval and schedules jobs that are ready to run.
@@ -400,6 +424,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         self._multi_team = conf.getboolean("core", "multi_team")
         self._dag_tags_in_metrics = conf.getboolean("metrics", "dag_tags_in_metrics", fallback=False)
         self._max_partition_dag_runs_per_loop = MAX_PARTITION_DAG_RUNS_PER_LOOP
+        # Edge-triggers the "partition Dag run cap reached" audit Log rows: the dag_ids whose row
+        # was committed during the current backlog episode. Cleared by
+        # `_report_partition_cap_backlog` when the backlog is at or below the cap.
+        # Process-local: each scheduler in an HA deployment writes its own audit row per Dag per
+        # episode; cross-process de-duplication would need a DB read per callback run.
+        self._partition_cap_reported_dag_ids: set[str] = set()
         self._dag_id_to_team_name: dict[str, str | None] = {}
 
         self.executors: list[BaseExecutor] = executors if executors else ExecutorLoader.init_executors()
@@ -2090,6 +2120,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         timers.call_regular_interval(60.0, self._update_dag_run_state_for_paused_dags)
         timers.call_regular_interval(5.0, self._finalize_draining_dags)
+        timers.call_regular_interval(60.0, self._report_partition_cap_backlog, non_fatal=True)
         timers.call_regular_interval(
             conf.getfloat("scheduler", "parsing_cleanup_interval"), cleanup_processor_metadata, non_fatal=True
         )
@@ -2521,28 +2552,22 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         meantime, in which case the stale-fingerprint cleanup below drops it instead.
         """
         # Cap per-tick work so the scheduler transaction stays bounded and other
-        # scheduling work isn't starved. Remaining APDRs drain across subsequent ticks.
-        # FIFO is intentional: the oldest pending APDR fires first. A persistently
-        # unsatisfiable APDR at the head (e.g. broken mapper, upstream that will
-        # never arrive) blocks newer ones until an operator removes it or fixes
-        # the underlying mapper. We surface the stuck state rather than silently
-        # rotating past it.
-        # `with_row_locks(skip_locked=True)` mirrors the sibling ADRQ claim path:
-        # in HA two schedulers can otherwise both grab the same satisfied APDR
-        # and race the `created_dag_run_id` UPDATE, orphaning whichever DagRun
-        # loses. The `id` tiebreaker on `order_by` keeps LIMIT deterministic when
-        # two APDRs share a `created_at` under bulk asset-event ingestion.
-        # SQLite is single-writer and silently drops `FOR UPDATE`, which is fine.
+        # scheduling work isn't starved; the remainder drains over subsequent ticks.
+        # FIFO is intentional: a persistently unsatisfiable APDR at the head (e.g.
+        # broken mapper, upstream that will never arrive) blocks newer ones until an
+        # operator removes it or fixes the mapper, surfacing the stuck state rather
+        # than silently rotating past it.
+        # `with_row_locks(skip_locked=True)` mirrors the sibling ADRQ claim path: in
+        # HA two schedulers can otherwise both grab the same satisfied APDR and race
+        # the `created_dag_run_id` UPDATE, orphaning whichever DagRun loses. The `id`
+        # tiebreaker on `order_by` keeps LIMIT deterministic when two APDRs share a
+        # `created_at` under bulk asset-event ingestion. SQLite is single-writer and
+        # silently drops `FOR UPDATE`, which is fine.
         pending_apdrs = session.scalars(
             with_row_locks(
                 select(AssetPartitionDagRun)
                 .join(DagModel, DagModel.dag_id == AssetPartitionDagRun.target_dag_id)
-                .where(
-                    AssetPartitionDagRun.created_dag_run_id.is_(None),
-                    DagModel.is_paused.is_(False),
-                    DagModel.is_draining.is_(False),
-                    DagModel.is_stale.is_(False),
-                )
+                .where(*_build_pending_partitioned_apdr_filters())
                 .order_by(AssetPartitionDagRun.created_at, AssetPartitionDagRun.id)
                 .limit(self._max_partition_dag_runs_per_loop),
                 of=AssetPartitionDagRun,
@@ -4331,6 +4356,61 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             )
             .execution_options(synchronize_session="fetch")
         )
+
+    def _report_partition_cap_backlog(self) -> None:
+        """Log and audit the Dags in the pending partitioned Dag run backlog above the per-tick cap."""
+        with create_session() as session:
+            backlogs_per_dag = {
+                dag_id: count
+                for dag_id, count in session.execute(
+                    select(AssetPartitionDagRun.target_dag_id, func.count())
+                    .select_from(AssetPartitionDagRun)
+                    .join(DagModel, DagModel.dag_id == AssetPartitionDagRun.target_dag_id)
+                    .where(*_build_pending_partitioned_apdr_filters())
+                    .group_by(AssetPartitionDagRun.target_dag_id)
+                )
+            }
+            backlog_total = sum(backlogs_per_dag.values())
+            if backlog_total <= self._max_partition_dag_runs_per_loop:
+                self._partition_cap_reported_dag_ids.clear()
+                return
+
+            # No SQL-side ORDER BY: it would have no dag_id tie-break, and relying on dict
+            # insertion order mirroring DB row order across backends (SQLite in tests vs
+            # Postgres/MySQL in production) isn't a contract worth trusting — sort explicitly.
+            sorted_dag_ids = sorted(backlogs_per_dag, key=lambda dag_id: (-backlogs_per_dag[dag_id], dag_id))
+            displayed_dag_ids = sorted_dag_ids[:MAX_PARTITION_CAP_BACKLOG_DAG_IDS_LOGGED]
+            new_dag_ids = [
+                dag_id for dag_id in displayed_dag_ids if dag_id not in self._partition_cap_reported_dag_ids
+            ]
+            log_cap_reached = self.log.warning if new_dag_ids else self.log.debug
+            log_cap_reached(
+                (
+                    "Pending partitioned Dag runs exceed the per-tick cap; only the oldest pending "
+                    "runs up to the cap are evaluated per tick, newer ones wait behind them"
+                ),
+                cap=self._max_partition_dag_runs_per_loop,
+                backlog_total=backlog_total,
+                dag_ids=displayed_dag_ids,
+            )
+            session.add_all(
+                Log(
+                    event="partition Dag run cap reached",
+                    dag_id=dag_id,
+                    owner="scheduler",
+                    owner_display_name="Scheduler",
+                    extra=(
+                        f"This Dag has {backlogs_per_dag[dag_id]} pending partitioned Dag runs and "
+                        f"{backlog_total} are pending across all Dags, above the internal per-tick cap "
+                        f"of {self._max_partition_dag_runs_per_loop}; pending runs are counted whether "
+                        f"or not their partitions are satisfied yet. Only the oldest pending runs up "
+                        f"to the cap are evaluated per tick, and newer ones wait behind them."
+                    ),
+                )
+                for dag_id in new_dag_ids
+            )
+        # Must follow the commit above: a failed write leaves these Dags unreported so the next run retries.
+        self._partition_cap_reported_dag_ids.update(new_dag_ids)
 
     @provide_session
     def _update_asset_orphanage(self, *, session: Session = NEW_SESSION) -> None:
