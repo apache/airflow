@@ -1,0 +1,19 @@
+{
+  "ssl_options": {
+    "ca_certs": "/path/to/ca.crt",
+    "cert_file": "/path/to/client.crt",
+    "key_file": "/path/to/client.key",
+    "validate": true
+  },
+  "auth_method": "GSSAPI",
+  "kerberos_service_name": "hbase",
+  "timeout": 30000,
+  "retry_max_attempts": 3,
+  "retry_delay": 1.0,
+  "retry_backoff_factor": 2.0,
+  "connection_pool": {
+    "enabled": false,
+    "size": 10,
+    "timeout": 30
+  }
+}

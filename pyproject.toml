@@ -130,6 +130,9 @@ apache-airflow = "airflow.__main__:main"
 "apache.flink" = [
     "apache-airflow-providers-apache-flink>=1.6.0"
 ]
+"apache.hbase" = [
+    "apache-airflow-providers-apache-hbase>=1.1.0"
+]
 "apache.hdfs" = [
     "apache-airflow-providers-apache-hdfs>=4.6.0"
 ]
@@ -438,6 +441,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-apache-drill>=2.8.1",
     "apache-airflow-providers-apache-druid>=3.12.0",
     "apache-airflow-providers-apache-flink>=1.6.0",
+    "apache-airflow-providers-apache-hbase>=1.1.0",
     "apache-airflow-providers-apache-hdfs>=4.6.0",
     "apache-airflow-providers-apache-hive>=8.2.1",
     "apache-airflow-providers-apache-iceberg>=1.2.0",
@@ -1157,6 +1161,8 @@ mypy_path = [
     "$MYPY_CONFIG_FILE_DIR/providers/apache/druid/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/apache/flink/src",
     "$MYPY_CONFIG_FILE_DIR/providers/apache/flink/tests",
+    "$MYPY_CONFIG_FILE_DIR/providers/apache/hbase/src",
+    "$MYPY_CONFIG_FILE_DIR/providers/apache/hbase/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/apache/hdfs/src",
     "$MYPY_CONFIG_FILE_DIR/providers/apache/hdfs/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/apache/hive/src",
@@ -1519,6 +1525,7 @@ apache-airflow-providers-apache-cassandra = false
 apache-airflow-providers-apache-drill = false
 apache-airflow-providers-apache-druid = false
 apache-airflow-providers-apache-flink = false
+apache-airflow-providers-apache-hbase = false
 apache-airflow-providers-apache-hdfs = false
 apache-airflow-providers-apache-hive = false
 apache-airflow-providers-apache-iceberg = false
@@ -1718,6 +1725,7 @@ apache-airflow-providers-apache-cassandra = false
 apache-airflow-providers-apache-drill = false
 apache-airflow-providers-apache-druid = false
 apache-airflow-providers-apache-flink = false
+apache-airflow-providers-apache-hbase = false
 apache-airflow-providers-apache-hdfs = false
 apache-airflow-providers-apache-hive = false
 apache-airflow-providers-apache-iceberg = false
@@ -1892,6 +1900,7 @@ apache-airflow-providers-apache-cassandra = { workspace = true }
 apache-airflow-providers-apache-drill = { workspace = true }
 apache-airflow-providers-apache-druid = { workspace = true }
 apache-airflow-providers-apache-flink = { workspace = true }
+apache-airflow-providers-apache-hbase = { workspace = true }
 apache-airflow-providers-apache-hdfs = { workspace = true }
 apache-airflow-providers-apache-hive = { workspace = true }
 apache-airflow-providers-apache-iceberg = { workspace = true }
@@ -2039,6 +2048,7 @@ members = [
     "providers/apache/drill",
     "providers/apache/druid",
     "providers/apache/flink",
+    "providers/apache/hbase",
     "providers/apache/hdfs",
     "providers/apache/hive",
     "providers/apache/iceberg",
