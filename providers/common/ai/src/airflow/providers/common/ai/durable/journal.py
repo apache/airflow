@@ -185,9 +185,12 @@ class JournalStep:
         retry that replays this step instead of running it.
         """
         token = _EXECUTING_STEP.set(self)
+        executing = self.durable_run.journal._executing_steps
+        executing[id(self)] = self
         try:
             yield
         finally:
+            executing.pop(id(self), None)
             _EXECUTING_STEP.reset(token)
 
     def record(self, payload: Any) -> bool:
@@ -784,6 +787,19 @@ class DurableJournal:
         # Errors a run of this attempt failed with and took as its own, with the run's key. An agent
         # run inside a step fails before the run the step belongs to, so that run can tell.
         self._run_failures: list[tuple[BaseException, str]] = []
+        # Steps whose work is running now, by id. Kept on the journal rather than read from the
+        # context, so a thread that did not inherit the context still sees them.
+        self._executing_steps: dict[int, JournalStep] = {}
+
+    def find_executing_tool_steps(self) -> list[JournalStep]:
+        """
+        Return the tool calls of this journal whose work is running now, in any thread.
+
+        It sees a call from code that runs in another thread without a copy of the call's
+        context, such as an agent the tool runs with ``loop.run_in_executor``.
+        """
+        # list() copies in one go, so a step another thread starts or ends meanwhile cannot break it.
+        return [step for step in list(self._executing_steps.values()) if step.kind == "tool"]
 
     def get_run_id(self, *, default: str) -> str:
         """
@@ -928,6 +944,8 @@ def build_task_storage(context: Context) -> DurableStorageProtocol:
 
 _ACTIVE_JOURNAL: ContextVar[DurableJournal | None] = ContextVar("commonai_durable_journal", default=None)
 _EXECUTING_STEP: ContextVar[JournalStep | None] = ContextVar("commonai_durable_step", default=None)
+
+
 # The journal for the task attempt this process is running, when no caller set one
 # explicitly. Keyed by the attempt, so a second attempt in the same process (a test,
 # a long-lived worker) never reuses the first attempt's runs.

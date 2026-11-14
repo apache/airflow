@@ -51,13 +51,17 @@ from pydantic_ai.exceptions import (
     UnexpectedModelBehavior,
 )
 from pydantic_ai.messages import ModelResponse, ToolReturn
-from pydantic_ai.tools import AgentDepsT
+from pydantic_ai.tools import AgentDepsT, DeferredToolRequests
 from pydantic_ai.toolsets import AbstractToolset, DynamicToolset, FunctionToolset, ToolsetTool
 from pydantic_ai.toolsets.wrapper import WrapperToolset
 from pydantic_core import PydanticSerializationError
 
 from airflow.providers.common.ai.durable.base import TOOL_CONFIG_KEY
-from airflow.providers.common.ai.durable.fingerprint import fingerprint_model_request, fingerprint_tool_call
+from airflow.providers.common.ai.durable.fingerprint import (
+    fingerprint_deferred_tool_requests,
+    fingerprint_model_request,
+    fingerprint_tool_call,
+)
 from airflow.providers.common.ai.durable.journal import Unrecordable, current_journal
 from airflow.providers.common.ai.durable.replay_usage import ReplayUsageLedger, is_successful_tool_payload
 from airflow.providers.common.ai.exceptions import DurableJournalError, DurableToolMetadataError
@@ -65,6 +69,11 @@ from airflow.providers.common.ai.utils.masking import mask_secrets
 from airflow.providers.common.ai.utils.tool_metrics import record_tool_call
 from airflow.providers.common.ai.utils.toolset_base import AirflowToolset
 from airflow.providers.common.ai.utils.toolsets import iter_toolsets
+from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_3_PLUS
+
+if AIRFLOW_V_3_3_PLUS:
+    # Waiting for input parks a task in the awaiting_input state, which older Airflow versions do not have.
+    from airflow.sdk.exceptions import TaskAwaitingInput
 
 if TYPE_CHECKING:
     from pydantic_ai.agent import EventStreamHandler
@@ -86,11 +95,12 @@ __all__ = ["AirflowDurability"]
 
 # What pydantic-ai's durable backend passes as ``cache_key``: a projection of the
 # operation's parameters that it types as an opaque tuple. These spell out the shapes
-# of the two projections fingerprinted here.
+# of the projections fingerprinted here.
 _ModelRequestKey: TypeAlias = (
     "tuple[str | None, list[ModelMessage], ModelSettings | None, ModelRequestParameters, RunContext[Any]]"
 )
 _ToolCallKey: TypeAlias = "tuple[str, dict[str, Any], RunContext[Any]]"
+_CapabilityOperationKey: TypeAlias = "tuple[str | None, dict[str, Any], RunContext[Any]]"
 
 try:
     from pydantic_ai.mcp import MCPToolset
@@ -475,6 +485,10 @@ class AirflowDurability(BaseDurabilityCapability[AgentDepsT]):
             with _active_run(_ActiveRun(durable_run, ledger)):
                 result = await super().wrap_run(ctx, handler=handler)
         except BaseException as error:
+            if AIRFLOW_V_3_3_PLUS and isinstance(error, TaskAwaitingInput):
+                # A step is waiting for a person, such as a tool approval: the task resumes from here.
+                durable_run.pause()
+                raise
             # pydantic-ai raises UnexpectedModelBehavior when the model's answers fail its checks
             # too often (a tool's ModelRetry, output validation): the answers are recorded, so a
             # retry has to ask the model again rather than replay them into the same error.
@@ -602,7 +616,13 @@ class _AirflowOperationBackend(CallableOperationBackend[_StepMode]):
                 # save by replaying it, and it is the same on every attempt, so it takes no position.
                 return await body()
             case CapabilityOperationId():
-                step = self._claim(active, operation_id, name, kind="other", fingerprint=None)
+                step = self._claim(
+                    active,
+                    operation_id,
+                    name,
+                    kind="other",
+                    fingerprint=_fingerprint_capability_operation(cache_key),
+                )
                 if step.replayed:
                     active.ledger.record_capability_replay(step.payload)
                     return step.payload
@@ -814,6 +834,20 @@ def _is_journaled_tool_payload(payload: object) -> bool:
         case "approval_required" | "call_deferred":
             return True
     return False
+
+
+def _fingerprint_capability_operation(cache_key: tuple[object, ...]) -> str | None:
+    """
+    Fingerprint a capability operation that settles deferred tool calls, such as an approval, by those calls.
+
+    Its answer is about these calls, so it must not replay for others. Any other capability
+    operation has no fingerprint, and replays by name and position.
+    """
+    _, arguments, _ = cast("_CapabilityOperationKey", cache_key)
+    for argument in arguments.values():
+        if isinstance(argument, DeferredToolRequests):
+            return fingerprint_deferred_tool_requests(argument)
+    return None
 
 
 def _tool_fingerprint(cache_key: tuple[object, ...]) -> str | None:

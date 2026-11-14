@@ -240,7 +240,8 @@ instead.
 
 Some steps have no request to fingerprint: another capability's
 ``@durable_operation``, or tool discovery. Such a step replays on its name, and only when
-the step before it also replayed.
+the step before it also replayed. A step that settles tool calls waiting for approval is
+fingerprinted by those calls, so it replays only for them.
 
 The journal records:
 
@@ -255,9 +256,12 @@ The journal records:
   summary follows a tool set to run on every attempt.
 
 A tool that raises ``ModelRetry``, ``ToolFailed``, ``ApprovalRequired`` or
-``CallDeferred`` replays as the same signal. ``AgentOperator`` does not support tool
-approval or deferred tools with ``durable=True``, so there such a call fails the task
-with ``UnsupportedToolDeferralError``, as it would without ``durable``. A tool that raises
+``CallDeferred`` replays as the same signal. With ``AgentOperator`` on Airflow 3.3 and
+later, a tool that needs approval pauses the task (except with code mode or
+``enable_hitl_review``), and the reviewer's answer is recorded as a step, so a retry does
+not ask again, and replays an approved call that returned (:ref:`tool-approval-durable`
+has the exceptions). A deferred tool (``CallDeferred``) fails the task with
+``UnsupportedToolDeferralError``, as it would without ``durable``. A tool that raises
 any other exception runs again on retry; once it has failed the run on two attempts in a
 row, the next retry asks the model again, as described above. ``SQLToolset`` uses that
 split: a statement the database rejects is a ``ModelRetry`` and replays, while failing to
@@ -517,9 +521,8 @@ offered the tool, and the task is not retried:
 Limitations
 -----------
 
-- ``durable=True`` cannot be combined with ``enable_hitl_review``, a ``SandboxToolset``
-  or tool approval. ``AgentOperator`` raises ``ValueError`` for the first two when the Dag
-  is parsed.
+- ``durable=True`` cannot be combined with ``enable_hitl_review`` or a ``SandboxToolset``.
+  ``AgentOperator`` raises ``ValueError`` for both when the Dag is parsed.
 - A task instance that is retried across an upgrade of this provider from a version
   without ``AirflowDurability`` runs its steps live once: the journal keys changed.
 

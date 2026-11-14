@@ -159,5 +159,5 @@ What is not covered
   Airflow 3.3 and later (:ref:`howto/frameworks:strands-durable`), and a retried
   ``LLMBatchOperator`` re-attaches to its running batch (:ref:`llm-batch-reattach`).
 - A ``ManagedAgentToolset`` runs again on every attempt unless it is built with
-  ``replayable=True``. Durable execution cannot be combined with ``enable_hitl_review``,
-  a ``SandboxToolset`` or tool approval; see the limitations in :doc:`durable_execution`.
+  ``replayable=True``. Durable execution cannot be combined with ``enable_hitl_review``
+  or a ``SandboxToolset``; see the limitations in :doc:`durable_execution`.

@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from types import SimpleNamespace
 from unittest import mock
@@ -1025,6 +1026,26 @@ class TestRuns:
 
         assert nested_keys == ["0.0.1"]
         assert journal.start_run().key == "1"
+
+    @pytest.mark.asyncio
+    async def test_a_running_tool_call_is_seen_from_a_thread_without_its_context(self, memory_storage):
+        """``run_in_executor`` does not copy the context, so only the journal can tell code there runs in the tool."""
+        journal = DurableJournal(memory_storage)
+        run = journal.start_run()
+        seen = {}
+
+        async def look(key):
+            seen[key] = await asyncio.get_running_loop().run_in_executor(
+                None, journal.find_executing_tool_steps
+            )
+            return key
+
+        await run.run("event", kind="other", fingerprint=None, body=lambda: look("other"))
+        await run.run("tool", kind="tool", fingerprint="t", body=lambda: look("tool"))
+
+        assert seen["other"] == []
+        assert [step.name for step in seen["tool"]] == ["tool"]
+        assert journal.find_executing_tool_steps() == []
 
     def test_the_run_id_is_the_first_attempts_on_every_retry(self, memory_storage):
         first = DurableJournal(memory_storage).get_run_id(default="ti-try-1")
