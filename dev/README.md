@@ -23,6 +23,7 @@
 - [Apache Airflow source releases](#apache-airflow-source-releases)
   - [Apache Airflow Package](#apache-airflow-package)
   - [Provider distributions](#provider-distributions)
+  - [Language SDK distributions](#language-sdk-distributions)
 - [Preinstalled providers](#preinstalled-providers)
 - [Prerequisites for the release manager preparing the release](#prerequisites-for-the-release-manager-preparing-the-release)
   - [Upload Public keys to id.apache.org and GitHub](#upload-public-keys-to-idapacheorg-and-github)
@@ -107,6 +108,19 @@ of Backport Providers was done  on March 17, 2021.
 
 Detailed instruction of releasing provider distributions can be found in the
 [README_RELEASE_PROVIDERS.md](README_RELEASE_PROVIDERS.md)
+
+## Language SDK distributions
+
+The language SDKs (`ts-sdk`, `java-sdk`, `go-sdk`) let you write Airflow tasks in TypeScript,
+Java or Go. They are released on their own versions but follow the Airflow core release cycle and
+are cut from the same `vX-Y-test` / `vX-Y-stable` release branches.
+
+The source releases in SVN are the "official source releases"; the npm package, the Maven Central
+artifacts and the Go module are convenience binaries built from them.
+
+Release management common to all three can be found in
+[README_RELEASE_LANG_SDKS.md](README_RELEASE_LANG_SDKS.md), which links to each SDK's own
+publishing instructions.
 
 # Preinstalled providers
 
