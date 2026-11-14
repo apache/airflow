@@ -71,6 +71,7 @@ from airflow.providers.cncf.kubernetes.triggers.pod import ContainerState, Kuber
 from airflow.providers.cncf.kubernetes.utils import xcom_sidecar
 from airflow.providers.cncf.kubernetes.utils.container import (
     container_is_completed,
+    container_is_in_spec,
     container_is_running,
     container_is_succeeded,
     container_is_wait,
@@ -1296,8 +1297,10 @@ class KubernetesPodOperator(BaseOperator):
 
         istio_enabled = self.is_istio_enabled(self.pod)
         # Skip await_pod_completion when the event is 'timeout' due to the pod can hang
-        # on the ErrImagePull or ContainerCreating step and it will never complete
-        if event["status"] != "timeout":
+        # on the ErrImagePull or ContainerCreating step and it will never complete.
+        # Skip it as well when the pod never declares the base container: the wait can then
+        # only end through the pod or its other containers.
+        if event["status"] != "timeout" and container_is_in_spec(self.pod, self.base_container_name):
             try:
                 self.pod = self.pod_manager.await_pod_completion(
                     self.pod, istio_enabled, self.base_container_name, self.do_xcom_push
