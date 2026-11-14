@@ -26,6 +26,15 @@ Changelog
 ---------
 
 .. note::
+  When every connection of a ``fallback_conn_ids`` chain fails, ``LLMOperator`` and ``AgentOperator``
+  now raise ``airflow.providers.common.ai.fallback_exceptions.FallbackChainExhaustedError`` instead of
+  pydantic-ai's ``FallbackExceptionGroup``. It subclasses ``FallbackExceptionGroup``, so ``except``
+  clauses and ``RetryRule(exception=FallbackExceptionGroup)`` keep matching, and ``__cause__`` is the
+  group the chain raised. ``LLMRetryPolicy`` and ``ClassifierRetryPolicy`` now also match their
+  ``fallback_rules`` against the last connection's error, and show the model each connection's error
+  and how many durable journal steps the attempt replayed and recorded.
+
+.. note::
   ``@task.llm``, ``@task.agent``, ``@task.llm_sql``, ``@task.llm_branch``,
   ``@task.llm_file_analysis`` and ``@task.llm_schema_compare`` now render only the prompt returned
   by the decorated function inside ``execute()``. Their other template fields (``system_prompt``,

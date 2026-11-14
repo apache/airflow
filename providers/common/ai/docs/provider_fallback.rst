@@ -140,9 +140,15 @@ vendor can answer the same prompt now; a bad prompt, an exhausted quota on every
 a permanent data error still has to be decided by the retry policy.
 
 Adding a chain changes what the retry layer sees. When every connection in the chain
-fails, the exception the task raises is ``pydantic_ai.exceptions.FallbackExceptionGroup``,
-not the last provider's own exception, so retry rules matched against a provider-specific
-exception type stop matching. Before adding a chain to a connection that Dags already use,
+fails, the exception the task raises is
+:class:`~airflow.providers.common.ai.fallback_exceptions.FallbackChainExhaustedError`, a subclass of
+``pydantic_ai.exceptions.FallbackExceptionGroup``, not the last provider's own exception.
+The error each connection raised is in its ``member_errors``. ``LLMRetryPolicy`` and
+``ClassifierRetryPolicy`` match their ``fallback_rules`` against the chain's error and then
+against the last connection's error, so a rule written for a provider-specific exception type
+keeps matching. A plain ``ExceptionRetryPolicy``, or any other policy that compares one
+exception type, sees only the group, and a rule written for a provider-specific exception
+type stops matching there. Before adding a chain to a connection that Dags already use,
 read :doc:`retry_policies` -- the section "When the connection also carries a fallback
 chain" spells out what to check.
 

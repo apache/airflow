@@ -320,27 +320,56 @@ class _ModelRetryPolicy(RetryPolicy):
 
         return PydanticAIHook.get_hook(self.llm_conn_id, hook_params={"model_id": self.model_id})
 
-    def _prompt(self, exception: BaseException, try_number: int, max_tries: int) -> str:
-        if self.include_traceback:
-            text = "".join(traceback.format_exception(exception)).rstrip("\n")
-        else:
-            text = str(exception)
+    def _limit(self, text: str, *, keep_tail: bool = False) -> str:
         # Redact before truncating -- truncating first could cut a registered secret in half.
         if self.redactor is not None:
             text = self.redactor(text)
-        if len(text) > self.max_exception_length:
-            if self.include_traceback:
-                # Keep the tail: the innermost frames and the final exception line say the most.
-                text = f"(truncated) ...{text[-self.max_exception_length :]}"
-            else:
-                text = f"{text[: self.max_exception_length]}... (truncated)"
-        if not self.include_traceback:
-            text = f"{type(exception).__name__}: {text}"
+        if len(text) <= self.max_exception_length:
+            return text
+        if keep_tail:
+            # Keep the tail: the innermost frames and the final exception line say the most.
+            return f"(truncated) ...{text[-self.max_exception_length :]}"
+        return f"{text[: self.max_exception_length]}... (truncated)"
+
+    def _prompt(self, exception: BaseException, try_number: int, max_tries: int) -> str:
+        if self.include_traceback:
+            text = self._limit("".join(traceback.format_exception(exception)).rstrip("\n"), keep_tail=True)
+        else:
+            text = f"{type(exception).__name__}: {self._limit(str(exception))}"
+            # Each member gets its own limit: one long error must not push the last one, which
+            # decides ``fallback_rules``, out of the prompt.
+            member_errors = self._get_member_errors(exception)
+            for position, member in enumerate(member_errors, start=1):
+                text += (
+                    f"\nchain member {position} of {len(member_errors)}: "
+                    f"{type(member).__name__}: {self._limit(str(member))}"
+                )
+        if (progress := self._describe_journal_progress(exception)) is not None:
+            text += f"\n{progress}"
         # ``max_tries`` is the last try number that may still retry (core adds to it on a clear),
         # so the final attempt is ``max_tries + 1``, as core logs "Starting attempt N of M".
         return (
             "Classify this error from a data pipeline task "
             f"(attempt {try_number} of {max_tries + 1}):\n\n{text}"
+        )
+
+    @staticmethod
+    def _get_member_errors(exception: BaseException) -> tuple[BaseException, ...]:
+        """Return the error each fallback connection raised, in chain order, or ``()`` for any other error."""
+        from pydantic_ai.exceptions import FallbackExceptionGroup
+
+        return tuple(exception.exceptions) if isinstance(exception, FallbackExceptionGroup) else ()
+
+    @staticmethod
+    def _describe_journal_progress(exception: BaseException) -> str | None:
+        """Say how far the failed attempt got on the durable journal, or None when it is not known."""
+        from airflow.providers.common.ai.fallback_exceptions import FallbackChainExhaustedError
+
+        if not isinstance(exception, FallbackChainExhaustedError) or exception.replayed_steps is None:
+            return None
+        return (
+            f"Before the chain failed, this attempt replayed {exception.replayed_steps} and "
+            f"recorded {exception.recorded_steps} durable journal steps, so a retry resumes from there."
         )
 
     def _run(
@@ -356,11 +385,25 @@ class _ModelRetryPolicy(RetryPolicy):
     def _rules_decision(
         self, exception: BaseException, try_number: int, max_tries: int, context: Context | None
     ) -> RetryDecision:
-        """Return the rules floor's decision: a ``fallback_rules`` match, else the task's own retry behaviour."""
-        if self.fallback_rules:
-            return ExceptionRetryPolicy(rules=self.fallback_rules).evaluate(
-                exception, try_number, max_tries, context
-            )
+        """
+        Return the rules floor's decision: a ``fallback_rules`` match, else the task's own retry behaviour.
+
+        When every connection of a fallback chain failed, a rule matches the chain's own error or the
+        error of its last connection, whichever the rule names, in the order the rules are listed.
+        The last connection decides when the members disagree: a 400 there is not retried because
+        an earlier connection was rate limited, and the reverse. The reason of a decision taken on
+        the last connection's error says so.
+        """
+        member_errors = self._get_member_errors(exception)
+        targets = [exception, member_errors[-1]] if member_errors else [exception]
+        for rule in self.fallback_rules or ():
+            for target in targets:
+                decision = ExceptionRetryPolicy(rules=[rule]).evaluate(target, try_number, max_tries, context)
+                if decision.reason is None:
+                    continue
+                if target is exception:
+                    return decision
+                return replace(decision, reason=f"{decision.reason} (last chain member)")
         return RetryDecision.default()
 
 

@@ -32,7 +32,7 @@ import pytest
 from pydantic import TypeAdapter, ValidationError
 from pydantic_ai import Agent
 from pydantic_ai.agent import AgentRunResult
-from pydantic_ai.exceptions import UnexpectedModelBehavior
+from pydantic_ai.exceptions import FallbackExceptionGroup, UnexpectedModelBehavior
 from pydantic_ai.messages import ModelResponse
 
 # LLMRetryPolicy depends on the RetryPolicy ABC introduced in Airflow 3.3 (AIP-105).
@@ -40,6 +40,7 @@ from pydantic_ai.messages import ModelResponse
 pytest.importorskip("airflow.sdk.definitions.retry_policy", reason="RetryPolicy requires Airflow 3.3+")
 
 from airflow.models.connection import Connection
+from airflow.providers.common.ai.fallback_exceptions import FallbackChainExhaustedError
 from airflow.providers.common.ai.hooks.pydantic_ai import PydanticAIAzureHook, PydanticAIHook
 from airflow.providers.common.ai.policies import retry as retry_module
 from airflow.providers.common.ai.policies.retry import (
@@ -953,6 +954,158 @@ class TestPrompt:
 
         expected = f"(truncated) ...{final_line}" if truncated else full_text
         assert prompt == f"{PROMPT_HEADER}{expected}"
+
+
+class _RateLimited(Exception):
+    """A connection answered 429."""
+
+
+class _BadRequest(Exception):
+    """A connection answered 400."""
+
+
+def _exhausted_chain(*members: Exception, replayed=None, recorded=None) -> FallbackChainExhaustedError:
+    return FallbackChainExhaustedError.from_group(
+        FallbackExceptionGroup("All models from FallbackModel failed", list(members)),
+        replayed_steps=replayed,
+        recorded_steps=recorded,
+    )
+
+
+class TestFallbackChain:
+    """A failed chain reaches the policy as one error; the policy still sees the members and the progress."""
+
+    @pytest.mark.parametrize("policy_cls", POLICY_CLASSES)
+    @patch(HOOK, autospec=True)
+    def test_prompt_names_every_member_error_in_chain_order(self, mock_hook_cls, policy_cls):
+        # Without the member lines in ``_prompt`` the model sees only the group's message.
+        error = _exhausted_chain(_RateLimited("primary throttled"), _BadRequest("secondary rejected"))
+
+        prompt = _prompt_for(mock_hook_cls, policy_cls, error)
+
+        assert prompt.index("chain member 1 of 2: _RateLimited: primary throttled") < prompt.index(
+            "chain member 2 of 2: _BadRequest: secondary rejected"
+        )
+
+    @pytest.mark.enable_redact
+    @pytest.mark.parametrize("policy_cls", POLICY_CLASSES)
+    @patch(HOOK, autospec=True)
+    def test_prompt_redacts_a_secret_in_a_member_error(self, mock_hook_cls, policy_cls):
+        # Dropping the member lines from the redacted ``text`` leaks the secret into the prompt.
+        reset_secrets_masker()
+        secret_value = "member-secret-token"
+        mask_secret(secret_value)
+        error = _exhausted_chain(_BadRequest(f"bad token {secret_value}"), _RateLimited("slow down"))
+
+        prompt = _prompt_for(mock_hook_cls, policy_cls, error)
+
+        assert "chain member 1 of 2: _BadRequest: bad token ***" in prompt
+        assert secret_value not in prompt
+
+    @pytest.mark.parametrize("policy_cls", POLICY_CLASSES)
+    @patch(HOOK, autospec=True)
+    def test_a_long_earlier_member_does_not_push_the_last_one_out_of_the_prompt(
+        self, mock_hook_cls, policy_cls
+    ):
+        # Truncating the joined text instead of each member keeps the head and drops the last member.
+        error = _exhausted_chain(_RateLimited("x" * 500), _BadRequest("final rejection"))
+
+        prompt = _prompt_for(mock_hook_cls, policy_cls, error, max_exception_length=100)
+
+        assert "chain member 1 of 2: _RateLimited: " + "x" * 100 + "... (truncated)" in prompt
+        assert "chain member 2 of 2: _BadRequest: final rejection" in prompt
+
+    @pytest.mark.parametrize("policy_cls", POLICY_CLASSES)
+    @patch(HOOK, autospec=True)
+    def test_prompt_says_how_far_the_durable_attempt_got(self, mock_hook_cls, policy_cls):
+        error = _exhausted_chain(_RateLimited("a"), _RateLimited("b"), replayed=2, recorded=1)
+
+        prompt = _prompt_for(mock_hook_cls, policy_cls, error)
+
+        assert "replayed 2 and recorded 1 durable journal steps" in prompt
+
+    @pytest.mark.parametrize("policy_cls", POLICY_CLASSES)
+    @patch(HOOK, autospec=True)
+    def test_prompt_has_no_progress_line_without_a_journal(self, mock_hook_cls, policy_cls):
+        error = _exhausted_chain(_RateLimited("a"), _RateLimited("b"))
+
+        prompt = _prompt_for(mock_hook_cls, policy_cls, error)
+
+        assert "journal" not in prompt
+
+    @patch(HOOK, autospec=True)
+    def test_traceback_prompt_is_left_to_the_exception_group_formatter(self, mock_hook_cls):
+        error = _exhausted_chain(_RateLimited("a"), _BadRequest("b"))
+
+        prompt = _prompt_for(mock_hook_cls, ClassifierRetryPolicy, error, include_traceback=True)
+
+        assert "chain member" not in prompt
+        assert "_BadRequest: b" in prompt
+
+    @pytest.fixture
+    def rules(self):
+        return [
+            RetryRule(exception=_RateLimited, action=RetryAction.RETRY, retry_delay=timedelta(seconds=60)),
+            RetryRule(exception=_BadRequest, action=RetryAction.FAIL, reason="bad request"),
+        ]
+
+    @pytest.mark.parametrize("policy_cls", POLICY_CLASSES)
+    def test_rules_match_the_members_when_all_are_rate_limited(self, rules, policy_cls):
+        # Without the last-member target, only the group is compared and no rule matches.
+        policy = policy_cls(llm_conn_id="nonexistent", fallback_rules=rules)
+
+        decision = policy.evaluate(
+            _exhausted_chain(_RateLimited("a"), _RateLimited("b")), try_number=1, max_tries=3
+        )
+
+        assert (decision.action, decision.retry_delay) == (RetryAction.RETRY, timedelta(seconds=60))
+        assert decision.reason.endswith("(last chain member)")
+
+    @pytest.mark.parametrize(
+        ("members", "expected"),
+        [
+            pytest.param((_RateLimited("a"), _BadRequest("b")), RetryAction.FAIL, id="last-is-400"),
+            pytest.param((_BadRequest("a"), _RateLimited("b")), RetryAction.RETRY, id="last-is-429"),
+        ],
+    )
+    def test_the_last_member_decides_when_the_members_disagree(self, rules, members, expected):
+        policy = LLMRetryPolicy(llm_conn_id="nonexistent", fallback_rules=rules)
+
+        decision = policy.evaluate(_exhausted_chain(*members), try_number=1, max_tries=3)
+
+        assert decision.action == expected
+
+    def test_a_rule_on_the_chain_error_itself_keeps_matching(self):
+        policy = LLMRetryPolicy(
+            llm_conn_id="nonexistent",
+            fallback_rules=[RetryRule(exception=FallbackExceptionGroup, action=RetryAction.FAIL)],
+        )
+
+        decision = policy.evaluate(_exhausted_chain(_RateLimited("a")), try_number=1, max_tries=3)
+
+        assert decision.action == RetryAction.FAIL
+        assert not decision.reason.endswith("(last chain member)")
+
+    def test_rules_apply_in_the_order_they_are_listed_across_both_targets(self):
+        # A catch-all on the group listed first still wins over a member rule listed after it.
+        policy = LLMRetryPolicy(
+            llm_conn_id="nonexistent",
+            fallback_rules=[
+                RetryRule(exception=FallbackExceptionGroup, action=RetryAction.FAIL, reason="group"),
+                RetryRule(exception=_RateLimited, action=RetryAction.RETRY),
+            ],
+        )
+
+        decision = policy.evaluate(_exhausted_chain(_RateLimited("a")), try_number=1, max_tries=3)
+
+        assert (decision.action, decision.reason) == (RetryAction.FAIL, "group")
+
+    def test_a_chain_with_no_matching_rule_keeps_the_task_default(self, rules):
+        policy = LLMRetryPolicy(llm_conn_id="nonexistent", fallback_rules=rules)
+
+        decision = policy.evaluate(_exhausted_chain(ValueError("a")), try_number=1, max_tries=3)
+
+        assert decision.action == RetryAction.DEFAULT
 
 
 class TestFallbackBehaviour:

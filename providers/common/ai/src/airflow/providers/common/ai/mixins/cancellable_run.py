@@ -22,6 +22,10 @@ import threading
 from typing import TYPE_CHECKING, Any
 
 from pydantic_ai import CancellationToken
+from pydantic_ai.exceptions import FallbackExceptionGroup
+
+from airflow.providers.common.ai.durable.journal import current_journal
+from airflow.providers.common.ai.fallback_exceptions import FallbackChainExhaustedError
 
 if TYPE_CHECKING:
     from pydantic_ai import Agent, AgentRunResult
@@ -50,10 +54,25 @@ class CancellableAgentRunMixin:
     def run_agent_sync(
         self, agent: Agent[Any, Any], user_prompt: Any, **run_kwargs: Any
     ) -> AgentRunResult[Any]:
-        """Call ``agent.run_sync`` under a fresh cancellation token held for :meth:`on_kill`."""
+        """
+        Call ``agent.run_sync`` under a fresh cancellation token held for :meth:`on_kill`.
+
+        A ``FallbackExceptionGroup`` from a failed chain is raised again as
+        :class:`~airflow.providers.common.ai.fallback_exceptions.FallbackChainExhaustedError`, carrying
+        what the durable journal replayed and recorded so far.
+        """
         self._cancellation_token = CancellationToken()
         try:
             return agent.run_sync(user_prompt, cancellation_token=self._cancellation_token, **run_kwargs)
+        except FallbackExceptionGroup as group:
+            if isinstance(group, FallbackChainExhaustedError):
+                raise
+            journal = current_journal()
+            raise FallbackChainExhaustedError.from_group(
+                group,
+                replayed_steps=None if journal is None else journal.stats.replayed.total(),
+                recorded_steps=None if journal is None else journal.stats.recorded.total(),
+            ) from group
         finally:
             self._cancellation_token = None
 
