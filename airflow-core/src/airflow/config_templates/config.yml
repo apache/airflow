@@ -2048,6 +2048,15 @@ api:
       type: boolean
       example: ~
       default: "False"
+    default_match_anywhere:
+      description: |
+        Default search mode for DAG and task search in the web UI. When set to ``True``, search
+        filters match anywhere in the name (substring) instead of only at the start (prefix).
+        Users can still toggle the mode per search and save their own default in Settings.
+      version_added: 3.5.0
+      type: boolean
+      example: ~
+      default: "False"
     client_ssl_cert:
       description: |
         Path to a PEM-encoded client SSL certificate to use
