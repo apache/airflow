@@ -21,6 +21,7 @@ import abc
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any, TypeVar
 
+from airflow.providers.amazon.aws.exceptions import SensorTriggerFailedError
 from airflow.providers.amazon.aws.hooks.bedrock import BedrockAgentHook, BedrockHook
 from airflow.providers.amazon.aws.sensors.base_aws import AwsBaseSensor
 from airflow.providers.amazon.aws.triggers.bedrock import (
@@ -31,6 +32,7 @@ from airflow.providers.amazon.aws.triggers.bedrock import (
     BedrockKnowledgeBaseActiveTrigger,
     BedrockProvisionModelThroughputCompletedTrigger,
 )
+from airflow.providers.amazon.aws.utils import validate_execute_complete_event
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 from airflow.providers.common.compat.sdk import AirflowException, conf
 
@@ -82,6 +84,12 @@ class BedrockBaseSensor(AwsBaseSensor[_GenericBedrockHook]):
             raise AirflowException(f"{self.FAILURE_MESSAGE}{self._failure_reason_suffix()}")
 
         return state not in self.INTERMEDIATE_STATES
+
+    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
+        validated_event = validate_execute_complete_event(event)
+
+        if validated_event["status"] != "success":
+            raise SensorTriggerFailedError(f"{self.FAILURE_MESSAGE} Trigger event: {validated_event}")
 
     def _failure_reason_suffix(self) -> str:
         """Assemble failure reasons if any are provided."""
@@ -162,7 +170,7 @@ class BedrockCustomizeModelCompletedSensor(BedrockBaseSensor[BedrockHook]):
                     verify=self.verify,
                     botocore_config=self.botocore_config,
                 ),
-                method_name="poke",
+                method_name="execute_complete",
             )
         else:
             super().execute(context=context)
@@ -235,7 +243,7 @@ class BedrockProvisionModelThroughputCompletedSensor(BedrockBaseSensor[BedrockHo
                     verify=self.verify,
                     botocore_config=self.botocore_config,
                 ),
-                method_name="poke",
+                method_name="execute_complete",
             )
         else:
             super().execute(context=context)
@@ -307,7 +315,7 @@ class BedrockKnowledgeBaseActiveSensor(BedrockBaseSensor[BedrockAgentHook]):
                     verify=self.verify,
                     botocore_config=self.botocore_config,
                 ),
-                method_name="poke",
+                method_name="execute_complete",
             )
         else:
             super().execute(context=context)
@@ -399,7 +407,7 @@ class BedrockIngestionJobSensor(BedrockBaseSensor[BedrockAgentHook]):
                     verify=self.verify,
                     botocore_config=self.botocore_config,
                 ),
-                method_name="poke",
+                method_name="execute_complete",
             )
         else:
             super().execute(context=context)
@@ -510,7 +518,7 @@ class BedrockBatchInferenceSensor(BedrockBaseSensor[BedrockHook]):
                     verify=self.verify,
                     botocore_config=self.botocore_config,
                 ),
-                method_name="poke",
+                method_name="execute_complete",
             )
         else:
             super().execute(context=context)

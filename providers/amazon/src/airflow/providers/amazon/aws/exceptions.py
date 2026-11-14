@@ -133,3 +133,7 @@ class WaiterMaxAttemptsError(AirflowException):
 
 class WaiterNoCredentialsError(WaiterMaxAttemptsError):
     """Raised when an AWS waiter exhausts all attempts due to missing credentials."""
+
+
+class SensorTriggerFailedError(AirflowException):
+    """Raised when the trigger a deferred sensor was waiting on reports a failure."""
