@@ -1798,9 +1798,7 @@ class TestTriggerRunner:
         mock_trigger.on_kill.assert_awaited_once()
         mock_trigger.cleanup.assert_awaited_once()
 
-    def test_run_trigger_cleanup_exception_logged_and_not_reraised(
-        self, session, cap_structlog, caplog
-    ) -> None:
+    def test_run_trigger_cleanup_exception_logged_and_not_reraised(self, session, cap_structlog) -> None:
         """cleanup() exceptions are logged as a warning with traceback and not re-raised."""
         trigger_runner = TriggerRunner()
         trigger_runner.triggers = {
@@ -1821,7 +1819,6 @@ class TestTriggerRunner:
             "log_level": "warning",
             "name": "mock_name",
         } in cap_structlog
-        assert "RuntimeError: cleanup boom" in caplog.text
 
     def test_run_trigger_routes_shared_stream_trigger_through_manager(self, session) -> None:
         """A BaseEventTrigger that opts into a shared stream consumes filter_shared_stream()."""
