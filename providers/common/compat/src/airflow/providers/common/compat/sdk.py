@@ -83,6 +83,7 @@ if TYPE_CHECKING:
     from airflow.sdk.bases.sensor import poke_mode_only as poke_mode_only
     from airflow.sdk.bases.skipmixin import SkipMixin as SkipMixin
     from airflow.sdk.configuration import conf as conf
+    from airflow.sdk.definitions._internal.types import SET_DURING_EXECUTION as SET_DURING_EXECUTION
     from airflow.sdk.definitions.context import context_merge as context_merge
     from airflow.sdk.definitions.mappedoperator import MappedOperator as MappedOperator
     from airflow.sdk.definitions.template import literal as literal
@@ -107,7 +108,7 @@ if TYPE_CHECKING:
         get_hook_lineage_collector as get_hook_lineage_collector,
     )
     from airflow.sdk.listener import get_listener_manager as get_listener_manager
-    from airflow.sdk.log import redact as redact
+    from airflow.sdk.log import mask_secret as mask_secret, redact as redact
     from airflow.sdk.plugins_manager import AirflowPlugin as AirflowPlugin
 
     # Airflow 3-only exceptions (conditionally imported)
@@ -126,6 +127,7 @@ if TYPE_CHECKING:
             RetryPolicy as RetryPolicy,
             RetryRule as RetryRule,
         )
+    from airflow.sdk import ResumableJobMixin as ResumableJobMixin
     from airflow.sdk.execution_time.context import (
         AIRFLOW_VAR_NAME_FORMAT_MAPPING as AIRFLOW_VAR_NAME_FORMAT_MAPPING,
         context_to_airflow_vars as context_to_airflow_vars,
@@ -264,12 +266,23 @@ _IMPORT_MAP: dict[str, str | tuple[str, ...]] = {
     # ============================================================================
     "Context": ("airflow.sdk", "airflow.utils.context"),
     "context_merge": ("airflow.sdk.definitions.context", "airflow.utils.context"),
+    # Default for a decorated operator's argument that the callable's return value fills in
+    "SET_DURING_EXECUTION": (
+        "airflow.sdk.definitions._internal.types",
+        "airflow.providers.common.compat._set_during_execution",
+    ),
     "context_to_airflow_vars": ("airflow.sdk.execution_time.context", "airflow.utils.operator_helpers"),
     "AIRFLOW_VAR_NAME_FORMAT_MAPPING": (
         "airflow.sdk.execution_time.context",
         "airflow.utils.operator_helpers",
     ),
-    "get_current_context": ("airflow.sdk", "airflow.operators.python"),
+    # On Airflow 2 the standard provider's version comes before core's: it raises RuntimeError
+    # outside a task, as Airflow 3 does, where core's raises AirflowException.
+    "get_current_context": (
+        "airflow.sdk",
+        "airflow.providers.standard.operators.python",
+        "airflow.operators.python",
+    ),
     "get_parsing_context": ("airflow.sdk", "airflow.utils.dag_parsing_context"),
     # ============================================================================
     # Timeout Utilities
@@ -316,6 +329,11 @@ _IMPORT_MAP: dict[str, str | tuple[str, ...]] = {
         "airflow.sdk.execution_time.secrets_masker",
         "airflow.utils.log.secrets_masker",
     ),
+    "mask_secret": (
+        "airflow.sdk.log",
+        "airflow.sdk.execution_time.secrets_masker",
+        "airflow.utils.log.secrets_masker",
+    ),
     # ============================================================================
     # Listeners
     # ============================================================================
@@ -325,6 +343,12 @@ _IMPORT_MAP: dict[str, str | tuple[str, ...]] = {
     # ============================================================================
     "conf": ("airflow.sdk.configuration", "airflow.configuration"),
     "AirflowConfigException": ("airflow.sdk.exceptions", "airflow.exceptions"),
+    # ============================================================================
+    # Resumable jobs (AIP-103)
+    # ============================================================================
+    # ResumableJobMixin arrived in Airflow 3.3. The SDK is tried first; below 3.3 the stand-in submits a
+    # new job on every try, so a durable operator still runs there, just without resuming.
+    "ResumableJobMixin": ("airflow.sdk", "airflow.providers.common.compat._resumable_job_mixin"),
 }
 
 # Airflow 3-only exceptions (not available in Airflow 2)

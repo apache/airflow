@@ -2,7 +2,9 @@
   "extends": "../tsconfig.json",
   "compilerOptions": {
     "noEmit": true,
-    "rootDir": "."
+    "rootDir": ".",
+    // Resolve the SDK as the built package, not the root's `../src` alias.
+    "paths": {}
   },
   "include": ["src/**/*.ts"]
 }

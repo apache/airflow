@@ -21,6 +21,12 @@ DuckDB Operators
 `DuckDB <https://duckdb.org/>`__ is an in-process analytical database. Queries run inside the
 Airflow task process, so there is no cluster to provision and no data to move before querying it.
 
+.. seealso::
+
+    Other providers can ship a DuckDB connection type that adds their own behaviour, which this
+    operator resolves from the connection. For Amazon S3, see
+    :doc:`DuckDB on AWS <apache-airflow-providers-amazon:operators/duckdb>`.
+
 .. _howto/operator:DuckDBExecuteQueryOperator:
 
 Run a query

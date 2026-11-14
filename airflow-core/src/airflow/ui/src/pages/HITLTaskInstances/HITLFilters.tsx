@@ -21,10 +21,12 @@ import { useParams } from "react-router-dom";
 import { FilterBar } from "src/components/FilterBar";
 
 import { SearchParamsKeys } from "src/constants/searchParams";
+import { useConfig } from "src/queries/useConfig";
 import { useFiltersHandler, type FilterableSearchParamsKeys } from "src/utils";
 
 export const HITLFilters = ({ onResponseChange }: { readonly onResponseChange: () => void }) => {
   const { dagId = "~", taskId = "~" } = useParams();
+  const multiTeamEnabled = Boolean(useConfig("multi_team"));
 
   const fixedKeys: Array<FilterableSearchParamsKeys> = [
     SearchParamsKeys.RESPONSE_RECEIVED,
@@ -43,6 +45,10 @@ export const HITLFilters = ({ onResponseChange }: { readonly onResponseChange: (
 
   if (taskId === "~") {
     dynamicKeys.push(SearchParamsKeys.TASK_ID_PATTERN);
+  }
+
+  if (multiTeamEnabled) {
+    dynamicKeys.push(SearchParamsKeys.TEAMS);
   }
 
   const searchParamKeys = [...dynamicKeys, ...fixedKeys];

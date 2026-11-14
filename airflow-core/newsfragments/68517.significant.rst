@@ -1,0 +1,14 @@
+Asset-triggered Dags create one run per event by default
+
+Single-asset schedules and asset OR expressions now create one Dag run per event
+instead of consuming all queued events in one run. This also applies to
+``AssetOrTimeSchedule`` and ``PartitionedAssetTimetable``.
+
+To retain batching, set ``batch_asset_events=True`` on the timetable or enable
+``[scheduler] batch_asset_events`` and reparse the affected Dags. Already serialized
+timetables without this option retain their previous batching behavior until reparsed.
+
+Schedules requiring several events, including ``schedule=[a, b]``, asset AND
+expressions, and partitioned timetables using ``RollupMapper``, continue to batch
+by default. Explicitly setting ``batch_asset_events=False`` for these schedules
+raises a timetable validation error.

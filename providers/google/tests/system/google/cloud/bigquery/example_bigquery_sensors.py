@@ -48,10 +48,7 @@ DAG_ID = "bigquery_sensors"
 
 DATASET_NAME = f"dataset_{DAG_ID}_{ENV_ID}".replace("-", "_")
 TABLE_NAME = f"partitioned_table_{DAG_ID}_{ENV_ID}".replace("-", "_")
-
-INSERT_DATE = datetime.now().strftime("%Y-%m-%d")
 PARTITION_NAME = "{{ ds_nodash }}"
-
 INSERT_ROWS_QUERY = f"INSERT {DATASET_NAME}.{TABLE_NAME} VALUES (42, '{{{{ ds }}}}')"
 
 SCHEMA = [

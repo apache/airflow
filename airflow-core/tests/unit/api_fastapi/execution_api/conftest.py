@@ -21,6 +21,7 @@ from fastapi import FastAPI, Request
 from fastapi.testclient import TestClient
 from starlette.routing import Mount
 
+from airflow import settings
 from airflow.api_fastapi.app import cached_app
 from airflow.api_fastapi.execution_api.app import lifespan
 from airflow.api_fastapi.execution_api.datamodels.token import TIClaims, TIToken
@@ -49,7 +50,17 @@ def exec_app(client):
 
 
 @pytest.fixture
-def client(request: pytest.FixtureRequest):
+def async_db_engine():
+    previous_engine, previous_session = settings.async_engine, settings.AsyncSession
+    settings._configure_async_session()
+    try:
+        yield settings.async_engine
+    finally:
+        settings.async_engine, settings.AsyncSession = previous_engine, previous_session
+
+
+@pytest.fixture
+def client(request: pytest.FixtureRequest, async_db_engine):
     app = cached_app(apps="execution")
     exec_app = _get_execution_api_app(app)
 
@@ -73,6 +84,9 @@ def client(request: pytest.FixtureRequest):
     exec_app.dependency_overrides[require_auth] = mock_require_auth
 
     with TestClient(app, headers={"Authorization": "Bearer fake"}) as client:
-        yield client
+        try:
+            yield client
+        finally:
+            client.portal.call(async_db_engine.dispose)
 
     exec_app.dependency_overrides.pop(require_auth, None)

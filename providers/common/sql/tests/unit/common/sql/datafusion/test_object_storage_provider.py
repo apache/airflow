@@ -25,6 +25,7 @@ import pytest
 from airflow.providers.common.sql.config import ConnectionConfig, StorageType
 from airflow.providers.common.sql.datafusion.exceptions import ObjectStoreCreationException
 from airflow.providers.common.sql.datafusion.object_storage_provider import (
+    AzureObjectStorageProvider,
     GCSObjectStorageProvider,
     LocalObjectStorageProvider,
     S3ObjectStorageProvider,
@@ -141,6 +142,205 @@ class TestObjectStorageProvider:
         with pytest.raises(ValueError, match="connection_config must be provided for gcs"):
             provider.create_object_store("gs://demo-data/path")
 
+    @patch("airflow.providers.common.sql.datafusion.object_storage_provider.MicrosoftAzure")
+    def test_azure_provider_success(self, mock_azure):
+        provider = AzureObjectStorageProvider()
+        connection_config = ConnectionConfig(
+            conn_id="wasb_default",
+            credentials={"account": "myaccount", "access_key": "fake_key"},
+        )
+
+        store = provider.create_object_store("az://demo-container/path", connection_config)
+
+        mock_azure.assert_called_once_with(
+            container_name="demo-container", account="myaccount", access_key="fake_key"
+        )
+        assert store == mock_azure.return_value
+        assert provider.get_storage_type == StorageType.AZURE
+        assert provider.get_scheme() == "az://"
+
+    @pytest.mark.parametrize(
+        "uri",
+        [
+            "abfs://demo-container@myaccount.dfs.core.windows.net/path",
+            "abfss://demo-container@myaccount.dfs.core.windows.net/path",
+            "abfss://demo-container@myaccount.blob.core.windows.net/path",
+            "abfss://demo-container@myaccount.DFS.Core.Windows.Net/path",
+        ],
+    )
+    @patch("airflow.providers.common.sql.datafusion.object_storage_provider.MicrosoftAzure")
+    def test_azure_provider_success_with_abfs_uri(self, mock_azure, uri, monkeypatch):
+        # Without these, a public-cloud host check that is too strict would still pass.
+        monkeypatch.delenv("AZURE_STORAGE_ENDPOINT", raising=False)
+        monkeypatch.delenv("AZURE_ENDPOINT", raising=False)
+        provider = AzureObjectStorageProvider()
+        connection_config = ConnectionConfig(
+            conn_id="wasb_default",
+            credentials={"account": "myaccount", "access_key": "fake_key"},
+        )
+
+        store = provider.create_object_store(uri, connection_config)
+
+        mock_azure.assert_called_once_with(
+            container_name="demo-container", account="myaccount", access_key="fake_key"
+        )
+        assert store == mock_azure.return_value
+        assert provider.get_bucket(uri) == "demo-container"
+
+    @patch("airflow.providers.common.sql.datafusion.object_storage_provider.MicrosoftAzure")
+    def test_azure_provider_abfs_uri_account_mismatch_raises(self, mock_azure):
+        provider = AzureObjectStorageProvider()
+        connection_config = ConnectionConfig(
+            conn_id="wasb_default",
+            credentials={"account": "connection-account", "access_key": "fake_key"},
+        )
+
+        with pytest.raises(ObjectStoreCreationException, match="names storage account 'uri-account'"):
+            provider.create_object_store(
+                "abfss://demo-container@uri-account.dfs.core.windows.net/path", connection_config
+            )
+
+        mock_azure.assert_not_called()
+
+    @pytest.mark.parametrize(
+        "uri",
+        [
+            "abfs://demo-container/path",  # missing @account entirely
+            "abfss://demo-container@/path",  # empty account
+        ],
+    )
+    @patch("airflow.providers.common.sql.datafusion.object_storage_provider.MicrosoftAzure")
+    def test_azure_provider_malformed_abfs_uri_raises_clear_error(self, mock_azure, uri):
+        provider = AzureObjectStorageProvider()
+        connection_config = ConnectionConfig(
+            conn_id="wasb_default",
+            credentials={"account": "myaccount", "access_key": "fake_key"},
+        )
+
+        with pytest.raises(ObjectStoreCreationException, match="does not match the required"):
+            provider.create_object_store(uri, connection_config)
+
+        mock_azure.assert_not_called()
+
+    @patch("airflow.providers.common.sql.datafusion.object_storage_provider.MicrosoftAzure")
+    def test_azure_provider_abfs_uri_account_used_when_connection_resolves_none(self, mock_azure):
+        provider = AzureObjectStorageProvider()
+        connection_config = ConnectionConfig(
+            conn_id="wasb_default",
+            credentials={"access_key": "fake_key"},
+        )
+
+        provider.create_object_store(
+            "abfss://demo-container@uri-account.dfs.core.windows.net/path", connection_config
+        )
+
+        mock_azure.assert_called_once_with(
+            container_name="demo-container", account="uri-account", access_key="fake_key"
+        )
+
+    @pytest.mark.parametrize("account", [None, "usgovacct"])
+    @patch("airflow.providers.common.sql.datafusion.object_storage_provider.MicrosoftAzure")
+    def test_azure_provider_abfs_uri_sovereign_host_without_endpoint_raises(
+        self, mock_azure, account, monkeypatch
+    ):
+        monkeypatch.delenv("AZURE_STORAGE_ENDPOINT", raising=False)
+        monkeypatch.delenv("AZURE_ENDPOINT", raising=False)
+        credentials = {"access_key": "fake_key"}
+        if account:
+            credentials["account"] = account
+        connection_config = ConnectionConfig(conn_id="wasb_default", credentials=credentials)
+
+        with pytest.raises(ObjectStoreCreationException, match="no endpoint override"):
+            AzureObjectStorageProvider().create_object_store(
+                "abfss://demo-container@usgovacct.dfs.core.usgovcloudapi.net/path", connection_config
+            )
+
+        mock_azure.assert_not_called()
+
+    @pytest.mark.parametrize("env_var", ["AZURE_STORAGE_ENDPOINT", "AZURE_ENDPOINT"])
+    @patch("airflow.providers.common.sql.datafusion.object_storage_provider.MicrosoftAzure")
+    def test_azure_provider_abfs_uri_sovereign_host_with_endpoint_env_passes(
+        self, mock_azure, env_var, monkeypatch
+    ):
+        monkeypatch.setenv(env_var, "https://usgovacct.blob.core.usgovcloudapi.net")
+        connection_config = ConnectionConfig(conn_id="wasb_default", credentials={"access_key": "fake_key"})
+
+        AzureObjectStorageProvider().create_object_store(
+            "abfss://demo-container@usgovacct.dfs.core.usgovcloudapi.net/path", connection_config
+        )
+
+        mock_azure.assert_called_once_with(
+            container_name="demo-container", account="usgovacct", access_key="fake_key"
+        )
+
+    @patch("airflow.providers.common.sql.datafusion.object_storage_provider.MicrosoftAzure")
+    def test_azure_provider_abfs_uri_account_matches_case_insensitively(self, mock_azure):
+        provider = AzureObjectStorageProvider()
+        connection_config = ConnectionConfig(
+            conn_id="wasb_default",
+            credentials={"account": "MyAccount", "access_key": "fake_key"},
+        )
+
+        provider.create_object_store(
+            "abfss://demo-container@myaccount.dfs.core.windows.net/path", connection_config
+        )
+
+        mock_azure.assert_called_once_with(
+            container_name="demo-container", account="MyAccount", access_key="fake_key"
+        )
+
+    def test_azure_provider_failure(self):
+        provider = AzureObjectStorageProvider()
+        connection_config = ConnectionConfig(conn_id="wasb_default")
+
+        with patch(
+            "airflow.providers.common.sql.datafusion.object_storage_provider.MicrosoftAzure",
+            side_effect=Exception("Error"),
+        ):
+            with pytest.raises(ObjectStoreCreationException, match="Failed to create Azure object store"):
+                provider.create_object_store("az://demo-container/path", connection_config)
+
+    def test_azure_provider_requires_connection_config(self):
+        provider = AzureObjectStorageProvider()
+
+        with pytest.raises(ValueError, match="connection_config must be provided for azure"):
+            provider.create_object_store("az://demo-container/path")
+
+    @pytest.mark.parametrize(
+        ("uri", "expected"),
+        [
+            (
+                "abfs://demo-container@myaccount.dfs.core.windows.net/path/to/data.parquet",
+                "az://myaccount.demo-container/path/to/data.parquet",
+            ),
+            (
+                "abfss://demo-container@myaccount.dfs.core.windows.net/path/to/data.parquet",
+                "az://myaccount.demo-container/path/to/data.parquet",
+            ),
+            ("abfss://demo-container@myaccount.dfs.core.windows.net", "az://myaccount.demo-container"),
+            ("az://demo-container/path", "az://demo-container/path"),
+            # Same container name on different accounts maps to distinct hosts.
+            ("abfss://data@devacct.dfs.core.windows.net/data.csv", "az://devacct.data/data.csv"),
+            ("abfss://data@prodacct.dfs.core.windows.net/data.csv", "az://prodacct.data/data.csv"),
+        ],
+    )
+    def test_azure_provider_normalize_uri(self, uri, expected):
+        provider = AzureObjectStorageProvider()
+
+        assert provider.normalize_uri(uri) == expected
+
+    def test_azure_provider_partial_service_principal_raises_clear_error(self):
+        """Uses the real MicrosoftAzure binding, not a mock, since it's the one that panics
+        on a partial client_id/client_secret/tenant_id combination."""
+        provider = AzureObjectStorageProvider()
+        connection_config = ConnectionConfig(
+            conn_id="wasb_default",
+            credentials={"client_id": "only-this-one-set"},
+        )
+
+        with pytest.raises(ObjectStoreCreationException, match="Failed to create Azure object store"):
+            provider.create_object_store("az://demo-container/path", connection_config)
+
     @patch("airflow.providers.common.sql.datafusion.object_storage_provider.LocalFileSystem")
     def test_local_provider(self, mock_local):
         provider = LocalObjectStorageProvider()
@@ -152,6 +352,7 @@ class TestObjectStorageProvider:
     def test_get_object_storage_provider(self):
         assert isinstance(get_object_storage_provider(StorageType.S3), S3ObjectStorageProvider)
         assert isinstance(get_object_storage_provider(StorageType.GCS), GCSObjectStorageProvider)
+        assert isinstance(get_object_storage_provider(StorageType.AZURE), AzureObjectStorageProvider)
         assert isinstance(get_object_storage_provider(StorageType.LOCAL), LocalObjectStorageProvider)
 
         with pytest.raises(ValueError, match="Unsupported storage type"):

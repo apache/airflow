@@ -16,7 +16,7 @@
 # under the License.
 
 ARG ALPINE_VERSION="3.23"
-ARG GO_VERSION="1.23.7"
+ARG GO_VERSION="1.27.2"
 
 FROM golang:${GO_VERSION} AS builder
 
@@ -37,10 +37,9 @@ RUN URL="https://github.com/jbub/pgbouncer_exporter/archive/${PGBOUNCER_EXPORTER
 
 FROM alpine:${ALPINE_VERSION} AS final
 
-# We want to make sure this one includes latest security fixes.
-# "Pin versions in apk add" https://github.com/hadolint/hadolint/wiki/DL3018
-# hadolint ignore=DL3018
-RUN apk --no-cache add libressl libressl-dev openssl
+# The exporter is a static (CGO_ENABLED=0) binary, so no extra runtime libraries are needed.
+# We only want to make sure the base image includes latest security fixes.
+RUN apk --no-cache upgrade
 
 COPY --from=builder /usr/src/myapp/pgbouncer_exporter /bin
 

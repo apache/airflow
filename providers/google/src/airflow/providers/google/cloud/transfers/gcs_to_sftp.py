@@ -20,8 +20,10 @@
 from __future__ import annotations
 
 import os
+import posixpath
 from collections.abc import Sequence
 from functools import cached_property
+from pathlib import PurePosixPath
 from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING
 
@@ -82,7 +84,9 @@ class GCSToSFTPOperator(BaseOperator):
     :param keep_directory_structure: (Optional) When set to False the path of the file
         on the bucket is recreated within path passed in destination_path.
     :param create_intermediate_dirs: (Optional) When set to True the intermediate directories
-        in the specified file path will be created.
+        in the specified file path will be created. It also controls folder markers (objects whose
+        name ends with ``/``): when True, each marker is created as a directory on the SFTP server;
+        when False, it is skipped and left in the bucket, even if ``move_object`` is True.
     :param move_object: When move object is True, the object is moved instead
         of copied to the new location. This is the equivalent of a mv command
         as opposed to a cp command.
@@ -175,25 +179,22 @@ class GCSToSFTPOperator(BaseOperator):
     def _resolve_destination_path(self, source_object: str, prefix: str | None = None) -> str:
         if not self.keep_directory_structure:
             if prefix:
-                source_object = os.path.relpath(source_object, start=prefix)
+                source_object = posixpath.relpath(source_object, start=prefix)
             else:
-                source_object = os.path.basename(source_object)
+                source_object = posixpath.basename(source_object)
         # GCS object names are arbitrary UTF-8 strings controlled by whoever can
         # write to the source bucket, so ``..`` segments or an absolute prefix
         # could canonicalise outside ``destination_path`` on the SFTP server.
-        # Resolve the join and require it to stay within the configured base.
-        resolved = os.path.normpath(os.path.join(self.destination_path, source_object))
-        base = os.path.normpath(self.destination_path)
-        escapes = (
-            resolved == ".."
-            or resolved.startswith(".." + os.sep)
-            # An absolute source_object absorbed a relative base entirely.
-            or (os.path.isabs(resolved) and not os.path.isabs(base))
-            # A configured base directory must remain the prefix of the result.
-            # ``base == "."`` is the SFTP login directory, where any non-escaping
-            # relative path is already in-bounds.
-            or (base != "." and resolved != base and not resolved.startswith(base.rstrip(os.sep) + os.sep))
-        )
+        # The trusted base may contain ".." and refers to the remote server's working directory.
+        base = posixpath.normpath(self.destination_path)
+        resolved = posixpath.normpath(posixpath.join(base, source_object))
+        try:
+            relative_path = PurePosixPath(resolved).relative_to(base)
+        except ValueError:
+            escapes = True
+        else:
+            # Pure paths retain ".."; an extra parent beyond a base such as ".." still escapes.
+            escapes = ".." in relative_path.parts
         if escapes:
             raise ValueError(
                 f"Refusing to copy GCS object {source_object!r}: resolved destination "
@@ -209,25 +210,44 @@ class GCSToSFTPOperator(BaseOperator):
         destination_path: str,
     ) -> None:
         """Copy single object."""
-        self.log.info(
-            "Executing copy of gs://%s/%s to %s",
-            self.source_bucket,
-            source_object,
-            destination_path,
-        )
+        # ``_resolve_destination_path`` strips the trailing slash, so storing a folder marker
+        # would write a file at the path its children need as a directory.
+        if source_object.endswith("/"):
+            if not self.create_intermediate_dirs:
+                self.log.info(
+                    "Skipping folder marker gs://%s/%s because create_intermediate_dirs is False",
+                    self.source_bucket,
+                    source_object,
+                )
+                return
 
-        dir_path = os.path.dirname(destination_path)
-
-        if self.create_intermediate_dirs:
-            sftp_hook.create_directory(dir_path)
-
-        with NamedTemporaryFile("w") as tmp:
-            gcs_hook.download(
-                bucket_name=self.source_bucket,
-                object_name=source_object,
-                filename=tmp.name,
+            self.log.info(
+                "Creating directory %s for folder marker gs://%s/%s",
+                destination_path,
+                self.source_bucket,
+                source_object,
             )
-            sftp_hook.store_file(destination_path, tmp.name)
+            sftp_hook.create_directory(destination_path)
+        else:
+            self.log.info(
+                "Executing copy of gs://%s/%s to %s",
+                self.source_bucket,
+                source_object,
+                destination_path,
+            )
+
+            dir_path = os.path.dirname(destination_path)
+
+            if self.create_intermediate_dirs:
+                sftp_hook.create_directory(dir_path)
+
+            with NamedTemporaryFile("w") as tmp:
+                gcs_hook.download(
+                    bucket_name=self.source_bucket,
+                    object_name=source_object,
+                    filename=tmp.name,
+                )
+                sftp_hook.store_file(destination_path, tmp.name)
 
         if self.move_object:
             self.log.info("Executing delete of gs://%s/%s", self.source_bucket, source_object)

@@ -31,7 +31,7 @@ from airflow.utils.session import create_session
 from airflow.version import version
 
 from tests_common.test_utils.compat import BashOperator
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_4_PLUS
 
 pytestmark = pytest.mark.db_test
 
@@ -217,9 +217,12 @@ def test_get_k8s_pod_yaml(render_k8s_pod_yaml, dag_maker, session):
 
     rtif = RTIF(ti=ti, render_templates=False)
 
-    assert ti.dag_id == rtif.dag_id
-    assert ti.task_id == rtif.task_id
-    assert ti.run_id == rtif.run_id
+    if AIRFLOW_V_3_4_PLUS:
+        assert ti.id == rtif.task_instance_id
+    else:
+        assert ti.dag_id == rtif.dag_id
+        assert ti.task_id == rtif.task_id
+        assert ti.run_id == rtif.run_id
 
     # Expect redacted version
     expected_pod_yaml = {"I'm a": "pod", "secret": "***"}

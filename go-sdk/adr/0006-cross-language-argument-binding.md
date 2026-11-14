@@ -108,8 +108,8 @@ ordered bindings / raw values             | named bindings / raw values
 arity must match data slots               | `arg:` exact name or untagged folded name
 captured defaults may be dropped          |
                                           | claimed value -> field
-                                          | unmatched field -> zero value
-                                          | unclaimed explicit arg -> error
+                                          | unmatched field -> zero value + warning
+                                          | unclaimed explicit arg -> warning
                                           | untagged + one explicit arg + no field claim
                                           |   -> decode whole struct
 
@@ -135,8 +135,15 @@ captured defaults may be dropped          |
   current Dag run; independent XCom pulls run concurrently and cancel together on failure.
 - Captured Python defaults may remain unclaimed. Flat bindings must match the data-parameter
   count. A sole struct claims arguments by field name, except that one explicit argument may
-  decode as the whole value when the struct is untagged and no field matches. Remaining explicit
-  arguments and incompatible schemas or Go types fail before the task body runs.
+  decode as the whole value when the struct is untagged and no field matches.
+- Neither direction of a sole-struct name mismatch fails the task, following the cross-language
+  rule in [lang-SDK ADR 0007](../../airflow-core/adr/lang-sdk/0007-taskflow-across-language-boundary.md):
+  an unfilled field keeps its zero value and an unclaimed explicit argument is ignored, and both
+  are logged. Flat bindings still fail either way, because a dropped or added positional argument
+  shifts every later one. Incompatible schemas or Go types still fail before the task body runs.
+- A spec that arrives empty is the same mismatch with every field unfilled, and warns like any
+  other. `build_arg_bindings` sends nothing at all for a stub called with no arguments, so an
+  empty spec is an ordinary argless call rather than a signal that anything is wrong.
 - A known JSON Schema shape is checked against the Go target type before strict JSON decoding.
   Missing or unknown schema forms remain unconstrained and rely on the decoder.
 - Cross-language TaskFlow binding uses the coordinator path described in

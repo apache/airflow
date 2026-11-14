@@ -15,8 +15,8 @@
    specific language governing permissions and limitations
    under the License.
 
-Athena Spark Operators
-======================
+Athena Spark Operators and Sensors
+==================================
 
 `Amazon Athena <https://aws.amazon.com/athena/>`__ supports Apache Spark calculations through session-based APIs.
 This page documents the provider support for submitting and monitoring those
@@ -52,6 +52,51 @@ this operator, please see the `Sample Dag <https://github.com/apache/airflow/blo
     :dedent: 4
     :start-after: [START howto_operator_athena_spark]
     :end-before: [END howto_operator_athena_spark]
+
+Deferrable mode
+~~~~~~~~~~~~~~~
+
+Set ``deferrable=True`` to wait for the calculation asynchronously using the
+Airflow triggerer, releasing the worker slot while the calculation runs.
+This requires a running triggerer and the ``aiobotocore`` package.
+
+The ``waiter_delay`` and ``waiter_max_attempts`` parameters control polling
+in both synchronous and deferrable modes. Both modes return the same execution
+metadata when the calculation completes successfully and raise an exception
+if it fails or is canceled.
+
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_athena_spark.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_athena_spark_deferrable]
+    :end-before: [END howto_operator_athena_spark_deferrable]
+
+.. note::
+
+    When the trigger reports that polling attempts have been exhausted, the
+    operator requests cancellation of the calculation before failing.
+    Killing the task while it is deferred does not invoke ``on_kill()``,
+    so the calculation may continue running in Athena.
+
+Sensors
+-------
+
+Wait for an Athena Spark calculation
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Use :class:`~airflow.providers.amazon.aws.sensors.athena_spark.AthenaSparkSensor`
+to wait for an existing Athena Spark calculation execution to reach a terminal
+state.
+
+The sensor expects a calculation execution ID that was already created, for
+example by another Airflow task that submits a calculation without waiting,
+or by a system outside Airflow.
+
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_athena_spark.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_sensor_athena_spark]
+    :end-before: [END howto_sensor_athena_spark]
 
 Reference
 ---------

@@ -26,13 +26,13 @@ import { useDagRunServiceGetDagRun } from "openapi/queries";
 import { DetailsLayout } from "src/layouts/Details/DetailsLayout";
 
 import { useGridTiSummariesStream } from "src/queries/useGridTISummaries.ts";
-import { useDocumentTitle } from "src/utils";
+import { formatNumber, useDocumentTitle } from "src/utils";
 
 import { Header } from "./Header";
 
 export const MappedTaskInstance = () => {
   const { dagId = "", runId = "", taskId = "" } = useParams();
-  const { t: translate } = useTranslation("dag");
+  const { i18n, t: translate } = useTranslation("dag");
 
   useDocumentTitle(taskId);
 
@@ -56,7 +56,11 @@ export const MappedTaskInstance = () => {
   });
 
   const tabs = [
-    { icon: <MdOutlineTask />, label: `${translate("tabs.taskInstances")} [${taskCount}]`, value: "" },
+    {
+      icon: <MdOutlineTask />,
+      label: `${translate("tabs.taskInstances")} [${formatNumber(taskCount, i18n.language)}]`,
+      value: "",
+    },
     { icon: <MdDetails />, label: translate("tabs.details"), value: "details" },
   ];
 

@@ -110,11 +110,6 @@ class TestLivyDbHook:
         hook.get_conn()
         assert hook.base_url == expected
 
-    @pytest.mark.skip("Inherited HttpHook does not handle missing hostname")
-    def test_missing_host(self):
-        with pytest.raises(AirflowException):
-            LivyHook(livy_conn_id="missing_host").get_conn()
-
     def test_build_body_minimal_request(self):
         assert LivyHook.build_post_batch_body(file="appname") == {"file": "appname"}
 

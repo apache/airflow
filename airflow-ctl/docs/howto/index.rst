@@ -43,7 +43,7 @@ Let's take example of triggering a Dag run with a logical date, run after and a 
 
 .. code-block:: bash
 
-  airflowctl dagrun trigger --dag-id="example_bash_operator" --logical-date="2025-09-06T00:00:00+00:00" --run-after="2025-09-06T00:00:00+00:00" --note="Triggered from airflowctl"
+  airflowctl dags trigger example_bash_operator --logical-date="2025-09-06T00:00:00+00:00" --run-after="2025-09-06T00:00:00+00:00" --note="Triggered from airflowctl"
 
 
 Login
@@ -113,6 +113,7 @@ This parameter is useful when you want to manage multiple Airflow environments.
 **--skip-keyring**: This parameter is optional.
 Useful when there's no keyring available in the system where airflowctl is running.
 Set ``AIRFLOW_CLI_TOKEN`` or use the ``--api-token`` flag for next commands.
+Later commands do not read a token from the keyring for this environment, so a token from an earlier login is not used.
 
 More Usage and Help Pictures
 ''''''''''''''''''''''''''''

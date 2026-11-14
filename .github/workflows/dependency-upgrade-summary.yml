@@ -1,0 +1,104 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+---
+# Checks how far the constraints are behind the newest releases. It needs only the CI images, so it
+# runs beside the tests instead of after them: in finalize-tests it added up to 17 minutes to the
+# end of a canary run. dependency-upgrade-report.yml reads the inputs it saves on canaries on main.
+name: Dependency upgrade summary
+on:  # yamllint disable-line rule:truthy
+  workflow_call:
+    inputs:
+      runners:
+        description: "The array of labels (in json form) determining runners."
+        required: true
+        type: string
+      platform:
+        description: "Platform for the build - 'linux/amd64' or 'linux/arm64'"
+        required: true
+        type: string
+      python-versions:
+        description: "JSON-formatted array of Python versions to check"
+        required: true
+        type: string
+      upgrade-to-newer-dependencies:
+        description: "Whether to upgrade to newer dependencies (true/false)"
+        required: true
+        type: string
+      use-uv:
+        description: "Whether to use uv"
+        required: true
+        type: string
+permissions:
+  contents: read
+jobs:
+  dependency-upgrade-summary:
+    runs-on: ${{ format(fromJSON(inputs.runners)[0], '4+8', '16+32') }}
+    if: inputs.upgrade-to-newer-dependencies == 'true' && inputs.platform == 'linux/amd64'
+    name: "Deps ${{ matrix.python-version }}:${{ matrix.constraints-mode }}"
+    strategy:
+      matrix:
+        python-version: ${{ fromJson(inputs.python-versions) }}
+        constraints-mode: ["constraints", "constraints-source-providers", "constraints-no-providers"]
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: "Cleanup repo"
+        shell: bash
+        run: sudo rm -rf ${GITHUB_WORKSPACE}/*
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - name: "Prepare breeze & CI image: ${{ matrix.python-version }}"
+        uses: ./.github/actions/prepare_breeze_and_image
+        with:
+          platform: ${{ inputs.platform }}
+          python: ${{ matrix.python-version }}
+          use-uv: ${{ inputs.use-uv }}
+          make-mnt-writeable-and-cleanup: true
+      # Scheduled and dispatched canaries on main leave the explanations to dependency-upgrade-report.yml
+      # and save the constraints they checked for it. Saving them never fails this step.
+      - name: "Deps: ${{ matrix.python-version }}:${{ matrix.constraints-mode }}"
+        shell: bash
+        run: |
+          REPORT_ARGS=(--explain-why)
+          if [[ "${INDEPENDENT_REPORT}" == "true" ]]; then
+            REPORT_ARGS=(--no-explain-why --save-constraints-to files/dependency-report)
+          fi
+          breeze release-management constraints-version-check \
+            --python "${MATRIX_PYTHON_VERSION}" \
+            --airflow-constraints-mode "${MATRIX_CONSTRAINTS_MODE}" "${REPORT_ARGS[@]}"
+        env:
+          MATRIX_PYTHON_VERSION: "${{ matrix.python-version }}"
+          MATRIX_CONSTRAINTS_MODE: "${{ matrix.constraints-mode }}"
+          INDEPENDENT_REPORT: >-
+            ${{ github.ref == 'refs/heads/main' &&
+                (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') }}
+          VERBOSE: "false"
+      - name: "Upload dependency report inputs"
+        if: >-
+          !cancelled() && hashFiles('files/dependency-report/constraints-commit.txt') != ''
+        continue-on-error: true
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
+        with:
+          name: "dependency-report-inputs-${{ matrix.python-version }}-${{ matrix.constraints-mode }}\
+            -${{ inputs.use-uv }}-${{ github.run_attempt }}"
+          path: files/dependency-report/
+          if-no-files-found: error
+          retention-days: 2
+          overwrite: true

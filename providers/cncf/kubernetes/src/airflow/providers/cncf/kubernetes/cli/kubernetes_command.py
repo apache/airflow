@@ -26,10 +26,16 @@ from kubernetes import client
 from kubernetes.client.api_client import ApiClient
 from kubernetes.client.rest import ApiException
 
+from airflow.exceptions import UnknownExecutorException
+from airflow.executors.executor_loader import ExecutorLoader
 from airflow.models import DagModel, DagRun, TaskInstance
 from airflow.providers.cncf.kubernetes import pod_generator
-from airflow.providers.cncf.kubernetes.executors.kubernetes_executor import KubeConfig
-from airflow.providers.cncf.kubernetes.kube_client import get_kube_client
+from airflow.providers.cncf.kubernetes.executors.kubernetes_executor import KubeConfig, KubernetesExecutor
+from airflow.providers.cncf.kubernetes.kube_client import (
+    _get_executor_kube_client,
+    _team_kwargs,
+    get_kube_client,
+)
 from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import create_unique_id
 from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator, generate_pod_command_args
 from airflow.providers.cncf.kubernetes.version_compat import (
@@ -37,6 +43,7 @@ from airflow.providers.cncf.kubernetes.version_compat import (
     AIRFLOW_V_3_1_PLUS,
     AIRFLOW_V_3_2_PLUS,
 )
+from airflow.providers.common.compat.sdk import conf
 from airflow.utils import cli as cli_utils, yaml
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.utils.types import DagRunType
@@ -148,7 +155,16 @@ def _get_pod_completion_time(pod):
 @providers_configuration_loaded
 def cleanup_pods(args):
     """Clean up k8s pods in evicted/failed/succeeded/pending states."""
-    namespace = args.namespace
+    team_name = args.team
+    if team_name and not AIRFLOW_V_3_2_PLUS:
+        raise SystemExit("cleanup-pods --team requires Airflow 3.2+.")
+    if args.executor and not team_name:
+        raise SystemExit("cleanup-pods --executor requires --team.")
+    namespace = args.namespace or conf.get("kubernetes_executor", "namespace", **_team_kwargs(team_name))
+    if team_name:
+        executor_cls = _get_team_executor_cls(team_name, args.executor)
+        if not args.allow_shared_namespace:
+            _check_namespace_not_shared(team_name, namespace)
 
     min_pending_minutes = args.min_pending_minutes
     # protect newly created pods from deletion
@@ -178,7 +194,12 @@ def cleanup_pods(args):
     pod_restart_policy_never = "never"
     if args.verbose:
         print("Loading Kubernetes configuration")
-    kube_client = get_kube_client()
+    if team_name:
+        kube_client = _get_executor_kube_client(
+            team_name=team_name, executor_client_factory=executor_cls.client_factory
+        )
+    else:
+        kube_client = get_kube_client()
     if args.verbose:
         print(f"Listing pods in namespace {namespace}")
     airflow_pod_labels = [
@@ -219,7 +240,7 @@ def cleanup_pods(args):
                     f'restart policy "{pod_restart_policy}"'
                 )
                 try:
-                    _delete_pod(pod.metadata.name, namespace)
+                    _delete_pod(pod.metadata.name, namespace, kube_client)
                 except ApiException as e:
                     print(f"Can't remove POD: {e}", file=sys.stderr)
             else:
@@ -231,13 +252,57 @@ def cleanup_pods(args):
         list_kwargs["_continue"] = continue_token
 
 
-def _delete_pod(name, namespace):
+def _get_team_executor_cls(team_name: str, executor: str | None) -> type[KubernetesExecutor]:
+    """Return the class of the team's executor named ``executor``, or of its default one."""
+    # Only the team's own executors: a global one doesn't connect with the team's config.
+    names = [n for n in ExecutorLoader.get_executor_names(validate_teams=False) if n.team_name == team_name]
+    if not names:
+        raise SystemExit(f"Team {team_name!r} has no executors configured.")
+    try:
+        if hasattr(ExecutorLoader, "resolve_executor_name"):
+            name = ExecutorLoader.resolve_executor_name(executor, team_name, executor_names=names)
+        elif executor:  # Airflow < 3.4
+            name = ExecutorLoader.lookup_executor_name_by_str(
+                executor, team_name=team_name, validate_teams=False
+            )
+        else:
+            name = names[0]
+    except UnknownExecutorException as e:
+        raise SystemExit(str(e))
+    executor_cls, _ = ExecutorLoader.import_executor_cls(name)
+    if not issubclass(executor_cls, KubernetesExecutor):
+        raise SystemExit(
+            f"Executor {name.module_path} of team {team_name!r} isn't a KubernetesExecutor. "
+            "Pass --executor to pick one that is."
+        )
+    return executor_cls
+
+
+def _check_namespace_not_shared(team_name: str, namespace: str) -> None:
+    """Refuse a namespace another scope's KubernetesExecutor also uses, since their pods can't be told apart."""
+    # Only scopes that run a KubernetesExecutor make pods; the others still have a default namespace.
+    scopes = {
+        n.team_name
+        for n in ExecutorLoader.get_executor_names(validate_teams=False)
+        if n.team_name != team_name
+        and issubclass(ExecutorLoader.import_executor_cls(n)[0], KubernetesExecutor)
+    }
+    for other in sorted(scopes, key=lambda t: t or ""):
+        if conf.get("kubernetes_executor", "namespace", **_team_kwargs(other)) == namespace:
+            owner = f"a KubernetesExecutor of team {other!r}" if other else "a global KubernetesExecutor"
+            raise SystemExit(
+                f"Namespace {namespace!r} of team {team_name!r} is also used by {owner}, so cleanup-pods "
+                "would delete its pods too. Pass --allow-shared-namespace if that executor runs on "
+                "another cluster."
+            )
+
+
+def _delete_pod(name, namespace, kube_client):
     """
     Delete a namespaced pod.
 
     Helper Function for cleanup_pods.
     """
-    kube_client = get_kube_client()
     delete_options = client.V1DeleteOptions()
     print(f'Deleting POD "{name}" from "{namespace}" namespace')
     api_response = kube_client.delete_namespaced_pod(name=name, namespace=namespace, body=delete_options)

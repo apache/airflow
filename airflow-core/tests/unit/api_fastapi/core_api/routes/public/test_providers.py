@@ -35,6 +35,50 @@ MOCK_PROVIDERS = {
             "description": "`Amazon Web Services (AWS) <https://aws.amazon.com/>`__.\n",
             "versions": ["1.0.0"],
             "documentation-url": "https://airflow.apache.org/docs/apache-airflow-providers-amazon/1.0.0/",
+            "connection-types": [
+                {
+                    "connection-type": "aws",
+                    "hook-class-name": "airflow.providers.amazon.aws.hooks.base_aws.AwsGenericHook",
+                    "hook-name": "Amazon Web Services",
+                    "ui-field-behaviour": {
+                        "hidden-fields": ["host", "schema", "port"],
+                        "relabeling": {"login": "AWS Access Key ID"},
+                        "placeholders": {"password": "AWS Secret Access Key"},
+                    },
+                    "conn-fields": {
+                        "region_name": {
+                            "label": "Region Name",
+                            "description": "AWS region",
+                            "schema": {"type": "string", "default": "us-east-1"},
+                        }
+                    },
+                    "external-services": ["AWS"],
+                }
+            ],
+            "extra-links": ["airflow.providers.amazon.aws.links.emr.EmrClusterLink"],
+            "config": {
+                "aws": {
+                    "description": "Amazon options",
+                    "options": {
+                        "log_format": {
+                            "description": "Log format",
+                            "version_added": "1.0.0",
+                            "type": "string",
+                            "example": None,
+                            "default": "{message}",
+                            "is_template": True,
+                        },
+                        "pod_template_file": {
+                            "description": "Pod template",
+                            "version_added": "1.0.0",
+                            "type": "string",
+                            "example": None,
+                            "default": None,
+                            "see_also": ":ref:`concepts:pod_template_file`",
+                        },
+                    },
+                }
+            },
         },
     ),
     "apache-airflow-providers-apache-cassandra": ProviderInfo(
@@ -45,6 +89,21 @@ MOCK_PROVIDERS = {
             "description": "`Apache Cassandra <http://cassandra.apache.org/>`__.\n",
             "versions": ["1.0.0"],
             "documentation-url": "https://airflow.apache.org/docs/apache-airflow-providers-apache-cassandra/1.0.0/",
+        },
+    ),
+}
+
+# A provider whose metadata is made up entirely of the keys shared with the summary response
+# plus ``email-backends`` — nothing here may be dropped from ``provider_info``.
+MOCK_SENDGRID_PROVIDER = {
+    "apache-airflow-providers-sendgrid": ProviderInfo(
+        "4.2.5",
+        {
+            "package-name": "apache-airflow-providers-sendgrid",
+            "name": "Sendgrid",
+            "description": "`Sendgrid <https://sendgrid.com/>`__\n",
+            "email-backends": ["airflow.providers.sendgrid.utils.emailer.send_email"],
+            "documentation-url": "https://airflow.apache.org/docs/apache-airflow-providers-sendgrid/4.2.5",
         },
     ),
 }
@@ -83,4 +142,94 @@ class TestGetProviders:
 
     def test_should_response_403(self, unauthorized_test_client):
         response = unauthorized_test_client.get("/providers")
+        assert response.status_code == 403
+
+
+class TestGetProvider:
+    @mock.patch(
+        "airflow.providers_manager.ProvidersManager.providers",
+        new_callable=mock.PropertyMock,
+        return_value=MOCK_PROVIDERS,
+    )
+    def test_should_respond_200(self, mock_provider, test_client):
+        with assert_queries_count(0):
+            response = test_client.get("/providers/apache-airflow-providers-amazon")
+
+        assert response.status_code == 200
+        body = response.json()
+        assert body["package_name"] == "apache-airflow-providers-amazon"
+        assert body["version"] == "1.0.0"
+        assert body["description"] == "Amazon Web Services (AWS) https://aws.amazon.com/"
+        provider_info = body["provider_info"]
+        assert provider_info["name"] == "Amazon"
+        # ``provider.yaml`` keys are kebab-case, the response is snake_case like the rest of the API
+        assert provider_info["connection_types"] == [
+            {
+                "connection_type": "aws",
+                "hook_class_name": "airflow.providers.amazon.aws.hooks.base_aws.AwsGenericHook",
+                "hook_name": "Amazon Web Services",
+                "ui_field_behaviour": {
+                    "hidden_fields": ["host", "schema", "port"],
+                    "relabeling": {"login": "AWS Access Key ID"},
+                    "placeholders": {"password": "AWS Secret Access Key"},
+                },
+                "conn_fields": {
+                    "region_name": {
+                        "label": "Region Name",
+                        "description": "AWS region",
+                        "schema": {"type": "string", "default": "us-east-1"},
+                    }
+                },
+                "external_services": ["AWS"],
+            }
+        ]
+        aws_options = provider_info["config"]["aws"]["options"]
+        assert aws_options["log_format"]["is_template"] is True
+        assert aws_options["pod_template_file"]["see_also"] == ":ref:`concepts:pod_template_file`"
+        assert provider_info["extra_links"] == ["airflow.providers.amazon.aws.links.emr.EmrClusterLink"]
+        assert provider_info["package_name"] == "apache-airflow-providers-amazon"
+        assert provider_info["description"] == "Amazon Web Services (AWS) https://aws.amazon.com/"
+        assert (
+            provider_info["documentation_url"]
+            == "https://airflow.apache.org/docs/apache-airflow-providers-amazon/1.0.0/"
+        )
+        # Only keys explicitly declared in ProviderInfoResponse are serialized
+        assert "versions" not in provider_info
+
+    @mock.patch(
+        "airflow.providers_manager.ProvidersManager.providers",
+        new_callable=mock.PropertyMock,
+        return_value=MOCK_SENDGRID_PROVIDER,
+    )
+    def test_should_respond_200_with_all_provider_metadata(self, mock_provider, test_client):
+        response = test_client.get("/providers/apache-airflow-providers-sendgrid")
+
+        assert response.status_code == 200
+        provider_info = response.json()["provider_info"]
+        # The CLI renders the metadata with ``exclude_none``, so only the populated keys matter
+        assert {key: value for key, value in provider_info.items() if value is not None} == {
+            "package_name": "apache-airflow-providers-sendgrid",
+            "name": "Sendgrid",
+            "description": "Sendgrid https://sendgrid.com/",
+            "email_backends": ["airflow.providers.sendgrid.utils.emailer.send_email"],
+            "documentation_url": "https://airflow.apache.org/docs/apache-airflow-providers-sendgrid/4.2.5",
+        }
+
+    @mock.patch(
+        "airflow.providers_manager.ProvidersManager.providers",
+        new_callable=mock.PropertyMock,
+        return_value=MOCK_PROVIDERS,
+    )
+    def test_should_respond_404(self, mock_provider, test_client):
+        response = test_client.get("/providers/missing-provider")
+
+        assert response.status_code == 404
+        assert response.json() == {"detail": "Provider 'missing-provider' was not found"}
+
+    def test_should_response_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.get("/providers/apache-airflow-providers-amazon")
+        assert response.status_code == 401
+
+    def test_should_response_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.get("/providers/apache-airflow-providers-amazon")
         assert response.status_code == 403

@@ -37,7 +37,15 @@ export const renderMermaidDiagram = async ({
   const mermaid = await mermaidModulePromise;
 
   if (initializedTheme !== theme) {
-    mermaid.initialize({ securityLevel: "strict", startOnLoad: false, theme });
+    // Mermaid 12 defaults to ELK layout and the "neo" look; keep the dagre/classic rendering
+    // existing diagrams in Dag and task docs were written against.
+    mermaid.initialize({
+      layout: "dagre",
+      look: "classic",
+      securityLevel: "strict",
+      startOnLoad: false,
+      theme,
+    });
     initializedTheme = theme;
   }
 

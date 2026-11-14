@@ -66,22 +66,7 @@ SERVICE = Service()
 SERVICE.name = SERVICE_NAME
 
 
-def _assert_common_template_fields(template_fields):
-    assert "project_id" in template_fields
-    assert "region" in template_fields
-    assert "gcp_conn_id" in template_fields
-    assert "impersonation_chain" in template_fields
-
-
 class TestCloudRunCreateJobOperator:
-    def test_template_fields(self):
-        operator = CloudRunCreateJobOperator(
-            task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, job_name=JOB_NAME, job=JOB
-        )
-
-        _assert_common_template_fields(operator.template_fields)
-        assert "job_name" in operator.template_fields
-
     @mock.patch(CLOUD_RUN_HOOK_PATH)
     def test_create(self, hook_mock):
         hook_mock.return_value.create_job.return_value = JOB
@@ -102,18 +87,6 @@ class TestCloudRunCreateJobOperator:
 
 
 class TestCloudRunExecuteJobOperator:
-    def test_template_fields(self):
-        operator = CloudRunExecuteJobOperator(
-            task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, job_name=JOB_NAME, overrides=OVERRIDES
-        )
-
-        _assert_common_template_fields(operator.template_fields)
-        assert "job_name" in operator.template_fields
-        assert "overrides" in operator.template_fields
-        assert "polling_period_seconds" in operator.template_fields
-        assert "timeout_seconds" in operator.template_fields
-        assert "transport" in operator.template_fields
-
     @mock.patch(CLOUD_RUN_HOOK_PATH)
     def test_execute_with_transport(self, hook_mock):
         """Test that transport parameter is passed to CloudRunHook."""
@@ -778,14 +751,6 @@ class TestCloudRunExecuteJobOperator:
 
 
 class TestCloudRunDeleteJobOperator:
-    def test_template_fields(self):
-        operator = CloudRunDeleteJobOperator(
-            task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, job_name=JOB_NAME
-        )
-
-        _assert_common_template_fields(operator.template_fields)
-        assert "job_name" in operator.template_fields
-
     @mock.patch(CLOUD_RUN_HOOK_PATH)
     def test_execute(self, hook_mock):
         hook_mock.return_value.delete_job.return_value = JOB
@@ -807,14 +772,6 @@ class TestCloudRunDeleteJobOperator:
 
 
 class TestCloudRunUpdateJobOperator:
-    def test_template_fields(self):
-        operator = CloudRunUpdateJobOperator(
-            task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, job_name=JOB_NAME, job=JOB
-        )
-
-        _assert_common_template_fields(operator.template_fields)
-        assert "job_name" in operator.template_fields
-
     @mock.patch(CLOUD_RUN_HOOK_PATH)
     def test_execute(self, hook_mock):
         hook_mock.return_value.update_job.return_value = JOB
@@ -837,13 +794,6 @@ class TestCloudRunUpdateJobOperator:
 
 
 class TestCloudRunListJobsOperator:
-    def test_template_fields(self):
-        operator = CloudRunListJobsOperator(
-            task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, limit=2, show_deleted=False
-        )
-
-        _assert_common_template_fields(operator.template_fields)
-
     @mock.patch(CLOUD_RUN_HOOK_PATH)
     def test_execute(self, hook_mock):
         limit = 2
@@ -870,18 +820,6 @@ class TestCloudRunListJobsOperator:
 
 
 class TestCloudRunCreateServiceOperator:
-    def test_template_fields(self):
-        operator = CloudRunCreateServiceOperator(
-            task_id=TASK_ID,
-            project_id=PROJECT_ID,
-            region=REGION,
-            service=SERVICE,
-            service_name=SERVICE_NAME,
-        )
-
-        _assert_common_template_fields(operator.template_fields)
-        assert "service_name" in operator.template_fields
-
     @mock.patch(CLOUD_RUN_SERVICE_HOOK_PATH)
     def test_execute(self, hook_mock):
         hook_mock.return_value.create_service.return_value = SERVICE
@@ -961,17 +899,6 @@ class TestCloudRunCreateServiceOperator:
 
 
 class TestCloudRunDeleteServiceOperator:
-    def test_template_fields(self):
-        operator = CloudRunDeleteServiceOperator(
-            task_id=TASK_ID,
-            project_id=PROJECT_ID,
-            region=REGION,
-            service_name=SERVICE_NAME,
-        )
-
-        _assert_common_template_fields(operator.template_fields)
-        assert "service_name" in operator.template_fields
-
     @mock.patch(CLOUD_RUN_SERVICE_HOOK_PATH)
     def test_execute(self, hook_mock):
         hook_mock.return_value.delete_service.return_value = SERVICE

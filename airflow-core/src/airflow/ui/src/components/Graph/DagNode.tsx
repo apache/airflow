@@ -35,7 +35,7 @@ export const DagNode = ({
 }: NodeProps<NodeType<CustomNodeProps, "dag">>) => {
   const refetchInterval = useAutoRefresh({ dagId: label });
   const { data: dag } = useDagServiceGetDag({ dagId: label }, undefined, {
-    refetchInterval: (query) => (query.state.data?.scheduling_state === "draining" ? refetchInterval : false),
+    refetchInterval: (query) => query.state.data?.scheduling_state === "draining" && refetchInterval,
   });
   const { data: unfinishedRuns } = useDagRunServiceGetDagRuns(
     { dagId: label, limit: 1, state: ["queued", "running"] },

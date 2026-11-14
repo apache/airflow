@@ -18,27 +18,53 @@
  */
 import type { PropsWithChildren } from "react";
 
+import { ChakraProvider, defaultSystem } from "@chakra-ui/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import "@testing-library/jest-dom/vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
-import { Link, MemoryRouter, Route, Routes } from "react-router-dom";
+import { Link, MemoryRouter, Outlet, Route, Routes, useLocation } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { UseTaskInstanceServiceGetMappedTaskInstanceKeyFn } from "openapi/queries";
 import { TaskInstanceService, type TaskInstanceResponse } from "openapi/requests";
 
+import { NavTabs, type NavTab } from "src/layouts/Details/NavTabs";
+
+import { HITLResponse } from "./HITLResponse";
 import { TaskInstance } from "./TaskInstance";
 
+vi.mock("src/router", () => ({ taskInstanceRoutes: [] }));
+
 vi.mock("src/hooks/useHITLReviewTabs", () => ({
-  useHITLReviewTabs: vi.fn(() => ({ tabs: [] })),
+  useHITLReviewTabs: vi.fn((_params: unknown, tabs: Array<NavTab>) => ({ tabs })),
 }));
 vi.mock("src/hooks/usePluginTabs", () => ({
   usePluginTabs: vi.fn(() => []),
 }));
 vi.mock("src/hooks/useRequiredActionTabs", () => ({
-  useRequiredActionTabs: vi.fn(() => ({ tabs: [] })),
+  useRequiredActionTabs: vi.fn((_params: unknown, tabs: Array<NavTab>, options?: { enabled?: boolean }) => ({
+    tabs: options?.enabled === false ? tabs.filter((tab) => tab.value !== "required_actions") : tabs,
+  })),
+}));
+vi.mock("src/components/TaskTrySelect", () => ({ TaskTrySelect: () => undefined }));
+vi.mock("../HITLTaskInstances/HITLResponseForm", () => ({
+  HITLResponseForm: ({ hitlDetail }: { readonly hitlDetail: { readonly subject: string } }) => (
+    <div>{hitlDetail.subject}</div>
+  ),
 }));
 vi.mock("src/layouts/Details/DetailsLayout", () => ({
-  DetailsLayout: ({ children }: PropsWithChildren) => children,
+  DetailsLayout: ({
+    children,
+    error,
+    tabs,
+  }: PropsWithChildren<{ readonly error?: unknown; readonly tabs: Array<NavTab> }>) => (
+    <>
+      {children}
+      {error === null || error === undefined ? undefined : <div data-testid="layout-error" />}
+      <NavTabs tabs={tabs} />
+      <Outlet />
+    </>
+  ),
 }));
 vi.mock("src/queries/useGridTISummaries.ts", () => ({
   useGridTiSummariesStream: vi.fn(() => ({ summariesByRunId: new Map() })),
@@ -57,6 +83,9 @@ vi.mock("./Header", () => ({
     <div data-testid="task-instance-state">
       {taskInstance.task_id}:{taskInstance.state ?? "none"}:{taskInstance.try_number}
     </div>
+  ),
+  HistoryHeader: ({ taskInstance }: { readonly taskInstance: TaskInstanceResponse }) => (
+    <div>{taskInstance.id}</div>
   ),
 }));
 
@@ -92,12 +121,323 @@ const buildTaskInstanceKey = (taskId: string) =>
 const createWrapper =
   (queryClient: QueryClient) =>
   ({ children }: PropsWithChildren) => (
-    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    <ChakraProvider value={defaultSystem}>
+      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    </ChakraProvider>
   );
 
 afterEach(() => vi.restoreAllMocks());
 
+const Location = () => {
+  const location = useLocation();
+
+  return (
+    <div data-testid="location">
+      {location.pathname}
+      {location.search}
+    </div>
+  );
+};
+
 describe("TaskInstance", () => {
+  it("opens an exact retained try without a live coordinate", async () => {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const regionId = "11111111-1111-4111-8111-111111111111";
+
+    vi.spyOn(TaskInstanceService, "getMappedTaskInstance").mockRejectedValue({ status: 404 });
+    const history = vi.spyOn(TaskInstanceService, "getTaskInstanceTryDetails").mockResolvedValue({
+      ...buildTaskInstance(TASK_A, "success", 2),
+      id: "retained-id",
+      region_id: regionId,
+      region_index: 3,
+    });
+
+    render(
+      <MemoryRouter
+        initialEntries={[
+          `/dags/${DAG_ID}/runs/${DAG_RUN_ID}/tasks/${TASK_A}/logs?region_id=${regionId}&region_index=3&try_number=2`,
+        ]}
+      >
+        <Routes>
+          <Route element={<TaskInstance />} path="/dags/:dagId/runs/:runId/tasks/:taskId">
+            <Route element={<div />} path="*" />
+          </Route>
+        </Routes>
+      </MemoryRouter>,
+      { wrapper: createWrapper(queryClient) },
+    );
+    expect(await screen.findByText("retained-id")).toBeVisible();
+    expect(history).toHaveBeenCalledWith(
+      expect.objectContaining({ regionId, regionIndex: 3, taskTryNumber: 2 }),
+    );
+    expect(screen.queryByTestId("task-instance-state")).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "tabs.taskStateStore" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "tabs.xcom" })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "tabs.logs" })).toBeVisible();
+    expect(screen.getByRole("link", { name: "tabs.details" })).toBeVisible();
+    expect(screen.queryByTestId("layout-error")).not.toBeInTheDocument();
+  });
+  it("keeps the layout mounted and hides the empty heading while the task instance loads", async () => {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+
+    vi.spyOn(TaskInstanceService, "getMappedTaskInstance").mockReturnValue(
+      new Promise(() => undefined) as ReturnType<typeof TaskInstanceService.getMappedTaskInstance>,
+    );
+
+    render(
+      <MemoryRouter initialEntries={[`/dags/${DAG_ID}/runs/${DAG_RUN_ID}/tasks/${TASK_A}/logs`]}>
+        <Routes>
+          <Route element={<TaskInstance />} path="/dags/:dagId/runs/:runId/tasks/:taskId">
+            <Route element={<div />} path="*" />
+          </Route>
+        </Routes>
+      </MemoryRouter>,
+      { wrapper: createWrapper(queryClient) },
+    );
+
+    expect(await screen.findByRole("link", { name: "tabs.details" })).toBeVisible();
+    expect(screen.queryByText("common:noItemsFound")).not.toBeInTheDocument();
+  });
+  it.each(["logs", "xcom"])(
+    "opens a retained execution from %s without showing its current replacement or exposing live-only tabs",
+    async (tab) => {
+      const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+      const regionId = "11111111-1111-4111-8111-111111111111";
+
+      vi.spyOn(TaskInstanceService, "getMappedTaskInstance").mockResolvedValue({
+        ...buildTaskInstance(TASK_A, "running", 3),
+        id: "current-id",
+      });
+      const history = vi.spyOn(TaskInstanceService, "getTaskInstanceTryDetails").mockResolvedValue({
+        ...buildTaskInstance(TASK_A, "success", 2),
+        id: "retained-id",
+        region_id: regionId,
+        region_index: 3,
+      });
+
+      render(
+        <MemoryRouter
+          initialEntries={[
+            `/dags/${DAG_ID}/runs/${DAG_RUN_ID}/tasks/${TASK_A}/${tab}?region_id=${regionId}&region_index=3&try_number=2`,
+          ]}
+        >
+          <Location />
+          <Routes>
+            <Route element={<TaskInstance />} path="/dags/:dagId/runs/:runId/tasks/:taskId">
+              <Route element={<div />} path="*" />
+            </Route>
+          </Routes>
+        </MemoryRouter>,
+        { wrapper: createWrapper(queryClient) },
+      );
+
+      expect(await screen.findByText("retained-id")).toBeVisible();
+      expect(screen.getByTestId("location").textContent).toContain(`/tasks/${TASK_A}/logs?`);
+      expect(history).toHaveBeenCalledWith(
+        expect.objectContaining({ regionId, regionIndex: 3, taskTryNumber: 2 }),
+      );
+      expect(screen.queryByTestId("task-instance-state")).not.toBeInTheDocument();
+      expect(screen.queryByRole("link", { name: "tabs.taskStateStore" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("link", { name: "tabs.xcom" })).not.toBeInTheDocument();
+      expect(screen.getByRole("link", { name: "tabs.logs" })).toBeVisible();
+      expect(screen.getByRole("link", { name: "tabs.details" })).toHaveAttribute(
+        "href",
+        expect.stringContaining(`region_id=${regionId}`),
+      );
+    },
+  );
+  it("stays on Required Actions and shows the response of an earlier try of a regional task", async () => {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const regionId = "11111111-1111-4111-8111-111111111111";
+
+    vi.spyOn(TaskInstanceService, "getMappedTaskInstance").mockResolvedValue({
+      ...buildTaskInstance(TASK_A, "running", 3),
+      id: "current-id",
+      region_id: regionId,
+      region_index: 3,
+    });
+    vi.spyOn(TaskInstanceService, "getTaskInstanceTryDetails").mockResolvedValue({
+      ...buildTaskInstance(TASK_A, "success", 2),
+      id: "retained-id",
+      region_id: regionId,
+      region_index: 3,
+    });
+    const hitlTry = vi
+      .spyOn(TaskInstanceService, "getHitlDetailTryDetail")
+      .mockResolvedValue({ subject: "Response of try 2" } as Awaited<
+        ReturnType<typeof TaskInstanceService.getHitlDetailTryDetail>
+      >);
+
+    render(
+      <MemoryRouter
+        initialEntries={[
+          `/dags/${DAG_ID}/runs/${DAG_RUN_ID}/tasks/${TASK_A}/required_actions?region_id=${regionId}&region_index=3&try_number=2`,
+        ]}
+      >
+        <Location />
+        <Routes>
+          <Route element={<TaskInstance />} path="/dags/:dagId/runs/:runId/tasks/:taskId">
+            <Route element={<HITLResponse />} path="required_actions" />
+            <Route element={<div />} path="*" />
+          </Route>
+        </Routes>
+      </MemoryRouter>,
+      { wrapper: createWrapper(queryClient) },
+    );
+
+    expect(await screen.findByText("Response of try 2")).toBeVisible();
+    expect(screen.getByText("retained-id")).toBeVisible();
+    expect(screen.getByTestId("location").textContent).toContain(`/tasks/${TASK_A}/required_actions?`);
+    expect(hitlTry).toHaveBeenCalledWith(expect.objectContaining({ regionId, regionIndex: 3, tryNumber: 2 }));
+    expect(screen.getByRole("link", { name: "tabs.requiredActions" })).toHaveAttribute(
+      "href",
+      expect.stringContaining("try_number=2"),
+    );
+  });
+  it("resolves a coordinate and preserves it across task tabs", async () => {
+    const regionId = "11111111-1111-4111-8111-111111111111";
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const fetch = vi.spyOn(TaskInstanceService, "getMappedTaskInstance").mockResolvedValue({
+      ...buildTaskInstance(TASK_A, "success", 2),
+      region_id: regionId,
+      region_index: 3,
+    });
+
+    vi.spyOn(TaskInstanceService, "getTaskInstanceTryDetails").mockResolvedValue({
+      ...buildTaskInstance(TASK_A, "success", 2),
+      region_id: regionId,
+      region_index: 3,
+    });
+
+    render(
+      <MemoryRouter
+        initialEntries={[
+          `/dags/${DAG_ID}/runs/${DAG_RUN_ID}/tasks/${TASK_A}/logs?region_id=${regionId}&region_index=3&try_number=2`,
+        ]}
+      >
+        <Location />
+        <Routes>
+          <Route element={<TaskInstance />} path="/dags/:dagId/runs/:runId/tasks/:taskId">
+            <Route element={<div />} path="*" />
+          </Route>
+        </Routes>
+      </MemoryRouter>,
+      { wrapper: createWrapper(queryClient) },
+    );
+    expect(await screen.findByText(`${TASK_A}:success:2`)).toBeTruthy();
+    expect(fetch).toHaveBeenCalledWith(expect.objectContaining({ mapIndex: -1, regionId, regionIndex: 3 }));
+    expect(screen.getByRole("link", { name: "tabs.auditLog" })).toBeVisible();
+    fireEvent.click(screen.getByRole("link", { name: "tabs.details" }));
+    expect(screen.getByTestId("location").textContent).toContain(`region_id=${regionId}`);
+    expect(screen.getByTestId("location").textContent).toContain("region_index=3");
+  });
+
+  it.each(["", "?try_number=1&log_level=error"])(
+    "keeps the selected try across task tabs with %s",
+    async (search) => {
+      const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+
+      vi.spyOn(TaskInstanceService, "getMappedTaskInstance").mockResolvedValue(
+        buildTaskInstance(TASK_A, "up_for_retry", 2),
+      );
+      const path = `/dags/${DAG_ID}/runs/${DAG_RUN_ID}/tasks/${TASK_A}`;
+
+      render(
+        <MemoryRouter initialEntries={[`${path}/logs${search}`]}>
+          <Location />
+          <Routes>
+            <Route element={<TaskInstance />} path="/dags/:dagId/runs/:runId/tasks/:taskId">
+              <Route element={<div />} path="*" />
+            </Route>
+          </Routes>
+        </MemoryRouter>,
+        { wrapper: createWrapper(queryClient) },
+      );
+      expect(await screen.findByText(`${TASK_A}:up_for_retry:2`)).toBeTruthy();
+      const expectedSearch = search ? "?try_number=1" : "";
+
+      fireEvent.click(screen.getByRole("link", { name: "tabs.details" }));
+      expect(screen.getByTestId("location")).toHaveTextContent(`${path}/details${expectedSearch}`);
+      fireEvent.click(screen.getByRole("link", { name: "tabs.requiredActions" }));
+      expect(screen.getByTestId("location")).toHaveTextContent(`${path}/required_actions${expectedSearch}`);
+      fireEvent.click(screen.getByRole("link", { name: "tabs.logs" }));
+      expect(screen.getByTestId("location")).toHaveTextContent(`${path}${expectedSearch}`);
+      expect(screen.getByTestId("location")).not.toHaveTextContent("log_level");
+    },
+  );
+
+  it.each([
+    ["tabs.auditLog", "events"],
+    ["tabs.mappedTaskInstances_other", "task_instances"],
+    ["tabs.renderedTemplates", "rendered_templates"],
+    ["tabs.xcom", "xcom"],
+    ["tabs.taskStateStore", "task-state-store"],
+    ["tabs.assetEvents", "asset_events"],
+    ["tabs.code", "code"],
+  ])("does not carry try selection into %s", async (label, destination) => {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+
+    vi.spyOn(TaskInstanceService, "getMappedTaskInstance").mockResolvedValue({
+      ...buildTaskInstance(TASK_A, "success", 3),
+      map_index: 1,
+    });
+    const path = `/dags/${DAG_ID}/runs/${DAG_RUN_ID}/tasks/${TASK_A}/mapped/1`;
+
+    render(
+      <MemoryRouter initialEntries={[`${path}/logs?try_number=2`]}>
+        <Location />
+        <Routes>
+          <Route element={<TaskInstance />} path="/dags/:dagId/runs/:runId/tasks/:taskId/mapped/:mapIndex">
+            <Route element={<div />} path="*" />
+          </Route>
+        </Routes>
+      </MemoryRouter>,
+      { wrapper: createWrapper(queryClient) },
+    );
+    expect(await screen.findByText(`${TASK_A}:success:3`)).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("link", { name: label }));
+
+    expect(screen.getByTestId("location").textContent).toBe(`${path}/${destination}`);
+  });
+
+  it.each([
+    { inLoop: false, visible: true },
+    { inLoop: true, visible: false },
+  ])(
+    "shows the mapped task instances tab only outside a loop (inLoop=$inLoop)",
+    async ({ inLoop, visible }) => {
+      const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+      const regionId = "11111111-1111-4111-8111-111111111111";
+
+      vi.spyOn(TaskInstanceService, "getMappedTaskInstance").mockResolvedValue({
+        ...buildTaskInstance(TASK_A, "success", 1),
+        in_loop: inLoop,
+        map_index: 1,
+        region_id: regionId,
+        region_index: 1,
+      });
+
+      render(
+        <MemoryRouter
+          initialEntries={[
+            `/dags/${DAG_ID}/runs/${DAG_RUN_ID}/tasks/${TASK_A}/mapped/1/logs?region_id=${regionId}&region_index=1`,
+          ]}
+        >
+          <Routes>
+            <Route element={<TaskInstance />} path="/dags/:dagId/runs/:runId/tasks/:taskId/mapped/:mapIndex">
+              <Route element={<div />} path="*" />
+            </Route>
+          </Routes>
+        </MemoryRouter>,
+        { wrapper: createWrapper(queryClient) },
+      );
+      expect(await screen.findByText(`${TASK_A}:success:1`)).toBeTruthy();
+
+      expect(screen.queryByRole("link", { name: "tabs.mappedTaskInstances_other" }) !== null).toBe(visible);
+    },
+  );
+
   it("refetches a cached task instance immediately when switching tasks", async () => {
     const queryClient = new QueryClient({
       defaultOptions: {

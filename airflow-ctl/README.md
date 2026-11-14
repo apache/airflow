@@ -31,7 +31,7 @@ A command-line tool for interacting with Apache Airflow instances through the Ai
 
 ## Requirements
 
-- Python 3.10 or later (compatible with 3.10 <= Python <= 3.14)
+- Python 3.11 or later (compatible with 3.11 <= Python <= 3.14)
 - Network access to an Apache Airflow instance with REST API enabled
 - \[Recommended\] Keyring backend installed in operating system for secure token storage.
   - In case there's no keyring available (common in headless environments) you can provide the token to each command. See the [Security page](https://airflow.apache.org/docs/apache-airflow-ctl/stable/security.html) for more information.
@@ -67,4 +67,4 @@ You can check each command with `airflowctl <command> --help` to see the availab
 #### Implemented Commands
 
 Implemented commands are the ones which are not auto generated and need to be implemented manually.
-You can check the implemented commands under `airflow-ctl/src/airflowctl/clt/commands/`.
+You can check the implemented commands under `airflow-ctl/src/airflowctl/ctl/commands/`.

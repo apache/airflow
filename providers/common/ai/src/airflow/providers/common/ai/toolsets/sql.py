@@ -18,11 +18,12 @@
 
 from __future__ import annotations
 
-import json
 from contextlib import suppress
 from typing import TYPE_CHECKING, Any
 
 try:
+    from sqlalchemy.exc import DBAPIError
+
     from airflow.providers.common.ai.utils.sql_validation import (
         SQLSafetyError,
         collect_table_references,
@@ -39,20 +40,29 @@ except ImportError as e:
 
 from pydantic_ai.exceptions import ModelRetry
 from pydantic_ai.tools import ToolDefinition
-from pydantic_ai.toolsets.abstract import AbstractToolset, ToolsetTool
+from pydantic_ai.toolsets.abstract import ToolsetTool
 
+from airflow.providers.common.ai.exceptions import SQLToolsetConnectionError
+from airflow.providers.common.ai.utils.masking import dumps_masked
 from airflow.providers.common.ai.utils.query_results import (
+    DEFAULT_MAX_COLUMNS,
     DEFAULT_MAX_RESULT_BYTES,
     QUERY_TOOL_DESCRIPTION as _QUERY_DESCRIPTION,
+    build_get_schema_description,
     build_query_result,
+    build_schema_result,
 )
 from airflow.providers.common.ai.utils.tool_definition import build_args_validator, return_schema_kwargs
+from airflow.providers.common.ai.utils.tool_prefix import ToolPrefixMixin
+from airflow.providers.common.ai.utils.toolset_base import AirflowToolset, validate_max_retries
 from airflow.providers.common.compat.sdk import BaseHook
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import Callable, Sequence
 
     from pydantic_ai._run_context import RunContext
+    from sqlalchemy.engine.reflection import Inspector
+
 
 # Sentinel distinguishing "caller did not pass ``allowed_tables``" (expose every
 # table) from an explicit value. Every explicit falsy value -- ``None`` as much as
@@ -71,6 +81,13 @@ _GET_SCHEMA_SCHEMA: dict[str, Any] = {
     "type": "object",
     "properties": {
         "table_name": {"type": "string", "description": "Name of the table to inspect."},
+        "name_contains": {
+            "type": "string",
+            "description": (
+                "Return only columns whose name contains this substring (case-insensitive). "
+                "Use it to find the relevant columns on a very wide table."
+            ),
+        },
     },
     "required": ["table_name"],
 }
@@ -90,6 +107,33 @@ _CHECK_QUERY_SCHEMA: dict[str, Any] = {
     },
     "required": ["sql"],
 }
+
+
+def _build_connection_error(conn_id: str, error: Exception) -> SQLToolsetConnectionError:
+    return SQLToolsetConnectionError(f"Could not reach the database of connection {conn_id!r}: {error}")
+
+
+def _raise_connection_failures(get_conn: Callable[[], Any], conn_id: str) -> Callable[[], Any]:
+    """Wrap a hook's ``get_conn`` so a failure to connect is told apart from a failing statement."""
+
+    def wrapper() -> Any:
+        try:
+            return get_conn()
+        except Exception as e:
+            raise _build_connection_error(conn_id, e) from e
+
+    return wrapper
+
+
+def _is_lost_connection(error: Exception) -> bool:
+    """
+    Whether SQLAlchemy reports ``error`` as a connection failure rather than a failing statement.
+
+    ``list_tables`` and ``get_schema`` go through the SQLAlchemy inspector, which raises a
+    failure to connect without a statement and marks a connection lost mid-statement as
+    invalidated.
+    """
+    return isinstance(error, DBAPIError) and (error.statement is None or error.connection_invalidated)
 
 
 def _trusted_row_count(cursor: Any, *, fetched: int) -> int | None:
@@ -161,7 +205,7 @@ class _CappedFetch:
         return rows
 
 
-class SQLToolset(AbstractToolset[Any]):
+class SQLToolset(ToolPrefixMixin, AirflowToolset):
     """
     Curated toolset that gives an LLM agent safe access to a SQL database.
 
@@ -171,12 +215,14 @@ class SQLToolset(AbstractToolset[Any]):
     Uses a :class:`~airflow.providers.common.sql.hooks.sql.DbApiHook` resolved
     lazily from the given ``db_conn_id``.
 
-    When a tool fails, the database's error message is returned to the agent as a
-    retry (:class:`pydantic_ai.ModelRetry`) so the model can correct its SQL within
-    the run instead of failing the task. ``pydantic-ai`` bounds this by the tool's
-    ``max_retries``, so an unrecoverable error -- a bad connection or an auth
-    failure -- exhausts the retries and fails the task for Airflow to retry. The
-    toolset does not inspect the error type or message.
+    When the statement fails, the database's error message is returned to the agent as
+    a retry (:class:`pydantic_ai.ModelRetry`) so the model can correct its SQL within
+    the run, bounded by the tool's ``max_retries``. When the toolset cannot reach the
+    database -- the connection is missing or misconfigured, the host is unreachable,
+    the credentials are rejected, or SQLAlchemy reports the connection lost -- the
+    error is raised instead, failing the attempt for Airflow to retry: no change to
+    the SQL can fix it. Under durable execution a raised call is not recorded, so the
+    retry runs it against the database again rather than replaying the failure.
 
     :param db_conn_id: Airflow connection ID for the database. Templated when the
         toolset is passed to ``AgentOperator`` / ``@task.agent``, so each task
@@ -239,7 +285,8 @@ class SQLToolset(AbstractToolset[Any]):
         the time the first row is read, so only the per-row Python conversion is
         skipped. Treat this as a bound on what the agent is shown, not as a guarantee
         that ``SELECT * FROM huge_table`` is cheap.
-    :param max_result_bytes: Budget for the serialized ``query`` result, in bytes.
+    :param max_result_bytes: Budget for the serialized ``query`` result, in bytes, and the
+        byte backstop that also triggers the ``get_schema`` summary (see ``max_columns``).
         Default 64 KiB. ``max_rows`` bounds rows, which says nothing about size: one
         row of a 3000-column table is larger than a thousand rows of a narrow one, and
         a tool result stays in the model's message history for the rest of the run, so
@@ -248,6 +295,18 @@ class SQLToolset(AbstractToolset[Any]):
         rather than skipping it and packing later ones, so one wide row early in the
         result ends it. The result reports which limit it hit so the agent can narrow
         its projection rather than page through the table.
+    :param max_columns: Maximum number of columns ``get_schema`` returns in full. Default
+        ``100``. Above it -- or when the serialized columns exceed ``max_result_bytes`` --
+        the full list is replaced by a bounded summary (column count, a type histogram, a
+        sample of columns) that points the agent at the ``name_contains`` filter, so a
+        several-thousand-column table cannot exhaust the context before a query is written.
+    :param tool_prefix: Optional prefix joined to each tool name with an underscore
+        (e.g. ``"pg"`` produces ``"pg_query"``). Must be a valid Python identifier. Set it
+        when one agent has another toolset with the same tool names, such as a second
+        ``SQLToolset``, since duplicate tool names are rejected.
+    :param max_retries: How many times the model may correct a failed call to one of these
+        tools before the run fails. ``None`` (the default) uses the agent's tool retry
+        budget, its ``retries``, as pydantic-ai's own toolsets do.
     """
 
     # Rendered, on a copy, by AgentOperator. Deliberately not ``template_fields``, which
@@ -264,7 +323,12 @@ class SQLToolset(AbstractToolset[Any]):
         allow_writes: bool = False,
         max_rows: int = 50,
         max_result_bytes: int = DEFAULT_MAX_RESULT_BYTES,
+        max_columns: int = DEFAULT_MAX_COLUMNS,
+        tool_prefix: str = "",
+        max_retries: int | None = None,
     ) -> None:
+        self._max_retries = validate_max_retries(max_retries)
+        self._set_tool_prefix(tool_prefix)
         self._allowed_tables: frozenset[str] | None
         if allowed_tables is _UNSET:
             self._allowed_tables = None
@@ -287,6 +351,7 @@ class SQLToolset(AbstractToolset[Any]):
         self._allow_writes = allow_writes
         self._max_rows = max_rows
         self._max_result_bytes = max_result_bytes
+        self._max_columns = max_columns
         self._hook: DbApiHook | None = None
 
         # Canonical ``(catalog, schema, table)`` view of allowed_tables for membership
@@ -344,7 +409,7 @@ class SQLToolset(AbstractToolset[Any]):
 
     @property
     def id(self) -> str:
-        return f"sql-{self._db_conn_id}"
+        return f"sql-{self._db_conn_id}{self._get_tool_prefix_id_suffix()}"
 
     # ------------------------------------------------------------------
     # Lazy hook resolution
@@ -352,33 +417,54 @@ class SQLToolset(AbstractToolset[Any]):
 
     def _get_db_hook(self) -> DbApiHook:
         if self._hook is None:
-            connection = BaseHook.get_connection(self._db_conn_id)
-            hook = connection.get_hook()
+            try:
+                hook = BaseHook.get_connection(self._db_conn_id).get_hook()
+            except Exception as e:
+                raise _build_connection_error(self._db_conn_id, e) from e
             if not isinstance(hook, DbApiHook):
-                raise ValueError(
+                raise SQLToolsetConnectionError(
                     f"Connection {self._db_conn_id!r} does not provide a DbApiHook. "
                     f"Got {type(hook).__name__}."
                 )
+            # DbApiHook.run and every in-tree override connect through get_conn, so this is
+            # where the query tool's connection failures surface.
+            hook.get_conn = _raise_connection_failures(hook.get_conn, self._db_conn_id)  # type: ignore[method-assign]
             self._hook = hook
         return self._hook
+
+    def _get_inspector(self) -> Inspector:
+        hook = self._get_db_hook()
+        # Building the inspector fetches credentials (Databricks), loads the SQLAlchemy dialect
+        # and connects, none of which goes through get_conn.
+        try:
+            return hook.inspector
+        except Exception as e:
+            raise _build_connection_error(self._db_conn_id, e) from e
 
     # ------------------------------------------------------------------
     # AbstractToolset interface
     # ------------------------------------------------------------------
 
     async def get_tools(self, ctx: RunContext[Any]) -> dict[str, ToolsetTool[Any]]:
+        max_retries = self._get_tool_max_retries(ctx)
         tools: dict[str, ToolsetTool[Any]] = {}
 
-        for name, description, schema in (
+        for base, description, schema in (
             ("list_tables", "List available table names in the database.", _LIST_TABLES_SCHEMA),
-            ("get_schema", "Get column names and types for a table.", _GET_SCHEMA_SCHEMA),
+            (
+                "get_schema",
+                build_get_schema_description(tool_name=self._build_tool_name("get_schema")),
+                _GET_SCHEMA_SCHEMA,
+            ),
             ("query", _QUERY_DESCRIPTION, _QUERY_SCHEMA),
             ("check_query", "Validate SQL syntax without executing it.", _CHECK_QUERY_SCHEMA),
         ):
-            # sequential=True because all tools use a shared DbApiHook with
-            # synchronous I/O — they must not run concurrently.
+            # sequential=True keeps pydantic-ai from running these calls concurrently
+            # within a turn; run_blocking's process-wide lock serializes them with the
+            # blocking calls of the other toolsets that use it.
             # return_schema is "string": every tool returns a JSON-encoded string
             # (json.dumps), so code mode renders `-> str` instead of `-> Any`.
+            name = self._build_tool_name(base)
             tool_def = ToolDefinition(
                 name=name,
                 description=description,
@@ -389,39 +475,48 @@ class SQLToolset(AbstractToolset[Any]):
             tools[name] = ToolsetTool(
                 toolset=self,
                 tool_def=tool_def,
-                max_retries=1,
+                max_retries=max_retries,
                 args_validator=build_args_validator(schema),
             )
         return tools
 
-    async def call_tool(
+    async def execute_tool(
         self,
         name: str,
         tool_args: dict[str, Any],
+        *,
         ctx: RunContext[Any],
         tool: ToolsetTool[Any],
     ) -> Any:
-        if name not in ("list_tables", "get_schema", "query", "check_query"):
+        base = self._find_base_tool_name(name)
+        if base not in ("list_tables", "get_schema", "query", "check_query"):
             raise ValueError(f"Unknown tool: {name!r}")
         try:
-            if name == "list_tables":
-                return self._list_tables()
-            if name == "get_schema":
-                return self._get_schema(tool_args["table_name"])
-            if name == "query":
-                return self._query(tool_args["sql"])
-            return self._check_query(tool_args["sql"])
+            return await self.run_blocking(self._run_tool, base, tool_args)
+        except SQLToolsetConnectionError:
+            # Handed to the model as a retry, a connection failure makes it give up and
+            # answer without data, or spend its retries on something no SQL can fix.
+            raise
         except Exception as e:
-            # Hand the database's own error back to the agent as a retry so it can
-            # read the message and fix its SQL within the run. pydantic-ai bounds
-            # this by the tool's max_retries, so an unrecoverable error (a bad
-            # connection, an auth failure) exhausts the budget and fails the task
-            # for Airflow to retry, rather than being silently worked around.
+            if _is_lost_connection(e):
+                raise _build_connection_error(self._db_conn_id, e) from e
+            # The statement failed: hand the database's own error back to the agent so it
+            # can fix its SQL within the run, bounded by the tool's max_retries.
             raise ModelRetry(
                 f"The {name} tool failed: {e}\n"
-                "Use the list_tables and get_schema tools to inspect the database, "
+                f"Use the {self._build_tool_name('list_tables')} and {self._build_tool_name('get_schema')} tools "
+                "to inspect the database, "
                 "then fix the query and try again."
             ) from e
+
+    def _run_tool(self, name: str, tool_args: dict[str, Any]) -> str:
+        if name == "list_tables":
+            return self._list_tables()
+        if name == "get_schema":
+            return self._get_schema(tool_args["table_name"], tool_args.get("name_contains"))
+        if name == "query":
+            return self._query(tool_args["sql"])
+        return self._check_query(tool_args["sql"])
 
     # ------------------------------------------------------------------
     # Tool implementations
@@ -435,7 +530,7 @@ class SQLToolset(AbstractToolset[Any]):
         return schema, table
 
     def _list_tables(self) -> str:
-        hook = self._get_db_hook()
+        inspector = self._get_inspector()
         tables: list[str] = []
         # Dedupe by (schema, table) so a table reachable both qualified and via the
         # default schema (e.g. "public.users" and "users" with schema="public") is
@@ -451,45 +546,47 @@ class SQLToolset(AbstractToolset[Any]):
         # Schemas referenced by qualified allowed_tables entries: introspect each
         # and return matching tables fully qualified so they round-trip to get_schema.
         for schema in sorted(self._qualified_schemas):
-            for name in hook.inspector.get_table_names(schema=schema):
+            for name in inspector.get_table_names(schema=schema):
                 add(schema, name, f"{schema}.{name}")
 
         # Default schema: used for allow-all and unqualified allowed_tables entries.
         # Names stay bare to preserve the single-schema behaviour.
         if self._include_default_schema:
-            for name in hook.inspector.get_table_names(schema=self._schema):
+            for name in inspector.get_table_names(schema=self._schema):
                 add(self._schema, name, name)
 
-        return json.dumps(tables)
+        return dumps_masked(tables)
 
-    def _get_schema(self, table_name: str) -> str:
+    def _get_schema(self, table_name: str, name_contains: str | None = None) -> str:
         schema, table = self._split_table_identifier(table_name)
         if not self._is_ref_allowed("", schema, table):
-            return json.dumps({"error": f"Table {table_name!r} is not in the allowed tables list."})
-        hook = self._get_db_hook()
-        columns = hook.get_table_schema(table, schema=schema)
-        return json.dumps(columns)
+            return dumps_masked({"error": f"Table {table_name!r} is not in the allowed tables list."})
+        columns = [
+            {"name": col["name"], "type": str(col["type"])}
+            for col in self._get_inspector().get_columns(table, schema=schema)
+        ]
+        return build_schema_result(
+            columns,
+            max_columns=self._max_columns,
+            max_result_bytes=self._max_result_bytes,
+            name_contains=name_contains,
+            tool_name=self._build_tool_name("get_schema"),
+        )
 
     def _dialect_for_validation(self) -> str | None:
         """Resolve the hook's sqlglot dialect so DESCRIBE/SHOW validate correctly."""
         hook = self._get_db_hook()
-        return resolve_sqlglot_dialect(getattr(hook, "dialect_name", None))
+        # dialect_name builds the hook's URI, which can fetch credentials (Databricks).
+        try:
+            dialect_name = getattr(hook, "dialect_name", None)
+        except Exception as e:
+            raise _build_connection_error(self._db_conn_id, e) from e
+        return resolve_sqlglot_dialect(dialect_name)
 
     def _query(self, sql: str) -> str:
         hook = self._get_db_hook()
         dialect = self._dialect_for_validation()
-        statements: list[Any] | None = None
-        if not self._allow_writes:
-            # allow_read_only_metadata lets agents inspect schemas with DESCRIBE/SHOW
-            # (a common first move) instead of hard-failing; the deep scan still
-            # rejects any data-modifying statement, including EXPLAIN <write>.
-            statements = _validate_sql(sql, dialect=dialect, allow_read_only_metadata=True)
-        elif self._allowed_canonical is not None:
-            # Writes are allowed but tables are restricted: parse anyway so the
-            # allow-list still governs which tables a write may touch.
-            statements = _parse_sql(sql, dialect=dialect)
-        if statements is not None:
-            self._enforce_allowed_tables(statements)
+        self._validate_for_execution(sql, dialect=dialect, require_parse=False)
 
         # One row beyond the cap, so "there is more" is knowable without fetching the
         # rest. strip_sql_string mirrors what get_records did for the hooks that
@@ -510,6 +607,31 @@ class SQLToolset(AbstractToolset[Any]):
             total_rows=fetch.total_rows,
         )
 
+    def _validate_for_execution(self, sql: str, *, dialect: str | None, require_parse: bool) -> None:
+        """
+        Apply the checks ``query`` runs before executing ``sql``, raising when it would be refused.
+
+        ``check_query`` shares this so it never reports valid for a statement ``query`` refuses.
+        ``require_parse`` makes ``check_query`` syntax-check writes too; ``query`` leaves a write
+        unparsed unless ``allowed_tables`` needs the AST, so a statement sqlglot cannot parse
+        still reaches the database.
+        """
+        statements: list[Any] | None = None
+        if not self._allow_writes:
+            # allow_read_only_metadata lets agents inspect schemas with DESCRIBE/SHOW
+            # (a common first move) instead of hard-failing; the deep scan still
+            # rejects any data-modifying statement, including EXPLAIN <write>.
+            statements = _validate_sql(sql, dialect=dialect, allow_read_only_metadata=True)
+        elif require_parse or self._allowed_canonical is not None:
+            # Writes are allowed, so only parse: the allow-list, when set, still
+            # governs which tables a write may touch. Without one, ``query`` sends the
+            # string to the hook unparsed, multi-statement included, so don't reject it here.
+            statements = _parse_sql(
+                sql, dialect=dialect, allow_multiple_statements=self._allowed_canonical is None
+            )
+        if statements is not None:
+            self._enforce_allowed_tables(statements)
+
     def _check_query(self, sql: str) -> str:
         # Resolve the dialect best-effort: if the connection can't be reached we
         # still syntax-check dialect-agnostically rather than reporting invalid.
@@ -517,11 +639,10 @@ class SQLToolset(AbstractToolset[Any]):
         with suppress(Exception):
             dialect = self._dialect_for_validation()
         try:
-            statements = _validate_sql(sql, dialect=dialect, allow_read_only_metadata=True)
-            self._enforce_allowed_tables(statements)
-            return json.dumps({"valid": True})
+            self._validate_for_execution(sql, dialect=dialect, require_parse=True)
+            return dumps_masked({"valid": True})
         except Exception as e:
-            return json.dumps({"valid": False, "error": str(e)})
+            return dumps_masked({"valid": False, "error": str(e)})
 
     def _enforce_allowed_tables(self, statements: list[Any]) -> None:
         """
@@ -544,7 +665,7 @@ class SQLToolset(AbstractToolset[Any]):
             raise SQLSafetyError(
                 f"Query uses a data source that cannot be checked against allowed_tables: "
                 f"{'; '.join(scan.unverifiable_sources)}. Query the allowed tables directly: "
-                f"use list_tables to see them."
+                f"use {self._build_tool_name('list_tables')} to see them."
             )
         disallowed = [
             ".".join(part for part in (catalog, schema, table) if part)
@@ -554,5 +675,5 @@ class SQLToolset(AbstractToolset[Any]):
         if disallowed:
             raise SQLSafetyError(
                 f"Query references tables that are not in the allowed tables list: "
-                f"{', '.join(sorted(set(disallowed)))}. Use list_tables to see the allowed tables."
+                f"{', '.join(sorted(set(disallowed)))}. Use {self._build_tool_name('list_tables')} to see the allowed tables."
             )

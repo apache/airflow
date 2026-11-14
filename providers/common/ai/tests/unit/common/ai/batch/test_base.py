@@ -132,6 +132,14 @@ class TestResolveRequestModel:
         result = adapter.resolve_request_model("fake:m-2", default_bare_model="m-1", request_index=0)
         assert result == "m-2"
 
+    def test_alias_prefix_resolves_for_the_adapter_it_selects(self):
+        class _OpenAINamedAdapter(_FakeAdapter):
+            name = "openai"
+
+        adapter = _OpenAINamedAdapter()
+        result = adapter.resolve_request_model("openai-chat:m-2", default_bare_model="m-1", request_index=0)
+        assert result == "m-2"
+
     def test_foreign_provider_prefix_is_rejected(self):
         adapter = _FakeAdapter()
         with pytest.raises(LLMBatchModelMismatchError, match="Request 3"):

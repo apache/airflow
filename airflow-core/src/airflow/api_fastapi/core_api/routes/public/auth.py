@@ -26,6 +26,7 @@ from fastapi.security import HTTPAuthorizationCredentials
 from airflow.api_fastapi.app import get_cookie_path
 from airflow.api_fastapi.auth.managers.base_auth_manager import COOKIE_NAME_JWT_TOKEN
 from airflow.api_fastapi.common.router import AirflowRouter
+from airflow.api_fastapi.core_api.datamodels.auth import CliLoginMetadataResponse
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import (
     AuthManagerDep,
@@ -60,6 +61,19 @@ def login(request: Request, auth_manager: AuthManagerDep, next: None | str = Non
     return RedirectResponse(login_url)
 
 
+@auth_router.get("/cli/metadata")
+def get_cli_login_metadata(auth_manager: AuthManagerDep) -> CliLoginMetadataResponse:
+    """Return the login methods the AuthManager configured offers to command-line clients."""
+    methods = auth_manager.get_cli_login_methods()
+    return CliLoginMetadataResponse(
+        grant_types_supported=methods.grant_types_supported,
+        code_challenge_methods_supported=methods.code_challenge_methods_supported,
+        authorization_endpoint=methods.authorization_endpoint,
+        device_authorization_endpoint=methods.device_authorization_endpoint,
+        token_endpoint=methods.token_endpoint,
+    )
+
+
 @auth_router.get(
     "/logout",
     responses=create_openapi_http_exception_doc([status.HTTP_307_TEMPORARY_REDIRECT]),
@@ -78,13 +92,12 @@ def logout(
     for token_str in collect_request_tokens(request, bearer_credentials):
         auth_manager.revoke_token(token_str)
 
-    logout_url = auth_manager.get_url_logout()
-    if logout_url:
-        return RedirectResponse(logout_url)
-
+    # The local session cookie is cleared on every path, including the redirect to an external
+    # logout URL: revocation above is recorded server side and can fail, so it must not be the
+    # only thing that ends the browser's session.
     secure = request.base_url.scheme == "https" or bool(conf.get("api", "ssl_cert", fallback=""))
     cookie_path = get_cookie_path()
-    response = RedirectResponse(auth_manager.get_url_login())
+    response = RedirectResponse(auth_manager.get_url_logout() or auth_manager.get_url_login())
     response.delete_cookie(
         key=COOKIE_NAME_JWT_TOKEN,
         path=cookie_path,

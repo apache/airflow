@@ -24,6 +24,7 @@ import zipfile
 from pathlib import Path
 from types import SimpleNamespace
 from typing import TYPE_CHECKING
+from unittest import mock
 
 import pytest
 
@@ -153,6 +154,21 @@ class TestZipImporter:
         assert [e.error_type for e in errors] == ["zip_read_error"]
         assert errors[0].source_reference == os.path.join("bad_member.zip", "b_bad.py")
 
+    @mock.patch(
+        "airflow.sdk.importers.zip_importer.zipfile.ZipFile", autospec=True, side_effect=zipfile.ZipFile
+    )
+    def test_list_opens_archive_once(self, mock_zip_file, mock_bundle):
+        zip_path = mock_bundle.path / "many.zip"
+        with zipfile.ZipFile(zip_path, "w") as z:
+            for i in range(5):
+                z.writestr(f"dag_{i}.py", "from airflow.sdk import DAG\n")
+        mock_zip_file.reset_mock()
+
+        definitions = list(ZipImporter().list_dag_definitions(mock_bundle, safe_mode=True))
+
+        assert len(definitions) == 5
+        mock_zip_file.assert_called_once_with(zip_path)
+
     def test_import_zip_archive_with_dags(self, mock_bundle):
         zip_path = mock_bundle.path / "sample_dags.zip"
         with zipfile.ZipFile(zip_path, "w") as z:
@@ -255,6 +271,17 @@ class TestZipImporter:
         # The archive as a whole has no source, the same way a directory does not.
         with pytest.raises(ValueError, match="No internal importer"):
             importer.get_source_code(FilesystemDagDefinition(path=zip_path))
+
+    def test_as_file_keeps_member_file_name(self, tmp_path):
+        zip_path = tmp_path / "bundle.zip"
+        with zipfile.ZipFile(zip_path, "w") as z:
+            z.writestr("pipelines/my_pipeline.yaml", "pipelineId: my_pipeline\n")
+        member = ZipMemberDagDefinition(zip_path=zip_path, file_path="pipelines/my_pipeline.yaml")
+
+        with member.as_file() as local_path:
+            assert local_path.name == "my_pipeline.yaml"
+            assert local_path.read_text() == "pipelineId: my_pipeline\n"
+        assert not local_path.exists()
 
     def test_zip_dag_definition_freshness_token(self, tmp_path):
         zip_path = tmp_path / "fresh_bundle.zip"

@@ -72,6 +72,13 @@ sys_test_context_task = (
 # `emr-containers create-role-associations` / `delete-role-associations` were added in this release.
 MIN_AWS_CLI_VERSION = (2, 24, 0)
 
+# Options for the binary downloads below. Without `--fail` curl exits 0 on an HTTP error and
+# writes the error body to the output, leaving tar/unzip to report the failure instead.
+CURL_OPTS = (
+    "--silent --show-error --fail --location "
+    "--retry 3 --retry-delay 5 --retry-all-errors --connect-timeout 10"
+)
+
 S3_FILE_NAME = "pi.py"
 S3_FILE_CONTENT = """
 k = 1
@@ -109,22 +116,19 @@ def delete_launch_template(template_name: str):
 def run_eksctl_commands(cluster_name, ns):
     # Install eksctl and enable access for EMR on EKS
     # See https://docs.aws.amazon.com/emr/latest/EMR-on-EKS-DevelopmentGuide/setting-up-cluster-access.html
-    file = "https://github.com/weaveworks/eksctl/releases/latest/download/eksctl_$(uname -s)_amd64.tar.gz"
+    url = "https://github.com/eksctl-io/eksctl/releases/latest/download/eksctl_$(uname -s)_amd64.tar.gz"
+    tarball = "/tmp/eksctl.tar.gz"
+    # Download and extract as separate steps so a failed fetch is reported by curl rather than by tar.
     commands = f"""
-        curl --silent --location "{file}" | tar xz -C /tmp &&
+        curl {CURL_OPTS} --output {tarball} "{url}" &&
+        tar xzf {tarball} -C /tmp &&
         /tmp/eksctl create iamidentitymapping --cluster {cluster_name} --namespace {ns} --service-name "emr-containers"
     """
 
-    build = subprocess.Popen(
-        commands,
-        shell=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-    )
-    _, err = build.communicate()
+    build = subprocess.run(commands, shell=True, capture_output=True, text=True, check=False)
 
     if build.returncode != 0:
-        raise RuntimeError(err)
+        raise RuntimeError(f"Failed to grant EMR on EKS access to the cluster: {build.stderr}")
 
 
 def _install_aws_cli_if_needed():
@@ -149,8 +153,8 @@ def _install_aws_cli_if_needed():
         log.info("AWS CLI not found; installing.")
 
     install = subprocess.run(
-        """
-            curl --silent "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip" &&
+        f"""
+            curl {CURL_OPTS} --output awscliv2.zip "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" &&
             unzip -q -o awscliv2.zip &&
             ./aws/install --update --bin-dir /usr/local/bin --install-dir /usr/local/aws-cli
         """,

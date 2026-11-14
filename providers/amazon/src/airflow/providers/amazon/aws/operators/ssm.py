@@ -25,6 +25,7 @@ from airflow.providers.amazon.aws.hooks.ssm import SsmHook
 from airflow.providers.amazon.aws.operators.base_aws import AwsBaseOperator
 from airflow.providers.amazon.aws.triggers.ssm import SsmRunCommandTrigger
 from airflow.providers.amazon.aws.utils import validate_execute_complete_event
+from airflow.providers.amazon.aws.utils.deferral import should_defer
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 from airflow.providers.common.compat.sdk import conf
 
@@ -59,8 +60,10 @@ class SsmRunCommandOperator(AwsBaseOperator[SsmHook]):
         AWS-level failures (Cancelled, TimedOut) will still raise exceptions
         even when this is False. (default: True)
     :param deferrable: If True, the operator will wait asynchronously for the
-        cluster to stop. This implies waiting for completion. This mode
-        requires aiobotocore module to be installed. (default: False)
+        cluster to stop. This mode requires aiobotocore module to be installed.
+        (default: False)
+        Deferring when ``wait_for_completion`` is False is deprecated; from the next major release
+        this has no effect when ``wait_for_completion`` is False.
     :param aws_conn_id: The Airflow connection used for AWS credentials.
         If this is ``None`` or empty then the default boto3 behaviour is used.
         If running Airflow in a distributed manner and aws_conn_id is None or
@@ -134,7 +137,7 @@ class SsmRunCommandOperator(AwsBaseOperator[SsmHook]):
         command_id = response["Command"]["CommandId"]
         task_description = f"SSM run command {command_id} to complete."
 
-        if self.deferrable:
+        if should_defer(deferrable=self.deferrable, wait_for_completion=self.wait_for_completion):
             self.log.info("Deferring for %s", task_description)
             self.defer(
                 trigger=SsmRunCommandTrigger(

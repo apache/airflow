@@ -27,7 +27,7 @@ from typing import TYPE_CHECKING, Any, NamedTuple
 from uuid import UUID
 
 from cachetools import LRUCache, TTLCache
-from sqlalchemy import String, select
+from sqlalchemy import ForeignKey, String, Uuid, select
 from sqlalchemy.orm import Mapped, joinedload, mapped_column
 
 from airflow._shared.observability.metrics import stats
@@ -292,7 +292,7 @@ class CachedDBDagBag(DBDagBag):
 def generate_md5_hash(context):
     bundle_name = context.get_current_parameters()["bundle_name"]
     relative_fileloc = context.get_current_parameters()["relative_fileloc"]
-    return hashlib.md5(f"{bundle_name}:{relative_fileloc}".encode()).hexdigest()
+    return DagPriorityParsingRequest.compute_id(bundle_name, relative_fileloc)
 
 
 class DagPriorityParsingRequest(Base):
@@ -303,9 +303,7 @@ class DagPriorityParsingRequest(Base):
     # Adding a unique constraint to fileloc results in the creation of an index and we have a limitation
     # on the size of the string we can use in the index for MySQL DB. We also have to keep the fileloc
     # size consistent with other tables. This is a workaround to enforce the unique constraint.
-    id: Mapped[str] = mapped_column(
-        String(32), primary_key=True, default=generate_md5_hash, onupdate=generate_md5_hash
-    )
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=generate_md5_hash)
 
     bundle_name: Mapped[str] = mapped_column(StringID(), nullable=False)
     # The location of the file containing the DAG object
@@ -313,6 +311,14 @@ class DagPriorityParsingRequest(Base):
     # packaged DAG, it will point to the subpath of the DAG within the
     # associated zip.
     relative_fileloc: Mapped[str] = mapped_column(String(2000), nullable=False)
+    processor_job_id: Mapped[int | None] = mapped_column(
+        ForeignKey("job.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    processor_claim_id: Mapped[UUID | None] = mapped_column(Uuid(), nullable=True)
+
+    @staticmethod
+    def compute_id(bundle_name: str, relative_fileloc: str) -> str:
+        return hashlib.md5(f"{bundle_name}:{relative_fileloc}".encode()).hexdigest()
 
     def __init__(self, bundle_name: str, relative_fileloc: str) -> None:
         super().__init__()

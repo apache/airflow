@@ -38,6 +38,8 @@ async function globalTeardown() {
     testConfig.testDag.hitlId,
     testConfig.xcomDag.id,
     "asset_produces_1",
+    "example_task_state_store",
+    "example_dynamic_task_mapping",
   ];
 
   for (const dagId of dagIds) {

@@ -178,7 +178,7 @@ Airflow Supervisor                    Bridge              Language Runtime
 
 ### DagFileParsingResult Format
 
-The language runtime must produce a `DagFileParsingResult` that matches Python Airflow's DagSerialization format exactly. The Airflow scheduler deserializes this into its internal model — any divergence causes parsing failures.
+The language runtime must produce a `DagFileParsingResult` that matches Python Airflow's DagSerialization format exactly, except that it may omit the config-backed Dag fields marked in the table below, which Airflow fills in from its config before it loads the Dag. The Airflow scheduler deserializes this into its internal model — any divergence causes parsing failures.
 
 **Envelope:**
 
@@ -216,9 +216,11 @@ The language runtime must produce a `DagFileParsingResult` that matches Python A
 | `start_date` | float (epoch) | if set | Unwrapped from `__type`/`__var` |
 | `end_date` | float (epoch) | if set | Unwrapped from `__type`/`__var` |
 | `tags` | list | if non-empty | Unwrapped from `__type`/`__var` |
-| `catchup` | bool | if `true` | |
-| `max_active_tasks` | int | if non-default | |
-| `max_active_runs` | int | if non-default | |
+| `catchup` | bool | if set | Airflow fills an unset field from its config |
+| `max_active_tasks` | int | if set | Airflow fills an unset field from its config |
+| `max_active_runs` | int | if set | Airflow fills an unset field from its config |
+| `max_consecutive_failed_dag_runs` | int | if set | Airflow fills an unset field from its config |
+| `disable_bundle_versioning` | bool | if set | Airflow fills an unset field from its config |
 
 **Timetable encoding:**
 
@@ -404,7 +406,7 @@ uv run validation/serialization/compare.py \
     validation/serialization/serialized_java.json
 ```
 
-Both share test cases defined in `test_dags.yaml`, ensuring the Java SDK produces byte-identical output to Python's `DagSerialization.serialize_dag()` for the same inputs.
+Both share test cases defined in `test_dags.yaml`, ensuring the Java SDK produces byte-identical output to Python's `DagSerialization.serialize_dag()` for the same inputs, apart from the config-backed Dag fields it may omit, which Airflow fills in before it loads the Dag.
 
 ## Consequences
 

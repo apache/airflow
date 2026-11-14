@@ -28,7 +28,7 @@ event dict, plus whether the batch should be cancelled first.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from airflow.providers.common.ai.batch.base import IN_PROGRESS_STATUSES, TERMINAL_STATUS_MAP, BatchState
@@ -75,7 +75,7 @@ class BatchPoller:
 
     @property
     def deadline_iso(self) -> str:
-        return datetime.fromtimestamp(self.end_time, tz=timezone.utc).isoformat(timespec="seconds")
+        return datetime.fromtimestamp(self.end_time, tz=UTC).isoformat(timespec="seconds")
 
     def on_state(self, state: BatchState, *, now: float) -> PollOutcome:
         """Decide after a successful status check."""

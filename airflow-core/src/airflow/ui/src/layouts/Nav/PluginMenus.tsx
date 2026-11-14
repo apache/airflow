@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Icon } from "@chakra-ui/react";
+import { Icon } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiChevronRight } from "react-icons/fi";
 import { LuPlug } from "react-icons/lu";
@@ -26,6 +26,7 @@ import { Menu } from "src/system-components";
 import type { NavItemResponse } from "src/utils/types";
 
 import { NavButton } from "./NavButton";
+import { NavMenu } from "./NavMenu";
 import { PluginMenuItem } from "./PluginMenuItem";
 
 export const PluginMenus = ({ navItems }: { readonly navItems: Array<NavItemResponse> }) => {
@@ -65,29 +66,24 @@ export const PluginMenus = ({ navItems }: { readonly navItems: Array<NavItemResp
         <PluginMenuItem key={navItem.name} {...navItem} topLevel={true} />
       ))}
       {showRemainingInMenu ? (
-        <Menu.Root positioning={{ placement: "right" }}>
-          <Menu.Trigger>
-            <NavButton as={Box} icon={LuPlug} title={translate("nav.plugins")} to={remainingPaths} />
-          </Menu.Trigger>
-          <Menu.Content>
-            {remainingButtons.map((navItem) => (
-              <PluginMenuItem key={navItem.name} {...navItem} />
-            ))}
-            {Object.entries(remainingCategories).map(([key, menuButtons]) => (
-              <Menu.Root key={key} positioning={{ placement: "right" }}>
-                <Menu.TriggerItem display="flex" justifyContent="space-between">
-                  {key}
-                  <Icon as={FiChevronRight} boxSize={4} color="fg.muted" />
-                </Menu.TriggerItem>
-                <Menu.Content>
-                  {menuButtons.map((navItem) => (
-                    <PluginMenuItem {...navItem} key={navItem.name} />
-                  ))}
-                </Menu.Content>
-              </Menu.Root>
-            ))}
-          </Menu.Content>
-        </Menu.Root>
+        <NavMenu trigger={<NavButton icon={LuPlug} title={translate("nav.plugins")} to={remainingPaths} />}>
+          {remainingButtons.map((navItem) => (
+            <PluginMenuItem key={navItem.name} {...navItem} />
+          ))}
+          {Object.entries(remainingCategories).map(([key, menuButtons]) => (
+            <Menu.Root key={key} positioning={{ placement: "right" }}>
+              <Menu.TriggerItem display="flex" justifyContent="space-between">
+                {key}
+                <Icon as={FiChevronRight} boxSize={4} color="fg.muted" />
+              </Menu.TriggerItem>
+              <Menu.Content>
+                {menuButtons.map((navItem) => (
+                  <PluginMenuItem {...navItem} key={navItem.name} />
+                ))}
+              </Menu.Content>
+            </Menu.Root>
+          ))}
+        </NavMenu>
       ) : (
         remainingItems.map((navItem) => <PluginMenuItem key={navItem.name} {...navItem} topLevel={true} />)
       )}

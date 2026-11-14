@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import warnings
 from collections.abc import Sequence
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING, Any
 
@@ -346,7 +346,7 @@ class S3ToGCSOperator(S3ListOperator):
         )
 
     def submit_transfer_jobs(self, files: list[str], gcs_hook: GCSHook, s3_hook: S3Hook) -> list[str]:
-        now = datetime.now(tz=timezone.utc)
+        now = datetime.now(tz=UTC)
         one_time_schedule = {"day": now.day, "month": now.month, "year": now.year}
 
         gcs_bucket, gcs_prefix = _parse_gcs_url(self.dest_gcs)

@@ -32,7 +32,7 @@ cmd = [
     "docker",
     "run",
     "-v",
-    f"{AIRFLOW_ROOT_PATH}:/opt/airflow",
+    f"{AIRFLOW_ROOT_PATH}:/opt/airflow:ro",
     "-t",
     "--user",
     f"{os.getuid()}:{os.getgid()}",

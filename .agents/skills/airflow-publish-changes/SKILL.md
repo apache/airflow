@@ -115,8 +115,13 @@ code review checklist in [`.github/instructions/code-review.instructions.md`](..
    and fix any failures. The skipped hooks start long-running local servers or provision the
    opt-in Codex environment rather than run checks that complete.
 6. Run relevant individual tests and confirm they pass.
-7. Find which tests to run for the changes with selective-checks and run those tests in parallel to confirm they pass and check for CI-specific issues.
-8. Check for security issues — no secrets, no injection vulnerabilities, no unsafe patterns.
+7. If the diff touches a performance-sensitive component (Task SDK comms, supervisor and task runner;
+   Execution API; logging and secret masking; serialization; scheduler and triggerer loops; Dag
+   processing), benchmark the code before and after the change as
+   [`references/performance-sensitive-components.md`](references/performance-sensitive-components.md)
+   describes, and report the outcome to the user.
+8. Run `breeze verify` and execute every command it lists. The list comes from the same selective-checks logic CI uses. `breeze verify --full` shows everything CI runs for the default matrix cell, including the full suite CI adds when a change touches CI tooling or dependency files. Static checks are not listed: steps 4 and 5 cover them. Confirm the commands pass and check for CI-specific issues.
+9. Check for security issues — no secrets, no injection vulnerabilities, no unsafe patterns.
 
 Before pushing, always rebase your branch onto the latest target branch (usually `main`)
 to avoid merge conflicts and ensure CI runs against up-to-date code:

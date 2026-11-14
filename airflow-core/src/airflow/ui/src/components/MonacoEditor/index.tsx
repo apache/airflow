@@ -27,21 +27,13 @@ import { useMonacoReady } from "./useMonacoReady";
 export const MonacoEditor = (props: EditorProps) => {
   const isMonacoReady = useMonacoReady();
 
-  if (!isMonacoReady) {
-    return null;
-  }
-
-  return <EditorComponent {...props} />;
+  return isMonacoReady ? <EditorComponent {...props} /> : null;
 };
 
 export const MonacoDiffEditor = (props: DiffEditorProps) => {
   const isMonacoReady = useMonacoReady();
 
-  if (!isMonacoReady) {
-    return null;
-  }
-
-  return <DiffEditorComponent {...props} />;
+  return isMonacoReady ? <DiffEditorComponent {...props} /> : null;
 };
 
 export const DiffEditor = MonacoDiffEditor;

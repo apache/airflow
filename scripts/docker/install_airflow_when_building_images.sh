@@ -30,6 +30,11 @@
 # UPGRADE_RANDOM_INDICATOR_STRING - if set with random value determines that dependency upgrade should be done
 #                                   with highest resolution. It is random in order to trigger cache
 #                                   invalidation when building images
+# INSTALL_LOCKED_THIRD_PARTY_ONLY - if "true", only the third-party dependencies locked in uv.lock are installed
+#                                   from sources (--no-install-workspace), so only the pyproject.toml files
+#                                   and uv.lock are needed. When a frozen dry run shows that uv.lock does not
+#                                   match them, or for upgrade builds, nothing is installed; any other
+#                                   failure fails. The steps that need the workspace packages are skipped.
 #
 # shellcheck shell=bash disable=SC2086
 # shellcheck source=scripts/docker/common.sh
@@ -40,6 +45,15 @@ function install_from_sources() {
     extra_sync_flags=""
     if [[ ${VIRTUAL_ENV=} != "" ]]; then
         extra_sync_flags="--active"
+    fi
+    if [[ ${INSTALL_LOCKED_THIRD_PARTY_ONLY=} == "true" ]]; then
+        if [[ "${UPGRADE_RANDOM_INDICATOR_STRING=}" != "" ]]; then
+            echo
+            echo "${COLOR_YELLOW}Upgrade builds resolve dependencies anew; skipping the locked third-party installation.${COLOR_RESET}"
+            echo
+            return
+        fi
+        extra_sync_flags="${extra_sync_flags} --no-install-workspace"
     fi
     if [[ "${UPGRADE_RANDOM_INDICATOR_STRING=}" != "" ]]; then
         if [[ ${PACKAGING_TOOL_CMD} == "pip" ]]; then
@@ -61,19 +75,35 @@ function install_from_sources() {
             ${extra_sync_flags} --no-binary-package lxml --no-binary-package xmlsec \
             --no-python-downloads --no-managed-python
     else
-        set +x
-        echo
-        echo "${COLOR_BLUE}Installing all packages from uv.lock (frozen).${COLOR_RESET}"
-        echo
         # Use uv sync --frozen to install exactly what is pinned in uv.lock without re-resolving.
         # --no-binary-package is needed in order to avoid libxml and xmlsec using different version of
         # libxml2 (binary lxml embeds its own libxml2, while xmlsec uses system one).
         # See https://bugs.launchpad.net/lxml/+bug/2110068
+        # shellcheck disable=SC2206 # extra_sync_flags holds several flags
+        local -a frozen_sync=(uv sync --all-packages --frozen --group ci-image
+            ${extra_sync_flags} --no-binary-package lxml --no-binary-package xmlsec
+            --no-python-downloads --no-managed-python)
+        set +x
+        # Without the workspace sources a lock that does not match the manifests cannot be re-resolved;
+        # the installation that adds the workspace packages does that later.
+        if [[ ${INSTALL_LOCKED_THIRD_PARTY_ONLY=} == "true" ]] && ! "${frozen_sync[@]}" --dry-run; then
+            echo
+            echo "${COLOR_YELLOW}uv.lock does not match the dependency manifests; skipping the locked third-party installation.${COLOR_RESET}"
+            echo
+            return
+        fi
+        echo
+        echo "${COLOR_BLUE}Installing all packages from uv.lock (frozen).${COLOR_RESET}"
+        echo
         set -x
-        if ! uv sync --all-packages --frozen --group ci-image \
-            ${extra_sync_flags} --no-binary-package lxml --no-binary-package xmlsec \
-            --no-python-downloads --no-managed-python; then
+        if ! "${frozen_sync[@]}"; then
             set +x
+            if [[ ${INSTALL_LOCKED_THIRD_PARTY_ONLY=} == "true" ]]; then
+                echo
+                echo "${COLOR_RED}Failing because the locked third-party installation failed although uv.lock matches the dependency manifests.${COLOR_RESET}"
+                echo
+                exit 1
+            fi
             if [[ ${AIRFLOW_FALLBACK_NO_CONSTRAINTS_INSTALLATION} != "true" ]]; then
                 echo
                 echo "${COLOR_RED}Failing because frozen uv.lock installation failed and fallback is disabled.${COLOR_RESET}"
@@ -163,6 +193,10 @@ function install_airflow_when_building_images() {
         install_from_external_spec
     fi
     set +x
+    if [[ ${INSTALL_LOCKED_THIRD_PARTY_ONLY=} == "true" ]]; then
+        # Packaging tools and 'pip check' are handled by the installation that adds the workspace packages
+        return
+    fi
     common::install_packaging_tools
     echo
     echo "${COLOR_BLUE}Running 'pip check'${COLOR_RESET}"

@@ -67,7 +67,7 @@ def create_token_for(
         user_id=userinfo["sub"],
         name=userinfo["preferred_username"],
         access_token=tokens["access_token"],
-        refresh_token=tokens["refresh_token"],
+        refresh_token=tokens.get("refresh_token"),
     )
 
     return get_auth_manager().generate_api_jwt(user, expiration_time_in_seconds=expiration_time_in_seconds)

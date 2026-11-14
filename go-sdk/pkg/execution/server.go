@@ -20,8 +20,8 @@
 // the Airflow supervisor (Python ExecutableCoordinator), the Serve method of
 // airflow.BundleRef dispatches here.
 //
-// The first inbound frame on the comm socket is a StartupDetails message
-// that drives multi-round task execution.
+// The first frame on the comm socket picks the mode: StartupDetails runs one
+// task, and DagFileParseRequest is answered with the bundle's serialized Dags.
 //
 // See go-sdk/adr/0003-coordinator-protocol-msgpack-ipc.md.
 package execution
@@ -58,11 +58,9 @@ const terminalSendTimeout = 30 * time.Second
 // comm and logs sockets, installs an slog handler that writes JSON-line
 // records to the logs connection, and dispatches on the first frame.
 //
-// Serve returns nil on a clean shutdown: the task ran and its terminal
-// TaskState/SucceedTask frame was delivered, and the caller should exit 0. A
-// non-nil error indicates a protocol-level failure (connection loss,
-// malformed frames, unknown first message type) that happens before or
-// instead of delivering a terminal frame.
+// Serve returns nil once it delivers the terminal frame of a task run or the DagFileParsingResult
+// of a Dag parse, and the caller should then exit 0. A non-nil error indicates a protocol-level
+// failure (connection loss, malformed frames, unknown first message type) before that.
 //
 // Failure-signaling contract: the caller (main) must turn a non-nil error
 // into a non-zero process exit. The supervisor derives the task's final state
@@ -166,6 +164,16 @@ func Serve(b bundle.Bundle, commAddr, logsAddr string) error {
 			return fmt.Errorf("sending task result: %w", err)
 		}
 		logger.Debug("Task execution complete")
+
+	case *genmodels.DagFileParseRequest:
+		logger.Info("Received Dag parse request", "file", msg.File, "bundle_path", msg.BundlePath)
+		serializer, _ := b.(bundle.DagSerializer)
+		result := parseDags(serializer, msg, logger)
+		// Bound the write so a wedged socket cannot hang shutdown.
+		_ = commConn.SetWriteDeadline(time.Now().Add(terminalSendTimeout))
+		if err := comm.SendRequest(frame.ID, result); err != nil {
+			return fmt.Errorf("sending Dag parsing result: %w", err)
+		}
 
 	default:
 		logger.Error("Unexpected initial message type", "type", fmt.Sprintf("%T", body))

@@ -74,6 +74,43 @@ You can print out the Kubernetes manifest for the pod that would be created at r
 
     k.dry_run()
 
+Pod events in the task log
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+While the operator waits for the pod to leave the ``Pending`` phase, it reads the Kubernetes events of the pod
+(polling every ``startup_check_interval_seconds`` in synchronous mode) and writes them to the task log
+(scheduling, image pull, container start, and warnings such as ``FailedScheduling``). This logging is
+best-effort: if the events API fails, the operator logs one warning, stops reading events, and the task
+continues.
+
+In synchronous mode each poll is a ``list`` of ``Event`` objects with a field selector. Deferrable
+mode keeps a watch open instead, which costs less but still makes the API server read the namespace
+events each time the watch (re)starts before the first event was seen. The Kubernetes API server
+disables its watch cache for ``Event`` objects by default, so every list is an ``etcd`` read of all
+events in the namespace that is filtered afterwards. On clusters that run thousands of short-lived
+pods in one namespace this adds noticeable API server load.
+Keeping unrelated high-churn pods (for example Spark executors) in a separate namespace reduces the cost.
+
+To turn it off, set ``log_events_on_startup=False``. The parameter is honoured by ``KubernetesPodOperator``,
+``KubernetesPodTrigger``, ``@task.kubernetes`` and ``@task.kubernetes_cmd``. In deferrable mode the opt-out
+is sent to the trigger, so the triggerer needs a provider version that knows the parameter. ``GKEStartPodOperator`` and
+``EksPodOperator`` apply it in synchronous mode only; in deferrable mode their own triggers do not receive
+it yet. It is separate from ``log_events_on_failure``, which controls the one-shot read of events after a
+failure.
+
+.. Forwarding the parameter to the GKE and EKS triggers is tracked at
+   https://github.com/apache/airflow/issues/75014
+
+.. code-block:: python
+
+    KubernetesPodOperator(
+        task_id="no_startup_events",
+        name="no-startup-events",
+        namespace="default",
+        image="debian",
+        log_events_on_startup=False,
+    )
+
 Argument precedence
 ^^^^^^^^^^^^^^^^^^^
 
@@ -338,14 +375,19 @@ parameter.
 The following callbacks are supported:
 
 * on_sync_client_creation: called after creating the sync client
+* on_pod_manifest_created: called after the pod manifest is built but before the pod is created
 * on_pod_creation: called after creating the pod
 * on_pod_starting: called after the pod starts
 * on_pod_completion: called when the pod completes
+* on_pod_teardown: called after the completion callbacks but before the pod is deleted
 * on_pod_cleanup: called after cleaning/deleting the pod
 * on_operator_resuming: when resuming the task from deferred state
 * progress_callback: called on each line of containers logs
 
-Currently, the callbacks methods are not called in the async mode, this support will be added in the future.
+In deferrable mode the operator invokes ``on_pod_manifest_created``, ``on_pod_creation``,
+``on_operator_resuming``, ``on_pod_completion``, ``on_pod_teardown`` and ``on_pod_cleanup``.
+``on_pod_starting`` is not invoked, because the triggerer -- not the operator -- observes pod
+startup. The ``mode`` argument is currently always ``sync``.
 
 Example:
 ~~~~~~~~

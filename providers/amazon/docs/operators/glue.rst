@@ -227,7 +227,9 @@ resubmit, and with ``concurrent_run_limit=1`` that fails with ``ConcurrentRunsEx
 against the run it can't see. To avoid that, ``durable=True`` (or, below Airflow 3.3,
 ``resume_glue_job_on_retry=True``) tags the job's arguments with this task instance's identity on
 every attempt and, on retry, scans the job's run history for that tag before submitting -- the
-same mechanism used as a fallback on the synchronous path.
+same mechanism used as a fallback on the synchronous path. This scan requires ``glue:GetJobRuns``
+in the task's IAM policy, in addition to the usual ``glue:StartJobRun`` and ``glue:GetJobRun``
+permissions.
 
 ``durable`` supersedes the deprecated ``resume_glue_job_on_retry`` parameter on Airflow 3.3+,
 where passing ``resume_glue_job_on_retry`` still works and maps its value onto ``durable``. Below

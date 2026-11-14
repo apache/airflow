@@ -28,11 +28,13 @@ import {
 import type { TaskStateStoreResponse } from "openapi/requests";
 
 import { DataTable } from "src/components/DataTable";
+import type { DataTableFeatures } from "src/components/DataTable/features";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { StoreValueCell } from "src/components/StoreValueCell";
 import Time from "src/components/Time";
 
+import { useTaskInstanceCoordinates } from "src/hooks/useTaskInstanceCoordinates";
 import { isStatePending, useAutoRefresh } from "src/utils";
 
 import { AddTaskStateStoreButton } from "./AddTaskStateStoreButton";
@@ -54,7 +56,7 @@ const getColumns = ({
   runId,
   taskId,
   translate,
-}: ColumnsProps): Array<ColumnDef<TaskStateStoreResponse>> => [
+}: ColumnsProps): Array<ColumnDef<DataTableFeatures, TaskStateStoreResponse>> => [
   {
     accessorKey: "key",
     cell: ({ row: { original } }) => <Text>{original.key}</Text>,
@@ -103,6 +105,7 @@ const getColumns = ({
         />
       </Flex>
     ),
+    enableHiding: false,
     enableSorting: false,
     header: "",
   },
@@ -111,9 +114,11 @@ const getColumns = ({
 export const TaskStateStore = () => {
   const { dagId = "", mapIndex: rawMapIndex = "-1", runId = "", taskId = "" } = useParams();
   const mapIndex = parseInt(rawMapIndex, 10);
+  const coordinates = useTaskInstanceCoordinates();
   const refetchInterval = useAutoRefresh({ dagId });
 
   const { data: taskInstance } = useTaskInstanceServiceGetMappedTaskInstance({
+    ...coordinates,
     dagId,
     dagRunId: runId,
     mapIndex,
@@ -124,8 +129,9 @@ export const TaskStateStore = () => {
   const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination } = tableURLState;
 
-  const { data, error, isFetching, isLoading } = useTaskStateStoreServiceListTaskStateStore(
+  const { data, error, isLoading } = useTaskStateStoreServiceListTaskStateStore(
     {
+      ...coordinates,
       dagId,
       dagRunId: runId,
       limit: pagination.pageSize,
@@ -134,7 +140,7 @@ export const TaskStateStore = () => {
       taskId,
     },
     undefined,
-    { refetchInterval: isStatePending(taskInstance?.state) ? refetchInterval : false },
+    { refetchInterval: isStatePending(taskInstance?.state) && refetchInterval },
   );
 
   const columns = getColumns({ dagId, mapIndex, runId, taskId, translate });
@@ -148,7 +154,6 @@ export const TaskStateStore = () => {
         displayMode="table"
         hideRowCountHeading
         initialState={tableURLState}
-        isFetching={isFetching}
         isLoading={isLoading}
         modelName="dag:taskStateStore.entry"
         noRowsMessage={translate("taskStateStore.emptyStore")}

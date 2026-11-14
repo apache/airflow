@@ -25,13 +25,19 @@ import type { ParamSchema, ParamSpec, ParamsSpec } from "src/queries/useDagParam
 export type HITLResponseParams = {
   chosen_options?: Array<string>;
   params_input?: Record<string, unknown>;
+  // The created_at of the request the form was loaded for; the server refuses a stale answer.
+  request_created_at?: string;
 };
 
-// A HITL task is "pending a response" while parked: pre-3.3 it parks in "deferred", from 3.3 it
-// parks in "awaiting_input". Either way an unanswered parked task is "response required", not
-// "no response received" (which is reserved for tasks no longer parked, e.g. cleared/finished).
+// A HITL task waits for a response in one of these states: pre-3.3 it parks in "deferred", from 3.3
+// it parks in "awaiting_input", and it is still "running" while it checks for the response before
+// parking. An unanswered task in one of them is "response required", not "no response received"
+// (which is reserved for tasks no longer waiting, e.g. cleared/finished). A run resumed after a
+// timeout is also "running" until it fails; the server refuses answers to it.
+export const HITL_PENDING_STATES: Array<TaskInstanceState> = ["deferred", "awaiting_input", "running"];
+
 export const isHITLPending = (state?: TaskInstanceState | null): boolean =>
-  state === "deferred" || state === "awaiting_input";
+  state !== undefined && state !== null && HITL_PENDING_STATES.includes(state);
 
 const getChosenOptionsValue = (hitlDetail: HITLDetailHistory) => {
   // if response_received is true, display the chosen_options, otherwise display the defaults
@@ -127,21 +133,9 @@ export const getHITLParamsDict = (
       // default is null" from "bare value".
       const isWrapped = paramData !== undefined && "value" in paramData;
 
-      // Check if there's a preloaded value from URL params
-      let finalValue = hitlDetail.params_input?.[key] ?? (isWrapped ? paramData.value : value);
-
-      // If preloaded value is a string that might be JSON, try to parse it
-      if (typeof finalValue === "string" && finalValue.trim().startsWith("{")) {
-        try {
-          const parsed: unknown = JSON.parse(finalValue);
-
-          if (typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)) {
-            finalValue = parsed;
-          }
-        } catch {
-          // If parsing fails, keep the string value
-        }
-      }
+      // Values arrive as stored JSON, so an object param's value is already an object. A string is
+      // never parsed: a JSON-looking string would render as "[object Object]" and go back as an object.
+      const finalValue = hitlDetail.params_input?.[key] ?? (isWrapped ? paramData.value : value);
 
       const description: string =
         paramData && typeof paramData.description === "string" ? paramData.description : "";

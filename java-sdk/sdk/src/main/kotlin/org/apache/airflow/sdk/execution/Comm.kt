@@ -210,6 +210,22 @@ class CoordinatorComm(
   }
 
   /**
+   * Like [communicate], but maps an [ErrorResponse] of type [absent] to `null`
+   * so callers can treat "not found" as a value instead of an exception.
+   */
+  @Throws(ApiError::class)
+  suspend inline fun <reified T> communicateOrNullIf(
+    request: Any,
+    absent: ErrorResponse.ErrorType,
+  ): T? {
+    when (val response = communicateImpl(request)) {
+      is ErrorResponse -> if (response.error == absent) return null else throw ApiError("[${response.error}] ${response.detail}")
+      is T -> return response
+      else -> throw ApiError("Unexpected response type ${response::class.java}")
+    }
+  }
+
+  /**
    * Stop the dispatcher and fail anything still awaiting a response.
    */
   override fun close() {

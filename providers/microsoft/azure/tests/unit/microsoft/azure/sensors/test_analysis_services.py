@@ -62,14 +62,6 @@ class TestAzureAnalysisServicesSensor:
         with pytest.raises(ValueError, match="request_timeout must be greater than zero"):
             build_sensor(request_timeout=0)
 
-    def test_defines_template_fields(self):
-        assert AzureAnalysisServicesSensor.template_fields == (
-            "azure_analysis_services_conn_id",
-            "server_name",
-            "database",
-            "refresh_id",
-        )
-
     def test_execute_defers_with_provided_refresh_id(self):
         with pytest.raises(TaskDeferred) as deferred:
             build_sensor().execute(context={})

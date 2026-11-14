@@ -76,7 +76,7 @@ apache-airflow-providers-apache-cassandra package
 `Apache Cassandra <https://cassandra.apache.org/>`__.
 
 
-Release: 3.10.0
+Release: 3.10.1
 
 Provider package
 ----------------
@@ -101,6 +101,7 @@ PIP package                                 Version required
 ==========================================  ==================================================================
 ``apache-airflow``                          ``>=2.11.0``
 ``apache-airflow-providers-common-compat``  ``>=1.8.0``
+``cassandra-driver``                        ``>=3.30.1; python_version >= "3.14"``
 ``cassandra-driver``                        ``>=3.29.3; python_version >= "3.13" and python_version < "3.14"``
 ``cassandra-driver``                        ``>=3.29.2; python_version >= "3.12" and python_version < "3.13"``
 ``cassandra-driver``                        ``>=3.29.1; python_version < "3.12"``
@@ -112,5 +113,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-apache-cassandra 3.10.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_cassandra-3.10.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_cassandra-3.10.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_cassandra-3.10.0.tar.gz.sha512>`__)
-* `The apache-airflow-providers-apache-cassandra 3.10.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_cassandra-3.10.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_cassandra-3.10.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_cassandra-3.10.0-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-apache-cassandra 3.10.1 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_cassandra-3.10.1.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_cassandra-3.10.1.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_cassandra-3.10.1.tar.gz.sha512>`__)
+* `The apache-airflow-providers-apache-cassandra 3.10.1 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_cassandra-3.10.1-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_cassandra-3.10.1-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_cassandra-3.10.1-py3-none-any.whl.sha512>`__)

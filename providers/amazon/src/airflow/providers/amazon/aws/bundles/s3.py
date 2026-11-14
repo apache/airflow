@@ -36,6 +36,7 @@ class S3DagBundle(BaseDagBundle):
     :param aws_conn_id: Airflow connection ID for AWS.  Defaults to AwsBaseHook.default_conn_name.
     :param bucket_name: The name of the S3 bucket containing the Dag files.
     :param prefix:  Optional subdirectory within the S3 bucket where the Dags are stored.
+                    A trailing slash is optional.
                     If None, Dags are assumed to be at the root of the bucket (Optional).
     """
 
@@ -129,9 +130,12 @@ class S3DagBundle(BaseDagBundle):
             self._log.debug(
                 "Downloading Dags from s3://%s/%s to %s", self.bucket_name, self.prefix, self.s3_dags_dir
             )
+            sync_prefix = self.prefix
+            if sync_prefix and not sync_prefix.endswith("/"):
+                sync_prefix += "/"
             self.s3_hook.sync_to_local_dir(
                 bucket_name=self.bucket_name,
-                s3_prefix=self.prefix,
+                s3_prefix=sync_prefix,
                 local_dir=self.s3_dags_dir,
                 delete_stale=True,
             )

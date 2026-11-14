@@ -18,8 +18,9 @@
 from __future__ import annotations
 
 import signal
+from io import BufferedReader
 from pathlib import Path
-from subprocess import PIPE, STDOUT
+from subprocess import PIPE, STDOUT, Popen
 from tempfile import TemporaryDirectory
 from unittest import mock
 from unittest.mock import MagicMock
@@ -30,6 +31,10 @@ from airflow.providers.standard.hooks.subprocess import SubprocessHook
 
 OS_ENV_KEY = "SUBPROCESS_ENV_TEST"
 OS_ENV_VAL = "this-is-from-os-environ"
+
+
+class _TaskTimeout(BaseException):
+    """Stands in for ``AirflowTaskTimeout``, which is a ``BaseException`` so task code cannot catch it."""
 
 
 class TestSubprocessHook:
@@ -102,6 +107,62 @@ class TestSubprocessHook:
             stderr=STDOUT,
             stdout=PIPE,
         )
+
+    def test_run_command_closes_stdout_pipe(self):
+        hook = SubprocessHook()
+        hook.run_command(command=["bash", "-c", 'echo "stdout"'])
+        assert hook.sub_process.stdout.closed
+
+    @mock.patch(
+        "airflow.providers.standard.hooks.subprocess.Popen",
+        return_value=MagicMock(
+            spec=Popen,
+            stdout=MagicMock(spec=BufferedReader, readline=MagicMock(side_effect=OSError("pipe broken"))),
+        ),
+    )
+    def test_run_command_closes_stdout_pipe_on_read_error(self, mock_popen):
+        hook = SubprocessHook()
+        with pytest.raises(OSError, match="pipe broken"):
+            hook.run_command(command=["bash", "-c", 'echo "stdout"'])
+        mock_popen.return_value.stdout.close.assert_called_once()
+        mock_popen.return_value.wait.assert_not_called()
+
+    def test_run_command_keeps_stdout_open_for_sigterm_cleanup(self, tmp_path):
+        """
+        On an ``execution_timeout`` the timeout unwinds out of ``run_command`` and ``on_kill()``
+        sends SIGTERM only afterwards, so stdout has to still be open by then: the child is started
+        with ``restore_signals=True``, so a TERM handler writing to a closed pipe is killed by
+        SIGPIPE instead of finishing its cleanup.
+        """
+        marker = tmp_path / "cleanup-ran"
+        hook = SubprocessHook()
+
+        def raise_task_timeout(signum, frame):
+            raise _TaskTimeout()
+
+        previous_handler = signal.signal(signal.SIGALRM, raise_task_timeout)
+        try:
+            signal.setitimer(signal.ITIMER_REAL, 0.5)
+            with pytest.raises(_TaskTimeout):
+                hook.run_command(
+                    command=[
+                        "bash",
+                        "-c",
+                        f"trap 'echo cleaning up; touch {marker}; exit 1' TERM; "
+                        "echo started; while true; do sleep 0.1; done",
+                    ]
+                )
+        finally:
+            signal.setitimer(signal.ITIMER_REAL, 0)
+            signal.signal(signal.SIGALRM, previous_handler)
+
+        hook.send_sigterm()
+        return_code = hook.sub_process.wait(timeout=10)
+        # run_command deliberately leaves this path's pipe open, so the test owns closing it.
+        hook.sub_process.stdout.close()
+
+        assert marker.exists()
+        assert return_code == 1
 
     def test_task_decode(self):
         hook = SubprocessHook()

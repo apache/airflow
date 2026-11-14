@@ -18,18 +18,19 @@
  */
 import { useState } from "react";
 
-import { Button, useDisclosure } from "@chakra-ui/react";
+import { useDisclosure } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { MdHourglassTop } from "react-icons/md";
 
 import type { DagSchedulingState } from "openapi/requests/types.gen";
 
-import { Modal, Switch, Tooltip, type SwitchProps } from "src/system-components";
+import { Switch, Tooltip, type SwitchProps } from "src/system-components";
 
 import { useConfig } from "src/queries/useConfig";
 import { useTogglePause } from "src/queries/useTogglePause";
 
 import { ConfirmationModal } from "./ConfirmationModal";
+import { PauseOrDrainChoiceModal } from "./PauseOrDrainChoiceModal";
 
 type Props = {
   readonly dagDisplayName?: string;
@@ -94,7 +95,7 @@ export const TogglePause = ({
 
   const label =
     state === "draining"
-      ? translate("dags:schedulingState.drainingTooltip", { dagDisplayName: displayName })
+      ? translate("dags:draining.tooltip", { dagDisplayName: displayName })
       : `${translate(state === "paused" ? "common:unpause" : "common:pause")} ${displayName}`;
   const actionLabel = pendingState === "paused" ? translate("common:pause") : translate("common:unpause");
 
@@ -124,36 +125,19 @@ export const TogglePause = ({
         }}
         open={open}
       />
-      <Modal
-        footerActions={
-          <>
-            <Button
-              data-testid="drain-dag"
-              onClick={() => {
-                setSchedulingState("draining");
-                onChoiceClose();
-              }}
-            >
-              {translate("dags:schedulingActions.drain")}
-            </Button>
-            <Button
-              data-testid="pause-dag-now"
-              onClick={() => {
-                setSchedulingState("paused");
-                onChoiceClose();
-              }}
-              variant="outline"
-            >
-              {translate("dags:schedulingActions.pauseNow")}
-            </Button>
-          </>
-        }
+      <PauseOrDrainChoiceModal
+        displayName={displayName}
+        onChooseDrain={() => {
+          setSchedulingState("draining");
+          onChoiceClose();
+        }}
+        onChoosePause={() => {
+          setSchedulingState("paused");
+          onChoiceClose();
+        }}
         onOpenChange={onChoiceClose}
         open={choiceOpen}
-        title={`${translate("common:pause")} ${displayName}?`}
-      >
-        {translate("dags:schedulingActions.drainPrompt")}
-      </Modal>
+      />
     </>
   );
 };

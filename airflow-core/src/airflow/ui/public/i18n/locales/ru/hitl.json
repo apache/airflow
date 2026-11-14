@@ -12,10 +12,10 @@
   "requiredAction_many": "Необходимых действий",
   "requiredAction_one": "Необходимое действие",
   "requiredAction_other": "Необходимые действия",
-  "requiredActionCount_few": "Необходимых действия ({{count}})",
-  "requiredActionCount_many": "Необходимых действий ({{count}})",
-  "requiredActionCount_one": "Необходимое действие ({{count}})",
-  "requiredActionCount_other": "Необходимых действий ({{count}})",
+  "requiredActionCount_few": "Необходимых действия ({{count, number}})",
+  "requiredActionCount_many": "Необходимых действий ({{count, number}})",
+  "requiredActionCount_one": "Необходимое действие ({{count, number}})",
+  "requiredActionCount_other": "Необходимых действий ({{count, number}})",
   "requiredActionState": "Состояние необходимого действия",
   "response": {
     "created": "Ответ создан ",
@@ -33,10 +33,10 @@
       "selectRequiredAction": "Выберите необходимое действие, чтобы увидеть детали"
     },
     "list": {
-      "completedRequiredActions": "Выполненные необходимые действия ({{count}})",
+      "completedRequiredActions": "Выполненные необходимые действия ({{count, number}})",
       "loadError": "Не удалось загрузить необходимые действия",
       "loadingActions": "Загрузка необходимых действий...",
-      "pendingRequiredActions": "Ожидающие необходимые действия ({{count}})"
+      "pendingRequiredActions": "Ожидающие необходимые действия ({{count, number}})"
     },
     "openReviewDrawer": "Открыть панель проверки",
     "pageLimitHint": "Здесь показаны только первые несколько действий. Используйте «$t(review.viewAll)», чтобы увидеть все.",
