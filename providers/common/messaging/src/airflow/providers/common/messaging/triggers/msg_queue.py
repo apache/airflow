@@ -106,7 +106,11 @@ class MessageQueueTrigger(BaseEventTrigger):
             queue_uri, queue = queue, None
         if scheme is not None or queue_uri is not None:
             if queue is not None and trigger_queue is not None:
-                raise ValueError("Cannot provide both `queue` and deprecated `trigger_queue`.")
+                raise ValueError(
+                    "Cannot provide both `queue` and deprecated `trigger_queue`. For more details on "
+                    "trigger queues, see: "
+                    "https://airflow.apache.org/docs/apache-airflow/stable/authoring-and-scheduling/deferring.html#controlling-triggerer-host-assignment-per-trigger"
+                )
             self._trigger_queue = queue if queue is not None else trigger_queue
             if queue_uri is not None:
                 self.queue_uri = queue_uri
@@ -125,7 +129,11 @@ class MessageQueueTrigger(BaseEventTrigger):
             self.scheme = None
             self._trigger_queue = trigger_queue
         else:
-            raise ValueError("Either `queue` or `scheme` parameter must be provided.")
+            raise ValueError(
+                "Either `queue` or `scheme` parameter must be provided. For more details on "
+                "trigger queues, see: "
+                "https://airflow.apache.org/docs/apache-airflow/stable/authoring-and-scheduling/deferring.html#controlling-triggerer-host-assignment-per-trigger"
+            )
 
         self.kwargs = kwargs
 
