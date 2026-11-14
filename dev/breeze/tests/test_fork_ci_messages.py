@@ -49,6 +49,7 @@ from airflow_breeze.utils.fork_ci_messages import (
     released_comment,
     render_marker,
     state_comment,
+    strip_failed_job_list,
     tamper_close_comment,
     ungated_comment,
     workflow_disabled_comment,
@@ -63,6 +64,7 @@ MARKER = Marker(state="awaiting_push", sha="abc123", since=datetime(2026, 10, 15
         pytest.param(MARKER, id="without-behind"),
         pytest.param(replace(MARKER, behind=12), id="behind"),
         pytest.param(replace(MARKER, jobs="123:SUCCESS"), id="jobs"),
+        pytest.param(replace(MARKER, failed_run="123:2"), id="failed-run"),
         pytest.param(replace(MARKER, gate_checked=True), id="gate-checked"),
     ],
 )
@@ -150,6 +152,15 @@ def test_failed_jobs_are_listed_only_for_a_failed_state():
     )
 
     assert "Static checks" not in text
+
+
+def test_strip_failed_job_list_leaves_the_comment_without_the_list():
+    marker = Marker("failed", "a", MARKER.since)
+    jobs = [FailedJob(f"Job {i}", f"https://job/{i}", "failure") for i in range(MAX_LISTED_FAILED_JOBS + 1)]
+
+    listed = state_comment(marker, fork="u/airflow", run_url="https://run", failed_jobs=jobs)
+
+    assert strip_failed_job_list(listed) == state_comment(marker, fork="u/airflow", run_url="https://run")
 
 
 def test_parse_marker_absent():

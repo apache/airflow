@@ -96,6 +96,8 @@ class Marker:
     behind: int | None = None
     # The completed fork run (``<run id>:<attempt>:<conclusion>``) whose jobs are all reported.
     jobs: str | None = None
+    # The fork run (``<run id>:<attempt>``) whose failed jobs the comment lists.
+    failed_run: str | None = None
     # Set only by a reconciler that ran the gate protection check for this head commit, so a
     # marker written before that check existed, or while it did not apply, never counts as one.
     gate_checked: bool = False
@@ -107,6 +109,8 @@ def render_marker(marker: Marker) -> str:
         data["behind"] = marker.behind
     if marker.jobs is not None:
         data["jobs"] = marker.jobs
+    if marker.failed_run is not None:
+        data["failed_run"] = marker.failed_run
     if marker.gate_checked:
         data["gate_checked"] = True
     return f"{MARKER_PREFIX}{json.dumps(data, sort_keys=True)} -->"
@@ -125,6 +129,7 @@ def parse_marker(body: str) -> Marker | None:
             since=datetime.fromisoformat(data["since"]),
             behind=data.get("behind"),
             jobs=data.get("jobs"),
+            failed_run=data.get("failed_run"),
             gate_checked=data.get("gate_checked") is True,
         )
     except (json.JSONDecodeError, KeyError, TypeError, ValueError) as e:
@@ -215,6 +220,7 @@ class FailedJob(NamedTuple):
 
 # A full-matrix run can fail in dozens of jobs; the job statuses list them all.
 MAX_LISTED_FAILED_JOBS = 10
+FAILED_JOB_LIST_HEADING = "Jobs that did not pass:"
 _FAILED_JOB_OUTCOMES = {
     "failure": "failed",
     "timed_out": "timed out",
@@ -233,7 +239,13 @@ def build_failed_job_list(failed_jobs: Sequence[FailedJob]) -> str:
     ]
     if len(failed_jobs) > MAX_LISTED_FAILED_JOBS:
         listed.append(f"- and {len(failed_jobs) - MAX_LISTED_FAILED_JOBS} more, see the run")
-    return "Jobs that did not pass:\n\n" + "\n".join(listed)
+    # One paragraph of the comment, so that ``strip_failed_job_list`` can find all of it.
+    return FAILED_JOB_LIST_HEADING + "\n" + "\n".join(listed)
+
+
+def strip_failed_job_list(body: str) -> str:
+    """The state comment without its list of failed jobs."""
+    return "\n\n".join(part for part in body.split("\n\n") if not part.startswith(FAILED_JOB_LIST_HEADING))
 
 
 def behind_warning(behind: int, *, base_ref: str) -> str:

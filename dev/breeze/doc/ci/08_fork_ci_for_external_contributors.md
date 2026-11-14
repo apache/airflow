@@ -878,12 +878,18 @@ but `Fork CI / Tests (AMD)` says "Fork CI run could not start - check your fork'
 settings", and the state comment explains what to check instead of asking to fix failures.
 
 For a failed run that started, the state comment lists the jobs that did not pass, each linking
-to the job in the fork, at most 10 of them; the job statuses list them all. The jobs come from
+to the job in the fork, at most 10 of them, failed jobs before timed-out and cancelled ones; the
+job statuses list them all. The jobs come from
 `GET /repos/<fork>/actions/runs/<id>/jobs?filter=latest`, reused from the job statuses when they
-read them in the same run, so a failed pull request costs one jobs read per reconciler run. Job
-names come from the contributor's workflow, so each is shown in a code span with backticks and
-line breaks replaced. When the jobs cannot be read the state comment is left as it is until the
-next run, rather than dropping the list. A read that failed after its retries is not repeated in
+read them in the same run. A finished run's jobs do not change, so the marker records the run and
+attempt the list belongs to (`failed_run`), and later runs do not read the jobs again while the
+comment would otherwise stay the same: a failed pull request costs one jobs read per fork run, not
+one per reconciler run. Job names come from the contributor's workflow, so each is shown in a code
+span with backticks and line breaks replaced. When the jobs cannot be read and the state comment
+already shows this head commit as `failed`, it is left as it is until the next run, rather than
+dropping the list; otherwise the `failed` state is posted without the list, so the comment does
+not keep describing a running or earlier run, and the next run tries the read again. A read that
+failed after its retries is not repeated in
 the same run, whether the job statuses or the state comment made it, so persistent server errors
 cost each failed pull request one sequence of retries a run, not two.
 

@@ -82,6 +82,7 @@ from airflow_breeze.utils.fork_ci_messages import (
     released_comment,
     state_comment,
     status_description,
+    strip_failed_job_list,
     tamper_close_comment,
     ungated_comment,
     workflow_disabled_comment,
@@ -862,29 +863,47 @@ def classify(
     _set_ci_passed(plan, pr, passed=state == ForkState.GREEN, target_url=target_url)
     _set_ci_run_started(plan, pr, fork)
     green = state in (ForkState.GREEN, ForkState.GREEN_UNVERIFIED)
-    failed_jobs = find_failed_jobs() if state == ForkState.FAILED and not startup_failure else []
-    if failed_jobs is None:
-        return plan
-    _set_marker_comment(
-        plan,
-        pr,
-        state_comment(
-            Marker(
-                state.value,
-                pr.head_sha,
-                since,
-                behind=behind if green else None,
-                jobs=jobs_reported,
-                gate_checked=gate_checked,
-            ),
+    lists_failed_jobs = state == ForkState.FAILED and not startup_failure and fork.run_id is not None
+    new_marker = Marker(
+        state.value,
+        pr.head_sha,
+        since,
+        behind=behind if green else None,
+        jobs=jobs_reported,
+        failed_run=f"{fork.run_id}:{fork.run_attempt}" if lists_failed_jobs else None,
+        gate_checked=gate_checked,
+    )
+
+    def render(marker: Marker, failed_jobs: list[FailedJob]) -> str:
+        return state_comment(
+            marker,
             fork=pr.head_repo,
             run_url=fork.run_url,
             base_ref=pr.base_ref,
             author_draft=_is_author_draft(pr),
             startup_failure=startup_failure,
             failed_jobs=failed_jobs,
-        ),
-    )
+        )
+
+    failed_jobs: list[FailedJob] | None = []
+    if lists_failed_jobs:
+        # A finished run's jobs do not change, so the list already in the comment still holds.
+        if (
+            marker == new_marker
+            and pr.marker_comment_body is not None
+            and strip_failed_job_list(pr.marker_comment_body) == render(new_marker, [])
+        ):
+            return plan
+        failed_jobs = find_failed_jobs()
+    if failed_jobs is None:
+        # Only a comment that already shows this head as failed is worth keeping; anything else
+        # describes a state the pull request is no longer in.
+        if marker and marker.state == ForkState.FAILED.value and marker.sha == pr.head_sha:
+            return plan
+        failed_jobs = []
+        # Without a list, the next run reads the jobs again.
+        new_marker = replace(new_marker, failed_run=None)
+    _set_marker_comment(plan, pr, render(new_marker, failed_jobs))
     return plan
 
 
@@ -1777,7 +1796,8 @@ def find_failed_jobs(jobs: Iterable[dict[str, Any]]) -> list[FailedJob]:
         conclusion = job.get("conclusion") or ""
         if JOB_STATUSES.get(conclusion, ("",))[0] == "failure":
             failed.setdefault(job["name"], FailedJob(job["name"], job["html_url"], conclusion))
-    return sorted(failed.values())
+    # Failures first: the cap on the listed jobs must not hide them behind cancelled or timed-out ones.
+    return sorted(failed.values(), key=lambda job: (job.conclusion != "failure", job.name))
 
 
 # The jobs of fork runs read in this reconciler run, by run id. None records a read that failed after

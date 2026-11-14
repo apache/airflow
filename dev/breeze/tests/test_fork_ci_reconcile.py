@@ -4493,8 +4493,8 @@ def test_find_failed_jobs_lists_finished_jobs_that_did_not_pass():
     ]
 
     assert find_failed_jobs(jobs) == [
-        FailedJob("Docs", "https://job/Docs", "timed_out"),
         FailedJob("Postgres tests", "https://job/Postgres tests", "failure"),
+        FailedJob("Docs", "https://job/Docs", "timed_out"),
     ]
 
 
@@ -4574,9 +4574,18 @@ def test_state_comment_lists_the_jobs_of_a_failed_run(fork, failed_jobs, called,
     assert ("- [`Static checks`](https://job/1): failed" in plan.marker_comment) is listed
 
 
-def test_state_comment_is_left_for_the_next_run_when_failed_jobs_cannot_be_read():
+@pytest.mark.parametrize(
+    ("marker", "kept"),
+    [
+        pytest.param(_marker("failed"), True, id="failed-this-head"),
+        pytest.param(_marker("failed", sha="older"), False, id="failed-earlier-head"),
+        pytest.param(_marker("running"), False, id="running"),
+        pytest.param(None, False, id="no-comment"),
+    ],
+)
+def test_state_comment_is_left_for_the_next_run_only_when_it_shows_the_head_failed(marker, kept):
     plan = classify(
-        _pr(is_draft=False, labels=("fork ci required", "ready for maintainer review")),
+        _pr(is_draft=False, labels=("fork ci required", "ready for maintainer review"), marker=marker),
         COMPLETED_RUN,
         config=CONFIG,
         now=NOW,
@@ -4589,7 +4598,49 @@ def test_state_comment_is_left_for_the_next_run_when_failed_jobs_cannot_be_read(
     assert plan.state == ForkState.FAILED
     assert plan.status == ("failure", RUN_URL, "Fork CI failed - see Details")
     assert plan.remove_labels == ["ready for maintainer review"]
-    assert plan.marker_comment is None
+    if kept:
+        assert plan.marker_comment is None
+    else:
+        assert parse_marker(plan.marker_comment).state == "failed"
+        assert parse_marker(plan.marker_comment).failed_run is None
+        assert "Jobs that did not pass" not in plan.marker_comment
+
+
+def _classify_failed(pr, fork=COMPLETED_RUN, find_failed=None):
+    return classify(
+        pr,
+        fork,
+        config=CONFIG,
+        now=NOW,
+        repo=REPO,
+        find_bypass_run=lambda: None,
+        changes_ci_files=lambda: False,
+        find_failed_jobs=find_failed or (lambda: [FAILED_JOB]),
+    )
+
+
+@pytest.mark.parametrize(
+    ("fork", "marker_overrides", "reads"),
+    [
+        pytest.param(COMPLETED_RUN, {}, False, id="unchanged"),
+        pytest.param(dataclasses.replace(COMPLETED_RUN, run_attempt=2), {}, True, id="re-run"),
+        pytest.param(COMPLETED_RUN, {"failed_run": None}, True, id="not-listed-yet"),
+    ],
+)
+def test_jobs_of_a_listed_failed_run_are_not_read_again(fork, marker_overrides, reads):
+    pr = _pr(is_draft=False, labels=("fork ci required",))
+    listed = _classify_failed(pr).marker_comment
+    marker = dataclasses.replace(parse_marker(listed), **marker_overrides)
+    find_failed = mock.Mock(return_value=[FAILED_JOB])
+
+    plan = _classify_failed(
+        dataclasses.replace(pr, marker=marker, marker_comment_body=listed), fork, find_failed
+    )
+
+    assert parse_marker(listed).failed_run == "1:1"
+    assert find_failed.called is reads
+    if not reads:
+        assert plan.marker_comment is None
 
 
 def test_monitor_interval_is_the_monitor_workflow_cadence():
