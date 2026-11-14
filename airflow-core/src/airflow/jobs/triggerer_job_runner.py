@@ -585,6 +585,8 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
 
     health_check_threshold = conf.getint("triggerer", "triggerer_health_check_threshold")
     runner_health_check_threshold = conf.getfloat("triggerer", "runner_health_check_threshold")
+    # Upper bound on draining runner output per loop, so a flooding runner cannot starve DB work.
+    max_drain_seconds: ClassVar[float] = 1.0
 
     runner: TriggerRunner | None = None
     stop: bool = False
@@ -630,6 +632,9 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
     recovered_triggers: set[int] = attrs.field(factory=set, init=False)
     # TriggerKind value of each trigger assigned here, for the trigger_kind metric tag
     trigger_kinds: dict[int, str] = attrs.field(factory=dict, init=False)
+    # An output socket handler error caught while a response was being sent, kept so the response
+    # could be completed first. ``_service_subprocess`` raises it.
+    _output_handler_error: Exception | None = attrs.field(init=False, default=None)
 
     def is_alive(self) -> bool:
         # Set by `_service_subprocess` in the loop
@@ -818,6 +823,77 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
 
         self.send_msg(resp, request_id=req_id, error=None, **dump_opts)
 
+    def _send_frame(self, data: bytes | bytearray) -> None:
+        """
+        Send ``data`` to the runner, reading its output sockets while the send is blocked.
+
+        The runner's event loop can be stuck writing to a full log socket, so it does not read this
+        response until we read its logs. A plain ``sendall()`` would leave both processes waiting on
+        each other. EOF on an output socket is left for the main select loop to handle.
+        """
+        view = memoryview(data)
+
+        def send_available() -> None:
+            nonlocal view
+            with suppress(BlockingIOError):
+                while view:
+                    view = view[self.stdin.send(view) :]
+
+        # Non-blocking mode rather than MSG_DONTWAIT: macOS ignores that flag for large AF_UNIX sends.
+        timeout = self.stdin.gettimeout()
+        self.stdin.setblocking(False)
+        try:
+            send_available()
+            if not view:
+                return
+            with selectors.DefaultSelector() as sel:
+                sel.register(self.stdin, selectors.EVENT_WRITE)
+                for key in list(self.selector.get_map().values()):
+                    sock: socket = key.fileobj  # type: ignore[assignment]
+                    if sock is not self.stdin:
+                        # The caller's select results may still list this socket as readable after
+                        # we drain it here; non-blocking makes that stale read return instead of hang.
+                        sock.setblocking(False)
+                        sel.register(sock, selectors.EVENT_READ, key.data)
+                while view:
+                    for key, _ in sel.select():
+                        if key.fileobj is self.stdin:
+                            send_available()
+                            continue
+                        socket_handler, _ = key.data
+                        try:
+                            need_more = socket_handler(key.fileobj)
+                        except BlockingIOError:
+                            need_more = True
+                        except (BrokenPipeError, ConnectionResetError):
+                            need_more = False
+                        except Exception as e:
+                            # Raising here would leave a partial frame, and the runner would wait
+                            # for the rest of it forever. Finish the frame first, and discard what
+                            # this socket still receives: a runner blocked writing to it does not
+                            # read the response.
+                            if self._output_handler_error is None:
+                                self._output_handler_error = e
+                            sel.modify(
+                                key.fileobj, selectors.EVENT_READ, (lambda sock: bool(sock.recv(65536)), None)
+                            )
+                            need_more = True
+                        if not need_more:
+                            sel.unregister(key.fileobj)
+        finally:
+            self.stdin.settimeout(timeout)
+
+    def _service_subprocess(
+        self, max_wait_time: float, raise_on_timeout: bool = False, expect_signal: None | int = None
+    ):
+        exit_code = super()._service_subprocess(max_wait_time, raise_on_timeout, expect_signal)
+        if (error := self._output_handler_error) is not None:
+            # Raised outside the request handler, which would turn it into an error response. Here it
+            # stops the triggerer, like the same error does when no response is being sent.
+            self._output_handler_error = None
+            raise error
+        return exit_code
+
     def run(self) -> None:
         """Run synchronously and handle all database reads/writes."""
         with self.run_context():
@@ -842,6 +918,12 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
 
         # Wait for up to 1 second for activity
         self._service_subprocess(1)
+        # One service call reads at most 4 KiB of logs and one request. The rest of this loop can
+        # take seconds, so drain everything already waiting; otherwise a busy runner blocks on its
+        # log socket and its event loop stops.
+        drain_deadline = time.monotonic() + self.max_drain_seconds
+        while time.monotonic() < drain_deadline and self.selector.select(timeout=0):
+            self._service_subprocess(0)
 
         self.handle_events()
         self.handle_recovered_triggers()

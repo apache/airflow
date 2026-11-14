@@ -29,7 +29,7 @@ import time
 import typing
 import uuid
 from collections.abc import AsyncIterator
-from socket import socket, socketpair
+from socket import MSG_WAITALL, socket, socketpair
 from typing import Any, ClassVar
 from unittest import mock
 from unittest.mock import ANY, AsyncMock, MagicMock, patch
@@ -40,6 +40,7 @@ import msgspec
 import pendulum
 import pytest
 import pytest_asyncio
+import structlog
 from asgiref.sync import async_to_sync, sync_to_async
 from opentelemetry import trace as otel_trace
 from opentelemetry.sdk.trace import TracerProvider
@@ -112,6 +113,7 @@ from airflow.sdk.execution_time.comms import (
     SetAssetStateStoreByUri,
     ToSupervisor,
     ToTask,
+    VariableResult,
     _new_encoder,
     _RequestFrame,
     _ResponseFrame,
@@ -403,10 +405,10 @@ def supervisor_builder(mocker, session):
             session.flush()
 
         process = mocker.Mock(spec=psutil.Process, pid=10 * job.id + 1)
-        # Create a mock stdin that has both write and sendall methods
+        # Create a mock stdin that has both write and send methods
         mock_stdin = mocker.Mock(spec=socket)
         mock_stdin.write = mocker.Mock()
-        mock_stdin.sendall = mocker.Mock()
+        mock_stdin.send.side_effect = len
 
         proc = TriggerRunnerSupervisor(
             process_log=mocker.Mock(spec=FilteringBoundLogger),
@@ -449,9 +451,9 @@ class InProcessTriggerComms:
 
     async def asend(self, msg: ToTriggerSupervisor) -> ToTriggerRunner | None:
         frame = _RequestFrame(id=next(self._ids), body=msg.model_dump())
-        self._stdin.sendall.reset_mock()
+        self._stdin.send.reset_mock()
         self._requests.send(self._request_decoder.decode(frame.as_bytes()[4:]))
-        (raw,), _ = self._stdin.sendall.call_args
+        (raw,), _ = self._stdin.send.call_args
         response = self._response_decoder.decode(raw[4:])
         assert response.id == frame.id
         assert response.error is None, response.error
@@ -631,7 +633,7 @@ def jobless_supervisor(mocker):
     process = mocker.Mock(spec=psutil.Process, pid=42)
     mock_stdin = mocker.Mock(spec=socket)
     mock_stdin.write = mocker.Mock()
-    mock_stdin.sendall = mocker.Mock()
+    mock_stdin.send.side_effect = len
 
     supervisor = TriggerRunnerSupervisor(
         process_log=mocker.Mock(spec=FilteringBoundLogger),
@@ -667,6 +669,191 @@ def test_start_without_job_generates_uuid_id(mocker):
     assert isinstance(captured["id"], uuid.UUID)
     assert captured["job"] is None
     fake_proc.send_msg.assert_called_once()
+
+
+def test_run_once_drains_all_waiting_runner_logs(jobless_supervisor, mocker):
+    from airflow.sdk.execution_time.supervisor import make_buffered_socket_reader
+
+    for method in (
+        "load_triggers",
+        "handle_events",
+        "handle_recovered_triggers",
+        "handle_failed_triggers",
+        "clean_unused",
+        "heartbeat",
+        "emit_metrics",
+        "_check_subprocess_exit",
+    ):
+        mocker.patch.object(TriggerRunnerSupervisor, method, autospec=True, return_value=None)
+
+    lines: list[bytes] = []
+
+    def collect():
+        while True:
+            lines.append((yield))
+
+    log_parent, log_child = socketpair()
+    selector = selectors.DefaultSelector()
+    jobless_supervisor.selector = selector
+    selector.register(
+        log_parent,
+        selectors.EVENT_READ,
+        make_buffered_socket_reader(collect(), on_close=selector.unregister),
+    )
+    try:
+        # More than the 4 KiB one service call reads, but small enough to fit the 8 KiB macOS buffer.
+        log_child.sendall(b'{"event": "waiting"}\n' * 300)
+
+        jobless_supervisor.run_once()
+
+        assert len(lines) == 300
+    finally:
+        selector.close()
+        log_parent.close()
+        log_child.close()
+
+
+@pytest.mark.parametrize("channel", ["logs", "stdout", "stderr"])
+def test_send_msg_drains_output_while_runner_is_blocked_writing_it(jobless_supervisor, mocker, channel):
+    mocker.patch.object(TriggerRunnerSupervisor, "_check_subprocess_exit", autospec=True, return_value=None)
+    mocker.patch("airflow.sdk.log.configure_logging", autospec=True)
+    jobless_supervisor.process_log = structlog.get_logger(logger_name="test")
+    parents, children = {}, {}
+    for name in ("stdout", "stderr", "requests", "logs"):
+        parents[name], children[name] = socketpair()
+    jobless_supervisor.stdin = parents["requests"]
+    selector = selectors.DefaultSelector()
+    jobless_supervisor.selector = selector
+    jobless_supervisor._register_pipe_readers(
+        parents["stdout"], parents["stderr"], parents["requests"], parents["logs"], data={}
+    )
+    # Both payloads are far larger than any socket buffer, so each side blocks until the other reads.
+    output = b'{"level": "debug", "event": "' + b"x" * 1000 + b'"}\n'
+    value = "v" * (4 * 1024 * 1024)
+    received = bytearray()
+
+    def runner():
+        # Like a runner whose event loop is stuck writing output: it reads the response only after
+        # that output has been drained.
+        children[channel].sendall(output * 4096)
+        length = int.from_bytes(children["requests"].recv(4, MSG_WAITALL), byteorder="big")
+        while len(received) < length:
+            received.extend(children["requests"].recv(65536))
+
+    runner_thread = threading.Thread(target=runner, daemon=True)
+    sender_thread = threading.Thread(
+        target=jobless_supervisor.send_msg,
+        args=(VariableResult(key="k", value=value),),
+        kwargs={"request_id": 1},
+        daemon=True,
+    )
+    try:
+        runner_thread.start()
+        sender_thread.start()
+        sender_thread.join(timeout=10)
+        runner_thread.join(timeout=10)
+
+        assert not sender_thread.is_alive()
+        assert not runner_thread.is_alive()
+        frame = msgspec.msgpack.Decoder(_ResponseFrame).decode(received)
+        assert frame.body["value"] == value
+        assert parents["requests"].gettimeout() is None
+
+        # A select taken before the send can still list the drained socket as readable.
+        drained = parents[channel]
+        assert not drained.getblocking()
+        with contextlib.suppress(BlockingIOError):
+            while drained.recv(65536):
+                pass
+        stale_events = [(selector.get_key(drained), selectors.EVENT_READ)]
+        with mock.patch.object(selector, "select", autospec=True, return_value=stale_events):
+            jobless_supervisor._service_subprocess(0)
+    finally:
+        selector.close()
+        for sock in (*parents.values(), *children.values()):
+            sock.close()
+
+
+def test_send_msg_completes_response_when_output_handler_fails(jobless_supervisor, mocker):
+    mocker.patch.object(TriggerRunnerSupervisor, "_check_subprocess_exit", autospec=True, return_value=None)
+    value = "v" * (4 * 1024 * 1024)
+    mocker.patch.object(
+        TriggerRunnerSupervisor,
+        "_handle_request",
+        autospec=True,
+        side_effect=lambda self, msg, log, req_id: self.send_msg(
+            VariableResult(key="k", value=value), request_id=req_id
+        ),
+    )
+    request_parent, request_child = socketpair()
+    log_parent, log_child = socketpair()
+    jobless_supervisor.stdin = request_parent
+    selector = selectors.DefaultSelector()
+    jobless_supervisor.selector = selector
+    selector.register(
+        request_parent,
+        selectors.EVENT_READ,
+        supervisor.length_prefixed_frame_reader(
+            jobless_supervisor.handle_requests(mocker.Mock(spec=FilteringBoundLogger)),
+            on_close=selector.unregister,
+        ),
+    )
+    handler_error = OSError("No space left on device")
+
+    def read_log_lines():
+        # Like the real log readers: the error leaves the generator, which cannot read again after it.
+        for _ in range(3):
+            yield
+        raise handler_error
+
+    selector.register(
+        log_parent,
+        selectors.EVENT_READ,
+        supervisor.make_buffered_socket_reader(read_log_lines(), on_close=selector.unregister),
+    )
+    received = bytearray()
+    raised: list[Exception] = []
+
+    def runner():
+        request = _RequestFrame(id=1, body=MaskSecret(value="secret").model_dump())
+        request_child.sendall(request.as_bytes())
+        # Blocks until the supervisor drains it, so the log reader fails while the response is sent.
+        # One 4 KiB read holds at most two lines, so the third line is always read during the send.
+        log_child.sendall((b"x" * 2047 + b"\n") * 2048)
+        length = int.from_bytes(request_child.recv(4, MSG_WAITALL), byteorder="big")
+        while len(received) < length:
+            received.extend(request_child.recv(65536))
+
+    def service():
+        try:
+            jobless_supervisor._service_subprocess(5)
+        except OSError as e:
+            raised.append(e)
+
+    runner_thread = threading.Thread(target=runner, daemon=True)
+    service_thread = threading.Thread(target=service, daemon=True)
+    try:
+        runner_thread.start()
+        service_thread.start()
+        service_thread.join(timeout=10)
+        runner_thread.join(timeout=10)
+
+        assert not service_thread.is_alive()
+        assert not runner_thread.is_alive()
+        frame = msgspec.msgpack.Decoder(_ResponseFrame).decode(received)
+        assert frame.id == 1
+        assert frame.body["value"] == value
+        # No error frame follows the response; the error stops the supervisor loop instead.
+        request_child.setblocking(False)
+        with pytest.raises(BlockingIOError):
+            request_child.recv(1)
+        assert raised == [handler_error]
+        # The error is raised once: kill() services the subprocess again while the triggerer stops.
+        jobless_supervisor._service_subprocess(0)
+    finally:
+        selector.close()
+        for sock in (request_parent, request_child, log_parent, log_child):
+            sock.close()
 
 
 def test_heartbeat_raises_without_job(jobless_supervisor, mocker):
