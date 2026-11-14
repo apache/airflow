@@ -97,11 +97,13 @@ class TriggerStatus(str, Enum):
 
     # pending: not picked up yet. running: on a live triggerer and not failed since it last recovered.
     # failing: on a live triggerer and failed since it last recovered. orphaned: its triggerer stopped
-    # sending heartbeats; another triggerer will take it.
+    # sending heartbeats; another triggerer will take it. finished: unreferenced, failed, and kept for the
+    # failure-retention window; it is never run again and is then deleted.
     PENDING = "pending"
     RUNNING = "running"
     FAILING = "failing"
     ORPHANED = "orphaned"
+    FINISHED = "finished"
 
 
 def get_triggerer_alive_clauses(health_check_threshold: float) -> tuple[ColumnElement[bool], ...]:
@@ -163,6 +165,9 @@ class Trigger(Base):
     last_failed_at: Mapped[datetime.datetime | None] = mapped_column(UtcDateTime, nullable=True)
     last_error: Mapped[str | None] = mapped_column(Text, nullable=True)
     last_event_at: Mapped[datetime.datetime | None] = mapped_column(UtcDateTime, nullable=True)
+    # Set once a failed trigger is unreferenced and released from its triggerer; the row is kept
+    # (readable via the API) until it has been finished for [triggerer] failed_trigger_retention seconds.
+    finished_at: Mapped[datetime.datetime | None] = mapped_column(UtcDateTime, nullable=True)
 
     # Who the trigger runs for, written once by whoever creates it: ``dag_id`` is the owner's Dag and
     # ``owner_ref`` the owner within it, ``{"ti_id": ...}`` or ``{"callback_id": ...}``. Both stay empty for
@@ -336,6 +341,8 @@ class Trigger(Base):
 
         Triggers have a one-to-many relationship to task instances, so we need to clean those up first.
         Afterward we can drop unreferenced triggers; later triggerer loops drain any remaining batches.
+        Triggers that recorded failures are kept in ``finished`` status (never run again) for
+        ``[triggerer] failed_trigger_retention`` seconds before they are deleted; the API keeps listing them.
 
         Database errors are not retried; to retry, run the call again in a new transaction.
         """
@@ -355,19 +362,80 @@ class Trigger(Base):
         cls._delete_unused_batch(batch_size, session=session)
 
     @classmethod
-    def _delete_unused_batch(cls, batch_size: int, *, session: Session) -> None:
-        unreferenced = (~cls.assets.any(), ~cls.callback.has(), ~cls.task_instance.has())
-        ids = select(cls.id).where(*unreferenced).order_by(cls.id).limit(batch_size)
-        ids = with_row_locks(ids, session, of=cls, skip_locked=True, key_share=False)
+    def _failed_trigger_retention(cls) -> int:
+        """Seconds an unreferenced, failed trigger is kept (marked finished) before it is deleted."""
+        retention = conf.getint("triggerer", "failed_trigger_retention", fallback=7 * 24 * 3600)
+        if retention < 0:
+            raise ValueError("[triggerer] failed_trigger_retention must be at least 0")
+        return retention
+
+    @classmethod
+    def _finish_or_delete_unreferenced(
+        cls,
+        unreferenced: tuple[ColumnElement[bool], ...],
+        *,
+        session: Session,
+        batch_size: int | None = None,
+    ) -> None:
+        """
+        Keep failed unreferenced triggers for the retention window, delete the rest.
+
+        A trigger that recorded failures is finished on becoming unreferenced: it is released from
+        its triggerer and never run again, and deleted once it has been finished for
+        ``[triggerer] failed_trigger_retention`` seconds. Triggers that never failed are deleted
+        right away, so the table does not grow with every deferred task.
+        """
+        now = timezone.utcnow()
+        retention = cls._failed_trigger_retention()
+        # A failed trigger's owner has let go by the time it is unreferenced, and watcher triggers
+        # carry no owner_ref at all; record a marker so the API can still show the row as a watcher.
+        unfinished_failed = and_(cls.last_failed_at.is_not(None), cls.finished_at.is_(None))
+        if batch_size is not None:
+            finish_ids = select(cls.id).where(*unreferenced, unfinished_failed).order_by(cls.id)
+            finish_ids = with_row_locks(
+                finish_ids.limit(batch_size), session, of=cls, skip_locked=True, key_share=False
+            )
+            finished = list(session.scalars(finish_ids))
+        else:
+            finished = list(session.scalars(select(cls.id).where(*unreferenced, unfinished_failed)))
+        if finished:
+            session.execute(
+                update(cls)
+                .where(cls.id.in_(finished), cls.finished_at.is_(None))
+                .values(finished_at=now, triggerer_id=None)
+                .execution_options(synchronize_session=False)
+            )
+            session.execute(
+                update(cls)
+                .where(cls.id.in_(finished), cls.owner_ref.is_(None))
+                .values(owner_ref={"kind": "asset_watcher"})
+                .execution_options(synchronize_session=False)
+            )
+        cutoff = now - datetime.timedelta(seconds=retention)
+        deletable = or_(
+            cls.last_failed_at.is_(None),
+            and_(cls.finished_at.is_not(None), cls.finished_at <= cutoff),
+        )
+        if batch_size is None:
+            session.execute(
+                delete(cls).where(*unreferenced, deletable).execution_options(synchronize_session=False)
+            )
+            return
+        ids = select(cls.id).where(*unreferenced, deletable).order_by(cls.id)
+        ids = with_row_locks(ids.limit(batch_size), session, of=cls, skip_locked=True, key_share=False)
         ids_list = list(session.scalars(ids))
         if not ids_list:
             return
-
         session.execute(
             delete(cls)
             .where(cls.id.in_(ids_list), *unreferenced)
             .execution_options(synchronize_session=False)
         )
+
+    @classmethod
+    def _delete_unused_batch(cls, batch_size: int, *, session: Session) -> None:
+        unreferenced = (~cls.assets.any(), ~cls.callback.has(), ~cls.task_instance.has())
+        cls._finish_or_delete_unreferenced(unreferenced, session=session, batch_size=batch_size)
 
     @classmethod
     @provide_session
@@ -496,6 +564,8 @@ class Trigger(Base):
             return TriggerKind.TASK
         if "callback_id" in owner_ref:
             return TriggerKind.CALLBACK
+        if owner_ref.get("kind") == "asset_watcher":
+            return TriggerKind.ASSET_WATCHER
         if self.asset_watchers:
             return TriggerKind.ASSET_WATCHER
         return None
@@ -506,6 +576,7 @@ class Trigger(Base):
         return case(
             (cls.owner_ref["ti_id"].as_string().is_not(None), TriggerKind.TASK.value),
             (cls.owner_ref["callback_id"].as_string().is_not(None), TriggerKind.CALLBACK.value),
+            (cls.owner_ref["kind"].as_string() == "asset_watcher", TriggerKind.ASSET_WATCHER.value),
             (cls.id.in_(select(AssetWatcherModel.trigger_id)), TriggerKind.ASSET_WATCHER.value),
             else_=None,
         )
@@ -546,6 +617,7 @@ class Trigger(Base):
         # it falls through to "orphaned" as it does in Python.
         alive = and_(*get_triggerer_alive_clauses(threshold))
         return case(
+            (cls.finished_at.is_not(None), TriggerStatus.FINISHED.value),
             (cls.triggerer_id.is_(None), TriggerStatus.PENDING.value),
             (and_(alive, cls.consecutive_failures > 0), TriggerStatus.FAILING.value),
             (alive, TriggerStatus.RUNNING.value),
@@ -565,6 +637,8 @@ class Trigger(Base):
 
     def status(self) -> TriggerStatus:
         """Return the :class:`TriggerStatus` of this trigger; needs ``triggerer_job`` loaded."""
+        if self.finished_at is not None:
+            return TriggerStatus.FINISHED
         if self.triggerer_id is None:
             return TriggerStatus.PENDING
         if not self.is_owner_alive():
@@ -601,7 +675,7 @@ class Trigger(Base):
             else:
                 query = query.filter(cls.team_name.is_(None))
 
-        return list(session.scalars(query).all())
+        return list(session.scalars(query.where(cls.finished_at.is_(None))).all())
 
     @classmethod
     @provide_session
@@ -688,6 +762,14 @@ class Trigger(Base):
         """
         from airflow.models.callback import Callback  # to avoid circular import: Callback -> Trigger
 
+        # A finished trigger that regained a reference is live again; let it be assigned and run.
+        session.execute(
+            update(cls)
+            .where(cls.finished_at.is_not(None), cls.owner_still_refers_expression())
+            .values(finished_at=None)
+            .execution_options(synchronize_session=False)
+        )
+
         result: list[Row[Any]] = []
 
         # Add triggers associated to callbacks first, then tasks, then assets
@@ -696,19 +778,26 @@ class Trigger(Base):
             # Callback triggers
             select(cls.id)
             .join(Callback, isouter=False)
-            .where(or_(cls.triggerer_id.is_(None), cls.triggerer_id.not_in(alive_triggerer_ids)))
+            .where(
+                or_(cls.triggerer_id.is_(None), cls.triggerer_id.not_in(alive_triggerer_ids)),
+                cls.finished_at.is_(None),
+            )
             .order_by(Callback.priority_weight.desc(), cls.created_date),
             # Task Instance triggers
             select(cls.id)
             .prefix_with("STRAIGHT_JOIN", dialect="mysql")
             .join(TaskInstance, cls.id == TaskInstance.trigger_id, isouter=False)
-            .where(or_(cls.triggerer_id.is_(None), cls.triggerer_id.not_in(alive_triggerer_ids)))
+            .where(
+                or_(cls.triggerer_id.is_(None), cls.triggerer_id.not_in(alive_triggerer_ids)),
+                cls.finished_at.is_(None),
+            )
             .order_by(coalesce(TaskInstance.priority_weight, 0).desc(), cls.created_date),
             # Asset triggers
             select(cls.id)
             .where(
                 cls.assets.any(),
                 or_(cls.triggerer_id.is_(None), cls.triggerer_id.not_in(alive_triggerer_ids)),
+                cls.finished_at.is_(None),
             )
             .order_by(cls.created_date),
         ]
