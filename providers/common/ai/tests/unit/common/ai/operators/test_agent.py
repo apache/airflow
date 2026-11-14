@@ -2711,19 +2711,10 @@ class TestAgentOperatorCancellation:
 class TestAgentOperatorHITLArgumentChecks:
     """The order in which __init__ reports conflicting HITL arguments."""
 
-    @pytest.mark.skipif(
-        not AIRFLOW_V_3_1_PLUS, reason="Human in the loop is only compatible with Airflow >= 3.1.0"
-    )
-    def test_durable_with_hitl_review_raises(self):
-        """Durable replay cannot be combined with HITL review."""
-        with pytest.raises(ValueError, match="durable=True and enable_hitl_review"):
-            AgentOperator(task_id="t", prompt="run", llm_conn_id="c", durable=True, enable_hitl_review=True)
-
     @pytest.mark.parametrize(
         "conflicting_kwargs",
         [
             pytest.param({"message_history": []}, id="message_history"),
-            pytest.param({"durable": True}, id="durable"),
         ],
     )
     @patch("airflow.providers.common.ai.operators.agent.AIRFLOW_V_3_1_PLUS", False)

@@ -127,11 +127,6 @@ as a task failure.
     or later. Upgrade Airflow, or use ``on_uncertain="fail"`` and drop the review flags
     on an older Airflow version. See :doc:`approval_gates` and :doc:`hitl_review`.
 
-``durable=True and enable_hitl_review=True cannot be used together``
-    Durable replay matches each step to the one at the same position in the previous
-    attempt, which a human review loop's regenerations do not keep. Pick one. See
-    :doc:`durable_execution`.
-
 ``durable=True needs a unique id on every MCPToolset, such as MCPToolset(..., id='weather')``
     Durable replay records each call of a pydantic-ai ``MCPToolset`` under the toolset's
     id, and none is derived from the server's URL or command. Set ``id=`` on the toolset
@@ -197,11 +192,11 @@ A structured ``output_type`` arrives downstream as a string or fails to deserial
     :doc:`structured_output`.
 
 A review task waits for a long time
-    That is expected: the task is waiting for a reviewer. An approval gate on an LLM operator
-    releases its worker slot while it waits (it pauses as awaiting input on Airflow 3.3+, and
-    defers to the triggerer on older Airflow versions); a HITL review on ``AgentOperator`` polls from the
-    worker and holds its slot. Set ``approval_timeout`` or ``hitl_timeout`` so an unattended
-    review cannot wait forever. See :doc:`approval_gates` and :doc:`hitl_review`.
+    That is expected: the task is waiting for a reviewer. On Airflow 3.3+ an approval gate on an
+    LLM operator and a HITL review on ``AgentOperator`` both pause as awaiting input and hold no
+    worker slot. On older Airflow versions an approval gate defers to the triggerer, while a HITL
+    review polls from the worker and holds its slot. Set ``approval_timeout`` or ``hitl_timeout``
+    so an unattended review cannot wait forever. See :doc:`approval_gates` and :doc:`hitl_review`.
 
 The provider returns a rate limit or is down
     Three features answer this at different layers. Airflow's own ``retries`` re-run the
