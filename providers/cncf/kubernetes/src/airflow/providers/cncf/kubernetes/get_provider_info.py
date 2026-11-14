@@ -73,6 +73,7 @@ def get_provider_info():
                 "python-modules": [
                     "airflow.providers.cncf.kubernetes.triggers.pod",
                     "airflow.providers.cncf.kubernetes.triggers.job",
+                    "airflow.providers.cncf.kubernetes.triggers.kueue",
                 ],
             }
         ],

@@ -17,19 +17,27 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 from unittest import mock
 
 import pytest
+from kubernetes.client import BatchV1Api, CoreV1Api, models as k8s
+from kubernetes.client.rest import ApiException
 from kubernetes.utils import FailToCreateError
 
 from airflow.models.dag import DAG
+from airflow.models.taskinstance import TaskInstance
+from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook
 from airflow.providers.cncf.kubernetes.operators.job import KubernetesJobOperator
 from airflow.providers.cncf.kubernetes.operators.kueue import (
     KubernetesInstallKueueOperator,
     KubernetesStartKueueJobOperator,
 )
-from airflow.providers.common.compat.sdk import AirflowException
+from airflow.providers.cncf.kubernetes.triggers.kueue import KubernetesKueueJobTrigger, build_job_event
+from airflow.providers.cncf.kubernetes.utils.pod_manager import PodManager, XComRetrievalError
+from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
+
+from unit.cncf.kubernetes.triggers.test_kueue import JOB_NAME, NAMESPACE, build_job, build_pod
 
 TEST_TASK_ID = "test_task"
 TEST_K8S_CONN_ID = "test_kubernetes_conn_id"
@@ -193,3 +201,212 @@ class TestKubernetesStartKueueJobOperator:
         assert operator.labels == {"kueue.x-k8s.io/queue-name": TEST_QUEUE_NAME}
         assert operator.annotations == {"kueue.x-k8s.io/queue-name": TEST_QUEUE_NAME}
         mock_log.info.assert_called_once_with(expected_info_message, "KubernetesStartKueueJobOperator")
+
+
+class TestKubernetesStartKueueJobOperatorWait:
+    @pytest.fixture(autouse=True)
+    def setup_mocks(self):
+        operator_class = KubernetesStartKueueJobOperator
+        with (
+            mock.patch.object(
+                operator_class, "hook", mock.create_autospec(KubernetesHook, instance=True)
+            ) as self.mock_hook,
+            mock.patch.object(
+                operator_class, "client", mock.create_autospec(CoreV1Api, instance=True)
+            ) as self.mock_client,
+            mock.patch.object(
+                operator_class, "pod_manager", mock.create_autospec(PodManager, instance=True)
+            ) as self.mock_pod_manager,
+            mock.patch.object(operator_class, "post_complete_action", autospec=True),
+            mock.patch.object(
+                operator_class, "build_job_request_obj", autospec=True, return_value=build_job(True)
+            ),
+            mock.patch.object(
+                operator_class,
+                "create_job",
+                autospec=True,
+                side_effect=lambda operator, job_request_obj: job_request_obj,
+            ) as self.mock_create_job,
+        ):
+            self.mock_hook.get_pod.side_effect = lambda name, namespace: self.pods[name]
+            yield
+
+    @staticmethod
+    def build_context() -> dict:
+        return {"ti": mock.MagicMock(spec=TaskInstance, try_number=1)}
+
+    def set_pods(self, *pod_lists: list[k8s.V1Pod]) -> None:
+        """Make each list_namespaced_pod call return the next list of pods."""
+        self.pods = {pod.metadata.name: pod for pods in pod_lists for pod in pods}
+        self.mock_client.list_namespaced_pod.side_effect = [k8s.V1PodList(items=pods) for pods in pod_lists]
+
+    def build_operator(self, **kwargs) -> KubernetesStartKueueJobOperator:
+        return KubernetesStartKueueJobOperator(
+            task_id=TEST_TASK_ID,
+            queue_name=TEST_QUEUE_NAME,
+            namespace=NAMESPACE,
+            wait_until_job_complete=True,
+            job_poll_interval=0,
+            **kwargs,
+        )
+
+    @mock.patch.object(KubernetesJobOperator, "execute", autospec=True)
+    def test_execute_without_wait_runs_job_operator(self, mock_execute):
+        operator = self.build_operator()
+        operator.wait_until_job_complete = False
+
+        assert operator.execute({}) == mock_execute.return_value
+        self.mock_hook.get_job_status.assert_not_called()
+
+    def test_execute_raises_when_parallelism_is_less_than_1(self):
+        with pytest.raises(ValueError, match="parallelism cannot be less than 1"):
+            self.build_operator(parallelism=0).execute(self.build_context())
+        self.mock_create_job.assert_not_called()
+
+    def test_execute_waits_through_preemption_and_reads_pods_of_last_run(self):
+        """Kueue admits the Job, preempts it (its first pod is deleted), admits it again, then it completes."""
+        last_run = build_pod("last-run", base="terminated", sidecar="running", phase="Succeeded")
+        self.set_pods([build_pod("first-run", base="running", sidecar="running")], [last_run], [last_run])
+        self.mock_hook.get_job_status.side_effect = [
+            build_job(True),
+            build_job(False),
+            build_job(True),
+            build_job(False),
+            build_job(False, "Complete"),
+        ]
+        self.mock_pod_manager.extract_xcom.return_value = '{"a": 1}'
+
+        result = self.build_operator(do_xcom_push=True, get_logs=True).execute(self.build_context())
+
+        assert result == {"a": 1}
+        self.mock_hook.get_job_status.assert_called_with(job_name=JOB_NAME, namespace=NAMESPACE)
+        self.mock_pod_manager.extract_xcom.assert_called_once_with(last_run, ignore_kill_failure=False)
+        self.mock_pod_manager.fetch_requested_container_logs.assert_called_once_with(
+            pod=last_run, containers="base"
+        )
+
+    def test_execute_writes_logs_of_pods_when_job_failed(self):
+        failed = build_pod("failed", base="terminated", phase="Failed")
+        self.set_pods([failed])
+        self.mock_hook.get_job_status.side_effect = [build_job(True), build_job(False, "Failed")]
+
+        with pytest.raises(AirflowException, match="Job failed with error: BackoffLimitExceeded"):
+            self.build_operator(get_logs=True, container_logs=["base", "side"]).execute(self.build_context())
+        self.mock_pod_manager.fetch_requested_container_logs.assert_called_once_with(
+            pod=failed, containers=["base", "side"]
+        )
+
+    def test_execute_complete_writes_logs_of_other_pods_when_logs_of_a_pod_cannot_be_read(self):
+        evicted = build_pod("evicted", phase="Failed")
+        succeeded = build_pod("succeeded", base="terminated", phase="Succeeded")
+        self.set_pods([evicted, succeeded])
+        self.mock_pod_manager.fetch_requested_container_logs.side_effect = [ApiException(status=400), []]
+        event = build_job_event(build_job(False, "Complete", succeeded=1), {})
+
+        self.build_operator(get_logs=True).execute_complete(self.build_context(), event)
+
+        assert self.mock_pod_manager.fetch_requested_container_logs.call_args_list == [
+            mock.call(pod=evicted, containers="base"),
+            mock.call(pod=succeeded, containers="base"),
+        ]
+
+    def test_execute_deferrable_defers_to_kueue_job_trigger_until_execution_timeout(self):
+        with pytest.raises(TaskDeferred) as deferred:
+            self.build_operator(deferrable=True, execution_timeout=timedelta(minutes=5)).execute(
+                self.build_context()
+            )
+
+        assert isinstance(deferred.value.trigger, KubernetesKueueJobTrigger)
+        assert deferred.value.method_name == "execute_complete"
+        assert deferred.value.timeout == timedelta(minutes=5)
+        self.mock_client.list_namespaced_pod.assert_not_called()
+
+    @pytest.mark.parametrize(
+        "delete_error", [None, ApiException(status=404)], ids=["job-deleted", "job-already-deleted"]
+    )
+    @pytest.mark.parametrize(
+        "error", ["Trigger timeout", "Trigger/execution timeout"], ids=["airflow-3", "airflow-2"]
+    )
+    @mock.patch.object(KubernetesJobOperator, "resume_execution", autospec=True)
+    @mock.patch.object(
+        KubernetesStartKueueJobOperator,
+        "job_client",
+        new_callable=lambda: mock.create_autospec(BatchV1Api, instance=True),
+    )
+    def test_resume_execution_deletes_job_when_deferral_timed_out(
+        self, mock_job_client, mock_resume_execution, error, delete_error
+    ):
+        mock_resume_execution.side_effect = AirflowException(error)
+        mock_job_client.delete_namespaced_job.side_effect = delete_error
+        context = self.build_context()
+        context["ti"].task_id = TEST_TASK_ID
+        context["ti"].xcom_pull.side_effect = lambda task_ids, key: {
+            "job_name": JOB_NAME,
+            "job_namespace": NAMESPACE,
+        }[key]
+
+        with pytest.raises(AirflowException, match=error):
+            self.build_operator(deferrable=True).resume_execution("__fail__", {"error": error}, context)
+        mock_job_client.delete_namespaced_job.assert_called_once_with(
+            name=JOB_NAME, namespace=NAMESPACE, propagation_policy="Foreground"
+        )
+
+    @mock.patch.object(KubernetesJobOperator, "resume_execution", autospec=True)
+    @mock.patch.object(
+        KubernetesStartKueueJobOperator,
+        "job_client",
+        new_callable=lambda: mock.create_autospec(BatchV1Api, instance=True),
+    )
+    def test_resume_execution_keeps_job_when_trigger_failed(self, mock_job_client, mock_resume_execution):
+        mock_resume_execution.side_effect = AirflowException("Trigger failure")
+
+        with pytest.raises(AirflowException, match="Trigger failure"):
+            self.build_operator(deferrable=True).resume_execution(
+                "__fail__", {"error": "Trigger failure"}, self.build_context()
+            )
+        mock_job_client.delete_namespaced_job.assert_not_called()
+
+    def test_execute_complete_returns_xcom_of_succeeded_pods_of_the_job(self):
+        self.set_pods(
+            [
+                build_pod("succeeded", base="terminated", phase="Succeeded"),
+                build_pod("failed", base="terminated", phase="Failed"),
+            ]
+        )
+        event = build_job_event(
+            build_job(False, "Complete", succeeded=1),
+            {"succeeded": '{"a": 1}', "failed": '{"b": 2}', "preempted": "3"},
+        )
+
+        result = self.build_operator(do_xcom_push=True, unwrap_single=False).execute_complete(
+            self.build_context(), event
+        )
+
+        assert result == [{"a": 1}]
+
+    def test_execute_complete_orders_xcom_by_pod_name(self):
+        self.set_pods(
+            [build_pod(name, base="terminated", phase="Succeeded") for name in ("job-1-b", "job-0-a")]
+        )
+        event = build_job_event(
+            build_job(False, "Complete", succeeded=2), {"job-1-b": '{"index": 1}', "job-0-a": '{"index": 0}'}
+        )
+
+        result = self.build_operator(do_xcom_push=True).execute_complete(self.build_context(), event)
+
+        assert result == [{"index": 0}, {"index": 1}]
+
+    @pytest.mark.parametrize(
+        ("pod_names", "xcom_results"),
+        [
+            pytest.param(["read"], {"read": '{"a": 1}', "deleted": '{"b": 2}'}, id="succeeded-pod-deleted"),
+            pytest.param(["read", "not-read"], {"read": '{"a": 1}'}, id="xcom-of-succeeded-pod-not-read"),
+        ],
+    )
+    def test_execute_complete_raises_when_xcom_of_a_succeeded_pod_is_missing(self, pod_names, xcom_results):
+        self.set_pods([build_pod(name, base="terminated", phase="Succeeded") for name in pod_names])
+        event = build_job_event(build_job(False, "Complete", succeeded=2), xcom_results)
+
+        with pytest.raises(XComRetrievalError, match="Read the XCom of 1 of the 2 pods that succeeded"):
+            self.build_operator(do_xcom_push=True).execute_complete(self.build_context(), event)
+        self.mock_pod_manager.fetch_requested_container_logs.assert_called()
