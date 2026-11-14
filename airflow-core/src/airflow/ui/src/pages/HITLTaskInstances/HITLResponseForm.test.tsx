@@ -368,7 +368,7 @@ describe("useUpdateHITLDetail – a refused answer", () => {
     await waitFor(() =>
       expect(createToast).toHaveBeenCalledWith({
         description: expected,
-        title: "response.error",
+        title: "hitl:response.error",
         type: "error",
       }),
     );
