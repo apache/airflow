@@ -51,7 +51,7 @@ class DeadlineResponse(BaseModel):
 class DeadlineCollectionResponse(BaseModel):
     """Deadline Collection serializer for responses."""
 
-    deadlines: Iterable[DeadlineResponse]
+    deadlines: list[DeadlineResponse]
     total_entries: int
 
 

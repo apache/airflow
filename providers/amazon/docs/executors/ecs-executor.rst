@@ -339,9 +339,9 @@ Create Task Definition
   :end-before: .. END SQL_ALCHEMY_CONN
 
 
-- ``AIRFLOW__ECS_EXECUTOR__SECURITY_GROUPS``, with the value being a comma separated list of security group IDs associated with the VPC used for the RDS instance.
+- ``AIRFLOW__AWS_ECS_EXECUTOR__SECURITY_GROUPS``, with the value being a comma separated list of security group IDs associated with the VPC used for the RDS instance.
 
-- ``AIRFLOW__ECS_EXECUTOR__SUBNETS``, with the value being a comma separated list of subnet IDs of the subnets associated with the RDS instance.
+- ``AIRFLOW__AWS_ECS_EXECUTOR__SUBNETS``, with the value being a comma separated list of subnet IDs of the subnets associated with the RDS instance.
 
 1. Add other configuration as necessary for Airflow generally (see `here <https://airflow.apache.org/docs/apache-airflow/stable/configurations-ref.html>`__), the ECS executor (see :ref:`here <config-options>`) or for remote logging (see :ref:`here <logging>`). Note that any configuration changes should be made across the entire Airflow environment to keep configuration consistent.
 

@@ -36,6 +36,7 @@ import weakref
 from collections import deque
 from collections.abc import Callable, Generator
 from contextlib import contextmanager, nullcontext, suppress
+from contextvars import ContextVar
 from datetime import UTC, datetime
 from enum import Enum, auto
 from http import HTTPStatus
@@ -105,6 +106,7 @@ from airflow.sdk.execution_time.comms import (
     GetDagRun,
     GetDagRunState,
     GetDRCount,
+    GetHITLDetailResponse,
     GetPreviousDagRun,
     GetPreviousTI,
     GetPrevSuccessfulDagRun,
@@ -130,12 +132,12 @@ from airflow.sdk.execution_time.comms import (
     SentFDs,
     SetAssetStateStoreByName,
     SetAssetStateStoreByUri,
+    SetExecutionTimeout,
     SetRenderedFields,
     SetRenderedMapIndex,
     SetTaskStateStore,
     SetXCom,
     SkipDownstreamTasks,
-    StartExecutionTimeout,
     StartupDetails,
     SucceedTask,
     TaskBreadcrumbsResult,
@@ -155,6 +157,7 @@ from airflow.sdk.execution_time.request_handlers import (
     handle_get_connection,
     handle_get_dag_run_state,
     handle_get_dr_count,
+    handle_get_hitl_detail_response,
     handle_get_prev_successful_dag_run,
     handle_get_previous_dag_run,
     handle_get_previous_ti,
@@ -644,7 +647,7 @@ def _should_use_exec() -> bool:
     return sys.platform in _FORK_EXEC_PLATFORMS
 
 
-def _task_process_uses_exec() -> bool:
+def task_process_uses_exec() -> bool:
     """
     Whether the task process should ``exec`` a fresh interpreter after the fork.
 
@@ -827,6 +830,7 @@ class WatchedSubprocess:
             _register_client_handler(GetConnection, handle_get_connection),
             _register_client_handler(GetDagRunState, handle_get_dag_run_state),
             _register_client_handler(GetDRCount, handle_get_dr_count),
+            _register_client_handler(GetHITLDetailResponse, handle_get_hitl_detail_response),
             _register_client_handler(GetPreviousDagRun, handle_get_previous_dag_run),
             _register_client_handler(GetPreviousTI, handle_get_previous_ti),
             _register_client_handler(GetTaskStates, handle_get_task_states),
@@ -1175,8 +1179,21 @@ class WatchedSubprocess:
 
             try:
                 msg = self.decoder.validate_python(self._deserialize_request(request.body))
-            except Exception:
+            except Exception as e:
                 log.exception("Unable to decode message", body=request.body)
+                with suppress(Exception):
+                    self.send_msg(
+                        msg=None,
+                        error=ErrorResponse(
+                            error=ErrorType.GENERIC_ERROR,
+                            detail={
+                                "status_code": None,
+                                "message": f"Unable to decode message: {e}",
+                                "exception_type": type(e).__name__,
+                            },
+                        ),
+                        request_id=request.id,
+                    )
                 continue
 
             # Restore the task runner's trace context so that any outbound HTTP calls made while
@@ -1189,27 +1206,11 @@ class WatchedSubprocess:
                 with self._request_scope(request):
                     self._handle_request(msg, log, request.id)
             except ServerResponseError as e:
-                error_details = e.response.json() if e.response else None
-                log.error(
-                    "API server error",
-                    status_code=e.response.status_code,
-                    detail=error_details,
-                    message=str(e),
-                )
+                error = ErrorResponse.from_server_error(e)
+                log.error("API server error", **(error.detail or {}))
 
                 # Send error response back to task so that the error appears in the task logs
-                self.send_msg(
-                    msg=None,
-                    error=ErrorResponse(
-                        error=ErrorType.API_SERVER_ERROR,
-                        detail={
-                            "status_code": e.response.status_code,
-                            "message": str(e),
-                            "detail": error_details,
-                        },
-                    ),
-                    request_id=request.id,
-                )
+                self.send_msg(msg=None, error=error, request_id=request.id)
             except Exception as e:
                 # Generic exception handling so a transient network error (httpx2.ConnectError /
                 # httpx2.TimeoutException) or any other exception
@@ -1707,7 +1708,7 @@ class ActivitySubprocess(WatchedSubprocess):
         # fork+exec where the platform needs it (macOS) or the deployment opted in.
         # Tests override `target` with a local stub to exercise the base
         # infrastructure; keep bare fork for those.
-        use_exec = target is _subprocess_main and _task_process_uses_exec()
+        use_exec = target is _subprocess_main and task_process_uses_exec()
         if target is _subprocess_main and not use_exec:
             _import_task_runner_before_fork()
         proc: Self = super().start(
@@ -1744,7 +1745,6 @@ class ActivitySubprocess(WatchedSubprocess):
             # tell us "no, stop!" for any reason)
             ti_context = self.client.task_instances.start(ti.id, self.pid, datetime.now(tz=UTC))
             self._should_retry = ti_context.should_retry
-            self._execution_timeout_seconds = ti_context.execution_timeout
             self._last_successful_heartbeat = time.monotonic()
         except Exception as e:
             # On any error kill that subprocess!
@@ -1885,6 +1885,7 @@ class ActivitySubprocess(WatchedSubprocess):
                     outlet_events=msg.outlet_events,
                     rendered_map_index=self._rendered_map_index,
                     loop_decision=msg.loop_decision,
+                    external_clear_target=msg.external_clear_target,
                 )
             elif isinstance(msg, RetryTask):
                 self.client.task_instances.retry(
@@ -2020,10 +2021,10 @@ class ActivitySubprocess(WatchedSubprocess):
         can still run Python signal handlers; one that has not reported a terminal state within the grace
         period is stuck (native code, SIGSEGV) and is sent SIGTERM, then SIGKILL.
 
-        For a Python task, ``StartExecutionTimeout`` arms the deadline right before ``execute()``, so bundle
-        loading and Dag parsing are not covered; Dag parsing has its own ``dagbag_import_timeout``. For a
-        task a language SDK runs, it is armed once the runtime has been sent ``StartupDetails``. Either
-        way, the process is sent SIGTERM ``killed_task_cleanup_time`` after the timeout elapses.
+        ``SetExecutionTimeout`` arms the deadline right before ``execute()`` with the timeout the task
+        process enforces itself, so both use the same value; bundle loading and Dag parsing are not covered,
+        as Dag parsing has its own ``dagbag_import_timeout``. The process is sent SIGTERM
+        ``killed_task_cleanup_time`` after the timeout elapses.
         """
         if self._execution_timeout_due_in() > 0:
             return
@@ -2167,17 +2168,20 @@ class ActivitySubprocess(WatchedSubprocess):
         self.client.task_instances.skip_downstream_tasks(self.id, msg)
         return None, {}
 
-    def _handle_start_execution_timeout(
-        self, msg: StartExecutionTimeout, log: FilteringBoundLogger, req_id: int
+    def _handle_set_execution_timeout(
+        self, msg: SetExecutionTimeout, log: FilteringBoundLogger, req_id: int
     ) -> RequestResult:
+        self._execution_timeout_seconds = msg.timeout_seconds
         self._arm_execution_timeout()
         return None, {}
 
     def _arm_execution_timeout(self) -> None:
-        if self._execution_timeout_seconds is None:
+        # Zero means no timeout, as a zero timedelta does for a Python task.
+        if not self._execution_timeout_seconds:
             return
+        # A negative timeout has already elapsed, so the task gets only the grace period.
         self._execution_timeout_enforce_at = (
-            time.monotonic() + self._execution_timeout_seconds + KILLED_TASK_CLEANUP_TIME
+            time.monotonic() + max(self._execution_timeout_seconds, 0.0) + KILLED_TASK_CLEANUP_TIME
         )
 
     def _handle_set_rendered_fields(
@@ -2429,6 +2433,7 @@ class ActivitySubprocess(WatchedSubprocess):
             GetConnection,
             GetDRCount,
             GetDagRunState,
+            GetHITLDetailResponse,
             GetPrevSuccessfulDagRun,
             GetPreviousDagRun,
             GetPreviousTI,
@@ -2478,7 +2483,7 @@ class ActivitySubprocess(WatchedSubprocess):
                 register_request_method(SetRenderedMapIndex, _handle_set_rendered_map_index),
                 register_request_method(SetTaskStateStore, _handle_set_task_state_store),
                 register_request_method(SkipDownstreamTasks, _handle_skip_downstream_tasks),
-                register_request_method(StartExecutionTimeout, _handle_start_execution_timeout),
+                register_request_method(SetExecutionTimeout, _handle_set_execution_timeout),
                 register_request_method(SucceedTask, _handle_finished_task),
                 register_request_method(TaskState, _handle_task_state),
                 register_request_method(TriggerDagRun, _handle_trigger_dag_run),
@@ -2522,26 +2527,44 @@ def in_process_api_server():
     return api
 
 
+_IN_PROCESS_RESPONSE_SINK: ContextVar[deque[BaseModel | None] | None] = ContextVar(
+    "in_process_response_sink", default=None
+)
+"""Where :meth:`InProcessTestSupervisor.send_msg` must deliver the response it is about to send.
+
+Only :meth:`InProcessSupervisorComms.send` sets it, and it gets a fresh sink per call, so a response
+can never reach a caller other than the one that is waiting for it. When no sink is set, the request
+came over the socket from a child process (read by the thread started in
+``_setup_subprocess_socket``) and is answered on the socket instead.
+
+Whether a sink is set depends on the call, not the thread, so the sink must not be replaced with a
+thread-identity check: handling a child's ``GetVariable``/``GetConnection`` on the socket thread calls
+``mask_secret``, which re-enters :meth:`InProcessSupervisorComms.send` on that same thread. The nested
+``MaskSecret`` response lands in the nested sink, which is reset before the outer response is written
+to the socket.
+"""
+
+
 @attrs.define(kw_only=True)
 class InProcessSupervisorComms:
-    """In-process communication handler that uses deques instead of sockets."""
+    """In-process communication handler that returns each response directly to its caller."""
 
     log: FilteringBoundLogger = attrs.field(repr=False, factory=structlog.get_logger)
     supervisor: InProcessTestSupervisor
-    messages: deque[BaseModel | None] = attrs.field(factory=deque)
 
-    def _get_response(self) -> BaseModel | None:
-        """Get a message from the supervisor. Blocks until a message is available."""
-        return self.messages.popleft()
-
-    def send(self, msg: BaseModel):
-        """Send a request to the supervisor."""
+    def send(self, msg: BaseModel) -> BaseModel | None:
+        """Send a request to the supervisor and return its response."""
         self.log.debug("Sending request", msg=msg)
 
-        with set_supervisor_comms(None):
-            self.supervisor._handle_request(msg, log, 0)  # type: ignore[arg-type]
+        responses: deque[BaseModel | None] = deque()
+        token = _IN_PROCESS_RESPONSE_SINK.set(responses)
+        try:
+            with set_supervisor_comms(None):
+                self.supervisor._handle_request(msg, log, 0)  # type: ignore[arg-type]
+        finally:
+            _IN_PROCESS_RESPONSE_SINK.reset(token)
 
-        return self._get_response()
+        return responses.popleft() if responses else None
 
 
 @attrs.define
@@ -2716,8 +2739,15 @@ class InProcessTestSupervisor(ActivitySubprocess):
     def send_msg(
         self, msg: BaseModel | None, request_id: int, error: ErrorResponse | None = None, **dump_opts
     ):
-        """Override to use in-process comms."""
-        self.comms.messages.append(msg)
+        """Deliver the response in-process, or over the socket when the request came from there."""
+        sink = _IN_PROCESS_RESPONSE_SINK.get()
+        if sink is None:
+            # A real child process (a virtualenv operator's, say) sent this request over the socket
+            # set up by `_setup_subprocess_socket`. It is blocked reading a response frame, so
+            # anything queued in-process would never reach it.
+            super().send_msg(msg, request_id, error=error, **dump_opts)
+            return
+        sink.append(msg)
 
     @classmethod
     def run_trigger_in_process(cls, *, trigger, ti):
@@ -3135,6 +3165,7 @@ def supervise_task(
     _make_process_nondumpable()
 
     from airflow.sdk._shared.secrets_masker import reset_secrets_masker
+    from airflow.sdk.definitions._internal.abstractoperator import DEFAULT_QUEUE
 
     if not client:
         if dry_run and server:
@@ -3172,7 +3203,7 @@ def supervise_task(
         raise ValueError("dag_path is required")
 
     try:
-        coordinator = get_coordinator_manager().for_queue(ti.queue or "default")
+        coordinator = get_coordinator_manager().for_queue(ti.queue or DEFAULT_QUEUE)
     except:
         log.exception(
             "Failed to initialize coordinator for task",

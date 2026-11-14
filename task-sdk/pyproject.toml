@@ -47,7 +47,7 @@ classifiers = [
     "Topic :: System :: Monitoring",
 ]
 dependencies = [
-    "apache-airflow-core<3.5.0,>=3.4.0",
+    "apache-airflow-core<3.6.0,>=3.5.0",
     "asgiref>=2.3.0; python_version < '3.14'",
     "asgiref>=3.11.1; python_version >= '3.14'",
     "attrs>=24.2.0, !=25.2.0",
@@ -119,17 +119,17 @@ Homepage = "https://airflow.apache.org/"
 "Slack Chat" = "https://s.apache.org/airflow-slack"
 "Source Code" = "https://github.com/apache/airflow"
 Mastodon = "https://fosstodon.org/@airflow"
-Bluesky = "https://bsky.app/profile/apache-airflow.bsky.social"
+Bluesky = "https://bsky.app/profile/airflow.apache.org"
 YouTube = "https://www.youtube.com/channel/UCSXwxpWZQ7XZ1WL3wqevChA/"
 
 
 [build-system]
 requires = [
-    "hatchling==1.32.4",
+    "hatchling==1.33.0",
     "packaging==26.3",
     "pathspec==1.1.1",
-    "pluggy==1.6.0",
-    "tomlkit==0.15.1",
+    "pluggy==1.7.0",
+    "tomlkit==0.15.2",
     "trove-classifiers==2026.9.21.13",
 ]
 build-backend = "hatchling.build"
@@ -261,6 +261,7 @@ input-file-type='openapi'
 output-model-type='pydantic_v2.BaseModel'
 output-datetime-class='AwareDatetime'
 target-python-version='3.11'
+set-default-enum-member=true
 use-annotated=true
 use-default=true
 use-double-quotes=true

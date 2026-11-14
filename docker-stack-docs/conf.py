@@ -135,10 +135,19 @@ html_favicon = AIRFLOW_FAVICON_PATH.as_posix()
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
-html_static_path = [SPHINX_DESIGN_STATIC_PATH.as_posix()]
+html_static_path = [SPHINX_DESIGN_STATIC_PATH.as_posix(), "_static"]
+
+# Redirects links to sections that moved to other pages or were renamed
+html_js_files = ["anchor-redirects.js"]
 
 # Substitute in links
-manual_substitutions_in_generated_html = ["build.html", "index.html"]
+manual_substitutions_in_generated_html = [
+    "build.html",
+    "build-customizing.html",
+    "index.html",
+    "security-scan-results.html",
+    "why-build-your-own-image.html",
+]
 
 html_css_files = ["custom.css"]
 

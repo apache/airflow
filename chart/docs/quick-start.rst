@@ -227,5 +227,5 @@ Example below adds ``lxml`` PyPI package.
 Further extending and customizing the image
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-See `Building the image <https://airflow.apache.org/docs/docker-stack/build.html>`_ for more
+See `Building your image <https://airflow.apache.org/docs/docker-stack/build.html>`_ for more
 details on how you can extend and customize the Airflow image.

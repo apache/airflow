@@ -80,6 +80,8 @@ from airflowctl.api.datamodels.generated import (
     DAGWarningCollectionResponse,
     DAGWarningResponse,
     DagWarningType,
+    DryRunBackfillCollectionResponse,
+    DryRunBackfillResponse,
     ImportErrorCollectionResponse,
     ImportErrorResponse,
     JobCollectionResponse,
@@ -99,13 +101,16 @@ from airflowctl.api.datamodels.generated import (
     QueuedEventCollectionResponse,
     QueuedEventResponse,
     ReprocessBehavior,
+    TaskCollectionResponse,
     TaskDependencyCollectionResponse,
     TaskDependencyResponse,
     TaskInletAssetReference,
     TaskInstanceCollectionResponse,
     TaskInstanceResponse,
+    TaskInstancesLogResponse,
     TaskInstanceState,
     TaskOutletAssetReference,
+    TaskResponse,
     TaskStateStoreCollectionResponse,
     TaskStateStoreResponse,
     TriggerDAGRunPostBody,
@@ -158,6 +163,24 @@ class TestBaseOperations:
             "order_by": "-id",
         }
 
+    @pytest.mark.parametrize(
+        ("operations", "args", "expected_path"),
+        [
+            ("variables", ("a#b",), "/api/v2/variables/a%23b"),
+            ("variables", ("..",), "/api/v2/variables/%2E%2E"),
+            ("connections", ("a?b",), "/api/v2/connections/a%3Fb"),
+            ("pools", ("../variables/key",), "/api/v2/pools/..%2Fvariables%2Fkey"),
+            ("dag_runs", ("dag_id", "run#1"), "/api/v2/dags/dag_id/dagRuns/run%231"),
+        ],
+    )
+    def test_delete_encodes_path_params(self, operations, args, expected_path):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.raw_path.decode() == expected_path
+            return httpx.Response(204)
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        getattr(client, operations).delete(*args)
+
     def test_server_connection_refused(self):
         # A real connect to localhost depends on the machine: a local web server answers, and WSL2
         # mirrored networking turns a closed loopback port into a timeout instead of a refusal.
@@ -167,6 +190,16 @@ class TestBaseOperations:
         client = make_api_client(transport=httpx.MockTransport(handle_request))
         with pytest.raises(
             AirflowCtlConnectionException, match="Connection refused. Is the API server running?"
+        ):
+            client.connections.get("1")
+
+    def test_server_connection_timed_out(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            raise httpx.ConnectTimeout("Connection timed out", request=request)
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        with pytest.raises(
+            AirflowCtlConnectionException, match="Connection timed out. Is the API server running?"
         ):
             client.connections.get("1")
 
@@ -273,6 +306,48 @@ class TestBaseOperations:
         # Verify limit is sent on both the first and second request
         for call in mock_client.get.call_args_list:
             assert call.kwargs["params"]["limit"] == 2
+
+    def test_execute_list_advances_by_entries_received_when_server_caps_limit(self):
+        """A server with a lower ``api.maximum_page_limit`` returns fewer entries than requested;
+        paging must continue from what was received or the entries in between are skipped."""
+        mock_client = Mock(spec=Client)
+        mock_client.get.side_effect = [
+            Mock(content=json.dumps({"hellos": [{"name": "a"}, {"name": "b"}], "total_entries": 5})),
+            Mock(content=json.dumps({"hellos": [{"name": "c"}, {"name": "d"}], "total_entries": 5})),
+            Mock(content=json.dumps({"hellos": [{"name": "e"}], "total_entries": 5})),
+        ]
+        base_operation = BaseOperations(client=mock_client)
+
+        response = base_operation.execute_list(path="hello", data_model=HelloCollectionResponse, limit=50)
+
+        assert [hello.name for hello in response.hellos] == ["a", "b", "c", "d", "e"]
+        assert [call.kwargs["params"]["offset"] for call in mock_client.get.call_args_list] == [0, 2, 4]
+
+    def test_execute_list_stops_when_server_returns_an_empty_page(self):
+        mock_client = Mock()
+        mock_client.get.side_effect = [
+            Mock(content=json.dumps({"hellos": [{"name": "a"}], "total_entries": 3})),
+            Mock(content=json.dumps({"hellos": [], "total_entries": 3})),
+        ]
+        base_operation = BaseOperations(client=mock_client)
+
+        response = base_operation.execute_list(path="hello", data_model=HelloCollectionResponse, limit=50)
+
+        assert [hello.name for hello in response.hellos] == ["a"]
+        assert mock_client.get.call_count == 2
+
+    def test_execute_list_returns_first_page_when_response_has_no_entries_list(self):
+        class _CountOnlyResponse(BaseModel):
+            total_entries: int
+
+        mock_client = Mock()
+        mock_client.get.return_value = Mock(content=json.dumps({"total_entries": 5}))
+        base_operation = BaseOperations(client=mock_client)
+
+        response = base_operation.execute_list(path="hello", data_model=_CountOnlyResponse, limit=2)
+
+        assert response == _CountOnlyResponse(total_entries=5)
+        assert mock_client.get.call_count == 1
 
     def test_execute_list_sends_offset_to_server(self):
         """``offset`` must reach the server on the first request, not only on subsequent pages."""
@@ -699,15 +774,29 @@ class TestBackfillOperations:
         backfills=[backfill_response],
         total_entries=1,
     )
+    dry_run_response = DryRunBackfillCollectionResponse(
+        backfills=[
+            DryRunBackfillResponse(
+                logical_date=datetime.datetime(2025, 1, 1, 0, 0, 0),
+                partition_key=None,
+                partition_date=None,
+            )
+        ],
+        total_entries=1,
+    )
 
     @pytest.mark.parametrize(
-        ("operation", "path"), [("create", "backfills"), ("create_dry_run", "backfills/dry_run")]
+        ("operation", "path", "server_response"),
+        [
+            ("create", "backfills", backfill_response),
+            ("create_dry_run", "backfills/dry_run", dry_run_response),
+        ],
     )
     @pytest.mark.parametrize(
         ("request_fields", "expected_fields"),
         [({}, {}), ({"drain_dag": False}, {}), ({"drain_dag": True}, {"drain_dag": True})],
     )
-    def test_create(self, operation, path, request_fields, expected_fields):
+    def test_create(self, operation, path, server_response, request_fields, expected_fields):
         expected_body = {
             "dag_id": "dag_id",
             "from_date": "2024-12-31T23:59:59",
@@ -722,13 +811,13 @@ class TestBackfillOperations:
             assert request.url.path == f"/api/v2/{path}"
             assert request.headers.get("content-type", "").startswith("application/json")
             assert json.loads(request.content.decode()) == expected_body
-            return httpx.Response(200, json=json.loads(self.backfill_response.model_dump_json()))
+            return httpx.Response(200, json=json.loads(server_response.model_dump_json()))
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
         response = getattr(client.backfills, operation)(
             backfill=self.backfill_body.model_copy(update=request_fields)
         )
-        assert response == self.backfill_response
+        assert response == server_response
 
     def test_get(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
@@ -1468,6 +1557,15 @@ class TestDagOperations:
         response = client.dags.update(dag_id="dag_id", dag_body=self.dag_patch_body)
         assert response == self.dag_response
 
+    def test_update_omits_none_fields_from_request_body(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert json.loads(request.content.decode()) == {"is_paused": True}
+            return httpx.Response(200, json=json.loads(self.dag_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.dags.update(dag_id="dag_id", dag_body=self.dag_patch_body)
+        assert response == self.dag_response
+
     def test_delete(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
             assert request.url.path == "/api/v2/dags/dag_id"
@@ -1629,13 +1727,17 @@ class TestDagRunOperations:
     def test_list(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
             assert request.url.path == f"/api/v2/dags/{self.dag_id}/dagRuns"
+            assert {key: value for key, value in request.url.params.items() if "date" in key} == {
+                "start_date_gte": "2025-01-01T00:00:00",
+                "end_date_lte": "2025-01-02T00:00:00",
+            }
             return httpx.Response(200, json=json.loads(self.dag_run_collection_response.model_dump_json()))
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
         response = client.dag_runs.list(
             dag_id=self.dag_id,
             start_date=datetime.datetime(2025, 1, 1, 0, 0, 0),
-            end_date=datetime.datetime(2025, 1, 1, 0, 0, 0),
+            end_date=datetime.datetime(2025, 1, 2, 0, 0, 0),
             state=DagRunState.RUNNING,
             limit=1,
         )
@@ -2411,6 +2513,27 @@ class TestTaskInstancesOperations:
         )
         assert response == self.task_dependency_collection_response
 
+    @pytest.mark.parametrize(
+        ("map_index", "expected_params"),
+        [
+            pytest.param(None, {"full_content": "true"}, id="unmapped"),
+            pytest.param(2, {"full_content": "true", "map_index": "2"}, id="mapped"),
+        ],
+    )
+    def test_logs_requests_full_content(self, map_index, expected_params):
+        log_response = TaskInstancesLogResponse(content=["line"], continuation_token=None)
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == "/api/v2/dags/dag_id/dagRuns/dag_run_id/taskInstances/task_id/logs/1"
+            assert dict(request.url.params) == expected_params
+            return httpx.Response(200, json=json.loads(log_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.task_instances.logs(
+            dag_id="dag_id", dag_run_id="dag_run_id", task_id="task_id", try_number=1, map_index=map_index
+        )
+        assert response == log_response
+
     def test_get_dependencies_with_map_index(self):
         client = self._make_client_asserting_path(
             "/api/v2/dags/dag_id/dagRuns/dag_run_id/taskInstances/task_id/3/dependencies",
@@ -2611,6 +2734,82 @@ class TestTasksOperations:
         task_instances=[task_instance_response],
         total_entries=1,
     )
+    task_response = TaskResponse(
+        task_id="task_1",
+        task_display_name="task_1",
+        owner="airflow",
+        start_date=None,
+        end_date=None,
+        trigger_rule="all_success",
+        depends_on_past=False,
+        wait_for_downstream=False,
+        retries=0,
+        queue=None,
+        pool=None,
+        pool_slots=None,
+        execution_timeout=None,
+        retry_delay=None,
+        retry_exponential_backoff=1.0,
+        priority_weight=None,
+        weight_rule=None,
+        ui_color=None,
+        ui_fgcolor=None,
+        template_fields=None,
+        downstream_task_ids=None,
+        doc_md=None,
+        operator_name="BashOperator",
+        params=None,
+        class_ref=None,
+        is_mapped=False,
+        extra_links=[],
+    )
+    task_collection_response = TaskCollectionResponse(
+        tasks=[task_response],
+        total_entries=1,
+    )
+
+    @pytest.mark.parametrize("version_number", [None, 2])
+    def test_get(self, version_number):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == f"/api/v2/dags/{self.dag_id}/tasks/task_1"
+            if version_number is None:
+                assert "version_number" not in request.url.params
+            else:
+                assert request.url.params["version_number"] == str(version_number)
+            return httpx.Response(200, json=json.loads(self.task_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.tasks.get(self.dag_id, "task_1", version_number=version_number)
+        assert response == self.task_response
+
+    @pytest.mark.parametrize("order_by", [None, "-task_id"])
+    def test_list(self, order_by):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == f"/api/v2/dags/{self.dag_id}/tasks"
+            if order_by is None:
+                assert "order_by" not in request.url.params
+            else:
+                assert request.url.params["order_by"] == order_by
+            return httpx.Response(200, json=json.loads(self.task_collection_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.tasks.list(self.dag_id, order_by=order_by)
+        assert response == self.task_collection_response
+
+    @pytest.mark.parametrize(
+        ("method", "args", "expected_path", "response"),
+        [
+            ("get", ("a#b", ".."), "/api/v2/dags/a%23b/tasks/%2E%2E", "task_response"),
+            ("list", ("a#b",), "/api/v2/dags/a%23b/tasks", "task_collection_response"),
+        ],
+    )
+    def test_encodes_path_params(self, method, args, expected_path, response):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.raw_path.decode().split("?")[0] == expected_path
+            return httpx.Response(200, json=json.loads(getattr(self, response).model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        assert getattr(client.tasks, method)(*args) == getattr(self, response)
 
     def test_clear(self):
         expected_body = self.clear_task_instances.model_dump(mode="json", exclude_defaults=True)

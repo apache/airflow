@@ -41,6 +41,8 @@ __all__ = [
     "BaseSensorOperator",
     "BaseXCom",
     "BranchMixIn",
+    "CallbackMeta",
+    "CallbackSource",
     "ChainMapper",
     "ChainRetryPolicy",
     "Connection",
@@ -58,6 +60,7 @@ __all__ = [
     "EdgeModifier",
     "EventsTimetable",
     "ExceptionRetryPolicy",
+    "ExternalClearTarget",
     "FanOutMapper",
     "FixedKeyMapper",
     "HourWindow",
@@ -120,10 +123,11 @@ __all__ = [
     "setup",
     "task",
     "task_group",
+    "task_handler",
     "teardown",
 ]
 
-__version__ = "1.4.0"
+__version__ = "1.5.0"
 
 if TYPE_CHECKING:
     from airflow.sdk import lineage
@@ -156,7 +160,13 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.asset.metadata import Metadata
     from airflow.sdk.definitions.callback import AsyncCallback, SyncCallback
     from airflow.sdk.definitions.connection import Connection
-    from airflow.sdk.definitions.context import Context, get_current_context, get_parsing_context
+    from airflow.sdk.definitions.context import (
+        CallbackMeta as CallbackMeta,
+        CallbackSource as CallbackSource,
+        Context,
+        get_current_context,
+        get_parsing_context,
+    )
     from airflow.sdk.definitions.dag import DAG, dag
     from airflow.sdk.definitions.deadline import (
         BaseDeadlineReference,
@@ -167,6 +177,7 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.decorators import result, setup, task, teardown
     from airflow.sdk.definitions.decorators.task_group import task_group
     from airflow.sdk.definitions.edges import EdgeModifier, Label
+    from airflow.sdk.definitions.external_clear import ExternalClearTarget
     from airflow.sdk.definitions.loop import LoopDecision
     from airflow.sdk.definitions.param import Param, ParamsDict
     from airflow.sdk.definitions.partition_mappers.allowed_key import AllowedKeyMapper
@@ -209,6 +220,7 @@ if TYPE_CHECKING:
         RetryPolicy,
         RetryRule,
     )
+    from airflow.sdk.definitions.task_handlers.registry import task_handler
     from airflow.sdk.definitions.taskgroup import TaskGroup
     from airflow.sdk.definitions.template import literal
     from airflow.sdk.definitions.timetables.assets import (
@@ -262,6 +274,8 @@ __lazy_imports: dict[str, tuple[str, str]] = {
     "BaseSensorOperator": (".bases.sensor", "BaseSensorOperator"),
     "BaseXCom": (".bases.xcom", "BaseXCom"),
     "BranchMixIn": (".bases.branch", "BranchMixIn"),
+    "CallbackMeta": (".definitions.context", "CallbackMeta"),
+    "CallbackSource": (".definitions.context", "CallbackSource"),
     "ChainMapper": (".definitions.partition_mappers.chain", "ChainMapper"),
     "ChainRetryPolicy": (".definitions.retry_policy", "ChainRetryPolicy"),
     "Connection": (".definitions.connection", "Connection"),
@@ -279,6 +293,7 @@ __lazy_imports: dict[str, tuple[str, str]] = {
     "EdgeModifier": (".definitions.edges", "EdgeModifier"),
     "EventsTimetable": (".definitions.timetables.events", "EventsTimetable"),
     "ExceptionRetryPolicy": (".definitions.retry_policy", "ExceptionRetryPolicy"),
+    "ExternalClearTarget": (".definitions.external_clear", "ExternalClearTarget"),
     "FanOutMapper": (".definitions.partition_mappers.temporal", "FanOutMapper"),
     "FixedKeyMapper": (".definitions.partition_mappers.fixed_key", "FixedKeyMapper"),
     "HourWindow": (".definitions.partition_mappers.window", "HourWindow"),
@@ -342,6 +357,7 @@ __lazy_imports: dict[str, tuple[str, str]] = {
     "setup": (".definitions.decorators", "setup"),
     "task": (".definitions.decorators", "task"),
     "task_group": (".definitions.decorators", "task_group"),
+    "task_handler": (".definitions.task_handlers.registry", "task_handler"),
     "teardown": (".definitions.decorators", "teardown"),
 }
 

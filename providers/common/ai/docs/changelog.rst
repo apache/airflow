@@ -25,6 +25,61 @@
 Changelog
 ---------
 
+.. note::
+  ``@task.llm``, ``@task.agent``, ``@task.llm_sql``, ``@task.llm_branch``,
+  ``@task.llm_file_analysis`` and ``@task.llm_schema_compare`` now render only the prompt returned
+  by the decorated function inside ``execute()``. Their other template fields (``system_prompt``,
+  ``op_args``, ``op_kwargs``, ...) are rendered once before ``execute()`` and are no longer
+  rendered a second time. The returned prompt is still rendered as a Jinja template, and every
+  argument the task is called with, positional ones included, can be referenced in it by name;
+  see the ``@task.llm`` documentation for how to include text from function arguments in it.
+
+.. note::
+  ``run_durably()`` and ``run_durably_sync()`` for the OpenAI Agents SDK no longer return a run
+  that stopped for a tool call that needs approval (``needs_approval``, or ``require_approval`` on
+  an MCP server). On Airflow 3.4+ with a standard provider that has ``request_input()``, a
+  ``@task`` or ``PythonOperator`` pauses in Required Actions and the run resumes with the
+  reviewer's answer; otherwise the task fails with ``UnsupportedToolDeferralError``. Earlier
+  versions returned the stopped run with its ``result.interruptions``. Code that approved them
+  with ``result.to_state()`` and ``state.approve()`` after ``run_durably_sync()`` should call
+  ``Runner.run`` and handle ``result.interruptions`` itself.
+
+.. note::
+  **Significant change: output serialization of the LLM operators**
+
+  ``LLMOperator``, ``@task.llm`` and ``LLMFileAnalysisOperator`` now push a model as a
+  JSON-compatible dict, where 1.1.0 pushed it as a model instance, in these cases:
+
+  * On Airflow 3.3 and later, the model is itself the output, ``serialize_output`` is not set,
+    and ``output_type`` is one the worker cannot register a class for (a list of output types
+    such as ``[Summary, int]``, an output marker, an output function, a ``TypeAliasType`` or a
+    ``NewType``).
+  * On Airflow 3.3 and later, the model is inside a list, tuple, set or dict in the output and
+    the worker cannot register its class, whether or not ``serialize_output`` is set.
+  * On Airflow < 3.3, the model is inside a list, tuple, set or dict in the output, whatever the
+    ``output_type`` (for example ``list[MyModel]``).
+
+  When a model inside a list, tuple, set or dict is dumped, the whole output is dumped with
+  it, so a tuple in the output arrives as a list and a ``date`` next to the model arrives as a
+  string. A downstream task indexes the dict (``result["field"]``) instead of using attribute
+  access. As in 1.1.0, a model that is itself the output is dumped with ``model_dump()`` when
+  ``serialize_output=True`` is set or on Airflow < 3.3.
+
+  ``AgentOperator`` and ``@task.agent`` already pushed these models as dicts in 1.1.0.
+  Compared with 1.1.0, when they dump to JSON values, a model that sets
+  ``serialize_by_alias=True`` now arrives with its field names (``full_name``, not
+  ``fullName``), a tuple in the output arrives as a list, and a ``date`` next to the model
+  arrives as a string. A model inside a set is now dumped too, and the set arrives as a list.
+  A model that is itself the output and is dumped with ``model_dump()`` keeps its aliases, as
+  in 1.1.0. See :ref:`When a model arrives as a dict <structured-output-dict-shape>`.
+
+.. note::
+  **Signature change: MCP ``tool_prefix``**
+
+  The ``tool_prefix`` parameter of ``MCPHook`` and ``MCPToolset`` now defaults to ``""`` and is
+  typed ``str``; in 1.1.0 it defaulted to ``None`` and was typed ``str | None``. This changes
+  only the signature and the annotated type, not the behaviour.
+
 1.1.0
 .....
 
@@ -111,6 +166,7 @@ Features
 Bug Fixes
 ~~~~~~~~~
 
+* ``Fix durable streaming with pydantic-ai 2.60+ and egress-policy errors with OpenSandbox 1.2 (#75270)``
 * ``Report invalid Common AI hook configuration instead of silently changing authentication (#74451)``
 * ``Load Common AI plugin tabs when the browser reaches Airflow on another origin (#75522)``
 * ``Fix Common AI's AI Model tab for tasks inside a task loop (#75518)``
@@ -135,6 +191,7 @@ Doc-only
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare deferred providers RC2 for 2026-10-29 (#75947)``
    * ``Fix flaky OpenShell background-child wrapper test (#75823)``
    * ``Prepare providers release 2026-10-20 (#75209)``
    * ``Number task loop iterations from one instead of zero (#74773)``

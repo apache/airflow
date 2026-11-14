@@ -30,7 +30,6 @@ from __future__ import annotations
 import contextlib
 import ipaddress
 import itertools
-import json
 import logging
 import os
 import selectors
@@ -41,26 +40,69 @@ import subprocess
 import time
 from datetime import UTC, datetime
 from pathlib import PurePosixPath
-from typing import TYPE_CHECKING, NoReturn, TypeVar, cast
+from typing import TYPE_CHECKING, Any, ClassVar, NoReturn, TypeVar, cast
 
 import attrs
 import psutil
 import structlog
 
-from airflow.dag_processing.bundles.base import BundleVersionLock, unpack_bundle_version  # noqa: SDK002
+from airflow.dag_processing.bundles.base import BundleVersionLock  # noqa: SDK002
 from airflow.sdk._shared.module_loading import import_string
+from airflow.sdk.api.client import ServerResponseError
 from airflow.sdk.api.datamodels._generated import BundleInfo, TaskInstanceState
+from airflow.sdk.bases.xcom import (
+    XComCoordinate,
+    build_loop_error,
+    build_own_coordinate,
+    is_legacy_xcom_backend,
+    is_own_xcom,
+    is_stored_through_backend,
+)
 from airflow.sdk.configuration import conf
 from airflow.sdk.coordinators._dag_importer import find_claiming_importer
-from airflow.sdk.execution_time.bundles import initialize_ti_bundle
-from airflow.sdk.execution_time.comms import RetryTask, TaskState
+from airflow.sdk.coordinators._xcom_backend import (
+    XComBackendCall,
+    XComBackendError,
+    XComBackendProcess,
+    runs_in_helper,
+    send_unless_exited,
+)
+from airflow.sdk.exceptions import ErrorType
+from airflow.sdk.execution_time.bundles import initialize_pinned_bundle
+from airflow.sdk.execution_time.comms import (
+    DeleteXCom,
+    ErrorResponse,
+    GetXCom,
+    GetXComSequenceItem,
+    GetXComSequenceSlice,
+    RetryTask,
+    SetXCom,
+    TaskState,
+    XComResult,
+    XComSequenceIndexResult,
+    XComSequenceSliceResult,
+)
+from airflow.sdk.execution_time.context import _json_size_exceeds
 from airflow.sdk.execution_time.coordinator import BaseCoordinator, TaskLaunchError
+from airflow.sdk.execution_time.request_handlers import (
+    handle_delete_xcom,
+    handle_get_xcom,
+    handle_get_xcom_sequence_item,
+    handle_get_xcom_sequence_slice,
+    handle_set_xcom,
+)
 from airflow.sdk.execution_time.schema import get_schema_version_migrator
 from airflow.sdk.execution_time.supervisor import (
+    MIN_HEARTBEAT_INTERVAL,
+    SERVER_TERMINATED,
     ActivitySubprocess,
     NeverRaised,
     ProcessTracker,
+    RequestHandler,
+    RequestResult,
+    ResponseSent,
     forward_to_log,
+    register_request_method,
     signal_process_tree,
 )
 
@@ -69,17 +111,33 @@ if TYPE_CHECKING:
     from collections.abc import Callable, Generator, Sequence
     from typing import Self
 
+    from pydantic import BaseModel, JsonValue
     from structlog.typing import FilteringBoundLogger
 
     from airflow.dag_processing.bundles.base import BaseDagBundle  # noqa: SDK002
     from airflow.sdk.api.client import Client
     from airflow.sdk.api.datamodels._generated import TaskInstance, TIRunContext
+    from airflow.sdk.bases.xcom import BaseXCom, _OwnTaskInstance
+    from airflow.sdk.coordinators._xcom_backend import XComBackendResult
     from airflow.sdk.execution_time.comms import SetTaskStateStore
     from airflow.sdk.execution_time.supervisor import RequestResult
 
     Tracked = TypeVar("Tracked", socket.socket, subprocess.Popen)
 
 log: FilteringBoundLogger = structlog.get_logger(logger_name="coordinators.subprocess")
+
+# How long the supervisor waits for an XCom backend call it cannot service from its request loop.
+_XCOM_BACKEND_CALL_TIMEOUT = 60.0
+# The default ``xcom_key`` of ``BaseOperatorLink`` starts with this prefix.
+_EXTRA_LINK_XCOM_KEY_PREFIX = "_link_"
+
+
+class _TaskStoppedError(Exception):
+    """The task was stopped while the supervisor waited for an XCom backend call, which may have failed."""
+
+    def __init__(self, error: str | None) -> None:
+        super().__init__(error)
+        self.error = error
 
 
 # The tail of each stream is kept: a runtime that fails to start reports why at the end.
@@ -546,43 +604,71 @@ class _PopenActivitySubprocess(ActivitySubprocess):
             bundle_info=bundle_info,
             sentry_integration=sentry_integration,
         )
-        # Language runtimes do not send StartExecutionTimeout, so the clock starts once they have the task.
+        # A language runtime may not send SetExecutionTimeout, so the clock starts once it has the task.
+        # If the runtime sends it, the clock restarts from that message.
         self._arm_execution_timeout()
+
+    _xcom_backend: XComBackendProcess | None = attrs.field(default=None, init=False)
 
     def _prepare_ti_context(self, ti: TaskInstance, ti_context: TIRunContext) -> TIRunContext | None:
         """
         Delete the XComs in ``ti_context.xcom_keys_to_clear`` so the launched runtime does not have to.
 
-        Unlike ``XCom.delete``, this method does not purge the XCom backend, for two reasons. XComs that a
-        runtime pushes go straight to the API server and never pass through the backend. Also, a purge may
-        need a connection that a hook running in the supervisor process cannot look up, such as a
-        connection that exists only in Airflow's metadata database. So if Python code stored an XCom for
-        this task instance through the backend, deleting that XCom here leaves the stored object in the
-        backend's storage.
-
-        If an XCom cannot be deleted, this try fails and the task does not run.
+        Like ``XCom.delete``, this reads, deletes, then purges each XCom. A failure fails this try, as it
+        does for a Python task.
         """
+        self._execution_timeout_seconds = ti_context.execution_timeout
         for key in ti_context.xcom_keys_to_clear or ():
             self.process_log.debug("Clearing XCom with key", key=key)
             try:
-                self.client.xcoms.delete(ti.dag_id, ti.run_id, ti.task_id, key, ti.map_index)
+                _, purge = self._delete_xcom(
+                    DeleteXCom(
+                        key=key,
+                        dag_id=ti.dag_id,
+                        run_id=ti.run_id,
+                        task_id=ti.task_id,
+                        map_index=ti.map_index,
+                    )
+                )
+                if purge is not None:
+                    self._run_xcom_backend_call(purge)
+            except _TaskStoppedError as e:
+                if self._terminal_state == SERVER_TERMINATED:
+                    # wait() reports that the server stopped this try.
+                    self.process_log.warning(
+                        "Stopped clearing XComs; the server stopped the task", key=key, error=e.error
+                    )
+                    self.kill(signal.SIGKILL)
+                    return None
+                self.process_log.error(
+                    "Stopped clearing XComs; the task process has exited",
+                    key=key,
+                    exit_code=self._exit_code,
+                    error=e.error,
+                )
+                self._fail_before_start(
+                    ti_context, f"The task process exited with code {self._exit_code} before the task started"
+                )
+                return None
             except Exception as e:
                 self.process_log.exception("Failed to clear XCom; not running the task", key=key)
-                end_date = datetime.now(tz=UTC)
-                reason = f"Failed to clear XCom {key!r}: {e}"
-                # wait() sends this outcome to the server after the runtime process exits, the same
-                # way it sends an outcome that the runtime itself reported.
-                self._pending_terminal_state_msg = (
-                    RetryTask(end_date=end_date, retry_reason=reason)
-                    if ti_context.should_retry
-                    else TaskState(state=TaskInstanceState.FAILED, end_date=end_date, retry_reason=reason)
-                )
-                self.kill(signal.SIGKILL)
+                self._fail_before_start(ti_context, f"Failed to clear XCom {key!r}: {e}")
                 return None
         # The supervisor has already deleted the listed XComs, so it sends the runtime an empty list.
         # If a runtime also deletes these XComs itself, the empty list keeps the runtime from deleting
         # them a second time.
         return ti_context.model_copy(update={"xcom_keys_to_clear": []})
+
+    def _fail_before_start(self, ti_context: TIRunContext, reason: str) -> None:
+        end_date = datetime.now(tz=UTC)
+        # wait() sends this outcome to the server after the runtime process exits, the same
+        # way it sends an outcome that the runtime itself reported.
+        self._pending_terminal_state_msg = (
+            RetryTask(end_date=end_date, retry_reason=reason)
+            if ti_context.should_retry
+            else TaskState(state=TaskInstanceState.FAILED, end_date=end_date, retry_reason=reason)
+        )
+        self.kill(signal.SIGKILL)
 
     def wait(self) -> int:
         code = super().wait()
@@ -595,37 +681,238 @@ class _PopenActivitySubprocess(ActivitySubprocess):
         # A Python task warns in its own setter; a language SDK runtime cannot compute the size
         # json.dumps gives, so the supervisor warns for it in the task log.
         if (limit := conf.getint("state_store", "max_value_storage_bytes")) > 0:
-            if (size := len(json.dumps(msg.value))) > limit:
+            if _json_size_exceeds(msg.value, limit):
                 self.process_log.warning(
                     "Task store value exceeds configured max_value_storage_bytes",
                     key=msg.key,
-                    size=size,
                     max_value_storage_bytes=limit,
                 )
         return super()._handle_set_task_state_store(msg, log, req_id)
 
+    def _monitor_subprocess(self):
+        try:
+            super()._monitor_subprocess()
+        finally:
+            self._stop_xcom_backend()
 
-def _initialize_pinned_bundle(target: BundleInfo, logger: FilteringBoundLogger) -> BaseDagBundle:
+    def _start_xcom_backend_call(
+        self, call: XComBackendCall, finish: Callable[[XComBackendResult], None]
+    ) -> None:
+        """Send ``call`` to the XCom backend process, which starts on the first call it handles."""
+        if self._xcom_backend is not None and not self._xcom_backend.can_run_a_call:
+            self._stop_xcom_backend()
+        if self._xcom_backend is None:
+            self._xcom_backend = XComBackendProcess.start(
+                id=self.id,
+                client=self.client,
+                logger=self.process_log,
+                selector=self.selector,
+            )
+        self._xcom_backend.send_call(call, finish)
+
+    def _stop_xcom_backend(self) -> None:
+        """Stop the XCom backend process, so that the next call starts one that can answer it."""
+        if (backend := self._xcom_backend) is not None:
+            self._xcom_backend = None
+            backend.stop()
+
+    def _call_xcom_backend(
+        self,
+        call: XComBackendCall,
+        then: Callable[[XComBackendResult], RequestResult],
+        req_id: int,
+    ) -> ResponseSent:
+        """
+        Answer request ``req_id`` with ``then(result)`` once the XCom backend has run ``call``.
+
+        The request loop keeps servicing the task while the call runs. A call that fails fails the request.
+        """
+
+        def answer(resp: BaseModel | None, error: ErrorResponse | None, **dump_opts: bool) -> None:
+            if not send_unless_exited(self, resp, req_id, error, **dump_opts):
+                self.process_log.warning(
+                    "The runtime exited before its XCom request was answered", request_id=req_id
+                )
+
+        def finish(result: XComBackendResult) -> None:
+            try:
+                if result.error is not None:
+                    raise XComBackendError(result.error)
+                resp, dump_opts = then(result)
+            except Exception as e:
+                self.process_log.exception("Failed to handle the XCom backend result", request_id=req_id)
+                answer(None, _build_request_error(e))
+            else:
+                answer(resp, None, **dump_opts)
+
+        self._start_xcom_backend_call(call, finish)
+        return ResponseSent.ALREADY_SENT
+
+    def _run_xcom_backend_call(self, call: XComBackendCall) -> None:
+        """
+        Run ``call`` and wait for it, for a caller with no request loop to return to.
+
+        :raises _TaskStoppedError: when the task is stopped before the call returns or as it returns.
+        :raises XComBackendError: when the call fails or is not answered in time.
+        """
+        answer: list[XComBackendResult] = []
+        self._start_xcom_backend_call(call, answer.append)
+        deadline = time.monotonic() + _XCOM_BACKEND_CALL_TIMEOUT
+        # The task has not started, so it has no requests to read.
+        while not answer and not self._is_stopped() and (now := time.monotonic()) < deadline:
+            self._service_subprocess(max_wait_time=min(deadline - now, MIN_HEARTBEAT_INTERVAL))
+            self._send_heartbeat_if_needed()
+        error = answer[0].error if answer else "The XCom backend did not answer in time"
+        if not answer:
+            # The process is still running the call.
+            self._stop_xcom_backend()
+        if self._is_stopped():
+            # The task must not start, even after a call that succeeded.
+            raise _TaskStoppedError(error)
+        if error is not None:
+            raise XComBackendError(error)
+
+    def _is_stopped(self) -> bool:
+        # kill() can fail to stop the process, so a server stop counts on its own.
+        return self._exit_code is not None or self._terminal_state == SERVER_TERMINATED
+
+    def _handle_set_xcom(
+        self, msg: SetXCom, log: FilteringBoundLogger, req_id: int
+    ) -> RequestResult | ResponseSent:
+        xcom = _get_xcom_backend()
+        if not (is_stored_through_backend(msg.key) and not _is_extra_link(msg.key) and runs_in_helper(xcom)):
+            return handle_set_xcom(self.client, msg)
+        ti = cast("_OwnTaskInstance", self.ti)
+        if is_own_xcom(ti, msg.dag_id, msg.run_id, msg.task_id, msg.resolved_map_index):
+            coordinate = build_own_coordinate(ti)
+        else:
+            coordinate = XComCoordinate(msg.dag_id, msg.run_id, msg.task_id)
+        # A loop iteration has map index -1. A mapped task in a loop is not caught here, since the
+        # supervisor does not parse the Dag.
+        if coordinate.region_id is not None and msg.resolved_map_index == -1 and is_legacy_xcom_backend(xcom):
+            error = _build_request_error(build_loop_error(xcom, f"Task {msg.task_id!r}"))
+            self.send_msg(None, request_id=req_id, error=error)
+            return ResponseSent.ALREADY_SENT
+        return self._call_xcom_backend(
+            XComBackendCall.store(coordinate, msg.resolved_map_index, msg.key, msg.value),
+            lambda stored: handle_set_xcom(self.client, msg.model_copy(update={"value": stored.value})),
+            req_id,
+        )
+
+    def _handle_get_xcom(
+        self, msg: GetXCom, log: FilteringBoundLogger, req_id: int
+    ) -> RequestResult | ResponseSent:
+        result, dump_opts = handle_get_xcom(self.client, msg)
+        if not (isinstance(result, XComResult) and result.value is not None and _is_loaded_through_backend()):
+            return result, dump_opts
+        return self._call_xcom_backend(
+            XComBackendCall(hook="load", key=msg.key, value=result.value),
+            lambda loaded: (result.model_copy(update={"value": loaded.value}), dump_opts),
+            req_id,
+        )
+
+    def _handle_get_xcom_sequence_item(
+        self, msg: GetXComSequenceItem, log: FilteringBoundLogger, req_id: int
+    ) -> RequestResult | ResponseSent:
+        result, dump_opts = handle_get_xcom_sequence_item(self.client, msg)
+        if not (isinstance(result, XComSequenceIndexResult) and _is_loaded_through_backend()):
+            return result, dump_opts
+        return self._call_xcom_backend(
+            XComBackendCall(hook="load", key=msg.key, value=result.root),
+            lambda loaded: (XComSequenceIndexResult(root=loaded.value), dump_opts),
+            req_id,
+        )
+
+    def _handle_get_xcom_sequence_slice(
+        self, msg: GetXComSequenceSlice, log: FilteringBoundLogger, req_id: int
+    ) -> RequestResult | ResponseSent:
+        result, dump_opts = handle_get_xcom_sequence_slice(self.client, msg)
+        if not (isinstance(result, XComSequenceSliceResult) and result.root and _is_loaded_through_backend()):
+            return result, dump_opts
+        return self._call_xcom_backend(
+            XComBackendCall(hook="load_many", key=msg.key, value=result.root),
+            lambda loaded: (
+                XComSequenceSliceResult(root=cast("list[JsonValue]", loaded.value)),
+                dump_opts,
+            ),
+            req_id,
+        )
+
+    def _handle_delete_xcom(
+        self, msg: DeleteXCom, log: FilteringBoundLogger, req_id: int
+    ) -> RequestResult | ResponseSent:
+        result, purge = self._delete_xcom(msg)
+        if purge is None:
+            return result
+        # A failed purge fails the request, as XCom.delete does.
+        return self._call_xcom_backend(purge, lambda _: result, req_id)
+
+    def _delete_xcom(self, msg: DeleteXCom) -> tuple[RequestResult, XComBackendCall | None]:
+        """
+        Delete an XCom, and return the call that purges it from the XCom backend as ``XCom.delete`` does.
+
+        The read is not guarded, as in ``XCom.delete``, since skipping the purge would silently leave the
+        stored data behind.
+        """
+        if not runs_in_helper(_get_xcom_backend()):
+            return handle_delete_xcom(self.client, msg), None
+        row, _ = handle_get_xcom(
+            self.client,
+            GetXCom(
+                key=msg.key,
+                dag_id=msg.dag_id,
+                run_id=msg.run_id,
+                task_id=msg.task_id,
+                map_index=msg.map_index,
+            ),
+        )
+        result = handle_delete_xcom(self.client, msg)
+        if isinstance(row, XComResult) and row.value is not None:
+            return result, XComBackendCall(hook="purge", key=msg.key, value=row.value)
+        return result, None
+
+    _request_handlers: ClassVar[dict[type[BaseModel], RequestHandler[Any]]] = {
+        **ActivitySubprocess._request_handlers,
+        **dict(
+            [
+                register_request_method(DeleteXCom, _handle_delete_xcom),
+                register_request_method(GetXCom, _handle_get_xcom),
+                register_request_method(GetXComSequenceItem, _handle_get_xcom_sequence_item),
+                register_request_method(GetXComSequenceSlice, _handle_get_xcom_sequence_slice),
+                register_request_method(SetXCom, _handle_set_xcom),
+            ]
+        ),
+    }
+
+
+def _build_request_error(exc: Exception) -> ErrorResponse:
+    """Report ``exc`` to the runtime as an XCom backend failure, unless the API server rejected the request."""
+    if isinstance(exc, ServerResponseError):
+        return ErrorResponse.from_server_error(exc)
+    return ErrorResponse(
+        error=ErrorType.XCOM_BACKEND_ERROR,
+        detail={"status_code": None, "message": str(exc), "exception_type": type(exc).__name__},
+    )
+
+
+def _get_xcom_backend() -> type[BaseXCom]:
+    from airflow.sdk.execution_time import xcom
+
+    return xcom.XCom
+
+
+def _is_loaded_through_backend() -> bool:
+    return runs_in_helper(_get_xcom_backend())
+
+
+def _is_extra_link(key: str) -> bool:
     """
-    Materialize *target* at a concrete version, so the tree handed to the subprocess is lockable.
+    Whether ``key`` holds an operator extra link, which the UI reads from the XCom row as it is.
 
-    A bundle resolved without a version points at the bundle's shared, mutable
-    checkout: another task refreshing the same bundle resets it underneath a running
-    subprocess, and ``BundleVersionLock`` cannot protect it because a version-less
-    lock is a no-op. Re-resolving at the version current now yields a private
-    ``versions/<version>`` tree that the lock does cover.
-
-    Bundles that do not track versions have nothing to pin and keep their single path.
+    A runtime does not say that a key holds a link, so this goes by the default
+    ``BaseOperatorLink.xcom_key``, which is the only key a runtime writes a link under today.
     """
-    bundle = initialize_ti_bundle(target)
-    if bundle.version is not None:
-        return bundle
-
-    version, version_data = unpack_bundle_version(bundle.get_current_version(), bundle)
-    if version is None:
-        return bundle
-    logger.debug("Pinning Dag bundle to its current version", bundle=target.name, version=version)
-    return initialize_ti_bundle(BundleInfo(name=target.name, version=version, version_data=version_data))
+    return key.startswith(_EXTRA_LINK_XCOM_KEY_PREFIX)
 
 
 def _resolve_bundle(bundle_info: BundleInfo, logger: FilteringBoundLogger) -> BaseDagBundle:
@@ -638,7 +925,7 @@ def _resolve_bundle(bundle_info: BundleInfo, logger: FilteringBoundLogger) -> Ba
     """
     cannot_read = f"Dag bundle {bundle_info.name!r} cannot be read"
     try:
-        bundle = _initialize_pinned_bundle(bundle_info, logger)
+        bundle = initialize_pinned_bundle(bundle_info, logger)
     except Exception as e:
         raise TaskLaunchError(f"{cannot_read}: {e}") from e
     try:
