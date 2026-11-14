@@ -27,7 +27,8 @@
 name: "Fork CI monitor"
 on:  # yamllint disable-line rule:truthy
   schedule:
-    - cron: '*/15 * * * *'
+    # MONITOR_INTERVAL in fork_ci_reconcile.py, whose per-run write budgets assume this cadence.
+    - cron: '*/5 * * * *'
   workflow_dispatch:
     inputs:
       dry-run:
@@ -59,7 +60,7 @@ jobs:
     timeout-minutes: 20
     steps:
       # What earlier runs reported, so that a problem that persists is posted to Slack once
-      # rather than every 15 minutes. Losing it, for example to cache eviction, re-posts once.
+      # rather than on every run. Losing it, for example to cache eviction, re-posts once.
       # Restored before anything that can fail, so a failing setup is reported once too, and
       # outside the checkout, where nothing but the steps below reads it.
       - name: "Restore what earlier runs reported"

@@ -30,8 +30,10 @@ from __future__ import annotations
 
 import json
 import re
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime
+from typing import NamedTuple
 
 STATUS_CONTEXT = "Fork CI / Tests (AMD)"
 # Each job of the fork run is reported under this prefix. Job names come from the contributor's
@@ -94,6 +96,8 @@ class Marker:
     behind: int | None = None
     # The completed fork run (``<run id>:<attempt>:<conclusion>``) whose jobs are all reported.
     jobs: str | None = None
+    # The fork run (``<run id>:<attempt>``) whose failed jobs the comment lists.
+    failed_run: str | None = None
     # Set only by a reconciler that ran the gate protection check for this head commit, so a
     # marker written before that check existed, or while it did not apply, never counts as one.
     gate_checked: bool = False
@@ -105,6 +109,8 @@ def render_marker(marker: Marker) -> str:
         data["behind"] = marker.behind
     if marker.jobs is not None:
         data["jobs"] = marker.jobs
+    if marker.failed_run is not None:
+        data["failed_run"] = marker.failed_run
     if marker.gate_checked:
         data["gate_checked"] = True
     return f"{MARKER_PREFIX}{json.dumps(data, sort_keys=True)} -->"
@@ -123,6 +129,7 @@ def parse_marker(body: str) -> Marker | None:
             since=datetime.fromisoformat(data["since"]),
             behind=data.get("behind"),
             jobs=data.get("jobs"),
+            failed_run=data.get("failed_run"),
             gate_checked=data.get("gate_checked") is True,
         )
     except (json.JSONDecodeError, KeyError, TypeError, ValueError) as e:
@@ -203,6 +210,44 @@ STARTUP_FAILURE_TEXT = (
 )
 
 
+class FailedJob(NamedTuple):
+    """A job of a failed fork run that did not pass, as listed in the state comment."""
+
+    name: str
+    url: str
+    conclusion: str
+
+
+# A full-matrix run can fail in dozens of jobs; the job statuses list them all.
+MAX_LISTED_FAILED_JOBS = 10
+FAILED_JOB_LIST_HEADING = "Jobs that did not pass:"
+_FAILED_JOB_OUTCOMES = {
+    "failure": "failed",
+    "timed_out": "timed out",
+    "cancelled": "cancelled",
+    "startup_failure": "could not start",
+}
+
+
+def build_failed_job_list(failed_jobs: Sequence[FailedJob]) -> str:
+    listed = [
+        # Job names come from the contributor's workflow; a code span keeps them from posting
+        # Markdown, including mentions, as the bot.
+        f"- [`{_sanitize_path(job.name[:JOB_NAME_MAX_LENGTH])}`]({job.url}): "
+        f"{_FAILED_JOB_OUTCOMES.get(job.conclusion, 'failed')}"
+        for job in failed_jobs[:MAX_LISTED_FAILED_JOBS]
+    ]
+    if len(failed_jobs) > MAX_LISTED_FAILED_JOBS:
+        listed.append(f"- and {len(failed_jobs) - MAX_LISTED_FAILED_JOBS} more, see the run")
+    # One paragraph of the comment, so that ``strip_failed_job_list`` can find all of it.
+    return FAILED_JOB_LIST_HEADING + "\n" + "\n".join(listed)
+
+
+def strip_failed_job_list(body: str) -> str:
+    """The state comment without its list of failed jobs."""
+    return "\n\n".join(part for part in body.split("\n\n") if not part.startswith(FAILED_JOB_LIST_HEADING))
+
+
 def behind_warning(behind: int, *, base_ref: str) -> str:
     return (
         f"**This branch is {behind} commits behind `{base_ref}`.** Fork CI tests the branch as it is, "
@@ -219,8 +264,12 @@ def state_comment(
     base_ref: str = "main",
     author_draft: bool = False,
     startup_failure: bool = False,
+    failed_jobs: Sequence[FailedJob] = (),
 ) -> str:
-    """:param startup_failure: the fork run of a failed state did not start, see ``STARTUP_FAILURE_TEXT``."""
+    """
+    :param startup_failure: the fork run of a failed state did not start, see ``STARTUP_FAILURE_TEXT``.
+    :param failed_jobs: the jobs of a failed state's fork run that did not pass.
+    """
     text = _AUTHOR_DRAFT_TEXTS.get(marker.state) if author_draft else None
     if startup_failure:
         text = STARTUP_FAILURE_TEXT
@@ -233,6 +282,8 @@ def state_comment(
         parts.append(behind_warning(marker.behind, base_ref=base_ref))
     if run_url:
         parts.append(f"Latest run: {run_url}")
+    if marker.state == "failed" and failed_jobs:
+        parts.append(build_failed_job_list(failed_jobs))
     if marker.state == "setup_required":
         parts.append(_setup_instructions(fork))
     parts.append(f"How this works: [CI in your fork]({CONTRIBUTING_URL}).")
