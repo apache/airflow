@@ -26,6 +26,10 @@ from azure.core.exceptions import AzureError
 from azure.identity.aio import ClientSecretCredential
 
 from airflow.providers.common.compat.sdk import AirflowException, BaseHook
+from airflow.providers.microsoft.azure.utils import (
+    add_managed_identity_connection_widgets,
+    get_async_default_azure_credential,
+)
 
 if TYPE_CHECKING:
     from azure.core.credentials_async import AsyncTokenCredential
@@ -74,9 +78,10 @@ class AzureAnalysisServicesHook(BaseHook):
     :param azure_analysis_services_conn_id: The Azure Analysis Services connection ID.
     :param request_timeout: Timeout in seconds for each HTTP request.
 
-    The connection must define the region endpoint in ``host``, the service principal client ID in
-    ``login``, the client secret in ``password``, and the Microsoft Entra tenant ID in the
-    ``tenantId`` extra field.
+    The connection must define the region endpoint in ``host``. For service principal authentication,
+    set the client ID in ``login``, the client secret in ``password``, and the Microsoft Entra tenant ID
+    in the ``tenantId`` extra field. If both ``login`` and ``password`` are empty, use
+    ``DefaultAzureCredential`` instead.
     """
 
     conn_type: str = "azure_analysis_services"
@@ -103,6 +108,7 @@ class AzureAnalysisServicesHook(BaseHook):
         return self.get_connection(self.azure_analysis_services_conn_id)
 
     @classmethod
+    @add_managed_identity_connection_widgets
     def get_connection_form_widgets(cls) -> dict[str, Any]:
         """Return connection widgets to add to the connection form."""
         from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
@@ -135,11 +141,18 @@ class AzureAnalysisServicesHook(BaseHook):
         return self._client
 
     def _get_credential(self) -> AsyncTokenCredential:
-        """Return and cache the service principal credential."""
+        """Return and cache the Azure credential."""
         if self._credential is not None:
             return self._credential
 
         connection = self.connection
+        if not connection.login and not connection.password:
+            self._credential = get_async_default_azure_credential(
+                managed_identity_client_id=connection.extra_dejson.get("managed_identity_client_id"),
+                workload_identity_tenant_id=connection.extra_dejson.get("workload_identity_tenant_id"),
+            )
+            return self._credential
+
         tenant_id = connection.extra_dejson.get("tenantId")
         if not connection.login:
             raise ValueError("Client ID is required for Azure Analysis Services authentication")
