@@ -34,6 +34,9 @@ if TYPE_CHECKING:
 class AssetEvent:
     """Asset event representation for asset listener hooks."""
 
+    id: int
+    timestamp: datetime
+    asset_id: int
     asset: SerializedAsset
     extra: dict[str, JsonValue]
     source_dag_id: str | None
@@ -43,3 +46,5 @@ class AssetEvent:
     source_aliases: list[SerializedAssetAlias]
     partition_key: str | None
     partition_date: datetime | None = None
+    source_watcher_name: str | None = None  # Only set for events emitted by an asset watcher.
+    source_trigger_classpath: str | None = None  # Only set for events emitted by an asset watcher.

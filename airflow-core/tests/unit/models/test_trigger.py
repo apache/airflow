@@ -58,6 +58,7 @@ from airflow.utils.state import State, TaskInstanceState
 
 from tests_common.test_utils.asserts import assert_queries_count, capture_orm_selects
 from tests_common.test_utils.config import conf_vars
+from unit.listeners import asset_listener
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -533,6 +534,38 @@ def test_submit_event_preserves_native_asset_partition(session, partition_key):
     for asset_event in asset_events:
         assert asset_event.partition_key == partition_key
         assert asset_event.extra == {"from_trigger": True, "payload": payload}
+
+
+def test_submit_event_passes_watcher_info_to_asset_listener(session, listener_manager):
+    listener_manager(asset_listener)
+    trigger = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
+    other_trigger = Trigger(classpath="airflow.triggers.testing.FailureTrigger", kwargs={})
+    session.add_all([trigger, other_trigger])
+    session.flush()
+    first, second = AssetModel("watched-first"), AssetModel("watched-second")
+    first.add_trigger(trigger, "first_watcher")
+    first.add_trigger(other_trigger, "unrelated_watcher")
+    second.add_trigger(trigger, "second_watcher")
+    session.add_all([first, second])
+    session.flush()
+    trigger_id = trigger.id
+    session.expire_all()
+
+    try:
+        # The watcher's trigger is resolved from the session, not looked up again per asset.
+        with capture_orm_selects("trigger") as trigger_selects:
+            Trigger.submit_event(trigger_id, TriggerEvent("payload"), session=session)
+    finally:
+        emitted = list(asset_listener.emitted)
+        asset_listener.clear()
+
+    assert sorted((e.asset.name, e.source_watcher_name) for e in emitted) == [
+        ("watched-first", "first_watcher"),
+        ("watched-second", "second_watcher"),
+    ]
+    assert len(trigger_selects) == 1
+    for asset_event in emitted:
+        assert asset_event.source_trigger_classpath == "airflow.triggers.testing.SuccessTrigger"
 
 
 @pytest.mark.parametrize(("asset_count", "expected_query_count"), [(1, 6), (5, 6)])

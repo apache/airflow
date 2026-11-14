@@ -395,11 +395,12 @@ class Trigger(Base):
         if trigger is None:
             # Already deleted for some reason
             return
-        for asset in trigger.assets:
+        for asset_watcher in trigger.asset_watchers:
             AssetManager.register_asset_change(
-                asset=asset.to_serialized(),
+                asset=asset_watcher.asset.to_serialized(),
                 extra={"from_trigger": True, "payload": event.payload},
                 partition_key=event.partition_key if isinstance(event, AssetTriggerEvent) else None,
+                source_asset_watcher=asset_watcher,
                 session=session,
             )
         if trigger.callback:
