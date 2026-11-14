@@ -100,7 +100,7 @@ from airflow.providers.fab.www.security.permissions import (
 )
 from airflow.providers.fab.www.security_appless import ApplessAirflowSecurityManager
 from airflow.providers.fab.www.utils import get_fab_action_from_method_map
-from airflow.utils.session import NEW_SESSION, create_session, provide_session
+from airflow.utils.session import NEW_SESSION, create_session, create_session_async, provide_session
 
 if TYPE_CHECKING:
     from flask import Flask
@@ -344,6 +344,33 @@ class FabAuthManager(BaseAuthManager[User]):
                 with suppress(Exception):
                     self.session.remove()
                 raise
+
+    async def deserialize_user_async(self, token: dict[str, Any]) -> User:
+        """Deserialize a user for FastAPI JWT authentication without blocking its event loop."""
+        user_id = int(token["sub"])
+        try:
+            return self.cache[user_id]
+        except KeyError:
+            pass
+
+        async def _fetch_user() -> User:
+            async with create_session_async() as session:
+                try:
+                    user = (await session.scalars(select(User).where(User.id == user_id))).one()
+                except NoResultFound:
+                    raise ValueError(f"User with id {token['sub']} not found")
+
+                if not user.is_active:
+                    raise ValueError(f"User with id {token['sub']} is not active")
+                return user
+
+        try:
+            user = await _fetch_user()
+        except SQLAlchemyError:
+            user = await _fetch_user()
+
+        self.cache[user_id] = user
+        return user
 
     def serialize_user(self, user: User) -> dict[str, Any]:
         return {"sub": str(user.id)}
