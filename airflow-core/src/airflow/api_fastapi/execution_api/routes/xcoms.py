@@ -554,6 +554,36 @@ def head_xcom(
     response.headers["Content-Range"] = f"map_indexes {count}"
 
 
+def _resolve_requested_map_index(
+    *,
+    dag_id: str,
+    run_id: str,
+    task_id: str,
+    params: GetXcomFilterParams,
+    session: Session,
+    dag_bag: DBDagBag,
+) -> int | None:
+    """
+    Return the map index to read, or None for every instance of a mapped task.
+
+    An omitted map index is resolved by the producing task's definition in the
+    Dag version its run uses: a mapped operator, or a task in a mapped task
+    group, is mapped however many instances it expanded to. A task that cannot
+    be found reads -1, so the read reports the XCom as not found.
+    """
+    if params.map_index is not None:
+        return params.map_index
+    if params.offset is not None:
+        return -1  # None reads a mapped task's list.
+    try:
+        task = TaskCoordinateResolver(dag_bag, session).get_task(dag_id, run_id, task_id)
+    except AmbiguousProducerError as error:
+        raise HTTPException(status.HTTP_409_CONFLICT, str(error)) from error
+    except (TaskNotFound, ValueError):
+        return -1
+    return None if task.get_needs_expansion() else -1
+
+
 @router.get(
     "/{dag_id}/{run_id}/{task_id}/{key:path}",
     dependencies=[ExecutionOrDagParseToken, DagInGrantedBundle],
@@ -576,6 +606,9 @@ def get_xcom(
     token: ExecutionToken = _TriggerAwareToken,
 ) -> XComResponse:
     """Get an Airflow XCom from database - not other XCom Backends."""
+    map_index = _resolve_requested_map_index(
+        dag_id=dag_id, run_id=run_id, task_id=task_id, params=params, session=session, dag_bag=dag_bag
+    )
     owner = None
     if token.claims.scope == "execution":
         owner = session.execute(
@@ -585,7 +618,7 @@ def get_xcom(
                 TaskInstance.dag_id == dag_id,
                 TaskInstance.run_id == run_id,
                 TaskInstance.task_id == task_id,
-                *build_coordinate_filters(TaskInstance, map_index=params.map_index),
+                *build_coordinate_filters(TaskInstance, map_index=map_index),
             )
             .limit(1)
             .execution_options(include_all_attempts=True)
@@ -608,6 +641,23 @@ def get_xcom(
                 ),
             },
         )
+    if map_index is None:
+        mapped_read = _build_xcom_read(
+            dag_id=dag_id,
+            run_id=run_id,
+            task_id=task_id,
+            key=key,
+            session=session,
+            dag_bag=dag_bag,
+            token=token,
+            include_prior_dates=params.include_prior_dates,
+            previous_iteration=params.previous_iteration,
+            sequence=True,
+        )
+        entity = xcom_entity(mapped_read.statement)
+        query = mapped_read.statement.order_by(None).order_by(*mapped_read.get_order(entity))
+        values = [row.value for row in session.execute(query.with_only_columns(entity.value)).all()]
+        return XComResponse(key=key, value=values)
     xcom_read = _build_xcom_read(
         dag_id=dag_id,
         run_id=run_id,
@@ -616,7 +666,7 @@ def get_xcom(
         session=session,
         dag_bag=dag_bag,
         token=token,
-        map_index=params.map_index if params.offset is None else None,
+        map_index=map_index if params.offset is None else None,
         include_prior_dates=params.include_prior_dates,
         previous_iteration=params.previous_iteration,
         sequence=params.offset is not None,
@@ -641,7 +691,7 @@ def get_xcom(
     if (result := session.scalars(xcom_query.limit(1)).first()) is None:
         if params.offset is None:
             message = (
-                f"XCom with {key=} map_index={params.map_index} not found for "
+                f"XCom with {key=} {map_index=} not found for "
                 f"task {task_id!r} in DAG run {run_id!r} of {dag_id!r}"
             )
         else:
