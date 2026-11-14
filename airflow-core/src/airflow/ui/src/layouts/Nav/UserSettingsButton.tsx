@@ -96,7 +96,7 @@ export const UserSettingsButton = ({ externalViews }: { readonly externalViews: 
                 {translate("signedInAs")}
               </Box>
               <Box fontSize="md" fontWeight="semibold">
-                {`${currentUser.username} (id: ${currentUser.id})`}
+                {`${currentUser.display_name} (id: ${currentUser.id})`}
               </Box>
               {Array.isArray(currentUser.teams) ? (
                 <>

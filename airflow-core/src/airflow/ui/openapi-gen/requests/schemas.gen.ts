@@ -11686,6 +11686,11 @@ export const $AuthenticatedMeResponse = {
             type: 'string',
             title: 'Username'
         },
+        display_name: {
+            type: 'string',
+            title: 'Display Name',
+            description: 'Human-readable name of the user, as returned by the auth manager.'
+        },
         teams: {
             anyOf: [
                 {
@@ -11703,7 +11708,7 @@ export const $AuthenticatedMeResponse = {
         }
     },
     type: 'object',
-    required: ['id', 'username'],
+    required: ['id', 'username', 'display_name'],
     title: 'AuthenticatedMeResponse',
     description: 'Authenticated user information serializer for responses.'
 } as const;

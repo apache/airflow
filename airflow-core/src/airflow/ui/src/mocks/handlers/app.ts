@@ -40,7 +40,9 @@ const ALL_MENU_ITEMS: Array<MenuItem> = [
 
 // Requests every page shell makes (navigation, user menu, version, banners) plus the i18n bundles.
 export const handlers: Array<HttpHandler> = [
-  http.get("/ui/auth/me", () => HttpResponse.json({ id: "1", teams: null, username: "admin" })),
+  http.get("/ui/auth/me", () =>
+    HttpResponse.json({ display_name: "admin", id: "1", teams: null, username: "admin" }),
+  ),
   http.get("/ui/auth/menus", () =>
     HttpResponse.json({ authorized_menu_items: ALL_MENU_ITEMS, extra_menu_items: [] }),
   ),

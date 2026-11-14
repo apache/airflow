@@ -21,6 +21,7 @@ from unittest import mock
 import pytest
 
 from airflow.api_fastapi.auth.managers.simple.simple_auth_manager import SimpleAuthManager
+from airflow.api_fastapi.auth.managers.simple.user import SimpleAuthManagerUser
 from airflow.api_fastapi.common.types import ExtraMenuItem, MenuItem
 from airflow.models.team import Team
 
@@ -78,9 +79,27 @@ class TestGetMeResponse:
         assert response.status_code == 200
         assert response.json() == {
             "username": "test",
+            "display_name": "test",
             "id": "test",
             "teams": None,
         }
+
+    @mock.patch.object(SimpleAuthManagerUser, "get_display_name", return_value="Test User")
+    def test_display_name_comes_from_auth_manager(self, _, test_client):
+        """The display name is the auth manager's ``get_display_name()``, not ``get_name()``."""
+        response = test_client.get("/auth/me")
+
+        assert response.status_code == 200
+        assert response.json()["username"] == "test"
+        assert response.json()["display_name"] == "Test User"
+
+    @mock.patch.object(SimpleAuthManagerUser, "get_display_name", return_value=None)
+    def test_display_name_falls_back_to_username(self, _, test_client):
+        """An auth manager returning no display name falls back to ``get_name()``."""
+        response = test_client.get("/auth/me")
+
+        assert response.status_code == 200
+        assert response.json()["display_name"] == "test"
 
     @conf_vars({("core", "multi_team"): "true"})
     def test_teams_of_user_authorized_on_all_teams(self, test_client, session):
