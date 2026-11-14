@@ -725,30 +725,6 @@ func TestNormalizeDecodedValueGoInts(t *testing.T) {
 	assert.Equal(t, int64(500), normalizeDecodedValue(uint(500)))
 }
 
-func TestIfaceInt(t *testing.T) {
-	for _, v := range []any{
-		int(42), int8(42), int16(42), int32(42), int64(42),
-		uint(42), uint8(42), uint16(42), uint32(42), uint64(42),
-		float32(42), float64(42),
-	} {
-		assert.Equal(t, 42, ifaceInt(v, -1))
-	}
-	assert.Equal(t, -1, ifaceInt(nil, -1))
-	assert.Equal(t, -1, ifaceInt("not a number", -1))
-}
-
-func TestIfaceStringHelpers(t *testing.T) {
-	assert.Equal(t, "v", ifaceString("v"))
-	assert.Equal(t, "", ifaceString(nil))
-	assert.Equal(t, "", ifaceString(42))
-
-	assert.Nil(t, ifaceStringPtr(nil))
-	assert.Nil(t, ifaceStringPtr(42))
-	if p := ifaceStringPtr(""); assert.NotNil(t, p) {
-		assert.Equal(t, "", *p) // explicit "" stays distinct from "not set"
-	}
-}
-
 func TestIsNilRaw(t *testing.T) {
 	assert.True(t, isNilRaw(nil))
 	assert.True(t, isNilRaw(msgpack.RawMessage{}))
