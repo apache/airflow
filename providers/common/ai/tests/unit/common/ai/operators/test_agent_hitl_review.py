@@ -477,7 +477,7 @@ def test_a_resume_the_default_cannot_run_durably_stores_nothing_durable(park, ct
     ) as stamp:
         park(lambda: resumed.resume_hitl_review(ctx, **first.kwargs, event=_changes("Shorter")))
 
-    assert resumed._durable is False
+    assert resumed._is_durable_run is False
     assert stamp.call_args.args[1]["airflow.common_ai.durable"] is False
     # The refused durable build, then the non-durable one the regeneration runs.
     assert resumed.llm_hook.create_agent.call_count == 2
