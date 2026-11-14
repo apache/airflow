@@ -2719,9 +2719,13 @@ export type TriggerDetailResponse = {
     queue: string | null;
     team_name: string | null;
     /**
-     * `pending`: not picked up by a triggerer yet. `running`: on a live triggerer and not failed since it last recovered. `failing`: on a live triggerer and failed since it last recovered, that is `consecutive_failures` is above 0; it recovers when it fires an event or stays up for two minutes. `orphaned`: its triggerer stopped sending heartbeats; another triggerer will take it.
+     * `pending`: not picked up by a triggerer yet. `running`: on a live triggerer and not failed since it last recovered. `failing`: on a live triggerer and failed since it last recovered, that is `consecutive_failures` is above 0; it recovers when it fires an event or stays up for two minutes. `orphaned`: its triggerer stopped sending heartbeats; another triggerer will take it. `finished`: its owner let go, it is kept for the failure-retention window, it will never run again, and it is then deleted.
      */
     status: TriggerStatus;
+    /**
+     * When it finished; set only for `finished` triggers.
+     */
+    finished_at?: string | null;
     /**
      * Host of the triggerer the trigger is assigned to; whether it is alive is the `orphaned` status.
      */
@@ -2778,7 +2782,7 @@ export type TriggerResponse = {
 /**
  * How a trigger is doing, worked out the same way for every kind from its row and its triggerer's heartbeat.
  */
-export type TriggerStatus = 'pending' | 'running' | 'failing' | 'orphaned';
+export type TriggerStatus = 'pending' | 'running' | 'failing' | 'orphaned' | 'finished';
 
 /**
  * The task instance a trigger runs for.

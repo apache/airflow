@@ -1708,6 +1708,7 @@ class TriggerStatus(str, Enum):
     RUNNING = "running"
     FAILING = "failing"
     ORPHANED = "orphaned"
+    FINISHED = "finished"
 
 
 class TriggerTaskInstanceReferenceResponse(BaseModel):
@@ -3097,9 +3098,13 @@ class TriggerDetailResponse(BaseModel):
     status: Annotated[
         TriggerStatus,
         Field(
-            description="`pending`: not picked up by a triggerer yet. `running`: on a live triggerer and not failed since it last recovered. `failing`: on a live triggerer and failed since it last recovered, that is `consecutive_failures` is above 0; it recovers when it fires an event or stays up for two minutes. `orphaned`: its triggerer stopped sending heartbeats; another triggerer will take it."
+            description="`pending`: not picked up by a triggerer yet. `running`: on a live triggerer and not failed since it last recovered. `failing`: on a live triggerer and failed since it last recovered, that is `consecutive_failures` is above 0; it recovers when it fires an event or stays up for two minutes. `orphaned`: its triggerer stopped sending heartbeats; another triggerer will take it. `finished`: its owner let go, it is kept for the failure-retention window, it will never run again, and it is then deleted."
         ),
     ]
+    finished_at: Annotated[
+        datetime | None,
+        Field(description="When it finished; set only for `finished` triggers.", title="Finished At"),
+    ] = None
     triggerer_hostname: Annotated[
         str | None,
         Field(

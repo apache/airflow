@@ -100,7 +100,12 @@ class TriggerDetailResponse(BaseModel):
         description="`pending`: not picked up by a triggerer yet. `running`: on a live triggerer and not "
         "failed since it last recovered. `failing`: on a live triggerer and failed since it last recovered, "
         "that is `consecutive_failures` is above 0; it recovers when it fires an event or stays up for two "
-        "minutes. `orphaned`: its triggerer stopped sending heartbeats; another triggerer will take it."
+        "minutes. `orphaned`: its triggerer stopped sending heartbeats; another triggerer will take it. "
+        "`finished`: its owner let go, it is kept for the failure-retention window, it will never run again, "
+        "and it is then deleted."
+    )
+    finished_at: datetime | None = Field(
+        None, description="When it finished; set only for `finished` triggers."
     )
     triggerer_hostname: str | None = Field(
         description="Host of the triggerer the trigger is assigned to; whether it is alive is the `orphaned` "
