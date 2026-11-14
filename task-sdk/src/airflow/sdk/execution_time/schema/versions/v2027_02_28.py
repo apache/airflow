@@ -22,6 +22,8 @@ New bodies in this version:
 
 - ``HITLDetailResponseResult``: the supervisor's reply when a running task reads its own
   Human-in-the-loop response.
+- ``StartTaskFinalization``: starts the supervisor's finalization timeout without choosing
+  a task outcome, allowing retry callbacks to decide whether the task should retry.
 """
 
 from __future__ import annotations
