@@ -290,6 +290,14 @@ option_load_example_dags = click.option(
     envvar="LOAD_EXAMPLES",
 )
 
+option_load_provider_testing_dags = click.option(
+    "--load-provider-testing-dags",
+    help="Add the tests/testing_dags folder of providers as Dag bundles: 'all' or a comma-separated "
+    "list of provider ids (e.g. 'amazon,apache.hive').",
+    envvar="LOAD_PROVIDER_TESTING_DAGS",
+    default="",
+)
+
 option_load_default_connections = click.option(
     "-c",
     "--load-default-connections",
@@ -339,6 +347,7 @@ option_load_default_connections = click.option(
 @option_install_selected_providers
 @option_installation_distribution_format
 @option_load_example_dags
+@option_load_provider_testing_dags
 @option_load_default_connections
 @option_all_integration
 @option_keep_env_variables
@@ -400,6 +409,7 @@ def shell(
     integration: tuple[str, ...],
     keep_env_variables: bool,
     load_example_dags: bool,
+    load_provider_testing_dags: str,
     load_default_connections: bool,
     max_time: int | None,
     mount_sources: str,
@@ -477,6 +487,7 @@ def shell(
         integration=integration,
         keep_env_variables=keep_env_variables,
         load_example_dags=load_example_dags,
+        load_provider_testing_dags=load_provider_testing_dags,
         load_default_connections=load_default_connections,
         mount_sources=mount_sources,
         mount_ui_dist=mount_ui_dist,
@@ -572,6 +583,7 @@ option_executor_start_airflow = click.option(
 @option_all_integration
 @option_load_default_connections
 @option_load_example_dags
+@option_load_provider_testing_dags
 @option_mount_sources
 @option_mount_ui_dist
 @option_mysql_version
@@ -620,6 +632,7 @@ def start_airflow(
     install_selected_providers: str,
     load_default_connections: bool,
     load_example_dags: bool,
+    load_provider_testing_dags: str,
     mount_sources: str,
     mount_ui_dist: bool,
     mysql_version: str,
@@ -721,6 +734,7 @@ def start_airflow(
         install_airflow_with_constraints=install_airflow_with_constraints,
         load_default_connections=load_default_connections,
         load_example_dags=load_example_dags,
+        load_provider_testing_dags=load_provider_testing_dags,
         mount_sources=mount_sources,
         mount_ui_dist=mount_ui_dist,
         mysql_version=mysql_version,
