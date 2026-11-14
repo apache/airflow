@@ -366,12 +366,12 @@ class DagParam(ResolveMixin):
 
 def process_params(
     dag: DAG,
-    task: Operator,
+    task: Operator | None,
     dagrun_conf: dict[str, Any] | None,
     *,
     suppress_exception: bool,
 ) -> dict[str, Any]:
-    """Merge, validate params, and convert them into a simple dict."""
+    """Merge, validate params, and convert them into a simple dict. Without ``task``, only the Dag's params."""
     from airflow.sdk.configuration import conf
 
     dagrun_conf = dagrun_conf or {}
@@ -379,7 +379,7 @@ def process_params(
     params = ParamsDict(suppress_exception=suppress_exception)
     with contextlib.suppress(AttributeError):
         params.update(dag.params)
-    if task.params:
+    if task is not None and task.params:
         params.update(task.params)
     if conf.getboolean("core", "dag_run_conf_overrides_params") and dagrun_conf:
         logger.debug("Updating task params (%s) with DagRun.conf (%s)", params, dagrun_conf)

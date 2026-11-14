@@ -21,11 +21,15 @@ import inspect
 import logging
 import traceback
 from collections.abc import AsyncIterator
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from airflow._shared.module_loading import accepts_context, import_string, qualname
 from airflow.models.callback import CallbackState
+from airflow.sdk.execution_time.context import render_callback_kwargs  # noqa: SDK001
 from airflow.triggers.base import BaseTrigger, TriggerEvent
+
+if TYPE_CHECKING:
+    from airflow.sdk.definitions.context import Context  # noqa: SDK001
 
 log = logging.getLogger(__name__)
 
@@ -75,6 +79,8 @@ class CallbackTrigger(BaseTrigger):
         self.callback_kwargs = callback_kwargs or {}
         # Read by Trigger.from_object() when persisting the row; unused once running.
         self.queue = queue
+        # Set by the TriggerRunner before run(), like task_instance on task-bound triggers. Not serialized.
+        self._callback_context: Context | None = None
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         return (
@@ -87,13 +93,20 @@ class CallbackTrigger(BaseTrigger):
             yield TriggerEvent({PAYLOAD_STATUS_KEY: CallbackState.RUNNING})
             callback = import_string(self.callback_path)
             _validate_callback(callback, self.callback_path)
-            # TODO: get full context and run template rendering. Right now, a simple context is included in `callback_kwargs`
-            context = self.callback_kwargs.pop("context", None)
+
+            kwargs = dict(self.callback_kwargs)
+            # Callbacks queued before the upgrade carry a stored context in their kwargs; never
+            # pass it twice, and prefer the context the TriggerRunner built at runtime.
+            stored_context = kwargs.pop("context", None)
+            context = self._callback_context or stored_context
+            # Notifiers render their own template fields, so only function callbacks are rendered here.
+            if self._callback_context is not None and not inspect.isclass(callback):
+                kwargs = render_callback_kwargs(kwargs, self._callback_context)
 
             if accepts_context(callback) and context is not None:
-                result = await callback(**self.callback_kwargs, context=context)
+                result = await callback(**kwargs, context=context)
             else:
-                result = await callback(**self.callback_kwargs)
+                result = await callback(**kwargs)
 
             yield TriggerEvent({PAYLOAD_STATUS_KEY: CallbackState.SUCCESS, PAYLOAD_BODY_KEY: result})
 

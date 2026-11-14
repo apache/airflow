@@ -22,6 +22,7 @@ from unittest import mock
 
 import pytest
 
+from airflow._shared.timezones import timezone
 from airflow.models.callback import CallbackState
 from airflow.sdk import BaseNotifier
 from airflow.triggers.callback import (
@@ -263,3 +264,90 @@ class TestCallbackTrigger:
         assert calls == []
         assert failure_event.payload[PAYLOAD_STATUS_KEY] == CallbackState.FAILED
         assert "InvalidCallbackPathError" in failure_event.payload[PAYLOAD_BODY_KEY]
+
+
+class TemplatedAsyncNotifier(BaseNotifier):
+    """Renders its own ``message`` template field, as notifiers do."""
+
+    template_fields = ("message",)
+
+    def __init__(self, message, **kwargs):
+        super().__init__(**kwargs)
+        self.raw_message = message
+        self.message = message
+
+    async def async_notify(self, context):
+        return f"raw={self.raw_message} rendered={self.message}"
+
+
+class TestCallbackTriggerContextAndRendering:
+    STORED = {"dag_id": "stored"}
+    RUNTIME = {"dag_id": "my_dag", "logical_date": timezone.datetime(2024, 6, 15)}
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("callback_kwargs", "runtime_context", "expected_call"),
+        [
+            pytest.param(
+                {"message": "{{ dag_id }} {{ logical_date | ds_nodash }}", "nested": ["{{ dag_id }}"]},
+                RUNTIME,
+                {"message": "my_dag 20240615", "nested": ["my_dag"], "context": RUNTIME},
+                id="renders-with-runtime-context",
+            ),
+            pytest.param(
+                {"message": "{{ dag_id }}", "context": STORED},
+                RUNTIME,
+                {"message": "my_dag", "context": RUNTIME},
+                id="prefers-runtime-over-stored-context",
+            ),
+            pytest.param(
+                {"message": "{{ dag_id }}", "context": STORED},
+                None,
+                {"message": "{{ dag_id }}", "context": STORED},
+                id="stored-context-is-passed-but-not-rendered",
+            ),
+            pytest.param({"message": "{{ dag_id }}"}, None, {"message": "{{ dag_id }}"}, id="no-context"),
+        ],
+    )
+    async def test_run_renders_kwargs(self, callback_kwargs, runtime_context, expected_call):
+        trigger = CallbackTrigger(callback_path=TEST_CALLBACK_PATH, callback_kwargs=dict(callback_kwargs))
+        trigger._callback_context = runtime_context
+
+        mock_callback = mock.AsyncMock(return_value="ok")
+        with mock.patch("airflow.triggers.callback.import_string", return_value=mock_callback):
+            events = [event async for event in trigger.run()]
+
+        assert events[-1].payload[PAYLOAD_STATUS_KEY] == CallbackState.SUCCESS
+        mock_callback.assert_called_once_with(**expected_call)
+        # The trigger may be serialized again, so its kwargs are left as they were.
+        assert trigger.callback_kwargs == callback_kwargs
+
+    @pytest.mark.asyncio
+    async def test_notifier_renders_its_own_kwargs_once(self):
+        """A value holding braces, such as one from the run conf, is rendered once, not again."""
+        trigger = CallbackTrigger(
+            callback_path=TEST_CALLBACK_PATH, callback_kwargs={"message": "{{ conf_msg }}"}
+        )
+        trigger._callback_context = {"conf_msg": "{{ dag_id }}", "dag_id": "my_dag"}
+
+        with mock.patch("airflow.triggers.callback.import_string", return_value=TemplatedAsyncNotifier):
+            events = [event async for event in trigger.run()]
+
+        assert events[-1].payload[PAYLOAD_STATUS_KEY] == CallbackState.SUCCESS
+        assert events[-1].payload[PAYLOAD_BODY_KEY] == "raw={{ conf_msg }} rendered={{ dag_id }}"
+
+    @pytest.mark.asyncio
+    async def test_notifier_renders_with_a_serialized_dag_in_the_context(self):
+        """The triggerer puts the serialized Dag in the context; notifiers get their template env from it."""
+        from airflow.serialization.definitions.dag import SerializedDAG
+
+        trigger = CallbackTrigger(
+            callback_path=TEST_CALLBACK_PATH, callback_kwargs={"message": "{{ dag_id }}"}
+        )
+        trigger._callback_context = {"dag_id": "my_dag", "dag": SerializedDAG(dag_id="my_dag")}
+
+        with mock.patch("airflow.triggers.callback.import_string", return_value=TemplatedAsyncNotifier):
+            events = [event async for event in trigger.run()]
+
+        assert events[-1].payload[PAYLOAD_STATUS_KEY] == CallbackState.SUCCESS
+        assert events[-1].payload[PAYLOAD_BODY_KEY] == "raw={{ dag_id }} rendered=my_dag"
