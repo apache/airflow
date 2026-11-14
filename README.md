@@ -340,7 +340,7 @@ we publish an Apache Airflow release. Those images contain:
   on the MINOR version of Airflow)
 * Predefined set of popular providers (for details see the [Dockerfile](https://raw.githubusercontent.com/apache/airflow/main/Dockerfile)).
 * Possibility of building your own, custom image where the user can choose their own set of providers
-  and libraries (see [Building the image](https://airflow.apache.org/docs/docker-stack/build.html))
+  and libraries (see [Building your image](https://airflow.apache.org/docs/docker-stack/build.html))
 * In the future Airflow might also support a "slim" version without providers nor database clients installed
 
 The version of the base OS image is the stable version of Debian. Airflow supports using all currently active

@@ -1022,12 +1022,12 @@ repos:
         files: ^dev/breeze/src/airflow_breeze/utils/docker_command_utils\.py$|^scripts/ci/docker_compose/local\.yml$
         pass_filenames: false
       - id: check-extras-order
-        name: Check order of extras in Dockerfile
+        name: Check order of extras in Dockerfile and sync its defaults to the docs
         env:
           PYTHONPYCACHEPREFIX: .build/pycache
         entry: ./scripts/ci/prek/check_order_dockerfile_extras.py
         language: python
-        files: ^Dockerfile$
+        files: ^Dockerfile$|^docker-stack-docs/build-arg-ref\.rst$
         pass_filenames: false
       - id: generate-airflow-diagrams
         name: Generate airflow diagrams
