@@ -28,6 +28,7 @@ assets:
   delete-queued-events: "Delete all queued events for a given asset"
   delete-dag-queued-events: "Delete all queued asset events for a given Dag"
   delete-queued-event: "Delete a specific queued asset event for a given Dag and asset"
+  state-store: "Manage the state store of an asset"
   list-state-store: "List all state store entries for an asset"
   get-state-store: "Retrieve a single asset state store entry by its ID and key"
   set-state-store: "Set an asset state store value. Parsed as JSON if valid, otherwise stored as a string"
