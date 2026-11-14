@@ -18,16 +18,35 @@
 
 from __future__ import annotations
 
+import tomllib
 from datetime import UTC, datetime
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
-from huggingface_hub import GitCommitInfo
+from huggingface_hub import GitCommitInfo, get_async_session
 from huggingface_hub.utils import RepositoryNotFoundError, RevisionNotFoundError
+from packaging.requirements import Requirement
+from packaging.version import Version
 
 from airflow.exceptions import AirflowNotFoundException
 from airflow.providers.huggingface.hooks.huggingface import HuggingFaceHook
+
+
+def test_huggingface_hub_dependency_supports_async_session():
+    assert callable(get_async_session)
+    pyproject = Path(__file__).resolve().parents[4] / "pyproject.toml"
+    hub_req = Requirement(
+        next(
+            dep
+            for dep in tomllib.loads(pyproject.read_text())["project"]["dependencies"]
+            if dep.startswith("huggingface-hub")
+        )
+    )
+    floors = [Version(spec.version) for spec in hub_req.specifier if spec.operator in {">=", ">", "=="}]
+    assert floors
+    assert min(floors) >= Version("1.0.0")
 
 
 def git_commit_info(commit_id, title, message=""):

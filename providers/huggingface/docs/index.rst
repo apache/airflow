@@ -53,7 +53,7 @@ Install into an Airflow environment with Python 3.11 through 3.14:
 
 The provider requires ``apache-airflow>=3.0,<4``,
 ``apache-airflow-providers-common-compat>=1.8.0``, ``datasets>=5.0.0``, and
-``huggingface-hub>=0.24``. For ``s3://`` and ``gs://`` artifacts, install the
+``huggingface-hub>=1.0.0``. For ``s3://`` and ``gs://`` artifacts, install the
 corresponding storage provider and filesystem dependency. Select
 the matching Airflow connection in the URI's user-info section, for example
 ``s3://aws_default@my-bucket/path/data.json`` or
@@ -152,7 +152,7 @@ PIP package                                 Version required
 ``apache-airflow-providers-common-compat``  ``>=1.8.0``
 ``datasets``                                ``>=5.0.0``
 ``dill``                                    ``>=0.3.8``
-``huggingface-hub``                         ``>=0.24``
+``huggingface-hub``                         ``>=1.0.0``
 ``multiprocess``                            ``>=0.70.16``
 ==========================================  ==================
 

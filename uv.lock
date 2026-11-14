@@ -6558,7 +6558,7 @@ requires-dist = [
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
     { name = "datasets", specifier = ">=5.0.0" },
     { name = "dill", specifier = ">=0.3.8" },
-    { name = "huggingface-hub", specifier = ">=0.24" },
+    { name = "huggingface-hub", specifier = ">=1.0.0" },
     { name = "multiprocess", specifier = ">=0.70.16" },
 ]
 

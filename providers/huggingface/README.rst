@@ -56,7 +56,7 @@ PIP package                                 Version required
 ``apache-airflow-providers-common-compat``  ``>=1.8.0``
 ``datasets``                                ``>=5.0.0``
 ``dill``                                    ``>=0.3.8``
-``huggingface-hub``                         ``>=0.24``
+``huggingface-hub``                         ``>=1.0.0``
 ``multiprocess``                            ``>=0.70.16``
 ==========================================  ==================
 
