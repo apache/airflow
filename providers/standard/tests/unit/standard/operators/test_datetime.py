@@ -344,3 +344,20 @@ class TestBranchDateTimeOperator:
             **{"run_after": timezone.datetime(2020, 8, 7)},
         )
         assert branch_op.choose_branch(context={"dag_run": dr}) == "branch_1"
+
+    @pytest.mark.parametrize(
+        "context",
+        [
+            {},
+            {"logical_date": None, "dag_run": None},
+        ],
+    )
+    def test_choose_branch_without_logical_date_or_dag_run(self, context):
+        """Check if BranchDateTimeOperator raises a clear error when neither logical date nor DagRun is available"""
+        self.branch_op.use_task_logical_date = True
+        with pytest.raises(
+            ValueError,
+            match="Either `logical_date` or `run_after` should be provided in the task context when "
+            "`use_task_logical_date` is True",
+        ):
+            self.branch_op.choose_branch(context=context)
