@@ -30,7 +30,7 @@ from unittest import mock
 from unittest.mock import patch
 
 import pytest
-from sqlalchemy import delete, event, func, inspect as sa_inspect, select
+from sqlalchemy import delete, event, func, inspect as sa_inspect, select, update
 from sqlalchemy.exc import OperationalError, SAWarning
 
 import airflow.dag_processing.collection
@@ -55,6 +55,7 @@ from airflow.models import DagModel, DagRun
 from airflow.models.asset import (
     AssetActive,
     AssetModel,
+    AssetWatcherModel,
     DagScheduleAssetNameReference,
     DagScheduleAssetUriReference,
 )
@@ -494,6 +495,112 @@ class TestAssetModelOperation:
         db_hash = BaseEventTrigger.hash(reloaded.classpath, reloaded.kwargs)
 
         assert dag_hash == db_hash
+
+    @pytest.mark.usefixtures("testing_dag_bundle")
+    def test_add_asset_trigger_references_shared_trigger_keeps_watcher_names(self, dag_maker, session):
+        """Assets whose watchers use an identical trigger share one Trigger row but keep their own watcher names."""
+        asset_a = Asset(
+            "shared_trigger_asset_a",
+            watchers=[AssetWatcher(name="a_watcher", trigger=FileDeleteTrigger(filepath="/tmp/x"))],
+        )
+        asset_b = Asset(
+            "shared_trigger_asset_b",
+            watchers=[AssetWatcher(name="b_watcher", trigger=FileDeleteTrigger(filepath="/tmp/x"))],
+        )
+        with dag_maker(dag_id="test_shared_trigger_dag", schedule=[asset_a, asset_b]) as dag:
+            EmptyOperator(task_id="mytask")
+
+        dags = {dag.dag_id: LazyDeserializedDAG.from_dag(dag)}
+        orm_dags = DagModelOperation(dags, "testing", None).add_dags(session=session)
+        orm_dags[dag.dag_id].is_paused = False
+
+        asset_op = AssetModelOperation.collect(dags)
+        orm_assets = asset_op.sync_assets(session=session)
+        session.flush()
+
+        asset_op.add_dag_asset_references(orm_dags, orm_assets, session=session)
+        asset_op.activate_assets_if_possible(orm_assets.values(), session=session)
+        asset_op.add_asset_trigger_references(orm_assets, session=session)
+        session.flush()
+
+        trigger = session.scalars(select(Trigger)).one()
+        watchers = session.execute(
+            select(AssetModel.name, AssetWatcherModel.name, AssetWatcherModel.trigger_id)
+            .join(AssetWatcherModel, AssetWatcherModel.asset_id == AssetModel.id)
+            .order_by(AssetModel.name)
+        ).all()
+        assert [tuple(row) for row in watchers] == [
+            ("shared_trigger_asset_a", "a_watcher", trigger.id),
+            ("shared_trigger_asset_b", "b_watcher", trigger.id),
+        ]
+
+    @pytest.mark.usefixtures("testing_dag_bundle")
+    def test_add_asset_trigger_references_renamed_watcher(self, dag_maker, session):
+        """Renaming a watcher without changing its trigger updates the stored watcher name."""
+
+        def build_asset(watcher_name: str) -> Asset:
+            return Asset(
+                "renamed_watcher_asset",
+                watchers=[AssetWatcher(name=watcher_name, trigger=FileDeleteTrigger(filepath="/tmp/x"))],
+            )
+
+        with dag_maker(dag_id="test_renamed_watcher_dag", schedule=[build_asset("old_name")]) as dag:
+            EmptyOperator(task_id="mytask")
+
+        dags = {dag.dag_id: LazyDeserializedDAG.from_dag(dag)}
+        orm_dags = DagModelOperation(dags, "testing", None).add_dags(session=session)
+        orm_dags[dag.dag_id].is_paused = False
+
+        asset_op = AssetModelOperation.collect(dags)
+        orm_assets = asset_op.sync_assets(session=session)
+        session.flush()
+
+        asset_op.add_dag_asset_references(orm_dags, orm_assets, session=session)
+        asset_op.activate_assets_if_possible(orm_assets.values(), session=session)
+        asset_op.add_asset_trigger_references(orm_assets, session=session)
+        session.flush()
+        trigger_id = session.scalars(select(Trigger.id)).one()
+
+        renamed_dag = DAG(dag_id="test_renamed_watcher_dag", schedule=[build_asset("new_name")])
+        renamed_asset_op = AssetModelOperation.collect(
+            {renamed_dag.dag_id: LazyDeserializedDAG.from_dag(renamed_dag)}
+        )
+        renamed_asset_op.add_asset_trigger_references(orm_assets, session=session)
+        session.flush()
+
+        watcher = session.scalars(select(AssetWatcherModel)).one()
+        assert (watcher.name, watcher.trigger_id) == ("new_name", trigger_id)
+
+    @pytest.mark.usefixtures("testing_dag_bundle")
+    def test_add_asset_trigger_references_fixes_stored_watcher_name(self, dag_maker, session):
+        """A wrong watcher name stored by an earlier sync is corrected on the next sync."""
+        asset = Asset(
+            "stored_watcher_name_asset",
+            watchers=[AssetWatcher(name="correct_name", trigger=FileDeleteTrigger(filepath="/tmp/x"))],
+        )
+        with dag_maker(dag_id="test_stored_watcher_name_dag", schedule=[asset]) as dag:
+            EmptyOperator(task_id="mytask")
+
+        dags = {dag.dag_id: LazyDeserializedDAG.from_dag(dag)}
+        orm_dags = DagModelOperation(dags, "testing", None).add_dags(session=session)
+        orm_dags[dag.dag_id].is_paused = False
+
+        asset_op = AssetModelOperation.collect(dags)
+        orm_assets = asset_op.sync_assets(session=session)
+        session.flush()
+
+        asset_op.add_dag_asset_references(orm_dags, orm_assets, session=session)
+        asset_op.activate_assets_if_possible(orm_assets.values(), session=session)
+        asset_op.add_asset_trigger_references(orm_assets, session=session)
+        session.flush()
+
+        session.execute(update(AssetWatcherModel).values(name="other_asset_watcher"))
+        session.expire_all()
+
+        asset_op.add_asset_trigger_references(orm_assets, session=session)
+        session.flush()
+
+        assert session.scalars(select(AssetWatcherModel.name)).one() == "correct_name"
 
     @pytest.mark.usefixtures("testing_dag_bundle")
     def test_add_asset_trigger_references_idempotent(self, dag_maker, session):

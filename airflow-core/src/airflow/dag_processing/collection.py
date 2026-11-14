@@ -1452,6 +1452,9 @@ class AssetModelOperation(NamedTuple):
         refs_to_add: dict[tuple[str, str], set[int]] = {}
         refs_to_remove: dict[tuple[str, str], set[int]] = {}
         triggers: dict[int, dict] = {}
+        # An identical trigger on several assets shares one entry in ``triggers``, so watcher names
+        # must be tracked per asset.
+        watcher_names: dict[tuple[str, str], dict[int, str]] = {}
 
         # Optimization: if no asset collected, skip fetching active assets
         active_assets = _find_active_assets(self.assets, session=session) if self.assets else {}
@@ -1471,12 +1474,22 @@ class AssetModelOperation(NamedTuple):
                 for trigger in asset_watcher_triggers
             }
             triggers.update(trigger_hash_to_trigger_dict)
+            watcher_names[name_uri] = {
+                trigger_hash: trigger["watcher_name"]
+                for trigger_hash, trigger in trigger_hash_to_trigger_dict.items()
+            }
             trigger_hash_from_asset: set[int] = set(trigger_hash_to_trigger_dict.keys())
 
             asset_model = assets[name_uri]
-            trigger_hash_from_asset_model: set[int] = {
-                BaseEventTrigger.hash(trigger.classpath, trigger.kwargs) for trigger in asset_model.triggers
-            }
+            trigger_hash_from_asset_model: set[int] = set()
+            for watcher in asset_model.watchers:
+                trigger_hash = BaseEventTrigger.hash(watcher.trigger.classpath, watcher.trigger.kwargs)
+                trigger_hash_from_asset_model.add(trigger_hash)
+                # Names are otherwise only written when a reference is created, so a watcher renamed
+                # in the Dag file (or a wrong name stored by an older version) would never be corrected.
+                watcher_name = watcher_names[name_uri].get(trigger_hash)
+                if watcher_name is not None and watcher.name != watcher_name:
+                    watcher.name = watcher_name
 
             # Optimization: no diff between the DB and DAG definitions, no update needed
             if trigger_hash_from_asset == trigger_hash_from_asset_model:
@@ -1537,10 +1550,10 @@ class AssetModelOperation(NamedTuple):
                 asset_model = assets[name_uri]
 
                 for trigger_hash in trigger_hashes:
-                    trigger = triggers.get(trigger_hash)
+                    watcher_name = watcher_names[name_uri].get(trigger_hash)
                     orm_trigger = orm_triggers.get(trigger_hash)
-                    if orm_trigger and trigger:
-                        asset_model.add_trigger(orm_trigger, trigger["watcher_name"])
+                    if orm_trigger and watcher_name is not None:
+                        asset_model.add_trigger(orm_trigger, watcher_name)
 
         if refs_to_remove:
             # Remove old references
