@@ -19,7 +19,6 @@
 import { useState } from "react";
 
 import { Box, Button, Flex, Heading, Separator, VStack } from "@chakra-ui/react";
-import dayjs from "dayjs";
 import { useTranslation } from "react-i18next";
 import { LuChevronDown } from "react-icons/lu";
 import { useLocalStorage } from "usehooks-ts";
@@ -32,6 +31,7 @@ import { IconButton } from "src/system-components";
 import TimeRangeSelector from "src/components/TimeRangeSelector";
 
 import { COLLAPSED_UI_ALERTS_KEY } from "src/constants/localStorage";
+import { DASHBOARD_DEFAULT_HOURS, getDashboardRange } from "src/queries/routePrefetch";
 import { useConfig } from "src/queries/useConfig";
 import { useDocumentTitle } from "src/utils";
 
@@ -44,7 +44,7 @@ import { HistoricalMetrics } from "./HistoricalMetrics";
 import { PoolSummary } from "./PoolSummary";
 import { Stats } from "./Stats";
 
-const defaultHour = "24";
+const defaultHour = String(DASHBOARD_DEFAULT_HOURS);
 
 export const Dashboard = () => {
   const alerts = useConfig("dashboard_alert") as Array<UIAlert>;
@@ -54,9 +54,9 @@ export const Dashboard = () => {
 
   const instanceName = useConfig("instance_name");
 
-  const now = dayjs();
-  const [startDate, setStartDate] = useState(now.subtract(Number(defaultHour), "hour").toISOString());
-  const [endDate, setEndDate] = useState(now.toISOString());
+  // Starts from the range the route loader prefetched, so the history queries are served from its cache.
+  const [startDate, setStartDate] = useState(() => getDashboardRange().startDate);
+  const [endDate, setEndDate] = useState(() => getDashboardRange().endDate);
   const [isCollapsed, setIsCollapsed] = useLocalStorage(COLLAPSED_UI_ALERTS_KEY, false);
 
   const [firstAlert, ...restAlerts] = alerts;
