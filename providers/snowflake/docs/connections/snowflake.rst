@@ -78,6 +78,11 @@ Extra (optional)
     * ``token_file_path``: Path to a file holding the OIDC ID token used when ``workload_identity_provider``
       is ``OIDC``. The connector reads the token from this file, which suits projected or rotated tokens
       (for example a Kubernetes service-account token).
+    * ``workload_identity_impersonation_path``: The chain of identities to impersonate, in order, before
+      authenticating with Workload Identity Federation, as a list or a comma-separated string (not a file path;
+      the name matches the connector parameter). For ``AWS``, IAM role ARNs that the workload's credentials
+      assume in turn; for ``GCP``, service account emails. Snowflake then trusts the last identity in the chain
+      instead of the workload's own. Requires ``snowflake-connector-python>=4.0.0``.
     * ``token_endpoint``: Specify token endpoint for external OAuth provider.
     * ``grant_type``: Specify grant type for OAuth authentication. Currently supported: ``refresh_token`` (default), ``client_credentials``, ``password`` (for external IdP token_endpoint only).
     * ``scope``: Specify OAuth scope to include in the access token request for any OAuth grant type.

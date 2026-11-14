@@ -125,6 +125,7 @@ def get_provider_info():
                         "private_key_file": "Path of snowflake private key (PEM Format)",
                         "private_key_content": "Content to snowflake private key (PEM format)",
                         "workload_identity_provider": "AWS, AZURE, GCP or OIDC",
+                        "workload_identity_impersonation_path": "Comma-separated role ARNs (AWS) or service accounts (GCP)",
                         "insecure_mode": "insecure mode",
                         "proxy_host": "Proxy server hostname",
                         "proxy_port": "Proxy server port",
@@ -148,6 +149,10 @@ def get_provider_info():
                     },
                     "workload_identity_provider": {
                         "label": "Workload Identity Provider",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                    "workload_identity_impersonation_path": {
+                        "label": "Workload Identity Impersonation Path",
                         "schema": {"type": ["string", "null"]},
                     },
                     "insecure_mode": {
