@@ -161,6 +161,17 @@ export const ensureUseAssetServiceGetDagAssetQueuedEventData = (queryClient: Que
   dagId: string;
 }) => queryClient.ensureQueryData({ queryKey: Common.UseAssetServiceGetDagAssetQueuedEventKeyFn({ assetId, before, dagId }), queryFn: () => AssetService.getDagAssetQueuedEvent({ assetId, before, dagId }) });
 /**
+* Get Asset Deadlines
+* Get configured deadline rules and scheduled/missed deadline instances for an asset.
+* @param data The data for the request.
+* @param data.assetId
+* @returns AssetDeadlinesResponse Successful Response
+* @throws ApiError
+*/
+export const ensureUseAssetServiceGetAssetDeadlinesData = (queryClient: QueryClient, { assetId }: {
+  assetId: number;
+}) => queryClient.ensureQueryData({ queryKey: Common.UseAssetServiceGetAssetDeadlinesKeyFn({ assetId }), queryFn: () => AssetService.getAssetDeadlines({ assetId }) });
+/**
 * Get Assets
 * Get assets. Like the public endpoint, but also supports sorting by group and last asset event timestamp.
 * @param data The data for the request.

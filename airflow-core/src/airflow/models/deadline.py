@@ -27,7 +27,7 @@ from typing import TYPE_CHECKING, Any, Protocol, cast
 from uuid import UUID
 
 import uuid6
-from sqlalchemy import Boolean, ForeignKey, Index, Integer, Uuid, and_, func, select, text
+from sqlalchemy import Boolean, ForeignKey, Index, Integer, String, Uuid, and_, func, select, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from airflow._shared.observability.metrics import stats
@@ -140,11 +140,19 @@ class Deadline(Base):
     )
     dagrun = relationship("DagRun", back_populates="deadlines")
 
+    # If the Deadline Alert is for an Asset, store the asset ID and optional partition key.
+    asset_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("asset.id", ondelete="CASCADE"), nullable=True
+    )
+    asset = relationship("AssetModel")
+    partition_key: Mapped[str | None] = mapped_column(String(250), nullable=True)
+
     # The time after which the Deadline has passed and the callback should be triggered.
     deadline_time: Mapped[datetime] = mapped_column(UtcDateTime, nullable=False)
 
     # Whether the deadline has been marked as missed by the scheduler
     missed: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    resolved_at: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
 
     # Callback that will run when this deadline is missed
     callback_id: Mapped[UUID] = mapped_column(
@@ -161,21 +169,27 @@ class Deadline(Base):
     __table_args__ = (
         Index("deadline_missed_deadline_time_idx", missed, deadline_time, unique=False),
         Index("deadline_callback_id_idx", callback_id, unique=False),
+        Index("deadline_asset_id_partition_idx", asset_id, partition_key, unique=False),
     )
 
     def __init__(
         self,
         deadline_time: datetime,
         callback: CallbackDefinitionProtocol,
-        dagrun_id: int,
-        deadline_alert_id: UUID | None,
+        dagrun_id: int | None = None,
+        deadline_alert_id: UUID | None = None,
         dag_id: str | None = None,
         bundle_name: str | None = None,
+        asset_id: int | None = None,
+        partition_key: str | None = None,
     ):
         super().__init__()
         self.deadline_time = deadline_time
         self.dagrun_id = dagrun_id
+        self.asset_id = asset_id
+        self.partition_key = partition_key
         self.missed = False
+        self.resolved_at = None
         self.callback = Callback.create_from_sdk_def(
             callback_def=callback, prefix=CALLBACK_METRICS_PREFIX, dag_id=dag_id
         )
@@ -190,6 +204,10 @@ class Deadline(Base):
                 # after a cascade delete). __repr__ must not raise, so fall back to the id-only form.
                 dag_id = self.dagrun.dag_id if self.dagrun is not None else "<unknown>"
                 return "DagRun", f"Dag: {dag_id} Run: {self.dagrun_id}"
+            if self.asset_id:
+                asset_name = self.asset.name if self.asset is not None else "<unknown>"
+                part = f" Partition: {self.partition_key}" if self.partition_key else ""
+                return "Asset", f"Asset: {asset_name} (id={self.asset_id}){part}"
 
             return "Unknown", ""
 
@@ -267,11 +285,249 @@ class Deadline(Base):
 
         return deleted_count
 
+    @property
+    def is_late(self) -> bool:
+        return self.missed and self.resolved_at is None
+
+    @classmethod
+    def _discover_asset_partition_keys(cls, *, session: Session, asset_id: int) -> list[str | None]:
+        from airflow.models.asset import AssetEvent
+
+        keys: list[str] = []
+        seen: set[str] = set()
+        event_keys = session.scalars(
+            select(AssetEvent.partition_key)
+            .where(AssetEvent.asset_id == asset_id, AssetEvent.partition_key.isnot(None))
+            .distinct()
+            .order_by(AssetEvent.partition_key.asc())
+        ).all()
+        for k in event_keys:
+            if k is not None and k not in seen:
+                seen.add(k)
+                keys.append(k)
+        return list(keys) if keys else [None]
+
+    @classmethod
+    def _enqueue_resolution_callback(cls, *, session: Session, deadline: Deadline, resolved_at: datetime) -> None:
+        from airflow.serialization.decoders import _decode_deadline_callback
+
+        if deadline.deadline_alert is None or not deadline.deadline_alert.on_resolve_callback_def:
+            return
+        callback_def = _decode_deadline_callback(deadline.deadline_alert.on_resolve_callback_def)
+        cb = Callback.create_from_sdk_def(callback_def=callback_def, prefix=CALLBACK_METRICS_PREFIX)
+        asset_payload = (
+            {"id": deadline.asset.id, "name": deadline.asset.name, "uri": deadline.asset.uri}
+            if deadline.asset is not None
+            else {"id": deadline.asset_id}
+        )
+        context = {
+            "asset": asset_payload,
+            "partition_key": deadline.partition_key,
+            "resolved": True,
+            "resolved_at": resolved_at.isoformat(),
+            "deadline": {"id": str(deadline.id), "deadline_time": deadline.deadline_time.isoformat()},
+        }
+        cb.queue(session=session)
+        if isinstance(cb, (TriggererCallback, ExecutorCallback)):
+            cb.data["kwargs"] = {**cb.data.get("kwargs", {}), "context": context}
+        session.add(cb)
+
+    @classmethod
+    def prune_asset_deadlines(cls, *, session: Session, asset_event: Any) -> int:
+        base_filter = [cls.asset_id == asset_event.asset_id]
+        if asset_event.partition_key is not None:
+            base_filter.append((cls.partition_key == asset_event.partition_key) | cls.partition_key.is_(None))
+        else:
+            base_filter.append(cls.partition_key.is_(None))
+
+        pending = session.scalars(
+            select(cls).where(*base_filter, ~cls.missed, cls.deadline_time >= asset_event.timestamp)
+        ).all()
+        deleted_count = 0
+        for deadline in pending:
+            session.delete(deadline)
+            stats.incr(
+                "deadline_alerts.deadline_not_missed",
+                tags=prune_dict({"asset_id": str(asset_event.asset_id), "partition_key": asset_event.partition_key}),
+            )
+            deleted_count += 1
+
+        late_deadlines = session.scalars(
+            select(cls).where(*base_filter, cls.missed.is_(True), cls.resolved_at.is_(None))
+        ).all()
+        for late_dl in late_deadlines:
+            late_dl.resolved_at = asset_event.timestamp
+            cls._enqueue_resolution_callback(session=session, deadline=late_dl, resolved_at=asset_event.timestamp)
+
+        session.flush()
+        cls.schedule_asset_deadlines(session=session, asset_id=asset_event.asset_id)
+        return deleted_count
+
+    @classmethod
+    def schedule_asset_deadlines(
+        cls,
+        *,
+        session: Session,
+        asset_id: int | None = None,
+        now: datetime | None = None,
+    ) -> int:
+        import json
+        from croniter import croniter
+        from airflow.models.asset import AssetEvent, AssetModel
+        from airflow.models.dagrun import DagRun
+        from airflow.models.deadline_alert import DeadlineAlert
+        from airflow.models.serialized_dag import SerializedDagModel
+        from airflow.serialization.decoders import _decode_deadline_callback, _decode_deadline_interval
+        from airflow.serialization.definitions.deadline import SerializedVariableInterval
+
+        current_time = now or timezone.utcnow()
+        alert_query = select(DeadlineAlert).where(
+            (DeadlineAlert.asset_id.isnot(None))
+            | (DeadlineAlert.cron.isnot(None))
+            | (DeadlineAlert.reference.isnot(None))
+        )
+        if asset_id is not None:
+            alert_query = alert_query.where(DeadlineAlert.asset_id == asset_id)
+
+        alerts = session.scalars(alert_query).all()
+        created_count = 0
+        seen_pool_keys: set[tuple[Any, ...]] = set()
+
+        for alert in alerts:
+            ref_type = alert.reference.get("reference_type") if isinstance(alert.reference, dict) else None
+            if alert.asset_id is None and ref_type not in {"AssetScheduleDeadline", "AssetLastEventDeadline"}:
+                continue
+
+            pool_key = (
+                alert.asset_id,
+                alert.serialized_dag_id if alert.asset_id is None else None,
+                alert.cron,
+                json.dumps(alert.interval, sort_keys=True, default=str),
+                json.dumps(alert.callback_def, sort_keys=True, default=str),
+                json.dumps(alert.on_resolve_callback_def, sort_keys=True, default=str),
+            )
+            if pool_key in seen_pool_keys:
+                continue
+            seen_pool_keys.add(pool_key)
+
+            latest_event = None
+            if alert.asset_id is not None:
+                asset = session.get(AssetModel, alert.asset_id)
+                if asset is None or not asset.active:
+                    continue
+                latest_event = session.scalar(
+                    select(AssetEvent)
+                    .where(AssetEvent.asset_id == alert.asset_id)
+                    .order_by(AssetEvent.timestamp.desc(), AssetEvent.id.desc())
+                    .limit(1)
+                )
+                anchor = latest_event.timestamp if latest_event is not None else alert.created_at
+                partition_keys = cls._discover_asset_partition_keys(session=session, asset_id=alert.asset_id)
+            else:
+                if alert.serialized_dag_id is None:
+                    continue
+                sdag = session.get(SerializedDagModel, alert.serialized_dag_id)
+                if sdag is None:
+                    continue
+                latest_run = session.scalar(
+                    select(DagRun).where(DagRun.dag_id == sdag.dag_id).order_by(DagRun.id.desc()).limit(1)
+                )
+                anchor = (
+                    (latest_run.start_date or latest_run.logical_date or alert.created_at)
+                    if latest_run is not None
+                    else alert.created_at
+                )
+                partition_keys = [None]
+
+            deadline_time: datetime | None = None
+            if alert.cron:
+                base = max(anchor, current_time - timedelta(seconds=1))
+                deadline_time = timezone.coerce_datetime(croniter(alert.cron, base).get_next(datetime))
+            elif alert.interval is not None:
+                resolved_interval = _decode_deadline_interval(alert.interval)
+                if isinstance(resolved_interval, SerializedVariableInterval):
+                    resolved_interval = resolved_interval.resolve(session=session)
+                deadline_time = anchor + resolved_interval
+
+            if deadline_time is None:
+                continue
+
+            for part_key in partition_keys:
+                existing = session.scalar(
+                    select(cls).where(
+                        cls.deadline_alert_id == alert.id,
+                        cls.asset_id == alert.asset_id,
+                        cls.partition_key == part_key,
+                        cls.deadline_time == deadline_time,
+                    )
+                )
+                if existing is not None:
+                    continue
+
+                if alert.asset_id is not None:
+                    satisfied_query = select(AssetEvent.id).where(
+                        AssetEvent.asset_id == alert.asset_id,
+                        AssetEvent.timestamp <= deadline_time,
+                    )
+                    if alert.cron:
+                        prev_dt = timezone.coerce_datetime(croniter(alert.cron, deadline_time).get_prev(datetime))
+                        satisfied_query = satisfied_query.where(AssetEvent.timestamp > prev_dt)
+                    else:
+                        satisfied_query = satisfied_query.where(AssetEvent.timestamp >= alert.created_at)
+                        if latest_event is not None:
+                            satisfied_query = satisfied_query.where(AssetEvent.timestamp > latest_event.timestamp)
+                    if part_key is not None:
+                        satisfied_query = satisfied_query.where(AssetEvent.partition_key == part_key)
+                    if session.scalar(satisfied_query.limit(1)) is not None:
+                        continue
+                else:
+                    sdag = session.get(SerializedDagModel, alert.serialized_dag_id)
+                    if sdag is not None:
+                        run_exists = session.scalar(
+                            select(DagRun.id)
+                            .where(DagRun.dag_id == sdag.dag_id, DagRun.logical_date >= anchor)
+                            .limit(1)
+                        )
+                        if run_exists is not None:
+                            continue
+
+                callback_def = _decode_deadline_callback(alert.callback_def)
+                session.add(
+                    cls(
+                        deadline_time=deadline_time,
+                        callback=callback_def,
+                        asset_id=alert.asset_id,
+                        partition_key=part_key,
+                        deadline_alert_id=alert.id,
+                    )
+                )
+                created_count += 1
+
+        if created_count:
+            session.flush()
+        return created_count
+
     def handle_miss(self, session: Session):
         """Handle a missed deadline by queueing the callback."""
         from airflow.models.dag import DagModel  # Avoids circular import
 
         def get_simple_context():
+            if self.asset_id is not None:
+                from airflow.models.asset import AssetModel
+
+                asset = session.get(AssetModel, self.asset_id)
+                asset_payload = (
+                    {"id": asset.id, "name": asset.name, "uri": asset.uri}
+                    if asset is not None
+                    else {"id": self.asset_id}
+                )
+                return {
+                    "asset": asset_payload,
+                    "partition_key": self.partition_key,
+                    "missing_partition_keys": [self.partition_key] if self.partition_key is not None else [],
+                    "deadline": {"id": str(self.id), "deadline_time": self.deadline_time},
+                }
+
             from airflow.api_fastapi.core_api.datamodels.dag_run import DAGRunResponse
             from airflow.models import DagRun
 
@@ -327,8 +583,11 @@ class Deadline(Base):
         elif isinstance(self.callback, ExecutorCallback):
             data = callback_data_with_context()
             data["deadline_id"] = str(self.id)
-            data["dag_run_id"] = str(self.dagrun.id)
-            data["dag_id"] = self.dagrun.dag_id
+            if self.dagrun is not None:
+                data["dag_run_id"] = str(self.dagrun.id)
+                data["dag_id"] = self.dagrun.dag_id
+            elif self.asset_id is not None:
+                data["asset_id"] = str(self.asset_id)
             self.callback.data = data
 
             self.callback.state = CallbackState.PENDING
@@ -341,16 +600,24 @@ class Deadline(Base):
         self.missed = True
         session.add(self)
 
-        team_name = (
-            DagModel.get_team_name(self.dagrun.dag_id, session=session)
-            if conf.getboolean("core", "multi_team")
-            else None
-        )
+        if self.dagrun is not None:
+            team_name = (
+                DagModel.get_team_name(self.dagrun.dag_id, session=session)
+                if conf.getboolean("core", "multi_team")
+                else None
+            )
+            metric_tags = {
+                "dag_id": self.dagrun.dag_id,
+                "dagrun_id": self.dagrun.run_id,
+                "team_name": team_name,
+            }
+        else:
+            team_name = None
+            metric_tags = {"asset_id": str(self.asset_id), "partition_key": self.partition_key}
+
         stats.incr(
             "deadline_alerts.deadline_missed",
-            tags=prune_dict(
-                {"dag_id": self.dagrun.dag_id, "dagrun_id": self.dagrun.run_id, "team_name": team_name}
-            ),
+            tags=prune_dict(metric_tags),
         )
         if callback_failed:
             stats.incr(

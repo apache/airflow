@@ -21,9 +21,9 @@ from typing import TYPE_CHECKING
 from uuid import UUID
 
 import uuid6
-from sqlalchemy import JSON, ForeignKey, String, Text, Uuid, select
+from sqlalchemy import JSON, Boolean, ForeignKey, Integer, String, Text, Uuid, select
 from sqlalchemy.exc import NoResultFound
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from airflow._shared.timezones import timezone
 from airflow.models import Base
@@ -43,15 +43,22 @@ class DeadlineAlert(Base):
     id: Mapped[UUID] = mapped_column(Uuid(), primary_key=True, default=uuid6.uuid7)
     created_at: Mapped[datetime] = mapped_column(UtcDateTime, nullable=False, default=timezone.utcnow)
 
-    serialized_dag_id: Mapped[UUID] = mapped_column(
-        Uuid(), ForeignKey("serialized_dag.id", ondelete="CASCADE"), nullable=False
+    serialized_dag_id: Mapped[UUID | None] = mapped_column(
+        Uuid(), ForeignKey("serialized_dag.id", ondelete="CASCADE"), nullable=True
     )
+    asset_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("asset.id", ondelete="CASCADE"), nullable=True
+    )
+    asset = relationship("AssetModel")
+    is_producer: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    cron: Mapped[str | None] = mapped_column(String(250), nullable=True)
 
     name: Mapped[str | None] = mapped_column(String(250), nullable=True)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
-    reference: Mapped[dict] = mapped_column(JSON, nullable=False)
-    interval: Mapped[dict] = mapped_column(JSON, nullable=False)
+    reference: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    interval: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     callback_def: Mapped[dict] = mapped_column(JSON, nullable=False)
+    on_resolve_callback_def: Mapped[dict | None] = mapped_column(JSON, nullable=True)
 
     def __repr__(self):
 
@@ -89,6 +96,13 @@ class DeadlineAlert(Base):
         """Check if two DeadlineAlerts share the same reference, interval, and callback definition."""
         if not isinstance(other, DeadlineAlert):
             return NotImplemented
+        if self.asset_id is not None or other.asset_id is not None:
+            return (
+                self.asset_id == other.asset_id
+                and self.cron == other.cron
+                and self.interval == other.interval
+                and self.callback_def == other.callback_def
+            )
         return (
             self.reference == other.reference
             and self.interval == other.interval
@@ -98,7 +112,9 @@ class DeadlineAlert(Base):
     @property
     def reference_class(self) -> type[SerializedReferenceModels.SerializedBaseDeadlineReference]:
         """Return the deserialized reference class."""
-        ref_name = self.reference.get(SerializedReferenceModels.REFERENCE_TYPE_FIELD)
+        ref_name = (
+            self.reference.get(SerializedReferenceModels.REFERENCE_TYPE_FIELD) if self.reference else None
+        )
         if ref_name and SerializedReferenceModels.is_builtin_reference(ref_name):
             return SerializedReferenceModels.get_reference_class(ref_name)
         return SerializedReferenceModels.SerializedCustomReference
