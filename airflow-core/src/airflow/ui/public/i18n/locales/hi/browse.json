@@ -28,6 +28,7 @@
         "lastParsed": "अंतिम पार्स",
         "parseDuration": "पार्स अवधि"
       },
+      "importErrorForbidden": "आपको यह आयात त्रुटि देखने की अनुमति नहीं है।",
       "importErrorGone": "यह इम्पोर्ट त्रुटि अब दर्ज नहीं है। संभवतः इसे पुनः पार्स द्वारा ठीक कर दिया गया था।",
       "neverParsed": "कभी नहीं",
       "parsedFile_one": "पार्स की गई फ़ाइल",
@@ -70,6 +71,7 @@
     "columns": {
       "dag": "डैग",
       "key": "कुंजी",
+      "timestamp": "टाइमस्टैम्प",
       "value": "मान"
     },
     "delete": {
