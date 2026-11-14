@@ -34,6 +34,7 @@ from airflow.models.callback import (
     Callback,
     CallbackFetchMethod,
     CallbackState,
+    CallbackType,
     DagProcessorCallback,
     ExecutorCallback,
     TriggererCallback,
@@ -615,3 +616,9 @@ class TestAcceptsContext:
     def test_true_for_uninspectable_callable(self):
         with patch("airflow._shared.module_loading.inspect.signature", side_effect=ValueError):
             assert accepts_context(lambda: None) is True
+
+
+@pytest.mark.parametrize("member", [*CallbackType, *CallbackFetchMethod])
+def test_enum_str_is_value(member):
+    # DB drivers may bind str-Enum members through str(); mysqlclient>=2.3.1 does.
+    assert str(member) == member.value
