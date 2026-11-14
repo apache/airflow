@@ -1822,6 +1822,12 @@ class TestTriggerRunner:
             "log_level": "warning",
             "name": "mock_name",
         } in cap_structlog
+        # The exception details must be captured too, so the warning carries
+        # the traceback; this fails if exc_info=True is dropped from the call.
+        [entry] = [e for e in cap_structlog if e["event"] == "cleanup() raised an exception"]
+        exc_type, exc_value, _ = entry["exc_info"]
+        assert exc_type is RuntimeError
+        assert str(exc_value) == "cleanup failed"
 
     def test_run_trigger_routes_shared_stream_trigger_through_manager(self, session) -> None:
         """A BaseEventTrigger that opts into a shared stream consumes filter_shared_stream()."""
