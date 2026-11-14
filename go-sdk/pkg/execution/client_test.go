@@ -580,6 +580,7 @@ func TestTaskStateStoreSetRoundTripsThroughUnmarshalJSONValue(t *testing.T) {
 		{name: "json string option", value: roundTripStringID{ID: 123}},
 		{name: "json marshaler", value: roundTripMarshaler{Status: 0}},
 		{name: "datetime", value: time.Date(2026, 5, 15, 0, 0, 0, 0, time.UTC)},
+		{name: "byte slice", value: []byte("raw")},
 	}
 
 	for _, tc := range tests {

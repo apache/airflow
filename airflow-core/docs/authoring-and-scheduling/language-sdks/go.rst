@@ -601,7 +601,7 @@ retries, which makes it a good place to record an external job id or a checkpoin
         return waitForSparkJob(actx, jobID)
     }
 
-The store has ``Get``, ``UnmarshalJSONValue`` (decodes an object or array into a pointer), ``Set``, ``Delete``
+The store has ``Get``, ``UnmarshalJSONValue`` (decodes the value into a pointer), ``Set``, ``Delete``
 and ``Clear``.
 
 * A value must be JSON, and not ``nil``. It is stored as ``encoding/json`` writes it, so a ``time.Time`` becomes

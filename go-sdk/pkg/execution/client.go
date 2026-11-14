@@ -525,8 +525,8 @@ func resolveExpiry(retention *time.Duration, now time.Time) (*genmodels.Time, er
 // encodeJSONValue returns the msgpack form of value as encoding/json writes it,
 // and whether that is null. The value must take encoding/json's shape, not only
 // its field names: argument binding and UnmarshalJSONValue decode it with
-// encoding/json, which rejects a ",string" field or a MarshalJSON type that was
-// written any other way.
+// encoding/json, and a ",string" field or an UnmarshalJSON method rejects a
+// value that was written any other way.
 func encodeJSONValue(value any) (encoded msgpack.RawMessage, isNull bool, err error) {
 	blob, err := json.Marshal(value)
 	if err != nil {

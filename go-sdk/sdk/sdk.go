@@ -132,8 +132,8 @@ type XComClient interface {
 	// and a byte slice as a base64 string. A float64 with no fractional part,
 	// such as 5.0, is stored as the integer 5. nil is allowed and is pushed as
 	// null. A value that json.Marshal rejects, such as a non-finite float, is
-	// rejected before it is sent, and so is a number that fits in none of
-	// int64, uint64 and float64.
+	// rejected before it is sent, and so is an integer that fits in neither
+	// int64 nor uint64, or a number past the range of a float64.
 	PushXCom(ctx context.Context, ti TaskInstance, key string, value any) error
 }
 
@@ -181,8 +181,9 @@ type TaskStateStore interface {
 	// stored as an RFC 3339 string and a byte slice as a base64 string. A
 	// float64 with no fractional part, such as 5.0, is stored as the integer
 	// 5, so Get returns it as an int64. A value that json.Marshal rejects,
-	// such as a non-finite float, is rejected before it is sent, and so is a
-	// number that fits in none of int64, uint64 and float64.
+	// such as a non-finite float, is rejected before it is sent, and so is an
+	// integer that fits in neither int64 nor uint64, or a number past the
+	// range of a float64.
 	Set(ctx context.Context, key string, value any, opts ...SetOption) error
 
 	// Delete removes the value stored under key. Deleting a key that does not
