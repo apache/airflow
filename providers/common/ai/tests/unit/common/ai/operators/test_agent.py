@@ -2828,13 +2828,13 @@ class TestAgentOperatorSandboxContinuityGuards:
         ],
     )
     def test_durable_with_a_sandbox_toolset_is_rejected_wherever_it_hides(self, toolsets):
-        with pytest.raises(ValueError, match="durable=True cannot be used with a SandboxToolset"):
+        with pytest.raises(ValueError, match="durable execution cannot be used with a SandboxToolset"):
             AgentOperator(task_id="t", prompt="p", llm_conn_id="c", durable=True, toolsets=toolsets)
 
     def test_durable_with_a_sandbox_in_a_toolset_capability_is_rejected(self):
         """Tools reaching the agent through ``capabilities=[Toolset(...)]`` are durably cached
         too, so the same replay-against-nothing applies to them."""
-        with pytest.raises(ValueError, match="durable=True cannot be used with a SandboxToolset"):
+        with pytest.raises(ValueError, match="durable execution cannot be used with a SandboxToolset"):
             AgentOperator(
                 task_id="t",
                 prompt="p",
@@ -2868,7 +2868,9 @@ class TestAgentOperatorSandboxContinuityGuards:
             )
 
     def test_the_message_names_the_ways_out(self):
-        with pytest.raises(ValueError, match="Drop durable=True, or move the sandbox work into its own task"):
+        with pytest.raises(
+            ValueError, match="Move the sandbox work into its own task. Or drop durable=True."
+        ):
             AgentOperator(
                 task_id="t", prompt="p", llm_conn_id="c", durable=True, toolsets=[_sandbox_toolset()]
             )
@@ -2939,7 +2941,7 @@ class TestAgentOperatorSandboxContinuityGuards:
     def test_durable_is_refused_even_with_an_attached_sandbox(self):
         # Replay does not re-execute the tool, so the workspace would not move with the
         # transcript; a cached write_file on a retry leaves no file behind.
-        with pytest.raises(ValueError, match="durable=True cannot be used with a SandboxToolset"):
+        with pytest.raises(ValueError, match="durable execution cannot be used with a SandboxToolset"):
             AgentOperator(
                 task_id="t", prompt="p", llm_conn_id="c", durable=True, toolsets=[_attached_sandbox_toolset()]
             )
@@ -3127,27 +3129,27 @@ class TestAgentOperatorDurableByDefault:
         [
             pytest.param(
                 {"toolsets": [PydanticAIMCPToolset("http://mcp.example.com/mcp")]},
-                "durable=True needs a unique id on every MCPToolset",
+                "durable execution needs a unique id on every MCPToolset",
                 id="mcp-without-id",
             ),
             pytest.param(
                 {"toolsets": [_sandbox_toolset()]},
-                "durable=True cannot be used with a SandboxToolset",
+                "durable execution cannot be used with a SandboxToolset",
                 id="sandbox",
             ),
             pytest.param(
                 {"capabilities": [CombinedCapability([Toolset(_sandbox_toolset())])]},
-                "durable=True cannot be used with a SandboxToolset",
+                "durable execution cannot be used with a SandboxToolset",
                 id="sandbox-inside-combined-capability",
             ),
             pytest.param(
                 {"capabilities": [PrefixTools(wrapped=Toolset(_sandbox_toolset()), prefix="x")]},
-                "durable=True cannot be used with a SandboxToolset",
+                "durable execution cannot be used with a SandboxToolset",
                 id="sandbox-inside-wrapper-capability",
             ),
             pytest.param(
                 {"capabilities": [Capability(toolsets=[_sandbox_toolset()])]},
-                "durable=True cannot be used with a SandboxToolset",
+                "durable execution cannot be used with a SandboxToolset",
                 id="sandbox-in-capability-toolsets",
             ),
             pytest.param(
@@ -3173,6 +3175,8 @@ class TestAgentOperatorDurableByDefault:
         assert op._is_durable_run is False
         assert "Durable execution is off for this task: " in caplog.text
         assert reason in caplog.text
+        # The task never set durable=True, so the reason does not tell it to drop it.
+        assert "durable=True" not in caplog.text
 
     def test_an_airflow_durability_capability_passed_in_journals_on_its_own(
         self, task_state_store_accessor, caplog
@@ -3262,7 +3266,7 @@ class TestAgentOperatorDurableByDefault:
         assert op.durable is True
 
     def test_durable_true_refuses_a_sandbox_a_capability_contributes_when_the_dag_loads(self):
-        with pytest.raises(ValueError, match="durable=True cannot be used with a SandboxToolset"):
+        with pytest.raises(ValueError, match="durable execution cannot be used with a SandboxToolset"):
             AgentOperator(
                 task_id="t",
                 prompt="p",
