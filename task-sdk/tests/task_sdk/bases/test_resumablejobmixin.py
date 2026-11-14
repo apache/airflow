@@ -28,6 +28,7 @@ from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanE
 
 from airflow.sdk import ResumableJobMixin
 from airflow.sdk.bases.operator import BaseOperator
+from airflow.sdk.bases.resumablejobmixin import ResumeAction
 
 if TYPE_CHECKING:
     from pydantic import JsonValue
@@ -150,6 +151,16 @@ class TestRetryWithDifferentJobStatuses:
         assert op.submitted_ids == [], "should not resubmit when job is active"
         assert op.polled_ids == ["job-001"]
 
+    def test_reconnect_returns_the_job_result(self):
+        """A reconnect must return what a first-attempt success returns, not poll()'s None."""
+        op = ConcreteResumableOperator(task_id="test_task")
+        op._status_map["job-001"] = "RUNNING"
+
+        result = op.execute_resumable(make_context(FakeTaskState({"test_job_id": "job-001"})))
+
+        assert result == "result-of-job-001"
+        assert op.polled_ids == ["job-001"], "the reconnected job must still be polled"
+
     def test_pending_status_also_skips_submission(self):
         op = ConcreteResumableOperator(task_id="test_task")
         op._status_map["job-001"] = "PENDING"
@@ -233,6 +244,51 @@ class TestResumeOnRetryDisabled:
     def test_default_is_true(self):
         op = ConcreteResumableOperator(task_id="test_task")
         assert op.durable is True
+
+
+class TestAbsentContext:
+    """Operators are executed with a ``None`` context by provider tests asserting validation errors."""
+
+    @pytest.mark.parametrize("durable", [True, False])
+    def test_submits_when_context_is_none(self, durable):
+        op = ConcreteResumableOperator(task_id="test_task", durable=durable)
+
+        assert op.execute_resumable(None) == "result-of-job-001"
+        assert op.submitted_ids == ["job-001"]
+
+
+class _UnreadableStatsTagsTI:
+    """A task instance whose stats_tags must not be read."""
+
+    @property
+    def stats_tags(self):
+        raise AssertionError("stats_tags read on a non-durable run")
+
+
+class TestNonDurableSkipsTaskInstance:
+    """With ``durable=False`` no metric is emitted, so the task instance is never read for tags."""
+
+    @pytest.mark.parametrize(
+        "ti",
+        [
+            pytest.param(_UnreadableStatsTagsTI(), id="stats-tags-raises"),
+            pytest.param(mock.Mock(), id="mock-with-non-mapping-stats-tags"),
+            pytest.param(object(), id="no-stats-tags-attribute"),
+        ],
+    )
+    @pytest.mark.parametrize(
+        ("call", "expected"),
+        [
+            pytest.param(lambda op, ctx: op.execute_resumable(ctx), "result-of-job-001", id="execute"),
+            pytest.param(
+                lambda op, ctx: op.get_resume_decision(ctx).action, ResumeAction.SUBMIT, id="decision"
+            ),
+        ],
+    )
+    def test_task_instance_not_read(self, ti, call, expected):
+        op = ConcreteResumableOperator(task_id="test_task", durable=False)
+
+        assert call(op, {**make_context(FakeTaskState()), "ti": ti}) == expected
 
 
 class TestExternalIdKey:
@@ -581,3 +637,93 @@ class TestAbstractMethodEnforcement:
         assert partial_cls.__abstractmethods__ == frozenset({missing_method})
         with pytest.raises(TypeError):
             partial_cls(task_id="test_task")
+
+
+class TestResumeDecisionWithoutPolling:
+    """The non-blocking half: deciding must never submit, poll, or block."""
+
+    @pytest.mark.parametrize(
+        ("stored", "status", "expected_action"),
+        [
+            (None, None, ResumeAction.SUBMIT),
+            ("job-001", "RUNNING", ResumeAction.RECONNECT),
+            ("job-001", "PENDING", ResumeAction.RECONNECT),
+            ("job-001", "SUCCEEDED", ResumeAction.ALREADY_SUCCEEDED),
+            ("job-001", "FAILED", ResumeAction.SUBMIT),
+            ("job-001", "CANCELLED", ResumeAction.SUBMIT),
+        ],
+    )
+    def test_action_matches_prior_job_status(self, stored, status, expected_action):
+        op = ConcreteResumableOperator(task_id="test_task")
+        if status is not None:
+            op._status_map["job-001"] = status
+        task_state = FakeTaskState({"test_job_id": stored} if stored else None)
+
+        decision = op.get_resume_decision(make_context(task_state))
+
+        assert decision.action is expected_action
+        assert op.submitted_ids == [], "deciding must not submit"
+        assert op.polled_ids == [], "deciding must not poll"
+
+    @pytest.mark.parametrize(
+        ("status", "expected_id"),
+        [("RUNNING", "job-001"), ("SUCCEEDED", "job-001"), ("FAILED", None)],
+    )
+    def test_resumable_id_returned_only_when_resumable(self, status, expected_id):
+        op = ConcreteResumableOperator(task_id="test_task")
+        op._status_map["job-001"] = status
+
+        decision = op.get_resume_decision(make_context(FakeTaskState({"test_job_id": "job-001"})))
+
+        assert decision.external_id == expected_id
+
+    def test_no_store_read_when_durable_false(self):
+        op = ConcreteResumableOperator(task_id="test_task", durable=False)
+        op._status_map["job-001"] = "RUNNING"
+        task_state = FakeTaskState({"test_job_id": "job-001"})
+        task_state.get = mock.Mock(side_effect=AssertionError("store must not be read"))
+
+        assert op.get_resume_decision(make_context(task_state)).action is ResumeAction.SUBMIT
+
+    def test_submits_when_task_state_store_unavailable(self):
+        op = ConcreteResumableOperator(task_id="test_task")
+
+        assert op.get_resume_decision(make_context()).action is ResumeAction.SUBMIT
+
+
+class TestPersistJobId:
+    def test_persists_submitted_id(self):
+        op = ConcreteResumableOperator(task_id="test_task")
+        task_state = FakeTaskState()
+
+        op.persist_job_id(make_context(task_state), "job-001")
+
+        assert task_state.get("test_job_id") == "job-001"
+
+    def test_round_trips_into_a_reconnect_decision(self):
+        """A deferrable submit persists an id that the next attempt reconnects to."""
+        op = ConcreteResumableOperator(task_id="test_task")
+        op._status_map["job-001"] = "RUNNING"
+        task_state = FakeTaskState()
+
+        op.persist_job_id(make_context(task_state), "job-001")
+        decision = op.get_resume_decision(make_context(task_state))
+
+        assert (decision.action, decision.external_id) == (ResumeAction.RECONNECT, "job-001")
+
+    @pytest.mark.parametrize(
+        ("durable", "external_id"),
+        [(False, "job-001"), (True, None)],
+    )
+    def test_skips_persist_when_nothing_to_reconnect_to(self, durable, external_id):
+        op = ConcreteResumableOperator(task_id="test_task", durable=durable)
+        task_state = FakeTaskState()
+
+        op.persist_job_id(make_context(task_state), external_id)
+
+        assert task_state._store == {}
+
+    def test_no_error_when_task_state_store_unavailable(self):
+        op = ConcreteResumableOperator(task_id="test_task")
+
+        op.persist_job_id(make_context(), "job-001")
