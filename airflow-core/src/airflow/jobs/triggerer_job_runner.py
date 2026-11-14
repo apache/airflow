@@ -604,6 +604,9 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
 
     logger_cache: dict[int, TriggerLoggingFactory] = attrs.field(factory=dict, init=False)
 
+    # Watcher triggers' watched assets by trigger ID, so their lines can carry them.
+    watched_assets: dict[int, dict[str, str]] = attrs.field(factory=dict, init=False)
+
     # A list of triggers that we have told the async process to cancel. We keep them here until we receive the
     # FinishedTriggers message
     cancelling_triggers: set[int] = attrs.field(factory=set, init=False)
@@ -722,6 +725,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                 self.running_triggers.discard(id)
                 self.cancelling_triggers.discard(id)
                 self.releasing_triggers.discard(id)
+                self.watched_assets.pop(id, None)
                 if factory := self.logger_cache.pop(id, None):
                     try:
                         factory.upload_to_remote()
@@ -1049,6 +1053,10 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
 
             if trigger.assets:
                 watched_assets = {a.name: a.uri for a in trigger.assets}
+            if watched_assets is not None:
+                self.watched_assets[trigger.id] = watched_assets
+            else:
+                self.watched_assets.pop(trigger.id, None)
 
             if callback := getattr(trigger, "callback", None):
                 # Log callback triggers to a file the UI callback logs endpoint can read.
@@ -1074,6 +1082,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             # This is to handle 2 to 3 upgrade where TI.dag_version_id can be none
             log.warning(
                 "TaskInstance associated with Trigger has no associated Dag Version, skipping the trigger",
+                trigger_id=trigger.id,
                 ti_id=trigger.task_instance.id,
             )
             return None
@@ -1114,6 +1123,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             except TaskNotFound:
                 log.warning(
                     "Task not found in resolved Dag version; building plain workload",
+                    trigger_id=trigger.id,
                     task_id=trigger.task_instance.task_id,
                     dag_id=trigger.task_instance.dag_id,
                 )
@@ -1122,7 +1132,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             # it means we need to load the SerializedDagModel so we can build a RuntimeTaskInstance later on which
             # will allow us to build a context on which we will render the templated fields.
             if task is not None and task.start_from_trigger:
-                log.info("Start from trigger enabled for task %s", task.task_id)
+                log.info("Start from trigger enabled for task %s", task.task_id, trigger_id=trigger.id)
 
                 return workloads.RunTrigger(
                     id=trigger.id,
@@ -1183,7 +1193,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             for new_trigger_id in new_trigger_ids:
                 # Check it didn't vanish in the meantime
                 if new_trigger_id not in new_triggers:
-                    log.warning("Trigger disappeared before we could start it", id=new_trigger_id)
+                    log.warning("Trigger disappeared before we could start it", trigger_id=new_trigger_id)
                     continue
 
                 new_trigger_orm = new_triggers[new_trigger_id]
@@ -1201,7 +1211,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                             "TaskInstance of Trigger is None. It was likely updated by another trigger job. "
                             "Skipping trigger instantiation."
                         ),
-                        id=new_trigger_id,
+                        trigger_id=new_trigger_id,
                     )
                     continue
 
@@ -1244,6 +1254,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
 
         for trigger_id in self.trigger_kinds.keys() - requested_trigger_ids - known_trigger_ids:
             del self.trigger_kinds[trigger_id]
+            self.watched_assets.pop(trigger_id, None)
         self.failure_tracker.forget(
             self.failure_tracker.failures.keys() - requested_trigger_ids - known_trigger_ids
         )
@@ -1327,6 +1338,9 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
 
             if trigger_id := event.pop("trigger_id", None):
                 log = get_logger(trigger_id)
+                event["trigger_id"] = trigger_id
+                if watched_assets := self.watched_assets.get(trigger_id):
+                    event["watched_assets"] = watched_assets
             else:
                 # Log message about the TriggerRunner itself -- just output it
                 log = fallback_log
@@ -1648,13 +1662,13 @@ class TriggerRunner:
             workload = self.to_create.popleft()
             trigger_id = workload.id
             if trigger_id in self.triggers:
-                self.log.warning("Trigger %s had insertion attempted twice", trigger_id)
+                self.log.warning("Trigger had insertion attempted twice", trigger_id=trigger_id)
                 continue
             try:
                 trigger_class = self.get_trigger_by_classpath(workload.classpath)
             except BaseException as e:
                 # Either the trigger code or the path to it is bad. Fail the trigger.
-                self.log.error("Trigger failed to load code", error=e, classpath=workload.classpath)
+                self.log.error("Trigger failed to load code", error=e, classpath=workload.classpath, trigger_id=trigger_id)
                 self.failed_triggers.append((trigger_id, e))
                 continue
 
@@ -1814,9 +1828,9 @@ class TriggerRunner:
                     req_encoder.encode(entry.event)
                 except Exception as e:
                     logger.error(
-                        "Trigger %s returned non-serializable result %r. Cancelling trigger.",
-                        entry.trigger_id,
+                        "Trigger returned non-serializable result %r. Cancelling trigger (trigger_id=%s).",
                         entry.event,
+                        entry.trigger_id,
                     )
                     # The dropped event's seq (if any) is never confirmed, so
                     # the bound shared-stream advance times out as failed and
@@ -1920,7 +1934,7 @@ class TriggerRunner:
         )
 
         name = self.triggers[trigger_id]["name"]
-        self.log.info("trigger %s starting", name)
+        self.log.info("trigger %s starting", name, trigger_id=trigger_id)
 
         # Triggers that opt into a shared underlying I/O stream
         # (BaseEventTrigger.shared_stream_key returns non-None) consume a
@@ -1995,26 +2009,36 @@ class TriggerRunner:
                 if timeout := timeout_after:
                     timeout = timeout.replace(tzinfo=timezone.utc) if not timeout.tzinfo else timeout
                     if timeout < timezone.utcnow():
-                        await self.log.aerror("Trigger cancelled due to timeout")
+                        await self.log.aerror("Trigger cancelled due to timeout", trigger_id=trigger_id)
                         span.set_status(Status(StatusCode.ERROR), description=str(e))
                         raise
                 if e.args and e.args[0] == _REASSIGNED_CANCEL_MSG:
                     await self.log.ainfo(
-                        "Trigger reassigned to another triggerer, dropping it without on_kill", name=name
+                        "Trigger reassigned to another triggerer, dropping it without on_kill",
+                        name=name,
+                        trigger_id=trigger_id,
                     )
                 elif e.args and e.args[0] == _USER_ACTION_CANCEL_MSG:
-                    await self.log.ainfo("Trigger cancelled by user action, invoking on_kill", name=name)
+                    await self.log.ainfo(
+                        "Trigger cancelled by user action, invoking on_kill",
+                        name=name,
+                        trigger_id=trigger_id,
+                    )
                     try:
                         await asyncio.wait_for(trigger.on_kill(), timeout=_ON_CANCEL_TIMEOUT)
                     except TimeoutError:
-                        await self.log.awarning("on_kill() timed out", timeout=_ON_CANCEL_TIMEOUT, name=name)
+                        await self.log.awarning(
+                            "on_kill() timed out", timeout=_ON_CANCEL_TIMEOUT, name=name, trigger_id=trigger_id
+                        )
                     except asyncio.CancelledError:
                         # on_kill() was itself cancelled (e.g. triggerer shutting down
                         # while on_kill() was running). Swallow it so the outer
                         # CancelledError (variable `e`) can be re-raised below.
                         pass
                     except Exception:
-                        await self.log.awarning("on_kill() raised an exception", name=name, exc_info=True)
+                        await self.log.awarning(
+                            "on_kill() raised an exception", name=name, exc_info=True, trigger_id=trigger_id
+                        )
                 span.set_status(Status(StatusCode.OK), description=str(e))
                 raise
             except Exception as e:
@@ -2039,7 +2063,7 @@ class TriggerRunner:
                 with suppress(Exception):
                     await trigger.cleanup()
 
-                await self.log.ainfo("trigger completed", name=name)
+                await self.log.ainfo("trigger completed", name=name, trigger_id=trigger_id)
 
     def get_trigger_by_classpath(self, classpath: str) -> type[BaseTrigger]:
         """

@@ -1070,6 +1070,77 @@ def test_create_workload_watched_assets_none_when_no_assets(jobless_supervisor, 
     assert workload.watched_assets is None
 
 
+def test_create_workload_records_watched_assets_for_watcher(jobless_supervisor, mocker):
+    """_create_workload() should record a watcher's assets on the supervisor."""
+    asset1 = mocker.Mock(spec=Asset)
+    asset1.name = "my_asset"
+    asset1.uri = "s3://bucket/key"
+
+    trigger = mocker.Mock(spec=BaseEventTrigger)
+    trigger.id = 42
+    trigger.classpath = "some.path.Trigger"
+    trigger.encrypted_kwargs = "encrypted"
+    trigger.task_instance = None
+    trigger.assets = [asset1]
+    trigger.consecutive_failures = None  # nothing recorded on the row
+
+    workload = jobless_supervisor._create_workload(
+        trigger=trigger,
+        dag_bag=mocker.Mock(),
+        render_log_fname=mocker.Mock(),
+        session=mocker.Mock(),
+    )
+
+    assert workload is not None
+    assert jobless_supervisor.watched_assets[42] == {"my_asset": "s3://bucket/key"}
+
+
+def test_create_workload_clears_watched_assets_when_no_assets(jobless_supervisor, mocker):
+    """_create_workload() should clear a stale watched_assets entry for a trigger with no assets."""
+    jobless_supervisor.watched_assets[43] = {"my_asset": "s3://bucket/key"}
+
+    trigger = mocker.Mock(spec=BaseEventTrigger)
+    trigger.id = 43
+    trigger.classpath = "some.path.Trigger"
+    trigger.encrypted_kwargs = "encrypted"
+    trigger.consecutive_failures = None  # nothing recorded on the row
+    trigger.task_instance = None
+    trigger.assets = []  # No Assets are attached to the trigger
+
+    workload = jobless_supervisor._create_workload(
+        trigger=trigger,
+        dag_bag=mocker.Mock(),
+        render_log_fname=mocker.Mock(),
+        session=mocker.Mock(),
+    )
+
+    assert workload is not None
+    assert 43 not in jobless_supervisor.watched_assets
+
+
+def test_process_log_messages_adds_trigger_id_and_watched_assets(jobless_supervisor, mocker):
+    """The supervisor should re-attach trigger_id and a watcher's assets to lines going to its output."""
+    import json
+
+    import structlog
+
+    fallback = mocker.Mock()
+    mocker.patch("airflow.sdk.log.configure_logging")
+    mocker.patch("airflow.sdk.log.logging_processors", return_value=[])
+    mocker.patch.object(structlog, "get_logger", return_value=fallback)
+
+    jobless_supervisor.watched_assets[42] = {"my_asset": "s3://bucket/key"}
+
+    gen = jobless_supervisor._process_log_messages_from_subprocess()
+    next(gen)  # prime the generator
+    gen.send(json.dumps({"trigger_id": 42, "level": "info", "event": "watcher poll"}).encode())
+
+    fallback.log.assert_called_once()
+    _, kwargs = fallback.log.call_args
+    assert kwargs["trigger_id"] == 42
+    assert kwargs["watched_assets"] == {"my_asset": "s3://bucket/key"}
+
+
 def test_run_trigger_workload_includes_watched_assets_field():
     """RunTrigger workload should accept and store watched_assets."""
     workload = RunTrigger(
