@@ -531,6 +531,7 @@ class DAG:
     sla_miss_callback: None = attrs.field(default=None)
     catchup: bool = attrs.field(
         factory=_config_bool_factory("scheduler", "catchup_by_default"),
+        validator=attrs.validators.instance_of(bool),
     )
     on_success_callback: None | DagStateChangeCallback | list[DagStateChangeCallback] = None
     on_failure_callback: None | DagStateChangeCallback | list[DagStateChangeCallback] = None
@@ -544,7 +545,9 @@ class DAG:
         default=None,
         converter=attrs.Converter(_convert_access_control),  # type: ignore[misc, call-overload]
     )
-    is_paused_upon_creation: bool | None = None
+    is_paused_upon_creation: bool | None = attrs.field(
+        default=None, validator=attrs.validators.optional(attrs.validators.instance_of(bool))
+    )
     jinja_environment_kwargs: dict | None = None
     render_template_as_native_obj: bool = attrs.field(default=False, converter=bool)
     tags: MutableSet[str] = attrs.field(factory=set, converter=_convert_tags)
@@ -576,7 +579,8 @@ class DAG:
     has_on_success_callback: bool = attrs.field(init=False)
     has_on_failure_callback: bool = attrs.field(init=False)
     disable_bundle_versioning: bool = attrs.field(
-        factory=_config_bool_factory("dag_processor", "disable_bundle_versioning")
+        factory=_config_bool_factory("dag_processor", "disable_bundle_versioning"),
+        validator=attrs.validators.instance_of(bool),
     )
     rerun_with_latest_version: bool | None = attrs.field(
         default=None, converter=attrs.converters.optional(bool)
