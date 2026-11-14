@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import logging
 import os
-import socket
 import subprocess
 import time
 from typing import TYPE_CHECKING, Any
@@ -32,11 +31,14 @@ from airflow.utils.session import create_session
 from airflow.utils.state import State
 
 from tests_common.test_utils.integration_setup import (
+    OTEL_COLLECTOR_HOST,
+    OTEL_COLLECTOR_PORT,
     serialize_and_get_dags,
     start_scheduler,
     terminate_process,
     unpause_trigger_dag_and_get_run_id,
-    wait_for_dag_run,
+    wait_for_dag_runs,
+    wait_for_otel_collector,
 )
 from tests_common.test_utils.otel_utils import (
     dump_airflow_metadata_db,
@@ -47,44 +49,6 @@ if TYPE_CHECKING:
     from airflow.serialization.definitions.dag import SerializedDAG
 
 log = logging.getLogger("integration.otel.test_otel")
-
-
-def wait_for_otel_collector(host: str, port: int, timeout: int = 120) -> None:
-    """
-    Wait for the OTel collector to be reachable before running tests.
-
-    This prevents flaky test failures caused by transient DNS resolution issues
-    (e.g., 'Temporary failure in name resolution' for breeze-otel-collector).
-
-    Note: If the collector is not reachable after timeout, logs a warning but
-    does not fail - allows tests to run and fail naturally if needed.
-    """
-    deadline = time.monotonic() + timeout
-    last_error = None
-    while time.monotonic() < deadline:
-        try:
-            # Test DNS resolution and TCP connectivity
-            with socket.create_connection((host, port), timeout=5):
-                pass
-            log.info("OTel collector at %s:%d is reachable.", host, port)
-            return
-        except (socket.gaierror, TimeoutError, OSError) as e:
-            last_error = e
-            log.debug(
-                "OTel collector at %s:%d not reachable: %s. Retrying...",
-                host,
-                port,
-                e,
-            )
-            time.sleep(2)
-    log.warning(
-        "OTel collector at %s:%d is not reachable after %ds. Last error: %s. "
-        "Tests will proceed but may fail if collector is required.",
-        host,
-        port,
-        timeout,
-        last_error,
-    )
 
 
 def print_ti_output_for_dag_run(dag_id: str, run_id: str):
@@ -138,13 +102,10 @@ class TestOtelIntegration:
 
     @classmethod
     def setup_class(cls):
-        otel_host = "breeze-otel-collector"
-        otel_port = 4318
-
         # Wait for OTel collector to be reachable before running tests.
         # This prevents flaky test failures caused by transient DNS resolution issues
         # during scheduler handoff (see https://github.com/apache/airflow/issues/61070).
-        wait_for_otel_collector(otel_host, otel_port)
+        wait_for_otel_collector(OTEL_COLLECTOR_HOST, OTEL_COLLECTOR_PORT)
 
         # The pytest plugin strips AIRFLOW__*__* env vars (including the JWT secret set
         # by Breeze). Both the scheduler and api-server subprocesses must share the same
@@ -210,10 +171,10 @@ class TestOtelIntegration:
 
             run_id = unpause_trigger_dag_and_get_run_id(dag_id=dag_id)
 
-            state = wait_for_dag_run(dag_id=dag_id, run_id=run_id, max_wait_time=90)
+            state = wait_for_dag_runs([(dag_id, run_id)], max_wait_time=90)[(dag_id, run_id)]
             assert state == State.SUCCESS, f"Dag run did not complete successfully. Final state: {state}."
 
-            # wait_for_dag_run returns on the dag_run DB state, but OTel metrics are exported
+            # wait_for_dag_runs returns on the dag_run DB state, but OTel metrics are exported
             # asynchronously, so wait for them to reach stdout before we capture it below.
             time.sleep(10)
 
@@ -380,9 +341,9 @@ class TestOtelIntegration:
 
             run_id = unpause_trigger_dag_and_get_run_id(dag_id=dag_id, conf=conf)
 
-            wait_for_dag_run(dag_id=dag_id, run_id=run_id, max_wait_time=90)
+            wait_for_dag_runs([(dag_id, run_id)], max_wait_time=90)
 
-            # wait_for_dag_run returns on the dag_run DB state, but spans reach Jaeger
+            # wait_for_dag_runs returns on the dag_run DB state, but spans reach Jaeger
             # asynchronously via the BatchSpanProcessor, so wait before querying the trace below.
             time.sleep(10)
 
