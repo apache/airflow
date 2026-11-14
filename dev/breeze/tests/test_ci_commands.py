@@ -23,6 +23,7 @@ from unittest.mock import patch
 import pytest
 from click.testing import CliRunner
 
+import airflow_breeze.utils.selective_checks  # noqa: F401
 from airflow_breeze.commands.ci_commands import get_changed_files_since, selective_check
 from airflow_breeze.utils.fork_compare import ForkChanges
 
@@ -150,6 +151,31 @@ def test_fork_push_takes_changed_files_from_compare(
     assert kwargs["fork_changes_truncated"] is True
     assert kwargs["fork_merge_base"] == "base-sha"
     assert kwargs["pr_labels"] == ("full tests needed",)
+
+
+@patch("airflow_breeze.commands.ci_commands.get_fork_pull_request_labels", autospec=True)
+@patch("airflow_breeze.commands.ci_commands.get_changed_files", autospec=True)
+@patch("airflow_breeze.commands.ci_commands.get_fork_changes", autospec=True)
+@patch("airflow_breeze.utils.selective_checks.SelectiveChecks", autospec=True)
+def test_fork_push_merges_passed_labels_with_fetched_labels(
+    mock_selective_checks, mock_fork_changes, mock_changed_files, mock_labels
+):
+    mock_fork_changes.return_value = ForkChanges(files=("README.md",), truncated=False, merge_base="base-sha")
+    mock_labels.return_value = ("full tests needed",)
+
+    _invoke_selective_check(
+        "--github-repository",
+        "someone/airflow",
+        "--github-context",
+        json.dumps({"ref_name": "backport-abc-v3-1-test"}),
+        "--default-branch",
+        "v3-1-test",
+        "--pr-labels",
+        "['allow provider dependency bump']",
+    )
+
+    kwargs = mock_selective_checks.call_args.kwargs
+    assert kwargs["pr_labels"] == ("allow provider dependency bump", "full tests needed")
 
 
 @patch("airflow_breeze.commands.ci_commands.get_fork_pull_request_labels", autospec=True)
