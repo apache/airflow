@@ -1311,6 +1311,11 @@ def startup(msg: StartupDetails) -> tuple[RuntimeTaskInstance, Context, Logger]:
 
     with _airflow_parsing_context_manager(dag_id=msg.ti.dag_id, task_id=msg.ti.task_id):
         ti = parse(msg, log)
+
+    if conf.getboolean("logging", "dag_tags_in_logs", fallback=False) and ti.task.dag.tags:
+        # dag.tags is a set; sort so every try logs the same order regardless of hash seed.
+        bind_contextvars(dag_tags=sorted(ti.task.dag.tags))
+
     log.debug("Dag file parsed", file=msg.dag_rel_path)
 
     run_as_user = getattr(ti.task, "run_as_user", None) or conf.get(

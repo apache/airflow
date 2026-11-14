@@ -49,11 +49,11 @@ const renderWithLevel = (showLogLevel: boolean) => {
 };
 
 describe("tiContextFields", () => {
-  it("contains the six fields bound via bind_contextvars", () => {
+  it("contains the fields bound via bind_contextvars", () => {
     expect(tiContextFields).toEqual(
-      expect.arrayContaining(["ti_id", "dag_id", "task_id", "run_id", "try_number", "map_index"]),
+      expect.arrayContaining(["ti_id", "dag_id", "task_id", "run_id", "try_number", "map_index", "dag_tags"]),
     );
-    expect(tiContextFields).toHaveLength(6);
+    expect(tiContextFields).toHaveLength(7);
   });
 });
 

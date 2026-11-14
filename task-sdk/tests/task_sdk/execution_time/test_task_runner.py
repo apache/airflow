@@ -43,6 +43,7 @@ from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 from pydantic import BaseModel
+from structlog.contextvars import get_contextvars
 from task_sdk import FAKE_BUNDLE
 from uuid6 import uuid7
 
@@ -7887,3 +7888,65 @@ def test_stats_tags_with_standalone_and_key_value_tags(create_runtime_ti):
         "task_id": "t",
         "run_type": "manual",
     }
+
+
+def _startup_with_dag_tags(mocked_parse, mock_supervisor_comms, make_ti_context, tags) -> dict:
+    """Run startup() for a Dag carrying the given tags and return the bound structlog contextvars."""
+    with DAG("logging_tagged_dag", tags=tags):
+        task = BaseOperator(task_id="t")
+    what = StartupDetails(
+        ti=TaskInstance(
+            id=uuid7(),
+            task_id="t",
+            dag_id="logging_tagged_dag",
+            run_id="c",
+            try_number=1,
+            dag_version_id=uuid7(),
+            queue="default",
+        ),
+        dag_rel_path="",
+        bundle_info=FAKE_BUNDLE,
+        ti_context=make_ti_context(),
+        start_date=timezone.utcnow(),
+        sentry_integration="",
+    )
+    mock_supervisor_comms._get_response.return_value = what
+    mocked_parse(what, "logging_tagged_dag", task)
+    startup(get_startup_details())
+    return get_contextvars()
+
+
+@pytest.mark.parametrize(
+    ("enabled", "tags", "expected"),
+    [
+        pytest.param("False", ["env:prod"], None, id="disabled"),
+        pytest.param("True", [], None, id="no-tags"),
+        pytest.param(
+            "True",
+            ["team:b", "owner:x", "team:a", "owner"],
+            ["owner", "owner:x", "team:a", "team:b"],
+            id="tags-sharing-a-key",
+        ),
+        pytest.param("True", ["url:http://host:8080"], ["url:http://host:8080"], id="multiple-colons"),
+    ],
+)
+def test_dag_tags_in_logs(mocked_parse, mock_supervisor_comms, make_ti_context, enabled, tags, expected):
+    with conf_vars({("logging", "dag_tags_in_logs"): enabled}):
+        context = _startup_with_dag_tags(mocked_parse, mock_supervisor_comms, make_ti_context, tags)
+    assert context.get("dag_tags") == expected
+
+
+@conf_vars({("logging", "dag_tags_in_logs"): "True"})
+@patch("airflow.sdk.execution_time.task_runner.log.debug")
+def test_dag_tags_in_logs_bound_before_dag_file_parsed_log(
+    mock_log_debug, mocked_parse, mock_supervisor_comms, make_ti_context
+):
+    snapshot = {}
+
+    def _record_context_at_parse_complete(event, *args, **kwargs):
+        if event == "Dag file parsed":
+            snapshot.update(get_contextvars())
+
+    mock_log_debug.side_effect = _record_context_at_parse_complete
+    _startup_with_dag_tags(mocked_parse, mock_supervisor_comms, make_ti_context, ["env:prod"])
+    assert snapshot.get("dag_tags") == ["env:prod"]
