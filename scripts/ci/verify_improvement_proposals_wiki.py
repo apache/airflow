@@ -222,9 +222,12 @@ def find_properties(body: str) -> list[dict[str, str]]:
     blocks = []
     for match in re.finditer(r'<ac:structured-macro ac:name="details"', body):
         # Only a table inside the macro's own rich-text body is read by the index report; a
-        # self-closing macro, or one with no body, has no properties.
+        # self-closing macro, or one with no body, has no properties. A parameter's value may not
+        # run past its own closing tag: `.*?` there backtracks exponentially when no body follows.
         opening = re.match(
-            r"[^>]*?(/?)>(?:\s*<ac:parameter[^>]*>.*?</ac:parameter>)*\s*<ac:rich-text-body>",
+            r"[^>]*?(/?)>"
+            r"(?:\s*<ac:parameter[^>]*?(?:/>|(?<!/)>(?:(?!</ac:parameter>).)*</ac:parameter>))*"
+            r"\s*<ac:rich-text-body>",
             body[match.end() :],
             re.S,
         )

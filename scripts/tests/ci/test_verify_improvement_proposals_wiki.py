@@ -21,6 +21,7 @@ import http.client
 import importlib.util
 import json
 import sys
+import time
 from pathlib import Path
 from unittest import mock
 
@@ -213,6 +214,30 @@ def test_titles_and_problems_are_escaped_and_shortened_for_slack(wiki):
 def test_macro_without_a_body_has_no_properties_even_before_a_table(wiki, macro):
     body = macro + f"<table><tbody><tr><td>State</td><td>{badge('Completed')}</td></tr></tbody></table>"
     assert wiki.find_properties(body) == [{}]
+
+
+@pytest.mark.parametrize(
+    "parameters",
+    [
+        pytest.param('<ac:parameter ac:name="id" />', id="self-closing"),
+        pytest.param('<ac:parameter ac:name="id">x</ac:parameter>', id="closed"),
+        pytest.param(
+            '<ac:parameter ac:name="id">x</ac:parameter> <ac:parameter ac:name="hidden" />', id="both"
+        ),
+    ],
+)
+def test_properties_after_macro_parameters_are_read(wiki, parameters):
+    body = properties({"State": badge("Completed")}).replace(
+        "<ac:rich-text-body>", parameters + "<ac:rich-text-body>", 1
+    )
+    assert wiki.find_badge(wiki.find_properties(body)[0]["State"]) == "Completed"
+
+
+def test_macro_with_many_parameters_and_no_body_is_read_in_linear_time(wiki):
+    body = '<ac:structured-macro ac:name="details"><ac:parameter>' + "</ac:parameter><ac:parameter>" * 24
+    start = time.monotonic()
+    assert wiki.find_properties(body) == [{}]
+    assert time.monotonic() - start < 1
 
 
 @pytest.mark.parametrize("tree_name", ["AIP_TREE", "ADIP_TREE"])
