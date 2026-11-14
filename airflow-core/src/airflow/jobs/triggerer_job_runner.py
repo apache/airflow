@@ -335,6 +335,12 @@ TRIGGER_ERROR_MAX_LENGTH = 1000
 # running a while is not counted as failing ever since its first crash.
 TRIGGER_RECOVERY_UPTIME = 120.0
 
+# A trigger that failed waits before it is re-created, so a trigger whose failure is permanent (an expired
+# credential, an unreachable endpoint) is not re-created a few times per second. The delay grows with the
+# trigger's consecutive failure count and is capped by ``[triggerer] failed_trigger_retry_max_delay``.
+FAILED_TRIGGER_RETRY_DELAY = 5.0
+FAILED_TRIGGER_RETRY_MAX_DELAY = 300.0
+
 
 def format_trigger_error(exc: list[str] | None) -> str:
     """
@@ -356,6 +362,8 @@ class _TriggerFailures:
     consecutive: int = 0
     # When the trigger was last (re-)created, on the monotonic clock; None until it is running again.
     started_at: float | None = None
+    # When the trigger may be re-created after failing; None until it has failed.
+    next_attempt_at: float | None = None
 
 
 @attrs.define
@@ -373,10 +381,31 @@ class TriggerFailureTracker:
     def consecutive(self, trigger_id: int) -> int:
         return state.consecutive if (state := self.failures.get(trigger_id)) is not None else 0
 
+    @staticmethod
+    def _retry_delay(consecutive: int) -> float:
+        """Delay before re-creating a failing trigger; grows with the count, capped by the configured cap."""
+        base = conf.getfloat("triggerer", "failed_trigger_retry_delay", fallback=FAILED_TRIGGER_RETRY_DELAY)
+        cap = conf.getfloat(
+            "triggerer", "failed_trigger_retry_max_delay", fallback=FAILED_TRIGGER_RETRY_MAX_DELAY
+        )
+        if base < 0 or cap < 0:
+            raise ValueError(
+                "[triggerer] failed_trigger_retry_delay and failed_trigger_retry_max_delay must be at least 0"
+            )
+        return min(base * consecutive, cap)
+
     def continue_from(self, trigger_id: int, consecutive_failures: int | None) -> None:
         """Continue the count recorded on the trigger row, e.g. by the triggerer that ran it before."""
         if consecutive_failures and trigger_id not in self.failures:
-            self.failures[trigger_id] = _TriggerFailures(consecutive=consecutive_failures)
+            self.failures[trigger_id] = _TriggerFailures(
+                consecutive=consecutive_failures,
+                next_attempt_at=time.monotonic() + self._retry_delay(consecutive_failures),
+            )
+
+    def attempt_ready(self, trigger_id: int, now: float) -> bool:
+        """Whether the trigger failed recently; False means it must wait before it may be re-created."""
+        state = self.failures.get(trigger_id)
+        return state is None or state.next_attempt_at is None or now >= state.next_attempt_at
 
     def record_failure(self, trigger_id: int, now: float) -> int:
         """Count a failure and return the trigger's consecutive failures."""
@@ -385,6 +414,7 @@ class TriggerFailureTracker:
             state.consecutive = 0
         state.consecutive += 1
         state.started_at = None
+        state.next_attempt_at = now + self._retry_delay(state.consecutive)
         return state.consecutive
 
     def record_success(self, trigger_id: int) -> int:
@@ -1249,7 +1279,17 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         )
 
         if new_trigger_ids:
-            workloads_to_create = self.build_trigger_workloads(new_trigger_ids)
+            now = time.monotonic()
+            ready_ids = {tid for tid in new_trigger_ids if self.failure_tracker.attempt_ready(tid, now)}
+            delayed = new_trigger_ids - ready_ids
+            if delayed:
+                log.info(
+                    "Triggers failed recently, re-creating them once their backoff has passed",
+                    count=len(delayed),
+                    trigger_ids=sorted(delayed),
+                )
+            new_trigger_ids = ready_ids
+            workloads_to_create = self.build_trigger_workloads(new_trigger_ids) if new_trigger_ids else []
 
             queued_at = time.monotonic()
 
