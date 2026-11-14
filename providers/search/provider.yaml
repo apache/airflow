@@ -1,0 +1,239 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+---
+package-name: apache-airflow-providers-search
+name: Search
+
+state: not-ready
+lifecycle: incubation
+source-date-epoch: 1791072000
+description: |
+  Task logging, hooks and operators for `Elasticsearch <https://www.elastic.co/elasticsearch>`__
+  and `OpenSearch <https://opensearch.org/>`__ over their shared REST API, without the vendor
+  client libraries.
+# Note that those versions are maintained by release manager - do not update them manually
+# with the exception of case where other provider in sources has >= new provider version.
+# In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
+# to be done in the same PR
+versions:
+  - 0.1.0
+
+integrations:
+  - integration-name: Elasticsearch and OpenSearch
+    external-doc-url: https://opensearch.org/
+    how-to-guide:
+      - /docs/apache-airflow-providers-search/logging/index.rst
+      - /docs/apache-airflow-providers-search/operators.rst
+    tags: [software]
+
+hooks:
+  - integration-name: Elasticsearch and OpenSearch
+    python-modules:
+      - airflow.providers.search.hooks.search
+
+operators:
+  - integration-name: Elasticsearch and OpenSearch
+    python-modules:
+      - airflow.providers.search.operators.search
+
+connection-types:
+  - hook-class-name: airflow.providers.search.hooks.search.SearchHook
+    hook-name: "Elasticsearch / OpenSearch"
+    connection-type: search
+    ui-field-behaviour:
+      hidden-fields:
+        - schema
+      relabeling:
+        host: Host or URL
+        extra: Options
+      placeholders:
+        host: https://search.example.com
+        port: "9200"
+        extra: |-
+          {
+            "verify_certs": true,
+            "api_key": "<encoded key>"
+          }
+
+logging:
+  - airflow.providers.search.log.search_task_handler.SearchTaskHandler
+
+remote-logging:
+  - classpath: airflow.providers.search.log.search_task_handler.SearchRemoteLogIO
+    scheme: search
+
+config:
+  search:
+    description: |
+      Task logs stored in Elasticsearch or OpenSearch. Set ``[logging] remote_base_log_folder``
+      to ``search://`` to use them.
+    options:
+      host:
+        description: |
+          URL of the cluster, e.g. ``https://search.example.com:9200``. Separate several URLs with
+          commas; the next one is tried when a node cannot be reached. ``user:password@`` in the URL
+          is used for basic auth.
+        version_added: 0.1.0
+        type: string
+        example: "https://search.example.com:9200"
+        default: ""
+      cloud_id:
+        description: |
+          Elastic Cloud deployment id. Used instead of ``host`` when set.
+        version_added: 0.1.0
+        type: string
+        example: ~
+        default: ""
+      username:
+        description: |
+          User for HTTP basic auth.
+        version_added: 0.1.0
+        type: string
+        example: ~
+        default: ""
+      password:
+        description: |
+          Password for HTTP basic auth.
+        version_added: 0.1.0
+        type: string
+        sensitive: true
+        example: ~
+        default: ""
+      api_key:
+        description: |
+          Encoded Elasticsearch API key, sent as ``Authorization: ApiKey <api_key>``.
+        version_added: 0.1.0
+        type: string
+        sensitive: true
+        example: ~
+        default: ""
+      verify_certs:
+        description: |
+          Verify the server's TLS certificate.
+        version_added: 0.1.0
+        type: boolean
+        example: ~
+        default: "True"
+      ca_certs:
+        description: |
+          Path to a CA bundle used to verify the server's certificate, instead of the system store.
+        version_added: 0.1.0
+        type: string
+        example: "/etc/ssl/certs/search-ca.pem"
+        default: ""
+      client_cert:
+        description: |
+          Path to the client certificate, for mutual TLS.
+        version_added: 0.1.0
+        type: string
+        example: ~
+        default: ""
+      client_key:
+        description: |
+          Path to the private key of ``client_cert``, when it is not in the same file.
+        version_added: 0.1.0
+        type: string
+        example: ~
+        default: ""
+      request_timeout:
+        description: |
+          Seconds to wait for each request.
+        version_added: 0.1.0
+        type: float
+        example: ~
+        default: "10"
+      max_retries:
+        description: |
+          Extra attempts after a connection error or a 429, 502, 503 or 504 response.
+        version_added: 0.1.0
+        type: integer
+        example: ~
+        default: "3"
+      http_compress:
+        description: |
+          Gzip request bodies.
+        version_added: 0.1.0
+        type: boolean
+        example: ~
+        default: "False"
+      write_to_search:
+        description: |
+          Index task logs into ``target_index`` when the task finishes.
+        version_added: 0.1.0
+        type: boolean
+        example: ~
+        default: "False"
+      write_stdout:
+        description: |
+          Print task logs to the worker's stdout as JSON lines when the task finishes, for a log
+          shipper such as Fluent Bit or Logstash to collect.
+        version_added: 0.1.0
+        type: boolean
+        example: ~
+        default: "False"
+      target_index:
+        description: |
+          Index that task logs are written to.
+        version_added: 0.1.0
+        type: string
+        example: ~
+        default: "airflow-logs"
+      index_patterns:
+        description: |
+          Comma-separated indices or patterns that task logs are read from.
+        version_added: 0.1.0
+        type: string
+        example: "airflow-logs-*"
+        default: "_all"
+      index_patterns_callable:
+        description: |
+          Dotted path to a callable that takes the task instance and returns the indices to read
+          from. Takes precedence over ``index_patterns``.
+        version_added: 0.1.0
+        type: string
+        example: "module.callable"
+        default: ""
+      log_id_template:
+        description: |
+          Template of the ``log_id`` field used to find the logs of a task try.
+        version_added: 0.1.0
+        type: string
+        example: ~
+        is_template: true
+        default: "{dag_id}-{task_id}-{run_id}-{map_index}-{try_number}"
+      host_field:
+        description: |
+          Document field holding the name of the worker that produced the line.
+        version_added: 0.1.0
+        type: string
+        example: ~
+        default: "host"
+      offset_field:
+        description: |
+          Document field holding the line number, used to order the lines.
+        version_added: 0.1.0
+        type: string
+        example: ~
+        default: "offset"
+      max_lines_per_page:
+        description: |
+          Documents fetched per search request when reading task logs.
+        version_added: 0.1.0
+        type: integer
+        example: ~
+        default: "1000"
