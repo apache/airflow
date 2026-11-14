@@ -67,13 +67,13 @@ PIP package                                 Version required
 ``azure-mgmt-datalake-store``               ``>=0.5.0``
 ``azure-mgmt-resource``                     ``>=25.0.0``
 ``azure-search-documents``                  ``>=11.6.0,!=12.0.0``
-``azure-storage-blob``                      ``>=12.28.0``
+``azure-storage-blob``                      ``>=12.29.0``
 ``azure-mgmt-storage``                      ``>=24.0.1``
-``azure-storage-file-share``                ``>=12.24.0``
+``azure-storage-file-share``                ``>=12.25.0``
 ``azure-servicebus``                        ``>=7.14.3``
 ``azure-synapse-spark``                     ``>=0.7.0``
 ``azure-synapse-artifacts``                 ``>=0.22.0``
-``azure-storage-file-datalake``             ``>=12.23.0``
+``azure-storage-file-datalake``             ``>=12.24.0``
 ``azure-kusto-data``                        ``>=4.1.0,!=5.0.0``
 ``azure-mgmt-datafactory``                  ``>=10.0.0``
 ``azure-mgmt-containerregistry``            ``>=15.0.0``
