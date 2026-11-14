@@ -609,6 +609,24 @@ metrics:
     legacy_name: "-"
     name_variables: []
 
+  - name: "scheduler.asset_partitions.pass_loops"
+    description: "Number of scheduler loops one scheduler took to evaluate every pending partition-driven
+    Dag run of a Dag that can be scheduled (not paused, draining or stale) once. 1 when they all fit in
+    one loop; otherwise about their number divided by the number one loop takes from the rotation, which
+    is the per-loop batch less the new runs it evaluates first. Consecutive passes can differ by one
+    loop. Emitted per completed pass."
+    type: "gauge"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "scheduler.asset_partitions.oldest_pending_age"
+    description: "Seconds since the oldest pending partition-driven Dag run that one scheduler evaluated
+    in its last completed pass was queued. Emitted per completed pass in which the scheduler claimed a
+    run, and as 0 once none is left to evaluate."
+    type: "gauge"
+    legacy_name: "-"
+    name_variables: []
+
   - name: "scheduler.executor_events.batch_size"
     description: "Number of executor events in the batch processed per ``process_executor_events`` call."
     type: "gauge"
@@ -922,6 +940,13 @@ metrics:
   - name: "scheduler.executor_heartbeat_duration"
     description: "Milliseconds spent in ``executor.heartbeat()`` per scheduler loop iteration, tagged
       by executor class name so each configured executor is reported separately."
+    type: "timer"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "scheduler.asset_partitions.pass_duration"
+    description: "Milliseconds one scheduler took to evaluate every pending partition-driven Dag run of
+    a Dag that can be scheduled (not paused, draining or stale) once. Emitted per completed pass."
     type: "timer"
     legacy_name: "-"
     name_variables: []
