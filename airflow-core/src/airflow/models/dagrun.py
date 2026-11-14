@@ -377,6 +377,9 @@ class DagRun(Base, LoggingMixin):
     context_carrier: Mapped[dict[str, Any] | None] = mapped_column(
         MutableDict.as_mutable(ExtendedJSON), nullable=True
     )
+    task_group_retries: Mapped[dict[str, int] | None] = mapped_column(
+        MutableDict.as_mutable(ExtendedJSON), nullable=True
+    )
     created_dag_version_id: Mapped[UUID | None] = mapped_column(
         Uuid(),
         ForeignKey("dag_version.id", name="created_dag_version_id_fkey", ondelete="set null"),
@@ -1353,6 +1356,83 @@ class DagRun(Base, LoggingMixin):
             span.set_status(status_code)
             span.end()
 
+    def get_task_group_retry_count(self, group_id: str) -> int:
+        """Return how many times ``group_id`` has been retried as a unit in this run."""
+        return (self.task_group_retries or {}).get(group_id, 0)
+
+    def increment_task_group_retry_count(self, group_id: str) -> int:
+        """Bump and return the unit-retry counter for ``group_id`` in this run."""
+        counters = dict(self.task_group_retries or {})
+        counters[group_id] = counters.get(group_id, 0) + 1
+        self.task_group_retries = counters
+        return counters[group_id]
+
+    def _handle_task_group_retries(
+        self, dag: SerializedDAG, finished_rows: Sequence[Row[Any]], *, session: Session
+    ) -> bool:
+        """
+        Clear and re-run the innermost retryable TaskGroup with a failed task in ``finished_rows``.
+
+        :return: Whether a group was cleared, after which the task instances must be read again.
+        """
+        from airflow.models.taskinstance import clear_task_instances
+
+        retryable_groups = [
+            group for group in dag.task_group.get_task_group_dict().values() if group.retries > 0
+        ]
+        if not retryable_groups:
+            return False
+        failed_task_ids = {row.task_id for row in finished_rows if row.state == TaskInstanceState.FAILED}
+        if not failed_task_ids:
+            return False
+
+        # Not-yet-started members (none/scheduled/queued) are skipped: clearing them records spurious
+        # history rows, and they run as part of the new attempt anyway.
+        clearable_states = State.finished | {
+            TaskInstanceState.RUNNING,
+            TaskInstanceState.RESTARTING,
+            TaskInstanceState.DEFERRED,
+            TaskInstanceState.UP_FOR_RETRY,
+            TaskInstanceState.UP_FOR_RESCHEDULE,
+            TaskInstanceState.AWAITING_INPUT,
+        }
+
+        def _group_depth(group: Any) -> int:
+            depth = 0
+            parent = group.parent_group
+            while parent is not None:
+                depth += 1
+                parent = parent.parent_group
+            return depth
+
+        # Innermost first, so a failure is consumed by the inner group before an outer one charges it.
+        # One group per call: the caller reads the cleared rows before an enclosing group is checked.
+        for group in sorted(retryable_groups, key=_group_depth, reverse=True):
+            group_id = group.group_id
+            if group_id is None:  # the root group is never retryable, but narrows the type
+                continue
+            member_task_ids = {task.task_id for task in group.iter_tasks()}
+            if not member_task_ids & failed_task_ids:
+                continue
+            if self.get_task_group_retry_count(group_id) >= group.retries:
+                continue
+            to_clear = [
+                ti
+                for ti in self.get_task_instances(session=session)
+                if ti.task_id in member_task_ids and ti.state in clearable_states
+            ]
+            clear_task_instances(to_clear, session=session, dag_run_state=False)
+            attempt = self.increment_task_group_retry_count(group_id)
+            self.log.info(
+                "Retrying task group '%s' in %s as a unit (attempt %d of %d)",
+                group_id,
+                self,
+                attempt,
+                group.retries,
+            )
+            return True
+        return False
+
     @provide_session
     def update_state(
         self, *, session: Session = NEW_SESSION, execute_callbacks: bool = True
@@ -1576,21 +1656,31 @@ class DagRun(Base, LoggingMixin):
         # Both queries restrict a partial Dag to the same subset, so no row outside it is
         # mistaken for an orphan and marked REMOVED.
         task_ids = DagRun._get_partial_task_ids(self.dag)
-        unfinished_tis = DagRun.fetch_task_instances(
-            dag_id=self.dag_id,
-            run_id=self.run_id,
-            task_ids=task_ids,
-            state=State.unfinished,
-            session=session,
-        )
-        finished_rows = DagRun.fetch_task_instances(
-            dag_id=self.dag_id,
-            run_id=self.run_id,
-            task_ids=task_ids,
-            state=State.finished,
-            columns=FINISHED_TI_COLUMNS,
-            session=session,
-        )
+
+        def _fetch_tis() -> tuple[list[TI], Sequence[Row[Any]]]:
+            unfinished = DagRun.fetch_task_instances(
+                dag_id=self.dag_id,
+                run_id=self.run_id,
+                task_ids=task_ids,
+                state=State.unfinished,
+                session=session,
+            )
+            finished = DagRun.fetch_task_instances(
+                dag_id=self.dag_id,
+                run_id=self.run_id,
+                task_ids=task_ids,
+                state=State.finished,
+                columns=FINISHED_TI_COLUMNS,
+                session=session,
+            )
+            return unfinished, finished
+
+        dag = self.get_dag()
+        unfinished_tis, finished_rows = _fetch_tis()
+        # Group retries are decided on the same rows the trigger rules below read. A failure committed
+        # after this read then waits for the next pass instead of marking downstream tasks upstream_failed.
+        while self._handle_task_group_retries(dag, finished_rows, session=session):
+            unfinished_tis, finished_rows = _fetch_tis()
         self.log.debug(
             "number of tis tasks for %s: %s task(s)", self, len(unfinished_tis) + len(finished_rows)
         )
@@ -1634,7 +1724,6 @@ class DagRun(Base, LoggingMixin):
                 )
             return finished
 
-        dag = self.get_dag()
         unfinished_tis = list(_filter_tis_and_exclude_removed(dag, unfinished_tis))
         finished_tis: list[SchedulingTI] = list(_build_finished_tis(dag, finished_rows))
 

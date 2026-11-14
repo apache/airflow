@@ -640,6 +640,8 @@ def clear_task_instances(
                 if was_finished:
                     dr.state = dag_run_state
                     dr.start_date = timezone.utcnow()
+                    # Re-running a finished run starts its TaskGroup retry budget fresh.
+                    dr.task_group_retries = None
 
             # The run selects the code for cleared tasks, including successors of restarting attempts.
             # Refresh the bundle even if an unchanged serialized Dag reused its version row.

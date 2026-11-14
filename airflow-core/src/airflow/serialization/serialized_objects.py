@@ -2239,7 +2239,32 @@ class DagSerialization(BaseSerialization):
         downstream = {task_id: task.downstream_task_ids for task_id, task in deserialized.task_dict.items()}
         if (task_id := detect_cycle(downstream, downstream.__getitem__)) is not None:
             raise DeserializationError(dag_id, f"Dag {dag_id!r} has a cycle through task {task_id!r}")
+        if (problem := _find_task_group_retries_problem(deserialized)) is not None:
+            raise DeserializationError(dag_id, f"Dag {dag_id!r} has task group {problem}")
         return deserialized
+
+
+def _find_task_group_retries_problem(dag: SerializedDAG) -> str | None:
+    """Describe the first task group with ``retries`` that the SDK would reject, mirroring its check."""
+    for group in dag.task_group.get_task_group_dict().values():
+        if isinstance(group.retries, bool) or not isinstance(group.retries, int) or group.retries < 0:
+            return f"{group.group_id!r} with retries that are not a non-negative integer"
+        if not group.retries:
+            continue
+        enclosing: SerializedTaskGroup | None = group
+        while enclosing is not None:
+            if isinstance(enclosing, (SerializedMappedTaskGroup, SerializedLoopTaskGroup)):
+                return f"{group.group_id!r} with retries that is or is inside a mapped task group or a loop"
+            enclosing = enclosing.parent_group
+        for inner in group.get_task_group_dict().values():
+            if isinstance(inner, SerializedLoopTaskGroup):
+                return f"{group.group_id!r} with retries that contains loop {inner.group_id!r}"
+        for task in group.iter_tasks():
+            if task.is_setup or task.is_teardown:
+                return (
+                    f"{group.group_id!r} with retries that contains setup or teardown task {task.task_id!r}"
+                )
+    return None
 
 
 class TaskGroupSerialization(BaseSerialization):
@@ -2271,6 +2296,9 @@ class TaskGroupSerialization(BaseSerialization):
         }
         if task_group.doc_md is not None:
             encoded["doc_md"] = task_group.doc_md
+        # Only emit when set, so groups without retries (the default) serialize unchanged.
+        if task_group.retries:
+            encoded["retries"] = task_group.retries
 
         if isinstance(task_group, LoopTaskGroup):
             encoded["loop"] = {
@@ -2302,6 +2330,7 @@ class TaskGroupSerialization(BaseSerialization):
         }
         kwargs["doc_md"] = cls.deserialize(encoded_group.get("doc_md"))
         kwargs["group_display_name"] = cls.deserialize(encoded_group.get("group_display_name", ""))
+        kwargs["retries"] = cls.deserialize(encoded_group.get("retries", 0))
 
         group: SerializedTaskGroup
         if "loop" in encoded_group:

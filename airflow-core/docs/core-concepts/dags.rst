@@ -695,6 +695,37 @@ import errors, but not for one that only imports a Dag file:
 .. code-block:: bash
 
     pytest -W error::airflow.sdk.exceptions.TaskGroupCycleDeprecationWarning tests/test_dags.py
+.. _concepts:taskgroup-retries:
+
+Retrying a TaskGroup
+^^^^^^^^^^^^^^^^^^^^
+
+Pass ``retries`` to retry a TaskGroup as a unit, for example a step that collects data and a step that
+publishes it, which only make sense together.
+
+.. code-block:: python
+
+    from airflow.sdk import task_group
+
+
+    @task_group(retries=2)
+    def collect_and_publish():
+        publish(collect())
+
+When a task in the group fails after using up its own ``retries``, and the group has retries left, Airflow
+clears all tasks of the group and runs them again, as if you cleared the group by hand. This happens right
+away, so tasks of the group that are still running are restarted. Tasks outside the group are left as they
+are. Once the group has used up its retries, the failure stays and the Dag run goes on as usual.
+
+A retry runs every task of the group again, including the ones that succeeded, so make them idempotent.
+Their asset events are emitted again, and each task's ``try_number`` keeps increasing.
+
+A TaskGroup inside a retried TaskGroup can have its own ``retries``. A failure is retried by the innermost
+group first, and by the enclosing group once the inner group has used up its retries.
+
+``retries`` cannot be set on a TaskGroup that is mapped or a loop, sits inside one, contains a loop, or
+contains setup or teardown tasks. A retry would clear every expansion or iteration at once, and the teardown
+of the cleared attempt would not run, so the Dag fails to parse instead.
 
 .. _concepts:edge-labels:
 

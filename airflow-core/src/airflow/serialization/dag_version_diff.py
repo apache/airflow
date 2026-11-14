@@ -379,6 +379,7 @@ _DIFF_V1_PUBLIC_TASK_GROUP_FIELDS = _DIFF_V1_TASK_GROUP_METADATA_FIELDS | {
     "expand_input",
     "is_mapped",
     "loop",
+    "retries",
 }
 
 

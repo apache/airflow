@@ -76,6 +76,11 @@ def _validate_group_id(instance, attribute, value: str) -> None:
     validate_group_key(value)
 
 
+def _validate_retries(instance, attribute, value: int) -> None:
+    if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+        raise ValueError("retries must be a non-negative integer")
+
+
 def _convert_doc_md(doc_md: str | None) -> str | None:
     """Convert markdown file paths to file contents."""
     if doc_md is None:
@@ -124,6 +129,10 @@ class TaskGroup(TaskGroupMixin, DAGNode):
     :param add_suffix_on_collision: If this task group name already exists,
         automatically add `__1` etc suffixes
     :param group_display_name: If set, this will be the display name for the TaskGroup node in the UI.
+    :param retries: the number of times the whole TaskGroup is retried as a unit when any task
+        inside it fails after exhausting its own task-level retries. On a group retry, every task
+        instance in the group is cleared and re-run. Defaults to 0 (the group is not retried). Not
+        supported on a mapped or loop group, inside one, or on a group with a loop or setup and teardown tasks.
     """
 
     _group_id: str | None = attrs.field(
@@ -161,6 +170,8 @@ class TaskGroup(TaskGroupMixin, DAGNode):
     )
 
     add_suffix_on_collision: bool = False
+
+    retries: int = attrs.field(default=0, validator=_validate_retries)
 
     @dag.validator
     def _validate_dag(self, _attr, dag):
@@ -780,3 +791,37 @@ class MappedTaskGroup(TaskGroup):
 
         for op, _ in XComArg.iter_xcom_references(self._expand_input):
             yield op
+
+
+def check_task_group_retries(dag: Any) -> None:
+    """
+    Raise if a task group with ``retries`` cannot be retried as a unit.
+
+    A retry clears every task of the group in the run. In a mapped task group or a loop that would clear
+    every expansion or iteration together, and the teardown of the cleared attempt would never run.
+    """
+    # Imported here because the loop module imports this one.
+    from airflow.sdk.definitions._internal.loop import LoopTaskGroup
+
+    for group in dag.task_group.get_task_group_dict().values():
+        if not group.retries:
+            continue
+        enclosing: TaskGroup | None = group
+        while enclosing is not None:
+            if isinstance(enclosing, (MappedTaskGroup, LoopTaskGroup)):
+                raise ValueError(
+                    f"Task group {group.group_id!r} has retries but is or is inside a mapped task group "
+                    "or a loop"
+                )
+            enclosing = enclosing.parent_group
+        for inner in group.get_task_group_dict().values():
+            if isinstance(inner, LoopTaskGroup):
+                raise ValueError(
+                    f"Task group {group.group_id!r} has retries but contains loop {inner.group_id!r}"
+                )
+        for task in group.iter_tasks():
+            if task.is_setup or task.is_teardown:
+                raise ValueError(
+                    f"Task group {group.group_id!r} has retries but contains setup or teardown task "
+                    f"{task.task_id!r}"
+                )

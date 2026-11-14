@@ -783,10 +783,12 @@ class DAG:
         """
         # Imported here because taskgroup imports this module.
         from airflow.sdk.definitions._internal.loop import check_expansions_over_loop_tasks
+        from airflow.sdk.definitions.taskgroup import check_task_group_retries
 
         self.timetable.validate()
         self.validate_setup_teardown()
         check_expansions_over_loop_tasks(self)
+        check_task_group_retries(self)
 
         # We validate owner links on set, but since it's a dict it could be mutated without calling the
         # setter. Validate again here
