@@ -24,7 +24,7 @@ cd "${AIRFLOW_SOURCES}" || exit 1
 
 # Mounted by `breeze build-docs --sphinx-airflow-theme-path`.
 if [[ -n "${SPHINX_AIRFLOW_THEME_PATH:-}" ]]; then
-    uv pip install --reinstall-package sphinx-airflow-theme /opt/sphinx_airflow_theme
+    uv pip install --reinstall-package sphinx-airflow-theme --editable /opt/sphinx_airflow_theme
 fi
 
 python -m docs.build_docs "${@}"
