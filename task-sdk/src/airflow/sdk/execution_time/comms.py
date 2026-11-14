@@ -208,12 +208,12 @@ class _FrameMixin:
         # https://jcristharif.com/msgspec/perf-tips.html#length-prefix-framing for inspiration
         buffer = bytearray(256)
 
+        # Keep the usual path free of a Python traversal of every message.
         try:
             self._encoder.encode_into(self, buffer, 4)  # type: ignore[arg-type]
         except OverflowError:
             if not allow_large_ints:
                 raise
-            # Keep the usual path free of a Python traversal of every message.
             frame = cast("_RequestFrame | _ResponseFrame", self)
             fields = {name: _encode_large_ints(getattr(frame, name)) for name in frame._payload_fields}
             self._encoder.encode_into(msgspec.structs.replace(frame, **fields), buffer, 4)
