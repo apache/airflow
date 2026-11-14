@@ -152,9 +152,6 @@ class Deadline(Base):
 
     # Whether the deadline has been marked as missed by the scheduler
     missed: Mapped[bool] = mapped_column(Boolean, nullable=False)
-    # When a missed/late asset deadline was resolved by a subsequent AssetEvent
-    resolved_at: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
-    # When a missed/late asset deadline was resolved by a subsequent AssetEvent
     resolved_at: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
 
     # Callback that will run when this deadline is missed
@@ -192,7 +189,6 @@ class Deadline(Base):
         self.asset_id = asset_id
         self.partition_key = partition_key
         self.missed = False
-        self.resolved_at = None
         self.resolved_at = None
         self.callback = Callback.create_from_sdk_def(
             callback_def=callback, prefix=CALLBACK_METRICS_PREFIX, dag_id=dag_id
@@ -291,42 +287,14 @@ class Deadline(Base):
 
     @property
     def is_late(self) -> bool:
-        """True when an asset/run deadline has been missed and has not yet resolved."""
         return self.missed and self.resolved_at is None
 
     @classmethod
     def _discover_asset_partition_keys(cls, *, session: Session, asset_id: int) -> list[str | None]:
-        """Resolve expected partition keys from producer timetables or observed watcher events."""
         from airflow.models.asset import AssetEvent
-        from airflow.models.deadline_alert import DeadlineAlert
-        from airflow.models.serialized_dag import SerializedDagModel
-        from airflow.serialization.decoders import decode_timetable
 
         keys: list[str] = []
         seen: set[str] = set()
-
-        # 1. Producer Dag's partition timetable (if a producer Dag exists)
-        producer_sdag_ids = session.scalars(
-            select(DeadlineAlert.serialized_dag_id).where(
-                DeadlineAlert.asset_id == asset_id,
-                DeadlineAlert.is_producer.is_(True),
-                DeadlineAlert.serialized_dag_id.isnot(None),
-            )
-        ).all()
-        for sdag_id in producer_sdag_ids:
-            sdag = session.get(SerializedDagModel, sdag_id)
-            if sdag is None:
-                continue
-            rt = sdag.data.get("dag", {}).get("timetable")
-            if not rt:
-                continue
-            tt = decode_timetable(rt)
-            partition_mapper = getattr(tt, "partition_mapper", None)
-            if partition_mapper is not None and hasattr(partition_mapper, "to_downstream"):
-                pass
-
-        # 2. Distinct partition keys seen on AssetEvents (covers both partitioned producers
-        # and watcher-fed partitioned assets using AssetTriggerEvent(partition_key=...))
         event_keys = session.scalars(
             select(AssetEvent.partition_key)
             .where(AssetEvent.asset_id == asset_id, AssetEvent.partition_key.isnot(None))
@@ -337,12 +305,10 @@ class Deadline(Base):
             if k is not None and k not in seen:
                 seen.add(k)
                 keys.append(k)
-
         return list(keys) if keys else [None]
 
     @classmethod
     def _enqueue_resolution_callback(cls, *, session: Session, deadline: Deadline, resolved_at: datetime) -> None:
-        """Queue optional on_resolve callback when a late asset deadline recovers."""
         from airflow.serialization.decoders import _decode_deadline_callback
 
         if deadline.deadline_alert is None or not deadline.deadline_alert.on_resolve_callback_def:
@@ -361,70 +327,13 @@ class Deadline(Base):
             "resolved_at": resolved_at.isoformat(),
             "deadline": {"id": str(deadline.id), "deadline_time": deadline.deadline_time.isoformat()},
         }
-        cb.queue()
-        if isinstance(cb, TriggererCallback):
-            cb.data["kwargs"] = {**cb.data.get("kwargs", {}), "context": context}
-        elif isinstance(cb, ExecutorCallback):
-            cb.data["kwargs"] = {**cb.data.get("kwargs", {}), "context": context}
-        session.add(cb)
-
-    @property
-    def is_late(self) -> bool:
-        """True when an asset/run deadline has been missed and has not yet resolved."""
-        return self.missed and self.resolved_at is None
-
-    @classmethod
-    def _discover_asset_partition_keys(cls, *, session: Session, asset_id: int) -> list[str | None]:
-        """Resolve expected partition keys from producer timetables or observed watcher events."""
-        from airflow.models.asset import AssetEvent
-
-        keys: list[str] = []
-        seen: set[str] = set()
-
-        event_keys = session.scalars(
-            select(AssetEvent.partition_key)
-            .where(AssetEvent.asset_id == asset_id, AssetEvent.partition_key.isnot(None))
-            .distinct()
-            .order_by(AssetEvent.partition_key.asc())
-        ).all()
-        for k in event_keys:
-            if k is not None and k not in seen:
-                seen.add(k)
-                keys.append(k)
-
-        return list(keys) if keys else [None]
-
-    @classmethod
-    def _enqueue_resolution_callback(cls, *, session: Session, deadline: Deadline, resolved_at: datetime) -> None:
-        """Queue optional on_resolve callback when a late asset deadline recovers."""
-        from airflow.serialization.decoders import _decode_deadline_callback
-
-        if deadline.deadline_alert is None or not deadline.deadline_alert.on_resolve_callback_def:
-            return
-        callback_def = _decode_deadline_callback(deadline.deadline_alert.on_resolve_callback_def)
-        cb = Callback.create_from_sdk_def(callback_def=callback_def, prefix=CALLBACK_METRICS_PREFIX)
-        asset_payload = (
-            {"id": deadline.asset.id, "name": deadline.asset.name, "uri": deadline.asset.uri}
-            if deadline.asset is not None
-            else {"id": deadline.asset_id}
-        )
-        context = {
-            "asset": asset_payload,
-            "partition_key": deadline.partition_key,
-            "resolved": True,
-            "resolved_at": resolved_at.isoformat(),
-            "deadline": {"id": str(deadline.id), "deadline_time": deadline.deadline_time.isoformat()},
-        }
-        cb.queue()
-        if isinstance(cb, TriggererCallback):
-            cb.data["kwargs"] = {**cb.data.get("kwargs", {}), "context": context}
-        elif isinstance(cb, ExecutorCallback):
+        cb.queue(session=session)
+        if isinstance(cb, (TriggererCallback, ExecutorCallback)):
             cb.data["kwargs"] = {**cb.data.get("kwargs", {}), "context": context}
         session.add(cb)
 
     @classmethod
     def prune_asset_deadlines(cls, *, session: Session, asset_event: Any) -> int:
-        """Delete unmissed asset deadlines satisfied by ``asset_event``, resolve late ones, and schedule next window."""
         base_filter = [cls.asset_id == asset_event.asset_id]
         if asset_event.partition_key is not None:
             base_filter.append((cls.partition_key == asset_event.partition_key) | cls.partition_key.is_(None))
@@ -439,12 +348,7 @@ class Deadline(Base):
             session.delete(deadline)
             stats.incr(
                 "deadline_alerts.deadline_not_missed",
-                tags=prune_dict(
-                    {
-                        "asset_id": str(asset_event.asset_id),
-                        "partition_key": asset_event.partition_key,
-                    }
-                ),
+                tags=prune_dict({"asset_id": str(asset_event.asset_id), "partition_key": asset_event.partition_key}),
             )
             deleted_count += 1
 
@@ -453,9 +357,7 @@ class Deadline(Base):
         ).all()
         for late_dl in late_deadlines:
             late_dl.resolved_at = asset_event.timestamp
-            cls._enqueue_resolution_callback(
-                session=session, deadline=late_dl, resolved_at=asset_event.timestamp
-            )
+            cls._enqueue_resolution_callback(session=session, deadline=late_dl, resolved_at=asset_event.timestamp)
 
         session.flush()
         cls.schedule_asset_deadlines(session=session, asset_id=asset_event.asset_id)
@@ -469,11 +371,8 @@ class Deadline(Base):
         asset_id: int | None = None,
         now: datetime | None = None,
     ) -> int:
-        """Proactively materialize pending Deadline rows for asset and run-level DeadlineAlerts (pooled per definition)."""
         import json
-
         from croniter import croniter
-
         from airflow.models.asset import AssetEvent, AssetModel
         from airflow.models.dagrun import DagRun
         from airflow.models.deadline_alert import DeadlineAlert
@@ -483,7 +382,9 @@ class Deadline(Base):
 
         current_time = now or timezone.utcnow()
         alert_query = select(DeadlineAlert).where(
-            (DeadlineAlert.asset_id.isnot(None)) | (DeadlineAlert.cron.isnot(None)) | (DeadlineAlert.reference.isnot(None))
+            (DeadlineAlert.asset_id.isnot(None))
+            | (DeadlineAlert.cron.isnot(None))
+            | (DeadlineAlert.reference.isnot(None))
         )
         if asset_id is not None:
             alert_query = alert_query.where(DeadlineAlert.asset_id == asset_id)
@@ -509,11 +410,11 @@ class Deadline(Base):
                 continue
             seen_pool_keys.add(pool_key)
 
+            latest_event = None
             if alert.asset_id is not None:
                 asset = session.get(AssetModel, alert.asset_id)
                 if asset is None or not asset.active:
                     continue
-
                 latest_event = session.scalar(
                     select(AssetEvent)
                     .where(AssetEvent.asset_id == alert.asset_id)
@@ -529,10 +430,7 @@ class Deadline(Base):
                 if sdag is None:
                     continue
                 latest_run = session.scalar(
-                    select(DagRun)
-                    .where(DagRun.dag_id == sdag.dag_id)
-                    .order_by(DagRun.id.desc())
-                    .limit(1)
+                    select(DagRun).where(DagRun.dag_id == sdag.dag_id).order_by(DagRun.id.desc()).limit(1)
                 )
                 anchor = (
                     (latest_run.start_date or latest_run.logical_date or alert.created_at)
@@ -544,8 +442,7 @@ class Deadline(Base):
             deadline_time: datetime | None = None
             if alert.cron:
                 base = max(anchor, current_time - timedelta(seconds=1))
-                next_dt = croniter(alert.cron, base).get_next(datetime)
-                deadline_time = timezone.coerce_datetime(next_dt)
+                deadline_time = timezone.coerce_datetime(croniter(alert.cron, base).get_next(datetime))
             elif alert.interval is not None:
                 resolved_interval = _decode_deadline_interval(alert.interval)
                 if isinstance(resolved_interval, SerializedVariableInterval):
@@ -573,16 +470,12 @@ class Deadline(Base):
                         AssetEvent.timestamp <= deadline_time,
                     )
                     if alert.cron:
-                        prev_dt = timezone.coerce_datetime(
-                            croniter(alert.cron, deadline_time).get_prev(datetime)
-                        )
+                        prev_dt = timezone.coerce_datetime(croniter(alert.cron, deadline_time).get_prev(datetime))
                         satisfied_query = satisfied_query.where(AssetEvent.timestamp > prev_dt)
                     else:
                         satisfied_query = satisfied_query.where(AssetEvent.timestamp >= alert.created_at)
                         if latest_event is not None:
-                            satisfied_query = satisfied_query.where(
-                                AssetEvent.timestamp > latest_event.timestamp
-                            )
+                            satisfied_query = satisfied_query.where(AssetEvent.timestamp > latest_event.timestamp)
                     if part_key is not None:
                         satisfied_query = satisfied_query.where(AssetEvent.partition_key == part_key)
                     if session.scalar(satisfied_query.limit(1)) is not None:
@@ -599,14 +492,15 @@ class Deadline(Base):
                             continue
 
                 callback_def = _decode_deadline_callback(alert.callback_def)
-                new_deadline = cls(
-                    deadline_time=deadline_time,
-                    callback=callback_def,
-                    asset_id=alert.asset_id,
-                    partition_key=part_key,
-                    deadline_alert_id=alert.id,
+                session.add(
+                    cls(
+                        deadline_time=deadline_time,
+                        callback=callback_def,
+                        asset_id=alert.asset_id,
+                        partition_key=part_key,
+                        deadline_alert_id=alert.id,
+                    )
                 )
-                session.add(new_deadline)
                 created_count += 1
 
         if created_count:
