@@ -236,6 +236,7 @@ class PydanticAIHook(BaseHook):
         self._model: Model | None = None
         self._conn: Connection | None = None
         self._conn_extra_dejson: dict[str, Any] = {}
+        self._logged_explicit_credentials = False
 
     @classmethod
     def get_hook(cls, conn_id: str, hook_params: dict | None = None):
@@ -404,6 +405,30 @@ class PydanticAIHook(BaseHook):
         )
         return self._model
 
+    def get_primary_model(self, model_id: str | None = None) -> Model:
+        """
+        Return the concrete ``Model`` for this connection, without the fallback chain.
+
+        :meth:`get_conn` wraps the primary model in a ``FallbackModel`` when fallback
+        connections are configured. A caller that needs the provider's own model class
+        (for the batch methods on ``Model``, which a ``FallbackModel`` does not have) uses
+        this instead. Every call builds a new model, so one model is never shared across
+        event loops.
+
+        :param model_id: Model to build instead of this hook's own. Resolved the same way
+            as the hook's ``model_id``: a bare name takes this connection's platform.
+        """
+        return self._resolve_own_model(model_id=model_id)
+
+    async def aget_primary_model(self, model_id: str | None = None) -> Model:
+        """
+        Return the concrete ``Model`` for this connection, for use inside an async task.
+
+        The async counterpart of :meth:`get_primary_model`; the resolution runs on the hook's
+        own worker thread for the reason given in :meth:`aget_conn`.
+        """
+        return await _run_off_loop(self.get_primary_model, model_id)
+
     async def aget_conn(self) -> Model:
         """
         Return the configured pydantic-ai ``Model``, for use inside an async task.
@@ -521,6 +546,7 @@ class PydanticAIHook(BaseHook):
     def _resolve_own_model(
         self,
         *,
+        model_id: str | None = None,
         forwarded_model_id: str | None = None,
         forwarded_from_conn_id: str | None = None,
         forwarded_model_provider: str | None = None,
@@ -528,6 +554,7 @@ class PydanticAIHook(BaseHook):
         """
         Resolve the ``Model`` for this hook's own connection, ignoring any fallback chain.
 
+        :param model_id: Model to resolve instead of the one this hook configures.
         :param forwarded_model_id: The primary connection's configured model name,
             forwarded down a fallback chain by :meth:`_resolve_fallback_models` --
             see that method's docstring for when a name is eligible to forward. A
@@ -545,7 +572,7 @@ class PydanticAIHook(BaseHook):
         # Read up front, so a bad ``model_provider`` in the extra fails even when the model name pins its own.
         model_provider = self._get_model_provider()
 
-        model_name: str | KnownModelName | None = self._get_configured_model_name()
+        model_name: str | KnownModelName | None = model_id or self._get_configured_model_name()
         forwarded = False
         if (
             not model_name
@@ -568,11 +595,14 @@ class PydanticAIHook(BaseHook):
         provider_kwargs = self._get_provider_kwargs(api_key, base_url, extra)
         if provider_kwargs:
             _kwargs = provider_kwargs  # capture for closure
-            self.log.info(
+            # Batch polling builds a model per call; the first line says it, the rest would only repeat it.
+            log_credentials = self.log.debug if self._logged_explicit_credentials else self.log.info
+            log_credentials(
                 "Using explicit credentials for provider with model '%s': %s",
                 model_name,
                 list(provider_kwargs),
             )
+            self._logged_explicit_credentials = True
 
             def _provider_factory(pname: str) -> Any:
                 try:

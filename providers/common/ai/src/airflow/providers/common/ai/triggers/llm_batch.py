@@ -21,11 +21,14 @@ from __future__ import annotations
 import asyncio
 import time
 from collections.abc import AsyncIterator
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from airflow.providers.common.ai.batch.dispatch import build_adapter
 from airflow.providers.common.ai.batch.polling import MAX_CONSECUTIVE_POLL_FAILURES, BatchPoller
 from airflow.triggers.base import BaseTrigger, TriggerEvent
+
+if TYPE_CHECKING:
+    from airflow.providers.common.ai.batch.base import BatchAdapter
 
 __all__ = ["MAX_CONSECUTIVE_POLL_FAILURES", "LLMBatchTrigger"]
 
@@ -53,6 +56,11 @@ class LLMBatchTrigger(BaseTrigger):
         triggerer process after a restart.
     :param timeout: The configured budget in seconds, used only to build the
         timeout message.
+    :param model_id: The batch's ``"<provider>:<model>"`` id, which a pydantic-ai adapter needs
+        to rebuild its model. ``None`` on a trigger serialized by an older version.
+    :param batch_handle: The adapter's serialized state for the batch, recorded at submit time.
+        ``None`` on a trigger serialized by an older version, and for adapters that need only
+        ``batch_id``.
     :param cancel_on_kill: Cancel the batch from ``on_kill`` when the
         deferred task is killed. Only takes effect on Airflow 3.3+, which is
         the first version whose triggerer calls a trigger's ``on_kill``.
@@ -73,6 +81,8 @@ class LLMBatchTrigger(BaseTrigger):
         cancel_on_kill: bool,
         cancel_on_timeout: bool,
         timeout: int = 0,
+        model_id: str | None = None,
+        batch_handle: str | None = None,
     ) -> None:
         super().__init__()
         self.llm_conn_id = llm_conn_id
@@ -83,6 +93,16 @@ class LLMBatchTrigger(BaseTrigger):
         self.timeout = timeout
         self.cancel_on_kill = cancel_on_kill
         self.cancel_on_timeout = cancel_on_timeout
+        self.model_id = model_id
+        self.batch_handle = batch_handle
+
+    def _build_adapter(self) -> BatchAdapter:
+        return build_adapter(
+            self.adapter,
+            llm_conn_id=self.llm_conn_id,
+            model_id=self.model_id,
+            batch_handle=self.batch_handle,
+        )
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         """Serialize trigger arguments and class path."""
@@ -97,6 +117,8 @@ class LLMBatchTrigger(BaseTrigger):
                 "timeout": self.timeout,
                 "cancel_on_kill": self.cancel_on_kill,
                 "cancel_on_timeout": self.cancel_on_timeout,
+                "model_id": self.model_id,
+                "batch_handle": self.batch_handle,
             },
         )
 
@@ -113,8 +135,8 @@ class LLMBatchTrigger(BaseTrigger):
             return
         adapter = None
         try:
-            adapter = await asyncio.to_thread(build_adapter, self.adapter, llm_conn_id=self.llm_conn_id)
-            await asyncio.to_thread(adapter.cancel_batch, self.batch_id)
+            adapter = await asyncio.to_thread(self._build_adapter)
+            await adapter.acancel_batch(self.batch_id)
             self.log.info("on_kill: cancelled batch %s", self.batch_id)
         except Exception as e:
             self.log.warning("on_kill: failed to cancel batch %s: %s", self.batch_id, e)
@@ -126,7 +148,7 @@ class LLMBatchTrigger(BaseTrigger):
         """Poll the batch status and yield exactly one terminal event."""
         # build_adapter resolves the connection (a blocking call) and constructs the SDK
         # client; neither belongs on the shared triggerer event loop.
-        adapter = await asyncio.to_thread(build_adapter, self.adapter, llm_conn_id=self.llm_conn_id)
+        adapter = await asyncio.to_thread(self._build_adapter)
         poller = BatchPoller(
             batch_id=self.batch_id,
             end_time=self.end_time,
@@ -136,9 +158,9 @@ class LLMBatchTrigger(BaseTrigger):
         try:
             while True:
                 try:
-                    # get_batch is a blocking SDK HTTP call; run it off the event loop so one
-                    # poll never stalls every other trigger on this triggerer.
-                    state = await asyncio.to_thread(adapter.get_batch, self.batch_id)
+                    # aget_batch never blocks the loop: an adapter without a native async client
+                    # runs its blocking call in a thread, so one poll never stalls every other trigger.
+                    state = await adapter.aget_batch(self.batch_id)
                 except Exception as e:
                     outcome = poller.on_error(e, now=time.time())
                     if outcome.event is None:
@@ -169,7 +191,7 @@ class LLMBatchTrigger(BaseTrigger):
         cancel_error: str | None = None
         if cancel:
             try:
-                await asyncio.to_thread(adapter.cancel_batch, self.batch_id)
+                await adapter.acancel_batch(self.batch_id)
                 cancelled = True
                 self.log.info(
                     "Cancelled batch %s: timeout=%ss exceeded with cancel_on_timeout=True",

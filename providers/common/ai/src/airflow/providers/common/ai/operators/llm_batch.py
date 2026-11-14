@@ -57,6 +57,7 @@ if TYPE_CHECKING:
 #: Batch jobs run for minutes to hours; polling faster than this buys nothing and only adds
 #: load on the provider's status endpoint and on the triggerer's thread pool.
 _MIN_POLL_INTERVAL = 30
+_DEFAULT_COMPLETION_WINDOW = "24h"
 
 _STALE_STATE_POLICIES = ("cancel_and_resubmit", "fail")
 _ORPHANED_INTENT_POLICIES = ("resubmit", "fail")
@@ -66,7 +67,7 @@ class LLMBatchOperator(BaseOperator):
     """
     Submit prompts as a provider batch job and land results on object storage.
 
-    Routes to the OpenAI or Anthropic batch API based on ``model_id``'s
+    Routes to the OpenAI, Anthropic or Gemini batch API based on ``model_id``'s
     ``"<provider>:<model>"`` prefix (see
     :mod:`~airflow.providers.common.ai.batch.dispatch`). Unlike
     :class:`~airflow.providers.common.ai.operators.llm.LLMOperator`, results
@@ -104,11 +105,13 @@ class LLMBatchOperator(BaseOperator):
     :param max_tokens: Output token cap for requests that do not set their
         own. Sent as ``max_tokens`` to Anthropic and as
         ``max_completion_tokens`` to OpenAI.
-    :param request_params: Extra body parameters merged into every request
+    :param request_params: Extra parameters for every request
         (e.g. ``{"temperature": 0.2}``); a request's own ``params`` wins on
         conflicting keys. The keys the operator manages (``model``, the
         messages, the token cap and the structured-output directive) cannot
-        be overridden from here.
+        be overridden from here. OpenAI merges them into the request body as-is.
+        Anthropic takes sampling and ``anthropic_*`` keys as typed settings and
+        merges every other key into the body. Gemini accepts typed settings only.
         Templated: every string inside the dict is rendered, and Jinja hands back
         a string, so a numeric parameter written as a template needs
         ``render_template_as_native_obj=True`` on the Dag.
@@ -143,11 +146,12 @@ class LLMBatchOperator(BaseOperator):
     :param on_orphaned_intent: What to do when a previous attempt recorded
         its intent to submit but no batch id, and the provider-side lookup
         finds no matching batch: ``"resubmit"`` (default) submits a new
-        batch; ``"fail"`` raises instead. Anthropic offers no such lookup, so
-        ``"resubmit"`` may pay twice there if the original request did reach
-        the provider.
+        batch; ``"fail"`` raises instead. Anthropic and Gemini offer no such
+        lookup, so ``"resubmit"`` may pay twice there if the original request
+        did reach the provider.
     :param completion_window: OpenAI-specific completion window. Only
-        ``"24h"`` is offered by the API today. Ignored by Anthropic.
+        ``"24h"`` is offered by the API today. Ignored by Anthropic and Gemini, which warn when it is
+        set to anything else.
     """
 
     template_fields: Sequence[str] = (
@@ -178,7 +182,7 @@ class LLMBatchOperator(BaseOperator):
         fail_on_partial_error: bool = False,
         on_stale_state: Literal["cancel_and_resubmit", "fail"] = "cancel_and_resubmit",
         on_orphaned_intent: Literal["resubmit", "fail"] = "resubmit",
-        completion_window: str = "24h",
+        completion_window: str = _DEFAULT_COMPLETION_WINDOW,
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
@@ -215,6 +219,7 @@ class LLMBatchOperator(BaseOperator):
         self.on_orphaned_intent = on_orphaned_intent
         self.completion_window = completion_window
         self.batch_id: str | None = None
+        self.batch_handle: str | None = None
 
     @staticmethod
     def _normalize_requests(requests: Any) -> list[BatchRequest]:
@@ -270,10 +275,16 @@ class LLMBatchOperator(BaseOperator):
     def _connection(self) -> Connection:
         return BaseHook.get_connection(self.llm_conn_id)
 
-    def _build_adapter(self, conn: Connection | None = None) -> tuple[str, BatchAdapter]:
+    def _build_adapter(
+        self, conn: Connection | None = None, *, batch_handle: str | None = None
+    ) -> tuple[str, BatchAdapter]:
         conn = conn or self._connection()
-        adapter_cls = dispatch.get_adapter_class(conn.conn_type, self._resolve_model_id(conn))
-        return adapter_cls.name, dispatch.build_adapter_from_connection(adapter_cls.name, conn)
+        model_id = self._resolve_model_id(conn)
+        adapter_cls = dispatch.get_adapter_class(conn.conn_type, model_id)
+        adapter = dispatch.build_adapter_from_connection(
+            adapter_cls.name, conn, model_id=model_id, batch_handle=batch_handle
+        )
+        return adapter_cls.name, adapter
 
     @staticmethod
     def _identity(context: Context) -> tuple[str, str]:
@@ -295,10 +306,14 @@ class LLMBatchOperator(BaseOperator):
             if request.get("model"):
                 request["model"] = self._qualify_model_id(request["model"], conn)
         model_id = self._resolve_model_id(conn)
-        adapter_name, adapter = self._build_adapter(conn)
         _, bare_model = dispatch.split_model_id(model_id)
 
         key, key16 = self._identity(context)
+        result_path_osp = ObjectStoragePath(self.result_path)
+        record = state.read_state(result_path_osp, key)
+        adapter_name, adapter = self._build_adapter(
+            conn, batch_handle=record.provider_handle if record else None
+        )
         fingerprint = state.compute_fingerprint(
             requests=requests,
             llm_conn_id=self.llm_conn_id,
@@ -321,8 +336,6 @@ class LLMBatchOperator(BaseOperator):
                 request_params=self.request_params,
             )
 
-            result_path_osp = ObjectStoragePath(self.result_path)
-            record = state.read_state(result_path_osp, key)
             reattach_batch_id, reattach_submitted_at = self._resolve_reattach_target(
                 record,
                 adapter=adapter,
@@ -341,6 +354,7 @@ class LLMBatchOperator(BaseOperator):
                 batch_state = self._get_recorded_batch(adapter, reattach_batch_id)
                 if batch_state is not None:
                     self.batch_id = reattach_batch_id
+                    self.batch_handle = record.provider_handle if record else None
                     self._push_batch_id_xcom(context)
                     if batch_state.status != "in_progress":
                         return self._handle_event(
@@ -351,6 +365,8 @@ class LLMBatchOperator(BaseOperator):
                         adapter_name=adapter_name,
                         adapter=adapter,
                         batch_id=self.batch_id,
+                        batch_handle=self.batch_handle,
+                        model_id=model_id,
                         key=key,
                         spec=spec,
                         submitted_at=reattach_submitted_at or datetime.now(UTC).isoformat(),
@@ -367,6 +383,12 @@ class LLMBatchOperator(BaseOperator):
                 output_schema_digest=output_schema_digest,
                 intent_at=intent_at,
             )
+            if self.completion_window != _DEFAULT_COMPLETION_WINDOW and adapter_name != "openai":
+                self.log.warning(
+                    "completion_window=%r is ignored: the %s batch API has no such setting.",
+                    self.completion_window,
+                    adapter_name,
+                )
             submit_result = adapter.submit(
                 requests,
                 model=bare_model,
@@ -393,8 +415,10 @@ class LLMBatchOperator(BaseOperator):
                 provider_input_ref=submit_result.provider_input_ref,
                 request_count=len(requests),
                 submitted_at=submitted_at,
+                provider_handle=submit_result.handle,
             )
             self.batch_id = submit_result.batch_id
+            self.batch_handle = submit_result.handle
             # Observability only. XCom is cleared at the start of every retry, so recovery
             # never relies on reading this back.
             self._push_batch_id_xcom(context)
@@ -406,6 +430,8 @@ class LLMBatchOperator(BaseOperator):
                 adapter_name=adapter_name,
                 adapter=adapter,
                 batch_id=self.batch_id,
+                batch_handle=submit_result.handle,
+                model_id=model_id,
                 key=key,
                 spec=spec,
                 submitted_at=submitted_at,
@@ -432,9 +458,9 @@ class LLMBatchOperator(BaseOperator):
         """
         Decide whether this attempt re-attaches to a recorded batch, and which one.
 
-        Returns ``(batch_id, submitted_at)`` to re-attach to, or ``(None, None)``
-        to submit fresh. Handles the three recorded shapes: a matching batch,
-        a stale batch (input changed), and an intent record with no batch id.
+        Returns ``(batch_id, submitted_at)`` to re-attach to, or ``(None, None)`` to submit fresh.
+        Handles the three recorded shapes: a matching batch, a stale batch (input changed), and an
+        intent record with no batch id.
         """
         if record is None:
             return None, None
@@ -469,7 +495,7 @@ class LLMBatchOperator(BaseOperator):
                 record.batch_id,
                 reason,
             )
-            self._cancel_recorded_batch(record, adapter, adapter_name)
+            self._cancel_recorded_batch(record, adapter, adapter_name, model_id)
             return None, None
 
         # Intent recorded, no batch id: a previous attempt crashed between submit and recording.
@@ -525,14 +551,23 @@ class LLMBatchOperator(BaseOperator):
         return None, None
 
     def _cancel_recorded_batch(
-        self, record: BatchStateRecord, adapter: BatchAdapter, adapter_name: str
+        self, record: BatchStateRecord, adapter: BatchAdapter, adapter_name: str, model_id: str | None
     ) -> None:
-        """Cancel a stale batch through the connection that owns it, which may differ from the current one."""
+        """Cancel a stale batch through the connection and model that own it, which may differ from the current ones."""
         owner: BatchAdapter = adapter
         own_adapter = False
-        if record.llm_conn_id and (record.llm_conn_id != self.llm_conn_id or record.adapter != adapter_name):
+        if record.llm_conn_id and (
+            record.llm_conn_id != self.llm_conn_id
+            or record.adapter != adapter_name
+            or (record.model_id and record.model_id != model_id)
+        ):
             try:
-                owner = dispatch.build_adapter(record.adapter or adapter_name, llm_conn_id=record.llm_conn_id)
+                owner = dispatch.build_adapter(
+                    record.adapter or adapter_name,
+                    llm_conn_id=record.llm_conn_id,
+                    model_id=record.model_id,
+                    batch_handle=record.provider_handle,
+                )
                 own_adapter = True
             except Exception as e:
                 self.log.warning(
@@ -575,6 +610,8 @@ class LLMBatchOperator(BaseOperator):
         adapter_name: str,
         adapter: BatchAdapter,
         batch_id: str,
+        batch_handle: str | None,
+        model_id: str | None,
         key: str,
         spec: OutputSpec,
         submitted_at: str,
@@ -606,6 +643,8 @@ class LLMBatchOperator(BaseOperator):
                     timeout=self.timeout,
                     cancel_on_kill=self.cancel_on_kill,
                     cancel_on_timeout=self.cancel_on_timeout,
+                    model_id=model_id,
+                    batch_handle=batch_handle,
                 ),
                 method_name="execute_complete",
             )
@@ -676,31 +715,28 @@ class LLMBatchOperator(BaseOperator):
         batch_id = event["batch_id"]
         result_path_osp = ObjectStoragePath(self.result_path)
 
-        if status in ("success", "expired"):
+        if status in ("success", "expired", "cancelled"):
             manifest = self._land(
                 result_path_osp, batch_id=batch_id, key=key, spec=spec, extra_counts=event.get("counts")
             )
             self._log_landed(manifest)
-            self._raise_if_partial(manifest)
-            return manifest
-
-        if status == "cancelled":
-            manifest = self._land(
-                result_path_osp, batch_id=batch_id, key=key, spec=spec, extra_counts=event.get("counts")
-            )
-            self._log_landed(manifest)
-            lost = manifest["counts"]["cancelled"] + manifest["counts"]["missing"]
-            if lost:
-                # The cancel was deliberate (ours or out of band), so there is nothing in flight to
-                # protect: clear the state so the next attempt submits fresh instead of re-landing
-                # the same truncated results as a success.
-                state.delete_state(result_path_osp, key)
-                raise LLMBatchCancelledError(
-                    f"Batch {batch_id!r} was cancelled before {lost} of {manifest['request_count']} requests "
-                    f"completed (cancel_on_kill/cancel_on_timeout, or cancelled out of band). The results that "
-                    f"did complete are at {manifest['result_uri']}. The recorded state was cleared, so a retry "
-                    "submits a new batch."
-                )
+            if status != "expired":
+                # Whether requests were cancelled is only known once the results are read: a provider
+                # that reports an ended batch (Anthropic) does not say it was cancelled. Requests the
+                # results never listed count as lost only when the job itself said it was cancelled.
+                counts = manifest["counts"]
+                lost = counts["cancelled"] + (counts["missing"] if status == "cancelled" else 0)
+                if lost:
+                    # The cancel was deliberate (ours or out of band), so there is nothing in flight to
+                    # protect: clear the state so the next attempt submits fresh instead of re-landing
+                    # the same truncated results as a success.
+                    state.delete_state(result_path_osp, key)
+                    raise LLMBatchCancelledError(
+                        f"Batch {batch_id!r} was cancelled before {lost} of {manifest['request_count']} "
+                        f"requests completed (cancel_on_kill/cancel_on_timeout, or cancelled out of band). "
+                        f"The results that did complete are at {manifest['result_uri']}. The recorded state "
+                        "was cleared, so a retry submits a new batch."
+                    )
             self._raise_if_partial(manifest)
             return manifest
 
@@ -766,7 +802,13 @@ class LLMBatchOperator(BaseOperator):
             )
         llm_conn_id = record.llm_conn_id or self.llm_conn_id
         model_id = record.model_id if record.model_id is not None else self.model_id
-        adapter = dispatch.build_adapter(record.adapter or "", llm_conn_id=llm_conn_id)
+        adapter = dispatch.build_adapter(
+            record.adapter or "",
+            llm_conn_id=llm_conn_id,
+            model_id=model_id,
+            batch_handle=record.provider_handle,
+            output_spec=spec,
+        )
         key16 = state.key16(key)
         destination = result_path_osp / f"{key16}.jsonl"
         try:
@@ -808,7 +850,7 @@ class LLMBatchOperator(BaseOperator):
             return
         adapter = None
         try:
-            _, adapter = self._build_adapter()
+            _, adapter = self._build_adapter(batch_handle=self.batch_handle)
             adapter.cancel_batch(self.batch_id)
             self.log.info("on_kill: cancelled batch %s", self.batch_id)
         except Exception as e:

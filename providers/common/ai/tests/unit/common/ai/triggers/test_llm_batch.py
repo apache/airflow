@@ -34,7 +34,16 @@ COMPLETED = BatchState(
 )
 
 
-def _trigger(*, end_time=None, poll_interval=1, cancel_on_kill=True, cancel_on_timeout=True, timeout=3600):
+def _trigger(
+    *,
+    end_time=None,
+    poll_interval=1,
+    cancel_on_kill=True,
+    cancel_on_timeout=True,
+    timeout=3600,
+    model_id=None,
+    batch_handle=None,
+):
     return LLMBatchTrigger(
         llm_conn_id="my_openai",
         adapter="openai",
@@ -44,12 +53,14 @@ def _trigger(*, end_time=None, poll_interval=1, cancel_on_kill=True, cancel_on_t
         timeout=timeout,
         cancel_on_kill=cancel_on_kill,
         cancel_on_timeout=cancel_on_timeout,
+        model_id=model_id,
+        batch_handle=batch_handle,
     )
 
 
 def _adapter(*get_batch_results) -> mock.Mock:
     adapter = mock.Mock(spec=BatchAdapter)
-    adapter.get_batch.side_effect = list(get_batch_results)
+    adapter.aget_batch.side_effect = list(get_batch_results)
     return adapter
 
 
@@ -77,7 +88,13 @@ def build_adapter():
 class TestSerialize:
     def test_round_trips_every_constructor_argument(self):
         trigger = _trigger(
-            end_time=1234.5, poll_interval=45, cancel_on_kill=False, cancel_on_timeout=False, timeout=99
+            end_time=1234.5,
+            poll_interval=45,
+            cancel_on_kill=False,
+            cancel_on_timeout=False,
+            timeout=99,
+            model_id="anthropic:claude-sonnet-4-5",
+            batch_handle='{"id": "msgbatch_1"}',
         )
 
         classpath, kwargs = trigger.serialize()
@@ -92,6 +109,8 @@ class TestSerialize:
             "timeout": 99,
             "cancel_on_kill": False,
             "cancel_on_timeout": False,
+            "model_id": "anthropic:claude-sonnet-4-5",
+            "batch_handle": '{"id": "msgbatch_1"}',
         }
         assert LLMBatchTrigger(**kwargs).serialize() == (classpath, kwargs)
 
@@ -100,24 +119,41 @@ class TestSerialize:
         kwargs.pop("timeout")
         assert LLMBatchTrigger(**kwargs).timeout == 0
 
+    def test_model_id_and_handle_default_for_triggers_serialized_before_they_existed(self):
+        _, kwargs = _trigger().serialize()
+        kwargs.pop("model_id")
+        kwargs.pop("batch_handle")
+        kwargs.pop("timeout")
+
+        trigger = LLMBatchTrigger(**kwargs)
+
+        assert (trigger.model_id, trigger.batch_handle, trigger.timeout) == (None, None, 0)
+
 
 class TestBlockingCallsRunOffTheEventLoop:
     @pytest.mark.asyncio
-    async def test_build_adapter_get_batch_and_close_go_through_to_thread(self, build_adapter):
+    async def test_connection_lookup_and_close_go_through_to_thread_and_polling_is_awaited(
+        self, build_adapter
+    ):
         adapter = _adapter(COMPLETED)
         build_adapter.return_value = adapter
 
         async def passthrough(func, *args, **kwargs):
             return func(*args, **kwargs)
 
+        trigger = _trigger(model_id="openai:gpt-5", batch_handle='{"id": "b"}')
+
         with mock.patch.object(
             trigger_module.asyncio, "to_thread", autospec=True, side_effect=passthrough
         ) as to_thread:
-            payload = await _run_to_single_event(_trigger())
+            payload = await _run_to_single_event(trigger)
 
-        to_thread.assert_any_call(build_adapter, "openai", llm_conn_id="my_openai")
-        to_thread.assert_any_call(adapter.get_batch, "batch_1")
+        build_adapter.assert_called_once_with(
+            "openai", llm_conn_id="my_openai", model_id="openai:gpt-5", batch_handle='{"id": "b"}'
+        )
+        to_thread.assert_any_call(trigger._build_adapter)
         to_thread.assert_any_call(adapter.close)
+        adapter.aget_batch.assert_awaited_once_with("batch_1")
         assert payload["status"] == "success"
 
 
@@ -137,7 +173,7 @@ class TestTerminalStatusMapping:
         assert payload["status"] == expected
         assert payload["batch_id"] == "batch_1"
         assert payload["counts"] == counts
-        assert adapter.cancel_batch.call_count == 0
+        assert adapter.acancel_batch.call_count == 0
         adapter.close.assert_called_once_with()
 
     @pytest.mark.asyncio
@@ -160,7 +196,7 @@ class TestTerminalStatusMapping:
         payload = await _run_to_single_event(_trigger(poll_interval=7))
 
         assert payload["status"] == "success"
-        assert adapter.get_batch.call_count == 3
+        assert adapter.aget_batch.call_count == 3
         assert no_sleep.await_count == 2
         no_sleep.assert_awaited_with(7)
 
@@ -174,7 +210,7 @@ class TestDeadlineTimeout:
         payload = await _run_to_single_event(_trigger(end_time=time.time() - 1))
 
         assert payload["status"] == "success"
-        assert adapter.cancel_batch.call_count == 0
+        assert adapter.acancel_batch.call_count == 0
 
     @pytest.mark.asyncio
     async def test_cancel_on_timeout_true_cancels_and_says_so(self, build_adapter):
@@ -185,7 +221,7 @@ class TestDeadlineTimeout:
             _trigger(end_time=time.time() - 1, timeout=60, cancel_on_timeout=True)
         )
 
-        adapter.cancel_batch.assert_called_once_with("batch_1")
+        adapter.acancel_batch.assert_called_once_with("batch_1")
         assert payload["status"] == "timeout"
         assert "timeout=60s" in payload["message"]
         assert "deadline" in payload["message"]
@@ -198,14 +234,14 @@ class TestDeadlineTimeout:
 
         payload = await _run_to_single_event(_trigger(end_time=time.time() - 1, cancel_on_timeout=False))
 
-        assert adapter.cancel_batch.call_count == 0
+        assert adapter.acancel_batch.call_count == 0
         assert payload["status"] == "timeout"
         assert "left running (cancel_on_timeout=False)" in payload["message"]
 
     @pytest.mark.asyncio
     async def test_a_failing_cancel_still_yields_timeout_and_reports_the_failure(self, build_adapter):
         adapter = _adapter(IN_PROGRESS)
-        adapter.cancel_batch.side_effect = RuntimeError("cancel endpoint down")
+        adapter.acancel_batch.side_effect = RuntimeError("cancel endpoint down")
         build_adapter.return_value = adapter
 
         payload = await _run_to_single_event(_trigger(end_time=time.time() - 1))
@@ -222,7 +258,7 @@ class TestOnKill:
 
         await _trigger(cancel_on_kill=True).on_kill()
 
-        adapter.cancel_batch.assert_called_once_with("batch_1")
+        adapter.acancel_batch.assert_called_once_with("batch_1")
         adapter.close.assert_called_once_with()
 
     @pytest.mark.asyncio
@@ -238,7 +274,7 @@ class TestOnKill:
     @pytest.mark.asyncio
     async def test_cancel_failure_is_caught_and_the_adapter_is_still_closed(self, build_adapter):
         adapter = _adapter()
-        adapter.cancel_batch.side_effect = RuntimeError("cancel endpoint down")
+        adapter.acancel_batch.side_effect = RuntimeError("cancel endpoint down")
         build_adapter.return_value = adapter
 
         await _trigger(cancel_on_kill=True).on_kill()
@@ -258,7 +294,7 @@ class TestCancelOnKillTimeoutMatrix:
         killed_adapter = _adapter()
         build_adapter.return_value = killed_adapter
         await _trigger(cancel_on_kill=cancel_on_kill, cancel_on_timeout=cancel_on_timeout).on_kill()
-        assert killed_adapter.cancel_batch.call_count == (1 if cancel_on_kill else 0)
+        assert killed_adapter.acancel_batch.call_count == (1 if cancel_on_kill else 0)
 
         timeout_adapter = _adapter(IN_PROGRESS)
         build_adapter.return_value = timeout_adapter
@@ -268,7 +304,7 @@ class TestCancelOnKillTimeoutMatrix:
             )
         )
         assert payload["status"] == "timeout"
-        assert timeout_adapter.cancel_batch.call_count == (1 if cancel_on_timeout else 0)
+        assert timeout_adapter.acancel_batch.call_count == (1 if cancel_on_timeout else 0)
 
 
 class TestConsecutivePollFailures:
@@ -282,8 +318,8 @@ class TestConsecutivePollFailures:
         assert payload["status"] == "error"
         assert f"after {MAX_CONSECUTIVE_POLL_FAILURES} consecutive failures" in payload["message"]
         assert "Connection reset by peer" in payload["message"]
-        assert adapter.get_batch.call_count == MAX_CONSECUTIVE_POLL_FAILURES
-        assert adapter.cancel_batch.call_count == 0
+        assert adapter.aget_batch.call_count == MAX_CONSECUTIVE_POLL_FAILURES
+        assert adapter.acancel_batch.call_count == 0
         assert no_sleep.await_count == MAX_CONSECUTIVE_POLL_FAILURES - 1
 
     @pytest.mark.asyncio
@@ -295,7 +331,7 @@ class TestConsecutivePollFailures:
         payload = await _run_to_single_event(_trigger())
 
         assert payload["status"] == "success"
-        assert adapter.get_batch.call_count == 2 * len(failures) + 2
+        assert adapter.aget_batch.call_count == 2 * len(failures) + 2
 
     @pytest.mark.asyncio
     async def test_giving_up_past_the_deadline_is_a_real_timeout_on_the_first_failure(self, build_adapter):
@@ -305,7 +341,7 @@ class TestConsecutivePollFailures:
         payload = await _run_to_single_event(_trigger(end_time=time.time() - 1, timeout=30))
 
         assert payload["status"] == "timeout"
-        assert adapter.get_batch.call_count == 1
-        adapter.cancel_batch.assert_called_once_with("batch_1")
+        assert adapter.aget_batch.call_count == 1
+        adapter.acancel_batch.assert_called_once_with("batch_1")
         assert "timeout=30s" in payload["message"]
         assert "The last 1 status check(s) failed: Connection reset by peer" in payload["message"]

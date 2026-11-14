@@ -24,7 +24,12 @@ Use :class:`~airflow.providers.common.ai.operators.llm_batch.LLMBatchOperator` t
 prompts through a provider's **batch API** instead of one synchronous call per prompt:
 roughly half the per-token cost of :class:`~airflow.providers.common.ai.operators.llm.LLMOperator`,
 in exchange for up to a 24-hour turnaround. The ``"<provider>:<model>"`` prefix of ``model_id``
-selects the OpenAI or Anthropic adapter; ``llm_conn_id`` must be a ``pydanticai`` connection.
+selects the OpenAI, Anthropic or Gemini adapter; ``llm_conn_id`` must be a ``pydanticai`` connection.
+
+The Anthropic and Gemini adapters drive the ``batch_*`` methods of pydantic-ai's ``Model``, so the
+credentials and endpoint come from the connection the same way they do for ``@task.llm``. They use static
+credentials only: an API key, not a token callback or workload identity. They use the connection's
+primary model and ignore any fallback connections it lists.
 
 .. seealso::
     :ref:`Connection configuration <howto/connection:pydanticai>`
@@ -41,6 +46,13 @@ batch can have up to 100,000 results, far too much to push through XCom.
     :language: python
     :start-after: [START howto_operator_llm_batch_basic]
     :end-before: [END howto_operator_llm_batch_basic]
+
+Rows are written one at a time, and Anthropic's results are read as a stream, so landing a batch holds
+only a small buffer of responses in the worker's memory. Gemini results are still read through
+pydantic-ai, which downloads a batch's results in one call, so landing a Gemini batch holds every
+response body of that batch in memory at once. For a
+Gemini batch of tens of thousands of long responses, size the worker for it, or split the input across
+mapped task instances with ``.expand()`` so each instance lands one slice.
 
 The manifest
 ^^^^^^^^^^^^
@@ -102,10 +114,12 @@ Structured output
 ------------------
 
 Set ``output_type`` to a Pydantic ``BaseModel`` subclass (or another type ``TypeAdapter``
-supports, such as ``int`` or ``list[str]``). OpenAI requests use ``response_format``; Anthropic
-requests use a single forced tool call. Both providers require the schema root to be an object,
-so a non-object ``output_type`` is wrapped as ``{"response": ...}`` on the way out and unwrapped
-again before validation; the JSONL ``output`` holds the plain value.
+supports, such as ``int`` or ``list[str]``). OpenAI requests use ``response_format``. Anthropic and
+Gemini requests use the model's native JSON-schema output; for an Anthropic model without it
+(Claude 3.5 Haiku, for example) the request uses a single forced tool call instead. Every provider
+requires the schema root to be an object, so a non-object ``output_type`` is wrapped as
+``{"response": ...}`` on the way out and unwrapped again before validation; the JSONL ``output``
+holds the plain value.
 
 A model occasionally returns something that does not match the schema. That is not a task
 failure: the row gets ``status: "invalid_output"`` with the original text preserved in
@@ -147,17 +161,31 @@ at a location the previous attempt never wrote to.
 Provider-specific parameters
 ------------------------------
 
-The operator builds each request body from the prompt, the system prompt, the model, the token
-cap and (for structured output) the schema directive, and translates those per provider:
-``max_tokens`` is sent as ``max_completion_tokens`` to OpenAI and as ``max_tokens`` to Anthropic,
-and ``output_type`` becomes ``response_format`` on OpenAI and a forced tool on Anthropic.
+The operator builds each request from the prompt, the system prompt, the model, the token
+cap and (for structured output) the schema, and translates those per provider:
+``max_tokens`` is sent as ``max_completion_tokens`` to OpenAI and as ``max_tokens`` to Anthropic and
+Gemini, and ``output_type`` becomes ``response_format`` on OpenAI and the model's native JSON-schema
+output on Anthropic and Gemini.
 
-Everything else the provider's chat endpoint accepts goes through ``request_params``, which is
-merged into every request body as-is. For an ``openai:`` model that means OpenAI chat-completions
-keys (``temperature``, ``reasoning_effort``, ``user``, ``seed``, ...); for an ``anthropic:`` model
-it means Anthropic Messages keys (``temperature``, ``top_k``, ``metadata``, ``thinking``, ...).
-The operator does not validate these; an unknown key surfaces as a per-request ``error`` row
-from the provider, or as a failed batch when the provider rejects the whole input file.
+Everything else the provider accepts goes through ``request_params``. For an ``openai:`` model that
+means OpenAI chat-completions keys (``temperature``, ``reasoning_effort``, ``user``, ``seed``, ...),
+merged into every request body as-is.
+
+For an ``anthropic:`` model the sampling settings (``temperature``, ``top_p``, ``top_k``,
+``stop_sequences``) and pydantic-ai's ``anthropic_*`` settings are typed
+settings. Every other key (``metadata``, ``thinking``, ...) is an Anthropic Messages field and is
+merged into the request body as-is. A setting the model does not support, such as ``seed`` on
+Anthropic, fails validation before anything is submitted, because pydantic-ai would otherwise drop it
+without a warning.
+
+For a ``google:`` model only the sampling settings (``temperature``, ``top_p``, ``top_k``, ``seed``,
+``presence_penalty``, ``frequency_penalty``, ``stop_sequences``) and the ``google_*`` settings are
+accepted. The Gemini batch API has no way to pass other request fields through, so any other key
+fails validation before anything is submitted.
+
+For OpenAI the operator does not validate the keys; an unknown key surfaces as a per-request
+``error`` row from the provider, or as a failed batch when the provider rejects the whole input
+file.
 
 ``request_params`` is templated: every string inside the dict is rendered, so a value can come
 from a Variable, a param or an upstream XCom. Jinja hands back a string, so a numeric parameter
@@ -172,26 +200,32 @@ between attempts of one task instance makes a retry pay for a new batch.
 
 .. list-table::
    :header-rows: 1
-   :widths: 30 35 35
+   :widths: 18 24 34 24
 
    * - Operator parameter
      - OpenAI request body
      - Anthropic request body
+     - Gemini request
    * - ``system_prompt``
      - First ``messages`` entry with ``role: system``
      - ``system``
+     - The request's system instruction
    * - ``max_tokens``
      - ``max_completion_tokens`` (``max_tokens`` is dropped)
      - ``max_tokens``
+     - ``generationConfig.maxOutputTokens``
    * - ``output_type``
      - ``response_format`` of type ``json_schema`` (``strict: false``)
-     - ``tools`` + ``tool_choice`` forcing one tool whose input schema is the type
+     - ``output_config.format`` of type ``json_schema`` (a forced tool on models without it)
+     - ``generationConfig.responseJsonSchema``
    * - ``request_params`` / ``params``
      - Merged as-is, managed keys win
-     - Merged as-is, managed keys win
+     - Typed settings, other keys merged as-is, managed keys ignored
+     - Typed settings only
    * - ``completion_window``
      - Batch-level ``completion_window`` (``"24h"``)
-     - Ignored
+     - Ignored, with a warning for any other value
+     - Ignored, with a warning for any other value
 
 Per-request overrides
 -----------------------
@@ -200,7 +234,7 @@ A request dict may carry ``system_prompt``, ``max_tokens``, ``params`` (extra bo
 for that request only, layered over ``request_params``) and ``model``. ``model`` is written the
 same way ``model_id`` is, ``"<provider>:<model>"`` or a bare name the connection's Default
 Provider qualifies, and must select the same adapter as the batch.
-Anthropic allows a different model per request; OpenAI requires every request in a batch to
+Anthropic allows a different model per request; OpenAI and Gemini require every request in a batch to
 resolve to the same model and the operator rejects a mixed batch before submitting it.
 
 .. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_llm_batch.py
@@ -209,7 +243,11 @@ resolve to the same model and the operator rejects a mixed batch before submitti
     :end-before: [END howto_operator_llm_batch_per_request]
 
 ``request_params`` and a request's ``params`` cannot override the keys the operator manages
-(the model, the messages, the token cap and the structured-output directive).
+(the model, the messages, the token cap and the structured-output directive). On Anthropic and
+Gemini a managed key is ignored with a warning in the task log.
+
+Results are read back with the batch-level settings, so a per-request ``params`` entry that changes
+how a response is parsed is not supported.
 
 .. _llm-batch-reattach:
 
@@ -248,10 +286,12 @@ What each outcome does to the recorded state
      - Results landed; succeeds unless ``fail_on_partial_error`` says otherwise.
      - Re-lands the same results, no new submission.
    * - ``cancelled`` with lost requests
-     - Whatever finished is landed, then ``LLMBatchCancelledError``. State is cleared.
+     - Whatever finished is landed, then ``LLMBatchCancelledError``. State is cleared. Anthropic
+       reports a cancelled batch as ended, so the cancelled requests in the landed results are what
+       identify it.
      - Submits a fresh batch.
-   * - ``failed`` (OpenAI rejected the input before running it)
-     - ``LLMBatchJobError``. State is cleared; nothing was billed.
+   * - ``failed`` (OpenAI rejected the input before running it, or a Gemini job failed)
+     - ``LLMBatchJobError``. State is cleared. When OpenAI rejects the input, nothing was billed.
      - Submits a fresh batch.
    * - ``timeout`` (our own budget ran out)
      - ``LLMBatchTimeoutError`` naming the budget, the deadline and whether the batch was
@@ -273,8 +313,8 @@ records both values in the batch's own ``metadata`` at submit time. If that look
 (the provider is unreachable), the attempt raises ``LLMBatchOrphanLookupError`` rather than
 guess; the retry checks again.
 
-**Anthropic offers no such lookup.** The SDK's batch-create call has no ``metadata`` parameter
-and batches cannot be listed by ``custom_id``, so an Anthropic orphan falls through to
+**Anthropic and Gemini offer no such lookup.** Neither batch-create call takes ``metadata`` and
+batches cannot be listed by ``custom_id``, so an orphan falls through to
 ``on_orphaned_intent``: ``"resubmit"`` (default) submits a new batch, which pays for both if the
 original request did reach the provider; ``"fail"`` raises so you can reconcile against the
 provider's own batch listing first.
@@ -289,10 +329,38 @@ cancelled and the next attempt submits a fresh one rather than re-attaching. Bef
 Airflow 3.3 a killed deferred task's batch keeps running and a clear re-attaches to it. Set
 ``cancel_on_kill=False`` if you want clear-to-re-attach on 3.3+ as well.
 
+Cancelling can still bill the requests the provider had already completed.
+
 ``cancel_on_timeout=False`` lets a batch keep running (and billing) past this task's own
 ``timeout``: the task fails, and a later retry re-attaches to it and waits again. A retry that
 runs after the original budget has elapsed gets a fresh ``timeout`` measured from the retry, so
 ``retries`` and ``retry_delay`` bound the total wait.
+
+.. _llm-batch-gemini:
+
+Gemini
+------
+
+Gemini batch runs on the Gemini Developer API (Batch Mode). Use a ``google:<model>`` model id and a
+``pydanticai`` connection whose API Key is a Gemini API key:
+
+.. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_llm_batch.py
+    :language: python
+    :start-after: [START howto_operator_llm_batch_gemini]
+    :end-before: [END howto_operator_llm_batch_gemini]
+
+Vertex AI (``google-cloud:``, the default for a Vertex connection) is not supported: its batch
+prediction reads from and writes to Cloud Storage or BigQuery, which this provider does not drive.
+A Vertex model id fails before anything is submitted, with the ``google:`` fix in the message.
+
+The batch's input is uploaded as a file. pydantic-ai deletes it when the process that submitted the
+batch collects the ended job. A deferrable task collects in another process, so the file is left to
+expire on its own.
+
+A Gemini job reports one ended state for every outcome, so the operator reads the job's own state: a
+cancelled or expired job lands whatever results it wrote and reports the rest as ``cancelled`` or
+``expired``, and a failed job raises ``LLMBatchJobError`` with Gemini's reason. A
+``PARTIALLY_SUCCEEDED`` job is a completed batch whose failed requests are ``error`` rows.
 
 Reaching the batch API through a gateway
 ------------------------------------------
@@ -326,6 +394,10 @@ Adding an adapter
     Experimental: the adapter contract can change or be removed in a minor release of this
     provider.
     See :ref:`howto/stability`.
+
+An adapter written against the earlier contract keeps working. The members added since
+(``from_connection``, ``aget_batch``, ``acancel_batch`` and ``SubmitResult.handle``) have defaults,
+and ``build_output_directive`` is no longer abstract.
 
 Another provider package can add a batch engine without changes here: subclass
 :class:`~airflow.providers.common.ai.batch.base.BatchAdapter`, set its ``name`` to the model

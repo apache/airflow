@@ -58,7 +58,7 @@ Run a model or an agent
      - Compares table schemas across databases and files and grades each mismatch.
      - ``common.sql``; for files, ``apache-airflow-providers-common-sql[datafusion]``
    * - :doc:`@task.llm_batch <operators/llm_batch>`
-     - Sends many prompts through the OpenAI or Anthropic batch API at about half the
+     - Sends many prompts through the OpenAI, Anthropic or Gemini batch API at about half the
        per-token price.
      - None
    * - :doc:`Document and RAG pipelines <rag_pipelines>`

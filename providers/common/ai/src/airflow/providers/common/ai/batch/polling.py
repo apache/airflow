@@ -32,6 +32,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from airflow.providers.common.ai.batch.base import IN_PROGRESS_STATUSES, TERMINAL_STATUS_MAP, BatchState
+from airflow.providers.common.ai.exceptions import LLMBatchStateReadError
 
 #: A single blip must not fail an otherwise-healthy, still-running, already-paid-for batch.
 MAX_CONSECUTIVE_POLL_FAILURES = 5
@@ -100,6 +101,16 @@ class BatchPoller:
         timed_out = now > self.end_time
         if timed_out:
             return self._timeout_outcome()
+        if isinstance(exc, LLMBatchStateReadError):
+            # What the poll needs is missing or unusable, so five more polls would fail the same way.
+            return PollOutcome(
+                event={
+                    "status": "error",
+                    "batch_id": self.batch_id,
+                    "counts": None,
+                    "message": f"Cannot poll batch {self.batch_id}: {exc} The batch was left in place.",
+                }
+            )
         if self.consecutive_failures >= MAX_CONSECUTIVE_POLL_FAILURES:
             return PollOutcome(
                 event={
@@ -126,11 +137,14 @@ class BatchPoller:
         Build the final ``timeout`` event once the caller has (not) cancelled the batch.
 
         The message names the budget, the deadline, and what happened to the
-        batch, so an on-call reader can tell "cancelled, a retry resubmits"
+        batch, so an on-call reader can tell "cancelled, a retry lands what finished"
         from "still running and billing, a retry re-attaches".
         """
         if self.cancel_on_timeout and cancelled:
-            fate = "The batch was cancelled (cancel_on_timeout=True); a retry submits a new one."
+            fate = (
+                "The batch was cancelled (cancel_on_timeout=True); a retry re-attaches and lands "
+                "whatever finished."
+            )
         elif self.cancel_on_timeout:
             fate = (
                 f"Cancelling the batch failed ({cancel_error}); it may still be running and billing. "

@@ -4860,6 +4860,7 @@ git = [
     { name = "apache-airflow-providers-git" },
 ]
 google = [
+    { name = "google-genai" },
     { name = "pydantic-ai-slim", extra = ["google"] },
 ]
 islo = [
@@ -4927,6 +4928,7 @@ dev = [
     { name = "apache-airflow-task-sdk" },
     { name = "boat-sdk" },
     { name = "claude-agent-sdk" },
+    { name = "google-genai" },
     { name = "grpcio" },
     { name = "islo" },
     { name = "langchain" },
@@ -4946,7 +4948,7 @@ docs = [
 
 [package.metadata]
 requires-dist = [
-    { name = "anthropic", marker = "extra == 'anthropic'", specifier = ">=1.1.0,<2" },
+    { name = "anthropic", marker = "extra == 'anthropic'", specifier = ">=1.15.0,<2" },
     { name = "apache-airflow", editable = "." },
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
     { name = "apache-airflow-providers-common-sql", marker = "extra == 'common-sql'", editable = "providers/common/sql" },
@@ -4960,6 +4962,7 @@ requires-dist = [
     { name = "dataclasses-json", marker = "extra == 'llamaindex'", specifier = ">=0.6.7" },
     { name = "fastavro", marker = "python_full_version >= '3.14' and extra == 'avro'", specifier = ">=1.12.1" },
     { name = "fastavro", marker = "python_full_version < '3.14' and extra == 'avro'", specifier = ">=1.10.0" },
+    { name = "google-genai", marker = "extra == 'google'", specifier = ">=2.30.0" },
     { name = "grpcio", marker = "extra == 'openshell'", specifier = ">=1.78.0" },
     { name = "httpx2", specifier = ">=2.7" },
     { name = "islo", marker = "extra == 'islo'", specifier = ">=0.3.19" },
@@ -4977,10 +4980,10 @@ requires-dist = [
     { name = "pydantic-ai-harness", extras = ["codemode"], marker = "extra == 'code-mode'", specifier = ">=0.35.0" },
     { name = "pydantic-ai-shields", marker = "extra == 'shields'", specifier = ">=0.3.4" },
     { name = "pydantic-ai-skills", marker = "extra == 'skills'", specifier = ">=1.2.0,<2" },
-    { name = "pydantic-ai-slim", specifier = ">=2.46.0" },
-    { name = "pydantic-ai-slim", extras = ["anthropic"], marker = "extra == 'anthropic'", specifier = ">=2.46.0" },
+    { name = "pydantic-ai-slim", specifier = ">=2.66.0" },
+    { name = "pydantic-ai-slim", extras = ["anthropic"], marker = "extra == 'anthropic'", specifier = ">=2.66.0" },
     { name = "pydantic-ai-slim", extras = ["bedrock"], marker = "extra == 'bedrock'", specifier = ">=2.46.0" },
-    { name = "pydantic-ai-slim", extras = ["google"], marker = "extra == 'google'", specifier = ">=2.46.0" },
+    { name = "pydantic-ai-slim", extras = ["google"], marker = "extra == 'google'", specifier = ">=2.66.0" },
     { name = "pydantic-ai-slim", extras = ["mcp"], marker = "extra == 'mcp'", specifier = ">=2.46.0" },
     { name = "pydantic-ai-slim", extras = ["openai"], marker = "extra == 'openai'", specifier = ">=2.46.0" },
     { name = "pypdf", marker = "extra == 'pdf'", specifier = ">=4.0.0" },
@@ -4993,7 +4996,7 @@ provides-extras = ["anthropic", "bedrock", "google", "openai", "typesafe", "mcp"
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "anthropic", specifier = ">=1.1.0,<2" },
+    { name = "anthropic", specifier = ">=1.15.0,<2" },
     { name = "apache-airflow", editable = "." },
     { name = "apache-airflow-devel-common", editable = "devel-common" },
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
@@ -5005,6 +5008,7 @@ dev = [
     { name = "apache-airflow-task-sdk", editable = "task-sdk" },
     { name = "boat-sdk", specifier = ">=1.9.3" },
     { name = "claude-agent-sdk", specifier = ">=0.2.160" },
+    { name = "google-genai", specifier = ">=2.30.0" },
     { name = "grpcio", specifier = ">=1.78.0" },
     { name = "islo", specifier = ">=0.3.19" },
     { name = "langchain", specifier = ">=1.0.0" },
