@@ -88,12 +88,18 @@ function start_daemon() {
 # Identifies the image by its ID and by the file tree its layers combine into: a restore that loses
 # a whiteout or an opaque-directory marker changes the tree while the ID stays the same. The listing
 # is sorted on the host, since sorting it in the container would add sort's temporary files to it.
+# The listing leaves out two kinds of size that differ for the same image. A directory's size
+# depends on the order its entries were added in and on the hash seed of the filesystem. The size
+# of a file that Docker writes for each container depends on the host. For example,
+# /etc/resolv.conf holds the host's DNS search domain.
 function image_fingerprint() {
     local image=$1
     local image_id tree
     image_id="$(docker image inspect --format '{{.Id}}' "${image}")" || return 1
     tree="$(timeout "${DAEMON_TIMEOUT_SECONDS}" docker run --rm --pull never --network none \
-        --entrypoint find "${image}" / -xdev -printf '%p %y %m %U %G %s\n' | LC_ALL=C sort | sha256sum)" \
+        --entrypoint find "${image}" / -xdev \
+        \( -type d -o -path /etc/hostname -o -path /etc/hosts -o -path /etc/resolv.conf \) \
+        -printf '%p %y %m %U %G\n' -o -printf '%p %y %m %U %G %s\n' | LC_ALL=C sort | sha256sum)" \
         || return 1
     echo "${image_id} ${tree%% *}"
 }
@@ -184,7 +190,7 @@ function restore_snapshot() {
     start_daemon
     if ! restored_image="$(image_fingerprint "${IMAGE_ID}")" \
             || [[ "${restored_image}" != "${EXPECTED_IMAGE}" ]]; then
-        echo "The restored image does not match the snapshot: '${restored_image:-}' != '${EXPECTED_IMAGE}'"
+        echo "::warning::The restored image does not match the snapshot: '${restored_image:-}' != '${EXPECTED_IMAGE}'"
         exit 4
     fi
     RESTORE_IN_PROGRESS=false
