@@ -17,7 +17,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
 
 import attrs
 
@@ -75,8 +75,14 @@ class AssetTriggeredTimetable(BaseTimetable):
 class PartitionedAssetTimetable(AssetTriggeredTimetable):
     """Asset-driven timetable that listens for partitioned assets."""
 
+    _VALID_REFIRE_POLICIES: ClassVar[tuple[str | None, ...]] = (None, "rerun", "newrun")
+
     partition_mapper_config: dict[BaseAsset, PartitionMapper] = attrs.field(factory=dict)
     default_partition_mapper: PartitionMapper = IdentityMapper()
+    # Opt-in refire on late/corrected partition events: "rerun" (clear + re-run the
+    # existing DagRun, attempts increment) or "newrun" (a new DagRun per refire).
+    # None = fire once (default, no behavior change).
+    refire_policy: str | None = None
 
     # The factory needs the partition mappers to be initialized first.
     batch_asset_events: bool = attrs.field(
@@ -90,6 +96,13 @@ class PartitionedAssetTimetable(AssetTriggeredTimetable):
         ):
             return "Partition rollups require batch_asset_events=True"
         return super().get_batching_requirement()
+
+    def validate(self) -> None:
+        super().validate()
+        if self.refire_policy not in self._VALID_REFIRE_POLICIES:
+            raise AirflowTimetableInvalid(
+                f"refire_policy must be one of {self._VALID_REFIRE_POLICIES!r}, got {self.refire_policy!r}"
+            )
 
 
 class PartitionedAtRuntime(BaseTimetable):
