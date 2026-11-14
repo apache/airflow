@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+from types import SimpleNamespace
 from unittest import mock
 
 import pytest
@@ -35,9 +36,12 @@ class TestVersionEndpoint:
 
 
 class TestGetVersion(TestVersionEndpoint):
+    # Stand in for the whole module rather than setting ``__version__`` on it: that attribute is
+    # shared, and building the app imports provider ``version_compat`` modules that parse it at
+    # import time, so patching it in place makes this test fail whenever it runs first.
     @mock.patch(
-        "airflow.api_fastapi.core_api.routes.public.version.airflow.__version__",
-        "MOCK_VERSION",
+        "airflow.api_fastapi.core_api.routes.public.version.airflow",
+        SimpleNamespace(__version__="MOCK_VERSION"),
     )
     @mock.patch(
         "airflow.api_fastapi.core_api.routes.public.version.get_airflow_git_version",
