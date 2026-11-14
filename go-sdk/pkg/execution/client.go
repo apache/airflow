@@ -522,18 +522,17 @@ func resolveExpiry(retention *time.Duration, now time.Time) (*genmodels.Time, er
 	}
 }
 
-// encodeJSONValue encodes value as encoding/json writes it, then packs that
-// JSON as msgpack for the frame. Argument binding and UnmarshalJSONValue read a
-// value back with encoding/json, so a write that kept only the json field names
-// and dropped a ",string" option or a MarshalJSON method stored a value its own
-// Go type could not decode. It also reports whether the value encodes to null.
-func encodeJSONValue(value any) (msgpack.RawMessage, bool, error) {
+// encodeJSONValue returns the msgpack form of value as encoding/json writes it,
+// and whether that is null. The value must take encoding/json's shape, not only
+// its field names: argument binding and UnmarshalJSONValue decode it with
+// encoding/json, which rejects a ",string" field or a MarshalJSON type that was
+// written any other way.
+func encodeJSONValue(value any) (encoded msgpack.RawMessage, isNull bool, err error) {
 	blob, err := json.Marshal(value)
 	if err != nil {
 		return nil, false, fmt.Errorf("%T is not JSON representable: %w", value, err)
 	}
 	dec := json.NewDecoder(bytes.NewReader(blob))
-	// A float64 cannot hold every int64, and msgpack writes a json.Number as a string.
 	dec.UseNumber()
 	var decoded any
 	if err := dec.Decode(&decoded); err != nil {
@@ -543,7 +542,11 @@ func encodeJSONValue(value any) (msgpack.RawMessage, bool, error) {
 		return nil, false, fmt.Errorf("%T is not JSON representable: %w", value, err)
 	}
 	var buf bytes.Buffer
-	if err := newFrameEncoder(&buf).Encode(decoded); err != nil {
+	enc := newFrameEncoder(&buf)
+	// The task state store keeps the value as text, so an unsorted Go map would
+	// store the same value with its keys in a different order on each write.
+	enc.SetSortMapKeys(true)
+	if err := enc.Encode(decoded); err != nil {
 		return nil, false, fmt.Errorf("%T is not JSON representable: %w", value, err)
 	}
 	return buf.Bytes(), decoded == nil, nil

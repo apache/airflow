@@ -35,7 +35,7 @@ func ResolveNumbers(value any, path string) (any, error) {
 	case json.Number:
 		return resolveNumber(v, path)
 	case map[string]any:
-		// The keys are sorted, so that a conf with more than one bad number always gets the same
+		// The keys are sorted, so that a value with more than one bad number always gets the same
 		// error.
 		for _, key := range slices.Sorted(maps.Keys(v)) {
 			resolved, err := ResolveNumbers(v[key], path+"["+strconv.Quote(key)+"]")

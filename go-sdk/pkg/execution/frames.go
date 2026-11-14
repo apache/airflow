@@ -76,7 +76,8 @@ func encodeRequest(id int64, body any) ([]byte, error) {
 }
 
 // newFrameEncoder builds the encoder every outbound frame is written with.
-// Use JSON field names for user values; explicit msgpack tags still win.
+// A struct without msgpack tags takes its field names from its json tags. XCom
+// and task state values do not reach it as structs: see encodeJSONValue.
 func newFrameEncoder(w io.Writer) *msgpack.Encoder {
 	enc := msgpack.NewEncoder(w)
 	enc.UseCompactInts(true)

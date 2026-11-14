@@ -477,10 +477,7 @@ func TestCoordinatorClientPushXComAllowsNil(t *testing.T) {
 
 type roundTripStatus int
 
-func (s roundTripStatus) MarshalJSON() ([]byte, error) {
-	if s != 0 {
-		return nil, fmt.Errorf("unknown status %d", int(s))
-	}
+func (roundTripStatus) MarshalJSON() ([]byte, error) {
 	return json.Marshal("ok")
 }
 
@@ -544,6 +541,79 @@ func TestCoordinatorClientPushXComRoundTripsThroughBinding(t *testing.T) {
 
 			require.NoError(t, err)
 			assert.Equal(t, tc.value, got.Interface())
+		})
+	}
+}
+
+// JSON text does not say whether a number was a float, so a float64 with no
+// fractional part is read back as an integer.
+func TestEncodeJSONValueStoresWholeFloatAsInteger(t *testing.T) {
+	encoded, isNull, err := encodeJSONValue(5.0)
+	require.NoError(t, err)
+	assert.False(t, isNull)
+
+	var got any
+	require.NoError(t, unmarshalNormalized(encoded, &got))
+	assert.Equal(t, int64(5), got)
+}
+
+func TestEncodeJSONValueSortsMapKeys(t *testing.T) {
+	value := map[string]int{"a": 1, "b": 2, "c": 3, "d": 4, "e": 5, "f": 6, "g": 7, "h": 8}
+
+	first, _, err := encodeJSONValue(value)
+	require.NoError(t, err)
+
+	for range 50 {
+		again, _, err := encodeJSONValue(value)
+		require.NoError(t, err)
+		require.Equal(t, first, again)
+	}
+}
+
+func TestTaskStateStoreSetRoundTripsThroughUnmarshalJSONValue(t *testing.T) {
+	t.Setenv(defaultRetentionDaysEnv, "30")
+
+	tests := []struct {
+		name  string
+		value any
+	}{
+		{name: "json string option", value: roundTripStringID{ID: 123}},
+		{name: "json marshaler", value: roundTripMarshaler{Status: 0}},
+		{name: "datetime", value: time.Date(2026, 5, 15, 0, 0, 0, 0, time.UTC)},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			var setResponse bytes.Buffer
+			require.NoError(t, writeFrame(&setResponse, encodeResponseFrame(t, 0, nil, nil)))
+			var requestBuf bytes.Buffer
+			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+			writer := NewCoordinatorClient(
+				NewCoordinatorComm(&setResponse, &requestBuf, logger), testTIID,
+			)
+			require.NoError(
+				t,
+				writer.TaskStateStore().Set(context.Background(), "job_id", tc.value),
+			)
+
+			sent, err := readFrame(&requestBuf)
+			require.NoError(t, err)
+			stored := rawToMap(t, sent.Body)["value"]
+
+			var getResponse bytes.Buffer
+			require.NoError(t, writeFrame(&getResponse, encodeResponseFrame(t, 0, map[string]any{
+				"type":  "TaskStateStoreResult",
+				"value": stored,
+			}, nil)))
+			reader := NewCoordinatorClient(
+				NewCoordinatorComm(&getResponse, io.Discard, logger), testTIID,
+			)
+
+			got := reflect.New(reflect.TypeOf(tc.value))
+			require.NoError(t, reader.TaskStateStore().UnmarshalJSONValue(
+				context.Background(), "job_id", got.Interface(),
+			))
+			assert.Equal(t, tc.value, got.Elem().Interface())
 		})
 	}
 }
@@ -730,8 +800,8 @@ func TestTaskStateStoreSetAcceptsJSONShapes(t *testing.T) {
 	t.Setenv(defaultRetentionDaysEnv, "30")
 
 	type checkpoint struct {
-		Processed int      `msgpack:"processed"`
-		Cursors   []string `msgpack:"cursors"`
+		Processed int      `json:"processed"`
+		Cursors   []string `json:"cursors"`
 	}
 	type skippedTime struct {
 		When time.Time `json:"-"`
