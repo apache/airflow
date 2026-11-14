@@ -303,6 +303,7 @@ class SnowflakeHook(DbApiHook):
             "database": StringField(lazy_gettext("Database"), widget=BS3TextFieldWidget()),
             "region": StringField(lazy_gettext("Region"), widget=BS3TextFieldWidget()),
             "role": StringField(lazy_gettext("Role"), widget=BS3TextFieldWidget()),
+            "authenticator": StringField(lazy_gettext("Authenticator"), widget=BS3TextFieldWidget()),
             "private_key_file": StringField(lazy_gettext("Private key (Path)"), widget=BS3TextFieldWidget()),
             "private_key_content": PasswordField(
                 lazy_gettext("Private key (Text)"), widget=BS3PasswordFieldWidget()
@@ -340,7 +341,6 @@ class SnowflakeHook(DbApiHook):
             "placeholders": {
                 "extra": json.dumps(
                     {
-                        "authenticator": "snowflake oauth / WORKLOAD_IDENTITY",
                         "private_key_file": "private key",
                         "session_parameters": "session parameters",
                         "client_request_mfa_token": "client request mfa token",
@@ -366,6 +366,7 @@ class SnowflakeHook(DbApiHook):
                 "database": "snowflake db name",
                 "region": "snowflake hosted region",
                 "role": "snowflake role",
+                "authenticator": "snowflake (default), oauth, programmatic_access_token, WORKLOAD_IDENTITY",
                 "private_key_file": "Path of snowflake private key (PEM Format)",
                 "private_key_content": "Content to snowflake private key (PEM format)",
                 "workload_identity_provider": "AWS, AZURE, GCP or OIDC",
@@ -529,8 +530,8 @@ class SnowflakeHook(DbApiHook):
 
         schema = conn.schema or ""
 
-        # authenticator and session_parameters never supported long name
-        authenticator = extra_dict.get("authenticator", "snowflake")
+        authenticator = self._get_field(extra_dict, "authenticator") or "snowflake"
+        # session_parameters never supported long name
         session_parameters = extra_dict.get("session_parameters")
 
         return {
@@ -600,6 +601,9 @@ class SnowflakeHook(DbApiHook):
             return
 
         conn_config["workload_identity_provider"] = workload_identity_provider
+
+        if not (self.authenticator or self._get_field(extra_dict, "authenticator")):
+            conn_config["authenticator"] = "WORKLOAD_IDENTITY"
 
         token = self._get_field(extra_dict, "token")
         token_file_path = self._get_field(
