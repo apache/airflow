@@ -34,6 +34,7 @@ import {
   MARK_TASK_INSTANCE_DEFAULT_OPTIONS_KEY,
 } from "src/constants/localStorage";
 import type { DefaultTaskInstanceTab } from "src/constants/tab";
+import { useConfig } from "src/queries/useConfig";
 
 /** Page shown at the app root. */
 export type LandingPageOption = "dags" | "dashboard";
@@ -53,9 +54,16 @@ export const useDefaultTaskGroupsExpanded = () =>
 
 /**
  * Fallback for the per-searchbar "match anywhere" (substring) toggle: the value a searchbar uses
- * when neither the URL nor its own localStorage entry says otherwise. Defaults to off (prefix).
+ * when neither the URL nor its own localStorage entry says otherwise. The user's stored choice wins;
+ * when they never saved one, the admin's server-side default ([api] default_match_anywhere) is used,
+ * and defaults to off (prefix).
  */
-export const useDefaultMatchAnywhere = () => useLocalStorage<boolean>(DEFAULT_MATCH_ANYWHERE_KEY, false);
+export const useDefaultMatchAnywhere = () => {
+  const serverDefault = useConfig("default_match_anywhere");
+  const [stored, setStored] = useLocalStorage<boolean | undefined>(DEFAULT_MATCH_ANYWHERE_KEY, undefined);
+
+  return [stored ?? Boolean(serverDefault), setStored] as const;
+};
 
 /** Default selection for the Dag-run Clear dialog toggle (existing / only-failed / queue-new). */
 export const useClearRunDefaultOptions = () =>

@@ -17,7 +17,13 @@
  * under the License.
  */
 import { act, renderHook } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+vi.mock("src/queries/useConfig", () => ({
+  useConfig: vi.fn(() => undefined),
+}));
+
+import { useConfig } from "src/queries/useConfig";
 
 import {
   CLEAR_KEEP_TASK_STATE_KEY,
@@ -155,7 +161,30 @@ describe("useClearKeepTaskStateDefault", () => {
 });
 
 describe("useDefaultMatchAnywhere", () => {
+  const mockUseConfig = vi.mocked(useConfig);
+
+  afterEach(() => {
+    mockUseConfig.mockReturnValue(undefined);
+  });
+
   it("defaults to false", () => {
+    const { result } = renderHook(() => useDefaultMatchAnywhere());
+
+    expect(result.current[0]).toBe(false);
+  });
+
+  it("uses the server-side default when nothing is stored", () => {
+    mockUseConfig.mockReturnValue(true);
+    const { result } = renderHook(() => useDefaultMatchAnywhere());
+
+    expect(result.current[0]).toBe(true);
+    expect(localStorage.getItem(DEFAULT_MATCH_ANYWHERE_KEY)).toBeNull();
+  });
+
+  it("keeps a stored choice over the server-side default", () => {
+    mockUseConfig.mockReturnValue(true);
+    localStorage.setItem(DEFAULT_MATCH_ANYWHERE_KEY, JSON.stringify(false));
+
     const { result } = renderHook(() => useDefaultMatchAnywhere());
 
     expect(result.current[0]).toBe(false);
