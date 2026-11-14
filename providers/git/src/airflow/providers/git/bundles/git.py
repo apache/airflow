@@ -516,7 +516,7 @@ class GitDagBundle(BaseDagBundle):
             raise ValueError(f"Invalid git SSH URL: {url}")
         parts = url.split(":")
         domain = parts[0].replace("git@", "https://")
-        repo_path = parts[1].replace(".git", "")
+        repo_path = parts[1].removesuffix(".git")
         return f"{domain}/{repo_path}"
 
     def view_url(self, version: str | None = None) -> str | None:
