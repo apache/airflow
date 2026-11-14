@@ -168,6 +168,9 @@ _USER_ACTION_CANCEL_MSG = "__airflow_user_action__"
 _REASSIGNED_CANCEL_MSG = "__airflow_reassigned__"
 
 _ON_CANCEL_TIMEOUT: int = conf.getint("triggerer", "on_kill_timeout", fallback=30)
+# The margin past on_kill_timeout covers the log call before on_kill() and the trigger's cleanup()
+# after it, which a redelivered cancel would also abort.
+_CANCEL_REDELIVERY_DELAY: float = _ON_CANCEL_TIMEOUT + 5
 
 # Task instance of the trigger whose request the supervisor is handling, sent to the API as
 # ``TRIGGER_TI_ID_HEADER``.
@@ -1464,6 +1467,14 @@ class TriggerRunner:
     # Inbound queue of triggers reassigned to another triggerer (dropped locally; on_kill() skipped)
     to_release: deque[int]
 
+    # time.monotonic() at which each id's cancel/release was delivered to its task. The supervisor
+    # re-sends the full cancelling/releasing sets on every sync until a trigger reports finished, and
+    # a repeat task.cancel() would land inside run_trigger()'s on_kill() await and abort it long
+    # before the [triggerer] on_kill_timeout grace expires. A task still running after
+    # _CANCEL_REDELIVERY_DELAY has outlived that grace, for example because the trigger or a library
+    # swallowed the cancellation, so the repeat is delivered then.
+    _cancel_delivered_at: dict[int, float]
+
     # Outbound queue of events
     events: deque[TriggerEventEntry]
 
@@ -1489,6 +1500,7 @@ class TriggerRunner:
         self.to_create = deque()
         self.to_cancel = deque()
         self.to_release = deque()
+        self._cancel_delivered_at = {}
         self.events = deque()
         self.failed_triggers = deque()
         self.team_name = None
@@ -1734,7 +1746,11 @@ class TriggerRunner:
             while queue:
                 trigger_id = queue.popleft()
                 if trigger_id in self.triggers:
-                    self.triggers[trigger_id]["task"].cancel(cancel_msg)
+                    now = time.monotonic()
+                    delivered_at = self._cancel_delivered_at.get(trigger_id)
+                    if delivered_at is None or now - delivered_at >= _CANCEL_REDELIVERY_DELAY:
+                        self.triggers[trigger_id]["task"].cancel(cancel_msg)
+                        self._cancel_delivered_at[trigger_id] = now
                 await asyncio.sleep(0)
 
     async def cleanup_finished_triggers(self) -> list[int]:
@@ -1747,6 +1763,9 @@ class TriggerRunner:
         for trigger_id, details in list(self.triggers.items()):
             if details["task"].done():
                 finished_ids.append(trigger_id)
+                # The supervisor re-creates an id only after it is reported finished, so the next
+                # trigger with this id gets its cancel delivered at once.
+                self._cancel_delivered_at.pop(trigger_id, None)
                 # Check to see if it exited for good reasons
                 saved_exc = None
                 try:
