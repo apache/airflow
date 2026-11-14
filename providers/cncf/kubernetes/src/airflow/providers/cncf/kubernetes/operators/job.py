@@ -28,8 +28,7 @@ from collections.abc import Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Literal
 
-from kubernetes.client import BatchV1Api, Configuration, models as k8s
-from kubernetes.client.api_client import ApiClient
+from kubernetes.client import BatchV1Api, models as k8s
 from kubernetes.client.rest import ApiException
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
@@ -369,10 +368,6 @@ class KubernetesJobOperator(KubernetesPodOperator):
         """
         Generate a Job from a file.
 
-        Unfortunately we need access to the private method
-        ``_ApiClient__deserialize_model`` from the kubernetes client.
-        This issue is tracked here: https://github.com/kubernetes-client/python/issues/977.
-
         :param path: Path to the file
         :return: a kubernetes.client.models.V1Job
         """
@@ -383,8 +378,7 @@ class KubernetesJobOperator(KubernetesPodOperator):
             job = None
             log.warning("Template file %s does not exist", path)
 
-        api_client = ApiClient(configuration=Configuration())
-        return api_client._ApiClient__deserialize_model(job, k8s.V1Job)
+        return k8s.V1Job.from_dict(job) or k8s.V1Job()
 
     def on_kill(self) -> None:
         self._killed = True

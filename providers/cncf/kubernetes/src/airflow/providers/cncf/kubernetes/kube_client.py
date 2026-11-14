@@ -24,6 +24,7 @@ import socket
 import warnings
 from collections.abc import Callable
 from typing import Any
+from urllib.parse import parse_qs, urlsplit
 
 import urllib3.util
 from urllib3.connection import HTTPConnection
@@ -89,15 +90,29 @@ try:
                     configure_tcp_keepalive(configuration)
             super().__init__(configuration=configuration)
 
-        def call_api(self, *args: Any, **kwargs: Any) -> Any:
-            timeout_seconds = kwargs.get("timeout_seconds")  # get server-side timeout
-            # Use setdefault's intent but handle explicit None: generated kubernetes client methods always
-            # pass _request_timeout=None explicitly, making setdefault a no-op and leaving an infinite
-            # timeout. On a half-open TCP connection (e.g. after a 429 or LB-side 500), this causes the
-            # call to hang indefinitely with no exception, preventing any retry or recovery.
-            if kwargs.get("_request_timeout") is None:
-                kwargs["_request_timeout"] = _get_request_timeout(timeout_seconds)
-            return super().call_api(*args, **kwargs)
+        def call_api(
+            self,
+            method: str,
+            url: str,
+            header_params=None,
+            body=None,
+            post_params=None,
+            _request_timeout=None,
+        ) -> Any:
+            if _request_timeout is None:
+                # Kubernetes 37 passes server-side timeouts in the serialized URL.
+                timeout_seconds = parse_qs(urlsplit(url).query).get("timeoutSeconds", [None])[0]
+                _request_timeout = _get_request_timeout(
+                    int(timeout_seconds) if timeout_seconds is not None else None
+                )
+            return super().call_api(
+                method,
+                url,
+                header_params=header_params,
+                body=body,
+                post_params=post_params,
+                _request_timeout=_request_timeout,
+            )
 
     class _TimeoutAsyncK8sApiClient(async_client.ApiClient):
         """Wrapper around kubernetes async ApiClient to set default timeout."""

@@ -34,7 +34,7 @@ from functools import reduce
 from typing import TYPE_CHECKING
 
 from dateutil import parser
-from kubernetes.client import Configuration, models as k8s
+from kubernetes.client import models as k8s
 from kubernetes.client.api_client import ApiClient
 
 from airflow.exceptions import (
@@ -564,20 +564,10 @@ class PodGenerator:
         """
         Deserializes a Python dictionary to k8s.V1Pod.
 
-        Unfortunately we need access to the private method
-        ``_ApiClient__deserialize_model`` from the kubernetes client.
-        This issue is tracked here; https://github.com/kubernetes-client/python/issues/977.
-
-        A fresh ``Configuration`` is passed so that neither the pod nor any nested model captures the
-        process-global in-cluster ``Configuration``. In-cluster, that global carries a
-        ``refresh_api_key_hook`` local closure which ``pickle`` cannot serialize, and which would
-        otherwise break pickling a ``pod_override`` onto the KubernetesExecutor multiprocessing queue.
-
         :param pod_dict: Serialized dict of k8s.V1Pod object
         :return: De-serialized k8s.V1Pod
         """
-        api_client = ApiClient(configuration=Configuration())
-        return api_client._ApiClient__deserialize_model(pod_dict, k8s.V1Pod)
+        return k8s.V1Pod.from_dict(pod_dict) or k8s.V1Pod()
 
 
 def merge_objects(base_obj, client_obj):

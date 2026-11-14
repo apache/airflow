@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import datetime
 import pickle
-from copy import deepcopy
 from unittest import mock
 from uuid import UUID
 
@@ -61,6 +60,11 @@ pytestmark = pytest.mark.db_test
 
 
 TEST_POD = k8s.V1Pod(spec=k8s.V1PodSpec(containers=[k8s.V1Container(name="base")]))
+
+
+class _UnserializablePod(k8s.V1Pod):
+    def to_dict(self, serialize=False):
+        raise AttributeError("missing model field")
 
 
 class TestGetDialectName:
@@ -337,55 +341,23 @@ class TestExecutorConfigType:
         assert instance.compare_values("a", "a") is True
 
     def test_result_processor_bad_pickled_obj(self, mocker):
-        """
-        If unpickled obj is missing attrs that curr lib expects
-        """
-        test_container = k8s.V1Container(name="base")
-        test_pod = k8s.V1Pod(spec=k8s.V1PodSpec(containers=[test_container]))
-        copy_of_test_pod = deepcopy(test_pod)
-        # curr api expects attr `tty`
-        assert "tty" in test_container.openapi_types
-        # it lives in protected attr _tty
-        assert hasattr(test_container, "_tty")
-        # so, let's remove it before pickling, to simulate what happens in real life
-        del test_container._tty
-        # now let's prove that this blows up when calling to_dict
-        with pytest.raises(AttributeError):
-            test_pod.to_dict()
-        # no such problem with the copy
-        assert copy_of_test_pod.to_dict()
-        # so we need to roundtrip it through json
-        fixed_pod = ensure_pod_is_valid_after_unpickling(test_pod)
-        # and, since the missing attr was None anyway, we actually have the same pod
-        assert fixed_pod.to_dict() == copy_of_test_pod.to_dict()
-
-        # now, let's verify that result processor makes this all work
-        # first, check that bad pod is still bad
-        with pytest.raises(AttributeError):
-            test_pod.to_dict()
-        # define what will be retrieved from db
-        input = pickle.dumps({"pod_override": TEST_POD})
-
-        # get the result processor method
+        """Repair executor configs whose Kubernetes models cannot serialize after an upgrade."""
+        input = pickle.dumps({"pod_override": _UnserializablePod(spec=TEST_POD.spec)})
         config_type = ExecutorConfigType()
         mock_dialect = mocker.MagicMock()
         mock_dialect.dbapi = None
         process = config_type.result_processor(mock_dialect, None)
 
-        # apply the result processor
         result = process(input)
 
-        # show that the pickled (bad) pod is now a good pod, and same as the copy made
-        # before making it bad
-        assert result["pod_override"].to_dict() == copy_of_test_pod.to_dict()
+        assert result["pod_override"].to_dict() == TEST_POD.to_dict()
 
     def test_ensure_pod_is_valid_after_unpickling_is_picklable_in_cluster(self, monkeypatch):
         """The repaired pod must not capture the unpicklable in-cluster Configuration.
 
         In-cluster, the kubernetes client installs a process-global default ``Configuration`` whose
         ``refresh_api_key_hook`` is an unpicklable local closure. When the repair branch re-deserializes
-        the pod it must round-trip through a fresh ``Configuration`` so it stays picklable onto the
-        KubernetesExecutor queue.
+        the pod it must remain picklable for the KubernetesExecutor queue.
         """
 
         def _make_unpicklable_hook():
@@ -399,19 +371,11 @@ class TestExecutorConfigType:
         monkeypatch.setattr(Configuration, "_default", dirty, raising=False)
 
         container = k8s.V1Container(name="base")
-        pod = k8s.V1Pod(spec=k8s.V1PodSpec(containers=[container]))
-        # Force the repair (re-deserialize) branch the way real version-skew does: drop a protected
-        # attr so ``to_dict()`` raises and ``ensure_pod_is_valid_after_unpickling`` reserializes.
-        del container._tty
-        with pytest.raises(AttributeError):
-            pod.to_dict()
-
+        pod = _UnserializablePod(spec=k8s.V1PodSpec(containers=[container]))
         fixed_pod = ensure_pod_is_valid_after_unpickling(pod)
 
         assert fixed_pod is not None
-        pickle.dumps(fixed_pod)
-        assert fixed_pod.local_vars_configuration.refresh_api_key_hook is None
-        assert fixed_pod.spec.containers[0].local_vars_configuration.refresh_api_key_hook is None
+        assert pickle.loads(pickle.dumps(fixed_pod)).to_dict() == TEST_POD.to_dict()
 
 
 class TestApplyRegexQueryTimeout:

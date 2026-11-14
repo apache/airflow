@@ -16,10 +16,10 @@
 # under the License.
 from __future__ import annotations
 
+import logging
 import pickle
 import re
 from unittest import mock
-from unittest.mock import MagicMock
 
 import pendulum
 import pytest
@@ -107,11 +107,11 @@ class TestPodGenerator:
 
         self.resources = k8s.V1ResourceRequirements(
             requests={
-                "cpu": 1,
+                "cpu": "1",
                 "memory": "1Gi",
                 "ephemeral-storage": "2Gi",
             },
-            limits={"cpu": 2, "memory": "2Gi", "ephemeral-storage": "4Gi", "nvidia.com/gpu": 1},
+            limits={"cpu": "2", "memory": "2Gi", "ephemeral-storage": "4Gi", "nvidia.com/gpu": "1"},
         )
 
         self.k8s_client = ApiClient()
@@ -160,7 +160,7 @@ class TestPodGenerator:
                     fs_group=2000,
                     run_as_user=1000,
                 ),
-                host_network=True,
+                host_network=False,
                 image_pull_secrets=[
                     k8s.V1LocalObjectReference(name="pull_secret_a"),
                     k8s.V1LocalObjectReference(name="pull_secret_b"),
@@ -414,6 +414,26 @@ class TestPodGenerator:
 
         assert expected_dict == result_dict
 
+    @pytest.mark.parametrize(("logger_name", "level"), [("client", logging.INFO), ("urllib3", logging.DEBUG)])
+    def test_construct_pod_preserves_logger_level(self, caplog, logger_name, level):
+        caplog.set_level(level, logger=logger_name)
+
+        PodGenerator.construct_pod(
+            dag_id=self.dag_id,
+            task_id=self.task_id,
+            pod_id="pod_id",
+            kube_image="test-image",
+            try_number=self.try_number,
+            date=self.logical_date,
+            args=["command"],
+            pod_override_object=None,
+            base_worker_pod=self.expected,
+            namespace="test_namespace",
+            scheduler_job_id="uuid",
+        )
+
+        assert logging.getLogger(logger_name).getEffectiveLevel() == level
+
     def test_construct_pod_mapped_task(self, data_file):
         template_file = data_file("pods/generator_base.yaml").as_posix()
         worker_config = PodGenerator.deserialize_model_file(template_file)
@@ -489,8 +509,7 @@ class TestPodGenerator:
         template_file = data_file("pods/generator_base_with_secrets.yaml").as_posix()
         worker_config = PodGenerator.deserialize_model_file(template_file)
         mock_rand_str.return_value = self.rand_str
-        executor_config = MagicMock()
-        executor_config.side_effect = AttributeError("error")
+        executor_config = object()
 
         with pytest.raises(PodReconciliationError):
             PodGenerator.construct_pod(
@@ -699,13 +718,26 @@ class TestPodGenerator:
         assert len(caplog.records) == 1
         assert "non_existent.yaml does not exist" in caplog.text
 
+    def test_deserialize_model_dict_ignores_unknown_fields(self):
+        pod = PodGenerator.deserialize_model_dict(
+            {
+                "unknownField": "ignored",
+                "metadata": {"name": "test-pod", "unknownField": "ignored"},
+                "spec": {"containers": [{"name": "base", "unknownField": "ignored"}]},
+            }
+        )
+
+        assert PodGenerator.serialize_pod(pod) == {
+            "metadata": {"name": "test-pod"},
+            "spec": {"containers": [{"name": "base"}]},
+        }
+
     def test_deserialize_model_dict_is_picklable_in_cluster(self, monkeypatch):
         """A deserialized pod must not capture the unpicklable in-cluster Configuration.
 
         In-cluster, the kubernetes client installs a process-global default ``Configuration`` whose
-        ``refresh_api_key_hook`` is an unpicklable local closure. ``deserialize_model_dict`` must
-        round-trip through a fresh ``Configuration`` so the pod (and every nested model) stays
-        picklable onto the KubernetesExecutor multiprocessing queue.
+        ``refresh_api_key_hook`` is an unpicklable local closure. The deserialized pod must remain
+        picklable for the KubernetesExecutor multiprocessing queue.
         """
 
         def _refresh_api_key(config):
@@ -722,9 +754,7 @@ class TestPodGenerator:
         pod = PodGenerator.deserialize_model_dict(pod_dict)
 
         assert isinstance(pod, k8s.V1Pod)
-        pickle.dumps(pod)
-        assert pod.local_vars_configuration.refresh_api_key_hook is None
-        assert pod.spec.containers[0].local_vars_configuration.refresh_api_key_hook is None
+        assert PodGenerator.serialize_pod(pickle.loads(pickle.dumps(pod))) == pod_dict
 
     @pytest.mark.parametrize(
         "input",

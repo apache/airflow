@@ -437,7 +437,7 @@ def deserialize_pod_dict(pod_dict: dict) -> V1Pod:
     """
     Deserialize a serialized pod dict back into a ``V1Pod``.
 
-    kubernetes-client exposes no public dict->model API; see
+    Older Kubernetes clients expose no public dict->model API; see
     https://github.com/kubernetes-client/python/issues/977.
 
     A fresh ``Configuration`` is passed so that neither the pod nor any nested model captures the
@@ -451,7 +451,7 @@ def deserialize_pod_dict(pod_dict: dict) -> V1Pod:
     from kubernetes.client.api_client import ApiClient
     from kubernetes.client.models.v1_pod import V1Pod
 
-    return ApiClient(configuration=Configuration())._ApiClient__deserialize_model(pod_dict, V1Pod)
+    return ApiClient(configuration=Configuration())._ApiClient__deserialize_model(pod_dict, V1Pod)  # type: ignore[attr-defined]
 
 
 def ensure_pod_is_valid_after_unpickling(pod: V1Pod) -> V1Pod | None:
