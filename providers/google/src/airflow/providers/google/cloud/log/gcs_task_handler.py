@@ -174,7 +174,9 @@ class GCSRemoteLogIO(LoggingMixin):  # noqa: D101
         try:
             blob = storage.Blob.from_string(remote_log_location, self.client)
             old_log = blob.download_as_bytes().decode()
-            log = f"{old_log}\n{log}" if old_log else log
+            if old_log:
+                sep = "" if old_log.endswith("\n") else "\n"
+                log = f"{old_log}{sep}{log}"
         except Exception as e:
             if not self.no_log_found(e):
                 # Read failed for a reason other than "object does not exist" (e.g. transient
