@@ -20,7 +20,7 @@
 .. _howto/operator:DatabricksEditWarehouseOperator:
 
 Databricks SQL warehouse operators
-=================================
+==================================
 
 Use these operators to start, stop, or edit an existing Databricks SQL warehouse through the
 `Databricks SQL Warehouses API <https://docs.databricks.com/api/workspace/warehouses>`_.
