@@ -11920,6 +11920,10 @@ export const $ConfigResponse = {
             type: 'boolean',
             title: 'Default Wrap'
         },
+        default_match_anywhere: {
+            type: 'boolean',
+            title: 'Default Match Anywhere'
+        },
         test_connection: {
             type: 'string',
             title: 'Test Connection'
@@ -11973,7 +11977,7 @@ export const $ConfigResponse = {
         }
     },
     type: 'object',
-    required: ['fallback_page_limit', 'auto_refresh_interval', 'hide_paused_dags_by_default', 'instance_name', 'enable_swagger_ui', 'require_confirmation_dag_change', 'default_wrap', 'test_connection', 'dashboard_alert', 'show_external_log_redirect', 'theme', 'multi_team'],
+    required: ['fallback_page_limit', 'auto_refresh_interval', 'hide_paused_dags_by_default', 'instance_name', 'enable_swagger_ui', 'require_confirmation_dag_change', 'default_wrap', 'default_match_anywhere', 'test_connection', 'dashboard_alert', 'show_external_log_redirect', 'theme', 'multi_team'],
     title: 'ConfigResponse',
     description: 'configuration serializer.'
 } as const;
