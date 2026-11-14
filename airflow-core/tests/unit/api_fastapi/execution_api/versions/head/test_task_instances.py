@@ -761,7 +761,7 @@ class TestTIRunState:
             pytest.param(str(2**64), id="large-number-string"),
         ],
     )
-    def test_run_conf_can_be_sent_to_task_runner(self, client, session, create_task_instance, conf_value):
+    def test_run_returns_large_integer_conf(self, client, session, create_task_instance, conf_value):
         ti = create_task_instance(task_id="large_integer_conf", state=State.QUEUED)
         ti.dag_run.conf = {"large_integer": conf_value}
         session.commit()
