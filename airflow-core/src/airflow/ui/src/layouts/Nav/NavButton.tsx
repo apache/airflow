@@ -35,13 +35,23 @@ type NavButtonProps = {
   readonly icon: ForwardRefExoticComponent<IconProps & RefAttributes<SVGSVGElement>> | IconType;
   readonly isExternal?: boolean;
   readonly pluginIcon?: ReactNode;
+  // Only applies to a single internal `to`.
+  readonly search?: string;
   readonly title: string;
   // A single destination renders the button as a link; an array only affects isActive matching
   // (used for buttons like menu triggers that should highlight for any of several routes).
   readonly to?: Array<string> | string;
 } & ButtonProps;
 
-export const NavButton = ({ icon, isExternal = false, pluginIcon, title, to, ...rest }: NavButtonProps) => {
+export const NavButton = ({
+  icon,
+  isExternal = false,
+  pluginIcon,
+  search,
+  title,
+  to,
+  ...rest
+}: NavButtonProps) => {
   const { pathname } = useLocation();
 
   const activePaths = to === undefined ? [] : Array.isArray(to) ? to : [to];
@@ -113,7 +123,7 @@ export const NavButton = ({ icon, isExternal = false, pluginIcon, title, to, ...
 
   return (
     <Button as={Link} asChild {...commonButtonProps}>
-      <RouterLink to={to}>
+      <RouterLink to={{ pathname: to, search }}>
         {pluginIcon ?? <Icon as={icon} boxSize={5} />}
         <Box {...commonLabelProps}>{title}</Box>
       </RouterLink>

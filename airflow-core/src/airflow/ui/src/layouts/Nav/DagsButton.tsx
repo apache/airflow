@@ -21,11 +21,13 @@ import { useTranslation } from "react-i18next";
 import type { MenuItem } from "openapi/requests/types.gen";
 
 import { DagIcon } from "src/assets/DagIcon";
+import { useDagsListSearch } from "src/context/dagsListSearch";
 
 import { NavButton } from "./NavButton";
 
 export const DagsButton = ({ authorizedMenuItems }: { readonly authorizedMenuItems: Array<MenuItem> }) => {
   const { t: translate } = useTranslation();
+  const dagsListSearch = useDagsListSearch();
   const isAuthorized = authorizedMenuItems.includes("Dags");
 
   // Without a destination NavButton renders a real <button>, which can be disabled. A disabled
@@ -35,6 +37,7 @@ export const DagsButton = ({ authorizedMenuItems }: { readonly authorizedMenuIte
       data-testid="nav-dags-link"
       disabled={!isAuthorized}
       icon={DagIcon}
+      search={dagsListSearch}
       title={translate("nav.dags")}
       to={isAuthorized ? "/dags" : undefined}
     />

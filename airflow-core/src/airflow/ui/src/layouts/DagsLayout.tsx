@@ -21,13 +21,16 @@ import type { PropsWithChildren } from "react";
 import { Box } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 
+import { useDagsListSearch } from "src/context/dagsListSearch";
+
 import { NavTabs } from "./Details/NavTabs";
 
 export const DagsLayout = ({ children }: PropsWithChildren) => {
   const { t: translate } = useTranslation();
+  const dagsListSearch = useDagsListSearch();
 
   const tabs = [
-    { label: translate("nav.dags"), value: "/dags" },
+    { label: translate("nav.dags"), search: dagsListSearch, value: "/dags" },
     { label: translate("dagRun_other"), value: "/dag_runs" },
     { label: translate("taskInstance_other"), value: "/task_instances" },
   ];
