@@ -318,6 +318,10 @@ class TriggererJobRunner(BaseJobRunner, LoggingMixin):
             # to force-kill here. trigger_runner may be None if start() raised.
             if self.trigger_runner is not None:
                 self.trigger_runner.kill(escalation_delay=10, force=True)
+                # kill() can return with log lines still unread, e.g. the "trigger completed" lines the
+                # runner writes as it cancels its triggers, so drain the sockets before uploading.
+                self.trigger_runner.cleanup_sockets_after_kill()
+                self.trigger_runner.upload_remaining_trigger_logs()
             self.log.info("Exited trigger loop")
             if _prev_ctx is None:
                 os.environ.pop("_AIRFLOW_PROCESS_CONTEXT", None)
@@ -723,14 +727,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                 self.cancelling_triggers.discard(id)
                 self.releasing_triggers.discard(id)
                 if factory := self.logger_cache.pop(id, None):
-                    try:
-                        factory.upload_to_remote()
-                    except Exception:
-                        log.exception("Failed to upload trigger logs to remote", trigger_id=id)
-                    finally:
-                        # Close the FD explicitly even if upload raised, otherwise the file
-                        # handle leaks for every failed upload.
-                        factory.close()
+                    self._upload_trigger_log(id, factory, log)
 
             # Drain the persist confirmations accumulated since the last sync.
             events_persisted: list[int] = []
@@ -817,6 +814,31 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             raise ValueError(f"Unknown message type {type(msg)}")
 
         self.send_msg(resp, request_id=req_id, error=None, **dump_opts)
+
+    @staticmethod
+    def _upload_trigger_log(
+        trigger_id: int, factory: TriggerLoggingFactory, log: FilteringBoundLogger
+    ) -> None:
+        try:
+            factory.upload_to_remote()
+        except Exception:
+            log.exception("Failed to upload trigger logs to remote", trigger_id=trigger_id)
+        finally:
+            # Close the FD explicitly even if upload raised, otherwise the file
+            # handle leaks for every failed upload.
+            factory.close()
+
+    def upload_remaining_trigger_logs(self) -> None:
+        """
+        Upload the logs of triggers that never finished here, for use once the runner has exited.
+
+        A trigger's log is otherwise only uploaded when the runner reports it finished. Triggers that
+        are still running when the triggerer shuts down never report that, so without this what they
+        logged here would be lost with the local disk.
+        """
+        while self.logger_cache:
+            trigger_id, factory = self.logger_cache.popitem()
+            self._upload_trigger_log(trigger_id, factory, log)
 
     def run(self) -> None:
         """Run synchronously and handle all database reads/writes."""

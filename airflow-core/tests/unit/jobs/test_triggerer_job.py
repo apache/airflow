@@ -29,6 +29,7 @@ import time
 import typing
 import uuid
 from collections.abc import AsyncIterator
+from pathlib import Path
 from socket import socket, socketpair
 from typing import Any, ClassVar
 from unittest import mock
@@ -54,6 +55,7 @@ from structlog.typing import FilteringBoundLogger
 
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.execution_api.in_process import TRIGGER_TI_ID_HEADER
+from airflow.configuration import conf
 from airflow.executors import workloads
 from airflow.executors.workloads.task import TaskInstanceDTO
 from airflow.executors.workloads.trigger import RunTrigger
@@ -336,6 +338,27 @@ def test_execute_passes_job_team_name_to_supervisor(mock_supervisor_start, team_
 
     mock_supervisor_start.assert_called_once()
     assert mock_supervisor_start.call_args.kwargs["team_name"] == team_name
+
+
+@patch.object(TriggerRunnerSupervisor, "start")
+def test_execute_uploads_remaining_trigger_logs_after_runner_exits(mock_supervisor_start):
+    mock_supervisor = MagicMock(spec=TriggerRunnerSupervisor)
+    mock_supervisor._exit_code = 0
+    mock_supervisor_start.return_value = mock_supervisor
+
+    job_runner = TriggererJobRunner(Job())
+    with (
+        patch.object(job_runner, "register_signals"),
+        patch("airflow.jobs.triggerer_job_runner.stats.initialize"),
+    ):
+        job_runner._execute()
+
+    # Uploading before kill() and the socket drain would miss the lines the runner writes while it stops.
+    assert [name for name, _, _ in mock_supervisor.method_calls if name != "run"] == [
+        "kill",
+        "cleanup_sockets_after_kill",
+        "upload_remaining_trigger_logs",
+    ]
 
 
 @pytest.mark.parametrize("platform_uses_exec", [True, False])
@@ -1543,6 +1566,59 @@ def test_trigger_logger_fd_closed_when_upload_to_remote_raises(jobless_superviso
     factory.close.assert_called_once()
     assert 42 not in jobless_supervisor.logger_cache
     assert 42 not in jobless_supervisor.running_triggers
+
+
+def test_upload_remaining_trigger_logs_uploads_and_closes_every_trigger(jobless_supervisor):
+    """A failed upload for one trigger must not stop the others from being uploaded and closed."""
+    failing = MagicMock(spec=TriggerLoggingFactory)
+    failing.upload_to_remote.side_effect = RuntimeError("simulated remote-logging failure")
+    before, after = MagicMock(spec=TriggerLoggingFactory), MagicMock(spec=TriggerLoggingFactory)
+    # The failing one sits in the middle so that triggers are handled both before and after it.
+    jobless_supervisor.logger_cache.update({1: before, 2: failing, 3: after})
+
+    jobless_supervisor.upload_remaining_trigger_logs()
+
+    for factory in (before, failing, after):
+        factory.upload_to_remote.assert_called_once()
+        factory.close.assert_called_once()
+    assert jobless_supervisor.logger_cache == {}
+
+
+def test_trigger_log_uploaded_when_triggerer_stops_before_trigger_finishes(session):
+    """The log a still-running trigger wrote before shutdown reaches remote storage."""
+    trigger = TimeDeltaTrigger(datetime.timedelta(hours=1))
+    _, _, trigger_orm, _ = create_trigger_in_db(session, trigger)
+
+    base_log_folder = Path(conf.get("logging", "base_log_folder"))
+    uploaded: dict[str, bytes] = {}
+
+    def fake_upload(path, ti):
+        uploaded[str(path)] = (base_log_folder / path).read_bytes()
+
+    remote_handler = MagicMock(processors=())
+    remote_handler.upload.side_effect = fake_upload
+    with patch("airflow.sdk.log.load_remote_log_handler", return_value=remote_handler):
+        trigger_runner_supervisor = TriggerRunnerSupervisor.start(job=Job(id=123456), capacity=10)
+        try:
+            trigger_runner_supervisor.load_triggers()
+            # Wait until the runner has started the trigger and its first log line has been written.
+            for _ in range(300):
+                trigger_runner_supervisor._service_subprocess(0.1)
+                factory = trigger_runner_supervisor.logger_cache.get(trigger_orm.id)
+                if factory is not None and hasattr(factory, "bound_logger"):
+                    break
+        finally:
+            trigger_runner_supervisor.kill(force=False)
+        trigger_runner_supervisor.cleanup_sockets_after_kill()
+        trigger_runner_supervisor.upload_remaining_trigger_logs()
+
+    assert len(uploaded) == 1
+    (path, content) = next(iter(uploaded.items()))
+    assert path.endswith(".trigger.123456.log")
+    assert b"starting" in content
+    # Written by the runner as it stops, after kill() was called, so the upload includes the shutdown.
+    assert b"trigger completed" in content
+    assert trigger_runner_supervisor.logger_cache == {}
 
 
 class TestTriggerRunner:
