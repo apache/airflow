@@ -22,6 +22,7 @@ import functools
 import inspect
 import json
 import logging
+import os
 import sys
 from collections import OrderedDict
 from contextlib import nullcontext
@@ -38,15 +39,24 @@ from pydantic import BaseModel, ConfigDict, Field, HttpUrl
 from pydantic_ai import Agent, DeferredToolRequests, RunContext, Tool, ToolOutput
 from pydantic_ai.capabilities import (
     AbstractCapability,
+    Capability,
     CapabilityOrdering,
     CombinedCapability,
     HandleDeferredToolCalls,
     PrefixTools,
+    SelectModel,
     Thinking,
     Toolset,
     WebSearch,
 )
-from pydantic_ai.exceptions import ApprovalRequired, ModelRetry, ToolFailed, UsageLimitExceeded
+from pydantic_ai.exceptions import (
+    ApprovalRequired,
+    ModelHTTPError,
+    ModelRetry,
+    ToolFailed,
+    UsageLimitExceeded,
+    UserError,
+)
 from pydantic_ai.mcp import MCPToolset as PydanticAIMCPToolset
 from pydantic_ai.messages import (
     BinaryContent,
@@ -71,12 +81,16 @@ from pydantic_ai.usage import RequestUsage, RunUsage, UsageLimits
 from typing_extensions import TypeAliasType
 
 from airflow.providers.common.ai.durable import AirflowDurability
-from airflow.providers.common.ai.durable.base import RUN_ID_KEY, build_step_key
+from airflow.providers.common.ai.durable.base import DURABLE_KEY_PREFIX, RUN_ID_KEY, build_step_key
 from airflow.providers.common.ai.durable.journal import DurableJournal, DurableRun, journal_scope
 from airflow.providers.common.ai.durable.storage import DurableStorage
-from airflow.providers.common.ai.exceptions import UnsupportedToolDeferralError
+from airflow.providers.common.ai.exceptions import DurableJournalError, UnsupportedToolDeferralError
 from airflow.providers.common.ai.hooks.pydantic_ai import PydanticAIHook
-from airflow.providers.common.ai.operators.agent import AgentOperator, HITLReviewLink
+from airflow.providers.common.ai.operators.agent import (
+    AgentOperator,
+    HITLReviewLink,
+    _raised_by_durable_execution,
+)
 from airflow.providers.common.ai.operators.llm import LLMOperator
 from airflow.providers.common.ai.sandbox.base import (
     HOLDER_TAG,
@@ -109,10 +123,31 @@ from airflow.providers.common.compat.sdk import (
 )
 
 from tests_common.test_utils.compat import OperatorSerialization
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_3_PLUS
+from tests_common.test_utils.version_compat import (
+    AIRFLOW_V_3_0_PLUS,
+    AIRFLOW_V_3_1_PLUS,
+    AIRFLOW_V_3_3_PLUS,
+    AIRFLOW_V_3_4_PLUS,
+)
+from unit.common.ai.durable.capabilities import (
+    IdlessLedger,
+    LedgerRenamedForRun,
+    RouterThatActs,
+    ToolsetRebuiltForRun,
+)
 from unit.common.ai.durable.memory_storage import MemoryStorage
 from unit.common.ai.sandbox.fake_tags import TaggedBackend
 from unit.common.ai.tool_parts import is_tool_retry
+
+if AIRFLOW_V_3_3_PLUS:
+    from airflow.sdk import ExceptionRetryPolicy
+
+try:  # pydantic-ai-slim ships ModelFallback from 2.64.0; the provider supports older releases.
+    from pydantic_ai.capabilities import ModelFallback
+except ImportError:
+    HAS_MODEL_FALLBACK = False
+else:
+    HAS_MODEL_FALLBACK = True
 
 try:
     from airflow.sdk.serde import (
@@ -1949,9 +1984,9 @@ class TestAgentOperatorDurable:
         op = AgentOperator(task_id="test", prompt="test", llm_conn_id="my_llm", durable=True)
         assert op.durable is True
 
-    def test_durable_default_false(self):
+    def test_durable_default_is_decided_when_the_task_runs(self):
         op = AgentOperator(task_id="test", prompt="test", llm_conn_id="my_llm")
-        assert op.durable is False
+        assert op.durable is None
 
     @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="task state store backend requires Airflow >= 3.3")
     def test_build_durable_storage_uses_task_state_store_on_3_3(self):
@@ -2817,13 +2852,13 @@ class TestAgentOperatorSandboxContinuityGuards:
         ],
     )
     def test_durable_with_a_sandbox_toolset_is_rejected_wherever_it_hides(self, toolsets):
-        with pytest.raises(ValueError, match="durable=True cannot be used with a SandboxToolset"):
+        with pytest.raises(ValueError, match="durable execution cannot be used with a SandboxToolset"):
             AgentOperator(task_id="t", prompt="p", llm_conn_id="c", durable=True, toolsets=toolsets)
 
     def test_durable_with_a_sandbox_in_a_toolset_capability_is_rejected(self):
         """Tools reaching the agent through ``capabilities=[Toolset(...)]`` are durably cached
         too, so the same replay-against-nothing applies to them."""
-        with pytest.raises(ValueError, match="durable=True cannot be used with a SandboxToolset"):
+        with pytest.raises(ValueError, match="durable execution cannot be used with a SandboxToolset"):
             AgentOperator(
                 task_id="t",
                 prompt="p",
@@ -2832,16 +2867,16 @@ class TestAgentOperatorSandboxContinuityGuards:
                 agent_params={"capabilities": [Toolset(_sandbox_toolset())]},
             )
 
-    def test_a_callable_toolset_capability_cannot_be_inspected_and_passes(self):
+    def test_a_callable_toolset_capability_is_refused_for_its_missing_id_not_its_sandbox(self):
         """A factory resolved per run has no concrete toolset to look inside at parse time."""
-        op = AgentOperator(
-            task_id="t",
-            prompt="p",
-            llm_conn_id="c",
-            durable=True,
-            agent_params={"capabilities": [Toolset(lambda ctx: _sandbox_toolset())]},
-        )
-        assert op.durable is True
+        with pytest.raises(ValueError, match="a Toolset capability builds its toolset when the run starts"):
+            AgentOperator(
+                task_id="t",
+                prompt="p",
+                llm_conn_id="c",
+                durable=True,
+                agent_params={"capabilities": [Toolset(lambda ctx: _sandbox_toolset())]},
+            )
 
     @pytest.mark.skipif(
         not AIRFLOW_V_3_1_PLUS, reason="Human in the loop is only compatible with Airflow >= 3.1.0"
@@ -2857,7 +2892,9 @@ class TestAgentOperatorSandboxContinuityGuards:
             )
 
     def test_the_message_names_the_ways_out(self):
-        with pytest.raises(ValueError, match="Drop durable=True, or move the sandbox work into its own task"):
+        with pytest.raises(
+            ValueError, match="Move the sandbox work into its own task. Or drop durable=True."
+        ):
             AgentOperator(
                 task_id="t", prompt="p", llm_conn_id="c", durable=True, toolsets=[_sandbox_toolset()]
             )
@@ -2928,7 +2965,7 @@ class TestAgentOperatorSandboxContinuityGuards:
     def test_durable_is_refused_even_with_an_attached_sandbox(self):
         # Replay does not re-execute the tool, so the workspace would not move with the
         # transcript; a cached write_file on a retry leaves no file behind.
-        with pytest.raises(ValueError, match="durable=True cannot be used with a SandboxToolset"):
+        with pytest.raises(ValueError, match="durable execution cannot be used with a SandboxToolset"):
             AgentOperator(
                 task_id="t", prompt="p", llm_conn_id="c", durable=True, toolsets=[_attached_sandbox_toolset()]
             )
@@ -2997,6 +3034,500 @@ class TestAgentOperatorSandboxHandleTemplating:
         assert result == "done"
         assert backend.commands == [("sb-42", "ls")]
         assert HOLDER_TAG not in backend.tags["sb-42"], "the run must release its claim"
+
+
+def _agent_op(model_fn, **kwargs: Any) -> AgentOperator:
+    """An ``AgentOperator`` whose agent runs ``model_fn``."""
+    op = AgentOperator(task_id="t", prompt="hi", llm_conn_id="c", enable_tool_logging=False, **kwargs)
+    op.llm_hook = MagicMock(spec=["create_agent"])
+    op.llm_hook.create_agent.side_effect = lambda **kw: Agent(FunctionModel(model_fn), **kw)
+    return op
+
+
+def _durable_context(store, *, try_number: int = 1) -> Any:  # a Context stand-in
+    """A context with a task state store, which the durable default needs."""
+    ti = _make_ti(id=f"ti-{try_number}", try_number=try_number)
+    return {"task_instance": ti, "ti": ti, "task_state_store": store}
+
+
+def _answer(messages, info) -> ModelResponse:
+    return ModelResponse(parts=[TextPart(content="done")])
+
+
+def _unavailable(messages, info) -> ModelResponse:
+    raise ModelHTTPError(503, "primary", "unavailable")
+
+
+# Agents pydantic-ai refuses only once their durable run has started, one per place it raises.
+_REFUSED_ONCE_RUNNING = [
+    pytest.param(
+        _answer, SelectModel(lambda ctx: FunctionModel(_answer)), "The model instance", id="selected-model"
+    ),
+    pytest.param(
+        _unavailable,
+        ModelFallback(FunctionModel(_answer)) if HAS_MODEL_FALLBACK else None,
+        "The model instance",
+        id="fallback-model",
+        marks=pytest.mark.skipif(
+            not HAS_MODEL_FALLBACK, reason="ModelFallback needs pydantic-ai-slim 2.64.0+"
+        ),
+    ),
+    pytest.param(_answer, LedgerRenamedForRun(), "No capability with id 'ledger'", id="capability-renamed"),
+    pytest.param(_answer, ToolsetRebuiltForRun(), "A toolset added at run time", id="toolset-rebuilt"),
+]
+
+
+def _run_two_attempts(store, **kwargs: Any) -> dict[str, int]:
+    """Run a task that fails after its tool on try 1 and succeeds on try 2; return try 2's live calls."""
+    live = {"model": 0, "tool": 0}
+    fail_after_tool = [True]
+
+    def my_tool() -> str:
+        live["tool"] += 1
+        return "tool-result"
+
+    for try_number in (1, 2):
+        live.update(model=0, tool=0)
+        op = _agent_op(
+            _tool_then_answer(fail_after_tool, live),
+            toolsets=[FunctionToolset(tools=[my_tool], id="tools")],
+            **kwargs,
+        )
+        with pytest.raises(RuntimeError, match="transient") if try_number == 1 else nullcontext():
+            op.execute(context=_durable_context(store, try_number=try_number))
+    return live
+
+
+_NO_RETRIES = "the task has no retries, so no attempt would replay this one."
+_BEFORE_3_3 = (
+    "it is on by default only from Airflow 3.3. Before that, pass durable=True and set "
+    "[common.ai] durable_cache_path."
+)
+
+
+@pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="durable execution is on by default only from Airflow 3.3")
+class TestAgentOperatorDurableByDefault:
+    def test_a_task_that_can_retry_replays_what_the_failed_attempt_completed(
+        self, task_state_store_accessor, caplog
+    ):
+        with caplog.at_level(logging.INFO):
+            live = _run_two_attempts(task_state_store_accessor, retries=2)
+
+        # The retry replays model step 0 and the tool call; only the step that failed runs live.
+        assert live == {"model": 1, "tool": 0}
+        assert "Durable (on by default): replayed 2 steps" in caplog.text
+        assert "Durable execution is off" not in caplog.text
+        assert not [key for key in task_state_store_accessor.data if key.startswith("__commonai_durable__")]
+
+    @pytest.mark.skipif(
+        not AIRFLOW_V_3_4_PLUS, reason="a retry policy retries a task without retries from 3.4"
+    )
+    def test_a_retry_policy_counts_as_retries(self, task_state_store_accessor):
+        live = _run_two_attempts(
+            task_state_store_accessor, retries=0, retry_policy=ExceptionRetryPolicy(rules=[])
+        )
+
+        assert live == {"model": 1, "tool": 0}
+
+    def test_a_task_without_retries_runs_everything_again_and_says_why(
+        self, task_state_store_accessor, caplog
+    ):
+        with caplog.at_level(logging.INFO):
+            live = _run_two_attempts(task_state_store_accessor, retries=0)
+
+        assert live == {"model": 2, "tool": 1}
+        assert "Durable execution is off for this task: the task has no retries" in caplog.text
+
+    @pytest.mark.parametrize(
+        ("v3_3_plus", "v3_4_plus", "retries", "has_retry_policy", "reason"),
+        [
+            pytest.param(True, True, 0, False, _NO_RETRIES, id="3.4-no-retries"),
+            pytest.param(True, True, 0, True, None, id="3.4-retry-policy"),
+            pytest.param(True, False, 0, True, _NO_RETRIES, id="3.3-retry-policy"),
+            pytest.param(True, False, 2, False, None, id="3.3-retries"),
+            pytest.param(False, False, 2, False, _BEFORE_3_3, id="3.2-retries"),
+        ],
+    )
+    def test_whether_a_task_can_retry_depends_on_the_airflow_version(
+        self, task_state_store_accessor, v3_3_plus, v3_4_plus, retries, has_retry_policy, reason
+    ):
+        retry_policy = ExceptionRetryPolicy(rules=[]) if has_retry_policy else None
+        op = AgentOperator(
+            task_id="t", prompt="p", llm_conn_id="c", retries=retries, retry_policy=retry_policy
+        )
+
+        with (
+            patch("airflow.providers.common.ai.operators.agent.AIRFLOW_V_3_3_PLUS", v3_3_plus),
+            patch("airflow.providers.common.ai.operators.agent.AIRFLOW_V_3_4_PLUS", v3_4_plus),
+        ):
+            why = op._why_not_durable_by_default(_durable_context(task_state_store_accessor))
+
+        assert why == reason
+
+    def test_durable_false_runs_everything_again(self, task_state_store_accessor, caplog):
+        with caplog.at_level(logging.INFO):
+            live = _run_two_attempts(task_state_store_accessor, retries=2, durable=False)
+
+        assert live == {"model": 2, "tool": 1}
+        assert "Durable" not in caplog.text
+
+    @pytest.mark.parametrize(
+        ("kwargs", "reason"),
+        [
+            pytest.param(
+                {"toolsets": [PydanticAIMCPToolset("http://mcp.example.com/mcp")]},
+                "durable execution needs a unique id on every MCPToolset",
+                id="mcp-without-id",
+            ),
+            pytest.param(
+                {"toolsets": [_sandbox_toolset()]},
+                "durable execution cannot be used with a SandboxToolset",
+                id="sandbox",
+            ),
+            pytest.param(
+                {"capabilities": [CombinedCapability([Toolset(_sandbox_toolset())])]},
+                "durable execution cannot be used with a SandboxToolset",
+                id="sandbox-inside-combined-capability",
+            ),
+            pytest.param(
+                {"capabilities": [PrefixTools(wrapped=Toolset(_sandbox_toolset()), prefix="x")]},
+                "durable execution cannot be used with a SandboxToolset",
+                id="sandbox-inside-wrapper-capability",
+            ),
+            pytest.param(
+                {"capabilities": [Capability(toolsets=[_sandbox_toolset()])]},
+                "durable execution cannot be used with a SandboxToolset",
+                id="sandbox-in-capability-toolsets",
+            ),
+            pytest.param(
+                {"capabilities": [Toolset(_build_forecast_tools)]},
+                "a Toolset capability builds its toolset when the run starts",
+                id="toolset-capability-built-per-run",
+            ),
+            pytest.param(
+                {"capabilities": [PrefixTools(wrapped=Toolset(FunctionToolset()), prefix="x")]},
+                "a toolset without an id sits inside a combined or wrapper capability",
+                id="toolset-inside-wrapper-capability",
+            ),
+        ],
+    )
+    def test_where_the_default_cannot_apply_it_is_off_and_the_log_says_why(
+        self, task_state_store_accessor, caplog, kwargs, reason
+    ):
+        op = AgentOperator(task_id="t", prompt="p", llm_conn_id="c", retries=2, **kwargs)
+
+        with caplog.at_level(logging.INFO):
+            op._decide_durable(_durable_context(task_state_store_accessor))
+
+        assert op._is_durable_run is False
+        assert "Durable execution is off for this task: " in caplog.text
+        assert reason in caplog.text
+        # The task never set durable=True, so the reason does not tell it to drop it.
+        assert "durable=True" not in caplog.text
+
+    def test_an_airflow_durability_capability_passed_in_journals_on_its_own(
+        self, task_state_store_accessor, caplog
+    ):
+        op = _agent_op(_answer, retries=2, capabilities=[AirflowDurability(name="analyst")])
+
+        with caplog.at_level(logging.INFO):
+            assert op.execute(context=_durable_context(task_state_store_accessor)) == "done"
+
+        assert op._is_durable_run is False
+        assert "Durable execution is left to the AirflowDurability capability" in caplog.text
+        capabilities = op.llm_hook.create_agent.call_args.kwargs["capabilities"]
+        assert len([c for c in capabilities if isinstance(c, AirflowDurability)]) == 1
+
+    def test_a_context_without_a_task_state_store_turns_it_off(self, caplog):
+        op = _agent_op(_answer, retries=2)
+
+        with caplog.at_level(logging.INFO):
+            assert op.execute(context=_make_context()) == "done"
+
+        assert op._is_durable_run is False
+        assert "the task's context has no task state store" in caplog.text
+
+    def test_a_toolset_inside_a_combined_capability_still_runs(self, task_state_store_accessor, caplog):
+        """Durable execution would fail every attempt on the toolset without an id, so the default leaves it off."""
+
+        def lookup() -> str:
+            return "found"
+
+        def model_fn(messages, info):
+            if any(isinstance(p, ToolReturnPart) for m in messages for p in m.parts):
+                return ModelResponse(parts=[TextPart(content="done")])
+            return ModelResponse(parts=[ToolCallPart(tool_name="lookup", args={})])
+
+        op = _agent_op(
+            model_fn, retries=2, capabilities=[CombinedCapability([Toolset(FunctionToolset(tools=[lookup]))])]
+        )
+
+        with caplog.at_level(logging.INFO):
+            assert op.execute(context=_durable_context(task_state_store_accessor)) == "done"
+
+        assert "a toolset without an id sits inside a combined or wrapper capability" in caplog.text
+
+    def test_a_capability_pydantic_ai_refuses_under_durable_execution_still_runs(
+        self, task_state_store_accessor, caplog
+    ):
+        """pydantic-ai refuses a capability with durable operations and no id when it builds a durable agent."""
+        op = _agent_op(_answer, retries=2, capabilities=[IdlessLedger()])
+
+        with caplog.at_level(logging.INFO):
+            assert op.execute(context=_durable_context(task_state_store_accessor)) == "done"
+
+        assert op._is_durable_run is False
+        assert (
+            "Durable execution is off for this task: Capability 'IdlessLedger' contributes durable"
+            in caplog.text
+        )
+
+    def test_a_build_error_unrelated_to_durable_execution_is_not_logged_as_its_reason(
+        self, task_state_store_accessor, caplog
+    ):
+        op = _agent_op(_answer, retries=2)
+        op.llm_hook.create_agent.side_effect = UserError("Set the OPENAI_API_KEY environment variable")
+
+        with caplog.at_level(logging.INFO), pytest.raises(UserError, match="OPENAI_API_KEY"):
+            op.execute(context=_durable_context(task_state_store_accessor))
+
+        assert "Durable execution is off" not in caplog.text
+
+    def test_durable_true_keeps_pydantic_ais_refusal(self, task_state_store_accessor):
+        op = _agent_op(_answer, retries=2, durable=True, capabilities=[IdlessLedger()])
+
+        with pytest.raises(UserError, match="contributes durable operations and needs an explicit"):
+            op.execute(context=_durable_context(task_state_store_accessor))
+
+    @pytest.mark.parametrize(("model_fn", "capability", "refusal"), _REFUSED_ONCE_RUNNING)
+    def test_a_run_pydantic_ai_refuses_under_durable_execution_still_runs(
+        self, task_state_store_accessor, caplog, model_fn, capability, refusal
+    ):
+        """pydantic-ai refuses these agents only once the durable run reaches what changed."""
+        op = _agent_op(model_fn, retries=2, capabilities=[capability])
+
+        with caplog.at_level(logging.INFO):
+            assert op.execute(context=_durable_context(task_state_store_accessor)) == "done"
+
+        assert op._is_durable_run is False
+        assert (
+            f"Durable execution is off for this task, and the agent runs again without it: {refusal}"
+            in caplog.text
+        )
+        assert "LLM run failed" not in caplog.text
+        assert "Durable (on by default)" not in caplog.text
+        assert not [key for key in task_state_store_accessor.data if key.startswith(DURABLE_KEY_PREFIX)]
+
+    @pytest.mark.parametrize(("model_fn", "capability", "refusal"), _REFUSED_ONCE_RUNNING)
+    def test_durable_true_keeps_pydantic_ais_refusal_of_a_run(
+        self, task_state_store_accessor, model_fn, capability, refusal
+    ):
+        """The default recognises these refusals by where pydantic-ai raises them, which this pins."""
+        op = _agent_op(model_fn, retries=2, durable=True, capabilities=[capability])
+
+        with pytest.raises(UserError, match=refusal) as raised:
+            op.execute(context=_durable_context(task_state_store_accessor))
+
+        assert _raised_by_durable_execution(raised.value)
+
+    def test_a_run_again_without_durable_reports_one_run(self, task_state_store_accessor, caplog):
+        """The refused run sent no request, so one request fits the limit and the run's ids are this attempt's."""
+        conversation_ids = []
+
+        def answer(messages, info):
+            conversation_ids.append(messages[0].conversation_id)
+            return ModelResponse(parts=[TextPart(content="done")])
+
+        op = _agent_op(
+            answer,
+            retries=2,
+            usage_limits=UsageLimits(request_limit=1),
+            capabilities=[SelectModel(lambda ctx: FunctionModel(answer))],
+        )
+        context = _durable_context(task_state_store_accessor)
+
+        with caplog.at_level(logging.INFO):
+            assert op.execute(context=context) == "done"
+
+        pushed = {c.kwargs["key"]: c.kwargs["value"] for c in context["ti"].xcom_push.call_args_list}
+        assert pushed["run_id"] == "ti-1"
+        assert pushed["usage"]["requests"] == 1
+        # The durable run's conversation is named after its run id; the second run starts its own.
+        assert len(conversation_ids) == 1
+        assert conversation_ids[0] != "ti-1"
+        assert caplog.text.count("LLM run complete") == 1
+
+    def test_a_run_again_without_durable_that_fails_keeps_only_the_usage_record(
+        self, task_state_store_accessor, caplog
+    ):
+        """The retry finds no journal of the refused run, and the usage both runs spent."""
+        op = _agent_op(
+            _answer,
+            retries=2,
+            usage_limits=UsageLimits(request_limit=5),
+            capabilities=[SelectModel(lambda ctx: FunctionModel(_unavailable))],
+        )
+
+        with caplog.at_level(logging.INFO), pytest.raises(ModelHTTPError):
+            op.execute(context=_durable_context(task_state_store_accessor))
+
+        assert list(task_state_store_accessor.data) == [USAGE_BUDGET_KEY]
+        assert caplog.text.count("LLM run failed") == 1
+
+    @pytest.mark.parametrize(
+        ("tool_raises", "tool_metadata"),
+        [
+            pytest.param(None, None, id="returned"),
+            pytest.param(ModelRetry("try again"), None, id="asked-model-to-retry"),
+            pytest.param(RuntimeError("boom"), None, id="raised-and-a-hook-recovered"),
+            pytest.param(None, {"airflow": False}, id="not-journaled"),
+        ],
+    )
+    def test_a_run_refused_after_a_tool_ran_still_fails(
+        self, task_state_store_accessor, caplog, tool_raises, tool_metadata
+    ):
+        """Running it again without durable execution would call the tool again, however its call ended."""
+        calls = []
+
+        def lookup() -> str:
+            calls.append("lookup")
+            if tool_raises is not None:
+                raise tool_raises
+            return "found"
+
+        def model_fn(messages, info):
+            return ModelResponse(parts=[ToolCallPart(tool_name="lookup", args={})])
+
+        class Recover(AbstractCapability):
+            async def on_tool_execute_error(self, ctx, *, call, tool_def, args, error):
+                return "recovered"
+
+        routed = FunctionModel(_answer)
+        capabilities: list[AbstractCapability] = [
+            SelectModel(lambda ctx: routed if ctx.run_step > 1 else ctx.model)
+        ]
+        if isinstance(tool_raises, RuntimeError):
+            capabilities.append(Recover())
+        op = _agent_op(
+            model_fn,
+            retries=2,
+            toolsets=[FunctionToolset(tools=[lookup], id="tools", metadata=tool_metadata)],
+            capabilities=capabilities,
+        )
+
+        with caplog.at_level(logging.INFO), pytest.raises(UserError, match="was not registered"):
+            op.execute(context=_durable_context(task_state_store_accessor))
+
+        assert calls == ["lookup"]
+        assert "Durable execution is off" not in caplog.text
+        assert "running it again without durable execution could repeat steps that already ran" in (
+            caplog.text
+        )
+
+    def test_a_run_refused_in_a_step_that_already_acted_still_fails(self, task_state_store_accessor, caplog):
+        """pydantic-ai refuses the model the durable hook returns after the hook has run, so nothing was recorded."""
+        router = RouterThatActs()
+        op = _agent_op(_answer, retries=2, capabilities=[router])
+
+        with caplog.at_level(logging.INFO), pytest.raises(UserError, match="hook replaced"):
+            op.execute(context=_durable_context(task_state_store_accessor))
+
+        assert router.actions == ["routed"]
+        assert "could repeat steps that already ran" in caplog.text
+
+    def test_a_run_refused_after_an_earlier_attempt_started_it_still_fails(
+        self, task_state_store_accessor, caplog
+    ):
+        """The earlier attempt's steps would run again live, here after the Dag changed between attempts."""
+
+        def transient(messages, info):
+            raise RuntimeError("transient")
+
+        with pytest.raises(RuntimeError, match="transient"):
+            _agent_op(transient, retries=2).execute(context=_durable_context(task_state_store_accessor))
+        op = _agent_op(_answer, retries=2, capabilities=[SelectModel(lambda ctx: FunctionModel(_answer))])
+
+        with caplog.at_level(logging.INFO), pytest.raises(UserError, match="was not registered"):
+            op.execute(context=_durable_context(task_state_store_accessor, try_number=2))
+
+        assert "could repeat steps that already ran" in caplog.text
+
+    def test_a_user_error_the_agent_raises_itself_is_not_taken_for_a_refusal(
+        self, task_state_store_accessor, caplog
+    ):
+        requests = []
+
+        def model_fn(messages, info):
+            requests.append(info)
+            raise UserError("Set the OPENAI_API_KEY environment variable")
+
+        op = _agent_op(model_fn, retries=2)
+
+        with caplog.at_level(logging.INFO), pytest.raises(UserError, match="OPENAI_API_KEY"):
+            op.execute(context=_durable_context(task_state_store_accessor))
+
+        assert len(requests) == 1
+        assert "Durable execution is off" not in caplog.text
+
+    def test_durable_true_loads_a_capability_whose_toolset_needs_worker_credentials(self):
+        """The Dag loads where the capability's secret is missing; the worker, which has it, checks it."""
+
+        class NeedsWorkerKey(AbstractCapability):
+            def get_toolset(self):
+                return FunctionToolset(id="worker", tools=[os.environ["WORKER_ONLY_KEY"].upper])
+
+        op = AgentOperator(
+            task_id="t", prompt="p", llm_conn_id="c", durable=True, capabilities=[NeedsWorkerKey()]
+        )
+
+        assert op.durable is True
+
+    def test_durable_true_refuses_a_sandbox_a_capability_contributes_when_the_dag_loads(self):
+        with pytest.raises(ValueError, match="durable execution cannot be used with a SandboxToolset"):
+            AgentOperator(
+                task_id="t",
+                prompt="p",
+                llm_conn_id="c",
+                durable=True,
+                capabilities=[Capability(toolsets=[_sandbox_toolset()])],
+            )
+
+    def test_durable_true_refuses_a_toolset_inside_a_combined_capability_when_the_dag_loads(self):
+        with pytest.raises(ValueError, match="a toolset without an id sits inside a combined"):
+            AgentOperator(
+                task_id="t",
+                prompt="p",
+                llm_conn_id="c",
+                durable=True,
+                capabilities=[CombinedCapability([Toolset(FunctionToolset())])],
+            )
+
+    @pytest.mark.parametrize("durable", [None, True])
+    def test_a_model_response_the_journal_cannot_hold_fails_only_under_durable_true(
+        self, task_state_store_accessor, durable
+    ):
+        def model_fn(messages, info):
+            return ModelResponse(parts=[TextPart(content="done")], provider_details={"handle": object()})
+
+        op = _agent_op(model_fn, retries=2, durable=durable)
+        context = _durable_context(task_state_store_accessor)
+
+        if durable:
+            with pytest.raises(DurableJournalError, match="not JSON-serializable"):
+                op.execute(context=context)
+        else:
+            assert op.execute(context=context) == "done"
+
+    @pytest.mark.parametrize(("retries", "expected"), [(2, True), (0, False)])
+    def test_spans_say_whether_the_run_is_durable(self, task_state_store_accessor, retries, expected):
+        op = _agent_op(_answer, retries=retries)
+
+        with patch(
+            "airflow.providers.common.ai.operators.agent.stamp_identity_on_agent_spans", autospec=True
+        ) as stamp:
+            op.execute(context=_durable_context(task_state_store_accessor))
+
+        assert stamp.call_args.args[1]["airflow.common_ai.durable"] is expected
 
 
 class TestAgentOperatorRunIdentity:

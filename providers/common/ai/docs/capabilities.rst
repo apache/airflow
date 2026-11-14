@@ -96,7 +96,8 @@ against another capability, such as a guardrail.
 With durable execution
 ----------------------
 
-With ``durable=True``, a retry replays completed steps from the journal instead of running them
+With durable execution (on by default for a task that can retry on Airflow 3.3 and later; see
+:doc:`durable_execution`), a retry replays completed steps from the journal instead of running them
 again. Whether a capability's work is replayed depends on where it runs:
 
 .. list-table::
@@ -112,8 +113,9 @@ again. Whether a capability's work is replayed depends on where it runs:
         ``CombinedCapability``, and capabilities from an agent spec file
       - Tool results are replayed. In ``AgentOperator``, a ``FunctionToolset`` held directly by
         a ``Toolset`` capability needs no ``id`` (:ref:`durable-toolset-ids`); any other toolset
-        they contribute needs one, and pydantic-ai names one without it when the agent is
-        built. An ``id`` on a ``Toolset`` capability does not reach the toolset inside it, so
+        they contribute needs one. Without it, ``durable=True`` refuses the Dag or pydantic-ai
+        names the toolset when the agent is built, and the default leaves durable execution
+        off for the task and logs why. An ``id`` on a ``Toolset`` capability does not reach the toolset inside it, so
         set it on that toolset.
     * - pydantic-ai-harness ``CodeMode``
       - Each ``run_code`` snippet runs again, and the tool calls it makes are replayed; see

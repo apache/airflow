@@ -62,7 +62,7 @@ Pydantic AI toolsets, but the Pydantic AI class they inherit from can change.
        on without it. ``tool_approval_timeout``, ``on_tool_approval_timeout`` (``"fail"``
        by default, or ``"deny"``) and ``tool_approval_assigned_users`` keep their meaning.
        On Airflow 3.4 and later, every later step that calls a marked tool pauses again;
-       on Airflow 3.3 a task instance can ask once per Dag run. With ``durable=True``,
+       on Airflow 3.3 a task instance can ask once per Dag run. With
        ``enable_hitl_review=True`` or a ``SandboxToolset`` that provisions its own sandbox,
        and on Airflow versions before 3.3, a call to such a tool fails the task; under a
        ``CodeMode`` capability, a call from ``run_code`` does not run and is reported back
@@ -75,19 +75,20 @@ Pydantic AI toolsets, but the Pydantic AI class they inherit from can change.
      - Publishes the finished conversation under the ``message_history`` XCom key without
        seeding the run. Defaults to ``True`` when ``message_history`` is set, and ``False``
        stops a seeded run from publishing it. Cannot be combined with ``enable_hitl_review``.
-   * - ``durable=True`` on ``AgentOperator`` and ``@task.agent``, and
+   * - ``durable`` on ``AgentOperator`` and ``@task.agent``, and
        :class:`~airflow.providers.common.ai.durable.AirflowDurability`
        (:doc:`durable_execution`)
-     - On a retry the agent runs from the start, and each model request and tool call an
-       earlier attempt recorded is replayed from the journal kept for the task instance,
-       without calling the model or running the tool again, as long as it matches the step
-       recorded at the same point; from the first step that differs, every step runs live.
-       The journal is kept in the task state store on Airflow 3.3 and later, and under
-       ``[common.ai] durable_cache_path`` before. With ``durable=True``, replayed steps
-       count nothing against ``usage_limits`` or in the ``usage`` XCom, the agent's
-       ``run_id`` stays the first attempt's, and the journal is deleted when the task
-       succeeds. In a plain ``@task``, ``AirflowDurability`` deletes a run's steps when
-       that run succeeds.
+     - On by default in ``AgentOperator`` and ``@task.agent`` for a task that can retry on
+       Airflow 3.3 and later. On a retry the agent runs from the start, and each model
+       request and tool call an earlier attempt recorded is replayed from the journal kept
+       for the task instance, without calling the model or running the tool again, as long
+       as it matches the step recorded at the same point; from the first step that
+       differs, every step runs live. The journal is kept in the task state store on
+       Airflow 3.3 and later, and under ``[common.ai] durable_cache_path`` before. In
+       ``AgentOperator`` and ``@task.agent``, replayed steps count nothing against
+       ``usage_limits`` or in the ``usage`` XCom, the agent's ``run_id`` stays the first
+       attempt's, and the journal is deleted when the task succeeds. In a plain ``@task``,
+       ``AirflowDurability`` deletes a run's steps when that run succeeds.
    * - ``@task.llm_branch`` and
        :class:`~airflow.providers.common.ai.operators.llm_branch.LLMBranchOperator`
      - The model picks among the task's direct downstream tasks, one by default or several
@@ -239,7 +240,8 @@ Everything this provider ships that is not in the table above is experimental.
        still open.
    * - :class:`~airflow.providers.common.ai.toolsets.sandbox.SandboxToolset` and its
        backends (:doc:`sandbox/index`)
-     - ``durable=True`` cannot be used with it yet, the ``sbx`` backend leaves its sandbox
+     - Durable execution cannot be used with it yet (``durable=True`` raises, and the
+       default turns it off for that task), the ``sbx`` backend leaves its sandbox
        behind when the worker is killed, and the backend contract is still gaining
        capabilities, such as attaching to a sandbox another task owns.
    * - LangChain and LlamaIndex hooks and the LangChain tool bridge

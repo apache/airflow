@@ -174,10 +174,11 @@ and the hooks apply the request's timeout to the vendor call itself.
 Durable execution
 -----------------
 
-``replayable`` is ``False`` by default, and ``AgentOperator(durable=True)``
-honors it: a managed-agent call is re-invoked on retry rather than served from
-the step cache, because the agent may have acted on systems Airflow cannot
-observe and replaying a cached answer could skip a side effect. Set
+``replayable`` is ``False`` by default, and durable execution in ``AgentOperator``
+(on by default for a task that can retry on Airflow 3.3 and later; see
+:doc:`../durable_execution`) honors it: a managed-agent call is re-invoked on retry
+rather than served from the step cache, because the agent may have acted on systems
+Airflow cannot observe and replaying a cached answer could skip a side effect. Set
 ``replayable=True`` only for an agent that is read-only.
 
 Failover between interchangeable agents
@@ -313,7 +314,7 @@ Airflow's job is to submit one request and read one answer.
   the vendor's side, which is the trade you are making.
 - It cannot defer. The call blocks a worker thread for as long as the remote agent
   reasons. Long-running submitted work belongs in the vendor's own operator.
-- Durable replay is off by default. ``replayable`` is ``False`` because a managed
+- Durable replay of its calls is off by default. ``replayable`` is ``False`` because a managed
   agent may act on systems Airflow cannot observe, so replaying from the cache
   could skip a side effect. Read-only agents can opt in.
 - Its failover variant,

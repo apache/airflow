@@ -446,13 +446,14 @@ attached sandbox still has the earlier attempt's files. ``AgentOperator`` refuse
 two features
 that would assume otherwise, when the Dag is parsed. It cannot see a toolset built per
 run from a callable, so check that case yourself. ``durable=True`` is refused with any
-``SandboxToolset``:
+``SandboxToolset`` (under the default, the operator turns durable execution off for that
+task and logs why instead):
 
 .. code-block:: text
 
-    ValueError: durable=True cannot be used with a SandboxToolset: cached tool results
-    would be replayed without touching the sandbox, so the workspace would not match
-    the transcript. Drop durable=True, or move the sandbox work into its own task.
+    ValueError: durable execution cannot be used with a SandboxToolset: cached tool
+    results would be replayed without touching the sandbox, so the workspace would not
+    match the transcript. Move the sandbox work into its own task. Or drop durable=True.
 
 ``enable_hitl_review=True`` is refused unless every ``SandboxToolset`` is attached to a
 sandbox another task created:

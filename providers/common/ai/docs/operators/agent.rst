@@ -236,8 +236,9 @@ file, and ``system_prompt`` is added to the file's ``instructions``:
 Build the path from ``__file__``: a relative path resolves against the worker's
 working directory, not the Dag file.
 
-With ``durable=True``, the toolsets that spec-file capabilities contribute are replayed
-like any other, and need an id the same way (see :doc:`../durable_execution`). The
+With durable execution (on by default for a task that can retry on Airflow 3.3 and later;
+see :doc:`../durable_execution`), the toolsets that spec-file capabilities contribute are
+replayed like any other, and need an id the same way. The
 operator cannot see inside a spec file when the Dag is parsed, so a missing id there
 fails the task when the agent is built rather than the Dag when it loads.
 
@@ -247,8 +248,8 @@ Agent features
 Five features have pages of their own:
 
 - :doc:`../message_history`: pass ``message_history`` to carry a conversation across runs.
-- :doc:`../durable_execution`: set ``durable=True`` to replay completed model and tool steps
-  on retry instead of paying for them again.
+- :doc:`../durable_execution`: replay completed model and tool steps on retry instead of
+  paying for them again.
 - :doc:`../capabilities`: pass pydantic-ai capabilities and ``pydantic-ai-shields`` guardrails
   with ``capabilities=``.
 - :doc:`../code_mode`: pass the ``CodeMode`` capability to collapse the agent's tools into a
@@ -404,7 +405,7 @@ Parameters
   store under the ``__commonai_usage__`` key -- instead of each attempt
   starting a fresh count. This also applies to the implicit
   ``request_limit=50`` default, which can now block a retry that used to
-  pass on its own. A step replayed by ``durable=True`` does not count toward
+  pass on its own. A step replayed by durable execution does not count toward
   that total -- see ``durable`` below. To keep the same effective
   per-attempt headroom this cross-attempt total used to give each attempt on
   its own, scale each limit by ``retries + 1``, or use ``usage_limits=None``
@@ -428,16 +429,20 @@ Parameters
   regeneration shares the count of the run before it whenever ``usage_limits``
   is set, on every Airflow version; with ``usage_limits=None`` each
   regeneration starts a fresh count.
-- ``durable``: When ``True``, records each step the agent completes (model
-  requests, tool calls, other capabilities' ``@durable_operation`` methods) in a
-  journal kept for the task instance, and replays the recorded steps on retry
-  instead of running them again. A pydantic-ai ``MCPToolset`` needs an ``id``. A
-  ``FunctionToolset`` or a function that builds a toolset, passed in ``toolsets`` or
-  ``agent_params["toolsets"]``, needs none, and neither does a ``FunctionToolset`` held
-  directly by a ``Toolset`` capability (:ref:`durable-toolset-ids`). On Airflow >= 3.3
-  the journal uses the task state store (no configuration needed); on older Airflow
-  versions it requires the
-  ``[common.ai] durable_cache_path`` config option to be set. Default ``False``. A replayed
+- ``durable``: Whether a retry replays what earlier attempts completed. ``None``
+  (default) turns it on on Airflow >= 3.3 for a task that can retry (``retries``
+  above 0, or from Airflow 3.4 a ``retry_policy``), and off for any other task or where it cannot
+  apply, with the reason in the task log. ``True`` turns it on wherever the task
+  runs; ``False`` turns it off (:ref:`durable-opt-out`). When on, records each step
+  the agent completes (model requests, tool calls, other capabilities'
+  ``@durable_operation`` methods) in a journal kept for the task instance, and
+  replays the recorded steps on retry instead of running them again. A pydantic-ai
+  ``MCPToolset`` needs an ``id``. A ``FunctionToolset`` or a function that builds a
+  toolset, passed in ``toolsets`` or ``agent_params["toolsets"]``, needs none, and
+  neither does a ``FunctionToolset`` held directly by a ``Toolset`` capability
+  (:ref:`durable-toolset-ids`). On Airflow >= 3.3 the journal uses the task state
+  store (no configuration needed); on older Airflow versions it requires the
+  ``[common.ai] durable_cache_path`` config option to be set. A replayed
   step adds nothing to the usage counted against ``usage_limits`` or reported
   in the ``usage`` XCom -- not its request, tokens, cost, or tool calls -- so
   each attempt counts only the model and tool calls it actually makes, on

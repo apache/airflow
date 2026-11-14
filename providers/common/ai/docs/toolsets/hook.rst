@@ -115,7 +115,8 @@ the value again from another argument it is given, such as a full URL, is outsid
 the pin controls.
 
 Pinned values are passed as written: they are not rendered as templates, and they are not
-part of what ``AgentOperator(durable=True)`` fingerprints, so change one only between Dag
+part of what durable execution in ``AgentOperator`` fingerprints
+(:doc:`../durable_execution`), so change one only between Dag
 runs, not between the tries of one.
 
 .. _hook-toolset-restricted:

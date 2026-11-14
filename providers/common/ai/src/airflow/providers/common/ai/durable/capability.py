@@ -62,7 +62,7 @@ from airflow.providers.common.ai.durable.fingerprint import (
     fingerprint_model_request,
     fingerprint_tool_call,
 )
-from airflow.providers.common.ai.durable.journal import Unrecordable, current_journal
+from airflow.providers.common.ai.durable.journal import Unrecordable, current_journal, get_executing_step
 from airflow.providers.common.ai.durable.replay_usage import ReplayUsageLedger, is_successful_tool_payload
 from airflow.providers.common.ai.exceptions import DurableJournalError, DurableToolMetadataError
 from airflow.providers.common.ai.utils.masking import mask_secrets
@@ -373,8 +373,9 @@ class AirflowDurability(BaseDurabilityCapability[AgentDepsT]):
     no second model call, no second tool side effect, no second charge against a spend
     limit. See :ref:`durable-execution` for how replay is verified.
 
-    ``AgentOperator(durable=True)`` and ``@task.agent(durable=True)`` attach it for you.
-    In a plain ``@task``, attach it yourself:
+    ``AgentOperator`` and ``@task.agent`` attach it for you when their run is durable, which
+    on Airflow 3.3 and later is the default for a task that can retry. In a plain ``@task``,
+    attach it yourself:
 
     .. code-block:: python
 
@@ -614,6 +615,13 @@ class _AirflowOperationBackend(CallableOperationBackend[_StepMode]):
             case ToolsetValidateToolArgumentsId():
                 # Local validation of the arguments the recorded call was made with: nothing to
                 # save by replaying it, and it is the same on every attempt, so it takes no position.
+                return await body()
+            case CapabilityOperationId() if (parent := get_executing_step()) is not None and (
+                parent.durable_run is active.durable_run
+            ):
+                # Called from inside one of this run's steps, such as a tool: it runs whenever that
+                # step runs. A position of its own would be missing when the step replays, and every
+                # step after it would run again.
                 return await body()
             case CapabilityOperationId():
                 step = self._claim(

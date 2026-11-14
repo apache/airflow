@@ -80,7 +80,8 @@ toolset is the exception: its results are masked only in an agent built with
 ``AgentOperator`` adds things on top of the agent that a task running your own agent
 does not get:
 
-- Durable replay of model and tool steps across task retries (``durable=True``).
+- Durable replay of model and tool steps across task retries, on by default for a task that
+  can retry on Airflow 3.3 and later (:doc:`../durable_execution`).
 - Human review of the output (``enable_hitl_review``), and a pause for a person to
   approve marked tool calls before they run (:doc:`../tool_approval`).
 - Rendering of templated connection IDs in toolsets, such as ``SQLToolset("{{ ... }}")``.
