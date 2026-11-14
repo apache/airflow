@@ -30,10 +30,19 @@ import time_machine
 import truststore
 import uuid6
 from task_sdk import make_client, make_client_w_dry_run, make_client_w_responses
+from tenacity import RetryCallState, Retrying
 from uuid6 import uuid7
 
 from airflow.sdk import timezone
-from airflow.sdk.api.client import Client, RemoteValidationError, ServerResponseError
+from airflow.sdk.api.client import (
+    API_RETRIES,
+    API_RETRY_WAIT_MAX,
+    API_RETRY_WAIT_MIN,
+    Client,
+    RemoteValidationError,
+    ServerResponseError,
+    _callback_run_stop,
+)
 from airflow.sdk.api.datamodels._generated import (
     AssetEventsResponse,
     AssetResponse,
@@ -2635,6 +2644,8 @@ class TestAssetStateOperations:
 
 
 class TestCallbackOperations:
+    TOKEN_ALREADY_USED = "Callback token already used, possibly by an earlier attempt of this exchange"
+
     def test_run_exchanges_token(self):
         callback_id = uuid7()
 
@@ -2652,7 +2663,134 @@ class TestCallbackOperations:
         assert client.auth is not None
         assert client.auth.token == "execution-token"
 
-    def test_run_raises_on_conflict(self):
+    @pytest.mark.parametrize(
+        "connect_error",
+        [httpx2.ConnectError("Connection refused"), httpx2.ConnectTimeout("timed out")],
+        ids=["connect-error", "connect-timeout"],
+    )
+    @mock.patch("tenacity.nap.time.sleep")
+    def test_run_retries_connect_errors_past_api_retries(self, _sleep, connect_error):
+        attempts = 0
+
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
+            nonlocal attempts
+            attempts += 1
+            if attempts <= API_RETRIES:
+                raise connect_error
+            return httpx2.Response(status_code=204, headers={"Refreshed-API-Token": "execution-token"})
+
+        # Other calls give up after API_RETRIES attempts.
+        other = make_client(transport=httpx2.MockTransport(handle_request))
+        with pytest.raises(type(connect_error)):
+            other.get("variables/key")
+        assert attempts == API_RETRIES
+
+        attempts = 0
+        client = make_client(transport=httpx2.MockTransport(handle_request))
+        client.callbacks.run(uuid7())
+
+        assert attempts > API_RETRIES
+        assert client.auth.token == "execution-token"
+
+    @pytest.mark.parametrize(
+        ("attempt_number", "seconds_since_start", "stops"),
+        [
+            pytest.param(API_RETRIES - 1, API_RETRY_WAIT_MAX, False, id="fewer-than-the-usual-attempts"),
+            pytest.param(API_RETRIES, API_RETRY_WAIT_MIN, False, id="before-retry-wait-max"),
+            pytest.param(API_RETRIES, API_RETRY_WAIT_MAX, True, id="usual-attempts-and-retry-wait-max"),
+        ],
+    )
+    def test_callback_run_stop(self, attempt_number, seconds_since_start, stops):
+        retry_state = RetryCallState(retry_object=Retrying(), fn=None, args=(), kwargs={})
+        retry_state.attempt_number = attempt_number
+        retry_state.outcome_timestamp = retry_state.start_time + seconds_since_start
+
+        assert _callback_run_stop()(retry_state) is stops
+
+    @staticmethod
+    def _make_exchange_server(failure, *, used_on_failure: bool):
+        """Fail the first exchange, using up the token if ``used_on_failure``, then act as the server."""
+        state = {"attempts": 0, "used": False}
+
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
+            state["attempts"] += 1
+            if state["used"]:
+                return httpx2.Response(status_code=409, json={"detail": {"reason": "invalid_state"}})
+            if state["attempts"] == 1:
+                state["used"] = used_on_failure
+                if isinstance(failure, Exception):
+                    raise failure
+                return failure
+            state["used"] = True
+            return httpx2.Response(status_code=204, headers={"Refreshed-API-Token": "execution-token"})
+
+        return handle_request, state
+
+    @pytest.mark.parametrize(
+        "failure",
+        [
+            pytest.param(httpx2.ReadTimeout("timed out"), id="read-timeout"),
+            pytest.param(httpx2.RemoteProtocolError("Server disconnected"), id="remote-protocol-error"),
+            pytest.param(httpx2.Response(status_code=503), id="503"),
+            pytest.param(httpx2.Response(status_code=500), id="500"),
+        ],
+    )
+    @mock.patch("tenacity.nap.time.sleep")
+    def test_run_retries_when_the_token_was_not_used(self, _sleep, cap_structlog, failure):
+        handle_request, state = self._make_exchange_server(failure, used_on_failure=False)
+
+        client = make_client(transport=httpx2.MockTransport(handle_request))
+        client.callbacks.run(uuid7())
+
+        assert state["attempts"] == 2
+        assert client.auth.token == "execution-token"
+        assert self.TOKEN_ALREADY_USED not in cap_structlog
+
+    @pytest.mark.parametrize(
+        "failure",
+        [
+            pytest.param(httpx2.ReadTimeout("timed out"), id="read-timeout"),
+            pytest.param(httpx2.RemoteProtocolError("Server disconnected"), id="remote-protocol-error"),
+            pytest.param(httpx2.Response(status_code=504), id="504"),
+        ],
+    )
+    @mock.patch("tenacity.nap.time.sleep")
+    def test_run_logs_a_conflict_after_an_earlier_failed_attempt(self, _sleep, cap_structlog, failure):
+        callback_id = uuid7()
+        handle_request, state = self._make_exchange_server(failure, used_on_failure=True)
+
+        client = make_client(transport=httpx2.MockTransport(handle_request))
+        with pytest.raises(ServerResponseError) as err:
+            client.callbacks.run(callback_id)
+
+        assert err.value.response.status_code == 409
+        assert state["attempts"] == 2
+        assert {
+            "event": self.TOKEN_ALREADY_USED,
+            "log_level": "error",
+            "callback_id": callback_id,
+            "attempts": 2,
+        } in cap_structlog
+
+    @pytest.mark.parametrize(
+        "failure",
+        [httpx2.ConnectError("Connection refused"), httpx2.ConnectTimeout("timed out")],
+        ids=["connect-error", "connect-timeout"],
+    )
+    @mock.patch("tenacity.nap.time.sleep")
+    def test_run_does_not_blame_an_earlier_attempt_after_connect_errors(self, _sleep, cap_structlog, failure):
+        """A connect error never reached the server, so something else used the token."""
+        handle_request, state = self._make_exchange_server(failure, used_on_failure=True)
+
+        client = make_client(transport=httpx2.MockTransport(handle_request))
+        with pytest.raises(ServerResponseError) as err:
+            client.callbacks.run(uuid7())
+
+        assert err.value.response.status_code == 409
+        assert state["attempts"] == 2
+        assert self.TOKEN_ALREADY_USED not in cap_structlog
+
+    def test_run_raises_on_conflict(self, cap_structlog):
         callback_id = uuid7()
 
         def handle_request(request: httpx2.Request) -> httpx2.Response:
@@ -2665,6 +2803,7 @@ class TestCallbackOperations:
         with pytest.raises(ServerResponseError) as err:
             client.callbacks.run(callback_id)
         assert err.value.response.status_code == 409
+        assert self.TOKEN_ALREADY_USED not in cap_structlog
 
     @pytest.mark.parametrize(
         ("state", "output"),
