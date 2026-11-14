@@ -42,9 +42,10 @@ def serialize(o: object) -> tuple[U, str, int, bool]:
     _, _, exponent = o.as_tuple()
     if isinstance(exponent, int) and exponent >= 0:  # No digits after the decimal point.
         return int(o), name, __version__, True
-    # Technically lossy due to floating point errors, but the best we
-    # can do without implementing a custom encode function.
-    return float(o), name, __version__, True
+    # ``str`` keeps every significant digit where ``float`` would round to 53 bits
+    # of mantissa. The version stays at 1 because ``deserialize`` has always gone
+    # through ``Decimal(str(data))``, so older readers accept this payload too.
+    return str(o), name, __version__, True
 
 
 def deserialize(cls: type, version: int, data: object) -> decimal.Decimal:
