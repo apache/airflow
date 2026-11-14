@@ -1658,6 +1658,35 @@ class TestAsyncPodManager:
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
+        ("startup_check_interval", "expected_timeout"),
+        [
+            pytest.param(2.5, 2, id="truncated-to-whole-seconds"),
+            pytest.param(0.5, 1, id="floored-at-one-second"),
+        ],
+    )
+    async def test_watch_pod_events_requests_an_integer_timeout(
+        self, startup_check_interval, expected_timeout
+    ):
+        """The watch API rejects a fractional timeoutSeconds, and 0 would ask for no timeout."""
+
+        async def event_stream(*_, **__):
+            self.async_pod_manager.stop_watching_events = True
+            return
+            yield  # pragma: no cover - makes this an async generator
+
+        hook = mock.create_autospec(AsyncKubernetesHook, instance=True)
+        hook.watch_pod_events.side_effect = event_stream
+        self.async_pod_manager._hook = hook
+
+        await self.async_pod_manager.watch_pod_events(
+            V1Pod(metadata=V1ObjectMeta(name="test-pod", namespace="test-namespace")),
+            startup_check_interval=startup_check_interval,
+        )
+
+        assert hook.watch_pod_events.call_args.kwargs["timeout_seconds"] == expected_timeout
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
         ("watched", "error"),
         [
             pytest.param(ApiException(status=504), str(ApiException(status=504)), id="watching-events"),

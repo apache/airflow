@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import inspect
 import logging
 import secrets
 import string
@@ -24,7 +25,7 @@ from typing import TYPE_CHECKING
 
 import pendulum
 import tenacity
-from aiohttp import ClientConnectionError
+from aiohttp import ClientConnectionError, ClientPayloadError
 from kubernetes.client.rest import ApiException as SyncApiException
 from kubernetes_asyncio.client.exceptions import ApiException as AsyncApiException
 from slugify import slugify
@@ -65,9 +66,14 @@ TRANSIENT_STATUS_CODES = {409, 429, 500, 502, 503, 504}
 # Connection-level failures (socket reset, DNS blip, read timeout) worth retrying — the api server
 # never saw the request, or its reply was lost. Covers both kube clients: urllib3 (sync) and aiohttp
 # (async). Shared so this decorator and the KubernetesExecutor agree on what counts as transient.
+# urllib3's HTTPError already spans a body cut off mid-read and a read timeout. aiohttp reports
+# those two outside ClientConnectionError: ClientPayloadError when the socket dies after the
+# response headers, and a bare TimeoutError when the total request timeout expires.
 TRANSIENT_CONNECTION_ERRORS: tuple[type[BaseException], ...] = (
     HTTPError,
     ClientConnectionError,
+    ClientPayloadError,
+    TimeoutError,
     KubernetesApiException,
 )
 
@@ -79,18 +85,26 @@ def _should_retry_api(exc: BaseException) -> bool:
     return isinstance(exc, TRANSIENT_CONNECTION_ERRORS)
 
 
+def _get_retry_after_seconds(exc: BaseException | None) -> float | None:
+    """Return the delay a 429 response asks for in Retry-After, or None when it gives no usable one."""
+    if isinstance(exc, (SyncApiException, AsyncApiException)) and exc.status == 429:
+        retry_after = (exc.headers or {}).get("Retry-After")
+        if retry_after:
+            try:
+                return float(int(retry_after))
+            except ValueError:
+                pass
+    return None
+
+
 class WaitRetryAfterOrExponential(tenacity.wait.wait_base):
     """Wait strategy that honors Retry-After header on 429, else falls back to exponential backoff."""
 
     def __call__(self, retry_state):
         exc = retry_state.outcome.exception() if retry_state.outcome else None
-        if isinstance(exc, (SyncApiException, AsyncApiException)) and exc.status == 429:
-            retry_after = (exc.headers or {}).get("Retry-After")
-            if retry_after:
-                try:
-                    return float(int(retry_after))
-                except ValueError:
-                    pass
+        retry_after = _get_retry_after_seconds(exc)
+        if retry_after is not None:
+            return retry_after
         # Inline exponential fallback
         return _default_wait(retry_state)
 
@@ -102,6 +116,15 @@ def generic_api_retry(func):
     - Retries only transient ApiException status codes.
     - Honors Retry-After on 429.
     """
+    if inspect.isasyncgenfunction(func):
+        # tenacity sees an async generator function as an ordinary sync callable, so it would wrap
+        # only the construction of the generator — which cannot fail — and never its iteration,
+        # where the API calls actually happen. The retry would silently never fire. A resumable
+        # stream has to reconnect from its own last position anyway, so retry inside the generator.
+        raise TypeError(
+            f"{func.__qualname__} is an async generator; @generic_api_retry cannot retry it. "
+            "Retry inside the generator's reconnect loop instead."
+        )
     return tenacity.retry(
         stop=tenacity.stop_after_attempt(API_RETRIES),
         wait=WaitRetryAfterOrExponential(),

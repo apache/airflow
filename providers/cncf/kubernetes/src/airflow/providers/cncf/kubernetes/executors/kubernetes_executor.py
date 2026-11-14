@@ -801,9 +801,11 @@ class KubernetesExecutor(BaseExecutor):
                 self.task_publish_retries.pop(key, None)
             return False
         if isinstance(e, TRANSIENT_CONNECTION_ERRORS):
-            # Connection-level failure talking to the api server (reset / DNS blip / read timeout) —
-            # the category generic_api_retry treats as transient. Re-queue rather than fail; the
-            # create may not have reached the server, so a later loop retries.
+            # A transient failure talking to the api server (reset, DNS blip, timeout, truncated
+            # reply), the category generic_api_retry retries. The server may still have created
+            # the pod (a truncated reply means it saw the request), and the retry names the pod
+            # afresh, so a later loop can start a second pod for the same try unless the first has
+            # already moved the task instance out of QUEUED.
             retries = self.task_publish_retries[key]
             if self.task_publish_max_retries == -1 or retries < self.task_publish_max_retries:
                 self.log.warning(

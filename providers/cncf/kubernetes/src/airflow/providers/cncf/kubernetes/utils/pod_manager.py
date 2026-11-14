@@ -1213,8 +1213,9 @@ class AsyncPodManager(LoggingMixin):
         """
         Watch pod events and write to log.
 
-        Best-effort: any error logs one warning and stops the watch, so a struggling API server
-        is not polled again for this pod.
+        Best-effort: the hook reconnects the stream on transient errors itself, so an error that
+        reaches this method is one the hook will not retry. That logs one warning and stops the
+        watch, so a struggling API server is not polled again for this pod.
         """
         seen_events: set[str] = set()
         resource_version = None
@@ -1224,7 +1225,10 @@ class AsyncPodManager(LoggingMixin):
                     name=pod.metadata.name,
                     namespace=pod.metadata.namespace,
                     resource_version=resource_version,
-                    timeout_seconds=startup_check_interval,
+                    # The watch API takes an integer timeoutSeconds, while
+                    # startup_check_interval is a user-settable float. Keep at least 1s:
+                    # 0 means "no timeout" server side.
+                    timeout_seconds=max(1, int(startup_check_interval)),
                 ):
                     if event:
                         log_pod_event(self, event, seen_events)
