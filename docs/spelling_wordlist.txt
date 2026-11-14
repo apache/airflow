@@ -115,6 +115,7 @@ asia
 AspectType
 AspectTypes
 AssetEvent
+assetEvent
 AssetEvents
 assigment
 ast

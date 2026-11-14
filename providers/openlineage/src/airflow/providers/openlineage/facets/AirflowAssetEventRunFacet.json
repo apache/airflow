@@ -1,0 +1,95 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$defs": {
+      "AirflowAssetEventRunFacet": {
+        "allOf": [
+          {
+            "$ref": "https://openlineage.io/spec/2-0-2/OpenLineage.json#/$defs/RunFacet"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "asset": {
+                "description": "The Airflow asset the event was registered for.",
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "description": "The id of the asset in the Airflow metadata database. Absent on Airflow versions that do not pass it to listeners.",
+                    "type": "integer"
+                  },
+                  "name": {
+                    "description": "The name of the asset.",
+                    "type": "string"
+                  },
+                  "uri": {
+                    "description": "The URI of the asset, also when it can't be translated to an OpenLineage dataset.",
+                    "type": "string"
+                  },
+                  "group": {
+                    "description": "The group of the asset.",
+                    "type": "string"
+                  },
+                  "extra": {
+                    "description": "The extra of the asset.",
+                    "type": "object",
+                    "additionalProperties": true
+                  }
+                },
+                "required": ["name", "uri", "group", "extra"],
+                "additionalProperties": false
+              },
+              "assetEvent": {
+                "description": "The Airflow asset event.",
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "description": "The id of the asset event in the Airflow metadata database. Absent on Airflow versions that do not pass it to listeners.",
+                    "type": "integer"
+                  },
+                  "watcherName": {
+                    "description": "The name of the asset watcher that produced the event. Absent on Airflow versions that do not pass it to listeners.",
+                    "type": "string"
+                  },
+                  "triggerClasspath": {
+                    "description": "The classpath of the trigger of the asset watcher. Absent on Airflow versions that do not pass it to listeners.",
+                    "type": "string"
+                  },
+                  "extra": {
+                    "description": "The extra of the asset event, holding the trigger payload.",
+                    "type": "object",
+                    "additionalProperties": true
+                  },
+                  "partitionKey": {
+                    "description": "The partition key of the asset event. Absent when the event is not for a partition.",
+                    "type": "string"
+                  },
+                  "partitionDate": {
+                    "description": "The partition date of the asset event, in ISO 8601 format. Absent when the event has none.",
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "sourceAliases": {
+                    "description": "The names of the asset aliases the event was emitted through.",
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": ["extra", "sourceAliases"],
+                "additionalProperties": false
+              }
+            },
+            "required": ["asset", "assetEvent"]
+          }
+        ],
+        "type": "object"
+      }
+    },
+    "type": "object",
+    "properties": {
+      "airflowAssetEvent": {
+        "$ref": "#/$defs/AirflowAssetEventRunFacet"
+      }
+    }
+  }

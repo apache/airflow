@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import copy
 import os
 import traceback
 from typing import TYPE_CHECKING, Any, Literal, cast
@@ -41,12 +42,14 @@ from airflow.providers.openlineage.token_provider import (
     resolve_airflow_connection_auth,
 )
 from airflow.providers.openlineage.utils.utils import (
+    _JOB_TYPE_ASSET_WATCHER,
     _JOB_TYPE_DAG,
     _JOB_TYPE_TASK,
     _PRODUCER,
     OpenLineageRedactor,
     build_dag_run_ol_run_id,
     build_task_instance_ol_run_id,
+    get_airflow_asset_event_run_facet,
     get_airflow_debug_facet,
     get_airflow_state_run_facet,
     get_dag_job_dependency_facet,
@@ -58,6 +61,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 if TYPE_CHECKING:
     from datetime import datetime
 
+    from airflow.listeners.types import AssetEvent as ListenerAssetEvent
     from airflow.providers.openlineage.extractors import OperatorLineage
     from airflow.providers.openlineage.plugins.facets import AirflowDagRunFacet, AirflowRunFacet
     from airflow.sdk.execution_time.secrets_masker import SecretsMasker, _secrets_masker
@@ -575,6 +579,36 @@ class OpenLineageAdapter(LoggingMixin):
             # This part cannot be wrapped to deduplicate code, otherwise the method cannot be pickled in multiprocessing.
             self.log.warning("Failed to emit OpenLineage DAG failed event: \n %s", traceback.format_exc())
 
+    def asset_watcher_event(
+        self,
+        asset_event: ListenerAssetEvent,
+        run_id: str,
+        job_name: str,
+        event_time: datetime,
+        outputs: list,
+    ) -> None:
+        """
+        Emit a START and COMPLETE event pair for an asset event produced by an asset watcher.
+
+        Both events carry the full set of facets, so either one alone describes the asset event.
+        """
+        for event_type in (RunState.START, RunState.COMPLETE):
+            # Each event gets its own job, run, facets and datasets, so nothing done to one while it is emitted
+            # reaches the other. The facets are built again rather than copied, which costs less for a large
+            # trigger payload.
+            run_facets = {**get_airflow_asset_event_run_facet(asset_event), **get_airflow_debug_facet()}
+            self.emit(
+                RunEvent(
+                    eventType=event_type,
+                    eventTime=event_time.isoformat(),
+                    job=self._build_job(job_name=job_name, job_type=_JOB_TYPE_ASSET_WATCHER),
+                    run=self._build_run(run_id=run_id, run_facets=run_facets),
+                    inputs=[],
+                    outputs=copy.deepcopy(outputs),
+                    producer=_PRODUCER,
+                )
+            )
+
     @staticmethod
     def _build_run(
         run_id: str,
@@ -602,7 +636,7 @@ class OpenLineageAdapter(LoggingMixin):
     @staticmethod
     def _build_job(
         job_name: str,
-        job_type: Literal["DAG", "TASK"],
+        job_type: Literal["DAG", "TASK", "ASSET_WATCHER"],
         job_description: str | None = None,
         job_description_type: str | None = None,
         job_owners: list[str] | None = None,

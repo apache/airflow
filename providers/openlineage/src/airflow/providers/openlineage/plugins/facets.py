@@ -107,6 +107,14 @@ class AirflowDagRunFacet(RunFacet):
 
 
 @define
+class AirflowAssetEventRunFacet(RunFacet):
+    """Airflow facet describing an asset event produced outside of any task, e.g. by an asset watcher."""
+
+    asset: dict
+    assetEvent: dict
+
+
+@define
 class AirflowDebugRunFacet(RunFacet):
     """Airflow Debug run facet."""
 

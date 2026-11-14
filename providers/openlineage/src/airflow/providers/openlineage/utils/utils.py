@@ -40,7 +40,7 @@ from openlineage.client.facet_v2 import (
     tags_job,
 )
 from openlineage.client.utils import RedactMixin
-from openlineage.client.uuid import generate_static_uuid
+from openlineage.client.uuid import generate_new_uuid, generate_static_uuid
 from sqlalchemy.orm.exc import DetachedInstanceError
 
 from airflow import __version__ as AIRFLOW_VERSION
@@ -60,6 +60,7 @@ from airflow.providers.openlineage import (
     conf,
 )
 from airflow.providers.openlineage.plugins.facets import (
+    AirflowAssetEventRunFacet,
     AirflowDagRunFacet,
     AirflowDebugRunFacet,
     AirflowJobFacet,
@@ -105,6 +106,7 @@ if TYPE_CHECKING:
     from openlineage.client.facet_v2 import JobFacet, RunFacet, processing_engine_run
     from sqlalchemy.orm import Session
 
+    from airflow.listeners.types import AssetEvent as ListenerAssetEvent
     from airflow.models.asset import AssetEvent
     from airflow.sdk.execution_time.secrets_masker import (
         Redactable,
@@ -145,6 +147,7 @@ _MAX_DOC_BYTES = 64 * 1024  # 64 kilobytes
 _PRODUCER = f"https://github.com/apache/airflow/tree/providers-openlineage/{OPENLINEAGE_PROVIDER_VERSION}"
 _JOB_TYPE_DAG: Literal["DAG"] = "DAG"
 _JOB_TYPE_TASK: Literal["TASK"] = "TASK"
+_JOB_TYPE_ASSET_WATCHER: Literal["ASSET_WATCHER"] = "ASSET_WATCHER"
 
 
 def try_import_from_string(string: str) -> Any:
@@ -1683,6 +1686,27 @@ def get_airflow_state_run_facet(
         return {}
 
 
+def is_dag_run_state_set_manually(msg: str | None) -> bool:
+    """
+    Return whether a Dag run listener call reports a state set manually through the UI or API.
+
+    The listener hooks carry no explicit flag for it, so this relies on the message the API server passes since
+    Airflow 3.3.1. Older versions pass an empty message, as the scheduler does for a Dag run that timed out, so
+    their manual changes can't be told apart and are not reported as manual.
+    """
+    return msg is not None and msg.startswith("Dag Run's state was manually set to")
+
+
+def is_task_instance_state_set_manually(error: None | str | BaseException) -> bool:
+    """
+    Return whether a task instance failure listener call reports a state set manually through the UI or API.
+
+    The listener hooks carry no explicit flag for it, so this relies on the error the API server passes since
+    Airflow 3.0.
+    """
+    return isinstance(error, str) and error.startswith("TaskInstance's state was manually set to")
+
+
 def is_dag_run_asset_triggered(
     dag_run: DagRun,
 ):
@@ -2712,3 +2736,84 @@ def translate_airflow_asset(asset: Asset, lineage_context) -> OpenLineageDataset
     except Exception as err:
         log.debug("Airflow asset `%s` conversion to OL Dataset failed with err `%s`", normalized_uri, err)
         return None
+
+
+def is_asset_event_from_asset_watcher(asset_event: ListenerAssetEvent) -> bool:
+    """Check whether an asset event was produced by an asset watcher's trigger rather than a task or API."""
+    if hasattr(asset_event, "source_watcher_name"):
+        return asset_event.source_watcher_name is not None
+    # Airflow versions that do not pass the source watcher to listeners. The REST API accepts any extra,
+    # so a ``from_trigger`` flag sent through it must not be taken for a watcher event.
+    extra = asset_event.extra or {}
+    return (
+        asset_event.source_task_id is None
+        and extra.get("from_trigger") is True
+        and "from_rest_api" not in extra
+    )
+
+
+def build_asset_watcher_event_ol_run_id(
+    asset_event: ListenerAssetEvent, event_time: datetime.datetime
+) -> str:
+    """
+    Return the OpenLineage run id for an asset event produced by an asset watcher.
+
+    The id is deterministic when listeners are given the asset event's id. The timestamp and asset name are
+    part of the seed because database ids can be reused, e.g. by SQLite after a rollback or after a
+    metadata database reset.
+    """
+    asset_event_id = getattr(asset_event, "id", None)
+    timestamp = getattr(asset_event, "timestamp", None)
+    if asset_event_id is None or timestamp is None:
+        return str(generate_new_uuid(event_time))
+    return str(
+        generate_static_uuid(
+            instant=timestamp,
+            data=f"{conf.namespace()}.asset_event.{asset_event_id}.{asset_event.asset.name}".encode(),
+        )
+    )
+
+
+def get_airflow_asset_event_run_facet(
+    asset_event: ListenerAssetEvent,
+) -> dict[str, AirflowAssetEventRunFacet]:
+    """Return a run facet describing an asset event and its asset."""
+    asset = asset_event.asset
+    # Fields read with getattr are not passed to listeners by every supported Airflow version.
+    partition_date = getattr(asset_event, "partition_date", None)
+    return {
+        "airflowAssetEvent": AirflowAssetEventRunFacet(
+            asset={
+                "id": getattr(asset_event, "asset_id", None),
+                "name": asset.name,
+                "uri": asset.uri,
+                "group": asset.group,
+                "extra": _convert_to_json_safe(asset.extra, "asset.extra") or {},
+            },
+            assetEvent={
+                "id": getattr(asset_event, "id", None),
+                "watcherName": getattr(asset_event, "source_watcher_name", None),
+                "triggerClasspath": getattr(asset_event, "source_trigger_classpath", None),
+                "extra": _convert_to_json_safe(asset_event.extra, "assetEvent.extra") or {},
+                "partitionKey": asset_event.partition_key,
+                "partitionDate": partition_date.isoformat() if partition_date else None,
+                "sourceAliases": [alias.name for alias in asset_event.source_aliases],
+            },
+        )
+    }
+
+
+def get_asset_event_output_datasets(asset_event: ListenerAssetEvent) -> list[OpenLineageDataset]:
+    """Return the asset of an asset event as an OpenLineage dataset, or nothing if it cannot be translated."""
+    asset = asset_event.asset
+    try:
+        # The URI is normalized by the provider of its scheme, which may fail here, e.g. when the triggerer has
+        # other providers installed than the Dag processor that accepted the asset.
+        dataset = translate_airflow_asset(Asset(name=asset.name, uri=asset.uri, extra=asset.extra), None)
+    except Exception as err:
+        log.debug("Asset `%s` could not be translated to an OpenLineage dataset: %s", asset.uri, err)
+        return []
+    if dataset is None:
+        log.debug("Asset `%s` could not be translated to an OpenLineage dataset.", asset.uri)
+        return []
+    return [dataset]

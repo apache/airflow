@@ -113,7 +113,11 @@ x-ol-common-env: &ol-common-env
     {"scope": {"dag_id": "openlineage_policy_exclude_datasets_sources_dag", "hook": ".*\\.SourceHook"}, "match_mode": "regex", "controls": {"exclude_datasets": [".*/hook_scoped_.*"]}},
     {"scope": {"dag_id": "openlineage_policy_exclude_datasets_versioned_dag"}, "controls": {"exclude_datasets": [".*/dag_excluded_.*"]}},
     {"scope": {"dag_id": "openlineage_policy_exclude_datasets_versioned_dag", "task_id": "t_skipped_emit_off"}, "controls": {"emit": false}},
-    {"scope": {"dag_id": "openlineage_policy_exclude_datasets_versioned_dag", "task_id": "t_skipped_full_info"}, "controls": {"include_full_task_info": true}}
+    {"scope": {"dag_id": "openlineage_policy_exclude_datasets_versioned_dag", "task_id": "t_skipped_full_info"}, "controls": {"include_full_task_info": true}},
+    {"scope": {"dag_id": "openlineage_policy_manual_state_dag_tasks__notrigger"}, "controls": {"emit_manual_state_change_events": false}},
+    {"scope": {"dag_id": "openlineage_policy_manual_state_dag_tasks__notrigger", "task_id": "sleep_kept"}, "controls": {"emit_manual_state_change_events": true}},
+    {"scope": {"dag_id": "openlineage_policy_manual_state_dag_tasks__notrigger", "task_id": "wait_task_events_off"}, "controls": {"emit_task_events": false}},
+    {"scope": {"dag_id": "openlineage_policy_manual_state_dag_dag_run__notrigger"}, "controls": {"emit_manual_state_change_events": false}}
     ]
   AIRFLOW__OPENLINEAGE__EXECUTION_TIMEOUT: '60'
   # openlineage_policy_exclude_datasets_versioned_dag checks that exclusion runs after this cap; no other Dag

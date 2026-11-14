@@ -145,6 +145,16 @@ config:
         example: ~
         type: integer
         version_added: 1.8.0
+      asset_watcher_event_queue_size:
+        description: |
+          Maximum number of asset watcher events waiting to be emitted in a process, e.g. the triggerer.
+          These events are emitted from a background thread, so the triggerer never waits for them; once
+          the limit is reached, further events are dropped with a warning. Each waiting event holds its
+          trigger payload in memory. Set to 0 or a negative number to emit no asset watcher events at all.
+        default: "100"
+        example: ~
+        type: integer
+        version_added: 2.22.0
       debug_mode:
         description: |
           If true, OpenLineage events will include information useful for debugging - potentially

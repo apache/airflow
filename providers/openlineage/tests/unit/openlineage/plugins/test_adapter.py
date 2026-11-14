@@ -48,6 +48,7 @@ from airflow.providers.openlineage.conf import namespace
 from airflow.providers.openlineage.extractors import OperatorLineage
 from airflow.providers.openlineage.plugins.adapter import _PRODUCER, OpenLineageAdapter
 from airflow.providers.openlineage.plugins.facets import (
+    AirflowAssetEventRunFacet,
     AirflowDagRunFacet,
     AirflowDebugRunFacet,
     AirflowRunFacet,
@@ -1879,3 +1880,68 @@ def test_adapter_build_job():
             processingType="BATCH", integration="AIRFLOW", jobType="TASK"
         ),
     }
+
+
+@mock.patch(
+    "airflow.providers.openlineage.plugins.adapter.get_airflow_asset_event_run_facet",
+    autospec=True,
+    side_effect=lambda _: {
+        "airflowAssetEvent": AirflowAssetEventRunFacet(asset={"name": "orders"}, assetEvent={})
+    },
+)
+@mock.patch("airflow.providers.openlineage.conf.debug_mode", return_value=False)
+def test_asset_watcher_event_emits_start_and_complete_with_same_run_job_and_outputs(_, mock_run_facet):
+    client = MagicMock()
+    adapter = OpenLineageAdapter(client)
+    event_time = datetime.datetime(2026, 11, 4, 12, 0, tzinfo=datetime.UTC)
+    run_facets = {"airflowAssetEvent": AirflowAssetEventRunFacet(asset={"name": "orders"}, assetEvent={})}
+    outputs = [Dataset(namespace="s3://bucket", name="orders")]
+    asset_event = mock.sentinel.asset_event
+
+    adapter.asset_watcher_event(
+        asset_event=asset_event,
+        run_id="01970000-0000-7000-8000-000000000000",
+        job_name="asset_watcher.orders",
+        event_time=event_time,
+        outputs=outputs,
+    )
+
+    assert mock_run_facet.mock_calls == [call(asset_event), call(asset_event)]
+
+    expected_run = Run(
+        runId="01970000-0000-7000-8000-000000000000",
+        facets={
+            **run_facets,
+            "processing_engine": processing_engine_run.ProcessingEngineRunFacet(
+                version=ANY, name="Airflow", openlineageAdapterVersion=ANY
+            ),
+        },
+    )
+    expected_job = Job(
+        namespace=namespace(),
+        name="asset_watcher.orders",
+        facets={
+            "jobType": job_type_job.JobTypeJobFacet(
+                processingType="BATCH", integration="AIRFLOW", jobType="ASSET_WATCHER"
+            )
+        },
+    )
+    assert client.emit.mock_calls == [
+        call(
+            RunEvent(
+                eventType=event_type,
+                eventTime=event_time.isoformat(),
+                run=expected_run,
+                job=expected_job,
+                inputs=[],
+                outputs=outputs,
+                producer=_PRODUCER,
+            )
+        )
+        for event_type in (RunState.START, RunState.COMPLETE)
+    ]
+    start, complete = (emit_call.args[0] for emit_call in client.emit.mock_calls)
+    assert start.run is not complete.run
+    assert start.job is not complete.job
+    assert start.outputs[0] is not complete.outputs[0]
+    assert start.run.facets["airflowAssetEvent"] is not complete.run.facets["airflowAssetEvent"]

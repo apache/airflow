@@ -24,6 +24,7 @@ import pickle
 import threading
 from decimal import Decimal
 from types import SimpleNamespace
+from typing import Any
 from unittest import mock
 from unittest.mock import MagicMock, PropertyMock, patch
 from uuid import UUID, uuid4
@@ -31,6 +32,7 @@ from uuid import UUID, uuid4
 import attrs
 import pendulum
 import pytest
+from openlineage.client.event_v2 import Dataset as OpenLineageDataset
 from openlineage.client.facet_v2 import parent_run
 from sqlalchemy.orm.exc import DetachedInstanceError
 from uuid6 import uuid7
@@ -41,7 +43,11 @@ from airflow.models.taskinstance import TaskInstance, TaskInstanceState
 from airflow.providers.common.compat.assets import Asset, AssetAlias
 from airflow.providers.common.compat.sdk import BaseOperator, TaskGroup, task, task_group, timezone
 from airflow.providers.openlineage.conf import namespace
-from airflow.providers.openlineage.plugins.facets import AirflowDagRunFacet, AirflowJobFacet
+from airflow.providers.openlineage.plugins.facets import (
+    AirflowAssetEventRunFacet,
+    AirflowDagRunFacet,
+    AirflowJobFacet,
+)
 from airflow.providers.openlineage.utils.utils import (
     _MAX_DOC_BYTES,
     AssetInfo,
@@ -61,15 +67,18 @@ from airflow.providers.openlineage.utils.utils import (
     _get_task_groups_details,
     _get_tasks_details,
     _truncate_string_to_byte_size,
+    build_asset_watcher_event_ol_run_id,
     build_dag_run_ol_run_id,
     build_task_event_job_facets,
     build_task_event_run_facets,
     build_task_instance_ol_run_id,
+    get_airflow_asset_event_run_facet,
     get_airflow_dag_run_facet,
     get_airflow_job_facet,
     get_airflow_mapped_task_facet,
     get_airflow_run_facet,
     get_airflow_state_run_facet,
+    get_asset_event_output_datasets,
     get_dag_documentation,
     get_dag_job_dependency_facet,
     get_dag_parent_run_facet,
@@ -89,7 +98,10 @@ from airflow.providers.openlineage.utils.utils import (
     get_task_loop_info,
     get_task_parent_run_facet,
     get_user_provided_run_facets,
+    is_asset_event_from_asset_watcher,
     is_dag_run_asset_triggered,
+    is_dag_run_state_set_manually,
+    is_task_instance_state_set_manually,
     is_valid_uuid,
     translate_airflow_asset,
 )
@@ -6754,3 +6766,225 @@ def test_get_task_parent_run_facet_explicit_root_ignores_dr_conf_job_type():
     assert parent_facet.root.job.name == "explicit_root"
     assert _get_job_type_facets(parent_facet.job) == _DAG_JOB_TYPE
     assert _get_job_type_facets(parent_facet.root.job) is None
+
+
+@attrs.define
+class _ListenerAssetEventWithoutSourceFields:
+    """The listener asset event as Airflow versions without the event id and source watcher pass it."""
+
+    asset: Any
+    extra: dict
+    source_dag_id: str | None
+    source_task_id: str | None
+    source_run_id: str | None
+    source_map_index: int | None
+    source_aliases: list
+    partition_key: str | None
+    partition_date: datetime.datetime | None = None
+
+
+@attrs.define
+class _ListenerAssetEventWithSourceFields(_ListenerAssetEventWithoutSourceFields):
+    """The listener asset event as Airflow versions with the event id and source watcher pass it."""
+
+    id: int = 42
+    timestamp: datetime.datetime = datetime.datetime(2026, 11, 4, 10, 0, tzinfo=datetime.UTC)
+    asset_id: int = 3
+    source_watcher_name: str | None = None
+    source_trigger_classpath: str | None = None
+
+
+_WATCHER_CLASSPATH = "airflow.providers.common.messaging.triggers.msg_queue.MessageQueueTrigger"
+
+
+def _build_listener_asset_event(
+    *, with_source_fields=False, source_task_id=None, extra=None, partition_date=None, **source_fields
+):
+    from airflow.serialization.definitions.assets import SerializedAsset, SerializedAssetAlias
+
+    kwargs = {
+        "asset": SerializedAsset(
+            name="orders", uri="s3://bucket/orders", group="asset", extra={"owner": "team"}, watchers=[]
+        ),
+        "extra": {"from_trigger": True, "payload": {"order_id": 1}} if extra is None else extra,
+        "source_dag_id": None,
+        "source_task_id": source_task_id,
+        "source_run_id": None,
+        "source_map_index": None,
+        "source_aliases": [SerializedAssetAlias(name="orders_alias", group="asset")],
+        "partition_key": "2026-11-04",
+        "partition_date": partition_date,
+    }
+    if not with_source_fields:
+        return _ListenerAssetEventWithoutSourceFields(**kwargs)
+    source_fields.setdefault("source_watcher_name", "orders_queue")
+    source_fields.setdefault("source_trigger_classpath", _WATCHER_CLASSPATH)
+    return _ListenerAssetEventWithSourceFields(**kwargs, **source_fields)
+
+
+@pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="Asset event listener hook requires Airflow 3.2+")
+class TestAssetWatcherEventHelpers:
+    @pytest.mark.parametrize(
+        ("source_task_id", "extra", "expected"),
+        [
+            pytest.param(None, {"from_trigger": True, "payload": "p"}, True, id="asset-watcher"),
+            pytest.param(None, {"custom": "value", "from_rest_api": True}, False, id="rest-api"),
+            pytest.param(
+                None, {"from_trigger": True, "from_rest_api": True}, False, id="rest-api-with-from-trigger"
+            ),
+            pytest.param("producer_task", {"from_trigger": True}, False, id="task"),
+        ],
+    )
+    def test_is_asset_event_from_asset_watcher_without_source_fields(self, source_task_id, extra, expected):
+        asset_event = _build_listener_asset_event(source_task_id=source_task_id, extra=extra)
+
+        assert is_asset_event_from_asset_watcher(asset_event) is expected
+
+    @pytest.mark.parametrize(
+        ("source_watcher_name", "expected"),
+        [
+            pytest.param("orders_queue", True, id="asset-watcher"),
+            pytest.param(None, False, id="not-asset-watcher-despite-from-trigger"),
+        ],
+    )
+    def test_is_asset_event_from_asset_watcher_with_source_fields(self, source_watcher_name, expected):
+        asset_event = _build_listener_asset_event(
+            with_source_fields=True, source_watcher_name=source_watcher_name
+        )
+
+        assert is_asset_event_from_asset_watcher(asset_event) is expected
+
+    def test_build_asset_watcher_event_ol_run_id_is_deterministic_with_source_fields(self):
+        asset_event = _build_listener_asset_event(with_source_fields=True)
+        later = datetime.datetime(2026, 11, 5, tzinfo=datetime.UTC)
+
+        run_id = build_asset_watcher_event_ol_run_id(asset_event, asset_event.timestamp)
+
+        assert UUID(run_id).version == 7
+        assert run_id == build_asset_watcher_event_ol_run_id(asset_event, later)
+        assert run_id != build_asset_watcher_event_ol_run_id(
+            _build_listener_asset_event(with_source_fields=True, id=43), asset_event.timestamp
+        )
+        assert run_id != build_asset_watcher_event_ol_run_id(
+            _build_listener_asset_event(with_source_fields=True, timestamp=later), asset_event.timestamp
+        )
+
+    def test_build_asset_watcher_event_ol_run_id_is_random_without_source_fields(self):
+        asset_event = _build_listener_asset_event()
+        event_time = datetime.datetime(2026, 11, 4, 12, 0, tzinfo=datetime.UTC)
+
+        run_id = build_asset_watcher_event_ol_run_id(asset_event, event_time)
+
+        assert UUID(run_id).version == 7
+        assert run_id != build_asset_watcher_event_ol_run_id(asset_event, event_time)
+
+    def test_get_airflow_asset_event_run_facet_falls_back_to_empty_extra(self):
+        circular: dict = {}
+        circular["self"] = circular
+
+        facet = get_airflow_asset_event_run_facet(_build_listener_asset_event(extra=circular))
+
+        assert facet["airflowAssetEvent"].assetEvent["extra"] == {}
+
+    @pytest.mark.parametrize(
+        ("with_source_fields", "expected_source_fields"),
+        [
+            pytest.param(
+                True,
+                {
+                    "assetId": 3,
+                    "id": 42,
+                    "watcherName": "orders_queue",
+                    "triggerClasspath": _WATCHER_CLASSPATH,
+                },
+                id="with-source-fields",
+            ),
+            pytest.param(
+                False,
+                {"assetId": None, "id": None, "watcherName": None, "triggerClasspath": None},
+                id="without-source-fields",
+            ),
+        ],
+    )
+    def test_get_airflow_asset_event_run_facet(self, with_source_fields, expected_source_fields):
+        partition_date = datetime.datetime(2026, 11, 4, tzinfo=datetime.UTC)
+        asset_event = _build_listener_asset_event(
+            with_source_fields=with_source_fields, partition_date=partition_date
+        )
+
+        assert get_airflow_asset_event_run_facet(asset_event) == {
+            "airflowAssetEvent": AirflowAssetEventRunFacet(
+                asset={
+                    "id": expected_source_fields["assetId"],
+                    "name": "orders",
+                    "uri": "s3://bucket/orders",
+                    "group": "asset",
+                    "extra": {"owner": "team"},
+                },
+                assetEvent={
+                    "id": expected_source_fields["id"],
+                    "watcherName": expected_source_fields["watcherName"],
+                    "triggerClasspath": expected_source_fields["triggerClasspath"],
+                    "extra": {"from_trigger": True, "payload": {"order_id": 1}},
+                    "partitionKey": "2026-11-04",
+                    "partitionDate": "2026-11-04T00:00:00+00:00",
+                    "sourceAliases": ["orders_alias"],
+                },
+            )
+        }
+
+    @patch("airflow.providers.openlineage.utils.utils.translate_airflow_asset", autospec=True)
+    def test_get_asset_event_output_datasets(self, mock_translate):
+        dataset = OpenLineageDataset(namespace="s3://bucket", name="orders")
+        mock_translate.return_value = dataset
+
+        assert get_asset_event_output_datasets(_build_listener_asset_event()) == [dataset]
+        [translated_asset, lineage_context] = mock_translate.call_args.args
+        assert (translated_asset.name, translated_asset.uri, translated_asset.extra) == (
+            "orders",
+            "s3://bucket/orders",
+            {"owner": "team"},
+        )
+        assert lineage_context is None
+
+    @patch(
+        "airflow.providers.openlineage.utils.utils.translate_airflow_asset", autospec=True, return_value=None
+    )
+    def test_get_asset_event_output_datasets_skips_untranslatable_asset(self, _):
+        assert get_asset_event_output_datasets(_build_listener_asset_event()) == []
+
+    @patch(
+        "airflow.providers.openlineage.utils.utils.Asset",
+        autospec=True,
+        side_effect=ValueError("no normalizer for this URI"),
+    )
+    def test_get_asset_event_output_datasets_skips_asset_failing_normalization(self, _):
+        assert get_asset_event_output_datasets(_build_listener_asset_event()) == []
+
+
+@pytest.mark.parametrize(
+    ("msg", "expected"),
+    [
+        pytest.param("Dag Run's state was manually set to `success`.", True, id="manual-success"),
+        pytest.param("Dag Run's state was manually set to `failed`.", True, id="manual-failed"),
+        pytest.param("success", False, id="scheduler-success"),
+        pytest.param("task_failure", False, id="scheduler-failure"),
+        pytest.param("", False, id="api-server-or-timeout-before-3.3.1"),
+        pytest.param(None, False, id="no-message"),
+    ],
+)
+def test_is_dag_run_state_set_manually(msg, expected):
+    assert is_dag_run_state_set_manually(msg) is expected
+
+
+@pytest.mark.parametrize(
+    ("error", "expected"),
+    [
+        pytest.param("TaskInstance's state was manually set to `failed`.", True, id="api-server"),
+        pytest.param("Executor reported that the task instance finished", False, id="scheduler"),
+        pytest.param(RuntimeError("boom"), False, id="exception"),
+        pytest.param(None, False, id="no-error"),
+    ],
+)
+def test_is_task_instance_state_set_manually(error, expected):
+    assert is_task_instance_state_set_manually(error) is expected

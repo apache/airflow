@@ -18,8 +18,10 @@ from __future__ import annotations
 
 import logging
 import os
+import queue
 import sys
 import threading
+import time
 from concurrent.futures import ProcessPoolExecutor
 from datetime import datetime
 from functools import cache
@@ -36,6 +38,8 @@ from airflow.providers.openlineage import conf
 from airflow.providers.openlineage.extractors import ExtractorManager, OperatorLineage
 from airflow.providers.openlineage.plugins.adapter import OpenLineageAdapter, RunState
 from airflow.providers.openlineage.utils.emission_policy import (
+    are_asset_watcher_events_enabled,
+    resolve_asset_watcher_emission_policy,
     resolve_dag_emission_policy,
     resolve_task_emission_policy,
 )
@@ -43,11 +47,13 @@ from airflow.providers.openlineage.utils.utils import (
     AIRFLOW_V_3_0_PLUS,
     AIRFLOW_V_3_2_PLUS,
     DagRunInfo,
+    build_asset_watcher_event_ol_run_id,
     get_airflow_dag_run_facet,
     get_airflow_debug_facet,
     get_airflow_job_facet,
     get_airflow_mapped_task_facet,
     get_airflow_run_facet,
+    get_asset_event_output_datasets,
     get_dag_documentation,
     get_dag_parent_run_facet,
     get_dag_run_dag_and_task_from_ti,
@@ -58,7 +64,10 @@ from airflow.providers.openlineage.utils.utils import (
     get_task_instance_run_id,
     get_task_parent_run_facet,
     get_user_provided_run_facets,
+    is_asset_event_from_asset_watcher,
     is_dag_run_asset_triggered,
+    is_dag_run_state_set_manually,
+    is_task_instance_state_set_manually,
     print_warning,
 )
 from airflow.settings import configure_orm
@@ -68,6 +77,7 @@ from airflow.utils.state import TaskInstanceState
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
+    from airflow.listeners.types import AssetEvent as ListenerAssetEvent
     from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
 
 if sys.platform == "darwin":
@@ -182,11 +192,132 @@ def _get_task_end_date(task_instance: RuntimeTaskInstance | TaskInstance) -> dat
     return timezone.utcnow()
 
 
+class _AssetWatcherEventEmitter:
+    """
+    Emit OpenLineage events for asset watcher events on one background daemon thread.
+
+    Asset watcher events are reported from the triggerer's main loop, which must never wait on an
+    OpenLineage transport. ``submit`` never blocks and never logs: events that do not fit in the queue are only
+    counted, and the thread logs the number dropped ``DROPPED_EVENTS_LOG_INTERVAL`` seconds after the first one.
+    While no events arrive, the thread sleeps without waking up.
+    The thread is a daemon so a hanging transport cannot hold up process exit, and it is the only user of its
+    adapter, so the OpenLineage client is never used concurrently.
+
+    :param max_queue_size: The number of events that can wait to be emitted, greater than ``0``.
+    """
+
+    DROPPED_EVENTS_LOG_INTERVAL = 60.0
+
+    def __init__(self, max_queue_size: int):
+        self.log = logging.getLogger(__name__)
+        # Threads and the queue's lock do not survive a fork intact, so a forked process builds its own emitter.
+        self.pid = os.getpid()
+        self._queue: queue.Queue[tuple[ListenerAssetEvent, datetime]] = queue.Queue(maxsize=max_queue_size)
+        self._max_queue_size = max_queue_size
+        self._dropped_count = 0
+        self._dropped_count_lock = threading.Lock()
+        self._adapter: OpenLineageAdapter | None = None
+        self._thread = threading.Thread(
+            target=self._run, name="openlineage-asset-watcher-events", daemon=True
+        )
+        self._thread.start()
+
+    def submit(self, asset_event: ListenerAssetEvent, event_time: datetime) -> None:
+        """Queue the asset event for emission, or drop it if the queue is full."""
+        try:
+            self._queue.put_nowait((asset_event, event_time))
+        except queue.Full:
+            with self._dropped_count_lock:
+                self._dropped_count += 1
+
+    def log_unsent_events(self) -> None:
+        """Log the events dropped since the last report and those still waiting, which are lost on exit."""
+        self._log_dropped_events()
+        if waiting_count := self._queue.qsize():
+            self.log.warning(
+                "OpenLineage did not emit %s asset watcher events that were still waiting when the process stopped.",
+                waiting_count,
+            )
+
+    def _log_dropped_events(self) -> None:
+        with self._dropped_count_lock:
+            dropped_count, self._dropped_count = self._dropped_count, 0
+        if dropped_count:
+            self.log.warning(
+                "OpenLineage dropped %s asset watcher events because %s events were already waiting to be "
+                "emitted, the limit set by [openlineage] asset_watcher_event_queue_size.",
+                dropped_count,
+                self._max_queue_size,
+            )
+
+    def _run(self) -> None:
+        # Set only while dropped events wait to be logged, so an idle thread sleeps until the next event.
+        dropped_events_log_due: float | None = None
+        while True:
+            timeout = (
+                None if dropped_events_log_due is None else max(dropped_events_log_due - time.monotonic(), 0)
+            )
+            try:
+                item = self._queue.get(timeout=timeout)
+            except queue.Empty:
+                item = None
+            if dropped_events_log_due is not None and time.monotonic() >= dropped_events_log_due:
+                self._log_dropped_events()
+                dropped_events_log_due = None
+            if item is not None:
+                self._emit_safely(*item)
+            # Events are only dropped while the queue is full, so this runs before the thread can go idle.
+            if dropped_events_log_due is None and self._dropped_count:
+                dropped_events_log_due = time.monotonic() + self.DROPPED_EVENTS_LOG_INTERVAL
+
+    def _emit_safely(self, asset_event: ListenerAssetEvent, event_time: datetime) -> None:
+        try:
+            self._emit(asset_event, event_time)
+        # Once the thread ends, every later event would be dropped without a word, so nothing may end it.
+        except BaseException as err:
+            self.log.warning(
+                "OpenLineage failed to emit asset watcher event of asset `%s`: %s: %s",
+                asset_event.asset.name,
+                type(err).__name__,
+                err,
+            )
+            self.log.debug("Exception details:", exc_info=True)
+
+    def _emit(self, asset_event: ListenerAssetEvent, event_time: datetime) -> None:
+        asset_name = asset_event.asset.name
+        policy = resolve_asset_watcher_emission_policy(asset_name)
+        outputs = get_asset_event_output_datasets(asset_event)
+        # The events exist to report the asset, and their facet names it, so they are not sent without it.
+        # An asset that can't be translated has no dataset to exclude, so its events are always sent.
+        if outputs and not policy.dataset_filter.exclude(outputs):
+            self.log.info(
+                "Skipping OpenLineage asset watcher event of asset `%s`: its dataset is excluded by the "
+                "emission policy.",
+                asset_name,
+            )
+            return
+        if self._adapter is None:
+            self._adapter = OpenLineageAdapter()
+        self._adapter.asset_watcher_event(
+            asset_event=asset_event,
+            run_id=build_asset_watcher_event_ol_run_id(asset_event, event_time),
+            # All watchers of an asset share one job, so the name doesn't depend on whether Airflow passes the
+            # watcher to listeners; the watcher is in the run facet instead.
+            job_name=f"asset_watcher.{asset_name}",
+            event_time=event_time,
+            outputs=outputs,
+        )
+
+
 class OpenLineageListener:
     """OpenLineage listener sends events on task instance and dag run starts, completes and failures."""
 
     def __init__(self):
         self._executor = None
+        # Created for the first asset watcher event to emit, so a component that emits none has no queue or thread.
+        self._asset_watcher_event_emitter: _AssetWatcherEventEmitter | None = None
+        self._are_asset_watcher_events_disabled = False
+        self._asset_watcher_event_emitter_lock = threading.Lock()
         self.log = logging.getLogger(__name__)
         self.extractor_manager = ExtractorManager()
         self.adapter = OpenLineageAdapter()
@@ -871,26 +1002,34 @@ class OpenLineageListener:
         per worker, so the child never shares a pooled Postgres SSL connection with
         the scheduler, and bursts of external-state-change events no longer produce a
         fork-per-event.
+
+        A state set through the UI or API is a manual state change, which ``emit_manual_state_change_events`` can
+        suppress. Only the API server reports a success or skip without the task. A failure is recognized by
+        the error the API server passes, as the scheduler also fails task instances without their task, e.g.
+        when it can't load the serialized Dag.
         """
         self.log.debug("`_on_task_instance_manual_state_change` was called with state: `%s`.", ti_state)
         end_date = timezone.utcnow()
 
-        include_full_task_info = False
-        task = getattr(ti, "task")  # on scheduler, we should have access to task
-        if task:
-            controls = resolve_task_emission_policy(
-                operator=task,
-                dag_id=ti.dag_id,
-                task_id=ti.task_id,
+        task = getattr(ti, "task", None)
+        if ti_state == TaskInstanceState.FAILED:
+            manual_state_change = is_task_instance_state_set_manually(error)
+        else:
+            manual_state_change = task is None
+        controls = resolve_task_emission_policy(
+            operator=task,
+            dag_id=ti.dag_id,
+            task_id=ti.task_id,
+            manual_state_change=manual_state_change,
+        )
+        if not controls.emit:
+            self.log.info(
+                "Skipping OpenLineage event emission for task `%s` in dag `%s`.",
+                ti.task_id,
+                ti.dag_id,
             )
-            if not controls.emit:
-                self.log.info(
-                    "Skipping OpenLineage event emission for task `%s` in dag `%s`.",
-                    ti.task_id,
-                    ti.dag_id,
-                )
-                return
-            include_full_task_info = controls.include_full_task_info
+            return
+        include_full_task_info = bool(task) and controls.include_full_task_info
 
         try:
             if not self.executor:
@@ -1123,6 +1262,9 @@ class OpenLineageListener:
     @hookimpl
     def before_stopping(self, component) -> None:
         self.log.debug("before_stopping: %s", component.__class__.__name__)
+        emitter = self._asset_watcher_event_emitter
+        if emitter is not None and emitter.pid == os.getpid():
+            emitter.log_unsent_events()
         if self._executor is None:
             # Do not build a pool just to tear it down -- on the task runner this hook fires at the
             # end of every task, where no pool was ever needed.
@@ -1199,7 +1341,9 @@ class OpenLineageListener:
     @hookimpl
     def on_dag_run_success(self, dag_run: DagRun, msg: str) -> None:
         try:
-            controls = resolve_dag_emission_policy(dag_run.dag_id, dag=dag_run.dag)
+            controls = resolve_dag_emission_policy(
+                dag_run.dag_id, dag=dag_run.dag, manual_state_change=is_dag_run_state_set_manually(msg)
+            )
             if not controls.emit:
                 self.log.info(
                     "Skipping OpenLineage dag event emission for DAG `%s`.",
@@ -1251,7 +1395,9 @@ class OpenLineageListener:
     @hookimpl
     def on_dag_run_failed(self, dag_run: DagRun, msg: str) -> None:
         try:
-            controls = resolve_dag_emission_policy(dag_run.dag_id, dag=dag_run.dag)
+            controls = resolve_dag_emission_policy(
+                dag_run.dag_id, dag=dag_run.dag, manual_state_change=is_dag_run_state_set_manually(msg)
+            )
             if not controls.emit:
                 self.log.info(
                     "Skipping OpenLineage dag event emission for DAG `%s`.",
@@ -1300,6 +1446,87 @@ class OpenLineageListener:
             )
         except BaseException as e:
             self.log.warning("OpenLineage received exception in method on_dag_run_failed", exc_info=e)
+
+    if AIRFLOW_V_3_2_PLUS:
+
+        @hookimpl
+        def on_asset_event_emitted(self, asset_event: ListenerAssetEvent) -> None:
+            try:
+                self._on_asset_event_emitted(asset_event)
+            except Exception as err:
+                self.log.warning(
+                    "OpenLineage received exception in method on_asset_event_emitted: %s: %s",
+                    type(err).__name__,
+                    err,
+                )
+                self.log.debug("Exception details:", exc_info=True)
+
+    def _on_asset_event_emitted(self, asset_event: ListenerAssetEvent) -> None:
+        """
+        Queue OpenLineage events for an asset event produced by an asset watcher.
+
+        Called on the triggerer's main loop, so only cheap checks run here, and nothing is logged per event;
+        building and emitting the events happens on the emitter thread. Asset events produced by tasks are
+        already reported as outputs of the task's own OpenLineage events.
+        """
+        if not is_asset_event_from_asset_watcher(asset_event):
+            return
+        emitter = self._get_asset_watcher_event_emitter()
+        if emitter is None:
+            return
+        # The time the event was stored, on Airflow versions that pass it to listeners
+        event_time = getattr(asset_event, "timestamp", None) or timezone.utcnow()
+        emitter.submit(asset_event, event_time)
+
+    def _get_asset_watcher_event_emitter(self) -> _AssetWatcherEventEmitter | None:
+        """Return the asset watcher event emitter of this process, or ``None`` if these events are turned off."""
+        emitter = self._asset_watcher_event_emitter
+        if emitter is not None and emitter.pid == os.getpid():
+            return emitter
+        if self._are_asset_watcher_events_disabled:
+            return None
+        with self._asset_watcher_event_emitter_lock:
+            emitter = self._asset_watcher_event_emitter
+            if emitter is not None and emitter.pid == os.getpid():
+                return emitter
+            if self._are_asset_watcher_events_disabled:
+                return None
+            # Decided once per process, so a disabled or misconfigured listener logs once, not per event.
+            if not are_asset_watcher_events_enabled():
+                self.log.info("OpenLineage asset watcher events are turned off by the emission policy.")
+                self._are_asset_watcher_events_disabled = True
+                return None
+            try:
+                max_queue_size = conf.asset_watcher_event_queue_size()
+            except Exception as err:
+                self.log.warning(
+                    "OpenLineage asset watcher events are turned off, as [openlineage] "
+                    "asset_watcher_event_queue_size is invalid: %s: %s",
+                    type(err).__name__,
+                    err,
+                )
+                self._are_asset_watcher_events_disabled = True
+                return None
+            if max_queue_size <= 0:
+                self.log.info(
+                    "OpenLineage asset watcher events are turned off by [openlineage] "
+                    "asset_watcher_event_queue_size set to %s.",
+                    max_queue_size,
+                )
+                self._are_asset_watcher_events_disabled = True
+                return None
+            try:
+                self._asset_watcher_event_emitter = _AssetWatcherEventEmitter(max_queue_size)
+            except Exception as err:
+                self.log.warning(
+                    "OpenLineage asset watcher events are turned off, as their emitter thread could not start: "
+                    "%s: %s",
+                    type(err).__name__,
+                    err,
+                )
+                self._are_asset_watcher_events_disabled = True
+                return None
+            return self._asset_watcher_event_emitter
 
     def submit_callable(self, callable, *args, **kwargs):
         try:
