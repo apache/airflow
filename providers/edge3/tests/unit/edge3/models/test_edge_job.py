@@ -25,7 +25,7 @@ from sqlalchemy import delete, select
 
 from airflow.providers.common.compat.sdk import TaskInstanceKey
 from airflow.providers.edge3.models.edge_job import EdgeJobModel, build_job_key
-from airflow.providers.edge3.models.types import EXECUTE_CALLBACK_TAG
+from airflow.providers.edge3.models.types import EXECUTE_CALLBACK_TAG, TEST_CONNECTION_TAG
 from airflow.utils.state import TaskInstanceState
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_3_PLUS
@@ -85,6 +85,32 @@ def test_build_job_key_maps_callback_row_to_callback_key():
     ],
 )
 def test_build_job_key_keeps_task_key_unless_full_callback_identity(dag_id, run_id, try_number, map_index):
+    key = build_job_key(dag_id, "abc", run_id, try_number, map_index)
+
+    assert key == TaskInstanceKey(dag_id, "abc", run_id, try_number, map_index)
+
+
+@pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="Connection-test workloads need Airflow 3.3+")
+def test_build_job_key_maps_connection_test_row_to_connection_test_key():
+    from airflow.models.connection_test import ConnectionTestKey
+
+    key = build_job_key(TEST_CONNECTION_TAG, "abc", f"{TEST_CONNECTION_TAG}-abc", 0, -1)
+
+    assert key == ConnectionTestKey(id="abc")
+
+
+@pytest.mark.parametrize(
+    ("dag_id", "run_id", "try_number", "map_index"),
+    [
+        pytest.param("test_dag", f"{TEST_CONNECTION_TAG}-abc", 0, -1, id="other_dag"),
+        pytest.param(TEST_CONNECTION_TAG, "manual__2026-01-01T00:00:00+00:00", 0, -1, id="task_run_id"),
+        pytest.param(TEST_CONNECTION_TAG, f"{TEST_CONNECTION_TAG}-abc", 1, -1, id="try_number"),
+        pytest.param(TEST_CONNECTION_TAG, f"{TEST_CONNECTION_TAG}-abc", 0, 2, id="map_index"),
+    ],
+)
+def test_build_job_key_keeps_task_key_unless_full_connection_test_identity(
+    dag_id, run_id, try_number, map_index
+):
     key = build_job_key(dag_id, "abc", run_id, try_number, map_index)
 
     assert key == TaskInstanceKey(dag_id, "abc", run_id, try_number, map_index)

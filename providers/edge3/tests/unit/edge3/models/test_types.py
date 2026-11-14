@@ -23,12 +23,21 @@ import pytest
 from pydantic import TypeAdapter
 
 from airflow.executors.workloads import BundleInfo, ExecuteTask
-from airflow.providers.edge3.models.types import ExecuteTypeBody, is_callback_execute
+from airflow.providers.edge3.models.types import (
+    ExecuteTypeBody,
+    is_callback_execute,
+    is_connection_test_execute,
+)
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_3_PLUS
 
 if AIRFLOW_V_3_3_PLUS:
-    from airflow.executors.workloads import CallbackFetchMethod, ExecuteCallback, TaskInstanceDTO
+    from airflow.executors.workloads import (
+        CallbackFetchMethod,
+        ExecuteCallback,
+        TaskInstanceDTO,
+        TestConnection as ConnectionTestWorkload,
+    )
     from airflow.executors.workloads.callback import CallbackDTO
 
 
@@ -81,6 +90,27 @@ class TestIsCallbackExecute:
     def test_returns_true_for_execute_callback(self):
         workload = _make_execute_callback()
         assert is_callback_execute(workload) is True
+
+
+def _make_test_connection() -> ConnectionTestWorkload:
+    return ConnectionTestWorkload(
+        connection_test_id=uuid4(),
+        connection_id="test_conn",
+        timeout=60,
+        token="test_token",
+    )
+
+
+@pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="TestConnection workload requires Airflow 3.3+")
+class TestIsConnectionTestExecute:
+    def test_returns_false_for_execute_task(self):
+        assert is_connection_test_execute(_make_execute_task()) is False
+
+    def test_returns_false_for_execute_callback(self):
+        assert is_connection_test_execute(_make_execute_callback()) is False
+
+    def test_returns_true_for_test_connection(self):
+        assert is_connection_test_execute(_make_test_connection()) is True
 
 
 @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="ExecuteTypeBody union requires Airflow 3.3+")
@@ -138,3 +168,12 @@ class TestExecuteTypeBody:
 
         assert isinstance(restored, ExecuteCallback)
         assert restored.callback.id == original.callback.id
+
+    def test_roundtrip_test_connection(self):
+        original = _make_test_connection()
+        json_str = self.adapter.dump_json(original)
+        restored = self.adapter.validate_json(json_str)
+
+        assert isinstance(restored, ConnectionTestWorkload)
+        assert restored.connection_test_id == original.connection_test_id
+        assert restored.connection_id == original.connection_id
