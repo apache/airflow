@@ -840,8 +840,12 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         """Perform a single iteration of the run loop."""
         self.load_triggers()
 
-        # Wait for up to 1 second for activity
-        self._service_subprocess(1)
+        # Service the runner for up to 1 second so each log line or request doesn't start a database pass
+        deadline = time.monotonic() + 1
+        while (remaining := deadline - time.monotonic()) > 0:
+            self._service_subprocess(remaining)
+            if self.events or self.failed_triggers or not self.is_alive():
+                break
 
         self.handle_events()
         self.handle_recovered_triggers()
