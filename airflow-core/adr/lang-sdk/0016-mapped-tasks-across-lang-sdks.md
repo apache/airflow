@@ -185,12 +185,20 @@ Every kind carries `name` and `value_schema`: the parameter's name, and the JSON
 annotation for a runtime that decodes into machine types. Declaration order is load-bearing — an SDK
 that binds by position, as Go does, has nothing else to go on.
 
+A `param` entry has a `default` key exactly when the stub parameter declares a default, and is
+required without one. `"default": null` is a default of `None`, or its equivalent in the runtime's
+language, not a missing default: a parameter that defaults to `None` is common in Python. So a
+writer emits `default` whenever the stub declares one, `null` included, a reader tells the two
+cases apart by the key and not by its value, and anything that reads and rewrites an entry keeps
+the key's presence.
+
 A `param` entry is the signature, not the call. The mapped values stay in the fields Python already
 writes: `op_kwargs_expand_input`, a decorated task's name for `expand_input`, and
 `partial_kwargs.op_kwargs`. At `ti_run` the server resolves the entry from `group_arg` first —
 `{group_id, key}`, naming an expand argument of an enclosing mapped task group — then from those
-fields by `name`, then from `default`. Only `expand_kwargs()` can leave a parameter unbound until
-run time, so only it needs that fallback.
+fields by `name`, then from `default` if the entry has one; a parameter still unbound fails the
+task. Only `expand_kwargs()` can leave a parameter unbound until run time, so only it needs that
+fallback.
 
 Parse time emits `param` just twice: for a mapped stub's parameters, and for a group member's
 argument that names its group. A member's other arguments are ordinary `literal`, `xcom` or `sequence`
@@ -562,6 +570,11 @@ there is no key to record. A `map()`, `zip()` or `concat()` expand argument is a
 Every `value` and `default` is checked JSON-serializable when it is written, so it crosses
 the language boundary as it stands. Plain JSON also keeps the stored Dag readable, where the encoded
 form wrapped every `value_schema` and every dict-valued `default` in a second object.
+
+**An explicit flag beside `default` for whether a parameter has one.** It would let a writer leave
+out a `None` default, where a typed model's natural spelling cannot tell an absent key from `null`.
+The flag says nothing the key's presence does not, every SDK's JSON library can write a present
+`null` with one idiom, and a second field admits entries where the two disagree.
 
 **The server reads the XCom to pick an element.** Under an offloading XCom backend the row holds only a storage path,
 and every `ti_run` of a mapped Lang-SDK task would read XCom values. The supervisor already reads through the backend.
