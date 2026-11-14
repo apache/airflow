@@ -229,7 +229,7 @@ def _stop_remaining_tasks(*, task_instance: TaskInstance, task_teardown_map=None
         assert task_instance.task.dag
 
     for ti in tis:
-        if ti.task_id == task_instance.task_id or ti.state in (
+        if ti.id == task_instance.id or ti.state in (
             TaskInstanceState.SUCCESS,
             TaskInstanceState.FAILED,
         ):
