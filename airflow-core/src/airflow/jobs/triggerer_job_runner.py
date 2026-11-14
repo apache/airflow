@@ -169,6 +169,23 @@ _REASSIGNED_CANCEL_MSG = "__airflow_reassigned__"
 
 _ON_CANCEL_TIMEOUT: int = conf.getint("triggerer", "on_kill_timeout", fallback=30)
 
+# Yielding after every item costs one event-loop round trip per item. This interval instead bounds how
+# long the create, cancel and cleanup loops keep running triggers waiting, plus one item's work.
+_DRAIN_YIELD_INTERVAL: float = 0.002
+
+
+async def _maybe_yield(last_yield: float) -> float:
+    """
+    Yield to the event loop if ``_DRAIN_YIELD_INTERVAL`` seconds have passed since ``last_yield``.
+
+    Return the monotonic time of the latest yield, to pass to the next call.
+    """
+    if time.monotonic() - last_yield < _DRAIN_YIELD_INTERVAL:
+        return last_yield
+    await asyncio.sleep(0)
+    return time.monotonic()
+
+
 # Task instance of the trigger whose request the supervisor is handling, sent to the API as
 # ``TRIGGER_TI_ID_HEADER``.
 _handling_trigger_ti_id: contextvars.ContextVar[UUID | None] = contextvars.ContextVar(
@@ -1470,6 +1487,9 @@ class TriggerRunner:
     # Outbound queue of failed triggers
     failed_triggers: deque[tuple[int, BaseException | None]]
 
+    # Ids of trigger tasks that have exited, queued by the done callback create_triggers() attaches
+    _finished_trigger_ids: deque[int]
+
     # Team associated with this triggerer instance.
     team_name: str | None
 
@@ -1491,6 +1511,7 @@ class TriggerRunner:
         self.to_release = deque()
         self.events = deque()
         self.failed_triggers = deque()
+        self._finished_trigger_ids = deque()
         self.team_name = None
         self.job_id = None
         self._stop_event = None
@@ -1642,8 +1663,9 @@ class TriggerRunner:
         if has_work:
             creation_start = time.monotonic()
 
+        last_yield = time.monotonic()
         while self.to_create:
-            await asyncio.sleep(0)
+            last_yield = await _maybe_yield(last_yield)
             context: Context | None = None
             workload = self.to_create.popleft()
             trigger_id = workload.id
@@ -1659,7 +1681,7 @@ class TriggerRunner:
                 continue
 
             # Loading the trigger class could have been expensive. Lets give other things a chance to run!
-            await asyncio.sleep(0)
+            last_yield = await _maybe_yield(last_yield)
 
             try:
                 from airflow.serialization.decoders import smart_decode_trigger_kwargs
@@ -1708,11 +1730,15 @@ class TriggerRunner:
                     tags=prune_dict({"team_name": self.team_name}),
                 )
 
+            task = asyncio.create_task(
+                self.run_trigger(trigger_id, trigger_instance, workload.timeout_after, context),
+                name=trigger_name,
+            )
+            task.add_done_callback(
+                lambda _, trigger_id=trigger_id: self._finished_trigger_ids.append(trigger_id)
+            )
             self.triggers[trigger_id] = {
-                "task": asyncio.create_task(
-                    self.run_trigger(trigger_id, trigger_instance, workload.timeout_after, context),
-                    name=trigger_name,
-                ),
+                "task": task,
                 "is_watcher": isinstance(trigger_instance, BaseEventTrigger),
                 "name": trigger_name,
                 "events": 0,
@@ -1727,6 +1753,7 @@ class TriggerRunner:
 
     async def cancel_triggers(self):
         """Drain to_cancel and to_release; the cancel message tells run_trigger() if on_kill() applies."""
+        last_yield = time.monotonic()
         for queue, cancel_msg in (
             (self.to_cancel, _USER_ACTION_CANCEL_MSG),
             (self.to_release, _REASSIGNED_CANCEL_MSG),
@@ -1735,54 +1762,56 @@ class TriggerRunner:
                 trigger_id = queue.popleft()
                 if trigger_id in self.triggers:
                     self.triggers[trigger_id]["task"].cancel(cancel_msg)
-                await asyncio.sleep(0)
+                last_yield = await _maybe_yield(last_yield)
 
     async def cleanup_finished_triggers(self) -> list[int]:
         """
-        Go through all trigger tasks (coroutines) and clean up entries for ones that have exited.
+        Clean up entries for trigger tasks (coroutines) that have exited.
 
+        Only the triggers queued by their task's done callback are visited, not every running one.
         Optionally warn users if the exit was not normal.
         """
         finished_ids: list[int] = []
-        for trigger_id, details in list(self.triggers.items()):
-            if details["task"].done():
-                finished_ids.append(trigger_id)
-                # Check to see if it exited for good reasons
-                saved_exc = None
-                try:
-                    result = details["task"].result()
-                except (asyncio.CancelledError, SystemExit, KeyboardInterrupt):
-                    # These are "expected" exceptions and we stop processing here
-                    # If we don't, then the system requesting a trigger be removed -
-                    # which turns into CancelledError - results in a failure.
-                    del self.triggers[trigger_id]
-                    continue
-                except BaseException as e:
-                    # This is potentially bad, so log it.
-                    self.log.exception(
-                        "Trigger %s exited with error %s", details["name"], e, trigger_id=trigger_id
-                    )
-                    saved_exc = e
-                else:
-                    # See if they foolishly returned a TriggerEvent
-                    if isinstance(result, TriggerEvent):
-                        self.log.error(
-                            "Trigger returned a TriggerEvent rather than yielding it",
-                            trigger=details["name"],
-                            trigger_id=trigger_id,
-                        )
-                # See if this exited without sending an event, in which case
-                # any task instances depending on it need to be failed
-                if details["events"] == 0:
+        last_yield = time.monotonic()
+        # Ids queued while this pass yields are left for the next pass.
+        for _ in range(len(self._finished_trigger_ids)):
+            last_yield = await _maybe_yield(last_yield)
+            trigger_id = self._finished_trigger_ids.popleft()
+            details = self.triggers.pop(trigger_id)
+            finished_ids.append(trigger_id)
+            # Check to see if it exited for good reasons
+            saved_exc = None
+            try:
+                result = details["task"].result()
+            except (asyncio.CancelledError, SystemExit, KeyboardInterrupt):
+                # These are "expected" exceptions and we stop processing here
+                # If we don't, then the system requesting a trigger be removed -
+                # which turns into CancelledError - results in a failure.
+                continue
+            except BaseException as e:
+                # This is potentially bad, so log it.
+                self.log.exception(
+                    "Trigger %s exited with error %s", details["name"], e, trigger_id=trigger_id
+                )
+                saved_exc = e
+            else:
+                # See if they foolishly returned a TriggerEvent
+                if isinstance(result, TriggerEvent):
                     self.log.error(
-                        "Trigger exited without sending an event. Dependent tasks will be failed.",
-                        name=details["name"],
+                        "Trigger returned a TriggerEvent rather than yielding it",
+                        trigger=details["name"],
                         trigger_id=trigger_id,
                     )
-                    # TODO: better formatting of the exception?
-                    self.failed_triggers.append((trigger_id, saved_exc))
-                del self.triggers[trigger_id]
-            await asyncio.sleep(0)
+            # See if this exited without sending an event, in which case
+            # any task instances depending on it need to be failed
+            if details["events"] == 0:
+                self.log.error(
+                    "Trigger exited without sending an event. Dependent tasks will be failed.",
+                    name=details["name"],
+                    trigger_id=trigger_id,
+                )
+                # TODO: better formatting of the exception?
+                self.failed_triggers.append((trigger_id, saved_exc))
         return finished_ids
 
     def process_trigger_events(self, finished_ids: list[int]) -> messages.TriggerStateChanges:
