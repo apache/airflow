@@ -21,7 +21,7 @@
 
 Write Apache Airflow Dags and tasks in Java, Kotlin, Scala or any other JVM language.
 
-**Status:** Beta · Java 11+
+**Status:** Experimental · API may change · Java 11+
 
 ## Installation
 
