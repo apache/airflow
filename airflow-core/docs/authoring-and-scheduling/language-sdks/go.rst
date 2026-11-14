@@ -518,7 +518,10 @@ The ``sdk.Client``
      - A ``Connection`` with ``ID``, ``Type``, ``Host``, ``Port``, ``Login``, ``Password``, ``Path`` and ``Extra``,
        and a ``GetURI()`` helper.
    * - ``GetXCom(ctx, dagID, runID, taskID, mapIndex, key, nil)``
-     - An XCom value, as an ``any``. See :ref:`go-sdk/types`.
+     - An XCom value, as an ``any``, or ``nil`` when none was pushed. A ``nil`` ``mapIndex`` reads the task's
+       result: its value, or for a mapped task the values of all its instances in a ``[]any`` ordered by map
+       index. A map index reads one instance of a mapped task; one that selects no task instance reads ``nil``.
+       See :ref:`go-sdk/types`.
    * - ``PushXCom(ctx, ti, key, value)``
      - Publishes an XCom value.
    * - ``TaskStateStore()``

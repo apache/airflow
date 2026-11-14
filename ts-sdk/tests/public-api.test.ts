@@ -413,15 +413,15 @@ describe("public API", () => {
       readonly signal: AbortSignal;
     }>();
     expectTypeOf<GetXComOpts>().toEqualTypeOf<{
-      key: string;
+      key?: string;
       dagId?: string;
       runId?: string;
-      taskId?: string;
+      taskId: string;
       mapIndex?: number | null;
       includePriorDates?: boolean;
     }>();
     expectTypeOf<SetXComOpts>().toEqualTypeOf<{
-      key: string;
+      key?: string;
       value: SetXComOpts["value"];
       dagId?: string;
       runId?: string;

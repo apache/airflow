@@ -20,6 +20,7 @@
 package org.apache.airflow.k8sexample;
 
 import java.util.Date;
+import java.util.List;
 import org.apache.airflow.sdk.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -42,5 +43,12 @@ public class MixedLanguageExample {
   public void transform(Client client) {
     var variable = client.getVariable("my_variable");
     logger.info("java_transform obtained variable {}", variable);
+
+    // python_fanout is mapped, so its result is every instance's value in a list.
+    // Integers arrive as Long.
+    var fanout = client.getXCom("python_fanout");
+    if (!List.of(1L, 2L, 3L).equals(fanout)) {
+      throw new IllegalStateException("python_fanout result is " + fanout + ", want [1, 2, 3]");
+    }
   }
 }

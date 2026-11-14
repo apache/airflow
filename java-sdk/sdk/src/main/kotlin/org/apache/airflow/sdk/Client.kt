@@ -147,15 +147,24 @@ class Client internal constructor(
    * @param dagId Dag that owns the XCom; defaults to the current Dag.
    * @param taskId Task that pushed the XCom.
    * @param runId Run that produced the XCom; defaults to the current run.
-   * @param mapIndex Map index of the source task instance.
+   * @param mapIndex Map index of the task instance to read, or `null` to read
+   *    the task's result. See below.
    * @param includePriorDates If `true`, also search earlier Dag-run dates.
    * @return The XCom value, or `null` if none was pushed.
    * @throws ApiError if the API call fails.
    *
-   * If `map_index` is set to `null` against a mapped task, the task's
-   * "collective result" is returned. Results from all mapped instances are
-   * aggregated into a list, ordered by the map index (ascending). For a
-   * non-mapped task, setting `map_index` to `null` is equivalent to `-1`.
+   * With [mapIndex] `null`, what is read depends on whether the task is mapped,
+   * as its definition in the Dag says, not on how many instances it ran:
+   *
+   * - For a task that is not mapped, its value.
+   * - For a mapped task, its "collective result": the values of all its
+   *   instances in a list, ordered by map index. Instances that pushed nothing
+   *   are left out. If none pushed a value, including when the task expanded
+   *   to no instances, the result is an empty list, or `null` on Airflow 3.4.
+   *
+   * A map index reads that one instance's value. One that selects no task
+   * instance of the task, such as any map index of a task that is not mapped,
+   * reads `null`.
    */
   @JvmOverloads fun getXCom(
     key: String = XCOM_RETURN_KEY,

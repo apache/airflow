@@ -23,6 +23,8 @@
 // ../dags. The coordinator locates this bundle by dag_id, so only the TypeScript tasks
 // are registered here.
 
+import { deepStrictEqual } from "node:assert/strict";
+
 import { Bundle, getClient, TaskHandler } from "@apache-airflow/ts-sdk";
 
 const MIXED_LANGUAGE_DAG_ID = "lang_sdk_mixed_language";
@@ -37,6 +39,10 @@ export async function tsExtract() {
 export async function tsTransform() {
   const value = await getClient().getVariable("my_variable");
   console.log(`ts_transform obtained variable: ${value}`);
+
+  // python_fanout is mapped, so its result is every instance's value in a list.
+  const fanout = await getClient().getXCom<number[]>({ taskId: "python_fanout" });
+  deepStrictEqual(fanout, [1, 2, 3]);
 }
 
 const bundle = new Bundle();

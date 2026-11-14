@@ -583,8 +583,8 @@ class RuntimeTaskInstance(TaskInstance):
         :param dag_id: If provided, only pulls XComs from this Dag. If *None*
             (default), the Dag of the calling task is used.
         :param map_indexes: If provided, only pull XComs with matching indexes.
-            If *None* (default), this is inferred from the task(s) being pulled
-            (see below for details).
+            If not provided (default), every instance of the task(s) being pulled
+            is pulled (see below for details).
         :param include_prior_dates: If False, only XComs from the current
             logical_date are returned. If *True*, XComs from previous dates
             are returned as well.
@@ -592,14 +592,14 @@ class RuntimeTaskInstance(TaskInstance):
             If *None* (default), the run_id of the calling task is used.
 
         When pulling one single task (``task_id`` is *None* or a str) without
-        specifying ``map_indexes``, the return value is a single XCom entry
-        (map_indexes is set to map_index of the calling task instance).
+        specifying ``map_indexes``, the XComs of all its instances are pulled. If
+        exactly one is found, it is returned on its own; otherwise they are
+        returned as a list.
 
-        When pulling task is mapped the specified ``map_index`` is used, so by default
-        pulling on mapped task will result in no matching XComs if the task instance
-        of the method call is not mapped. Otherwise, the map_index of the calling task
-        instance is used. Setting ``map_indexes`` to *None* will pull XCom as it would
-        from a non mapped task.
+        Setting ``map_indexes`` to *None* pulls the task's result: the XCom of a
+        non-mapped task, or for a mapped task the XComs of all its instances as a
+        list (*None* instead of an empty list on Airflow 3.4). A map index the
+        task has no instance at matches no XCom.
 
         In either case, ``default`` (*None* if not specified) is returned if no
         matching XComs are found.

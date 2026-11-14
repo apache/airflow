@@ -581,6 +581,20 @@ class CommsTest {
     Assertions.assertInstanceOf(ApiError::class.java, failure)
   }
 
+  @Test
+  @DisplayName("getXCom sends a null map index, which the server resolves by the task's definition")
+  @Timeout(value = 30, unit = TimeUnit.SECONDS)
+  fun getXComSendsNullMapIndex() {
+    val (body, failure) =
+      roundTrip({ responseFrame(it) }) {
+        it.getXCom(dagId = "dag", runId = "run", taskId = "upstream")
+      }
+
+    Assertions.assertNull(failure, "getXCom should return normally on XComResult, got $failure")
+    Assertions.assertEquals("GetXCom", body["type"])
+    Assertions.assertNull(body["map_index"])
+  }
+
   private val tiId: UUID = UUID.fromString("0199a5d6-1c2e-7c6a-9c1e-7a2f7f0d1e42")
 
   private fun currentTaskInstance() = StartupDetails().also { it.ti = TaskInstance().also { ti -> ti.id = tiId } }
