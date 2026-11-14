@@ -17,6 +17,12 @@
 # under the License.
 from __future__ import annotations
 
+import os
+import signal
+import sqlite3
+import sys
+import threading
+import time
 from unittest import mock
 from unittest.mock import MagicMock, patch
 
@@ -24,6 +30,9 @@ import pytest
 import sqlalchemy
 
 from airflow.models import Connection
+from airflow.providers.common.compat.sdk import AirflowTaskTimeout
+from airflow.providers.common.sql.hooks.handlers import fetch_all_handler
+from airflow.providers.sqlite.hooks import sqlite as sqlite_hook_module
 from airflow.providers.sqlite.hooks.sqlite import SqliteHook
 
 
@@ -235,3 +244,143 @@ class TestSqliteHook:
         assert engine.name == "sqlite"
         # Assert filepath of the sqliate DB is correct
         assert engine.url.database == hook.get_connection(conn_id).host
+
+
+class TestSqliteHookInterruptRunningStatement:
+    """A long statement is interrupted by on_kill and by execution_timeout instead of running to completion."""
+
+    # Counts to 300 million, which takes well over 10 s; an interrupted statement stops after about 0.5 s
+    LONG_STATEMENT = (
+        "WITH RECURSIVE c(x) AS (SELECT 1 UNION ALL SELECT x + 1 FROM c WHERE x < 300000000) "
+        "SELECT count(*) FROM c"
+    )
+
+    @pytest.fixture
+    def hook(self):
+        class InMemorySqliteHook(SqliteHook):
+            conn_name_attr = "test_conn_id"
+
+            def get_conn(self):
+                conn = sqlite3.connect(":memory:")
+
+                def boom():
+                    raise ValueError("boom")
+
+                conn.create_function("boom", 0, boom)
+                return conn
+
+        return InMemorySqliteHook()
+
+    @pytest.fixture
+    def signal_after(self):
+        """
+        Run a signal handler 0.5 s into the test, like the SIGTERM (on_kill) and SIGALRM (execution_timeout)
+        handlers of a task. SIGUSR1 is used so that the timers of pytest-timeouts are left alone.
+        """
+        previous = signal.getsignal(signal.SIGUSR1)
+        timers = []
+
+        def install(handler):
+            signal.signal(signal.SIGUSR1, handler)
+            timers.append(threading.Timer(0.5, os.kill, (os.getpid(), signal.SIGUSR1)))
+            timers[-1].start()
+
+        yield install
+        for timer in timers:
+            timer.cancel()
+        signal.signal(signal.SIGUSR1, previous)
+
+    def test_statement_is_interrupted_when_the_execution_timeout_elapses(self, hook, signal_after):
+        unraisablehook = sys.unraisablehook
+
+        def raise_timeout(signum, frame):
+            raise AirflowTaskTimeout()
+
+        signal_after(raise_timeout)
+        start = time.monotonic()
+        with pytest.raises(AirflowTaskTimeout):
+            hook.run(self.LONG_STATEMENT)
+
+        assert time.monotonic() - start < 5
+        assert sys.unraisablehook is unraisablehook
+
+    def test_statement_is_interrupted_by_cancel_query_from_a_signal_handler(self, hook, signal_after):
+        def cancel(signum, frame):
+            # What SQLExecuteQueryOperator.on_kill does when the task receives SIGTERM
+            assert hook.cancel_query() is True
+
+        signal_after(cancel)
+        start = time.monotonic()
+        with pytest.raises(sqlite3.OperationalError, match="interrupted"):
+            hook.run(self.LONG_STATEMENT)
+
+        assert time.monotonic() - start < 5
+
+    def test_other_callback_errors_are_passed_to_the_previous_unraisablehook(self, hook, mocker):
+        # Only the progress handler's own interruptions are taken over, and they raise in place of the
+        # OperationalError; an error raised by a user-defined function still fails the statement as usual
+        previous = mocker.patch.object(sys, "unraisablehook")
+
+        with pytest.raises(sqlite3.OperationalError, match="user-defined function raised exception"):
+            hook.run("SELECT boom()")
+
+        assert sys.unraisablehook is previous
+        (unraisable,) = previous.call_args.args
+        assert isinstance(unraisable.exc_value, ValueError)
+
+    def test_result_is_returned_when_not_interrupted(self, hook):
+        assert hook.run("SELECT 1 + 1", handler=fetch_all_handler) == [(2,)]
+
+    @staticmethod
+    def mocked_hook():
+        cursor = mock.MagicMock(
+            spec=["execute", "fetchall", "close", "description", "rowcount", "connection"]
+        )
+        cursor.connection = mock.MagicMock(spec=sqlite3.Connection)
+        conn = mock.MagicMock()
+        conn.cursor.return_value = cursor
+
+        class UnitTestSqliteHook(SqliteHook):
+            conn_name_attr = "test_conn_id"
+
+            def get_conn(self):
+                return conn
+
+        return UnitTestSqliteHook(), cursor.connection
+
+    def test_progress_handler_is_installed_only_while_the_statement_runs(self):
+        hook, sqlite_conn = self.mocked_hook()
+
+        hook.run(["select 1", "select 2"])
+
+        assert (
+            sqlite_conn.set_progress_handler.call_args_list
+            == [
+                mock.call(sqlite_hook_module._run_signal_handlers, SqliteHook.progress_handler_interval),
+                mock.call(None, 0),
+            ]
+            * 2
+        )
+
+    def test_progress_handler_is_not_installed_when_cancel_on_interrupt_is_disabled(self):
+        hook, sqlite_conn = self.mocked_hook()
+        hook.cancel_on_interrupt = False
+
+        hook.run("select 1")
+
+        sqlite_conn.set_progress_handler.assert_not_called()
+
+    def test_progress_handler_is_not_installed_outside_the_main_thread(self):
+        hook, sqlite_conn = self.mocked_hook()
+
+        thread = threading.Thread(target=hook.run, args=("select 1",))
+        thread.start()
+        thread.join()
+
+        sqlite_conn.set_progress_handler.assert_not_called()
+
+    def test_cancel_query_without_a_running_statement(self):
+        hook, sqlite_conn = self.mocked_hook()
+
+        assert hook.cancel_query() is False
+        sqlite_conn.interrupt.assert_not_called()
