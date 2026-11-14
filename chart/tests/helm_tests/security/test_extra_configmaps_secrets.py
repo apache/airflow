@@ -131,7 +131,7 @@ class TestExtraConfigMapsSecrets:
             assert configmap_obj["data"] == expected_data
             assert configmap_obj["stringData"] == expected_string_data
 
-    def test_extra_configmaps_secrets_labels(self):
+    def test_extra_configmaps_secrets_labels(self, chart_app_version):
         k8s_objects = render_chart(
             name=RELEASE_NAME,
             values={
@@ -142,12 +142,14 @@ class TestExtraConfigMapsSecrets:
             show_only=["templates/configmaps/extra-configmaps.yaml", "templates/secrets/extra-secrets.yaml"],
         )
         expected_labels = {
+            "app.kubernetes.io/instance": RELEASE_NAME,
+            "app.kubernetes.io/managed-by": "Helm",
+            "app.kubernetes.io/name": "airflow",
+            "app.kubernetes.io/part-of": "airflow",
+            "app.kubernetes.io/version": chart_app_version,
+            "helm.sh/chart": mock.ANY,
             "label1": "value1",
             "label2": "value2",
-            "release": RELEASE_NAME,
-            "heritage": "Helm",
-            "chart": mock.ANY,
-            "tier": "airflow",
         }
         for k8s_object in k8s_objects:
             assert k8s_object["metadata"]["labels"] == expected_labels
@@ -160,7 +162,7 @@ class TestExtraConfigMapsSecrets:
             ({"label1": "value1", "label2": "value2"}, {"label3": "value3", "label4": "value4"}),
         ],
     )
-    def test_extra_configmaps_secrets_additional_labels(self, chart_labels, local_labels):
+    def test_extra_configmaps_secrets_additional_labels(self, chart_labels, local_labels, chart_app_version):
         k8s_objects = render_chart(
             name=RELEASE_NAME,
             values={
@@ -181,10 +183,12 @@ class TestExtraConfigMapsSecrets:
             show_only=["templates/configmaps/extra-configmaps.yaml", "templates/secrets/extra-secrets.yaml"],
         )
         common_labels = {
-            "release": RELEASE_NAME,
-            "heritage": "Helm",
-            "chart": mock.ANY,
-            "tier": "airflow",
+            "app.kubernetes.io/instance": RELEASE_NAME,
+            "app.kubernetes.io/managed-by": "Helm",
+            "app.kubernetes.io/name": "airflow",
+            "app.kubernetes.io/part-of": "airflow",
+            "app.kubernetes.io/version": chart_app_version,
+            "helm.sh/chart": mock.ANY,
         }
         for k8s_object in k8s_objects:
             assert k8s_object["metadata"]["labels"] == {**common_labels, **chart_labels, **local_labels}

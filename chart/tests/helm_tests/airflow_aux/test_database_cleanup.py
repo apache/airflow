@@ -334,7 +334,7 @@ class TestDatabaseCleanup:
         ]
         assert jmespath.search("spec.jobTemplate.spec.template.spec.containers[0].args", docs[0]) == ["Helm"]
 
-    def test_should_set_labels_to_jobs_from_cronjob(self):
+    def test_should_set_labels_to_jobs_from_cronjob(self, chart_app_version):
         docs = render_chart(
             values={
                 "databaseCleanup": {"enabled": True},
@@ -344,9 +344,11 @@ class TestDatabaseCleanup:
         )
 
         assert jmespath.search("spec.jobTemplate.spec.template.metadata.labels", docs[0]) == {
-            "tier": "airflow",
-            "component": "database-cleanup",
-            "release": "release-name",
+            "app.kubernetes.io/component": "database-cleanup",
+            "app.kubernetes.io/instance": "release-name",
+            "app.kubernetes.io/name": "airflow",
+            "app.kubernetes.io/part-of": "airflow",
+            "app.kubernetes.io/version": chart_app_version,
             "project": "airflow",
         }
 

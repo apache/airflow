@@ -312,7 +312,7 @@ class TestAPIServerDeployment:
             "preferredDuringSchedulingIgnoredDuringExecution[0]."
             "podAffinityTerm.labelSelector.matchLabels",
             docs[0],
-        ) == {"component": "api-server"}
+        ) == {"app.kubernetes.io/component": "api-server"}
 
     def test_affinity_tolerations_topology_spread_constraints_and_node_selector_precedence(self):
         """When given both global and api-server affinity etc, api-server affinity etc is used."""
@@ -636,9 +636,9 @@ class TestAPIServerService:
         assert jmespath.search("metadata.name", docs[0]) == "release-name-api-server"
         assert jmespath.search("metadata.annotations", docs[0]) is None
         assert jmespath.search("spec.selector", docs[0]) == {
-            "tier": "airflow",
-            "component": "api-server",
-            "release": "release-name",
+            "app.kubernetes.io/component": "api-server",
+            "app.kubernetes.io/instance": "release-name",
+            "app.kubernetes.io/part-of": "airflow",
         }
         assert jmespath.search("spec.type", docs[0]) == "ClusterIP"
         assert {"name": "api-server", "port": 8080} in jmespath.search("spec.ports", docs[0])

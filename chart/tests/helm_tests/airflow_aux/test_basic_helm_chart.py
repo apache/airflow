@@ -236,7 +236,9 @@ class TestBaseChartTest:
             ),
         ],
     )
-    def test_labels_are_valid(self, executor, flower_routing_values, flower_routing_resource, api_versions):
+    def test_labels_are_valid(
+        self, executor, flower_routing_values, flower_routing_resource, api_versions, chart_app_version
+    ):
         """Test labels are correctly applied on all objects created by this chart."""
         release_name = "test-basic"
 
@@ -352,15 +354,17 @@ class TestBaseChartTest:
 
         for k8s_object_name, kind, component in kind_names_tuples:
             expected_labels = {
+                "app.kubernetes.io/instance": release_name,
+                "app.kubernetes.io/managed-by": "Helm",
+                "app.kubernetes.io/name": "airflow",
+                "app.kubernetes.io/part-of": "airflow",
+                "app.kubernetes.io/version": chart_app_version,
+                "helm.sh/chart": mock.ANY,
                 "label1": "value1",
                 "label2": "value2",
-                "tier": "airflow",
-                "release": release_name,
-                "heritage": "Helm",
-                "chart": mock.ANY,
             }
             if component:
-                expected_labels["component"] = component
+                expected_labels["app.kubernetes.io/component"] = component
             if k8s_object_name == f"{release_name}-scheduler":
                 expected_labels["executor"] = "CeleryExecutor"
                 if executor == "CeleryExecutor,KubernetesExecutor":
@@ -380,7 +384,7 @@ class TestBaseChartTest:
         if kind_k8s_obj_labels_tuples:
             warnings.warn(f"Unchecked objects: {kind_k8s_obj_labels_tuples.keys()}")
 
-    def test_labels_are_valid_on_job_templates(self):
+    def test_labels_are_valid_on_job_templates(self, chart_app_version):
         """Test labels are correctly applied on all job templates created by this chart."""
         release_name = "test-basic"
         k8s_objects = render_chart(
@@ -409,11 +413,13 @@ class TestBaseChartTest:
         ]
         for k8s_object_name, component in kind_names_tuples:
             expected_labels = {
+                "app.kubernetes.io/component": component,
+                "app.kubernetes.io/instance": release_name,
+                "app.kubernetes.io/name": "airflow",
+                "app.kubernetes.io/part-of": "airflow",
+                "app.kubernetes.io/version": chart_app_version,
                 "label1": "value1",
                 "label2": "value2",
-                "tier": "airflow",
-                "release": release_name,
-                "component": component,
             }
             assert dict_of_labels_in_job_templates.get(k8s_object_name) == expected_labels
 
