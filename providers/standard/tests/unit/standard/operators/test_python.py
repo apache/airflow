@@ -1588,6 +1588,7 @@ class TestPythonVirtualenvOperator(_VenvTestBase):
             op_args=[4],
         )
 
+    @pytest.mark.filterwarnings("error:Using Variable.get from:DeprecationWarning")
     def test_caching(self):
         def f(a):
             import sys
