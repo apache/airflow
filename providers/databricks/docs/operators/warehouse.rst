@@ -48,6 +48,25 @@ Repeated task attempts are safe: an already running warehouse is not started aga
 stopped warehouse is not stopped again. If a start is requested while a warehouse is stopping, any
 transition rejection from Databricks is propagated to the task.
 
+Start a SQL warehouse
+---------------------
+
+.. exampleinclude:: /../../databricks/tests/system/databricks/example_databricks_sql_warehouse.py
+    :language: python
+    :start-after: [START howto_operator_databricks_start_sql_warehouse]
+    :end-before: [END howto_operator_databricks_start_sql_warehouse]
+
+Stop a SQL warehouse
+--------------------
+
+The stop task uses the ``all_done`` trigger rule so the warehouse is stopped even when an upstream
+task fails.
+
+.. exampleinclude:: /../../databricks/tests/system/databricks/example_databricks_sql_warehouse.py
+    :language: python
+    :start-after: [START howto_operator_databricks_stop_sql_warehouse]
+    :end-before: [END howto_operator_databricks_stop_sql_warehouse]
+
 Edit a SQL warehouse
 --------------------
 
@@ -75,22 +94,3 @@ that all configuration changes have been applied.
     :language: python
     :start-after: [START howto_operator_databricks_edit_sql_warehouse]
     :end-before: [END howto_operator_databricks_edit_sql_warehouse]
-
-Start a SQL warehouse
----------------------
-
-.. exampleinclude:: /../../databricks/tests/system/databricks/example_databricks_sql_warehouse.py
-    :language: python
-    :start-after: [START howto_operator_databricks_start_sql_warehouse]
-    :end-before: [END howto_operator_databricks_start_sql_warehouse]
-
-Stop a SQL warehouse
---------------------
-
-The stop task uses the ``all_done`` trigger rule so the warehouse is stopped even when an upstream
-task fails.
-
-.. exampleinclude:: /../../databricks/tests/system/databricks/example_databricks_sql_warehouse.py
-    :language: python
-    :start-after: [START howto_operator_databricks_stop_sql_warehouse]
-    :end-before: [END howto_operator_databricks_stop_sql_warehouse]
