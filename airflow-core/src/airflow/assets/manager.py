@@ -302,6 +302,10 @@ class AssetManager(LoggingMixin):
         session.add(asset_event)
         session.flush()
 
+        from airflow.models.deadline import Deadline
+
+        Deadline.prune_asset_deadlines(session=session, asset_event=asset_event)
+
         dags_to_queue_from_asset = {
             ref.dag for ref in asset_model.scheduled_dags if not ref.dag.is_paused and not ref.dag.is_draining
         }

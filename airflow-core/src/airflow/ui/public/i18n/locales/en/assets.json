@@ -3,8 +3,6 @@
   "alias_one": "Alias",
   "alias_other": "Aliases",
   "aliases": "Aliases",
-  "asset_many": "Assets",
-  "asset_one": "Asset",
   "assetStateStore": {
     "add": "Add Asset State Store",
     "clearAll": {
@@ -23,6 +21,8 @@
     "lastUpdatedByWatcher": "Watcher",
     "title": "Asset State Store"
   },
+  "asset_many": "Assets",
+  "asset_one": "Asset",
   "consumingDags": "Consuming Dags",
   "consumingTasks": "Consuming Tasks",
   "createEvent": {
@@ -45,6 +45,24 @@
       "materializeTitle": "Materializing Asset"
     },
     "title": "Create Asset Event for {{name}}"
+  },
+  "deadlines": {
+    "consumerBadge": "Consumer",
+    "contractBadge": "Contract",
+    "cronLabel": "Cron: {{cron}}",
+    "emptyState": "No deadlines configured for this asset.",
+    "intervalLabel": "Interval: {{interval}}",
+    "missed": "Missed",
+    "nextEvaluation": "Next evaluation",
+    "partitionKey": "Partition: {{key}}",
+    "pending": "Pending",
+    "rulesHeading": "Configured Deadlines",
+    "scheduledHeading": "Scheduled & Missed Windows",
+    "title": "Deadlines",
+    "unknownDag": "Unknown Dag",
+    "late": "Late",
+    "resolved": "Resolved",
+    "resolvedAt": "Resolved at"
   },
   "events": "Events",
   "filters": {

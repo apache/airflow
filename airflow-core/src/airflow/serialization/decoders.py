@@ -44,7 +44,9 @@ from airflow.serialization.definitions.assets import (
     SerializedAssetWatcher,
 )
 from airflow.serialization.definitions.deadline import (
+    AssetDeadlineFields,
     DeadlineAlertFields,
+    SerializedAssetDeadline,
     SerializedDeadlineAlert,
     SerializedReferenceModels,
     SerializedVariableInterval,
@@ -147,6 +149,7 @@ def _decode_asset(var: dict[str, Any]):
             for watcher in watchers
         ],
         access_control=var.get("access_control", {}),
+        deadline=decode_asset_deadline(var["deadline"]) if var.get("deadline") else None,
     )
 
 
@@ -370,6 +373,27 @@ def _decode_deadline_callback(raw_callback: Any) -> AsyncCallback | SyncCallback
             fields[optional] = value
 
     return callback_cls(callback_callable=_SerializedCallbackPath(path), **fields)
+
+
+def decode_asset_deadline(encoded_data: dict[str, Any]) -> SerializedAssetDeadline:
+    """
+    Decode a previously serialized asset deadline.
+
+    :meta private:
+    """
+    data = encoded_data.get(Encoding.VAR, encoded_data)
+    raw_interval = data.get(AssetDeadlineFields.INTERVAL)
+    interval = _decode_deadline_interval(raw_interval) if raw_interval is not None else None
+
+    raw_on_resolve = data.get("on_resolve")
+    on_resolve = _decode_deadline_callback(raw_on_resolve) if raw_on_resolve is not None else None
+    return SerializedAssetDeadline(
+        cron=data.get(AssetDeadlineFields.CRON),
+        interval=interval,
+        callback=_decode_deadline_callback(data[AssetDeadlineFields.CALLBACK]),
+        on_resolve=on_resolve,
+        name=data.get(AssetDeadlineFields.NAME),
+    )
 
 
 def decode_deadline_alert(encoded_data: dict) -> SerializedDeadlineAlert:

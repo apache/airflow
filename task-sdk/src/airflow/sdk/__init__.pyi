@@ -63,7 +63,7 @@ from airflow.sdk.definitions.context import (
     get_parsing_context as get_parsing_context,
 )
 from airflow.sdk.definitions.dag import DAG as DAG, dag as dag
-from airflow.sdk.definitions.deadline import DeadlineAlert, DeadlineReference
+from airflow.sdk.definitions.deadline import AssetDeadline, DeadlineAlert, DeadlineReference
 from airflow.sdk.definitions.decorators import (
     result as result,
     setup as setup,
@@ -154,6 +154,7 @@ __all__ = [
     "AssetAny",
     "AssetOrTimeSchedule",
     "AssetTriggeredTimetable",
+    "AssetDeadline",
     "AssetWatcher",
     "AsyncCallback",
     "BaseAsyncOperator",

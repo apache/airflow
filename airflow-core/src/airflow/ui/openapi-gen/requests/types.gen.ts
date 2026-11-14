@@ -47,6 +47,43 @@ export type AssetCollectionResponse = {
 };
 
 /**
+ * Configured AssetDeadline rule serializer for responses.
+ */
+export type AssetDeadlineAlertResponse = {
+    id: string;
+    dag_id?: string | null;
+    name?: string | null;
+    cron?: string | null;
+    interval?: {
+    [key: string]: unknown;
+} | null;
+    is_producer?: boolean;
+    created_at: string;
+};
+
+/**
+ * Scheduled, late, or resolved Asset Deadline instance serializer for responses.
+ */
+export type AssetDeadlineInstanceResponse = {
+    id: string;
+    deadline_time: string;
+    missed: boolean;
+    resolved_at?: string | null;
+    is_late?: boolean;
+    partition_key?: string | null;
+    deadline_alert_id?: string | null;
+    created_at: string;
+};
+
+/**
+ * Combined AssetDeadline rules and scheduled/missed instances for an asset.
+ */
+export type AssetDeadlinesResponse = {
+    alerts: Array<AssetDeadlineAlertResponse>;
+    deadlines: Array<AssetDeadlineInstanceResponse>;
+};
+
+/**
  * Access control settings for asset event consumer team filtering.
  */
 export type AssetEventAccessControl = {
@@ -3979,6 +4016,12 @@ export type DeleteDagAssetQueuedEventData = {
 
 export type DeleteDagAssetQueuedEventResponse = void;
 
+export type GetAssetDeadlinesData = {
+    assetId: number;
+};
+
+export type GetAssetDeadlinesResponse = AssetDeadlinesResponse;
+
 export type GetAssetsUiData = {
     dagIds?: Array<(string)>;
     /**
@@ -6434,6 +6477,33 @@ export type $OpenApiTs = {
                  * Bad Request
                  */
                 400: HTTPExceptionResponse;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/api/v2/assets/{asset_id}/deadlines': {
+        get: {
+            req: GetAssetDeadlinesData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: AssetDeadlinesResponse;
                 /**
                  * Unauthorized
                  */

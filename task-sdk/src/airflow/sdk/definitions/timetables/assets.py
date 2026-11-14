@@ -30,6 +30,7 @@ if TYPE_CHECKING:
     from collections.abc import Collection
 
     from airflow.sdk import Asset
+    from airflow.sdk.definitions.deadline import AssetDeadline
     from airflow.sdk.definitions.partition_mappers.base import PartitionMapper
 
 
@@ -77,6 +78,7 @@ class PartitionedAssetTimetable(AssetTriggeredTimetable):
 
     partition_mapper_config: dict[BaseAsset, PartitionMapper] = attrs.field(factory=dict)
     default_partition_mapper: PartitionMapper = IdentityMapper()
+    run_deadline: AssetDeadline | None = attrs.field(default=None, kw_only=True)
 
     # The factory needs the partition mappers to be initialized first.
     batch_asset_events: bool = attrs.field(
