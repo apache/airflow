@@ -60,6 +60,10 @@ class AzureBatchRequiredParametersMissingError(AirflowException):
     """Raised when one or more required pool, job or task parameters are missing."""
 
 
+class AzureContainerAppsJobExecutionError(AirflowException):
+    """Raised when a Container Apps Job execution fails, times out, or cannot be identified."""
+
+
 class AzureAISearchIndexingError(AirflowException):
     """Raised when Azure AI Search rejects some documents of a write."""
 
