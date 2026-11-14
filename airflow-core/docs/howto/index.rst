@@ -58,6 +58,7 @@ configuring an Airflow environment.
     email-config
     dynamic-dag-generation
     docker-compose/index
+    docker-compose/local-executor
     run-with-self-signed-certificate
     performance
     memory-profiling
