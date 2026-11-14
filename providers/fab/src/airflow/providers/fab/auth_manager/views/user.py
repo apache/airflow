@@ -78,8 +78,14 @@ class MultiResourceUserMixin:
     def show(self, pk):
         pk = self._deserialize_pk_if_composite(pk)
         widgets = self._show(pk)
-        widgets["show"].template_args["actions"].pop("userinfoedit", None)
-        widgets["show"].template_args["actions"].pop("resetmypassword", None)
+        # The widget gets the view's shared ``self.actions`` dict, so build a filtered copy
+        # instead of popping from it, which would break ``/users/userinfo/`` for everyone.
+        show_args = widgets["show"].template_args
+        show_args["actions"] = {
+            name: action
+            for name, action in show_args["actions"].items()
+            if name not in ("userinfoedit", "resetmypassword")
+        }
         return self.render_template(
             self.show_template,
             pk=pk,
