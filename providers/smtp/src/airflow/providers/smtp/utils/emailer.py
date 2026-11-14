@@ -221,6 +221,11 @@ def send_mime_email(
     """
     Send a MIME email.
 
+    The SMTP connection (when it exists) takes precedence over the ``[smtp]`` configuration
+    section for ``host``, ``port``, ``disable_tls``, ``disable_ssl``, ``timeout`` and
+    ``retry_limit`` — mirroring what :class:`~airflow.providers.smtp.hooks.smtp.SmtpHook`
+    reads from a connection. Values missing from the connection fall back to the configuration.
+
     :param e_from: The email address of the sender.
     :param e_to: The email address or a list of email addresses of the recipient(s).
     :param mime_msg: The MIME message to send.
@@ -242,6 +247,22 @@ def send_mime_email(
             airflow_conn = BaseHook.get_connection(conn_id)
             smtp_user = airflow_conn.login
             smtp_password = airflow_conn.password
+            extra = airflow_conn.extra_dejson
+            # Honor the SMTP connection over the configuration, using the same extra keys as
+            # SmtpHook. A connection field left empty (or an extra key left unset) keeps the
+            # configured value, so existing deployments relying on ``[smtp]`` are unaffected.
+            if airflow_conn.host:
+                smtp_host = airflow_conn.host
+            if airflow_conn.port:
+                smtp_port = airflow_conn.port
+            if "disable_tls" in extra:
+                smtp_starttls = not bool(extra["disable_tls"])
+            if "disable_ssl" in extra:
+                smtp_ssl = not bool(extra["disable_ssl"])
+            if (conn_timeout := extra.get("timeout")) not in (None, ""):
+                smtp_timeout = int(conn_timeout)
+            if (conn_retry_limit := extra.get("retry_limit")) not in (None, ""):
+                smtp_retry_limit = int(conn_retry_limit)
         except AirflowException:
             pass
     if smtp_user is None or smtp_password is None:
