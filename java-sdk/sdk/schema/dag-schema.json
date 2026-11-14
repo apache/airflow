@@ -325,6 +325,7 @@
         "retry_delay": { "$ref": "#/definitions/timedelta", "default": 300.0 },
         "retry_exponential_backoff": { "type": "number", "default": 0 },
         "max_retry_delay": { "$ref": "#/definitions/timedelta" },
+        "retry_timeout": { "$ref": "#/definitions/timedelta" },
         "params": { "$ref": "#/definitions/params" },
         "priority_weight": { "type": "number", "default": 1 },
         "weight_rule": { "type": "string", "default": "downstream" },

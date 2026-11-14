@@ -345,6 +345,11 @@ func TestShapeForAuthoringShapesTheCoreSchema(t *testing.T) {
 		"WeightRule",
 		task["weight_rule"].(map[string]any)["goJSONSchema"].(map[string]any)["type"],
 	)
+	assert.Equal(
+		t,
+		"time.Duration",
+		task["retry_timeout"].(map[string]any)["goJSONSchema"].(map[string]any)["type"],
+	)
 	assert.Contains(
 		t,
 		task["task_id"].(map[string]any)["description"],

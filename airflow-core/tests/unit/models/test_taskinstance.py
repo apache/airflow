@@ -867,6 +867,7 @@ class TestTaskInstance:
                 bash_command="exit 1",
                 retries=3,
                 retry_delay=datetime.timedelta(seconds=30),
+                retry_timeout=datetime.timedelta(seconds=60),
             )
         ti = dag_maker.create_dagrun(session=session).task_instances[0]
         ti.task = task
@@ -879,6 +880,7 @@ class TestTaskInstance:
         ti.pid = 1234
         ti.queued_dttm = ti.scheduled_dttm = ti.last_heartbeat_at = ti.start_date
         ti.state = State.UP_FOR_RETRY
+        failed_at = ti.end_date
         session.flush()
 
         successor = ti.prepare_db_for_next_try(session)
@@ -887,6 +889,7 @@ class TestTaskInstance:
 
         assert successor.retry_at == timezone.utcnow() + datetime.timedelta(seconds=30)
         assert successor.next_retry_datetime() == successor.retry_at
+        assert successor.retry_timeout_deadline == failed_at + datetime.timedelta(seconds=60)
         assert successor.start_date is None
         assert successor.end_date is None
         assert successor.duration is None
@@ -1791,6 +1794,18 @@ class TestTaskInstance:
         assert ti_from_deserialized_task.external_executor_id == expected_external_executor_id
         assert ti_from_deserialized_task.state == State.RUNNING
         assert ti_from_deserialized_task.try_number == 0
+
+    @time_machine.travel("2026-10-29 12:00:00+00:00", tick=False)
+    def test_check_and_change_state_before_execution_expires_queued_retry(
+        self, create_task_instance, session
+    ):
+        ti = create_task_instance(dag_id="test_expired_retry_timeout")
+        ti.state = TaskInstanceState.QUEUED
+        ti.retry_timeout_deadline = timezone.utcnow() - datetime.timedelta(minutes=1)
+        session.flush()
+
+        assert not ti.check_and_change_state_before_execution(session=session)
+        assert ti.state == TaskInstanceState.FAILED
 
     def test_check_and_change_state_before_execution_provided_id_overrides(
         self, create_task_instance, testing_dag_bundle
@@ -2941,6 +2956,7 @@ class TestTaskInstance:
             "retry_delay_override": 60.0,
             "retry_reason": "Rate limit, backing off",
             "retry_at": None,
+            "retry_timeout_deadline": None,
             "working_set": True,
             "archived_reason": None,
         }
@@ -3288,12 +3304,15 @@ class TestTaskInstance:
         attempt = session.get(TaskInstance, CURRENT_ID)
         attempt.state = TaskInstanceState.RESTARTING
         attempt.note = "cleared while running"
+        attempt.retry_timeout_deadline = timezone.utcnow() + datetime.timedelta(minutes=5)
         session.flush()
 
         successor = attempt.complete_restart(session=session)
         session.expire_all()
 
         assert session.get(TaskInstance, successor.id).note == "cleared while running"
+        assert session.get(TaskInstance, successor.id).retry_timeout_deadline is None
+        assert session.get(TaskInstance, CURRENT_ID).retry_timeout_deadline is not None
 
     @pytest.mark.parametrize(
         ("map_index", "deleted"),
@@ -5418,8 +5437,10 @@ def test_clear_task_instances_clears_retry_policy_columns(dag_maker, session):
     ti.state = TaskInstanceState.FAILED
     ti.retry_reason = "auth error, do not retry"
     ti.retry_delay_override = 300.0
+    ti.retry_timeout_deadline = timezone.utcnow() + datetime.timedelta(minutes=5)
     session.flush()
     old_id = ti.id
+    timeout_deadline = ti.retry_timeout_deadline
 
     clear_task_instances([ti], session)
     session.flush()
@@ -5430,11 +5451,13 @@ def test_clear_task_instances_clears_retry_policy_columns(dag_maker, session):
     assert archived.working_set is None
     assert archived.retry_reason == "auth error, do not retry"
     assert archived.retry_delay_override == 300.0
+    assert archived.retry_timeout_deadline == timeout_deadline
 
     successor = dag_run.get_task_instance("t1", session=session)
     assert successor.id != old_id
     assert successor.retry_reason is None
     assert successor.retry_delay_override is None
+    assert successor.retry_timeout_deadline is None
 
 
 @pytest.mark.db_test

@@ -11810,6 +11810,41 @@ class TestSchedulerJob:
         assert isinstance(request, TaskCallbackRequest)
         assert request.bundle_version == bundle_version
 
+    @pytest.mark.parametrize("request_type", [TaskCallbackRequest, EmailRequest])
+    @time_machine.travel(DEFAULT_DATE, tick=False)
+    def test_retry_timeout_sends_failure_notification(self, dag_maker, session, request_type):
+        with dag_maker(dag_id="retry_timeout_callback", fileloc="/test_path1/"):
+            EmptyOperator(
+                task_id="retrying",
+                retries=1,
+                retry_timeout=timedelta(minutes=5),
+                on_failure_callback=((lambda context: None) if request_type is TaskCallbackRequest else None),
+                email="test@example.com" if request_type is EmailRequest else None,
+                email_on_failure=True,
+            )
+        dag_run = dag_maker.create_dagrun(state=DagRunState.RUNNING)
+        ti = dag_run.get_task_instance(task_id="retrying", session=session)
+        ti.state = TaskInstanceState.QUEUED
+        ti.try_number = 2
+        ti.retry_timeout_deadline = timezone.utcnow() - timedelta(minutes=1)
+        session.flush()
+
+        executor = MockExecutor(do_update=False)
+        self.job_runner = SchedulerJobRunner(Job(), executors=[executor])
+        self.job_runner._schedule_dag_run(dag_run, session)
+        self.job_runner._schedule_dag_run(dag_run, session)
+
+        assert ti.state == TaskInstanceState.FAILED
+        executor.callback_sink.send.assert_called_once()
+        request = executor.callback_sink.send.call_args.args[0]
+        assert isinstance(request, request_type)
+        assert request.msg == "Task retry timeout expired before the retry started."
+        if isinstance(request, TaskCallbackRequest):
+            assert request.task_callback_type == TaskInstanceState.FAILED
+            assert request.context_from_server is not None
+        else:
+            assert request.email_type == "failure"
+
     def test_stuck_in_queued_failure_callback_for_removed_mapped_task(
         self, dag_maker, session, mock_executors
     ):

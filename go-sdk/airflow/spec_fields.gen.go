@@ -62,6 +62,7 @@ var taskSpecFields = map[string]schemaField{
 	"Retries":                          {key: "retries", schemaDefault: 0},
 	"RetryDelay":                       {key: "retry_delay", schemaDefault: 300.0},
 	"RetryExponentialBackoff":          {key: "retry_exponential_backoff", schemaDefault: 0},
+	"RetryTimeout":                     {key: "retry_timeout"},
 	"StartDate":                        {key: "start_date"},
 	"TaskDisplayName":                  {key: "_task_display_name"},
 	"TaskID":                           {key: "task_id"},

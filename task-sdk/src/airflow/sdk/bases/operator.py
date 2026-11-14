@@ -267,6 +267,7 @@ OPERATOR_DEFAULTS: dict[str, Any] = {
     "retries": DEFAULT_RETRIES,
     "retry_delay": DEFAULT_RETRY_DELAY,
     "retry_exponential_backoff": 0,
+    "retry_timeout": None,
     "retry_policy": None,
     "trigger_rule": DEFAULT_TRIGGER_RULE,
     "wait_for_past_depends_before_skipping": DEFAULT_WAIT_FOR_PAST_DEPENDS_BEFORE_SKIPPING,
@@ -319,6 +320,7 @@ if TYPE_CHECKING:
         max_retry_delay: None | timedelta | float = ...,
         retry_delay: timedelta | float = ...,
         retry_exponential_backoff: float = ...,
+        retry_timeout: timedelta | float | None = ...,
         priority_weight: int = ...,
         weight_rule: WeightRuleParam = ...,
         sla: timedelta | None = ...,
@@ -413,6 +415,9 @@ else:
         partial_kwargs["retry_delay"] = BaseOperator._convert_retry_delay(partial_kwargs["retry_delay"])
         partial_kwargs["max_retry_delay"] = BaseOperator._convert_max_retry_delay(
             partial_kwargs.get("max_retry_delay", None)
+        )
+        partial_kwargs["retry_timeout"] = BaseOperator._convert_retry_timeout(
+            partial_kwargs.get("retry_timeout")
         )
 
         for k in ("execute", "failure", "success", "retry", "skipped"):
@@ -710,6 +715,9 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         retry_exponential_backoff=5, retries occur after 4min, 20min, 100min, etc.
     :param max_retry_delay: maximum delay interval between retries, can be set as
         ``timedelta`` or ``float`` seconds, which will be converted into ``timedelta``.
+    :param retry_timeout: maximum elapsed time from the first failure during which retries
+       can be scheduled, as a ``timedelta`` or ``float`` seconds. It does not stop an
+       attempt that is already running. ``None`` allows retries without a time limit.
     :param start_date: The ``start_date`` for the task, determines
         the ``logical_date`` for the first task instance. The best practice
         is to have the start_date rounded
@@ -894,6 +902,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     retry_delay: timedelta = DEFAULT_RETRY_DELAY
     retry_exponential_backoff: float = 0
     max_retry_delay: timedelta | float | None = None
+    retry_timeout: timedelta | None = None
     retry_policy: RetryPolicy | None = None
     start_date: datetime | None = None
     end_date: datetime | None = None
@@ -984,6 +993,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         "retry_delay",
         "retry_exponential_backoff",
         "max_retry_delay",
+        "retry_timeout",
         "start_date",
         "end_date",
         "depends_on_past",
@@ -1060,6 +1070,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         retry_delay: timedelta | float = DEFAULT_RETRY_DELAY,
         retry_exponential_backoff: float = 0,
         max_retry_delay: timedelta | float | None = None,
+        retry_timeout: timedelta | float | None = None,
         retry_policy: RetryPolicy | None = None,
         start_date: datetime | None = None,
         end_date: datetime | None = None,
@@ -1209,6 +1220,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         self.retry_exponential_backoff = retry_exponential_backoff
         if max_retry_delay is not None:
             self.max_retry_delay = max_retry_delay
+        self.retry_timeout = self._convert_retry_timeout(retry_timeout)
         self.retry_policy = retry_policy
 
         self.resources = resources
@@ -1416,6 +1428,13 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
     _convert_retry_delay = _convert_timedelta
     _convert_max_retry_delay = _convert_timedelta
+
+    @staticmethod
+    def _convert_retry_timeout(value: float | timedelta | None) -> timedelta | None:
+        converted = BaseOperator._convert_timedelta(value)
+        if converted is not None and converted < timedelta(0):
+            raise ValueError("retry_timeout cannot be negative")
+        return converted
 
     @staticmethod
     def _convert_resources(resources: dict[str, Any] | None) -> Resources | None:
