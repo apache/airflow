@@ -951,14 +951,17 @@ class TestUpdateDagParsingResults:
         assert warning is None
 
     @pytest.mark.usefixtures("clean_db")
-    def test_stale_importer_warnings_are_replaced(self, testing_dag_bundle, session):
+    @pytest.mark.parametrize(
+        "retained_warning_type", [DagWarningType.ASSET_CONFLICT, DagWarningType.ASSET_PARTITION_PENDING]
+    )
+    def test_stale_importer_warnings_are_replaced(self, testing_dag_bundle, session, retained_warning_type):
         session.add(DagModel(dag_id="imported_dag", bundle_name="testing", fileloc="/dags/imported.py"))
         session.flush()
         session.add_all(
             [
                 DagWarning(dag_id="imported_dag", warning_type="test:stale", message="Stale"),
                 DagWarning(
-                    dag_id="imported_dag", warning_type=DagWarningType.ASSET_CONFLICT, message="Conflict"
+                    dag_id="imported_dag", warning_type=retained_warning_type, message="Scheduler warning"
                 ),
             ]
         )
@@ -977,7 +980,15 @@ class TestUpdateDagParsingResults:
         warning_types = session.scalars(
             select(DagWarning.warning_type).where(DagWarning.dag_id == "imported_dag")
         ).all()
-        assert sorted(warning_types) == [DagWarningType.ASSET_CONFLICT.value, "test:current"]
+        assert sorted(warning_types) == [retained_warning_type.value, "test:current"]
+        assert (
+            session.scalar(
+                select(DagWarning.message).where(
+                    DagWarning.dag_id == "imported_dag", DagWarning.warning_type == retained_warning_type
+                )
+            )
+            == "Scheduler warning"
+        )
 
     @pytest.mark.usefixtures("clean_db")
     def test_dag_source_codes_are_written_to_dag_code(self, testing_dag_bundle, session):

@@ -75,6 +75,7 @@ from airflow.exceptions import DagNotFound, TaskNotFound, UnknownExecutorExcepti
 from airflow.executors import workloads
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.executors.workloads.types import TaskInstanceUuid
+from airflow.jobs.asset_partition_warnings import AssetPartitionWaitMonitor
 from airflow.jobs.base_job_runner import BaseJobRunner
 from airflow.jobs.job import Job, JobState, perform_heartbeat
 from airflow.models import Deadline, Log
@@ -421,6 +422,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         # unreachable APDR is visible in scheduler logs without spamming every
         # tick.
         self._partition_unreachable_seen: set[tuple[str, str, str]] = set()
+        self._asset_partition_wait_monitor = AssetPartitionWaitMonitor()
 
     @provide_session
     def heartbeat_callback(self, *, session: Session = NEW_SESSION) -> None:
@@ -2090,6 +2092,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         timers.call_regular_interval(60.0, self._update_dag_run_state_for_paused_dags)
         timers.call_regular_interval(5.0, self._finalize_draining_dags)
+        timers.call_regular_interval(60.0, self._asset_partition_wait_monitor.check, non_fatal=True)
         timers.call_regular_interval(
             conf.getfloat("scheduler", "parsing_cleanup_interval"), cleanup_processor_metadata, non_fatal=True
         )
