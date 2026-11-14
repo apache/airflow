@@ -9371,6 +9371,54 @@ class TestSchedulerJob:
         # 2 runs are still queued
         assert queued_count == 2
 
+    @pytest.mark.backend("postgres", "mysql")
+    @pytest.mark.parametrize("reverse", [False, True])
+    @mock.patch.object(DagRun, "DEFAULT_DAGRUNS_TO_EXAMINE", 2)
+    def test_backfill_order_with_locked_queued_runs(self, dag_maker, session, reverse):
+        with dag_maker(
+            "backfill_order",
+            start_date=DEFAULT_DATE,
+            schedule=timedelta(days=1),
+            max_active_runs=1,
+            catchup=True,
+            session=session,
+        ):
+            EmptyOperator(task_id="task")
+
+        dates = [pendulum.datetime(2021, 1, day) for day in range(1, 4)]
+        backfill = _create_backfill(
+            dag_id="backfill_order",
+            from_date=dates[0],
+            to_date=dates[-1],
+            max_active_runs=1,
+            reverse=reverse,
+            triggering_user_name="test_user",
+            dag_run_conf={},
+        )
+        if reverse:
+            dates.reverse()
+        session.commit()
+        runner = SchedulerJobRunner(Job(), executors=[MockExecutor(do_update=False)])
+        running = select(DagRun).where(DagRun.backfill_id == backfill.id, DagRun.state == DagRunState.RUNNING)
+
+        with create_session(scoped=False) as locker:
+            # Pause the first scheduler after candidate locking, before locking the Backfill.
+            with assert_queries_count(1, session=locker):
+                candidates = list(DagRun.get_queued_dag_runs_to_set_running(locker))
+            assert candidates[0].logical_date == dates[0]
+            with create_session(scoped=False) as other:
+                runner._start_queued_dagruns(other)
+            assert session.scalars(running).all() == []
+            locker.rollback()
+
+        for logical_date in dates:
+            runner._start_queued_dagruns(session)
+            session.flush()
+            dag_run = session.scalars(running).one()
+            assert dag_run.logical_date == logical_date
+            dag_run.state = DagRunState.SUCCESS
+            session.commit()
+
     def test_start_queued_dagruns_do_follow_logical_date_order(self, dag_maker):
         session = settings.Session()
         with dag_maker("test_dag1", max_active_runs=1):
