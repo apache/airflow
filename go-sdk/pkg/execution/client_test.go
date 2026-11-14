@@ -579,8 +579,6 @@ func TestTaskStateStoreSetRoundTripsThroughUnmarshalJSONValue(t *testing.T) {
 	}{
 		{name: "json string option", value: roundTripStringID{ID: 123}},
 		{name: "json marshaler", value: roundTripMarshaler{Status: 0}},
-		{name: "datetime", value: time.Date(2026, 5, 15, 0, 0, 0, 0, time.UTC)},
-		{name: "byte slice", value: []byte("raw")},
 	}
 
 	for _, tc := range tests {
@@ -770,12 +768,37 @@ func TestTaskStateStoreSetRejectsMisconfiguredRetention(t *testing.T) {
 	assert.Zero(t, requestBuf.Len(), "a rejected write must not reach the supervisor")
 }
 
+// Mirrors Python's test_set_datetime_raises_validation_error.
 func TestTaskStateStoreSetRejectsNonJSONValues(t *testing.T) {
+	watermark := time.Date(2026, 5, 15, 0, 0, 0, 0, time.UTC)
+	type embedded struct{ At time.Time }
 	tests := []struct {
 		name    string
 		value   any
 		wantErr string
 	}{
+		{name: "datetime", value: watermark, wantErr: "time.Time is not JSON representable"},
+		{
+			name:    "datetime nested in a map",
+			value:   map[string]any{"watermark": watermark},
+			wantErr: "time.Time is not JSON representable",
+		},
+		{
+			name:    "datetime behind a pointer in a slice",
+			value:   []*time.Time{&watermark},
+			wantErr: "time.Time is not JSON representable",
+		},
+		{
+			name:    "datetime in an embedded struct",
+			value:   struct{ embedded }{embedded{At: watermark}},
+			wantErr: "time.Time is not JSON representable",
+		},
+		{name: "byte slice", value: []byte("raw"), wantErr: "[]byte is not JSON representable"},
+		{
+			name:    "uuid",
+			value:   uuid.MustParse(testTIID),
+			wantErr: "[]byte is not JSON representable",
+		},
 		{name: "NaN", value: math.NaN(), wantErr: "json: unsupported value: NaN"},
 		{name: "Inf", value: math.Inf(1), wantErr: "json: unsupported value: +Inf"},
 	}
@@ -813,8 +836,7 @@ func TestTaskStateStoreSetAcceptsJSONShapes(t *testing.T) {
 		"struct skipping time.Time": skippedTime{When: time.Now(), Name: "x"},
 		"nested":                    map[string]any{"rows": []any{1, "two", 3.5, true, nil}},
 		"scalar":                    "plain",
-		"time.Time":                 time.Date(2026, 5, 15, 0, 0, 0, 0, time.UTC),
-		"byte slice":                []byte("raw"),
+		"type with its own JSON":    roundTripMarshaler{Status: 0},
 		"int map key":               map[int]string{1: "a"},
 	}
 

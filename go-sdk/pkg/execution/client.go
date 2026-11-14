@@ -20,11 +20,13 @@ package execution
 import (
 	"bytes"
 	"context"
+	"encoding"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"math"
 	"os"
+	"reflect"
 	"strconv"
 	"strings"
 	"time"
@@ -467,6 +469,9 @@ func (s taskStateStore) Set(
 	if isNull {
 		return fmt.Errorf("cannot set task state key %q: value must not be nil", key)
 	}
+	if err := checkTaskStateValue(reflect.ValueOf(value)); err != nil {
+		return fmt.Errorf("cannot set task state key %q: %w", key, err)
+	}
 
 	expiry, err := resolveExpiry(options.Retention, time.Now())
 	if err != nil {
@@ -520,6 +525,73 @@ func resolveExpiry(retention *time.Duration, now time.Time) (*genmodels.Time, er
 	default:
 		return genmodels.TimePtr(now.UTC().Add(r)), nil
 	}
+}
+
+var (
+	timeType          = reflect.TypeFor[time.Time]()
+	jsonMarshalerType = reflect.TypeFor[json.Marshaler]()
+	textMarshalerType = reflect.TypeFor[encoding.TextMarshaler]()
+)
+
+// checkTaskStateValue rejects a time.Time and bytes anywhere encoding/json
+// would write them in v, because the Python task state store refuses a
+// datetime and bytes too. It must run after json.Marshal has accepted the
+// value, which guarantees that the walk meets no cycle. Bytes are checked
+// before the marshaler test so that a uuid.UUID is rejected as well; any other
+// type with its own JSON form is not looked into.
+func checkTaskStateValue(v reflect.Value) error {
+	// Dereferenced before the marshaler test below: a *time.Time has the
+	// MarshalJSON method of time.Time.
+	for v.Kind() == reflect.Pointer || v.Kind() == reflect.Interface {
+		v = v.Elem()
+	}
+	if !v.IsValid() {
+		return nil
+	}
+	t := v.Type()
+	if t == timeType {
+		return errors.New(
+			"time.Time is not JSON representable; store value.Format(time.RFC3339) " +
+				"and parse it back with time.Parse",
+		)
+	}
+	isList := v.Kind() == reflect.Slice || v.Kind() == reflect.Array
+	if isList && t.Elem().Kind() == reflect.Uint8 {
+		return errors.New(
+			"[]byte is not JSON representable; encode it, for example with " +
+				"base64.StdEncoding.EncodeToString",
+		)
+	}
+	if t.Implements(jsonMarshalerType) || t.Implements(textMarshalerType) {
+		return nil
+	}
+	switch v.Kind() {
+	case reflect.Slice, reflect.Array:
+		for i := range v.Len() {
+			if err := checkTaskStateValue(v.Index(i)); err != nil {
+				return err
+			}
+		}
+	case reflect.Map:
+		iter := v.MapRange()
+		for iter.Next() {
+			if err := checkTaskStateValue(iter.Value()); err != nil {
+				return err
+			}
+		}
+	case reflect.Struct:
+		for i := range t.NumField() {
+			field := t.Field(i)
+			// encoding/json writes an embedded struct's fields even when its type is unexported.
+			if field.Tag.Get("json") == "-" || (!field.IsExported() && !field.Anonymous) {
+				continue
+			}
+			if err := checkTaskStateValue(v.Field(i)); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 // encodeJSONValue returns the msgpack form of value as encoding/json writes it,

@@ -177,13 +177,16 @@ type TaskStateStore interface {
 	// absent the write fails.
 	//
 	// value must be non-nil. It is stored as encoding/json writes it, so
-	// UnmarshalJSONValue reads it back into the same Go type: a time.Time is
-	// stored as an RFC 3339 string and a byte slice as a base64 string. A
-	// float64 with no fractional part, such as 5.0, is stored as the integer
-	// 5, so Get returns it as an int64. A value that json.Marshal rejects,
-	// such as a non-finite float, is rejected before it is sent, and so is an
-	// integer that fits in neither int64 nor uint64, or a number past the
-	// range of a float64.
+	// json struct tags and MarshalJSON methods apply and UnmarshalJSONValue
+	// reads it back into the same Go type. A float64 with no fractional part,
+	// such as 5.0, is stored as the integer 5, so Get returns it as an int64.
+	//
+	// As in the Python task state store, a time.Time and a byte slice or
+	// array such as a uuid.UUID are rejected before they are sent, also when
+	// nested in value; store a time as value.Format(time.RFC3339). So is a
+	// value that json.Marshal rejects, such as a non-finite float, an integer
+	// that fits in neither int64 nor uint64, and a number past the range of a
+	// float64.
 	Set(ctx context.Context, key string, value any, opts ...SetOption) error
 
 	// Delete removes the value stored under key. Deleting a key that does not
