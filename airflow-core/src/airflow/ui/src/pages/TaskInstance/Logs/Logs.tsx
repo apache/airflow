@@ -21,6 +21,7 @@ import { useState } from "react";
 import { Box, Button, Heading } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { useParams, useSearchParams } from "react-router-dom";
+import { useDebouncedCallback } from "use-debounce";
 import { useLocalStorage } from "usehooks-ts";
 
 import { Alert, Modal } from "src/system-components";
@@ -44,6 +45,8 @@ import { ExternalLogLink } from "./ExternalLogLink";
 import { TaskLogContent, type TaskLogContentProps } from "./TaskLogContent";
 import { TaskLogHeader, type TaskLogHeaderProps } from "./TaskLogHeader";
 import { getDownloadText } from "./utils";
+
+const debounceDelay = 200;
 
 export const Logs = () => {
   const { dagId = "", taskId = "" } = useParams();
@@ -115,7 +118,9 @@ export const Logs = () => {
 
   const getLogString = () => downloadTextLines.filter((line) => line !== "").join("\n");
 
-  const [searchQuery, setSearchQuery] = useState("");
+  const urlSearchQuery = searchParams.get(SearchParamsKeys.LOG_SEARCH) ?? "";
+  const [searchQuery, setSearchQuery] = useState(urlSearchQuery);
+  const [lastUrlSearchQuery, setLastUrlSearchQuery] = useState(urlSearchQuery);
   const [activeSearchIndex, setActiveSearchIndex] = useState(0);
 
   const searchMatchIndices = (() => {
@@ -134,9 +139,36 @@ export const Logs = () => {
     return indices;
   })();
 
+  // Local state keeps the highlighting responsive; the url follows (debounced) so the query survives a
+  // tab change and can be shared.
+  const syncSearchParam = useDebouncedCallback((query: string) => {
+    setSearchParams(
+      (params) => {
+        if (query === "") {
+          params.delete(SearchParamsKeys.LOG_SEARCH);
+        } else {
+          params.set(SearchParamsKeys.LOG_SEARCH, query);
+        }
+
+        return params;
+      },
+      { replace: true },
+    );
+  }, debounceDelay);
+
+  // Back/Forward can change the url without remounting; adopt it unless a typed edit is still pending.
+  if (urlSearchQuery !== lastUrlSearchQuery) {
+    setLastUrlSearchQuery(urlSearchQuery);
+    if (!syncSearchParam.isPending()) {
+      setSearchQuery(urlSearchQuery);
+      setActiveSearchIndex(0);
+    }
+  }
+
   const handleSearchChange = (query: string) => {
     setSearchQuery(query);
     setActiveSearchIndex(0);
+    syncSearchParam(query);
   };
 
   const handleSearchNext = () => {

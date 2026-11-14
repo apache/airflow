@@ -23,7 +23,8 @@ import { routerConfig } from "src/router";
 import { BaseWrapper } from "src/utils/Wrapper";
 
 type Props = {
-  readonly initialEntries: Array<string>;
+  readonly initialEntries?: Array<string>;
+  readonly router?: ReturnType<typeof createAppRouter>;
 };
 
 export const preloadAppRoutes = async (initialEntries: Array<string>) => {
@@ -40,20 +41,19 @@ export const preloadAppRoutes = async (initialEntries: Array<string>) => {
   await Promise.all([...routeLoaders].map((loadRoute) => loadRoute()));
 };
 
-export const AppWrapper = ({ initialEntries }: Props) => {
-  // Strip the config loader from tests
-  const config = routerConfig.map((route) => ({
-    ...route,
-    loader: undefined,
-  }));
-
-  const router = createMemoryRouter(config, { basename: "/", initialEntries });
-
-  return (
-    <BaseWrapper>
-      <TimezoneProvider>
-        <RouterProvider router={router} />
-      </TimezoneProvider>
-    </BaseWrapper>
+export const createAppRouter = (initialEntries: Array<string>, initialIndex?: number) =>
+  createMemoryRouter(
+    // Strip the config loader from tests
+    routerConfig.map((route) => ({ ...route, loader: undefined })),
+    { basename: "/", initialEntries, initialIndex },
   );
-};
+
+const rootEntries = ["/"];
+
+export const AppWrapper = ({ initialEntries = rootEntries, router }: Props) => (
+  <BaseWrapper>
+    <TimezoneProvider>
+      <RouterProvider router={router ?? createAppRouter(initialEntries)} />
+    </TimezoneProvider>
+  </BaseWrapper>
+);

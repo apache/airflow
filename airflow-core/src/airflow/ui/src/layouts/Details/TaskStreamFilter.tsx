@@ -25,16 +25,18 @@ import { useParams, useSearchParams } from "react-router-dom";
 
 import { IconButton, Tooltip, Menu } from "src/system-components";
 
+import { TASK_STREAM_SEARCH_PARAMS } from "src/constants/persistentSearchParams";
+
 export const TaskStreamFilter = () => {
   const { t: translate } = useTranslation(["common", "dag"]);
   const { taskId: currentTaskId } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
 
-  const filterRoot = searchParams.get("root") ?? undefined;
-  const includeUpstream = searchParams.get("upstream") === "true";
-  const includeDownstream = searchParams.get("downstream") === "true";
-  const depth = searchParams.get("depth") ?? undefined;
-  const mode = searchParams.get("mode") ?? "static";
+  const filterRoot = searchParams.get(TASK_STREAM_SEARCH_PARAMS.root) ?? undefined;
+  const includeUpstream = searchParams.get(TASK_STREAM_SEARCH_PARAMS.upstream) === "true";
+  const includeDownstream = searchParams.get(TASK_STREAM_SEARCH_PARAMS.downstream) === "true";
+  const depth = searchParams.get(TASK_STREAM_SEARCH_PARAMS.depth) ?? undefined;
+  const mode = searchParams.get(TASK_STREAM_SEARCH_PARAMS.mode) ?? "static";
 
   const hasActiveFilter = includeUpstream || includeDownstream;
   const isCurrentTaskTheRoot = currentTaskId === filterRoot;
@@ -51,7 +53,7 @@ export const TaskStreamFilter = () => {
       currentTaskId !== "" &&
       currentTaskId !== filterRoot
     ) {
-      searchParams.set("root", currentTaskId);
+      searchParams.set(TASK_STREAM_SEARCH_PARAMS.root, currentTaskId);
       setSearchParams(searchParams, { replace: true });
     }
   }, [currentTaskId, mode, hasActiveFilter, filterRoot, searchParams, setSearchParams]);
@@ -68,25 +70,25 @@ export const TaskStreamFilter = () => {
     const hasDepth = newDepth !== undefined && newDepth !== "";
 
     if (upstream) {
-      searchParams.set("upstream", "true");
+      searchParams.set(TASK_STREAM_SEARCH_PARAMS.upstream, "true");
     } else {
-      searchParams.delete("upstream");
+      searchParams.delete(TASK_STREAM_SEARCH_PARAMS.upstream);
     }
     if (downstream) {
-      searchParams.set("downstream", "true");
+      searchParams.set(TASK_STREAM_SEARCH_PARAMS.downstream, "true");
     } else {
-      searchParams.delete("downstream");
+      searchParams.delete(TASK_STREAM_SEARCH_PARAMS.downstream);
     }
     if (hasRoot && hasDirection) {
-      searchParams.set("root", root);
+      searchParams.set(TASK_STREAM_SEARCH_PARAMS.root, root);
     } else {
-      searchParams.delete("root");
-      searchParams.delete("mode");
+      searchParams.delete(TASK_STREAM_SEARCH_PARAMS.root);
+      searchParams.delete(TASK_STREAM_SEARCH_PARAMS.mode);
     }
     if (hasDepth && hasDirection) {
-      searchParams.set("depth", newDepth);
+      searchParams.set(TASK_STREAM_SEARCH_PARAMS.depth, newDepth);
     } else {
-      searchParams.delete("depth");
+      searchParams.delete(TASK_STREAM_SEARCH_PARAMS.depth);
     }
     setSearchParams(searchParams);
   };
@@ -228,7 +230,7 @@ export const TaskStreamFilter = () => {
                   disabled={!hasActiveFilter}
                   flex="1"
                   onClick={() => {
-                    searchParams.set("mode", "static");
+                    searchParams.set(TASK_STREAM_SEARCH_PARAMS.mode, "static");
                     setSearchParams(searchParams);
                   }}
                   variant={mode === "static" ? "solid" : "outline"}
@@ -239,7 +241,7 @@ export const TaskStreamFilter = () => {
                   disabled={!hasActiveFilter}
                   flex="1"
                   onClick={() => {
-                    searchParams.set("mode", "traverse");
+                    searchParams.set(TASK_STREAM_SEARCH_PARAMS.mode, "traverse");
                     setSearchParams(searchParams);
                   }}
                   variant={mode === "traverse" ? "solid" : "outline"}

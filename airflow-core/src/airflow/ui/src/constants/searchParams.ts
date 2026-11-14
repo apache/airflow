@@ -85,6 +85,7 @@ export enum SearchParamsKeys {
   LAST_DAG_RUN_STATE = "last_dag_run_state",
   LIMIT = "limit",
   LOG_LEVEL = "log_level",
+  LOG_SEARCH = "log_search",
   LOGICAL_DATE_GTE = "logical_date_gte",
   LOGICAL_DATE_LTE = "logical_date_lte",
   LOGICAL_DATE_RANGE = "logical_date_range",

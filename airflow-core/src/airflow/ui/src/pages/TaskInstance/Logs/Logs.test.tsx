@@ -17,13 +17,13 @@
  * under the License.
  */
 import "@testing-library/jest-dom/vitest";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
 
 // Resolve the route module during test collection, outside the per-test timeout.
 import "src/pages/TaskInstance";
 
-import { AppWrapper } from "src/utils/AppWrapper";
+import { AppWrapper, createAppRouter } from "src/utils/AppWrapper";
 
 const ITEM_HEIGHT = 20;
 
@@ -97,10 +97,10 @@ const selectSetting = async (testId: string) => {
   fireEvent.click(await screen.findByTestId(testId));
 };
 
-const renderLogSourceTask = async () => {
-  render(
-    <AppWrapper initialEntries={["/dags/log_grouping/runs/manual__2025-02-18T12:19/tasks/log_source"]} />,
-  );
+const logSourcePath = "/dags/log_grouping/runs/manual__2025-02-18T12:19/tasks/log_source";
+
+const renderLogSourceTask = async (search = "") => {
+  render(<AppWrapper initialEntries={[`${logSourcePath}${search}`]} />);
   await waitForLogs();
 
   return screen.getByTestId("virtualized-list");
@@ -309,6 +309,42 @@ describe("Task log search", () => {
     await waitForLogs();
 
     expect(screen.getByTestId("log-search-input")).toBeInTheDocument();
+  });
+
+  it("seeds the search query from the url, so it outlives the unmount a tab change causes", async () => {
+    await renderLogSourceTask("?log_search=running");
+
+    expect(screen.getByTestId("log-search-input")).toHaveValue("running");
+  });
+
+  it("writes the search query to the url and removes it when cleared", async () => {
+    const router = createAppRouter([logSourcePath]);
+
+    render(<AppWrapper router={router} />);
+    await waitForLogs();
+
+    fireEvent.change(screen.getByTestId("log-search-input"), { target: { value: "running state" } });
+    await waitFor(() =>
+      expect(new URLSearchParams(router.state.location.search).get("log_search")).toBe("running state"),
+    );
+
+    fireEvent.change(screen.getByTestId("log-search-input"), { target: { value: "" } });
+    await waitFor(() => expect(router.state.location.search).not.toContain("log_search"));
+  });
+
+  it("follows the url search query on back navigation", async () => {
+    const router = createAppRouter(
+      [`${logSourcePath}?log_search=running`, `${logSourcePath}?log_search=state`],
+      1,
+    );
+
+    render(<AppWrapper router={router} />);
+    await waitForLogs();
+    expect(screen.getByTestId("log-search-input")).toHaveValue("state");
+
+    await act(() => router.navigate(-1));
+
+    expect(screen.getByTestId("log-search-input")).toHaveValue("running");
   });
 
   it("typing in the search input enables navigation buttons for a known term", async () => {
