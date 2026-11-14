@@ -174,6 +174,7 @@ def test_get_delete_handlers_registers_implemented_handlers():
     handlers = get_delete_handlers()
 
     for asset_type in [
+        "bigtable",
         "compute",
         "dataflow",
         "datafusion",
