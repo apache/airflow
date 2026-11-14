@@ -108,53 +108,38 @@ class CommsTest {
     Assertions.assertEquals(expected, actual)
   }
 
+  private fun successFrame(
+    type: String,
+    vararg fields: Pair<String, Any>,
+  ): (Int) -> ByteArray =
+    { id ->
+      val out = ByteArrayOutputStream()
+      MessagePack.newDefaultPacker(out).use { packer ->
+        packer.packArrayHeader(3)
+        packer.packInt(id)
+        packer.packMapHeader(fields.size + 1)
+        packer.packString("type")
+        packer.packString(type)
+        for ((key, value) in fields) {
+          packer.packString(key)
+          when (value) {
+            is Int -> packer.packInt(value)
+            is Boolean -> packer.packBoolean(value)
+            is String -> packer.packString(value)
+            else -> error("unsupported fixture value: $value")
+          }
+        }
+        packer.packNil()
+      }
+      out.toByteArray()
+    }
+
   private fun responseFrame(
     id: Int,
     key: String = "return_value",
-  ): ByteArray {
-    val out = ByteArrayOutputStream()
-    MessagePack.newDefaultPacker(out).use { packer ->
-      packer.packArrayHeader(3)
-      packer.packInt(id)
-      packer.packMapHeader(3)
-      packer.packString("type")
-      packer.packString("XComResult")
-      packer.packString("key")
-      packer.packString(key)
-      packer.packString("value")
-      packer.packInt(1)
-      packer.packNil()
-    }
-    return out.toByteArray()
-  }
+  ): ByteArray = successFrame("XComResult", "key" to key, "value" to 1)(id)
 
-  private fun unknownTypeFrame(id: Int): ByteArray {
-    val out = ByteArrayOutputStream()
-    MessagePack.newDefaultPacker(out).use { packer ->
-      packer.packArrayHeader(3)
-      packer.packInt(id)
-      packer.packMapHeader(1)
-      packer.packString("type")
-      packer.packString("SomeFutureMessage")
-      packer.packNil()
-    }
-    return out.toByteArray()
-  }
-
-  private fun okResponseFrame(id: Int): ByteArray {
-    val out = ByteArrayOutputStream()
-    MessagePack.newDefaultPacker(out).use { packer ->
-      packer.packArrayHeader(3)
-      packer.packInt(id)
-      packer.packMapHeader(2)
-      packer.packString("type")
-      packer.packString("OKResponse")
-      packer.packString("ok")
-      packer.packBoolean(true)
-      packer.packNil()
-    }
-    return out.toByteArray()
-  }
+  private fun okResponseFrame(id: Int): ByteArray = successFrame("OKResponse", "ok" to true)(id)
 
   // The supervisor answers a request that yields no result with a bare `[id]` frame.
   private fun emptyResponseFrame(id: Int): ByteArray {
@@ -207,21 +192,6 @@ class CommsTest {
       }
       out.toByteArray()
     }
-
-  private fun taskStateStoreResultFrame(id: Int): ByteArray {
-    val out = ByteArrayOutputStream()
-    MessagePack.newDefaultPacker(out).use { packer ->
-      packer.packArrayHeader(3)
-      packer.packInt(id)
-      packer.packMapHeader(2)
-      packer.packString("type")
-      packer.packString("TaskStateStoreResult")
-      packer.packString("value")
-      packer.packString("job-42")
-      packer.packNil()
-    }
-    return out.toByteArray()
-  }
 
   private fun readRequest(fromClient: ByteChannel): RawFrame =
     runBlocking {
@@ -286,38 +256,6 @@ class CommsTest {
     comm.close()
 
     return Triple(requests.single().rawBody as Map<*, *>, outcome.getOrNull(), outcome.exceptionOrNull())
-  }
-
-  private fun dagRunStateResultFrame(id: Int): ByteArray {
-    val out = ByteArrayOutputStream()
-    MessagePack.newDefaultPacker(out).use { packer ->
-      packer.packArrayHeader(3)
-      packer.packInt(id)
-      packer.packMapHeader(2)
-      packer.packString("type")
-      packer.packString("DagRunStateResult")
-      packer.packString("state")
-      packer.packString("running")
-      packer.packNil()
-    }
-    return out.toByteArray()
-  }
-
-  private fun dagResultFrame(id: Int): ByteArray {
-    val out = ByteArrayOutputStream()
-    MessagePack.newDefaultPacker(out).use { packer ->
-      packer.packArrayHeader(3)
-      packer.packInt(id)
-      packer.packMapHeader(3)
-      packer.packString("type")
-      packer.packString("DagResult")
-      packer.packString("dag_id")
-      packer.packString("downstream")
-      packer.packString("is_paused")
-      packer.packBoolean(true)
-      packer.packNil()
-    }
-    return out.toByteArray()
   }
 
   private suspend fun ByteChannel.writeFrame(payload: ByteArray) {
@@ -491,7 +429,7 @@ class CommsTest {
   @Timeout(value = 30, unit = TimeUnit.SECONDS)
   fun getDagRunStateReadsTheState() {
     val (body, state, failure) =
-      transportRoundTrip(::dagRunStateResultFrame) { it.getDagRunState("downstream", "run") }
+      transportRoundTrip(successFrame("DagRunStateResult", "state" to "running")) { it.getDagRunState("downstream", "run") }
 
     Assertions.assertNull(failure, "getDagRunState should return normally, got $failure")
     Assertions.assertEquals("running", state)
@@ -504,7 +442,8 @@ class CommsTest {
   @DisplayName("isDagPaused reads is_paused out of a DagResult")
   @Timeout(value = 30, unit = TimeUnit.SECONDS)
   fun isDagPausedReadsTheFlag() {
-    val (body, paused, failure) = transportRoundTrip(::dagResultFrame) { it.isDagPaused("downstream") }
+    val (body, paused, failure) =
+      transportRoundTrip(successFrame("DagResult", "dag_id" to "downstream", "is_paused" to true)) { it.isDagPaused("downstream") }
 
     Assertions.assertNull(failure, "isDagPaused should return normally, got $failure")
     Assertions.assertEquals(true, paused)
@@ -590,7 +529,10 @@ class CommsTest {
   @Timeout(value = 30, unit = TimeUnit.SECONDS)
   fun taskStateStoreGetUnwrapsResult() {
     var value: Any? = null
-    val (body, failure) = roundTrip(::taskStateStoreResultFrame, currentTaskInstance()) { value = it.taskStateStore.get("job_id") }
+    val (body, failure) =
+      roundTrip(successFrame("TaskStateStoreResult", "value" to "job-42"), currentTaskInstance()) {
+        value = it.taskStateStore.get("job_id")
+      }
 
     Assertions.assertNull(failure, "get should return normally on TaskStateStoreResult, got $failure")
     Assertions.assertEquals("GetTaskStateStore", body["type"])
@@ -783,7 +725,7 @@ class CommsTest {
         val healthy = async { comm.communicate<XComResult>(GetVariable().also { it.key = "b" }) }
         fromClient.readOneRequest()
 
-        toClient.writeFrame(unknownTypeFrame(0))
+        toClient.writeFrame(successFrame("SomeFutureMessage")(0))
         toClient.writeFrame(responseFrame(1))
 
         Assertions.assertInstanceOf(
