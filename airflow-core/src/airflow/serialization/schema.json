@@ -341,6 +341,11 @@
           "items": { "type": "string" },
           "default": []
         },
+        "template_fields_extra": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": []
+        },
         "template_ext": {"type": "array", "default": []},
         "template_fields_renderers": {"$ref": "#/definitions/dict", "default": {}},
         "downstream_task_ids": {
