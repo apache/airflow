@@ -976,6 +976,45 @@ class TestPodManager:
         assert "2026-05-28T13:07:57.030581518Z" not in caplog.text
         assert "2026-05-28T13:07:57.030642740Z" not in caplog.text
 
+    @pytest.mark.parametrize("log_item", [b"line without timestamp\n", b"line without timestamp"])
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.container_is_running")
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.read_pod_logs")
+    def test_leading_line_without_timestamp_keeps_its_text(
+        self, mock_read_pod_logs, mock_container_is_running, log_item
+    ):
+        """A line with no parsable timestamp and nothing buffered keeps its text, with no ``None`` prefix."""
+        MockWrapper.reset()
+        mock_callbacks = MockWrapper.mock_callbacks
+        mock_read_pod_logs.return_value = [log_item]
+        mock_container_is_running.return_value = False
+        mock_pod = mock.MagicMock(spec=V1Pod)
+
+        self.pod_manager.fetch_container_logs(mock_pod, "base", follow=True)
+
+        mock_callbacks.progress_callback.assert_called_once_with(
+            line="line without timestamp",
+            client=self.pod_manager._client,
+            mode="sync",
+            container_name="base",
+            timestamp=None,
+            pod=mock_pod,
+        )
+
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.container_is_running")
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.read_pod_logs")
+    def test_leading_blank_line_without_timestamp_is_dropped(
+        self, mock_read_pod_logs, mock_container_is_running
+    ):
+        """A bare newline with nothing buffered must not be emitted as an orphan row."""
+        MockWrapper.reset()
+        mock_callbacks = MockWrapper.mock_callbacks
+        mock_read_pod_logs.return_value = [b"\n"]
+        mock_container_is_running.return_value = False
+
+        self.pod_manager.fetch_container_logs(mock.MagicMock(spec=V1Pod), "base", follow=True)
+
+        mock_callbacks.progress_callback.assert_not_called()
+
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.container_is_running")
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.read_pod_logs")
     def test_container_log_times_tracks_last_timestamp(self, mock_read_pod_logs, mock_container_is_running):
@@ -2011,6 +2050,8 @@ class TestPodLogsConsumer:
             ([b"message"], [b"message"]),
             ([b"message1\nmessage2"], [b"message1\n", b"message2"]),
             ([b"message1\n", b"message2"], [b"message1\n", b"message2"]),
+            ([b"message1\n"], [b"message1\n"]),
+            ([b"message1\nmessage2\n"], [b"message1\n", b"message2\n"]),
             ([b"first_part", b"_second_part"], [b"first_part_second_part"]),
             ([b""], [b""]),
         ],
