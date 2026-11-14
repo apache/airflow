@@ -143,6 +143,7 @@ class SerializedBaseOperator(DAGNode):
     task_type: str = "BaseOperator"
     template_ext: Sequence[str] = []
     template_fields: Collection[str] = []
+    template_fields_extra: Sequence[str] = []
     template_fields_renderers: dict[str, str] = {}
 
     trigger_rule: str | TriggerRule = "all_success"
@@ -232,6 +233,7 @@ class SerializedBaseOperator(DAGNode):
                 "task_type",
                 "template_ext",
                 "template_fields",
+                "template_fields_extra",
                 "template_fields_renderers",
                 "trigger_rule",
                 "ui_color",
