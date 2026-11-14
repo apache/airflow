@@ -1569,8 +1569,8 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         password: str = "",
         hashed_password: str = "",
         groups: list[Group] | None = None,
-    ) -> User:
-        """Create a user."""
+    ) -> User | None:
+        """Create a user; return ``None`` if it cannot be saved."""
         roles: list[Role] = []
         if role:
             roles = role if isinstance(role, list) else [role]
@@ -1596,7 +1596,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         except Exception as e:
             log.error(const.LOGMSG_ERR_SEC_ADD_USER, e)
             self.session.rollback()
-            raise FabException(const.LOGMSG_ERR_SEC_ADD_USER) from e
+            return None
 
     def load_user(self, pk: int) -> User | None:
         try:
@@ -2559,6 +2559,12 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                 email=username + "@email.notfound",
                 role=self.find_role(self.auth_user_registration_role),
             )
+            if user is None:
+                # a parallel first request for the same REMOTE_USER can win the insert
+                user = self.find_user(username=username)
+                if user is None or not user.is_active:
+                    log.error("Error creating a new REMOTE_USER user %s", username)
+                    return None
 
         # If user does not exist on the DB and not auto user registration,
         # or user is inactive, go away.
