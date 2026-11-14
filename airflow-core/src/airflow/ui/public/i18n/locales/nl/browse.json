@@ -28,11 +28,12 @@
         "lastParsed": "Laatst geparsd",
         "parseDuration": "Parse duur"
       },
-      "file_one": "Bestand",
-      "file_other": "Bestanden",
       "importErrorForbidden": "Je hebt geen rechten om deze importfout te bekijken.",
       "importErrorGone": "Deze importfout wordt niet langer geregistreerd. Waarschijnlijk is het opgelost door een herparsing.",
       "neverParsed": "Nooit",
+      "parsedFile_one": "Geparsd bestand",
+      "parsedFile_other": "Geparsde bestanden",
+      "parsedFilesNote": "Alleen bestanden die een Dag definiëren of niet konden worden geïmporteerd, worden weergegeven.",
       "showImportError_one": "Bekijk {{count, number}} fout",
       "showImportError_other": "Bekijk {{count, number}} fouten"
     },
