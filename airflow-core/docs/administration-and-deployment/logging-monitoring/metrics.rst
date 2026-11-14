@@ -139,6 +139,20 @@ Add the Collector details to your configuration file e.g. ``airflow.cfg``
     See the OpenTelemetry `exporter protocol specification <https://opentelemetry.io/docs/specs/otel/protocol/exporter/#configuration-options>`_  and
     `SDK environment variable documentation <https://opentelemetry.io/docs/specs/otel/configuration/sdk-environment-variables/#periodic-exporting-metricreader>`_ for more information.
 
+    To send metrics to a backend that expects a non-default path, set the signal-specific
+    ``OTEL_EXPORTER_OTLP_METRICS_ENDPOINT`` variable to the full URL. The OpenTelemetry SDK reads
+    this value directly, and Airflow does not rewrite it, so the path is preserved. For example,
+    VictoriaMetrics ingests OTLP metrics at ``/opentelemetry/api/v1/push``:
+
+    .. code-block:: bash
+
+        export OTEL_EXPORTER_OTLP_METRICS_ENDPOINT="http://victoriametrics:8428/opentelemetry/api/v1/push"
+        export OTEL_EXPORTER_OTLP_PROTOCOL="http/protobuf"
+
+    The generic ``OTEL_EXPORTER_OTLP_ENDPOINT`` is a base URL and is not a substitute here: the
+    OpenTelemetry SDK appends the default ``/v1/metrics`` path to it. Airflow also appends that path
+    when it builds an endpoint from the deprecated ``otel_host``/``otel_port`` configuration.
+
 
 .. _identifying-components-and-their-instances:
 
