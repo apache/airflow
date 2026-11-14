@@ -14,47 +14,16 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""Helpers for spans and metrics captured from the OTel console (stdout) exporter."""
+
 from __future__ import annotations
 
 import json
 import logging
-import pprint
 from collections import defaultdict
 from typing import Literal
 
-from sqlalchemy import inspect, select
-
-log = logging.getLogger("integration.otel.otel_utils")
-
-
-def dump_airflow_metadata_db(session):
-    from airflow.models import Base
-
-    inspector = inspect(session.bind)
-    all_tables = inspector.get_table_names()
-
-    # dump with the entire db
-    db_dump = {}
-
-    log.debug("\n-----START_airflow_db_dump-----\n")
-
-    for table_name in all_tables:
-        log.debug("\nDumping table: %s", table_name)
-        table = Base.metadata.tables.get(table_name)
-        if table is not None:
-            results = [dict(row._mapping) for row in session.execute(select(table)).all()]
-            db_dump[table_name] = results
-            # Pretty-print the table contents
-            if table_name == "connection":
-                filtered_results = [row for row in results if row.get("conn_id") == "airflow_db"]
-                pprint.pprint({table_name: filtered_results}, width=120)
-            else:
-                pprint.pprint({table_name: results}, width=120)
-        else:
-            log.debug("Table %s not found in metadata.", table_name)
-
-    log.debug("\nAirflow metadata database dump complete.")
-    log.debug("\n-----END_airflow_db_dump-----\n")
+log = logging.getLogger("integration.otel.otel_console_utils")
 
 
 def extract_task_event_value(line: str) -> str:
