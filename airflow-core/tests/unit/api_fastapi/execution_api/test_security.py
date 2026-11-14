@@ -63,7 +63,7 @@ from airflow.api_fastapi.execution_api.security import (
 )
 from airflow.jobs.job import Job, JobState
 from airflow.models import DagModel
-from airflow.models.callback import Callback, CallbackFetchMethod
+from airflow.models.callback import Callback, CallbackFetchMethod, ExecutorCallback
 from airflow.models.connection_test import ConnectionTestRequest, ConnectionTestState
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.renderedtifields import RenderedTaskInstanceFields
@@ -73,12 +73,14 @@ from airflow.models.variable import Variable
 from airflow.models.xcom import XComModel, XComModelV1, XComModelV2
 from airflow.sdk.api.client import XComOperations
 from airflow.sdk.bases.xcom import BaseXCom
+from airflow.sdk.definitions.callback import SyncCallback
 from airflow.sdk.execution_time import request_handlers, task_runner
 from airflow.sdk.execution_time.comms import DeleteXCom, GetXCom
 from airflow.utils.state import CallbackState, TaskInstanceState
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import (
+    clear_db_callbacks,
     clear_db_dag_bundles,
     clear_db_dags,
     clear_db_jobs,
@@ -604,6 +606,34 @@ class TestGetTeamNameDep:
             clear_db_teams()
 
         assert result == "team_a"
+
+    @pytest.mark.db_test
+    @pytest.mark.asyncio
+    @pytest.mark.usefixtures("async_db_engine")
+    async def test_callback_token_resolves_the_team_of_its_bundle(self, session):
+        clear_db_callbacks()
+        clear_db_dag_bundles()
+        clear_db_teams()
+        bundle = DagBundleModel(name="callback_bundle")
+        bundle.teams.append(Team(name="team_cb"))
+        callback = ExecutorCallback(
+            callback_def=SyncCallback("os.getpid", kwargs={}),
+            fetch_method=CallbackFetchMethod.IMPORT_PATH,
+        )
+        callback.bundle_name = "callback_bundle"
+        session.add_all([bundle, callback])
+        session.commit()
+        token = TIToken(id=callback.id, claims=TIClaims(scope="execution"))
+
+        try:
+            with conf_vars({("core", "multi_team"): "True"}):
+                result = await get_team_name_dep(token=token, dag_bundle=None)
+        finally:
+            clear_db_callbacks()
+            clear_db_dag_bundles()
+            clear_db_teams()
+
+        assert result == "team_cb"
 
 
 _TOKEN_TYPES: dict[type, type[ExecutionToken]] = {
