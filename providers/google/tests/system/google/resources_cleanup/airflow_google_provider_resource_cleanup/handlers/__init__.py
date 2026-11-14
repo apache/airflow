@@ -26,6 +26,7 @@ if TYPE_CHECKING:
 def get_delete_handlers() -> dict[str, type[BaseDeleteHandler]]:
     from airflow_google_provider_resource_cleanup.handlers.ai import AIPlatformDeleteHandler
     from airflow_google_provider_resource_cleanup.handlers.bq import BigQueryDeleteHandler
+    from airflow_google_provider_resource_cleanup.handlers.cloudbuild import CloudBuildDeleteHandler
     from airflow_google_provider_resource_cleanup.handlers.composer import ComposerDeleteHandler
     from airflow_google_provider_resource_cleanup.handlers.compute import ComputeDeleteHandler
     from airflow_google_provider_resource_cleanup.handlers.dataflow import DataflowDeleteHandler
@@ -49,6 +50,7 @@ def get_delete_handlers() -> dict[str, type[BaseDeleteHandler]]:
         "ai": AIPlatformDeleteHandler,
         "bq": BigQueryDeleteHandler,
         "bqtransfer": BigQueryDeleteHandler,
+        "cloudbuild": CloudBuildDeleteHandler,
         "composer": ComposerDeleteHandler,
         "compute": ComputeDeleteHandler,
         "dataflow": DataflowDeleteHandler,
