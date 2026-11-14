@@ -75,7 +75,8 @@ There are very many reasons why your task might not be getting scheduled. Here a
 
 - Is the ``max_active_tasks`` parameter of your Dag reached? ``max_active_tasks`` defines
   how many ``running`` task instances a Dag is allowed to have, beyond which
-  point things get queued.
+  point things get queued. Deferred task instances count only when
+  :ref:`config:core__max_active_tasks_include_deferred` is enabled.
 
 - Is the ``max_active_runs`` parameter of your Dag reached? ``max_active_runs`` defines
   how many ``running`` concurrent instances of a Dag there are allowed to be.
