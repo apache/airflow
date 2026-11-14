@@ -33,6 +33,7 @@ import kubernetes
 import pytest
 import pytest_asyncio
 import yaml
+from aiohttp import ClientWebSocketResponse
 from kubernetes.client import V1Deployment, V1DeploymentStatus
 from kubernetes.client.rest import ApiException
 from kubernetes.config import ConfigException
@@ -1891,6 +1892,33 @@ class TestAsyncKubernetesHook:
             name=POD_NAME,
             namespace=NAMESPACE,
         )
+
+    @pytest.mark.asyncio
+    @mock.patch(KUBE_API.format("connect_get_namespaced_pod_exec"))
+    @mock.patch(f"{HOOK_MODULE}.WsApiClient")
+    async def test_open_pod_exec(self, mock_ws_api_client, mock_connect_exec, kube_config_loader):
+        websocket = mock.MagicMock(spec=ClientWebSocketResponse)
+        mock_connect_exec.return_value = self.mock_await_result(websocket)
+        hook = AsyncKubernetesHook(conn_id=None, in_cluster=False, config_file=None, cluster_context=None)
+
+        async with hook.open_pod_exec(POD_NAME, NAMESPACE, "sidecar", ["/bin/sh"], stdin=True) as ws:
+            assert ws is websocket.__aenter__.return_value
+
+        mock_ws_api_client.assert_called_once_with(
+            configuration=hook.client_configuration, heartbeat=API_TIMEOUT
+        )
+        mock_connect_exec.assert_called_once_with(
+            POD_NAME,
+            NAMESPACE,
+            container="sidecar",
+            command=["/bin/sh"],
+            stdin=True,
+            stdout=True,
+            stderr=True,
+            tty=False,
+            _preload_content=False,
+        )
+        websocket.__aexit__.assert_awaited_once()
 
     @pytest.mark.asyncio
     @mock.patch(KUBE_API.format("delete_namespaced_pod"))
