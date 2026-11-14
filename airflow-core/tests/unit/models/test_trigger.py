@@ -2191,3 +2191,136 @@ def test_kind_is_the_same_in_sql_and_python(session, owner_ref, watched, expecte
     assert sql_kind == expected
     kind = session.get(Trigger, trigger.id).kind
     assert (kind.value if kind else None) == expected
+
+
+def _failed_watcher_trigger(session, asset_name="watched", **columns):
+    trigger = _watcher_trigger(session, triggerer_id=1, **columns)
+    Trigger.submit_failure(
+        trigger.id,
+        failure=RecordedFailure(3, "ConnectionError: expired"),
+        session=session,
+    )
+    session.commit()
+    return trigger
+
+
+def test_failed_unreferenced_trigger_is_marked_finished_not_deleted(session):
+    trigger = _failed_watcher_trigger(session)
+    session.execute(delete(AssetWatcherModel).where(AssetWatcherModel.trigger_id == trigger.id))
+    session.commit()
+
+    Trigger.clean_unused()
+
+    finished = session.get(Trigger, trigger.id)
+    assert finished.finished_at is not None
+    assert finished.triggerer_id is None
+    assert finished.kind is not None
+    assert finished.kind.value == "asset_watcher"
+    assert finished.status().value == "finished"
+    from airflow.jobs.job import Job  # noqa: F401
+
+    sql_status = session.scalar(
+        select(Trigger.status_expression()).outerjoin(Trigger.triggerer_job).where(Trigger.id == trigger.id)
+    )
+    assert sql_status == "finished"
+
+
+def test_never_failed_trigger_is_deleted_right_away(session):
+    trigger = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
+    session.add(trigger)
+    session.commit()
+
+    Trigger.clean_unused()
+
+    assert session.get(Trigger, trigger.id) is None
+
+
+def test_failed_trigger_is_deleted_after_retention(session):
+    past = timezone.utcnow() - datetime.timedelta(days=30)
+    trigger = _failed_watcher_trigger(session, finished_at=past)
+    session.execute(delete(AssetWatcherModel).where(AssetWatcherModel.trigger_id == trigger.id))
+    session.commit()
+
+    Trigger.clean_unused()
+
+    assert session.get(Trigger, trigger.id) is None
+
+
+def test_finished_trigger_regaining_a_reference_is_resurrected(session, create_task_instance):
+    past = timezone.utcnow() - datetime.timedelta(days=1)
+    trigger = _failed_watcher_trigger(session, finished_at=past)
+    session.execute(delete(AssetWatcherModel).where(AssetWatcherModel.trigger_id == trigger.id))
+    session.commit()
+
+    Trigger.clean_unused()
+    assert session.get(Trigger, trigger.id).finished_at is not None
+
+    asset = AssetModel("again")
+    session.add(asset)
+    session.flush()
+    session.execute(insert(AssetWatcherModel).values(name="again", asset_id=asset.id, trigger_id=trigger.id))
+    session.commit()
+
+    Trigger.get_sorted_triggers(
+        capacity=1,
+        alive_triggerer_ids=[],
+        queues=None,
+        session=session,
+    )
+    session.expire_all()
+    assert session.get(Trigger, trigger.id).finished_at is None
+
+
+@pytest.mark.parametrize("retention", ["0"])
+def test_failed_trigger_retention_zero_deletes_failed_trigger(session, retention):
+    trigger = _failed_watcher_trigger(session)
+    session.execute(delete(AssetWatcherModel).where(AssetWatcherModel.trigger_id == trigger.id))
+    session.commit()
+
+    with conf_vars({("triggerer", "failed_trigger_retention"): retention}):
+        Trigger.clean_unused()
+        Trigger.clean_unused()
+
+    assert session.get(Trigger, trigger.id) is None
+
+
+def test_get_triggers_lists_finished_trigger_with_finished_status(session):
+    trigger = _failed_watcher_trigger(session)
+    session.execute(delete(AssetWatcherModel).where(AssetWatcherModel.trigger_id == trigger.id))
+    session.commit()
+
+    Trigger.clean_unused()
+
+    from airflow.api_fastapi.core_api.routes.public.triggers import _build_triggers_select
+
+    rows = session.scalars(_build_triggers_select()).unique().all()
+    assert [row.id for row in rows] == [trigger.id]
+
+
+def test_remove_unreferenced_triggers_marks_failed_trigger_finished(session):
+    from airflow.jobs.job import Job
+    from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
+
+    trigger = _failed_watcher_trigger(session)
+    session.execute(delete(AssetWatcherModel).where(AssetWatcherModel.trigger_id == trigger.id))
+    session.commit()
+
+    SchedulerJobRunner(job=Job())._remove_unreferenced_triggers(session=session)
+    session.expire_all()
+    finished = session.get(Trigger, trigger.id)
+    assert finished.finished_at is not None
+    assert finished.status().value == "finished"
+
+
+def test_finished_trigger_is_not_assigned(session, create_task_instance):
+    trigger = _failed_watcher_trigger(session, finished_at=timezone.utcnow())
+    session.execute(delete(AssetWatcherModel).where(AssetWatcherModel.trigger_id == trigger.id))
+    session.commit()
+
+    ids = Trigger.get_sorted_triggers(
+        capacity=1,
+        alive_triggerer_ids=[],
+        queues=None,
+        session=session,
+    )
+    assert trigger.id not in {row[0] for row in ids}

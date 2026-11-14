@@ -4320,17 +4320,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
     @provide_session
     def _remove_unreferenced_triggers(self, *, session: Session = NEW_SESSION) -> None:
         """Remove triggers that are no longer used by anything."""
-        session.execute(
-            delete(Trigger)
-            .where(
-                ~exists(
-                    select(AssetWatcherModel.trigger_id).where(AssetWatcherModel.trigger_id == Trigger.id)
-                ),
-                ~exists(select(Callback.trigger_id).where(Callback.trigger_id == Trigger.id)),
-                ~exists(select(TaskInstance.trigger_id).where(TaskInstance.trigger_id == Trigger.id)),
-            )
-            .execution_options(synchronize_session="fetch")
+        unreferenced = (
+            ~exists(select(AssetWatcherModel.trigger_id).where(AssetWatcherModel.trigger_id == Trigger.id)),
+            ~exists(select(Callback.trigger_id).where(Callback.trigger_id == Trigger.id)),
+            ~exists(select(TaskInstance.trigger_id).where(TaskInstance.trigger_id == Trigger.id)),
         )
+        Trigger._finish_or_delete_unreferenced(unreferenced, session=session)
 
     @provide_session
     def _update_asset_orphanage(self, *, session: Session = NEW_SESSION) -> None:

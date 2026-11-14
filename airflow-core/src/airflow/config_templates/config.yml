@@ -3182,6 +3182,16 @@ triggerer:
       type: integer
       example: ~
       default: "500"
+    failed_trigger_retention:
+      description: |
+        How many seconds an unreferenced trigger that recorded failures is kept after nothing
+        references it, marked `finished` and released from its triggerer, before it is deleted.
+        The API keeps listing it in the meantime. Triggers that never failed are deleted right away.
+        Set to 0 to delete failed triggers as soon as they stop being referenced.
+      version_added: 3.5.0
+      type: integer
+      example: ~
+      default: "604800"
     on_kill_timeout:
       description: |
         Maximum number of seconds the triggerer will wait for ``BaseTrigger.on_kill()`` to complete

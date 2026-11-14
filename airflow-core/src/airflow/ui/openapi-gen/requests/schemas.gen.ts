@@ -10798,7 +10798,20 @@ export const $TriggerDetailResponse = {
         },
         status: {
             '$ref': '#/components/schemas/TriggerStatus',
-            description: `\`pending\`: not picked up by a triggerer yet. \`running\`: on a live triggerer and not failed since it last recovered. \`failing\`: on a live triggerer and failed since it last recovered, that is \`consecutive_failures\` is above 0; it recovers when it fires an event or stays up for two minutes. \`orphaned\`: its triggerer stopped sending heartbeats; another triggerer will take it.`
+            description: `\`pending\`: not picked up by a triggerer yet. \`running\`: on a live triggerer and not failed since it last recovered. \`failing\`: on a live triggerer and failed since it last recovered, that is \`consecutive_failures\` is above 0; it recovers when it fires an event or stays up for two minutes. \`orphaned\`: its triggerer stopped sending heartbeats; another triggerer will take it. \`finished\`: its owner let go, it is kept for the failure-retention window, it will never run again, and it is then deleted.`
+        },
+        finished_at: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Finished At',
+            description: 'When it finished; set only for `finished` triggers.'
         },
         triggerer_hostname: {
             anyOf: [
@@ -10972,7 +10985,7 @@ export const $TriggerResponse = {
 
 export const $TriggerStatus = {
     type: 'string',
-    enum: ['pending', 'running', 'failing', 'orphaned'],
+    enum: ['pending', 'running', 'failing', 'orphaned', 'finished'],
     title: 'TriggerStatus',
     description: "How a trigger is doing, worked out the same way for every kind from its row and its triggerer's heartbeat."
 } as const;
