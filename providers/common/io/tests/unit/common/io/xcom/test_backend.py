@@ -569,3 +569,48 @@ class TestXComObjectStorageBackend:
             deserialized_data = XCom.deserialize_value(mock_xcom_ser)
 
             assert deserialized_data == expected_value
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Looking up the path requires Airflow 3")
+    def test_get_path_returns_where_a_large_value_is_stored(self, mock_supervisor_comms):
+        stored = f"{self.path}/test-dag-id/test-run/test-task-id/value.json"
+        mock_supervisor_comms.send.return_value = XComResult(key=XCOM_RETURN_KEY, value=stored)
+
+        path = XComObjectStorageBackend.get_path(
+            key=XCOM_RETURN_KEY, dag_id="test-dag-id", task_id="test-task-id", run_id="test-run"
+        )
+
+        assert path == ObjectStoragePath(stored)
+        request = mock_supervisor_comms.send.call_args.args[0]
+        assert (request.dag_id, request.task_id, request.run_id, request.map_index) == (
+            "test-dag-id",
+            "test-task-id",
+            "test-run",
+            None,
+        )
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Looking up the path requires Airflow 3")
+    @pytest.mark.parametrize(
+        "stored",
+        [
+            pytest.param({"key": "value"}, id="stored in the database"),
+            pytest.param(None, id="no such XCom"),
+        ],
+    )
+    def test_get_path_is_none_without_a_file(self, mock_supervisor_comms, stored):
+        mock_supervisor_comms.send.return_value = XComResult(key=XCOM_RETURN_KEY, value=stored)
+
+        path = XComObjectStorageBackend.get_path(
+            key=XCOM_RETURN_KEY, dag_id="test-dag-id", task_id="test-task-id", run_id="test-run"
+        )
+
+        assert path is None
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Looking up the path requires Airflow 3")
+    def test_get_path_refuses_another_backend(self, mock_supervisor_comms):
+        with conf_vars({("core", "xcom_backend"): "airflow.sdk.bases.xcom.BaseXCom"}):
+            with pytest.raises(TypeError, match="does not store values in object storage"):
+                XComObjectStorageBackend.get_path(
+                    key=XCOM_RETURN_KEY, dag_id="test-dag-id", task_id="test-task-id", run_id="test-run"
+                )
+
+        mock_supervisor_comms.send.assert_not_called()

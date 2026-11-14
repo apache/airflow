@@ -56,3 +56,76 @@ The local filesystem scheme can also be used as it's the same as file show above
 .. note::
 
   Compression requires the support for it is installed in your python environment. For example, to use ``snappy`` compression, you need to install ``python-snappy``. Zip, gzip and bz2 work out of the box.
+
+Reading a large value where it is stored
+----------------------------------------
+
+A value stored in object storage still travels through the task that pulls it: ``xcom_pull`` reads the file,
+deserializes it and hands the Python object over. For a large extract (a JSON array of millions of rows
+pushed by an extraction task, for example) that is unnecessary when the next step is a tool that can read the
+file itself, such as a query engine reading JSON or Parquet from object storage: the task only needs to tell it
+where the file is.
+
+``XComObjectStorageBackend.get_path`` returns that location, an :class:`~airflow.sdk.ObjectStoragePath`,
+without reading the file. In templates, the provider's ``xcom_path`` macro does the same and returns a string.
+
+For example, an ``HttpOperator`` pushes a large JSON array of invoices from a REST API, and a
+:class:`~airflow.providers.common.sql.operators.generic_transfer.GenericTransfer` with a DuckDB source reads it
+straight from object storage, flattens it and inserts the rows into the target database. The rows are never
+deserialized in Python between the two tasks:
+
+.. code-block:: python
+
+    from airflow.providers.common.sql.operators.generic_transfer import GenericTransfer
+    from airflow.providers.http.operators.http import HttpOperator
+
+    # Every invoice changed in the last year, as one JSON array: tens of MB, written to object storage
+    # by the backend.
+    extract_invoices = HttpOperator(
+        task_id="extract_invoices",
+        http_conn_id="invoicing_api",
+        method="GET",
+        endpoint="invoices",
+        data={"changed_since": "{{ (data_interval_start - macros.timedelta(days=365)) | ts }}"},
+        response_filter=lambda response: response.json(),
+    )
+
+    load_invoices = GenericTransfer(
+        task_id="load_invoices",
+        source_conn_id="duckdb_default",
+        destination_conn_id="postgres_default",
+        destination_table="invoices",
+        # Read by DuckDB straight from where the backend stored the XCom value.
+        sql="""
+            SELECT *
+            FROM read_json(
+                '{{ macros.common_io.xcom_path(ti, "extract_invoices") }}',
+                format = 'array',
+                columns = {
+                    invoice_id: 'BIGINT',
+                    customer: 'VARCHAR',
+                    invoice_date: 'TIMESTAMP',
+                    amount: 'DOUBLE'
+                }
+            )
+        """,
+    )
+    extract_invoices >> load_invoices
+
+DuckDB reads ``.gz`` files transparently, so ``xcom_objectstorage_compression = gzip`` needs no extra option;
+for object storage other than the local file system, give DuckDB access to it (its ``httpfs`` extension and a
+secret, for example).
+
+Only values written to object storage have a path, so ``xcom_objectstorage_threshold`` decides which ones do;
+a threshold of ``0`` writes every value to object storage. ``protocol=False`` returns the path without its
+scheme (``bucket/key/...`` instead of ``s3://bucket/key/...``), for a tool that is given the file system
+separately.
+
+``get_path`` returns ``None`` when there is no such XCom or when its value is stored in the database. The macro
+raises instead, since a ``None`` rendered into a query fails later with a less helpful error:
+
+* ``TypeError`` when the configured XCom backend is not ``XComObjectStorageBackend``;
+* ``ValueError`` when the XCom has no path: it does not exist, or its value is stored in the database
+  (smaller than the threshold).
+
+Looking up the path requires Airflow 3.

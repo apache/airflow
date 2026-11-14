@@ -204,6 +204,55 @@ class XComObjectStorageBackend(BaseXCom):
         except (FileNotFoundError, TypeError, ValueError):
             return data
 
+    @classmethod
+    def get_path(
+        cls,
+        *,
+        key: str,
+        dag_id: str,
+        task_id: str,
+        run_id: str,
+        map_index: int | None = None,
+    ) -> ObjectStoragePath | None:
+        """
+        Return where an XCom value is stored in object storage, without reading it.
+
+        A value at least ``xcom_objectstorage_threshold`` bytes large is written to object storage and the
+        database only keeps its path; this returns that path, so that a tool able to read the file itself
+        (a query engine reading JSON from object storage, for example) does not need the value to be loaded
+        into the task first.
+
+        :param key: The key of the XCom.
+        :param dag_id: The Dag id of the task instance that pushed it.
+        :param task_id: The task id of the task instance that pushed it.
+        :param run_id: The Dag run id of the task instance that pushed it.
+        :param map_index: The map index of the task instance that pushed it; *None* (default) for a
+            non-mapped task.
+        :return: The path, or *None* when there is no such XCom or its value is stored in the database
+            (smaller than ``xcom_objectstorage_threshold``).
+        :raises TypeError: if the configured XCom backend is not this one, so no value has a path.
+        """
+        if not AIRFLOW_V_3_0_PLUS:
+            raise NotImplementedError("Looking up where an XCom value is stored requires Airflow 3")
+
+        from airflow.sdk.execution_time.xcom import resolve_xcom_backend
+
+        if not issubclass(backend := resolve_xcom_backend(), XComObjectStorageBackend):
+            raise TypeError(
+                f"The configured XCom backend {backend.__module__}.{backend.__qualname__} does not store values "
+                f"in object storage; set [core] xcom_backend to "
+                f"{XComObjectStorageBackend.__module__}.{XComObjectStorageBackend.__qualname__}"
+            )
+        # BaseXCom's own deserialization stops at the value as kept in the database: the path of a value
+        # written to object storage, instead of the file's content.
+        stored = BaseXCom.get_one(key=key, dag_id=dag_id, task_id=task_id, run_id=run_id, map_index=map_index)
+        if stored is None:
+            return None
+        try:
+            return cls._get_full_path(stored)
+        except (TypeError, ValueError):  # Stored in the database.
+            return None
+
     @staticmethod
     def purge(xcom: XComResult, session: Session | None = None) -> None:
         if not isinstance(xcom.value, str):
