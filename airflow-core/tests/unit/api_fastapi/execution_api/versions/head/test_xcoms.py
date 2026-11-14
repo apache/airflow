@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import re
 import urllib.parse
@@ -29,11 +30,14 @@ from fastapi.testclient import TestClient
 from sqlalchemy import delete, event, select, update
 from sqlalchemy.orm import Session
 
+from airflow import settings
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.auth.tokens import JWTValidator
+from airflow.api_fastapi.execution_api import security as execution_api_security
 from airflow.api_fastapi.execution_api.datamodels.token import ExecutionToken, TIClaims, TIToken
 from airflow.api_fastapi.execution_api.datamodels.xcom import XComResponse
 from airflow.api_fastapi.execution_api.in_process import TRIGGER_TI_ID_HEADER, InProcessExecutionAPI
+from airflow.api_fastapi.execution_api.routes import xcoms as xcoms_routes
 from airflow.api_fastapi.execution_api.security import _jwt_bearer, require_auth
 from airflow.exceptions import TaskNotFound
 from airflow.models.dag import DagModel
@@ -591,7 +595,9 @@ def test_trigger_in_a_loop_reads_and_writes_as_its_deferred_pass(session, deferr
         if statement.startswith("SELECT task_instance.working_set FROM")
     ]
     assert len(liveness_checks) == 1
-    assert len(set(map(id, sessions_begun))) == 6
+    # Each request uses the trigger check's session, its route's session and the producer lookup's own
+    # worker-thread session.
+    assert len(set(map(id, sessions_begun))) == 18
     session.expire_all()
     assert XComModelV2.get_for_attempt(steps[2].id, "key-written", session=session).value == "from-trigger"
     assert XComModelV2.get_for_attempt(steps[2].id, "key", session=session) is None
@@ -966,6 +972,115 @@ def test_prior_dates_ignores_values_of_archived_expansion_task_instances(
     assert response.status_code == 404
 
 
+def _is_event_loop_running() -> bool:
+    try:
+        asyncio.get_running_loop()
+    except RuntimeError:
+        return False
+    return True
+
+
+def _build_call_recorder(name: str, calls: list[tuple[str, bool]]):
+    original = getattr(xcoms_routes, name)
+
+    def record(*args, **kwargs):
+        calls.append((name, _is_event_loop_running()))
+        return original(*args, **kwargs)
+
+    return record
+
+
+@pytest.mark.parametrize(
+    ("method", "suffix", "offloaded"),
+    [
+        pytest.param("get", "", {"_build_xcom_read", "_render_json"}, id="get"),
+        pytest.param("get", "/item/0", {"_build_xcom_read", "_render_json"}, id="item"),
+        pytest.param("get", "/slice", {"_build_xcom_read", "_render_json"}, id="slice"),
+        pytest.param("head", "", {"_build_xcom_read"}, id="head"),
+        pytest.param("post", "", {"_find_writer_id"}, id="post"),
+        pytest.param("delete", "", {"_find_writer_id"}, id="delete"),
+    ],
+)
+def test_xcom_producer_lookups_and_rendering_run_off_the_event_loop(
+    client, create_task_instance, session, mocker, method, suffix, offloaded
+):
+    """Dag deserialization and value encoding are CPU work that must not stall the event loop."""
+    ti = create_task_instance(state=TaskInstanceState.RUNNING)
+    XComModel.set_for_attempt(
+        task_instance_id=ti.id, key="xcom_1", value="v", serialize=False, session=session
+    )
+    session.commit()
+    calls: list[tuple[str, bool]] = []
+    for name in ("_build_xcom_read", "_find_writer_id", "_render_json"):
+        mocker.patch.object(xcoms_routes, name, autospec=True, side_effect=_build_call_recorder(name, calls))
+
+    response = getattr(client, method)(
+        f"/execution/xcoms/{ti.dag_id}/{ti.run_id}/{ti.task_id}/xcom_1{suffix}",
+        **({"json": "v"} if method == "post" else {}),
+    )
+
+    assert response.is_success, response.text
+    assert {name for name, _ in calls} == offloaded
+    assert not any(running for _, running in calls)
+
+
+@pytest.mark.parametrize("multi_team", [False, True])
+def test_xcom_read_holds_no_route_connection_during_the_producer_lookup(
+    client, create_task_instance, session, mocker, authenticate_as, multi_team
+):
+    """The checks before the lookup release their connections, so no async connection idles across it."""
+    ti = create_task_instance(state=TaskInstanceState.RUNNING)
+    XComModel.set_for_attempt(
+        task_instance_id=ti.id, key="xcom_1", value="v", serialize=False, session=session
+    )
+    session.commit()
+    authenticate_as(ti)
+    checked_out: list[int] = []
+    original = xcoms_routes._build_xcom_read
+
+    def record(*args, **kwargs):
+        checked_out.append(settings.async_engine.pool.checkedout())
+        return original(*args, **kwargs)
+
+    mocker.patch.object(xcoms_routes, "_build_xcom_read", autospec=True, side_effect=record)
+
+    with conf_vars({("core", "multi_team"): str(multi_team)}):
+        response = client.get(f"/execution/xcoms/{ti.dag_id}/{ti.run_id}/{ti.task_id}/xcom_1")
+
+    assert response.status_code == 200, response.text
+    assert checked_out == [0]
+
+
+@pytest.mark.parametrize(
+    ("method", "lookup", "expected_status"),
+    [("GET", "_build_xcom_read", 200), ("POST", "_find_writer_id", 201)],
+)
+def test_trigger_xcom_request_holds_no_route_connection_during_the_producer_lookup(
+    deferred_loop_pass, mocker, method, lookup, expected_status
+):
+    """The trigger-identity check releases its connection, so no async connection idles across the lookup."""
+    dr, steps, _ = deferred_loop_pass
+    checked_out: list[int] = []
+    original = getattr(xcoms_routes, lookup)
+
+    def record(*args, **kwargs):
+        checked_out.append(settings.async_engine.pool.checkedout())
+        return original(*args, **kwargs)
+
+    mocker.patch.object(xcoms_routes, lookup, autospec=True, side_effect=record)
+
+    with TestClient(InProcessExecutionAPI(triggerer_id=TRIGGERER_ID).app) as api:
+        response = api.request(
+            method,
+            f"/xcoms/{dr.dag_id}/{dr.run_id}/body.step/key",
+            headers={TRIGGER_TI_ID_HEADER: str(steps[2].id)},
+            json="from-trigger" if method == "POST" else None,
+        )
+
+    assert response.status_code == expected_status, response.text
+    assert checked_out == [0]
+
+
 @pytest.fixture(autouse=True)
 def reset_db():
     """Reset XCom entries."""
@@ -994,7 +1109,7 @@ def access_denied(client):
     assert isinstance(last_route.app, FastAPI)
     exec_app = last_route.app
 
-    def _(
+    async def _(
         request: Request,
         dag_id: str = Path(),
         run_id: str = Path(),
@@ -1002,8 +1117,7 @@ def access_denied(client):
         xcom_key: str = Path(alias="key"),
         token=CurrentTIToken,
     ):
-        with create_session() as session:
-            has_xcom_access(dag_id, run_id, task_id, xcom_key, request, session, token)
+        await has_xcom_access(dag_id, run_id, task_id, xcom_key, request, token)
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail={
@@ -1045,6 +1159,36 @@ class TestXComsGetEndpoint:
 
         assert response.status_code == 200
         assert response.json() == {"key": "xcom_1", "value": db_value}
+
+    @pytest.mark.parametrize(
+        ("path", "expected"),
+        [
+            pytest.param("", {"key": "xcom_1", "value": None}, id="get"),
+            pytest.param("/item/0", None, id="item"),
+        ],
+    )
+    def test_xcom_read_returns_a_stored_null_without_loading_xcom_entities(
+        self, client, create_task_instance, session, path, expected
+    ):
+        """A stored NULL is a found value, not a missing row, and reading it selects the value column only."""
+        ti = create_task_instance()
+        session.add(XComModelV2(key="xcom_1", value=None, task_instance_id=ti.id))
+        session.commit()
+        loaded = []
+
+        def record(_, instance):
+            if isinstance(instance, XComModel):
+                loaded.append(instance)
+
+        event.listen(Session, "loaded_as_persistent", record)
+        try:
+            response = client.get(f"/execution/xcoms/{ti.dag_id}/{ti.run_id}/{ti.task_id}/xcom_1{path}")
+        finally:
+            event.remove(Session, "loaded_as_persistent", record)
+
+        assert response.status_code == 200
+        assert response.json() == expected
+        assert loaded == []
 
     def test_xcom_not_found(self, client, create_task_instance):
         response = client.get("/execution/xcoms/dag/runid/task/xcom_non_existent")
@@ -1809,6 +1953,23 @@ class TestXComTeamAccess:
         assert read.json() == {"key": "existing", "value": "v"}
         assert write.status_code == 201, write.json()
         assert delete_.status_code == 200, delete_.json()
+
+    @pytest.mark.parametrize(("method", "expected_status"), [("get", 200), ("post", 201), ("delete", 200)])
+    def test_access_is_checked_once_per_request(
+        self, client, exec_app, session, dag_maker, mocker, method, expected_status
+    ):
+        """Cadwyn solves the access check in two passes; the second reuses the first's grant."""
+        dag_id = f"dag_{uuid4().hex}"
+        dag_run, ti = self._make_dag(session, dag_maker, dag_id, "team_a")
+        self._insert_xcom(session, dag_run)
+        self._authenticate_as(exec_app, ti.id)
+        target_team_query = mocker.spy(execution_api_security, "_team_name_for_dag_stmt")
+
+        with conf_vars({("core", "multi_team"): "True"}):
+            response = client.request(method, self._url(dag_id), json="w" if method == "post" else None)
+
+        assert response.status_code == expected_status, response.json()
+        assert target_team_query.call_count == 1
 
     def test_same_team_cross_dag_read_allowed(self, client, exec_app, session, dag_maker):
         """A task may read another dag's XCom when both dags belong to the same team."""
