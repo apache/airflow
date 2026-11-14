@@ -43,6 +43,7 @@ from airflow_breeze.global_constants import (
     PROVIDERS_COMPATIBILITY_TESTS_MATRIX,
     GithubEvents,
     all_helm_test_packages,
+    all_selective_core_test_types,
     get_airflow_version,
     get_provider_split_test_types,
 )
@@ -101,7 +102,13 @@ ZIP_PYTHON_AND_KUBERNETES_VERSIONS_AS_LIST = (
 
 
 ALL_CI_SELECTIVE_TEST_TYPES_AS_JSON = json.dumps(
-    _get_test_list_as_json(_split_list(sorted(ALL_CI_SELECTIVE_TEST_TYPES.split()), NUMBER_OF_CORE_SLICES))
+    [
+        {"description": "API...Core", "test_types": "API Always CLI CLITask Core"},
+        {
+            "description": "Models...Serialization",
+            "test_types": "Models ModelsTI Other PublicAPI Serialization",
+        },
+    ]
 )
 
 ALL_PROVIDERS_SELECTIVE_TEST_TYPES_AS_JSON = json.dumps(
@@ -388,7 +395,10 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "skip-prek-hooks": ALL_SKIPPED_COMMITS_IF_ONLY_API_SOURCE_CHANGED,
                     "upgrade-to-newer-dependencies": "false",
                     "core-test-types-list-as-strings-in-json": json.dumps(
-                        [{"description": "API...Always", "test_types": "API Always"}]
+                        [
+                            {"description": "API...Always", "test_types": "API Always"},
+                            {"description": "PublicAPI", "test_types": "PublicAPI"},
+                        ]
                     ),
                     "providers-test-types-list-as-strings-in-json": json.dumps(
                         [{"description": "common.compat,fab", "test_types": "Providers[common.compat,fab]"}]
@@ -426,7 +436,10 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "skip-prek-hooks": ALL_SKIPPED_COMMITS_IF_ONLY_API_SOURCE_CHANGED,
                     "upgrade-to-newer-dependencies": "false",
                     "core-test-types-list-as-strings-in-json": json.dumps(
-                        [{"description": "API...Always", "test_types": "API Always"}]
+                        [
+                            {"description": "API...Always", "test_types": "API Always"},
+                            {"description": "PublicAPI", "test_types": "PublicAPI"},
+                        ]
                     ),
                     "providers-test-types-list-as-strings-in-json": json.dumps(
                         [{"description": "common.compat,fab", "test_types": "Providers[common.compat,fab]"}]
@@ -464,7 +477,10 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "skip-prek-hooks": ALL_SKIPPED_COMMITS_IF_ONLY_API_SOURCE_CHANGED,
                     "upgrade-to-newer-dependencies": "false",
                     "core-test-types-list-as-strings-in-json": json.dumps(
-                        [{"description": "API...Always", "test_types": "API Always"}]
+                        [
+                            {"description": "API...Always", "test_types": "API Always"},
+                            {"description": "PublicAPI", "test_types": "PublicAPI"},
+                        ]
                     ),
                     "providers-test-types-list-as-strings-in-json": json.dumps(
                         [{"description": "common.compat,fab", "test_types": "Providers[common.compat,fab]"}]
@@ -510,9 +526,13 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     ),
                     "upgrade-to-newer-dependencies": "false",
                     "core-test-types-list-as-strings-in-json": json.dumps(
-                        _get_test_list_as_json(
-                            _split_list(sorted(["Always", "Core", "Serialization"]), NUMBER_OF_CORE_SLICES)
-                        )
+                        [
+                            {"description": "Always...Models", "test_types": "Always Core Models"},
+                            {
+                                "description": "ModelsTI...Serialization",
+                                "test_types": "ModelsTI Serialization",
+                            },
+                        ]
                     ),
                     "providers-test-types-list-as-strings-in-json": None,
                     "individual-providers-test-types-list-as-strings-in-json": None,
@@ -557,7 +577,10 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     ),
                     "upgrade-to-newer-dependencies": "false",
                     "core-test-types-list-as-strings-in-json": json.dumps(
-                        [{"description": "API...Always", "test_types": "API Always"}]
+                        [
+                            {"description": "API...Always", "test_types": "API Always"},
+                            {"description": "PublicAPI", "test_types": "PublicAPI"},
+                        ]
                     ),
                     "providers-test-types-list-as-strings-in-json": json.dumps(
                         [
@@ -2654,6 +2677,10 @@ def test_helm_test_packages_follow_runners(
     assert json.loads(selective_checks.helm_test_packages) == expected_packages
 
 
+def test_default_parallel_core_test_types_cover_all_core_test_types():
+    assert sorted(ALL_CI_SELECTIVE_TEST_TYPES.split()) == sorted(all_selective_core_test_types())
+
+
 def test_excluded_providers():
     stderr = SelectiveChecks(
         files=(),
@@ -3189,7 +3216,10 @@ def test_expected_output_full_tests_needed(
                 "run-kubernetes-tests": "true",
                 "upgrade-to-newer-dependencies": "false",
                 "core-test-types-list-as-strings-in-json": json.dumps(
-                    [{"description": "Always...CLI", "test_types": "Always CLI"}]
+                    [
+                        {"description": "Always...CLI", "test_types": "Always CLI"},
+                        {"description": "CLITask", "test_types": "CLITask"},
+                    ]
                 ),
                 "run-mypy-providers": "false",
             },
@@ -3487,7 +3517,10 @@ def test_expected_output_fork_push(
                 "run-kubernetes-tests": "true",
                 "upgrade-to-newer-dependencies": "false",
                 "core-test-types-list-as-strings-in-json": json.dumps(
-                    [{"description": "Always...CLI", "test_types": "Always CLI"}]
+                    [
+                        {"description": "Always...CLI", "test_types": "Always CLI"},
+                        {"description": "CLITask", "test_types": "CLITask"},
+                    ]
                 ),
                 "providers-test-types-list-as-strings-in-json": json.dumps(
                     [

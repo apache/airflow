@@ -49,6 +49,7 @@ ANSI_ESCAPE = re.compile(r"\x1b\[[0-9;]*m")
 # What ci_minutes_estimate.py models: jobs on GitHub's public AMD runners, default versions only.
 # Self-hosted (RunsOn) runs and all-versions runs take different times and would skew the medians.
 PUBLIC_AMD_RUNNERS = '["ubuntu-22.04"]'
+CORE_COMPANION_TEST_TYPES = {"CLITask", "Models", "ModelsTI", "PublicAPI"}
 
 # Job-name patterns for each job group of ci_minutes_estimate.py; the first match wins.
 JOB_GROUPS = [
@@ -190,7 +191,10 @@ def build_rows(run_ids: list[int], cache_dir: Path) -> list[dict]:
             longest[group] = max(longest[group], duration)
         try:
             providers = get_test_types(outputs, "individual-providers-test-types-list-as-strings-in-json")
-            core_types = len(get_test_types(outputs, "core-test-types-list-as-strings-in-json"))
+            core_types = len(
+                set(get_test_types(outputs, "core-test-types-list-as-strings-in-json"))
+                - CORE_COMPANION_TEST_TYPES
+            )
         except json.JSONDecodeError:
             print(f"skipping run {run_id}: its selective-check outputs could not be parsed")
             continue
