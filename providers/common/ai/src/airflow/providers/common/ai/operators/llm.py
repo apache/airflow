@@ -389,6 +389,20 @@ class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin, Usag
             retries=self.output_retries,
         )
 
+    def build_agent(self) -> Agent[object, Any]:
+        """
+        Build the pydantic-ai Agent this task runs, from the operator's config.
+
+        ``execute`` runs the agent this returns, so an eval or test can call it on a task from
+        a Dag (for example ``dag.get_task("summarize").build_agent()``) to run the same agent,
+        with the same connection, model settings, instructions and output type. Each call
+        builds a new agent.
+
+        Template fields are only rendered during a task run, so outside one a templated
+        ``system_prompt`` is passed to the agent as written.
+        """
+        return self._create_agent(output_type=self.output_type, instructions=self.system_prompt)
+
     def execute(self, context: Context) -> Any:
         if self._may_review:
             self.validate_approval_prompt()  # type: ignore[misc]
@@ -396,7 +410,7 @@ class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin, Usag
         # Coerced first so a bad rendered value fails before the expensive setup below.
         usage_limits = coerce_usage_limits(self.usage_limits)
 
-        agent = self._create_agent(output_type=self.output_type, instructions=self.system_prompt)
+        agent = self.build_agent()
 
         result = self._run_llm(context, agent, self.prompt, usage_limits=usage_limits)
         output = result.output

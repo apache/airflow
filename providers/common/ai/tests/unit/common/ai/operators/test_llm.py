@@ -20,11 +20,11 @@ import contextlib
 import logging
 from datetime import date, timedelta
 from decimal import Decimal
-from unittest.mock import ANY, MagicMock, patch
+from unittest.mock import ANY, MagicMock, call, patch
 from uuid import uuid4
 
 import pytest
-from pydantic import BaseModel, HttpUrl
+from pydantic import BaseModel, HttpUrl, TypeAdapter
 from pydantic_ai import Agent
 from pydantic_ai.exceptions import UnexpectedModelBehavior, UsageLimitExceeded
 from pydantic_ai.messages import BinaryContent, ModelMessage, ModelResponse, TextPart
@@ -39,7 +39,10 @@ from airflow.providers.common.ai.operators import llm as llm_module
 from airflow.providers.common.ai.operators.llm import DecisionPolicy, LLMOperator
 from airflow.providers.common.ai.operators.llm_branch import LLMBranchOperator
 from airflow.providers.common.ai.operators.llm_file_analysis import LLMFileAnalysisOperator
-from airflow.providers.common.ai.operators.llm_schema_compare import LLMSchemaCompareOperator
+from airflow.providers.common.ai.operators.llm_schema_compare import (
+    LLMSchemaCompareOperator,
+    SchemaCompareResult,
+)
 from airflow.providers.common.ai.operators.llm_sql import LLMSQLQueryOperator
 from airflow.providers.common.ai.utils.logging import MODEL_NAME_XCOM_KEY
 from airflow.providers.common.ai.utils.usage_budget import USAGE_BUDGET_KEY
@@ -575,6 +578,126 @@ def _make_context(ti_id=None):
     ti = MagicMock()
     ti.id = ti_id
     return MagicMock(**{"__getitem__": lambda self, key: {"task_instance": ti}[key]})
+
+
+class TestLLMOperatorBuildAgent:
+    """``build_agent()`` returns the agent ``execute`` runs, so an eval can run a task's own agent."""
+
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    def test_execute_runs_the_agent_build_agent_returns(self, mock_hook_cls, make_mock_run_result):
+        create_agent = mock_hook_cls.get_hook.return_value.create_agent
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
+        mock_agent.run_sync.return_value = make_mock_run_result("ok")
+        create_agent.return_value = mock_agent
+        op = LLMOperator(
+            task_id="t",
+            prompt="p",
+            llm_conn_id="my_llm",
+            system_prompt="Be brief.",
+            model_settings={"temperature": 0},
+            output_retries=2,
+        )
+        expected = call(
+            output_type=str, instructions="Be brief.", model_settings={"temperature": 0}, retries=2
+        )
+
+        assert op.build_agent() is mock_agent
+        op.execute(context=_make_context(ti_id="ti-1"))
+
+        assert create_agent.call_args_list == [expected, expected]
+        mock_agent.run_sync.assert_called_once()
+
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    def test_build_agent_on_a_task_from_a_dag_passes_a_templated_system_prompt_as_written(
+        self, mock_hook_cls
+    ):
+        with DAG("d", schedule=None) as dag:
+            LLMOperator(
+                task_id="summarize", prompt="p", llm_conn_id="my_llm", system_prompt="Summarize {{ ds }}."
+            )
+
+        dag.get_task("summarize").build_agent()
+
+        create_agent = mock_hook_cls.get_hook.return_value.create_agent
+        assert create_agent.call_args.kwargs["instructions"] == "Summarize {{ ds }}."
+
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    def test_build_agent_on_a_decorated_task(self, mock_hook_cls):
+        with DAG("d", schedule=None) as dag:
+
+            @task.llm(llm_conn_id="my_llm", system_prompt="Be brief.", output_type=Summary)
+            def summarize() -> str:
+                return "p"
+
+            summarize()
+
+        dag.get_task("summarize").build_agent()
+
+        kwargs = mock_hook_cls.get_hook.return_value.create_agent.call_args.kwargs
+        assert kwargs["output_type"] is Summary
+        assert kwargs["instructions"] == "Be brief."
+
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    def test_branch_operator_builds_an_agent_that_picks_a_downstream_task(self, mock_hook_cls):
+        op = LLMBranchOperator(task_id="route", prompt="p", llm_conn_id="my_llm", system_prompt="Route it.")
+        op.downstream_task_ids = {"billing", "support"}
+
+        op.build_agent()
+
+        kwargs = mock_hook_cls.get_hook.return_value.create_agent.call_args.kwargs
+        assert set(TypeAdapter(kwargs["output_type"]).json_schema()["enum"]) == {"billing", "support"}
+        assert kwargs["instructions"] == "Route it."
+
+    def test_branch_operator_without_downstream_tasks_cannot_build_an_agent(self):
+        op = LLMBranchOperator(task_id="route", prompt="p", llm_conn_id="my_llm")
+
+        with pytest.raises(ValueError, match="has no downstream tasks"):
+            op.build_agent()
+
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    def test_file_analysis_operator_builds_an_agent_with_its_system_prompt(self, mock_hook_cls):
+        op = LLMFileAnalysisOperator(
+            task_id="t", prompt="p", llm_conn_id="my_llm", file_path="/tmp/app.log", output_type=Summary
+        )
+
+        op.build_agent()
+
+        kwargs = mock_hook_cls.get_hook.return_value.create_agent.call_args.kwargs
+        assert kwargs["output_type"] is Summary
+        assert kwargs["instructions"] == op._build_system_prompt()
+
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    def test_sql_operator_builds_an_agent_with_the_schema_in_its_system_prompt(self, mock_hook_cls):
+        op = LLMSQLQueryOperator(task_id="t", prompt="p", llm_conn_id="my_llm")
+        schema = "Table: orders\nColumns: id INTEGER"
+
+        with patch.object(LLMSQLQueryOperator, "_get_schema_context", return_value=schema):
+            op.build_agent()
+
+        kwargs = mock_hook_cls.get_hook.return_value.create_agent.call_args.kwargs
+        assert kwargs["output_type"] is str
+        assert kwargs["instructions"] == op._build_system_prompt(schema)
+        assert schema in kwargs["instructions"]
+
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    def test_schema_compare_operator_builds_an_agent_with_the_schemas_in_its_system_prompt(
+        self, mock_hook_cls
+    ):
+        op = LLMSchemaCompareOperator(
+            task_id="t",
+            prompt="p",
+            llm_conn_id="my_llm",
+            db_conn_ids=["db_a", "db_b"],
+            table_names=["orders"],
+        )
+        schema_context = "db_a.orders: id INTEGER\ndb_b.orders: id BIGINT"
+
+        with patch.object(LLMSchemaCompareOperator, "_build_schema_context", return_value=schema_context):
+            op.build_agent()
+
+        kwargs = mock_hook_cls.get_hook.return_value.create_agent.call_args.kwargs
+        assert kwargs["output_type"] is SchemaCompareResult
+        assert kwargs["instructions"] == op._build_system_prompt(schema_context)
 
 
 class TestLLMOperatorUsageBudget:
