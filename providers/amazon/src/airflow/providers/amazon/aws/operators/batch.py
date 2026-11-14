@@ -43,6 +43,7 @@ from airflow.providers.amazon.aws.triggers.batch import (
     BatchJobTrigger,
 )
 from airflow.providers.amazon.aws.utils import trim_none_values, validate_execute_complete_event
+from airflow.providers.amazon.aws.utils.deferral import should_defer
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 from airflow.providers.amazon.aws.utils.task_log_fetcher import AwsTaskLogFetcher
 from airflow.providers.common.compat.sdk import AirflowException, conf
@@ -92,6 +93,8 @@ class BatchOperator(AwsBaseOperator[BatchClientHook]):
     :param tags: collection of tags to apply to the AWS Batch job submission
         if None, no tags are submitted
     :param deferrable: Run operator in the deferrable mode.
+        Deferring when ``wait_for_completion`` is False is deprecated; from the next major release
+        this has no effect when ``wait_for_completion`` is False.
     :param awslogs_enabled: Specifies whether logs from CloudWatch
         should be printed or not, False.
         If it is an array job, only the logs of the first task will be printed.
@@ -219,7 +222,7 @@ class BatchOperator(AwsBaseOperator[BatchClientHook]):
         """
         self.submit_job(context)
 
-        if self.deferrable:
+        if should_defer(deferrable=self.deferrable, wait_for_completion=self.wait_for_completion):
             if not self.job_id:
                 raise ValueError("AWS Batch job - job_id was not found")
 

@@ -633,6 +633,29 @@ class TestGoogleBaseHook:
             idp_extra_params_dict=None,
         )
 
+    @pytest.mark.parametrize(
+        ("extras", "expected"),
+        [
+            pytest.param({"idp_extra_parameters": '{"audience": "form"}'}, {"audience": "form"}, id="form"),
+            pytest.param({"idp_extra_params": '{"audience": "legacy"}'}, {"audience": "legacy"}, id="legacy"),
+            pytest.param(
+                {
+                    "idp_extra_parameters": '{"audience": "form"}',
+                    "idp_extra_params": '{"audience": "legacy"}',
+                },
+                {"audience": "form"},
+                id="form-takes-precedence",
+            ),
+        ],
+    )
+    @mock.patch(MODULE_NAME + ".get_credentials_and_project_id", return_value=("CREDENTIALS", "PROJECT_ID"))
+    def test_get_credentials_and_project_id_with_idp_extra_parameters(
+        self, mock_get_creds_and_proj_id, extras, expected
+    ):
+        self.instance.extras = extras
+        self.instance.get_credentials_and_project_id()
+        assert mock_get_creds_and_proj_id.call_args.kwargs["idp_extra_params_dict"] == expected
+
     @pytest.mark.skipif(
         not default_creds_available, reason="Default Google Cloud credentials not available to run tests"
     )
@@ -864,6 +887,22 @@ class TestGoogleBaseHook:
             is_default_universe = self.instance.is_default_universe()
 
             assert is_default_universe
+
+    @pytest.mark.parametrize(
+        ("high_value_cookie_domain", "expected_result"),
+        [
+            pytest.param(None, "google.com", id="unset_value"),
+            pytest.param("", "google.com", id="empty_value"),
+            pytest.param("googleapis.cn", "googleapis.cn", id="custom_value"),
+        ],
+    )
+    def test_get_high_value_cookie_domain(self, high_value_cookie_domain, expected_result):
+        env = {}
+        if high_value_cookie_domain is not None:
+            env["GOOGLE_CLOUD_HIGH_VALUE_COOKIE_DOMAIN"] = high_value_cookie_domain
+
+        with patch.dict(os.environ, env, clear=True):
+            assert self.instance.get_high_value_cookie_domain() == expected_result
 
     def test_get_client_options_default(self):
         with patch.dict(os.environ, {}, clear=True):

@@ -1,0 +1,129 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+---
+# Builds the Airflow, task-sdk, airflow-ctl and provider wheels the PROD image installs. It reads no
+# constraints and no CI image, so the CI workflows start it right after build-info, beside the CI
+# image build and generate-constraints, instead of as the first step of the PROD image build.
+name: Build PROD packages
+on:  # yamllint disable-line rule:truthy
+  workflow_call:
+    inputs:
+      runners:
+        description: "The array of labels (in json form) determining runners."
+        required: true
+        type: string
+      platform:
+        description: "Platform for the build - 'linux/amd64' or 'linux/arm64'"
+        required: true
+        type: string
+      default-python-version:
+        description: "Python version used to build the packages"
+        required: true
+        type: string
+      branch:
+        description: "Branch used to run the CI jobs in (main/v*_*_test)."
+        required: true
+        type: string
+      upload-package-artifact:
+        description: "Whether to build and upload the packages as the prod-packages artifact (true/false)"
+        required: true
+        type: string
+      prod-image-build:
+        description: "Whether this is a prod-image build (true/false)"
+        required: true
+        type: string
+permissions:
+  contents: read
+jobs:
+  build-prod-packages:
+    name: "Build Airflow and provider distributions"
+    timeout-minutes: 10
+    runs-on: ${{ format(fromJSON(inputs.runners)[0], '8+16', '32+64') }}
+    if: inputs.prod-image-build == 'true'
+    env:
+      PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version }}"
+    steps:
+      - name: "Cleanup repo"
+        shell: bash
+        run: sudo rm -rf ${GITHUB_WORKSPACE}/*
+        if: inputs.upload-package-artifact == 'true'
+      - name: "Checkout target branch"
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - name: "Make /mnt writeable"
+        run: ./scripts/ci/make_mnt_writeable.sh
+        if: inputs.upload-package-artifact == 'true'
+      - name: "Move docker to /mnt"
+        run: ./scripts/ci/move_docker_to_mnt.sh
+        if: inputs.upload-package-artifact == 'true'
+      - name: "Cleanup dist and context file"
+        shell: bash
+        run: rm -fv ./dist/* ./docker-context-files/*
+        if: inputs.upload-package-artifact == 'true'
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
+        if: inputs.upload-package-artifact == 'true'
+      - name: "Install prek"
+        uses: ./.github/actions/install-prek
+        id: prek
+        with:
+          platform: ${{ inputs.platform }}
+          save-cache: false
+          # The hatch_build.py files of the fab, edge3 and common.ai providers run these hooks.
+          hooks: compile-fab-assets compile-edge-assets compile-common-ai-provider-assets
+        if: inputs.upload-package-artifact == 'true'
+      - name: "Prepare providers packages - all providers built from sources"
+        shell: bash
+        run: >
+          breeze release-management prepare-provider-distributions
+          --distributions-list-file ./prod_image_installed_providers.txt
+          --distribution-format wheel --include-not-ready-providers --skip-tag-check
+        if: >
+          inputs.upload-package-artifact == 'true' && inputs.branch == 'main'
+      - name: "Prepare providers packages with only new versions of providers"
+        shell: bash
+        run: >
+          breeze release-management prepare-provider-distributions
+          --distributions-list-file ./prod_image_installed_providers.txt
+          --distribution-format wheel --include-not-ready-providers --github-repository apache/airflow
+        if: >
+          inputs.upload-package-artifact == 'true' && inputs.branch != 'main'
+      - name: "Prepare airflow package"
+        shell: bash
+        run: >
+          breeze release-management prepare-airflow-distributions --distribution-format wheel
+        if: inputs.upload-package-artifact == 'true'
+      - name: "Prepare task-sdk package"
+        shell: bash
+        run: >
+          breeze release-management prepare-task-sdk-distributions --distribution-format wheel
+        if: inputs.upload-package-artifact == 'true'
+      - name: "Prepare airflow-ctl package"
+        shell: bash
+        run: >
+          breeze release-management prepare-airflow-ctl-distributions --distribution-format wheel
+        if: inputs.upload-package-artifact == 'true'
+      - name: "Upload prepared packages as artifacts"
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
+        with:
+          name: prod-packages
+          path: ./dist
+          retention-days: 7
+          if-no-files-found: error
+        if: inputs.upload-package-artifact == 'true'

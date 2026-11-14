@@ -30,7 +30,7 @@ import collections
 import contextlib
 import datetime
 import itertools
-from typing import TYPE_CHECKING, Annotated, Any, ClassVar
+from typing import TYPE_CHECKING, Annotated, Any, ClassVar, NamedTuple
 
 from pydantic import (
     AliasChoices,
@@ -40,16 +40,40 @@ from pydantic import (
     Field,
     RootModel,
     Tag,
+    field_validator,
     model_validator,
 )
 
 if TYPE_CHECKING:
+    from collections.abc import Iterator
+    from typing import Protocol, TypeAlias, TypeVar
+
     from pydantic import GetJsonSchemaHandler
     from pydantic.json_schema import JsonSchemaValue
     from pydantic_core import CoreSchema
 
+    from airflow.sdk import XComArg
+    from airflow.sdk.definitions._internal.templater import LiteralValue
+
+    _T = TypeVar("_T")
+
+    _OperatorArgument: TypeAlias = (
+        "str | int | float | bool | datetime.datetime | datetime.date | None | "  # Plain values.
+        "XComArg | LiteralValue | "  # Airflow values.
+        "list[_OperatorArgument] | dict[str, _OperatorArgument]"  # Nested (recursive types).
+    )
+
+    class _ArgumentContext(Protocol):
+        """What a value model needs from the builder to turn itself into an operator argument."""
+
+        def build_xcom_arg(self, ref: XComRef) -> XComArg: ...
+        def read_file(self, path: str) -> str: ...
+        def ensure_literal(self, value: _T, *, rendered: bool) -> _T | LiteralValue: ...
+
+
 XCOM_KEYS = ("$x", "$xcom")
 TEMPLATE_KEYS = ("$t", "$template")
+FILE_KEYS = ("$f", "$file")
 CONST_KEY = "$const"
 
 # Keys deferred to a later edition...
@@ -82,6 +106,13 @@ def _as_exclusive_union(schema: JsonSchemaValue) -> JsonSchemaValue:
     return schema
 
 
+class _MarkerFlags(NamedTuple):
+    """Whether a value-grammar node needs rendering, and whether it carries a marker."""
+
+    needs_render: bool  # carries $t or $x anywhere -- the field must render
+    has_marker: bool  # carries $x/$t/$f -- only allowed on a templated field
+
+
 class XComTarget(BaseModel):
     """The object form of an XCom reference."""
 
@@ -107,17 +138,45 @@ class _MarkerRef(BaseModel):
     _marker_keys: ClassVar[tuple[str, ...]]
 
     @classmethod
+    def _process_value_schema(cls, field_schema: JsonSchemaValue) -> JsonSchemaValue:
+        """
+        Post-process published schema for each marker key.
+
+        The default publishes the field's schema as a disjoint union.
+        :class:`FileRef` overrides it to publish a bare string.
+        """
+        return _as_exclusive_union(field_schema)
+
+    @classmethod
     def __get_pydantic_json_schema__(
         cls, core_schema: CoreSchema, handler: GetJsonSchemaHandler
     ) -> JsonSchemaValue:
         schema = handler(core_schema)
-        value_schema = _as_exclusive_union(next(iter(schema.get("properties", {}).values())))
-        schema["properties"] = {key: value_schema for key in cls._marker_keys}
+        schema["properties"] = {
+            key: cls._process_value_schema(next(iter(schema.get("properties", {}).values())))
+            for key in cls._marker_keys
+        }
         schema["additionalProperties"] = False
         if len(cls._marker_keys) > 1:  # Pydantic sets the correct 'required' for the single-variant case.
             schema.pop("required", None)
             schema["oneOf"] = [{"required": [key]} for key in cls._marker_keys]
         return schema
+
+    def iter_dependency_task_ids(self) -> Iterator[str]:
+        """Task ids this node references via XCom; overridden by :class:`XComRef`."""
+        return iter(())
+
+    def get_run_binding_error(self, *, top_level: bool = True) -> str | None:
+        """Why this node can't cross a run: handler binding, or None; overridden by $t/$x."""
+        return None
+
+    def build_marker_flags(self) -> _MarkerFlags:
+        """Whether this node needs rendering and whether it carries a marker."""
+        raise NotImplementedError
+
+    def as_operator_argument(self, ctx: _ArgumentContext, *, rendered: bool) -> _OperatorArgument:
+        """Turn this node into an operator argument."""
+        raise NotImplementedError
 
 
 class XComRef(_MarkerRef):
@@ -130,13 +189,100 @@ class XComRef(_MarkerRef):
         validation_alias=AliasChoices(*XCOM_KEYS),
     )
 
+    def build_marker_flags(self) -> _MarkerFlags:
+        return _MarkerFlags(needs_render=True, has_marker=True)
+
+    def iter_dependency_task_ids(self) -> Iterator[str]:
+        yield self.target if isinstance(self.target, str) else self.target.task
+
+    def get_run_binding_error(self, *, top_level: bool = True) -> str | None:
+        if not isinstance(self.target, str) and self.target.key is not None:
+            return (
+                "a keyed XCom ($x with 'key') is not supported in a run: task; "
+                "only a task's return value crosses the handler boundary"
+            )
+        if not top_level:
+            return (
+                "an XCom ($x) nested inside a run argument is not supported; pass "
+                "the upstream output as its own top-level run argument"
+            )
+        return None
+
+    def as_operator_argument(self, ctx: _ArgumentContext, *, rendered: bool) -> XComArg:
+        return ctx.build_xcom_arg(self)
+
 
 class TemplateRef(_MarkerRef):
-    """A Jinja template."""
+    """
+    A Jinja template, rendered when the task runs.
+
+    The template is a Jinja string, or a file reference (``$f``) to load a
+    template file.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+        json_schema_extra={
+            "description": (
+                "A Jinja template, rendered when the task runs. This can be an "
+                "inline string, or a file reference ($f) to load a template file."
+            ),
+        },
+    )
 
     _marker_keys = TEMPLATE_KEYS
 
-    source: str = Field(serialization_alias="$t", validation_alias=AliasChoices(*TEMPLATE_KEYS))
+    source: str | FileRef = Field(serialization_alias="$t", validation_alias=AliasChoices(*TEMPLATE_KEYS))
+
+    def build_marker_flags(self) -> _MarkerFlags:
+        return _MarkerFlags(needs_render=True, has_marker=True)
+
+    def get_run_binding_error(self, *, top_level: bool = True) -> str | None:
+        return (
+            "a template ($t) reference is not supported in a run: task; the task "
+            "handler binding carries literal values and XCom return values, not rendered templates"
+        )
+
+    def as_operator_argument(self, ctx: _ArgumentContext, *, rendered: bool) -> str:
+        # $t over a string renders that string; $t over $f is a template file (read, then render).
+        if isinstance(self.source, FileRef):
+            return ctx.read_file(self.source.path)
+        return self.source
+
+
+class FileRef(_MarkerRef):
+    """
+    A file input (AIP-80 FileTemplate).
+
+    The path is a static string. A templated filename (a ``$f`` wrapping a
+    ``$t``) is reserved for a future release and rejected for now.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+        json_schema_extra={"description": "A file input."},
+    )
+
+    _marker_keys = FILE_KEYS
+
+    path: str = Field(serialization_alias="$f", validation_alias=AliasChoices(*FILE_KEYS))
+
+    @classmethod
+    def _process_value_schema(cls, field_schema: JsonSchemaValue) -> JsonSchemaValue:
+        return {"type": "string"}
+
+    @field_validator("path", mode="before")
+    @classmethod
+    def _reject_templated_filename(cls, v: Any) -> Any:
+        if _value_discriminator(v) == "template":
+            raise ValueError("templated filename ($f wrapping $t) is not supported yet")
+        return v
+
+    def build_marker_flags(self) -> _MarkerFlags:
+        return _MarkerFlags(needs_render=False, has_marker=True)
+
+    def as_operator_argument(self, ctx: _ArgumentContext, *, rendered: bool) -> str | LiteralValue:
+        return ctx.ensure_literal(ctx.read_file(self.path), rendered=rendered)
 
 
 class ConstRef(_MarkerRef):
@@ -145,6 +291,12 @@ class ConstRef(_MarkerRef):
     _marker_keys = (CONST_KEY,)
 
     value: Any = Field(serialization_alias="$const", validation_alias=AliasChoices(CONST_KEY))
+
+    def build_marker_flags(self) -> _MarkerFlags:
+        return _MarkerFlags(needs_render=False, has_marker=False)
+
+    def as_operator_argument(self, ctx: _ArgumentContext, *, rendered: bool) -> Any:
+        return ctx.ensure_literal(self.value, rendered=rendered)
 
 
 def _value_discriminator(v: Any) -> str:
@@ -163,12 +315,16 @@ def _value_discriminator(v: Any) -> str:
             return "xcom"
         if key in TEMPLATE_KEYS:
             return "template"
+        if key in FILE_KEYS:
+            return "file"
         if key == CONST_KEY:
             return "const"
     if isinstance(v, XComRef):
         return "xcom"
     if isinstance(v, TemplateRef):
         return "template"
+    if isinstance(v, FileRef):
+        return "file"
     if isinstance(v, ConstRef):
         return "const"
     return "literal"
@@ -218,15 +374,50 @@ class Literal(RootModel):
         ]
         return schema
 
+    def _iter_nested_values(self) -> Iterator[Value]:
+        """Yield the nested values of a container literal; nothing for a scalar."""
+        if isinstance(self.root, dict):
+            yield from self.root.values()
+        elif isinstance(self.root, list):
+            yield from self.root
+
+    def build_marker_flags(self) -> _MarkerFlags:
+        child_flags = [child.build_marker_flags() for child in self._iter_nested_values()]
+        return _MarkerFlags(
+            needs_render=any(m.needs_render for m in child_flags),
+            has_marker=any(m.has_marker for m in child_flags),
+        )
+
+    def iter_dependency_task_ids(self) -> Iterator[str]:
+        for child in self._iter_nested_values():
+            yield from child.iter_dependency_task_ids()
+
+    def get_run_binding_error(self, *, top_level: bool = True) -> str | None:
+        # Anything inside a literal container is nested, so a bindable top-level $x cannot live here.
+        for child in self._iter_nested_values():
+            if error := child.get_run_binding_error(top_level=False):
+                return error
+        return None
+
+    def as_operator_argument(self, ctx: _ArgumentContext, *, rendered: bool) -> _OperatorArgument:
+        if isinstance(self.root, dict):
+            return {k: v.as_operator_argument(ctx, rendered=rendered) for k, v in self.root.items()}
+        if isinstance(self.root, list):
+            return [v.as_operator_argument(ctx, rendered=rendered) for v in self.root]
+        return ctx.ensure_literal(self.root, rendered=rendered)
+
 
 Value = Annotated[
     Annotated[XComRef, Tag("xcom")]
     | Annotated[TemplateRef, Tag("template")]
+    | Annotated[FileRef, Tag("file")]
     | Annotated[ConstRef, Tag("const")]
     | Annotated[Literal, Tag("literal")],
     Discriminator(_value_discriminator),
 ]
 
+TemplateRef.model_rebuild()
+FileRef.model_rebuild()
 Literal.model_rebuild()
 
 
@@ -264,6 +455,13 @@ class Task(BaseModel):
             if sum(1 for k in ("uses", "run") if data.get(k) is not None) > 1:
                 raise ValueError(f"task {data.get('id')!r} may not set both 'uses' and 'run'")
         return data
+
+    def get_dependency_ids(self) -> set[str]:
+        """Ids of the tasks this task depends on: explicit ``needs`` plus any XCom references."""
+        ids = set(self.needs)
+        for value in itertools.chain(self.with_.values(), (self.run or {}).values()):
+            ids.update(value.iter_dependency_task_ids())
+        return ids
 
     @classmethod
     def __get_pydantic_json_schema__(
@@ -365,20 +563,6 @@ def _expand_template(name: str, templates: dict[str, Any], _seen: tuple = ()) ->
     return _merge_task(acc, own)
 
 
-def _iter_xcom_task_ids(value: Any):
-    """Yield task ids referenced by any XComRef inside a resolved value."""
-    if isinstance(value, XComRef):
-        yield value.target if isinstance(value.target, str) else value.target.task
-    elif isinstance(value, Literal):
-        yield from _iter_xcom_task_ids(value.root)
-    elif isinstance(value, dict):
-        for v in value.values():
-            yield from _iter_xcom_task_ids(v)
-    elif isinstance(value, list):
-        for v in value:
-            yield from _iter_xcom_task_ids(v)
-
-
 class DagDocument(BaseModel):
     """
     A Dag represented by one YAML document.
@@ -449,10 +633,7 @@ class DagDocument(BaseModel):
             raise ValueError(f"duplicate task id(s): {duplicates}")
         validated_task_ids = set(task_id_counts)
         for t in self.tasks:
-            refs = set(t.needs)
-            for v in itertools.chain(t.with_.values(), (t.run or {}).values()):
-                refs.update(_iter_xcom_task_ids(v))
-            if t.id_ in refs:
+            if t.id_ in (refs := t.get_dependency_ids()):
                 raise ValueError(f"task {t.id_!r} depends on itself")
             if missing := (refs - validated_task_ids):
                 raise ValueError(f"task {t.id_!r} references unknown task(s): {sorted(missing)}")

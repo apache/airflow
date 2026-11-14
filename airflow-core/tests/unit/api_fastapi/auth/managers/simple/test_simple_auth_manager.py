@@ -389,6 +389,23 @@ class TestSimpleAuthManager:
         )
 
     @pytest.mark.parametrize(
+        ("role", "result"),
+        [
+            ("ADMIN", True),
+            ("OP", True),
+            ("USER", False),
+            ("VIEWER", False),
+        ],
+    )
+    def test_is_authorized_view_dag_bundles_needs_op(self, auth_manager, role, result):
+        assert (
+            auth_manager.is_authorized_view(
+                access_view=AccessView.DAG_BUNDLES, user=SimpleAuthManagerUser(username="test", role=role)
+            )
+            is result
+        )
+
+    @pytest.mark.parametrize(
         "api",
         [
             "is_authorized_configuration",

@@ -37,6 +37,7 @@ It's recommended that you first review the pages in :doc:`core concepts </core-c
     assets
     dag-result
     Non-Python Task SDKs <language-sdks/index>
+    Writing Dags in YAML <yaml-dags>
 
 .. _scheduling-section:
 

@@ -27,12 +27,11 @@ import pytest
 
 from airflow.sdk._shared.module_loading import import_string
 from airflow.sdk.configuration import conf, retrieve_configuration_description
+from airflow.sdk.coordinators.python import PythonCoordinator, _warm_shutdown_signals
 from airflow.sdk.execution_time.coordinator import (
     BaseCoordinator,
     CoordinatorManager,
     InvalidCoordinatorError,
-    _PythonCoordinator,
-    _warm_shutdown_signals,
     get_coordinator_manager,
     reset_coordinator_manager,
 )
@@ -143,7 +142,7 @@ class TestCoordinatorManager:
         assert manager._created_coordinators == {"alpha": coordinator_for_queue_a}
 
         coordinator_for_queue_missing = manager.for_queue("queue-1")
-        assert isinstance(coordinator_for_queue_missing, _PythonCoordinator)
+        assert isinstance(coordinator_for_queue_missing, PythonCoordinator)
         assert manager.for_queue("queue-1") is coordinator_for_queue_missing
         assert manager._created_coordinators == {"alpha": coordinator_for_queue_a}
 
@@ -780,7 +779,7 @@ class TestPythonCoordinatorWarmShutdown:
 
         monkeypatch.setattr(supervisor_mod.ActivitySubprocess, "start", staticmethod(_fake_start))
 
-        coordinator = _PythonCoordinator()
+        coordinator = PythonCoordinator()
         result = coordinator.execute_task(
             what=mock.MagicMock(),
             dag_rel_path="some_dag.py",

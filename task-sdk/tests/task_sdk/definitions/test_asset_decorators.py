@@ -50,13 +50,6 @@ def example_asset_func(func_fixer):
 
 
 @pytest.fixture
-def example_asset_definition(example_asset_func):
-    return asset(schedule=None, uri="s3://bucket/object", group="MLModel", extra={"k": "v"})(
-        example_asset_func
-    )
-
-
-@pytest.fixture
 def example_asset_func_with_valid_arg_as_inlet_asset(func_fixer):
     @func_fixer
     def _example_asset_func(self, context, inlet_asset_1, inlet_asset_2):

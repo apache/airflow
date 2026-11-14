@@ -1,5 +1,12 @@
 {
   "additional_data": "بيانات إضافية",
+  "alias_few": "أسماء مستعارة",
+  "alias_many": "أسماء مستعارة",
+  "alias_one": "اسم مستعار",
+  "alias_other": "أسماء مستعارة",
+  "alias_two": "اسمان مستعاران",
+  "alias_zero": "لا يوجد أي اسم مستعار",
+  "aliases": "أسماء مستعارة",
   "asset_few": "أصول",
   "asset_many": "أصول",
   "asset_one": "أصل",
@@ -17,6 +24,12 @@
     "deleteWarning": "سيفقد الأصل إدخال مخزن الحالة المحفوظ هذا.",
     "edit": "تعديل مخزن حالة الأصل",
     "emptyState": "يخزّن مخزن حالة الأصل قيماً مرتبطة بهوية الأصل، وتكون مشتركة عبر جميع تشغيلات Dag. يمكن للعمّال الكتابة إلى مخزن حالة الأصل عبر Task SDK.",
+    "entry_few": "إدخالات",
+    "entry_many": "إدخالات",
+    "entry_one": "إدخال",
+    "entry_other": "إدخالات",
+    "entry_two": "إدخالان",
+    "entry_zero": "لا يوجد أي إدخال",
     "lastUpdatedBy": "آخر تحديث بواسطة",
     "lastUpdatedByApi": "API",
     "lastUpdatedByWatcher": "المراقب",
@@ -46,9 +59,9 @@
     "title": "إنشاء حدث أصل لـ {{name}}"
   },
   "events": "الأحداث",
-  "extra": "إضافي",
   "filters": {
     "groupPlaceholder": "البحث عن مجموعة",
+    "hasEvents": "يحتوي على أحداث",
     "lastEventDateRange": "تاريخ آخر حدث"
   },
   "group": "المجموعة",
@@ -58,5 +71,12 @@
   "scheduledDags": "Dags المجدولة",
   "scheduling": "الجدولة",
   "searchPlaceholder": "البحث عن الأصول",
-  "taskDependencies": "تبعيات المهام"
+  "taskDependencies": "تبعيات المهام",
+  "watcher_few": "مراقبون",
+  "watcher_many": "مراقبون",
+  "watcher_one": "مراقب",
+  "watcher_other": "مراقبون",
+  "watcher_two": "مراقبان",
+  "watcher_zero": "لا يوجد أي مراقب",
+  "watchers": "المراقبون"
 }

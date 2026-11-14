@@ -49,6 +49,13 @@
   "dagWarnings": {
     "error_one": "1 ошибка",
     "errorAndWarning": "1 ошибка и {{warningText}}",
+    "types": {
+      "asset conflict": "Конфликт актива",
+      "duplicate dag id": "Дублирующийся Dag ID",
+      "non-existent pool": "Несуществующий пул",
+      "runtime varying value": "Значение, меняющееся во время выполнения",
+      "task group cycle": "Цикл в группе задач"
+    },
     "warning_few": "{{count, number}} предупреждения",
     "warning_many": "{{count, number}} предупреждений",
     "warning_one": "1 предупреждение",

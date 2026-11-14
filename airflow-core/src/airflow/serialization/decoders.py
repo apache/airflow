@@ -19,11 +19,20 @@
 from __future__ import annotations
 
 import datetime
+import math
 from typing import TYPE_CHECKING, Any, TypeVar
 
 import dateutil.relativedelta
 
 from airflow._shared.module_loading import import_string
+from airflow._shared.serialization import (
+    CLASSNAME,
+    DATA,
+    OLD_DATA,
+    OLD_DICT,
+    OLD_TYPE,
+    OLD_TYPE_TO_FULL_QUALNAME,
+)
 from airflow.serialization.definitions.assets import (
     SerializedAsset,
     SerializedAssetAlias,
@@ -250,20 +259,75 @@ def _decode_deadline_interval(raw_interval: Any) -> datetime.timedelta | Seriali
     )
 
 
+def _get_encoded_callback_kwargs(raw_kwargs: Any) -> dict[str, Any]:
+    """
+    Return the encoded callback ``kwargs`` as a mapping, leaving every value encoded.
+
+    Only the container is normalised: the legacy ``{"__type": "dict", "__var": ...}`` spelling
+    is unwrapped so the result is always a plain mapping of argument name to encoded value.
+    """
+    from airflow.sdk.serde import _convert
+
+    if not raw_kwargs:
+        return {}
+    kwargs = _convert(raw_kwargs) if isinstance(raw_kwargs, dict) else raw_kwargs
+    if not isinstance(kwargs, dict) or CLASSNAME in kwargs:
+        raise ValueError("Deadline callback kwargs is not a mapping.")
+    return kwargs
+
+
+_DISPLAY_SEQUENCE_CLASSNAMES = frozenset({"builtins.tuple", "builtins.set", "builtins.frozenset"})
+
+
+def format_encoded_value_for_display(value: Any) -> Any:
+    """
+    Return a readable form of a serde-encoded value, for logs, metric tags and reprs.
+
+    Nothing the value names is imported or instantiated: ``timedelta`` and the built-in
+    collections are shown by value, any other class as ``classname(data)``. Values that are
+    not encoded are returned unchanged.
+
+    :meta private:
+    """
+    if isinstance(value, list):
+        return [format_encoded_value_for_display(v) for v in value]
+    if not isinstance(value, dict):
+        return value
+    if OLD_TYPE in value and OLD_DATA in value:
+        if value[OLD_TYPE] == OLD_DICT:
+            return format_encoded_value_for_display(value[OLD_DATA])
+        classname = OLD_TYPE_TO_FULL_QUALNAME.get(value[OLD_TYPE], value[OLD_TYPE])
+        data = value[OLD_DATA]
+    elif CLASSNAME in value:
+        classname, data = value[CLASSNAME], value.get(DATA)
+    else:
+        return {str(k): format_encoded_value_for_display(v) for k, v in value.items()}
+
+    if (
+        classname == "datetime.timedelta"
+        and isinstance(data, (int, float))
+        and not isinstance(data, bool)
+        and math.isfinite(data)
+    ):
+        try:
+            return str(datetime.timedelta(seconds=data))
+        except (OverflowError, ValueError, TypeError):
+            pass
+    if classname in _DISPLAY_SEQUENCE_CLASSNAMES and isinstance(data, list):
+        return [format_encoded_value_for_display(v) for v in data]
+    return f"{classname}({format_encoded_value_for_display(data)})"
+
+
 def _decode_deadline_callback(raw_callback: Any) -> AsyncCallback | SyncCallback:
     """
     Build the callback from its encoded form without importing what the payload names.
 
-    ``kwargs`` is still passed through generic deserialization, and that is a deliberate,
-    documented limit rather than an oversight. Leaving it encoded would close a real
-    residual -- a legitimate callback can carry an arbitrary allow-listed class under its
-    kwargs, which serde constructs while the outer payload looks entirely valid -- but the
-    kwargs are consumed through two different paths that use two different encodings
-    (``BaseSerialization`` in the triggerer, serde here), and deferring the decode without
-    getting both exactly right silently hands user code an encoded dict in place of its
-    argument. That residual is not specific to deadlines: it is the general property of
-    deserializing Dag-author data, shared with every other serde call site. Closing it
-    belongs with that broader work, not smuggled in here.
+    ``kwargs`` stays in its serde-encoded form. The scheduler and the API server only route the
+    callback and never call it, so they have no use for the decoded values. The kwargs are
+    decoded where the callback runs: by the triggerer when it loads the ``CallbackTrigger``
+    kwargs for an ``AsyncCallback``, and by the callback runner on the worker for a
+    ``SyncCallback``. :func:`airflow.serialization.encoders.encode_deadline_alert` relies on
+    this to re-encode a decoded alert without serializing the kwargs a second time.
     """
     from airflow.sdk.definitions.callback import (
         DEADLINE_CALLBACK_TYPES,
@@ -297,10 +361,7 @@ def _decode_deadline_callback(raw_callback: Any) -> AsyncCallback | SyncCallback
     if not isinstance(path, str):
         raise ValueError("Deadline callback payload has no string path.")
 
-    from airflow.sdk.serde import deserialize
-
-    raw_kwargs = data.get("kwargs") or {}
-    fields: dict[str, Any] = {"kwargs": deserialize(raw_kwargs) if raw_kwargs else {}}
+    fields: dict[str, Any] = {"kwargs": _get_encoded_callback_kwargs(data.get("kwargs"))}
     for optional in sorted(permitted_fields - {"path", "kwargs"}):
         if optional in data:
             value = data[optional]

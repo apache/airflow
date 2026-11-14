@@ -21,7 +21,10 @@ import argparse
 import json
 import logging
 import os
+import shutil
+from contextlib import contextmanager
 from datetime import datetime, timedelta
+from pathlib import Path
 from unittest import mock
 from unittest.mock import MagicMock
 
@@ -36,6 +39,7 @@ from airflow import settings
 from airflow._shared.timezones import timezone
 from airflow.cli import cli_parser
 from airflow.cli.commands import dag_command
+from airflow.dag_processing.bundles.base import BaseDagBundle
 from airflow.dag_processing.dagbag import DagBag, sync_bag_to_db
 from airflow.dag_processing.processor import DagFileParsingResult, DagFileProcessorProcess
 from airflow.exceptions import AirflowException
@@ -79,6 +83,45 @@ pytestmark = pytest.mark.db_test
 jan_1 = DEFAULT_DATE
 jan_6 = DEFAULT_DATE + timedelta(days=5)
 dec_27 = DEFAULT_DATE + timedelta(days=-5)
+
+
+class _DeferredPathBundle(BaseDagBundle):
+    """Bundle whose files only land on disk in ``initialize()``, like the Git bundle's clone."""
+
+    def __init__(self, *, source: str, **kwargs) -> None:
+        super().__init__(**kwargs)
+        self._source = Path(source)
+        self._path = self._source.parent / "checkout"
+
+    def initialize(self) -> None:
+        shutil.copytree(self._source, self._path, dirs_exist_ok=True)
+        super().initialize()
+
+    def get_current_version(self) -> None:
+        return None
+
+    def refresh(self) -> None:
+        """Nothing to refresh."""
+
+    @property
+    def path(self) -> Path:
+        return self._path
+
+
+@contextmanager
+def _configure_deferred_path_bundle(dag_file: Path, tmp_path: Path):
+    source = tmp_path / "source"
+    source.mkdir()
+    shutil.copy(dag_file, source)
+    bundle_config = [
+        {
+            "name": "deferred",
+            "classpath": f"{__name__}._DeferredPathBundle",
+            "kwargs": {"source": str(source), "refresh_interval": 0},
+        }
+    ]
+    with conf_vars({("dag_processor", "dag_bundle_config_list"): json.dumps(bundle_config)}):
+        yield
 
 
 class TestCliDags:
@@ -420,6 +463,32 @@ class TestCliDags:
             )
         # Rebuild Test DB for other tests
         self.setup_class()
+
+    @conf_vars({("core", "load_examples"): "false"})
+    def test_cli_list_local_dags_initializes_bundle(self, tmp_path, stdout_capture):
+        args = self.parser.parse_args(
+            ["dags", "list", "--output", "json", "--local", "--bundle-name", "deferred"]
+        )
+        with _configure_deferred_path_bundle(TEST_DAGS_FOLDER / "test_example_bash_operator.py", tmp_path):
+            with stdout_capture as temp_stdout:
+                dag_command.dag_list_dags(args)
+            dag_list = json.loads(temp_stdout.getvalue())
+
+        assert [d["dag_id"] for d in dag_list] == ["test_example_bash_operator"]
+
+    @conf_vars({("core", "load_examples"): "false"})
+    def test_cli_list_import_errors_initializes_bundle(self, tmp_path, stdout_capture):
+        args = self.parser.parse_args(
+            ["dags", "list-import-errors", "--output", "json", "--local", "--bundle-name", "deferred"]
+        )
+        with _configure_deferred_path_bundle(TEST_DAGS_FOLDER / "test_invalid_cron.py", tmp_path):
+            with stdout_capture as temp_stdout:
+                with pytest.raises(SystemExit) as err_ctx:
+                    dag_command.dag_list_import_errors(args)
+            errors = json.loads(temp_stdout.getvalue())
+
+        assert err_ctx.value.code == 1
+        assert [e["filepath"] for e in errors] == ["test_invalid_cron.py"]
 
     def test_cli_list_dags_custom_cols(self, stdout_capture):
         args = self.parser.parse_args(
@@ -1230,8 +1299,8 @@ class TestCliDags:
             tis = dr.get_task_instances()
             assert next(x for x in tis if x.task_id == "abc").state == "success"
 
-    @mock.patch("airflow.sdk.execution_time.task_runner._execute_task")
-    def test_dag_test_with_mark_success(self, mock__execute_task):
+    @mock.patch("airflow.sdk.execution_time.task_runner._TaskRunner.run")
+    def test_dag_test_with_mark_success(self, mock_run):
         """
         option `--mark-success-pattern` should mark matching tasks as success without executing them.
         """
@@ -1248,8 +1317,8 @@ class TestCliDags:
         dag_command.dag_test(cli_args)
 
         # only second operator was actually executed, first one was marked as success
-        assert len(mock__execute_task.call_args_list) == 1
-        assert mock__execute_task.call_args_list[0].kwargs["ti"].task_id == "dummy_operator"
+        assert len(mock_run.call_args_list) == 1
+        assert mock_run.call_args_list[0].args[0].task_id == "dummy_operator"
 
     @conf_vars({("core", "load_examples"): "false"})
     def test_get_dag_excludes_examples_with_bundle(self, configure_testing_dag_bundle):
@@ -1257,7 +1326,7 @@ class TestCliDags:
         try:
             from airflow.utils.cli import get_bagged_dag
         except ImportError:  # Prior to Airflow 3.1.0.
-            from airflow.utils.cli import get_dag as get_bagged_dag  # type: ignore
+            from airflow.utils.cli import get_dag as get_bagged_dag
 
         with configure_testing_dag_bundle(TEST_DAGS_FOLDER / "test_sensor.py"):
             # example DAG should not be found since the testing bundle only exposes test_sensor.py

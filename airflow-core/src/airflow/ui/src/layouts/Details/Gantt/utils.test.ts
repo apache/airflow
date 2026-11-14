@@ -40,13 +40,14 @@ describe("buildGanttTimeAxisTicks", () => {
     const maxMs = 60_000;
     const ticks = buildGanttTimeAxisTicks(minMs, maxMs);
 
-    expect(ticks).toHaveLength(GANTT_TIME_AXIS_TICK_COUNT);
+    // The 10s step snapped from a 60s span lands on the span one tick before the requested count.
+    expect(ticks).toHaveLength(7);
     expect(ticks[0]?.leftPct).toBe(0);
     expect(ticks[0]?.label).toBe("0s");
     expect(ticks[0]?.labelAlign).toBe("left");
-    expect(ticks[GANTT_TIME_AXIS_TICK_COUNT - 1]?.leftPct).toBe(100);
-    expect(ticks[GANTT_TIME_AXIS_TICK_COUNT - 1]?.labelAlign).toBe("right");
-    expect(ticks[GANTT_TIME_AXIS_TICK_COUNT - 1]?.label).toBe("1m");
+    expect(ticks.at(-1)?.leftPct).toBe(100);
+    expect(ticks.at(-1)?.labelAlign).toBe("right");
+    expect(ticks.at(-1)?.label).toBe("1m");
     expect(ticks[1]?.labelAlign).toBe("center");
     expect(ticks.every((tick) => typeof tick.label === "string" && tick.label.length > 0)).toBe(true);
   });
@@ -66,6 +67,15 @@ describe("buildGanttTimeAxisTicks", () => {
     const labels = buildGanttTimeAxisTicks(0, 7000, { locale: "en", tickCount: 8 }).map((tick) => tick.label);
 
     expect(labels).toStrictEqual(["0s", "1s", "2s", "3s", "4s", "5s", "6s", "7s"]);
+  });
+
+  it.each([3, 5, 10, 20, 45])("places every tick of a %ss span at its own position", (seconds) => {
+    const ticks = buildGanttTimeAxisTicks(0, seconds * 1000, { locale: "en" });
+
+    expect(new Set(ticks.map((tick) => tick.leftPct)).size).toBe(ticks.length);
+    expect(ticks.length).toBeLessThanOrEqual(GANTT_TIME_AXIS_TICK_COUNT);
+    expect(ticks.at(-1)?.leftPct).toBe(100);
+    expect(ticks.at(-1)?.label).toBe(`${seconds}s`);
   });
 
   it("supports a single tick", () => {

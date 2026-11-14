@@ -232,7 +232,7 @@ class TestBaseDBManager:
         manager = CustomDBManager(session)
         with pytest.raises(TypeError):
             # Ensure the old kwarg name is not accepted anymore
-            manager.downgrade(to_version="1.2.3")  # type: ignore[call-arg]
+            manager.downgrade(to_version="1.2.3")
 
     @mock.patch("airflow.utils.db.create_global_lock", return_value=nullcontext())
     @mock.patch.object(MockDBManager, "drop_tables")

@@ -17,10 +17,11 @@
 
 from __future__ import annotations
 
-from pydantic import Field
+from pydantic import Field, field_validator
 
 from airflow.api_fastapi.common.types import UtcDateTime
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
+from airflow.api_fastapi.core_api.datamodels.common import check_conf_reserved_keys
 from airflow.utils.state import DagRunState
 
 
@@ -33,6 +34,11 @@ class TriggerDAGRunPayload(StrictBaseModel):
     reset_dag_run: bool = False
     partition_key: str | None = None
     note: str | None = None
+
+    @field_validator("conf")
+    @classmethod
+    def _check_reserved_keys(cls, conf: dict) -> dict | None:
+        return check_conf_reserved_keys(conf, root="conf")
 
 
 class DagRunStateResponse(BaseModel):

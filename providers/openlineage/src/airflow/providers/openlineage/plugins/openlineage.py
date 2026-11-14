@@ -26,9 +26,11 @@ if not conf.is_disabled():
     from airflow.providers.openlineage.plugins.macros import (
         lineage_job_name,
         lineage_job_namespace,
+        lineage_job_type,
         lineage_parent_id,
         lineage_root_job_name,
         lineage_root_job_namespace,
+        lineage_root_job_type,
         lineage_root_parent_id,
         lineage_root_run_id,
         lineage_run_id,
@@ -48,11 +50,13 @@ class OpenLineageProviderPlugin(AirflowPlugin):
         macros = [
             lineage_job_namespace,
             lineage_job_name,
+            lineage_job_type,
             lineage_run_id,
             lineage_parent_id,
             lineage_root_run_id,
             lineage_root_job_name,
             lineage_root_job_namespace,
+            lineage_root_job_type,
             lineage_root_parent_id,
         ]
         listeners = [get_openlineage_listener()]

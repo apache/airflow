@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import warnings
 from unittest import mock
 from unittest.mock import MagicMock, call
 
@@ -32,13 +31,11 @@ from airflow.models.taskinstance import TaskInstance
 from airflow.providers.common.compat.sdk import TaskDeferred
 from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 from airflow.providers.snowflake.operators.snowflake import (
-    _DURABLE_UNSET,
     SnowflakeCheckOperator,
     SnowflakeIntervalCheckOperator,
     SnowflakeNotebookOperator,
     SnowflakeSqlApiOperator,
     SnowflakeValueCheckOperator,
-    _warn_and_disable_durable_pre_3_3,
 )
 from airflow.providers.snowflake.triggers.snowflake_trigger import SnowflakeSqlApiTrigger
 from airflow.utils.types import DagRunType
@@ -58,7 +55,7 @@ CONN_ID = "my_snowflake_conn"
 TEST_SQL = "select * from any;"
 NOTEBOOK = "MY_DB.MY_SCHEMA.MY_NOTEBOOK"
 
-HOOK_MODULE = "airflow.providers.snowflake.hooks.snowflake_sql_api.SnowflakeSqlApiHook"
+HOOK_MODULE = "airflow.providers.snowflake.hooks.sql_api.SnowflakeSqlApiHook"
 
 SQL_MULTIPLE_STMTS = (
     "create or replace table user_test (i int); insert into user_test (i) "
@@ -438,7 +435,7 @@ class TestSnowflakeSqlApiOperator:
         ("mock_sql", "statement_count"),
         [pytest.param(SQL_MULTIPLE_STMTS, 4, id="multi"), pytest.param(SINGLE_STMT, 1, id="single")],
     )
-    @mock.patch("airflow.providers.snowflake.hooks.snowflake_sql_api.SnowflakeSqlApiHook.execute_query")
+    @mock.patch("airflow.providers.snowflake.hooks.sql_api.SnowflakeSqlApiHook.execute_query")
     def test_snowflake_sql_api_execute_operator_async(
         self, mock_execute_query, mock_sql, statement_count, mock_get_sql_api_query_status
     ):
@@ -520,7 +517,7 @@ class TestSnowflakeSqlApiOperator:
             ({"status": "success", "statement_query_ids": ["uuid", "uuid"]}),
         ],
     )
-    @mock.patch("airflow.providers.snowflake.hooks.snowflake_sql_api.SnowflakeSqlApiHook.check_query_output")
+    @mock.patch("airflow.providers.snowflake.hooks.sql_api.SnowflakeSqlApiHook.check_query_output")
     def test_snowflake_sql_api_execute_complete(self, mock_conn, mock_event):
         """Tests execute_complete assert with successful message"""
 
@@ -543,7 +540,7 @@ class TestSnowflakeSqlApiOperator:
             ({"status": "success", "statement_query_ids": ["uuid", "uuid"]}),
         ],
     )
-    @mock.patch("airflow.providers.snowflake.hooks.snowflake_sql_api.SnowflakeSqlApiHook.check_query_output")
+    @mock.patch("airflow.providers.snowflake.hooks.sql_api.SnowflakeSqlApiHook.check_query_output")
     def test_snowflake_sql_api_execute_complete_reassigns_query_ids(self, mock_conn, mock_event):
         """Tests execute_complete assert with successful message"""
 
@@ -728,7 +725,7 @@ class TestSnowflakeSqlApiOperator:
 
         context["ti"].xcom_push.assert_called_once_with(key="query_ids", value=["uuid1"])
 
-    @mock.patch("airflow.providers.snowflake.hooks.snowflake_sql_api.SnowflakeSqlApiHook.cancel_queries")
+    @mock.patch("airflow.providers.snowflake.hooks.sql_api.SnowflakeSqlApiHook.cancel_queries")
     def test_snowflake_sql_api_on_kill_cancels_queries(self, mock_cancel_queries):
         """Test that on_kill cancels running queries."""
         operator = SnowflakeSqlApiOperator(
@@ -743,7 +740,7 @@ class TestSnowflakeSqlApiOperator:
 
         mock_cancel_queries.assert_called_once_with(["uuid1", "uuid2"])
 
-    @mock.patch("airflow.providers.snowflake.hooks.snowflake_sql_api.SnowflakeSqlApiHook.cancel_queries")
+    @mock.patch("airflow.providers.snowflake.hooks.sql_api.SnowflakeSqlApiHook.cancel_queries")
     def test_snowflake_sql_api_on_kill_no_queries(self, mock_cancel_queries):
         """Test that on_kill does nothing when no query ids exist."""
         operator = SnowflakeSqlApiOperator(
@@ -758,7 +755,7 @@ class TestSnowflakeSqlApiOperator:
 
         mock_cancel_queries.assert_not_called()
 
-    @mock.patch("airflow.providers.snowflake.hooks.snowflake_sql_api.SnowflakeSqlApiHook.cancel_queries")
+    @mock.patch("airflow.providers.snowflake.hooks.sql_api.SnowflakeSqlApiHook.cancel_queries")
     def test_snowflake_sql_api_on_kill_respects_cancel_on_kill_false(self, mock_cancel_queries):
         """on_kill does not cancel queries when cancel_on_kill is disabled."""
         operator = SnowflakeSqlApiOperator(
@@ -995,21 +992,6 @@ class TestSnowflakeSqlApiOperatorDurable:
     def test_default_args_durable_reaches_operator(self):
         operator = self._make_operator(default_args={"durable": False})
         assert operator.durable is False
-
-
-class TestWarnAndDisableDurableAirflowPre3_3:
-    def test_no_warning_when_unset(self):
-        with warnings.catch_warnings(record=True) as caught:
-            warnings.simplefilter("always")
-            result = _warn_and_disable_durable_pre_3_3(_DURABLE_UNSET)
-        assert result is False
-        assert caught == []
-
-    @pytest.mark.parametrize("value", [True, False])
-    def test_warns_and_disables_when_explicitly_set(self, value):
-        with pytest.warns(UserWarning, match="durable.*no effect"):
-            result = _warn_and_disable_durable_pre_3_3(value)
-        assert result is False
 
 
 class TestSnowflakeNotebookOperatorSQL:

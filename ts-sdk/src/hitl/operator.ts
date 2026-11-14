@@ -93,7 +93,7 @@ async function executeHITL(task: HITLTask<never>, op: OperatorContext): Promise<
   });
 
   logs.info("Waiting for response", { task_id: ctx.taskId });
-  return op.awaitInput({ timeoutSeconds: task.responseTimeout });
+  return op.awaitInput({ timeout: task.responseTimeout });
 }
 
 /**

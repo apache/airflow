@@ -27,6 +27,7 @@ import { Menu } from "src/system-components";
 import type { NavItemResponse } from "src/utils/types";
 
 import { NavButton } from "./NavButton";
+import { NavMenu } from "./NavMenu";
 import { PluginMenuItem } from "./PluginMenuItem";
 
 const links = [
@@ -42,6 +43,14 @@ const links = [
     title: "Dag Bundles",
   },
   {
+    href: "/dag_runs",
+    key: "dagRuns",
+    // Reuses the label the Dags pages already show on their tabs.
+    labelKey: "dagRun_other",
+    // There is no menu item of its own for Dag runs: they follow the Dags permission.
+    title: "Dags",
+  },
+  {
     href: "/deadlines",
     key: "deadlines",
     title: "Deadlines",
@@ -50,6 +59,12 @@ const links = [
     href: "/jobs",
     key: "jobs",
     title: "Jobs",
+  },
+  {
+    href: "/task_instances",
+    key: "taskInstances",
+    labelKey: "taskInstance_other",
+    title: "Dags",
   },
   {
     href: "/xcoms",
@@ -72,33 +87,36 @@ export const BrowseButton = ({
 }) => {
   const { t: translate } = useTranslation();
   const authorizedLinks = links.filter(({ title }) => authorizedMenuItems.includes(title as MenuItem));
-  const menuItems = authorizedLinks.map((link) => (
-    <Menu.Item asChild key={link.key} value={translate(`browse.${link.key}`)}>
-      <RouterLink aria-label={translate(`browse.${link.key}`)} to={link.href}>
-        {translate(`browse.${link.key}`)}
-      </RouterLink>
-    </Menu.Item>
-  ));
+  const menuItems = authorizedLinks.map((link) => {
+    const label = translate(link.labelKey ?? `browse.${link.key}`);
+
+    return (
+      <Menu.Item asChild key={link.key} value={label}>
+        <RouterLink aria-label={label} to={link.href}>
+          {label}
+        </RouterLink>
+      </Menu.Item>
+    );
+  });
 
   if (!menuItems.length && !externalViews.length) {
     return undefined;
   }
 
   return (
-    <Menu.Root positioning={{ placement: "right" }}>
-      <Menu.Trigger asChild>
+    <NavMenu
+      trigger={
         <NavButton
           icon={FiGlobe}
           title={translate("nav.browse")}
           to={authorizedLinks.map(({ href }) => href)}
         />
-      </Menu.Trigger>
-      <Menu.Content>
-        {menuItems}
-        {externalViews.map((view) => (
-          <PluginMenuItem {...view} key={view.name} />
-        ))}
-      </Menu.Content>
-    </Menu.Root>
+      }
+    >
+      {menuItems}
+      {externalViews.map((view) => (
+        <PluginMenuItem {...view} key={view.name} />
+      ))}
+    </NavMenu>
   );
 };

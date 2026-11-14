@@ -18,17 +18,26 @@
 
 from __future__ import annotations
 
+import asyncio
 import os
+import weakref
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
 import modal
 
+from airflow.providers.common.compat.connection import get_async_connection
 from airflow.providers.common.compat.sdk import AirflowNotFoundException, BaseHook
 from airflow.providers.modal.exceptions import ModalConnectionError
 
 if TYPE_CHECKING:
     from airflow.sdk import Connection
+
+# Async clients shared across hook instances in this process, keyed on (pid, token id, token secret).
+_async_clients: dict[tuple[int, str, str], modal.Client] = {}
+_async_client_locks: weakref.WeakKeyDictionary[asyncio.AbstractEventLoop, asyncio.Lock] = (
+    weakref.WeakKeyDictionary()
+)
 
 
 class ModalHook(BaseHook):
@@ -89,20 +98,26 @@ class ModalHook(BaseHook):
             return None
         try:
             return self.get_connection(self.modal_conn_id)
-        except AirflowNotFoundException:
-            if self.modal_conn_id != self.default_conn_name:
-                raise
-            self.log.info(
-                "Connection %r not found; using ambient Modal credentials (MODAL_TOKEN_ID / "
-                "MODAL_TOKEN_SECRET or ~/.modal.toml).",
-                self.modal_conn_id,
-            )
+        except AirflowNotFoundException as e:
+            self._fall_back_to_ambient(e)
             return None
+
+    def _fall_back_to_ambient(self, error: AirflowNotFoundException) -> None:
+        """Accept a missing default connection, meaning "use ambient credentials"; re-raise any other."""
+        if self.modal_conn_id != self.default_conn_name:
+            raise error
+        self.log.info(
+            "Connection %r not found; using ambient Modal credentials (MODAL_TOKEN_ID / "
+            "MODAL_TOKEN_SECRET or ~/.modal.toml).",
+            self.modal_conn_id,
+        )
 
     @cached_property
     def credentials(self) -> tuple[str, str] | None:
         """Token id and secret from the connection, or ``None`` to defer to the Modal SDK."""
-        conn = self._connection
+        return self._credentials_from(self._connection)
+
+    def _credentials_from(self, conn: Connection | None) -> tuple[str, str] | None:
         if conn is None:
             return None
         token_id, token_secret = conn.login or "", conn.password or ""
@@ -151,6 +166,53 @@ class ModalHook(BaseHook):
     def get_conn(self) -> modal.Client:
         """Return the Modal client for this connection (same cached object as :attr:`client`)."""
         return self.client
+
+    async def get_async_client(self) -> modal.Client:
+        """
+        Return a Modal client for async callers, such as a trigger, without blocking the event loop.
+
+        The connection is looked up asynchronously, and the client is built with the Modal SDK's
+        ``.aio`` constructors. Use it with the ``.aio`` form of SDK calls, for example
+        ``await modal.Sandbox.from_id.aio(sandbox_id, client=client)``.
+
+        Unlike :attr:`client`, which is cached per hook instance, async clients are shared per
+        process and per token pair. The triggerer is long-lived and runs many triggers, the Modal
+        SDK has no public way to close a client, and it shares its own ambient ``from_env``
+        client in the same way. The number of clients is bounded by the number of distinct Modal
+        tokens the connections hold.
+        """
+        connection: Connection | None = None
+        if self.modal_conn_id is not None:
+            try:
+                connection = await get_async_connection(self.modal_conn_id)
+            except AirflowNotFoundException as e:
+                self._fall_back_to_ambient(e)
+        credentials = self._credentials_from(connection)
+        if credentials is None:
+            return await modal.Client.from_env.aio()
+        key = (os.getpid(), *credentials)
+        # One lock per event loop, held across construction: without it, triggers that start
+        # together all miss the cache and each build a client that Modal keeps open until exit.
+        loop = asyncio.get_running_loop()
+        lock = _async_client_locks.setdefault(loop, asyncio.Lock())
+        async with lock:
+            client = _async_clients.get(key)
+            if client is None or client.is_closed():
+                client = await modal.Client.from_credentials.aio(*credentials)
+                _async_clients[key] = client
+        return client
+
+    async def aget_sandbox(self, sandbox_id: str) -> modal.Sandbox:
+        """
+        Reattach to an existing sandbox by id without blocking the event loop.
+
+        The async counterpart of :meth:`get_sandbox`; call the ``.aio`` form of methods on the
+        returned handle.
+
+        :param sandbox_id: The ``sb-...`` id returned by ``Sandbox.object_id``.
+        """
+        client = await self.get_async_client()
+        return await modal.Sandbox.from_id.aio(sandbox_id, client=client)
 
     @property
     def client_kwargs(self) -> dict[str, Any]:

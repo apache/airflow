@@ -552,6 +552,10 @@ it off by passing ``--no-colour`` to config in which case the messages to the us
 will be printed using different schemes (italic/bold/underline) to indicate different kind of messages
 rather than colours.
 
+You can also switch off the separate Docker Compose project that Breeze uses for each git worktree with
+``--no-worktree-isolation`` (see `Stopping the environment <03_developer_tasks.rst#stopping-the-environment>`_).
+The setting applies to every worktree of the checkout.
+
 These are all available flags of ``setup config`` command:
 
 .. image:: ./images/output_setup_config.svg

@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import copy
+import io
 import logging
 import os
 import re
@@ -33,6 +34,7 @@ from airflow.providers.apache.beam.hooks.beam import (
     BeamAsyncHook,
     BeamHook,
     beam_options_to_args,
+    process_fd,
     run_beam_command,
 )
 from airflow.providers.common.compat.sdk import AirflowException
@@ -113,6 +115,7 @@ class TestBeamHook:
             working_directory=None,
             log=ANY,
             is_dataflow_job_id_exist_callback=is_dataflow_job_id_exist_callback,
+            check_job_id_by_name_callback=None,
         )
 
     @mock.patch("airflow.providers.apache.beam.hooks.beam.subprocess.check_output", return_value=b"2.35.0")
@@ -177,6 +180,7 @@ class TestBeamHook:
             working_directory=None,
             log=ANY,
             is_dataflow_job_id_exist_callback=is_dataflow_job_id_exist_callback,
+            check_job_id_by_name_callback=None,
         )
 
     @pytest.mark.parametrize(
@@ -225,6 +229,7 @@ class TestBeamHook:
             cmd=expected_cmd,
             process_line_callback=process_line_callback,
             is_dataflow_job_id_exist_callback=is_dataflow_job_id_exist_callback,
+            check_job_id_by_name_callback=None,
             working_directory=None,
             log=ANY,
         )
@@ -283,6 +288,7 @@ class TestBeamHook:
             working_directory=None,
             log=ANY,
             is_dataflow_job_id_exist_callback=None,
+            check_job_id_by_name_callback=None,
         )
 
     @mock.patch(BEAM_STRING.format("run_beam_command"))
@@ -312,6 +318,7 @@ class TestBeamHook:
             working_directory=None,
             log=ANY,
             is_dataflow_job_id_exist_callback=None,
+            check_job_id_by_name_callback=None,
         )
 
     @mock.patch(BEAM_STRING.format("shutil.which"))
@@ -343,6 +350,7 @@ class TestBeamHook:
             working_directory=go_workspace,
             log=ANY,
             is_dataflow_job_id_exist_callback=None,
+            check_job_id_by_name_callback=None,
         )
 
     @mock.patch(BEAM_STRING.format("shutil.which"))
@@ -389,13 +397,15 @@ class TestBeamHook:
             working_directory=None,
             log=ANY,
             is_dataflow_job_id_exist_callback=None,
+            check_job_id_by_name_callback=None,
         )
 
 
 class TestBeamRunner:
+    @mock.patch("os.set_blocking")
     @mock.patch("subprocess.Popen")
     @mock.patch("select.select")
-    def test_beam_wait_for_done_logging(self, mock_select, mock_popen, caplog):
+    def test_beam_wait_for_done_logging(self, mock_select, mock_popen, mock_set_blocking, caplog):
         logger_name = "fake-beam-wait-for-done-logger"
         fake_logger = logging.getLogger(logger_name)
 
@@ -428,6 +438,7 @@ class TestBeamRunner:
         with pytest.raises(AirflowException, match="Apache Beam process failed with return code 1"):
             run_beam_command(cmd, fake_logger)
 
+        mock_set_blocking.assert_not_called()
         mock_popen.assert_called_once_with(
             cmd, shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE, close_fds=True, cwd=None
         )
@@ -440,6 +451,101 @@ class TestBeamRunner:
         assert "apache-beam-stderr-2" in warn_messages
         assert "apache-beam-stderr-3" in warn_messages
         assert "apache-beam-other-stderr" in warn_messages
+
+    @mock.patch("os.set_blocking")
+    @mock.patch("subprocess.Popen", autospec=True)
+    @mock.patch("select.select")
+    def test_run_beam_command_checks_job_id_by_name_on_timeout(
+        self, mock_select, mock_popen, mock_set_blocking
+    ):
+        fake_logger = MagicMock(spec=logging.Logger)
+        cmd = ["fake", "cmd"]
+        mock_proc = mock_popen.return_value
+        fake_stderr_fd = MagicMock(name="FakeStderr", spec=io.BufferedReader)
+        fake_stdout_fd = MagicMock(name="FakeStdout", spec=io.BufferedReader)
+        fake_stdout_fd.fileno.return_value = 10
+        fake_stderr_fd.fileno.return_value = 11
+        mock_proc.stderr = fake_stderr_fd
+        mock_proc.stdout = fake_stdout_fd
+
+        mock_select.side_effect = [
+            ([], [], []),
+            ([], [], []),
+        ]
+        check_job_id_by_name_callback = MagicMock(spec=callable, side_effect=[False, True])
+
+        run_beam_command(
+            cmd,
+            fake_logger,
+            check_job_id_by_name_callback=check_job_id_by_name_callback,
+        )
+
+        mock_set_blocking.assert_has_calls([mock.call(10, False), mock.call(11, False)])
+        assert check_job_id_by_name_callback.call_args_list == [
+            mock.call(),
+            mock.call(),
+        ]
+        mock_proc.poll.assert_not_called()
+
+    @mock.patch("os.set_blocking")
+    @mock.patch("subprocess.Popen", autospec=True)
+    @mock.patch("select.select")
+    def test_run_beam_command_checks_job_id_by_name_after_clean_exit(
+        self, mock_select, mock_popen, mock_set_blocking
+    ):
+        fake_logger = MagicMock(spec=logging.Logger)
+        cmd = ["fake", "cmd"]
+        mock_proc = mock_popen.return_value
+        fake_stderr_fd = MagicMock(name="FakeStderr", spec=io.BufferedReader)
+        fake_stdout_fd = MagicMock(name="FakeStdout", spec=io.BufferedReader)
+        fake_stdout_fd.fileno.return_value = 10
+        fake_stderr_fd.fileno.return_value = 11
+        fake_stdout_fd.readline.return_value = b""
+        fake_stderr_fd.readline.return_value = b""
+        mock_proc.stderr = fake_stderr_fd
+        mock_proc.stdout = fake_stdout_fd
+        mock_proc.poll.return_value = 0
+        mock_proc.returncode = 0
+
+        mock_select.return_value = ([fake_stdout_fd], [], [])
+        is_job_id_exist_callback = MagicMock(spec=callable, return_value=False)
+        check_job_id_by_name_callback = MagicMock(spec=callable, return_value=True)
+
+        run_beam_command(
+            cmd,
+            fake_logger,
+            is_dataflow_job_id_exist_callback=is_job_id_exist_callback,
+            check_job_id_by_name_callback=check_job_id_by_name_callback,
+        )
+
+        check_job_id_by_name_callback.assert_called_once_with()
+
+    def test_process_fd_decodes_invalid_utf8_and_skips_partial_lines_in_callback(self):
+        fake_logger = MagicMock(spec=logging.Logger)
+        mock_proc = MagicMock(name="FakeProc", spec=subprocess.Popen)
+        fake_stdout_fd = MagicMock(name="FakeStdout", spec=io.BufferedReader)
+        fake_stderr_fd = MagicMock(name="FakeStderr", spec=io.BufferedReader)
+        mock_proc.stdout = fake_stdout_fd
+        mock_proc.stderr = fake_stderr_fd
+        fake_stdout_fd.readline.side_effect = [
+            b"Submitted job: 2026-11-0",
+            b"bad \xff\xfe line\n",
+            b"",
+        ]
+        process_line_callback = MagicMock(spec=callable)
+
+        process_fd(
+            mock_proc,
+            fake_stdout_fd,
+            fake_logger,
+            process_line_callback=process_line_callback,
+        )
+
+        process_line_callback.assert_called_once_with("bad \ufffd\ufffd line\n")
+        assert fake_logger.info.call_args_list == [
+            mock.call("Submitted job: 2026-11-0"),
+            mock.call("bad \ufffd\ufffd line"),
+        ]
 
 
 class TestBeamOptionsToArgs:

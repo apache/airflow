@@ -38,6 +38,7 @@ from airflow.providers.anthropic.hooks.anthropic import (
     SessionPollResult,
     SessionStatus,
     _create_session_error,
+    _is_permanent_poll_error,
     build_budget,
     evaluate_session_state,
     validate_execute_complete_event,
@@ -45,7 +46,7 @@ from airflow.providers.anthropic.hooks.anthropic import (
 
 pytest.importorskip("anthropic")
 
-from anthropic import AsyncAnthropic, BadRequestError, WorkloadIdentityCredentials
+from anthropic import APIStatusError, AsyncAnthropic, BadRequestError, WorkloadIdentityCredentials
 from anthropic.types import BetaMonetaryAmount
 from anthropic.types.beta import BetaManagedAgentsServerToolUsage, BetaManagedAgentsSessionUsage
 from anthropic.types.beta.beta_managed_agents_cache_creation_usage import (
@@ -1055,6 +1056,38 @@ class TestAnthropicHookFeatures:
             hook.count_tokens([{"role": "user", "content": "x"}])
 
 
+def _api_status_error(status_code: int, headers: dict[str, str] | None = None) -> APIStatusError:
+    # ``APIStatusError`` reads only these response attributes, so no HTTP library is needed.
+    response = SimpleNamespace(status_code=status_code, headers=headers or {}, request=None)
+    return APIStatusError(f"HTTP {status_code}", response=response, body=None)  # type: ignore[arg-type]
+
+
+class TestIsPermanentPollError:
+    @pytest.mark.parametrize(
+        ("error", "permanent"),
+        [
+            pytest.param(_api_status_error(400), True, id="400"),
+            pytest.param(_api_status_error(401), True, id="401"),
+            pytest.param(_api_status_error(403), True, id="403"),
+            pytest.param(_api_status_error(404), True, id="404"),
+            pytest.param(_api_status_error(408), False, id="408-request-timeout"),
+            pytest.param(_api_status_error(409), False, id="409-lock-timeout"),
+            pytest.param(_api_status_error(429), False, id="429-rate-limit"),
+            pytest.param(_api_status_error(500), False, id="500"),
+            pytest.param(_api_status_error(529), False, id="529-overloaded"),
+            pytest.param(
+                _api_status_error(400, {"x-should-retry": "true"}), False, id="header-overrides-400"
+            ),
+            pytest.param(
+                _api_status_error(503, {"x-should-retry": "false"}), True, id="header-overrides-503"
+            ),
+            pytest.param(RuntimeError("connection reset"), False, id="no-http-status"),
+        ],
+    )
+    def test_matches_the_sdk_retry_rule(self, error, permanent):
+        assert _is_permanent_poll_error(error) is permanent
+
+
 class TestWaitForBatch:
     def _batch(self, status):
         batch = mock.MagicMock()
@@ -1099,6 +1132,17 @@ class TestWaitForBatch:
         with pytest.raises(RuntimeError, match="persistent"):
             AnthropicHook().wait_for_batch("batch_1", wait_seconds=0.01)
         assert mock_get_batch.call_count == MAX_CONSECUTIVE_POLL_FAILURES
+
+    @mock.patch(f"{HOOK_PATH}.time.sleep", autospec=True)
+    @mock.patch.object(AnthropicHook, "get_batch", autospec=True)
+    @mock.patch.object(AnthropicHook, "get_connection", autospec=True)
+    def test_raises_permanent_api_error_without_retry(self, mock_get_connection, mock_get_batch, mock_sleep):
+        mock_get_connection.return_value = _conn()
+        mock_get_batch.side_effect = _api_status_error(404)
+        with pytest.raises(APIStatusError, match="HTTP 404"):
+            AnthropicHook().wait_for_batch("batch_1", wait_seconds=0.01)
+        assert mock_get_batch.call_count == 1
+        mock_sleep.assert_not_called()
 
 
 class TestTestConnection:

@@ -33,7 +33,7 @@ try:
     from airflow.sdk import TriggerRule
 except ImportError:
     # Compatibility for Airflow < 3.1
-    from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
+    from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef]
 from airflow.providers.common.compat.sdk import timezone
 from airflow.timetables.base import DataInterval
 from airflow.utils.state import State

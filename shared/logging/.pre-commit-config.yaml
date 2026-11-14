@@ -24,6 +24,8 @@ repos:
     hooks:
       - id: mypy-shared-logging
         name: Run mypy for shared-logging
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
         language: python
         entry: ../../scripts/ci/prek/run_mypy_full_dist_local_venv_or_breeze_in_ci.py shared/logging
         pass_filenames: false

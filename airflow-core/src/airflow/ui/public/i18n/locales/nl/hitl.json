@@ -21,6 +21,7 @@
     "received": "Reactie ontvangen op ",
     "respond": "Reageer",
     "responded_by_user_name": "Gereageerd door (gebruikersnaam)",
+    "selectAtLeastOne": "Selecteer ten minste één optie",
     "success": "{{taskId}} reactie succesvol",
     "title": "Human Task Instance - {{taskId}}"
   },

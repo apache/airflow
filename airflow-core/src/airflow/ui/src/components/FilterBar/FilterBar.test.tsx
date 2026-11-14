@@ -90,6 +90,21 @@ describe("FilterBar boolean filters", () => {
     expect(screen.getByTestId("needs_review-pill")).not.toHaveTextContent(":");
   });
 
+  it("keeps the remove control out of the pill button", () => {
+    const { container } = render(
+      <FilterBar
+        configs={[booleanConfig]}
+        initialValues={{ needs_review: "true" }}
+        onFiltersChange={vi.fn()}
+      />,
+      { wrapper },
+    );
+
+    // Asked of the whole pill rather than of the inner button, so putting `as="button"` back on the
+    // wrapper fails here too. A button inside a button is invalid HTML and React warns at runtime.
+    expect(container.querySelector("button button")).toBeNull();
+  });
+
   it("clears the filter when the pill is clicked", async () => {
     const onFiltersChange = vi.fn();
 
@@ -129,6 +144,26 @@ describe("FilterBar select filters", () => {
 
     expect(valueText).not.toBeNull();
     expect(globalThis.getComputedStyle(valueText as HTMLElement).overflow).toBe("visible");
+  });
+
+  it("collapses the pill after a selection even when focus stays inside it", async () => {
+    // WebKit hands focus back to the select trigger, so blurring the active element leaves the pill open.
+    const blur = vi.spyOn(HTMLElement.prototype, "blur").mockImplementation(() => undefined);
+    const selectConfig: FilterConfig = {
+      key: "state",
+      label: "State",
+      options: [{ label: "Failed", value: "failed" }],
+      type: "select",
+    };
+
+    render(<FilterBar configs={[selectConfig]} onFiltersChange={vi.fn()} />, { wrapper });
+
+    fireEvent.click(screen.getByTestId("add-filter-button"));
+    fireEvent.click(await screen.findByTestId("add-filter-state"));
+    fireEvent.click(await screen.findByTestId("state-filter-failed"));
+
+    await waitFor(() => expect(screen.getByTestId("state-pill")).toBeInTheDocument());
+    blur.mockRestore();
   });
 });
 
@@ -277,5 +312,50 @@ describe("FilterBar URL synchronization", () => {
     rerender(<FilterBar configs={configs} initialValues={{}} onFiltersChange={vi.fn()} />);
 
     await waitFor(() => expect(screen.queryByTestId("dag_id-pill")).not.toBeInTheDocument());
+  });
+});
+
+describe("FilterBar reset", () => {
+  it("shows Reset for an external filter even with no pills", () => {
+    render(
+      <FilterBar
+        configs={[booleanConfig]}
+        hasExternalFilters
+        onFiltersChange={vi.fn()}
+        showPresetFilters={false}
+      />,
+      { wrapper },
+    );
+
+    expect(screen.getByRole("button", { name: "common:reset" })).toBeInTheDocument();
+  });
+
+  it("hides Reset with no pills and no external filter", () => {
+    render(<FilterBar configs={[booleanConfig]} onFiltersChange={vi.fn()} showPresetFilters={false} />, {
+      wrapper,
+    });
+
+    expect(screen.queryByRole("button", { name: "common:reset" })).not.toBeInTheDocument();
+  });
+
+  it("calls onReset instead of onFiltersChange when given", () => {
+    const onFiltersChange = vi.fn();
+    const onReset = vi.fn();
+
+    render(
+      <FilterBar
+        configs={[booleanConfig]}
+        initialValues={{ needs_review: "true" }}
+        onFiltersChange={onFiltersChange}
+        onReset={onReset}
+        showPresetFilters={false}
+      />,
+      { wrapper },
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "common:reset" }));
+
+    expect(onReset).toHaveBeenCalledOnce();
+    expect(onFiltersChange).not.toHaveBeenCalled();
   });
 });

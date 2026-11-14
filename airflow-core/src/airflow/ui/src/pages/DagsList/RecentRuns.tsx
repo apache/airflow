@@ -29,6 +29,8 @@ import Time from "src/components/Time";
 
 import { useDurationFormat } from "src/utils";
 
+import { BAR_GAP, BAR_WIDTH } from "./recentRunsLayout";
+
 dayjs.extend(duration);
 
 const BAR_HEIGHT = 65;
@@ -88,7 +90,15 @@ export const RecentRuns = ({
         placement: "bottom-start",
       }}
     >
-      <Flex alignItems="flex-end" flexDirection="row-reverse" gap={[0.5, 0.5, 0.5, 1]} pb={1}>
+      {/* Hold the full bar height even when every run is short or still pending, so the bars stay
+          anchored to the bottom of the card's chart area instead of floating at the top of it. */}
+      <Flex
+        alignItems="flex-end"
+        flexDirection="row-reverse"
+        gap={{ base: `${BAR_GAP.base}px`, lg: `${BAR_GAP.lg}px` }}
+        minHeight={`${BAR_HEIGHT}px`}
+        pb={1}
+      >
         {latestRuns.map((run) => (
           <Tooltip.Trigger asChild key={run.run_id} value={run.run_id}>
             <Link data-testid="recent-run" to={`/dags/${run.dag_id}/runs/${run.run_id}/`}>
@@ -101,7 +111,7 @@ export const RecentRuns = ({
                 height={`${run.duration === null ? 1 : (run.duration / max) * BAR_HEIGHT}px`}
                 justifyContent="flex-end"
                 minHeight="12px"
-                width="12px"
+                width={`${BAR_WIDTH}px`}
               >
                 <StateIcon color="white" state={run.state} />
               </Flex>

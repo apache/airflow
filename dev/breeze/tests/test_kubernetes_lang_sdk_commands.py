@@ -53,8 +53,9 @@ def go_example(tmp_path, monkeypatch):
 def upstream_go_sdk(tmp_path):
     """A fake extracted upstream-main go-sdk copy, distinguishable from anything under go_example."""
     sdk_dir = tmp_path / "upstream_go_sdk"
-    sdk_dir.mkdir()
+    (sdk_dir / "bin").mkdir(parents=True)
     (sdk_dir / "marker.go").write_text("upstream")
+    (sdk_dir / "bin" / kubernetes_commands.LANG_SDK_GO_NATIVE_BUNDLE_NAME).write_text("binary")
     return sdk_dir
 
 
@@ -95,27 +96,32 @@ class TestLangSdkBuildGoBundle:
     def test_native_uses_host_go_toolchain(self, mock_run, tmp_path, go_example, upstream_go_sdk):
         _lang_sdk_build_go_bundle(tmp_path, upstream_go_sdk, None, native=True)
 
-        cmd = mock_run.call_args.args[0]
+        tidy_call, handlers_call, native_call = mock_run.call_args_list
+        cmd = handlers_call.args[0]
         assert cmd[:3] == ["go", "tool", "airflow-go-pack"]
         assert "docker" not in cmd
-        workspace_example = mock_run.call_args.kwargs["cwd"]
+        workspace_example = handlers_call.kwargs["cwd"]
         # The build runs against a scratch workspace copy, not the real go_example dir.
         assert workspace_example != go_example
         assert workspace_example.name == go_example.name
-        assert mock_run.call_args.kwargs["env"]["CGO_ENABLED"] == "0"
+        assert handlers_call.kwargs["env"]["CGO_ENABLED"] == "0"
         # The workspace mirrors the repo layout, with go-sdk swapped for the upstream copy.
-        assert (workspace_example.parent / "go-sdk" / "marker.go").read_text() == "upstream"
+        workspace_go_sdk = workspace_example.parent / "go-sdk"
+        assert (workspace_go_sdk / "marker.go").read_text() == "upstream"
         assert (tmp_path / "go-task-handlers" / kubernetes_commands.LANG_SDK_GO_BUNDLE_NAME).exists()
         # The scratch copy is re-tidied against the upstream go-sdk before packing, in the same dir.
-        tidy_call = mock_run.call_args_list[0]
         assert tidy_call.args[0] == ["go", "mod", "tidy"]
         assert tidy_call.kwargs["cwd"] == workspace_example
+        assert native_call.args[0][:3] == ["go", "tool", "airflow-go-pack"]
+        assert native_call.args[0][-1] == kubernetes_commands.LANG_SDK_GO_NATIVE_BUNDLE_PKG
+        assert native_call.kwargs["cwd"] == workspace_go_sdk
+        assert (tmp_path / "lang-sdk-native-go" / kubernetes_commands.LANG_SDK_GO_NATIVE_BUNDLE_NAME).exists()
 
     @mock.patch.object(kubernetes_commands, "run_command")
     def test_container_mode_runs_in_docker(self, mock_run, tmp_path, go_example, upstream_go_sdk):
         _lang_sdk_build_go_bundle(tmp_path, upstream_go_sdk, None, native=False)
 
-        cmd = mock_run.call_args.args[0]
+        tidy_cmd, cmd, native_cmd = (call.args[0] for call in mock_run.call_args_list)
         assert cmd[0] == "docker"
         assert kubernetes_commands.LANG_SDK_GO_BUILDER_IMAGE in cmd
         # The workspace, not AIRFLOW_ROOT_PATH, is mounted at /repo; the persistent HOME cache
@@ -126,10 +132,12 @@ class TestLangSdkBuildGoBundle:
         home_mount = next(m for m in mounts if m.endswith("/.home"))
         assert home_mount.startswith(str(go_example / ".home"))
         # The scratch copy is re-tidied in the same container image before packing.
-        tidy_cmd = mock_run.call_args_list[0].args[0]
         assert tidy_cmd[0] == "docker"
         assert kubernetes_commands.LANG_SDK_GO_BUILDER_IMAGE in tidy_cmd
         assert tidy_cmd[-3:] == ["go", "mod", "tidy"]
+        assert native_cmd[native_cmd.index("-w") + 1] == "/repo/go-sdk"
+        assert native_cmd[-1] == kubernetes_commands.LANG_SDK_GO_NATIVE_BUNDLE_PKG
+        assert (tmp_path / "lang-sdk-native-go" / kubernetes_commands.LANG_SDK_GO_NATIVE_BUNDLE_NAME).exists()
 
 
 @pytest.fixture
@@ -380,6 +388,9 @@ class TestLangSdkDryRun:
         _lang_sdk_build_go_bundle(tmp_path, tmp_path / "missing_upstream_go_sdk", None, native=True)
 
         assert not (tmp_path / "go-task-handlers" / kubernetes_commands.LANG_SDK_GO_BUNDLE_NAME).exists()
+        assert not (
+            tmp_path / "lang-sdk-native-go" / kubernetes_commands.LANG_SDK_GO_NATIVE_BUNDLE_NAME
+        ).exists()
 
     def test_build_java_jars_skips_jar_copies(
         self, dry_run, tmp_path, java_example, java_native_bundle, upstream_java_sdk
@@ -401,6 +412,23 @@ class TestLangSdkDryRun:
         cp_sources = [call.args[0][2] for call in mock_run.call_args_list if call.args[0][1] == "cp"]
         assert str(tmp_path / "java-task-handlers" / "app.jar") in cp_sources
         assert str(tmp_path / "lang-sdk-native-java" / "app.jar") in cp_sources
+
+
+class TestLangSdkUploadArtifacts:
+    @mock.patch.object(kubernetes_commands, "run_command_with_k8s_env")
+    def test_native_ts_bundle_also_serves_the_typescript_example_handlers(self, mock_run, dry_run, tmp_path):
+        """typescript_example's stub tasks look in ts-task-handlers, so the bundle has to be there too."""
+        mock_run.return_value = mock.Mock(stdout="")
+
+        _lang_sdk_upload_artifacts(tmp_path, "3.11", "v1.35.0", None)
+
+        uploads = [
+            tuple(argv[-2:]) for call in mock_run.call_args_list if "awslocal" in (argv := call.args[0])
+        ]
+        assert ("/tmp/native_bundle.min.mjs", "s3://lang-sdk-native-ts/bundle.min.mjs") in uploads
+        assert ("/tmp/native_bundle.min.mjs", "s3://ts-task-handlers/native_bundle.min.mjs") in uploads
+        # The mixed-language handlers keep their own name, so the two do not overwrite each other.
+        assert ("/tmp/handler_bundle.min.mjs", "s3://ts-task-handlers/bundle.min.mjs") in uploads
 
 
 class TestSetupLangSdkTestNativeSelection:
@@ -458,10 +486,12 @@ class TestSetupLangSdkTestNativeSelection:
         monkeypatch.setattr(
             kubernetes_commands,
             "BuildProdParams",
-            lambda python: mock.Mock(airflow_image_kubernetes="img"),
+            lambda **kwargs: mock.Mock(airflow_image_kubernetes="img"),
         )
 
-        kubernetes_commands._setup_lang_sdk_test(python="3.11", kubernetes_version="v1.35.0")
+        kubernetes_commands._setup_lang_sdk_test(
+            python="3.11", kubernetes_version="v1.35.0", github_repository="apache/airflow"
+        )
 
         assert captured == {
             "go": expected_native,
@@ -494,12 +524,14 @@ class TestSetupLangSdkTestSteps:
         monkeypatch.setattr(
             kubernetes_commands,
             "BuildProdParams",
-            lambda python: mock.Mock(airflow_image_kubernetes="img"),
+            lambda **kwargs: mock.Mock(airflow_image_kubernetes="img"),
         )
         return recorded
 
     def test_builds_go_java_ts_and_the_runtime_image_by_default(self, recorded):
-        kubernetes_commands._setup_lang_sdk_test(python="3.10", kubernetes_version="v1.35.0")
+        kubernetes_commands._setup_lang_sdk_test(
+            python="3.10", kubernetes_version="v1.35.0", github_repository="apache/airflow"
+        )
 
         assert recorded["steps"] == [
             "Build Go bundle",
@@ -511,7 +543,10 @@ class TestSetupLangSdkTestSteps:
 
     def test_skips_the_runtime_image_build_when_an_override_is_given(self, recorded):
         kubernetes_commands._setup_lang_sdk_test(
-            python="3.10", kubernetes_version="v1.35.0", runtime_image="my-runtime:1"
+            python="3.10",
+            kubernetes_version="v1.35.0",
+            github_repository="apache/airflow",
+            runtime_image="my-runtime:1",
         )
 
         assert recorded["steps"] == [
@@ -591,3 +626,49 @@ class TestLangSdkResolveSdkSources:
 
         mock_fetch.assert_called_once_with(tmp_path, None)
         assert (go_sdk, java_sdk) == (tmp_path / "go-sdk", tmp_path / "java-sdk")
+
+
+class TestRunCompleteTestsLangSdkSetupFailure:
+    @mock.patch.object(kubernetes_commands, "_run_tests", autospec=True)
+    @mock.patch.object(kubernetes_commands, "_logs", autospec=True)
+    @mock.patch.object(
+        kubernetes_commands,
+        "_setup_lang_sdk_test",
+        autospec=True,
+        side_effect=kubernetes_commands.subprocess.CalledProcessError(1, ["helm", "upgrade"]),
+    )
+    @mock.patch.object(kubernetes_commands, "_deploy_airflow", autospec=True, return_value=(0, ""))
+    @mock.patch.object(
+        kubernetes_commands, "_preload_test_images_to_kind", autospec=True, return_value=(0, "")
+    )
+    @mock.patch.object(kubernetes_commands, "_upload_k8s_image", autospec=True, return_value=(0, ""))
+    @mock.patch.object(kubernetes_commands, "_configure_k8s_cluster", autospec=True, return_value=(0, ""))
+    @mock.patch.object(kubernetes_commands, "_create_cluster", autospec=True, return_value=(0, ""))
+    @mock.patch.object(kubernetes_commands, "_rebuild_k8s_image", autospec=True, return_value=(0, ""))
+    @mock.patch.object(kubernetes_commands, "_delete_cluster", autospec=True)
+    def test_failed_lang_sdk_setup_exports_logs_before_the_cluster_is_deleted(self, delete_cluster, *mocks):
+        run_tests, logs = mocks[-1], mocks[-2]
+        returncode, message = kubernetes_commands._run_complete_tests(
+            python="3.11",
+            kubernetes_version="v1.31.12",
+            include_success_outputs=False,
+            executor=kubernetes_commands.KUBERNETES_EXECUTOR,
+            rebuild_base_image=False,
+            copy_local_sources=False,
+            use_uv=True,
+            upgrade=False,
+            wait_time_in_seconds=0,
+            force_recreate_cluster=False,
+            use_standard_naming=False,
+            lang_sdk_test=True,
+            num_tries=1,
+            github_repository="apache/airflow",
+            extra_options=None,
+            test_args=[],
+            output=None,
+        )
+
+        assert returncode == 1
+        assert "Lang-SDK test setup failed" in message
+        logs.assert_called_once_with(python="3.11", kubernetes_version="v1.31.12")
+        run_tests.assert_not_called()

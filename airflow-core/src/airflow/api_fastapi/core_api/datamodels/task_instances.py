@@ -54,7 +54,7 @@ class LoopIterationResponse(BaseModel):
     """A task execution's position in an enclosing loop."""
 
     loop_id: str
-    iteration: int
+    iteration: int = Field(ge=1, description="Position in the enclosing loop, counting from one.")
 
 
 class TaskInstanceResponse(OmitsMissingRegion, BaseModel):
@@ -106,8 +106,13 @@ class TaskInstanceResponse(OmitsMissingRegion, BaseModel):
         default=None,
         validation_alias="retry_reason",
         description=(
-            "The reason the task instance reached its current state, as recorded by a retry policy. May describe a previous attempt: it is cleared only when the task next starts running, so a task waiting to be retried or re-run can still carry the reason its last attempt ended."
+            "The reason the task instance reached its current state, as recorded by a retry policy. May describe a previous attempt: a task waiting to be retried still carries the reason its last attempt ended. It is cleared when the task is cleared and when the next attempt is scheduled or deferred."
         ),
+    )
+
+    retry_at: datetime | None = Field(
+        default=None,
+        description="When a task instance waiting to be retried becomes due. Only set in the up_for_retry state.",
     )
 
     @field_validator("state_reason", mode="after")
@@ -267,6 +272,12 @@ class ClearTaskInstancesBody(StrictBaseModel):
     dag_run_id: str | None = None
     include_upstream: bool = False
     include_downstream: bool = False
+    include_dependent_dags: bool | None = Field(
+        default=None,
+        description="Also clear the tasks in other Dags that the cleared tasks recorded as external "
+        "clear targets (for example through ``ExternalTaskMarker``), with their downstream tasks. "
+        "If not specified, follows ``include_downstream``.",
+    )
     include_future: bool = False
     include_past: bool = False
     run_on_latest_version: bool | None = Field(

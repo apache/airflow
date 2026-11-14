@@ -20,7 +20,7 @@ from collections.abc import Iterable, Mapping
 from datetime import datetime
 from typing import Any
 
-from pydantic import Field, field_validator
+from pydantic import AwareDatetime, Field, field_validator
 
 from airflow.api_fastapi.core_api.base import BaseModel
 from airflow.api_fastapi.core_api.datamodels.common import find_reserved_keys
@@ -33,6 +33,15 @@ class UpdateHITLDetailPayload(BaseModel):
 
     chosen_options: list[str] = Field(min_length=1)
     params_input: Mapping = Field(default_factory=dict)
+    request_created_at: AwareDatetime | None = Field(
+        default=None,
+        description=(
+            "The ``created_at`` of the request this response answers, exactly as the GET endpoint "
+            "returned it. When the task has since replaced its request (it asked again after a "
+            "resume, retry or clear), the response is refused with 409 instead of answering a "
+            "request the user did not see. Leave it out to answer whatever request is waiting."
+        ),
+    )
 
     @field_validator("params_input")
     @classmethod

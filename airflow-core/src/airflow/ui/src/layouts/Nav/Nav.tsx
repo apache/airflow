@@ -32,7 +32,6 @@ import { Tooltip } from "src/system-components";
 
 import { Logo } from "src/components/Logo";
 
-import { DagIcon } from "src/assets/DagIcon";
 import { useTimezone } from "src/context/timezone";
 import { useConfig } from "src/queries/useConfig";
 import { getTimezoneOffsetString, getTimezoneTooltipLabel } from "src/utils/datetimeUtils";
@@ -40,6 +39,7 @@ import type { NavItemResponse } from "src/utils/types";
 
 import { AdminButton } from "./AdminButton";
 import { BrowseButton } from "./BrowseButton";
+import { DagsButton } from "./DagsButton";
 import { DocsButton } from "./DocsButton";
 import { NavButton } from "./NavButton";
 import { PluginMenus } from "./PluginMenus";
@@ -180,14 +180,7 @@ export const Nav = () => {
           title={translate("nav.dashboard")}
           to="/home"
         />
-        <NavButton
-          data-testid="nav-dags-link"
-          disabled={!authLinks?.authorized_menu_items.includes("Dags")}
-          icon={DagIcon}
-          matchPaths={["dag_runs", "task_instances"]}
-          title={translate("nav.dags")}
-          to="/dags"
-        />
+        <DagsButton authorizedMenuItems={authLinks?.authorized_menu_items ?? []} />
         <NavButton
           data-testid="nav-assets-link"
           disabled={!authLinks?.authorized_menu_items.includes("Assets")}
@@ -218,10 +211,11 @@ export const Nav = () => {
         <UserSettingsButton externalViews={userItems} />
         {hasCustomLogo ? (
           <Text asChild color="fg.muted" fontSize="2xs" lineHeight="1" pb={2} textAlign="center">
-            {/* eslint-disable-next-line i18next/no-literal-string -- Trademark must not be translated */}
+            {/* eslint-disable i18next/no-literal-string -- Trademark must not be translated */}
             <a href="https://airflow.apache.org/" rel="noopener noreferrer" target="_blank">
               Apache Airflow®
             </a>
+            {/* eslint-enable i18next/no-literal-string */}
           </Text>
         ) : undefined}
       </Flex>

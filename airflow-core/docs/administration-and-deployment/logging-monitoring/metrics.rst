@@ -347,6 +347,6 @@ Other Configuration Options
 
 
 Metric Descriptions
-===================
+-------------------
 
 .. include:: metric_tables.rst

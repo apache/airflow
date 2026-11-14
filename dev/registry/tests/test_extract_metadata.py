@@ -837,19 +837,19 @@ class TestVersionsListFiltering:
 # ---------------------------------------------------------------------------
 @patch("extract_metadata.fetch_provider_inventory", autospec=True, return_value=None)
 @patch("extract_metadata.fetch_pypi_data_parallel", autospec=True, return_value={})
-@patch("extract_metadata.load_release_tags", autospec=True, return_value=set())
-def _run_main_for_provider(
-    _load_release_tags,
+def _run_main(
     _fetch_pypi_data_parallel,
     _fetch_provider_inventory,
     tmp_path,
     provider_yaml,
     src_files,
+    release_tags=frozenset({"providers-testprov/1.0.0"}),
+    extra_argv=(),
 ):
-    """Run main() on one provider under tmp_path and return its providers.json entry.
+    """Run main() on one provider under tmp_path and return the written providers.json entries.
 
     Network and filesystem dependencies are mocked or redirected, so the
-    written entry has also passed main()'s ProviderContract (extra="forbid")
+    written entries have also passed main()'s ProviderContract (extra="forbid")
     validation, catching key-name drift between provider.yaml, main() and
     registry_contract_models.py.
     """
@@ -870,12 +870,18 @@ def _run_main_for_provider(
         patch("extract_metadata.PROVIDERS_DIR", providers_dir),
         patch("extract_metadata.OUTPUT_DIR", output_dir),
         patch("extract_metadata.SCRIPT_DIR", script_dir),
-        patch.object(sys, "argv", ["extract_metadata.py"]),
+        patch("extract_metadata.load_release_tags", autospec=True, return_value=set(release_tags)),
+        patch.object(sys, "argv", ["extract_metadata.py", *extra_argv]),
     ):
         main()
 
-    written = json.loads((output_dir / "providers.json").read_text())
-    return next(p for p in written["providers"] if p["id"] == "testprov")
+    return json.loads((output_dir / "providers.json").read_text())["providers"]
+
+
+def _run_main_for_provider(tmp_path, provider_yaml, src_files):
+    """Run main() on one provider under tmp_path and return its providers.json entry."""
+    providers = _run_main(tmp_path=tmp_path, provider_yaml=provider_yaml, src_files=src_files)
+    return next(p for p in providers if p["id"] == "testprov")
 
 
 class TestMainConnectionTypesExternalServices:
@@ -934,3 +940,53 @@ class TestMainUriSchemes:
                 "asset": {"handler": None, "factory": None, "to_openlineage_converter": None},
             }
         ]
+
+
+class TestMainUnreleasedFiltering:
+    """main() drops providers and versions that were never released, unless told not to."""
+
+    @staticmethod
+    def _provider_yaml(state="ready", versions=("1.0.0",)):
+        return f"name: Test Provider\ndescription: A test provider.\nstate: {state}\nversions: {list(versions)}\n"
+
+    def test_keeps_untagged_versions_when_no_release_tags_found(self, tmp_path, capsys):
+        providers = _run_main(
+            tmp_path=tmp_path,
+            provider_yaml=self._provider_yaml(),
+            src_files={},
+            release_tags=set(),
+        )
+
+        assert [(p["id"], p["version"]) for p in providers] == [("testprov", "1.0.0")]
+        assert "phantom version filter is disabled" in capsys.readouterr().out
+
+    def test_drops_untagged_versions(self, tmp_path):
+        providers = _run_main(
+            tmp_path=tmp_path,
+            provider_yaml=self._provider_yaml(versions=("1.1.0", "1.0.0")),
+            src_files={},
+            release_tags={"providers-testprov/1.0.0", "providers-testprov/1.1.0rc1"},
+        )
+
+        assert [(p["version"], p["versions"]) for p in providers] == [("1.0.0", ["1.0.0"])]
+
+    def test_skips_not_ready_provider_even_with_release_tag(self, tmp_path):
+        providers = _run_main(
+            tmp_path=tmp_path,
+            provider_yaml=self._provider_yaml(state="not-ready"),
+            src_files={},
+        )
+
+        assert [p["id"] for p in providers] == []
+
+    @pytest.mark.parametrize("state", ["ready", "not-ready"])
+    def test_allow_unreleased_includes_untagged_provider(self, tmp_path, state):
+        providers = _run_main(
+            tmp_path=tmp_path,
+            provider_yaml=self._provider_yaml(state=state),
+            src_files={},
+            release_tags=set(),
+            extra_argv=("--allow-unreleased",),
+        )
+
+        assert [(p["id"], p["version"]) for p in providers] == [("testprov", "1.0.0")]

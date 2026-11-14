@@ -23,15 +23,17 @@ import logging
 import os
 import sys
 import warnings
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from functools import cache, partial
 from importlib import metadata
+from importlib.util import find_spec
 from typing import TYPE_CHECKING, Any, Literal
 
 import pluggy
 from packaging.version import Version
 from sqlalchemy import create_engine
 from sqlalchemy.engine import make_url
+from sqlalchemy.exc import ArgumentError, NoSuchModuleError
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession as SAAsyncSession,
@@ -62,12 +64,12 @@ from airflow.utils.orm_event_handlers import setup_event_handlers
 
 _USE_PSYCOPG3: bool
 try:
-    from importlib.util import find_spec
-
     _USE_PSYCOPG3 = find_spec("psycopg") is not None
 
 except (ImportError, ModuleNotFoundError):
     _USE_PSYCOPG3 = False
+
+_USE_ASYNCMY = find_spec("asyncmy") is not None
 
 if TYPE_CHECKING:
     from sqlalchemy.engine import Engine
@@ -265,7 +267,7 @@ def _get_async_conn_uri_from_sync(sync_uri):
     AIO_LIBS_MAPPING = {
         "sqlite": "aiosqlite",
         "postgresql": "psycopg_async" if _USE_PSYCOPG3 else "asyncpg",
-        "mysql": "aiomysql",
+        "mysql": "asyncmy" if _USE_ASYNCMY else "aiomysql",
     }
 
     scheme, rest = sync_uri.split(":", maxsplit=1)
@@ -374,14 +376,64 @@ def _is_sqlite_db_path_relative(sqla_conn_str: str) -> bool:
     return True
 
 
+_PSYCOPG3_DRIVERS = frozenset({"psycopg", "psycopg_async"})
+
+
+def _psycopg3_connect_args(sql_alchemy_conn: str | None) -> dict[str, Any]:
+    """
+    Disable psycopg3's automatic server-side statement preparation.
+
+    psycopg3 prepares a statement server-side after ``prepare_threshold`` executions
+    (5 by default). Transaction pooling can route the next transaction to a different
+    server connection, so a pooler that does not itself track prepared statements fails
+    with ``InvalidSqlStatementName`` once a statement outlives the backend that prepared
+    it, or ``DuplicatePreparedStatement`` when a second client reuses the same generated
+    name. Preparation is only safe behind PgBouncer from 1.22 onwards, with
+    ``max_prepared_statements`` raised above 0 (its default until 1.24) and libpq 17 or
+    newer on the client; Airflow's chart sets ``pool_mode = transaction`` and ships 1.23.1
+    without that setting, so the recommended deployment is an affected one.
+
+    This disables preparation outright, not just the automatic threshold, so bulk
+    ``executemany`` writes re-parse per row rather than reusing one prepared statement.
+    Overridable via ``[database] sql_alchemy_connect_args``.
+
+    The driver is resolved through SQLAlchemy rather than matched against the URL prefix
+    so that it always agrees with the dialect that gets loaded: ``sql_alchemy_conn_async``
+    is taken verbatim from config without scheme normalization, and a bare
+    ``postgresql://`` resolves to psycopg on SQLAlchemy 2.1.
+    """
+    if not sql_alchemy_conn:
+        return {}
+    try:
+        driver = make_url(sql_alchemy_conn).get_driver_name()
+    except (ArgumentError, NoSuchModuleError):
+        # Leave it to create_engine, which reports a bad URL with far more context.
+        return {}
+    if driver not in _PSYCOPG3_DRIVERS:
+        return {}
+    return {"prepare_threshold": None}
+
+
 def _get_connect_args(mode: Literal["sync", "async"]) -> Any:
-    key = {
-        "sync": "sql_alchemy_connect_args",
-        "async": "sql_alchemy_connect_args_async",
+    key, sql_alchemy_conn = {
+        "sync": ("sql_alchemy_connect_args", SQL_ALCHEMY_CONN),
+        "async": ("sql_alchemy_connect_args_async", SQL_ALCHEMY_CONN_ASYNC),
     }[mode]
-    if conf.has_option("database", key):
-        return conf.getimport("database", key)
-    return {}
+    defaults = _psycopg3_connect_args(sql_alchemy_conn)
+    if not conf.has_option("database", key):
+        return defaults
+    configured = conf.getimport("database", key)
+    if not isinstance(configured, Mapping):
+        if defaults:
+            log.warning(
+                "[database] %s is not a mapping, so the psycopg3 default "
+                "prepare_threshold=None was not applied. Engine creation will "
+                "fail unless it resolves to a mapping.",
+                key,
+            )
+        return configured
+    # Anything the operator sets wins, including putting prepare_threshold back.
+    return {**defaults, **configured}
 
 
 def create_metadata_engine(
@@ -447,12 +499,14 @@ def _configure_async_session() -> None:
         engine_args["pool_recycle"] = conf.getint("database", "SQL_ALCHEMY_POOL_RECYCLE", fallback=1800)
         engine_args["pool_pre_ping"] = conf.getboolean("database", "SQL_ALCHEMY_POOL_PRE_PING", fallback=True)
         engine_args["max_overflow"] = conf.getint("database", "SQL_ALCHEMY_MAX_OVERFLOW", fallback=10)
+    engine_args.update(_get_isolation_level_args(SQL_ALCHEMY_CONN_ASYNC))
 
     async_engine = create_async_metadata_engine(
         SQL_ALCHEMY_CONN_ASYNC,
         connect_args=_get_connect_args("async"),
         engine_args=engine_args,
     )
+    setup_event_handlers(async_engine.sync_engine)
     AsyncSession = async_sessionmaker(
         bind=async_engine,
         class_=SAAsyncSession,
@@ -620,15 +674,24 @@ def prepare_engine_args(disable_connection_pool=False, pool_class=None):
         engine_args["pool_pre_ping"] = pool_pre_ping
         engine_args["max_overflow"] = max_overflow
 
-    # The default isolation level for MySQL (REPEATABLE READ) can introduce inconsistencies when
-    # running multiple schedulers, as repeated queries on the same session may read from stale snapshots.
-    # 'READ COMMITTED' is the default value for PostgreSQL.
-    # More information here:
-    # https://dev.mysql.com/doc/refman/8.0/en/innodb-transaction-isolation-levels.html
-    if SQL_ALCHEMY_CONN.startswith("mysql"):
-        engine_args["isolation_level"] = "READ COMMITTED"
+    engine_args.update(_get_isolation_level_args(SQL_ALCHEMY_CONN))
 
     return engine_args
+
+
+def _get_isolation_level_args(sql_alchemy_conn: str) -> dict[str, str]:
+    """
+    Return the isolation level engine argument for the metadata database connection.
+
+    The default isolation level for MySQL (REPEATABLE READ) can introduce inconsistencies when
+    running multiple schedulers, as repeated queries on the same session may read from stale snapshots.
+    'READ COMMITTED' is the default value for PostgreSQL.
+    More information here:
+    https://dev.mysql.com/doc/refman/8.0/en/innodb-transaction-isolation-levels.html
+    """
+    if sql_alchemy_conn.startswith("mysql"):
+        return {"isolation_level": "READ COMMITTED"}
+    return {}
 
 
 def dispose_orm(do_log: bool = True):

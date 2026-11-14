@@ -30,7 +30,7 @@ from airflow.providers.common.ai.batch.output_schema import (
     build_output_spec,
     validate_extracted_output,
 )
-from airflow.providers.common.ai.exceptions import LLMBatchOutputTypeError
+from airflow.providers.common.ai.exceptions import LLMBatchOutputTypeError, ReviewedOutputValidationError
 from airflow.providers.common.ai.utils.output_type import rehydrate_pydantic_output
 
 
@@ -208,17 +208,16 @@ class TestNotRehydratePydanticOutput:
     A regression guard proving this module's failure semantics are the opposite of
     ``rehydrate_pydantic_output``.
 
-    ``rehydrate_pydantic_output`` silently downgrades a validation failure to
-    the raw string -- correct for the HITL round trip, wrong for batch, where
-    a failure must be recorded as ``invalid_output``, not mistaken for a
-    successful string result.
+    ``rehydrate_pydantic_output`` raises on a validation failure, which suits the HITL
+    round trip, where the task should fail. Batch must instead record the item as
+    ``invalid_output`` and keep going.
     """
 
     def test_same_bad_input_diverges_between_the_two_functions(self):
         bad_json = '{"name": "Ann", "age": "not-a-number"}'
 
-        rehydrated = rehydrate_pydantic_output(Diagnosis, bad_json, serialize_output=True)
-        assert rehydrated == bad_json  # silently returns the raw string unchanged
+        with pytest.raises(ReviewedOutputValidationError):
+            rehydrate_pydantic_output(Diagnosis, bad_json, serialize_output=True)
 
         spec = build_output_spec(Diagnosis)
         outcome = validate_extracted_output(ExtractedOutput(kind="json_text", text=bad_json), spec)
