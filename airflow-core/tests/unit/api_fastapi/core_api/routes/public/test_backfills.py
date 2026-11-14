@@ -1790,3 +1790,49 @@ class TestUnpauseBackfill(TestBackfillEndpoint):
         assert (
             response_detail["msg"] == "Input should be a valid integer, unable to parse string as an integer"
         )
+
+
+class TestBackfillAuthorizationOffEventLoop(TestBackfillEndpoint):
+    """
+    ``requires_access_backfill`` is an async dependency, so its lookups must not run sync SQL on the
+    event loop: a blocked loop cannot release the connections the sync handlers hold, see
+    https://github.com/apache/airflow/issues/76425.
+
+    The sweep in ``test_event_loop_blocking.py`` uses an empty DB, so it never reaches the Dag team
+    lookup that follows a found backfill, nor a ``dag_id`` named in the query string or the body.
+    """
+
+    @pytest.mark.parametrize(
+        ("method", "url", "with_body"),
+        [
+            pytest.param("GET", "/backfills/{backfill_id}", False, id="get"),
+            pytest.param("GET", "/backfills/{backfill_id}/dag_runs", False, id="list-dag-runs"),
+            pytest.param("PUT", "/backfills/{backfill_id}/pause", False, id="pause"),
+            pytest.param("PUT", "/backfills/{backfill_id}/unpause", False, id="unpause"),
+            pytest.param("PUT", "/backfills/{backfill_id}/cancel", False, id="cancel"),
+            pytest.param("GET", "/backfills?dag_id={dag_id}", False, id="list-by-query-dag-id"),
+            pytest.param("POST", "/backfills/dry_run", True, id="dry-run-by-body-dag-id"),
+        ],
+    )
+    def test_authorization_runs_no_sync_sql_on_the_event_loop(
+        self, session, dag_maker, test_client, event_loop_queries, method, url, with_body
+    ):
+        with dag_maker(session=session, dag_id="TEST_DAG_1", schedule="@daily"):
+            EmptyOperator(task_id="mytask")
+        from_date = pendulum.parse("2024-01-01")
+        to_date = pendulum.parse("2024-01-03")
+        backfill = Backfill(dag_id="TEST_DAG_1", from_date=from_date, to_date=to_date)
+        session.add(backfill)
+        session.commit()
+        body = (
+            {"dag_id": "TEST_DAG_1", "from_date": to_iso(from_date), "to_date": to_iso(to_date)}
+            if with_body
+            else None
+        )
+
+        response = test_client.request(
+            method, url.format(backfill_id=backfill.id, dag_id="TEST_DAG_1"), json=body
+        )
+
+        assert response.status_code == 200
+        assert [query.site for query in event_loop_queries] == []

@@ -1,0 +1,11 @@
+DELETE /api/v2/connections/{connection_id}::multi_team
+DELETE /api/v2/pools/{pool_name:path}::multi_team
+DELETE /api/v2/variables/{variable_key:path}::multi_team
+GET /api/v2/connections/{connection_id}::multi_team
+GET /api/v2/eventLogs/{event_log_id}::default
+GET /api/v2/eventLogs/{event_log_id}::multi_team
+GET /api/v2/pools/{pool_name:path}::multi_team
+GET /api/v2/variables/{variable_key:path}::multi_team
+PATCH /api/v2/connections/{connection_id}::multi_team
+PATCH /api/v2/pools/{pool_name:path}::multi_team
+PATCH /api/v2/variables/{variable_key:path}::multi_team
