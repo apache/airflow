@@ -17,9 +17,13 @@
 # under the License.
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 import pytest
 
-from airflow.sdk.definitions.context import get_current_context
+from airflow.sdk import Asset
+from airflow.sdk.definitions.context import Context, clone_context, get_current_context
+from airflow.sdk.execution_time.context import InletEventsAccessors, set_indexed_context
 
 
 class TestCurrentContext:
@@ -39,3 +43,85 @@ class TestCurrentContext:
         monkeypatch.setattr("airflow.sdk.definitions._internal.contextmanager._CURRENT_CONTEXT", [])
         with pytest.raises(RuntimeError, match="Current context was requested but no context was found!"):
             get_current_context()
+
+    def test_get_current_context_prefers_an_indexed_context_until_it_is_reset(self, monkeypatch):
+        """Inside ``set_indexed_context`` the iteration's context wins; once reset, the task's own is back."""
+        task_context = {"ti": "task_instance"}
+        indexed_context = {"ti": "indexed_task_instance"}
+        monkeypatch.setattr(
+            "airflow.sdk.definitions._internal.contextmanager._CURRENT_CONTEXT", [task_context]
+        )
+
+        with set_indexed_context(indexed_context):  # type: ignore[arg-type]
+            assert get_current_context() is indexed_context
+
+        assert get_current_context() is task_context
+        monkeypatch.setattr("airflow.sdk.definitions._internal.contextmanager._CURRENT_CONTEXT", [])
+        with pytest.raises(RuntimeError, match="Current context was requested but no context was found!"):
+            get_current_context()
+
+    def test_clone_context_deep_and_shallow_copy_semantics(self):
+        outlet_events = [Asset(name="dummy")]
+        inlet_events = InletEventsAccessors(inlets=[])
+
+        dag_run = SimpleNamespace(
+            dag_id="dag",
+            run_id="r1",
+            logical_date=None,
+            data_interval_start=None,
+            data_interval_end=None,
+            run_after=None,
+            start_date=None,
+            end_date=None,
+            clear_number=None,
+            run_type=None,
+            state=None,
+            conf=None,
+            triggering_user_name=None,
+            consumed_asset_events=[],
+            partition_key=None,
+            note=None,
+        )
+
+        actual = Context()
+        actual.update(
+            {
+                "params": {"p": {"n": 1}},
+                "templates_dict": {"tpl": ["a", {"x": 1}]},
+                "inlets": [object()],
+                "outlets": [object()],
+                "outlet_events": outlet_events,
+                "inlet_events": inlet_events,
+                "dag_run": dag_run,
+            }
+        )
+        cloned = clone_context(actual)
+
+        assert cloned is not actual
+
+        actual["params"]["p"]["n"] = 999
+        assert cloned["params"]["p"]["n"] == 1
+
+        actual["templates_dict"]["tpl"][1]["x"] = 42
+        assert cloned["templates_dict"]["tpl"][1]["x"] == 1
+
+        actual["outlet_events"].append(Asset(name="another"))
+        assert cloned["outlet_events"] is actual["outlet_events"]
+        assert len(cloned["outlet_events"]) == 2
+        assert Asset(name="another") in cloned["outlet_events"]
+        assert cloned["inlet_events"] is actual["inlet_events"]
+
+        actual["dag_run"].dag_id = "changed"
+        assert cloned["dag_run"].dag_id == "changed"
+
+    def test_clone_context_without_inlet_events_or_dag_run(self):
+        """Context is total=False: a context built outside the runner may lack both keys and still clones."""
+        actual = Context()
+        actual.update({"params": {"p": 1}, "outlet_events": [Asset(name="a")]})
+
+        cloned = clone_context(actual)
+
+        assert cloned["params"] == {"p": 1}
+        assert cloned["outlet_events"] is actual["outlet_events"]
+        assert "inlet_events" not in cloned
+        assert "dag_run" not in cloned
