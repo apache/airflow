@@ -28,10 +28,11 @@ from airflow import __main__ as airflow_main
 @mock.patch("airflow.settings.ensure_initialized", autospec=True)
 @mock.patch("airflow.__main__.argcomplete.autocomplete", autospec=True)
 @mock.patch("airflow.__main__.cli_parser.get_parser", autospec=True)
-def test_main_initializes_before_running_the_command(
+def test_main_initializes_between_parsing_and_running_the_command(
     mock_get_parser, mock_autocomplete, mock_ensure_initialized, mock_redirect
 ):
     calls = mock.Mock()
+    calls.attach_mock(mock_get_parser, "get_parser")
     calls.attach_mock(mock_ensure_initialized, "ensure_initialized")
     calls.attach_mock(mock_redirect, "redirect")
     args = mock_get_parser.return_value.parse_args.return_value
@@ -40,7 +41,13 @@ def test_main_initializes_before_running_the_command(
 
     airflow_main.main()
 
-    assert calls.mock_calls == [mock.call.ensure_initialized(), mock.call.redirect(), mock.call.func(args)]
+    assert calls.mock_calls == [
+        mock.call.get_parser(),
+        mock.call.get_parser().parse_args(),
+        mock.call.ensure_initialized(),
+        mock.call.redirect(),
+        mock.call.func(args),
+    ]
 
 
 def test_command_runs_when_importing_airflow_does_not_initialize():
@@ -49,6 +56,7 @@ def test_command_runs_when_importing_airflow_does_not_initialize():
         env={**os.environ, "_AIRFLOW__AS_LIBRARY": "1"},
         capture_output=True,
         text=True,
+        timeout=120,
         check=False,
     )
 

@@ -31,6 +31,7 @@ def test_initializes_before_running_the_workload(
 ):
     calls = mock.Mock()
     calls.attach_mock(mock_ensure_initialized, "ensure_initialized")
+    calls.attach_mock(mock_dispose_orm, "dispose_orm")
     calls.attach_mock(mock_configure_logging, "configure_logging")
     calls.attach_mock(mock_run_workload, "run_workload")
     workload = mock.Mock(spec=ExecuteTask)
@@ -39,6 +40,7 @@ def test_initializes_before_running_the_workload(
 
     assert [name for name, _, _ in calls.mock_calls] == [
         "ensure_initialized",
+        "dispose_orm",
         "configure_logging",
         "run_workload",
     ]
