@@ -20,6 +20,7 @@ package execution
 import (
 	"bytes"
 	"context"
+	"encoding"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -772,26 +773,32 @@ func TestTaskStateStoreSetRejectsMisconfiguredRetention(t *testing.T) {
 func TestTaskStateStoreSetRejectsNonJSONValues(t *testing.T) {
 	watermark := time.Date(2026, 5, 15, 0, 0, 0, 0, time.UTC)
 	type embedded struct{ At time.Time }
+	shared := &sharedDoc{At: watermark}
+	times := []time.Time{watermark}
 	tests := []struct {
 		name    string
 		value   any
 		wantErr string
 	}{
-		{name: "datetime", value: watermark, wantErr: "time.Time is not JSON representable"},
+		{
+			name:    "datetime",
+			value:   watermark,
+			wantErr: "time.Time is refused by the task state store",
+		},
 		{
 			name:    "datetime nested in a map",
 			value:   map[string]any{"watermark": watermark},
-			wantErr: "time.Time is not JSON representable",
+			wantErr: "time.Time is refused by the task state store",
 		},
 		{
 			name:    "datetime behind a pointer in a slice",
 			value:   []*time.Time{&watermark},
-			wantErr: "time.Time is not JSON representable",
+			wantErr: "time.Time is refused by the task state store",
 		},
 		{
 			name:    "datetime in an embedded struct",
 			value:   struct{ embedded }{embedded{At: watermark}},
-			wantErr: "time.Time is not JSON representable",
+			wantErr: "time.Time is refused by the task state store",
 		},
 		{
 			// The embedded time.Time promotes its MarshalJSON to the struct.
@@ -800,12 +807,54 @@ func TestTaskStateStoreSetRejectsNonJSONValues(t *testing.T) {
 				time.Time
 				Note string
 			}{watermark, "n"},
-			wantErr: "time.Time is not JSON representable",
+			wantErr: "time.Time is refused by the task state store",
 		},
 		{
 			name:    "datetime map key",
 			value:   map[time.Time]int{watermark: 1},
-			wantErr: "time.Time is not JSON representable",
+			wantErr: "time.Time is refused by the task state store",
+		},
+		{
+			// The method is promoted through two levels of embedding.
+			name: "datetime embedded two levels deep",
+			value: struct {
+				innerTime
+				Name string
+			}{innerTime{watermark}, "n"},
+			wantErr: "time.Time is refused by the task state store",
+		},
+		{
+			name:    "datetime in an embedded interface",
+			value:   struct{ encoding.TextMarshaler }{watermark},
+			wantErr: "time.Time is refused by the task state store",
+		},
+		{
+			// Two embedded marshalers leave the struct with neither method, so
+			// encoding/json writes their fields.
+			name: "datetime in a flattened marshaler",
+			value: struct {
+				flattenedA
+				flattenedB
+			}{flattenedA{Start: watermark}, flattenedB{End: "x"}},
+			wantErr: "time.Time is refused by the task state store",
+		},
+		{
+			// A struct and its first field have the same address.
+			name: "datetime after a pointer to the first field of its struct",
+			value: struct {
+				A *sharedHead
+				B *sharedDoc
+			}{&shared.Head, shared},
+			wantErr: "time.Time is refused by the task state store",
+		},
+		{
+			// An empty slice and a pointer to its first element have the same address.
+			name: "datetime after an empty slice of its array",
+			value: struct {
+				Batch []time.Time
+				Last  *time.Time
+			}{times[:0], &times[0]},
+			wantErr: "time.Time is refused by the task state store",
 		},
 		{name: "byte slice", value: []byte("raw"), wantErr: "[]uint8 holds bytes"},
 		{name: "uuid", value: uuid.MustParse(testTIID), wantErr: "uuid.UUID holds bytes"},
@@ -866,12 +915,35 @@ type clashHolder struct {
 	N int
 }
 
+type cyclicNode struct{ Next *cyclicNode }
+
+func (*cyclicNode) MarshalJSON() ([]byte, error) { return json.Marshal("node") }
+
+type innerTime struct{ time.Time }
+
+type flattenedA struct{ Start time.Time }
+
+func (flattenedA) MarshalJSON() ([]byte, error) { return json.Marshal("a") }
+
+type flattenedB struct{ End string }
+
+func (flattenedB) MarshalJSON() ([]byte, error) { return json.Marshal("b") }
+
+type sharedHead struct{ Name string }
+
+type sharedDoc struct {
+	Head sharedHead
+	At   time.Time
+}
+
 func TestTaskStateStoreSetAcceptsJSONShapes(t *testing.T) {
 	// A default-retention write needs the setting the supervisor passes.
 	t.Setenv(defaultRetentionDaysEnv, "30")
 
 	pointerCycle := &clashHolder{N: 1}
 	pointerCycle.clashX.P = pointerCycle
+	nodeCycle := &cyclicNode{}
+	nodeCycle.Next = nodeCycle
 	mapCycle := map[string]any{}
 	mapCycle["self"] = mapCycle
 	sliceCycle := make([]any, 1)
@@ -905,6 +977,7 @@ func TestTaskStateStoreSetAcceptsJSONShapes(t *testing.T) {
 		"pointer cycle in a dropped field": pointerCycle,
 		"map cycle in a dropped field":     clashHolder{clashX: clashX{P: mapCycle}, N: 1},
 		"slice cycle in a dropped field":   clashHolder{clashX: clashX{P: sliceCycle}, N: 1},
+		"cyclic pointer marshaler":         nodeCycle,
 	}
 
 	for name, value := range values {
