@@ -59,11 +59,11 @@ CI_RUN_STARTED_PROJECT_DESCRIPTION = "Project CI runs in apache/airflow - detail
 BEHIND_WARNING_COMMITS = 200
 MARKER_PREFIX = "<!-- fork-ci-gate: "
 MARKER_PATTERN = re.compile(r"<!-- fork-ci-gate: (?P<payload>.*?) -->")
-DESIGN_URL = (
-    "https://github.com/apache/airflow/blob/main/dev/breeze/doc/ci/08_fork_ci_for_external_contributors.md"
-)
+# Texts on pull requests are for their authors, so they link the contributor documentation; it links
+# the design document for maintainers.
 CONTRIBUTING_URL = (
     "https://github.com/apache/airflow/blob/main/contributing-docs/18_contribution_workflow.rst"
+    "#ci-in-your-fork"
 )
 WHY_AUTOMATED_URL = (
     "https://github.com/apache/airflow/blob/main/contributing-docs/25_maintainer_pr_triage.md"
@@ -144,7 +144,7 @@ def _setup_instructions(fork: str) -> str:
         f"   *(Or in your browser: open `https://github.com/{fork}/actions` and click 'Enable workflows')*\n\n"
         "3. Push your branch again. Every push then runs CI in your fork.\n\n"
         "`breeze ci audit` checks your whole local and fork setup and prints the command that fixes "
-        f"anything missing. See [the contribution workflow]({CONTRIBUTING_URL})."
+        f"anything missing. See [CI in your fork]({CONTRIBUTING_URL})."
     )
 
 
@@ -192,6 +192,17 @@ _AUTHOR_DRAFT_TEXTS = {
 }
 
 
+# A run that fails to start has no jobs and no log: GitHub rejected the workflow before running it,
+# which the generic "failed" text, asking to fix the failures, does not explain.
+STARTUP_FAILURE_TEXT = (
+    "**Fork CI: could not start.** GitHub could not start the `Tests (AMD)` run for the latest commit "
+    "in your fork, so no job ran. This usually means that your fork's Actions settings block the "
+    "workflow: under **Settings > Actions > General** in your fork, GitHub Actions must be enabled and "
+    "allow all actions and reusable workflows. It can also mean that the workflow file is invalid. The "
+    "run page in your fork shows GitHub's error. Fix the cause and push again."
+)
+
+
 def behind_warning(behind: int, *, base_ref: str) -> str:
     return (
         f"**This branch is {behind} commits behind `{base_ref}`.** Fork CI tests the branch as it is, "
@@ -201,9 +212,18 @@ def behind_warning(behind: int, *, base_ref: str) -> str:
 
 
 def state_comment(
-    marker: Marker, *, fork: str, run_url: str | None, base_ref: str = "main", author_draft: bool = False
+    marker: Marker,
+    *,
+    fork: str,
+    run_url: str | None,
+    base_ref: str = "main",
+    author_draft: bool = False,
+    startup_failure: bool = False,
 ) -> str:
+    """:param startup_failure: the fork run of a failed state did not start, see ``STARTUP_FAILURE_TEXT``."""
     text = _AUTHOR_DRAFT_TEXTS.get(marker.state) if author_draft else None
+    if startup_failure:
+        text = STARTUP_FAILURE_TEXT
     parts = [render_marker(marker), text or _STATE_TEXTS[marker.state], WHY_FORK_CI]
     if (
         marker.state in ("green", "green_unverified")
@@ -215,7 +235,7 @@ def state_comment(
         parts.append(f"Latest run: {run_url}")
     if marker.state == "setup_required":
         parts.append(_setup_instructions(fork))
-    parts.append(f"How this works: [fork CI for external contributors]({DESIGN_URL}).")
+    parts.append(f"How this works: [CI in your fork]({CONTRIBUTING_URL}).")
     return "\n\n".join(parts) + FOOTER
 
 
@@ -349,6 +369,8 @@ _STATUS_DESCRIPTIONS = {
     "awaiting_push": "Fork CI enabled, waiting for a push - see the pull request comment",
     "running": "Fork CI running - see Details",
     "failed": "Fork CI failed - see Details",
+    # Not a state of its own: a failed state whose fork run did not start is handled as failed.
+    "startup_failure": "Fork CI run could not start - check your fork's Actions settings",
     "green": "Fork CI passed - see Details",
     "green_unverified": "Fork CI passed, but CI files changed - a maintainer must run project CI",
     "gate_bypassed": "Project CI ran for a gated pull request - see Details",
@@ -388,6 +410,7 @@ STATUS_STATES = {
     "awaiting_push": "pending",
     "running": "pending",
     "failed": "failure",
+    "startup_failure": "failure",
     "green": "success",
     "green_unverified": "pending",
     "gate_bypassed": "error",

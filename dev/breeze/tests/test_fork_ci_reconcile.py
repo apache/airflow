@@ -242,6 +242,33 @@ def test_setup_required_comment_gives_the_command():
 
 
 @pytest.mark.parametrize(
+    ("conclusion", "expected_description", "explains_settings"),
+    [
+        pytest.param(
+            "STARTUP_FAILURE",
+            "Fork CI run could not start - check your fork's Actions settings",
+            True,
+            id="startup-failure",
+        ),
+        pytest.param("FAILURE", "Fork CI failed - see Details", False, id="failure"),
+    ],
+)
+def test_a_run_that_could_not_start_points_to_the_fork_settings(
+    conclusion, expected_description, explains_settings
+):
+    fork = ForkObservation(suite_status="COMPLETED", suite_conclusion=conclusion, run_url=RUN_URL)
+
+    plan, _, _ = _classify(_pr(is_draft=False), fork)
+
+    assert plan.state == ForkState.FAILED
+    assert plan.draft is None
+    assert plan.status == ("failure", RUN_URL, expected_description)
+    assert ("**Fork CI: could not start.**" in plan.marker_comment) is explains_settings
+    assert ("Settings > Actions > General" in plan.marker_comment) is explains_settings
+    assert '"state": "failed"' in plan.marker_comment
+
+
+@pytest.mark.parametrize(
     ("fork", "draft"),
     [
         pytest.param(ForkObservation(suite_status="IN_PROGRESS", run_url=RUN_URL), None, id="running"),

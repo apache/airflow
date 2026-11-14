@@ -549,7 +549,7 @@ stateDiagram-v2
         [*] --> running: fork run in progress
         setup_required --> awaiting_push: author enables the workflow
         awaiting_push --> running: author pushes
-        running --> failed: run fails, is cancelled or times out
+        running --> failed: run fails, is cancelled, times out or cannot start
         running --> green: run passes, no CI-defining change
         running --> green_unverified: run passes, CI-defining change
         failed --> running: author pushes
@@ -612,7 +612,7 @@ since the draft-state job runs after the close and GitHub refuses to draft a clo
 | **setup_required**: workflow state is `disabled_fork`, `disabled_manually` or `disabled_inactivity`, or the fork has no `ci-amd.yml` | `error` (red), link to the fork's Actions page for `ci-amd.yml` | create or update: how to enable, with the exact `gh repo sync <fork> --branch main` and `gh workflow enable ci-amd.yml -R <fork>` lines, and `breeze ci audit`; on transition from any other state but `closed` (the workflow stopped running after it worked): also post a **new** comment saying why it stopped |
 | **awaiting_push**: enabled, no run for the head SHA | `pending` (yellow), link to the fork's Actions page | on transition from setup_required: post a **new** comment asking to push again (an edit would not notify) |
 | **running**: run in progress | `pending` (yellow), link to the run | update state and run link |
-| **failed**: conclusion is failure, cancelled or timed out | `failure` (red), link to the run | update with the run link |
+| **failed**: conclusion is failure, cancelled, timed out or startup failure | `failure` (red), link to the run; for a startup failure the description says the run could not start | update with the run link; for a startup failure the text says no job ran and points to the fork's Actions settings |
 | **green**: conclusion success and the pull request does not change CI-defining files | `success` (green), link to the run | update: ready for review, run link; on the author's draft: mark it ready for review when it is |
 | **green_unverified**: conclusion success, but the pull request changes CI-defining files (see "Trusting a green fork run") | `pending` (yellow), link to the run | update: a maintainer must run project CI; on the author's draft: mark it ready for review, then a maintainer runs project CI |
 | **closed**: setup_required or awaiting_push for `close_after_days` | unchanged | close with a new comment; reopening restarts the clock |
@@ -866,7 +866,16 @@ All comment texts live in `dev/breeze/src/airflow_breeze/utils/fork_ci_messages.
 templates so wording can be reviewed in one place. Every comment ends with the AI-attribution
 footer required by `contributing-docs/25_maintainer_pr_triage.md`. The texts must say that CI
 is free for the contributor and finite for the project, must not characterise the recipient,
-and must give the exact command to run.
+and must give the exact command to run. They link the contributor documentation
+(`contributing-docs/18_contribution_workflow.rst#ci-in-your-fork`) rather than this document,
+which that section links for maintainers.
+
+A fork run that ends in `startup_failure` never ran a job: GitHub rejected the workflow before
+running it, most often because the fork's Actions settings do not allow the actions or reusable
+workflows it uses, sometimes because the workflow file is invalid. The run has no jobs, so there
+are no job statuses either, and GitHub's error is only on the run page. It is handled as `failed`,
+but `Fork CI / Tests (AMD)` says "Fork CI run could not start - check your fork's Actions
+settings", and the state comment explains what to check instead of asking to fix failures.
 
 ### Commit status
 

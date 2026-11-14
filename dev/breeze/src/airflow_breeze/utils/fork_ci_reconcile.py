@@ -839,7 +839,10 @@ def classify(
     _enter_state(plan, pr, labels, state)
 
     target_url = fork.run_url or fork_actions_url(pr.head_repo)
-    _set_status(plan, pr, state.value, target_url, force=refresh_status)
+    startup_failure = state == ForkState.FAILED and fork.suite_conclusion == "STARTUP_FAILURE"
+    _set_status(
+        plan, pr, "startup_failure" if startup_failure else state.value, target_url, force=refresh_status
+    )
     _set_ci_passed(plan, pr, passed=state == ForkState.GREEN, target_url=target_url)
     _set_ci_run_started(plan, pr, fork)
     green = state in (ForkState.GREEN, ForkState.GREEN_UNVERIFIED)
@@ -859,6 +862,7 @@ def classify(
             run_url=fork.run_url,
             base_ref=pr.base_ref,
             author_draft=_is_author_draft(pr),
+            startup_failure=startup_failure,
         ),
     )
     return plan
