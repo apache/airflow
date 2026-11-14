@@ -26,10 +26,12 @@ import { useDagRunServiceGetDagRun, useDeadlinesServiceGetDeadlines } from "open
 
 import { DetailsLayout } from "src/layouts/Details/DetailsLayout";
 
-import { usePluginTabs } from "src/hooks/usePluginTabs";
-import { isStatePending, useAutoRefresh, useDocumentTitle } from "src/utils";
+import { HeaderCardSkeleton } from "src/components/HeaderCardSkeleton";
 
-import { Header } from "./Header";
+import { usePluginTabs } from "src/hooks/usePluginTabs";
+import { isStatePending, useAutoRefresh, useDocumentTitle, useStickyError } from "src/utils";
+
+import { Header, HeaderError, RUN_STAT_SKELETON } from "./Header";
 
 export const Run = () => {
   const { t: translate } = useTranslation(["dag", "hitl"]);
@@ -42,11 +44,7 @@ export const Run = () => {
 
   const refetchInterval = useAutoRefresh({ dagId });
 
-  const {
-    data: dagRun,
-    error,
-    isLoading,
-  } = useDagRunServiceGetDagRun(
+  const { data: dagRun, error } = useDagRunServiceGetDagRun(
     {
       dagId,
       dagRunId: runId,
@@ -79,10 +77,23 @@ export const Run = () => {
     ...externalTabs,
   ];
 
+  const shownError = useStickyError(error, dagRun !== undefined, `${dagId}/${runId}`);
+
   return (
     <ReactFlowProvider>
-      <DetailsLayout error={error} isLoading={isLoading} tabs={tabs}>
-        {dagRun === undefined ? undefined : <Header dagRun={dagRun} />}
+      <DetailsLayout tabs={tabs}>
+        {/* The failure is read through useStickyError: a refetch of a run that never loaded clears
+          the error and reports itself as pending again, so the raw error would drop the header
+          back to the skeleton every time anything on the page refetches this run. */}
+        {dagRun === undefined ? (
+          Boolean(shownError) ? (
+            <HeaderError error={shownError} runId={runId} />
+          ) : (
+            <HeaderCardSkeleton stats={RUN_STAT_SKELETON} type="dagRun" />
+          )
+        ) : (
+          <Header dagRun={dagRun} error={shownError} />
+        )}
       </DetailsLayout>
     </ReactFlowProvider>
   );
