@@ -228,6 +228,8 @@ class TestKubernetesHook:
             ("disable_verify_ssl_empty", {"disable_verify_ssl": ""}),
             ("disable_tcp_keepalive", {"disable_tcp_keepalive": True}),
             ("disable_tcp_keepalive_empty", {"disable_tcp_keepalive": ""}),
+            ("ssl_ca_cert", {"ssl_ca_cert": "/path/to/ca.crt"}),
+            ("ssl_ca_cert_empty", {"ssl_ca_cert": ""}),
             ("sidecar_container_image", {"xcom_sidecar_container_image": "private.repo.com/alpine:3.16"}),
             ("sidecar_container_image_empty", {"xcom_sidecar_container_image": ""}),
             (
@@ -416,6 +418,93 @@ class TestKubernetesHook:
         api_conn = kubernetes_hook.get_conn()
         assert isinstance(api_conn, kubernetes.client.api_client.ApiClient)
         assert api_conn.configuration.verify_ssl is False
+
+    @pytest.mark.parametrize(
+        "config_source",
+        [
+            pytest.param("kube_config_path", id="kube_config_path"),
+            pytest.param("kube_config", id="kube_config"),
+            pytest.param("config_dict", id="config_dict"),
+            pytest.param("default", id="default_client"),
+        ],
+    )
+    @patch("kubernetes.config.incluster_config.InClusterConfigLoader", new=MagicMock())
+    @patch("kubernetes.config.kube_config.KubeConfigLoader", new=MagicMock())
+    @patch("kubernetes.config.kube_config.KubeConfigMerger", new=MagicMock())
+    def test_ssl_ca_cert_applies_to_client_configuration(self, config_source):
+        """
+        Verifies that when ssl_ca_cert is set, the returned ApiClient carries it,
+        regardless of which configuration source is used.
+        """
+        if config_source == "kube_config_path":
+            kubernetes_hook = KubernetesHook(
+                conn_id="kube_config_path",
+                ssl_ca_cert="/path/to/ca.crt",
+            )
+        elif config_source == "kube_config":
+            kubernetes_hook = KubernetesHook(
+                conn_id="kube_config",
+                ssl_ca_cert="/path/to/ca.crt",
+            )
+        elif config_source == "config_dict":
+            kubernetes_hook = KubernetesHook(
+                config_dict={"apiVersion": "v1", "kind": "Config"},
+                ssl_ca_cert="/path/to/ca.crt",
+            )
+        else:
+            kubernetes_hook = KubernetesHook(ssl_ca_cert="/path/to/ca.crt")
+
+        api_conn = kubernetes_hook.get_conn()
+        assert isinstance(api_conn, kubernetes.client.api_client.ApiClient)
+        assert api_conn.configuration.ssl_ca_cert == "/path/to/ca.crt"
+
+    @pytest.mark.parametrize(
+        ("ssl_ca_cert_param", "conn_id", "expected"),
+        (
+            (None, "ssl_ca_cert", "/path/to/ca.crt"),
+            ("/hook/ca.crt", "ssl_ca_cert", "/hook/ca.crt"),
+            (None, "ssl_ca_cert_empty", None),
+            ("/hook/ca.crt", "ssl_ca_cert_empty", "/hook/ca.crt"),
+        ),
+    )
+    @patch("kubernetes.config.incluster_config.InClusterConfigLoader", new=MagicMock())
+    @patch("kubernetes.config.kube_config.KubeConfigLoader", new=MagicMock())
+    @patch("kubernetes.config.kube_config.KubeConfigMerger", new=MagicMock())
+    def test_ssl_ca_cert_param_and_connection_extra(self, ssl_ca_cert_param, conn_id, expected):
+        """
+        Verifies whether ssl_ca_cert is taken from the hook param or the connection extra.
+        Hook param should beat extra; an empty extra is ignored.
+        """
+        kubernetes_hook = KubernetesHook(conn_id=conn_id, ssl_ca_cert=ssl_ca_cert_param)
+        api_conn = kubernetes_hook.get_conn()
+        assert isinstance(api_conn, kubernetes.client.api_client.ApiClient)
+        assert api_conn.configuration.ssl_ca_cert == expected
+
+    @patch("kubernetes.config.load_kube_config")
+    def test_ssl_ca_cert_survives_kubeconfig_loader_overwrite(self, mock_load_kube_config):
+        """
+        Verifies that an explicit ssl_ca_cert survives kubeconfig loading.
+
+        KubeConfigLoader._set_config() overwrites the configuration's ssl_ca_cert with
+        the kubeconfig's value (None when the kubeconfig carries no certificate-authority),
+        so a CA applied before loading would be silently lost. The hook value is applied
+        when the ApiClient is built, after loading, and must win.
+        """
+
+        def _reset_ca(*args, **kwargs):
+            client_configuration = kwargs.get("client_configuration")
+            if client_configuration is not None:
+                client_configuration.ssl_ca_cert = None
+
+        mock_load_kube_config.side_effect = _reset_ca
+        kubernetes_hook = KubernetesHook(
+            conn_id="kube_config_path",
+            client_configuration=kubernetes.client.Configuration(),
+            ssl_ca_cert="/path/to/ca.crt",
+        )
+        api_conn = kubernetes_hook.get_conn()
+        assert isinstance(api_conn, kubernetes.client.api_client.ApiClient)
+        assert api_conn.configuration.ssl_ca_cert == "/path/to/ca.crt"
 
     @pytest.mark.parametrize(
         ("disable_tcp_keepalive", "conn_id", "expected"),
@@ -655,7 +744,10 @@ class TestKubernetesHook:
             kubernetes_hook = KubernetesHook(conn_id="kubernetes_default")
             kubernetes_hook.get_conn()
             mock_get_client.assert_called_with(
-                cluster_context="test", disable_verify_ssl=None, enable_tcp_keepalive=True
+                cluster_context="test",
+                disable_verify_ssl=None,
+                enable_tcp_keepalive=True,
+                ssl_ca_cert=None,
             )
             assert kubernetes_hook.get_namespace() == "test"
 
