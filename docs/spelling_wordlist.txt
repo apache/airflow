@@ -895,6 +895,7 @@ ini
 init
 initdb
 initialisation
+initialised
 initialiser
 initialising
 initializer
