@@ -22,7 +22,7 @@ export { triggerDagRun } from "./sdk/trigger-dag-run.js";
 export { Bundle } from "./sdk/bundle.js";
 export { TaskHandler } from "./sdk/task-handler.js";
 export { withArgNames } from "./sdk/arg-names.js";
-export { getClient, getContext } from "./sdk/task.js";
+export { getClient, getContext, TaskTimeoutError } from "./sdk/task.js";
 export { ConnectionNotFoundError, VariableNotFoundError } from "./sdk/client.js";
 export { NEVER_EXPIRE } from "./sdk/client-types.js";
 export { SUPERVISOR_API_VERSION } from "./coordinator/index.js";
