@@ -26,6 +26,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/apache/airflow/go-sdk/internal/jsonvalue"
 	"github.com/apache/airflow/go-sdk/pkg/binding"
 )
 
@@ -90,7 +91,7 @@ func copyLiteral(value any) (any, error) {
 			path,
 		)
 	}
-	return resolveNumbers(copied, "value")
+	return jsonvalue.ResolveNumbers(copied, "value")
 }
 
 var (

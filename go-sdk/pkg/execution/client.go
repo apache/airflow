@@ -31,6 +31,7 @@ import (
 
 	"github.com/vmihailenco/msgpack/v5"
 
+	"github.com/apache/airflow/go-sdk/internal/jsonvalue"
 	"github.com/apache/airflow/go-sdk/pkg/execution/genmodels"
 	"github.com/apache/airflow/go-sdk/sdk"
 )
@@ -299,7 +300,7 @@ func (c *CoordinatorClient) PushXCom(
 	value any,
 ) error {
 	// Unlike a task state value, nil is allowed: it is pushed as JSON null.
-	encoded, _, err := validateJSONRepresentable(value)
+	encoded, _, err := encodeJSONValue(value)
 	if err != nil {
 		return fmt.Errorf("cannot push XCom %q: %w", key, err)
 	}
@@ -457,7 +458,7 @@ func (s taskStateStore) Set(
 
 	// The caller's value is checked first so a misconfigured deployment cannot
 	// mask a programming error in the task.
-	encoded, isNull, err := validateJSONRepresentable(value)
+	encoded, isNull, err := encodeJSONValue(value)
 	if err != nil {
 		return fmt.Errorf("cannot set task state key %q: %w", key, err)
 	}
@@ -521,95 +522,29 @@ func resolveExpiry(retention *time.Duration, now time.Time) (*genmodels.Time, er
 	}
 }
 
-// validateJSONRepresentable checks what the frame encoder actually emits, not
-// the Go value: a reflection walk has to mirror the encoder's field rules (tags,
-// "-", omitempty, embedding, marshalers) and misjudges values wherever it drifts.
-// On success it returns the encoded bytes, so the caller sends them instead of
-// encoding the value a second time, and whether the value encodes to null.
-func validateJSONRepresentable(value any) (msgpack.RawMessage, bool, error) {
-	var buf bytes.Buffer
-	if err := newFrameEncoder(&buf).Encode(value); err != nil {
-		return nil, false, fmt.Errorf("%T is not JSON representable: %w", value, err)
-	}
-	encoded := msgpack.RawMessage(buf.Bytes())
-	// Decoded from its own reader so encoded keeps the whole payload.
-	dec := msgpack.NewDecoder(bytes.NewReader(encoded))
-	dec.SetMapDecoder(decodeStringKeyedMap)
-	decoded, err := dec.DecodeInterface()
+// encodeJSONValue encodes value as encoding/json writes it, then packs that
+// JSON as msgpack for the frame. Argument binding and UnmarshalJSONValue read a
+// value back with encoding/json, so a write that kept only the json field names
+// and dropped a ",string" option or a MarshalJSON method stored a value its own
+// Go type could not decode. It also reports whether the value encodes to null.
+func encodeJSONValue(value any) (msgpack.RawMessage, bool, error) {
+	blob, err := json.Marshal(value)
 	if err != nil {
 		return nil, false, fmt.Errorf("%T is not JSON representable: %w", value, err)
 	}
-	if err := validateDecodedValue(decoded); err != nil {
-		return nil, false, err
+	dec := json.NewDecoder(bytes.NewReader(blob))
+	// A float64 cannot hold every int64, and msgpack writes a json.Number as a string.
+	dec.UseNumber()
+	var decoded any
+	if err := dec.Decode(&decoded); err != nil {
+		return nil, false, fmt.Errorf("%T is not JSON representable: %w", value, err)
 	}
-	return encoded, decoded == nil, nil
-}
-
-// decodeStringKeyedMap replaces msgpack's default map decoder, which panics on
-// a uuid.UUID key.
-func decodeStringKeyedMap(d *msgpack.Decoder) (any, error) {
-	n, err := d.DecodeMapLen()
-	if err != nil || n == -1 {
-		return nil, err
+	if decoded, err = jsonvalue.ResolveNumbers(decoded, "value"); err != nil {
+		return nil, false, fmt.Errorf("%T is not JSON representable: %w", value, err)
 	}
-	m := make(map[string]any, n)
-	for range n {
-		k, err := d.DecodeInterface()
-		if err != nil {
-			return nil, err
-		}
-		key, ok := k.(string)
-		if !ok {
-			return nil, fmt.Errorf("map keys must be strings, got %T", k)
-		}
-		if m[key], err = d.DecodeInterface(); err != nil {
-			return nil, err
-		}
+	var buf bytes.Buffer
+	if err := newFrameEncoder(&buf).Encode(decoded); err != nil {
+		return nil, false, fmt.Errorf("%T is not JSON representable: %w", value, err)
 	}
-	return m, nil
-}
-
-func validateDecodedValue(v any) error {
-	switch v := v.(type) {
-	case nil, string, bool,
-		int, int8, int16, int32, int64,
-		uint, uint8, uint16, uint32, uint64:
-		return nil
-	case float32:
-		return checkFinite(float64(v))
-	case float64:
-		return checkFinite(v)
-	case time.Time:
-		return fmt.Errorf(
-			"time.Time is not JSON representable; store value.Format(time.RFC3339) " +
-				"and parse it back with time.Parse",
-		)
-	case []byte:
-		return fmt.Errorf(
-			"[]byte is not JSON representable; encode it, for example with base64.StdEncoding.EncodeToString",
-		)
-	case []any:
-		for _, elem := range v {
-			if err := validateDecodedValue(elem); err != nil {
-				return err
-			}
-		}
-		return nil
-	case map[string]any:
-		for _, elem := range v {
-			if err := validateDecodedValue(elem); err != nil {
-				return err
-			}
-		}
-		return nil
-	default:
-		return fmt.Errorf("%T is not JSON representable", v)
-	}
-}
-
-func checkFinite(f float64) error {
-	if math.IsNaN(f) || math.IsInf(f, 0) {
-		return fmt.Errorf("value must be a finite number; NaN and Inf are not JSON representable")
-	}
-	return nil
+	return buf.Bytes(), decoded == nil, nil
 }

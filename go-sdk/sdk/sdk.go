@@ -127,9 +127,11 @@ type XComClient interface {
 
 	// PushXCom stores value under key for the given task instance ti.
 	//
-	// value must be JSON serializable; nil is allowed and is pushed as null.
-	// A time.Time, a byte slice or array such as a uuid.UUID, or a non-finite
-	// float is rejected before it is sent.
+	// value is stored as encoding/json writes it, so json struct tags and
+	// MarshalJSON methods apply: a time.Time is stored as an RFC 3339 string
+	// and a byte slice as a base64 string. nil is allowed and is pushed as
+	// null. A value that json.Marshal rejects, such as a non-finite float, or
+	// an integer that does not fit in 64 bits, is rejected before it is sent.
 	PushXCom(ctx context.Context, ti TaskInstance, key string, value any) error
 }
 
@@ -172,9 +174,11 @@ type TaskStateStore interface {
 	// “[state_store] default_retention_days“; if that setting is invalid or
 	// absent the write fails.
 	//
-	// value must be non-nil and built from strings, numbers, bools, slices,
-	// string-keyed maps, and structs. A time.Time, a byte slice or array, or a
-	// non-finite float is rejected before it is sent.
+	// value must be non-nil. It is stored as encoding/json writes it, so
+	// UnmarshalJSONValue reads it back into the same Go type: a time.Time is
+	// stored as an RFC 3339 string and a byte slice as a base64 string. A
+	// value that json.Marshal rejects, such as a non-finite float, or an
+	// integer that does not fit in 64 bits, is rejected before it is sent.
 	Set(ctx context.Context, key string, value any, opts ...SetOption) error
 
 	// Delete removes the value stored under key. Deleting a key that does not
