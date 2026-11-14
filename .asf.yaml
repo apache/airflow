@@ -103,25 +103,11 @@ github:
         - stephen-bracken
         - yuseok89
 
-  # Legacy branch protection is being migrated to Rulesets below.
-  #
-  # `main` keeps the proven configuration here until the new ruleset is validated on other
-  # branches. We cannot test the new ruleset on `main` itself: ruleset settings are only applied
-  # from the default branch, so a broken config there would block fixing this file.
-  #
-  # Once the new ruleset is validated, `main` should be moved under the ruleset
-  # and removed from the legacy `protected_branches` section.
-  # This section should be kept empty to properly delete the legacy branch protection rules that
-  # are currently in place:
-  #
-  # protected_branches: ~
-  protected_branches:
-    main:
-      required_pull_request_reviews:
-        required_approving_review_count: 1
-      required_linear_history: true
-      required_conversation_resolution: true
-      required_signatures: false
+  # Branch protection lives in the "Branch protection" ruleset below. Keep this key set to `~`:
+  # asfyaml then removes any legacy protection rule it finds. Legacy protection on `main` made
+  # every asfyaml run fail on GitHub 502s from `branches/main/protection`, which aborted the
+  # settings that come after it, such as the creation cap bypass list.
+  protected_branches: ~
 
   # The two CI rulesets use the raw Rulesets API payload, because the convenience syntax can only name
   # teams as bypass actors and GitHub refuses secret teams such as `airflow-committers`. Instead the
@@ -193,13 +179,7 @@ github:
       type: branch
       branches:
         includes:
-          # `main` stays under `protected_branches` above until this ruleset is validated on the
-          # branches below. We cannot test the new ruleset on `main` itself: ruleset settings are
-          # only applied from the default branch, so a broken config there would block fixing
-          # this file.
-          #
-          # Uncomment once the configuration is proven on the other branches.
-          # - "~DEFAULT_BRANCH"
+          - "~DEFAULT_BRANCH"
           - "v*-stable"
           - "providers-fab/v*"
           - "airflow-ctl/v*-stable"
