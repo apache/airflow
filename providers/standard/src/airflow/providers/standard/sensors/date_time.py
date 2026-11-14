@@ -123,7 +123,14 @@ class DateTimeSensorAsync(DateTimeSensor):
                 self.start_trigger_args = dataclasses.replace(
                     self.start_trigger_args,
                     trigger_kwargs={
-                        "target_time": self.target_time,
+                        # Localize datetimes before Dag serialization interprets naive values in
+                        # the process timezone instead of Airflow's default timezone. Keep
+                        # templates raw.
+                        "target_time": (
+                            self._moment
+                            if isinstance(self.target_time, datetime.datetime)
+                            else self.target_time
+                        ),
                         "end_from_trigger": self.end_from_trigger,
                     },
                 )
