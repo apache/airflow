@@ -2664,6 +2664,10 @@ export type TriggerAssetWatcherReferenceResponse = {
     asset_name: string;
     asset_uri: string;
     watcher_name: string;
+    /**
+     * The Dags scheduled on the asset (directly or by an asset name or URI reference), which the watcher's events run; only those the caller can read.
+     */
+    scheduled_dag_ids: Array<(string)>;
 };
 
 /**
@@ -2756,7 +2760,7 @@ export type TriggerDetailResponse = {
 };
 
 /**
- * What a trigger runs for, worked out from its owner rather than stored.
+ * What a trigger runs for, worked out from what it is used by rather than stored.
  */
 export type TriggerKind = 'task' | 'callback' | 'asset_watcher';
 
@@ -2994,12 +2998,14 @@ export type BaseGraphResponse = {
 export type BaseNodeResponse = {
     id: string;
     label: string;
-    type: 'join' | 'task' | 'asset-condition' | 'asset' | 'asset-alias' | 'asset-name-ref' | 'asset-uri-ref' | 'dag' | 'sensor' | 'trigger';
+    type: 'join' | 'task' | 'asset-condition' | 'asset' | 'asset-alias' | 'asset-name-ref' | 'asset-uri-ref' | 'asset-watcher' | 'dag' | 'sensor' | 'trigger';
     team?: string | null;
     asset_condition_type?: 'or-gate' | 'and-gate' | null;
+    trigger_id?: number | null;
+    trigger_status?: TriggerStatus | null;
 };
 
-export type type = 'join' | 'task' | 'asset-condition' | 'asset' | 'asset-alias' | 'asset-name-ref' | 'asset-uri-ref' | 'dag' | 'sensor' | 'trigger';
+export type type = 'join' | 'task' | 'asset-condition' | 'asset' | 'asset-alias' | 'asset-name-ref' | 'asset-uri-ref' | 'asset-watcher' | 'dag' | 'sensor' | 'trigger';
 
 /**
  * Response model for calendar deadline aggregation results.
@@ -3315,6 +3321,10 @@ export type DeadlineResponse = {
     callback_type: string;
     callback_state?: CallbackState | null;
     callback_path?: string | null;
+    /**
+     * The trigger running a triggerer callback, while it runs; see `GET /api/v2/triggers`.
+     */
+    callback_trigger_id?: number | null;
 };
 
 /**
@@ -3623,9 +3633,11 @@ export type NextRunAssetsResponse = {
 export type NodeResponse = {
     id: string;
     label: string;
-    type: 'join' | 'task' | 'asset-condition' | 'asset' | 'asset-alias' | 'asset-name-ref' | 'asset-uri-ref' | 'dag' | 'sensor' | 'trigger';
+    type: 'join' | 'task' | 'asset-condition' | 'asset' | 'asset-alias' | 'asset-name-ref' | 'asset-uri-ref' | 'asset-watcher' | 'dag' | 'sensor' | 'trigger';
     team?: string | null;
     asset_condition_type?: 'or-gate' | 'and-gate' | null;
+    trigger_id?: number | null;
+    trigger_status?: TriggerStatus | null;
     children?: Array<NodeResponse> | null;
     is_mapped?: boolean | null;
     is_loop?: boolean | null;
@@ -3826,6 +3838,10 @@ export type GetAssetsData = {
      */
     orderBy?: Array<(string)>;
     /**
+     * Return only the assets this trigger's watchers watch.
+     */
+    triggerId?: number | null;
+    /**
      * Exact-match filter on the full asset URI. Compiles to an indexed equality comparison (``uri = ...``). Repeat the parameter (``?uri=a&uri=b``) to match multiple assets.
      */
     uri?: Array<(string)>;
@@ -3900,6 +3916,10 @@ export type GetAssetEventsData = {
     timestampGte?: string | null;
     timestampLt?: string | null;
     timestampLte?: string | null;
+    /**
+     * Return only the events of the assets this trigger's watchers watch.
+     */
+    triggerId?: number | null;
 };
 
 export type GetAssetEventsResponse = AssetEventCollectionResponse;
@@ -5727,6 +5747,10 @@ export type GetTriggersData = {
      * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, created_date, consecutive_failures, last_failed_at, last_event_at`
      */
     orderBy?: Array<(string)>;
+    /**
+     * Return only the triggers of watchers on assets this Dag is scheduled on, directly or by an asset name or URI reference.
+     */
+    scheduledDagId?: string | null;
     /**
      * Return only triggers with one of these statuses.
      */

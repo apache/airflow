@@ -46,6 +46,7 @@ import { ProvidersPage } from "../pages/ProvidersPage";
 import { RequiredActionsPage } from "../pages/RequiredActionsPage";
 import { TaskInstancePage } from "../pages/TaskInstancePage";
 import { TaskInstancesPage } from "../pages/TaskInstancesPage";
+import { TriggersPage } from "../pages/TriggersPage";
 import { VariablePage } from "../pages/VariablePage";
 import { XComsPage } from "../pages/XComsPage";
 
@@ -75,6 +76,7 @@ export type PomFixtures = {
   requiredActionsPage: RequiredActionsPage;
   taskInstancePage: TaskInstancePage;
   taskInstancesPage: TaskInstancesPage;
+  triggersPage: TriggersPage;
   variablePage: VariablePage;
   xcomsPage: XComsPage;
 };
@@ -155,6 +157,9 @@ export const test = base.extend<PomFixtures, PomWorkerFixtures>({
   },
   taskInstancesPage: async ({ page }, use) => {
     await use(new TaskInstancesPage(page));
+  },
+  triggersPage: async ({ page }, use) => {
+    await use(new TriggersPage(page));
   },
   variablePage: async ({ page }, use) => {
     await use(new VariablePage(page));

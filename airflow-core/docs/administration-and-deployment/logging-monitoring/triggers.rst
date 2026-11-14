@@ -47,23 +47,24 @@ Status
 on the health endpoint. The failure count is kept on the trigger, so it carries over when the triggerer restarts
 or another triggerer takes the trigger over. ``last_error`` is kept after a recovery.
 
-A trigger is listed only while its owner still refers to it. Once a deferred task resumes or fails, a callback
-finishes, or a watcher is removed, the trigger is deleted on the triggerer's next cleanup, and its outcome stays
-with its owner: the task instance's state and logs, the callback's state and logs.
+A trigger is listed only while it is still in use. Once a deferred task resumes or fails, a callback finishes,
+or a watcher is removed, the trigger is deleted on the triggerer's next cleanup, and its outcome stays with what
+used it: the task instance's state and logs, the callback's state and logs.
 
-During a rolling upgrade from a version that does not record trigger owners, a deferred task's or callback's
-trigger created by the older components is listed only once a triggerer of this version picks it up and records its
-owner, and a trigger still run by an older triggerer is never ``failing``, since older triggerers do not record
-failures.
+During a rolling upgrade from a version that does not record what triggers are used by, a deferred task's or
+callback's trigger created by the older components is listed only once a triggerer of this version picks it up and
+records what it is used by, and a trigger still run by an older triggerer is never ``failing``, since older
+triggerers do not record failures.
 
-Owner
------
+Used by
+-------
 
-Each trigger names what it runs for: ``task_instance`` (Dag, run, task, map index, try and state), ``callback``
+Each trigger names what it is used by: ``task_instance`` (Dag, run, task, map index, try and state), ``callback``
 (its id, Dag, run and state), or ``asset_watchers`` (each asset and watcher name; several assets that declare the
-same trigger share one). ``kind`` is worked out from the owner, and ``dag_id`` is the Dag of the task instance, or
-of the Dag run whose deadline the callback belongs to. In the other direction, a task instance's ``trigger`` and an
-asset's ``watchers`` (with ``status`` and ``trigger_id``) link to the trigger.
+same trigger share one). ``kind`` is worked out from what it is used by, and ``dag_id`` is the Dag of the task
+instance, or of the Dag run whose deadline the callback belongs to. In the other direction, a task instance's
+``trigger``, an asset's ``watchers`` (with ``status`` and ``trigger_id``) and, in the UI's deadlines, a running
+deadline callback's ``callback_trigger_id`` link to the trigger.
 
 Filtering
 ---------
@@ -92,7 +93,7 @@ last descending, on every database.
 Who can see a trigger
 ---------------------
 
-Each trigger is gated like the route that shows its owner:
+You can see a trigger if you can see what it is used by. Each kind is gated like the route that shows that:
 
 * A deferred task's trigger needs read access to the Dag's task instances.
 * A callback's trigger needs read access to the Dag's runs.

@@ -27,6 +27,8 @@ import { useParams } from "react-router-dom";
 import { useDagRunServiceGetDagRun, useDeadlinesServiceGetDeadlines } from "openapi/queries";
 import type { DeadlineResponse } from "openapi/requests/types.gen";
 
+import { RouterLink } from "src/system-components";
+
 import { DataTable } from "src/components/DataTable";
 import type { DataTableFeatures } from "src/components/DataTable/features";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
@@ -95,6 +97,18 @@ const getCallbackColumns = (
     },
     enableSorting: false,
     header: translate("callbacks.columns.missedBy"),
+  },
+  {
+    accessorKey: "callback_trigger_id",
+    // Only an async callback has a trigger, and only while it runs.
+    cell: ({ row: { original } }) =>
+      original.callback_trigger_id === null || original.callback_trigger_id === undefined ? undefined : (
+        <RouterLink to={`/triggers/${original.callback_trigger_id}`}>
+          {original.callback_trigger_id}
+        </RouterLink>
+      ),
+    enableSorting: false,
+    header: translate("common:trigger_one"),
   },
   {
     accessorKey: "logs",

@@ -25,10 +25,12 @@ import { MultiSelectPill } from "./MultiSelectPill";
 export const MultiSelectFilter = ({ filter, onChange, onRemove }: FilterPluginProps) => {
   const { t: translate } = useTranslation();
 
-  const options = (filter.config.options ?? []).map((option) => ({
-    label: typeof option.label === "string" ? option.label : option.value,
-    value: option.value,
-  }));
+  // A rich label, such as a state badge, is drawn as is; the value stands in where text is needed.
+  const options = (filter.config.options ?? []).map((option) =>
+    typeof option.label === "string"
+      ? { label: option.label, value: option.value }
+      : { label: option.value, node: option.label, value: option.value },
+  );
 
   return (
     <MultiSelectPill
