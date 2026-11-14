@@ -1794,8 +1794,12 @@ def find_failed_jobs(jobs: Iterable[dict[str, Any]]) -> list[FailedJob]:
         if job["name"] in UNREPORTED_JOB_NAMES or job.get("status") in RUNNING_JOB_STATUSES:
             continue
         conclusion = job.get("conclusion") or ""
-        if JOB_STATUSES.get(conclusion, ("",))[0] == "failure":
-            failed.setdefault(job["name"], FailedJob(job["name"], job["html_url"], conclusion))
+        if JOB_STATUSES.get(conclusion, ("",))[0] != "failure":
+            continue
+        listed = failed.get(job["name"])
+        # Of jobs sharing a name, one that failed is listed rather than one cancelled or timed out.
+        if listed is None or (listed.conclusion != "failure" and conclusion == "failure"):
+            failed[job["name"]] = FailedJob(job["name"], job["html_url"], conclusion)
     # Failures first: the cap on the listed jobs must not hide them behind cancelled or timed-out ones.
     return sorted(failed.values(), key=lambda job: (job.conclusion != "failure", job.name))
 

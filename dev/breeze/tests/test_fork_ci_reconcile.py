@@ -4490,9 +4490,12 @@ def test_find_failed_jobs_lists_finished_jobs_that_did_not_pass():
         _fork_job("Java SDK tests", conclusion="skipped"),
         _fork_job("Platform: AMD", conclusion="failure"),
         _fork_job("Postgres tests", conclusion="cancelled", url="https://job/second"),
+        _fork_job("MySQL tests", conclusion="cancelled", url="https://job/cancelled"),
+        _fork_job("MySQL tests", conclusion="failure"),
     ]
 
     assert find_failed_jobs(jobs) == [
+        FailedJob("MySQL tests", "https://job/MySQL tests", "failure"),
         FailedJob("Postgres tests", "https://job/Postgres tests", "failure"),
         FailedJob("Docs", "https://job/Docs", "timed_out"),
     ]
