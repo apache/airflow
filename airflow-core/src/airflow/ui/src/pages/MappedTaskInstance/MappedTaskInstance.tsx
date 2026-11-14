@@ -16,14 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { ReactFlowProvider } from "@xyflow/react";
 import { useTranslation } from "react-i18next";
 import { MdDetails, MdOutlineTask } from "react-icons/md";
 import { useParams } from "react-router-dom";
 
 import { useDagRunServiceGetDagRun } from "openapi/queries";
 
-import { DetailsLayout } from "src/layouts/Details/DetailsLayout";
+import { DetailsPanel } from "src/layouts/Details/DetailsPanel";
 
 import { useGridTiSummariesStream } from "src/queries/useGridTISummaries.ts";
 import { formatNumber, useDocumentTitle } from "src/utils";
@@ -65,10 +64,8 @@ export const MappedTaskInstance = () => {
   ];
 
   return (
-    <ReactFlowProvider>
-      <DetailsLayout outletContext={taskInstance} tabs={tabs}>
-        {taskInstance === undefined ? undefined : <Header taskInstance={taskInstance} />}
-      </DetailsLayout>
-    </ReactFlowProvider>
+    <DetailsPanel outletContext={taskInstance} tabs={tabs}>
+      {taskInstance === undefined ? undefined : <Header taskInstance={taskInstance} />}
+    </DetailsPanel>
   );
 };

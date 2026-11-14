@@ -23,10 +23,27 @@ import type { TaskResponse } from "openapi/requests/types.gen";
 
 import DisplayMarkdownButton from "src/components/DisplayMarkdownButton";
 import { HeaderCard } from "src/components/HeaderCard";
+import type { SkeletonStat } from "src/components/HeaderCardSkeleton";
 
 import { TaskIcon } from "src/assets/TaskIcon";
 
-export const Header = ({ task }: { readonly task: TaskResponse }) => {
+/** Widths for the loading card, mirroring the two stats below. */
+export const TASK_STAT_SKELETON: ReadonlyArray<SkeletonStat> = [
+  { labelWidth: 64, valueWidth: 96 },
+  { labelWidth: 80, valueWidth: 72 },
+];
+
+/**
+ * The card when the task itself could not be loaded.
+ *
+ * A task removed from the Dag code 404s here while its instances and logs remain, so this sits
+ * above a tab bar that still works rather than replacing it.
+ */
+export const HeaderError = ({ error, taskId }: { readonly error?: unknown; readonly taskId: string }) => (
+  <HeaderCard error={error} icon={<TaskIcon />} stats={[]} title={taskId} type="task" />
+);
+
+export const Header = ({ error, task }: { readonly error?: unknown; readonly task: TaskResponse }) => {
   const { t: translate } = useTranslation();
 
   return (
@@ -43,6 +60,8 @@ export const Header = ({ task }: { readonly task: TaskResponse }) => {
           />
         )
       }
+      error={error}
+      errorClosable
       icon={<TaskIcon />}
       stats={[
         { label: translate("task.operator"), value: task.operator_name },

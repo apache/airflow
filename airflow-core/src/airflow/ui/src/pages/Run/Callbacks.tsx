@@ -35,7 +35,7 @@ import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
 import { TruncatedText } from "src/components/TruncatedText";
 
-import { type DurationFormat, useAutoRefresh, useDurationFormat } from "src/utils";
+import { type DurationFormat, shouldListReportError, useAutoRefresh, useDurationFormat } from "src/utils";
 
 import { CallbackLogs } from "./CallbackLogs";
 
@@ -148,7 +148,8 @@ export const Callbacks = () => {
     <DataTable
       columns={getCallbackColumns(translate, dagRun?.end_date, renderDuration)}
       data={data?.deadlines ?? []}
-      errorMessage={<ErrorAlert error={error} />}
+      // Only ever a run's tab, so a 404 here is always the run's own, stated in its header.
+      errorMessage={shouldListReportError(error, true) ? <ErrorAlert error={error} /> : undefined}
       getRowId={(deadline) => deadline.callback_id}
       initialState={tableURLState}
       isLoading={isLoading}
