@@ -25,6 +25,7 @@ import inspect
 import logging
 import re
 import sys
+from collections import defaultdict
 from collections.abc import Generator, Iterable, Iterator
 from enum import Enum
 from functools import cache, cached_property
@@ -47,6 +48,24 @@ Redactable: TypeAlias = str | V1EnvVar | dict[Any, Any] | tuple[Any, ...] | list
 Redacted: TypeAlias = Redactable | str
 
 log = logging.getLogger(__name__)
+
+
+class MaskedValueMergeError(Exception):
+    """
+    Raised when ``merge`` cannot tell which stored list item a masked value came from.
+
+    The list was edited in a way that leaves more than one stored item, or none, that the masked
+    value could belong to, so restoring it could give one item another item's secret.
+    """
+
+    def __init__(self, path: str) -> None:
+        self.path = path
+        where = f'"{path}"' if path else "the top-level list"
+        super().__init__(
+            f"Cannot tell which stored item the masked values in {where} belong to after this edit. "
+            "Re-enter those values to save this change."
+        )
+
 
 DEFAULT_SENSITIVE_FIELDS = frozenset(
     {
@@ -199,6 +218,20 @@ def _is_v1_env_var(v: Any) -> TypeGuard[_V1EnvVarLike]:
     # K8s is loaded, safe to get/cache the type
     v1_type = _get_v1_env_var_type_cached()
     return isinstance(v, v1_type)
+
+
+def _make_hashable(value: Any) -> Any:
+    """Return a hashable stand-in for ``value``, equal for values that compare equal; unhashable leaves use repr."""
+    if isinstance(value, dict):
+        return frozenset((key, _make_hashable(item)) for key, item in value.items())
+    if isinstance(value, (list, tuple)):
+        # A list never equals a tuple, so keep the two apart.
+        return type(value), tuple(_make_hashable(item) for item in value)
+    try:
+        hash(value)
+    except TypeError:
+        return type(value), repr(value)
+    return value
 
 
 @cache
@@ -471,6 +504,8 @@ class SecretsMasker(logging.Filter):
         name: str | None,
         force_sensitive: bool = False,
         replacement: str,
+        shown_item: Any,
+        path: str = "",
     ) -> Redacted:
         """Merge a redacted item with its original unredacted counterpart."""
         # Walk containers at any depth, as _redact does, or a deeply nested secret is saved as "***".
@@ -500,33 +535,24 @@ class SecretsMasker(logging.Filter):
                             name=child_name,
                             force_sensitive=is_sensitive,
                             replacement=replacement,
+                            shown_item=shown_item.get(key) if isinstance(shown_item, dict) else None,
+                            path=f"{path}.{key}" if path else str(key),
                         )
                     else:
                         merged[key] = new_item[key]
                 return merged
 
             if isinstance(new_item, (list, tuple)) and type(old_item) is type(new_item):
-                merged_list = []
-                for i in range(len(new_item)):
-                    if i < len(old_item):
-                        # In sensitive mode, check if individual item is redacted
-                        if is_sensitive and isinstance(new_item[i], str) and new_item[i] == "***":
-                            merged_list.append(old_item[i])
-                        else:
-                            merged_list.append(
-                                self._merge(
-                                    new_item[i],
-                                    old_item[i],
-                                    name=None,
-                                    force_sensitive=is_sensitive,
-                                    replacement=replacement,
-                                )
-                            )
-                    else:
-                        merged_list.append(new_item[i])
-
+                merged_list = self._merge_list(
+                    new_item,
+                    old_item,
+                    shown_items=shown_item,
+                    is_sensitive=is_sensitive,
+                    replacement=replacement,
+                    path=path,
+                )
                 if isinstance(new_item, list):
-                    return list(merged_list)
+                    return merged_list
                 return tuple(merged_list)
 
             if isinstance(new_item, set) and isinstance(old_item, set):
@@ -543,6 +569,85 @@ class SecretsMasker(logging.Filter):
 
         except (TypeError, AttributeError, ValueError, RecursionError):
             return new_item
+
+    def _merge_list(
+        self,
+        new_items: list[Any] | tuple[Any, ...],
+        old_items: list[Any] | tuple[Any, ...],
+        *,
+        shown_items: Any,
+        is_sensitive: bool,
+        replacement: str,
+        path: str,
+    ) -> list[Any]:
+        """
+        Restore the masked values in a list from the stored item each one was shown for.
+
+        Items are matched by how they looked when shown, not by position, so removing or reordering
+        items keeps every secret with its own item. An edited item is restored from its own position when
+        the list did not shrink, or else from the one stored item left over. Anything else raises rather
+        than guessing.
+        """
+        if not isinstance(shown_items, (list, tuple)) or len(shown_items) != len(old_items):
+            # The list was shown collapsed into the mask, so its items have no form to match.
+            shown_items = [None] * len(old_items)
+        old_by_form: dict[Any, list[int]] = defaultdict(list)
+        for j, form in enumerate(shown_items):
+            old_by_form[_make_hashable(form)].append(j)
+        new_by_form: dict[Any, list[int]] = defaultdict(list)
+        for i, item in enumerate(new_items):
+            if self._has_masked_value(item, is_sensitive, replacement):
+                new_by_form[_make_hashable(item)].append(i)
+
+        # New item index -> index of the stored item its masked values come from.
+        pairs: dict[int, int] = {}
+        edited: list[int] = []
+        for form, new_indices in new_by_form.items():
+            old_indices = old_by_form.get(form, [])
+            # The k-th item still shown like this takes the k-th stored item shown like this. When the
+            # counts differ, the items were edited or a look-alike was added or removed.
+            if len(new_indices) == len(old_indices):
+                pairs.update(zip(new_indices, old_indices))
+            else:
+                edited.extend(new_indices)
+
+        if edited:
+            claimed = set(pairs.values())
+            unclaimed = [j for j in range(len(old_items)) if j not in claimed]
+            if len(new_items) >= len(old_items) and set(edited) <= set(unclaimed):
+                pairs.update((i, i) for i in edited)
+            elif len(edited) == 1 and len(unclaimed) == 1:
+                pairs[edited[0]] = unclaimed[0]
+            else:
+                raise MaskedValueMergeError(path)
+
+        merged = list(new_items)
+        for i, j in pairs.items():
+            # Merge rather than copy the stored item: values that compare equal (1 and True) may still
+            # have been edited.
+            merged[i] = self._merge(
+                new_items[i],
+                old_items[j],
+                name=None,
+                force_sensitive=is_sensitive,
+                replacement=replacement,
+                shown_item=shown_items[j],
+                path=f"{path}[{i}]",
+            )
+        return merged
+
+    def _has_masked_value(self, item: Any, is_sensitive: bool, replacement: str) -> bool:
+        """Whether ``item`` holds the mask anywhere ``_merge`` would restore a stored value."""
+        if isinstance(item, dict):
+            return any(
+                self._has_masked_value(
+                    value, is_sensitive or self.should_hide_value_for_key(key), replacement
+                )
+                for key, value in item.items()
+            )
+        if isinstance(item, (list, tuple)):
+            return any(self._has_masked_value(value, is_sensitive, replacement) for value in item)
+        return is_sensitive and isinstance(item, str) and item == replacement
 
     def redact(
         self,
@@ -586,6 +691,7 @@ class SecretsMasker(logging.Filter):
             name=name,
             force_sensitive=False,
             replacement=replacement,
+            shown_item=self.redact(old_item, name, replacement=replacement),
         )
 
     def _adaptations(self, secret: str) -> Generator[str, None, None]:
