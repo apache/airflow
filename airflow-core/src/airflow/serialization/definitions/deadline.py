@@ -379,14 +379,7 @@ class SerializedDeadlineAlert:
     reference: SerializedReferenceModels.SerializedBaseDeadlineReference
     interval: timedelta | SerializedVariableInterval
     callback: Any
-    on_resolve: Any = None
     name: str | None = None
-
-    @property
-    def reference_dict(self) -> dict[str, Any]:
-        if self.cron is not None:
-            return {"reference_type": "AssetScheduleDeadline", "cron": self.cron}
-        return {"reference_type": "AssetLastEventDeadline"}
 
 
 class AssetDeadlineFields:
@@ -405,12 +398,24 @@ class SerializedAssetDeadline:
     cron: str | None
     interval: timedelta | SerializedVariableInterval | None
     callback: Any
+    on_resolve: Any = None
     name: str | None = None
+
+    @property
+    def reference_dict(self) -> dict[str, Any]:
+        if self.cron is not None:
+            return {"reference_type": "AssetScheduleDeadline", "cron": self.cron}
+        return {"reference_type": "AssetLastEventDeadline"}
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, SerializedAssetDeadline):
             return NotImplemented
-        return self.cron == other.cron and self.interval == other.interval and self.callback == other.callback
+        return (
+            self.cron == other.cron
+            and self.interval == other.interval
+            and self.callback == other.callback
+            and self.on_resolve == other.on_resolve
+        )
 
     def __hash__(self) -> int:
-        return hash((self.cron, self.interval, self.callback))
+        return hash((self.cron, self.interval, self.callback, self.on_resolve))
