@@ -59,6 +59,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 WIKI = "https://cwiki.apache.org/confluence"
+WIKI_SPACE = "AIRFLOW"
 SLACK_CHANNEL = "internal-airflow-ci-cd"
 MAX_PROBLEMS_IN_SLACK = 25
 MAX_TITLE_LENGTH = 100
@@ -200,7 +201,9 @@ def fetch_children(page_id: str, fetch: Callable[[str, dict[str, str]], dict] = 
 
 
 def fetch_labelled(label: str, fetch: Callable[[str, dict[str, str]], dict] = get_json) -> list[Page]:
-    return fetch_all("content/search", {"cql": f'label = "{label}" and type = page'}, fetch)
+    return fetch_all(
+        "content/search", {"cql": f'label = "{label}" and type = page and space = {WIKI_SPACE}'}, fetch
+    )
 
 
 def get_text(html: str) -> str:
@@ -236,14 +239,47 @@ def find_properties(body: str) -> list[dict[str, str]]:
         else:
             body_start = match.end() + opening.end() - len("<ac:rich-text-body>")
             macro_body = body[body_start : find_macro_body_end(body, body_start)]
-        table_end = macro_body.find("</table>")
         rows: dict[str, str] = {}
-        for row in re.findall(r"<tr[^>]*>(.*?)</tr>", macro_body[: max(table_end, 0)], re.S):
-            cells = re.findall(r"<t([dh])[^>]*>(.*?)</t\1>", row, re.S)
+        for cells in find_table_rows(macro_body):
             if len(cells) >= 2:
-                rows.setdefault(get_text(cells[0][1]).rstrip(": "), cells[1][1])
+                rows.setdefault(get_text(cells[0]).rstrip(": "), cells[1])
         blocks.append(rows)
     return blocks
+
+
+def find_table_rows(html: str) -> list[list[str]]:
+    """
+    Return the cells of each row of the first table in ``html``, as storage HTML.
+
+    Rows and cells of a table nested in a cell stay inside that cell, so a nested table cannot end
+    the outer table early or add rows to it.
+    """
+    rows: list[list[str]] = []
+    row: list[str] | None = None
+    cell_start: int | None = None
+    depth = 0
+    for tag in re.finditer(r"<(/?)(table|tr|td|th)(?=[\s/>])[^>]*>", html):
+        closing, name = tag.group(1) == "/", tag.group(2)
+        if name == "table":
+            if not closing:
+                depth += 1
+            elif depth > 0:
+                depth -= 1
+                if depth == 0:
+                    break
+        elif depth != 1:
+            continue
+        elif name == "tr":
+            if closing and row is not None:
+                rows.append(row)
+            row = None if closing else []
+        elif closing:
+            if row is not None and cell_start is not None:
+                row.append(html[cell_start : tag.start()])
+            cell_start = None
+        else:
+            cell_start = tag.end()
+    return rows
 
 
 def find_badge(cell: str) -> str | None:

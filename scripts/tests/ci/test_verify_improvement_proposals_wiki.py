@@ -209,6 +209,12 @@ def test_titles_and_problems_are_escaped_and_shortened_for_slack(wiki):
             '<ac:structured-macro ac:name="details" ac:schema-version="1"></ac:structured-macro>',
             id="no-body",
         ),
+        pytest.param(
+            '<ac:structured-macro ac:name="details"><ac:parameter ac:name="id">x</ac:parameter>'
+            '</ac:structured-macro><ac:structured-macro ac:name="expand">'
+            '<ac:parameter ac:name="title">T</ac:parameter><ac:rich-text-body>',
+            id="parameter-then-another-macro-body",
+        ),
     ],
 )
 def test_macro_without_a_body_has_no_properties_even_before_a_table(wiki, macro):
@@ -274,6 +280,23 @@ def test_properties_with_a_nested_macro_in_a_cell_are_read(wiki):
     )
     body = properties({"Discussion Thread": nested, "State": badge("Completed")})
     assert wiki.find_badge(wiki.find_properties(body)[0]["State"]) == "Completed"
+
+
+@pytest.mark.parametrize(
+    "nested",
+    [
+        pytest.param("<table><tbody><tr><td>a</td><td>b</td></tr></tbody></table>", id="nested-table"),
+        pytest.param(
+            "<table><tbody><tr><th>State</th><td>WRONG</td></tr></tbody></table>", id="nested-state-row"
+        ),
+    ],
+)
+def test_properties_after_a_value_with_a_nested_table_are_read(wiki, nested):
+    body = properties({"Discussion Thread": nested, "State": badge("Completed")})
+    rows = wiki.find_properties(body)[0]
+    assert list(rows) == ["Discussion Thread", "State"]
+    assert rows["Discussion Thread"] == nested
+    assert wiki.find_badge(rows["State"]) == "Completed"
 
 
 def test_properties_table_outside_the_macro_is_not_read(wiki):
@@ -387,19 +410,24 @@ def test_fetch_children_pages_through_the_listing_and_reads_each_body(wiki):
 
 
 def test_fetch_labelled_searches_by_label(wiki):
-    fetch = mock.Mock(return_value={"results": [{"id": "3", "title": "AIP-3"}], "_links": {}})
+    fetch = mock.create_autospec(
+        wiki.get_json, return_value={"results": [{"id": "3", "title": "AIP-3"}], "_links": {}}
+    )
     assert [p.page_id for p in wiki.fetch_labelled("airflow-improvement-proposal/wip", fetch)] == ["3"]
-    assert fetch.call_args.args[1]["cql"] == 'label = "airflow-improvement-proposal/wip" and type = page'
+    assert (
+        fetch.call_args.args[1]["cql"]
+        == 'label = "airflow-improvement-proposal/wip" and type = page and space = AIRFLOW'
+    )
 
 
 @mock.patch("urllib.request.urlopen")
 def test_get_json_retries_and_decompresses_gzip(urlopen, wiki):
-    response = mock.MagicMock()
+    response = mock.MagicMock(spec=http.client.HTTPResponse)
     response.__enter__.return_value = response
     response.read.return_value = gzip.compress(json.dumps({"ok": True}).encode())
     response.headers = {"Content-Encoding": "gzip"}
     urlopen.side_effect = [http.client.RemoteDisconnected("gone"), response]
-    sleep = mock.Mock()
+    sleep = mock.create_autospec(time.sleep)
     assert wiki.get_json("content/1", {}, sleep=sleep) == {"ok": True}
     sleep.assert_called_once_with(5)
     assert urlopen.call_args.args[0].get_header("Accept-encoding") == "gzip"
@@ -408,7 +436,7 @@ def test_get_json_retries_and_decompresses_gzip(urlopen, wiki):
 @mock.patch("urllib.request.urlopen", side_effect=http.client.IncompleteRead(b""))
 def test_get_json_gives_up_after_the_last_attempt(urlopen, wiki):
     with pytest.raises(http.client.IncompleteRead):
-        wiki.get_json("content/1", {}, sleep=mock.Mock())
+        wiki.get_json("content/1", {}, sleep=mock.create_autospec(time.sleep))
     assert urlopen.call_count == wiki.ATTEMPTS
 
 
@@ -458,7 +486,11 @@ def test_collect_problems_checks_both_trees_and_the_adip_pages(wiki):
         mock.patch.object(wiki, "check_tree", side_effect=lambda tree, *args: [f"tree {tree.name}"]),
         mock.patch.object(wiki, "check_adip_pages", return_value=["adip pages"]) as check_adip_pages,
     ):
-        assert wiki.collect_problems(fetch=mock.Mock()) == ["tree AIP", "tree ADIP", "adip pages"]
+        assert wiki.collect_problems(fetch=mock.create_autospec(wiki.get_json)) == [
+            "tree AIP",
+            "tree ADIP",
+            "adip pages",
+        ]
     assert [page.page_id for page in check_adip_pages.call_args.args[0]] == [
         f"in-{folder.page_id}" for folder in wiki.ADIP_TREE.folders
     ]
