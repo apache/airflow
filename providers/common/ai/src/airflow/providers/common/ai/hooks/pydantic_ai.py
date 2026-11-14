@@ -16,9 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import asyncio
-import concurrent.futures
-import contextvars
 import functools
 import math
 import re
@@ -36,6 +33,7 @@ from typing_extensions import ParamSpec
 
 from airflow.providers.common.ai.hooks.ollama import OllamaBackend
 from airflow.providers.common.ai.observability import genai_instrumentation_settings
+from airflow.providers.common.ai.utils.coroutines import run_off_loop
 from airflow.providers.common.ai.utils.toolset_base import MaskingCapability
 from airflow.providers.common.compat.module_loading import import_string
 from airflow.providers.common.compat.sdk import BaseHook
@@ -83,7 +81,7 @@ FALLBACK_CONN_IDS_EXTRA_KEY = "fallback_conn_ids"
 MODEL_PROVIDER_EXTRA_KEY = "model_provider"
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, MutableMapping
+    from collections.abc import MutableMapping
 
     from pydantic_ai.models import KnownModelName, Model
 
@@ -133,20 +131,6 @@ def _looks_like_unrecognized_provider_prefix(prefix: str) -> bool:
     warning even if it was meant as a typo'd provider name.
     """
     return bool(_PROVIDER_SLUG_RE.match(prefix))
-
-
-# The async methods run their blocking lookups here, never on asyncio's default executor:
-# ``asend()`` reads its reply on that executor while it holds the comms lock, so blocking
-# lookups that fill it leave nothing to run the read and the task hangs. One worker also
-# serializes this process's hook lookups on Airflow 3.0 and 3.1, where the channel to the
-# supervisor has no lock of its own.
-_executor = concurrent.futures.ThreadPoolExecutor(max_workers=1, thread_name_prefix="pydantic-ai-hook")
-
-
-async def _run_off_loop(fn: Callable[P, R], /, *args: P.args, **kwargs: P.kwargs) -> R:
-    """Run ``fn`` on the hook's own worker thread, with the caller's context variables (task logging binds them)."""
-    call = functools.partial(contextvars.copy_context().run, fn, *args, **kwargs)
-    return await asyncio.get_running_loop().run_in_executor(_executor, call)
 
 
 def _get_registered_hooks() -> MutableMapping[str, Any]:
@@ -288,7 +272,7 @@ class PydanticAIHook(BaseHook):
         :raises ValueError: if the connection's type is registered to a hook that is not a
             ``PydanticAIHook``.
         """
-        return await _run_off_loop(cls.get_hook, conn_id, hook_params)
+        return await run_off_loop(cls.get_hook, conn_id, hook_params)
 
     @staticmethod
     def get_ui_field_behaviour() -> dict[str, Any]:
@@ -418,7 +402,7 @@ class PydanticAIHook(BaseHook):
         """
         if self._model is not None:
             return self._model
-        return await _run_off_loop(self.get_conn)
+        return await run_off_loop(self.get_conn)
 
     def _get_model_provider(self) -> str | None:
         """
@@ -922,7 +906,7 @@ class PydanticAIHook(BaseHook):
             build = functools.partial(
                 self.create_agent, output_type, instructions=instructions, **agent_kwargs
             )
-        return await _run_off_loop(build)
+        return await run_off_loop(build)
 
     def test_connection(self) -> tuple[bool, str]:
         """

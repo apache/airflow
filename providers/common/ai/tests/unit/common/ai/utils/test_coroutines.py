@@ -20,7 +20,11 @@ import asyncio
 import threading
 from contextvars import ContextVar
 
-from airflow.providers.common.ai.utils.coroutines import run_coroutine_sync
+import pytest
+
+from airflow.providers.common.ai.utils.coroutines import run_coroutine_sync, run_off_loop
+
+from unit.common.ai.default_executor import default_executor_taken
 
 _value: ContextVar[str] = ContextVar("value", default="unset")
 
@@ -49,3 +53,28 @@ class TestRunCoroutineSync:
             return run_coroutine_sync(_read_value())
 
         assert asyncio.run(caller()) == "caller"
+
+
+class TestRunOffLoop:
+    @pytest.mark.asyncio
+    async def test_runs_on_another_thread_than_the_event_loop(self):
+        assert await run_off_loop(threading.get_ident) != threading.get_ident()
+
+    @pytest.mark.asyncio
+    async def test_sees_the_callers_context_variables(self):
+        _value.set("caller")
+
+        assert await run_off_loop(_value.get) == "caller"
+
+    @pytest.mark.asyncio
+    async def test_passes_the_arguments_and_raises_what_the_call_raises(self):
+        assert await run_off_loop(int, "ff", base=16) == 255
+        with pytest.raises(ValueError, match="invalid literal"):
+            await run_off_loop(int, "not a number")
+
+    @pytest.mark.asyncio
+    async def test_does_not_need_the_default_executor(self):
+        async with default_executor_taken():
+            result = await asyncio.wait_for(run_off_loop(threading.get_ident), timeout=5)
+
+        assert result != threading.get_ident()

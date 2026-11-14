@@ -19,7 +19,7 @@ from __future__ import annotations
 import logging
 from decimal import Decimal
 from unittest import mock
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from pydantic_ai.usage import RunUsage, UsageLimits
@@ -37,6 +37,7 @@ class _Host(UsageBudgetMixin):
         self.usage_limits = usage_limits
         self.log = logging.getLogger(__name__)
         self.run_agent_sync = MagicMock()
+        self.run_agent_async = AsyncMock()
 
 
 class TestBuildUsageBudget:
@@ -128,6 +129,51 @@ class TestRunTracked:
         result, _ = host._run_tracked(MagicMock(), "prompt", run_usage=RunUsage())
 
         assert result is host.run_agent_sync.return_value
+
+
+class TestARunTracked:
+    @pytest.mark.asyncio
+    async def test_saves_cumulative_usage_and_returns_only_this_attempts_delta(self):
+        host = _Host()
+        host._usage_budget = MagicMock(spec=TaskStateStoreUsageBudget)
+        run_usage = RunUsage(requests=2, input_tokens=100)
+
+        async def run(agent, prompt, *, usage, **kwargs):
+            usage.requests += 1
+            usage.input_tokens += 10
+            return "result"
+
+        host.run_agent_async.side_effect = run
+
+        result, delta = await host._arun_tracked(MagicMock(), "prompt", run_usage=run_usage)
+
+        assert result == "result"
+        assert (delta.requests, delta.input_tokens) == (1, 10)
+        host._usage_budget.asave.assert_awaited_once_with(run_usage)
+
+    @pytest.mark.asyncio
+    async def test_saves_usage_when_run_raises(self):
+        host = _Host()
+        host._usage_budget = MagicMock(spec=TaskStateStoreUsageBudget)
+        run_usage = RunUsage()
+        host.run_agent_async.side_effect = RuntimeError("boom")
+
+        with pytest.raises(RuntimeError, match="boom"):
+            await host._arun_tracked(MagicMock(), "prompt", run_usage=run_usage)
+
+        host._usage_budget.asave.assert_awaited_once_with(run_usage)
+
+    @pytest.mark.asyncio
+    async def test_settles_before_persisting(self):
+        host = _Host()
+        host._usage_budget = MagicMock(spec=TaskStateStoreUsageBudget)
+        order = MagicMock()
+        order.attach_mock(host._usage_budget.asave, "asave")
+        host._settle_tracked_usage = order.settle
+
+        await host._arun_tracked(MagicMock(), "prompt", run_usage=RunUsage())
+
+        assert [c[0] for c in order.mock_calls] == ["settle", "asave"]
 
 
 class TestLogCumulativeUsage:

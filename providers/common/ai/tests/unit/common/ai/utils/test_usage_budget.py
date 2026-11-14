@@ -16,8 +16,10 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
 import dataclasses
 from decimal import Decimal
+from unittest.mock import patch
 
 import pytest
 from pydantic import TypeAdapter
@@ -33,6 +35,7 @@ from airflow.providers.common.ai.utils.usage_budget import (
 )
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_3_PLUS
+from unit.common.ai.default_executor import default_executor_taken
 
 # Float measures such as ``audio_seconds``, added to RunUsage in pydantic-ai 2.50.
 _FLOAT_FIELDS = [field.name for field in dataclasses.fields(RunUsage) if field.type in (float, "float")]
@@ -191,6 +194,15 @@ class FakeTaskStateStore:
     def delete(self, key):
         del self.store[key]
 
+    async def aget(self, key, default=None):
+        return self.get(key, default)
+
+    async def aset(self, key, value, *, retention=None):
+        self.set(key, value, retention=retention)
+
+    async def adelete(self, key):
+        self.delete(key)
+
 
 class RaisingTaskStateStore:
     """Every method raises -- for the best-effort save()/clear() canaries."""
@@ -202,6 +214,12 @@ class RaisingTaskStateStore:
         raise RuntimeError("store down")
 
     def delete(self, key):
+        raise RuntimeError("store down")
+
+    async def aset(self, key, value, *, retention=None):
+        raise RuntimeError("store down")
+
+    async def adelete(self, key):
         raise RuntimeError("store down")
 
 
@@ -282,3 +300,62 @@ class TestTaskStateStoreUsageBudgetClear:
         """Canary: removing the try/except around ``self._store.delete`` in
         ``TaskStateStoreUsageBudget.clear`` turns this red with ``RuntimeError``."""
         TaskStateStoreUsageBudget(RaisingTaskStateStore(), max_tries=1).clear()
+
+
+@pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="task state store needs Airflow >= 3.3")
+class TestTaskStateStoreUsageBudgetAsync:
+    @pytest.mark.asyncio
+    async def test_asave_aload_aclear_round_trip(self):
+        from airflow.sdk.execution_time.context import NEVER_EXPIRE
+
+        store = FakeTaskStateStore()
+        budget = TaskStateStoreUsageBudget(store, max_tries=2)
+
+        assert await budget.aload() == RunUsage()
+
+        await budget.asave(RunUsage(requests=1, cost=Decimal("0.10")))
+
+        assert store.store[USAGE_BUDGET_KEY] == {
+            "version": 1,
+            "max_tries": 2,
+            "usage": dump_run_usage(RunUsage(requests=1, cost=Decimal("0.10"))),
+        }
+        assert store.retentions[USAGE_BUDGET_KEY] == NEVER_EXPIRE
+        assert await budget.aload() == RunUsage(requests=1, cost=Decimal("0.10"))
+
+        await budget.aclear()
+
+        assert USAGE_BUDGET_KEY not in store.store
+
+    @pytest.mark.asyncio
+    async def test_aload_starts_from_zero_after_a_clear_bumped_max_tries(self):
+        store = FakeTaskStateStore()
+        await TaskStateStoreUsageBudget(store, max_tries=1).asave(RunUsage(requests=3))
+
+        assert await TaskStateStoreUsageBudget(store, max_tries=2).aload() == RunUsage()
+
+    @pytest.mark.asyncio
+    async def test_failed_asave_and_aclear_are_swallowed_not_raised(self):
+        budget = TaskStateStoreUsageBudget(RaisingTaskStateStore(), max_tries=1)
+
+        await budget.asave(RunUsage())
+        await budget.aclear()
+
+    @pytest.mark.asyncio
+    @patch("airflow.providers.common.ai.utils.usage_budget.AIRFLOW_V_3_4_PLUS", False)
+    async def test_the_synchronous_store_calls_do_not_need_the_default_executor(self):
+        """Before Airflow 3.4 the store has no async accessors, so its blocking calls leave the loop."""
+        store = FakeTaskStateStore()
+        budget = TaskStateStoreUsageBudget(store, max_tries=1)
+
+        async def round_trip() -> RunUsage:
+            await budget.asave(RunUsage(requests=2))
+            loaded = await budget.aload()
+            await budget.aclear()
+            return loaded
+
+        async with default_executor_taken():
+            loaded = await asyncio.wait_for(round_trip(), timeout=5)
+
+        assert loaded == RunUsage(requests=2)
+        assert USAGE_BUDGET_KEY not in store.store
