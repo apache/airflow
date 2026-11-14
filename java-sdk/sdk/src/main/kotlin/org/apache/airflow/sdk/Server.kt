@@ -239,7 +239,12 @@ class CoordinatorServer internal constructor(
               deferral.await()
             } finally {
               // The use block closes the socket even when serving fails, so flush while it is still open.
-              LogSender.detachAndFlush()
+              sendQueuedLogs(socket::close, socket.socketContext, logFlushTimeout)
+              try {
+                Runtime.getRuntime().removeShutdownHook(hook)
+              } catch (e: IllegalStateException) {
+                // The JVM has started shutting down, so it has already started the hook.
+              }
             }
           }
         }

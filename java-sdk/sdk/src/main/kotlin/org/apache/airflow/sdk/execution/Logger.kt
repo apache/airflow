@@ -243,6 +243,9 @@ internal object LogSender {
   private var configured: ByteWriteChannel? = null
   internal val messages: ConcurrentLinkedDeque<LogMessage> = ConcurrentLinkedDeque()
 
+  // Set by detachAndFlush. Nothing writes LogSender.messages after that call, so send prints lines to errors instead.
+  private var detached = false
+
   // Only the sender thread writes, so a caller's runBlocking cannot run the task under this object's lock.
   private val pending = LinkedBlockingQueue<() -> Unit>()
 
@@ -281,6 +284,7 @@ internal object LogSender {
   fun configure(channel: ByteWriteChannel) {
     writer = channel
     configured = channel
+    detached = false
     if (!channel.isClosedForWrite) {
       while (messages.isNotEmpty()) {
         // Don't wait for room: these messages are already in memory, and waiting would block the serving thread.
@@ -293,11 +297,20 @@ internal object LogSender {
     message: LogMessage,
     waitForRoom: Boolean = true,
   ) {
-    synchronized(this) {
-      if (!isQueuing()) {
-        messages.addLast(message)
-        return
+    val detachedNow =
+      synchronized(this) {
+        when {
+          isQueuing() -> false
+          detached -> true
+          else -> {
+            messages.addLast(message)
+            return
+          }
+        }
       }
+    if (detachedNow) {
+      printAfterDetach(message)
+      return
     }
     // Build the line now, so that it shows the arguments as they were when the caller logged them.
     val line = buildLine(message)
@@ -305,16 +318,28 @@ internal object LogSender {
     val chars = if (waitForRoom && Thread.currentThread() !== sender) minOf(line.length, PENDING_CHARS) else 0
     // Wait before locking, or a logging sender thread can deadlock. A fair semaphore makes acquire(0) wait too.
     if (chars > 0) room.acquireUninterruptibly(chars)
-    synchronized(this) {
-      val channel = writer
-      if (channel == null || channel.isClosedForWrite) {
-        // Queuing stopped while this caller waited for room.
-        messages.addLast(message)
-        room.release(chars)
-      } else {
-        queueLine(channel, line, chars)
+    val detachedWhileWaiting =
+      synchronized(this) {
+        val channel = writer
+        if (channel == null || channel.isClosedForWrite) {
+          // Queuing stopped while this caller waited for room.
+          room.release(chars)
+          if (!detached) messages.addLast(message)
+          detached
+        } else {
+          queueLine(channel, line, chars)
+          false
+        }
       }
-    }
+    if (detachedWhileWaiting) printAfterDetach(message, line)
+  }
+
+  // The supervisor logs the JVM's stderr at ERROR level, so drop lines below WARNING.
+  private fun printAfterDetach(
+    message: LogMessage,
+    line: String? = null,
+  ) {
+    if (message.level.value >= Level.WARNING.value) errors.print(line ?: buildLine(message))
   }
 
   /**
@@ -353,6 +378,7 @@ internal object LogSender {
     val channel =
       synchronized(this) {
         writer = null
+        detached = true
         configured
       }
     if (flush(idleTimeout)) return true
@@ -363,9 +389,11 @@ internal object LogSender {
     return false
   }
 
+  @Synchronized
   internal fun reset() {
     writer = null
     configured = null
+    detached = false
     messages.clear()
   }
 

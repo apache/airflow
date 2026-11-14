@@ -207,7 +207,8 @@ data class Context(
    * signal only for that type of task. For any other task, the JVM handles the
    * signal as it would without the SDK: by default the JVM runs its shutdown hooks
    * and exits. Such a task could never see a stop request, so this method throws
-   * instead of returning false.
+   * instead of returning false. If the exception fails the task, Airflow does not
+   * retry the task, because a retry would fail the same way.
    *
    * The context that the SDK passes to the task keeps seeing the stop request
    * after the task returns. A context made in any other way never sees a stop

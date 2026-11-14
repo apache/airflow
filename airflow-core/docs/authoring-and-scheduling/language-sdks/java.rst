@@ -816,48 +816,24 @@ the same object as the task method:
       }
     }
 
-Once the SDK has started such a task, it catches the first ``SIGTERM`` or ``SIGINT`` and the JVM keeps
-running. ``Context.isCancelled()`` then returns true and the SDK calls ``onKill``:
-
-* ``onKill`` runs once, on its own daemon thread, while the task keeps running. So ``onKill`` can stop a task
-  that is blocked in a call. Anything ``onKill`` and the task share, such as a ``volatile`` field, must be
-  safe to use from two threads.
-* ``onKill`` can run before the task has started the work that ``onKill`` should stop. That is why
-  ``ReportTask`` checks ``isCancelled`` right after it stores the job ID. The SDK makes ``isCancelled``
-  return true before it calls ``onKill``, so the check sees the stop request, ``onKill`` sees the job ID, or
-  both. ``onKill`` can also run just after the task has returned. So ``service.cancel`` must tolerate a
-  second call and a job that has finished.
-* ``onKill`` does not end the task. In this example, cancelling the job makes ``service.waitFor`` throw. If the
-  task is still running after the grace period, the supervisor kills the JVM with ``SIGKILL`` and shutdown
-  hooks do not run.
-* The SDK reports the task's result after ``onKill`` returns. Throw rather than return when the task stops
-  early, because returning reports success for work the task did not finish. If a user changed the task
-  instance's state while the task ran, for example by marking the task instance failed, Airflow keeps that
-  state whatever the task reports.
-* If ``onKill`` throws, the SDK logs the exception and the JVM handles the signal: shutdown hooks run and
-  the JVM exits without reporting a result.
+After starting such a task, the SDK catches the first ``SIGTERM`` or ``SIGINT``, and the JVM keeps running.
+``Context.isCancelled()`` then returns true and the SDK calls ``onKill``. A task that checks for a stop request in a loop
+can leave ``onKill``, or its ``@Airflow.OnKill`` method, empty. In that loop, it can call
+``Context.awaitCancellation(timeout)`` instead of ``Thread.sleep``. In a task that is not a ``StoppableTask``,
+``isCancelled`` and ``awaitCancellation`` throw. ``StoppableTask`` in the
+`Java SDK API reference <https://airflow.apache.org/docs/java-sdk/stable/>`__ explains when the SDK calls ``onKill`` and
+what ``onKill`` must handle.
 
 Two things differ from ``on_kill`` in Python. ``on_kill`` runs on the task's own thread. ``onKill`` runs on a
 separate thread while the task keeps running. And Python calls ``on_kill`` as soon as ``execution_timeout``
 passes, while the Java SDK has no timer for ``execution_timeout``. ``onKill`` runs when the supervisor sends
 ``SIGTERM``, which is ``killed_task_cleanup_time`` seconds after the timeout.
 
-Any other signal goes to the JVM, as every signal does for a task that is not a ``StoppableTask``. These other
-signals include a signal that arrives before the SDK starts the task, and a second signal. So sending a second
-signal stops a task that does not stop when asked.
-
 If the SDK can catch neither ``SIGTERM`` nor ``SIGINT``, for example because the JVM runs with ``-Xrs``, the SDK
 fails a ``StoppableTask`` before the task starts. Airflow does not retry the task. If the SDK let the task start
 anyway, the task could begin work that ``onKill`` would never get the chance to stop. To run a ``StoppableTask``,
 remove ``-Xrs`` from the JVM options. A runtime image built with ``jlink`` also needs the ``jdk.unsupported``
 module.
-
-A task that can check for a stop request in a loop can leave ``onKill``, or its ``@Airflow.OnKill`` method,
-empty. The task can check ``Context.isCancelled()``, or call ``Context.awaitCancellation(timeout)`` where it
-would otherwise wait with ``Thread.sleep``. Unlike ``Thread.sleep``, ``awaitCancellation`` returns as soon as
-Airflow asks the task to stop. Only a ``StoppableTask`` can call these two methods. Any other task never sees
-a stop request, because the JVM exits on the signal. If such a task calls either method, the method throws
-``IllegalStateException``.
 
 .. _java-sdk/task-state-store:
 

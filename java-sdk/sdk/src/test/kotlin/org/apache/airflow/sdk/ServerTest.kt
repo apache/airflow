@@ -41,6 +41,7 @@ import org.apache.airflow.sdk.execution.comm.SucceedTask
 import org.apache.airflow.sdk.execution.comm.TaskState
 import org.apache.airflow.sdk.execution.pollSignals
 import org.apache.airflow.sdk.execution.withSignalRecorder
+import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
@@ -344,8 +345,10 @@ object QueuedLogsProbe {
 }
 
 /**
- * Main class of the JVM that [ServerTest.exitsOnSigtermWhileNothingReadsTheLogs] starts. It does what [QueuedLogsProbe]
- * does, with a log flush timeout of 2 seconds.
+ * Main class of the JVMs that [ServerTest.exitsOnSigtermWhileNothingReadsTheLogs] and
+ * [ServerTest.exitsAfterReportingWhileNothingReadsTheLogs] start. It does what [QueuedLogsProbe] does, with a log flush
+ * timeout of 2 seconds. When serving returns, it prints how many of the SDK's log flush hooks are still registered.
+ * Counting the hooks needs the JVM option `--add-opens java.base/java.lang=ALL-UNNAMED`.
  */
 object UnreadLogsProbe {
   @JvmStatic
@@ -353,6 +356,13 @@ object UnreadLogsProbe {
     fun address(flag: String) =
       args[args.indexOf(flag) + 1].let { InetSocketAddress(it.substringBeforeLast(':'), it.substringAfterLast(':').toInt()) }
     QueuedLogsProbe.serve(CoordinatorServer(address("--comm"), address("--logs"), Duration.ofSeconds(2)))
+    val hooks =
+      Class
+        .forName("java.lang.ApplicationShutdownHooks")
+        .getDeclaredField("hooks")
+        .apply { isAccessible = true }
+        .get(null) as Map<*, *>
+    println("log flush hooks left: ${hooks.keys.count { (it as Thread).name == "Airflow log flush" }}")
   }
 }
 
@@ -453,6 +463,12 @@ private fun countQueuedLines(input: InputStream): Int =
   }
 
 class ServerTest {
+  @AfterEach
+  fun resetLogSender() {
+    // Later tests rely on LogSender putting messages in LogSender.messages, which it stops doing after sendQueuedLogs.
+    LogSender.reset()
+  }
+
   private fun hexToBytes(hex: String): ByteArray =
     hex
       .split(' ', '\r', '\n')
@@ -559,6 +575,35 @@ class ServerTest {
       Assertions.assertEquals(143, process.exitValue(), "the JVM should exit with the exit code that it uses on SIGTERM")
       val reports = output.readLines().filter { it.contains("Cannot send a log line to the supervisor") }
       Assertions.assertTrue(reports.any { it.contains("no log line was written for 2000 ms") }) { "reports: $reports" }
+    }
+  }
+
+  @Test
+  @DisplayName(
+    "Should let the JVM exit after reporting the result while nothing reads the queued logs, and remove the SDK's shutdown hook",
+  )
+  @Timeout(value = 120, unit = TimeUnit.SECONDS)
+  fun exitsAfterReportingWhileNothingReadsTheLogs() {
+    val output = File.createTempFile("probe", ".out").apply { deleteOnExit() }
+    withProbeJvm(UnreadLogsProbe::class.java, output, listOf("--add-opens", "java.base/java.lang=ALL-UNNAMED")) { comm, _, process ->
+      val toServer = DataOutputStream(comm.getOutputStream())
+      val fromServer = DataInputStream(comm.getInputStream())
+      toServer.writeFrame(hexToBytes(STARTUP_HEX))
+      val request = fromServer.readFrame()
+      toServer.writeFrame(variableResultFrame(request.id))
+      val result = fromServer.readFrame()
+      Assertions.assertInstanceOf(SucceedTask::class.java, result.body)
+
+      // The test reads no logs, so the queued messages cannot all be written.
+      val acknowledged = System.nanoTime()
+      toServer.writeFrame(ackFrame(result.id))
+      Assertions.assertTrue(process.waitFor(30, TimeUnit.SECONDS), "the JVM should exit although the queued logs cannot be written")
+      val elapsed = Duration.ofNanos(System.nanoTime() - acknowledged)
+      Assertions.assertTrue(elapsed < Duration.ofSeconds(10)) { "the JVM took $elapsed to exit" }
+      Assertions.assertEquals(0, process.exitValue())
+      val lines = output.readLines()
+      Assertions.assertTrue(lines.any { it.contains("no log line was written for 2000 ms") }) { "output: ${lines.take(20)}" }
+      Assertions.assertTrue("log flush hooks left: 0" in lines) { "output: ${lines.take(20)}" }
     }
   }
 
@@ -691,12 +736,14 @@ class ServerTest {
   }
 
   /**
-   * Starts a JVM that runs [probe] with a comm connection and a logs connection, and runs [block] with both connections and the JVM.
-   * What the started JVM prints goes to [output] if [output] is given, and otherwise to the output of the JVM that runs the test.
+   * Starts a JVM with [jvmOptions] that runs [probe] with a comm connection and a logs connection, and runs [block] with both connections
+   * and the JVM. What the started JVM prints goes to [output] if [output] is given, and otherwise to the output of the JVM that runs
+   * the test.
    */
   private fun withProbeJvm(
     probe: Class<*>,
     output: File? = null,
+    jvmOptions: List<String> = emptyList(),
     block: (comm: Socket, logs: Socket, process: Process) -> Unit,
   ) {
     val loopback = InetAddress.getLoopbackAddress()
@@ -706,14 +753,16 @@ class ServerTest {
         logsListener.soTimeout = 30_000
         val process =
           ProcessBuilder(
-            File(System.getProperty("java.home"), "bin/java").path,
-            "-cp",
-            System.getProperty("java.class.path"),
-            probe.name,
-            "--comm",
-            "${loopback.hostAddress}:${commListener.localPort}",
-            "--logs",
-            "${loopback.hostAddress}:${logsListener.localPort}",
+            listOf(File(System.getProperty("java.home"), "bin/java").path) + jvmOptions +
+              listOf(
+                "-cp",
+                System.getProperty("java.class.path"),
+                probe.name,
+                "--comm",
+                "${loopback.hostAddress}:${commListener.localPort}",
+                "--logs",
+                "${loopback.hostAddress}:${logsListener.localPort}",
+              ),
           ).redirectErrorStream(true)
             .redirectOutput(output?.let { ProcessBuilder.Redirect.to(it) } ?: ProcessBuilder.Redirect.INHERIT)
             .start()
@@ -865,7 +914,9 @@ class ServerTest {
     }
 
   @Test
-  @DisplayName("Should hold the first SIGTERM until the result is reported, without calling onKill for a task that has returned")
+  @DisplayName(
+    "Should hold the first SIGTERM with a warning until the result is reported, without calling onKill for a task that has returned",
+  )
   @Timeout(value = 60, unit = TimeUnit.SECONDS)
   fun signalWhileReportingIsHeld() =
     withSignalRecorder("TERM") { recorded ->
@@ -880,7 +931,7 @@ class ServerTest {
         )
 
       Assertions.assertInstanceOf(SucceedTask::class.java, result.body)
-      Assertions.assertEquals(listOf("Asking the task to stop"), signalLogs())
+      Assertions.assertEquals(listOf("Holding the signal until the SDK has sent the task's result"), signalLogs())
       Assertions.assertEquals(emptyList<String>(), taskEvents.toList(), "the task has returned, so there is nothing to stop")
       Assertions.assertNull(recorded.poll(), "SIGTERM should reach the runtime until it has reported the result")
     }
@@ -1208,7 +1259,12 @@ class ServerTest {
   }
 
   private companion object {
-    val SIGNAL_EVENTS = setOf("Asking the task to stop", "Letting the JVM handle the signal")
+    val SIGNAL_EVENTS =
+      setOf(
+        "Asking the task to stop",
+        "Holding the signal until the SDK has sent the task's result",
+        "Letting the JVM handle the signal",
+      )
     const val NOT_STOPPABLE_TASK_ERROR =
       "Only a StoppableTask can see a stop request. Implement StoppableTask, or give an annotated task an @Airflow.OnKill method"
     const val INTERRUPT_CLEARED_EVENT = "Cleared the interrupt flag that the task left on its thread, so the SDK can report the result"

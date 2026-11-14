@@ -24,6 +24,8 @@ import org.apache.airflow.sdk.Client
 import org.apache.airflow.sdk.ConditionTask
 import org.apache.airflow.sdk.Context
 import org.apache.airflow.sdk.DagDef
+import org.apache.airflow.sdk.PlainCheckingTask
+import org.apache.airflow.sdk.PlainWaitingTask
 import org.apache.airflow.sdk.StoppableTask
 import org.apache.airflow.sdk.SwitchTask
 import org.apache.airflow.sdk.Task
@@ -192,6 +194,19 @@ class TaskTest {
       val details = startupDetails(taskId = "uninstantiable")
       details.tiContext?.shouldRetry = true
       val result = runTask(bundleWith("uninstantiable", taskClass), details, noOpClient())
+
+      Assertions.assertInstanceOf(TaskState::class.java, result) { "unexpected result for ${taskClass.simpleName}: $result" }
+      Assertions.assertEquals(TaskState.State.FAILED, (result as TaskState).state)
+    }
+  }
+
+  @Test
+  @DisplayName("Should fail a plain task that checks for a stop request, without a retry even if should_retry is true")
+  fun shouldReturnFailedWithoutRetryWhenPlainTaskChecksForStopRequest() {
+    for (taskClass in listOf(PlainCheckingTask::class.java, PlainWaitingTask::class.java)) {
+      val details = startupDetails(taskId = "checking")
+      details.tiContext?.shouldRetry = true
+      val result = Cancellation().use { TaskRunner.runTask(bundleWith("checking", taskClass), details, noOpClient(), it) }
 
       Assertions.assertInstanceOf(TaskState::class.java, result) { "unexpected result for ${taskClass.simpleName}: $result" }
       Assertions.assertEquals(TaskState.State.FAILED, (result as TaskState).state)

@@ -74,11 +74,16 @@ interface StoppableTask : Task {
    * should stop. To close that gap, have [execute] store what this method needs
    * and only then check [Context.isCancelled]. The SDK makes that check return
    * true before it calls this method, so the check sees the request, this method
-   * sees what [execute] stored, or both.
+   * sees what [execute] stored, or both. When both happen, [execute] and this
+   * method may each stop the work, so a second stop must be harmless.
    *
    * This method does not end [execute]. If [execute] is still running after a
    * grace period, the supervisor kills the JVM with SIGKILL and shutdown hooks do
    * not run. The SDK reports the result of [execute] only after this method returns.
+   * When [execute] stops early, it should throw. If it returns, the SDK reports
+   * success for work that did not finish. If a user changed the task instance's
+   * state while the task ran, for example by marking it failed, Airflow keeps that
+   * state whatever the task reports.
    *
    * @param context Runtime context of the task, which is what [execute] received.
    * @throws Exception on failure. The SDK logs the exception and lets the JVM handle
