@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from datetime import timedelta
 from typing import Any
 from unittest.mock import MagicMock, patch
@@ -26,6 +27,8 @@ from unittest.mock import MagicMock, patch
 import pytest
 from pydantic import BaseModel
 from pydantic_ai import Agent, CallDeferred, Tool
+from pydantic_ai.capabilities import SelectModel
+from pydantic_ai.exceptions import UserError
 from pydantic_ai.messages import ModelResponse, TextPart, ToolCallPart, UserPromptPart
 from pydantic_ai.models.function import AgentInfo, FunctionModel
 from pydantic_ai.toolsets import FunctionToolset
@@ -484,6 +487,18 @@ def test_a_resume_the_default_cannot_run_durably_stores_nothing_durable(park, ct
     store = ctx["task_state_store"].data
     assert _HITL_REVIEW_ANSWERS_KEY not in store
     assert [key for key in store if key.startswith(DURABLE_KEY_PREFIX)] == []
+
+
+@parks
+def test_a_review_task_pydantic_ai_refuses_once_running_fails_before_the_review(ctx, caplog):
+    """Run again without durable execution, it would reach the review, and a resume decides again."""
+    op = _operator(retries=2, capabilities=[SelectModel(lambda selection: FunctionModel(_summarizer))])
+
+    with caplog.at_level(logging.INFO), pytest.raises(UserError, match="was not registered"):
+        op.execute(ctx)
+
+    assert "the review's regenerations would be refused the same way, so the task fails" in caplog.text
+    assert "Durable execution is off" not in caplog.text
 
 
 @parks
