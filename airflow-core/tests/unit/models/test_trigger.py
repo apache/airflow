@@ -871,7 +871,9 @@ def test_submit_event_task_end(mock_utcnow, session, create_task_instance, event
     # now, for each type, submit event
     # verify that (1) task ends in right state and (2) xcom is pushed
     Trigger.submit_event(
-        trigger.id, event_cls(xcoms={"return_value": "xcomret", "a": "b", "c": "d"}), session=session
+        trigger.id,
+        event_cls(xcoms={"return_value": "xcomret", "a": "b", "c": {"d": [1, 2]}}),
+        session=session,
     )
     # commit changes made by submit event and expire all cache to read from db.
     session.flush()
@@ -882,10 +884,7 @@ def test_submit_event_task_end(mock_utcnow, session, create_task_instance, event
     assert ti.end_date == now
     assert ti.duration is not None
     actual_xcoms = {x.key: x.value for x in get_xcoms(ti)}
-    expected_xcoms = {}
-    for k, v in {"return_value": "xcomret", "a": "b", "c": "d"}.items():
-        expected_xcoms[k] = json.dumps(v)
-    assert actual_xcoms == expected_xcoms
+    assert actual_xcoms == {"return_value": "xcomret", "a": "b", "c": {"d": [1, 2]}}
 
 
 @patch("airflow.callbacks.database_callback_sink.DatabaseCallbackSink.send")

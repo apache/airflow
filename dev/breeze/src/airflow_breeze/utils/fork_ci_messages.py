@@ -45,6 +45,9 @@ JOB_NAME_MAX_LENGTH = 100
 CI_PASSED_CONTEXT = "CI passed"
 CI_PASSED_DESCRIPTION = "Fork CI passed for this commit"
 CI_PASSED_REVOKED_DESCRIPTION = "Fork CI result no longer trusted for this commit"
+# Replaces a fork `success` on a pull request carrying `use project ci` until project CI has passed.
+CI_PASSED_WAITING_PROJECT_CI_DESCRIPTION = "Waiting for project CI (use project ci)"
+CI_PASSED_PROJECT_DESCRIPTION = "Project CI passed for this commit"
 # Also required by the merge rulesets, so GitHub lists it as expected and waiting on every pull
 # request from the moment it is pushed. The reconciler reports it, linking the run: for a gated pull
 # request once the fork has a run for the head commit, for any other once project CI has one.
@@ -138,32 +141,54 @@ def _setup_instructions(fork: str) -> str:
         f"   ```bash\n   gh repo sync {fork} --branch main\n   ```\n\n"
         "2. Enable the workflow in your fork:\n\n"
         f"   ```bash\n   gh workflow enable ci-amd.yml -R {fork}\n   ```\n\n"
+        f"   *(Or in your browser: open `https://github.com/{fork}/actions` and click 'Enable workflows')*\n\n"
         "3. Push your branch again. Every push then runs CI in your fork.\n\n"
         "`breeze ci audit` checks your whole local and fork setup and prints the command that fixes "
         f"anything missing. See [the contribution workflow]({CONTRIBUTING_URL})."
     )
 
 
+_CHANGES_CI_FILES = (
+    "this pull request changes files that decide which CI jobs run and where (`.github/`, the breeze "
+    "sources, the breeze installation or `scripts/ci/prek/`), and the fork run used those changed files."
+)
+
 _STATE_TEXTS = {
     "setup_required": "**Fork CI: setup required.** CI for this pull request has not run in your fork yet, "
     "because the `Tests (AMD)` workflow is not enabled there.",
-    "awaiting_push": "**Fork CI: waiting for a push.** The workflow is enabled in your fork, but it has not "
-    "run for the latest commit of this pull request. Push the branch again to start it.",
+    "awaiting_push": (
+        "**Fork CI: waiting for a push.** The workflow is enabled in your fork, but it has not "
+        "run for the latest commit of this pull request. Push the branch again to start it. "
+        "If you already pushed, verify in your fork's Actions tab that workflows are not disabled "
+        "by GitHub's fork banner."
+    ),
     "running": "**Fork CI: running.** CI for the latest commit is running in your fork.",
     "failed": "**Fork CI: failed.** CI for the latest commit failed in your fork. Fix the failures and "
-    "push again; this pull request stays a draft until the run is green.",
+    "push again.",
     "green": "**Fork CI: green.** CI for the latest commit passed in your fork. The pull request is "
     "ready for maintainer review.",
     "green_unverified": "**Fork CI: green, needs a maintainer.** CI for the latest commit passed in your "
-    "fork, but this pull request changes files that decide which CI jobs run and where (`.github/`, "
-    "the breeze sources, the breeze installation or `scripts/ci/prek/`), and the fork run used those "
-    "changed files. A maintainer will review the change and run project CI for it before it can be "
-    "merged.",
+    f"fork, but {_CHANGES_CI_FILES} A maintainer will review the change and run project CI for it before "
+    "it can be merged.",
     "closed": "**Fork CI: closed after inactivity.** CI did not run in your fork in time; see the "
     "comment below for how to continue.",
     "gate_bypassed": "**Fork CI: closed.** Project CI ran for this pull request although its CI runs in "
     "the contributor's fork; see the comment below.",
     "gate_modified": "**Fork CI: closed.** This pull request changes the fork CI gate; see the comment below.",
+}
+
+_ASK_A_MAINTAINER_TO_MARK_READY = (
+    "If GitHub does not let you mark it ready because you reached the limit of open pull requests, "
+    "comment here and ask a maintainer to mark it ready for you."
+)
+
+_AUTHOR_DRAFT_TEXTS = {
+    "green": "**Fork CI: green.** CI for the latest commit passed in your fork. The pull request is a "
+    "draft, so maintainers do not review it yet. Mark it ready for review when it is. "
+    f"{_ASK_A_MAINTAINER_TO_MARK_READY}",
+    "green_unverified": "**Fork CI: green.** CI for the latest commit passed in your fork, but "
+    f"{_CHANGES_CI_FILES} The pull request is a draft. Once you mark it ready for review, a maintainer "
+    f"will review the change and run project CI for it. {_ASK_A_MAINTAINER_TO_MARK_READY}",
 }
 
 
@@ -175,8 +200,11 @@ def behind_warning(behind: int, *, base_ref: str) -> str:
     )
 
 
-def state_comment(marker: Marker, *, fork: str, run_url: str | None, base_ref: str = "main") -> str:
-    parts = [render_marker(marker), _STATE_TEXTS[marker.state], WHY_FORK_CI]
+def state_comment(
+    marker: Marker, *, fork: str, run_url: str | None, base_ref: str = "main", author_draft: bool = False
+) -> str:
+    text = _AUTHOR_DRAFT_TEXTS.get(marker.state) if author_draft else None
+    parts = [render_marker(marker), text or _STATE_TEXTS[marker.state], WHY_FORK_CI]
     if (
         marker.state in ("green", "green_unverified")
         and marker.behind is not None

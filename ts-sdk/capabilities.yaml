@@ -75,6 +75,11 @@ capabilities:
     since: "3.4.0"
     sdk_version: "1.0.0"
     note: "getXCom / setXCom"
+  custom-xcom-backend:
+    supported: true
+    since: "3.5.0"
+    sdk_version: "1.0.0"
+    note: "the supervisor runs the configured [core] xcom_backend"
   connection-read:
     supported: true
     since: "3.4.0"

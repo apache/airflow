@@ -90,6 +90,24 @@ def test_state_comment_warns_about_a_branch_far_behind(state, behind, warned):
     assert ("commits behind `v3-1-test`" in text) is warned
 
 
+@pytest.mark.parametrize(
+    ("state", "author_draft", "asks_to_mark_ready"),
+    [
+        pytest.param("green", True, True, id="green-author-draft"),
+        pytest.param("green_unverified", True, True, id="unverified-author-draft"),
+        pytest.param("green", False, False, id="green-ready"),
+        pytest.param("failed", True, False, id="failed-author-draft"),
+    ],
+)
+def test_state_comment_asks_the_author_to_mark_a_green_draft_ready(state, author_draft, asks_to_mark_ready):
+    text = state_comment(
+        Marker(state, "a", MARKER.since), fork="u/airflow", run_url=None, author_draft=author_draft
+    )
+
+    assert ("mark it ready for review" in text.lower()) is asks_to_mark_ready
+    assert ("ask a maintainer to mark it ready" in text) is asks_to_mark_ready
+
+
 def test_parse_marker_absent():
     assert parse_marker("just a comment") is None
 

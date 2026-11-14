@@ -87,8 +87,7 @@ Choose a model
      - Uses a model that cannot write text, such as TypeSafe's hosted Jev or Ollama's
        decision models, to answer a typed question with one value from a set you
        define, plus a confidence.
-     - Jev: ``typesafe``, and install ``pydantic-ai-slim`` 2.45+; others: install
-       ``pydantic-ai-slim`` 2.53+
+     - Jev: ``typesafe``; others: install ``pydantic-ai-slim`` 2.53+
    * - :doc:`LlamaIndex models <hooks/llamaindex>`
      - Builds LlamaIndex language and embedding models from a connection.
      - ``llamaindex``, and install the vendor's package for vendors other than OpenAI
