@@ -55,7 +55,7 @@ Toolsets
      - Object storage (S3, GCS, Azure Blob Storage, or any store
        :class:`~airflow.sdk.ObjectStoragePath` can open), read-only
    * - :doc:`SandboxToolset <sandbox/index>`
-     - Modal, Islo, OpenSandbox, OpenShell, Boat and Docker Sandboxes (sbx), through the
+     - Modal, Islo, boxd, OpenSandbox, OpenShell, Boat and Docker Sandboxes (sbx), through the
        shipped backends; other services can be added with a
        ``SandboxBackend`` subclass
    * - :doc:`AgentSkillsToolset <toolsets/skills>`
