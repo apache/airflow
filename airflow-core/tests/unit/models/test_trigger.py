@@ -29,6 +29,7 @@ import sqlalchemy as sa
 import time_machine
 from cryptography.fernet import Fernet
 from sqlalchemy import delete, event, func, insert, select, text, update
+from sqlalchemy.dialects import mysql, postgresql
 from sqlalchemy.exc import OperationalError
 
 from airflow._shared.timezones import timezone
@@ -54,6 +55,7 @@ from airflow.triggers.base import (
     TriggerEvent,
 )
 from airflow.utils.session import create_session
+from airflow.utils.sqlalchemy import with_row_locks
 from airflow.utils.state import State, TaskInstanceState
 
 from tests_common.test_utils.asserts import assert_queries_count, capture_orm_selects
@@ -1356,6 +1358,39 @@ def test_get_sorted_triggers_ignores_archived_task_instance(session, create_task
     assert (trigger.id,) not in result
     assert statements
     assert all("working_set" in statement for statement in statements)
+
+
+def _create_mysql8_dialect():
+    # MySQLDialect.initialize() enables FOR UPDATE OF only after detecting MySQL 8 on connect; a
+    # dialect that never connected silently drops the OF clause.
+    dialect = mysql.dialect()
+    dialect.server_version_info = (8, 0, 36)
+    dialect.supports_for_update_of = True
+    return dialect
+
+
+@pytest.mark.parametrize(
+    ("dialect", "lock_clause"),
+    [
+        pytest.param(postgresql.dialect(), "FOR NO KEY UPDATE OF trigger SKIP LOCKED", id="postgresql"),
+        pytest.param(_create_mysql8_dialect(), "FOR UPDATE OF `trigger` SKIP LOCKED", id="mysql8"),
+    ],
+)
+@patch("airflow.models.trigger.with_row_locks", autospec=True, side_effect=with_row_locks)
+def test_get_sorted_triggers_locks_only_trigger_rows(mock_with_row_locks, session, dialect, lock_clause):
+    """The claim queries join task_instance/callback but must lock only the trigger rows."""
+    Trigger.get_sorted_triggers(capacity=10, alive_triggerer_ids=[], queues=None, session=session)
+
+    assert mock_with_row_locks.call_count == 3
+    compiled_queries = [
+        str(with_row_locks(*lock_call.args, **lock_call.kwargs).compile(dialect=dialect))
+        for lock_call in mock_with_row_locks.call_args_list
+    ]
+
+    assert any(" JOIN task_instance " in compiled for compiled in compiled_queries)
+    assert any(" JOIN callback " in compiled for compiled in compiled_queries)
+    for compiled in compiled_queries:
+        assert compiled.rstrip().endswith(lock_clause)
 
 
 @pytest.mark.need_serialized_dag
