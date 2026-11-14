@@ -125,7 +125,7 @@ class TestBigQueryToGCSOperator:
             location=None,
             timeout=None,
             retry=DEFAULT_RETRY,
-            nowait=False,
+            nowait=True,
         )
 
     @mock.patch("airflow.providers.google.cloud.transfers.bigquery_to_gcs.BigQueryHook")
@@ -209,11 +209,32 @@ class TestBigQueryToGCSOperator:
 
         assert exc.value.trigger.cancel_on_kill is False
 
+    @mock.patch("airflow.providers.google.cloud.transfers.bigquery_to_gcs.BigQueryHook")
+    def test_execute_deferrable_mode_hands_the_job_location_to_trigger(self, mock_hook):
+        mock_hook.return_value.split_tablename.return_value = (PROJECT_ID, TEST_DATASET, TEST_TABLE_ID)
+        mock_hook.return_value.insert_job.return_value = MagicMock(
+            job_id="real_job_id", error_result=False, location="asia-northeast3"
+        )
+
+        operator = BigQueryToGCSOperator(
+            task_id=TASK_ID,
+            source_project_dataset_table=f"{PROJECT_ID}:{TEST_DATASET}.{TEST_TABLE_ID}",
+            destination_cloud_storage_uris=["gs://some-bucket/some-file.txt"],
+            project_id=JOB_PROJECT_ID,
+            deferrable=True,
+        )
+        with pytest.raises(TaskDeferred) as exc:
+            operator.execute(context=mock.MagicMock())
+
+        assert exc.value.trigger.location == "asia-northeast3"
+
     @pytest.mark.parametrize("cancel_on_kill", [True, False])
     @mock.patch("airflow.providers.google.cloud.transfers.bigquery_to_gcs.BigQueryHook")
     def test_on_kill(self, mock_hook, cancel_on_kill):
         mock_hook.return_value.split_tablename.return_value = (PROJECT_ID, TEST_DATASET, TEST_TABLE_ID)
-        mock_hook.return_value.insert_job.return_value = MagicMock(job_id="real_job_id", error_result=False)
+        mock_hook.return_value.insert_job.return_value = MagicMock(
+            job_id="real_job_id", error_result=False, location="US"
+        )
 
         operator = BigQueryToGCSOperator(
             task_id=TASK_ID,
@@ -233,6 +254,25 @@ class TestBigQueryToGCSOperator:
             )
         else:
             mock_hook.return_value.cancel_job.assert_not_called()
+
+    @mock.patch("airflow.providers.google.cloud.transfers.bigquery_to_gcs.BigQueryHook")
+    def test_on_kill_while_waiting_cancels_the_job_at_its_location(self, mock_hook):
+        mock_hook.return_value.split_tablename.return_value = (PROJECT_ID, TEST_DATASET, TEST_TABLE_ID)
+        job = MagicMock(job_id="real_job_id", error_result=False, location="asia-northeast3")
+        mock_hook.return_value.insert_job.return_value = job
+        operator = BigQueryToGCSOperator(
+            task_id=TASK_ID,
+            source_project_dataset_table=f"{PROJECT_ID}:{TEST_DATASET}.{TEST_TABLE_ID}",
+            destination_cloud_storage_uris=["gs://some-bucket/some-file.txt"],
+            project_id=JOB_PROJECT_ID,
+        )
+        job.result.side_effect = lambda **kwargs: operator.on_kill()
+
+        operator.execute(context=mock.MagicMock())
+
+        mock_hook.return_value.cancel_job.assert_called_once_with(
+            job_id="real_job_id", project_id=JOB_PROJECT_ID, location="asia-northeast3"
+        )
 
     def test_on_kill_before_execute(self):
         operator = BigQueryToGCSOperator(

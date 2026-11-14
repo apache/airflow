@@ -316,6 +316,7 @@ class GCSToBigQueryOperator(BaseOperator):
         self.description = description
 
         self.job_id = job_id
+        self._job: BigQueryJob | UnknownJob | None = None
         self.deferrable = deferrable
         self.result_retry = result_retry
         self.result_timeout = result_timeout
@@ -486,6 +487,7 @@ class GCSToBigQueryOperator(BaseOperator):
                                 BigQueryTableLink.persist(**persist_kwargs)
 
             self.job_id = job.job_id
+            self._job = job
             context["ti"].xcom_push(key="job_id", value=self.job_id)
             if self.deferrable:
                 self.defer(
@@ -494,7 +496,7 @@ class GCSToBigQueryOperator(BaseOperator):
                         conn_id=self.gcp_conn_id,
                         job_id=self.job_id,
                         project_id=self.project_id or self.hook.project_id,
-                        location=self.location or self.hook.location,
+                        location=job.location or self.location or self.hook.location,
                         impersonation_chain=self.impersonation_chain,
                         cancel_on_kill=self.cancel_on_kill,
                     ),
@@ -872,8 +874,9 @@ class GCSToBigQueryOperator(BaseOperator):
         return time_partitioning_out
 
     def on_kill(self) -> None:
-        if self.job_id and self.cancel_on_kill:
-            self.hook.cancel_job(job_id=self.job_id, location=self.location)  # type: ignore[union-attr]
+        if self.hook and self.job_id and self.cancel_on_kill:
+            location = (self._job.location if self._job else None) or self.location
+            self.hook.cancel_job(job_id=self.job_id, location=location)
         else:
             self.log.info("Skipping to cancel job: %s.%s", self.location, self.job_id)
 

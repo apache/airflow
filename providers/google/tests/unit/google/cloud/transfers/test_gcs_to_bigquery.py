@@ -190,6 +190,39 @@ class TestGCSToBigQueryOperator:
         operator.execute(context=MagicMock())
 
     @mock.patch(GCS_TO_BQ_PATH.format("BigQueryHook"))
+    def test_on_kill_while_waiting_cancels_the_job_at_its_location(self, hook):
+        job = MagicMock(job_id=REAL_JOB_ID, error_result=False, location="asia-northeast3")
+        hook.return_value.insert_job.return_value = job
+        hook.return_value.generate_job_id.return_value = REAL_JOB_ID
+        hook.return_value.split_tablename.return_value = (PROJECT_ID, DATASET, TABLE)
+        operator = GCSToBigQueryOperator(
+            task_id=TASK_ID,
+            bucket=TEST_BUCKET,
+            source_objects=TEST_SOURCE_OBJECTS,
+            destination_project_dataset_table=TEST_EXPLICIT_DEST,
+            schema_fields=SCHEMA_FIELDS,
+            write_disposition=WRITE_DISPOSITION,
+            external_table=False,
+            project_id=JOB_PROJECT_ID,
+        )
+        job.result.side_effect = lambda **kwargs: operator.on_kill()
+
+        operator.execute(context=MagicMock())
+
+        hook.return_value.cancel_job.assert_called_once_with(job_id=REAL_JOB_ID, location="asia-northeast3")
+
+    def test_on_kill_before_execute(self):
+        operator = GCSToBigQueryOperator(
+            task_id=TASK_ID,
+            bucket=TEST_BUCKET,
+            source_objects=TEST_SOURCE_OBJECTS,
+            destination_project_dataset_table=TEST_EXPLICIT_DEST,
+            job_id="given_job_id",
+        )
+
+        operator.on_kill()
+
+    @mock.patch(GCS_TO_BQ_PATH.format("BigQueryHook"))
     def test_max_value_without_external_table_should_execute_successfully(self, hook):
         hook.return_value.insert_job.side_effect = [
             MagicMock(job_id=REAL_JOB_ID, error_result=False),
@@ -2352,6 +2385,33 @@ class TestAsyncGCSToBigQueryOperator:
         operator.execute(context=MagicMock())
 
         assert trigger.call_args.kwargs["cancel_on_kill"] is cancel_on_kill
+
+    @mock.patch(GCS_TO_BQ_PATH.format("BigQueryInsertJobTrigger"))
+    @mock.patch(GCS_TO_BQ_PATH.format("GCSToBigQueryOperator.defer"))
+    @mock.patch(GCS_TO_BQ_PATH.format("BigQueryHook"))
+    def test_execute_deferrable_hands_the_job_location_to_the_trigger(self, hook, mock_defer, trigger):
+        hook.return_value.insert_job.return_value = MagicMock(
+            job_id=REAL_JOB_ID, error_result=False, location="asia-northeast3"
+        )
+        hook.return_value.generate_job_id.return_value = REAL_JOB_ID
+        hook.return_value.split_tablename.return_value = (PROJECT_ID, DATASET, TABLE)
+
+        operator = GCSToBigQueryOperator(
+            task_id=TASK_ID,
+            bucket=TEST_BUCKET,
+            source_objects=TEST_SOURCE_OBJECTS,
+            destination_project_dataset_table=TEST_EXPLICIT_DEST,
+            write_disposition=WRITE_DISPOSITION,
+            schema_fields=SCHEMA_FIELDS,
+            external_table=False,
+            autodetect=True,
+            deferrable=True,
+            project_id=JOB_PROJECT_ID,
+        )
+
+        operator.execute(context=MagicMock())
+
+        assert trigger.call_args.kwargs["location"] == "asia-northeast3"
 
     @pytest.mark.db_test
     def test_execute_without_external_table_async_should_throw_ex_when_event_status_error(
