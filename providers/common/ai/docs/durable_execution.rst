@@ -201,14 +201,14 @@ gives the reason; with ``durable=True`` the Dag fails to load with:
 
 .. code-block:: text
 
-    ValueError: durable=True needs a unique id on every MCPToolset, such as MCPToolset(..., id='weather'): durable replay records each tool call under it, and none is derived from the server's URL or command, which can carry credentials. Set it on the toolset itself; the id of a Toolset capability around a toolset does not reach it.
+    ValueError: durable execution needs a unique id on every MCPToolset, such as MCPToolset(..., id='weather'): durable replay records each tool call under it, and none is derived from the server's URL or command, which can carry credentials. Set it on the toolset itself; the id of a Toolset capability around a toolset does not reach it. Or drop durable=True.
 
 The same goes for a callable that has no ``__qualname__`` to name it by, such as a
 ``functools.partial``; pass it as ``DynamicToolset(function, id=...)``:
 
 .. code-block:: text
 
-    ValueError: durable=True names the steps of a toolset built per run after the function that builds it, but functools.partial(<function carrier_tools at 0x...>, carrier='dhl') has no __qualname__. Pass it as DynamicToolset(function, id=...).
+    ValueError: durable execution names the steps of a toolset built per run after the function that builds it, but functools.partial(<function carrier_tools at 0x...>, carrier='dhl') has no __qualname__. Pass it as DynamicToolset(function, id=...). Or drop durable=True.
 
 Two different toolsets with the same id are refused too, since their calls would be filed
 under one name, and so are two functions with the same qualified name, such as two
@@ -216,7 +216,7 @@ lambdas in one Dag file:
 
 .. code-block:: text
 
-    ValueError: durable=True needs a unique id on each toolset, but more than one toolset has the id 'orders_dag_lambdas.<lambda>': durable replay records each tool call under its toolset's id, so a retry could not tell their calls apart.
+    ValueError: durable execution needs a unique id on each toolset, but more than one toolset has the id 'orders_dag_lambdas.<lambda>': durable replay records each tool call under its toolset's id, so a retry could not tell their calls apart. Or drop durable=True.
 
 Passing one toolset object in two places is fine. The provider's own toolsets
 (``SQLToolset``, ``HookToolset``, its ``MCPToolset`` and the rest) and tools passed as

@@ -857,8 +857,14 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
                 "Human in the loop functionality needs Airflow 3.1+."
             )
 
-        if durable and (problem := self._durable_problem()) is not None:
-            raise ValueError(problem)
+        if durable:
+            if _contains_capability(self._declared_capabilities, AirflowDurability):
+                raise ValueError(
+                    "durable=True attaches AirflowDurability itself; "
+                    "pass durable=True or the capability, not both."
+                )
+            if (problem := self._durable_problem()) is not None:
+                raise ValueError(f"{problem} Or drop durable=True.")
 
         if message_history is not None and enable_hitl_review:
             # The post-review transcript is not recoverable today (run_hitl_review
@@ -903,13 +909,11 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
         The toolset is looked for inside wrappers, combinations and every capability's toolset;
         one resolved per run from a callable cannot be inspected here.
         """
-        if _contains_capability(self._declared_capabilities, AirflowDurability):
-            return "durable=True attaches AirflowDurability itself; pass durable=True or the capability, not both."
         if self._durable_sandbox_toolsets():
             return (
-                "durable=True cannot be used with a SandboxToolset: cached tool results would be "
+                "durable execution cannot be used with a SandboxToolset: cached tool results would be "
                 "replayed without touching the sandbox, so the workspace would not match the "
-                "transcript. Drop durable=True, or move the sandbox work into its own task."
+                "transcript. Move the sandbox work into its own task."
             )
         return self._durable_toolset_id_problem() or _capability_toolset_without_id(
             self._declared_capabilities
@@ -941,13 +945,13 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
         for leaf in leaves:
             if (toolset_id := _get_chosen_toolset_id(leaf)) is None and isinstance(leaf, DynamicToolset):
                 return (
-                    "durable=True names the steps of a toolset built per run after the function that "
+                    "durable execution names the steps of a toolset built per run after the function that "
                     f"builds it, but {leaf.toolset_func!r} has no __qualname__. Pass it as "
                     "DynamicToolset(function, id=...)."
                 )
             if toolset_id is None:
                 return (
-                    "durable=True needs a unique id on every MCPToolset, such as "
+                    "durable execution needs a unique id on every MCPToolset, such as "
                     "MCPToolset(..., id='weather'): durable replay records each tool call under it, and "
                     "none is derived from the server's URL or command, which can carry credentials. Set "
                     "it on the toolset itself; the id of a Toolset capability around a toolset does not "
@@ -957,7 +961,7 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
                 duplicates.append(toolset_id)
         if duplicates:
             return (
-                f"durable=True needs a unique id on each toolset, but more than one toolset has the id "
+                f"durable execution needs a unique id on each toolset, but more than one toolset has the id "
                 f"{' or '.join(map(repr, duplicates))}: durable replay records each tool call "
                 "under its toolset's id, so a retry could not tell their calls apart."
             )
