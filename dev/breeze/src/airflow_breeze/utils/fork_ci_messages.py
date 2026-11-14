@@ -141,6 +141,7 @@ def _setup_instructions(fork: str) -> str:
         f"   ```bash\n   gh repo sync {fork} --branch main\n   ```\n\n"
         "2. Enable the workflow in your fork:\n\n"
         f"   ```bash\n   gh workflow enable ci-amd.yml -R {fork}\n   ```\n\n"
+        f"   *(Or in your browser: open `https://github.com/{fork}/actions` and click 'Enable workflows')*\n\n"
         "3. Push your branch again. Every push then runs CI in your fork.\n\n"
         "`breeze ci audit` checks your whole local and fork setup and prints the command that fixes "
         f"anything missing. See [the contribution workflow]({CONTRIBUTING_URL})."
@@ -155,8 +156,12 @@ _CHANGES_CI_FILES = (
 _STATE_TEXTS = {
     "setup_required": "**Fork CI: setup required.** CI for this pull request has not run in your fork yet, "
     "because the `Tests (AMD)` workflow is not enabled there.",
-    "awaiting_push": "**Fork CI: waiting for a push.** The workflow is enabled in your fork, but it has not "
-    "run for the latest commit of this pull request. Push the branch again to start it.",
+    "awaiting_push": (
+        "**Fork CI: waiting for a push.** The workflow is enabled in your fork, but it has not "
+        "run for the latest commit of this pull request. Push the branch again to start it. "
+        "If you already pushed, verify in your fork's Actions tab that workflows are not disabled "
+        "by GitHub's fork banner."
+    ),
     "running": "**Fork CI: running.** CI for the latest commit is running in your fork.",
     "failed": "**Fork CI: failed.** CI for the latest commit failed in your fork. Fix the failures and "
     "push again.",
@@ -172,12 +177,18 @@ _STATE_TEXTS = {
     "gate_modified": "**Fork CI: closed.** This pull request changes the fork CI gate; see the comment below.",
 }
 
+_ASK_A_MAINTAINER_TO_MARK_READY = (
+    "If GitHub does not let you mark it ready because you reached the limit of open pull requests, "
+    "comment here and ask a maintainer to mark it ready for you."
+)
+
 _AUTHOR_DRAFT_TEXTS = {
     "green": "**Fork CI: green.** CI for the latest commit passed in your fork. The pull request is a "
-    "draft, so maintainers do not review it yet. Mark it ready for review when it is.",
+    "draft, so maintainers do not review it yet. Mark it ready for review when it is. "
+    f"{_ASK_A_MAINTAINER_TO_MARK_READY}",
     "green_unverified": "**Fork CI: green.** CI for the latest commit passed in your fork, but "
     f"{_CHANGES_CI_FILES} The pull request is a draft. Once you mark it ready for review, a maintainer "
-    "will review the change and run project CI for it.",
+    f"will review the change and run project CI for it. {_ASK_A_MAINTAINER_TO_MARK_READY}",
 }
 
 

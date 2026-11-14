@@ -105,6 +105,7 @@ def test_state_comment_asks_the_author_to_mark_a_green_draft_ready(state, author
     )
 
     assert ("mark it ready for review" in text.lower()) is asks_to_mark_ready
+    assert ("ask a maintainer to mark it ready" in text) is asks_to_mark_ready
 
 
 def test_parse_marker_absent():
