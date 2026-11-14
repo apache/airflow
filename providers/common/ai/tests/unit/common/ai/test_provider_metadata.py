@@ -18,7 +18,7 @@
 Drift tripwires between ``provider.yaml``'s declared ``external-services`` and what
 pydantic-ai actually installs.
 
-How ``LABELS``, ``NON_MODULE_SERVICES``, ``UNREACHABLE_MODULES``,
+How ``LABELS``, ``NON_MODULE_SERVICES``,
 ``DEPRECATED_UPSTREAM_MODULES`` and ``HOOK_INCOMPATIBLE_AUTH_MODULES`` below were derived,
 including the empirical checks that back each exclusion, is documented in the comment directly
 above each constant.
@@ -32,6 +32,7 @@ import pkgutil
 import re
 from importlib.metadata import version
 from pathlib import Path
+from typing import Any, cast
 
 import pydantic_ai.providers as pydantic_ai_providers
 import pytest
@@ -76,6 +77,7 @@ LABELS = {
     "heroku": "Heroku",
     "huggingface": "Hugging Face",
     "litellm": "LiteLLM",
+    "meta": "Meta",
     "mistral": "Mistral AI",
     "moonshotai": "Moonshot AI",
     "nebius": "Nebius",
@@ -104,14 +106,10 @@ LABELS = {
 # module would go.
 NON_MODULE_SERVICES: set[str] = set()
 
-# Modules `pkgutil` discovers under `pydantic_ai.providers` that `infer_model` never
-# routes to -- `infer_model("voyageai:...")` / `infer_model("sentence-transformers:...")`
-# raise `UserError: Unknown model`, confirmed by `test_unreachable_modules_stay_unreachable`
-# below. Not listed in `LABELS`/`provider.yaml` because there is no `common.ai` code path
-# (chat or embedding) that reaches them.
-UNREACHABLE_MODULES = {"voyageai", "sentence_transformers"}
+# `gateway` is reached as `gateway/<vendor>:<model>`; `gateway:<model>` is an unknown model.
+INFER_MODEL_PROBES = {"gateway": "gateway/openai:placeholder"}
 
-# Modules that ARE reachable through `infer_model` (unlike UNREACHABLE_MODULES) but are
+# Modules that ARE reachable through `infer_model` but are
 # excluded by decision because pydantic-ai itself marks the upstream backend dead:
 # `pydantic_ai.providers.github.GitHubProvider` is decorated `@deprecated` with the message
 # "GitHub Models was retired on 2026-07-30 ... this provider is deprecated and will be
@@ -124,7 +122,7 @@ UNREACHABLE_MODULES = {"voyageai", "sentence_transformers"}
 # of silently staying excluded.
 DEPRECATED_UPSTREAM_MODULES = {"github"}
 
-# Modules that ARE reachable through `infer_model` (unlike UNREACHABLE_MODULES) but are excluded
+# Modules that ARE reachable through `infer_model` but are excluded
 # by decision because `PydanticAIHook` cannot supply the credentials they require from a connection.
 # `PydanticAIHook._get_provider_kwargs()` -- the generic connection type's only credential path
 # (`hooks/pydantic_ai.py`) -- always sends `api_key` (from `conn.password`) and/or `base_url`
@@ -147,13 +145,24 @@ DEPRECATED_UPSTREAM_MODULES = {"github"}
 # pydantic-ai gives one of these providers an `api_key`/`base_url` constructor parameter, this
 # must fail so a human re-evaluates whether the module belongs back in `LABELS` and
 # `provider.yaml`, instead of it staying excluded forever on a stale rationale.
-HOOK_INCOMPATIBLE_AUTH_MODULES = {"openai_codex"}
+HOOK_INCOMPATIBLE_AUTH_MODULES = {"openai_codex", "openai_chatgpt"}
+
+# `openai_chatgpt` (pydantic-ai-slim 2.59.0, "Sign in with ChatGPT" plan usage) is excluded for
+# the same reason as `openai_codex`: `OpenAIChatGPTProvider.__init__` accepts only `credentials`,
+# `credential_source`, `openai_client` and `http_client`, so the `api_key`/`base_url` the hook
+# sends cannot reach it; only an OAuth sign-in flow the hook cannot express can.
 
 # `pydantic_ai.providers.openai_codex` (the sole `HOOK_INCOMPATIBLE_AUTH_MODULES` member) was
 # added in pydantic-ai-slim 2.41.0 -- absent on 2.40.0 and below (bisected empirically; the
 # provider's floor is 2.33.0, `pyproject.toml`). The guard test below imports it unconditionally,
 # so on the floor it would raise `ModuleNotFoundError` instead of testing anything.
 OPENAI_CODEX_AVAILABLE_FROM = Version("2.41.0")
+
+# First pydantic-ai-slim release carrying each `HOOK_INCOMPATIBLE_AUTH_MODULES` member.
+HOOK_INCOMPATIBLE_AUTH_MODULES_AVAILABLE_FROM = {
+    "openai_codex": OPENAI_CODEX_AVAILABLE_FROM,
+    "openai_chatgpt": Version("2.59.0"),
+}
 
 requires_openai_codex_module = pytest.mark.skipif(
     Version(Version(version("pydantic-ai-slim")).base_version) < OPENAI_CODEX_AVAILABLE_FROM,
@@ -167,14 +176,14 @@ requires_openai_codex_module = pytest.mark.skipif(
 # supports `pydantic-ai-slim>=2.33.0` (`pyproject.toml`) and CI's "Low dep tests" job installs
 # exactly that floor. Vendors upstream added after the floor are legitimately absent there --
 # bisected empirically: `vllm` landed in 2.38.0, `github_copilot` in 2.42.0, `typesafe` in
-# 2.45.0, `system_one` in 2.53.0 and `openai_decisions` in 2.55.0 (`openai_codex` also landed
+# 2.45.0, `system_one` in 2.53.0 and `openai_decisions` in 2.55.0 and `meta` in 2.59.0 (`openai_codex` also landed
 # after the floor, in 2.41.0, but is excluded from this reasoning -- see
 # `OPENAI_CODEX_AVAILABLE_FROM` above) -- so only the "installed but not declared" direction
 # holds on every supported version. The opposite direction ("declared but not installed") is a
 # real drift signal solely from the release that carries every vendor currently declared, i.e.
-# the latest of them, `openai_decisions`'s 2.55.0: raise this when a newly declared vendor lands
+# the latest of them, `meta`'s 2.59.0: raise this when a newly declared vendor lands
 # in a later release.
-ALL_DECLARED_VENDORS_AVAILABLE_FROM = Version("2.55.0")
+ALL_DECLARED_VENDORS_AVAILABLE_FROM = Version("2.59.0")
 
 requires_all_declared_vendors = pytest.mark.skipif(
     Version(Version(version("pydantic-ai-slim")).base_version) < ALL_DECLARED_VENDORS_AVAILABLE_FROM,
@@ -222,14 +231,63 @@ def _find_discovered_provider_modules() -> set[str]:
     }
 
 
+def _find_provider_names(module: str) -> set[str]:
+    """
+    The ``name`` of each ``*Provider`` class in ``module``, which ``infer_model`` matches as the
+    model prefix, read without building a provider; empty when the module needs an optional SDK.
+    """
+    try:
+        mod = importlib.import_module(f"pydantic_ai.providers.{module}")
+    except ImportError:
+        return set()
+    names = set()
+    for cls in _find_provider_classes(mod):
+        name = inspect.getattr_static(cls, "name", None)
+        try:
+            value = name.fget(None) if isinstance(name, property) and name.fget else name
+        except Exception:
+            continue
+        if isinstance(value, str):
+            names.add(value)
+    return names
+
+
+def _routes_to_a_model(model: str) -> bool:
+    try:
+        infer_model(model, provider_factory=lambda _p: cast("pydantic_ai_providers.Provider[Any]", object()))
+    except UserError as exc:
+        return not str(exc).startswith("Unknown model")
+    except Exception:
+        # A missing optional SDK or the placeholder provider fails only after routing.
+        return True
+    return True
+
+
+def _is_routed_by_infer_model(module: str) -> bool:
+    """
+    Whether ``infer_model`` routes a model string to ``module``.
+
+    Modules it never routes to (embedding-only ones such as ``voyageai``, speech-only ones such
+    as ``elevenlabs``, or ``openai_compatible`` from pydantic-ai-slim 2.63.0, which needs a
+    service name to be built) have no ``common.ai`` code path, so they are neither labelled nor
+    declared. The prefix is tried both as the module name and as each provider's own ``name``, so
+    a vendor whose prefix differs from its module name is not mistaken for an unreachable one.
+    """
+    if module in INFER_MODEL_PROBES:
+        return _routes_to_a_model(INFER_MODEL_PROBES[module])
+    prefixes = {module.replace("_", "-")} | _find_provider_names(module)
+    return any(_routes_to_a_model(f"{prefix}:placeholder") for prefix in prefixes)
+
+
 def _find_reachable_provider_modules() -> set[str]:
     """The discovered modules `common.ai` actually reaches, i.e. minus the documented exclusions."""
-    return (
-        _find_discovered_provider_modules()
-        - UNREACHABLE_MODULES
+    return {
+        module
+        for module in _find_discovered_provider_modules()
         - DEPRECATED_UPSTREAM_MODULES
         - HOOK_INCOMPATIBLE_AUTH_MODULES
-    )
+        if _is_routed_by_infer_model(module)
+    }
 
 
 def _find_derived_vendor_labels() -> set[str]:
@@ -239,21 +297,35 @@ def _find_derived_vendor_labels() -> set[str]:
     } | NON_MODULE_SERVICES
 
 
-def _provider_classes_in_module(mod) -> list[type]:
-    """The ``*Provider`` classes defined in ``mod`` itself; fails if there are none."""
-    provider_classes = [
+def _find_provider_classes(mod) -> list[type]:
+    """The ``*Provider`` classes defined in ``mod`` itself."""
+    return [
         obj
         for obj in vars(mod).values()
         if isinstance(obj, type) and obj.__module__ == mod.__name__ and obj.__name__.endswith("Provider")
     ]
+
+
+def _provider_classes_in_module(mod) -> list[type]:
+    """The ``*Provider`` classes defined in ``mod`` itself; fails if there are none."""
+    provider_classes = _find_provider_classes(mod)
     assert provider_classes, f"no Provider class found in {mod.__name__}"
     return provider_classes
 
 
-def _find_pydanticai_external_services() -> list[str]:
+def _find_pydanticai_connection_type() -> dict:
     connection_types = get_provider_info()["connection-types"]
     (pydanticai,) = (c for c in connection_types if c["connection-type"] == "pydanticai")
-    return pydanticai["external-services"]
+    return pydanticai
+
+
+def _find_pydanticai_external_services() -> list[str]:
+    return _find_pydanticai_connection_type()["external-services"]
+
+
+def _module_for_prefix(prefix: str) -> str:
+    """The pydantic-ai provider module behind a model-name prefix (``openai-chat`` -> ``openai``)."""
+    return PREFIX_ALIASES.get(prefix, prefix.replace("-", "_"))
 
 
 class TestConnectionTypeExternalServices:
@@ -262,6 +334,18 @@ class TestConnectionTypeExternalServices:
             assert conn.get("external-services"), (
                 f"connection-type {conn['connection-type']!r} has no external-services"
             )
+
+
+class TestModelProviderSuggestions:
+    def test_every_suggestion_is_a_declared_external_service(self):
+        """The form must not suggest a vendor the docs and registry don't list for this connection."""
+        pydanticai = _find_pydanticai_connection_type()
+        suggestions = pydanticai["conn-fields"]["model_provider"]["schema"]["examples"]
+        declared = set(pydanticai["external-services"])
+
+        undeclared = [s for s in suggestions if LABELS.get(_module_for_prefix(s)) not in declared]
+
+        assert not undeclared, f"suggested providers missing from external-services: {undeclared}"
 
 
 class TestPydanticAIExternalServicesDrift:
@@ -293,17 +377,6 @@ class TestPydanticAIExternalServicesDrift:
         """As `test_no_declared_vendor_is_absent_upstream`, for `LABELS`."""
         stale = set(LABELS) - _find_reachable_provider_modules()
         assert not stale, f"label(s) for module(s) pydantic-ai no longer has: {sorted(stale)}"
-
-    def test_unreachable_modules_stay_unreachable(self):
-        """
-        Guard the other direction: if a future pydantic-ai release makes one of
-        ``UNREACHABLE_MODULES`` reachable through ``infer_model``, this must fail so a human
-        adds it to ``LABELS`` and ``provider.yaml`` instead of it silently staying missing.
-        """
-        for module in UNREACHABLE_MODULES:
-            prefix = module.replace("_", "-")
-            with pytest.raises(UserError, match="Unknown model"):
-                infer_model(f"{prefix}:placeholder", provider_factory=lambda _p: object())
 
     def test_deprecated_upstream_modules_stay_deprecated(self):
         """
@@ -341,7 +414,10 @@ class TestPydanticAIExternalServicesDrift:
         re-evaluates whether the module belongs back in ``LABELS`` and ``provider.yaml``, instead
         of it staying excluded forever on a stale rationale.
         """
+        installed = Version(Version(version("pydantic-ai-slim")).base_version)
         for module in HOOK_INCOMPATIBLE_AUTH_MODULES:
+            if installed < HOOK_INCOMPATIBLE_AUTH_MODULES_AVAILABLE_FROM[module]:
+                continue
             mod = importlib.import_module(f"pydantic_ai.providers.{module}")
             provider_classes = _provider_classes_in_module(mod)
             for cls in provider_classes:
@@ -361,7 +437,7 @@ class TestPydanticAIExternalServicesDrift:
             if ":" not in name:
                 continue  # the bare "test" entry, pydantic-ai's built-in keyless TestModel
             prefix = name.removeprefix("gateway/").split(":", 1)[0]
-            module = PREFIX_ALIASES.get(prefix, prefix.replace("-", "_"))
+            module = _module_for_prefix(prefix)
             assert module in labelled, f"model prefix {prefix!r} (from {name!r}) has no label"
 
     def test_gateway_note_vendors_match_known_model_names(self):
@@ -376,7 +452,7 @@ class TestPydanticAIExternalServicesDrift:
             for name in known_model_names()
             if name.startswith("gateway/")
         }
-        modules = {PREFIX_ALIASES.get(p, p.replace("-", "_")) for p in gateway_prefixes}
+        modules = {_module_for_prefix(p) for p in gateway_prefixes}
         derived = {LABELS.get(m, f"<unlabelled:{m}>") for m in modules}
 
         assert derived == GATEWAY_NOTE_VENDOR_LABELS, (

@@ -30,6 +30,7 @@ if TYPE_CHECKING:
 
     from sqlalchemy.orm import Session
 
+    from airflow.models.task_coordinates import SchedulingTI
     from airflow.models.taskinstance import TaskInstance
     from airflow.serialization.definitions.taskgroup import SerializedMappedTaskGroup
     from airflow.ti_deps.dep_context import DepContext
@@ -211,7 +212,7 @@ def _shares_map_indexes(task, mapped_group: SerializedMappedTaskGroup) -> bool:
 def _mapped_group_skip_decisions(
     ti: TaskInstance,
     mapped_group: SerializedMappedTaskGroup,
-    finished_tis: list[TaskInstance],
+    finished_tis: list[SchedulingTI],
     dep_context: DepContext,
     session: Session,
 ) -> dict[int, list[tuple[str, bool, dict]]]:

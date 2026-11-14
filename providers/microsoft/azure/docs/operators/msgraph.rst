@@ -87,10 +87,48 @@ Set ``durable=True`` to make the operator :doc:`durable <apache-airflow:core-con
 It keeps every processed page and the link to the next one in the
 :doc:`task state store <apache-airflow:core-concepts/task-state-store>`, so a retry continues at the page
 it stopped at. For a request that is not a ``GET``, it also keeps the result, so a retry returns it instead
-of sending the request again.
+of sending the request again. The pages and the link are removed from the store once the result is
+returned. A page that is no longer in the store, for instance because it expired under
+``[state_store] default_retention_days``, fails the try and removes the pages and the link, so the next try starts again
+from the first page.
 
 Pages are stored as they are, so pages larger than ``[state_store] max_value_storage_bytes`` need a state
 store backend that offloads large values. Durable execution requires Airflow 3.3 or newer.
+
+.. _howto/operator:MSGraphAsyncOperator:start_from_trigger:
+
+Starting from the triggerer
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The operator does all its requests in the triggerer, so the only thing it does on a worker at the start
+is to hand the first request over. With ``start_from_trigger=True`` the scheduler defers the task itself
+and that first worker run is skipped. The worker gets involved once the response is there, to process it
+and to follow the pagination.
+
+.. code-block:: python
+
+    site_task = MSGraphAsyncOperator(
+        task_id="news_site",
+        conn_id="msgraph_api",
+        url="sites/{{ params.site }}",
+        start_from_trigger=True,
+    )
+
+This needs Airflow 3.4 or later, on older versions the task starts on a worker as it does without the
+argument. It also starts on a worker when:
+
+* an argument which is passed on to the trigger is an ``XComArg``, a callable or a file-like object,
+  as the triggerer cannot resolve or receive those;
+* the task is mapped with ``expand``;
+* ``durable=True`` is set, as a retry then resumes from the task state store on a worker.
+
+Keep the following in mind when you enable it:
+
+* The templated fields of the first request are rendered by the triggerer, which does not know the
+  ``user_defined_macros`` and ``user_defined_filters`` of the Dag and always renders strings, also when
+  ``render_template_as_native_obj`` is set.
+* The task goes straight from scheduled to deferred, so the first request does not wait for a pool
+  slot or for a worker.
 
 Cross-References
 ----------------

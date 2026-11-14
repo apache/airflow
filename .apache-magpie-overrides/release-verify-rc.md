@@ -100,8 +100,25 @@ Once the user says the Dag passed:
    editing, change only `[ ]` → `[x]` on lines ending in `: @<handle>` for PRs verified
    in step B, and abort if the number of matched lines differs from what was reported.
 2. **Draft the testing-issue comment (confirm first)** listing what was tested per
-   provider, including changes that are in the wave but missing from the issue. End
-   it with the `Drafted-by:` footer.
+   provider, including changes that are in the wave but missing from the issue. The
+   issue collects comments from many contributors, so keep it to one visible line:
+   - A one-sentence verdict, e.g. `Tested my changes against the RC distributions in
+     Breeze. Every check passed. ✅`
+   - Everything else inside one `<details><summary>Testing details (setup, results per
+     PR, test Dag source)</summary>` block. Leave a blank line after `</summary>` and
+     before `</details>` so the Markdown inside renders. Put these in the block, in order:
+     - `### Setup`: where the distributions came from and what was verified about
+       them, the Airflow version, the exact `breeze start-airflow` command, and how the
+       test Dag works.
+     - `### Results`: one bold heading per PR (`**#NNNNN <provider> <version>rcN:
+       <title>**`, one bullet per provider for a PR that touches several), saying
+       what was exercised and what was asserted. Use a table when several variants
+       are checked. Quote task-log lines only from logs the user supplied — never
+       invent log output. Mark a tested provider that is excluded from the wave as
+       such, and leave its box unticked.
+     - The test Dag source in a nested `<details><summary>Test Dag source</summary>`
+       block.
+   - Below the block, the `Drafted-by:` footer.
 3. When the user drafts their `[VOTE]` reply, mention that they used this check to
    test all their changes in the candidate.
 4. Offer cleanup: delete the downloaded wheels and the verification Dag, and suggest

@@ -24,7 +24,7 @@ def test_package_root_exports_match_sdk():
     """Every partition-mapper symbol exported from airflow.sdk must also be exported from the core package root."""
     sdk_names = {
         name
-        for name, module in airflow.sdk.__lazy_imports.items()
-        if module.startswith(".definitions.partition_mappers")
+        for name, (module_path, _) in airflow.sdk.__lazy_imports.items()
+        if module_path.startswith(".definitions.partition_mappers")
     }
     assert sdk_names == set(airflow.partition_mappers.__all__)

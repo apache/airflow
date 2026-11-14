@@ -32,10 +32,9 @@ from kubernetes import client, config, utils, watch
 from kubernetes.client.models import V1Deployment
 from kubernetes.config import ConfigException
 from kubernetes_asyncio import client as async_client, config as async_config, watch as async_watch
-from urllib3.exceptions import HTTPError
 
 from airflow.models import Connection
-from airflow.providers.cncf.kubernetes.exceptions import KubernetesApiError, KubernetesApiPermissionError
+from airflow.providers.cncf.kubernetes.exceptions import KubernetesApiPermissionError
 from airflow.providers.cncf.kubernetes.kube_client import (
     _disable_verify_ssl,
     _TimeoutAsyncK8sApiClient,
@@ -829,7 +828,13 @@ def _split_log_bytes(raw_bytes: bytes) -> list[str]:
 
 
 class AsyncKubernetesHook(KubernetesHook):
-    """Hook to use Kubernetes SDK asynchronously."""
+    """
+    Hook to use Kubernetes SDK asynchronously.
+
+    Non-exec authentication reuses an API client across calls. Call ``await hook.close()``
+    when finished to release its connection pool and SSL context. Pod and job triggers
+    do this in their cleanup methods.
+    """
 
     def __init__(
         self,
@@ -844,12 +849,13 @@ class AsyncKubernetesHook(KubernetesHook):
         self.config_dict = config_dict
         self._extras: dict | None = connection_extras
         self._event_polling_fallback = False
-        self._config_loaded = False
+        self._client_cacheable = False
         # Override the parent's sync-typed client_configuration with the async type.
         self.client_configuration: async_client.Configuration | None = client_configuration
         # Cached result of exec-auth detection. None means not yet detected.
         # This is to optimise and not calling _uses_exec_auth repeatedly on every _load_config() call.
         self._is_exec_auth: bool | None = None
+        self._cached_kube_client: async_client.ApiClient | None = None
 
     def _uses_exec_auth(self, kubeconfig_data: dict, context: str | None = None) -> bool:
         """
@@ -921,15 +927,11 @@ class AsyncKubernetesHook(KubernetesHook):
         """
         Load Kubernetes configuration.
 
-        For static auth (token, certificate), configuration is loaded once per hook instance
-        and cached. For exec-based auth (EKS, GKE), the config is reloaded on every call so
-        that short-lived tokens are always refreshed.
+        Reload credentials on every access while retaining the client for non-exec auth.
+        Exec-based auth continues to use a new client for each access.
         """
         if self.client_configuration is None:
             self.client_configuration = async_client.Configuration()
-
-        if self._config_loaded:
-            return
 
         in_cluster = self._coalesce_param(self.in_cluster, await self._get_field("in_cluster"))
         cluster_context = self._coalesce_param(self.cluster_context, await self._get_field("cluster_context"))
@@ -951,7 +953,7 @@ class AsyncKubernetesHook(KubernetesHook):
             self.log.debug(LOADING_KUBE_CONFIG_FILE_RESOURCE.format("within a pod"))
             async_config.load_incluster_config(client_configuration=self.client_configuration)
             self._is_in_cluster = True
-            self._config_loaded = True
+            self._client_cacheable = True
             return
 
         self._is_in_cluster = False
@@ -968,7 +970,7 @@ class AsyncKubernetesHook(KubernetesHook):
                 self._is_exec_auth = self._uses_exec_auth(self.config_dict, context=cluster_context)
 
             if not self._is_exec_auth:
-                self._config_loaded = True
+                self._client_cacheable = True
 
             return
         if kubeconfig_path is not None:
@@ -986,7 +988,7 @@ class AsyncKubernetesHook(KubernetesHook):
                 )
 
             if not self._is_exec_auth:
-                self._config_loaded = True
+                self._client_cacheable = True
 
             return
         if kubeconfig is not None:
@@ -1023,7 +1025,7 @@ class AsyncKubernetesHook(KubernetesHook):
                     )
 
                 if not self._is_exec_auth:
-                    self._config_loaded = True
+                    self._client_cacheable = True
 
             return
         self.log.debug(LOADING_KUBE_CONFIG_FILE_RESOURCE.format("default configuration file"))
@@ -1037,7 +1039,7 @@ class AsyncKubernetesHook(KubernetesHook):
             self._is_exec_auth = await self._default_kubeconfig_uses_exec_auth(cluster_context)
 
         if not self._is_exec_auth:
-            self._config_loaded = True
+            self._client_cacheable = True
 
     async def get_conn_extras(self) -> dict:
         if self._extras is None:
@@ -1068,14 +1070,27 @@ class AsyncKubernetesHook(KubernetesHook):
 
     @contextlib.asynccontextmanager
     async def get_conn(self) -> AsyncGenerator[async_client.ApiClient, None]:
-        kube_client = None
+        await self._load_config()
+        if self._client_cacheable:
+            # Reuse one client per hook: each construction runs ssl.create_default_context()
+            # on the event loop and opens a new connection pool. Owners release it via
+            # close(); triggers do so in cleanup().
+            if self._cached_kube_client is None:
+                self._cached_kube_client = _TimeoutAsyncK8sApiClient(configuration=self.client_configuration)
+            yield self._cached_kube_client
+            return
+        # Exec-based auth is not cacheable: build and close a client per call.
+        kube_client = _TimeoutAsyncK8sApiClient(configuration=self.client_configuration)
         try:
-            await self._load_config()
-            kube_client = _TimeoutAsyncK8sApiClient(configuration=self.client_configuration)
             yield kube_client
         finally:
-            if kube_client is not None:
-                await kube_client.close()
+            await kube_client.close()
+
+    async def close(self) -> None:
+        """Release the cached API client, if any. Safe to call multiple times."""
+        cached, self._cached_kube_client = self._cached_kube_client, None
+        if cached is not None:
+            await cached.close()
 
     @generic_api_retry
     async def get_pod(self, name: str, namespace: str) -> V1Pod:
@@ -1093,10 +1108,12 @@ class AsyncKubernetesHook(KubernetesHook):
                     namespace=namespace,
                 )
                 return pod
-            except HTTPError as e:
-                if hasattr(e, "status") and e.status == 403:
+            except async_client.ApiException as e:
+                if e.status == 403:
                     raise KubernetesApiPermissionError("Permission denied (403) from Kubernetes API.") from e
-                raise KubernetesApiError from e
+                # Other statuses stay ApiException: generic_api_retry owns the decision about which
+                # ones are transient, and wrapping them here would hide the status from its predicate.
+                raise
 
     @generic_api_retry
     async def delete_pod(self, name: str, namespace: str, grace_period_seconds: int | None = None):
@@ -1161,8 +1178,10 @@ class AsyncKubernetesHook(KubernetesHook):
                 raw_bytes = await raw_resp.read()
                 # CPU-bound decode/split, offloaded so it can't block the triggerer event loop.
                 return await asyncio.to_thread(_split_log_bytes, raw_bytes)
-            except HTTPError as e:
-                raise KubernetesApiError from e
+            except async_client.ApiException as e:
+                if e.status == 403:
+                    raise KubernetesApiPermissionError("Permission denied (403) from Kubernetes API.") from e
+                raise
 
     @generic_api_retry
     async def get_pod_events(
@@ -1188,10 +1207,10 @@ class AsyncKubernetesHook(KubernetesHook):
 
                 events: CoreV1EventList = await v1_api.list_namespaced_event(**kwargs)
                 return events
-            except HTTPError as e:
-                if hasattr(e, "status") and e.status == 403:
+            except async_client.ApiException as e:
+                if e.status == 403:
                     raise KubernetesApiPermissionError("Permission denied (403) from Kubernetes API.") from e
-                raise KubernetesApiError from e
+                raise
 
     @generic_api_retry
     async def watch_pod_events(

@@ -22,13 +22,14 @@ import io
 import json
 import uuid
 from typing import Any
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 from fsspec.implementations.memory import MemoryFileSystem
 from pydantic_ai import RunContext
 from pydantic_ai.exceptions import ToolFailed
 from pydantic_ai.models.test import TestModel
+from pydantic_ai.toolsets.abstract import ToolsetTool
 from pydantic_ai.usage import RunUsage
 
 from airflow.providers.common.ai.toolsets.object_storage import ObjectStorageToolset
@@ -110,6 +111,16 @@ class TestTools:
             _call(ObjectStorageToolset(f"file://{storage}", tool_prefix="reports"), "reports_list_files", {})
         )
         assert listing["path"] == "/"
+
+    def test_unprefixed_name_is_unknown_when_a_prefix_is_set(self, storage):
+        toolset = ObjectStorageToolset(f"file://{storage}", tool_prefix="reports")
+        ctx = RunContext(deps=None, model=TestModel(), usage=RunUsage())
+
+        with pytest.raises(ValueError, match="Unknown tool: 'list_files'"):
+            asyncio.run(toolset.call_tool("list_files", {}, ctx, MagicMock(spec=ToolsetTool)))
+
+    def test_hint_points_to_tool_prefix(self, storage):
+        assert "tool_prefix" in ObjectStorageToolset(f"file://{storage}").tool_name_conflict_hint
 
     @pytest.mark.parametrize(
         ("kwargs", "match"),

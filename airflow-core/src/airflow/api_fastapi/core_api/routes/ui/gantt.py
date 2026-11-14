@@ -25,13 +25,13 @@ from sqlalchemy import or_, select
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
 from airflow.api_fastapi.common.dagbag import DagBagDep
 from airflow.api_fastapi.common.db.common import SessionDep
+from airflow.api_fastapi.common.db.dag_runs import is_filtered_existing_run
 from airflow.api_fastapi.common.parameters import RangeFilter, datetime_range_filter_factory
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.task_instances import LoopIterationResponse
 from airflow.api_fastapi.core_api.datamodels.ui.gantt import GanttResponse, GanttTaskInstance
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import requires_access_dag
-from airflow.models.dagrun import DagRun
 from airflow.models.task_coordinates import TaskCoordinateResolver, public_map_index_expression
 from airflow.models.taskinstance import TaskInstance
 from airflow.utils.state import TaskInstanceState
@@ -111,12 +111,12 @@ def get_gantt_data(
     results = session.execute(query).fetchall()
 
     if not results:
-        filtered_existing_run = (
-            start_date_range.is_active() or end_date_range.is_active()
-        ) and session.scalar(
-            select(DagRun.run_id).where(DagRun.dag_id == dag_id, DagRun.run_id == run_id)
-        ) is not None
-        if not filtered_existing_run:
+        if not is_filtered_existing_run(
+            dag_id,
+            run_id,
+            has_filter=start_date_range.is_active() or end_date_range.is_active(),
+            session=session,
+        ):
             raise HTTPException(
                 status.HTTP_404_NOT_FOUND,
                 f"No task instances for dag_id={dag_id} run_id={run_id}",

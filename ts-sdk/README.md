@@ -21,12 +21,12 @@
 
 Write Apache Airflow Dags in TypeScript, and run them on Node.js.
 
-**Status:** 1.0.0-beta1 · API may change · Node 22+ · ESM-only
+**Status:** 1.0.0-beta2 · API may change · Node 22+ · ESM-only
 
 ## Installation
 
 ```bash
-npm install apache-airflow-ts-sdk@1.0.0-beta1
+npm install @apache-airflow/ts-sdk@1.0.0-beta2
 npm install --save-dev esbuild
 ```
 
@@ -35,7 +35,7 @@ npm install --save-dev esbuild
 Declare a Dag in `src/main.ts`:
 
 ```ts
-import { Bundle, Dag } from "apache-airflow-ts-sdk";
+import { Bundle, Dag } from "@apache-airflow/ts-sdk";
 
 const dag = new Dag("ts_hello", { schedule: "@daily", queue: "typescript" });
 
@@ -100,7 +100,7 @@ Do not edit the table by hand. Update the manifest and run the `update-ts-sdk-re
 
 <!-- BEGIN AUTO-GENERATED LANG-SDK COMPAT MATRIX -->
 
-*Min. Airflow version: 3.4.0 · supervisor schema: 2026-10-30*
+*Min. Airflow version: 3.5.0 · supervisor schema: 2027-02-28*
 
 | Dimension | Tier | Supported | Since (Airflow) | Since (SDK) | Notes |
 |---|---|---|---|---|---|
@@ -116,6 +116,7 @@ Do not edit the table by hand. Update the manifest and run the `update-ts-sdk-re
 | **Task runtime** |  |  |  |  |  |
 | capability: `task-logging` | MUST | ✓ | 3.4.0 | 1.0.0 | structured records over the log socket |
 | capability: `xcom-read-write` | MUST | ✓ | 3.4.0 | 1.0.0 | getXCom / setXCom |
+| capability: `custom-xcom-backend` | MAY | ✓ | 3.5.0 | 1.0.0 | the supervisor runs the configured [core] xcom_backend |
 | capability: `connection-read` | MUST | ✓ | 3.4.0 | 1.0.0 | getConnection |
 | capability: `variable-read-write` | MUST | ✓ | 3.4.0 | 1.0.0 | getVariable / setVariable / deleteVariable |
 | capability: `self-contained-bundle` | MUST | ✓ | 3.4.0 | 1.0.0 | Airflow metadata embedded in the bundle |

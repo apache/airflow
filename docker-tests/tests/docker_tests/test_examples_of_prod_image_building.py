@@ -53,6 +53,8 @@ def get_latest_airflow_image():
 )
 @pytest.mark.parametrize("script_file", glob.glob(f"{DOCKER_EXAMPLES_DIR}/**/*.sh", recursive=True))
 def test_shell_script_example(script_file):
+    # The examples build on the floating base image tag unless BASE_IMAGE is set - set it to the pinned
+    # image (`breeze` builds use it) to build them on the base the CI passed on.
     run_command(["bash", script_file])
 
 
@@ -68,6 +70,12 @@ def docker_examples(directory: Path, xfails: dict[str, str] | None = None):
     return result
 
 
+def get_constraints_branch(branch: str) -> str:
+    if match := re.fullmatch(r"v(\d+)-(\d+)-test", branch):
+        return f"constraints-{match[1]}-{match[2]}"
+    return "constraints-main"
+
+
 @pytest.mark.parametrize(
     ("dockerfile", "relative_path"),
     docker_examples(DOCKER_EXAMPLES_DIR, xfails=QUARANTINED_DOCKER_EXAMPLES),
@@ -75,7 +83,13 @@ def docker_examples(directory: Path, xfails: dict[str, str] | None = None):
 def test_dockerfile_example(dockerfile, relative_path, tmp_path):
     image_name = relative_path.lower().replace("/", "-")
     content = Path(dockerfile).read_text()
-    test_image = os.environ.get("TEST_IMAGE", get_latest_airflow_image())
+    test_image = os.environ.get("TEST_IMAGE")
+    if test_image:
+        # An image built from sources has a version whose constraints tag only exists once it is released.
+        constraints_branch = get_constraints_branch(os.environ.get("DEFAULT_BRANCH", "main"))
+        content = content.replace("constraints-${AIRFLOW_VERSION}/", f"{constraints_branch}/")
+    else:
+        test_image = get_latest_airflow_image()
 
     test_image_file = tmp_path / image_name
     test_image_file.write_text(re.sub(r"FROM apache/airflow:.*", rf"FROM {test_image}", content))

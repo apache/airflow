@@ -22,6 +22,7 @@
     },
     "favoriteState": "즐겨찾기 상태",
     "favoriteStatePlaceholder": "즐겨찾기 상태 선택...",
+    "hasImportErrors": "가져오기 오류가 있습니다.",
     "noTimetableTypesFound": "타임테이블 유형을 찾을 수 없습니다",
     "paused": {
       "active": "활성",
@@ -96,6 +97,7 @@
       "downstream": "다운스트림",
       "existingTasks": "기존 태스크 지우기",
       "future": "미래",
+      "includeDependentDags": "종속된 Dag의 태스크 지우기",
       "keepTaskState": "태스크 상태 유지 후 재개",
       "laterIterations": "이후 반복",
       "onlyFailed": "실패한 태스크만 지우기",
@@ -129,6 +131,7 @@
     "dagRuns": "$t(common:dagRun_one) 검색",
     "dags": "Dag 검색",
     "hotkey": "+K",
+    "mapIndexes": "$t(common:mapIndex) 검색",
     "tasks": "태스크 검색"
   },
   "sort": {
