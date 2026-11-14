@@ -206,12 +206,62 @@ class TestCallback:
                 True,
                 id="async_no_kwargs",
             ),
+            pytest.param(
+                SyncCallback,
+                (TEST_CALLBACK_PATH, {"tags": ["a", "b"]}),
+                (TEST_CALLBACK_PATH, {"tags": ["a", "b"]}),
+                True,
+                id="sync_list_kwargs_identical",
+            ),
+            pytest.param(
+                SyncCallback,
+                (TEST_CALLBACK_PATH, {"tags": ["a", "b"]}),
+                (TEST_CALLBACK_PATH, {"tags": ["a", "c"]}),
+                False,
+                id="sync_list_kwargs_different",
+            ),
+            pytest.param(
+                AsyncCallback,
+                (TEST_CALLBACK_PATH, {"config": {"timeout": 30}}),
+                (TEST_CALLBACK_PATH, {"config": {"timeout": 30}}),
+                True,
+                id="async_nested_dict_kwargs_identical",
+            ),
+            pytest.param(
+                AsyncCallback,
+                (TEST_CALLBACK_PATH, {"config": {"timeout": 30}}),
+                (TEST_CALLBACK_PATH, {"config": {"timeout": 60}}),
+                False,
+                id="async_nested_dict_kwargs_different",
+            ),
+            pytest.param(
+                SyncCallback,
+                (TEST_CALLBACK_PATH, {"a": 1, "b": 2}),
+                (TEST_CALLBACK_PATH, {"b": 2, "a": 1}),
+                True,
+                id="sync_dict_key_ordering_identical",
+            ),
+            pytest.param(
+                SyncCallback,
+                (TEST_CALLBACK_PATH, {"config": {"timeout": 30}}),
+                (TEST_CALLBACK_PATH, {"config": {"timeout": 30.0}}),
+                True,
+                id="sync_int_and_float_kwargs_equal",
+            ),
+            pytest.param(
+                SyncCallback,
+                (TEST_CALLBACK_PATH, {"enabled": True}),
+                (TEST_CALLBACK_PATH, {"enabled": 1}),
+                True,
+                id="sync_bool_and_int_kwargs_equal",
+            ),
         ],
     )
     def test_callback_hash_and_set_behavior(self, callback_class, args1, args2, should_be_same_hash):
         callback1 = callback_class(*args1)
         callback2 = callback_class(*args2)
         assert (hash(callback1) == hash(callback2)) == should_be_same_hash
+        assert (len({callback1, callback2}) == 1) == should_be_same_hash
 
 
 class TestAsyncCallback:
