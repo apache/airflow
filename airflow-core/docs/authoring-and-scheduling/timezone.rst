@@ -189,3 +189,31 @@ daylight savings time when scheduling subsequent runs. For example, a
 Dag with a start date of ``pendulum.datetime(2020, 1, 1, tz="UTC")``
 and a schedule interval of ``timedelta(days=1)`` will run daily at 05:00
 UTC regardless of daylight savings time.
+
+Daylight Saving Time (DST) Transitions
+''''''''''''''''''''''''''''''''''''''
+
+When scheduling DAGs in timezones that observe Daylight Saving Time (DST), the local clock changes twice a year: entering DST in spring ("spring forward") and exiting DST in autumn ("fall back"). Because local wall-clock time is discontinuous during these transitions, schedule intervals and DagRun generation have specific behaviors:
+
+**Spring Forward (Entering DST - Non-existent wall-clock times)**
+
+When entering DST, clocks advance by one hour (for example, jumping from 02:00 directly to 03:00 in ``America/Chicago`` or ``Europe/Zurich``). During this transition, wall-clock times between 02:00:00 and 02:59:59 do not logically exist.
+
+* **Interval calculation**: If a DAG's schedule targets a time within this gap (such as a daily run configured with ``0 2 * * *``), Airflow's cron timetable bridges the transition by ending the data interval at the newly advanced local time (aligned to the DST switch point in UTC).
+* **Interval duration**: The data interval bridging the switch will have a physical duration of 23 hours instead of 24 hours.
+* **DagRun creation**: A single DagRun is created to cover the transition period. The run is not lost, and scheduling on subsequent days resumes at the normal scheduled wall-clock time once the timezone is in DST.
+* **Catchup and interval stepping**: For hourly schedules, intervals covering the non-existent local hour are aligned across the transition boundary without raising exceptions or stalling catchup execution.
+
+**Fall Back (Exiting DST - Repeated wall-clock times)**
+
+When exiting DST, clocks are turned backward by one hour (for example, rolling back from 02:00 to 01:00). During this transition, wall-clock times between 01:00:00 and 01:59:59 occur twice.
+
+* **Disambiguation via fold**: Ambiguous local times are disambiguated using the ``fold`` attribute (``fold=0`` represents the first occurrence in DST, and ``fold=1`` represents the second occurrence after transitioning to standard time).
+* **Interval calculation**: Airflow timetable calculations resolve intervals crossing this switch by ending on the folded instance (``fold=1``).
+* **Interval duration**: The data interval bridging the transition will have a physical duration of 25 hours instead of 24 hours for daily schedules.
+* **Single DagRun generation**: Airflow generates a single DagRun across the fold rather than creating duplicate runs for the same wall-clock timestamp, ensuring that task scheduling advances monotonically without collision.
+
+.. note::
+
+    If your workflow requires strictly uniform physical elapsed time (for example, exactly 3,600 elapsed seconds per hour or exact 24-hour periods without 23-hour or 25-hour shifts during DST transitions), use UTC (``tz="UTC"`` or ``schedule=timedelta(...)``). UTC does not observe Daylight Saving Time and guarantees constant, monotonic intervals throughout the year.
+
