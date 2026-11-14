@@ -390,7 +390,7 @@ class TestDagProcessor:
             "preferredDuringSchedulingIgnoredDuringExecution[0]."
             "podAffinityTerm.labelSelector.matchLabels",
             docs[0],
-        ) == {"component": "scheduler"}
+        ) == {"app.kubernetes.io/component": "scheduler"}
 
     def test_livenessprobe_values_are_configurable(self):
         docs = render_chart(

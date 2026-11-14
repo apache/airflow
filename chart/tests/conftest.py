@@ -15,3 +15,13 @@
 # specific language governing permissions and limitations
 # under the License.
 from __future__ import annotations
+
+import pytest
+import yaml
+from chart_utils.helm_template_generator import CHART_DIR
+
+
+@pytest.fixture(scope="session")
+def chart_app_version() -> str:
+    with (CHART_DIR / "Chart.yaml").open() as chart_file:
+        return str(yaml.safe_load(chart_file)["appVersion"])
