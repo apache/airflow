@@ -400,6 +400,24 @@ The following features are supported in the Trigger UI Form:
 - On the bottom of the form the generated JSON configuration can be expanded.
   If you want to change values manually, the JSON configuration can be adjusted. Changes in the JSON will be reflected in the form fields.
 - Fields can be required or optional. Typed fields are required by default to ensure they pass JSON schema validation. To make typed fields optional, you must allow the "null" type.
+- A ``date`` or ``date-time`` field can be bounded by another field with ``formatMinimum`` (on or after) or
+  ``formatExclusiveMinimum`` (after), referencing the other param as ``{"$data": "1/<param name>"}``. The form shows the
+  error under the field and disables the Trigger button until the values pass, and the same check runs when a Dag run
+  is created. If either value is empty, the check is skipped.
+
+  .. code-block:: python
+
+      params = {
+          "start": Param(type="string", format="date-time"),
+          "end": Param(
+              None,
+              type=["null", "string"],
+              format="date-time",
+              formatExclusiveMinimum={"$data": "1/start"},
+          ),
+      }
+
+  .. versionadded:: 3.4.0
 
 .. note::
     If the field is required the default value must be valid according to the schema as well. If the Dag is defined with
