@@ -1729,6 +1729,16 @@ repos:
         language: python
         pass_filenames: true
         files: ^\.github/workflows/.*\.yml$
+      - id: check-scheduled-workflows-skip-forks
+        name: Check scheduled workflows skip their cron runs in forks
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
+        description: Forks that enable Actions get every cron, so each scheduled job must skip outside apache/airflow
+        entry: ./scripts/ci/prek/check_scheduled_workflows_skip_forks.py
+        language: python
+        pass_filenames: true
+        require_serial: true
+        files: ^\.github/workflows/.*\.yml$
       - id: check-docstring-param-types
         name: Check that docstrings do not specify param types
         env:
