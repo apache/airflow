@@ -331,8 +331,9 @@ repos:
           PYTHONPYCACHEPREFIX: .build/pycache
         entry: ./scripts/ci/prek/check_fork_ci_gate_config.py
         language: python
-        files: ^\.github/fork-ci-gate\.toml$|^dev/breeze/src/airflow_breeze/utils/fork_ci_gate\.py$
+        files: ^\.github/fork-ci-gate\.toml$|^dev/breeze/src/airflow_breeze/utils/fork_ci_gate\.py$|^\.asf\.yaml$
         pass_filenames: false
+        additional_dependencies: ['pyyaml']
       - id: check-java-sdk-version-in-sync
         name: Check Java SDK JDK version is consistent across build files
         env:
@@ -1021,12 +1022,12 @@ repos:
         files: ^dev/breeze/src/airflow_breeze/utils/docker_command_utils\.py$|^scripts/ci/docker_compose/local\.yml$
         pass_filenames: false
       - id: check-extras-order
-        name: Check order of extras in Dockerfile
+        name: Check order of extras in Dockerfile and sync its defaults to the docs
         env:
           PYTHONPYCACHEPREFIX: .build/pycache
         entry: ./scripts/ci/prek/check_order_dockerfile_extras.py
         language: python
-        files: ^Dockerfile$
+        files: ^Dockerfile$|^docker-stack-docs/build-arg-ref\.rst$
         pass_filenames: false
       - id: generate-airflow-diagrams
         name: Generate airflow diagrams
