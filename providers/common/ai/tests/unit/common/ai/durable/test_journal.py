@@ -35,6 +35,7 @@ from airflow.providers.common.ai.durable.base import (
 from airflow.providers.common.ai.durable.journal import (
     DurableJournal,
     DurableRun,
+    Unrecordable,
     current_journal,
     journal_scope,
 )
@@ -1326,6 +1327,59 @@ class TestCleanup:
         retry_journal.cleanup()
 
         assert memory_storage.entries == {}
+
+
+class TestHoldsSteps:
+    """Whether running the agent again without durable execution could repeat a step."""
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(("kind", "holds"), [("model", False), ("tool", True), ("other", True)])
+    async def test_a_step_that_raised_counts_unless_it_is_a_model_request(self, memory_storage, kind, holds):
+        """A tool or a capability's hook may have acted before raising; a failed model request has not."""
+        journal = DurableJournal(memory_storage)
+        run = journal.start_run()
+        with pytest.raises(RuntimeError, match="tool failed"):
+            await run.run("step", kind=kind, fingerprint="s", body=boom)
+        run.fail(RuntimeError("tool failed"))
+
+        assert journal.holds_steps() is holds
+
+    @pytest.mark.asyncio
+    async def test_a_step_that_is_never_recorded_counts(self, memory_storage):
+        journal = DurableJournal(memory_storage)
+        await journal.start_run().run(
+            "tool", kind="tool", fingerprint="t", body=lambda: ok(1), replayable=False
+        )
+
+        assert journal.holds_steps() is True
+
+    @pytest.mark.asyncio
+    async def test_a_recorded_model_request_counts(self, memory_storage):
+        """Running live would send it again, and its answer may lead elsewhere."""
+        journal = DurableJournal(memory_storage)
+        await journal.start_run().run("model", kind="model", fingerprint="m", body=lambda: ok(1))
+
+        assert journal.holds_steps() is True
+
+    @pytest.mark.asyncio
+    async def test_a_step_that_ran_without_being_recorded_counts(self, memory_storage):
+        journal = DurableJournal(memory_storage, fail_on_unrecordable=False)
+        await journal.start_run().run(
+            "tool",
+            kind="tool",
+            fingerprint="t",
+            body=lambda: ok(Unrecordable(object(), TypeError("no JSON"))),
+        )
+
+        assert journal.holds_steps() is True
+
+    def test_a_run_an_earlier_attempt_started_counts(self, memory_storage):
+        """Even one that recorded nothing: a retry cannot tell without reading every position."""
+        DurableJournal(memory_storage).start_run().fail(RuntimeError("worker died"))
+        retry_journal = DurableJournal(memory_storage)
+        retry_journal.start_run()
+
+        assert retry_journal.holds_steps() is True
 
 
 class TestStoreCalls:

@@ -326,6 +326,22 @@ def _is_awaiting_input(error: BaseException) -> TypeGuard[TaskAwaitingInput]:
     return AIRFLOW_V_3_3_PLUS and isinstance(error, TaskAwaitingInput)
 
 
+def _raised_by_durable_execution(error: BaseException) -> bool:
+    """
+    Whether pydantic-ai's durable execution raised ``error`` itself, rather than code it called.
+
+    pydantic-ai raises its refusals of a running durable run as a plain ``UserError``, so only the
+    innermost frame tells them apart. If pydantic-ai moves the raise, this returns ``False`` and the
+    task fails with the refusal, as under ``durable=True``; a test pins where it raises.
+    """
+    traceback = error.__traceback__
+    if traceback is None:
+        return False
+    while traceback.tb_next is not None:
+        traceback = traceback.tb_next
+    return traceback.tb_frame.f_globals.get("__name__", "").startswith("pydantic_ai.durable_exec.")
+
+
 def _refuse_external_calls(requests: DeferredToolRequests) -> None:
     """Fail on tool calls that hand their work to an external system, which AgentOperator cannot resolve."""
     if requests.calls:
@@ -1348,19 +1364,76 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
                 result, _ = self._run_agent_tracked(agent, self.prompt, run_usage=run_usage, **run_kwargs)
             return result
         except BaseException as error:
-            if not _is_awaiting_input(error):
-                self._report_failed_run(context, run_usage, run_id=run_kwargs["run_id"])
-            elif error.method_name == _DURABLE_APPROVAL_RESUME:
-                # The durable run paused for approval. Its usage so far, known only now that the run
-                # has settled it, goes with the pause, so the resume reports both sides of it.
-                error.kwargs = {
-                    **(error.kwargs or {}),
-                    "usage": _RUN_USAGE_ADAPTER.dump_python(run_usage, mode="json"),
-                    "attempt_usage": _RUN_USAGE_ADAPTER.dump_python(
-                        subtract_run_usage(run_usage, self._run_usage_base), mode="json"
-                    ),
-                }
-            raise
+            if self._may_run_again_without_durable(error):
+                refusal = str(error)
+            else:
+                if not _is_awaiting_input(error):
+                    self._report_failed_run(context, run_usage, run_id=run_kwargs["run_id"])
+                elif error.method_name == _DURABLE_APPROVAL_RESUME:
+                    # The durable run paused for approval. Its usage so far, known only now that the run
+                    # has settled it, goes with the pause, so the resume reports both sides of it.
+                    error.kwargs = {
+                        **(error.kwargs or {}),
+                        "usage": _RUN_USAGE_ADAPTER.dump_python(run_usage, mode="json"),
+                        "attempt_usage": _RUN_USAGE_ADAPTER.dump_python(
+                            subtract_run_usage(run_usage, self._run_usage_base), mode="json"
+                        ),
+                    }
+                raise
+        return self._run_again_without_durable(context, run_usage, run_kwargs, reason=refusal)
+
+    def _may_run_again_without_durable(self, error: BaseException) -> bool:
+        """
+        Whether a run pydantic-ai refused under the default can run again without durable execution.
+
+        pydantic-ai refuses some agents only once their durable run has started, such as one a
+        capability moves to a model instance the agent was not built with. ``durable=True`` keeps
+        the error. Under the default, the run goes again without durable execution, unless a step
+        a live run would repeat already ran. A task with a HITL review fails
+        instead: a resumed review decides again, so its regeneration would be refused after the
+        reviewer has answered.
+        """
+        if (
+            self.durable is not None
+            or (journal := self._durable_journal) is None
+            or not isinstance(error, UserError)
+            or not _raised_by_durable_execution(error)
+        ):
+            return False
+        if journal.holds_steps():
+            why = "running it again without durable execution could repeat steps that already ran"
+        elif self.enable_hitl_review:
+            why = "the review's regenerations would be refused the same way"
+        else:
+            return True
+        self.log.warning(
+            "pydantic-ai refused this durable run, and %s, so the task fails. Pass durable=False to run "
+            "this agent without durable execution: %s",
+            why,
+            error,
+        )
+        return False
+
+    def _run_again_without_durable(
+        self, context: Context, run_usage: RunUsage, run_kwargs: dict[str, Any], *, reason: str
+    ) -> Any:
+        """Turn durable execution off for this attempt and run the agent again, as the default would have."""
+        self.log.info(
+            "Durable execution is off for this task, and the agent runs again without it: %s", reason
+        )
+        if (journal := self._durable_journal) is not None:
+            # The refused run recorded no step, but left its entry and the run's id.
+            journal.cleanup()
+        self._durable_journal = None
+        self._is_durable_run = False
+        agent = self._build_agent(approval_context=context)
+        ti = context["task_instance"]
+        self._run_identity_attrs = self._span_attributes(ti)
+        stamp_identity_on_agent_spans(agent, self._run_identity_attrs)
+        # The ids a durable run keeps across attempts give way to this attempt's own.
+        run_kwargs = {key: value for key, value in run_kwargs.items() if key != "conversation_id"}
+        run_kwargs["run_id"] = make_task_instance_run_key(ti)
+        return self._run_and_report_on_failure(context, agent, run_usage, run_kwargs)
 
     def _decide_durable(self, context: Context) -> None:
         """

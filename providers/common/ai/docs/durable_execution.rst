@@ -151,6 +151,16 @@ reason, in these cases:
   pydantic-ai when the task runs, as in the next case.
 - A capability pydantic-ai refuses to run durably, such as one with ``@durable_operation``
   methods and no ``id``. The task log quotes pydantic-ai's error.
+- An agent pydantic-ai refuses only once its durable run has started, such as one that a
+  ``SelectModel`` or ``ModelFallback`` capability moves to a model instance the agent was not
+  built with, or a capability whose ``for_run`` returns one with another ``id``. The agent runs
+  again without durable execution, and the task log quotes pydantic-ai's error. Hooks such as
+  ``before_run`` run again, and so does a model request that failed, such as the one
+  ``ModelFallback`` falls back from. The task fails instead, and the log says why, when a step
+  running live would repeat already ran: a model request that got an answer, or a tool call or a
+  ``@durable_operation`` hook, even one that raised. It fails too when the task has a HITL
+  review, since the review's regenerations would
+  be refused the same way after the reviewer has answered. Pass ``durable=False`` to such a task.
 - A context with no task state store, such as one a unit test builds by hand.
 
 ``durable=True`` refuses the first three with a ``ValueError`` when the Dag loads.
