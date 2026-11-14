@@ -501,6 +501,8 @@ export type RunId9 = string;
 export type TaskId5 = string;
 export type MapIndex5 = number | null;
 export type IncludePriorDates = boolean;
+export type RegionId2 = string | null;
+export type RegionIndex1 = number | null;
 export type Type50 = "GetXCom";
 export type PreviousIteration1 = boolean;
 export type Key11 = string;
@@ -569,8 +571,8 @@ export type EndDate4 = string | null;
 export type State4 = string | null;
 export type TryNumber2 = number;
 export type MapIndex6 = number | null;
-export type RegionId2 = string | null;
-export type RegionIndex1 = number | null;
+export type RegionId3 = string | null;
+export type RegionIndex2 = number | null;
 export type Duration = number | null;
 export type Type61 = "PreviousTIResult";
 export type Key14 = string;
@@ -1588,6 +1590,8 @@ export interface GetXCom {
   task_id: TaskId5;
   map_index?: MapIndex5;
   include_prior_dates?: IncludePriorDates;
+  region_id?: RegionId2;
+  region_index?: RegionIndex1;
   type?: Type50;
 }
 /**
@@ -1740,8 +1744,8 @@ export interface PreviousTIResponse {
   state?: State4;
   try_number: TryNumber2;
   map_index?: MapIndex6;
-  region_id?: RegionId2;
-  region_index?: RegionIndex1;
+  region_id?: RegionId3;
+  region_index?: RegionIndex2;
   duration?: Duration;
 }
 /**

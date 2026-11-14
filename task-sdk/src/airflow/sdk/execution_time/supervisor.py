@@ -2566,6 +2566,16 @@ class InProcessSupervisorComms:
 
         return responses.popleft() if responses else None
 
+    async def asend(self, msg: BaseModel):
+        """
+        Send a request to the supervisor without blocking the event loop.
+
+        ``_handle_request`` is synchronous and in-process (no actual socket I/O), so this simply
+        mirrors :meth:`send` under an ``async def`` for callers (e.g. IterableOperator's checkpoint
+        reads/writes via the Task State Store) that require an awaitable ``asend``.
+        """
+        return self.send(msg)
+
 
 @attrs.define
 class TaskRunResult:

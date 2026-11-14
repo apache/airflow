@@ -1162,6 +1162,12 @@ type GetXCom struct {
 	// PreviousIteration corresponds to the JSON schema field "previous_iteration".
 	PreviousIteration bool `msgpack:"previous_iteration,omitempty"`
 
+	// RegionID corresponds to the JSON schema field "region_id".
+	RegionID interface{} `msgpack:"region_id,omitempty"`
+
+	// RegionIndex corresponds to the JSON schema field "region_index".
+	RegionIndex interface{} `msgpack:"region_index,omitempty"`
+
 	// RunID corresponds to the JSON schema field "run_id".
 	RunID string `msgpack:"run_id"`
 
@@ -1890,25 +1896,26 @@ type TriggerKwargs map[string]interface{}
 
 type VersionData map[string]interface{}
 
+type TaskInstanceState string
+
+const TaskInstanceStateRemoved TaskInstanceState = "removed"
+
 const TaskInstanceStateAwaitingInput TaskInstanceState = "awaiting_input"
 const TaskInstanceStateDeferred TaskInstanceState = "deferred"
 const TaskInstanceStateSkipped TaskInstanceState = "skipped"
 const TaskInstanceStateUpstreamFailed TaskInstanceState = "upstream_failed"
 const TaskInstanceStateUpForReschedule TaskInstanceState = "up_for_reschedule"
+
 const TaskInstanceStateUpForRetry TaskInstanceState = "up_for_retry"
 const TaskInstanceStateFailed TaskInstanceState = "failed"
-
 const TaskInstanceStateRestarting TaskInstanceState = "restarting"
 const TaskInstanceStateSuccess TaskInstanceState = "success"
-const TaskInstanceStateRunning TaskInstanceState = "running"
-const TaskInstanceStateQueued TaskInstanceState = "queued"
 
 type TaskOutlets []AssetProfile
 
+const TaskInstanceStateRunning TaskInstanceState = "running"
+const TaskInstanceStateQueued TaskInstanceState = "queued"
 const TaskInstanceStateScheduled TaskInstanceState = "scheduled"
-const TaskInstanceStateRemoved TaskInstanceState = "removed"
-
-type TaskInstanceState string
 
 // Variable schema for responses with fields that are needed for Runtime.
 type VariableResponse struct {
