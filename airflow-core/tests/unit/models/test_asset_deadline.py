@@ -147,7 +147,7 @@ class TestAssetDeadlineLifecycle:
         assert dl.is_late is False
 
         callbacks = session.scalars(select(Callback)).all()
-        resolve_cbs = [c for c in callbacks if c.id != dl.callback_id]
+        resolve_cbs = [c for c in callbacks if "_resolve_callback" in c.data.get("path", "")]
         assert len(resolve_cbs) == 1
         assert resolve_cbs[0].data["kwargs"]["context"]["resolved"] is True
 
