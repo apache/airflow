@@ -61,7 +61,11 @@ dependencies = [
   "apache-airflow>=3.0,<4",
   "apache-airflow-providers-common-compat>=1.8.0",
   "datasets>=5.0.0",
+  # constraints-3.0.6 pins dill==0.3.1.1, so without these floors uv falls back to the
+  # source-only multiprocess==0.70.9, whose build hangs. multiprocess 0.70.16 needs dill>=0.3.8.
+  "dill>=0.3.8",
   "huggingface-hub>=0.24",
+  "multiprocess>=0.70.16",
 ]
 
 [dependency-groups]
