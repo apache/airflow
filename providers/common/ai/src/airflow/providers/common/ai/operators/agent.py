@@ -820,7 +820,7 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
         self.cache_prompt = cache_prompt
         # Whether this run is durable. ``durable=None`` leaves it to ``_decide_durable`` when the
         # task runs, since the task state store and the task log exist only then.
-        self._durable = durable is True
+        self._is_durable_run = durable is True
 
         # The task instance's durable journal, set per run in ``execute`` when the run is durable.
         self._durable_journal: DurableJournal | None = None
@@ -1110,7 +1110,7 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
         given_ids: _GivenIds = {}
 
         def prepare(toolset: AbstractToolset[Any] | ToolsetFunc[Any]) -> AbstractToolset[Any]:
-            return ensure_masked(_give_durable_ids(toolset, given_ids) if self._durable else toolset)
+            return ensure_masked(_give_durable_ids(toolset, given_ids) if self._is_durable_run else toolset)
 
         if self.toolsets:
             toolsets: list[AbstractToolset] = [prepare(ts) for ts in self.toolsets]
@@ -1121,7 +1121,7 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
             _replace_capability_toolset(capability, prepare)
             for capability in self.capabilities or passed_through or []
         ]
-        if self._durable:
+        if self._is_durable_run:
             # Names the agent's steps in the journal; the task id is stable across retries.
             capabilities.append(AirflowDurability(name=extra_kwargs.get("name") or self.task_id))
             if approval_context is not None and self._supports_tool_approval():
@@ -1162,9 +1162,9 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
         try:
             return self._build_agent(approval_context=approval_context)
         except UserError as error:
-            if not self._durable or self.durable is not None:
+            if not self._is_durable_run or self.durable is not None:
                 raise
-            self._durable = False
+            self._is_durable_run = False
             self._durable_journal = None
             # Built first: an error unrelated to durable execution raises again here, unlogged.
             agent = self._build_agent(approval_context=approval_context)
@@ -1198,7 +1198,7 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
         task with ``UnsupportedToolDeferralError`` instead of pydantic-ai's ``UserError``.
         ``self.output_type`` is left alone because it is part of the serialized Dag.
         """
-        if not (self._supports_tool_approval() or self._durable):
+        if not (self._supports_tool_approval() or self._is_durable_run):
             return self.output_type
         declared = self.output_type if isinstance(self.output_type, (list, tuple)) else [self.output_type]
         return [*declared, DeferredToolRequests]
@@ -1367,18 +1367,18 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
         reason in the task log, everywhere else.
         """
         if self.durable is not None:
-            self._durable = self.durable
+            self._is_durable_run = self.durable
             return
         if _contains_capability(self._declared_capabilities, AirflowDurability):
             # Inside a running task the capability opens a journal of its own (current_journal).
-            self._durable = False
+            self._is_durable_run = False
             self.log.info(
                 "Durable execution is left to the AirflowDurability capability the agent was given, "
                 "which deletes each agent run's steps as soon as that run succeeds."
             )
             return
         reason = self._why_not_durable_by_default(context)
-        self._durable = reason is None
+        self._is_durable_run = reason is None
         if reason is not None:
             self.log.info("Durable execution is off for this task: %s", reason)
 
@@ -1404,7 +1404,7 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
 
     def _span_attributes(self, ti: Any) -> dict[str, Any]:
         """Attributes for every span the agent emits: the task instance, and whether the run is durable."""
-        return {**build_run_identity_attributes(ti), "airflow.common_ai.durable": self._durable}
+        return {**build_run_identity_attributes(ti), "airflow.common_ai.durable": self._is_durable_run}
 
     def _journal_scope(self) -> AbstractContextManager[DurableJournal | None]:
         """Run the code in the ``with`` block under the task's journal, when the task is durable."""
@@ -1442,7 +1442,7 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
         run_usage: RunUsage = self._run_usage
 
         agent = self._build_agent_as_decided(approval_context=context)
-        if self._durable:
+        if self._is_durable_run:
             self._durable_journal = self._open_journal(context)
             self._approval_steps = 0
             if self._supports_tool_approval() and (store := context.get("task_state_store")) is not None:
@@ -2047,7 +2047,7 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
         event: dict[str, Any],
     ) -> Any:
         self._decide_durable(context)
-        if self._durable:
+        if self._is_durable_run:
             # The regeneration after round ``iteration`` is the journal's run ``iteration``, in this
             # process as on a retry that replays the rounds before it; run 0 made the first output.
             self._durable_journal = self._open_journal(context, first_run=iteration)
