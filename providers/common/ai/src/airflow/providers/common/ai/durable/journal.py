@@ -664,14 +664,18 @@ class DurableRun:
         or past where this one ended. Also notes how far the run went, and where its last model
         request was, when a step it ran is not in the journal (a tool set to run on every attempt,
         say), as a later reader cannot find either past such a gap; and rewrites that note when
-        this attempt's last model request is elsewhere. Writes nothing when every step replayed or
-        was recorded, no earlier attempt left a note, and none went further. Reads back each stale
-        entry it deletes, so that one the storage failed to delete is not trusted.
+        this attempt's last model request is elsewhere. Writes nothing on a first attempt that
+        recorded every step, or a retry that replayed every step, when no earlier attempt left a
+        note and none went further. A retry that ran a step live always writes the note: an
+        attempt that was killed leaves none, and may have recorded steps past where this run
+        ended. Reads back each stale entry it deletes, so that one the storage failed to delete
+        is not trusted.
         """
         self._load_meta()
         gap = len(self._saved | self._replayed) < self._position
         if not (
             gap
+            or (self._started_before and len(self._replayed) < self._position)
             or self.diverged
             or self._diverge_from is not None
             or self._model_at_fault

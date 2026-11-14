@@ -1180,6 +1180,38 @@ class TestCompletedRuns:
         assert answer == "a new answer"
 
     @pytest.mark.asyncio
+    async def test_a_shorter_run_after_a_killed_attempt_asks_for_its_own_answer_again(self, memory_storage):
+        """
+        The killed attempt left no note, so only the shorter run's completion can say where its answer is.
+
+        The storage did not keep the killed attempt's model answer at 2, so the retry asked again
+        there and finished short of the killed attempt's later steps.
+        """
+        killed = DurableJournal(memory_storage).start_run()
+        await killed.run("model", kind="model", fingerprint="m1", body=lambda: ok("look it up"))
+        await killed.run("lookup", kind="tool", fingerprint="l", body=lambda: ok("$10"))
+        memory_storage.refuse.add(build_step_key(0, 2))
+        await killed.run("model", kind="model", fingerprint="m2", body=lambda: ok("check the stock"))
+        memory_storage.refuse.clear()
+        await killed.run("stock", kind="tool", fingerprint="s", body=lambda: ok("3 left"))
+        await killed.run("model", kind="model", fingerprint="m3", body=lambda: ok("$10, 3 left"))
+        # Killed here, so neither fail() nor complete() runs.
+        retry = DurableJournal(memory_storage).start_run()
+        await retry.run("model", kind="model", fingerprint="m1", body=lambda: ok("asked again"))
+        await retry.run("lookup", kind="tool", fingerprint="l", body=lambda: ok("looked up again"))
+        rejected = await retry.run("model", kind="model", fingerprint="m2", body=lambda: ok("it costs $10"))
+        retry.complete()
+
+        DurableJournal(memory_storage).ask_model_again(0)
+
+        third = DurableJournal(memory_storage).start_run()
+        await third.run("model", kind="model", fingerprint="m1", body=lambda: ok("asked again"))
+        await third.run("lookup", kind="tool", fingerprint="l", body=lambda: ok("looked up again"))
+        answer = await third.run("model", kind="model", fingerprint="m2", body=lambda: ok("a new answer"))
+
+        assert (rejected, answer) == ("it costs $10", "a new answer")
+
+    @pytest.mark.asyncio
     async def test_ask_model_again_skips_steps_after_the_last_model_request(self, memory_storage):
         first = DurableJournal(memory_storage).start_run()
         await first.run("model", kind="model", fingerprint="m1", body=lambda: ok("look it up"))
