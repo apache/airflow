@@ -312,11 +312,13 @@ class AssetDeadlineAlertResponse(BaseModel):
 
 
 class AssetDeadlineInstanceResponse(BaseModel):
-    """Scheduled or missed Asset Deadline instance serializer for responses."""
+    """Scheduled, late, or resolved Asset Deadline instance serializer for responses."""
 
     id: UUID
     deadline_time: datetime
     missed: bool
+    resolved_at: datetime | None = None
+    is_late: bool = False
     partition_key: str | None = None
     deadline_alert_id: UUID | None = None
     created_at: datetime

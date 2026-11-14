@@ -230,6 +230,7 @@ class AssetDeadline:
         callback: AsyncCallback | SyncCallback,
         cron: str | None = None,
         interval: timedelta | VariableInterval | None = None,
+        on_resolve: AsyncCallback | SyncCallback | None = None,
         name: str | None = None,
     ):
         if (cron is None) == (interval is None):
@@ -256,18 +257,35 @@ class AssetDeadline:
                 f"Callbacks must be `AsyncCallback` or `SyncCallback`, received {type(callback).__name__}."
             )
 
+        if on_resolve is not None and type(on_resolve) not in DEADLINE_CALLBACK_TYPES:
+            raise ValueError(
+                f"Resolution callbacks must be `AsyncCallback` or `SyncCallback`, received {type(on_resolve).__name__}."
+            )
+
         self.cron = cron
         self.interval = interval
         self.callback = callback
+        self.on_resolve = on_resolve
         self.name = name
+
+    @property
+    def reference_dict(self) -> dict[str, Any]:
+        if self.cron is not None:
+            return {REFERENCE_TYPE_FIELD: "AssetScheduleDeadline", "cron": self.cron}
+        return {REFERENCE_TYPE_FIELD: "AssetLastEventDeadline"}
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, AssetDeadline):
             return NotImplemented
-        return self.cron == other.cron and self.interval == other.interval and self.callback == other.callback
+        return (
+            self.cron == other.cron
+            and self.interval == other.interval
+            and self.callback == other.callback
+            and self.on_resolve == other.on_resolve
+        )
 
     def __hash__(self) -> int:
-        return hash((self.cron, self.interval, self.callback))
+        return hash((self.cron, self.interval, self.callback, self.on_resolve))
 
 
 class DeadlineReference:

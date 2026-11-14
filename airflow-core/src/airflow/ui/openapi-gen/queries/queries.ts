@@ -161,6 +161,17 @@ export const useAssetServiceGetDagAssetQueuedEvent = <TData = Common.AssetServic
   dagId: string;
 }, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseAssetServiceGetDagAssetQueuedEventKeyFn({ assetId, before, dagId }, queryKey), queryFn: () => AssetService.getDagAssetQueuedEvent({ assetId, before, dagId }) as TData, ...options });
 /**
+* Get Asset Deadlines
+* Get configured deadline rules and scheduled/missed deadline instances for an asset.
+* @param data The data for the request.
+* @param data.assetId
+* @returns AssetDeadlinesResponse Successful Response
+* @throws ApiError
+*/
+export const useAssetServiceGetAssetDeadlines = <TData = Common.AssetServiceGetAssetDeadlinesDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ assetId }: {
+  assetId: number;
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseAssetServiceGetAssetDeadlinesKeyFn({ assetId }, queryKey), queryFn: () => AssetService.getAssetDeadlines({ assetId }) as TData, ...options });
+/**
 * Get Assets
 * Get assets. Like the public endpoint, but also supports sorting by group and last asset event timestamp.
 * @param data The data for the request.

@@ -85,6 +85,12 @@ export const UseAssetServiceGetDagAssetQueuedEventKeyFn = ({ assetId, before, da
   before?: string;
   dagId: string;
 }, queryKey?: Array<unknown>) => [useAssetServiceGetDagAssetQueuedEventKey, ...(queryKey ?? [{ assetId, before, dagId }])];
+export type AssetServiceGetAssetDeadlinesDefaultResponse = Awaited<ReturnType<typeof AssetService.getAssetDeadlines>>;
+export type AssetServiceGetAssetDeadlinesQueryResult<TData = AssetServiceGetAssetDeadlinesDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
+export const useAssetServiceGetAssetDeadlinesKey = "AssetServiceGetAssetDeadlines";
+export const UseAssetServiceGetAssetDeadlinesKeyFn = ({ assetId }: {
+  assetId: number;
+}, queryKey?: Array<unknown>) => [useAssetServiceGetAssetDeadlinesKey, ...(queryKey ?? [{ assetId }])];
 export type AssetServiceGetAssetsUiDefaultResponse = Awaited<ReturnType<typeof AssetService.getAssetsUi>>;
 export type AssetServiceGetAssetsUiQueryResult<TData = AssetServiceGetAssetsUiDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useAssetServiceGetAssetsUiKey = "AssetServiceGetAssetsUi";

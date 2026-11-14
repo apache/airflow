@@ -58,6 +58,8 @@ class DeadlineAlert(Base):
     reference: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     interval: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     callback_def: Mapped[dict] = mapped_column(JSON, nullable=False)
+    on_resolve_callback_def: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    on_resolve_callback_def: Mapped[dict | None] = mapped_column(JSON, nullable=True)
 
     def __repr__(self):
 
@@ -95,12 +97,19 @@ class DeadlineAlert(Base):
         """Check if two DeadlineAlerts share the same reference, interval, and callback definition."""
         if not isinstance(other, DeadlineAlert):
             return NotImplemented
-        if self.asset_id is not None or other.asset_id is not None:
+        if (
+            self.asset_id is not None
+            or other.asset_id is not None
+            or self.cron is not None
+            or other.cron is not None
+        ):
             return (
                 self.asset_id == other.asset_id
+                and self.serialized_dag_id == other.serialized_dag_id
                 and self.cron == other.cron
                 and self.interval == other.interval
                 and self.callback_def == other.callback_def
+                and self.on_resolve_callback_def == other.on_resolve_callback_def
             )
         return (
             self.reference == other.reference

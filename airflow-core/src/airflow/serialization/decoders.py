@@ -385,10 +385,13 @@ def decode_asset_deadline(encoded_data: dict[str, Any]) -> SerializedAssetDeadli
     raw_interval = data.get(AssetDeadlineFields.INTERVAL)
     interval = _decode_deadline_interval(raw_interval) if raw_interval is not None else None
 
+    raw_on_resolve = data.get("on_resolve")
+    on_resolve = _decode_deadline_callback(raw_on_resolve) if raw_on_resolve is not None else None
     return SerializedAssetDeadline(
         cron=data.get(AssetDeadlineFields.CRON),
         interval=interval,
         callback=_decode_deadline_callback(data[AssetDeadlineFields.CALLBACK]),
+        on_resolve=on_resolve,
         name=data.get(AssetDeadlineFields.NAME),
     )
 

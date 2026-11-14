@@ -256,8 +256,17 @@ def encode_asset_deadline(d: AssetDeadline | SerializedAssetDeadline) -> dict[st
     """
     from airflow.sdk.serde import serialize
 
+    on_resolve_encoded = None
+    if d.on_resolve is not None:
+        on_resolve_encoded = (
+            _encode_decoded_deadline_callback(d.on_resolve)
+            if isinstance(d, SerializedAssetDeadline)
+            else serialize(d.on_resolve)
+        )
+
     return {
         "name": d.name,
+        "reference": d.reference_dict,
         "cron": d.cron,
         "interval": serialize(d.interval) if d.interval is not None else None,
         "callback": (
@@ -265,6 +274,7 @@ def encode_asset_deadline(d: AssetDeadline | SerializedAssetDeadline) -> dict[st
             if isinstance(d, SerializedAssetDeadline)
             else serialize(d.callback)
         ),
+        "on_resolve": on_resolve_encoded,
     }
 
 

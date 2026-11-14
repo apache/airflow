@@ -38,7 +38,7 @@ airflow_version = "3.5.0"
 
 
 def upgrade():
-    """Add asset_id, partition_key, cron, and is_producer columns for Asset Deadlines."""
+    """Add asset_id, partition_key, cron, is_producer, on_resolve, and resolved_at columns for Asset Deadlines."""
     with disable_sqlite_fkeys():
         with op.batch_alter_table("deadline_alert", schema=None) as batch_op:
             batch_op.alter_column("serialized_dag_id", existing_type=sa.Uuid(), nullable=True)
@@ -49,6 +49,7 @@ def upgrade():
                 sa.Column("is_producer", sa.Boolean(), nullable=False, server_default=sa.false())
             )
             batch_op.add_column(sa.Column("cron", sa.String(length=250), nullable=True))
+            batch_op.add_column(sa.Column("on_resolve_callback_def", sa.JSON(), nullable=True))
             batch_op.create_foreign_key(
                 batch_op.f("deadline_alert_asset_id_fkey"),
                 "asset",
@@ -60,6 +61,7 @@ def upgrade():
         with op.batch_alter_table("deadline", schema=None) as batch_op:
             batch_op.add_column(sa.Column("asset_id", sa.Integer(), nullable=True))
             batch_op.add_column(sa.Column("partition_key", sa.String(length=250), nullable=True))
+            batch_op.add_column(sa.Column("resolved_at", sa.TIMESTAMP(timezone=True), nullable=True))
             batch_op.create_foreign_key(
                 batch_op.f("deadline_asset_id_fkey"),
                 "asset",
@@ -78,11 +80,13 @@ def downgrade():
         with op.batch_alter_table("deadline", schema=None) as batch_op:
             batch_op.drop_index("deadline_asset_id_partition_idx")
             batch_op.drop_constraint(batch_op.f("deadline_asset_id_fkey"), type_="foreignkey")
+            batch_op.drop_column("resolved_at")
             batch_op.drop_column("partition_key")
             batch_op.drop_column("asset_id")
 
         with op.batch_alter_table("deadline_alert", schema=None) as batch_op:
             batch_op.drop_constraint(batch_op.f("deadline_alert_asset_id_fkey"), type_="foreignkey")
+            batch_op.drop_column("on_resolve_callback_def")
             batch_op.drop_column("cron")
             batch_op.drop_column("is_producer")
             batch_op.drop_column("asset_id")

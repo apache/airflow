@@ -623,7 +623,7 @@ class SerializedDagModel(Base):
         from airflow.serialization.encoders import encode_asset_deadline
 
         dag_dict = dag.data.get("dag", {})
-        entries = []
+        entries: list[tuple[SerializedAsset | None, Any, bool]] = []
         for t in dag_dict.get("tasks", []):
             tv = t.get(Encoding.VAR, t)
             for ro in tv.get("outlets", []) or []:
@@ -636,14 +636,14 @@ class SerializedDagModel(Base):
             tt = decode_timetable(rt)
             ac = getattr(tt, "asset_condition", None)
             rd = getattr(tt, "run_deadline", None)
+            if rd is not None:
+                entries.append((None, rd, False))
             stack = [ac] if ac is not None else []
             while stack:
                 cur = stack.pop()
                 if isinstance(cur, SerializedAsset):
                     if cur.deadline is not None:
                         entries.append((cur, cur.deadline, False))
-                    if rd is not None:
-                        entries.append((cur, rd, False))
                 elif isinstance(cur, SerializedAssetBase):
                     for _, item in cur.iter_assets():
                         stack.append(item)
@@ -652,16 +652,27 @@ class SerializedDagModel(Base):
             return
 
         session.flush()
-        aids = set()
+        aids: set[int] = set()
+        has_run_deadline = False
         for a_obj, dl_def, is_prod in entries:
-            am = session.scalar(
-                select(AssetModel).where(AssetModel.name == a_obj.name, AssetModel.uri == a_obj.uri)
-            )
-            if am is None:
-                continue
+            asset_id: int | None = None
+            if a_obj is not None:
+                am = session.scalar(
+                    select(AssetModel).where(AssetModel.name == a_obj.name, AssetModel.uri == a_obj.uri)
+                )
+                if am is None:
+                    continue
+                asset_id = am.id
+                aids.add(am.id)
+            else:
+                has_run_deadline = True
+
             enc = encode_asset_deadline(dl_def)
             existing = session.scalars(
-                select(DeadlineAlertModel).where(DeadlineAlertModel.asset_id == am.id)
+                select(DeadlineAlertModel).where(
+                    DeadlineAlertModel.asset_id == asset_id,
+                    DeadlineAlertModel.serialized_dag_id == serialized_dag.id,
+                )
             ).all()
             matched = next(
                 (
@@ -670,6 +681,7 @@ class SerializedDagModel(Base):
                     if e.cron == enc["cron"]
                     and e.interval == enc["interval"]
                     and e.callback_def == enc["callback"]
+                    and e.on_resolve_callback_def == enc.get("on_resolve")
                 ),
                 None,
             )
@@ -678,24 +690,27 @@ class SerializedDagModel(Base):
                     matched.is_producer = True
                 if enc.get("name") and not matched.name:
                     matched.name = enc["name"]
-                aids.add(am.id)
                 continue
+
             session.add(
                 DeadlineAlertModel(
                     serialized_dag_id=serialized_dag.id,
-                    asset_id=am.id,
+                    asset_id=asset_id,
                     is_producer=is_prod,
                     name=enc.get("name"),
+                    reference=enc.get("reference"),
                     cron=enc["cron"],
                     interval=enc["interval"],
                     callback_def=enc["callback"],
+                    on_resolve_callback_def=enc.get("on_resolve"),
                 )
             )
-            aids.add(am.id)
 
         session.flush()
         for aid in aids:
             Deadline.schedule_asset_deadlines(session=session, asset_id=aid)
+        if has_run_deadline:
+            Deadline.schedule_asset_deadlines(session=session)
 
     @classmethod
     @provide_session
