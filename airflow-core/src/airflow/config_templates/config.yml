@@ -3182,6 +3182,25 @@ triggerer:
       type: integer
       example: ~
       default: "500"
+    failed_trigger_retry_delay:
+      description: |
+        Base delay, in seconds, before a failed trigger is re-created. The actual delay grows with the
+        trigger's consecutive failure count and is capped by ``[triggerer] failed_trigger_retry_max_delay``.
+        Deferred tasks' triggers still fail their task right away; this only delays re-creating the trigger.
+        Triggers sharing a stream back off together, so they are re-created as one group.
+      version_added: 3.5.0
+      type: float
+      example: ~
+      default: "5.0"
+    failed_trigger_retry_max_delay:
+      description: |
+        Maximum delay, in seconds, before a failed trigger is re-created. The delay grows with the
+        trigger's consecutive failure count, starting from ``[triggerer] failed_trigger_retry_delay``.
+        Triggers sharing a stream back off together, so they are re-created as one group.
+      version_added: 3.5.0
+      type: float
+      example: ~
+      default: "300.0"
     on_kill_timeout:
       description: |
         Maximum number of seconds the triggerer will wait for ``BaseTrigger.on_kill()`` to complete
