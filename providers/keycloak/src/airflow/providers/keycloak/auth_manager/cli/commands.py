@@ -77,6 +77,7 @@ TEAM_ADMIN_MENU_ITEMS = TEAM_MENU_ITEMS | {
 }
 TEAM_ROLE_NAMES = ("Viewer", "User", "Op", "Admin")
 SUPER_ADMIN_ROLE_NAME = "SuperAdmin"
+READ_ONLY_ROLE_NAME = "GlobalReadOnly"
 
 
 def _get_resource_methods() -> list[str]:
@@ -142,6 +143,7 @@ def create_permissions_command(args):
         for role_name in TEAM_ROLE_NAMES:
             _ensure_role_policy(client, client_uuid, role_name, _dry_run=args.dry_run)
         _ensure_role_policy(client, client_uuid, SUPER_ADMIN_ROLE_NAME, _dry_run=args.dry_run)
+        _ensure_role_policy(client, client_uuid, READ_ONLY_ROLE_NAME, _dry_run=args.dry_run)
     else:
         _ensure_default_role_policies(client, client_uuid, _dry_run=args.dry_run)
     _create_permissions(client, client_uuid, teams=teams, _dry_run=args.dry_run)
@@ -167,6 +169,7 @@ def create_all_command(args):
         for role_name in TEAM_ROLE_NAMES:
             _ensure_role_policy(client, client_uuid, role_name, _dry_run=args.dry_run)
         _ensure_role_policy(client, client_uuid, SUPER_ADMIN_ROLE_NAME, _dry_run=args.dry_run)
+        _ensure_role_policy(client, client_uuid, READ_ONLY_ROLE_NAME, _dry_run=args.dry_run)
     else:
         _ensure_default_role_policies(client, client_uuid, _dry_run=args.dry_run)
     _create_permissions(client, client_uuid, teams=teams, _dry_run=args.dry_run)
@@ -258,14 +261,14 @@ def _ensure_multi_team_enabled(*, teams: list[str], command_name: str) -> None:
 
 
 def _ensure_default_role_policies(client: KeycloakAdmin, client_uuid: str, *, _dry_run: bool = False) -> None:
-    for role_name in (*TEAM_ROLE_NAMES, SUPER_ADMIN_ROLE_NAME):
+    for role_name in (*TEAM_ROLE_NAMES, READ_ONLY_ROLE_NAME, SUPER_ADMIN_ROLE_NAME):
         _ensure_role_policy(client, client_uuid, role_name, _dry_run=_dry_run)
 
 
 def _attach_default_role_permissions(
     client: KeycloakAdmin, client_uuid: str, *, _dry_run: bool = False
 ) -> None:
-    for role_name in TEAM_ROLE_NAMES:
+    for role_name in (*TEAM_ROLE_NAMES, READ_ONLY_ROLE_NAME):
         _attach_policy_to_scope_permission(
             client,
             client_uuid,
@@ -324,12 +327,19 @@ def _update_read_only_permission_resources(
         return
 
     permission_id = match["id"]
-    scopes = client.get_client_authz_scopes(client_uuid)
-    resources = client.get_client_authz_resources(client_uuid)
-    scope_ids = [s["id"] for s in scopes if s["name"] in ["GET", "MENU", "LIST"]]
-    resource_names = TEAM_SCOPED_RESOURCE_NAMES | GLOBAL_SCOPED_RESOURCE_NAMES
-    resource_ids = [r["_id"] for r in resources if r["name"] in resource_names]
+    scope_ids = [
+        s["id"] for s in client.get_client_authz_scopes(client_uuid) if s["name"] in ["GET", "MENU", "LIST"]
+    ]
+    resource_ids = [
+        r["_id"]
+        for r in client.get_client_authz_resources(client_uuid)
+        if any(r["name"].startswith(f"{resource}") for resource in TEAM_SCOPED_RESOURCE_NAMES)
+        or r["name"] in TEAM_SCOPED_RESOURCE_NAMES | GLOBAL_SCOPED_RESOURCE_NAMES
+    ]
+    read_only_policy_id = _get_policy_id(client, client_uuid, _role_policy_name(READ_ONLY_ROLE_NAME))
     policy_ids = _get_permission_policy_ids(client, client_uuid, permission_id)
+    if read_only_policy_id and read_only_policy_id not in policy_ids:
+        policy_ids.append(read_only_policy_id)
     payload = {
         "id": permission_id,
         "name": "ReadOnly",
@@ -453,6 +463,7 @@ def _get_permissions_to_create(
     client_uuid: str,
     teams: list[str],
     *,
+    include_global_readonly: bool = True,
     include_global_admin: bool = True,
 ) -> list[dict]:
     """
@@ -526,6 +537,19 @@ def _get_permissions_to_create(
                         ],
                     },
                 ]
+            )
+        if include_global_readonly:
+            perm_configs.append(
+                {
+                    "name": "ReadOnly",
+                    "type": "scope-based",
+                    "scope_names": ["GET", "LIST"],
+                    "resources": [
+                        f"{resource}:{team}"
+                        for team in teams
+                        for resource in [KeycloakResource.DAG.value, KeycloakResource.TEAM.value]
+                    ],
+                }
             )
         if include_global_admin:
             perm_configs.append(
@@ -625,12 +649,17 @@ def _create_permissions(
     client_uuid: str,
     *,
     teams: list[str],
+    include_global_readonly: bool = True,
     include_global_admin: bool = True,
     _dry_run: bool = False,
 ):
     """Create Keycloak permissions."""
     permissions = _get_permissions_to_create(
-        client, client_uuid, teams=teams, include_global_admin=include_global_admin
+        client,
+        client_uuid,
+        teams=teams,
+        include_global_readonly=include_global_readonly,
+        include_global_admin=include_global_admin,
     )
 
     for perm in permissions:
@@ -787,6 +816,7 @@ def create_team_command(args):
     _attach_team_permissions(client, client_uuid, team, _dry_run=args.dry_run)
     _attach_team_menu_permissions(client, client_uuid, team, _dry_run=args.dry_run)
     _attach_superadmin_permissions(client, client_uuid, team, _dry_run=args.dry_run)
+    _attach_readonly_permissions(client, client_uuid, team, _dry_run=args.dry_run)
     _update_read_only_permission_resources(client, client_uuid, _dry_run=args.dry_run)
     _update_admin_permission_resources(client, client_uuid, _dry_run=args.dry_run)
 
@@ -913,7 +943,7 @@ def _attach_global_list_permissions(
     client: KeycloakAdmin, client_uuid: str, *, _dry_run: bool = False
 ) -> None:
     resource_names = list(TEAM_SCOPED_RESOURCE_NAMES) + list(GLOBAL_SCOPED_RESOURCE_NAMES)
-    for role_name in (*TEAM_ROLE_NAMES, SUPER_ADMIN_ROLE_NAME):
+    for role_name in (*TEAM_ROLE_NAMES, READ_ONLY_ROLE_NAME, SUPER_ADMIN_ROLE_NAME):
         _attach_policy_to_scope_permission(
             client,
             client_uuid,
@@ -1015,6 +1045,52 @@ def _attach_superadmin_permissions(
         client_uuid,
         permission_name="MenuAccess",
         policy_name=_role_policy_name(SUPER_ADMIN_ROLE_NAME),
+        scope_names=["MENU"],
+        resource_names=[item.value for item in sorted(MenuItem, key=lambda item: item.value)],
+        decision_strategy="AFFIRMATIVE",
+        _dry_run=_dry_run,
+    )
+
+
+def _attach_readonly_permissions(
+    client: KeycloakAdmin, client_uuid: str, team: str, *, _dry_run: bool = False
+) -> None:
+    team_scoped_resources = [f"{resource}:{team}" for resource in sorted(TEAM_SCOPED_RESOURCE_NAMES)]
+    _attach_policy_to_scope_permission(
+        client,
+        client_uuid,
+        permission_name="ReadOnly",
+        policy_name=_role_policy_name(READ_ONLY_ROLE_NAME),
+        scope_names=["GET", "LIST", "MENU"],
+        resource_names=team_scoped_resources,
+        decision_strategy="AFFIRMATIVE",
+        _dry_run=_dry_run,
+    )
+    _attach_policy_to_scope_permission(
+        client,
+        client_uuid,
+        permission_name="ViewAccess",
+        policy_name=_role_policy_name(READ_ONLY_ROLE_NAME),
+        scope_names=["GET"],
+        resource_names=[KeycloakResource.VIEW.value],
+        decision_strategy="AFFIRMATIVE",
+        _dry_run=_dry_run,
+    )
+    _attach_policy_to_scope_permission(
+        client,
+        client_uuid,
+        permission_name="AdminViewAccess",
+        policy_name=_role_policy_name(READ_ONLY_ROLE_NAME),
+        scope_names=["GET"],
+        resource_names=[KeycloakResource.ADMIN_VIEW.value],
+        decision_strategy="AFFIRMATIVE",
+        _dry_run=_dry_run,
+    )
+    _attach_policy_to_scope_permission(
+        client,
+        client_uuid,
+        permission_name="MenuAccess",
+        policy_name=_role_policy_name(READ_ONLY_ROLE_NAME),
         scope_names=["MENU"],
         resource_names=[item.value for item in sorted(MenuItem, key=lambda item: item.value)],
         decision_strategy="AFFIRMATIVE",
