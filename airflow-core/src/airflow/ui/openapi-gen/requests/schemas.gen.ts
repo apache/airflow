@@ -2593,10 +2593,16 @@ export const $ClearTaskInstancesBody = {
             default: false
         },
         keep_task_state: {
-            type: 'boolean',
+            anyOf: [
+                {
+                    type: 'boolean'
+                },
+                {
+                    type: 'null'
+                }
+            ],
             title: 'Keep Task State',
-            description: 'Keep the task state store entries of the cleared task instances so the next attempt resumes from them. By default they are discarded, so the task starts over.',
-            default: false
+            description: 'Keep the task state store entries of the cleared task instances so the next attempt resumes from them. If omitted, the ``[api] default_keep_task_state`` configuration option is used (``False`` by default, so they are discarded and the task starts over).'
         },
         note: {
             anyOf: [
@@ -11916,6 +11922,10 @@ export const $ConfigResponse = {
             type: 'boolean',
             title: 'Require Confirmation Dag Change'
         },
+        default_keep_task_state: {
+            type: 'boolean',
+            title: 'Default Keep Task State'
+        },
         default_wrap: {
             type: 'boolean',
             title: 'Default Wrap'
@@ -11973,7 +11983,7 @@ export const $ConfigResponse = {
         }
     },
     type: 'object',
-    required: ['fallback_page_limit', 'auto_refresh_interval', 'hide_paused_dags_by_default', 'instance_name', 'enable_swagger_ui', 'require_confirmation_dag_change', 'default_wrap', 'test_connection', 'dashboard_alert', 'show_external_log_redirect', 'theme', 'multi_team'],
+    required: ['fallback_page_limit', 'auto_refresh_interval', 'hide_paused_dags_by_default', 'instance_name', 'enable_swagger_ui', 'require_confirmation_dag_change', 'default_keep_task_state', 'default_wrap', 'test_connection', 'dashboard_alert', 'show_external_log_redirect', 'theme', 'multi_team'],
     title: 'ConfigResponse',
     description: 'configuration serializer.'
 } as const;

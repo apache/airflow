@@ -154,7 +154,7 @@ export const ClearGroupTaskInstanceDialog = ({ onClose, open, taskInstance }: Pr
                 include_past: past,
                 include_upstream: upstream,
                 ...(note === null ? {} : { note }),
-                ...(keepTaskState ? { keep_task_state: true } : {}),
+                keep_task_state: keepTaskState,
                 only_failed: onlyFailed,
                 run_on_latest_version: runOnLatestVersion,
                 task_group_id: groupId,

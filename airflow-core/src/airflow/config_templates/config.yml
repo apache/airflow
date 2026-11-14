@@ -2048,6 +2048,17 @@ api:
       type: boolean
       example: ~
       default: "False"
+    default_keep_task_state:
+      description: |
+        Default value of ``keep_task_state`` when clearing task instances. When set to ``True``,
+        the task state store entries of cleared task instances are kept so the next attempt can
+        resume from them. This is used when an API request omits the field, and as the initial
+        state of the "Keep task state" checkbox in the clear dialog. A value set in the user's
+        browser-local preference still overrides it in the UI.
+      version_added: 3.5.0
+      type: boolean
+      example: ~
+      default: "False"
     client_ssl_cert:
       description: |
         Path to a PEM-encoded client SSL certificate to use

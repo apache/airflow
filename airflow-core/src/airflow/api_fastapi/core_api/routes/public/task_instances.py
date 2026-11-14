@@ -134,6 +134,7 @@ from airflow.api_fastapi.core_api.services.public.task_instances import (
     patch_region_selection,
 )
 from airflow.api_fastapi.logging.decorators import action_logging
+from airflow.configuration import conf
 from airflow.exceptions import AirflowClearRunningTaskException, TaskNotFound
 from airflow.models import DagRun
 from airflow.models.dagrun import lock_dag_runs
@@ -1362,7 +1363,12 @@ def post_clear_task_instances(
         # This is the only clear path that discards task state today; Dag-run clear and
         # mark-as-failed/success (which clear downstream tasks) still keep it unconditionally.
         # It is tracked through https://github.com/apache/airflow/issues/72929
-        if not body.keep_task_state:
+        keep_task_state = (
+            body.keep_task_state
+            if body.keep_task_state is not None
+            else conf.getboolean("api", "default_keep_task_state")
+        )
+        if not keep_task_state:
             _discard_task_state_store(task_instances, session, event="Discarded task state on clear")
 
         if body.note is not None:

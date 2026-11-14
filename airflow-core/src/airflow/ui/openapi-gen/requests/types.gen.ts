@@ -807,9 +807,9 @@ export type ClearTaskInstancesBody = {
     run_on_latest_version?: boolean | null;
     prevent_running_task?: boolean;
     /**
-     * Keep the task state store entries of the cleared task instances so the next attempt resumes from them. By default they are discarded, so the task starts over.
+     * Keep the task state store entries of the cleared task instances so the next attempt resumes from them. If omitted, the ``[api] default_keep_task_state`` configuration option is used (``False`` by default, so they are discarded and the task starts over).
      */
-    keep_task_state?: boolean;
+    keep_task_state?: boolean | null;
     note?: string | null;
 };
 
@@ -3053,6 +3053,7 @@ export type ConfigResponse = {
     instance_name: string;
     enable_swagger_ui: boolean;
     require_confirmation_dag_change: boolean;
+    default_keep_task_state: boolean;
     default_wrap: boolean;
     test_connection: string;
     dashboard_alert: Array<UIAlert>;

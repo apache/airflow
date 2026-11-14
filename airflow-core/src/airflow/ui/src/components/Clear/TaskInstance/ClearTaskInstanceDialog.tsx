@@ -364,8 +364,8 @@ const ClearTaskInstanceDialog = (props: Props) => {
         requestBody: {
           ...requestBody,
           dry_run: false,
+          keep_task_state: keepTaskState,
           note: noteChanged ? note : undefined,
-          ...(keepTaskState ? { keep_task_state: true } : {}),
           ...(preventRunningTask ? { prevent_running_task: true } : {}),
         },
       });
