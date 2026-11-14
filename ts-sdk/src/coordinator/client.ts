@@ -58,14 +58,35 @@ import type {
  */
 type AbsentRowPolicy = "throw" | { codes: readonly string[]; apiServer404: boolean };
 
-function resolveWireMapIndex(
-  requestedMapIndex: number | null | undefined,
-  contextMapIndex: number,
-): number | null {
-  // `mapIndex` is nullable, so only use the context value when the user did
-  // not provide one. If the user passes null, send null to the supervisor.
-  const mapIndex = requestedMapIndex === undefined ? contextMapIndex : requestedMapIndex;
-  return mapIndex == null || mapIndex < 0 ? null : mapIndex;
+type XComTargetOpts = Pick<GetXComOpts, "key" | "dagId" | "runId" | "taskId" | "mapIndex">;
+
+function resolveXComTarget(opts: XComTargetOpts, ctx: TaskContext) {
+  // The supervisor never replies to a frame with a wrongly typed field, so the
+  // task would hang instead of failing fast.
+  assertKey(opts.key, "XCom key");
+  for (const [label, id] of [
+    ["dagId", opts.dagId],
+    ["taskId", opts.taskId],
+    ["runId", opts.runId],
+  ] as const) {
+    if (id != null) assertKey(id, `XCom ${label}`);
+  }
+  assertMapIndex(opts.mapIndex);
+  const dag_id = opts.dagId ?? ctx.dagId;
+  const task_id = opts.taskId ?? ctx.taskId;
+  const run_id = opts.runId ?? ctx.runId;
+  // A map index only names a row of the task that owns it, so another task or
+  // run does not inherit it. `mapIndex` is nullable: an explicit null stays null.
+  const targetsSelf = dag_id === ctx.dagId && task_id === ctx.taskId && run_id === ctx.runId;
+  const mapIndex =
+    opts.mapIndex === undefined ? (targetsSelf ? ctx.mapIndex : null) : opts.mapIndex;
+  return {
+    key: opts.key,
+    dag_id,
+    task_id,
+    run_id,
+    map_index: mapIndex === null || mapIndex < 0 ? null : mapIndex,
+  };
 }
 
 function fromWireConnection(body: WireConnectionResult): ConnectionResult {
@@ -145,12 +166,22 @@ const RETENTION_DAYS_ENV_VAR = "AIRFLOW__STATE_STORE__DEFAULT_RETENTION_DAYS";
 const MS_PER_SECOND = 1000;
 const SECONDS_PER_DAY = 24 * 60 * 60;
 
-function assertKey(key: string): void {
+function assertKey(key: string, label = "task state store key"): void {
   if (typeof key !== "string") {
-    throw new TypeError(`task state store key must be a string, got ${typeof key}`);
+    throw new TypeError(`${label} must be a string, got ${typeof key}`);
   }
   if (key === "") {
-    throw new RangeError("task state store key must not be empty");
+    throw new RangeError(`${label} must not be empty`);
+  }
+}
+
+function assertMapIndex(mapIndex: number | null | undefined): void {
+  if (mapIndex === undefined || mapIndex === null) return;
+  if (typeof mapIndex !== "number") {
+    throw new TypeError(`XCom mapIndex must be an integer or null, got ${typeof mapIndex}`);
+  }
+  if (!Number.isInteger(mapIndex)) {
+    throw new RangeError(`XCom mapIndex must be an integer, got ${mapIndex}`);
   }
 }
 
@@ -344,11 +375,7 @@ export function createCoordinatorClient(
     async getXComEntry(opts: GetXComOpts): Promise<XComEntry> {
       const msg: GetXCom = {
         type: "GetXCom",
-        key: opts.key,
-        dag_id: opts.dagId ?? ctx.dagId,
-        task_id: opts.taskId ?? ctx.taskId,
-        run_id: opts.runId ?? ctx.runId,
-        map_index: resolveWireMapIndex(opts.mapIndex, ctx.mapIndex),
+        ...resolveXComTarget(opts, ctx),
         include_prior_dates: opts.includePriorDates ?? false,
       };
       const entry = await rpc<XComEntry>(
@@ -375,12 +402,8 @@ export function createCoordinatorClient(
     async setXCom(opts: SetXComOpts): Promise<void> {
       const msg: SetXCom = {
         type: "SetXCom",
-        key: opts.key,
+        ...resolveXComTarget(opts, ctx),
         value: opts.value,
-        dag_id: opts.dagId ?? ctx.dagId,
-        task_id: opts.taskId ?? ctx.taskId,
-        run_id: opts.runId ?? ctx.runId,
-        map_index: resolveWireMapIndex(opts.mapIndex, ctx.mapIndex),
       };
       await rpc("SetXCom", null, msg, () => undefined, "throw");
     },

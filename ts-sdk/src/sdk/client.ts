@@ -75,7 +75,7 @@ export interface TaskClient {
    * Pull an XCom value.
    *
    * Returns `null` when the row is missing. Locator fields default to the
-   * current task's context.
+   * current task's context; see {@link GetXComOpts} for how `mapIndex` defaults.
    *
    * The generic `T` lets callers narrow the return type when the shape is
    * known:
@@ -84,13 +84,20 @@ export interface TaskClient {
    * const data = await client.getXCom<{ count: number }>({ key: "result" });
    * // data is { count: number } | null
    * ```
+   *
+   * @throws `TypeError` when `key`, `dagId`, `taskId` or `runId` is not a string, or `mapIndex` is not a number or `null`.
+   * @throws `RangeError` when `key`, `dagId`, `taskId` or `runId` is empty, or `mapIndex` is not an integer.
    */
   getXCom<T = unknown>(opts: GetXComOpts): Promise<T | null>;
 
   /**
    * Push an XCom value.
    *
-   * Target fields default to the current task's context.
+   * Target fields default to the current task's context; see
+   * {@link SetXComOpts} for how `mapIndex` defaults.
+   *
+   * @throws `TypeError` when `key`, `dagId`, `taskId` or `runId` is not a string, or `mapIndex` is not a number or `null`.
+   * @throws `RangeError` when `key`, `dagId`, `taskId` or `runId` is empty, or `mapIndex` is not an integer.
    */
   setXCom(opts: SetXComOpts): Promise<void>;
 
