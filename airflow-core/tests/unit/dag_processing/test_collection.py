@@ -2220,3 +2220,257 @@ class TestRejectOtherTeamsPluginClasses:
 
         assert stored == set()
         assert "belonging to other_team" in errors[(bundle_name, "team_dag.py")]
+
+
+@pytest.mark.db_test
+class TestRejectCrossBundleDagIdCollisions:
+    """A Dag whose dag_id is already registered in another active bundle must be rejected."""
+
+    @pytest.fixture(autouse=True)
+    def _clean(self):
+        yield
+        clear_db_serialized_dags()
+        clear_db_dags()
+        clear_db_import_errors()
+        clear_db_dag_bundles()
+
+    @staticmethod
+    def _create_bundle(name, session):
+        bundle = session.get(DagBundleModel, name)
+        if not bundle:
+            bundle = DagBundleModel(name=name)
+            session.add(bundle)
+            session.flush()
+        return name
+
+    @staticmethod
+    def _serialized(dag_id="colliding_dag", relative_fileloc=None, fileloc=None):
+        with DAG(dag_id, schedule=None) as dag:
+            EmptyOperator(task_id="task_1")
+        dag.relative_fileloc = relative_fileloc or f"{dag_id}.py"
+        if fileloc:
+            dag.fileloc = fileloc
+        return LazyDeserializedDAG.from_dag(dag)
+
+    def test_cross_bundle_duplicate_dag_id_is_rejected_with_import_error(
+        self, configure_dag_bundles, tmp_path, session
+    ):
+        bundle_a = self._create_bundle("bundle_alpha", session)
+        bundle_b = self._create_bundle("bundle_beta", session)
+
+        with configure_dag_bundles({"bundle_alpha": tmp_path, "bundle_beta": tmp_path}):
+            dag_a = self._serialized("duplicate_dag", relative_fileloc="dags/alpha.py")
+            import_errors_a = {}
+            update_dag_parsing_results_in_db(
+                bundle_name=bundle_a,
+                bundle_version=None,
+                dags=[dag_a],
+                import_errors=import_errors_a,
+                parse_duration=None,
+                warnings=set(),
+                session=session,
+            )
+            assert not import_errors_a
+
+            dm_a = session.get(DagModel, "duplicate_dag")
+            assert dm_a is not None
+            assert dm_a.bundle_name == bundle_a
+            assert dm_a.relative_fileloc == "dags/alpha.py"
+
+            dag_b = self._serialized("duplicate_dag", relative_fileloc="dags/beta.py")
+            import_errors_b = {}
+            update_dag_parsing_results_in_db(
+                bundle_name=bundle_b,
+                bundle_version=None,
+                dags=[dag_b],
+                import_errors=import_errors_b,
+                parse_duration=None,
+                warnings=set(),
+                session=session,
+            )
+
+        assert (bundle_b, "dags/beta.py") in import_errors_b
+        err_msg = import_errors_b[(bundle_b, "dags/beta.py")]
+        assert "DAG 'duplicate_dag' is already registered in bundle 'bundle_alpha' (dags/alpha.py)" in err_msg
+        assert "DAG IDs must be unique across all bundles" in err_msg
+
+        dm_after = session.get(DagModel, "duplicate_dag")
+        assert dm_after.bundle_name == bundle_a
+        assert dm_after.relative_fileloc == "dags/alpha.py"
+
+    def test_cross_bundle_collision_only_rejects_colliding_dag_in_batch(
+        self, configure_dag_bundles, tmp_path, session
+    ):
+        bundle_a = self._create_bundle("bundle_alpha", session)
+        bundle_b = self._create_bundle("bundle_beta", session)
+
+        with configure_dag_bundles({"bundle_alpha": tmp_path, "bundle_beta": tmp_path}):
+            dag_a = self._serialized("registered_dag", relative_fileloc="dags/alpha.py")
+            update_dag_parsing_results_in_db(
+                bundle_name=bundle_a,
+                bundle_version=None,
+                dags=[dag_a],
+                import_errors={},
+                parse_duration=None,
+                warnings=set(),
+                session=session,
+            )
+
+            dag_colliding = self._serialized("registered_dag", relative_fileloc="dags/beta_colliding.py")
+            dag_clean = self._serialized("clean_dag", relative_fileloc="dags/beta_clean.py")
+            import_errors_b = {}
+            update_dag_parsing_results_in_db(
+                bundle_name=bundle_b,
+                bundle_version=None,
+                dags=[dag_colliding, dag_clean],
+                import_errors=import_errors_b,
+                parse_duration=None,
+                warnings=set(),
+                session=session,
+            )
+
+        assert (bundle_b, "dags/beta_colliding.py") in import_errors_b
+        assert (bundle_b, "dags/beta_clean.py") not in import_errors_b
+
+        dm_clean = session.get(DagModel, "clean_dag")
+        assert dm_clean is not None
+        assert dm_clean.bundle_name == bundle_b
+
+        dm_registered = session.get(DagModel, "registered_dag")
+        assert dm_registered.bundle_name == bundle_a
+
+    def test_cross_bundle_stale_dag_id_can_be_adopted_by_new_bundle(
+        self, configure_dag_bundles, tmp_path, session
+    ):
+        bundle_a = self._create_bundle("bundle_alpha", session)
+        bundle_b = self._create_bundle("bundle_beta", session)
+
+        with configure_dag_bundles({"bundle_alpha": tmp_path, "bundle_beta": tmp_path}):
+            dag_a = self._serialized("stale_dag", relative_fileloc="dags/alpha.py")
+            update_dag_parsing_results_in_db(
+                bundle_name=bundle_a,
+                bundle_version=None,
+                dags=[dag_a],
+                import_errors={},
+                parse_duration=None,
+                warnings=set(),
+                session=session,
+            )
+
+            dm = session.get(DagModel, "stale_dag")
+            assert dm is not None
+            assert dm.bundle_name == bundle_a
+
+            dm.is_stale = True
+            session.commit()
+
+            dag_b = self._serialized("stale_dag", relative_fileloc="dags/beta.py")
+            import_errors_b = {}
+            update_dag_parsing_results_in_db(
+                bundle_name=bundle_b,
+                bundle_version=None,
+                dags=[dag_b],
+                import_errors=import_errors_b,
+                parse_duration=None,
+                warnings=set(),
+                session=session,
+            )
+
+        assert not import_errors_b
+        dm_adopted = session.get(DagModel, "stale_dag")
+        assert dm_adopted.bundle_name == bundle_b
+        assert dm_adopted.relative_fileloc == "dags/beta.py"
+        assert dm_adopted.is_stale is False
+
+    def test_unconfigured_bundle_dag_id_can_be_adopted_by_configured_bundle(
+        self, configure_dag_bundles, tmp_path, session
+    ):
+        """A Dag in a bundle absent from the current runtime config must not block a configured bundle."""
+        bundle_ghost = self._create_bundle("bundle_ghost", session)
+        bundle_current = self._create_bundle("bundle_current", session)
+
+        # Register the DAG under a bundle that is NOT in the runtime config below.
+        with configure_dag_bundles({"bundle_ghost": tmp_path}):
+            dag_a = self._serialized("orphaned_dag", relative_fileloc="dags/ghost.py")
+            update_dag_parsing_results_in_db(
+                bundle_name=bundle_ghost,
+                bundle_version=None,
+                dags=[dag_a],
+                import_errors={},
+                parse_duration=None,
+                warnings=set(),
+                session=session,
+            )
+
+        dm = session.get(DagModel, "orphaned_dag")
+        assert dm is not None
+        assert dm.bundle_name == bundle_ghost
+
+        # Now re-register the same dag_id from a different, currently-configured bundle.
+        # bundle_ghost is NOT in this config, so there should be no collision.
+        with configure_dag_bundles({"bundle_current": tmp_path}):
+            dag_b = self._serialized("orphaned_dag", relative_fileloc="dags/current.py")
+            import_errors_b = {}
+            update_dag_parsing_results_in_db(
+                bundle_name=bundle_current,
+                bundle_version=None,
+                dags=[dag_b],
+                import_errors=import_errors_b,
+                parse_duration=None,
+                warnings=set(),
+                session=session,
+            )
+
+        assert not import_errors_b
+        dm_adopted = session.get(DagModel, "orphaned_dag")
+        assert dm_adopted.bundle_name == bundle_current
+        assert dm_adopted.relative_fileloc == "dags/current.py"
+
+    def test_same_file_reparsing_across_bundles_is_accepted(self, configure_dag_bundles, tmp_path, session):
+        """Same-file parsing across bundles is accepted and reattributed."""
+
+        bundle_a = self._create_bundle("bundle_alpha", session)
+        bundle_b = self._create_bundle("bundle_beta", session)
+
+        shared_path = tmp_path / "shared_dag.py"
+        shared_path.write_text("dummy")
+
+        with configure_dag_bundles({"bundle_alpha": tmp_path, "bundle_beta": tmp_path}):
+            dag_a = self._serialized(
+                "shared_dag",
+                fileloc=str(shared_path),
+                relative_fileloc="shared_dag.py",
+            )
+            update_dag_parsing_results_in_db(
+                bundle_name=bundle_a,
+                bundle_version=None,
+                dags=[dag_a],
+                import_errors={},
+                parse_duration=None,
+                warnings=set(),
+                session=session,
+            )
+
+            dm = session.get(DagModel, "shared_dag")
+            assert dm is not None
+            assert dm.bundle_name == bundle_a
+
+            dag_b = self._serialized(
+                "shared_dag",
+                fileloc=str(shared_path),
+                relative_fileloc="shared_dag.py",
+            )
+            import_errors_b = {}
+            update_dag_parsing_results_in_db(
+                bundle_name=bundle_b,
+                bundle_version=None,
+                dags=[dag_b],
+                import_errors=import_errors_b,
+                parse_duration=None,
+                warnings=set(),
+                session=session,
+            )
+
+        assert not import_errors_b
+        dm_adopted = session.get(DagModel, "shared_dag")
+        assert dm_adopted.bundle_name == bundle_b
