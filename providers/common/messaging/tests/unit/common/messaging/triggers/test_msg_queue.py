@@ -219,6 +219,14 @@ class TestMessageQueueTriggerScheme:
         assert trigger.queue_uri == PROVIDER_1_QUEUE
         assert trigger.scheme is None
 
+    def test_legacy_queue_uri_with_scheme_keeps_uri_matching(self):
+        """A broker URI passed as `queue` next to `scheme` must not become the trigger queue."""
+        with pytest.warns(AirflowProviderDeprecationWarning, match="broker queue URI as `queue`"):
+            trigger = MessageQueueTrigger(queue=PROVIDER_1_QUEUE, scheme=PROVIDER_2_SCHEME)
+        assert trigger.queue_uri == PROVIDER_1_QUEUE
+        assert trigger.scheme is None
+        assert trigger.queue is None
+
     def test_scheme_only_initialization(self):
         """Test initialization with scheme parameter only."""
         trigger = MessageQueueTrigger(scheme=PROVIDER_2_SCHEME)

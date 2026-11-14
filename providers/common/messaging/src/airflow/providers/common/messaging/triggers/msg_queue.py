@@ -95,6 +95,15 @@ class MessageQueueTrigger(BaseEventTrigger):
         # Determine whether `queue` represents the trigger queue or the legacy broker queue URI.
         # When `scheme` or `queue_uri` is explicitly provided, `queue` is the trigger queue.
         # When neither is provided, `queue` is treated as the legacy broker queue URI for backward compatibility.
+        if scheme is not None and queue_uri is None and queue is not None and "://" in queue:
+            # Existing callers passing the broker URI as `queue` next to `scheme` used to get URI
+            # matching; keep that instead of routing to a trigger queue named after the URI.
+            warnings.warn(
+                "Passing the broker queue URI as `queue` is deprecated, use `scheme` instead.",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
+            queue_uri, queue = queue, None
         if scheme is not None or queue_uri is not None:
             if queue is not None and trigger_queue is not None:
                 raise ValueError("Cannot provide both `queue` and deprecated `trigger_queue`.")
