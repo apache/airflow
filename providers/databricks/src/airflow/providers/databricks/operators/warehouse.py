@@ -249,19 +249,9 @@ class DatabricksEditWarehouseOperator(_DatabricksWarehouseBaseOperator):
         *,
         json: dict[str, Any],
         databricks_conn_id: str = "databricks_default",
-        databricks_retry_limit: int = 3,
-        databricks_retry_delay: int = 1,
-        databricks_retry_args: dict[Any, Any] | None = None,
         **kwargs,
     ) -> None:
-        super().__init__(
-            warehouse_id=warehouse_id,
-            databricks_conn_id=databricks_conn_id,
-            databricks_retry_limit=databricks_retry_limit,
-            databricks_retry_delay=databricks_retry_delay,
-            databricks_retry_args=databricks_retry_args,
-            **kwargs,
-        )
+        super().__init__(warehouse_id=warehouse_id, databricks_conn_id=databricks_conn_id, **kwargs)
         self.json = json
 
     def execute(self, context: Context) -> None:
