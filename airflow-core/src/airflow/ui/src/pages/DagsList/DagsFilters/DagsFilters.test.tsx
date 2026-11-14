@@ -72,6 +72,27 @@ describe("Paused filter with hide_paused_dags_by_default enabled", () => {
     });
   });
 
+  it("sends the paused default on every dags request, including the first", async () => {
+    const urls: Array<URL> = [];
+    const onRequest = ({ request }: { request: Request }) => {
+      urls.push(new URL(request.url));
+    };
+
+    server.events.on("request:start", onRequest);
+    try {
+      render(<AppWrapper initialEntries={["/dags"]} />);
+
+      await waitFor(() => expect(screen.getByText("tutorial_taskflow_api_success")).toBeInTheDocument());
+    } finally {
+      server.events.removeListener("request:start", onRequest);
+    }
+
+    const dagsRequests = urls.filter((url) => url.pathname === "/ui/dags");
+
+    expect(dagsRequests).toHaveLength(1);
+    expect(dagsRequests.every((url) => url.searchParams.get("paused") === "false")).toBe(true);
+  });
+
   it("keeps draining dags under the default, since they are not paused yet", async () => {
     withDrainingDag();
     render(<AppWrapper initialEntries={["/dags"]} />);
@@ -124,7 +145,7 @@ describe("Paused filter with hide_paused_dags_by_default enabled", () => {
     });
 
     // There is no "All" option any more; removing the pill is how you ask for every Dag.
-    fireEvent.click(screen.getByTestId("paused-pill-remove"));
+    fireEvent.click(await screen.findByTestId("paused-pill-remove"));
 
     await waitFor(() => expect(screen.getByText("paused_dag")).toBeInTheDocument());
     expect(screen.getByText("tutorial_taskflow_api_success")).toBeInTheDocument();

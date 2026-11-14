@@ -22,12 +22,8 @@ import { SearchParamsKeys } from "src/constants/searchParams";
 import { useConfig } from "src/queries/useConfig";
 import { useFiltersHandler, type FilterableSearchParamsKeys } from "src/utils";
 
-import { usePausedDefault } from "../usePausedDefault";
-
 export const DagsFilters = () => {
   const multiTeamEnabled = Boolean(useConfig("multi_team"));
-
-  usePausedDefault();
 
   const searchParamKeys: Array<FilterableSearchParamsKeys> = [
     SearchParamsKeys.PAUSED,
