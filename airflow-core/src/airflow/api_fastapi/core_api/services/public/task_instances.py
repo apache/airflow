@@ -31,7 +31,7 @@ from sqlalchemy import Row, and_, select, tuple_
 from sqlalchemy.orm import aliased, joinedload
 from sqlalchemy.orm.session import Session
 
-from airflow._shared.state import TaskScope
+from airflow._shared.state import TaskFailureKind, TaskScope
 from airflow.api.common.mark_tasks import get_run_ids
 from airflow.api_fastapi.app import get_auth_manager
 from airflow.api_fastapi.auth.managers.models.base_user import BaseUser
@@ -191,6 +191,8 @@ def _emit_state_listener_hooks(updated_tis: list[TI], new_state: str | TaskInsta
                     previous_state=None,
                     task_instance=ti,
                     error=f"TaskInstance's state was manually set to `{TaskInstanceState.FAILED}`.",
+                    failure_kind=TaskFailureKind.MANUAL,
+                    reason=None,
                 )
             elif new_state == TaskInstanceState.SKIPPED:
                 get_listener_manager().hook.on_task_instance_skipped(previous_state=None, task_instance=ti)
