@@ -22,7 +22,11 @@ from datetime import timedelta
 import pytest
 
 from airflow.models.variable import Variable
-from airflow.serialization.definitions.deadline import SerializedVariableInterval
+from airflow.sdk.definitions.deadline import DeadlineReference
+from airflow.serialization.definitions.deadline import (
+    SerializedReferenceModels,
+    SerializedVariableInterval,
+)
 
 
 class TestVariableInterval:
@@ -78,3 +82,16 @@ class TestVariableInterval:
 
         with pytest.raises(ValueError, match=match):
             interval.resolve()
+
+
+class TestDagRunStartDateDeadline:
+    def test_serialization_round_trip(self):
+        reference_data = DeadlineReference.DAGRUN_START_DATE.serialize_reference()
+
+        assert reference_data == {"reference_type": "DagRunStartDateDeadline"}
+
+        reference_class = SerializedReferenceModels.get_reference_class(reference_data["reference_type"])
+        reference = reference_class.deserialize_reference(reference_data)
+
+        assert isinstance(reference, SerializedReferenceModels.DagRunStartDateDeadline)
+        assert reference.serialize_reference() == reference_data

@@ -152,6 +152,10 @@ from airflow.sdk import (
 )
 from airflow.sdk.definitions._internal.loop import create_loop
 from airflow.sdk.definitions.callback import AsyncCallback, SyncCallback
+from airflow.sdk.definitions.deadline import (
+    DeadlineAlert as SDKDeadlineAlert,
+    DeadlineReference,
+)
 from airflow.sdk.definitions.timetables.assets import AssetTriggeredTimetable, PartitionedAssetTimetable
 from airflow.serialization.definitions import dag as serialized_dag_definitions
 from airflow.serialization.definitions.dag import SerializedDAG
@@ -8159,6 +8163,85 @@ class TestSchedulerJob:
                 msg == f"Error scheduling DAG run {bad_run.run_id} of {bad_run.dag_id}"
                 for msg in error_messages
             )
+
+    @pytest.mark.need_serialized_dag
+    def test_start_queued_dagruns_creates_start_date_deadline(self, testing_dag_bundle, session):
+        queued_at = DEFAULT_DATE
+        started_at = queued_at + timedelta(minutes=10)
+        interval = timedelta(minutes=30)
+
+        with time_machine.travel(queued_at, tick=False):
+            with DAG(
+                dag_id="test_scheduler_start_date_deadline",
+                start_date=DEFAULT_DATE,
+                schedule=None,
+                deadline=[
+                    SDKDeadlineAlert(
+                        reference=reference,
+                        interval=interval,
+                        callback=AsyncCallback("classpath.notify"),
+                    )
+                    for reference in (
+                        DeadlineReference.DAGRUN_QUEUED_AT,
+                        DeadlineReference.DAGRUN_START_DATE,
+                    )
+                ],
+            ) as dag:
+                EmptyOperator(task_id="task")
+
+            scheduler_dag = sync_dag_to_db(dag, session=session)
+
+            dag_model = session.get(DagModel, dag.dag_id)
+            dag_model.is_paused = False
+            session.flush()
+
+            dag_run = scheduler_dag.create_dagrun(
+                run_id="manual__start_date_deadline",
+                run_type=DagRunType.MANUAL,
+                state=DagRunState.QUEUED,
+                logical_date=queued_at,
+                run_after=queued_at,
+                triggered_by=DagRunTriggeredByType.TEST,
+                session=session,
+            )
+            session.flush()
+
+        deadline_query = select(Deadline).where(Deadline.dagrun_id == dag_run.id)
+        queued_deadline = session.scalars(deadline_query).one()
+
+        assert dag_run.state == DagRunState.QUEUED
+        assert dag_run.start_date is None
+        assert queued_deadline.deadline_time == queued_at + interval
+        queued_deadline_id = queued_deadline.id
+
+        self.job_runner = SchedulerJobRunner(
+            job=Job(),
+            executors=[self.null_exec],
+        )
+
+        with time_machine.travel(started_at, tick=False):
+            self.job_runner._start_queued_dagruns(session)
+            session.flush()
+
+        session.refresh(dag_run)
+        assert dag_run.state == DagRunState.RUNNING
+        assert dag_run.start_date == started_at
+
+        deadlines = session.scalars(deadline_query).all()
+        assert len(deadlines) == 2
+        assert {deadline.deadline_time for deadline in deadlines} == {
+            queued_at + interval,
+            started_at + interval,
+        }
+
+        deadline_ids = {deadline.id for deadline in deadlines}
+        assert queued_deadline_id in deadline_ids
+
+        with time_machine.travel(started_at + timedelta(minutes=1), tick=False):
+            self.job_runner._start_queued_dagruns(session)
+            session.flush()
+
+        assert {deadline.id for deadline in session.scalars(deadline_query)} == deadline_ids
 
     def test_start_queued_dagruns_does_not_crash_on_dag_deserialization_error(
         self, dag_maker, caplog, session

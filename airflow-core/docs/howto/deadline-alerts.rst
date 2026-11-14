@@ -106,6 +106,12 @@ Airflow provides several built-in reference points that you can use with Deadlin
     after it was scheduled to start, regardless of when (or if) it actually began executing.
     Useful for ensuring scheduled Dags complete before their next scheduled run.
 
+``DeadlineReference.DAGRUN_START_DATE``
+    Measures time from when the Dag run enters the running state. Useful for
+    monitoring how long a Dag run takes to complete after starting, excluding
+    its initial time in the queue. Individual tasks may still be waiting to
+    execute after the Dag run starts.
+
 ``DeadlineReference.FIXED_DATETIME``
     Specifies a fixed point in time. Useful when Dags must complete by a specific time.
 
@@ -425,6 +431,20 @@ to when the Dag was scheduled to run. Here's an example:
 In this case, if a Dag is scheduled to run daily at midnight, the deadline would be triggered
 if the Dag hasn't completed by 1:00 AM. This is useful for ensuring that scheduled jobs complete
 within a certain timeframe after their intended start time.
+
+To alert if a Dag run has not completed within 30 minutes of starting:
+
+.. code-block:: python
+
+    DeadlineAlert(
+        reference=DeadlineReference.DAGRUN_START_DATE,
+        interval=timedelta(minutes=30),
+        callback=notify_team,
+    )
+
+If the Dag run is queued at 09:00 and starts running at 09:10, its deadline
+is 09:40. The deadline is created when the run starts, using its
+``start_date`` plus the configured interval.
 
 The flexibility of combining different references with positive or negative intervals allows
 you to create deadlines that suit a wide variety of operational requirements.
