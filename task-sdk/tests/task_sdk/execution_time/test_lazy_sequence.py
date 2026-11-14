@@ -105,9 +105,18 @@ def test_iter(mock_supervisor_comms, lazy_sequence):
     )
 
 
-def test_getitem_index(mock_supervisor_comms, lazy_sequence):
+class _Index:
+    def __init__(self, value: int) -> None:
+        self.value = value
+
+    def __index__(self) -> int:
+        return self.value
+
+
+@pytest.mark.parametrize("index", [pytest.param(4, id="int"), pytest.param(_Index(4), id="__index__")])
+def test_getitem_index(index, mock_supervisor_comms, lazy_sequence):
     mock_supervisor_comms.send.return_value = XComSequenceIndexResult(root="f")
-    assert lazy_sequence[4] == "f"
+    assert lazy_sequence[index] == "f"
     mock_supervisor_comms.send.assert_called_once_with(
         GetXComSequenceItem(
             key=BaseXCom.XCOM_RETURN_KEY,

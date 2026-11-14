@@ -150,7 +150,8 @@ class LazyXComSequence(Sequence[T]):
         if not isinstance(key, int):
             if (index := getattr(key, "__index__", None)) is not None:
                 key = index()
-            raise TypeError(f"Sequence indices must be integers or slices not {type(key).__name__}")
+            else:
+                raise TypeError(f"Sequence indices must be integers or slices not {type(key).__name__}")
 
         source = (xcom_arg := self._xcom_arg).operator
         msg = SUPERVISOR_COMMS.send(
