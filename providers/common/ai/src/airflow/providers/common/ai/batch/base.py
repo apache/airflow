@@ -25,6 +25,7 @@ environment without that SDK installed.
 
 from __future__ import annotations
 
+import asyncio
 from abc import ABC, abstractmethod
 from collections.abc import Iterator, Mapping
 from dataclasses import dataclass
@@ -37,6 +38,7 @@ from airflow.providers.common.ai.exceptions import LLMBatchLimitExceededError, L
 
 if TYPE_CHECKING:
     from airflow.providers.common.ai.batch.output_schema import OutputSpec
+    from airflow.sdk import Connection
 
 
 class BatchRequest(TypedDict, total=False):
@@ -72,6 +74,11 @@ class SubmitResult:
     #: OpenAI's uploaded input file id, kept for cleanup; ``None`` for adapters
     #: (e.g. Anthropic) that submit requests inline without an upload step.
     provider_input_ref: str | None
+    #: Opaque, JSON-serializable state the adapter needs to poll, cancel and collect this batch
+    #: from another process (pydantic-ai's ``Batch`` handle). The operator persists it in the
+    #: state record and hands it back through :meth:`BatchAdapter.from_connection`. ``None`` for
+    #: an adapter that needs only ``batch_id``.
+    handle: str | None = None
 
 
 #: The small status vocabulary every adapter collapses its provider's job statuses into.
@@ -179,6 +186,36 @@ class BatchAdapter(ABC):
         """
         self._client: Any = client
 
+    @classmethod
+    def from_connection(
+        cls,
+        conn: Connection,
+        *,
+        model_id: str | None = None,
+        batch_handle: str | None = None,
+        output_spec: OutputSpec | None = None,
+    ) -> BatchAdapter:
+        """
+        Build the adapter for a fetched connection.
+
+        The default reads ``password`` and ``host`` as ``api_key`` and ``base_url`` and ignores the
+        keyword arguments, which is what an adapter that talks to a vendor SDK directly needs.
+        An adapter that rebuilds a client from the batch's recorded state overrides this.
+
+        :param model_id: The batch's ``"<provider>:<model>"`` id.
+        :param batch_handle: The :attr:`SubmitResult.handle` recorded at submit time, if any.
+        :param output_spec: The task's output spec, for an adapter that decodes results.
+        """
+        return cls(api_key=conn.password or None, base_url=conn.host or None)
+
+    async def aget_batch(self, batch_id: str) -> BatchState:
+        """Async counterpart of :meth:`get_batch`, which the trigger calls. Runs the sync one in a thread by default."""
+        return await asyncio.to_thread(self.get_batch, batch_id)
+
+    async def acancel_batch(self, batch_id: str) -> None:
+        """Async counterpart of :meth:`cancel_batch`, which the trigger calls. Runs the sync one in a thread by default."""
+        await asyncio.to_thread(self.cancel_batch, batch_id)
+
     @abstractmethod
     def validate_requests(
         self,
@@ -218,7 +255,7 @@ class BatchAdapter(ABC):
         """
         Upload/submit the batch and return the provider's batch id.
 
-        Where the provider offers batch-level metadata (OpenAI), record both
+        Where the provider offers batch-level metadata, record both
         ``idempotency_key`` and ``input_fingerprint`` there so
         :meth:`find_orphaned_batch` can read them back. The key alone identifies
         the task instance, not this submission of it: it is stable across a
@@ -243,14 +280,15 @@ class BatchAdapter(ABC):
         immediately, instead of only once the caller starts iterating.
         """
 
-    @abstractmethod
     def build_output_directive(self, spec: OutputSpec) -> dict[str, Any]:
         """
         Translate ``spec.json_schema`` into this provider's structured-output request fields.
 
         Returns ``{}`` when ``spec.is_structured`` is ``False``. The result is
-        merged into every request's body/params by the adapter itself.
+        merged into every request's body/params by the adapter itself. An adapter that builds
+        its requests another way does not need it.
         """
+        raise NotImplementedError(f"{type(self).__name__} does not build an output directive.")
 
     @abstractmethod
     def extract_output(self, raw: RawResultItem, spec: OutputSpec) -> ExtractedOutput:

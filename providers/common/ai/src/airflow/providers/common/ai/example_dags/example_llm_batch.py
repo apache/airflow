@@ -126,10 +126,9 @@ example_llm_batch_decorator()
 # [START howto_operator_llm_batch_provider_params]
 @dag(tags=["example"])
 def example_llm_batch_provider_params():
-    # ``request_params`` is merged into every request body as-is, so any parameter
-    # the provider's chat endpoint accepts can go here: OpenAI chat-completions keys
-    # for an ``openai:`` model, Anthropic Messages keys for an ``anthropic:`` model.
-    # ``max_tokens`` is translated per provider (``max_completion_tokens`` on OpenAI).
+    # Sampling settings such as ``temperature`` and ``openai_*`` / ``anthropic_*`` settings are typed
+    # settings. Any other key is a raw request field: ``user`` goes into the OpenAI Responses body and
+    # ``metadata`` into the Anthropic Messages body. ``max_tokens`` is translated per provider.
     LLMBatchOperator(
         task_id="extract_keywords_openai",
         requests=[f"Review: {review!r}" for review in REVIEWS],
@@ -139,7 +138,7 @@ def example_llm_batch_provider_params():
         system_prompt="Extract up to three keywords from the review.",
         output_type=list[str],
         max_tokens=2048,
-        request_params={"reasoning_effort": "low", "user": "reviews-pipeline"},
+        request_params={"openai_reasoning_effort": "low", "user": "reviews-pipeline"},
         fail_on_partial_error=True,
         deferrable=True,
     )
@@ -160,6 +159,29 @@ def example_llm_batch_provider_params():
 # [END howto_operator_llm_batch_provider_params]
 
 example_llm_batch_provider_params()
+
+
+# [START howto_operator_llm_batch_gemini]
+@dag(tags=["example"])
+def example_llm_batch_gemini():
+    # A ``google:`` model id selects the Gemini Developer API; the connection's API Key is a
+    # Gemini API key. Gemini batch accepts typed settings only in ``request_params``.
+    LLMBatchOperator(
+        task_id="extract_keywords_gemini",
+        requests=[f"Review: {review!r}" for review in REVIEWS],
+        result_path=f"{RESULT_ROOT}/keywords-gemini",
+        llm_conn_id="pydanticai_default",
+        model_id="google:gemini-2.5-flash",
+        system_prompt="Extract up to three keywords from the review.",
+        output_type=list[str],
+        request_params={"temperature": 0.2},
+        deferrable=True,
+    )
+
+
+# [END howto_operator_llm_batch_gemini]
+
+example_llm_batch_gemini()
 
 
 # [START howto_operator_llm_batch_per_request]

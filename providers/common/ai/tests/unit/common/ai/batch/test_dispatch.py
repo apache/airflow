@@ -24,14 +24,20 @@ from unittest import mock
 import pytest
 
 from airflow.providers.common.ai.batch import dispatch
-from airflow.providers.common.ai.batch.anthropic import AnthropicBatchAdapter
 from airflow.providers.common.ai.batch.base import BatchAdapter
-from airflow.providers.common.ai.batch.openai import OpenAIBatchAdapter
+from airflow.providers.common.ai.batch.pydantic_ai_backend import (
+    AnthropicBatchAdapter,
+    GoogleBatchAdapter,
+    OpenAIBatchAdapter,
+)
 from airflow.providers.common.ai.exceptions import (
     BatchProviderNotYetSupportedError,
     UnsupportedBatchProviderError,
 )
+from airflow.providers.common.ai.hooks.pydantic_ai import PydanticAIHook
 from airflow.providers.common.compat.sdk import Connection
+
+from unit.common.ai.batch.legacy_adapter import LegacyAdapter
 
 
 class TestSplitModelId:
@@ -58,7 +64,11 @@ class TestSplitModelId:
 class TestGetAdapterClass:
     @pytest.mark.parametrize(
         ("model_id", "expected_cls"),
-        [("openai:gpt-5", OpenAIBatchAdapter), ("anthropic:claude-sonnet-4-5", AnthropicBatchAdapter)],
+        [
+            ("openai:gpt-5", OpenAIBatchAdapter),
+            ("anthropic:claude-sonnet-4-5", AnthropicBatchAdapter),
+            ("google:gemini-2.5-flash", GoogleBatchAdapter),
+        ],
     )
     def test_built_in_adapters_resolve_for_pydanticai_connections(self, model_id, expected_cls):
         adapter_cls = dispatch.get_adapter_class("pydanticai", model_id)
@@ -81,8 +91,13 @@ class TestGetAdapterClass:
             dispatch.get_adapter_class("pydanticai", "groq:llama")
 
     def test_openai_chat_prefix_selects_the_openai_adapter(self):
-        """pydantic-ai's Chat Completions prefix names the endpoint the OpenAI adapter submits to."""
+        """``openai-chat`` is served by the OpenAI adapter, which runs the batch on the Responses API."""
         assert dispatch.get_adapter_class("pydanticai", "openai-chat:gpt-5") is OpenAIBatchAdapter
+
+    @pytest.mark.parametrize("model_id", ["google-cloud:gemini-2.5-flash", "google-vertex:gemini-2.5-flash"])
+    def test_vertex_is_refused_with_the_fix(self, model_id):
+        with pytest.raises(BatchProviderNotYetSupportedError, match="google:<model>"):
+            dispatch.get_adapter_class("pydanticai", model_id)
 
     def test_resolve_adapter_name_returns_the_prefix(self):
         assert dispatch.resolve_adapter_name("pydanticai", "openai:gpt-5") == "openai"
@@ -117,31 +132,54 @@ class TestRegistration:
 
 
 class TestBuildAdapter:
-    def test_build_adapter_from_connection_maps_password_and_host(self):
-        pytest.importorskip("openai")
-        conn = Connection(
-            conn_id="c", conn_type="pydanticai", password="sk-test", host="https://gateway.example"
-        )
+    def test_openai_adapter_is_built_from_the_connection_hook(self):
+        conn = Connection(conn_id="my_openai", conn_type="pydanticai", password="sk-test")
+        hook = mock.create_autospec(PydanticAIHook, instance=True)
+        hook._get_fallback_conn_ids.return_value = []
+        with mock.patch.object(PydanticAIHook, "get_hook", autospec=True, return_value=hook) as get_hook:
+            adapter = dispatch.build_adapter_from_connection(
+                "openai", conn, model_id="openai:gpt-5-mini", batch_handle='{"id": "b"}'
+            )
 
-        adapter = dispatch.build_adapter_from_connection("openai", conn)
-
+        get_hook.assert_called_once_with("my_openai", {"model_id": "openai:gpt-5-mini"})
         assert isinstance(adapter, OpenAIBatchAdapter)
-        assert adapter._client.api_key == "sk-test"
-        assert str(adapter._client.base_url).rstrip("/") == "https://gateway.example"
-        adapter.close()
+        assert adapter._hook is hook
+        assert adapter._handle == '{"id": "b"}'
 
     def test_build_adapter_fetches_the_connection_by_id(self):
-        pytest.importorskip("anthropic")
-        conn = Connection(conn_id="c", conn_type="pydanticai", password="sk-ant", host=None)
-        with mock.patch.object(
-            dispatch.BaseHook, "get_connection", autospec=True, return_value=conn
-        ) as get_conn:
-            adapter = dispatch.build_adapter("anthropic", llm_conn_id="my_anthropic")
+        conn = Connection(conn_id="c", conn_type="pydanticai", password="sk-test", host=None)
+        hook = mock.create_autospec(PydanticAIHook, instance=True)
+        hook._get_fallback_conn_ids.return_value = []
+        with (
+            mock.patch.object(
+                dispatch.BaseHook, "get_connection", autospec=True, return_value=conn
+            ) as get_conn,
+            mock.patch.object(PydanticAIHook, "get_hook", autospec=True, return_value=hook),
+        ):
+            adapter = dispatch.build_adapter("openai", llm_conn_id="my_openai", model_id="openai:gpt-5")
 
-        get_conn.assert_called_once_with("my_anthropic")
+        get_conn.assert_called_once_with("my_openai")
+        assert isinstance(adapter, OpenAIBatchAdapter)
+
+    def test_pydantic_ai_adapter_is_built_from_the_connection_hook(self):
+        conn = Connection(conn_id="my_anthropic", conn_type="pydanticai", password="sk-ant")
+        hook = mock.create_autospec(PydanticAIHook, instance=True)
+        hook._get_fallback_conn_ids.return_value = []
+        with (
+            mock.patch.object(dispatch.BaseHook, "get_connection", autospec=True, return_value=conn),
+            mock.patch.object(PydanticAIHook, "get_hook", autospec=True, return_value=hook) as get_hook,
+        ):
+            adapter = dispatch.build_adapter(
+                "anthropic",
+                llm_conn_id="my_anthropic",
+                model_id="anthropic:claude-sonnet-4-5",
+                batch_handle='{"id": "b"}',
+            )
+
+        get_hook.assert_called_once_with("my_anthropic", {"model_id": "anthropic:claude-sonnet-4-5"})
         assert isinstance(adapter, AnthropicBatchAdapter)
-        assert adapter._client.api_key == "sk-ant"
-        adapter.close()
+        assert adapter._hook is hook
+        assert adapter._handle == '{"id": "b"}'
 
 
 class TestNoSdkImportAtDispatchTime:
@@ -151,10 +189,48 @@ class TestNoSdkImportAtDispatchTime:
             "import airflow.providers.common.ai.batch.dispatch\n"
             "import airflow.providers.common.ai.triggers.llm_batch\n"
             "import airflow.providers.common.ai.operators.llm_batch\n"
-            "loaded = [m for m in ('openai', 'anthropic') if m in sys.modules]\n"
+            "import airflow.providers.common.ai.batch.pydantic_ai_backend\n"
+            "loaded = [m for m in ('openai', 'anthropic', 'google.genai') if m in sys.modules]\n"
             "print('LOADED_SDKS=' + ','.join(loaded))\n"
         )
         result = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, check=True)
 
         marker = [line for line in result.stdout.splitlines() if line.startswith("LOADED_SDKS=")]
         assert marker == ["LOADED_SDKS="]
+
+
+class TestThirdPartyAdaptersStillDispatch:
+    @pytest.fixture(autouse=True)
+    def _clean_registry(self):
+        saved = dict(dispatch._REGISTERED_ADAPTERS)
+        yield
+        dispatch._REGISTERED_ADAPTERS.clear()
+        dispatch._REGISTERED_ADAPTERS.update(saved)
+
+    def test_an_entry_point_adapter_is_built_the_same_way(self):
+        ep = mock.Mock(spec=EntryPoint)
+        ep.name = "acme"
+        ep.load.return_value = LegacyAdapter
+        conn = Connection(conn_id="c", conn_type="pydanticai", password="sk-acme")
+        with mock.patch.object(dispatch, "entry_points", autospec=True, return_value=[ep]):
+            adapter = dispatch.build_adapter_from_connection("acme", conn)
+
+        assert isinstance(adapter, LegacyAdapter)
+
+    def test_an_entry_point_adapter_overrides_a_refused_prefix(self):
+        class _VertexAdapter(LegacyAdapter):
+            name = "google-vertex"
+
+        ep = mock.Mock(spec=EntryPoint)
+        ep.name = "google-vertex"
+        ep.load.return_value = _VertexAdapter
+        with mock.patch.object(dispatch, "entry_points", autospec=True, return_value=[ep]):
+            assert dispatch.get_adapter_class("pydanticai", "google-vertex:gemini") is _VertexAdapter
+
+    def test_a_registered_adapter_overrides_a_refused_prefix(self):
+        class _VertexAdapter(LegacyAdapter):
+            name = "google-cloud"
+
+        dispatch.register_adapter(_VertexAdapter)
+
+        assert dispatch.get_adapter_class("pydanticai", "google-cloud:gemini") is _VertexAdapter

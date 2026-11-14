@@ -24,6 +24,7 @@ from airflow.providers.common.ai.batch.polling import (
     BatchPoller,
     terminal_event,
 )
+from airflow.providers.common.ai.exceptions import LLMBatchStateReadError
 
 IN_PROGRESS = BatchState(status="in_progress", counts=None, error_message=None)
 
@@ -83,13 +84,27 @@ class TestOnError:
         assert outcome.cancel is True
 
 
+class TestPermanentPollError:
+    def test_a_state_that_cannot_be_read_ends_the_poll_at_once_with_its_cause(self):
+        poller = _poller()
+
+        outcome = poller.on_error(LLMBatchStateReadError("deferred by an earlier version"), now=1.0)
+
+        assert outcome.event["status"] == "error"
+        assert "deferred by an earlier version" in outcome.event["message"]
+        assert poller.consecutive_failures == 1
+
+
 class TestFinishTimeout:
     def test_message_names_budget_deadline_and_that_the_batch_was_cancelled(self):
         event = _poller().finish_timeout(cancelled=True)
         assert event["status"] == "timeout"
         assert "timeout=600s" in event["message"]
         assert "deadline 1970-01-12T13:46:40+00:00" in event["message"]
-        assert "was cancelled (cancel_on_timeout=True); a retry submits a new one" in event["message"]
+        assert (
+            "was cancelled (cancel_on_timeout=True); a retry re-attaches and lands whatever finished"
+            in event["message"]
+        )
 
     def test_message_reports_a_failed_cancel(self):
         event = _poller().finish_timeout(cancelled=False, cancel_error="boom")
