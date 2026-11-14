@@ -209,3 +209,36 @@ class _IdentityTracer:
         if tracer is None:
             raise AttributeError(name)
         return getattr(tracer, name)
+def _usage_metrics_enabled() -> bool:
+    return conf.getboolean(SECTION, "emit_usage_metrics", fallback=False)
+
+
+def emit_usage_metrics(
+    *,
+    model: str,
+    provider: str | None = None,
+    requests: int = 0,
+    input_tokens: int = 0,
+    output_tokens: int = 0,
+    cost: float | None = None,
+) -> None:
+    """
+    Emit Airflow Stats counters for one task attempt's LLM usage.
+
+    No-op unless ``[common.ai] emit_usage_metrics`` is enabled. Callers must
+    pass live traffic only -- replayed durable responses must not reach here.
+    """
+    if not _usage_metrics_enabled() or requests <= 0:
+        return
+
+    from airflow.providers.common.compat.sdk import Stats
+
+    tags = {"model": model}
+    if provider:
+        tags["provider"] = provider
+
+    Stats.incr("common_ai.llm_requests", requests, tags=tags)
+    Stats.incr("common_ai.llm_input_tokens", input_tokens, tags=tags)
+    Stats.incr("common_ai.llm_output_tokens", output_tokens, tags=tags)
+    if cost is not None:
+        Stats.incr("common_ai.llm_cost", cost, tags=tags)
