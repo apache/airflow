@@ -184,12 +184,11 @@ the first run's.
 
 On Airflow 3.3 and later, each request for changes is also kept in the task state store
 beside the journal, with the round it was given in and a digest of the output the reviewer
-read. When
-the task fails after the review has started (a regeneration hits a failing tool or an
-unavailable model, or the review times out) the retry replays the first output, applies the
-recorded feedback to it without asking, replays each regeneration, and shows the reviewer
-the first round nobody has answered yet. The HITL Review tab shows the replayed rounds with
-their feedback. The task log has a line for each:
+read. When the task fails after the review has started (a regeneration hits a failing tool
+or an unavailable model, or the review times out) the retry replays the first output,
+applies the recorded feedback to it without asking, replays each regeneration, and shows
+the reviewer the first round nobody has answered yet. The HITL Review tab shows the replayed
+rounds with their feedback. The task log has a line for each:
 
 .. code-block:: text
 
