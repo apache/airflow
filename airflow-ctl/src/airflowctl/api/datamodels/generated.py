@@ -2443,6 +2443,7 @@ class DAGResponse(BaseModel):
     timetable_summary: Annotated[str | None, Field(title="Timetable Summary")]
     timetable_description: Annotated[str | None, Field(title="Timetable Description")]
     timetable_partitioned: Annotated[bool, Field(title="Timetable Partitioned")]
+    timetable_partitioned_at_runtime: Annotated[bool, Field(title="Timetable Partitioned At Runtime")]
     timetable_periodic: Annotated[bool, Field(title="Timetable Periodic")]
     tags: Annotated[list[DagTagResponse], Field(title="Tags")]
     max_active_tasks: Annotated[int, Field(title="Max Active Tasks")]
@@ -2458,6 +2459,13 @@ class DAGResponse(BaseModel):
     next_dagrun_run_after: Annotated[datetime | None, Field(title="Next Dagrun Run After")]
     allowed_run_types: Annotated[list[DagRunType] | None, Field(title="Allowed Run Types")]
     owners: Annotated[list[str], Field(title="Owners")]
+    suggested_partition_key: Annotated[
+        str | None,
+        Field(
+            description="Partition key suggested for a manual trigger. Only computed by the single-Dag GET endpoints; list endpoints always return null.",
+            title="Suggested Partition Key",
+        ),
+    ] = None
     is_backfillable: Annotated[
         bool, Field(description="Whether this Dag's schedule supports backfilling.", title="Is Backfillable")
     ]
@@ -3642,6 +3650,7 @@ class DAGDetailsResponse(BaseModel):
     timetable_summary: Annotated[str | None, Field(title="Timetable Summary")]
     timetable_description: Annotated[str | None, Field(title="Timetable Description")]
     timetable_partitioned: Annotated[bool, Field(title="Timetable Partitioned")]
+    timetable_partitioned_at_runtime: Annotated[bool, Field(title="Timetable Partitioned At Runtime")]
     timetable_periodic: Annotated[bool, Field(title="Timetable Periodic")]
     tags: Annotated[list[DagTagResponse], Field(title="Tags")]
     max_active_tasks: Annotated[int, Field(title="Max Active Tasks")]
@@ -3657,6 +3666,13 @@ class DAGDetailsResponse(BaseModel):
     next_dagrun_run_after: Annotated[datetime | None, Field(title="Next Dagrun Run After")]
     allowed_run_types: Annotated[list[DagRunType] | None, Field(title="Allowed Run Types")]
     owners: Annotated[list[str], Field(title="Owners")]
+    suggested_partition_key: Annotated[
+        str | None,
+        Field(
+            description="Partition key suggested for a manual trigger. Only computed by the single-Dag GET endpoints; list endpoints always return null.",
+            title="Suggested Partition Key",
+        ),
+    ] = None
     catchup: Annotated[bool, Field(title="Catchup")]
     dag_run_timeout: Annotated[timedelta | None, Field(title="Dag Run Timeout")]
     asset_expression: Annotated[

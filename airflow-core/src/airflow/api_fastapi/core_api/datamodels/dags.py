@@ -28,6 +28,7 @@ from pendulum.tz.timezone import FixedTimezone, Timezone
 from pydantic import (
     AliasGenerator,
     ConfigDict,
+    Field,
     computed_field,
     field_serializer,
     field_validator,
@@ -72,6 +73,15 @@ DAG_ALIAS_MAPPING: dict[str, str] = {
     "next_dagrun_run_after": "next_dagrun_create_after",
 }
 
+DAG_RESPONSE_ROUTE_SUPPLIED_FIELDS: frozenset[str] = frozenset(
+    {
+        # Computed per request by the route rather than read off ``DagModel``, so
+        # routes that build the response by reading attributes off a bare
+        # ``DagModel`` must skip these instead of raising ``AttributeError``.
+        "suggested_partition_key",
+    }
+)
+
 
 class DAGResponse(BaseModel):
     """Dag serializer for responses."""
@@ -98,6 +108,7 @@ class DAGResponse(BaseModel):
     timetable_summary: str | None
     timetable_description: str | None
     timetable_partitioned: bool
+    timetable_partitioned_at_runtime: bool
     timetable_periodic: bool
     tags: list[DagTagResponse]
     max_active_tasks: int
@@ -111,6 +122,13 @@ class DAGResponse(BaseModel):
     next_dagrun_run_after: datetime | None
     allowed_run_types: list[DagRunType] | None
     owners: list[str]
+    suggested_partition_key: str | None = Field(
+        default=None,
+        description=(
+            "Partition key suggested for a manual trigger. Only computed by the single-Dag GET "
+            "endpoints; list endpoints always return null."
+        ),
+    )
 
     @field_serializer("tags")
     def serialize_tags(self, tags: list[DagTagResponse]) -> list[DagTagResponse]:

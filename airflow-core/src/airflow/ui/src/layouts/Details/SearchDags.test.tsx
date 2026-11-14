@@ -264,6 +264,7 @@ describe("SearchDags", () => {
           tags: [],
           timetable_description: null,
           timetable_partitioned: false,
+          timetable_partitioned_at_runtime: false,
           timetable_periodic: false,
           timetable_summary: null,
         },

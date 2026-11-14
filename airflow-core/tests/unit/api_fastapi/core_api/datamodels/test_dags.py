@@ -22,9 +22,12 @@ import pytest
 
 from airflow._shared.module_loading import qualname
 from airflow.api_fastapi.core_api.datamodels.dags import (
+    DAG_ALIAS_MAPPING,
+    DAG_RESPONSE_ROUTE_SUPPLIED_FIELDS,
     DAGDetailsResponse,
     DAGResponse,
 )
+from airflow.models.dag import DagModel
 from airflow.utils.types import DagRunType
 
 
@@ -46,6 +49,7 @@ def _make_dag_response(**overrides) -> DAGResponse:
         "timetable_summary": "0 * * * *",
         "timetable_description": "At the start of every hour",
         "timetable_partitioned": False,
+        "timetable_partitioned_at_runtime": False,
         "timetable_periodic": True,
         "tags": [],
         "max_active_tasks": 16,
@@ -174,3 +178,30 @@ class TestIsBackfillable:
             allowed_run_types=[DagRunType.BACKFILL_JOB, DagRunType.MANUAL],
         )
         assert dag.is_backfillable is False
+
+
+class TestDagResponseFieldsResolveAgainstDagModel:
+    """
+    Guard the contract that ``routes/ui/dags.py`` relies on.
+
+    That route builds its response by iterating ``DAGResponse.model_fields`` and
+    reading each name off a bare ``DagModel`` with no ``getattr`` default, so a
+    field that is neither a ``DagModel`` attribute nor declared route-supplied
+    turns the Dags list page into a 500. Failing here points at the new field
+    instead.
+    """
+
+    def test_every_non_route_supplied_field_exists_on_dag_model(self):
+        missing = [
+            field_name
+            for field_name in DAGResponse.model_fields
+            if field_name not in DAG_RESPONSE_ROUTE_SUPPLIED_FIELDS
+            and not hasattr(DagModel, DAG_ALIAS_MAPPING.get(field_name, field_name))
+        ]
+        assert missing == []
+
+    def test_route_supplied_fields_are_optional(self):
+        for field_name in DAG_RESPONSE_ROUTE_SUPPLIED_FIELDS:
+            assert not DAGResponse.model_fields[field_name].is_required(), (
+                f"{field_name} is route-supplied, so routes that omit it must still validate"
+            )

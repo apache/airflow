@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { Button, Box, Spacer, HStack, Field, Stack, Text, VStack } from "@chakra-ui/react";
 import dayjs from "dayjs";
@@ -53,6 +53,7 @@ type TriggerDAGFormProps = {
   readonly error?: unknown;
   readonly hasSchedule: boolean;
   readonly isPartitioned: boolean;
+  readonly isPartitionedAtRuntime: boolean;
   readonly isPaused: boolean;
   readonly isPending?: boolean;
   readonly onPausedDagActionChange?: () => void;
@@ -65,6 +66,7 @@ type TriggerDAGFormProps = {
         runId: string;
       }
     | undefined;
+  readonly suggestedPartitionKey?: string | null;
 };
 
 const DAG_DATE_FORMAT = `${DATE_FORMAT} HH:mm z`;
@@ -75,12 +77,14 @@ const TriggerDAGForm = ({
   error,
   hasSchedule,
   isPartitioned,
+  isPartitionedAtRuntime,
   isPaused,
   isPending = false,
   onPausedDagActionChange,
   onSubmitTrigger,
   open,
   prefillConfig,
+  suggestedPartitionKey,
 }: TriggerDAGFormProps) => {
   const { t: translate } = useTranslation(["common", "components"]);
   const [errors, setErrors] = useState<{ conf?: string; date?: unknown }>({});
@@ -93,7 +97,9 @@ const TriggerDAGForm = ({
   const [hasAppliedPrefill, setHasAppliedPrefill] = useState(false);
   const { mutate: togglePause } = useTogglePause({ dagId });
 
-  const { control, handleSubmit, reset, watch } = useForm<DagRunTriggerParams>({
+  const appliedSuggestionRef = useRef<string | undefined>(undefined);
+
+  const { control, getValues, handleSubmit, reset, setValue, watch } = useForm<DagRunTriggerParams>({
     defaultValues: {
       conf,
       dagRunId: "",
@@ -104,7 +110,7 @@ const TriggerDAGForm = ({
       // For partitioned Dags, logical date is not applicable.
       logicalDate: isPartitioned ? "" : dayjs().format(DEFAULT_DATETIME_FORMAT),
       note: "",
-      partitionKey: undefined,
+      partitionKey: suggestedPartitionKey ?? undefined,
     },
   });
 
@@ -136,10 +142,10 @@ const TriggerDAGForm = ({
     [reset, syncConfToStore],
   );
 
-  // Pre-fill form when prefillConfig is provided. This runs on open, before any user input, so
-  // the whole form is reset. Only 'conf' is copied from the prior run; its runId and logicalDate
-  // are deliberately dropped, because POST /dagRuns rejects a run whose id or logical date
-  // already exists with 409 Conflict.
+  // Pre-fill form when prefillConfig is provided. Only 'conf' is copied from the prior run; its
+  // runId and logicalDate are deliberately dropped, because POST /dagRuns rejects a run whose id
+  // or logical date already exists with 409 Conflict. partitionKey instead gets the suggested value
+  // (a guess, not a restore of the prior attempt).
   useEffect(() => {
     if (prefillConfig && open) {
       const confString = prefillConfig.conf ? JSON.stringify(prefillConfig.conf, undefined, 2) : "";
@@ -152,7 +158,7 @@ const TriggerDAGForm = ({
         dataIntervalStart: "",
         logicalDate: isPartitioned ? "" : dayjs().format(DEFAULT_DATETIME_FORMAT),
         note: "",
-        partitionKey: undefined,
+        partitionKey: suggestedPartitionKey ?? undefined,
       });
       if (confString) {
         syncConfToStore(confString);
@@ -161,7 +167,25 @@ const TriggerDAGForm = ({
     } else if (!open) {
       setHasAppliedPrefill(false);
     }
+    // suggestedPartitionKey is deliberately not a dependency: a changed suggestion must not reset
+    // the other fields. It is applied by the effect below.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [prefillConfig, open, isPartitioned, reset, syncConfToStore]);
+
+  // The suggestion can arrive or change after mount. Apply it only while the field is empty or still
+  // holds the previous suggestion. RHF's dirtyFields cannot tell whether the user edited the field,
+  // because reset() (run when conf changes) makes the current values the new baseline.
+  useEffect(() => {
+    if (!open || suggestedPartitionKey === undefined || suggestedPartitionKey === null) {
+      return;
+    }
+    const current = getValues("partitionKey");
+
+    if (current === undefined || current === "" || current === appliedSuggestionRef.current) {
+      setValue("partitionKey", suggestedPartitionKey);
+    }
+    appliedSuggestionRef.current = suggestedPartitionKey;
+  }, [open, suggestedPartitionKey, getValues, setValue]);
 
   // Automatically reset form when conf is fetched (only if no prefillConfig)
   useEffect(() => {
@@ -329,7 +353,12 @@ const TriggerDAGForm = ({
           setErrors={setErrors}
           setFormError={setFormError}
         >
-          <TriggerDAGAdvancedOptions control={control} isPartitioned={isPartitioned} />
+          <TriggerDAGAdvancedOptions
+            control={control}
+            isPartitioned={isPartitioned}
+            isPartitionedAtRuntime={isPartitionedAtRuntime}
+            suggestedPartitionKey={suggestedPartitionKey}
+          />
         </ConfigForm>
       </VStack>
       <Box as="footer" display="flex" justifyContent="flex-end" mt={4}>

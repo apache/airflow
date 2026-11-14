@@ -26,11 +26,25 @@ import type { DagRunTriggerParams } from "./types";
 type TriggerDAGAdvancedOptionsProps = {
   readonly control: Control<DagRunTriggerParams>;
   readonly isPartitioned: boolean;
+  readonly isPartitionedAtRuntime: boolean;
+  readonly suggestedPartitionKey?: string | null;
 };
 
-const TriggerDAGAdvancedOptions = ({ control, isPartitioned }: TriggerDAGAdvancedOptionsProps) => {
+const TriggerDAGAdvancedOptions = ({
+  control,
+  isPartitioned,
+  isPartitionedAtRuntime,
+  suggestedPartitionKey,
+}: TriggerDAGAdvancedOptionsProps) => {
   const { t: translate } = useTranslation(["common", "components"]);
   const { t: rootTranslate } = useTranslation();
+
+  // The API does not say which source produced the suggestion, so one warning that holds for all
+  // three is used.
+  const partitionKeyHelpText =
+    suggestedPartitionKey !== undefined && suggestedPartitionKey !== null
+      ? translate("components:triggerDag.partitionKeySuggestedHelp")
+      : translate("components:triggerDag.partitionKeyHelp");
 
   return (
     <>
@@ -52,7 +66,7 @@ const TriggerDAGAdvancedOptions = ({ control, isPartitioned }: TriggerDAGAdvance
         )}
       />
 
-      {isPartitioned ? (
+      {isPartitioned || isPartitionedAtRuntime ? (
         <Controller
           control={control}
           name="partitionKey"
@@ -65,7 +79,7 @@ const TriggerDAGAdvancedOptions = ({ control, isPartitioned }: TriggerDAGAdvance
               </Stack>
               <Stack css={{ flexBasis: "70%" }}>
                 <Input {...field} size="sm" />
-                <Field.HelperText>{translate("components:triggerDag.partitionKeyHelp")}</Field.HelperText>
+                <Field.HelperText>{partitionKeyHelpText}</Field.HelperText>
               </Stack>
             </Field.Root>
           )}

@@ -979,6 +979,7 @@ export type DAGDetailsResponse = {
     timetable_summary: string | null;
     timetable_description: string | null;
     timetable_partitioned: boolean;
+    timetable_partitioned_at_runtime: boolean;
     timetable_periodic: boolean;
     tags: Array<DagTagResponse>;
     max_active_tasks: number;
@@ -992,6 +993,10 @@ export type DAGDetailsResponse = {
     next_dagrun_run_after: string | null;
     allowed_run_types: Array<DagRunType> | null;
     owners: Array<(string)>;
+    /**
+     * Partition key suggested for a manual trigger. Only computed by the single-Dag GET endpoints; list endpoints always return null.
+     */
+    suggested_partition_key?: string | null;
     catchup: boolean;
     dag_run_timeout: string | null;
     asset_expression: AssetExpressionAsset | AssetExpressionAlias | AssetExpressionRef | AssetExpressionAny | AssetExpressionAll | null;
@@ -1062,6 +1067,7 @@ export type DAGResponse = {
     timetable_summary: string | null;
     timetable_description: string | null;
     timetable_partitioned: boolean;
+    timetable_partitioned_at_runtime: boolean;
     timetable_periodic: boolean;
     tags: Array<DagTagResponse>;
     max_active_tasks: number;
@@ -1075,6 +1081,10 @@ export type DAGResponse = {
     next_dagrun_run_after: string | null;
     allowed_run_types: Array<DagRunType> | null;
     owners: Array<(string)>;
+    /**
+     * Partition key suggested for a manual trigger. Only computed by the single-Dag GET endpoints; list endpoints always return null.
+     */
+    suggested_partition_key?: string | null;
     /**
      * Whether this Dag's schedule supports backfilling.
      */
@@ -3176,6 +3186,7 @@ export type DAGWithLatestDagRunsResponse = {
     timetable_summary: string | null;
     timetable_description: string | null;
     timetable_partitioned: boolean;
+    timetable_partitioned_at_runtime: boolean;
     timetable_periodic: boolean;
     tags: Array<DagTagResponse>;
     max_active_tasks: number;
@@ -3189,6 +3200,10 @@ export type DAGWithLatestDagRunsResponse = {
     next_dagrun_run_after: string | null;
     allowed_run_types: Array<DagRunType> | null;
     owners: Array<(string)>;
+    /**
+     * Partition key suggested for a manual trigger. Only computed by the single-Dag GET endpoints; list endpoints always return null.
+     */
+    suggested_partition_key?: string | null;
     asset_expression: AssetExpressionAsset | AssetExpressionAlias | AssetExpressionRef | AssetExpressionAny | AssetExpressionAll | null;
     latest_dag_runs: Array<DAGRunLightResponse>;
     has_unfinished_runs: boolean;

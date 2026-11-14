@@ -16,6 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+/* eslint-disable max-lines */
+import type { ComponentProps } from "react";
+
 import "@testing-library/jest-dom/vitest";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
@@ -111,6 +114,31 @@ vi.mock("../JsonEditor", () => ({
   ),
 }));
 
+const prefillConfig = { conf: { key: "value" }, logicalDate: undefined, runId: "prior_run" };
+
+const buildForm = (props: Partial<ComponentProps<typeof TriggerDAGForm>>) => (
+  <TriggerDAGForm
+    dagId="example_partitioned_dag"
+    error={undefined}
+    hasSchedule={false}
+    isPartitioned
+    isPartitionedAtRuntime={false}
+    isPaused={false}
+    isPending={false}
+    onSubmitTrigger={vi.fn()}
+    open
+    {...props}
+  />
+);
+
+const RECENT_CONF = JSON.stringify({ message: "From recent" }, undefined, 2);
+
+const selectRecentConfig = async () => {
+  fireEvent.click(within(screen.getByTestId("recent-config-select")).getByRole("combobox"));
+  await waitFor(() => expect(screen.getByRole("listbox")).toBeInTheDocument());
+  fireEvent.click(screen.getByText("run_recent"));
+};
+
 describe("TriggerDAGForm", () => {
   beforeEach(() => {
     useDagParamsMock.mockReturnValue(dagParams);
@@ -132,6 +160,7 @@ describe("TriggerDAGForm", () => {
           error={undefined}
           hasSchedule={false}
           isPartitioned={false}
+          isPartitionedAtRuntime={false}
           isPaused
           isPending={false}
           onSubmitTrigger={onSubmitTrigger}
@@ -167,6 +196,7 @@ describe("TriggerDAGForm", () => {
         error={undefined}
         hasSchedule={false}
         isPartitioned={false}
+        isPartitionedAtRuntime={false}
         isPaused={false}
         isPending={false}
         onSubmitTrigger={vi.fn()}
@@ -209,6 +239,7 @@ describe("TriggerDAGForm", () => {
           error={undefined}
           hasSchedule={false}
           isPartitioned={false}
+          isPartitionedAtRuntime={false}
           isPaused={false}
           isPending={false}
           onSubmitTrigger={vi.fn()}
@@ -230,6 +261,7 @@ describe("TriggerDAGForm", () => {
         error={undefined}
         hasSchedule={false}
         isPartitioned={false}
+        isPartitionedAtRuntime={false}
         isPaused={false}
         isPending={false}
         onSubmitTrigger={vi.fn()}
@@ -261,6 +293,7 @@ describe("TriggerDAGForm", () => {
         error={undefined}
         hasSchedule={false}
         isPartitioned={false}
+        isPartitionedAtRuntime={false}
         isPaused={false}
         isPending={false}
         onSubmitTrigger={vi.fn()}
@@ -305,6 +338,7 @@ describe("TriggerDAGForm", () => {
         error={undefined}
         hasSchedule={false}
         isPartitioned={false}
+        isPartitionedAtRuntime={false}
         isPaused={false}
         isPending={false}
         onSubmitTrigger={vi.fn()}
@@ -324,6 +358,7 @@ describe("TriggerDAGForm", () => {
         error={undefined}
         hasSchedule={false}
         isPartitioned
+        isPartitionedAtRuntime={false}
         isPaused={false}
         isPending={false}
         onSubmitTrigger={vi.fn()}
@@ -343,6 +378,7 @@ describe("TriggerDAGForm", () => {
         error={undefined}
         hasSchedule={false}
         isPartitioned={false}
+        isPartitionedAtRuntime={false}
         isPaused={false}
         isPending={false}
         onSubmitTrigger={vi.fn()}
@@ -382,6 +418,7 @@ describe("TriggerDAGForm", () => {
         error={undefined}
         hasSchedule={false}
         isPartitioned={false}
+        isPartitionedAtRuntime={false}
         isPaused={false}
         isPending={false}
         onSubmitTrigger={vi.fn()}
@@ -416,6 +453,7 @@ describe("TriggerDAGForm", () => {
         error={undefined}
         hasSchedule={false}
         isPartitioned={false}
+        isPartitionedAtRuntime={false}
         isPaused={false}
         isPending={false}
         onSubmitTrigger={vi.fn()}
@@ -435,5 +473,161 @@ describe("TriggerDAGForm", () => {
       ),
     );
     expect(screen.queryByTestId("recent-config-select")).not.toBeInTheDocument();
+  });
+
+  it("shows the partition key field for partitioned_at_runtime Dags even though isPartitioned is false", async () => {
+    render(
+      <TriggerDAGForm
+        dagId="example_partitioned_at_runtime_dag"
+        error={undefined}
+        hasSchedule
+        isPartitioned={false}
+        isPartitionedAtRuntime
+        isPaused={false}
+        isPending={false}
+        onSubmitTrigger={vi.fn()}
+        open
+      />,
+      { wrapper: Wrapper },
+    );
+
+    await waitFor(() => expect(screen.getByText("dagRun.partitionKey")).toBeInTheDocument());
+    expect(screen.getByText("components:triggerDag.partitionKeyHelp")).toBeInTheDocument();
+  });
+
+  it("pre-fills the suggested partition key for an asset-driven Dag and warns the value is a suggestion", async () => {
+    const onSubmitTrigger = vi.fn();
+
+    render(
+      <TriggerDAGForm
+        dagId="example_partitioned_dag"
+        error={undefined}
+        hasSchedule={false}
+        isPartitioned
+        isPartitionedAtRuntime={false}
+        isPaused={false}
+        isPending={false}
+        onSubmitTrigger={onSubmitTrigger}
+        open
+        suggestedPartitionKey="2024-01-01"
+      />,
+      { wrapper: Wrapper },
+    );
+
+    await waitFor(() => expect(screen.getByDisplayValue("2024-01-01")).toBeInTheDocument());
+    expect(screen.getByText("components:triggerDag.partitionKeySuggestedHelp")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId("trigger-dag-submit"));
+
+    await waitFor(() =>
+      expect(onSubmitTrigger).toHaveBeenCalledWith(expect.objectContaining({ partitionKey: "2024-01-01" })),
+    );
+  });
+
+  it("pre-fills the suggested partition key for a partitioned_at_runtime Dag and warns the value is a suggestion", async () => {
+    const onSubmitTrigger = vi.fn();
+
+    render(
+      <TriggerDAGForm
+        dagId="example_partitioned_at_runtime_dag"
+        error={undefined}
+        hasSchedule
+        isPartitioned={false}
+        isPartitionedAtRuntime
+        isPaused={false}
+        isPending={false}
+        onSubmitTrigger={onSubmitTrigger}
+        open
+        suggestedPartitionKey="2024-01-01"
+      />,
+      { wrapper: Wrapper },
+    );
+
+    await waitFor(() => expect(screen.getByDisplayValue("2024-01-01")).toBeInTheDocument());
+    expect(screen.getByText("components:triggerDag.partitionKeySuggestedHelp")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId("trigger-dag-submit"));
+
+    await waitFor(() =>
+      expect(onSubmitTrigger).toHaveBeenCalledWith(expect.objectContaining({ partitionKey: "2024-01-01" })),
+    );
+  });
+
+  it("applies a suggested partition key that arrives after the form first rendered", async () => {
+    // The Dag query resolves after mount, so defaultValues captured no suggestion.
+    const { rerender } = render(buildForm({ prefillConfig }), { wrapper: Wrapper });
+
+    rerender(buildForm({ prefillConfig, suggestedPartitionKey: "2024-01-01" }));
+
+    await waitFor(() => expect(screen.getByDisplayValue("2024-01-01")).toBeInTheDocument());
+  });
+
+  it("replaces a suggested partition key with an updated suggestion when the user has not edited it", async () => {
+    const { rerender } = render(buildForm({ suggestedPartitionKey: "a" }), { wrapper: Wrapper });
+
+    await waitFor(() => expect(screen.getByDisplayValue("a")).toBeInTheDocument());
+
+    rerender(buildForm({ suggestedPartitionKey: "b" }));
+
+    await waitFor(() => expect(screen.getByDisplayValue("b")).toBeInTheDocument());
+  });
+
+  it("keeps the user's partition key and conf when a new suggestion arrives", async () => {
+    const { rerender } = render(buildForm({ prefillConfig, suggestedPartitionKey: "a" }), {
+      wrapper: Wrapper,
+    });
+
+    fireEvent.change(await screen.findByDisplayValue("a"), { target: { value: "mine" } });
+    await waitFor(() => expect(screen.getByDisplayValue("mine")).toBeInTheDocument());
+
+    rerender(buildForm({ prefillConfig, suggestedPartitionKey: "b" }));
+
+    await waitFor(() => expect(screen.getByDisplayValue("mine")).toBeInTheDocument());
+    expect(screen.queryByDisplayValue("b")).not.toBeInTheDocument();
+    expect(screen.getByLabelText<HTMLTextAreaElement>("Configuration JSON").value).toContain('"value"');
+  });
+
+  it.each([
+    {
+      changeConf: async () => {
+        await selectRecentConfig();
+        await waitFor(() => expect(screen.getByLabelText("Configuration JSON")).toHaveValue(RECENT_CONF));
+      },
+      scenario: "a recent configuration is selected",
+    },
+    {
+      changeConf: async () => {
+        const configJson = screen.getByLabelText("Configuration JSON");
+
+        fireEvent.change(configJson, { target: { value: '{"message": "edited"}' } });
+        fireEvent.blur(configJson);
+        await waitFor(() =>
+          expect(screen.getByLabelText<HTMLTextAreaElement>("Configuration JSON").value).toContain("edited"),
+        );
+      },
+      scenario: "the conf is edited and the editor loses focus",
+    },
+  ])("keeps the user's partition key when $scenario", async ({ changeConf }) => {
+    render(buildForm({ suggestedPartitionKey: "a" }), { wrapper: Wrapper });
+
+    fireEvent.change(await screen.findByDisplayValue("a"), { target: { value: "mine" } });
+    await waitFor(() => expect(screen.getByDisplayValue("mine")).toBeInTheDocument());
+
+    await changeConf();
+
+    expect(screen.getByDisplayValue("mine")).toBeInTheDocument();
+    expect(screen.queryByDisplayValue("a")).not.toBeInTheDocument();
+  });
+
+  it("keeps following the suggestion after the conf changes when the user has not edited the field", async () => {
+    const { rerender } = render(buildForm({ suggestedPartitionKey: "a" }), { wrapper: Wrapper });
+
+    await waitFor(() => expect(screen.getByDisplayValue("a")).toBeInTheDocument());
+    await selectRecentConfig();
+    await waitFor(() => expect(screen.getByLabelText("Configuration JSON")).toHaveValue(RECENT_CONF));
+
+    rerender(buildForm({ suggestedPartitionKey: "b" }));
+
+    await waitFor(() => expect(screen.getByDisplayValue("b")).toBeInTheDocument());
   });
 });

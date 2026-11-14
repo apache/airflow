@@ -19,13 +19,20 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import structlog
+from sqlalchemy import select
 
 from airflow.exceptions import DeserializationError
+from airflow.models.asset import AssetPartitionDagRun
+from airflow.models.dagrun import DagRun
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.timetables.simple import PartitionedAssetTimetable
+from airflow.utils.state import DagRunState
 
 if TYPE_CHECKING:
+    from pendulum import DateTime
     from sqlalchemy.orm import Session
+
+    from airflow.timetables.base import Timetable
 
 
 log = structlog.get_logger(logger_name=__name__)
@@ -87,3 +94,55 @@ def load_partitioned_timetables(
         serdag.dag_id: _extract_partitioned_timetable(serdag)
         for serdag in SerializedDagModel.get_latest_serialized_dags(dag_ids=dag_ids, session=session)
     }
+
+
+def suggest_partition_key_for_dag(
+    *, dag_id: str, timetable: Timetable, now: DateTime, session: Session
+) -> str | None:
+    """
+    Suggest a partition key to pre-fill the manual-trigger form for *dag_id*.
+
+    This is a **guess**, not a validation: callers must still accept ``None``
+    from ``validate_partition_key``. Sources, first non-``None`` wins:
+
+    1. The oldest pending ``AssetPartitionDagRun``, in the scheduler's FIFO
+       order. That partition may still be waiting for other events, so it is
+       not guaranteed to be satisfied.
+    2. ``timetable.suggest_partition_key(now)``, a purely time-based guess.
+    3. The ``partition_key`` of the single most recent successful ``DagRun``;
+       if that key is ``None`` this returns ``None`` rather than searching
+       further back.
+
+    ``models.dag.get_last_dagrun`` is intentionally not reused: it filters
+    ``logical_date.is_not(None)`` and excludes ``MANUAL`` runs by default,
+    which would drop exactly the partitioned runs this needs.
+
+    Source 3 can name a partition that already ran. This neither de-duplicates
+    nor blocks it: re-running a partition is a legitimate re-materialization,
+    and the trigger form's help text warns that the key may already have run.
+    """
+    if not timetable.partitioned and not timetable.partitioned_at_runtime:
+        return None
+
+    pending_key = session.execute(
+        select(AssetPartitionDagRun.partition_key)
+        .where(
+            AssetPartitionDagRun.target_dag_id == dag_id,
+            AssetPartitionDagRun.created_dag_run_id.is_(None),
+        )
+        .order_by(AssetPartitionDagRun.created_at, AssetPartitionDagRun.id)
+        .limit(1)
+    ).scalar_one_or_none()
+    if pending_key is not None:
+        return pending_key
+
+    suggested_key = timetable.suggest_partition_key(now)
+    if suggested_key is not None:
+        return suggested_key
+
+    return session.execute(
+        select(DagRun.partition_key)
+        .where(DagRun.dag_id == dag_id, DagRun.state == DagRunState.SUCCESS)
+        .order_by(DagRun.id.desc())
+        .limit(1)
+    ).scalar_one_or_none()
