@@ -4885,6 +4885,11 @@ openai = [
     { name = "openai", version = "3.46.0", source = { registry = "https://pypi.org/simple" } },
     { name = "pydantic-ai-slim", extra = ["openai"], marker = "extra == 'extra-34-apache-airflow-providers-common-ai-openai'" },
 ]
+openai-codex = [
+    { name = "mcp" },
+    { name = "openai-codex" },
+    { name = "uvicorn" },
+]
 opensandbox = [
     { name = "opensandbox" },
 ]
@@ -4930,8 +4935,10 @@ dev = [
     { name = "grpcio" },
     { name = "islo" },
     { name = "langchain" },
+    { name = "mcp" },
     { name = "openai", version = "2.54.0", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'extra-34-apache-airflow-providers-common-ai-llamaindex'" },
     { name = "openai", version = "3.46.0", source = { registry = "https://pypi.org/simple" }, marker = "extra != 'extra-34-apache-airflow-providers-common-ai-llamaindex' or extra == 'extra-34-apache-airflow-providers-common-ai-openai'" },
+    { name = "openai-codex" },
     { name = "opensandbox" },
     { name = "openshell" },
     { name = "protobuf" },
@@ -4939,6 +4946,7 @@ dev = [
     { name = "pydantic-ai-skills" },
     { name = "pydantic-ai-slim", extra = ["mcp"] },
     { name = "sqlglot" },
+    { name = "uvicorn" },
 ]
 docs = [
     { name = "apache-airflow-devel-common", extra = ["docs"] },
@@ -4967,8 +4975,10 @@ requires-dist = [
     { name = "llama-index-core", marker = "extra == 'llamaindex'", specifier = ">=0.14.5" },
     { name = "llama-index-embeddings-openai", marker = "extra == 'llamaindex'", specifier = ">=0.6.0" },
     { name = "llama-index-llms-openai", marker = "extra == 'llamaindex'", specifier = ">=0.6.8" },
+    { name = "mcp", marker = "extra == 'openai-codex'", specifier = ">=2.2.0" },
     { name = "modal", marker = "extra == 'modal'", specifier = ">=1.5.2" },
     { name = "openai", marker = "extra == 'openai'", specifier = ">=2.47.0" },
+    { name = "openai-codex", marker = "extra == 'openai-codex'", specifier = ">=0.163.0" },
     { name = "opensandbox", marker = "extra == 'opensandbox'", specifier = ">=1.1.0" },
     { name = "openshell", marker = "extra == 'openshell'", specifier = ">=0.1.2,<0.2" },
     { name = "protobuf", marker = "extra == 'openshell'", specifier = ">=6.31.1" },
@@ -4988,8 +4998,9 @@ requires-dist = [
     { name = "sqlglot", marker = "extra == 'sql'", specifier = ">=30.0.0" },
     { name = "structlog", specifier = ">=24.2.0" },
     { name = "typesafe-sdk", marker = "extra == 'typesafe'", specifier = ">=0.6.0" },
+    { name = "uvicorn", marker = "extra == 'openai-codex'", specifier = ">=0.31.1" },
 ]
-provides-extras = ["anthropic", "bedrock", "google", "openai", "typesafe", "mcp", "modal", "opensandbox", "boat", "openshell", "code-mode", "shields", "skills", "islo", "avro", "parquet", "sql", "common-sql", "langchain", "llamaindex", "pdf", "docx", "git", "claude-agent-sdk"]
+provides-extras = ["anthropic", "bedrock", "google", "openai", "typesafe", "mcp", "modal", "opensandbox", "boat", "openshell", "code-mode", "shields", "skills", "islo", "avro", "parquet", "sql", "common-sql", "langchain", "llamaindex", "pdf", "docx", "git", "claude-agent-sdk", "openai-codex"]
 
 [package.metadata.requires-dev]
 dev = [
@@ -5008,7 +5019,9 @@ dev = [
     { name = "grpcio", specifier = ">=1.78.0" },
     { name = "islo", specifier = ">=0.3.19" },
     { name = "langchain", specifier = ">=1.0.0" },
+    { name = "mcp", specifier = ">=2.2.0" },
     { name = "openai", specifier = ">=2.47.0" },
+    { name = "openai-codex", specifier = ">=0.163.0" },
     { name = "opensandbox", specifier = ">=1.1.0" },
     { name = "openshell", specifier = ">=0.1.2,<0.2" },
     { name = "protobuf", specifier = ">=6.31.1" },
@@ -5016,6 +5029,7 @@ dev = [
     { name = "pydantic-ai-skills", specifier = ">=1.2.0,<2" },
     { name = "pydantic-ai-slim", extras = ["mcp"], specifier = ">=2.46.0" },
     { name = "sqlglot", specifier = ">=30.0.0" },
+    { name = "uvicorn", specifier = ">=0.31.1" },
 ]
 docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "devel-common" }]
 
@@ -19386,6 +19400,35 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/34/b6/23cddcb571d6eafe7b4bb58c7e0a068076121b7b001b776179994cca6a03/openai-3.46.0.tar.gz", hash = "sha256:fb34cd8cab6809ad0aa8dc42493fa622aaa87c814fd8e67a6fb3fa1f1e5d952d", size = 2408622, upload-time = "2026-11-05T00:55:55.463Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/f4/63/454e6faad68ac903e7669932db8d0a91c95dfca829ec9476e52045b17684/openai-3.46.0-py3-none-any.whl", hash = "sha256:7b650117e9bf539029bf880c2eff94a26f281394f6572284efa5d068d4b1c98e", size = 2438918, upload-time = "2026-11-05T00:55:53.301Z" },
+]
+
+[[package]]
+name = "openai-codex"
+version = "0.167.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "openai-codex-cli-bin" },
+    { name = "packaging" },
+    { name = "pydantic" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/7e/d7/da3969d1b6efd7dcac810a06062d02c623429c83a73d1299203b387e59ab/openai_codex-0.167.0.tar.gz", hash = "sha256:6007d9d82b651f81f159a6a652e1c526fb8b3f6a26d4c38cd1fb647e0ec46229", size = 94963, upload-time = "2026-11-06T01:53:38.063Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/8a/8f/7b72095c54899ad980e62b241d92c465c2e36b41fb7261430742b8f589ad/openai_codex-0.167.0-py3-none-any.whl", hash = "sha256:753f17a7ad94720698f7182cc9dbb76906b38d21d728bfa87ac44e110493a815", size = 101500, upload-time = "2026-11-06T01:53:36.442Z" },
+]
+
+[[package]]
+name = "openai-codex-cli-bin"
+version = "0.167.0"
+source = { registry = "https://pypi.org/simple" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/32/7d/a8b20d99b1049d3a3247d45fedbeedbb19b154717769d3c3d6b3bbab0367/openai_codex_cli_bin-0.167.0-py3-none-macosx_10_9_x86_64.whl", hash = "sha256:0d14545d50329d85d70f30a411eff5fa45335b48ec319b3b540ec9ce94c84778", size = 171858811, upload-time = "2026-11-06T01:51:56.897Z" },
+    { url = "https://files.pythonhosted.org/packages/75/f3/7f43b80b1c57bb0786325c921ba38d74931a244eae3c9aad576b399b687d/openai_codex_cli_bin-0.167.0-py3-none-macosx_11_0_arm64.whl", hash = "sha256:b1dc0cb9997f6a69ecabd17968026d295d2d4c8f0ad3af86171401af8c1f52b8", size = 158056877, upload-time = "2026-11-06T01:52:03.709Z" },
+    { url = "https://files.pythonhosted.org/packages/3b/95/5ddd2a31d397b7a40b031e213d1eb24559de3e012844dbf4f1bc224272d6/openai_codex_cli_bin-0.167.0-py3-none-manylinux_2_17_aarch64.whl", hash = "sha256:91c317a33e122f5c836667a02e39401ec683cebff624057448953e0d477b17d7", size = 170989422, upload-time = "2026-11-06T01:52:10.279Z" },
+    { url = "https://files.pythonhosted.org/packages/3a/d4/74c0be75c877b391b2d8ed79fef91e2129d696a1348ebc8e366a31f3f22a/openai_codex_cli_bin-0.167.0-py3-none-manylinux_2_17_x86_64.whl", hash = "sha256:be588b0645c54859f2ae085db06aa7e669ec7e6ecb3f3047f2fe000213e8422e", size = 183159597, upload-time = "2026-11-06T01:52:17.516Z" },
+    { url = "https://files.pythonhosted.org/packages/d4/af/2b32d02818f8281b3cef68bb97f689e148ee939d3d223c1386b7b6f59e52/openai_codex_cli_bin-0.167.0-py3-none-musllinux_1_1_aarch64.whl", hash = "sha256:df2c0ab6d610d8479f7c150e7c2e25e288c7ec165595f692afcde12f629db23e", size = 187857434, upload-time = "2026-11-06T01:52:24.909Z" },
+    { url = "https://files.pythonhosted.org/packages/53/60/8af0b758a46df2532b87e73ab839b2f15edb0da20c52e11b6dc3fd9958b6/openai_codex_cli_bin-0.167.0-py3-none-musllinux_1_1_x86_64.whl", hash = "sha256:7822801a44ba82f253cde5085635e39116d713a0b298c5f7ad678ada1e5db7a3", size = 200187609, upload-time = "2026-11-06T01:52:34.251Z" },
+    { url = "https://files.pythonhosted.org/packages/3b/45/76d887f892c87263ca5574cc27f550aa77534f8b65c8113c3d17250985be/openai_codex_cli_bin-0.167.0-py3-none-win_amd64.whl", hash = "sha256:1367c910a02ce33a4a100681cb8f9c1466bed50534d2f35ea6d70e0c031db17f", size = 193435218, upload-time = "2026-11-06T01:52:43.906Z" },
+    { url = "https://files.pythonhosted.org/packages/60/56/0611da58c26ef602b30154e54cce0fd0cd369f5defc9d4073ed9b8e1405d/openai_codex_cli_bin-0.167.0-py3-none-win_arm64.whl", hash = "sha256:2f13595f5d2130d43397406568a83ba99d36a8a1def1c5492551c0507bb460e3", size = 179126975, upload-time = "2026-11-06T01:52:54.39Z" },
 ]
 
 [[package]]
