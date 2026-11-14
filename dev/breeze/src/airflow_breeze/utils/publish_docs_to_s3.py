@@ -21,11 +21,14 @@ import os
 import pathlib
 import subprocess
 import sys
-from functools import cached_property
+from functools import cache, cached_property
 
 import boto3
 
-from airflow_breeze.global_constants import PACKAGES_METADATA_EXCLUDE_NAMES
+from airflow_breeze.global_constants import (
+    PACKAGES_METADATA_EXCLUDE_NAMES,
+    PACKAGES_METADATA_EXCLUDE_VERSIONS,
+)
 from airflow_breeze.utils.console import console_print
 from airflow_breeze.utils.parallel import check_async_run_results, run_with_pool
 
@@ -43,11 +46,14 @@ NON_SHORT_NAME_PACKAGES = [
 ]
 
 
-s3_client = boto3.client("s3")
-cloudfront_client = boto3.client("cloudfront")
+@cache
+def get_s3_client():
+    return boto3.client("s3")
 
 
-SNAPSHOT_SUFFIX = "-SNAPSHOT"
+@cache
+def get_cloudfront_client():
+    return boto3.client("cloudfront")
 
 
 class VersionError:
@@ -140,7 +146,7 @@ class S3DocsPublish:
 
     def doc_exists(self, s3_bucket_doc_location: str) -> bool:
         bucket, key = self.get_bucket_key(s3_bucket_doc_location)
-        response = s3_client.list_objects_v2(Bucket=bucket, Prefix=key)
+        response = get_s3_client().list_objects_v2(Bucket=bucket, Prefix=key)
 
         return response["KeyCount"] > 0
 
@@ -264,7 +270,7 @@ class S3DocsPublish:
         List 'directories' (prefixes) in an S3 path using boto3.
         """
         bucket, prefix = self.get_bucket_key(s3_path.rstrip("/"))
-        paginator = s3_client.get_paginator("list_objects_v2")
+        paginator = get_s3_client().get_paginator("list_objects_v2")
         result = []
         for page in paginator.paginate(Bucket=bucket, Prefix=prefix + "/", Delimiter="/"):
             for cp in page.get("CommonPrefixes", []):
@@ -300,7 +306,7 @@ class S3DocsPublish:
         bucket, _ = self.get_bucket_key(self.destination_location)
 
         console_print("[info]Uploading packages-metadata.json to S3\n")
-        s3_client.put_object(
+        get_s3_client().put_object(
             Bucket=bucket,
             Key="manifest/packages-metadata.json",
             Body=json.dumps(all_packages_infos, indent=2),
@@ -311,7 +317,7 @@ class S3DocsPublish:
         console_print(
             f"[info]Invalidating CloudFront cache for the uploaded files: distribution id {distribution_id}\n"
         )
-        cloudfront_client.create_invalidation(
+        get_cloudfront_client().create_invalidation(
             DistributionId=distribution_id,
             InvalidationBatch={
                 "Paths": {
@@ -347,11 +353,10 @@ class S3DocsPublish:
         console_print(f"[info]Getting package versions for {package_name} from:\n")
         console_print(versions)
         all_versions: list[Version] = []
+        excluded_versions = PACKAGES_METADATA_EXCLUDE_VERSIONS.get(package_name, [])
         for v in versions:
-            # A Maven development build such as the Java SDK's `1.0.0-SNAPSHOT` is not a release and
-            # is not a valid Python version either; one that reached S3 is left out, not an error.
-            if v.upper().endswith(SNAPSHOT_SUFFIX):
-                console_print(f"[warning]Skipping development build {v} of {package_name}\n")
+            if v in excluded_versions:
+                console_print(f"[info]Skipping excluded version {package_name}/{v}\n")
                 continue
             try:
                 all_versions.append(Version(v))
@@ -400,7 +405,7 @@ class S3DocsPublish:
    <body></body>
 </html>"""
 
-        s3_client.put_object(
+        get_s3_client().put_object(
             Bucket=bucket,
             Key=s3_key,
             Body=html_body,
@@ -450,7 +455,7 @@ def _publish_single_schema(
     destination = f"{destination_location.rstrip('/')}/{schema_type}/{version}.json"
     bucket, key = S3DocsPublish.get_bucket_key(destination)
 
-    already_published = s3_client.list_objects_v2(Bucket=bucket, Prefix=key).get("KeyCount", 0) > 0
+    already_published = get_s3_client().list_objects_v2(Bucket=bucket, Prefix=key).get("KeyCount", 0) > 0
     if already_published and not overwrite:
         console_print(
             f"[info]Skipping {destination} — version {version} already published "
@@ -463,7 +468,7 @@ def _publish_single_schema(
         return False
 
     console_print(f"[info]Publishing {schema_type} version {version} to {destination}\n")
-    s3_client.put_object(
+    get_s3_client().put_object(
         Bucket=bucket,
         Key=key,
         Body=schema_path.read_bytes(),
@@ -480,7 +485,7 @@ def _invalidate_schemas_cache(destination_location: str) -> None:
     console_print(
         f"[info]Invalidating CloudFront cache for {invalidation_path}: distribution id {distribution_id}\n"
     )
-    cloudfront_client.create_invalidation(
+    get_cloudfront_client().create_invalidation(
         DistributionId=distribution_id,
         InvalidationBatch={
             "Paths": {"Quantity": 1, "Items": [invalidation_path]},

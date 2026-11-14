@@ -31,7 +31,7 @@ when the agent run ends. To change that:
   :class:`~airflow.providers.common.ai.sandbox.SandboxSpec`
   (:ref:`sandbox-configuring`, :ref:`sandbox-credentials`).
 - To choose where it runs, its image and its size, configure the backend
-  (:doc:`backends`).
+  (:doc:`backends/index`).
 - To keep a file the agent wrote, copy it to object storage before the sandbox is
   deleted with ``exports`` (:ref:`sandbox-results`).
 - To keep the sandbox itself after the run, for a later task or a review, create it in

@@ -112,7 +112,7 @@ _REVISION_HEADS_MAP: dict[str, str] = {
     "3.2.0": "1d6611b6ab7c",
     "3.3.0": "d2f4e1b3c5a7",
     "3.4.0": "b4f1a7d2c903",
-    "3.5.0": "5fbfa42a2d01",
+    "3.5.0": "d8c6f3a129b0",
 }
 
 # Prefix used to identify tables holding data moved during migration.
@@ -1627,7 +1627,12 @@ def _create_global_lock_mysql(lock: DBLocks, lock_timeout: int) -> Generator[Non
 def _create_global_lock_postgresql(
     session: Session, lock: DBLocks, lock_timeout: int
 ) -> Generator[None, None, None]:
-    """Create a global advisory lock for PostgreSQL using transactional advisory locks."""
+    """
+    Create a global advisory lock for PostgreSQL using session-level advisory locks.
+
+    The lock connection stays in an open transaction while the lock is held, which keeps it
+    on one server connection behind a transaction-pooling PgBouncer.
+    """
     bind = session.get_bind()
     if hasattr(bind, "connect"):
         conn = bind.connect()
@@ -1642,10 +1647,13 @@ def _create_global_lock_postgresql(
                 text("SELECT set_config('lock_timeout', :timeout, false)"),
                 {"timeout": str(lock_timeout)},
             )
-            conn.execute(text("SELECT pg_advisory_lock(:id)"), {"id": lock.value})
         else:
             conn.execute(text("SET LOCK_TIMEOUT to :timeout"), {"timeout": lock_timeout})
-            conn.execute(text("SELECT pg_advisory_lock(:id)"), {"id": lock.value})
+        # The last statement run on this connection before the yield must have no bound parameter:
+        # under psycopg3 a parameterized statement keeps its snapshot while the connection sits idle
+        # in transaction, and CREATE INDEX CONCURRENTLY run by a migration in this process would
+        # wait on it forever.
+        conn.execute(text(f"SELECT pg_advisory_lock({int(lock.value)})"))
 
         yield
     finally:
@@ -1679,7 +1687,7 @@ def create_global_lock(
     - GET_LOCK is session-level, not transaction-level
     - DDL operations cause implicit commits that would break transaction wrappers
 
-    For PostgreSQL, uses transactional advisory locks as before.
+    For PostgreSQL, uses a session-level advisory lock, held while the connection stays in a transaction.
     """
     dialect_name = get_dialect_name(session)
 

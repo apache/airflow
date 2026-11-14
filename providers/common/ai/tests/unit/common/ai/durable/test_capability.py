@@ -24,35 +24,55 @@ the retry runs the agent again from the top with a fresh journal over the same s
 from __future__ import annotations
 
 import asyncio
+import base64
 import dataclasses
+import functools
 from collections.abc import Iterable
 from typing import TYPE_CHECKING, Any
+from unittest import mock
 
 import pytest
 from pydantic import BaseModel
 from pydantic_ai import Agent, CancellationToken, RunContext
-from pydantic_ai.capabilities import AbstractCapability, durable_operation
+from pydantic_ai.capabilities import AbstractCapability, SetToolMetadata, durable_operation
 from pydantic_ai.exceptions import ModelRetry, UnexpectedModelBehavior
+from pydantic_ai.mcp import MCPToolset
 from pydantic_ai.messages import (
     ModelMessage,
     ModelResponse,
+    RetryPromptPart,
     TextPart,
     ToolCallPart,
+    ToolReturn,
     ToolReturnPart,
 )
 from pydantic_ai.models.function import AgentInfo, FunctionModel
-from pydantic_ai.toolsets import FunctionToolset
+from pydantic_ai.toolsets import DynamicToolset, FunctionToolset
+from pydantic_ai.toolsets.wrapper import WrapperToolset
 from pydantic_ai.usage import RequestUsage, RunUsage, UsageLimits
 
 from airflow.providers.common.ai.durable import AirflowDurability
-from airflow.providers.common.ai.durable.journal import DurableJournal, journal_scope
-from airflow.providers.common.ai.exceptions import DurableJournalError
+from airflow.providers.common.ai.durable.base import RUNS_KEY
+from airflow.providers.common.ai.durable.capability import (
+    _get_callable_toolset_id,
+    _give_durable_ids,
+    _GivenIds,
+    _JournalCodec,
+)
+from airflow.providers.common.ai.durable.journal import DurableJournal, Unrecordable, journal_scope
+from airflow.providers.common.ai.exceptions import DurableJournalError, SQLToolsetConnectionError
+from airflow.providers.common.ai.toolsets.sql import SQLToolset
 from airflow.providers.common.ai.utils.toolset_base import AirflowToolset, ensure_masked
+from airflow.providers.common.compat.sdk import AirflowFailException
 
+from unit.common.ai.durable.memory_storage import MemoryStorage
+from unit.common.ai.sqlite_connection import create_orders_table, run_sql, sqlite_connection
 from unit.common.ai.tool_parts import is_tool_result, is_tool_retry
 
 if TYPE_CHECKING:
     from pydantic_ai.toolsets.abstract import ToolsetTool
+
+PNG = b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR"
 
 
 class Calls:
@@ -155,6 +175,27 @@ class TestReplay:
         assert calls["query"] == 1
         # The first model step replayed; only the one that failed runs again.
         assert calls["model"] == 3
+
+    @pytest.mark.asyncio
+    async def test_a_first_attempt_reads_back_nothing_but_the_run_list(self, memory_storage):
+        calls = Calls()
+        toolset = FunctionToolset(id="db")
+
+        @toolset.tool_plain
+        def query(sql: str) -> str:
+            return "3 rows"
+
+        agent = Agent(
+            FunctionModel(tool_then_answer(calls, "query", fail_final=[False])),
+            name="analyst",
+            toolsets=[toolset],
+            capabilities=[AirflowDurability()],
+        )
+
+        await attempt(memory_storage, agent)
+
+        assert memory_storage.loads() == [RUNS_KEY]
+        assert [step["kind"] for step in memory_storage.steps()] == ["model", "tool", "model"]
 
     @pytest.mark.asyncio
     async def test_changed_prompt_runs_everything_again(self, memory_storage):
@@ -333,6 +374,312 @@ class TestResultsThatCannotBeRecorded:
         with pytest.raises(DurableJournalError, match="not JSON-serializable"):
             await attempt(memory_storage, agent)
 
+    @pytest.mark.parametrize(
+        ("toolset", "codec_refuses"),
+        [
+            # From pydantic-ai 2.66 on, pydantic-ai records a function toolset's bytes in a
+            # dataclass itself, as base64, so the codec refuses them to take the same path on
+            # every version. An Airflow toolset's result goes through this codec as it is.
+            pytest.param(lambda calls: _function_toolset(calls, _Image(PNG)), True, id="function-toolset"),
+            pytest.param(lambda calls: _WarehouseToolset(calls, _Image(PNG)), False, id="airflow-toolset"),
+        ],
+    )
+    @pytest.mark.asyncio
+    async def test_a_journal_that_does_not_fail_leaves_the_result_unrecorded(
+        self, memory_storage, monkeypatch, toolset, codec_refuses
+    ):
+        if codec_refuses:
+            dump = _JournalCodec.dump
+
+            def refusing_dump(codec: _JournalCodec, tp: Any, value: Any) -> Any:
+                if isinstance(getattr(value, "result", None), _Image):
+                    return Unrecordable(value, TypeError("no JSON form"))
+                return dump(codec, tp, value)
+
+            monkeypatch.setattr(_JournalCodec, "dump", refusing_dump)
+        calls = Calls()
+        fail_final = [True]
+
+        def build() -> Agent[None, str]:
+            return Agent(
+                FunctionModel(tool_then_answer(calls, "query", fail_final=fail_final)),
+                name="analyst",
+                toolsets=[toolset(calls)],
+                capabilities=[AirflowDurability()],
+            )
+
+        journals = [DurableJournal(memory_storage, fail_on_unrecordable=False) for _ in range(2)]
+        with journal_scope(journals[0]), pytest.raises(RuntimeError, match="worker died"):
+            await build().run("go")
+        fail_final[0] = False
+        with journal_scope(journals[1]):
+            result = await build().run("go")
+
+        # The model reads the bytes inside the dataclass, so the run goes on; the journal cannot.
+        assert result.output == f"answer: {_Image(PNG)}"
+        assert calls["query"] == 2
+        assert [kind for kind, _ in journals[0].stats.not_recorded] == ["tool"]
+
+    @pytest.mark.asyncio
+    async def test_a_result_that_contains_itself_fails_without_retrying(self, memory_storage):
+        looped: dict[str, Any] = {}
+        looped["self"] = looped
+        agent = Agent(
+            FunctionModel(tool_then_answer(Calls(), "query", fail_final=[False])),
+            name="analyst",
+            toolsets=[_function_toolset(Calls(), looped)],
+            capabilities=[AirflowDurability()],
+        )
+
+        with pytest.raises(DurableJournalError, match="not JSON-serializable"):
+            await attempt(memory_storage, agent)
+
+    @pytest.mark.parametrize("fail_on_unrecordable", [True, False])
+    @pytest.mark.asyncio
+    async def test_a_model_response_that_is_not_json(self, memory_storage, fail_on_unrecordable):
+        def model_fn(messages: list[ModelMessage], info: AgentInfo) -> ModelResponse:
+            return ModelResponse(parts=[TextPart("done")], provider_details={"handle": object()})
+
+        agent = Agent(FunctionModel(model_fn), name="analyst", capabilities=[AirflowDurability()])
+        journal = DurableJournal(memory_storage, fail_on_unrecordable=fail_on_unrecordable)
+
+        with journal_scope(journal):
+            if fail_on_unrecordable:
+                with pytest.raises(DurableJournalError, match="not JSON-serializable"):
+                    await agent.run("go")
+            else:
+                assert (await agent.run("go")).output == "done"
+
+        assert [kind for kind, _ in journal.stats.not_recorded] == ([] if fail_on_unrecordable else ["model"])
+
+    @pytest.mark.asyncio
+    async def test_a_result_of_a_toolset_that_is_not_replayable_is_not_checked(self, memory_storage):
+        calls = Calls()
+        agent = Agent(
+            FunctionModel(tool_then_answer(calls, "query", fail_final=[False])),
+            name="analyst",
+            toolsets=[_WarehouseToolset(calls, _Image(PNG), replayable=False)],
+            capabilities=[AirflowDurability()],
+        )
+        journal = DurableJournal(memory_storage)
+
+        with journal_scope(journal):
+            result = await agent.run("go")
+
+        assert result.output == f"answer: {_Image(PNG)}"
+        assert journal.stats.not_recorded == []
+
+
+@dataclasses.dataclass
+class _Image:
+    """A tool result whose bytes the model can read but the journal cannot record."""
+
+    data: bytes
+
+
+def _function_toolset(calls: Calls, result: Any) -> FunctionToolset[None]:
+    """A function toolset with one ``query`` tool that returns ``result``."""
+    toolset: FunctionToolset[None] = FunctionToolset(id="db")
+
+    @toolset.tool_plain
+    def query(sql: str) -> Any:
+        calls.bump("query")
+        return result
+
+    return toolset
+
+
+def _build_dynamic_toolset(calls: Calls, result: Any) -> DynamicToolset[None]:
+    """A dynamic toolset that builds :func:`_function_toolset` per run step."""
+
+    async def build(ctx: RunContext[None]) -> FunctionToolset[None]:
+        return _function_toolset(calls, result)
+
+    return DynamicToolset(build, id="dynamic_db")
+
+
+@dataclasses.dataclass
+class _Event:
+    """A tool result of the user's own whose ``kind`` matches pydantic-ai's recorded tool return."""
+
+    name: str
+    kind: str = "tool_return"
+
+    @property
+    def result(self) -> str:
+        """Not a field, so it is not the ``result`` field of pydantic-ai's recorded tool return."""
+        return self.name
+
+
+class TestBytesResults:
+    @pytest.mark.parametrize(
+        ("result", "content", "metadata"),
+        [
+            pytest.param(PNG, PNG, None, id="png"),
+            pytest.param(b"plain text", b"plain text", None, id="utf-8"),
+            pytest.param(
+                {"blob": b"\xff", "rows": [b"\xfe", 1]},
+                {"blob": b"\xff", "rows": [b"\xfe", 1]},
+                None,
+                id="nested",
+            ),
+            # A dict a tool built that only looks like a tag is kept as it is.
+            pytest.param(
+                {"__airflow_bytes__": "not base64!"},
+                {"__airflow_bytes__": "not base64!"},
+                None,
+                id="tag-shaped",
+            ),
+            pytest.param(
+                {"__airflow_bytes__": "café"}, {"__airflow_bytes__": "café"}, None, id="tag-shaped-non-ascii"
+            ),
+            # Recorded as a list, which is what the model sees either way.
+            pytest.param((PNG, 1), [PNG, 1], None, id="tuple"),
+            # pydantic-ai records a dict whose kind collides with its own tool return differently.
+            pytest.param(
+                {"kind": "tool-return", "blob": PNG}, {"kind": "tool-return", "blob": PNG}, None, id="kind"
+            ),
+            pytest.param(
+                ToolReturn(return_value={"png": PNG}, metadata={"thumbnail": PNG}),
+                {"png": PNG},
+                {"thumbnail": PNG},
+                id="tool-return",
+            ),
+        ],
+    )
+    @pytest.mark.asyncio
+    async def test_a_function_tool_result_with_bytes_replays_the_same_bytes(
+        self, memory_storage, result, content, metadata
+    ):
+        calls = Calls()
+        fail_final = [True]
+        seen: list[tuple[Any, Any]] = []
+
+        def model_fn(messages: list[ModelMessage], info: AgentInfo) -> ModelResponse:
+            calls.bump("model")
+            match responses_so_far(messages):
+                case 0:
+                    return ModelResponse(parts=[ToolCallPart("query", {"sql": "select 1"})])
+                case 1:
+                    return ModelResponse(parts=[ToolCallPart("notify", {})])
+            if fail_final[0]:
+                raise RuntimeError("worker died")
+            part = tool_returns(messages)[0]
+            seen.append((part.content, part.metadata))
+            return ModelResponse(parts=[TextPart("done")])
+
+        def build() -> Agent[None, str]:
+            toolset = _function_toolset(calls, result)
+
+            @toolset.tool_plain
+            def notify() -> str:
+                calls.bump("notify")
+                return "sent"
+
+            return Agent(
+                FunctionModel(model_fn),
+                name="analyst",
+                toolsets=[toolset],
+                capabilities=[AirflowDurability()],
+            )
+
+        with pytest.raises(RuntimeError, match="worker died"):
+            await attempt(memory_storage, build())
+        fail_final[0] = False
+        await attempt(memory_storage, build())
+
+        assert seen == [(content, metadata)]
+        assert calls["query"] == 1
+        # The model request after the replayed bytes matches the recorded one, so it replays too.
+        assert calls["notify"] == 1
+        assert calls["model"] == 4
+
+    @pytest.mark.parametrize(
+        "result",
+        [
+            pytest.param({"blob": PNG}, id="dict"),
+            pytest.param(ToolReturn(return_value={"blob": PNG}), id="tool-return"),
+        ],
+    )
+    @pytest.mark.asyncio
+    async def test_an_airflow_toolset_result_with_bytes_replays_the_same_bytes(self, memory_storage, result):
+        calls = Calls()
+        fail_final = [True]
+        expected = {"blob": PNG}
+
+        def build() -> Agent[None, str]:
+            return Agent(
+                FunctionModel(tool_then_answer(calls, "query", fail_final=fail_final)),
+                name="analyst",
+                toolsets=[_WarehouseToolset(calls, result)],
+                capabilities=[AirflowDurability()],
+            )
+
+        with pytest.raises(RuntimeError, match="worker died"):
+            await attempt(memory_storage, build())
+        fail_final[0] = False
+        run = await attempt(memory_storage, build())
+
+        assert run.output == f"answer: {expected}"
+        assert calls["query"] == 1
+
+    @pytest.mark.asyncio
+    async def test_a_result_with_its_own_kind_field_replays(self, memory_storage):
+        calls = Calls()
+        fail_final = [True]
+
+        def build() -> Agent[None, str]:
+            return Agent(
+                FunctionModel(tool_then_answer(calls, "query", fail_final=fail_final)),
+                name="analyst",
+                toolsets=[_function_toolset(calls, _Event("deploy"))],
+                capabilities=[AirflowDurability()],
+            )
+
+        with pytest.raises(RuntimeError, match="worker died"):
+            await attempt(memory_storage, build())
+        fail_final[0] = False
+        run = await attempt(memory_storage, build())
+
+        assert run.output == "answer: {'name': 'deploy', 'kind': 'tool_return'}"
+        assert calls["query"] == 1
+
+    @pytest.mark.asyncio
+    async def test_a_replayed_model_response_keeps_arguments_that_look_like_bytes(self, memory_storage):
+        """Only tool results are tagged, so what the model wrote replays as it was written."""
+        fail_final = [True]
+        seen: list[Any] = []
+        args = {"payload": {"__airflow_bytes__": "aGk="}}
+
+        def model_fn(messages: list[ModelMessage], info: AgentInfo) -> ModelResponse:
+            if responses_so_far(messages) == 0:
+                return ModelResponse(parts=[ToolCallPart("store", args)])
+            if fail_final[0]:
+                raise RuntimeError("worker died")
+            seen.append(next(part.args for part in messages[1].parts if isinstance(part, ToolCallPart)))
+            return ModelResponse(parts=[TextPart("done")])
+
+        def build() -> Agent[None, str]:
+            toolset = FunctionToolset(id="db")
+
+            @toolset.tool_plain
+            def store(payload: dict[str, Any]) -> str:
+                return "stored"
+
+            return Agent(
+                FunctionModel(model_fn),
+                name="analyst",
+                toolsets=[toolset],
+                capabilities=[AirflowDurability()],
+            )
+
+        with pytest.raises(RuntimeError, match="worker died"):
+            await attempt(memory_storage, build())
+        fail_final[0] = False
+        await attempt(memory_storage, build())
+
+        assert seen == [args]
+
 
 class TestStreaming:
     @pytest.mark.asyncio
@@ -463,13 +810,20 @@ class TestUnloadableRecords:
 
         assert calls["accrue"] == 2
 
+    @pytest.mark.parametrize(
+        "payload",
+        [
+            pytest.param({"kind": "renamed_in_a_later_version"}, id="unknown-kind"),
+            pytest.param({"kind": "tool_return", "tool_return": "not a tool return"}, id="tool-return"),
+        ],
+    )
     @pytest.mark.asyncio
-    async def test_an_airflow_toolset_record_that_no_longer_loads_runs_live(self, memory_storage):
+    async def test_an_airflow_toolset_record_that_no_longer_loads_runs_live(self, memory_storage, payload):
         calls = Calls()
         await attempt(memory_storage, self.build(calls, _WarehouseToolset(calls)))
         for entry in memory_storage.steps():
             if entry["kind"] == "tool":
-                entry["payload"] = {"kind": "renamed_in_a_later_version"}
+                entry["payload"] = payload
 
         result = await attempt(memory_storage, self.build(calls, _WarehouseToolset(calls)))
 
@@ -554,8 +908,456 @@ class TestAirflowToolsets:
         assert calls["model"] == 3
 
 
+def _build_ops_toolset(
+    calls: Calls, *, clock_metadata: dict[str, Any] | None = None, clock_changes: bool = False
+) -> FunctionToolset[None]:
+    toolset = FunctionToolset(id="ops")
+
+    @toolset.tool_plain(metadata=clock_metadata)
+    def clock() -> str:
+        """Read the time."""
+        calls.bump("clock")
+        return f"tick {calls['clock']}" if clock_changes else "tick"
+
+    @toolset.tool_plain
+    def lookup(key: str) -> str:
+        """Look a key up."""
+        calls.bump("lookup")
+        return "value"
+
+    return toolset
+
+
+def clock_then_lookup(calls: Calls, *, fail_final: list[bool]):
+    """A model that calls ``clock``, then ``lookup``, then answers."""
+
+    def model_fn(messages: list[ModelMessage], info: AgentInfo) -> ModelResponse:
+        calls.bump("model")
+        match responses_so_far(messages):
+            case 0:
+                return ModelResponse(parts=[ToolCallPart("clock", {})])
+            case 1:
+                return ModelResponse(parts=[ToolCallPart("lookup", {"key": "a"})])
+        if fail_final[0]:
+            raise RuntimeError("worker died")
+        return ModelResponse(parts=[TextPart("done")])
+
+    return model_fn
+
+
+def _query_then_answer(sql: str, *, fail_final: list[bool]):
+    """A model that runs ``sql`` once, then answers with whatever the tool sent back, error or rows."""
+
+    def model_fn(messages: list[ModelMessage], info: AgentInfo) -> ModelResponse:
+        if responses_so_far(messages) == 0:
+            return ModelResponse(parts=[ToolCallPart("query", {"sql": sql})])
+        if fail_final[0]:
+            raise RuntimeError("worker died")
+        answered = messages[-1].parts[0]
+        assert isinstance(answered, (RetryPromptPart, ToolReturnPart))
+        return ModelResponse(parts=[TextPart(f"answer: {answered.content}")])
+
+    return model_fn
+
+
+class TestToolOptOut:
+    """A tool whose metadata says ``{"airflow": False}`` runs live on every attempt."""
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("clock_metadata", "extra_capabilities"),
+        [
+            pytest.param({"airflow": False}, [], id="tool-metadata"),
+            pytest.param(None, [SetToolMetadata(tools=["clock"], airflow=False)], id="SetToolMetadata"),
+        ],
+    )
+    @pytest.mark.parametrize(
+        ("clock_changes", "expected_model_calls", "expected_lookups"),
+        [
+            pytest.param(False, 4, 1, id="same-result"),
+            # The request after the clock sees a different result, so it and the steps after it run again.
+            pytest.param(True, 5, 2, id="new-result"),
+        ],
+    )
+    async def test_an_opted_out_function_tool_runs_again_and_the_other_steps_replay(
+        self,
+        memory_storage,
+        clock_metadata,
+        extra_capabilities,
+        clock_changes,
+        expected_model_calls,
+        expected_lookups,
+    ):
+        calls = Calls()
+        fail_final = [True]
+
+        def build() -> Agent[None, str]:
+            return Agent(
+                FunctionModel(clock_then_lookup(calls, fail_final=fail_final)),
+                name="ops",
+                toolsets=[
+                    _build_ops_toolset(calls, clock_metadata=clock_metadata, clock_changes=clock_changes)
+                ],
+                capabilities=[AirflowDurability(), *extra_capabilities],
+            )
+
+        with pytest.raises(RuntimeError, match="worker died"):
+            await attempt(memory_storage, build())
+        fail_final[0] = False
+        result = await attempt(memory_storage, build())
+
+        assert result.output == "done"
+        assert calls["clock"] == 2
+        assert (calls["model"], calls["lookup"]) == (expected_model_calls, expected_lookups)
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("opt_out_on_attempt", [1, 2], ids=["opted-out-first", "opted-out-on-retry"])
+    @pytest.mark.parametrize("dynamic", [False, True], ids=["function", "dynamic"])
+    async def test_turning_the_opt_out_on_or_off_between_attempts_keeps_the_rest_replaying(
+        self, memory_storage, opt_out_on_attempt, dynamic
+    ):
+        calls = Calls()
+        fail_final = [True]
+
+        def build(attempt_number: int) -> Agent[None, str]:
+            opt_out = [SetToolMetadata(tools=["clock"], airflow=False)]
+
+            async def ops(ctx: RunContext[None]) -> FunctionToolset[None]:
+                return _build_ops_toolset(calls)
+
+            return Agent(
+                FunctionModel(clock_then_lookup(calls, fail_final=fail_final)),
+                name="ops",
+                toolsets=[DynamicToolset(ops, id="dynamic_ops") if dynamic else _build_ops_toolset(calls)],
+                capabilities=[
+                    AirflowDurability(),
+                    *(opt_out if attempt_number == opt_out_on_attempt else []),
+                ],
+            )
+
+        with pytest.raises(RuntimeError, match="worker died"):
+            await attempt(memory_storage, build(1))
+        fail_final[0] = False
+        await attempt(memory_storage, build(2))
+
+        # The clock is live on the attempt that opts it out, and has nothing to replay after one
+        # that did; the model requests and the lookup replay either way.
+        assert (calls["clock"], calls["lookup"], calls["model"]) == (2, 1, 4)
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("airflow", "expected_queries"), [(False, 2), (True, 1)], ids=["opted-out", "journaled"]
+    )
+    @pytest.mark.parametrize(
+        "build_toolset",
+        [_function_toolset, _WarehouseToolset, _build_dynamic_toolset],
+        ids=["function", "airflow", "dynamic"],
+    )
+    async def test_set_tool_metadata_decides_whether_a_tool_replays(
+        self, memory_storage, build_toolset, airflow, expected_queries
+    ):
+        calls = Calls()
+        fail_final = [True]
+
+        def build() -> Agent[None, str]:
+            return Agent(
+                FunctionModel(tool_then_answer(calls, "query", fail_final=fail_final)),
+                name="analyst",
+                toolsets=[build_toolset(calls, "3 rows")],
+                capabilities=[AirflowDurability(), SetToolMetadata(tools=["query"], airflow=airflow)],
+            )
+
+        with pytest.raises(RuntimeError, match="worker died"):
+            await attempt(memory_storage, build())
+        fail_final[0] = False
+        result = await attempt(memory_storage, build())
+
+        assert result.output == "answer: 3 rows"
+        assert calls["query"] == expected_queries
+        # The model request that chose the query replayed either way.
+        assert calls["model"] == 3
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("value", ["false", 0])
+    @pytest.mark.parametrize("build_toolset", [_function_toolset, _WarehouseToolset])
+    async def test_an_airflow_metadata_value_that_is_not_a_bool_fails_the_task_before_the_model_is_asked(
+        self, memory_storage, value, build_toolset
+    ):
+        """Every attempt would fail the same way, so the task fails once, without retrying."""
+        calls = Calls()
+        agent = Agent(
+            FunctionModel(tool_then_answer(calls, "query", fail_final=[False])),
+            name="analyst",
+            toolsets=[build_toolset(calls, "3 rows")],
+            capabilities=[AirflowDurability(), SetToolMetadata(tools=["query"], airflow=value)],
+        )
+
+        with pytest.raises(AirflowFailException, match="Tool 'query' has invalid 'airflow' metadata"):
+            await attempt(memory_storage, agent)
+        assert (calls["model"], calls["query"]) == (0, 0)
+
+    @pytest.mark.asyncio
+    async def test_an_airflow_metadata_value_that_is_not_a_bool_is_ignored_outside_a_task(self):
+        calls = Calls()
+        agent = Agent(
+            FunctionModel(tool_then_answer(calls, "query", fail_final=[False])),
+            name="analyst",
+            toolsets=[_function_toolset(calls, "3 rows")],
+            capabilities=[AirflowDurability(), SetToolMetadata(tools=["query"], airflow="false")],
+        )
+
+        result = await agent.run("go")
+
+        assert result.output == "answer: 3 rows"
+        assert calls["query"] == 1
+
+
+def _query_tools(calls: Calls, *extra: Any, instructions: str | None = None) -> FunctionToolset[None]:
+    """A ``FunctionToolset`` without an id, with a ``query`` tool and any ``extra`` tools."""
+
+    def query(sql: str) -> str:
+        calls.bump("query")
+        return "3 rows"
+
+    return FunctionToolset(tools=[query, *extra], instructions=instructions)
+
+
+def _build_tools(ctx: RunContext[None]) -> FunctionToolset[None]:
+    """A function that builds a toolset for each run, as a Dag file defines one."""
+    return FunctionToolset()
+
+
+class _ToolsBuilder:
+    def __call__(self, ctx: RunContext[None]) -> FunctionToolset[None]:
+        return FunctionToolset()
+
+
+class TestToolsetIds:
+    """Toolsets without an ``id`` replay under the ids ``_give_durable_ids`` gives them, as in AgentOperator."""
+
+    @staticmethod
+    def tool_step_names(storage) -> list[str]:
+        return [step["name"] for step in storage.steps() if step["kind"] == "tool"]
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("built_per_run", "instructions"),
+        [
+            pytest.param(False, None, id="function-toolset"),
+            # pydantic-ai builds instruction ids from the toolset's id: it rejects a colon in it, and the
+            # request fingerprint hashes them, so the id has to be the same on every attempt.
+            pytest.param(False, "Count rows with SQL.", id="function-toolset-with-instructions"),
+            pytest.param(True, None, id="function-building-one"),
+        ],
+    )
+    async def test_a_toolset_without_an_id_replays_on_retry(
+        self, memory_storage, built_per_run, instructions
+    ):
+        calls = Calls()
+        fail_final = [True]
+
+        def build_tools(ctx: RunContext[None]) -> FunctionToolset[None]:
+            return _query_tools(calls)
+
+        def build() -> Agent[None, str]:
+            toolset = build_tools if built_per_run else _query_tools(calls, instructions=instructions)
+            return Agent(
+                FunctionModel(tool_then_answer(calls, "query", fail_final=fail_final)),
+                name="analyst",
+                toolsets=[_give_durable_ids(toolset, {})],
+                capabilities=[AirflowDurability()],
+            )
+
+        with pytest.raises(RuntimeError, match="worker died"):
+            await attempt(memory_storage, build())
+        names = self.tool_step_names(memory_storage)
+        fail_final[0] = False
+        result = await attempt(memory_storage, build())
+
+        assert result.output == "answer: 3 rows"
+        assert names == [
+            f"analyst__dynamic_toolset__{__name__}.{build_tools.__qualname__}.call_tool:query"
+            if built_per_run
+            else "analyst__function_toolset.call_tool:query"
+        ]
+        assert (calls["query"], calls["model"]) == (1, 3)
+
+    @pytest.mark.asyncio
+    async def test_adding_a_tool_between_attempts_keeps_the_first_tools_step_name(self, memory_storage):
+        """The retry runs again from the first request, which now offers a new tool, but names its calls alike."""
+        calls = Calls()
+
+        def forecast(city: str) -> str:
+            return "sunny"
+
+        names = []
+        for tools in ((), (forecast,)):
+            agent = Agent(
+                FunctionModel(tool_then_answer(calls, "query", fail_final=[True])),
+                name="analyst",
+                toolsets=[_give_durable_ids(_query_tools(calls, *tools), {})],
+                capabilities=[AirflowDurability()],
+            )
+            with pytest.raises(RuntimeError, match="worker died"):
+                await attempt(memory_storage, agent)
+            names.append(self.tool_step_names(memory_storage))
+
+        assert names == [["analyst__function_toolset.call_tool:query"]] * 2
+        assert calls["query"] == 2
+
+    @pytest.mark.asyncio
+    async def test_an_id_the_author_chose_keeps_its_step_names(self, memory_storage):
+        """The step names journals were recorded under before Airflow gave toolsets ids."""
+        calls = Calls()
+        toolset = FunctionToolset(tools=list(_query_tools(calls).tools.values()), id="db")
+        agent = Agent(
+            FunctionModel(tool_then_answer(calls, "query", fail_final=[True])),
+            name="analyst",
+            toolsets=[_give_durable_ids(toolset, {})],
+            capabilities=[AirflowDurability()],
+        )
+
+        with pytest.raises(RuntimeError, match="worker died"):
+            await attempt(memory_storage, agent)
+
+        assert self.tool_step_names(memory_storage) == ["analyst__function_toolset__db.call_tool:query"]
+
+    def test_gives_ids_to_copies_and_one_copy_to_a_toolset_listed_twice(self):
+        """
+        ``_give_durable_ids`` writes ``FunctionToolset``'s private ``_id``, which only its constructor sets.
+
+        This test and the replay tests above fail if pydantic-ai stops reading the id from there.
+        """
+        shared = FunctionToolset()
+        given: _GivenIds = {}
+
+        prefixed = _give_durable_ids(shared.prefixed("a"), given)
+        plain = _give_durable_ids(shared, given)
+
+        assert isinstance(prefixed, WrapperToolset)
+        assert prefixed.wrapped is plain
+        assert plain.id == "__airflow_function_toolset_0"
+        assert shared.id is None
+
+    def test_numbers_the_function_toolsets_it_gives_ids_in_order(self):
+        given: _GivenIds = {}
+
+        ids = [_give_durable_ids(FunctionToolset(), given).id for _ in range(2)]
+
+        assert ids == ["__airflow_function_toolset_0", "__airflow_function_toolset_1"]
+
+    @pytest.mark.parametrize(
+        "toolset",
+        [
+            pytest.param(FunctionToolset(id="db").prefixed("a"), id="function-toolset-with-id"),
+            pytest.param(DynamicToolset(_build_tools, id="tools"), id="dynamic-toolset-with-id"),
+            pytest.param(MCPToolset("http://mcp.example.com/mcp"), id="mcp-toolset"),
+        ],
+    )
+    def test_leaves_a_toolset_it_cannot_or_need_not_give_an_id_as_it_is(self, toolset):
+        assert _give_durable_ids(toolset, {}) is toolset
+
+    def test_a_dynamic_toolset_without_an_id_gets_its_functions_name(self):
+        given = _give_durable_ids(DynamicToolset(_build_tools, per_run_step=False), {})
+
+        assert isinstance(given, DynamicToolset)
+        assert (given.id, given.per_run_step) == (f"{__name__}._build_tools", False)
+
+
+class TestGetCallableToolsetId:
+    def test_leaves_out_the_path_hash_airflow_puts_in_a_dag_files_module(self):
+        def build_tools(ctx: RunContext[None]) -> FunctionToolset[None]:
+            return FunctionToolset()
+
+        build_tools.__module__ = f"unusual_prefix_{'0123456789abcdef' * 2}01234567_orders_dag"
+
+        assert _get_callable_toolset_id(build_tools) == f"orders_dag.{build_tools.__qualname__}"
+
+    @pytest.mark.parametrize(
+        "function",
+        [
+            pytest.param(functools.partial(_build_tools), id="partial"),
+            pytest.param(_ToolsBuilder(), id="callable-instance"),
+        ],
+    )
+    def test_none_for_a_callable_without_a_qualified_name(self, function):
+        assert _get_callable_toolset_id(function) is None
+
+
+class TestSQLToolsetErrors:
+    """A database that could not be reached is queried again on retry; a rejected statement replays."""
+
+    @staticmethod
+    def _agent(model_fn) -> Agent[None, str]:
+        return Agent(
+            FunctionModel(model_fn),
+            name="analyst",
+            toolsets=[SQLToolset("warehouse")],
+            capabilities=[AirflowDurability()],
+        )
+
+    @pytest.mark.asyncio
+    async def test_a_query_that_could_not_connect_runs_again_on_retry(self, memory_storage, tmp_path):
+        path = tmp_path / "warehouse" / "warehouse.db"  # its directory does not exist yet
+        model_fn = _query_then_answer("SELECT count(*) FROM orders", fail_final=[False])
+
+        with sqlite_connection("warehouse", path):
+            # A model handed the failure would answer with it; the attempt fails instead.
+            with pytest.raises(
+                SQLToolsetConnectionError, match="connection 'warehouse': .*unable to open database file"
+            ):
+                await attempt(memory_storage, self._agent(model_fn))
+            create_orders_table(path)
+            result = await attempt(memory_storage, self._agent(model_fn))
+
+        assert '"rows":[[2]]' in result.output
+
+    @pytest.mark.asyncio
+    async def test_a_query_naming_a_missing_column_replays_on_retry(self, memory_storage, tmp_path):
+        path = tmp_path / "warehouse.db"
+        create_orders_table(path)
+        fail_final = [True]
+        model_fn = _query_then_answer("SELECT amount FROM orders", fail_final=fail_final)
+
+        with sqlite_connection("warehouse", path):
+            with pytest.raises(RuntimeError):
+                await attempt(memory_storage, self._agent(model_fn))
+            # Run live, the query would now succeed; replayed, it fails as it did.
+            run_sql(path, "ALTER TABLE orders ADD COLUMN amount REAL")
+            fail_final[0] = False
+            result = await attempt(memory_storage, self._agent(model_fn))
+
+        assert "no such column: amount" in result.output
+
+
 class Answer(BaseModel):
     rows: int
+
+
+def build_analyst(
+    calls: Calls, queries: list[str], metadata: dict[str, Any] | None = None
+) -> Agent[None, str]:
+    """An analyst whose first answer queries a column that does not exist; later answers query one that does."""
+
+    def model_fn(messages: list[ModelMessage], info: AgentInfo) -> ModelResponse:
+        calls.bump("model")
+        if returns := tool_returns(messages):
+            return ModelResponse(parts=[TextPart(f"answer: {returns[-1].content}")])
+        sql = "select nope" if calls["model"] == 1 else "select 1"
+        return ModelResponse(parts=[ToolCallPart("query", {"sql": sql})])
+
+    toolset = FunctionToolset(id="db")
+
+    @toolset.tool_plain(metadata=metadata)
+    def query(sql: str) -> str:
+        queries.append(sql)
+        if "nope" in sql:
+            raise ValueError("column nope does not exist")
+        return "3 rows"
+
+    return Agent(
+        FunctionModel(model_fn), name="analyst", toolsets=[toolset], capabilities=[AirflowDurability()]
+    )
 
 
 class TestModelAtFault:
@@ -656,6 +1458,80 @@ class TestModelAtFault:
 
         assert (calls["model"], calls["query"]) == (2, 2)
 
+    @pytest.mark.asyncio
+    # An opted-out call still takes its step, so its failures count the same way.
+    @pytest.mark.parametrize("metadata", [None, {"airflow": False}], ids=["journaled", "opted-out"])
+    async def test_a_tool_that_keeps_failing_on_the_models_arguments_asks_the_model_again(
+        self, memory_storage, metadata
+    ):
+        """The second attempt retries the same call in case the failure was transient; the third asks the model."""
+        calls = Calls()
+        queries: list[str] = []
+
+        for _ in range(2):
+            with pytest.raises(ValueError, match="column nope"):
+                await attempt(memory_storage, build_analyst(calls, queries, metadata))
+        result = await attempt(memory_storage, build_analyst(calls, queries, metadata))
+
+        assert result.output == "answer: 3 rows"
+        assert queries == ["select nope", "select nope", "select 1"]
+        # Attempt 2 replays the model's first answer; attempt 3 asks again, then for the answer.
+        assert calls["model"] == 3
+
+    @pytest.mark.asyncio
+    async def test_an_attempt_after_the_answer_asked_again_succeeded_replays_it(self, memory_storage):
+        """A task that keeps the journal after the run (AgentOperator, until its post-run work succeeds)."""
+        calls = Calls()
+        queries: list[str] = []
+        for _ in range(2):
+            with pytest.raises(ValueError, match="column nope"):
+                await attempt(memory_storage, build_analyst(calls, queries))
+        await attempt(memory_storage, build_analyst(calls, queries))
+
+        with mock.patch.object(
+            MemoryStorage, "save_step", autospec=True, side_effect=MemoryStorage.save_step
+        ) as save_step:
+            result = await attempt(memory_storage, build_analyst(calls, queries))
+
+        assert result.output == "answer: 3 rows"
+        assert queries == ["select nope", "select nope", "select 1"]
+        assert calls["model"] == 3
+        # Attempt 3 took the note down when it succeeded, so attempt 4 has nothing to write.
+        save_step.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_each_answer_with_the_same_failing_arguments_gets_its_own_retry(self, memory_storage):
+        """Even an answer identical to the last, call id included, is retried once before the model is asked again."""
+        calls = Calls()
+
+        def build() -> Agent[None, str]:
+            toolset = FunctionToolset(id="db")
+
+            @toolset.tool_plain
+            def query(sql: str) -> str:
+                calls.bump("query")
+                raise ValueError("column nope does not exist")
+
+            def model_fn(messages: list[ModelMessage], info: AgentInfo) -> ModelResponse:
+                calls.bump("model")
+                return ModelResponse(
+                    parts=[ToolCallPart("query", {"sql": "select nope"}, tool_call_id="call_1")]
+                )
+
+            return Agent(
+                FunctionModel(model_fn),
+                name="analyst",
+                toolsets=[toolset],
+                capabilities=[AirflowDurability()],
+            )
+
+        for _ in range(4):
+            with pytest.raises(ValueError, match="column nope"):
+                await attempt(memory_storage, build())
+
+        # Asked on attempts 1 and 3; attempts 2 and 4 replay those answers and retry the call.
+        assert (calls["model"], calls["query"]) == (2, 4)
+
 
 @pytest.mark.enable_redact
 class TestMasking:
@@ -740,6 +1616,42 @@ class TestMasking:
         await attempt(memory_storage, agent)
 
         assert registered_secret not in str(memory_storage.entries)
+
+    @pytest.mark.parametrize(
+        "toolset",
+        [
+            pytest.param(lambda calls, result: _function_toolset(calls, result), id="function-toolset"),
+            pytest.param(
+                lambda calls, result: _UnmaskedWarehouseToolset(calls, result), id="airflow-toolset"
+            ),
+        ],
+    )
+    @pytest.mark.asyncio
+    async def test_journal_holds_secrets_inside_bytes_masked(
+        self, memory_storage, registered_secret, toolset
+    ):
+        result = f"password={registered_secret}".encode()
+        agent = Agent(
+            FunctionModel(tool_then_answer(Calls(), "query", fail_final=[False])),
+            name="analyst",
+            # AgentOperator puts the masking wrapper outside the durable unit.
+            toolsets=[ensure_masked(toolset(Calls(), result))],
+            capabilities=[AirflowDurability()],
+        )
+
+        await attempt(memory_storage, agent)
+
+        journal = str(memory_storage.entries)
+        assert registered_secret not in journal
+        assert base64.b64encode(result).decode() not in journal
+        assert base64.b64encode(b"password=***").decode() in journal
+
+
+class _UnmaskedWarehouseToolset(_WarehouseToolset):
+    """An Airflow toolset whose ``call_tool`` override skips the masking the base class does."""
+
+    async def call_tool(self, name, tool_args, ctx, tool) -> Any:
+        return await self.execute_tool(name, tool_args, ctx=ctx, tool=tool)
 
 
 class _Ledger(AbstractCapability[Any]):

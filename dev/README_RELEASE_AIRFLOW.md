@@ -1523,6 +1523,22 @@ curl -s "https://raw.githubusercontent.com/apache/airflow/constraints-${VERSION_
 Agree with the providers' release manager on the decision early in the vote, so the final
 release does not wait on it.
 
+If the provider wave is independent of this release and you deliberately want to ship the final
+against the currently-released providers - for example an accelerated core release that overlaps a
+wave carrying breaking provider majors the release was not tested against - you can override the
+guard. ``start-release`` checks for pending provider candidates before anything is uploaded and
+asks whether to proceed; answer ``y`` to pin the currently-released providers, or ``n`` to stop the
+release until the candidates are released or yanked. The standalone workflow takes the same override:
+
+```shell script
+breeze workflow-run release-constraints --version ${VERSION} --ref v3-1-stable \
+  --fail-on-pending-provider-candidates false
+```
+
+The constraints still never pin a release candidate; the override only lets the run pin the newest
+*final* of each provider instead of stopping. The pending candidates are simply left out, exactly
+as they were before they were cut.
+
 ## Summarize the voting for the Apache Airflow release
 
 Once the vote has been passed, you will need to send a result vote to dev@airflow.apache.org:
@@ -1874,7 +1890,7 @@ Post on social media about the release:
 
 * LinkedIn: https://www.linkedin.com/company/apache-airflow/
 * Fosstodon: https://fosstodon.org/@airflow
-* Bluesky: https://bsky.app/profile/apache-airflow.bsky.social
+* Bluesky: https://bsky.app/profile/airflow.apache.org
 
 Make sure to attach the release image generated with Figma to the post.
 If you don't have access to the account ask a PMC member to post.

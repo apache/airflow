@@ -27,12 +27,12 @@ cp "${AIRFLOW_SOURCES}/Dockerfile" "${TEMP_DOCKER_DIR}"
 export DOCKER_BUILDKIT=1
 
 # [START build]
-export AIRFLOW_VERSION=3.0.3
+export AIRFLOW_VERSION=3.5.0
 export DOCKER_BUILDKIT=1
 
 docker build . \
     --pull \
-    --build-arg BASE_IMAGE="${BASE_IMAGE:-ghcr.io/apache/airflow/base/python:3.13.18-debian13-dev}" \
+    --build-arg BASE_IMAGE="${BASE_IMAGE:-ghcr.io/apache/airflow/base/python:3.14.10-debian13-dev}" \
     --build-arg AIRFLOW_VERSION="${AIRFLOW_VERSION}" \
     --build-arg ADDITIONAL_AIRFLOW_EXTRAS="jdbc" \
     --build-arg ADDITIONAL_PYTHON_DEPS="pandas==2.1.2" \

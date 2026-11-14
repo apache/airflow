@@ -28,7 +28,8 @@ The toolsets this provider ships, such as
 :class:`~airflow.providers.common.ai.toolsets.sql.SQLToolset` and
 :class:`~airflow.providers.common.ai.toolsets.hook.HookToolset`, implement
 :class:`ToolProvider` and expose their tools through
-:meth:`ToolProvider.airflow_tools`.
+:meth:`ToolProvider.airflow_tools`. Such a toolset wrapped with ``.filtered()``,
+``.prefixed()`` or ``.renamed()`` is accepted too.
 """
 
 from __future__ import annotations
@@ -37,8 +38,13 @@ import logging
 import time
 from collections.abc import Awaitable, Callable, Iterable, Sequence
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Protocol
+from typing import TYPE_CHECKING, Any, Protocol, TypeAlias
 
+from pydantic_ai.toolsets.filtered import FilteredToolset
+from pydantic_ai.toolsets.prefixed import PrefixedToolset
+from pydantic_ai.toolsets.renamed import RenamedToolset
+
+from airflow.providers.common.ai.exceptions import MCPToolsetNotSupportedError
 from airflow.providers.common.ai.utils.masking import mask_secrets
 from airflow.providers.common.ai.utils.tool_metrics import calling_framework, current_framework
 
@@ -47,7 +53,13 @@ if TYPE_CHECKING:
 
 log = logging.getLogger(__name__)
 
-__all__ = ["AirflowTool", "ToolCallError", "ToolProvider", "ToolResult", "collect_tools"]
+__all__ = ["AirflowTool", "ToolCallError", "ToolProvider", "ToolResult", "ToolSource", "collect_tools"]
+
+# The first sentence of the error for an MCPToolset handed to an adapter; the second says what
+# to use instead.
+_MCP_TOOLSET_NOT_SUPPORTED = (
+    "MCPToolset works in Pydantic AI agents and through the LangChain bridge, not through AirflowTools."
+)
 
 
 class ToolCallError(Exception):
@@ -144,24 +156,59 @@ class ToolProvider(Protocol):
         ...
 
 
-def collect_tools(sources: Iterable[ToolProvider | AirflowTool]) -> list[AirflowTool]:
+ToolSource: TypeAlias = (
+    ToolProvider | AirflowTool | FilteredToolset[Any] | PrefixedToolset[Any] | RenamedToolset[Any]
+)
+"""What a framework adapter accepts: a tool, or a toolset that ``.filtered()``, ``.prefixed()`` and ``.renamed()`` may wrap."""
+
+
+def collect_tools(sources: Iterable[ToolSource]) -> list[AirflowTool]:
     """
     Flatten toolsets and individual tools, as a framework adapter receives them, into tools.
 
+    A toolset wrapped with ``.filtered()``, ``.prefixed()`` or ``.renamed()`` contributes the
+    tools the wrappers offer, under the names they give them. The ``.filtered()`` function runs
+    once, here, with an inert run context, so a filter that reads per-run state does not
+    re-evaluate it before each model turn.
+
+    :raises TypeError: when a source is another wrapper, such as ``.approval_required()``, or
+        has no ``airflow_tools()`` method.
+    :raises MCPToolsetNotSupportedError: when a source is an ``MCPToolset``. Connect the
+        framework's own MCP client to the server instead.
     :raises ValueError: when two tools share a name. Frameworks route a call by name, so one
         of them would silently never run; give the toolsets different ``tool_prefix`` values,
-        where they take one.
+        where they take one, or wrap them with ``.prefixed()``. Also when a ``.renamed()`` map
+        sends an offered name to a name the toolset does not have, such as a map written backwards.
     """
+    return _collect_tools(sources)
+
+
+def _collect_tools(sources: Iterable[ToolSource], *, mcp_hint: str | None = None) -> list[AirflowTool]:
+    """
+    :func:`collect_tools` for the adapters this provider ships.
+
+    :param mcp_hint: How the adapter's framework connects to an MCP server, as a sentence. It
+        replaces the generic advice in the error raised for an ``MCPToolset``.
+    """
+    # Circular import: _from_toolset imports AirflowTool from this module.
+    from airflow.providers.common.ai.tools._from_toolset import resolve_airflow_tools
+
     tools: list[AirflowTool] = []
     for source in sources:
         if isinstance(source, AirflowTool):
             tools.append(source)
-        else:
-            tools.extend(source.airflow_tools())
+            continue
+        try:
+            tools.extend(resolve_airflow_tools(source))
+        except MCPToolsetNotSupportedError:
+            if mcp_hint is None:
+                raise
+            raise MCPToolsetNotSupportedError(f"{_MCP_TOOLSET_NOT_SUPPORTED} {mcp_hint}") from None
     names = [tool.name for tool in tools]
     if duplicates := sorted({name for name in names if names.count(name) > 1}):
         raise ValueError(
             f"More than one tool is named {', '.join(duplicates)}. "
-            "Give the toolsets different tool_prefix values, where they take one, so the model can call each of them."
+            "Give the toolsets different tool_prefix values, where they take one, or wrap them with "
+            ".prefixed(), so the model can call each of them."
         )
     return tools

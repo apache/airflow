@@ -1,4 +1,5 @@
 {
+  "allMapIndexes": "Tous les Map Index",
   "allRuns": "Tous les Runs",
   "blockingDeps": {
     "dependency": "Dépendance",
@@ -33,6 +34,22 @@
       "thursday": "Jeu",
       "tuesday": "Mar",
       "wednesday": "Mer"
+    }
+  },
+  "callbacks": {
+    "callback_many": "Callbacks",
+    "callback_one": "Callback",
+    "callback_other": "Callbacks",
+    "columns": {
+      "alertName": "Alerte d'échéance",
+      "callback": "Callback",
+      "deadlineTime": "Heure de l'échéance",
+      "missedBy": "Dépassée de",
+      "type": "Type"
+    },
+    "types": {
+      "executor": "Synchrone",
+      "triggerer": "Asynchrone"
     }
   },
   "code": {
@@ -100,8 +117,10 @@
     "noTryNumber": "Aucun essai",
     "search": {
       "matchCount": "{{current, number}} sur {{total, number}}",
+      "nextMatch": "Correspondance suivante",
       "noMatches": "Aucune correspondance",
-      "placeholder": "Rechercher dans les journaux..."
+      "placeholder": "Rechercher dans les journaux...",
+      "previousMatch": "Correspondance précédente"
     },
     "settings": "Paramètres des journaux",
     "tryNotStarted": "Cette tentative n'a pas encore commencé.",
@@ -110,6 +129,37 @@
     "viewPreviousTry": "Voir les journaux de la tentative précédente {{tryNumber}}",
     "waitingToRetry": "La tentative {{tryNumber}} attend une nouvelle tentative.",
     "warning": "AVERTISSEMENT"
+  },
+  "loop": {
+    "history": {
+      "capLabel": "Limite : {{max}}",
+      "iterationsAxis": "Itérations",
+      "stats": {
+        "capHits": "Limite atteinte",
+        "medianIterations": "Itérations médianes"
+      },
+      "title": "Itérations par exécution"
+    },
+    "iterationLabel": "Itération {{index}}",
+    "iterations": "Itérations",
+    "outcome": "Résultat",
+    "reason": {
+      "cap_reached": "Limite d'itérations atteinte ({{max}})",
+      "failed": "Échec à l'itération {{index}}",
+      "iteration_failed": "L'itération {{index}} a échoué dans {{taskId}}",
+      "ran_to_cap": "Les {{max}} itérations autorisées ont toutes été exécutées",
+      "removed": "Supprimé",
+      "running": "En cours",
+      "skipped": "Ignoré",
+      "stopped_early": "Arrêtée prématurément à l'itération {{index}}"
+    },
+    "rules": {
+      "behaviour": "Comportement",
+      "boundedFor": "Exécute un nombre fixe d'itérations",
+      "exitCriteria": "Critère de sortie",
+      "maxIterations": "Itérations max.",
+      "whileUntil": "Se répète jusqu'à {{criteria}}"
+    }
   },
   "notFound": {
     "back": "Retour",
@@ -219,6 +269,7 @@
     "auditLog": "Journal d'audit",
     "backfills": "Rattrappages",
     "calendar": "Calendrier",
+    "callbacks": "Callbacks",
     "code": "Code",
     "details": "Détails",
     "logs": "Journaux",
@@ -294,6 +345,11 @@
       "provenance": "Provenance",
       "unknown": "Inconnu"
     },
+    "limitReached": {
+      "description": "Il y a plus de changements que la limite Changements max. ne le permet. Augmentez la limite pour voir le reste.",
+      "descriptionDefault": "Il y a plus de changements que la limite par défaut ne le permet. Augmentez Changements max. pour voir le reste.",
+      "title": "Affichage des {{limit, number}} premiers changements uniquement"
+    },
     "maxChanges": "Changements max.",
     "maxChangesDefault": "Par défaut",
     "noChanges": "Ces versions ont le même état.",
@@ -302,13 +358,23 @@
       "changed": "Modifié",
       "removed": "Supprimé"
     },
+    "pathOccurrences_many": "{{count, number}} changements partagent ce chemin",
+    "pathOccurrences_one": "{{count, number}} changement partage ce chemin",
+    "pathOccurrences_other": "{{count, number}} changements partagent ce chemin",
+    "pathOccurrencesAtLeast_many": "Au moins {{count, number}} changements partagent ce chemin",
+    "pathOccurrencesAtLeast_one": "Au moins {{count, number}} changement partage ce chemin",
+    "pathOccurrencesAtLeast_other": "Au moins {{count, number}} changements partagent ce chemin",
     "record_many": "Enregistrements",
     "record_one": "Enregistrement",
     "record_other": "Enregistrements",
+    "schemaChange": "Schéma sérialisé {{baseSchema}} → {{targetSchema}}",
     "selectPrompt": "Sélectionnez deux versions pour voir ce qui a changé entre elles.",
     "summary_many": "{{count, number}} changements",
     "summary_one": "{{count, number}} changement",
     "summary_other": "{{count, number}} changements",
+    "summaryAtLeast_many": "Au moins {{count, number}} changements",
+    "summaryAtLeast_one": "Au moins {{count, number}} changement",
+    "summaryAtLeast_other": "Au moins {{count, number}} changements",
     "target": "Comparer avec",
     "unavailable": {
       "description": "Ces versions n'ont pas pu être comparées. Raison :",

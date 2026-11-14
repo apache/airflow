@@ -30,8 +30,10 @@ from __future__ import annotations
 
 import json
 import re
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime
+from typing import NamedTuple
 
 STATUS_CONTEXT = "Fork CI / Tests (AMD)"
 # Each job of the fork run is reported under this prefix. Job names come from the contributor's
@@ -45,6 +47,9 @@ JOB_NAME_MAX_LENGTH = 100
 CI_PASSED_CONTEXT = "CI passed"
 CI_PASSED_DESCRIPTION = "Fork CI passed for this commit"
 CI_PASSED_REVOKED_DESCRIPTION = "Fork CI result no longer trusted for this commit"
+# Replaces a fork `success` on a pull request carrying `use project ci` until project CI has passed.
+CI_PASSED_WAITING_PROJECT_CI_DESCRIPTION = "Waiting for project CI (use project ci)"
+CI_PASSED_PROJECT_DESCRIPTION = "Project CI passed for this commit"
 # Also required by the merge rulesets, so GitHub lists it as expected and waiting on every pull
 # request from the moment it is pushed. The reconciler reports it, linking the run: for a gated pull
 # request once the fork has a run for the head commit, for any other once project CI has one.
@@ -56,11 +61,11 @@ CI_RUN_STARTED_PROJECT_DESCRIPTION = "Project CI runs in apache/airflow - detail
 BEHIND_WARNING_COMMITS = 200
 MARKER_PREFIX = "<!-- fork-ci-gate: "
 MARKER_PATTERN = re.compile(r"<!-- fork-ci-gate: (?P<payload>.*?) -->")
-DESIGN_URL = (
-    "https://github.com/apache/airflow/blob/main/dev/breeze/doc/ci/08_fork_ci_for_external_contributors.md"
-)
+# Texts on pull requests are for their authors, so they link the contributor documentation; it links
+# the design document for maintainers.
 CONTRIBUTING_URL = (
     "https://github.com/apache/airflow/blob/main/contributing-docs/18_contribution_workflow.rst"
+    "#ci-in-your-fork"
 )
 WHY_AUTOMATED_URL = (
     "https://github.com/apache/airflow/blob/main/contributing-docs/25_maintainer_pr_triage.md"
@@ -91,6 +96,8 @@ class Marker:
     behind: int | None = None
     # The completed fork run (``<run id>:<attempt>:<conclusion>``) whose jobs are all reported.
     jobs: str | None = None
+    # The fork run (``<run id>:<attempt>``) whose failed jobs the comment lists.
+    failed_run: str | None = None
     # Set only by a reconciler that ran the gate protection check for this head commit, so a
     # marker written before that check existed, or while it did not apply, never counts as one.
     gate_checked: bool = False
@@ -102,6 +109,8 @@ def render_marker(marker: Marker) -> str:
         data["behind"] = marker.behind
     if marker.jobs is not None:
         data["jobs"] = marker.jobs
+    if marker.failed_run is not None:
+        data["failed_run"] = marker.failed_run
     if marker.gate_checked:
         data["gate_checked"] = True
     return f"{MARKER_PREFIX}{json.dumps(data, sort_keys=True)} -->"
@@ -120,6 +129,7 @@ def parse_marker(body: str) -> Marker | None:
             since=datetime.fromisoformat(data["since"]),
             behind=data.get("behind"),
             jobs=data.get("jobs"),
+            failed_run=data.get("failed_run"),
             gate_checked=data.get("gate_checked") is True,
         )
     except (json.JSONDecodeError, KeyError, TypeError, ValueError) as e:
@@ -138,32 +148,104 @@ def _setup_instructions(fork: str) -> str:
         f"   ```bash\n   gh repo sync {fork} --branch main\n   ```\n\n"
         "2. Enable the workflow in your fork:\n\n"
         f"   ```bash\n   gh workflow enable ci-amd.yml -R {fork}\n   ```\n\n"
+        f"   *(Or in your browser: open `https://github.com/{fork}/actions` and click 'Enable workflows')*\n\n"
         "3. Push your branch again. Every push then runs CI in your fork.\n\n"
         "`breeze ci audit` checks your whole local and fork setup and prints the command that fixes "
-        f"anything missing. See [the contribution workflow]({CONTRIBUTING_URL})."
+        f"anything missing. See [CI in your fork]({CONTRIBUTING_URL})."
     )
 
+
+_CHANGES_CI_FILES = (
+    "this pull request changes files that decide which CI jobs run and where (`.github/`, the breeze "
+    "sources, the breeze installation or `scripts/ci/prek/`), and the fork run used those changed files."
+)
 
 _STATE_TEXTS = {
     "setup_required": "**Fork CI: setup required.** CI for this pull request has not run in your fork yet, "
     "because the `Tests (AMD)` workflow is not enabled there.",
-    "awaiting_push": "**Fork CI: waiting for a push.** The workflow is enabled in your fork, but it has not "
-    "run for the latest commit of this pull request. Push the branch again to start it.",
+    "awaiting_push": (
+        "**Fork CI: waiting for a push.** The workflow is enabled in your fork, but it has not "
+        "run for the latest commit of this pull request. Push the branch again to start it. "
+        "If you already pushed, verify in your fork's Actions tab that workflows are not disabled "
+        "by GitHub's fork banner."
+    ),
     "running": "**Fork CI: running.** CI for the latest commit is running in your fork.",
     "failed": "**Fork CI: failed.** CI for the latest commit failed in your fork. Fix the failures and "
-    "push again; this pull request stays a draft until the run is green.",
+    "push again.",
     "green": "**Fork CI: green.** CI for the latest commit passed in your fork. The pull request is "
     "ready for maintainer review.",
     "green_unverified": "**Fork CI: green, needs a maintainer.** CI for the latest commit passed in your "
-    "fork, but this pull request changes files that define what CI runs (such as `.github/`, "
-    "`dev/breeze/` or `scripts/ci/`), and the fork run used those changed files. A maintainer will "
-    "review the change and run project CI for it; the pull request stays a draft until then.",
+    f"fork, but {_CHANGES_CI_FILES} A maintainer will review the change and run project CI for it before "
+    "it can be merged.",
     "closed": "**Fork CI: closed after inactivity.** CI did not run in your fork in time; see the "
     "comment below for how to continue.",
     "gate_bypassed": "**Fork CI: closed.** Project CI ran for this pull request although its CI runs in "
     "the contributor's fork; see the comment below.",
     "gate_modified": "**Fork CI: closed.** This pull request changes the fork CI gate; see the comment below.",
 }
+
+_ASK_A_MAINTAINER_TO_MARK_READY = (
+    "If GitHub does not let you mark it ready because you reached the limit of open pull requests, "
+    "comment here and ask a maintainer to mark it ready for you."
+)
+
+_AUTHOR_DRAFT_TEXTS = {
+    "green": "**Fork CI: green.** CI for the latest commit passed in your fork. The pull request is a "
+    "draft, so maintainers do not review it yet. Mark it ready for review when it is. "
+    f"{_ASK_A_MAINTAINER_TO_MARK_READY}",
+    "green_unverified": "**Fork CI: green.** CI for the latest commit passed in your fork, but "
+    f"{_CHANGES_CI_FILES} The pull request is a draft. Once you mark it ready for review, a maintainer "
+    f"will review the change and run project CI for it. {_ASK_A_MAINTAINER_TO_MARK_READY}",
+}
+
+
+# A run that fails to start has no jobs and no log: GitHub rejected the workflow before running it,
+# which the generic "failed" text, asking to fix the failures, does not explain.
+STARTUP_FAILURE_TEXT = (
+    "**Fork CI: could not start.** GitHub could not start the `Tests (AMD)` run for the latest commit "
+    "in your fork, so no job ran. This usually means that your fork's Actions settings block the "
+    "workflow: under **Settings > Actions > General** in your fork, GitHub Actions must be enabled and "
+    "allow all actions and reusable workflows. It can also mean that the workflow file is invalid. The "
+    "run page in your fork shows GitHub's error. Fix the cause and push again."
+)
+
+
+class FailedJob(NamedTuple):
+    """A job of a failed fork run that did not pass, as listed in the state comment."""
+
+    name: str
+    url: str
+    conclusion: str
+
+
+# A full-matrix run can fail in dozens of jobs; the job statuses list them all.
+MAX_LISTED_FAILED_JOBS = 10
+FAILED_JOB_LIST_HEADING = "Jobs that did not pass:"
+_FAILED_JOB_OUTCOMES = {
+    "failure": "failed",
+    "timed_out": "timed out",
+    "cancelled": "cancelled",
+    "startup_failure": "could not start",
+}
+
+
+def build_failed_job_list(failed_jobs: Sequence[FailedJob]) -> str:
+    listed = [
+        # Job names come from the contributor's workflow; a code span keeps them from posting
+        # Markdown, including mentions, as the bot.
+        f"- [`{_sanitize_path(job.name[:JOB_NAME_MAX_LENGTH])}`]({job.url}): "
+        f"{_FAILED_JOB_OUTCOMES.get(job.conclusion, 'failed')}"
+        for job in failed_jobs[:MAX_LISTED_FAILED_JOBS]
+    ]
+    if len(failed_jobs) > MAX_LISTED_FAILED_JOBS:
+        listed.append(f"- and {len(failed_jobs) - MAX_LISTED_FAILED_JOBS} more, see the run")
+    # One paragraph of the comment, so that ``strip_failed_job_list`` can find all of it.
+    return FAILED_JOB_LIST_HEADING + "\n" + "\n".join(listed)
+
+
+def strip_failed_job_list(body: str) -> str:
+    """The state comment without its list of failed jobs."""
+    return "\n\n".join(part for part in body.split("\n\n") if not part.startswith(FAILED_JOB_LIST_HEADING))
 
 
 def behind_warning(behind: int, *, base_ref: str) -> str:
@@ -174,8 +256,24 @@ def behind_warning(behind: int, *, base_ref: str) -> str:
     )
 
 
-def state_comment(marker: Marker, *, fork: str, run_url: str | None, base_ref: str = "main") -> str:
-    parts = [render_marker(marker), _STATE_TEXTS[marker.state], WHY_FORK_CI]
+def state_comment(
+    marker: Marker,
+    *,
+    fork: str,
+    run_url: str | None,
+    base_ref: str = "main",
+    author_draft: bool = False,
+    startup_failure: bool = False,
+    failed_jobs: Sequence[FailedJob] = (),
+) -> str:
+    """
+    :param startup_failure: the fork run of a failed state did not start, see ``STARTUP_FAILURE_TEXT``.
+    :param failed_jobs: the jobs of a failed state's fork run that did not pass.
+    """
+    text = _AUTHOR_DRAFT_TEXTS.get(marker.state) if author_draft else None
+    if startup_failure:
+        text = STARTUP_FAILURE_TEXT
+    parts = [render_marker(marker), text or _STATE_TEXTS[marker.state], WHY_FORK_CI]
     if (
         marker.state in ("green", "green_unverified")
         and marker.behind is not None
@@ -184,9 +282,11 @@ def state_comment(marker: Marker, *, fork: str, run_url: str | None, base_ref: s
         parts.append(behind_warning(marker.behind, base_ref=base_ref))
     if run_url:
         parts.append(f"Latest run: {run_url}")
+    if marker.state == "failed" and failed_jobs:
+        parts.append(build_failed_job_list(failed_jobs))
     if marker.state == "setup_required":
         parts.append(_setup_instructions(fork))
-    parts.append(f"How this works: [fork CI for external contributors]({DESIGN_URL}).")
+    parts.append(f"How this works: [CI in your fork]({CONTRIBUTING_URL}).")
     return "\n\n".join(parts) + FOOTER
 
 
@@ -275,19 +375,43 @@ def _sanitize_path(path: str) -> str:
     return "".join(char if char.isprintable() and char != "`" else "?" for char in path)
 
 
-def ci_change_approval_comment(*, ci_files: list[str]) -> str:
+def build_ci_file_list(ci_files: list[str]) -> str:
     listed = [f"- `{_sanitize_path(path)}`" for path in ci_files[:MAX_LISTED_CI_FILES]]
     if len(ci_files) > MAX_LISTED_CI_FILES:
         listed.append(f"- and {len(ci_files) - MAX_LISTED_CI_FILES} more")
+    return "\n".join(listed)
+
+
+def ci_change_approval_comment(*, ci_files: list[str]) -> str:
     return (
         f"{CI_CHANGE_MARKER}\n\n"
         "**Your CI change needs a maintainer.** CI for this pull request runs in your fork, and the "
         "workflow runs it starts in apache/airflow are approved automatically while they only run the "
         "fork CI gate. This pull request changes files that define what CI runs:\n\n"
-        + "\n".join(listed)
+        + build_ci_file_list(ci_files)
         + "\n\nSuch a change can make project CI run on the project's runners, so its workflow runs in "
         "apache/airflow wait for a maintainer to review the change and approve them. CI in your fork "
         "is not affected, and its result stays visible on this pull request. " + WHY_FORK_CI + FOOTER
+    )
+
+
+CI_MODIFICATION_MARKER = "<!-- workflow-approval: ci-modification -->"
+
+
+GATED_NOTE_SENTENCE = (
+    " CI for this pull request runs in the author's fork, so any green result and `CI passed` status will "
+    "come from a run that executed these changed files."
+)
+
+
+def ci_modification_note_comment(*, ci_files: list[str], gated: bool) -> str:
+    return (
+        f"{CI_MODIFICATION_MARKER}\n\n"
+        "**This pull request changes CI files.** It changes files that CI uses:\n\n"
+        + build_ci_file_list(ci_files)
+        + "\n\nThey do not decide which CI jobs run or on which runners, so its workflow runs are not "
+        "held for this. A maintainer reviewing the pull request will check the CI change together with "
+        "the rest of it." + (GATED_NOTE_SENTENCE if gated else "") + FOOTER
     )
 
 
@@ -296,6 +420,8 @@ _STATUS_DESCRIPTIONS = {
     "awaiting_push": "Fork CI enabled, waiting for a push - see the pull request comment",
     "running": "Fork CI running - see Details",
     "failed": "Fork CI failed - see Details",
+    # Not a state of its own: a failed state whose fork run did not start is handled as failed.
+    "startup_failure": "Fork CI run could not start - check your fork's Actions settings",
     "green": "Fork CI passed - see Details",
     "green_unverified": "Fork CI passed, but CI files changed - a maintainer must run project CI",
     "gate_bypassed": "Project CI ran for a gated pull request - see Details",
@@ -335,6 +461,7 @@ STATUS_STATES = {
     "awaiting_push": "pending",
     "running": "pending",
     "failed": "failure",
+    "startup_failure": "failure",
     "green": "success",
     "green_unverified": "pending",
     "gate_bypassed": "error",
