@@ -82,6 +82,7 @@ class SnowflakeSqlApiTrigger(BaseTrigger):
             self.token_renewal_delta,
         )
 
+        query_id: str | None = None
         try:
             for query_id in self.query_ids:
                 while True:
@@ -90,7 +91,10 @@ class SnowflakeSqlApiTrigger(BaseTrigger):
                         break
                     await asyncio.sleep(self.poll_interval)
                 if statement_status["status"] == "error":
-                    yield TriggerEvent(statement_status)
+                    # The operator resumes as a fresh instance: tell it which statement failed.
+                    yield TriggerEvent(
+                        {**statement_status, "query_id": query_id, "statement_query_ids": self.query_ids}
+                    )
                     return
             yield TriggerEvent(
                 {
@@ -99,7 +103,9 @@ class SnowflakeSqlApiTrigger(BaseTrigger):
                 }
             )
         except Exception as e:
-            yield TriggerEvent({"status": "error", "message": str(e)})
+            # Checking a status failed, not the statement itself, so no statement context is sent.
+            message = f"Failed to get status for query {query_id}: {e}" if query_id else str(e)
+            yield TriggerEvent({"status": "error", "message": message})
 
     async def on_kill(self) -> None:
         """

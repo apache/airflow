@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+from datetime import timedelta
 from unittest import mock
 from unittest.mock import MagicMock, call
 
@@ -772,6 +773,181 @@ class TestSnowflakeSqlApiOperator:
         mock_cancel_queries.assert_not_called()
 
 
+THREE_STMTS = "select 1; select 2; select 3;"
+THREE_QUERY_IDS = ["uuid1", "uuid2", "uuid3"]
+SUCCESS = {"status": "success", "message": "Statement executed successfully."}
+RUNNING = {"status": "running", "message": "Query statements are still running"}
+
+
+def _error(message: str) -> dict[str, str]:
+    return {"status": "error", "message": message}
+
+
+class TestSnowflakeSqlApiOperatorErrorContext:
+    """Failures name the statement that failed, its position, Snowflake's message and its SQL."""
+
+    @staticmethod
+    def _operator(**kwargs) -> SnowflakeSqlApiOperator:
+        return SnowflakeSqlApiOperator(
+            task_id=TASK_ID,
+            snowflake_conn_id=CONN_ID,
+            sql=THREE_STMTS,
+            statement_count=3,
+            do_xcom_push=False,
+            **kwargs,
+        )
+
+    @mock.patch("airflow.providers.snowflake.operators.snowflake.SnowflakeSqlApiOperator.defer")
+    def test_deferrable_failure_before_defer(
+        self, mock_defer, mock_execute_query, mock_get_sql_api_query_status
+    ):
+        operator = self._operator(deferrable=True)
+        mock_execute_query.return_value = THREE_QUERY_IDS
+        mock_get_sql_api_query_status.side_effect = [SUCCESS, _error("boom")]
+
+        with pytest.raises(RuntimeError) as excinfo:
+            operator.execute(context=None)
+
+        assert (
+            str(excinfo.value) == "Snowflake statement uuid2 (statement 2 of 3) failed: boom\nSQL: select 2;"
+        )
+        mock_defer.assert_not_called()
+
+    def test_poll_until_complete_reports_only_the_failed_statement(
+        self, mock_execute_query, mock_get_sql_api_query_status
+    ):
+        operator = self._operator(deferrable=False, durable=False)
+        mock_execute_query.return_value = THREE_QUERY_IDS
+        mock_get_sql_api_query_status.side_effect = [SUCCESS, _error("boom"), RUNNING]
+
+        with mock.patch("time.sleep"), pytest.raises(RuntimeError) as excinfo:
+            operator.execute(context=None)
+
+        error = str(excinfo.value)
+        assert error == "Snowflake statement uuid2 (statement 2 of 3) failed: boom\nSQL: select 2;"
+        assert "{'" not in error
+        assert "uuid1" not in error
+        assert "uuid3" not in error
+
+    def test_poll_until_complete_lists_every_failed_statement_in_order(
+        self, mock_execute_query, mock_get_sql_api_query_status
+    ):
+        operator = self._operator(deferrable=False, durable=False)
+        mock_execute_query.return_value = THREE_QUERY_IDS
+        mock_get_sql_api_query_status.side_effect = [_error("first"), SUCCESS, _error("third")]
+
+        with pytest.raises(RuntimeError) as excinfo:
+            operator.execute(context=None)
+
+        assert str(excinfo.value) == (
+            "Snowflake statement uuid1 (statement 1 of 3) failed: first\nSQL: select 1;\n"
+            "Snowflake statement uuid3 (statement 3 of 3) failed: third\nSQL: select 3;"
+        )
+
+    def test_status_check_failure_is_not_reported_as_statement_failure(
+        self, mock_execute_query, mock_get_sql_api_query_status
+    ):
+        operator = self._operator(deferrable=False, durable=False)
+        mock_execute_query.return_value = THREE_QUERY_IDS
+        mock_get_sql_api_query_status.side_effect = [SUCCESS, RuntimeError("connection timeout")]
+
+        with pytest.raises(RuntimeError) as excinfo:
+            operator.execute(context=None)
+
+        assert str(excinfo.value) == "Failed to get status for query uuid2: connection timeout"
+
+    def test_binding_values_never_reach_the_error(self, mock_execute_query, mock_get_sql_api_query_status):
+        operator = SnowflakeSqlApiOperator(
+            task_id=TASK_ID,
+            snowflake_conn_id=CONN_ID,
+            sql="select * from users where token = ?",
+            statement_count=1,
+            bindings={"1": {"type": "TEXT", "value": "s3cr3t-binding-value"}},
+            do_xcom_push=False,
+            deferrable=False,
+            durable=False,
+        )
+        mock_execute_query.return_value = ["uuid1"]
+        mock_get_sql_api_query_status.side_effect = [_error("boom")]
+
+        with pytest.raises(RuntimeError) as excinfo:
+            operator.execute(context=None)
+
+        error = str(excinfo.value)
+        assert "select * from users where token = ?" in error
+        assert "s3cr3t-binding-value" not in error
+
+    def test_poll_until_complete_without_message(self, mock_execute_query, mock_get_sql_api_query_status):
+        operator = self._operator(deferrable=False, durable=False)
+        mock_execute_query.return_value = ["uuid1"]
+        mock_get_sql_api_query_status.side_effect = [{"status": "error"}]
+
+        with pytest.raises(RuntimeError) as excinfo:
+            operator.execute(context=None)
+
+        assert "Snowflake statement uuid1 failed: no error message was returned" in str(excinfo.value)
+
+    def test_execute_complete_after_resume(self):
+        """A resumed task is a fresh instance: the statement position comes from the event alone."""
+        operator = self._operator(deferrable=True)
+        event = {
+            "status": "error",
+            "message": "boom",
+            "query_id": "uuid2",
+            "statement_query_ids": THREE_QUERY_IDS,
+        }
+
+        with pytest.raises(RuntimeError) as excinfo:
+            operator.execute_complete(context=None, event=event)
+
+        assert (
+            str(excinfo.value) == "Snowflake statement uuid2 (statement 2 of 3) failed: boom\nSQL: select 2;"
+        )
+
+    @pytest.mark.parametrize(
+        "event",
+        [
+            pytest.param(
+                {"status": "error", "message": "Test failure message"}, id="event-from-older-trigger"
+            ),
+            pytest.param(
+                {"status": "error", "message": "Failed to get status for query uuid2: timeout"},
+                id="status-check-failed-in-trigger",
+            ),
+        ],
+    )
+    def test_execute_complete_without_statement_context_keeps_previous_error(self, event):
+        operator = self._operator(deferrable=True)
+
+        with pytest.raises(RuntimeError) as excinfo:
+            operator.execute_complete(context=None, event=event)
+
+        assert str(excinfo.value) == f"error: {event['message']}"
+
+    @pytest.mark.asyncio
+    @mock.patch.object(SnowflakeSqlApiTrigger, "get_query_status", autospec=True)
+    @mock.patch("airflow.providers.snowflake.triggers.snowflake_trigger.SnowflakeSqlApiHook", autospec=True)
+    async def test_trigger_error_event_round_trip(self, mock_trigger_hook, mock_get_query_status):
+        """The fields the trigger puts on its error event are the ones execute_complete reads."""
+        mock_get_query_status.side_effect = [SUCCESS, _error("boom")]
+        trigger = SnowflakeSqlApiTrigger(
+            poll_interval=1,
+            query_ids=THREE_QUERY_IDS,
+            snowflake_conn_id=CONN_ID,
+            token_life_time=timedelta(minutes=59),
+            token_renewal_delta=timedelta(minutes=54),
+        )
+        events = [event async for event in trigger.run()]
+        assert len(events) == 1
+
+        with pytest.raises(RuntimeError) as excinfo:
+            self._operator(deferrable=True).execute_complete(context=None, event=events[0].payload)
+
+        assert (
+            str(excinfo.value) == "Snowflake statement uuid2 (statement 2 of 3) failed: boom\nSQL: select 2;"
+        )
+
+
 @pytest.mark.skipif(
     not AIRFLOW_V_3_3_PLUS, reason="task_state_store (durable execution) requires Airflow 3.3+"
 )
@@ -847,6 +1023,37 @@ class TestSnowflakeSqlApiOperatorDurable:
         task_store.set.assert_not_called()
         mock_check_query_output.assert_called_once_with(["uuid1", "uuid2"])
         assert operator._hook.query_ids == ["uuid1", "uuid2"]
+
+    def test_reconnect_failure_names_the_failed_statement(
+        self, mock_execute_query, mock_get_sql_api_query_status, mock_check_query_output
+    ):
+        """After a restart the handles come from the task state store, not from a fresh submit."""
+        operator = SnowflakeSqlApiOperator(
+            task_id=TASK_ID,
+            snowflake_conn_id="snowflake_default",
+            sql=THREE_STMTS,
+            statement_count=3,
+            do_xcom_push=False,
+        )
+        mock_get_sql_api_query_status.side_effect = [
+            SUCCESS,  # get_job_status check: uuid1 already done
+            RUNNING,  # get_job_status check: uuid2 -> aggregate "running" -> reconnect
+            RUNNING,  # get_job_status check: uuid3
+            SUCCESS,  # poll cycle 1: uuid1
+            _error("boom"),  # poll cycle 1: uuid2 fails
+            RUNNING,  # poll cycle 1: uuid3
+        ]
+        task_store = MagicMock(spec_set=["get", "set"])
+        task_store.get.return_value = THREE_QUERY_IDS
+
+        with mock.patch("time.sleep"), pytest.raises(RuntimeError) as excinfo:
+            operator.execute(self._context(task_store))
+
+        mock_execute_query.assert_not_called()
+        mock_check_query_output.assert_not_called()
+        assert (
+            str(excinfo.value) == "Snowflake statement uuid2 (statement 2 of 3) failed: boom\nSQL: select 2;"
+        )
 
     def test_already_succeeded_returns_result_without_polling(
         self, mock_execute_query, mock_get_sql_api_query_status, mock_check_query_output
