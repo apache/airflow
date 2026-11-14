@@ -1510,14 +1510,11 @@ class TestBulkDags(TestDagEndpoint):
                 SimpleAuthManagerUser(username="limited-user", role="user", teams=[]),
             )
         )
-        with (
-            mock.patch("airflow.models.revoked_token.RevokedToken.is_revoked", return_value=False),
-            TestClient(
-                test_client.app,
-                headers={"Authorization": f"Bearer {token}"},
-                base_url=str(test_client.base_url),
-            ) as limited_test_client,
-        ):
+        with TestClient(
+            test_client.app,
+            headers={"Authorization": f"Bearer {token}"},
+            base_url=str(test_client.base_url),
+        ) as limited_test_client:
             response = limited_test_client.patch(
                 "/dags/bulk",
                 json={

@@ -27,7 +27,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from airflow.configuration import conf
 from airflow.models.base import Base
-from airflow.utils.session import NEW_SESSION, provide_session
+from airflow.utils.session import NEW_SESSION, create_session_async, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
 
 if TYPE_CHECKING:
@@ -59,6 +59,13 @@ class RevokedToken(Base):
         """Check if a token JTI has been revoked."""
         cls._maybe_cleanup_expired(session)
         return bool(session.scalar(select(exists().where(cls.jti == jti))))
+
+    @classmethod
+    async def is_revoked_async(cls, jti: str) -> bool:
+        """Check token revocation using the async database engine."""
+        async with create_session_async() as session:
+            await session.run_sync(cls._maybe_cleanup_expired)
+            return bool(await session.scalar(select(exists().where(cls.jti == jti))))
 
     @classmethod
     def _maybe_cleanup_expired(cls, session: Session) -> None:

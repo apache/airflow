@@ -135,7 +135,9 @@ def _authed_test_client(app: FastAPI, request):
                 SimpleAuthManagerUser(username="test", role="admin", teams=["team1"])
             ),
         )
-    with mock.patch("airflow.models.revoked_token.RevokedToken.is_revoked", return_value=False):
+    with mock.patch(
+        "airflow.models.revoked_token.RevokedToken.is_revoked_async", autospec=True, return_value=False
+    ):
         with TestClient(
             app,
             headers={"Authorization": f"Bearer {token}"},
@@ -186,7 +188,9 @@ def unauthorized_headers(_isolated_shared_app):
 
 @pytest.fixture
 def unauthorized_test_client(request, _isolated_shared_app, unauthorized_headers):
-    with mock.patch("airflow.models.revoked_token.RevokedToken.is_revoked", return_value=False):
+    with mock.patch(
+        "airflow.models.revoked_token.RevokedToken.is_revoked_async", autospec=True, return_value=False
+    ):
         with TestClient(
             _isolated_shared_app,
             headers=unauthorized_headers,
