@@ -23,6 +23,7 @@ from pathlib import Path
 
 import pytest
 from merge_registry_data import merge
+from pydantic import ValidationError
 
 
 @pytest.fixture
@@ -152,6 +153,22 @@ class TestMerge:
         result_providers = json.loads((output_dir / "providers.json").read_text())["providers"]
         assert len(result_providers) == 2
         assert {p["id"] for p in result_providers} == {"amazon", "google"}
+
+    @pytest.mark.parametrize("field", ["durable_mechanism", "durable_gating_class"])
+    def test_rejects_fields_that_only_the_extraction_carries(self, tmp_path, output_dir, field):
+        existing_providers = _write_json(tmp_path / "existing_providers.json", {"providers": []})
+        existing_modules = _write_json(tmp_path / "existing_modules.json", {"modules": []})
+        new_providers = _write_json(
+            tmp_path / "new_providers.json",
+            {"providers": [_provider("amazon", "Amazon", "2025-01-01")]},
+        )
+        new_modules = _write_json(
+            tmp_path / "new_modules.json",
+            {"modules": [{**_module("amazon-s3-op", "amazon"), field: "marker"}]},
+        )
+
+        with pytest.raises(ValidationError, match=field):
+            merge(existing_providers, existing_modules, new_providers, new_modules, output_dir)
 
     def test_providers_sorted_by_name(self, tmp_path, output_dir):
         existing_providers = _write_json(

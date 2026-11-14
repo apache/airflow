@@ -145,7 +145,28 @@ def extract_data(python: str, provider: str | None, allow_unreleased: bool):
         bring_compose_project_down(preserve_volumes=False, shell_params=shell_params)
         remove_docker_networks([f"{unique_project_name}_default"])
         fix_ownership_using_docker()
-    sys.exit(result.returncode)
+    if result.returncode:
+        sys.exit(result.returncode)
+
+    # Dating a durable module needs the providers-* tags, so it runs here rather than beside
+    # the module extraction in the container.
+    with ci_group("Dating durable modules"):
+        versions_result = run_command(
+            [
+                "uv",
+                "run",
+                "--project",
+                str(DEV_REGISTRY_DIR),
+                "python",
+                str(DEV_REGISTRY_DIR / "fill_durable_versions.py"),
+                "--modules",
+                str(DEV_REGISTRY_DIR / "modules.json"),
+                str(AIRFLOW_ROOT_PATH / "registry" / "src" / "_data" / "modules.json"),
+            ],
+            check=False,
+            cwd=str(AIRFLOW_ROOT_PATH),
+        )
+    sys.exit(versions_result.returncode)
 
 
 @registry_group.command(
