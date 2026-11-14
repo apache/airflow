@@ -1626,6 +1626,98 @@ class TestAwsS3Hook:
                 "Expected provided bucket_name to take precedence over fallback"
             )
 
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("extra", "schema", "expected_bucket"),
+        [
+            (
+                {"service_config": {"s3": {"bucket_name": "configured-bucket"}}},
+                "schema-bucket",
+                "configured-bucket",
+            ),
+            ({}, "schema-bucket", "schema-bucket"),
+            ({}, None, None),
+        ],
+        ids=["configured-bucket", "schema-fallback", "no-config"],
+    )
+    @mock.patch(
+        "airflow.providers.amazon.aws.hooks.s3.get_async_extra_dejson",
+        new_callable=AsyncMock,
+    )
+    @mock.patch(
+        "airflow.providers.amazon.aws.hooks.s3.get_async_connection",
+        new_callable=AsyncMock,
+    )
+    async def test_provide_bucket_name_async(
+        self, mock_connection, mock_extras, extra, schema, expected_bucket
+    ):
+        """Test async bucket resolution using configured and fallback values."""
+
+        class FakeS3Hook(S3Hook):
+            @provide_bucket_name
+            async def test_function(self, bucket_name=None):
+                return bucket_name
+
+        connection = Connection(
+            conn_id="aws_default",
+            conn_type="aws",
+            schema=schema,
+        )
+        mock_connection.return_value = connection
+        mock_extras.return_value = extra
+
+        hook = FakeS3Hook(aws_conn_id="aws_default")
+
+        assert await hook.test_function() == expected_bucket
+        mock_connection.assert_awaited_once_with("aws_default")
+        mock_extras.assert_awaited_once_with(connection)
+
+    @pytest.mark.asyncio
+    @mock.patch(
+        "airflow.providers.amazon.aws.hooks.s3.get_async_extra_dejson",
+        new_callable=AsyncMock,
+    )
+    @mock.patch(
+        "airflow.providers.amazon.aws.hooks.s3.get_async_connection",
+        new_callable=AsyncMock,
+    )
+    async def test_provide_bucket_name_async_explicit(self, mock_connection, mock_extras):
+        """An explicit bucket overrides connection configuration."""
+
+        class FakeS3Hook(S3Hook):
+            @provide_bucket_name
+            async def test_function(self, bucket_name=None):
+                return bucket_name
+
+        hook = FakeS3Hook(aws_conn_id="aws_default")
+
+        assert await hook.test_function(bucket_name="explicit-bucket") == "explicit-bucket"
+        mock_connection.assert_not_awaited()
+        mock_extras.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    @mock.patch(
+        "airflow.providers.amazon.aws.hooks.s3.get_async_extra_dejson",
+        new_callable=AsyncMock,
+    )
+    @mock.patch(
+        "airflow.providers.amazon.aws.hooks.s3.get_async_connection",
+        new_callable=AsyncMock,
+    )
+    async def test_provide_bucket_name_async_without_connection(self, mock_connection, mock_extras):
+        """No connection ID should not trigger connection lookups."""
+
+        class FakeS3Hook(S3Hook):
+            @provide_bucket_name
+            async def test_function(self, bucket_name=None):
+                return bucket_name
+
+        hook = FakeS3Hook(aws_conn_id=None)
+
+        assert await hook.test_function() is None
+        mock_connection.assert_not_awaited()
+        mock_extras.assert_not_awaited()
+
     def test_delete_objects_key_does_not_exist(self, s3_bucket):
         # The behaviour of delete changed in recent version of s3 mock libraries.
         # It will succeed idempotently
