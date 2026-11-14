@@ -53,6 +53,30 @@ this operator, please see the `Sample Dag <https://github.com/apache/airflow/blo
     :start-after: [START howto_operator_athena_spark]
     :end-before: [END howto_operator_athena_spark]
 
+Deferrable mode
+~~~~~~~~~~~~~~~
+
+Set ``deferrable=True`` to wait for the calculation asynchronously using the
+Airflow triggerer, releasing the worker slot while the calculation runs.
+This requires a running triggerer and the ``aiobotocore`` package.
+
+The ``waiter_delay`` and ``waiter_max_attempts`` parameters control polling
+in both synchronous and deferrable modes. Both modes return the same execution
+metadata when the calculation completes successfully and raise an exception
+if it fails or is canceled.
+
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_athena_spark.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_athena_spark_deferrable]
+    :end-before: [END howto_operator_athena_spark_deferrable]
+
+.. note::
+
+    When the trigger reports that polling attempts have been exhausted, the
+    operator requests cancellation of the calculation before failing.
+    Killing the task while it is deferred does not invoke ``on_kill()``,
+    so the calculation may continue running in Athena.
 
 Sensors
 -------
