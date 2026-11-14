@@ -89,7 +89,7 @@ These are all available flags of ``verify`` command:
 Loading and saving CI image
 ...........................
 
-You can load and save PROD image - for example to transfer it to another machine or to load an image
+You can load and save CI image - for example to transfer it to another machine or to load an image
 that has been built in our CI.
 
 These are all available flags of ``save`` command:
@@ -112,11 +112,12 @@ environment used during the tests and loaded to the local Docker registry (note 
 to use the same platform as the CI run).
 
 You will find the artifacts for each image in the summary of the CI run. The artifacts are named
-``ci-image-docker-export-<platform>-<python_version>-<PR>_merge``. Those are compressed zip files that
+``ci-image-save-v3-<platform>-<python_version>-<PR>_merge``. Those are zip files that
 contain the ".tar" image that should be used with ``--image-file`` flag of the load method. Make sure to
 use the same ``--python`` version as the image was built with.
 
-To load the image from specific PR, you can use the following command:
+To load the image from a specific PR, you can use the following command. It uses the latest CI run of the
+head commit of the PR:
 
 .. code-block:: bash
 
@@ -127,6 +128,16 @@ To load the image from specific job run (for example 12538475388), you can use t
 .. code-block:: bash
 
      breeze ci-image load --from-run 12538475388 --python 3.11 --github-token <your_github_token>
+
+CI builds only ``linux/amd64`` images for pull requests, and ``--platform`` defaults to the platform of your
+machine. On an ARM machine, add ``--platform linux/amd64`` to load the image of a pull request. Docker can run
+that image on an ARM machine only under emulation.
+
+Breeze cannot load an image from a run on our self-hosted RunsOn runners: canary runs, release branch runs and
+runs for pull requests from a branch of ``apache/airflow``. `Selective Checks <ci/04_selective_checks.md#self-hosted-runson-vs-public-runners>`_
+lists all the cases. Each of those runs saves its image in an S3 cache, and its artifact
+``ci-image-save-v3-<platform>-<python_version>-s3-<branch>`` holds only the digest of the image. To get that image,
+check out the commit of the run and build it with ``breeze ci-image build``.
 
 After you load the image, you can reproduce the very exact environment that was used in the CI run by
 entering breeze container without mounting your local sources:
@@ -275,7 +286,7 @@ These are all available flags of ``save`` command:
 
 These are all available flags of ``load`` command:
 
-.. image:: ./images/output-prod-image_load.svg
+.. image:: ./images/output_prod-image_load.svg
   :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_prod-image_load.svg
   :width: 100%
   :alt: Breeze prod-image load
@@ -284,6 +295,14 @@ Similarly as in case of CI images, Images for every build from our CI are upload
 GitHub Action run (in summary) and can be downloaded from there for 2 days in order to reproduce the complete
 environment used during the tests and loaded to the local Docker registry (note that you have
 to use the same platform as the CI run).
+
+The PROD image artifacts of a pull request are named
+``prod-image-save-v3-<platform>-<python_version>-<PR>_merge``. The ``--from-pr`` and ``--from-run`` flags work
+as they do for CI images, with the same limits on the platform and on RunsOn runs:
+
+.. code-block:: bash
+
+     breeze prod-image load --from-pr 12345 --python 3.11 --github-token <your_github_token>
 
 ------
 

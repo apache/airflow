@@ -391,7 +391,7 @@ Every contributor can also pull and run images being result of a specific
 CI run in GitHub Actions. This is a powerful tool that allows to
 reproduce CI failures locally, enter the images and fix them much
 faster. It is enough to download and uncompress the artifact that stores the
-image and run ``breeze ci-image load -i <path-to-image.tar>`` to load the
+image and run ``breeze ci-image load --image-file <path-to-image.tar>`` to load the
 image and mark the image as refreshed in the local cache.
 
 You can see more details and examples in [Breeze](../06_managing_docker_images.rst).
