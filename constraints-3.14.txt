@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-11-13T19:09:05.385000
+# This constraints file was automatically generated on 2026-11-14T06:59:43.265795
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -47,7 +47,7 @@ Jinja2==3.1.6
 Mako==1.4.3
 Markdown==3.11.3
 MarkupSafe==3.0.4
-PyAthena==3.40.0
+PyAthena==4.2.1
 PyGithub==2.10.0
 PyHive==0.7.0
 PyJWT==2.15.1
@@ -254,7 +254,7 @@ bleach==6.4.0
 blinker==1.9.0
 boto3==1.43.117
 botocore==1.43.117
-cachelib==0.17.0
+cachelib==0.17.2
 cachetools==8.0.0
 cadwyn==9.0.0
 capi_param_builder_python==1.3.2
@@ -287,7 +287,7 @@ curlify==3.0.0
 darabonba-core==1.0.10
 databricks-sql-connector==4.9.0
 datadog==0.56.0
-datasets==5.1.0
+datasets==5.2.0
 db-dtypes==1.9.0
 debugpy==1.8.22
 decorator==5.3.1
@@ -314,7 +314,7 @@ facebook_business==26.0.4
 fastapi-cli==0.0.32
 fastapi==0.162.2
 fastavro==1.13.1
-fastcore==2.2.40
+fastcore==2.2.41
 fasteners==0.20
 fastjsonschema==2.22.3
 fastuuid==0.14.0
@@ -323,13 +323,13 @@ flask-appbuilder==5.2.2
 flask-babel==4.0.0
 flower==2.2.0
 frozenlist==1.8.0
-fsspec==2026.7.0
+fsspec==2026.9.0
 future==1.0.0
 gcloud-aio-auth==5.6.1
 gcloud-aio-bigquery==7.3.1
 gcloud-aio-storage==9.6.5
-gcsfs==2026.8.2
-genai-prices==0.2.1
+gcsfs==2026.10.1
+genai-prices==0.2.2
 geomet==1.1.0
 gevent==26.9.0
 gitdb==4.0.12
@@ -471,7 +471,7 @@ linkify-it-py==2.2.0
 litellm==1.96.2
 lockfile==0.12.2
 logfire-api==5.5.0
-looker_sdk==26.22.0
+looker_sdk==26.24.0
 lxml==6.1.3
 lz4==4.4.5
 markdown-it-py==4.2.0
@@ -645,7 +645,7 @@ rich-toolkit==0.20.6
 rich==15.0.0
 rpds-py==2026.9.1
 ruamel.yaml==0.19.1
-s3fs==2026.7.0
+s3fs==2026.9.0
 s3transfer==0.19.3
 sagemaker_studio==1.0.28
 scikit-learn==1.9.1
@@ -668,7 +668,7 @@ sniffio==1.3.1
 snowflake-connector-python==5.2.0
 snowflake-sqlalchemy==2.1.0
 sortedcontainers==2.4.0
-soupsieve==4.0.1
+soupsieve==4.1
 spython==0.3.14
 sqlalchemy-bigquery==1.17.3
 sqlalchemy-spanner==1.20.1
@@ -699,7 +699,7 @@ tinycss2==1.5.1
 tokenizers==0.23.3
 toml==0.10.2
 tomlkit==0.15.2
-tornado==6.6
+tornado==6.6.1
 tqdm==4.70.1
 traitlets==5.16.1
 trino==0.340.0
@@ -737,10 +737,10 @@ wrapt==2.5.2
 xmltodict==1.0.4
 xxhash==4.1.0
 yandex-query-client==0.1.4
-yandexcloud==0.414.0
+yandexcloud==0.415.0
 yarl==1.25.1
 ydb-dbapi==0.1.24
-ydb==3.34.0
+ydb==3.35.0
 zeep==4.3.3
 zenpy==2.0.57
 zipp==4.1.2
