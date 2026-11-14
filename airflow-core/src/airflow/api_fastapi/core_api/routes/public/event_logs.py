@@ -17,20 +17,29 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import TYPE_CHECKING, Annotated
+from typing import TYPE_CHECKING, Annotated, cast
 from uuid import UUID
 
 from fastapi import Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.orm import joinedload
 
+from airflow.api_fastapi.common.cursors import (
+    apply_cursor_filter,
+    encode_cursor,
+    make_backward_cursor,
+    parse_cursor,
+)
 from airflow.api_fastapi.common.db.common import (
     SessionDep,
+    apply_filters_to_select,
+    bounded_total_entries,
     paginated_select,
 )
 from airflow.api_fastapi.common.parameters import (
     FilterOptionEnum,
     FilterParam,
+    LimitFilter,
     QueryLimit,
     QueryOffset,
     SortParam,
@@ -55,6 +64,8 @@ from airflow.models import DagModel, Log, TaskInstance
 
 if TYPE_CHECKING:
     from sqlalchemy.orm.interfaces import LoaderOption
+
+    from airflow.api_fastapi.core_api.base import OrmClause
 
 event_logs_router = AirflowRouter(tags=["Event Log"], prefix="/eventLogs")
 
@@ -208,8 +219,28 @@ def get_event_logs(
     readable_event_logs_filter: ReadableEventLogsFilterDep,
     region_id: Annotated[UUID | None, Query()] = None,
     region_index: Annotated[int | None, Query(ge=-1)] = None,
+    cursor: Annotated[
+        str | None,
+        Query(
+            description="Cursor for keyset-based pagination. "
+            "Pass an empty string for the first page, then use ``next_cursor`` from the response. "
+            "When ``cursor`` is provided, ``offset`` is ignored.",
+        ),
+    ] = None,
 ) -> EventLogCollectionResponse:
-    """Get all Event Logs."""
+    """
+    Get all Event Logs.
+
+    Supports two pagination modes:
+
+    **Offset (default):** use `limit` and `offset` query parameters. Returns `total_entries`.
+
+    **Cursor:** pass `cursor` (empty string for the first page, then `next_cursor` from the response).
+    When `cursor` is provided, `offset` is ignored and `total_entries` is capped at
+    `total_entries_limit` (a value equal to that limit means at least that many events match).
+    ``next_cursor`` is ``null`` when there are no more pages; ``previous_cursor`` is ``null`` on
+    the first page.
+    """
     query = (
         # Log.dttm is nullable at the DB level, but EventLogResponse.when is a non-optional
         # datetime. Rows with dttm=NULL would cause a Pydantic validation error (500), so
@@ -228,40 +259,86 @@ def get_event_logs(
         if region_index is not None:
             attempt_ids = attempt_ids.where(attempts.c.region_index == region_index)
         query = query.where(Log.task_instance_id.in_(attempt_ids))
+    filters: list[OrmClause] = [
+        # Exact match filters
+        dag_id,
+        task_id,
+        run_id,
+        map_index,
+        try_number,
+        task_instance_id,
+        owner,
+        event,
+        excluded_events,
+        included_events,
+        before,
+        after,
+        # Pattern search filters
+        dag_id_pattern,
+        dag_id_prefix_pattern,
+        task_id_pattern,
+        task_id_prefix_pattern,
+        run_id_pattern,
+        run_id_prefix_pattern,
+        owner_pattern,
+        owner_prefix_pattern,
+        owner_display_name_pattern,
+        owner_display_name_prefix_pattern,
+        event_pattern,
+        event_prefix_pattern,
+        teams,
+        # Permission
+        readable_event_logs_filter,
+    ]
+
+    if cursor is not None:
+        page_limit = cast("int", limit.value)
+        cursor_limit = LimitFilter().set_value(page_limit + 1)
+        event_logs_select = apply_filters_to_select(statement=query, filters=[*filters, cursor_limit])
+        event_logs_select = order_by.to_orm(event_logs_select)
+
+        is_backward = False
+        if cursor:
+            token, is_backward = parse_cursor(cursor)
+            if is_backward:
+                event_logs_select = order_by.to_orm(event_logs_select, reversed=True)
+            event_logs_select = apply_cursor_filter(
+                event_logs_select, token, order_by, session.get_bind().dialect.name, is_backward=is_backward
+            )
+
+        fetched = list(session.scalars(event_logs_select))
+        has_more = len(fetched) > page_limit
+        page = fetched[:page_limit]
+
+        if is_backward:
+            page.reverse()
+            has_prev = has_more
+            has_next = True
+        else:
+            has_prev = bool(cursor)
+            has_next = has_more
+
+        # Encode before event_log_to_response, which overwrites owner_display_name on the row
+        # with a fallback, so a cursor built afterwards would not match the stored sort value.
+        next_cursor = encode_cursor(page[-1], order_by) if has_next and page else None
+        previous_cursor = (
+            make_backward_cursor(encode_cursor(page[0], order_by)) if has_prev and page else None
+        )
+        total_entries, total_entries_limit = bounded_total_entries(
+            statement=query, filters=filters, session=session
+        )
+        return EventLogCollectionResponse(
+            event_logs=[event_log_to_response(event_log=event_log) for event_log in page],
+            total_entries=total_entries,
+            total_entries_limit=total_entries_limit,
+            next_cursor=next_cursor,
+            previous_cursor=previous_cursor,
+        )
+
     event_logs_select, total_entries = paginated_select(
         statement=query,
         order_by=order_by,
-        filters=[
-            # Exact match filters
-            dag_id,
-            task_id,
-            run_id,
-            map_index,
-            try_number,
-            task_instance_id,
-            owner,
-            event,
-            excluded_events,
-            included_events,
-            before,
-            after,
-            # Pattern search filters
-            dag_id_pattern,
-            dag_id_prefix_pattern,
-            task_id_pattern,
-            task_id_prefix_pattern,
-            run_id_pattern,
-            run_id_prefix_pattern,
-            owner_pattern,
-            owner_prefix_pattern,
-            owner_display_name_pattern,
-            owner_display_name_prefix_pattern,
-            event_pattern,
-            event_prefix_pattern,
-            teams,
-            # Permission
-            readable_event_logs_filter,
-        ],
+        filters=filters,
         offset=offset,
         limit=limit,
         session=session,

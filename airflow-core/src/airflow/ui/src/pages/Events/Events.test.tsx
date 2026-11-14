@@ -16,7 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { render, waitFor } from "@testing-library/react";
+import "@testing-library/jest-dom/vitest";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, expect, it, vi } from "vitest";
 
@@ -58,4 +59,55 @@ it("filters a regional audit tab by the pass coordinates, keeping every try and 
     taskInstanceId: undefined,
     tryNumber: 2,
   });
+});
+
+it("pages the audit log by cursor and shows a capped total as a minimum", async () => {
+  const events = vi.spyOn(EventLogService, "getEventLogs").mockResolvedValue({
+    event_logs: [],
+    next_cursor: "page-2",
+    previous_cursor: null,
+    total_entries: 50_000,
+    total_entries_limit: 50_000,
+  });
+
+  render(
+    <BaseWrapper>
+      <MemoryRouter initialEntries={["/events"]}>
+        <Routes>
+          <Route element={<Events />} path="/events" />
+        </Routes>
+      </MemoryRouter>
+    </BaseWrapper>,
+  );
+
+  await waitFor(() => expect(events).toHaveBeenCalled());
+  expect(events.mock.lastCall?.[0]).toMatchObject({ cursor: "" });
+  expect(events.mock.lastCall?.[0]?.offset).toBeUndefined();
+
+  const next = await screen.findByTestId("next");
+
+  expect(await screen.findByRole("heading", { name: /^50,000\+/u })).toBeInTheDocument();
+  expect(screen.getByTestId("prev")).toBeDisabled();
+  fireEvent.click(next);
+  await waitFor(() => expect(events.mock.lastCall?.[0]).toMatchObject({ cursor: "page-2" }));
+});
+
+it("names the audit log date filter after the When column it filters", async () => {
+  vi.spyOn(EventLogService, "getEventLogs").mockResolvedValue({ event_logs: [], total_entries: 0 });
+
+  render(
+    <BaseWrapper>
+      <MemoryRouter initialEntries={["/events"]}>
+        <Routes>
+          <Route element={<Events />} path="/events" />
+        </Routes>
+      </MemoryRouter>
+    </BaseWrapper>,
+  );
+
+  fireEvent.click(await screen.findByTestId("add-filter-button"));
+
+  expect(await screen.findByTestId("add-filter-event_date_range")).toHaveTextContent(
+    "browse:auditLog.columns.when",
+  );
 });

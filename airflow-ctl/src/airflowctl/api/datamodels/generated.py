@@ -2700,11 +2700,38 @@ class DryRunBackfillCollectionResponse(BaseModel):
 
 class EventLogCollectionResponse(BaseModel):
     """
-    Event Log Collection Response.
+    Event Log collection response supporting both offset and cursor pagination.
     """
 
     event_logs: Annotated[list[EventLogResponse], Field(title="Event Logs")]
-    total_entries: Annotated[int, Field(title="Total Entries")]
+    total_entries: Annotated[
+        int,
+        Field(
+            description="Number of matching items. For offset pagination this is the exact total. For cursor pagination it is capped at ``total_entries_limit``; a value equal to that limit means at least that many items match.",
+            title="Total Entries",
+        ),
+    ]
+    total_entries_limit: Annotated[
+        int | None,
+        Field(
+            description="Cap applied to ``total_entries`` under cursor pagination. ``null`` for offset pagination, where ``total_entries`` is exact.",
+            title="Total Entries Limit",
+        ),
+    ] = None
+    next_cursor: Annotated[
+        str | None,
+        Field(
+            description="Token pointing to the next page. Populated for cursor pagination, ``null`` when using offset pagination or when there is no next page.",
+            title="Next Cursor",
+        ),
+    ] = None
+    previous_cursor: Annotated[
+        str | None,
+        Field(
+            description="Token pointing to the previous page. Populated for cursor pagination, ``null`` when using offset pagination or when on the first page.",
+            title="Previous Cursor",
+        ),
+    ] = None
 
 
 class ExternalViewResponse(BaseModel):

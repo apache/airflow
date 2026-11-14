@@ -83,6 +83,7 @@ export const SearchMapIndexes = ({
       const params = new URLSearchParams(searchParams);
 
       params.delete(SearchParamsKeys.REGION_INDEX);
+      params.delete(SearchParamsKeys.CURSOR);
       const query = params.toString();
 
       onClose();

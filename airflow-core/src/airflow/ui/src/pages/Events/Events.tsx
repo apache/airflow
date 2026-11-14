@@ -195,7 +195,7 @@ export const Events = () => {
 
   const [searchParams] = useSearchParams();
   const { setTableURLState, tableURLState } = useTableURLState();
-  const { pagination, sorting } = tableURLState;
+  const { cursor, pagination, sorting } = tableURLState;
   const [sort] = sorting;
   const { onClose, onOpen, open } = useDisclosure();
 
@@ -253,6 +253,7 @@ export const Events = () => {
     {
       after: afterDate,
       before: beforeDate,
+      cursor: cursor ?? "",
       // Use exact match for URL params (dag/run/task context)
       dagId: dagId ?? undefined,
       // Use pattern search for filter inputs (partial matching)
@@ -261,7 +262,6 @@ export const Events = () => {
       limit: pagination.pageSize,
       // A loop pass shares its public map index with every other pass, so its coordinates select it.
       mapIndex: regional ? undefined : mapIndexNumber,
-      offset: pagination.pageIndex * pagination.pageSize,
       orderBy,
       ...ownerArg,
       regionId: regional ? coordinates.regionId : undefined,
@@ -274,6 +274,7 @@ export const Events = () => {
       tryNumber: tryNumberNumber,
     },
     undefined,
+    { placeholderData: (prev) => prev },
   );
 
   const eventLogs = data?.event_logs ?? [];
@@ -290,6 +291,7 @@ export const Events = () => {
         initialState={tableURLState}
         isLoading={isLoading}
         modelName="common:event"
+        nextCursor={data?.next_cursor}
         onStateChange={setTableURLState}
         presentationActions={
           eventLogs.length > 0 ? (
@@ -302,8 +304,10 @@ export const Events = () => {
             />
           ) : undefined
         }
+        previousCursor={data?.previous_cursor}
         skeletonCount={undefined}
-        total={data?.total_entries ?? 0}
+        total={data?.total_entries}
+        totalEntriesLimit={data?.total_entries_limit ?? undefined}
       />
     </>
   );
