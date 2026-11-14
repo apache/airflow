@@ -21,9 +21,14 @@ import abc
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any, TypeVar
 
-from airflow.providers.amazon.aws.hooks.bedrock import BedrockAgentHook, BedrockHook
+from airflow.providers.amazon.aws.hooks.bedrock import (
+    BedrockAgentCoreControlHook,
+    BedrockAgentHook,
+    BedrockHook,
+)
 from airflow.providers.amazon.aws.sensors.base_aws import AwsBaseSensor
 from airflow.providers.amazon.aws.triggers.bedrock import (
+    BedrockAgentRuntimeReadyTrigger,
     BedrockBatchInferenceCompletedTrigger,
     BedrockBatchInferenceScheduledTrigger,
     BedrockCustomizeModelCompletedTrigger,
@@ -39,7 +44,9 @@ if TYPE_CHECKING:
     from airflow.sdk import Context
 
 
-_GenericBedrockHook = TypeVar("_GenericBedrockHook", BedrockAgentHook, BedrockHook)
+_GenericBedrockHook = TypeVar(
+    "_GenericBedrockHook", BedrockAgentHook, BedrockHook, BedrockAgentCoreControlHook
+)
 
 
 class BedrockBaseSensor(AwsBaseSensor[_GenericBedrockHook]):
@@ -503,6 +510,103 @@ class BedrockBatchInferenceSensor(BedrockBaseSensor[BedrockHook]):
             self.defer(
                 trigger=self.trigger_class(
                     job_arn=self.job_arn,
+                    waiter_delay=int(self.poke_interval),
+                    waiter_max_attempts=self.max_retries,
+                    aws_conn_id=self.aws_conn_id,
+                    region_name=self.region_name,
+                    verify=self.verify,
+                    botocore_config=self.botocore_config,
+                ),
+                method_name="poke",
+            )
+        else:
+            super().execute(context=context)
+
+
+class BedrockAgentRuntimeReadySensor(BedrockBaseSensor[BedrockAgentCoreControlHook]):
+    """
+    Poll an Amazon Bedrock AgentCore Runtime until it is READY; fails if creation or update fails.
+
+    Use it to wait for a runtime that was created or updated outside the DAG (for example by an
+    infrastructure pipeline) before invoking it with
+    :class:`~airflow.providers.amazon.aws.operators.bedrock.BedrockInvokeAgentRuntimeOperator`.
+
+    .. seealso::
+        For more information on how to use this sensor, take a look at the guide:
+        :ref:`howto/sensor:BedrockAgentRuntimeReadySensor`
+
+    :param agent_runtime_id: The unique identifier of the AgentCore Runtime. (templated)
+    :param agent_runtime_version: The version of the AgentCore Runtime to watch, for example the one
+        returned by an update. When omitted, no version is pinned and the runtime is described as is. (templated)
+
+    :param deferrable: If True, the sensor will operate in deferrable mode. This mode requires aiobotocore
+        module to be installed.
+        (default: False, but can be overridden in config file by setting default_deferrable to True)
+    :param poke_interval: Polling period in seconds to check for the status of the runtime. (default: 60)
+    :param max_retries: Number of times before returning the current state (default: 20)
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        If this is ``None`` or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
+    :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
+    :param verify: Whether or not to verify SSL certificates. See:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
+    :param botocore_config: Configuration dictionary (key-values) for botocore client. See:
+        https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
+    """
+
+    INTERMEDIATE_STATES: tuple[str, ...] = ("CREATING", "UPDATING")
+    FAILURE_STATES: tuple[str, ...] = ("CREATE_FAILED", "UPDATE_FAILED", "DELETING", "DELETE_FAILED")
+    SUCCESS_STATES: tuple[str, ...] = ("READY",)
+    FAILURE_MESSAGE = "Bedrock AgentCore Runtime ready sensor failed."
+
+    aws_hook_class = BedrockAgentCoreControlHook
+
+    template_fields: Sequence[str] = aws_template_fields("agent_runtime_id", "agent_runtime_version")
+
+    def __init__(
+        self,
+        *,
+        agent_runtime_id: str,
+        agent_runtime_version: str | None = None,
+        poke_interval: int = 60,
+        max_retries: int = 20,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.poke_interval = poke_interval
+        self.max_retries = max_retries
+        self.agent_runtime_id = agent_runtime_id
+        self.agent_runtime_version = agent_runtime_version
+        self._last_runtime: dict[str, Any] = {}
+
+    def _get_agent_runtime(self) -> dict[str, Any]:
+        kwargs: dict[str, Any] = {"agentRuntimeId": self.agent_runtime_id}
+        if self.agent_runtime_version:
+            kwargs["agentRuntimeVersion"] = self.agent_runtime_version
+        self._last_runtime = self.hook.conn.get_agent_runtime(**kwargs)
+        return self._last_runtime
+
+    def get_state(self) -> str:
+        return self._get_agent_runtime()["status"]
+
+    def get_failure_reason(self) -> str:
+        # ``poke`` calls ``get_state`` right before this, so reuse that answer instead of
+        # describing the runtime a second time.
+        runtime = self._last_runtime or self._get_agent_runtime()
+        return runtime.get("failureReason") or ""
+
+    def execute(self, context: Context) -> Any:
+        if self.deferrable:
+            # The trigger's waiter needs the exact version and the ARN, so resolve them once
+            # from the service before handing the wait over to the triggerer.
+            runtime = self._get_agent_runtime()
+            self.defer(
+                trigger=BedrockAgentRuntimeReadyTrigger(
+                    agent_runtime_id=self.agent_runtime_id,
+                    agent_runtime_version=runtime["agentRuntimeVersion"],
+                    agent_runtime_arn=runtime["agentRuntimeArn"],
                     waiter_delay=int(self.poke_interval),
                     waiter_max_attempts=self.max_retries,
                     aws_conn_id=self.aws_conn_id,
