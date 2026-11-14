@@ -647,7 +647,7 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
 
         pydantic-ai names the durable steps of a ``FunctionToolset``, ``MCPToolset`` or
         ``DynamicToolset`` after the toolset's ``id``, and refuses to run one without it. The
-        toolsets ``_build_agent`` hands the agent are given ids here as it gives them
+        toolsets ``build_agent`` hands the agent are given ids here as it gives them
         (``_give_durable_ids``), and a leaf still without one is refused: an ``MCPToolset``, whose
         server URL or command can carry credentials, or a function without a qualified name.
         Checked here so the Dag fails to load rather than at the first run.
@@ -824,8 +824,18 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
         }
         return PydanticAIHook.get_hook(self.llm_conn_id, hook_params=hook_params)
 
-    def _build_agent(self) -> Agent[object, Any]:
-        """Build and return a pydantic-ai Agent from the operator's config."""
+    def build_agent(self) -> Agent[object, Any]:
+        """
+        Build the pydantic-ai Agent this task runs, from the operator's config.
+
+        ``execute`` runs the agent this returns, so an eval or test can call it on a task from
+        a Dag (for example ``dag.get_task("triage").build_agent()``) to run the same agent,
+        with the same connection, instructions, toolsets and capabilities. Each call builds a
+        new agent.
+
+        Template fields are only rendered during a task run, so outside one a templated
+        ``system_prompt`` is passed to the agent as written.
+        """
         extra_kwargs = dict(self.agent_params)
         passed_through = extra_kwargs.pop("capabilities", None)
         if passed_through is not None and self.capabilities is not None:
@@ -915,10 +925,10 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
 
     def _running_toolsets(self) -> list[AbstractToolset[Any] | ToolsetFunc[Any]]:
         """
-        Return the toolsets ``_build_agent`` hands the agent, including functions that build one per run.
+        Return the toolsets ``build_agent`` hands the agent, including functions that build one per run.
 
         Unlike ``_declared_toolsets``, ``agent_params["toolsets"]`` counts only when
-        ``toolsets=`` is empty, because ``_build_agent`` ignores it otherwise.
+        ``toolsets=`` is empty, because ``build_agent`` ignores it otherwise.
         """
         candidates = list(self.toolsets or self.agent_params.get("toolsets") or [])
         for capability in self._declared_capabilities:
@@ -1044,7 +1054,7 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
 
         ti = context["task_instance"]
         self._durable_journal = None
-        # Reads the state store before the expensive setup below (_build_agent, durable
+        # Reads the state store before the expensive setup below (build_agent, durable
         # storage). None on < 3.3 or usage_limits=None -- see _build_usage_budget.
         self._usage_budget = self._build_usage_budget(context, usage_limits, ti=ti)
         self._run_usage = self._usage_budget.load() if self._usage_budget else RunUsage()
@@ -1057,7 +1067,7 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
         if self.durable:
             self._durable_journal = DurableJournal(self._build_durable_storage(context))
 
-        agent = self._build_agent()
+        agent = self.build_agent()
 
         self._run_identity_attrs = build_run_identity_attributes(ti)
         stamp_identity_on_agent_spans(agent, self._run_identity_attrs)
@@ -1381,7 +1391,7 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
             else copy_run_usage(run_usage)
         )
 
-        agent = self._build_agent()
+        agent = self.build_agent()
         self._run_identity_attrs = build_run_identity_attributes(ti)
         stamp_identity_on_agent_spans(agent, self._run_identity_attrs)
         try:
@@ -1456,7 +1466,7 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
         is gated on >= 3.3, in ``execute()``.
         """
         usage_limits = coerce_usage_limits(self.usage_limits)
-        agent = self._build_agent()
+        agent = self.build_agent()
         identity = getattr(self, "_run_identity_attrs", None)
         if identity:
             stamp_identity_on_agent_spans(agent, identity)

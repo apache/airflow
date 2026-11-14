@@ -43,6 +43,8 @@ from airflow.providers.standard.exceptions import HITLRejectException
 from airflow.providers.standard.operators.branch import BranchMixIn
 
 if TYPE_CHECKING:
+    from pydantic_ai import Agent
+
     from airflow.sdk import Context
 
 __all__ = ["BranchOption", "DecisionPolicy", "LLMBranchOperator"]
@@ -204,21 +206,28 @@ class LLMBranchOperator(LLMOperator, BranchMixIn):
             name: option.description for name, option in (self.branches or {}).items() if option.description
         }
 
-    def execute(self, context: Context) -> str | Iterable[str] | None:
-        if self._may_review:
-            self.validate_approval_prompt()  # type: ignore[misc]
-
+    def _check_has_downstream_tasks(self) -> None:
         if not self.downstream_task_ids:
             raise ValueError(
                 f"{self.task_id!r} has no downstream tasks. "
                 "LLMBranchOperator requires at least one downstream task to branch into."
             )
 
-        descriptions = self._descriptions
+    def build_agent(self) -> Agent[object, Any]:
+        """Build the agent this task runs, whose output type is one of the downstream task IDs."""
+        self._check_has_downstream_tasks()
         choice_type = _branch_choices(
-            self.task_id, self.downstream_task_ids, descriptions, configured=self.branches or ()
+            self.task_id, self.downstream_task_ids, self._descriptions, configured=self.branches or ()
         )
         output_type: Any = list[choice_type] if self.allow_multiple_branches else choice_type  # type: ignore[valid-type]
+        return self._create_agent(output_type=output_type, instructions=self.system_prompt)
+
+    def execute(self, context: Context) -> str | Iterable[str] | None:
+        if self._may_review:
+            self.validate_approval_prompt()  # type: ignore[misc]
+
+        self._check_has_downstream_tasks()
+        descriptions = self._descriptions
         if self.branches:
             undescribed = sorted(set(self.downstream_task_ids) - set(descriptions))
             if undescribed:
@@ -227,10 +236,7 @@ class LLMBranchOperator(LLMOperator, BranchMixIn):
         # Coerced first so a bad rendered value fails before the expensive setup below.
         usage_limits = coerce_usage_limits(self.usage_limits)
 
-        agent = self._create_agent(
-            output_type=output_type,
-            instructions=self.system_prompt,
-        )
+        agent = self.build_agent()
         result = self._run_llm(context, agent, self.prompt, usage_limits=usage_limits)
         output = result.output
 

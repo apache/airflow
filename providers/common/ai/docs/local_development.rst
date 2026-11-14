@@ -149,6 +149,31 @@ Check the answers themselves
 
 The test above scripts the model's replies, so it can't tell you whether a changed
 prompt still gives good answers. For that, run a set of cases with expected
-outcomes against the notebook agent from the first section, using a real model and
-a library such as `pydantic-evals <https://pydantic.dev/docs/ai/evals/evals/>`__,
-before you ship the change.
+outcomes against a real model, using a library such as
+`pydantic-evals <https://pydantic.dev/docs/ai/evals/evals/>`__, before you ship the
+change. A task's ``build_agent()`` returns the agent the task runs, with its
+connection, system prompt, toolsets and capabilities, so the cases check the task
+as written rather than a copy of it:
+
+.. code-block:: python
+
+    # evals/eval_orders_report.py
+    from pydantic_evals import Case, Dataset
+    from pydantic_evals.evaluators import Contains
+
+    from orders_report import orders_report  # dags/orders_report.py from above
+
+    agent = orders_report().get_task("orders_question").build_agent()
+
+    dataset = Dataset(
+        name="orders_question",
+        cases=[Case(inputs="How many orders are there?", evaluators=[Contains("3")])],
+    )
+    report = dataset.evaluate_sync(lambda question: agent.run_sync(question).output)
+    report.print()
+
+``build_agent()`` runs outside a task, so templates aren't rendered and a templated
+``system_prompt`` reaches the agent as written. ``@task.llm``, ``LLMOperator`` and
+the other LLM operators have it too; for ``LLMSQLQueryOperator`` and
+``LLMSchemaCompareOperator`` it reads the table schemas, so it needs their database
+connections.

@@ -282,7 +282,7 @@ class TestAgentOperatorValidation:
 
 
 class TestAgentOperatorCoercionOrder:
-    @patch.object(AgentOperator, "_build_agent", autospec=True)
+    @patch.object(AgentOperator, "build_agent", autospec=True)
     def test_unparsable_usage_limits_fails_before_agent_is_built(self, mock_build_agent):
         """Building the agent resolves the connection and every toolset, so an
         uncoercible ``usage_limits`` has to fail ahead of it."""
@@ -1680,6 +1680,57 @@ def harness_without_code_mode_extra(monkeypatch):
     monkeypatch.delitem(sys.modules, "pydantic_ai_harness.code_mode", raising=False)
 
 
+class TestAgentOperatorBuildAgent:
+    """``build_agent()`` returns the agent ``execute`` runs, so an eval can run a task's own agent."""
+
+    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
+    def test_execute_runs_an_agent_built_the_same_way(self, mock_hook_cls, make_mock_run_result):
+        create_agent = mock_hook_cls.get_hook.return_value.create_agent
+        mock_agent = _make_mock_agent("ok", make_mock_run_result)
+        create_agent.return_value = mock_agent
+        op = AgentOperator(
+            task_id="t",
+            prompt="p",
+            llm_conn_id="my_llm",
+            system_prompt="Be brief.",
+            toolsets=[FunctionToolset(id="tools")],
+            cache_prompt=False,
+            enable_tool_logging=False,
+        )
+
+        assert op.build_agent() is mock_agent
+        op.execute(context=_make_context())
+
+        built, executed = create_agent.call_args_list
+        assert built == executed
+        assert built.kwargs["instructions"] == "Be brief."
+        assert [ts.wrapped.id for ts in built.kwargs["toolsets"]] == ["tools"]
+        mock_agent.run_sync.assert_called_once()
+
+    @pytest.mark.parametrize("form", ["operator", "decorator"])
+    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
+    def test_build_agent_on_a_task_from_a_dag_passes_a_templated_system_prompt_as_written(
+        self, mock_hook_cls, form
+    ):
+        with DAG("d", schedule=None) as dag:
+            if form == "operator":
+                AgentOperator(
+                    task_id="ask", prompt="p", llm_conn_id="my_llm", system_prompt="Answer for {{ ds }}."
+                )
+            else:
+
+                @task.agent(llm_conn_id="my_llm", system_prompt="Answer for {{ ds }}.")
+                def ask() -> str:
+                    return "p"
+
+                ask()
+
+        dag.get_task("ask").build_agent()
+
+        create_agent = mock_hook_cls.get_hook.return_value.create_agent
+        assert create_agent.call_args.kwargs["instructions"] == "Answer for {{ ds }}."
+
+
 class TestAgentOperatorCapabilities:
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
     def test_capabilities_are_passed_to_the_agent_in_order(self, mock_hook_cls, make_mock_run_result):
@@ -1988,7 +2039,7 @@ class TestAgentOperatorDurable:
         op = AgentOperator(task_id="summarize", prompt="p", llm_conn_id="c", durable=True)
         op.llm_hook = MagicMock(spec=["create_agent"])
 
-        op._build_agent()
+        op.build_agent()
 
         capabilities = op.llm_hook.create_agent.call_args.kwargs["capabilities"]
         durability = [c for c in capabilities if isinstance(c, AirflowDurability)]
@@ -2000,7 +2051,7 @@ class TestAgentOperatorDurable:
         )
         op.llm_hook = MagicMock(spec=["create_agent"])
 
-        op._build_agent()
+        op.build_agent()
 
         capabilities = op.llm_hook.create_agent.call_args.kwargs["capabilities"]
         assert [c.name for c in capabilities if isinstance(c, AirflowDurability)] == ["writer"]
@@ -2009,7 +2060,7 @@ class TestAgentOperatorDurable:
         op = AgentOperator(task_id="t", prompt="p", llm_conn_id="c", cache_prompt=False)
         op.llm_hook = MagicMock(spec=["create_agent"])
 
-        op._build_agent()
+        op.build_agent()
 
         capabilities = op.llm_hook.create_agent.call_args.kwargs["capabilities"]
         assert not [c for c in capabilities if isinstance(c, AirflowDurability)]
@@ -2026,7 +2077,7 @@ class TestAgentOperatorDurable:
         op = AgentOperator(task_id="t", prompt="p", llm_conn_id="c", durable=True, **kwargs)
         op.llm_hook = MagicMock(spec=["create_agent"])
 
-        op._build_agent()
+        op.build_agent()
 
         capabilities = op.llm_hook.create_agent.call_args.kwargs["capabilities"]
         assert isinstance(capabilities[0].toolset, MaskingToolset)
@@ -2229,7 +2280,7 @@ class TestAgentOperatorDurable:
         )
         op.llm_hook = MagicMock(spec=["create_agent"])
 
-        op._build_agent()
+        op.build_agent()
 
         kwargs = op.llm_hook.create_agent.call_args.kwargs
         listed, in_capability = kwargs["toolsets"][0].wrapped, kwargs["capabilities"][0].toolset.wrapped
@@ -4184,7 +4235,7 @@ class TestAgentOperatorMasksToolOutput:
         hook = PydanticAIHook(llm_conn_id="c")
         op.llm_hook = hook
         with patch.object(hook, "get_conn", autospec=True, return_value=FunctionModel(_echo_tool_result)):
-            return op._build_agent()
+            return op.build_agent()
 
     def _run(self, op: AgentOperator, storage=None) -> str:
         agent = self._agent(op)
@@ -4348,6 +4399,6 @@ class TestAgentOperatorMasksToolOutput:
         hook = MagicMock(spec=["create_agent"])
         op.llm_hook = hook
 
-        op._build_agent()
+        op.build_agent()
 
         assert hook.create_agent.call_args.kwargs["toolsets"] == [sql]

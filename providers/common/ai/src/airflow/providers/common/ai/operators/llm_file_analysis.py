@@ -27,6 +27,8 @@ from airflow.providers.common.ai.utils.output_type import dump_output_for_xcom
 from airflow.providers.common.ai.utils.usage import coerce_usage_limits
 
 if TYPE_CHECKING:
+    from pydantic_ai import Agent
+
     from airflow.sdk import Context
 
 
@@ -130,6 +132,10 @@ class LLMFileAnalysisOperator(LLMOperator):
         self.max_text_chars = max_text_chars
         self.sample_rows = sample_rows
 
+    def build_agent(self) -> Agent[object, Any]:
+        """Build the agent this task runs, with the file analysis system prompt."""
+        return self._create_agent(output_type=self.output_type, instructions=self._build_system_prompt())
+
     def execute(self, context: Context) -> Any:
         # Coerced first so a bad rendered value fails before the expensive setup below.
         usage_limits = coerce_usage_limits(self.usage_limits)
@@ -163,10 +169,7 @@ class LLMFileAnalysisOperator(LLMOperator):
             self.sample_rows,
         )
         self.log.debug("Resolved file analysis paths: %s", request.resolved_paths)
-        agent = self._create_agent(
-            output_type=self.output_type,
-            instructions=self._build_system_prompt(),
-        )
+        agent = self.build_agent()
         result = self._run_llm(context, agent, request.user_content, usage_limits=usage_limits)
         output = result.output
 
