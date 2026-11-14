@@ -607,7 +607,8 @@ and ``Clear``.
 * A value must be JSON, and not ``nil``. It is stored as ``encoding/json`` writes it, so ``json`` struct tags
   apply and ``UnmarshalJSONValue`` reads it back into the same type. A whole-number float such as ``5.0`` is
   stored as the integer ``5``, so ``Get`` returns it as an ``int64``. A ``time.Time``, a non-finite float or a
-  ``[]byte`` is refused before it is sent, so store a time as ``value.Format(time.RFC3339)``.
+  byte slice or array such as a ``uuid.UUID`` is refused before it is sent, so store a time as
+  ``value.Format(time.RFC3339)``.
 * ``Set`` without options keeps the key for ``[state_store] default_retention_days``.
   ``sdk.WithRetention(d)`` keeps it for a positive ``time.Duration``, and ``sdk.NeverExpire`` keeps it forever.
 * ``[workers] state_store_backend`` is not used from Go tasks, so values are always stored in the database. A

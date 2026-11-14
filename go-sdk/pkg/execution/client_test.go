@@ -793,11 +793,34 @@ func TestTaskStateStoreSetRejectsNonJSONValues(t *testing.T) {
 			value:   struct{ embedded }{embedded{At: watermark}},
 			wantErr: "time.Time is not JSON representable",
 		},
-		{name: "byte slice", value: []byte("raw"), wantErr: "[]byte is not JSON representable"},
 		{
-			name:    "uuid",
-			value:   uuid.MustParse(testTIID),
-			wantErr: "[]byte is not JSON representable",
+			// The embedded time.Time promotes its MarshalJSON to the struct.
+			name: "embedded datetime",
+			value: struct {
+				time.Time
+				Note string
+			}{watermark, "n"},
+			wantErr: "time.Time is not JSON representable",
+		},
+		{
+			name:    "datetime map key",
+			value:   map[time.Time]int{watermark: 1},
+			wantErr: "time.Time is not JSON representable",
+		},
+		{name: "byte slice", value: []byte("raw"), wantErr: "[]uint8 holds bytes"},
+		{name: "uuid", value: uuid.MustParse(testTIID), wantErr: "uuid.UUID holds bytes"},
+		{
+			name: "embedded uuid",
+			value: struct {
+				uuid.UUID
+				Name string
+			}{uuid.MustParse(testTIID), "n"},
+			wantErr: "uuid.UUID holds bytes",
+		},
+		{
+			name:    "uuid map key",
+			value:   map[uuid.UUID]string{uuid.MustParse(testTIID): "a"},
+			wantErr: "uuid.UUID holds bytes",
 		},
 		{name: "NaN", value: math.NaN(), wantErr: "json: unsupported value: NaN"},
 		{name: "Inf", value: math.Inf(1), wantErr: "json: unsupported value: +Inf"},
@@ -819,9 +842,40 @@ func TestTaskStateStoreSetRejectsNonJSONValues(t *testing.T) {
 	}
 }
 
+// timeWindow and pointerTimeWindow write themselves as one string, so the task
+// state store has no time to refuse in them.
+type timeWindow struct{ Start time.Time }
+
+func (timeWindow) MarshalJSON() ([]byte, error) { return json.Marshal("window") }
+
+type pointerTimeWindow struct{ Start time.Time }
+
+func (*pointerTimeWindow) MarshalJSON() ([]byte, error) { return json.Marshal("window") }
+
+type unexportedBytes []byte
+
+// clashX and clashY declare P at the same depth, so encoding/json drops P from
+// clashHolder and never follows a cycle that goes through it.
+type clashX struct{ P any }
+
+type clashY struct{ P any }
+
+type clashHolder struct {
+	clashX
+	clashY
+	N int
+}
+
 func TestTaskStateStoreSetAcceptsJSONShapes(t *testing.T) {
 	// A default-retention write needs the setting the supervisor passes.
 	t.Setenv(defaultRetentionDaysEnv, "30")
+
+	pointerCycle := &clashHolder{N: 1}
+	pointerCycle.clashX.P = pointerCycle
+	mapCycle := map[string]any{}
+	mapCycle["self"] = mapCycle
+	sliceCycle := make([]any, 1)
+	sliceCycle[0] = sliceCycle
 
 	type checkpoint struct {
 		Processed int      `json:"processed"`
@@ -832,12 +886,25 @@ func TestTaskStateStoreSetAcceptsJSONShapes(t *testing.T) {
 		Name string    `json:"name"`
 	}
 	values := map[string]any{
-		"struct":                    checkpoint{Processed: 3, Cursors: []string{"a"}},
-		"struct skipping time.Time": skippedTime{When: time.Now(), Name: "x"},
-		"nested":                    map[string]any{"rows": []any{1, "two", 3.5, true, nil}},
-		"scalar":                    "plain",
-		"type with its own JSON":    roundTripMarshaler{Status: 0},
-		"int map key":               map[int]string{1: "a"},
+		"struct":                           checkpoint{Processed: 3, Cursors: []string{"a"}},
+		"struct skipping time.Time":        skippedTime{When: time.Now(), Name: "x"},
+		"nested":                           map[string]any{"rows": []any{1, "two", 3.5, true, nil}},
+		"scalar":                           "plain",
+		"int map key":                      map[int]string{1: "a"},
+		"marshaler holding a time":         timeWindow{Start: time.Now()},
+		"pointer marshaler holding a time": &pointerTimeWindow{Start: time.Now()},
+		"nil byte slice field":             struct{ Data []byte }{},
+		"unexported time field": struct {
+			at   time.Time
+			Name string
+		}{time.Now(), "x"},
+		"unexported embedded bytes": struct {
+			unexportedBytes
+			Name string
+		}{unexportedBytes("raw"), "x"},
+		"pointer cycle in a dropped field": pointerCycle,
+		"map cycle in a dropped field":     clashHolder{clashX: clashX{P: mapCycle}, N: 1},
+		"slice cycle in a dropped field":   clashHolder{clashX: clashX{P: sliceCycle}, N: 1},
 	}
 
 	for name, value := range values {

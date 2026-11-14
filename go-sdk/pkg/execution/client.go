@@ -469,7 +469,7 @@ func (s taskStateStore) Set(
 	if isNull {
 		return fmt.Errorf("cannot set task state key %q: value must not be nil", key)
 	}
-	if err := checkTaskStateValue(reflect.ValueOf(value)); err != nil {
+	if err := checkTaskStateValue(reflect.ValueOf(value), map[visitedRef]bool{}); err != nil {
 		return fmt.Errorf("cannot set task state key %q: %w", key, err)
 	}
 
@@ -533,65 +533,149 @@ var (
 	textMarshalerType = reflect.TypeFor[encoding.TextMarshaler]()
 )
 
-// checkTaskStateValue rejects a time.Time and bytes anywhere encoding/json
-// would write them in v, because the Python task state store refuses a
-// datetime and bytes too. It must run after json.Marshal has accepted the
-// value, which guarantees that the walk meets no cycle. Bytes are checked
-// before the marshaler test so that a uuid.UUID is rejected as well; any other
-// type with its own JSON form is not looked into.
-func checkTaskStateValue(v reflect.Value) error {
-	// Dereferenced before the marshaler test below: a *time.Time has the
-	// MarshalJSON method of time.Time.
+// visitedRef identifies a pointer, map or slice that a walk has entered. The
+// length keeps a slice apart from a shorter slice of the same array.
+type visitedRef struct {
+	ptr uintptr
+	len int
+}
+
+// checkTaskStateValue refuses a time.Time and a byte slice or array in v, map
+// keys included, because the Python task state store refuses a datetime, bytes
+// and a UUID too. Bytes are refused by Go type, so a uuid.UUID and a
+// json.RawMessage are refused although encoding/json writes them as text.
+//
+// The walk does not apply encoding/json's omitempty, omitzero and field
+// conflict rules, so it can refuse a field that encoding/json would leave out.
+// It does not look into a type with its own MarshalJSON or MarshalText, apart
+// from a time.Time or bytes that the type embeds.
+func checkTaskStateValue(v reflect.Value, seen map[visitedRef]bool) error {
 	for v.Kind() == reflect.Pointer || v.Kind() == reflect.Interface {
+		if v.Kind() == reflect.Pointer && !v.IsNil() {
+			ref := visitedRef{ptr: v.Pointer()}
+			if seen[ref] {
+				return nil
+			}
+			seen[ref] = true
+		}
 		v = v.Elem()
 	}
 	if !v.IsValid() {
 		return nil
 	}
 	t := v.Type()
-	if t == timeType {
-		return errors.New(
-			"time.Time is not JSON representable; store value.Format(time.RFC3339) " +
-				"and parse it back with time.Parse",
-		)
+	if err := checkTaskStateType(t, v.Kind() == reflect.Slice && v.IsNil()); err != nil {
+		return err
 	}
-	isList := v.Kind() == reflect.Slice || v.Kind() == reflect.Array
-	if isList && t.Elem().Kind() == reflect.Uint8 {
-		return errors.New(
-			"[]byte is not JSON representable; encode it, for example with " +
-				"base64.StdEncoding.EncodeToString",
-		)
-	}
-	if t.Implements(jsonMarshalerType) || t.Implements(textMarshalerType) {
-		return nil
+	// encoding/json calls a pointer-receiver method only on an addressable value.
+	if hasOwnJSON(t) || (v.CanAddr() && hasOwnJSON(reflect.PointerTo(t))) {
+		return checkEmbeddedTaskStateTypes(t)
 	}
 	switch v.Kind() {
-	case reflect.Slice, reflect.Array:
+	case reflect.Slice:
+		ref := visitedRef{ptr: v.Pointer(), len: v.Len()}
+		if seen[ref] {
+			return nil
+		}
+		seen[ref] = true
+		fallthrough
+	case reflect.Array:
 		for i := range v.Len() {
-			if err := checkTaskStateValue(v.Index(i)); err != nil {
+			if err := checkTaskStateValue(v.Index(i), seen); err != nil {
 				return err
 			}
 		}
 	case reflect.Map:
+		ref := visitedRef{ptr: v.Pointer()}
+		if seen[ref] {
+			return nil
+		}
+		seen[ref] = true
 		iter := v.MapRange()
 		for iter.Next() {
-			if err := checkTaskStateValue(iter.Value()); err != nil {
+			if err := checkTaskStateValue(iter.Key(), seen); err != nil {
+				return err
+			}
+			if err := checkTaskStateValue(iter.Value(), seen); err != nil {
 				return err
 			}
 		}
 	case reflect.Struct:
 		for i := range t.NumField() {
 			field := t.Field(i)
-			// encoding/json writes an embedded struct's fields even when its type is unexported.
-			if field.Tag.Get("json") == "-" || (!field.IsExported() && !field.Anonymous) {
+			if field.Tag.Get("json") == "-" || !isJSONVisibleField(field) {
 				continue
 			}
-			if err := checkTaskStateValue(v.Field(i)); err != nil {
+			if err := checkTaskStateValue(v.Field(i), seen); err != nil {
 				return err
 			}
 		}
 	}
 	return nil
+}
+
+// checkTaskStateType refuses t if it is a time.Time or a byte slice or array.
+// A nil byte slice is written as null, so isNilSlice exempts it.
+func checkTaskStateType(t reflect.Type, isNilSlice bool) error {
+	if t == timeType {
+		return errors.New(
+			"time.Time is not JSON representable; store value.Format(time.RFC3339) " +
+				"and parse it back with time.Parse",
+		)
+	}
+	isList := t.Kind() == reflect.Slice || t.Kind() == reflect.Array
+	if isList && t.Elem().Kind() == reflect.Uint8 && !isNilSlice {
+		return fmt.Errorf(
+			"%s holds bytes, which the task state store refuses; store them as a string, "+
+				"for example with base64.StdEncoding.EncodeToString",
+			t,
+		)
+	}
+	return nil
+}
+
+// checkEmbeddedTaskStateTypes refuses a struct type that embeds a time.Time or
+// bytes: the embedded type's MarshalJSON or MarshalText is promoted to the
+// struct, which encoding/json then writes as that time or those bytes.
+func checkEmbeddedTaskStateTypes(t reflect.Type) error {
+	if t.Kind() != reflect.Struct {
+		return nil
+	}
+	for i := range t.NumField() {
+		field := t.Field(i)
+		if !field.Anonymous {
+			continue
+		}
+		embedded := field.Type
+		if embedded.Kind() == reflect.Pointer {
+			embedded = embedded.Elem()
+		}
+		if err := checkTaskStateType(embedded, false); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func hasOwnJSON(t reflect.Type) bool {
+	return t.Implements(jsonMarshalerType) || t.Implements(textMarshalerType)
+}
+
+// isJSONVisibleField reports whether encoding/json considers field: it is
+// exported, or it embeds a struct, whose exported fields are written even when
+// the struct type itself is unexported.
+func isJSONVisibleField(field reflect.StructField) bool {
+	if field.IsExported() {
+		return true
+	}
+	if !field.Anonymous {
+		return false
+	}
+	embedded := field.Type
+	if embedded.Kind() == reflect.Pointer {
+		embedded = embedded.Elem()
+	}
+	return embedded.Kind() == reflect.Struct
 }
 
 // encodeJSONValue returns the msgpack form of value as encoding/json writes it,

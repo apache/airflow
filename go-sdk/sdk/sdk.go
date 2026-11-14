@@ -183,10 +183,11 @@ type TaskStateStore interface {
 	//
 	// As in the Python task state store, a time.Time and a byte slice or
 	// array such as a uuid.UUID are rejected before they are sent, also when
-	// nested in value; store a time as value.Format(time.RFC3339). So is a
-	// value that json.Marshal rejects, such as a non-finite float, an integer
-	// that fits in neither int64 nor uint64, and a number past the range of a
-	// float64.
+	// nested in value or used as a map key, but not inside a type with its
+	// own MarshalJSON or MarshalText; store a time as
+	// value.Format(time.RFC3339). So is a value that json.Marshal rejects,
+	// such as a non-finite float, an integer that fits in neither int64 nor
+	// uint64, and a number past the range of a float64.
 	Set(ctx context.Context, key string, value any, opts ...SetOption) error
 
 	// Delete removes the value stored under key. Deleting a key that does not
