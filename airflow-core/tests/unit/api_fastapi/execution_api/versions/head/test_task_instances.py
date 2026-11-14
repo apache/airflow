@@ -745,6 +745,7 @@ class TestTIRunState:
 
     @pytest.mark.parametrize(
         "conf_value",
+        # MySQL can round these out-of-range integers during JSON persistence.
         [
             pytest.param(-(2**63), id="min-int64"),
             pytest.param(2**64 - 1, id="max-uint64"),
