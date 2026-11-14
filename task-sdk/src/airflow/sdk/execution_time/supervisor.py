@@ -22,6 +22,7 @@ from __future__ import annotations
 import atexit
 import contextlib
 import functools
+import importlib.util
 import io
 import logging
 import math
@@ -2545,6 +2546,17 @@ to the socket.
 """
 
 
+@functools.cache
+def _core_decides_server_side_per_request() -> bool:
+    """
+    Whether the installed airflow-core has ``airflow.process_context``.
+
+    An older core decides from the presence of ``task_runner.SUPERVISOR_COMMS`` alone, so the
+    attribute has to go while a request is served there.
+    """
+    return importlib.util.find_spec("airflow.process_context") is not None
+
+
 @attrs.define(kw_only=True)
 class InProcessSupervisorComms:
     """In-process communication handler that returns each response directly to its caller."""
@@ -2553,13 +2565,25 @@ class InProcessSupervisorComms:
     supervisor: InProcessTestSupervisor
 
     def send(self, msg: BaseModel) -> BaseModel | None:
-        """Send a request to the supervisor and return its response."""
+        """
+        Send a request to the supervisor and return its response.
+
+        Safe to call from several threads: each call gets its own response sink, and the comms are
+        hidden from the code serving the request only (``task_runner.hide_supervisor_comms``). With an
+        airflow-core from before ``airflow.process_context`` they are removed for the whole process
+        instead, as before, so there only one thread of a task may make SDK calls at a time.
+        """
+        from airflow.sdk.execution_time.task_runner import hide_supervisor_comms
+
         self.log.debug("Sending request", msg=msg)
+        hidden_comms = (
+            hide_supervisor_comms() if _core_decides_server_side_per_request() else set_supervisor_comms(None)
+        )
 
         responses: deque[BaseModel | None] = deque()
         token = _IN_PROCESS_RESPONSE_SINK.set(responses)
         try:
-            with set_supervisor_comms(None):
+            with hidden_comms:
                 self.supervisor._handle_request(msg, log, 0)  # type: ignore[arg-type]
         finally:
             _IN_PROCESS_RESPONSE_SINK.reset(token)
@@ -2795,9 +2819,10 @@ def set_supervisor_comms(temp_comms):
     by injecting a test Comms implementation (e.g. `InProcessSupervisorComms`)
     in place of the real inter-process communication layer.
 
-    Some parts of the code (e.g. models.Variable.get) check for the presence
-    of `task_runner.SUPERVISOR_COMMS` to determine if the code is running in a Task SDK execution context.
-    This override ensures those code paths behave correctly during in-process tests.
+    Some parts of the code (e.g. models.Variable.get) ask `task_runner.get_supervisor_comms()`, in
+    airflow-core through `airflow.process_context.should_use_task_sdk_api_path()`, to determine if the code
+    is running in a Task SDK execution context. That reads the comms set here, so this override ensures
+    those code paths behave correctly during in-process tests.
     """
     from airflow.sdk.execution_time import task_runner
 

@@ -1247,6 +1247,34 @@ def parse(what: StartupDetails, log: Logger) -> RuntimeTaskInstance:
 #   accessible wherever needed during task execution without modifying every layer of the call stack.
 SUPERVISOR_COMMS: CommsDecoder[ToTask, ToSupervisor]
 
+# True while code serves an in-process supervisor request (dag.test()). That code acts as
+# the server side, so get_supervisor_comms() returns None there. Other task threads are unaffected.
+_supervisor_comms_hidden: contextvars.ContextVar[bool] = contextvars.ContextVar(
+    "_supervisor_comms_hidden", default=False
+)
+
+
+def get_supervisor_comms() -> CommsDecoder[ToTask, ToSupervisor] | None:
+    """
+    Return the comms to the supervisor, or ``None``.
+
+    ``None`` outside a task execution context and inside :func:`hide_supervisor_comms`. Code that
+    decides whether it runs inside a task should ask this instead of checking for ``SUPERVISOR_COMMS``.
+    """
+    if _supervisor_comms_hidden.get():
+        return None
+    return globals().get("SUPERVISOR_COMMS")
+
+
+@contextmanager
+def hide_supervisor_comms() -> Iterator[None]:
+    """Hide the comms from the code run inside this block, and only from it."""
+    token = _supervisor_comms_hidden.set(True)
+    try:
+        yield
+    finally:
+        _supervisor_comms_hidden.reset(token)
+
 
 # State machine!
 # 1. Start up (receive details from supervisor)
