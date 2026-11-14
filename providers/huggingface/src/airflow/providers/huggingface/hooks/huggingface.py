@@ -20,11 +20,20 @@ from __future__ import annotations
 
 import re
 from typing import Any
+from urllib.parse import quote
 
-from huggingface_hub import HfApi
-from huggingface_hub.utils import RepositoryNotFoundError, RevisionNotFoundError
+from huggingface_hub import DatasetInfo, GitCommitInfo, HfApi, constants
+from huggingface_hub.utils import (
+    RepositoryNotFoundError,
+    RevisionNotFoundError,
+    build_hf_headers,
+    get_async_session,
+    hf_raise_for_status,
+    parse_datetime,
+)
 
 from airflow.exceptions import AirflowNotFoundException
+from airflow.providers.common.compat.connection import get_async_connection
 from airflow.providers.common.compat.sdk import BaseHook
 
 
@@ -97,11 +106,112 @@ class HuggingFaceHook(BaseHook):
     def get_dataset_info(self, repo_id: str, revision: str | None = None) -> Any:
         return self.get_conn().dataset_info(repo_id, revision=revision)
 
+    async def _aget_token(self) -> str | bool | None:
+        """Async token resolution mirroring get_token without blocking the event loop."""
+        if not self.huggingface_conn_id:
+            return None
+        try:
+            connection = await get_async_connection(self.huggingface_conn_id, hook=self)
+        except AirflowNotFoundException:
+            if self._allow_ambient_fallback:
+                return None
+            raise
+        return connection.password or False
+
+    @staticmethod
+    async def _aget(client: Any, url: str, *, headers: dict[str, str], **kwargs: Any) -> Any:
+        """GET a Hub endpoint on an open client and raise on HTTP errors."""
+        response = await client.get(url, headers=headers, **kwargs)
+        hf_raise_for_status(response)
+        return response
+
+    async def aget_dataset_info(self, repo_id: str, revision: str | None = None) -> Any:
+        """Async variant of :meth:`get_dataset_info`; reads the Hub over HTTP."""
+        path = f"{constants.ENDPOINT}/api/datasets/{repo_id}"
+        if revision is not None:
+            path = f"{path}/revision/{quote(revision, safe='')}"
+        headers = build_hf_headers(token=await self._aget_token())
+        async with get_async_session() as client:
+            response = await self._aget(client, path, headers=headers)
+        return DatasetInfo(**response.json())
+
+    async def afind_commit_by_marker(
+        self,
+        repo_id: str,
+        marker: str,
+        *,
+        revision: str | None = None,
+        include_pull_requests: bool = False,
+    ) -> Any | None:
+        """Async variant of :meth:`find_commit_by_marker`; scans the latest commit per requested ref."""
+        headers = build_hf_headers(token=await self._aget_token())
+        revisions = [revision] if revision else ["main"]
+        async with get_async_session() as client:
+            if include_pull_requests:
+                try:
+                    refs_response = await self._aget(
+                        client,
+                        f"{constants.ENDPOINT}/api/datasets/{repo_id}/refs",
+                        headers=headers,
+                        params={"include_prs": "1"},
+                    )
+                except RepositoryNotFoundError:
+                    return None
+                refs = refs_response.json()
+                revisions.extend(item["ref"] for item in refs.get("pullRequests", []) or [])
+
+            seen: set[str] = set()
+            for ref in revisions:
+                if ref in seen:
+                    continue
+                seen.add(ref)
+                try:
+                    commits_response = await self._aget(
+                        client,
+                        f"{constants.ENDPOINT}/api/datasets/{repo_id}/commits/{quote(ref, safe='')}",
+                        headers=headers,
+                    )
+                except RepositoryNotFoundError:
+                    return None
+                except RevisionNotFoundError:
+                    continue
+                items = commits_response.json()
+                if not items:
+                    continue
+                item = items[0]  # Hub returns commits newest first.
+                commit = GitCommitInfo(
+                    commit_id=item["id"],
+                    authors=[author["user"] for author in item["authors"]],
+                    created_at=parse_datetime(item["date"]),
+                    title=item["title"],
+                    message=item["message"],
+                    formatted_title=None,
+                    formatted_message=None,
+                )
+                if self._marker_matches(commit, marker):
+                    return commit
+        return None
+
     @staticmethod
     def _commit_is_complete(commit: Any) -> bool:
         """Reject intermediate commits from a Hub upload split into parts."""
         title = getattr(commit, "title", "") or ""
         return re.search(r"\(part\b.*\)\s*$", title, re.IGNORECASE) is None
+
+    @staticmethod
+    def _marker_matches(commit: Any, marker: str) -> bool:
+        """Whether the commit carries the marker and has completed in full."""
+        # GitCommitInfo carries title/message/commit_id; CommitInfo carries
+        # commit_message/commit_description/oid.
+        fields = (
+            getattr(commit, "title", ""),
+            getattr(commit, "message", ""),
+            getattr(commit, "commit_message", ""),
+            getattr(commit, "commit_description", ""),
+        )
+        if not any(marker in (field or "") for field in fields):
+            return False
+        return HuggingFaceHook._commit_is_complete(commit)
 
     def find_commit_by_marker(
         self,
@@ -135,17 +245,7 @@ class HuggingFaceHook(BaseHook):
             # Hub returns commits newest first. A historical match is stale if
             # a later publication has advanced this ref since the push attempt.
             commit = commits[0] if commits else None
-            if commit is None:
-                continue
-            # GitCommitInfo carries title/message/commit_id; CommitInfo carries
-            # commit_message/commit_description/oid.
-            fields = (
-                getattr(commit, "title", ""),
-                getattr(commit, "message", ""),
-                getattr(commit, "commit_message", ""),
-                getattr(commit, "commit_description", ""),
-            )
-            if any(marker in (field or "") for field in fields) and self._commit_is_complete(commit):
+            if commit is not None and self._marker_matches(commit, marker):
                 return commit
         return None
 
