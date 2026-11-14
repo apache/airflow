@@ -17,6 +17,7 @@
 
 from airflow.sdk.api.datamodels._generated import (
     DagRunState as DagRunState,
+    DagRunType as DagRunType,
     TaskInstanceState as TaskInstanceState,
     TriggerRule as TriggerRule,
     WeightRule as WeightRule,
@@ -174,6 +175,7 @@ __all__ = [
     "CronPartitionTimetable",
     "DAG",
     "DagRunState",
+    "DagRunType",
     "DayWindow",
     "DeadlineAlert",
     "DeadlineReference",

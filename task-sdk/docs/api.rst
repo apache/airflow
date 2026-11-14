@@ -188,6 +188,8 @@ State Enums
 -----------
 .. autoclass:: airflow.sdk.TaskInstanceState
 
+.. autoclass:: airflow.sdk.DagRunType
+
 .. autoclass:: airflow.sdk.DagRunState
 
 .. autoclass:: airflow.sdk.WeightRule

@@ -3282,6 +3282,7 @@ export type DeadlineAlertCollectionResponse = {
 export type DeadlineAlertResponse = {
     id: string;
     name?: string | null;
+    run_type_filter?: Array<DagRunType> | null;
     reference_type: string;
     /**
      * Interval in seconds between the reference time and the deadline. Null for a dynamic interval (e.g. a VariableInterval) whose value is only resolved at scheduler evaluation time.
@@ -3296,6 +3297,7 @@ export type DeadlineAlertResponse = {
 export type DeadlineCollectionResponse = {
     deadlines: Array<DeadlineResponse>;
     total_entries: number;
+    deadline_alerts?: Array<DeadlineAlertResponse> | null;
 };
 
 /**
@@ -5892,6 +5894,7 @@ export type GetDeadlinesData = {
     deadlineTimeGte?: string | null;
     deadlineTimeLt?: string | null;
     deadlineTimeLte?: string | null;
+    includeAlerts?: boolean;
     lastUpdatedAtGt?: string | null;
     lastUpdatedAtGte?: string | null;
     lastUpdatedAtLt?: string | null;

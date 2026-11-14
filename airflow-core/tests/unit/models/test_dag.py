@@ -87,7 +87,7 @@ from airflow.sdk.definitions._internal.loop import create_loop
 from airflow.sdk.definitions._internal.templater import NativeEnvironment, SandboxedEnvironment
 from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetAll, AssetAny
 from airflow.sdk.definitions.callback import AsyncCallback
-from airflow.sdk.definitions.deadline import DeadlineAlert, DeadlineReference
+from airflow.sdk.definitions.deadline import DeadlineAlert, DeadlineReference, VariableInterval
 from airflow.sdk.definitions.param import Param
 from airflow.sdk.exceptions import TaskAwaitingInput
 from airflow.sdk.execution_time.hitl import upsert_hitl_detail
@@ -2628,6 +2628,131 @@ my_postgres_conn:
 
         assert len(dr.deadlines) == 1
         assert dr.deadlines[0].deadline_time == getattr(dr, reference_column, DEFAULT_DATE) + interval
+
+    @pytest.mark.db_test
+    @pytest.mark.need_serialized_dag
+    @pytest.mark.parametrize(
+        ("run_type_filter", "run_type", "expected"),
+        [
+            (None, DagRunType.BACKFILL_JOB, 1),
+            (["scheduled"], DagRunType.BACKFILL_JOB, 0),
+            (["scheduled"], DagRunType.SCHEDULED, 1),
+            (["manual", "asset_triggered"], DagRunType.MANUAL, 1),
+            (["manual"], DagRunType.SCHEDULED, 0),
+        ],
+    )
+    def test_dagrun_deadline_run_types(
+        self, run_type_filter, run_type, expected, testing_dag_bundle, session
+    ):
+        interval = datetime.timedelta(hours=1)
+        dag = DAG(
+            dag_id="test_deadline",
+            schedule=datetime.timedelta(days=1),
+            deadline=DeadlineAlert(
+                reference=DeadlineReference.DAGRUN_LOGICAL_DATE,
+                interval=interval,
+                run_type_filter=run_type_filter,
+                callback=AsyncCallback(empty_callback_for_deadline),
+            ),
+        )
+
+        scheduler_dag = sync_dag_to_db(dag, session=session)
+
+        dr = scheduler_dag.create_dagrun(
+            run_id="test_dagrun_deadline",
+            run_type=run_type,
+            state=State.QUEUED,
+            logical_date=TEST_DATE,
+            run_after=TEST_DATE,
+            triggered_by=DagRunTriggeredByType.TEST,
+        )
+        session.flush()
+        dr = session.merge(dr)
+
+        assert len(dr.deadlines) == expected
+        if expected:
+            assert dr.deadlines[0].deadline_time == dr.logical_date + interval
+
+    @pytest.mark.db_test
+    @pytest.mark.need_serialized_dag
+    def test_dagrun_deadlines_apply_each_alert_run_type_filter(self, testing_dag_bundle, session):
+        dag = DAG(
+            dag_id="test_mixed_deadline_filters",
+            schedule=datetime.timedelta(days=1),
+            deadline=[
+                DeadlineAlert(
+                    name=name,
+                    reference=DeadlineReference.DAGRUN_LOGICAL_DATE,
+                    interval=datetime.timedelta(hours=1),
+                    run_type_filter=run_type_filter,
+                    callback=AsyncCallback(empty_callback_for_deadline),
+                )
+                for name, run_type_filter in (
+                    ("scheduled_only", {"scheduled"}),
+                    ("manual_only", {"manual"}),
+                    ("all_types", None),
+                )
+            ],
+        )
+        scheduler_dag = sync_dag_to_db(dag, session=session)
+        alert_ids_by_name = dict(
+            session.execute(
+                select(DeadlineAlertModel.name, DeadlineAlertModel.id)
+                .join(SerializedDagModel)
+                .where(SerializedDagModel.dag_id == dag.dag_id)
+            ).all()
+        )
+
+        dr = scheduler_dag.create_dagrun(
+            run_id="test_mixed_deadline_filters",
+            run_type=DagRunType.MANUAL,
+            state=State.QUEUED,
+            logical_date=TEST_DATE,
+            run_after=TEST_DATE,
+            triggered_by=DagRunTriggeredByType.TEST,
+        )
+        session.flush()
+        dr = session.merge(dr)
+
+        assert len(dr.deadlines) == 2
+        assert {deadline.deadline_alert_id for deadline in dr.deadlines} == {
+            alert_ids_by_name["manual_only"],
+            alert_ids_by_name["all_types"],
+        }
+
+    @pytest.mark.db_test
+    @pytest.mark.need_serialized_dag
+    @mock.patch("airflow.serialization.definitions.dag.resolve_deadline_alert_interval", autospec=True)
+    def test_excluded_deadline_does_not_resolve_variable_interval(
+        self, resolve_interval, testing_dag_bundle, session
+    ):
+        interval = VariableInterval("missing_deadline_interval")
+        dag = DAG(
+            dag_id="test_deadline",
+            schedule=datetime.timedelta(days=1),
+            deadline=DeadlineAlert(
+                reference=DeadlineReference.DAGRUN_LOGICAL_DATE,
+                interval=interval,
+                run_type_filter={"scheduled"},
+                callback=AsyncCallback(empty_callback_for_deadline),
+            ),
+        )
+
+        scheduler_dag = sync_dag_to_db(dag, session=session)
+
+        dr = scheduler_dag.create_dagrun(
+            run_id="test_dagrun_deadline",
+            run_type=DagRunType.BACKFILL_JOB,
+            state=State.QUEUED,
+            logical_date=TEST_DATE,
+            run_after=TEST_DATE,
+            triggered_by=DagRunTriggeredByType.TEST,
+        )
+        session.flush()
+        dr = session.merge(dr)
+
+        assert not dr.deadlines
+        resolve_interval.assert_not_called()
 
     def test_dag_with_multiple_deadlines(self, testing_dag_bundle, session):
         """Test that a Dag with multiple deadlines stores all deadlines and persists on re-serialization."""

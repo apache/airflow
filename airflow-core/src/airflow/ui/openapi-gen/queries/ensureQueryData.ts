@@ -2313,9 +2313,13 @@ export const ensureUseDashboardServiceDagStatsData = (queryClient: QueryClient) 
 *
 * This endpoint allows specifying `~` as the dag_id and dag_run_id to retrieve Deadlines for all
 * Dags and Dag runs.
+*
+* For a specific run, `include_alerts` also returns its creation-version alert
+* definitions, independently of the deadline filters and pagination.
 * @param data The data for the request.
 * @param data.dagId
 * @param data.dagRunId
+* @param data.includeAlerts
 * @param data.limit
 * @param data.offset
 * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, deadline_time, created_at, last_updated_at, missed, dag_id, dag_run_id, alert_name, callback_state, callback_type`
@@ -2332,13 +2336,14 @@ export const ensureUseDashboardServiceDagStatsData = (queryClient: QueryClient) 
 * @returns DeadlineCollectionResponse Successful Response
 * @throws ApiError
 */
-export const ensureUseDeadlinesServiceGetDeadlinesData = (queryClient: QueryClient, { dagId, dagRunId, deadlineTimeGt, deadlineTimeGte, deadlineTimeLt, deadlineTimeLte, lastUpdatedAtGt, lastUpdatedAtGte, lastUpdatedAtLt, lastUpdatedAtLte, limit, missed, offset, orderBy, teams }: {
+export const ensureUseDeadlinesServiceGetDeadlinesData = (queryClient: QueryClient, { dagId, dagRunId, deadlineTimeGt, deadlineTimeGte, deadlineTimeLt, deadlineTimeLte, includeAlerts, lastUpdatedAtGt, lastUpdatedAtGte, lastUpdatedAtLt, lastUpdatedAtLte, limit, missed, offset, orderBy, teams }: {
   dagId: string;
   dagRunId: string;
   deadlineTimeGt?: string;
   deadlineTimeGte?: string;
   deadlineTimeLt?: string;
   deadlineTimeLte?: string;
+  includeAlerts?: boolean;
   lastUpdatedAtGt?: string;
   lastUpdatedAtGte?: string;
   lastUpdatedAtLt?: string;
@@ -2348,10 +2353,10 @@ export const ensureUseDeadlinesServiceGetDeadlinesData = (queryClient: QueryClie
   offset?: number;
   orderBy?: string[];
   teams?: string[];
-}) => queryClient.ensureQueryData({ queryKey: Common.UseDeadlinesServiceGetDeadlinesKeyFn({ dagId, dagRunId, deadlineTimeGt, deadlineTimeGte, deadlineTimeLt, deadlineTimeLte, lastUpdatedAtGt, lastUpdatedAtGte, lastUpdatedAtLt, lastUpdatedAtLte, limit, missed, offset, orderBy, teams }), queryFn: () => DeadlinesService.getDeadlines({ dagId, dagRunId, deadlineTimeGt, deadlineTimeGte, deadlineTimeLt, deadlineTimeLte, lastUpdatedAtGt, lastUpdatedAtGte, lastUpdatedAtLt, lastUpdatedAtLte, limit, missed, offset, orderBy, teams }) });
+}) => queryClient.ensureQueryData({ queryKey: Common.UseDeadlinesServiceGetDeadlinesKeyFn({ dagId, dagRunId, deadlineTimeGt, deadlineTimeGte, deadlineTimeLt, deadlineTimeLte, includeAlerts, lastUpdatedAtGt, lastUpdatedAtGte, lastUpdatedAtLt, lastUpdatedAtLte, limit, missed, offset, orderBy, teams }), queryFn: () => DeadlinesService.getDeadlines({ dagId, dagRunId, deadlineTimeGt, deadlineTimeGte, deadlineTimeLt, deadlineTimeLte, includeAlerts, lastUpdatedAtGt, lastUpdatedAtGte, lastUpdatedAtLt, lastUpdatedAtLte, limit, missed, offset, orderBy, teams }) });
 /**
 * Get Dag Deadline Alerts
-* Get deadline alerts defined on a Dag, optionally filtered by name pattern.
+* Get deadline alerts defined on a Dag, optionally filtered by name pattern and version.
 * @param data The data for the request.
 * @param data.dagId
 * @param data.versionNumber

@@ -19,12 +19,14 @@ from __future__ import annotations
 import logging
 import warnings
 from abc import ABC
+from collections.abc import Collection
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any, overload
 
 import attrs
 
+from airflow.sdk.api.datamodels._generated import DagRunType
 from airflow.sdk.definitions.callback import DEADLINE_CALLBACK_TYPES, AsyncCallback, SyncCallback
 from airflow.sdk.definitions.variable import Variable
 from airflow.sdk.exceptions import AirflowRuntimeError, RemovedInAirflow4Warning
@@ -159,7 +161,7 @@ DeadlineReferenceTypes: TypeAlias = tuple[type[BaseDeadlineReference], ...]
 
 
 class DeadlineAlert:
-    """Store Deadline values needed to calculate the need-by timestamp and the callback information."""
+    """Store the deadline reference, interval, callback, and optional run type filter."""
 
     def __init__(
         self,
@@ -167,6 +169,8 @@ class DeadlineAlert:
         interval: timedelta | VariableInterval,
         callback: AsyncCallback | SyncCallback,
         name: str | None = None,
+        *,
+        run_type_filter: Collection[DagRunType | str] | None = None,
     ):
         if isinstance(interval, (int, float)) and not isinstance(interval, bool):
             # A bare number was never documented or type-hinted, but it parses today because this
@@ -197,6 +201,14 @@ class DeadlineAlert:
                 f"Callbacks must be `AsyncCallback` or `SyncCallback`, received {type(callback).__name__}."
             )
 
+        if isinstance(run_type_filter, str):
+            raise ValueError("run_type_filter must be a collection of run types, not a string.")
+        if run_type_filter is not None and not run_type_filter:
+            raise ValueError("run_type_filter must be None or a collection containing at least one run type.")
+        self.run_type_filter = (
+            None if run_type_filter is None else frozenset(DagRunType(value) for value in run_type_filter)
+        )
+
         self.callback = callback
         self.reference = reference
         self.interval = interval
@@ -209,6 +221,7 @@ class DeadlineAlert:
             isinstance(self.reference, type(other.reference))
             and self.interval == other.interval
             and self.callback == other.callback
+            and self.run_type_filter == other.run_type_filter
         )
 
     def __hash__(self) -> int:
@@ -217,6 +230,7 @@ class DeadlineAlert:
                 type(self.reference).__name__,
                 self.interval,
                 self.callback,
+                self.run_type_filter,
             )
         )
 
