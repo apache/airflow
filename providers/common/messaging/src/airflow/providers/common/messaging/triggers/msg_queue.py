@@ -50,12 +50,14 @@ class MessageQueueTrigger(BaseEventTrigger):
     This makes it easy to switch providers without modifying the trigger.
 
     :param scheme: The queue scheme (e.g., 'kafka', 'redis+pubsub', 'sqs'). Used for provider matching.
-    :param queue: **Deprecated** The queue identifier (URI format). If provided, this takes precedence over scheme parameter.
-        This parameter is deprecated and will be removed in future versions. Use the 'scheme' parameter instead.
-    :param trigger_queue: Assign this trigger to a specific trigger queue (see
+    :param queue: Assign this trigger to a specific trigger queue (see
         :ref:`config:triggerer__queues_enabled` and the ``--queues`` option of ``airflow triggerer``).
-        Named differently from the ``queue`` parameter above, which is the deprecated broker queue URI
-        and cannot be repurposed for triggerer routing without breaking existing callers.
+        If ``scheme`` or ``queue_uri`` is not provided, this parameter is treated as the deprecated
+        broker queue URI for backward compatibility.
+    :param trigger_queue: **Deprecated** Assign this trigger to a specific trigger queue.
+        Deprecated alias for ``queue``. Use ``queue`` instead.
+    :param queue_uri: **Deprecated** The queue identifier (URI format). If provided, this takes precedence over scheme parameter.
+        This parameter is deprecated and will be removed in future versions. Use the 'scheme' parameter instead.
 
     .. seealso::
         For more information on how to use this trigger, take a look at the guide:
@@ -68,20 +70,55 @@ class MessageQueueTrigger(BaseEventTrigger):
     def __init__(
         self,
         *,
-        queue: str | None = None,
         scheme: str | None = None,
+        queue: str | None = None,
         trigger_queue: str | None = None,
+        queue_uri: str | None = None,
         **kwargs: Any,
     ) -> None:
-        # Stored under our own name rather than through `BaseEventTrigger.__init__(queue=...)` so this
-        # works regardless of the installed airflow-core version, see `queue` property below.
-        self._trigger_queue = trigger_queue
+        if trigger_queue is not None:
+            warnings.warn(
+                "The `trigger_queue` parameter is deprecated and will be removed in a future version. "
+                "Use `queue` instead to assign this trigger to a trigger queue.",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
 
-        if queue is None and scheme is None:
-            raise ValueError("Either `queue` or `scheme` parameter must be provided.")
+        if queue_uri is not None:
+            warnings.warn(
+                "The `queue_uri` parameter is deprecated and will be removed in future versions. "
+                "Use the `scheme` parameter instead and pass configuration as keyword arguments to `MessageQueueTrigger`.",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
 
-        # For backward compatibility, queue takes precedence
-        if queue is not None:
+        # Determine whether `queue` represents the trigger queue or the legacy broker queue URI.
+        # When `scheme` or `queue_uri` is explicitly provided, `queue` is the trigger queue.
+        # When neither is provided, `queue` is treated as the legacy broker queue URI for backward compatibility.
+        if scheme is not None and queue_uri is None and queue is not None and "://" in queue:
+            # Existing callers passing the broker URI as `queue` next to `scheme` used to get URI
+            # matching; keep that instead of routing to a trigger queue named after the URI.
+            warnings.warn(
+                "Passing the broker queue URI as `queue` is deprecated, use `scheme` instead.",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
+            queue_uri, queue = queue, None
+        if scheme is not None or queue_uri is not None:
+            if queue is not None and trigger_queue is not None:
+                raise ValueError(
+                    "Cannot provide both `queue` and deprecated `trigger_queue`. For more details on "
+                    "trigger queues, see: "
+                    "https://airflow.apache.org/docs/apache-airflow/stable/authoring-and-scheduling/deferring.html#controlling-triggerer-host-assignment-per-trigger"
+                )
+            self._trigger_queue = queue if queue is not None else trigger_queue
+            if queue_uri is not None:
+                self.queue_uri = queue_uri
+                self.scheme = None
+            else:
+                self.queue_uri = None
+                self.scheme = scheme
+        elif queue is not None:
             warnings.warn(
                 "The `queue` parameter is deprecated and will be removed in future versions. "
                 "Use the `scheme` parameter instead and pass configuration as keyword arguments to `MessageQueueTrigger`.",
@@ -90,9 +127,13 @@ class MessageQueueTrigger(BaseEventTrigger):
             )
             self.queue_uri = queue
             self.scheme = None
+            self._trigger_queue = trigger_queue
         else:
-            self.queue_uri = None
-            self.scheme = scheme
+            raise ValueError(
+                "Either `queue` or `scheme` parameter must be provided. For more details on "
+                "trigger queues, see: "
+                "https://airflow.apache.org/docs/apache-airflow/stable/authoring-and-scheduling/deferring.html#controlling-triggerer-host-assignment-per-trigger"
+            )
 
         self.kwargs = kwargs
 
