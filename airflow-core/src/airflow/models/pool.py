@@ -33,6 +33,7 @@ from airflow.utils.sqlalchemy import with_row_locks
 from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession
     from sqlalchemy.orm.session import Session
     from sqlalchemy.sql import Select
 
@@ -391,6 +392,10 @@ class Pool(Base):
     def get_team_name(pool_name: str, *, session: Session = NEW_SESSION) -> str | None:
         stmt = select(Pool.team_name).where(Pool.pool == pool_name)
         return session.scalar(stmt)
+
+    @staticmethod
+    async def get_team_name_async(pool_name: str, *, session: AsyncSession) -> str | None:
+        return await session.scalar(select(Pool.team_name).where(Pool.pool == pool_name))
 
     @staticmethod
     @provide_session

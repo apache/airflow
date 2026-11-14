@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 import posixpath
-from collections.abc import Callable, Coroutine
+from collections.abc import Awaitable, Callable, Coroutine
 from contextlib import suppress
 from typing import TYPE_CHECKING, Annotated, Any, Literal, cast
 from urllib.parse import ParseResult, unquote, urljoin, urlparse
@@ -83,6 +83,7 @@ from airflow.models.taskinstance import TaskInstance as TI
 from airflow.models.team import Team, dag_bundle_team_association_table
 from airflow.models.trigger import Trigger
 from airflow.models.xcom import XComModel
+from airflow.utils.session import create_session_async
 
 if TYPE_CHECKING:
     from sqlalchemy.sql import Select
@@ -706,7 +707,7 @@ def requires_access_pool(method: ResourceMethod) -> Callable[[Request, BaseUser]
         user: GetUserDep,
     ) -> None:
         pool_name = request.path_params.get("pool_name")
-        for team_name in await _collect_teams_to_check(method, request, pool_name, Pool.get_team_name):
+        for team_name in await _collect_teams_to_check(method, request, pool_name, Pool.get_team_name_async):
 
             def _callback(tn: str | None = team_name) -> bool:
                 return get_auth_manager().is_authorized_pool(
@@ -813,7 +814,7 @@ def requires_access_connection(
     ) -> None:
         connection_id = request.path_params.get("connection_id")
         for team_name in await _collect_teams_to_check(
-            method, request, connection_id, Connection.get_team_name
+            method, request, connection_id, Connection.get_team_name_async
         ):
 
             def _callback(tn: str | None = team_name) -> bool:
@@ -967,7 +968,9 @@ def requires_access_variable(
         user: GetUserDep,
     ) -> None:
         variable_key: str | None = request.path_params.get("variable_key")
-        for team_name in await _collect_teams_to_check(method, request, variable_key, Variable.get_team_name):
+        for team_name in await _collect_teams_to_check(
+            method, request, variable_key, Variable.get_team_name_async
+        ):
 
             def _callback(tn: str | None = team_name) -> bool:
                 return get_auth_manager().is_authorized_variable(
@@ -1415,14 +1418,18 @@ async def _collect_teams_to_check(
     method: ResourceMethod,
     request: Request,
     resource_id: str | None,
-    get_existing_team: Callable[[str], str | None],
+    get_existing_team: Callable[..., Awaitable[str | None]],
 ) -> set[str | None]:
     """Collect validated team names from existing resource (DB) and/or request body."""
     if not conf.getboolean("core", "multi_team"):
         return {None}
     teams: set[str | None] = set()
     if method != "POST":
-        teams.add(get_existing_team(resource_id) if resource_id else None)
+        existing_team = None
+        if resource_id:
+            async with create_session_async() as session:
+                existing_team = await get_existing_team(resource_id, session=session)
+        teams.add(existing_team)
     if method in ("POST", "PUT"):
         body: Any = None
         # ``POST /connections/defaults`` declares no body model, so FastAPI parses nothing for it
@@ -1448,11 +1455,14 @@ async def _collect_teams_to_check(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="'team_name' must be a string",
             )
-        if raw and not Team.get_name_if_exists(raw):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Team {raw!r} does not exist",
-            )
+        if raw:
+            async with create_session_async() as session:
+                team_exists = await Team.get_name_if_exists_async(raw, session=session)
+            if not team_exists:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Team {raw!r} does not exist",
+                )
         teams.add(raw)
     return teams
 
