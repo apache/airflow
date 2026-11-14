@@ -26,8 +26,8 @@ import pytest
 from fastapi import Request
 from fastapi.testclient import TestClient
 from sqlalchemy import Select, delete, event, select
+from sqlalchemy.orm import Session
 
-from airflow import settings
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.app import cached_app
 from airflow.api_fastapi.execution_api.datamodels.token import TIClaims, TIToken
@@ -40,7 +40,7 @@ from airflow.utils.session import create_session
 from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
-    from sqlalchemy.orm import Session
+    from sqlalchemy.ext.asyncio import AsyncEngine
 
     from tests_common.pytest_plugin import CreateTaskInstance
 
@@ -79,6 +79,35 @@ def test_task_uuid_isolates_state_in_different_regions(client, create_task_insta
     assert client.delete(_api_url(second.id, None if clear_all else "key")).status_code == 204
     assert client.get(_api_url(second.id, "key")).status_code == 404
     assert client.get(_api_url(first.id, "key")).json() == {"value": "first"}
+
+
+@pytest.mark.parametrize(
+    ("method", "key", "kwargs", "expected_status"),
+    [
+        pytest.param("get", "job_id", {}, 200, id="get"),
+        pytest.param("put", "job_id", {"json": {"value": "new"}}, 204, id="put"),
+        pytest.param("delete", "job_id", {}, 204, id="delete"),
+        pytest.param("delete", None, {}, 204, id="clear"),
+    ],
+)
+def test_routes_select_columns_without_loading_entities(
+    client, create_task_instance, method, key, kwargs, expected_status
+):
+    ti = create_task_instance()
+    assert client.put(_api_url(ti.id, "job_id"), json={"value": "stored"}).status_code == 204
+    loaded = []
+
+    def record(_, instance):
+        loaded.append(type(instance).__name__)
+
+    event.listen(Session, "loaded_as_persistent", record)
+    try:
+        response = getattr(client, method)(_api_url(ti.id, key), **kwargs)
+    finally:
+        event.remove(Session, "loaded_as_persistent", record)
+
+    assert response.status_code == expected_status
+    assert loaded == []
 
 
 class TestGetTaskState:
@@ -279,7 +308,11 @@ class TestPutTaskState:
         assert response.status_code == 404
 
     def test_put_dagrun_deleted_after_scope_lookup_returns_404(
-        self, client: TestClient, session: Session, create_task_instance: CreateTaskInstance
+        self,
+        client: TestClient,
+        session: Session,
+        create_task_instance: CreateTaskInstance,
+        async_db_engine: AsyncEngine,
     ):
         ti = create_task_instance()
         dag_run_id = ti.dag_run.id
@@ -298,11 +331,12 @@ class TestPutTaskState:
             with create_session(scoped=False) as cleanup_session:
                 cleanup_session.execute(delete(DagRun).where(DagRun.id == dag_run_id))
 
-        event.listen(settings.engine, "before_execute", delete_run_before_lookup)
+        sync_engine = async_db_engine.sync_engine
+        event.listen(sync_engine, "before_execute", delete_run_before_lookup)
         try:
             response = client.put(_api_url(ti.id, "job_id"), json={"value": "spark_001"})
         finally:
-            event.remove(settings.engine, "before_execute", delete_run_before_lookup)
+            event.remove(sync_engine, "before_execute", delete_run_before_lookup)
 
         assert deleted
         assert response.status_code == 404

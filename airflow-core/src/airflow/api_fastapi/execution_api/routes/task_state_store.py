@@ -22,10 +22,11 @@ from uuid import UUID
 
 from cadwyn import VersionedAPIRouter
 from fastapi import HTTPException, Path, Security, status
-from sqlalchemy.orm import Session
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from airflow._shared.state import TaskScope
-from airflow.api_fastapi.common.db.common import SessionDep
+from airflow.api_fastapi.common.db.common import AsyncSessionDep
 from airflow.api_fastapi.execution_api.datamodels.task_state_store import (
     TaskStateStorePutBody,
     TaskStateStoreResponse,
@@ -47,9 +48,15 @@ router = VersionedAPIRouter(
 )
 
 
-def _get_task_scope_for_ti(task_instance_id: UUID, session: Session) -> TaskScope:
-    ti = session.get(TI, task_instance_id)
-    if ti is None or ti.working_set is not True:
+async def _get_task_scope_for_ti(task_instance_id: UUID, session: AsyncSession) -> TaskScope:
+    row = (
+        await session.execute(
+            select(TI.dag_id, TI.run_id, TI.task_id, TI.region_index, TI.region_id).where(
+                TI.id == task_instance_id, TI.working_set.is_(True)
+            )
+        )
+    ).one_or_none()
+    if row is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail={
@@ -57,24 +64,25 @@ def _get_task_scope_for_ti(task_instance_id: UUID, session: Session) -> TaskScop
                 "message": f"Task instance {task_instance_id} not found",
             },
         )
+    dag_id, run_id, task_id, region_index, region_id = row
     return TaskScope(
-        dag_id=ti.dag_id,
-        run_id=ti.run_id,
-        task_id=ti.task_id,
-        map_index=ti.region_index,
-        region_id=ti.region_id,
+        dag_id=dag_id,
+        run_id=run_id,
+        task_id=task_id,
+        map_index=region_index,
+        region_id=region_id,
     )
 
 
 @router.get("/{task_instance_id}/{key:path}")
-def get_task_state_store(
+async def get_task_state_store(
     task_instance_id: UUID,
     key: Annotated[str, Path(min_length=1)],
-    session: SessionDep,
+    session: AsyncSessionDep,
 ) -> TaskStateStoreResponse:
     """Get value for a task state store key."""
-    scope = _get_task_scope_for_ti(task_instance_id, session)
-    if (value := get_state_backend().get_value(scope, key, session=session)) is None:
+    scope = await _get_task_scope_for_ti(task_instance_id, session)
+    if (value := await get_state_backend().aget_value(scope, key, session=session)) is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail={
@@ -86,16 +94,16 @@ def get_task_state_store(
 
 
 @router.put("/{task_instance_id}/{key:path}", status_code=status.HTTP_204_NO_CONTENT)
-def set_task_state_store(
+async def set_task_state_store(
     task_instance_id: UUID,
     key: Annotated[str, Path(min_length=1)],
     body: TaskStateStorePutBody,
-    session: SessionDep,
+    session: AsyncSessionDep,
 ) -> None:
     """Set a task state store key, creating or updating the row."""
-    scope = _get_task_scope_for_ti(task_instance_id, session)
+    scope = await _get_task_scope_for_ti(task_instance_id, session)
     try:
-        get_state_backend().set(
+        await get_state_backend().aset(
             scope, key, json.dumps(body.value), expires_at=body.expires_at, session=session
         )
     except DagRunNotFound as e:
@@ -111,21 +119,21 @@ def set_task_state_store(
 
 
 @router.delete("/{task_instance_id}/{key:path}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_task_state_store(
+async def delete_task_state_store(
     task_instance_id: UUID,
     key: Annotated[str, Path(min_length=1)],
-    session: SessionDep,
+    session: AsyncSessionDep,
 ) -> None:
     """Delete a single task state store key."""
-    scope = _get_task_scope_for_ti(task_instance_id, session)
-    get_state_backend().delete(scope, key, session=session)
+    scope = await _get_task_scope_for_ti(task_instance_id, session)
+    await get_state_backend().adelete(scope, key, session=session)
 
 
 @router.delete("/{task_instance_id}", status_code=status.HTTP_204_NO_CONTENT)
-def clear_task_state_store(
+async def clear_task_state_store(
     task_instance_id: UUID,
-    session: SessionDep,
+    session: AsyncSessionDep,
 ) -> None:
     """Delete all task state store keys for this task instance."""
-    scope = _get_task_scope_for_ti(task_instance_id, session)
-    get_state_backend().clear(scope, session=session)
+    scope = await _get_task_scope_for_ti(task_instance_id, session)
+    await get_state_backend().aclear(scope, session=session)
