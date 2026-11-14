@@ -155,6 +155,19 @@ class Param:
         )
 
 
+def _check_dependent_option(name: str, schema: Mapping[str, Any], values: Mapping[str, Any]) -> None:
+    """Raise if the value of a param with ``depends_on`` is not an option for the value of its parent."""
+    parent = schema.get("depends_on")
+    if parent is None or values[name] is None:
+        return
+    if parent not in values:
+        raise ParamValidationError(f"depends_on names {parent!r}, which is not a param")
+    # Match the serialized Dag, which stores the keys of options_map with str()
+    options = {str(k): v for k, v in schema.get("options_map", {}).items()}
+    if values[name] not in options.get(str(values[parent]), []):
+        raise ParamValidationError(f"{values[name]!r} is not an option for {parent}={values[parent]!r}")
+
+
 class ParamsDict(MutableMapping[str, Any]):
     """
     Class to hold all params for dags or tasks.
@@ -264,6 +277,13 @@ class ParamsDict(MutableMapping[str, Any]):
         try:
             for k, v in self.items():
                 resolved_dict[k] = v.resolve(suppress_exception=self.suppress_exception)
+            for k, v in self.items():
+                try:
+                    _check_dependent_option(k, v.schema, resolved_dict)
+                except ParamValidationError:
+                    if not self.suppress_exception:
+                        raise
+                    resolved_dict[k] = None
         except ParamValidationError as ve:
             raise ParamValidationError(f"Invalid input for param {k}: {ve}") from None
 
