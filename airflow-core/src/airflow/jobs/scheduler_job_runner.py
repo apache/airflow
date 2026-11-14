@@ -422,6 +422,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         # tick.
         self._partition_unreachable_seen: set[tuple[str, str, str]] = set()
 
+        # Dags whose ``exceeds_max_non_backfill`` flag could not be written because another
+        # transaction held the ``dag`` row; the flag is recomputed for them on the next loop.
+        self._dags_pending_max_active_runs_refresh: set[str] = set()
+
     @provide_session
     def heartbeat_callback(self, *, session: Session = NEW_SESSION) -> None:
         stats.incr("scheduler_heartbeat", 1, 1)
@@ -2261,6 +2265,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         """
         # Put a check in place to make sure we don't commit unexpectedly
         with prohibit_commit(session) as guard:
+            self._refresh_pending_exceeds_max_active_runs(session=session)
+
             if self._scheduler_use_job_schedule:
                 self._create_dagruns_for_dags(guard, session)
 
@@ -4730,7 +4736,46 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             )
             active_non_backfill_runs = runs_dict.get(dag_model.dag_id, 0)
 
-        dag_model.exceeds_max_non_backfill = active_non_backfill_runs >= (dag_model.max_active_runs or 0)
+        exceeds = active_non_backfill_runs >= (dag_model.max_active_runs or 0)
+        if dag_model.exceeds_max_non_backfill == exceeds:
+            self._dags_pending_max_active_runs_refresh.discard(dag_model.dag_id)
+            return
+
+        # The Dag processor locks the ``dag`` rows of a file for its whole parse transaction,
+        # which can take minutes for a file that generates many Dags. Waiting for that lock here
+        # would stall the scheduling loop, so skip the write and retry it on the next loop.
+        locked_dag_id = session.scalar(
+            with_row_locks(
+                select(DagModel.dag_id).where(DagModel.dag_id == dag_model.dag_id),
+                of=DagModel,
+                session=session,
+                skip_locked=True,
+            )
+        )
+        if locked_dag_id is None:
+            self.log.debug(
+                "Dag row is locked by another transaction; deferring exceeds_max_non_backfill update",
+                dag_id=dag_model.dag_id,
+            )
+            self._dags_pending_max_active_runs_refresh.add(dag_model.dag_id)
+            return
+
+        dag_model.exceeds_max_non_backfill = exceeds
+        self._dags_pending_max_active_runs_refresh.discard(dag_model.dag_id)
+
+    def _refresh_pending_exceeds_max_active_runs(self, *, session: Session) -> None:
+        """Recompute ``exceeds_max_non_backfill`` for Dags whose earlier update was deferred."""
+        if not self._dags_pending_max_active_runs_refresh:
+            return
+        dag_ids = sorted(self._dags_pending_max_active_runs_refresh)
+        self._dags_pending_max_active_runs_refresh.difference_update(dag_ids)
+        active_runs = DagRun.active_runs_of_dags(dag_ids=dag_ids, exclude_backfill=True, session=session)
+        for dag_model in session.scalars(select(DagModel).where(DagModel.dag_id.in_(dag_ids))):
+            self._set_exceeds_max_active_runs(
+                dag_model=dag_model,
+                active_non_backfill_runs=active_runs.get(dag_model.dag_id, 0),
+                session=session,
+            )
 
 
 # Backcompat for older versions of task sdk import SchedulerDagBag from here
