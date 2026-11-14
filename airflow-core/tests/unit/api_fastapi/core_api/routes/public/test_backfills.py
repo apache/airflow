@@ -24,13 +24,13 @@ from unittest import mock
 import pendulum
 import pytest
 from sqlalchemy import and_, func, select, update
-from sqlalchemy.exc import OperationalError, ProgrammingError
+from sqlalchemy.exc import OperationalError
 
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.auth.managers.models.resource_details import DagDetails
 from airflow.api_fastapi.auth.managers.simple.user import SimpleAuthManagerUser
 from airflow.dag_processing.dagbag import DagBag
-from airflow.models import DagModel, DagRun, TaskInstance
+from airflow.models import DagModel, DagRun
 from airflow.models.backfill import (
     Backfill,
     BackfillDagRun,
@@ -45,7 +45,6 @@ from airflow.providers.standard.operators.python import PythonOperator
 from airflow.sdk import CronPartitionTimetable
 from airflow.utils.session import provide_session
 from airflow.utils.state import DagRunState, DagSchedulingState
-from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.db import (
@@ -694,164 +693,38 @@ class TestCreateBackfill(TestBackfillEndpoint):
         assert response.status_code == 503
         assert "database is locked" in response.json()["detail"].lower()
 
-    def test_create_backfill_cleans_up_orphan_on_lock_error(self, session, dag_maker):
-        """The partial Backfill row is removed when the cleanup runs after a lock error."""
-        from airflow.models.backfill import Backfill, _cleanup_partial_backfill
-
-        with dag_maker(session=session, dag_id="TEST_DAG_CLEANUP", schedule="0 * * * *") as dag:
+    def test_create_backfill_failed_creation_leaves_no_rows(self, session, dag_maker, test_client):
+        """A failure during run creation rolls the whole creation back; nothing partial remains."""
+        with dag_maker(session=session, dag_id="TEST_DAG_ATOMIC", schedule="0 * * * *") as dag:
             EmptyOperator(task_id="mytask")
         session.commit()
 
-        bf = Backfill(
-            dag_id=dag.dag_id,
-            from_date=pendulum.parse("2024-01-01"),
-            to_date=pendulum.parse("2024-02-01"),
-            max_active_runs=5,
-            dag_run_conf={},
-            reprocess_behavior="none",
-            dag_model=dag,
-            triggering_user_name="test",
-        )
-        session.add(bf)
-        session.commit()
-        bf_id = bf.id
+        data = {
+            "dag_id": dag.dag_id,
+            "from_date": to_iso(pendulum.parse("2024-01-01")),
+            "to_date": to_iso(pendulum.parse("2024-02-01")),
+            "max_active_runs": 5,
+            "run_backwards": False,
+            "dag_run_conf": {},
+        }
+        with (
+            mock.patch(
+                "airflow.models.backfill._create_runs_non_partitioned",
+                side_effect=RuntimeError("run creation failed"),
+            ),
+            pytest.raises(RuntimeError, match="run creation failed"),
+        ):
+            test_client.post("/backfills", json=data)
 
-        assert session.scalar(select(func.count()).select_from(Backfill).where(Backfill.id == bf_id)) == 1
-
-        _cleanup_partial_backfill(bf, session)
-
-        assert session.scalar(select(func.count()).select_from(Backfill).where(Backfill.id == bf_id)) == 0
-
-    def test_create_backfill_cleans_up_after_failed_transaction(self, session, dag_maker):
-        """The cleanup works when the session is in a deactivated state.
-
-        Mirrors the real flow inside ``_create_backfill`` after an
-        ``OperationalError``: SQLAlchemy deactivates the session until
-        an explicit ``rollback()``. The cleanup must call it before any
-        further operation; without that, ``session.execute()`` raises
-        ``InvalidRequestError`` and the cleanup is a silent no-op.
-        """
-        from sqlalchemy import text
-
-        from airflow.models.backfill import Backfill, _cleanup_partial_backfill
-
-        with dag_maker(session=session, dag_id="TEST_DAG_CLEANUP_DEACT", schedule="0 * * * *") as dag:
-            EmptyOperator(task_id="mytask")
-        session.commit()
-
-        bf = Backfill(
-            dag_id=dag.dag_id,
-            from_date=pendulum.parse("2024-01-01"),
-            to_date=pendulum.parse("2024-02-01"),
-            max_active_runs=5,
-            dag_run_conf={},
-            reprocess_behavior="none",
-            dag_model=dag,
-            triggering_user_name="test",
-        )
-        session.add(bf)
-        session.commit()
-        bf_id = bf.id
-
-        # Force the session into a deactivated state (same shape as after
-        # a failed flush). SQLite raises OperationalError; Postgres/MySQL raise ProgrammingError.
-        with pytest.raises((OperationalError, ProgrammingError)):
-            session.execute(text("INVALID SQL STATEMENT"))
-
-        _cleanup_partial_backfill(bf, session)
-
-        assert session.scalar(select(func.count()).select_from(Backfill).where(Backfill.id == bf_id)) == 0
-
-    def test_create_backfill_cleanup_removes_partial_dag_runs(self, session, dag_maker):
-        """Cleanup removes partial DagRuns, TIs, and BackfillDagRun rows alongside the Backfill."""
-        from airflow.models.backfill import _cleanup_partial_backfill
-
-        with dag_maker(session=session, dag_id="TEST_DAG_CLEANUP_DR", schedule="0 * * * *") as dag:
-            EmptyOperator(task_id="mytask")
-        session.commit()
-
-        bf = Backfill(
-            dag_id=dag.dag_id,
-            from_date=pendulum.parse("2024-01-01"),
-            to_date=pendulum.parse("2024-02-01"),
-            max_active_runs=5,
-            dag_run_conf={},
-            reprocess_behavior="none",
-            dag_model=dag,
-            triggering_user_name="test",
-        )
-        session.add(bf)
-        session.commit()
-
-        dr1 = dag_maker.create_dagrun(
-            logical_date=pendulum.parse("2024-01-01"),
-            run_type=DagRunType.BACKFILL_JOB,
-            backfill_id=bf.id,
-            state=DagRunState.QUEUED,
-        )
-        session.add(
-            BackfillDagRun(
-                backfill_id=bf.id,
-                dag_run_id=dr1.id,
-                logical_date=pendulum.parse("2024-01-01"),
-                sort_ordinal=1,
-            )
-        )
-
-        dr2 = dag_maker.create_dagrun(
-            logical_date=pendulum.parse("2024-01-02"),
-            run_type=DagRunType.BACKFILL_JOB,
-            backfill_id=bf.id,
-            state=DagRunState.QUEUED,
-        )
-        session.add(
-            BackfillDagRun(
-                backfill_id=bf.id,
-                dag_run_id=dr2.id,
-                logical_date=pendulum.parse("2024-01-02"),
-                sort_ordinal=2,
-            )
-        )
-        session.commit()
-
-        bf_id = bf.id
-        dr1_id = dr1.id
-        dr2_id = dr2.id
-        run_ids = [dr1.run_id, dr2.run_id]
-
-        assert session.scalar(select(func.count()).select_from(Backfill).where(Backfill.id == bf_id)) == 1
-        assert session.scalar(select(func.count()).select_from(DagRun).where(DagRun.id == dr1_id)) == 1
-        assert session.scalar(select(func.count()).select_from(DagRun).where(DagRun.id == dr2_id)) == 1
+        session.expire_all()
         assert (
-            session.scalar(
-                select(func.count()).select_from(BackfillDagRun).where(BackfillDagRun.backfill_id == bf_id)
-            )
-            == 2
-        )
-        assert (
-            session.scalar(
-                select(func.count()).select_from(TaskInstance).where(TaskInstance.run_id.in_(run_ids))
-            )
-            >= 2
-        )
-
-        _cleanup_partial_backfill(bf, session)
-
-        assert session.scalar(select(func.count()).select_from(Backfill).where(Backfill.id == bf_id)) == 0
-        assert session.scalar(select(func.count()).select_from(DagRun).where(DagRun.id == dr1_id)) == 0
-        assert session.scalar(select(func.count()).select_from(DagRun).where(DagRun.id == dr2_id)) == 0
-        assert (
-            session.scalar(
-                select(func.count()).select_from(BackfillDagRun).where(BackfillDagRun.backfill_id == bf_id)
-            )
+            session.scalar(select(func.count()).select_from(Backfill).where(Backfill.dag_id == dag.dag_id))
             == 0
         )
         assert (
-            session.scalar(
-                select(func.count()).select_from(TaskInstance).where(TaskInstance.run_id.in_(run_ids))
-            )
-            == 0
+            session.scalar(select(func.count()).select_from(DagRun).where(DagRun.dag_id == dag.dag_id)) == 0
         )
+        assert session.scalar(select(func.count()).select_from(BackfillDagRun)) == 0
 
     @pytest.mark.parametrize(
         "run_backwards",
