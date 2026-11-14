@@ -34,6 +34,10 @@ STOP = ["sudo", "timeout", "60", "systemctl", "stop", "docker.socket", "docker"]
 START = ["sudo", "timeout", "60", "systemctl", "start", "docker"]
 REMOVE_STORE = ["sudo", "rm", "-rf", "/var/lib/docker/image", "/var/lib/docker/overlay2"]
 TREE = hashlib.sha256(b"/ d 755\n/tmp d 1777\n").hexdigest()
+needs_gnu_find = pytest.mark.skipif(
+    subprocess.run(["find", "--version"], capture_output=True, check=False).returncode != 0,
+    reason="Needs GNU find, which the image and the CI runners have",
+)
 
 
 @pytest.fixture
@@ -78,6 +82,15 @@ if [[ "${name}" == "docker" ]]; then
             if [[ "${RUN_EXIT:-0}" != 0 ]]; then
                 exit "${RUN_EXIT}"
             fi
+            if [[ -n "${IMAGE_ROOT:-}" ]]; then
+                # Runs the script's find expression with IMAGE_ROOT in place of the container's /.
+                args=()
+                for arg in "${@:11}"; do
+                    [[ "${arg}" == /* ]] && arg="${IMAGE_ROOT}${arg}"
+                    args+=("${arg}")
+                done
+                exec find "${IMAGE_ROOT}/" "${args[@]}"
+            fi
             printf '%b' "${TREE_LISTING:-/tmp d 1777\\n/ d 755\\n}"
             ;;
     esac
@@ -100,6 +113,19 @@ def snapshot(tmp_path):
     snapshot_file.write_bytes(b"")
     Path(f"{snapshot_file}.meta").write_text(f"{FINGERPRINT} sha256:abc123 revision1 {TREE}\n")
     return snapshot_file
+
+
+@pytest.fixture
+def image_root(tmp_path):
+    """Stands in for the container's /, so the script's real find expression has a tree to walk."""
+    root = tmp_path / "rootfs"
+    (root / "etc").mkdir(parents=True)
+    (root / "etc" / "hostname").write_text("abcdef123456\n")
+    (root / "etc" / "hosts").write_text("127.0.0.1\tlocalhost\n")
+    (root / "etc" / "resolv.conf").write_text("nameserver 168.63.129.16\n")
+    (root / "usr").mkdir()
+    (root / "usr" / "file").write_text("content\n")
+    return root
 
 
 def run_script(env, *args):
@@ -197,11 +223,67 @@ def test_restore_empties_store_again_when_image_does_not_match(fake_tools, snaps
     result = run_script({**fake_tools, **env}, "restore", str(snapshot))
 
     assert result.returncode == 4
+    assert "::warning::" in result.stdout
     commands = read_commands(fake_tools)
     start = commands.index(START)
     after_start = commands[start + 1 :]
     assert REMOVE_STORE in after_start
     assert after_start[-1] == START
+
+
+def leave_directory_larger(root):
+    directory = root / "usr"
+    size = directory.stat().st_size
+    entries = [directory / f"temporary-{i}" for i in range(2000)]
+    for entry in entries:
+        entry.touch()
+    for entry in entries:
+        entry.unlink()
+    if directory.stat().st_size == size:
+        pytest.skip("This filesystem shrinks a directory when its entries are deleted")
+
+
+def change_group(path):
+    group = next((gid for gid in os.getgroups() if gid != path.stat().st_gid), None)
+    if group is None:
+        pytest.skip("Changing the group needs a user with a second group")
+    os.chown(path, -1, group)
+
+
+@needs_gnu_find
+@pytest.mark.parametrize(
+    ("change", "expected_exit"),
+    [
+        pytest.param(leave_directory_larger, 0, id="directory-size"),
+        pytest.param(
+            lambda root: (root / "etc" / "hostname").write_text("a longer hostname\n"), 0, id="hostname"
+        ),
+        pytest.param(
+            lambda root: (root / "etc" / "hosts").write_text("127.0.0.1 localhost a\n"), 0, id="hosts"
+        ),
+        pytest.param(
+            lambda root: (root / "etc" / "resolv.conf").write_text("nameserver 1.1.1.1\nsearch a.internal\n"),
+            0,
+            id="resolv-conf",
+        ),
+        pytest.param(lambda root: (root / "usr" / "file").write_text("cont"), 4, id="truncated-file"),
+        pytest.param(lambda root: change_group(root / "usr" / "file"), 4, id="file-group"),
+        pytest.param(lambda root: change_group(root / "usr"), 4, id="directory-group"),
+    ],
+)
+def test_restore_compares_only_what_the_image_decides(
+    fake_tools, tmp_path, image_root, change, expected_exit
+):
+    snapshot_file = tmp_path / "snapshot.tar.zst"
+    env = {**fake_tools, "IMAGE_ROOT": str(image_root), "CI_IMAGES": "abc123"}
+    created = run_script(env, "create", str(snapshot_file))
+    assert created.returncode == 0, created.stdout + created.stderr
+    snapshot_file.write_bytes(b"")
+
+    change(image_root)
+    result = run_script(env, "restore", str(snapshot_file))
+
+    assert result.returncode == expected_exit, result.stdout + result.stderr
 
 
 def test_create_keeps_only_the_ci_image(fake_tools, tmp_path):
