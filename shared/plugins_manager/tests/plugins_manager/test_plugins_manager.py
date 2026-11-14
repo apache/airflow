@@ -24,6 +24,7 @@ from unittest import mock
 
 import pytest
 
+from airflow_shared.module_loading import _get_grouped_entry_points
 from airflow_shared.plugins_manager import (
     AirflowPlugin,
     EntryPointSource,
@@ -41,8 +42,12 @@ def mock_metadata_distribution(mocker):
         else:
             patch_fq = "importlib.metadata.distributions"
 
-        with mock.patch(patch_fq, *args, **kwargs) as m:
-            yield m
+        _get_grouped_entry_points.cache_clear()
+        try:
+            with mock.patch(patch_fq, *args, **kwargs) as m:
+                yield m
+        finally:
+            _get_grouped_entry_points.cache_clear()
 
     return wrapper
 
@@ -87,6 +92,7 @@ class TestPluginsManager:
         """
         mock_dist = mock.Mock()
         mock_dist.metadata = {"Name": "test-dist"}
+        mock_dist._normalized_name = "test_dist"
 
         mock_entrypoint = mock.Mock()
         mock_entrypoint.name = "test-entrypoint"
