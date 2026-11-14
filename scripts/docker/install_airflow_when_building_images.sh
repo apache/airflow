@@ -33,12 +33,126 @@
 # INSTALL_LOCKED_THIRD_PARTY_ONLY - if "true", only the third-party dependencies locked in uv.lock are installed
 #                                   from sources (--no-install-workspace), so only the pyproject.toml files
 #                                   and uv.lock are needed. When a frozen dry run shows that uv.lock does not
-#                                   match them, or for upgrade builds, nothing is installed; any other
-#                                   failure fails. The steps that need the workspace packages are skipped.
+#                                   match them, for upgrade builds, or when providers are excluded for the
+#                                   image Python version, nothing is installed; any other failure fails.
+#                                   The steps that need the workspace packages are skipped.
 #
 # shellcheck shell=bash disable=SC2086
 # shellcheck source=scripts/docker/common.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/common.sh"
+
+function has_providers_excluded_for_python() {
+    local status
+    # The helper evaluates the providers' requires-python against the interpreter running it, which is
+    # the image's own; the AIRFLOW_PYTHON_VERSION build argument may be empty or name only the minor.
+    python3 "$( dirname "${BASH_SOURCE[0]}" )/filter_ci_install_set.py" --root "${PWD}" --probe
+    status=$?
+    # 0 and 10 are the probe's two answers. Anything else is the probe itself failing, and must not
+    # read as "nothing is excluded" - that would silently install the set this whole path avoids.
+    case "${status}" in
+        0) return 0 ;;
+        10) return 1 ;;
+        *)
+            echo
+            echo "${COLOR_RED}Could not determine excluded providers (exit ${status}).${COLOR_RESET}"
+            echo
+            exit "${status}"
+            ;;
+    esac
+}
+
+# uv sync --all-packages installs every workspace member, including providers excluded for this Python
+# version and the third-party packages only they reach. Exporting the lock for the members that are kept
+# installs the same pins without them: uv emits their closure with the hashes and the markers that
+# already encode each provider's exclusions, so no second resolution runs and the install cannot drift
+# from uv.lock.
+function prepare_filtered_install_set() {
+    local kept_package
+    local -a kept_packages=()
+    local -a package_args=()
+    python3 "$( dirname "${BASH_SOURCE[0]}" )/filter_ci_install_set.py" --root "${PWD}" \
+        --packages "${work_dir}/packages.txt" --editables "${work_dir}/editables.txt"
+    mapfile -t kept_packages < "${work_dir}/packages.txt"
+    for kept_package in "${kept_packages[@]}"; do
+        package_args+=(--package "${kept_package}")
+    done
+    uv export --frozen "${package_args[@]}" --group ci-image --no-emit-workspace \
+        --output-file "${work_dir}/requirements.txt"
+}
+
+# Pass "allow-relock" when installing the committed lock: uv export --frozen exports it as it stands, so
+# a lock that no longer matches the manifests is re-resolved first when fallback is allowed, and fails
+# the build otherwise. Without the check, a dependency added without relocking would only surface when
+# `uv pip check` finds it missing after the install.
+function install_workspace_without_excluded_providers() {
+    local allow_relock="${1:-}"
+    local work_dir="/tmp/ci-install-set"
+    local python_bin
+    local lock_status=0
+    # uv sync --frozen checks every download against the lock's sha256; uv pip install checks only the
+    # hashes the export carries, and only under --require-hashes.
+    # --no-config rides with --require-hashes: the install runs from the workspace root, and uv would
+    # otherwise apply the root's constraint-dependencies, which --require-hashes rejects for not being
+    # pinned with "==". It drops the rest of [tool.uv] too; of that, exclude-newer cannot matter for an
+    # exact set installed with --no-deps, and no-build-isolation-package is passed back explicitly.
+    local -a hash_args=(--require-hashes --no-config --no-build-isolation-package sphinx-redoc)
+    local -a member_dirs=()
+    local -a editable_args=()
+    local member_dir
+    mkdir -p "${work_dir}"
+    # The PROD build stage puts the base interpreter (/usr/python/bin) ahead of the venv on PATH, so
+    # `command -v python3` would point the install at the base interpreter instead of ${VIRTUAL_ENV}.
+    # The CI image sets no VIRTUAL_ENV and keeps resolving python3 from PATH.
+    python_bin="${VIRTUAL_ENV:+${VIRTUAL_ENV}/bin/python}"
+    python_bin="${python_bin:-$(command -v python3)}"
+    echo
+    echo "${COLOR_BLUE}Installing the workspace without the providers excluded for this Python version.${COLOR_RESET}"
+    echo
+    if [[ ${allow_relock} == "allow-relock" ]]; then
+        set -x
+        uv lock --check --no-python-downloads --no-managed-python || lock_status=$?
+        set +x
+    fi
+    # uv lock --check exits 1 for a lock that does not match the manifests and 2 when it cannot check at
+    # all. Only a stale lock can be fixed by re-locking; anything else must not read as one.
+    if [[ ${lock_status} -ne 0 && ${lock_status} -ne 1 ]]; then
+        echo
+        echo "${COLOR_RED}Failing because uv.lock could not be checked against the dependency manifests (exit ${lock_status}).${COLOR_RESET}"
+        echo
+        exit "${lock_status}"
+    fi
+    if [[ ${lock_status} -eq 1 ]]; then
+        if [[ ${AIRFLOW_FALLBACK_NO_CONSTRAINTS_INSTALLATION} != "true" ]]; then
+            echo
+            echo "${COLOR_RED}Failing because uv.lock does not match the dependency manifests and fallback is disabled.${COLOR_RESET}"
+            echo
+            exit "${lock_status}"
+        fi
+        echo
+        echo "${COLOR_YELLOW}uv.lock does not match the dependency manifests; likely pyproject.toml has new dependencies not reflected in uv.lock.${COLOR_RESET}"
+        echo
+        echo "${COLOR_BLUE}Falling back to re-resolving dependencies (uv lock, then filtered install).${COLOR_RESET}"
+        echo
+        set -x
+        uv lock --no-python-downloads --no-managed-python
+        set +x
+    fi
+    set -x
+    prepare_filtered_install_set
+    # --exact removes what an earlier cached layer installed and the set no longer contains; plain
+    # `uv pip install` would leave an excluded provider's dependencies behind in an incremental build.
+    uv pip install --python "${python_bin}" --exact --no-deps --no-python-downloads --no-managed-python \
+        "${hash_args[@]}" --no-binary lxml --no-binary xmlsec \
+        --requirement "${work_dir}/requirements.txt"
+    mapfile -t member_dirs < "${work_dir}/editables.txt"
+    for member_dir in "${member_dirs[@]}"; do
+        editable_args+=(--editable "${member_dir}")
+    done
+    uv pip install --python "${python_bin}" --no-deps --no-python-downloads --no-managed-python \
+        --no-binary lxml --no-binary xmlsec "${editable_args[@]}"
+    uv pip check --python "${python_bin}"
+    set +x
+}
 
 function install_from_sources() {
     local extra_sync_flags
@@ -50,6 +164,13 @@ function install_from_sources() {
         if [[ "${UPGRADE_RANDOM_INDICATOR_STRING=}" != "" ]]; then
             echo
             echo "${COLOR_YELLOW}Upgrade builds resolve dependencies anew; skipping the locked third-party installation.${COLOR_RESET}"
+            echo
+            return
+        fi
+        # The filtered installation needs the workspace sources, which this layer does not have yet.
+        if has_providers_excluded_for_python; then
+            echo
+            echo "${COLOR_YELLOW}Providers are excluded for this Python version; skipping the locked third-party installation.${COLOR_RESET}"
             echo
             return
         fi
@@ -67,6 +188,13 @@ function install_from_sources() {
         echo
         echo "${COLOR_BLUE}Attempting to upgrade all packages to highest versions.${COLOR_RESET}"
         echo
+        if has_providers_excluded_for_python; then
+            set -x
+            uv lock --resolution highest --no-python-downloads --no-managed-python
+            set +x
+            install_workspace_without_excluded_providers
+            return
+        fi
         # --no-binary  is needed in order to avoid libxml and xmlsec using different version of libxml2
         # (binary lxml embeds its own libxml2, while xmlsec uses system one).
         # See https://bugs.launchpad.net/lxml/+bug/2110068
@@ -75,6 +203,11 @@ function install_from_sources() {
             ${extra_sync_flags} --no-binary-package lxml --no-binary-package xmlsec \
             --no-python-downloads --no-managed-python
     else
+        set +x
+        if has_providers_excluded_for_python; then
+            install_workspace_without_excluded_providers "allow-relock"
+            return
+        fi
         # Use uv sync --frozen to install exactly what is pinned in uv.lock without re-resolving.
         # --no-binary-package is needed in order to avoid libxml and xmlsec using different version of
         # libxml2 (binary lxml embeds its own libxml2, while xmlsec uses system one).

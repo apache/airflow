@@ -1343,6 +1343,110 @@ COPY <<"EOF" /install_airflow_when_building_images.sh
 
 . "$( dirname "${BASH_SOURCE[0]}" )/common.sh"
 
+function has_providers_excluded_for_python() {
+    local status
+    # The helper evaluates the providers' requires-python against the interpreter running it, which is
+    # the image's own; the AIRFLOW_PYTHON_VERSION build argument may be empty or name only the minor.
+    python3 "$( dirname "${BASH_SOURCE[0]}" )/filter_ci_install_set.py" --root "${PWD}" --probe
+    status=$?
+    # 0 and 10 are the probe's two answers. Anything else is the probe itself failing, and must not
+    # read as "nothing is excluded" - that would silently install the set this whole path avoids.
+    case "${status}" in
+        0) return 0 ;;
+        10) return 1 ;;
+        *)
+            echo
+            echo "${COLOR_RED}Could not determine excluded providers (exit ${status}).${COLOR_RESET}"
+            echo
+            exit "${status}"
+            ;;
+    esac
+}
+
+function prepare_filtered_install_set() {
+    local kept_package
+    local -a kept_packages=()
+    local -a package_args=()
+    python3 "$( dirname "${BASH_SOURCE[0]}" )/filter_ci_install_set.py" --root "${PWD}" \
+        --packages "${work_dir}/packages.txt" --editables "${work_dir}/editables.txt"
+    mapfile -t kept_packages < "${work_dir}/packages.txt"
+    for kept_package in "${kept_packages[@]}"; do
+        package_args+=(--package "${kept_package}")
+    done
+    uv export --frozen "${package_args[@]}" --group ci-image --no-emit-workspace \
+        --output-file "${work_dir}/requirements.txt"
+}
+
+function install_workspace_without_excluded_providers() {
+    local allow_relock="${1:-}"
+    local work_dir="/tmp/ci-install-set"
+    local python_bin
+    local lock_status=0
+    # uv sync --frozen checks every download against the lock's sha256; uv pip install checks only the
+    # hashes the export carries, and only under --require-hashes.
+    # --no-config rides with --require-hashes: the install runs from the workspace root, and uv would
+    # otherwise apply the root's constraint-dependencies, which --require-hashes rejects for not being
+    # pinned with "==". It drops the rest of [tool.uv] too; of that, exclude-newer cannot matter for an
+    # exact set installed with --no-deps, and no-build-isolation-package is passed back explicitly.
+    local -a hash_args=(--require-hashes --no-config --no-build-isolation-package sphinx-redoc)
+    local -a member_dirs=()
+    local -a editable_args=()
+    local member_dir
+    mkdir -p "${work_dir}"
+    # The PROD build stage puts the base interpreter (/usr/python/bin) ahead of the venv on PATH, so
+    # `command -v python3` would point the install at the base interpreter instead of ${VIRTUAL_ENV}.
+    # The CI image sets no VIRTUAL_ENV and keeps resolving python3 from PATH.
+    python_bin="${VIRTUAL_ENV:+${VIRTUAL_ENV}/bin/python}"
+    python_bin="${python_bin:-$(command -v python3)}"
+    echo
+    echo "${COLOR_BLUE}Installing the workspace without the providers excluded for this Python version.${COLOR_RESET}"
+    echo
+    if [[ ${allow_relock} == "allow-relock" ]]; then
+        set -x
+        uv lock --check --no-python-downloads --no-managed-python || lock_status=$?
+        set +x
+    fi
+    # uv lock --check exits 1 for a lock that does not match the manifests and 2 when it cannot check at
+    # all. Only a stale lock can be fixed by re-locking; anything else must not read as one.
+    if [[ ${lock_status} -ne 0 && ${lock_status} -ne 1 ]]; then
+        echo
+        echo "${COLOR_RED}Failing because uv.lock could not be checked against the dependency manifests (exit ${lock_status}).${COLOR_RESET}"
+        echo
+        exit "${lock_status}"
+    fi
+    if [[ ${lock_status} -eq 1 ]]; then
+        if [[ ${AIRFLOW_FALLBACK_NO_CONSTRAINTS_INSTALLATION} != "true" ]]; then
+            echo
+            echo "${COLOR_RED}Failing because uv.lock does not match the dependency manifests and fallback is disabled.${COLOR_RESET}"
+            echo
+            exit "${lock_status}"
+        fi
+        echo
+        echo "${COLOR_YELLOW}uv.lock does not match the dependency manifests; likely pyproject.toml has new dependencies not reflected in uv.lock.${COLOR_RESET}"
+        echo
+        echo "${COLOR_BLUE}Falling back to re-resolving dependencies (uv lock, then filtered install).${COLOR_RESET}"
+        echo
+        set -x
+        uv lock --no-python-downloads --no-managed-python
+        set +x
+    fi
+    set -x
+    prepare_filtered_install_set
+    # --exact removes what an earlier cached layer installed and the set no longer contains; plain
+    # `uv pip install` would leave an excluded provider's dependencies behind in an incremental build.
+    uv pip install --python "${python_bin}" --exact --no-deps --no-python-downloads --no-managed-python \
+        "${hash_args[@]}" --no-binary lxml --no-binary xmlsec \
+        --requirement "${work_dir}/requirements.txt"
+    mapfile -t member_dirs < "${work_dir}/editables.txt"
+    for member_dir in "${member_dirs[@]}"; do
+        editable_args+=(--editable "${member_dir}")
+    done
+    uv pip install --python "${python_bin}" --no-deps --no-python-downloads --no-managed-python \
+        --no-binary lxml --no-binary xmlsec "${editable_args[@]}"
+    uv pip check --python "${python_bin}"
+    set +x
+}
+
 function install_from_sources() {
     local extra_sync_flags
     extra_sync_flags=""
@@ -1353,6 +1457,13 @@ function install_from_sources() {
         if [[ "${UPGRADE_RANDOM_INDICATOR_STRING=}" != "" ]]; then
             echo
             echo "${COLOR_YELLOW}Upgrade builds resolve dependencies anew; skipping the locked third-party installation.${COLOR_RESET}"
+            echo
+            return
+        fi
+        # The filtered installation needs the workspace sources, which this layer does not have yet.
+        if has_providers_excluded_for_python; then
+            echo
+            echo "${COLOR_YELLOW}Providers are excluded for this Python version; skipping the locked third-party installation.${COLOR_RESET}"
             echo
             return
         fi
@@ -1370,6 +1481,13 @@ function install_from_sources() {
         echo
         echo "${COLOR_BLUE}Attempting to upgrade all packages to highest versions.${COLOR_RESET}"
         echo
+        if has_providers_excluded_for_python; then
+            set -x
+            uv lock --resolution highest --no-python-downloads --no-managed-python
+            set +x
+            install_workspace_without_excluded_providers
+            return
+        fi
         # --no-binary  is needed in order to avoid libxml and xmlsec using different version of libxml2
         # (binary lxml embeds its own libxml2, while xmlsec uses system one).
         # See https://bugs.launchpad.net/lxml/+bug/2110068
@@ -1378,6 +1496,11 @@ function install_from_sources() {
             ${extra_sync_flags} --no-binary-package lxml --no-binary-package xmlsec \
             --no-python-downloads --no-managed-python
     else
+        set +x
+        if has_providers_excluded_for_python; then
+            install_workspace_without_excluded_providers "allow-relock"
+            return
+        fi
         # Use uv sync --frozen to install exactly what is pinned in uv.lock without re-resolving.
         # --no-binary-package is needed in order to avoid libxml and xmlsec using different version of
         # libxml2 (binary lxml embeds its own libxml2, while xmlsec uses system one).
@@ -1515,6 +1638,147 @@ common::get_constraints_location
 common::show_packaging_tool_version_and_location
 
 install_airflow_when_building_images
+EOF
+
+# The content below is automatically copied from scripts/docker/filter_ci_install_set.py
+COPY <<"EOF" /filter_ci_install_set.py
+#!/usr/bin/env python
+"""
+Select the workspace members the CI image installs for the Python interpreter running this script.
+
+A provider is excluded when its ``requires-python`` rejects the interpreter. Breeze writes that field
+from ``excluded-python-versions`` in ``provider.yaml``, and every ``pyproject.toml`` is in the build
+context, including the stage that carries only the dependency manifests. Only the clauses Breeze writes
+are understood; any other clause fails the build rather than being guessed at. Only providers are
+evaluated, so a core distribution can never drop out of the install set by accident.
+"""
+
+from __future__ import annotations
+
+import argparse
+import re
+import sys
+import tomllib
+from pathlib import Path
+
+PROVIDER_DISTRIBUTION_PREFIX = "apache-airflow-providers-"
+LOWER_BOUND_CLAUSE = re.compile(r">=\s*(?P<release>\d+(?:\.\d+)*)")
+EXCLUSION_CLAUSE = re.compile(r"!=\s*(?P<release>\d+(?:\.\d+)*)\.\*")
+EXIT_HAS_EXCLUDED_MEMBERS = 0
+EXIT_NO_EXCLUDED_MEMBERS = 10
+
+
+def find_workspace_members(root: Path, entries: list[str]) -> list[Path]:
+    """Resolve the ``[tool.uv.workspace] members`` entries, which the root lists one directory each."""
+    members: set[Path] = set()
+    for entry in entries:
+        member = root / entry
+        if not member.is_dir():
+            raise ValueError(f"Workspace member {entry!r} does not exist under {root}")
+        if not (member / "pyproject.toml").is_file():
+            raise ValueError(f"Workspace member {entry!r} has no pyproject.toml")
+        members.add(member)
+    return sorted(members)
+
+
+def load_manifest(directory: Path) -> dict:
+    path = directory / "pyproject.toml"
+    try:
+        return tomllib.loads(path.read_text(encoding="utf-8"))
+    except tomllib.TOMLDecodeError as error:
+        raise ValueError(f"Cannot parse {path}: {error}") from None
+
+
+def parse_release(text: str) -> tuple[int, ...]:
+    return tuple(int(part) for part in text.split("."))
+
+
+def pad_release(release: tuple[int, ...], length: int) -> tuple[int, ...]:
+    return release + (0,) * (length - len(release))
+
+
+def is_python_version_allowed(requires_python: str, python_version: tuple[int, ...]) -> bool:
+    """Evaluate ``requires-python`` for ``python_version`` as PEP 440 does, for the clauses Breeze writes."""
+    for clause in (clause.strip() for clause in requires_python.split(",")):
+        if lower_bound := LOWER_BOUND_CLAUSE.fullmatch(clause):
+            release = parse_release(lower_bound["release"])
+            length = max(len(release), len(python_version))
+            if pad_release(python_version, length) < pad_release(release, length):
+                return False
+        elif exclusion := EXCLUSION_CLAUSE.fullmatch(clause):
+            prefix = parse_release(exclusion["release"])
+            if pad_release(python_version, len(prefix))[: len(prefix)] == prefix:
+                return False
+        else:
+            raise ValueError(f"Unsupported requires-python clause {clause!r}")
+    return True
+
+
+def split_members(root: Path, python_version: tuple[int, ...]) -> tuple[dict[str, Path], set[str]]:
+    """Split the workspace into the members kept for ``python_version`` and the excluded provider names."""
+    entries = load_manifest(root).get("tool", {}).get("uv", {}).get("workspace", {}).get("members", [])
+    kept: dict[str, Path] = {}
+    excluded: set[str] = set()
+    for member in find_workspace_members(root, entries):
+        project = load_manifest(member).get("project", {})
+        name = project.get("name")
+        if not name:
+            raise ValueError(f"No project.name in {member / 'pyproject.toml'}")
+        requires_python = project.get("requires-python")
+        if name.startswith(PROVIDER_DISTRIBUTION_PREFIX) and requires_python:
+            try:
+                allowed = is_python_version_allowed(requires_python, python_version)
+            except ValueError as error:
+                raise ValueError(f"{member / 'pyproject.toml'}: {error}") from None
+            if not allowed:
+                excluded.add(name)
+                continue
+        kept[name] = member
+    return kept, excluded
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    parser.add_argument("--root", type=Path, required=True, help="Workspace root")
+    parser.add_argument(
+        "--python-version",
+        type=parse_release,
+        default=sys.version_info[:3],
+        help="Python version to select members for, e.g. 3.15.0 (default: the interpreter running this)",
+    )
+    parser.add_argument("--packages", type=Path, help="Where to write the kept distribution names")
+    parser.add_argument("--editables", type=Path, help="Where to write the kept member directories")
+    parser.add_argument(
+        "--probe",
+        action="store_true",
+        help=f"Exit {EXIT_HAS_EXCLUDED_MEMBERS} when some member is excluded, "
+        f"{EXIT_NO_EXCLUDED_MEMBERS} when none is, and non-zero otherwise on failure",
+    )
+    args = parser.parse_args(argv)
+    root = args.root.resolve()
+
+    kept, excluded = split_members(root, args.python_version)
+    print(
+        f"Providers excluded for Python {'.'.join(map(str, args.python_version))}: "
+        f"{', '.join(sorted(excluded)) or 'none'}; kept members: {len(kept)}",
+        file=sys.stderr,
+    )
+    if args.probe:
+        return EXIT_HAS_EXCLUDED_MEMBERS if excluded else EXIT_NO_EXCLUDED_MEMBERS
+    if args.packages:
+        args.packages.write_text("".join(f"{name}\n" for name in sorted(kept)), encoding="utf-8")
+    if args.editables:
+        args.editables.write_text(
+            "".join(f"{path}\n" for path in sorted(str(path) for path in kept.values())),
+            encoding="utf-8",
+        )
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
 EOF
 
 # The content below is automatically copied from scripts/docker/install_additional_dependencies.sh
@@ -2406,7 +2670,7 @@ ARG DEPENDENCY_CACHE_EPOCH="2"
 
 RUN bash /scripts/docker/install_packaging_tools.sh
 
-COPY --from=scripts install_airflow_when_building_images.sh /scripts/docker/
+COPY --from=scripts install_airflow_when_building_images.sh filter_ci_install_set.py /scripts/docker/
 
 COPY --from=dependency-manifests /dependency-manifests/ ${AIRFLOW_SOURCES}/
 ARG UPGRADE_RANDOM_INDICATOR_STRING=""
