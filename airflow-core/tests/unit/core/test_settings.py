@@ -622,8 +622,34 @@ class TestEnsureInitialized:
 
         mock_configure_orm.assert_not_called()
         mock_mask_secrets.assert_called_once_with()
-        with pytest.raises(RuntimeError, match="without the metadata database engine"):
-            settings.ensure_initialized()
+
+    @pytest.mark.parametrize(
+        ("env", "expected_calls"),
+        [
+            ({}, [call()]),
+            ({"_AIRFLOW__REEXECUTED_PROCESS": "1"}, []),
+            ({"PYTHON_OPERATORS_VIRTUAL_ENV_MODE": "1"}, []),
+        ],
+        ids=["regular-process", "reexecuted-task-process", "virtualenv-operator-process"],
+    )
+    @mock.patch("airflow.settings.configure_orm", autospec=True)
+    def test_configures_orm_once_when_a_later_caller_needs_it(
+        self, mock_configure_orm, monkeypatch, env, expected_calls
+    ):
+        monkeypatch.delenv("_AIRFLOW__REEXECUTED_PROCESS", raising=False)
+        monkeypatch.delenv("PYTHON_OPERATORS_VIRTUAL_ENV_MODE", raising=False)
+        for name, value in env.items():
+            monkeypatch.setenv(name, value)
+        monkeypatch.setattr(settings, "_initialized", True)
+        monkeypatch.setattr(settings, "_initialized_without_orm", True)
+
+        settings.ensure_initialized(orm=False)
+        assert mock_configure_orm.mock_calls == []
+
+        settings.ensure_initialized()
+        settings.ensure_initialized()
+
+        assert mock_configure_orm.mock_calls == expected_calls
 
 
 class TestDisposeOrm:

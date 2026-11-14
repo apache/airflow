@@ -887,6 +887,12 @@ _initialized = False
 _initialized_without_orm = False
 
 
+def _is_database_isolated_process() -> bool:
+    """Whether this is a process that never gets a metadata database engine."""
+    is_worker = os.environ.get("_AIRFLOW__REEXECUTED_PROCESS") == "1"
+    return bool(os.environ.get("PYTHON_OPERATORS_VIRTUAL_ENV_MODE", None)) or is_worker
+
+
 def initialize(*, orm: bool = True):
     """
     Initialize Airflow with all the settings from this file.
@@ -909,8 +915,7 @@ def initialize(*, orm: bool = True):
     # Configure secrets masker before masking secrets
     _configure_secrets_masker()
 
-    is_worker = os.environ.get("_AIRFLOW__REEXECUTED_PROCESS") == "1"
-    if not os.environ.get("PYTHON_OPERATORS_VIRTUAL_ENV_MODE", None) and not is_worker:
+    if not _is_database_isolated_process():
         if orm:
             configure_orm()
 
@@ -934,14 +939,20 @@ def ensure_initialized(*, orm: bool = True) -> None:
     Entry points call this before they use settings, logging or the metadata database, so they
     do not depend on ``import airflow`` having initialized them.
 
+    ``orm=False`` only means that this call does not configure the metadata database engine. A
+    later call that needs the engine configures it then. A forked child inherits its parent's
+    engine and a spawned one starts without it, so failing on that later call would make the
+    result depend on the multiprocessing start method.
+
     :param orm: Whether to configure the metadata database engine.
     """
+    global _initialized_without_orm
     if not _initialized:
         initialize(orm=orm)
     elif orm and _initialized_without_orm:
-        raise RuntimeError(
-            "Airflow was initialized without the metadata database engine (orm=False) in this process."
-        )
+        if not _is_database_isolated_process():
+            configure_orm()
+        _initialized_without_orm = False
 
 
 # By default Airflow plugins are lazily-loaded (only loaded when required). Set it to False,
