@@ -346,12 +346,12 @@ class _DurableToolApproval(AbstractCapability[Any]):
     with the answer. Once recorded, a retry replays the decision instead of asking anyone again,
     and replays the approved calls instead of running them twice.
 
-    :param next_step: Number the approval step about to run for these calls, replayed or not,
+    :param claim_next_step: Number the approval step about to run for these calls, replayed or not,
         or return ``None`` when ``decide`` itself is asking the other handlers.
     :param settle: The body of ``decide``.
     """
 
-    next_step: Callable[[DeferredToolRequests], int | None] = field(repr=False)
+    claim_next_step: Callable[[DeferredToolRequests], int | None] = field(repr=False)
     settle: Callable[[RunContext[Any], DeferredToolRequests, int], Awaitable[DeferredToolResults]] = field(
         repr=False
     )
@@ -367,7 +367,7 @@ class _DurableToolApproval(AbstractCapability[Any]):
     async def handle_deferred_tool_calls(
         self, ctx: RunContext[Any], *, requests: DeferredToolRequests
     ) -> DeferredToolResults | None:
-        if (step := self.next_step(requests)) is None:
+        if (step := self.claim_next_step(requests)) is None:
             return None
         return await self.decide(ctx, requests=requests, step=step)
 
@@ -1022,7 +1022,7 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
                 capabilities.insert(
                     0,
                     _DurableToolApproval(
-                        next_step=self._claim_next_approval_step,
+                        claim_next_step=self._claim_next_approval_step,
                         settle=lambda ctx, requests, step: self._settle_tool_approvals(
                             approval_context, ctx, requests, step
                         ),
