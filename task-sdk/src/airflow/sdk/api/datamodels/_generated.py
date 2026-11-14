@@ -371,20 +371,6 @@ class InactiveAssetsResponse(BaseModel):
     inactive_assets: Annotated[list[AssetProfile] | None, Field(title="Inactive Assets")] = None
 
 
-class IntermediateTIState(str, Enum):
-    """
-    States that a Task Instance can be in that indicate it is not yet in a terminal or running state.
-    """
-
-    SCHEDULED = "scheduled"
-    QUEUED = "queued"
-    RESTARTING = "restarting"
-    UP_FOR_RETRY = "up_for_retry"
-    UP_FOR_RESCHEDULE = "up_for_reschedule"
-    DEFERRED = "deferred"
-    AWAITING_INPUT = "awaiting_input"
-
-
 class Unixname(RootModel[str]):
     root: Annotated[str, Field(max_length=1000, title="Unixname")]
 
@@ -687,17 +673,6 @@ class TISuccessStatePayload(BaseModel):
     rendered_map_index: Annotated[str | None, Field(title="Rendered Map Index")] = None
     loop_decision: LoopDecisionPayload | None = None
     external_clear_target: ExternalClearTargetPayload | None = None
-
-
-class TITargetStatePayload(BaseModel):
-    """
-    Schema for updating TaskInstance to a target state, excluding terminal and running states.
-    """
-
-    model_config = ConfigDict(
-        extra="forbid",
-    )
-    state: IntermediateTIState
 
 
 class TaskBreadcrumbsResponse(BaseModel):
