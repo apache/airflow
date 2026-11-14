@@ -17,14 +17,20 @@
 
 .. _howto/operator:DatabricksStartWarehouseOperator:
 .. _howto/operator:DatabricksStopWarehouseOperator:
+.. _howto/operator:DatabricksEditWarehouseOperator:
 
-Databricks SQL warehouse lifecycle operators
-============================================
+Databricks SQL warehouse operators
+==================================
+
+Use these operators to start, stop, or edit an existing Databricks SQL warehouse through the
+`Databricks SQL Warehouses API <https://docs.databricks.com/api/workspace/warehouses>`_.
+
+Start and stop a SQL warehouse
+------------------------------
 
 Use :class:`~airflow.providers.databricks.operators.warehouse.DatabricksStartWarehouseOperator`
 and :class:`~airflow.providers.databricks.operators.warehouse.DatabricksStopWarehouseOperator`
-to start and stop an existing Databricks SQL warehouse through the
-`Databricks SQL Warehouses API <https://docs.databricks.com/api/workspace/warehouses>`_.
+to start and stop an existing Databricks SQL warehouse.
 Both operators require the warehouse ID and use the :ref:`Databricks connection
 <howto/connection:databricks>` for authentication.
 
@@ -60,3 +66,31 @@ task fails.
     :language: python
     :start-after: [START howto_operator_databricks_stop_sql_warehouse]
     :end-before: [END howto_operator_databricks_stop_sql_warehouse]
+
+Edit a SQL warehouse
+--------------------
+
+Use :class:`~airflow.providers.databricks.operators.warehouse.DatabricksEditWarehouseOperator`
+to change the configuration of an existing warehouse. Pass its ``warehouse_id`` and a non-empty
+``json`` dictionary containing the request body for the
+`SQL Warehouses edit API <https://docs.databricks.com/api/warehouses/v1/edit-warehouse>`_.
+For example, you can set ``cluster_size``, ``auto_stop_mins``, or ``tags``.
+Settings omitted from ``json`` retain their current values.
+
+The connection ID, warehouse ID, and nested ``json`` values support templating.
+For numeric or boolean Jinja expressions,
+set ``render_template_as_native_obj=True`` on the Dag.
+
+The operator returns ``None`` and completes when the edit request succeeds,
+without waiting for configuration changes to finish applying. Pass the
+warehouse ID explicitly to downstream tasks.
+
+If needed, follow it with
+:class:`~airflow.providers.databricks.operators.warehouse.DatabricksStartWarehouseOperator`
+to wait for warehouse availability. A ``RUNNING`` state does not guarantee
+that all configuration changes have been applied.
+
+.. exampleinclude:: /../../databricks/tests/system/databricks/example_databricks_sql_warehouse.py
+    :language: python
+    :start-after: [START howto_operator_databricks_edit_sql_warehouse]
+    :end-before: [END howto_operator_databricks_edit_sql_warehouse]

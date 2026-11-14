@@ -14,15 +14,21 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Example Dag for starting and stopping an existing Databricks SQL warehouse."""
+"""
+Example Dag for editing, starting and stopping an existing Databricks SQL warehouse.
+
+The original auto-stop setting is saved before editing and restored during cleanup.
+"""
 
 from __future__ import annotations
 
 import os
 from datetime import datetime
 
-from airflow.providers.common.compat.sdk import DAG
+from airflow.providers.common.compat.sdk import DAG, AirflowSkipException, task
+from airflow.providers.databricks.hooks.databricks import DatabricksHook
 from airflow.providers.databricks.operators.warehouse import (
+    DatabricksEditWarehouseOperator,
     DatabricksStartWarehouseOperator,
     DatabricksStopWarehouseOperator,
 )
@@ -36,7 +42,25 @@ with DAG(
     start_date=datetime(2021, 1, 1),
     tags=["example"],
     catchup=False,
+    max_active_runs=1,
 ) as dag:
+
+    @task
+    def get_original_auto_stop_mins() -> int:
+        hook = DatabricksHook(databricks_conn_id="databricks_default")
+        return hook.get_warehouse(WAREHOUSE_ID)["auto_stop_mins"]
+
+    original_auto_stop_mins = get_original_auto_stop_mins()
+
+    # [START howto_operator_databricks_edit_sql_warehouse]
+    edit_warehouse = DatabricksEditWarehouseOperator(
+        task_id="edit_warehouse",
+        databricks_conn_id="databricks_default",
+        warehouse_id=WAREHOUSE_ID,
+        json={"auto_stop_mins": 10},
+    )
+    # [END howto_operator_databricks_edit_sql_warehouse]
+
     # [START howto_operator_databricks_start_sql_warehouse]
     start_warehouse = DatabricksStartWarehouseOperator(
         task_id="start_warehouse",
@@ -56,7 +80,16 @@ with DAG(
     )
     # [END howto_operator_databricks_stop_sql_warehouse]
 
-    start_warehouse >> stop_warehouse
+    @task(trigger_rule="all_done")
+    def restore_auto_stop_mins(auto_stop_mins: int | None) -> None:
+        if auto_stop_mins is None:
+            raise AirflowSkipException("The original auto-stop setting was not saved.")
+        hook = DatabricksHook(databricks_conn_id="databricks_default")
+        hook.edit_warehouse(WAREHOUSE_ID, {"auto_stop_mins": auto_stop_mins})
+
+    restore_warehouse = restore_auto_stop_mins(original_auto_stop_mins)
+
+    original_auto_stop_mins >> edit_warehouse >> start_warehouse >> stop_warehouse >> restore_warehouse
 
     from tests_common.test_utils.watcher import watcher
 

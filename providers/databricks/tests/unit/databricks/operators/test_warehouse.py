@@ -23,10 +23,11 @@ import pytest
 import time_machine
 from tenacity import stop_after_attempt, wait_incrementing
 
-from airflow.providers.common.compat.sdk import TaskDeferred
+from airflow.providers.common.compat.sdk import DAG, TaskDeferred
 from airflow.providers.databricks.exceptions import DatabricksWarehouseError
 from airflow.providers.databricks.hooks.databricks import DatabricksHook, WarehouseState
 from airflow.providers.databricks.operators.warehouse import (
+    DatabricksEditWarehouseOperator,
     DatabricksStartWarehouseOperator,
     DatabricksStopWarehouseOperator,
 )
@@ -34,6 +35,101 @@ from airflow.providers.databricks.triggers.databricks import DatabricksWarehouse
 
 TASK_ID = "warehouse-lifecycle"
 WAREHOUSE_ID = "wh-1"
+
+
+class TestDatabricksEditWarehouseOperator:
+    @mock.patch("airflow.providers.databricks.operators.warehouse.DatabricksHook", autospec=True)
+    def test_execute(self, mock_hook):
+        payload = {"cluster_size": "Small", "auto_stop_mins": 0, "enable_photon": False}
+        retry_args = {"stop": stop_after_attempt(5)}
+        operator = DatabricksEditWarehouseOperator(
+            task_id=TASK_ID,
+            warehouse_id=WAREHOUSE_ID,
+            json=payload,
+            databricks_conn_id="custom_databricks",
+            databricks_retry_limit=5,
+            databricks_retry_delay=2,
+            databricks_retry_args=retry_args,
+        )
+
+        assert operator.execute(None) is None
+
+        mock_hook.assert_called_once_with(
+            "custom_databricks",
+            retry_limit=5,
+            retry_delay=2,
+            retry_args=retry_args,
+            caller="DatabricksEditWarehouseOperator",
+        )
+        assert mock_hook.return_value.mock_calls == [mock.call.edit_warehouse(WAREHOUSE_ID, payload)]
+
+    @mock.patch("airflow.providers.databricks.operators.warehouse.DatabricksHook", autospec=True)
+    def test_execute_renders_templates(self, mock_hook):
+        with DAG(dag_id="edit_warehouse", render_template_as_native_obj=True):
+            operator = DatabricksEditWarehouseOperator(
+                task_id=TASK_ID,
+                warehouse_id="{{ params.warehouse_id }}",
+                databricks_conn_id="{{ params.conn_id }}",
+                json={
+                    "auto_stop_mins": "{{ params.auto_stop_mins }}",
+                    "enable_photon": "{{ params.enable_photon }}",
+                    "tags": {"custom_tags": [{"key": "run_date", "value": "{{ ds }}"}]},
+                },
+            )
+        operator.render_template_fields(
+            context={
+                "ds": "2026-11-04",
+                "params": {
+                    "warehouse_id": WAREHOUSE_ID,
+                    "conn_id": "rendered_databricks",
+                    "auto_stop_mins": 0,
+                    "enable_photon": False,
+                },
+            }
+        )
+
+        operator.execute(None)
+
+        assert mock_hook.call_args.args == ("rendered_databricks",)
+        mock_hook.return_value.edit_warehouse.assert_called_once_with(
+            WAREHOUSE_ID,
+            {
+                "auto_stop_mins": 0,
+                "enable_photon": False,
+                "tags": {"custom_tags": [{"key": "run_date", "value": "2026-11-04"}]},
+            },
+        )
+
+    @mock.patch("airflow.providers.databricks.operators.warehouse.DatabricksHook", autospec=True)
+    def test_rejects_empty_rendered_warehouse_id(self, mock_hook):
+        operator = DatabricksEditWarehouseOperator(
+            task_id=TASK_ID, warehouse_id="{{ params.warehouse_id }}", json={"auto_stop_mins": 10}
+        )
+        operator.render_template_fields(context={"params": {"warehouse_id": ""}})
+
+        with pytest.raises(ValueError, match="warehouse_id must be provided"):
+            operator.execute(None)
+
+        mock_hook.assert_not_called()
+
+    @pytest.mark.parametrize("payload", [None, [], '{"auto_stop_mins": 10}'])
+    @mock.patch("airflow.providers.databricks.operators.warehouse.DatabricksHook", autospec=True)
+    def test_rejects_non_dictionary_payload(self, mock_hook, payload):
+        operator = DatabricksEditWarehouseOperator(task_id=TASK_ID, warehouse_id=WAREHOUSE_ID, json=payload)
+
+        with pytest.raises(TypeError, match="json must be a dictionary"):
+            operator.execute(None)
+
+        mock_hook.assert_not_called()
+
+    @mock.patch("airflow.providers.databricks.operators.warehouse.DatabricksHook", autospec=True)
+    def test_rejects_empty_payload(self, mock_hook):
+        operator = DatabricksEditWarehouseOperator(task_id=TASK_ID, warehouse_id=WAREHOUSE_ID, json={})
+
+        with pytest.raises(ValueError, match="json must contain at least one warehouse setting"):
+            operator.execute(None)
+
+        mock_hook.assert_not_called()
 
 
 class TestDatabricksStartWarehouseOperator:
