@@ -32,7 +32,7 @@ from sqlalchemy.orm import Session
 from airflow import settings
 from airflow._shared.observability.metrics.base_stats_logger import StatsLogger
 from airflow._shared.timezones import timezone
-from airflow.assets.manager import AssetManager
+from airflow.assets.manager import AssetEventConsumerNotEligible, AssetManager
 from airflow.models.asset import (
     AssetAliasModel,
     AssetDagRunQueue,
@@ -146,6 +146,141 @@ class TestAssetManager:
             == 1
         )
         assert session.scalar(select(func.count()).select_from(AssetDagRunQueue)) == 2
+
+    @pytest.mark.usefixtures("testing_dag_bundle")
+    @pytest.mark.parametrize("reference_kind", ["asset", "alias", "name", "uri"])
+    @pytest.mark.parametrize("consumer_dag_id", [None, "scoped_consumer"])
+    def test_register_asset_change_limits_existing_consumers(self, session, reference_kind, consumer_dag_id):
+        asset = AssetModel(uri="test://scoped-event", name="scoped-event", group="asset")
+        consumers = [
+            DagModel(dag_id=dag_id, bundle_name="testing", is_paused=False, is_stale=False)
+            for dag_id in ("scoped_consumer", "sibling_consumer")
+        ]
+        session.add_all([asset, *consumers])
+        source_alias_names = ()
+        if reference_kind == "asset":
+            asset.scheduled_dags = [DagScheduleAssetReference(dag_id=dag.dag_id) for dag in consumers]
+        elif reference_kind == "alias":
+            alias = AssetAliasModel(name="scoped-alias", group="asset")
+            alias.scheduled_dags = [DagScheduleAssetAliasReference(dag_id=dag.dag_id) for dag in consumers]
+            session.add(alias)
+            source_alias_names = [alias.name]
+        else:
+            reference_type, field, value = (
+                (DagScheduleAssetNameReference, "name", asset.name)
+                if reference_kind == "name"
+                else (DagScheduleAssetUriReference, "uri", asset.uri)
+            )
+            session.add_all(reference_type(dag_id=dag.dag_id, **{field: value}) for dag in consumers)
+        session.flush()
+
+        event = AssetManager.register_asset_change(
+            asset=asset,
+            consumer_dag_id=consumer_dag_id,
+            source_alias_names=source_alias_names,
+            session=session,
+        )
+        session.flush()
+
+        assert event is not None
+        assert set(session.scalars(select(AssetDagRunQueue.target_dag_id))) == (
+            {"scoped_consumer", "sibling_consumer"} if consumer_dag_id is None else {"scoped_consumer"}
+        )
+        assert set(session.scalars(select(AssetDagRunQueue.asset_event_id))) == {event.id}
+        assert session.scalars(select(AssetEvent.id)).all() == [event.id]
+
+    @pytest.mark.usefixtures("testing_dag_bundle")
+    @pytest.mark.parametrize("ineligible_reason", ["not_consuming", "paused", "draining"])
+    def test_register_asset_change_rejects_ineligible_consumer(self, session, ineligible_reason):
+        asset = AssetModel(uri="test://scoped-event", name="scoped-event", group="asset")
+        consumer = DagModel(
+            dag_id="ineligible_consumer",
+            bundle_name="testing",
+            is_paused=ineligible_reason == "paused",
+            is_draining=ineligible_reason == "draining",
+            is_stale=False,
+        )
+        session.add_all([asset, consumer])
+        if ineligible_reason != "not_consuming":
+            asset.scheduled_dags = [DagScheduleAssetReference(dag_id=consumer.dag_id)]
+        session.flush()
+        callbacks = []
+
+        with pytest.raises(AssetEventConsumerNotEligible):
+            AssetManager.register_asset_change(
+                asset=asset,
+                consumer_dag_id=consumer.dag_id,
+                callback_sink=callbacks,
+                session=session,
+            )
+
+        assert callbacks == []
+        assert session.scalar(select(func.count()).select_from(AssetEvent)) == 0
+        assert session.scalar(select(func.count()).select_from(AssetDagRunQueue)) == 0
+
+    @conf_vars({("core", "multi_team"): "true"})
+    def test_register_asset_change_does_not_override_consumer_team_filter(self, session):
+        consumer_team = Team(name="scoped-consumer-team")
+        bundle = DagBundleModel(name="scoped-consumer-bundle")
+        bundle.teams.append(consumer_team)
+        session.add(bundle)
+        session.flush()
+        consumer = DagModel(
+            dag_id="team_filtered_consumer",
+            bundle_name=bundle.name,
+            is_paused=False,
+            is_stale=False,
+        )
+        asset = AssetModel(uri="test://scoped-event", name="scoped-event", group="asset")
+        asset.scheduled_dags = [DagScheduleAssetReference(dag_id=consumer.dag_id)]
+        session.add_all([consumer, asset])
+        session.flush()
+        assert DagModel.get_team_name(consumer.dag_id, session=session) == consumer_team.name
+
+        with pytest.raises(AssetEventConsumerNotEligible):
+            AssetManager.register_asset_change(
+                asset=asset,
+                consumer_dag_id=consumer.dag_id,
+                source_is_api=True,
+                api_user_teams={"another-team"},
+                session=session,
+            )
+
+        assert session.scalar(select(func.count()).select_from(AssetEvent)) == 0
+        assert session.scalar(select(func.count()).select_from(AssetDagRunQueue)) == 0
+
+    @pytest.mark.usefixtures("testing_dag_bundle")
+    @pytest.mark.parametrize(
+        ("partitioned", "partition_key"),
+        [(True, None), (True, ""), (False, "partition-key")],
+    )
+    def test_register_asset_change_rejects_target_partition_mode_mismatch(
+        self, session, partitioned, partition_key
+    ):
+        asset = AssetModel(uri="test://scoped-event", name="scoped-event", group="asset")
+        consumer = DagModel(
+            dag_id="mode_mismatch_consumer",
+            bundle_name="testing",
+            is_paused=False,
+            timetable_partitioned=partitioned,
+        )
+        asset.scheduled_dags = [DagScheduleAssetReference(dag_id=consumer.dag_id)]
+        session.add_all([asset, consumer])
+        session.flush()
+        callbacks = []
+
+        with pytest.raises(AssetEventConsumerNotEligible):
+            AssetManager.register_asset_change(
+                asset=asset,
+                consumer_dag_id=consumer.dag_id,
+                partition_key=partition_key,
+                callback_sink=callbacks,
+                session=session,
+            )
+
+        assert callbacks == []
+        assert session.scalar(select(func.count()).select_from(AssetEvent)) == 0
+        assert session.scalar(select(func.count()).select_from(AssetDagRunQueue)) == 0
 
     def test_register_asset_change_with_alias(
         self, session, dag_maker, mock_task_instance, testing_dag_bundle

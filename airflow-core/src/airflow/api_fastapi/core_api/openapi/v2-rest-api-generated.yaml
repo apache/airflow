@@ -570,6 +570,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
         '404':
           content:
             application/json:
@@ -14890,6 +14896,16 @@ components:
             pattern: \S
           - type: 'null'
           title: Partition Key
+        consumer_dag_id:
+          anyOf:
+          - type: string
+            maxLength: 250
+            pattern: \S
+          - type: 'null'
+          title: Consumer Dag Id
+          description: Limit immediate queueing to this eligible consumer Dag. The
+            event remains in asset history and listeners are still notified. Omit
+            to queue all eligible consumers.
         extra:
           additionalProperties: true
           type: object

@@ -67,6 +67,10 @@ log = structlog.get_logger(__name__)
 _APDR_GET_OR_CREATE_ATTEMPTS = 2
 
 
+class AssetEventConsumerNotEligible(ValueError):
+    """The selected Dag cannot consume this asset event."""
+
+
 class AssetManager(LoggingMixin):
     """
     A pluggable class that manages operations for assets.
@@ -229,6 +233,7 @@ class AssetManager(LoggingMixin):
         api_user_teams: set[str] | None = None,
         api_allow_consumer_teams: list[str] | None = None,
         api_allow_global_consumers: bool = True,
+        consumer_dag_id: str | None = None,
         callback_sink: list[Callable[[], None]] | None = None,
         **kwargs,
     ) -> AssetEvent | None:
@@ -255,6 +260,8 @@ class AssetManager(LoggingMixin):
             Only used when source_is_api=True.
         :param api_allow_global_consumers: Whether teamless consumers are allowed for an
             API-triggered event. Only used when source_is_api=True. Defaults to True.
+        :param consumer_dag_id: Restrict immediate queueing to this eligible consumer Dag.
+            The event remains in asset history and listeners are still notified.
         :param callback_sink: If specified, registration callbacks are added
             into the list instead of executed inline.
         """
@@ -298,10 +305,6 @@ class AssetManager(LoggingMixin):
                 source_task_instance_id=task_instance.id,
             )
 
-        asset_event = AssetEvent(**event_kwargs)
-        session.add(asset_event)
-        session.flush()
-
         dags_to_queue_from_asset = {
             ref.dag for ref in asset_model.scheduled_dags if not ref.dag.is_paused and not ref.dag.is_draining
         }
@@ -323,12 +326,6 @@ class AssetManager(LoggingMixin):
             )
 
             for asset_alias_model in asset_alias_models:
-                session.execute(
-                    insert(asset_alias_asset_event_association_table).values(
-                        alias_id=asset_alias_model.id, event_id=asset_event.id
-                    )
-                )
-
                 dags_to_queue_from_asset_alias |= {
                     alias_ref.dag
                     for alias_ref in asset_alias_model.scheduled_dags
@@ -353,32 +350,11 @@ class AssetManager(LoggingMixin):
             )
         )
 
-        asset = asset_model.to_serialized()
-        listener_asset_event = ListenerAssetEvent(
-            asset=asset,
-            extra=asset_event.extra,
-            source_dag_id=asset_event.source_dag_id,
-            source_task_id=asset_event.source_task_id,
-            source_run_id=asset_event.source_run_id,
-            source_map_index=asset_event.source_map_index,
-            source_aliases=[aam.to_serialized() for aam in asset_alias_models],
-            partition_key=partition_key,
-            partition_date=partition_date,
-        )
-        if callback_sink is None:
-            cls.notify_asset_changed(asset=asset)
-            cls.nofity_asset_event_emitted(asset_event=listener_asset_event)
-        else:
-            callback_sink.append(partial(cls.notify_asset_changed, asset=asset))
-            callback_sink.append(partial(cls.nofity_asset_event_emitted, asset_event=listener_asset_event))
-
         team_name = None
         if task_instance and conf.getboolean("core", "multi_team"):
             from airflow.models.dag import DagModel
 
             team_name = DagModel.get_team_name(task_instance.dag_id, session=session)
-        stats.incr("asset.updates", tags=prune_dict({"team_name": team_name}))
-
         dags_to_queue = (
             dags_to_queue_from_asset | dags_to_queue_from_asset_alias | dags_to_queue_from_asset_ref
         )
@@ -409,6 +385,53 @@ class AssetManager(LoggingMixin):
                 allow_consumer_teams=resolved_consumer_teams,
                 allow_global_consumers=resolved_global_consumers,
             )
+
+        if consumer_dag_id is not None:
+            dags_to_queue = {dag for dag in dags_to_queue if dag.dag_id == consumer_dag_id}
+            if not dags_to_queue:
+                raise AssetEventConsumerNotEligible(
+                    f"Dag `{consumer_dag_id}` is not an eligible consumer of this asset event"
+                )
+            consumer_dag = next(iter(dags_to_queue))
+            if consumer_dag.timetable_partitioned is True and not partition_key:
+                raise AssetEventConsumerNotEligible(
+                    f"Partitioned Dag `{consumer_dag_id}` requires a partition key"
+                )
+            if consumer_dag.timetable_partitioned is not True and partition_key is not None:
+                raise AssetEventConsumerNotEligible(
+                    f"Non-partitioned Dag `{consumer_dag_id}` does not accept a partition key"
+                )
+
+        asset_event = AssetEvent(**event_kwargs)
+        session.add(asset_event)
+        session.flush()
+        for asset_alias_model in asset_alias_models:
+            session.execute(
+                insert(asset_alias_asset_event_association_table).values(
+                    alias_id=asset_alias_model.id, event_id=asset_event.id
+                )
+            )
+
+        asset = asset_model.to_serialized()
+        listener_asset_event = ListenerAssetEvent(
+            asset=asset,
+            extra=asset_event.extra,
+            source_dag_id=asset_event.source_dag_id,
+            source_task_id=asset_event.source_task_id,
+            source_run_id=asset_event.source_run_id,
+            source_map_index=asset_event.source_map_index,
+            source_aliases=[aam.to_serialized() for aam in asset_alias_models],
+            partition_key=partition_key,
+            partition_date=partition_date,
+        )
+        if callback_sink is None:
+            cls.notify_asset_changed(asset=asset)
+            cls.nofity_asset_event_emitted(asset_event=listener_asset_event)
+        else:
+            callback_sink.append(partial(cls.notify_asset_changed, asset=asset))
+            callback_sink.append(partial(cls.nofity_asset_event_emitted, asset_event=listener_asset_event))
+
+        stats.incr("asset.updates", tags=prune_dict({"team_name": team_name}))
 
         log.debug("asset event added", asset_event=asset_event, dags_to_queue=dags_to_queue)
         cls._queue_dagruns(

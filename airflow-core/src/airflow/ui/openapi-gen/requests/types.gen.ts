@@ -945,6 +945,10 @@ export type ConnectionTestResponse = {
 export type CreateAssetEventsBody = {
     asset_id: number;
     partition_key?: string | null;
+    /**
+     * Limit immediate queueing to this eligible consumer Dag. The event remains in asset history and listeners are still notified. Omit to queue all eligible consumers.
+     */
+    consumer_dag_id?: string | null;
     extra?: {
         [key: string]: unknown;
     };
@@ -6216,6 +6220,10 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: AssetEventResponse;
+                /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
                 /**
                  * Unauthorized
                  */

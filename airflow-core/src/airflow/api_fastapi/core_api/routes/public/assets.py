@@ -82,7 +82,7 @@ from airflow.api_fastapi.core_api.security import (
 )
 from airflow.api_fastapi.core_api.services.public.assets import load_source_region, serialize_asset_events
 from airflow.api_fastapi.logging.decorators import action_logging
-from airflow.assets.manager import asset_manager
+from airflow.assets.manager import AssetEventConsumerNotEligible, asset_manager
 from airflow.configuration import conf
 from airflow.exceptions import DagVersionNotFound, ParamValidationError
 from airflow.models.asset import (
@@ -495,7 +495,9 @@ def get_asset_events(
 
 @assets_router.post(
     "/assets/events",
-    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+    responses=create_openapi_http_exception_doc(
+        [status.HTTP_400_BAD_REQUEST, status.HTTP_403_FORBIDDEN, status.HTTP_404_NOT_FOUND]
+    ),
     dependencies=[
         Depends(requires_access_asset(method="POST", asset_id_from_body=True)),
         Depends(action_logging()),
@@ -510,6 +512,24 @@ def create_asset_event(
     asset_model = session.scalar(select(AssetModel).where(AssetModel.id == body.asset_id).limit(1))
     if not asset_model:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Asset with ID: `{body.asset_id}` was not found")
+    if body.consumer_dag_id is not None:
+        if not get_auth_manager().is_authorized_dag(
+            method="POST",
+            access_entity=DagAccessEntity.RUN,
+            details=DagDetails(
+                id=body.consumer_dag_id,
+                team_name=DagModel.get_team_name(body.consumer_dag_id, session=session),
+            ),
+            user=user,
+        ):
+            raise HTTPException(
+                status.HTTP_403_FORBIDDEN,
+                f"User is not authorized to trigger a run for Dag: {body.consumer_dag_id}",
+            )
+        if session.get(DagModel, body.consumer_dag_id) is None:
+            raise HTTPException(
+                status.HTTP_404_NOT_FOUND, f"Dag with ID: `{body.consumer_dag_id}` was not found"
+            )
     timestamp = timezone.utcnow()
 
     api_user_teams: set[str] = set()
@@ -521,17 +541,21 @@ def create_asset_event(
             api_allow_consumer_teams = body.access_control.consumer_teams
             api_allow_global_consumers = body.access_control.allow_global
 
-    assets_event = asset_manager.register_asset_change(
-        asset=asset_model,
-        timestamp=timestamp,
-        extra=body.extra,
-        partition_key=body.partition_key,
-        source_is_api=True,
-        api_user_teams=api_user_teams,
-        api_allow_consumer_teams=api_allow_consumer_teams,
-        api_allow_global_consumers=api_allow_global_consumers,
-        session=session,
-    )
+    try:
+        assets_event = asset_manager.register_asset_change(
+            asset=asset_model,
+            timestamp=timestamp,
+            extra=body.extra,
+            partition_key=body.partition_key,
+            source_is_api=True,
+            api_user_teams=api_user_teams,
+            api_allow_consumer_teams=api_allow_consumer_teams,
+            api_allow_global_consumers=api_allow_global_consumers,
+            consumer_dag_id=body.consumer_dag_id,
+            session=session,
+        )
+    except AssetEventConsumerNotEligible as e:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e)) from e
 
     if not assets_event:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Asset with ID: `{body.asset_id}` was not found")

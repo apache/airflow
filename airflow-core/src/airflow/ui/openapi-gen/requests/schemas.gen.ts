@@ -3177,6 +3177,20 @@ export const $CreateAssetEventsBody = {
             ],
             title: 'Partition Key'
         },
+        consumer_dag_id: {
+            anyOf: [
+                {
+                    type: 'string',
+                    maxLength: 250,
+                    pattern: '\\S'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Consumer Dag Id',
+            description: 'Limit immediate queueing to this eligible consumer Dag. The event remains in asset history and listeners are still notified. Omit to queue all eligible consumers.'
+        },
         extra: {
             additionalProperties: true,
             type: 'object',
