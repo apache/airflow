@@ -26,7 +26,7 @@ Use these operators to start, stop, or edit an existing Databricks SQL warehouse
 `Databricks SQL Warehouses API <https://docs.databricks.com/api/workspace/warehouses>`_.
 
 Start and stop a SQL warehouse
------------------------------
+------------------------------
 
 Use :class:`~airflow.providers.databricks.operators.warehouse.DatabricksStartWarehouseOperator`
 and :class:`~airflow.providers.databricks.operators.warehouse.DatabricksStopWarehouseOperator`
