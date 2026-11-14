@@ -135,28 +135,32 @@ def _find_loop(group: TaskGroup | None) -> LoopTaskGroup | None:
 
 def check_expansions_over_loop_tasks(dag: Any) -> None:
     """
-    Raise if a mapped task or task group expands over a loop task without being in that loop.
+    Raise if a task or task group expands or iterates over a loop task without being in that loop.
 
-    The loop task ran once per iteration, so outside the loop there is no single result to expand over.
+    The loop task ran once per iteration, so outside the loop there is no single result to expand or
+    iterate over: a task reading it from there gets every iteration's value, one item per iteration.
     """
-    consumers: list[tuple[str | None, LoopTaskGroup | None, Any]] = [
-        (task.task_id, _find_loop(task.task_group), task.iter_mapped_dependencies())
-        for task in dag.task_dict.values()
-        if task.is_mapped
-    ]
-    consumers.extend(
-        (group.group_id, _find_loop(group), group.iter_mapped_dependencies())
-        for group in dag.task_group.get_task_group_dict().values()
-        if isinstance(group, MappedTaskGroup)
-    )
-    for consumer_id, consumer_loop, producers in consumers:
-        for producer in producers:
-            loop = _find_loop(producer.task_group)
-            if loop is not None and (consumer_loop is None or consumer_loop.group_id != loop.group_id):
-                raise ValueError(
-                    f"{consumer_id!r} cannot expand over {producer.task_id!r}, a task in loop "
-                    f"{loop.group_id!r}; only tasks in the same loop can expand over its output"
-                )
+
+    def refuse_fanning_out_from_outside(loop: LoopTaskGroup) -> None:
+        # A task outside the loop that reads one of its tasks depends on the loop's gate instead (see
+        # get_edge_source), so only the gate's downstream tasks can fan out over a task of this loop.
+        for task in dag.get_task(loop.gate_task_id).downstream_list:
+            consumers = [(task.task_id, task.iter_expansion_sources())]
+            consumers.extend(
+                (group.group_id, group.iter_mapped_dependencies()) for group in task.iter_mapped_task_groups()
+            )
+            for consumer_id, producers in consumers:
+                for producer in producers:
+                    if _find_loop(producer.task_group) is loop:
+                        raise ValueError(
+                            f"{consumer_id!r} cannot expand or iterate over {producer.task_id!r}, a task in "
+                            f"loop {loop.group_id!r}; only tasks in the same loop can expand or iterate over "
+                            "its output"
+                        )
+
+    for group in dag.task_group.get_task_group_dict().values():
+        if isinstance(group, LoopTaskGroup):
+            refuse_fanning_out_from_outside(group)
 
 
 class LoopGateOperator(BaseOperator):

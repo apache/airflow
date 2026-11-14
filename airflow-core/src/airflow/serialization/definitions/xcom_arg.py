@@ -117,6 +117,18 @@ class SchedulerMapXComArg(SchedulerXComArg):
 
 
 @attrs.define
+class SchedulerFlattenXComArg(SchedulerXComArg):
+    arg: SchedulerXComArg
+
+    @classmethod
+    def _deserialize(cls, data: dict[str, Any], dag: SerializedDAG) -> Self:
+        return cls(deserialize_xcom_arg(data["arg"], dag))
+
+    def iter_references(self) -> Iterator[tuple[Operator, str]]:
+        yield from self.arg.iter_references()
+
+
+@attrs.define
 class SchedulerConcatXComArg(SchedulerXComArg):
     args: Sequence[SchedulerXComArg]
 
@@ -222,6 +234,17 @@ def _(
 
 @get_task_map_length.register
 def _(
+    xcom_arg: SchedulerFlattenXComArg,
+    run_id: str,
+    *,
+    producer_contexts: Mapping[str, ProducerContext] | None = None,
+    session: Session,
+) -> int | None:
+    return get_task_map_length(xcom_arg.arg, run_id, producer_contexts=producer_contexts, session=session)
+
+
+@get_task_map_length.register
+def _(
     xcom_arg: SchedulerZipXComArg,
     run_id: str,
     *,
@@ -267,6 +290,7 @@ def deserialize_xcom_arg(data: dict[str, Any], dag: SerializedDAG):
 _XCOM_ARG_TYPES: dict[str, type[SchedulerXComArg]] = {
     "": SchedulerPlainXComArg,
     "concat": SchedulerConcatXComArg,
+    "flatten": SchedulerFlattenXComArg,
     "map": SchedulerMapXComArg,
     "zip": SchedulerZipXComArg,
 }

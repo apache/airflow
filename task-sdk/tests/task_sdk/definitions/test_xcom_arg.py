@@ -17,26 +17,35 @@
 # under the License.
 from __future__ import annotations
 
-from collections.abc import Callable
+import asyncio
+import threading
+from collections.abc import Callable, Mapping
+from typing import Any
 from unittest import mock
 
+import attrs
 import pytest
 import structlog
+from task_sdk.definitions.conftest import make_xcom_arg
 
 from airflow.sdk import BaseOperator, TaskInstanceState, task_group
-from airflow.sdk.bases.xcom import BaseXCom
+from airflow.sdk.bases.xcom import BaseXCom, FlattenedChunks, XComIterable
 from airflow.sdk.definitions._internal.loop import create_loop
+from airflow.sdk.definitions._internal.types import NOTSET
 from airflow.sdk.definitions.dag import DAG
-from airflow.sdk.definitions.xcom_arg import PlainXComArg
-from airflow.sdk.exceptions import AirflowSkipException
+from airflow.sdk.definitions.xcom_arg import FlattenXComArg, PlainXComArg, XComArg, serialize_xcom_arg
+from airflow.sdk.exceptions import AirflowSkipException, XComNotFound
 from airflow.sdk.execution_time.comms import (
     GetXCom,
     GetXComCount,
     XComCountResponse,
     XComResult,
+    XComSequenceIndexResult,
     XComSequenceSliceResult,
 )
 from airflow.sdk.execution_time.lazy_sequence import LazyXComSequence
+from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
+from airflow.sdk.execution_time.xcom import XCom
 from airflow.sdk.serde import deserialize, serialize
 
 log = structlog.get_logger(__name__)
@@ -446,6 +455,196 @@ class TestPlainXComArgResolveMappedGroup:
         ti.xcom_pull.assert_called_once()
         assert ti.xcom_pull.call_args.kwargs["map_indexes"] == 0
 
+    @pytest.mark.asyncio
+    async def test_aresolve_stays_lazy_without_pulling(self):
+        arg = self._make_arg()
+        ti = self._make_ti(computed=None)
+        ti.axcom_pull = mock.AsyncMock()
+
+        resolved = await arg.aresolve({"ti": ti})
+
+        assert isinstance(resolved, LazyXComSequence)
+        ti.axcom_pull.assert_not_awaited()
+        ti.xcom_pull.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_aresolve_uses_axcom_pull_for_specific_index(self):
+        arg = self._make_arg()
+        ti = self._make_ti(computed=0)
+        ti.axcom_pull = mock.AsyncMock(return_value="value-0")
+
+        resolved = await arg.aresolve({"ti": ti})
+
+        assert resolved == "value-0"
+        ti.axcom_pull.assert_awaited_once_with(
+            task_ids="do_something", key="test", default=NOTSET, map_indexes=0
+        )
+        ti.xcom_pull.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_aresolve_computes_map_indexes_off_the_loop_thread(self):
+        """
+        Counting upstream task instances is a blocking supervisor call; on the loop thread it would
+        deadlock with the ``asend`` calls of the iterated tasks in flight, so it must run in a worker.
+        """
+        arg = self._make_arg()
+        ti = self._make_ti(computed=0)
+        ti.axcom_pull = mock.AsyncMock(return_value="value-0")
+        threads: list[threading.Thread] = []
+
+        def compute(**kwargs):
+            threads.append(threading.current_thread())
+            return 0
+
+        ti.get_relevant_upstream_map_indexes.side_effect = compute
+
+        await arg.aresolve({"ti": ti})
+
+        assert threads
+        assert threads[0] is not threading.current_thread()
+
+
+class TestPlainXComArgAresolve:
+    """``aresolve`` on an unmapped upstream pulls through ``ti.axcom_pull`` and never ``ti.xcom_pull``."""
+
+    @staticmethod
+    def _make_arg(key: str = BaseXCom.XCOM_RETURN_KEY, multiple_outputs: bool = False):
+        operator = mock.MagicMock()
+        operator.is_mapped = False
+        operator.task_id = "do_something"
+        operator.dag_id = "test_dag"
+        operator.multiple_outputs = multiple_outputs
+        operator.get_closest_mapped_task_group.return_value = None
+        return PlainXComArg(operator=operator, key=key)
+
+    @staticmethod
+    def _make_ti(pulled):
+        ti = mock.MagicMock()
+        ti.dag_id = "test_dag"
+        ti.xcom_pull.return_value = pulled
+        ti.axcom_pull = mock.AsyncMock(return_value=pulled)
+        return ti
+
+    @pytest.mark.asyncio
+    async def test_aresolve_pulls_unmapped_instance(self):
+        arg = self._make_arg()
+        ti = self._make_ti(pulled=[1, 2, 3])
+
+        assert await arg.aresolve({"ti": ti}) == [1, 2, 3]
+
+        ti.axcom_pull.assert_awaited_once_with(
+            task_ids="do_something", key=BaseXCom.XCOM_RETURN_KEY, default=NOTSET, map_indexes=None
+        )
+        ti.xcom_pull.assert_not_called()
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("key", "multiple_outputs"),
+        [
+            pytest.param(BaseXCom.XCOM_RETURN_KEY, False, id="return-value"),
+            pytest.param("other", True, id="multiple-outputs"),
+        ],
+    )
+    async def test_aresolve_missing_xcom_gives_none_like_resolve(self, key, multiple_outputs):
+        arg = self._make_arg(key=key, multiple_outputs=multiple_outputs)
+        ti = self._make_ti(pulled=NOTSET)
+
+        assert await arg.aresolve({"ti": ti}) is None
+        assert arg.resolve({"ti": ti}) is None
+
+    @pytest.mark.asyncio
+    async def test_aresolve_missing_custom_key_raises_like_resolve(self):
+        arg = self._make_arg(key="other")
+        ti = self._make_ti(pulled=NOTSET)
+
+        with pytest.raises(XComNotFound):
+            await arg.aresolve({"ti": ti})
+        with pytest.raises(XComNotFound):
+            arg.resolve({"ti": ti})
+
+
+def _fail_sync_resolve(*args, **kwargs):
+    pytest.fail("synchronous resolve() must not be used on the async path")
+
+
+class AsyncOnlyValues:
+    """A resolved value that can only be iterated asynchronously, like an XComIterable on the loop."""
+
+    def __init__(self, values):
+        self.values = values
+
+    async def __aiter__(self):
+        for value in self.values:
+            yield value
+
+
+class CustomXComArg(XComArg):
+    """A third-party subclass that only implements the two required methods."""
+
+    def __init__(self, values):
+        self.values = values
+        self.threads: list[threading.Thread] = []
+
+    def iter_references(self):
+        yield from ()
+
+    def resolve(self, context):
+        self.threads.append(threading.current_thread())
+        return self.values
+
+
+class TestXComArgSubclassDefaults:
+    """A subclass implementing only ``iter_references`` and ``resolve`` works on the iterated path."""
+
+    @pytest.mark.asyncio
+    async def test_aresolve_defaults_to_resolve_off_the_loop_thread(self):
+        arg = CustomXComArg([1, 2, 3])
+
+        assert await arg.aresolve({}) == [1, 2, 3]
+        assert arg.threads
+        assert all(thread is not threading.current_thread() for thread in arg.threads)
+
+
+class TestXComArg:
+    @pytest.mark.asyncio
+    async def test_map_xcomarg_aresolve(self):
+        base = make_xcom_arg([1, 2, 3])
+        base.resolve = _fail_sync_resolve
+        mapped = base.map(lambda x: x * 10)
+        assert list(await mapped.aresolve({})) == [10, 20, 30]
+
+    @pytest.mark.asyncio
+    async def test_zip_xcomarg_aresolve(self):
+        a = make_xcom_arg([1, 2])
+        b = make_xcom_arg([10, 20])
+        a.resolve = b.resolve = _fail_sync_resolve
+        zipped = a.zip(b)
+        assert list(await zipped.aresolve({})) == [(1, 10), (2, 20)]
+
+    @pytest.mark.asyncio
+    async def test_concat_xcomarg_aresolve(self):
+        a = make_xcom_arg([1, 2])
+        b = make_xcom_arg([10, 20])
+        a.resolve = b.resolve = _fail_sync_resolve
+        concatenated = a.concat(b)
+        assert list(await concatenated.aresolve({})) == [1, 2, 10, 20]
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "build", [lambda a: a.map(lambda x: x), lambda a: a.zip(a), lambda a: a.concat(a)]
+    )
+    async def test_composite_xcomarg_aresolve_rejects_non_sequence_like_resolve(self, build):
+        base = make_xcom_arg(42)
+        composite = build(base)
+        with pytest.raises(ValueError, match="expects sequence or dict"):
+            await composite.aresolve({})
+        with pytest.raises(ValueError, match="expects sequence or dict"):
+            composite.resolve({})
+
+    def test_base_aresolve_falls_back_to_resolve(self):
+        """The base default is resolve() in a worker thread; PlainXComArg's axcom_pull override is an optimisation."""
+        assert asyncio.run(super(PlainXComArg, make_xcom_arg([1, 2])).aresolve({})) == [1, 2]
+
 
 class TestPlainXComArgResolveLoopTask:
     @pytest.fixture
@@ -485,3 +684,238 @@ class TestPlainXComArgResolveLoopTask:
 
         assert resolved == "value"
         assert isinstance(mock_supervisor_comms.send.call_args.args[0], GetXCom)
+
+
+@attrs.define
+class _Resolved(XComArg):
+    """An XComArg that resolves to a value held in memory."""
+
+    value: Any
+
+    def resolve(self, context: Mapping[str, Any]) -> Any:
+        return self.value
+
+
+def _flattened(value: Any, depth: int = 1) -> Any:
+    return _Resolved(value).flatten(depth=depth).resolve({})
+
+
+class _ChunkSource:
+    """The chunks of a spread task as a lazy XCom sequence hands them out: built on read, counted."""
+
+    def __init__(self, *chunks: list) -> None:
+        self._chunks = chunks
+        self.reads = 0
+
+    def __iter__(self):
+        for chunk in self._chunks:
+            self.reads += 1
+            yield list(chunk)
+
+
+def _iterated(results_per_map_index: dict[int | None, list]) -> tuple[dict, Callable]:
+    """
+    Build the XComIterable of each task instance of an iterated task, and the read that serves them.
+
+    A task instance pushes one result per index (``return_value_<index>``) and tallies their items
+    as it pushes; ``None`` is the map index of a task that was not spread.
+    """
+
+    def get_one(*, key: str, map_index: int | None, **kwargs: Any) -> Any:
+        return results_per_map_index[map_index][int(key.rsplit("_", 1)[-1])]
+
+    iterables = {
+        map_index: XComIterable(
+            task_id="task",
+            dag_id="dag",
+            run_id="run",
+            map_index=map_index,
+            length=len(results),
+            flattened_length=sum(len(result) for result in results),
+        )
+        for map_index, results in results_per_map_index.items()
+    }
+    return iterables, get_one
+
+
+class TestFlattenXComArg:
+    # The same pages of rows from a task that was not spread and from one spread over two.
+    PAGES = [[["a", 1], ["b", 2]], [["c", 3]]]
+    ROWS = [["a", 1], ["b", 2], ["c", 3]]
+    CELLS = ["a", 1, "b", 2, "c", 3]
+
+    @pytest.fixture(params=["not spread", "spread"])
+    def pages_of_rows(self, request):
+        """Yield the value ``PAGES`` resolves to and its XCom reads, for both ways of producing it."""
+        spread = (
+            {None: self.PAGES} if request.param == "not spread" else {0: self.PAGES[:1], 1: self.PAGES[1:]}
+        )
+        iterables, get_one = _iterated(spread)
+        value = iterables[None] if request.param == "not spread" else list(iterables.values())
+        with mock.patch.object(XCom, "get_one", autospec=True, side_effect=get_one) as mock_get_one:
+            yield value, mock_get_one
+
+    def test_flatten_on_a_task_output_is_a_flatten_xcom_arg(self):
+        with DAG("test"):
+            pages = BaseOperator(task_id="pages").output
+
+        assert pages.flatten() == FlattenXComArg(pages)
+        assert repr(pages.flatten().flatten()) == f"{pages!r}.flatten().flatten()"
+        assert list(pages.flatten().iter_references()) == list(pages.iter_references())
+
+    def test_flatten_is_refused_on_a_non_return_xcom(self):
+        with DAG("test"):
+            pages = BaseOperator(task_id="pages").output
+
+        with pytest.raises(ValueError, match="cannot flatten non-return XCom"):
+            pages["other"].flatten()
+
+    def test_depth_is_shorthand_for_chained_calls(self):
+        arg = _Resolved(None)
+
+        assert arg.flatten(depth=1) == FlattenXComArg(arg)
+        assert arg.flatten(depth=3) == arg.flatten().flatten().flatten()
+
+    @pytest.mark.parametrize("depth", [0, -1])
+    def test_a_depth_below_one_is_refused(self, depth):
+        with pytest.raises(ValueError, match="depth must be at least 1"):
+            _Resolved(None).flatten(depth=depth)
+
+    def test_serialization_nests_one_flatten_per_level(self):
+        with DAG("test"):
+            pages = BaseOperator(task_id="pages").output
+
+        plain = serialize_xcom_arg(pages)
+        assert serialize_xcom_arg(pages.flatten(depth=2)) == {
+            "type": "flatten",
+            "arg": {"type": "flatten", "arg": plain},
+        }
+
+    def test_a_row_that_is_a_list_stays_a_row_however_the_task_was_spread(self, pages_of_rows):
+        value, _ = pages_of_rows
+
+        rows = _flattened(value)
+
+        assert list(rows) == self.ROWS
+        assert len(rows) == 3
+        assert rows[1] == ["b", 2]
+        assert rows[-1] == ["c", 3]
+
+    def test_a_second_flatten_expands_one_level_more(self, pages_of_rows):
+        value, _ = pages_of_rows
+
+        cells = _flattened(value, depth=2)
+
+        assert list(cells) == self.CELLS
+        assert len(cells) == 6
+        assert cells[3] == 2
+        assert cells[-1] == 3
+        assert cells[1:4] == [1, "b", 2]
+        with pytest.raises(IndexError):
+            cells[6]
+
+    @pytest.mark.parametrize(("depth", "expected"), [(1, ROWS), (2, CELLS)])
+    def test_the_output_of_a_spread_task_flattens_as_the_supervisor_serves_it(
+        self, mock_supervisor_comms, depth, expected
+    ):
+        # A spread task has one task instance per chunk, each pushing its own XComIterable; the
+        # consumer pulls them as a lazy sequence, one serialized chunk per request.
+        spread = {0: self.PAGES[:1], 1: self.PAGES[1:]}
+        iterables, get_one = _iterated(spread)
+        chunks = [serialize(iterable) for iterable in iterables.values()]
+        mock_supervisor_comms.send.side_effect = lambda message: XComSequenceIndexResult(
+            root=chunks[message.offset]
+        )
+        operator = mock.MagicMock(spec=BaseOperator, is_mapped=True, task_id="task", dag_id="dag")
+        ti = mock.MagicMock(spec=RuntimeTaskInstance, run_id="run", _upstream_map_indexes=None)
+        ti.get_relevant_upstream_map_indexes.return_value = None
+
+        with mock.patch.object(XCom, "get_one", autospec=True, side_effect=get_one):
+            flattened = PlainXComArg(operator=operator).flatten(depth=depth).resolve({"ti": ti})
+
+            assert list(flattened) == expected
+
+    def test_every_flatten_expands_exactly_one_level(self):
+        results = [[[1, [2, [3]]]], [[4]]]
+
+        assert list(_flattened(results, depth=1)) == [[1, [2, [3]]], [4]]
+        assert list(_flattened(results, depth=2)) == [1, [2, [3]], 4]
+        assert list(_flattened(results, depth=3)) == [1, 2, [3], 4]
+
+    def test_flatten_keeps_mappings_strings_bytes_and_none_whole_at_every_level(self):
+        rows = [[{"k": 1}, "ab"], [b"cd", None], 5]
+
+        assert list(_flattened([rows])) == rows
+        assert list(_flattened([rows], depth=2)) == [{"k": 1}, "ab", b"cd", None, 5]
+
+    def test_a_task_instance_that_returned_nothing_adds_nothing(self):
+        assert list(_flattened([[1, 2], None, [3], 4])) == [1, 2, 3, 4]
+
+    @pytest.mark.parametrize("value", [None, 3, "abc", b"abc", {"a": 1}])
+    def test_a_value_that_is_no_sequence_of_results_is_returned_as_it_is(self, value):
+        assert _flattened(value) == value
+
+    def test_resolve_reads_no_chunk(self):
+        source = _ChunkSource([1, 2], [3])
+
+        flattened = _flattened(source)
+
+        assert isinstance(flattened, FlattenedChunks)
+        assert source.reads == 0
+
+    @pytest.mark.parametrize("depth", [1, 2])
+    def test_iteration_reads_one_chunk_at_a_time(self, depth):
+        source = _ChunkSource([[1], [2]], [[3]]) if depth == 2 else _ChunkSource([1, 2], [3])
+        items = iter(_flattened(source, depth=depth))
+
+        assert [next(items), next(items)] == [1, 2]
+        assert source.reads == 1
+        assert next(items) == 3
+        assert source.reads == 2
+
+    def test_len_of_the_first_level_reads_no_page(self, pages_of_rows):
+        value, mock_get_one = pages_of_rows
+
+        assert len(_flattened(value)) == 3
+        mock_get_one.assert_not_called()
+
+    def test_len_of_a_second_level_reads_every_page_once(self, pages_of_rows):
+        value, mock_get_one = pages_of_rows
+        cells = _flattened(value, depth=2)
+
+        assert len(cells) == 6
+        assert len(cells) == 6
+        assert mock_get_one.call_count == len(self.PAGES)
+
+    @pytest.mark.parametrize(("depth", "expected"), [(1, ROWS), (2, CELLS)])
+    def test_the_indexed_tasks_of_an_iterated_task_read_every_item(self, pages_of_rows, depth, expected):
+        value, mock_get_one = pages_of_rows
+
+        async def get_one(**kwargs: Any) -> Any:
+            return mock_get_one.side_effect(**kwargs)
+
+        async def read_all() -> list:
+            flattened = await _Resolved(value).flatten(depth=depth).aresolve({})
+            return await asyncio.gather(*(flattened.aget(index) for index in range(await flattened.alen())))
+
+        with mock.patch.object(XCom, "aget_one", autospec=True, side_effect=get_one):
+            assert asyncio.run(read_all()) == expected
+
+    def test_aget_lists_the_chunks_once_and_uses_a_thread_for_that_only(self):
+        source = _ChunkSource(["a", "b"], ["c"], ["d"])
+        flattened = _flattened(source)
+        threads = []
+
+        async def to_thread(function, *args):
+            threads.append(function)
+            return function(*args)
+
+        async def read_all() -> list:
+            return await asyncio.gather(*(flattened.aget(index) for index in range(4)))
+
+        with mock.patch("airflow.sdk.bases.xcom.asyncio.to_thread", autospec=True, side_effect=to_thread):
+            assert asyncio.run(read_all()) == ["a", "b", "c", "d"]
+            assert asyncio.run(flattened.aget(-1)) == "d"
+
+        assert source.reads == 3
+        assert len(threads) == 1

@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import contextlib
 import inspect
 import itertools
@@ -27,6 +28,7 @@ from typing import TYPE_CHECKING, Any, overload
 import attrs
 
 from airflow.sdk import TriggerRule
+from airflow.sdk.bases.xcom import FlattenedChunks
 from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator
 from airflow.sdk.definitions._internal.loop import is_loop_task_read_from_outside
 from airflow.sdk.definitions._internal.mixins import DependencyMixin, ResolveMixin
@@ -79,6 +81,11 @@ class XComArg(ResolveMixin, DependencyMixin):
     :param operator: Operator instance to which the XComArg references.
     :param key: Key used to pull the XCom value. Defaults to *XCOM_RETURN_KEY*,
         i.e. the referenced operator's return value.
+
+    **Subclassing.** A subclass has to implement :meth:`iter_references` and :meth:`resolve`. The
+    one other method an iterated task (``.iterate()``) uses, :meth:`aresolve`, has a working
+    default built on those two: it runs ``resolve`` in a worker thread. Override it only to do
+    better, as the built-in subclasses do by pulling through ``ti.axcom_pull`` directly.
     """
 
     @overload
@@ -178,8 +185,35 @@ class XComArg(ResolveMixin, DependencyMixin):
     def concat(self, *others: XComArg) -> ConcatXComArg:
         return ConcatXComArg([self, *others])
 
+    def flatten(self, depth: int = 1) -> FlattenXComArg:
+        """
+        Read the value as one sequence of its items, ``depth`` levels expanded, one by default.
+
+        Calls chain, each expanding one level more: ``.flatten(depth=2)`` is
+        ``.flatten().flatten()``, one :class:`FlattenXComArg` per level.
+        """
+        if depth < 1:
+            raise ValueError(f"depth must be at least 1, got {depth}")
+        flattened = FlattenXComArg(self)
+        for _ in range(depth - 1):
+            flattened = FlattenXComArg(flattened)
+        return flattened
+
     def resolve(self, context: Mapping[str, Any]) -> Any:
         raise NotImplementedError()
+
+    async def aresolve(self, context: Mapping[str, Any]) -> Any:
+        """
+        Async twin of :meth:`resolve`, for callers running on the task's event loop.
+
+        The default runs :meth:`resolve` in a worker thread, so any subclass that implements
+        ``resolve`` works on the iterated path unchanged: a blocking supervisor call made from that
+        thread waits its turn while the loop keeps serving the other indexed tasks, where the same call
+        on the loop thread would hold them all up for its round trip (see
+        ``AsyncAwareExecutor.imap_unordered``). The built-in subclasses override this to pull
+        through ``ti.axcom_pull`` directly and skip the thread hand-off.
+        """
+        return await asyncio.to_thread(self.resolve, context)
 
     def __enter__(self):
         if not self.operator.is_setup and not self.operator.is_teardown:
@@ -330,8 +364,47 @@ class PlainXComArg(XComArg):
             raise ValueError("cannot concatenate non-return XCom")
         return super().concat(*others)
 
+    def flatten(self, depth: int = 1) -> FlattenXComArg:
+        if self.key != BaseXCom.XCOM_RETURN_KEY:
+            raise ValueError("cannot flatten non-return XCom")
+        return super().flatten(depth)
+
     def resolve(self, context: Mapping[str, Any]) -> Any:
         ti = context["ti"]
+        map_indexes = self._resolve_map_indexes(ti)
+        if isinstance(map_indexes, LazyXComSequence):
+            return map_indexes
+        result = ti.xcom_pull(
+            task_ids=self.operator.task_id,
+            key=self.key,
+            default=NOTSET,
+            map_indexes=map_indexes,
+        )
+        return self._check_pulled(ti, result)
+
+    async def aresolve(self, context: Mapping[str, Any]) -> Any:
+        ti = context["ti"]
+        # Computing the map indexes may count upstream task instances through a synchronous
+        # supervisor call, so keep it off the loop thread.
+        map_indexes = await asyncio.to_thread(self._resolve_map_indexes, ti)
+        if isinstance(map_indexes, LazyXComSequence):
+            return map_indexes
+        result = await ti.axcom_pull(
+            task_ids=self.operator.task_id,
+            key=self.key,
+            default=NOTSET,
+            map_indexes=map_indexes,
+        )
+        return self._check_pulled(ti, result)
+
+    def _resolve_map_indexes(self, ti: Any) -> LazyXComSequence | int | range | None:
+        """
+        Return the upstream map indexes to pull, or a lazy sequence over the whole mapped upstream.
+
+        A ``LazyXComSequence`` is returned when the upstream is mapped (or expands to a whole mapped
+        task group), so nothing is pulled eagerly; otherwise ``None`` pulls the unmapped instance and
+        an int or range pulls the relevant expanded instances.
+        """
         task_id = self.operator.task_id
 
         if self.operator.is_mapped or is_loop_task_read_from_outside(self.operator, ti.task):
@@ -361,12 +434,10 @@ class PlainXComArg(XComArg):
                     # the value is actually returned and pushed to XCom (see airflow.sdk.serde.serialize).
                     return LazyXComSequence(xcom_arg=self, ti=ti)
                 map_indexes = computed
-        result = ti.xcom_pull(
-            task_ids=task_id,
-            key=self.key,
-            default=NOTSET,
-            map_indexes=map_indexes,
-        )
+        return map_indexes
+
+    def _check_pulled(self, ti: Any, result: Any) -> Any:
+        """Turn a pulled XCom into the resolved value, or raise when the XCom must exist."""
         if is_arg_set(result):
             return result
         if self.key == BaseXCom.XCOM_RETURN_KEY:
@@ -378,7 +449,7 @@ class PlainXComArg(XComArg):
             # different names than the predefined "XCOM_RETURN_KEY" and won't be found.
             # Therefore, it's better to return "None" like we did above where self.key==XCOM_RETURN_KEY.
             return None
-        raise XComNotFound(ti.dag_id, task_id, self.key)
+        raise XComNotFound(ti.dag_id, self.operator.task_id, self.key)
 
 
 def _get_callable_name(f: Callable | str) -> str:
@@ -452,7 +523,12 @@ class MapXComArg(XComArg):
         return MapXComArg(self.arg, [*self.callables, f])
 
     def resolve(self, context: Mapping[str, Any]) -> Any:
-        value = self.arg.resolve(context)
+        return self._map(self.arg.resolve(context))
+
+    async def aresolve(self, context: Mapping[str, Any]) -> Any:
+        return self._map(await self.arg.aresolve(context))
+
+    def _map(self, value: Any) -> _MapResult:
         if not isinstance(value, (Sequence, dict)):
             raise ValueError(f"XCom map expects sequence or dict, not {type(value).__name__}")
         return _MapResult(value, self.callables)
@@ -514,7 +590,12 @@ class ZipXComArg(XComArg):
             yield from arg.iter_references()
 
     def resolve(self, context: Mapping[str, Any]) -> Any:
-        values = [arg.resolve(context) for arg in self.args]
+        return self._zip([arg.resolve(context) for arg in self.args])
+
+    async def aresolve(self, context: Mapping[str, Any]) -> Any:
+        return self._zip([await arg.aresolve(context) for arg in self.args])
+
+    def _zip(self, values: list[Any]) -> _ZipResult:
         for value in values:
             if not isinstance(value, (Sequence, dict)):
                 raise ValueError(f"XCom zip expects sequence or dict, not {type(value).__name__}")
@@ -575,16 +656,67 @@ class ConcatXComArg(XComArg):
         return ConcatXComArg([*self.args, *others])
 
     def resolve(self, context: Mapping[str, Any]) -> Any:
-        values = [arg.resolve(context) for arg in self.args]
+        return self._concat([arg.resolve(context) for arg in self.args])
+
+    async def aresolve(self, context: Mapping[str, Any]) -> Any:
+        return self._concat([await arg.aresolve(context) for arg in self.args])
+
+    def _concat(self, values: list[Any]) -> _ConcatResult:
         for value in values:
             if not isinstance(value, (Sequence, dict)):
                 raise ValueError(f"XCom concat expects sequence or dict, not {type(value).__name__}")
         return _ConcatResult(values)
 
 
+@attrs.define
+class FlattenXComArg(XComArg):
+    """
+    An XCom reference with a ``flatten()`` call applied: its value read as one sequence of items.
+
+    One level is expanded: the items of each result of an iterated task, and for a spread task,
+    which pushes one chunk of results per task instance, the items of each result of each chunk
+    (:class:`~airflow.sdk.bases.xcom.FlattenedChunks`). So the items are the same however the task
+    was spread. A list inside a result, a mapping, a string and bytes are items.
+
+    Calls chain, each one expanding one level more: ``.flatten().flatten()``, or
+    ``.flatten(depth=2)``, over pages of rows gives the cells. The value the inner one resolved to
+    is a flattened view, and every such view has a ``flatten()`` that reads it one level further.
+
+    :meta private:
+    """
+
+    arg: XComArg
+
+    def __repr__(self) -> str:
+        return f"{self.arg!r}.flatten()"
+
+    def _serialize(self) -> dict[str, Any]:
+        return {"arg": serialize_xcom_arg(self.arg)}
+
+    def iter_references(self) -> Iterator[tuple[Operator, str]]:
+        yield from self.arg.iter_references()
+
+    def resolve(self, context: Mapping[str, Any]) -> Any:
+        return self._flattened(self.arg.resolve(context))
+
+    async def aresolve(self, context: Mapping[str, Any]) -> Any:
+        return self._flattened(await self.arg.aresolve(context))
+
+    @staticmethod
+    def _flattened(value: Any) -> Any:
+        """Return ``value`` read as its items; a value that is no sequence of results is returned as it is."""
+        if not isinstance(value, Iterable) or isinstance(value, (str, bytes, Mapping)):
+            return value
+        flatten = getattr(value, "flatten", None)
+        if callable(flatten):
+            return flatten()
+        return FlattenedChunks(value)
+
+
 _XCOM_ARG_TYPES: Mapping[str, type[XComArg]] = {
     "": PlainXComArg,
     "concat": ConcatXComArg,
+    "flatten": FlattenXComArg,
     "map": MapXComArg,
     "zip": ZipXComArg,
 }
@@ -618,6 +750,11 @@ def _(xcom_arg: PlainXComArg, resolved_val: Sized, upstream_map_indexes: dict[st
 
 @get_task_map_length.register
 def _(xcom_arg: MapXComArg, resolved_val: Sized, upstream_map_indexes: dict[str, int]):
+    return get_task_map_length(xcom_arg.arg, resolved_val, upstream_map_indexes)
+
+
+@get_task_map_length.register
+def _(xcom_arg: FlattenXComArg, resolved_val: Sized, upstream_map_indexes: dict[str, int]):
     return get_task_map_length(xcom_arg.arg, resolved_val, upstream_map_indexes)
 
 
