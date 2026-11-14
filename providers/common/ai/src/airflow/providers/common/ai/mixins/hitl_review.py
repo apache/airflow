@@ -143,7 +143,7 @@ class HITLReviewProtocol(Protocol):
 
     def _parks_between_rounds(self) -> bool: ...
 
-    def _recorded_review_feedback(self, context: Context, session: AgentSessionData) -> str | None: ...
+    def _get_recorded_review_feedback(self, context: Context, session: AgentSessionData) -> str | None: ...
 
     def _record_review_feedback(self, context: Context, session: AgentSessionData, feedback: str) -> None: ...
 
@@ -155,7 +155,7 @@ class HITLReviewProtocol(Protocol):
         self, context: Context, session: AgentSessionData, *, deadline: datetime | None, state_sha256: str
     ) -> NoReturn: ...
 
-    def _next_round(
+    def _regenerate_next_round(
         self, session: AgentSessionData, feedback: str, message_history: Any
     ) -> tuple[AgentSessionData, Any]: ...
 
@@ -294,12 +294,12 @@ class HITLReviewMixin:
         Save the conversation, show ``session`` to the reviewer, and park until they act.
 
         A round the reviewer already asked to change in an earlier attempt of the task (see
-        :meth:`_recorded_review_feedback`) is not shown again: its feedback is applied, and the
+        :meth:`_get_recorded_review_feedback`) is not shown again: its feedback is applied, and the
         next round starts.
         """
         ti = context["task_instance"]
         while session.iteration < self.max_hitl_iterations and (
-            feedback := self._recorded_review_feedback(context, session)
+            feedback := self._get_recorded_review_feedback(context, session)
         ):
             self.log.info(
                 "Applying the feedback given on iteration %d in an earlier attempt: %s",
@@ -309,7 +309,7 @@ class HITLReviewMixin:
             # The HITL Review tab shows each round from these.
             ti.xcom_push(key=f"{XCOM_AGENT_OUTPUT_PREFIX}{session.iteration}", value=session.current_output)
             ti.xcom_push(key=f"{XCOM_HUMAN_FEEDBACK_PREFIX}{session.iteration}", value=feedback)
-            session, message_history = self._next_round(session, feedback, message_history)
+            session, message_history = self._regenerate_next_round(session, feedback, message_history)
         state = self.dump_review_state(message_history)
         retention = (
             deadline - utcnow() + _REVIEW_STATE_RETENTION_MARGIN if deadline is not None else NEVER_EXPIRE
@@ -319,7 +319,7 @@ class HITLReviewMixin:
             context, session, deadline=deadline, state_sha256=hashlib.sha256(state.encode()).hexdigest()
         )
 
-    def _next_round(
+    def _regenerate_next_round(
         self: HITLReviewProtocol, session: AgentSessionData, feedback: str, message_history: Any
     ) -> tuple[AgentSessionData, Any]:
         """Regenerate with ``feedback`` and return the next round's session, awaiting review, and the conversation."""
@@ -478,7 +478,7 @@ class HITLReviewMixin:
             self._record_review_feedback(context, session, feedback)
             message_history = self.load_review_state(context, _read_review_state(context, state_sha256))
             self.log.info("Feedback received (iteration %d): %s", iteration, feedback)
-            next_session, message_history = self._next_round(session, feedback, message_history)
+            next_session, message_history = self._regenerate_next_round(session, feedback, message_history)
             self._start_review_round(
                 context, next_session, message_history=message_history, deadline=parsed_deadline
             )
@@ -623,7 +623,7 @@ class HITLReviewMixin:
         """
         raise NotImplementedError("Operators using HITLReviewMixin must implement load_review_state().")
 
-    def _recorded_review_feedback(self, context: Context, session: AgentSessionData) -> str | None:
+    def _get_recorded_review_feedback(self, context: Context, session: AgentSessionData) -> str | None:
         """
         Return the feedback a reviewer gave on ``session``'s round in an earlier attempt, if any.
 
@@ -636,7 +636,7 @@ class HITLReviewMixin:
         """
         Note the reviewer's live answer on ``session``'s round, before the regeneration it asks for.
 
-        An operator that records answers keeps it for :meth:`_recorded_review_feedback`. Does
+        An operator that records answers keeps it for :meth:`_get_recorded_review_feedback`. Does
         nothing by default.
         """
 

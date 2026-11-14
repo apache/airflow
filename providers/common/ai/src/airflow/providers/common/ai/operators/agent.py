@@ -1918,15 +1918,15 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
             raise
 
     @staticmethod
-    def _stored_review_answers(context: Context) -> list[_ReviewAnswer]:
+    def _load_review_answers(context: Context) -> list[_ReviewAnswer]:
         return _REVIEW_ANSWERS_ADAPTER.validate_python(
             context["task_state_store"].get(_HITL_REVIEW_ANSWERS_KEY) or []
         )
 
-    def _recorded_review_feedback(self, context: Context, session: AgentSessionData) -> str | None:
+    def _get_recorded_review_feedback(self, context: Context, session: AgentSessionData) -> str | None:
         if self._durable_journal is None:
             return None
-        answers = self._stored_review_answers(context)
+        answers = self._load_review_answers(context)
         if (answer := next((a for a in answers if a["iteration"] == session.iteration), None)) is None:
             return None
         if answer["output_sha256"] != hashlib.sha256(session.current_output.encode()).hexdigest():
@@ -1950,9 +1950,7 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
             return
         # The answers for later rounds followed from this round's old answer, if it had one.
         answers = [
-            answer
-            for answer in self._stored_review_answers(context)
-            if answer["iteration"] < session.iteration
+            answer for answer in self._load_review_answers(context) if answer["iteration"] < session.iteration
         ]
         answers.append(
             _ReviewAnswer(
