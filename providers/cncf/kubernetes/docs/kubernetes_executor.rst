@@ -181,6 +181,20 @@ Here is an example of a task with both features:
             print_stuff()
 
 
+Choosing the cluster for a task
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+``executor_config`` accepts ``pod_override`` and ``pod_template_file`` (see above). It does not take a
+kubeconfig, and the legacy ``{"KubernetesExecutor": {...}}`` format is no longer supported: it raises a
+``TypeError``.
+
+The kubeconfig that KubernetesExecutor itself connects with is set in the ``[kubernetes_executor]``
+section (``config_file``, ``cluster_context``) and, in a multi-team deployment, per team (see
+`Connecting each team to its own cluster`_). If a single task needs to talk to a different cluster, use
+:class:`~airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator`, whose ``config_file``
+argument is a templated field.
+
+
 Managing Dags and logs
 ~~~~~~~~~~~~~~~~~~~~~~
 
