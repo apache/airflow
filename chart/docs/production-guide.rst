@@ -103,6 +103,24 @@ Similarly, ``resultBackendSecretKey`` and ``brokerUrlSecretKey`` configure the k
 used with ``resultBackendSecretName`` and ``brokerUrlSecretName``. All of these default to
 ``connection`` and only apply when the corresponding secret name is provided.
 
+Keeping database credentials away from Celery workers
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Task code runs on Celery workers, so anything in the worker's environment is readable by it. Celery
+workers need the metadata database only as the default Celery result backend, and they keep
+``AIRFLOW__DATABASE__SQL_ALCHEMY_CONN`` for that reason. To remove it, give Celery a separate result
+backend with ``data.resultBackendConnection``, ``data.resultBackendSecretName`` or
+``config.celery.result_backend``. A backend in the same database needs its own database user, limited to the
+Celery result tables, or the workers still hold the metadata database credentials. A backend set any other
+way, such as ``env`` or ``secret``, is not detected and the worker keeps the connection. A separate result
+backend needs ``apache-airflow-providers-celery`` 3.12.4 or newer. KEDA reads the
+connection from the worker's environment, so workers scaled by it always keep the credentials.
+
+Containers without the connection fall back to SQLite, and engine arguments that SQLite does not accept make
+Airflow fail at import. The chart clears ``sql_alchemy_engine_args`` there when it is set through
+``config.database``, so set it that way rather than through ``env``: Kerberos sidecars have no environment of
+their own to override it in.
+
 .. _production-guide:pgbouncer:
 
 Metadata DB Cleanup
