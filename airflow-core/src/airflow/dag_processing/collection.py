@@ -1456,6 +1456,12 @@ class AssetModelOperation(NamedTuple):
         # Optimization: if no asset collected, skip fetching active assets
         active_assets = _find_active_assets(self.assets, session=session) if self.assets else {}
 
+        # With multi-team enabled, a parse only manages its own team's watchers:
+        # diffing, reuse and removal are all scoped to ``team_name``, so two teams
+        # declaring the identical watcher each get their own trigger and each
+        # team's triggerer runs its own copy (#76992).
+        multi_team = conf.getboolean("core", "multi_team")
+
         for name_uri, asset in self.assets.items():
             # If the asset belong to a DAG not active or paused, consider there is no watcher associated to it
             asset_watcher_triggers = (
@@ -1475,7 +1481,9 @@ class AssetModelOperation(NamedTuple):
 
             asset_model = assets[name_uri]
             trigger_hash_from_asset_model: set[int] = {
-                BaseEventTrigger.hash(trigger.classpath, trigger.kwargs) for trigger in asset_model.triggers
+                BaseEventTrigger.hash(trigger.classpath, trigger.kwargs)
+                for trigger in asset_model.triggers
+                if not multi_team or trigger.team_name == team_name
             }
 
             # Optimization: no diff between the DB and DAG definitions, no update needed
@@ -1494,21 +1502,20 @@ class AssetModelOperation(NamedTuple):
                 trigger_hash for trigger_hashes in refs_to_add.values() for trigger_hash in trigger_hashes
             }
 
-            all_trigger_keys: set[tuple[str, str]] = {
-                (
-                    triggers[trigger_hash]["classpath"],
-                    Trigger.encrypt_kwargs(triggers[trigger_hash]["kwargs"]),
-                )
+            all_trigger_classpaths: set[str] = {
+                triggers[trigger_hash]["classpath"]
                 for trigger_hashes in refs_to_add.values()
                 for trigger_hash in trigger_hashes
             }
+            # Fetch candidates by classpath and compare kwargs in Python via the
+            # trigger hash: ``encrypted_kwargs`` is not deterministic when a Fernet
+            # key is set, so an SQL equality on it never matches an existing row.
+            reuse_stmt = select(Trigger).where(Trigger.classpath.in_(all_trigger_classpaths))
+            if multi_team:
+                reuse_stmt = reuse_stmt.where(Trigger.team_name == team_name)
             orm_triggers: dict[int, Trigger] = {
                 BaseEventTrigger.hash(trigger.classpath, trigger.kwargs): trigger
-                for trigger in session.scalars(
-                    select(Trigger).where(
-                        tuple_(Trigger.classpath, Trigger.encrypted_kwargs).in_(all_trigger_keys)
-                    )
-                )
+                for trigger in session.scalars(reuse_stmt)
             }
 
             # Create new triggers
@@ -1550,8 +1557,12 @@ class AssetModelOperation(NamedTuple):
                     watcher
                     for watcher in asset_model.watchers
                     if watcher.trigger is not None
-                    and BaseEventTrigger.hash(watcher.trigger.classpath, watcher.trigger.kwargs)
-                    not in trigger_hashes
+                    and (
+                        # Another team's watcher is never ours to remove
+                        (multi_team and watcher.trigger.team_name != team_name)
+                        or BaseEventTrigger.hash(watcher.trigger.classpath, watcher.trigger.kwargs)
+                        not in trigger_hashes
+                    )
                 ]
 
         # Remove references from assets no longer used
