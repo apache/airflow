@@ -24,6 +24,7 @@ from sqlalchemy import select
 from airflow._shared.timezones import timezone
 from airflow.assets.manager import AssetManager
 from airflow.models.asset import AssetActive, AssetModel
+from airflow.models.callback import Callback
 from airflow.models.dag import DagModel
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.deadline import Deadline
@@ -40,6 +41,10 @@ pytestmark = pytest.mark.db_test
 
 
 def _sample_callback(**context):
+    pass
+
+
+def _resolve_callback(**context):
     pass
 
 
@@ -64,6 +69,7 @@ class TestAssetDeadlineLifecycle:
             asset_id=asset_model.id,
             is_producer=True,
             name="sla_6h",
+            reference=encoded["reference"],
             cron=None,
             interval=encoded["interval"],
             callback_def=encoded["callback"],
@@ -72,20 +78,16 @@ class TestAssetDeadlineLifecycle:
         session.add(alert)
         session.flush()
 
-        # Proactive scheduling creates 1 pending deadline at t0 + 6h = 12:00 UTC
         created = Deadline.schedule_asset_deadlines(session=session, asset_id=asset_model.id, now=t0)
         assert created == 1
-
-        # Calling again is idempotent
         assert Deadline.schedule_asset_deadlines(session=session, asset_id=asset_model.id, now=t0) == 0
 
         deadlines = session.scalars(select(Deadline).where(Deadline.asset_id == asset_model.id)).all()
         assert len(deadlines) == 1
         assert deadlines[0].deadline_time == t0 + timedelta(hours=6)
         assert not deadlines[0].missed
-        assert "Asset:" in repr(deadlines[0])
+        assert not deadlines[0].is_late
 
-        # Registering an AssetEvent on time prunes the 12:00 deadline and schedules the next window
         AssetManager.register_asset_change(
             asset=Asset(name="orders_daily", uri="s3://bucket/orders_daily"),
             session=session,
@@ -94,16 +96,83 @@ class TestAssetDeadlineLifecycle:
         assert len(remaining) == 1
         assert remaining[0].deadline_time > t0 + timedelta(hours=6)
 
-    def test_partitioned_pruning_and_handle_miss_context(self, session):
+    def test_late_recovery_and_on_resolve_callback(self, session):
+        asset_model = AssetModel(name="late_asset", uri="s3://bucket/late_asset", active=AssetActive())
+        session.add(asset_model)
+        session.flush()
+
+        sdk_dl = AssetDeadline(
+            interval=timedelta(hours=2),
+            callback=SyncCallback(_sample_callback),
+            on_resolve=SyncCallback(_resolve_callback),
+            name="recoverable_sla",
+        )
+        encoded = encode_asset_deadline(sdk_dl)
+        alert = DeadlineAlert(
+            asset_id=asset_model.id,
+            is_producer=True,
+            name="recoverable_sla",
+            reference=encoded["reference"],
+            cron=None,
+            interval=encoded["interval"],
+            callback_def=encoded["callback"],
+            on_resolve_callback_def=encoded["on_resolve"],
+        )
+        session.add(alert)
+        session.flush()
+
+        cb_def = _decode_deadline_callback(alert.callback_def)
+        dl = Deadline(
+            deadline_time=timezone.utcnow() - timedelta(minutes=15),
+            callback=cb_def,
+            asset_id=asset_model.id,
+            deadline_alert_id=alert.id,
+        )
+        session.add(dl)
+        session.flush()
+
+        dl.handle_miss(session=session)
+        session.flush()
+        assert dl.missed is True
+        assert dl.resolved_at is None
+        assert dl.is_late is True
+
+        AssetManager.register_asset_change(
+            asset=Asset(name="late_asset", uri="s3://bucket/late_asset"),
+            session=session,
+        )
+        session.refresh(dl)
+        assert dl.missed is True
+        assert dl.resolved_at is not None
+        assert dl.is_late is False
+
+        callbacks = session.scalars(select(Callback)).all()
+        resolve_cbs = [c for c in callbacks if c.id != dl.callback_id]
+        assert len(resolve_cbs) == 1
+        assert resolve_cbs[0].data["kwargs"]["context"]["resolved"] is True
+
+    def test_partitioned_discovery_pruning_and_handle_miss_context(self, session):
         asset_model = AssetModel(name="events_part", uri="s3://bucket/events_part", active=AssetActive())
         session.add(asset_model)
         session.flush()
+
+        AssetManager.register_asset_change(
+            asset=Asset(name="events_part", uri="s3://bucket/events_part"),
+            partition_key="2026-11-13",
+            session=session,
+        )
+        AssetManager.register_asset_change(
+            asset=Asset(name="events_part", uri="s3://bucket/events_part"),
+            partition_key="2026-11-14",
+            session=session,
+        )
 
         sdk_dl = AssetDeadline(cron="0 9 * * *", callback=SyncCallback(_sample_callback))
         encoded = encode_asset_deadline(sdk_dl)
         alert = DeadlineAlert(
             asset_id=asset_model.id,
             is_producer=True,
+            reference=encoded["reference"],
             cron="0 9 * * *",
             interval=None,
             callback_def=encoded["callback"],
@@ -130,7 +199,6 @@ class TestAssetDeadlineLifecycle:
         session.add_all([d1, d2])
         session.flush()
 
-        # Arrival for 2026-11-13 prunes d1 only, leaving d2 intact
         AssetManager.register_asset_change(
             asset=Asset(name="events_part", uri="s3://bucket/events_part"),
             partition_key="2026-11-13",
@@ -139,18 +207,15 @@ class TestAssetDeadlineLifecycle:
         assert session.get(Deadline, d1.id) is None
         assert session.get(Deadline, d2.id) is not None
 
-        # Trigger miss on d2 and verify asset + partition context is queued in callback
         d2.handle_miss(session=session)
         session.flush()
-
         assert d2.missed is True
         assert d2.callback.state == CallbackState.PENDING
         ctx = d2.callback.data["kwargs"]["context"]
-        assert ctx["asset"]["name"] == "events_part"
         assert ctx["partition_key"] == "2026-11-14"
         assert ctx["missing_partition_keys"] == ["2026-11-14"]
 
-    def test_serialized_dag_deduplicates_identical_asset_deadlines(self, session):
+    def test_per_dag_ownership_with_pooled_deadline_evaluation(self, session):
         session.merge(DagBundleModel(name="dags-folder"))
         session.flush()
         session.add_all(
@@ -168,13 +233,11 @@ class TestAssetDeadlineLifecycle:
         )
         shared_asset = Asset(name="shared_asset", uri="s3://bucket/shared_asset", deadline=shared_dl)
 
-        # Consumer DAG declares the asset in schedule first
         with DAG(
             dag_id="consumer_dag", schedule=[shared_asset], start_date=datetime(2026, 1, 1)
         ) as consumer_dag:
             _DummyOperator(task_id="consume")
 
-        # Producer DAG declares the identical asset+deadline in outlets second
         with DAG(dag_id="producer_dag", schedule="@daily", start_date=datetime(2026, 1, 1)) as producer_dag:
             _DummyOperator(task_id="produce", outlets=[shared_asset])
 
@@ -185,9 +248,11 @@ class TestAssetDeadlineLifecycle:
         SerializedDagModel.write_dag(ser_producer, bundle_name="dags-folder", session=session)
 
         alerts = session.scalars(select(DeadlineAlert).where(DeadlineAlert.asset_id == asset_model.id)).all()
-        assert len(alerts) == 1
-        assert alerts[0].is_producer is True
-        assert alerts[0].name == "shared_sla"
+        assert len(alerts) == 2
+        assert {a.is_producer for a in alerts} == {False, True}
+
+        deadlines = session.scalars(select(Deadline).where(Deadline.asset_id == asset_model.id)).all()
+        assert len(deadlines) == 1
 
 
 class TestAssetDeadlinesEndpoint:
@@ -206,6 +271,7 @@ class TestAssetDeadlinesEndpoint:
             asset_id=asset_model.id,
             is_producer=True,
             name="api_sla",
+            reference=encoded["reference"],
             cron="0 9 * * *",
             interval=None,
             callback_def=encoded["callback"],
@@ -221,6 +287,8 @@ class TestAssetDeadlinesEndpoint:
         assert resp.alerts[0].is_producer is True
         assert len(resp.deadlines) == 1
         assert resp.deadlines[0].missed is False
+        assert resp.deadlines[0].is_late is False
+        assert resp.deadlines[0].resolved_at is None
 
         with pytest.raises(HTTPException) as exc_info:
             get_asset_deadlines(asset_id=999999, session=session)
@@ -228,7 +296,7 @@ class TestAssetDeadlinesEndpoint:
 
 
 class TestPartitionedAssetTimetableRunDeadline:
-    def test_multi_asset_run_deadline_synced_and_scheduled(self, session):
+    def test_multi_asset_run_deadline_stored_at_dag_level(self, session):
         from airflow.sdk import DAG, Asset, PartitionedAssetTimetable
         from airflow.sdk.bases.operator import BaseOperator
 
@@ -264,6 +332,7 @@ class TestPartitionedAssetTimetableRunDeadline:
         session.flush()
 
         alerts = session.scalars(select(DeadlineAlert).where(DeadlineAlert.name == "run_sla")).all()
-        assert len(alerts) == 2
-        assert {a.asset_id for a in alerts} == {orders.id, customers.id}
-        assert all(a.is_producer is False for a in alerts)
+        assert len(alerts) == 1
+        assert alerts[0].asset_id is None
+        assert alerts[0].serialized_dag_id is not None
+        assert alerts[0].is_producer is False
