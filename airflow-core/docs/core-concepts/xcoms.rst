@@ -123,6 +123,8 @@ A backend that only overrides ``serialize_value`` and ``deserialize_value`` keep
 with Dags that use task loops: every iteration of a task in a loop is a separate task instance, and only
 ``store_value`` can tell them apart.
 
+Tasks written with a language SDK, such as the TypeScript, Go or Java SDK, use the same backend. The worker runs the backend for those tasks, so install the backend and its provider on the worker, as for Python tasks.
+
 Verifying Custom XCom Backend usage in Containers
 -------------------------------------------------
 

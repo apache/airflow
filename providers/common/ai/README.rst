@@ -56,7 +56,8 @@ PIP package                                 Version required
 ``apache-airflow``                          ``>=2.11.0``
 ``apache-airflow-providers-common-compat``  ``>=1.22.0``
 ``apache-airflow-providers-standard``       ``>=1.20.0``
-``pydantic-ai-slim``                        ``>=2.36.0``
+``httpx2``                                  ``>=2.7``
+``pydantic-ai-slim``                        ``>=2.46.0``
 ``structlog``                               ``>=24.2.0``
 ==========================================  ==================
 
@@ -87,12 +88,12 @@ Optional dependencies
 ====================  =======================================================================================================================================
 Extra                 Dependencies
 ====================  =======================================================================================================================================
-``anthropic``         ``pydantic-ai-slim[anthropic]>=2.36.0``, ``anthropic>=1.1.0,<2``
-``bedrock``           ``pydantic-ai-slim[bedrock]>=2.36.0``
-``google``            ``pydantic-ai-slim[google]>=2.36.0``
-``openai``            ``pydantic-ai-slim[openai]>=2.36.0``, ``openai>=2.47.0``
+``anthropic``         ``pydantic-ai-slim[anthropic]>=2.46.0``, ``anthropic>=1.1.0,<2``
+``bedrock``           ``pydantic-ai-slim[bedrock]>=2.46.0``
+``google``            ``pydantic-ai-slim[google]>=2.46.0``
+``openai``            ``pydantic-ai-slim[openai]>=2.46.0``, ``openai>=2.47.0``
 ``typesafe``          ``typesafe-sdk>=0.6.0``
-``mcp``               ``pydantic-ai-slim[mcp]>=2.36.0``
+``mcp``               ``pydantic-ai-slim[mcp]>=2.46.0``
 ``modal``             ``apache-airflow-providers-modal``, ``modal>=1.5.2``
 ``opensandbox``       ``opensandbox>=1.1.0``
 ``boat``              ``boat-sdk>=1.9.3``

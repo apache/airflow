@@ -30,8 +30,10 @@ vi.mock("openapi/queries", () => ({
   usePluginServiceGetPlugins: vi.fn(),
 }));
 
+const { colorModeState } = vi.hoisted(() => ({ colorModeState: { value: "light" } }));
+
 vi.mock("src/context/colorMode", () => ({
-  useColorMode: () => ({ colorMode: "light" }),
+  useColorMode: () => ({ colorMode: colorModeState.value }),
 }));
 
 vi.mock("src/hooks/usePluginAppliesToContext", () => ({
@@ -63,6 +65,7 @@ const dag = {
 describe("usePluginTabs", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    colorModeState.value = "light";
     mockUseContext.mockReturnValue({ dag, isLoading: false });
   });
 
@@ -118,5 +121,39 @@ describe("usePluginTabs", () => {
     renderHook(() => usePluginTabs("dag_run"));
 
     expect(mockUseContext).toHaveBeenCalledWith(enabled);
+  });
+
+  it.each<{
+    colorMode: string;
+    expected: boolean;
+    label: string;
+    overrides: Partial<ExternalViewResponse>;
+  }>([
+    { colorMode: "light", expected: false, label: "the flag is unset", overrides: { icon: "/icon.svg" } },
+    {
+      colorMode: "light",
+      expected: true,
+      label: "the flag is on with an icon",
+      overrides: { icon: "/icon.svg", show_icon_with_label: true },
+    },
+    {
+      colorMode: "light",
+      expected: false,
+      label: "the flag is on without an icon",
+      overrides: { show_icon_with_label: true },
+    },
+    {
+      colorMode: "dark",
+      expected: false,
+      label: "the flag is on with only a dark icon, in dark mode",
+      overrides: { icon_dark_mode: "/dark.svg", show_icon_with_label: true },
+    },
+  ])("sets showIconWithLabel when $label", ({ colorMode, expected, overrides }) => {
+    colorModeState.value = colorMode;
+    setPlugins([makeView(overrides)]);
+
+    const { result } = renderHook(() => usePluginTabs("dag_run"));
+
+    expect(result.current[0]?.showIconWithLabel).toBe(expected);
   });
 });

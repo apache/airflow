@@ -69,7 +69,6 @@ Use Airflow to author workflows (Dags) that orchestrate tasks. The Airflow sched
 - [Approach to dependencies of Airflow](#approach-to-dependencies-of-airflow)
 - [Contributing](#contributing)
 - [Community standards](#community-standards)
-- [Agent-assisted contribution (apache-magpie)](#agent-assisted-contribution-apache-magpie)
 - [Voting Policy](#voting-policy)
 - [Who uses Apache Airflow?](#who-uses-apache-airflow)
 - [Who maintains Apache Airflow?](#who-maintains-apache-airflow)
@@ -101,16 +100,14 @@ Airflow is not a streaming solution, but it is often used to process real-time d
 
 Apache Airflow is tested with:
 
-|            | Main version (dev)                       | Stable version (3.4.0)             | Deprecate version (2.11.2)   |
-|------------|------------------------------------------|------------------------------------|------------------------------|
-| Python     | 3.11, 3.12, 3.13, 3.14                   | 3.10, 3.11, 3.12, 3.13, 3.14       | 3.10, 3.11, 3.12             |
-| Platform   | AMD64/ARM64                              | AMD64/ARM64                        | AMD64/ARM64(\*)              |
-| Kubernetes | 1.31, 1.32, 1.33, 1.34, 1.35, 1.36, 1.37 | 1.30, 1.31, 1.32, 1.33, 1.34, 1.35 | 1.26, 1.27, 1.28, 1.29, 1.30 |
-| PostgreSQL | 14, 15, 16, 17, 18                       | 14, 15, 16, 17, 18                 | 12, 13, 14, 15, 16           |
-| MySQL      | 8.0, 8.4, Innovation                     | 8.0, 8.4, Innovation               | 8.0, Innovation              |
-| SQLite     | 3.15.0+                                  | 3.15.0+                            | 3.15.0+                      |
-
-\* Experimental
+|            | Main version (dev)                       | Stable version (3.4.0)                   |
+|------------|------------------------------------------|------------------------------------------|
+| Python     | 3.11, 3.12, 3.13, 3.14                   | 3.11, 3.12, 3.13, 3.14                   |
+| Platform   | AMD64/ARM64                              | AMD64/ARM64                              |
+| Kubernetes | 1.31, 1.32, 1.33, 1.34, 1.35, 1.36, 1.37 | 1.31, 1.32, 1.33, 1.34, 1.35, 1.36, 1.37 |
+| PostgreSQL | 14, 15, 16, 17, 18                       | 14, 15, 16, 17, 18                       |
+| MySQL      | 8.0, 8.4, Innovation                     | 8.0, 8.4, Innovation                     |
+| SQLite     | 3.15.0+                                  | 3.15.0+                                  |
 
 **Note**: MariaDB is not tested/recommended.
 
@@ -343,7 +340,7 @@ we publish an Apache Airflow release. Those images contain:
   on the MINOR version of Airflow)
 * Predefined set of popular providers (for details see the [Dockerfile](https://raw.githubusercontent.com/apache/airflow/main/Dockerfile)).
 * Possibility of building your own, custom image where the user can choose their own set of providers
-  and libraries (see [Building the image](https://airflow.apache.org/docs/docker-stack/build.html))
+  and libraries (see [Building your image](https://airflow.apache.org/docs/docker-stack/build.html))
 * In the future Airflow might also support a "slim" version without providers nor database clients installed
 
 The version of the base OS image is the stable version of Debian. Airflow supports using all currently active
@@ -450,47 +447,6 @@ through closing PRs, up to PMC-level or ASF-Infrastructure-level
 blocks and reporting accounts to GitHub — and how affected
 contributors can appeal a decision by emailing the PMC at
 `private@airflow.apache.org`.
-
-## Agent-assisted contribution (apache-magpie)
-
-This repo uses the [`apache/magpie`](https://github.com/apache/magpie)
-framework, installed from its plugin marketplace. The framework provides
-maintainer-facing PR-management skills (`pr-management-triage`,
-`pr-management-code-review`, `pr-management-stats`, `pr-management-mentor`)
-that are exposed as agent skills in agent harnesses such as Claude Code.
-
-Nothing framework-related is committed to this repo, and a fresh clone
-needs no setup step — the plugin is installed per-user in your own agent
-harness. In Claude Code:
-
-```text
-/plugin marketplace add apache/magpie
-/plugin install magpie-pr-management@apache-magpie
-```
-
-Install `magpie@apache-magpie` instead to get every skill family at once,
-or add further families (`magpie-security`, `magpie-release-management`,
-…) one at a time. Pin a release rather than tracking `main` by adding the
-marketplace from a tag: `/plugin marketplace add apache/magpie@0.2.0`.
-
-The project's recommended set is recorded in `.apache-magpie.lock` and
-includes the release-management family, which lets an agent verify a
-release candidate — including an optional check that runs your own
-changes against a providers wave installed in Breeze:
-
-```text
-/plugin install magpie-release-management@apache-magpie
-```
-
-Other harnesses — Codex CLI, Gemini CLI, Copilot, Cursor — are covered in
-the framework's [marketplace
-guide](https://github.com/apache/magpie/blob/main/docs/setup/marketplaces.md).
-
-Airflow-specific modifications to framework workflows live in
-[`.apache-magpie-overrides/`](.apache-magpie-overrides/) (committed) —
-the installed plugin reads them at run time, so they apply to every
-contributor without anyone editing the framework. Framework changes go via
-PR to [`apache/magpie`](https://github.com/apache/magpie).
 
 <!-- START Who uses Apache Airflow, please keep comment here to allow auto update of PyPI readme.md -->
 

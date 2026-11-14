@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-Validate ``.github/fork-ci-gate.toml`` (AIP-120 fork CI gate).
+Validate ``.github/fork-ci-gate.toml`` (AIP-120 fork CI gate) and ``.asf.yaml``.
 
 The file must parse with the same rules the gate job uses, and every ``[pilot]`` join instant
 and ``enabled_since`` value that is new or changed relative to ``main`` must lie in the future.
@@ -24,6 +24,9 @@ The gate reads the file from the base branch, so an entry only takes effect when
 while the instant is compared with pull request creation: an instant before the merge would
 gate pull requests that already ran project CI. See "Contributor pilot" in
 dev/breeze/doc/ci/08_fork_ci_for_external_contributors.md.
+
+Additionally, ``.asf.yaml``'s ``github.pull_requests.creation_cap.bypass_users`` must stay strictly in sync
+with ``[pilot]`` participants in ``.github/fork-ci-gate.toml``.
 """
 
 from __future__ import annotations
@@ -32,12 +35,16 @@ import importlib.util
 import os
 import subprocess
 import sys
+import tomllib
+from collections.abc import Iterable
 from datetime import UTC, datetime
 from types import ModuleType
 
+import yaml
 from common_prek_utils import AIRFLOW_ROOT_PATH
 
 CONFIG_PATH = ".github/fork-ci-gate.toml"
+ASF_YAML_PATH = ".asf.yaml"
 UPSTREAM_URL = "https://github.com/apache/airflow.git"
 GATE_MODULE_PATH = (
     AIRFLOW_ROOT_PATH / "dev" / "breeze" / "src" / "airflow_breeze" / "utils" / "fork_ci_gate.py"
@@ -97,6 +104,68 @@ def find_violations(base_text: str | None, new_text: str, *, now: datetime) -> l
     return violations
 
 
+def find_asf_yaml_sync_violations(asf_yaml_text: str, pilot_users: Iterable[str]) -> list[str]:
+    try:
+        data = yaml.safe_load(asf_yaml_text)
+    except yaml.YAMLError as e:
+        return [f"failed to parse YAML: {e}"]
+    if not isinstance(data, dict):
+        return ["root must be a YAML mapping"]
+
+    github = data.get("github")
+    if not isinstance(github, dict):
+        return ["github must be a mapping"]
+    pull_requests = github.get("pull_requests")
+    if not isinstance(pull_requests, dict):
+        return ["github.pull_requests must be a mapping"]
+    creation_cap = pull_requests.get("creation_cap")
+    if not isinstance(creation_cap, dict):
+        return ["github.pull_requests.creation_cap must be a mapping"]
+
+    bypass_users = creation_cap.get("bypass_users")
+    if bypass_users is None:
+        return ["github.pull_requests.creation_cap.bypass_users is missing"]
+    if not isinstance(bypass_users, list):
+        return ["github.pull_requests.creation_cap.bypass_users must be a list"]
+    if any(not isinstance(u, str) for u in bypass_users):
+        return ["all entries in bypass_users must be strings"]
+
+    violations = []
+    seen_casefolded: set[str] = set()
+    duplicates: list[str] = []
+    seen_duplicates: set[str] = set()
+    for u in bypass_users:
+        folded = u.casefold()
+        if folded in seen_casefolded and folded not in seen_duplicates:
+            duplicates.append(u)
+            seen_duplicates.add(folded)
+        seen_casefolded.add(folded)
+    if duplicates:
+        violations.append(f"duplicate users in bypass_users: {', '.join(sorted(duplicates))}")
+
+    if bypass_users != sorted(bypass_users, key=str.casefold):
+        violations.append("bypass_users must be sorted alphabetically (case-insensitive)")
+
+    asf_map = {u.casefold(): u for u in bypass_users}
+    pilot_map = {u.casefold(): u for u in pilot_users}
+    missing = [pilot_map[k] for k in sorted(set(pilot_map) - set(asf_map))]
+    extra = [asf_map[k] for k in sorted(set(asf_map) - set(pilot_map))]
+    if missing:
+        violations.append(f"missing pilot users in bypass_users: {', '.join(missing)}")
+    if extra:
+        violations.append(f"extra users in bypass_users not in [pilot]: {', '.join(extra)}")
+
+    casing = [
+        f"{asf_map[k]} in .asf.yaml vs {pilot_map[k]} in [pilot]"
+        for k in sorted(set(asf_map) & set(pilot_map))
+        if asf_map[k] != pilot_map[k]
+    ]
+    if casing:
+        violations.append(f"casing mismatch for pilot users: {', '.join(casing)}")
+
+    return violations
+
+
 def _git(*args: str) -> str | None:
     result = subprocess.run(
         ["git", "-C", str(AIRFLOW_ROOT_PATH), *args], capture_output=True, text=True, check=False
@@ -142,7 +211,25 @@ def main() -> int:
     violations = find_violations(base_text, new_text, now=datetime.now(tz=UTC))
     for violation in violations:
         print(f"{CONFIG_PATH}: {violation}", file=sys.stderr)
-    return 1 if violations else 0
+
+    asf_yaml_path = AIRFLOW_ROOT_PATH / ASF_YAML_PATH
+    if not asf_yaml_path.is_file():
+        print(f"{ASF_YAML_PATH}: file does not exist", file=sys.stderr)
+        return 1
+
+    try:
+        load_gate_module().parse_config(new_text)
+    except ValueError:
+        # find_violations already reported the parse error.
+        return 1
+    # Read the logins with tomllib rather than the gate's parser, which casefolds them, so a
+    # casing difference between the two files is still reported.
+    pilot_users = list(tomllib.loads(new_text).get("pilot", {}))
+    asf_violations = find_asf_yaml_sync_violations(asf_yaml_path.read_text(), pilot_users)
+    for violation in asf_violations:
+        print(f"{ASF_YAML_PATH}: {violation}", file=sys.stderr)
+
+    return 1 if (violations or asf_violations) else 0
 
 
 if __name__ == "__main__":

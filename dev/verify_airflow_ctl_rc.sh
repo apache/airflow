@@ -34,14 +34,18 @@
 #
 # Usage (from the repo root, with the chosen RC version):
 #
-#   CTL_VERSION=0.1.5rc1 breeze shell --load-example-dags --backend sqlite \
-#       "bash dev/verify_airflow_ctl_rc.sh"
+#   breeze shell --load-example-dags --backend sqlite \
+#       "CTL_VERSION=0.1.5rc1 bash dev/verify_airflow_ctl_rc.sh"
 #
-# To test the exact SVN artifact instead of the PyPI RC, point CTL_WHEEL at the
-# wheel (visible under /opt/airflow inside the container):
+# Set CTL_VERSION / CTL_WHEEL inside the quoted command: breeze shell forwards
+# only a fixed list of environment variables into the container, so a host-side
+# CTL_VERSION=... prefix never reaches this script.
 #
-#   CTL_WHEEL=/opt/airflow/dist/apache_airflow_ctl-0.1.5-py3-none-any.whl \
-#       breeze shell --load-example-dags "bash dev/verify_airflow_ctl_rc.sh"
+# To test the exact SVN artifact instead of the PyPI RC, copy the wheel into
+# ./dist (mounted at /dist inside the container) and point CTL_WHEEL at it:
+#
+#   breeze shell --load-example-dags --backend sqlite \
+#       "CTL_WHEEL=/dist/apache_airflow_ctl-0.1.5-py3-none-any.whl bash dev/verify_airflow_ctl_rc.sh"
 set -uo pipefail
 
 cd /opt/airflow || exit 1

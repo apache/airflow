@@ -170,7 +170,7 @@ PROD Image tasks
 
 Users can also build Production images when they are developing them. However when you want to
 use the PROD image, the regular docker build commands are recommended. See
-`building the image <https://airflow.apache.org/docs/docker-stack/build.html>`_
+`building your image <https://airflow.apache.org/docs/docker-stack/build.html>`_
 
 .. image:: ./images/output_prod-image.svg
   :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_prod-image.svg
