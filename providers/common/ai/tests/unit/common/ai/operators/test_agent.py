@@ -3170,7 +3170,7 @@ class TestAgentOperatorDurableByDefault:
         with caplog.at_level(logging.INFO):
             op._decide_durable(_durable_context(task_state_store_accessor))
 
-        assert op._durable is False
+        assert op._is_durable_run is False
         assert "Durable execution is off for this task: " in caplog.text
         assert reason in caplog.text
 
@@ -3182,7 +3182,7 @@ class TestAgentOperatorDurableByDefault:
         with caplog.at_level(logging.INFO):
             assert op.execute(context=_durable_context(task_state_store_accessor)) == "done"
 
-        assert op._durable is False
+        assert op._is_durable_run is False
         assert "Durable execution is left to the AirflowDurability capability" in caplog.text
         capabilities = op.llm_hook.create_agent.call_args.kwargs["capabilities"]
         assert len([c for c in capabilities if isinstance(c, AirflowDurability)]) == 1
@@ -3193,7 +3193,7 @@ class TestAgentOperatorDurableByDefault:
         with caplog.at_level(logging.INFO):
             assert op.execute(context=_make_context()) == "done"
 
-        assert op._durable is False
+        assert op._is_durable_run is False
         assert "the task's context has no task state store" in caplog.text
 
     def test_a_toolset_inside_a_combined_capability_still_runs(self, task_state_store_accessor, caplog):
@@ -3225,7 +3225,7 @@ class TestAgentOperatorDurableByDefault:
         with caplog.at_level(logging.INFO):
             assert op.execute(context=_durable_context(task_state_store_accessor)) == "done"
 
-        assert op._durable is False
+        assert op._is_durable_run is False
         assert (
             "Durable execution is off for this task: Capability 'IdlessLedger' contributes durable"
             in caplog.text
