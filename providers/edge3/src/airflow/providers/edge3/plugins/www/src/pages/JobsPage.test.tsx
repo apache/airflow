@@ -27,7 +27,7 @@ const query = vi.hoisted((): { data: JobCollectionResponse } => ({
   data: { jobs: [], total_entries: 0 },
 }));
 
-vi.mock("openapi/queries", () => ({ useUiServiceJobs: () => query }));
+vi.mock("openapi/queries", () => ({ useJobs: () => query }));
 vi.mock("@chakra-ui/react", () => ({
   Box: "div",
   HStack: "div",

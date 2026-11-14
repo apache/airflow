@@ -51,7 +51,7 @@ if __name__ == "__main__":
     print("All TypeScript files:", all_ts_files)
 
     run_command(["pnpm", "install", "--frozen-lockfile", "--config.confirmModulesPurge=false"], cwd=dir)
-    if any("/openapi/" in file for file in original_files):
+    if any(Path(file).name == "v2-edge-generated.yaml" for file in original_files):
         run_command(["pnpm", "codegen"], cwd=dir)
     if all_non_yaml_files:
         run_command(["pnpm", "eslint", "--fix", *all_non_yaml_files], cwd=dir)

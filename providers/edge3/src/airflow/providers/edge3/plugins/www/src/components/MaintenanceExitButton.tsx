@@ -17,7 +17,7 @@
  * under the License.
  */
 import { Button, CloseButton, Dialog, IconButton, Portal, Text, useDisclosure } from "@chakra-ui/react";
-import { useUiServiceExitWorkerMaintenance } from "openapi/queries";
+import { useExitWorkerMaintenance } from "openapi/queries";
 import { IoMdExit } from "react-icons/io";
 
 interface MaintenanceExitButtonProps {
@@ -28,7 +28,7 @@ interface MaintenanceExitButtonProps {
 export const MaintenanceExitButton = ({ onExitMaintenance, workerName }: MaintenanceExitButtonProps) => {
   const { onClose, onOpen, open } = useDisclosure();
 
-  const exitMaintenanceMutation = useUiServiceExitWorkerMaintenance({
+  const exitMaintenanceMutation = useExitWorkerMaintenance(undefined, {
     onError: (error) => {
       onExitMaintenance({
         description: `Unable to exit ${workerName} from maintenance mode: ${error}`,
@@ -47,7 +47,7 @@ export const MaintenanceExitButton = ({ onExitMaintenance, workerName }: Mainten
   });
 
   const exitMaintenance = () => {
-    exitMaintenanceMutation.mutate({ workerName });
+    exitMaintenanceMutation.mutate({ path: { worker_name: workerName } });
   };
 
   return (

@@ -1,148 +1,114 @@
-// generated with @7nohe/openapi-react-query-codegen@1.6.2 
+// generated with @7nohe/openapi-react-query-codegen@3.0.2 
 
-import { UseMutationOptions, UseQueryOptions, useMutation, useQuery } from "@tanstack/react-query";
-import { JobsService, LogsService, MonitorService, UiService, WorkerService } from "../requests/services.gen";
-import { ConcurrencyRequest, EdgeWorkerState, MaintenanceRequest, PushLogsBody, TaskInstanceState, WorkerQueueUpdateBody, WorkerQueuesBody, WorkerStateBody } from "../requests/types.gen";
+import { useMutation, useQuery, type UseMutationOptions, type UseQueryOptions } from "@tanstack/react-query";
+import { AxiosError } from "axios";
+import { addWorkerQueue, deleteWorker, exitWorkerMaintenance, fetch_, health, jobs, logfilePath, pushLogs, register, removeWorkerQueue, requestWorkerMaintenance, requestWorkerShutdown, setState, setWorkerConcurrencyLimit, state, updateQueues, updateWorkerMaintenance, worker, type Options } from "../requests/sdk.gen";
+import type { AddWorkerQueueData, AddWorkerQueueError, DeleteWorkerData, DeleteWorkerError, ExitWorkerMaintenanceData, ExitWorkerMaintenanceError, FetchData, FetchError, HealthData, JobsData, JobsError, LogfilePathData, LogfilePathError, PushLogsData, PushLogsError, RegisterData, RegisterError, RemoveWorkerQueueData, RemoveWorkerQueueError, RequestWorkerMaintenanceData, RequestWorkerMaintenanceError, RequestWorkerShutdownData, RequestWorkerShutdownError, SetStateData, SetStateError, SetWorkerConcurrencyLimitData, SetWorkerConcurrencyLimitError, StateData, StateError, UpdateQueuesData, UpdateQueuesError, UpdateWorkerMaintenanceData, UpdateWorkerMaintenanceError, WorkerData, WorkerError } from "../requests/types.gen";
 import * as Common from "./common";
-export const useLogsServiceLogfilePath = <TData = Common.LogsServiceLogfilePathDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ authorization, dagId, mapIndex, runId, taskId, tryNumber }: {
-  authorization: string;
-  dagId: string;
-  mapIndex: number;
-  runId: string;
-  taskId: string;
-  tryNumber: number;
-}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseLogsServiceLogfilePathKeyFn({ authorization, dagId, mapIndex, runId, taskId, tryNumber }, queryKey), queryFn: () => LogsService.logfilePath({ authorization, dagId, mapIndex, runId, taskId, tryNumber }) as TData, ...options });
-export const useMonitorServiceHealth = <TData = Common.MonitorServiceHealthDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>(queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseMonitorServiceHealthKeyFn(queryKey), queryFn: () => MonitorService.health() as TData, ...options });
-export const useUiServiceWorker = <TData = Common.UiServiceWorkerDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ queueNamePattern, state, workerNamePattern }: {
-  queueNamePattern?: string;
-  state?: EdgeWorkerState[];
-  workerNamePattern?: string;
-} = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseUiServiceWorkerKeyFn({ queueNamePattern, state, workerNamePattern }, queryKey), queryFn: () => UiService.worker({ queueNamePattern, state, workerNamePattern }) as TData, ...options });
-export const useUiServiceJobs = <TData = Common.UiServiceJobsDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagIdPattern, runIdPattern, taskIdPattern, state, queuePattern, workerNamePattern }: {
-  dagIdPattern?: string;
-  runIdPattern?: string;
-  taskIdPattern?: string;
-  state?: TaskInstanceState[];
-  queuePattern?: string;
-  workerNamePattern?: string;
-} = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseUiServiceJobsKeyFn({ dagIdPattern, runIdPattern, taskIdPattern, state, queuePattern, workerNamePattern }, queryKey), queryFn: () => UiService.jobs({ dagIdPattern, runIdPattern, taskIdPattern, state, queuePattern, workerNamePattern }) as TData, ...options });
-export const useJobsServiceFetch = <TData = Common.JobsServiceFetchMutationResult, TError = unknown, TContext = unknown>(options?: Omit<UseMutationOptions<TData, TError, {
-  authorization: string;
-  requestBody: WorkerQueuesBody;
-  workerName: string;
-}, TContext>, "mutationFn">) => useMutation<TData, TError, {
-  authorization: string;
-  requestBody: WorkerQueuesBody;
-  workerName: string;
-}, TContext>({ mutationFn: ({ authorization, requestBody, workerName }) => JobsService.fetch({ authorization, requestBody, workerName }) as unknown as Promise<TData>, ...options });
-export const useLogsServicePushLogs = <TData = Common.LogsServicePushLogsMutationResult, TError = unknown, TContext = unknown>(options?: Omit<UseMutationOptions<TData, TError, {
-  authorization: string;
-  dagId: string;
-  mapIndex: number;
-  requestBody: PushLogsBody;
-  runId: string;
-  taskId: string;
-  tryNumber: number;
-}, TContext>, "mutationFn">) => useMutation<TData, TError, {
-  authorization: string;
-  dagId: string;
-  mapIndex: number;
-  requestBody: PushLogsBody;
-  runId: string;
-  taskId: string;
-  tryNumber: number;
-}, TContext>({ mutationFn: ({ authorization, dagId, mapIndex, requestBody, runId, taskId, tryNumber }) => LogsService.pushLogs({ authorization, dagId, mapIndex, requestBody, runId, taskId, tryNumber }) as unknown as Promise<TData>, ...options });
-export const useWorkerServiceRegister = <TData = Common.WorkerServiceRegisterMutationResult, TError = unknown, TContext = unknown>(options?: Omit<UseMutationOptions<TData, TError, {
-  authorization: string;
-  requestBody: WorkerStateBody;
-  workerName: string;
-}, TContext>, "mutationFn">) => useMutation<TData, TError, {
-  authorization: string;
-  requestBody: WorkerStateBody;
-  workerName: string;
-}, TContext>({ mutationFn: ({ authorization, requestBody, workerName }) => WorkerService.register({ authorization, requestBody, workerName }) as unknown as Promise<TData>, ...options });
-export const useUiServiceRequestWorkerMaintenance = <TData = Common.UiServiceRequestWorkerMaintenanceMutationResult, TError = unknown, TContext = unknown>(options?: Omit<UseMutationOptions<TData, TError, {
-  requestBody: MaintenanceRequest;
-  workerName: string;
-}, TContext>, "mutationFn">) => useMutation<TData, TError, {
-  requestBody: MaintenanceRequest;
-  workerName: string;
-}, TContext>({ mutationFn: ({ requestBody, workerName }) => UiService.requestWorkerMaintenance({ requestBody, workerName }) as unknown as Promise<TData>, ...options });
-export const useUiServiceRequestWorkerShutdown = <TData = Common.UiServiceRequestWorkerShutdownMutationResult, TError = unknown, TContext = unknown>(options?: Omit<UseMutationOptions<TData, TError, {
-  workerName: string;
-}, TContext>, "mutationFn">) => useMutation<TData, TError, {
-  workerName: string;
-}, TContext>({ mutationFn: ({ workerName }) => UiService.requestWorkerShutdown({ workerName }) as unknown as Promise<TData>, ...options });
-export const useUiServiceAddWorkerQueue = <TData = Common.UiServiceAddWorkerQueueMutationResult, TError = unknown, TContext = unknown>(options?: Omit<UseMutationOptions<TData, TError, {
-  queueName: string;
-  workerName: string;
-}, TContext>, "mutationFn">) => useMutation<TData, TError, {
-  queueName: string;
-  workerName: string;
-}, TContext>({ mutationFn: ({ queueName, workerName }) => UiService.addWorkerQueue({ queueName, workerName }) as unknown as Promise<TData>, ...options });
-export const useJobsServiceState = <TData = Common.JobsServiceStateMutationResult, TError = unknown, TContext = unknown>(options?: Omit<UseMutationOptions<TData, TError, {
-  authorization: string;
-  dagId: string;
-  mapIndex: number;
-  runId: string;
-  state: TaskInstanceState;
-  taskId: string;
-  tryNumber: number;
-}, TContext>, "mutationFn">) => useMutation<TData, TError, {
-  authorization: string;
-  dagId: string;
-  mapIndex: number;
-  runId: string;
-  state: TaskInstanceState;
-  taskId: string;
-  tryNumber: number;
-}, TContext>({ mutationFn: ({ authorization, dagId, mapIndex, runId, state, taskId, tryNumber }) => JobsService.state({ authorization, dagId, mapIndex, runId, state, taskId, tryNumber }) as unknown as Promise<TData>, ...options });
-export const useWorkerServiceSetState = <TData = Common.WorkerServiceSetStateMutationResult, TError = unknown, TContext = unknown>(options?: Omit<UseMutationOptions<TData, TError, {
-  authorization: string;
-  requestBody: WorkerStateBody;
-  workerName: string;
-}, TContext>, "mutationFn">) => useMutation<TData, TError, {
-  authorization: string;
-  requestBody: WorkerStateBody;
-  workerName: string;
-}, TContext>({ mutationFn: ({ authorization, requestBody, workerName }) => WorkerService.setState({ authorization, requestBody, workerName }) as unknown as Promise<TData>, ...options });
-export const useWorkerServiceUpdateQueues = <TData = Common.WorkerServiceUpdateQueuesMutationResult, TError = unknown, TContext = unknown>(options?: Omit<UseMutationOptions<TData, TError, {
-  authorization: string;
-  requestBody: WorkerQueueUpdateBody;
-  workerName: string;
-}, TContext>, "mutationFn">) => useMutation<TData, TError, {
-  authorization: string;
-  requestBody: WorkerQueueUpdateBody;
-  workerName: string;
-}, TContext>({ mutationFn: ({ authorization, requestBody, workerName }) => WorkerService.updateQueues({ authorization, requestBody, workerName }) as unknown as Promise<TData>, ...options });
-export const useUiServiceUpdateWorkerMaintenance = <TData = Common.UiServiceUpdateWorkerMaintenanceMutationResult, TError = unknown, TContext = unknown>(options?: Omit<UseMutationOptions<TData, TError, {
-  requestBody: MaintenanceRequest;
-  workerName: string;
-}, TContext>, "mutationFn">) => useMutation<TData, TError, {
-  requestBody: MaintenanceRequest;
-  workerName: string;
-}, TContext>({ mutationFn: ({ requestBody, workerName }) => UiService.updateWorkerMaintenance({ requestBody, workerName }) as unknown as Promise<TData>, ...options });
-export const useUiServiceExitWorkerMaintenance = <TData = Common.UiServiceExitWorkerMaintenanceMutationResult, TError = unknown, TContext = unknown>(options?: Omit<UseMutationOptions<TData, TError, {
-  workerName: string;
-}, TContext>, "mutationFn">) => useMutation<TData, TError, {
-  workerName: string;
-}, TContext>({ mutationFn: ({ workerName }) => UiService.exitWorkerMaintenance({ workerName }) as unknown as Promise<TData>, ...options });
-export const useUiServiceDeleteWorker = <TData = Common.UiServiceDeleteWorkerMutationResult, TError = unknown, TContext = unknown>(options?: Omit<UseMutationOptions<TData, TError, {
-  workerName: string;
-}, TContext>, "mutationFn">) => useMutation<TData, TError, {
-  workerName: string;
-}, TContext>({ mutationFn: ({ workerName }) => UiService.deleteWorker({ workerName }) as unknown as Promise<TData>, ...options });
-export const useUiServiceRemoveWorkerQueue = <TData = Common.UiServiceRemoveWorkerQueueMutationResult, TError = unknown, TContext = unknown>(options?: Omit<UseMutationOptions<TData, TError, {
-  queueName: string;
-  workerName: string;
-}, TContext>, "mutationFn">) => useMutation<TData, TError, {
-  queueName: string;
-  workerName: string;
-}, TContext>({ mutationFn: ({ queueName, workerName }) => UiService.removeWorkerQueue({ queueName, workerName }) as unknown as Promise<TData>, ...options });
-export const useUiServiceSetWorkerConcurrencyLimit = <TData = Common.UiServiceSetWorkerConcurrencyLimitMutationResult, TError = unknown, TContext = unknown>(options?: Omit<UseMutationOptions<TData, TError, {
-  requestBody: ConcurrencyRequest;
-  workerName: string;
-}, TContext>, "mutationFn">) => useMutation<TData, TError, {
-  requestBody: ConcurrencyRequest;
-  workerName: string;
-}, TContext>({ mutationFn: ({ requestBody, workerName }) => UiService.setWorkerConcurrencyLimit({ requestBody, workerName }) as unknown as Promise<TData>, ...options });
+
+/**
+ * Logfile Path
+ *
+ * Elaborate the path and filename to expect from task execution.
+ */
+export const useLogfilePath = <TData = Common.LogfilePathDefaultResponse, TError = AxiosError<LogfilePathError>, TQueryKey extends Array<unknown> = unknown[]>(clientOptions: Options<LogfilePathData, true>, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseLogfilePathKeyFn(clientOptions, queryKey), queryFn: ({ signal }) => logfilePath({ ...clientOptions, signal, throwOnError: true }).then(response => response.data as TData) as TData, ...options });
+/**
+ * Health
+ *
+ * Report API Health.
+ */
+export const useHealth = <TData = Common.HealthDefaultResponse, TError = AxiosError<unknown>, TQueryKey extends Array<unknown> = unknown[]>(clientOptions: Options<HealthData, true> = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseHealthKeyFn(clientOptions, queryKey), queryFn: ({ signal }) => health({ ...clientOptions, signal, throwOnError: true }).then(response => response.data as TData) as TData, ...options });
+/**
+ * Worker
+ *
+ * Return Edge Workers.
+ */
+export const useWorker = <TData = Common.WorkerDefaultResponse, TError = AxiosError<WorkerError>, TQueryKey extends Array<unknown> = unknown[]>(clientOptions: Options<WorkerData, true> = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseWorkerKeyFn(clientOptions, queryKey), queryFn: ({ signal }) => worker({ ...clientOptions, signal, throwOnError: true }).then(response => response.data as TData) as TData, ...options });
+/**
+ * Jobs
+ *
+ * Return Edge Jobs.
+ */
+export const useJobs = <TData = Common.JobsDefaultResponse, TError = AxiosError<JobsError>, TQueryKey extends Array<unknown> = unknown[]>(clientOptions: Options<JobsData, true> = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseJobsKeyFn(clientOptions, queryKey), queryFn: ({ signal }) => jobs({ ...clientOptions, signal, throwOnError: true }).then(response => response.data as TData) as TData, ...options });
+/**
+ * Fetch
+ *
+ * Fetch a job to execute on the edge worker.
+ */
+export const useFetch_ = <TData = Common.Fetch_MutationResult, TError = AxiosError<FetchError>, TQueryKey extends Array<unknown> = unknown[], TContext = unknown>(mutationKey?: TQueryKey, options?: Omit<UseMutationOptions<TData, TError, Options<FetchData, true>, TContext>, "mutationKey" | "mutationFn">) => useMutation<TData, TError, Options<FetchData, true>, TContext>({ mutationKey: Common.UseFetch_KeyFn(mutationKey), mutationFn: clientOptions => fetch_({ ...clientOptions, throwOnError: true }) as unknown as Promise<TData>, ...options });
+/**
+ * State
+ *
+ * Update the state of a job running on the edge worker.
+ */
+export const useState = <TData = Common.StateMutationResult, TError = AxiosError<StateError>, TQueryKey extends Array<unknown> = unknown[], TContext = unknown>(mutationKey?: TQueryKey, options?: Omit<UseMutationOptions<TData, TError, Options<StateData, true>, TContext>, "mutationKey" | "mutationFn">) => useMutation<TData, TError, Options<StateData, true>, TContext>({ mutationKey: Common.UseStateKeyFn(mutationKey), mutationFn: clientOptions => state({ ...clientOptions, throwOnError: true }) as unknown as Promise<TData>, ...options });
+/**
+ * Push Logs
+ *
+ * Push an incremental log chunk from Edge Worker to central site.
+ */
+export const usePushLogs = <TData = Common.PushLogsMutationResult, TError = AxiosError<PushLogsError>, TQueryKey extends Array<unknown> = unknown[], TContext = unknown>(mutationKey?: TQueryKey, options?: Omit<UseMutationOptions<TData, TError, Options<PushLogsData, true>, TContext>, "mutationKey" | "mutationFn">) => useMutation<TData, TError, Options<PushLogsData, true>, TContext>({ mutationKey: Common.UsePushLogsKeyFn(mutationKey), mutationFn: clientOptions => pushLogs({ ...clientOptions, throwOnError: true }) as unknown as Promise<TData>, ...options });
+/**
+ * Set State
+ *
+ * Set state of worker and returns the current assigned queues.
+ */
+export const useSetState = <TData = Common.SetStateMutationResult, TError = AxiosError<SetStateError>, TQueryKey extends Array<unknown> = unknown[], TContext = unknown>(mutationKey?: TQueryKey, options?: Omit<UseMutationOptions<TData, TError, Options<SetStateData, true>, TContext>, "mutationKey" | "mutationFn">) => useMutation<TData, TError, Options<SetStateData, true>, TContext>({ mutationKey: Common.UseSetStateKeyFn(mutationKey), mutationFn: clientOptions => setState({ ...clientOptions, throwOnError: true }) as unknown as Promise<TData>, ...options });
+/**
+ * Register
+ *
+ * Register a new worker to the backend.
+ */
+export const useRegister = <TData = Common.RegisterMutationResult, TError = AxiosError<RegisterError>, TQueryKey extends Array<unknown> = unknown[], TContext = unknown>(mutationKey?: TQueryKey, options?: Omit<UseMutationOptions<TData, TError, Options<RegisterData, true>, TContext>, "mutationKey" | "mutationFn">) => useMutation<TData, TError, Options<RegisterData, true>, TContext>({ mutationKey: Common.UseRegisterKeyFn(mutationKey), mutationFn: clientOptions => register({ ...clientOptions, throwOnError: true }) as unknown as Promise<TData>, ...options });
+/**
+ * Update Queues
+ */
+export const useUpdateQueues = <TData = Common.UpdateQueuesMutationResult, TError = AxiosError<UpdateQueuesError>, TQueryKey extends Array<unknown> = unknown[], TContext = unknown>(mutationKey?: TQueryKey, options?: Omit<UseMutationOptions<TData, TError, Options<UpdateQueuesData, true>, TContext>, "mutationKey" | "mutationFn">) => useMutation<TData, TError, Options<UpdateQueuesData, true>, TContext>({ mutationKey: Common.UseUpdateQueuesKeyFn(mutationKey), mutationFn: clientOptions => updateQueues({ ...clientOptions, throwOnError: true }) as unknown as Promise<TData>, ...options });
+/**
+ * Exit Worker Maintenance
+ *
+ * Exit a worker from maintenance mode.
+ */
+export const useExitWorkerMaintenance = <TData = Common.ExitWorkerMaintenanceMutationResult, TError = AxiosError<ExitWorkerMaintenanceError>, TQueryKey extends Array<unknown> = unknown[], TContext = unknown>(mutationKey?: TQueryKey, options?: Omit<UseMutationOptions<TData, TError, Options<ExitWorkerMaintenanceData, true>, TContext>, "mutationKey" | "mutationFn">) => useMutation<TData, TError, Options<ExitWorkerMaintenanceData, true>, TContext>({ mutationKey: Common.UseExitWorkerMaintenanceKeyFn(mutationKey), mutationFn: clientOptions => exitWorkerMaintenance({ ...clientOptions, throwOnError: true }) as unknown as Promise<TData>, ...options });
+/**
+ * Update Worker Maintenance
+ *
+ * Update maintenance comments for a worker.
+ */
+export const useUpdateWorkerMaintenance = <TData = Common.UpdateWorkerMaintenanceMutationResult, TError = AxiosError<UpdateWorkerMaintenanceError>, TQueryKey extends Array<unknown> = unknown[], TContext = unknown>(mutationKey?: TQueryKey, options?: Omit<UseMutationOptions<TData, TError, Options<UpdateWorkerMaintenanceData, true>, TContext>, "mutationKey" | "mutationFn">) => useMutation<TData, TError, Options<UpdateWorkerMaintenanceData, true>, TContext>({ mutationKey: Common.UseUpdateWorkerMaintenanceKeyFn(mutationKey), mutationFn: clientOptions => updateWorkerMaintenance({ ...clientOptions, throwOnError: true }) as unknown as Promise<TData>, ...options });
+/**
+ * Request Worker Maintenance
+ *
+ * Put a worker into maintenance mode.
+ */
+export const useRequestWorkerMaintenance = <TData = Common.RequestWorkerMaintenanceMutationResult, TError = AxiosError<RequestWorkerMaintenanceError>, TQueryKey extends Array<unknown> = unknown[], TContext = unknown>(mutationKey?: TQueryKey, options?: Omit<UseMutationOptions<TData, TError, Options<RequestWorkerMaintenanceData, true>, TContext>, "mutationKey" | "mutationFn">) => useMutation<TData, TError, Options<RequestWorkerMaintenanceData, true>, TContext>({ mutationKey: Common.UseRequestWorkerMaintenanceKeyFn(mutationKey), mutationFn: clientOptions => requestWorkerMaintenance({ ...clientOptions, throwOnError: true }) as unknown as Promise<TData>, ...options });
+/**
+ * Request Worker Shutdown
+ *
+ * Request shutdown of a worker.
+ */
+export const useRequestWorkerShutdown = <TData = Common.RequestWorkerShutdownMutationResult, TError = AxiosError<RequestWorkerShutdownError>, TQueryKey extends Array<unknown> = unknown[], TContext = unknown>(mutationKey?: TQueryKey, options?: Omit<UseMutationOptions<TData, TError, Options<RequestWorkerShutdownData, true>, TContext>, "mutationKey" | "mutationFn">) => useMutation<TData, TError, Options<RequestWorkerShutdownData, true>, TContext>({ mutationKey: Common.UseRequestWorkerShutdownKeyFn(mutationKey), mutationFn: clientOptions => requestWorkerShutdown({ ...clientOptions, throwOnError: true }) as unknown as Promise<TData>, ...options });
+/**
+ * Delete Worker
+ *
+ * Delete a worker record from the system.
+ */
+export const useDeleteWorker = <TData = Common.DeleteWorkerMutationResult, TError = AxiosError<DeleteWorkerError>, TQueryKey extends Array<unknown> = unknown[], TContext = unknown>(mutationKey?: TQueryKey, options?: Omit<UseMutationOptions<TData, TError, Options<DeleteWorkerData, true>, TContext>, "mutationKey" | "mutationFn">) => useMutation<TData, TError, Options<DeleteWorkerData, true>, TContext>({ mutationKey: Common.UseDeleteWorkerKeyFn(mutationKey), mutationFn: clientOptions => deleteWorker({ ...clientOptions, throwOnError: true }) as unknown as Promise<TData>, ...options });
+/**
+ * Remove Worker Queue
+ *
+ * Remove a queue from a worker.
+ */
+export const useRemoveWorkerQueue = <TData = Common.RemoveWorkerQueueMutationResult, TError = AxiosError<RemoveWorkerQueueError>, TQueryKey extends Array<unknown> = unknown[], TContext = unknown>(mutationKey?: TQueryKey, options?: Omit<UseMutationOptions<TData, TError, Options<RemoveWorkerQueueData, true>, TContext>, "mutationKey" | "mutationFn">) => useMutation<TData, TError, Options<RemoveWorkerQueueData, true>, TContext>({ mutationKey: Common.UseRemoveWorkerQueueKeyFn(mutationKey), mutationFn: clientOptions => removeWorkerQueue({ ...clientOptions, throwOnError: true }) as unknown as Promise<TData>, ...options });
+/**
+ * Add Worker Queue
+ *
+ * Add a queue to a worker.
+ */
+export const useAddWorkerQueue = <TData = Common.AddWorkerQueueMutationResult, TError = AxiosError<AddWorkerQueueError>, TQueryKey extends Array<unknown> = unknown[], TContext = unknown>(mutationKey?: TQueryKey, options?: Omit<UseMutationOptions<TData, TError, Options<AddWorkerQueueData, true>, TContext>, "mutationKey" | "mutationFn">) => useMutation<TData, TError, Options<AddWorkerQueueData, true>, TContext>({ mutationKey: Common.UseAddWorkerQueueKeyFn(mutationKey), mutationFn: clientOptions => addWorkerQueue({ ...clientOptions, throwOnError: true }) as unknown as Promise<TData>, ...options });
+/**
+ * Set Worker Concurrency Limit
+ *
+ * Set the concurrency limit for an edge worker.
+ */
+export const useSetWorkerConcurrencyLimit = <TData = Common.SetWorkerConcurrencyLimitMutationResult, TError = AxiosError<SetWorkerConcurrencyLimitError>, TQueryKey extends Array<unknown> = unknown[], TContext = unknown>(mutationKey?: TQueryKey, options?: Omit<UseMutationOptions<TData, TError, Options<SetWorkerConcurrencyLimitData, true>, TContext>, "mutationKey" | "mutationFn">) => useMutation<TData, TError, Options<SetWorkerConcurrencyLimitData, true>, TContext>({ mutationKey: Common.UseSetWorkerConcurrencyLimitKeyFn(mutationKey), mutationFn: clientOptions => setWorkerConcurrencyLimit({ ...clientOptions, throwOnError: true }) as unknown as Promise<TData>, ...options });
