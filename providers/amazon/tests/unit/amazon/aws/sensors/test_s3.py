@@ -28,7 +28,7 @@ from airflow.models import DAG, DagRun, TaskInstance
 from airflow.models.variable import Variable
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.sensors.s3 import S3KeySensor, S3KeysUnchangedSensor
-from airflow.providers.common.compat.sdk import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
 
@@ -562,6 +562,19 @@ class TestS3KeysUnchangedSensor:
         message = "Illegal behavior: objects were deleted in"
         with pytest.raises(AirflowException, match=message):
             op.is_keys_unchanged(current_objects=current_objects)
+
+    @mock.patch.object(S3KeysUnchangedSensor, "poke", return_value=False)
+    def test_execute_passes_poke_interval_to_trigger(self, mock_poke):
+        op = S3KeysUnchangedSensor(
+            task_id="sensor",
+            bucket_name="test-bucket",
+            prefix="test-prefix/path",
+            poke_interval=42,
+            deferrable=True,
+        )
+        with pytest.raises(TaskDeferred) as exc:
+            op.execute(context={})
+        assert exc.value.trigger.polling_period_seconds == 42
 
     def test_fail_execute_complete(self):
         op = S3KeysUnchangedSensor(task_id="sensor", bucket_name="test-bucket", prefix="test-prefix/path")

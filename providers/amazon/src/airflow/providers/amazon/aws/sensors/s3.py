@@ -384,6 +384,7 @@ class S3KeysUnchangedSensor(AwsBaseSensor[S3Hook]):
                         verify=self.verify,
                         botocore_config=self.botocore_config,
                         last_activity_time=self.last_activity_time,
+                        polling_period_seconds=self.poke_interval,
                     ),
                     method_name="execute_complete",
                 )
