@@ -24,6 +24,7 @@ from unittest import mock
 from urllib.parse import quote
 
 import pytest
+import yaml
 from click.testing import CliRunner
 
 from airflow_breeze.commands.ci_commands import fork_ci_reconcile
@@ -40,14 +41,22 @@ from airflow_breeze.utils.fork_ci_messages import (
     JOB_STATUS_CONTEXT_PREFIX,
     STALE_JOB_STATUS,
     STATUS_CONTEXT,
+    FailedJob,
     Marker,
     parse_marker,
     render_marker,
 )
 from airflow_breeze.utils.fork_ci_reconcile import (
+    DEFERRED_RUNS_BEFORE_ALERT,
+    JOB_STATUS_FAILURE_RUNS_BEFORE_ALERT,
     JOB_STATUSES_DEFERRED_NOTE,
     JOB_STATUSES_FAILED_REASON,
+    MAX_CI_RUN_STARTED_PER_RUN,
+    MAX_JOB_STATUSES_PER_RUN,
+    MAX_PROJECT_CI_PASSED_PER_RUN,
+    MONITOR_INTERVAL,
     RATE_LIMITED_NOTE,
+    RATE_LIMITED_RUNS_BEFORE_ALERT,
     BaseGateConfigs,
     BypassFinder,
     DraftChange,
@@ -72,6 +81,7 @@ from airflow_breeze.utils.fork_ci_reconcile import (
     fetch_open_pull_requests,
     fetch_workflow_state,
     find_ci_run_since,
+    find_failed_jobs,
     find_heads_shared_across_bases,
     find_project_ci_label_heads,
     find_project_ci_passed_url,
@@ -87,6 +97,7 @@ from airflow_breeze.utils.fork_ci_reconcile import (
     parse_pull_request,
     pull_request_changes_ci_files,
     read_ci_run_at,
+    read_failed_jobs,
     read_head_status,
     read_job_status_failure_runs,
     read_project_ci_passed_url,
@@ -239,6 +250,33 @@ def test_setup_required_comment_gives_the_command():
     plan, _, _ = _classify(_pr(), ForkObservation(workflow_state="disabled_fork"))
 
     assert "gh workflow enable ci-amd.yml -R someone/airflow" in plan.marker_comment
+
+
+@pytest.mark.parametrize(
+    ("conclusion", "expected_description", "explains_settings"),
+    [
+        pytest.param(
+            "STARTUP_FAILURE",
+            "Fork CI run could not start - check your fork's Actions settings",
+            True,
+            id="startup-failure",
+        ),
+        pytest.param("FAILURE", "Fork CI failed - see Details", False, id="failure"),
+    ],
+)
+def test_a_run_that_could_not_start_points_to_the_fork_settings(
+    conclusion, expected_description, explains_settings
+):
+    fork = ForkObservation(suite_status="COMPLETED", suite_conclusion=conclusion, run_url=RUN_URL)
+
+    plan, _, _ = _classify(_pr(is_draft=False), fork)
+
+    assert plan.state == ForkState.FAILED
+    assert plan.draft is None
+    assert plan.status == ("failure", RUN_URL, expected_description)
+    assert ("**Fork CI: could not start.**" in plan.marker_comment) is explains_settings
+    assert ("Settings > Actions > General" in plan.marker_comment) is explains_settings
+    assert '"state": "failed"' in plan.marker_comment
 
 
 @pytest.mark.parametrize(
@@ -2902,6 +2940,9 @@ def test_run_reconcile_reports_job_statuses_before_classifying(
     (pr, fork), _ = mock_reporter.return_value.report.call_args
     assert pr.number == 1
     assert mock_classify.call_args.kwargs["jobs_reported"] == "7:SUCCESS"
+    find_failed = mock_classify.call_args.kwargs["find_failed_jobs"]
+    assert find_failed.func is read_failed_jobs
+    assert find_failed.args == (client, pr, fork, mock_reporter.call_args.kwargs["read_jobs"])
 
 
 @pytest.mark.parametrize("status", ["queued", "in_progress", "waiting"])
@@ -3008,23 +3049,23 @@ def test_run_reconcile_reports_failing_job_statuses_once_when_failing_persists(
     reported_file = tmp_path / "reported.json"
     reported_file.write_text("{}")
     alerts = []
+    failures = [GitHubError("HTTP 502"), GitHubError("stream ID 1; CANCEL")]
     errors = [
         GitHubError("HTTP 502"),
         GitHubError("HTTP 502"),
         None,
-        GitHubError("HTTP 502"),
-        GitHubError("stream ID 1; CANCEL"),
-        GitHubError("HTTP 502"),
-        GitHubError("stream ID 1; CANCEL"),
+        *(failures[run % 2] for run in range(JOB_STATUS_FAILURE_RUNS_BEFORE_ALERT + 1)),
     ]
     for error in errors:
         mock_reporter.return_value.report.side_effect = error
         mock_reporter.return_value.report.return_value = None
         alerts.append(_reconcile_with_reporter(client, tmp_path, reported_file=reported_file))
 
-    assert alerts == [False, False, False, False, False, True, False]
+    assert alerts == [*[False] * (JOB_STATUS_FAILURE_RUNS_BEFORE_ALERT + 2), True, False]
     assert JOB_STATUSES_FAILED_REASON in (tmp_path / "s.json").read_text()
-    assert json.loads(reported_file.read_text())["job_status_failure_runs"] == {"1": 4}
+    assert json.loads(reported_file.read_text())["job_status_failure_runs"] == {
+        "1": JOB_STATUS_FAILURE_RUNS_BEFORE_ALERT + 1
+    }
 
 
 @pytest.mark.parametrize(
@@ -3099,14 +3140,14 @@ def test_run_reconcile_reports_deferred_job_statuses_only_when_deferring_persist
     reported_file = tmp_path / "reported.json"
     reported_file.write_text("{}")
     alerts = []
-    for deferred in ([1], [1], [], [1], [1], [1]):
+    for deferred in ([1], [1], [], *[[1]] * DEFERRED_RUNS_BEFORE_ALERT):
         mock_reporter.return_value.deferred = deferred
         mock_reporter.return_value.delayed = []
         alerts.append(_reconcile_with_reporter(client, tmp_path, reported_file=reported_file))
 
-    assert alerts == [False, False, False, False, False, True]
+    assert alerts == [*[False] * (DEFERRED_RUNS_BEFORE_ALERT + 2), True]
     assert JOB_STATUSES_DEFERRED_NOTE in (tmp_path / "s.json").read_text()
-    assert json.loads(reported_file.read_text())["deferred_runs"] == 3
+    assert json.loads(reported_file.read_text())["deferred_runs"] == DEFERRED_RUNS_BEFORE_ALERT
 
 
 def test_build_job_statuses_treats_contexts_case_insensitively():
@@ -3718,7 +3759,10 @@ def test_run_reconcile_retries_a_pull_request_whose_head_moved(client, tmp_path)
 
 @pytest.mark.parametrize(
     ("fails", "job_status_budget"),
-    [pytest.param(False, 38, id="reported"), pytest.param(True, 20, id="fails")],
+    [
+        pytest.param(False, MAX_JOB_STATUSES_PER_RUN - 2, id="reported"),
+        pytest.param(True, MAX_JOB_STATUSES_PER_RUN - MAX_CI_RUN_STARTED_PER_RUN, id="fails"),
+    ],
 )
 @mock.patch("airflow_breeze.utils.fork_ci_reconcile.JobStatusReporter", autospec=True)
 @mock.patch("airflow_breeze.utils.fork_ci_reconcile.report_project_ci_runs_started", autospec=True)
@@ -3755,7 +3799,7 @@ def test_run_reconcile_marks_older_pilot_pull_requests_and_reports_project_ci_ru
 
     assert mock_classify.call_args.args[0].ci_run_at == datetime(2026, 11, 2, tzinfo=UTC)
     mock_report.assert_called_once_with(client, repo=REPO, skip={1})
-    mock_reporter.assert_called_once_with(client, repo=REPO, budget=job_status_budget, now=NOW)
+    mock_reporter.assert_called_once_with(client, repo=REPO, budget=job_status_budget, now=NOW, read_jobs={})
     assert has_alerts is fails
     if fails:
         assert "reporting `CI run started` for project CI failed: GitHubError" in output.read_text()
@@ -3836,13 +3880,13 @@ def test_run_reconcile_reports_rate_limiting_only_when_it_persists(
     reported_file = tmp_path / "reported.json"
     reported_file.write_text("{}")
     alerts = []
-    for rate_limited in (1, 0, 3, 2):
+    for rate_limited in (1, 0, *[3] * RATE_LIMITED_RUNS_BEFORE_ALERT):
         client.rate_limited = rate_limited
         alerts.append(_reconcile_with_reporter(client, tmp_path, reported_file=reported_file))
 
-    assert alerts == [False, False, False, True]
+    assert alerts == [*[False] * (RATE_LIMITED_RUNS_BEFORE_ALERT + 1), True]
     assert RATE_LIMITED_NOTE in (tmp_path / "s.json").read_text()
-    assert json.loads(reported_file.read_text())["rate_limited_runs"] == 2
+    assert json.loads(reported_file.read_text())["rate_limited_runs"] == RATE_LIMITED_RUNS_BEFORE_ALERT
 
 
 @pytest.mark.parametrize(
@@ -4401,7 +4445,7 @@ def test_run_reconcile_reports_project_ci_passed_after_the_loop(
 
     names = [c[0] for c in order.mock_calls]
     assert names.index("report") > names.index("set_status")
-    assert mock_report_project_ci_passed.call_args.kwargs["budget"] == 5
+    assert mock_report_project_ci_passed.call_args.kwargs["budget"] == MAX_PROJECT_CI_PASSED_PER_RUN
 
 
 def test_run_reconcile_reports_project_ci_passed_failure(mock_report_project_ci_passed, client, tmp_path):
@@ -4435,3 +4479,176 @@ def test_report_project_ci_passed_counts_only_the_successes_that_were_written(cl
     client.set_status.side_effect = [GitHubError("HTTP 502"), None, None]
 
     assert report_project_ci_passed(client, repo=REPO, attention=[], budget=1) == [2]
+
+
+def test_find_failed_jobs_lists_finished_jobs_that_did_not_pass():
+    jobs = [
+        _fork_job("Static checks"),
+        _fork_job("Postgres tests", conclusion="failure"),
+        _fork_job("Helm tests", status="in_progress", conclusion=None),
+        _fork_job("Docs", conclusion="timed_out"),
+        _fork_job("Java SDK tests", conclusion="skipped"),
+        _fork_job("Platform: AMD", conclusion="failure"),
+        _fork_job("Postgres tests", conclusion="cancelled", url="https://job/second"),
+        _fork_job("MySQL tests", conclusion="cancelled", url="https://job/cancelled"),
+        _fork_job("MySQL tests", conclusion="failure"),
+    ]
+
+    assert find_failed_jobs(jobs) == [
+        FailedJob("MySQL tests", "https://job/MySQL tests", "failure"),
+        FailedJob("Postgres tests", "https://job/Postgres tests", "failure"),
+        FailedJob("Docs", "https://job/Docs", "timed_out"),
+    ]
+
+
+@pytest.mark.parametrize(
+    ("read_jobs", "side_effect", "expected", "reads"),
+    [
+        pytest.param({1: [_fork_job("A", conclusion="failure")]}, None, ["A"], False, id="read-this-run"),
+        pytest.param({}, [[_fork_job("B", conclusion="failure")]], ["B"], True, id="not-read-yet"),
+        pytest.param({}, GitHubError("HTTP 502"), None, True, id="unreadable"),
+        pytest.param({1: None}, None, None, False, id="read-failed-this-run"),
+    ],
+)
+def test_read_failed_jobs(client, read_jobs, side_effect, expected, reads):
+    client.get_run_jobs.side_effect = side_effect
+
+    failed = read_failed_jobs(client, _pr(), COMPLETED_RUN, read_jobs)
+
+    assert (None if failed is None else [job.name for job in failed]) == expected
+    assert client.get_run_jobs.called is reads
+    assert 1 in read_jobs
+
+
+def test_a_failed_jobs_read_is_not_repeated_for_the_state_comment(client):
+    client.rest_get.return_value = []
+    client.get_run_jobs.side_effect = GitHubError("HTTP 502")
+    read_jobs: dict = {}
+    reporter = JobStatusReporter(client, repo=REPO, budget=10, read_jobs=read_jobs)
+
+    with pytest.raises(GitHubError):
+        reporter.report(_pr(), COMPLETED_RUN)
+
+    assert read_failed_jobs(client, _pr(), COMPLETED_RUN, read_jobs) is None
+    client.get_run_jobs.assert_called_once_with("someone/airflow", 1)
+
+
+def test_job_status_reporter_keeps_the_jobs_it_read(client):
+    jobs = [_fork_job("Static checks", conclusion="failure")]
+    reporter = JobStatusReporter(_reporter_client(client, jobs), repo=REPO, budget=10)
+
+    reporter.report(_pr(), COMPLETED_RUN)
+
+    assert reporter.read_jobs == {1: jobs}
+
+
+FAILED_JOB = FailedJob("Static checks", "https://job/1", "failure")
+
+
+@pytest.mark.parametrize(
+    ("fork", "failed_jobs", "called", "listed"),
+    [
+        pytest.param(COMPLETED_RUN, [FAILED_JOB], True, True, id="failed"),
+        pytest.param(
+            dataclasses.replace(COMPLETED_RUN, suite_conclusion="STARTUP_FAILURE"),
+            [FAILED_JOB],
+            False,
+            False,
+            id="startup-failure",
+        ),
+        pytest.param(RUNNING_RUN, [FAILED_JOB], False, False, id="running"),
+    ],
+)
+def test_state_comment_lists_the_jobs_of_a_failed_run(fork, failed_jobs, called, listed):
+    find_failed = mock.Mock(return_value=failed_jobs)
+
+    plan = classify(
+        _pr(),
+        fork,
+        config=CONFIG,
+        now=NOW,
+        repo=REPO,
+        find_bypass_run=lambda: None,
+        changes_ci_files=lambda: False,
+        find_failed_jobs=find_failed,
+    )
+
+    assert find_failed.called is called
+    assert ("- [`Static checks`](https://job/1): failed" in plan.marker_comment) is listed
+
+
+@pytest.mark.parametrize(
+    ("marker", "kept"),
+    [
+        pytest.param(_marker("failed"), True, id="failed-this-head"),
+        pytest.param(_marker("failed", sha="older"), False, id="failed-earlier-head"),
+        pytest.param(_marker("running"), False, id="running"),
+        pytest.param(None, False, id="no-comment"),
+    ],
+)
+def test_state_comment_is_left_for_the_next_run_only_when_it_shows_the_head_failed(marker, kept):
+    plan = classify(
+        _pr(is_draft=False, labels=("fork ci required", "ready for maintainer review"), marker=marker),
+        COMPLETED_RUN,
+        config=CONFIG,
+        now=NOW,
+        repo=REPO,
+        find_bypass_run=lambda: None,
+        changes_ci_files=lambda: False,
+        find_failed_jobs=lambda: None,
+    )
+
+    assert plan.state == ForkState.FAILED
+    assert plan.status == ("failure", RUN_URL, "Fork CI failed - see Details")
+    assert plan.remove_labels == ["ready for maintainer review"]
+    if kept:
+        assert plan.marker_comment is None
+    else:
+        assert parse_marker(plan.marker_comment).state == "failed"
+        assert parse_marker(plan.marker_comment).failed_run is None
+        assert "Jobs that did not pass" not in plan.marker_comment
+
+
+def _classify_failed(pr, fork=COMPLETED_RUN, find_failed=None):
+    return classify(
+        pr,
+        fork,
+        config=CONFIG,
+        now=NOW,
+        repo=REPO,
+        find_bypass_run=lambda: None,
+        changes_ci_files=lambda: False,
+        find_failed_jobs=find_failed or (lambda: [FAILED_JOB]),
+    )
+
+
+@pytest.mark.parametrize(
+    ("fork", "marker_overrides", "reads"),
+    [
+        pytest.param(COMPLETED_RUN, {}, False, id="unchanged"),
+        pytest.param(dataclasses.replace(COMPLETED_RUN, run_attempt=2), {}, True, id="re-run"),
+        pytest.param(COMPLETED_RUN, {"failed_run": None}, True, id="not-listed-yet"),
+    ],
+)
+def test_jobs_of_a_listed_failed_run_are_not_read_again(fork, marker_overrides, reads):
+    pr = _pr(is_draft=False, labels=("fork ci required",))
+    listed = _classify_failed(pr).marker_comment
+    marker = dataclasses.replace(parse_marker(listed), **marker_overrides)
+    find_failed = mock.Mock(return_value=[FAILED_JOB])
+
+    plan = _classify_failed(
+        dataclasses.replace(pr, marker=marker, marker_comment_body=listed), fork, find_failed
+    )
+
+    assert parse_marker(listed).failed_run == "1:1"
+    assert find_failed.called is reads
+    if not reads:
+        assert plan.marker_comment is None
+
+
+def test_monitor_interval_is_the_monitor_workflow_cadence():
+    workflow = yaml.safe_load((AIRFLOW_ROOT_PATH / ".github/workflows/fork-ci-monitor.yml").read_text())
+
+    crons = [entry["cron"] for entry in workflow[True]["schedule"]]
+
+    assert crons == [f"*/{MONITOR_INTERVAL // timedelta(minutes=1)} * * * *"]

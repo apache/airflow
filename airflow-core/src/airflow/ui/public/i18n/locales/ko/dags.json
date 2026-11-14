@@ -97,6 +97,7 @@
       "downstream": "다운스트림",
       "existingTasks": "기존 태스크 지우기",
       "future": "미래",
+      "includeDependentDags": "종속된 Dag의 태스크 지우기",
       "keepTaskState": "태스크 상태 유지 후 재개",
       "laterIterations": "이후 반복",
       "onlyFailed": "실패한 태스크만 지우기",

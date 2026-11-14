@@ -87,7 +87,7 @@ Non-goals:
    │      ├─ build-info: fork mode    │      │         (build-info and everything after  │
    │      │  changed files from       │      │          are skipped for gated PRs)       │
    │      │  compare API vs upstream  │      │                                           │
-   │      └─ public runners only      │      │ fork-ci-monitor.yml (every 15 minutes)    │
+   │      └─ public runners only      │      │ fork-ci-monitor.yml (every 5 minutes)     │
    └──────────────────────────────────┘      │   └─ breeze ci fork-ci-reconcile          │
                      ▲                       │      ├─ discover new gated PRs -> label   │
                      │ GraphQL: checkSuites  │      ├─ per labelled PR: fork state ->    │
@@ -490,7 +490,7 @@ reads too: the default branch's comes from the reconciler's checkout, any other 
 from the contents API once per run. Those with a gated reason get the label. A base branch with
 neither gate file is never gated, as its gate job runs project CI (`base_without_gate`), and
 one with only one of the two files is reported as unknown. The
-24-hour window overlaps many 15-minute cadences, so a lost scheduled run changes nothing. A
+24-hour window overlaps many monitor cadences, so a lost scheduled run changes nothing. A
 pull request whose author later becomes a committer keeps the label until a maintainer
 removes it or adds `use project ci`; the reconciler does not un-gate on its own.
 
@@ -549,7 +549,7 @@ stateDiagram-v2
         [*] --> running: fork run in progress
         setup_required --> awaiting_push: author enables the workflow
         awaiting_push --> running: author pushes
-        running --> failed: run fails, is cancelled or times out
+        running --> failed: run fails, is cancelled, times out or cannot start
         running --> green: run passes, no CI-defining change
         running --> green_unverified: run passes, CI-defining change
         failed --> running: author pushes
@@ -612,7 +612,7 @@ since the draft-state job runs after the close and GitHub refuses to draft a clo
 | **setup_required**: workflow state is `disabled_fork`, `disabled_manually` or `disabled_inactivity`, or the fork has no `ci-amd.yml` | `error` (red), link to the fork's Actions page for `ci-amd.yml` | create or update: how to enable, with the exact `gh repo sync <fork> --branch main` and `gh workflow enable ci-amd.yml -R <fork>` lines, and `breeze ci audit`; on transition from any other state but `closed` (the workflow stopped running after it worked): also post a **new** comment saying why it stopped |
 | **awaiting_push**: enabled, no run for the head SHA | `pending` (yellow), link to the fork's Actions page | on transition from setup_required: post a **new** comment asking to push again (an edit would not notify) |
 | **running**: run in progress | `pending` (yellow), link to the run | update state and run link |
-| **failed**: conclusion is failure, cancelled or timed out | `failure` (red), link to the run | update with the run link |
+| **failed**: conclusion is failure, cancelled, timed out or startup failure | `failure` (red), link to the run; for a startup failure the description says the run could not start | update with the run link and the jobs that did not pass; for a startup failure the text says no job ran and points to the fork's Actions settings |
 | **green**: conclusion success and the pull request does not change CI-defining files | `success` (green), link to the run | update: ready for review, run link; on the author's draft: mark it ready for review when it is |
 | **green_unverified**: conclusion success, but the pull request changes CI-defining files (see "Trusting a green fork run") | `pending` (yellow), link to the run | update: a maintainer must run project CI; on the author's draft: mark it ready for review, then a maintainer runs project CI |
 | **closed**: setup_required or awaiting_push for `close_after_days` | unchanged | close with a new comment; reopening restarts the clock |
@@ -726,7 +726,7 @@ every event that runs the workflow files of a pull request's merge commit: `pull
 requests by head repository and branch. Looking at every recent run of
 the branch, rather than only at the head commit, is what stops a contributor from pushing a
 tampered commit and then a clean one to hide the tampered run. The 6-hour window spans many
-15-minute cadences. Runs created before the most recent removal of `use project ci` are
+monitor cadences. Runs created before the most recent removal of `use project ci` are
 ignored, because they ran legitimately while the label was on. So are runs created before the
 most recent reopen of the pull request by someone other than its author, which is how a
 maintainer brings back a pull request closed for tampering; reopening one whose gate is still
@@ -866,7 +866,32 @@ All comment texts live in `dev/breeze/src/airflow_breeze/utils/fork_ci_messages.
 templates so wording can be reviewed in one place. Every comment ends with the AI-attribution
 footer required by `contributing-docs/25_maintainer_pr_triage.md`. The texts must say that CI
 is free for the contributor and finite for the project, must not characterise the recipient,
-and must give the exact command to run.
+and must give the exact command to run. They link the contributor documentation
+(`contributing-docs/18_contribution_workflow.rst#ci-in-your-fork`) rather than this document,
+which that section links for maintainers.
+
+A fork run that ends in `startup_failure` never ran a job: GitHub rejected the workflow before
+running it, most often because the fork's Actions settings do not allow the actions or reusable
+workflows it uses, sometimes because the workflow file is invalid. The run has no jobs, so there
+are no job statuses either, and GitHub's error is only on the run page. It is handled as `failed`,
+but `Fork CI / Tests (AMD)` says "Fork CI run could not start - check your fork's Actions
+settings", and the state comment explains what to check instead of asking to fix failures.
+
+For a failed run that started, the state comment lists the jobs that did not pass, each linking
+to the job in the fork, at most 10 of them, failed jobs before timed-out and cancelled ones; the
+job statuses list them all. The jobs come from
+`GET /repos/<fork>/actions/runs/<id>/jobs?filter=latest`, reused from the job statuses when they
+read them in the same run. A finished run's jobs do not change, so the marker records the run and
+attempt the list belongs to (`failed_run`), and later runs do not read the jobs again while the
+comment would otherwise stay the same: a failed pull request costs one jobs read per fork run, not
+one per reconciler run. Job names come from the contributor's workflow, so each is shown in a code
+span with backticks and line breaks replaced. When the jobs cannot be read and the state comment
+already shows this head commit as `failed`, it is left as it is until the next run, rather than
+dropping the list; otherwise the `failed` state is posted without the list, so the comment does
+not keep describing a running or earlier run, and the next run tries the read again. A read that
+failed after its retries is not repeated in
+the same run, whether the job statuses or the state comment made it, so persistent server errors
+cost each failed pull request one sequence of retries a run, not two.
 
 ### Commit status
 
@@ -905,7 +930,7 @@ suites); its jobs come from `GET /repos/<fork>/actions/runs/<id>/jobs?filter=lat
 - Only finished jobs are reported: a successful one as `success`, and a failed, timed-out,
   cancelled or unstartable one as `failure`. Queued and running jobs are not, so each job costs one
   write instead of two; `Fork CI / Tests (AMD)` shows the run as running, linking it, and with a
-  15-minute cadence a per-job "running" status was behind the fork's own run page anyway. A job of
+  5-minute cadence a per-job "running" status was behind the fork's own run page anyway. A job of
   a re-run in the fork keeps the result of the earlier attempt until it finishes. Skipped and
   neutral jobs, and the jobs every run has (`Fork CI gate`, `Check if the run is needed`,
   `Platform: AMD` and `CI passed`), are not reported.
@@ -913,12 +938,12 @@ suites); its jobs come from `GET /repos/<fork>/actions/runs/<id>/jobs?filter=lat
   (`GET /repos/apache/airflow/commits/<sha>/status`), and only differences are posted, failures
   first. GraphQL has no mutation for commit statuses (`createCheckRun` exists, but see above for
   why check runs do not fit), so each one is a REST call, and they count towards GitHub's limits on
-  content-creating requests: a reconciler run posts at most `MAX_JOB_STATUSES_PER_RUN` (40) of
+  content-creating requests: a reconciler run posts at most `MAX_JOB_STATUSES_PER_RUN` (13) of
   them, each write charged as it is made. What does not fit is posted by the next run, and once
   the budget is spent no further pull request's jobs or statuses are read in that run. One fork run
   of the full matrix (about 130 jobs) needs more than a run's budget on its own, which the next
   run catches up on, so deferring alone is not a problem: the run log lists the deferred pull
-  requests, and only when three runs in a row deferred, about 45 minutes of the budget not
+  requests, and only when nine runs in a row deferred, about 45 minutes of the budget not
   keeping up, is a note added to the Slack message. The count is kept in the record the monitor
   carries between runs (`--reported-file`); without a readable record the note is added at once.
   Its wording is fixed, so it is posted once while deferrals persist. A pull request whose fork run
@@ -938,7 +963,7 @@ suites); its jobs come from `GET /repos/<fork>/actions/runs/<id>/jobs?filter=lat
   classified, so for example a `CI passed` that no longer holds is still revoked. Reading a fork
   run's jobs fails now and then on GitHub server errors (HTTP 502, a reset HTTP/2 stream) that the
   next run gets past, so each failure is only logged, and the pull request is listed with the
-  unknown items for Slack once its job statuses failed in three runs in a row. The per pull request
+  unknown items for Slack once its job statuses failed in nine runs in a row, about 45 minutes. The per pull request
   count is kept in the same record as that of deferred job statuses; without a readable record it
   starts again. The item's wording is fixed whatever the error, so it is posted once while the
   failure persists, and the run log has each run's error.
@@ -953,7 +978,7 @@ records this for agents.
 
 Each run logs what is left of the token's REST and GraphQL quotas (`GET /rate_limit`, which does
 not count against them) and how many of its calls GitHub rate-limited; the client retries those with
-backoff. Rate limiting in two runs in a row adds a note to the Slack message, with fixed wording so
+backoff. Rate limiting in six runs in a row, about 30 minutes, adds a note to the Slack message, with fixed wording so
 it is posted once while it persists; the count is kept in the same record as that of deferred job
 statuses.
 
@@ -982,14 +1007,23 @@ requests a minute and 500 an hour. Assuming about 35 reported jobs for an averag
   monitor runs.
 - **Gate enabled**, assuming about half of the pull request runs come from gated pull requests
   (about 5-6 pushes an hour): about 200 writes an hour without a cap, 40% of the content-creating
-  limit and more at peaks. The cap of 40 writes a run, four runs an hour, holds job statuses to at
-  most 160 an hour: 32% of the content-creating limit, leaving the rest to the reconciler's other
+  limit and more at peaks. The cap of 13 writes a run, twelve runs an hour, holds job statuses to at
+  most 156 an hour: 31% of the content-creating limit, leaving the rest to the reconciler's other
   writes (labels, comments, the aggregate statuses) and to the other workflows that share it. Each
-  run posts at most 40 statuses at about one a second, well under the 80-a-minute limit. Job
+  run posts at most 13 statuses at about one a second, well under the 80-a-minute limit. Job
   statuses then lag behind at busy times, the aggregate status does not. The `CI run started`
-  statuses of pull requests whose CI runs in `apache/airflow` come out of the same 40 writes a run,
-  first and at most 20 of them (see "The `CI run started` check"), so they do not raise the total;
-  at about 11 pull request runs an hour they take about 3 writes a run.
+  statuses of pull requests whose CI runs in `apache/airflow` come out of the same 13 writes a run,
+  first and at most 6 of them (see "The `CI run started` check"), so they do not raise the total;
+  at about 11 pull request runs an hour they take about 1 write a run.
+
+The per-run caps and the run counts before a Slack note are derived from `MONITOR_INTERVAL` in
+`fork_ci_reconcile.py`, which must match the monitor's cron (a test checks it), so changing the
+cadence keeps the hourly totals above. The cadence was lowered from 15 to 5 minutes because fork CI
+reaches a pull request only when the monitor runs: a fork run's start, failure or success showed up
+to 15 minutes late, plus GitHub's delay of scheduled workflows. Unchanged pull requests cost no
+writes, so the faster cadence adds reads, about 45 a run, well within the token's quotas, and
+runner time: each run takes about two minutes on a GitHub-hosted runner, mostly installing
+Breeze, so the monitor uses about 24 runner minutes an hour instead of 8.
 
 These are estimates: the share of gated runs, the jobs per push and the pushes per pull request
 are assumptions, not measurements. Watch the monitor's call counts in its run log after enabling
@@ -1039,7 +1073,7 @@ run.
   job has not succeeded, a `success` is overwritten with `pending`; once it has, the monitor posts
   `success` ("Project CI passed for this commit"). Adding the label does not start project CI (see
   "Override labels"): the pull request stays blocked until a maintainer starts it and it passes,
-  and then until the next monitor run posts the `success`, which can take about 15 minutes.
+  and then until the next monitor run posts the `success`, which can take about 5 minutes.
   Removing the label returns the pull request to the normal flow above: removing it updates the
   pull request, so discovery (open pull requests updated within the last 24 hours) labels it
   `fork ci required` again and the next run reports the fork result, replacing the waiting
@@ -1060,7 +1094,7 @@ run.
 - The protection is eventual, not atomic. Nothing reacts to the label when it is added
   (`pull_request_target` is not used, see "Goals and non-goals"), so a fork `success` posted
   before the label stays until the next monitor run that completes: normally within one cadence
-  (15 minutes), longer when GitHub delays or drops a scheduled run or a run fails, and one more
+  (5 minutes), longer when GitHub delays or drops a scheduled run or a run fails, and one more
   cycle when the label arrives after a run has taken its snapshot of the pull request. The pull
   request can merge on the fork result in that window. A maintainer who adds the label to a pull
   request whose fork CI is green waits for the `pending` before merging or enabling auto-merge,
@@ -1078,7 +1112,7 @@ run.
 
 ### The `CI run started` check
 
-Fork CI reports to the pull request only when the scheduled monitor runs, about every 15 minutes
+Fork CI reports to the pull request only when the scheduled monitor runs, about every 5 minutes
 and later when GitHub delays scheduled workflows, and until then a gated pull request shows only
 skipped checks. The gate cannot say more itself: it runs on the contributor's `pull_request`
 event with a read-only token. Instead both CI rulesets in `.asf.yaml` also require a
@@ -1104,8 +1138,8 @@ with state `success` linking the run:
 Folding the check into the scheduled monitor costs no runner per push, at the price of a pull
 request waiting for the next monitor run before it can merge, which a CI run takes longer than
 anyway. Each new head commit needs one write, taken first out of the per-run budget of job
-statuses (see "Job statuses"), since merging waits for it; at most 20 such writes per run, so job
-statuses keep at least half of the budget, and after the check became required the open pull
+statuses (see "Job statuses"), since merging waits for it; at most `MAX_CI_RUN_STARTED_PER_RUN` (6) such
+writes per run, so job statuses keep at least half of the budget, and after the check became required the open pull
 requests are caught up a batch at a time. A release branch has no monitor of its own, but `main`'s monitor covers pull
 requests to every base branch.
 
@@ -1189,14 +1223,15 @@ change. Job statuses add a jobs call and a status call per pull request with a f
 progress or a completed run not yet reported, and up to two status mutations per job, at most
 `MAX_JOB_STATUSES_PER_RUN` per run; see "Write budget". Pull requests that pass 1 labelled and
 the search does not list yet add one GraphQL call per 25. Well inside
-the `GITHUB_TOKEN` limits at a 15-minute cadence. The reconciler logs its call counts so the
+the `GITHUB_TOKEN` limits at a 5-minute cadence. The reconciler logs its call counts so the
 budget stays observable.
 
 ## Monitor workflow
 
 `.github/workflows/fork-ci-monitor.yml`:
 
-- `on: schedule: cron '*/15 * * * *'` and `workflow_dispatch` with a `dry-run` input.
+- `on: schedule: cron '*/5 * * * *'` (`MONITOR_INTERVAL`) and `workflow_dispatch` with a `dry-run`
+  input.
 - Two jobs, each with its own `permissions` block and a justification comment; the workflow
   grants nothing by default.
 - The `reconcile` job: `actions: write, contents: read, pull-requests: write, statuses: write`.
@@ -1368,10 +1403,11 @@ as a failed check rather than a crash.
 
 ## Known limitations
 
-- Drafting, the setup comment and the commit status arrive within one cadence of the event
-  they reflect, not instantly. The cadence can be lowered, but the per-run write budgets are
-  sized for four runs an hour against the `GITHUB_TOKEN` limits shared by every workflow of the
-  repository, so they must be scaled down with it.
+- Drafting, the setup comment and the commit status arrive within one cadence (5 minutes) of the
+  event they reflect, plus GitHub's delay of scheduled workflows, not instantly. The fork runs in
+  another repository, so no event in `apache/airflow` reports its start or end; a `workflow_run`
+  trigger on project CI's gate run would only cover a push, at the cost of a monitor run per
+  pull request push.
 - The workflows API lists workflows from the fork's default branch. A fork whose `main`
   predates `ci-amd.yml` reports it missing; the setup comment covers this with
   `gh repo sync`.
