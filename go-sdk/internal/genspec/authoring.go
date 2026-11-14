@@ -93,6 +93,7 @@ var dagShape = authoringShape{
 		"owner_links":               "no Go authoring type yet: an object of arbitrary link targets",
 		"deadline":                  "no Go authoring type yet: a serialized deadline reference",
 		"rerun_with_latest_version": "no Go authoring type yet: the tri-state a null allows",
+		"user_defined_macros":       "no Go authoring type yet: a dict of arbitrary macros",
 	},
 	override: map[string]propertyOverride{
 		"start_date": {
