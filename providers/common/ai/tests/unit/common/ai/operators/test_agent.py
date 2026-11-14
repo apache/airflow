@@ -43,7 +43,6 @@ from pydantic_ai.capabilities import (
     CapabilityOrdering,
     CombinedCapability,
     HandleDeferredToolCalls,
-    ModelFallback,
     PrefixTools,
     SelectModel,
     Thinking,
@@ -142,6 +141,13 @@ from unit.common.ai.tool_parts import is_tool_retry
 
 if AIRFLOW_V_3_3_PLUS:
     from airflow.sdk import ExceptionRetryPolicy
+
+try:  # pydantic-ai-slim ships ModelFallback from 2.64.0; the provider supports older releases.
+    from pydantic_ai.capabilities import ModelFallback
+except ImportError:
+    HAS_MODEL_FALLBACK = False
+else:
+    HAS_MODEL_FALLBACK = True
 
 try:
     from airflow.sdk.serde import (
@@ -3058,7 +3064,13 @@ _REFUSED_ONCE_RUNNING = [
         _answer, SelectModel(lambda ctx: FunctionModel(_answer)), "The model instance", id="selected-model"
     ),
     pytest.param(
-        _unavailable, ModelFallback(FunctionModel(_answer)), "The model instance", id="fallback-model"
+        _unavailable,
+        ModelFallback(FunctionModel(_answer)) if HAS_MODEL_FALLBACK else None,
+        "The model instance",
+        id="fallback-model",
+        marks=pytest.mark.skipif(
+            not HAS_MODEL_FALLBACK, reason="ModelFallback needs pydantic-ai-slim 2.64.0+"
+        ),
     ),
     pytest.param(_answer, LedgerRenamedForRun(), "No capability with id 'ledger'", id="capability-renamed"),
     pytest.param(_answer, ToolsetRebuiltForRun(), "A toolset added at run time", id="toolset-rebuilt"),
