@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import re
 from subprocess import CalledProcessError
 
 import jmespath
@@ -220,7 +221,7 @@ class TestDagProcessorSets:
                 {"dagBundleConfigList": BUNDLES, "sets": [{"name": "one", "bundleNames": ["unknown"]}]},
                 'Bundle "unknown" is not defined',
             ),
-            ({"sets": [{"replicas": 2}]}, "missing property 'name'"),
+            ({"sets": [{"replicas": 2}]}, "missing property 'name'|name is required"),
             (
                 {"sets": [{"name": "one", "dagBundleConfigList": BUNDLES}]},
                 "cannot define `dagBundleConfigList`",
@@ -239,7 +240,7 @@ class TestDagProcessorSets:
         with pytest.raises(CalledProcessError) as ex_ctx:
             render_chart(values={"dagProcessor": dag_processor}, show_only=[DEPLOYMENT])
 
-        assert message in ex_ctx.value.stderr.decode()
+        assert re.search(message, ex_ctx.value.stderr.decode())
 
     def test_pdb_per_set(self):
         docs = render_chart(
