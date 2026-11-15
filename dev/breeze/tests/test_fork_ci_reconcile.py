@@ -3079,7 +3079,16 @@ def test_read_tested_merge_reads_the_jobs_once(client):
 def test_read_tested_merge_without_readable_jobs(client):
     client.get_run_jobs.side_effect = GitHubError("gh api failed: HTTP 502")
 
-    assert read_tested_merge(client, _pr(), COMPLETED_RUN, {}) is None
+    with pytest.raises(GitHubError):
+        read_tested_merge(client, _pr(), COMPLETED_RUN, {})
+
+
+def test_compare_with_base_waits_for_a_readable_merge_report(client):
+    def unreadable():
+        raise GitHubError("could not read the jobs")
+
+    assert compare_with_base(client, REPO, _pr(), find_tested_merge=unreadable) is None
+    client.rest_get.assert_not_called()
 
 
 def _fork_job(name, status="completed", conclusion="success", url=None):

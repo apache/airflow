@@ -1963,9 +1963,15 @@ def read_tested_merge(
     fork: ForkObservation,
     read_jobs: ReadJobs,
 ) -> ForkRunMerge | None:
-    """``find_tested_merge`` of the pull request's fork run; None when its jobs cannot be read."""
+    """
+    ``find_tested_merge`` of the pull request's fork run.
+
+    :raises GitHubError: when its jobs cannot be read, which says nothing about whether it merged.
+    """
     jobs = read_run_jobs(client, pr, fork, read_jobs)
-    return None if jobs is None else find_tested_merge(jobs)
+    if jobs is None:
+        raise GitHubError(f"could not read the jobs of {fork.run_url}")
+    return find_tested_merge(jobs)
 
 
 class JobStatusReporter:
@@ -2664,9 +2670,14 @@ def compare_with_base(
     ``per_page`` does not limit): a pull request with more is listed with the files endpoint instead,
     while a base branch that changed more cannot be checked until the branch is rebased.
 
-    :param find_tested_merge: the merge the fork run reports it tested, None when it reports none.
+    :param find_tested_merge: the merge the fork run reports it tested, None when it reports none;
+        raises GitHubError when the report cannot be read.
     """
-    tested = find_tested_merge()
+    try:
+        tested = find_tested_merge()
+    except GitHubError as e:
+        console_print(f"[warning]#{pr.number}: could not read which merge the fork run tested: {e}[/]")
+        return None
     if tested is not None:
         # The jobs tested that merge, not the head commit as it is, so the head commit's own base
         # says nothing about what was tested.
