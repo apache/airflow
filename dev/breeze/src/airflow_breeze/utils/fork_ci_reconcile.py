@@ -2639,7 +2639,7 @@ def compare_tested_merge(
     if merge_base != tested.merge_base or status not in ("ahead", "identical"):
         console_print(
             f"[warning]#{pr.number}: the fork run's merge with {tested.base_sha} does not match GitHub "
-            f"(merge base {merge_base}, {pr.base_ref} {status}); comparing its head commit instead[/]"
+            f"(merge base {merge_base}, {pr.base_ref} {status})[/]"
         )
         return None
     return BaseCheck(tested.base_sha, behind, (), merged=True)
@@ -2655,8 +2655,9 @@ def compare_with_base(
     """
     Compare the base a fork run tested with the base branch; None when not readable.
 
-    A fork run that reports the merge it tested is checked with ``compare_tested_merge``. Otherwise
-    it tested the head commit, so its base is the merge base with the base branch. Two
+    A fork run that reports the merge it tested is checked with ``compare_tested_merge``, and gets
+    None when the merge does not hold. Otherwise it tested the head commit, so its base is the merge
+    base with the base branch. Two
     three-dot compares from it give the files the pull request changes and the files the base branch
     changed since; a file in both means the merged result differs from what the fork run tested
     in a file the pull request changes. Compares list at most 300 files (on their first page, which
@@ -2667,9 +2668,9 @@ def compare_with_base(
     """
     tested = find_tested_merge()
     if tested is not None:
-        merged = compare_tested_merge(client, repo, pr, tested)
-        if merged is not None:
-            return merged
+        # The jobs tested that merge, not the head commit as it is, so the head commit's own base
+        # says nothing about what was tested.
+        return compare_tested_merge(client, repo, pr, tested)
     owner = (pr.head_repo or "").split("/", 1)[0]
     base_ref = quote(pr.base_ref, safe="")
     try:

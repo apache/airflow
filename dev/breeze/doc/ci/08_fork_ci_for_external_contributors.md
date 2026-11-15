@@ -1207,8 +1207,14 @@ The run's report is trusted as far as its green result is: both come from the wo
 commit, which a pull request changing CI-defining files is not trusted with in any case (see
 "Trusting a green fork run").
 
-A run that names no merge (the conflict check could not resolve one), or whose merge does not
-check out, is compared as a run of the head commit as it is, as before merging was added:
+A run whose named merge does not check out, for example a pull request to a stable branch, whose
+fork run merges with the test branch that shares its defaults, gets no `CI passed`: its jobs tested
+that merge, so neither it nor the head commit as it is says what the merged result would do. As for
+a compare that fails, the pull request is listed for Slack, and a maintainer can run project CI for
+it with `use project ci`.
+
+A run that names no merge, because the conflict check could not resolve one, tested the head commit
+as it is and is compared as such:
 
 - `GET /repos/apache/airflow/compare/<base>...<fork-owner>:<sha>` gives the merge base, the commit
   of the base branch the fork run tested on top of (`sha`), the commits the base branch has since
@@ -1494,9 +1500,9 @@ as a failed check rather than a crash.
   signals hold. Keeping `use project ci` on such a pull request is the intended handling.
 - A fork run merges with the target branch that breeze's default branch at the pushed commit names
   (`main`, or the release branch it was cut from), since a push does not know which pull request it
-  is for. A pull request to another base branch is compared as a run of the head commit as it is
-  ("Tested base"). A run whose conflict check cannot fetch the target branch, or find the merge base
-  within 1,000 commits, also tests the head commit as it is.
+  is for. A pull request to another base branch gets no `CI passed` from fork CI ("Tested base") and
+  needs project CI. A run whose conflict check cannot fetch the target branch, or find the merge base
+  within 1,000 commits, tests the head commit as it is.
 - Every job of a fork run fetches the target branch commit and the merge base (two depth-1 fetches,
   some seconds each) to build the merge, about 55 jobs for a full-matrix run.
 

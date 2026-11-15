@@ -2988,36 +2988,26 @@ def _tested_base(status="ahead", ahead_by=7):
         ),
         pytest.param(
             TESTED._replace(base_ref="main"),
-            [_compare(5, _files("a.py")), _compare(0, _files("c.py"))],
-            BaseCheck(MERGE_BASE, 5, ()),
+            [],
+            None,
             id="merged-with-another-branch",
         ),
         pytest.param(
             TESTED,
-            [
-                _compare(0, [], merge_base="c" * 40),
-                _tested_base(),
-                _compare(5, _files("a.py")),
-                _compare(0, []),
-            ],
-            BaseCheck(MERGE_BASE, 5, ()),
+            [_compare(0, [], merge_base="c" * 40), _tested_base()],
+            None,
             id="other-merge-base",
         ),
         pytest.param(
             TESTED,
-            [
-                _compare(0, [], merge_base=TESTED_MERGE_BASE),
-                _tested_base("diverged"),
-                _compare(5, _files("a.py")),
-                _compare(0, []),
-            ],
-            BaseCheck(MERGE_BASE, 5, ()),
+            [_compare(0, [], merge_base=TESTED_MERGE_BASE), _tested_base("diverged")],
+            None,
             id="not-on-the-base-branch",
         ),
         pytest.param(
             TESTED,
-            [GitHubError("gh api failed: HTTP 500"), _compare(5, _files("a.py")), _compare(0, [])],
-            BaseCheck(MERGE_BASE, 5, ()),
+            [GitHubError("gh api failed: HTTP 500")],
+            None,
             id="merge-not-checkable",
         ),
     ],
@@ -3030,7 +3020,7 @@ def test_compare_with_base_checks_the_merge_the_fork_run_tested(client, tested, 
     )
 
     assert check == expected
-    if expected.merged:
+    if expected is not None:
         assert [call.args[0] for call in client.rest_get.call_args_list] == [
             TESTED_HEAD_COMPARE,
             TESTED_BASE_COMPARE,
