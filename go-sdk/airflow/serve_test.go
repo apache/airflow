@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"math"
 	"net"
 	"testing"
 	"time"
@@ -33,6 +34,7 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"github.com/apache/airflow/go-sdk/pkg/execution"
+	"github.com/apache/airflow/go-sdk/pkg/execution/genmodels"
 )
 
 func TestDecideMode(t *testing.T) {
@@ -219,27 +221,21 @@ func TestServeHelpIsNotAnError(t *testing.T) {
 	assert.Contains(t, stdout.String(), "--airflow-metadata")
 }
 
-// A fake supervisor sends StartupDetails over the comm socket, as the Python
-// ExecutableCoordinator does after it starts the bundle with --comm and --logs.
-func TestServeRunsTaskForSupervisor(t *testing.T) {
+// serveForSupervisor runs b.serve with --comm and --logs and returns the supervisor's end of the
+// comm socket and the channel that gets what serve returns.
+func serveForSupervisor(t *testing.T, b *BundleRef) (*execution.CoordinatorComm, <-chan error) {
+	t.Helper()
 	commLn, err := net.Listen("tcp", "127.0.0.1:0")
 	require.NoError(t, err)
-	defer commLn.Close()
+	t.Cleanup(func() { commLn.Close() })
 	logsLn, err := net.Listen("tcp", "127.0.0.1:0")
 	require.NoError(t, err)
-	defer logsLn.Close()
+	t.Cleanup(func() { logsLn.Close() })
 	// Without a deadline, a Serve that never dials would leave Accept blocked until the test
 	// binary times out.
 	deadline := time.Now().Add(10 * time.Second)
 	require.NoError(t, commLn.(*net.TCPListener).SetDeadline(deadline))
 	require.NoError(t, logsLn.(*net.TCPListener).SetDeadline(deadline))
-
-	ran := false
-	b := Bundle()
-	b.Register(TaskHandler("py_etl", "transform", func(Context) error {
-		ran = true
-		return nil
-	}))
 
 	done := make(chan error, 1)
 	go func() {
@@ -251,13 +247,114 @@ func TestServeRunsTaskForSupervisor(t *testing.T) {
 
 	commConn, err := commLn.Accept()
 	require.NoError(t, err)
-	defer commConn.Close()
+	t.Cleanup(func() { commConn.Close() })
 	logsConn, err := logsLn.Accept()
 	require.NoError(t, err)
-	defer logsConn.Close()
+	t.Cleanup(func() { logsConn.Close() })
 	require.NoError(t, commConn.SetDeadline(deadline))
 
-	supervisor := execution.NewCoordinatorComm(commConn, commConn, discardLogger())
+	return execution.NewCoordinatorComm(commConn, commConn, discardLogger()), done
+}
+
+// A fake supervisor sends StartupDetails over the comm socket, as the Python
+// ExecutableCoordinator does after it starts the bundle with --comm and --logs.
+func TestServeInjectsDagRunMetadata(t *testing.T) {
+	// msgpack decodes a timestamp in time.Local, so a worker outside UTC
+	// would otherwise get RunAfter in its own zone.
+	local := time.Local
+	time.Local = time.FixedZone("UTC+8", 8*60*60)
+	t.Cleanup(func() { time.Local = local })
+	runAfter := time.Date(2026, 10, 13, 12, 0, 0, 0, time.UTC)
+	cases := []struct {
+		name     string
+		sendConf bool
+		conf     map[string]any
+		want     map[string]any
+	}{
+		{name: "absent"},
+		{name: "null", sendConf: true},
+		{name: "empty", sendConf: true, conf: map[string]any{}, want: map[string]any{}},
+		{
+			name:     "nested numbers",
+			sendConf: true,
+			conf: map[string]any{
+				"days":       7,
+				"batch_size": 500,
+				"big":        70000,
+				"precise":    int64(9007199254740993),
+				"max":        uint64(math.MaxInt64),
+				"above_max":  uint64(math.MaxInt64) + 1,
+				"nested":     map[string]any{"attempts": -129, "enabled": true, "ratio": 1.25},
+				"list":       []any{-1, -32769, int64(-2147483649), "us", nil},
+			},
+			want: map[string]any{
+				"days":       int64(7),
+				"batch_size": int64(500),
+				"big":        int64(70000),
+				"precise":    int64(9007199254740993),
+				"max":        int64(math.MaxInt64),
+				"above_max":  uint64(math.MaxInt64) + 1,
+				"nested": map[string]any{
+					"attempts": int64(-129),
+					"enabled":  true,
+					"ratio":    1.25,
+				},
+				"list": []any{int64(-1), int64(-32769), int64(-2147483649), "us", nil},
+			},
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var got DagRun
+			b := Bundle()
+			b.Register(TaskHandler("py_etl", "transform", func(actx Context) error {
+				got = actx.DagRun()
+				return nil
+			}))
+			supervisor, done := serveForSupervisor(t, b)
+			dagRun := map[string]any{"run_after": runAfter, "run_type": "manual"}
+			if tc.sendConf {
+				dagRun["conf"] = tc.conf
+			}
+			require.NoError(t, supervisor.SendRequest(0, map[string]any{
+				"type": "StartupDetails",
+				"ti": map[string]any{
+					"id":         "550e8400-e29b-41d4-a716-446655440000",
+					"dag_id":     "py_etl",
+					"task_id":    "transform",
+					"run_id":     "run1",
+					"try_number": 1,
+				},
+				"ti_context":  map[string]any{"dag_run": dagRun},
+				"bundle_info": map[string]any{"name": "test", "version": "1.0"},
+			}))
+			frame, err := supervisor.ReadMessage()
+			require.NoError(t, err)
+			var terminal map[string]any
+			require.NoError(t, msgpack.Unmarshal(frame.Body, &terminal))
+			require.Equal(t, "SucceedTask", terminal["type"])
+			select {
+			case err := <-done:
+				require.NoError(t, err)
+			case <-time.After(2 * time.Second):
+				t.Fatal("Serve did not return after the task finished")
+			}
+			assert.Equal(t, DagRunTypeManual, got.RunType)
+			assert.Equal(t, runAfter, got.RunAfter)
+			assert.Equal(t, tc.want, got.Conf)
+		})
+	}
+}
+
+func TestServeRunsTaskForSupervisor(t *testing.T) {
+	ran := false
+	b := Bundle()
+	b.Register(TaskHandler("py_etl", "transform", func(Context) error {
+		ran = true
+		return nil
+	}))
+
+	supervisor, done := serveForSupervisor(t, b)
 	require.NoError(t, supervisor.SendRequest(0, map[string]any{
 		"type": "StartupDetails",
 		"ti": map[string]any{
@@ -283,4 +380,68 @@ func TestServeRunsTaskForSupervisor(t *testing.T) {
 		t.Fatal("Serve did not return after the task finished")
 	}
 	assert.True(t, ran)
+}
+
+// The Dag processor sends a DagFileParseRequest instead of StartupDetails.
+func TestServeAnswersTheDagParseRequestWithoutRunningATask(t *testing.T) {
+	var ran []string
+	record := func(name string) func(Context) error {
+		return func(Context) error {
+			ran = append(ran, name)
+			return nil
+		}
+	}
+	etl := Dag("etl")
+	extracted := etl.Task(func(Context) (int, error) {
+		ran = append(ran, "extract")
+		return 3, nil
+	}, TaskSpec{TaskID: "extract"})
+	loaded := etl.Task(record("load"), TaskSpec{TaskID: "load"})
+	etl.If(func(_ Context, rows int) (bool, error) {
+		ran = append(ran, "has_rows")
+		return rows > 0, nil
+	}, Inputs(extracted), TaskSpec{TaskID: "has_rows"}).Then(loaded)
+	reports := Dag("reports")
+	reports.Task(record("publish"), TaskSpec{TaskID: "publish"})
+
+	b := Bundle()
+	b.Register(etl, TaskHandler("py_etl", "transform", record("transform")), reports)
+
+	supervisor, done := serveForSupervisor(t, b)
+	const requestID = 7
+	require.NoError(t, supervisor.SendRequest(requestID, map[string]any{
+		"type":        "DagFileParseRequest",
+		"file":        "/bundles/go/etl",
+		"bundle_path": "/bundles/go",
+		"bundle_name": "go",
+	}))
+
+	frame, err := supervisor.ReadMessage()
+	require.NoError(t, err)
+	assert.EqualValues(t, requestID, frame.ID)
+	var result genmodels.DagFileParsingResult
+	require.NoError(t, msgpack.Unmarshal(frame.Body, &result))
+	assert.Equal(t, "DagFileParsingResult", result.Type)
+	assert.Equal(t, "/bundles/go/etl", result.Fileloc)
+	assert.Nil(t, result.ImportErrors)
+	require.Len(t, result.SerializedDags, 2)
+	for i, dag := range []*DagRef{etl, reports} {
+		want := jsonOf(t, dag.serialize("/bundles/go/etl", "etl"))
+		assertJSON(t, want, result.SerializedDags[i].Data)
+	}
+
+	select {
+	case err := <-done:
+		require.NoError(t, err)
+	case <-time.After(2 * time.Second):
+		t.Fatal("Serve did not return after it answered the Dag parse request")
+	}
+	assert.Empty(t, ran)
+}
+
+func jsonOf(t *testing.T, value any) string {
+	t.Helper()
+	raw, err := json.Marshal(value)
+	require.NoError(t, err)
+	return string(raw)
 }

@@ -25,7 +25,7 @@ import logging
 import os
 import shutil
 from collections.abc import Generator
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 from functools import cached_property
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -182,7 +182,15 @@ class CloudWatchRemoteLogIO(LoggingMixin):  # noqa: D101
         # The handler MUST be initted here, before the processor is actually used to log anything.
         # Otherwise, logging that occurs during the creation of the handler can create infinite loops.
         _ = self.handler
-        from airflow.sdk.log import relative_path_from_logger
+        from airflow.sdk.log import relative_path_from_logger as _relative_path_from_logger
+
+        def relative_path_from_logger(logger) -> Path | None:
+            try:
+                return _relative_path_from_logger(logger)
+            except ValueError:
+                # Skip log files outside ``base_log_folder``, such as a Dag processor log directory
+                # configured elsewhere, as ``upload_to_remote`` does.
+                return None
 
         def proc(logger: structlog.typing.WrappedLogger, method_name: str, event: structlog.typing.EventDict):
             if not logger or not (stream_name := relative_path_from_logger(logger)):
@@ -251,13 +259,13 @@ class CloudWatchRemoteLogIO(LoggingMixin):  # noqa: D101
                 if parent.exists():
                     self.log.warning("Failed to delete local log dir: %s", parent)
 
-    def read(self, relative_path: str, ti: RuntimeTI) -> LogResponse:
+    def read(self, relative_path: str, ti: RuntimeTI | None) -> LogResponse:
         messages, logs = self.stream(relative_path, ti)
         str_logs: list[str] = [f"{msg}\n" for group in logs for msg in group]
 
         return messages, str_logs
 
-    def stream(self, relative_path: str, ti: RuntimeTI) -> StreamingLogResponse:
+    def stream(self, relative_path: str, ti: RuntimeTI | None) -> StreamingLogResponse:
         logs: list[RawLogStream] = []
         messages = [
             f"Reading remote log from Cloudwatch log_group: {self.log_group} log_stream: {relative_path}"
@@ -274,7 +282,7 @@ class CloudWatchRemoteLogIO(LoggingMixin):  # noqa: D101
         return messages, logs
 
     def get_cloudwatch_logs(
-        self, stream_name: str, task_instance: RuntimeTI
+        self, stream_name: str, task_instance: RuntimeTI | None
     ) -> Generator[CloudWatchLogEvent, None, None]:
         """
         Return all logs from the given log stream.
@@ -307,7 +315,7 @@ class CloudWatchRemoteLogIO(LoggingMixin):  # noqa: D101
                 # instead of an empty view that looks like remote logging silently failed.
                 if e.response.get("Error", {}).get("Code") != "ResourceNotFoundException":
                     raise
-                notice_ts = end_time or datetime_to_epoch_utc_ms(datetime.now(tz=timezone.utc))
+                notice_ts = end_time or datetime_to_epoch_utc_ms(datetime.now(tz=UTC))
                 yield {
                     "timestamp": notice_ts,
                     "ingestionTime": notice_ts,
@@ -321,7 +329,7 @@ class CloudWatchRemoteLogIO(LoggingMixin):  # noqa: D101
         return _iter_events()
 
     def _parse_log_event_as_dumped_json(self, event: CloudWatchLogEvent) -> str:
-        event_dt = datetime.fromtimestamp(event["timestamp"] / 1000.0, tz=timezone.utc).isoformat()
+        event_dt = datetime.fromtimestamp(event["timestamp"] / 1000.0, tz=UTC).isoformat()
         event_msg = event["message"]
         try:
             message = json.loads(event_msg)
@@ -432,7 +440,7 @@ class CloudwatchTaskHandler(FileTaskHandler, LoggingMixin):
         return messages, logs
 
     def _event_to_str(self, event: CloudWatchLogEvent) -> str:
-        event_dt = datetime.fromtimestamp(event["timestamp"] / 1000.0, tz=timezone.utc)
+        event_dt = datetime.fromtimestamp(event["timestamp"] / 1000.0, tz=UTC)
         # Format a datetime object to a string in Zulu time without milliseconds.
         formatted_event_dt = event_dt.strftime("%Y-%m-%dT%H:%M:%SZ")
         message = event["message"]

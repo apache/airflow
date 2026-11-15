@@ -25,6 +25,7 @@ import { ActionErrors } from "src/components/ActionErrors";
 import { ConfirmationModal } from "src/components/ConfirmationModal";
 
 import { useBulkSetDagSchedulingState } from "src/queries/useBulkSetDagSchedulingState";
+import { formatNumber } from "src/utils";
 
 type Props = {
   readonly deselectKeys: (keys: Array<string>) => void;
@@ -32,14 +33,14 @@ type Props = {
 };
 
 const BulkUnpauseDagsButton = ({ deselectKeys, selectedDags }: Props) => {
-  const { t: translate } = useTranslation(["common", "dags"]);
+  const { i18n, t: translate } = useTranslation(["common", "dags"]);
   const { onClose, onOpen, open } = useDisclosure();
   const { bulkAction, data, error, isPending, reset } = useBulkSetDagSchedulingState({
     deselectKeys,
     onSuccessConfirm: onClose,
   });
 
-  const displayName = `${selectedDags.length} ${translate("dag", { count: selectedDags.length })}`;
+  const displayName = `${formatNumber(selectedDags.length, i18n.language)} ${translate("dag", { count: selectedDags.length })}`;
 
   const handleOpen = () => {
     reset();

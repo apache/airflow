@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import importlib
 import warnings
-from datetime import datetime, timezone as stdlib_timezone
+from datetime import UTC, datetime
 from unittest import mock
 from unittest.mock import Mock, patch
 
@@ -67,20 +67,7 @@ class TestSFTPSensor:
         assert output
 
     @patch("airflow.providers.sftp.sensors.sftp.SFTPHook")
-    def test_file_irregular(self, sftp_hook_mock):
-        # This mocks the behavior of SFTPHook.isfile when an OSError is raised in that method, resulting in
-        # False being returned
-        sftp_hook_mock.return_value.isfile.return_value = False
-        sftp_sensor = SFTPSensor(task_id="unit_test", path="/path/to/file/1970-01-01.txt")
-        context = {"ds": "1970-01-01"}
-        output = sftp_sensor.poke(context)
-        sftp_hook_mock.return_value.isfile.assert_called_once_with("/path/to/file/1970-01-01.txt")
-        sftp_hook_mock.return_value.close_conn.assert_not_called()
-        assert not output
-
-    @patch("airflow.providers.sftp.sensors.sftp.SFTPHook")
     def test_file_absent(self, sftp_hook_mock):
-        # This is the same implementation above, however, it's simulating instead the absence of a file
         sftp_hook_mock.return_value.isfile.return_value = False
         sftp_sensor = SFTPSensor(task_id="unit_test", path="/path/to/file/1970-01-01.txt")
         context = {"ds": "1970-01-01"}
@@ -148,7 +135,7 @@ class TestSFTPSensor:
         "newer_than",
         (
             datetime(2020, 1, 2),
-            datetime(2020, 1, 2, tzinfo=stdlib_timezone.utc),
+            datetime(2020, 1, 2, tzinfo=UTC),
             "2020-01-02",
             "2020-01-02 00:00:00+00:00",
             "2020-01-02 00:00:00.001+00:00",

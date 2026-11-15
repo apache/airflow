@@ -20,11 +20,17 @@ from __future__ import annotations
 
 import json
 import logging
+import zipfile
 from pathlib import Path
+from types import SimpleNamespace
+from unittest import mock
 
 import pytest
 
+from airflow.sdk._shared.module_loading import import_string
+from airflow.sdk.coordinators._dag_importer import CoordinatorDagImporter
 from airflow.sdk.exceptions import AirflowConfigException
+from airflow.sdk.execution_time.coordinator import BaseCoordinator, get_coordinator_manager
 from airflow.sdk.importers import (
     AbstractDagImporter,
     DagDefinition,
@@ -43,6 +49,10 @@ from airflow.sdk.importers import (
 )
 
 from tests_common.test_utils.config import conf_vars
+
+
+def _bundle(path: Path) -> SimpleNamespace:
+    return SimpleNamespace(name="test", path=path)
 
 
 class GlobalDagImporter(PythonDagImporter):
@@ -76,6 +86,33 @@ class LazyTestImporter(PythonDagImporter):
         super().__init__()
         self.kwargs = kwargs
         LazyTestImporter.instances += 1
+
+
+class NativeCoordinator(BaseCoordinator):
+    pass
+
+
+class OtherCoordinator(BaseCoordinator):
+    pass
+
+
+class NativeDagImporter(CoordinatorDagImporter):
+    """The Dag importer of the runtime that ``NativeCoordinator`` runs."""
+
+    coordinator_classpath = f"{__name__}.NativeCoordinator"
+    artifact_suffix = ".native"
+    supported_extensions = [".native"]
+
+    def import_definition(self, definition, bundle=None, **kwargs):
+        return DagImportResult()
+
+    def get_source_code(self, definition):
+        return DagSourceCode(source_code="", language="text")
+
+
+def _coordinators(**coordinator_classes: str) -> dict[tuple[str, str], str]:
+    specs = {key: {"classpath": f"{__name__}.{cls}"} for key, cls in coordinator_classes.items()}
+    return {("sdk", "coordinators"): json.dumps(specs)}
 
 
 class TestDagImporterRegistry:
@@ -219,6 +256,91 @@ class TestDagImporterRegistry:
             for record in caplog.records
         )
 
+    def test_list_dag_definitions_with_configured_extensions(self, tmp_path):
+        """Discovery only yields files matching the explicitly configured extensions."""
+        dag_file = tmp_path / "valid_dag.custom"
+        dag_file.write_text("from airflow.sdk import DAG\n")
+        (tmp_path / "ignored.py").write_text("from airflow.sdk import DAG\n")
+        (tmp_path / "notes.txt").write_text("not a dag")
+
+        registry = DagImporterRegistry(register_defaults=False)
+        registry.register(PythonDagImporter(), extensions=[".custom"])
+
+        assert [str(d.path) for _, d in registry.list_dag_definitions(_bundle(tmp_path))] == [str(dag_file)]
+
+    def test_list_dag_definitions_routes_to_overriding_importer(self, tmp_path):
+        """A discovered file is routed to the importer that overrode its extension."""
+        py_file = tmp_path / "dag.py"
+        py_file.write_text("from airflow.sdk import DAG\n")
+
+        registry = DagImporterRegistry(register_defaults=True)
+        overriding_importer = GlobalDagImporter()
+        registry.register(overriding_importer, extensions=[".py"])
+
+        assert list(registry.list_dag_definitions(_bundle(tmp_path))) == [
+            (overriding_importer, FilesystemDagDefinition(path=py_file))
+        ]
+
+    def test_list_dag_definitions_partial_override_is_listed_once(self, tmp_path):
+        """An importer overriding only some of another importer's extensions takes just those files."""
+        py_file = tmp_path / "dag.py"
+        pyc_file = tmp_path / "compiled.pyc"
+        py_file.write_text("from airflow.sdk import DAG\n")
+        pyc_file.write_bytes(b"compiled")
+
+        registry = DagImporterRegistry(register_defaults=False)
+        python_importer = PythonDagImporter()
+        registry.register(python_importer, extensions=[".py", ".pyc"])
+        pyc_importer = GlobalDagImporter()
+        registry.register(pyc_importer, extensions=[".pyc"])
+
+        assert sorted(
+            (type(importer).__name__, d.path.name)
+            for importer, d in registry.list_dag_definitions(_bundle(tmp_path), safe_mode=False)
+        ) == [("GlobalDagImporter", "compiled.pyc"), ("PythonDagImporter", "dag.py")]
+
+    def test_list_dag_definitions_yields_members_of_a_composite_importer(self, tmp_path):
+        """A member discovered by ZipImporter is yielded even though it imports via PythonDagImporter."""
+        archive = tmp_path / "archive.zip"
+        with zipfile.ZipFile(archive, "w") as zf:
+            zf.writestr("member_dag.py", "from airflow.sdk import DAG\n")
+
+        registry = DagImporterRegistry(register_defaults=True)
+
+        [(importer, definition)] = registry.list_dag_definitions(_bundle(tmp_path))
+
+        assert repr(definition) == str(archive / "member_dag.py")
+        assert isinstance(importer, ZipImporter)
+
+    def test_list_dag_definitions_materialises_a_multi_extension_spec_once(self, tmp_path):
+        archive = tmp_path / "archive.zip"
+        with zipfile.ZipFile(archive, "w") as zf:
+            zf.writestr("member_dag.py", "from airflow.sdk import DAG\n")
+        registry = DagImporterRegistry(register_defaults=False)
+        registry.register_specs(
+            [{"classpath": "airflow.sdk.importers.ZipImporter", "extensions": [".zip", ".zipx"]}],
+            context="test",
+        )
+
+        [(importer, definition)] = registry.list_dag_definitions(_bundle(tmp_path))
+
+        assert repr(definition) == str(archive / "member_dag.py")
+        assert registry.get_importer("dags.zipx") is importer
+
+    def test_warm_importers_instantiates_pending_specs(self):
+        LazyTestImporter.instances = 0
+        reg = DagImporterRegistry(register_defaults=False)
+        reg.register_specs(
+            [{"classpath": f"{__name__}.LazyTestImporter", "extensions": [".lazy", ".lazy2"]}],
+            context="test",
+        )
+
+        reg.warm_importers()
+
+        assert LazyTestImporter.instances == 1
+        assert reg.get_importer("file.lazy") is reg.get_importer("file.lazy2")
+        assert LazyTestImporter.instances == 1
+
     def test_lazy_importer_instantiation(self):
         """Importer classes are not imported or instantiated until get_importer is called."""
         LazyTestImporter.instances = 0
@@ -283,6 +405,37 @@ class TestDagImporterRegistry:
             bundle_reg = DagImporterRegistry.from_config("test_bundle")
             assert isinstance(bundle_reg.get_importer("dag.py"), GlobalDagImporter)
             assert isinstance(bundle_reg.get_importer("dag.custom"), BundleDagImporter)
+
+    @conf_vars(
+        {
+            ("dag_processor", "dag_bundle_config_list"): json.dumps(
+                [
+                    {
+                        "name": "test_bundle",
+                        "importers": [
+                            {"classpath": "airflow.sdk.importers.ZipImporter", "extensions": [".zip"]}
+                        ],
+                    }
+                ]
+            )
+        }
+    )
+    def test_from_config_bundle_override_of_zip_lists_members_once(self, tmp_path):
+        with zipfile.ZipFile(tmp_path / "dags.zip", "w") as zf:
+            zf.writestr("member.py", "from airflow.sdk import DAG\n")
+        registry = DagImporterRegistry.from_config("test_bundle")
+
+        [(importer, definition)] = registry.list_dag_definitions(_bundle(tmp_path))
+
+        assert repr(definition) == str(tmp_path / "dags.zip" / "member.py")
+        assert importer is registry.get_importer("dags.zip")
+
+    @conf_vars({("dag_processor", "dag_importer_configs"): json.dumps([f"{__name__}.GlobalDagImporter"])})
+    def test_from_config_accepts_a_bare_classpath_string(self):
+        """An importer that needs no extensions or kwargs can be configured as a plain string."""
+        registry = DagImporterRegistry.from_config()
+
+        assert isinstance(registry.get_importer("dag.py"), GlobalDagImporter)
 
     @pytest.mark.parametrize(
         ("global_cfg", "bundle_cfg", "match"),
@@ -461,3 +614,141 @@ class TestDagImporterRegistry:
 
         definitions = list(find_file_dag_definitions(tmp_path, [".py", ".pyc"]))
         assert {d.path.name for d in definitions} == {"workflow.PY"}
+
+    @pytest.mark.parametrize(
+        ("filename", "expected"),
+        [("workflow.py", ["workflow.py"]), ("notes.txt", [])],
+    )
+    def test_find_file_dag_definitions_bundle_pointing_at_a_single_file(self, tmp_path, filename, expected):
+        single_file = tmp_path / filename
+        single_file.write_text("from airflow.sdk import DAG\n")
+
+        definitions = list(find_file_dag_definitions(single_file, [".py"]))
+        assert [d.path.name for d in definitions] == expected
+
+    @pytest.mark.parametrize(("safe_mode", "expected"), [(True, []), (False, ["no_markers.py"])])
+    def test_list_dag_definitions_forwards_safe_mode(self, tmp_path, safe_mode, expected):
+        (tmp_path / "no_markers.py").write_text("print('hello')\n")
+
+        registry = DagImporterRegistry(register_defaults=False)
+        registry.register(PythonDagImporter())
+
+        definitions = registry.list_dag_definitions(_bundle(tmp_path), safe_mode=safe_mode)
+        assert [d.path.name for _, d in definitions] == expected
+
+    def test_list_dag_definitions_passes_discovery_errors_through(self, tmp_path):
+        (tmp_path / "corrupt.zip").write_bytes(b"not a zip")
+
+        registry = DagImporterRegistry(register_defaults=False)
+        registry.register(ZipImporter())
+
+        items = [item for _, item in registry.list_dag_definitions(_bundle(tmp_path))]
+        assert [type(item) for item in items] == [DagImportError]
+        assert items[0].error_type == "zip_read_error"
+
+
+class TestCoordinatorDagImporters:
+    @pytest.fixture(autouse=True)
+    def _clean_registry(self):
+        reset_importer_registry()
+        with mock.patch(
+            "airflow.sdk.coordinators._dag_importer.COORDINATOR_DAG_IMPORTERS",
+            (f"{__name__}.NativeDagImporter",),
+        ):
+            yield
+        reset_importer_registry()
+
+    def test_registers_the_importer_of_a_runtime_with_a_coordinator(self):
+        with conf_vars(_coordinators(native="NativeCoordinator")):
+            registry = DagImporterRegistry.from_config("test_bundle")
+            importer = registry.get_importer("dag.native")
+
+            assert isinstance(importer, NativeDagImporter)
+            assert importer.bundle_name == "test_bundle"
+            assert registry.coordinator_importer_error is None
+            assert get_coordinator_manager()._created_coordinators == {}
+
+    @pytest.mark.parametrize(
+        "coordinators",
+        [
+            pytest.param({}, id="no-coordinators"),
+            pytest.param({"other": "OtherCoordinator"}, id="coordinator-of-another-runtime"),
+        ],
+    )
+    def test_skips_a_runtime_without_a_coordinator(self, coordinators):
+        with conf_vars(_coordinators(**coordinators)):
+            registry = DagImporterRegistry.from_config("test_bundle")
+
+        assert registry.get_importer("dag.native") is None
+        assert registry.coordinator_importer_error is None
+
+    def test_registers_no_coordinator_importer_without_a_bundle(self):
+        with conf_vars(_coordinators(native="NativeCoordinator")):
+            registry = DagImporterRegistry.from_config(None)
+
+        assert registry.get_importer("dag.native") is None
+
+    def test_registers_one_importer_for_several_coordinators_of_a_runtime(self):
+        with conf_vars(_coordinators(jdk11="NativeCoordinator", jdk17="NativeCoordinator")):
+            registry = DagImporterRegistry.from_config("test_bundle")
+
+        assert isinstance(registry.get_importer("dag.native"), NativeDagImporter)
+        assert registry.coordinator_importer_error is None
+
+    def test_importer_configs_override_a_coordinator_importer(self):
+        with conf_vars(
+            {
+                **_coordinators(native="NativeCoordinator"),
+                ("dag_processor", "dag_importer_configs"): json.dumps(
+                    [{"classpath": f"{__name__}.GlobalDagImporter", "extensions": [".native"]}]
+                ),
+            }
+        ):
+            importer = DagImporterRegistry.from_config("test_bundle").get_importer("dag.native")
+
+        assert isinstance(importer, GlobalDagImporter)
+
+    def test_a_broken_coordinator_configuration_keeps_the_other_importers(self, caplog):
+        config = {
+            **_coordinators(native="NativeCoordinator"),
+            ("sdk", "queue_to_coordinator"): json.dumps({"java": "missing"}),
+            ("dag_processor", "dag_importer_configs"): json.dumps(
+                [{"classpath": f"{__name__}.GlobalDagImporter", "extensions": [".custom"]}]
+            ),
+        }
+        with conf_vars(config), caplog.at_level(logging.ERROR, logger="airflow.sdk.importers.base"):
+            registry = DagImporterRegistry.from_config("test_bundle")
+
+        assert isinstance(registry.get_importer("dag.custom"), GlobalDagImporter)
+        assert registry.get_importer("dag.native") is None
+        assert registry.coordinator_importer_error is None
+        assert [r.getMessage() for r in caplog.records if r.name == "airflow.sdk.importers.base"] == [
+            "Cannot load the [sdk] coordinators configuration; Dag bundle 'test_bundle' gets no "
+            "coordinator Dag importers"
+        ]
+
+    @mock.patch(
+        "airflow.sdk.coordinators._dag_importer.COORDINATOR_DAG_IMPORTERS", ("nonexistent.module.Importer",)
+    )
+    def test_an_error_building_the_importers_is_kept_and_the_other_importers_stay(self):
+        config = {
+            **_coordinators(native="NativeCoordinator"),
+            ("dag_processor", "dag_importer_configs"): json.dumps(
+                [{"classpath": f"{__name__}.GlobalDagImporter", "extensions": [".custom"]}]
+            ),
+        }
+        with conf_vars(config):
+            registry = DagImporterRegistry.from_config("test_bundle")
+
+        assert isinstance(registry.coordinator_importer_error, ImportError)
+        assert isinstance(registry.get_importer("dag.custom"), GlobalDagImporter)
+        assert isinstance(registry.get_importer("dag.py"), PythonDagImporter)
+
+    @mock.patch(
+        "airflow.sdk.coordinators._dag_importer.import_string", autospec=True, side_effect=import_string
+    )
+    def test_imports_no_importer_without_coordinators(self, mock_import_string):
+        with conf_vars(_coordinators()):
+            DagImporterRegistry.from_config("test_bundle")
+
+        mock_import_string.assert_not_called()

@@ -197,34 +197,34 @@ class AkeylessBackend(BaseSecretsBackend, LoggingMixin):
         execution API variables route is declared with a ``:path`` converter, so a separator
         survives the round trip.
 
+        A caller with no ``team_name`` crosses the same boundary directly. Without a
+        ``global_secrets_path`` it resolves ``<base path><sep><key>``, the same prefix the team
+        paths are built under, so the key ``alpha<sep>db_password`` read with no team reaches
+        team ``alpha``'s secret without any fallback involved.
+
         The refusal is deliberately narrow, because in this backend the separator is the
         ordinary path separator and nested keys are a legitimate, documented layout. It
-        applies only when this backend actually builds a team-scoped path and can fall back
-        past it:
+        applies only when team-scoped paths exist to be reached:
 
         * ``use_team_secrets_path=False`` disables team-scoped lookup entirely, so no team
           path is constructed and no boundary is crossed -- nested keys keep working.
-        * A caller with no ``team_name`` resolves in the shared namespace directly rather
-          than falling back into it. Whether a global-scope caller should be able to name a
-          team's namespace is a separate question about global scope, not this fallback, and
-          is left alone here.
+        * A caller with no ``team_name`` is refused only when no ``global_secrets_path`` is
+          set. With one, it resolves under ``<base path><sep><global path>``, a namespace of
+          its own that team paths are not built under, and nested keys keep working.
         * Outside multi-team mode there are no team namespaces at all.
 
         The key is never parsed to work out *which* team it names, because it cannot be:
         nothing distinguishes a nested key in the shared namespace from one naming a team.
         """
-        return (
-            self._multi_team_enabled()
-            and self.use_team_secrets_path
-            and team_name is not None
-            and self.sep in key
-        )
+        if not (self._multi_team_enabled() and self.use_team_secrets_path and self.sep in key):
+            return False
+        return team_name is not None or self.global_secrets_path is None
 
     def _log_refusal(self, kind: str, key: str) -> None:
         self.log.warning(
             "%s id %r contains %r, which separates path segments in an Akeyless secret name. "
-            "Looked up for a team, such an id can resolve another team's namespace through "
-            "the team-agnostic fallback, so it is not looked up. Returning None.",
+            "In multi-team mode such an id can resolve another team's namespace, so it is not "
+            "looked up. Returning None.",
             kind.capitalize(),
             key,
             self.sep,

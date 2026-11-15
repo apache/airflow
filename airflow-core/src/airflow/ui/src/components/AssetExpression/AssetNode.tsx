@@ -17,7 +17,8 @@
  * under the License.
  */
 import { Box, HStack, Text } from "@chakra-ui/react";
-import { FiDatabase } from "react-icons/fi";
+import { useTranslation } from "react-i18next";
+import { FiDatabase, FiLock } from "react-icons/fi";
 import { PiRectangleDashed } from "react-icons/pi";
 
 import type {
@@ -30,6 +31,8 @@ import { RouterLink } from "src/system-components";
 
 import { RollupKeyChecklistPopover } from "src/components/RollupKeyChecklist";
 
+import { formatNumber } from "src/utils";
+
 import Time from "../Time";
 
 export const AssetNode = ({
@@ -39,6 +42,10 @@ export const AssetNode = ({
   readonly asset: AssetExpressionAlias | AssetExpressionAsset;
   readonly event?: NextRunAssetEventResponse;
 }) => {
+  const { i18n, t: translate } = useTranslation();
+  // An asset leaf the caller may not read arrives from `next_run_assets` with `hidden` set and its
+  // name and id blanked, so there is nothing to label the node with and nowhere to link it to.
+  const isHidden = "asset" in asset && Boolean(asset.asset.hidden);
   const isFullyReceived = Boolean(event?.last_update);
   const isPartial =
     !isFullyReceived &&
@@ -68,9 +75,13 @@ export const AssetNode = ({
       position="relative"
     >
       <HStack gap={2}>
-        {"asset" in asset ? <FiDatabase /> : <PiRectangleDashed />}
+        {"alias" in asset ? <PiRectangleDashed /> : isHidden ? <FiLock /> : <FiDatabase />}
         {"alias" in asset ? (
           <Text fontSize="sm">{asset.alias.name}</Text>
+        ) : isHidden ? (
+          <Text color="fg.muted" fontSize="sm">
+            {translate("expression.hiddenAsset")}
+          </Text>
         ) : (
           <RouterLink display="block" py={2} to={`/assets/${asset.asset.id}`}>
             {asset.asset.name}
@@ -90,7 +101,8 @@ export const AssetNode = ({
         </Text>
       ) : isPartial ? (
         <Text color="warning.fg" fontSize="sm">
-          {event?.received_count} / {event?.required_count}
+          {formatNumber(event?.received_count ?? 0, i18n.language)} /{" "}
+          {formatNumber(event?.required_count ?? 0, i18n.language)}
         </Text>
       ) : undefined}
     </Box>

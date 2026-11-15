@@ -23,7 +23,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { NodeResponse } from "openapi/requests/types.gen";
 
-import { DEFAULT_TASK_GROUPS_EXPANDED_KEY, openGroupsKey } from "src/constants/localStorage";
+import { allGroupsKey, DEFAULT_TASK_GROUPS_EXPANDED_KEY, openGroupsKey } from "src/constants/localStorage";
 
 import { GroupsProvider } from "./GroupsProvider";
 import { useGroups } from "./useGroups";
@@ -52,6 +52,7 @@ beforeEach(() => {
   structure.nodes = nodes;
 });
 afterEach(() => {
+  vi.restoreAllMocks();
   localStorage.clear();
 });
 
@@ -108,5 +109,36 @@ describe("task group defaults", () => {
     const next = renderHook(useGroups, { wrapper });
 
     expect(next.result.current.openGroupIds).toEqual([]);
+  });
+  it.each([
+    { expanded: "false", selection: [] },
+    { expanded: "true", selection: ["group.nested", "group"] },
+  ])(
+    "removes the saved selection when it matches the default (expanded: $expanded)",
+    ({ expanded, selection }) => {
+      localStorage.setItem(DEFAULT_TASK_GROUPS_EXPANDED_KEY, expanded);
+      localStorage.setItem(openGroupsKey("example"), JSON.stringify(["group.nested"]));
+      const { result } = renderHook(useGroups, { wrapper });
+
+      act(() => result.current.setOpenGroupIds(selection));
+      expect(result.current.openGroupIds).toEqual(selection);
+      expect(localStorage.getItem(openGroupsKey("example"))).toBeNull();
+    },
+  );
+  it("removes the saved group list when the Dag has no groups", () => {
+    localStorage.setItem(allGroupsKey("example"), JSON.stringify(["group"]));
+    structure.nodes = [];
+    renderHook(useGroups, { wrapper });
+
+    expect(localStorage.getItem(allGroupsKey("example"))).toBeNull();
+  });
+  it("toggles a group when localStorage is full", async () => {
+    vi.spyOn(localStorage, "setItem").mockImplementation(() => {
+      throw new DOMException("Quota exceeded", "QuotaExceededError");
+    });
+    const { result } = renderHook(useGroups, { wrapper });
+
+    act(() => result.current.toggleGroupId("group"));
+    await waitFor(() => expect(result.current.openGroupIds).toEqual(["group"]));
   });
 });

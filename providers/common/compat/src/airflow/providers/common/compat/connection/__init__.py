@@ -18,13 +18,9 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
+from typing import Any
 
-from airflow.providers.common.compat.sdk import BaseHook
-
-if TYPE_CHECKING:
-    from airflow.providers.common.compat.sdk import Connection
-
+from airflow.providers.common.compat.sdk import BaseHook, Connection
 
 log = logging.getLogger(__name__)
 
@@ -32,6 +28,12 @@ log = logging.getLogger(__name__)
 async def get_async_connection(conn_id: str, hook: BaseHook | type[BaseHook] | None = None) -> Connection:
     """
     Get an asynchronous Airflow connection that is backwards compatible.
+
+    Before Airflow 3.3.2, ``BaseHook.aget_connection`` masks the connection's secrets with a
+    synchronous call to the supervisor, which raises ``DeadlockImminentError`` when another
+    async call is in flight on the same event loop. On those versions the synchronous
+    ``get_connection`` runs in a worker thread instead, unless the hook overrides
+    ``aget_connection``.
 
     :param conn_id: The provided connection ID.
     :param hook: Hook (class or instance) to resolve the connection through, so a
@@ -43,13 +45,60 @@ async def get_async_connection(conn_id: str, hook: BaseHook | type[BaseHook] | N
 
     hook = hook or BaseHook
     hook_name = hook.__name__ if isinstance(hook, type) else type(hook).__name__
-    if hasattr(hook, "aget_connection"):
+    if hasattr(hook, "aget_connection") and not _aget_connection_masks_synchronously(hook):
         log.debug("Get connection using `%s.aget_connection()`.", hook_name)
         return await hook.aget_connection(conn_id=conn_id)
     log.debug("Get connection using `%s.get_connection()`.", hook_name)
     return await sync_to_async(hook.get_connection)(conn_id=conn_id)
 
 
+def _aget_connection_masks_synchronously(hook: BaseHook | type[BaseHook]) -> bool:
+    """
+    Return whether ``hook.aget_connection`` is the base one of an Airflow older than 3.3.2.
+
+    ``Connection.aextra_dejson`` came with the asynchronous secret masking in Airflow 3.3.2.
+    ``BaseHook.aget_connection`` itself only exists since Airflow 3.1, so before that any
+    ``aget_connection`` is the hook's own.
+    """
+    if hasattr(Connection, "aextra_dejson"):
+        return False
+    base_aget_connection = getattr(BaseHook, "aget_connection", None)
+    if base_aget_connection is None:
+        return False
+    hook_class = hook if isinstance(hook, type) else type(hook)
+    return getattr(hook_class.aget_connection, "__func__", None) is getattr(
+        base_aget_connection, "__func__", object()
+    )
+
+
+async def get_async_extra_dejson(conn: Connection) -> dict[str, Any]:
+    """
+    Get the connection's extra as a dict, asynchronously and backwards compatible.
+
+    The async counterpart of ``Connection.extra_dejson``, for hooks running on an event loop
+    (async tasks, triggers). ``extra_dejson`` masks the extra's secrets with a synchronous
+    call to the supervisor, which raises ``DeadlockImminentError`` when another async call
+    is in flight on the same event loop.
+
+    On Airflow 3.3.2+ this awaits ``Connection.aextra_dejson()``, which masks the secrets
+    asynchronously. On older versions the synchronous ``extra_dejson`` runs in a worker
+    thread, where blocking on the supervisor is safe, the same way
+    :func:`get_async_connection` falls back to ``get_connection``.
+
+    :param conn: The connection, e.g. from :func:`get_async_connection`.
+    :returns: The deserialized extra, with its secrets masked.
+    """
+    if hasattr(conn, "aextra_dejson"):
+        log.debug("Get connection extra using `Connection.aextra_dejson()`.")
+        return await conn.aextra_dejson()
+
+    from asgiref.sync import sync_to_async
+
+    log.debug("Get connection extra using `Connection.extra_dejson` in a worker thread.")
+    return await sync_to_async(lambda: conn.extra_dejson)()
+
+
 __all__ = [
     "get_async_connection",
+    "get_async_extra_dejson",
 ]

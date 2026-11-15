@@ -26,6 +26,7 @@ from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
     DagRun as DRDataModel,
     TaskInstance as TIDataModel,
     TIRunContext,
+    task_instance_to_runtime,
 )
 from airflow.callbacks.callback_requests import (
     CallbackRequest,
@@ -74,7 +75,10 @@ class TestCallbackRequest:
             ti.start_date = timezone.utcnow()
 
             input = TaskCallbackRequest(
-                filepath="filepath", ti=ti, bundle_name="testing", bundle_version=None
+                filepath="filepath",
+                ti=task_instance_to_runtime(ti, model=TIDataModel, map_index=-1),
+                bundle_name="testing",
+                bundle_version=None,
             )
         json_str = input.to_json()
         result = request_class.from_json(json_str)
@@ -86,7 +90,12 @@ class TestCallbackRequest:
         ti.end_date = timezone.utcnow()
         session.merge(ti)
         session.flush()
-        input = TaskCallbackRequest(filepath="filepath", ti=ti, bundle_name="testing", bundle_version=None)
+        input = TaskCallbackRequest(
+            filepath="filepath",
+            ti=task_instance_to_runtime(ti, model=TIDataModel, map_index=-1),
+            bundle_name="testing",
+            bundle_version=None,
+        )
         json_str = input.to_json()
         result = TaskCallbackRequest.from_json(json_str)
         assert input == result

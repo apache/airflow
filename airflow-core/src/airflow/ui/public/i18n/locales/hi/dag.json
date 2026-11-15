@@ -1,4 +1,5 @@
 {
+  "allMapIndexes": "सभी मैप इंडेक्स",
   "allRuns": "सभी रन्स",
   "blockingDeps": {
     "dependency": "निर्भरता",
@@ -6,6 +7,7 @@
     "title": "टास्क को शेड्यूल होने से रोकने वाली निर्भरताएं"
   },
   "calendar": {
+    "backfill": "बैकफ़िल",
     "daily": "दैनिक",
     "hourly": "प्रति घंटा",
     "legend": {
@@ -34,6 +36,21 @@
       "wednesday": "बुध"
     }
   },
+  "callbacks": {
+    "callback_one": "कॉलबैक",
+    "callback_other": "कॉलबैक्स",
+    "columns": {
+      "alertName": "डेडलाइन अलर्ट",
+      "callback": "कॉलबैक",
+      "deadlineTime": "डेडलाइन समय",
+      "missedBy": "चूक की अवधि",
+      "type": "प्रकार"
+    },
+    "types": {
+      "executor": "समकालिक",
+      "triggerer": "अतुल्यकालिक"
+    }
+  },
   "code": {
     "bundleUrl": "बंडल URL",
     "noCode": "कोई कोड नहीं मिला",
@@ -42,8 +59,9 @@
   },
   "deadlineAlerts": {
     "completionRule": "{{reference}} के {{interval}} के भीतर पूरा होना चाहिए",
-    "count_one": "{{count}} डेडलाइन",
-    "count_other": "{{count}} डेडलाइन",
+    "completionRuleDynamic": "{{reference}} से मापे गए एक परिवर्तनशील अंतराल के भीतर पूरा होना चाहिए",
+    "count_one": "{{count, number}} डेडलाइन",
+    "count_other": "{{count, number}} डेडलाइन",
     "referenceType": {
       "AverageRuntimeDeadline": "औसत रनटाइम",
       "DagRunLogicalDateDeadline": "लॉजिकल तारीख",
@@ -58,13 +76,13 @@
     "label": "डेडलाइन",
     "met": "पूरी हुई",
     "missed": "छूट गई",
-    "missedCount_one": "{{count}} छूटी हुई डेडलाइन",
-    "missedCount_other": "{{count}} छूटी हुई डेडलाइन",
-    "mixedCount": "{{missedCount}} छूटी हुई, {{upcomingCount}} आगामी",
+    "missedCount_one": "{{count, number}} छूटी हुई डेडलाइन",
+    "missedCount_other": "{{count, number}} छूटी हुई डेडलाइन",
+    "mixedCount": "{{missedCount, number}} छूटी हुई, {{upcomingCount, number}} आगामी",
     "stillRunning": "अभी भी चल रहा है",
     "upcoming": "आगामी",
-    "upcomingCount_one": "{{count}} आगामी डेडलाइन",
-    "upcomingCount_other": "{{count}} आगामी डेडलाइन"
+    "upcomingCount_one": "{{count, number}} आगामी डेडलाइन",
+    "upcomingCount_other": "{{count, number}} आगामी डेडलाइन"
   },
   "extraLinks": "अतिरिक्त लिंक्स",
   "grid": {
@@ -91,20 +109,51 @@
     "critical": "CRITICAL",
     "debug": "DEBUG",
     "error": "ERROR",
-    "fullscreen": {
-      "button": "पूर्ण स्क्रीन",
-      "tooltip": "पूर्ण स्क्रीन के लिए {{hotkey}} दबाएं"
-    },
     "info": "INFO",
     "noTryNumber": "कोई प्रयास संख्या नहीं",
     "search": {
-      "matchCount": "{{total}} में से {{current}}",
+      "matchCount": "{{total, number}} में से {{current, number}}",
       "noMatches": "कोई मिलान नहीं",
       "placeholder": "लॉग खोजें..."
     },
     "settings": "लॉग सेटिंग्स",
+    "tryNotStarted": "यह प्रयास अभी तक शुरू नहीं हुआ है।",
+    "viewFailedTry": "विफल प्रयास {{tryNumber}} के लॉग देखें",
     "viewInExternal": "{{name}} में लॉग्स देखें (प्रयास {{attempt}})",
+    "viewPreviousTry": "पिछले प्रयास {{tryNumber}} के लॉग देखें",
+    "waitingToRetry": "प्रयास {{tryNumber}} पुनः प्रयास की प्रतीक्षा कर रहा है।",
     "warning": "WARNING"
+  },
+  "loop": {
+    "history": {
+      "capLabel": "सीमा: {{max}}",
+      "iterationsAxis": "पुनरावृत्तियाँ",
+      "stats": {
+        "capHits": "सीमा तक पहुँच गया",
+        "medianIterations": "माध्यिका पुनरावृत्तियाँ"
+      },
+      "title": "प्रति रन पुनरावृत्तियाँ"
+    },
+    "iterationLabel": "पुनरावृत्ति {{index}}",
+    "iterations": "पुनरावृत्तियाँ",
+    "outcome": "परिणाम",
+    "reason": {
+      "cap_reached": "पुनरावृत्ति सीमा ({{max}}) तक पहुँच गया",
+      "failed": "पुनरावृत्ति {{index}} पर विफल",
+      "iteration_failed": "{{taskId}} में पुनरावृत्ति {{index}} विफल हुई",
+      "ran_to_cap": "सभी {{max}} अनुमत पुनरावृत्तियाँ चलाईं",
+      "removed": "हटाया गया",
+      "running": "चल रहा है",
+      "skipped": "छोड़ा गया",
+      "stopped_early": "पुनरावृत्ति {{index}} पर जल्दी रुक गया"
+    },
+    "rules": {
+      "behaviour": "व्यवहार",
+      "boundedFor": "निश्चित संख्या में पुनरावृत्तियाँ चलाता है",
+      "exitCriteria": "निकास मानदंड",
+      "maxIterations": "अधिकतम पुनरावृत्तियाँ",
+      "whileUntil": "{{criteria}} तक दोहराता है"
+    }
   },
   "notFound": {
     "back": "वापस जाएं",
@@ -147,13 +196,7 @@
       "label": "डैग रन्स की संख्या"
     },
     "dependencies": {
-      "label": "निर्भरताएं",
-      "options": {
-        "allDagDependencies": "सभी डैग निर्भरताएं",
-        "externalConditions": "बाहरी स्थितियां",
-        "onlyTasks": "केवल टास्क्स"
-      },
-      "placeholder": "निर्भरताएं"
+      "allDagDependencies": "सभी डैग निर्भरताएं"
     },
     "graphDirection": {
       "label": "ग्राफ़ दिशा"
@@ -216,19 +259,20 @@
     "auditLog": "ऑडिट लॉग",
     "backfills": "बैकफ़िल्स",
     "calendar": "कैलेंडर",
+    "callbacks": "कॉलबैक्स",
     "code": "कोड",
     "details": "विवरण",
     "logs": "लॉग्स",
-    "mappedTaskInstances_one": "टास्क इंस्टेंस [{{count}}]",
-    "mappedTaskInstances_other": "टास्क इंस्टेंसेज [{{count}}]",
+    "mappedTaskInstances_one": "टास्क इंस्टेंस [{{count, number}}]",
+    "mappedTaskInstances_other": "टास्क इंस्टेंसेज [{{count, number}}]",
     "overview": "ओवरव्यू",
     "renderedTemplates": "रेंडर किए गए टेम्प्लेट्स",
     "requiredActions": "आवश्यक क्रियाएं",
     "runs": "रन्स",
-    "storage": "स्टोरेज",
     "taskInstances": "टास्क इंस्टेंसेज",
     "taskStateStore": "Task State Store",
     "tasks": "टास्क्स",
+    "versions": "वर्शन",
     "xcom": "XCom"
   },
   "taskGroups": {
@@ -246,6 +290,8 @@
     "deleteWarning": "टास्क इस सहेजी गई मेमोरी को खो देगा। यदि टास्क इस कुंजी का उपयोग बाहरी काम (जैसे किसी बाहरी जॉब ID) को ट्रैक करने के लिए कर रहा है, तो वह उसे फिर से शुरू नहीं कर पाएगा।",
     "edit": "Task State Store संपादित करें",
     "emptyStore": "Task state store ऐसे मान संग्रहीत करता है जो पुनः प्रयासों के बीच बने रहते हैं। वर्कर Task SDK के माध्यम से task state store में लिख सकते हैं।",
+    "entry_one": "प्रविष्टि",
+    "entry_other": "प्रविष्टियाँ",
     "expiresAt": {
       "column": "समाप्ति",
       "custom": "कस्टम",
@@ -254,5 +300,66 @@
       "never": "कभी नहीं"
     },
     "title": "Task State Store"
+  },
+  "versions": {
+    "base": "इससे तुलना करें",
+    "categories": {
+      "asset": "एसेट",
+      "authorization": "प्राधिकरण",
+      "callback": "कॉलबैक",
+      "deadline": "डेडलाइन",
+      "dependency": "निर्भरता",
+      "metadata": "मेटाडेटा",
+      "param": "पैरामीटर",
+      "provenance": "उद्गम",
+      "schedule": "शेड्यूल",
+      "task": "टास्क",
+      "unknown": "अज्ञात"
+    },
+    "codeAccess": "मानों के लिए डैग कोड तक पहुँच आवश्यक है",
+    "columns": {
+      "after": "बाद",
+      "before": "पहले",
+      "category": "श्रेणी",
+      "impact": "प्रभाव",
+      "operation": "संक्रिया",
+      "path": "पथ"
+    },
+    "heading": "वर्शन {{base}} → वर्शन {{target}}",
+    "impacts": {
+      "authorization": "प्राधिकरण",
+      "execution": "निष्पादन",
+      "metadata": "मेटाडेटा",
+      "provenance": "उद्गम",
+      "unknown": "अज्ञात"
+    },
+    "limitReached": {
+      "description": "अधिकतम परिवर्तन सीमा की अनुमति से अधिक परिवर्तन हैं। बाकी देखने के लिए सीमा बढ़ाएं।",
+      "descriptionDefault": "डिफ़ॉल्ट सीमा की अनुमति से अधिक परिवर्तन हैं। बाकी देखने के लिए अधिकतम परिवर्तन अधिक सेट करें।",
+      "title": "केवल पहले {{limit, number}} परिवर्तन दिखा रहे हैं"
+    },
+    "maxChanges": "अधिकतम परिवर्तन",
+    "maxChangesDefault": "डिफ़ॉल्ट",
+    "noChanges": "इन वर्शनों की स्थिति समान है।",
+    "operations": {
+      "added": "जोड़ा गया",
+      "changed": "बदला गया",
+      "removed": "हटाया गया"
+    },
+    "record_one": "रिकॉर्ड",
+    "record_other": "रिकॉर्ड्स",
+    "schemaChange": "सीरियलाइज़्ड स्कीमा {{baseSchema}} → {{targetSchema}}",
+    "selectPrompt": "उनके बीच क्या बदला यह देखने के लिए दो वर्शन चुनें।",
+    "summary_one": "{{count, number}} परिवर्तन",
+    "summary_other": "{{count, number}} परिवर्तन",
+    "summaryAtLeast_one": "कम से कम {{count, number}} परिवर्तन",
+    "summaryAtLeast_other": "कम से कम {{count, number}} परिवर्तन",
+    "target": "इसके साथ तुलना करें",
+    "unavailable": {
+      "description": "इन वर्शनों की तुलना नहीं की जा सकी। कारण:",
+      "title": "तुलना उपलब्ध नहीं",
+      "withoutReason": "इन वर्शनों की तुलना नहीं की जा सकी।"
+    },
+    "valuesHidden": "मान छिपे हुए"
   }
 }

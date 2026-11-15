@@ -60,11 +60,7 @@ const createClass = (bundle: AnserJsonEntry): string | undefined => {
     classNames += `ansi-${bundle.decoration} `;
   }
 
-  if (classNames === "") {
-    return undefined;
-  }
-
-  return classNames.slice(0, classNames.length - 1);
+  return classNames === "" ? undefined : classNames.slice(0, classNames.length - 1);
 };
 
 // Map RGB values to Chakra UI semantic tokens

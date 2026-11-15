@@ -122,12 +122,9 @@ Base URL
     Default value is None.
 
 
-.. raw:: html
-
-  <div align="center" style="padding-bottom:10px">
-    <img src="images/msgraph.png"
-         alt="Microsoft Graph API connection form">
-  </div>
+.. image:: images/msgraph.png
+    :alt: Microsoft Graph API connection form
+    :align: center
 
 
 .. spelling:word-list::

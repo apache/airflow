@@ -23,6 +23,7 @@ import os
 import re
 import subprocess
 import sys
+import tomllib
 from collections.abc import Generator, Iterable
 from contextlib import contextmanager
 from enum import Enum
@@ -530,10 +531,6 @@ def get_provider_yaml(provider_id: str) -> Path:
 
 
 def load_pyproject_toml(pyproject_toml_file_path: Path) -> dict[str, Any]:
-    try:
-        import tomllib
-    except ImportError:
-        import tomli as tomllib  # type: ignore[no-redef]
     toml_content = pyproject_toml_file_path.read_text()
     syntax = Syntax(toml_content, "toml", theme="ansi_dark", line_numbers=True)
     try:
@@ -615,7 +612,7 @@ def get_min_airflow_version(provider_id: str) -> str:
 
 
 def get_python_requires(provider_id: str) -> str:
-    python_requires = "~=3.10"
+    python_requires = f"~={DEFAULT_PYTHON_MAJOR_MINOR_VERSION}"
     provider_details = get_provider_details(provider_id=provider_id)
     for p in provider_details.excluded_python_versions:
         python_requires += f", !={p}.*"
@@ -1353,6 +1350,32 @@ def _process_line_with_next_version_comment(
 
     if not provider_version:
         return line, False
+
+    provider_id = provider_package_name.replace("apache-airflow-providers-", "").replace("-", ".")
+    version_tag = get_version_tag(provider_version, provider_id)
+    existing_tags = run_command(
+        ["git", "tag", "--list", f"{version_tag}*"],
+        cwd=AIRFLOW_PROVIDERS_ROOT_PATH,
+        capture_output=True,
+        text=True,
+        check=False,
+    ).stdout.split()
+    relative_pyproject = pyproject_file.relative_to(AIRFLOW_PROVIDERS_ROOT_PATH)
+    # A final tag means the version is immutable, so "next version" is a future release. An rc tag
+    # alone is ambiguous: the version is either in vote (pin must wait) or being re-cut in this
+    # release (pin must resolve), and only the release manager knows which.
+    if version_tag in existing_tags:
+        console_print(
+            f"[warning]Skipping {provider_package_name} in {relative_pyproject}: "
+            f"version {provider_version} is already released, leaving the pin for the next release"
+        )
+        return line, False
+    if existing_tags:
+        console_print(
+            f"[warning]{provider_package_name} {provider_version} has release candidate tags but no final "
+            f"release. Revert the update of {relative_pyproject} below if {provider_package_name} "
+            f"is not part of this release."
+        )
 
     # Update the line with the new version
     return _update_dependency_line_with_new_version(

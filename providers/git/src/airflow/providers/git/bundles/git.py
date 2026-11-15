@@ -18,15 +18,17 @@ from __future__ import annotations
 
 import os
 import shutil
-from contextlib import nullcontext
+from contextlib import ExitStack, nullcontext
 from pathlib import Path
+from typing import TYPE_CHECKING
 from urllib.parse import urlparse
 
 import structlog
 from git import Repo
 from git.exc import BadName, GitCommandError, InvalidGitRepositoryError, NoSuchPathError
-from tenacity import retry, retry_if_exception_type, stop_after_attempt
+from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
+from airflow.dag_processing.bundles import base as bundle_base
 from airflow.dag_processing.bundles.base import BaseDagBundle
 from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_3_PLUS
@@ -35,7 +37,29 @@ from airflow.providers.git.hooks.git import GitHook
 if AIRFLOW_V_3_3_PLUS:
     from airflow.dag_processing.bundles.base import BundleVersion
 
+if TYPE_CHECKING:
+    from tenacity import RetryCallState
+
 log = structlog.get_logger(__name__)
+
+# GitHub rejects a just-issued App installation token with "Repository not found" for a few seconds,
+# and a fresh GitHook mints one right before the bare clone. Only that auth path gets extra attempts
+# with a wait in between (2, 4, 8, 15 s); every other one keeps two immediate attempts, so a repository
+# that can never be cloned still fails fast.
+_CLONE_STOP = stop_after_attempt(2)
+_GITHUB_APP_CLONE_STOP = stop_after_attempt(5)
+_GITHUB_APP_CLONE_WAIT = wait_exponential(multiplier=2, max=15)
+
+
+def _bare_clone_stop(retry_state: RetryCallState) -> bool:
+    bundle: GitDagBundle = retry_state.args[0]
+    stop = _GITHUB_APP_CLONE_STOP if bundle._uses_github_app_auth() else _CLONE_STOP
+    return stop(retry_state)
+
+
+def _bare_clone_wait(retry_state: RetryCallState) -> float:
+    bundle: GitDagBundle = retry_state.args[0]
+    return _GITHUB_APP_CLONE_WAIT(retry_state) if bundle._uses_github_app_auth() else 0
 
 
 class GitDagBundle(BaseDagBundle):
@@ -287,9 +311,13 @@ class GitDagBundle(BaseDagBundle):
                 shutil.rmtree(self.repo_path)
             raise
 
+    def _uses_github_app_auth(self) -> bool:
+        return self.hook is not None and self.hook.uses_github_app_auth
+
     @retry(
         retry=retry_if_exception_type((InvalidGitRepositoryError, GitCommandError)),
-        stop=stop_after_attempt(2),
+        stop=_bare_clone_stop,
+        wait=_bare_clone_wait,
         reraise=True,
     )
     def _clone_bare_repo_if_required(self) -> None:
@@ -442,27 +470,45 @@ class GitDagBundle(BaseDagBundle):
         if self.version:
             raise AirflowException("Refreshing a specific version is not supported")
 
-        with self.lock():
-            cm = self.hook.configure_hook_env() if self.hook else nullcontext()
-            with cm:
+        with self.lock(), ExitStack() as stack:
+            # Older cores, including some reporting 3.4, lack this class, so probe rather than gate on version.
+            refresh_error = getattr(bundle_base, "DagBundleRefreshError", None)
+            try:
+                if self.hook:
+                    stack.enter_context(self.hook.configure_hook_env())
+            except Exception as e:
+                if refresh_error is not None:
+                    raise refresh_error(
+                        "Failed to prepare the Dag bundle; the previous source files are unchanged",
+                        source_unchanged=True,
+                    ) from e
+                raise
+            try:
                 self._fetch_bare_repo()
                 self.repo.remotes.origin.fetch(
                     ["+refs/heads/*:refs/remotes/origin/*", "+refs/tags/*:refs/tags/*"]
                 )
-                remote_branch = f"origin/{self.tracking_ref}"
-                if remote_branch in [ref.name for ref in self.repo.remotes.origin.refs]:
-                    target = remote_branch
-                else:
-                    target = self.tracking_ref
-                self.repo.head.reset(target, index=True, working_tree=True)
+            except GitCommandError as e:
+                if refresh_error is not None:
+                    raise refresh_error(
+                        "Failed to fetch the Dag bundle; the previous source files are unchanged",
+                        source_unchanged=True,
+                    ) from e
+                raise
+            remote_branch = f"origin/{self.tracking_ref}"
+            if remote_branch in [ref.name for ref in self.repo.remotes.origin.refs]:
+                target = remote_branch
+            else:
+                target = self.tracking_ref
+            self.repo.head.reset(target, index=True, working_tree=True)
 
-                if self.submodules:
-                    try:
-                        self._fetch_submodules()
-                    except GitCommandError as e:
-                        raise RuntimeError("Error pulling submodule from repository") from e
+            if self.submodules:
+                try:
+                    self._fetch_submodules()
+                except GitCommandError as e:
+                    raise RuntimeError("Error pulling submodule from repository") from e
 
-                self.repo.close()
+            self.repo.close()
 
     @staticmethod
     def _convert_git_ssh_url_to_https(url: str) -> str:

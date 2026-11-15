@@ -101,7 +101,7 @@ example_llm_branch_descriptions()
 # [START howto_operator_llm_branch_decision_policy]
 @dag(tags=["example"])
 def example_llm_branch_decision_policy():
-    # A classifier model reports how sure it is of each pick; a text model does not, and
+    # A decision model reports how sure it is of each pick; a text model does not, and
     # with a min_confidence set every pick would count as uncertain and go to review.
     route = LLMBranchOperator(
         task_id="triage_failure",
@@ -109,8 +109,7 @@ def example_llm_branch_decision_policy():
             "Task load_orders failed: psycopg2.OperationalError: could not connect to server: "
             "Connection timed out. Is the server running on host db.internal (10.0.4.12)?"
         ),
-        llm_conn_id="pydanticai_default",
-        model_id="typesafe:jev-1.13.0",
+        llm_conn_id="decision_default",
         system_prompt="Pick the remediation that addresses the cause of the failure.",
         branches={
             "rerun": "The failure looks transient: a timeout, a dropped connection, a rate limit.",

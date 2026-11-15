@@ -32,6 +32,7 @@ from sqlalchemy import select
 from urllib3.exceptions import HTTPError
 
 from airflow.providers.cncf.kubernetes.backcompat import get_logical_date_key
+from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_4_PLUS
 from airflow.providers.common.compat.sdk import AirflowException, conf
 
 if TYPE_CHECKING:
@@ -187,7 +188,7 @@ def annotations_to_key(annotations: dict[str, str]) -> TaskInstanceKey:
             raise RuntimeError("Session not configured. Call configure_orm() first.")
         session = Session()
 
-        task_instance_run_id = session.scalar(
+        query = (
             select(TaskInstance.run_id)
             .join(TaskInstance.dag_run)
             .where(
@@ -196,6 +197,9 @@ def annotations_to_key(annotations: dict[str, str]) -> TaskInstanceKey:
                 getattr(DagRun, logical_date_key) == logical_date,
             )
         )
+        if AIRFLOW_V_3_4_PLUS:
+            query = query.where(TaskInstance.working_set.is_(True))
+        task_instance_run_id = session.scalar(query)
     else:
         task_instance_run_id = annotation_run_id
 

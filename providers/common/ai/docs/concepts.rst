@@ -49,7 +49,7 @@ generating SQL, comparing schemas, or submitting many prompts as one batch.
 
 The AI step is orchestrated by Airflow: the model calls, the agent loop, and any tools
 run in the Airflow worker by default, where they get retries, logging, and observability like
-any other task. The exception is :ref:`SandboxToolset <sandbox-limitations>`, which exists so
+any other task. The exception is :ref:`SandboxToolset <sandbox-placement>`, which exists so
 that code the *model* writes runs somewhere else.
 
 Toolsets give agents reach
@@ -110,7 +110,7 @@ Results flow through XCom
 
 Every operator pushes its result to XCom like any other task. A plain string arrives as a
 string. A Pydantic ``output_type`` arrives as the model instance, typed, so a downstream
-task can use attribute access. :doc:`structured_output` explains how the class is
+task can use attribute access (a model inside a list of types arrives as a ``dict``). :doc:`structured_output` explains how the class is
 registered for deserialization and where that stops working.
 
 Related providers

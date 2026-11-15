@@ -16,13 +16,25 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import type { DagRunState } from "openapi/requests/types.gen";
+import type { DagRunState, TaskInstanceState } from "openapi/requests/types.gen";
 
 export type Option = {
   readonly disabled?: boolean;
   readonly label: string;
   readonly value: string;
 };
+
+export type DagRunSearchOption = {
+  readonly state: DagRunState;
+} & Option;
+
+export type MapIndexSearchOption = {
+  /** The expansion's own coordinate, which the link has to carry to be unambiguous in a loop. */
+  readonly regionId?: string;
+  readonly regionIndex?: number;
+  /** Absent on the row standing for all of them, which is no instance and so has no state. */
+  readonly state?: TaskInstanceState | null;
+} & Option;
 
 export type DagSearchOption = {
   readonly isBackfillable: boolean;

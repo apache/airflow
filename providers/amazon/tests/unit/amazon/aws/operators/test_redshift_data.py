@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import warnings
 from datetime import datetime
 from unittest import mock
 
@@ -27,9 +26,7 @@ import pytest
 from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.hooks.redshift_data import QueryExecutionOutput
 from airflow.providers.amazon.aws.operators.redshift_data import (
-    _DURABLE_UNSET,
     RedshiftDataOperator,
-    _warn_and_disable_durable_pre_3_3,
 )
 from airflow.providers.amazon.aws.triggers.redshift_data import RedshiftDataTrigger
 from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
@@ -738,18 +735,3 @@ class TestRedshiftDataOperatorDurable:
         ):
             operator = self._make_operator()
         assert operator.durable is False
-
-
-class TestWarnAndDisableDurableAirflowPre3_3:
-    def test_no_warning_when_unset(self):
-        with warnings.catch_warnings(record=True) as caught:
-            warnings.simplefilter("always")
-            result = _warn_and_disable_durable_pre_3_3(_DURABLE_UNSET)
-        assert result is False
-        assert caught == []
-
-    @pytest.mark.parametrize("value", [True, False])
-    def test_warns_and_disables_when_explicitly_set(self, value):
-        with pytest.warns(UserWarning, match="durable.*no effect"):
-            result = _warn_and_disable_durable_pre_3_3(value)
-        assert result is False

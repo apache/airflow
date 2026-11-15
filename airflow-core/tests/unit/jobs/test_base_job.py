@@ -33,6 +33,7 @@ from airflow.utils.session import create_session
 from airflow.utils.state import State
 
 from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.db import clear_db_jobs
 from unit.listeners import lifecycle_listener
 from unit.utils.test_helpers import MockJobRunner, SchedulerJobRunner, TriggererJobRunner
 
@@ -213,6 +214,34 @@ class TestJob:
         job.state = State.SUCCESS
         job.latest_heartbeat = timezone.utcnow() - datetime.timedelta(seconds=10)
         assert job.is_alive() is False, "Completed jobs even with recent heartbeat should not be alive"
+
+    def test_is_alive_clause_matches_is_alive(self, session):
+        clear_db_jobs()
+        core_types = ("SchedulerJob", "TriggererJob", "DagProcessorJob")
+        now = timezone.utcnow()
+        for job_type in core_types:
+            threshold = health_check_threshold(job_type, 0)
+            for state in (State.RUNNING, State.SUCCESS, State.FAILED, State.RESTARTING):
+                for age in (None, 0, threshold - 1, threshold + 1, 86400):
+                    session.add(
+                        Job(
+                            job_type=job_type,
+                            state=state,
+                            hostname=f"{job_type}|{state}|{age}",
+                            latest_heartbeat=None if age is None else now - datetime.timedelta(seconds=age),
+                        )
+                    )
+        session.commit()
+
+        jobs = session.scalars(select(Job)).all()
+        alive_in_sql = {
+            job.hostname for job in session.scalars(select(Job).where(Job.is_alive_clause(core_types)))
+        }
+
+        assert alive_in_sql == {job.hostname for job in jobs if job.is_alive()}
+        assert alive_in_sql, "the scenarios must include live jobs"
+        assert len(alive_in_sql) < len(jobs)
+        clear_db_jobs()
 
     @patch("airflow.jobs.job.create_session")
     def test_heartbeat_failed(self, mock_create_session, caplog):

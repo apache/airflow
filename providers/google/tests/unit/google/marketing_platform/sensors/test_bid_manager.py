@@ -19,6 +19,9 @@ from __future__ import annotations
 
 from unittest import mock
 
+import pytest
+
+from airflow.providers.common.compat.sdk import AirflowFailException
 from airflow.providers.google.marketing_platform.sensors.bid_manager import (
     GoogleBidManagerRunQuerySensor,
 )
@@ -29,13 +32,27 @@ GCP_CONN_ID = "google_cloud_default"
 
 
 class TestGoogleBidManagerRunQuerySensor:
+    @pytest.mark.parametrize(
+        ("state", "expected_result", "expected_exception"),
+        [
+            ("DONE", True, None),
+            ("RUNNING", False, None),
+            ("FAILED", None, AirflowFailException),
+        ],
+    )
     @mock.patch(f"{MODULE_NAME}.GoogleBidManagerHook")
-    @mock.patch(f"{MODULE_NAME}.BaseSensorOperator")
-    def test_poke(self, mock_base_op, hook_mock):
+    def test_poke(self, hook_mock, state, expected_result, expected_exception):
         query_id = "QUERY_ID"
         report_id = "REPORT_ID"
+        hook_mock.return_value.get_report.return_value = {"metadata": {"status": {"state": state}}}
         op = GoogleBidManagerRunQuerySensor(query_id=query_id, report_id=report_id, task_id="test_task")
-        op.poke(context=None)
+        if expected_exception:
+            with pytest.raises(expected_exception, match="failed execution"):
+                op.poke(context=None)
+        else:
+            result = op.poke(context=None)
+            assert result is expected_result
+
         hook_mock.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
             api_version="v2",

@@ -22,7 +22,7 @@ import logging
 import re
 import time
 from collections.abc import Generator
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from threading import Event, Thread
 from typing import TYPE_CHECKING
 
@@ -100,24 +100,26 @@ class AwsTaskLogFetcher(Thread):
 
     def run(self) -> None:
         continuation_token = AwsLogsHook.ContinuationToken()
-        while not self.is_stopped():
-            time.sleep(self.fetch_interval.total_seconds())
-            log_events = self._get_log_events(continuation_token)
-            prev_timestamp_event = None
-            for log_event in log_events:
-                current_timestamp_event = datetime.fromtimestamp(
-                    log_event["timestamp"] / 1000.0, tz=timezone.utc
-                )
-                if current_timestamp_event == prev_timestamp_event:
-                    # When multiple events have the same timestamp, somehow, only one event is logged
-                    # As a consequence, some logs are missed in the log group (in case they have the same
-                    # timestamp)
-                    # When a slight delay is added before logging the event, that solves the issue
-                    # See https://github.com/apache/airflow/issues/40875
-                    time.sleep(0.001)
-                level = _parse_log_level(log_event["message"])
-                self.logger.log(level, self.event_to_str(log_event))
-                prev_timestamp_event = current_timestamp_event
+        while not self._event.wait(self.fetch_interval.total_seconds()):
+            self._forward_log_events(continuation_token)
+        # `stop()` is called once the task or job has ended, so the events written between the last
+        # fetch above and that moment have not been read yet: read them before the thread exits.
+        self._forward_log_events(continuation_token)
+
+    def _forward_log_events(self, continuation_token: AwsLogsHook.ContinuationToken) -> None:
+        prev_timestamp_event = None
+        for log_event in self._get_log_events(continuation_token):
+            current_timestamp_event = datetime.fromtimestamp(log_event["timestamp"] / 1000.0, tz=UTC)
+            if current_timestamp_event == prev_timestamp_event:
+                # When multiple events have the same timestamp, somehow, only one event is logged
+                # As a consequence, some logs are missed in the log group (in case they have the same
+                # timestamp)
+                # When a slight delay is added before logging the event, that solves the issue
+                # See https://github.com/apache/airflow/issues/40875
+                time.sleep(0.001)
+            level = _parse_log_level(log_event["message"])
+            self.logger.log(level, self.event_to_str(log_event))
+            prev_timestamp_event = current_timestamp_event
 
     def _get_log_events(self, skip_token: AwsLogsHook.ContinuationToken | None = None) -> Generator:
         if skip_token is None:
@@ -144,7 +146,7 @@ class AwsTaskLogFetcher(Thread):
 
     @staticmethod
     def event_to_str(event: dict) -> str:
-        event_dt = datetime.fromtimestamp(event["timestamp"] / 1000.0, tz=timezone.utc)
+        event_dt = datetime.fromtimestamp(event["timestamp"] / 1000.0, tz=UTC)
         formatted_event_dt = event_dt.strftime("%Y-%m-%d %H:%M:%S,%f")[:-3]
         message = event["message"]
         return f"[{formatted_event_dt}] {message}"
@@ -156,13 +158,25 @@ class AwsTaskLogFetcher(Thread):
          NOTE: some restrictions apply:
          - if logs are too old, the response will be empty
          - the max number of messages we can retrieve is constrained by cloudwatch limits (10,000).
+         - if the log stream does not exist, an empty list is returned.
         """
-        response = self.hook.conn.get_log_events(
-            logGroupName=self.log_group,
-            logStreamName=self.log_stream_name,
-            startFromHead=False,
-            limit=number_messages,
-        )
+        try:
+            response = self.hook.conn.get_log_events(
+                logGroupName=self.log_group,
+                logStreamName=self.log_stream_name,
+                startFromHead=False,
+                limit=number_messages,
+            )
+        except ClientError as error:
+            if error.response["Error"]["Code"] != "ResourceNotFoundException":
+                raise
+            self.logger.warning(
+                "Cannot find log stream, check that the log group and stream are correct: "
+                "group: %s\tstream: %s",
+                self.log_group,
+                self.log_stream_name,
+            )
+            return []
         return [log["message"] for log in response["events"]]
 
     def get_last_log_message(self) -> str | None:

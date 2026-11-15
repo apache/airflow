@@ -30,8 +30,9 @@ from airflow.sdk.io.stat import stat_result
 from airflow.sdk.io.store import attach
 
 if TYPE_CHECKING:
+    from typing import Self
+
     from fsspec import AbstractFileSystem
-    from typing_extensions import Self
     from upath.types import JoinablePathLike
 
 log = logging.getLogger(__name__)

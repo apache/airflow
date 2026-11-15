@@ -36,7 +36,7 @@ const StandardFields = ({ control, standardFields }: StandardFieldsProps) => {
   const [showPassword, setShowPassword] = useState(false);
 
   return (
-    <Stack pb={3} pl={3} pr={3}>
+    <Stack>
       {Object.entries(standardFields).map(([key, fields]) => {
         if (Boolean(fields.hidden)) {
           return undefined;

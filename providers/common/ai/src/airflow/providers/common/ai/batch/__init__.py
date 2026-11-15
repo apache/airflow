@@ -17,7 +17,7 @@
 """
 Batch execution for ``@task.llm_batch``.
 
-The stable surface for other packages is :class:`BatchAdapter` (the contract a
+The extension points for other packages, all experimental, are :class:`BatchAdapter` (the contract a
 provider batch engine implements), :class:`BatchRequest` (one input item) and
 :func:`register_adapter` (how another provider package plugs its adapter in).
 """

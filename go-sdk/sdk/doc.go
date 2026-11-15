@@ -17,7 +17,7 @@
 
 /*
 Package sdk gives task functions access to the Airflow "model" (Variables,
-Connections, and XCom) at run time.
+Connections, XCom, and the per-task-instance state store) at run time.
 
 A task function does not construct a client itself. It takes an
 [github.com/apache/airflow/go-sdk/airflow.Context] as its first parameter and
@@ -37,9 +37,13 @@ gets the client from it:
 interface. That documents what the helper touches and makes it easy to pass a
 fake in unit tests.
 
+[TaskStateStoreClient] keeps values across attempts of the same task instance,
+so a task can resume its progress after a retry.
+
 To publish a result, return a value from the task function: the runtime pushes
 it as the task's return-value XCom, so most tasks never call [XComClient]
 directly. Lookups that miss return a wrapped sentinel error ([VariableNotFound],
-[ConnectionNotFound], [XComNotFound]) you can test for with errors.Is.
+[ConnectionNotFound], [XComNotFound], [TaskStateNotFound]) you can test for with
+errors.Is.
 */
 package sdk

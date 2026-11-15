@@ -58,17 +58,21 @@ const loadMonacoModules = async () => {
     ),
   ]);
 
-  // The JSON feature registers its language as a side effect. Python is registered
-  // manually below from its grammar module instead of importing its register module,
-  // whose lazy tokens provider would overwrite our patched grammar on first use.
-  // The runtime guard below fails loudly if the grammar export shape changes.
+  // The JSON feature registers its language as a side effect. Every Monarch grammar monaco
+  // ships is registered with a lazy loader, so a grammar chunk is only fetched the first time
+  // an editor uses its language: any language id an importer stores for its Dag source gets
+  // highlighted without the UI knowing the list up front.
   const jsonContribution = import("monaco-editor/languages/features/json/register");
-  const pythonGrammar = import("monaco-editor/languages/definitions/python/python");
+  const grammarContributions = import("monaco-editor/languages/definitions/register.all");
 
-  const [monaco, [editorWorkerUrl, jsonWorkerUrl], { conf: pythonConf, language: pythonLanguage }] =
-    await Promise.all([monacoApi, workerUrls, pythonGrammar, jsonContribution]);
+  const [monaco, [editorWorkerUrl, jsonWorkerUrl]] = await Promise.all([
+    monacoApi,
+    workerUrls,
+    jsonContribution,
+    grammarContributions,
+  ]);
 
-  return { editorWorkerUrl, jsonWorkerUrl, monaco, pythonConf, pythonLanguage };
+  return { editorWorkerUrl, jsonWorkerUrl, monaco };
 };
 
 const createWorkerFromUrl = (workerUrl: string): Worker => {
@@ -85,27 +89,29 @@ export const configureMonaco = () => {
   }
 
   configurationPromise = loadMonacoModules()
-    .then(({ editorWorkerUrl, jsonWorkerUrl, monaco, pythonConf, pythonLanguage }) => {
+    .then(({ editorWorkerUrl, jsonWorkerUrl, monaco }) => {
       Reflect.set(globalThis, "MonacoEnvironment", {
         getWorker: (_moduleId: string, label: string) =>
           createWorkerFromUrl(label === "json" ? jsonWorkerUrl : editorWorkerUrl),
       } satisfies MonacoEnvironment);
 
-      // Register Python with the patched grammar (triple-quoted f-string support). The
-      // editor always sets `language="python"` explicitly, so no extensions/firstLine
-      // auto-detection metadata is needed. Guard the internal grammar export shape: if a
-      // monaco upgrade drops these, fail loudly here rather than silently disabling
-      // Python highlighting (`setMonarchTokensProvider("python", undefined)`).
-      // The `conf`/`language` types come from a hand-written ambient declaration, so
-      // TypeScript believes they are always defined; this guard checks the real runtime
-      // shape the types cannot vouch for.
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-      if (pythonConf === undefined || pythonLanguage === undefined) {
-        throw new Error("monaco Python grammar module changed shape: missing `conf`/`language` export");
-      }
-      monaco.languages.register({ id: "python" });
-      monaco.languages.setLanguageConfiguration("python", pythonConf);
-      monaco.languages.setMonarchTokensProvider("python", patchPythonFStrings(pythonLanguage));
+      // Replaces the lazy Python tokenizer `register.all` set up with the patched grammar
+      // (triple-quoted f-string support), still loaded on first use.
+      monaco.languages.registerTokensProviderFactory("python", {
+        create: async () => {
+          const { language } = await import("monaco-editor/languages/definitions/python/python");
+
+          // The `language` type comes from a hand-written ambient declaration, so TypeScript
+          // believes it is always defined; fail loudly if a monaco upgrade drops the export
+          // rather than silently disabling Python highlighting.
+          // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+          if (language === undefined) {
+            throw new Error("monaco python grammar module changed shape: missing `language` export");
+          }
+
+          return patchPythonFStrings(language);
+        },
+      });
 
       loader.config({ monaco });
     })

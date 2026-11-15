@@ -26,6 +26,87 @@
 Changelog
 ---------
 
+2.21.0
+......
+
+.. note::
+
+    **Significant change: SQL hook lineage query job names**
+
+    SQL hook lineage now emits query jobs named
+    ``<dag_id>.<task_id>.hll_query.<counter>``. Earlier versions used
+    ``<dag_id>.<task_id>.query.<counter>``.
+
+    The new name distinguishes SQL hook lineage events from native operator query
+    events. Native implementations retain their ``query`` names. Manual calls to
+    ``emit_query_lineage`` retain their default ``manual_query`` names.
+
+    Update consumer filters and job-name mappings that match the previous SQL hook
+    lineage names. Backends that identify jobs by namespace and name can show the
+    renamed jobs separately from historical jobs after the upgrade.
+
+.. note::
+
+    **Significant change: task notes in the Airflow run facet**
+
+    The Airflow run facet no longer includes ``taskInstance.note``. Earlier versions
+    emitted this field for Airflow 2 task events and scheduler-generated ``FAIL``
+    events, but not for Airflow 3 manual state changes.
+
+    Update consumers to tolerate the missing field. Retrieve task notes through
+    Airflow's supported API when needed.
+
+Features
+~~~~~~~~
+
+* ``Fix task loop information and tests for OpenLineage provider (#74752)``
+* ``Add OpenLineage parent and root job-type macros (#75303)``
+* ``Allow excluding datasets from OpenLineage events by pattern and hook (#71312, #75921)``
+* ``Send task inlets and outlets as JSON lists in OpenLineage facet (#74666)``
+* ``Distinguish SQL hook lineage query jobs from native query jobs (#73655)``
+* ``Attribute lineage runs and asset dependencies to task attempts on Airflow 3.4 (#74347)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix OpenLineage task events lost for Dags with mapped tasks (#75860)``
+* ``Use task instance end date as OpenLineage terminal event time (#75328)``
+* ``Surface errors from OpenLineage database info lookups without losing lineage (#74805)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add OpenLineage system tests for the emission policy (#75678)``
+   * ``Keep service logs and OpenLineage e2e noise out of the job output (#75811)``
+   * ``Prepare providers release 2026-10-20 (#75209)``
+   * ``Add non serializable asset's extra to openlineage e2e tests (#75094)``
+   * ``Stop the OpenLineage execution timeout test flaking on busy CI runners (#74927)``
+   * ``Make asset event batching opt-in (#68517)``
+
+2.20.3
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Skip creating an empty hook lineage collector for OpenLineage events (#74190)``
+
+Misc
+~~~~
+
+* ``Drop support for Python 3.10 (#74157)``
+* ``Exclude SQLAlchemy 2.1.0 (#73865)``
+
+Doc-only
+~~~~~~~~
+
+* ``Update provider READMEs for the Python 3.11 baseline (#74158)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Apply ruff Python 3.11 fixes to providers (#74155)``
+   * ``Fix invalid cron expression in OpenLineage system test Dag (#74187)``
+   * ``[main] Upgrade important CI environment (#73629)``
+
 2.20.2
 ......
 

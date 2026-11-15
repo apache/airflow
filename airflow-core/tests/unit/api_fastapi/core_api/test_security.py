@@ -894,6 +894,7 @@ class TestFastApiSecurity:
         mock_get_name_if_exists.return_value = team_name
         fastapi_request = Mock()
         fastapi_request.path_params = {"connection_id": "conn_id"}
+        fastapi_request.body = AsyncMock(return_value=b"{}")
         fastapi_request.json = AsyncMock(return_value={})
         user = Mock()
 
@@ -920,6 +921,7 @@ class TestFastApiSecurity:
         mock_get_name_if_exists.return_value = "team1"
         fastapi_request = Mock()
         fastapi_request.path_params = {}
+        fastapi_request.body = AsyncMock(return_value=b"{}")
         fastapi_request.json = AsyncMock(return_value={"team_name": "team1"})
         user = Mock()
 
@@ -948,6 +950,7 @@ class TestFastApiSecurity:
         mock_get_name_if_exists.side_effect = lambda name: name
         fastapi_request = Mock()
         fastapi_request.path_params = {"connection_id": "conn_id"}
+        fastapi_request.body = AsyncMock(return_value=b"{}")
         fastapi_request.json = AsyncMock(return_value={"team_name": "new-team"})
         user = Mock()
 
@@ -976,6 +979,7 @@ class TestFastApiSecurity:
         mock_get_name_if_exists.return_value = None
         fastapi_request = Mock()
         fastapi_request.path_params = {}
+        fastapi_request.body = AsyncMock(return_value=b"{}")
         fastapi_request.json = AsyncMock(return_value={"team_name": "nonexistent"})
         user = Mock()
 
@@ -1001,6 +1005,7 @@ class TestFastApiSecurity:
         mock_get_team_name.return_value = None
         fastapi_request = Mock()
         fastapi_request.path_params = {"connection_id": "conn_id"}
+        fastapi_request.body = AsyncMock(return_value=b"{}")
         fastapi_request.json = AsyncMock(side_effect=JSONDecodeError("expecting value", "", 0))
         user = Mock()
 
@@ -1010,6 +1015,67 @@ class TestFastApiSecurity:
 
         assert exc_info.value.status_code == 400
         auth_manager.is_authorized_connection.assert_not_called()
+
+    @pytest.mark.db_test
+    @pytest.mark.parametrize("method", ["POST", "PUT"])
+    @pytest.mark.parametrize(
+        "parse_error",
+        [
+            UnicodeDecodeError("utf-8", b"\xff", 0, 1, "invalid start byte"),
+            ValueError("Exceeds the limit (4300 digits) for integer string conversion"),
+            RecursionError("maximum recursion depth exceeded while decoding a JSON array"),
+        ],
+        ids=["invalid-utf8", "oversized-int", "deep-nesting"],
+    )
+    @patch.object(Team, "get_name_if_exists")
+    @patch.object(Connection, "get_team_name")
+    @patch("airflow.api_fastapi.core_api.security.get_auth_manager")
+    async def test_requires_access_connection_body_parse_failure_other_than_jsondecodeerror(
+        self, mock_get_auth_manager, mock_get_team_name, mock_get_name_if_exists, parse_error, method
+    ):
+        """``json.loads`` raises these three besides JSONDecodeError; each must fail closed."""
+        auth_manager = Mock()
+        auth_manager.is_authorized_connection.return_value = False
+        mock_get_auth_manager.return_value = auth_manager
+        mock_get_team_name.return_value = None
+        fastapi_request = Mock()
+        fastapi_request.path_params = {"connection_id": "conn_id"}
+        fastapi_request.body = AsyncMock(return_value=b"<unparsable>")
+        fastapi_request.json = AsyncMock(side_effect=parse_error)
+        user = Mock()
+
+        with conf_vars({("core", "multi_team"): "True"}):
+            with pytest.raises(HTTPException) as exc_info:
+                await requires_access_connection(method)(fastapi_request, user)
+
+        assert exc_info.value.status_code == 400
+        auth_manager.is_authorized_connection.assert_not_called()
+
+    @pytest.mark.db_test
+    @patch.object(Team, "get_name_if_exists")
+    @patch.object(Connection, "get_team_name")
+    @patch("airflow.api_fastapi.core_api.security.get_auth_manager")
+    async def test_requires_access_connection_empty_body_names_no_team(
+        self, mock_get_auth_manager, mock_get_team_name, mock_get_name_if_exists
+    ):
+        """``POST /connections/defaults`` declares no body model, so a bodyless request reaches
+        here unparsed: it names no team and must be authorized, not rejected as unparsable."""
+        auth_manager = Mock()
+        auth_manager.is_authorized_connection.return_value = True
+        mock_get_auth_manager.return_value = auth_manager
+        mock_get_team_name.return_value = None
+        fastapi_request = Mock()
+        fastapi_request.path_params = {}
+        fastapi_request.body = AsyncMock(return_value=b"")
+        fastapi_request.json = AsyncMock(return_value={})
+        user = Mock()
+
+        with conf_vars({("core", "multi_team"): "True"}):
+            await requires_access_connection("POST")(fastapi_request, user)
+
+        fastapi_request.json.assert_not_called()
+        auth_manager.is_authorized_connection.assert_called_once()
+        assert auth_manager.is_authorized_connection.call_args.kwargs["details"].team_name is None
 
     @pytest.mark.db_test
     @pytest.mark.parametrize("method", ["POST", "PUT"])
@@ -1032,6 +1098,7 @@ class TestFastApiSecurity:
         mock_get_team_name.return_value = None
         fastapi_request = Mock()
         fastapi_request.path_params = {"connection_id": "conn_id"}
+        fastapi_request.body = AsyncMock(return_value=b"{}")
         fastapi_request.json = AsyncMock(return_value={"team_name": bad_team_name})
         user = Mock()
 
@@ -1154,6 +1221,7 @@ class TestFastApiSecurity:
         mock_get_name_if_exists.return_value = team_name
         fastapi_request = Mock()
         fastapi_request.path_params = {"variable_key": "var_key"}
+        fastapi_request.body = AsyncMock(return_value=b"{}")
         fastapi_request.json = AsyncMock(return_value={})
         user = Mock()
 
@@ -1180,6 +1248,7 @@ class TestFastApiSecurity:
         mock_get_name_if_exists.return_value = "team1"
         fastapi_request = Mock()
         fastapi_request.path_params = {}
+        fastapi_request.body = AsyncMock(return_value=b"{}")
         fastapi_request.json = AsyncMock(return_value={"team_name": "team1"})
         user = Mock()
 
@@ -1208,6 +1277,7 @@ class TestFastApiSecurity:
         mock_get_name_if_exists.side_effect = lambda name: name
         fastapi_request = Mock()
         fastapi_request.path_params = {"variable_key": "var_key"}
+        fastapi_request.body = AsyncMock(return_value=b"{}")
         fastapi_request.json = AsyncMock(return_value={"team_name": "new-team"})
         user = Mock()
 
@@ -1236,6 +1306,7 @@ class TestFastApiSecurity:
         mock_get_name_if_exists.return_value = None
         fastapi_request = Mock()
         fastapi_request.path_params = {}
+        fastapi_request.body = AsyncMock(return_value=b"{}")
         fastapi_request.json = AsyncMock(return_value={"team_name": "nonexistent"})
         user = Mock()
 
@@ -1330,6 +1401,7 @@ class TestFastApiSecurity:
         mock_get_name_if_exists.return_value = team_name
         fastapi_request = Mock()
         fastapi_request.path_params = {"pool_name": "pool"}
+        fastapi_request.body = AsyncMock(return_value=b"{}")
         fastapi_request.json = AsyncMock(return_value={})
         user = Mock()
 
@@ -1354,6 +1426,7 @@ class TestFastApiSecurity:
         mock_get_name_if_exists.return_value = "team1"
         fastapi_request = Mock()
         fastapi_request.path_params = {}
+        fastapi_request.body = AsyncMock(return_value=b"{}")
         fastapi_request.json = AsyncMock(return_value={"team_name": "team1"})
         user = Mock()
 
@@ -1382,6 +1455,7 @@ class TestFastApiSecurity:
         mock_get_name_if_exists.side_effect = lambda name: name
         fastapi_request = Mock()
         fastapi_request.path_params = {"pool_name": "pool"}
+        fastapi_request.body = AsyncMock(return_value=b"{}")
         fastapi_request.json = AsyncMock(return_value={"team_name": "new-team"})
         user = Mock()
 
@@ -1410,6 +1484,7 @@ class TestFastApiSecurity:
         mock_get_name_if_exists.return_value = None
         fastapi_request = Mock()
         fastapi_request.path_params = {}
+        fastapi_request.body = AsyncMock(return_value=b"{}")
         fastapi_request.json = AsyncMock(return_value={"team_name": "nonexistent"})
         user = Mock()
 

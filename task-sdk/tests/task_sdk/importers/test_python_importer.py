@@ -33,8 +33,10 @@ from unittest import mock
 
 import pytest
 
+from airflow.sdk import DAG
 from airflow.sdk.exceptions import AirflowConfigException
 from airflow.sdk.importers import (
+    DagImportError,
     FileDagDefinition,
     FilesystemDagDefinition,
     PythonDagImporter,
@@ -208,6 +210,25 @@ class TestPythonDagImporter:
         defs = list(importer.list_dag_definitions(mock_bundle))
         assert {d.path.name for d in defs} == {"sample_dag.py"}
 
+    def test_list_dag_definitions_reports_unreadable_file_and_lists_the_rest(self, mock_bundle):
+        (mock_bundle.path / "bad.py").write_text("from airflow.sdk import DAG\n")
+        (mock_bundle.path / "good.py").write_text("from airflow.sdk import DAG\n")
+
+        def _might_contain_dag(self, definition, safe_mode):
+            if definition.path.name == "bad.py":
+                raise PermissionError("Permission denied")
+            return True
+
+        with mock.patch.object(
+            PythonDagImporter, "might_contain_dag", autospec=True, side_effect=_might_contain_dag
+        ):
+            items = list(PythonDagImporter().list_dag_definitions(mock_bundle))
+
+        [error] = [item for item in items if isinstance(item, DagImportError)]
+        assert error.source_reference == "bad.py"
+        assert error.error_type == "read_error"
+        assert [item.path.name for item in items if not isinstance(item, DagImportError)] == ["good.py"]
+
     def test_list_prefers_source_over_pyc_and_skips_pycache(self, mock_bundle):
         (mock_bundle.path / "foo.py").write_text("from airflow.sdk import DAG\n")
         (mock_bundle.path / "foo.pyc").write_bytes(b"compiled")  # side-by-side -> skipped
@@ -326,6 +347,42 @@ class TestPythonDagImporter:
                 FilesystemDagDefinition(path=mock_bundle.path / "dag.py"),
                 bundle=mock_bundle,
             )
+
+    @pytest.mark.parametrize(
+        ("timeout_policy", "expectation"),
+        [
+            pytest.param(
+                {"return_value": "invalid_timeout_str"},
+                pytest.raises(AirflowConfigException),
+                id="config-error-propagates",
+            ),
+            pytest.param(
+                {"side_effect": RuntimeError("policy failed")},
+                contextlib.nullcontext(),
+                id="error-reported",
+            ),
+            pytest.param(
+                {"return_value": 0},
+                pytest.raises(KeyboardInterrupt),
+                id="keyboard-interrupt-propagates",
+            ),
+        ],
+    )
+    def test_failed_load_does_not_break_later_dags(self, mock_bundle, timeout_policy, expectation):
+        (mock_bundle.path / "dag.py").write_text("raise KeyboardInterrupt\n")
+        mock_settings = mock.MagicMock(spec=["get_dagbag_import_timeout"])
+        mock_settings.get_dagbag_import_timeout.configure_mock(**timeout_policy)
+        mock_airflow = mock.MagicMock(spec=["settings"], settings=mock_settings)
+
+        with mock.patch.dict("sys.modules", {"airflow": mock_airflow}), expectation:
+            PythonDagImporter().import_definition(
+                FilesystemDagDefinition(path=mock_bundle.path / "dag.py"),
+                bundle=mock_bundle,
+            )
+
+        with DAG("built_after_failed_load") as dag:
+            pass
+        assert dag.dag_id == "built_after_failed_load"
 
     @mock.patch.object(PythonDagImporter, "_load_modules", side_effect=TypeError("unexpected None"))
     def test_unexpected_type_error_captured_in_result_errors(self, mock_load, mock_bundle):

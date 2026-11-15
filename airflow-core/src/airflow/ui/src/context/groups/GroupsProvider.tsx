@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useEffect, useRef, type PropsWithChildren } from "react";
+import { useCallback, useEffect, useRef, useState, type PropsWithChildren } from "react";
 
 import { useDebouncedCallback } from "use-debounce";
 import { useLocalStorage } from "usehooks-ts";
@@ -36,12 +36,17 @@ type Props = {
 } & PropsWithChildren;
 
 export const GroupsProvider = ({ children, dagId }: Props) => {
-  const [storedOpenGroupIds, setOpenGroupIds] = useLocalStorage<Array<string> | null>(
-    openGroupsKey(dagId),
-    null,
-  );
+  const [storedOpenGroupIds, setStoredOpenGroupIds, removeStoredOpenGroupIds] =
+    useLocalStorage<Array<string> | null>(openGroupsKey(dagId), null);
+  const [sessionOpenGroupIds, setSessionOpenGroupIds] = useState<{
+    dagId: string;
+    groupIds: Array<string>;
+  }>();
   const [defaultTaskGroupsExpanded] = useDefaultTaskGroupsExpanded();
-  const [allGroupIds, setAllGroupIds] = useLocalStorage<Array<string>>(allGroupsKey(dagId), []);
+  const [allGroupIds, setStoredAllGroupIds, removeStoredAllGroupIds] = useLocalStorage<Array<string>>(
+    allGroupsKey(dagId),
+    [],
+  );
 
   const allGroupIdsRef = useRef(allGroupIds);
 
@@ -61,7 +66,33 @@ export const GroupsProvider = ({ children, dagId }: Props) => {
   );
 
   const { allGroupIds: observedGroupIds, allOperators } = flattenGraphNodes(structure.nodes);
-  const openGroupIds = storedOpenGroupIds ?? (defaultTaskGroupsExpanded ? observedGroupIds : []);
+  const savedOpenGroupIds =
+    sessionOpenGroupIds?.dagId === dagId ? sessionOpenGroupIds.groupIds : storedOpenGroupIds;
+  const defaultOpenGroupIds = defaultTaskGroupsExpanded ? observedGroupIds : [];
+  const openGroupIds = savedOpenGroupIds ?? defaultOpenGroupIds;
+
+  const setOpenGroupIds = (groupIds: Array<string>) => {
+    setSessionOpenGroupIds({ dagId, groupIds });
+    if (
+      groupIds.length === defaultOpenGroupIds.length &&
+      groupIds.every((id) => defaultOpenGroupIds.includes(id))
+    ) {
+      removeStoredOpenGroupIds();
+    } else {
+      setStoredOpenGroupIds(groupIds);
+    }
+  };
+
+  const setAllGroupIds = useCallback(
+    (groupIds: Array<string>) => {
+      if (groupIds.length === 0) {
+        removeStoredAllGroupIds();
+      } else {
+        setStoredAllGroupIds(groupIds);
+      }
+    },
+    [removeStoredAllGroupIds, setStoredAllGroupIds],
+  );
 
   useEffect(() => {
     if (JSON.stringify(observedGroupIds) !== JSON.stringify(allGroupIdsRef.current)) {

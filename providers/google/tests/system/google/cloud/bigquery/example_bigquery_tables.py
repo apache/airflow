@@ -22,9 +22,10 @@ Example Airflow DAG for Google BigQuery service testing tables.
 from __future__ import annotations
 
 import os
-import time
 from datetime import datetime
 from pathlib import Path
+
+from google.cloud.bigquery import SchemaField, Table
 
 from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.bigquery import (
@@ -96,6 +97,21 @@ with DAG(
         },
     )
     # [END howto_operator_bigquery_create_table]
+
+    # [START howto_operator_bigquery_create_table_from_table_object]
+    create_table_from_table_object = BigQueryCreateTableOperator(
+        task_id="create_table_from_table_object",
+        dataset_id=DATASET_NAME,
+        table_id="test_table_from_object",
+        table_resource=Table(
+            f"{PROJECT_ID}.{DATASET_NAME}.test_table_from_object",
+            schema=[
+                SchemaField("emp_name", "STRING", mode="REQUIRED"),
+                SchemaField("salary", "INTEGER", mode="NULLABLE"),
+            ],
+        ),
+    )
+    # [END howto_operator_bigquery_create_table_from_table_object]
 
     # [START howto_operator_bigquery_create_view]
     create_view = BigQueryCreateTableOperator(
@@ -178,7 +194,7 @@ with DAG(
         dataset_id=DATASET_NAME,
         table_resource={
             "tableReference": {"tableId": "test_table_id"},
-            "expirationTime": (int(time.time()) + 300) * 1000,
+            "expirationTime": "{{ (macros.datetime.now().timestamp() | int + 300) * 1000 }}",
         },
     )
     # [END howto_operator_bigquery_upsert_table]
@@ -259,6 +275,7 @@ with DAG(
         # TEST BODY
         >> update_dataset
         >> create_table
+        >> create_table_from_table_object
         >> create_view
         >> create_materialized_view
         >> update_view

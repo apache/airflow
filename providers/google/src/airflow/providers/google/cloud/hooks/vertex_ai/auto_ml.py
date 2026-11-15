@@ -359,7 +359,7 @@ class AutoMLHook(GoogleBaseHook, OperationHelper):
             values in this column give more importance to the row during Model training. The column must have
             numeric values between 0 and 10000 inclusively, and 0 value means that the row is ignored. If the
             weight column field is not set, then all rows are assumed to have equal weight of 1.
-        :param budget_milli_node_hours (int): Optional. The train budget of creating this Model, expressed in
+        :param budget_milli_node_hours: Optional. The train budget of creating this Model, expressed in
             milli node hours i.e. 1,000 value in this field means 1 node hour. The training cost of the model
             will not exceed this budget. The final cost will be attempted to be close to the budget, though
             may end up being (even) noticeably smaller - at the backend's discretion. This especially may

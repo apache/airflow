@@ -27,6 +27,7 @@ from structlog.testing import capture_logs
 
 from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.models import Connection
+from airflow.process_context import force_server_context
 from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
 from airflow.sdk.execution_time.comms import ErrorResponse
 
@@ -401,6 +402,35 @@ class TestConnection:
             captured_log for captured_log in captured_logs if captured_log["log_level"] == "warning"
         ] == []
 
+    def test_rejects_uri_with_zero_port_argument(self):
+        with pytest.raises(
+            AirflowException, match="You must create an object using the URI or individual values"
+        ):
+            Connection(uri="http://example.com", port=0)
+
+    @pytest.mark.parametrize("port", [0, 65535, None])
+    def test_allows_valid_port_boundaries(self, port):
+        conn = Connection(conn_id="test-port", conn_type="http", port=port)
+        assert conn.port == port
+
+    @pytest.mark.parametrize(("port", "expected"), [("123", 123), ("0", 0), ("", None)])
+    def test_converts_string_port_values(self, port, expected):
+        conn = Connection(conn_id="test-port", conn_type="http", port=port)
+        assert conn.port == expected
+
+    @pytest.mark.parametrize("port", [-1, 65536, 1.5, "abc", "65536"])
+    def test_rejects_invalid_direct_port_values(self, port):
+        with pytest.raises(ValueError, match="port"):
+            Connection(conn_id="test-port", conn_type="http", port=port)
+
+    def test_rejects_invalid_port_assignment(self):
+        conn = Connection(conn_id="test-port", conn_type="http", port=5432)
+
+        with pytest.raises(ValueError, match="port"):
+            conn.port = 65536
+
+        assert conn.port == 5432
+
     @pytest.mark.parametrize(
         ("connection", "expected_conn_id"),
         [
@@ -535,6 +565,26 @@ class TestConnection:
         with mock.patch.dict(sys.modules, {"airflow.sdk.execution_time.task_runner": mock_task_runner}):
             with pytest.raises(AirflowNotFoundException):
                 Connection.get_connection_from_secrets("test_conn")
+
+    @mock.patch.dict(
+        sys.modules,
+        {"airflow.sdk.execution_time.task_runner": mock.Mock(spec=["SUPERVISOR_COMMS"])},
+    )
+    @mock.patch(
+        "airflow.sdk.Connection.from_json",
+        side_effect=AssertionError(
+            "Connection.from_json should not route through Task SDK in server context"
+        ),
+    )
+    def test_connection_from_json_uses_core_path_when_server_context(self, mock_sdk_from_json):
+        """Server context should prefer core Connection.from_json even if comms exist."""
+        with force_server_context():
+            result = Connection.from_json('{"conn_type": "http", "host": "localhost"}', conn_id="test_conn")
+
+        assert isinstance(result, Connection)
+        assert result.conn_id == "test_conn"
+        assert result.conn_type == "http"
+        assert result.host == "localhost"
 
     @mock.patch.dict(sys.modules, {"airflow.sdk.execution_time.task_runner": None})
     @mock.patch("airflow.sdk.Connection")

@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timedelta, timezone as dt_timezone
+from datetime import UTC, datetime, timedelta
 from json.decoder import JSONDecodeError
 from typing import TYPE_CHECKING, cast
 from unittest import mock
@@ -26,10 +26,24 @@ from unittest.mock import MagicMock, PropertyMock, patch
 import pendulum
 import pytest
 import time_machine
+from kubernetes.client import (
+    CoreV1Event,
+    CoreV1EventList,
+    V1ContainerState,
+    V1ContainerStateTerminated,
+    V1ContainerStateWaiting,
+    V1ContainerStatus,
+    V1ObjectMeta,
+    V1ObjectReference,
+    V1Pod,
+    V1PodCondition,
+    V1PodStatus,
+)
 from kubernetes.client.rest import ApiException
 from urllib3.exceptions import HTTPError as BaseHTTPError
 
 from airflow.providers.cncf.kubernetes.exceptions import KubernetesApiError
+from airflow.providers.cncf.kubernetes.hooks.kubernetes import AsyncKubernetesHook
 from airflow.providers.cncf.kubernetes.utils.pod_manager import (
     AsyncPodManager,
     PodCommandException,
@@ -48,6 +62,16 @@ from unit.cncf.kubernetes.test_callbacks import MockKubernetesPodOperatorCallbac
 
 if TYPE_CHECKING:
     from pendulum import DateTime
+
+POD_MANAGER_MODULE = "airflow.providers.cncf.kubernetes.utils.pod_manager"
+
+
+def _build_event_list() -> CoreV1EventList:
+    event = CoreV1Event(
+        involved_object=V1ObjectReference(),
+        metadata=V1ObjectMeta(uid="event-uid", resource_version="1"),
+    )
+    return CoreV1EventList(items=[event])
 
 
 @pytest.fixture
@@ -182,15 +206,62 @@ def test_log_pod_event_multiple_events():
     assert mock_pod_manager.log.info.call_count == 2
 
 
-def _pod_with_waiting_container(reason: str, message: str):
-    pod = mock.MagicMock()
-    container_status = mock.MagicMock()
-    waiting_state = mock.MagicMock()
-    waiting_state.reason = reason
-    waiting_state.message = message
-    container_status.state.waiting = waiting_state
-    pod.status.container_statuses = [container_status]
-    return pod
+def _build_waiting_container_status(name: str, reason: str, message: str = "") -> V1ContainerStatus:
+    return V1ContainerStatus(
+        name=name,
+        image="alpine",
+        image_id="1",
+        ready=False,
+        restart_count=0,
+        state=V1ContainerState(waiting=V1ContainerStateWaiting(reason=reason, message=message)),
+    )
+
+
+def _build_pod_with_waiting_container(reason: str, message: str, *, init: bool = False) -> V1Pod:
+    stuck = _build_waiting_container_status("init" if init else "base", reason, message)
+    if not init:
+        return V1Pod(status=V1PodStatus(container_statuses=[stuck]))
+    return V1Pod(
+        status=V1PodStatus(
+            init_container_statuses=[stuck],
+            container_statuses=[_build_waiting_container_status("base", "PodInitializing")],
+        )
+    )
+
+
+def _build_terminated_container_status(name: str) -> V1ContainerStatus:
+    return V1ContainerStatus(
+        name=name,
+        image="alpine",
+        image_id="1",
+        ready=False,
+        restart_count=0,
+        state=V1ContainerState(terminated=V1ContainerStateTerminated(exit_code=0)),
+    )
+
+
+def _build_pod_with_sidecar_pull_failure(*, initialized: bool) -> V1Pod:
+    """Build a pod whose native sidecar cannot pull its image.
+
+    With ``initialized=True`` the base container has already run, which keeps
+    ``Initialized`` true while the sidecar restarts.
+    """
+    return V1Pod(
+        status=V1PodStatus(
+            phase=PodPhase.RUNNING if initialized else PodPhase.PENDING,
+            conditions=[V1PodCondition(type="Initialized", status="True" if initialized else "False")],
+            init_container_statuses=[
+                _build_waiting_container_status(
+                    "sidecar", "ImagePullBackOff", 'Back-off pulling image "sidecar:latest"'
+                )
+            ],
+            container_statuses=[
+                _build_terminated_container_status("base")
+                if initialized
+                else _build_waiting_container_status("base", "PodInitializing")
+            ],
+        )
+    )
 
 
 @pytest.mark.parametrize(
@@ -213,14 +284,17 @@ def test_detect_pod_terminate_early_issues_returns_none_for_transient_messages(r
     total wait. Returning None here keeps the monitoring loop going so those
     retries have a chance to succeed.
     """
-    pod = _pod_with_waiting_container(reason, message)
+    pod = _build_pod_with_waiting_container(reason, message)
     assert detect_pod_terminate_early_issues(pod) is None
 
 
+@pytest.mark.parametrize("init", [False, True], ids=["main_container", "init_container"])
 @pytest.mark.parametrize(
     ("reason", "message"),
     [
         ("InvalidImageName", "Failed to apply default image tag"),
+        # The image name contains the transient pattern "timeout".
+        ("InvalidImageName", 'Failed to apply default image tag "timeout-worker:Bad Tag"'),
         ("ErrImageNeverPull", "Container image pull policy is Never"),
         ("ErrImagePull", "manifest unknown"),
         ("ImagePullBackOff", "unauthorized: authentication required"),
@@ -229,12 +303,36 @@ def test_detect_pod_terminate_early_issues_returns_none_for_transient_messages(r
         ("ImagePullBackOff", 'Back-off pulling image "nonexistent:latest"'),
     ],
 )
-def test_detect_pod_terminate_early_issues_returns_error_for_fatal_messages(reason, message):
-    pod = _pod_with_waiting_container(reason, message)
+def test_detect_pod_terminate_early_issues_returns_error_for_fatal_messages(reason, message, init):
+    pod = _build_pod_with_waiting_container(reason, message, init=init)
     error = detect_pod_terminate_early_issues(pod)
     assert error is not None
     assert reason in error
     assert message in error
+
+
+@pytest.mark.parametrize(
+    ("initialized", "expected_error_contains"),
+    [
+        pytest.param(False, "Image for container 'sidecar' cannot be pulled", id="still_initializing"),
+        pytest.param(True, None, id="already_initialized"),
+    ],
+)
+def test_detect_pod_terminate_early_issues_gates_sidecars_on_initialized(
+    initialized, expected_error_contains
+):
+    """A sidecar stuck pulling only justifies early termination while it gates start-up.
+
+    Once the pod is ``Initialized`` init containers no longer gate start-up, so a sidecar
+    failing a restart must not end the wait: the main container's work can still succeed.
+    """
+    pod = _build_pod_with_sidecar_pull_failure(initialized=initialized)
+    error = detect_pod_terminate_early_issues(pod)
+    if expected_error_contains is None:
+        assert error is None
+    else:
+        assert error is not None
+        assert expected_error_contains in error
 
 
 class TestPodManager:
@@ -466,6 +564,32 @@ class TestPodManager:
             resource_version=None,
             resource_version_match=None,
         )
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("read_result", "error"),
+        [
+            pytest.param(ApiException(status=504), str(ApiException(status=504)), id="reading-events"),
+            pytest.param(_build_event_list(), "bad event", id="logging-an-event"),
+        ],
+    )
+    @mock.patch(f"{POD_MANAGER_MODULE}.log_pod_event", autospec=True, side_effect=ValueError("bad event"))
+    @mock.patch.object(PodManager, "read_pod_events", autospec=True)
+    async def test_watch_pod_events_stops_on_error(
+        self, mock_read, mock_log_event, read_result, error, caplog
+    ):
+        mock_read.side_effect = [read_result]
+
+        await self.pod_manager.watch_pod_events(
+            V1Pod(metadata=V1ObjectMeta(name="test-pod")), check_interval=1
+        )
+
+        mock_read.assert_called_once()
+        assert (
+            mock.ANY,
+            logging.WARNING,
+            f"Stopped watching events of pod test-pod: {error}",
+        ) in caplog.record_tuples
 
     @pytest.mark.asyncio
     @mock.patch("asyncio.sleep", new_callable=mock.AsyncMock)
@@ -990,11 +1114,13 @@ class TestPodManager:
         waiting_state.reason = fail_reason
         waiting_state.message = "Test error"
         container_statuse.state.waiting = waiting_state
+        container_statuse.name = "base"
         pod_response.status.container_statuses = [container_statuse]
 
         self.mock_kube_client.read_namespaced_pod.return_value = pod_response
         expected_msg = (
-            f"Image cannot be pulled, unable to start: {waiting_state.reason}\n{waiting_state.message}"
+            "Image for container 'base' cannot be pulled, unable to start: "
+            f"{waiting_state.reason}\n{waiting_state.message}"
         )
         mock_pod = MagicMock()
         with pytest.raises(AirflowException, match=expected_msg):
@@ -1132,7 +1258,7 @@ class TestPodManager:
     def test_fetch_container_with_valid_since_time(self, logs_available, container_running):
         """Test that since_seconds is calculated correctly when since_time is a valid datetime."""
         mock_pod = MagicMock()
-        since_time = datetime(2026, 1, 1, 0, 0, 0, tzinfo=dt_timezone.utc) - timedelta(seconds=30)
+        since_time = datetime(2026, 1, 1, 0, 0, 0, tzinfo=UTC) - timedelta(seconds=30)
         logs_available.return_value = True
         container_running.return_value = False
         self.mock_kube_client.read_namespaced_pod_log.return_value = mock.MagicMock(
@@ -1531,6 +1657,37 @@ class TestAsyncPodManager:
         self.mock_async_hook.watch_pod_events.assert_called()
 
     @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("watched", "error"),
+        [
+            pytest.param(ApiException(status=504), str(ApiException(status=504)), id="watching-events"),
+            pytest.param(_build_event_list().items[0], "bad event", id="logging-an-event"),
+        ],
+    )
+    @mock.patch(f"{POD_MANAGER_MODULE}.log_pod_event", autospec=True, side_effect=ValueError("bad event"))
+    async def test_watch_pod_events_stops_on_error(self, mock_log_event, watched, error, caplog):
+        async def event_stream(*_, **__):
+            if isinstance(watched, Exception):
+                raise watched
+            yield watched
+
+        hook = mock.create_autospec(AsyncKubernetesHook, instance=True)
+        hook.watch_pod_events.side_effect = event_stream
+        self.async_pod_manager._hook = hook
+
+        await self.async_pod_manager.watch_pod_events(
+            V1Pod(metadata=V1ObjectMeta(name="test-pod", namespace="test-namespace")),
+            startup_check_interval=30,
+        )
+
+        hook.watch_pod_events.assert_called_once()
+        assert (
+            mock.ANY,
+            logging.WARNING,
+            f"Stopped watching events of pod test-pod: {error}",
+        ) in caplog.record_tuples
+
+    @pytest.mark.asyncio
     async def test_watch_pod_events_tracks_resource_version(self):
         """Test that watch_pod_events tracks and updates resource version."""
         mock_pod = mock.Mock()
@@ -1665,19 +1822,16 @@ class TestAsyncPodManager:
         self.mock_async_hook.get_pod.assert_called()
 
     @pytest.mark.asyncio
+    @pytest.mark.parametrize("init", [False, True], ids=["main_container", "init_container"])
     @pytest.mark.parametrize("fail_reason", ["ErrImagePull", "ImagePullBackOff", "InvalidImageName"])
-    async def test_start_pod_raises_fast_error_on_image_error(self, fail_reason):
-        pod_response = mock.MagicMock()
-        pod_response.status.phase = "Pending"
-        container_status = mock.MagicMock()
-        waiting_state = mock.MagicMock()
-        waiting_state.reason = fail_reason
-        waiting_state.message = "Test error"
-        container_status.state.waiting = waiting_state
-        pod_response.status.container_statuses = [container_status]
+    async def test_start_pod_raises_fast_error_on_image_error(self, fail_reason, init):
+        pod_response = _build_pod_with_waiting_container(fail_reason, "Test error", init=init)
+        pod_response.status.phase = PodPhase.PENDING
         self.mock_async_hook.get_pod.return_value = pod_response
+        stuck_container = "init" if init else "base"
         expected_msg = (
-            f"Image cannot be pulled, unable to start: {waiting_state.reason}\n{waiting_state.message}"
+            f"Image for container '{stuck_container}' cannot be pulled, "
+            f"unable to start: {fail_reason}\nTest error"
         )
         mock_pod = mock.MagicMock()
         with pytest.raises(AirflowException, match=expected_msg):

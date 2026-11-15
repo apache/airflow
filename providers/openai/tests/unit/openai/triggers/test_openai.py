@@ -119,22 +119,28 @@ class TestOpenAIBatchTrigger:
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
-        ("mock_batch_status", "mock_status", "mock_message"),
+        ("mock_batch_status", "mock_status", "mock_termination_reason", "mock_message"),
         [
-            (str(BatchStatus.COMPLETED), "success", "Batch batch_id has completed successfully."),
-            (str(BatchStatus.CANCELLING), "cancelled", "Batch batch_id has been cancelled."),
-            (str(BatchStatus.CANCELLED), "cancelled", "Batch batch_id has been cancelled."),
-            (str(BatchStatus.FAILED), "error", "Batch failed:\nbatch_id"),
+            (
+                str(BatchStatus.COMPLETED),
+                "success",
+                "completed",
+                "Batch batch_id has completed successfully.",
+            ),
+            (str(BatchStatus.CANCELLING), "cancelled", "cancelled", "Batch batch_id has been cancelled."),
+            (str(BatchStatus.CANCELLED), "cancelled", "cancelled", "Batch batch_id has been cancelled."),
+            (str(BatchStatus.FAILED), "error", "failed", "Batch failed:\nbatch_id"),
             (
                 str(BatchStatus.EXPIRED),
                 "error",
-                "Batch couldn't be completed within the hour time window :\nbatch_id",
+                "expired",
+                "Batch couldn't be completed within its completion window:\nbatch_id",
             ),
         ],
     )
     @mock.patch("airflow.providers.openai.hooks.openai.OpenAIHook.get_batch")
     async def test_openai_batch_for_terminal_status(
-        self, mock_batch, mock_batch_status, mock_status, mock_message
+        self, mock_batch, mock_batch_status, mock_status, mock_termination_reason, mock_message
     ):
         """Assert that run trigger messages in case of job finished"""
         mock_batch.return_value = self.mock_get_batch(mock_batch_status)
@@ -146,6 +152,7 @@ class TestOpenAIBatchTrigger:
         )
         expected_result = {
             "status": mock_status,
+            "termination_reason": mock_termination_reason,
             "message": mock_message,
             "batch_id": self.BATCH_ID,
         }
@@ -187,6 +194,7 @@ class TestOpenAIBatchTrigger:
         await asyncio.sleep(0.1)
         event = task.result()
         assert event.payload["status"] == "error"
+        assert event.payload["termination_reason"] == "timeout"
         assert f"Batch {self.BATCH_ID} has not reached a terminal status after" in event.payload["message"]
         asyncio.get_event_loop().stop()
 
@@ -235,6 +243,7 @@ class TestOpenAIBatchTrigger:
             TriggerEvent(
                 {
                     "status": "success",
+                    "termination_reason": "completed",
                     "message": f"Batch {self.BATCH_ID} has completed successfully.",
                     "batch_id": self.BATCH_ID,
                 }
@@ -254,7 +263,31 @@ class TestOpenAIBatchTrigger:
         )
         expected_result = {
             "status": "error",
+            "termination_reason": "polling_error",
             "message": "'float' object has no attribute 'status'",
+            "batch_id": self.BATCH_ID,
+        }
+        task = asyncio.create_task(trigger.run().__anext__())
+        await asyncio.sleep(0.1)
+        assert TriggerEvent(expected_result) == task.result()
+        asyncio.get_event_loop().stop()
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.openai.hooks.openai.OpenAIHook.get_batch")
+    async def test_openai_batch_for_unexpected_status(self, mock_batch):
+        """A batch status outside the known terminal set falls into the `unexpected_status` branch."""
+        mock_batch.return_value = self.mock_get_batch("validating")
+        mock_batch.return_value.status = "some_future_status"
+        trigger = OpenAIBatchTrigger(
+            conn_id=self.CONN_ID,
+            batch_id=self.BATCH_ID,
+            poll_interval=self.POLL_INTERVAL,
+            timeout=self.TIMEOUT,
+        )
+        expected_result = {
+            "status": "error",
+            "termination_reason": "unexpected_status",
+            "message": f"Batch {self.BATCH_ID} has failed.",
             "batch_id": self.BATCH_ID,
         }
         task = asyncio.create_task(trigger.run().__anext__())

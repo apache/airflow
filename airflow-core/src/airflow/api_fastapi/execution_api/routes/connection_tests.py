@@ -137,4 +137,9 @@ def patch_connection_test(
     ct.result_message = body.result_message
 
     if body.state == ConnectionTestState.SUCCESS and ct.commit_on_success:
-        ct.commit_to_connection_table(session=session)
+        if not ct.commit_to_connection_table(session=session):
+            ct.state = ConnectionTestState.FAILED
+            ct.result_message = (
+                f"Connection test succeeded, but connection `{ct.connection_id}` was created by "
+                "another request after this test was queued, so the tested values were not saved."
+            )

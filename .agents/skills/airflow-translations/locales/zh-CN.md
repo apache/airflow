@@ -28,11 +28,11 @@ both `_one` and `_other` suffixes:
 ```
 
 For phrases that express a quantity with a measure word, use literal `1` in
-`_one` and `{{count}}` in `_other`, followed by the appropriate measure word:
+`_one` and `{{count, number}}` in `_other`, followed by the appropriate measure word:
 
 ```json
 "showMoreAlerts_one": "+1 个警告",
-"showMoreAlerts_other": "+{{count}} 个警告"
+"showMoreAlerts_other": "+{{count, number}} 个警告"
 ```
 
 ## Spacing Rules
@@ -46,7 +46,7 @@ English words, numbers, or symbols:
 "Dag 执行"        // space between English and Chinese
 "最近 12 小时"     // space around numbers
 "连接 ID"          // space before abbreviation
-"{{count}} 个连接" // space after placeholder
+"{{count, number}} 个连接" // space after placeholder
 ```
 
 **Incorrect:**
@@ -54,6 +54,29 @@ English words, numbers, or symbols:
 ```json
 "Dag执行"          // missing space
 "最近12小时"       // missing space around numbers
+```
+
+### Nested translations (`$t(...)`)
+
+i18next inserts the referenced string verbatim, so apply the spacing rules to
+the rendered text. Decide each side of a `$t(...)` separately: the left side by
+the first character of the resolved string, the right side by its last. For
+example, `dagRun_one` resolves to `Dag 执行`, which starts with English and
+ends with Chinese. A resolved string that ends with full-width punctuation,
+such as `。`, takes no space after it:
+
+```json
+"clearTaskInstance": "清除$t(taskInstance_one)"       // → 清除任务实例
+"markRunFailed": "将 $t(dagRun_one)标记为失败"         // → 将 Dag 执行标记为失败
+"helper": "$t(search.advanced.description)各搜索框的设置和共享链接中的设置仍优先使用。" // the description ends with 。 → 。各搜索框
+```
+
+**Incorrect:**
+
+```json
+"clearTaskInstance": "清除 $t(taskInstance_one)"      // → 清除 任务实例
+"markRunFailed": "将 $t(dagRun_one) 标记为失败"        // → 将 Dag 执行 标记为失败
+"helper": "$t(search.advanced.description) 各搜索框的设置和共享链接中的设置仍优先使用。" // the description ends with 。 → 。 各搜索框
 ```
 
 ## Punctuation
@@ -83,9 +106,9 @@ appropriate measure word for each context:
 
 | Measure Word | Usage | Example |
 |---|---|---|
-| `个` | General objects (connections, variables, errors) | `删除 {{count}} 个连接` |
-| `次` | Occurrences (runs, executions, attempts) | `最近 {{count}} 次 Dag 执行` |
-| `项` | List items | `+ 其他 {{count}} 项` |
+| `个` | General objects (connections, variables, errors) | `删除 {{count, number}} 个连接` |
+| `次` | Occurrences (runs, executions, attempts) | `最近 {{count, number}} 次 Dag 执行` |
+| `项` | List items | `+ 其他 {{count, number}} 项` |
 
 ## Tone and Formality
 

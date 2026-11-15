@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import os
 import shlex
+import subprocess
 from dataclasses import dataclass
 
 import click
@@ -134,9 +135,37 @@ def build_reproduction_command_from_context(
     return ReproductionCommand(argv=argv, comment=comment)
 
 
+def read_head_parents() -> list[str]:
+    """The parents of the checked-out commit; empty when git cannot tell."""
+    result = subprocess.run(
+        ["git", "rev-list", "--parents", "-n", "1", "HEAD"], capture_output=True, text=True, check=False
+    )
+    return result.stdout.split()[1:] if result.returncode == 0 else []
+
+
 def build_checkout_reproduction_commands(github_repository: str) -> list[ReproductionCommand]:
     """Build git commands needed to reproduce the current CI checkout locally."""
     current_commit_sha = os.environ.get("GITHUB_SHA") or os.environ.get("COMMIT_SHA") or commit_sha()
+    # A fork CI run tests the pushed commit merged with a base branch commit (merge-with-base action);
+    # the merge commit is made in the job and never pushed, so it is made again locally.
+    parents = read_head_parents() if os.environ.get("GITHUB_SHA") else []
+    if len(parents) == 2 and parents[1] == current_commit_sha:
+        base_sha = parents[0]
+        return [
+            ReproductionCommand(
+                argv=["git", "fetch", f"https://github.com/{github_repository}.git", current_commit_sha],
+                comment="Fetch the pushed commit",
+            ),
+            ReproductionCommand(
+                argv=["git", "fetch", f"https://github.com/{APACHE_AIRFLOW_GITHUB_REPOSITORY}.git", base_sha],
+                comment="Fetch the base branch commit fork CI merged it with",
+            ),
+            ReproductionCommand(argv=["git", "checkout", current_commit_sha]),
+            ReproductionCommand(
+                argv=["git", "merge", "--no-edit", base_sha],
+                comment="Merge them as fork CI did",
+            ),
+        ]
     github_ref = os.environ.get("GITHUB_REF", "")
     github_ref_parts = github_ref.split("/")
     if len(github_ref_parts) == 4 and github_ref_parts[:2] == ["refs", "pull"]:
@@ -218,9 +247,15 @@ def print_local_reproduction(commands: list[ReproductionCommand]) -> None:
     console.print(f"[warning]{ruler}[/]\n")
 
 
+SKIP_LOCAL_REPRODUCTION = "skip_local_reproduction"
+
+
 def maybe_print_reproduction(ctx: click.Context) -> None:
-    """Called by BreezeCommand.invoke() — prints reproduction instructions in CI."""
-    if not should_print_local_reproduction():
+    """Called by BreezeCommand.invoke() — prints reproduction instructions in CI.
+
+    Commands whose stdout is a machine-readable contract set ``ctx.meta[SKIP_LOCAL_REPRODUCTION]``.
+    """
+    if not should_print_local_reproduction() or ctx.meta.get(SKIP_LOCAL_REPRODUCTION):
         return
 
     github_repository = ctx.params.get("github_repository", APACHE_AIRFLOW_GITHUB_REPOSITORY)

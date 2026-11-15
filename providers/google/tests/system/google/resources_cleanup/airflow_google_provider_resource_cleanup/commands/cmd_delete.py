@@ -41,8 +41,8 @@ RESOURCE_CREATE_TIME_FIELDS = ("createTime", "creationTimestamp")
 def _parse_datetime(value: str) -> datetime.datetime:
     dt = datetime.datetime.fromisoformat(value.replace("Z", "+00:00"))
     if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=datetime.timezone.utc)
-    return dt.astimezone(datetime.timezone.utc)
+        dt = dt.replace(tzinfo=datetime.UTC)
+    return dt.astimezone(datetime.UTC)
 
 
 def _parse_create_time(value: Any) -> datetime.datetime | None:
@@ -88,7 +88,7 @@ def check_min_age(
         )
         return False
 
-    now = now or datetime.datetime.now(datetime.timezone.utc)
+    now = now or datetime.datetime.now(datetime.UTC)
     age = now - created_at
     if age < datetime.timedelta(days=min_age_days):
         print(

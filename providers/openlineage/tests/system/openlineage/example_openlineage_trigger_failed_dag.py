@@ -20,7 +20,7 @@ Simple DAG that triggers another simple DAG that fails.
 It checks:
     - task's trigger_dag_id
     - DAGRun START and FAIL events, for the triggered DAG
-    - propagation of OL parent and root info from DAGRun conf
+    - propagation of OL parent and root info, including job types, from DAGRun conf
     - error message run facet on DAG FAIL event
     - airflow state run facet on DAG FAIL event showing failed state
 """
@@ -63,9 +63,16 @@ with DAG(
                 "rootParentRunId": "9d3b14f7-de91-40b6-aeef-e887e2c7673e",
                 "rootParentJobNamespace": "prod_analytics",
                 "rootParentJobName": "generate_report_sales_e2e",
+                "parentJobType": {"processingType": "BATCH", "integration": "SPARK", "jobType": "JOB"},
+                "rootParentJobType": {
+                    "processingType": "STREAMING",
+                    "integration": "CUSTOM",
+                    "jobType": "PIPELINE",
+                },
             },
         },
         poke_interval=10,
+        deferrable=True,
     )
 
     empty_task_on_fail = EmptyOperator(
@@ -76,6 +83,8 @@ with DAG(
     check_events = OpenLineageTestOperator(
         task_id="check_events",
         file_path=get_expected_event_file_path(DAG_ID),
+        # START when the task starts and again when it resumes after waiting for the Dag run it triggered
+        event_count_assertions={f"{DAG_ID}.trigger_dagrun.event.start": ">=2"},
     )
 
     trigger_dagrun >> empty_task_on_fail >> check_events

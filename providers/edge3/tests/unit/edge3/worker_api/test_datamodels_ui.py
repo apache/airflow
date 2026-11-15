@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from datetime import datetime, timezone as dt_timezone
+from datetime import UTC, datetime
 
 import pytest
 from pydantic import ValidationError
@@ -73,7 +73,7 @@ class TestJob:
         assert job.last_update is None
 
     def test_execution_fields_round_trip(self):
-        queued = datetime(2026, 1, 1, 12, 0, 0, tzinfo=dt_timezone.utc)
+        queued = datetime(2026, 1, 1, 12, 0, 0, tzinfo=UTC)
 
         job = _make_job(queued_dttm=queued, edge_worker="worker-1")
 
