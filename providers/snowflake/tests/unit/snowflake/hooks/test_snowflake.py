@@ -2263,21 +2263,28 @@ class TestPytestSnowflakeHook:
         assert field in widgets
 
     @pytest.mark.parametrize(
-        ("extra_authenticator", "hook_authenticator", "expected"),
+        ("extra", "hook_authenticator", "expected"),
         [
-            pytest.param(None, None, "WORKLOAD_IDENTITY", id="inferred"),
-            pytest.param("", None, "WORKLOAD_IDENTITY", id="inferred-from-blank-form-field"),
-            pytest.param("oauth", None, "oauth", id="explicit-extra-wins"),
-            pytest.param(None, "snowflake", "snowflake", id="explicit-hook-kwarg-wins"),
+            pytest.param({}, None, "WORKLOAD_IDENTITY", id="inferred"),
+            pytest.param(
+                {"authenticator": ""}, None, "WORKLOAD_IDENTITY", id="inferred-from-blank-form-field"
+            ),
+            pytest.param({"authenticator": "oauth"}, None, "oauth", id="explicit-extra-wins"),
+            pytest.param(
+                {"extra__snowflake__authenticator": "programmatic_access_token"},
+                None,
+                "programmatic_access_token",
+                id="explicit-backcompat-prefix-wins",
+            ),
+            pytest.param({}, "snowflake", "snowflake", id="explicit-hook-kwarg-wins"),
         ],
     )
     def test_get_conn_params_infers_workload_identity_authenticator(
-        self, extra_authenticator, hook_authenticator, expected
+        self, extra, hook_authenticator, expected
     ):
         connection_kwargs = deepcopy(BASE_CONNECTION_KWARGS)
         connection_kwargs["extra"]["workload_identity_provider"] = "GCP"
-        if extra_authenticator is not None:
-            connection_kwargs["extra"]["authenticator"] = extra_authenticator
+        connection_kwargs["extra"].update(extra)
 
         with mock.patch.dict("os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()):
             hook = SnowflakeHook(snowflake_conn_id="test_conn", authenticator=hook_authenticator)
