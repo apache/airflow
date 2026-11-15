@@ -24,6 +24,9 @@ import { toaster } from "src/system-components";
 
 export type ParamsSpec = Record<string, ParamSpec>;
 
+/** Named sets of param values declared by the Dag author, keyed by preset name. */
+export type ParamPresets = Record<string, Record<string, unknown>>;
+
 export type ParamSpec = {
   description: string | null;
   schema: ParamSchema;
@@ -68,6 +71,7 @@ export const useDagParams = (dagId: string, open: boolean) => {
   }
 
   const paramsDict = (data?.params ?? {}) as ParamsSpec;
+  const paramPresets: ParamPresets = data?.param_presets ?? {};
 
-  return { paramsDict };
+  return { paramPresets, paramsDict };
 };

@@ -49,6 +49,11 @@ with DAG(
         "german": Param(True, type="boolean", title="German (Formal)"),
         "french": Param(True, type="boolean", title="French"),
     },
+    param_presets={
+        "English only": {"english": True, "german": False, "french": False},
+        "Continental": {"english": False, "german": True, "french": True},
+        "Just Linda, every language": {"names": ["Linda"]},
+    },
 ) as dag:
 
     @task(task_id="get_names", task_display_name="Get names")
