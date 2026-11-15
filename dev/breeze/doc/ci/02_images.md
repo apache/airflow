@@ -33,6 +33,7 @@
   - [CI image build arguments](#ci-image-build-arguments)
   - [Running the CI image](#running-the-ci-image)
 - [Naming conventions for stored images](#naming-conventions-for-stored-images)
+- [Deleting images of retired branches and Python versions](#deleting-images-of-retired-branches-and-python-versions)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
@@ -619,8 +620,55 @@ percent-encoded when you access them via UI (/ = %2F)
 | CI image                 | airflow/\<BRANCH\>/ci/python\<X.Y\>    | CI image - this is the image used for most of the tests.      |
 | PROD image               | airflow/\<BRANCH\>/prod/python\<X.Y\>  | faster to build or pull. Production image optimized for size. |
 
-- \<BRANCH\> might be either "main" or "v2-\*-test"
+- \<BRANCH\> might be either "main" or a "vX-Y-test" release branch
 - \<X.Y\> - Python version (Major + Minor).Should be one of \["3.11", "3.12", "3.13", "3.14" \].
+
+# Deleting images of retired branches and Python versions
+
+Nothing removes the image packages of a release branch, or of a Python version, once CI stops
+building them: every `airflow/<BRANCH>/(ci|prod)/python<X.Y>` package stays in the registry with
+all of its versions. When a release branch is no longer maintained, or a Python version is dropped
+from a branch, delete its packages with the **Delete retired image packages** workflow
+(`.github/workflows/delete-retired-image-packages.yml`). It only runs when dispatched by hand,
+from the Actions tab or with `gh workflow run`.
+
+The packages are linked to the `apache/airflow` repository, so deleting them needs admin rights on
+it. Committers do not have them, and their own tokens get `404 Package not found`; the workflow
+deletes with its own token instead.
+
+The workflow deletes every image package whose branch is not in `keep-branches` or whose Python
+version is not in `keep-python`:
+
+| Input           | Default               | Meaning                                                                                   |
+|-----------------|-----------------------|-------------------------------------------------------------------------------------------|
+| `keep-branches` | `main v3-4-test`      | Branches whose images are kept: every branch that is still maintained.                    |
+| `keep-python`   | `3.11 3.12 3.13 3.14` | Python versions whose images are kept, on the kept branches.                              |
+| `only`          | *(empty)*             | Glob patterns to delete just some of the retired packages, e.g. `airflow/v2-*`; empty deletes them all. |
+| `parallel`      | `4`                   | How many packages are deleted at once.                                                    |
+| `dry-run`       | `true`                | Only list the packages that would be deleted.                                             |
+
+A run with the defaults must never delete images that CI still uses, so the
+`update-retired-image-packages-defaults` prek hook keeps both defaults in sync: `keep-branches`
+lists `main` and every branch with a `scheduled-upgrade-check-<branch>.yml` workflow, and
+`keep-python` lists `ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS` from
+`dev/breeze/src/airflow_breeze/global_constants.py` on `main`. A kept branch keeps only the
+Python versions in `keep-python`, so when a maintained branch still supports a Python version that
+`main` dropped, add that version to `keep-python` for the run.
+
+Always start with a dry run and check the list, then delete one package before the rest:
+
+```bash
+gh workflow run delete-retired-image-packages.yml -R apache/airflow \
+  -f keep-branches="main v3-4-test" -f keep-python="3.11 3.12 3.13 3.14"
+gh workflow run delete-retired-image-packages.yml -R apache/airflow \
+  -f only="airflow/v2-2-test/prod/python3.6" -f dry-run=false
+gh workflow run delete-retired-image-packages.yml -R apache/airflow -f dry-run=false
+```
+
+Deleting a package removes all of its versions. GitHub can restore a deleted package within 30
+days, from the organization's package settings, as long as nothing has been pushed under the same
+name since. Building the Breeze image on a branch whose packages were deleted still works, but
+without the registry cache.
 
 
 ----
