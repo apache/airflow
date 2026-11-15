@@ -45,6 +45,7 @@ from airflow_breeze.global_constants import (
     get_airflow_version,
     get_provider_split_test_types,
 )
+from airflow_breeze.utils.fork_compare import UpstreamFileError
 from airflow_breeze.utils.functools_cache import clearable_cache
 from airflow_breeze.utils.packages import get_available_distributions
 from airflow_breeze.utils.path_utils import AIRFLOW_ROOT_PATH
@@ -4657,14 +4658,20 @@ def test_provider_dependency_bump_on_a_fork_push_compares_with_the_merge_base(
     so a release manager's bump from main would look like theirs.
     """
     bumped = '[project]\ndependencies = ["apache-airflow-providers-common-sql>=1.1.0"]\n'
-    mock_run_command.side_effect = lambda *args, **kwargs: Mock(
-        returncode=0,
-        stdout=(
-            '[project]\ndependencies = ["apache-airflow-providers-common-sql>=1.0.0"]\n'
-            if "^:" in args[0][2]
-            else bumped
-        ),
-    )
+
+    def mock_cmd(*args, **kwargs):
+        if len(args[0]) > 1 and args[0][1] == "cat-file":
+            return Mock(returncode=1)
+        return Mock(
+            returncode=0,
+            stdout=(
+                '[project]\ndependencies = ["apache-airflow-providers-common-sql>=1.0.0"]\n'
+                if len(args[0]) > 2 and "^:" in args[0][2]
+                else bumped
+            ),
+        )
+
+    mock_run_command.side_effect = mock_cmd
     mock_upstream_file.return_value = bumped
 
     assert not SelectiveChecks(
@@ -4678,6 +4685,61 @@ def test_provider_dependency_bump_on_a_fork_push_compares_with_the_merge_base(
     ).provider_dependency_bump
 
     mock_upstream_file.assert_called_once_with(path="providers/amazon/pyproject.toml", ref="base-sha")
+
+
+@patch("airflow_breeze.utils.selective_checks.get_upstream_file", autospec=True)
+@patch("airflow_breeze.utils.selective_checks.run_command")
+def test_provider_dependency_bump_on_a_fork_push_reads_from_local_git_when_merge_base_present(
+    mock_run_command, mock_upstream_file
+):
+    bumped = '[project]\ndependencies = ["apache-airflow-providers-common-sql>=1.1.0"]\n'
+
+    def mock_cmd(*args, **kwargs):
+        if len(args[0]) > 1 and args[0][1] == "cat-file":
+            return Mock(returncode=0)
+        return Mock(returncode=0, stdout=bumped)
+
+    mock_run_command.side_effect = mock_cmd
+
+    assert not SelectiveChecks(
+        files=("providers/amazon/pyproject.toml",),
+        commit_ref=NEUTRAL_COMMIT,
+        pr_labels=(),
+        github_event=GithubEvents.PUSH,
+        default_branch="main",
+        fork_push=True,
+        fork_merge_base="base-sha",
+    ).provider_dependency_bump
+
+    mock_upstream_file.assert_not_called()
+
+
+@patch("airflow_breeze.utils.selective_checks.get_upstream_file", autospec=True)
+@patch("airflow_breeze.utils.selective_checks.run_command")
+def test_pyproject_toml_changed_on_fork_push_with_local_git_fallback_does_not_call_api(
+    mock_run_command, mock_upstream_file
+):
+    mock_upstream_file.side_effect = UpstreamFileError("API rate limit exceeded")
+    old_content = '[project]\nname = "apache-airflow"\n'
+
+    def mock_cmd(*args, **kwargs):
+        if len(args[0]) > 1 and args[0][1] == "cat-file":
+            return Mock(returncode=0)
+        return Mock(returncode=0, stdout=old_content)
+
+    mock_run_command.side_effect = mock_cmd
+
+    checks = SelectiveChecks(
+        files=("pyproject.toml",),
+        commit_ref=NEUTRAL_COMMIT,
+        pr_labels=(),
+        github_event=GithubEvents.PUSH,
+        default_branch="main",
+        fork_push=True,
+        fork_merge_base="local-mb-sha",
+    )
+    assert checks.pyproject_toml_changed
+    mock_upstream_file.assert_not_called()
 
 
 @patch("airflow_breeze.utils.selective_checks.run_command")
