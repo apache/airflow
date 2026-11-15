@@ -19,10 +19,12 @@
 name: Clean up old image versions
 # Deletes, a few hundred per run from one package in turn, the untagged CI and PROD image versions
 # older than 30 days that no tag references. Small, spaced-out runs keep it far below the API rate
-# limit of the workflow token. See scripts/ci/cleanup_old_image_versions.py.
+# limit of the workflow token. Most of a run is reading, anonymously from the registry, what each
+# of the package's tags references: about 40 minutes for 18k tags. See
+# scripts/ci/cleanup_old_image_versions.py.
 on:  # yamllint disable-line rule:truthy
   schedule:
-    - cron: '41 */3 * * *'
+    - cron: '41 */6 * * *'
   workflow_dispatch:
     inputs:
       dry-run:
@@ -42,7 +44,7 @@ jobs:
   cleanup:
     name: "Clean up old image versions"
     runs-on: ["ubuntu-slim"]
-    timeout-minutes: 30
+    timeout-minutes: 90
     permissions:
       contents: read
       packages: write
@@ -60,4 +62,4 @@ jobs:
           MAX_DELETIONS: ${{ inputs.max-deletions || '300' }}
         run: >
           python3 scripts/ci/cleanup_old_image_versions.py
-          --days 30 --max-deletions "${MAX_DELETIONS}" --pause 1 ${DRY_RUN}
+          --days 30 --max-deletions "${MAX_DELETIONS}" --pause 3 ${DRY_RUN}
