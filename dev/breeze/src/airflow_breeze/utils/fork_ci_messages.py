@@ -353,7 +353,7 @@ def is_fork_ci_passed_description(description: str | None) -> bool:
 def state_comment(
     marker: Marker,
     *,
-    fork: str,
+    fork: str | None = None,
     run_url: str | None,
     base_ref: str = "main",
     author_draft: bool = False,
@@ -374,7 +374,7 @@ def state_comment(
         parts.append(f"Latest run: {run_url}")
     if marker.state == "failed" and failed_jobs:
         parts.append(build_failed_job_list(failed_jobs))
-    if marker.state == "setup_required":
+    if marker.state == "setup_required" and fork:
         parts.append(_setup_instructions(fork))
     parts.append(f"How this works: [CI in your fork]({CONTRIBUTING_URL}).")
     return "\n\n".join(parts) + FOOTER
@@ -398,8 +398,9 @@ def gate_modified_close_comment(*, change: str | None) -> str:
         "monitor, and a pull request whose CI runs in a fork must not change it, because the change would "
         "decide where its own CI runs. The one exception is adding, changing or removing your own `[pilot]` "
         "entry in `.github/fork-ci-gate.toml`.\n\n"
-        "If the change is wanted, a maintainer can reopen the pull request and add the `use project ci` "
-        "label." + FOOTER
+        "If the change was accidental, you can revert or remove the change to the gate files and reopen "
+        "the pull request. If the change is wanted, a maintainer can reopen the pull request and add the "
+        "`use project ci` label." + FOOTER
     )
 
 
