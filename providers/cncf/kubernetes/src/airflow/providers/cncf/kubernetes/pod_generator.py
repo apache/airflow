@@ -577,7 +577,7 @@ class PodGenerator:
         :return: De-serialized k8s.V1Pod
         """
         api_client = ApiClient(configuration=Configuration())
-        return api_client._ApiClient__deserialize_model(pod_dict or {}, k8s.V1Pod)
+        return api_client._ApiClient__deserialize_model(pod_dict or {}, k8s.V1Pod)  # type: ignore[attr-defined]
 
 
 def merge_objects(base_obj, client_obj):

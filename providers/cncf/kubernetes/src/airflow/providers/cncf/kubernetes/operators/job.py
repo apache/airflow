@@ -384,7 +384,7 @@ class KubernetesJobOperator(KubernetesPodOperator):
             log.warning("Template file %s does not exist", path)
 
         api_client = ApiClient(configuration=Configuration())
-        return api_client._ApiClient__deserialize_model(job or {}, k8s.V1Job)
+        return api_client._ApiClient__deserialize_model(job or {}, k8s.V1Job)  # type: ignore[attr-defined]
 
     def on_kill(self) -> None:
         self._killed = True
