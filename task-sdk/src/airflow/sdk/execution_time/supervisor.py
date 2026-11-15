@@ -1722,23 +1722,29 @@ class ActivitySubprocess(WatchedSubprocess):
             # unfreezes once the task process exits, so a worker that supervises many tasks in one
             # process collects these objects again between tasks.
             gc.freeze()
-        proc: Self = super().start(
-            id=what.id,
-            client=client,
-            target=target,
-            logger=logger,
-            use_exec=use_exec,
-            new_process_group=True,
-            **kwargs,
-        )
-        proc._gc_frozen = gc_frozen
-        # Tell the task process what it needs to do!
-        proc._on_child_started(
-            ti=what,
-            dag_rel_path=dag_rel_path,
-            bundle_info=bundle_info,
-            sentry_integration=sentry_integration,
-        )
+        try:
+            proc: Self = super().start(
+                id=what.id,
+                client=client,
+                target=target,
+                logger=logger,
+                use_exec=use_exec,
+                new_process_group=True,
+                **kwargs,
+            )
+            proc._gc_frozen = gc_frozen
+            # Tell the task process what it needs to do!
+            proc._on_child_started(
+                ti=what,
+                dag_rel_path=dag_rel_path,
+                bundle_info=bundle_info,
+                sentry_integration=sentry_integration,
+            )
+        except BaseException:
+            # No caller gets a proc to ``wait()`` on, so nothing else would unfreeze the GC.
+            if gc_frozen:
+                gc.unfreeze()
+            raise
         return proc
 
     def _on_child_started(

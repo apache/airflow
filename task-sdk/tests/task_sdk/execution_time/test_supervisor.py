@@ -6461,6 +6461,45 @@ def test_activity_start_prepares_supervisor_before_bare_fork(
     assert calls == expected_calls
 
 
+@pytest.mark.parametrize("fail_in", ["fork", "child_started"])
+def test_activity_start_unfreezes_gc_when_start_fails(monkeypatch, mocker, fail_in):
+    """If start() raises, no caller can wait() on the process, so start() has to unfreeze the GC."""
+    monkeypatch.setattr(supervisor, "task_process_uses_exec", lambda: False)
+    mocker.patch.object(supervisor, "_import_task_runner_before_fork", autospec=True)
+    freeze = mocker.patch.object(supervisor.gc, "freeze")
+    unfreeze = mocker.patch.object(supervisor.gc, "unfreeze")
+    if fail_in == "fork":
+        mocker.patch.object(
+            supervisor.WatchedSubprocess, "start", autospec=True, side_effect=OSError("fork failed")
+        )
+        expected = OSError
+    else:
+        proc = MagicMock(spec=ActivitySubprocess)
+        proc._on_child_started.side_effect = RuntimeError("start rejected")
+        mocker.patch.object(supervisor.WatchedSubprocess, "start", autospec=True, return_value=proc)
+        expected = RuntimeError
+
+    with pytest.raises(expected):
+        ActivitySubprocess.start(
+            dag_rel_path=os.devnull,
+            bundle_info=FAKE_BUNDLE,
+            what=TaskInstance(
+                id="4d828a62-a417-4936-a7a6-2b3fabacecab",
+                task_id="b",
+                dag_id="c",
+                run_id="d",
+                try_number=1,
+                dag_version_id=uuid7(),
+                queue="default",
+            ),
+            client=MagicMock(spec=sdk_client.Client),
+            logger=MagicMock(),
+        )
+
+    freeze.assert_called_once_with()
+    unfreeze.assert_called_once_with()
+
+
 @pytest.mark.parametrize("gc_frozen", [True, False])
 def test_wait_unfreezes_gc_after_task_process_exits(mocker, gc_frozen):
     """A worker that supervises many tasks in one process collects the frozen objects again after each task."""
