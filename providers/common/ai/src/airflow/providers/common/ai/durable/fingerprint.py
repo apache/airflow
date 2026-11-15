@@ -118,6 +118,7 @@ if TYPE_CHECKING:
 
     from pydantic_ai.messages import ModelMessage
     from pydantic_ai.settings import ModelSettings
+    from pydantic_ai.tools import DeferredToolRequests
 
 log = get_task_logger()
 
@@ -641,3 +642,22 @@ def fingerprint_tool_call(
             step=step,
         )
         return None
+
+
+def fingerprint_deferred_tool_requests(requests: DeferredToolRequests) -> str | None:
+    """
+    Fingerprint tool calls waiting to be settled, such as approved, from each call's :func:`fingerprint_tool_call`.
+
+    The answer recorded for these calls then replays only for calls with the same names,
+    arguments and call ids, which a replayed model response keeps. ``None`` when any call
+    cannot be fingerprinted.
+    """
+    calls = {
+        kind: [
+            fingerprint_tool_call(call.tool_name, call.args_as_dict(), call.tool_call_id) for call in pending
+        ]
+        for kind, pending in (("approvals", requests.approvals), ("calls", requests.calls))
+    }
+    if any(fingerprint is None for pending in calls.values() for fingerprint in pending):
+        return None
+    return _digest(calls)

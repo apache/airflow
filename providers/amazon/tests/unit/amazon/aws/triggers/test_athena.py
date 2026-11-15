@@ -16,7 +16,10 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.providers.amazon.aws.triggers.athena import AthenaTrigger
+import pytest
+
+from airflow.providers.amazon.aws.hooks.athena import AthenaHook
+from airflow.providers.amazon.aws.triggers.athena import AthenaSparkTrigger, AthenaTrigger
 
 
 class TestAthenaTrigger:
@@ -40,3 +43,53 @@ class TestAthenaTrigger:
             "waiter_max_attempts": 60,
             "aws_conn_id": "aws_default",
         }
+
+
+class TestAthenaSparkTrigger:
+    @pytest.mark.parametrize(
+        "aws_kwargs",
+        [
+            pytest.param({}, id="defaults"),
+            pytest.param(
+                {
+                    "region_name": "eu-west-1",
+                    "verify": False,
+                    "botocore_config": {"read_timeout": 42},
+                },
+                id="custom-aws-settings",
+            ),
+        ],
+    )
+    def test_serialization(self, aws_kwargs):
+        expected_kwargs = {
+            "calculation_execution_id": "test_calculation_execution_id",
+            "waiter_delay": 30,
+            "waiter_max_attempts": 60,
+            "aws_conn_id": "aws_default",
+            **aws_kwargs,
+        }
+        trigger = AthenaSparkTrigger(**expected_kwargs)
+
+        classpath, kwargs = trigger.serialize()
+
+        assert classpath == "airflow.providers.amazon.aws.triggers.athena.AthenaSparkTrigger"
+        assert kwargs == expected_kwargs
+        assert AthenaSparkTrigger(**kwargs).serialize() == (classpath, kwargs)
+
+    def test_waiter_configuration(self):
+        calculation_execution_id = "test_calculation_execution_id"
+
+        trigger = AthenaSparkTrigger(
+            calculation_execution_id=calculation_execution_id,
+            waiter_delay=30,
+            waiter_max_attempts=60,
+            aws_conn_id="aws_default",
+        )
+
+        assert trigger.aws_hook_class is AthenaHook
+        assert trigger.waiter_name == "spark_calculation_terminal"
+        assert trigger.waiter_args == {
+            "CalculationExecutionId": calculation_execution_id,
+        }
+        assert trigger.status_queries == ["Status.State", "Status.StateChangeReason"]
+        assert trigger.return_value == calculation_execution_id
