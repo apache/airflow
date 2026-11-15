@@ -22,7 +22,8 @@ from pathlib import PurePosixPath
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, Query, status
-from sqlalchemy import and_, false, func, literal, select, union_all
+from sqlalchemy import String, and_, false, func, literal, select, true, union_all
+from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import defaultload
 
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
@@ -236,41 +237,48 @@ def get_dags(
 
     recent_dag_runs: list = []
     if dags:
-        ranked = (
-            select(
-                DagRun.id,
-                DagRun.dag_id,
-                DagRun.run_id,
-                DagRun.end_date,
-                DagRun.logical_date,
-                DagRun.run_after,
-                DagRun.start_date,
-                DagRun.state,
-                func.row_number()
-                .over(
-                    partition_by=DagRun.dag_id,
-                    order_by=(DagRun.run_after.desc(), DagRun.id.desc()),
-                )
-                .label("rn"),
-            )
-            .where(DagRun.dag_id.in_([dag.dag_id for dag in dags]))
-            .subquery()
+        columns = (
+            DagRun.id,
+            DagRun.dag_id,
+            DagRun.run_id,
+            DagRun.end_date,
+            DagRun.logical_date,
+            DagRun.run_after,
+            DagRun.start_date,
+            DagRun.state,
         )
-        recent_dag_runs = list(
-            session.execute(
-                select(
-                    ranked.c.id,
-                    ranked.c.dag_id,
-                    ranked.c.run_id,
-                    ranked.c.end_date,
-                    ranked.c.logical_date,
-                    ranked.c.run_after,
-                    ranked.c.start_date,
-                    ranked.c.state,
-                )
-                .where(ranked.c.rn <= dag_runs_limit)
-                .order_by(ranked.c.run_after.desc())
+        if session.get_bind().dialect.name == "postgresql":
+            # One array bind keeps the compiled query reusable across page sizes.
+            page_dags = select(
+                func.unnest(literal([dag.dag_id for dag in dags], type_=ARRAY(String))).label("dag_id")
+            ).subquery("page_dags")
+            bounded_runs = (
+                select(*columns)
+                .where(DagRun.dag_id == page_dags.c.dag_id)
+                .order_by(DagRun.run_after.desc(), DagRun.id.desc())
+                .limit(max(0, dag_runs_limit))
+                .lateral("recent_runs")
             )
+            recent_runs_query = select(bounded_runs).select_from(page_dags.join(bounded_runs, true()))
+        else:
+            ranked = (
+                select(
+                    *columns,
+                    func.row_number()
+                    .over(
+                        partition_by=DagRun.dag_id,
+                        order_by=(DagRun.run_after.desc(), DagRun.id.desc()),
+                    )
+                    .label("rn"),
+                )
+                .where(DagRun.dag_id.in_([dag.dag_id for dag in dags]))
+                .subquery()
+            )
+            recent_runs_query = select(*(ranked.c[column.key] for column in columns)).where(
+                ranked.c.rn <= dag_runs_limit
+            )
+        recent_dag_runs = list(
+            session.execute(recent_runs_query.order_by(recent_runs_query.selected_columns.run_after.desc()))
         )
 
     # Fetch pending HITL actions for each Dag if we are not certain whether some of the Dag might contain HITL actions
