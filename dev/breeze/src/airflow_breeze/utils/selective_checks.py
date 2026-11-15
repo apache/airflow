@@ -138,6 +138,7 @@ class FileGroupForCi(Enum):
     PYTHON_PRODUCTION_FILES = auto()
     JAVASCRIPT_PRODUCTION_FILES = auto()
     ALWAYS_TESTS_FILES = auto()
+    CI_IMAGE_DEPENDENCY_FILES = auto()
     API_FILES = auto()
     GIT_PROVIDER_FILES = auto()
     STANDARD_PROVIDER_FILES = auto()
@@ -570,6 +571,15 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
         ],
         FileGroupForCi.ALL_PYPROJECT_TOML_FILES: [
             r".*pyproject\.toml$",
+        ],
+        # Inputs of the CI image's dependency layers -- the files `calculate_ci_image_cache_key` hashes.
+        FileGroupForCi.CI_IMAGE_DEPENDENCY_FILES: [
+            r"^uv\.lock$",
+            r"(^|.*/)pyproject\.toml$",
+            r"^Dockerfile\.ci$",
+            r"^\.dockerignore$",
+            r"^scripts/docker/",
+            r"^dev/breeze/src/airflow_breeze/files/hardened_.*_digests\.json$",
         ],
         FileGroupForCi.TESTS_UTILS_FILES: [
             r"^devel-common/src/tests_common/.*\.py$",
@@ -2270,6 +2280,10 @@ class SelectiveChecks:
             console_print("[warning]uv.lock file changed[/]")
             return True
         return False
+
+    @cached_property
+    def ci_image_dependencies_changed(self) -> bool:
+        return len(self._matching_files(FileGroupForCi.CI_IMAGE_DEPENDENCY_FILES, CI_FILE_GROUP_MATCHES)) > 0
 
     @cached_property
     def upgrade_to_newer_dependencies(self) -> bool:

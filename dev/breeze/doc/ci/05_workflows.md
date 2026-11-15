@@ -371,6 +371,10 @@ keeps running the full CI on every push.
 
 The CI image cache of `vX-Y-test` and providers branches is still refreshed on every push, by
 [`refresh-image-registry-cache.yml`](../../../../.github/workflows/refresh-image-registry-cache.yml).
+On `main` it is refreshed by the canary, and also right after a push that changes the
+dependency inputs of the CI image, by
+[`refresh-image-cache-on-dependency-change.yml`](../../../../.github/workflows/refresh-image-cache-on-dependency-change.yml)
+(see [GitHub Registry used as cache](01_ci_environment.md#github-registry-used-as-cache)).
 
 ### Branch Detection Logic
 

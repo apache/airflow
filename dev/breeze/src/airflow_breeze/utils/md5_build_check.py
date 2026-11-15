@@ -20,8 +20,10 @@ Utilities to check - with MD5 - whether files have been modified since the last 
 
 from __future__ import annotations
 
+import functools
 import hashlib
 import os
+import subprocess
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -89,6 +91,33 @@ def calculate_ci_sources_hash() -> str:
     for file in FILES_FOR_REBUILD_CHECK:
         hash_md5.update(f"{file}:{generate_md5(AIRFLOW_ROOT_PATH / file)}\n".encode())
     return hash_md5.hexdigest()
+
+
+@functools.cache
+def calculate_ci_image_cache_key() -> str | None:
+    """
+    Return a key identifying the inputs of the CI image's expensive dependency layers.
+
+    The key covers the files that trigger a rebuild plus ``uv.lock`` and every ``pyproject.toml``,
+    which are what the ``dependency-manifests`` stage of ``Dockerfile.ci`` copies. It only names the
+    registry cache to look up: BuildKit still validates each layer, so a mismatched key costs a cache
+    miss and never reuses a wrong layer. Returns None outside a git checkout.
+    """
+    result = subprocess.run(
+        ["git", "ls-files", "-z", "--", "uv.lock", "pyproject.toml", "*/pyproject.toml"],
+        cwd=AIRFLOW_ROOT_PATH,
+        capture_output=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        return None
+    manifests = sorted(path for path in result.stdout.decode().split("\0") if path)
+    hash_md5 = hashlib.md5()
+    for file in [*FILES_FOR_REBUILD_CHECK, *manifests]:
+        file_path = AIRFLOW_ROOT_PATH / file
+        if file_path.is_file():
+            hash_md5.update(f"{file}:{generate_md5(file_path)}\n".encode())
+    return hash_md5.hexdigest()[:16]
 
 
 def calculate_md5_checksum_for_files(

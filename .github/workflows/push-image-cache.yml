@@ -36,6 +36,12 @@ on:  # yamllint disable-line rule:truthy
         description: "Whether to also push latest images (true/false)."
         required: true
         type: string
+      keyed-cache-only:
+        description: >-
+          Push only the CI cache tagged with the dependency key of the checkout, skipped when the
+          registry already has it, and leave the shared cache tag alone (true/false).
+        type: string
+        default: "false"
       debian-version:
         description: "Base Debian distribution to use for the PROD image build (trixie/bookworm)"
         type: string
@@ -106,6 +112,7 @@ jobs:
       GITHUB_USERNAME: ${{ github.actor }}
       INCLUDE_SUCCESS_OUTPUTS: "${{ inputs.include-success-outputs }}"
       INSTALL_MYSQL_CLIENT_TYPE: ${{ inputs.install-mysql-client-type }}
+      KEYED_CACHE_ONLY: ${{ inputs.keyed-cache-only }}
       PYTHON_MAJOR_MINOR_VERSION: "${{ matrix.python }}"
       UPGRADE_TO_NEWER_DEPENDENCIES: "false"
       VERBOSE: "true"

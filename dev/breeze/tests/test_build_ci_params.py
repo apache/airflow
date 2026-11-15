@@ -17,9 +17,12 @@
 
 from __future__ import annotations
 
+from unittest import mock
+
 import pytest
 
 from airflow_breeze.params.build_ci_params import BuildCiParams
+from airflow_breeze.params.build_prod_params import BuildProdParams
 
 INLINE_CACHE_FLAG = "--build-arg=BUILDKIT_INLINE_CACHE=1"
 
@@ -55,3 +58,30 @@ def test_cache_from_image_added_when_registry_cache_is_not_used():
 def test_no_cache_from_image_flag_when_unset():
     flags = BuildCiParams(docker_cache="registry").common_docker_build_flags
     assert not any(flag.startswith("--cache-from=localhost") for flag in flags)
+
+
+@mock.patch(
+    "airflow_breeze.params.build_ci_params.calculate_ci_image_cache_key", return_value="0123456789abcdef"
+)
+def test_keyed_registry_cache_is_tried_before_shared_cache(_mock_key):
+    params = BuildCiParams(docker_cache="registry")
+    shared_cache = params.get_cache(params.platform)
+
+    cache_from = [flag for flag in params.common_docker_build_flags if flag.startswith("--cache-from=")]
+
+    assert cache_from == [f"--cache-from={shared_cache}-0123456789abcdef", f"--cache-from={shared_cache}"]
+
+
+@mock.patch("airflow_breeze.params.build_ci_params.calculate_ci_image_cache_key", return_value=None)
+def test_only_shared_cache_without_cache_key(_mock_key):
+    params = BuildCiParams(docker_cache="registry")
+
+    cache_from = [flag for flag in params.common_docker_build_flags if flag.startswith("--cache-from=")]
+
+    assert cache_from == [f"--cache-from={params.get_cache(params.platform)}"]
+
+
+def test_prod_image_has_no_keyed_cache():
+    params = BuildProdParams()
+
+    assert params.get_keyed_cache(params.platform) is None
