@@ -59,7 +59,6 @@ from airflow_breeze.utils.fork_ci_gate import (
 from airflow_breeze.utils.fork_ci_github import GitHubClient, GitHubError
 from airflow_breeze.utils.fork_ci_messages import (
     CI_PASSED_CONTEXT,
-    CI_PASSED_DESCRIPTION,
     CI_PASSED_PROJECT_DESCRIPTION,
     CI_PASSED_REVOKED_DESCRIPTION,
     CI_PASSED_WAITING_PROJECT_CI_DESCRIPTION,
@@ -71,16 +70,22 @@ from airflow_breeze.utils.fork_ci_messages import (
     STALE_JOB_STATUS,
     STATUS_CONTEXT,
     STATUS_STATES,
+    BaseCheck,
+    FailedJob,
     Marker,
+    ci_passed_description,
     fork_actions_url,
     gate_modified_close_comment,
     inactivity_close_comment,
+    is_fork_ci_passed_description,
     job_status_context,
     nudge_comment,
     parse_marker,
+    rebase_needed_description,
     released_comment,
     state_comment,
     status_description,
+    strip_failed_job_list,
     tamper_close_comment,
     ungated_comment,
     workflow_disabled_comment,
@@ -129,8 +134,19 @@ BOT_LOGINS = frozenset({"github-actions", "github-actions[bot]"})
 DISCOVERY_WINDOW = timedelta(hours=24)
 PASS_TWO_PAGE_SIZE = 25
 FORK_BATCH_SIZE = 50
+# The cron interval of fork-ci-monitor.yml. Fork CI reaches a pull request only when the monitor
+# runs, so this is how late it can be; the write budgets and alert thresholds below are per run and
+# derived from it, to keep their hourly totals when it changes.
+MONITOR_INTERVAL = timedelta(minutes=5)
+RUNS_PER_HOUR = timedelta(hours=1) // MONITOR_INTERVAL
+
+
+def count_runs_in(duration: timedelta) -> int:
+    return max(duration // MONITOR_INTERVAL, 1)
+
+
 # Project CI runs created this long ago or later are checked for gate tampering. Several hours
-# overlap the 15-minute cadence, so a tampered run is seen even after the pull request was
+# overlap the monitor's cadence, so a tampered run is seen even after the pull request was
 # pushed again with the gate restored.
 TAMPER_WINDOW = timedelta(hours=6)
 # A ci-amd.yml run in which only the gate executed finishes in about a minute; only longer runs
@@ -171,30 +187,30 @@ UNREPORTED_JOB_NAMES = GATED_RUN_JOB_NAMES | {GATE_JOB_NAME, "Platform: AMD"}
 RUNNING_JOB_STATUSES = frozenset({"queued", "waiting", "pending", "requested", "in_progress"})
 JOB_STATE_RANKS = {"failure": 0, "pending": 1, "success": 2}
 # Commit statuses count towards GitHub's limit of 500 content-creating requests per hour, shared by
-# every workflow of the repository. At four runs an hour this keeps job statuses to at most about
-# half of it; the rest follow on the next run, failures first. See "Job statuses" in the design doc.
-MAX_JOB_STATUSES_PER_RUN = 40
+# every workflow of the repository. This keeps job statuses to about a third of it; the rest follow
+# on the next run, failures first. See "Job statuses" in the design doc.
+MAX_JOB_STATUSES_PER_RUN = 160 // RUNS_PER_HOUR
 # `CI run started` statuses of pull requests whose CI runs in apache/airflow come out of that budget
 # first: one write per new head commit, which merging waits for, while job statuses are informational.
 # At most this many, so job statuses keep the rest; the first runs after the check became required
 # catch up on the open pull requests a batch at a time, most recently updated first.
-MAX_CI_RUN_STARTED_PER_RUN = 20
+MAX_CI_RUN_STARTED_PER_RUN = 80 // RUNS_PER_HOUR
 # `CI passed` successes for pull requests carrying `use project ci`, written once per new project CI
 # pass, so far fewer than this per run. Revoking a success is never limited.
-MAX_PROJECT_CI_PASSED_PER_RUN = 5
+MAX_PROJECT_CI_PASSED_PER_RUN = max(20 // RUNS_PER_HOUR, 1)
 # The GitHub Actions app, whose check suites are the workflow runs of a commit.
 GITHUB_ACTIONS_APP_ID = 15368
 # A single large fork run can need more writes than one run's budget, which the next run catches up
 # on, so deferring is only reported when it lasts this many consecutive runs: then the budget does
 # not keep up with the pull requests.
-DEFERRED_RUNS_BEFORE_ALERT = 3
+DEFERRED_RUNS_BEFORE_ALERT = count_runs_in(timedelta(minutes=45))
 # GitHub answering with rate limits in this many consecutive runs is reported: a single burst is
 # retried, while a persisting one means the repository's shared limits are close to exhausted.
-RATE_LIMITED_RUNS_BEFORE_ALERT = 2
+RATE_LIMITED_RUNS_BEFORE_ALERT = count_runs_in(timedelta(minutes=30))
 # Reading a fork run's jobs fails now and then on GitHub server errors (HTTP 502, a reset HTTP/2
 # stream) that the next run gets past, so a pull request whose job statuses failed is only reported
 # when it failed in this many consecutive runs.
-JOB_STATUS_FAILURE_RUNS_BEFORE_ALERT = 3
+JOB_STATUS_FAILURE_RUNS_BEFORE_ALERT = count_runs_in(timedelta(minutes=45))
 # Fixed text, so the item is posted to Slack once while the failure persists, whatever the error;
 # the run log has each run's error.
 JOB_STATUSES_FAILED_REASON = (
@@ -349,6 +365,70 @@ def _set_label(plan: Plan, labels: set[str], label: str, *, present: bool) -> No
         plan.add_labels.append(label)
     elif not present and label in labels:
         plan.remove_labels.append(label)
+
+
+@dataclass(frozen=True)
+class Projection:
+    """
+    What a gated pull request shows in a state; None leaves its draft state or label as it is.
+
+    :param draft: whether the pull request should be a draft.
+    :param ready_for_review: whether it carries `ready for maintainer review`.
+    :param needs_project_ci: whether it carries `needs project ci`.
+    """
+
+    draft: bool | None
+    ready_for_review: bool | None
+    needs_project_ci: bool
+
+
+def compute_projection(state: ForkState, *, author_draft: bool) -> Projection:
+    """
+    Return what a pull request shows in a state.
+
+    :param author_draft: the pull request is a draft that the bot did not make, including one opened
+        as a draft. It is never undrafted and waits for its author, not for a maintainer.
+    """
+    if state in (ForkState.GREEN, ForkState.GREEN_UNVERIFIED):
+        if author_draft:
+            return Projection(draft=None, ready_for_review=False, needs_project_ci=False)
+        return Projection(
+            draft=False,
+            ready_for_review=state == ForkState.GREEN,
+            needs_project_ci=state == ForkState.GREEN_UNVERIFIED,
+        )
+    if state in (ForkState.RELEASED, ForkState.UNGATED):
+        return Projection(
+            draft=None if author_draft else False, ready_for_review=None, needs_project_ci=False
+        )
+    if state in (ForkState.SETUP_REQUIRED, ForkState.AWAITING_PUSH):
+        return Projection(draft=True, ready_for_review=False, needs_project_ci=False)
+    # A running or failed pull request keeps its draft state, so a flaky test after a rebase does
+    # not draft an approved one. A closed one is not drafted, since the draft-state job runs after
+    # the close and GitHub refuses to draft a closed pull request.
+    if state in (
+        ForkState.RUNNING,
+        ForkState.FAILED,
+        ForkState.CLOSED,
+        ForkState.GATE_BYPASSED,
+        ForkState.GATE_MODIFIED,
+    ):
+        return Projection(draft=None, ready_for_review=False, needs_project_ci=False)
+    raise ValueError(f"No projection for fork CI state {state.value!r}")
+
+
+def _is_author_draft(pr: PullRequestSnapshot) -> bool:
+    return pr.is_draft and not _is_bot(pr.last_draft_actor)
+
+
+def _enter_state(plan: Plan, pr: PullRequestSnapshot, labels: set[str], state: ForkState) -> None:
+    plan.state = state
+    projection = compute_projection(state, author_draft=_is_author_draft(pr))
+    if projection.draft is not None and projection.draft != pr.is_draft:
+        plan.draft = projection.draft
+    if projection.ready_for_review is not None:
+        _set_label(plan, labels, LABEL_READY_FOR_REVIEW, present=projection.ready_for_review)
+    _set_label(plan, labels, LABEL_NEEDS_PROJECT_CI, present=projection.needs_project_ci)
 
 
 def _workflow_file(resource_path: str | None) -> str:
@@ -523,17 +603,24 @@ def _set_status(
         plan.status = desired
 
 
-def _set_ci_passed(plan: Plan, pr: PullRequestSnapshot, *, passed: bool, target_url: str) -> None:
+def _set_ci_passed(
+    plan: Plan, pr: PullRequestSnapshot, state: ForkState, base: BaseCheck | None, *, target_url: str
+) -> None:
     """
     Report fork CI to the `CI passed` check the merge ruleset requires.
 
-    Only success is ever posted: a gated pull request without the status cannot merge, which is
-    what a pending or failing one would say. A success that no longer holds for the head commit,
-    such as a failed re-run in the fork, is overwritten so the pull request cannot merge on it.
+    Success is posted only for a trusted green run whose base is current enough; a gated pull
+    request without the status cannot merge. A green run on an old base gets a pending status that
+    says to rebase. A success that no longer holds for the head commit, such as a failed re-run in
+    the fork, is overwritten so the pull request cannot merge on it.
     """
-    if passed and pr.ci_passed_state != "success":
-        plan.ci_passed = ("success", target_url, CI_PASSED_DESCRIPTION)
-    elif not passed and pr.ci_passed_state == "success":
+    if state == ForkState.GREEN and base is not None and base.is_current:
+        if pr.ci_passed_state != "success":
+            plan.ci_passed = ("success", target_url, ci_passed_description(base, base_ref=pr.base_ref))
+    elif state == ForkState.GREEN and base is not None:
+        if pr.ci_passed_state != "pending":
+            plan.ci_passed = ("pending", target_url, rebase_needed_description(base, base_ref=pr.base_ref))
+    elif pr.ci_passed_state == "success":
         plan.ci_passed = ("pending", target_url, CI_PASSED_REVOKED_DESCRIPTION)
 
 
@@ -557,10 +644,11 @@ def classify(
     repo: str,
     find_bypass_run: Callable[[], str | None],
     changes_ci_files: Callable[[], bool | None],
-    count_behind: Callable[[], int | None] = lambda: None,
+    compare_base: Callable[[], BaseCheck | None] = lambda: None,
     jobs_reported: str | None = None,
     head_shared_across_bases: bool = False,
     find_gate_change: Callable[[], str | None] = lambda: None,
+    find_failed_jobs: Callable[[], list[FailedJob] | None] = lambda: [],
 ) -> Plan:
     """
     Decide the mutations for one gated pull request.
@@ -573,8 +661,9 @@ def classify(
         cannot be told for the snapshot's head commit; only called when a new head commit turns
         green in the fork. On None nothing is changed, since the decision would be recorded on a
         commit the answer may not belong to.
-    :param count_behind: how many commits the head commit is behind the base branch, None when
-        unknown; called at the same time as ``changes_ci_files``.
+    :param compare_base: compares the head commit's base with the base branch, None when that
+        cannot be read; called when a new head commit turns green, alongside ``changes_ci_files``,
+        and on later runs until it succeeds.
     :param jobs_reported: the completed fork run whose jobs are all reported as statuses, recorded
         in the marker so that later runs do not read its jobs again.
     :param head_shared_across_bases: another gated pull request has the same head commit and a
@@ -582,6 +671,9 @@ def classify(
     :param find_gate_change: describes how the pull request changes the fork CI gate, or returns
         None; only called for pull requests that the gate tampering check applies to, once per
         head commit.
+    :param find_failed_jobs: the jobs of the fork run that did not pass, None when they cannot be
+        read; only called for a failed run that started. On None the state comment is left for the
+        next run, so that a failed read does not drop the list from it.
     """
     plan = Plan()
     labels = set(pr.labels)
@@ -591,11 +683,8 @@ def classify(
         marker = None
 
     def release(state: ForkState, comment: Callable[[Marker], str]) -> Plan:
-        plan.state = state
         plan.remove_labels.append(LABEL_FORK_CI_REQUIRED)
-        _set_label(plan, labels, LABEL_NEEDS_PROJECT_CI, present=False)
-        if pr.is_draft and _is_bot(pr.last_draft_actor):
-            plan.draft = False
+        _enter_state(plan, pr, labels, state)
         since = marker.since if marker and marker.state == state.value else now
         _set_marker_comment(plan, pr, comment(Marker(state.value, pr.head_sha, since)))
         checks_url = f"https://github.com/{repo}/pull/{pr.number}/checks"
@@ -628,12 +717,7 @@ def classify(
     if reason in TAMPER_CHECKED_REASONS:
         bypass_run = find_bypass_run()
         if bypass_run is not None:
-            plan.state = ForkState.GATE_BYPASSED
-            if not pr.is_draft:
-                plan.draft = True
-            if LABEL_READY_FOR_REVIEW in labels:
-                plan.remove_labels.append(LABEL_READY_FOR_REVIEW)
-            _set_label(plan, labels, LABEL_NEEDS_PROJECT_CI, present=False)
+            _enter_state(plan, pr, labels, ForkState.GATE_BYPASSED)
             _set_status(plan, pr, ForkState.GATE_BYPASSED.value, bypass_run)
             _set_marker_comment(
                 plan,
@@ -660,8 +744,7 @@ def classify(
     if marker and marker.state in reopened_since_closing:
         reopened = reopened_since_closing[marker.state]
         if reopened is None or reopened <= marker.since:
-            plan.state = ForkState(marker.state)
-            _set_label(plan, labels, LABEL_NEEDS_PROJECT_CI, present=False)
+            _enter_state(plan, pr, labels, ForkState(marker.state))
             if plan.state == ForkState.CLOSED:
                 comment = inactivity_close_comment(days=config.close_after_days, fork=pr.head_repo)
             elif plan.state == ForkState.GATE_MODIFIED:
@@ -694,11 +777,7 @@ def classify(
     if gate_checked and not already_checked:
         change = find_gate_change()
         if change is not None:
-            plan.state = ForkState.GATE_MODIFIED
-            if not pr.is_draft:
-                plan.draft = True
-            _set_label(plan, labels, LABEL_READY_FOR_REVIEW, present=False)
-            _set_label(plan, labels, LABEL_NEEDS_PROJECT_CI, present=False)
+            _enter_state(plan, pr, labels, ForkState.GATE_MODIFIED)
             _set_status(
                 plan, pr, ForkState.GATE_MODIFIED.value, f"https://github.com/{repo}/pull/{pr.number}/files"
             )
@@ -721,7 +800,7 @@ def classify(
         plan.unknown.append(unknown_reason or "unknown fork state")
         return plan
     refresh_status = False
-    behind = marker.behind if marker and marker.sha == pr.head_sha else None
+    base = marker.base if marker and marker.sha == pr.head_sha else None
     if state == ForkState.GREEN:
         # The decision is read back from the commit status on the head commit, which only
         # apache/airflow's own tokens can write, never from a comment. The changed files depend
@@ -751,9 +830,16 @@ def classify(
             if changes is None:
                 return Plan()
             unverified = changes
-            behind = count_behind()
+            base = None
         if unverified:
             state = ForkState.GREEN_UNVERIFIED
+        if base is None:
+            base = compare_base()
+            if base is None and state == ForkState.GREEN:
+                plan.unknown.append(
+                    f"fork CI is green, but the head commit could not be compared with `{pr.base_ref}`, "
+                    "so `CI passed` waits for the next run"
+                )
     plan.state = state
     since = marker.since if marker and marker.state == state.value else now
 
@@ -771,8 +857,7 @@ def classify(
         )
 
     if state in CLOSABLE_STATES and now - since >= timedelta(days=config.close_after_days):
-        plan.state = ForkState.CLOSED
-        _set_label(plan, labels, LABEL_NEEDS_PROJECT_CI, present=False)
+        _enter_state(plan, pr, labels, ForkState.CLOSED)
         _set_marker_comment(
             plan,
             pr,
@@ -786,49 +871,57 @@ def classify(
         plan.close = True
         return plan
 
-    if state in (ForkState.GREEN, ForkState.GREEN_UNVERIFIED):
-        # A green run that changes CI files still needs a maintainer's review, which a draft would
-        # hide; the `needs project ci` label marks it instead of the review label.
-        if pr.is_draft and _is_bot(pr.last_draft_actor):
-            plan.draft = False
-        ready = not pr.is_draft or plan.draft is False
-        if state == ForkState.GREEN and ready and LABEL_READY_FOR_REVIEW not in labels:
-            plan.add_labels.append(LABEL_READY_FOR_REVIEW)
-        elif state == ForkState.GREEN_UNVERIFIED and LABEL_READY_FOR_REVIEW in labels:
-            plan.remove_labels.append(LABEL_READY_FOR_REVIEW)
-    else:
-        # A run in progress needs nothing from the author, and drafting on it would draft every
-        # approved pull request the moment it is rebased; it is drafted only if the run then fails.
-        if not pr.is_draft and state != ForkState.RUNNING:
-            plan.draft = True
-        if LABEL_READY_FOR_REVIEW in labels:
-            plan.remove_labels.append(LABEL_READY_FOR_REVIEW)
-    # Lets maintainers list the pull requests that only wait for them to run project CI, which
-    # otherwise look like any other pull request with a pending fork CI status.
-    _set_label(plan, labels, LABEL_NEEDS_PROJECT_CI, present=state == ForkState.GREEN_UNVERIFIED)
+    _enter_state(plan, pr, labels, state)
 
     target_url = fork.run_url or fork_actions_url(pr.head_repo)
-    _set_status(plan, pr, state.value, target_url, force=refresh_status)
-    _set_ci_passed(plan, pr, passed=state == ForkState.GREEN, target_url=target_url)
+    startup_failure = state == ForkState.FAILED and fork.suite_conclusion == "STARTUP_FAILURE"
+    _set_status(
+        plan, pr, "startup_failure" if startup_failure else state.value, target_url, force=refresh_status
+    )
+    _set_ci_passed(plan, pr, state, base, target_url=target_url)
     _set_ci_run_started(plan, pr, fork)
     green = state in (ForkState.GREEN, ForkState.GREEN_UNVERIFIED)
-    _set_marker_comment(
-        plan,
-        pr,
-        state_comment(
-            Marker(
-                state.value,
-                pr.head_sha,
-                since,
-                behind=behind if green else None,
-                jobs=jobs_reported,
-                gate_checked=gate_checked,
-            ),
+    lists_failed_jobs = state == ForkState.FAILED and not startup_failure and fork.run_id is not None
+    new_marker = Marker(
+        state.value,
+        pr.head_sha,
+        since,
+        base=base if green else None,
+        jobs=jobs_reported,
+        failed_run=f"{fork.run_id}:{fork.run_attempt}" if lists_failed_jobs else None,
+        gate_checked=gate_checked,
+    )
+
+    def render(marker: Marker, failed_jobs: list[FailedJob]) -> str:
+        return state_comment(
+            marker,
             fork=pr.head_repo,
             run_url=fork.run_url,
             base_ref=pr.base_ref,
-        ),
-    )
+            author_draft=_is_author_draft(pr),
+            startup_failure=startup_failure,
+            failed_jobs=failed_jobs,
+        )
+
+    failed_jobs: list[FailedJob] | None = []
+    if lists_failed_jobs:
+        # A finished run's jobs do not change, so the list already in the comment still holds.
+        if (
+            marker == new_marker
+            and pr.marker_comment_body is not None
+            and strip_failed_job_list(pr.marker_comment_body) == render(new_marker, [])
+        ):
+            return plan
+        failed_jobs = find_failed_jobs()
+    if failed_jobs is None:
+        # Only a comment that already shows this head as failed is worth keeping; anything else
+        # describes a state the pull request is no longer in.
+        if marker and marker.state == ForkState.FAILED.value and marker.sha == pr.head_sha:
+            return plan
+        failed_jobs = []
+        # Without a list, the next run reads the jobs again.
+        new_marker = replace(new_marker, failed_run=None)
+    _set_marker_comment(plan, pr, render(new_marker, failed_jobs))
     return plan
 
 
@@ -854,11 +947,8 @@ query($q: String!, $cursor: String) {
 }
 """
 
-PASS_TWO_QUERY = """
-query($q: String!, $cursor: String) {
-  search(type: ISSUE, first: %(page)d, after: $cursor, query: $q) {
-    pageInfo { hasNextPage endCursor }
-    nodes { ... on PullRequest {
+PASS_TWO_FIELDS = """
+fragment PassTwoFields on PullRequest {
       number id isDraft createdAt authorAssociation baseRefName headRefName headRefOid
       author { login }
       headRepository { nameWithOwner }
@@ -887,10 +977,35 @@ query($q: String!, $cursor: String) {
         pageInfo { hasNextPage endCursor }
         nodes { databaseId body author { login } }
       }
-    } }
+}
+"""
+
+PASS_TWO_QUERY = (
+    """
+query($q: String!, $cursor: String) {
+  search(type: ISSUE, first: %(page)d, after: $cursor, query: $q) {
+    pageInfo { hasNextPage endCursor }
+    nodes { ...PassTwoFields }
   }
 }
 """
+    + PASS_TWO_FIELDS
+)
+
+PULL_REQUESTS_BY_NUMBER_QUERY = (
+    """
+query($owner: String!, $name: String!) {
+  repository(owner: $owner, name: $name) { %(pull_requests)s }
+}
+"""
+    + PASS_TWO_FIELDS
+)
+
+PASS_TWO_CONTEXTS = {
+    "context": STATUS_CONTEXT,
+    "ci_passed": CI_PASSED_CONTEXT,
+    "ci_run_started": CI_RUN_STARTED_CONTEXT,
+}
 
 
 def _labels(node: dict[str, Any]) -> tuple[str, ...]:
@@ -1351,6 +1466,35 @@ def _search(client: GitHubClient, query: str, search_query: str) -> Iterable[dic
         cursor = result["pageInfo"]["endCursor"]
 
 
+def fetch_open_pull_requests(
+    client: GitHubClient, numbers: Sequence[int], *, repo: str
+) -> list[dict[str, Any]]:
+    """
+    Return the pass 2 nodes of the pull requests among these that are still open.
+
+    Reads them by number rather than through the search index, which can take minutes to list a
+    pull request under a label added moments before.
+    """
+    owner, name = repo.split("/", 1)
+    nodes: list[dict[str, Any]] = []
+    for start in range(0, len(numbers), PASS_TWO_PAGE_SIZE):
+        batch = numbers[start : start + PASS_TWO_PAGE_SIZE]
+        pull_requests = " ".join(
+            f"pr{index}: pullRequest(number: {number}) {{ state ...PassTwoFields }}"
+            for index, number in enumerate(batch)
+        )
+        result = (
+            client.graphql(
+                PULL_REQUESTS_BY_NUMBER_QUERY % {"pull_requests": pull_requests, **PASS_TWO_CONTEXTS},
+                {"owner": owner, "name": name},
+                allow_partial=True,
+            )["repository"]
+            or {}
+        )
+        nodes.extend(node for node in result.values() if node and node["state"] == "OPEN")
+    return nodes
+
+
 def _is_not_found(error: GitHubError) -> bool:
     return "404" in str(error) or "Not Found" in str(error)
 
@@ -1563,12 +1707,7 @@ def report_orphaned_ci_passed(
         status = read_ci_passed_status(client, repo, node["headRefOid"])
     if (
         (status.get("state") or "").lower() in ("", "success")
-        or status.get("description")
-        not in (
-            CI_PASSED_DESCRIPTION,
-            CI_PASSED_WAITING_PROJECT_CI_DESCRIPTION,
-            CI_PASSED_REVOKED_DESCRIPTION,
-        )
+        or not is_fork_ci_passed_description(status.get("description"))
         or len(written) >= MAX_PROJECT_CI_PASSED_PER_RUN
     ):
         return
@@ -1661,6 +1800,53 @@ def build_job_statuses(jobs: Iterable[dict[str, Any]]) -> dict[str, tuple[str, s
     return statuses
 
 
+def find_failed_jobs(jobs: Iterable[dict[str, Any]]) -> list[FailedJob]:
+    """The finished jobs of a fork run that did not pass, by name, leaving out the jobs every run has."""
+    failed: dict[str, FailedJob] = {}
+    for job in jobs:
+        if job["name"] in UNREPORTED_JOB_NAMES or job.get("status") in RUNNING_JOB_STATUSES:
+            continue
+        conclusion = job.get("conclusion") or ""
+        if JOB_STATUSES.get(conclusion, ("",))[0] != "failure":
+            continue
+        listed = failed.get(job["name"])
+        # Of jobs sharing a name, one that failed is listed rather than one cancelled or timed out.
+        if listed is None or (listed.conclusion != "failure" and conclusion == "failure"):
+            failed[job["name"]] = FailedJob(job["name"], job["html_url"], conclusion)
+    # Failures first: the cap on the listed jobs must not hide them behind cancelled or timed-out ones.
+    return sorted(failed.values(), key=lambda job: (job.conclusion != "failure", job.name))
+
+
+# The jobs of fork runs read in this reconciler run, by run id. None records a read that failed after
+# its retries, so the next reader gives up at once instead of repeating them; the next run reads again.
+ReadJobs = dict[int, list[dict[str, Any]] | None]
+
+
+def read_failed_jobs(
+    client: GitHubClient,
+    pr: PullRequestSnapshot,
+    fork: ForkObservation,
+    read_jobs: ReadJobs,
+) -> list[FailedJob] | None:
+    """
+    ``find_failed_jobs`` of the pull request's fork run; None when its jobs cannot be read.
+
+    :param read_jobs: the jobs already read in this reconciler run; a read made here is recorded too.
+    """
+    if fork.run_id is None or not pr.head_repo:
+        return []
+    if fork.run_id in read_jobs:
+        jobs = read_jobs[fork.run_id]
+    else:
+        try:
+            jobs = client.get_run_jobs(pr.head_repo, fork.run_id)
+        except GitHubError as e:
+            console_print(f"[warning]#{pr.number}: could not read the jobs of {fork.run_url}: {e}[/]")
+            jobs = None
+        read_jobs[fork.run_id] = jobs
+    return None if jobs is None else find_failed_jobs(jobs)
+
+
 class JobStatusReporter:
     """Reports each job of a pull request's fork run as a commit status, within a per-run budget."""
 
@@ -1671,12 +1857,17 @@ class JobStatusReporter:
         repo: str,
         budget: int = MAX_JOB_STATUSES_PER_RUN,
         now: datetime | None = None,
+        read_jobs: ReadJobs | None = None,
     ):
-        """:param now: when given, deferring the statuses of a run that finished long ago is reported."""
+        """
+        :param now: when given, deferring the statuses of a run that finished long ago is reported.
+        :param read_jobs: where the jobs read, or a failed read, are kept, for the state comment to reuse.
+        """
         self._client = client
         self._repo = repo
         self._now = now
         self.remaining = budget
+        self.read_jobs = {} if read_jobs is None else read_jobs
         self.deferred: list[int] = []
         # (pull request, attention item) for runs whose statuses are deferred long after they finished.
         self.delayed: list[tuple[int, str]] = []
@@ -1721,11 +1912,12 @@ class JobStatusReporter:
         if self.remaining == 0:
             self._defer(pr, fork)
             return None
-        jobs = self._client.rest_get(
-            f"repos/{pr.head_repo}/actions/runs/{fork.run_id}/jobs?filter=latest&per_page=100",
-            paginate=True,
-            items_key="jobs",
-        )
+        try:
+            jobs = self._client.get_run_jobs(pr.head_repo, fork.run_id)
+        except Exception:
+            self.read_jobs[fork.run_id] = None
+            raise
+        self.read_jobs[fork.run_id] = jobs
         # By the case-folded context, as GitHub compares them.
         current = {
             status["context"].casefold(): (
@@ -1878,11 +2070,7 @@ class BypassFinder:
 
     def _get_jobs(self, run: WorkflowRun) -> list[dict[str, Any]]:
         if run.id not in self._jobs:
-            self._jobs[run.id] = self._client.rest_get(
-                f"repos/{self._repo}/actions/runs/{run.id}/jobs?filter=latest&per_page=100",
-                paginate=True,
-                items_key="jobs",
-            )
+            self._jobs[run.id] = self._client.get_run_jobs(self._repo, run.id)
         return self._jobs[run.id]
 
     def _did_run_project_ci(self, run: WorkflowRun) -> bool:
@@ -2288,17 +2476,37 @@ def pull_request_changes_ci_files(client: GitHubClient, repo: str, number: int, 
     return changes_ci_definition(changed_paths(files), file_count=len(files))
 
 
-def count_commits_behind(client: GitHubClient, repo: str, pr: PullRequestSnapshot) -> int | None:
-    """Commits on the base branch that the head commit does not have; None when not readable."""
+def compare_with_base(client: GitHubClient, repo: str, pr: PullRequestSnapshot) -> BaseCheck | None:
+    """
+    Compare the base a fork run tested with the base branch; None when not readable.
+
+    The fork run tests the head commit, so its base is the merge base with the base branch. Two
+    three-dot compares from it give the files the pull request changes and the files the base branch
+    changed since; a file in both means the merged result differs from what the fork run tested
+    in a file the pull request changes. Compares list at most 300 files (on their first page, which
+    ``per_page`` does not limit): a pull request with more is listed with the files endpoint instead,
+    while a base branch that changed more cannot be checked until the branch is rebased.
+    """
     owner = (pr.head_repo or "").split("/", 1)[0]
+    base_ref = quote(pr.base_ref, safe="")
     try:
-        compare = client.rest_get(
-            f"repos/{repo}/compare/{quote(pr.base_ref, safe='')}...{owner}:{pr.head_sha}?per_page=1"
+        head_side = client.rest_get(f"repos/{repo}/compare/{base_ref}...{owner}:{pr.head_sha}?per_page=1")
+        merge_base = head_side["merge_base_commit"]["sha"]
+        behind = head_side["behind_by"]
+        base_side = (
+            client.rest_get(f"repos/{repo}/compare/{merge_base}...{base_ref}?per_page=1") if behind else {}
         )
-    except GitHubError as e:
-        console_print(f"[warning]#{pr.number}: could not count commits behind {pr.base_ref}: {e}[/]")
+        head_files = head_side.get("files") or []
+        if len(head_files) >= COMPARE_FILES_CAP:
+            head_files = client.rest_get(f"repos/{repo}/pulls/{pr.number}/files?per_page=100", paginate=True)
+    except (GitHubError, KeyError, TypeError) as e:
+        console_print(f"[warning]#{pr.number}: could not compare with {pr.base_ref}: {e}[/]")
         return None
-    return compare.get("behind_by")
+    base_files = base_side.get("files") or []
+    if len(head_files) >= PULL_REQUEST_FILES_CAP or len(base_files) >= COMPARE_FILES_CAP:
+        return BaseCheck(merge_base, behind, None)
+    overlap = set(changed_paths(head_files)) & set(changed_paths(base_files))
+    return BaseCheck(merge_base, behind, tuple(sorted(overlap)))
 
 
 def find_heads_shared_across_bases(prs: Iterable[PullRequestSnapshot]) -> set[str]:
@@ -2550,16 +2758,16 @@ def run_reconcile(
         parse_pull_request(node)
         for node in _search(
             client,
-            PASS_TWO_QUERY
-            % {
-                "page": PASS_TWO_PAGE_SIZE,
-                "context": STATUS_CONTEXT,
-                "ci_passed": CI_PASSED_CONTEXT,
-                "ci_run_started": CI_RUN_STARTED_CONTEXT,
-            },
+            PASS_TWO_QUERY % {"page": PASS_TWO_PAGE_SIZE, **PASS_TWO_CONTEXTS},
             f'repo:{repo} is:pr is:open label:"{LABEL_FORK_CI_REQUIRED}"',
         )
     ]
+    found = {pr.number for pr in prs}
+    unlisted = [number for number in labelled if number not in found]
+    try:
+        prs.extend(parse_pull_request(node) for node in fetch_open_pull_requests(client, unlisted, repo=repo))
+    except GitHubError as e:
+        console_print(f"[warning]Pull requests {unlisted} are left for the next run: {e}[/]")
     observations = fetch_fork_observations(client, prs)
 
     def is_gated_base(base_ref: str) -> bool:
@@ -2603,11 +2811,13 @@ def run_reconcile(
         ci_passed_notes.append(
             f"listing the pull requests with `{LABEL_USE_PROJECT_CI}` failed: {type(e).__name__}"
         )
+    read_jobs: ReadJobs = {}
     job_reporter = JobStatusReporter(
         client,
         repo=repo,
         budget=max(MAX_JOB_STATUSES_PER_RUN - ci_run_started_writes - ci_passed_reserved, 0),
         now=now,
+        read_jobs=read_jobs,
     )
 
     previous_job_status_failure_runs = read_job_status_failure_runs(reported_file)
@@ -2653,10 +2863,11 @@ def run_reconcile(
                 changes_ci_files=functools.partial(
                     pull_request_changes_ci_files, client, repo, pr.number, pr.head_sha
                 ),
-                count_behind=functools.partial(count_commits_behind, client, repo, pr),
+                compare_base=functools.partial(compare_with_base, client, repo, pr),
                 jobs_reported=jobs_reported,
                 head_shared_across_bases=pr.head_sha in shared_heads,
                 find_gate_change=functools.partial(gate_change_finder.find, pr),
+                find_failed_jobs=functools.partial(read_failed_jobs, client, pr, fork, read_jobs),
             )
             # A revocation to `pending` always goes through: it is idempotent and must not depend on
             # `report_project_ci_passed` succeeding later in this run.
