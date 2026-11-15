@@ -30,7 +30,7 @@ from cadwyn import (
 from airflow.sdk.importers.yaml_importer import migrator
 from airflow.sdk.importers.yaml_importer.models import DagDocument, Task
 
-HEAD_SCHEMA = migrator.schema_from_version("2026-10-30")
+HEAD_SCHEMA = migrator.schema_from_version("2027-02-28")
 
 
 class _RenameOwnerAttr(VersionChange):
@@ -137,7 +137,70 @@ def test_known_version_does_not_warn(recwarn):
 
 def test_migrate_is_noop_at_head_for_the_real_bundle():
     body = {"$schema": HEAD_SCHEMA, "dag_id": "d", "tasks": []}
-    assert migrator.get_migrator().resolve_and_migrate(body) is body  # one version -> no copy
+    assert migrator.get_migrator().resolve_and_migrate(body) is body  # at head -> no copy
+
+
+def _migrate_from_2026_10_30(**extra):
+    body = {"$schema": migrator.schema_from_version("2026-10-30"), "dag_id": "d", **extra}
+    return migrator.get_migrator().resolve_and_migrate(body)
+
+
+@pytest.mark.parametrize(
+    ("old", "new"),
+    [
+        pytest.param({"$x": {"task": "a", "key": "k"}}, {"$x": "a", "key": "k"}, id="x-keyed"),
+        pytest.param({"$xcom": {"task": "a", "key": "k"}}, {"$xcom": "a", "key": "k"}, id="xcom-keyed"),
+        pytest.param({"$x": {"task": "a"}}, {"$x": "a"}, id="x-task-only"),
+        pytest.param({"$x": {"task": "a", "key": None}}, {"$x": "a"}, id="x-null-key"),
+        pytest.param({"$x": "a"}, {"$x": "a"}, id="x-short-unchanged"),
+        pytest.param([1, {"$x": {"task": "a", "key": "k"}}], [1, {"$x": "a", "key": "k"}], id="in-list"),
+        pytest.param(
+            {"env": {"V": {"$x": {"task": "a", "key": "k"}}}},
+            {"env": {"V": {"$x": "a", "key": "k"}}},
+            id="in-mapping",
+        ),
+        pytest.param(
+            {"$const": {"$x": {"task": "a", "key": "k"}}},
+            {"$const": {"$x": {"task": "a", "key": "k"}}},
+            id="const-untouched",
+        ),
+        pytest.param(
+            {"$x": {"task": "a", "nope": 1}},
+            {"$x": {"task": "a", "nope": 1}},
+            id="invalid-left-for-validation",
+        ),
+    ],
+)
+@pytest.mark.parametrize("field", ["with", "run"])
+def test_2027_02_28_flattens_keyed_xcom_in_tasks(field, old, new):
+    out = _migrate_from_2026_10_30(tasks=[{"id": "t", field: {"v": old}}])
+    assert out["tasks"] == [{"id": "t", field: {"v": new}}]
+
+
+def test_2027_02_28_flattens_keyed_xcom_in_templates():
+    out = _migrate_from_2026_10_30(
+        templates={"base": {"with": {"v": {"$x": {"task": "a", "key": "k"}}}, "retries": 2}},
+        tasks=[],
+    )
+    assert out["templates"] == {"base": {"with": {"v": {"$x": "a", "key": "k"}}, "retries": 2}}
+
+
+def test_2027_02_28_leaves_other_task_keys_alone():
+    task = {"id": "t", "doc_md": {"$x": {"task": "a", "key": "k"}}, "with": {}}
+    out = _migrate_from_2026_10_30(tasks=[task])
+    assert out["tasks"] == [task]
+
+
+def test_2027_02_28_handles_shared_nodes():
+    shared = {"v": {"$x": {"task": "a", "key": "k"}}}
+    body = {
+        "$schema": migrator.schema_from_version("2026-10-30"),
+        "dag_id": "d",
+        "tasks": [{"id": "t1", "with": shared}, {"id": "t2", "with": shared}],
+    }
+    out = migrator.get_migrator().resolve_and_migrate(body)
+    assert [t["with"] for t in out["tasks"]] == [{"v": {"$x": "a", "key": "k"}}] * 2
+    assert shared == {"v": {"$x": {"task": "a", "key": "k"}}}  # the input is not mutated
 
 
 class _AppendV2(VersionChange):

@@ -37,12 +37,11 @@ from airflow.sdk.importers.yaml_importer.models import (
     TemplateRef,
     TimetableSchedule,
     XComRef,
-    XComTarget,
 )
 
 SCHEMA_PATH = pathlib.Path(yaml_importer.__file__).with_name("schema.json")
 
-HEAD = "2026-10-30"
+HEAD = "2027-02-28"
 HEAD_SCHEMA = f"https://airflow.apache.org/schemas/dag/{HEAD}.json"
 
 
@@ -72,15 +71,102 @@ def test_date_and_datetime_literals():
 
 def test_xcom_short_long_and_keyed():
     doc = _one(
-        "tasks:\n  - {id: up, run: {}}\n  - {id: t, run: {a: {$x: up}, b: {$xcom: up}, c: {$x: {task: up, key: rows}}}}"
+        "tasks:\n  - {id: up, run: {}}\n"
+        "  - {id: t, run: {a: {$x: up}, b: {$xcom: up}, c: {$x: up, key: rows}, d: {$xcom: up, key: rows}}}"
     )
     t = {x.id_: x for x in doc.tasks}["t"]
     assert isinstance(t.run["a"], XComRef)
     assert t.run["a"].target == "up"
     assert isinstance(t.run["b"], XComRef)
     assert t.run["b"].target == "up"
-    assert isinstance(t.run["c"].target, XComTarget)
-    assert t.run["c"].target.key == "rows"
+    assert t.run["a"].key == "return_value"
+    assert t.run["b"].key == "return_value"
+    for name in ("c", "d"):
+        assert isinstance(t.run[name], XComRef)
+        assert t.run[name].target == "up"
+        assert t.run[name].key == "rows"
+    assert t.get_dependency_ids() == {"up"}
+
+
+@pytest.mark.parametrize(
+    ("value", "error"),
+    [
+        pytest.param({"$x": "up"}, None, id="default-key"),
+        pytest.param({"$x": "up", "key": "return_value"}, None, id="explicit-return-value"),
+        pytest.param({"$x": "up", "key": "rows"}, "non-return-value XCom", id="custom-key"),
+    ],
+)
+def test_xcom_run_binding_by_key(value, error):
+    result = XComRef.model_validate(value).get_run_binding_error()
+    if error is None:
+        assert result is None
+    else:
+        assert error in result
+
+
+def test_xcom_null_key_rejected():
+    with pytest.raises(YamlDagParseError, match="valid string"):
+        _task("- {id: t, uses: X, with: {a: {$x: up, key: null}}}")
+
+
+def test_xcom_nested_object_form_rejected_at_head():
+    with pytest.raises(YamlDagParseError, match="valid string"):
+        _task("- {id: t, uses: X, with: {a: {$x: {task: up, key: rows}}}}")
+
+
+def test_xcom_nested_object_form_migrated_from_2026_10_30():
+    text = textwrap.dedent("""\
+        $schema: https://airflow.apache.org/schemas/dag/2026-10-30.json
+        dag_id: d
+        tasks:
+          - {id: up, run: {}}
+          - {id: t, uses: X, with: {a: {$x: {task: up, key: rows}}, b: {$xcom: {task: up}}}}
+    """)
+    (doc,) = parse_documents(text)
+    t = doc.tasks[1]
+    assert (t.with_["a"].target, t.with_["a"].key) == ("up", "rows")
+    assert (t.with_["b"].target, t.with_["b"].key) == ("up", "return_value")
+
+
+@pytest.mark.parametrize(
+    ("value", "message"),
+    [
+        pytest.param(
+            "{$x: up, nope: 1}", r"'nope' is not an option of \$x; expected one of \['key'\]", id="x"
+        ),
+        pytest.param(
+            "{$xcom: up, nope: 1}", r"'nope' is not an option of \$xcom; expected one of \['key'\]", id="xcom"
+        ),
+        pytest.param("{$t: x, key: k}", r"'key' is not an option of \$t; it takes no options", id="t"),
+        pytest.param("{$f: x.sql, key: k}", r"'key' is not an option of \$f; it takes no options", id="f"),
+        pytest.param(
+            "{$const: 1, key: k}", r"'key' is not an option of \$const; it takes no options", id="const"
+        ),
+    ],
+)
+def test_unknown_marker_option_rejected(value, message):
+    with pytest.raises(YamlDagParseError, match=message):
+        _task(f"- {{id: t, uses: X, with: {{a: {value}}}}}")
+
+
+def test_marker_option_error_needs_the_marker_key():
+    with pytest.raises(YamlDagParseError) as ctx:
+        _task("- {id: t, uses: X, with: {a: {$t: {path: q.sql}}}}")
+    assert "not an option of" not in str(ctx.value)
+    assert "Field required" in str(ctx.value)
+
+
+@pytest.mark.parametrize("value", ["{$x: up, $xcom: up}", "{$x: up, $t: x}", "{$x: up, $weird: 1}"])
+def test_two_dollar_keys_rejected(value):
+    with pytest.raises(YamlDagParseError, match=r"may carry only one '\$' marker"):
+        _task(f"- {{id: t, uses: X, with: {{a: {value}}}}}")
+
+
+def test_const_keeps_marker_with_options_literal():
+    t = _task("- {id: t, uses: X, with: {a: {$const: {$x: up, key: rows}}}}")
+    assert isinstance(t.with_["a"], ConstRef)
+    assert t.with_["a"].value == {"$x": "up", "key": "rows"}
+    assert t.get_dependency_ids() == set()
 
 
 def test_template_marker():
@@ -112,7 +198,6 @@ def test_const_is_verbatim_not_recursed():
 @pytest.mark.parametrize(
     "value",
     [
-        pytest.param("{$x: up, extra: 1}", id="marker-key-plus-extra"),
         pytest.param("{$xcomm: up}", id="unknown-marker-typo"),
         pytest.param("{$tempalte: x}", id="unknown-template-typo"),  # codespell:ignore tempalte
         pytest.param("{cfg: {$weird: 1}}", id="dollar-key-nested-in-literal"),
@@ -483,8 +568,6 @@ def test_parses_example_fixture():
 
 
 def test_example_fixture_conforms_to_published_schema():
-    # Separately validate the fixture against the JSON Schema. Not all Pydantic
-    # features survive the export.
     validator = jsonschema.Draft202012Validator(json.loads(SCHEMA_PATH.read_text()))
     fixture = pathlib.Path(__file__).parent / "example_dag.yaml"
     documents = [d for d in yaml.safe_load_all(fixture.read_text()) if d]
@@ -533,7 +616,7 @@ def test_published_schema_accepts_null_and_empty_bodies(task):
             id="xcom-long",
         ),
         pytest.param(
-            "tasks:\n  - {id: up, run: {}}\n  - {id: t, run: {a: {$x: {task: up, key: rows}}}}",
+            "tasks:\n  - {id: up, run: {}}\n  - {id: t, run: {a: {$x: up, key: rows}}}",
             id="xcom-keyed",
         ),
         pytest.param(
@@ -567,8 +650,6 @@ def test_published_schema_accepts_null_and_empty_bodies(task):
     ],
 )
 def test_valid_shapes_round_trip(body):
-    # Each valid value-grammar shape must be accepted by BOTH the parser and the published
-    # JSON Schema -- the two descriptions of the format must not drift apart.
     text = f"$schema: {HEAD_SCHEMA}\ndag_id: d\n{textwrap.dedent(body)}"
     assert list(parse_documents(text))  # the parser accepts it
     validator = jsonschema.Draft202012Validator(json.loads(SCHEMA_PATH.read_text()))
@@ -584,14 +665,14 @@ def test_valid_shapes_round_trip(body):
         pytest.param("{$tempalte: x}", id="unknown-template-typo"),  # codespell:ignore tempalte
         pytest.param("{cfg: {$weird: 1}}", id="dollar-key-nested"),
         pytest.param("{$x: up, $xcom: up}", id="two-marker-keys"),
-        pytest.param("{$x: {task: up, nope: 1}}", id="xcom-target-extra-key"),
+        pytest.param("{$x: up, nope: 1}", id="xcom-unknown-option"),
+        pytest.param("{$t: x, key: k}", id="template-unknown-option"),
+        pytest.param("{$x: {task: up, key: rows}}", id="xcom-removed-object-form"),
         pytest.param("{$f: {$t: 'q-{{ ds }}.sql'}}", id="templated-filename-reserved"),
         pytest.param("{$t: {$f: {$t: x}}}", id="templated-filename-nested-reserved"),
     ],
 )
 def test_invalid_shapes_rejected_by_both(value):
-    # Hand-written schema guards (Literal '$'-key 'not', XComTarget and markers
-    # additionalProperties: false) must reject the same shapes as the parser.
     text = f"$schema: {HEAD_SCHEMA}\ndag_id: d\ntasks:\n  - {{id: t, run: {{a: {value}}}}}"
     with pytest.raises(YamlDagParseError):
         list(parse_documents(text))  # the parser rejects it
