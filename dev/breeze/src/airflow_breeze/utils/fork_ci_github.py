@@ -256,6 +256,13 @@ class GitHubClient:
             {"state": "closed"},
         )
 
+    def reopen(self, pr: int) -> None:
+        self._mutate(
+            f"#{pr}: reopen",
+            ["api", "-X", "PATCH", f"repos/{self.repo}/pulls/{pr}"],
+            {"state": "open"},
+        )
+
     def delete_run(self, pr: int, run_id: int) -> None:
         self._mutate(
             f"#{pr}: delete workflow run {run_id}",
