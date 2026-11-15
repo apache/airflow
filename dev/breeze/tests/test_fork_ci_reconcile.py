@@ -5534,6 +5534,26 @@ def test_run_reconcile_compares_the_merge_the_fork_run_tested(mock_classify, moc
         pytest.param(
             GitHubError("GraphQL errors: [x]"), "GitHubError: GraphQL errors: [x]", id="other-message"
         ),
+        pytest.param(
+            GitHubError(
+                "gh api repos/apache/airflow/commits/"
+                + "a" * 40
+                + "/check-runs?check_name=CI+passed&per_page=100"
+                " --paginate still failing after 4 attempts: HTTP 502: Bad Gateway"
+            ),
+            "GitHubError: still failing after 4 attempts: HTTP 502: Bad Gateway",
+            id="retries-exhausted",
+        ),
+        pytest.param(
+            GitHubError("gh api graphql -f query=q still rate limited after 3 attempts"),
+            "GitHubError: still rate limited after 3 attempts",
+            id="rate-limited",
+        ),
+        pytest.param(
+            GitHubError("gh api repos/apache/airflow/pulls/1 timed out after 60s"),
+            "GitHubError: timed out after 60s",
+            id="timed-out",
+        ),
         pytest.param(KeyError("sha"), "KeyError: 'sha'", id="other-exception"),
         pytest.param(RuntimeError(), "RuntimeError", id="no-message"),
         pytest.param(GitHubError("x" * 300), "GitHubError: " + "x" * 186 + "…", id="shortened"),

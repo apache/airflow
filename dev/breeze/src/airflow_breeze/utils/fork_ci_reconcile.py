@@ -204,6 +204,11 @@ SLACK_MAX_BLOCKS = 50
 SLACK_ITEM_LIMIT = 500
 # The error text a Slack item quotes; the full error is in the run log.
 ERROR_TEXT_LIMIT = 200
+# How GitHubClient ends a failed `gh` call's message, after the call's arguments.
+GH_FAILURE = re.compile(
+    r" (?:failed: |(?=still failing after \d+ attempts: )|(?=still rate limited after \d+ attempts)"
+    r"|(?=timed out after \d+s))"
+)
 # Events whose runs use the workflow files of the pull request's merge commit, so a pull request
 # can change what they run. pull_request_target and issue_comment use the base branch's files.
 MERGE_REF_EVENTS = ("pull_request", "pull_request_review", "pull_request_review_comment")
@@ -602,8 +607,9 @@ def describe_error(e: Exception) -> str:
     its item is still posted once.
     """
     message = str(e).strip()
-    if message.startswith("gh ") and " failed: " in message:
-        message = message.split(" failed: ", 1)[1]
+    failure = GH_FAILURE.search(message) if message.startswith("gh ") else None
+    if failure:
+        message = message[failure.end() :]
     first_line = message.splitlines()[0].strip() if message else ""
     text = f"{type(e).__name__}: {first_line}" if first_line else type(e).__name__
     return text if len(text) <= ERROR_TEXT_LIMIT else f"{text[: ERROR_TEXT_LIMIT - 1]}…"
