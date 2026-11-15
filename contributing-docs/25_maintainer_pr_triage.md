@@ -277,12 +277,14 @@ usual. To move a single pull request to project CI:
 
 - Add `use project ci`. Removing `fork ci required` by hand is not enough: the next monitor run
   labels a gated pull request again.
-- Wait for its `CI passed` status to turn `pending` before merging or enabling auto-merge: until the
-  next monitor run, a green fork result still counts. To shorten the wait, start the monitor by hand
+- Right after adding the label, rebase the pull request (or ask the author to push), or close and
+  reopen it (`gh pr close <n> -R apache/airflow && gh pr reopen <n> -R apache/airflow`). Adding the
+  label does not start project CI, and the gated `Tests (AMD)` runs are deleted, so there is
+  nothing to re-run. A rebase also moves the head to a commit that has no fork result.
+- After a close and reopen, wait for the `CI passed` status to turn `pending` before merging or
+  enabling auto-merge: until the next monitor run, a green fork result on the head commit still
+  counts. To shorten the wait, start the monitor by hand
   (`gh workflow run fork-ci-monitor.yml -R apache/airflow`).
-- Start project CI: adding the label does not, and the gated `Tests (AMD)` runs are deleted, so
-  close and reopen the pull request (`gh pr close <n> -R apache/airflow && gh pr reopen <n> -R
-  apache/airflow`) or ask the author to push.
 
 Why, and how `CI passed` is reported for gated pull requests:
 [The `CI passed` check](../dev/breeze/doc/ci/08_fork_ci_for_external_contributors.md#the-ci-passed-check).

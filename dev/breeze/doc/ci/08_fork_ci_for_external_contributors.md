@@ -1126,8 +1126,10 @@ run.
   before the label stays until the next monitor run that completes: normally within one cadence
   (5 minutes), longer when GitHub delays or drops a scheduled run or a run fails, and one more
   cycle when the label arrives after a run has taken its snapshot of the pull request. The pull
-  request can merge on the fork result in that window. A maintainer who adds the label to a pull
-  request whose fork CI is green waits for the `pending` before merging or enabling auto-merge,
+  request can merge on the fork result in that window. A maintainer who adds the label by hand
+  then rebases the pull request or closes and reopens it, since the label does not start project
+  CI. A rebase moves the head to a commit without the fork result, which closes the window; after a
+  close and reopen, the maintainer waits for the `pending` before merging or enabling auto-merge,
   or starts the monitor by hand (`workflow_dispatch`). A strict merge-time guarantee needs a
   required check bound to a source, which is out of scope here. Revoking a `success` is never
   limited by the per-run budget of commit statuses; posting the project CI `success` is.
