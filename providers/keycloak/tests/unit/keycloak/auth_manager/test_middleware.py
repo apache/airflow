@@ -19,7 +19,7 @@ from __future__ import annotations
 import base64
 import json
 import time
-from unittest.mock import AsyncMock, MagicMock, Mock, call, create_autospec, patch
+from unittest.mock import ANY, AsyncMock, MagicMock, Mock, call, create_autospec, patch
 
 import pytest
 from fastapi import Depends, FastAPI, Request
@@ -523,7 +523,18 @@ class TestKeycloakJWTMiddlewareInTheApiServer:
     """The middlewares as the API server installs them, in front of a route that needs the user."""
 
     @pytest.fixture
-    def client(self):
+    def token_validator(self):
+        token_validator = Mock(spec=JWTValidator)
+        token_validator.avalidated_claims.return_value = {"user_id": "user_id", "name": "name"}
+        return token_validator
+
+    @pytest.fixture
+    def revoke_token(self):
+        with patch.object(KeycloakAuthManager, "revoke_token", autospec=True) as revoke_token:
+            yield revoke_token
+
+    @pytest.fixture
+    def client(self, token_validator, revoke_token):
         from airflow.api_fastapi.core_api.app import init_middlewares
         from airflow.api_fastapi.core_api.security import get_user
 
@@ -536,8 +547,6 @@ class TestKeycloakJWTMiddlewareInTheApiServer:
             }
         ):
             auth_manager = KeycloakAuthManager()
-        token_validator = Mock(spec=JWTValidator)
-        token_validator.avalidated_claims = AsyncMock(return_value={"user_id": "user_id", "name": "name"})
 
         app = FastAPI()
 
@@ -570,7 +579,7 @@ class TestKeycloakJWTMiddlewareInTheApiServer:
             if cookie.startswith(f"{COOKIE_NAME_JWT_TOKEN}=") and "Max-Age=0" in cookie
         ]
 
-    def test_session_with_keycloak_tokens_keeps_its_cookie(self, client):
+    def test_session_with_keycloak_tokens_keeps_its_cookie(self, client, revoke_token):
         client.cookies.set(COOKIE_NAME_JWT_TOKEN, "token")
         client.cookies.set(COOKIE_NAME_ACCESS_TOKEN, keycloak_access_token(expires_in=300))
         client.cookies.set(COOKIE_NAME_REFRESH_TOKEN, "refresh_token")
@@ -580,8 +589,9 @@ class TestKeycloakJWTMiddlewareInTheApiServer:
         assert response.status_code == 200
         assert response.json() == {"name": "name"}
         assert self.cleared_jwt_cookies(response) == []
+        revoke_token.assert_not_called()
 
-    def test_expired_keycloak_session_answers_401_and_clears_the_cookie(self, client):
+    def test_expired_keycloak_session_answers_401_and_clears_the_cookie(self, client, revoke_token):
         client.cookies.set(COOKIE_NAME_JWT_TOKEN, "token")
         client.cookies.set(COOKIE_NAME_ACCESS_TOKEN, keycloak_access_token(expires_in=-300))
         client.cookies.set(COOKIE_NAME_REFRESH_TOKEN, "refresh_token")
@@ -590,11 +600,27 @@ class TestKeycloakJWTMiddlewareInTheApiServer:
 
         assert response.status_code == 401
         assert self.cleared_jwt_cookies(response) != []
+        revoke_token.assert_called_once_with(ANY, "token")
 
-    def test_session_without_keycloak_cookies_answers_401_and_clears_the_cookie(self, client):
+    def test_session_without_keycloak_cookies_answers_401_and_clears_the_cookie(self, client, revoke_token):
         client.cookies.set(COOKIE_NAME_JWT_TOKEN, "token")
 
         response = client.get("/user")
 
         assert response.status_code == 401
         assert self.cleared_jwt_cookies(response) != []
+        revoke_token.assert_called_once_with(ANY, "token")
+
+    def test_rejected_jwt_answers_401_and_clears_the_cookie_without_revoking(
+        self, client, token_validator, revoke_token
+    ):
+        token_validator.avalidated_claims.side_effect = InvalidTokenError("Token has been revoked")
+        client.cookies.set(COOKIE_NAME_JWT_TOKEN, "token")
+        client.cookies.set(COOKIE_NAME_ACCESS_TOKEN, keycloak_access_token(expires_in=300))
+        client.cookies.set(COOKIE_NAME_REFRESH_TOKEN, "refresh_token")
+
+        response = client.get("/user")
+
+        assert response.status_code == 401
+        assert self.cleared_jwt_cookies(response) != []
+        revoke_token.assert_not_called()
