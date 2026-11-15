@@ -168,7 +168,8 @@ The same applies to every other workflow with a `schedule` trigger: a fork that 
 Actions gets all of their crons too. Their jobs carry a job-level
 `if: github.repository == 'apache/airflow'` guard, combined with
 `github.event_name != 'schedule'` when the workflow has other triggers that should still run
-in a fork. A new scheduled workflow needs the same guard. The guard skips the jobs but not
+in a fork. A new scheduled workflow needs the same guard, which the
+`check-scheduled-workflows-skip-forks` prek hook enforces. The guard skips the jobs but not
 the run itself, so the frequent crons still leave an empty run in every enabled fork. Check 8 of
 `breeze ci audit` offers to disable these workflows in the fork.
 
