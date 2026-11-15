@@ -30,6 +30,7 @@ from airflow.providers.cncf.kubernetes.triggers.kueue import (
     KubernetesKueueJobTrigger,
     KueueJobState,
     build_job_event,
+    build_pod_label_selector,
     collect_xcom_results,
     get_job_state,
     list_job_pods,
@@ -40,6 +41,7 @@ from airflow.triggers.base import TriggerEvent
 TRIGGER_PATH = "airflow.providers.cncf.kubernetes.triggers.kueue.{}"
 JOB_NAME = "job-test"
 NAMESPACE = "team-a"
+POD_LABEL_SELECTOR = "batch.kubernetes.io/controller-uid=job-uid"
 TRIGGER_KWARGS = {
     "job_name": JOB_NAME,
     "job_namespace": NAMESPACE,
@@ -61,7 +63,11 @@ def build_job(suspend: bool, condition: str | None = None, succeeded: int | None
     )
     return k8s.V1Job(
         metadata=k8s.V1ObjectMeta(name=JOB_NAME, namespace=NAMESPACE),
-        spec=k8s.V1JobSpec(suspend=suspend, template=k8s.V1PodTemplateSpec()),
+        spec=k8s.V1JobSpec(
+            suspend=suspend,
+            template=k8s.V1PodTemplateSpec(),
+            selector=k8s.V1LabelSelector(match_labels={"batch.kubernetes.io/controller-uid": "job-uid"}),
+        ),
         status=k8s.V1JobStatus(conditions=conditions, succeeded=succeeded),
     )
 
@@ -89,7 +95,7 @@ def build_pod(
         metadata=k8s.V1ObjectMeta(
             name=name,
             namespace=NAMESPACE,
-            labels={"try_number": "1", "batch.kubernetes.io/job-name": JOB_NAME},
+            labels={"try_number": "1", "batch.kubernetes.io/controller-uid": "job-uid"},
         ),
         status=k8s.V1PodStatus(phase=phase, container_statuses=statuses),
     )
@@ -107,6 +113,35 @@ def build_pod(
 )
 def test_get_job_state(job, expected_state):
     assert get_job_state(job) == expected_state
+
+
+@pytest.mark.parametrize(
+    ("selector", "expected_label_selector"),
+    [
+        pytest.param(
+            k8s.V1LabelSelector(match_labels={"batch.kubernetes.io/controller-uid": "job-uid"}),
+            POD_LABEL_SELECTOR,
+            id="generated-selector",
+        ),
+        pytest.param(
+            k8s.V1LabelSelector(
+                match_labels={"team": "a", "app": "train"},
+                match_expressions=[
+                    k8s.V1LabelSelectorRequirement(key="tier", operator="In", values=["gpu", "cpu"]),
+                    k8s.V1LabelSelectorRequirement(key="env", operator="NotIn", values=["dev"]),
+                    k8s.V1LabelSelectorRequirement(key="run", operator="Exists"),
+                    k8s.V1LabelSelectorRequirement(key="skip", operator="DoesNotExist"),
+                ],
+            ),
+            "app=train,team=a,tier in (gpu,cpu),env notin (dev),run,!skip",
+            id="manual-selector",
+        ),
+    ],
+)
+def test_build_pod_label_selector(selector, expected_label_selector):
+    job = k8s.V1Job(spec=k8s.V1JobSpec(template=k8s.V1PodTemplateSpec(), selector=selector))
+
+    assert build_pod_label_selector(job) == expected_label_selector
 
 
 class TestCollectXcomResults:
@@ -127,10 +162,10 @@ class TestCollectXcomResults:
         self.pod_manager.extract_xcom.return_value = '{"a": 1}'
         xcom_results = {"already-read": "{}"}
 
-        collect_xcom_results(self.client, self.pod_manager, JOB_NAME, NAMESPACE, "base", xcom_results)
+        collect_xcom_results(self.client, self.pod_manager, build_job(False), "base", xcom_results)
 
         self.client.list_namespaced_pod.assert_called_once_with(
-            namespace=NAMESPACE, label_selector=f"batch.kubernetes.io/job-name={JOB_NAME}"
+            namespace=NAMESPACE, label_selector=POD_LABEL_SELECTOR
         )
         self.pod_manager.extract_xcom.assert_called_once_with(ready, ignore_kill_failure=False)
         assert xcom_results == {"already-read": "{}", "ready": '{"a": 1}'}
@@ -163,7 +198,7 @@ class TestCollectXcomResults:
         xcom_results: dict[str, str] = {}
 
         with expectation:
-            collect_xcom_results(self.client, self.pod_manager, JOB_NAME, NAMESPACE, "base", xcom_results)
+            collect_xcom_results(self.client, self.pod_manager, build_job(False), "base", xcom_results)
         assert xcom_results == {}
 
 
@@ -173,7 +208,7 @@ def test_list_job_pods_retries_transient_api_errors():
     pods = [build_pod("pod")]
     client.list_namespaced_pod.side_effect = [ApiException(status=503), k8s.V1PodList(items=pods)]
 
-    assert list_job_pods(client, JOB_NAME, NAMESPACE) == pods
+    assert list_job_pods(client, NAMESPACE, POD_LABEL_SELECTOR) == pods
     assert client.list_namespaced_pod.call_count == 2
 
 
@@ -220,7 +255,7 @@ class TestKubernetesKueueJobTrigger:
         ]
         mock_hook.get_job_status.side_effect = jobs
 
-        def read_xcom(client, pod_manager, job_name, namespace, base_container_name, xcom_results):
+        def read_xcom(client, pod_manager, job, base_container_name, xcom_results):
             xcom_results["pod"] = "{}"
 
         mock_collect.side_effect = read_xcom

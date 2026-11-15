@@ -214,14 +214,19 @@ class KubernetesStartKueueJobOperator(KubernetesJobOperator):
                 return build_job_event(job, xcom_results)
             if state == KueueJobState.RUNNING and self.do_xcom_push:
                 collect_xcom_results(
-                    self.client, self.pod_manager, job_name, namespace, self.base_container_name, xcom_results
+                    self.client, self.pod_manager, job, self.base_container_name, xcom_results
                 )
             time.sleep(self.job_poll_interval)
 
     def execute_complete(self, context: Context, event: dict, **kwargs):
+        if not isinstance(event.get("xcom_result"), dict):
+            # Event of the KubernetesJobTrigger that provider versions before KubernetesKueueJobTrigger
+            # deferred to, for a task deferred before the provider upgrade
+            return super().execute_complete(context, event, **kwargs)
         # The pods found before a preemption by Kueue were deleted: read the ones the Job has now
         pods = sorted(
-            list_job_pods(self.client, event["name"], event["namespace"]), key=lambda pod: pod.metadata.name
+            list_job_pods(self.client, event["namespace"], event["pod_label_selector"]),
+            key=lambda pod: pod.metadata.name,
         )
         for pod in pods:
             self.log_matching_pod(pod=pod, context=context)
@@ -262,8 +267,9 @@ class KubernetesStartKueueJobOperator(KubernetesJobOperator):
         stay in its queue, and be run if Kueue admits it later.
         """
         ti = context["ti"]
-        name = ti.xcom_pull(task_ids=ti.task_id, key="job_name")
-        namespace = ti.xcom_pull(task_ids=ti.task_id, key="job_namespace")
+        # Without map_indexes, xcom_pull returns the values of every map index of a mapped task
+        name = ti.xcom_pull(task_ids=ti.task_id, key="job_name", map_indexes=ti.map_index)
+        namespace = ti.xcom_pull(task_ids=ti.task_id, key="job_namespace", map_indexes=ti.map_index)
         if not name:
             return
         self.log.info("Deleting the job '%s' as the task timed out while waiting for it", name)

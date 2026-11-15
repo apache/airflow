@@ -41,9 +41,6 @@ from airflow.triggers.base import BaseTrigger, TriggerEvent
 if TYPE_CHECKING:
     from kubernetes.client import CoreV1Api, models as k8s
 
-# Set by the Job controller on the pods it creates for a Job
-JOB_NAME_LABEL = "batch.kubernetes.io/job-name"
-
 
 class KueueJobState(str, Enum):
     """State of a Job run through Kueue."""
@@ -71,6 +68,28 @@ def get_job_state(job: k8s.V1Job) -> KueueJobState:
     return KueueJobState.RUNNING
 
 
+def build_pod_label_selector(job: k8s.V1Job) -> str:
+    """
+    Return the label selector of the pods of the Job, built from its ``spec.selector``.
+
+    Kubernetes adds the ``batch.kubernetes.io/job-name`` label to the pods only without ``manualSelector``,
+    while ``spec.selector`` matches them in both modes.
+    """
+    selector = job.spec.selector
+    requirements = [f"{key}={value}" for key, value in sorted((selector.match_labels or {}).items())]
+    for expression in selector.match_expressions or []:
+        values = ",".join(expression.values or [])
+        requirements.append(
+            {
+                "In": f"{expression.key} in ({values})",
+                "NotIn": f"{expression.key} notin ({values})",
+                "Exists": expression.key,
+                "DoesNotExist": f"!{expression.key}",
+            }[expression.operator]
+        )
+    return ",".join(requirements)
+
+
 def build_job_event(job: k8s.V1Job, xcom_results: dict[str, str]) -> dict[str, Any]:
     """
     Build the event of a finished Job, as passed to ``KubernetesStartKueueJobOperator.execute_complete``.
@@ -87,6 +106,7 @@ def build_job_event(job: k8s.V1Job, xcom_results: dict[str, str]) -> dict[str, A
         if error_message
         else "Job completed successfully",
         "job": job.to_dict(),
+        "pod_label_selector": build_pod_label_selector(job),
         "xcom_result": xcom_results,
     }
 
@@ -101,11 +121,9 @@ def get_succeeded_pod_xcoms(pods: Iterable[k8s.V1Pod], xcom_results: dict[str, s
 
 
 @generic_api_retry
-def list_job_pods(client: CoreV1Api, job_name: str, namespace: str) -> list[k8s.V1Pod]:
-    """Return the pods the Job has now."""
-    return client.list_namespaced_pod(
-        namespace=namespace, label_selector=f"{JOB_NAME_LABEL}={job_name}"
-    ).items
+def list_job_pods(client: CoreV1Api, namespace: str, label_selector: str) -> list[k8s.V1Pod]:
+    """Return the pods the Job has now, selected by ``build_pod_label_selector``."""
+    return client.list_namespaced_pod(namespace=namespace, label_selector=label_selector).items
 
 
 @generic_api_retry
@@ -123,8 +141,7 @@ def is_pod_deleted(client: CoreV1Api, pod: k8s.V1Pod) -> bool:
 def collect_xcom_results(
     client: CoreV1Api,
     pod_manager: PodManager,
-    job_name: str,
-    namespace: str,
+    job: k8s.V1Job,
     base_container_name: str,
     xcom_results: dict[str, str],
 ) -> None:
@@ -134,7 +151,7 @@ def collect_xcom_results(
     Reading the XCom also stops the XCom sidecar: until then the pod, and so the Job, cannot finish.
     Pods already read are skipped, so this is called at each poll.
     """
-    for pod in list_job_pods(client, job_name, namespace):
+    for pod in list_job_pods(client, job.metadata.namespace, build_pod_label_selector(job)):
         if (
             pod.metadata.name in xcom_results
             or not container_is_terminated(pod, base_container_name)
@@ -234,18 +251,13 @@ class KubernetesKueueJobTrigger(BaseTrigger):
                 yield TriggerEvent(build_job_event(job, xcom_results))
                 return
             if state == KueueJobState.RUNNING and self.do_xcom_push:
-                await asyncio.to_thread(self._collect_xcom_results, xcom_results)
+                await asyncio.to_thread(self._collect_xcom_results, job, xcom_results)
             await asyncio.sleep(self.poll_interval)
 
-    def _collect_xcom_results(self, xcom_results: dict[str, str]) -> None:
+    def _collect_xcom_results(self, job: k8s.V1Job, xcom_results: dict[str, str]) -> None:
         # Run in a thread: the sync client loads its connection and kube config on first use
         collect_xcom_results(
-            self.sync_hook.core_v1_client,
-            self.pod_manager,
-            self.job_name,
-            self.job_namespace,
-            self.base_container_name,
-            xcom_results,
+            self.sync_hook.core_v1_client, self.pod_manager, job, self.base_container_name, xcom_results
         )
 
     @cached_property
