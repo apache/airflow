@@ -162,7 +162,14 @@ class WasbRemoteLogIO(LoggingMixin):  # noqa: D101
         prefix = os.path.join(self.remote_base, relative_path)
         blob_names = []
         try:
-            blob_names = self.hook.get_blobs_list(container_name=self.wasb_container, prefix=prefix)
+            if prefix.endswith("/"):
+                # A directory read (e.g. a trigger's logs) must include nested blobs such as rotated/
+                # parts; the delimited listing returns those as prefixes, which are not readable blobs.
+                blob_names = self.hook.get_blobs_list_recursive(
+                    container_name=self.wasb_container, prefix=prefix
+                )
+            else:
+                blob_names = self.hook.get_blobs_list(container_name=self.wasb_container, prefix=prefix)
         except HttpResponseError as e:
             messages.append(f"tried listing blobs with prefix={prefix} and container={self.wasb_container}")
             messages.append(f"could not list blobs {e}")

@@ -493,3 +493,56 @@ def test_upload_skips_path_outside_base_log_folder(tmp_path, caplog):
     assert secret.exists()
     assert outside.exists()
     assert "outside base_log_folder" in caplog.text
+
+
+def test_read_directory_lists_nested_blobs_recursively(tmp_path):
+    """A watcher's rotated parts sit under ``rotated/`` and must be read as blobs, not as a prefix."""
+    blobs = {
+        "remote/log/location/trigger_id=1/triggerer_job_id=2/trigger.log": "current",
+        "remote/log/location/trigger_id=1/triggerer_job_id=2/rotated/trigger.log.1": "rotated",
+    }
+    mock_hook = mock.MagicMock()
+    mock_hook.blob_service_client.primary_endpoint = "https://storage-account.blob.core.windows.net/"
+    mock_hook.blob_service_client.account_name = "storage-account"
+    mock_hook.get_blobs_list_recursive.return_value = list(blobs)
+    mock_hook.read_file.side_effect = lambda container, name: blobs[name]
+    subject = WasbRemoteLogIO(
+        remote_base="remote/log/location",
+        base_log_folder=tmp_path,
+        delete_local_copy=False,
+        wasb_container="wasb-container",
+    )
+
+    with mock.patch.object(WasbRemoteLogIO, "hook", new=mock_hook):
+        messages, logs = subject.read("trigger_id=1/triggerer_job_id=2/", None)
+
+    mock_hook.get_blobs_list_recursive.assert_called_once_with(
+        container_name="wasb-container",
+        prefix=os.path.join("remote/log/location", "trigger_id=1/triggerer_job_id=2/"),
+    )
+    mock_hook.get_blobs_list.assert_not_called()
+    assert logs == ["rotated", "current"]
+    assert not any("Unable to read remote blob" in m for m in messages)
+
+
+def test_read_file_lists_blobs_one_level(tmp_path):
+    mock_hook = mock.MagicMock()
+    mock_hook.blob_service_client.primary_endpoint = "https://storage-account.blob.core.windows.net/"
+    mock_hook.blob_service_client.account_name = "storage-account"
+    mock_hook.get_blobs_list.return_value = ["remote/log/location/1.log"]
+    mock_hook.read_file.return_value = "Log line"
+    subject = WasbRemoteLogIO(
+        remote_base="remote/log/location",
+        base_log_folder=tmp_path,
+        delete_local_copy=False,
+        wasb_container="wasb-container",
+    )
+
+    with mock.patch.object(WasbRemoteLogIO, "hook", new=mock_hook):
+        _, logs = subject.read("1.log", None)
+
+    mock_hook.get_blobs_list.assert_called_once_with(
+        container_name="wasb-container", prefix=os.path.join("remote/log/location", "1.log")
+    )
+    mock_hook.get_blobs_list_recursive.assert_not_called()
+    assert logs == ["Log line"]
