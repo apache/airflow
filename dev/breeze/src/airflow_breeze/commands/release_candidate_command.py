@@ -35,6 +35,7 @@ from airflow_breeze.commands.common_options import (
 )
 from airflow_breeze.commands.release_management_group import release_management_group
 from airflow_breeze.global_constants import (
+    APACHE_AIRFLOW_GITHUB_REPOSITORY,
     TarBallType,
     get_airflow_version,
     get_airflowctl_version,
@@ -44,6 +45,7 @@ from airflow_breeze.utils.confirm import confirm_action
 from airflow_breeze.utils.console import console_print
 from airflow_breeze.utils.custom_param_types import BetterChoice
 from airflow_breeze.utils.environment_check import is_ci_environment
+from airflow_breeze.utils.git_remotes import get_github_repo
 from airflow_breeze.utils.path_utils import (
     AIRFLOW_DIST_PATH,
     AIRFLOW_ROOT_PATH,
@@ -78,19 +80,7 @@ def validate_remote_tracks_apache_airflow(remote_name):
 
     remote_url = result.stdout.strip()
 
-    # Check if it's the apache/airflow repository
-    apache_patterns = [
-        "https://github.com/apache/airflow",
-        "https://github.com/apache/airflow.git",
-        "git@github.com:apache/airflow",
-        "git@github.com:apache/airflow.git",
-        "ssh://git@github.com/apache/airflow",
-        "ssh://git@github.com/apache/airflow.git",
-    ]
-
-    is_apache_repo = any(pattern in remote_url for pattern in apache_patterns)
-
-    if not is_apache_repo:
+    if (get_github_repo(remote_url) or "").casefold() != APACHE_AIRFLOW_GITHUB_REPOSITORY:
         console_print(f"[error]Remote '{remote_name}' does not track apache/airflow!")
         console_print(f"Remote URL: {remote_url}")
         console_print("Expected patterns: apache/airflow")

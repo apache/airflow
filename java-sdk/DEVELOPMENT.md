@@ -55,7 +55,7 @@ Gradle only appends to the file, so the script empties the component list before
 
 Review every entry in the diff. Generating the file records what the repositories served at that moment; it does not make those bytes trustworthy. Cross-check new coordinates and checksums against the dependency's official release information, and never bypass a failure with lenient or disabled verification.
 
-Not covered: the `example/`, `scala_spark_example/`, and `kubernetes-tests/lang_sdk/java_example/` builds, the JDK auto-provisioned by the foojay resolver, and the Supervisor Schema fetched by `:sdk:syncSupervisorSchema`.
+Not covered: the `example/`, `scala_spark_example/`, and `kubernetes-tests/lang_sdk/java_example/` builds, and the JDK auto-provisioned by the foojay resolver.
 
 ## Building documentation
 
@@ -207,9 +207,10 @@ credentials instead: `ASF_NEXUS_USERNAME`, `ASF_NEXUS_PASSWORD`, `SIGNING_KEY`,
 and `SIGNING_PASSWORD`. This is especially useful on e.g. CI.
 
 *NOTE:* We enable Gradle's configuration cache globally, but the staging tasks
-(`publishToApache`, `closeApacheStagingRepository`, `releaseApacheStagingRepository`)
-talk to the Nexus REST API and are not configuration-cache compatible. Hence
-the `--no-configuration-cache` flag on the release commands.
+(`publishToApache`, `closeApacheStagingRepository`, `findApacheStagingRepository`,
+`releaseApacheStagingRepository`) talk to the Nexus REST API and are not
+configuration-cache compatible. Hence the `--no-configuration-cache` flag on the
+release commands.
 
 ### Verify the upload
 
@@ -345,7 +346,14 @@ Pre-send checklist:
 
 * Every staged artifact above resolves in the Nexus staging repository. Cross
   check against the BOM, not just this list from memory.
-* `Changes since rc<N-1>` and the vote deadline are filled in.
+* `Changes since rc<N-1>` and the vote deadline are filled in. Compute the
+  deadline rather than typing it, 72 hours from when you send the email:
+
+  ```bash
+  date -u -d '+72 hours' '+%Y-%m-%d %H:%M UTC'  # GNU date (Linux)
+  date -u -v+72H '+%Y-%m-%d %H:%M UTC'          # BSD date (macOS)
+  ```
+
 * Run `grep '<' email.txt` on the rendered email and confirm **no output** —
   any match means a template placeholder (`<N>`, `<NNNN>`, `<YYYY-MM-DD ...>`,
   etc.) was left unfilled.
@@ -360,8 +368,11 @@ manager, before sending the vote — should run against the source package in
 1. **Checksum.** Confirm the published SHA-512 matches the downloaded tarball:
 
    ```bash
-   sha512sum -c apache-airflow-java-sdk-<VERSION>-src.tar.gz.sha512
+   shasum -a 512 -c apache-airflow-java-sdk-<VERSION>-src.tar.gz.sha512
    ```
+
+   `shasum` ships with both macOS and most Linux distributions; `sha512sum -c`
+   works too on Linux but is not installed on macOS by default.
 
 2. **Signature.** Import the `KEYS` file and verify the GPG signature:
 
@@ -389,6 +400,16 @@ manager, before sending the vote — should run against the source package in
 
    Any remaining diff output is unexpected and should block the vote.
 
+   If the vote email says the source package was built from a commit before the
+   tag, diff the tarball against that commit instead, then confirm the tag adds
+   nothing to the SDK directory except the version bump. Limit the diff to the
+   SDK directory; the tag usually sits on a release branch, so an unscoped diff
+   also lists unrelated commits that landed in between:
+
+   ```bash
+   git -C tag-checkout diff <SOURCE-COMMIT> java-sdk/<VERSION>-rc<N> --stat -- java-sdk/
+   ```
+
 4. **No binary files.** ASF source releases must not contain compiled code.
    Scan for anything that isn't text:
 
@@ -414,6 +435,23 @@ manager, before sending the vote — should run against the source package in
    `gradle/wrapper/gradle-wrapper.properties` to fill in
    `<GRADLE-DISTRIBUTION-URL>` and `<GRADLE-DISTRIBUTION-SHA>`.
 
+   Run `gradle wrapper` with that same Gradle version. The task configures
+   `buildSrc`, and a different Gradle resolves a `kotlin-dsl` plugin version that
+   `verification-metadata.xml` does not pin, so strict verification fails before
+   the wrapper is written. If your installed Gradle differs, download the pinned
+   distribution, check it against the same SHA-256, and use it directly:
+
+   ```bash
+   curl -LO <GRADLE-DISTRIBUTION-URL>
+   echo "<GRADLE-DISTRIBUTION-SHA>  gradle-<GRADLE-VERSION>-bin.zip" | shasum -a 256 -c
+   unzip -q gradle-<GRADLE-VERSION>-bin.zip
+   cd apache-airflow-java-sdk-<VERSION>
+   ../gradle-<GRADLE-VERSION>/bin/gradle build
+   ```
+
+   That Gradle version must also support the JDK it runs on; for example,
+   Gradle 8.14 cannot run on JDK 26.
+
 6. **Staged-binary smoke test.** Resolve the staged Nexus artifacts from a
    throwaway project to confirm they're actually consumable, following the
    same pattern as the "Dry-run against a local repository" step: point a
@@ -427,15 +465,47 @@ manager, before sending the vote — should run against the source package in
 Reply with a `[RESULT][VOTE]` tally, then:
 
 1. **Release** the staging repository so the artifacts sync to Maven Central
-   (a few hours). Nothing is rebuilt or re-signed:
+   (a few hours). Nothing is rebuilt or re-signed.
+
+   The release usually runs in a new Gradle invocation, days after the one that
+   staged the artifacts, so Gradle no longer knows the staging repository ID.
+   Run `findApacheStagingRepository` first to look it up:
 
    ```bash
-   ./gradlew releaseApacheStagingRepository --no-configuration-cache
+   ./gradlew findApacheStagingRepository releaseApacheStagingRepository \
+     --no-configuration-cache \
+     -PprojectVersion=<VERSION>
    ```
 
-   (Or click *Release* on the repository in the Nexus UI.)
+   The lookup matches the repository description that staging set,
+   `org.apache.airflow:airflow-java-sdk:<VERSION>`. Pass `-PprojectVersion` so
+   the description matches even when the checkout is on a `-SNAPSHOT` version.
+   The lookup fails if more than one repository matches, so drop staging
+   repositories from failed candidates of the same version first.
 
-2. **Move** the source package from `dist/dev` to `dist/release`:
+   If the lookup does not work, click *Release* on the repository in the Nexus
+   UI, or promote it through the Nexus REST API with your Nexus token
+   (`curl` prompts for the password):
+
+   ```bash
+   curl -fsS -u "<nexus-token-username>" -H "Content-Type: application/json" \
+     -X POST https://repository.apache.org/service/local/staging/bulk/promote \
+     -d '{"data":{"stagedRepositoryIds":["orgapacheairflow-<NNNN>"],"description":"Apache Airflow Java SDK <VERSION>"}}'
+   ```
+
+2. **Drop** the staging repository once the release has reached Maven Central.
+   Nexus keeps a released repository listed under *Staging Repositories* until
+   it is dropped. Wait until the BOM metadata lists the new version as the
+   release:
+
+   ```bash
+   curl -fsS https://repo1.maven.org/maven2/org/apache/airflow/airflow-sdk-bom/maven-metadata.xml \
+     | grep '<release>'
+   ```
+
+   Then select the repository in the Nexus UI and click *Drop*.
+
+3. **Move** the source package from `dist/dev` to `dist/release`:
 
    ```bash
    svn mv https://dist.apache.org/repos/dist/dev/airflow/java-sdk/<VERSION>-rc<N> \
@@ -443,7 +513,19 @@ Reply with a `[RESULT][VOTE]` tally, then:
           -m "Release Apache Airflow Java SDK <VERSION>"
    ```
 
-3. **Tag** the final version on the same commit that was voted:
+   Then remove the release this one supersedes. Per the
+   [ASF release distribution policy](https://infra.apache.org/release-distribution.html#archival),
+   `dist/release` should hold the latest release of each line still under
+   development, and older ones remain available from `archive.apache.org`. Confirm the previous release is on the
+   archive before removing it:
+
+   ```bash
+   curl -fsI https://archive.apache.org/dist/airflow/java-sdk/<PREVIOUS-VERSION>/apache-airflow-java-sdk-<PREVIOUS-VERSION>-src.tar.gz
+   svn rm https://dist.apache.org/repos/dist/release/airflow/java-sdk/<PREVIOUS-VERSION> \
+          -m "Remove superseded Apache Airflow Java SDK <PREVIOUS-VERSION>"
+   ```
+
+4. **Tag** the final version on the same commit that was voted:
 
    ```bash
    git tag -s java-sdk/<VERSION> <voted-commit-hash> -m "Apache Airflow Java SDK <VERSION>"
@@ -452,28 +534,42 @@ Reply with a `[RESULT][VOTE]` tally, then:
 
    Keep the RC tag for traceability.
 
-4. Publish a **GitHub release**. Attach the **voted, signed** source artifacts.
-   From the directory holding the three signed files (e.g. `dist/release`):
+   Release branches are occasionally rewritten, which can leave the voted
+   commit reachable only through the RC tag. That does not block the Java
+   release, but check it so you can mention it in the GitHub release if
+   needed:
 
    ```bash
+   git fetch upstream
+   git merge-base --is-ancestor <voted-commit-hash> upstream/<release-branch> \
+     || echo "Voted commit is not on <release-branch>"
+   ```
+
+5. Publish a **GitHub release**. Attach the **voted, signed** source artifacts,
+   exported from `dist/release` and verified again:
+
+   ```bash
+   svn export https://dist.apache.org/repos/dist/release/airflow/java-sdk/<VERSION>
+   cd <VERSION>
+   shasum -a 512 -c apache-airflow-java-sdk-<VERSION>-src.tar.gz.sha512
+   gpg --verify apache-airflow-java-sdk-<VERSION>-src.tar.gz.asc \
+       apache-airflow-java-sdk-<VERSION>-src.tar.gz
+
    gh release create java-sdk/<VERSION> \
      --repo apache/airflow \
      --title "Apache Airflow Java SDK <VERSION>" \
-     --notes "See the Java SDK README for the features in this release." \
+     --notes "<the Changes since line from the vote email>" \
      --verify-tag \
+     --latest=false \
      --prerelease \
      apache-airflow-java-sdk-<VERSION>-src.tar.gz \
      apache-airflow-java-sdk-<VERSION>-src.tar.gz.asc \
      apache-airflow-java-sdk-<VERSION>-src.tar.gz.sha512
    ```
 
-   Drop the `--prerelease` flag if this is not a prerelease.
-
-5. **Announce.** Wait ~1 hour after promoting so Maven Central has synced, then
-   send a plain-text `[ANNOUNCE]` email to `users@airflow.apache.org` (cc
-   `dev@airflow.apache.org`) using the "Announce email template" below, and
-   record the release (version + date) in the ASF Committee Report Helper:
-   <https://reporter.apache.org/addrelease.html?airflow>.
+   Drop the `--prerelease` flag if this is not a prerelease. Keep
+   `--latest=false` either way. Otherwise the SDK release replaces Airflow core
+   as the repository's *Latest* release.
 
 6. Publish the **API docs.** Trigger the *Publish Docs to S3* workflow in
    `apache/airflow` for the release tag:
@@ -488,8 +584,25 @@ Reply with a `[RESULT][VOTE]` tally, then:
    Optionally use `destination=staging` first to check, then `live`. It may be
    possible to `auto` instead, which resolves to `live` for a release tag.
 
-   Confirm that `https://airflow.apache.org/docs/java-sdk/stable/` resolves
-   (allow time for cache invalidation) and `/docs/java-sdk/` redirects to it.
+   Each run spends about 15 minutes building the CI image before the SDK jobs
+   start. If you are releasing the TypeScript SDK at the same time, one run can
+   build both with `-f include-docs="java-sdk ts-sdk"`, from any ref where both
+   SDK directories match their voted sources.
+
+   Confirm that `https://airflow.apache.org/docs/java-sdk/<VERSION>/` resolves.
+   `https://airflow.apache.org/docs/java-sdk/stable/` and the `/docs/java-sdk/`
+   redirect to it can show the previous version in the CDN for a while after
+   publishing.
+
+7. **Announce.** Wait ~1 hour after promoting so Maven Central has synced, then
+   send a plain-text `[ANNOUNCE]` email to `users@airflow.apache.org` (cc
+   `dev@airflow.apache.org`) using the "Announce email template" below.
+
+8. **Record** the release (version and date) in the ASF Committee Report
+   Helper: <https://reporter.apache.org/addrelease.html?airflow>. Name it
+   `Java SDK <VERSION>`, for example `Java SDK 1.0.0`, to match earlier entries
+   such as `Java SDK 1.0.0-beta1` and `Task SDK x.y.z`. The other language SDKs
+   use the same pattern (`TypeScript SDK <VERSION>`, `Go SDK <VERSION>`).
 
 ### Announce email template
 

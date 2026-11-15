@@ -31,6 +31,8 @@ from airflow.providers.common.compat.sdk import (
 class _PySparkDecoratedOperator(DecoratedOperator, PySparkOperator):
     custom_operator_name = "@task.pyspark"
 
+    template_fields: Sequence[str] = (*DecoratedOperator.template_fields, "conn_id", "config_kwargs")
+
     def __init__(
         self,
         *,

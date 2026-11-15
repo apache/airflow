@@ -39,6 +39,7 @@ from airflow.providers.google.cloud.triggers.dataproc import (
 )
 from airflow.providers.google.cloud.utils.dataproc import DataprocOperationType
 from airflow.triggers.base import TriggerEvent
+from airflow.utils.state import TaskInstanceState
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_3_PLUS
 
@@ -448,6 +449,25 @@ class TestDataprocClusterTrigger:
             "TaskInstance with dag_id: test_dag, task_id: test_task, "
             f"run_id: test_run and map_index: {map_index} is not found"
         )
+
+    @pytest.mark.asyncio
+    @pytest.mark.skipif(
+        not AIRFLOW_V_3_0_PLUS, reason="The task state is read through the task SDK on Airflow 3 only"
+    )
+    @pytest.mark.parametrize(
+        ("map_index", "state_key"), [(-1, "test_task"), (3, "test_task_3")], ids=["unmapped", "mapped"]
+    )
+    @mock.patch("airflow.sdk.execution_time.task_runner.RuntimeTaskInstance.get_task_states", autospec=True)
+    async def test_get_task_state_uses_map_index_key(
+        self, mock_get_task_states, cluster_trigger, map_index, state_key
+    ):
+        """The execution API keys a mapped task instance as ``<task_id>_<map_index>``."""
+        cluster_trigger.task_instance = SimpleNamespace(
+            dag_id="test_dag", task_id="test_task", run_id="test_run", map_index=map_index
+        )
+        mock_get_task_states.return_value = {"test_run": {state_key: TaskInstanceState.DEFERRED}}
+
+        assert await cluster_trigger.get_task_state() == TaskInstanceState.DEFERRED
 
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.google.cloud.triggers.dataproc.DataprocClusterTrigger.get_async_hook")
@@ -917,6 +937,26 @@ class TestDataprocSubmitTrigger:
 
         await async_gen.aclose()
 
+    @pytest.mark.asyncio
+    @pytest.mark.skipif(
+        not AIRFLOW_V_3_0_PLUS or AIRFLOW_V_3_3_PLUS,
+        reason="The task state is read through the task SDK on Airflow 3.0 to 3.2 only",
+    )
+    @pytest.mark.parametrize(
+        ("map_index", "state_key"), [(-1, "test_task"), (3, "test_task_3")], ids=["unmapped", "mapped"]
+    )
+    @mock.patch("airflow.sdk.execution_time.task_runner.RuntimeTaskInstance.get_task_states", autospec=True)
+    async def test_get_task_state_uses_map_index_key(
+        self, mock_get_task_states, submit_trigger, map_index, state_key
+    ):
+        """The execution API keys a mapped task instance as ``<task_id>_<map_index>``."""
+        submit_trigger.task_instance = SimpleNamespace(
+            dag_id="test_dag", task_id="test_task", run_id="test_run", map_index=map_index
+        )
+        mock_get_task_states.return_value = {"test_run": {state_key: TaskInstanceState.DEFERRED}}
+
+        assert await submit_trigger.get_task_state() == TaskInstanceState.DEFERRED
+
 
 class TestDataprocSubmitJobDirectTrigger:
     def test_serialization(self, submit_job_direct_trigger):
@@ -1299,3 +1339,23 @@ class TestDataprocSubmitJobDirectTrigger:
             await async_gen.asend(None)
 
         mock_get_sync_hook.return_value.cancel_job.assert_called_once()
+
+    @pytest.mark.asyncio
+    @pytest.mark.skipif(
+        not AIRFLOW_V_3_0_PLUS or AIRFLOW_V_3_3_PLUS,
+        reason="The task state is read through the task SDK on Airflow 3.0 to 3.2 only",
+    )
+    @pytest.mark.parametrize(
+        ("map_index", "state_key"), [(-1, "test_task"), (3, "test_task_3")], ids=["unmapped", "mapped"]
+    )
+    @mock.patch("airflow.sdk.execution_time.task_runner.RuntimeTaskInstance.get_task_states", autospec=True)
+    async def test_get_task_state_uses_map_index_key(
+        self, mock_get_task_states, submit_job_direct_trigger, map_index, state_key
+    ):
+        """The execution API keys a mapped task instance as ``<task_id>_<map_index>``."""
+        submit_job_direct_trigger.task_instance = SimpleNamespace(
+            dag_id="test_dag", task_id="test_task", run_id="test_run", map_index=map_index
+        )
+        mock_get_task_states.return_value = {"test_run": {state_key: TaskInstanceState.DEFERRED}}
+
+        assert await submit_job_direct_trigger.get_task_state() == TaskInstanceState.DEFERRED

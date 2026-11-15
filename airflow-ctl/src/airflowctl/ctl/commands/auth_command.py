@@ -27,6 +27,7 @@ import sys
 import keyring
 import rich
 from keyring.errors import NoKeyringError
+from rich.markup import escape
 
 from airflowctl.api.client import (
     NEW_API_CLIENT,
@@ -93,7 +94,7 @@ def login(args, api_client=NEW_API_CLIENT) -> None:
             rich.print(success_message)
             return
         except Exception as e:
-            rich.print(f"[red]Login failed: {e}")
+            rich.print(f"[red]Login failed: {escape(str(e))}")
             sys.exit(1)
 
     # Token-based login
@@ -156,7 +157,7 @@ def get_token(args, api_client=NEW_API_CLIENT) -> None:
         )
         print(login_response.access_token)
     except Exception as e:
-        rich.print(f"[red]Token generation failed: {e}[/red]", file=sys.stderr)
+        rich.print(f"[red]Token generation failed: {escape(str(e))}[/red]", file=sys.stderr)
         sys.exit(1)
 
 

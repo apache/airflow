@@ -505,6 +505,154 @@ class TestKiotaRequestAdapterHook:
             assert mock_get_http_response.call_count == 1
 
     @pytest.mark.asyncio
+    async def test_paginated_run_hands_the_pages_collected_so_far_to_the_pagination_function(self):
+        users = load_json_from_resources(dirname(__file__), "..", "resources", "users.json")
+        next_users = load_json_from_resources(dirname(__file__), "..", "resources", "next_users.json")
+        response = mock_json_response(200, users, next_users)
+        collected: list[list] = []
+
+        def pagination_function(response, responses):
+            collected.append(list(responses()))
+            return response.get("@odata.nextLink"), None
+
+        with patch_hook_and_request_adapter(response):
+            hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
+
+            actual = await hook.paginated_run(url="users", pagination_function=pagination_function)
+
+        assert actual == [users, next_users]
+        assert collected == [[users], [users, next_users]]
+
+    @pytest.mark.asyncio
+    async def test_iter_paginated_run(self):
+        users = load_json_from_resources(dirname(__file__), "..", "resources", "users.json")
+        next_users = load_json_from_resources(dirname(__file__), "..", "resources", "next_users.json")
+        response = mock_json_response(200, users, next_users)
+
+        with patch_hook_and_request_adapter(response):
+            hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
+
+            actual = [page async for page in hook.iter_paginated_run(url="users")]
+
+            assert actual == [users, next_users]
+
+    @pytest.mark.asyncio
+    async def test_iter_paginated_run_requests_the_next_page_only_when_asked(self):
+        users = load_json_from_resources(dirname(__file__), "..", "resources", "users.json")
+        next_users = load_json_from_resources(dirname(__file__), "..", "resources", "next_users.json")
+        response = mock_json_response(200, users, next_users)
+
+        with patch_hook_and_request_adapter(response) as mocks:
+            mock_get_http_response = mocks[-1]
+            hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
+            pages = hook.iter_paginated_run(url="users")
+
+            assert await anext(pages) == users
+            assert mock_get_http_response.call_count == 1
+
+            assert await anext(pages) == next_users
+            assert mock_get_http_response.call_count == 2
+
+            await pages.aclose()
+
+    @pytest.mark.asyncio
+    async def test_iter_paginated_run_stops_on_an_empty_response(self):
+        users = load_json_from_resources(dirname(__file__), "..", "resources", "users.json")
+        response = mock_json_response(200, users, None)
+
+        with patch_hook_and_request_adapter(response) as mocks:
+            mock_get_http_response = mocks[-1]
+            hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
+
+            actual = [page async for page in hook.iter_paginated_run(url="users")]
+
+            assert actual == [users]
+            assert mock_get_http_response.call_count == 2
+
+    @pytest.mark.asyncio
+    async def test_iter_paginated_run_refuses_cross_host_next_link(self):
+        first_page = {
+            "@odata.nextLink": "https://attacker.example/v1.0/users?$skiptoken=steal",
+            "value": [{"id": "1"}],
+        }
+        response = mock_json_response(200, first_page)
+
+        with patch_hook_and_request_adapter(response) as mocks:
+            mock_get_http_response = mocks[-1]
+            hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
+
+            with pytest.raises(ValueError, match="attacker.example"):
+                [page async for page in hook.iter_paginated_run(url="users")]
+
+            # The off-host pagination link is refused before it is fetched, so the bearer
+            # token is never sent to the attacker host.
+            assert mock_get_http_response.call_count == 1
+
+    @pytest.mark.asyncio
+    async def test_iter_paginated_run_does_not_read_a_yielded_page_again(self):
+        first_page = {"@odata.count": 4, "value": [{"id": "1"}, {"id": "2"}]}
+        second_page = {"@odata.count": 4, "value": [{"id": "3"}, {"id": "4"}]}
+        response = mock_json_response(200, first_page, second_page, None)
+
+        with patch_hook_and_request_adapter(response) as mocks:
+            mock_get_http_response = mocks[-1]
+            hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
+            ids = []
+
+            async for page in hook.iter_paginated_run(url="users", query_parameters={"$top": 2}):
+                # The consumer owns the page once it is yielded: emptying it must not end the pagination,
+                # which ``default_pagination`` decides from ``value`` and ``@odata.count``.
+                ids.extend(item["id"] for item in page.pop("value"))
+
+            assert ids == ["1", "2", "3", "4"]
+            assert mock_get_http_response.call_count == 3
+
+    @pytest.mark.asyncio
+    async def test_iter_paginated_run_with_a_custom_pagination_function(self):
+        users = load_json_from_resources(dirname(__file__), "..", "resources", "users.json")
+        response = mock_json_response(200, users, users)
+        seen: list[tuple[str, dict | None]] = []
+
+        def skip_once(response, url, query_parameters):
+            seen.append((url, query_parameters))
+            if query_parameters and query_parameters.get("$skip"):
+                return None, query_parameters
+            return url, {"$top": 1, "$skip": 1}
+
+        with patch_hook_and_request_adapter(response) as mocks:
+            mock_get_http_response = mocks[-1]
+            hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
+
+            actual = [
+                page
+                async for page in hook.iter_paginated_run(
+                    url="users", query_parameters={"$top": 1}, pagination_function=skip_once
+                )
+            ]
+
+            assert actual == [users, users]
+            assert seen == [("users", {"$top": 1}), ("users", {"$top": 1, "$skip": 1})]
+            assert mock_get_http_response.call_count == 2
+
+    @pytest.mark.asyncio
+    async def test_iter_paginated_run_does_not_pass_responses_to_the_pagination_function(self):
+        users = load_json_from_resources(dirname(__file__), "..", "resources", "users.json")
+
+        def needs_responses(response, responses):
+            return None, None
+
+        with patch_hook_and_request_adapter(mock_json_response(200, users)):
+            hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
+
+            with pytest.raises(TypeError, match="responses"):
+                [
+                    page
+                    async for page in hook.iter_paginated_run(
+                        url="users", pagination_function=needs_responses
+                    )
+                ]
+
+    @pytest.mark.asyncio
     async def test_assert_allowed_host_refuses_another_host(self):
         with patch_hook_and_request_adapter(mock_json_response(200, {})):
             hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
