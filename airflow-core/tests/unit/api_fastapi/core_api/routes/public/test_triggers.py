@@ -423,6 +423,43 @@ class TestGetTriggers:
 
         assert paged_ids == expected_ids
 
+    @mock.patch(f"{BASE_AUTH}.get_authorized_dag_ids", autospec=True)
+    def test_pagination_excludes_unauthorized_triggers(self, mock_dag_ids, test_client, session, triggers):
+        _watcher(session, "second_failing", triggers["failing"])
+        session.commit()
+
+        mock_dag_ids.return_value = {"dag_sensor"}
+
+        response = test_client.get("/triggers", params={"order_by": "id"})
+        assert response.status_code == 200
+
+        visible_ids = [item["id"] for item in response.json()["triggers"]]
+        assert triggers["sensor"].id in visible_ids
+        assert triggers["queued"].id not in visible_ids
+        assert len(visible_ids) == len(set(visible_ids))
+        assert response.json()["total_entries"] == len(visible_ids)
+
+        paged_ids = []
+        for offset in range(len(visible_ids)):
+            page = test_client.get(
+                "/triggers",
+                params={"order_by": "id", "limit": 1, "offset": offset},
+            )
+            assert page.status_code == 200
+            assert page.json()["total_entries"] == len(visible_ids)
+            assert len(page.json()["triggers"]) == 1
+            paged_ids.append(page.json()["triggers"][0]["id"])
+
+        assert paged_ids == visible_ids
+
+        last_page = test_client.get(
+            "/triggers",
+            params={"order_by": "id", "limit": 1, "offset": len(visible_ids)},
+        )
+        assert last_page.status_code == 200
+        assert last_page.json()["triggers"] == []
+        assert last_page.json()["total_entries"] == len(visible_ids)
+
     def test_filter_by_asset(self, test_client, triggers):
         response = test_client.get("/triggers", params={"asset_id": triggers["pending_asset"].id})
 
