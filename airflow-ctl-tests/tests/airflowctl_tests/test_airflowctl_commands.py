@@ -165,6 +165,9 @@ TEST_COMMANDS = [
     # Plugins command
     "plugins list",
     "plugins list-import-errors",
+    # Dag bundle commands - the default bundle is named dags-folder
+    "dagbundles list",
+    "dagbundles get dags-folder",
 ]
 
 # The first Airflow version whose API serves each command, keyed by `_get_command_id`.
@@ -175,6 +178,8 @@ MIN_AIRFLOW_VERSIONS = {
     "assets delete-state-store": Version("3.3.0"),
     "assets clear-state-store": Version("3.3.0"),
     "taskinstances state-store": Version("3.3.0"),
+    "dagbundles list": Version("3.5.0"),
+    "dagbundles get": Version("3.5.0"),
 }
 
 NO_AUTH_TEST_COMMANDS = [

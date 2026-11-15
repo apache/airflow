@@ -129,3 +129,7 @@ xcom:
 plugins:
   list: "List all installed Airflow plugins"
   list-import-errors: "List all plugin import errors"
+
+dagbundles:
+  get: "Retrieve a Dag bundle by its name"
+  list: "List the Dag bundles Airflow knows about"
