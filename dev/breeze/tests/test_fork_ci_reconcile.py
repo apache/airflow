@@ -47,13 +47,11 @@ from airflow_breeze.utils.fork_ci_messages import (
     render_marker,
 )
 from airflow_breeze.utils.fork_ci_reconcile import (
-    DEFERRED_RUNS_BEFORE_ALERT,
     GATE_PROTECTED_PATHS,
     JOB_STATUS_FAILURE_RUNS_BEFORE_ALERT,
-    JOB_STATUSES_DEFERRED_NOTE,
     JOB_STATUSES_FAILED_REASON,
     MAX_CI_RUN_STARTED_PER_RUN,
-    MAX_JOB_STATUSES_PER_RUN,
+    MAX_JOB_STATUS_BUDGET_INTERVAL,
     MAX_PROJECT_CI_PASSED_PER_RUN,
     MONITOR_INTERVAL,
     RATE_LIMITED_NOTE,
@@ -78,6 +76,7 @@ from airflow_breeze.utils.fork_ci_reconcile import (
     check_head_repo_unavailable,
     classify,
     compare_with_base,
+    compute_job_status_budget,
     compute_projection,
     discover,
     drop_reported,
@@ -105,6 +104,7 @@ from airflow_breeze.utils.fork_ci_reconcile import (
     read_failed_jobs,
     read_head_status,
     read_job_status_failure_runs,
+    read_previous_run_at,
     read_project_ci_passed_url,
     read_project_ci_run_url,
     read_tested_merge,
@@ -2793,7 +2793,7 @@ def test_drop_reported_reports_everything_without_a_readable_previous_run(tmp_pa
         "unknown": [[1, "a"]],
         "attention": [],
         "notes": [],
-        "deferred_runs": 0,
+        "run_at": None,
         "rate_limited_runs": 0,
         "job_status_failure_runs": {},
     }
@@ -3450,42 +3450,84 @@ def test_job_status_reporter_does_not_read_without_writes_left(client):
     assert reporter.deferred == [42]
 
 
-@pytest.mark.parametrize(("deferred", "has_alerts"), [([1], True), ([], False)])
 @mock.patch("airflow_breeze.utils.fork_ci_reconcile.JobStatusReporter", autospec=True)
 @mock.patch("airflow_breeze.utils.fork_ci_reconcile.classify", autospec=True)
-def test_run_reconcile_reports_deferred_job_statuses_to_slack(
-    mock_classify, mock_reporter, client, tmp_path, deferred, has_alerts
-):
-    mock_classify.return_value = Plan(state=ForkState.RUNNING)
-    mock_reporter.return_value.report.return_value = None
-    mock_reporter.return_value.deferred = deferred
-    mock_reporter.return_value.delayed = []
-
-    assert _reconcile_with_reporter(client, tmp_path) is has_alerts
-
-    if has_alerts:
-        assert JOB_STATUSES_DEFERRED_NOTE in (tmp_path / "s.json").read_text()
-
-
-@mock.patch("airflow_breeze.utils.fork_ci_reconcile.JobStatusReporter", autospec=True)
-@mock.patch("airflow_breeze.utils.fork_ci_reconcile.classify", autospec=True)
-def test_run_reconcile_reports_deferred_job_statuses_only_when_deferring_persists(
+def test_run_reconcile_does_not_alert_on_deferred_job_statuses(
     mock_classify, mock_reporter, client, tmp_path
 ):
     mock_classify.return_value = Plan(state=ForkState.RUNNING)
     mock_reporter.return_value.report.return_value = None
+    mock_reporter.return_value.deferred = [1]
+    mock_reporter.return_value.delayed = []
+
+    assert _reconcile_with_reporter(client, tmp_path) is False
+
+
+@pytest.mark.parametrize(
+    ("since_previous_run", "budget"),
+    [
+        pytest.param(None, 20, id="no-previous-run"),
+        pytest.param(timedelta(minutes=5), 20, id="on-the-cron"),
+        pytest.param(timedelta(minutes=9, seconds=30), 38, id="started-late"),
+        pytest.param(timedelta(minutes=1), 4, id="queued-behind-the-previous-run"),
+        pytest.param(timedelta(hours=3), 40, id="after-a-gap"),
+        pytest.param(timedelta(minutes=-1), 0, id="clock-skew"),
+    ],
+)
+def test_compute_job_status_budget(since_previous_run, budget):
+    assert compute_job_status_budget(since_previous_run) == budget
+
+
+def test_job_status_budget_after_a_gap_is_capped():
+    assert compute_job_status_budget(MAX_JOB_STATUS_BUDGET_INTERVAL) == compute_job_status_budget(
+        MAX_JOB_STATUS_BUDGET_INTERVAL * 2
+    )
+
+
+@pytest.mark.parametrize(
+    ("content", "expected"),
+    [
+        pytest.param(None, None, id="missing"),
+        pytest.param("not json", None, id="not-json"),
+        pytest.param("[]", None, id="not-a-dict"),
+        pytest.param("{}", None, id="recorded-before-the-time"),
+        pytest.param('{"run_at": 5}', None, id="not-a-string"),
+        pytest.param('{"run_at": "yesterday"}', None, id="not-a-time"),
+        pytest.param('{"run_at": "2026-11-10T11:51:00"}', None, id="without-a-timezone"),
+        pytest.param(
+            '{"run_at": "2026-11-10T11:51:00+00:00"}',
+            datetime(2026, 11, 10, 11, 51, tzinfo=UTC),
+            id="recorded",
+        ),
+    ],
+)
+def test_read_previous_run_at(tmp_path, content, expected):
+    reported_file = tmp_path / "reported.json"
+    if content is not None:
+        reported_file.write_text(content)
+
+    assert read_previous_run_at(reported_file) == expected
+
+
+@mock.patch("airflow_breeze.utils.fork_ci_reconcile.JobStatusReporter", autospec=True)
+@mock.patch("airflow_breeze.utils.fork_ci_reconcile.report_project_ci_runs_started", autospec=True)
+@mock.patch("airflow_breeze.utils.fork_ci_reconcile.classify", autospec=True)
+def test_run_reconcile_budgets_job_statuses_for_the_time_since_the_previous_run(
+    mock_classify, mock_report, mock_reporter, client, tmp_path
+):
+    mock_classify.return_value = Plan(state=ForkState.RUNNING)
+    mock_report.return_value = []
+    mock_reporter.return_value.report.return_value = None
+    mock_reporter.return_value.deferred = []
+    mock_reporter.return_value.delayed = []
     client.dry_run = False
     reported_file = tmp_path / "reported.json"
-    reported_file.write_text("{}")
-    alerts = []
-    for deferred in ([1], [1], [], *[[1]] * DEFERRED_RUNS_BEFORE_ALERT):
-        mock_reporter.return_value.deferred = deferred
-        mock_reporter.return_value.delayed = []
-        alerts.append(_reconcile_with_reporter(client, tmp_path, reported_file=reported_file))
+    reported_file.write_text(json.dumps({"run_at": (NOW - timedelta(minutes=9)).isoformat()}))
 
-    assert alerts == [*[False] * (DEFERRED_RUNS_BEFORE_ALERT + 2), True]
-    assert JOB_STATUSES_DEFERRED_NOTE in (tmp_path / "s.json").read_text()
-    assert json.loads(reported_file.read_text())["deferred_runs"] == DEFERRED_RUNS_BEFORE_ALERT
+    _reconcile_with_reporter(client, tmp_path, reported_file=reported_file)
+
+    assert mock_reporter.call_args.kwargs["budget"] == compute_job_status_budget(timedelta(minutes=9))
+    assert read_previous_run_at(reported_file) == NOW
 
 
 def test_build_job_statuses_treats_contexts_case_insensitively():
@@ -4132,8 +4174,8 @@ def test_run_reconcile_retries_a_pull_request_whose_head_moved(client, tmp_path)
 @pytest.mark.parametrize(
     ("fails", "job_status_budget"),
     [
-        pytest.param(False, MAX_JOB_STATUSES_PER_RUN - 2, id="reported"),
-        pytest.param(True, MAX_JOB_STATUSES_PER_RUN - MAX_CI_RUN_STARTED_PER_RUN, id="fails"),
+        pytest.param(False, compute_job_status_budget(None) - 2, id="reported"),
+        pytest.param(True, compute_job_status_budget(None) - MAX_CI_RUN_STARTED_PER_RUN, id="fails"),
     ],
 )
 @mock.patch("airflow_breeze.utils.fork_ci_reconcile.JobStatusReporter", autospec=True)

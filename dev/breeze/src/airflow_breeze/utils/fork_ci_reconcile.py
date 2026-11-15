@@ -206,9 +206,24 @@ UNREPORTED_JOB_NAMES = GATED_RUN_JOB_NAMES | {GATE_JOB_NAME, "Platform: AMD"}
 RUNNING_JOB_STATUSES = frozenset({"queued", "waiting", "pending", "requested", "in_progress"})
 JOB_STATE_RANKS = {"failure": 0, "pending": 1, "success": 2}
 # Commit statuses count towards GitHub's limit of 500 content-creating requests per hour, shared by
-# every workflow of the repository. This keeps job statuses to about a third of it; the rest follow
-# on the next run, failures first. See "Job statuses" in the design doc.
-MAX_JOB_STATUSES_PER_RUN = 160 // RUNS_PER_HOUR
+# every workflow of the repository. This keeps job statuses under half of it; the rest follow on a
+# later run, failures first. See "Write budget" in the design doc.
+JOB_STATUSES_PER_HOUR = 240
+# GitHub starts scheduled runs later than their cron, the monitor often only every 9-10 minutes, so a
+# run gets the hourly budget for the time since the previous run rather than for MONITOR_INTERVAL. At
+# most this long is counted, so a run after a gap (a disabled workflow, a lost record) stays at half
+# of GitHub's limit of 80 content-creating requests a minute.
+MAX_JOB_STATUS_BUDGET_INTERVAL = timedelta(minutes=10)
+
+
+def compute_job_status_budget(since_previous_run: timedelta | None) -> int:
+    """The job status writes a run may make; without a previous run, those of one ``MONITOR_INTERVAL``."""
+    if since_previous_run is None:
+        since_previous_run = MONITOR_INTERVAL
+    counted = min(max(since_previous_run, timedelta(0)), MAX_JOB_STATUS_BUDGET_INTERVAL)
+    return JOB_STATUSES_PER_HOUR * counted // timedelta(hours=1)
+
+
 # `CI run started` statuses of pull requests whose CI runs in apache/airflow come out of that budget
 # first: one write per new head commit, which merging waits for, while job statuses are informational.
 # At most this many, so job statuses keep the rest; the first runs after the check became required
@@ -219,10 +234,6 @@ MAX_CI_RUN_STARTED_PER_RUN = 80 // RUNS_PER_HOUR
 MAX_PROJECT_CI_PASSED_PER_RUN = max(20 // RUNS_PER_HOUR, 1)
 # The GitHub Actions app, whose check suites are the workflow runs of a commit.
 GITHUB_ACTIONS_APP_ID = 15368
-# A single large fork run can need more writes than one run's budget, which the next run catches up
-# on, so deferring is only reported when it lasts this many consecutive runs: then the budget does
-# not keep up with the pull requests.
-DEFERRED_RUNS_BEFORE_ALERT = count_runs_in(timedelta(minutes=45))
 # GitHub answering with rate limits in this many consecutive runs is reported: a single burst is
 # retried, while a persisting one means the repository's shared limits are close to exhausted.
 RATE_LIMITED_RUNS_BEFORE_ALERT = count_runs_in(timedelta(minutes=30))
@@ -237,19 +248,13 @@ JOB_STATUSES_FAILED_REASON = (
     "the run log has the errors"
 )
 # A pull request whose fork run finished this long ago with job statuses still not all posted is
-# reported by itself: deferring is expected to catch up within a few runs, not to leave one behind.
+# reported. Deferring alone is not: several full-matrix fork runs at once (about 130 statuses each)
+# keep later runs deferring for hours while every one of them makes progress.
 MIRROR_DELAY_BEFORE_ALERT = timedelta(hours=1)
 RATE_LIMITED_NOTE = (
     f"GitHub rate-limited the fork CI monitor in {RATE_LIMITED_RUNS_BEFORE_ALERT} runs in a row; the "
     "repository's shared GITHUB_TOKEN limits are close to exhausted. Consider `job_statuses = false` in "
     ".github/fork-ci-gate.toml (see dev/AGENTS.md)"
-)
-# Fixed text, so the note is posted to Slack once while deferrals persist; the run log lists the pull
-# requests.
-JOB_STATUSES_DEFERRED_NOTE = (
-    f"job statuses have not fit in the budget of {MAX_JOB_STATUSES_PER_RUN} writes per run for "
-    f"{DEFERRED_RUNS_BEFORE_ALERT} runs in a row and are posted by later runs; if this persists, set "
-    "`job_statuses = false` in .github/fork-ci-gate.toml (see dev/AGENTS.md)"
 )
 
 RUNNING_STATUSES = frozenset({"QUEUED", "IN_PROGRESS", "PENDING", "WAITING", "REQUESTED"})
@@ -1982,7 +1987,7 @@ class JobStatusReporter:
         client: GitHubClient,
         *,
         repo: str,
-        budget: int = MAX_JOB_STATUSES_PER_RUN,
+        budget: int = compute_job_status_budget(None),
         now: datetime | None = None,
         read_jobs: ReadJobs | None = None,
     ):
@@ -2833,7 +2838,7 @@ def drop_reported(
     attention: list[tuple[int, str]],
     notes: list[str],
     record: bool = True,
-    deferred_runs: int = 0,
+    run_at: datetime | None = None,
     rate_limited_runs: int = 0,
     job_status_failure_runs: dict[int, int] | None = None,
 ) -> tuple[list[tuple[int, str]], list[tuple[int, str]], list[str]]:
@@ -2843,7 +2848,7 @@ def drop_reported(
     Only the previous run's items are kept, so an item that went away and comes back is posted
     again. A missing or unreadable file reports everything.
 
-    :param deferred_runs: the consecutive runs that deferred job statuses, recorded for the next run.
+    :param run_at: when this run started, recorded for the next run's job status budget.
     :param rate_limited_runs: the consecutive runs GitHub rate-limited, recorded for the next run.
     :param job_status_failure_runs: per pull request, the consecutive runs whose job statuses failed,
         recorded for the next run.
@@ -2852,7 +2857,7 @@ def drop_reported(
         "unknown": [list(item) for item in unknown],
         "attention": [list(item) for item in attention],
         "notes": notes,
-        "deferred_runs": deferred_runs,
+        "run_at": run_at.isoformat() if run_at is not None else None,
         "rate_limited_runs": rate_limited_runs,
         "job_status_failure_runs": {
             str(number): runs for number, runs in (job_status_failure_runs or {}).items()
@@ -2887,6 +2892,24 @@ def read_run_count(reported_file: Path | None, key: str) -> int | None:
     # A record written before the count was kept has none.
     count = previous.get(key, 0)
     return count if isinstance(count, int) and not isinstance(count, bool) else 0
+
+
+def read_previous_run_at(reported_file: Path | None) -> datetime | None:
+    """When the previous run started, as it recorded; None without a readable record of it."""
+    if reported_file is None:
+        return None
+    try:
+        previous = json.loads(reported_file.read_text())
+    except (OSError, ValueError):
+        return None
+    run_at = previous.get("run_at") if isinstance(previous, dict) else None
+    if not isinstance(run_at, str):
+        return None
+    try:
+        parsed = datetime.fromisoformat(run_at)
+    except ValueError:
+        return None
+    return parsed if parsed.tzinfo is not None else None
 
 
 def read_job_status_failure_runs(reported_file: Path | None) -> dict[int, int]:
@@ -3017,10 +3040,14 @@ def run_reconcile(
             f"listing the pull requests with `{LABEL_USE_PROJECT_CI}` failed: {type(e).__name__}"
         )
     read_jobs: ReadJobs = {}
+    previous_run_at = read_previous_run_at(reported_file)
+    job_status_budget = compute_job_status_budget(
+        now - previous_run_at if previous_run_at is not None else None
+    )
     job_reporter = JobStatusReporter(
         client,
         repo=repo,
-        budget=max(MAX_JOB_STATUSES_PER_RUN - ci_run_started_writes - ci_passed_reserved, 0),
+        budget=max(job_status_budget - ci_run_started_writes - ci_passed_reserved, 0),
         now=now,
         read_jobs=read_jobs,
     )
@@ -3129,17 +3156,11 @@ def run_reconcile(
     attention.extend(job_reporter.delayed)
     notes = [bypass_finder.incomplete] if bypass_finder.incomplete else []
     notes.extend(note for note in (ci_run_started_note, *ci_passed_notes) if note)
-    previous_deferred_runs = read_run_count(reported_file, "deferred_runs")
-    deferred_runs = (previous_deferred_runs or 0) + 1 if job_reporter.deferred else 0
     if job_reporter.deferred:
         console_print(
-            f"[info]Job statuses of {len(job_reporter.deferred)} pull requests left for the next run "
-            f"({deferred_runs} runs in a row): {job_reporter.deferred}[/]"
+            f"[info]Job statuses of {len(job_reporter.deferred)} pull requests left for the next run, "
+            f"after a budget of {job_status_budget} writes: {job_reporter.deferred}[/]"
         )
-        # Without a record of earlier runs, deferring is reported at once, as it cannot be told apart
-        # from a budget that does not keep up.
-        if previous_deferred_runs is None or deferred_runs >= DEFERRED_RUNS_BEFORE_ALERT:
-            notes.append(JOB_STATUSES_DEFERRED_NOTE)
     # The full list for the run log; Slack may show only part of a very long one.
     for number, reason in [*unknown, *attention]:
         console_print(f"[warning]#{number}: {reason}[/]")
@@ -3160,7 +3181,7 @@ def run_reconcile(
             attention=attention,
             notes=notes,
             record=not client.dry_run,
-            deferred_runs=deferred_runs,
+            run_at=now,
             rate_limited_runs=rate_limited_runs,
             job_status_failure_runs=job_status_failure_runs,
         )

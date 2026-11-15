@@ -959,19 +959,16 @@ suites); its jobs come from `GET /repos/<fork>/actions/runs/<id>/jobs?filter=lat
   (`GET /repos/apache/airflow/commits/<sha>/status`), and only differences are posted, failures
   first. GraphQL has no mutation for commit statuses (`createCheckRun` exists, but see above for
   why check runs do not fit), so each one is a REST call, and they count towards GitHub's limits on
-  content-creating requests: a reconciler run posts at most `MAX_JOB_STATUSES_PER_RUN` (13) of
-  them, each write charged as it is made. What does not fit is posted by the next run, and once
-  the budget is spent no further pull request's jobs or statuses are read in that run. One fork run
-  of the full matrix (about 130 jobs) needs more than a run's budget on its own, which the next
-  run catches up on, so deferring alone is not a problem: the run log lists the deferred pull
-  requests, and only when nine runs in a row deferred, about 45 minutes of the budget not
-  keeping up, is a note added to the Slack message. The count is kept in the record the monitor
-  carries between runs (`--reported-file`); without a readable record the note is added at once.
-  Its wording is fixed, so it is posted once while deferrals persist. A pull request whose fork run
-  finished more than an hour ago (the `updatedAt` of its completed check suite) and still has
-  statuses waiting is listed on its own as an attention item, so a delay that a busy backlog keeps
-  pushing back shows which pull request it holds up; the item names the run, so it is posted once
-  for that run.
+  content-creating requests: a reconciler run posts at most its share of `JOB_STATUSES_PER_HOUR`
+  (240) for the time since the previous run, each write charged as it is made (see "Write
+  budget"). What does not fit is posted by a later run, and once the budget is spent no further
+  pull request's jobs or statuses are read in that run. One fork run of the full matrix (about
+  130 jobs) needs several runs' budget on its own, and a few of them at once keep the monitor
+  deferring for hours while every run makes progress, so deferring alone is not reported: the run
+  log lists the deferred pull requests. A pull request whose fork run finished more than an hour
+  ago (the `updatedAt` of its completed check suite) and still has statuses waiting is listed on
+  its own as an attention item, so a delay that a busy backlog keeps pushing back shows which pull
+  request it holds up; the item names the run, so it is posted once for that run.
 - Commit statuses cannot be deleted and have no neutral state. When a run has completed, a job
   context posted for an earlier run of the same commit that the completed run does not have, or
   skipped, is overwritten with `success` and the description "Not in the latest fork run - see
@@ -985,7 +982,7 @@ suites); its jobs come from `GET /repos/<fork>/actions/runs/<id>/jobs?filter=lat
   run's jobs fails now and then on GitHub server errors (HTTP 502, a reset HTTP/2 stream) that the
   next run gets past, so each failure is only logged, and the pull request is listed with the
   unknown items for Slack once its job statuses failed in nine runs in a row, about 45 minutes. The per pull request
-  count is kept in the same record as that of deferred job statuses; without a readable record it
+  count is kept in the record the monitor carries between runs (`--reported-file`); without a readable record it
   starts again. The item's wording is fixed whatever the error, so it is posted once while the
   failure persists, and the run log has each run's error.
 
@@ -1000,7 +997,7 @@ records this for agents.
 Each run logs what is left of the token's REST and GraphQL quotas (`GET /rate_limit`, which does
 not count against them) and how many of its calls GitHub rate-limited; the client retries those with
 backoff. Rate limiting in six runs in a row, about 30 minutes, adds a note to the Slack message, with fixed wording so
-it is posted once while it persists; the count is kept in the same record as that of deferred job
+it is posted once while it persists; the count is kept in the same record as that of failing job
 statuses.
 
 #### Write budget
@@ -1028,14 +1025,23 @@ requests a minute and 500 an hour. Assuming about 35 reported jobs for an averag
   monitor runs.
 - **Gate enabled**, assuming about half of the pull request runs come from gated pull requests
   (about 5-6 pushes an hour): about 200 writes an hour without a cap, 40% of the content-creating
-  limit and more at peaks. The cap of 13 writes a run, twelve runs an hour, holds job statuses to at
-  most 156 an hour: 31% of the content-creating limit, leaving the rest to the reconciler's other
-  writes (labels, comments, the aggregate statuses) and to the other workflows that share it. Each
-  run posts at most 13 statuses at about one a second, well under the 80-a-minute limit. Job
-  statuses then lag behind at busy times, the aggregate status does not. The `CI run started`
-  statuses of pull requests whose CI runs in `apache/airflow` come out of the same 13 writes a run,
-  first and at most 6 of them (see "The `CI run started` check"), so they do not raise the total;
-  at about 11 pull request runs an hour they take about 1 write a run.
+  limit and more at peaks. `JOB_STATUSES_PER_HOUR` holds job statuses to at most 240 an hour: 48%
+  of the content-creating limit, leaving the rest to the reconciler's other writes (labels,
+  comments, the aggregate statuses) and to the other workflows that share it. Job statuses then
+  lag behind at busy times, the aggregate status does not. The `CI run started` statuses of pull
+  requests whose CI runs in `apache/airflow` come out of the same budget, first and at most 6 a
+  run (see "The `CI run started` check"), so they do not raise the total; at about 11 pull
+  request runs an hour they take about 1 write a run.
+
+A run gets the hourly budget for the time since the previous run, which it reads from the record
+the monitor carries between runs (`run_at` in `--reported-file`), not one twelfth of it. GitHub
+starts scheduled workflows later than their cron: on 2026-11-15 the 5-minute monitor ran every 9
+to 10 minutes, so a fixed 13 writes a run (160 an hour at the cron's cadence) posted only about 82
+an hour, and four full-matrix fork runs at once took about six hours to catch up. Runs queued
+behind a slow one get little, since the time between them is short. At most
+`MAX_JOB_STATUS_BUDGET_INTERVAL` (10 minutes) is counted, so a run after a gap, such as a
+disabled workflow or a lost record, posts at most 40 statuses at about one a second: half of the
+80-a-minute limit. Without a readable record a run gets one cron interval's share, 20 writes.
 
 The per-run caps and the run counts before a Slack note are derived from `MONITOR_INTERVAL` in
 `fork_ci_reconcile.py`, which must match the monitor's cron (a test checks it), so changing the
@@ -1294,7 +1300,7 @@ files, a jobs call and a compare call only per long `ci-amd.yml` run of a gated 
 one changed-files call and one or two compare calls per head commit that turns green, plus one
 mutation per actual state change. Job statuses add a jobs call and a status call per pull request with a fork run in
 progress or a completed run not yet reported, and up to two status mutations per job, at most
-`MAX_JOB_STATUSES_PER_RUN` per run; see "Write budget". Pull requests that pass 1 labelled and
+the run's share of `JOB_STATUSES_PER_HOUR`; see "Write budget". Pull requests that pass 1 labelled and
 the search does not list yet add one GraphQL call per 25. Well inside
 the `GITHUB_TOKEN` limits at a 5-minute cadence. The reconciler logs its call counts so the
 budget stays observable.

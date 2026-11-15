@@ -53,11 +53,9 @@ workflow of `apache/airflow` shares (see "Write budget" in
 `dev/breeze/doc/ci/08_fork_ci_for_external_contributors.md`).
 
 If the budget is exceeded, turn the job statuses off: set `job_statuses = false` in
-`.github/fork-ci-gate.toml`. Signs that it is exceeded are the monitor's Slack note that job
-statuses "have not fit in the budget" (posted only after job statuses were deferred for about 45 minutes in a row)
-staying for hours, pull requests listed because their fork run finished more than an hour ago with
-job statuses still not posted, its Slack note that GitHub rate-limited it for about 30 minutes in a row, the
+`.github/fork-ci-gate.toml`. Signs that it is exceeded are pull requests listed because their fork
+run finished more than an hour ago with job statuses still not posted, staying for hours, its Slack note that GitHub rate-limited it for about 30 minutes in a row, the
 "Rate limits left" line of its run log approaching zero, or other workflows of the repository
 failing on secondary rate limits. The aggregate `Fork CI / Tests (AMD)`
 status and `CI passed` are posted either way, so turning job statuses off loses detail, not gating.
-Lowering `MAX_JOB_STATUSES_PER_RUN` in `fork_ci_reconcile.py` is the softer alternative.
+Lowering `JOB_STATUSES_PER_HOUR` in `fork_ci_reconcile.py` is the softer alternative.
