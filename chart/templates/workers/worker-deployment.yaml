@@ -296,6 +296,9 @@ spec:
             timeoutSeconds: {{ .Values.workers.livenessProbe.timeoutSeconds }}
             failureThreshold: {{ .Values.workers.livenessProbe.failureThreshold }}
             periodSeconds: {{ .Values.workers.livenessProbe.periodSeconds }}
+            {{- if .Values.workers.livenessProbe.terminationGracePeriodSeconds }}
+            terminationGracePeriodSeconds: {{ .Values.workers.livenessProbe.terminationGracePeriodSeconds }}
+            {{- end }}
             exec:
               command:
                 {{- if .Values.workers.livenessProbe.command }}
