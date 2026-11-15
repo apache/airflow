@@ -145,6 +145,58 @@ def test_select_versions_to_delete_does_not_load_tags_without_candidates(cleanup
     assert cleanup.select_versions_to_delete(pages.get, 1, load_keep, CUTOFF, budget=10) == []
 
 
+def test_find_deletable_versions_takes_keyed_cache_only_versions(cleanup):
+    keyed = _version("sha256:keyed", OLD, ["cache-linux-amd64-0123456789abcdef"])
+    shared_too = _version(
+        "sha256:shared", "2026-08-20T00:00:00Z", ["cache-linux-amd64-0123456789abcdef", "cache-linux-amd64"]
+    )
+
+    deletable = cleanup.find_deletable_versions(_page(keyed, shared_too), set(), CUTOFF)
+
+    assert [v["name"] for v in deletable] == ["sha256:keyed"]
+
+
+class _FakeRegistry:
+    """Two pages of tags; the commit-tagged index, on the second page, lists an old manifest."""
+
+    def __init__(self, image: str):
+        self.image = image
+
+    def get(self, path: str, accept: str = "application/json"):
+        pages: dict[str, tuple[dict, str]] = {
+            f"/v2/{self.image}/tags/list?n=1000": (
+                {"tags": ["latest", "cache-linux-amd64-0123456789abcdef"]},
+                f'</v2/{self.image}/tags/list?n=1000&last=latest>; rel="next"',
+            ),
+            f"/v2/{self.image}/tags/list?n=1000&last=latest": ({"tags": ["0123abcd4567ef89"]}, ""),
+        }
+        if path in pages:
+            listing, link = pages[path]
+            return listing, None, link
+        manifests: dict[str, tuple[dict, str]] = {
+            "latest": ({}, "sha256:latest"),
+            "0123abcd4567ef89": (
+                {"manifests": [{"digest": "sha256:old-platform-manifest"}]},
+                "sha256:commit-index",
+            ),
+        }
+        tag = path.rsplit("/", 1)[1]
+        if tag not in manifests:
+            raise AssertionError(f"unexpected manifest read: {tag}")
+        body, digest = manifests[tag]
+        return body, digest, ""
+
+
+def test_collect_keep_set_protects_manifests_listed_by_commit_tags(cleanup, monkeypatch):
+    monkeypatch.setattr(cleanup, "_Registry", _FakeRegistry)
+
+    keep = cleanup.collect_keep_set("apache/airflow/main/ci/python3.11")
+
+    assert keep == {"sha256:latest", "sha256:commit-index", "sha256:old-platform-manifest"}
+    old_manifest = _version("sha256:old-platform-manifest", "2026-08-20T00:00:00Z")
+    assert cleanup.find_deletable_versions(_page(old_manifest), keep, CUTOFF) == []
+
+
 def test_get_referenced_digests_lists_index_children(cleanup):
     index = {
         "mediaType": "application/vnd.oci.image.index.v1+json",

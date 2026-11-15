@@ -61,6 +61,8 @@ MANIFEST_MEDIA_TYPES = ", ".join(
 )
 LINK_LAST_PAGE = re.compile(r'[?&]page=(\d+)>; rel="last"')
 PUSH_WINDOW = timedelta(minutes=5)
+# The keyed CI image cache tags, see cleanup_keyed_image_cache.py.
+KEYED_CACHE_TAG = re.compile(r"^cache-linux-(amd64|arm64)-[0-9a-f]{16}$")
 
 
 def get_image_package_pattern(repo: str) -> re.Pattern[str]:
@@ -79,9 +81,17 @@ def _get_tags(version: dict) -> list[str]:
     return version.get("metadata", {}).get("container", {}).get("tags") or []
 
 
+def _is_disposable(version: dict) -> bool:
+    """Untagged, or tagged only as keyed cache, which nothing pulls by reference."""
+    return all(KEYED_CACHE_TAG.match(tag) for tag in _get_tags(version))
+
+
 def find_deletable_versions(versions: list[dict], keep: set[str], cutoff: datetime) -> list[dict]:
     """
-    Return the untagged versions of one page that are safe to delete.
+    Return the versions of one page that are safe to delete.
+
+    Untagged versions, and the keyed cache tags that the daily keyed-cache cleanup misses when a
+    version kept another tag past its scan window, are deleted once nothing references them.
 
     ``keep`` holds every manifest a tag references. As a second guard, an untagged version pushed
     within PUSH_WINDOW of a tagged one, or of the page edges where a tagged one may sit on the
@@ -89,12 +99,12 @@ def find_deletable_versions(versions: list[dict], keep: set[str], cutoff: dateti
     """
     if not versions:
         return []
-    anchors = [_parse_time(v["created_at"]) for v in versions if _get_tags(v)]
+    anchors = [_parse_time(v["created_at"]) for v in versions if not _is_disposable(v)]
     anchors += [_parse_time(versions[0]["created_at"]), _parse_time(versions[-1]["created_at"])]
     return [
         version
         for version in versions
-        if not _get_tags(version)
+        if _is_disposable(version)
         and version["name"] not in keep
         and (created := _parse_time(version["created_at"])) < cutoff
         and all(abs(created - anchor) > PUSH_WINDOW for anchor in anchors)
@@ -162,6 +172,8 @@ def collect_keep_set(image: str) -> set[str]:
         tags.extend(listing.get("tags") or [])
         next_page = re.search(r"<([^>]+)>;\s*rel=\"next\"", link)
         path = next_page.group(1) if next_page else None
+
+    tags = [tag for tag in tags if not KEYED_CACHE_TAG.match(tag)]
 
     def read_tag(tag: str) -> set[str]:
         manifest, digest, _ = registry.get(f"/v2/{image}/manifests/{tag}", MANIFEST_MEDIA_TYPES)

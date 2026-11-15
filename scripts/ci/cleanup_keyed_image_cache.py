@@ -27,7 +27,8 @@ and anything else are never touched.
 The age is counted from creation, not from the last update: a push of identical cache content
 reuses the version and only moves its ``updated_at``, and versions are listed by creation, so a
 version updated after creation could otherwise fall out of the scanned window and stay forever.
-A key still in use is pushed again within hours of being deleted.
+A key still in use is pushed again within hours of being deleted. A version that kept another
+tag past the scanned window is left to cleanup_old_image_versions.py, which walks every version.
 
 Usage: cleanup_keyed_image_cache.py [--days N] [--dry-run]
 Environment: GITHUB_REPOSITORY (``owner/repo``), and a token for ``gh`` with ``packages: write``.

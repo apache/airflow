@@ -277,7 +277,7 @@ jobs:
       arm-runners: ${{ steps.selective-checks.outputs.arm-runners }}
       basic-checks-only: ${{ steps.selective-checks.outputs.basic-checks-only }}
       canary-run: ${{ steps.source-run-info.outputs.canary-run }}
-      all-python-versions: ${{ steps.selective-checks.outputs.all-python-versions }}
+      ci-image-cache-python-versions: ${{ steps.selective-checks.outputs.ci-image-cache-python-versions }}
       ci-image-build: ${{ steps.selective-checks.outputs.ci-image-build }}
       ci-image-dependencies-changed: ${{ steps.selective-checks.outputs.ci-image-dependencies-changed }}
       core-test-types-list-as-strings-in-json: >-
@@ -579,7 +579,7 @@ jobs:
       include-prod-images: "false"
       push-latest-images: "false"
       keyed-cache-only: "true"
-      python-versions: ${{ needs.build-info.outputs.all-python-versions }}
+      python-versions: ${{ needs.build-info.outputs.ci-image-cache-python-versions }}
       branch: ${{ needs.build-info.outputs.default-branch }}
       constraints-branch: ${{ needs.build-info.outputs.default-constraints-branch }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}

@@ -3802,6 +3802,19 @@ def test_ci_image_dependencies_changed(files: tuple[str, ...], expected: str):
     assert_outputs_are_printed({"ci-image-dependencies-changed": expected}, str(stderr))
 
 
+def test_ci_image_cache_python_versions_are_all_current_versions():
+    stderr = SelectiveChecks(
+        files=("providers/amazon/pyproject.toml",),
+        commit_ref=NEUTRAL_COMMIT,
+        github_event=GithubEvents.PULL_REQUEST,
+        default_branch="main",
+    )
+    assert_outputs_are_printed(
+        {"ci-image-cache-python-versions": CURRENT_PYTHON_VERSIONS_AS_LIST},
+        str(stderr),
+    )
+
+
 @pytest.mark.parametrize(
     ("files", "pr_labels", "github_event", "expected_constraints", "expected_pypi"),
     [

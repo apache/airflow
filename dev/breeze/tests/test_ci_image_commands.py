@@ -181,6 +181,7 @@ def test_build_ci_image_if_needed_reuses_image_built_in_another_checkout(
     mock_run_build_ci_image.assert_not_called()
 
 
+@mock.patch("airflow_breeze.commands.ci_image_commands.check_buildx_version")
 @mock.patch("airflow_breeze.commands.ci_image_commands.check_if_image_building_is_needed")
 @mock.patch("airflow_breeze.commands.ci_image_commands.run_build_ci_image")
 @mock.patch("airflow_breeze.commands.ci_image_commands.is_ci_image_built_from_current_sources")
@@ -188,6 +189,7 @@ def test_build_ci_image_if_needed_forces_build_when_image_does_not_match_sources
     mock_is_ci_image_built_from_current_sources,
     mock_run_build_ci_image,
     mock_check_if_image_building_is_needed,
+    mock_check_buildx_version,
     tmp_path,
     monkeypatch,
 ):
@@ -198,8 +200,10 @@ def test_build_ci_image_if_needed_forces_build_when_image_does_not_match_sources
     build_ci_image_if_needed(command_params=BuildCiParams())
     assert mock_check_if_image_building_is_needed.call_args.kwargs["ci_image_params"].force_build is True
     mock_run_build_ci_image.assert_called_once()
+    mock_check_buildx_version.assert_called_once_with(quiet=True)
 
 
+@mock.patch("airflow_breeze.commands.ci_image_commands.check_buildx_version")
 @mock.patch("airflow_breeze.commands.ci_image_commands.check_if_image_building_is_needed")
 @mock.patch("airflow_breeze.commands.ci_image_commands.run_build_ci_image")
 @mock.patch("airflow_breeze.commands.ci_image_commands.is_ci_image_built_from_current_sources")
@@ -207,6 +211,7 @@ def test_build_ci_image_if_needed_does_not_reuse_image_when_force_build_requeste
     mock_is_ci_image_built_from_current_sources,
     mock_run_build_ci_image,
     mock_check_if_image_building_is_needed,
+    mock_check_buildx_version,
     tmp_path,
     monkeypatch,
 ):
@@ -216,6 +221,7 @@ def test_build_ci_image_if_needed_does_not_reuse_image_when_force_build_requeste
     build_ci_image_if_needed(command_params=BuildCiParams(force_build=True))
     mock_is_ci_image_built_from_current_sources.assert_not_called()
     mock_run_build_ci_image.assert_called_once()
+    mock_check_buildx_version.assert_called_once_with(quiet=True)
 
 
 @mock.patch("airflow_breeze.commands.ci_image_commands.check_if_image_building_is_needed")

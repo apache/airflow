@@ -2282,6 +2282,12 @@ class SelectiveChecks:
         return False
 
     @cached_property
+    def ci_image_cache_python_versions(self) -> list[str]:
+        # Every supported version, whatever the test matrix: a keyed cache missing for one version
+        # means a full dependency build for everyone using it.
+        return CURRENT_PYTHON_MAJOR_MINOR_VERSIONS
+
+    @cached_property
     def ci_image_dependencies_changed(self) -> bool:
         return len(self._matching_files(FileGroupForCi.CI_IMAGE_DEPENDENCY_FILES, CI_FILE_GROUP_MATCHES)) > 0
 
