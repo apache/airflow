@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import json
 import pickle
 from datetime import UTC, datetime
@@ -37,10 +38,12 @@ from airflow.sdk.api.datamodels._generated import (
     AssetEventsResponse,
     AssetResponse,
     AssetStateStoreResponse,
+    CallbackTerminalState,
     ConnectionResponse,
     DagResponse,
     DagRunState,
     DagRunStateResponse,
+    ExternalClearTargetPayload,
     HITLDetailRequest,
     HITLDetailResponse,
     HITLUser,
@@ -382,6 +385,119 @@ class TestClient:
         with pytest.raises(ValueError, match="Both client_ssl_cert and client_ssl_key must be set"):
             make_client(httpx2.MockTransport(handle_request))
 
+    @pytest.mark.parametrize(
+        ("call", "expected_path"),
+        [
+            pytest.param(
+                lambda c: c.variables.get("../connections/aws_default"),
+                b"/variables/..%2Fconnections%2Faws_default",
+                id="variables-get",
+            ),
+            pytest.param(
+                lambda c: c.variables.set("../connections/aws_default", "v"),
+                b"/variables/..%2Fconnections%2Faws_default",
+                id="variables-set",
+            ),
+            pytest.param(
+                lambda c: c.variables.delete("../connections/aws_default"),
+                b"/variables/..%2Fconnections%2Faws_default",
+                id="variables-delete",
+            ),
+            pytest.param(
+                lambda c: c.xcoms.head("d", "r", "t", "x/../../variables/k"),
+                b"/xcoms/d/r/t/x%2F..%2F..%2Fvariables%2Fk",
+                id="xcoms-head",
+            ),
+            pytest.param(
+                lambda c: c.xcoms.get("d", "r", "t", "x/../../variables/k"),
+                b"/xcoms/d/r/t/x%2F..%2F..%2Fvariables%2Fk",
+                id="xcoms-get",
+            ),
+            pytest.param(
+                lambda c: c.xcoms.set("d", "r", "t", "x/../../variables/k", "v"),
+                b"/xcoms/d/r/t/x%2F..%2F..%2Fvariables%2Fk",
+                id="xcoms-set",
+            ),
+            pytest.param(
+                lambda c: c.xcoms.delete("d", "r", "t", "x/../../variables/k"),
+                b"/xcoms/d/r/t/x%2F..%2F..%2Fvariables%2Fk",
+                id="xcoms-delete",
+            ),
+            pytest.param(
+                lambda c: c.xcoms.get_sequence_item("d", "r", "t", "x/../../variables/k", 0),
+                b"/xcoms/d/r/t/x%2F..%2F..%2Fvariables%2Fk/item/0",
+                id="xcoms-item",
+            ),
+            pytest.param(
+                lambda c: c.xcoms.get_sequence_slice("d", "r", "t", "x/../../variables/k", None, None, None),
+                b"/xcoms/d/r/t/x%2F..%2F..%2Fvariables%2Fk/slice",
+                id="xcoms-slice",
+            ),
+            pytest.param(
+                lambda c: c.dag_runs.trigger("..", "r"), b"/dag-runs/%2E%2E/r", id="dag-runs-trigger"
+            ),
+            pytest.param(
+                lambda c: c.dag_runs.clear("d", ".."), b"/dag-runs/d/%2E%2E/clear", id="dag-runs-clear"
+            ),
+            pytest.param(
+                lambda c: c.dag_runs.get_detail("..", "r"), b"/dag-runs/%2E%2E/r", id="dag-runs-detail"
+            ),
+            pytest.param(
+                lambda c: c.dag_runs.get_state("d", ".."), b"/dag-runs/d/%2E%2E/state", id="dag-runs-state"
+            ),
+            pytest.param(
+                lambda c: c.task_instances.get_previous("..", "t"),
+                b"/task-instances/previous/%2E%2E/t",
+                id="get-previous",
+            ),
+            pytest.param(lambda c: c.connections.get(".."), b"/connections/%2E%2E", id="connection-dotdot"),
+            pytest.param(lambda c: c.connections.get("."), b"/connections/%2E", id="connection-dot"),
+            pytest.param(
+                lambda c: c.xcoms.get("..", "..", "variables", "secret"),
+                b"/xcoms/%2E%2E/%2E%2E/variables/secret",
+                id="xcoms-dots",
+            ),
+        ],
+    )
+    def test_path_identifiers_stay_in_their_segment(self, call, expected_path):
+        """Caller-supplied identifiers cannot reach another endpoint, whatever they contain."""
+        requests_seen = []
+
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
+            requests_seen.append(request)
+            return httpx2.Response(
+                status_code=200, content=b"null", headers={"Content-Range": "map_indexes 1"}
+            )
+
+        with contextlib.suppress(Exception):  # the stub body need not parse; only the URL matters
+            call(make_client(transport=httpx2.MockTransport(handle_request)))
+
+        assert requests_seen[0].url.raw_path.split(b"?")[0] == expected_path
+
+    @pytest.mark.parametrize(
+        "call",
+        [
+            pytest.param(lambda c: c.dag_runs.trigger("d", "x/clear"), id="trigger-run-id"),
+            pytest.param(lambda c: c.dag_runs.trigger("a/b", "r"), id="trigger-dag-id"),
+            pytest.param(lambda c: c.xcoms.get("a/b", "r", "t", "k"), id="xcoms-dag-id"),
+            pytest.param(lambda c: c.xcoms.get("d", "a/b", "t", "k"), id="xcoms-run-id"),
+            pytest.param(lambda c: c.xcoms.get("d", "r", "a/b", "k"), id="xcoms-task-id"),
+            pytest.param(lambda c: c.task_instances.get_previous("a/b", "t"), id="previous-dag-id"),
+            pytest.param(lambda c: c.task_instances.get_previous("d", "a/b"), id="previous-task-id"),
+        ],
+    )
+    def test_path_rejects_slash_in_positional_identifier(self, call):
+        requests_seen = []
+
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
+            requests_seen.append(request)
+            return httpx2.Response(status_code=200, content=b"null")
+
+        with pytest.raises(ValueError, match="must not contain '/'"):
+            call(make_client(transport=httpx2.MockTransport(handle_request)))
+
+        assert requests_seen == []
+
 
 class TestTaskInstanceOperations:
     """
@@ -530,6 +646,32 @@ class TestTaskInstanceOperations:
         )
 
         assert bodies[0]["loop_decision"] == {"stop": False, "reason": "error 0.2"}
+
+    def test_task_instance_succeed_sends_external_clear_target(self):
+        bodies = []
+
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
+            bodies.append(json.loads(request.read()))
+            return httpx2.Response(status_code=204)
+
+        client = make_client(transport=httpx2.MockTransport(handle_request))
+        client.task_instances.succeed(
+            uuid6.uuid7(),
+            when="2024-10-31T12:00:00Z",
+            task_outlets=[],
+            outlet_events=[],
+            rendered_map_index=None,
+            external_clear_target=ExternalClearTargetPayload(
+                dag_id="child", task_id="wait", logical_date="2024-10-31T00:00:00Z", recursion_depth=2
+            ),
+        )
+
+        assert bodies[0]["external_clear_target"] == {
+            "dag_id": "child",
+            "task_id": "wait",
+            "logical_date": "2024-10-31T00:00:00Z",
+            "recursion_depth": 2,
+        }
 
     def test_task_instance_heartbeat(self):
         # Simulate a successful response from the server that sends a heartbeat for a ti
@@ -2522,4 +2664,37 @@ class TestCallbackOperations:
         client = make_client(transport=httpx2.MockTransport(handle_request))
         with pytest.raises(ServerResponseError) as err:
             client.callbacks.run(callback_id)
+        assert err.value.response.status_code == 409
+
+    @pytest.mark.parametrize(
+        ("state", "output"),
+        [
+            pytest.param(CallbackTerminalState.SUCCESS, None, id="success-without-output"),
+            pytest.param(CallbackTerminalState.FAILED, "exited with code 3", id="failed-with-output"),
+        ],
+    )
+    def test_finish_reports_the_terminal_state(self, state, output):
+        callback_id = uuid7()
+
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
+            assert request.method == "PATCH"
+            assert request.url.path == f"/callbacks/{callback_id}/state"
+            assert json.loads(request.content) == {"state": state.value, "output": output}
+            return httpx2.Response(status_code=204)
+
+        client = make_client(transport=httpx2.MockTransport(handle_request))
+        client.callbacks.finish(callback_id, state=state, output=output)
+
+    def test_finish_raises_when_the_callback_is_not_running(self):
+        callback_id = uuid7()
+
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
+            return httpx2.Response(
+                status_code=409,
+                json={"detail": {"reason": "invalid_state", "previous_state": "queued"}},
+            )
+
+        client = make_client(transport=httpx2.MockTransport(handle_request))
+        with pytest.raises(ServerResponseError) as err:
+            client.callbacks.finish(callback_id, state=CallbackTerminalState.FAILED)
         assert err.value.response.status_code == 409

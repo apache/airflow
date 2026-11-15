@@ -497,3 +497,36 @@ describe("Dags list auto-refresh", () => {
     },
   );
 });
+
+const isBefore = (first: HTMLElement, second: HTMLElement) =>
+  Boolean(first.compareDocumentPosition(second) & Node.DOCUMENT_POSITION_FOLLOWING);
+
+describe("Dag folder toggle", () => {
+  beforeEach(() => {
+    server.use(
+      http.get("/ui/dags/folders", () =>
+        HttpResponse.json({ folders: [{ bundle_name: "dags-folder", folder: "team_a" }], total_entries: 1 }),
+      ),
+    );
+  });
+
+  it("stays left of Add Filter whether the folder drawer is open or closed", async () => {
+    render(<AppWrapper initialEntries={["/dags"]} />);
+
+    const hideButton = await screen.findByRole("button", { name: /folders\.hide|hide folders/iu });
+
+    expect(isBefore(hideButton, screen.getByTestId("add-filter-button"))).toBe(true);
+    expect(screen.getByText(/folders\.title|^folders$/iu)).toBeInTheDocument();
+
+    fireEvent.click(hideButton);
+
+    const showButton = await screen.findByRole("button", { name: /folders\.show|show folders/iu });
+
+    expect(isBefore(showButton, screen.getByTestId("add-filter-button"))).toBe(true);
+    expect(screen.queryByText(/folders\.title|^folders$/iu)).not.toBeInTheDocument();
+
+    fireEvent.click(showButton);
+
+    expect(await screen.findByText(/folders\.title|^folders$/iu)).toBeInTheDocument();
+  });
+});

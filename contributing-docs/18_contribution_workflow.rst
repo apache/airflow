@@ -132,12 +132,14 @@ CI in your fork
 
 Pull requests from contributors who are not committers or collaborators are moving to running
 their CI in the contributor's own fork, on GitHub's free runners, instead of on the shared CI
-capacity of the Apache Software Foundation (`AIP-120
-<https://cwiki.apache.org/confluence/spaces/AIRFLOW/pages/451974711/AIP-120+Run+CI+for+external+contributions+in+contributor+forks>`__).
+capacity of the Apache Software Foundation (`ADIP-12, formerly AIP-120
+<https://cwiki.apache.org/confluence/spaces/AIRFLOW/pages/451974711>`__).
 CI on a public fork costs you nothing and has no minute limit; it runs on every push to your
 fork, so you get feedback before a maintainer looks at your pull request. The change is being
 piloted: until it is switched on for everyone, it applies to pilot participants (see below) and
-to pull requests a maintainer labels ``use fork ci``.
+to pull requests a maintainer labels ``use fork ci``. The `pull request lifecycle
+<../dev/breeze/doc/ci/08_fork_ci_for_external_contributors.md#pull-request-lifecycle>`__ diagram
+shows what your pull request shows at each step and who acts next.
 
 Set up your checkout and fork once:
 
@@ -156,7 +158,11 @@ Set up your checkout and fork once:
       gh workflow enable ci-amd.yml -R <you>/airflow
 
    GitHub Actions must also be enabled in your fork and allow all actions: ``Tests (AMD)`` uses
-   actions from other repositories.
+   actions from other repositories. When your fork's Actions settings block the workflow, its run
+   ends in "Startup failure" before any job runs, and the fork CI monitor reports
+   ``Fork CI / Tests (AMD)`` as failed with "could not start". Open the run in your fork for GitHub's
+   error, which can also be an invalid workflow file, fix the settings under
+   **Settings > Actions > General** in your fork, and push again.
 
    Keep the workflow enabled for as long as you have open pull requests. If it gets disabled, from
    your fork's Actions tab or by GitHub after 60 days without activity in your fork, the fork CI
@@ -178,14 +184,24 @@ Set up your checkout and fork once:
       breeze ci audit
 
 When fork CI applies to your pull request, it is labelled ``fork ci required`` and kept in draft
-until the ``Tests (AMD)`` run in your fork for its latest commit is green. A
+until the ``Tests (AMD)`` workflow runs in your fork for its latest commit. A failed run does not
+draft it. A
 ``Fork CI / Tests (AMD)`` status on the pull request links to that run, and one comment on the pull
 request explains the current state. Once the run is green, a pull request the monitor drafted is
 marked ready for review and labelled ``ready for maintainer review``; a pull request you drafted
-yourself stays a draft, and gets the label, once you mark it ready. A pull request whose fork CI
-does not run for 7 days is closed with an explanation; you can reopen it after setting up fork CI. If your pull request changes
+yourself stays a draft, and gets the label, once you mark it ready. Marking a draft ready needs a
+free slot under the `limit on open pull requests <32_open_pull_request_limit.rst>`__: at the limit,
+GitHub refuses it, also when a maintainer tries, so close or finish one of your other open pull
+requests first. A pull request whose fork CI
+does not run for 30 days is closed with an explanation; you can reopen it after setting up fork CI. If your pull request changes
 files that decide which CI jobs run and where, such as ``.github/``, the breeze sources or
 ``scripts/ci/prek/``, a green fork run is not enough: a maintainer reviews the change and runs project CI for it.
+
+Like project CI, fork CI tests your branch merged with the target branch, as the target branch was
+when the run started; a push that conflicts with it fails at once and asks you to rebase. The
+``CI passed`` check that merging requires is reported only when that commit of the target branch is
+fewer than 200 commits behind the target branch. Otherwise the pull request comment asks you to
+rebase on ``upstream/main`` (or the target branch) and push, which runs fork CI again.
 
 **Joining the pilot.** Open a pull request that adds your GitHub login to the ``[pilot]`` table in
 ``.github/fork-ci-gate.toml``, with a join instant after the expected merge, for example the next day

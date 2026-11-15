@@ -29,6 +29,17 @@ It does this by looking for the specific *value* appearing anywhere in your outp
 have a connection with a password of ``a``, then every instance of the letter a in your logs will be replaced
 with ``***``.
 
+A value that spans several lines, such as a private key, is also masked line by line: each eligible non-blank line,
+with surrounding whitespace removed, is masked in addition to the whole value. This also masks matching lines when
+a formatter such as ``pprint`` splits a multi-line string into separate string literals, as happens when a
+Kubernetes pod spec is printed. Lines shorter than :ref:`config:logging__min_length_masked_secret` are not masked
+on their own.
+
+This also applies to a Connection's extra field that is stored as pretty-printed, multi-line JSON: each eligible
+line of it, such as ``"timeout": 30,``, is replaced with ``***`` in your logs, including in unrelated text.
+Compact, single-line JSON does not have this effect, but saving the connection in the UI formats extra with
+indentation again.
+
 To disable masking you can set :ref:`config:core__hide_sensitive_var_conn_fields` to false.
 
 The automatic masking is triggered by Connection or Variable access. This means that if you pass a sensitive

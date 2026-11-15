@@ -63,6 +63,7 @@ from airflow.sdk.definitions.asset import (
     BaseAsset,
 )
 from airflow.sdk.definitions.deadline import DeadlineAlert
+from airflow.sdk.definitions.external_clear import DeclaresExternalClearTarget  # noqa: SDK001
 from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.sdk.definitions.operator_resources import Resources
 from airflow.sdk.definitions.param import Param, ParamsDict
@@ -1069,6 +1070,10 @@ class OperatorSerialization(DAGNode, BaseSerialization):
         if op.inherits_from_skipmixin:
             serialize_op["_can_skip_downstream"] = True
 
+        # A cross-Dag clear target known at parse time, so clearing can follow it without the task running.
+        if isinstance(op, DeclaresExternalClearTarget) and (target := op.external_clear_target) is not None:
+            serialize_op["_external_clear_target"] = target.serialize()
+
         if op.is_stub:
             # Imported here, not at module scope: this pulls pydantic's JSON-schema machinery,
             # which only lang-SDK (non-Python) workloads ever need.
@@ -1197,9 +1202,9 @@ class OperatorSerialization(DAGNode, BaseSerialization):
                     raise RuntimeError("_is_sensor=False should never have been serialized!")
                 object.__setattr__(op, "deps", op.deps | {ReadyToRescheduleDep()})
                 continue
-            elif k in ("is_stub", "_arg_bindings"):
-                # Both are restored unconditionally below: is_stub must fail closed rather than go
-                # through generic decoding, and _arg_bindings is plain JSON, not {__type, __var}.
+            elif k in ("is_stub", "_arg_bindings", "_external_clear_target"):
+                # All are restored unconditionally below: is_stub must fail closed rather than go
+                # through generic decoding, and the others are plain JSON, not {__type, __var}.
                 continue
             elif (
                 k in cls._decorated_fields
@@ -1263,6 +1268,7 @@ class OperatorSerialization(DAGNode, BaseSerialization):
         # on this path, so anything that is not JSON ``true`` means "not a stub".
         setattr(op, "is_stub", encoded_op.get("is_stub") is True)
         setattr(op, "_arg_bindings", encoded_op.get("_arg_bindings"))
+        setattr(op, "_external_clear_target", encoded_op.get("_external_clear_target"))
 
         start_trigger_args = None
         encoded_start_trigger_args = encoded_op.get("start_trigger_args", None)
@@ -1495,6 +1501,10 @@ class OperatorSerialization(DAGNode, BaseSerialization):
                             and attrname in op._BaseOperator__init_kwargs
                             and op._BaseOperator__init_kwargs[attrname] == var
                         ):
+                            return False
+                        # Mapped operators carry explicit values in partial_kwargs, not __init_kwargs.
+                        partial_kwargs = getattr(op, "partial_kwargs", None)
+                        if partial_kwargs and attrname in partial_kwargs and partial_kwargs[attrname] == var:
                             return False
 
                 # If client_defaults doesn't have this field (matches schema default),

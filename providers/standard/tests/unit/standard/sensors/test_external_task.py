@@ -17,12 +17,14 @@
 # under the License.
 from __future__ import annotations
 
+import contextlib
 import itertools
 import logging
 import re
 from datetime import time, timedelta
 from unittest import mock
 
+import pendulum
 import pytest
 from sqlalchemy import select
 
@@ -37,6 +39,7 @@ from airflow.providers.common.compat.sdk import (
     AirflowSensorTimeout,
     AirflowSkipException,
     TaskDeferred,
+    XCom,
     timezone,
 )
 from airflow.providers.standard.exceptions import (
@@ -52,7 +55,13 @@ from airflow.providers.standard.exceptions import (
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
-from airflow.providers.standard.sensors.external_task import ExternalTaskMarker, ExternalTaskSensor
+from airflow.providers.standard.sensors.external_task import (
+    XCOM_EXTERNAL_RUN_IDS,
+    ExternalClearTarget,
+    ExternalDagLink,
+    ExternalTaskMarker,
+    ExternalTaskSensor,
+)
 from airflow.providers.standard.sensors.time import TimeSensor
 from airflow.providers.standard.triggers.external_task import WorkflowTrigger
 from airflow.timetables.base import DataInterval
@@ -60,7 +69,7 @@ from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.state import DagRunState, State
 from airflow.utils.types import DagRunType
 
-from tests_common.test_utils.compat import OperatorSerialization
+from tests_common.test_utils.compat import DagSerialization, OperatorSerialization
 from tests_common.test_utils.dag import create_scheduler_dag, sync_dag_to_db, sync_dags_to_db
 from tests_common.test_utils.db import clear_db_runs
 from tests_common.test_utils.mock_operators import MockOperator
@@ -1357,11 +1366,15 @@ class TestExternalTaskSensorV3:
         self.context["ti"].get_task_states.return_value = {"run_id": {"test_group.task_id": State.SUCCESS}}
         op.execute(context=self.context)
 
-        self.context["ti"].get_task_states.assert_called_once_with(
-            dag_id="test_dag_parent",
-            logical_dates=[DEFAULT_DATE],
-            task_group_id="test_group",
-        )
+        assert self.context["ti"].get_task_states.call_args_list == [
+            mock.call(dag_id="test_dag_parent", logical_dates=[DEFAULT_DATE], task_group_id="test_group"),
+            mock.call(
+                dag_id="test_dag_parent",
+                task_ids=None,
+                task_group_id="test_group",
+                logical_dates=[DEFAULT_DATE],
+            ),
+        ]
         assert op.external_dates_filter == DEFAULT_DATE.isoformat()
 
     @pytest.mark.execution_timeout(10)
@@ -1596,12 +1609,63 @@ class TestExternalTaskSensorV3:
         with pytest.raises(ExternalTaskGroupFailedError):
             op.execute(context=self.context)
 
-        self.context["ti"].get_task_states.assert_called_once_with(
-            dag_id="test_dag_parent",
-            logical_dates=[DEFAULT_DATE],
-            task_group_id="test_group",
-        )
+        assert self.context["ti"].get_task_states.call_args_list == [
+            mock.call(dag_id="test_dag_parent", logical_dates=[DEFAULT_DATE], task_group_id="test_group"),
+            mock.call(
+                dag_id="test_dag_parent",
+                task_ids=None,
+                task_group_id="test_group",
+                logical_dates=[DEFAULT_DATE],
+            ),
+        ]
         assert op.external_dates_filter == DEFAULT_DATE.isoformat()
+
+    def test_poke_does_not_store_external_run_ids_while_waiting(self):
+        op = ExternalTaskSensor(
+            task_id=TASK_ID,
+            external_dag_id=EXTERNAL_DAG_ID,
+            external_task_id=EXTERNAL_TASK_ID,
+            failed_states=[State.FAILED],
+            skipped_states=[State.SKIPPED],
+        )
+        ti = mock.MagicMock(spec=["get_ti_count", "get_task_states", "xcom_push"])
+        ti.get_ti_count.return_value = 0
+
+        assert op.poke(context={"logical_date": DEFAULT_DATE, "ti": ti}) is False
+
+        ti.get_task_states.assert_not_called()
+        ti.xcom_push.assert_not_called()
+
+    @pytest.mark.parametrize(
+        ("sensor_kwargs", "expectation"),
+        [
+            pytest.param(
+                {"failed_states": [State.FAILED], "soft_fail": True},
+                pytest.raises(AirflowSkipException),
+                id="failed-soft-fail",
+            ),
+            pytest.param(
+                {"skipped_states": [State.SKIPPED]}, pytest.raises(AirflowSkipException), id="skipped"
+            ),
+            pytest.param({}, contextlib.nullcontext(), id="success"),
+        ],
+    )
+    def test_poke_keeps_outcome_when_storing_external_run_ids_fails(self, sensor_kwargs, expectation):
+        op = ExternalTaskSensor(
+            task_id=TASK_ID,
+            external_dag_id=EXTERNAL_DAG_ID,
+            external_task_id=EXTERNAL_TASK_ID,
+            **sensor_kwargs,
+        )
+        ti = mock.MagicMock(spec=["get_ti_count", "get_task_states", "xcom_push"])
+        ti.get_ti_count.return_value = 1
+        ti.get_task_states.side_effect = RuntimeError("Execution API unavailable")
+
+        with expectation:
+            assert op.poke(context={"logical_date": DEFAULT_DATE, "ti": ti}) is True
+
+        ti.get_task_states.assert_called_once()
+        ti.xcom_push.assert_not_called()
 
     def test_get_logical_date(self):
         """For AF 3, we check for logical date or dag_run.run_after  in context."""
@@ -1721,7 +1785,11 @@ class TestExternalTaskAsyncSensor:
             deferrable=True,
         )
 
-        context = {"execution_date": DEFAULT_DATE, "logical_date": DEFAULT_DATE}
+        context = {
+            "execution_date": DEFAULT_DATE,
+            "logical_date": DEFAULT_DATE,
+            "ti": mock.MagicMock(spec=["get_task_states", "xcom_push"]),
+        }
         with mock.patch.object(sensor.log, "info") as mock_log_info:
             sensor.execute_complete(
                 context=context,
@@ -1738,7 +1806,11 @@ class TestExternalTaskAsyncSensor:
             deferrable=True,
         )
 
-        context = {"execution_date": DEFAULT_DATE, "logical_date": DEFAULT_DATE}
+        context = {
+            "execution_date": DEFAULT_DATE,
+            "logical_date": DEFAULT_DATE,
+            "ti": mock.MagicMock(spec=["get_task_states", "xcom_push"]),
+        }
         with pytest.raises(ExternalDagFailedError, match="External job has failed."):
             sensor.execute_complete(
                 context=context,
@@ -1755,7 +1827,11 @@ class TestExternalTaskAsyncSensor:
             soft_fail=True,
         )
 
-        context = {"execution_date": DEFAULT_DATE, "logical_date": DEFAULT_DATE}
+        context = {
+            "execution_date": DEFAULT_DATE,
+            "logical_date": DEFAULT_DATE,
+            "ti": mock.MagicMock(spec=["get_task_states", "xcom_push"]),
+        }
         with pytest.raises(AirflowSkipException, match="External job has failed skipping."):
             sensor.execute_complete(
                 context=context,
@@ -1793,10 +1869,73 @@ class TestExternalTaskAsyncSensor:
         )
         assert sensor.external_dates_filter is None
 
-        context = {"execution_date": DEFAULT_DATE, "logical_date": DEFAULT_DATE}
+        context = {
+            "execution_date": DEFAULT_DATE,
+            "logical_date": DEFAULT_DATE,
+            "ti": mock.MagicMock(spec=["get_task_states", "xcom_push"]),
+        }
         sensor.execute_complete(context=context, event={"status": "success"})
 
         assert sensor.external_dates_filter == DEFAULT_DATE.isoformat()
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Run IDs are looked up through the Task SDK")
+    @pytest.mark.parametrize(
+        ("status", "expectation"),
+        [
+            pytest.param("success", contextlib.nullcontext(), id="success"),
+            pytest.param("failed", pytest.raises(ExternalDagFailedError), id="failed"),
+            pytest.param("skipped", pytest.raises(AirflowSkipException), id="skipped"),
+        ],
+    )
+    def test_defer_execute_complete_pushes_matched_external_run_ids(self, status, expectation):
+        sensor = ExternalTaskSensor(
+            task_id=TASK_ID,
+            external_task_id=EXTERNAL_TASK_ID,
+            external_dag_id=EXTERNAL_DAG_ID,
+            deferrable=True,
+        )
+        ti = mock.MagicMock(spec=["get_task_states", "xcom_push"])
+        ti.get_task_states.return_value = {"run_b": {EXTERNAL_TASK_ID: status}, "run_a": {}}
+        context = {"logical_date": DEFAULT_DATE, "ti": ti}
+
+        with expectation:
+            sensor.execute_complete(context=context, event={"status": status})
+
+        ti.get_task_states.assert_called_once_with(
+            dag_id=EXTERNAL_DAG_ID,
+            task_ids=[EXTERNAL_TASK_ID],
+            task_group_id=None,
+            logical_dates=[DEFAULT_DATE],
+        )
+        ti.xcom_push.assert_called_once_with(key=XCOM_EXTERNAL_RUN_IDS, value=["run_a", "run_b"])
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Run IDs are looked up through the Task SDK")
+    @pytest.mark.parametrize(
+        ("status", "expectation"),
+        [
+            pytest.param("success", contextlib.nullcontext(), id="success"),
+            pytest.param("failed", pytest.raises(ExternalDagFailedError), id="failed"),
+            pytest.param("skipped", pytest.raises(AirflowSkipException), id="skipped"),
+        ],
+    )
+    def test_defer_execute_complete_keeps_outcome_when_storing_external_run_ids_fails(
+        self, status, expectation
+    ):
+        sensor = ExternalTaskSensor(
+            task_id=TASK_ID,
+            external_task_id=EXTERNAL_TASK_ID,
+            external_dag_id=EXTERNAL_DAG_ID,
+            deferrable=True,
+        )
+        ti = mock.MagicMock(spec=["get_task_states", "xcom_push"])
+        ti.get_task_states.side_effect = RuntimeError("Execution API unavailable")
+        context = {"logical_date": DEFAULT_DATE, "ti": ti}
+
+        with expectation:
+            sensor.execute_complete(context=context, event={"status": status})
+
+        ti.get_task_states.assert_called_once()
+        ti.xcom_push.assert_not_called()
 
     def test_poke_interval_set_on_init(self):
         """Test that poke_interval is set on init and the deprecated poll_interval attribute mirrors it."""
@@ -1821,7 +1960,9 @@ class TestExternalTaskAsyncSensor:
     ],
     ids=["not_templated", "templated"],
 )
+@mock.patch.object(XCom, "get_value", autospec=True, return_value=None)
 def test_external_task_sensor_extra_link(
+    mock_get_value,
     external_dag_id,
     external_task_id,
     expected_external_dag_id,
@@ -1844,7 +1985,7 @@ def test_external_task_sensor_extra_link(
 
     url = task.operator_extra_links[0].get_link(operator=task, ti_key=ti.key)
 
-    assert f"/dags/{expected_external_dag_id}/runs" in url
+    assert url.endswith(f"/dags/{expected_external_dag_id}")
 
 
 class TestExternalTaskMarker:
@@ -1865,6 +2006,171 @@ class TestExternalTaskMarker:
         assert deserialized_op.task_type == "ExternalTaskMarker"
         assert getattr(deserialized_op, "external_dag_id") == "external_task_marker_child"
         assert getattr(deserialized_op, "external_task_id") == "child_task1"
+
+    @pytest.mark.skipif(ExternalClearTarget is None, reason="Airflow without cross-Dag clear targets")
+    @pytest.mark.parametrize(
+        ("rendered_logical_date", "expected"),
+        [
+            pytest.param("2026-10-01T00:00:00+00:00", pendulum.datetime(2026, 10, 1), id="iso-utc"),
+            pytest.param(
+                "2026-10-01T05:30:00+05:30",
+                pendulum.datetime(2026, 10, 1),
+                id="iso-offset",
+            ),
+            pytest.param("2026-10-01", pendulum.datetime(2026, 10, 1), id="date-only-is-utc"),
+        ],
+    )
+    def test_external_clear_target_uses_rendered_fields(self, rendered_logical_date, expected):
+        marker = ExternalTaskMarker(
+            task_id="mark",
+            external_dag_id="child",
+            external_task_id="wait",
+            logical_date=rendered_logical_date,
+            recursion_depth=3,
+        )
+
+        target = marker.get_external_clear_target(context={})
+
+        assert target == ExternalClearTarget(
+            dag_id="child", task_id="wait", logical_date=expected, recursion_depth=3
+        )
+
+    @pytest.mark.skipif(ExternalClearTarget is None, reason="Airflow without cross-Dag clear targets")
+    @pytest.mark.parametrize("rendered_logical_date", ["", "P1D"], ids=["empty", "duration"])
+    def test_external_clear_target_rejects_logical_date_that_is_not_a_datetime(self, rendered_logical_date):
+        marker = ExternalTaskMarker(
+            task_id="mark",
+            external_dag_id="child",
+            external_task_id="wait",
+            logical_date=rendered_logical_date,
+        )
+
+        with pytest.raises(ValueError, match="must render to a date and time"):
+            marker.get_external_clear_target(context={})
+
+    @pytest.mark.skipif(ExternalClearTarget is None, reason="Airflow without cross-Dag clear targets")
+    def test_external_clear_target_without_a_date_leaves_it_to_the_run(self):
+        marker = ExternalTaskMarker(task_id="mark", external_dag_id="child", external_task_id="wait")
+
+        target = marker.get_external_clear_target(context={"logical_date": pendulum.datetime(2026, 10, 1, 5)})
+
+        assert target == ExternalClearTarget(dag_id="child", task_id="wait", logical_date=None)
+
+    @pytest.mark.skipif(ExternalClearTarget is None, reason="Airflow without cross-Dag clear targets")
+    def test_default_marker_renders_in_a_run_without_a_logical_date(self):
+        with DAG("marker_without_logical_date"):
+            marker = ExternalTaskMarker(task_id="mark", external_dag_id="child", external_task_id="wait")
+        context = {"params": {}}
+
+        marker.render_template_fields(context=context)
+
+        assert marker.get_external_clear_target(context=context).logical_date is None
+
+    @pytest.mark.skipif(ExternalClearTarget is None, reason="Airflow without cross-Dag clear targets")
+    def test_external_clear_target_uses_a_logical_date_rendered_as_a_datetime(self):
+        marker = ExternalTaskMarker(
+            task_id="mark",
+            external_dag_id="child",
+            external_task_id="wait",
+            logical_date="{{ logical_date }}",
+        )
+        marker.logical_date = pendulum.datetime(2026, 10, 1)
+
+        target = marker.get_external_clear_target(context={})
+
+        assert target == ExternalClearTarget(
+            dag_id="child", task_id="wait", logical_date=pendulum.datetime(2026, 10, 1)
+        )
+
+    @pytest.mark.skipif(ExternalClearTarget is None, reason="Airflow without cross-Dag clear targets")
+    @pytest.mark.parametrize(
+        ("kwargs", "expected_date"),
+        [
+            pytest.param({}, None, id="run-date"),
+            pytest.param(
+                {"logical_date": "2026-10-01T05:00:00+00:00"},
+                pendulum.datetime(2026, 10, 1, 5),
+                id="literal-date",
+            ),
+            pytest.param(
+                {"logical_date": timezone.datetime(2026, 10, 1)},
+                pendulum.datetime(2026, 10, 1),
+                id="datetime",
+            ),
+        ],
+    )
+    def test_marker_target_known_at_parse_time_skips_the_worker(self, kwargs, expected_date):
+        with DAG("marker_targets"):
+            marker = ExternalTaskMarker(
+                task_id="mark", external_dag_id="child", external_task_id="wait", **kwargs
+            )
+
+        assert marker.external_clear_target == ExternalClearTarget("child", "wait", expected_date)
+        assert marker.inherits_from_empty_operator is True
+
+    @pytest.mark.skipif(ExternalClearTarget is None, reason="Airflow without cross-Dag clear targets")
+    @pytest.mark.parametrize(
+        "kwargs",
+        [
+            pytest.param({"external_dag_id": "{{ params.child }}"}, id="templated-dag-id"),
+            pytest.param({"external_task_id": "{% if true %}wait{% endif %}"}, id="templated-task-id"),
+            pytest.param({"external_dag_id": lambda context, jinja_env: "child"}, id="callable-dag-id"),
+            pytest.param({"logical_date": "{{ ds }}"}, id="templated-date"),
+            pytest.param({"logical_date": "not a date"}, id="bad-literal-date-left-to-the-worker"),
+        ],
+    )
+    def test_marker_that_needs_rendering_runs_on_a_worker(self, kwargs):
+        with DAG("marker_targets"):
+            marker = ExternalTaskMarker(
+                task_id="mark", **{"external_dag_id": "child", "external_task_id": "wait", **kwargs}
+            )
+
+        assert marker.external_clear_target is None
+        assert marker.inherits_from_empty_operator is False
+
+    @pytest.mark.skipif(ExternalClearTarget is None, reason="Airflow without cross-Dag clear targets")
+    def test_mapped_marker_runs_on_a_worker(self):
+        with DAG("mapped_marker"):
+            marker = ExternalTaskMarker.partial(task_id="mark", external_dag_id="child").expand(
+                external_task_id=["a", "b"]
+            )
+
+        assert marker.inherits_from_empty_operator is False
+
+    @pytest.mark.skipif(ExternalClearTarget is None, reason="Airflow without cross-Dag clear targets")
+    def test_marker_reads_templates_with_the_dag_delimiters(self):
+        with DAG(
+            "marker_delimiters",
+            jinja_environment_kwargs={"variable_start_string": "[[", "variable_end_string": "]]"},
+        ):
+            literal = ExternalTaskMarker(
+                task_id="literal", external_dag_id="{{ x }}", external_task_id="wait"
+            )
+            templated = ExternalTaskMarker(
+                task_id="templated", external_dag_id="[[ x ]]", external_task_id="wait"
+            )
+
+        assert literal.external_clear_target == ExternalClearTarget("{{ x }}", "wait")
+        assert templated.external_clear_target is None
+
+    @pytest.mark.skipif(ExternalClearTarget is None, reason="Airflow without cross-Dag clear targets")
+    def test_marker_target_known_at_parse_time_is_stored_with_the_dag(self):
+        with DAG("marker_stored") as dag:
+            ExternalTaskMarker(
+                task_id="mark", external_dag_id="child", external_task_id="wait", recursion_depth=3
+            )
+
+        serialized = DagSerialization.to_dict(dag)
+        DagSerialization.validate_schema(serialized)
+        task = DagSerialization.from_dict(serialized).task_dict["mark"]
+
+        assert task.external_clear_target == {
+            "dag_id": "child",
+            "task_id": "wait",
+            "logical_date": None,
+            "recursion_depth": 3,
+        }
+        assert task.inherits_from_empty_operator is True
 
 
 @pytest.fixture
@@ -2420,9 +2726,8 @@ class TestExternalDagLink:
             pytest.param(ExternalTaskMarker, id="marker"),
         ],
     )
-    def test_link_points_to_external_dag_run(self, operator_class, dag_maker):
-        from airflow.configuration import conf
-
+    @mock.patch.object(XCom, "get_value", autospec=True, return_value=None)
+    def test_link_points_to_external_dag_without_matched_run(self, mock_get_value, operator_class, dag_maker):
         with dag_maker("test_external_dag_link", serialized=True):
             task = operator_class(
                 task_id="task_with_link",
@@ -2439,5 +2744,106 @@ class TestExternalDagLink:
 
         url = link.get_link(operator=task, ti_key=ti.key)
 
-        base_url = conf.get("api", "base_url", fallback="/").lower()
-        assert url == f"{base_url}dags/external_dag/runs/{dr.run_id}"
+        assert url.endswith("/dags/external_dag")
+
+    @pytest.mark.parametrize(
+        ("sensor_kwargs", "external_logical_date"),
+        [
+            pytest.param(
+                {"execution_delta": timedelta(minutes=5)},
+                DEFAULT_DATE - timedelta(minutes=5),
+                id="execution_delta",
+            ),
+            pytest.param(
+                {"execution_date_fn": lambda logical_date: logical_date - timedelta(minutes=5)},
+                DEFAULT_DATE - timedelta(minutes=5),
+                id="execution_date_fn",
+            ),
+            pytest.param({}, DEFAULT_DATE, id="same_logical_date_different_run_type"),
+        ],
+    )
+    def test_sensor_link_points_to_waited_external_dag_run(
+        self, sensor_kwargs, external_logical_date, dag_maker
+    ):
+        with dag_maker(
+            "external_dag", schedule=None, start_date=DEFAULT_DATE - timedelta(days=1), serialized=True
+        ):
+            EmptyOperator(task_id="external_task")
+        external_dr = dag_maker.create_dagrun(
+            run_type=DagRunType.SCHEDULED,
+            logical_date=external_logical_date,
+            state=DagRunState.SUCCESS,
+        )
+
+        with dag_maker("sensor_dag", schedule=None, serialized=True):
+            ExternalTaskSensor(task_id="wait", external_dag_id="external_dag", **sensor_kwargs)
+        sensor_dr = dag_maker.create_dagrun(run_type=DagRunType.MANUAL, logical_date=DEFAULT_DATE)
+
+        ti = dag_maker.run_ti("wait", sensor_dr)
+        assert ti.state == State.SUCCESS
+
+        url = dag_maker.serialized_dag.get_task("wait").get_extra_links(ti, ExternalDagLink.name)
+        assert url.endswith(f"/dags/external_dag/runs/{external_dr.run_id}")
+
+    def test_sensor_link_points_to_external_dag_runs_when_several_runs_matched(self, dag_maker):
+        external_logical_dates = [DEFAULT_DATE - timedelta(days=1), DEFAULT_DATE]
+        with dag_maker(
+            "external_dag", schedule=None, start_date=DEFAULT_DATE - timedelta(days=1), serialized=True
+        ):
+            EmptyOperator(task_id="external_task")
+        for logical_date in external_logical_dates:
+            dag_maker.create_dagrun(
+                run_type=DagRunType.SCHEDULED, logical_date=logical_date, state=DagRunState.SUCCESS
+            )
+
+        with dag_maker("sensor_dag", schedule=None, serialized=True):
+            ExternalTaskSensor(
+                task_id="wait",
+                external_dag_id="external_dag",
+                execution_date_fn=lambda _: external_logical_dates,
+            )
+        sensor_dr = dag_maker.create_dagrun(run_type=DagRunType.MANUAL, logical_date=DEFAULT_DATE)
+
+        ti = dag_maker.run_ti("wait", sensor_dr)
+        assert ti.state == State.SUCCESS
+
+        url = dag_maker.serialized_dag.get_task("wait").get_extra_links(ti, ExternalDagLink.name)
+        assert url.endswith("/dags/external_dag/runs")
+
+    @pytest.mark.parametrize(
+        ("sensor_kwargs", "expectation", "expected_state"),
+        [
+            pytest.param(
+                {"failed_states": [DagRunState.FAILED]},
+                pytest.raises(ExternalDagFailedError),
+                State.FAILED,
+                id="failed_states",
+            ),
+            pytest.param(
+                {"skipped_states": [DagRunState.FAILED]},
+                contextlib.nullcontext(),
+                State.SKIPPED,
+                id="skipped_states",
+            ),
+        ],
+    )
+    def test_sensor_link_points_to_external_dag_run_that_ended_the_wait(
+        self, sensor_kwargs, expectation, expected_state, dag_maker
+    ):
+        with dag_maker("external_dag", schedule=None, serialized=True):
+            EmptyOperator(task_id="external_task")
+        external_dr = dag_maker.create_dagrun(
+            run_type=DagRunType.SCHEDULED, logical_date=DEFAULT_DATE, state=DagRunState.FAILED
+        )
+
+        with dag_maker("sensor_dag", schedule=None, serialized=True):
+            ExternalTaskSensor(task_id="wait", external_dag_id="external_dag", **sensor_kwargs)
+        sensor_dr = dag_maker.create_dagrun(run_type=DagRunType.MANUAL, logical_date=DEFAULT_DATE)
+
+        with expectation:
+            dag_maker.run_ti("wait", sensor_dr)
+        ti = sensor_dr.get_task_instance("wait")
+        assert ti.state == expected_state
+
+        url = dag_maker.serialized_dag.get_task("wait").get_extra_links(ti, ExternalDagLink.name)
+        assert url.endswith(f"/dags/external_dag/runs/{external_dr.run_id}")

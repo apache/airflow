@@ -477,23 +477,6 @@ export const coreRules = /** @type {const} @satisfies {FlatConfig.Config} */ ({
     "no-empty-character-class": ERROR,
 
     /**
-     * Disallow empty functions.
-     *
-     * @example
-     * ```typescript
-     * // ❌ Incorrect
-     * const foo = function() {}
-     *
-     * // ✅ Correct
-     * const foo = () {
-     *   // At least this one has a comment
-     * }
-     * ```
-     * @see [no-empty-function](https://eslint.org/docs/latest/rules/no-empty-function)
-     */
-    "no-empty-function": ERROR,
-
-    /**
      * Disallow empty destructuring patterns.
      *
      * @example
@@ -784,23 +767,6 @@ export const coreRules = /** @type {const} @satisfies {FlatConfig.Config} */ ({
     "no-object-constructor": ERROR,
 
     /**
-     * Disallow old octal literals.
-     *
-     * @example
-     * ```typescript
-     * // ❌ Incorrect
-     * const num = 071;
-     * const result = 5 + 07;
-     *
-     * // ✅ Correct
-     * const num = 0o71;
-     * const result = 5 + 0o7;
-     * ```
-     * @see [no-octal](https://eslint.org/docs/latest/rules/no-octal)
-     */
-    "no-octal": ERROR,
-
-    /**
      * Disallow reassignment of function parameters.
      *
      * @example
@@ -884,43 +850,6 @@ export const coreRules = /** @type {const} @satisfies {FlatConfig.Config} */ ({
      * @see [no-restricted-globals](https://eslint.org/docs/latest/rules/no-restricted-globals)
      */
     "no-restricted-globals": [ERROR, { message: "Use `globalThis` instead.", name: "window" }],
-
-    /**
-     * Disallow the `React` type namespace. `@types/react` declares `export as
-     * namespace React`, so `React.ReactNode` type-checks even in files that
-     * never import React — only a syntax rule can catch those.
-     *
-     * @example
-     * ```typescript
-     * // ❌ Incorrect
-     * const Foo: React.FC<FooProps> = ({ bar }) => <div>{bar}</div>;
-     * const node: React.ReactNode = null;
-     *
-     * // ✅ Correct
-     * const Foo = ({ bar }: FooProps) => <div>{bar}</div>;
-     * const node: ReactNode = null;
-     * ```
-     * @see [no-restricted-syntax](https://eslint.org/docs/latest/rules/no-restricted-syntax)
-     */
-    "no-restricted-syntax": [
-      ERROR,
-      {
-        message:
-          "Do not type components with `React.FC`. Annotate the props parameter instead: `const Foo = ({ bar }: FooProps) => ...`.",
-        selector: "TSQualifiedName[left.name='React'][right.name=/^(FC|FunctionComponent|VFC)$/]",
-      },
-      {
-        message:
-          "Do not type components with `FC`. Annotate the props parameter instead: `const Foo = ({ bar }: FooProps) => ...`.",
-        selector:
-          "VariableDeclarator[init.type='ArrowFunctionExpression'] > Identifier > TSTypeAnnotation > TSTypeReference > Identifier[name=/^(FC|FunctionComponent|VFC)$/]",
-      },
-      {
-        message:
-          'Import React types by name instead of qualifying them with the `React` namespace: `import { type ReactElement } from "react"`, then use `ReactElement`.',
-        selector: "TSQualifiedName[left.name='React']:not([right.name=/^(FC|FunctionComponent|VFC)$/])",
-      },
-    ],
 
     /**
      * Disallow assignment operators in `return` statements.

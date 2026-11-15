@@ -397,6 +397,34 @@ class TestBuildFileAnalysisRequest:
         assert "beta, 2" not in request.user_content
         assert "gamma, 3" not in request.user_content
 
+    @pytest.mark.parametrize(
+        ("csv_value", "expected_row"),
+        [
+            pytest.param('"Smith, John"', '"Smith, John"', id="comma"),
+            pytest.param('"5"" pipe"', '"5"" pipe"', id="quote"),
+            pytest.param('"said hi\nthen left"', '"said hi\nthen left"', id="line-feed"),
+            pytest.param('"said hi\rthen left"', '"said hi\rthen left"', id="carriage-return"),
+            pytest.param("plain value", "plain value", id="no-special-character"),
+        ],
+    )
+    def test_csv_values_keep_their_quotes(self, tmp_path, csv_value, expected_row):
+        path = tmp_path / "people.csv"
+        path.write_bytes(f"name,note\nSmith,{csv_value}\n".encode())
+
+        request = build_file_analysis_request(
+            file_path=str(path),
+            file_conn_id=None,
+            prompt="Analyze",
+            multi_modal=False,
+            max_files=1,
+            max_file_size_bytes=1024,
+            max_total_size_bytes=1024,
+            max_text_chars=500,
+            sample_rows=10,
+        )
+
+        assert f"Header: name, note\nSample rows:\nSmith, {expected_row}" in request.user_content
+
 
 class TestFileAnalysisHelpers:
     @pytest.mark.parametrize(

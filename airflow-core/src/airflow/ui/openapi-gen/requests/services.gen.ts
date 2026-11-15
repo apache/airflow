@@ -4809,7 +4809,7 @@ export class XcomService {
      * @param data.mapIndex
      * @param data.regionId
      * @param data.regionIndex
-     * @param data.excludeInternalKeys Leave out XComs whose keys Airflow reserves for itself, such as loop decision reasons.
+     * @param data.excludeInternalKeys Leave out XComs whose keys Airflow reserves for itself, such as loop decision reasons and cross-Dag clear targets.
      * @param data.limit
      * @param data.offset
      * @param data.xcomKeyPattern Case-insensitive substring match (SQL `ILIKE`). Slower than `xcom_key_prefix_pattern` on large tables — see "Filtering with pattern parameters".
@@ -5889,6 +5889,14 @@ export class GridService {
      * @param data The data for the request.
      * @param data.dagId
      * @param data.runIds
+     * @param data.startDateGte
+     * @param data.startDateGt
+     * @param data.startDateLte
+     * @param data.startDateLt
+     * @param data.endDateGte
+     * @param data.endDateGt
+     * @param data.endDateLte
+     * @param data.endDateLt
      * @returns string NDJSON stream — one ``GridTISummaries`` JSON object per line, one per Dag run
      * @throws ApiError
      */
@@ -5900,7 +5908,15 @@ export class GridService {
                 dag_id: data.dagId
             },
             query: {
-                run_ids: data.runIds
+                run_ids: data.runIds,
+                start_date_gte: data.startDateGte,
+                start_date_gt: data.startDateGt,
+                start_date_lte: data.startDateLte,
+                start_date_lt: data.startDateLt,
+                end_date_gte: data.endDateGte,
+                end_date_gt: data.endDateGt,
+                end_date_lte: data.endDateLte,
+                end_date_lt: data.endDateLt
             },
             errors: {
                 400: 'Bad Request',
