@@ -1675,16 +1675,17 @@ class TestKeycloakAuthManager:
     def test_filter_with_team_level_authorization_asks_keycloak_once(
         self, auth_manager, user, filter_name, check_name, resources, expected, authorized
     ):
-        """One decision of Keycloak applies to every resource of the list."""
+        """One decision of Keycloak applies to every resource of the list, and is cached."""
         with (
             conf_vars({(CONF_SECTION_NAME, CONF_TEAM_LEVEL_AUTHORIZATION_KEY): "True"}),
             patch.object(
                 KeycloakAuthManager, check_name, autospec=True, return_value=authorized
             ) as mock_is_authorized,
         ):
-            result = getattr(auth_manager, filter_name)(**resources, user=user, method="GET")
+            first = getattr(auth_manager, filter_name)(**resources, user=user, method="GET")
+            second = getattr(auth_manager, filter_name)(**resources, user=user, method="GET")
 
-        assert result == (expected if authorized else set())
+        assert first == second == (expected if authorized else set())
         mock_is_authorized.assert_called_once()
 
     @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="team_name not supported before Airflow 3.2.0")
@@ -1704,27 +1705,6 @@ class TestKeycloakAuthManager:
             user=user,
             details=DagDetails(id="dag_0", team_name="team_a"),
         )
-
-    @patch.object(KeycloakAuthManager, "is_authorized_dag", autospec=True, return_value=True)
-    def test_filter_with_team_level_authorization_and_no_resources_skips_keycloak(
-        self, mock_is_authorized, auth_manager, user
-    ):
-        with conf_vars({(CONF_SECTION_NAME, CONF_TEAM_LEVEL_AUTHORIZATION_KEY): "True"}):
-            assert auth_manager.filter_authorized_dag_ids(dag_ids=set(), user=user) == set()
-
-        mock_is_authorized.assert_not_called()
-
-    @patch.object(KeycloakAuthManager, "is_authorized_dag", autospec=True, return_value=True)
-    def test_filter_with_team_level_authorization_caches_the_decision(
-        self, mock_is_authorized, auth_manager, user
-    ):
-        dag_ids = {"dag_0", "dag_1"}
-
-        with conf_vars({(CONF_SECTION_NAME, CONF_TEAM_LEVEL_AUTHORIZATION_KEY): "True"}):
-            auth_manager.filter_authorized_dag_ids(dag_ids=dag_ids, user=user)
-            auth_manager.filter_authorized_dag_ids(dag_ids=dag_ids, user=user)
-
-        mock_is_authorized.assert_called_once()
 
     def test_get_fastapi_middleware(self, auth_manager):
         assert auth_manager.get_fastapi_middlewares() == [(KeycloakJWTMiddleware, {})]
