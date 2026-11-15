@@ -273,23 +273,20 @@ for them, and the triage skill must treat those pull requests as out of scope fo
   `close_after_days`.
 
 Everything else the skill does (quality criteria, pings, suspicious-change flags) applies as
-usual. The `Fork CI / Tests (AMD)` commit status shows the fork CI state and links to the run in
-the fork. To move a single pull request back to project CI, add `use project ci`; the reconciler
-releases it on its next run; removing `fork ci required` by hand is not enough, the next run
-labels a gated pull request again. The run that releases the pull request sets its `CI passed`
-status to `pending` until project CI has passed on the head commit, so the pull request cannot
-merge on the fork result from then on. Until that run, normally within 15 minutes of the label
-and longer when GitHub delays a scheduled run, it still can: wait for the `pending` before merging
-or enabling auto-merge, or start the monitor by hand (`gh workflow run fork-ci-monitor.yml -R
-apache/airflow`). After project CI has passed the status turns `success` on the next monitor run,
-within about 15 minutes. Adding the label does not start project CI by itself, and the
-reconciler deletes the gated `Tests (AMD)` runs, so there is usually nothing to re-run: close and
-reopen the pull request (`gh pr close <n> -R apache/airflow && gh pr reopen <n> -R apache/airflow`),
-or ask the author to push. For a pull request that does not change CI-defining files, when the
-fork run is green and trusted, the reconciler also posts the `CI passed` status the merge ruleset
-requires, so it can be merged or auto-merged without project CI. What contributors are told to do
-is in [CI in your fork](18_contribution_workflow.rst#ci-in-your-fork); the reconciler's design is in
-[Fork CI for external contributors](../dev/breeze/doc/ci/08_fork_ci_for_external_contributors.md).
+usual. To move a single pull request to project CI:
+
+- Add `use project ci`. Removing `fork ci required` by hand is not enough: the next monitor run
+  labels a gated pull request again.
+- Wait for its `CI passed` status to turn `pending` before merging or enabling auto-merge: until the
+  next monitor run, a green fork result still counts. To shorten the wait, start the monitor by hand
+  (`gh workflow run fork-ci-monitor.yml -R apache/airflow`).
+- Start project CI: adding the label does not, and the gated `Tests (AMD)` runs are deleted, so
+  close and reopen the pull request (`gh pr close <n> -R apache/airflow && gh pr reopen <n> -R
+  apache/airflow`) or ask the author to push.
+
+Why, and how `CI passed` is reported for gated pull requests:
+[The `CI passed` check](../dev/breeze/doc/ci/08_fork_ci_for_external_contributors.md#the-ci-passed-check).
+What contributors are told to do is in [CI in your fork](18_contribution_workflow.rst#ci-in-your-fork).
 
 ## For contributors
 
