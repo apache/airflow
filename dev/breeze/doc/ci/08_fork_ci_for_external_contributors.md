@@ -109,6 +109,68 @@ Four pieces, in dependency order:
 
 Plus `breeze ci audit` for the contributor's local setup, and documentation.
 
+### Pull request lifecycle
+
+What a gated pull request shows, and who acts next, from the moment it is opened until it is merged
+or closed. The [state machine](#state-machine) below is the reconciler's view of the same flow; this
+diagram is the contributor's and the maintainer's view. Pull requests of committers, collaborators
+and exempted organisations are not gated and follow the usual project CI flow.
+
+```mermaid
+%%{init: {'theme': 'neutral'}}%%
+stateDiagram-v2
+    state "Waiting for the author: draft, fork CI not set up or no run for the head commit" as waiting
+    state "Fork CI running" as running
+    state "Fork CI failed: out of the review queue" as failed
+    state "Green: ready for maintainer review, CI passed" as ready
+    state "Green, author's draft: stays a draft, no review label until the author marks it ready" as author_draft
+    state "Green, base too old: ready for maintainer review, CI passed pending until a rebase" as rebase
+    state "Green, CI files changed: needs project ci" as needs_project_ci
+    state "Project CI: use project ci, runs on the next push or a close and reopen" as project_ci
+    state "Approved" as approved
+    state "Merged" as merged
+    state "Closed after 30 days without fork CI activity" as closed
+
+    [*] --> waiting: an external contributor opens a pull request
+    waiting --> running: the author enables the fork workflow and pushes
+    running --> waiting: the fork workflow is disabled
+    running --> failed: a job fails, times out or is cancelled, or the run cannot start
+    running --> ready: the run passes on a current base
+    running --> author_draft: the run passes, and the author made the pull request a draft
+    running --> rebase: the run passes, but the base is 200+ commits behind or changed the same files
+    running --> needs_project_ci: the run passes, and the pull request changes CI-defining files
+    author_draft --> ready: the author marks it ready for review
+    failed --> running: the author pushes a fix
+    rebase --> running: the author rebases and pushes
+    ready --> running: the author pushes
+    needs_project_ci --> running: the author pushes
+    ready --> approved: a maintainer approves
+    rebase --> approved: a maintainer approves, the merge waits for the rebase
+    ready --> project_ci: a maintainer adds use project ci
+    needs_project_ci --> project_ci: a maintainer reviews the CI change and adds use project ci
+    project_ci --> approved: project CI passes and a maintainer approves
+    approved --> running: the author pushes or rebases
+    approved --> merged: merged, or auto-merged once CI passed is green
+    waiting --> closed: 30 days without fork CI activity
+    closed --> waiting: the author reopens it
+    merged --> [*]
+```
+
+- **Draft** is used only while the pull request waits for its author to set up fork CI or push. A
+  failed run leaves the draft state unchanged and removes `ready for maintainer review`, so a flaky
+  test after a rebase cannot draft an approved pull request or cancel its auto-merge. A pull
+  request its author opened as a draft, or converted to one, stays a draft when fork CI passes and
+  gets no `ready for maintainer review`: the author marks it ready for review next.
+- **`CI passed`** is what merging waits for, by hand or with auto-merge. A green fork run sets it
+  only on a current base ([Tested base](#tested-base)) and only when the pull request does not change
+  CI-defining files ([Trusting a green fork run](#trusting-a-green-fork-run)). Otherwise project CI
+  sets it.
+- **`use project ci`** moves a single pull request to project CI at any point; `use fork ci` moves
+  it back ([Override labels](#override-labels)). Adding the label does not start project CI: it
+  runs on the next push, or when a maintainer closes and reopens the pull request, and waits for a
+  maintainer's approval when the repository's approval setting covers the author.
+
+
 ## Configuration
 
 One file, `.github/fork-ci-gate.toml`, parsed with the standard library `tomllib`:
