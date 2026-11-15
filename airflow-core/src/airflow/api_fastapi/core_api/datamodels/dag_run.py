@@ -17,7 +17,6 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterable
 from datetime import datetime
 from enum import Enum
 from typing import TYPE_CHECKING, Any
@@ -200,7 +199,7 @@ class DAGRunCollectionResponse(BaseModel):
     incorrect TypeScript types (see hey-api/openapi-ts#1613, #3270).
     """
 
-    dag_runs: Iterable[DAGRunResponse]
+    dag_runs: list[DAGRunResponse]
     total_entries: int | None = Field(
         default=None,
         description="Number of matching items. For offset pagination this is the exact total. "

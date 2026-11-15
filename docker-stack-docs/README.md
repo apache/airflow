@@ -28,43 +28,41 @@ image.
 
 The Apache Airflow community, releases Docker Images which are `reference images` for Apache Airflow.
 Every time a new version of Airflow is released, the images are prepared in the
-[apache/airflow DockerHub](https://hub.docker.com/r/apache/airflow)
-for all the supported Python versions.
+[DockerHub of Apache Airflow](https://hub.docker.com/r/apache/airflow)
+for all the supported Python versions. The images we release are multi-platform AMD/ARM images.
 
-You can find the following images there (Assuming Airflow version `3.4.0`):
+## Regular and slim images
 
-* `apache/airflow:latest` - the latest released Airflow image with default Python version (3.12 currently)
+You can find the following images there (Assuming Airflow version `3.5.0`):
+
+* `apache/airflow:latest` - the latest released Airflow image with default Python version (3.14 currently)
 * `apache/airflow:latest-pythonX.Y` - the latest released Airflow image with specific Python version
-* `apache/airflow:3.4.0` - the versioned Airflow image with default Python version (3.12 currently)
-* `apache/airflow:3.4.0-pythonX.Y` - the versioned Airflow image with specific Python version
+* `apache/airflow:3.5.0` - the versioned Airflow image with default Python version (3.14 currently)
+* `apache/airflow:3.5.0-pythonX.Y` - the versioned Airflow image with specific Python version
 
 Those are "reference" regular images. They contain the most common set of extras, dependencies and providers that are
 often used by the users and they are good to "try-things-out" when you want to just take Airflow for a spin,
 
 You can also use "slim" images that contain only core Airflow and are about half the size of the "regular" images
 but you need to add all the [Reference for package extras](https://airflow.apache.org/docs/apache-airflow/stable/extra-packages-ref.html) and providers that you need separately
-via [Building the image](https://airflow.apache.org/docs/docker-stack/build.html#build-build-image).
+via [Building your image](https://airflow.apache.org/docs/docker-stack/build.html#build-build-image).
 
-* `apache/airflow:slim-latest`              - the latest released Airflow image with default Python version (3.12 currently)
+* `apache/airflow:slim-latest`              - the latest released Airflow image with default Python version (3.14 currently)
 * `apache/airflow:slim-latest-pythonX.Y`    - the latest released Airflow image with specific Python version
-* `apache/airflow:slim-3.4.0`           - the versioned Airflow image with default Python version (3.12 currently)
-* `apache/airflow:slim-3.4.0-pythonX.Y` - the versioned Airflow image with specific Python version
+* `apache/airflow:slim-3.5.0`           - the versioned Airflow image with default Python version (3.14 currently)
+* `apache/airflow:slim-3.5.0-pythonX.Y` - the versioned Airflow image with specific Python version
 
-The Apache Airflow image provided as convenience package is optimized for size, and
-it provides just a bare minimal set of the extras and dependencies installed and in most cases
-you want to either extend or customize the image. You can see all possible extras in [Reference for package extras](https://airflow.apache.org/docs/apache-airflow/stable/extra-packages-ref.html).
+## Building your image
+
+The reference images contain a fixed set of extras and dependencies, and in most cases you want to
+either extend or customize the image. You can see all possible extras in [Reference for package extras](https://airflow.apache.org/docs/apache-airflow/stable/extra-packages-ref.html).
 The set of extras used in Airflow Production image are available in the
 [Dockerfile](https://github.com/apache/airflow/blob/2c6c7fdb2308de98e142618836bdf414df9768c8/Dockerfile#L37).
 
-However, Airflow has more than 90 community-managed providers (installable via extras) and some of the
+Airflow has more than 100 community-managed providers (installable via extras) and some of the
 default extras/providers installed are not used by everyone, sometimes others extras/providers
 are needed, sometimes (very often actually) you need to add your own custom dependencies,
-packages or even custom providers. You can learn how to do it in [Building the image](https://airflow.apache.org/docs/docker-stack/build.html#build-build-image).
-
-The production images are built in DockerHub from released version and release candidates. There
-are also images published from branches but they are used mainly for development and testing purpose.
-See [Airflow Git Branching](https://github.com/apache/airflow/blob/main/contributing-docs/10_working_with_git.rst#airflow-git-branches)
-for details.
+packages or even custom providers. You can learn how to do it in [Building your image](https://airflow.apache.org/docs/docker-stack/build.html#build-build-image).
 
 ## Usage
 

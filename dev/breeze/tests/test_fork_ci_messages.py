@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import functools
 from dataclasses import replace
 from datetime import UTC, datetime
 
@@ -24,24 +25,36 @@ import pytest
 from airflow_breeze.utils.fork_ci_messages import (
     _STATE_TEXTS,
     _STATUS_DESCRIPTIONS,
-    BEHIND_WARNING_COMMITS,
     CI_CHANGE_MARKER,
-    CI_PASSED_DESCRIPTION,
+    CI_MODIFICATION_MARKER,
     CI_PASSED_REVOKED_DESCRIPTION,
+    CONTRIBUTING_URL,
     FOOTER,
+    GATED_NOTE_SENTENCE,
     JOB_NAME_MAX_LENGTH,
     JOB_STATUS_CONTEXT_PREFIX,
+    MAX_BEHIND_COMMITS,
     MAX_LISTED_CI_FILES,
+    MAX_LISTED_FAILED_JOBS,
+    OPEN_PR_LIMIT_URL,
+    OVERLAP_LISTED,
+    BaseCheck,
+    FailedJob,
     Marker,
     ci_change_approval_comment,
+    ci_modification_note_comment,
+    ci_passed_description,
     gate_modified_close_comment,
     inactivity_close_comment,
+    is_fork_ci_passed_description,
     job_status_context,
     nudge_comment,
     parse_marker,
+    rebase_needed_description,
     released_comment,
     render_marker,
     state_comment,
+    strip_failed_job_list,
     tamper_close_comment,
     ungated_comment,
     workflow_disabled_comment,
@@ -53,9 +66,12 @@ MARKER = Marker(state="awaiting_push", sha="abc123", since=datetime(2026, 10, 15
 @pytest.mark.parametrize(
     "marker",
     [
-        pytest.param(MARKER, id="without-behind"),
-        pytest.param(replace(MARKER, behind=12), id="behind"),
+        pytest.param(MARKER, id="without-base"),
+        pytest.param(replace(MARKER, base=BaseCheck("def456", 12, ("a.py",))), id="base"),
+        pytest.param(replace(MARKER, base=BaseCheck("def456", 12, None)), id="base-unchecked"),
+        pytest.param(replace(MARKER, base=BaseCheck("def456", 12, merged=True)), id="base-merged"),
         pytest.param(replace(MARKER, jobs="123:SUCCESS"), id="jobs"),
+        pytest.param(replace(MARKER, failed_run="123:2"), id="failed-run"),
         pytest.param(replace(MARKER, gate_checked=True), id="gate-checked"),
     ],
 )
@@ -63,27 +79,198 @@ def test_marker_round_trip(marker):
     assert parse_marker(f"text before\n{render_marker(marker)}\ntext after") == marker
 
 
-def test_marker_without_behind_keeps_its_rendering():
-    assert "behind" not in render_marker(MARKER)
+def test_marker_without_base_keeps_its_rendering():
+    assert "base" not in render_marker(MARKER)
     assert "jobs" not in render_marker(MARKER)
 
 
-@pytest.mark.parametrize(
-    ("state", "behind", "warned"),
-    [
-        pytest.param("green", BEHIND_WARNING_COMMITS, True, id="green-far-behind"),
-        pytest.param("green_unverified", BEHIND_WARNING_COMMITS + 1, True, id="unverified-far-behind"),
-        pytest.param("green", BEHIND_WARNING_COMMITS - 1, False, id="green-close"),
-        pytest.param("green", None, False, id="green-not-counted"),
-        pytest.param("failed", BEHIND_WARNING_COMMITS, False, id="failed"),
-    ],
-)
-def test_state_comment_warns_about_a_branch_far_behind(state, behind, warned):
-    text = state_comment(
-        Marker(state, "a", MARKER.since, behind=behind), fork="u/airflow", run_url=None, base_ref="v3-1-test"
+def test_marker_of_an_unmerged_base_keeps_its_rendering():
+    assert "merged" not in render_marker(replace(MARKER, base=BaseCheck("def456", 12)))
+
+
+def test_marker_from_before_the_base_check_has_no_base():
+    marker = parse_marker(
+        '<!-- fork-ci-gate: {"behind": 3, "sha": "a", "since": "2026-10-15T10:00:00+00:00", "state": "green"} -->'
     )
 
-    assert ("commits behind `v3-1-test`" in text) is warned
+    assert marker is not None
+    assert marker.base is None
+
+
+@pytest.mark.parametrize(
+    ("base", "current"),
+    [
+        pytest.param(BaseCheck("d", MAX_BEHIND_COMMITS - 1), True, id="close-no-overlap"),
+        pytest.param(BaseCheck("d", MAX_BEHIND_COMMITS), False, id="far-behind"),
+        pytest.param(BaseCheck("d", 1, ("a.py",)), False, id="overlap"),
+        pytest.param(BaseCheck("d", 1, None), False, id="unchecked"),
+        pytest.param(BaseCheck("d", MAX_BEHIND_COMMITS - 1, merged=True), True, id="merged-close"),
+        pytest.param(BaseCheck("d", MAX_BEHIND_COMMITS, merged=True), False, id="merged-far-behind"),
+        pytest.param(BaseCheck("d", 1, None, merged=True), True, id="merged-overlap-not-checked"),
+    ],
+)
+def test_base_check_is_current(base, current):
+    assert base.is_current is current
+
+
+@pytest.mark.parametrize(
+    ("state", "base", "expected", "unexpected"),
+    [
+        pytest.param(
+            "green",
+            BaseCheck("d" * 40, 3),
+            [
+                "`v3-1-test` at [`dddddddddd`](https://github.com/apache/airflow/commit/" + "d" * 40,
+                "3 commits",
+            ],
+            ["Rebase needed"],
+            id="current",
+        ),
+        pytest.param(
+            "green",
+            BaseCheck("d", MAX_BEHIND_COMMITS),
+            ["Rebase needed", "too far behind", "git rebase upstream/v3-1-test"],
+            [],
+            id="far-behind",
+        ),
+        pytest.param(
+            "green_unverified",
+            BaseCheck("d", 4, ("a.py", "b.py")),
+            ["Rebase needed", "`a.py`, `b.py`."],
+            [],
+            id="overlap",
+        ),
+        pytest.param(
+            "green",
+            BaseCheck("d", 4, tuple(f"f{i:02}.py" for i in range(OVERLAP_LISTED + 2))),
+            [f"`f{OVERLAP_LISTED - 1:02}.py` and 2 more."],
+            [f"`f{OVERLAP_LISTED:02}.py`"],
+            id="overlap-shortened",
+        ),
+        pytest.param(
+            "green", BaseCheck("d", 4, None), ["Rebase needed", "too many files"], [], id="unchecked"
+        ),
+        pytest.param(
+            "green",
+            BaseCheck("d" * 40, 3, merged=True),
+            [
+                "merged with `v3-1-test` at [`dddddddddd`](https://github.com/apache/airflow/commit/"
+                + "d" * 40,
+                "as project CI would, 3 commits",
+            ],
+            ["Rebase needed", "as it is"],
+            id="merged",
+        ),
+        pytest.param(
+            "green",
+            BaseCheck("d", MAX_BEHIND_COMMITS, merged=True),
+            ["merged with", "Rebase needed", "too far behind", "git rebase upstream/v3-1-test"],
+            [],
+            id="merged-far-behind",
+        ),
+        pytest.param("failed", BaseCheck("d", MAX_BEHIND_COMMITS), [], ["tested this branch"], id="failed"),
+        pytest.param("green", None, [], ["tested this branch"], id="not-compared"),
+    ],
+)
+def test_state_comment_says_which_base_was_tested(state, base, expected, unexpected):
+    text = state_comment(
+        Marker(state, "a", MARKER.since, base=base), fork="u/airflow", run_url=None, base_ref="v3-1-test"
+    )
+
+    assert all(part in text for part in expected)
+    assert not any(part in text for part in unexpected)
+
+
+@pytest.mark.parametrize(
+    ("state", "author_draft", "asks_to_mark_ready"),
+    [
+        pytest.param("green", True, True, id="green-author-draft"),
+        pytest.param("green_unverified", True, True, id="unverified-author-draft"),
+        pytest.param("green", False, False, id="green-ready"),
+        pytest.param("failed", True, False, id="failed-author-draft"),
+    ],
+)
+def test_state_comment_asks_the_author_to_mark_a_green_draft_ready(state, author_draft, asks_to_mark_ready):
+    text = state_comment(
+        Marker(state, "a", MARKER.since), fork="u/airflow", run_url=None, author_draft=author_draft
+    )
+
+    assert ("mark it ready for review" in text.lower()) is asks_to_mark_ready
+    assert ("Close or finish one of your other open pull requests first" in text) is asks_to_mark_ready
+    assert (OPEN_PR_LIMIT_URL in text) is asks_to_mark_ready
+    assert "ask a maintainer to mark it ready" not in text
+
+
+@pytest.mark.parametrize("startup_failure", [False, True])
+def test_state_comment_links_the_contributor_documentation(startup_failure):
+    text = state_comment(
+        Marker("failed", "a", MARKER.since), fork="u/airflow", run_url=None, startup_failure=startup_failure
+    )
+
+    assert f"How this works: [CI in your fork]({CONTRIBUTING_URL})." in text
+    assert CONTRIBUTING_URL.endswith("18_contribution_workflow.rst#ci-in-your-fork")
+    assert "08_fork_ci_for_external_contributors" not in text
+    assert text.endswith(FOOTER)
+
+
+def test_failed_job_list_is_safe_markdown_and_capped():
+    jobs = [
+        FailedJob("Tests `evil`\n\n@someone", "https://job/0", "timed_out"),
+        *(
+            FailedJob(f"Job {i}", f"https://job/{i + 1}", "failure")
+            for i in range(MAX_LISTED_FAILED_JOBS + 1)
+        ),
+    ]
+
+    text = state_comment(
+        Marker("failed", "a", MARKER.since), fork="u/airflow", run_url=None, failed_jobs=jobs
+    )
+
+    assert "- [`Tests ?evil???@someone`](https://job/0): timed out" in text
+    assert "\n@someone" not in text
+    assert "- [`Job 0`](https://job/1): failed" in text
+    assert "- and 2 more, see the run" in text
+
+
+def test_failed_jobs_are_listed_only_for_a_failed_state():
+    jobs = [FailedJob("Static checks", "https://job/1", "failure")]
+
+    text = state_comment(
+        Marker("running", "a", MARKER.since), fork="u/airflow", run_url=None, failed_jobs=jobs
+    )
+
+    assert "Static checks" not in text
+
+
+def test_strip_failed_job_list_leaves_the_comment_without_the_list():
+    marker = Marker("failed", "a", MARKER.since)
+    jobs = [FailedJob(f"Job {i}", f"https://job/{i}", "failure") for i in range(MAX_LISTED_FAILED_JOBS + 1)]
+
+    listed = state_comment(marker, fork="u/airflow", run_url="https://run", failed_jobs=jobs)
+
+    assert strip_failed_job_list(listed) == state_comment(marker, fork="u/airflow", run_url="https://run")
+
+
+@pytest.mark.parametrize(
+    ("description", "expected"),
+    [
+        pytest.param("Fork CI passed for this commit", True, id="before-the-base-check"),
+        pytest.param(ci_passed_description(BaseCheck("a" * 40, 3), base_ref="main"), True, id="current-base"),
+        pytest.param(
+            ci_passed_description(BaseCheck("a" * 40, 3, merged=True), base_ref="main"),
+            True,
+            id="merged-base",
+        ),
+        pytest.param(
+            rebase_needed_description(BaseCheck("a" * 40, 300), base_ref="main"), True, id="rebase-needed"
+        ),
+        pytest.param(CI_PASSED_REVOKED_DESCRIPTION, True, id="revoked"),
+        pytest.param("Project CI passed for this commit", False, id="project-ci"),
+        pytest.param(None, False, id="none"),
+    ],
+)
+def test_is_fork_ci_passed_description(description, expected):
+    assert is_fork_ci_passed_description(description) is expected
 
 
 def test_parse_marker_absent():
@@ -143,7 +330,17 @@ def test_setup_texts_give_the_exact_command(text):
 
 
 def test_status_descriptions_fit_github_limit():
-    descriptions = [*_STATUS_DESCRIPTIONS.values(), CI_PASSED_DESCRIPTION, CI_PASSED_REVOKED_DESCRIPTION]
+    base_ref = "providers-cncf-kubernetes/v10-22"
+    descriptions = [
+        *_STATUS_DESCRIPTIONS.values(),
+        CI_PASSED_REVOKED_DESCRIPTION,
+        ci_passed_description(BaseCheck("d" * 40, 199), base_ref=base_ref),
+        ci_passed_description(BaseCheck("d" * 40, 199, merged=True), base_ref=base_ref),
+        *(
+            rebase_needed_description(BaseCheck("d" * 40, 9999, overlap), base_ref=base_ref)
+            for overlap in ((), ("a",) * 300, None)
+        ),
+    ]
     assert all(len(description) < 140 for description in descriptions)
 
 
@@ -159,16 +356,37 @@ def test_job_status_context(name, expected):
     assert job_status_context(name) == f"{JOB_STATUS_CONTEXT_PREFIX}{expected}"
 
 
-def test_ci_change_approval_comment_lists_the_files():
+@pytest.mark.parametrize(
+    ("build_comment", "marker"),
+    [
+        pytest.param(ci_change_approval_comment, CI_CHANGE_MARKER, id="approval"),
+        pytest.param(ci_modification_note_comment, CI_MODIFICATION_MARKER, id="note"),
+    ],
+)
+def test_ci_file_comments_list_the_files(build_comment, marker):
+    if build_comment is ci_modification_note_comment:
+        build_comment = functools.partial(build_comment, gated=False)
     paths = [f".github/workflows/w{i}.yml" for i in range(MAX_LISTED_CI_FILES + 2)]
-    comment = ci_change_approval_comment(
-        ci_files=["dev/breeze/`evil`.py", ".github/a\n\n@someone.yml", *paths]
-    )
+    comment = build_comment(ci_files=["dev/breeze/`evil`.py", ".github/a\n\n@someone.yml", *paths])
 
-    assert comment.startswith(CI_CHANGE_MARKER)
+    assert comment.startswith(marker)
     assert comment.endswith(FOOTER)
     assert "- `dev/breeze/?evil?.py`" in comment
     assert "- `.github/a??@someone.yml`" in comment
     assert "\n@someone" not in comment
     assert "- and 4 more" in comment
     assert f"`{paths[-1]}`" not in comment
+
+
+@pytest.mark.parametrize("gated", [True, False])
+def test_ci_modification_note_mentions_fork_execution_only_when_gated(gated):
+    comment = ci_modification_note_comment(ci_files=["Dockerfile.ci"], gated=gated)
+
+    assert (GATED_NOTE_SENTENCE in comment) is gated
+    assert comment.endswith(FOOTER)
+
+
+def test_ci_passed_description_names_the_merged_base():
+    description = ci_passed_description(BaseCheck("a" * 40, 3, merged=True), base_ref="main")
+
+    assert description == "Fork CI passed; merged with main@aaaaaaaaaa, 3 commits behind"

@@ -28,9 +28,9 @@
 // Actions page in the Airflow UI (or through the REST API), and the task resumes in a new process
 // with the answer.
 
-import { Bundle, Dag } from "apache-airflow-ts-sdk";
-import { approval, hitl } from "apache-airflow-ts-sdk/hitl";
-import type { HITLResult } from "apache-airflow-ts-sdk/hitl";
+import { Bundle, Dag } from "@apache-airflow/ts-sdk";
+import { approval, hitl } from "@apache-airflow/ts-sdk/hitl";
+import type { HITLResult } from "@apache-airflow/ts-sdk/hitl";
 
 /** The queue the deployment's `[sdk] queue_to_coordinator` routes to the Node coordinator. */
 const QUEUE = "typescript";

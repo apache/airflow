@@ -94,7 +94,9 @@ What each tool does
 ``AirflowTools`` accepts any toolset that implements
 :class:`~airflow.providers.common.ai.tools.ToolProvider`, and individual
 :class:`~airflow.providers.common.ai.tools.AirflowTool` objects. ``MCPToolset`` is the
-exception; give the SDK the MCP server directly instead. Each tool:
+exception; give the SDK the MCP server directly instead, with
+``build_options(mcp_servers=...)``, and list its tools (``mcp__<name>__*``) in
+``allowed_tools`` so the agent may call them. Each tool:
 
 - Keeps the toolset tool's name, description and argument schema, served as an MCP tool
   named ``mcp__<server_name>__<tool name>``.

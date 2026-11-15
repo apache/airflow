@@ -233,6 +233,7 @@ def upgrade():
         with op.batch_alter_table("task_instance") as batch:
             batch.add_column(sa.Column("working_set", sa.Boolean(), nullable=True, server_default=sa.true()))
             batch.add_column(sa.Column("archived_reason", sa.String(50), nullable=True))
+            batch.add_column(sa.Column("retry_at", UtcDateTime(), nullable=True))
             batch.drop_constraint("task_instance_composite_key", type_="unique")
             batch.create_unique_constraint("task_instance_current_key", [*_COORDINATES, "working_set"])
             batch.create_unique_constraint("task_instance_try_key", [*_COORDINATES, "try_number"])
@@ -598,7 +599,7 @@ def downgrade():
             batch.drop_constraint("task_instance_current_key", type_="unique")
             batch.drop_constraint("task_instance_try_key", type_="unique")
             batch.create_unique_constraint("task_instance_composite_key", list(_COORDINATES))
-            for column in ("working_set", "archived_reason"):
+            for column in ("working_set", "archived_reason", "retry_at"):
                 batch.drop_column(column)
         with op.batch_alter_table("task_instance_history") as batch:
             batch.create_foreign_key(

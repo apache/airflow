@@ -100,7 +100,8 @@ class LLMSQLQueryOperator(LLMOperator):
     Human-in-the-Loop approval parameters are inherited from
     :class:`~airflow.providers.common.ai.operators.llm.LLMOperator`
     (``require_approval``, ``approval_timeout``, ``on_approval_timeout``,
-    ``allow_modifications``, ``approval_notifiers``, ``approval_assigned_users``).
+    ``allow_modifications``, ``approval_notifiers``, ``approval_assigned_users``,
+    ``fail_on_reject``, ``ignore_downstream_trigger_rules``).
     When ``allow_modifications=True`` and the reviewer edits the SQL, the
     modified query is re-validated against the same safety rules before being
     returned.
@@ -188,10 +189,10 @@ class LLMSQLQueryOperator(LLMOperator):
         generated_output: str,
         event: dict[str, Any],
         decision: dict[str, Any] | None = None,
-    ) -> str:
+    ) -> Any:
         """Resume after human review, re-validating if the reviewer modified the SQL."""
         output = self._complete_review(context, generated_output, event, decision)
-        if output != generated_output:
+        if output is not None and output != generated_output:
             _validate_sql(output, allowed_types=self.allowed_sql_types, dialect=self._resolved_dialect)
         self._clear_usage_budget(context)
         return output

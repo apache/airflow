@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { render, waitFor } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { useDocumentTitle } from "src/utils";
@@ -27,6 +27,7 @@ import { BaseLayout } from "./BaseLayout";
 const mockConfig: Record<string, unknown> = {
   instance_name: "Market Data Dev (SpectroCloud)",
 };
+const mockNavigation = vi.hoisted(() => ({ state: "idle" }));
 
 vi.mock("openapi/queries", () => ({
   usePluginServiceGetPlugins: () => ({ data: { plugins: [] } }),
@@ -49,6 +50,11 @@ vi.mock("react-i18next", () => ({
   }),
 }));
 
+vi.mock("react-router-dom", async (importOriginal) => ({
+  ...(await importOriginal()),
+  useNavigation: () => mockNavigation,
+}));
+
 vi.mock("./Nav", () => ({
   Nav: () => <nav />,
 }));
@@ -63,6 +69,7 @@ describe("BaseLayout", () => {
   beforeEach(() => {
     document.title = "Airflow";
     mockConfig.instance_name = "Market Data Dev (SpectroCloud)";
+    mockNavigation.state = "idle";
   });
 
   afterEach(() => {
@@ -107,5 +114,19 @@ describe("BaseLayout", () => {
     render(<BaseLayout />, { wrapper: Wrapper });
 
     await waitFor(() => expect(document.title).toBe("Airflow"));
+  });
+
+  it.each([
+    ["idle", false],
+    ["loading", true],
+    ["submitting", true],
+  ])("sets navigation progress visibility when the router is %s", (state, isVisible) => {
+    mockNavigation.state = state;
+
+    render(<BaseLayout />, { wrapper: Wrapper });
+
+    expect(getComputedStyle(screen.getByLabelText("loading")).visibility).toBe(
+      isVisible ? "visible" : "hidden",
+    );
   });
 });

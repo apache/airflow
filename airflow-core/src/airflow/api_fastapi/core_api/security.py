@@ -19,7 +19,7 @@ from __future__ import annotations
 import posixpath
 from collections.abc import Callable, Coroutine
 from contextlib import suppress
-from typing import TYPE_CHECKING, Annotated, Any, cast
+from typing import TYPE_CHECKING, Annotated, Any, Literal, cast
 from urllib.parse import ParseResult, unquote, urljoin, urlparse
 
 from fastapi import Depends, HTTPException, Request, status
@@ -27,7 +27,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer, OAuth2Pas
 from itsdangerous import BadSignature, URLSafeSerializer
 from jwt import ExpiredSignatureError, InvalidTokenError
 from pydantic import NonNegativeInt, TypeAdapter, ValidationError
-from sqlalchemy import or_, select
+from sqlalchemy import and_, false, or_, select
 from sqlalchemy.orm import Session
 
 from airflow.api_fastapi.app import get_auth_manager
@@ -71,7 +71,7 @@ from airflow.api_fastapi.core_api.datamodels.pools import PoolBody
 from airflow.api_fastapi.core_api.datamodels.variables import VariableBody
 from airflow.configuration import conf
 from airflow.models import Connection, Pool, Variable
-from airflow.models.asset import AssetEvent, AssetModel
+from airflow.models.asset import AssetEvent, AssetModel, AssetWatcherModel
 from airflow.models.backfill import Backfill
 from airflow.models.dag import DagModel, DagRun, DagTag
 from airflow.models.dag_version import DagVersion
@@ -80,7 +80,8 @@ from airflow.models.dagwarning import DagWarning
 from airflow.models.errors import ParseImportError
 from airflow.models.log import Log
 from airflow.models.taskinstance import TaskInstance as TI
-from airflow.models.team import Team
+from airflow.models.team import Team, dag_bundle_team_association_table
+from airflow.models.trigger import Trigger
 from airflow.models.xcom import XComModel
 
 if TYPE_CHECKING:
@@ -394,33 +395,28 @@ class PermittedBackfillFilter(PermittedDagFilter):
         return select.where(Backfill.dag_id.in_(self.value or set()))
 
 
-class PermittedDagBundleFilter(PermittedDagFilter):
-    """A parameter that filters Dag bundles to the ones holding a Dag the user may read."""
+class PermittedDagBundleFilter(OrmClause[set[str | None]]):
+    """
+    A parameter that filters Dag bundles to the teams the user may read them for.
 
-    def __init__(self, value: set[str] | None = None, *, permitted_dagless_bundles: set[str] | None = None):
-        super().__init__(value)
-        self.permitted_dagless_bundles = permitted_dagless_bundles or set()
+    ``value`` holds those team names, with ``None`` standing for bundles with no team. A ``None``
+    value leaves every bundle in.
+    """
 
     def to_orm(self, statement: Select) -> Select:
-        # A bundle carries no per-Dag key to authorize on, so it is scoped by the Dags inside it.
-        # Filtering in the query keeps unauthorized rows out of the count and pagination as well.
-        # A bundle whose Dags have since been removed stays visible while a stale ``DagModel`` row
-        # names it.
-        holds_a_readable_dag = DagBundleModel.name.in_(
-            select(DagModel.bundle_name).where(DagModel.dag_id.in_(self.value or set()))
-        )
-        if not self.permitted_dagless_bundles:
-            return statement.where(holds_a_readable_dag)
-        # A bundle with no registered Dag at all -- a first deploy whose only file fails to import,
-        # say -- has no Dag to authorize against, so scoping by Dags alone would hide the bundle
-        # precisely when its import-error count is the thing worth reading. Those bundles are
-        # authorized one at a time against their own team in
-        # ``readable_dag_bundles_filter_factory`` and arrive here as an explicit allow-list, so a
-        # team-aware policy decides each one rather than a single unscoped check standing in for
-        # all of them.
-        return statement.where(
-            or_(holds_a_readable_dag, DagBundleModel.name.in_(self.permitted_dagless_bundles))
-        )
+        if self.value is None:
+            return statement
+        team_bundle_names = select(dag_bundle_team_association_table.c.dag_bundle_name)
+        conditions = []
+        if team_names := {team_name for team_name in self.value if team_name is not None}:
+            conditions.append(
+                DagBundleModel.name.in_(
+                    team_bundle_names.where(dag_bundle_team_association_table.c.team_name.in_(team_names))
+                )
+            )
+        if None in self.value:
+            conditions.append(DagBundleModel.name.not_in(team_bundle_names))
+        return statement.where(or_(false(), *conditions))
 
 
 def permitted_dag_filter_factory(
@@ -465,9 +461,10 @@ def readable_dag_bundles_filter_factory() -> Callable[
     """
     Create a callable for Depends in FastAPI that returns the Dag bundle filter for the user.
 
-    Dag bundles need their own factory rather than ``permitted_dag_filter_factory``: besides the
-    readable Dag ids, the filter needs the set of bundles holding no registered Dag that this
-    caller may see, which is a separate authorization decision taken per bundle.
+    A bundle is authorized on ``AccessView.DAG_BUNDLES`` and membership of the bundle's team, not
+    on the Dags inside it: a bundle is the unit code is deployed in, so what it holds is the
+    bundle's to show. Outside multi-team mode ``requires_access_dag_bundles`` has decided it for
+    every bundle.
     """
 
     def depends_readable_dag_bundles_filter(
@@ -475,34 +472,24 @@ def readable_dag_bundles_filter_factory() -> Callable[
         auth_manager: AuthManagerDep,
         session: SessionDep,
     ) -> PermittedDagBundleFilter:
-        # A bundle with no registered Dag has nothing to authorize against, so it is gated on the
-        # admin-by-default ``IMPORT_ERRORS_ALL`` -- the same view ``GET /importErrors`` uses for a
-        # file that never registered a Dag. Resolved here, one bundle at a time against its own
-        # team, so the result can go into the query: authorizing after the fact would leave
-        # unauthorized bundles in ``total_entries`` and in the page.
-        dagless_bundles = session.scalars(
-            select(DagBundleModel.name).where(
-                DagBundleModel.name.notin_(
-                    # ``dag.bundle_name`` is non-nullable, but the guard keeps a stray NULL from
-                    # emptying the whole ``NOT IN``.
-                    select(DagModel.bundle_name).where(DagModel.bundle_name.is_not(None))
-                )
-            )
-        ).all()
-        team_name_by_bundle = (
-            DagBundleModel.get_team_names(dagless_bundles, session=session) if dagless_bundles else {}
-        )
+        if not conf.getboolean("core", "multi_team"):
+            # ``requires_access_dag_bundles`` already decided the unscoped view for the route.
+            return PermittedDagBundleFilter()
+
+        # Team membership is checked on its own because some auth managers ignore ``team_name``
+        # when authorizing a view, which would let one team read another team's bundles.
+        member_teams: set[str | None] = {
+            *auth_manager.get_authorized_teams(user=user, session=session),
+            None,
+        }
         return PermittedDagBundleFilter(
-            auth_manager.get_authorized_dag_ids(user=user, method="GET"),
-            permitted_dagless_bundles={
-                bundle_name
-                for bundle_name in dagless_bundles
+            {
+                team_name
+                for team_name in member_teams
                 if auth_manager.authorize_view(
-                    access_view=AccessView.IMPORT_ERRORS_ALL,
-                    user=user,
-                    team_name=team_name_by_bundle.get(bundle_name),
+                    access_view=AccessView.DAG_BUNDLES, user=user, team_name=team_name
                 )
-            },
+            }
         )
 
     return depends_readable_dag_bundles_filter
@@ -1221,6 +1208,90 @@ ReadableAssetEventsByAssetFilterDep = Annotated[
 ]
 
 
+def _select_triggers_watching(asset_ids: set[int]) -> Select:
+    # Uncorrelated, as in Trigger.owner_still_refers_expression.
+    return select(AssetWatcherModel.trigger_id).where(AssetWatcherModel.asset_id.in_(asset_ids))
+
+
+class PermittedTriggerFilter(OrmClause[None]):
+    """
+    Keep the triggers whose owner the caller can see, each kind gated like the routes that show its owner.
+
+    A task trigger needs Task Instance read on the Dag of its task instance, a callback trigger Dag Run read on
+    the Dag of its callback (as the deadlines of a Dag run do), and an asset watcher's trigger read on an asset
+    one of its watchers watches. Team access is the auth manager's, through those Dags and assets.
+    """
+
+    def __init__(
+        self,
+        *,
+        task_dag_ids: set[str],
+        callback_dag_ids: set[str],
+        asset_ids: set[int],
+        can_read_an_owner: bool,
+    ) -> None:
+        super().__init__()
+        self.task_dag_ids = task_dag_ids
+        self.callback_dag_ids = callback_dag_ids
+        self.asset_ids = asset_ids
+        self.can_read_an_owner = can_read_an_owner
+
+    def to_orm(self, select: Select) -> Select:
+        # The kind by the owner recorded on the row, as Trigger.kind_expression decides it, but without its CASE:
+        # compared in each branch, Postgres evaluates the CASE and its watcher subquery once per branch and row.
+        ti_id = Trigger.owner_ref["ti_id"].as_string()
+        callback_id = Trigger.owner_ref["callback_id"].as_string()
+        return select.where(
+            or_(
+                and_(ti_id.is_not(None), Trigger.dag_id.in_(self.task_dag_ids)),
+                and_(ti_id.is_(None), callback_id.is_not(None), Trigger.dag_id.in_(self.callback_dag_ids)),
+                and_(
+                    ti_id.is_(None),
+                    callback_id.is_(None),
+                    Trigger.id.in_(_select_triggers_watching(self.asset_ids)),
+                ),
+            )
+        )
+
+
+def readable_triggers_filter(user: GetUserDep, auth_manager: AuthManagerDep) -> PermittedTriggerFilter:
+    # Checked without a Dag id, then narrowed to the readable Dags, as GET /dags/~/dagRuns/~/taskInstances does.
+    can_read_task_instances = auth_manager.is_authorized_dag(
+        method="GET", access_entity=DagAccessEntity.TASK_INSTANCE, user=user
+    )
+    can_read_runs = auth_manager.is_authorized_dag(method="GET", access_entity=DagAccessEntity.RUN, user=user)
+    # get_authorized_assets may assume this check has passed, as GET /assets checks it first: the FAB auth
+    # manager, which has no per-asset permissions, returns every asset there.
+    can_read_assets = auth_manager.is_authorized_asset(method="GET", details=AssetDetails(id=None), user=user)
+    dag_ids = (
+        auth_manager.get_authorized_dag_ids(user=user, method="GET")
+        if can_read_task_instances or can_read_runs
+        else set()
+    )
+    return PermittedTriggerFilter(
+        task_dag_ids=dag_ids if can_read_task_instances else set(),
+        callback_dag_ids=dag_ids if can_read_runs else set(),
+        asset_ids=auth_manager.get_authorized_assets(user=user, method="GET") if can_read_assets else set(),
+        can_read_an_owner=can_read_task_instances or can_read_runs or can_read_assets,
+    )
+
+
+ReadableTriggersFilterDep = Annotated[PermittedTriggerFilter, Depends(readable_triggers_filter)]
+
+
+def requires_access_trigger(method: Literal["GET"]) -> Callable[[PermittedTriggerFilter], None]:
+    """
+    Let in a caller who can read the owners of at least one kind of trigger; triggers can only be read.
+
+    It shares the request's :class:`PermittedTriggerFilter`, which keeps only the triggers they can see.
+    """
+
+    def inner(readable_triggers: ReadableTriggersFilterDep) -> None:
+        _requires_access(is_authorized_callback=lambda: readable_triggers.can_read_an_owner)
+
+    return inner
+
+
 def _build_asset_details(asset_id: str | None) -> AssetDetails:
     """Resolve the name and uri of the asset so an auth manager can authorize on more than the id."""
     if asset_id is None or not asset_id.isdigit():
@@ -1278,6 +1349,34 @@ def requires_access_view(access_view: AccessView) -> Callable[[Request, BaseUser
         _requires_access(
             is_authorized_callback=lambda: get_auth_manager().is_authorized_view(
                 access_view=access_view, user=user
+            ),
+        )
+
+    return inner
+
+
+def requires_access_dag_bundles() -> Callable[[BaseUser, BaseAuthManager, PermittedDagBundleFilter], None]:
+    """
+    Require ``AccessView.DAG_BUNDLES``.
+
+    In a multi-team deployment it is enough to hold it for one of the caller's teams or without a
+    team, the same set ``ReadableDagBundlesFilterDep`` narrows the bundles to.
+
+    Goes through ``authorize_view`` rather than ``requires_access_view`` so that an auth manager
+    that cannot map the view (raises ``KeyError``) denies it instead of failing the request.
+    """
+
+    def inner(
+        user: GetUserDep,
+        auth_manager: AuthManagerDep,
+        readable_dag_bundles_filter: ReadableDagBundlesFilterDep,
+    ) -> None:
+        if (permitted_teams := readable_dag_bundles_filter.value) is not None:
+            _requires_access(is_authorized_callback=lambda: bool(permitted_teams))
+            return
+        _requires_access(
+            is_authorized_callback=lambda: auth_manager.authorize_view(
+                access_view=AccessView.DAG_BUNDLES, user=user
             ),
         )
 

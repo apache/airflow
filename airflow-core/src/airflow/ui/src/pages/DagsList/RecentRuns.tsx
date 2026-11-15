@@ -29,6 +29,8 @@ import Time from "src/components/Time";
 
 import { useDurationFormat } from "src/utils";
 
+import { BAR_GAP, BAR_WIDTH } from "./recentRunsLayout";
+
 dayjs.extend(duration);
 
 const BAR_HEIGHT = 65;
@@ -93,7 +95,7 @@ export const RecentRuns = ({
       <Flex
         alignItems="flex-end"
         flexDirection="row-reverse"
-        gap={[0.5, 0.5, 0.5, 1]}
+        gap={{ base: `${BAR_GAP.base}px`, lg: `${BAR_GAP.lg}px` }}
         minHeight={`${BAR_HEIGHT}px`}
         pb={1}
       >
@@ -109,7 +111,7 @@ export const RecentRuns = ({
                 height={`${run.duration === null ? 1 : (run.duration / max) * BAR_HEIGHT}px`}
                 justifyContent="flex-end"
                 minHeight="12px"
-                width="12px"
+                width={`${BAR_WIDTH}px`}
               >
                 <StateIcon color="white" state={run.state} />
               </Flex>

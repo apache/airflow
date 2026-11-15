@@ -112,6 +112,130 @@ class TestSageMakerProcessingOperator:
             task_id="test_sagemaker_operator", wait_for_completion=True, check_interval=5, deferrable=True
         )
 
+    @mock.patch.object(SageMakerHook, "stop_processing_job")
+    def test_on_kill_does_nothing_by_default(self, mock_stop):
+        op = SageMakerProcessingOperator(**self.processing_config_kwargs, config=CREATE_PROCESSING_PARAMS)
+        op._processing_job_name = "job_name"
+
+        op.on_kill()
+
+        mock_stop.assert_not_called()
+
+    @mock.patch.object(SageMakerHook, "stop_processing_job")
+    def test_on_kill_does_nothing_before_the_job_is_submitted(self, mock_stop):
+        op = SageMakerProcessingOperator(
+            **self.processing_config_kwargs,
+            config=CREATE_PROCESSING_PARAMS,
+            cancel_on_kill=True,
+        )
+
+        op.on_kill()
+
+        mock_stop.assert_not_called()
+
+    @mock.patch.object(SageMakerHook, "stop_processing_job")
+    @mock.patch.object(SageMakerHook, "describe_processing_job")
+    @mock.patch.object(SageMakerHook, "count_processing_jobs_by_name", return_value=0)
+    @mock.patch.object(SageMakerHook, "create_processing_job")
+    @mock.patch.object(sagemaker, "serialize", return_value="")
+    def test_on_kill_stops_a_job_killed_during_submit(self, _, mock_create, __, mock_desc, mock_stop):
+        # Only holds while the name is recorded before the submit call.
+        mock_desc.side_effect = [ClientError({"Error": {"Code": "ValidationException"}}, "op"), None]
+        op = SageMakerProcessingOperator(
+            task_id="test_sagemaker_operator",
+            config=CREATE_PROCESSING_PARAMS,
+            wait_for_completion=True,
+            check_interval=5,
+            cancel_on_kill=True,
+        )
+        mock_create.side_effect = lambda *args, **kwargs: (
+            op.on_kill(),
+            {"ProcessingJobArn": "test_arn", "ResponseMetadata": {"HTTPStatusCode": 200}},
+        )[1]
+
+        op.execute(None)
+
+        mock_stop.assert_called_once_with("job_name")
+
+    @mock.patch.object(SageMakerHook, "stop_processing_job")
+    @mock.patch.object(SageMakerHook, "describe_processing_job")
+    @mock.patch.object(SageMakerHook, "count_processing_jobs_by_name", return_value=0)
+    @mock.patch.object(
+        SageMakerHook,
+        "create_processing_job",
+        return_value={"ProcessingJobArn": "test_arn", "ResponseMetadata": {"HTTPStatusCode": 200}},
+    )
+    @mock.patch.object(sagemaker, "serialize", return_value="")
+    def test_on_kill_stops_the_renamed_job(self, _, mock_create, __, mock_desc, mock_stop):
+        # The name is rewritten with a timestamp suffix when one already exists; on_kill has to stop
+        # the name that was actually submitted, not the one in the config.
+        mock_desc.side_effect = [None, ClientError({"Error": {"Code": "ValidationException"}}, "op"), None]
+        op = SageMakerProcessingOperator(
+            **self.processing_config_kwargs,
+            config=CREATE_PROCESSING_PARAMS,
+            cancel_on_kill=True,
+        )
+
+        op.execute(None)
+        op.on_kill()
+
+        submitted_name = op.config["ProcessingJobName"]
+        assert submitted_name != "job_name"
+        mock_stop.assert_called_once_with(submitted_name)
+
+    @pytest.mark.parametrize(
+        ("status", "stops"),
+        [("timeout", True), ("failed", False), ("stopped", False)],
+    )
+    @mock.patch.object(SageMakerHook, "stop_processing_job")
+    def test_execute_complete_stops_a_job_left_running_by_a_timeout(self, mock_stop, status, stops):
+        op = SageMakerProcessingOperator(
+            **self.processing_config_kwargs,
+            config=CREATE_PROCESSING_PARAMS,
+            cancel_on_kill=True,
+        )
+
+        with pytest.raises(AirflowException):
+            op.execute_complete(None, {"status": status, "job_name": "job_name"})
+
+        if stops:
+            mock_stop.assert_called_once_with("job_name")
+        else:
+            mock_stop.assert_not_called()
+
+    @mock.patch.object(SageMakerHook, "stop_processing_job")
+    def test_execute_complete_leaves_the_job_alone_when_the_flag_is_off(self, mock_stop):
+        op = SageMakerProcessingOperator(**self.processing_config_kwargs, config=CREATE_PROCESSING_PARAMS)
+
+        with pytest.raises(AirflowException):
+            op.execute_complete(None, {"status": "timeout", "job_name": "job_name"})
+
+        mock_stop.assert_not_called()
+
+    @pytest.mark.parametrize("cancel_on_kill", [True, False])
+    @mock.patch.object(SageMakerHook, "describe_processing_job")
+    @mock.patch.object(SageMakerHook, "count_processing_jobs_by_name", return_value=0)
+    @mock.patch.object(
+        SageMakerHook,
+        "create_processing_job",
+        return_value={"ProcessingJobArn": "test_arn", "ResponseMetadata": {"HTTPStatusCode": 200}},
+    )
+    def test_deferred_trigger_receives_stop_on_kill(self, mock_create, __, mock_desc, cancel_on_kill):
+        mock_desc.side_effect = [
+            ClientError({"Error": {"Code": "ValidationException"}}, "op"),
+            {"ProcessingJobStatus": "InProgress"},
+        ]
+        op = SageMakerProcessingOperator(
+            **self.defer_processing_config_kwargs,
+            config=CREATE_PROCESSING_PARAMS,
+            cancel_on_kill=cancel_on_kill,
+        )
+
+        with pytest.raises(TaskDeferred) as exc:
+            op.execute(None)
+
+        assert exc.value.trigger.cancel_on_kill is cancel_on_kill
+
     @mock.patch.object(SageMakerHook, "describe_processing_job")
     @mock.patch.object(SageMakerHook, "count_processing_jobs_by_name", return_value=0)
     @mock.patch.object(

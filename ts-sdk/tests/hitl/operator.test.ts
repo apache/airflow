@@ -112,7 +112,7 @@ describe("a HITL task in a Dag", () => {
       const dag = new Dag("d");
 
       expect(() => dag.task("sign_off", foreign)).toThrowError(
-        /A human-in-the-loop task of Dag "d" comes from a different copy of apache-airflow-ts-sdk/,
+        /A human-in-the-loop task of Dag "d" comes from a different copy of @apache-airflow\/ts-sdk/,
       );
     });
 

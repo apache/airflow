@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-google``
 
-Release: ``22.8.0``
+Release: ``22.9.0``
 
 
 Google services including:
@@ -43,7 +43,7 @@ This is a provider package for ``google`` provider. All classes for this provide
 are in ``airflow.providers.google`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-google/22.8.0/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-google/22.9.0/>`_.
 
 Installation
 ------------
@@ -73,52 +73,59 @@ PIP package                                 Version required
 ``google-ads``                              ``>=26.0.0,!=28.0.0.post2``
 ``google-analytics-admin``                  ``>=0.9.0``
 ``google-api-core``                         ``>=2.30.3``
-``google-api-python-client``                ``>=2.194.0``
+``google-api-python-client``                ``>=2.196.0``
 ``google-auth``                             ``>=2.29.0``
 ``google-auth-httplib2``                    ``>=0.0.1``
 ``google-genai``                            ``>=2.8.0``
-``google-cloud-aiplatform[evaluation]``     ``>=1.164.0``
+``google-cloud-aiplatform``                 ``>=1.164.0``
+``jsonschema``                              ``>=4.19.1``
+``pyyaml``                                  ``>=6.0.3``
+``ruamel.yaml``                             ``>=0.18.0``
+``scikit-learn``                            ``>=1.4.2; python_version < "3.13"``
+``scikit-learn``                            ``>=1.5.2; python_version >= "3.13" and python_version < "3.14"``
+``scikit-learn``                            ``>=1.7.2; python_version >= "3.14"``
+``tqdm``                                    ``>=4.67.1``
 ``ray[default]``                            ``>=2.42.0; python_version < "3.13"``
 ``ray[default]``                            ``>=2.49.0; python_version >= "3.13" and python_version < "3.14"``
 ``ray[default]``                            ``>=2.55.0; python_version >= "3.14" and python_version < "3.15"``
-``google-cloud-bigquery-storage``           ``>=2.37.0; python_version < "3.13"``
-``google-cloud-bigquery-storage``           ``>=2.37.0; python_version >= "3.13"``
+``google-cloud-bigquery-storage``           ``>=2.38.0; python_version < "3.13"``
+``google-cloud-bigquery-storage``           ``>=2.38.0; python_version >= "3.13"``
 ``google-cloud-alloydb``                    ``>=0.9.0``
 ``google-cloud-automl``                     ``>=2.19.0``
 ``google-cloud-bigquery``                   ``>=3.41.0``
 ``google-cloud-bigquery-datatransfer``      ``>=3.22.0``
-``google-cloud-bigtable``                   ``>=2.36.0``
+``google-cloud-bigtable``                   ``>=2.38.0``
 ``google-cloud-build``                      ``>=3.36.0``
 ``google-cloud-compute``                    ``>=1.47.0``
 ``google-cloud-container``                  ``>=2.64.0``
 ``google-cloud-datacatalog``                ``>=3.30.0``
 ``google-cloud-dataflow-client``            ``>=0.13.0``
 ``google-cloud-dataform``                   ``>=0.10.0``
-``google-cloud-dataplex``                   ``>=2.18.0``
+``google-cloud-dataplex``                   ``>=2.19.0``
 ``google-cloud-dataproc``                   ``>=5.32.0``
 ``google-cloud-dataproc-metastore``         ``>=1.22.0``
 ``google-cloud-dlp``                        ``>=3.36.0``
-``google-cloud-kms``                        ``>=3.12.0``
+``google-cloud-kms``                        ``>=3.13.0``
 ``google-cloud-language``                   ``>=2.20.0``
 ``google-cloud-logging``                    ``>=3.15.0``
 ``google-cloud-managedkafka``               ``>=0.4.0``
 ``google-cloud-memcache``                   ``>=1.15.0``
 ``google-cloud-monitoring``                 ``>=2.30.0``
-``google-cloud-orchestration-airflow``      ``>=1.20.0``
-``google-cloud-os-login``                   ``>=2.20.0``
-``google-cloud-pubsub``                     ``>=2.37.0``
+``google-cloud-orchestration-airflow``      ``>=1.21.0``
+``google-cloud-os-login``                   ``>=2.21.0``
+``google-cloud-pubsub``                     ``>=2.38.0``
 ``google-cloud-redis``                      ``>=2.21.0``
-``google-cloud-secret-manager``             ``>=2.27.0``
-``google-cloud-spanner``                    ``>=3.65.0``
-``google-cloud-speech``                     ``>=2.38.0``
+``google-cloud-secret-manager``             ``>=2.28.0``
+``google-cloud-spanner``                    ``>=3.66.0``
+``google-cloud-speech``                     ``>=2.39.0``
 ``google-cloud-storage``                    ``>=3.10.1``
 ``google-cloud-storage-transfer``           ``>=1.20.0``
 ``google-cloud-tasks``                      ``>=2.22.0``
 ``google-cloud-texttospeech``               ``>=2.36.0``
 ``google-cloud-translate``                  ``>=3.26.0``
 ``google-cloud-videointelligence``          ``>=2.19.0``
-``google-cloud-vision``                     ``>=3.13.0``
-``google-cloud-workflows``                  ``>=1.21.0``
+``google-cloud-vision``                     ``>=3.14.0``
+``google-cloud-workflows``                  ``>=1.22.0``
 ``google-cloud-run``                        ``>=0.16.0``
 ``google-cloud-batch``                      ``>=0.21.0``
 ``grpcio-gcp``                              ``>=0.2.2``
@@ -137,7 +144,6 @@ PIP package                                 Version required
 ``sqlalchemy-spanner``                      ``>=1.6.2``
 ``tenacity``                                ``>=8.3.0``
 ``immutabledict``                           ``>=4.2.0``
-``types-protobuf``                          ``>=5.27.0,!=5.29.1.20250402``
 ==========================================  ==================================================================
 
 Optional cross provider package dependencies
@@ -211,4 +217,4 @@ Extra                 Dependencies
 ====================  =====================================================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-google/22.8.0/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-google/22.9.0/changelog.html>`_.

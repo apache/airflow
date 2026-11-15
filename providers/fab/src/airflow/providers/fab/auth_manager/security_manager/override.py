@@ -319,6 +319,8 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
     # [START security_op_perms]
     OP_PERMISSIONS = [
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_ADMIN_MENU),
+        (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DAG_BUNDLE),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_BUNDLE),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_CONFIG),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_CONNECTION),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_POOL),

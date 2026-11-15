@@ -156,7 +156,6 @@ class TimeDeltaSensor(BaseSensorOperator):
         return None
 
 
-# TODO: Remove in the next major release
 @deprecated(
     "Use `TimeDeltaSensor` with `deferrable=True` instead", category=AirflowProviderDeprecationWarning
 )
@@ -169,7 +168,8 @@ class TimeDeltaSensorAsync(TimeDeltaSensor):
 
     def __init__(self, *, end_from_trigger: bool = False, delta, **kwargs) -> None:
         warnings.warn(
-            "TimeDeltaSensorAsync is deprecated and will be removed in a future version. Use `TimeDeltaSensor` with `deferrable=True` instead.",
+            "TimeDeltaSensorAsync is deprecated and will be removed once this provider requires Airflow 4. "
+            "Use `TimeDeltaSensor` with `deferrable=True` instead.",
             AirflowProviderDeprecationWarning,
             stacklevel=2,
         )

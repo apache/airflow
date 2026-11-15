@@ -35,8 +35,10 @@ export const AssetEvents = () => {
   const [sort] = sorting;
   const orderBy = sort ? [`${sort.desc ? "-" : ""}${sort.id}`] : ["-timestamp"];
 
-  const { DAG_ID, END_DATE, START_DATE, TASK_ID } = SearchParamsKeys;
+  const { DAG_ID, END_DATE, PARTITION_KEY, SOURCE_MAP_INDEX, SOURCE_RUN_ID, START_DATE, TASK_ID } =
+    SearchParamsKeys;
   const [searchParams] = useSearchParams();
+  const sourceMapIndex = searchParams.get(SOURCE_MAP_INDEX);
 
   const { data, isLoading } = useAssetServiceGetAssetEvents(
     {
@@ -44,7 +46,10 @@ export const AssetEvents = () => {
       limit: pagination.pageSize,
       offset: pagination.pageIndex * pagination.pageSize,
       orderBy,
+      partitionKey: searchParams.get(PARTITION_KEY) ?? undefined,
       sourceDagId: searchParams.get(DAG_ID) ?? undefined,
+      sourceMapIndex: sourceMapIndex === null || sourceMapIndex === "" ? undefined : Number(sourceMapIndex),
+      sourceRunId: searchParams.get(SOURCE_RUN_ID) ?? undefined,
       sourceTaskId: searchParams.get(TASK_ID) ?? undefined,
       timestampGte: searchParams.get(START_DATE) ?? undefined,
       timestampLte: searchParams.get(END_DATE) ?? undefined,

@@ -20,7 +20,11 @@ import "@testing-library/jest-dom/vitest";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-import type { LightGridTaskInstanceSummary, TaskInstanceResponse } from "openapi/requests/types.gen";
+import type {
+  LightGridTaskInstanceSummary,
+  TaskInstanceHistoryResponse,
+  TaskInstanceResponse,
+} from "openapi/requests/types.gen";
 
 import { Wrapper } from "src/utils/Wrapper";
 
@@ -33,6 +37,18 @@ vi.mock("react-i18next", () => ({
     t: (key: string) => key,
   }),
 }));
+
+const buildTry = (overrides: Partial<TaskInstanceHistoryResponse>) =>
+  ({
+    dag_id: "test",
+    dag_run_id: "test",
+    duration: null,
+    end_date: null,
+    start_date: null,
+    task_id: "my_task",
+    try_number: 2,
+    ...overrides,
+  }) as unknown as TaskInstanceHistoryResponse;
 
 describe("TaskInstanceTooltip", () => {
   it("renders children directly when both taskInstance and tooltip are undefined", () => {
@@ -290,5 +306,33 @@ describe("TaskInstanceTooltip", () => {
     // Clearing a pass regenerates the later ones as fresh executions that start at try 1, so
     // two neighbouring bars can both be a first try and the number is what tells them apart.
     expect(screen.getByText(/tryNumber/iu).textContent).toContain("1");
+  });
+
+  it("shows when a try waiting to be retried becomes due", () => {
+    render(
+      <TaskInstanceTooltip
+        open
+        taskInstance={buildTry({ retry_at: "2026-10-29T12:00:30Z", state: "up_for_retry" })}
+      >
+        <span>trigger</span>
+      </TaskInstanceTooltip>,
+      { wrapper: Wrapper },
+    );
+
+    expect(screen.getByText(/taskInstance\.retryAt/u)).toBeInTheDocument();
+  });
+
+  it.each([
+    { retry_at: null, state: "up_for_retry" },
+    { retry_at: "2026-10-29T12:00:30Z", state: "failed" },
+  ] as const)("hides retry at for a $state try with retry_at $retry_at", (overrides) => {
+    render(
+      <TaskInstanceTooltip open taskInstance={buildTry(overrides)}>
+        <span>trigger</span>
+      </TaskInstanceTooltip>,
+      { wrapper: Wrapper },
+    );
+
+    expect(screen.queryByText(/taskInstance\.retryAt/u)).not.toBeInTheDocument();
   });
 });

@@ -17,10 +17,12 @@
  * under the License.
  */
 import "@testing-library/jest-dom/vitest";
-import { render, screen, waitFor } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { render, screen, waitFor, within } from "@testing-library/react";
+import { beforeAll, describe, expect, it } from "vitest";
 
-import { AppWrapper } from "src/utils/AppWrapper";
+import { AppWrapper, preloadAppRoutes } from "src/utils/AppWrapper";
+
+beforeAll(() => preloadAppRoutes(["/dags/tutorial_taskflow_api/backfills"]));
 
 // The backfills mock handler (see src/mocks/handlers/backfills.ts) returns:
 //   - id 1 (start_date: 2024-12-01, end_date: 2024-12-31) — excluded when filtering Jan 2025
@@ -48,5 +50,35 @@ describe("Backfills start/end date filter", () => {
 
     await waitFor(() => expect(getFromDateCells()).toContain("2025-01-01T00:00:00Z"));
     expect(getFromDateCells()).not.toContain("2024-12-01T00:00:00Z");
+  });
+});
+
+const getTableDateCells = () =>
+  within(screen.getByRole("table"))
+    .getAllByTestId("time-display")
+    .map((element) => element.getAttribute("datetime"));
+
+describe("Backfills status filter", () => {
+  it.each([
+    { expected: "2025-02-01T00:00:00Z", param: "active=true", unexpected: "2025-01-01T00:00:00Z" },
+    { expected: "2025-01-01T00:00:00Z", param: "active=false", unexpected: "2025-02-01T00:00:00Z" },
+  ])("filters backfills by $param", async ({ expected, param, unexpected }) => {
+    render(<AppWrapper initialEntries={[`/dags/tutorial_taskflow_api/backfills?${param}`]} />);
+
+    // Both conditions in one waitFor: the list keeps the previous rows on screen while the new
+    // query resolves, so the absence only holds once that has landed.
+    // Scoped to the table: a running backfill also drives a banner elsewhere on the Dag page,
+    // whose dates would otherwise count as rows.
+    await waitFor(() => {
+      expect(getTableDateCells()).toContain(expected);
+      expect(getTableDateCells()).not.toContain(unexpected);
+    });
+  });
+
+  it("shows running and completed backfills together when the filter is unset", async () => {
+    render(<AppWrapper initialEntries={["/dags/tutorial_taskflow_api/backfills"]} />);
+
+    await waitFor(() => expect(getTableDateCells()).toContain("2025-02-01T00:00:00Z"));
+    expect(getTableDateCells()).toContain("2025-01-01T00:00:00Z");
   });
 });

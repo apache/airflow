@@ -27,7 +27,6 @@ from typing import TYPE_CHECKING, Any, Literal, Protocol, TypeVar, cast, overloa
 from urllib.parse import urlparse
 
 import sqlparse
-from deprecated import deprecated
 from methodtools import lru_cache
 from more_itertools import chunked
 
@@ -45,7 +44,6 @@ except ImportError:
     NoSuchModuleError = Exception  # type: ignore[misc,assignment]
 
 
-from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.compat.module_loading import import_string
 from airflow.providers.common.compat.sdk import (
     AirflowException,
@@ -449,41 +447,6 @@ class DbApiHook(BaseHook):
 
         self.log.debug("reserved words for '%s': %s", dialect_name, result)
         return result
-
-    @deprecated(
-        reason="Replaced by function `get_df`.",
-        category=AirflowProviderDeprecationWarning,
-        action="ignore",
-    )
-    def get_pandas_df(
-        self,
-        sql,
-        parameters: list | tuple | Mapping[str, Any] | None = None,
-        **kwargs,
-    ) -> PandasDataFrame:
-        """
-        Execute the sql and returns a pandas dataframe.
-
-        :param sql: the sql statement to be executed (str) or a list of sql statements to execute
-        :param parameters: The parameters to render the SQL query with.
-        :param kwargs: (optional) passed into pandas.io.sql.read_sql method
-        """
-        return self.get_df(sql, parameters, df_type="pandas", **kwargs)
-
-    @deprecated(
-        reason="Replaced by function `get_df_by_chunks`.",
-        category=AirflowProviderDeprecationWarning,
-        action="ignore",
-    )
-    def get_pandas_df_by_chunks(
-        self,
-        sql,
-        parameters: list | tuple | Mapping[str, Any] | None = None,
-        *,
-        chunksize: int,
-        **kwargs,
-    ) -> Generator[PandasDataFrame, None, None]:
-        return self.get_df_by_chunks(sql, parameters, chunksize=chunksize, df_type="pandas", **kwargs)
 
     @overload
     def get_df(

@@ -18,7 +18,7 @@
  */
 import type { LoopSummaryResponse } from "openapi/requests/types.gen";
 
-/** Value of the iteration URL parameter that selects every iteration. */
+/** One sentence saying how the loop ended, for the group header and the iterations table. */
 export const reasonSentence = (
   translate: (key: string, options?: Record<string, unknown>) => string,
   summary: LoopSummaryResponse,

@@ -375,14 +375,19 @@ parameter.
 The following callbacks are supported:
 
 * on_sync_client_creation: called after creating the sync client
+* on_pod_manifest_created: called after the pod manifest is built but before the pod is created
 * on_pod_creation: called after creating the pod
 * on_pod_starting: called after the pod starts
 * on_pod_completion: called when the pod completes
+* on_pod_teardown: called after the completion callbacks but before the pod is deleted
 * on_pod_cleanup: called after cleaning/deleting the pod
 * on_operator_resuming: when resuming the task from deferred state
 * progress_callback: called on each line of containers logs
 
-Currently, the callbacks methods are not called in the async mode, this support will be added in the future.
+In deferrable mode the operator invokes ``on_pod_manifest_created``, ``on_pod_creation``,
+``on_operator_resuming``, ``on_pod_completion``, ``on_pod_teardown`` and ``on_pod_cleanup``.
+``on_pod_starting`` is not invoked, because the triggerer -- not the operator -- observes pod
+startup. The ``mode`` argument is currently always ``sync``.
 
 Example:
 ~~~~~~~~

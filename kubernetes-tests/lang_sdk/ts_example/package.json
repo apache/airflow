@@ -1,7 +1,7 @@
 {
   "name": "apache-airflow-lang-sdk-k8s-ts-example",
   "private": true,
-  "version": "1.0.0-beta1",
+  "version": "1.0.0-beta2",
   "packageManager": "pnpm@10.28.1",
   "type": "module",
   "license": "Apache-2.0",
@@ -10,7 +10,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "apache-airflow-ts-sdk": "file:../../../ts-sdk"
+    "@apache-airflow/ts-sdk": "file:../../../ts-sdk"
   },
   "devDependencies": {
     "@types/node": "^26.1.2",

@@ -280,6 +280,9 @@ _FN_TO_RESOURCE_INFO: dict[str, tuple[str, str | None]] = {
     "requires_access_asset": ("Asset", None),
     "requires_access_asset_alias": ("AssetAlias", None),
     "requires_access_view": ("View", None),
+    "requires_access_dag_bundles": ("View", "DAG_BUNDLES"),
+    # Any one of these lets the caller in, and shows the triggers of that kind of owner.
+    "requires_access_trigger": ("DAG.TASK_INSTANCE or DAG.RUN or Asset", None),
 }
 
 
@@ -387,7 +390,8 @@ def extract_from_file(path: pathlib.Path) -> list[PermissionEntry]:
                     method = _extract_method_arg(inner)
                     entity = _extract_entity_arg(inner)
                     resource = _build_resource_label(fn_name, entity)
-                    permission = entity if fn_name == "requires_access_view" else method
+                    view_base, forced_view = _FN_TO_RESOURCE_INFO.get(fn_name, (None, None))
+                    permission = (forced_view or entity) if view_base == "View" else method
                     if not isinstance(permission, str):
                         raise ValueError(
                             f"Could not resolve required permission for {fn_name} in {path.name}"

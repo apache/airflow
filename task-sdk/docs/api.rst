@@ -67,6 +67,8 @@ Task Decorators:
 
 .. autoapifunction:: airflow.sdk.task_group
 
+.. autoapifunction:: airflow.sdk.task_handler
+
 .. autoapifunction:: airflow.sdk.setup
 
 .. autoapifunction:: airflow.sdk.teardown
@@ -111,6 +113,10 @@ Callbacks
 .. autoclass:: airflow.sdk.AsyncCallback
 
 .. autoclass:: airflow.sdk.SyncCallback
+
+.. autoclass:: airflow.sdk.CallbackSource
+
+.. autoclass:: airflow.sdk.CallbackMeta
 
 Deadline Alerts
 ---------------
@@ -167,6 +173,16 @@ Tasks page in the core docs for usage and design rationale.
 .. autoapiclass:: airflow.sdk.RetryDecision
 
 .. autoclass:: airflow.sdk.RetryAction
+
+Clearing Tasks in Other Dags
+----------------------------
+An operator can name a task in another Dag to clear, with everything downstream of it, whenever the
+operator's task is cleared with its downstream tasks. A target known when the Dag is parsed goes in an
+``external_clear_target`` property, and is stored with the Dag version. A target that depends on the run
+comes from ``get_external_clear_target(context)``, which the task runner calls after a successful run.
+``ExternalTaskMarker`` in the standard provider does both.
+
+.. autoapiclass:: airflow.sdk.ExternalClearTarget
 
 State Enums
 -----------

@@ -125,11 +125,13 @@ def count_provider_test_files(provider_id: str) -> int:
 
 def find_tested_provider_ids(provider_test_types: list[str]) -> list[str] | None:
     """Return the ids of individually tested providers, or None when all providers are tested."""
-    provider_ids = []
+    provider_ids: list[str] = []
     for test_type in provider_test_types:
         if not test_type.startswith("Providers[") or test_type.startswith("Providers[-"):
             return None
-        provider_ids.extend(test_type[len("Providers[") : -1].split(","))
+        provider_ids.extend(
+            provider_id.partition(":")[0] for provider_id in test_type[len("Providers[") : -1].split(",")
+        )
     return provider_ids
 
 

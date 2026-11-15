@@ -93,8 +93,8 @@ def python_task_2(transformed):
     print(transformed)
 
 
-@dag(dag_id="java_interface_example")
-def java_interface_example():
+@dag(dag_id="java_task_handler_interface_example")
+def java_task_handler_interface_example():
     extracted = extract()
     python_task_1() >> extracted
     transformed = transform(extracted)
@@ -102,8 +102,8 @@ def java_interface_example():
     summarize(region_code="emea", transformed=transformed)
 
 
-@dag(dag_id="java_annotation_example")
-def java_annotation_example():
+@dag(dag_id="java_task_handler_annotation_example")
+def java_task_handler_annotation_example():
     extracted = extract()
     python_task_1() >> extracted
     transformed = transform(extracted)
@@ -113,14 +113,14 @@ def java_annotation_example():
     concurrent()
 
 
-@dag(dag_id="java_xcom_casting_example")
-def java_xcom_casting_example():
+@dag(dag_id="java_task_handler_xcom_casting_example")
+def java_task_handler_xcom_casting_example():
     widen_to_double(widen_to_long(produce_number()))
     consume_nullable(produce_nothing())
     consume_float(produce_fraction())
     consume_double_list([1, 2])
 
 
-java_interface_example()
-java_annotation_example()
-java_xcom_casting_example()
+java_task_handler_interface_example()
+java_task_handler_annotation_example()
+java_task_handler_xcom_casting_example()

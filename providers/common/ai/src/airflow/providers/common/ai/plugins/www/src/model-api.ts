@@ -18,7 +18,7 @@
  */
 
 import { regionQuery, type TaskRegion } from "./region.ts";
-import type { UsageInfo } from "src/types/model";
+import type { SkillInfo, UsageInfo } from "src/types/model";
 
 function getApiBase(): string {
   if (typeof document === "undefined") return "/api/v2";
@@ -33,6 +33,8 @@ const API_BASE = getApiBase();
 // Namespaced to match airflow.providers.common.ai.utils.logging.MODEL_NAME_XCOM_KEY --
 // avoids colliding with a user's own "model_name" XCom.
 const MODEL_NAME_XCOM_KEY = "__AIRFLOW__COMMON_AI_MODEL_NAME__";
+// Matches airflow.providers.common.ai.utils.logging.SKILLS_XCOM_KEY.
+const SKILLS_XCOM_KEY = "__AIRFLOW__COMMON_AI_SKILLS__";
 
 /** Read one XCom entry; returns `null` when the task hasn't pushed that key (404). */
 async function fetchXComValue<T>(
@@ -65,8 +67,17 @@ async function fetchXComValue<T>(
   return data.value;
 }
 
-function isUsageInfo(value: unknown): value is UsageInfo {
-  return typeof value === "object" && value !== null;
+/**
+ * A value the XCom backend kept in external storage. The public XCom endpoint never runs the
+ * backend's deserialize_value, so it returns the reference the backend stored in its place
+ * (e.g. an ``s3://...`` path from common.io with a low xcom_objectstorage_threshold).
+ */
+export interface OffloadedValue {
+  reference: string;
+}
+
+export function isOffloaded(value: unknown): value is OffloadedValue {
+  return typeof value === "object" && value !== null && !Array.isArray(value) && "reference" in value;
 }
 
 export function createModelApi(
@@ -77,16 +88,21 @@ export function createModelApi(
   region?: TaskRegion,
 ) {
   return {
-    fetchModelName: () =>
-      fetchXComValue<string>(dagId, runId, taskId, mapIndex, MODEL_NAME_XCOM_KEY, region),
-    fetchUsage: async () => {
+    fetchModelName: async (): Promise<string | OffloadedValue | null> => {
+      const value = await fetchXComValue<string>(dagId, runId, taskId, mapIndex, MODEL_NAME_XCOM_KEY, region);
+      // A reference is a string too. A model name rarely holds a URI scheme, but can: vLLM serves
+      // ``--model s3://...`` as the name, which this reports as a reference.
+      return typeof value === "string" && value.includes("://") ? { reference: value } : value;
+    },
+    fetchUsage: async (): Promise<UsageInfo | OffloadedValue | null> => {
       const value = await fetchXComValue<unknown>(dagId, runId, taskId, mapIndex, "usage", region);
-      // A reference-storing XCom backend (e.g. common.io with a low
-      // xcom_objectstorage_threshold) returns the stored reference string here instead of
-      // the real value, since this public endpoint never runs the backend's
-      // deserialize_value. Treat anything that isn't a plain object as absent rather than
-      // let every stat box below render "undefined".
-      return isUsageInfo(value) ? value : null;
+      if (typeof value === "string") return { reference: value };
+      return typeof value === "object" && value !== null ? (value as UsageInfo) : null;
+    },
+    fetchSkills: async (): Promise<SkillInfo[] | OffloadedValue | null> => {
+      const value = await fetchXComValue<unknown>(dagId, runId, taskId, mapIndex, SKILLS_XCOM_KEY, region);
+      if (typeof value === "string") return { reference: value };
+      return Array.isArray(value) ? (value as SkillInfo[]) : null;
     },
   };
 }

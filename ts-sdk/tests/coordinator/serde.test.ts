@@ -182,6 +182,14 @@ describe("serializeDag", () => {
       expect(tasks.get("heavy")?.["queue"]).toBe("typescript_large");
     });
 
+    it("inherits the Dag's queue when a task passes an undefined queue", () => {
+      const dag = new Dag("d", { queue: "typescript" });
+      place(dag, "one", [], { queue: undefined });
+
+      const tasks = taskMap(serializeDag(dag, "", ".") as Json);
+      expect(tasks.get("one")?.["queue"]).toBe("typescript");
+    });
+
     it("writes no queue when neither the Dag nor the task names one", () => {
       expect(taskVar(serializeWith({}))).not.toHaveProperty("queue");
     });

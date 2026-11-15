@@ -37,15 +37,27 @@ export const DagsFilters = () => {
     SearchParamsKeys.OWNERS,
     SearchParamsKeys.TIMETABLE_TYPE,
     SearchParamsKeys.FAVORITE,
+    SearchParamsKeys.HAS_IMPORT_ERRORS,
   ];
 
   if (multiTeamEnabled) {
     searchParamKeys.push(SearchParamsKeys.TEAMS);
   }
 
-  const { filterConfigs, handleFiltersChange, initialValues } = useFiltersHandler(searchParamKeys);
+  const { filterConfigs, handleFiltersChange, initialValues, searchParams } =
+    useFiltersHandler(searchParamKeys);
+  const hasFolderSelection =
+    searchParams.has(SearchParamsKeys.DAG_FOLDER) || searchParams.has(SearchParamsKeys.DAG_BUNDLE);
 
   return (
-    <FilterBar configs={filterConfigs} initialValues={initialValues} onFiltersChange={handleFiltersChange} />
+    <FilterBar
+      configs={filterConfigs}
+      hasExternalFilters={hasFolderSelection}
+      initialValues={initialValues}
+      onFiltersChange={handleFiltersChange}
+      onReset={() =>
+        handleFiltersChange({}, { clearKeys: [SearchParamsKeys.DAG_FOLDER, SearchParamsKeys.DAG_BUNDLE] })
+      }
+    />
   );
 };

@@ -45,7 +45,7 @@ You can install this package on top of an existing Airflow installation (see ``R
 for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-apache-cassandra``
 
-The package supports the following python versions: 3.11,3.12,3.13
+The package supports the following python versions: 3.11,3.12,3.13,3.14
 
 Requirements
 ------------
@@ -55,6 +55,7 @@ PIP package                                 Version required
 ==========================================  ==================================================================
 ``apache-airflow``                          ``>=2.11.0``
 ``apache-airflow-providers-common-compat``  ``>=1.8.0``
+``cassandra-driver``                        ``>=3.30.1; python_version >= "3.14"``
 ``cassandra-driver``                        ``>=3.29.3; python_version >= "3.13" and python_version < "3.14"``
 ``cassandra-driver``                        ``>=3.29.2; python_version >= "3.12" and python_version < "3.13"``
 ``cassandra-driver``                        ``>=3.29.1; python_version < "3.12"``

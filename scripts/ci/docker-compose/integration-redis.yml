@@ -17,7 +17,7 @@
 ---
 services:
   redis:
-    image: redis:5.0.1
+    image: redis:7-alpine
     labels:
       org.apache.airflow.breeze: "true"
       org.apache.airflow.breeze.worktree: "${BREEZE_WORKTREE_PATH:-}"

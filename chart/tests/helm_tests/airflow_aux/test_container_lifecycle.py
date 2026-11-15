@@ -165,7 +165,7 @@ class TestContainerLifecycleHooks:
             == LIFECYCLE_PARSED
         )
 
-    # Test container lifecycle hooks for worker-kerberos main container
+    # Test container lifecycle hooks for worker-kerberos native sidecar
     @pytest.mark.parametrize("hook_type", ["preStop", "postStart"])
     def test_worker_kerberos_container_setting(self, hook_type):
         docs = render_chart(
@@ -183,9 +183,9 @@ class TestContainerLifecycleHooks:
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
-        assert jmespath.search("spec.template.spec.containers[2].lifecycle", docs[0]) == {
-            hook_type: LIFECYCLE_PARSED
-        }
+        assert jmespath.search(
+            "spec.template.spec.initContainers[?name=='worker-kerberos'] | [0].lifecycle", docs[0]
+        ) == {hook_type: LIFECYCLE_PARSED}
 
     # Test container lifecycle hooks for log-groomer-sidecar main container
     @pytest.mark.parametrize("hook_type", ["preStop", "postStart"])

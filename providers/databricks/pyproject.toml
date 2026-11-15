@@ -20,12 +20,12 @@
 # IF YOU WANT TO MODIFY THIS FILE EXCEPT DEPENDENCIES, YOU SHOULD MODIFY THE TEMPLATE
 # `pyproject_TEMPLATE.toml.jinja2` IN the `dev/breeze/src/airflow_breeze/templates` DIRECTORY
 [build-system]
-requires = ["flit_core==4.1.0"]
+requires = ["flit_core==4.2.0"]
 build-backend = "flit_core.buildapi"
 
 [project]
 name = "apache-airflow-providers-databricks"
-version = "7.23.0"
+version = "7.24.0"
 description = "Provider package apache-airflow-providers-databricks for Apache Airflow"
 readme = "README.rst"
 license = "Apache-2.0"
@@ -77,9 +77,6 @@ dependencies = [
 # The optional dependencies should be modified in place in the generated file
 # Any change in the dependencies is preserved when the file is regenerated
 [project.optional-dependencies]
-"common.ai" = [
-    "apache-airflow-providers-common-ai>=0.11.0",
-]
 # pip install apache-airflow-providers-databricks[sdk]
 "avro" = [
     'fastavro>=1.9.0; python_version<"3.14"',
@@ -91,6 +88,11 @@ dependencies = [
 ]
 "azure-identity" = [
     "azure-identity>=1.25.3",
+]
+"common.ai" = [
+    "apache-airflow-providers-common-ai[mcp]>=1.0.0",
+    # 3.x is built on httpx and MCP SDK 1.x; the toolset needs the httpx2 and MCP SDK 2.x of 4.0.
+    "fastmcp-slim[client]>=4.0.0",
 ]
 "fab" = [
     "apache-airflow-providers-fab>=2.2.0"
@@ -129,7 +131,7 @@ dev = [
     "apache-airflow-providers-microsoft-azure",
     "apache-airflow-providers-common-sql[pandas,polars]",
     "apache-airflow-providers-fab",
-    "apache-airflow-providers-databricks[sqlalchemy]",
+    "apache-airflow-providers-databricks[common.ai,sqlalchemy]",
 ]
 
 # To build docs:
@@ -158,8 +160,8 @@ apache-airflow-providers-common-sql = {workspace = true}
 apache-airflow-providers-standard = {workspace = true}
 
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-databricks/7.23.0"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-databricks/7.23.0/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-databricks/7.24.0"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-databricks/7.24.0/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"

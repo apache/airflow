@@ -20,6 +20,13 @@ name: Additional PROD image tests
 on:  # yamllint disable-line rule:truthy
   workflow_call:
     inputs:
+      merge-with:
+        description: >-
+          The base branch commit and merge base to merge the pushed commit with, space-separated;
+          empty outside fork CI runs.
+        required: false
+        default: ""
+        type: string
       runners:
         description: "The array of labels (in json form) determining runners."
         required: true
@@ -76,6 +83,14 @@ on:  # yamllint disable-line rule:truthy
         description: "Whether to run TypeScript SDK e2e tests (true/false)"
         required: true
         type: string
+      run-yaml-dag-e2e-tests:
+        description: "Whether to run YAML Dag e2e tests (true/false)"
+        required: true
+        type: string
+      run-lang-sdk-xcom-e2e-tests:
+        description: "Whether to run language SDK XCom backend e2e tests (true/false)"
+        required: true
+        type: string
       providers-compatibility-tests-matrix:
         description: "JSON matrix of released Airflow versions for the OpenLineage e2e compat tests."
         required: true
@@ -129,6 +144,7 @@ jobs:
     name: PROD image extra checks (main)
     uses: ./.github/workflows/prod-image-extra-checks.yml
     with:
+      merge-with: ${{ inputs.merge-with }}
       runners: ${{ inputs.runners }}
       platform: ${{ inputs.platform }}
       python-versions: "[ '${{ inputs.default-python-version }}' ]"
@@ -146,6 +162,7 @@ jobs:
     name: PROD image extra checks (release)
     uses: ./.github/workflows/prod-image-extra-checks.yml
     with:
+      merge-with: ${{ inputs.merge-with }}
       runners: ${{ inputs.runners }}
       platform: ${{ inputs.platform }}
       python-versions: "[ '${{ inputs.default-python-version }}' ]"
@@ -178,6 +195,11 @@ jobs:
         with:
           fetch-depth: 2
           persist-credentials: false
+      - name: "Merge with the base branch"
+        if: inputs.merge-with != ''
+        uses: ./.github/actions/merge-with-base
+        with:
+          merge-with: ${{ inputs.merge-with }}
       - name: "Prepare breeze & PROD image: ${{ inputs.default-python-version }}"
         uses: ./.github/actions/prepare_breeze_and_image
         with:
@@ -193,7 +215,7 @@ jobs:
           DEFAULT_PYTHON_VERSION: "${{ inputs.default-python-version }}"
         run: "
           cd ./docker-tests && \
-          TEST_IMAGE=\"ghcr.io/$GITHUB_REPOSITORY/$DEFAULT_BRANCH\
+          TEST_IMAGE=\"ghcr.io/${GITHUB_REPOSITORY,,}/$DEFAULT_BRANCH\
           /prod/python$DEFAULT_PYTHON_VERSION\" \
           uv run pytest tests/docker_tests/test_examples_of_prod_image_building.py -n auto --color=yes"
 
@@ -201,7 +223,7 @@ jobs:
     timeout-minutes: 60
     name: "Docker Compose quick start with PROD image verifying"
     if: inputs.run-generic-prod-image-tests == 'true'
-    runs-on: ${{ format(fromJSON(inputs.runners)[0], '32+64', '128+256') }}
+    runs-on: ${{ format(fromJSON(inputs.runners)[0], '8+16', '32+64') }}
     env:
       PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version }}"
       GITHUB_REPOSITORY: ${{ github.repository }}
@@ -217,6 +239,11 @@ jobs:
         with:
           fetch-depth: 2
           persist-credentials: false
+      - name: "Merge with the base branch"
+        if: inputs.merge-with != ''
+        uses: ./.github/actions/merge-with-base
+        with:
+          merge-with: ${{ inputs.merge-with }}
       - name: "Prepare breeze & PROD image: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
         uses: ./.github/actions/prepare_breeze_and_image
         with:
@@ -248,6 +275,11 @@ jobs:
         with:
           fetch-depth: 2
           persist-credentials: false
+      - name: "Merge with the base branch"
+        if: inputs.merge-with != ''
+        uses: ./.github/actions/merge-with-base
+        with:
+          merge-with: ${{ inputs.merge-with }}
       - name: "Prepare breeze & PROD image: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
         uses: ./.github/actions/prepare_breeze_and_image
         with:
@@ -266,6 +298,7 @@ jobs:
     if: inputs.run-generic-prod-image-tests == 'true'
     uses: ./.github/workflows/airflow-e2e-tests.yml
     with:
+      merge-with: ${{ inputs.merge-with }}
       workflow-name: "Regular e2e test"
       runners: ${{ format(inputs.runners, '8+16', '32+64') }}
       platform: ${{ inputs.platform }}
@@ -276,6 +309,7 @@ jobs:
     name: "Remote logging tests with PROD image"
     uses: ./.github/workflows/airflow-e2e-tests.yml
     with:
+      merge-with: ${{ inputs.merge-with }}
       workflow-name: "Remote logging e2e test"
       runners: ${{ format(inputs.runners, '4+8', '16+32') }}
       platform: ${{ inputs.platform }}
@@ -290,6 +324,7 @@ jobs:
     name: "Elasticsearch remote logging tests with PROD image"
     uses: ./.github/workflows/airflow-e2e-tests.yml
     with:
+      merge-with: ${{ inputs.merge-with }}
       workflow-name: "Elasticsearch remote logging e2e test"
       runners: ${{ format(inputs.runners, '8+16', '32+64') }}
       platform: ${{ inputs.platform }}
@@ -304,6 +339,7 @@ jobs:
     name: "OpenSearch remote logging tests with PROD image"
     uses: ./.github/workflows/airflow-e2e-tests.yml
     with:
+      merge-with: ${{ inputs.merge-with }}
       workflow-name: "OpenSearch remote logging e2e test"
       runners: ${{ format(inputs.runners, '8+16', '32+64') }}
       platform: ${{ inputs.platform }}
@@ -319,6 +355,7 @@ jobs:
     if: inputs.run-generic-prod-image-tests == 'true'
     uses: ./.github/workflows/airflow-e2e-tests.yml
     with:
+      merge-with: ${{ inputs.merge-with }}
       workflow-name: "XCom object storage backend e2e test"
       runners: ${{ format(inputs.runners, '4+8', '16+32') }}
       platform: ${{ inputs.platform }}
@@ -330,8 +367,9 @@ jobs:
     name: "Event driven tests with PROD image"
     uses: ./.github/workflows/airflow-e2e-tests.yml
     with:
+      merge-with: ${{ inputs.merge-with }}
       workflow-name: "Event driven e2e test"
-      runners: ${{ format(inputs.runners, '32+64', '128+256') }}
+      runners: ${{ format(inputs.runners, '8+16', '32+64') }}
       platform: ${{ inputs.platform }}
       default-python-version: "${{ inputs.default-python-version }}"
       use-uv: ${{ inputs.use-uv }}
@@ -344,6 +382,7 @@ jobs:
     name: "Java SDK e2e tests with PROD image"
     uses: ./.github/workflows/airflow-e2e-tests.yml
     with:
+      merge-with: ${{ inputs.merge-with }}
       workflow-name: "Java SDK e2e test"
       runners: ${{ format(inputs.runners, '8+16', '32+64') }}
       platform: ${{ inputs.platform }}
@@ -358,8 +397,9 @@ jobs:
     name: "Go SDK e2e tests with PROD image"
     uses: ./.github/workflows/airflow-e2e-tests.yml
     with:
+      merge-with: ${{ inputs.merge-with }}
       workflow-name: "Go SDK e2e test"
-      runners: ${{ format(inputs.runners, '32+64', '128+256') }}
+      runners: ${{ format(inputs.runners, '8+16', '32+64') }}
       platform: ${{ inputs.platform }}
       default-python-version: "${{ inputs.default-python-version }}"
       use-uv: ${{ inputs.use-uv }}
@@ -372,8 +412,9 @@ jobs:
     name: "TypeScript SDK e2e tests with PROD image"
     uses: ./.github/workflows/airflow-e2e-tests.yml
     with:
+      merge-with: ${{ inputs.merge-with }}
       workflow-name: "TypeScript SDK e2e test"
-      runners: ${{ format(inputs.runners, '32+64', '128+256') }}
+      runners: ${{ format(inputs.runners, '8+16', '32+64') }}
       platform: ${{ inputs.platform }}
       default-python-version: "${{ inputs.default-python-version }}"
       use-uv: ${{ inputs.use-uv }}
@@ -382,10 +423,42 @@ jobs:
       (inputs.canary-run == 'true' && inputs.run-generic-prod-image-tests == 'true') ||
       inputs.run-ts-sdk-e2e-tests == 'true'
 
+  test-e2e-integration-tests-yaml-dag:
+    name: "YAML Dag e2e tests with PROD image"
+    uses: ./.github/workflows/airflow-e2e-tests.yml
+    with:
+      merge-with: ${{ inputs.merge-with }}
+      workflow-name: "YAML Dag e2e test"
+      runners: ${{ format(inputs.runners, '8+16', '32+64') }}
+      platform: ${{ inputs.platform }}
+      default-python-version: "${{ inputs.default-python-version }}"
+      use-uv: ${{ inputs.use-uv }}
+      e2e_test_mode: "yaml_dag"
+    if: >-
+      (inputs.canary-run == 'true' && inputs.run-generic-prod-image-tests == 'true') ||
+      inputs.run-yaml-dag-e2e-tests == 'true'
+
+  test-e2e-integration-tests-lang-sdk-xcom-object-storage:
+    name: "Language SDK XCom object storage backend tests with PROD image"
+    uses: ./.github/workflows/airflow-e2e-tests.yml
+    with:
+      merge-with: ${{ inputs.merge-with }}
+      workflow-name: "Language SDK XCom object storage backend e2e test"
+      runners: ${{ format(inputs.runners, '8+16', '32+64') }}
+      platform: ${{ inputs.platform }}
+      default-python-version: "${{ inputs.default-python-version }}"
+      use-uv: ${{ inputs.use-uv }}
+      e2e_test_mode: "lang_sdk_xcom_object_storage"
+      java-sdk-version: "${{ inputs.java-sdk-version }}"
+    if: >-
+      (inputs.canary-run == 'true' && inputs.run-generic-prod-image-tests == 'true') ||
+      inputs.run-lang-sdk-xcom-e2e-tests == 'true'
+
   test-e2e-integration-tests-openlineage:
     name: "OpenLineage e2e tests with PROD image"
     uses: ./.github/workflows/airflow-e2e-tests.yml
     with:
+      merge-with: ${{ inputs.merge-with }}
       workflow-name: "OpenLineage e2e test"
       runners: ${{ format(inputs.runners, '8+16', '32+64') }}
       platform: ${{ inputs.platform }}
@@ -407,6 +480,7 @@ jobs:
         compat: ${{ fromJSON(inputs.providers-compatibility-tests-matrix) }}
     uses: ./.github/workflows/openlineage-e2e-compat-tests.yml
     with:
+      merge-with: ${{ inputs.merge-with }}
       runners: ${{ format(inputs.runners, '8+16', '32+64') }}
       platform: ${{ inputs.platform }}
       default-python-version: "${{ inputs.default-python-version }}"
@@ -418,6 +492,7 @@ jobs:
     name: "Chromium UI e2e tests with PROD image"
     uses: ./.github/workflows/ui-e2e-tests.yml
     with:
+      merge-with: ${{ inputs.merge-with }}
       workflow-name: "Chromium UI e2e tests"
       runners: ${{ inputs.runners }}
       platform: ${{ inputs.platform }}
@@ -430,6 +505,7 @@ jobs:
     name: "Firefox UI e2e tests with PROD image"
     uses: ./.github/workflows/ui-e2e-tests.yml
     with:
+      merge-with: ${{ inputs.merge-with }}
       workflow-name: "Firefox UI e2e tests"
       runners: ${{ inputs.runners }}
       platform: ${{ inputs.platform }}
@@ -442,6 +518,7 @@ jobs:
     name: "WebKit UI e2e tests with PROD image"
     uses: ./.github/workflows/ui-e2e-tests.yml
     with:
+      merge-with: ${{ inputs.merge-with }}
       workflow-name: "WebKit UI e2e tests"
       runners: ${{ inputs.runners }}
       platform: ${{ inputs.platform }}
@@ -469,6 +546,11 @@ jobs:
         with:
           fetch-depth: 2
           persist-credentials: false
+      - name: "Merge with the base branch"
+        if: inputs.merge-with != ''
+        uses: ./.github/actions/merge-with-base
+        with:
+          merge-with: ${{ inputs.merge-with }}
       - name: "Prepare breeze & PROD image: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
         uses: ./.github/actions/prepare_breeze_and_image
         with:

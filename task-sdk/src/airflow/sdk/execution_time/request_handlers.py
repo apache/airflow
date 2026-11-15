@@ -57,6 +57,7 @@ from airflow.sdk.execution_time.comms import (
     GetConnection,
     GetDagRunState,
     GetDRCount,
+    GetHITLDetailResponse,
     GetPreviousDagRun,
     GetPreviousTI,
     GetTaskStates,
@@ -67,6 +68,7 @@ from airflow.sdk.execution_time.comms import (
     GetXComCount,
     GetXComSequenceItem,
     GetXComSequenceSlice,
+    HITLDetailResponseResult,
     MaskSecret,
     PrevSuccessfulDagRunResult,
     PutVariable,
@@ -166,6 +168,14 @@ def handle_get_task_states(client: Client, msg: GetTaskStates) -> tuple[BaseMode
     if isinstance(task_states_map, TaskStatesResponse):
         return TaskStatesResult.from_api_response(task_states_map), {}
     return task_states_map, {}
+
+
+def handle_get_hitl_detail_response(
+    client: Client, msg: GetHITLDetailResponse
+) -> tuple[BaseModel | None, dict[str, bool]]:
+    """Fetch the response to a task instance's Human-in-the-loop request."""
+    resp = client.hitl.get_detail_response(ti_id=msg.ti_id)
+    return HITLDetailResponseResult.from_api_response(resp), {}
 
 
 def handle_get_previous_ti(client: Client, msg: GetPreviousTI) -> tuple[BaseModel | None, dict[str, bool]]:

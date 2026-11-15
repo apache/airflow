@@ -233,11 +233,10 @@ connection via **CLI**:
      }'
 
 .. note::
-   The ``[smtp]`` section in ``airflow.cfg`` is used by the **core**
-   e-mail helper slated for deprecation.
-   When you switch to :class:`~airflow.providers.smtp.hooks.smtp.SmtpHook`
-   *and* supply a ``smtp_conn_id``, the hook's connection settings take
-   precedence and the global ``[smtp]`` options may be ignored.
+   Within this provider, the ``[smtp]`` section is used only by the email backend in
+   :mod:`airflow.providers.smtp.utils.emailer` (see :doc:`/email-backend`).
+   :class:`~airflow.providers.smtp.hooks.smtp.SmtpHook` and the SMTP notifier never read it;
+   they take all settings from the Connection.
 
 Using ``SmtpHook`` in a Dag
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^

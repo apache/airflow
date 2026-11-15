@@ -69,29 +69,31 @@ class TestGoogleCloudStorageToCloudStorageOperator:
     Also tests the destination_object as prefix when the wildcard is used.
     """
 
+    @pytest.mark.parametrize(
+        ("source_object", "expected_prefix", "expected_delimiter"),
+        [
+            pytest.param(SOURCE_OBJECT_WILDCARD_PREFIX, "", "test_object", id="no-prefix"),
+            pytest.param(SOURCE_OBJECT_WILDCARD_SUFFIX, "test_object", "", id="no-suffix"),
+            pytest.param(SOURCE_OBJECT_WILDCARD_MIDDLE, "test", "object", id="prefix-and-suffix"),
+        ],
+    )
     @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_gcs.GCSHook")
-    def test_execute_no_prefix(self, mock_hook):
+    def test_execute_wildcard_prefix_and_suffix(
+        self, mock_hook, source_object, expected_prefix, expected_delimiter
+    ):
         operator = GCSToGCSOperator(
             task_id=TASK_ID,
             source_bucket=TEST_BUCKET,
-            source_object=SOURCE_OBJECT_WILDCARD_PREFIX,
+            source_object=source_object,
             destination_bucket=DESTINATION_BUCKET,
         )
 
-        operator.execute(None)
-        mock_hook.return_value.list.assert_called_once_with(TEST_BUCKET, prefix="", delimiter="test_object")
+        with pytest.warns(AirflowProviderDeprecationWarning, match="Usage of wildcard"):
+            operator.execute(None)
 
-    @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_gcs.GCSHook")
-    def test_execute_no_suffix(self, mock_hook):
-        operator = GCSToGCSOperator(
-            task_id=TASK_ID,
-            source_bucket=TEST_BUCKET,
-            source_object=SOURCE_OBJECT_WILDCARD_SUFFIX,
-            destination_bucket=DESTINATION_BUCKET,
+        mock_hook.return_value.list.assert_called_once_with(
+            TEST_BUCKET, prefix=expected_prefix, delimiter=expected_delimiter
         )
-
-        operator.execute(None)
-        mock_hook.return_value.list.assert_called_once_with(TEST_BUCKET, prefix="test_object", delimiter="")
 
     @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_gcs.GCSHook")
     def test_execute_wildcard_with_replace_flag_false(self, mock_hook):
@@ -186,18 +188,6 @@ class TestGoogleCloudStorageToCloudStorageOperator:
             mock.call(TEST_BUCKET, "test_object.txt", DESTINATION_BUCKET, DESTINATION_OBJ),
         ]
         mock_hook.return_value.rewrite.assert_has_calls(mock_calls_rewrite)
-
-    @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_gcs.GCSHook")
-    def test_execute_prefix_and_suffix(self, mock_hook):
-        operator = GCSToGCSOperator(
-            task_id=TASK_ID,
-            source_bucket=TEST_BUCKET,
-            source_object=SOURCE_OBJECT_WILDCARD_MIDDLE,
-            destination_bucket=DESTINATION_BUCKET,
-        )
-
-        operator.execute(None)
-        mock_hook.return_value.list.assert_called_once_with(TEST_BUCKET, prefix="test", delimiter="object")
 
     # copy with wildcard
     @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_gcs.GCSHook")
@@ -1154,9 +1144,25 @@ class TestGoogleCloudStorageToCloudStorageOperator:
         result = operator.execute(None)
         assert result == [f"gs://{DESTINATION_BUCKET}/backup/file.txt"]
 
+    @pytest.mark.parametrize(
+        "retention_kwargs",
+        [
+            pytest.param(
+                {
+                    "retain_until_time": datetime(2027, 1, 1),
+                    "retention_mode": "Locked",
+                },
+                id="with-mode",
+            ),
+            pytest.param(
+                {"retain_until_time": datetime(2027, 1, 1)},
+                id="without-mode",
+            ),
+            pytest.param({}, id="without-retention"),
+        ],
+    )
     @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_gcs.GCSHook")
-    def test_copy_single_file_with_retention(self, mock_hook):
-        retain_until = datetime(2027, 1, 1)
+    def test_copy_single_file_retention(self, mock_hook, retention_kwargs):
         mock_hook.return_value.list.return_value = [SOURCE_OBJECT_NO_WILDCARD]
         operator = GCSToGCSOperator(
             task_id=TASK_ID,
@@ -1164,59 +1170,15 @@ class TestGoogleCloudStorageToCloudStorageOperator:
             source_object=SOURCE_OBJECT_NO_WILDCARD,
             destination_bucket=DESTINATION_BUCKET,
             destination_object=SOURCE_OBJECT_NO_WILDCARD,
-            retain_until_time=retain_until,
-            retention_mode="Locked",
+            **retention_kwargs,
         )
 
         operator.execute(None)
+
         mock_hook.return_value.rewrite.assert_called_once_with(
             TEST_BUCKET,
             SOURCE_OBJECT_NO_WILDCARD,
             DESTINATION_BUCKET,
             SOURCE_OBJECT_NO_WILDCARD,
-            retain_until_time=retain_until,
-            retention_mode="Locked",
-        )
-
-    @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_gcs.GCSHook")
-    def test_copy_single_file_with_retention_without_mode(self, mock_hook):
-        retain_until = datetime(2027, 1, 1)
-        mock_hook.return_value.list.return_value = [SOURCE_OBJECT_NO_WILDCARD]
-        operator = GCSToGCSOperator(
-            task_id=TASK_ID,
-            source_bucket=TEST_BUCKET,
-            source_object=SOURCE_OBJECT_NO_WILDCARD,
-            destination_bucket=DESTINATION_BUCKET,
-            destination_object=SOURCE_OBJECT_NO_WILDCARD,
-            retain_until_time=retain_until,
-        )
-
-        operator.execute(None)
-        # When retention_mode is not set, only retain_until_time should be passed
-        mock_hook.return_value.rewrite.assert_called_once_with(
-            TEST_BUCKET,
-            SOURCE_OBJECT_NO_WILDCARD,
-            DESTINATION_BUCKET,
-            SOURCE_OBJECT_NO_WILDCARD,
-            retain_until_time=retain_until,
-        )
-
-    @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_gcs.GCSHook")
-    def test_copy_single_file_without_retention(self, mock_hook):
-        mock_hook.return_value.list.return_value = [SOURCE_OBJECT_NO_WILDCARD]
-        operator = GCSToGCSOperator(
-            task_id=TASK_ID,
-            source_bucket=TEST_BUCKET,
-            source_object=SOURCE_OBJECT_NO_WILDCARD,
-            destination_bucket=DESTINATION_BUCKET,
-            destination_object=SOURCE_OBJECT_NO_WILDCARD,
-        )
-
-        operator.execute(None)
-        # When no retention is set, rewrite should be called without retention kwargs
-        mock_hook.return_value.rewrite.assert_called_once_with(
-            TEST_BUCKET,
-            SOURCE_OBJECT_NO_WILDCARD,
-            DESTINATION_BUCKET,
-            SOURCE_OBJECT_NO_WILDCARD,
+            **retention_kwargs,
         )

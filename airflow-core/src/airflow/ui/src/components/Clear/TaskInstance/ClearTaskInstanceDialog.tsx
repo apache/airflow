@@ -178,6 +178,8 @@ const ClearTaskInstanceDialog = (props: Props) => {
   const wholeExpansions = selectedOptions.includes(WHOLE_EXPANSION);
   const [keepTaskState, setKeepTaskState] = useState(keepTaskStateDefault);
   const [preventRunningTask, setPreventRunningTask] = useState(preventRunningTaskDefault);
+  const [includeDependentDags, setIncludeDependentDags] = useState(true);
+  const clearsDependentDags = downstream && includeDependentDags;
 
   const [note, setNote] = useState<string | null>(initialNote);
 
@@ -259,6 +261,7 @@ const ClearTaskInstanceDialog = (props: Props) => {
     requestBody: loopMode
       ? {
           dag_run_id: group.dagRunId,
+          include_dependent_dags: clearsDependentDags,
           include_downstream: downstream,
           include_later_loop_iterations: laterLoopIterations,
           include_upstream: upstream,
@@ -271,6 +274,7 @@ const ClearTaskInstanceDialog = (props: Props) => {
         }
       : {
           dag_run_id: group.dagRunId,
+          include_dependent_dags: clearsDependentDags,
           include_downstream: downstream,
           include_future: future,
           include_past: past,
@@ -401,6 +405,13 @@ const ClearTaskInstanceDialog = (props: Props) => {
               onCheckedChange={(event) => setPreventRunningTask(Boolean(event.checked))}
             >
               {translate("dags:runAndTaskActions.options.preventRunningTasks")}
+            </Checkbox>
+            <Checkbox
+              checked={clearsDependentDags}
+              disabled={!downstream}
+              onCheckedChange={(event) => setIncludeDependentDags(Boolean(event.checked))}
+            >
+              {translate("dags:runAndTaskActions.options.includeDependentDags")}
             </Checkbox>
             {shouldShowRunOnLatestOption ? (
               <Checkbox
