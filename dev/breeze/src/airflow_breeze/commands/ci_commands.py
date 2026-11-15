@@ -375,6 +375,7 @@ def selective_check(
             fork_push=fork_push,
             fork_changes_truncated=fork_changes_truncated,
             fork_merge_base=fork_merge_base,
+            push_base_commit=push_base_commit,
         )
         print(str(sc), file=sys.stderr)
     except Exception:
