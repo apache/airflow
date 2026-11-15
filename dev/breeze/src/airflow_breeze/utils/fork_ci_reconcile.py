@@ -1898,10 +1898,18 @@ def count_passed_jobs(jobs: Iterable[dict[str, Any]]) -> int:
     )
 
 
-def find_passed_jobs(fork: ForkObservation, read_jobs: ReadJobs) -> int | None:
-    """The passed jobs of the fork run, when this reconciler run read its jobs."""
-    jobs = read_jobs.get(fork.run_id) if fork.run_id is not None else None
-    return count_passed_jobs(jobs) if jobs is not None else None
+def find_passed_jobs(fork: ForkObservation, read_jobs: ReadJobs, jobs_reported: str | None) -> int | None:
+    """
+    The passed jobs of the fork run, from its jobs when this reconciler run read them, or else from
+    the key of the completed run whose jobs are all reported.
+    """
+    if fork.run_id is None:
+        return None
+    jobs = read_jobs.get(fork.run_id)
+    if jobs is not None:
+        return count_passed_jobs(jobs)
+    *_, passed = (jobs_reported or "").split(":")
+    return int(passed) if passed.isdigit() else None
 
 
 def build_job_statuses(jobs: Iterable[dict[str, Any]]) -> dict[str, tuple[str, str, str]]:
@@ -2070,7 +2078,7 @@ class JobStatusReporter:
         The key is recorded in the marker, so a completed run's jobs are read once. A run in
         progress, or one whose statuses did not all fit in the budget, is read again next time. The
         key holds the run attempt, so a re-run in the fork is read again even when it ends with the
-        same conclusion.
+        same conclusion, and the run's passed jobs, which later runs show without reading the jobs.
         """
         if fork.run_id is None or not pr.head_repo:
             return None
@@ -2080,8 +2088,9 @@ class JobStatusReporter:
             else None
         )
         recorded = pr.marker.jobs if pr.marker is not None and pr.marker.sha == pr.head_sha else None
-        if key is not None and key == recorded:
-            return key
+        # Recorded before the passed jobs were, a key has no count; its jobs are then read once more.
+        if key is not None and recorded is not None and recorded.startswith(f"{key}:"):
+            return recorded
         # Without writes left, the reads are spent for nothing: a backlog of hundreds of pull requests
         # would otherwise cost two reads each on every run.
         if self.remaining == 0:
@@ -2136,7 +2145,7 @@ class JobStatusReporter:
             self._client.set_status(pr.number, pr.head_sha, state, target_url, description, context=context)
             # Charged per write, so writes made before a later one fails still count.
             self.remaining -= 1
-        return key
+        return None if key is None else f"{key}:{count_passed_jobs(jobs)}"
 
 
 def fetch_workflow_state(client: GitHubClient, fork: str) -> str:
@@ -3188,7 +3197,7 @@ def run_reconcile(
                 verify_head_repo_unavailable=functools.partial(
                     check_head_repo_unavailable, client, repo, pr.number
                 ),
-                passed_jobs=find_passed_jobs(fork, read_jobs),
+                passed_jobs=find_passed_jobs(fork, read_jobs, jobs_reported),
             )
             # A revocation to `pending` always goes through: it is idempotent and must not depend on
             # `report_project_ci_passed` succeeding later in this run.

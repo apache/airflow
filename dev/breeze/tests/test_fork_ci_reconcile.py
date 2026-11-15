@@ -3270,7 +3270,7 @@ def test_job_status_reporter_posts_changed_statuses_failures_first(client):
 
     key = JobStatusReporter(client, repo=REPO).report(_pr(), COMPLETED_RUN)
 
-    assert key == "1:1:FAILURE"
+    assert key == "1:1:FAILURE:2"
     assert [(c.args[2], c.kwargs["context"]) for c in client.set_status.call_args_list] == [
         ("failure", f"{JOB_STATUS_CONTEXT_PREFIX}Unit"),
         ("success", f"{JOB_STATUS_CONTEXT_PREFIX}Helm tests"),
@@ -3301,19 +3301,22 @@ def test_job_status_reporter_does_not_record_a_run_in_progress(client):
 
 
 @pytest.mark.parametrize(
-    ("marker_jobs", "marker_sha", "reads"),
+    ("marker_jobs", "marker_sha", "reads", "expected"),
     [
-        pytest.param("1:1:FAILURE", "abc123", False, id="already-reported"),
-        pytest.param("1:1:SUCCESS", "abc123", True, id="re-run-with-another-conclusion"),
-        pytest.param("1:2:FAILURE", "abc123", True, id="another-attempt-with-the-same-conclusion"),
-        pytest.param("1:1:FAILURE", "other", True, id="marker-of-another-commit"),
+        pytest.param("1:1:FAILURE:7", "abc123", False, "1:1:FAILURE:7", id="already-reported"),
+        pytest.param("1:1:FAILURE", "abc123", True, "1:1:FAILURE:0", id="recorded-before-the-count"),
+        pytest.param("1:1:SUCCESS:7", "abc123", True, "1:1:FAILURE:0", id="re-run-with-another-conclusion"),
+        pytest.param(
+            "1:2:FAILURE:7", "abc123", True, "1:1:FAILURE:0", id="another-attempt-with-the-same-conclusion"
+        ),
+        pytest.param("1:1:FAILURE:7", "other", True, "1:1:FAILURE:0", id="marker-of-another-commit"),
     ],
 )
-def test_job_status_reporter_reads_a_completed_run_once(client, marker_jobs, marker_sha, reads):
+def test_job_status_reporter_reads_a_completed_run_once(client, marker_jobs, marker_sha, reads, expected):
     _reporter_client(client, [])
     pr = _pr(marker=dataclasses.replace(_marker("failed", sha=marker_sha), jobs=marker_jobs))
 
-    assert JobStatusReporter(client, repo=REPO).report(pr, COMPLETED_RUN) == "1:1:FAILURE"
+    assert JobStatusReporter(client, repo=REPO).report(pr, COMPLETED_RUN) == expected
     assert client.rest_get.called is reads
 
 
@@ -3702,16 +3705,19 @@ def test_count_passed_jobs():
 
 
 @pytest.mark.parametrize(
-    ("fork", "read_jobs", "expected"),
+    ("fork", "read_jobs", "jobs_reported", "expected"),
     [
-        pytest.param(COMPLETED_RUN, {1: [_fork_job("A")]}, 1, id="read"),
-        pytest.param(COMPLETED_RUN, {}, None, id="not-read"),
-        pytest.param(COMPLETED_RUN, {1: None}, None, id="read-failed"),
-        pytest.param(ForkObservation(), {1: [_fork_job("A")]}, None, id="no-run"),
+        pytest.param(COMPLETED_RUN, {1: [_fork_job("A")]}, None, 1, id="read"),
+        pytest.param(COMPLETED_RUN, {1: [_fork_job("A")]}, "1:1:FAILURE:9", 1, id="read-wins-over-the-key"),
+        pytest.param(COMPLETED_RUN, {}, "1:1:FAILURE:9", 9, id="from-the-recorded-key"),
+        pytest.param(COMPLETED_RUN, {}, "1:1:FAILURE", None, id="key-recorded-before-the-count"),
+        pytest.param(COMPLETED_RUN, {}, None, None, id="not-read"),
+        pytest.param(COMPLETED_RUN, {1: None}, None, None, id="read-failed"),
+        pytest.param(ForkObservation(), {1: [_fork_job("A")]}, "1:1:FAILURE:9", None, id="no-run"),
     ],
 )
-def test_find_passed_jobs(fork, read_jobs, expected):
-    assert find_passed_jobs(fork, read_jobs) == expected
+def test_find_passed_jobs(fork, read_jobs, jobs_reported, expected):
+    assert find_passed_jobs(fork, read_jobs, jobs_reported) == expected
 
 
 def test_build_job_statuses_treats_contexts_case_insensitively():
@@ -3733,7 +3739,7 @@ def test_job_status_reporter_compares_contexts_case_insensitively(client):
     }
     _reporter_client(client, [_fork_job("Tests", conclusion="failure")], [posted])
 
-    assert JobStatusReporter(client, repo=REPO).report(_pr(), COMPLETED_RUN) == "1:1:FAILURE"
+    assert JobStatusReporter(client, repo=REPO).report(_pr(), COMPLETED_RUN) == "1:1:FAILURE:0"
     client.set_status.assert_not_called()
 
 

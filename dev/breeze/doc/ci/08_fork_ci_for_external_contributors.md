@@ -927,8 +927,10 @@ observed. The `description` is a short sentence under 140 characters that always
 where to look next. For `running`, `failed`, `green` and `green_unverified` it is followed by the
 fork run's passed jobs, such as "Fork CI passed - see Details (127 jobs passed)", since passed jobs
 are not posted as statuses of their own (see "Job statuses"). The count is taken from the jobs the
-run read for its job statuses; a run that did not read them keeps the count the status shows, and
-the count is never carried over from another state. The reconciler reads the state back from the
+run read for its job statuses, or else from the marker of a completed run whose jobs are all
+reported, so a status write that failed after the state comment recorded the run still gets it;
+otherwise the status keeps the count it shows, and the count is never carried over from another
+state. The reconciler reads the state back from the
 description without the count, and accepts a count only on those four states.
 
 Statuses are immutable and per SHA. The reconciler compares the desired `(state,
@@ -984,8 +986,9 @@ suites); its jobs come from `GET /repos/<fork>/actions/runs/<id>/jobs?filter=lat
   Fork CI / Tests (AMD)", so it no longer shows as running or failed; one that is already a
   success is left as it is.
 - Once every job of a completed run is reported, the run is recorded in the marker as
-  `jobs: "<run id>:<attempt>:<conclusion>"` (`runAttempt` is fetched with the check suites), so
-  later runs do not read its jobs again. A run in progress is read on every run, and a re-run in
+  `jobs: "<run id>:<attempt>:<conclusion>:<passed jobs>"` (`runAttempt` is fetched with the check
+  suites), so later runs do not read its jobs again. A marker recorded before the count was added
+  has none, and its run's jobs are read once more. A run in progress is read on every run, and a re-run in
   the fork is read again because its attempt changes, even when it ends with the same conclusion.
 - Reporting job statuses is caught on its own: when it fails, the pull request is still
   classified, so for example a `CI passed` that no longer holds is still revoked. Reading a fork

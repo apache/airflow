@@ -124,7 +124,8 @@ class Marker:
     since: datetime
     # Set when the head commit's fork CI turned green and its base could be compared.
     base: BaseCheck | None = None
-    # The completed fork run (``<run id>:<attempt>:<conclusion>``) whose jobs are all reported.
+    # The completed fork run (``<run id>:<attempt>:<conclusion>:<passed jobs>``) whose jobs are all
+    # reported.
     jobs: str | None = None
     # The fork run (``<run id>:<attempt>``) whose failed jobs the comment lists.
     failed_run: str | None = None
