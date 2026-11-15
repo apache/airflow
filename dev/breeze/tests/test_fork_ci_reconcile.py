@@ -24,6 +24,7 @@ from unittest import mock
 from urllib.parse import quote
 
 import pytest
+import yaml
 from click.testing import CliRunner
 
 from airflow_breeze.commands.ci_commands import fork_ci_reconcile
@@ -31,7 +32,6 @@ from airflow_breeze.utils.fork_ci_gate import GateConfig
 from airflow_breeze.utils.fork_ci_github import GitHubClient, GitHubError
 from airflow_breeze.utils.fork_ci_messages import (
     CI_PASSED_CONTEXT,
-    CI_PASSED_DESCRIPTION,
     CI_PASSED_PROJECT_DESCRIPTION,
     CI_PASSED_WAITING_PROJECT_CI_DESCRIPTION,
     CI_RUN_STARTED_CONTEXT,
@@ -40,14 +40,24 @@ from airflow_breeze.utils.fork_ci_messages import (
     JOB_STATUS_CONTEXT_PREFIX,
     STALE_JOB_STATUS,
     STATUS_CONTEXT,
+    BaseCheck,
+    FailedJob,
     Marker,
     parse_marker,
     render_marker,
 )
 from airflow_breeze.utils.fork_ci_reconcile import (
+    DEFERRED_RUNS_BEFORE_ALERT,
+    GATE_PROTECTED_PATHS,
+    JOB_STATUS_FAILURE_RUNS_BEFORE_ALERT,
     JOB_STATUSES_DEFERRED_NOTE,
     JOB_STATUSES_FAILED_REASON,
+    MAX_CI_RUN_STARTED_PER_RUN,
+    MAX_JOB_STATUSES_PER_RUN,
+    MAX_PROJECT_CI_PASSED_PER_RUN,
+    MONITOR_INTERVAL,
     RATE_LIMITED_NOTE,
+    RATE_LIMITED_RUNS_BEFORE_ALERT,
     BaseGateConfigs,
     BypassFinder,
     DraftChange,
@@ -59,19 +69,22 @@ from airflow_breeze.utils.fork_ci_reconcile import (
     Projection,
     PullRequestChangedError,
     PullRequestSnapshot,
+    _is_bot,
     apply_plan,
     build_job_statuses,
     build_slack_payload,
     changes_ci_definition,
+    check_head_repo_unavailable,
     classify,
+    compare_with_base,
     compute_projection,
-    count_commits_behind,
     discover,
     drop_reported,
     fetch_fork_observations,
     fetch_open_pull_requests,
     fetch_workflow_state,
     find_ci_run_since,
+    find_failed_jobs,
     find_heads_shared_across_bases,
     find_project_ci_label_heads,
     find_project_ci_passed_url,
@@ -87,6 +100,7 @@ from airflow_breeze.utils.fork_ci_reconcile import (
     parse_pull_request,
     pull_request_changes_ci_files,
     read_ci_run_at,
+    read_failed_jobs,
     read_head_status,
     read_job_status_failure_runs,
     read_project_ci_passed_url,
@@ -103,9 +117,13 @@ CREATED = datetime(2026, 11, 1, tzinfo=UTC)
 JOINED = CREATED + timedelta(days=2)
 CONFIG = GateConfig(enabled=True, enabled_since=datetime(2026, 10, 1, tzinfo=UTC), close_after_days=7)
 RUN_URL = "https://github.com/someone/airflow/actions/runs/1"
+# A `CI passed` success the reconciler wrote for a green fork run.
+FORK_CI_PASSED_DESCRIPTION = "Fork CI passed; base main@0123456789 was 3 commits behind, no overlap"
 PROJECT_RUN_URL = "https://github.com/apache/airflow/actions/runs/2"
 PROJECT_PASSED_URL = "https://github.com/apache/airflow/actions/runs/5"
 GREEN = ForkObservation(suite_status="COMPLETED", suite_conclusion="SUCCESS", run_url=RUN_URL)
+MERGE_BASE = "def4567890aa"
+CURRENT_BASE = BaseCheck(MERGE_BASE, 3)
 
 
 def _pr(**overrides) -> PullRequestSnapshot:
@@ -138,9 +156,10 @@ def _classify(
     bypass_run=None,
     changes_ci_files=False,
     config=CONFIG,
-    behind=None,
+    base=CURRENT_BASE,
     head_shared_across_bases=False,
     gate_change=None,
+    verify_head_repo_unavailable=lambda: False,
 ):
     find_bypass = mock.Mock(return_value=bypass_run)
     changes = mock.Mock(return_value=changes_ci_files)
@@ -152,9 +171,10 @@ def _classify(
         repo=REPO,
         find_bypass_run=find_bypass,
         changes_ci_files=changes,
-        count_behind=mock.Mock(return_value=behind),
+        compare_base=mock.Mock(return_value=base),
         head_shared_across_bases=head_shared_across_bases,
         find_gate_change=lambda: gate_change,
+        verify_head_repo_unavailable=verify_head_repo_unavailable,
     )
     return plan, find_bypass, changes
 
@@ -239,6 +259,33 @@ def test_setup_required_comment_gives_the_command():
     plan, _, _ = _classify(_pr(), ForkObservation(workflow_state="disabled_fork"))
 
     assert "gh workflow enable ci-amd.yml -R someone/airflow" in plan.marker_comment
+
+
+@pytest.mark.parametrize(
+    ("conclusion", "expected_description", "explains_settings"),
+    [
+        pytest.param(
+            "STARTUP_FAILURE",
+            "Fork CI run could not start - check your fork's Actions settings",
+            True,
+            id="startup-failure",
+        ),
+        pytest.param("FAILURE", "Fork CI failed - see Details", False, id="failure"),
+    ],
+)
+def test_a_run_that_could_not_start_points_to_the_fork_settings(
+    conclusion, expected_description, explains_settings
+):
+    fork = ForkObservation(suite_status="COMPLETED", suite_conclusion=conclusion, run_url=RUN_URL)
+
+    plan, _, _ = _classify(_pr(is_draft=False), fork)
+
+    assert plan.state == ForkState.FAILED
+    assert plan.draft is None
+    assert plan.status == ("failure", RUN_URL, expected_description)
+    assert ("**Fork CI: could not start.**" in plan.marker_comment) is explains_settings
+    assert ("Settings > Actions > General" in plan.marker_comment) is explains_settings
+    assert '"state": "failed"' in plan.marker_comment
 
 
 @pytest.mark.parametrize(
@@ -481,66 +528,116 @@ UNVERIFIED_STATUS = (
 )
 
 
-CI_PASSED = ("success", RUN_URL, "Fork CI passed for this commit")
+CI_PASSED = ("success", RUN_URL, "Fork CI passed; base main@def4567890 was 3 commits behind, no overlap")
 CI_PASSED_REVOKED = ("pending", RUN_URL, "Fork CI result no longer trusted for this commit")
+OVERLAPPING_BASE = BaseCheck(MERGE_BASE, 3, ("a.py",))
+REBASE_NEEDED = ("pending", RUN_URL, "Rebase on main and push: main changed 1 of the same files since")
 
 
 @pytest.mark.parametrize(
-    ("fork", "changes_ci_files", "ci_passed_state", "expected"),
+    ("fork", "changes_ci_files", "base", "ci_passed_state", "expected"),
     [
-        pytest.param(GREEN, False, None, CI_PASSED, id="green-posts-success"),
-        pytest.param(GREEN, False, "success", None, id="green-already-posted"),
-        pytest.param(GREEN, False, "pending", CI_PASSED, id="green-after-revoke"),
-        pytest.param(GREEN, True, None, None, id="unverified-gets-none"),
+        pytest.param(GREEN, False, CURRENT_BASE, None, CI_PASSED, id="green-posts-success"),
+        pytest.param(GREEN, False, CURRENT_BASE, "success", None, id="green-already-posted"),
+        pytest.param(GREEN, False, CURRENT_BASE, "pending", CI_PASSED, id="green-after-revoke"),
+        pytest.param(GREEN, True, CURRENT_BASE, None, None, id="unverified-gets-none"),
+        pytest.param(GREEN, False, OVERLAPPING_BASE, None, REBASE_NEEDED, id="old-base-asks-to-rebase"),
+        pytest.param(GREEN, False, OVERLAPPING_BASE, "success", REBASE_NEEDED, id="old-base-revokes"),
+        pytest.param(GREEN, False, OVERLAPPING_BASE, "pending", None, id="old-base-already-pending"),
+        pytest.param(GREEN, False, None, None, None, id="base-not-compared-gets-none"),
+        pytest.param(GREEN, False, None, "success", CI_PASSED_REVOKED, id="base-not-compared-revokes"),
         pytest.param(
             ForkObservation(suite_status="COMPLETED", suite_conclusion="FAILURE", run_url=RUN_URL),
             False,
+            CURRENT_BASE,
             "success",
             CI_PASSED_REVOKED,
             id="failed-rerun-revokes",
         ),
-        pytest.param(GREEN, True, "success", CI_PASSED_REVOKED, id="unverified-after-retarget-revokes"),
+        pytest.param(
+            GREEN, True, CURRENT_BASE, "success", CI_PASSED_REVOKED, id="unverified-after-retarget-revokes"
+        ),
         pytest.param(
             ForkObservation(suite_status="IN_PROGRESS", run_url=RUN_URL),
             False,
+            CURRENT_BASE,
             None,
             None,
             id="running-gets-none",
         ),
     ],
 )
-def test_ci_passed_reports_trusted_green_only(fork, changes_ci_files, ci_passed_state, expected):
-    plan, _, _ = _classify(_pr(ci_passed_state=ci_passed_state), fork, changes_ci_files=changes_ci_files)
+def test_ci_passed_reports_trusted_green_on_a_current_base_only(
+    fork, changes_ci_files, base, ci_passed_state, expected
+):
+    plan, _, _ = _classify(
+        _pr(ci_passed_state=ci_passed_state), fork, changes_ci_files=changes_ci_files, base=base
+    )
 
     assert plan.ci_passed == expected
 
 
+def test_green_whose_base_cannot_be_compared_is_reported():
+    plan, _, _ = _classify(_pr(), GREEN, base=None)
+
+    assert plan.state == ForkState.GREEN
+    assert any("could not be compared with `main`" in item for item in plan.unknown)
+
+
+KEPT_BASE = BaseCheck("kept", 300, None)
+
+
 @pytest.mark.parametrize(
-    ("pr_overrides", "behind", "expected_behind", "warned"),
+    ("pr_overrides", "compared", "expected_base"),
     [
-        pytest.param({}, 250, 250, True, id="counted-on-decision"),
-        pytest.param({}, 3, 3, False, id="close-to-base"),
+        pytest.param({}, True, CURRENT_BASE, id="compared-on-decision"),
         pytest.param(
-            {"current_status": GREEN_STATUS, "marker": Marker("green", "abc123", NOW, behind=300)},
-            None,
-            300,
-            True,
+            {"current_status": GREEN_STATUS, "marker": Marker("green", "abc123", NOW, base=KEPT_BASE)},
+            False,
+            KEPT_BASE,
             id="kept-from-the-marker",
         ),
         pytest.param(
-            {"current_status": GREEN_STATUS, "marker": Marker("green", "old-sha", NOW, behind=300)},
-            None,
-            None,
-            False,
+            {"current_status": GREEN_STATUS, "marker": Marker("green", "old-sha", NOW, base=KEPT_BASE)},
+            True,
+            CURRENT_BASE,
             id="not-kept-for-another-commit",
+        ),
+        pytest.param(
+            {"current_status": GREEN_STATUS, "marker": Marker("green", "abc123", NOW)},
+            True,
+            CURRENT_BASE,
+            id="compared-for-a-marker-without-base",
+        ),
+        pytest.param(
+            {
+                "current_status": GREEN_STATUS,
+                "marker": Marker("green", "abc123", NOW, base=KEPT_BASE),
+                "last_base_change_at": NOW,
+                "status_created_at": NOW - timedelta(hours=1),
+            },
+            True,
+            CURRENT_BASE,
+            id="compared-again-after-retarget",
         ),
     ],
 )
-def test_green_records_how_far_behind_the_base_branch(pr_overrides, behind, expected_behind, warned):
-    plan, _, _ = _classify(_pr(**pr_overrides), GREEN, behind=behind)
+def test_green_records_the_base_it_tested(pr_overrides, compared, expected_base):
+    compare_base = mock.Mock(return_value=CURRENT_BASE)
+    plan = classify(
+        _pr(**pr_overrides),
+        GREEN,
+        config=CONFIG,
+        now=NOW,
+        repo=REPO,
+        find_bypass_run=lambda: None,
+        changes_ci_files=lambda: False,
+        compare_base=compare_base,
+    )
 
-    assert parse_marker(plan.marker_comment).behind == expected_behind
-    assert ("commits behind `main`" in plan.marker_comment) is warned
+    assert compare_base.called is compared
+    assert parse_marker(plan.marker_comment).base == expected_base
+    assert f"[`{expected_base.sha[:10]}`]" in plan.marker_comment
 
 
 @pytest.mark.parametrize(
@@ -731,6 +828,31 @@ def test_close_clock(marker, should_close):
 
 
 @pytest.mark.parametrize(
+    ("marker", "last_comment_at", "should_close"),
+    [
+        pytest.param(_marker("failed", days_ago=7), None, True, id="failed-seven-days-no-comments"),
+        pytest.param(
+            _marker("failed", days_ago=7), NOW - timedelta(days=8), True, id="failed-seven-days-old-comments"
+        ),
+        pytest.param(
+            _marker("failed", days_ago=7),
+            NOW - timedelta(days=2),
+            False,
+            id="failed-seven-days-recent-comments",
+        ),
+        pytest.param(_marker("failed", days_ago=6.9), None, False, id="failed-under-seven-days"),
+    ],
+)
+def test_failing_pull_request_inactivity_clock(marker, last_comment_at, should_close):
+    pr = _pr(marker=marker, last_comment_at=last_comment_at)
+    failed_fork = ForkObservation(suite_status="COMPLETED", suite_conclusion="FAILURE")
+    plan, _, _ = _classify(pr, failed_fork)
+
+    assert plan.close is False
+    assert plan.state == ForkState.FAILED
+
+
+@pytest.mark.parametrize(
     "reopened_at",
     [pytest.param(None, id="never-reopened"), pytest.param(NOW - timedelta(days=31), id="reopened-before")],
 )
@@ -815,7 +937,7 @@ def test_release_with_use_project_ci():
 @pytest.mark.parametrize(
     ("ci_passed_state", "ci_passed_description", "revoked"),
     [
-        pytest.param("success", CI_PASSED_DESCRIPTION, True, id="fork-success-is-revoked"),
+        pytest.param("success", FORK_CI_PASSED_DESCRIPTION, True, id="fork-success-is-revoked"),
         pytest.param("success", None, True, id="success-without-description-is-revoked"),
         pytest.param("success", CI_PASSED_PROJECT_DESCRIPTION, False, id="project-success-is-kept"),
         pytest.param("pending", CI_PASSED_WAITING_PROJECT_CI_DESCRIPTION, False, id="pending-is-kept"),
@@ -867,12 +989,46 @@ def test_both_override_labels_are_reported():
     assert len(plan.attention) == 1
 
 
-def test_deleted_head_repository_is_unknown():
+def test_deleted_head_repository_reported_as_unknown():
+    plan, _, _ = _classify(_pr(head_repo=None), GREEN, verify_head_repo_unavailable=lambda: True)
+
+    assert plan.state is None
+    assert plan.close is False
+    assert plan.unknown == ["head repository no longer exists"]
+    assert plan.new_comments == []
+
+
+def test_deleted_head_repository_default_retries_safely():
     plan, _, _ = _classify(_pr(head_repo=None), GREEN)
 
-    assert plan.unknown == ["head repository no longer exists"]
-    assert plan.status is None
-    assert plan.draft is None
+    assert plan.state is None
+    assert plan.close is False
+    assert plan.unknown == ["head repository is unavailable due to GitHub API error; retrying"]
+    assert plan.new_comments == []
+
+
+def test_deleted_head_repository_retries_on_api_error():
+    plan, _, _ = _classify(_pr(head_repo=None), GREEN, verify_head_repo_unavailable=lambda: False)
+
+    assert plan.state is None
+    assert plan.close is False
+    assert plan.unknown == ["head repository is unavailable due to GitHub API error; retrying"]
+    assert plan.new_comments == []
+
+
+def test_check_head_repo_unavailable():
+    client = mock.Mock()
+    client.rest_get.return_value = {"head": {"repo": None}}
+    assert check_head_repo_unavailable(client, "apache/airflow", 123) is True
+
+    client.rest_get.return_value = {"head": {"repo": {"full_name": "user/repo"}}}
+    assert check_head_repo_unavailable(client, "apache/airflow", 123) is False
+
+    client.rest_get.return_value = None
+    assert check_head_repo_unavailable(client, "apache/airflow", 123) is False
+
+    client.rest_get.side_effect = GitHubError("500 Internal Server Error")
+    assert check_head_repo_unavailable(client, "apache/airflow", 123) is False
 
 
 def test_malformed_marker_is_reported_and_rewritten():
@@ -2035,12 +2191,14 @@ def _ci_passed_commit(state, description, oid="sha1"):
             id="ungated-waiting-project-ci-passed",
         ),
         pytest.param(
-            False, "PENDING", CI_PASSED_DESCRIPTION, PROJECT_PASSED_URL, [1], id="ungated-fork-status"
+            False, "PENDING", FORK_CI_PASSED_DESCRIPTION, PROJECT_PASSED_URL, [1], id="ungated-fork-status"
         ),
         pytest.param(
             False, "PENDING", CI_PASSED_WAITING_PROJECT_CI_DESCRIPTION, None, [], id="ungated-not-passed"
         ),
-        pytest.param(False, "SUCCESS", CI_PASSED_DESCRIPTION, PROJECT_PASSED_URL, [], id="already-success"),
+        pytest.param(
+            False, "SUCCESS", FORK_CI_PASSED_DESCRIPTION, PROJECT_PASSED_URL, [], id="already-success"
+        ),
         pytest.param(False, "PENDING", "someone else", PROJECT_PASSED_URL, [], id="foreign-status"),
         pytest.param(
             True,
@@ -2102,7 +2260,7 @@ def test_discover_reads_the_status_of_a_head_commit_the_search_did_not_list(mock
         **_pr_node(1),
         "headRefOid": "sha1",
         "labels": {"nodes": []},
-        "commits": _ci_passed_commit("SUCCESS", CI_PASSED_DESCRIPTION, oid="older"),
+        "commits": _ci_passed_commit("SUCCESS", FORK_CI_PASSED_DESCRIPTION, oid="older"),
     }
     mock_read.return_value = PROJECT_PASSED_URL
     client.graphql.side_effect = [_search_result(node), _search_result()]
@@ -2266,6 +2424,44 @@ def test_fork_observations_use_the_fork_name_and_latest_suite(client):
         completed_at=datetime(2026, 11, 2, 0, 40, tzinfo=UTC),
     )
     assert client.graphql.call_args.args[1] == {"o0": "someone", "n0": "my-airflow", "s0": "sha1"}
+
+
+def test_fetch_fork_observations_accepts_workflow_dispatch(client):
+    pr = parse_pull_request(_pr_node(1, head_repo="someone/my-airflow", head_sha="sha1"))
+    client.graphql.return_value = {
+        "pr0": {
+            "object": {
+                "checkSuites": {
+                    "nodes": [
+                        {
+                            "createdAt": "2026-11-02T00:00:00Z",
+                            "updatedAt": "2026-11-02T00:40:00Z",
+                            "status": "COMPLETED",
+                            "conclusion": "SUCCESS",
+                            "workflowRun": {
+                                "databaseId": 88,
+                                "runAttempt": 1,
+                                "url": "dispatch-run",
+                                "event": "workflow_dispatch",
+                                "workflow": {"resourcePath": "/x/ci-amd.yml"},
+                            },
+                        },
+                    ]
+                }
+            }
+        }
+    }
+
+    observations = fetch_fork_observations(client, [pr])
+
+    assert observations[1] == ForkObservation(
+        suite_status="COMPLETED",
+        suite_conclusion="SUCCESS",
+        run_url="dispatch-run",
+        run_id=88,
+        run_attempt=1,
+        completed_at=datetime(2026, 11, 2, 0, 40, tzinfo=UTC),
+    )
 
 
 def test_state_comment_is_found_beyond_the_first_page(client):
@@ -2701,18 +2897,64 @@ def test_apply_plan_posts_ci_passed_under_its_own_context(client):
     assert mock.call(42, "abc123", *CI_PASSED, context="CI passed") in client.set_status.call_args_list
 
 
+def _compare(behind, files, merge_base=MERGE_BASE):
+    return {"merge_base_commit": {"sha": merge_base}, "behind_by": behind, "files": files}
+
+
+def _files(*paths):
+    return [{"filename": path} for path in paths]
+
+
+HEAD_COMPARE = f"repos/{REPO}/compare/providers-fab%2Fv1-5...someone:abc123?per_page=1"
+BASE_COMPARE = f"repos/{REPO}/compare/{MERGE_BASE}...providers-fab%2Fv1-5?per_page=1"
+PR_FILES = f"repos/{REPO}/pulls/42/files?per_page=100"
+
+
 @pytest.mark.parametrize(
-    ("side_effect", "expected"),
+    ("responses", "expected", "expected_calls"),
     [
-        pytest.param([{"behind_by": 17}], 17, id="counted"),
-        pytest.param(GitHubError("gh api failed: HTTP 500"), None, id="unreadable"),
+        pytest.param(
+            [_compare(0, _files("a.py"))], BaseCheck(MERGE_BASE, 0, ()), [HEAD_COMPARE], id="up-to-date"
+        ),
+        pytest.param(
+            [_compare(5, _files("a.py", "b.py")), _compare(0, _files("c.py"))],
+            BaseCheck(MERGE_BASE, 5, ()),
+            [HEAD_COMPARE, BASE_COMPARE],
+            id="no-overlap",
+        ),
+        pytest.param(
+            [
+                _compare(5, [*_files("b.py"), {"filename": "new.py", "previous_filename": "a.py"}]),
+                _compare(0, _files("b.py", "a.py", "c.py")),
+            ],
+            BaseCheck(MERGE_BASE, 5, ("a.py", "b.py")),
+            [HEAD_COMPARE, BASE_COMPARE],
+            id="overlap-with-rename",
+        ),
+        pytest.param(
+            [_compare(5, _files("a.py")), _compare(0, _files(*(f"f{i}" for i in range(300))))],
+            BaseCheck(MERGE_BASE, 5, None),
+            [HEAD_COMPARE, BASE_COMPARE],
+            id="base-side-at-cap",
+        ),
+        pytest.param(
+            [
+                _compare(5, _files(*(f"f{i}" for i in range(300)))),
+                _compare(0, _files("g.py", "f301")),
+                _files(*(f"f{i}" for i in range(400))),
+            ],
+            BaseCheck(MERGE_BASE, 5, ("f301",)),
+            [HEAD_COMPARE, BASE_COMPARE, PR_FILES],
+            id="large-pull-request-listed-in-full",
+        ),
+        pytest.param(GitHubError("gh api failed: HTTP 500"), None, [HEAD_COMPARE], id="unreadable"),
     ],
 )
-def test_count_commits_behind(client, side_effect, expected):
-    client.rest_get.side_effect = side_effect
+def test_compare_with_base(client, responses, expected, expected_calls):
+    client.rest_get.side_effect = responses
 
-    assert count_commits_behind(client, REPO, _pr(base_ref="v3-1-test")) == expected
-    assert client.rest_get.call_args.args[0] == f"repos/{REPO}/compare/v3-1-test...someone:abc123?per_page=1"
+    assert compare_with_base(client, REPO, _pr(base_ref="providers-fab/v1-5")) == expected
+    assert [call.args[0] for call in client.rest_get.call_args_list] == expected_calls
 
 
 def _fork_job(name, status="completed", conclusion="success", url=None):
@@ -2902,6 +3144,9 @@ def test_run_reconcile_reports_job_statuses_before_classifying(
     (pr, fork), _ = mock_reporter.return_value.report.call_args
     assert pr.number == 1
     assert mock_classify.call_args.kwargs["jobs_reported"] == "7:SUCCESS"
+    find_failed = mock_classify.call_args.kwargs["find_failed_jobs"]
+    assert find_failed.func is read_failed_jobs
+    assert find_failed.args == (client, pr, fork, mock_reporter.call_args.kwargs["read_jobs"])
 
 
 @pytest.mark.parametrize("status", ["queued", "in_progress", "waiting"])
@@ -3008,23 +3253,23 @@ def test_run_reconcile_reports_failing_job_statuses_once_when_failing_persists(
     reported_file = tmp_path / "reported.json"
     reported_file.write_text("{}")
     alerts = []
+    failures = [GitHubError("HTTP 502"), GitHubError("stream ID 1; CANCEL")]
     errors = [
         GitHubError("HTTP 502"),
         GitHubError("HTTP 502"),
         None,
-        GitHubError("HTTP 502"),
-        GitHubError("stream ID 1; CANCEL"),
-        GitHubError("HTTP 502"),
-        GitHubError("stream ID 1; CANCEL"),
+        *(failures[run % 2] for run in range(JOB_STATUS_FAILURE_RUNS_BEFORE_ALERT + 1)),
     ]
     for error in errors:
         mock_reporter.return_value.report.side_effect = error
         mock_reporter.return_value.report.return_value = None
         alerts.append(_reconcile_with_reporter(client, tmp_path, reported_file=reported_file))
 
-    assert alerts == [False, False, False, False, False, True, False]
+    assert alerts == [*[False] * (JOB_STATUS_FAILURE_RUNS_BEFORE_ALERT + 2), True, False]
     assert JOB_STATUSES_FAILED_REASON in (tmp_path / "s.json").read_text()
-    assert json.loads(reported_file.read_text())["job_status_failure_runs"] == {"1": 4}
+    assert json.loads(reported_file.read_text())["job_status_failure_runs"] == {
+        "1": JOB_STATUS_FAILURE_RUNS_BEFORE_ALERT + 1
+    }
 
 
 @pytest.mark.parametrize(
@@ -3099,14 +3344,14 @@ def test_run_reconcile_reports_deferred_job_statuses_only_when_deferring_persist
     reported_file = tmp_path / "reported.json"
     reported_file.write_text("{}")
     alerts = []
-    for deferred in ([1], [1], [], [1], [1], [1]):
+    for deferred in ([1], [1], [], *[[1]] * DEFERRED_RUNS_BEFORE_ALERT):
         mock_reporter.return_value.deferred = deferred
         mock_reporter.return_value.delayed = []
         alerts.append(_reconcile_with_reporter(client, tmp_path, reported_file=reported_file))
 
-    assert alerts == [False, False, False, False, False, True]
+    assert alerts == [*[False] * (DEFERRED_RUNS_BEFORE_ALERT + 2), True]
     assert JOB_STATUSES_DEFERRED_NOTE in (tmp_path / "s.json").read_text()
-    assert json.loads(reported_file.read_text())["deferred_runs"] == 3
+    assert json.loads(reported_file.read_text())["deferred_runs"] == DEFERRED_RUNS_BEFORE_ALERT
 
 
 def test_build_job_statuses_treats_contexts_case_insensitively():
@@ -3289,6 +3534,34 @@ def test_unfinished_gate_change_closure_is_retried():
     assert "Closing this pull request because it changes the fork CI gate." in plan.new_comments[0]
 
 
+def test_author_reopen_allowed_when_gate_change_removed():
+    pr = _pr(
+        marker=_marker("gate_modified", days_ago=1),
+        last_reopened_by_anyone_at=NOW,
+    )
+    plan, _, _ = _classify(pr, GREEN, gate_change=None)
+
+    assert plan.state == ForkState.GREEN
+    assert plan.close is False
+
+
+def test_author_reopen_reclosed_when_gate_change_remains():
+    pr = _pr(
+        marker=_marker("gate_modified", days_ago=1),
+        last_reopened_by_anyone_at=NOW,
+    )
+    plan, _, _ = _classify(
+        pr, GREEN, gate_change="it changes `dev/breeze/src/airflow_breeze/utils/fork_ci_gate.py`"
+    )
+
+    assert plan.state == ForkState.GATE_MODIFIED
+    assert plan.close is True
+    assert (
+        "changes the fork CI gate: it changes `dev/breeze/src/airflow_breeze/utils/fork_ci_gate.py`"
+        in plan.new_comments[0]
+    )
+
+
 PILOT_BASE = "enabled = true\n[pilot]\nother = 2026-10-01T00:00:00Z\n"
 
 
@@ -3382,6 +3655,12 @@ def _gate_change_finder(client, changed, head_files, base_files=None, head_sha="
             {},
             "it changes `.github/workflows/fork-ci-monitor.yml`",
             id="monitor-moved-away",
+        ),
+        pytest.param(
+            [{"filename": "dev/breeze/src/airflow_breeze/utils/fork_ci_reconcile.py"}],
+            {},
+            "it changes `dev/breeze/src/airflow_breeze/utils/fork_ci_reconcile.py`",
+            id="reconciler-code-protected",
         ),
         pytest.param(
             [{"filename": ".github/fork-ci-gate.toml"}],
@@ -3718,7 +3997,10 @@ def test_run_reconcile_retries_a_pull_request_whose_head_moved(client, tmp_path)
 
 @pytest.mark.parametrize(
     ("fails", "job_status_budget"),
-    [pytest.param(False, 38, id="reported"), pytest.param(True, 20, id="fails")],
+    [
+        pytest.param(False, MAX_JOB_STATUSES_PER_RUN - 2, id="reported"),
+        pytest.param(True, MAX_JOB_STATUSES_PER_RUN - MAX_CI_RUN_STARTED_PER_RUN, id="fails"),
+    ],
 )
 @mock.patch("airflow_breeze.utils.fork_ci_reconcile.JobStatusReporter", autospec=True)
 @mock.patch("airflow_breeze.utils.fork_ci_reconcile.report_project_ci_runs_started", autospec=True)
@@ -3755,7 +4037,7 @@ def test_run_reconcile_marks_older_pilot_pull_requests_and_reports_project_ci_ru
 
     assert mock_classify.call_args.args[0].ci_run_at == datetime(2026, 11, 2, tzinfo=UTC)
     mock_report.assert_called_once_with(client, repo=REPO, skip={1})
-    mock_reporter.assert_called_once_with(client, repo=REPO, budget=job_status_budget, now=NOW)
+    mock_reporter.assert_called_once_with(client, repo=REPO, budget=job_status_budget, now=NOW, read_jobs={})
     assert has_alerts is fails
     if fails:
         assert "reporting `CI run started` for project CI failed: GitHubError" in output.read_text()
@@ -3786,6 +4068,150 @@ def test_mark_older_pilot_pull_request(
     marked = mark_older_pilot_pull_request(_pr(author_login=author), config, repo=REPO, now=NOW)
 
     assert (marked.ci_run_at, marked.pilot_joined_at) == (expected_ci_run_at, expected_pilot_joined_at)
+
+
+def test_gate_protected_paths_includes_all_five_files():
+    expected = {
+        "dev/breeze/src/airflow_breeze/utils/fork_ci_gate.py",
+        "dev/breeze/src/airflow_breeze/utils/fork_ci_github.py",
+        "dev/breeze/src/airflow_breeze/utils/fork_ci_messages.py",
+        "dev/breeze/src/airflow_breeze/utils/fork_ci_reconcile.py",
+        ".github/workflows/fork-ci-monitor.yml",
+    }
+    assert expected == GATE_PROTECTED_PATHS
+
+
+@pytest.mark.parametrize(
+    ("login", "expected"),
+    [
+        ("github-actions", True),
+        ("github-actions[bot]", True),
+        ("airflow-triage-bot", True),
+        ("Airflow-Triage-Bot", True),
+        ("codecov", True),
+        ("codecov[bot]", True),
+        ("Codecov[Bot]", True),
+        ("dependabot", True),
+        ("dependabot[bot]", True),
+        ("asf-ci[bot]", True),
+        ("asfbot", True),
+        ("ASFBot", True),
+        ("custom-linter[bot]", True),
+        ("ayushmeel", False),
+        ("potiuk", False),
+        ("", False),
+        (None, False),
+    ],
+)
+def test_is_bot(login, expected):
+    assert _is_bot(login) is expected
+
+
+def test_setup_required_inactivity_clock_resets_on_new_commit_sha():
+    pr = _pr(
+        marker=_marker("setup_required", days_ago=7, sha="old_sha"),
+        head_sha="new_sha",
+    )
+    plan, _, _ = _classify(pr, ForkObservation(workflow_state="disabled_fork"))
+
+    assert plan.close is False
+    assert plan.state == ForkState.SETUP_REQUIRED
+
+
+def test_setup_required_inactivity_clock_resets_on_recent_human_comment():
+    pr = _pr(
+        marker=_marker("setup_required", days_ago=7),
+        last_comment_at=NOW - timedelta(days=2),
+    )
+    plan, _, _ = _classify(pr, ForkObservation(workflow_state="disabled_fork"))
+
+    assert plan.close is False
+    assert plan.state == ForkState.SETUP_REQUIRED
+
+
+def test_parse_pull_request_tracks_reviews_and_comments():
+    node = _pr_node(
+        1,
+        latestReviews={
+            "nodes": [
+                {
+                    "createdAt": "2026-11-05T00:00:00Z",
+                    "author": {"login": "reviewer"},
+                    "comments": {
+                        "nodes": [
+                            {
+                                "createdAt": "2026-11-06T12:00:00Z",
+                                "author": {"login": "code-suggester"},
+                            },
+                            {
+                                "createdAt": "2026-11-09T00:00:00Z",
+                                "author": {"login": "codecov[bot]"},
+                            },
+                        ]
+                    },
+                }
+            ]
+        },
+        latestComments={
+            "nodes": [
+                {
+                    "createdAt": "2026-11-07T00:00:00Z",
+                    "author": {"login": "human-author"},
+                },
+                {
+                    "createdAt": "2026-11-08T00:00:00Z",
+                    "author": {"login": "Airflow-Triage-Bot"},
+                },
+            ]
+        },
+    )
+    pr = parse_pull_request(node)
+    assert pr.last_comment_at == datetime(2026, 11, 7, 0, 0, tzinfo=UTC)
+
+
+def test_fetch_fork_observations_orders_by_created_at_and_run_attempt(client):
+    pr = parse_pull_request(_pr_node(1, head_repo="someone/my-airflow", head_sha="sha1"))
+    client.graphql.return_value = {
+        "pr0": {
+            "object": {
+                "checkSuites": {
+                    "nodes": [
+                        {
+                            "createdAt": "2026-11-02T00:00:00Z",
+                            "updatedAt": "2026-11-02T00:30:00Z",
+                            "status": "COMPLETED",
+                            "conclusion": "FAILURE",
+                            "workflowRun": {
+                                "databaseId": 88,
+                                "runAttempt": 1,
+                                "url": "attempt-1",
+                                "event": "workflow_dispatch",
+                                "workflow": {"resourcePath": "/x/ci-amd.yml"},
+                            },
+                        },
+                        {
+                            "createdAt": "2026-11-02T00:00:00Z",
+                            "updatedAt": "2026-11-02T00:50:00Z",
+                            "status": "COMPLETED",
+                            "conclusion": "SUCCESS",
+                            "workflowRun": {
+                                "databaseId": 88,
+                                "runAttempt": 2,
+                                "url": "attempt-2",
+                                "event": "workflow_dispatch",
+                                "workflow": {"resourcePath": "/x/ci-amd.yml"},
+                            },
+                        },
+                    ]
+                }
+            }
+        }
+    }
+
+    observations = fetch_fork_observations(client, [pr])
+    assert observations[1].run_attempt == 2
+    assert observations[1].suite_conclusion == "SUCCESS"
+    assert observations[1].run_url == "attempt-2"
 
 
 def test_older_pilot_pull_request_stays_checked_for_tampering_after_its_gated_run_is_deleted():
@@ -3836,13 +4262,13 @@ def test_run_reconcile_reports_rate_limiting_only_when_it_persists(
     reported_file = tmp_path / "reported.json"
     reported_file.write_text("{}")
     alerts = []
-    for rate_limited in (1, 0, 3, 2):
+    for rate_limited in (1, 0, *[3] * RATE_LIMITED_RUNS_BEFORE_ALERT):
         client.rate_limited = rate_limited
         alerts.append(_reconcile_with_reporter(client, tmp_path, reported_file=reported_file))
 
-    assert alerts == [False, False, False, True]
+    assert alerts == [*[False] * (RATE_LIMITED_RUNS_BEFORE_ALERT + 1), True]
     assert RATE_LIMITED_NOTE in (tmp_path / "s.json").read_text()
-    assert json.loads(reported_file.read_text())["rate_limited_runs"] == 2
+    assert json.loads(reported_file.read_text())["rate_limited_runs"] == RATE_LIMITED_RUNS_BEFORE_ALERT
 
 
 @pytest.mark.parametrize(
@@ -3933,7 +4359,7 @@ PASSED = ("success", PROJECT_PASSED_URL, CI_PASSED_PROJECT_DESCRIPTION)
     ("node", "expected"),
     [
         pytest.param(
-            _passed_node(state="SUCCESS", description=CI_PASSED_DESCRIPTION),
+            _passed_node(state="SUCCESS", description=FORK_CI_PASSED_DESCRIPTION),
             WAITING,
             id="fork-success-revoked",
         ),
@@ -3943,7 +4369,9 @@ PASSED = ("success", PROJECT_PASSED_URL, CI_PASSED_PROJECT_DESCRIPTION)
         ),
         pytest.param(
             _passed_node(
-                state="SUCCESS", description=CI_PASSED_DESCRIPTION, suites=[_passed_suite(5, cancelled=1)]
+                state="SUCCESS",
+                description=FORK_CI_PASSED_DESCRIPTION,
+                suites=[_passed_suite(5, cancelled=1)],
             ),
             PASSED,
             id="rerun-passed-next-to-the-marker-of-its-first-attempt",
@@ -3951,7 +4379,7 @@ PASSED = ("success", PROJECT_PASSED_URL, CI_PASSED_PROJECT_DESCRIPTION)
         pytest.param(
             _passed_node(
                 state="SUCCESS",
-                description=CI_PASSED_DESCRIPTION,
+                description=FORK_CI_PASSED_DESCRIPTION,
                 suites=[
                     _passed_suite(4, created="2026-11-10T09:00:00Z"),
                     _passed_suite(6, conclusion=None, running=True),
@@ -3963,7 +4391,7 @@ PASSED = ("success", PROJECT_PASSED_URL, CI_PASSED_PROJECT_DESCRIPTION)
         pytest.param(
             _passed_node(
                 state="SUCCESS",
-                description=CI_PASSED_DESCRIPTION,
+                description=FORK_CI_PASSED_DESCRIPTION,
                 suites=[
                     _passed_suite(5, created="2026-11-10T09:00:00Z"),
                     _passed_suite(6, conclusion=None, suite_cancelled=True),
@@ -3975,7 +4403,7 @@ PASSED = ("success", PROJECT_PASSED_URL, CI_PASSED_PROJECT_DESCRIPTION)
         pytest.param(
             _passed_node(
                 state="SUCCESS",
-                description=CI_PASSED_DESCRIPTION,
+                description=FORK_CI_PASSED_DESCRIPTION,
                 suites=[
                     _passed_suite(5, created="2026-11-10T09:00:00Z"),
                     _passed_suite(6, cancelled=1, conclusion=None),
@@ -3987,7 +4415,9 @@ PASSED = ("success", PROJECT_PASSED_URL, CI_PASSED_PROJECT_DESCRIPTION)
         pytest.param(_passed_node(state="PENDING", description="x"), None, id="pending-left-alone"),
         pytest.param(
             _passed_node(
-                state="SUCCESS", description=CI_PASSED_DESCRIPTION, suites=[_passed_suite(5, conclusion=None)]
+                state="SUCCESS",
+                description=FORK_CI_PASSED_DESCRIPTION,
+                suites=[_passed_suite(5, conclusion=None)],
             ),
             WAITING,
             id="project-ci-still-running",
@@ -3995,7 +4425,7 @@ PASSED = ("success", PROJECT_PASSED_URL, CI_PASSED_PROJECT_DESCRIPTION)
         pytest.param(
             _passed_node(
                 state="SUCCESS",
-                description=CI_PASSED_DESCRIPTION,
+                description=FORK_CI_PASSED_DESCRIPTION,
                 suites=[_passed_suite(5, cancelled=1, conclusion=None)],
             ),
             WAITING,
@@ -4004,7 +4434,7 @@ PASSED = ("success", PROJECT_PASSED_URL, CI_PASSED_PROJECT_DESCRIPTION)
         pytest.param(
             _passed_node(
                 state="SUCCESS",
-                description=CI_PASSED_DESCRIPTION,
+                description=FORK_CI_PASSED_DESCRIPTION,
                 suites=[_passed_suite(5, not_run=1, conclusion=None)],
             ),
             WAITING,
@@ -4013,7 +4443,7 @@ PASSED = ("success", PROJECT_PASSED_URL, CI_PASSED_PROJECT_DESCRIPTION)
         pytest.param(
             _passed_node(
                 state="SUCCESS",
-                description=CI_PASSED_DESCRIPTION,
+                description=FORK_CI_PASSED_DESCRIPTION,
                 suites=[_passed_suite(5, event="push"), _passed_suite(6, path=".github/workflows/other.yml")],
             ),
             WAITING,
@@ -4022,7 +4452,7 @@ PASSED = ("success", PROJECT_PASSED_URL, CI_PASSED_PROJECT_DESCRIPTION)
         pytest.param(
             _passed_node(
                 state="SUCCESS",
-                description=CI_PASSED_DESCRIPTION,
+                description=FORK_CI_PASSED_DESCRIPTION,
                 suites=[
                     _passed_suite(4, created="2026-11-10T09:00:00Z"),
                     _passed_suite(5, conclusion="FAILURE"),
@@ -4032,7 +4462,7 @@ PASSED = ("success", PROJECT_PASSED_URL, CI_PASSED_PROJECT_DESCRIPTION)
             id="latest-run-failed",
         ),
         pytest.param(
-            _passed_node(state="SUCCESS", description=CI_PASSED_DESCRIPTION, suites=[_passed_suite(5)]),
+            _passed_node(state="SUCCESS", description=FORK_CI_PASSED_DESCRIPTION, suites=[_passed_suite(5)]),
             PASSED,
             id="project-ci-passed",
         ),
@@ -4073,7 +4503,7 @@ def test_report_project_ci_passed(client, node, expected):
 def test_report_project_ci_passed_limits_successes_but_not_revocations(client):
     client.graphql.return_value = _search_result(
         *(_passed_node(n, state="PENDING", description="x", suites=[_passed_suite(5)]) for n in (1, 2, 3)),
-        _passed_node(4, state="SUCCESS", description=CI_PASSED_DESCRIPTION),
+        _passed_node(4, state="SUCCESS", description=FORK_CI_PASSED_DESCRIPTION),
     )
 
     assert report_project_ci_passed(client, repo=REPO, attention=[], budget=2) == [1, 2, 4]
@@ -4082,7 +4512,7 @@ def test_report_project_ci_passed_limits_successes_but_not_revocations(client):
 
 def test_report_project_ci_passed_keeps_going_after_an_error(client):
     client.graphql.return_value = _search_result(
-        *(_passed_node(n, state="SUCCESS", description=CI_PASSED_DESCRIPTION) for n in (1, 2))
+        *(_passed_node(n, state="SUCCESS", description=FORK_CI_PASSED_DESCRIPTION) for n in (1, 2))
     )
     client.set_status.side_effect = [GitHubError("gh api failed: HTTP 502"), None]
     attention: list[tuple[int, str]] = []
@@ -4177,10 +4607,10 @@ def test_report_project_ci_passed_reads_a_head_commit_the_search_did_not_list(
 ):
     mock_read.return_value = PROJECT_PASSED_URL if passed else None
     client.graphql.return_value = _search_result(
-        _passed_node(state="SUCCESS", description=CI_PASSED_DESCRIPTION, oid="older")
+        _passed_node(state="SUCCESS", description=FORK_CI_PASSED_DESCRIPTION, oid="older")
     )
     client.rest_get.return_value = [
-        {"context": CI_PASSED_CONTEXT, "state": "success", "description": CI_PASSED_DESCRIPTION}
+        {"context": CI_PASSED_CONTEXT, "state": "success", "description": FORK_CI_PASSED_DESCRIPTION}
     ]
 
     report_project_ci_passed(client, repo=REPO, attention=[])
@@ -4204,7 +4634,7 @@ def _run_reconcile_with_green_pull_requests(
     *numbers,
     live=LIVE_PULL_REQUEST,
     same_branch=(),
-    ci_passed=("success", RUN_URL, CI_PASSED_DESCRIPTION),
+    ci_passed=("success", RUN_URL, FORK_CI_PASSED_DESCRIPTION),
     state=ForkState.GREEN,
 ):
     """Reconcile gated, fork-green pull requests that all have head commit ``shared``."""
@@ -4345,7 +4775,7 @@ def test_report_project_ci_passed_revokes_a_pull_request_the_heads_search_missed
         _search_result(),
         _search_result(),
         _search_result(),
-        _search_result(_passed_node(state="SUCCESS", description=CI_PASSED_DESCRIPTION)),
+        _search_result(_passed_node(state="SUCCESS", description=FORK_CI_PASSED_DESCRIPTION)),
     ]
     client.rest_get_pages.return_value = [{"total_count": 0, "workflow_runs": []}]
 
@@ -4401,7 +4831,7 @@ def test_run_reconcile_reports_project_ci_passed_after_the_loop(
 
     names = [c[0] for c in order.mock_calls]
     assert names.index("report") > names.index("set_status")
-    assert mock_report_project_ci_passed.call_args.kwargs["budget"] == 5
+    assert mock_report_project_ci_passed.call_args.kwargs["budget"] == MAX_PROJECT_CI_PASSED_PER_RUN
 
 
 def test_run_reconcile_reports_project_ci_passed_failure(mock_report_project_ci_passed, client, tmp_path):
@@ -4435,3 +4865,176 @@ def test_report_project_ci_passed_counts_only_the_successes_that_were_written(cl
     client.set_status.side_effect = [GitHubError("HTTP 502"), None, None]
 
     assert report_project_ci_passed(client, repo=REPO, attention=[], budget=1) == [2]
+
+
+def test_find_failed_jobs_lists_finished_jobs_that_did_not_pass():
+    jobs = [
+        _fork_job("Static checks"),
+        _fork_job("Postgres tests", conclusion="failure"),
+        _fork_job("Helm tests", status="in_progress", conclusion=None),
+        _fork_job("Docs", conclusion="timed_out"),
+        _fork_job("Java SDK tests", conclusion="skipped"),
+        _fork_job("Platform: AMD", conclusion="failure"),
+        _fork_job("Postgres tests", conclusion="cancelled", url="https://job/second"),
+        _fork_job("MySQL tests", conclusion="cancelled", url="https://job/cancelled"),
+        _fork_job("MySQL tests", conclusion="failure"),
+    ]
+
+    assert find_failed_jobs(jobs) == [
+        FailedJob("MySQL tests", "https://job/MySQL tests", "failure"),
+        FailedJob("Postgres tests", "https://job/Postgres tests", "failure"),
+        FailedJob("Docs", "https://job/Docs", "timed_out"),
+    ]
+
+
+@pytest.mark.parametrize(
+    ("read_jobs", "side_effect", "expected", "reads"),
+    [
+        pytest.param({1: [_fork_job("A", conclusion="failure")]}, None, ["A"], False, id="read-this-run"),
+        pytest.param({}, [[_fork_job("B", conclusion="failure")]], ["B"], True, id="not-read-yet"),
+        pytest.param({}, GitHubError("HTTP 502"), None, True, id="unreadable"),
+        pytest.param({1: None}, None, None, False, id="read-failed-this-run"),
+    ],
+)
+def test_read_failed_jobs(client, read_jobs, side_effect, expected, reads):
+    client.get_run_jobs.side_effect = side_effect
+
+    failed = read_failed_jobs(client, _pr(), COMPLETED_RUN, read_jobs)
+
+    assert (None if failed is None else [job.name for job in failed]) == expected
+    assert client.get_run_jobs.called is reads
+    assert 1 in read_jobs
+
+
+def test_a_failed_jobs_read_is_not_repeated_for_the_state_comment(client):
+    client.rest_get.return_value = []
+    client.get_run_jobs.side_effect = GitHubError("HTTP 502")
+    read_jobs: dict = {}
+    reporter = JobStatusReporter(client, repo=REPO, budget=10, read_jobs=read_jobs)
+
+    with pytest.raises(GitHubError):
+        reporter.report(_pr(), COMPLETED_RUN)
+
+    assert read_failed_jobs(client, _pr(), COMPLETED_RUN, read_jobs) is None
+    client.get_run_jobs.assert_called_once_with("someone/airflow", 1)
+
+
+def test_job_status_reporter_keeps_the_jobs_it_read(client):
+    jobs = [_fork_job("Static checks", conclusion="failure")]
+    reporter = JobStatusReporter(_reporter_client(client, jobs), repo=REPO, budget=10)
+
+    reporter.report(_pr(), COMPLETED_RUN)
+
+    assert reporter.read_jobs == {1: jobs}
+
+
+FAILED_JOB = FailedJob("Static checks", "https://job/1", "failure")
+
+
+@pytest.mark.parametrize(
+    ("fork", "failed_jobs", "called", "listed"),
+    [
+        pytest.param(COMPLETED_RUN, [FAILED_JOB], True, True, id="failed"),
+        pytest.param(
+            dataclasses.replace(COMPLETED_RUN, suite_conclusion="STARTUP_FAILURE"),
+            [FAILED_JOB],
+            False,
+            False,
+            id="startup-failure",
+        ),
+        pytest.param(RUNNING_RUN, [FAILED_JOB], False, False, id="running"),
+    ],
+)
+def test_state_comment_lists_the_jobs_of_a_failed_run(fork, failed_jobs, called, listed):
+    find_failed = mock.Mock(return_value=failed_jobs)
+
+    plan = classify(
+        _pr(),
+        fork,
+        config=CONFIG,
+        now=NOW,
+        repo=REPO,
+        find_bypass_run=lambda: None,
+        changes_ci_files=lambda: False,
+        find_failed_jobs=find_failed,
+    )
+
+    assert find_failed.called is called
+    assert ("- [`Static checks`](https://job/1): failed" in plan.marker_comment) is listed
+
+
+@pytest.mark.parametrize(
+    ("marker", "kept"),
+    [
+        pytest.param(_marker("failed"), True, id="failed-this-head"),
+        pytest.param(_marker("failed", sha="older"), False, id="failed-earlier-head"),
+        pytest.param(_marker("running"), False, id="running"),
+        pytest.param(None, False, id="no-comment"),
+    ],
+)
+def test_state_comment_is_left_for_the_next_run_only_when_it_shows_the_head_failed(marker, kept):
+    plan = classify(
+        _pr(is_draft=False, labels=("fork ci required", "ready for maintainer review"), marker=marker),
+        COMPLETED_RUN,
+        config=CONFIG,
+        now=NOW,
+        repo=REPO,
+        find_bypass_run=lambda: None,
+        changes_ci_files=lambda: False,
+        find_failed_jobs=lambda: None,
+    )
+
+    assert plan.state == ForkState.FAILED
+    assert plan.status == ("failure", RUN_URL, "Fork CI failed - see Details")
+    assert plan.remove_labels == ["ready for maintainer review"]
+    if kept:
+        assert plan.marker_comment is None
+    else:
+        assert parse_marker(plan.marker_comment).state == "failed"
+        assert parse_marker(plan.marker_comment).failed_run is None
+        assert "Jobs that did not pass" not in plan.marker_comment
+
+
+def _classify_failed(pr, fork=COMPLETED_RUN, find_failed=None):
+    return classify(
+        pr,
+        fork,
+        config=CONFIG,
+        now=NOW,
+        repo=REPO,
+        find_bypass_run=lambda: None,
+        changes_ci_files=lambda: False,
+        find_failed_jobs=find_failed or (lambda: [FAILED_JOB]),
+    )
+
+
+@pytest.mark.parametrize(
+    ("fork", "marker_overrides", "reads"),
+    [
+        pytest.param(COMPLETED_RUN, {}, False, id="unchanged"),
+        pytest.param(dataclasses.replace(COMPLETED_RUN, run_attempt=2), {}, True, id="re-run"),
+        pytest.param(COMPLETED_RUN, {"failed_run": None}, True, id="not-listed-yet"),
+    ],
+)
+def test_jobs_of_a_listed_failed_run_are_not_read_again(fork, marker_overrides, reads):
+    pr = _pr(is_draft=False, labels=("fork ci required",))
+    listed = _classify_failed(pr).marker_comment
+    marker = dataclasses.replace(parse_marker(listed), **marker_overrides)
+    find_failed = mock.Mock(return_value=[FAILED_JOB])
+
+    plan = _classify_failed(
+        dataclasses.replace(pr, marker=marker, marker_comment_body=listed), fork, find_failed
+    )
+
+    assert parse_marker(listed).failed_run == "1:1"
+    assert find_failed.called is reads
+    if not reads:
+        assert plan.marker_comment is None
+
+
+def test_monitor_interval_is_the_monitor_workflow_cadence():
+    workflow = yaml.safe_load((AIRFLOW_ROOT_PATH / ".github/workflows/fork-ci-monitor.yml").read_text())
+
+    crons = [entry["cron"] for entry in workflow[True]["schedule"]]
+
+    assert crons == [f"*/{MONITOR_INTERVAL // timedelta(minutes=1)} * * * *"]
