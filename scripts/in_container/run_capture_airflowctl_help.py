@@ -50,6 +50,7 @@ COMMANDS = [
     "variables",
     "version",
     "plugins",
+    "triggers",
 ]
 
 SUBCOMMANDS = [

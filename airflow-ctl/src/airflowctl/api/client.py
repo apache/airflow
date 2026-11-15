@@ -59,6 +59,7 @@ from airflowctl.api.operations import (
     ServerResponseError,
     TaskInstancesOperations,
     TasksOperations,
+    TriggersOperations,
     VariablesOperations,
     VersionOperations,
     XComOperations,
@@ -585,6 +586,12 @@ class Client(httpx.Client):
     def plugins(self):
         """Operations related to plugins."""
         return PluginsOperations(self)
+
+    @lru_cache()  # type: ignore[prop-decorator]
+    @property
+    def triggers(self):
+        """Operations related to triggers."""
+        return TriggersOperations(self)
 
 
 def get_default_api_url() -> str:

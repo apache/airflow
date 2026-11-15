@@ -90,7 +90,9 @@ from airflowctl.api.datamodels.generated import (
     TaskStateStoreCollectionResponse,
     TaskStateStorePatchBody,
     TaskStateStoreResponse,
+    TriggerCollectionResponse,
     TriggerDAGRunPostBody,
+    TriggerDetailResponse,
     VariableBody,
     VariableCollectionResponse,
     VariableResponse,
@@ -1200,3 +1202,50 @@ class PluginsOperations(BaseOperations):
         """List plugin import errors from the API server."""
         self.response = self.client.get("plugins/importErrors")
         return validate_response(self.response.content, PluginImportErrorCollectionResponse)
+
+
+class TriggersOperations(BaseOperations):
+    """Trigger operations."""
+
+    def get(self, trigger_id: int) -> TriggerDetailResponse | ServerResponseError:
+        """Get a trigger, who it runs for, and how it is doing."""
+        self.response = self.client.get(f"triggers/{trigger_id}")
+        return validate_response(self.response.content, TriggerDetailResponse)
+
+    def list(
+        self,
+        kind: str | None = None,
+        status: str | None = None,
+        triggerer_hostname: str | None = None,
+        dag_id: str | None = None,
+        asset_id: int | None = None,
+        limit: int = 100,
+        offset: int | None = None,
+        order_by: str | None = None,
+    ) -> TriggerCollectionResponse | ServerResponseError:
+        """
+        List the triggers of every kind and how each is doing (at most `limit` results).
+
+        Args:
+            kind: Only triggers of this kind: `task`, `callback` or `asset_watcher`
+            status: Only triggers with this status: `pending`, `running`, `failing` or `orphaned`
+            triggerer_hostname: Only triggers assigned to the triggerer on this host
+            dag_id: Only triggers of this Dag's task instances and callbacks
+            asset_id: Only triggers of this asset's watchers
+            limit: Limit the number of results returned
+            offset: Offset to start returning results from
+            order_by: Order the results by `id`, `created_date`, `consecutive_failures`, `last_failed_at`
+                or `last_event_at`, prefixed with `-` for descending
+        """
+        params = _build_query_params(
+            kind=kind,
+            status=status,
+            triggerer_hostname=triggerer_hostname,
+            dag_id=dag_id,
+            asset_id=asset_id,
+            limit=limit,
+            offset=offset,
+            order_by=order_by,
+        )
+        self.response = self.client.get("triggers", params=params)
+        return validate_response(self.response.content, TriggerCollectionResponse)
