@@ -116,3 +116,41 @@ func TestServeFailsWithoutRunningOnExecutionTimeoutEndToEnd(t *testing.T) {
 		}
 	}
 }
+
+// TestServeFailsWhenTheSupervisorRejectsExecutionTimeoutEndToEnd pins that the task does not run
+// when the supervisor rejects SetExecutionTimeout.
+func TestServeFailsWhenTheSupervisorRejectsExecutionTimeoutEndToEnd(t *testing.T) {
+	for _, shouldRetry := range []bool{true, false} {
+		t.Run(fmt.Sprintf("should_retry=%t", shouldRetry), func(t *testing.T) {
+			ran := false
+			task, err := bundle.NewTaskFunction(func(contexttest.Context) error {
+				ran = true
+				return nil
+			})
+			require.NoError(t, err)
+
+			requests, terminal := serveTask(t, "task", task, nil, map[string]any{
+				"execution_timeout": 30,
+				"should_retry":      shouldRetry,
+			}, func(map[string]any) map[string]any {
+				return map[string]any{
+					"type":   "ErrorResponse",
+					"error":  "GENERIC_ERROR",
+					"detail": map[string]any{"message": "boom"},
+				}
+			})
+
+			assert.False(t, ran, "the task must not run")
+			assert.Equal(t, []map[string]any{
+				{"type": "SetExecutionTimeout", "timeout_seconds": float64(30)},
+			}, requests)
+			if shouldRetry {
+				assert.Equal(t, "RetryTask", terminal["type"])
+				assert.Contains(t, terminal["retry_reason"], "GENERIC_ERROR")
+			} else {
+				assert.Equal(t, "TaskState", terminal["type"])
+				assert.Equal(t, "failed", terminal["state"])
+			}
+		})
+	}
+}
