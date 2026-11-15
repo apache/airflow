@@ -285,13 +285,10 @@ apache/airflow`). After project CI has passed the status turns `success` on the 
 within about 15 minutes. Adding the label does not start project CI by itself, and the
 reconciler deletes the gated `Tests (AMD)` runs, so there is usually nothing to re-run: close and
 reopen the pull request (`gh pr close <n> -R apache/airflow && gh pr reopen <n> -R apache/airflow`),
-or ask the author to push. Pull requests that change CI-defining files are not drafted
-and get no `ready for maintainer review` label even when the fork run is green. Their
-`Fork CI / Tests (AMD)` status stays pending without `CI passed`, and they are labelled
-`needs project ci` until a maintainer reviews the CI change and adds `use project ci`, unless
-the author keeps the pull request a draft. For every other pull request, when the fork run is green and trusted, the reconciler also posts the
-`CI passed` status the merge ruleset requires, so it can be merged or auto-merged without project
-CI. See
+or ask the author to push. For a pull request that does not change CI-defining files, when the
+fork run is green and trusted, the reconciler also posts the `CI passed` status the merge ruleset
+requires, so it can be merged or auto-merged without project CI. What contributors are told to do
+is in [CI in your fork](18_contribution_workflow.rst#ci-in-your-fork); the reconciler's design is in
 [Fork CI for external contributors](../dev/breeze/doc/ci/08_fork_ci_for_external_contributors.md).
 
 ## For contributors

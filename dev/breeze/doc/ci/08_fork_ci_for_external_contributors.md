@@ -40,6 +40,13 @@
 
 # Fork CI for external contributors (AIP-120)
 
+> **Note:** This is the maintainer and design reference for fork CI. If you are a contributor
+> setting up CI in your fork or working out what the bot's comment, labels and statuses on your
+> pull request mean, read
+> [CI in your fork](../../../../contributing-docs/18_contribution_workflow.rst#ci-in-your-fork)
+> instead. Maintainers triaging gated pull requests also see
+> [Pull requests gated to fork CI](../../../../contributing-docs/25_maintainer_pr_triage.md#pull-requests-gated-to-fork-ci).
+
 This document is the design of the CI changes implementing
 [AIP-120: Run CI for external contributions in contributor forks](https://cwiki.apache.org/confluence/spaces/AIRFLOW/pages/451974711/AIP-120+Run+CI+for+external+contributions+in+contributor+forks).
 The policy itself and its rationale live in the AIP and in the dev list discussions
