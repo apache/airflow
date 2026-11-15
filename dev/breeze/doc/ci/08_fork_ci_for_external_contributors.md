@@ -1045,11 +1045,13 @@ requests a minute and 500 an hour. Assuming about 35 reported jobs for an averag
   run (see "The `CI run started` check"), so they do not raise the total; at about 11 pull
   request runs an hour they take about 1 write a run.
 
-A run gets the hourly budget for the time since the previous monitor run started, not one twelfth
-of it. That time is read from the monitor's runs (`GET
+A run gets the hourly budget for the time between the previous monitor run's start and its own,
+not one twelfth of it. Both are read from the monitor's runs (`GET
 /repos/apache/airflow/actions/workflows/fork-ci-monitor.yml/runs`, runs still waiting in its
-concurrency group left out), not from the record the monitor carries between runs, which a failed
-run or a failed Slack post leaves unchanged although that run may have posted statuses. GitHub
+concurrency group left out), so they are the same boundary of each run, setup included, and not
+from the record the monitor carries between runs, which a failed run or a failed Slack post leaves
+unchanged although that run may have posted statuses. A re-run counts from when its run was
+created, so the time its first attempt had is not credited again. GitHub
 starts scheduled workflows later than their cron: on 2026-11-15 the 5-minute monitor ran every 9
 to 10 minutes, so a fixed 13 writes a run (160 an hour at the cron's cadence) posted only about 82
 an hour, and four full-matrix fork runs at once took about six hours to catch up. Runs queued

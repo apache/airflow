@@ -88,12 +88,12 @@ from airflow_breeze.utils.fork_ci_reconcile import (
     find_failed_jobs,
     find_heads_shared_across_bases,
     find_passed_jobs,
-    find_previous_monitor_run_start,
     find_project_ci_label_heads,
     find_project_ci_passed_url,
     find_project_ci_run_url,
     find_state_comment,
     find_tested_merge,
+    find_time_since_previous_monitor_run,
     is_cancelled_gate_run,
     is_gated_skip_run,
     is_own_pilot_change,
@@ -3596,8 +3596,14 @@ def test_job_status_budget_after_a_gap_is_capped():
 MONITOR_RUN_URL = "https://github.com/apache/airflow/actions/runs/100"
 
 
-def _monitor_run(run_id, started, status="completed"):
-    return {"id": run_id, "status": status, "run_started_at": started}
+def _monitor_run(run_id, started, status="completed", attempt=1, created=None):
+    return {
+        "id": run_id,
+        "status": status,
+        "run_started_at": started,
+        "run_attempt": attempt,
+        "created_at": created or started,
+    }
 
 
 @pytest.mark.parametrize(
@@ -3610,33 +3616,63 @@ def _monitor_run(run_id, started, status="completed"):
                 _monitor_run(99, "2026-11-10T11:51:00Z"),
                 _monitor_run(98, "2026-11-10T11:42:00Z"),
             ],
-            datetime(2026, 11, 10, 11, 51, tzinfo=UTC),
+            timedelta(minutes=7),
             id="previous-started-run",
         ),
+        pytest.param(
+            [
+                _monitor_run(101, "2026-11-10T11:59:00Z"),
+                _monitor_run(
+                    100,
+                    "2026-11-10T12:05:00Z",
+                    status="in_progress",
+                    attempt=2,
+                    created="2026-11-10T11:58:00Z",
+                ),
+                _monitor_run(99, "2026-11-10T11:51:00Z"),
+            ],
+            timedelta(minutes=6),
+            id="re-run-after-a-later-run",
+        ),
+        pytest.param(
+            [
+                _monitor_run(
+                    100,
+                    "2026-11-10T12:05:00Z",
+                    status="in_progress",
+                    attempt=2,
+                    created="2026-11-10T11:58:00Z",
+                ),
+                _monitor_run(99, "2026-11-10T11:51:00Z"),
+            ],
+            timedelta(minutes=7),
+            id="re-run-counts-from-its-first-attempt",
+        ),
         pytest.param([_monitor_run(100, "2026-11-10T11:58:00Z")], None, id="first-run"),
+        pytest.param([_monitor_run(99, "2026-11-10T11:51:00Z")], None, id="this-run-not-listed"),
     ],
 )
-def test_find_previous_monitor_run_start(client, runs, expected):
+def test_find_time_since_previous_monitor_run(client, runs, expected):
     client.rest_get.return_value = {"workflow_runs": runs}
 
-    assert find_previous_monitor_run_start(client, REPO, run_url=MONITOR_RUN_URL) == expected
+    assert find_time_since_previous_monitor_run(client, REPO, run_url=MONITOR_RUN_URL) == expected
     client.rest_get.assert_called_once_with(
         f"repos/{REPO}/actions/workflows/fork-ci-monitor.yml/runs?per_page=10"
     )
 
 
-def test_find_previous_monitor_run_start_without_a_run_id(client):
-    assert find_previous_monitor_run_start(client, REPO, run_url="https://run") is None
+def test_find_time_since_previous_monitor_run_without_a_run_id(client):
+    assert find_time_since_previous_monitor_run(client, REPO, run_url="https://run") is None
     client.rest_get.assert_not_called()
 
 
-def test_find_previous_monitor_run_start_when_the_runs_cannot_be_read(client):
+def test_find_time_since_previous_monitor_run_when_the_runs_cannot_be_read(client):
     client.rest_get.side_effect = GitHubError("gh api failed: HTTP 502")
 
-    assert find_previous_monitor_run_start(client, REPO, run_url=MONITOR_RUN_URL) is None
+    assert find_time_since_previous_monitor_run(client, REPO, run_url=MONITOR_RUN_URL) is None
 
 
-@mock.patch("airflow_breeze.utils.fork_ci_reconcile.find_previous_monitor_run_start", autospec=True)
+@mock.patch("airflow_breeze.utils.fork_ci_reconcile.find_time_since_previous_monitor_run", autospec=True)
 @mock.patch("airflow_breeze.utils.fork_ci_reconcile.JobStatusReporter", autospec=True)
 @mock.patch("airflow_breeze.utils.fork_ci_reconcile.report_project_ci_runs_started", autospec=True)
 @mock.patch("airflow_breeze.utils.fork_ci_reconcile.classify", autospec=True)
@@ -3648,7 +3684,7 @@ def test_run_reconcile_budgets_job_statuses_for_the_time_since_the_previous_run(
     mock_reporter.return_value.report.return_value = None
     mock_reporter.return_value.deferred = []
     mock_reporter.return_value.delayed = []
-    mock_previous.return_value = NOW - timedelta(minutes=9)
+    mock_previous.return_value = timedelta(minutes=9)
 
     _reconcile_with_reporter(client, tmp_path)
 

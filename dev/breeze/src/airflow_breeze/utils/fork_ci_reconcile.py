@@ -2943,16 +2943,21 @@ def read_run_count(reported_file: Path | None, key: str) -> int | None:
     return count if isinstance(count, int) and not isinstance(count, bool) else 0
 
 
-def find_previous_monitor_run_start(client: GitHubClient, repo: str, *, run_url: str) -> datetime | None:
+def find_time_since_previous_monitor_run(
+    client: GitHubClient, repo: str, *, run_url: str
+) -> timedelta | None:
     """
-    When the monitor's latest run other than this one started; None when it cannot be told.
+    The time between the previous monitor run's start and this run's; None when it cannot be told.
 
-    Read from GitHub rather than from the record the monitor carries between runs, which a failed run
-    or a failed Slack post leaves unchanged although that run may have posted statuses.
+    Both starts are read from GitHub, so they are the same boundary of each run, setup included, and a
+    failed run or a failed Slack post, which leave the record the monitor carries between runs
+    unchanged, still counts. A re-run of this run counts from when the run was created, the earliest
+    its first attempt can have posted.
     """
     match = re.search(r"/actions/runs/(\d+)", run_url)
     if match is None:
         return None
+    run_id = int(match[1])
     try:
         runs = client.rest_get(
             f"repos/{repo}/actions/workflows/{MONITOR_WORKFLOW_FILE}/runs?per_page={MONITOR_RUNS_READ}"
@@ -2960,13 +2965,25 @@ def find_previous_monitor_run_start(client: GitHubClient, repo: str, *, run_url:
     except Exception as e:
         console_print(f"[warning]Could not read the monitor's earlier runs: {e}[/]")
         return None
+    current = next((run for run in runs if run["id"] == run_id), None)
+    started = parse_github_datetime(current.get("run_started_at")) if current else None
+    if current is None or started is None:
+        return None
     # Runs waiting in the concurrency group have not started, so they posted nothing.
-    starts = [
-        parse_github_datetime(run.get("run_started_at"))
+    boundaries = [
+        start
         for run in runs
-        if run["id"] != int(match[1]) and run.get("status") not in NOT_STARTED_RUN_STATUSES
+        if run["id"] != run_id and run.get("status") not in NOT_STARTED_RUN_STATUSES
+        for start in [parse_github_datetime(run.get("run_started_at"))]
+        if start is not None and start <= started
     ]
-    return max((start for start in starts if start is not None), default=None)
+    if (current.get("run_attempt") or 1) > 1:
+        created = parse_github_datetime(current.get("created_at"))
+        if created is not None:
+            boundaries.append(created)
+    if not boundaries:
+        return None
+    return started - max(boundaries)
 
 
 def read_job_status_failure_runs(reported_file: Path | None) -> dict[int, int]:
@@ -3097,9 +3114,8 @@ def run_reconcile(
             f"listing the pull requests with `{LABEL_USE_PROJECT_CI}` failed: {type(e).__name__}"
         )
     read_jobs: ReadJobs = {}
-    previous_run_at = find_previous_monitor_run_start(client, repo, run_url=run_url)
     job_status_budget = compute_job_status_budget(
-        now - previous_run_at if previous_run_at is not None else None
+        find_time_since_previous_monitor_run(client, repo, run_url=run_url)
     )
     job_reporter = JobStatusReporter(
         client,
