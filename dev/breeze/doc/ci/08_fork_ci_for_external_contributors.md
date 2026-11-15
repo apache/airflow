@@ -924,7 +924,12 @@ and `gate_bypassed` (`error`) and `failed` (`failure`), yellow for `awaiting_pus
 when one exists and the fork's Actions page for `ci-amd.yml` otherwise, so a maintainer can
 open the fork run in one click; for `gate_bypassed` it is the project CI run that was
 observed. The `description` is a short sentence under 140 characters that always ends with
-where to look next.
+where to look next. For `running`, `failed`, `green` and `green_unverified` it is followed by the
+fork run's passed jobs, such as "Fork CI passed - see Details (127 jobs passed)", since passed jobs
+are not posted as statuses of their own (see "Job statuses"). The count is taken from the jobs the
+run read for its job statuses; a run that did not read them keeps the count the status shows, and
+the count is never carried over from another state. The reconciler reads the state back from the
+description without the count, and accepts a count only on those four states.
 
 Statuses are immutable and per SHA. The reconciler compares the desired `(state,
 target_url, description)` with the current one fetched in the pass 2 query and posts only on
@@ -938,8 +943,9 @@ monitor run rather than `details_url`. A status honours `target_url`.
 
 ### Job statuses
 
-Next to the aggregate status, each job of the fork run is reported as its own commit status, so
-the pull request shows which jobs run, failed or passed, each linking to the job in the fork.
+Next to the aggregate status, each failed job of the fork run is reported as its own commit
+status, so the pull request shows which jobs failed, each linking to the job in the fork; passed
+jobs are counted in `Fork CI / Tests (AMD)` instead.
 The run is the one `Fork CI / Tests (AMD)` reports (its `databaseId` is fetched with the check
 suites); its jobs come from `GET /repos/<fork>/actions/runs/<id>/jobs?filter=latest`.
 
@@ -948,9 +954,13 @@ suites); its jobs come from `GET /repos/<fork>/actions/runs/<id>/jobs?filter=lat
   the prefix is what keeps a job from posting `Fork CI / Tests (AMD)`, from which the reconciler
   reads its decisions back, or `CI passed`, which the merge ruleset requires. Jobs that share a
   context, which GitHub compares case-insensitively, are reported as the worst of them.
-- Only finished jobs are reported: a successful one as `success`, and a failed, timed-out,
-  cancelled or unstartable one as `failure`. Queued and running jobs are not, so each job costs one
-  write instead of two; `Fork CI / Tests (AMD)` shows the run as running, linking it, and with a
+- Only finished jobs are reported: a failed, timed-out, cancelled or unstartable one as
+  `failure`, and a successful one as `success` only over a status of the same job that is not a
+  success, such as its failure in an earlier run of the commit, which would otherwise keep
+  showing. A full-matrix run has about 130 jobs and each status is a write, so posting every
+  passed job would take most of the budget for what the aggregate status already says; on
+  2026-11-15 four such runs at once took about six hours to show. Queued and running jobs are not
+  reported, so each job costs at most one write; `Fork CI / Tests (AMD)` shows the run as running, linking it, and with a
   5-minute cadence a per-job "running" status was behind the fork's own run page anyway. A job of
   a re-run in the fork keeps the result of the earlier attempt until it finishes. Skipped and
   neutral jobs, and the jobs every run has (`Fork CI gate`, `Check if the run is needed`,
@@ -962,17 +972,17 @@ suites); its jobs come from `GET /repos/<fork>/actions/runs/<id>/jobs?filter=lat
   content-creating requests: a reconciler run posts at most its share of `JOB_STATUSES_PER_HOUR`
   (240) for the time since the previous run, each write charged as it is made (see "Write
   budget"). What does not fit is posted by a later run, and once the budget is spent no further
-  pull request's jobs or statuses are read in that run. One fork run of the full matrix (about
-  130 jobs) needs several runs' budget on its own, and a few of them at once keep the monitor
-  deferring for hours while every run makes progress, so deferring alone is not reported: the run
-  log lists the deferred pull requests. A pull request whose fork run finished more than an hour
+  pull request's jobs or statuses are read in that run. Deferring alone is not reported, since
+  later runs catch up and many failing runs at once can keep the monitor deferring while every
+  run makes progress: the run log lists the deferred pull requests. A pull request whose fork run finished more than an hour
   ago (the `updatedAt` of its completed check suite) and still has statuses waiting is listed on
   its own as an attention item, so a delay that a busy backlog keeps pushing back shows which pull
   request it holds up; the item names the run, so it is posted once for that run.
 - Commit statuses cannot be deleted and have no neutral state. When a run has completed, a job
   context posted for an earlier run of the same commit that the completed run does not have, or
   skipped, is overwritten with `success` and the description "Not in the latest fork run - see
-  Fork CI / Tests (AMD)", so it no longer shows as running or failed.
+  Fork CI / Tests (AMD)", so it no longer shows as running or failed; one that is already a
+  success is left as it is.
 - Once every job of a completed run is reported, the run is recorded in the marker as
   `jobs: "<run id>:<attempt>:<conclusion>"` (`runAttempt` is fetched with the check suites), so
   later runs do not read its jobs again. A run in progress is read on every run, and a re-run in
@@ -1014,7 +1024,9 @@ jobs whose conclusion is not `skipped`, minus the four jobs that are not reporte
 | CI change (full tests) | [40207881565](https://github.com/apache/airflow/actions/runs/40207881565) | 131 | 127 |
 
 `apache/airflow` had 1898 `Tests (AMD)` pull request runs from 2026-10-18 to 2026-10-24, about 270 a
-day or 11 an hour. Each reported job costs one write, its result.
+day or 11 an hour. Each reported job costs one write, its result. Since passed jobs are only counted
+in `Fork CI / Tests (AMD)`, a push costs one write per failed job (plus one per job that passes
+after failing), and the estimates below, which assume every job is posted, are an upper bound.
 
 The limits that matter are GitHub's documented ones for the `GITHUB_TOKEN` of `apache/airflow`,
 shared by every workflow of the repository: 1000 REST requests an hour, and 80 content-creating
@@ -1033,15 +1045,18 @@ requests a minute and 500 an hour. Assuming about 35 reported jobs for an averag
   run (see "The `CI run started` check"), so they do not raise the total; at about 11 pull
   request runs an hour they take about 1 write a run.
 
-A run gets the hourly budget for the time since the previous run, which it reads from the record
-the monitor carries between runs (`run_at` in `--reported-file`), not one twelfth of it. GitHub
+A run gets the hourly budget for the time since the previous monitor run started, not one twelfth
+of it. That time is read from the monitor's runs (`GET
+/repos/apache/airflow/actions/workflows/fork-ci-monitor.yml/runs`, runs still waiting in its
+concurrency group left out), not from the record the monitor carries between runs, which a failed
+run or a failed Slack post leaves unchanged although that run may have posted statuses. GitHub
 starts scheduled workflows later than their cron: on 2026-11-15 the 5-minute monitor ran every 9
 to 10 minutes, so a fixed 13 writes a run (160 an hour at the cron's cadence) posted only about 82
 an hour, and four full-matrix fork runs at once took about six hours to catch up. Runs queued
 behind a slow one get little, since the time between them is short. At most
 `MAX_JOB_STATUS_BUDGET_INTERVAL` (10 minutes) is counted, so a run after a gap, such as a
-disabled workflow or a lost record, posts at most 40 statuses at about one a second: half of the
-80-a-minute limit. Without a readable record a run gets one cron interval's share, 20 writes.
+disabled workflow, posts at most 40 statuses at about one a second: half of the 80-a-minute
+limit. When the previous run cannot be read, a run gets one cron interval's share, 20 writes.
 
 The per-run caps and the run counts before a Slack note are derived from `MONITOR_INTERVAL` in
 `fork_ci_reconcile.py`, which must match the monitor's cron (a test checks it), so changing the

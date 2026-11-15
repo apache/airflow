@@ -68,6 +68,7 @@ from airflow_breeze.utils.fork_ci_messages import (
     JOB_STATUS_CONTEXT_PREFIX,
     JOB_STATUSES,
     STALE_JOB_STATUS,
+    STATES_WITH_PASSED_JOBS,
     STATUS_CONTEXT,
     STATUS_STATES,
     BaseCheck,
@@ -83,6 +84,7 @@ from airflow_breeze.utils.fork_ci_messages import (
     parse_marker,
     rebase_needed_description,
     released_comment,
+    split_passed_jobs,
     state_comment,
     status_description,
     strip_failed_job_list,
@@ -210,10 +212,15 @@ JOB_STATE_RANKS = {"failure": 0, "pending": 1, "success": 2}
 # later run, failures first. See "Write budget" in the design doc.
 JOB_STATUSES_PER_HOUR = 240
 # GitHub starts scheduled runs later than their cron, the monitor often only every 9-10 minutes, so a
-# run gets the hourly budget for the time since the previous run rather than for MONITOR_INTERVAL. At
+# run gets the hourly budget for the time since the previous run started rather than for
+# MONITOR_INTERVAL. At
 # most this long is counted, so a run after a gap (a disabled workflow, a lost record) stays at half
 # of GitHub's limit of 80 content-creating requests a minute.
 MAX_JOB_STATUS_BUDGET_INTERVAL = timedelta(minutes=10)
+MONITOR_WORKFLOW_FILE = "fork-ci-monitor.yml"
+# Enough to find the previous started run behind the runs queued in the monitor's concurrency group.
+MONITOR_RUNS_READ = 10
+NOT_STARTED_RUN_STATUSES = frozenset({"queued", "waiting", "pending", "requested"})
 
 
 def compute_job_status_budget(since_previous_run: timedelta | None) -> int:
@@ -613,20 +620,31 @@ def status_state(status: tuple[str, str, str] | None) -> str | None:
     """The state the reconciler recorded in a commit status it posted, if it posted it."""
     if status is None:
         return None
+    description, passed_jobs = split_passed_jobs(status[2])
     return next(
         (
             state
             for state, github_state in STATUS_STATES.items()
-            if (github_state, status_description(state)) == (status[0], status[2])
+            if (github_state, status_description(state)) == (status[0], description)
+            and (passed_jobs is None or state in STATES_WITH_PASSED_JOBS)
         ),
         None,
     )
 
 
 def _set_status(
-    plan: Plan, pr: PullRequestSnapshot, state: str, target_url: str, *, force: bool = False
+    plan: Plan,
+    pr: PullRequestSnapshot,
+    state: str,
+    target_url: str,
+    *,
+    force: bool = False,
+    passed_jobs: int | None = None,
 ) -> None:
-    desired = (STATUS_STATES[state], target_url, status_description(state))
+    """:param passed_jobs: the fork run's passed jobs; None keeps the count the status already shows."""
+    if passed_jobs is None and pr.current_status is not None and status_state(pr.current_status) == state:
+        passed_jobs = split_passed_jobs(pr.current_status[2])[1]
+    desired = (STATUS_STATES[state], target_url, status_description(state, passed_jobs))
     if force or desired != pr.current_status:
         plan.status = desired
 
@@ -678,6 +696,7 @@ def classify(
     find_gate_change: Callable[[], str | None] = lambda: None,
     find_failed_jobs: Callable[[], list[FailedJob] | None] = lambda: [],
     verify_head_repo_unavailable: Callable[[], bool] = lambda: False,
+    passed_jobs: int | None = None,
 ) -> Plan:
     """
     Decide the mutations for one gated pull request.
@@ -703,6 +722,8 @@ def classify(
     :param find_failed_jobs: the jobs of the fork run that did not pass, None when they cannot be
         read; only called for a failed run that started. On None the state comment is left for the
         next run, so that a failed read does not drop the list from it.
+    :param passed_jobs: the passed jobs of the fork run, shown in `Fork CI / Tests (AMD)`; None when
+        this run did not read its jobs, which keeps the count the status shows.
     """
     plan = Plan()
     labels = set(pr.labels)
@@ -919,7 +940,12 @@ def classify(
     target_url = fork.run_url or fork_actions_url(pr.head_repo)
     startup_failure = state == ForkState.FAILED and fork.suite_conclusion == "STARTUP_FAILURE"
     _set_status(
-        plan, pr, "startup_failure" if startup_failure else state.value, target_url, force=refresh_status
+        plan,
+        pr,
+        "startup_failure" if startup_failure else state.value,
+        target_url,
+        force=refresh_status,
+        passed_jobs=passed_jobs,
     )
     _set_ci_passed(plan, pr, state, base, target_url=target_url)
     _set_ci_run_started(plan, pr, fork)
@@ -1861,6 +1887,23 @@ def fetch_fork_observations(
     return observations
 
 
+def count_passed_jobs(jobs: Iterable[dict[str, Any]]) -> int:
+    """The finished, successful jobs of a fork run that job statuses would report."""
+    return sum(
+        1
+        for job in jobs
+        if job["name"] not in UNREPORTED_JOB_NAMES
+        and job.get("status") not in RUNNING_JOB_STATUSES
+        and job.get("conclusion") == "success"
+    )
+
+
+def find_passed_jobs(fork: ForkObservation, read_jobs: ReadJobs) -> int | None:
+    """The passed jobs of the fork run, when this reconciler run read its jobs."""
+    jobs = read_jobs.get(fork.run_id) if fork.run_id is not None else None
+    return count_passed_jobs(jobs) if jobs is not None else None
+
+
 def build_job_statuses(jobs: Iterable[dict[str, Any]]) -> dict[str, tuple[str, str, str]]:
     """The ``(state, target URL, description)`` to report for each finished fork job, by context."""
     statuses: dict[str, tuple[str, str, str]] = {}
@@ -2069,6 +2112,15 @@ class JobStatusReporter:
             for folded, (context, (_, target_url, _)) in current.items():
                 if context.startswith(JOB_STATUS_CONTEXT_PREFIX) and folded not in wanted:
                     desired[context] = (STALE_JOB_STATUS[0], target_url, STALE_JOB_STATUS[1])
+        # Passed jobs are only counted in `Fork CI / Tests (AMD)`: a full-matrix run has about 130, and
+        # each status is a write. A success is posted only over a job's failure from an earlier run of
+        # the commit, which would otherwise keep showing.
+        desired = {
+            context: status
+            for context, status in desired.items()
+            if status[0] != "success"
+            or current.get(context.casefold(), ("", ("success", "", "")))[1][0] != "success"
+        }
         changes = sorted(
             (
                 (context, status)
@@ -2838,7 +2890,6 @@ def drop_reported(
     attention: list[tuple[int, str]],
     notes: list[str],
     record: bool = True,
-    run_at: datetime | None = None,
     rate_limited_runs: int = 0,
     job_status_failure_runs: dict[int, int] | None = None,
 ) -> tuple[list[tuple[int, str]], list[tuple[int, str]], list[str]]:
@@ -2848,7 +2899,6 @@ def drop_reported(
     Only the previous run's items are kept, so an item that went away and comes back is posted
     again. A missing or unreadable file reports everything.
 
-    :param run_at: when this run started, recorded for the next run's job status budget.
     :param rate_limited_runs: the consecutive runs GitHub rate-limited, recorded for the next run.
     :param job_status_failure_runs: per pull request, the consecutive runs whose job statuses failed,
         recorded for the next run.
@@ -2857,7 +2907,6 @@ def drop_reported(
         "unknown": [list(item) for item in unknown],
         "attention": [list(item) for item in attention],
         "notes": notes,
-        "run_at": run_at.isoformat() if run_at is not None else None,
         "rate_limited_runs": rate_limited_runs,
         "job_status_failure_runs": {
             str(number): runs for number, runs in (job_status_failure_runs or {}).items()
@@ -2894,22 +2943,30 @@ def read_run_count(reported_file: Path | None, key: str) -> int | None:
     return count if isinstance(count, int) and not isinstance(count, bool) else 0
 
 
-def read_previous_run_at(reported_file: Path | None) -> datetime | None:
-    """When the previous run started, as it recorded; None without a readable record of it."""
-    if reported_file is None:
+def find_previous_monitor_run_start(client: GitHubClient, repo: str, *, run_url: str) -> datetime | None:
+    """
+    When the monitor's latest run other than this one started; None when it cannot be told.
+
+    Read from GitHub rather than from the record the monitor carries between runs, which a failed run
+    or a failed Slack post leaves unchanged although that run may have posted statuses.
+    """
+    match = re.search(r"/actions/runs/(\d+)", run_url)
+    if match is None:
         return None
     try:
-        previous = json.loads(reported_file.read_text())
-    except (OSError, ValueError):
+        runs = client.rest_get(
+            f"repos/{repo}/actions/workflows/{MONITOR_WORKFLOW_FILE}/runs?per_page={MONITOR_RUNS_READ}"
+        )["workflow_runs"]
+    except Exception as e:
+        console_print(f"[warning]Could not read the monitor's earlier runs: {e}[/]")
         return None
-    run_at = previous.get("run_at") if isinstance(previous, dict) else None
-    if not isinstance(run_at, str):
-        return None
-    try:
-        parsed = datetime.fromisoformat(run_at)
-    except ValueError:
-        return None
-    return parsed if parsed.tzinfo is not None else None
+    # Runs waiting in the concurrency group have not started, so they posted nothing.
+    starts = [
+        parse_github_datetime(run.get("run_started_at"))
+        for run in runs
+        if run["id"] != int(match[1]) and run.get("status") not in NOT_STARTED_RUN_STATUSES
+    ]
+    return max((start for start in starts if start is not None), default=None)
 
 
 def read_job_status_failure_runs(reported_file: Path | None) -> dict[int, int]:
@@ -3040,7 +3097,7 @@ def run_reconcile(
             f"listing the pull requests with `{LABEL_USE_PROJECT_CI}` failed: {type(e).__name__}"
         )
     read_jobs: ReadJobs = {}
-    previous_run_at = read_previous_run_at(reported_file)
+    previous_run_at = find_previous_monitor_run_start(client, repo, run_url=run_url)
     job_status_budget = compute_job_status_budget(
         now - previous_run_at if previous_run_at is not None else None
     )
@@ -3109,6 +3166,7 @@ def run_reconcile(
                 verify_head_repo_unavailable=functools.partial(
                     check_head_repo_unavailable, client, repo, pr.number
                 ),
+                passed_jobs=find_passed_jobs(fork, read_jobs),
             )
             # A revocation to `pending` always goes through: it is idempotent and must not depend on
             # `report_project_ci_passed` succeeding later in this run.
@@ -3181,7 +3239,6 @@ def run_reconcile(
             attention=attention,
             notes=notes,
             record=not client.dry_run,
-            run_at=now,
             rate_limited_runs=rate_limited_runs,
             job_status_failure_runs=job_status_failure_runs,
         )

@@ -588,5 +588,22 @@ STATUS_STATES = {
 }
 
 
-def status_description(state: str) -> str:
-    return _STATUS_DESCRIPTIONS[state]
+# States whose `Fork CI / Tests (AMD)` description counts the fork run's passed jobs, which are not
+# posted as job statuses of their own.
+STATES_WITH_PASSED_JOBS = frozenset({"running", "failed", "green", "green_unverified"})
+_PASSED_JOBS_SUFFIX = re.compile(r" \((\d+) jobs? passed\)\Z")
+
+
+def status_description(state: str, passed_jobs: int | None = None) -> str:
+    description = _STATUS_DESCRIPTIONS[state]
+    if passed_jobs is None or state not in STATES_WITH_PASSED_JOBS:
+        return description
+    return f"{description} ({passed_jobs} job{'' if passed_jobs == 1 else 's'} passed)"
+
+
+def split_passed_jobs(description: str) -> tuple[str, int | None]:
+    """A status description without its passed-jobs count, and the count; None without one."""
+    match = _PASSED_JOBS_SUFFIX.search(description)
+    if match is None:
+        return description, None
+    return description[: match.start()], int(match[1])

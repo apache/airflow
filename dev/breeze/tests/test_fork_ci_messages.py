@@ -38,6 +38,7 @@ from airflow_breeze.utils.fork_ci_messages import (
     MAX_LISTED_FAILED_JOBS,
     OPEN_PR_LIMIT_URL,
     OVERLAP_LISTED,
+    STATES_WITH_PASSED_JOBS,
     BaseCheck,
     FailedJob,
     Marker,
@@ -53,7 +54,9 @@ from airflow_breeze.utils.fork_ci_messages import (
     rebase_needed_description,
     released_comment,
     render_marker,
+    split_passed_jobs,
     state_comment,
+    status_description,
     strip_failed_job_list,
     tamper_close_comment,
     ungated_comment,
@@ -329,10 +332,42 @@ def test_setup_texts_give_the_exact_command(text):
     assert "gh workflow enable ci-amd.yml -R u/fork" in text
 
 
+@pytest.mark.parametrize(
+    ("state", "passed_jobs", "expected"),
+    [
+        pytest.param("green", 130, "Fork CI passed - see Details (130 jobs passed)", id="counted"),
+        pytest.param("running", 1, "Fork CI running - see Details (1 job passed)", id="one-job"),
+        pytest.param("green", None, "Fork CI passed - see Details", id="not-counted"),
+        pytest.param(
+            "setup_required", 3, "Fork CI not set up - see the pull request comment", id="state-without-a-run"
+        ),
+    ],
+)
+def test_status_description_counts_passed_jobs(state, passed_jobs, expected):
+    assert status_description(state, passed_jobs) == expected
+
+
+@pytest.mark.parametrize(
+    ("description", "expected"),
+    [
+        pytest.param("Fork CI passed - see Details (130 jobs passed)", ("Fork CI passed - see Details", 130)),
+        pytest.param("Fork CI running - see Details (1 job passed)", ("Fork CI running - see Details", 1)),
+        pytest.param("Fork CI passed - see Details", ("Fork CI passed - see Details", None)),
+        pytest.param(
+            "Fork CI passed (2 jobs passed) - see Details",
+            ("Fork CI passed (2 jobs passed) - see Details", None),
+        ),
+    ],
+)
+def test_split_passed_jobs(description, expected):
+    assert split_passed_jobs(description) == expected
+
+
 def test_status_descriptions_fit_github_limit():
     base_ref = "providers-cncf-kubernetes/v10-22"
     descriptions = [
         *_STATUS_DESCRIPTIONS.values(),
+        *(status_description(state, 99999) for state in STATES_WITH_PASSED_JOBS),
         CI_PASSED_REVOKED_DESCRIPTION,
         ci_passed_description(BaseCheck("d" * 40, 199), base_ref=base_ref),
         ci_passed_description(BaseCheck("d" * 40, 199, merged=True), base_ref=base_ref),

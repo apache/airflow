@@ -47,7 +47,8 @@ Document `uv run` (not `python`) as the invocation method in READMEs and instruc
 ## Fork CI job statuses and GitHub's rate limits
 
 The fork CI monitor (`breeze ci fork-ci-reconcile`, run by `.github/workflows/fork-ci-monitor.yml`)
-reports every job of a gated pull request's fork run as its own commit status. Those writes are the
+reports every failed job of a gated pull request's fork run as its own commit status, and counts the
+passed jobs in `Fork CI / Tests (AMD)`. Those writes are the
 largest share of what the monitor does with the repository's `GITHUB_TOKEN`, whose rate limits every
 workflow of `apache/airflow` shares (see "Write budget" in
 `dev/breeze/doc/ci/08_fork_ci_for_external_contributors.md`).
