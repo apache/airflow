@@ -459,10 +459,20 @@ class TestSCCActivation:
             ),
             (
                 {"sets": [{"name": "one", "serviceAccount": {"name": "team-a"}}]},
+                ["team-a"],
+            ),
+            (
+                {
+                    "enableDefault": True,
+                    "sets": [{"name": "one", "serviceAccount": {"name": "team-a"}}],
+                },
                 ["prod-airflow-dag-processor", "team-a"],
             ),
             (
-                {"sets": [{"name": "one", "serviceAccount": {"create": False, "name": "team-a"}}]},
+                {
+                    "enableDefault": True,
+                    "sets": [{"name": "one", "serviceAccount": {"create": False, "name": "team-a"}}],
+                },
                 ["prod-airflow-dag-processor", "team-a"],
             ),
             (
