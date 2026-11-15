@@ -278,8 +278,8 @@ spec:
         {{- end }}
       containers:
         - name: worker
-          image: {{ template "airflow_image" . }}
-          imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
+          image: {{ template "airflow_worker_image" . }}
+          imagePullPolicy: {{ .Values.workers.celery.image.pullPolicy | default .Values.images.airflow.pullPolicy }}
           {{- if $containerSecurityContext }}
           securityContext: {{ $containerSecurityContext | nindent 12 }}
           {{- end }}

@@ -78,6 +78,29 @@ Non-empty list overrides such as ``extraVolumes`` and ``extraVolumeMounts`` repl
 the inherited list, so include all additional volumes and mounts needed by each
 set. An empty list retains the inherited value.
 
+A set can run its tasks on a different image, for example one with extra
+dependencies or GPU libraries, by setting ``image`` (``repository``, ``tag``,
+``digest`` and ``pullPolicy``). Only the ``worker`` container uses it; the other
+containers in the pod keep their usual images. Unset fields fall back to
+``images.airflow`` and then to ``defaultAirflowRepository`` and
+``defaultAirflowTag``. No digest is inherited once ``repository``, ``tag`` or
+``digest`` is set, since a digest pins one specific image. A set's ``image``
+replaces the one in ``workers.celery`` as a whole rather than being merged with
+it, ``pullPolicy`` included, so ``image: {}`` returns a set to ``images.airflow``:
+
+.. code-block:: yaml
+   :caption: values.yaml
+
+   executor: CeleryExecutor
+   workers:
+     celery:
+       sets:
+         - name: gpu
+           queue: gpu
+           image:
+             repository: my-registry/airflow-gpu
+             tag: 3.2.0-cuda
+
 Custom ``pod_template_file``
 ----------------------------
 
