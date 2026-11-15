@@ -271,7 +271,8 @@ so each can have its own replicas, resources, node selectors or tolerations. Def
 bundles once in ``dagProcessor.dagBundleConfigList`` and select the bundles a set parses with
 ``bundleNames``. Each set inherits the ``dagProcessor`` settings and can override them, and
 creates its own Deployment (and PodDisruptionBudget when enabled) named
-``<release>-dag-processor-<set name>``.
+``<release>-dag-processor-<set name>``. Set names must be unique, valid DNS-1123 labels and cannot be
+``default``; the chart fails to render otherwise.
 
 .. note::
 
@@ -305,8 +306,14 @@ The default ``dagProcessor.args`` passes the bundle selection as ``--bundle-name
 as they are, so pass the flags yourself; the chart fails to render when ``bundleNames`` is set but
 ``args`` does not contain a ``--bundle-name`` flag for each bundle.
 
+A bundle can be selected by more than one set, for example while you move it from one set to another. It is
+then parsed by each of them, and ``helm install`` and ``helm upgrade`` print a warning that names the bundle
+and the sets (the warning is not shown by ``helm template``).
+
 A set that overrides ``serviceAccount`` gets that ServiceAccount created, and sets that use the same
-ServiceAccount name share one object, so their ``serviceAccount`` settings must match.
+ServiceAccount name share one object, so their ``serviceAccount`` settings must match. With
+``rbac.createSCCRoleBinding`` the OpenShift SCC role binding includes the ServiceAccount of every Dag processor
+Deployment.
 
 A PodDisruptionBudget selects the Pods of a single Deployment. When the default Dag processor and sets with
 their own PodDisruptionBudget run together, the default PodDisruptionBudget leaves out those sets, so a Pod is

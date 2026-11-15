@@ -23,6 +23,20 @@
 {{- if .Values.dagProcessor.enabled }}
 {{- $globals := deepCopy . -}}
 {{- $dagProcessorSets := .Values.dagProcessor.sets | default list -}}
+{{- $seenSetNames := dict -}}
+{{- range $dagProcessorSets -}}
+  {{- $setName := .name | default "" | toString -}}
+  {{- if eq $setName "default" -}}
+    {{- fail "`dagProcessor.sets` items cannot be named `default`; that name is used by the default Dag processor" -}}
+  {{- end -}}
+  {{- if not (and (regexMatch "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$" $setName) (le (len $setName) 63)) -}}
+    {{- fail (printf "`dagProcessor.sets` item name %q is not a valid DNS-1123 label (lowercase alphanumerics and '-', starting and ending with an alphanumeric, at most 63 characters)" $setName) -}}
+  {{- end -}}
+  {{- if hasKey $seenSetNames $setName -}}
+    {{- fail (printf "`dagProcessor.sets` contains the name %q more than once" $setName) -}}
+  {{- end -}}
+  {{- $_ := set $seenSetNames $setName true -}}
+{{- end -}}
 {{- $enableDefault := .Values.dagProcessor.enableDefault -}}
 {{- if kindIs "invalid" $enableDefault -}}
   {{- $enableDefault = not .Values.dagProcessor.sets -}}
@@ -61,7 +75,7 @@
     {{- if not (has . $definedBundles) }}
       {{- fail (printf "Bundle %q is not defined in `dagProcessor.dagBundleConfigList`" .) }}
     {{- end }}
-    {{- if not (and (contains "--bundle-name" $renderedArgs) (contains . $renderedArgs)) }}
+    {{- if not (regexMatch (printf "--bundle-name(=|\\s+(-\\s+)?)['\"]*%s['\"]*(\\s|$)" (regexQuoteMeta .)) $renderedArgs) }}
       {{- fail (printf "`dagProcessor.args` does not select bundle %q; pass it with `--bundle-name` (the default `args` does this from `bundleNames`)" .) }}
     {{- end }}
   {{- end }}

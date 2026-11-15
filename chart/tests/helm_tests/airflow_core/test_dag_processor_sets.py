@@ -29,6 +29,10 @@ BUNDLES = [
     {"name": "bundle1", "classpath": "a.B", "kwargs": {}},
     {"name": "bundle2", "classpath": "a.B", "kwargs": {}},
 ]
+SIMILAR_BUNDLES = [
+    {"name": "b1", "classpath": "a.B", "kwargs": {}},
+    {"name": "b10", "classpath": "a.B", "kwargs": {}},
+]
 
 
 def _selects(selector, labels):
@@ -221,6 +225,14 @@ class TestDagProcessorSets:
                 {"sets": [{"name": "one", "dagBundleConfigList": BUNDLES}]},
                 "cannot define `dagBundleConfigList`",
             ),
+            ({"sets": [{"name": "one"}, {"name": "one"}]}, 'the name "one" more than once'),
+            ({"sets": [{"name": "default"}]}, "cannot be named `default`"),
+            ({"enableDefault": False, "sets": [{"name": "default"}]}, "cannot be named `default`"),
+            ({"sets": [{"name": "team_a"}]}, "not a valid DNS-1123 label"),
+            ({"sets": [{"name": "Team"}]}, "not a valid DNS-1123 label"),
+            ({"sets": [{"name": "-team"}]}, "not a valid DNS-1123 label"),
+            ({"sets": [{"name": "team-"}]}, "not a valid DNS-1123 label"),
+            ({"sets": [{"name": "a" * 64}]}, "not a valid DNS-1123 label"),
         ],
     )
     def test_invalid_sets_fail(self, dag_processor, message):
@@ -394,3 +406,55 @@ class TestDagProcessorSets:
             )
 
         assert "does not select" in ex_ctx.value.stderr.decode()
+
+    @pytest.mark.parametrize(
+        "args",
+        [
+            ["dag-processor", "--bundle-name", "b10"],
+            ["dag-processor", "--bundle-name=b10"],
+            ["bash", "-c", "exec airflow dag-processor --bundle-name 'b10'"],
+            ["dag-processor", "--bundle-name", "xb1"],
+            ["dag-processor", "--other", "b1"],
+        ],
+    )
+    def test_bundle_name_must_match_the_whole_argument(self, args):
+        with pytest.raises(CalledProcessError) as ex_ctx:
+            render_chart(
+                values={
+                    "dagProcessor": {
+                        "enableDefault": False,
+                        "dagBundleConfigList": SIMILAR_BUNDLES,
+                        "command": ["airflow"],
+                        "args": args,
+                        "sets": [{"name": "one", "bundleNames": ["b1"]}],
+                    }
+                },
+                show_only=[DEPLOYMENT],
+            )
+
+        assert 'does not select bundle "b1"' in ex_ctx.value.stderr.decode()
+
+    @pytest.mark.parametrize(
+        "args",
+        [
+            ["dag-processor", "--bundle-name", "b1"],
+            ["dag-processor", "--bundle-name=b1"],
+            ["dag-processor", "--bundle-name", "b10", "--bundle-name", "b1"],
+            ["bash", "-c", "exec airflow dag-processor --bundle-name 'b1'"],
+        ],
+    )
+    def test_bundle_name_in_custom_args_is_accepted(self, args):
+        docs = render_chart(
+            values={
+                "dagProcessor": {
+                    "enableDefault": False,
+                    "dagBundleConfigList": SIMILAR_BUNDLES,
+                    "command": ["airflow"],
+                    "args": args,
+                    "sets": [{"name": "one", "bundleNames": ["b1"]}],
+                }
+            },
+            show_only=[DEPLOYMENT],
+        )
+
+        assert docs[0]["spec"]["template"]["spec"]["containers"][0]["args"] == args

@@ -150,3 +150,21 @@ https://airflow.apache.org/docs/helm-chart/stable/production-guide.html#api-secr
 {{- if ne .Values.executor (tpl .Values.config.core.executor $) }}
    {{ fail "Please configure the executor with `executor`, not `config.core.executor`." }}
 {{- end }}
+
+{{- $bundleClaims := dict }}
+{{- if .Values.dagProcessor.enabled }}
+{{- range .Values.dagProcessor.sets | default list }}
+{{- $setName := .name }}
+{{- range .bundleNames | default list }}
+{{- $_ := set $bundleClaims . (append (get $bundleClaims . | default list) $setName) }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- range $bundle, $setNames := $bundleClaims }}
+{{- if gt (len $setNames) 1 }}
+
+WARNING:
+   Dag bundle {{ $bundle | quote }} is selected by more than one Dag processor set ({{ join ", " $setNames }}),
+   so it is parsed by each of them.
+{{- end }}
+{{- end }}

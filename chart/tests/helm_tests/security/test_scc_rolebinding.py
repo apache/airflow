@@ -448,3 +448,56 @@ class TestSCCActivation:
             "name": "prod-airflow-dag-processor",
             "namespace": "airflow",
         } in subjects
+
+    @pytest.mark.parametrize(
+        ("dag_processor", "expected"),
+        [
+            ({}, ["prod-airflow-dag-processor"]),
+            (
+                {"enableDefault": False, "sets": [{"name": "one", "serviceAccount": {"name": "team-a"}}]},
+                ["team-a"],
+            ),
+            (
+                {"sets": [{"name": "one", "serviceAccount": {"name": "team-a"}}]},
+                ["prod-airflow-dag-processor", "team-a"],
+            ),
+            (
+                {"sets": [{"name": "one", "serviceAccount": {"create": False, "name": "team-a"}}]},
+                ["prod-airflow-dag-processor", "team-a"],
+            ),
+            (
+                {
+                    "enableDefault": False,
+                    "sets": [
+                        {"name": "one", "serviceAccount": {"name": "team-a"}},
+                        {"name": "two", "serviceAccount": {"name": "team-a"}},
+                        {"name": "three"},
+                    ],
+                },
+                ["team-a", "prod-airflow-dag-processor"],
+            ),
+        ],
+    )
+    def test_dag_processor_sets_service_accounts_are_bound_once(self, dag_processor, expected):
+        docs = render_chart(
+            name="prod",
+            namespace="airflow",
+            values={
+                "rbac": {"create": True, "createSCCRoleBinding": True},
+                "executor": "LocalExecutor",
+                "triggerer": {"enabled": False},
+                "scheduler": {"enabled": False},
+                "apiServer": {"enabled": False},
+                "statsd": {"enabled": False},
+                "redis": {"enabled": False},
+                "flower": {"enabled": False},
+                "cleanup": {"enabled": False},
+                "databaseCleanup": {"enabled": False},
+                "migrateDatabaseJob": {"enabled": False},
+                "createUserJob": {"enabled": False},
+                "dagProcessor": {"enabled": True, **dag_processor},
+            },
+            show_only=["templates/rbac/security-context-constraint-rolebinding.yaml"],
+        )
+
+        assert jmespath.search("subjects[*].name", docs[0]) == expected
