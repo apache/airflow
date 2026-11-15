@@ -592,16 +592,16 @@ class TestGKEKubernetesAsyncHook:
 
     @staticmethod
     def _mock_token(tokens):
-        token = mock.AsyncMock()
+        token = mock.create_autospec(_CredentialsToken, instance=True)
         token.get.side_effect = list(tokens)
         return token
 
     @pytest.mark.asyncio
-    @mock.patch(GKE_STRING.format("GKEKubernetesAsyncHook.get_token"), new_callable=mock.AsyncMock)
-    @mock.patch(GKE_STRING.format("GKEKubernetesAsyncHook._build_client"))
+    @mock.patch(GKE_STRING.format("GKEKubernetesAsyncHook.get_token"), autospec=True)
+    @mock.patch(GKE_STRING.format("GKEKubernetesAsyncHook._build_client"), autospec=True)
     async def test_get_conn_caches_client_and_token(self, mock_build_client, mock_get_token, async_hook):
         mock_get_token.return_value = self._mock_token(["token-1", "token-1"])
-        mock_build_client.return_value = mock.MagicMock(default_headers={})
+        mock_build_client.return_value = mock.MagicMock(spec=async_client.ApiClient, default_headers={})
 
         async with async_hook.get_conn() as conn_first:
             pass
@@ -609,17 +609,17 @@ class TestGKEKubernetesAsyncHook:
             pass
 
         assert conn_first is conn_second
-        mock_build_client.assert_called_once_with()
+        mock_build_client.assert_called_once_with(async_hook)
         mock_get_token.assert_awaited_once()
 
     @pytest.mark.asyncio
-    @mock.patch(GKE_STRING.format("GKEKubernetesAsyncHook.get_token"), new_callable=mock.AsyncMock)
-    @mock.patch(GKE_STRING.format("GKEKubernetesAsyncHook._build_client"))
+    @mock.patch(GKE_STRING.format("GKEKubernetesAsyncHook.get_token"), autospec=True)
+    @mock.patch(GKE_STRING.format("GKEKubernetesAsyncHook._build_client"), autospec=True)
     async def test_get_conn_refreshes_authorization_header_per_entry(
         self, mock_build_client, mock_get_token, async_hook
     ):
         mock_get_token.return_value = self._mock_token(["token-1", "token-2"])
-        kube_client = mock.MagicMock(default_headers={})
+        kube_client = mock.MagicMock(spec=async_client.ApiClient, default_headers={})
         mock_build_client.return_value = kube_client
 
         async with async_hook.get_conn():
