@@ -247,9 +247,9 @@ Why: `Trusting a green fork run
 A pull request using fork CI must not change the fork CI gate: the ``gate`` job of ``ci-amd.yml``,
 ``dev/breeze/src/airflow_breeze/utils/fork_ci_gate.py``, the fork CI monitor or
 ``.github/fork-ci-gate.toml``, except for your own ``[pilot]`` line. Such a pull request is closed
-with an explanation, and so is one for which project CI ran although it should not have. If the
-change was accidental, revert it and reopen the pull request; if it is wanted, a maintainer reopens
-it and adds ``use project ci``. Details: `Gate protection
+with an explanation. If the change was accidental, revert it and reopen the pull request; if it is
+wanted, a maintainer adds ``use project ci``. A pull request for which project CI ran although it
+should not have is closed too, and only a maintainer can reopen it. Details: `Gate protection
 <../dev/breeze/doc/ci/08_fork_ci_for_external_contributors.md#gate-protection>`__.
 
 Joining and leaving the pilot
