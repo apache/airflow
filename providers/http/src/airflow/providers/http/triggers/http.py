@@ -210,7 +210,7 @@ class HttpTrigger(BaseTrigger):
 
 class HttpSensorTrigger(BaseTrigger):
     """
-    A trigger that fires when the request to a URL returns a non-404 status code.
+    A trigger that fires when the request to a URL returns a non-allowed status code.
 
     :param endpoint: The relative part of the full url
     :param http_conn_id: The HTTP Connection ID to run the sensor against
@@ -220,6 +220,9 @@ class HttpSensorTrigger(BaseTrigger):
     :param extra_options: Additional kwargs to pass when creating a request.
         For example, ``run(json=obj)`` is passed as ``aiohttp.ClientSession().get(json=obj)``
     :param poke_interval: Time to sleep using asyncio
+    :param response_error_codes_allowlist: An allowlist to keep waiting on, not to raise an exception.
+        If the ``None`` value comes in, it is assigned ``("404",)`` by default, for backward compatibility.
+        When you also want ``404 Not Found`` to raise the error, explicitly deliver the blank list ``[]``.
     """
 
     def __init__(
@@ -231,6 +234,7 @@ class HttpSensorTrigger(BaseTrigger):
         headers: dict[str, str] | None = None,
         extra_options: dict[str, Any] | None = None,
         poke_interval: float = 5.0,
+        response_error_codes_allowlist: list[str] | tuple[str, ...] | None = None,
     ):
         super().__init__()
         self.endpoint = endpoint
@@ -240,6 +244,9 @@ class HttpSensorTrigger(BaseTrigger):
         self.extra_options = extra_options or {}
         self.http_conn_id = http_conn_id
         self.poke_interval = poke_interval
+        self.response_error_codes_allowlist = (
+            ("404",) if response_error_codes_allowlist is None else tuple(response_error_codes_allowlist)
+        )
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         """Serialize HttpTrigger arguments and classpath."""
@@ -253,6 +260,7 @@ class HttpSensorTrigger(BaseTrigger):
                 "extra_options": self.extra_options,
                 "http_conn_id": self.http_conn_id,
                 "poke_interval": self.poke_interval,
+                "response_error_codes_allowlist": self.response_error_codes_allowlist,
             },
         )
 
@@ -272,8 +280,10 @@ class HttpSensorTrigger(BaseTrigger):
                 yield TriggerEvent(True)
                 return
             except AirflowException as exc:
-                if str(exc).startswith("404"):
+                if str(exc).startswith(self.response_error_codes_allowlist):
                     await asyncio.sleep(self.poke_interval)
+                else:
+                    raise
 
     def _get_async_hook(self) -> HttpAsyncHook:
         return HttpAsyncHook(
