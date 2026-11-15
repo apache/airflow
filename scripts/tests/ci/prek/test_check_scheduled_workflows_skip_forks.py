@@ -61,6 +61,41 @@ SCHEDULE_ONLY = {"schedule": [{"cron": "0 0 * * *"}]}
             True,
             id="status-function-with-own-guard",
         ),
+        pytest.param(
+            {
+                "parent": {"if": GUARD},
+                "other": {},
+                "job": {
+                    "needs": ["parent", "other"],
+                    "if": "!cancelled() && needs.parent.result == 'success'",
+                },
+            },
+            "job",
+            True,
+            id="status-function-requiring-a-covered-parent",
+        ),
+        pytest.param(
+            {
+                "parent": {"if": GUARD},
+                "other": {},
+                "job": {
+                    "needs": ["parent", "other"],
+                    "if": "!cancelled() && needs.other.result == 'success'",
+                },
+            },
+            "job",
+            False,
+            id="status-function-requiring-an-uncovered-parent",
+        ),
+        pytest.param(
+            {
+                "parent": {"if": GUARD},
+                "job": {"needs": [], "if": "always() && needs.parent.result == 'success'"},
+            },
+            "job",
+            False,
+            id="status-function-requiring-a-job-it-does-not-need",
+        ),
     ],
 )
 def test_is_covered(jobs, job_name, expected):

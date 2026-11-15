@@ -26,12 +26,14 @@
 
 Forks that enable Actions for fork CI also get every cron. A job passes when its ``if:`` has the
 ``apache/airflow`` guard, or when it needs a job that passes and does not override the skip with
-``always()``, ``cancelled()`` or ``failure()``. ``ci-amd.yml`` and ``ci-arm.yml`` are exempt
-because they must run in forks on push, and their ``check-run-needed`` step skips scheduled runs there.
+``always()``, ``cancelled()`` or ``failure()`` - unless its ``if:`` still requires such a job to
+succeed with ``needs.<job>.result == 'success'``. ``ci-amd.yml`` and ``ci-arm.yml`` are exempt: their
+``check-run-needed`` job skips scheduled runs in forks, and ``ci-amd.yml`` must still run there on push.
 """
 
 from __future__ import annotations
 
+import re
 import sys
 from pathlib import Path
 from typing import Any
@@ -44,6 +46,7 @@ console = Console(color_system="standard", width=200)
 EXEMPTIONS = frozenset({"ci-amd.yml", "ci-arm.yml"})
 GUARD = "github.repository == 'apache/airflow'"
 STATUS_CHECK_FUNCTIONS = frozenset({"always()", "cancelled()", "failure()"})
+REQUIRED_SUCCESS = re.compile(r"needs\.([\w-]+)\.result\s*==\s*'success'")
 
 
 def is_covered(jobs: dict[str, Any], job_name: str) -> bool:
@@ -52,15 +55,15 @@ def is_covered(jobs: dict[str, Any], job_name: str) -> bool:
     if_condition = job.get("if") or ""
     if GUARD in if_condition:
         return True
-    if any(status_check in if_condition for status_check in STATUS_CHECK_FUNCTIONS):
-        return False
     needs = job.get("needs") or []
     if isinstance(needs, str):
         needs = [needs]
-    for parent in needs:
-        if is_covered(jobs, parent):
-            return True
-    return False
+    if any(status_check in if_condition for status_check in STATUS_CHECK_FUNCTIONS):
+        # A status function runs the job even when its needs were skipped, unless the condition
+        # still requires one of them to have succeeded.
+        required = set(REQUIRED_SUCCESS.findall(if_condition))
+        return any(is_covered(jobs, parent) for parent in needs if parent in required)
+    return any(is_covered(jobs, parent) for parent in needs)
 
 
 def check_file(file_path: Path) -> list[str]:
