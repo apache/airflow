@@ -1936,11 +1936,10 @@ class TestWorkerService:
         )
 
         configmap, worker, service = docs
-        selector = service["spec"]["selector"].items()
-        celery_pod_labels = worker["spec"]["template"]["metadata"]["labels"].items()
-        kubernetes_pod_labels = yaml.safe_load(configmap["data"]["pod_template_file.yaml"])["metadata"][
-            "labels"
-        ].items()
+        selector = jmespath.search("spec.selector", service).items()
+        celery_pod_labels = jmespath.search("spec.template.metadata.labels", worker).items()
+        pod_template = yaml.safe_load(jmespath.search('data."pod_template_file.yaml"', configmap))
+        kubernetes_pod_labels = jmespath.search("metadata.labels", pod_template).items()
 
         assert selector <= celery_pod_labels
         assert not selector <= kubernetes_pod_labels
