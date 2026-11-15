@@ -93,6 +93,58 @@ def test_find_deletable_versions_keeps_versions_near_the_page_edges(cleanup):
     assert [v["name"] for v in cleanup.find_deletable_versions(page, set(), CUTOFF)] == ["sha256:middle"]
 
 
+def _pages() -> dict[int, list[dict]]:
+    return {
+        1: [_version("sha256:new-1", RECENT), _version("sha256:new-2", RECENT)],
+        2: [
+            _version("sha256:p2-edge", "2026-10-01T00:00:00Z"),
+            _version("sha256:p2-a", "2026-09-20T00:00:00Z"),
+            _version("sha256:p2-kept", "2026-09-15T00:00:00Z"),
+            _version("sha256:p2-b", "2026-09-10T00:00:00Z"),
+            _version("sha256:p2-last", "2026-09-05T00:00:00Z"),
+        ],
+        # Only an edge version, which is never deleted: the walk must go on to page 2.
+        3: [_version("sha256:p3-only", "2026-08-01T00:00:00Z")],
+    }
+
+
+def test_select_versions_to_delete_walks_past_pages_without_candidates(cleanup):
+    pages = _pages()
+    fetched: list[int] = []
+    keep_loads: list[int] = []
+
+    def fetch_page(page: int) -> list[dict]:
+        fetched.append(page)
+        return pages.get(page, [])
+
+    def load_keep() -> set[str]:
+        keep_loads.append(1)
+        return {"sha256:p2-kept"}
+
+    selected = cleanup.select_versions_to_delete(fetch_page, 3, load_keep, CUTOFF, budget=10)
+
+    assert [v["name"] for v in selected] == ["sha256:p2-a", "sha256:p2-b"]
+    assert fetched == [3, 2, 1]
+    assert keep_loads == [1]
+
+
+def test_select_versions_to_delete_stops_at_budget(cleanup):
+    pages = _pages()
+
+    selected = cleanup.select_versions_to_delete(pages.get, 3, set, CUTOFF, budget=1)
+
+    assert [v["name"] for v in selected] == ["sha256:p2-a"]
+
+
+def test_select_versions_to_delete_does_not_load_tags_without_candidates(cleanup):
+    pages = {1: [_version("sha256:new", RECENT)]}
+
+    def load_keep() -> set[str]:
+        raise AssertionError("tags loaded without a candidate")
+
+    assert cleanup.select_versions_to_delete(pages.get, 1, load_keep, CUTOFF, budget=10) == []
+
+
 def test_get_referenced_digests_lists_index_children(cleanup):
     index = {
         "mediaType": "application/vnd.oci.image.index.v1+json",

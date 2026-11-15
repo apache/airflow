@@ -42,8 +42,13 @@ def cleanup():
     return module
 
 
-def _version(tags: list[str], updated_at: str) -> dict:
-    return {"id": 1, "updated_at": updated_at, "metadata": {"container": {"tags": tags}}}
+def _version(tags: list[str], created_at: str, updated_at: str | None = None) -> dict:
+    return {
+        "id": 1,
+        "created_at": created_at,
+        "updated_at": updated_at or created_at,
+        "metadata": {"container": {"tags": tags}},
+    }
 
 
 @pytest.mark.parametrize(
@@ -91,6 +96,12 @@ def test_get_versions_created_since_stops_on_empty_page(cleanup):
 
     assert len(cleanup.get_versions_created_since(fetch_page, CUTOFF)) == 1
     assert fetched == [1, 2]
+
+
+def test_keyed_cache_expires_by_creation_even_when_pushed_again(cleanup):
+    version = _version(["cache-linux-amd64-0123456789abcdef"], created_at=OLD, updated_at=RECENT)
+
+    assert cleanup.is_expired_keyed_cache(version, CUTOFF) is True
 
 
 @pytest.mark.parametrize(

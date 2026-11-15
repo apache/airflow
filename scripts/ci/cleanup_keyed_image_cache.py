@@ -16,13 +16,18 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-Delete keyed CI image cache entries that have not been pushed for a while.
+Delete keyed CI image cache entries a while after they were first pushed.
 
 ``breeze ci-image build --prepare-buildx-cache`` pushes, next to the shared ``cache-<platform>`` tag,
 a ``cache-<platform>-<dependency key>`` tag for every set of dependency inputs it builds. Those pile
 up with every dependency change, so the versions of the CI image packages whose only tags are keyed
-cache tags, and which were last updated before the cutoff, are deleted. Shared cache tags, ``latest``
+cache tags, and which were created before the cutoff, are deleted. Shared cache tags, ``latest``
 and anything else are never touched.
+
+The age is counted from creation, not from the last update: a push of identical cache content
+reuses the version and only moves its ``updated_at``, and versions are listed by creation, so a
+version updated after creation could otherwise fall out of the scanned window and stay forever.
+A key still in use is pushed again within hours of being deleted.
 
 Usage: cleanup_keyed_image_cache.py [--days N] [--dry-run]
 Environment: GITHUB_REPOSITORY (``owner/repo``), and a token for ``gh`` with ``packages: write``.
@@ -52,7 +57,7 @@ def is_expired_keyed_cache(version: dict, cutoff: datetime) -> bool:
     tags = version.get("metadata", {}).get("container", {}).get("tags", [])
     if not tags or not all(KEYED_CACHE_TAG.match(tag) for tag in tags):
         return False
-    return _parse_time(version["updated_at"]) < cutoff
+    return _parse_time(version["created_at"]) < cutoff
 
 
 def find_expired_versions(versions: Iterable[dict], cutoff: datetime) -> list[dict]:

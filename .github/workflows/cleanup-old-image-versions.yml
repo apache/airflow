@@ -17,9 +17,9 @@
 #
 ---
 name: Clean up old image versions
-# Deletes, a few hundred per run, the untagged CI and PROD image versions older than 30 days that
-# no tagged image references. Small, spaced-out runs keep it far below the API rate limit of the
-# workflow token. See scripts/ci/cleanup_old_image_versions.py.
+# Deletes, a few hundred per run from one package in turn, the untagged CI and PROD image versions
+# older than 30 days that no tag references. Small, spaced-out runs keep it far below the API rate
+# limit of the workflow token. See scripts/ci/cleanup_old_image_versions.py.
 on:  # yamllint disable-line rule:truthy
   schedule:
     - cron: '41 */3 * * *'
