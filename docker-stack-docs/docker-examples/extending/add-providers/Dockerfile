@@ -21,11 +21,11 @@ FROM apache/airflow:3.5.0
 USER root
 RUN apt-get update \
   && apt-get install -y --no-install-recommends \
-         openjdk-21-jre-headless \
+         default-jre-headless \
   && apt-get autoremove -yqq --purge \
   && apt-get clean \
   && rm -rf /var/lib/apt/lists/*
 USER airflow
-ENV JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
+ENV JAVA_HOME=/usr/lib/jvm/default-java
 RUN pip install --no-cache-dir "apache-airflow==${AIRFLOW_VERSION}" apache-airflow-providers-apache-spark==5.1.1
 # [END Dockerfile]
