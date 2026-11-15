@@ -17,11 +17,12 @@
 from __future__ import annotations
 
 import os
+from unittest import mock
 from unittest.mock import patch
 
 import pytest
 
-from airflowctl.api.client import ClientKind
+from airflowctl.api.client import Client, ClientKind
 from airflowctl.api.datamodels.generated import Config, ConfigOption, ConfigSection
 from airflowctl.ctl import cli_parser
 from airflowctl.ctl.commands import config_command
@@ -611,3 +612,14 @@ class TestCliConfigCommands:
         assert "fernet_key" in output_str
         assert "< hidden >" in output_str
         assert "sql_alchemy_conn" in output_str
+
+
+def test_lint_prints_failure_containing_markup(capsys):
+    api_client = mock.MagicMock(spec=Client)
+    api_client.configs.list.side_effect = RuntimeError("bad [/x]")
+
+    with pytest.raises(SystemExit) as exc_info:
+        config_command.lint(cli_parser.get_parser().parse_args(["config", "lint"]), api_client=api_client)
+
+    assert exc_info.value.code == 1
+    assert "bad [/x]" in capsys.readouterr().out

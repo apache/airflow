@@ -52,7 +52,7 @@ LABEL_USE_FORK_CI = "use fork ci"
 LABEL_READY_FOR_REVIEW = "ready for maintainer review"
 LABEL_NEEDS_PROJECT_CI = "needs project ci"
 
-DEFAULT_CLOSE_AFTER_DAYS = 7
+DEFAULT_CLOSE_AFTER_DAYS = 30
 DEFAULT_ENABLED_SINCE = datetime(2026, 1, 1, tzinfo=UTC)
 
 # The release-prep / providers branches whose pushes run project CI in apache/airflow: the
@@ -187,9 +187,12 @@ def parse_config(text: str) -> GateConfig:
             raise ValueError(f"allowlist entry {org!r} must be a list of GitHub logins, got {logins!r}")
         allowlist[org] = tuple(logins)
 
+    pilot_table = data.get("pilot", {})
+    if not isinstance(pilot_table, dict):
+        raise ValueError(f"pilot must be a table of GitHub logins, got {pilot_table!r}")
     pilot = {
         login.casefold(): _require_aware_datetime(joined_at, f"pilot entry {login!r}")
-        for login, joined_at in data.get("pilot", {}).items()
+        for login, joined_at in pilot_table.items()
     }
     job_statuses = data.get("job_statuses", True)
     if not isinstance(job_statuses, bool):

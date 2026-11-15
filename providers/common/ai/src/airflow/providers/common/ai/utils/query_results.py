@@ -86,17 +86,22 @@ QUERY_TOOL_DESCRIPTION = (
 #: unlike query rows they cannot be silently dropped: the description states the ``name_contains``
 #: filter and the summary shape so a truncated result is read as "narrow your request", not as a
 #: small table.
-GET_SCHEMA_TOOL_DESCRIPTION = (
+_GET_SCHEMA_DESCRIPTION_TEMPLATE = (
     "Get a table's columns. Returns JSON of the form "
-    '{"columns": [{"name": ..., "type": ...}, ...], "column_count": N}. Pass `name_contains` to '
+    '{{"columns": [{{"name": ..., "type": ...}}, ...], "column_count": N}}. Pass `name_contains` to '
     "return only the columns whose name contains that substring (case-insensitive) -- use it to "
     "find the columns relevant to your question on a wide table. When a table has more columns "
     "than can be returned at once, the full list is replaced by a summary (`column_count`, and "
     "where the budget allows a `type_histogram` and a `sample_columns` preview) with `truncated` "
-    "set, `truncated_by` naming the limit that was hit, and a `hint`. Call get_schema again with "
+    "set, `truncated_by` naming the limit that was hit, and a `hint`. Call {tool_name} again with "
     "a `name_contains` substring to retrieve the specific columns you need instead of the whole "
     "table."
 )
+
+
+def build_get_schema_description(*, tool_name: str = "get_schema") -> str:
+    """Render the ``get_schema`` tool description naming the tool as the model sees it."""
+    return _GET_SCHEMA_DESCRIPTION_TEMPLATE.format(tool_name=tool_name)
 
 
 def _dumps(payload: Any) -> str:
@@ -222,6 +227,7 @@ def build_schema_result(
     max_columns: int,
     max_result_bytes: int,
     name_contains: str | None = None,
+    tool_name: str = "get_schema",
 ) -> str:
     """
     Render a table's columns as a bounded JSON tool result.
@@ -238,6 +244,8 @@ def build_schema_result(
     :param name_contains: Case-insensitive substring. When given (and non-empty), only matching
         columns are considered and the value is echoed back so a filtered subset is never mistaken
         for the whole table.
+    :param tool_name: Name of the ``get_schema`` tool as the model sees it (including any
+        ``tool_prefix``), so hints point at this toolset's own tool.
     """
     name_contains = name_contains or None
     total_columns = len(columns)
@@ -258,7 +266,7 @@ def build_schema_result(
             )
         else:
             advice = (
-                f"No columns match name_contains={name_contains!r}. Call get_schema without "
+                f"No columns match name_contains={name_contains!r}. Call {tool_name} without "
                 f"name_contains to list all {total_columns} column{plural}."
             )
         return _dumps(
@@ -284,6 +292,7 @@ def build_schema_result(
         max_columns=max_columns,
         max_result_bytes=max_result_bytes,
         name_contains=name_contains,
+        tool_name=tool_name,
     )
 
 
@@ -294,6 +303,7 @@ def _summarize_schema(
     max_columns: int,
     max_result_bytes: int,
     name_contains: str | None,
+    tool_name: str,
 ) -> str:
     """Build the bounded summary returned when the full column list does not fit."""
     # Count is checked before bytes: it is the cheaper, more explainable bound. A bytes-only
@@ -309,7 +319,7 @@ def _summarize_schema(
     move = (
         "Use a more specific name_contains substring to narrow to the columns you need."
         if name_contains is not None
-        else "Call get_schema with a name_contains substring to return only the columns you need."
+        else f"Call {tool_name} with a name_contains substring to return only the columns you need."
     )
 
     output: dict[str, Any] = {

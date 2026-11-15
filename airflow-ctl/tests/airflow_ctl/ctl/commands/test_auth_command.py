@@ -24,7 +24,7 @@ from unittest.mock import patch
 
 import pytest
 
-from airflowctl.api.client import ClientKind
+from airflowctl.api.client import Client, ClientKind
 from airflowctl.api.datamodels.auth_generated import LoginResponse
 from airflowctl.ctl import cli_parser
 from airflowctl.ctl.commands import auth_command
@@ -647,3 +647,53 @@ class TestListEnvs:
             auth_command.list_envs(args)
 
             mock_get_password.assert_called_once_with("airflowctl", "api_token_prod.json.region")
+
+
+def test_login_prints_failure_containing_markup(capsys):
+    api_client = mock.MagicMock(spec=Client)
+    api_client.login.login_with_username_and_password.side_effect = RuntimeError("bad [/x]")
+
+    with pytest.raises(SystemExit) as exc_info:
+        auth_command.login(
+            cli_parser.get_parser().parse_args(
+                [
+                    "auth",
+                    "login",
+                    "--api-url",
+                    "http://localhost:8080",
+                    "--username",
+                    "user",
+                    "--password",
+                    "wrong",
+                ]
+            ),
+            api_client=api_client,
+        )
+
+    assert exc_info.value.code == 1
+    assert "bad [/x]" in capsys.readouterr().out
+
+
+def test_token_prints_failure_containing_markup(capsys):
+    api_client = mock.MagicMock(spec=Client)
+    api_client.login.login_with_username_and_password.side_effect = RuntimeError("bad [/x]")
+
+    with pytest.raises(SystemExit) as exc_info:
+        auth_command.get_token(
+            cli_parser.get_parser().parse_args(
+                [
+                    "auth",
+                    "token",
+                    "--api-url",
+                    "http://localhost:8080",
+                    "--username",
+                    "user",
+                    "--password",
+                    "wrong",
+                ]
+            ),
+            api_client=api_client,
+        )
+
+    assert exc_info.value.code == 1
+    assert "bad [/x]" in capsys.readouterr().err

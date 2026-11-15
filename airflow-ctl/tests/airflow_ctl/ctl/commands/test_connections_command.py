@@ -323,3 +323,28 @@ class TestCliConnectionCommands:
         bulk_body = mock_client.connections.bulk.call_args[0][0]
         action = bulk_body.actions[0]
         assert action.action_on_existence == expected_enum
+
+
+@pytest.mark.parametrize(
+    "bulk_setup",
+    [
+        pytest.param(
+            lambda bulk: setattr(bulk.return_value.create, "errors", ["bad [/x]"]), id="bulk-errors"
+        ),
+        pytest.param(lambda bulk: setattr(bulk, "side_effect", RuntimeError("bad [/x]")), id="exception"),
+    ],
+)
+def test_import_prints_failure_containing_markup(bulk_setup, tmp_path, capsys):
+    connections_file = tmp_path / "connections.json"
+    connections_file.write_text(json.dumps({"my_conn": {"conn_type": "http"}}))
+    api_client = mock.MagicMock(spec=Client)
+    bulk_setup(api_client.connections.bulk)
+
+    with pytest.raises(SystemExit) as exc_info:
+        connection_command.import_(
+            cli_parser.get_parser().parse_args(["connections", "import", connections_file.as_posix()]),
+            api_client=api_client,
+        )
+
+    assert exc_info.value.code == 1
+    assert "bad [/x]" in capsys.readouterr().out

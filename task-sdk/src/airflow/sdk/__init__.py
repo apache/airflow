@@ -61,6 +61,7 @@ __all__ = [
     "emit_dag_warning",
     "EventsTimetable",
     "ExceptionRetryPolicy",
+    "ExternalClearTarget",
     "FanOutMapper",
     "FixedKeyMapper",
     "HourWindow",
@@ -177,6 +178,7 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.decorators import result, setup, task, teardown
     from airflow.sdk.definitions.decorators.task_group import task_group
     from airflow.sdk.definitions.edges import EdgeModifier, Label
+    from airflow.sdk.definitions.external_clear import ExternalClearTarget
     from airflow.sdk.definitions.loop import LoopDecision
     from airflow.sdk.definitions.param import Param, ParamsDict
     from airflow.sdk.definitions.parse_warning import emit_dag_warning
@@ -294,6 +296,7 @@ __lazy_imports: dict[str, tuple[str, str]] = {
     "emit_dag_warning": (".definitions.parse_warning", "emit_dag_warning"),
     "EventsTimetable": (".definitions.timetables.events", "EventsTimetable"),
     "ExceptionRetryPolicy": (".definitions.retry_policy", "ExceptionRetryPolicy"),
+    "ExternalClearTarget": (".definitions.external_clear", "ExternalClearTarget"),
     "FanOutMapper": (".definitions.partition_mappers.temporal", "FanOutMapper"),
     "FixedKeyMapper": (".definitions.partition_mappers.fixed_key", "FixedKeyMapper"),
     "HourWindow": (".definitions.partition_mappers.window", "HourWindow"),

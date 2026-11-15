@@ -22,15 +22,20 @@
 from __future__ import annotations
 
 import atexit
+import logging
 import os
 import tempfile
 import threading
 import time
 from base64 import b64decode
+from collections.abc import Callable
 from contextlib import suppress
-from typing import TYPE_CHECKING
+from contextvars import ContextVar
+from http import HTTPStatus
 
 import kubernetes
+from kubernetes import client
+from kubernetes_asyncio import client as async_client
 from packaging.version import Version
 
 from airflow.providers.amazon.aws.executors.eks.utils import (
@@ -47,9 +52,7 @@ from airflow.providers.amazon.aws.utils.eks_get_token import (
 )
 from airflow.providers.common.compat.sdk import conf
 
-if TYPE_CHECKING:
-    from kubernetes import client
-    from kubernetes_asyncio import client as async_client
+log = logging.getLogger(__name__)
 
 # UPDATING still serves the Kubernetes API, so every other status is refused.
 _USABLE_CLUSTER_STATUSES = ("ACTIVE", "UPDATING")
@@ -69,30 +72,68 @@ class _EksExecutorHook(EksHook):
         return "AwsEksExecutor"
 
 
+_TOKEN_REJECTED = "The EKS cluster rejected the token (401); retrying once with a new token."
+
+# The token the current request was sent with. Each thread and asyncio task has its own.
+_sent_token: ContextVar[str | None] = ContextVar("_sent_token", default=None)
+
+
+# A 401 means the cluster rejected the token before acting on the request, so the request, even a
+# create, is safe to send again. The new token is signed with the credentials the connection
+# resolves to now, which may have rotated since the rejected token was signed.
+class _EksApiClient(client.ApiClient):
+    def __init__(self, configuration: client.Configuration, expire_token: Callable[[], None]):
+        super().__init__(configuration=configuration)
+        self._expire_token = expire_token
+
+    def call_api(self, *args, **kwargs):
+        try:
+            return super().call_api(*args, **kwargs)
+        except client.ApiException as e:
+            if e.status != HTTPStatus.UNAUTHORIZED:
+                raise
+        log.warning(_TOKEN_REJECTED)
+        self._expire_token()
+        return super().call_api(*args, **kwargs)
+
+
+class _EksAsyncApiClient(async_client.ApiClient):
+    def __init__(self, configuration: async_client.Configuration, expire_token: Callable[[], None]):
+        super().__init__(configuration=configuration)
+        self._expire_token = expire_token
+
+    async def call_api(self, *args, **kwargs):
+        try:
+            return await super().call_api(*args, **kwargs)
+        except async_client.ApiException as e:
+            if e.status != HTTPStatus.UNAUTHORIZED:
+                raise
+        log.warning(_TOKEN_REJECTED)
+        self._expire_token()
+        return await super().call_api(*args, **kwargs)
+
+
 def _get_eks_kube_client(team_name: str | None = None) -> client.CoreV1Api:
     """Build a Kubernetes client for the team's EKS cluster, in memory and without a kubeconfig."""
-    from kubernetes import client
-
     configuration = client.Configuration()
-    _configure_eks_auth(configuration, _SYNC_TOKEN_KEY, team_name)
-    return client.CoreV1Api(client.ApiClient(configuration=configuration))
+    expire_token = _configure_eks_auth(configuration, _SYNC_TOKEN_KEY, team_name)
+    return client.CoreV1Api(_EksApiClient(configuration, expire_token))
 
 
 def _get_eks_async_kube_client(team_name: str | None = None) -> async_client.CoreV1Api:
     """Build the asynchronous Kubernetes client used when ``async_pod_creation`` is enabled."""
-    from kubernetes_asyncio import client as async_client
-
     configuration = async_client.Configuration()
     # kubernetes_asyncio has always used "BearerToken".
-    _configure_eks_auth(configuration, "BearerToken", team_name)
-    return async_client.CoreV1Api(async_client.ApiClient(configuration=configuration))
+    expire_token = _configure_eks_auth(configuration, "BearerToken", team_name)
+    return async_client.CoreV1Api(_EksAsyncApiClient(configuration, expire_token))
 
 
 def _configure_eks_auth(
     configuration: client.Configuration | async_client.Configuration,
     token_key: str,
     team_name: str | None,
-) -> None:
+) -> Callable[[], None]:
+    """Set up EKS token auth, and return a function that makes the next request get a new token."""
     # The factories run where there is no executor, such as the pod watcher process, so they look
     # up the team's config themselves, the same way ExecutorConf does. Airflow releases without
     # multi-team don't accept team_name.
@@ -134,18 +175,33 @@ def _configure_eks_auth(
     # makes that happen now, so the first request already has a token.
     token: str | None = None
     refresh_at = 0.0
+    token_lock = threading.Lock()
 
     def refresh_api_key(config: client.Configuration | async_client.Configuration) -> None:
         nonlocal token, refresh_at
-        if token is None or time.monotonic() >= refresh_at:
-            token = fetch_access_token_for_cluster(
-                cluster_name, sts_url, region_name=session.region_name, session=session
-            )
-            refresh_at = time.monotonic() + TOKEN_EXPIRATION_MINUTES * 60
-        config.api_key[token_key] = token
+        with token_lock:
+            if token is None or time.monotonic() >= refresh_at:
+                # Sign with the credentials the connection resolves to now: only a new session picks up
+                # static keys rotated outside the process, such as in a rewritten credentials file.
+                token = fetch_access_token_for_cluster(
+                    cluster_name, sts_url, region_name=session.region_name, session=eks_hook.get_session()
+                )
+                refresh_at = time.monotonic() + TOKEN_EXPIRATION_MINUTES * 60
+            config.api_key[token_key] = token
+            _sent_token.set(token)
+
+    def expire_token() -> None:
+        nonlocal token, eks_hook
+        with token_lock:
+            # Requests rejected with the same token, such as concurrent pod creations, share one new token.
+            if token == _sent_token.get():
+                # The hook caches the connection, so read it again in case the keys stored in it rotated.
+                eks_hook = _EksExecutorHook(aws_conn_id=conn_id, region_name=region_name)
+                token = None
 
     configuration.refresh_api_key_hook = refresh_api_key
     refresh_api_key(configuration)
+    return expire_token
 
 
 # The CA file written for each cluster CA, and the process that wrote it.

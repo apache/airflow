@@ -46,6 +46,7 @@ Structured output
 
 Set ``output_type`` to a Pydantic ``BaseModel`` subclass and the model instance is pushed to
 XCom unchanged, so downstream tasks can type-hint the class and use attribute access.
+Inside a list of types (``[MyModel, int]``) the model is pushed as a ``dict`` instead.
 :doc:`../structured_output` explains the XCom deserialization rules, the cross-Dag gap and
 ``serialize_output``.
 

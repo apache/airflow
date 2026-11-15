@@ -16,9 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Flex, Skeleton, VStack, type SelectValueChangeDetails } from "@chakra-ui/react";
+import { Box, Flex, HStack, Skeleton, VStack, type SelectValueChangeDetails } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
-import { FiSidebar } from "react-icons/fi";
+import { LuFolderInput, LuFolderOutput } from "react-icons/lu";
 import { useSearchParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
 
@@ -136,6 +136,19 @@ const BulkActionBar = ({
     </ActionBar.Root>
   );
 };
+
+// While the folder drawer is open, the toggle reaches back across the gap to the drawer and shares
+// its background, so the drawer reads as opening out of the button.
+const OPEN_FOLDER_TOGGLE_PROPS = {
+  bg: "bg.muted",
+  borderEndRadius: "full",
+  borderStartRadius: 0,
+  flexShrink: 0,
+  marginStart: -4,
+  paddingStart: 4,
+  variant: "ghost",
+  width: "52px",
+} as const;
 
 export const DagsList = () => {
   const { t: translate } = useTranslation();
@@ -320,7 +333,16 @@ export const DagsList = () => {
         {/* Only show the folder sidebar when there is something to navigate; deployments with all
             Dags at the bundle root would otherwise get an empty panel. */}
         {showFolderTree ? (
-          <Box flexShrink={0} overflowY="auto" position="sticky" top={0} width="280px">
+          <Box
+            bg="bg.muted"
+            borderRadius="md"
+            flexShrink={0}
+            overflowY="auto"
+            p={3}
+            position="sticky"
+            top={0}
+            width="280px"
+          >
             <DagFolderTree
               folders={folders}
               isLoading={foldersLoading}
@@ -354,7 +376,27 @@ export const DagsList = () => {
                         onChange={handleSearchChange}
                         placeholder={translate("dags:search.dags")}
                       />
-                      <DagsFilters />
+                      <HStack alignItems="flex-start" gap={1} w="100%">
+                        {hasFolderTree ? (
+                          <Tooltip
+                            content={translate(showFolders ? "dags:folders.hide" : "dags:folders.show")}
+                            openDelay={200}
+                            portalled
+                          >
+                            <IconButton
+                              aria-label={translate(showFolders ? "dags:folders.hide" : "dags:folders.show")}
+                              aria-pressed={showFolders}
+                              onClick={() => setShowFolders(!showFolders)}
+                              {...(showFolders
+                                ? OPEN_FOLDER_TOGGLE_PROPS
+                                : { borderRadius: "full", variant: "outline" })}
+                            >
+                              {showFolders ? <LuFolderOutput /> : <LuFolderInput />}
+                            </IconButton>
+                          </Tooltip>
+                        ) : undefined}
+                        <DagsFilters />
+                      </HStack>
                     </VStack>
                   }
                   headingExtra={<DagImportErrors iconOnly />}
@@ -364,28 +406,8 @@ export const DagsList = () => {
                   onDisplayToggleChange={handleDisplayToggleChange}
                   onStateChange={setTableURLState}
                   presentationActions={
-                    hasFolderTree || display === "card" ? (
-                      <>
-                        {hasFolderTree ? (
-                          <Tooltip
-                            content={translate(showFolders ? "dags:folders.hide" : "dags:folders.show")}
-                            openDelay={200}
-                            portalled
-                          >
-                            <IconButton
-                              aria-label={translate(showFolders ? "dags:folders.hide" : "dags:folders.show")}
-                              onClick={() => setShowFolders(!showFolders)}
-                              size="sm"
-                              variant={showFolders ? "solid" : "outline"}
-                            >
-                              <FiSidebar />
-                            </IconButton>
-                          </Tooltip>
-                        ) : undefined}
-                        {display === "card" ? (
-                          <SortSelect handleSortChange={handleSortChange} orderBy={orderBy[0]} />
-                        ) : undefined}
-                      </>
+                    display === "card" ? (
+                      <SortSelect handleSortChange={handleSortChange} orderBy={orderBy[0]} />
                     ) : undefined
                   }
                   showDisplayToggle
