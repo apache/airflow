@@ -422,7 +422,7 @@ We have the following Groups of files for CI that determine which tests are run:
   drive prek static checks rather than the test matrix, so they only trigger the CI image build (via the
   `Prek files` group) — `mypy-scripts` and the image-based static checks still run, but the full test
   matrix does not; and **non-test workflows** (`.github/workflows/` for security scans, doc publishing,
-  notifications, backporting, calendar/stale bots, …) cannot change test outcomes. Workflows that run or
+  notifications, backporting, calendar/wiki/stale bots, …) cannot change test outcomes. Workflows that run or
   configure the test suite (`ci-amd`, `ci-arm`, `run-unit-tests`, `k8s-tests`, `helm-tests`, image builds,
   …) still force the full matrix.
 * `Prek files` - `scripts/ci/prek/...` static-check hooks. They do not force full tests, but they trigger

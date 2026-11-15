@@ -331,8 +331,9 @@ repos:
           PYTHONPYCACHEPREFIX: .build/pycache
         entry: ./scripts/ci/prek/check_fork_ci_gate_config.py
         language: python
-        files: ^\.github/fork-ci-gate\.toml$|^dev/breeze/src/airflow_breeze/utils/fork_ci_gate\.py$
+        files: ^\.github/fork-ci-gate\.toml$|^dev/breeze/src/airflow_breeze/utils/fork_ci_gate\.py$|^\.asf\.yaml$
         pass_filenames: false
+        additional_dependencies: ['pyyaml']
       - id: check-java-sdk-version-in-sync
         name: Check Java SDK JDK version is consistent across build files
         env:
@@ -1021,12 +1022,12 @@ repos:
         files: ^dev/breeze/src/airflow_breeze/utils/docker_command_utils\.py$|^scripts/ci/docker_compose/local\.yml$
         pass_filenames: false
       - id: check-extras-order
-        name: Check order of extras in Dockerfile
+        name: Check order of extras in Dockerfile and sync its defaults to the docs
         env:
           PYTHONPYCACHEPREFIX: .build/pycache
         entry: ./scripts/ci/prek/check_order_dockerfile_extras.py
         language: python
-        files: ^Dockerfile$
+        files: ^Dockerfile$|^docker-stack-docs/build-arg-ref\.rst$
         pass_filenames: false
       - id: generate-airflow-diagrams
         name: Generate airflow diagrams
@@ -1039,7 +1040,8 @@ repos:
           ^airflow-core/docs/.*/diagram_[^/]*\.py$|
           ^contributing-docs/images/diagram_[^/]*\.py$|
           ^docs/images/.*\.py$|
-          ^airflow-ctl/docs/images/diagrams/.*\.py$
+          ^airflow-ctl/docs/images/diagrams/.*\.py$|
+          ^dev/breeze/doc/ci/images/diagram_[^/]*\.py$
         pass_filenames: true
       - id: prevent-deprecated-sqlalchemy-usage
         name: Prevent deprecated sqlalchemy usage
@@ -1727,6 +1729,16 @@ repos:
         entry: ./scripts/ci/prek/checkout_no_credentials.py
         language: python
         pass_filenames: true
+        files: ^\.github/workflows/.*\.yml$
+      - id: check-scheduled-workflows-skip-forks
+        name: Check scheduled workflows skip their cron runs in forks
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
+        description: Forks that enable Actions get every cron, so each scheduled job must skip outside apache/airflow
+        entry: ./scripts/ci/prek/check_scheduled_workflows_skip_forks.py
+        language: python
+        pass_filenames: true
+        require_serial: true
         files: ^\.github/workflows/.*\.yml$
       - id: check-docstring-param-types
         name: Check that docstrings do not specify param types
