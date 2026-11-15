@@ -50,6 +50,8 @@ from airflow.sdk.api.datamodels._generated import (
     AssetResponse,
     AssetStateStorePutBody,
     AssetStateStoreResponse,
+    CallbackTerminalState,
+    CallbackTerminalStatePayload,
     ConnectionResponse,
     ConnectionTestConnectionResponse,
     ConnectionTestResultBody,
@@ -59,6 +61,7 @@ from airflow.sdk.api.datamodels._generated import (
     DagRunNoteUpdatePayload,
     DagRunStateResponse,
     DagRunType,
+    ExternalClearTargetPayload,
     HITLDetailRequest,
     HITLDetailResponse,
     HITLUser,
@@ -342,6 +345,7 @@ class TaskInstanceOperations:
         rendered_map_index,
         *,
         loop_decision: LoopDecisionPayload | None = None,
+        external_clear_target: ExternalClearTargetPayload | None = None,
     ):
         """Tell the API server that this TI has succeeded."""
         body = TISuccessStatePayload(
@@ -350,6 +354,7 @@ class TaskInstanceOperations:
             outlet_events=outlet_events,
             rendered_map_index=rendered_map_index,
             loop_decision=loop_decision,
+            external_clear_target=external_clear_target,
         )
         self.client.patch(f"task-instances/{id}/state", content=body.model_dump_json())
 
@@ -1200,6 +1205,11 @@ class CallbackOperations:
     def run(self, callback_id: uuid.UUID) -> None:
         """Exchange the single-use callback token for an execution token."""
         self.client.patch(f"callbacks/{callback_id}/run")
+
+    def finish(self, callback_id: uuid.UUID, state: CallbackTerminalState, output: str | None = None) -> None:
+        """Report the terminal state of a callback to the API server."""
+        body = CallbackTerminalStatePayload(state=state, output=output)
+        self.client.patch(f"callbacks/{callback_id}/state", content=body.model_dump_json())
 
 
 class BearerAuth(httpx2.Auth):

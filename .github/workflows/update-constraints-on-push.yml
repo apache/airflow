@@ -78,7 +78,8 @@ jobs:
     # runs are limited to release managers (same allowlist as the prod image
     # release workflow) because they push to the protected constraints-* branches.
     if: >-
-      github.event_name != 'workflow_dispatch' ||
+      github.repository == 'apache/airflow' &&
+      (github.event_name != 'workflow_dispatch' ||
       contains(fromJSON('[
       "ashb",
       "bugraoz93",
@@ -92,7 +93,7 @@ jobs:
       "utkarsharma2",
       "vincbeck",
       "vatsrahul1001",
-      ]'), github.event.sender.login)
+      ]'), github.event.sender.login))
     outputs:
       default-branch: ${{ steps.selective-checks.outputs.default-branch }}
       default-constraints-branch: ${{ steps.selective-checks.outputs.default-constraints-branch }}

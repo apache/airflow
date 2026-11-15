@@ -95,7 +95,7 @@ def test_docs_only_change_mirrors_the_ci_cell():
     files = ("airflow-core/docs/index.rst",)
     sc = _selective_checks(files)
     result = build_local_verification_plan(sc, files, "main", full_tests_needed=False)
-    assert [item["command"] for item in result["items"]] == ["breeze build-docs apache-airflow"]
+    assert [item["command"] for item in result["items"]] == ["breeze build-docs apache-airflow task-sdk"]
 
 
 def test_core_change_splits_db_and_non_db_cells():
@@ -153,15 +153,14 @@ def test_empty_diff_lists_nothing():
     assert plan["manual_prek_hooks"] == []
 
 
-@pytest.mark.parametrize("full", [False, True])
-def test_prek_jobs_are_not_listed(full: bool):
+def test_prek_jobs_are_not_listed():
     files = (
         "providers/amazon/src/airflow/providers/amazon/hooks/s3.py",
         "airflow-core/src/airflow/migrations/versions/0001_example.py",
     )
     sc = _selective_checks(files)
     assert all(getattr(sc, flag) for flag in PREK_JOBS)
-    plan = build_local_verification_plan(sc, files, "main", full_tests_needed=False, full=full)
+    plan = build_local_verification_plan(sc, files, "main", full_tests_needed=False)
     assert not any("prek" in item["command"] for item in plan["items"])
     assert plan["manual_prek_hooks"] == ["mypy-providers", "migration-round-trip"]
 
@@ -180,13 +179,6 @@ def test_prek_job_hooks_are_not_installed_by_default(hook: str):
     ]
     assert stages, f"{hook} is not defined in any .pre-commit-config.yaml"
     assert all("pre-commit" not in hook_stages for hook_stages in stages)
-
-
-def test_full_plan_skips_shared_distributions_when_there_are_none():
-    plan = build_local_verification_plan(
-        _mock_selective_checks(), (), "main", full_tests_needed=False, full=True
-    )
-    assert [item["command"] for item in plan["items"]] == ["cd dev/breeze && uv run --locked pytest"]
 
 
 def test_release_branch_drops_providers_tests():
@@ -234,7 +226,19 @@ def test_lean_and_full_plans_agree_when_the_change_does_not_expand():
     )
 
 
-def test_full_plan_adds_the_jobs_ci_runs_on_every_pr():
+@pytest.mark.parametrize(
+    ("files", "expected"),
+    [
+        pytest.param(("shared/logging/src/airflow_shared/logging/config.py",), True, id="shared-change"),
+        pytest.param(("airflow-core/docs/index.rst",), False, id="docs-change"),
+    ],
+)
+def test_shared_distributions_tests_are_listed_only_for_their_files(files, expected):
+    plan = build_local_verification_plan(_selective_checks(files), files, "main", full_tests_needed=False)
+    assert any(i["command"].startswith("for dist in shared/*/") for i in plan["items"]) is expected
+
+
+def test_full_plan_adds_breeze_tests_for_any_change():
     files = ("airflow-core/docs/index.rst",)
     sc = _selective_checks(files)
     lean = build_local_verification_plan(sc, files, "main", full_tests_needed=False)["items"]
@@ -242,9 +246,6 @@ def test_full_plan_adds_the_jobs_ci_runs_on_every_pr():
     assert [i["command"] for i in full] == [
         *(i["command"] for i in lean),
         "cd dev/breeze && uv run --locked pytest",
-        "for d in "
-        + " ".join(sorted(json.loads(sc.shared_distributions_as_json)))
-        + "; do (cd shared/$d && uv run --group dev pytest) || exit 1; done",
     ]
 
 

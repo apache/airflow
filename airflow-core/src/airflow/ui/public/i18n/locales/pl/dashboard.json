@@ -23,22 +23,22 @@
   "deferredSlotsNotCountedTooltip": "Odroczone zadania pokazane na pasku są liczone do slotów puli. Odroczone zadania pokazane pod paskiem pochodzą z pul, które liczą sloty, nie licząc odroczonych zadań.",
   "favorite": {
     "favoriteDags_few": "Pierwsze {{count, number}} ulubione Dagi",
-    "favoriteDags_many": "Pierwsze {{count, number}} ulubionych Dagów",
+    "favoriteDags_many": "Pierwszych {{count, number}} ulubionych Dagów",
     "favoriteDags_one": "Pierwszy ulubiony Dag",
     "favoriteDags_other": "Pierwsze {{count, number}} ulubione Dagi",
-    "noDagRuns": "Brak uruchomień dla tego Daga.",
+    "noDagRuns": "Brak wykonań dla tego Daga.",
     "noFavoriteDags": "Brak ulubionych. Kliknij ikonę gwiazdki obok Daga na liście, aby dodać go do ulubionych."
   },
   "group": "Grupa",
   "health": {
-    "dagProcessor": "Processor Dagów",
+    "dagProcessor": "Procesor Dagów",
     "degraded": "Ograniczony",
     "degradedHint": {
       "dagProcessor": "Niektóre skonfigurowane paczki Dagów nie są parsowane przez żaden procesor Dagów.",
       "triggerer": "Niektóre zespoły nie mają działającego wyzwalacza, który obsługiwałby ich odroczone zadania."
     },
     "down": "Niedostępny",
-    "health": "Stan Systemu",
+    "health": "Stan systemu",
     "healthy": "Prawidłowy",
     "instances": {
       "bundles": "Paczki Dagów",
@@ -50,8 +50,8 @@
       "title_other": "{{title}} — {{status}} ({{count, number}} instancji)",
       "unknownHostname": "Nieznany host"
     },
-    "lastHeartbeat": "Ostatni czas sprawdzenia",
-    "metaDatabase": "Baza Danych Meta",
+    "lastHeartbeat": "Ostatni sygnał",
+    "metaDatabase": "Baza metadanych",
     "scheduler": "Planer zadań",
     "status": "Stan",
     "triggerer": "Wyzwalacz",
@@ -60,6 +60,7 @@
   },
   "history": "Historia",
   "importErrors": {
+    "bundle": "Paczka Dagów",
     "dagImportError_few": "Błędy importu Dagów",
     "dagImportError_many": "Błędów importu Dagów",
     "dagImportError_one": "Błąd importu Daga",
@@ -71,17 +72,17 @@
   "noAssetEvents": "Nie znaleziono zdarzeń zasobów.",
   "poolSlots": "Sloty puli",
   "sortBy": {
-    "newestFirst": "Najnowsze Pierwsze",
-    "oldestFirst": "Najstarsze Pierwsze",
+    "newestFirst": "Najpierw najnowsze",
+    "oldestFirst": "Najpierw najstarsze",
     "placeholder": "Sortuj według"
   },
-  "source": "Kod źródłowy",
+  "source": "Źródło",
   "stats": {
     "activeDags": "Aktywne Dagi",
     "failedDags": "Nieudane Dagi",
     "queuedDags": "Zakolejkowane Dagi",
     "requiredActions": "Wymagane akcje",
-    "runningDags": "Wykonane Dagi",
+    "runningDags": "Wykonywane Dagi",
     "stats": "Statystyki"
   },
   "uri": "Uri",

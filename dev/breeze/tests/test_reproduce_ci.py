@@ -106,7 +106,8 @@ def test_build_checkout_reproduction_commands_fetches_pull_request_ref(pr_ref_ki
     assert commands[1].argv == ["git", "checkout", "merge-sha"]
 
 
-def test_build_checkout_reproduction_commands_plain_sha(monkeypatch):
+@mock.patch("airflow_breeze.utils.reproduce_ci.read_head_parents", autospec=True, return_value=["abc123"])
+def test_build_checkout_reproduction_commands_plain_sha(mock_parents, monkeypatch):
     monkeypatch.delenv("GITHUB_REF", raising=False)
     monkeypatch.setenv("GITHUB_SHA", "def456")
 
@@ -114,6 +115,35 @@ def test_build_checkout_reproduction_commands_plain_sha(monkeypatch):
 
     assert len(commands) == 1
     assert commands[0].argv == ["git", "checkout", "def456"]
+
+
+@pytest.mark.parametrize(
+    ("parents", "merged"),
+    [
+        pytest.param(["base789", "def456"], True, id="fork-ci-merge"),
+        pytest.param(["def456", "other"], False, id="other-merge"),
+        pytest.param([], False, id="parents-unknown"),
+    ],
+)
+@mock.patch("airflow_breeze.utils.reproduce_ci.read_head_parents", autospec=True)
+def test_build_checkout_reproduction_commands_recreates_the_fork_ci_merge(
+    mock_parents, parents, merged, monkeypatch
+):
+    mock_parents.return_value = parents
+    monkeypatch.setenv("GITHUB_REF", "refs/heads/my-change")
+    monkeypatch.setenv("GITHUB_SHA", "def456")
+
+    commands = build_checkout_reproduction_commands("someone/airflow")
+
+    if merged:
+        assert [command.argv for command in commands] == [
+            ["git", "fetch", "https://github.com/someone/airflow.git", "def456"],
+            ["git", "fetch", "https://github.com/apache/airflow.git", "base789"],
+            ["git", "checkout", "def456"],
+            ["git", "merge", "--no-edit", "base789"],
+        ]
+    else:
+        assert [command.argv for command in commands] == [["git", "checkout", "def456"]]
 
 
 @mock.patch("airflow_breeze.utils.reproduce_ci.get_console", autospec=True)

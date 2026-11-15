@@ -20,8 +20,10 @@ import json
 from unittest.mock import patch
 
 import pytest
+from structlog.typing import FilteringBoundLogger
 
 from airflow.providers.common.ai.durable import storage as storage_module
+from airflow.providers.common.ai.durable.journal import DurableJournal
 from airflow.providers.common.ai.durable.storage import DurableStorage
 from airflow.providers.common.compat.sdk import ObjectStoragePath
 
@@ -124,6 +126,77 @@ class TestDeleteSteps:
 
     def test_deleting_when_there_is_no_file_does_not_raise(self, storage):
         storage.delete_steps(["a"])
+
+
+def store_down():
+    return patch.object(DurableStorage, "_write", autospec=True, side_effect=OSError("store unavailable"))
+
+
+class TestStoreFailures:
+    def test_a_failed_write_skips_the_step_without_raising(self, storage):
+        with store_down(), patch.object(storage_module, "log", spec=FilteringBoundLogger) as mock_log:
+            assert not storage.save_step("k", ENTRY)
+
+        assert storage.load_step("k") is None
+        mock_log.warning.assert_called_once_with(
+            "Durable: could not write the journal file", key="k", exc_info=True
+        )
+
+    def test_a_failed_write_keeps_the_previous_value_of_a_step(self, storage):
+        storage.save_step("meta", {"high_water": 1})
+
+        with store_down():
+            assert not storage.save_step("meta", {"high_water": 2})
+
+        assert storage.load_step("meta") == {"high_water": 1}
+
+    def test_an_entry_that_cannot_be_encoded_keeps_the_previous_value_of_a_step(self, storage):
+        storage.save_step("meta", {"high_water": 1})
+
+        assert not storage.save_step("meta", {"high_water": object()})
+
+        assert storage.load_step("meta") == {"high_water": 1}
+
+    def test_a_skipped_step_is_not_written_by_a_later_save(self, storage, tmp_path):
+        with store_down():
+            storage.save_step("skipped", ENTRY)
+        storage.save_step("written", ENTRY)
+
+        (journal_file,) = tmp_path.iterdir()
+        assert set(json.loads(journal_file.read_text())) == {"written"}
+
+    def test_an_outage_after_the_work_succeeded_does_not_fail_the_task(self, storage):
+        journal = DurableJournal(storage)
+        first, second = journal.start_run(), journal.start_run()
+        first.save(0, ENTRY)
+        second.save(0, ENTRY)
+
+        with store_down():
+            journal.cleanup()
+
+    def test_an_outage_does_not_replace_the_error_the_run_failed_with(self, storage):
+        run = DurableJournal(storage).start_run()
+        run.save(0, ENTRY)
+
+        with store_down():
+            run.fail(RuntimeError("the agent's own error"))
+
+
+class TestJournalThatIsNotAnObject:
+    @pytest.mark.parametrize(
+        "content",
+        [
+            pytest.param(b"{truncated", id="cut off mid-write"),
+            pytest.param(b'["not", "a", "journal"]', id="a JSON list"),
+            pytest.param(b"null", id="JSON null"),
+        ],
+    )
+    def test_is_handled_like_a_journal_cut_off_mid_write(self, storage, content):
+        storage._get_path().write_bytes(content)
+
+        assert storage.load_step("k") is None
+        assert storage.save_step("k", ENTRY)
+        assert storage.load_step("k") == ENTRY
 
 
 class TestMissingConfig:
