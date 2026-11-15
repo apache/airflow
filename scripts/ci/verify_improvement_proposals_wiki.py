@@ -220,24 +220,41 @@ def find_macro_body_end(body: str, start: int) -> int:
     return len(body)
 
 
+def find_macro_body_start(body: str, start: int) -> int | None:
+    """
+    Return where the rich-text body of the macro whose opening tag continues at ``start`` begins.
+
+    ``None`` when the macro is self-closing or its parameters are followed by anything but its
+    own body. The parameters are walked one at a time rather than with one repeated pattern:
+    a repeated group whose items can each span markup backtracks exponentially when no body
+    follows (CodeQL ``py/redos``).
+    """
+    opening = re.compile(r"[^>]*>").match(body, start)
+    if not opening or opening.group().endswith("/>"):
+        return None
+    pos = opening.end()
+    while parameter := re.compile(r"\s*<ac:parameter\b[^>]*>").match(body, pos):
+        if parameter.group().endswith("/>"):
+            pos = parameter.end()
+            continue
+        closing = body.find("</ac:parameter>", parameter.end())
+        if closing == -1:
+            return None
+        pos = closing + len("</ac:parameter>")
+    rich_text = re.compile(r"\s*<ac:rich-text-body>").match(body, pos)
+    return rich_text.end() - len("<ac:rich-text-body>") if rich_text else None
+
+
 def find_properties(body: str) -> list[dict[str, str]]:
     """Return the rows of each Page Properties block as {key: value storage HTML}."""
     blocks = []
     for match in re.finditer(r'<ac:structured-macro ac:name="details"', body):
         # Only a table inside the macro's own rich-text body is read by the index report; a
-        # self-closing macro, or one with no body, has no properties. A parameter's value may not
-        # run past its own closing tag: `.*?` there backtracks exponentially when no body follows.
-        opening = re.match(
-            r"[^>]*?(/?)>"
-            r"(?:\s*<ac:parameter[^>]*?(?:/>|(?<!/)>(?:(?!</ac:parameter>).)*</ac:parameter>))*"
-            r"\s*<ac:rich-text-body>",
-            body[match.end() :],
-            re.S,
-        )
-        if not opening or opening.group(1):
+        # self-closing macro, or one with no body, has no properties.
+        body_start = find_macro_body_start(body, match.end())
+        if body_start is None:
             macro_body = ""
         else:
-            body_start = match.end() + opening.end() - len("<ac:rich-text-body>")
             macro_body = body[body_start : find_macro_body_end(body, body_start)]
         rows: dict[str, str] = {}
         for cells in find_table_rows(macro_body):
