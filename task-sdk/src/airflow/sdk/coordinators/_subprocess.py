@@ -803,7 +803,11 @@ class _PopenActivitySubprocess(ActivitySubprocess):
         self, msg: GetXCom, log: FilteringBoundLogger, req_id: int
     ) -> RequestResult | ResponseSent:
         result, dump_opts = handle_get_xcom(self.client, msg)
-        if not (isinstance(result, XComResult) and result.value is not None and _is_loaded_through_backend()):
+        if not (
+            isinstance(result, XComResult)
+            and result.value is not None
+            and _is_loaded_through_backend(msg.key)
+        ):
             return result, dump_opts
         return self._call_xcom_backend(
             XComBackendCall(hook="load", key=msg.key, value=result.value),
@@ -815,7 +819,7 @@ class _PopenActivitySubprocess(ActivitySubprocess):
         self, msg: GetXComSequenceItem, log: FilteringBoundLogger, req_id: int
     ) -> RequestResult | ResponseSent:
         result, dump_opts = handle_get_xcom_sequence_item(self.client, msg)
-        if not (isinstance(result, XComSequenceIndexResult) and _is_loaded_through_backend()):
+        if not (isinstance(result, XComSequenceIndexResult) and _is_loaded_through_backend(msg.key)):
             return result, dump_opts
         return self._call_xcom_backend(
             XComBackendCall(hook="load", key=msg.key, value=result.root),
@@ -827,7 +831,11 @@ class _PopenActivitySubprocess(ActivitySubprocess):
         self, msg: GetXComSequenceSlice, log: FilteringBoundLogger, req_id: int
     ) -> RequestResult | ResponseSent:
         result, dump_opts = handle_get_xcom_sequence_slice(self.client, msg)
-        if not (isinstance(result, XComSequenceSliceResult) and result.root and _is_loaded_through_backend()):
+        if not (
+            isinstance(result, XComSequenceSliceResult)
+            and result.root
+            and _is_loaded_through_backend(msg.key)
+        ):
             return result, dump_opts
         return self._call_xcom_backend(
             XComBackendCall(hook="load_many", key=msg.key, value=result.root),
@@ -901,8 +909,15 @@ def _get_xcom_backend() -> type[BaseXCom]:
     return xcom.XCom
 
 
-def _is_loaded_through_backend() -> bool:
-    return runs_in_helper(_get_xcom_backend())
+def _is_loaded_through_backend(key: str) -> bool:
+    """
+    Whether the value of ``key`` read from the XCom row must be resolved through the XCom backend.
+
+    Mirrors the set-side gate: a key that bypasses the backend when it is set (the skip decision and
+    operator extra links, which readers consume from the row as it is) holds its value as it is in the
+    row, so a get of it must not run the backend's load hook on that raw value.
+    """
+    return is_stored_through_backend(key) and not _is_extra_link(key) and runs_in_helper(_get_xcom_backend())
 
 
 def _is_extra_link(key: str) -> bool:
