@@ -185,7 +185,7 @@ Reconciling pull requests gated to fork CI
 ------------------------------------------
 
 Pull requests from external contributors can run their CI in the contributor's fork instead of in
-``apache/airflow`` (AIP-120). The ``fork-ci-reconcile`` command, run every 15 minutes by the
+``apache/airflow`` (AIP-120). The ``fork-ci-reconcile`` command, run every 5 minutes by the
 ``fork-ci-monitor.yml`` workflow, is the only place that changes those pull requests: it labels newly
 gated pull requests ``fork ci required``, keeps them in draft until the fork run is green, maintains
 one state comment and a ``Fork CI / Tests (AMD)`` commit status linking to the run in the fork, closes
