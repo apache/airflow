@@ -1975,7 +1975,7 @@ export const prefetchUseXcomServiceGetXcomEntry = (queryClient: QueryClient, { d
 * @param data.mapIndex
 * @param data.regionId
 * @param data.regionIndex
-* @param data.excludeInternalKeys Leave out XComs whose keys Airflow reserves for itself, such as loop decision reasons.
+* @param data.excludeInternalKeys Leave out XComs whose keys Airflow reserves for itself, such as loop decision reasons and cross-Dag clear targets.
 * @param data.limit
 * @param data.offset
 * @param data.xcomKeyPattern Case-insensitive substring match (SQL `ILIKE`). Slower than `xcom_key_prefix_pattern` on large tables — see "Filtering with pattern parameters".
@@ -2504,13 +2504,29 @@ export const prefetchUseGridServiceGetGridRuns = (queryClient: QueryClient, { da
 * @param data The data for the request.
 * @param data.dagId
 * @param data.runIds
+* @param data.startDateGte
+* @param data.startDateGt
+* @param data.startDateLte
+* @param data.startDateLt
+* @param data.endDateGte
+* @param data.endDateGt
+* @param data.endDateLte
+* @param data.endDateLt
 * @returns string NDJSON stream — one ``GridTISummaries`` JSON object per line, one per Dag run
 * @throws ApiError
 */
-export const prefetchUseGridServiceGetGridTiSummariesStream = (queryClient: QueryClient, { dagId, runIds }: {
+export const prefetchUseGridServiceGetGridTiSummariesStream = (queryClient: QueryClient, { dagId, endDateGt, endDateGte, endDateLt, endDateLte, runIds, startDateGt, startDateGte, startDateLt, startDateLte }: {
   dagId: string;
+  endDateGt?: string;
+  endDateGte?: string;
+  endDateLt?: string;
+  endDateLte?: string;
   runIds?: string[];
-}) => queryClient.prefetchQuery({ queryKey: Common.UseGridServiceGetGridTiSummariesStreamKeyFn({ dagId, runIds }), queryFn: () => GridService.getGridTiSummariesStream({ dagId, runIds }) });
+  startDateGt?: string;
+  startDateGte?: string;
+  startDateLt?: string;
+  startDateLte?: string;
+}) => queryClient.prefetchQuery({ queryKey: Common.UseGridServiceGetGridTiSummariesStreamKeyFn({ dagId, endDateGt, endDateGte, endDateLt, endDateLte, runIds, startDateGt, startDateGte, startDateLt, startDateLte }), queryFn: () => GridService.getGridTiSummariesStream({ dagId, endDateGt, endDateGte, endDateLt, endDateLte, runIds, startDateGt, startDateGte, startDateLt, startDateLte }) });
 /**
 * Get Loop Summary
 * Summarize one loop invocation from the run's live task instances.

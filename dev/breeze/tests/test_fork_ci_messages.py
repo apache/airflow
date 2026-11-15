@@ -30,11 +30,14 @@ from airflow_breeze.utils.fork_ci_messages import (
     CI_MODIFICATION_MARKER,
     CI_PASSED_DESCRIPTION,
     CI_PASSED_REVOKED_DESCRIPTION,
+    CONTRIBUTING_URL,
     FOOTER,
     GATED_NOTE_SENTENCE,
     JOB_NAME_MAX_LENGTH,
     JOB_STATUS_CONTEXT_PREFIX,
     MAX_LISTED_CI_FILES,
+    MAX_LISTED_FAILED_JOBS,
+    FailedJob,
     Marker,
     ci_change_approval_comment,
     ci_modification_note_comment,
@@ -46,6 +49,7 @@ from airflow_breeze.utils.fork_ci_messages import (
     released_comment,
     render_marker,
     state_comment,
+    strip_failed_job_list,
     tamper_close_comment,
     ungated_comment,
     workflow_disabled_comment,
@@ -60,6 +64,7 @@ MARKER = Marker(state="awaiting_push", sha="abc123", since=datetime(2026, 10, 15
         pytest.param(MARKER, id="without-behind"),
         pytest.param(replace(MARKER, behind=12), id="behind"),
         pytest.param(replace(MARKER, jobs="123:SUCCESS"), id="jobs"),
+        pytest.param(replace(MARKER, failed_run="123:2"), id="failed-run"),
         pytest.param(replace(MARKER, gate_checked=True), id="gate-checked"),
     ],
 )
@@ -88,6 +93,74 @@ def test_state_comment_warns_about_a_branch_far_behind(state, behind, warned):
     )
 
     assert ("commits behind `v3-1-test`" in text) is warned
+
+
+@pytest.mark.parametrize(
+    ("state", "author_draft", "asks_to_mark_ready"),
+    [
+        pytest.param("green", True, True, id="green-author-draft"),
+        pytest.param("green_unverified", True, True, id="unverified-author-draft"),
+        pytest.param("green", False, False, id="green-ready"),
+        pytest.param("failed", True, False, id="failed-author-draft"),
+    ],
+)
+def test_state_comment_asks_the_author_to_mark_a_green_draft_ready(state, author_draft, asks_to_mark_ready):
+    text = state_comment(
+        Marker(state, "a", MARKER.since), fork="u/airflow", run_url=None, author_draft=author_draft
+    )
+
+    assert ("mark it ready for review" in text.lower()) is asks_to_mark_ready
+    assert ("ask a maintainer to mark it ready" in text) is asks_to_mark_ready
+
+
+@pytest.mark.parametrize("startup_failure", [False, True])
+def test_state_comment_links_the_contributor_documentation(startup_failure):
+    text = state_comment(
+        Marker("failed", "a", MARKER.since), fork="u/airflow", run_url=None, startup_failure=startup_failure
+    )
+
+    assert f"How this works: [CI in your fork]({CONTRIBUTING_URL})." in text
+    assert CONTRIBUTING_URL.endswith("18_contribution_workflow.rst#ci-in-your-fork")
+    assert "08_fork_ci_for_external_contributors" not in text
+    assert text.endswith(FOOTER)
+
+
+def test_failed_job_list_is_safe_markdown_and_capped():
+    jobs = [
+        FailedJob("Tests `evil`\n\n@someone", "https://job/0", "timed_out"),
+        *(
+            FailedJob(f"Job {i}", f"https://job/{i + 1}", "failure")
+            for i in range(MAX_LISTED_FAILED_JOBS + 1)
+        ),
+    ]
+
+    text = state_comment(
+        Marker("failed", "a", MARKER.since), fork="u/airflow", run_url=None, failed_jobs=jobs
+    )
+
+    assert "- [`Tests ?evil???@someone`](https://job/0): timed out" in text
+    assert "\n@someone" not in text
+    assert "- [`Job 0`](https://job/1): failed" in text
+    assert "- and 2 more, see the run" in text
+
+
+def test_failed_jobs_are_listed_only_for_a_failed_state():
+    jobs = [FailedJob("Static checks", "https://job/1", "failure")]
+
+    text = state_comment(
+        Marker("running", "a", MARKER.since), fork="u/airflow", run_url=None, failed_jobs=jobs
+    )
+
+    assert "Static checks" not in text
+
+
+def test_strip_failed_job_list_leaves_the_comment_without_the_list():
+    marker = Marker("failed", "a", MARKER.since)
+    jobs = [FailedJob(f"Job {i}", f"https://job/{i}", "failure") for i in range(MAX_LISTED_FAILED_JOBS + 1)]
+
+    listed = state_comment(marker, fork="u/airflow", run_url="https://run", failed_jobs=jobs)
+
+    assert strip_failed_job_list(listed) == state_comment(marker, fork="u/airflow", run_url="https://run")
 
 
 def test_parse_marker_absent():
