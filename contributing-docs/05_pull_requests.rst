@@ -284,6 +284,11 @@ The runs of PRs opened from the repositories of trusted stakeholders (``astronom
 ``aws-mwaa/upstream-to-airflow`` and ``VladaZakharova/airflow``) are always approved, so none of
 the rules above apply to them.
 
+Once a maintainer approves your PR in a review of its latest commit, its waiting runs are approved
+too, whatever the rules above say: the maintainer has read the change, CI changes included. A
+review of an earlier commit does not count for a later push, and neither does an approval the
+maintainer later replaced with a request for changes.
+
 Each new push is checked again, because approval applies to one commit. Only runs started in the
 last 24 hours are considered, so older waiting runs stay with maintainers. If your PR does not
 qualify, it gets the ``need workflow approval`` label and a maintainer approves the runs after

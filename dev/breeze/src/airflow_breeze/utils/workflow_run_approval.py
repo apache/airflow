@@ -243,6 +243,44 @@ def decide_trusted_approval(*, stakeholder: str) -> ApprovalDecision:
     )
 
 
+# Review states that replace a reviewer's earlier verdict; a COMMENTED review leaves it standing.
+REVIEW_VERDICT_STATES = frozenset({"APPROVED", "CHANGES_REQUESTED", "DISMISSED"})
+# Repository permissions of maintainers. Collaborators granted triage through .asf.yaml report `read`.
+MAINTAINER_PERMISSIONS = frozenset({"admin", "write"})
+
+
+def find_head_approver(api: GitHubApi, pr: dict[str, Any]) -> str | None:
+    """
+    A maintainer whose latest verdict on the PR approves its head commit; None without one.
+
+    A maintainer who approved the exact head commit has reviewed every change in it, CI changes
+    included, which is what approving its runs by hand asks of them. An approval of an earlier
+    commit does not cover a later push, and a later request for changes or a dismissal withdraws it.
+    """
+    latest: dict[str, dict[str, Any]] = {}
+    # Listed oldest first, so each reviewer's last verdict wins.
+    for review in api.get_reviews(pr["number"]):
+        login = (review.get("user") or {}).get("login")
+        if login and review.get("state") in REVIEW_VERDICT_STATES:
+            latest[login] = review
+    for login, review in latest.items():
+        if (
+            review["state"] == "APPROVED"
+            and review.get("commit_id") == pr["head"]["sha"]
+            and api.get_permission(login) in MAINTAINER_PERMISSIONS
+        ):
+            return login
+    return None
+
+
+def decide_reviewed_approval(*, reviewer: str) -> ApprovalDecision:
+    return ApprovalDecision(
+        approve=True,
+        reasons=[f"{reviewer}, a maintainer, approved its head commit"],
+        decision_labels=frozenset(),
+    )
+
+
 # Files CI uses that do not decide the build-info outputs: a change to them is reviewed with the rest
 # of the pull request, and only noted on it.
 CI_MODIFYING_PREFIXES = (
@@ -422,6 +460,19 @@ class GitHubApi:
 
     def get_open_pull_requests(self) -> list[dict[str, Any]]:
         return self._get_paginated("pulls?state=open&per_page=100")
+
+    def get_reviews(self, pr_number: int) -> list[dict[str, Any]]:
+        return self._get_paginated(f"pulls/{pr_number}/reviews?per_page=100")
+
+    def get_permission(self, login: str) -> str:
+        """The user's permission on the repository: ``admin``, ``write``, ``read`` or ``none``."""
+        response = self._session.get(
+            f"{GITHUB_API_URL}/repos/{self.github_repository}/collaborators/{login}/permission", timeout=60
+        )
+        if response.status_code == 404:
+            return "none"
+        response.raise_for_status()
+        return response.json().get("permission") or "none"
 
     def approve_run(self, run_id: int) -> None:
         if self.report_only:
@@ -698,6 +749,8 @@ def process_waiting_runs(api: GitHubApi, *, created_since: datetime) -> list[Pul
                     decision = ApprovalDecision(
                         approve=False, reasons=["its head commit is the head of several open PRs"]
                     )
+                elif (reviewer := find_head_approver(api, pr)) is not None:
+                    decision = decide_reviewed_approval(reviewer=reviewer)
                 else:
                     decision = decide_for_pull_request(api=api, pr=pr)
                 pr_run_ids = run_ids
