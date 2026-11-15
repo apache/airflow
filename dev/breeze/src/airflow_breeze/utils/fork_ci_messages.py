@@ -55,9 +55,9 @@ CI_PASSED_PROJECT_DESCRIPTION = "Project CI passed for this commit"
 CI_RUN_STARTED_CONTEXT = "CI run started"
 CI_RUN_STARTED_DESCRIPTION = "CI runs in the contributor's fork - details open the run"
 CI_RUN_STARTED_PROJECT_DESCRIPTION = "Project CI runs in apache/airflow - details open the run"
-# A fork run tests the head commit as it is, not merged with the base branch as project CI does. From
-# this many commits behind, `CI passed` is withheld until the branch is rebased, as it is when the
-# base branch changed any file the pull request changes.
+# From this many commits behind the base branch commit a fork run tested with, `CI passed` is withheld
+# until the branch is rebased. A run that tested the head commit as it is, not merged with the base
+# branch, also gets none when the base branch has since changed a file the pull request changes.
 MAX_BEHIND_COMMITS = 200
 # Overlapping files named in the state comment; the marker keeps them all.
 OVERLAP_LISTED = 10
@@ -97,20 +97,24 @@ class BaseCheck:
     """
     The base a green fork run tested, compared with the base branch when the run turned green.
 
-    :param sha: the merge base of the head commit and the base branch, the base the run tested.
+    :param sha: the base branch commit the run tested the head commit merged with; for a run that
+        tested the head commit as it is, the merge base of the head commit and the base branch.
     :param behind: commits on the base branch since ``sha``.
     :param overlap: paths that both the pull request and the base branch since ``sha`` change;
-        None when GitHub listed too many changed files on either side to tell.
+        None when GitHub listed too many changed files on either side to tell. Not checked for a
+        merged run, which tested the base branch's changes until ``sha`` with the pull request.
+    :param merged: whether the run tested the head commit merged with ``sha``, as project CI does.
     """
 
     sha: str
     behind: int
     overlap: tuple[str, ...] | None = ()
+    merged: bool = False
 
     @property
     def is_current(self) -> bool:
         """Whether the run tested close enough to the merged result for `CI passed`."""
-        return self.behind < MAX_BEHIND_COMMITS and self.overlap == ()
+        return self.behind < MAX_BEHIND_COMMITS and (self.merged or self.overlap == ())
 
 
 @dataclass(frozen=True)
@@ -132,11 +136,14 @@ class Marker:
 def render_marker(marker: Marker) -> str:
     data: dict[str, object] = {"state": marker.state, "sha": marker.sha, "since": marker.since.isoformat()}
     if marker.base is not None:
-        data["base"] = {
+        base: dict[str, object] = {
             "sha": marker.base.sha,
             "behind": marker.base.behind,
             "overlap": None if marker.base.overlap is None else list(marker.base.overlap),
         }
+        if marker.base.merged:
+            base["merged"] = True
+        data["base"] = base
     if marker.jobs is not None:
         data["jobs"] = marker.jobs
     if marker.failed_run is not None:
@@ -165,6 +172,7 @@ def parse_marker(body: str) -> Marker | None:
                 sha=base["sha"],
                 behind=base["behind"],
                 overlap=None if base["overlap"] is None else tuple(base["overlap"]),
+                merged=base.get("merged") is True,
             ),
             jobs=data.get("jobs"),
             failed_run=data.get("failed_run"),
@@ -290,6 +298,20 @@ def strip_failed_job_list(body: str) -> str:
 
 
 def tested_base_text(base: BaseCheck, *, base_ref: str) -> str:
+    if base.merged:
+        text = (
+            f"Fork CI tested this branch merged with `{base_ref}` at "
+            f"[`{base.sha[:10]}`](https://github.com/apache/airflow/commit/{base.sha}), as project CI "
+            f"would, {base.behind} commits behind `{base_ref}` when the run turned green."
+        )
+        if base.is_current:
+            return text
+        return (
+            f"{text}\n\n**Rebase needed.** That is too far behind to say much about the merged result. "
+            f"The `CI passed` check is not reported until fork CI is green for a branch rebased on "
+            f"`{base_ref}`:\n\n"
+            f"```bash\ngit fetch upstream\ngit rebase upstream/{base_ref}\ngit push --force-with-lease\n```"
+        )
     text = (
         f"Fork CI tested this branch on top of `{base_ref}` at "
         f"[`{base.sha[:10]}`](https://github.com/apache/airflow/commit/{base.sha}), "
@@ -320,6 +342,10 @@ _REBASE_NEEDED_PREFIX = "Rebase on "
 
 
 def ci_passed_description(base: BaseCheck, *, base_ref: str) -> str:
+    if base.merged:
+        return (
+            f"{_FORK_CI_PASSED_PREFIX}; merged with {base_ref}@{base.sha[:10]}, {base.behind} commits behind"
+        )
     return (
         f"{_FORK_CI_PASSED_PREFIX}; base {base_ref}@{base.sha[:10]} was {base.behind} commits behind, "
         "no overlap"

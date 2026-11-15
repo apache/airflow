@@ -62,6 +62,7 @@ from airflow_breeze.utils.fork_ci_reconcile import (
     BypassFinder,
     DraftChange,
     ForkObservation,
+    ForkRunMerge,
     ForkState,
     GateChangeFinder,
     JobStatusReporter,
@@ -90,6 +91,7 @@ from airflow_breeze.utils.fork_ci_reconcile import (
     find_project_ci_passed_url,
     find_project_ci_run_url,
     find_state_comment,
+    find_tested_merge,
     is_cancelled_gate_run,
     is_gated_skip_run,
     is_own_pilot_change,
@@ -105,6 +107,7 @@ from airflow_breeze.utils.fork_ci_reconcile import (
     read_job_status_failure_runs,
     read_project_ci_passed_url,
     read_project_ci_run_url,
+    read_tested_merge,
     report_project_ci_passed,
     report_project_ci_runs_started,
     run_reconcile,
@@ -2957,6 +2960,137 @@ def test_compare_with_base(client, responses, expected, expected_calls):
     assert [call.args[0] for call in client.rest_get.call_args_list] == expected_calls
 
 
+TESTED_BASE = "b" * 40
+TESTED_MERGE_BASE = "e" * 40
+TESTED = ForkRunMerge("providers-fab/v1-5", TESTED_BASE, TESTED_MERGE_BASE)
+TESTED_HEAD_COMPARE = f"repos/{REPO}/compare/{TESTED_BASE}...someone:abc123?per_page=1"
+TESTED_BASE_COMPARE = f"repos/{REPO}/compare/{TESTED_BASE}...providers-fab%2Fv1-5?per_page=1"
+
+
+def _tested_base(status="ahead", ahead_by=7):
+    return {"status": status, "ahead_by": ahead_by}
+
+
+@pytest.mark.parametrize(
+    ("tested", "responses", "expected"),
+    [
+        pytest.param(
+            TESTED,
+            [_compare(0, [], merge_base=TESTED_MERGE_BASE), _tested_base()],
+            BaseCheck(TESTED_BASE, 7, (), merged=True),
+            id="merged",
+        ),
+        pytest.param(
+            TESTED,
+            [_compare(0, [], merge_base=TESTED_MERGE_BASE), _tested_base("identical", 0)],
+            BaseCheck(TESTED_BASE, 0, (), merged=True),
+            id="merged-with-the-tip",
+        ),
+        pytest.param(
+            TESTED._replace(base_ref="main"),
+            [],
+            None,
+            id="merged-with-another-branch",
+        ),
+        pytest.param(
+            TESTED,
+            [_compare(0, [], merge_base="c" * 40), _tested_base()],
+            None,
+            id="other-merge-base",
+        ),
+        pytest.param(
+            TESTED,
+            [_compare(0, [], merge_base=TESTED_MERGE_BASE), _tested_base("diverged")],
+            None,
+            id="not-on-the-base-branch",
+        ),
+        pytest.param(
+            TESTED,
+            [GitHubError("gh api failed: HTTP 500")],
+            None,
+            id="merge-not-checkable",
+        ),
+    ],
+)
+def test_compare_with_base_checks_the_merge_the_fork_run_tested(client, tested, responses, expected):
+    client.rest_get.side_effect = responses
+
+    check = compare_with_base(
+        client, REPO, _pr(base_ref="providers-fab/v1-5"), find_tested_merge=lambda: tested
+    )
+
+    assert check == expected
+    if expected is not None:
+        assert [call.args[0] for call in client.rest_get.call_args_list] == [
+            TESTED_HEAD_COMPARE,
+            TESTED_BASE_COMPARE,
+        ]
+
+
+def _build_info(*steps):
+    return {
+        "name": "Build info",
+        "steps": [{"name": name, "conclusion": conclusion} for name, conclusion in steps],
+    }
+
+
+MERGE_STEP = (
+    f"Test merged with apache/airflow providers-fab/v1-5@{TESTED_BASE}, merge base {TESTED_MERGE_BASE}"
+)
+
+
+@pytest.mark.parametrize(
+    ("jobs", "expected"),
+    [
+        pytest.param([_build_info(("Checkout", "success"), (MERGE_STEP, "success"))], TESTED, id="named"),
+        pytest.param([_build_info((MERGE_STEP, "skipped"))], None, id="step-skipped"),
+        pytest.param(
+            [_build_info(("Test merged with apache/airflow main@, merge base ", "skipped"))],
+            None,
+            id="no-merge",
+        ),
+        pytest.param(
+            [{"name": "Static checks", "steps": [{"name": MERGE_STEP, "conclusion": "success"}]}],
+            None,
+            id="other-job",
+        ),
+        pytest.param([{"name": "Build info"}], None, id="steps-not-listed"),
+    ],
+)
+def test_find_tested_merge(jobs, expected):
+    assert find_tested_merge(jobs) == expected
+
+
+def test_read_tested_merge_reuses_the_jobs_read_in_this_run(client):
+    read_jobs = {1: [_build_info((MERGE_STEP, "success"))]}
+
+    assert read_tested_merge(client, _pr(), COMPLETED_RUN, read_jobs) == TESTED
+    client.get_run_jobs.assert_not_called()
+
+
+def test_read_tested_merge_reads_the_jobs_once(client):
+    client.get_run_jobs.return_value = [_build_info((MERGE_STEP, "success"))]
+    read_jobs: dict = {}
+
+    assert read_tested_merge(client, _pr(), COMPLETED_RUN, read_jobs) == TESTED
+    assert read_jobs == {1: client.get_run_jobs.return_value}
+
+
+def test_read_tested_merge_without_readable_jobs(client):
+    client.get_run_jobs.side_effect = GitHubError("gh api failed: HTTP 502")
+
+    with pytest.raises(GitHubError):
+        read_tested_merge(client, _pr(), COMPLETED_RUN, {})
+
+
+def test_compare_with_base_waits_for_a_readable_merge_report(client):
+    def unreadable():
+        raise GitHubError("could not read the jobs")
+
+    assert compare_with_base(client, REPO, _pr(), find_tested_merge=unreadable) is None
+    client.rest_get.assert_not_called()
+
+
 def _fork_job(name, status="completed", conclusion="success", url=None):
     return {
         "name": name,
@@ -5038,3 +5172,17 @@ def test_monitor_interval_is_the_monitor_workflow_cadence():
     crons = [entry["cron"] for entry in workflow[True]["schedule"]]
 
     assert crons == [f"*/{MONITOR_INTERVAL // timedelta(minutes=1)} * * * *"]
+
+
+@mock.patch("airflow_breeze.utils.fork_ci_reconcile.JobStatusReporter", autospec=True)
+@mock.patch("airflow_breeze.utils.fork_ci_reconcile.classify", autospec=True)
+def test_run_reconcile_compares_the_merge_the_fork_run_tested(mock_classify, mock_reporter, client, tmp_path):
+    mock_classify.return_value = Plan(state=ForkState.RUNNING)
+    mock_reporter.return_value.report.return_value = None
+    mock_reporter.return_value.deferred = []
+    mock_reporter.return_value.delayed = []
+
+    _reconcile_with_reporter(client, tmp_path)
+
+    compare_base = mock_classify.call_args.kwargs["compare_base"]
+    assert compare_base.keywords["find_tested_merge"].func is read_tested_merge

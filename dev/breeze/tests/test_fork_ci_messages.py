@@ -69,6 +69,7 @@ MARKER = Marker(state="awaiting_push", sha="abc123", since=datetime(2026, 10, 15
         pytest.param(MARKER, id="without-base"),
         pytest.param(replace(MARKER, base=BaseCheck("def456", 12, ("a.py",))), id="base"),
         pytest.param(replace(MARKER, base=BaseCheck("def456", 12, None)), id="base-unchecked"),
+        pytest.param(replace(MARKER, base=BaseCheck("def456", 12, merged=True)), id="base-merged"),
         pytest.param(replace(MARKER, jobs="123:SUCCESS"), id="jobs"),
         pytest.param(replace(MARKER, failed_run="123:2"), id="failed-run"),
         pytest.param(replace(MARKER, gate_checked=True), id="gate-checked"),
@@ -81,6 +82,10 @@ def test_marker_round_trip(marker):
 def test_marker_without_base_keeps_its_rendering():
     assert "base" not in render_marker(MARKER)
     assert "jobs" not in render_marker(MARKER)
+
+
+def test_marker_of_an_unmerged_base_keeps_its_rendering():
+    assert "merged" not in render_marker(replace(MARKER, base=BaseCheck("def456", 12)))
 
 
 def test_marker_from_before_the_base_check_has_no_base():
@@ -99,6 +104,9 @@ def test_marker_from_before_the_base_check_has_no_base():
         pytest.param(BaseCheck("d", MAX_BEHIND_COMMITS), False, id="far-behind"),
         pytest.param(BaseCheck("d", 1, ("a.py",)), False, id="overlap"),
         pytest.param(BaseCheck("d", 1, None), False, id="unchecked"),
+        pytest.param(BaseCheck("d", MAX_BEHIND_COMMITS - 1, merged=True), True, id="merged-close"),
+        pytest.param(BaseCheck("d", MAX_BEHIND_COMMITS, merged=True), False, id="merged-far-behind"),
+        pytest.param(BaseCheck("d", 1, None, merged=True), True, id="merged-overlap-not-checked"),
     ],
 )
 def test_base_check_is_current(base, current):
@@ -141,6 +149,24 @@ def test_base_check_is_current(base, current):
         ),
         pytest.param(
             "green", BaseCheck("d", 4, None), ["Rebase needed", "too many files"], [], id="unchecked"
+        ),
+        pytest.param(
+            "green",
+            BaseCheck("d" * 40, 3, merged=True),
+            [
+                "merged with `v3-1-test` at [`dddddddddd`](https://github.com/apache/airflow/commit/"
+                + "d" * 40,
+                "as project CI would, 3 commits",
+            ],
+            ["Rebase needed", "as it is"],
+            id="merged",
+        ),
+        pytest.param(
+            "green",
+            BaseCheck("d", MAX_BEHIND_COMMITS, merged=True),
+            ["merged with", "Rebase needed", "too far behind", "git rebase upstream/v3-1-test"],
+            [],
+            id="merged-far-behind",
         ),
         pytest.param("failed", BaseCheck("d", MAX_BEHIND_COMMITS), [], ["tested this branch"], id="failed"),
         pytest.param("green", None, [], ["tested this branch"], id="not-compared"),
@@ -231,6 +257,11 @@ def test_strip_failed_job_list_leaves_the_comment_without_the_list():
         pytest.param("Fork CI passed for this commit", True, id="before-the-base-check"),
         pytest.param(ci_passed_description(BaseCheck("a" * 40, 3), base_ref="main"), True, id="current-base"),
         pytest.param(
+            ci_passed_description(BaseCheck("a" * 40, 3, merged=True), base_ref="main"),
+            True,
+            id="merged-base",
+        ),
+        pytest.param(
             rebase_needed_description(BaseCheck("a" * 40, 300), base_ref="main"), True, id="rebase-needed"
         ),
         pytest.param(CI_PASSED_REVOKED_DESCRIPTION, True, id="revoked"),
@@ -304,6 +335,7 @@ def test_status_descriptions_fit_github_limit():
         *_STATUS_DESCRIPTIONS.values(),
         CI_PASSED_REVOKED_DESCRIPTION,
         ci_passed_description(BaseCheck("d" * 40, 199), base_ref=base_ref),
+        ci_passed_description(BaseCheck("d" * 40, 199, merged=True), base_ref=base_ref),
         *(
             rebase_needed_description(BaseCheck("d" * 40, 9999, overlap), base_ref=base_ref)
             for overlap in ((), ("a",) * 300, None)
@@ -352,3 +384,9 @@ def test_ci_modification_note_mentions_fork_execution_only_when_gated(gated):
 
     assert (GATED_NOTE_SENTENCE in comment) is gated
     assert comment.endswith(FOOTER)
+
+
+def test_ci_passed_description_names_the_merged_base():
+    description = ci_passed_description(BaseCheck("a" * 40, 3, merged=True), base_ref="main")
+
+    assert description == "Fork CI passed; merged with main@aaaaaaaaaa, 3 commits behind"
