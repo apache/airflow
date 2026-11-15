@@ -735,6 +735,7 @@ jobs:
         with:
           persist-credentials: false
       - name: "Merge with the base branch"
+        if: needs.build-info.outputs.merge-with != ''
         uses: ./.github/actions/merge-with-base
         with:
           merge-with: ${{ needs.build-info.outputs.merge-with }}
@@ -781,6 +782,7 @@ jobs:
         with:
           persist-credentials: false
       - name: "Merge with the base branch"
+        if: needs.build-info.outputs.merge-with != ''
         uses: ./.github/actions/merge-with-base
         with:
           merge-with: ${{ needs.build-info.outputs.merge-with }}
@@ -1407,6 +1409,7 @@ jobs:
         with:
           persist-credentials: false
       - name: "Merge with the base branch"
+        if: needs.build-info.outputs.merge-with != ''
         uses: ./.github/actions/merge-with-base
         with:
           merge-with: ${{ needs.build-info.outputs.merge-with }}
@@ -1474,6 +1477,7 @@ jobs:
         with:
           persist-credentials: false
       - name: "Merge with the base branch"
+        if: needs.build-info.outputs.merge-with != ''
         uses: ./.github/actions/merge-with-base
         with:
           merge-with: ${{ needs.build-info.outputs.merge-with }}
@@ -1520,6 +1524,7 @@ jobs:
         with:
           persist-credentials: false
       - name: "Merge with the base branch"
+        if: needs.build-info.outputs.merge-with != ''
         uses: ./.github/actions/merge-with-base
         with:
           merge-with: ${{ needs.build-info.outputs.merge-with }}
@@ -1554,6 +1559,7 @@ jobs:
         with:
           persist-credentials: false
       - name: "Merge with the base branch"
+        if: needs.build-info.outputs.merge-with != ''
         uses: ./.github/actions/merge-with-base
         with:
           merge-with: ${{ needs.build-info.outputs.merge-with }}
@@ -1614,6 +1620,7 @@ jobs:
         with:
           persist-credentials: false
       - name: "Merge with the base branch"
+        if: needs.build-info.outputs.merge-with != ''
         uses: ./.github/actions/merge-with-base
         with:
           merge-with: ${{ needs.build-info.outputs.merge-with }}
@@ -1650,6 +1657,7 @@ jobs:
         with:
           persist-credentials: false
       - name: "Merge with the base branch"
+        if: needs.build-info.outputs.merge-with != ''
         uses: ./.github/actions/merge-with-base
         with:
           merge-with: ${{ needs.build-info.outputs.merge-with }}

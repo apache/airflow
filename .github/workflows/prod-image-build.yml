@@ -191,6 +191,7 @@ jobs:
         with:
           persist-credentials: false
       - name: "Merge with the base branch"
+        if: inputs.merge-with != ''
         uses: ./.github/actions/merge-with-base
         with:
           merge-with: ${{ inputs.merge-with }}

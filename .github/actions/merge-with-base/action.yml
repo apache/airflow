@@ -19,7 +19,8 @@
 name: 'Merge with the base branch'
 description: >-
   Replace the checked-out pushed commit of a fork CI run with its merge into the base branch, the
-  commit a pull_request run of project CI tests (AIP-120). Does nothing when merge-with is empty.
+  commit a pull_request run of project CI tests (AIP-120). Callers run it only when merge-with is
+  set: the action is read from the checkout, which an older ref or a skipped checkout lacks.
 inputs:
   merge-with:
     description: >-

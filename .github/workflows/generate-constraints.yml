@@ -124,9 +124,10 @@ jobs:
           ref: ${{ inputs.checkout-ref }}
           persist-credentials: false
       - name: "Merge with the base branch"
+        if: inputs.checkout-ref == '' && inputs.merge-with != ''
         uses: ./.github/actions/merge-with-base
         with:
-          merge-with: ${{ inputs.checkout-ref == '' && inputs.merge-with || '' }}
+          merge-with: ${{ inputs.merge-with }}
       - name: "Prepare breeze & CI image: ${{ matrix.python-version }}"
         uses: ./.github/actions/prepare_breeze_and_image
         with:

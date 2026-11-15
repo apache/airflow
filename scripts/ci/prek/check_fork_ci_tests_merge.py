@@ -31,7 +31,7 @@ check covers ``ci-amd.yml``, ``ci-arm.yml`` and every workflow they call, direct
 
 - every call of a reusable workflow passes ``merge-with``, and every reusable workflow takes it;
 - in every job that checks out the pushed commit into the workspace root, the merge step follows
-  the last such checkout.
+  the last such checkout, with an ``if:`` that runs it only when ``merge-with`` is set.
 
 A checkout of another ref (a constraints branch, the gate configuration) or into a sub-directory is
 not the pull request's sources and is not counted.
@@ -117,7 +117,13 @@ def check_job(workflow_name: str, job_id: str, job: dict[str, Any]) -> list[str]
             f"job [yellow]{job_id}[/] checks out the pushed commit without a `{MERGE_ACTION}` step "
             "after its last such checkout"
         ]
-    return []
+    # The action is read from the checkout, which an older ref or a skipped checkout lacks, so it may
+    # only be loaded when there is something to merge.
+    return [
+        f"job [yellow]{job_id}[/] runs `{MERGE_ACTION}` without an `if:` that checks `merge-with`"
+        for index in merges
+        if "merge-with" not in str(steps[index].get("if", ""))
+    ]
 
 
 def check_workflow(name: str, workflow: dict[Any, Any]) -> list[str]:

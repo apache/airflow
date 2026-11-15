@@ -501,12 +501,15 @@ anything, with the `merge-with-base` action (`.github/actions/merge-with-base`):
   so every job makes the same merge commit, which is then checked out in place of the pushed commit.
 - The merge needs no write access: nothing is pushed, and fork runs keep a read-only token.
 - `merge-with` is passed to every reusable workflow a fork run calls, and is empty in every run in
-  `apache/airflow`, where the action does nothing. A workflow whose checkout takes another ref
+  `apache/airflow`. Each merge step runs only when it is set: the action is read from the checkout,
+  and a checkout of an older ref, such as a release a constraints run builds from, or a checkout a
+  matrix entry skips, has no such action. A workflow whose checkout takes another ref
   (`checkout-ref`, such as a target branch to build an image from) merges only when it checks out
   the pushed commit.
 - The `check-fork-ci-tests-merge` prek hook keeps it that way: in `ci-amd.yml`, `ci-arm.yml` and every
   workflow they call, each call passes `merge-with`, and each job that checks out the pushed commit
-  into the workspace merges after its last such checkout. `gate`, `build-info`, `notify-slack` and
+  into the workspace merges after its last such checkout, in a step whose `if:` checks `merge-with`.
+  `gate`, `build-info`, `notify-slack` and
   `summarize-warnings` are exempt: they read the pushed commit or only report on the run.
 - `build-info` names the merge in a step, "Test merged with apache/airflow
   `<branch>`@`<commit>`, merge base `<commit>`", from which the reconciler learns what the run

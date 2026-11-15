@@ -21,7 +21,11 @@ import yaml
 from check_fork_ci_tests_merge import MERGE_ACTION, check_job, check_workflow, main
 
 CHECKOUT = {"uses": "actions/checkout@v7"}
-MERGE = {"uses": MERGE_ACTION, "with": {"merge-with": "${{ inputs.merge-with }}"}}
+MERGE = {
+    "if": "inputs.merge-with != ''",
+    "uses": MERGE_ACTION,
+    "with": {"merge-with": "${{ inputs.merge-with }}"},
+}
 
 
 @pytest.mark.parametrize(
@@ -29,6 +33,11 @@ MERGE = {"uses": MERGE_ACTION, "with": {"merge-with": "${{ inputs.merge-with }}"
     [
         pytest.param([CHECKOUT, MERGE], True, id="merge-after-checkout"),
         pytest.param([CHECKOUT], False, id="no-merge"),
+        pytest.param(
+            [CHECKOUT, {key: value for key, value in MERGE.items() if key != "if"}],
+            False,
+            id="merge-unguarded",
+        ),
         pytest.param([MERGE, CHECKOUT], False, id="merge-before-checkout"),
         pytest.param(
             [CHECKOUT, MERGE, {"uses": "actions/checkout@v7", "with": {"ref": "${{ github.sha }}"}}],
