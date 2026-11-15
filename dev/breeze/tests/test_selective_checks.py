@@ -2815,6 +2815,11 @@ def test_ui_compile_hooks_not_skipped_when_ui_openapi_spec_changes(files: tuple[
             {"full-tests-needed": "false"},
             id="Non-test workflow (ci-notification) does not force full tests",
         ),
+        pytest.param(
+            (".github/workflows/scheduled-verify-improvement-proposals-wiki.yml",),
+            {"full-tests-needed": "false"},
+            id="Non-test workflow (improvement proposals wiki check) does not force full tests",
+        ),
     ],
 )
 def test_non_test_workflows_do_not_force_full_tests(files: tuple[str, ...], expected_outputs: dict[str, str]):
