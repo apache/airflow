@@ -132,12 +132,14 @@ CI in your fork
 
 Pull requests from contributors who are not committers or collaborators are moving to running
 their CI in the contributor's own fork, on GitHub's free runners, instead of on the shared CI
-capacity of the Apache Software Foundation (`AIP-120
-<https://cwiki.apache.org/confluence/spaces/AIRFLOW/pages/451974711/AIP-120+Run+CI+for+external+contributions+in+contributor+forks>`__).
+capacity of the Apache Software Foundation (`ADIP-12, formerly AIP-120
+<https://cwiki.apache.org/confluence/spaces/AIRFLOW/pages/451974711>`__).
 CI on a public fork costs you nothing and has no minute limit; it runs on every push to your
 fork, so you get feedback before a maintainer looks at your pull request. The change is being
 piloted: until it is switched on for everyone, it applies to pilot participants (see below) and
-to pull requests a maintainer labels ``use fork ci``.
+to pull requests a maintainer labels ``use fork ci``. The `pull request lifecycle
+<../dev/breeze/doc/ci/08_fork_ci_for_external_contributors.md#pull-request-lifecycle>`__ diagram
+shows what your pull request shows at each step and who acts next.
 
 Set up your checkout and fork once:
 
@@ -187,10 +189,19 @@ draft it. A
 ``Fork CI / Tests (AMD)`` status on the pull request links to that run, and one comment on the pull
 request explains the current state. Once the run is green, a pull request the monitor drafted is
 marked ready for review and labelled ``ready for maintainer review``; a pull request you drafted
-yourself stays a draft, and gets the label, once you mark it ready. A pull request whose fork CI
+yourself stays a draft, and gets the label, once you mark it ready. Marking a draft ready needs a
+free slot under the `limit on open pull requests <32_open_pull_request_limit.rst>`__: at the limit,
+GitHub refuses it, also when a maintainer tries, so close or finish one of your other open pull
+requests first. A pull request whose fork CI
 does not run for 30 days is closed with an explanation; you can reopen it after setting up fork CI. If your pull request changes
 files that decide which CI jobs run and where, such as ``.github/``, the breeze sources or
 ``scripts/ci/prek/``, a green fork run is not enough: a maintainer reviews the change and runs project CI for it.
+
+Fork CI tests your branch as it is, while project CI tests it merged with the target branch. The
+``CI passed`` check that merging requires is therefore reported only when your branch is fewer than
+200 commits behind the target branch and the target branch has not changed any file your pull request
+changes since your branch's base. Otherwise the pull request comment lists those files and asks you
+to rebase on ``upstream/main`` (or the target branch) and push, which runs fork CI again.
 
 **Joining the pilot.** Open a pull request that adds your GitHub login to the ``[pilot]`` table in
 ``.github/fork-ci-gate.toml``, with a join instant after the expected merge, for example the next day

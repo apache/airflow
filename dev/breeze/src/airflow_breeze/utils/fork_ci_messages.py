@@ -45,7 +45,6 @@ JOB_NAME_MAX_LENGTH = 100
 # CI's gate job reports it; for a gated pull request, which never runs project CI, the reconciler
 # reports it from the fork run.
 CI_PASSED_CONTEXT = "CI passed"
-CI_PASSED_DESCRIPTION = "Fork CI passed for this commit"
 CI_PASSED_REVOKED_DESCRIPTION = "Fork CI result no longer trusted for this commit"
 # Replaces a fork `success` on a pull request carrying `use project ci` until project CI has passed.
 CI_PASSED_WAITING_PROJECT_CI_DESCRIPTION = "Waiting for project CI (use project ci)"
@@ -56,9 +55,12 @@ CI_PASSED_PROJECT_DESCRIPTION = "Project CI passed for this commit"
 CI_RUN_STARTED_CONTEXT = "CI run started"
 CI_RUN_STARTED_DESCRIPTION = "CI runs in the contributor's fork - details open the run"
 CI_RUN_STARTED_PROJECT_DESCRIPTION = "Project CI runs in apache/airflow - details open the run"
-# A fork run tests the head commit as it is, not merged with the base branch. Further behind than
-# this, it says little about the result after merge.
-BEHIND_WARNING_COMMITS = 200
+# A fork run tests the head commit as it is, not merged with the base branch as project CI does. From
+# this many commits behind, `CI passed` is withheld until the branch is rebased, as it is when the
+# base branch changed any file the pull request changes.
+MAX_BEHIND_COMMITS = 200
+# Overlapping files named in the state comment; the marker keeps them all.
+OVERLAP_LISTED = 10
 MARKER_PREFIX = "<!-- fork-ci-gate: "
 MARKER_PATTERN = re.compile(r"<!-- fork-ci-gate: (?P<payload>.*?) -->")
 # Texts on pull requests are for their authors, so they link the contributor documentation; it links
@@ -66,6 +68,9 @@ MARKER_PATTERN = re.compile(r"<!-- fork-ci-gate: (?P<payload>.*?) -->")
 CONTRIBUTING_URL = (
     "https://github.com/apache/airflow/blob/main/contributing-docs/18_contribution_workflow.rst"
     "#ci-in-your-fork"
+)
+OPEN_PR_LIMIT_URL = (
+    "https://github.com/apache/airflow/blob/main/contributing-docs/32_open_pull_request_limit.rst"
 )
 WHY_AUTOMATED_URL = (
     "https://github.com/apache/airflow/blob/main/contributing-docs/25_maintainer_pr_triage.md"
@@ -88,12 +93,33 @@ WHY_FORK_CI = (
 
 
 @dataclass(frozen=True)
+class BaseCheck:
+    """
+    The base a green fork run tested, compared with the base branch when the run turned green.
+
+    :param sha: the merge base of the head commit and the base branch, the base the run tested.
+    :param behind: commits on the base branch since ``sha``.
+    :param overlap: paths that both the pull request and the base branch since ``sha`` change;
+        None when GitHub listed too many changed files on either side to tell.
+    """
+
+    sha: str
+    behind: int
+    overlap: tuple[str, ...] | None = ()
+
+    @property
+    def is_current(self) -> bool:
+        """Whether the run tested close enough to the merged result for `CI passed`."""
+        return self.behind < MAX_BEHIND_COMMITS and self.overlap == ()
+
+
+@dataclass(frozen=True)
 class Marker:
     state: str
     sha: str
     since: datetime
-    # Commits the head commit was behind its base branch when its fork CI turned green.
-    behind: int | None = None
+    # Set when the head commit's fork CI turned green and its base could be compared.
+    base: BaseCheck | None = None
     # The completed fork run (``<run id>:<attempt>:<conclusion>``) whose jobs are all reported.
     jobs: str | None = None
     # The fork run (``<run id>:<attempt>``) whose failed jobs the comment lists.
@@ -105,8 +131,12 @@ class Marker:
 
 def render_marker(marker: Marker) -> str:
     data: dict[str, object] = {"state": marker.state, "sha": marker.sha, "since": marker.since.isoformat()}
-    if marker.behind is not None:
-        data["behind"] = marker.behind
+    if marker.base is not None:
+        data["base"] = {
+            "sha": marker.base.sha,
+            "behind": marker.base.behind,
+            "overlap": None if marker.base.overlap is None else list(marker.base.overlap),
+        }
     if marker.jobs is not None:
         data["jobs"] = marker.jobs
     if marker.failed_run is not None:
@@ -123,11 +153,19 @@ def parse_marker(body: str) -> Marker | None:
         return None
     try:
         data = json.loads(match.group("payload"))
+        # A marker written before the base was checked carries only "behind"; its base is checked again.
+        base = data.get("base")
         return Marker(
             state=data["state"],
             sha=data["sha"],
             since=datetime.fromisoformat(data["since"]),
-            behind=data.get("behind"),
+            base=None
+            if base is None
+            else BaseCheck(
+                sha=base["sha"],
+                behind=base["behind"],
+                overlap=None if base["overlap"] is None else tuple(base["overlap"]),
+            ),
             jobs=data.get("jobs"),
             failed_run=data.get("failed_run"),
             gate_checked=data.get("gate_checked") is True,
@@ -184,18 +222,21 @@ _STATE_TEXTS = {
     "gate_modified": "**Fork CI: closed.** This pull request changes the fork CI gate; see the comment below.",
 }
 
-_ASK_A_MAINTAINER_TO_MARK_READY = (
-    "If GitHub does not let you mark it ready because you reached the limit of open pull requests, "
-    "comment here and ask a maintainer to mark it ready for you."
+# Drafts do not count towards the open pull request limit, so marking one ready needs a free slot.
+# GitHub refuses it at the limit whoever tries, maintainers included.
+_FREE_A_SLOT_TO_MARK_READY = (
+    f"If GitHub does not let you mark it ready, you have reached the [limit of open pull requests]"
+    f"({OPEN_PR_LIMIT_URL}): drafts do not count towards it, so this one needs a free slot. Close or "
+    "finish one of your other open pull requests first; a maintainer cannot mark it ready for you either."
 )
 
 _AUTHOR_DRAFT_TEXTS = {
     "green": "**Fork CI: green.** CI for the latest commit passed in your fork. The pull request is a "
     "draft, so maintainers do not review it yet. Mark it ready for review when it is. "
-    f"{_ASK_A_MAINTAINER_TO_MARK_READY}",
+    f"{_FREE_A_SLOT_TO_MARK_READY}",
     "green_unverified": "**Fork CI: green.** CI for the latest commit passed in your fork, but "
     f"{_CHANGES_CI_FILES} The pull request is a draft. Once you mark it ready for review, a maintainer "
-    f"will review the change and run project CI for it. {_ASK_A_MAINTAINER_TO_MARK_READY}",
+    f"will review the change and run project CI for it. {_FREE_A_SLOT_TO_MARK_READY}",
 }
 
 
@@ -248,11 +289,64 @@ def strip_failed_job_list(body: str) -> str:
     return "\n\n".join(part for part in body.split("\n\n") if not part.startswith(FAILED_JOB_LIST_HEADING))
 
 
-def behind_warning(behind: int, *, base_ref: str) -> str:
+def tested_base_text(base: BaseCheck, *, base_ref: str) -> str:
+    text = (
+        f"Fork CI tested this branch on top of `{base_ref}` at "
+        f"[`{base.sha[:10]}`](https://github.com/apache/airflow/commit/{base.sha}), "
+        f"{base.behind} commits behind `{base_ref}` when the run turned green. Fork CI tests the branch "
+        f"as it is, while project CI would test it merged with the current `{base_ref}`."
+    )
+    if base.is_current:
+        return f"{text} No commit since changed a file this pull request changes."
+    if base.overlap is None:
+        reason = f"`{base_ref}` changed too many files since to tell whether it changed the same files."
+    elif base.overlap:
+        listed = ", ".join(f"`{path}`" for path in base.overlap[:OVERLAP_LISTED])
+        more = len(base.overlap) - OVERLAP_LISTED
+        reason = f"`{base_ref}` changed files this pull request changes since: {listed}" + (
+            f" and {more} more." if more > 0 else "."
+        )
+    else:
+        reason = "That is too far behind to say much about the merged result."
     return (
-        f"**This branch is {behind} commits behind `{base_ref}`.** Fork CI tests the branch as it is, "
-        f"while the merged result also contains those commits, so it can still fail after the merge. "
-        f"Rebase on `{base_ref}` and push to test it against the current code."
+        f"{text}\n\n**Rebase needed.** {reason} The `CI passed` check is not reported until fork CI is "
+        f"green for a branch rebased on `{base_ref}`:\n\n"
+        f"```bash\ngit fetch upstream\ngit rebase upstream/{base_ref}\ngit push --force-with-lease\n```"
+    )
+
+
+_FORK_CI_PASSED_PREFIX = "Fork CI passed"
+_REBASE_NEEDED_PREFIX = "Rebase on "
+
+
+def ci_passed_description(base: BaseCheck, *, base_ref: str) -> str:
+    return (
+        f"{_FORK_CI_PASSED_PREFIX}; base {base_ref}@{base.sha[:10]} was {base.behind} commits behind, "
+        "no overlap"
+    )
+
+
+def rebase_needed_description(base: BaseCheck, *, base_ref: str) -> str:
+    if base.overlap is None:
+        why = f"{base_ref} changed too many files since to check"
+    elif base.overlap:
+        why = f"{base_ref} changed {len(base.overlap)} of the same files since"
+    else:
+        why = f"base is {base.behind} commits behind"
+    return f"{_REBASE_NEEDED_PREFIX}{base_ref} and push: {why}"
+
+
+def is_fork_ci_passed_description(description: str | None) -> bool:
+    """
+    Whether a `CI passed` status description is one the reconciler wrote from a fork run.
+
+    The prefix also matches "Fork CI passed for this commit", written before the base was checked.
+    """
+    if not description:
+        return False
+    return description.startswith((_FORK_CI_PASSED_PREFIX, _REBASE_NEEDED_PREFIX)) or description in (
+        CI_PASSED_WAITING_PROJECT_CI_DESCRIPTION,
+        CI_PASSED_REVOKED_DESCRIPTION,
     )
 
 
@@ -274,12 +368,8 @@ def state_comment(
     if startup_failure:
         text = STARTUP_FAILURE_TEXT
     parts = [render_marker(marker), text or _STATE_TEXTS[marker.state], WHY_FORK_CI]
-    if (
-        marker.state in ("green", "green_unverified")
-        and marker.behind is not None
-        and marker.behind >= BEHIND_WARNING_COMMITS
-    ):
-        parts.append(behind_warning(marker.behind, base_ref=base_ref))
+    if marker.state in ("green", "green_unverified") and marker.base is not None:
+        parts.append(tested_base_text(marker.base, base_ref=base_ref))
     if run_url:
         parts.append(f"Latest run: {run_url}")
     if marker.state == "failed" and failed_jobs:
