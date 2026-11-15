@@ -189,7 +189,10 @@ draft it. A
 ``Fork CI / Tests (AMD)`` status on the pull request links to that run, and one comment on the pull
 request explains the current state. Once the run is green, a pull request the monitor drafted is
 marked ready for review and labelled ``ready for maintainer review``; a pull request you drafted
-yourself stays a draft, and gets the label, once you mark it ready. A pull request whose fork CI
+yourself stays a draft, and gets the label, once you mark it ready. Marking a draft ready needs a
+free slot under the `limit on open pull requests <32_open_pull_request_limit.rst>`__: at the limit,
+GitHub refuses it, also when a maintainer tries, so close or finish one of your other open pull
+requests first. A pull request whose fork CI
 does not run for 30 days is closed with an explanation; you can reopen it after setting up fork CI. If your pull request changes
 files that decide which CI jobs run and where, such as ``.github/``, the breeze sources or
 ``scripts/ci/prek/``, a green fork run is not enough: a maintainer reviews the change and runs project CI for it.

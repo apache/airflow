@@ -69,6 +69,9 @@ CONTRIBUTING_URL = (
     "https://github.com/apache/airflow/blob/main/contributing-docs/18_contribution_workflow.rst"
     "#ci-in-your-fork"
 )
+OPEN_PR_LIMIT_URL = (
+    "https://github.com/apache/airflow/blob/main/contributing-docs/32_open_pull_request_limit.rst"
+)
 WHY_AUTOMATED_URL = (
     "https://github.com/apache/airflow/blob/main/contributing-docs/25_maintainer_pr_triage.md"
     "#why-the-first-pass-is-automated"
@@ -219,18 +222,21 @@ _STATE_TEXTS = {
     "gate_modified": "**Fork CI: closed.** This pull request changes the fork CI gate; see the comment below.",
 }
 
-_ASK_A_MAINTAINER_TO_MARK_READY = (
-    "If GitHub does not let you mark it ready because you reached the limit of open pull requests, "
-    "comment here and ask a maintainer to mark it ready for you."
+# Drafts do not count towards the open pull request limit, so marking one ready needs a free slot.
+# GitHub refuses it at the limit whoever tries, maintainers included.
+_FREE_A_SLOT_TO_MARK_READY = (
+    f"If GitHub does not let you mark it ready, you have reached the [limit of open pull requests]"
+    f"({OPEN_PR_LIMIT_URL}): drafts do not count towards it, so this one needs a free slot. Close or "
+    "finish one of your other open pull requests first; a maintainer cannot mark it ready for you either."
 )
 
 _AUTHOR_DRAFT_TEXTS = {
     "green": "**Fork CI: green.** CI for the latest commit passed in your fork. The pull request is a "
     "draft, so maintainers do not review it yet. Mark it ready for review when it is. "
-    f"{_ASK_A_MAINTAINER_TO_MARK_READY}",
+    f"{_FREE_A_SLOT_TO_MARK_READY}",
     "green_unverified": "**Fork CI: green.** CI for the latest commit passed in your fork, but "
     f"{_CHANGES_CI_FILES} The pull request is a draft. Once you mark it ready for review, a maintainer "
-    f"will review the change and run project CI for it. {_ASK_A_MAINTAINER_TO_MARK_READY}",
+    f"will review the change and run project CI for it. {_FREE_A_SLOT_TO_MARK_READY}",
 }
 
 

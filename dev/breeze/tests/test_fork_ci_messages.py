@@ -36,6 +36,7 @@ from airflow_breeze.utils.fork_ci_messages import (
     MAX_BEHIND_COMMITS,
     MAX_LISTED_CI_FILES,
     MAX_LISTED_FAILED_JOBS,
+    OPEN_PR_LIMIT_URL,
     OVERLAP_LISTED,
     BaseCheck,
     FailedJob,
@@ -169,7 +170,9 @@ def test_state_comment_asks_the_author_to_mark_a_green_draft_ready(state, author
     )
 
     assert ("mark it ready for review" in text.lower()) is asks_to_mark_ready
-    assert ("ask a maintainer to mark it ready" in text) is asks_to_mark_ready
+    assert ("Close or finish one of your other open pull requests first" in text) is asks_to_mark_ready
+    assert (OPEN_PR_LIMIT_URL in text) is asks_to_mark_ready
+    assert "ask a maintainer to mark it ready" not in text
 
 
 @pytest.mark.parametrize("startup_failure", [False, True])

@@ -556,9 +556,10 @@ request is the author's draft: a draft whose last convert-to-draft event was not
 `fork_ci_reconcile.py` holds this table, and `test_projection_table` checks it. The table follows
 one rule: a draft waits for the author, `ready for maintainer review` waits for a maintainer
 review, and `needs project ci` waits for a maintainer to review the CI change and add
-`use project ci`. GitHub can refuse to let an author at the open pull request limit mark a draft
-ready, so the state comment of a green author's draft tells the author to ask a maintainer to mark
-it ready instead.
+`use project ci`. Drafts do not count towards the open pull request limit, so marking a draft ready
+needs a free slot: GitHub refuses it for an author at the limit, whoever tries, maintainers
+included. The state comment of a green author's draft therefore tells the author to close or finish
+one of their other open pull requests first.
 
 | State | Next | Draft | `ready for maintainer review` | `needs project ci` |
 |---|---|---|---|---|
