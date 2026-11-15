@@ -211,7 +211,77 @@ class TestHttpSensorTrigger:
             "data": TEST_DATA,
             "extra_options": TEST_EXTRA_OPTIONS,
             "poke_interval": 5.0,
+            "response_error_codes_allowlist": ("404",),
         }
+
+    def test_serialization_with_allowlist(self):
+        """A custom allowlist is kept across serialization."""
+        classpath, kwargs = HttpSensorTrigger(
+            http_conn_id=TEST_CONN_ID,
+            endpoint=TEST_ENDPOINT,
+            response_error_codes_allowlist=["404", "503"],
+        ).serialize()
+
+        assert classpath == "airflow.providers.http.triggers.http.HttpSensorTrigger"
+        assert kwargs["response_error_codes_allowlist"] == ("404", "503")
+
+    @pytest.mark.asyncio
+    @mock.patch(HTTP_PATH.format("asyncio.sleep"), autospec=True)
+    @mock.patch(HTTP_PATH.format("HttpAsyncHook"))
+    async def test_run_retries_allowlisted_error(self, mock_hook, mock_sleep):
+        """An allowlisted error keeps the trigger polling instead of failing."""
+        success = Future()
+        success.set_result(mock.MagicMock())
+        mock_hook.return_value.run.side_effect = [
+            HttpErrorException("503:Service Unavailable"),
+            success,
+        ]
+        trigger = HttpSensorTrigger(
+            http_conn_id=TEST_CONN_ID,
+            endpoint=TEST_ENDPOINT,
+            poke_interval=7.0,
+            response_error_codes_allowlist=["404", "503"],
+        )
+
+        event = await trigger.run().asend(None)
+
+        assert event == TriggerEvent(True)
+        assert mock_hook.return_value.run.call_count == 2
+        mock_sleep.assert_awaited_once_with(7.0)
+
+    @pytest.mark.asyncio
+    @mock.patch(HTTP_PATH.format("asyncio.sleep"), autospec=True)
+    @mock.patch(HTTP_PATH.format("HttpAsyncHook"))
+    async def test_run_raises_non_allowlisted_error(self, mock_hook, mock_sleep):
+        """A non-allowlisted error fails the trigger instead of retrying it in a tight loop."""
+        mock_hook.return_value.run.side_effect = HttpErrorException("403:Forbidden")
+        trigger = HttpSensorTrigger(
+            http_conn_id=TEST_CONN_ID,
+            endpoint=TEST_ENDPOINT,
+            response_error_codes_allowlist=["404", "503"],
+        )
+
+        with pytest.raises(HttpErrorException, match="403"):
+            await trigger.run().asend(None)
+
+        mock_sleep.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    @mock.patch(HTTP_PATH.format("asyncio.sleep"), autospec=True)
+    @mock.patch(HTTP_PATH.format("HttpAsyncHook"))
+    async def test_run_raises_404_when_allowlist_is_empty(self, mock_hook, mock_sleep):
+        """An explicitly empty allowlist makes even a 404 fail."""
+        mock_hook.return_value.run.side_effect = HttpErrorException("404:Not Found")
+        trigger = HttpSensorTrigger(
+            http_conn_id=TEST_CONN_ID,
+            endpoint=TEST_ENDPOINT,
+            response_error_codes_allowlist=[],
+        )
+
+        with pytest.raises(HttpErrorException, match="404"):
+            await trigger.run().asend(None)
+
+        mock_sleep.assert_not_awaited()
 
 
 class TestHttpEventTrigger:
