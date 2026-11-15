@@ -20,6 +20,13 @@ name: Additional PROD image tests
 on:  # yamllint disable-line rule:truthy
   workflow_call:
     inputs:
+      merge-with:
+        description: >-
+          The base branch commit and merge base to merge the pushed commit with, space-separated;
+          empty outside fork CI runs.
+        required: false
+        default: ""
+        type: string
       runners:
         description: "The array of labels (in json form) determining runners."
         required: true
@@ -137,6 +144,7 @@ jobs:
     name: PROD image extra checks (main)
     uses: ./.github/workflows/prod-image-extra-checks.yml
     with:
+      merge-with: ${{ inputs.merge-with }}
       runners: ${{ inputs.runners }}
       platform: ${{ inputs.platform }}
       python-versions: "[ '${{ inputs.default-python-version }}' ]"
@@ -154,6 +162,7 @@ jobs:
     name: PROD image extra checks (release)
     uses: ./.github/workflows/prod-image-extra-checks.yml
     with:
+      merge-with: ${{ inputs.merge-with }}
       runners: ${{ inputs.runners }}
       platform: ${{ inputs.platform }}
       python-versions: "[ '${{ inputs.default-python-version }}' ]"
@@ -186,6 +195,10 @@ jobs:
         with:
           fetch-depth: 2
           persist-credentials: false
+      - name: "Merge with the base branch"
+        uses: ./.github/actions/merge-with-base
+        with:
+          merge-with: ${{ inputs.merge-with }}
       - name: "Prepare breeze & PROD image: ${{ inputs.default-python-version }}"
         uses: ./.github/actions/prepare_breeze_and_image
         with:
@@ -225,6 +238,10 @@ jobs:
         with:
           fetch-depth: 2
           persist-credentials: false
+      - name: "Merge with the base branch"
+        uses: ./.github/actions/merge-with-base
+        with:
+          merge-with: ${{ inputs.merge-with }}
       - name: "Prepare breeze & PROD image: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
         uses: ./.github/actions/prepare_breeze_and_image
         with:
@@ -256,6 +273,10 @@ jobs:
         with:
           fetch-depth: 2
           persist-credentials: false
+      - name: "Merge with the base branch"
+        uses: ./.github/actions/merge-with-base
+        with:
+          merge-with: ${{ inputs.merge-with }}
       - name: "Prepare breeze & PROD image: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
         uses: ./.github/actions/prepare_breeze_and_image
         with:
@@ -274,6 +295,7 @@ jobs:
     if: inputs.run-generic-prod-image-tests == 'true'
     uses: ./.github/workflows/airflow-e2e-tests.yml
     with:
+      merge-with: ${{ inputs.merge-with }}
       workflow-name: "Regular e2e test"
       runners: ${{ format(inputs.runners, '8+16', '32+64') }}
       platform: ${{ inputs.platform }}
@@ -284,6 +306,7 @@ jobs:
     name: "Remote logging tests with PROD image"
     uses: ./.github/workflows/airflow-e2e-tests.yml
     with:
+      merge-with: ${{ inputs.merge-with }}
       workflow-name: "Remote logging e2e test"
       runners: ${{ format(inputs.runners, '4+8', '16+32') }}
       platform: ${{ inputs.platform }}
@@ -298,6 +321,7 @@ jobs:
     name: "Elasticsearch remote logging tests with PROD image"
     uses: ./.github/workflows/airflow-e2e-tests.yml
     with:
+      merge-with: ${{ inputs.merge-with }}
       workflow-name: "Elasticsearch remote logging e2e test"
       runners: ${{ format(inputs.runners, '8+16', '32+64') }}
       platform: ${{ inputs.platform }}
@@ -312,6 +336,7 @@ jobs:
     name: "OpenSearch remote logging tests with PROD image"
     uses: ./.github/workflows/airflow-e2e-tests.yml
     with:
+      merge-with: ${{ inputs.merge-with }}
       workflow-name: "OpenSearch remote logging e2e test"
       runners: ${{ format(inputs.runners, '8+16', '32+64') }}
       platform: ${{ inputs.platform }}
@@ -327,6 +352,7 @@ jobs:
     if: inputs.run-generic-prod-image-tests == 'true'
     uses: ./.github/workflows/airflow-e2e-tests.yml
     with:
+      merge-with: ${{ inputs.merge-with }}
       workflow-name: "XCom object storage backend e2e test"
       runners: ${{ format(inputs.runners, '4+8', '16+32') }}
       platform: ${{ inputs.platform }}
@@ -338,6 +364,7 @@ jobs:
     name: "Event driven tests with PROD image"
     uses: ./.github/workflows/airflow-e2e-tests.yml
     with:
+      merge-with: ${{ inputs.merge-with }}
       workflow-name: "Event driven e2e test"
       runners: ${{ format(inputs.runners, '8+16', '32+64') }}
       platform: ${{ inputs.platform }}
@@ -352,6 +379,7 @@ jobs:
     name: "Java SDK e2e tests with PROD image"
     uses: ./.github/workflows/airflow-e2e-tests.yml
     with:
+      merge-with: ${{ inputs.merge-with }}
       workflow-name: "Java SDK e2e test"
       runners: ${{ format(inputs.runners, '8+16', '32+64') }}
       platform: ${{ inputs.platform }}
@@ -366,6 +394,7 @@ jobs:
     name: "Go SDK e2e tests with PROD image"
     uses: ./.github/workflows/airflow-e2e-tests.yml
     with:
+      merge-with: ${{ inputs.merge-with }}
       workflow-name: "Go SDK e2e test"
       runners: ${{ format(inputs.runners, '8+16', '32+64') }}
       platform: ${{ inputs.platform }}
@@ -380,6 +409,7 @@ jobs:
     name: "TypeScript SDK e2e tests with PROD image"
     uses: ./.github/workflows/airflow-e2e-tests.yml
     with:
+      merge-with: ${{ inputs.merge-with }}
       workflow-name: "TypeScript SDK e2e test"
       runners: ${{ format(inputs.runners, '8+16', '32+64') }}
       platform: ${{ inputs.platform }}
@@ -394,6 +424,7 @@ jobs:
     name: "YAML Dag e2e tests with PROD image"
     uses: ./.github/workflows/airflow-e2e-tests.yml
     with:
+      merge-with: ${{ inputs.merge-with }}
       workflow-name: "YAML Dag e2e test"
       runners: ${{ format(inputs.runners, '8+16', '32+64') }}
       platform: ${{ inputs.platform }}
@@ -408,6 +439,7 @@ jobs:
     name: "Language SDK XCom object storage backend tests with PROD image"
     uses: ./.github/workflows/airflow-e2e-tests.yml
     with:
+      merge-with: ${{ inputs.merge-with }}
       workflow-name: "Language SDK XCom object storage backend e2e test"
       runners: ${{ format(inputs.runners, '8+16', '32+64') }}
       platform: ${{ inputs.platform }}
@@ -423,6 +455,7 @@ jobs:
     name: "OpenLineage e2e tests with PROD image"
     uses: ./.github/workflows/airflow-e2e-tests.yml
     with:
+      merge-with: ${{ inputs.merge-with }}
       workflow-name: "OpenLineage e2e test"
       runners: ${{ format(inputs.runners, '8+16', '32+64') }}
       platform: ${{ inputs.platform }}
@@ -444,6 +477,7 @@ jobs:
         compat: ${{ fromJSON(inputs.providers-compatibility-tests-matrix) }}
     uses: ./.github/workflows/openlineage-e2e-compat-tests.yml
     with:
+      merge-with: ${{ inputs.merge-with }}
       runners: ${{ format(inputs.runners, '8+16', '32+64') }}
       platform: ${{ inputs.platform }}
       default-python-version: "${{ inputs.default-python-version }}"
@@ -455,6 +489,7 @@ jobs:
     name: "Chromium UI e2e tests with PROD image"
     uses: ./.github/workflows/ui-e2e-tests.yml
     with:
+      merge-with: ${{ inputs.merge-with }}
       workflow-name: "Chromium UI e2e tests"
       runners: ${{ inputs.runners }}
       platform: ${{ inputs.platform }}
@@ -467,6 +502,7 @@ jobs:
     name: "Firefox UI e2e tests with PROD image"
     uses: ./.github/workflows/ui-e2e-tests.yml
     with:
+      merge-with: ${{ inputs.merge-with }}
       workflow-name: "Firefox UI e2e tests"
       runners: ${{ inputs.runners }}
       platform: ${{ inputs.platform }}
@@ -479,6 +515,7 @@ jobs:
     name: "WebKit UI e2e tests with PROD image"
     uses: ./.github/workflows/ui-e2e-tests.yml
     with:
+      merge-with: ${{ inputs.merge-with }}
       workflow-name: "WebKit UI e2e tests"
       runners: ${{ inputs.runners }}
       platform: ${{ inputs.platform }}
@@ -506,6 +543,10 @@ jobs:
         with:
           fetch-depth: 2
           persist-credentials: false
+      - name: "Merge with the base branch"
+        uses: ./.github/actions/merge-with-base
+        with:
+          merge-with: ${{ inputs.merge-with }}
       - name: "Prepare breeze & PROD image: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
         uses: ./.github/actions/prepare_breeze_and_image
         with:

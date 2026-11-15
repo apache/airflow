@@ -36,7 +36,7 @@ from dataclasses import asdict, dataclass, field, replace
 from datetime import UTC, datetime, timedelta
 from enum import Enum
 from pathlib import Path
-from typing import Any
+from typing import Any, NamedTuple
 from urllib.parse import quote
 
 import yaml
@@ -128,6 +128,13 @@ GATED_RUN_JOBS = (
 )
 GATED_RUN_JOB_NAMES = frozenset[str]().union(*GATED_RUN_JOBS)
 CHECK_RUN_NEEDED_JOB_NAME = "Check if the run is needed"
+BUILD_INFO_JOB_NAME = "Build info"
+# The step of build-info that names the base branch commit and merge base every job of a fork run
+# merges the head commit with (ci-amd.yml).
+TESTED_MERGE_STEP = re.compile(
+    r"^Test merged with apache/airflow (?P<base_ref>\S+)@(?P<base_sha>[0-9a-f]{40}), "
+    r"merge base (?P<merge_base>[0-9a-f]{40})$"
+)
 PROJECT_CI_NOT_RUN_JOB_NAME = "CI passed (project CI not run)"
 CI_PASSED_CANCELLED_JOB_NAME = "CI passed (run cancelled)"
 BOT_LOGINS = frozenset(
@@ -1895,29 +1902,70 @@ def find_failed_jobs(jobs: Iterable[dict[str, Any]]) -> list[FailedJob]:
 ReadJobs = dict[int, list[dict[str, Any]] | None]
 
 
+def read_run_jobs(
+    client: GitHubClient,
+    pr: PullRequestSnapshot,
+    fork: ForkObservation,
+    read_jobs: ReadJobs,
+) -> list[dict[str, Any]] | None:
+    """
+    The jobs of the pull request's fork run; None when they cannot be read.
+
+    :param read_jobs: the jobs already read in this reconciler run; a read made here is recorded too.
+    """
+    if fork.run_id is None or not pr.head_repo:
+        return None
+    if fork.run_id not in read_jobs:
+        try:
+            read_jobs[fork.run_id] = client.get_run_jobs(pr.head_repo, fork.run_id)
+        except GitHubError as e:
+            console_print(f"[warning]#{pr.number}: could not read the jobs of {fork.run_url}: {e}[/]")
+            read_jobs[fork.run_id] = None
+    return read_jobs[fork.run_id]
+
+
 def read_failed_jobs(
     client: GitHubClient,
     pr: PullRequestSnapshot,
     fork: ForkObservation,
     read_jobs: ReadJobs,
 ) -> list[FailedJob] | None:
-    """
-    ``find_failed_jobs`` of the pull request's fork run; None when its jobs cannot be read.
-
-    :param read_jobs: the jobs already read in this reconciler run; a read made here is recorded too.
-    """
+    """``find_failed_jobs`` of the pull request's fork run; None when its jobs cannot be read."""
     if fork.run_id is None or not pr.head_repo:
         return []
-    if fork.run_id in read_jobs:
-        jobs = read_jobs[fork.run_id]
-    else:
-        try:
-            jobs = client.get_run_jobs(pr.head_repo, fork.run_id)
-        except GitHubError as e:
-            console_print(f"[warning]#{pr.number}: could not read the jobs of {fork.run_url}: {e}[/]")
-            jobs = None
-        read_jobs[fork.run_id] = jobs
+    jobs = read_run_jobs(client, pr, fork, read_jobs)
     return None if jobs is None else find_failed_jobs(jobs)
+
+
+class ForkRunMerge(NamedTuple):
+    """The base branch commit a fork run merged the head commit with, as its build-info job names it."""
+
+    base_ref: str
+    base_sha: str
+    merge_base: str
+
+
+def find_tested_merge(jobs: Iterable[dict[str, Any]]) -> ForkRunMerge | None:
+    """The merge a fork run tested, from the name of a step of its `Build info` job; None if it named none."""
+    for job in jobs:
+        if job.get("name") != BUILD_INFO_JOB_NAME:
+            continue
+        for step in job.get("steps") or []:
+            match = TESTED_MERGE_STEP.match(step.get("name") or "")
+            if match and step.get("conclusion") == "success":
+                return ForkRunMerge(match["base_ref"], match["base_sha"], match["merge_base"])
+    return None
+
+
+def read_tested_merge(
+    client: GitHubClient,
+    pr: PullRequestSnapshot,
+    fork: ForkObservation,
+    read_jobs: ReadJobs,
+) -> ForkRunMerge | None:
+    """``find_tested_merge`` of the pull request's fork run; None when its jobs cannot be read."""
+    jobs = read_run_jobs(client, pr, fork, read_jobs)
+    return None if jobs is None else find_tested_merge(jobs)
 
 
 class JobStatusReporter:
@@ -2559,17 +2607,69 @@ def pull_request_changes_ci_files(client: GitHubClient, repo: str, number: int, 
     return changes_ci_definition(changed_paths(files), file_count=len(files))
 
 
-def compare_with_base(client: GitHubClient, repo: str, pr: PullRequestSnapshot) -> BaseCheck | None:
+def compare_tested_merge(
+    client: GitHubClient, repo: str, pr: PullRequestSnapshot, tested: ForkRunMerge
+) -> BaseCheck | None:
+    """
+    Check the merge a fork run reports it tested against GitHub; None when it does not hold.
+
+    The run's own report is trusted as far as its green result is: both come from the workflow of
+    the head commit, which a pull request changing CI-defining files does not get trusted with. The
+    reported commit must still be on the pull request's base branch and have the reported merge base
+    with the head commit, so that the merge is the one project CI would test.
+    """
+    if tested.base_ref != pr.base_ref:
+        console_print(
+            f"[warning]#{pr.number}: the fork run merged with {tested.base_ref}, not {pr.base_ref}[/]"
+        )
+        return None
+    owner = (pr.head_repo or "").split("/", 1)[0]
+    base_ref = quote(pr.base_ref, safe="")
+    try:
+        head_side = client.rest_get(
+            f"repos/{repo}/compare/{tested.base_sha}...{owner}:{pr.head_sha}?per_page=1"
+        )
+        base_side = client.rest_get(f"repos/{repo}/compare/{tested.base_sha}...{base_ref}?per_page=1")
+        merge_base = head_side["merge_base_commit"]["sha"]
+        status = base_side["status"]
+        behind = base_side["ahead_by"]
+    except (GitHubError, KeyError, TypeError) as e:
+        console_print(f"[warning]#{pr.number}: could not check the merge the fork run tested: {e}[/]")
+        return None
+    if merge_base != tested.merge_base or status not in ("ahead", "identical"):
+        console_print(
+            f"[warning]#{pr.number}: the fork run's merge with {tested.base_sha} does not match GitHub "
+            f"(merge base {merge_base}, {pr.base_ref} {status}); comparing its head commit instead[/]"
+        )
+        return None
+    return BaseCheck(tested.base_sha, behind, (), merged=True)
+
+
+def compare_with_base(
+    client: GitHubClient,
+    repo: str,
+    pr: PullRequestSnapshot,
+    *,
+    find_tested_merge: Callable[[], ForkRunMerge | None] = lambda: None,
+) -> BaseCheck | None:
     """
     Compare the base a fork run tested with the base branch; None when not readable.
 
-    The fork run tests the head commit, so its base is the merge base with the base branch. Two
+    A fork run that reports the merge it tested is checked with ``compare_tested_merge``. Otherwise
+    it tested the head commit, so its base is the merge base with the base branch. Two
     three-dot compares from it give the files the pull request changes and the files the base branch
     changed since; a file in both means the merged result differs from what the fork run tested
     in a file the pull request changes. Compares list at most 300 files (on their first page, which
     ``per_page`` does not limit): a pull request with more is listed with the files endpoint instead,
     while a base branch that changed more cannot be checked until the branch is rebased.
+
+    :param find_tested_merge: the merge the fork run reports it tested, None when it reports none.
     """
+    tested = find_tested_merge()
+    if tested is not None:
+        merged = compare_tested_merge(client, repo, pr, tested)
+        if merged is not None:
+            return merged
     owner = (pr.head_repo or "").split("/", 1)[0]
     base_ref = quote(pr.base_ref, safe="")
     try:
@@ -2956,7 +3056,13 @@ def run_reconcile(
                 changes_ci_files=functools.partial(
                     pull_request_changes_ci_files, client, repo, pr.number, pr.head_sha
                 ),
-                compare_base=functools.partial(compare_with_base, client, repo, pr),
+                compare_base=functools.partial(
+                    compare_with_base,
+                    client,
+                    repo,
+                    pr,
+                    find_tested_merge=functools.partial(read_tested_merge, client, pr, fork, read_jobs),
+                ),
                 jobs_reported=jobs_reported,
                 head_shared_across_bases=pr.head_sha in shared_heads,
                 find_gate_change=functools.partial(gate_change_finder.find, pr),

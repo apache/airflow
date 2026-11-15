@@ -1,0 +1,76 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+---
+name: 'Merge with the base branch'
+description: >-
+  Replace the checked-out pushed commit of a fork CI run with its merge into the base branch, the
+  commit a pull_request run of project CI tests (AIP-120). Does nothing when merge-with is empty.
+inputs:
+  merge-with:
+    description: >-
+      The base branch commit and the merge base with the pushed commit, space-separated, as
+      build-info resolved them for the whole run; empty outside fork runs.
+    required: true
+outputs:
+  merge-sha:
+    description: "The merge commit now checked out; empty when nothing was merged."
+    value: ${{ steps.merge.outputs.merge-sha }}
+runs:
+  using: "composite"
+  steps:
+    - name: "Merge the pushed commit with the base branch"
+      id: merge
+      if: inputs.merge-with != ''
+      shell: bash
+      env:
+        MERGE_WITH: ${{ inputs.merge-with }}
+      # The merge base is given, so the three commits are all that is fetched: no history between
+      # them is needed. Identity and dates are fixed, so every job of a run makes the same commit.
+      # The base branch is the first parent, as in GitHub's refs/pull/<n>/merge, so `<merge>^`
+      # is the base and `<merge>^..<merge>` is what the pull request changes.
+      run: |
+        set -euo pipefail
+        read -r base_sha merge_base <<< "${MERGE_WITH}"
+        head_sha="$(git rev-parse HEAD)"
+        for attempt in 1 2 3; do
+          if git fetch --no-tags --depth=1 https://github.com/apache/airflow.git \
+              "${base_sha}" "${merge_base}"; then
+            break
+          fi
+          if [[ "${attempt}" -eq 3 ]]; then
+            echo "::error::Could not fetch ${base_sha} and ${merge_base} from apache/airflow"
+            exit 1
+          fi
+          sleep $((attempt * 5))
+        done
+        if ! tree="$(git merge-tree --write-tree --merge-base "${merge_base}" \
+            "${base_sha}" "${head_sha}")"; then
+          echo "::error::The pushed commit conflicts with apache/airflow ${base_sha}; rebase it."
+          exit 1
+        fi
+        commit_date="$(git show -s --format=%cI "${head_sha}")"
+        merge_sha="$(
+          GIT_AUTHOR_NAME="Fork CI" GIT_AUTHOR_EMAIL="dev@airflow.apache.org" \
+          GIT_COMMITTER_NAME="Fork CI" GIT_COMMITTER_EMAIL="dev@airflow.apache.org" \
+          GIT_AUTHOR_DATE="${commit_date}" GIT_COMMITTER_DATE="${commit_date}" \
+          git commit-tree "${tree}" -p "${base_sha}" -p "${head_sha}" \
+            -m "Merge ${head_sha} into apache/airflow ${base_sha}"
+        )"
+        git checkout --quiet --detach "${merge_sha}"
+        echo "merge-sha=${merge_sha}" >> "${GITHUB_OUTPUT}"
+        echo "Testing ${merge_sha}: ${head_sha} merged into apache/airflow ${base_sha}"

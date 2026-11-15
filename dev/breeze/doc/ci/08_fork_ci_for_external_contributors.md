@@ -464,11 +464,13 @@ upstream yields no changed files, so such a run performs basic checks only.
   would be the contributor's own previous tip after they merge upstream `main`, so a release
   manager's bump from `main` would count as theirs. A file missing at the merge base is new; any
   other read failure fails the run rather than letting the check pass unseen.
-- **Early conflict check**: before the test matrix runs, `ci-amd.yml` verifies that the pushed
-  commit merges cleanly with upstream's target branch using `git merge-tree`. It fetches the
-  upstream target branch and deepens history in increments of 200 commits up to 1,000 commits if
+- **Early conflict check and merge base**: before the test matrix runs, `build-info` verifies that
+  the pushed commit merges cleanly with upstream's target branch using `git merge-tree`. It fetches
+  the upstream target branch and deepens history in increments of 200 commits up to 1,000 commits if
   needed to resolve the merge base; if a merge conflict is detected, the workflow fails early with
-  clear rebase instructions rather than spending runner hours on conflicting code.
+  clear rebase instructions rather than spending runner hours on conflicting code. Otherwise it
+  outputs the target branch commit and the merge base as `merge-with`, which every later job uses to
+  test the pushed commit merged with that commit (see "Testing the merged result").
 - **Labels** come from the open `apache/airflow` pull request whose head is
   `<fork-owner>:<branch>`, since a push event carries none. `full tests needed`,
   `allow provider dependency bump`, `skip common compat check` and the other labels work as on
@@ -479,6 +481,38 @@ upstream yields no changed files, so such a run performs basic checks only.
   to their own fork must get public runners or the jobs would queue forever once AIP-118
   lands.
 - Canary detection is unchanged and already false outside `apache/airflow`.
+
+### Testing the merged result
+
+A `pull_request` run of project CI tests GitHub's merge commit of the pull request into its base
+branch. A fork run is a `push` run of the pushed commit, so every job that checks out the pull
+request's sources turns that checkout into the same kind of merge before it builds or tests
+anything, with the `merge-with-base` action (`.github/actions/merge-with-base`):
+
+- `build-info` fixes the merge for the whole run: the target branch commit it fetched for the
+  conflict check and the merge base with the pushed commit, output as `merge-with`. Every job
+  therefore merges with the same commit, even when the target branch moves during the run.
+- Each job fetches those two commits from `apache/airflow` at depth 1 and builds the merge with
+  `git merge-tree --write-tree --merge-base`, which needs the three commits and none of the history
+  between them, so the shallow checkouts the jobs already use are enough. `git commit-tree` turns the
+  tree into a commit with the target branch commit as its first parent and the pushed commit as its
+  second, as in GitHub's `refs/pull/<n>/merge`, so `<merge>^..<merge>` is what the pull request
+  changes; the basic static checks diff exactly that. The author, committer and dates are fixed,
+  so every job makes the same merge commit, which is then checked out in place of the pushed commit.
+- The merge needs no write access: nothing is pushed, and fork runs keep a read-only token.
+- `merge-with` is passed to every reusable workflow a fork run calls, and is empty in every run in
+  `apache/airflow`, where the action does nothing. A workflow whose checkout takes another ref
+  (`checkout-ref`, such as a target branch to build an image from) merges only when it checks out
+  the pushed commit.
+- The `check-fork-ci-tests-merge` prek hook keeps it that way: in `ci-amd.yml`, `ci-arm.yml` and every
+  workflow they call, each call passes `merge-with`, and each job that checks out the pushed commit
+  into the workspace merges after its last such checkout. `gate`, `build-info`, `notify-slack` and
+  `summarize-warnings` are exempt: they read the pushed commit or only report on the run.
+- `build-info` names the merge in a step, "Test merged with apache/airflow
+  `<branch>`@`<commit>`, merge base `<commit>`", from which the reconciler learns what the run
+  tested (see "Tested base"). When the conflict check cannot fetch the target branch or find the
+  merge base, `merge-with` is empty, the jobs test the pushed commit as it is, and the step is
+  skipped.
 
 `breeze ci selective-check` gets the compare result through a new `--changed-files-from-api`
 path taken automatically when `is_fork_push` holds; the `git diff-tree` path stays for every
@@ -1151,14 +1185,27 @@ also run in a gated run started, none failed, and at least one was cancelled.
 
 ### Tested base
 
-A fork run tests the pushed commit as it is, while project CI's `pull_request` run tests GitHub's
-merge commit of the pull request into its base branch. A fork run on an old base could otherwise go
-green and merge although the merged result was never tested. So `CI passed` is only reported for a
-fork run whose base is close enough to the base branch that the merge changes nothing the pull
-request touches.
+A fork run tests the pushed commit merged with a commit of the base branch ("Testing the merged
+result"), as project CI's `pull_request` run tests GitHub's merge commit. The base branch moves on
+after the run, so `CI passed` is only reported for a run whose merge is recent enough.
 
-When a head commit turns green, the reconciler compares it with the base branch, once per head
-commit, and stores the result in the marker as `"base": {"sha", "behind", "overlap"}`:
+When a head commit turns green, the reconciler reads the merge the run tested from the step of its
+`Build info` job that names it, and checks it against GitHub, once per head commit:
+
+- the named branch must be the pull request's base branch;
+- `GET /repos/apache/airflow/compare/<tested commit>...<fork-owner>:<sha>` must give the named merge
+  base, so the merge is the one GitHub would compute for the head commit;
+- `GET /repos/apache/airflow/compare/<tested commit>...<base>` must say the base branch is
+  `ahead` of the tested commit or `identical` to it, so the tested commit is on the base branch, and
+  its `ahead_by` is how far behind the merge is (`behind`).
+
+The result is stored in the marker as `"base": {"sha", "behind", "overlap": [], "merged": true}`.
+The run's report is trusted as far as its green result is: both come from the workflow of the head
+commit, which a pull request changing CI-defining files is not trusted with in any case (see
+"Trusting a green fork run").
+
+A run that names no merge (the conflict check could not resolve one), or whose merge does not
+check out, is compared as a run of the head commit as it is, as before merging was added:
 
 - `GET /repos/apache/airflow/compare/<base>...<fork-owner>:<sha>` gives the merge base, the commit
   of the base branch the fork run tested on top of (`sha`), the commits the base branch has since
@@ -1168,27 +1215,26 @@ commit, and stores the result in the marker as `"base": {"sha", "behind", "overl
   counting under both paths.
 
 `CI passed` is reported only when the base is current: fewer than `MAX_BEHIND_COMMITS` (200, about
-four days of `main`) commits behind and no overlap. Otherwise the state stays `green` (the pull
-request can be reviewed, and its status, labels and draft state are those of `green`), the state
-comment lists the overlapping files or says how far behind the base is and gives the rebase
-commands, and `CI passed` is posted as `pending` with a description saying to rebase. A rebase and
-push starts a new fork run, which is compared again when it turns green. Every green state comment
-names the base commit the run tested and how far behind it was, and the `CI passed` description
-names it as well.
+four days of `main`) commits behind, and, for a run that did not test the merge, no overlap.
+Otherwise the state stays `green` (the pull request can be reviewed, and its status, labels and
+draft state are those of `green`), the state comment says how far behind the base is or lists the
+overlapping files and gives the rebase commands, and `CI passed` is posted as `pending` with a
+description saying to rebase. A rebase and push starts a new fork run, which is compared again when
+it turns green. Every green state comment names the base commit the run tested, whether merged
+with it or on top of it, and how far behind it was, and the `CI passed` description names it as
+well.
 
-The compare API lists at most 300 files. A pull request with more is listed with
-`GET /repos/apache/airflow/pulls/<n>/files` instead (up to 3000); a base branch that changed 300 or
-more files since the merge base cannot be checked and counts as overlapping, which a rebase
-resolves. When the compare fails, `CI passed` is not reported, the failure is reported to Slack and
-the next run compares again. A marker written before this check, with no `base`, is compared again
-on the next run, so a pull request that already had `CI passed` loses it if its base turns out not
-to be current. A retarget compares again, as it decides green trust again.
+The compare API lists at most 300 files. For a run that did not test the merge, a pull request with
+more is listed with `GET /repos/apache/airflow/pulls/<n>/files` instead (up to 3000); a base branch
+that changed 300 or more files since the merge base cannot be checked and counts as overlapping,
+which a rebase resolves. When the compare fails, `CI passed` is not reported, the failure is
+reported to Slack and the next run compares again. A marker written before this check, with no
+`base`, is compared again on the next run, so a pull request that already had `CI passed` loses it
+if its base turns out not to be current. A retarget compares again, as it decides green trust again.
 
-This narrows the gap to project CI without closing it. A base change in other files can still break
-the pull request, within at most 200 commits, which matches what project CI leaves open after its
-run: a `pull_request` run is not repeated when the base branch moves, so the merged result at merge
-time is not the one it tested either. Testing the merge commit in the fork itself was considered and
-rejected; see "Known limitations".
+A merged run leaves the same gap as project CI: a `pull_request` run is not repeated when the base
+branch moves, so the merged result at merge time is not the one it tested either. The 200-commit
+limit bounds that gap, which project CI does not.
 
 ### Unknown failures and attention items go to Slack
 
@@ -1443,17 +1489,13 @@ as a failed check rather than a crash.
 - An external pull request that legitimately changes workflow files, was released with `use
   project ci` and then had that label removed is closed on the next run, because both
   signals hold. Keeping `use project ci` on such a pull request is the intended handling.
-- Fork CI tests the head commit, not the pull request merged into its base branch; "Tested base"
-  only bounds the difference. Testing the merged result in the fork was rejected because:
-  every job of the fork run checks out the pushed commit (about 60 `actions/checkout` steps across
-  `ci-amd.yml` and its reusable workflows, plus the image builds and caches keyed by the commit),
-  and each would have to check out one merge commit fixed for the whole run; the first push of a
-  branch happens before its pull request exists, so there is no `refs/pull/<n>/merge` to test yet;
-  GitHub computes that ref asynchronously after each push and replaces it whenever the base branch
-  moves, so a run would have to wait for it and could find its commit gone mid-run; and the
-  reconciler would have to trust the run's own report of which merge it tested. Merging the base
-  branch into the head in every job instead needs the shared history of both, which shallow
-  checkouts do not have.
+- A fork run merges with the target branch that breeze's default branch at the pushed commit names
+  (`main`, or the release branch it was cut from), since a push does not know which pull request it
+  is for. A pull request to another base branch is compared as a run of the head commit as it is
+  ("Tested base"). A run whose conflict check cannot fetch the target branch, or find the merge base
+  within 1,000 commits, also tests the head commit as it is.
+- Every job of a fork run fetches the target branch commit and the merge base (two depth-1 fetches,
+  some seconds each) to build the merge, about 55 jobs for a full-matrix run.
 
 ## Testing
 

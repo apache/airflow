@@ -197,11 +197,11 @@ does not run for 30 days is closed with an explanation; you can reopen it after 
 files that decide which CI jobs run and where, such as ``.github/``, the breeze sources or
 ``scripts/ci/prek/``, a green fork run is not enough: a maintainer reviews the change and runs project CI for it.
 
-Fork CI tests your branch as it is, while project CI tests it merged with the target branch. The
-``CI passed`` check that merging requires is therefore reported only when your branch is fewer than
-200 commits behind the target branch and the target branch has not changed any file your pull request
-changes since your branch's base. Otherwise the pull request comment lists those files and asks you
-to rebase on ``upstream/main`` (or the target branch) and push, which runs fork CI again.
+Like project CI, fork CI tests your branch merged with the target branch, as the target branch was
+when the run started; a push that conflicts with it fails at once and asks you to rebase. The
+``CI passed`` check that merging requires is reported only when that commit of the target branch is
+fewer than 200 commits behind the target branch. Otherwise the pull request comment asks you to
+rebase on ``upstream/main`` (or the target branch) and push, which runs fork CI again.
 
 **Joining the pilot.** Open a pull request that adds your GitHub login to the ``[pilot]`` table in
 ``.github/fork-ci-gate.toml``, with a join instant after the expected merge, for example the next day

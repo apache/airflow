@@ -20,6 +20,13 @@ name: Basic tests
 on:  # yamllint disable-line rule:truthy
   workflow_call:
     inputs:
+      merge-with:
+        description: >-
+          The base branch commit and merge base to merge the pushed commit with, space-separated;
+          empty outside fork CI runs.
+        required: false
+        default: ""
+        type: string
       newsfragment-pr-number:
         description: "Pull request the newsfragments are checked against; empty to accept any number"
         required: false
@@ -116,6 +123,10 @@ jobs:
           # Need to fetch all history for selective checks tests
           fetch-depth: 0
           persist-credentials: false
+      - name: "Merge with the base branch"
+        uses: ./.github/actions/merge-with-base
+        with:
+          merge-with: ${{ inputs.merge-with }}
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
       - name: "Run unit tests"
@@ -134,6 +145,10 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
+      - name: "Merge with the base branch"
+        uses: ./.github/actions/merge-with-base
+        with:
+          merge-with: ${{ inputs.merge-with }}
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
       - name: "Install SVN"
@@ -163,6 +178,10 @@ jobs:
         with:
           fetch-depth: 1
           persist-credentials: false
+      - name: "Merge with the base branch"
+        uses: ./.github/actions/merge-with-base
+        with:
+          merge-with: ${{ inputs.merge-with }}
       - name: "RunsOn cost summary"
         uses: ./.github/actions/runs-on-cost-summary
       - name: "Install uv"
@@ -204,6 +223,10 @@ jobs:
         with:
           fetch-depth: 1
           persist-credentials: false
+      - name: "Merge with the base branch"
+        uses: ./.github/actions/merge-with-base
+        with:
+          merge-with: ${{ inputs.merge-with }}
       - name: "RunsOn cost summary"
         uses: ./.github/actions/runs-on-cost-summary
       - name: "Install uv"
@@ -234,6 +257,10 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           persist-credentials: false
+      - name: "Merge with the base branch"
+        uses: ./.github/actions/merge-with-base
+        with:
+          merge-with: ${{ inputs.merge-with }}
       - name: "RunsOn cost summary"
         uses: ./.github/actions/runs-on-cost-summary
       - name: Setup pnpm
@@ -270,6 +297,10 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           persist-credentials: false
+      - name: "Merge with the base branch"
+        uses: ./.github/actions/merge-with-base
+        with:
+          merge-with: ${{ inputs.merge-with }}
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
       - name: "Check translation completeness"
@@ -306,6 +337,10 @@ jobs:
           ref: ${{ github.sha }}
           fetch-depth: 2
           persist-credentials: false
+      - name: "Merge with the base branch"
+        uses: ./.github/actions/merge-with-base
+        with:
+          merge-with: ${{ inputs.merge-with }}
       - name: "Fetch the last tested push commit"
         if: inputs.push-base-commit != ''
         shell: bash
@@ -322,8 +357,11 @@ jobs:
         run: |
           set -euo pipefail
           prek_args=(--show-diff-on-failure --color always)
+          # A fork run checks out its merge with the base branch, whose first parent is the base, so
+          # the pull request's own changes are checked rather than only its last commit's.
+          tested="$(git rev-parse HEAD)"
           if [[ -z "${PUSH_BASE_COMMIT}" ]]; then
-            prek "${prek_args[@]}" --from-ref "${GITHUB_SHA}^" --to-ref "${GITHUB_SHA}"
+            prek "${prek_args[@]}" --from-ref "${tested}^" --to-ref "${tested}"
           elif git cat-file -e "${PUSH_BASE_COMMIT}^{commit}"; then
             mapfile -t files < <(git diff --name-only --no-renames --diff-filter=d \
               "${PUSH_BASE_COMMIT}" "${GITHUB_SHA}")
@@ -363,6 +401,10 @@ jobs:
         with:
           fetch-depth: 2
           persist-credentials: false
+      - name: "Merge with the base branch"
+        uses: ./.github/actions/merge-with-base
+        with:
+          merge-with: ${{ inputs.merge-with }}
 
   test-airflow-release-commands:
     timeout-minutes: 80
@@ -383,6 +425,10 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           persist-credentials: false
+      - name: "Merge with the base branch"
+        uses: ./.github/actions/merge-with-base
+        with:
+          merge-with: ${{ inputs.merge-with }}
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
       - name: "Cleanup dist files"
@@ -431,6 +477,10 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           persist-credentials: false
+      - name: "Merge with the base branch"
+        uses: ./.github/actions/merge-with-base
+        with:
+          merge-with: ${{ inputs.merge-with }}
       - name: "RunsOn cost summary"
         uses: ./.github/actions/runs-on-cost-summary
       - name: "Install uv"
