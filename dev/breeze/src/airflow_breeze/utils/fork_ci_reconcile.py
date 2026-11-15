@@ -68,11 +68,12 @@ from airflow_breeze.utils.fork_ci_messages import (
     JOB_STATUS_CONTEXT_PREFIX,
     JOB_STATUSES,
     STALE_JOB_STATUS,
-    STATES_WITH_PASSED_JOBS,
+    STATES_WITH_JOB_COUNTS,
     STATUS_CONTEXT,
     STATUS_STATES,
     BaseCheck,
     FailedJob,
+    JobCounts,
     Marker,
     ci_passed_description,
     fork_actions_url,
@@ -84,7 +85,7 @@ from airflow_breeze.utils.fork_ci_messages import (
     parse_marker,
     rebase_needed_description,
     released_comment,
-    split_passed_jobs,
+    split_job_counts,
     state_comment,
     status_description,
     strip_failed_job_list,
@@ -620,13 +621,13 @@ def status_state(status: tuple[str, str, str] | None) -> str | None:
     """The state the reconciler recorded in a commit status it posted, if it posted it."""
     if status is None:
         return None
-    description, passed_jobs = split_passed_jobs(status[2])
+    description, job_counts = split_job_counts(status[2])
     return next(
         (
             state
             for state, github_state in STATUS_STATES.items()
             if (github_state, status_description(state)) == (status[0], description)
-            and (passed_jobs is None or state in STATES_WITH_PASSED_JOBS)
+            and (job_counts is None or state in STATES_WITH_JOB_COUNTS)
         ),
         None,
     )
@@ -639,12 +640,12 @@ def _set_status(
     target_url: str,
     *,
     force: bool = False,
-    passed_jobs: int | None = None,
+    job_counts: JobCounts | None = None,
 ) -> None:
-    """:param passed_jobs: the fork run's passed jobs; None keeps the count the status already shows."""
-    if passed_jobs is None and pr.current_status is not None and status_state(pr.current_status) == state:
-        passed_jobs = split_passed_jobs(pr.current_status[2])[1]
-    desired = (STATUS_STATES[state], target_url, status_description(state, passed_jobs))
+    """:param job_counts: the fork run's job counts; None keeps the counts the status already shows."""
+    if job_counts is None and pr.current_status is not None and status_state(pr.current_status) == state:
+        job_counts = split_job_counts(pr.current_status[2])[1]
+    desired = (STATUS_STATES[state], target_url, status_description(state, job_counts))
     if force or desired != pr.current_status:
         plan.status = desired
 
@@ -696,7 +697,7 @@ def classify(
     find_gate_change: Callable[[], str | None] = lambda: None,
     find_failed_jobs: Callable[[], list[FailedJob] | None] = lambda: [],
     verify_head_repo_unavailable: Callable[[], bool] = lambda: False,
-    passed_jobs: int | None = None,
+    job_counts: JobCounts | None = None,
 ) -> Plan:
     """
     Decide the mutations for one gated pull request.
@@ -722,8 +723,8 @@ def classify(
     :param find_failed_jobs: the jobs of the fork run that did not pass, None when they cannot be
         read; only called for a failed run that started. On None the state comment is left for the
         next run, so that a failed read does not drop the list from it.
-    :param passed_jobs: the passed jobs of the fork run, shown in `Fork CI / Tests (AMD)`; None when
-        this run did not read its jobs, which keeps the count the status shows.
+    :param job_counts: the passed and cancelled jobs of the fork run, shown in `Fork CI / Tests
+        (AMD)`; None when they are not known, which keeps the counts the status shows.
     """
     plan = Plan()
     labels = set(pr.labels)
@@ -945,7 +946,7 @@ def classify(
         "startup_failure" if startup_failure else state.value,
         target_url,
         force=refresh_status,
-        passed_jobs=passed_jobs,
+        job_counts=job_counts,
     )
     _set_ci_passed(plan, pr, state, base, target_url=target_url)
     _set_ci_run_started(plan, pr, fork)
@@ -1887,29 +1888,32 @@ def fetch_fork_observations(
     return observations
 
 
-def count_passed_jobs(jobs: Iterable[dict[str, Any]]) -> int:
-    """The finished, successful jobs of a fork run that job statuses would report."""
-    return sum(
-        1
+def count_jobs(jobs: Iterable[dict[str, Any]]) -> JobCounts:
+    """The finished jobs of a fork run that passed and that were cancelled, of those job statuses cover."""
+    conclusions = [
+        job.get("conclusion")
         for job in jobs
-        if job["name"] not in UNREPORTED_JOB_NAMES
-        and job.get("status") not in RUNNING_JOB_STATUSES
-        and job.get("conclusion") == "success"
-    )
+        if job["name"] not in UNREPORTED_JOB_NAMES and job.get("status") not in RUNNING_JOB_STATUSES
+    ]
+    return JobCounts(conclusions.count("success"), conclusions.count("cancelled"))
 
 
-def find_passed_jobs(fork: ForkObservation, read_jobs: ReadJobs, jobs_reported: str | None) -> int | None:
+def find_job_counts(
+    fork: ForkObservation, read_jobs: ReadJobs, jobs_reported: str | None
+) -> JobCounts | None:
     """
-    The passed jobs of the fork run, from its jobs when this reconciler run read them, or else from
+    The job counts of the fork run, from its jobs when this reconciler run read them, or else from
     the key of the completed run whose jobs are all reported.
     """
     if fork.run_id is None:
         return None
     jobs = read_jobs.get(fork.run_id)
     if jobs is not None:
-        return count_passed_jobs(jobs)
-    *_, passed = (jobs_reported or "").split(":")
-    return int(passed) if passed.isdigit() else None
+        return count_jobs(jobs)
+    parts = (jobs_reported or "").split(":")
+    if len(parts) != 5 or not (parts[3].isdigit() and parts[4].isdigit()):
+        return None
+    return JobCounts(int(parts[3]), int(parts[4]))
 
 
 def build_job_statuses(jobs: Iterable[dict[str, Any]]) -> dict[str, tuple[str, str, str]]:
@@ -1921,9 +1925,10 @@ def build_job_statuses(jobs: Iterable[dict[str, Any]]) -> dict[str, tuple[str, s
         if job["name"] in UNREPORTED_JOB_NAMES:
             continue
         outcome = "" if job.get("status") in RUNNING_JOB_STATUSES else job.get("conclusion") or ""
-        if outcome not in JOB_STATUSES:
-            # Unfinished jobs are left to `Fork CI / Tests (AMD)`; skipped and neutral ones did no work
-            # worth a check on the pull request.
+        if outcome not in JOB_STATUSES or outcome == "cancelled":
+            # Unfinished and cancelled jobs are left to `Fork CI / Tests (AMD)`, which counts the
+            # cancelled ones: a cancelled run cancels dozens at once. Skipped and neutral ones did no
+            # work worth a check on the pull request.
             continue
         state, description = JOB_STATUSES[outcome]
         context = contexts.setdefault(
@@ -2088,7 +2093,7 @@ class JobStatusReporter:
             else None
         )
         recorded = pr.marker.jobs if pr.marker is not None and pr.marker.sha == pr.head_sha else None
-        # Recorded before the passed jobs were, a key has no count; its jobs are then read once more.
+        # Recorded before the job counts were, a key has none; its jobs are then read once more.
         if key is not None and recorded is not None and recorded.startswith(f"{key}:"):
             return recorded
         # Without writes left, the reads are spent for nothing: a backlog of hundreds of pull requests
@@ -2116,8 +2121,13 @@ class JobStatusReporter:
         }
         desired = build_job_statuses(jobs)
         if key is not None:
-            # Jobs of an earlier run of this commit that the completed run did not run, or skipped.
-            wanted = {context.casefold() for context in desired}
+            # Jobs of an earlier run of this commit that the completed run did not run, or skipped. A
+            # cancelled job keeps what an earlier run reported for it.
+            wanted = {context.casefold() for context in desired} | {
+                job_status_context(job["name"]).casefold()
+                for job in jobs
+                if job.get("conclusion") == "cancelled" and job.get("status") not in RUNNING_JOB_STATUSES
+            }
             for folded, (context, (_, target_url, _)) in current.items():
                 if context.startswith(JOB_STATUS_CONTEXT_PREFIX) and folded not in wanted:
                     desired[context] = (STALE_JOB_STATUS[0], target_url, STALE_JOB_STATUS[1])
@@ -2145,7 +2155,10 @@ class JobStatusReporter:
             self._client.set_status(pr.number, pr.head_sha, state, target_url, description, context=context)
             # Charged per write, so writes made before a later one fails still count.
             self.remaining -= 1
-        return None if key is None else f"{key}:{count_passed_jobs(jobs)}"
+        if key is None:
+            return None
+        counts = count_jobs(jobs)
+        return f"{key}:{counts.passed}:{counts.cancelled}"
 
 
 def fetch_workflow_state(client: GitHubClient, fork: str) -> str:
@@ -3197,7 +3210,7 @@ def run_reconcile(
                 verify_head_repo_unavailable=functools.partial(
                     check_head_repo_unavailable, client, repo, pr.number
                 ),
-                passed_jobs=find_passed_jobs(fork, read_jobs, jobs_reported),
+                job_counts=find_job_counts(fork, read_jobs, jobs_reported),
             )
             # A revocation to `pending` always goes through: it is idempotent and must not depend on
             # `report_project_ci_passed` succeeding later in this run.

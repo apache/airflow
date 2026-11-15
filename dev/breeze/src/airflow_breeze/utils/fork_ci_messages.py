@@ -589,22 +589,31 @@ STATUS_STATES = {
 }
 
 
-# States whose `Fork CI / Tests (AMD)` description counts the fork run's passed jobs, which are not
-# posted as job statuses of their own.
-STATES_WITH_PASSED_JOBS = frozenset({"running", "failed", "green", "green_unverified"})
-_PASSED_JOBS_SUFFIX = re.compile(r" \((\d+) jobs? passed\)\Z")
+class JobCounts(NamedTuple):
+    """The passed and cancelled jobs of a fork run, which are not posted as job statuses of their own."""
+
+    passed: int
+    cancelled: int = 0
 
 
-def status_description(state: str, passed_jobs: int | None = None) -> str:
+# States whose `Fork CI / Tests (AMD)` description counts the fork run's passed and cancelled jobs.
+STATES_WITH_JOB_COUNTS = frozenset({"running", "failed", "green", "green_unverified"})
+_JOB_COUNTS_SUFFIX = re.compile(r" \((\d+) jobs? passed(?:, (\d+) cancelled)?\)\Z")
+
+
+def status_description(state: str, job_counts: JobCounts | None = None) -> str:
     description = _STATUS_DESCRIPTIONS[state]
-    if passed_jobs is None or state not in STATES_WITH_PASSED_JOBS:
+    if job_counts is None or state not in STATES_WITH_JOB_COUNTS:
         return description
-    return f"{description} ({passed_jobs} job{'' if passed_jobs == 1 else 's'} passed)"
+    counts = f"{job_counts.passed} job{'' if job_counts.passed == 1 else 's'} passed"
+    if job_counts.cancelled:
+        counts += f", {job_counts.cancelled} cancelled"
+    return f"{description} ({counts})"
 
 
-def split_passed_jobs(description: str) -> tuple[str, int | None]:
-    """A status description without its passed-jobs count, and the count; None without one."""
-    match = _PASSED_JOBS_SUFFIX.search(description)
+def split_job_counts(description: str) -> tuple[str, JobCounts | None]:
+    """A status description without its job counts, and the counts; None without them."""
+    match = _JOB_COUNTS_SUFFIX.search(description)
     if match is None:
         return description, None
-    return description[: match.start()], int(match[1])
+    return description[: match.start()], JobCounts(int(match[1]), int(match[2] or 0))

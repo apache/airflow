@@ -42,6 +42,7 @@ from airflow_breeze.utils.fork_ci_messages import (
     STATUS_CONTEXT,
     BaseCheck,
     FailedJob,
+    JobCounts,
     Marker,
     parse_marker,
     render_marker,
@@ -78,7 +79,7 @@ from airflow_breeze.utils.fork_ci_reconcile import (
     compare_with_base,
     compute_job_status_budget,
     compute_projection,
-    count_passed_jobs,
+    count_jobs,
     discover,
     drop_reported,
     fetch_fork_observations,
@@ -87,7 +88,7 @@ from airflow_breeze.utils.fork_ci_reconcile import (
     find_ci_run_since,
     find_failed_jobs,
     find_heads_shared_across_bases,
-    find_passed_jobs,
+    find_job_counts,
     find_project_ci_label_heads,
     find_project_ci_passed_url,
     find_project_ci_run_url,
@@ -736,17 +737,25 @@ def test_green_is_not_trusted_for_a_head_shared_across_bases():
         pytest.param(
             ("success", RUN_URL, "Fork CI passed - see Details (many jobs passed)"), None, id="no-number"
         ),
+        pytest.param(
+            ("failure", RUN_URL, "Fork CI failed - see Details (97 jobs passed, 31 cancelled)"),
+            "failed",
+            id="with-cancelled",
+        ),
     ],
 )
-def test_status_state_reads_a_passed_jobs_count(status, expected):
+def test_status_state_reads_job_counts(status, expected):
     assert status_state(status) == expected
 
 
 @pytest.mark.parametrize(
-    ("current_status", "passed_jobs", "expected_status"),
+    ("current_status", "job_counts", "expected_status"),
     [
         pytest.param(
-            None, 130, ("success", RUN_URL, "Fork CI passed - see Details (130 jobs passed)"), id="counted"
+            None,
+            JobCounts(130),
+            ("success", RUN_URL, "Fork CI passed - see Details (130 jobs passed)"),
+            id="counted",
         ),
         pytest.param(
             ("success", RUN_URL, "Fork CI passed - see Details (130 jobs passed)"),
@@ -756,13 +765,19 @@ def test_status_state_reads_a_passed_jobs_count(status, expected):
         ),
         pytest.param(
             ("success", RUN_URL, "Fork CI passed - see Details (129 jobs passed)"),
-            130,
+            JobCounts(130),
             ("success", RUN_URL, "Fork CI passed - see Details (130 jobs passed)"),
             id="count-updated",
         ),
+        pytest.param(
+            ("success", RUN_URL, "Fork CI passed - see Details (130 jobs passed, 2 cancelled)"),
+            None,
+            None,
+            id="cancelled-count-kept",
+        ),
     ],
 )
-def test_fork_status_shows_the_passed_jobs(current_status, passed_jobs, expected_status):
+def test_fork_status_shows_the_job_counts(current_status, job_counts, expected_status):
     plan = classify(
         _pr(current_status=current_status),
         GREEN,
@@ -772,7 +787,7 @@ def test_fork_status_shows_the_passed_jobs(current_status, passed_jobs, expected
         find_bypass_run=lambda: None,
         changes_ci_files=lambda: False,
         compare_base=lambda: CURRENT_BASE,
-        passed_jobs=passed_jobs,
+        job_counts=job_counts,
     )
 
     assert plan.state == ForkState.GREEN
@@ -3212,7 +3227,6 @@ def test_build_job_statuses_reports_each_finished_job():
     } == {
         "Static checks": "success",
         "Postgres tests: core / A": "failure",
-        "Special tests": "failure",
     }
     assert statuses[f"{JOB_STATUS_CONTEXT_PREFIX}Static checks"][1] == "https://job/Static checks"
 
@@ -3270,7 +3284,7 @@ def test_job_status_reporter_posts_changed_statuses_failures_first(client):
 
     key = JobStatusReporter(client, repo=REPO).report(_pr(), COMPLETED_RUN)
 
-    assert key == "1:1:FAILURE:2"
+    assert key == "1:1:FAILURE:2:0"
     assert [(c.args[2], c.kwargs["context"]) for c in client.set_status.call_args_list] == [
         ("failure", f"{JOB_STATUS_CONTEXT_PREFIX}Unit"),
         ("success", f"{JOB_STATUS_CONTEXT_PREFIX}Helm tests"),
@@ -3303,13 +3317,19 @@ def test_job_status_reporter_does_not_record_a_run_in_progress(client):
 @pytest.mark.parametrize(
     ("marker_jobs", "marker_sha", "reads", "expected"),
     [
-        pytest.param("1:1:FAILURE:7", "abc123", False, "1:1:FAILURE:7", id="already-reported"),
-        pytest.param("1:1:FAILURE", "abc123", True, "1:1:FAILURE:0", id="recorded-before-the-count"),
-        pytest.param("1:1:SUCCESS:7", "abc123", True, "1:1:FAILURE:0", id="re-run-with-another-conclusion"),
+        pytest.param("1:1:FAILURE:7:1", "abc123", False, "1:1:FAILURE:7:1", id="already-reported"),
+        pytest.param("1:1:FAILURE", "abc123", True, "1:1:FAILURE:0:0", id="recorded-before-the-counts"),
         pytest.param(
-            "1:2:FAILURE:7", "abc123", True, "1:1:FAILURE:0", id="another-attempt-with-the-same-conclusion"
+            "1:1:SUCCESS:7:1", "abc123", True, "1:1:FAILURE:0:0", id="re-run-with-another-conclusion"
         ),
-        pytest.param("1:1:FAILURE:7", "other", True, "1:1:FAILURE:0", id="marker-of-another-commit"),
+        pytest.param(
+            "1:2:FAILURE:7:1",
+            "abc123",
+            True,
+            "1:1:FAILURE:0:0",
+            id="another-attempt-with-the-same-conclusion",
+        ),
+        pytest.param("1:1:FAILURE:7:1", "other", True, "1:1:FAILURE:0:0", id="marker-of-another-commit"),
     ],
 )
 def test_job_status_reporter_reads_a_completed_run_once(client, marker_jobs, marker_sha, reads, expected):
@@ -3457,19 +3477,19 @@ def _reconcile_with_reporter(client, tmp_path, config=CONFIG, reported_file=None
     )
 
 
-@mock.patch("airflow_breeze.utils.fork_ci_reconcile.find_passed_jobs", autospec=True)
+@mock.patch("airflow_breeze.utils.fork_ci_reconcile.find_job_counts", autospec=True)
 @mock.patch("airflow_breeze.utils.fork_ci_reconcile.JobStatusReporter", autospec=True)
 @mock.patch("airflow_breeze.utils.fork_ci_reconcile.classify", autospec=True)
-def test_run_reconcile_shows_the_passed_jobs(mock_classify, mock_reporter, mock_passed, client, tmp_path):
+def test_run_reconcile_shows_the_job_counts(mock_classify, mock_reporter, mock_counts, client, tmp_path):
     mock_classify.return_value = Plan(state=ForkState.RUNNING)
     mock_reporter.return_value.report.return_value = None
     mock_reporter.return_value.deferred = []
     mock_reporter.return_value.delayed = []
-    mock_passed.return_value = 17
+    mock_counts.return_value = JobCounts(17, 2)
 
     _reconcile_with_reporter(client, tmp_path)
 
-    assert mock_classify.call_args.kwargs["passed_jobs"] == 17
+    assert mock_classify.call_args.kwargs["job_counts"] == JobCounts(17, 2)
 
 
 @mock.patch("airflow_breeze.utils.fork_ci_reconcile.JobStatusReporter", autospec=True)
@@ -3691,33 +3711,65 @@ def test_run_reconcile_budgets_job_statuses_for_the_time_since_the_previous_run(
     assert mock_reporter.call_args.kwargs["budget"] == compute_job_status_budget(timedelta(minutes=9))
 
 
-def test_count_passed_jobs():
+def test_count_jobs():
     jobs = [
         _fork_job("A"),
         _fork_job("B"),
         _fork_job("C", conclusion="failure"),
         _fork_job("D", conclusion="skipped"),
         _fork_job("E", status="in_progress", conclusion=None),
+        _fork_job("F", conclusion="cancelled"),
+        _fork_job("G", status="in_progress", conclusion="cancelled"),
         _fork_job("Platform: AMD"),
+        _fork_job("CI passed", conclusion="cancelled"),
     ]
 
-    assert count_passed_jobs(jobs) == 2
+    assert count_jobs(jobs) == JobCounts(passed=2, cancelled=1)
 
 
 @pytest.mark.parametrize(
     ("fork", "read_jobs", "jobs_reported", "expected"),
     [
-        pytest.param(COMPLETED_RUN, {1: [_fork_job("A")]}, None, 1, id="read"),
-        pytest.param(COMPLETED_RUN, {1: [_fork_job("A")]}, "1:1:FAILURE:9", 1, id="read-wins-over-the-key"),
-        pytest.param(COMPLETED_RUN, {}, "1:1:FAILURE:9", 9, id="from-the-recorded-key"),
-        pytest.param(COMPLETED_RUN, {}, "1:1:FAILURE", None, id="key-recorded-before-the-count"),
+        pytest.param(COMPLETED_RUN, {1: [_fork_job("A")]}, None, JobCounts(1), id="read"),
+        pytest.param(
+            COMPLETED_RUN, {1: [_fork_job("A")]}, "1:1:FAILURE:9:3", JobCounts(1), id="read-wins-over-the-key"
+        ),
+        pytest.param(COMPLETED_RUN, {}, "1:1:FAILURE:9:3", JobCounts(9, 3), id="from-the-recorded-key"),
+        pytest.param(COMPLETED_RUN, {}, "1:1:FAILURE", None, id="key-recorded-before-the-counts"),
+        pytest.param(COMPLETED_RUN, {}, "1:1:FAILURE:9:x", None, id="malformed-key"),
         pytest.param(COMPLETED_RUN, {}, None, None, id="not-read"),
         pytest.param(COMPLETED_RUN, {1: None}, None, None, id="read-failed"),
-        pytest.param(ForkObservation(), {1: [_fork_job("A")]}, "1:1:FAILURE:9", None, id="no-run"),
+        pytest.param(ForkObservation(), {1: [_fork_job("A")]}, "1:1:FAILURE:9:3", None, id="no-run"),
     ],
 )
-def test_find_passed_jobs(fork, read_jobs, jobs_reported, expected):
-    assert find_passed_jobs(fork, read_jobs, jobs_reported) == expected
+def test_find_job_counts(fork, read_jobs, jobs_reported, expected):
+    assert find_job_counts(fork, read_jobs, jobs_reported) == expected
+
+
+def test_job_status_reporter_counts_cancelled_jobs_instead_of_posting_them(client):
+    failed_before = {
+        "context": f"{JOB_STATUS_CONTEXT_PREFIX}Helm tests",
+        "state": "failure",
+        "target_url": "https://job/Helm tests",
+        "description": "Failed in the fork - see Details",
+    }
+    _reporter_client(
+        client,
+        [
+            _fork_job("Unit", conclusion="failure"),
+            _fork_job("Helm tests", conclusion="cancelled"),
+            _fork_job("MySQL tests", conclusion="cancelled"),
+        ],
+        [failed_before],
+    )
+
+    key = JobStatusReporter(client, repo=REPO).report(_pr(), COMPLETED_RUN)
+
+    assert key == "1:1:FAILURE:0:2"
+    # The earlier failure of a job the run cancelled is kept rather than marked as not in the run.
+    assert [c.kwargs["context"] for c in client.set_status.call_args_list] == [
+        f"{JOB_STATUS_CONTEXT_PREFIX}Unit"
+    ]
 
 
 def test_build_job_statuses_treats_contexts_case_insensitively():
@@ -3739,7 +3791,7 @@ def test_job_status_reporter_compares_contexts_case_insensitively(client):
     }
     _reporter_client(client, [_fork_job("Tests", conclusion="failure")], [posted])
 
-    assert JobStatusReporter(client, repo=REPO).report(_pr(), COMPLETED_RUN) == "1:1:FAILURE:0"
+    assert JobStatusReporter(client, repo=REPO).report(_pr(), COMPLETED_RUN) == "1:1:FAILURE:0:0"
     client.set_status.assert_not_called()
 
 

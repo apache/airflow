@@ -925,13 +925,14 @@ when one exists and the fork's Actions page for `ci-amd.yml` otherwise, so a mai
 open the fork run in one click; for `gate_bypassed` it is the project CI run that was
 observed. The `description` is a short sentence under 140 characters that always ends with
 where to look next. For `running`, `failed`, `green` and `green_unverified` it is followed by the
-fork run's passed jobs, such as "Fork CI passed - see Details (127 jobs passed)", since passed jobs
-are not posted as statuses of their own (see "Job statuses"). The count is taken from the jobs the
-run read for its job statuses, or else from the marker of a completed run whose jobs are all
-reported, so a status write that failed after the state comment recorded the run still gets it;
-otherwise the status keeps the count it shows, and the count is never carried over from another
-state. The reconciler reads the state back from the
-description without the count, and accepts a count only on those four states.
+fork run's passed and cancelled jobs, such as "Fork CI passed - see Details (127 jobs passed)" or
+"Fork CI failed - see Details (97 jobs passed, 31 cancelled)", since neither is posted as statuses
+of their own (see "Job statuses"). The counts are taken from the jobs the run read for its job
+statuses, or else from the marker of a completed run whose jobs are all reported, so a status
+write that failed after the state comment recorded the run still gets them; otherwise the status
+keeps the counts it shows, and they are never carried over from another state. The reconciler
+reads the state back from the description without the counts, and accepts counts only on those
+four states.
 
 Statuses are immutable and per SHA. The reconciler compares the desired `(state,
 target_url, description)` with the current one fetched in the pass 2 query and posts only on
@@ -947,7 +948,7 @@ monitor run rather than `details_url`. A status honours `target_url`.
 
 Next to the aggregate status, each failed job of the fork run is reported as its own commit
 status, so the pull request shows which jobs failed, each linking to the job in the fork; passed
-jobs are counted in `Fork CI / Tests (AMD)` instead.
+and cancelled jobs are counted in `Fork CI / Tests (AMD)` instead.
 The run is the one `Fork CI / Tests (AMD)` reports (its `databaseId` is fetched with the check
 suites); its jobs come from `GET /repos/<fork>/actions/runs/<id>/jobs?filter=latest`.
 
@@ -956,12 +957,14 @@ suites); its jobs come from `GET /repos/<fork>/actions/runs/<id>/jobs?filter=lat
   the prefix is what keeps a job from posting `Fork CI / Tests (AMD)`, from which the reconciler
   reads its decisions back, or `CI passed`, which the merge ruleset requires. Jobs that share a
   context, which GitHub compares case-insensitively, are reported as the worst of them.
-- Only finished jobs are reported: a failed, timed-out, cancelled or unstartable one as
-  `failure`, and a successful one as `success` only over a status of the same job that is not a
-  success, such as its failure in an earlier run of the commit, which would otherwise keep
-  showing. A full-matrix run has about 130 jobs and each status is a write, so posting every
-  passed job would take most of the budget for what the aggregate status already says; on
-  2026-11-15 four such runs at once took about six hours to show. Queued and running jobs are not
+- Only finished jobs are reported: a failed, timed-out or unstartable one as `failure`, and a
+  successful one as `success` only over a status of the same job that is not a success, such as
+  its failure in an earlier run of the commit, which would otherwise keep showing. A full-matrix
+  run has about 130 jobs and each status is a write, so posting every passed job would take most
+  of the budget for what the aggregate status already says; on 2026-11-15 four such runs at once
+  took about six hours to show. Cancelled jobs are only counted: a run cancelled by a newer push or
+  by a failing job cancels dozens at once, and each would be a red status saying no more than the
+  count does. A job the run cancelled keeps what an earlier run of the commit reported for it. Queued and running jobs are not
   reported, so each job costs at most one write; `Fork CI / Tests (AMD)` shows the run as running, linking it, and with a
   5-minute cadence a per-job "running" status was behind the fork's own run page anyway. A job of
   a re-run in the fork keeps the result of the earlier attempt until it finishes. Skipped and
@@ -986,9 +989,9 @@ suites); its jobs come from `GET /repos/<fork>/actions/runs/<id>/jobs?filter=lat
   Fork CI / Tests (AMD)", so it no longer shows as running or failed; one that is already a
   success is left as it is.
 - Once every job of a completed run is reported, the run is recorded in the marker as
-  `jobs: "<run id>:<attempt>:<conclusion>:<passed jobs>"` (`runAttempt` is fetched with the check
-  suites), so later runs do not read its jobs again. A marker recorded before the count was added
-  has none, and its run's jobs are read once more. A run in progress is read on every run, and a re-run in
+  `jobs: "<run id>:<attempt>:<conclusion>:<passed jobs>:<cancelled jobs>"` (`runAttempt` is
+  fetched with the check suites), so later runs do not read its jobs again. A marker recorded
+  before the counts were added has none, and its run's jobs are read once more. A run in progress is read on every run, and a re-run in
   the fork is read again because its attempt changes, even when it ends with the same conclusion.
 - Reporting job statuses is caught on its own: when it fails, the pull request is still
   classified, so for example a `CI passed` that no longer holds is still revoked. Reading a fork
@@ -1027,9 +1030,10 @@ jobs whose conclusion is not `skipped`, minus the four jobs that are not reporte
 | CI change (full tests) | [40207881565](https://github.com/apache/airflow/actions/runs/40207881565) | 131 | 127 |
 
 `apache/airflow` had 1898 `Tests (AMD)` pull request runs from 2026-10-18 to 2026-10-24, about 270 a
-day or 11 an hour. Each reported job costs one write, its result. Since passed jobs are only counted
-in `Fork CI / Tests (AMD)`, a push costs one write per failed job (plus one per job that passes
-after failing), and the estimates below, which assume every job is posted, are an upper bound.
+day or 11 an hour. Each reported job costs one write, its result. Since passed and cancelled jobs
+are only counted in `Fork CI / Tests (AMD)`, a push costs one write per failed job (plus one per
+job that passes after failing), and the estimates below, which assume every job is posted, are an
+upper bound.
 
 The limits that matter are GitHub's documented ones for the `GITHUB_TOKEN` of `apache/airflow`,
 shared by every workflow of the repository: 1000 REST requests an hour, and 80 content-creating
