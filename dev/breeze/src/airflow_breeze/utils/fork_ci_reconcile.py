@@ -130,7 +130,19 @@ GATED_RUN_JOB_NAMES = frozenset[str]().union(*GATED_RUN_JOBS)
 CHECK_RUN_NEEDED_JOB_NAME = "Check if the run is needed"
 PROJECT_CI_NOT_RUN_JOB_NAME = "CI passed (project CI not run)"
 CI_PASSED_CANCELLED_JOB_NAME = "CI passed (run cancelled)"
-BOT_LOGINS = frozenset({"github-actions", "github-actions[bot]"})
+BOT_LOGINS = frozenset(
+    {
+        "github-actions",
+        "github-actions[bot]",
+        "airflow-triage-bot",
+        "codecov",
+        "codecov[bot]",
+        "dependabot",
+        "dependabot[bot]",
+        "asf-ci[bot]",
+        "asfbot",
+    }
+)
 DISCOVERY_WINDOW = timedelta(hours=24)
 PASS_TWO_PAGE_SIZE = 25
 FORK_BATCH_SIZE = 50
@@ -303,6 +315,7 @@ class PullRequestSnapshot:
     last_reopened_at: datetime | None = None
     last_reopened_by_anyone_at: datetime | None = None
     last_base_change_at: datetime | None = None
+    last_comment_at: datetime | None = None
     # (changed at, previous base, new base) for each retarget, oldest first.
     base_changes: tuple[tuple[datetime, str, str], ...] = ()
     current_status: tuple[str, str, str] | None = None
@@ -436,7 +449,10 @@ def _workflow_file(resource_path: str | None) -> str:
 
 
 def _is_bot(login: str | None) -> bool:
-    return login in BOT_LOGINS
+    if not login:
+        return False
+    normalized = login.casefold()
+    return normalized in BOT_LOGINS or normalized.endswith("[bot]")
 
 
 def observe_fork_state(fork: ForkObservation, marker: Marker | None) -> tuple[ForkState | None, str | None]:
@@ -649,6 +665,7 @@ def classify(
     head_shared_across_bases: bool = False,
     find_gate_change: Callable[[], str | None] = lambda: None,
     find_failed_jobs: Callable[[], list[FailedJob] | None] = lambda: [],
+    verify_head_repo_unavailable: Callable[[], bool] = lambda: False,
 ) -> Plan:
     """
     Decide the mutations for one gated pull request.
@@ -710,6 +727,9 @@ def classify(
         return release(ForkState.UNGATED, functools.partial(ungated_comment, base_ref=pr.base_ref))
 
     if pr.head_repo is None:
+        if not verify_head_repo_unavailable():
+            plan.unknown.append("head repository is unavailable due to GitHub API error; retrying")
+            return plan
         plan.unknown.append("head repository no longer exists")
         return plan
 
@@ -739,7 +759,10 @@ def classify(
     reopened_since_closing = {
         ForkState.CLOSED.value: pr.last_reopened_by_anyone_at,
         ForkState.GATE_BYPASSED.value: pr.last_reopened_at,
-        ForkState.GATE_MODIFIED.value: pr.last_reopened_at,
+        ForkState.GATE_MODIFIED.value: max(
+            (t for t in (pr.last_reopened_by_anyone_at, pr.last_reopened_at) if t is not None),
+            default=None,
+        ),
     }
     if marker and marker.state in reopened_since_closing:
         reopened = reopened_since_closing[marker.state]
@@ -841,7 +864,7 @@ def classify(
                     "so `CI passed` waits for the next run"
                 )
     plan.state = state
-    since = marker.since if marker and marker.state == state.value else now
+    since = marker.since if marker and marker.state == state.value and marker.sha == pr.head_sha else now
 
     if marker and marker.state == ForkState.SETUP_REQUIRED.value and state == ForkState.AWAITING_PUSH:
         plan.new_comments.append(nudge_comment(fork=pr.head_repo))
@@ -856,7 +879,14 @@ def classify(
             workflow_disabled_comment(fork=pr.head_repo, workflow_state=fork.workflow_state)
         )
 
-    if state in CLOSABLE_STATES and now - since >= timedelta(days=config.close_after_days):
+    inactive_for_closing = pr.last_comment_at is None or now - pr.last_comment_at >= timedelta(
+        days=config.close_after_days
+    )
+    if (
+        state in CLOSABLE_STATES
+        and now - since >= timedelta(days=config.close_after_days)
+        and inactive_for_closing
+    ):
         _enter_state(plan, pr, labels, ForkState.CLOSED)
         _set_marker_comment(
             plan,
@@ -867,7 +897,8 @@ def classify(
                 run_url=None,
             ),
         )
-        plan.new_comments.append(inactivity_close_comment(days=config.close_after_days, fork=pr.head_repo))
+        comment = inactivity_close_comment(days=config.close_after_days, fork=pr.head_repo or "")
+        plan.new_comments.append(comment)
         plan.close = True
         return plan
 
@@ -965,6 +996,18 @@ fragment PassTwoFields on PullRequest {
           ... on BaseRefChangedEvent { createdAt previousRefName currentRefName }
         }
       }
+      latestComments: comments(last: 10) {
+        nodes { createdAt author { login } }
+      }
+      latestReviews: reviews(last: 10) {
+        nodes {
+          createdAt
+          author { login }
+          comments(last: 10) {
+            nodes { createdAt author { login } }
+          }
+        }
+      }
       commits(last: 1) { nodes { commit {
         oid
         status {
@@ -975,7 +1018,7 @@ fragment PassTwoFields on PullRequest {
       } } }
       comments(first: 100) {
         pageInfo { hasNextPage endCursor }
-        nodes { databaseId body author { login } }
+        nodes { databaseId body createdAt author { login } }
       }
 }
 """
@@ -1044,15 +1087,17 @@ def parse_pull_request(node: dict[str, Any]) -> PullRequestSnapshot:
     last_reopened = None
     last_reopened_by_anyone = None
     last_base_change = None
+    last_comment_at = None
     base_changes = []
     for item in (node.get("timelineItems") or {}).get("nodes") or []:
         if item["__typename"] == "ConvertToDraftEvent":
             last_draft_actor = _login(item.get("actor"))
         elif item["__typename"] == "BaseRefChangedEvent":
             last_base_change = parse_github_datetime(item["createdAt"])
-            base_changes.append(
-                (last_base_change, item.get("previousRefName") or "", item.get("currentRefName") or "")
-            )
+            if last_base_change is not None:
+                base_changes.append(
+                    (last_base_change, item.get("previousRefName") or "", item.get("currentRefName") or "")
+                )
         elif item["__typename"] == "ReopenedEvent":
             last_reopened_by_anyone = parse_github_datetime(item["createdAt"])
             # Only a reopen by someone else counts for the gate tampering check: an author closing
@@ -1063,6 +1108,23 @@ def parse_pull_request(node: dict[str, Any]) -> PullRequestSnapshot:
             label = (item.get("label") or {}).get("name")
             if label == LABEL_USE_PROJECT_CI:
                 last_unlabel = parse_github_datetime(item["createdAt"])
+
+    for c in (node.get("latestComments") or {}).get("nodes") or []:
+        if not _is_bot(_login(c.get("author"))) and c.get("createdAt"):
+            t = parse_github_datetime(c["createdAt"])
+            if t is not None:
+                last_comment_at = max(filter(None, (last_comment_at, t)), default=t)
+
+    for r in (node.get("latestReviews") or {}).get("nodes") or []:
+        if not _is_bot(_login(r.get("author"))) and r.get("createdAt"):
+            t = parse_github_datetime(r["createdAt"])
+            if t is not None:
+                last_comment_at = max(filter(None, (last_comment_at, t)), default=t)
+        for rc in (r.get("comments") or {}).get("nodes") or []:
+            if not _is_bot(_login(rc.get("author"))) and rc.get("createdAt"):
+                t = parse_github_datetime(rc["createdAt"])
+                if t is not None:
+                    last_comment_at = max(filter(None, (last_comment_at, t)), default=t)
 
     current_status = None
     status_created_at = None
@@ -1088,6 +1150,10 @@ def parse_pull_request(node: dict[str, Any]) -> PullRequestSnapshot:
             status_created_at = parse_github_datetime(context.get("createdAt") or "")
 
     comments = node.get("comments") or {}
+    for c in comments.get("nodes") or []:
+        if not _is_bot(_login(c.get("author"))) and c.get("createdAt"):
+            t = parse_github_datetime(c["createdAt"])
+            last_comment_at = max(filter(None, (last_comment_at, t)), default=t)
     found = find_marker_comment(comments.get("nodes") or [])
     page_info = comments.get("pageInfo") or {}
     comments_cursor = page_info.get("endCursor") if found is None and page_info.get("hasNextPage") else None
@@ -1113,6 +1179,7 @@ def parse_pull_request(node: dict[str, Any]) -> PullRequestSnapshot:
         last_reopened_at=last_reopened,
         last_reopened_by_anyone_at=last_reopened_by_anyone,
         last_base_change_at=last_base_change,
+        last_comment_at=last_comment_at,
         base_changes=tuple(base_changes),
         current_status=current_status,
         status_created_at=status_created_at,
@@ -1754,13 +1821,19 @@ def fetch_fork_observations(
             suites = [
                 suite
                 for suite in (commit.get("checkSuites") or {}).get("nodes") or []
-                if (run := suite.get("workflowRun") or {}).get("event") == "push"
+                if (run := suite.get("workflowRun") or {}).get("event") in ("push", "workflow_dispatch")
                 and _workflow_file((run.get("workflow") or {}).get("resourcePath")) == CI_WORKFLOW_FILE
             ]
             if not suites:
                 observations[pr.number] = ForkObservation()
                 continue
-            latest = max(suites, key=lambda suite: suite["createdAt"])
+            latest = max(
+                suites,
+                key=lambda suite: (
+                    suite["createdAt"],
+                    (suite.get("workflowRun") or {}).get("runAttempt") or 1,
+                ),
+            )
             observations[pr.number] = ForkObservation(
                 suite_status=latest["status"],
                 suite_conclusion=latest["conclusion"],
@@ -1998,7 +2071,7 @@ def load_workflow_triggers(workflows_dir: Path) -> dict[str, frozenset[str]]:
     """Map each workflow file name of a checkout to the events that trigger it."""
     triggers = {}
     for path in sorted(workflows_dir.glob("*.y*ml")):
-        workflow = yaml.safe_load(path.read_text()) or {}
+        workflow = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
         triggers[path.name] = get_workflow_triggers(workflow if isinstance(workflow, dict) else {})
     return triggers
 
@@ -2148,12 +2221,18 @@ class BypassFinder:
             paginate=True,
         )
         window_start = self._now - TAMPER_WINDOW
-        return [
-            pull["number"]
-            for pull in pulls
-            if pull["number"] != pr.number
-            and (pull.get("closed_at") is None or parse_github_datetime(pull["closed_at"]) >= window_start)
-        ]
+        active_pulls = []
+        for pull in pulls:
+            if pull["number"] == pr.number:
+                continue
+            closed_at_str = pull.get("closed_at")
+            if closed_at_str is None:
+                active_pulls.append(pull["number"])
+            else:
+                closed_at = parse_github_datetime(closed_at_str)
+                if closed_at is not None and closed_at >= window_start:
+                    active_pulls.append(pull["number"])
+        return active_pulls
 
     def find(self, pr: PullRequestSnapshot) -> str | None:
         if not pr.head_repo:
@@ -2404,7 +2483,7 @@ query($owner: String!, $name: String!, $number: Int!, $cursor: String) {
   repository(owner: $owner, name: $name) { pullRequest(number: $number) {
     comments(first: 100, after: $cursor) {
       pageInfo { hasNextPage endCursor }
-      nodes { databaseId body author { login } }
+      nodes { databaseId body createdAt author { login } }
     }
   } }
 }
@@ -2419,6 +2498,10 @@ def find_state_comment(client: GitHubClient, repo: str, pr: PullRequestSnapshot)
         comments = client.graphql(
             COMMENTS_QUERY, {"owner": owner, "name": name, "number": pr.number, "cursor": cursor}
         )["repository"]["pullRequest"]["comments"]
+        for c in comments.get("nodes") or []:
+            if not _is_bot(_login(c.get("author"))) and c.get("createdAt"):
+                t = parse_github_datetime(c["createdAt"])
+                pr = replace(pr, last_comment_at=max(filter(None, (pr.last_comment_at, t)), default=t))
         found = find_marker_comment(comments["nodes"])
         if found is not None:
             marker, comment_id, body, error = found
@@ -2507,6 +2590,16 @@ def compare_with_base(client: GitHubClient, repo: str, pr: PullRequestSnapshot) 
         return BaseCheck(merge_base, behind, None)
     overlap = set(changed_paths(head_files)) & set(changed_paths(base_files))
     return BaseCheck(merge_base, behind, tuple(sorted(overlap)))
+
+
+def check_head_repo_unavailable(client: GitHubClient, repo: str, pr_number: int) -> bool:
+    try:
+        pr_data = client.rest_get(f"repos/{repo}/pulls/{pr_number}")
+        if not isinstance(pr_data, dict):
+            return False
+        return (pr_data.get("head") or {}).get("repo") is None
+    except Exception:
+        return False
 
 
 def find_heads_shared_across_bases(prs: Iterable[PullRequestSnapshot]) -> set[str]:
@@ -2868,6 +2961,9 @@ def run_reconcile(
                 head_shared_across_bases=pr.head_sha in shared_heads,
                 find_gate_change=functools.partial(gate_change_finder.find, pr),
                 find_failed_jobs=functools.partial(read_failed_jobs, client, pr, fork, read_jobs),
+                verify_head_repo_unavailable=functools.partial(
+                    check_head_repo_unavailable, client, repo, pr.number
+                ),
             )
             # A revocation to `pending` always goes through: it is idempotent and must not depend on
             # `report_project_ci_passed` succeeding later in this run.
