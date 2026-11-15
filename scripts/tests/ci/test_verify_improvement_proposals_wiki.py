@@ -106,6 +106,41 @@ def folder_of(wiki, badge_title, tree=None):
     return next(f for f in (tree or wiki.AIP_TREE).folders if f.badge == badge_title)
 
 
+@pytest.mark.parametrize(
+    "opening",
+    [
+        pytest.param(
+            '<ac:structured-macro ac:macro-id="y" ac:name="{name}" ac:schema-version="1">', id="id-first"
+        ),
+        pytest.param('<ac:structured-macro ac:schema-version="1" ac:name="{name}">', id="version-first"),
+    ],
+)
+def test_macros_are_read_whatever_their_attribute_order(wiki, opening):
+    folder = folder_of(wiki, "Under discussion")
+    state = (
+        opening.format(name="status")
+        + '<ac:parameter ac:name="title">Under discussion</ac:parameter></ac:structured-macro>'
+    )
+    body = (
+        opening.format(name="details")
+        + f"<ac:rich-text-body><table><tbody><tr><td>State</td><td>{state}</td></tr></tbody></table>"
+        "</ac:rich-text-body></ac:structured-macro>"
+    )
+    page = wiki.Page(
+        "7", "AIP-7 Reordered", body, [wiki.AIP_TREE.base_label, wiki.AIP_TREE.get_label(folder)]
+    )
+
+    assert wiki.check_tree(*build_tree(wiki, pages={folder.page_id: [page]})) == []
+
+
+@pytest.mark.parametrize("state", ["UNDER DISCUSSION", "under discussion"])
+def test_state_badge_case_is_not_reported(wiki, state):
+    folder = folder_of(wiki, "Under discussion")
+    page = aip(wiki, folder, state=state)
+
+    assert wiki.check_tree(*build_tree(wiki, pages={folder.page_id: [page]})) == []
+
+
 @pytest.mark.parametrize("tree_name", ["AIP_TREE", "ADIP_TREE"])
 def test_consistent_trees_have_no_problems(wiki, tree_name):
     assert wiki.check_tree(*build_tree(wiki, tree=getattr(wiki, tree_name))) == []
