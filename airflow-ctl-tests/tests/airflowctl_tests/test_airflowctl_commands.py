@@ -165,6 +165,9 @@ TEST_COMMANDS = [
     # Plugins command
     "plugins list",
     "plugins list-import-errors",
+    # Event log commands - the Dag runs above have produced entries by now
+    "eventlogs list --dag-id example_bash_operator --limit 5",
+    "eventlogs get 1",
 ]
 
 # The first Airflow version whose API serves each command, keyed by `_get_command_id`.

@@ -82,6 +82,8 @@ from airflowctl.api.datamodels.generated import (
     DagWarningType,
     DryRunBackfillCollectionResponse,
     DryRunBackfillResponse,
+    EventLogCollectionResponse,
+    EventLogResponse,
     ImportErrorCollectionResponse,
     ImportErrorResponse,
     JobCollectionResponse,
@@ -3364,3 +3366,71 @@ class TestPluginsOperations:
         client = make_api_client(transport=httpx.MockTransport(handle_request))
         response = client.plugins.list_import_errors()
         assert response == self.plugin_import_error_collection_response
+
+
+class TestEventLogsOperations:
+    event_log_response = EventLogResponse(
+        event_log_id=7,
+        when=datetime.datetime(2025, 1, 1, 12, 0, 0, tzinfo=datetime.UTC),
+        dag_id="example_dag",
+        task_id=None,
+        run_id=None,
+        map_index=None,
+        try_number=None,
+        event="trigger_dag_run",
+        logical_date=None,
+        owner="admin",
+        owner_display_name=None,
+        extra=None,
+    )
+    event_log_collection_response = EventLogCollectionResponse(
+        event_logs=[event_log_response], total_entries=1
+    )
+
+    def test_get(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == "/api/v2/eventLogs/7"
+            return httpx.Response(200, json=json.loads(self.event_log_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        assert client.eventlogs.get(event_log_id=7) == self.event_log_response
+
+    def test_list_sends_filters(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == "/api/v2/eventLogs"
+            assert dict(request.url.params) == {
+                "dag_id": "example_dag",
+                "task_id": "my_task",
+                "run_id": "my_run",
+                "event": "trigger_dag_run",
+                "owner": "admin",
+                "before": "2025-02-01T00:00:00",
+                "after": "2025-01-01T00:00:00",
+                "limit": "5",
+                "offset": "10",
+                "order_by": "-when",
+            }
+            return httpx.Response(200, json=json.loads(self.event_log_collection_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.eventlogs.list(
+            dag_id="example_dag",
+            task_id="my_task",
+            run_id="my_run",
+            event="trigger_dag_run",
+            owner="admin",
+            before=datetime.datetime(2025, 2, 1),
+            after=datetime.datetime(2025, 1, 1),
+            limit=5,
+            offset=10,
+            order_by="-when",
+        )
+        assert response == self.event_log_collection_response
+
+    def test_list_omits_unset_filters(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert dict(request.url.params) == {"limit": "100"}
+            return httpx.Response(200, json=json.loads(self.event_log_collection_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        assert client.eventlogs.list() == self.event_log_collection_response

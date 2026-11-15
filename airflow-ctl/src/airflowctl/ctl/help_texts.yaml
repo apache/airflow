@@ -129,3 +129,7 @@ xcom:
 plugins:
   list: "List all installed Airflow plugins"
   list-import-errors: "List all plugin import errors"
+
+eventlogs:
+  get: "Retrieve an event log entry by its ID"
+  list: "List event log entries, optionally filtered by Dag, task, run, event, owner or time"
