@@ -505,7 +505,8 @@ anything, with the `merge-with-base` action (`.github/actions/merge-with-base`):
   and a checkout of an older ref, such as a release a constraints run builds from, or a checkout a
   matrix entry skips, has no such action. A workflow whose checkout takes another ref
   (`checkout-ref`, such as a target branch to build an image from) merges only when it checks out
-  the pushed commit.
+  the pushed commit; `ci-image-build.yml` reads the action from its sparse checkout of the
+  workflow's own version, as it reads its other local actions, so no code of that ref runs as one.
 - The `check-fork-ci-tests-merge` prek hook keeps it that way: in `ci-amd.yml`, `ci-arm.yml` and every
   workflow they call, each call passes `merge-with`, and each job that checks out the pushed commit
   into the workspace merges after its last such checkout, in a step whose `if:` checks `merge-with`.

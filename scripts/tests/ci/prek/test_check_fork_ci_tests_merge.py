@@ -60,6 +60,15 @@ MERGE = {
             id="checkout-of-another-ref",
         ),
         pytest.param([{"run": "echo"}], True, id="no-checkout"),
+        pytest.param(
+            [
+                CHECKOUT,
+                {"uses": "actions/checkout@v7", "with": {"path": "workflow-version"}},
+                {**MERGE, "uses": "./workflow-version/.github/actions/merge-with-base"},
+            ],
+            True,
+            id="merge-action-from-the-workflow-version",
+        ),
     ],
 )
 def test_check_job_steps(steps, valid):

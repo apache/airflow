@@ -52,6 +52,9 @@ console = Console(color_system="standard", width=200)
 WORKFLOWS_DIR = Path(__file__).resolve().parents[3] / ".github" / "workflows"
 TOP_WORKFLOWS = ("ci-amd.yml", "ci-arm.yml")
 MERGE_ACTION = "./.github/actions/merge-with-base"
+# The same action, read from a sparse checkout of the workflow's own version where a job checks out
+# another ref into the workspace, so that no code of that ref runs as an action.
+WORKFLOW_VERSION_MERGE_ACTION = "./workflow-version/.github/actions/merge-with-base"
 REUSABLE_WORKFLOW = re.compile(r"^\./\.github/workflows/([\w.-]+\.yml)$")
 # Refs a checkout of the pushed commit is written with.
 PUSHED_COMMIT_REFS = frozenset({"", "${{ github.sha }}", "${{ inputs.checkout-ref }}"})
@@ -111,7 +114,11 @@ def check_job(workflow_name: str, job_id: str, job: dict[str, Any]) -> list[str]
     checkouts = [index for index, step in enumerate(steps) if is_pushed_commit_checkout(step)]
     if not checkouts:
         return []
-    merges = [index for index, step in enumerate(steps) if step.get("uses") == MERGE_ACTION]
+    merges = [
+        index
+        for index, step in enumerate(steps)
+        if step.get("uses") in (MERGE_ACTION, WORKFLOW_VERSION_MERGE_ACTION)
+    ]
     if not any(index > checkouts[-1] for index in merges):
         return [
             f"job [yellow]{job_id}[/] checks out the pushed commit without a `{MERGE_ACTION}` step "

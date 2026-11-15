@@ -161,11 +161,6 @@ jobs:
         with:
           ref: ${{ inputs.checkout-ref }}
           persist-credentials: false
-      - name: "Merge with the base branch"
-        if: inputs.checkout-ref == '' && inputs.merge-with != ''
-        uses: ./.github/actions/merge-with-base
-        with:
-          merge-with: ${{ inputs.merge-with }}
       # A local action is read from the workspace, and `checkout-ref` may be a release ref cut
       # before the stash actions existed, so they are loaded from the workflow's own version. The
       # runner-preparing scripts too: an older `make_mnt_writeable.sh` empties /mnt, which on
@@ -178,6 +173,11 @@ jobs:
           sparse-checkout: |
             .github/actions
             scripts/ci
+      - name: "Merge with the base branch"
+        if: inputs.checkout-ref == '' && inputs.merge-with != ''
+        uses: ./workflow-version/.github/actions/merge-with-base
+        with:
+          merge-with: ${{ inputs.merge-with }}
       - name: "Free up disk space"
         shell: bash
         run: ./scripts/tools/free_up_disk_space.sh
