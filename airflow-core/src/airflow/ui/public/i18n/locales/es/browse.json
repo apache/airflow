@@ -31,6 +31,7 @@
       "file_many": "Archivos",
       "file_one": "Archivo",
       "file_other": "Archivos",
+      "importErrorForbidden": "No tienes permiso para leer este error de importación.",
       "importErrorGone": "Este error de importación ya no está registrado. Probablemente se corrigió con un nuevo análisis.",
       "neverParsed": "Nunca",
       "showImportError_many": "Ver {{count, number}} de errores",

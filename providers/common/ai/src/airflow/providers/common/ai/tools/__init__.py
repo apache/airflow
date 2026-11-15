@@ -39,6 +39,7 @@ from collections.abc import Awaitable, Callable, Iterable, Sequence
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Protocol
 
+from airflow.providers.common.ai.exceptions import MCPToolsetNotSupportedError
 from airflow.providers.common.ai.utils.masking import mask_secrets
 from airflow.providers.common.ai.utils.tool_metrics import calling_framework, current_framework
 
@@ -48,6 +49,12 @@ if TYPE_CHECKING:
 log = logging.getLogger(__name__)
 
 __all__ = ["AirflowTool", "ToolCallError", "ToolProvider", "ToolResult", "collect_tools"]
+
+# The first sentence of the error for an MCPToolset handed to an adapter; the second says what
+# to use instead.
+_MCP_TOOLSET_NOT_SUPPORTED = (
+    "MCPToolset works in Pydantic AI agents and through the LangChain bridge, not through AirflowTools."
+)
 
 
 class ToolCallError(Exception):
@@ -148,16 +155,35 @@ def collect_tools(sources: Iterable[ToolProvider | AirflowTool]) -> list[Airflow
     """
     Flatten toolsets and individual tools, as a framework adapter receives them, into tools.
 
+    :raises MCPToolsetNotSupportedError: when a source is an ``MCPToolset``. Connect the
+        framework's own MCP client to the server instead.
     :raises ValueError: when two tools share a name. Frameworks route a call by name, so one
         of them would silently never run; give the toolsets different ``tool_prefix`` values,
         where they take one.
+    """
+    return _collect_tools(sources)
+
+
+def _collect_tools(
+    sources: Iterable[ToolProvider | AirflowTool], *, mcp_hint: str | None = None
+) -> list[AirflowTool]:
+    """
+    :func:`collect_tools` for the adapters this provider ships.
+
+    :param mcp_hint: How the adapter's framework connects to an MCP server, as a sentence. It
+        replaces the generic advice in the error raised for an ``MCPToolset``.
     """
     tools: list[AirflowTool] = []
     for source in sources:
         if isinstance(source, AirflowTool):
             tools.append(source)
-        else:
+            continue
+        try:
             tools.extend(source.airflow_tools())
+        except MCPToolsetNotSupportedError:
+            if mcp_hint is None:
+                raise
+            raise MCPToolsetNotSupportedError(f"{_MCP_TOOLSET_NOT_SUPPORTED} {mcp_hint}") from None
     names = [tool.name for tool in tools]
     if duplicates := sorted({name for name in names if names.count(name) > 1}):
         raise ValueError(

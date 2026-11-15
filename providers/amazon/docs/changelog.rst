@@ -26,11 +26,66 @@
 Changelog
 ---------
 
+9.40.0
+......
+
 .. note::
 
     In multi-team mode, a team's ``AwsEksExecutor`` now reads ``[aws_eks_executor]`` from the team's
     section and no longer falls back to the global one. Set ``cluster_name`` for each team, and
     ``region_name`` and ``conn_id`` too if the team needs them.
+
+    ``AwsEksExecutor`` now requires ``apache-airflow-providers-cncf-kubernetes>=11.0.0``, in single-team
+    deployments too.
+
+Features
+~~~~~~~~
+
+* ``Add stop_training_job_on_kill to SageMakerTrainingOperator to stop the job when the task is killed (#76033)``
+* ``Let the ECS executor start tasks in parallel (#75907)``
+* ``Page SqlToS3Operator like GenericTransfer (#75730)``
+* ``Let the EKS executor run per team and next to KubernetesExecutor (#75449)``
+* ``Allow ECS exit codes to fail tasks without retrying (#73885)``
+* ``Add an async upload to S3Hook: aload_bytes (#75242)``
+* ``Add EKS operator for commands in existing Pods (#72542)``
+* ``Allow BedrockBatchInferenceOperator to wait until the job is scheduled (#75230)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Disable external entity resolution when parsing SAML IdP responses (#71423)``
+* ``Refresh expired AWS credentials in AwsDuckDBHook, and require duckdb 1.2.2 for the duckdb extra (#76086)``
+* ``Fix BedrockBatchInferenceSensor sharing success states across tasks (#75265)``
+* ``Skip S3 keys that map to the local sync directory (#74322)``
+* ``Fix SageMaker credential failures being reported as timeouts (#74867)``
+* ``Treat in-progress Bedrock batch inference jobs as scheduled (#75264)``
+
+Misc
+~~~~
+
+* ``Log the AWS identity used by AwsDuckDBHook (#75997)``
+* ``Raise boto3 and botocore minimum to 1.43.4 (#75270, #76278)``
+* ``Report AwsEksExecutor as the caller in its AWS user agent (#75698)``
+* ``Stop importing airflow.utils.email in the Amazon SES hook (#75711)``
+* ``Deprecate deferrable overriding wait_for_completion in AWS operators (#75360)``
+* ``Deprecate deferrable implying wait in no-wait-default AWS operators (#75361)``
+* ``Deprecate deferrable overriding wait_for_completion in Comprehend (#75226)``
+
+Doc-only
+~~~~~~~~
+
+* ``Fix env var names in AWS ECS and Lambda executor setup docs (#76155)``
+* ``Document virtual-hosted-style S3 addressing for AWS connections (#75135)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Enable DMS task logging in example_dms system test (#76336)``
+   * ``Skip log accumulator disk spill when reading finished task logs (#70671)``
+   * ``Remove unused S3 bundle test upload helper (#75888)``
+   * ``Add unit tests for auth manager login datamodels (#72265) (#75544)``
+   * ``Add missing Amazon provider unit tests (#73169)``
+   * ``Wait for MWAA Serverless run to stop before deleting workflow (#75349)``
+   * ``Report HTTP errors from binary downloads in example_emr_eks (#75246)``
 
 9.39.0
 ......

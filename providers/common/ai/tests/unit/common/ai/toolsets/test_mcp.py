@@ -21,6 +21,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from airflow.providers.common.ai.exceptions import MCPToolsetNotSupportedError
 from airflow.providers.common.ai.toolsets.mcp import MCPToolset
 
 _HOOK_PATH = "airflow.providers.common.ai.hooks.mcp.MCPHook"
@@ -136,5 +137,10 @@ class TestMCPToolsetDelegation:
 
 class TestMCPToolsetOutsidePydanticAI:
     def test_points_other_frameworks_to_their_own_mcp_client(self):
-        with pytest.raises(NotImplementedError, match="framework's own MCP client"):
+        with pytest.raises(MCPToolsetNotSupportedError) as exc_info:
             MCPToolset(mcp_conn_id="mcp_default").airflow_tools()
+
+        assert str(exc_info.value) == (
+            "MCPToolset works in Pydantic AI agents and through the LangChain bridge, not through "
+            "AirflowTools. Connect your framework's own MCP client to the server instead."
+        )

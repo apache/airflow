@@ -1,3 +1,4 @@
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -16,11 +17,11 @@
 # under the License.
 
 """
-Extend dag_warning for parse-time failures (file scope, no dag FK).
+Add idempotency_key to hitl_detail.
 
-Revision ID: b8f2c1d04e91
+Revision ID: a8b48633fa60
 Revises: 16d7301f124b
-Create Date: 2026-10-26 00:00:00.000000
+Create Date: 2026-11-04 17:48:09.000000
 
 """
 
@@ -29,9 +30,9 @@ from __future__ import annotations
 import sqlalchemy as sa
 from alembic import op
 
-from airflow.models.base import StringID
+from airflow.migrations.utils import disable_sqlite_fkeys
 
-revision = "b8f2c1d04e91"
+revision = "a8b48633fa60"
 down_revision = "16d7301f124b"
 branch_labels = None
 depends_on = None
@@ -39,17 +40,14 @@ airflow_version = "3.5.0"
 
 
 def upgrade():
-    with op.batch_alter_table("dag_warning") as batch_op:
-        batch_op.drop_constraint("dcw_dag_id_fkey", type_="foreignkey")
-        batch_op.add_column(sa.Column("bundle_name", StringID(), nullable=True))
-        batch_op.add_column(sa.Column("filename", sa.String(length=1024), nullable=True))
-        batch_op.create_index("idx_dag_warning_bundle_filename", ["bundle_name", "filename"], unique=False)
+    """Add the idempotency_key column to hitl_detail."""
+    with disable_sqlite_fkeys(op):
+        with op.batch_alter_table("hitl_detail", schema=None) as batch_op:
+            batch_op.add_column(sa.Column("idempotency_key", sa.Uuid(), nullable=True))
 
 
 def downgrade():
-    op.execute("DELETE FROM dag_warning WHERE dag_id NOT IN (SELECT dag_id FROM dag)")
-    with op.batch_alter_table("dag_warning") as batch_op:
-        batch_op.drop_index("idx_dag_warning_bundle_filename")
-        batch_op.drop_column("filename")
-        batch_op.drop_column("bundle_name")
-        batch_op.create_foreign_key("dcw_dag_id_fkey", "dag", ["dag_id"], ["dag_id"], ondelete="CASCADE")
+    """Remove the idempotency_key column from hitl_detail."""
+    with disable_sqlite_fkeys(op):
+        with op.batch_alter_table("hitl_detail", schema=None) as batch_op:
+            batch_op.drop_column("idempotency_key")

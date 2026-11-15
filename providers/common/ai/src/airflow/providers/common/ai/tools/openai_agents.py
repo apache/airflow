@@ -52,7 +52,7 @@ except ImportError as e:
     raise AirflowOptionalProviderFeatureException(e)
 
 from airflow.providers.common.ai.observability import _content_capture_enabled
-from airflow.providers.common.ai.tools import AirflowTool, ToolCallError, collect_tools
+from airflow.providers.common.ai.tools import AirflowTool, ToolCallError, _collect_tools
 from airflow.providers.common.ai.tools._from_toolset import tool_call_scope
 from airflow.providers.common.ai.tools.tracing import _task_identity
 from airflow.providers.common.ai.utils.masking import dumps_masked, mask_secrets
@@ -70,6 +70,11 @@ if TYPE_CHECKING:
     from airflow.providers.common.ai.tools import ToolProvider
 
 __all__ = ["AirflowTools", "AirflowTraceProcessor"]
+
+_MCP_HINT = (
+    "Pass the server to the agent's mcp_servers with one of the SDK's MCPServer classes, "
+    "such as MCPServerStreamableHttp, instead."
+)
 
 
 class AirflowTools(list[Tool]):
@@ -116,7 +121,7 @@ class AirflowTools(list[Tool]):
     """
 
     def __init__(self, *sources: ToolProvider | AirflowTool) -> None:
-        super().__init__(_to_function_tool(tool) for tool in collect_tools(sources))
+        super().__init__(_to_function_tool(tool) for tool in _collect_tools(sources, mcp_hint=_MCP_HINT))
 
 
 class _FailedToolCall(ToolCallError, AgentsException):

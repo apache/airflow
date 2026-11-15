@@ -1119,6 +1119,9 @@ class HITLOperations:
         resp = self.client.post(
             f"/hitlDetails/{ti_id}",
             content=payload.model_dump_json(),
+            # One key per request, reused by the client's retries, so a retried POST cannot replace
+            # the request (and discard an answer) after the first attempt was stored.
+            headers={"content-type": "application/json", "Idempotency-Key": str(uuid.uuid4())},
         )
         return HITLDetailRequest.model_validate_json(resp.read())
 

@@ -217,8 +217,9 @@ Retries re-attach instead of re-submitting
 --------------------------------------------
 
 A retry (or a manual **clear**) of this task computes the same identity key as the attempt
-before it, based on the Dag, task, run and map index and never the try number, and looks for a
-recorded batch under ``{result_path}/_airflow_batch_state/``. If the input (prompts, model,
+before it, based on the Dag, task, run and map index (plus the loop's trajectory and iteration
+when the task runs inside a task loop, so each iteration submits its own batch) and never the
+try number, and looks for a recorded batch under ``{result_path}/_airflow_batch_state/``. If the input (prompts, model,
 ``output_type`` schema, connection) still matches, the task re-attaches to the existing batch
 instead of submitting a new one. This is what makes ``retries`` safe to use here, whereas the
 Anthropic provider's ``AnthropicBatchOperator`` recommends ``retries=0``.

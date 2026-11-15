@@ -641,6 +641,39 @@ class TestDagRun:
         dag_run.update_state()
         assert dag_run.state == DagRunState.SUCCESS
 
+    @pytest.mark.parametrize(
+        ("partition_key", "expected_suffix"),
+        [
+            pytest.param("2026-01-01T00:00:00", ", partition_key=2026-01-01T00:00:00,", id="with-key"),
+            pytest.param(None, ", partition_key=None,", id="without-key"),
+        ],
+    )
+    def test_dagrun_finished_log_ends_with_partition_key(
+        self, dag_maker, session, caplog, partition_key, expected_suffix
+    ):
+        with dag_maker(
+            dag_id="test_dagrun_finished_log",
+            schedule=CronPartitionTimetable("0 0 * * *", timezone=pendulum.UTC),
+            start_date=datetime.datetime(2026, 1, 1),
+            session=session,
+        ):
+            EmptyOperator(task_id="task")
+        dag_run = dag_maker.create_dagrun(
+            logical_date=None,
+            partition_date=datetime.datetime(2026, 1, 1, tzinfo=pendulum.UTC) if partition_key else None,
+            partition_key=partition_key,
+        )
+        for ti in dag_run.get_task_instances(session=session):
+            ti.set_state(TaskInstanceState.SUCCESS, session=session)
+
+        with caplog.at_level("INFO"):
+            dag_run.update_state(session=session)
+
+        finished = [r.getMessage() for r in caplog.records if r.getMessage().startswith("DagRun Finished:")]
+        assert len(finished) == 1
+        assert ", data_interval_end=" in finished[0]
+        assert finished[0].endswith(expected_suffix)
+
     def test_dagrun_not_stuck_in_running_when_all_tasks_instances_are_removed(self, dag_maker, session):
         """
         Tests that a DAG run succeeds when all tasks are removed

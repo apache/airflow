@@ -122,7 +122,7 @@ Without the option, the task fails with:
 
 .. code-block:: text
 
-    ValueError: durable=True requires [common.ai] durable_cache_path to be set. Example: durable_cache_path = file:///tmp/airflow_durable_cache
+    ValueError: Durable execution on Airflow before 3.3 needs [common.ai] durable_cache_path to be set, to say where its journal is kept. Example: durable_cache_path = file:///tmp/airflow_durable_cache
 
 How a retry replays
 -------------------

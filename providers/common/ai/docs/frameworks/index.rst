@@ -148,25 +148,31 @@ Tested versions
      - Pins OpenTelemetry at 1.42.1 or lower, below the version in Airflow's constraints
        file. Airflow itself accepts 1.42.1.
    * - OpenAI Agents SDK
-     - 0.20.0 and 0.23.1
-     - 0.21.0 and later require ``openai>=3``, while Airflow's constraints file pins
-       ``openai`` below 3, so installing with that file gives 0.20.
+     - 0.20.0, 0.23.1 and 0.24.0
+     - 0.21.0 and later require ``openai>=3``, so installing with a constraints file that
+       pins ``openai`` below 3 gives 0.20.
+   * - LlamaIndex
+     - ``llama-index-core`` 0.14.25, ``llama-index-llms-openai`` 0.8.3
+     - ``llama-index-llms-openai`` caps ``openai`` below 3, so the ``[llamaindex]`` extra
+       cannot share an environment with the ``[openai]`` extra or with a constraints file
+       that pins ``openai`` 3. See :doc:`../hooks/llamaindex`.
    * - Claude Agent SDK
      - 0.2.168
      - Bundles the Claude Code CLI as the subprocess the SDK talks to.
 
 These are the versions the adapter tests have been run against. Strands and ADK cap
-packages below the versions in Airflow's dependency lock, and current OpenAI Agents SDK
-releases need ``openai`` 3, so CI runs their adapter tests in a job of their own, one
-framework at a time. The Claude Agent SDK adapter has no such conflict, so CI runs its
-tests.
+packages below the versions in Airflow's dependency lock, LlamaIndex caps ``openai`` below
+the version in it, and no Airflow package depends on the OpenAI Agents SDK, so CI runs their
+tests in a job of their own, one framework at a time. The Claude Agent SDK adapter has no
+such conflict, so CI runs its tests.
 
 Outside canary runs, the job holds every package already in the CI image at its
 installed version with ``--override``, so Strands' and ADK's own dependency caps are
-overridden. It installs the newest framework release that is older than the repository's
-``exclude-newer`` window, which for the OpenAI Agents SDK means the newest release that
-accepts ``openai`` 2.x, not the versions in the table above. It therefore does not show
-that those versions work in the environment a user gets. Canary runs, which include
+overridden. LlamaIndex is the exception for ``openai``: the job lets its cap bring
+``openai`` down to 2.x, because a run on openai 3 would test a pairing no user gets. It
+installs the newest framework release that is older than the repository's
+``exclude-newer`` window, so it does not show that the versions in the table above work in
+the environment a user gets. Canary runs, which include
 scheduled and manual runs on ``main`` and pull requests labeled ``canary``, install each
 framework's newest release with its own dependency pins instead.
 

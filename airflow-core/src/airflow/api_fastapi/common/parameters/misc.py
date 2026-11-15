@@ -37,7 +37,7 @@ from airflow.api_fastapi.common.parameters.search import (
 from airflow.models.connection import Connection
 from airflow.models.dag import DagModel
 from airflow.models.errors import ParseImportError
-from airflow.models.hitl import HITLDetail
+from airflow.models.hitl import HITLDetail, awaiting_response_clause
 from airflow.models.pool import Pool
 from airflow.models.task_coordinates import public_map_index_expression
 from airflow.models.taskinstance import TaskInstance
@@ -55,17 +55,11 @@ class _PendingActionsFilter(BaseParam[bool]):
         if self.value is None and self.skip_none:
             return select
 
-        from airflow.models.hitl import HITLDetail
-        from airflow.models.taskinstance import TaskInstance
-
         # Join with HITLDetail and TaskInstance to find Dags
         pending_actions_count_subquery = (
             sql_select(func.count(HITLDetail.ti_id))
             .join(TaskInstance, HITLDetail.ti_id == TaskInstance.id)
-            .where(
-                HITLDetail.responded_at.is_(None),
-                TaskInstance.state.in_((TaskInstanceState.DEFERRED, TaskInstanceState.AWAITING_INPUT)),
-            )
+            .where(HITLDetail.responded_at.is_(None), awaiting_response_clause())
             .where(TaskInstance.dag_id == DagModel.dag_id)
             .scalar_subquery()
         )

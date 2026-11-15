@@ -34,7 +34,7 @@ except ImportError as e:
 
     raise AirflowOptionalProviderFeatureException(e)
 
-from airflow.providers.common.ai.tools import AirflowTool, collect_tools
+from airflow.providers.common.ai.tools import AirflowTool, _collect_tools
 from airflow.providers.common.ai.tools._from_toolset import tool_call_scope
 from airflow.providers.common.ai.utils.tool_metrics import calling_framework
 
@@ -45,6 +45,8 @@ if TYPE_CHECKING:
     from airflow.providers.common.ai.tools import ToolProvider
 
 __all__ = ["AirflowTools"]
+
+_MCP_HINT = "Connect ADK's McpToolset to the server instead."
 
 
 class AirflowTools(BaseToolset):
@@ -82,7 +84,9 @@ class AirflowTools(BaseToolset):
 
     def __init__(self, *sources: ToolProvider | AirflowTool) -> None:
         super().__init__()
-        self._adk_tools: list[BaseTool] = [_AirflowAdkTool(tool) for tool in collect_tools(sources)]
+        self._adk_tools: list[BaseTool] = [
+            _AirflowAdkTool(tool) for tool in _collect_tools(sources, mcp_hint=_MCP_HINT)
+        ]
 
     async def get_tools(self, readonly_context: ReadonlyContext | None = None) -> list[BaseTool]:
         return self._adk_tools

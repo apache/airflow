@@ -78,7 +78,7 @@ apache-airflow-providers-databricks package
 `Databricks <https://databricks.com/>`__
 
 
-Release: 7.23.0
+Release: 7.24.0
 
 Provider package
 ----------------
@@ -153,7 +153,7 @@ Install them when installing from PyPI. For example:
 ==================  ================================================================================================================================================================
 Extra               Dependencies
 ==================  ================================================================================================================================================================
-``common.ai``       ``apache-airflow-providers-common-ai>=0.11.0``
+``common.ai``       ``apache-airflow-providers-common-ai>=1.0.0``
 ``avro``            ``fastavro>=1.9.0; python_version<"3.14"``, ``fastavro>=1.10.0; python_version>="3.12" and python_version<"3.14"``, ``fastavro>=1.12.1; python_version>="3.14"``
 ``amazon``          ``apache-airflow-providers-amazon>=9.22.0``
 ``azure-identity``  ``azure-identity>=1.25.3``
@@ -171,5 +171,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-databricks 7.23.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_databricks-7.23.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_databricks-7.23.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_databricks-7.23.0.tar.gz.sha512>`__)
-* `The apache-airflow-providers-databricks 7.23.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_databricks-7.23.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_databricks-7.23.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_databricks-7.23.0-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-databricks 7.24.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_databricks-7.24.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_databricks-7.24.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_databricks-7.24.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-databricks 7.24.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_databricks-7.24.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_databricks-7.24.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_databricks-7.24.0-py3-none-any.whl.sha512>`__)

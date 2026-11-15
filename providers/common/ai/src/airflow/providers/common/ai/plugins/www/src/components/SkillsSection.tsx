@@ -48,10 +48,17 @@ export const SkillsSection: FC<{ skills: SkillInfo[] }> = ({ skills }) => {
     <Box data-testid="skills-section" maxW="960px" mt={6}>
       <HStack gap={2} mb={3}>
         <Heading size="sm">Skills</Heading>
-        <Text color="fg.muted" fontSize="sm">
-          {loadedCount} of {skills.length} loaded
-        </Text>
+        {skills.length > 0 && (
+          <Text color="fg.muted" fontSize="sm">
+            {loadedCount} of {skills.length} loaded
+          </Text>
+        )}
       </HStack>
+      {skills.length === 0 && (
+        <Text color="fg.muted" fontSize="sm">
+          No skills found in the toolset's sources.
+        </Text>
+      )}
       <Stack gap={2}>
         {ordered.map((skill) => {
           const loaded = isLoaded(skill.calls);
@@ -73,6 +80,8 @@ export const SkillsSection: FC<{ skills: SkillInfo[] }> = ({ skills }) => {
                 portalled
               >
                 <Badge
+                  aria-label={`About the ${skill.name} skill`}
+                  as="button"
                   borderRadius="full"
                   colorPalette={loaded ? "brand" : "gray"}
                   flexShrink={0}

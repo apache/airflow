@@ -82,7 +82,8 @@ class LLMFileAnalysisOperator(LLMOperator):
     Human-in-the-Loop approval parameters are inherited from
     :class:`~airflow.providers.common.ai.operators.llm.LLMOperator`
     (``require_approval``, ``approval_timeout``, ``on_approval_timeout``,
-    ``allow_modifications``, ``approval_notifiers``, ``approval_assigned_users``).
+    ``allow_modifications``, ``approval_notifiers``, ``approval_assigned_users``,
+    ``fail_on_reject``, ``ignore_downstream_trigger_rules``).
     The task pauses after the file analysis and only returns the result once a
     reviewer approves.
     """

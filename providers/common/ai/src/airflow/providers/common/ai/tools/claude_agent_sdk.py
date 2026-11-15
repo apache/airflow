@@ -42,7 +42,7 @@ import copy
 import logging
 from typing import TYPE_CHECKING, Any
 
-from airflow.providers.common.ai.tools import AirflowTool, ToolCallError, collect_tools
+from airflow.providers.common.ai.tools import AirflowTool, ToolCallError, _collect_tools
 from airflow.providers.common.ai.tools._from_toolset import tool_call_scope
 from airflow.providers.common.ai.utils.tool_definition import serialize_for_llm
 from airflow.providers.common.ai.utils.tool_metrics import calling_framework
@@ -55,6 +55,11 @@ if TYPE_CHECKING:
 log = logging.getLogger(__name__)
 
 __all__ = ["AirflowTools"]
+
+_MCP_HINT = (
+    "Pass the server to build_options(mcp_servers=...) and its tools (mcp__<name>__*) to "
+    "allowed_tools, or set both on ClaudeAgentOptions, instead."
+)
 
 
 _MAX_ERROR_DETAIL_CHARS = 500
@@ -186,7 +191,7 @@ class AirflowTools:
 
     def __init__(self, *sources: ToolProvider | AirflowTool, server_name: str = "airflow") -> None:
         self.server_name = server_name
-        airflow_tools = collect_tools(sources)
+        airflow_tools = _collect_tools(sources, mcp_hint=_MCP_HINT)
         self.allowed_tools: list[str] = [f"mcp__{server_name}__{t.name}" for t in airflow_tools]
         # ``_run`` is the run in progress (guards re-entry); ``_last_run`` is the one that most
         # recently ended (refuses late calls). It is only read while ``_run`` is None.

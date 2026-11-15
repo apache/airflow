@@ -30,10 +30,16 @@ from sqlalchemy.sql.functions import FunctionElement
 from airflow._shared.timezones import timezone
 from airflow.models.base import Base
 from airflow.utils.sqlalchemy import UtcDateTime
+from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
     from sqlalchemy.sql import ColumnElement
     from sqlalchemy.sql.compiler import SQLCompiler
+
+    from airflow.models.taskinstance import TaskInstance
+
+# A task parks for its answer in ``deferred`` before Airflow 3.3 and in ``awaiting_input`` from 3.3.
+HITL_PARKED_STATES = (TaskInstanceState.DEFERRED, TaskInstanceState.AWAITING_INPUT)
 
 
 class JSONExtract(FunctionElement):
@@ -163,6 +169,8 @@ class HITLDetail(Base, HITLDetailPropertyMixin):
     params: Mapped[dict] = mapped_column(sa.JSON(), nullable=False, default={})
     assignees: Mapped[list[dict[str, str]] | None] = mapped_column(sa.JSON(), nullable=True)
     created_at: Mapped[datetime] = mapped_column(UtcDateTime, default=timezone.utcnow, nullable=False)
+    # Sent by the Task SDK client with the request, so a retried POST can be told from a new request.
+    idempotency_key: Mapped[UUID | None] = mapped_column(Uuid(), nullable=True)
 
     # Response Content Detail
     responded_at: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
@@ -206,3 +214,38 @@ class HITLDetail(Base, HITLDetailPropertyMixin):
             "responded_by_user": self.responded_by_user,
             "timedout": timedout,
         }
+
+    def is_awaited_by(self, ti: TaskInstance) -> bool:
+        """
+        Whether ``ti`` is waiting for the answer to this request.
+
+        A parked task is. A running task is while it checks for the answer before parking: on its
+        first run (``next_method`` unset), or on a resumed run that asked again after the server
+        resumed it (``scheduled_dttm``). A run resumed after a timeout without an answer is not.
+        Every attempt gets a new task instance id, so the request is always ``ti``'s own.
+        :func:`awaiting_response_clause` is the SQL form.
+        """
+        if ti.state in HITL_PARKED_STATES:
+            return True
+        if ti.state != TaskInstanceState.RUNNING:
+            return False
+        return ti.next_method is None or (
+            ti.scheduled_dttm is not None and self.created_at >= ti.scheduled_dttm
+        )
+
+
+def awaiting_response_clause() -> ColumnElement[bool]:
+    """Return the SQL form of :meth:`HITLDetail.is_awaited_by`; join ``task_instance`` first."""
+    # Circular import: airflow.models.taskinstance imports this module at load time.
+    from airflow.models.taskinstance import TaskInstance
+
+    return sa.or_(
+        TaskInstance.state.in_(HITL_PARKED_STATES),
+        sa.and_(
+            TaskInstance.state == TaskInstanceState.RUNNING,
+            sa.or_(
+                TaskInstance.next_method.is_(None),
+                HITLDetail.created_at >= TaskInstance.scheduled_dttm,
+            ),
+        ),
+    )

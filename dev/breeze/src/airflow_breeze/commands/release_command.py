@@ -29,7 +29,10 @@ from airflow_breeze.utils.confirm import confirm_action
 from airflow_breeze.utils.console import console_print
 from airflow_breeze.utils.environment_check import is_ci_environment
 from airflow_breeze.utils.path_utils import AIRFLOW_ROOT_PATH
-from airflow_breeze.utils.release_constraints import publish_constraints
+from airflow_breeze.utils.release_constraints import (
+    find_pending_provider_candidates,
+    publish_constraints,
+)
 from airflow_breeze.utils.run_utils import run_command
 
 # Pattern to match Airflow release versions (e.g., "3.0.5")
@@ -344,12 +347,36 @@ def upload_to_pypi(version, task_sdk_version=None):
         )
 
 
-def regenerate_constraints(version):
+def decide_pending_candidates_override() -> bool | None:
+    """Settle the pending-provider-candidate guard before anything irreversible happens.
+
+    The constraints are resolved after the PyPI upload, so a guard that trips there leaves the
+    release published without constraints. Returns ``False`` to pin the currently-released providers,
+    or ``None`` to let the workflow derive the guard when nothing is pending.
+    """
+    pending = find_pending_provider_candidates()
+    if not pending:
+        return None
+    console_print("[warning]These providers have a release candidate on PyPI newer than their latest final:")
+    for distribution, candidate in pending:
+        console_print(f"[warning]  * {distribution}=={candidate}")
+    if confirm_action(
+        "Pin the currently-released providers and proceed even though a provider wave is still in rc?"
+    ):
+        return False
+    exit("Release or yank the pending provider candidates, then start the release again.")
+
+
+def regenerate_constraints(version, fail_on_pending_provider_candidates: bool | None = None):
     # The candidate's constraints pinned pre-releases, so they cannot be promoted by retagging - a
     # released version must never point at rc pins. The workflow reads a version without "rcN" and
     # resolves again without them, against the providers now published as finals.
     major, minor = version.split(".")[:2]
-    publish_constraints(version=version, ref=f"v{major}-{minor}-stable")
+    publish_constraints(
+        version=version,
+        ref=f"v{major}-{minor}-stable",
+        fail_on_pending_provider_candidates=fail_on_pending_provider_candidates,
+    )
 
 
 def tag_and_push_latest_constraint(version):
@@ -446,6 +473,8 @@ def airflow_release(version, task_sdk_version):
     # Final confirmation
     confirm_action("Pushes will be made to origin. Do you want to continue?", abort=True)
 
+    fail_on_pending_provider_candidates = decide_pending_candidates_override()
+
     # Clone the asf repo
     os.chdir("..")
     working_dir = os.getcwd()
@@ -536,7 +565,7 @@ def airflow_release(version, task_sdk_version):
     os.chdir(airflow_repo_root)
 
     # Regenerate, publish and tag the constraints for the final version
-    regenerate_constraints(version)
+    regenerate_constraints(version, fail_on_pending_provider_candidates)
     tag_and_push_latest_constraint(version)
 
     # Push tag for final version

@@ -18,11 +18,20 @@ from __future__ import annotations
 
 import asyncio
 import traceback
+from functools import partial
 from typing import Any
 
 import pytest
 
-from airflow.providers.common.ai.tools import AirflowTool, ToolCallError, ToolResult, collect_tools
+from airflow.providers.common.ai.exceptions import MCPToolsetNotSupportedError
+from airflow.providers.common.ai.tools import (
+    AirflowTool,
+    ToolCallError,
+    ToolResult,
+    _collect_tools,
+    collect_tools,
+)
+from airflow.providers.common.ai.toolsets.mcp import MCPToolset
 
 
 def _tool(function) -> AirflowTool:
@@ -111,6 +120,38 @@ class TestCollectTools:
             match="More than one tool is named query. .*tool_prefix values, where they take one, so",
         ):
             collect_tools([_Provider(_named("query")), _Provider(_named("query"))])
+
+    @pytest.mark.parametrize(
+        ("collect", "advice"),
+        [
+            pytest.param(
+                collect_tools, "Connect your framework's own MCP client to the server instead.", id="public"
+            ),
+            pytest.param(
+                partial(_collect_tools, mcp_hint="Connect Acme's McpClient instead."),
+                "Connect Acme's McpClient instead.",
+                id="adapter-hint",
+            ),
+        ],
+    )
+    def test_an_mcp_toolset_error_says_what_to_connect_instead(self, collect, advice):
+        with pytest.raises(MCPToolsetNotSupportedError) as exc_info:
+            collect([MCPToolset("mcp_default")])
+
+        assert str(exc_info.value) == (
+            "MCPToolset works in Pydantic AI agents and through the LangChain bridge, not through "
+            f"AirflowTools. {advice}"
+        )
+
+    def test_other_not_implemented_errors_pass_through_unchanged(self):
+        """The hint is MCP-specific; another provider's NotImplementedError keeps its own message."""
+
+        class _Unfinished:
+            def airflow_tools(self) -> list[AirflowTool]:
+                raise NotImplementedError("not yet")
+
+        with pytest.raises(NotImplementedError, match="^not yet$"):
+            _collect_tools([_Unfinished()], mcp_hint="Connect Acme's McpClient instead.")
 
 
 @pytest.mark.enable_redact

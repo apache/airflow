@@ -36,7 +36,7 @@ except ImportError as e:
 
     raise AirflowOptionalProviderFeatureException(e)
 
-from airflow.providers.common.ai.tools import AirflowTool, ToolCallError, collect_tools
+from airflow.providers.common.ai.tools import AirflowTool, ToolCallError, _collect_tools
 from airflow.providers.common.ai.tools._from_toolset import tool_call_scope
 from airflow.providers.common.ai.utils.tool_metrics import calling_framework
 
@@ -55,6 +55,8 @@ if TYPE_CHECKING:
     from airflow.providers.common.ai.tools import ToolProvider
 
 __all__ = ["AirflowTools"]
+
+_MCP_HINT = "Connect Strands' MCPClient to the server instead."
 
 # Strands refuses two plugins with the same name on one agent, so each instance gets its own.
 _instance_numbers = itertools.count(1)
@@ -102,7 +104,7 @@ class AirflowTools(Plugin):
         self._name = f"airflow-tools-{next(_instance_numbers)}"
         self._run = object()
         self._airflow_tools: list[AgentTool] = [
-            _to_strands_tool(tool, lambda: self._run) for tool in collect_tools(sources)
+            _to_strands_tool(tool, lambda: self._run) for tool in _collect_tools(sources, mcp_hint=_MCP_HINT)
         ]
         super().__init__()
 

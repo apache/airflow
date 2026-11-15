@@ -324,6 +324,82 @@ class TestReject:
         assert retry.journal.stats.replayed.total() == 0
 
 
+class TestReserve:
+    @staticmethod
+    async def record_tool(memory_storage, *names):
+        first = DurableJournal(memory_storage).start_run()
+        for name in names:
+            await first.run(name, kind="tool", fingerprint=name, body=lambda: ok("old"))
+
+    @pytest.mark.asyncio
+    async def test_a_reserved_step_counts_as_replayed_only_once_taken(self, memory_storage):
+        await self.record_tool(memory_storage, "t")
+
+        retry = DurableJournal(memory_storage).start_run()
+        retry.reserve([("c", "t", "t")], kind="tool")
+        assert retry.journal.stats.replayed.total() == 0
+
+        step = retry.claim_reserved("c", "t", kind="tool", fingerprint="t")
+        step.count_as_replayed()
+
+        assert (step.position, step.replayed, step.payload) == (0, True, "old")
+        assert dict(retry.journal.stats.replayed) == {"tool": 1}
+
+    @pytest.mark.asyncio
+    async def test_a_reserved_id_is_claimed_once(self, memory_storage):
+        await self.record_tool(memory_storage, "t")
+
+        retry = DurableJournal(memory_storage).start_run()
+        retry.reserve([("c", "t", "t")], kind="tool")
+        retry.claim_reserved("c", "t", kind="tool", fingerprint="t")
+        again = retry.claim_reserved("c", "t", kind="tool", fingerprint="t")
+
+        assert (again.position, again.replayed) == (1, False)
+        assert dict(retry.journal.stats.replayed) == {"tool": 1}
+
+    @pytest.mark.asyncio
+    async def test_a_later_reserve_drops_the_steps_nothing_took(self, memory_storage):
+        await self.record_tool(memory_storage, "t")
+
+        retry = DurableJournal(memory_storage).start_run()
+        retry.reserve([("old", "t", "t")], kind="tool")
+        retry.reserve([("new", "u", "u")], kind="tool")
+        stale = retry.claim_reserved("old", "t", kind="tool", fingerprint="t")
+
+        assert (stale.position, stale.replayed) == (2, False)
+
+    @pytest.mark.asyncio
+    async def test_a_reserve_without_calls_drops_the_steps_nothing_took(self, memory_storage):
+        await self.record_tool(memory_storage, "t")
+
+        retry = DurableJournal(memory_storage).start_run()
+        retry.reserve([("old", "t", "t")], kind="tool")
+        retry.reserve([], kind="tool")
+        stale = retry.claim_reserved("old", "t", kind="tool", fingerprint="t")
+
+        assert (stale.position, stale.replayed) == (1, False)
+
+    @pytest.mark.asyncio
+    async def test_a_call_that_shares_an_id_leaves_the_reservation_to_the_matching_call(self, memory_storage):
+        await self.record_tool(memory_storage, "t")
+
+        retry = DurableJournal(memory_storage).start_run()
+        retry.reserve([("c", "t", "t")], kind="tool")
+        other = retry.claim_reserved("c", "t", kind="tool", fingerprint="other")
+        own = retry.claim_reserved("c", "t", kind="tool", fingerprint="t")
+
+        assert (other.position, other.replayed) == (1, False)
+        assert (own.position, own.replayed) == (0, True)
+
+    def test_duplicate_ids_in_one_reserve_take_one_position(self, memory_storage):
+        run = DurableJournal(memory_storage).start_run()
+        run.reserve([("c", "t", "a"), ("c", "t", "b"), ("d", "t", "d")], kind="tool")
+
+        assert run.position == 2
+        assert run.claim_reserved("c", "t", kind="tool", fingerprint="a").position == 0
+        assert run.claim_reserved("d", "t", kind="tool", fingerprint="d").position == 1
+
+
 class TestFailuresDuringReplay:
     @pytest.mark.asyncio
     async def test_an_attempt_killed_while_replaying_leaves_the_earlier_steps_replayable(
