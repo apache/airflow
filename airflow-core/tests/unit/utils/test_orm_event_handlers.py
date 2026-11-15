@@ -20,8 +20,8 @@ from unittest import mock
 
 import pytest
 
+from airflow.sdk.api.datamodels._generated import TaskInstanceState
 from airflow.utils.orm_event_handlers import _StrSubclassEncoders
-from airflow.utils.state import TaskInstanceState
 
 
 class _FakeConnection:
