@@ -25,6 +25,7 @@ from unittest import mock
 
 import pytest
 from azure.common import AzureHttpError
+from azure.core.exceptions import HttpResponseError
 
 from airflow.providers.common.compat.sdk import timezone
 from airflow.providers.microsoft.azure.hooks.wasb import WasbHook
@@ -495,16 +496,36 @@ def test_upload_skips_path_outside_base_log_folder(tmp_path, caplog):
     assert "outside base_log_folder" in caplog.text
 
 
-def test_read_directory_lists_nested_blobs_recursively(tmp_path):
+@pytest.mark.parametrize(
+    ("relative_path", "list_method", "unused_list_method", "blobs", "expected_logs"),
+    [
+        pytest.param(
+            "trigger_id=1/triggerer_job_id=2/",
+            "get_blobs_list_recursive",
+            "get_blobs_list",
+            {
+                "remote/log/location/trigger_id=1/triggerer_job_id=2/trigger.log": "current",
+                "remote/log/location/trigger_id=1/triggerer_job_id=2/rotated/trigger.log.1": "rotated",
+            },
+            ["rotated", "current"],
+            id="directory",
+        ),
+        pytest.param(
+            "1.log",
+            "get_blobs_list",
+            "get_blobs_list_recursive",
+            {"remote/log/location/1.log": "Log line"},
+            ["Log line"],
+            id="file",
+        ),
+    ],
+)
+def test_read_lists_blobs(tmp_path, relative_path, list_method, unused_list_method, blobs, expected_logs):
     """A watcher's rotated parts sit under ``rotated/`` and must be read as blobs, not as a prefix."""
-    blobs = {
-        "remote/log/location/trigger_id=1/triggerer_job_id=2/trigger.log": "current",
-        "remote/log/location/trigger_id=1/triggerer_job_id=2/rotated/trigger.log.1": "rotated",
-    }
     mock_hook = mock.MagicMock()
     mock_hook.blob_service_client.primary_endpoint = "https://storage-account.blob.core.windows.net/"
     mock_hook.blob_service_client.account_name = "storage-account"
-    mock_hook.get_blobs_list_recursive.return_value = list(blobs)
+    getattr(mock_hook, list_method).return_value = list(blobs)
     mock_hook.read_file.side_effect = lambda container, name: blobs[name]
     subject = WasbRemoteLogIO(
         remote_base="remote/log/location",
@@ -514,23 +535,26 @@ def test_read_directory_lists_nested_blobs_recursively(tmp_path):
     )
 
     with mock.patch.object(WasbRemoteLogIO, "hook", new=mock_hook):
-        messages, logs = subject.read("trigger_id=1/triggerer_job_id=2/", None)
+        messages, logs = subject.read(relative_path, None)
 
-    mock_hook.get_blobs_list_recursive.assert_called_once_with(
-        container_name="wasb-container",
-        prefix=os.path.join("remote/log/location", "trigger_id=1/triggerer_job_id=2/"),
+    getattr(mock_hook, list_method).assert_called_once_with(
+        container_name="wasb-container", prefix=os.path.join("remote/log/location", relative_path)
     )
-    mock_hook.get_blobs_list.assert_not_called()
-    assert logs == ["rotated", "current"]
+    getattr(mock_hook, unused_list_method).assert_not_called()
+    assert logs == expected_logs
     assert not any("Unable to read remote blob" in m for m in messages)
 
 
-def test_read_file_lists_blobs_one_level(tmp_path):
+@pytest.mark.parametrize(
+    ("relative_path", "list_method"),
+    [
+        pytest.param("trigger_id=1/triggerer_job_id=2/", "get_blobs_list_recursive", id="directory"),
+        pytest.param("1.log", "get_blobs_list", id="file"),
+    ],
+)
+def test_read_handles_list_blobs_error(tmp_path, relative_path, list_method):
     mock_hook = mock.MagicMock()
-    mock_hook.blob_service_client.primary_endpoint = "https://storage-account.blob.core.windows.net/"
-    mock_hook.blob_service_client.account_name = "storage-account"
-    mock_hook.get_blobs_list.return_value = ["remote/log/location/1.log"]
-    mock_hook.read_file.return_value = "Log line"
+    getattr(mock_hook, list_method).side_effect = HttpResponseError("failed to list")
     subject = WasbRemoteLogIO(
         remote_base="remote/log/location",
         base_log_folder=tmp_path,
@@ -539,10 +563,12 @@ def test_read_file_lists_blobs_one_level(tmp_path):
     )
 
     with mock.patch.object(WasbRemoteLogIO, "hook", new=mock_hook):
-        _, logs = subject.read("1.log", None)
+        messages, logs = subject.read(relative_path, None)
 
-    mock_hook.get_blobs_list.assert_called_once_with(
-        container_name="wasb-container", prefix=os.path.join("remote/log/location", "1.log")
-    )
-    mock_hook.get_blobs_list_recursive.assert_not_called()
-    assert logs == ["Log line"]
+    prefix = os.path.join("remote/log/location", relative_path)
+    assert logs is None
+    assert messages == [
+        f"tried listing blobs with prefix={prefix} and container=wasb-container",
+        "could not list blobs failed to list",
+    ]
+    mock_hook.read_file.assert_not_called()
