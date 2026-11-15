@@ -3596,14 +3596,8 @@ def test_job_status_budget_after_a_gap_is_capped():
 MONITOR_RUN_URL = "https://github.com/apache/airflow/actions/runs/100"
 
 
-def _monitor_run(run_id, started, status="completed", attempt=1, created=None):
-    return {
-        "id": run_id,
-        "status": status,
-        "run_started_at": started,
-        "run_attempt": attempt,
-        "created_at": created or started,
-    }
+def _monitor_run(run_id, started, status="completed", attempt=1):
+    return {"id": run_id, "status": status, "run_started_at": started, "run_attempt": attempt}
 
 
 @pytest.mark.parametrize(
@@ -3619,35 +3613,6 @@ def _monitor_run(run_id, started, status="completed", attempt=1, created=None):
             timedelta(minutes=7),
             id="previous-started-run",
         ),
-        pytest.param(
-            [
-                _monitor_run(101, "2026-11-10T11:59:00Z"),
-                _monitor_run(
-                    100,
-                    "2026-11-10T12:05:00Z",
-                    status="in_progress",
-                    attempt=2,
-                    created="2026-11-10T11:58:00Z",
-                ),
-                _monitor_run(99, "2026-11-10T11:51:00Z"),
-            ],
-            timedelta(minutes=6),
-            id="re-run-after-a-later-run",
-        ),
-        pytest.param(
-            [
-                _monitor_run(
-                    100,
-                    "2026-11-10T12:05:00Z",
-                    status="in_progress",
-                    attempt=2,
-                    created="2026-11-10T11:58:00Z",
-                ),
-                _monitor_run(99, "2026-11-10T11:51:00Z"),
-            ],
-            timedelta(minutes=7),
-            id="re-run-counts-from-its-first-attempt",
-        ),
         pytest.param([_monitor_run(100, "2026-11-10T11:58:00Z")], None, id="first-run"),
         pytest.param([_monitor_run(99, "2026-11-10T11:51:00Z")], None, id="this-run-not-listed"),
     ],
@@ -3659,6 +3624,38 @@ def test_find_time_since_previous_monitor_run(client, runs, expected):
     client.rest_get.assert_called_once_with(
         f"repos/{REPO}/actions/workflows/fork-ci-monitor.yml/runs?per_page=10"
     )
+
+
+@pytest.mark.parametrize(
+    ("previous_attempt_start", "expected"),
+    [
+        pytest.param("2026-11-10T12:03:00Z", timedelta(minutes=3), id="counts-from-the-previous-attempt"),
+        pytest.param("2026-11-10T11:50:00Z", timedelta(minutes=6), id="later-run-in-between"),
+    ],
+)
+def test_find_time_since_previous_monitor_run_for_a_re_run(client, previous_attempt_start, expected):
+    def rest_get(path):
+        if path.endswith("/actions/runs/100/attempts/2"):
+            return {"id": 100, "run_attempt": 2, "run_started_at": previous_attempt_start}
+        return {
+            "workflow_runs": [
+                _monitor_run(100, "2026-11-10T12:06:00Z", status="in_progress", attempt=3),
+                _monitor_run(99, "2026-11-10T12:00:00Z"),
+            ]
+        }
+
+    client.rest_get.side_effect = rest_get
+
+    assert find_time_since_previous_monitor_run(client, REPO, run_url=MONITOR_RUN_URL) == expected
+
+
+def test_find_time_since_previous_monitor_run_when_the_previous_attempt_cannot_be_read(client):
+    client.rest_get.side_effect = [
+        {"workflow_runs": [_monitor_run(100, "2026-11-10T12:06:00Z", status="in_progress", attempt=2)]},
+        GitHubError("gh api failed: HTTP 502"),
+    ]
+
+    assert find_time_since_previous_monitor_run(client, REPO, run_url=MONITOR_RUN_URL) is None
 
 
 def test_find_time_since_previous_monitor_run_without_a_run_id(client):

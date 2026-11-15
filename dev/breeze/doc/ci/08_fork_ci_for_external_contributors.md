@@ -1050,8 +1050,9 @@ not one twelfth of it. Both are read from the monitor's runs (`GET
 /repos/apache/airflow/actions/workflows/fork-ci-monitor.yml/runs`, runs still waiting in its
 concurrency group left out), so they are the same boundary of each run, setup included, and not
 from the record the monitor carries between runs, which a failed run or a failed Slack post leaves
-unchanged although that run may have posted statuses. A re-run counts from when its run was
-created, so the time its first attempt had is not credited again. GitHub
+unchanged although that run may have posted statuses. A re-run counts from its previous
+attempt's start (`GET /repos/apache/airflow/actions/runs/<id>/attempts/<n>`), so the time earlier
+attempts had is not credited again. GitHub
 starts scheduled workflows later than their cron: on 2026-11-15 the 5-minute monitor ran every 9
 to 10 minutes, so a fixed 13 writes a run (160 an hour at the cron's cadence) posted only about 82
 an hour, and four full-matrix fork runs at once took about six hours to catch up. Runs queued

@@ -2951,8 +2951,7 @@ def find_time_since_previous_monitor_run(
 
     Both starts are read from GitHub, so they are the same boundary of each run, setup included, and a
     failed run or a failed Slack post, which leave the record the monitor carries between runs
-    unchanged, still counts. A re-run of this run counts from when the run was created, the earliest
-    its first attempt can have posted.
+    unchanged, still counts. A re-run of this run counts from its previous attempt's start.
     """
     match = re.search(r"/actions/runs/(\d+)", run_url)
     if match is None:
@@ -2977,10 +2976,17 @@ def find_time_since_previous_monitor_run(
         for start in [parse_github_datetime(run.get("run_started_at"))]
         if start is not None and start <= started
     ]
-    if (current.get("run_attempt") or 1) > 1:
-        created = parse_github_datetime(current.get("created_at"))
-        if created is not None:
-            boundaries.append(created)
+    attempt = current.get("run_attempt") or 1
+    if attempt > 1:
+        try:
+            previous_attempt = client.rest_get(f"repos/{repo}/actions/runs/{run_id}/attempts/{attempt - 1}")
+        except Exception as e:
+            console_print(f"[warning]Could not read the previous attempt of this run: {e}[/]")
+            return None
+        previous_start = parse_github_datetime(previous_attempt.get("run_started_at"))
+        if previous_start is None:
+            return None
+        boundaries.append(previous_start)
     if not boundaries:
         return None
     return started - max(boundaries)
