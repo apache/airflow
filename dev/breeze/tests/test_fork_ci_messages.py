@@ -43,6 +43,7 @@ from airflow_breeze.utils.fork_ci_messages import (
     FailedJob,
     JobCounts,
     Marker,
+    cancelled_jobs_status,
     ci_change_approval_comment,
     ci_modification_note_comment,
     ci_passed_description,
@@ -379,6 +380,18 @@ def test_status_description_counts_jobs(state, job_counts, expected):
 )
 def test_split_job_counts(description, expected):
     assert split_job_counts(description) == expected
+
+
+@pytest.mark.parametrize(
+    ("cancelled", "expected"),
+    [
+        pytest.param(31, ("failure", "31 jobs cancelled in the fork - see Details"), id="cancelled"),
+        pytest.param(1, ("failure", "1 job cancelled in the fork - see Details"), id="one"),
+        pytest.param(0, ("success", "No jobs cancelled in the latest fork run"), id="none"),
+    ],
+)
+def test_cancelled_jobs_status(cancelled, expected):
+    assert cancelled_jobs_status(cancelled) == expected
 
 
 def test_status_descriptions_fit_github_limit():

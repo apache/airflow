@@ -58,6 +58,7 @@ from airflow_breeze.utils.fork_ci_gate import (
 )
 from airflow_breeze.utils.fork_ci_github import GitHubClient, GitHubError
 from airflow_breeze.utils.fork_ci_messages import (
+    CANCELLED_JOBS_CONTEXT,
     CI_PASSED_CONTEXT,
     CI_PASSED_PROJECT_DESCRIPTION,
     CI_PASSED_REVOKED_DESCRIPTION,
@@ -75,6 +76,7 @@ from airflow_breeze.utils.fork_ci_messages import (
     FailedJob,
     JobCounts,
     Marker,
+    cancelled_jobs_status,
     ci_passed_description,
     fork_actions_url,
     gate_modified_close_comment,
@@ -1910,6 +1912,11 @@ def find_job_counts(
     jobs = read_jobs.get(fork.run_id)
     if jobs is not None:
         return count_jobs(jobs)
+    return parse_job_counts(jobs_reported)
+
+
+def parse_job_counts(jobs_reported: str | None) -> JobCounts | None:
+    """The job counts in a completed run's key, ``<run id>:<attempt>:<conclusion>:<passed>:<cancelled>``."""
     parts = (jobs_reported or "").split(":")
     if len(parts) != 5 or not (parts[3].isdigit() and parts[4].isdigit()):
         return None
@@ -2094,7 +2101,12 @@ class JobStatusReporter:
         )
         recorded = pr.marker.jobs if pr.marker is not None and pr.marker.sha == pr.head_sha else None
         # Recorded before the job counts were, a key has none; its jobs are then read once more.
-        if key is not None and recorded is not None and recorded.startswith(f"{key}:"):
+        if (
+            key is not None
+            and recorded is not None
+            and recorded.startswith(f"{key}:")
+            and parse_job_counts(recorded) is not None
+        ):
             return recorded
         # Without writes left, the reads are spent for nothing: a backlog of hundreds of pull requests
         # would otherwise cost two reads each on every run.
@@ -2120,6 +2132,9 @@ class JobStatusReporter:
             )
         }
         desired = build_job_statuses(jobs)
+        counts = count_jobs(jobs)
+        cancelled_state, cancelled_description = cancelled_jobs_status(counts.cancelled)
+        desired[CANCELLED_JOBS_CONTEXT] = (cancelled_state, fork.run_url or "", cancelled_description)
         if key is not None:
             # Jobs of an earlier run of this commit that the completed run did not run, or skipped. A
             # cancelled job keeps what an earlier run reported for it.
@@ -2132,8 +2147,8 @@ class JobStatusReporter:
                 if context.startswith(JOB_STATUS_CONTEXT_PREFIX) and folded not in wanted:
                     desired[context] = (STALE_JOB_STATUS[0], target_url, STALE_JOB_STATUS[1])
         # Passed jobs are only counted in `Fork CI / Tests (AMD)`: a full-matrix run has about 130, and
-        # each status is a write. A success is posted only over a job's failure from an earlier run of
-        # the commit, which would otherwise keep showing.
+        # each status is a write. A success is posted only over a failure from an earlier run of the
+        # commit, which would otherwise keep showing; so is the cancelled jobs' one.
         desired = {
             context: status
             for context, status in desired.items()
@@ -2157,7 +2172,6 @@ class JobStatusReporter:
             self.remaining -= 1
         if key is None:
             return None
-        counts = count_jobs(jobs)
         return f"{key}:{counts.passed}:{counts.cancelled}"
 
 

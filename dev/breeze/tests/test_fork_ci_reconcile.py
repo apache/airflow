@@ -31,6 +31,7 @@ from airflow_breeze.commands.ci_commands import fork_ci_reconcile
 from airflow_breeze.utils.fork_ci_gate import GateConfig
 from airflow_breeze.utils.fork_ci_github import GitHubClient, GitHubError
 from airflow_breeze.utils.fork_ci_messages import (
+    CANCELLED_JOBS_CONTEXT,
     CI_PASSED_CONTEXT,
     CI_PASSED_PROJECT_DESCRIPTION,
     CI_PASSED_WAITING_PROJECT_CI_DESCRIPTION,
@@ -3241,12 +3242,12 @@ def test_build_job_statuses_reports_the_worst_of_jobs_sharing_a_name():
     assert build_job_statuses(jobs)[f"{JOB_STATUS_CONTEXT_PREFIX}Tests"][:2] == ("failure", "bad")
 
 
-@pytest.mark.parametrize("name", ["Tests (AMD)", "CI passed (fork)", "x\nCI passed"])
+@pytest.mark.parametrize("name", ["Tests (AMD)", "CI passed (fork)", "x\nCI passed", "Cancelled jobs"])
 def test_build_job_statuses_cannot_post_the_reconciler_contexts(name):
     (context,) = build_job_statuses([_fork_job(name)])
 
     assert context.startswith(JOB_STATUS_CONTEXT_PREFIX)
-    assert context not in (STATUS_CONTEXT, CI_PASSED_CONTEXT)
+    assert context not in (STATUS_CONTEXT, CANCELLED_JOBS_CONTEXT, CI_PASSED_CONTEXT)
     assert "\n" not in context
 
 
@@ -3319,6 +3320,9 @@ def test_job_status_reporter_does_not_record_a_run_in_progress(client):
     [
         pytest.param("1:1:FAILURE:7:1", "abc123", False, "1:1:FAILURE:7:1", id="already-reported"),
         pytest.param("1:1:FAILURE", "abc123", True, "1:1:FAILURE:0:0", id="recorded-before-the-counts"),
+        pytest.param(
+            "1:1:FAILURE:7", "abc123", True, "1:1:FAILURE:0:0", id="recorded-with-the-passed-count-only"
+        ),
         pytest.param(
             "1:1:SUCCESS:7:1", "abc123", True, "1:1:FAILURE:0:0", id="re-run-with-another-conclusion"
         ),
@@ -3766,10 +3770,55 @@ def test_job_status_reporter_counts_cancelled_jobs_instead_of_posting_them(clien
     key = JobStatusReporter(client, repo=REPO).report(_pr(), COMPLETED_RUN)
 
     assert key == "1:1:FAILURE:0:2"
-    # The earlier failure of a job the run cancelled is kept rather than marked as not in the run.
-    assert [c.kwargs["context"] for c in client.set_status.call_args_list] == [
-        f"{JOB_STATUS_CONTEXT_PREFIX}Unit"
+    # One status for the cancelled jobs; the earlier failure of a job the run cancelled is kept rather
+    # than marked as not in the run.
+    assert [c.args[2:] + (c.kwargs["context"],) for c in client.set_status.call_args_list] == [
+        ("failure", RUN_URL, "2 jobs cancelled in the fork - see Details", CANCELLED_JOBS_CONTEXT),
+        (
+            "failure",
+            "https://job/Unit",
+            "Failed in the fork - see Details",
+            f"{JOB_STATUS_CONTEXT_PREFIX}Unit",
+        ),
     ]
+
+
+@pytest.mark.parametrize(
+    ("current", "posted"),
+    [
+        pytest.param((), [], id="nothing-cancelled-before"),
+        pytest.param(
+            [
+                {
+                    "context": CANCELLED_JOBS_CONTEXT,
+                    "state": "failure",
+                    "target_url": "https://github.com/someone/airflow/actions/runs/0",
+                    "description": "3 jobs cancelled in the fork - see Details",
+                }
+            ],
+            [("success", RUN_URL, "No jobs cancelled in the latest fork run")],
+            id="cleared-after-a-re-run",
+        ),
+        pytest.param(
+            [
+                {
+                    "context": CANCELLED_JOBS_CONTEXT,
+                    "state": "success",
+                    "target_url": "https://github.com/someone/airflow/actions/runs/0",
+                    "description": "No jobs cancelled in the latest fork run",
+                }
+            ],
+            [],
+            id="already-cleared",
+        ),
+    ],
+)
+def test_job_status_reporter_posts_the_cancelled_jobs_status_only_when_needed(client, current, posted):
+    _reporter_client(client, [_fork_job("A")], current)
+
+    JobStatusReporter(client, repo=REPO).report(_pr(), COMPLETED_RUN)
+
+    assert [c.args[2:] for c in client.set_status.call_args_list] == posted
 
 
 def test_build_job_statuses_treats_contexts_case_insensitively():

@@ -947,8 +947,9 @@ monitor run rather than `details_url`. A status honours `target_url`.
 ### Job statuses
 
 Next to the aggregate status, each failed job of the fork run is reported as its own commit
-status, so the pull request shows which jobs failed, each linking to the job in the fork; passed
-and cancelled jobs are counted in `Fork CI / Tests (AMD)` instead.
+status, so the pull request shows which jobs failed, each linking to the job in the fork. Passed
+jobs are counted in `Fork CI / Tests (AMD)` instead, and cancelled jobs in it and in one status of
+their own, `Fork CI / Cancelled jobs`.
 The run is the one `Fork CI / Tests (AMD)` reports (its `databaseId` is fetched with the check
 suites); its jobs come from `GET /repos/<fork>/actions/runs/<id>/jobs?filter=latest`.
 
@@ -962,9 +963,14 @@ suites); its jobs come from `GET /repos/<fork>/actions/runs/<id>/jobs?filter=lat
   its failure in an earlier run of the commit, which would otherwise keep showing. A full-matrix
   run has about 130 jobs and each status is a write, so posting every passed job would take most
   of the budget for what the aggregate status already says; on 2026-11-15 four such runs at once
-  took about six hours to show. Cancelled jobs are only counted: a run cancelled by a newer push or
-  by a failing job cancels dozens at once, and each would be a red status saying no more than the
-  count does. A job the run cancelled keeps what an earlier run of the commit reported for it. Queued and running jobs are not
+  took about six hours to show.
+- Cancelled jobs get no status each: a run cancelled by a newer push or by a failing job cancels
+  dozens at once, and each would be a red status saying no more than a count does. Instead
+  `Fork CI / Cancelled jobs`, linking the fork run, is `failure` with "31 jobs cancelled in the
+  fork - see Details" while the run has cancelled jobs, and is overwritten with `success` and "No
+  jobs cancelled in the latest fork run" once a later run of the commit has none; it is not posted
+  for a run that never had any. The context is outside the job statuses' `Fork CI job /` prefix, so no job can
+  post it. A job the run cancelled keeps what an earlier run of the commit reported for it. Queued and running jobs are not
   reported, so each job costs at most one write; `Fork CI / Tests (AMD)` shows the run as running, linking it, and with a
   5-minute cadence a per-job "running" status was behind the fork's own run page anyway. A job of
   a re-run in the fork keeps the result of the earlier attempt until it finishes. Skipped and

@@ -37,9 +37,12 @@ from typing import NamedTuple
 
 STATUS_CONTEXT = "Fork CI / Tests (AMD)"
 # Each job of the fork run is reported under this prefix. Job names come from the contributor's
-# workflow, so the prefix keeps them from posting STATUS_CONTEXT, CI_PASSED_CONTEXT or
-# CI_RUN_STARTED_CONTEXT.
+# workflow, so the prefix keeps them from posting STATUS_CONTEXT, CANCELLED_JOBS_CONTEXT,
+# CI_PASSED_CONTEXT or CI_RUN_STARTED_CONTEXT.
 JOB_STATUS_CONTEXT_PREFIX = "Fork CI job / "
+# The fork run's cancelled jobs, as one status rather than one each: a run cancelled by a newer push
+# or a failing job cancels dozens of jobs at once.
+CANCELLED_JOBS_CONTEXT = "Fork CI / Cancelled jobs"
 JOB_NAME_MAX_LENGTH = 100
 # The check the "Require CI on main" ruleset requires before a pull request can (auto-)merge. Project
 # CI's gate job reports it; for a gated pull request, which never runs project CI, the reconciler
@@ -564,6 +567,16 @@ JOB_STATUSES = {
 # the latest completed run does not have is overwritten with this, so it no longer shows as running
 # or failed; `Fork CI / Tests (AMD)` is what tells the result.
 STALE_JOB_STATUS = ("success", "Not in the latest fork run - see Fork CI / Tests (AMD)")
+
+
+def cancelled_jobs_status(cancelled: int) -> tuple[str, str]:
+    """The ``(state, description)`` of the CANCELLED_JOBS_CONTEXT status for a fork run."""
+    if cancelled:
+        return (
+            "failure",
+            f"{cancelled} job{'' if cancelled == 1 else 's'} cancelled in the fork - see Details",
+        )
+    return "success", "No jobs cancelled in the latest fork run"
 
 
 def job_status_context(job_name: str) -> str:
