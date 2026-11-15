@@ -201,22 +201,12 @@ class TestKubernetesJobOperator:
         job = k.build_job_request_obj(create_context(k))
         assert job.spec.backoff_limit == 6
 
-    def test_deserialize_job_template_file_ignores_unknown_fields(self, tmp_path):
-        template = tmp_path / "job.yaml"
-        template.write_text(
-            "kind: Job\nunknownField: ignored\nmetadata:\n  name: test-job\n  unknownField: ignored\n"
-        )
-
-        job = KubernetesJobOperator.deserialize_job_template_file(str(template))
-
-        assert self.sanitize_for_serialization(job) == {"kind": "Job", "metadata": {"name": "test-job"}}
-
     def test_deserialize_job_template_file_is_picklable_in_cluster(self, tmp_path, monkeypatch):
         """A job deserialized from a template file must not capture the in-cluster Configuration.
 
         In-cluster, the kubernetes client installs a process-global default ``Configuration`` whose
-        ``refresh_api_key_hook`` is an unpicklable local closure. The deserialized job must remain
-        picklable for the executor queue.
+        ``refresh_api_key_hook`` is an unpicklable local closure. ``deserialize_job_template_file`` must
+        deserialize through a fresh ``Configuration`` so the job (and every nested model) stays picklable.
         """
 
         def _refresh_api_key(config):

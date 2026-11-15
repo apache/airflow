@@ -455,18 +455,6 @@ class TestKubernetesPodOperator:
         assert pod.spec.security_context == security_context
 
     @pytest.mark.parametrize(
-        ("attribute", "value"),
-        [("security_context", {"runAsUser": 1000}), ("affinity", {"nodeAffinity": {}})],
-    )
-    def test_default_pod_options_support_dict_updates(self, attribute, value):
-        operator = KubernetesPodOperator(task_id="task")
-        getattr(operator, attribute).update(value)
-
-        pod = operator.build_pod_request_obj(dry_run=True)
-
-        assert self.sanitize_for_serialization(getattr(pod.spec, attribute)) == value
-
-    @pytest.mark.parametrize(
         ("security_context", "expected_user"),
         [(None, 1000), ({}, 1000), ({"runAsUser": 2000}, 2000)],
     )

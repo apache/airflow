@@ -437,7 +437,7 @@ def deserialize_pod_dict(pod_dict: dict) -> V1Pod:
     """
     Deserialize a serialized pod dict back into a ``V1Pod``.
 
-    Older Kubernetes clients expose no public dict->model API; see
+    kubernetes-client exposes no public dict->model API; see
     https://github.com/kubernetes-client/python/issues/977.
 
     A fresh ``Configuration`` is passed so that neither the pod nor any nested model captures the
