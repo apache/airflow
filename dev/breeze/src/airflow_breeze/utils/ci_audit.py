@@ -108,14 +108,15 @@ def _fork_url(login: str, remotes: Sequence[Remote]) -> str:
         find_remote_for_repo(remotes, APACHE_AIRFLOW_GITHUB_REPOSITORY),
         find_remote(remotes, "upstream"),
     )
-    for remote in (*(r for r in candidates if r is not None), *remotes):
-        if not remote.url:
-            continue
-        match = GITHUB_REMOTE_URL.match(remote.url)
+    # Only the clone's own remotes decide: an SSH alias of an unrelated remote may select another
+    # account's key, which cannot push to this fork.
+    for remote in candidates:
+        match = GITHUB_REMOTE_URL.match(remote.url) if remote is not None and remote.url else None
         if match:
             prefix = remote.url[: match.start("repo")]
             if not prefix.startswith(("http://", "https://")):
                 return f"{prefix}{login}/airflow.git"
+            break
     return f"https://github.com/{login}/airflow.git"
 
 
