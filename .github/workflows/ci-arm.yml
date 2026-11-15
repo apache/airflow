@@ -60,7 +60,8 @@ jobs:
     name: "Check if the run is needed"
     # A scheduled canary is not needed when the last completed full run of this workflow on the
     # branch tested the same commit and succeeded: it would only repeat that run. A push run tests
-    # the changes since the last successful run of this workflow on the branch, found here.
+    # the changes since the last successful run of this workflow on the branch, found here. Marking
+    # a draft pull request ready is not needed when its head already has a passing `CI passed`.
     # This job runs for every event, with no steps for the others: every other job depends on it
     # through `build-info`, and GitHub skips the whole dependency chain below a skipped job unless
     # each job in it has a status function such as `always()` in its `if:`.
@@ -68,12 +69,41 @@ jobs:
     timeout-minutes: 5
     permissions:
       actions: read
+      checks: read
       contents: read
     outputs:
-      run-needed: ${{ steps.schedule.outputs.run-needed || 'true' }}
+      run-needed: ${{ steps.schedule.outputs.run-needed || steps.ready.outputs.run-needed || 'true' }}
       # Empty in forks, whose pushes selective checks compare against apache/airflow.
       push-base-commit: ${{ steps.push.outputs.push-base-commit }}
     steps:
+      - name: "Check the earlier runs of the pull request's head"
+        if: github.event_name == 'pull_request' && github.event.action == 'ready_for_review'
+        id: ready
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          # Draft pull requests get CI on `opened` and `synchronize`, so marking one ready usually
+          # repeats a run that already passed. Only a job that ran as `CI passed` counts: a gate-only
+          # run, a run skipped here and a cancelled run all succeed under another name of the job,
+          # and they did not test the head. A head whose runs failed, were cancelled or wait for
+          # approval, such as a scheduled CI upgrade pull request's, is tested in full.
+          if ! passed="$(gh api "repos/${REPOSITORY}/commits/${HEAD_SHA}/check-runs" -X GET \
+            -f check_name="CI passed" -f filter=latest -F per_page=100 \
+            --jq '[.check_runs[] | select(.conclusion == "success")][0].html_url // ""')"; then
+            # Fail open: a failed lookup must not skip the run.
+            echo "::warning::Could not check the earlier runs of ${HEAD_SHA}, running CI"
+            passed=""
+          fi
+          if [[ -n "${passed}" ]]; then
+            echo "run-needed=false" >> "${GITHUB_OUTPUT}"
+            echo "The head of the pull request already passed CI: ${passed}" >> "${GITHUB_STEP_SUMMARY}"
+          else
+            echo "run-needed=true" >> "${GITHUB_OUTPUT}"
+          fi
       - name: "Find the last successful run of the branch"
         if: github.event_name == 'push' && github.repository == 'apache/airflow'
         id: push
