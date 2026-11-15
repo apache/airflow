@@ -630,12 +630,7 @@ class DagRun(Base, LoggingMixin):
 
     @property
     def dag_versions(self) -> list[DagVersion]:
-        """
-        Return the Dag versions for this DagRun.
-
-        Versions come from current and archived attempts; created_dag_version is used
-        only when no attempt carries a version (e.g. runs predating Dag versioning).
-        """
+        """Return the Dag versions used by any attempt of this DagRun, current or archived."""
         versions: Iterable[DagVersion | None]
         if self._prefetched_dag_version_ids is not None:
             versions = self._prefetched_dag_version_ids.values()
@@ -649,10 +644,7 @@ class DagRun(Base, LoggingMixin):
         else:
             # Transient run (e.g. built in memory in tests): use the in-memory relationships.
             versions = dict.fromkeys(list(self._historical_dag_versions) + list(self._ti_dag_versions))
-        result = sorted((dv for dv in versions if dv is not None), key=lambda dv: dv.id)
-        if not result and self.created_dag_version is not None:
-            return [self.created_dag_version]
-        return result
+        return sorted((dv for dv in versions if dv is not None), key=lambda dv: dv.id)
 
     @property
     def version_number(self) -> int | None:

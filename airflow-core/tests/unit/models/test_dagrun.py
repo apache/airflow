@@ -1939,23 +1939,6 @@ class TestDagRun:
         assert set(dag_run._prefetched_dag_version_ids) == {old_dag_version.id, new_dag_version.id}
         assert {dv.id for dv in dag_run.dag_versions} == {old_dag_version.id, new_dag_version.id}
 
-    def test_bundled_dag_run_dag_versions_falls_back_to_created_dag_version(self, dag_maker, session):
-        """A bundled run with no attempt versions reports created_dag_version."""
-        with dag_maker(
-            "test_dag_versions_created_fallback",
-            schedule=datetime.timedelta(days=1),
-            start_date=DEFAULT_DATE,
-            bundle_version="v1",
-        ):
-            EmptyOperator(task_id="empty")
-        dag_run = dag_maker.create_dagrun()
-        assert dag_run.created_dag_version is not None
-        for ti in dag_run.task_instances:
-            ti.dag_version_id = None
-        session.flush()
-        session.expire(dag_run)
-        assert dag_run.dag_versions == [dag_run.created_dag_version]
-
     def test_dag_run_dag_versions_transient_run_uses_relationships(self):
         """A bundled DagRun not attached to a session reads versions from in-memory relationships.
 
