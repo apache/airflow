@@ -1659,6 +1659,13 @@ uv = false
 # Remove this `exclude-newer-package` after 2026-11-02, when that release has been out for 4 days.
 pypdf = "2026-10-29T00:00:00Z"
 
+# Temporary: airflow-core needs cadwyn 9.1.0 and the Task SDK needs cadwyn-core 9.1.0, both released
+# on 2026-11-21, inside the "4 days" exclude-newer window. Remove these cutoffs and relock after
+# 2026-11-25T13:11Z, when that release has been out for 4 days. Tracked at
+# https://github.com/apache/airflow/issues/77183
+cadwyn = "2026-11-22T00:00:00Z"
+cadwyn-core = "2026-11-22T00:00:00Z"
+
 [tool.airflow.dependency-floors]
 # Floors of these dependencies are raised by `breeze ci upgrade` (scripts/ci/prek/upgrade_dependency_floors.py),
 # see dev/breeze/doc/adr/0018-raise-dependency-floors-automatically.md.
@@ -1848,6 +1855,9 @@ pip = false
 uv = false
 # Temporary: see the pypdf note in `[tool.uv.exclude-newer-package]`.
 pypdf = "2026-10-29T00:00:00Z"
+# Temporary: see the cadwyn note in `[tool.uv.exclude-newer-package]`.
+cadwyn = "2026-11-22T00:00:00Z"
+cadwyn-core = "2026-11-22T00:00:00Z"
 
 [tool.uv.sources]
 # These names must match the names as defined in the pyproject.toml of the workspace items,

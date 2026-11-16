@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from cadwyn import RequestInfo, VersionChange, convert_request_to_next_version_for
+from cadwyn_core import RequestInfo, VersionChange, convert_request_to_next_version_for
 
 from airflow.sdk.importers.yaml_importer.models import CONST_KEY, XCOM_KEYS, DagDocument
 

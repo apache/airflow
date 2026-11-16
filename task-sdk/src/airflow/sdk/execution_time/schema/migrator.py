@@ -17,7 +17,7 @@
 """
 In-process bidirectional migration for supervisor schema bodies.
 
-:class:`SchemaVersionMigrator` walks a :class:`~cadwyn.VersionBundle`
+:class:`SchemaVersionMigrator` walks a :class:`~cadwyn_core.VersionBundle`
 itself rather than going through Cadwyn's HTTP runner so the supervisor
 can downgrade outgoing bodies and upgrade incoming bodies without a
 network round-trip. The downgrade path additionally re-validates against
@@ -35,8 +35,7 @@ from typing import TYPE_CHECKING, Any, cast
 import attrs
 
 if TYPE_CHECKING:
-    from cadwyn import VersionBundle
-    from cadwyn.schema_generation import SchemaGenerator
+    from cadwyn_core import SchemaGenerator, VersionBundle
     from pydantic import BaseModel
 
 
@@ -45,11 +44,11 @@ class _BodyInfo:
     """
     Duck-type stand-in for Cadwyn's ``RequestInfo`` / ``ResponseInfo``.
 
-    ``cadwyn.structure.data._AlterDataInstruction.__call__`` only reads
+    ``cadwyn_core.structure.data._AlterDataInstruction.__call__`` only reads
     and writes ``info.body``; the by-schema transformers we drive never
-    touch FastAPI's Request/Response. Passing this minimal object lets
-    us run cadwyn's migrations from a pure in-process code path with no
-    HTTP stack.
+    touch Starlette's Request/Response. Calling them with any object that
+    has a ``body`` attribute is supported Cadwyn API:
+    https://docs.cadwyn.dev/9.1/theory/design_decisions/#supported-api
     """
 
     body: dict[str, Any]
@@ -103,9 +102,9 @@ class SchemaVersionMigrator:
     def _versioned_class(self, version: str, model: type[BaseModel]) -> type[BaseModel]:
         """Get the Cadwyn-generated class for *model* at *version*."""
         # Imported here, not at module scope, so importing this module (and the parent ``schema``
-        # package the Task SDK supervisor pulls in) does not import ``cadwyn`` -> FastAPI/Starlette.
+        # package the Task SDK supervisor pulls in) does not import ``cadwyn_core``.
         # Only the foreign-language-SDK migration path reaches this; a pure-Python worker never does.
-        from cadwyn import generate_versioned_models
+        from cadwyn_core import generate_versioned_models
 
         if self._versioned_models is None:
             self._versioned_models = generate_versioned_models(self._bundle)
@@ -151,10 +150,6 @@ class SchemaVersionMigrator:
                 break
             for change in version.changes:
                 for instr in change.alter_response_by_schema_instructions.get(model, ()):
-                    # TODO: Cadwyn is tightly coupled to Startlette request and
-                    # response objects. Our supervisor does not use an HTTP
-                    # framework, so we need to mock out the object. Fix this
-                    # when Cadwyn provides a framework-agnostic interface.
                     instr(info)  # type: ignore[arg-type]
         # Re-validate against the versioned class so schema(X).field(Y).didnt_exist
         # instructions take effect: those alter the class shape, not the dict, so
