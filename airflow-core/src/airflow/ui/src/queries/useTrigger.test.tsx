@@ -79,7 +79,8 @@ describe("useTrigger", () => {
     renderHook(() => useTrigger({ dagId: DAG_ID, onSuccessConfirm: vi.fn() }), { wrapper: Wrapper });
 
     const onSuccess = vi.mocked(useDagRunServiceTriggerDagRun).mock.calls.at(-1)?.[0]?.onSuccess as
-      ((dagRun: TriggerDagRunResponse, variables: TriggerDagRunData) => Promise<void>) | undefined;
+      | ((dagRun: TriggerDagRunResponse, variables: TriggerDagRunData) => Promise<void>)
+      | undefined;
 
     expect(onSuccess).toBeTypeOf("function");
     await onSuccess?.({ dag_id: DAG_ID, dag_run_id: "manual__run" } as TriggerDagRunResponse, {

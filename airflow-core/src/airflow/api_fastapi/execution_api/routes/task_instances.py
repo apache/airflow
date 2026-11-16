@@ -116,7 +116,7 @@ from airflow.models.task_coordinates import (
 from airflow.models.taskinstance import TaskInstance as TI, _stop_remaining_tasks
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.trigger import Trigger, handle_event_submit
-from airflow.models.xcom import build_xcom_read_query, xcom_entity
+from airflow.models.xcom import EXTERNAL_CLEAR_TARGET_XCOM_KEY, XComModel, build_xcom_read_query, xcom_entity
 from airflow.serialization.definitions.assets import SerializedAsset, SerializedAssetUniqueKey
 from airflow.state import get_state_backend
 from airflow.triggers.base import TriggerEvent
@@ -345,11 +345,9 @@ def ti_run(
             )
 
         # Send the keys to the worker, which deletes those XComs. The server cannot delete them itself,
-        # because for a Python task the task runner also purges them from a custom XCom backend, and only
-        # workers can reach that backend. For a language SDK task (Java, Go, TypeScript), the supervisor
-        # deletes these XComs before the runtime starts the task and does not purge them, because those
-        # runtimes push their XComs straight to the API server, so the XCom values never pass through the
-        # backend.
+        # because the worker also purges them from a custom XCom backend, and only workers can reach that
+        # backend. For a language SDK task (Java, Go, TypeScript), the supervisor deletes and purges them
+        # before the runtime starts the task.
 
         # However, do not clear it for deferral
         xcom_keys: list[str] = []
@@ -684,7 +682,14 @@ def ti_update_state(
 
     # We exclude_unset to avoid updating fields that are not set in the payload
     data = ti_patch_payload.model_dump(
-        exclude={"task_outlets", "outlet_events", "retry_delay_seconds", "retry_reason", "loop_decision"},
+        exclude={
+            "task_outlets",
+            "outlet_events",
+            "retry_delay_seconds",
+            "retry_reason",
+            "loop_decision",
+            "external_clear_target",
+        },
         exclude_unset=True,
     )
     if "rendered_map_index" in data:
@@ -772,6 +777,17 @@ def ti_update_state(
         )
 
     if updated_state == TaskInstanceState.SUCCESS:
+        if (
+            isinstance(ti_patch_payload, TISuccessStatePayload)
+            and (target := ti_patch_payload.external_clear_target) is not None
+        ):
+            # Written here, from the validated payload, because tasks cannot write this key themselves.
+            XComModel.set_for_attempt(
+                task_instance_id=task_instance_id,
+                key=EXTERNAL_CLEAR_TARGET_XCOM_KEY,
+                value=target.model_dump(mode="json"),
+                session=session,
+            )
         if conf.getboolean("state_store", "clear_on_success"):
             scope = TaskScope(
                 dag_id=dag_id,
