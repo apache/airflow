@@ -3371,6 +3371,11 @@ export const $DAGDetailsResponse = {
             type: 'boolean',
             title: 'Timetable Partitioned'
         },
+        timetable_partitioned_at_runtime: {
+            type: 'boolean',
+            title: 'Timetable Partitioned At Runtime',
+            default: false
+        },
         timetable_periodic: {
             type: 'boolean',
             title: 'Timetable Periodic'
@@ -3895,6 +3900,11 @@ export const $DAGResponse = {
         timetable_partitioned: {
             type: 'boolean',
             title: 'Timetable Partitioned'
+        },
+        timetable_partitioned_at_runtime: {
+            type: 'boolean',
+            title: 'Timetable Partitioned At Runtime',
+            default: false
         },
         timetable_periodic: {
             type: 'boolean',
@@ -12816,6 +12826,11 @@ export const $DAGWithLatestDagRunsResponse = {
         timetable_partitioned: {
             type: 'boolean',
             title: 'Timetable Partitioned'
+        },
+        timetable_partitioned_at_runtime: {
+            type: 'boolean',
+            title: 'Timetable Partitioned At Runtime',
+            default: false
         },
         timetable_periodic: {
             type: 'boolean',

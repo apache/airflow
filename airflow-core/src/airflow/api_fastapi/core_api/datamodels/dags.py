@@ -99,6 +99,7 @@ class DAGResponse(BaseModel):
     timetable_summary: str | None
     timetable_description: str | None
     timetable_partitioned: bool
+    timetable_partitioned_at_runtime: bool = False
     timetable_periodic: bool
     tags: list[DagTagResponse]
     max_active_tasks: int

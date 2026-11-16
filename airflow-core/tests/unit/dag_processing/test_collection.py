@@ -90,7 +90,7 @@ from airflow.serialization.definitions.assets import SerializedAsset
 from airflow.serialization.encoders import encode_trigger, ensure_serialized_asset
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
 from airflow.timetables.simple import PartitionedAtRuntime
-from airflow.timetables.trigger import CronTriggerTimetable
+from airflow.timetables.trigger import CronPartitionTimetable, CronTriggerTimetable
 from airflow.triggers.base import BaseEventTrigger
 from airflow.utils.types import DagRunType
 
@@ -1171,6 +1171,38 @@ class TestUpdateDagParsingResults:
 
         assert session.get(DagModel, gated_dag.dag_id).timetable_asset_gated is True
         assert session.get(DagModel, regular_dag.dag_id).timetable_asset_gated is False
+
+    @pytest.mark.parametrize(
+        ("schedule", "expected"),
+        [
+            pytest.param(PartitionedAtRuntime(), True, id="partitioned-at-runtime"),
+            pytest.param(CronPartitionTimetable("0 0 * * *", timezone="UTC"), False, id="cron-partition"),
+            pytest.param(None, False, id="unpartitioned"),
+        ],
+    )
+    def test_timetable_partitioned_at_runtime_is_synced(self, dag_maker, session, schedule, expected):
+        with dag_maker(dag_id="flag_sync_dag", schedule=schedule, serialized=True):
+            EmptyOperator(task_id="t")
+
+        dag_model = session.get(DagModel, "flag_sync_dag")
+        assert dag_model.timetable_partitioned_at_runtime is expected
+
+    def test_timetable_partitioned_at_runtime_is_cleared_when_schedule_changes(
+        self, testing_dag_bundle, session
+    ):
+        dag_id = "runtime_then_cron"
+        runtime_dag = DAG(dag_id=dag_id, schedule=PartitionedAtRuntime())
+        update_dag_parsing_results_in_db(
+            "testing", None, [LazyDeserializedDAG.from_dag(runtime_dag)], {}, None, set(), session=session
+        )
+        assert session.get(DagModel, dag_id).timetable_partitioned_at_runtime is True
+
+        cron_dag = DAG(dag_id=dag_id, schedule=CronTriggerTimetable("@daily", timezone="UTC"), catchup=False)
+        update_dag_parsing_results_in_db(
+            "testing", None, [LazyDeserializedDAG.from_dag(cron_dag)], {}, None, set(), session=session
+        )
+
+        assert session.get(DagModel, dag_id).timetable_partitioned_at_runtime is False
 
     @patch.object(ParseImportError, "full_file_path")
     @patch.object(SerializedDagModel, "write_dag")
