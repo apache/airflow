@@ -1169,6 +1169,9 @@ class TestXComsGetEndpoint:
             pytest.param(slice(-1, None, -1), id="-1::-1"),
             pytest.param(slice(-2, -1, None), id="-2:-1"),
             pytest.param(slice(-1, -3, -1), id="-1:-3:-1"),
+            pytest.param(slice(-2, 10, None), id="-2:10"),
+            pytest.param(slice(2, -10, -1), id="2:-10:-1"),
+            pytest.param(slice(1, -10, -1), id="1:-10:-1"),
         ],
     )
     def test_xcom_get_with_slice(self, client, dag_maker, session, key):
@@ -1676,6 +1679,28 @@ class TestXComsDeleteEndpoint:
             assert XComModelV2.get_for_attempt(ti.id, "xcom_1", session=verify) is None
             assert verify.get(XComModelV1, (ti.dag_run.id, ti.task_id, ti.map_index, "xcom_1")) is None
             assert XComModelV2.get_for_attempt(ti1.id, "xcom_1", session=verify) is not None
+
+    @pytest.mark.parametrize(
+        ("key", "detail"),
+        [
+            ("_airflow_loop_decision_reason", "Reserved loop XCom key"),
+            (EXTERNAL_CLEAR_TARGET_XCOM_KEY, "Reserved XCom key"),
+        ],
+    )
+    def test_xcom_delete_rejects_reserved_key(
+        self, client, create_task_instance, authenticate_as, session, key, detail
+    ):
+        ti = create_task_instance()
+        ti.xcom_push(key=key, value='"reason"', session=session)
+        session.commit()
+        authenticate_as(ti)
+
+        response = client.delete(f"/execution/xcoms/{ti.dag_id}/{ti.run_id}/{ti.task_id}/{key}")
+
+        assert response.status_code == 400
+        assert response.json()["detail"] == detail
+        with create_session(scoped=False) as verify:
+            assert XComModelV2.get_for_attempt(ti.id, key, session=verify) is not None
 
     @pytest.mark.parametrize(
         ("target_task_id", "ti_map_index"),

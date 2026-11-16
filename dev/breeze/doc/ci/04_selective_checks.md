@@ -363,10 +363,12 @@ flowchart TD
    not from `git diff-tree`, with a renamed file counted under both paths, and the run is selected
    exactly like a pull request with those files. `is_committer_build` is always `False` because
    forks have no self-hosted runners. When the file list reaches the compare API's 300-file cap,
-   or the compare fails, everything runs, including the UI E2E tests, which otherwise only follow
-   matching files or the `full tests needed` label. Checks that compare a file with its previous version
+   or the compare fails, a local git diff fallback resolves the full change set against upstream to avoid
+   truncation; if local git diff is unavailable, the change set is treated as truncated and everything runs,
+   including the UI E2E tests, which otherwise only follow matching files or the `full tests needed` label. Checks that compare a file with its previous version
    (`pyproject.toml` and the provider dependency bump check) read the previous version at the
-   compare's merge base in `apache/airflow`, not at the pushed commit's parent, which after a
+   compare's merge base in `apache/airflow` (or directly from local git with `git show` when
+   the merge-base commit is present locally), not at the pushed commit's parent, which after a
    merge of upstream `main` is the contributor's own previous tip. A file missing at the merge
    base counts as new; any other failure to read it fails the selective checks instead of
    skipping the check. The labels come from the open
@@ -422,7 +424,7 @@ We have the following Groups of files for CI that determine which tests are run:
   drive prek static checks rather than the test matrix, so they only trigger the CI image build (via the
   `Prek files` group) — `mypy-scripts` and the image-based static checks still run, but the full test
   matrix does not; and **non-test workflows** (`.github/workflows/` for security scans, doc publishing,
-  notifications, backporting, calendar/stale bots, …) cannot change test outcomes. Workflows that run or
+  notifications, backporting, calendar/wiki/stale bots, …) cannot change test outcomes. Workflows that run or
   configure the test suite (`ci-amd`, `ci-arm`, `run-unit-tests`, `k8s-tests`, `helm-tests`, image builds,
   …) still force the full matrix.
 * `Prek files` - `scripts/ci/prek/...` static-check hooks. They do not force full tests, but they trigger
@@ -610,6 +612,16 @@ together using `pytest-xdist` (pytest-xdist distributes the tests among parallel
   `_subprocess.py`), or when the native Lang-SDK Dag parsing sources listed above change — the YAML
   importer itself lives in `task-sdk/src/airflow/sdk/importers/`. Like the other deployed e2e
   suites, enabling them forces `PROD Image building`.
+* `Language SDK XCom backend E2E tests` (the `lang_sdk_xcom_object_storage` mode of the deployed-stack
+  tests, which runs the configured `[core] xcom_backend` for TypeScript, Go and Java task XComs, exposed
+  as the `run-lang-sdk-xcom-e2e-tests` output) run when the coordinator-side backend
+  (`task-sdk/src/airflow/sdk/coordinators/_xcom_backend.py`), the base XCom class
+  (`task-sdk/src/airflow/sdk/bases/xcom.py`), the object storage backend
+  (`providers/common/io/src/airflow/providers/common/io/xcom/`), or the mode's compose override and suite
+  (`airflow-e2e-tests/docker/lang-sdk-xcom-object-storage.yml`,
+  `airflow-e2e-tests/tests/airflow_e2e_tests/lang_sdk_xcom_object_storage_tests/`) change — the language
+  SDKs themselves are left to their own E2E modes. Like the other deployed e2e suites, enabling them
+  forces `PROD Image building`.
 * `OpenLineage E2E tests` (the `openlineage` mode of the deployed-stack tests under
   `airflow-e2e-tests/tests/airflow_e2e_tests/openlineage_tests`, exposed as the
   `run-openlineage-e2e-tests` output) run when the `openlineage` or `common` providers or the
@@ -803,6 +815,7 @@ GitHub Actions to pass the list of parameters to a command to execute
 | run-helm-tests                                          | Whether Helm tests are needed to run ("true"/"false")                                                   | true                                     |      |
 | run-image-build-time-check                              | Whether `Check that image builds quickly` runs: the CI image is built and a file it is built from changed | true                                     |      |
 | run-kubernetes-tests                                    | Whether Kubernetes tests should be run ("true"/"false")                                                 | true                                     |      |
+| run-lang-sdk-xcom-e2e-tests                             | Whether language SDK XCom backend e2e tests should be run — on coordinator-side XCom backend, base XCom class, object storage backend, or the mode's compose override/suite changes ("true"/"false") | true                                     |      |
 | run-mypy                                                | Whether mypy check is supposed to run in this build                                                     | true                                     |      |
 | run-providers-compatibility-tests                       | Whether the provider tests run against released Airflow versions: false when every changed file is hidden from them (Task SDK or core Python sources, Task SDK tests, their docs); off on component branches | true                                     |      |
 | run-shared-distributions-tests                          | Whether the shared distributions tests run: `shared/`, `devel-common/`, `dev/mypy/`, the root `pyproject.toml` or `uv.lock` changed; off on component branches | true                                     |      |

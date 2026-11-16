@@ -45,6 +45,9 @@ RUN_ID_KEY = f"{DURABLE_KEY_PREFIX}run_id"
 # Lists every agent run any attempt started, so cleanup reaches the ones this attempt did not.
 RUNS_KEY = f"{DURABLE_KEY_PREFIX}runs"
 
+# The tool metadata key that runs a tool live on every attempt: ``metadata={"airflow": False}``.
+TOOL_CONFIG_KEY = "airflow"
+
 
 @runtime_checkable
 class DurableStorageProtocol(Protocol):

@@ -1655,6 +1655,7 @@ export type ExternalViewResponse = {
     category?: string | null;
     nav_top_level?: boolean | null;
     applies_to?: PluginAppliesToResponse | null;
+    show_icon_with_label?: boolean | null;
     href: string;
     destination?: 'nav' | 'dag' | 'dag_run' | 'task' | 'task_instance' | 'asset' | 'base';
     [key: string]: unknown | string;
@@ -2291,6 +2292,7 @@ export type ReactAppResponse = {
     category?: string | null;
     nav_top_level?: boolean | null;
     applies_to?: PluginAppliesToResponse | null;
+    show_icon_with_label?: boolean | null;
     bundle_url: string;
     destination?: 'nav' | 'dag' | 'dag_run' | 'task' | 'task_instance' | 'asset' | 'base' | 'dashboard' | 'dag_overview' | 'task_overview';
     [key: string]: unknown | string;
