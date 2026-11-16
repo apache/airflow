@@ -290,37 +290,71 @@ def _ensure_ti_has_dag_version_id(ti: TaskInstance, session: Session, log: Logge
 
 class ConcurrencyMap:
     """
-    Dataclass to represent concurrency maps.
+    Counts of task instances used to enforce concurrency limits while selecting task instances.
 
-    It contains a map from (dag_id, task_id) to # of task instances, a map from (dag_id, task_id)
-    to # of task instances in the given state list and a map from (dag_id, run_id, task_id)
-    to # of task instances in the given state list in each DAG run.
+    ``dag_run_active_tasks_map`` maps (dag_id, run_id) to the number of running and queued task instances
+    of every Dag run, from ``load``. Per-task counts, for ``max_active_tis_per_dag`` and
+    ``max_active_tis_per_dagrun``, are read through ``get_task_counts``, which loads them per Dag on first
+    use. Task instances selected to be queued are counted with ``add_selected_task_instance``.
     """
 
     def __init__(self):
         self.dag_run_active_tasks_map: Counter[tuple[str, str]] = Counter()
-        self.task_concurrency_map: Counter[tuple[str, str]] = Counter()
-        self.task_dagrun_concurrency_map: Counter[tuple[str, str, str]] = Counter()
+        self._task_counts: Counter[tuple[str, str]] = Counter()
+        self._task_dagrun_counts: Counter[tuple[str, str, str]] = Counter()
+        self._dags_with_task_counts: set[str] = set()
 
-    def load(self, session: Session) -> None:
+    def load(self, *, session: Session) -> None:
+        """Load the running and queued task instances per Dag run, and forget the per-task counts."""
         self.dag_run_active_tasks_map.clear()
-        self.task_concurrency_map.clear()
-        self.task_dagrun_concurrency_map.clear()
-        query = session.execute(
-            select(TI.dag_id, TI.task_id, TI.run_id, TI.state, func.count("*"))
-            .where(TI.state.in_(ACTIVE_STATES))
-            .group_by(TI.dag_id, TI.task_id, TI.run_id, TI.state)
+        self._task_counts.clear()
+        self._task_dagrun_counts.clear()
+        self._dags_with_task_counts.clear()
+        # Without the hint, MySQL can pick ``ti_dag_run`` to group in index order and read every task
+        # instance, finished ones included, instead of the active ones only.
+        query = _select_current_dr_task_concurrency().with_hint(
+            TI, "USE INDEX (ti_state)", dialect_name="mysql"
         )
-        for dag_id, task_id, run_id, state, count in query:
-            # Always count towards task-level concurrency (max_active_tis_per_dag /
-            # max_active_tis_per_dagrun), including DEFERRED.
-            self.task_concurrency_map[(dag_id, task_id)] += count
-            self.task_dagrun_concurrency_map[(dag_id, run_id, task_id)] += count
-            # Only count states that hold a worker slot towards DAG-run active tasks
-            # (max_active_tasks / worker slot accounting). DEFERRED and AWAITING_INPUT
-            # are in-flight but parked, holding no worker slot.
-            if state not in (TaskInstanceState.DEFERRED, TaskInstanceState.AWAITING_INPUT):
-                self.dag_run_active_tasks_map[dag_id, run_id] += count
+        for dag_id, run_id, count in session.execute(query):
+            self.dag_run_active_tasks_map[dag_id, run_id] = count
+
+    def load_task_counts(self, dag_ids: Collection[str], *, session: Session) -> None:
+        """
+        Load the per-task counts of the Dags in ``dag_ids`` not loaded since the last ``load``, in one query.
+
+        Callers pass the Dags whose limits may be checked, because the query returns one row per task and
+        Dag run with active task instances. The database counts are added to the task instances already
+        counted with ``add_selected_task_instance``.
+        """
+        dag_ids = set(dag_ids) - self._dags_with_task_counts
+        if not dag_ids:
+            return
+        for dag_id, task_id, run_id, count in session.execute(
+            select(TI.dag_id, TI.task_id, TI.run_id, func.count("*"))
+            .where(TI.dag_id.in_(dag_ids), TI.state.in_(ACTIVE_STATES))
+            .group_by(TI.dag_id, TI.task_id, TI.run_id)
+        ):
+            self._task_counts[dag_id, task_id] += count
+            self._task_dagrun_counts[dag_id, run_id, task_id] += count
+        self._dags_with_task_counts.update(dag_ids)
+
+    def get_task_counts(self, dag_id: str, task_id: str, run_id: str, *, session: Session) -> tuple[int, int]:
+        """
+        Return the active task instances of a task in all runs of its Dag, and in one Dag run.
+
+        Active includes DEFERRED and AWAITING_INPUT, and the task instances counted with
+        ``add_selected_task_instance``. The Dag's counts are loaded first if needed.
+        """
+        if dag_id not in self._dags_with_task_counts:
+            self.load_task_counts((dag_id,), session=session)
+        return self._task_counts[dag_id, task_id], self._task_dagrun_counts[dag_id, run_id, task_id]
+
+    def add_selected_task_instance(self, task_instance: TI) -> None:
+        """Count a task instance selected to be queued, which the database does not count yet."""
+        dag_id, task_id, run_id = task_instance.dag_id, task_instance.task_id, task_instance.run_id
+        self.dag_run_active_tasks_map[dag_id, run_id] += 1
+        self._task_counts[dag_id, task_id] += 1
+        self._task_dagrun_counts[dag_id, run_id, task_id] += 1
 
 
 def _is_parent_process() -> bool:
@@ -425,13 +459,17 @@ def _has_default_asset_event_grouping(timetable: Timetable) -> bool:
     return type(timetable).group_asset_events is Timetable.group_asset_events
 
 
-def _get_current_dr_task_concurrency(states: Iterable[TaskInstanceState]) -> Subquery:
-    """Get the dag_run IDs and how many tasks are in the provided states for each one."""
+def _select_current_dr_task_concurrency() -> Select[tuple[str, str, int]]:
+    """
+    Count the task instances of each Dag run that count towards its ``max_active_tasks``.
+
+    Only states that hold a worker slot count (``EXECUTION_STATES``); DEFERRED and AWAITING_INPUT are
+    in-flight but parked. ``ConcurrencyMap.load`` and the candidate query share this definition.
+    """
     return (
         select(TI.dag_id, TI.run_id, func.count("*").label("task_per_dr_count"))
-        .where(TI.state.in_(states))
+        .where(TI.state.in_(EXECUTION_STATES))
         .group_by(TI.dag_id, TI.run_id)
-        .subquery()
     )
 
 
@@ -995,10 +1033,15 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         task = serialized_dag.get_task(task_id)
 
         task_concurrency_limit = task.max_active_tis_per_dag
+        task_dagrun_concurrency_limit = task.max_active_tis_per_dagrun
+        if task_concurrency_limit is None and task_dagrun_concurrency_limit is None:
+            return True
+
+        current_task_concurrency, current_task_dagrun_concurrency = concurrency_map.get_task_counts(
+            dag_id, task_id, run_id, session=session
+        )
 
         if task_concurrency_limit is not None:
-            current_task_concurrency = concurrency_map.task_concurrency_map[(dag_id, task_id)]
-
             if current_task_concurrency >= task_concurrency_limit:
                 self.log.info(
                     "Not executing %s since the task concurrency for this task has been reached.",
@@ -1008,13 +1051,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 starved_tasks.add((dag_id, task_id))
                 return False
 
-        task_dagrun_concurrency_limit = task.max_active_tis_per_dagrun
-
         if task_dagrun_concurrency_limit is not None:
-            current_task_dagrun_concurrency = concurrency_map.task_dagrun_concurrency_map[
-                (dag_id, run_id, task_id)
-            ]
-
             if current_task_dagrun_concurrency >= task_dagrun_concurrency_limit:
                 self.log.info(
                     "Not executing %s since the task concurrency per DAG run for this task has been reached.",
@@ -1105,7 +1142,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         if self._multi_team:
             pool_to_team_name = Pool.get_name_to_team_name_mapping(list(pools.keys()), session=session)
 
-        # dag_id to # of running tasks and (dag_id, task_id) to # of running tasks.
         concurrency_map = ConcurrencyMap()
         concurrency_map.load(session=session)
 
@@ -1204,6 +1240,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     # time and stash it on the dag run, where stats_tags reads it for metric tagging.
                     if team := dag_id_to_team_name.get(ti.dag_id):
                         ti.dag_run._team_name = team
+
+            # One query for the Dags of this batch instead of one per Dag from ``get_task_counts``.
+            concurrency_map.load_task_counts(
+                {ti.dag_id for ti in task_instances_to_examine if ti.dag_model.has_task_concurrency_limits},
+                session=session,
+            )
 
             for task_instance in task_instances_to_examine:
                 pool_name = task_instance.pool
@@ -1340,11 +1382,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
                 executable_tis.append(task_instance)
                 open_slots -= task_instance.pool_slots
-                concurrency_map.dag_run_active_tasks_map[dag_run_key] += 1
-                concurrency_map.task_concurrency_map[(task_instance.dag_id, task_instance.task_id)] += 1
-                concurrency_map.task_dagrun_concurrency_map[
-                    (task_instance.dag_id, task_instance.run_id, task_instance.task_id)
-                ] += 1
+                concurrency_map.add_selected_task_instance(task_instance)
 
                 pool_stats["open"] = open_slots
 
@@ -1418,12 +1456,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         It keeps at most ``CANDIDATE_BATCHES * max_tis`` candidates, so with the caller's ``SKIP LOCKED``
         it can return fewer than ``max_tis`` rows while other transactions hold candidates locked.
 
-        This behaves the same as calling ``concurrency_map.load()`` followed by
-        ``_get_current_dr_task_concurrency``, with the difference that the subquery
-        object is built here and executed as part of the main query, so any state
-        changes between construction and execution are naturally ignored.
+        The per-Dag-run count of running and queued task instances comes from
+        ``_select_current_dr_task_concurrency``, the definition ``ConcurrencyMap.load`` also uses,
+        evaluated here as a subquery of this query.
         """
-        dr_task_concurrency_subquery = _get_current_dr_task_concurrency(states=EXECUTION_STATES)
+        dr_task_concurrency_subquery = _select_current_dr_task_concurrency().subquery()
 
         query = (
             select(TI.id)
