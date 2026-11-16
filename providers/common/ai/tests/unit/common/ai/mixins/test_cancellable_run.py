@@ -18,6 +18,8 @@ from __future__ import annotations
 
 import threading
 import time
+from types import SimpleNamespace
+from unittest import mock
 from unittest.mock import DEFAULT, MagicMock
 
 import pytest
@@ -28,7 +30,7 @@ from pydantic_ai.models.fallback import FallbackModel
 from pydantic_ai.models.function import AgentInfo, FunctionModel
 from pydantic_ai.toolsets import FunctionToolset
 
-from airflow.providers.common.ai.durable import AirflowDurability
+from airflow.providers.common.ai.durable import AirflowDurability, journal as journal_module
 from airflow.providers.common.ai.durable.journal import DurableJournal, journal_scope
 from airflow.providers.common.ai.fallback_exceptions import FallbackChainExhaustedError
 from airflow.providers.common.ai.mixins.cancellable_run import CancellableAgentRunMixin
@@ -81,6 +83,18 @@ class TestRunAgentSync:
 
 
 class TestFallbackChainExhausted:
+    @pytest.fixture
+    def task_context(self, monkeypatch):
+        monkeypatch.setattr(journal_module, "_task_journal", None)
+        context = {"task_instance": SimpleNamespace(id="ti-1")}
+        with (
+            mock.patch.object(journal_module, "get_current_context", autospec=True, return_value=context),
+            mock.patch.object(
+                journal_module, "build_task_storage", autospec=True, return_value=MemoryStorage()
+            ),
+        ):
+            yield
+
     def test_group_is_raised_again_as_chain_error_with_members_in_chain_order(self):
         # Without the ``except FallbackExceptionGroup`` in run_agent_sync the run raises the bare
         # group, and ``pytest.raises(FallbackChainExhaustedError)`` fails.
@@ -96,9 +110,32 @@ class TestFallbackChainExhausted:
         assert error.member_errors == error.__cause__.exceptions
         assert [member.status_code for member in error.member_errors] == [429, 400]
         assert error.attempts == getattr(error.__cause__, "attempts", ())
-        # Not durable: no journal progress to report.
+        # Outside a task: no journal.
         assert error.replayed_steps is None
         assert error.recorded_steps is None
+
+    @pytest.mark.usefixtures("task_context")
+    def test_inside_a_task_without_a_journal_reports_no_progress(self):
+        chain = FallbackModel(FunctionModel(_failing_member(429)), FunctionModel(_failing_member(400)))
+
+        with pytest.raises(FallbackChainExhaustedError) as caught:
+            CancellableAgentRunMixin().run_agent_sync(Agent(chain), "go")
+
+        assert caught.value.replayed_steps is None
+        assert caught.value.recorded_steps is None
+
+    @pytest.mark.usefixtures("task_context")
+    def test_inside_a_task_reports_the_journal_an_attempt_already_kept(self):
+        journal = journal_module.current_journal()
+        assert journal is not None
+        journal.stats.recorded["model"] = 1
+        journal.stats.replayed["tool"] = 2
+        chain = FallbackModel(FunctionModel(_failing_member(429)), FunctionModel(_failing_member(400)))
+
+        with pytest.raises(FallbackChainExhaustedError) as caught:
+            CancellableAgentRunMixin().run_agent_sync(Agent(chain), "go")
+
+        assert (caught.value.replayed_steps, caught.value.recorded_steps) == (2, 1)
 
     def test_durable_retry_reports_what_the_attempt_replayed_and_recorded(self):
         # Drops ``replayed_steps``/``recorded_steps`` (hard-coded None) -> both asserts below fail.

@@ -24,7 +24,7 @@ from typing import TYPE_CHECKING, Any
 from pydantic_ai import CancellationToken
 from pydantic_ai.exceptions import FallbackExceptionGroup
 
-from airflow.providers.common.ai.durable.journal import current_journal
+from airflow.providers.common.ai.durable.journal import find_active_journal
 from airflow.providers.common.ai.fallback_exceptions import FallbackChainExhaustedError
 
 if TYPE_CHECKING:
@@ -67,7 +67,7 @@ class CancellableAgentRunMixin:
         except FallbackExceptionGroup as group:
             if isinstance(group, FallbackChainExhaustedError):
                 raise
-            journal = current_journal()
+            journal = find_active_journal()
             raise FallbackChainExhaustedError.from_group(
                 group,
                 replayed_steps=None if journal is None else journal.stats.replayed.total(),

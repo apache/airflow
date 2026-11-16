@@ -37,7 +37,7 @@ class FallbackChainExhaustedError(FallbackExceptionGroup):
     ``replayed_steps`` and ``recorded_steps`` are what the durable journal replayed and recorded
     in this attempt before the chain failed, summed over every step kind, so a retry policy can
     tell an attempt that advanced the run from one that failed where it started. They are
-    ``None`` when the run was not durable.
+    ``None`` when no durable journal was active.
     """
 
     replayed_steps: int | None = None
