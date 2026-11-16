@@ -38,6 +38,7 @@ from airflow.models.team import Team
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk.definitions.callback import AsyncCallback
 from airflow.sdk.definitions.deadline import DeadlineAlert, DeadlineReference
+from airflow.timetables.simple import PartitionedAtRuntime
 from airflow.timetables.trigger import CronPartitionTimetable
 from airflow.utils.state import DagRunState, DagSchedulingState, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
@@ -1756,6 +1757,7 @@ class TestDagDetails(TestDagEndpoint):
             "template_search_path": None,
             "timetable_description": "Never, external triggers only",
             "timetable_partitioned": False,
+            "timetable_partitioned_at_runtime": False,
             "timetable_periodic": False,
             "timetable_summary": None,
             "timezone": UTC_JSON_REPR,
@@ -2023,6 +2025,7 @@ class TestGetDag(TestDagEndpoint):
             "tags": tags,
             "timetable_description": "Never, external triggers only",
             "timetable_partitioned": False,
+            "timetable_partitioned_at_runtime": False,
             "timetable_periodic": False,
             "timetable_summary": None,
         }
@@ -2054,6 +2057,32 @@ class TestGetDag(TestDagEndpoint):
         tag_names_in_response = [tag["name"] for tag in res_json["tags"]]
         expected_sorted_tags = sorted(tag_names)
         assert tag_names_in_response == expected_sorted_tags
+
+    @pytest.mark.parametrize(
+        ("schedule", "expected"),
+        [
+            pytest.param(PartitionedAtRuntime(), True, id="partitioned-at-runtime"),
+            pytest.param(CronPartitionTimetable("0 0 * * *", timezone="UTC"), False, id="cron-partition"),
+            pytest.param(None, False, id="unpartitioned"),
+        ],
+    )
+    def test_get_dag_and_list_report_partitioned_at_runtime(
+        self, session, test_client, dag_maker, schedule, expected
+    ):
+        dag_id = "test_dag_partitioned_at_runtime_flag"
+        with dag_maker(dag_id=dag_id, schedule=schedule, serialized=True):
+            EmptyOperator(task_id="task1")
+        dag_maker.sync_dagbag_to_db()
+        session.commit()
+
+        response = test_client.get(f"/dags/{dag_id}")
+        assert response.status_code == 200
+        assert response.json()["timetable_partitioned_at_runtime"] is expected
+
+        response = test_client.get("/dags", params={"dag_id_pattern": dag_id})
+        assert response.status_code == 200
+        [dag] = response.json()["dags"]
+        assert dag["timetable_partitioned_at_runtime"] is expected
 
     def test_get_dag_should_response_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.get(f"/dags/{DAG1_ID}")

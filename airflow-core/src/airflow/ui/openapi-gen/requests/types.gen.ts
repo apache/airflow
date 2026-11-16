@@ -988,6 +988,7 @@ export type DAGDetailsResponse = {
     timetable_summary: string | null;
     timetable_description: string | null;
     timetable_partitioned: boolean;
+    timetable_partitioned_at_runtime?: boolean;
     timetable_periodic: boolean;
     tags: Array<DagTagResponse>;
     max_active_tasks: number;
@@ -1075,6 +1076,7 @@ export type DAGResponse = {
     timetable_summary: string | null;
     timetable_description: string | null;
     timetable_partitioned: boolean;
+    timetable_partitioned_at_runtime?: boolean;
     timetable_periodic: boolean;
     tags: Array<DagTagResponse>;
     max_active_tasks: number;
@@ -3194,6 +3196,7 @@ export type DAGWithLatestDagRunsResponse = {
     timetable_summary: string | null;
     timetable_description: string | null;
     timetable_partitioned: boolean;
+    timetable_partitioned_at_runtime?: boolean;
     timetable_periodic: boolean;
     tags: Array<DagTagResponse>;
     max_active_tasks: number;

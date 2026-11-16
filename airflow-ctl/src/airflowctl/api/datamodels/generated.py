@@ -2477,6 +2477,9 @@ class DAGResponse(BaseModel):
     timetable_summary: Annotated[str | None, Field(title="Timetable Summary")]
     timetable_description: Annotated[str | None, Field(title="Timetable Description")]
     timetable_partitioned: Annotated[bool, Field(title="Timetable Partitioned")]
+    timetable_partitioned_at_runtime: Annotated[
+        bool | None, Field(title="Timetable Partitioned At Runtime")
+    ] = False
     timetable_periodic: Annotated[bool, Field(title="Timetable Periodic")]
     tags: Annotated[list[DagTagResponse], Field(title="Tags")]
     max_active_tasks: Annotated[int, Field(title="Max Active Tasks")]
@@ -3676,6 +3679,9 @@ class DAGDetailsResponse(BaseModel):
     timetable_summary: Annotated[str | None, Field(title="Timetable Summary")]
     timetable_description: Annotated[str | None, Field(title="Timetable Description")]
     timetable_partitioned: Annotated[bool, Field(title="Timetable Partitioned")]
+    timetable_partitioned_at_runtime: Annotated[
+        bool | None, Field(title="Timetable Partitioned At Runtime")
+    ] = False
     timetable_periodic: Annotated[bool, Field(title="Timetable Periodic")]
     tags: Annotated[list[DagTagResponse], Field(title="Tags")]
     max_active_tasks: Annotated[int, Field(title="Max Active Tasks")]
