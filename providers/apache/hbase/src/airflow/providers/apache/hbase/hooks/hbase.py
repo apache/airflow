@@ -30,7 +30,7 @@ from airflow.providers.apache.hbase.hooks.hbase_strategy import (
     Thrift2Strategy,
 )
 from airflow.providers.apache.hbase.thrift2_pool import get_or_create_thrift2_pool
-from airflow.providers.apache.hbase.version_compat import BaseHook
+from airflow.providers.common.compat.sdk import BaseHook
 
 
 class HBaseThriftHook(BaseHook):

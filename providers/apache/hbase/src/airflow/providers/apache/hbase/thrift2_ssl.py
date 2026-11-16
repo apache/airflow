@@ -26,7 +26,7 @@ import tempfile
 from collections.abc import Callable
 from typing import Any
 
-from airflow.providers.apache.hbase.version_compat import Variable
+from airflow.providers.common.compat.sdk import Variable
 
 
 def create_ssl_context(ssl_config: dict[str, Any]) -> tuple[ssl.SSLContext, Callable[[], None]]:

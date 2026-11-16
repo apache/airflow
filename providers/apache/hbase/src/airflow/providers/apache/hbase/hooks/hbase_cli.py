@@ -24,7 +24,7 @@ import os
 import shlex
 import subprocess
 
-from airflow.providers.apache.hbase.version_compat import BaseHook, Connection
+from airflow.providers.common.compat.sdk import BaseHook, Connection
 
 logger = logging.getLogger(__name__)
 

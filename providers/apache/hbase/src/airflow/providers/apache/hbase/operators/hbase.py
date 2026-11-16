@@ -30,7 +30,7 @@ from airflow.providers.apache.hbase.utils.data_conversion import (
     convert_scan_results_to_serializable,
     extract_backup_id,
 )
-from airflow.providers.apache.hbase.version_compat import BaseOperator, Context
+from airflow.providers.common.compat.sdk import BaseOperator, Context
 
 
 class BackupSetAction(str, Enum):

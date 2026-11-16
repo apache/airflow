@@ -22,7 +22,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 
 from airflow.providers.apache.hbase.hooks.hbase import HBaseThriftHook
-from airflow.providers.apache.hbase.version_compat import BaseSensorOperator, Context
+from airflow.providers.common.compat.sdk import BaseSensorOperator, Context
 
 
 class HBaseTableSensor(BaseSensorOperator):
