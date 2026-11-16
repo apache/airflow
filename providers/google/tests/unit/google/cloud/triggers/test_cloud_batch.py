@@ -26,6 +26,7 @@ from google.api_core.exceptions import (
     GatewayTimeout,
     InternalServerError,
     ResourceExhausted,
+    RetryError,
     ServiceUnavailable,
 )
 from google.cloud.batch_v1 import Job, JobStatus
@@ -172,6 +173,10 @@ class TestCloudBatchJobFinishedTrigger:
             pytest.param(GatewayTimeout("Gateway timeout."), id="GatewayTimeout"),
             pytest.param(ResourceExhausted("Quota exceeded."), id="ResourceExhausted"),
             pytest.param(Aborted("Aborted."), id="Aborted"),
+            pytest.param(
+                RetryError("Timeout of 60.0s exceeded", ServiceUnavailable("Service unavailable.")),
+                id="RetryError",
+            ),
         ],
     )
     @mock.patch(

@@ -26,6 +26,7 @@ from google.api_core.exceptions import (
     GatewayTimeout,
     InternalServerError,
     ResourceExhausted,
+    RetryError,
     ServiceUnavailable,
 )
 from google.cloud.batch_v1 import Job, JobStatus
@@ -46,6 +47,8 @@ _RETRYABLE_GRPC_EXCEPTIONS = (
     GatewayTimeout,  # 504 / gateway timeout
     ResourceExhausted,  # 429 / RESOURCE_EXHAUSTED
     Aborted,  # ABORTED
+    # get_job's default retry wraps a ServiceUnavailable that outlasts its 60s deadline in RetryError.
+    RetryError,
 )
 
 
