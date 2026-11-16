@@ -137,14 +137,13 @@ Airflow versions the flag is a no-op and the operator always triggers a fresh ru
 exactly as before. If the task state store is unavailable at runtime, the operator logs that crash
 recovery is disabled and behaves the same way.
 
-Like the persisted state itself, the stored run id isn't deleted automatically, that only happens
-when someone runs ``airflow state-store clean``. If a task's ``retry_delay`` is longer than
-``[state_store] default_retention_days`` (30 days by default) and cleanup runs in between, the
-run id won't be there for the next retry, and the operator will trigger a fresh run instead of
-reconnecting. Avoid running cleanup on a schedule shorter than your longest ``retry_delay``.
+``[state_store] default_retention_days`` (30 days by default) is stamped on the run id when it is
+stored, so a retry that comes later than that finds nothing and triggers a fresh run instead of
+reconnecting, whatever schedule ``airflow state-store clean`` runs on. Size that setting against
+your longest ``retry_delay``.
 
 Clearing a task deletes the stored run id by default (Airflow 3.4+), and so does clearing its whole
-Dag run (Airflow 3.5+). You can choose to keep task state when you clear, and the next attempt then
+Dag run (Airflow 3.5+). Set ``keep_task_state`` when clearing to keep it, and the next attempt then
 reads the stored run id back. What the next attempt does depends on the state of the Databricks run
 at that point:
 

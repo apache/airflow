@@ -627,6 +627,9 @@ What always runs live
   not a raise: it is recorded, and the retry replays it. A ``ModelBehaviorError`` that a tool raises, such as
   arguments that fail validation with ``failure_error_function=None``, counts as the
   tool's failure: the tool call runs again, but the answer that asked for it replays.
+  Once a call has failed the try on two tries in a row, though, the next try asks the
+  model again from the request that chose the call, since replaying that answer would
+  only reach the same failure.
 - Tools other than function tools: hosted tools, the tools of ``mcp_servers``, and shell
   and computer tools.
 - A function tool whose ``needs_approval`` is a function: the SDK checks that the
