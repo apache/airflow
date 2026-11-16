@@ -61,7 +61,6 @@ EXCLUDED_COMMANDS = {
     "assets materialize",
     "backfill cancel",
     "backfill create",
-    "backfill create-dry-run",
     "backfill get",
     "backfill pause",
     "backfill unpause",
@@ -73,6 +72,7 @@ EXCLUDED_COMMANDS = {
 }
 
 SUBGROUPS = {
+    "assets": {"state-store"},
     "taskinstances": {"state-store"},
 }
 NESTED_PREFIXES = {f"{group} {subgroup}" for group, subgroups in SUBGROUPS.items() for subgroup in subgroups}

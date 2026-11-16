@@ -10,6 +10,37 @@
       "eventType": "Gebeurtenis type"
     }
   },
+  "dagBundles": {
+    "active": "Actief",
+    "columns": {
+      "active": "Actief",
+      "importErrors": "Importfouten",
+      "lastRefreshed": "Laatst vernieuwd",
+      "name": "Naam",
+      "version": "Versie"
+    },
+    "detail": {
+      "status": "Status"
+    },
+    "files": {
+      "columns": {
+        "file": "Bestand",
+        "lastParsed": "Laatst geparsd",
+        "parseDuration": "Parse duur"
+      },
+      "file_one": "Bestand",
+      "file_other": "Bestanden",
+      "importErrorForbidden": "Je hebt geen rechten om deze importfout te bekijken.",
+      "importErrorGone": "Deze importfout wordt niet langer geregistreerd. Waarschijnlijk is het opgelost door een herparsing.",
+      "neverParsed": "Nooit",
+      "showImportError_one": "Bekijk {{count, number}} fout",
+      "showImportError_other": "Bekijk {{count, number}} fouten"
+    },
+    "inactive": "Inactief",
+    "neverRefreshed": "Nooit",
+    "notRefreshedYet": "Nog niet vernieuwd",
+    "notVersioned": "Niet geversioneerd"
+  },
   "deadlines": {
     "columns": {
       "alertName": "Alertnaam",
@@ -39,6 +70,7 @@
     "columns": {
       "dag": "Dag",
       "key": "Sleutel",
+      "timestamp": "Tijdstempel",
       "value": "Waarde"
     },
     "delete": {
@@ -56,6 +88,8 @@
       "successTitle": "XCom gewijzigd",
       "title": "XCom bewerken"
     },
+    "entry_one": "XCom invoer",
+    "entry_other": "XCom invoeren",
     "key": "Sleutel",
     "title": "XCom",
     "value": "Waarde"

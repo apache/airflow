@@ -23,7 +23,6 @@ from datetime import timedelta
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, ClassVar, Literal
 
-from pydantic import BaseModel
 from pydantic_ai.usage import RunUsage
 
 from airflow.providers.common.ai.hooks.pydantic_ai import PydanticAIHook
@@ -56,12 +55,20 @@ from airflow.providers.common.ai.utils.logging import (
     log_run_summary,
     log_run_usage,
 )
-from airflow.providers.common.ai.utils.output_type import dump_output_to_json, rehydrate_pydantic_output
+from airflow.providers.common.ai.utils.output_type import (
+    dump_output_for_xcom,
+    dump_output_to_json,
+    rehydrate_pydantic_output,
+)
 from airflow.providers.common.ai.utils.prompt import describe_prompt
 from airflow.providers.common.ai.utils.usage import coerce_usage_limits
 from airflow.providers.common.ai.utils.usage_budget import copy_run_usage, subtract_run_usage
 from airflow.providers.common.compat.notifier import BaseNotifier
-from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException, BaseOperator
+from airflow.providers.common.compat.sdk import (
+    AirflowOptionalProviderFeatureException,
+    BaseOperator,
+    SkipMixin,
+)
 from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_1_PLUS
 from airflow.providers.standard.exceptions import HITLRejectException, HITLTimeoutError
 
@@ -78,6 +85,7 @@ if TYPE_CHECKING:
 
     from pydantic_ai import Agent
     from pydantic_ai.agent import AgentRunResult
+    from pydantic_ai.output import OutputSpec
     from pydantic_ai.settings import ModelSettings
     from pydantic_ai.usage import UsageLimits
 
@@ -91,7 +99,7 @@ __all__ = ["DecisionPolicy", "LLMOperator"]
 # CancellableAgentRunMixin must precede BaseOperator so its on_kill overrides BaseOperator's
 # no-op. The other mixins only add methods, so they can trail BaseOperator. See the MRO guard
 # test in tests/unit/common/ai/mixins/test_cancellable_run.py.
-class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin, UsageBudgetMixin):
+class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin, UsageBudgetMixin, SkipMixin):
     """
     Call an LLM with a prompt and return the output.
 
@@ -100,6 +108,7 @@ class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin, Usag
     via a Pydantic ``BaseModel``. When ``output_type`` is a ``BaseModel`` subclass,
     the model instance is returned to XCom unchanged so downstream tasks can
     type-hint it directly (e.g. ``def downstream(result: MyModel) -> None``).
+    Inside a list of types (``[MyModel, int]``) the model is returned as a ``dict`` instead.
     The class is auto-registered for deserialization in each process that parses
     the DAG, so no edit to ``[core] allowed_deserialization_classes`` is required.
     The Pydantic class must be defined at module scope: classes nested inside
@@ -139,9 +148,14 @@ class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin, Usag
     :param system_prompt: System-level instructions for the LLM agent.
     :param output_type: Expected output type. Default ``str``. A single type
         (``str``, ``int``, ``list[str]``, a Pydantic ``BaseModel`` subclass) or a
-        union (``A | B``). For a ``BaseModel`` subclass, the model instance is
+        union (``A | B``). A list of types (``[str, int]``) is also accepted and treated
+        as alternatives (a union). pydantic-ai output markers (``ToolOutput(...)``,
+        ``NativeOutput(...)``) and output functions are also accepted.
+        For a ``BaseModel`` subclass, the model instance is
         returned to XCom unchanged so downstream tasks can type-hint it
-        directly. The class must be defined at module scope -- nested classes
+        directly, except inside a list of types, where it is returned as a ``dict``
+        because the worker registers only the classes it finds in a single type or a union.
+        The class must be defined at module scope -- nested classes
         cannot be deserialized from XCom.
     :param model_settings: Pydantic AI :class:`~pydantic_ai.settings.ModelSettings`
         for the model call, such as ``temperature`` or ``max_tokens``, including
@@ -202,6 +216,15 @@ class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin, Usag
         user id.  ``None`` (default) lets any user with the permission respond.
         On Airflow 3.1 to 3.3 the list is fixed when the review is first
         created; on 3.4+ a cleared or retried task replaces it.  Needs Airflow 3.1+.
+    :param fail_on_reject: If ``False``, a rejected review skips the direct
+        downstream tasks except teardowns and the task succeeds, as
+        :class:`~airflow.providers.standard.operators.hitl.ApprovalOperator`
+        does.  Only takes effect when a review is opened.  Default ``True``:
+        a rejection fails the task.
+    :param ignore_downstream_trigger_rules: If ``True``, a rejected review that
+        does not fail the task skips every downstream task except teardowns
+        rather than only the direct ones.  Only takes effect when a review is opened.
+        Default ``False``.
     :param decision_policy: Experimental. A
         :class:`~airflow.providers.common.ai.policies.decision.DecisionPolicy`
         saying how confident the model has to be for the operator to return its answer by
@@ -215,12 +238,11 @@ class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin, Usag
         connection does not silently switch off a control the author set. Independent of
         ``require_approval``, which always asks. ``on_uncertain="review"`` needs Airflow 3.1+,
         like ``require_approval``. Default ``None``: no gate, behaviour unchanged.
-    :param serialize_output: If ``True`` and ``output_type`` is a Pydantic
-        ``BaseModel`` subclass, the model instance is dumped to a ``dict`` via
-        ``model_dump()`` before being pushed to XCom. Default ``False`` --
-        the Pydantic instance flows through XCom unchanged. Set to ``True``
-        when a downstream consumer needs the dict shape (e.g. sending to an
-        external system that expects JSON-style payloads).
+    :param serialize_output: If ``True``, an output that is itself a Pydantic ``BaseModel`` is
+        dumped with ``model_dump()`` before being pushed to XCom, so ``date`` and ``Decimal``
+        fields keep their types. Default ``False``: a model whose class the worker registers from
+        ``output_type`` flows through XCom unchanged. Some outputs are pushed as dicts either way;
+        see :ref:`When a model arrives as a dict <structured-output-dict-shape>`.
     """
 
     deserialization_allowed_class_fields: ClassVar[tuple[str, ...]] = ("output_type",)
@@ -228,6 +250,9 @@ class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin, Usag
     # Subclasses that run their own ``execute`` without the confidence gate set this to False so a
     # ``decision_policy`` is rejected at construction rather than accepted and ignored.
     supports_decision_policy: ClassVar[bool] = True
+
+    # A mapped task reads this from the class, so it stays True there; __init__ narrows it per task.
+    _can_skip_downstream = True
 
     template_fields: Sequence[str] = (
         "prompt",
@@ -247,7 +272,7 @@ class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin, Usag
         model_id: str | None = None,
         fallback_conn_ids: list[str] | None = None,
         system_prompt: str = "",
-        output_type: type | UnionType = str,
+        output_type: OutputSpec[Any] | UnionType = str,
         model_settings: ModelSettings | None = None,
         output_retries: int | None = None,
         usage_limits: UsageLimits | dict[str, Any] | None = None,
@@ -257,6 +282,8 @@ class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin, Usag
         allow_modifications: bool = False,
         approval_notifiers: BaseNotifier | Iterable[BaseNotifier] | None = None,
         approval_assigned_users: HITLUser | Iterable[HITLUser] | None = None,
+        fail_on_reject: bool = True,
+        ignore_downstream_trigger_rules: bool = False,
         decision_policy: DecisionPolicy | None = None,
         serialize_output: bool = False,
         **kwargs: Any,
@@ -310,6 +337,9 @@ class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin, Usag
         self.approval_timeout = approval_timeout
         self.on_approval_timeout = on_approval_timeout
         self.allow_modifications = allow_modifications
+        self.fail_on_reject = fail_on_reject
+        self.ignore_downstream_trigger_rules = ignore_downstream_trigger_rules
+        self._can_skip_downstream = self._may_review and not fail_on_reject
         if approval_notifiers is None:
             approval_notifiers = []
         elif isinstance(approval_notifiers, BaseNotifier):
@@ -410,11 +440,7 @@ class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin, Usag
                 )
             self.defer_for_approval(context, output, body=body, decision=record)  # type: ignore[misc]
 
-        if self._serialize_model_output and isinstance(output, BaseModel):
-            # ``serialize_output=True``, or an ``apache-airflow-task-sdk`` version without the worker-side
-            # deserialization-class walk: dump to a dict so XCom carries a plain
-            # JSON payload that deserializes without an allow-list entry.
-            output = output.model_dump()
+        output = dump_output_for_xcom(output, self.output_type, serialize_output=self._serialize_model_output)
 
         self._clear_usage_budget(context)
         return output
@@ -447,7 +473,13 @@ class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin, Usag
 
         :raises ReviewedOutputValidationError: If a reviewer's edit does not validate against ``output_type``.
         """
-        output = self._resume_after_review(context, generated_output, event, decision)
+        try:
+            output = self._resume_after_review(context, generated_output, event, decision)
+        except HITLRejectException as e:
+            if self.fail_on_reject:
+                raise
+            self._skip_downstream_on_reject(context, e)
+            return None
         self._finalize_decision(context, event, decision, action=None)
         return rehydrate_pydantic_output(
             self.output_type,
@@ -593,6 +625,19 @@ class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin, Usag
         except (KeyError, TypeError):
             return None
         return ti if callable(getattr(ti, "xcom_push", None)) else None
+
+    def _skip_downstream_on_reject(self, context: Context, error: HITLRejectException) -> None:
+        self.log.info("%s Skipping downstream tasks...", error)
+        # The record was finalized before the exception. On an unmapped task skip() hands the skip to
+        # the supervisor by raising; on a mapped one it records the skip in XCom and returns.
+        self._clear_usage_budget(context)
+        task = context["task"]
+        tasks = (
+            task.get_flat_relatives(upstream=False)
+            if self.ignore_downstream_trigger_rules
+            else task.get_direct_relatives(upstream=False)
+        )
+        self.skip(ti=context["ti"], tasks=(t for t in tasks if not t.is_teardown))
 
     def _push_xcom(self, context: Context, key: str, value: Any) -> None:
         """Push ``value`` under ``key`` on XCom, honoring ``do_xcom_push`` and a missing task instance."""

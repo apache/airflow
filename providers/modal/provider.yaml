@@ -23,7 +23,8 @@ name: Modal
 description: |
     `Modal <https://modal.com/>`__ provider for Apache Airflow.
     Owns the ``modal`` connection type and a hook that turns it into an authenticated
-    Modal client, so operators, toolsets and executors share one credential path.
+    Modal client, so operators, toolsets and executors share one credential path, and
+    ``@task.modal``, which runs a Python function in a Modal sandbox.
 
 state: ready
 lifecycle: incubation
@@ -44,6 +45,15 @@ hooks:
   - integration-name: Modal
     python-modules:
       - airflow.providers.modal.hooks.modal
+
+triggers:
+  - integration-name: Modal
+    python-modules:
+      - airflow.providers.modal.triggers.modal
+
+task-decorators:
+  - class-name: airflow.providers.modal.decorators.modal.modal_task
+    name: modal
 
 connection-types:
   - hook-class-name: airflow.providers.modal.hooks.modal.ModalHook

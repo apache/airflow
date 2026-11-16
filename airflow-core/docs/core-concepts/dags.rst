@@ -947,24 +947,33 @@ thresholds are exceeded. You can set deadlines relative to a fixed datetime, use
 calculated references (like Dag queue time or start time), or implement your own custom reference.
 When a deadline is exceeded, it triggers a callback which can notify you or take other actions.
 
-Here's a simple example using the existing email Notifier:
+Here's a simple example using the existing email Notifier. A Notifier cannot be passed as the
+``callback`` directly: wrap it in a :class:`~airflow.sdk.AsyncCallback` (or
+:class:`~airflow.sdk.SyncCallback`) and pass the Notifier arguments through ``kwargs``:
 
 .. code-block:: python
 
     from datetime import timedelta
-    from airflow.sdk import DAG
+
     from airflow.providers.smtp.notifications.smtp import SmtpNotifier
-    from airflow.sdk.definitions.deadline import DeadlineAlert, DeadlineReference
+    from airflow.providers.standard.operators.empty import EmptyOperator
+    from airflow.sdk import AsyncCallback, DAG, DeadlineAlert, DeadlineReference
 
     with DAG(
         dag_id="email_deadline",
         deadline=DeadlineAlert(
             reference=DeadlineReference.DAGRUN_QUEUED_AT,
             interval=timedelta(minutes=30),
-            callback=SmtpNotifier(
-                to="team@example.com",
-                subject="🚨 Dag {{ dag_run.dag_id }} missed deadline at {{ deadline.deadline_time }}",
-                html_content="The Dag Run {{ dag_run.dag_run_id }} has been running for more than 30 minutes since being queued.",
+            callback=AsyncCallback(
+                SmtpNotifier,
+                kwargs={
+                    "to": "team@example.com",
+                    "subject": "🚨 Dag {{ dag_run.dag_id }} missed deadline at {{ deadline.deadline_time }}",
+                    "html_content": (
+                        "The Dag Run {{ dag_run.dag_run_id }} has been running for more than 30 minutes "
+                        "since being queued."
+                    ),
+                },
             ),
         ),
     ):

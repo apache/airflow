@@ -28,6 +28,19 @@
 Changelog
 ---------
 
+4.11.2
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Apply timeout_seconds and connection proxies to dbt Cloud sync requests (#74684)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``[main] Upgrade important CI environment (#76278)``
+   * ``Fix task loop information and tests for OpenLineage provider (#74752)``
+
 4.11.1
 ......
 

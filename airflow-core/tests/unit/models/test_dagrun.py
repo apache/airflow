@@ -641,6 +641,39 @@ class TestDagRun:
         dag_run.update_state()
         assert dag_run.state == DagRunState.SUCCESS
 
+    @pytest.mark.parametrize(
+        ("partition_key", "expected_suffix"),
+        [
+            pytest.param("2026-01-01T00:00:00", ", partition_key=2026-01-01T00:00:00,", id="with-key"),
+            pytest.param(None, ", partition_key=None,", id="without-key"),
+        ],
+    )
+    def test_dagrun_finished_log_ends_with_partition_key(
+        self, dag_maker, session, caplog, partition_key, expected_suffix
+    ):
+        with dag_maker(
+            dag_id="test_dagrun_finished_log",
+            schedule=CronPartitionTimetable("0 0 * * *", timezone=pendulum.UTC),
+            start_date=datetime.datetime(2026, 1, 1),
+            session=session,
+        ):
+            EmptyOperator(task_id="task")
+        dag_run = dag_maker.create_dagrun(
+            logical_date=None,
+            partition_date=datetime.datetime(2026, 1, 1, tzinfo=pendulum.UTC) if partition_key else None,
+            partition_key=partition_key,
+        )
+        for ti in dag_run.get_task_instances(session=session):
+            ti.set_state(TaskInstanceState.SUCCESS, session=session)
+
+        with caplog.at_level("INFO"):
+            dag_run.update_state(session=session)
+
+        finished = [r.getMessage() for r in caplog.records if r.getMessage().startswith("DagRun Finished:")]
+        assert len(finished) == 1
+        assert ", data_interval_end=" in finished[0]
+        assert finished[0].endswith(expected_suffix)
+
     def test_dagrun_not_stuck_in_running_when_all_tasks_instances_are_removed(self, dag_maker, session):
         """
         Tests that a DAG run succeeds when all tasks are removed
@@ -2684,7 +2717,7 @@ def test_mapped_literal_verify_integrity(dag_maker, session):
 
 
 def test_mapped_literal_to_xcom_arg_verify_integrity(dag_maker, session):
-    """Test that when we change from literal to a XComArg the TIs are removed"""
+    """Changing from a literal to an unresolved XComArg keeps the TIs until the XComArg resolves."""
 
     @task
     def task_2(arg2): ...
@@ -2702,15 +2735,22 @@ def test_mapped_literal_to_xcom_arg_verify_integrity(dag_maker, session):
     dag_version_id = DagVersion.get_latest_version(dag_id=dr.dag_id, session=session).id
     dr.verify_integrity(dag_version_id=dag_version_id, session=session)
 
-    indices = session.execute(
+    query = (
         select(TI.map_index, TI.state)
         .where(TI.task_id == "task_2", TI.dag_id == dr.dag_id, TI.run_id == dr.run_id)
         .order_by(TI.map_index)
-    ).all()
+    )
+    assert session.execute(query).all() == [(0, None), (1, None), (2, None), (3, None)]
 
-    assert indices == [
-        (0, TaskInstanceState.REMOVED),
-        (1, TaskInstanceState.REMOVED),
+    upstream = dr.get_task_instance(task_id="task_1", session=session)
+    upstream.state = TaskInstanceState.SUCCESS
+    push_mapped_length(upstream, [1, 2], session=session)
+    decision = dr.task_instance_scheduling_decisions(session=session)
+
+    assert sorted(ti.map_index for ti in decision.schedulable_tis if ti.task_id == "task_2") == [0, 1]
+    assert session.execute(query).all() == [
+        (0, None),
+        (1, None),
         (2, TaskInstanceState.REMOVED),
         (3, TaskInstanceState.REMOVED),
     ]

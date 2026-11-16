@@ -129,11 +129,39 @@ that **must be used consistently**:
 
 ### Plural Forms
 
-- Spanish uses i18next suffixes `_one` and `_other` only.
-  `_many` and `_other` must always use the same translation:
+- Spanish uses the i18next suffixes `_one`, `_many` and `_other`. All three are
+  required — `PLURAL_SUFFIXES["es"]` in
+  `dev/breeze/src/airflow_breeze/commands/ui_commands.py` lists them, and a key
+  that omits `_many` falls through to the English `fallbackLng` rather than to
+  the Spanish `_other`.
+
+- `_many` resolves **only at exact multiples of a million** (1.000.000,
+  2.000.000, …). 1.500.000 and 1.000.001 resolve to `_other`.
+
+- At those counts a numeral takes **`de`** before the noun it quantifies
+  ("un millón **de** tareas"), so a `_many` form that merely repeats `_other`
+  reads ungrammatically. When the string interpolates a count directly in front
+  of a noun, add `de`:
+
+  ```json
+  "change_one": "{{count, number}} cambio",
+  "change_many": "{{count, number}} de cambios",
+  "change_other": "{{count, number}} cambios"
+  ```
+
+- When no noun follows the numeral — the count stands alone in brackets, or the
+  noun is elided — `de` does not apply and `_many` matches `_other`:
+
+  ```json
+  "requiredActionCount_many": "Acciones Requeridas ({{count, number}})",
+  "teams.more_many": "y {{count, number}} más"
+  ```
+
+- A bare noun with no numeral in the string is likewise unaffected:
 
   ```json
   "task_one": "Tarea",
+  "task_many": "Tareas",
   "task_other": "Tareas"
   ```
 
@@ -222,7 +250,7 @@ Note: these titles require a full phrase in Spanish — do not shorten at the ex
 - Match tone, style, gender agreement, and casing from existing `es/*.json` files
 - Use neutral, international Spanish readable across all Spanish-speaking regions
 - Preserve all i18next placeholders: `{{count, number}}`, `{{dagName}}`, `{{hotkey}}`, etc.
-- Provide all needed plural suffixes (`_one`, `_other`) for each plural key
+- Provide all needed plural suffixes (`_one`, `_many`, `_other`) for each plural key
 - Check existing translations before adding new ones to maintain consistency
 
 **DON'T:**

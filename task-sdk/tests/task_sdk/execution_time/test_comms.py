@@ -32,6 +32,7 @@ from airflow.sdk.execution_time.comms import (
     DeadlockImminentError,
     GetVariable,
     MaskSecret,
+    SetXCom,
     StartupDetails,
     VariableResult,
     _RequestFrame,
@@ -61,6 +62,18 @@ class TestCommsModels:
     def test_mask_secret_with_objects(self, object_to_mask):
         mask_secret_object = MaskSecret(value=object_to_mask, name="test_secret")
         assert mask_secret_object.value == object_to_mask
+
+    @pytest.mark.parametrize(
+        ("map_index", "expected"),
+        [
+            pytest.param(None, -1, id="not-mapped"),
+            pytest.param(0, 0, id="first-map-index"),
+            pytest.param(3, 3, id="other-map-index"),
+        ],
+    )
+    def test_set_xcom_resolved_map_index(self, map_index, expected):
+        msg = SetXCom(key="k", value=1, dag_id="d", run_id="r", task_id="t", map_index=map_index)
+        assert msg.resolved_map_index == expected
 
 
 class TestCommsDecoder:

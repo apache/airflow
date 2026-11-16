@@ -144,6 +144,9 @@ Parameters
   See :ref:`bounded-query-results` and :ref:`bounded-schema-results`.
 - ``max_columns``: Maximum columns ``get_schema`` returns in full. Default ``100``.
   Above it the result becomes a bounded summary. See :ref:`bounded-schema-results`.
+- ``tool_prefix``: Optional prefix joined to each tool name with an underscore (e.g. ``"lake"`` produces ``"lake_query"``).
+  Must be a valid Python identifier. Set it when one agent has another toolset with the
+  same tool names, since duplicate tool names are rejected.
 - ``max_retries``: How many times the model may correct a failed call to these
   tools. Default ``None``, the agent's ``retries``. See :ref:`toolset-retry-budget`.
 

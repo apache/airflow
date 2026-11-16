@@ -45,9 +45,11 @@ const getFilterIcon = (config: FilterConfig): ReactNode => config.icon ?? getDef
 
 export const FilterBar = ({
   configs,
+  hasExternalFilters = false,
   initialValues = defaultInitialValues,
   maxVisibleFilters = 10,
   onFiltersChange,
+  onReset,
   showPresetFilters = true,
 }: FilterBarProps) => {
   const { t: translate } = useTranslation(["admin", "common"]);
@@ -165,7 +167,11 @@ export const FilterBar = ({
 
   const resetFilters = () => {
     setFilters([]);
-    onFiltersChange({});
+    if (onReset === undefined) {
+      onFiltersChange({});
+    } else {
+      onReset();
+    }
   };
 
   const availableConfigs = configs.filter(
@@ -246,12 +252,12 @@ export const FilterBar = ({
       )}
       {filters.slice(0, maxVisibleFilters).map(renderFilter)}
 
-      {filters.length > 0 && (
+      {filters.length > 0 || hasExternalFilters ? (
         <Button bg="bg" borderRadius="full" colorPalette="gray" onClick={resetFilters} variant="outline">
           <MdClear />
           {translate("common:reset")}
         </Button>
-      )}
+      ) : undefined}
       {showPresetFilters ? <PresetFiltersMenu /> : undefined}
     </HStack>
   );

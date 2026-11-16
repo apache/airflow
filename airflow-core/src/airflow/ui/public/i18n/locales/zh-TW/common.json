@@ -44,6 +44,7 @@
   "dagBundle_other": "Dag 套件包",
   "dagDetails": {
     "activeRuns": "活躍執行數",
+    "bundleVersion": "套件包版本",
     "catchup": "自動回填",
     "dagRunTimeout": "Dag 執行超時",
     "defaultArgs": "預設參數",
@@ -220,6 +221,10 @@
     "write": "撰寫"
   },
   "overallStatus": "整體狀態",
+  "pagination": {
+    "nextPage": "下一頁",
+    "previousPage": "上一頁"
+  },
   "partition_one": "資源分區",
   "partition_other": "資源分區",
   "partitionedDagRun_one": "分區的 Dag 執行",
@@ -266,7 +271,8 @@
   "search": {
     "advanced": {
       "description": "在值中任意位置進行匹配 (子字串搜尋)。在大型部署上會較慢，因為無法使用預設的 B-tree 索引。詳情請參閱文件中關於自訂中繼資料索引的章節。",
-      "title": "任意位置匹配"
+      "title": "任意位置匹配",
+      "toggleLabel": "切換任意位置匹配"
     }
   },
   "security": {
@@ -380,10 +386,12 @@
       "scrollBottom": "捲動至最下方",
       "scrollTop": "捲動至最上方",
       "searchDags": "搜尋 $t(dag_other)",
+      "selectGridCellRange": "選取範圍 $t(taskInstance_other) 或 $t(taskGroup_other)",
       "showHelp": "顯示$t(shortcuts.title)",
       "toggleExpand": "展開或收合所有群組",
       "toggleFullscreen": "切換全螢幕",
       "toggleGraphGrid": "切換圖形／網格檢視",
+      "toggleGridCellSelection": "選取或取消選取 $t(taskInstance_one) 或 $t(taskGroup_one)",
       "toggleLogLevel": "切換日誌層級",
       "toggleSource": "切換來源",
       "toggleTaskGroup": "展開或收合$t(taskGroup_one)",
@@ -486,6 +494,7 @@
     "queue": "排隊",
     "queuedWhen": "開始排隊時間",
     "renderedMapIndex": "渲染後的映射索引",
+    "retryAt": "重試時間",
     "scheduledWhen": "開始排程時間",
     "stateReason": "狀態原因",
     "stateReasonSummary": {

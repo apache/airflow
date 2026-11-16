@@ -64,7 +64,7 @@ const FLAT_NODES = [node("group", true), node("a"), node("b"), node("c")];
 const SELECTABLE_GROUPS = new Map([["group", ["a", "b"]]]);
 const LOOPED = { latest_region_id: "11111111-1111-4111-8111-111111111111", latest_region_index: 2 };
 
-// "c" is looped in r2 and "b" has no task instance in r3, so neither can be selected.
+// "c" is looped in r2, and "b" has no task instance in r3 so it cannot be selected there.
 const SUMMARIES = new Map<string, GridTISummaries>(
   RUN_IDS.map((runId) => [
     runId,
@@ -90,7 +90,6 @@ const renderSelection = (route = "/dags/dag") =>
       ...useGridSelection({
         flatNodes: FLAT_NODES,
         runIds: RUN_IDS,
-        selectableGroups: SELECTABLE_GROUPS,
         summariesByRunId: SUMMARIES,
       }),
       hasGridSelection: useHasGridSelection(),
@@ -126,7 +125,7 @@ const groupNode = (id: string, children: Array<GridNodeResponse>, isLoop = false
 const leafNode = (id: string): GridNodeResponse => ({ id, is_mapped: false, label: id });
 
 describe("buildSelectableGroups", () => {
-  it("lists the members of each group, leaving out loops and the groups around or inside them", () => {
+  it("lists the members of each group, loops and the groups around or inside them included", () => {
     const structure = [
       groupNode("outer", [leafNode("outer.a"), groupNode("outer.inner", [leafNode("outer.inner.b")])]),
       groupNode("with_loop", [leafNode("with_loop.c"), groupNode("with_loop.loop", [leafNode("d")], true)]),
@@ -136,8 +135,12 @@ describe("buildSelectableGroups", () => {
 
     expect(buildSelectableGroups(structure)).toEqual(
       new Map([
+        ["loop.group", ["loop.group.e"]],
+        ["loop", ["loop.group", "loop.group.e"]],
         ["outer.inner", ["outer.inner.b"]],
         ["outer", ["outer.a", "outer.inner", "outer.inner.b"]],
+        ["with_loop.loop", ["d"]],
+        ["with_loop", ["with_loop.c", "with_loop.loop", "d"]],
       ]),
     );
   });
@@ -158,24 +161,16 @@ describe("getCoveredCellKeys", () => {
 
 describe("isSelectableCell", () => {
   it.each([
-    { expected: true, name: "a plain task instance", taskInstance: instance("a"), taskNode: node("a") },
-    { expected: true, name: "a group", taskInstance: instance("group"), taskNode: node("group", true) },
-    {
-      expected: false,
-      name: "a group that is or holds a loop",
-      taskInstance: instance("loop"),
-      taskNode: node("loop", true),
-    },
-    { expected: false, name: "a cell without task instance", taskInstance: undefined, taskNode: node("a") },
+    { expected: true, name: "a plain task instance", taskInstance: instance("a") },
+    { expected: true, name: "a looped task", taskInstance: instance("c", LOOPED) },
+    { expected: false, name: "a cell without task instance", taskInstance: undefined },
     {
       expected: false,
       name: "a task that has no task instance in the run yet",
       taskInstance: instance("a", { dag_version_number: null }),
-      taskNode: node("a"),
     },
-    { expected: false, name: "a looped task", taskInstance: instance("c", LOOPED), taskNode: node("c") },
-  ])("returns $expected for $name", ({ expected, taskInstance, taskNode }) => {
-    expect(isSelectableCell(taskNode, taskInstance, SELECTABLE_GROUPS)).toBe(expected);
+  ])("returns $expected for $name", ({ expected, taskInstance }) => {
+    expect(isSelectableCell(taskInstance)).toBe(expected);
   });
 });
 
@@ -248,6 +243,7 @@ describe("useGridSelection", () => {
         getCellKey("r1", "b"),
         getCellKey("r2", "b"),
         getCellKey("r1", "c"),
+        getCellKey("r2", "c"),
         getCellKey("r3", "c"),
       ].sort(),
     );
@@ -273,7 +269,7 @@ describe("useGridSelection", () => {
       result.current.handleSelectionClick(click({ ctrlKey: true }), { runId: "r1", taskId: "a" });
     });
     act(() => {
-      handled = result.current.handleSelectionClick(click({ ctrlKey: true }), { runId: "r2", taskId: "c" });
+      handled = result.current.handleSelectionClick(click({ ctrlKey: true }), { runId: "r3", taskId: "b" });
     });
 
     expect(handled).toBe(false);

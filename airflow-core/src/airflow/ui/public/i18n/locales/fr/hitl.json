@@ -23,6 +23,7 @@
     "received": "Réponse reçue à ",
     "respond": "Répondre",
     "responded_by_user_name": "Répondu par (nom d'utilisateur)",
+    "selectAtLeastOne": "Sélectionnez au moins une option",
     "success": "Réponse pour {{taskId}} réussie",
     "title": "Instance de tâche humaine - {{taskId}}"
   },

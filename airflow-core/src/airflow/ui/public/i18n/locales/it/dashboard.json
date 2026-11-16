@@ -1,6 +1,28 @@
 {
+  "alerts": {
+    "seeLessContext": "Vedi meno",
+    "seeMoreContext": "Vedi di più",
+    "showMoreAlerts_many": "+{{count, number}} di altri avvisi",
+    "showMoreAlerts_one": "+{{count, number}} altro avviso",
+    "showMoreAlerts_other": "+{{count, number}} altri avvisi",
+    "showMoreAlerts_zero": "Nessun altro avviso"
+  },
+  "deadlines": {
+    "pending": {
+      "empty": "Nessuna scadenza imminente",
+      "title": "Imminenti"
+    },
+    "recentlyMissed": {
+      "empty": "Nessuna scadenza non rispettata",
+      "title": "Scadenze non rispettate"
+    },
+    "showMore": "Mostra altro",
+    "title": "Scadenze"
+  },
+  "deferredSlotsNotCounted": "Differiti non conteggiati negli slot: {{count, number}}",
+  "deferredSlotsNotCountedTooltip": "I Task differiti mostrati nella barra sono conteggiati negli slot del Pool. Quelli sotto la barra provengono da Pool che non conteggiano i Task differiti negli slot.",
   "favorite": {
-    "favoriteDags_many": "{{count, number}} Dags preferiti",
+    "favoriteDags_many": "Primi {{count, number}} di Dags preferiti",
     "favoriteDags_one": "Primo {{count, number}} Dag preferito",
     "favoriteDags_other": "Primi {{count, number}} Dags preferiti",
     "favoriteDags_zero": "Nessun Dag preferito",
@@ -10,17 +32,35 @@
   "group": "Gruppo",
   "health": {
     "dagProcessor": "Processore del Dag",
+    "degraded": "Degradato",
+    "degradedHint": {
+      "dagProcessor": "Alcuni Dag Bundle configurati non hanno un processore di Dag che li analizzi.",
+      "triggerer": "Alcuni Team non hanno un Triggerer che esegua i loro Task differiti."
+    },
+    "down": "Non raggiungibile",
     "health": "Salute",
     "healthy": "Sano",
+    "instances": {
+      "bundles": "Bundle",
+      "hostname": "Host",
+      "team": "Team",
+      "title_many": "{{title}} — {{status}} ({{count, number}} istanze)",
+      "title_one": "{{title}} — {{status}} ({{count, number}} istanza)",
+      "title_other": "{{title}} — {{status}} ({{count, number}} istanze)",
+      "title_zero": "{{title}} — {{status}} (nessuna istanza)",
+      "unknownHostname": "Host sconosciuto"
+    },
     "lastHeartbeat": "Ultimo Heartbeat",
     "metaDatabase": "Database di metadati",
     "scheduler": "Pianificatrice",
     "status": "Stato",
     "triggerer": "Triggerer",
-    "unhealthy": "Malato"
+    "unhealthy": "Malato",
+    "unknownStatus": "Sconosciuto"
   },
   "history": "Cronologia",
   "importErrors": {
+    "bundle": "Bundle",
     "dagImportError_many": "Errori di Importazione Dag",
     "dagImportError_one": "Errore di Importazione Dag",
     "dagImportError_other": "Errori di Importazione Dag",
@@ -33,7 +73,8 @@
   "poolSlots": "Slot del Pool",
   "sortBy": {
     "newestFirst": "Più Recenti",
-    "oldestFirst": "Più Vecchi"
+    "oldestFirst": "Più Vecchi",
+    "placeholder": "Ordina per"
   },
   "source": "Fonte",
   "stats": {

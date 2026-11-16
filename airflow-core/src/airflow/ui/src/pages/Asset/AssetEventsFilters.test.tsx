@@ -18,9 +18,11 @@
  */
 import "@testing-library/jest-dom/vitest";
 import { render, screen, waitFor } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 
-import { AppWrapper } from "src/utils/AppWrapper";
+import { AppWrapper, preloadAppRoutes } from "src/utils/AppWrapper";
+
+beforeAll(() => preloadAppRoutes(["/assets/1"]));
 
 // The assets mock handler serves two events for asset 1:
 //   id 100 — producer_dag,           run manual__2025-01-10,    map index -1, no partition key

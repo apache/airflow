@@ -69,6 +69,27 @@ class BuildProdParams(CommonBuildParams):
             return get_legacy_base_image(self.debian_version)
         return super().python_base_image
 
+    def _has_custom_database_clients(self) -> bool:
+        return super()._has_custom_database_clients() or any(
+            [
+                self.disable_mssql_client_installation,
+                self.disable_mysql_client_installation,
+                self.disable_postgres_client_installation,
+            ]
+        )
+
+    @property
+    def _has_custom_runtime_apt_dependencies(self) -> bool:
+        return any(
+            [
+                self.runtime_apt_deps,
+                self.additional_runtime_apt_deps,
+                self.runtime_apt_command,
+                self.additional_runtime_apt_command,
+                self.additional_runtime_apt_env,
+            ]
+        )
+
     @property
     def python_patchlevel_version(self) -> str:
         if self.image_flavor == "legacy":
@@ -263,6 +284,11 @@ class BuildProdParams(CommonBuildParams):
         self._req_arg("INSTALL_MYSQL_CLIENT_TYPE", self.install_mysql_client_type)
         self._opt_arg("RUNTIME_APT_COMMAND", self.runtime_apt_command)
         self._opt_arg("RUNTIME_APT_DEPS", self.runtime_apt_deps)
+        if self._can_use_pinned_os_deps_images() and self.image_flavor == "hardened":
+            if not self._has_custom_dev_apt_dependencies:
+                self._set_os_deps_image_arg("dev", "DEV_OS_DEPS_IMAGE")
+            if not self._has_custom_runtime_apt_dependencies:
+                self._set_os_deps_image_arg("runtime", "RUNTIME_OS_DEPS_IMAGE")
         self._opt_arg(
             "USE_CONSTRAINTS_FOR_CONTEXT_DISTRIBUTIONS", self.use_constraints_for_context_distributions
         )
