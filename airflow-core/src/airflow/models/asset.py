@@ -1018,6 +1018,13 @@ class AssetPartitionDagRun(Base):
             "pending_partition_key",
             name="apdr_target_dag_id_pending_partition_key_uq",
         ),
+        Index(
+            "idx_apdr_target_dag_id_created_dag_run_id_created_at",
+            "target_dag_id",
+            "created_dag_run_id",
+            "created_at",
+            "id",
+        ),
     )
 
     @validates("created_dag_run_id")
