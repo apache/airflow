@@ -162,14 +162,14 @@ router = APIRouter(
 log = logging.getLogger(__name__)
 
 
-def _get_resolver(session: SessionDep, dag_bag: DagBagDep) -> TaskCoordinateResolver:
+def _get_resolver(dag_bag: DagBagDep, session: SessionDep) -> TaskCoordinateResolver:
     return TaskCoordinateResolver(dag_bag, session)
 
 
 _ResolverDep = Annotated[TaskCoordinateResolver, Depends(_get_resolver)]
 
 
-def _get_calling_ti(session: Session, token: ExecutionToken) -> TaskInstance | None:
+def _get_calling_ti(token: ExecutionToken, *, session: Session) -> TaskInstance | None:
     """Return the task instance making the request, or None for a caller that is not a task."""
     if token.claims.scope != "execution":
         return None
@@ -199,13 +199,13 @@ def _build_xcom_read(
     run_id: str,
     task_id: str,
     key: str,
-    session: Session,
     resolver: TaskCoordinateResolver,
     token: ExecutionToken,
     map_index: int | None = None,
     include_prior_dates: bool = False,
     previous_iteration: bool = False,
     sequence: bool = False,
+    session: Session,
 ) -> _XComRead:
     """
     Select the XCom rows of the producers visible to the calling task instance.
@@ -228,7 +228,7 @@ def _build_xcom_read(
             dag_id, None if include_prior_dates else run_id, task_id
         ):
             return _XComRead(read(region_id=SENTINEL_REGION_ID, map_indexes=map_index))
-        caller = _get_calling_ti(session, token)
+        caller = _get_calling_ti(token, session=session)
         if include_prior_dates:
             task = None
             if session.scalar(select(DagRun.id).where(DagRun.dag_id == dag_id, DagRun.run_id == run_id)):
@@ -644,7 +644,7 @@ def get_xcom(
             task_id=task_id,
             params=params,
             resolver=resolver,
-            caller=_get_calling_ti(session, token),
+            caller=_get_calling_ti(token, session=session),
         )
     owner = None
     if token.claims.scope == "execution":

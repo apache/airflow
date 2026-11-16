@@ -1472,6 +1472,7 @@ class TestXComsGetOmittedMapIndex:
             @task_group
             def group(value):
                 PythonOperator(task_id="inner", python_callable=str)
+                PythonOperator(task_id="sibling", python_callable=str)
 
             group.expand(value=[1, 2])
         dag_run = dag_maker.create_dagrun(run_id="runid")
@@ -1567,6 +1568,22 @@ class TestXComsGetOmittedMapIndex:
         assert response.status_code == status_code
         if same_run_caller:
             assert response.json() == {"key": XCOM_RETURN_KEY, "value": ["mapped 0", "mapped 2"]}
+
+    def test_caller_in_the_same_mapped_group_reads_every_instance(
+        self, client, session, dag_run, authenticate_as
+    ):
+        """The caller's own map index doesn't narrow an omitted one, even for a task in its mapped group."""
+        sibling = next(
+            ti
+            for ti in dag_run.get_task_instances(session=session)
+            if ti.task_id == "group.sibling" and ti.region_index == 1
+        )
+        authenticate_as(sibling)
+
+        response = self.get(client, "group.inner")
+
+        assert response.status_code == 200
+        assert response.json() == {"key": XCOM_RETURN_KEY, "value": ["inner 0", "inner 1"]}
 
     def test_another_dag_is_read_by_its_own_definition(
         self, client, dag_maker, session, dag_run, authenticate_as
