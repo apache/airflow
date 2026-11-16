@@ -28,6 +28,7 @@ from pendulum.tz.timezone import FixedTimezone, Timezone
 from pydantic import (
     AliasGenerator,
     ConfigDict,
+    Field,
     computed_field,
     field_serializer,
     field_validator,
@@ -228,7 +229,13 @@ class DAGDetailsResponse(DAGResponse):
     active_runs_count: int = 0
     team_name: str | None = None
     latest_dag_version: DagVersionResponse | None
-    suggested_partition_key: str | None = None
+    suggested_partition_key: str | None = Field(
+        default=None,
+        description=(
+            "Partition key suggested for a manual trigger of this Dag. "
+            "Computed only by the Dag details endpoint; null when the timetable offers no suggestion."
+        ),
+    )
 
     @field_validator("timezone", mode="before")
     @classmethod

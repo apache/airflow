@@ -59,6 +59,7 @@ from airflow.api_fastapi.common.parameters import (
     datetime_range_filter_factory,
     filter_param_factory,
 )
+from airflow.api_fastapi.common.partition_helpers import suggest_partition_key_for_dag
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.compat import HTTP_422_UNPROCESSABLE_CONTENT
 from airflow.api_fastapi.core_api.datamodels.common import (
@@ -292,7 +293,9 @@ def get_dag_details(
     setattr(dag_model, "active_runs_count", active_runs_count)
     setattr(dag_model, "latest_dag_version", latest_dag_version)
     setattr(
-        dag_model, "suggested_partition_key", dag.timetable.suggest_partition_key(coerce_datetime(utcnow()))
+        dag_model,
+        "suggested_partition_key",
+        suggest_partition_key_for_dag(dag_id=dag_id, timetable=dag.timetable, now=coerce_datetime(utcnow())),
     )
 
     details = DAGDetailsResponse.model_validate(dag_model)
