@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import pytest
 
-from airflow.providers.common.ai.toolsets.sql_search import KeywordTableSearchBackend
+from airflow.providers.common.ai.utils.sql_search import KeywordTableSearchBackend
 
 CATALOG = [
     ("orders", "Customer purchase orders"),

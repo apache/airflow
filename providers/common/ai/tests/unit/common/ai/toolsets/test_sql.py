@@ -32,7 +32,7 @@ from sqlalchemy.exc import OperationalError
 
 from airflow.providers.common.ai.exceptions import SQLToolsetConnectionError
 from airflow.providers.common.ai.toolsets.sql import SQLToolset
-from airflow.providers.common.ai.toolsets.sql_search import KeywordTableSearchBackend
+from airflow.providers.common.ai.utils.sql_search import KeywordTableSearchBackend
 from airflow.providers.common.ai.utils.tool_definition import _SUPPORTS_RETURN_SCHEMA
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 

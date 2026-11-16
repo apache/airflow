@@ -418,7 +418,7 @@ and a pointer to ``search_tables`` instead of the whole list. Without a ``search
 .. code-block:: python
 
     from airflow.providers.common.ai.toolsets.sql import SQLToolset
-    from airflow.providers.common.ai.toolsets.sql_search import KeywordTableSearchBackend
+    from airflow.providers.common.ai.utils.sql_search import KeywordTableSearchBackend
 
     toolset = SQLToolset(
         db_conn_id="snowflake_hq",
@@ -443,7 +443,7 @@ show the agent table names and comments that connection cannot see. In that case
 **Plugging in another backend.** A backend is any object with a
 ``search_tables(query, limit, *, get_catalog)`` method returning ``(name, comment)``
 pairs, best match first (see
-:class:`~airflow.providers.common.ai.toolsets.sql_search.SQLTableSearchBackend`). Names
+:class:`~airflow.providers.common.ai.utils.sql_search.SQLTableSearchBackend`). Names
 must be in the form ``list_tables`` returns -- bare for the default schema,
 ``SCHEMA.TABLE`` otherwise. A backend with its own index, such as a vector store, a search
 service or a retriever over table descriptions, ignores ``get_catalog`` and queries that

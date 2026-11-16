@@ -65,7 +65,7 @@ if TYPE_CHECKING:
     from pydantic_ai._run_context import RunContext
     from sqlalchemy.engine.reflection import Inspector
 
-    from airflow.providers.common.ai.toolsets.sql_search import SQLTableSearchBackend, TableEntry
+    from airflow.providers.common.ai.utils.sql_search import SQLTableSearchBackend, TableEntry
 
 
 log = logging.getLogger(__name__)
@@ -340,9 +340,9 @@ class SQLToolset(ToolPrefixMixin, AirflowToolset):
         comments where the database reports them, regardless of this flag.
     :param search_backend: Registers a ``search_tables`` tool that finds tables by a free-text
         query, for databases with too many tables to list. Pass
-        :class:`~airflow.providers.common.ai.toolsets.sql_search.KeywordTableSearchBackend` for a
+        :class:`~airflow.providers.common.ai.utils.sql_search.KeywordTableSearchBackend` for a
         keyword match over table names and comments, or any object implementing
-        :class:`~airflow.providers.common.ai.toolsets.sql_search.SQLTableSearchBackend`. Whatever it
+        :class:`~airflow.providers.common.ai.utils.sql_search.SQLTableSearchBackend`. Whatever it
         returns is filtered through ``allowed_tables``. ``None`` (the default) registers no search tool.
     :param max_listed_tables: With a ``search_backend``, ``list_tables`` returns only the number of
         tables and a pointer to ``search_tables`` once there are more than this many. Default ``100``.

@@ -23,9 +23,9 @@ from typing import TYPE_CHECKING, Protocol
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
 
-#: A table as the agent sees it: ``(qualified_name, comment)``. The name is exactly what
-#: ``list_tables`` would return -- bare for the default schema, ``SCHEMA.TABLE`` otherwise --
-#: so it round-trips to ``get_schema``.
+# A table as the agent sees it: ``(qualified_name, comment)``. The name is exactly what
+# ``list_tables`` would return -- bare for the default schema, ``SCHEMA.TABLE`` otherwise --
+# so it round-trips to ``get_schema``.
 TableEntry = tuple[str, str | None]
 
 
