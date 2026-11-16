@@ -976,6 +976,35 @@ class TestSQLToolsetComments:
         assert data["columns"][0]["comment"] == "c" * 199 + "\u2026"
         assert data["table_comment"] == "t" * 199 + "\u2026"
 
+    @pytest.mark.enable_redact
+    @pytest.mark.parametrize(
+        "entry_point", ["get-schema-column", "get-schema-table", "list-tables", "search-tables"]
+    )
+    def test_a_secret_crossing_the_comment_cut_is_masked(self, entry_point, registered_secret):
+        comment = "x" * 190 + registered_secret + "y" * 50
+        ts = SQLToolset("pg_default", include_table_comments=True, search_backend=KeywordTableSearchBackend())
+        ts._hook = _make_mock_db_hook(
+            table_names=["users"], table_schema=[{"name": "id", "type": "INTEGER", "comment": comment}]
+        )
+        ts._hook.get_table_comment.return_value = comment
+        ts._hook.inspector.get_multi_table_comment.return_value = {(None, "users"): {"text": comment}}
+
+        if entry_point == "get-schema-column":
+            actual = self._get_schema(ts)["columns"][0]["comment"]
+        elif entry_point == "get-schema-table":
+            actual = self._get_schema(ts)["table_comment"]
+        elif entry_point == "list-tables":
+            actual = self._list_tables(ts)[0]["comment"]
+        else:
+            result = json.loads(
+                asyncio.run(
+                    ts.call_tool("search_tables", {"query": "users"}, ctx=MagicMock(), tool=MagicMock())
+                )
+            )
+            actual = result["tables"][0]["comment"]
+
+        assert actual == "x" * 190 + "***" + "y" * 6 + "\u2026"
+
     def test_get_schema_survives_table_comment_failure(self):
         ts = SQLToolset("pg_default")
         ts._hook = _make_mock_db_hook()
@@ -1130,10 +1159,45 @@ class _FakeSearchBackend:
         return self.results
 
 
+class _CatalogRecordingBackend:
+    """Records the catalog it is handed, so tests can see what a custom backend receives."""
+
+    def __init__(self) -> None:
+        self.catalogs: list = []
+
+    def search_tables(self, query, limit, *, get_catalog):
+        self.catalogs.append(list(get_catalog()))
+        return []
+
+
 class TestSQLToolsetSearchTables:
     @staticmethod
     def _call(ts: SQLToolset, name: str, args: dict | None = None):
         return json.loads(asyncio.run(ts.call_tool(name, args or {}, ctx=MagicMock(), tool=MagicMock())))
+
+    @pytest.mark.enable_redact
+    def test_backend_receives_full_masked_comments(self, registered_secret):
+        backend = _CatalogRecordingBackend()
+        ts = SQLToolset("pg_default", search_backend=backend)
+        ts._hook = _make_mock_db_hook(table_names=["users"])
+        ts._hook.inspector.get_multi_table_comment.return_value = {
+            (None, "users"): {"text": "x" * 190 + registered_secret + "y" * 50}
+        }
+
+        self._call(ts, "search_tables", {"query": "users"})
+
+        assert backend.catalogs == [[("users", "x" * 190 + "***" + "y" * 50)]]
+
+    def test_default_backend_matches_words_past_the_output_cut(self):
+        ts = SQLToolset("pg_default", search_backend=KeywordTableSearchBackend())
+        ts._hook = _make_mock_db_hook(table_names=["ledger"])
+        ts._hook.inspector.get_multi_table_comment.return_value = {
+            (None, "ledger"): {"text": "a" * 300 + " invoices"}
+        }
+
+        result = self._call(ts, "search_tables", {"query": "invoices"})
+
+        assert result == {"tables": [{"name": "ledger", "comment": "a" * 199 + "\u2026"}]}
 
     def test_results_outside_allowed_tables_are_filtered(self):
         """A backend that knows about more tables than the agent may use cannot widen access."""
@@ -1184,6 +1248,15 @@ class TestSQLToolsetSearchTables:
         result = self._call(ts, "search_tables", {"query": "x"})
 
         assert result["tables"][0]["comment"] == "c" * 199 + "\u2026"
+
+    @pytest.mark.enable_redact
+    def test_custom_backend_comment_with_a_secret_crossing_the_cut_is_masked(self, registered_secret):
+        backend = _FakeSearchBackend([("users", "x" * 190 + registered_secret + "y" * 50)])
+        ts = SQLToolset("pg_default", search_backend=backend)
+
+        result = self._call(ts, "search_tables", {"query": "x"})
+
+        assert result["tables"][0]["comment"] == "x" * 190 + "***" + "y" * 6 + "\u2026"
 
     def test_default_backend_introspects_once_with_the_toolsets_hook(self):
         ts = SQLToolset(

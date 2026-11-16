@@ -44,7 +44,7 @@ from pydantic_ai.tools import ToolDefinition
 from pydantic_ai.toolsets.abstract import ToolsetTool
 
 from airflow.providers.common.ai.exceptions import SQLToolsetConnectionError
-from airflow.providers.common.ai.utils.masking import dumps_masked
+from airflow.providers.common.ai.utils.masking import dumps_masked, mask_secrets
 from airflow.providers.common.ai.utils.query_results import (
     DEFAULT_MAX_COLUMNS,
     DEFAULT_MAX_RESULT_BYTES,
@@ -641,13 +641,13 @@ class SQLToolset(ToolPrefixMixin, AirflowToolset):
             return dumps_masked([display for _, _, display in tables])
         return dumps_masked(
             [
-                {"name": name, **({"comment": comment} if comment else {})}
+                {"name": name, **({"comment": truncate_comment(comment)} if comment else {})}
                 for name, comment in self._get_table_entries(tables)
             ]
         )
 
     def _get_table_entries(self, tables: list[tuple[str | None, str, str]]) -> list[TableEntry]:
-        """Pair each table's display name with its comment, capped, read once per schema."""
+        """Pair each table's display name with its full comment, registered secrets masked, read once per schema."""
         inspector = self._get_inspector()
         names_by_schema: dict[str | None, list[str]] = {}
         for table_schema, name, _ in tables:
@@ -660,8 +660,9 @@ class SQLToolset(ToolPrefixMixin, AirflowToolset):
             )
             for table_schema, names in names_by_schema.items()
         }
+        # Full text so search sees the whole comment; masked because the catalog is handed to `search_backend`.
         return [
-            (display, truncate_comment(comment) if (comment := comments[table_schema].get(name)) else None)
+            (display, mask_secrets(comment) if (comment := comments[table_schema].get(name)) else None)
             for table_schema, name, display in tables
         ]
 

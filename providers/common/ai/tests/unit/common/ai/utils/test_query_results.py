@@ -177,6 +177,13 @@ def test_a_secret_that_json_escapes_is_masked_in_the_rows(register_secret):
     assert result["rows"] == [["admin", "***"]]
 
 
+@pytest.mark.enable_redact
+def test_truncate_comment_masks_a_secret_before_cutting(registered_secret):
+    comment = "x" * 190 + registered_secret + "y" * 50
+
+    assert truncate_comment(comment) == "x" * 190 + "***" + "y" * 6 + "\u2026"
+
+
 def _schema(columns, *, max_columns=100, max_result_bytes=65_536, name_contains=None) -> dict:
     return json.loads(
         build_schema_result(

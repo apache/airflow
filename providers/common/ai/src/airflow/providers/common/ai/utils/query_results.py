@@ -40,7 +40,7 @@ from collections import Counter
 from collections.abc import Sequence
 from typing import Any
 
-from airflow.providers.common.ai.utils.masking import dumps_masked
+from airflow.providers.common.ai.utils.masking import dumps_masked, mask_secrets
 
 # A policy default, not a limit imposed by any storage, protocol, or model layer:
 # roughly 16k tokens at 4 characters per token. Large enough that ordinary queries are
@@ -114,7 +114,9 @@ def _dumps(payload: Any) -> str:
 
 
 def truncate_comment(comment: str, *, max_chars: int = DEFAULT_MAX_COMMENT_CHARS) -> str:
-    """Cap ``comment`` to ``max_chars`` characters, marking a cut with a trailing ellipsis."""
+    """Mask registered secrets in ``comment``, then cap it to ``max_chars`` characters, marking a cut with a trailing ellipsis."""
+    # Mask before cutting: a cut secret is a prefix that no longer equals the registered value, so the masker cannot find it.
+    comment = mask_secrets(comment)
     if len(comment) <= max_chars:
         return comment
     return comment[: max_chars - 1] + "\u2026"

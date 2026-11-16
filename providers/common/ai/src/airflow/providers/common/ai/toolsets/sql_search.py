@@ -48,8 +48,11 @@ class SQLTableSearchBackend(Protocol):
         :param query: The agent's free-text query.
         :param limit: Maximum number of results wanted.
         :param get_catalog: Lists the tables the toolset exposes, introspected with the same
-            connection the agent queries with and cached for the toolset's lifetime. A backend
-            with its own index (a vector store, a search service) ignores it.
+            connection the agent queries with and cached for the toolset's lifetime. Comments
+            are the full text, not cut to the length the agent sees, with the secrets Airflow has
+            registered already masked as ``***``; the toolset cuts comments when it returns them
+            to the agent. A backend with its own index (a vector store, a search service)
+            ignores it.
         """
         ...
 
