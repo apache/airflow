@@ -694,6 +694,18 @@ class TestSqlToS3Operator:
         with pytest.raises(ValueError, match="page_size can not be negative"):
             op.render_template_fields({})
 
+    @staticmethod
+    def _mapped_runtime_ti(create_runtime_ti, page_size):
+        with DAG(dag_id="dag", schedule=None):
+            mapped = SqlToS3Operator.partial(
+                task_id="task_id",
+                query="query",
+                s3_bucket="bucket",
+                sql_conn_id="mysql_conn_id",
+                page_size=page_size,
+            ).expand(s3_key=["key"])
+        return create_runtime_ti(task=mapped, map_index=0)
+
     @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="create_runtime_ti needs the Task SDK")
     @pytest.mark.parametrize(
         ("page_size", "expected"),
@@ -706,19 +718,18 @@ class TestSqlToS3Operator:
         self, create_runtime_ti, page_size, expected
     ):
         """A mapped task never calls render_template_fields, so the conversion must not rely on it."""
-        with DAG(dag_id="dag", schedule=None):
-            mapped = SqlToS3Operator.partial(
-                task_id="task_id",
-                query="query",
-                s3_bucket="bucket",
-                sql_conn_id="mysql_conn_id",
-                page_size=page_size,
-            ).expand(s3_key=["key"])
-        ti = create_runtime_ti(task=mapped, map_index=0)
+        ti = self._mapped_runtime_ti(create_runtime_ti, page_size)
 
         ti.render_templates(context=ti.get_template_context())
 
         assert ti.task.page_size == expected
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="create_runtime_ti needs the Task SDK")
+    def test_render_templates_rejects_a_negative_page_size_for_mapped_task(self, create_runtime_ti):
+        ti = self._mapped_runtime_ti(create_runtime_ti, "-1")
+
+        with pytest.raises(ValueError, match="page_size can not be negative"):
+            ti.render_templates(context=ti.get_template_context())
 
     @mock.patch("airflow.providers.common.sql.operators.sql.BaseHook.get_connection")
     def test_hook_params(self, mock_get_conn):
