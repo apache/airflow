@@ -45,7 +45,9 @@ from types import MappingProxyType
 from typing import TYPE_CHECKING, Any, ClassVar, Literal
 
 from pydantic import BaseModel
+from pydantic_ai.exceptions import FallbackExceptionGroup
 
+from airflow.providers.common.ai.fallback_exceptions import FallbackChainExhaustedError
 from airflow.providers.common.ai.policies.decision import check_bar
 from airflow.providers.common.ai.utils.decision import (
     BARE_OUTPUT_FIELD,
@@ -356,15 +358,11 @@ class _ModelRetryPolicy(RetryPolicy):
     @staticmethod
     def _get_member_errors(exception: BaseException) -> tuple[BaseException, ...]:
         """Return the error each fallback connection raised, in chain order, or ``()`` for any other error."""
-        from pydantic_ai.exceptions import FallbackExceptionGroup
-
         return tuple(exception.exceptions) if isinstance(exception, FallbackExceptionGroup) else ()
 
     @staticmethod
     def _describe_journal_progress(exception: BaseException) -> str | None:
         """Say how far the failed attempt got on the durable journal, or None when it is not known."""
-        from airflow.providers.common.ai.fallback_exceptions import FallbackChainExhaustedError
-
         if not isinstance(exception, FallbackChainExhaustedError) or exception.replayed_steps is None:
             return None
         return (
