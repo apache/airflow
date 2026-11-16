@@ -904,6 +904,18 @@ class TestCustomDeadlineReference:
         assert second not in DeadlineReference.TYPES.DAGRUN_CREATED
         assert first not in DeadlineReference.TYPES.DAGRUN_CREATED
 
+    def test_a_saved_types_value_survives_a_registration_under_the_other_type(self):
+        """Registering under one classification must not invalidate a saved copy of the other."""
+        queued = DeadlineReference.TYPES.DAGRUN_QUEUED
+        DeadlineReference._add_custom_reference_to_namespace(
+            self.create_custom_ref_named("Created", "team_a.refs")
+        )
+
+        later = self.create_custom_ref_named("Queued", "team_a.refs")
+        DeadlineReference._add_custom_reference_to_namespace(later, queued)
+
+        assert later in DeadlineReference.TYPES.DAGRUN_QUEUED
+
     def test_two_modules_claiming_one_name_leaves_it_bound_to_neither(self, cap_structlog):
         """
         The shorthand is withheld from both rather than awarded by import order.

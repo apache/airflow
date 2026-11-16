@@ -422,10 +422,16 @@ class DeadlineReference:
         # resolves through the plugin registry, so only the shorthand is withheld.  Drop any earlier
         # registration of the same qualname rather than appending beside it, because a re-parse
         # produces a new class object for the same reference.  Both tuples are filtered so that a
-        # reference whose classification changes does not linger in the one it left.
+        # reference whose classification changes does not linger in the one it left.  A tuple is only
+        # replaced when its contents change, because the lookup above compares by identity and a
+        # caller may hold a saved copy.
         for attr in cls.TYPES._CLASSIFICATIONS:
-            kept = tuple(existing for existing in getattr(cls.TYPES, attr) if qualname(existing) != key)
-            setattr(cls.TYPES, attr, kept + (reference_class,) if attr == classification else kept)
+            current = getattr(cls.TYPES, attr)
+            kept = tuple(existing for existing in current if qualname(existing) != key)
+            if attr == classification:
+                setattr(cls.TYPES, attr, kept + (reference_class,))
+            elif len(kept) != len(current):
+                setattr(cls.TYPES, attr, kept)
 
         # Set on contested classes too, so the serializer records the right timing for them.
         reference_class.evaluation_timing = classification
