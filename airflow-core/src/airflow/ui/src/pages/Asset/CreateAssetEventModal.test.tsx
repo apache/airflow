@@ -87,12 +87,14 @@ vi.mock("src/components/JsonEditor", () => ({
 vi.mock("src/components/TriggerDag/TriggerDAGForm", () => ({
   default: ({
     disabled,
+    isPartitionedAtRuntime,
     isPaused,
     onPausedDagActionChange,
     onSubmitTrigger,
     suggestedPartitionKey,
   }: {
     readonly disabled?: boolean;
+    readonly isPartitionedAtRuntime: boolean;
     readonly isPaused: boolean;
     readonly onPausedDagActionChange?: () => void;
     readonly onSubmitTrigger: (params: DagRunTriggerParams) => void;
@@ -101,6 +103,7 @@ vi.mock("src/components/TriggerDag/TriggerDAGForm", () => ({
     <>
       <span>{`paused=${String(isPaused)}`}</span>
       <span>{`suggested=${String(suggestedPartitionKey)}`}</span>
+      <span>{`partitionedAtRuntime=${String(isPartitionedAtRuntime)}`}</span>
       {/* Uncontrolled on purpose: its typed value survives a re-render and is lost only on a remount. */}
       <input aria-label="mock form field" />
       <button onClick={onPausedDagActionChange} type="button">
@@ -443,4 +446,27 @@ describe("CreateAssetEventModal", () => {
     expect(await screen.findByText("suggested=other_dag-suggested")).toBeInTheDocument();
     expect(screen.getByLabelText("mock form field")).toHaveValue("");
   });
+
+  it.each([true, undefined])(
+    "tells the trigger form whether the upstream Dag is partitioned at runtime (%s)",
+    async (partitionedAtRuntime) => {
+      vi.mocked(useDependenciesServiceGetDependencies).mockReturnValue(withUpstreamDependencies);
+      vi.mocked(useDagServiceGetDagDetails).mockReturnValue({
+        data: {
+          ...upstreamDag,
+          suggested_partition_key: "2026-02-18T00:00:00",
+          timetable_partitioned: false,
+          timetable_partitioned_at_runtime: partitionedAtRuntime,
+        },
+      } as ReturnType<typeof useDagServiceGetDagDetails>);
+
+      render(<CreateAssetEventModal asset={asset} onClose={vi.fn()} open />, { wrapper: Wrapper });
+
+      fireEvent.click(screen.getByText("createEvent.materialize.label"));
+
+      expect(
+        await screen.findByText(`partitionedAtRuntime=${String(partitionedAtRuntime === true)}`),
+      ).toBeInTheDocument();
+    },
+  );
 });

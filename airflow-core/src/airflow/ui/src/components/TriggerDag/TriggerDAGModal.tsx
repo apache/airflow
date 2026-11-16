@@ -77,6 +77,7 @@ const TriggerDAGModal = ({ dagDisplayName, dagId, onClose, open, prefillConfig }
   const isPaused = dag?.is_paused ?? false;
   const hasSchedule = dag?.timetable_summary !== null;
   const isPartitioned = dag ? dag.timetable_partitioned : false;
+  const isPartitionedAtRuntime = dag?.timetable_partitioned_at_runtime ?? false;
   const { error, isPending, resetError, triggerDagRun } = useTrigger({ dagId, onSuccessConfirm: onClose });
   // Keep null: the form reads undefined as "not loaded yet" and null as "no suggestion", which empties the field.
   const suggestedPartitionKey = dag?.suggested_partition_key;
@@ -148,6 +149,7 @@ const TriggerDAGModal = ({ dagDisplayName, dagId, onClose, open, prefillConfig }
               error={error}
               hasSchedule={hasSchedule}
               isPartitioned={isPartitioned}
+              isPartitionedAtRuntime={isPartitionedAtRuntime}
               isPaused={isPaused}
               isPending={isPending}
               // Remount per Dag so a partition key typed for the previous Dag does not carry over.
