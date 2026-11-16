@@ -116,7 +116,11 @@ Any other failure, such as a hook raising, ends the run:
 failure, and Airflow's own retry takes over once the task fails. Before it raises, ``run()``
 interrupts the turn: closing the stream does not stop Codex, which would otherwise keep
 calling tools. If the interrupt itself fails, that is logged and the tool failure is still
-raised. A call that arrives after the run has ended, or after a failure, is refused with an
+raised. ``run()`` also interrupts the turn when it is cancelled before the turn completes, for
+example when wrapped in ``asyncio.wait_for``; the cancellation still propagates. The interrupt is
+bounded to 10 seconds, so cancellation can take that long to unwind if the app-server does not
+respond. It is a request: a call already in flight, or sent before it takes effect, can still
+arrive. A call that arrives after the run has ended, or after a failure, is refused with an
 ``isError`` "Not run" result and does not reach the toolset.
 
 ``run()`` raises ``RuntimeError`` when the turn fails or is interrupted from outside, with

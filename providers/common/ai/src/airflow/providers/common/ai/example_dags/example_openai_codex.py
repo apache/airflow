@@ -43,8 +43,10 @@ Before running:
 
 from __future__ import annotations
 
+import asyncio
 import os
 
+from airflow.providers.common.ai.toolsets.sql import SQLToolset
 from airflow.providers.common.compat.sdk import BaseHook, dag, task
 
 LLM_CONN_ID = os.environ.get("LLM_CONN_ID", "openai_default")
@@ -62,12 +64,11 @@ def example_openai_codex():
 
     @task
     def ask_the_warehouse(question: str = DEFAULT_QUESTION) -> str | None:
-        import asyncio
-
+        # Imported here because the openai-codex extra is optional: at module level these would
+        # fail Dag parsing wherever the extra is not installed.
         from openai_codex import AsyncCodex
 
         from airflow.providers.common.ai.tools.openai_codex import AirflowTools
-        from airflow.providers.common.ai.toolsets.sql import SQLToolset
 
         llm = BaseHook.get_connection(LLM_CONN_ID)
         tools = AirflowTools(SQLToolset(db_conn_id=DB_CONN_ID))

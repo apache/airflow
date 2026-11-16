@@ -87,7 +87,7 @@ TURN_ID = "turn-1"
 THREAD_ID = "thread-1"
 
 
-def _tool(outcome: ToolResult | Exception, ran: list[dict[str, Any]] | None = None) -> AirflowTool:
+def _build_tool(outcome: ToolResult | Exception, ran: list[dict[str, Any]] | None = None) -> AirflowTool:
     """A ``lookup`` tool that returns or raises ``outcome``, recording its calls in ``ran``."""
 
     async def function(arguments: dict[str, Any]) -> ToolResult:
@@ -105,22 +105,32 @@ def _tool(outcome: ToolResult | Exception, ran: list[dict[str, Any]] | None = No
     )
 
 
-def _text(result: Any) -> str:
+@pytest.fixture
+def ok_tools() -> AirflowTools:
+    return AirflowTools(_build_tool(ToolResult("ok")))
+
+
+@pytest.fixture
+def denied_tools() -> AirflowTools:
+    return AirflowTools(_build_tool(PermissionError("role cannot read orders")))
+
+
+def _extract_text(result: Any) -> str:
     return result.content[0].text
 
 
-def _agent_message(text: str, phase: MessagePhase | None = MessagePhase.final_answer) -> ThreadItem:
+def _build_agent_message(text: str, phase: MessagePhase | None = MessagePhase.final_answer) -> ThreadItem:
     return ThreadItem(root=AgentMessageThreadItem(id="item", text=text, phase=phase, type="agentMessage"))
 
 
-def _item_completed(item: ThreadItem, turn_id: str = TURN_ID) -> Notification:
+def _build_item_completed(item: ThreadItem, turn_id: str = TURN_ID) -> Notification:
     return Notification(
         method="item/completed",
         payload=ItemCompletedNotification(completed_at_ms=1, item=item, thread_id=THREAD_ID, turn_id=turn_id),
     )
 
 
-def _token_usage() -> Notification:
+def _build_token_usage() -> Notification:
     breakdown = TokenUsageBreakdown(
         cached_input_tokens=0, input_tokens=3, output_tokens=4, reasoning_output_tokens=0, total_tokens=7
     )
@@ -134,7 +144,7 @@ def _token_usage() -> Notification:
     )
 
 
-def _turn_completed(
+def _build_turn_completed(
     status: TurnStatus = TurnStatus.completed, error_message: str | None = None, turn_id: str = TURN_ID
 ) -> Notification:
     return Notification(
@@ -162,7 +172,7 @@ def _build_turn(stream: AsyncIterator[Notification]) -> Any:
     return turn
 
 
-async def _fake_codex(
+async def _stream_codex_turn(
     handlers: dict[str, Any],
     steps: list[tuple[str, dict[str, Any]]],
     *,
@@ -178,8 +188,8 @@ async def _fake_codex(
     try:
         for tool_name, args in steps:
             await handlers[tool_name](args)
-            yield _item_completed(_agent_message("step", MessagePhase.commentary))
-        yield _turn_completed() if final is None else final
+            yield _build_item_completed(_build_agent_message("step", MessagePhase.commentary))
+        yield _build_turn_completed() if final is None else final
     finally:
         if closed is not None:
             closed.append(True)
@@ -190,7 +200,7 @@ async def _serve_and_leave(tools: AirflowTools) -> None:
         pass
 
 
-def _real_path(*parts: str) -> str:
+def _resolve_path(*parts: str) -> str:
     return os.path.realpath(os.path.join(*parts))
 
 
@@ -206,7 +216,7 @@ def _parse_overrides(config: CodexConfig) -> dict[str, str]:
     return dict(override.partition("=")[::2] for override in config.config_overrides)
 
 
-def _server_url(config: CodexConfig, server_name: str = "airflow") -> str:
+def _get_server_url(config: CodexConfig, server_name: str = "airflow") -> str:
     return json.loads(_parse_overrides(config)[f"mcp_servers.{server_name}.url"])
 
 
@@ -222,7 +232,7 @@ async def _call_over_http(
     http = httpx2.AsyncClient(headers=_build_headers(config) if headers is None else headers)
     async with (
         http,
-        streamable_http_client(_server_url(config), http_client=http) as (read, write, *_),
+        streamable_http_client(_get_server_url(config), http_client=http) as (read, write, *_),
         ClientSession(read, write) as session,
     ):
         await session.initialize()
@@ -243,7 +253,7 @@ class TestTools:
             http = httpx2.AsyncClient(headers=_build_headers(config))
             async with (
                 http,
-                streamable_http_client(_server_url(config), http_client=http) as (read, write, *_),
+                streamable_http_client(_get_server_url(config), http_client=http) as (read, write, *_),
                 ClientSession(read, write) as session,
             ):
                 await session.initialize()
@@ -270,11 +280,11 @@ class TestTools:
         async with tools.serve() as config:
             result = await _call_over_http(config, "ping", {})
 
-        assert _text(result) == "pong"
+        assert _extract_text(result) == "pong"
 
     @pytest.mark.asyncio
     async def test_an_mcp_tool_does_not_share_the_source_schema(self):
-        source = _tool(ToolResult("ok"))
+        source = _build_tool(ToolResult("ok"))
         tools = AirflowTools(source)
 
         async with tools.serve() as config:
@@ -282,7 +292,7 @@ class TestTools:
             http = httpx2.AsyncClient(headers=_build_headers(config))
             async with (
                 http,
-                streamable_http_client(_server_url(config), http_client=http) as (read, write, *_),
+                streamable_http_client(_get_server_url(config), http_client=http) as (read, write, *_),
                 ClientSession(read, write) as session,
             ):
                 await session.initialize()
@@ -301,34 +311,34 @@ class TestHandler:
         result = await tools._handlers["query"]({"sql": "SELECT id, name FROM users"})
 
         assert result.is_error is False
-        assert json.loads(_text(result))["rows"] == [[1, "Ada"]]
+        assert json.loads(_extract_text(result))["rows"] == [[1, "Ada"]]
 
     @pytest.mark.asyncio
     async def test_a_correctable_failure_reaches_the_model_as_an_error(self):
-        tools = AirflowTools(_tool(ToolResult("Unknown column 'nme'", is_error=True)))
+        tools = AirflowTools(_build_tool(ToolResult("Unknown column 'nme'", is_error=True)))
 
         result = await tools._handlers["lookup"]({"key": "a"})
 
         assert result.is_error is True
-        assert _text(result) == "Unknown column 'nme'"
+        assert _extract_text(result) == "Unknown column 'nme'"
 
     @pytest.mark.asyncio
     async def test_a_structured_result_reaches_the_model_as_json(self):
-        tools = AirflowTools(_tool(ToolResult({"rows": [[1, None]]})))
+        tools = AirflowTools(_build_tool(ToolResult({"rows": [[1, None]]})))
 
         result = await tools._handlers["lookup"]({"key": "a"})
 
-        assert json.loads(_text(result)) == {"rows": [[1, None]]}
+        assert json.loads(_extract_text(result)) == {"rows": [[1, None]]}
 
     @pytest.mark.asyncio
     @mock.patch(f"{MODULE}.log", autospec=True)
-    async def test_not_driven_by_run_hands_the_failure_to_the_model_with_a_warning(self, mock_log):
-        tools = AirflowTools(_tool(PermissionError("role cannot read orders")))
-
-        result = await tools._handlers["lookup"]({"key": "a"})
+    async def test_not_driven_by_run_hands_the_failure_to_the_model_with_a_warning(
+        self, mock_log, denied_tools
+    ):
+        result = await denied_tools._handlers["lookup"]({"key": "a"})
 
         assert result.is_error is True
-        assert "PermissionError: role cannot read orders" in _text(result)
+        assert "PermissionError: role cannot read orders" in _extract_text(result)
         mock_log.warning.assert_called_once()
         assert "not driven by AirflowTools.run" in mock_log.warning.call_args.args[0]
 
@@ -364,58 +374,57 @@ class TestHandler:
     @pytest.mark.enable_redact
     @pytest.mark.asyncio
     async def test_a_secret_in_a_plain_string_result_is_masked(self, registered_secret):
-        tools = AirflowTools(_tool(ToolResult(f"key={registered_secret}")))
+        tools = AirflowTools(_build_tool(ToolResult(f"key={registered_secret}")))
 
         result = await tools._handlers["lookup"]({"key": "a"})
 
-        assert registered_secret not in _text(result)
-        assert _text(result) == "key=***"
+        assert registered_secret not in _extract_text(result)
+        assert _extract_text(result) == "key=***"
 
     @pytest.mark.enable_redact
     @pytest.mark.asyncio
     async def test_a_secret_in_a_result_over_http_is_masked(self, registered_secret):
-        tools = AirflowTools(_tool(ToolResult(f"key={registered_secret}")))
+        tools = AirflowTools(_build_tool(ToolResult(f"key={registered_secret}")))
 
         async with tools.serve() as config:
             result = await _call_over_http(config, "lookup", {"key": "a"})
 
-        assert _text(result) == "key=***"
+        assert _extract_text(result) == "key=***"
 
     @pytest.mark.asyncio
     async def test_a_result_over_the_ceiling_is_cut_to_fit_with_a_notice(self):
-        tools = AirflowTools(_tool(ToolResult("x" * (_MAX_INLINE_RESULT_CHARS + 1))))
+        tools = AirflowTools(_build_tool(ToolResult("x" * (_MAX_INLINE_RESULT_CHARS + 1))))
 
         result = await tools._handlers["lookup"]({"key": "a"})
 
-        text = _text(result)
+        text = _extract_text(result)
         assert len(text) == _MAX_INLINE_RESULT_CHARS
         assert text.endswith("to get a smaller result.]")
         assert f"this result had {_MAX_INLINE_RESULT_CHARS + 1} characters" in text
 
     @pytest.mark.asyncio
     async def test_a_result_at_the_ceiling_is_returned_as_is(self):
-        tools = AirflowTools(_tool(ToolResult("x" * _MAX_INLINE_RESULT_CHARS)))
+        tools = AirflowTools(_build_tool(ToolResult("x" * _MAX_INLINE_RESULT_CHARS)))
 
         result = await tools._handlers["lookup"]({"key": "a"})
 
-        assert _text(result) == "x" * _MAX_INLINE_RESULT_CHARS
+        assert _extract_text(result) == "x" * _MAX_INLINE_RESULT_CHARS
 
 
 class TestRun:
     @pytest.mark.asyncio
-    async def test_run_returns_the_turn_result(self):
-        tools = AirflowTools(_tool(ToolResult("ok")))
-        stream = _async_iter(
+    async def test_run_returns_the_turn_result(self, ok_tools):
+        stream = _stream_notifications(
             [
-                _item_completed(_agent_message("thinking", MessagePhase.commentary)),
-                _item_completed(_agent_message("42")),
-                _token_usage(),
-                _item_completed(_agent_message("ignored"), turn_id="another-turn"),
-                _turn_completed(),
+                _build_item_completed(_build_agent_message("thinking", MessagePhase.commentary)),
+                _build_item_completed(_build_agent_message("42")),
+                _build_token_usage(),
+                _build_item_completed(_build_agent_message("ignored"), turn_id="another-turn"),
+                _build_turn_completed(),
             ]
         )
 
-        result = await tools.run(_build_turn(stream))
+        result = await ok_tools.run(_build_turn(stream))
 
         assert isinstance(result, TurnResult)
         assert result.id == TURN_ID
@@ -427,67 +436,62 @@ class TestRun:
         assert (result.started_at, result.completed_at, result.duration_ms) == (10, 12, 2000)
 
     @pytest.mark.asyncio
-    async def test_the_final_response_falls_back_to_the_last_message_without_a_phase(self):
-        tools = AirflowTools(_tool(ToolResult("ok")))
-        stream = _async_iter(
+    async def test_the_final_response_falls_back_to_the_last_message_without_a_phase(self, ok_tools):
+        stream = _stream_notifications(
             [
-                _item_completed(_agent_message("first", None)),
-                _item_completed(_agent_message("last", None)),
-                _turn_completed(),
+                _build_item_completed(_build_agent_message("first", None)),
+                _build_item_completed(_build_agent_message("last", None)),
+                _build_turn_completed(),
             ]
         )
 
-        result = await tools.run(_build_turn(stream))
+        result = await ok_tools.run(_build_turn(stream))
 
         assert result.final_response == "last"
 
     @pytest.mark.asyncio
-    async def test_a_turn_that_made_no_final_response_has_none(self):
-        tools = AirflowTools(_tool(ToolResult("ok")))
-
-        result = await tools.run(_build_turn(_async_iter([_turn_completed()])))
+    async def test_a_turn_that_made_no_final_response_has_none(self, ok_tools):
+        result = await ok_tools.run(_build_turn(_stream_notifications([_build_turn_completed()])))
 
         assert result.final_response is None
 
     @pytest.mark.asyncio
-    async def test_a_failed_turn_raises_with_the_codex_error(self):
-        tools = AirflowTools(_tool(ToolResult("ok")))
-        stream = _async_iter([_turn_completed(TurnStatus.failed, "usage limit reached")])
+    async def test_a_failed_turn_raises_with_the_codex_error(self, ok_tools):
+        stream = _stream_notifications([_build_turn_completed(TurnStatus.failed, "usage limit reached")])
 
         with pytest.raises(RuntimeError, match="status failed: usage limit reached"):
-            await tools.run(_build_turn(stream))
+            await ok_tools.run(_build_turn(stream))
 
     @pytest.mark.asyncio
-    async def test_a_failed_turn_bounds_the_error_message(self):
-        tools = AirflowTools(_tool(ToolResult("ok")))
-        stream = _async_iter([_turn_completed(TurnStatus.failed, "e" * 600)])
+    async def test_a_failed_turn_bounds_the_error_message(self, ok_tools):
+        stream = _stream_notifications([_build_turn_completed(TurnStatus.failed, "e" * 600)])
 
         with pytest.raises(RuntimeError) as raised:
-            await tools.run(_build_turn(stream))
+            await ok_tools.run(_build_turn(stream))
 
         assert str(raised.value).endswith("e" * 500 + "...(+100 chars)")
 
     @pytest.mark.asyncio
-    async def test_a_turn_interrupted_from_outside_raises(self):
-        tools = AirflowTools(_tool(ToolResult("ok")))
-        stream = _async_iter([_turn_completed(TurnStatus.interrupted)])
+    async def test_a_turn_interrupted_from_outside_raises(self, ok_tools):
+        stream = _stream_notifications([_build_turn_completed(TurnStatus.interrupted)])
 
         with pytest.raises(RuntimeError, match="status interrupted"):
-            await tools.run(_build_turn(stream))
+            await ok_tools.run(_build_turn(stream))
 
     @pytest.mark.asyncio
-    async def test_a_stream_without_turn_completed_raises(self):
-        tools = AirflowTools(_tool(ToolResult("ok")))
-        stream = _async_iter([_item_completed(_agent_message("42"))])
+    async def test_a_stream_without_turn_completed_raises(self, ok_tools):
+        stream = _stream_notifications([_build_item_completed(_build_agent_message("42"))])
 
         with pytest.raises(RuntimeError, match="without a turn/completed notification"):
-            await tools.run(_build_turn(stream))
+            await ok_tools.run(_build_turn(stream))
 
     @pytest.mark.asyncio
     async def test_a_tool_failure_interrupts_the_turn_and_raises(self):
         ran: list[dict[str, Any]] = []
-        tools = AirflowTools(_tool(PermissionError("role cannot read orders"), ran))
-        turn = _build_turn(_fake_codex(tools._handlers, [("lookup", {"key": "a"}), ("lookup", {"key": "b"})]))
+        tools = AirflowTools(_build_tool(PermissionError("role cannot read orders"), ran))
+        turn = _build_turn(
+            _stream_codex_turn(tools._handlers, [("lookup", {"key": "a"}), ("lookup", {"key": "b"})])
+        )
 
         with pytest.raises(ToolCallError, match="PermissionError"):
             await tools.run(turn)
@@ -497,13 +501,12 @@ class TestRun:
 
     @pytest.mark.asyncio
     @mock.patch(f"{MODULE}.log", autospec=True)
-    async def test_a_failing_interrupt_does_not_hide_the_tools_failure(self, mock_log):
-        tools = AirflowTools(_tool(PermissionError("role cannot read orders")))
-        turn = _build_turn(_fake_codex(tools._handlers, [("lookup", {"key": "a"})]))
+    async def test_a_failing_interrupt_does_not_hide_the_tools_failure(self, mock_log, denied_tools):
+        turn = _build_turn(_stream_codex_turn(denied_tools._handlers, [("lookup", {"key": "a"})]))
         turn.interrupt.side_effect = OSError("app-server is gone")
 
         with pytest.raises(ToolCallError, match="PermissionError"):
-            await tools.run(turn)
+            await denied_tools.run(turn)
 
         mock_log.warning.assert_called_once()
         assert "app-server is gone" in str(mock_log.warning.call_args.args)
@@ -511,56 +514,143 @@ class TestRun:
     @pytest.mark.asyncio
     @mock.patch(f"{MODULE}._INTERRUPT_TIMEOUT_SEC", 0.05)
     @mock.patch(f"{MODULE}.log", autospec=True)
-    async def test_an_interrupt_that_never_returns_does_not_hang_the_failure(self, mock_log):
-        tools = AirflowTools(_tool(PermissionError("role cannot read orders")))
-        turn = _build_turn(_fake_codex(tools._handlers, [("lookup", {"key": "a"})]))
+    async def test_an_interrupt_that_never_returns_does_not_hang_the_failure(self, mock_log, denied_tools):
+        turn = _build_turn(_stream_codex_turn(denied_tools._handlers, [("lookup", {"key": "a"})]))
         never = asyncio.Event()
         turn.interrupt.side_effect = never.wait
 
         with pytest.raises(ToolCallError, match="PermissionError"):
-            await asyncio.wait_for(tools.run(turn), 5)
+            await asyncio.wait_for(denied_tools.run(turn), 5)
 
         mock_log.warning.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_a_failure_before_the_stream_ends_without_turn_completed_still_raises_it(self):
-        tools = AirflowTools(_tool(PermissionError("role cannot read orders")))
+    @mock.patch(f"{MODULE}._close_stream", autospec=True)
+    async def test_cancelling_a_run_interrupts_the_turn_before_it_ends(self, mock_close_stream, ok_tools):
+        gate = asyncio.Event()
+        order: list[Any] = []
 
+        async def _blocked() -> AsyncIterator[Notification]:
+            await gate.wait()
+            yield _build_turn_completed()
+
+        async def _record_interrupt() -> None:
+            order.append(("interrupt", ok_tools._run is not None))
+
+        turn = _build_turn(_blocked())
+        turn.interrupt.side_effect = _record_interrupt
+        mock_close_stream.side_effect = lambda events: order.append("close")
+
+        task = asyncio.ensure_future(ok_tools.run(turn))
+        await asyncio.sleep(0)
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+
+        assert order == [("interrupt", True), "close"]
+
+    @pytest.mark.asyncio
+    async def test_cancelling_after_the_turn_completed_does_not_interrupt_it(self, ok_tools):
+        gate = asyncio.Event()
+        completed_read = asyncio.Event()
+
+        async def _complete_then_block() -> AsyncIterator[Notification]:
+            yield _build_turn_completed()
+            completed_read.set()
+            await gate.wait()
+
+        turn = _build_turn(_complete_then_block())
+
+        task = asyncio.ensure_future(ok_tools.run(turn))
+        await asyncio.wait_for(completed_read.wait(), 5)
+        await asyncio.sleep(0)
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+
+        turn.interrupt.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_cancelling_during_a_tool_failure_interrupt_does_not_interrupt_twice(self, denied_tools):
+        turn = _build_turn(_stream_codex_turn(denied_tools._handlers, [("lookup", {"key": "a"})]))
+        started = asyncio.Event()
+        never = asyncio.Event()
+
+        async def _hang() -> None:
+            started.set()
+            await never.wait()
+
+        turn.interrupt.side_effect = _hang
+
+        task = asyncio.ensure_future(denied_tools.run(turn))
+        await asyncio.wait_for(started.wait(), 5)
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+
+        turn.interrupt.assert_awaited_once_with()
+
+    @pytest.mark.asyncio
+    @mock.patch(f"{MODULE}._INTERRUPT_TIMEOUT_SEC", 0.05)
+    @mock.patch(f"{MODULE}.log", autospec=True)
+    async def test_an_interrupt_that_never_returns_does_not_hang_a_cancelled_run(self, mock_log, ok_tools):
+        gate = asyncio.Event()
+        never = asyncio.Event()
+
+        async def _blocked() -> AsyncIterator[Notification]:
+            await gate.wait()
+            yield _build_turn_completed()
+
+        turn = _build_turn(_blocked())
+        turn.interrupt.side_effect = never.wait
+
+        task = asyncio.ensure_future(ok_tools.run(turn))
+        await asyncio.sleep(0)
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await asyncio.wait_for(task, 5)
+
+        turn.interrupt.assert_awaited_once_with()
+        mock_log.warning.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_a_failure_before_the_stream_ends_without_turn_completed_still_raises_it(
+        self, denied_tools
+    ):
         async def _call_then_end() -> AsyncIterator[Notification]:
-            await tools._handlers["lookup"]({"key": "a"})
+            await denied_tools._handlers["lookup"]({"key": "a"})
             return
             yield
 
         turn = _build_turn(_call_then_end())
 
         with pytest.raises(ToolCallError, match="PermissionError"):
-            await tools.run(turn)
+            await denied_tools.run(turn)
 
         turn.interrupt.assert_not_awaited()
 
     @pytest.mark.asyncio
-    async def test_a_tool_failure_takes_priority_over_a_failed_turn(self):
-        tools = AirflowTools(_tool(PermissionError("role cannot read orders")))
+    async def test_a_tool_failure_takes_priority_over_a_failed_turn(self, denied_tools):
         turn = _build_turn(
-            _fake_codex(
-                tools._handlers,
+            _stream_codex_turn(
+                denied_tools._handlers,
                 [("lookup", {"key": "a"})],
-                final=_turn_completed(TurnStatus.failed, "interrupted"),
+                final=_build_turn_completed(TurnStatus.failed, "interrupted"),
             )
         )
 
         with pytest.raises(ToolCallError):
-            await tools.run(turn)
+            await denied_tools.run(turn)
 
     @pytest.mark.asyncio
     async def test_calls_after_a_failure_do_not_run(self):
         ran: list[dict[str, Any]] = []
-        tools = AirflowTools(_tool(PermissionError("role cannot read orders"), ran))
+        tools = AirflowTools(_build_tool(PermissionError("role cannot read orders"), ran))
 
         async def _three_calls() -> AsyncIterator[Notification]:
             for _ in range(3):
                 await tools._handlers["lookup"]({"key": "a"})
-            yield _turn_completed()
+            yield _build_turn_completed()
 
         with pytest.raises(ToolCallError, match="PermissionError"):
             await tools.run(_build_turn(_three_calls()))
@@ -573,7 +663,7 @@ class TestRun:
         tools = AirflowTools(step)
 
         with pytest.raises(ToolCallError, match="kept failing after 1 correction"):
-            await tools.run(_build_turn(_fake_codex(tools._handlers, [("step", {}), ("step", {})])))
+            await tools.run(_build_turn(_stream_codex_turn(tools._handlers, [("step", {}), ("step", {})])))
 
     @pytest.mark.asyncio
     async def test_each_run_of_a_reused_instance_starts_with_a_fresh_retry_budget(self):
@@ -581,7 +671,7 @@ class TestRun:
         tools = AirflowTools(step)
 
         for _ in range(2):
-            result = await tools.run(_build_turn(_fake_codex(tools._handlers, [("step", {})])))
+            result = await tools.run(_build_turn(_stream_codex_turn(tools._handlers, [("step", {})])))
             assert result.status == TurnStatus.completed
 
     @pytest.mark.asyncio
@@ -591,102 +681,100 @@ class TestRun:
 
         async def _two_calls_at_once() -> AsyncIterator[Notification]:
             await asyncio.gather(tools._handlers["step"]({}), tools._handlers["step"]({}))
-            yield _turn_completed()
+            yield _build_turn_completed()
 
         result = await tools.run(_build_turn(_two_calls_at_once()))
 
         assert result.status == TurnStatus.completed
 
     @pytest.mark.asyncio
-    async def test_the_stream_is_closed_when_the_run_ends(self):
+    async def test_the_stream_is_closed_when_the_run_ends(self, ok_tools):
         closed: list[bool] = []
-        tools = AirflowTools(_tool(ToolResult("ok")))
-
-        await tools.run(_build_turn(_fake_codex(tools._handlers, [("lookup", {"key": "a"})], closed=closed)))
+        await ok_tools.run(
+            _build_turn(_stream_codex_turn(ok_tools._handlers, [("lookup", {"key": "a"})], closed=closed))
+        )
 
         assert closed == [True]
 
     @pytest.mark.asyncio
-    async def test_the_stream_is_closed_when_the_run_raises(self):
+    async def test_the_stream_is_closed_when_the_run_raises(self, denied_tools):
         closed: list[bool] = []
-        tools = AirflowTools(_tool(PermissionError("role cannot read orders")))
-        turn = _build_turn(_fake_codex(tools._handlers, [("lookup", {"key": "a"})], closed=closed))
+        turn = _build_turn(
+            _stream_codex_turn(denied_tools._handlers, [("lookup", {"key": "a"})], closed=closed)
+        )
 
         with pytest.raises(ToolCallError):
-            await tools.run(turn)
+            await denied_tools.run(turn)
 
         assert closed == [True]
 
     @pytest.mark.asyncio
     async def test_a_call_after_a_successful_run_has_ended_does_not_run(self):
         ran: list[dict[str, Any]] = []
-        tools = AirflowTools(_tool(ToolResult("ok"), ran))
-        await tools.run(_build_turn(_fake_codex(tools._handlers, [("lookup", {"key": "a"})])))
+        tools = AirflowTools(_build_tool(ToolResult("ok"), ran))
+        await tools.run(_build_turn(_stream_codex_turn(tools._handlers, [("lookup", {"key": "a"})])))
         assert len(ran) == 1
 
         result = await tools._handlers["lookup"]({"key": "b"})
 
         assert result.is_error is True
-        assert _text(result) == "Not run: the Airflow tool run has ended."
+        assert _extract_text(result) == "Not run: the Airflow tool run has ended."
         assert len(ran) == 1
 
     @pytest.mark.asyncio
     async def test_a_call_after_a_failed_run_has_ended_does_not_run(self):
         ran: list[dict[str, Any]] = []
-        tools = AirflowTools(_tool(PermissionError("role cannot read orders"), ran))
+        tools = AirflowTools(_build_tool(PermissionError("role cannot read orders"), ran))
         with pytest.raises(ToolCallError):
-            await tools.run(_build_turn(_fake_codex(tools._handlers, [("lookup", {"key": "a"})])))
+            await tools.run(_build_turn(_stream_codex_turn(tools._handlers, [("lookup", {"key": "a"})])))
 
         result = await tools._handlers["lookup"]({"key": "b"})
 
         assert result.is_error is True
-        assert _text(result) == "Not run: an earlier Airflow tool call in this run failed."
+        assert _extract_text(result) == "Not run: an earlier Airflow tool call in this run failed."
         assert len(ran) == 1
 
     @pytest.mark.asyncio
     async def test_a_new_run_is_not_blocked_by_the_previous_ended_run(self):
         ran: list[dict[str, Any]] = []
-        tools = AirflowTools(_tool(ToolResult("ok"), ran))
-        await tools.run(_build_turn(_fake_codex(tools._handlers, [("lookup", {"key": "a"})])))
+        tools = AirflowTools(_build_tool(ToolResult("ok"), ran))
+        await tools.run(_build_turn(_stream_codex_turn(tools._handlers, [("lookup", {"key": "a"})])))
 
-        await tools.run(_build_turn(_fake_codex(tools._handlers, [("lookup", {"key": "b"})])))
+        await tools.run(_build_turn(_stream_codex_turn(tools._handlers, [("lookup", {"key": "b"})])))
 
         assert ran == [{"key": "a"}, {"key": "b"}]
 
     @pytest.mark.asyncio
-    async def test_concurrent_runs_on_one_instance_are_rejected(self):
-        tools = AirflowTools(_tool(ToolResult("ok")))
+    async def test_concurrent_runs_on_one_instance_are_rejected(self, ok_tools):
         gate = asyncio.Event()
 
         async def _blocked() -> AsyncIterator[Notification]:
             await gate.wait()
-            yield _turn_completed()
+            yield _build_turn_completed()
 
-        first = asyncio.ensure_future(tools.run(_build_turn(_blocked())))
+        first = asyncio.ensure_future(ok_tools.run(_build_turn(_blocked())))
         await asyncio.sleep(0)
 
         with pytest.raises(RuntimeError, match="already running"):
-            await tools.run(_build_turn(_async_iter([_turn_completed()])))
+            await ok_tools.run(_build_turn(_stream_notifications([_build_turn_completed()])))
 
         gate.set()
         await first
 
     @pytest.mark.asyncio
-    async def test_a_tool_failure_over_http_fails_the_run(self):
-        tools = AirflowTools(_tool(PermissionError("role cannot read orders")))
-
-        async with tools.serve() as config:
+    async def test_a_tool_failure_over_http_fails_the_run(self, denied_tools):
+        async with denied_tools.serve() as config:
 
             async def _call_over_the_wire() -> AsyncIterator[Notification]:
                 result = await _call_over_http(config, "lookup", {"key": "a"})
                 assert result.is_error is True
-                yield _turn_completed()
+                yield _build_turn_completed()
 
             with pytest.raises(ToolCallError, match="PermissionError"):
-                await tools.run(_build_turn(_call_over_the_wire()))
+                await denied_tools.run(_build_turn(_call_over_the_wire()))
 
 
-async def _async_iter(notifications: list[Notification]) -> AsyncIterator[Notification]:
+async def _stream_notifications(notifications: list[Notification]) -> AsyncIterator[Notification]:
     for notification in notifications:
         yield notification
 
@@ -736,27 +824,27 @@ class TestBearerTokenMiddleware:
 class TestRealMcpServer:
     @pytest.mark.asyncio
     async def test_a_tool_result_marked_as_an_error_reaches_the_model_as_isError(self):
-        tools = AirflowTools(_tool(ToolResult("Unknown column 'nme'", is_error=True)))
+        tools = AirflowTools(_build_tool(ToolResult("Unknown column 'nme'", is_error=True)))
 
         async with tools.serve() as config:
             result = await _call_over_http(config, "lookup", {"key": "a"})
 
         assert result.is_error is True
-        assert _text(result) == "Unknown column 'nme'"
+        assert _extract_text(result) == "Unknown column 'nme'"
 
     @pytest.mark.asyncio
     async def test_a_successful_tool_result_is_not_marked_isError(self):
-        tools = AirflowTools(_tool(ToolResult("found")))
+        tools = AirflowTools(_build_tool(ToolResult("found")))
 
         async with tools.serve() as config:
             result = await _call_over_http(config, "lookup", {"key": "a"})
 
         assert result.is_error is False
-        assert _text(result) == "found"
+        assert _extract_text(result) == "found"
 
     @pytest.mark.asyncio
     async def test_an_unknown_tool_is_an_error_result(self):
-        tools = AirflowTools(_tool(ToolResult("found")))
+        tools = AirflowTools(_build_tool(ToolResult("found")))
 
         async with tools.serve() as config:
             result = await _call_over_http(config, "missing", {})
@@ -766,11 +854,11 @@ class TestRealMcpServer:
     @pytest.mark.asyncio
     async def test_a_request_without_the_token_is_refused(self):
         ran: list[dict[str, Any]] = []
-        tools = AirflowTools(_tool(ToolResult("found"), ran))
+        tools = AirflowTools(_build_tool(ToolResult("found"), ran))
 
         async with tools.serve() as config:
             async with httpx2.AsyncClient() as http:
-                response = await http.post(_server_url(config), json={})
+                response = await http.post(_get_server_url(config), json={})
 
         assert response.status_code == 401
         assert ran == []
@@ -778,30 +866,30 @@ class TestRealMcpServer:
     @pytest.mark.asyncio
     async def test_a_request_with_a_wrong_token_is_refused(self):
         ran: list[dict[str, Any]] = []
-        tools = AirflowTools(_tool(ToolResult("found"), ran))
+        tools = AirflowTools(_build_tool(ToolResult("found"), ran))
 
         async with tools.serve() as config:
             async with httpx2.AsyncClient(headers={"Authorization": "Bearer nope"}) as http:
-                response = await http.post(_server_url(config), json={})
+                response = await http.post(_get_server_url(config), json={})
 
         assert response.status_code == 401
         assert ran == []
 
     @pytest.mark.asyncio
     async def test_each_serve_block_gets_its_own_token(self):
-        tools = AirflowTools(_tool(ToolResult("found")))
+        tools = AirflowTools(_build_tool(ToolResult("found")))
 
         async with tools.serve() as first:
-            first_url, first_token = _server_url(first), first.env["AIRFLOW_CODEX_MCP_TOKEN"]
+            first_url, first_token = _get_server_url(first), first.env["AIRFLOW_CODEX_MCP_TOKEN"]
         async with tools.serve() as second:
-            assert _server_url(second).startswith("http://127.0.0.1:")
+            assert _get_server_url(second).startswith("http://127.0.0.1:")
             assert second.env["AIRFLOW_CODEX_MCP_TOKEN"] != first_token
             assert len(first_token) >= 32
         assert first_url.startswith("http://127.0.0.1:")
 
     @pytest.mark.asyncio
     async def test_leaving_the_block_stops_the_server_and_deletes_the_temporary_directory(self):
-        tools = AirflowTools(_tool(ToolResult("found")))
+        tools = AirflowTools(_build_tool(ToolResult("found")))
 
         async with tools.serve() as config:
             temporary = Path(config.env["CODEX_HOME"]).parent
@@ -810,11 +898,11 @@ class TestRealMcpServer:
         assert not temporary.exists()
         with pytest.raises(httpx2.ConnectError):
             async with httpx2.AsyncClient() as http:
-                await http.post(_server_url(config), json={})
+                await http.post(_get_server_url(config), json={})
 
     @pytest.mark.asyncio
     async def test_an_exception_in_the_block_still_cleans_up_and_allows_serving_again(self):
-        tools = AirflowTools(_tool(ToolResult("found")))
+        tools = AirflowTools(_build_tool(ToolResult("found")))
 
         temporaries: list[Path] = []
 
@@ -832,7 +920,7 @@ class TestRealMcpServer:
 
     @pytest.mark.asyncio
     async def test_serving_twice_at_once_is_rejected(self):
-        tools = AirflowTools(_tool(ToolResult("found")))
+        tools = AirflowTools(_build_tool(ToolResult("found")))
 
         async with tools.serve():
             with pytest.raises(RuntimeError, match="already serving"):
@@ -840,7 +928,7 @@ class TestRealMcpServer:
 
     @pytest.mark.asyncio
     async def test_two_concurrent_serve_blocks_are_not_both_admitted(self):
-        tools = AirflowTools(_tool(ToolResult("found")))
+        tools = AirflowTools(_build_tool(ToolResult("found")))
 
         outcomes = await asyncio.gather(
             _serve_and_leave(tools), _serve_and_leave(tools), return_exceptions=True
@@ -851,7 +939,7 @@ class TestRealMcpServer:
 
     @pytest.mark.asyncio
     async def test_a_server_that_fails_to_start_leaves_nothing_behind(self):
-        tools = AirflowTools(_tool(ToolResult("found")))
+        tools = AirflowTools(_build_tool(ToolResult("found")))
         created: list[str] = []
         make_directory = tempfile.mkdtemp
 
@@ -873,7 +961,7 @@ class TestRealMcpServer:
 
     @pytest.mark.asyncio
     async def test_serving_leaves_the_workers_signal_handlers_alone(self):
-        tools = AirflowTools(_tool(ToolResult("found")))
+        tools = AirflowTools(_build_tool(ToolResult("found")))
         before = {sig: signal.getsignal(sig) for sig in (signal.SIGINT, signal.SIGTERM)}
 
         async with tools.serve():
@@ -884,11 +972,11 @@ class TestRealMcpServer:
 
 class TestOptions:
     @pytest.mark.asyncio
-    async def test_build_thread_options_defaults_to_deny_all_read_only_ephemeral_in_the_empty_directory(self):
-        tools = AirflowTools(_tool(ToolResult("ok")))
-
-        async with tools.serve() as config:
-            options = tools.build_thread_options(model="gpt-test")
+    async def test_build_thread_options_defaults_to_deny_all_read_only_ephemeral_in_the_empty_directory(
+        self, ok_tools
+    ):
+        async with ok_tools.serve() as config:
+            options = ok_tools.build_thread_options(model="gpt-test")
 
         assert options == {
             "model": "gpt-test",
@@ -899,11 +987,9 @@ class TestOptions:
         }
 
     @pytest.mark.asyncio
-    async def test_a_value_the_caller_passes_wins_over_the_default(self):
-        tools = AirflowTools(_tool(ToolResult("ok")))
-
-        async with tools.serve():
-            options = tools.build_thread_options(
+    async def test_a_value_the_caller_passes_wins_over_the_default(self, ok_tools):
+        async with ok_tools.serve():
+            options = ok_tools.build_thread_options(
                 approval_mode=ApprovalMode.auto_review, sandbox=Sandbox.workspace_write, ephemeral=False
             )
 
@@ -911,30 +997,24 @@ class TestOptions:
         assert options["sandbox"] == Sandbox.workspace_write
         assert options["ephemeral"] is False
 
-    def test_building_options_outside_the_serve_block_raises(self):
-        tools = AirflowTools(_tool(ToolResult("ok")))
-
+    def test_building_options_outside_the_serve_block_raises(self, ok_tools):
         with pytest.raises(RuntimeError, match="inside the serve\\(\\) block"):
-            tools.build_thread_options()
+            ok_tools.build_thread_options()
 
     @pytest.mark.asyncio
-    async def test_a_colliding_server_name_raises(self):
-        tools = AirflowTools(_tool(ToolResult("ok")))
-
-        async with tools.serve():
+    async def test_a_colliding_server_name_raises(self, ok_tools):
+        async with ok_tools.serve():
             with pytest.raises(ValueError, match="already has an MCP server named 'airflow'"):
-                tools.build_thread_options(config={"mcp_servers": {"airflow": {}}})
+                ok_tools.build_thread_options(config={"mcp_servers": {"airflow": {}}})
 
     @pytest.mark.parametrize("server_name", ["has space", "dotted.name", 'quo"te', ""])
     def test_a_server_name_that_is_not_a_bare_config_key_raises(self, server_name):
         with pytest.raises(ValueError, match="letters, digits"):
-            AirflowTools(_tool(ToolResult("ok")), server_name=server_name)
+            AirflowTools(_build_tool(ToolResult("ok")), server_name=server_name)
 
     @pytest.mark.asyncio
-    async def test_the_child_environment_points_codex_at_the_temporary_directories(self):
-        tools = AirflowTools(_tool(ToolResult("ok")))
-
-        async with tools.serve() as config:
+    async def test_the_child_environment_points_codex_at_the_temporary_directories(self, ok_tools):
+        async with ok_tools.serve() as config:
             env = config.env
             codex_home, home, cwd = Path(env["CODEX_HOME"]), Path(env["HOME"]), Path(config.cwd)
             assert [_list_dir(path) for path in (codex_home, home, cwd)] == [[], [], []]
@@ -944,10 +1024,8 @@ class TestOptions:
             assert set(env) == {"CODEX_HOME", "CODEX_SQLITE_HOME", "HOME", "AIRFLOW_CODEX_MCP_TOKEN"}
 
     @pytest.mark.asyncio
-    async def test_the_token_goes_through_the_environment_and_not_argv(self):
-        tools = AirflowTools(_tool(ToolResult("ok")))
-
-        async with tools.serve() as config:
+    async def test_the_token_goes_through_the_environment_and_not_argv(self, ok_tools):
+        async with ok_tools.serve() as config:
             token = config.env["AIRFLOW_CODEX_MCP_TOKEN"]
             overrides = _parse_overrides(config)
 
@@ -955,12 +1033,10 @@ class TestOptions:
         assert overrides["mcp_servers.airflow.bearer_token_env_var"] == '"AIRFLOW_CODEX_MCP_TOKEN"'
 
     @pytest.mark.asyncio
-    async def test_the_config_overrides_apply_each_safe_default(self):
-        tools = AirflowTools(_tool(ToolResult("ok")))
-
-        async with tools.serve() as config:
+    async def test_the_config_overrides_apply_each_safe_default(self, ok_tools):
+        async with ok_tools.serve() as config:
             overrides = _parse_overrides(config)
-            url = _server_url(config)
+            url = _get_server_url(config)
 
         assert url == f"http://127.0.0.1:{url.split(':')[2].split('/')[0]}/mcp"
         assert {key: overrides[key] for key in EXPECTED_OVERRIDES} == EXPECTED_OVERRIDES
@@ -968,8 +1044,8 @@ class TestOptions:
 
     @pytest.mark.asyncio
     async def test_the_tool_timeout_is_set_and_can_be_changed(self):
-        default = AirflowTools(_tool(ToolResult("ok")))
-        custom = AirflowTools(_tool(ToolResult("ok")), tool_timeout=30)
+        default = AirflowTools(_build_tool(ToolResult("ok")))
+        custom = AirflowTools(_build_tool(ToolResult("ok")), tool_timeout=30)
 
         async with default.serve() as default_config, custom.serve() as custom_config:
             assert _parse_overrides(default_config)["mcp_servers.airflow.tool_timeout_sec"] == "600.0"
@@ -977,7 +1053,7 @@ class TestOptions:
 
     @pytest.mark.asyncio
     async def test_a_custom_server_name_is_used_in_every_key(self):
-        tools = AirflowTools(_tool(ToolResult("ok")), server_name="warehouse-tools")
+        tools = AirflowTools(_build_tool(ToolResult("ok")), server_name="warehouse-tools")
 
         async with tools.serve() as config:
             keys = [key for key in _parse_overrides(config) if key.startswith("mcp_servers.")]
@@ -987,7 +1063,7 @@ class TestOptions:
 
     @pytest.mark.asyncio
     async def test_the_schema_byte_budget_covers_the_largest_tool_schema(self):
-        small = AirflowTools(_tool(ToolResult("ok")))
+        small = AirflowTools(_build_tool(ToolResult("ok")))
         large_schema = {
             "type": "object",
             "properties": {f"field_{i}": {"type": "string", "description": "d" * 50} for i in range(2000)},
@@ -1133,21 +1209,17 @@ class TestRealAppServer:
         return dirs
 
     @pytest.mark.asyncio
-    async def test_every_safe_default_is_read_back_from_codex(self):
-        tools = AirflowTools(_tool(ToolResult("ok")))
-
-        async with tools.serve() as config:
+    async def test_every_safe_default_is_read_back_from_codex(self, ok_tools):
+        async with ok_tools.serve() as config:
             echoed, _ = await asyncio.to_thread(_query_app_server, config)
 
         settings = echoed["config"]
-        expected = {**EXPECTED_ECHOES, "mcp_servers.airflow.url": _server_url(config)}
+        expected = {**EXPECTED_ECHOES, "mcp_servers.airflow.url": _get_server_url(config)}
         assert {key: _read_path(settings, key) for key in expected} == expected
 
     @pytest.mark.asyncio
-    async def test_supports_parallel_tool_calls_is_a_key_codex_knows(self):
-        tools = AirflowTools(_tool(ToolResult("ok")))
-
-        async with tools.serve() as config:
+    async def test_supports_parallel_tool_calls_is_a_key_codex_knows(self, ok_tools):
+        async with ok_tools.serve() as config:
             parallel = dataclasses.replace(
                 config,
                 config_overrides=tuple(
@@ -1164,17 +1236,19 @@ class TestRealAppServer:
         assert _read_path(echoed["config"], "mcp_servers.airflow.supports_parallel_tool_calls") is True
 
     @pytest.mark.asyncio
-    async def test_codex_reads_the_temporary_codex_home_and_not_the_workers(self, worker_environment):
-        tools = AirflowTools(_tool(ToolResult("ok")))
-
-        async with tools.serve() as config:
+    async def test_codex_reads_the_temporary_codex_home_and_not_the_workers(
+        self, worker_environment, ok_tools
+    ):
+        async with ok_tools.serve() as config:
             echoed, _ = await asyncio.to_thread(_query_app_server, config)
             codex_home = config.env["CODEX_HOME"]
 
         user_files = [
-            _real_path(layer["name"]["file"]) for layer in echoed["layers"] if layer["name"]["type"] == "user"
+            _resolve_path(layer["name"]["file"])
+            for layer in echoed["layers"]
+            if layer["name"]["type"] == "user"
         ]
-        assert user_files == [_real_path(codex_home, "config.toml")]
+        assert user_files == [_resolve_path(codex_home, "config.toml")]
         # The system layer (/etc/codex/config.toml) is still read from the worker; any other
         # kind of layer, such as a project or a managed one, would be new.
         assert {layer["name"]["type"] for layer in echoed["layers"]} <= {"sessionFlags", "user", "system"}
@@ -1182,15 +1256,15 @@ class TestRealAppServer:
         assert set(echoed["config"]["mcp_servers"]) == {"airflow"}
 
     @pytest.mark.asyncio
-    async def test_no_project_layer_is_loaded_from_the_workers_working_directory(self, tmp_path, monkeypatch):
+    async def test_no_project_layer_is_loaded_from_the_workers_working_directory(
+        self, tmp_path, monkeypatch, ok_tools
+    ):
         project = tmp_path / "project"
         (project / ".git").mkdir(parents=True)
         (project / ".codex").mkdir()
         (project / ".codex" / "config.toml").write_text('model = "project-marker-model"\n')
         monkeypatch.chdir(project)
-        tools = AirflowTools(_tool(ToolResult("ok")))
-
-        async with tools.serve() as config:
+        async with ok_tools.serve() as config:
             # Control: the probe does see a project layer when Codex is pointed at the project.
             in_project, _ = await asyncio.to_thread(
                 _query_app_server, dataclasses.replace(config, cwd=str(project))
@@ -1203,15 +1277,13 @@ class TestRealAppServer:
             )
 
         assert "project" in [layer["name"]["type"] for layer in in_project["layers"]]
-        temporary_cwd = _real_path(os.path.dirname(config.env["CODEX_HOME"]), "cwd")
-        assert _real_path(str(response.cwd.root)) == temporary_cwd
+        temporary_cwd = _resolve_path(os.path.dirname(config.env["CODEX_HOME"]), "cwd")
+        assert _resolve_path(str(response.cwd.root)) == temporary_cwd
         assert "project" not in [layer["name"]["type"] for layer in echoed["layers"]]
 
     @pytest.mark.asyncio
-    async def test_codex_state_stays_in_the_temporary_directory(self, worker_environment):
-        tools = AirflowTools(_tool(ToolResult("ok")))
-
-        async with tools.serve() as config:
+    async def test_codex_state_stays_in_the_temporary_directory(self, worker_environment, ok_tools):
+        async with ok_tools.serve() as config:
             await asyncio.to_thread(_query_app_server, config)
             written_to_temporary = _list_dir(config.env["CODEX_HOME"])
 
@@ -1220,11 +1292,11 @@ class TestRealAppServer:
         assert [p.name for p in _list_dir(worker_environment["worker_home"] / ".codex")] == ["config.toml"]
 
     @pytest.mark.asyncio
-    async def test_a_worker_codex_sqlite_home_is_used_without_the_override(self, worker_environment):
+    async def test_a_worker_codex_sqlite_home_is_used_without_the_override(
+        self, worker_environment, ok_tools
+    ):
         """Negative control: without ``CODEX_SQLITE_HOME`` in the child environment, the worker's wins."""
-        tools = AirflowTools(_tool(ToolResult("ok")))
-
-        async with tools.serve() as config:
+        async with ok_tools.serve() as config:
             env = {k: v for k, v in config.env.items() if k != "CODEX_SQLITE_HOME"}
             await asyncio.to_thread(_query_app_server, dataclasses.replace(config, env=env))
 
@@ -1244,10 +1316,8 @@ class TestRealAppServer:
         assert set(server.tools) == {t.name for t in ts.airflow_tools()}
 
     @pytest.mark.asyncio
-    async def test_codex_cannot_list_the_tools_with_a_wrong_token(self):
-        tools = AirflowTools(_tool(ToolResult("ok")))
-
-        async with tools.serve() as config:
+    async def test_codex_cannot_list_the_tools_with_a_wrong_token(self, ok_tools):
+        async with ok_tools.serve() as config:
             wrong = dataclasses.replace(config, env={**config.env, "AIRFLOW_CODEX_MCP_TOKEN": "wrong"})
             _, status = await asyncio.to_thread(_query_app_server, wrong)
 
@@ -1256,23 +1326,19 @@ class TestRealAppServer:
         assert "401" in (server.tools_error or "")
 
     @pytest.mark.asyncio
-    async def test_a_thread_starts_with_the_defaults_when_the_server_is_reachable(self):
-        tools = AirflowTools(_tool(ToolResult("ok")))
-
-        async with tools.serve() as config:
-            response = await _start_thread(config, **tools.build_thread_options())
+    async def test_a_thread_starts_with_the_defaults_when_the_server_is_reachable(self, ok_tools):
+        async with ok_tools.serve() as config:
+            response = await _start_thread(config, **ok_tools.build_thread_options())
 
         assert response.approval_policy.root == AskForApprovalValue.never
         assert response.sandbox.root.type == "readOnly"
         assert response.thread.ephemeral is True
-        assert _real_path(str(response.cwd.root)) == _real_path(config.cwd)
+        assert _resolve_path(str(response.cwd.root)) == _resolve_path(config.cwd)
 
     @pytest.mark.asyncio
-    async def test_a_thread_does_not_start_when_the_required_server_is_unreachable(self):
-        tools = AirflowTools(_tool(ToolResult("ok")))
-
-        async with tools.serve() as config:
-            url = _server_url(config)
+    async def test_a_thread_does_not_start_when_the_required_server_is_unreachable(self, ok_tools):
+        async with ok_tools.serve() as config:
+            url = _get_server_url(config)
             port = url.split(":")[2].split("/")[0]
             wrong_port = dataclasses.replace(
                 config,
@@ -1280,14 +1346,12 @@ class TestRealAppServer:
             )
             async with AsyncCodex(wrong_port) as codex:
                 with pytest.raises(InternalRpcError, match="required MCP servers failed to initialize"):
-                    await codex.thread_start(**tools.build_thread_options())
+                    await codex.thread_start(**ok_tools.build_thread_options())
 
     @pytest.mark.asyncio
-    async def test_an_unreachable_server_is_reported_in_the_status_and_not_raised(self):
-        tools = AirflowTools(_tool(ToolResult("ok")))
-
-        async with tools.serve() as config:
-            port = _server_url(config).split(":")[2].split("/")[0]
+    async def test_an_unreachable_server_is_reported_in_the_status_and_not_raised(self, ok_tools):
+        async with ok_tools.serve() as config:
+            port = _get_server_url(config).split(":")[2].split("/")[0]
             wrong_port = dataclasses.replace(
                 config,
                 config_overrides=tuple(o.replace(f":{port}/", ":1/") for o in config.config_overrides),

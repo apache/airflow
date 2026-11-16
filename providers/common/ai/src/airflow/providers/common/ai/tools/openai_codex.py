@@ -396,7 +396,11 @@ class AirflowTools:
         Drive ``turn``, the handle ``AsyncThread.turn()`` returns, until it completes.
 
         On a tool failure the model cannot fix, the turn is interrupted before the failure
-        is raised: closing the stream would not stop Codex, which would keep calling tools.
+        is raised. It is also interrupted when ``run()`` is cancelled before the turn completes,
+        for example by a timeout: closing the stream would not stop Codex, which would keep
+        calling tools. The interrupt is a request, bounded to 10 seconds; if it fails, that is
+        logged and does not replace the original exception, and a cancellation still propagates
+        as ``asyncio.CancelledError``.
         A tool call that arrives after this returns or raises is answered with an ``isError``
         "Not run" result.
 
@@ -414,10 +418,11 @@ class AirflowTools:
         state = _Run()
         self._run = state
         raised = True
+        completed: TurnCompletedNotification | None = None
+        interrupted = False
         try:
             items: list[ThreadItem] = []
             usage: ThreadTokenUsage | None = None
-            completed: TurnCompletedNotification | None = None
             async for event in events:
                 payload = event.payload
                 if isinstance(payload, ItemCompletedNotification) and payload.turn_id == turn.id:
@@ -427,6 +432,7 @@ class AirflowTools:
                 elif isinstance(payload, TurnCompletedNotification) and payload.turn.id == turn.id:
                     completed = payload
                 if state.failures:
+                    interrupted = True
                     await self._interrupt_turn(turn)
                     raise state.failures[0]
             if completed is None:
@@ -449,6 +455,12 @@ class AirflowTools:
                 items=items,
                 usage=usage,
             )
+        except asyncio.CancelledError:
+            # Interrupt before the stream is closed and ``self._run`` is cleared: a late tool call
+            # from this turn would otherwise resolve to the next run's state.
+            if completed is None and not interrupted:
+                await self._interrupt_turn(turn)
+            raise
         finally:
             try:
                 await _close_stream(events)
@@ -469,7 +481,7 @@ class AirflowTools:
             # or an unresponsive app-server hangs the task instead of failing it.
             await asyncio.wait_for(turn.interrupt(), _INTERRUPT_TIMEOUT_SEC)
         except Exception as e:
-            log.warning("Interrupting the Codex turn after a tool failure failed: %s", e)
+            log.warning("Interrupting the Codex turn failed: %s", e)
 
     @staticmethod
     async def _wait_for_server(server: uvicorn.Server, task: asyncio.Task[None]) -> None:
