@@ -112,6 +112,16 @@ time for cache invalidation) and that `/docs/ts-sdk/` redirects to it.
 
 ## Publishing
 
+Release management common to every language SDK (which branch to release from, how the cycle
+follows Airflow core, and what a release candidate has to satisfy) lives in
+[`dev/README_RELEASE_LANG_SDKS.md`](../dev/README_RELEASE_LANG_SDKS.md). Read it first. This
+section covers only what is specific to publishing to npm.
+
+The npm package is a convenience binary. A general-availability release also needs a signed
+source package in `dist/dev`, a `[VOTE]` on `dev@airflow.apache.org`, and promotion of that
+package to `dist/release` before the package is published to npm. The TypeScript SDK has no
+source-packaging or signing tooling yet, and needs it before its first GA.
+
 The manually dispatched `Release TypeScript SDK` workflow first builds, tests,
 and hashes one package tarball without OIDC permissions. Its protected publish
 job then either uses [npm's staged-publishing flow](https://docs.npmjs.com/staged-publishing/)
