@@ -20,8 +20,7 @@ from __future__ import annotations
 import contextlib
 import inspect
 import itertools
-from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence, Sized
-from functools import singledispatch
+from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
 from typing import TYPE_CHECKING, Any, overload
 
 import attrs
@@ -596,46 +595,3 @@ def serialize_xcom_arg(value: XComArg) -> dict[str, Any]:
     if key:
         return {"type": key, **value._serialize()}
     return value._serialize()
-
-
-@singledispatch
-def get_task_map_length(
-    xcom_arg: XComArg, resolved_val: Sized, upstream_map_indexes: dict[str, int]
-) -> int | None:
-    # The base implementation -- specific XComArg subclasses have specialised implementations
-    raise NotImplementedError()
-
-
-@get_task_map_length.register
-def _(xcom_arg: PlainXComArg, resolved_val: Sized, upstream_map_indexes: dict[str, int]):
-    task_id = xcom_arg.operator.task_id
-
-    if xcom_arg.operator.is_mapped:
-        # TODO: How to tell if all the upstream TIs finished?
-        pass
-    return (upstream_map_indexes.get(task_id) or 1) * len(resolved_val)
-
-
-@get_task_map_length.register
-def _(xcom_arg: MapXComArg, resolved_val: Sized, upstream_map_indexes: dict[str, int]):
-    return get_task_map_length(xcom_arg.arg, resolved_val, upstream_map_indexes)
-
-
-@get_task_map_length.register
-def _(xcom_arg: ZipXComArg, resolved_val: Sized, upstream_map_indexes: dict[str, int]):
-    all_lengths = (get_task_map_length(arg, resolved_val, upstream_map_indexes) for arg in xcom_arg.args)
-    ready_lengths = [length for length in all_lengths if length is not None]
-    if len(ready_lengths) != len(xcom_arg.args):
-        return None  # If any of the referenced XComs is not ready, we are not ready either.
-    if is_arg_set(xcom_arg.fillvalue):
-        return max(ready_lengths)
-    return min(ready_lengths)
-
-
-@get_task_map_length.register
-def _(xcom_arg: ConcatXComArg, resolved_val: Sized, upstream_map_indexes: dict[str, int]):
-    all_lengths = (get_task_map_length(arg, resolved_val, upstream_map_indexes) for arg in xcom_arg.args)
-    ready_lengths = [length for length in all_lengths if length is not None]
-    if len(ready_lengths) != len(xcom_arg.args):
-        return None  # If any of the referenced XComs is not ready, we are not ready either.
-    return sum(ready_lengths)

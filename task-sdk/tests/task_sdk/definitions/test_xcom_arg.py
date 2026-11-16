@@ -384,6 +384,42 @@ def test_xcom_concat(run_ti, mock_supervisor_comms):
     assert agg_results == {"a", "b", "c", 1, 2}
 
 
+def test_xcom_concat_expand_with_other_argument(run_ti, mock_supervisor_comms):
+    results = set()
+
+    with DAG("test") as dag:
+
+        @dag.task
+        def push_letters():
+            return ["a", "b", "c"]
+
+        @dag.task
+        def push_numbers():
+            return [1, 2]
+
+        @dag.task
+        def pull(x, y):
+            results.add((x, y))
+
+        # The concat argument is declared last, so it is the first to divide map_index.
+        pull.expand(x=[10, 20], y=push_letters().concat(push_numbers()))
+
+    def xcom_get(msg):
+        if not isinstance(msg, GetXCom):
+            return mock.DEFAULT
+        if msg.task_id == "push_letters":
+            return XComResult(key=BaseXCom.XCOM_RETURN_KEY, value=push_letters.function())
+        if msg.task_id == "push_numbers":
+            return XComResult(key=BaseXCom.XCOM_RETURN_KEY, value=push_numbers.function())
+        return mock.DEFAULT
+
+    mock_supervisor_comms.send.side_effect = xcom_get
+
+    states = [run_ti(dag, "pull", map_index) for map_index in range(10)]
+    assert states == [TaskInstanceState.SUCCESS] * 10
+    assert results == {(x, y) for x in (10, 20) for y in ("a", "b", "c", 1, 2)}
+
+
 class TestPlainXComArgResolveMappedGroup:
     """Resolving a task inside a mapped task group from a task outside that group.
 
