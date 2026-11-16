@@ -295,11 +295,12 @@ Install this provider with its ``openai-codex`` extra:
     pip install "apache-airflow-providers-common-ai[openai-codex]"
 
 The extra installs the SDK, ``openai-codex-cli-bin`` (the ``codex`` binary, 119 to 152 MB
-per platform), ``mcp`` 2.0 or later, whose server API the adapter uses, and ``uvicorn``. The
+per platform), ``mcp`` 2.2.0 or later, whose server API the adapter uses, and ``uvicorn``. The
 adapter needs ``openai-codex`` 0.163.0 or later and is tested with 0.163.0. The SDK is at an early version and
 the ``codex app-server`` protocol it wraps marks many fields unstable; every default above was
-observed with 0.163.0 and is not a documented guarantee. Strands Agents pins ``mcp`` below 2.2
-while this adapter needs 2.0 or later; installing both together was not tested. The adapter's
+observed with 0.163.0 and is not a documented guarantee. Strands Agents 1.62 and earlier
+pin ``mcp`` below 2.2, so they cannot be installed together with this extra; later releases
+allow ``mcp`` 2.2. The adapter's
 tests were run on ``mcp`` 2.2.0 in a local environment; Airflow's lock, and so CI, has 2.3.0.
 
 .. seealso::

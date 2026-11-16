@@ -170,8 +170,9 @@ Tested versions
    * - OpenAI Codex SDK
      - 0.163.0
      - Its ``openai-codex-cli-bin`` dependency bundles the ``codex`` binary, one wheel per
-       platform of 119 to 152 MB. The adapter needs ``mcp`` 2.0 or later and Strands Agents pins
-       ``mcp`` below 2.2; installing both together was not tested.
+       platform of 119 to 152 MB. The adapter needs ``mcp`` 2.2.0 or later. Strands Agents
+       1.62 and earlier pin ``mcp`` below 2.2, so they cannot be installed in the same
+       environment; later releases allow ``mcp`` 2.2.
 
 These are the versions the adapter tests have been run against. Strands and ADK cap
 packages below the versions in Airflow's dependency lock, LlamaIndex caps ``openai`` below

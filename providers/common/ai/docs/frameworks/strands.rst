@@ -306,5 +306,5 @@ integration is tested with. Without a bound, a resolver that cannot satisfy Stra
 dependencies may pick the ``0.0.1`` placeholder release instead of reporting a
 conflict. For ``AnthropicModel``, install ``anthropic`` through this provider's
 ``anthropic`` extra rather than through Strands' own ``anthropic`` extra, which
-requires an ``anthropic`` release older than 1.0. Strands also pins ``mcp`` below 2.2, so
-installing it downgrades a newer ``mcp``, which ``MCPToolset`` uses.
+requires an ``anthropic`` release older than 1.0. Strands Agents releases up to 1.62 pin
+``mcp`` below 2.2, so installing one of them downgrades a newer ``mcp``, which ``MCPToolset`` uses.
