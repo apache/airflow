@@ -2050,8 +2050,9 @@ api:
       default: "False"
     default_match_anywhere:
       description: |
-        Default search mode for DAG and task search in the web UI. When set to ``True``, search
+        Default search mode for Dag and task search in the web UI. When set to ``True``, search
         filters match anywhere in the name (substring) instead of only at the start (prefix).
+        Matching anywhere cannot use database indexes, so it may be slower on large deployments.
         Users can still toggle the mode per search and save their own default in Settings.
       version_added: 3.5.0
       type: boolean
