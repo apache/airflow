@@ -62,7 +62,7 @@ def test_default_source_does_not_claim_or_retain_work():
     source.attempt_finished(attempt_id, had_callbacks=False)
     source.flush()
 
-    assert not source.requires_acknowledgment
+    assert not source.callbacks_interrupted(attempt_id)
     assert not source.has_outstanding_work()
     assert not source.has_priority_request(file)
     assert not source.has_callback_claim(request)
@@ -86,7 +86,7 @@ def test_database_source_delegates_claims_without_applying_api_limits():
 
     claim_priority.assert_called_once_with()
     fetch_callbacks.assert_called_once_with()
-    assert not source.requires_acknowledgment
+    assert not source.callbacks_interrupted(uuid7())
 
 
 @pytest.mark.parametrize("use_api_client", [False, True])
@@ -130,8 +130,10 @@ def test_manager_uses_injected_source_with_dispatch_context(use_api_client):
 
 @mock.patch.object(DagFileProcessorManager, "_claim_priority_files", autospec=True)
 @mock.patch.object(DagFileProcessorManager, "_fetch_callbacks_from_db", autospec=True)
-def test_manager_defaults_to_database_source(fetch_callbacks, claim_priority):
-    manager = DagFileProcessorManager(max_runs=1)
+@pytest.mark.parametrize("use_api_client", [False, True])
+def test_manager_defaults_to_database_source(fetch_callbacks, claim_priority, use_api_client):
+    client = mock.create_autospec(DagProcessorAPIClient, instance=True) if use_api_client else None
+    manager = DagFileProcessorManager(max_runs=1, api_client=client)
 
     assert isinstance(manager.work_source, DatabaseRequestedWorkSource)
     assert manager.claim_priority_files() is claim_priority.return_value
@@ -139,3 +141,45 @@ def test_manager_defaults_to_database_source(fetch_callbacks, claim_priority):
 
     claim_priority.assert_called_once_with(manager)
     fetch_callbacks.assert_called_once_with(manager)
+
+
+@pytest.mark.parametrize("interrupted", [False, True])
+@pytest.mark.parametrize("retained", [False, True])
+def test_manager_delegates_callback_outcomes_to_the_source(interrupted, retained, caplog):
+    source = mock.create_autospec(RequestedWorkSource, instance=True, spec_set=True)
+    source.callbacks_interrupted.return_value = retained
+    manager = DagFileProcessorManager(max_runs=1, work_source=source)
+    processor = mock.create_autospec(DagFileProcessorProcess, instance=True)
+    processor.id = uuid7()
+    processor.callback_targets_missing = interrupted
+
+    manager._finish_callback_attempt(processor)
+
+    if interrupted:
+        source.callbacks_interrupted.assert_called_once_with(processor.id)
+        source.attempt_finished.assert_not_called()
+    else:
+        source.attempt_finished.assert_called_once_with(processor.id, had_callbacks=True)
+        source.callbacks_interrupted.assert_not_called()
+    assert ("Retrying callbacks after an Execution API request failed" in caplog) is (
+        interrupted and retained
+    )
+
+
+@pytest.mark.parametrize("exited_cleanly", [False, True])
+@mock.patch.object(DagFileProcessorManager, "_get_team_names", autospec=True, return_value={})
+def test_manager_reports_clean_callbacks_to_the_source_on_shutdown(get_team_names, exited_cleanly):
+    source = mock.create_autospec(RequestedWorkSource, instance=True, spec_set=True)
+    manager = DagFileProcessorManager(max_runs=1, work_source=source)
+    processor = mock.create_autospec(DagFileProcessorProcess, instance=True)
+    processor.id = uuid7()
+    processor.had_callbacks = True
+    processor.exited_cleanly = exited_cleanly
+    manager._processors[DagFileInfo(bundle_name="test", rel_path=Path("example.py"))] = processor
+
+    manager.terminate()
+
+    if exited_cleanly:
+        source.attempt_finished.assert_called_once_with(processor.id, had_callbacks=True)
+    else:
+        source.attempt_finished.assert_not_called()

@@ -47,7 +47,7 @@ from airflow.dag_processing.manager import (
 from airflow.dag_processing.processor import DagFileParsingResult, DagFileProcessorProcess, DagParseSource
 
 from tests_common.test_utils.config import conf_vars
-from unit.dag_processing.requested_work_helpers import get_api_work_source, make_work
+from unit.dag_processing.requested_work_helpers import create_manager, get_api_work_source, make_work
 
 
 @pytest.fixture
@@ -67,9 +67,7 @@ def api_manager(tmp_path):
     client.publish_inventory.side_effect = lambda name, body: DagBundleInventoryResponse(
         attempt_id=body.attempt_id, revision=uuid7(), accepted_at=timezone.utcnow()
     )
-    manager = DagFileProcessorManager(
-        max_runs=1, api_client=client, parallelism=2, bundle_refresh_check_interval=0
-    )
+    manager = create_manager(max_runs=1, api_client=client, parallelism=2, bundle_refresh_check_interval=0)
     manager._dag_bundles = [bundle]
     manager._bundle_parse_sources[bundle.name] = DagParseSource()
     return manager, client, bundle
@@ -427,7 +425,8 @@ def test_queued_callback_preserves_db_priority_request_behind_running_parse(crea
     manager._start_new_processes()
     assert manager._processors[file].had_callbacks
     assert file in manager._priority_files
-    assert file in manager._files_awaiting_source
+    assert file in manager._file_queue
+    assert file not in manager._files_awaiting_source
 
     del manager._processors[file]
     manager._start_new_processes()

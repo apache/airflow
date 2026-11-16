@@ -16,17 +16,24 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import httpx2
 from uuid6 import uuid7
 
 from airflow.api_fastapi.execution_api.datamodels.dag_parsing import ProcessorWorkItem
 from airflow.dag_processing.api_requested_work import ExecutionAPIWorkSource
+from airflow.dag_processing.manager import DagFileProcessorManager
 
 if TYPE_CHECKING:
     from airflow.callbacks.callback_requests import CallbackRequest
-    from airflow.dag_processing.manager import DagFileProcessorManager
+    from airflow.dag_processing.api_client import DagProcessorAPIClient
+
+
+def create_manager(*, api_client: DagProcessorAPIClient | None, **kwargs: Any) -> DagFileProcessorManager:
+    if api_client is not None:
+        kwargs["work_source"] = ExecutionAPIWorkSource(api_client)
+    return DagFileProcessorManager(api_client=api_client, **kwargs)
 
 
 def get_api_work_source(manager: DagFileProcessorManager) -> ExecutionAPIWorkSource:

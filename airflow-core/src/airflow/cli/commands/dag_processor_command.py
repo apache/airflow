@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import logging
+from contextlib import contextmanager
 from typing import TYPE_CHECKING, Any
 
 from airflow.cli.commands.daemon_utils import run_command_with_daemon_option
@@ -40,7 +41,7 @@ from airflow.utils.process_utils import set_component_mp_start_method
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Callable, Iterator
 
 log = logging.getLogger(__name__)
 
@@ -67,17 +68,36 @@ def _get_team_names(bundle_names: list[str] | None) -> list[str]:
     return sorted({team for name in names if (team := configured.get(name)) is not None})
 
 
-def _create_dag_processor_job_runner(args: Any) -> DagProcessorJobRunner:
-    """Create DagFileProcessorProcess instance."""
-    if args.bundle_name:
-        if conf.getboolean("dag_processor", "use_execution_api"):
-            # Bundle constructors can read secrets; defer them until the API client is registered.
-            if unknown := set(args.bundle_name) - _load_bundle_config_snapshot().names:
-                raise SystemExit(f"Bundles not found: {', '.join(sorted(unknown))}")
-        else:
-            cli_utils.validate_dag_bundle_arg(args.bundle_name)
-    return DagProcessorJobRunner(
-        job=Job(bundle_names=args.bundle_name, team_names=_get_team_names(args.bundle_name)),
+@contextmanager
+def _create_dag_processor_job_runner(args: Any) -> Iterator[DagProcessorJobRunner]:
+    """Construct the manager with its dependencies and close its client when the job exits."""
+    job = Job(bundle_names=args.bundle_name, team_names=_get_team_names(args.bundle_name))
+    if conf.getboolean("dag_processor", "use_execution_api"):
+        token_file = _get_execution_api_token_file()
+
+        # The client loads FastAPI and the Execution API versions, which database mode does not need.
+        from airflow.dag_processing.api_client import DagProcessorAPIClient
+        from airflow.dag_processing.api_requested_work import ExecutionAPIWorkSource
+
+        with DagProcessorAPIClient(
+            base_url=get_execution_api_server_url(),
+            token_file=token_file,
+            hostname=get_hostname(),
+            unixname=job.unixname,
+            bundle_names=args.bundle_name or sorted(_load_bundle_config_snapshot().names),
+        ) as client:
+            yield DagProcessorJobRunner(
+                job=job,
+                processor=DagFileProcessorManager(
+                    max_runs=args.num_runs,
+                    bundle_names_to_parse=args.bundle_name,
+                    api_client=client,
+                    work_source=ExecutionAPIWorkSource(client),
+                ),
+            )
+        return
+    yield DagProcessorJobRunner(
+        job=job,
         processor=DagFileProcessorManager(
             max_runs=args.num_runs,
             bundle_names_to_parse=args.bundle_name,
@@ -86,25 +106,13 @@ def _create_dag_processor_job_runner(args: Any) -> DagProcessorJobRunner:
 
 
 @enable_memray_trace(component=MemrayTraceComponents.dag_processor)
-def _run_dag_processor_job(job_runner: DagProcessorJobRunner) -> None:
-    if not conf.getboolean("dag_processor", "use_execution_api"):
-        run_job(job=job_runner.job, execute_callable=job_runner._execute)
-        return
-    token_file = _get_execution_api_token_file()
-
-    # The client loads FastAPI and the Execution API versions, which database mode does not need.
-    from airflow.dag_processing.api_client import DagProcessorAPIClient
-
-    # Create the connection pool after the daemon or hot-reload fork.
-    with DagProcessorAPIClient(
-        base_url=get_execution_api_server_url(),
-        token_file=token_file,
-        hostname=get_hostname(),
-        unixname=job_runner.job.unixname,
-        bundle_names=job_runner.processor.bundle_names_to_parse
-        or sorted(_load_bundle_config_snapshot().names),
-    ) as client:
-        job_runner.run_with_api(client)
+def _run_dag_processor_job(args: Any) -> None:
+    # Construct the manager and its connection pool after the daemon or hot-reload fork.
+    with _create_dag_processor_job_runner(args) as job_runner:
+        if (client := job_runner.processor.api_client) is None:
+            run_job(job=job_runner.job, execute_callable=job_runner._execute)
+        else:
+            job_runner.run_with_api(client)
 
 
 def _get_execution_api_token_file() -> str:
@@ -148,13 +156,18 @@ def dag_processor_sync_bundles(args) -> None:
 
 def _start_dag_processor(args):
     set_component_mp_start_method("dag_processor")
-    job_runner = _create_dag_processor_job_runner(args)
-
+    if args.bundle_name:
+        if conf.getboolean("dag_processor", "use_execution_api"):
+            # Bundle constructors can read secrets; defer them until the API client is registered.
+            if unknown := set(args.bundle_name) - _load_bundle_config_snapshot().names:
+                raise SystemExit(f"Bundles not found: {', '.join(sorted(unknown))}")
+        else:
+            cli_utils.validate_dag_bundle_arg(args.bundle_name)
     if cli_utils.should_enable_hot_reload(args):
         from airflow.cli.hot_reload import run_with_reloader
 
         run_with_reloader(
-            lambda: _run_dag_processor_job(job_runner),
+            lambda: _run_dag_processor_job(args),
             process_name="dag-processor",
         )
         return
@@ -162,6 +175,6 @@ def _start_dag_processor(args):
     run_command_with_daemon_option(
         args=args,
         process_name="dag-processor",
-        callback=lambda: _run_dag_processor_job(job_runner),
+        callback=lambda: _run_dag_processor_job(args),
         should_setup_logging=True,
     )

@@ -26,7 +26,7 @@ from airflow._shared.observability.metrics import stats
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.execution_api.datamodels.job import TerminalJobState
 from airflow.configuration import conf
-from airflow.dag_processing.api_requested_work import ExecutionAPIWorkSource, get_status_code
+from airflow.dag_processing.api_requested_work import get_status_code
 from airflow.dag_processing.health import write_processor_health
 from airflow.dag_processing.timeouts import get_job_heartbeat_timeout
 from airflow.jobs.base_job_runner import BaseJobRunner
@@ -75,8 +75,6 @@ class DagProcessorJobRunner(BaseJobRunner, LoggingMixin):
     def run_with_api(self, client: DagProcessorAPIClient) -> int | None:
         """Mirror ``run_job`` metrics and listener ordering while the API owns Job persistence."""
         get_job_heartbeat_timeout()
-        self.processor.api_client = client
-        self.processor.work_source = ExecutionAPIWorkSource(client)
         self.job.id = self._register_api_job(client)
         self.job.state = JobState.RUNNING
         self.job.start_date = self.job.latest_heartbeat = timezone.utcnow()

@@ -84,8 +84,6 @@ class ExecutionAPIWorkSource(RequestedWorkSource, LoggingMixin):
         factory=list, init=False
     )
 
-    requires_acknowledgment = True
-
     def claim_priority_files(
         self,
         bundles: Collection[BaseDagBundle],
@@ -220,8 +218,9 @@ class ExecutionAPIWorkSource(RequestedWorkSource, LoggingMixin):
                 self._pending_work_acks.append(("priority", claim.work))
                 del self._priority_claims[key]
 
-    def callbacks_interrupted(self, attempt_id: UUID) -> None:
+    def callbacks_interrupted(self, attempt_id: UUID) -> bool:
         """Retry an attempt's callbacks with backoff until the expiry set by their first failure."""
+        retained = False
         for item in self._callback_attempts.pop(attempt_id, []):
             request = self._retain_callback_claim(item)
             if retry := self._interrupted_callback_retries.get(item.id):
@@ -229,6 +228,8 @@ class ExecutionAPIWorkSource(RequestedWorkSource, LoggingMixin):
             self.callback_deferred(request)
             if retry := self._deferred_callback_retries.get(id(request)):
                 self._interrupted_callback_retries[item.id] = retry
+                retained = True
+        return retained
 
     def flush(self, *, deadline: float | None = None) -> None:
         """Send queued acknowledgments in order until the deadline, keeping claims after a failure."""

@@ -64,7 +64,7 @@ from airflow.api_fastapi.execution_api.datamodels.dag_parsing import (
 from airflow.api_fastapi.execution_api.datamodels.job import FILELOC_MAX_LENGTH, DagParseTokenBody
 from airflow.api_fastapi.execution_api.in_process import InProcessExecutionAPI
 from airflow.configuration import conf
-from airflow.dag_processing.api_requested_work import ExecutionAPIWorkSource, get_status_code
+from airflow.dag_processing.api_requested_work import get_status_code
 from airflow.dag_processing.bundles.base import (
     BundleUsageTrackingManager,
     DagBundleRefreshError,
@@ -402,7 +402,12 @@ class DagFileProcessorManager(LoggingMixin):
     """
 
     work_source: RequestedWorkSource = attrs.field(
-        default=attrs.Factory(lambda self: self._create_requested_work_source(), takes_self=True)
+        default=attrs.Factory(
+            lambda self: DatabaseRequestedWorkSource(
+                self._claim_priority_files, self._fetch_callbacks_from_db
+            ),
+            takes_self=True,
+        )
     )
 
     _api_server: InProcessExecutionAPI | None = attrs.field(init=False, default=None)
@@ -451,11 +456,6 @@ class DagFileProcessorManager(LoggingMixin):
             bundle_names=self.bundle_names_to_parse,
             bundle_context=self.api_client.use_bundle,
         )
-
-    def _create_requested_work_source(self) -> RequestedWorkSource:
-        if self.api_client is not None:
-            return ExecutionAPIWorkSource(self.api_client)
-        return DatabaseRequestedWorkSource(self._claim_priority_files, self._fetch_callbacks_from_db)
 
     def sync_bundles(self, *, deactivate_missing: bool | None = None) -> None:
         """
@@ -760,10 +760,12 @@ class DagFileProcessorManager(LoggingMixin):
             self._collect_results()
             self._refresh_dag_bundles(known_files=known_files)
 
-            if not self._file_queue:
-                # Generate more file paths to process if we processed all the files already. Note for this to
-                # clear down, we must have cleared all files found from scanning the dags dir _and_ have
-                # cleared all files added as a result of callbacks
+            if not any(
+                file not in self._processors and file not in self._pending_publications
+                for file in self._file_queue
+            ):
+                # Busy requested files stay queued; they must not prevent other bundles from filling
+                # spare slots once the ordinary batch has drained.
                 self.prepare_file_queue(known_files=known_files)
 
             self._start_new_processes()
@@ -1819,13 +1821,14 @@ class DagFileProcessorManager(LoggingMixin):
         present_keys = {file.presence_key for file in present}
 
         def is_retained(file: DagFileInfo) -> bool:
-            return file.presence_key in present_keys or bool(
-                self.work_source.requires_acknowledgment and self._callback_to_execute.get(file)
+            return file.presence_key in present_keys or any(
+                self.work_source.has_callback_claim(request)
+                for request in self._callback_to_execute.get(file, ())
             )
 
         self._file_queue = OrderedDict((x, None) for x in self._file_queue if is_retained(x))
         self._files_awaiting_source = {x: None for x in self._files_awaiting_source if is_retained(x)}
-        self._priority_files = {x for x in self._priority_files if is_retained(x)}
+        self._priority_files = {x for x in self._priority_files if x.presence_key in present_keys}
         stats.gauge("dag_processing.file_path_queue_size", len(self._file_queue))
         self._record_files_awaiting_source()
 
@@ -2315,10 +2318,10 @@ class DagFileProcessorManager(LoggingMixin):
         self, processor: BaseDagFileProcessorProcess, *, timed_out_before_callbacks: bool = False
     ) -> None:
         # Running a callback again repeats its side effects, so retry only a process that ran none of them.
-        if not self.work_source.requires_acknowledgment or not (
-            processor.callback_targets_missing or timed_out_before_callbacks
-        ):
+        if not (processor.callback_targets_missing or timed_out_before_callbacks):
             self.work_source.attempt_finished(processor.id, had_callbacks=True)
+            return
+        if not self.work_source.callbacks_interrupted(processor.id):
             return
         if timed_out_before_callbacks:
             self.log.warning(
@@ -2334,7 +2337,6 @@ class DagFileProcessorManager(LoggingMixin):
                 bundle_name=processor.bundle_name,
                 error=processor.api_request_error or "Request interrupted before its response was received",
             )
-        self.work_source.callbacks_interrupted(processor.id)
 
     def _get_log_dir(self) -> str:
         return os.path.join(self.base_log_dir, timezone.utcnow().strftime("%Y-%m-%d"))
@@ -2491,15 +2493,11 @@ class DagFileProcessorManager(LoggingMixin):
             if len(self._processors) + len(self._pending_publications) >= self._parallelism:
                 break
             file, _ = self._file_queue.popitem(last=False)
-            has_priority_claim = self.work_source.has_priority_request(file)
+            has_priority_request = self._has_priority_request(file)
             # Stop creating duplicate processor i.e. processor with the same filepath
             if file in self._processors or file in self._pending_publications:
-                if has_priority_claim or file in self._callback_to_execute:
-                    if self.work_source.requires_acknowledgment:
-                        self._priority_files.discard(file)
+                if has_priority_request or file in self._callback_to_execute:
                     requested_later[file] = None
-                elif not self.work_source.requires_acknowledgment and file in self._priority_files:
-                    self._files_awaiting_source[file] = None
                 else:
                     self._priority_files.discard(file)
                 continue
@@ -2508,23 +2506,15 @@ class DagFileProcessorManager(LoggingMixin):
             if source is None:
                 self._files_awaiting_source[file] = None
                 continue
-            has_callbacks = file in self._callback_to_execute
             processor = self._create_process(file, source=source)
-            if (
-                not self.work_source.requires_acknowledgment
-                and has_callbacks
-                and file in self._priority_files
-            ):
-                # Callback execution cannot satisfy a request for a fresh ordinary parse.
-                self._files_awaiting_source[file] = None
-            else:
-                self._priority_files.discard(file)
             self._dispatch_sequence += 1
             processor.dispatch_sequence = self._dispatch_sequence
             if processor.had_callbacks:
-                if has_priority_claim:
+                # Callback execution cannot satisfy a request for a fresh ordinary parse.
+                if has_priority_request:
                     requested_later[file] = None
             else:
+                self._priority_files.discard(file)
                 self.work_source.parse_started(file, processor.id)
             stats.incr(
                 "dag_processing.processes",
@@ -2662,11 +2652,7 @@ class DagFileProcessorManager(LoggingMixin):
         return False
 
     def prepare_file_queue(self, known_files: dict[str, set[DagFileInfo]]):
-        """
-        Scan dags dir to generate more file paths to process.
-
-        Note this method is only called when the file path queue is empty
-        """
+        """Queue eligible ordinary parses while preserving pending requests."""
         file_stats_by_presence_key = self._resolve_stats_by_presence_key()
         # A refresh drain belongs to this cycle; an outage must not suppress other bundles' metrics.
         pending_refresh_bundles = self._bundles_waiting_for_refresh | (
@@ -2881,12 +2867,11 @@ class DagFileProcessorManager(LoggingMixin):
 
     def terminate(self):
         """Stop all running processors."""
-        if self.work_source.requires_acknowledgment:
-            for processor in self._processors.values():
-                # The shutdown signal can also reach children through the process group, so only a clean
-                # exit shows that a callback finished; a stopped callback is delivered again.
-                if processor.had_callbacks and processor.exited_cleanly:
-                    self.work_source.attempt_finished(processor.id, had_callbacks=True)
+        for processor in self._processors.values():
+            # The shutdown signal can also reach children through the process group, so only a clean
+            # exit shows that a callback finished; a stopped callback is delivered again.
+            if processor.had_callbacks and processor.exited_cleanly:
+                self.work_source.attempt_finished(processor.id, had_callbacks=True)
         bundle_to_team = self._get_team_names({file.bundle_name for file in self._processors})
 
         for file, processor in self._processors.items():

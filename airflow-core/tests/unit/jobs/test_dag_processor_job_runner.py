@@ -34,13 +34,12 @@ from airflow.dag_processing.api_client import (
 from airflow.dag_processing.api_requested_work import ExecutionAPIWorkSource
 from airflow.dag_processing.health import check_processor_health
 from airflow.dag_processing.manager import DagFileProcessorManager
-from airflow.dag_processing.requested_work import DatabaseRequestedWorkSource
 from airflow.exceptions import AirflowConfigException
 from airflow.jobs.dag_processor_job_runner import DagProcessorHeartbeatTimeout, DagProcessorJobRunner
 from airflow.jobs.job import Job, JobState, run_job
 
 from tests_common.test_utils.config import conf_vars
-from unit.dag_processing.requested_work_helpers import get_api_work_source, make_work
+from unit.dag_processing.requested_work_helpers import create_manager, get_api_work_source, make_work
 
 
 @pytest.fixture
@@ -53,12 +52,12 @@ def client():
 
 
 @pytest.fixture
-def runner(tmp_path, monkeypatch):
+def runner(tmp_path, monkeypatch, client):
     monkeypatch.setattr("airflow.dag_processing.health._next_health_write_warnings", {})
     with conf_vars({("dag_processor", "health_check_file"): str(tmp_path / "health.json")}):
-        yield DagProcessorJobRunner(
-            job=Job(heartrate=5), processor=mock.create_autospec(DagFileProcessorManager, instance=True)
-        )
+        processor = mock.create_autospec(DagFileProcessorManager, instance=True)
+        processor.api_client = client
+        yield DagProcessorJobRunner(job=Job(heartrate=5), processor=processor)
 
 
 @pytest.fixture
@@ -106,14 +105,18 @@ def test_api_lifecycle_cleans_up_before_completion(complete, prepare, runner, cl
 @mock.patch.object(DagFileProcessorManager, "end", autospec=True)
 @mock.patch.object(DagFileProcessorManager, "terminate", autospec=True)
 @mock.patch.object(DagFileProcessorManager, "run", autospec=True)
-def test_api_lifecycle_replaces_the_database_work_source_before_parsing(run, terminate, end, runner, client):
-    manager = DagFileProcessorManager(max_runs=1)
-    assert isinstance(manager.work_source, DatabaseRequestedWorkSource)
+def test_api_lifecycle_preserves_the_injected_work_source(run, terminate, end, runner, client):
+    source = ExecutionAPIWorkSource(client)
+    manager = DagFileProcessorManager(max_runs=1, api_client=client, work_source=source)
+    work = make_work(bundle_name="testing")
+    source._pending_work_acks = [("priority", work)]
     runner.processor = manager
     client.claim_work.return_value = []
 
     def fetch_callbacks(processor):
-        assert isinstance(processor.work_source, ExecutionAPIWorkSource)
+        assert processor.api_client is client
+        assert processor.work_source is source
+        assert source._pending_work_acks == [("priority", work)]
         assert processor.fetch_callbacks() == []
 
     run.side_effect = fetch_callbacks
@@ -134,7 +137,7 @@ def test_exit_signal_during_a_parse_request_acknowledges_with_the_job_credential
     client.acknowledge_work.side_effect = lambda kind, work: parse_contexts.append(
         client._parse_context.get()
     )
-    manager = DagFileProcessorManager(max_runs=1, api_client=client)
+    manager = create_manager(max_runs=1, api_client=client)
     work = make_work(bundle_name="testing", relative_fileloc="a.py")
     get_api_work_source(manager)._pending_work_acks = [("callbacks", work)]
 

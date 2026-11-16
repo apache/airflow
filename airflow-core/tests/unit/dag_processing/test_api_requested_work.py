@@ -65,7 +65,6 @@ def _claim_callback(source, client, bundle):
 @pytest.mark.parametrize("callback_type", [DagCallbackRequest, TaskCallbackRequest, EmailRequest])
 def test_callback_lifecycle_preserves_equal_payload_claim_identity(api_source, callback_type):
     source, client, bundle = api_source
-    assert source.requires_acknowledgment
     assert not source.has_outstanding_work()
     fields = dict(
         filepath="a.py",
@@ -309,7 +308,7 @@ def test_interrupted_callback_retries_until_its_first_failure_expires(monotonic,
     first_attempt = uuid7()
     source.callbacks_started(first_attempt, [request])
 
-    source.callbacks_interrupted(first_attempt)
+    assert source.callbacks_interrupted(first_attempt)
 
     [retried] = source.fetch_callbacks([bundle], limit=1)
     assert retried == request
@@ -328,7 +327,7 @@ def test_interrupted_callback_retries_until_its_first_failure_expires(monotonic,
         source.attempt_finished(second_attempt, had_callbacks=True)
     else:
         monotonic.return_value = 13
-        source.callbacks_interrupted(second_attempt)
+        assert not source.callbacks_interrupted(second_attempt)
     source.flush()
 
     client.acknowledge_work.assert_called_once_with("callbacks", work)

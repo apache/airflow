@@ -40,8 +40,6 @@ def get_callback_target(request: CallbackRequest) -> str:
 class RequestedWorkSource:
     """Supply requested parses and callbacks, and track their delivery lifecycle."""
 
-    requires_acknowledgment = False
-
     def claim_priority_files(
         self,
         bundles: Collection[BaseDagBundle],
@@ -66,8 +64,9 @@ class RequestedWorkSource:
         publication reaches a terminal outcome or the parse fails without producing a result.
         """
 
-    def callbacks_interrupted(self, attempt_id: UUID) -> None:
-        """Retry the callbacks of an attempt whose Execution API requests failed."""
+    def callbacks_interrupted(self, attempt_id: UUID) -> bool:
+        """Retry interrupted callbacks and return whether any were retained for another attempt."""
+        return False
 
     def flush(self, *, deadline: float | None = None) -> None:
         """Deliver pending acknowledgments within the supplied time budget."""

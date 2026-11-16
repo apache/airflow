@@ -43,7 +43,7 @@ from airflow.dag_processing.manager import (
 from airflow.dag_processing.processor import DagFileParsingResult, DagFileProcessorProcess, DagParseSource
 from airflow.utils.file import find_enclosing_file
 
-from unit.dag_processing.requested_work_helpers import get_api_work_source, make_work
+from unit.dag_processing.requested_work_helpers import create_manager, get_api_work_source, make_work
 
 
 @pytest.fixture
@@ -62,9 +62,7 @@ def api_manager(tmp_path):
     client.publish_inventory.side_effect = lambda name, body: DagBundleInventoryResponse(
         attempt_id=body.attempt_id, revision=revision, accepted_at=timezone.utcnow()
     )
-    manager = DagFileProcessorManager(
-        max_runs=1, api_client=client, parallelism=2, bundle_refresh_check_interval=0
-    )
+    manager = create_manager(max_runs=1, api_client=client, parallelism=2, bundle_refresh_check_interval=0)
     manager._dag_bundles = [bundle]
     manager._bundle_versions[bundle.name] = None
     manager._bundle_refresh_generations[bundle.name] = 3
@@ -251,6 +249,9 @@ def test_callback_for_removed_file_does_not_restore_acknowledged_priority_reques
     manager._queue_requested_files_for_parsing()
     request = DagCallbackRequest(
         filepath=str(file.rel_path), bundle_name=bundle.name, bundle_version=None, dag_id="test", run_id="run"
+    )
+    get_api_work_source(manager)._callback_claims[id(request)] = make_work(
+        bundle_name=bundle.name, relative_fileloc=str(file.rel_path), callback=request
     )
     manager._callback_to_execute[file].append(request)
     file.absolute_path.unlink()
