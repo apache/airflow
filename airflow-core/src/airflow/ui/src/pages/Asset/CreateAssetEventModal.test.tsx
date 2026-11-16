@@ -90,14 +90,17 @@ vi.mock("src/components/TriggerDag/TriggerDAGForm", () => ({
     isPaused,
     onPausedDagActionChange,
     onSubmitTrigger,
+    suggestedPartitionKey,
   }: {
     readonly disabled?: boolean;
     readonly isPaused: boolean;
     readonly onPausedDagActionChange?: () => void;
     readonly onSubmitTrigger: (params: DagRunTriggerParams) => void;
+    readonly suggestedPartitionKey?: string | null;
   }) => (
     <>
       <span>{`paused=${String(isPaused)}`}</span>
+      <span>{`suggested=${String(suggestedPartitionKey)}`}</span>
       <button onClick={onPausedDagActionChange} type="button">
         Keep paused
       </button>
@@ -391,4 +394,20 @@ describe("CreateAssetEventModal", () => {
       }),
     );
   });
+
+  it.each(["2026-02-18T00:00:00", null])(
+    "passes the upstream Dag's suggested partition key (%s) to the trigger form",
+    async (suggested) => {
+      vi.mocked(useDependenciesServiceGetDependencies).mockReturnValue(withUpstreamDependencies);
+      vi.mocked(useDagServiceGetDagDetails).mockReturnValue({
+        data: { ...upstreamDag, suggested_partition_key: suggested },
+      } as ReturnType<typeof useDagServiceGetDagDetails>);
+
+      render(<CreateAssetEventModal asset={asset} onClose={vi.fn()} open />, { wrapper: Wrapper });
+
+      fireEvent.click(screen.getByText("createEvent.materialize.label"));
+
+      expect(await screen.findByText(`suggested=${String(suggested)}`)).toBeInTheDocument();
+    },
+  );
 });
