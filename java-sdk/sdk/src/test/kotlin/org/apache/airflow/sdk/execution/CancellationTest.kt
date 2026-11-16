@@ -289,7 +289,7 @@ class CancellationTest {
       0 to
         listOf(
           "failed",
-          "Cannot start the task: org.apache.airflow.sdk.execution.CannotCatchStopSignalsException: The SDK cannot catch " +
+          "Error executing task: org.apache.airflow.sdk.execution.CannotCatchStopSignalsException: The SDK cannot catch " +
             "SIGTERM or SIGINT in this JVM, so the task cannot see a stop request. The JVM might run with -Xrs, or without " +
             "the jdk.unsupported module",
         ),

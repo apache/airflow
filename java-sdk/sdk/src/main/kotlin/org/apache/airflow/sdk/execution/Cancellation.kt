@@ -130,15 +130,23 @@ internal class Cancellation : AutoCloseable {
   }
 }
 
-/** Thrown by [Cancellation.hold] when the SDK can catch neither stop signal in this JVM. */
-internal class CannotCatchStopSignalsException(
+/** [TaskRunner] fails the task without a retry when it catches this exception. A retry would fail with the same exception. */
+internal abstract class NonRetryableException(
   message: String,
 ) : IllegalStateException(message)
+
+/**
+ * Thrown by [Cancellation.hold] when the SDK can catch neither stop signal in this JVM. A retry usually runs with
+ * the same JVM options and runtime image, so it would fail too.
+ */
+internal class CannotCatchStopSignalsException(
+  message: String,
+) : NonRetryableException(message)
 
 /** Thrown by [Context.isCancelled] and [Context.awaitCancellation] when the running task is not a [StoppableTask]. */
 internal class TaskCannotSeeStopRequestException(
   message: String,
-) : IllegalStateException(message)
+) : NonRetryableException(message)
 
 // The stop-signal thread never waits for room: unread logs could block the stop request and a second signal.
 private val logger = Logger(Cancellation::class, waitsForRoom = false)

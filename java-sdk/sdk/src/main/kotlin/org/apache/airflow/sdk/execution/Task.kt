@@ -146,17 +146,12 @@ internal object TaskRunner {
       val decider = taskDef.decider
       if (decider == null) instance.execute(context, client) else decide(decider, taskDef, instance, context, client)
       TaskResult.success()
-    } catch (e: CannotCatchStopSignalsException) {
-      logger.error("Cannot start the task", mapOf("ti" to request.ti, "error" to e))
-      // A retry usually runs with the same JVM options and runtime image, so it would fail the same way.
-      TaskResult.failure(shouldRetry = false)
     } catch (e: Throwable) {
       // Throwable includes CancellationException, which a task gets from a future that onKill cancelled.
       // The serve coroutine's own cancellation cannot reach this blocking call, so the exception comes
       // from the task.
       logger.error("Error executing task", mapOf("ti" to request.ti, "error" to e, "trace" to e.stackTraceToString()))
-      // A task that cannot see a stop request would fail the same way on every retry.
-      TaskResult.failure(request.tiContext.shouldRetry && e !is TaskCannotSeeStopRequestException)
+      TaskResult.failure(request.tiContext.shouldRetry && e !is NonRetryableException)
     }
   }
 }
