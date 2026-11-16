@@ -4301,7 +4301,9 @@ class TestTriggerFailureRecording:
         assert submit.call_args.kwargs["failure"].consecutive_failures == 1
 
     @pytest.mark.parametrize("kind", ["asset_watcher", "callback"])
-    def test_new_owner_continues_the_recorded_count(self, supervisor, mocker, kind):
+    def test_new_owner_continues_the_recorded_count_and_waits_for_the_backoff(
+        self, supervisor, mocker, clock, kind
+    ):
         callback = mocker.Mock(data={}, id=uuid.uuid4()) if kind == "callback" else None
         trigger = mocker.Mock(
             spec=Trigger,
@@ -4316,19 +4318,29 @@ class TestTriggerFailureRecording:
         )
         for asset in trigger.assets:
             asset.name = "a"
+        mocker.patch("airflow.jobs.triggerer_job_runner.create_session")
+        mocker.patch("airflow.jobs.triggerer_job_runner.DBDagBag")
+        mocker.patch("airflow.jobs.triggerer_job_runner.prepare_task_log_contexts", return_value={})
         mocker.patch.object(
-            TriggerRunnerSupervisor,
-            "build_trigger_workloads",
-            autospec=True,
-            side_effect=lambda sup, ids: [
-                sup._create_workload(trigger, dag_bag=None, render_log_fname=None, session=None) for _ in ids
-            ],
+            TriggerRunnerSupervisor, "fetch_trigger_details", autospec=True, return_value={1: trigger}
+        )
+        mocker.patch.object(
+            TriggerRunnerSupervisor, "fetch_non_task_trigger_ids", autospec=True, return_value={1}
         )
 
-        supervisor.update_triggers({1})
+        with conf_vars(
+            {
+                ("triggerer", "failed_trigger_retry_delay"): "5",
+                ("triggerer", "failed_trigger_retry_max_delay"): "30",
+            }
+        ):
+            supervisor.update_triggers({1})
+            assert supervisor.failure_tracker.consecutive(1) == 4
+            assert not supervisor.creating_triggers
 
-        assert supervisor.failure_tracker.consecutive(1) == 4
-        # Without a backoff it is re-created right away, as before.
+            clock.return_value += 20.0
+            supervisor.update_triggers({1})
+
         assert [w.id for w in supervisor.creating_triggers] == [1]
 
     def test_a_trigger_no_longer_assigned_here_is_forgotten(self, supervisor):

@@ -1073,7 +1073,6 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             if trigger.assets
             else TriggerKind.CALLBACK
         ).value
-        self.failure_tracker.continue_from(trigger.id, trigger.consecutive_failures)
         if trigger.task_instance is None:
             watched_assets: dict[str, str] | None = None
 
@@ -1217,6 +1216,16 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                     continue
 
                 new_trigger_orm = new_triggers[new_trigger_id]
+
+                # A trigger handed over by another triggerer, or picked up again after a restart, carries the
+                # failures recorded on its row. Seed them before building, so the backoff also applies here.
+                self.failure_tracker.continue_from(new_trigger_id, new_trigger_orm.consecutive_failures)
+                if not self.failure_tracker.attempt_ready(new_trigger_id, time.monotonic()):
+                    log.info(
+                        "Trigger failed recently, re-creating it once its backoff has passed",
+                        id=new_trigger_id,
+                    )
+                    continue
 
                 # If the trigger is not associated to a task, an asset, or a callback, this means the TaskInstance
                 # row was updated by either Trigger.submit_event or Trigger.submit_failure
