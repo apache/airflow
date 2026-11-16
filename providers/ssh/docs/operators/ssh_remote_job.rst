@@ -294,6 +294,11 @@ poll loop instead of reconnecting on every status check. To push a high fan-out 
   releasing the entire fan-out simultaneously. See the "Placing Limits on Mapped Tasks" section of
   :doc:`apache-airflow:authoring-and-scheduling/dynamic-task-mapping` for the available limits.
 
+The trigger's connection compresses traffic by default and holds about 0.3 MB of zlib state for
+as long as the job runs, which adds up on a triggerer monitoring many jobs. Setting
+``"compress": "false"`` in the extra of the SSH connection avoids it, and also turns compression
+off for every other task using that connection.
+
 Comparison with SSHOperator
 ----------------------------
 

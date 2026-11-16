@@ -2055,6 +2055,8 @@ class TestGetDagRunAssetTriggerEvents:
                     "source_dag_id": ti.dag_id,
                     "source_map_index": ti.map_index,
                     "source_task_instance_id": None,
+                    "source_region_id": None,
+                    "source_region_index": None,
                     "source_run_id": ti.run_id,
                     "source_task_id": ti.task_id,
                     "created_dagruns": [

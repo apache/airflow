@@ -189,6 +189,14 @@ class TestTools:
         ):
             AirflowTools(MCPToolset("mcp_default"))
 
+    def test_a_filter_that_rejects_every_tool_serves_an_empty_mcp_server(self):
+        tools = AirflowTools(SQLToolset("pg_default").filtered(lambda ctx, tool: False))
+
+        options = tools.build_options()
+
+        assert tools.allowed_tools == []
+        assert options.mcp_servers == {"airflow": tools.server}
+
     def test_each_toolset_tool_becomes_an_mcp_tool_with_its_schema(self):
         tools, handlers = _build_tools(_tool(ToolResult("ok")), SQLToolset("pg_default"))
 

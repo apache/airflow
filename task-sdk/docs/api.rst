@@ -174,6 +174,16 @@ Tasks page in the core docs for usage and design rationale.
 
 .. autoclass:: airflow.sdk.RetryAction
 
+Clearing Tasks in Other Dags
+----------------------------
+An operator can name a task in another Dag to clear, with everything downstream of it, whenever the
+operator's task is cleared with its downstream tasks. A target known when the Dag is parsed goes in an
+``external_clear_target`` property, and is stored with the Dag version. A target that depends on the run
+comes from ``get_external_clear_target(context)``, which the task runner calls after a successful run.
+``ExternalTaskMarker`` in the standard provider does both.
+
+.. autoapiclass:: airflow.sdk.ExternalClearTarget
+
 State Enums
 -----------
 .. autoclass:: airflow.sdk.TaskInstanceState

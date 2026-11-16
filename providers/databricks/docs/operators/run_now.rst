@@ -191,8 +191,8 @@ the common safe choices.
 
 For controlling attempt count and delay in deferrable mode, leave
 ``databricks_retry_args`` unset and use the dedicated operator parameters
-``retry_limit`` and ``retry_delay``. When ``databricks_retry_args`` is set,
-these dedicated parameters are ignored for the hook retry policy.
+``databricks_retry_limit`` and ``databricks_retry_delay``. When ``databricks_retry_args`` is
+set, these dedicated parameters are ignored for the hook retry policy.
 
 Serialization validation only verifies that values can cross the trigger boundary; it does
 not verify that the supplied keys and values are valid or meaningful ``tenacity.Retrying``

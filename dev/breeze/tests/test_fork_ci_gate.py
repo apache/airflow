@@ -341,7 +341,7 @@ def test_parse_config_defaults():
     config = parse_config("")
 
     assert config.enabled is False
-    assert config.close_after_days == 7
+    assert config.close_after_days == 30
     assert config.allowlist == {}
     assert config.pilot == {}
     assert config.job_statuses is True
@@ -374,6 +374,7 @@ def test_parse_config_lowercases_pilot_logins():
         pytest.param('[allowlist]\n"Org" = "login"\n', "allowlist entry 'Org'", id="allowlist-not-list"),
         pytest.param('[pilot]\n"login" = "2026-10-20"\n', "pilot entry 'login'", id="pilot-not-datetime"),
         pytest.param('[pilot]\n"login" = 2026-10-20T00:00:00\n', "pilot entry 'login'", id="pilot-naive"),
+        pytest.param('pilot = ["login"]\n', "pilot must be a table", id="pilot-not-table"),
         pytest.param("enabled = \n", "Invalid fork CI gate configuration", id="invalid-toml"),
     ],
 )
