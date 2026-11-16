@@ -568,6 +568,14 @@ creates asset events with a partition key on each run.
 Partitioned events are intended for partition-aware downstream scheduling, and
 do not trigger non-partition-aware Dags.
 
+When you trigger a Dag with a partitioned timetable manually in the UI, the partition key
+field is pre-filled with a suggested key. For ``CronPartitionTimetable`` this is the key of the
+latest tick at or before the current time, with ``run_offset`` and ``key_format`` applied. You can edit
+the suggestion; clearing the field triggers a run without a partition key. A custom timetable
+can provide its own suggestion by overriding :meth:`~airflow.timetables.base.Timetable.suggest_partition_key`.
+The default returns ``None``, which leaves the field empty, and an exception raised by an
+override only means no suggestion is shown.
+
 Pre-determined vs runtime partitioning
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
