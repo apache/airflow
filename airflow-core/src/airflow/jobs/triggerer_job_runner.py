@@ -46,7 +46,7 @@ from pydantic import BaseModel, Field, TypeAdapter
 from sqlalchemy import func, select
 from structlog.contextvars import bind_contextvars as bind_log_contextvars
 
-from airflow._shared.logging.tracebacks import format_exception_dicts
+from airflow._shared.logging.tracebacks import format_error_detail
 from airflow._shared.module_loading import import_string
 from airflow._shared.observability.metrics import stats
 from airflow._shared.timezones import timezone
@@ -1097,10 +1097,11 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                 log = fallback_log
 
             if exc := event.pop("exception", None):
-                if log is fallback_log and not json_logs:
-                    # A plain-text triggerer log gets a readable traceback; JSON output and the
-                    # task log keep the structured dicts.
-                    event["error_detail"] = format_exception_dicts(exc) or exc
+                if log is fallback_log and not json_logs and (rendered := format_error_detail(exc)):
+                    # The console renderer prints a string "exception" as-is. A multiline
+                    # string in any other field is escaped onto one line. JSON logs and
+                    # task logs keep the structured dicts.
+                    event["exception"] = rendered
                 else:
                     event["error_detail"] = exc
             if lvl_name := NAME_TO_LEVEL.get(event.pop("level")):
