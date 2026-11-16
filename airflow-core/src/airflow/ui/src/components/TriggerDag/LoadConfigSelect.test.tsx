@@ -20,9 +20,10 @@ import "@testing-library/jest-dom";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
+import { paramPlaceholder } from "src/queries/useParamStore";
 import { Wrapper } from "src/utils/Wrapper";
 
-import RecentConfigSelect from "./RecentConfigSelect";
+import LoadConfigSelect from "./LoadConfigSelect";
 
 const buildRun = (overrides: Record<string, unknown>) => ({
   bundle_version: null,
@@ -62,7 +63,7 @@ vi.mock("openapi/queries", () => ({
 // Select.Content is portalled to document.body, outside the render container.
 const getItems = () => document.body.querySelectorAll(".chakra-select__item");
 
-describe("RecentConfigSelect", () => {
+describe("LoadConfigSelect", () => {
   it("renders one item per distinct non-empty conf", () => {
     mockData = {
       dag_runs: [
@@ -71,7 +72,7 @@ describe("RecentConfigSelect", () => {
       ],
     };
 
-    render(<RecentConfigSelect dagId="test_dag" onSelectConf={vi.fn()} open />, { wrapper: Wrapper });
+    render(<LoadConfigSelect dagId="test_dag" onSelectConf={vi.fn()} open />, { wrapper: Wrapper });
 
     expect(getItems()).toHaveLength(2);
   });
@@ -84,7 +85,7 @@ describe("RecentConfigSelect", () => {
       ],
     };
 
-    render(<RecentConfigSelect dagId="test_dag" onSelectConf={vi.fn()} open />, { wrapper: Wrapper });
+    render(<LoadConfigSelect dagId="test_dag" onSelectConf={vi.fn()} open />, { wrapper: Wrapper });
 
     expect(getItems()).toHaveLength(1);
   });
@@ -94,7 +95,7 @@ describe("RecentConfigSelect", () => {
       dag_runs: [buildRun({ conf: null, dag_run_id: "run_1" }), buildRun({ conf: {}, dag_run_id: "run_2" })],
     };
 
-    const { container } = render(<RecentConfigSelect dagId="test_dag" onSelectConf={vi.fn()} open />, {
+    const { container } = render(<LoadConfigSelect dagId="test_dag" onSelectConf={vi.fn()} open />, {
       wrapper: Wrapper,
     });
 
@@ -112,7 +113,7 @@ describe("RecentConfigSelect", () => {
       ),
     };
 
-    render(<RecentConfigSelect dagId="test_dag" onSelectConf={vi.fn()} open />, { wrapper: Wrapper });
+    render(<LoadConfigSelect dagId="test_dag" onSelectConf={vi.fn()} open />, { wrapper: Wrapper });
 
     expect(getItems()).toHaveLength(8);
   });
@@ -123,7 +124,7 @@ describe("RecentConfigSelect", () => {
     };
     const onSelectConf = vi.fn();
 
-    render(<RecentConfigSelect dagId="test_dag" onSelectConf={onSelectConf} open />, { wrapper: Wrapper });
+    render(<LoadConfigSelect dagId="test_dag" onSelectConf={onSelectConf} open />, { wrapper: Wrapper });
 
     fireEvent.click(screen.getByRole("combobox"));
 
@@ -139,7 +140,7 @@ describe("RecentConfigSelect", () => {
       dag_runs: [buildRun({ conf: { message: "Pick me" }, dag_run_id: "run_1" })],
     };
 
-    render(<RecentConfigSelect dagId="test_dag" onSelectConf={vi.fn()} open />, { wrapper: Wrapper });
+    render(<LoadConfigSelect dagId="test_dag" onSelectConf={vi.fn()} open />, { wrapper: Wrapper });
 
     const trigger = screen.getByRole("combobox");
 
@@ -148,5 +149,62 @@ describe("RecentConfigSelect", () => {
     fireEvent.click(screen.getByText("run_1"));
 
     await waitFor(() => expect(trigger).toHaveTextContent("run_1"));
+  });
+
+  it("lists the Dag's presets ahead of recent configurations", () => {
+    mockData = {
+      dag_runs: [buildRun({ conf: { message: "From run" }, dag_run_id: "run_1" })],
+    };
+
+    render(
+      <LoadConfigSelect
+        dagId="test_dag"
+        onSelectConf={vi.fn()}
+        open
+        paramPresets={{ Debug: { message: "Debug" }, Nightly: { message: "Nightly" } }}
+      />,
+      { wrapper: Wrapper },
+    );
+
+    expect([...getItems()].map((item) => item.textContent)).toEqual([
+      "Debug",
+      "Nightly",
+      expect.stringContaining("run_1"),
+    ]);
+  });
+
+  it("renders the presets when no recent run has a conf", () => {
+    mockData = { dag_runs: [] };
+
+    render(<LoadConfigSelect dagId="test_dag" onSelectConf={vi.fn()} open paramPresets={{ Nightly: {} }} />, {
+      wrapper: Wrapper,
+    });
+
+    expect(getItems()).toHaveLength(1);
+  });
+
+  it("calls onSelectConf with the Dag defaults overlaid by the selected preset", async () => {
+    mockData = { dag_runs: [] };
+    const onSelectConf = vi.fn();
+
+    render(
+      <LoadConfigSelect
+        dagId="test_dag"
+        onSelectConf={onSelectConf}
+        open
+        paramPresets={{ Nightly: { batch_size: 512 } }}
+        paramsDict={{
+          batch_size: { ...paramPlaceholder, value: 128 },
+          shuffle: { ...paramPlaceholder, value: true },
+        }}
+      />,
+      { wrapper: Wrapper },
+    );
+
+    fireEvent.click(screen.getByRole("combobox"));
+    await waitFor(() => expect(screen.getByRole("listbox")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("Nightly"));
+
+    await waitFor(() => expect(onSelectConf).toHaveBeenCalledWith({ batch_size: 512, shuffle: true }));
   });
 });

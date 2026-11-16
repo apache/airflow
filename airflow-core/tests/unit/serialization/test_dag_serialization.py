@@ -1288,11 +1288,13 @@ class TestStringifiedDAGs:
         dag = DAG(
             dag_id="simple_dag",
             schedule=None,
-            params={
-                "batch_size": Param(128, type="integer", minimum=1),
-                "tuning": Param({"lr": 0.1, "layers": [16]}, type="object"),
-            },
-            param_presets=presets,
+            params=ParamsDict(
+                {
+                    "batch_size": Param(128, type="integer", minimum=1),
+                    "tuning": Param({"lr": 0.1, "layers": [16]}, type="object"),
+                },
+                presets=presets,
+            ),
         )
 
         serialized_dag = json.loads(DagSerialization.to_json(dag))
@@ -1617,6 +1619,7 @@ class TestStringifiedDAGs:
             "has_on_failure_callback",
             "dag_dependencies",
             "params",
+            "param_presets",
         }
 
         keys_for_backwards_compat: set = {

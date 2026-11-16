@@ -181,7 +181,6 @@
     "manualRunDenied": "इस Dag के लिए मैनुअल रन की अनुमति नहीं है",
     "partitionKeyHelp": "वैकल्पिक - केवल विभाजित Dags पर लागू होता है",
     "recentConfig": "हाल के विन्यास",
-    "recentConfigPlaceholder": "एक हाल का विन्यास चुनें",
     "runIdHelp": "वैकल्पिक - प्रदान न किए जाने पर जेनरेट किया जाएगा",
     "selectDescription": "इस डैग का एक रन ट्रिगर करें",
     "selectLabel": "सिंगल रन",

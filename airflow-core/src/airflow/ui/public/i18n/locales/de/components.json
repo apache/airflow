@@ -187,7 +187,6 @@
     "manualRunDenied": "Manuelles Auslösen dieses Dags ist nicht erlaubt.",
     "partitionKeyHelp": "Optional - gilt nur für partitionierte Dags",
     "recentConfig": "Vorhergehende Konfiguration",
-    "recentConfigPlaceholder": "Eine vorhergegangene Konfiguration auswählen",
     "runIdHelp": "Optional - wird automatisch erzeugt wenn nicht angegeben",
     "selectDescription": "Einen einzelnen Lauf dieses Dags auslösen",
     "selectLabel": "Einzelner Lauf",

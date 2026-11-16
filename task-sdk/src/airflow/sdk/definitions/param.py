@@ -161,18 +161,50 @@ class ParamsDict(MutableMapping[str, Any]):
 
     All the keys are strictly string and values are converted into Param's object
     if they are not already. This class is to replace param's dictionary implicitly
-    and ideally not needed to be used directly.
+    and is only needed directly to declare ``presets``.
 
     :param dict_obj: A dict or dict like object to init ParamsDict
     :param suppress_exception: Flag to suppress value exceptions while initializing the ParamsDict
+    :param presets: named sets of param values offered in the trigger form, mapping a preset name
+        to the param values it applies, e.g. ``{"Nightly": {"batch_size": 512, "shuffle": True}}``.
+        A preset only needs to list the params it changes; the rest keep their defaults. Every key
+        must name a param in this ParamsDict and its value must satisfy that param's schema. Only
+        the presets of a Dag's params are used.
     """
 
     __version__: ClassVar[int] = 1
-    __slots__ = ["__dict", "suppress_exception"]
+    __slots__ = ["__dict", "presets", "suppress_exception"]
 
-    def __init__(self, dict_obj: Mapping[str, Any] | None = None, suppress_exception: bool = False):
+    def __init__(
+        self,
+        dict_obj: Mapping[str, Any] | None = None,
+        suppress_exception: bool = False,
+        *,
+        presets: dict[str, dict[str, Any]] | None = None,
+    ):
         self.__dict = {k: v if isinstance(v, Param) else Param(v) for k, v in (dict_obj or {}).items()}
         self.suppress_exception = suppress_exception
+        self.presets: dict[str, dict[str, Any]] = presets or {}
+        self._validate_presets()
+
+    def _validate_presets(self) -> None:
+        """Reject presets that name an unknown param or carry a value the param's schema rejects."""
+        for preset_name, preset_values in self.presets.items():
+            if not isinstance(preset_values, dict):
+                raise TypeError(
+                    f"Param preset {preset_name!r} must be a dict of param names to values, "
+                    f"got {type(preset_values).__name__}."
+                )
+            for key, value in preset_values.items():
+                if key not in self.__dict:
+                    raise ValueError(f"Param preset {preset_name!r} sets unknown param {key!r}.")
+                try:
+                    # Resolve on a copy: Param.resolve() stores the value it validated.
+                    copy.copy(self.__dict[key]).resolve(value)
+                except ParamValidationError as pverr:
+                    raise ValueError(
+                        f"Param preset {preset_name!r} has an invalid value for param {key!r}: {pverr}"
+                    ) from pverr
 
     def __bool__(self) -> bool:
         return bool(self.__dict)
@@ -187,11 +219,17 @@ class ParamsDict(MutableMapping[str, Any]):
     def __hash__(self):
         return hash(self.dump())
 
+    # Copies take the presets over without re-validating them: every task deep-copies its Dag's
+    # params, so re-validating here would repeat the schema checks once per task at parse time.
     def __copy__(self) -> ParamsDict:
-        return ParamsDict(self.__dict, self.suppress_exception)
+        params = ParamsDict(self.__dict, self.suppress_exception)
+        params.presets = self.presets
+        return params
 
     def __deepcopy__(self, memo: dict[int, Any] | None) -> ParamsDict:
-        return ParamsDict(copy.deepcopy(self.__dict, memo), self.suppress_exception)
+        params = ParamsDict(copy.deepcopy(self.__dict, memo), self.suppress_exception)
+        params.presets = copy.deepcopy(self.presets, memo)
+        return params
 
     def __contains__(self, o: object) -> bool:
         return o in self.__dict

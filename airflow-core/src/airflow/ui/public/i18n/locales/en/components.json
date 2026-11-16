@@ -53,10 +53,7 @@
   "close": "Close",
   "configForm": {
     "configJson": "Configuration JSON",
-    "invalidJson": "Invalid JSON format: {{errorMessage}}",
-    "paramPreset": "Preset",
-    "paramPresetHelp": "Loads the Dag defaults with this preset's values applied on top. You can still edit any field afterwards.",
-    "paramPresetPlaceholder": "Select a preset"
+    "invalidJson": "Invalid JSON format: {{errorMessage}}"
   },
   "dagWarnings": {
     "error_one": "1 Error",
@@ -188,9 +185,11 @@
     "loadingFailed": "Failed to load Dag information. Please try again.",
     "manualRunDenied": "Manual runs are not allowed for this Dag",
     "partitionKeyHelp": "Optional - only applies to partitioned Dags",
+    "presets": "Presets",
     "recentConfig": "Recent configurations",
-    "recentConfigPlaceholder": "Select a recent configuration",
     "runIdHelp": "Optional - will be generated if not provided",
+    "selectConfig": "Select config",
+    "selectConfigPlaceholder": "Choose a preset or a recent configuration",
     "selectDescription": "Trigger a single run of this Dag",
     "selectLabel": "Single Run",
     "title": "Trigger Dag",

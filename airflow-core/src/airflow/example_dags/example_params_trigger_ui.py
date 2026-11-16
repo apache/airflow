@@ -25,7 +25,7 @@ from __future__ import annotations
 import datetime
 from pathlib import Path
 
-from airflow.sdk import DAG, Param, TriggerRule, task
+from airflow.sdk import DAG, Param, ParamsDict, TriggerRule, task
 
 # [START params_trigger]
 with DAG(
@@ -37,23 +37,25 @@ with DAG(
     start_date=datetime.datetime(2022, 3, 4),
     catchup=False,
     tags=["example", "params"],
-    params={
-        "names": Param(
-            ["Linda", "Martha", "Thomas"],
-            type="array",
-            description="Define the list of names for which greetings should be generated in the logs."
-            " Please have one name per line.",
-            title="Names to greet",
-        ),
-        "english": Param(True, type="boolean", title="English"),
-        "german": Param(True, type="boolean", title="German (Formal)"),
-        "french": Param(True, type="boolean", title="French"),
-    },
-    param_presets={
-        "English only": {"english": True, "german": False, "french": False},
-        "Continental": {"english": False, "german": True, "french": True},
-        "Just Linda, every language": {"names": ["Linda"]},
-    },
+    params=ParamsDict(
+        {
+            "names": Param(
+                ["Linda", "Martha", "Thomas"],
+                type="array",
+                description="Define the list of names for which greetings should be generated in the logs."
+                " Please have one name per line.",
+                title="Names to greet",
+            ),
+            "english": Param(True, type="boolean", title="English"),
+            "german": Param(True, type="boolean", title="German (Formal)"),
+            "french": Param(True, type="boolean", title="French"),
+        },
+        presets={
+            "English only": {"english": True, "german": False, "french": False},
+            "Continental": {"english": False, "german": True, "french": True},
+            "Just Linda, every language": {"names": ["Linda"]},
+        },
+    ),
 ) as dag:
 
     @task(task_id="get_names", task_display_name="Get names")

@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+import copy
+import re
 from contextlib import nullcontext
 from typing import Literal
 
@@ -388,3 +390,49 @@ class TestParamsDict:
                 "key2": Param("value", source="task"),
             }
         )
+
+    def test_presets_default_to_empty(self):
+        assert ParamsDict({"key": "value"}).presets == {}
+
+    def test_presets_kept_without_changing_param_defaults(self):
+        presets = {"Nightly": {"batch_size": 512}, "Debug": {"batch_size": 1}}
+
+        pd = ParamsDict({"batch_size": Param(128, type="integer", minimum=1)}, presets=presets)
+
+        assert pd.presets == presets
+        assert pd["batch_size"] == 128
+
+    @pytest.mark.parametrize(
+        ("presets", "error", "message"),
+        [
+            pytest.param(
+                {"Nightly": {"typo": 512}},
+                ValueError,
+                "Param preset 'Nightly' sets unknown param 'typo'.",
+                id="unknown-param",
+            ),
+            pytest.param(
+                {"Nightly": {"batch_size": 0}},
+                ValueError,
+                "Param preset 'Nightly' has an invalid value for param 'batch_size'",
+                id="value-failing-schema",
+            ),
+            pytest.param(
+                {"Nightly": "batch_size=512"},
+                TypeError,
+                "Param preset 'Nightly' must be a dict of param names to values, got str.",
+                id="non-dict-preset",
+            ),
+        ],
+    )
+    def test_presets_rejected(self, presets, error, message):
+        with pytest.raises(error, match=re.escape(message)):
+            ParamsDict({"batch_size": Param(128, type="integer", minimum=1)}, presets=presets)
+
+    @pytest.mark.parametrize("copy_func", [copy.copy, copy.deepcopy])
+    def test_presets_survive_copy(self, copy_func):
+        presets = {"Nightly": {"batch_size": 512}}
+
+        pd = copy_func(ParamsDict({"batch_size": Param(128, type="integer")}, presets=presets))
+
+        assert pd.presets == presets

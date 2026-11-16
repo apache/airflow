@@ -24,12 +24,11 @@ import { useTranslation } from "react-i18next";
 
 import { Accordion } from "src/system-components";
 
-import type { ParamPresets, ParamsSpec } from "src/queries/useDagParams";
+import type { ParamsSpec } from "src/queries/useDagParams";
 import { useParamStore } from "src/queries/useParamStore";
 
 import { FlexibleForm, flexibleFormDefaultSection } from "./FlexibleForm";
 import { JsonEditor } from "./JsonEditor";
-import { ParamPresetSelect } from "./ParamPresetSelect";
 
 type ConfigFormProps<T extends FieldValues = FieldValues> = {
   readonly children?: ReactNode;
@@ -38,7 +37,7 @@ type ConfigFormProps<T extends FieldValues = FieldValues> = {
     conf?: string;
     date?: unknown;
   };
-  readonly initialParamsDict: { paramPresets?: ParamPresets; paramsDict: ParamsSpec };
+  readonly initialParamsDict: { paramsDict: ParamsSpec };
   readonly setErrors: Dispatch<
     SetStateAction<{
       conf?: string;
@@ -86,10 +85,6 @@ const ConfigForm = <T extends FieldValues = FieldValues>({
 
   return (
     <Stack data-testid="config-form" gap={4} mb={4}>
-      <ParamPresetSelect
-        paramPresets={initialParamsDict.paramPresets}
-        paramsDict={initialParamsDict.paramsDict}
-      />
       <FlexibleForm
         flexibleFormDefaultSection={flexibleFormDefaultSection}
         initialParamsDict={initialParamsDict}

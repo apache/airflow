@@ -37,8 +37,8 @@ import { DATE_FORMAT, DEFAULT_DATETIME_FORMAT, formatDate } from "src/utils/date
 import ConfigForm from "../ConfigForm";
 import { DateTimeInput } from "../DateTimeInput";
 import { ErrorAlert, type ExpandedApiError } from "../ErrorAlert";
+import LoadConfigSelect from "./LoadConfigSelect";
 import PausedDagOptions from "./PausedDagOptions";
-import RecentConfigSelect from "./RecentConfigSelect";
 import TriggerDAGAdvancedOptions from "./TriggerDAGAdvancedOptions";
 import {
   dataIntervalModeOptions,
@@ -124,9 +124,9 @@ const TriggerDAGForm = ({
     [initialParamDict, initialParamsDict.paramsDict, setConf, setInitialParamDict],
   );
 
-  // Selecting a recent configuration mid-edit only swaps the conf; whatever the user already
-  // typed into logical date, run id, note or data interval is kept.
-  const applyRecentConf = useCallback(
+  // Loading a preset or a recent configuration mid-edit only swaps the conf; whatever the user
+  // already typed into logical date, run id, note or data interval is kept.
+  const applyLoadedConf = useCallback(
     (confObj: Record<string, unknown>) => {
       const confString = JSON.stringify(confObj, undefined, 2);
 
@@ -320,7 +320,13 @@ const TriggerDAGForm = ({
           </>
         ) : undefined}
         {prefillConfig ? undefined : (
-          <RecentConfigSelect dagId={dagId} onSelectConf={applyRecentConf} open={open} />
+          <LoadConfigSelect
+            dagId={dagId}
+            onSelectConf={applyLoadedConf}
+            open={open}
+            paramPresets={initialParamsDict.paramPresets}
+            paramsDict={initialParamsDict.paramsDict}
+          />
         )}
         <ConfigForm
           control={control}

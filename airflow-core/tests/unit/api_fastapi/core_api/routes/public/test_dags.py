@@ -37,6 +37,7 @@ from airflow.models.team import Team
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk.definitions.callback import AsyncCallback
 from airflow.sdk.definitions.deadline import DeadlineAlert, DeadlineReference
+from airflow.sdk.definitions.param import ParamsDict
 from airflow.utils.state import DagRunState, DagSchedulingState, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
@@ -284,8 +285,7 @@ class TestDagEndpoint:
                 "retries": 1,
                 "retry_delay": timedelta(minutes=5),
             },
-            params={"foo": 1},
-            param_presets={"Doubled": {"foo": 2}},
+            params=ParamsDict({"foo": 1}, presets={"Doubled": {"foo": 2}}),
             max_active_tasks=16,
             max_active_runs=16,
         ):

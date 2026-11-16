@@ -350,7 +350,7 @@ describe("TriggerDAGForm", () => {
       { wrapper: Wrapper },
     );
 
-    const recentConfigSelect = screen.getByTestId("recent-config-select");
+    const recentConfigSelect = screen.getByTestId("load-config-select");
 
     fireEvent.click(within(recentConfigSelect).getByRole("combobox"));
     await waitFor(() => expect(screen.getByRole("listbox")).toBeInTheDocument());
@@ -393,7 +393,7 @@ describe("TriggerDAGForm", () => {
 
     fireEvent.change(runIdInput, { target: { value: "my_custom_run" } });
 
-    const recentConfigSelect = screen.getByTestId("recent-config-select");
+    const recentConfigSelect = screen.getByTestId("load-config-select");
 
     fireEvent.click(within(recentConfigSelect).getByRole("combobox"));
     await waitFor(() => expect(screen.getByRole("listbox")).toBeInTheDocument());
@@ -432,28 +432,7 @@ describe("TriggerDAGForm", () => {
         "Original message",
       ),
     );
-    expect(screen.queryByTestId("recent-config-select")).not.toBeInTheDocument();
-  });
-
-  it("does not offer a preset drop-down when the Dag declares no presets", async () => {
-    const { container } = render(
-      <TriggerDAGForm
-        dagId="example_params_trigger_ui"
-        error={undefined}
-        hasSchedule={false}
-        isPartitioned={false}
-        isPaused={false}
-        isPending={false}
-        onSubmitTrigger={vi.fn()}
-        open
-      />,
-      { wrapper: Wrapper },
-    );
-
-    await waitFor(() =>
-      expect(container.querySelector<HTMLInputElement>('input[name="element_message"]')).toBeInTheDocument(),
-    );
-    expect(screen.queryByTestId("param-preset-select")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("load-config-select")).not.toBeInTheDocument();
   });
 
   it("loads a preset's values into the form fields and the JSON on top of the Dag defaults", async () => {
@@ -481,10 +460,9 @@ describe("TriggerDAGForm", () => {
     );
     expect(container.querySelector<HTMLInputElement>('input[name="element_message"]')).toHaveValue("Hello");
 
-    fireEvent.keyDown(within(screen.getByTestId("param-preset-select")).getByRole("combobox"), {
-      key: "ArrowDown",
-    });
-    fireEvent.click(await screen.findByText("Nightly"));
+    fireEvent.click(within(screen.getByTestId("load-config-select")).getByRole("combobox"));
+    await waitFor(() => expect(screen.getByRole("listbox")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("Nightly"));
 
     await waitFor(() =>
       expect(container.querySelector<HTMLInputElement>('input[name="element_message"]')).toHaveValue(
@@ -533,10 +511,9 @@ describe("TriggerDAGForm", () => {
     await waitFor(() => expect(screen.getByText("flexibleForm.validationErrorRequired")).toBeInTheDocument());
     expect(screen.getByTestId("trigger-dag-submit")).toBeDisabled();
 
-    fireEvent.keyDown(within(screen.getByTestId("param-preset-select")).getByRole("combobox"), {
-      key: "ArrowDown",
-    });
-    fireEvent.click(await screen.findByText("Nightly"));
+    fireEvent.click(within(screen.getByTestId("load-config-select")).getByRole("combobox"));
+    await waitFor(() => expect(screen.getByRole("listbox")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("Nightly"));
 
     await waitFor(() =>
       expect(container.querySelector<HTMLInputElement>('input[name="element_message"]')).toHaveValue(
