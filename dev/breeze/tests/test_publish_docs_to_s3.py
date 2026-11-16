@@ -17,11 +17,20 @@
 
 from __future__ import annotations
 
+import runpy
 from unittest.mock import MagicMock, PropertyMock, mock_open, patch
 
 import pytest
 
+from airflow_breeze.utils import publish_docs_to_s3
 from airflow_breeze.utils.publish_docs_to_s3 import S3DocsPublish, VersionError
+
+
+@patch("boto3.client")
+def test_import_creates_no_aws_clients(mock_client):
+    runpy.run_path(publish_docs_to_s3.__file__)
+
+    mock_client.assert_not_called()
 
 
 class TestPublishDocsToS3:

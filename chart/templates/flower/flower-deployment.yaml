@@ -166,6 +166,7 @@ spec:
                   key: basicAuth
             {{- end }}
             {{- include "standard_airflow_environment" . | indent 10 }}
+            {{- include "metadata_db_environment" . | indent 10 }}
             {{- include "custom_airflow_environment" . | indent 10 }}
             {{- include "container_extra_envs" (list . .Values.flower.env) | indent 10 }}
         {{- if .Values.flower.extraContainers }}

@@ -38,10 +38,12 @@ from airflow.sdk.api.datamodels._generated import (
     AssetEventsResponse,
     AssetResponse,
     AssetStateStoreResponse,
+    CallbackTerminalState,
     ConnectionResponse,
     DagResponse,
     DagRunState,
     DagRunStateResponse,
+    ExternalClearTargetPayload,
     HITLDetailRequest,
     HITLDetailResponse,
     HITLUser,
@@ -644,6 +646,32 @@ class TestTaskInstanceOperations:
         )
 
         assert bodies[0]["loop_decision"] == {"stop": False, "reason": "error 0.2"}
+
+    def test_task_instance_succeed_sends_external_clear_target(self):
+        bodies = []
+
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
+            bodies.append(json.loads(request.read()))
+            return httpx2.Response(status_code=204)
+
+        client = make_client(transport=httpx2.MockTransport(handle_request))
+        client.task_instances.succeed(
+            uuid6.uuid7(),
+            when="2024-10-31T12:00:00Z",
+            task_outlets=[],
+            outlet_events=[],
+            rendered_map_index=None,
+            external_clear_target=ExternalClearTargetPayload(
+                dag_id="child", task_id="wait", logical_date="2024-10-31T00:00:00Z", recursion_depth=2
+            ),
+        )
+
+        assert bodies[0]["external_clear_target"] == {
+            "dag_id": "child",
+            "task_id": "wait",
+            "logical_date": "2024-10-31T00:00:00Z",
+            "recursion_depth": 2,
+        }
 
     def test_task_instance_heartbeat(self):
         # Simulate a successful response from the server that sends a heartbeat for a ti
@@ -2636,4 +2664,37 @@ class TestCallbackOperations:
         client = make_client(transport=httpx2.MockTransport(handle_request))
         with pytest.raises(ServerResponseError) as err:
             client.callbacks.run(callback_id)
+        assert err.value.response.status_code == 409
+
+    @pytest.mark.parametrize(
+        ("state", "output"),
+        [
+            pytest.param(CallbackTerminalState.SUCCESS, None, id="success-without-output"),
+            pytest.param(CallbackTerminalState.FAILED, "exited with code 3", id="failed-with-output"),
+        ],
+    )
+    def test_finish_reports_the_terminal_state(self, state, output):
+        callback_id = uuid7()
+
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
+            assert request.method == "PATCH"
+            assert request.url.path == f"/callbacks/{callback_id}/state"
+            assert json.loads(request.content) == {"state": state.value, "output": output}
+            return httpx2.Response(status_code=204)
+
+        client = make_client(transport=httpx2.MockTransport(handle_request))
+        client.callbacks.finish(callback_id, state=state, output=output)
+
+    def test_finish_raises_when_the_callback_is_not_running(self):
+        callback_id = uuid7()
+
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
+            return httpx2.Response(
+                status_code=409,
+                json={"detail": {"reason": "invalid_state", "previous_state": "queued"}},
+            )
+
+        client = make_client(transport=httpx2.MockTransport(handle_request))
+        with pytest.raises(ServerResponseError) as err:
+            client.callbacks.finish(callback_id, state=CallbackTerminalState.FAILED)
         assert err.value.response.status_code == 409

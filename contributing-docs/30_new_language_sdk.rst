@@ -429,6 +429,11 @@ authored in the target language. An SDK declares each one independently.
     The SDK exposes an API for the task to read and write XCom values across the Python
     boundary.
 
+``custom-xcom-backend`` (MAY)
+    The task's XComs go through the configured ``[core] xcom_backend``, so a deployment that
+    offloads large values stores them the same way for this SDK as for a Python task. The
+    supervisor runs the backend.
+
 ``connection-read`` (MUST)
     The task can resolve an Airflow Connection by id.
 

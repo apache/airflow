@@ -27,8 +27,9 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from contextvars import ContextVar
 from pathlib import Path
-from unittest.mock import MagicMock, call, patch
+from unittest.mock import MagicMock, call, create_autospec, patch
 
+import httpx2
 import pytest
 from pydantic_ai import Agent
 from pydantic_ai.capabilities import AbstractCapability
@@ -44,6 +45,7 @@ from pydantic_ai.providers import infer_provider_class
 from airflow.models.connection import Connection
 from airflow.providers.common.ai.get_provider_info import get_provider_info
 from airflow.providers.common.ai.hooks.pydantic_ai import (
+    ModelReadinessBackend,
     PydanticAIAzureHook,
     PydanticAIBedrockHook,
     PydanticAIHook,
@@ -60,6 +62,10 @@ from airflow.providers_manager import HookInfo
 # Matches the `google...` provider key pydantic-ai expects before the `:model-name`
 # separator, e.g. "google-cloud" out of "google-cloud:gemini-2.5-flash".
 _GOOGLE_MODEL_PREFIX_RE = re.compile(r"google[\w-]*(?=:)")
+
+
+def build_backend(*, model_name: str, base_url: str | None) -> ModelReadinessBackend:
+    raise NotImplementedError
 
 
 def _assert_prefix_is_known_provider(prefix: str) -> None:
@@ -1828,6 +1834,202 @@ class TestPydanticAIHookTestConnection:
         )
         assert "(fields passed: api_key)" in message
         assert "unexpected keyword argument 'api_key'" in message
+
+
+class TestPydanticAIHookEnsureModelReady:
+    _HOOK_MODULE = "airflow.providers.common.ai.hooks.pydantic_ai"
+
+    @staticmethod
+    def _build_hook(
+        *,
+        model_id: str | None = "ollama:llama3",
+        host: str | None = "http://ollama:11434/v1",
+        extra: dict | None = None,
+        **hook_kwargs,
+    ) -> tuple[PydanticAIHook, Connection]:
+        hook = PydanticAIHook(llm_conn_id="local_conn", model_id=model_id, **hook_kwargs)
+        conn = Connection(
+            conn_id="local_conn",
+            conn_type="pydanticai",
+            host=host,
+            extra=json.dumps(extra) if extra else None,
+        )
+        return hook, conn
+
+    @patch(f"{_HOOK_MODULE}.OllamaBackend", autospec=True)
+    def test_builds_backend_from_host_and_unprefixed_model_name(self, mock_backend_cls):
+        hook, conn = self._build_hook()
+
+        with patch.object(hook, "get_connection", return_value=conn):
+            hook.ensure_model_ready()
+
+        mock_backend_cls.assert_called_once_with("http://ollama:11434/v1", "llama3")
+
+    @pytest.mark.parametrize(
+        ("model_id", "expected_name"),
+        [
+            ("ollama:library/llama3", "library/llama3"),
+            ("ollama:llama3:70b", "llama3:70b"),
+            ("ollama:hf.co/org/model:q4", "hf.co/org/model:q4"),
+        ],
+    )
+    @patch(f"{_HOOK_MODULE}.OllamaBackend", autospec=True)
+    def test_unprefixed_name_splits_on_the_first_colon_only(self, mock_backend_cls, model_id, expected_name):
+        hook, conn = self._build_hook(model_id=model_id)
+
+        with patch.object(hook, "get_connection", return_value=conn):
+            hook.ensure_model_ready()
+
+        mock_backend_cls.assert_called_once_with("http://ollama:11434/v1", expected_name)
+
+    @patch(f"{_HOOK_MODULE}.OllamaBackend", autospec=True)
+    def test_load_is_called_once_with_the_given_timeout(self, mock_backend_cls):
+        hook, conn = self._build_hook()
+
+        with patch.object(hook, "get_connection", return_value=conn):
+            hook.ensure_model_ready(timeout=60.0)
+
+        mock_backend_cls.return_value.load.assert_called_once_with(timeout=60.0)
+
+    @pytest.mark.parametrize("model_id", ["openai:gpt-5", "anthropic:claude-opus-4-6"])
+    @patch(f"{_HOOK_MODULE}.OllamaBackend", autospec=True)
+    def test_non_ollama_prefix_raises_not_implemented_pointing_at_backend_factory(
+        self, mock_backend_cls, model_id
+    ):
+        hook, conn = self._build_hook(model_id=model_id)
+
+        with patch.object(hook, "get_connection", return_value=conn):
+            with pytest.raises(NotImplementedError, match=r"backend_factory=.*OllamaBackend"):
+                hook.ensure_model_ready()
+
+        mock_backend_cls.assert_not_called()
+
+    @pytest.mark.parametrize(
+        ("model_id", "expected_name"),
+        [
+            ("openai:llama3", "llama3"),
+            ("ollama:llama3:70b", "llama3:70b"),
+            ("openai:hf.co/org/model:q4", "hf.co/org/model:q4"),
+        ],
+    )
+    @patch(f"{_HOOK_MODULE}.OllamaBackend", autospec=True)
+    def test_backend_factory_gets_unprefixed_model_name_and_connection_host(
+        self, mock_ollama_cls, model_id, expected_name
+    ):
+        stub = create_autospec(ModelReadinessBackend, instance=True)
+        factory = create_autospec(build_backend, return_value=stub)
+        hook, conn = self._build_hook(model_id=model_id)
+
+        with patch.object(hook, "get_connection", return_value=conn):
+            hook.ensure_model_ready(timeout=60.0, backend_factory=factory)
+
+        factory.assert_called_once_with(model_name=expected_name, base_url="http://ollama:11434/v1")
+        stub.load.assert_called_once_with(timeout=60.0)
+        mock_ollama_cls.assert_not_called()
+
+    @patch(f"{_HOOK_MODULE}.OllamaBackend", autospec=True)
+    def test_backend_factory_skips_the_host_check(self, mock_ollama_cls):
+        stub = create_autospec(ModelReadinessBackend, instance=True)
+        factory = create_autospec(build_backend, return_value=stub)
+        hook, conn = self._build_hook(host=None)
+
+        with patch.object(hook, "get_connection", return_value=conn):
+            hook.ensure_model_ready(backend_factory=factory)
+
+        factory.assert_called_once_with(model_name="llama3", base_url=None)
+        stub.load.assert_called_once()
+        mock_ollama_cls.assert_not_called()
+
+    @pytest.mark.parametrize(
+        "extra",
+        [
+            {"model": "ollama:llama3"},
+            {"model": "llama3", "model_provider": "ollama"},
+        ],
+        ids=["prefixed-model-in-extra", "bare-model-with-model-provider-in-extra"],
+    )
+    @patch(f"{_HOOK_MODULE}.OllamaBackend", autospec=True)
+    def test_model_configured_only_on_the_connection(self, mock_backend_cls, extra):
+        hook, conn = self._build_hook(model_id=None, extra=extra)
+
+        with patch.object(hook, "get_connection", return_value=conn):
+            hook.ensure_model_ready()
+
+        mock_backend_cls.assert_called_once_with("http://ollama:11434/v1", "llama3")
+
+    @pytest.mark.parametrize("host", [None, ""])
+    @patch(f"{_HOOK_MODULE}.OllamaBackend", autospec=True)
+    def test_missing_host_passes_none_base_url_to_ollama_backend(self, mock_backend_cls, monkeypatch, host):
+        monkeypatch.setenv("OLLAMA_BASE_URL", "http://env-ollama:11434/v1")
+        hook, conn = self._build_hook(host=host)
+
+        with patch.object(hook, "get_connection", return_value=conn):
+            hook.ensure_model_ready()
+
+        mock_backend_cls.assert_called_once_with(None, "llama3")
+
+    @patch(f"{_HOOK_MODULE}.OllamaBackend", autospec=True)
+    def test_connection_host_wins_over_ollama_base_url_env(self, mock_backend_cls, monkeypatch):
+        monkeypatch.setenv("OLLAMA_BASE_URL", "http://env-ollama:11434/v1")
+        hook, conn = self._build_hook()
+
+        with patch.object(hook, "get_connection", return_value=conn):
+            hook.ensure_model_ready()
+
+        mock_backend_cls.assert_called_once_with("http://ollama:11434/v1", "llama3")
+
+    def test_missing_model_raises_value_error(self):
+        hook, conn = self._build_hook(model_id=None)
+
+        with patch.object(hook, "get_connection", return_value=conn):
+            with pytest.raises(ValueError, match="No model specified"):
+                hook.ensure_model_ready()
+
+    @pytest.mark.parametrize(
+        ("kwargs", "match"),
+        [
+            ({"timeout": 0}, r"got 0\."),
+            ({"timeout": -1.0}, r"got -1\.0\."),
+            ({"timeout": float("nan")}, r"got nan\."),
+            ({"timeout": float("inf")}, r"got inf\."),
+        ],
+    )
+    @patch(f"{_HOOK_MODULE}.OllamaBackend", autospec=True)
+    def test_non_positive_arguments_raise_value_error(self, mock_backend_cls, kwargs, match):
+        hook, conn = self._build_hook()
+
+        with patch.object(hook, "get_connection", return_value=conn):
+            with pytest.raises(ValueError, match=match):
+                hook.ensure_model_ready(**kwargs)
+
+        mock_backend_cls.assert_not_called()
+
+    @patch(f"{_HOOK_MODULE}.OllamaBackend", autospec=True)
+    def test_only_the_primary_connection_is_read_when_fallbacks_are_configured(self, mock_backend_cls):
+        hook, conn = self._build_hook(fallback_conn_ids=["fallback_conn"])
+
+        with patch.object(hook, "get_connection", autospec=True, return_value=conn) as mock_get_connection:
+            hook.ensure_model_ready()
+
+        mock_get_connection.assert_called_once_with("local_conn")
+
+    @pytest.mark.parametrize(
+        "error",
+        [
+            httpx2.ConnectError("refused"),
+            httpx2.HTTPStatusError("busy", request=MagicMock(), response=httpx2.Response(503)),
+            TimeoutError("slow"),
+        ],
+        ids=["connect-error", "http-503", "request-timeout"],
+    )
+    @patch(f"{_HOOK_MODULE}.OllamaBackend", autospec=True)
+    def test_load_errors_are_raised_as_is(self, mock_backend_cls, error):
+        mock_backend_cls.return_value.load.side_effect = error
+        hook, conn = self._build_hook()
+
+        with patch.object(hook, "get_connection", return_value=conn):
+            with pytest.raises(type(error)):
+                hook.ensure_model_ready()
 
 
 # ---------------------------------------------------------------------------

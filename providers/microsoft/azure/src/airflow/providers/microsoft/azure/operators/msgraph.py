@@ -36,9 +36,11 @@ from airflow.providers.microsoft.azure.triggers.msgraph import (
     MSGraphTrigger,
     ResponseSerializer,
 )
-from airflow.providers.microsoft.azure.version_compat import AIRFLOW_V_3_3_PLUS
+from airflow.providers.microsoft.azure.version_compat import AIRFLOW_V_3_3_PLUS, AIRFLOW_V_3_4_PLUS
+from airflow.triggers.base import StartTriggerArgs
 
 if TYPE_CHECKING:
+    from datetime import timedelta
     from io import BytesIO
 
     from msgraph_core import APIVersion
@@ -62,6 +64,52 @@ class _PaginationCursor(TypedDict):
     url: str
     query_parameters: dict[str, Any] | None
     pages: int
+
+
+def _is_plain_data(value: Any) -> bool:
+    if isinstance(value, dict):
+        return all(isinstance(key, str) and _is_plain_data(item) for key, item in value.items())
+    if isinstance(value, (list, tuple)):
+        return all(_is_plain_data(item) for item in value)
+    return value is None or isinstance(value, (str, int, float, bool))
+
+
+def build_start_trigger_args(
+    trigger: MSGraphTrigger, next_method: str, timeout: timedelta | None = None
+) -> StartTriggerArgs | None:
+    """
+    Build the arguments which start a task from the triggerer with the given trigger, when that is possible.
+
+    The trigger is the one the task would defer to on a worker, built from its arguments before they are
+    rendered, so both paths send the same first request.  The triggerer renders the templated fields of
+    that trigger itself, and it only gets what the serialized Dag holds: it never resolves an ``XComArg``,
+    and a callable or a file-like object cannot be serialized.  None is returned in those cases, and on
+    Airflow before 3.4, so the task starts on a worker instead.  Before 3.4 the XComs of an earlier try
+    are not cleared for a task the scheduler deferred, and the operator would read them back.
+
+    :param trigger: The trigger which sends the first request.
+    :param next_method: The method of the task which handles the event of the trigger.
+    :param timeout: How long the trigger may run before the task times out (default is None).
+    """
+    if not AIRFLOW_V_3_4_PLUS:
+        return None
+
+    trigger_cls, trigger_kwargs = trigger.serialize()
+    trigger_kwargs["api_version"] = KiotaRequestAdapterHook.resolve_api_version_from_value(
+        trigger_kwargs["api_version"]
+    )
+    # This trigger is the one the triggerer renders, unlike the ones a worker defers afterwards.
+    trigger_kwargs["rendered"] = False
+
+    if not _is_plain_data(trigger_kwargs):
+        return None
+
+    return StartTriggerArgs(
+        trigger_cls=trigger_cls,
+        trigger_kwargs=trigger_kwargs,
+        next_method=next_method,
+        timeout=timeout,
+    )
 
 
 def default_event_handler(event: dict[Any, Any] | None = None, **context) -> Any:
@@ -137,6 +185,10 @@ class MSGraphAsyncOperator(BaseOperator):
         are removed from the store once the result is returned. Pages are stored as they are, so pages
         larger than the store's ``max_value_storage_bytes`` need a state store backend that offloads
         large values. Needs Airflow 3.3 or later.
+    :param start_from_trigger: Start the task directly from the triggerer, without first running it on a
+        worker (default is False).  This requires Airflow 3.4 or later, and arguments which only hold plain
+        values: when an argument is an ``XComArg``, a callable or a file-like object, or when ``durable`` is
+        set, the task starts on a worker as usual.  The templated fields are then rendered by the triggerer.
     """
 
     # Durable execution implemented directly against task_state_store, without ResumableJobMixin.
@@ -175,6 +227,7 @@ class MSGraphAsyncOperator(BaseOperator):
         event_handler: Callable[[dict[Any, Any] | None, Context], Any] | None = None,
         serializer: type[ResponseSerializer] = ResponseSerializer,
         durable: bool = False,
+        start_from_trigger: bool = False,
         **kwargs: Any,
     ):
         super().__init__(**kwargs)
@@ -200,6 +253,14 @@ class MSGraphAsyncOperator(BaseOperator):
         self.event_handler = event_handler or default_event_handler
         self.serializer: ResponseSerializer = serializer()
         self.durable = durable
+        # A durable task resumes from the task state store in execute, which a task the scheduler
+        # deferred never runs.
+        self.start_trigger_args = (
+            build_start_trigger_args(self._build_trigger(), next_method=self.execute_complete.__name__)
+            if start_from_trigger and not durable
+            else None
+        )
+        self.start_from_trigger = self.start_trigger_args is not None
 
     def execute(self, context: Context) -> Any:
         if task_state_store := self.get_task_state_store(context):
@@ -225,24 +286,26 @@ class MSGraphAsyncOperator(BaseOperator):
                 "task_state_store not available in context, crash recovery is disabled for this run"
             )
 
-        self.defer(
-            trigger=MSGraphTrigger(
-                url=self.url,
-                response_type=self.response_type,
-                path_parameters=self.path_parameters,
-                url_template=self.url_template,
-                method=self.method,
-                query_parameters=self.query_parameters,
-                headers=self.headers,
-                data=self.data,
-                conn_id=self.conn_id,
-                timeout=self.timeout,
-                proxies=self.proxies,
-                scopes=self.scopes,
-                api_version=self.api_version,
-                serializer=type(self.serializer),
-            ),
-            method_name=self.execute_complete.__name__,
+        self.defer(trigger=self._build_trigger(), method_name=self.execute_complete.__name__)
+
+    def _build_trigger(self) -> MSGraphTrigger:
+        """Build the trigger which sends the first request, with the arguments as they are now."""
+        return MSGraphTrigger(
+            url=self.url,
+            response_type=self.response_type,
+            path_parameters=self.path_parameters,
+            url_template=self.url_template,
+            method=self.method,
+            query_parameters=self.query_parameters,
+            headers=self.headers,
+            data=self.data,
+            conn_id=self.conn_id,
+            timeout=self.timeout,
+            proxies=self.proxies,
+            scopes=self.scopes,
+            api_version=self.api_version,
+            serializer=type(self.serializer),
+            rendered=True,
         )
 
     def execute_complete(
@@ -532,6 +595,7 @@ class MSGraphAsyncOperator(BaseOperator):
                 api_version=self.api_version,
                 serializer=type(self.serializer),
                 pagination_link=True,
+                rendered=True,
             ),
             method_name=method_name,
             kwargs={"query_parameters": query_parameters},

@@ -110,7 +110,7 @@ from airflow.api_fastapi.core_api.security import (
     requires_access_dag_run_bulk,
     requires_access_dag_run_clear_bulk,
 )
-from airflow.api_fastapi.core_api.services.public.assets import serialize_asset_events
+from airflow.api_fastapi.core_api.services.public.assets import load_source_region, serialize_asset_events
 from airflow.api_fastapi.core_api.services.public.dag_run import (
     BulkDagRunService,
     DagRunWaiter,
@@ -307,7 +307,7 @@ def get_upstream_asset_events(
         statement=select(AssetEvent)
         .join(dagrun_asset_event_table, dagrun_asset_event_table.c.event_id == AssetEvent.id)
         .where(dagrun_asset_event_table.c.dag_run_id == dag_run_pk)
-        .options(joinedload(AssetEvent.asset), subqueryload(AssetEvent.created_dagruns))
+        .options(joinedload(AssetEvent.asset), subqueryload(AssetEvent.created_dagruns), load_source_region())
         .order_by(AssetEvent.id),
         filters=[readable_asset_events_filter, readable_asset_events_by_asset_filter],
     )
@@ -470,7 +470,7 @@ def clear_dag_runs(
             )
         )
     return DAGRunCollectionResponse(
-        dag_runs=cleared_runs,
+        dag_runs=[DAGRunResponse.model_validate(cleared_run) for cleared_run in cleared_runs],
         total_entries=len(cleared_runs),
     )
 

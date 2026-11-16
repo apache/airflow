@@ -32,7 +32,7 @@ enabled = false
 enabled_since = 2026-01-01T00:00:00Z
 
 # Days without any fork CI activity after which a gated pull request is closed.
-close_after_days = 7
+close_after_days = 30
 
 # Report each job of a gated pull request's fork run as its own commit status. Set to false when
 # the fork CI monitor exceeds GitHub's rate limits (see dev/AGENTS.md); the `Fork CI / Tests (AMD)`
@@ -60,3 +60,4 @@ job_statuses = true
 "stephen-bracken" = 2026-11-05T00:00:00Z
 "raphaelauv" = 2026-11-06T00:00:00Z
 "yuseok89" = 2026-11-08T00:00:00Z
+"meel-ayush" = 2026-11-11T00:00:00Z

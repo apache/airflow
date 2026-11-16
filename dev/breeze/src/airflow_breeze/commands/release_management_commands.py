@@ -100,6 +100,7 @@ from airflow_breeze.global_constants import (
     ALLOWED_PLATFORMS,
     APACHE_AIRFLOW_GITHUB_REPOSITORY,
     CONSTRAINTS,
+    CONSTRAINTS_NO_PROVIDERS,
     CURRENT_PYTHON_MAJOR_MINOR_VERSIONS,
     DEBIAN_VERSION_TO_HARDENED_IMAGE_DISTRO,
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
@@ -307,12 +308,12 @@ class VersionedFile(NamedTuple):
     file_name: str
 
 
-AIRFLOW_PIP_VERSION = "26.2.2"
-AIRFLOW_UV_VERSION = "0.13.6"
+AIRFLOW_PIP_VERSION = "26.3"
+AIRFLOW_UV_VERSION = "0.13.7"
 AIRFLOW_USE_UV = False
 GITPYTHON_VERSION = "3.2.1"
 RICH_VERSION = "15.0.0"
-PREK_VERSION = "0.5.7"
+PREK_VERSION = "0.5.10"
 HATCH_VERSION = "1.18.2"
 PYYAML_VERSION = "6.0.3"
 
@@ -2497,7 +2498,6 @@ def release_prod_images(
         image_type = "regular"
     for python in python_versions:
         build_args = {
-            "AIRFLOW_CONSTRAINTS": "constraints-no-providers",
             "BASE_IMAGE": get_hardened_python_base_image(python),
             "AIRFLOW_PYTHON_VERSION": ALL_PYTHON_VERSION_TO_PATCHLEVEL_VERSION.get(python, python),
             "AIRFLOW_VERSION": airflow_version,
@@ -2514,6 +2514,7 @@ def release_prod_images(
             build_args["COMMIT_SHA"] = commit_sha
         if slim_images:
             build_args["AIRFLOW_EXTRAS"] = ""
+            build_args["AIRFLOW_CONSTRAINTS_MODE"] = CONSTRAINTS_NO_PROVIDERS
         console_print(f"[info]Building {image_type} {airflow_version} image for Python {python}[/]")
         python_build_args = deepcopy(build_args)
         image_name = f"{dockerhub_repo}:{image_prefix}{airflow_version}-python{python}"

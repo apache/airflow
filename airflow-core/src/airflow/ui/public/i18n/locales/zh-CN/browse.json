@@ -28,6 +28,7 @@
         "lastParsed": "最后解析时间",
         "parseDuration": "解析耗时"
       },
+      "importErrorForbidden": "您没有权限读取此导入错误。",
       "importErrorGone": "此导入错误已不再被记录，可能已通过重新解析修复。",
       "neverParsed": "从未",
       "parsedFile_one": "已解析文件",
@@ -70,6 +71,7 @@
     "columns": {
       "dag": "Dag",
       "key": "键",
+      "timestamp": "时间戳",
       "value": "值"
     },
     "delete": {
