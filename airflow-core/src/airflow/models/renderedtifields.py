@@ -320,11 +320,8 @@ class RenderedTaskInstanceFields(Base):
 
         # Find run_ids from the N most recent dag runs (no RTIF table scan needed).
         # Use run_after instead of logical_date since logical_date can be NULL for manual runs.
-        run_ids_to_keep_query = (
-            select(DagRun.run_id)
-            .where(DagRun.dag_id == dag_id)
-            .order_by(DagRun.run_after.desc())
-            .limit(num_to_keep)
+        run_ids_to_keep_query = DagRun.apply_dag_newest_first(select(DagRun.run_id), dag_id=dag_id).limit(
+            num_to_keep
         )
 
         if get_dialect_name(session) == "mysql":

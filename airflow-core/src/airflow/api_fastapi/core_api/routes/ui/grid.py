@@ -721,10 +721,7 @@ def get_loop_history(
 ) -> LoopHistoryResponse:
     """Show loop invocations from recent runs, oldest first."""
     runs = session.scalars(
-        select(DagRun)
-        .where(DagRun.dag_id == dag_id)
-        .order_by(DagRun.run_after.desc(), DagRun.id.desc())
-        .limit(limit)
+        DagRun.apply_dag_newest_first(select(DagRun), dag_id=dag_id).order_by(DagRun.id.desc()).limit(limit)
     ).all()
     inputs = load_loop_run_inputs(runs, group_id, session=session, dag_bag=dag_bag)
     history = []

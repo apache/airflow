@@ -1097,9 +1097,8 @@ class DagRun(Base, LoggingMixin):
     def _check_last_n_dagruns_failed(self, dag_id, max_consecutive_failed_dag_runs, session):
         """Check if last N dags failed."""
         dag_runs = session.scalars(
-            select(DagRun)
-            .where(DagRun.dag_id == dag_id)
-            .order_by(DagRun.run_after.desc(), DagRun.id.desc())
+            DagRun.apply_dag_newest_first(select(DagRun), dag_id=dag_id)
+            .order_by(DagRun.id.desc())
             .limit(max_consecutive_failed_dag_runs)
         ).all()
         # Mark dag as paused, if needed
@@ -3008,6 +3007,17 @@ class DagRun(Base, LoggingMixin):
             else:
                 stmt = stmt.where(DagRun.partition_date <= upper)
         return stmt
+
+    @staticmethod
+    def apply_dag_newest_first(stmt: Select, *, dag_id: str) -> Select:
+        """Filter stmt to the runs of *dag_id* and order them by ``run_after``, newest first."""
+        # BETWEEN rather than ``=`` keeps ORDER BY dag_id from being dropped as constant, so only
+        # idx_dag_run_dag_id_run_after returns the rows in order. With ``=``, Postgres may walk
+        # idx_dag_run_run_after and filter on dag_id, reading most of dag_run when the Dag's
+        # newest runs are older than other Dags' runs or it has fewer runs than the LIMIT.
+        return stmt.where(DagRun.dag_id.between(dag_id, dag_id)).order_by(
+            DagRun.dag_id.desc(), DagRun.run_after.desc()
+        )
 
 
 class DagRunNote(Base):
