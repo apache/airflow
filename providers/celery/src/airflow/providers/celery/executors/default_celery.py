@@ -117,7 +117,7 @@ def _broker_transport_options(broker_url: str, conf: AirflowSDKConfigParser | An
     return broker_transport_options
 
 
-def _with_default_postgres_driver(result_backend: str) -> str:
+def _apply_default_postgres_driver(result_backend: str) -> str:
     """
     Give a driverless ``db+postgresql://`` result backend Airflow's default sync Postgres driver.
 
@@ -171,7 +171,7 @@ def get_default_celery_config(team_conf: AirflowSDKConfigParser | Any) -> dict[s
     else:
         log.debug("Value for celery result_backend not found. Using sql_alchemy_conn with db+ prefix.")
         result_backend = f"db+{team_conf.get('database', 'SQL_ALCHEMY_CONN')}"
-    result_backend = _with_default_postgres_driver(result_backend)
+    result_backend = _apply_default_postgres_driver(result_backend)
 
     # Handle result backend transport options (for Redis Sentinel support)
     result_backend_transport_options: dict = (
