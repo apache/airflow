@@ -44,9 +44,12 @@ class EndpointServiceHook(GoogleBaseHook, OperationHelper):
         self,
         region: str | None = None,
     ) -> str | None:
-        if region and region != "global" and self.is_default_universe():
+        if not region or region == "global" or not self.is_default_universe():
+            return None
+        if "-" in region:
             return f"{region}-aiplatform.googleapis.com:443"
-        return None
+        # Multi-region locations ("us", "eu") are served only from their regional endpoint (REP) hosts.
+        return f"aiplatform.{region}.rep.googleapis.com:443"
 
     def get_endpoint_service_client(self, region: str | None = None) -> EndpointServiceClient:
         """Return EndpointServiceClient."""

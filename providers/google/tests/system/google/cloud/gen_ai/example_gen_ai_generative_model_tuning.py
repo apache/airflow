@@ -30,10 +30,17 @@ from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator
 from airflow.providers.google.cloud.transfers.local_to_gcs import LocalFilesystemToGCSOperator
 
 try:
+    from airflow.sdk import task
+except ImportError:
+    # Airflow 2 path
+    from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
+
+try:
     from airflow.sdk import TriggerRule
 except ImportError:
     # Compatibility for Airflow < 3.1
     from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
+from google.cloud.aiplatform_v1 import EndpointServiceClient
 from google.genai.types import TuningDataset
 
 from airflow.models.dag import DAG
@@ -42,6 +49,7 @@ from airflow.providers.google.cloud.operators.gen_ai import (
 )
 
 from system.google.cloud.gen_ai import llm_models
+from system.google.cloud.vertex_ai.endpoint_helpers import undeploy_models_and_delete_endpoint
 
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
 DAG_ID = "gen_ai_generative_model_tuning_dag"
@@ -115,9 +123,29 @@ with DAG(
     )
     # [END how_to_cloud_gen_ai_supervised_fine_tuning_train_operator_for_video]
 
+    @task(trigger_rule=TriggerRule.ALL_DONE)
+    def delete_tuned_model_endpoint(tuning_task_id: str, ti=None) -> None:
+        """Undeploy all models from the endpoint created by the tuning job and delete the endpoint."""
+        endpoint_name = ti.xcom_pull(task_ids=tuning_task_id, key="tuned_model_endpoint_name")
+        if not endpoint_name:
+            return
+        path = EndpointServiceClient.parse_endpoint_path(endpoint_name)
+        undeploy_models_and_delete_endpoint(
+            project_id=PROJECT_ID, region=path["location"], endpoint_id=path["endpoint"]
+        )
+
+    delete_sft_endpoint = delete_tuned_model_endpoint.override(task_id="delete_sft_endpoint")(
+        tuning_task_id=sft_train_task.task_id
+    )
+    delete_sft_video_endpoint = delete_tuned_model_endpoint.override(task_id="delete_sft_video_endpoint")(
+        tuning_task_id=sft_video_task.task_id
+    )
+
     delete_bucket.trigger_rule = TriggerRule.ALL_DONE
 
     (create_bucket >> upload_file >> [sft_train_task, sft_video_task] >> delete_bucket)
+    sft_train_task >> delete_sft_endpoint
+    sft_video_task >> delete_sft_video_endpoint
 
     from tests_common.test_utils.watcher import watcher
 

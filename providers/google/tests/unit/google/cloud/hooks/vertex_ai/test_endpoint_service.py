@@ -54,6 +54,21 @@ class TestEndpointServiceWithDefaultProjectIdHook:
         ):
             self.hook = EndpointServiceHook(gcp_conn_id=TEST_GCP_CONN_ID)
 
+    @pytest.mark.parametrize(
+        ("region", "expected"),
+        [
+            (TEST_REGION, f"{TEST_REGION}-aiplatform.googleapis.com:443"),
+            ("us", "aiplatform.us.rep.googleapis.com:443"),
+            ("eu", "aiplatform.eu.rep.googleapis.com:443"),
+        ],
+    )
+    def test_get_api_endpoint(self, region: str, expected: str):
+        self.hook.is_default_universe = mock.create_autospec(
+            EndpointServiceHook.is_default_universe, return_value=True
+        )
+
+        assert self.hook._get_api_endpoint(region=region) == expected
+
     @mock.patch(ENDPOINT_SERVICE_STRING.format("EndpointServiceHook.get_endpoint_service_client"))
     def test_create_endpoint(self, mock_client) -> None:
         self.hook.create_endpoint(
