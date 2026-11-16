@@ -26,8 +26,9 @@ import time_machine
 from fastapi.testclient import TestClient
 from sqlalchemy import delete, func, insert, select, update
 
+from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity, DagDetails
 from airflow.api_fastapi.auth.managers.simple.user import SimpleAuthManagerUser
-from airflow.models.asset import AssetModel, DagScheduleAssetReference
+from airflow.models.asset import AssetModel, AssetPartitionDagRun, DagScheduleAssetReference
 from airflow.models.dag import DagModel, DagTag
 from airflow.models.dag_favorite import DagFavorite
 from airflow.models.dagbundle import DagBundleModel
@@ -36,9 +37,10 @@ from airflow.models.deadline_alert import DeadlineAlert as DeadlineAlertModel
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.team import Team
 from airflow.providers.standard.operators.empty import EmptyOperator
+from airflow.sdk import Asset
 from airflow.sdk.definitions.callback import AsyncCallback
 from airflow.sdk.definitions.deadline import DeadlineAlert, DeadlineReference
-from airflow.timetables.simple import PartitionedAtRuntime
+from airflow.timetables.simple import PartitionedAssetTimetable, PartitionedAtRuntime
 from airflow.timetables.trigger import CronPartitionTimetable
 from airflow.utils.state import DagRunState, DagSchedulingState, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
@@ -2154,6 +2156,147 @@ class TestSuggestedPartitionKey(TestDagEndpoint):
         assert response.json()["suggested_partition_key"] is None
         mock_suggest.assert_called_once()
         assert {"event": "Failed to compute suggested partition key", "dag_id": dag_id} in caplog
+
+    def test_details_endpoint_suggests_pending_partition_for_asset_driven_dag(
+        self, session, test_client, dag_maker
+    ):
+        dag_id = "test_dag_asset_driven_suggestion"
+        asset = Asset(name=f"{dag_id}_asset", uri=f"s3://bucket/{dag_id}")
+        with dag_maker(dag_id=dag_id, schedule=PartitionedAssetTimetable(assets=asset), serialized=True):
+            EmptyOperator(task_id=TASK_ID)
+        dag_maker.sync_dagbag_to_db()
+        session.add(AssetPartitionDagRun(target_dag_id=dag_id, partition_key="pending-key"))
+        session.commit()
+
+        response = test_client.get(f"/dags/{dag_id}/details")
+
+        assert response.status_code == 200
+        assert response.json()["suggested_partition_key"] == "pending-key"
+
+    def test_details_endpoint_suggests_last_successful_run_for_runtime_partitioned_dag(
+        self, session, test_client, dag_maker
+    ):
+        dag_id = "test_dag_partitioned_at_runtime_suggestion"
+        with dag_maker(dag_id=dag_id, schedule=PartitionedAtRuntime(), serialized=True):
+            EmptyOperator(task_id=TASK_ID)
+        dag_maker.create_dagrun(state=DagRunState.SUCCESS, partition_key="runtime-key")
+        dag_maker.sync_dagbag_to_db()
+        session.commit()
+
+        response = test_client.get(f"/dags/{dag_id}/details")
+
+        assert response.status_code == 200
+        assert response.json()["suggested_partition_key"] == "runtime-key"
+
+    @time_machine.travel(datetime(2026, 2, 18, 9, 30, tzinfo=UTC), tick=False)
+    def test_details_endpoint_prefers_cron_tick_over_last_successful_run(
+        self, session, test_client, dag_maker
+    ):
+        dag_id = "test_cron_partitioned_ignores_last_run"
+        with dag_maker(
+            dag_id=dag_id,
+            schedule=CronPartitionTimetable("0 0 * * *", timezone="UTC"),
+            session=session,
+            serialized=True,
+        ):
+            EmptyOperator(task_id=TASK_ID)
+        dag_maker.create_dagrun(state=DagRunState.SUCCESS, partition_key="older-run-key")
+        dag_maker.sync_dagbag_to_db()
+        # Left over from when the Dag was asset-driven: nothing deletes these rows.
+        session.add(AssetPartitionDagRun(target_dag_id=dag_id, partition_key="stale-pending-key"))
+        session.commit()
+
+        response = test_client.get(f"/dags/{dag_id}/details")
+
+        assert response.status_code == 200
+        assert response.json()["suggested_partition_key"] == "2026-02-18T00:00:00"
+
+    @mock.patch(
+        "airflow.api_fastapi.core_api.routes.public.dags.suggest_partition_key_for_dag", autospec=True
+    )
+    def test_get_dag_does_not_compute_suggestion(self, mock_suggest, session, test_client, dag_maker):
+        dag_id = "test_get_dag_without_suggestion"
+        asset = Asset(name=f"{dag_id}_asset", uri=f"s3://bucket/{dag_id}")
+        with dag_maker(dag_id=dag_id, schedule=PartitionedAssetTimetable(assets=asset), serialized=True):
+            EmptyOperator(task_id=TASK_ID)
+        dag_maker.create_dagrun(state=DagRunState.SUCCESS, partition_key="runtime-key")
+        dag_maker.sync_dagbag_to_db()
+        session.add(AssetPartitionDagRun(target_dag_id=dag_id, partition_key="pending-key"))
+        session.commit()
+
+        with capture_orm_selects("asset_partition_dag_run") as apdr_selects:
+            response = test_client.get(f"/dags/{dag_id}")
+
+        assert response.status_code == 200
+        assert "suggested_partition_key" not in response.json()
+        mock_suggest.assert_not_called()
+        assert apdr_selects == []
+
+    @pytest.mark.parametrize(
+        "make_dag",
+        [
+            pytest.param("asset_driven", id="asset-driven-pending-partition"),
+            pytest.param("runtime", id="partitioned-at-runtime-last-run"),
+        ],
+    )
+    @mock.patch("airflow.api_fastapi.core_api.routes.public.dags.get_auth_manager", autospec=True)
+    def test_details_endpoint_ignores_run_data_without_run_read_access(
+        self, mock_get_auth_manager, make_dag, session, test_client, dag_maker
+    ):
+        mock_get_auth_manager.return_value.is_authorized_dag.side_effect = lambda *, access_entity=None, **_: (
+            access_entity is not DagAccessEntity.RUN
+        )
+        dag_id = f"test_dag_without_run_read_{make_dag}"
+        if make_dag == "asset_driven":
+            asset = Asset(name=f"{dag_id}_asset", uri=f"s3://bucket/{dag_id}")
+            schedule = PartitionedAssetTimetable(assets=asset)
+        else:
+            schedule = PartitionedAtRuntime()
+        with dag_maker(dag_id=dag_id, schedule=schedule, serialized=True):
+            EmptyOperator(task_id=TASK_ID)
+        dag_maker.create_dagrun(state=DagRunState.SUCCESS, partition_key="run-key")
+        dag_maker.sync_dagbag_to_db()
+        session.add(AssetPartitionDagRun(target_dag_id=dag_id, partition_key="pending-key"))
+        session.commit()
+
+        with (
+            capture_orm_selects("asset_partition_dag_run") as apdr_selects,
+            capture_orm_selects("dag_run") as dag_run_selects,
+        ):
+            response = test_client.get(f"/dags/{dag_id}/details")
+
+        assert response.status_code == 200
+        assert response.json()["suggested_partition_key"] is None
+        assert apdr_selects == []
+        assert not any("partition_key" in select for select in dag_run_selects)
+        mock_get_auth_manager.return_value.is_authorized_dag.assert_called_once_with(
+            method="GET",
+            access_entity=DagAccessEntity.RUN,
+            details=DagDetails(id=dag_id, team_name=None),
+            user=mock.ANY,
+        )
+
+    @pytest.mark.parametrize(
+        "schedule",
+        [
+            pytest.param(None, id="not-partitioned"),
+            pytest.param(CronPartitionTimetable("0 0 * * *", timezone="UTC"), id="cron-partitioned"),
+        ],
+    )
+    @mock.patch("airflow.api_fastapi.core_api.routes.public.dags.get_auth_manager", autospec=True)
+    def test_details_endpoint_skips_run_read_check_when_timetable_ignores_run_data(
+        self, mock_get_auth_manager, schedule, session, test_client, dag_maker
+    ):
+        dag_id = "test_dag_no_run_read_check"
+        with dag_maker(dag_id=dag_id, schedule=schedule, session=session, serialized=True):
+            EmptyOperator(task_id=TASK_ID)
+        dag_maker.sync_dagbag_to_db()
+        session.commit()
+
+        response = test_client.get(f"/dags/{dag_id}/details")
+
+        assert response.status_code == 200
+        mock_get_auth_manager.return_value.is_authorized_dag.assert_not_called()
 
 
 class TestDagWithoutFileloc(TestDagEndpoint):

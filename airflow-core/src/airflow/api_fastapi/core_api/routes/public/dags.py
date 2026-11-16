@@ -27,6 +27,8 @@ from sqlalchemy.orm import selectinload
 
 from airflow._shared.timezones.timezone import coerce_datetime, utcnow
 from airflow.api.common import delete_dag as delete_dag_module
+from airflow.api_fastapi.app import get_auth_manager
+from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity, DagDetails
 from airflow.api_fastapi.common.asset_expression import redact_asset_expression
 from airflow.api_fastapi.common.dagbag import DagBagDep, get_latest_version_of_dag
 from airflow.api_fastapi.common.db.common import SessionDep, apply_filters_to_select, paginated_select
@@ -292,10 +294,24 @@ def get_dag_details(
     setattr(dag_model, "is_favorite", is_favorite)
     setattr(dag_model, "active_runs_count", active_runs_count)
     setattr(dag_model, "latest_dag_version", latest_dag_version)
+    # The suggestion reads partition keys from this Dag's runs, which `requires_access_dag` on this
+    # route (Dag read only) does not cover; without run read access it must stay timetable-only.
+    # The check is passed lazily so Dags that never read runs skip its queries.
     setattr(
         dag_model,
         "suggested_partition_key",
-        suggest_partition_key_for_dag(dag_id=dag_id, timetable=dag.timetable, now=coerce_datetime(utcnow())),
+        suggest_partition_key_for_dag(
+            dag_id=dag_id,
+            timetable=dag.timetable,
+            now=coerce_datetime(utcnow()),
+            can_read_runs=lambda: get_auth_manager().is_authorized_dag(
+                method="GET",
+                access_entity=DagAccessEntity.RUN,
+                details=DagDetails(id=dag_id, team_name=DagModel.get_team_name(dag_id, session=session)),
+                user=user,
+            ),
+            session=session,
+        ),
     )
 
     details = DAGDetailsResponse.model_validate(dag_model)
