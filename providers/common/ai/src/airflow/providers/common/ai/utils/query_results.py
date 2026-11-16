@@ -268,8 +268,10 @@ def build_schema_result(
     introspected columns are unique by construction).
 
     Comments count against the same budget as the columns: each one is capped to
-    ``DEFAULT_MAX_COMMENT_CHARS`` characters, and when the result still does not fit, the summary
-    drops the column comments (and says so) rather than the column names.
+    ``DEFAULT_MAX_COMMENT_CHARS`` characters, and when the result does not fit, the column comments
+    are dropped first (``comments_omitted`` says so) and the full column list is returned. Only if
+    the columns alone still do not fit does the summary replace them; it likewise carries no column
+    comments.
 
     :param columns: ``{"name", "type"}`` dicts in table order, each optionally with a ``comment``.
     :param max_columns: Column count above which a summary replaces the full list.
@@ -322,8 +324,20 @@ def build_schema_result(
     if name_contains is not None:
         full["name_contains"] = name_contains
         full["total_columns"] = total_columns
-    if len(selected) <= max_columns and _size(full) <= max_result_bytes:
-        return _dumps(full)
+    if len(selected) <= max_columns:
+        if _size(full) <= max_result_bytes:
+            return _dumps(full)
+        if any("comment" in col for col in selected):
+            without_comments = {
+                **full,
+                "columns": _drop_column_comments(selected),
+                "comments_omitted": True,
+                "hint": _build_comments_omitted_hint(
+                    max_result_bytes=max_result_bytes, name_contains=name_contains, tool_name=tool_name
+                ),
+            }
+            if _size(without_comments) <= max_result_bytes:
+                return _dumps(without_comments)
 
     return _summarize_schema(
         selected,
@@ -334,6 +348,17 @@ def build_schema_result(
         tool_name=tool_name,
         table_comment=full.get("table_comment"),
     )
+
+
+def _drop_column_comments(columns: Sequence[dict[str, str]]) -> list[dict[str, str]]:
+    return [{k: v for k, v in col.items() if k != "comment"} for col in columns]
+
+
+def _build_comments_omitted_hint(*, max_result_bytes: int, name_contains: str | None, tool_name: str) -> str:
+    reason = f"Column comments were left out to fit max_result_bytes ({max_result_bytes})."
+    if name_contains is not None:
+        return f"{reason} Use a more specific name_contains substring to get their comments."
+    return f"{reason} Call {tool_name} with a name_contains substring to get the comments of the columns you need."
 
 
 def _summarize_schema(
@@ -374,7 +399,7 @@ def _summarize_schema(
     if any("comment" in col for col in selected):
         output["comments_omitted"] = True
         output["hint"] += " Column comments are omitted from this summary and are returned with the columns."
-        selected = [{k: v for k, v in col.items() if k != "comment"} for col in selected]
+        selected = _drop_column_comments(selected)
     if name_contains is not None:
         output["name_contains"] = name_contains
         output["total_columns"] = total_columns

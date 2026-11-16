@@ -418,6 +418,46 @@ class TestSchemaComments:
         assert "comments are omitted" in data["hint"]
         assert all("comment" not in col for col in data["sample_columns"])
 
+    @pytest.mark.parametrize(
+        ("name_contains", "advice"),
+        [
+            pytest.param(None, "with a name_contains substring", id="unfiltered"),
+            pytest.param("col", "more specific name_contains", id="filtered"),
+        ],
+    )
+    def test_column_comments_are_dropped_before_summarizing(self, name_contains, advice):
+        cols = _cols(10)
+        data = json.loads(
+            build_schema_result(
+                [{**col, "comment": "x" * 200} for col in cols],
+                max_columns=100,
+                max_result_bytes=1000,
+                name_contains=name_contains,
+                table_comment="Wide",
+            )
+        )
+        assert data["columns"] == cols
+        assert "truncated" not in data
+        assert data["comments_omitted"] is True
+        assert data["table_comment"] == "Wide"
+        assert advice in data["hint"]
+        if name_contains is not None:
+            assert data["name_contains"] == name_contains
+            assert data["total_columns"] == 10
+
+    def test_columns_too_wide_even_without_comments_are_summarized(self):
+        data = json.loads(
+            build_schema_result(
+                [{**col, "comment": "x" * 200} for col in _cols(10, prefix="c" * 100)],
+                max_columns=100,
+                max_result_bytes=1000,
+            )
+        )
+        assert data["truncated_by"] == "max_result_bytes"
+        assert data["comments_omitted"] is True
+        assert "columns" not in data
+        assert data["sample_columns"]
+
     def test_summary_without_comments_is_unchanged(self):
         data = json.loads(build_schema_result(_cols(250), max_columns=100, max_result_bytes=65_536))
         assert "comments_omitted" not in data

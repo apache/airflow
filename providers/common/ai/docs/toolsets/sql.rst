@@ -377,9 +377,11 @@ the *table* comment is ignored for the same reason; a failure reading the column
 
 Each comment is cut to 200 characters. Comments share ``max_result_bytes`` with the
 columns, so a wide table with long comments can cross the budget where the same table
-without them would not. When the result is summarized (see :ref:`bounded-schema-results`),
-the column comments are left out, the summary says so with ``comments_omitted``, and the
-agent gets them back by asking for the columns it needs with ``name_contains``.
+without them would not. When the columns fit but their comments do not, ``get_schema``
+returns the full column list without the column comments and says so with ``comments_omitted``.
+Only when the columns alone do not fit is the result summarized (see
+:ref:`bounded-schema-results`), and the summary leaves the column comments out too. In both
+cases the agent gets the comments back by asking for the columns it needs with ``name_contains``.
 
 ``include_table_comments=True`` adds the table comments to ``list_tables``, and the default
 search backend reads the same comments to build its catalog. Both call the Inspector's

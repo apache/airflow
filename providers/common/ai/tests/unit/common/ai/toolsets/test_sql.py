@@ -1016,11 +1016,11 @@ class TestSQLToolsetComments:
 
         assert self._get_schema(ts)["column_count"] == 2
 
-    def test_comments_count_against_the_byte_budget(self):
-        """Columns that fit on their own are summarized once their comments push past the budget."""
+    def test_column_comments_are_dropped_before_the_columns(self):
+        """Columns that fit on their own are returned in full, without comments, once comments overflow."""
         columns = [{"name": f"c{i}", "type": "INTEGER"} for i in range(10)]
         with_comments = [{**col, "comment": "x" * 200} for col in columns]
-        budget = 600
+        budget = 800
 
         plain = SQLToolset("pg_default", max_result_bytes=budget)
         plain._hook = _make_mock_db_hook(table_schema=columns)
@@ -1029,9 +1029,11 @@ class TestSQLToolsetComments:
         commented = SQLToolset("pg_default", max_result_bytes=budget)
         commented._hook = _make_mock_db_hook(table_schema=with_comments)
         data = self._get_schema(commented)
-        assert data["truncated_by"] == "max_result_bytes"
+        assert "truncated" not in data
+        assert data["columns"] == columns
+        assert data["column_count"] == 10
         assert data["comments_omitted"] is True
-        assert all("comment" not in col for col in data["sample_columns"])
+        assert "name_contains" in data["hint"]
 
     def test_list_tables_default_shape_ignores_comments(self):
         ts = SQLToolset("pg_default")
