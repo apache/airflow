@@ -116,6 +116,11 @@ _NON_WORD_RE = re.compile(r"\W+")
 _WRAPPED_SPACE_PATTERN = r"""(?:\s|\\[tr]|\\x[0-9a-f]{2}|\\u[0-9a-f]{4})+(?:['"]\s+['"])?"""
 
 
+def _get_pattern_length(pattern: str) -> int:
+    """Return the length of ``pattern`` counting a wrapped-space separator as the escaped space it stands for."""
+    return len(pattern.replace(_WRAPPED_SPACE_PATTERN, r"\ "))
+
+
 def should_hide_value_for_key(name):
     """
     Return if the value for this given name should be hidden.
@@ -607,6 +612,11 @@ class SecretsMasker(logging.Filter):
         if lines != [secret]:
             yield from map(str.strip, lines)
 
+        # ``repr`` and ``pprint`` print backslashes, mixed quotes and non-printable characters escaped.
+        printed = repr(secret)[1:-1]
+        if printed != secret:
+            yield printed
+
         if self.secret_mask_adapter:
             # This can return an iterable of secrets to mask OR a single secret as a string
             secret_or_secrets = self.secret_mask_adapter(secret)
@@ -672,14 +682,17 @@ class SecretsMasker(logging.Filter):
                         new_mask = True
             words = secret.split()
             if len(words) > 1 and (not name or self.should_hide_value_for_key(name)):
-                wrapped_pattern = _WRAPPED_SPACE_PATTERN.join(map(re.escape, words))
+                # ``pprint`` prints each wrapped piece through ``repr``.
+                wrapped_pattern = _WRAPPED_SPACE_PATTERN.join(re.escape(repr(word)[1:-1]) for word in words)
                 if wrapped_pattern not in self.patterns:
                     self.patterns.add(wrapped_pattern)
                     new_mask = True
             if new_mask:
                 # Regex alternation takes the first alternative that matches, not the longest, so
                 # longer secrets must come first or a secret that is a prefix of another leaves its tail.
-                self.replacer = re.compile("|".join(sorted(self.patterns, key=len, reverse=True)))
+                self.replacer = re.compile(
+                    "|".join(sorted(self.patterns, key=_get_pattern_length, reverse=True))
+                )
 
         elif isinstance(secret, collections.abc.Iterable):
             for v in secret:
