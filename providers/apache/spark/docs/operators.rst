@@ -235,7 +235,7 @@ at that point:
    * - Driver state
      - Default clear
      - Clear that keeps task state
-   * - Still running
+   * - Still running (the task had already failed, or its worker died)
      - Submits a new driver. The first one keeps running.
      - Reconnects to the running driver.
    * - Succeeded
@@ -245,12 +245,10 @@ at that point:
      - Submits a new driver.
      - Submits a new driver.
 
-Keep task state when a driver is still running and nothing about the code or inputs changed, so you
-don't pay for two. See :doc:`apache-airflow:core-concepts/resumable-tasks` for the ways of clearing.
-
-This is most reliable for deferred tasks (``deferrable=True``); clearing a task that's actively
-polling synchronously can cancel the driver via ``on_kill`` before the next attempt gets a chance
-to reconnect -- see :doc:`apache-airflow:core-concepts/resumable-tasks` for why.
+Keep task state when a driver is still running and nothing about the code or inputs changed, so
+you don't pay for two. This assumes the driver survives the clear; keeping task state does not
+prevent cancellation via ``on_kill``. See :doc:`apache-airflow:core-concepts/resumable-tasks`
+for the ways of clearing.
 
 .. _cluster-mode-crash-recovery-spark-standalone:
 

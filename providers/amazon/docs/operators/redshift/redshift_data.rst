@@ -111,7 +111,7 @@ statement at that point:
    * - Statement state
      - Default clear
      - Clear that keeps task state
-   * - Still running
+   * - Still running (the task had already failed, or its worker died)
      - Submits the SQL again. The first statement keeps running.
      - Reconnects to the running statement.
    * - Succeeded
@@ -122,12 +122,12 @@ statement at that point:
      - Submits the SQL again.
 
 Keep task state when a statement is still running and nothing about the code or inputs changed, so
-you don't pay for two. See :doc:`apache-airflow:core-concepts/resumable-tasks` for the ways of
-clearing.
+you don't pay for two. This assumes the statement survives the clear; keeping task state does not
+prevent cancellation via ``on_kill``. See :doc:`apache-airflow:core-concepts/resumable-tasks`
+for the ways of clearing.
 
-This is most reliable for deferred tasks (``deferrable=True``); clearing a task that's actively
-polling synchronously can cancel the statement via ``on_kill`` before the next attempt gets a
-chance to reconnect -- see :doc:`apache-airflow:core-concepts/resumable-tasks` for why.
+Clearing a task that is still running cancels the statement via ``on_kill``, also when the task is
+deferred, so the next attempt finds it canceled.
 
 To opt out and always submit fresh SQL on retry, set ``durable=False``:
 

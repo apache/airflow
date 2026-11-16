@@ -223,7 +223,7 @@ at that point:
    * - Run state
      - Default clear
      - Clear that keeps task state
-   * - Still running
+   * - Still running (the task had already failed, or its worker died)
      - Submits a new run. The first one keeps running.
      - Reconnects to the running run.
    * - Succeeded
@@ -233,12 +233,13 @@ at that point:
      - Submits a new run.
      - Submits a new run.
 
-Keep task state when a run is still running and nothing about the code or inputs changed, so you
-don't pay for two. See :doc:`apache-airflow:core-concepts/resumable-tasks` for the ways of clearing.
+Keep task state when a run is still running and nothing about the code or inputs changed, so
+you don't pay for two. This assumes the run survives the clear; keeping task state does not
+prevent cancellation via ``on_kill``. See :doc:`apache-airflow:core-concepts/resumable-tasks`
+for the ways of clearing.
 
-This is most reliable for deferred tasks (``deferrable=True``); clearing a task that's actively
-polling synchronously can cancel the run via ``on_kill`` before the next attempt gets a chance to
-reconnect -- see :doc:`apache-airflow:core-concepts/resumable-tasks` for why.
+Clearing a task that is still running cancels the run via ``on_kill``, also when the task is
+deferred, so the next attempt finds it canceled.
 
 To opt out and always submit a fresh run on retry, set ``durable=False``:
 

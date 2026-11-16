@@ -205,8 +205,8 @@ than your longest ``retry_delay``.
 
 Clearing a task deletes the stored run id by default (Airflow 3.4+), and so does clearing its whole
 Dag run (Airflow 3.5+). You can choose to keep task state when you clear, and the next attempt then
-reads the stored run id back. What the next attempt does depends on the state of the Glue job run at
-that point:
+reads the stored run id back. In synchronous mode, what the next attempt does depends on the state
+of the Glue job run at that point:
 
 .. list-table::
    :header-rows: 1
@@ -224,6 +224,9 @@ that point:
    * - Failed or stopped
      - Submits a new job run.
      - Submits a new job run.
+
+With ``deferrable=True``, the next attempt finds a still-running job run and reconnects to it on any
+clear, whether or not task state was kept.
 
 Keep task state when a job run is still running and nothing about the code or inputs changed, so you
 don't pay for two. See :doc:`apache-airflow:core-concepts/resumable-tasks` for the ways of clearing.
