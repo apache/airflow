@@ -347,7 +347,9 @@ Parameters
 - ``include_table_comments``: When ``True``, ``list_tables`` returns
   ``{"name": ..., "comment": ...}`` objects instead of bare names; ``comment`` is
   present only for tables that have one. Default ``False``. ``get_schema`` returns
-  comments regardless. See :ref:`sql-toolset-comments`.
+  comments regardless. Without a ``search_backend`` the list has no size limit: each
+  comment is capped at 200 characters, but the total is not bound by ``max_result_bytes``.
+  See :ref:`sql-toolset-comments`.
 - ``search_backend``: Registers the ``search_tables`` tool. Default ``None``, no search
   tool. See :ref:`sql-toolset-table-search`.
 - ``max_listed_tables``: With a ``search_backend``, the number of tables above which
@@ -363,17 +365,20 @@ Table and column comments
 
 A column named ``amt_adj_2`` tells an agent little; the comment the database holds for
 it often does. ``get_schema`` returns ``table_comment`` and a ``comment`` on each column
-where the database reports one:
+where the database reports one. This is what it returned for a ``customers`` table with
+comments, on PostgreSQL (the ``email`` and ``country_code`` columns have comments, the
+others do not):
 
 .. code-block:: json
 
-    {"columns": [{"name": "amt_adj_2", "type": "NUMERIC", "comment": "Net of refunds"}],
-     "column_count": 1, "table_comment": "Customer orders"}
+    {"columns":[{"name":"customer_id","type":"INTEGER"},{"name":"email","type":"TEXT","comment":"Login address, unique per customer"},{"name":"full_name","type":"TEXT"},{"name":"created_at","type":"TIMESTAMP"},{"name":"country_code","type":"CHAR(2)","comment":"ISO 3166-1 alpha-2"}],"column_count":5,"table_comment":"People who have an account in the shop."}
 
 Comments are read through ``DbApiHook.get_table_comment`` and
 ``DbApiHook.get_table_columns_with_comments``. On a dialect that cannot report comments
-(SQLite, for one), ``get_schema`` works as before and returns none. A failure reading
-the *table* comment is ignored for the same reason; a failure reading the columns is not.
+(SQLite, for one), ``get_schema`` works as before and returns none. A failure reading the
+columns fails the call. A failure reading the *table* comment, of any kind, a permission
+error included, is logged at debug level and ``get_schema`` returns the columns without
+``table_comment``.
 
 Each comment is cut to 200 characters. Comments share ``max_result_bytes`` with the
 columns, so a wide table with long comments can cross the budget where the same table
@@ -386,17 +391,25 @@ cases the agent gets the comments back by asking for the columns it needs with `
 ``include_table_comments=True`` adds the table comments to ``list_tables``, and the default
 search backend reads the same comments to build its catalog. Both call the Inspector's
 ``get_multi_table_comment`` once per schema. When ``allowed_tables`` is set, only the allowed
-tables' comments are requested. What that costs depends on the dialect. Where the
-dialect does not implement ``get_multi_table_comment`` itself, SQLAlchemy's default reads the
-comments one table at a time. Based on the dialects' reflection implementations (read, not run
-against a live database), Snowflake (``snowflake-sqlalchemy`` 2.1.0) and BigQuery
-(``sqlalchemy-bigquery`` 1.17.3) do not implement it, so there each table whose comment is read
-costs one query, or one API call on BigQuery, and a schema with many tables makes this slow. On PostgreSQL it was a single
-query when tried. On such databases leave ``include_table_comments`` off for large schemas, or
-pass a custom ``search_backend`` that builds its catalog with one dialect-specific query, for
-example against ``INFORMATION_SCHEMA``. If the comments cannot be read, for example because the
-role cannot see the comment catalog, tables are returned without them. The toolset keeps the
-catalog it built for its lifetime, so the default search backend will not look for comments again.
+tables' comments are requested. What that costs depends on the dialect. Where the dialect does
+not implement ``get_multi_table_comment`` itself, SQLAlchemy's default reads the comments one
+table at a time.
+
+On PostgreSQL 14 with SQLAlchemy 2.0, one ``list_tables`` call with
+``include_table_comments=True`` on a schema of ten tables issued two SQL statements, counted
+with SQLAlchemy's ``before_cursor_execute`` event: one listing the table names and one
+reading the comments of all the tables. Snowflake and BigQuery were not run. Reading their
+SQLAlchemy dialects' source suggests they do not implement ``get_multi_table_comment``, so
+there each table whose comment is read would cost one query, or one API call on BigQuery, and a
+schema with many tables would make this slow. On such databases leave
+``include_table_comments`` off for large schemas, or pass a custom ``search_backend`` that
+builds its catalog with one dialect-specific query, for example against
+``INFORMATION_SCHEMA`` (see :ref:`sql-toolset-custom-search-backend`). If the comments cannot
+be read, for example because the role cannot see the comment catalog, tables are returned
+without them. A lost connection is still reported as a connection error. The catalog the
+search backend reads is built once per toolset instance (see
+:ref:`sql-toolset-table-search`), so the default search backend will not look for comments
+again.
 
 SQLAlchemy 1.4 has no ``get_multi_table_comment``, so there ``list_tables`` returns tables without
 comments rather than reading them table by table. The default search backend then has no comments
@@ -421,17 +434,40 @@ and a pointer to ``search_tables`` instead of the whole list. Without a ``search
     from airflow.providers.common.ai.utils.sql_search import KeywordTableSearchBackend
 
     toolset = SQLToolset(
-        db_conn_id="snowflake_hq",
-        allowed_tables=["MODEL_CRM.SF_ASTRO_ORGS", "MODEL_ASTRO.DEPLOYMENT_IMAGE_DETAILS"],
+        db_conn_id="warehouse",
+        schema="analytics",
         search_backend=KeywordTableSearchBackend(),
     )
 
+The outputs below come from a run on PostgreSQL with ten tables. That run also set
+``include_table_comments=True`` and ``max_listed_tables=5``, which the block above leaves at
+their defaults (``False`` and 100), so with the block as written ``list_tables`` would list all
+ten tables. With those two arguments set, ``list_tables`` returned:
+
+.. code-block:: json
+
+    {"table_count": 10, "hint": "There are 10 tables, too many to list (the limit is 5). Use search_tables to find the ones you need."}
+
+and ``search_tables`` with the query ``parcels carrier`` returned:
+
+.. code-block:: json
+
+    {"tables": [{"name": "shipments", "comment": "Parcels handed to a carrier for an order."}]}
+
+A query that matches nothing returns ``{"tables": []}``. Comments are cut to 200
+characters in these results, the same as in ``list_tables``.
+
 ``KeywordTableSearchBackend`` splits the query on whitespace and matches each word,
-case-insensitively, as a substring of the table name -- without its schema, for a ``SCHEMA.TABLE`` name -- and of the table's comment; column
-comments are not searched. A word found in
-the name counts three times a word found in the comment; tables matching nothing are
-dropped and ties are ordered by name. It introspects once per toolset instance, then
-searches that result.
+case-insensitively, as a substring of the table name and of the table's comment. For a
+``SCHEMA.TABLE`` name only the table part is matched, not the schema. Column comments are
+not searched, and a word is not stemmed: a query for ``returned`` does not match a table
+named ``returns``. A word found in the name counts three times a word found in the comment;
+tables matching nothing are dropped and ties are ordered by name.
+
+The toolset builds the table catalog the first time a backend asks for it and keeps it for
+the lifetime of the toolset instance. This holds for any backend that calls ``get_catalog``,
+the default one included, so a table created after the first search does not show up until
+the toolset is built again.
 
 When ``allowed_tables`` is set, every result is checked against it before the agent sees it,
 whichever backend produced it, so a backend that knows about more tables than the agent may
@@ -439,16 +475,6 @@ use cannot widen access. When ``allowed_tables`` is unset (the default, allow-al
 toolset filters nothing: a backend indexed with a broader role than the agent's connection can
 show the agent table names and comments that connection cannot see. In that case the
 :ref:`warning below <sql-toolset-search-identity>` is the only control.
-
-**Plugging in another backend.** A backend is any object with a
-``search_tables(query, limit, *, get_catalog)`` method returning ``(name, comment)``
-pairs, best match first (see
-:class:`~airflow.providers.common.ai.utils.sql_search.SQLTableSearchBackend`). Names
-must be in the form ``list_tables`` returns -- bare for the default schema,
-``SCHEMA.TABLE`` otherwise. A backend with its own index, such as a vector store, a search
-service or a retriever over table descriptions, ignores ``get_catalog`` and queries that
-index. This provider ships no such backend; integration code is yours to write and test
-against your own store.
 
 .. _sql-toolset-search-identity:
 
@@ -460,6 +486,80 @@ against your own store.
     ``db_conn_id`` it queries with. A standalone backend, an external vector store for
     instance, is responsible for building its index with that identity or equivalent
     privileges. Otherwise it can surface tables the agent cannot use, or miss tables it can.
+
+.. _sql-toolset-custom-search-backend:
+
+Plugging in another backend
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+A backend is any object with a ``search_tables(query, limit, *, get_catalog)`` method
+returning ``(name, comment)`` pairs, best match first (see
+:class:`~airflow.providers.common.ai.utils.sql_search.SQLTableSearchBackend`). Names
+must be in the form ``list_tables`` returns -- bare for the default schema,
+``SCHEMA.TABLE`` otherwise. A backend with its own index, such as a vector store, a search
+service or a retriever over table descriptions, ignores ``get_catalog`` and queries that
+index. This provider ships no such backend; integration code is yours to write and test
+against your own store.
+
+``get_catalog`` is how the default backend reads comments, through SQLAlchemy's reflection; on a
+dialect without ``get_multi_table_comment`` that costs one query per table. A backend that avoids
+it has to reach the database itself. This example resolves a hook from the same ``db_conn_id``
+the toolset queries with and runs one query against the PostgreSQL catalogs. The query reads
+PostgreSQL's ``pg_class`` and ``pg_description``, the catalogs SQLAlchemy's PostgreSQL dialect
+reads table comments from; adapt it to the catalog of your database:
+
+.. code-block:: python
+
+    from collections.abc import Callable, Sequence
+
+    from airflow.providers.common.ai.toolsets.sql import SQLToolset
+    from airflow.providers.common.ai.utils.sql_search import TableEntry
+    from airflow.providers.common.compat.sdk import BaseHook
+
+
+    class PostgresCatalogSearchBackend:
+        def __init__(self, db_conn_id: str, schema: str) -> None:
+            self._db_conn_id = db_conn_id
+            self._schema = schema
+
+        def search_tables(
+            self, query: str, limit: int, *, get_catalog: Callable[[], Sequence[TableEntry]]
+        ) -> Sequence[TableEntry]:
+            hook = BaseHook.get_connection(self._db_conn_id).get_hook()
+            patterns = [f"%{word}%" for word in query.casefold().split()]
+            if not patterns:
+                return []
+            rows = hook.get_records(
+                "SELECT c.relname, d.description "
+                "FROM pg_catalog.pg_class c "
+                "JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace "
+                "LEFT JOIN pg_catalog.pg_description d "
+                "ON d.objoid = c.oid AND d.objsubid = 0 "
+                "AND d.classoid = 'pg_catalog.pg_class'::regclass "
+                "WHERE n.nspname = %s AND c.relkind IN ('r', 'p', 'f') "
+                "AND (lower(c.relname) LIKE ANY (%s) OR lower(d.description) LIKE ANY (%s)) "
+                "ORDER BY c.relname LIMIT %s",
+                parameters=(self._schema, patterns, patterns, limit),
+            )
+            return [(name, comment) for name, comment in rows]
+
+
+    toolset = SQLToolset(
+        db_conn_id="warehouse",
+        schema="analytics",
+        search_backend=PostgresCatalogSearchBackend("warehouse", "analytics"),
+    )
+
+This backend splits the query into words like the default one, but it is not equivalent to it.
+``%`` and ``_`` in the agent's query act as ``LIKE`` wildcards (the values are bound, so this
+is not injection), it does not weigh a name match above a comment match, and it orders by table
+name.
+
+When ``allowed_tables`` is set, the toolset checks what such a backend returns against it
+before the agent sees it, the same as for the default backend. With ``allowed_tables`` unset
+nothing is filtered, so the warning above applies: the backend queries with whatever identity
+its hook's connection has. Comments the backend returns are masked for registered secrets
+and cut to 200 characters before the agent sees them.
 
 .. _bounded-query-results:
 

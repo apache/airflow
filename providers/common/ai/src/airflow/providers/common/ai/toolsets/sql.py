@@ -335,9 +335,10 @@ class SQLToolset(ToolPrefixMixin, AirflowToolset):
         budget, its ``retries``, as pydantic-ai's own toolsets do.
     :param include_table_comments: When ``True``, ``list_tables`` returns
         ``{"name": ..., "comment": ...}`` objects instead of bare names, with ``comment``
-        present only for tables that have one (each capped to 200 characters). Default
-        ``False`` keeps the list of names. ``get_schema`` always returns table and column
-        comments where the database reports them, regardless of this flag.
+        present only for tables that have one (each capped to 200 characters). Without a
+        ``search_backend`` the list has no size limit: the total is not bound by
+        ``max_result_bytes``. Default ``False`` keeps the list of names. ``get_schema`` always
+        returns table and column comments where the database reports them, regardless of this flag.
     :param search_backend: Registers a ``search_tables`` tool that finds tables by a free-text
         query, for databases with too many tables to list. Pass
         :class:`~airflow.providers.common.ai.utils.sql_search.KeywordTableSearchBackend` for a
