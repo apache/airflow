@@ -1,3 +1,4 @@
+import jinja2
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -475,6 +476,33 @@ class TestGenericTransfer:
             **INSERT_ARGS,
             **{"rows": [[3, 4], [13, 14]], "table": "NEW_HR.EMPLOYEES"},
         }
+
+    def test_do_render_template_fields_converts_strings_to_integers(self):
+        """Test that _do_render_template_fields converts string page_size and commit_every to int."""
+        dag = DAG(dag_id="test_dag", schedule=None, start_date=DEFAULT_DATE)
+        operator = GenericTransfer(
+            task_id="test_task",
+            sql="SELECT * FROM table",
+            destination_table="dest_table",
+            source_conn_id="source",
+            destination_conn_id="dest",
+            insert_args={"commit_every": "{{ commit_every }}"},
+            page_size="{{ page_size }}",
+            dag=dag,
+        )
+        context = {
+            "page_size": "500",
+            "commit_every": "1000",
+        }
+        operator._do_render_template_fields(
+            parent=operator,
+            template_fields=["page_size", "insert_args"],
+            context=context,
+            jinja_env=jinja2.Environment(),
+            seen_oids=set(),
+        )
+        assert operator.page_size == 500
+        assert operator.insert_args["commit_every"] == 1000
 
     def test_when_provider_min_airflow_version_is_3_0_or_higher_remove_obsolete_method(self):
         """
