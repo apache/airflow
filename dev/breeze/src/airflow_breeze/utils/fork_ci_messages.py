@@ -37,9 +37,12 @@ from typing import NamedTuple
 
 STATUS_CONTEXT = "Fork CI / Tests (AMD)"
 # Each job of the fork run is reported under this prefix. Job names come from the contributor's
-# workflow, so the prefix keeps them from posting STATUS_CONTEXT, CI_PASSED_CONTEXT or
-# CI_RUN_STARTED_CONTEXT.
+# workflow, so the prefix keeps them from posting STATUS_CONTEXT, CANCELLED_JOBS_CONTEXT,
+# CI_PASSED_CONTEXT or CI_RUN_STARTED_CONTEXT.
 JOB_STATUS_CONTEXT_PREFIX = "Fork CI job / "
+# The fork run's cancelled jobs, as one status rather than one each: a run cancelled by a newer push
+# or a failing job cancels dozens of jobs at once.
+CANCELLED_JOBS_CONTEXT = "Fork CI / Cancelled jobs"
 JOB_NAME_MAX_LENGTH = 100
 # The check the "Require CI on main" ruleset requires before a pull request can (auto-)merge. Project
 # CI's gate job reports it; for a gated pull request, which never runs project CI, the reconciler
@@ -120,7 +123,8 @@ class Marker:
     since: datetime
     # Set when the head commit's fork CI turned green and its base could be compared.
     base: BaseCheck | None = None
-    # The completed fork run (``<run id>:<attempt>:<conclusion>``) whose jobs are all reported.
+    # The completed fork run (``<run id>:<attempt>:<conclusion>:<passed jobs>``) whose jobs are all
+    # reported.
     jobs: str | None = None
     # The fork run (``<run id>:<attempt>``) whose failed jobs the comment lists.
     failed_run: str | None = None
@@ -539,6 +543,16 @@ JOB_STATUSES = {
 STALE_JOB_STATUS = ("success", "Not in the latest fork run - see Fork CI / Tests (AMD)")
 
 
+def cancelled_jobs_status(cancelled: int) -> tuple[str, str]:
+    """The ``(state, description)`` of the CANCELLED_JOBS_CONTEXT status for a fork run."""
+    if cancelled:
+        return (
+            "failure",
+            f"{cancelled} job{'' if cancelled == 1 else 's'} cancelled in the fork - see Details",
+        )
+    return "success", "No jobs cancelled in the latest fork run"
+
+
 def job_status_context(job_name: str) -> str:
     # A line break or control character would make an unreadable check name.
     name = "".join(char if char.isprintable() else " " for char in job_name).strip()
@@ -562,5 +576,31 @@ STATUS_STATES = {
 }
 
 
-def status_description(state: str) -> str:
-    return _STATUS_DESCRIPTIONS[state]
+class JobCounts(NamedTuple):
+    """The passed and cancelled jobs of a fork run, which are not posted as job statuses of their own."""
+
+    passed: int
+    cancelled: int = 0
+
+
+# States whose `Fork CI / Tests (AMD)` description counts the fork run's passed and cancelled jobs.
+STATES_WITH_JOB_COUNTS = frozenset({"running", "failed", "green", "green_unverified"})
+_JOB_COUNTS_SUFFIX = re.compile(r" \((\d+) jobs? passed(?:, (\d+) cancelled)?\)\Z")
+
+
+def status_description(state: str, job_counts: JobCounts | None = None) -> str:
+    description = _STATUS_DESCRIPTIONS[state]
+    if job_counts is None or state not in STATES_WITH_JOB_COUNTS:
+        return description
+    counts = f"{job_counts.passed} job{'' if job_counts.passed == 1 else 's'} passed"
+    if job_counts.cancelled:
+        counts += f", {job_counts.cancelled} cancelled"
+    return f"{description} ({counts})"
+
+
+def split_job_counts(description: str) -> tuple[str, JobCounts | None]:
+    """A status description without its job counts, and the counts; None without them."""
+    match = _JOB_COUNTS_SUFFIX.search(description)
+    if match is None:
+        return description, None
+    return description[: match.start()], JobCounts(int(match[1]), int(match[2] or 0))
