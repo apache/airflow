@@ -19,12 +19,18 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import structlog
+from sqlalchemy import select
 
 from airflow.exceptions import DeserializationError
+from airflow.models.asset import AssetPartitionDagRun
+from airflow.models.dagrun import DagRun
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.timetables.simple import PartitionedAssetTimetable
+from airflow.utils.state import DagRunState
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from pendulum import DateTime
     from sqlalchemy.orm import Session
 
@@ -34,20 +40,79 @@ if TYPE_CHECKING:
 log = structlog.get_logger(logger_name=__name__)
 
 
-def suggest_partition_key_for_dag(*, dag_id: str, timetable: Timetable, now: DateTime) -> str | None:
+def suggest_partition_key_for_dag(
+    *,
+    dag_id: str,
+    timetable: Timetable,
+    now: DateTime,
+    can_read_runs: Callable[[], bool],
+    session: Session,
+) -> str | None:
     """
     Return the partition key to suggest for a manual trigger of *dag_id*, or ``None``.
 
-    This is the API-layer entry point for suggestions. A failure while computing
-    the suggestion never propagates to the caller: it is logged and ``None`` is returned.
+    This is the API-layer entry point for suggestions and a **guess**, not a validation.
+    For an asset-driven partitioned Dag or a Dag partitioned at runtime, the first
+    non-``None`` of these wins:
+
+    1. The oldest pending ``AssetPartitionDagRun``, in the scheduler's FIFO order. That
+       partition may still be waiting for other events, so it is not guaranteed to be satisfied.
+       Triggering it manually does not mark it as handled, only the scheduler does that, so the
+       scheduler may still create its own run for the same partition later, and this suggestion
+       does not change until then.
+    2. ``timetable.suggest_partition_key(now)``, a purely time-based guess.
+    3. The ``partition_key`` of the most recently created successful ``DagRun``; if that key
+       is ``None`` this returns ``None`` rather than searching further back. It can name a
+       partition that already ran; re-running a partition is a legitimate re-materialization.
+
+    Any other timetable, including cron partitioned ones, only gets source 2 and never
+    touches *session*. Neither does any timetable when *can_read_runs* returns false: sources 1
+    and 3 expose data of this Dag's runs, so the caller passes a check of whether the user may
+    read them. It is only called for timetables that would use those sources.
+
+    A failure of the timetable call is logged and treated as "no suggestion" from that
+    source. Database errors propagate.
+
+    ``models.dag.get_last_dagrun`` is intentionally not reused: it filters
+    ``logical_date.is_not(None)`` and excludes ``MANUAL`` runs by default,
+    which would drop exactly the partitioned runs source 3 needs.
     """
+    # A cron partitioned Dag has a tick-based answer that is always newer than its last run's
+    # key, so the database sources would only make it worse.
+    uses_database_sources = (
+        isinstance(timetable, PartitionedAssetTimetable) or timetable.partitioned_at_runtime
+    ) and can_read_runs()
+
+    if uses_database_sources:
+        pending_key = session.execute(
+            select(AssetPartitionDagRun.partition_key)
+            .where(
+                AssetPartitionDagRun.target_dag_id == dag_id,
+                AssetPartitionDagRun.created_dag_run_id.is_(None),
+            )
+            .order_by(AssetPartitionDagRun.created_at, AssetPartitionDagRun.id)
+            .limit(1)
+        ).scalar_one_or_none()
+        if pending_key is not None:
+            return pending_key
+
     try:
-        return timetable.suggest_partition_key(now)
+        suggested_key = timetable.suggest_partition_key(now)
     except Exception:
-        # Only the timetable call is guarded: it may be a plugin class, and the suggestion is
-        # optional, so it must not turn the Dag details response into a 500.
+        # Only the timetable call is guarded: it may be a plugin class and the suggestion is
+        # optional, so it must not turn the Dag details response into a 500, nor keep the
+        # last-run source below from running. A failing query must still surface.
         log.warning("Failed to compute suggested partition key", dag_id=dag_id, exc_info=True)
-        return None
+        suggested_key = None
+    if suggested_key is not None or not uses_database_sources:
+        return suggested_key
+
+    return session.execute(
+        select(DagRun.partition_key)
+        .where(DagRun.dag_id == dag_id, DagRun.state == DagRunState.SUCCESS)
+        .order_by(DagRun.id.desc())
+        .limit(1)
+    ).scalar_one_or_none()
 
 
 def _extract_partitioned_timetable(serdag: SerializedDagModel) -> PartitionedAssetTimetable | None:
