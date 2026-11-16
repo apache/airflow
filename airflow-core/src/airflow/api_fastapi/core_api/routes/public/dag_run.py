@@ -46,6 +46,7 @@ from airflow.api_fastapi.common.db.common import (
 from airflow.api_fastapi.common.db.dag_runs import (
     attach_dag_versions_to_runs,
     eager_load_dag_run_for_list,
+    filter_runs_of_dag,
 )
 from airflow.api_fastapi.common.db.dags import eager_load_teams
 from airflow.api_fastapi.common.parameters import (
@@ -642,7 +643,7 @@ def get_dag_runs(
             )
     else:
         dag = get_latest_version_of_dag(dag_bag, dag_id, session)  # Check if the Dag exists.
-        query = query.filter(DagRun.dag_id == dag_id).options()
+        query = filter_runs_of_dag(query, order_by, dag_id=dag_id)
         if has_partition_date_filter:
             # Runs of a non-partitioned Dag never carry a partition_date (this includes
             # partitioned-at-runtime Dags, whose runs keep it NULL), so the filter would

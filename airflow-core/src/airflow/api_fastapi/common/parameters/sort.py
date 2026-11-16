@@ -32,6 +32,7 @@ from airflow.models import Base
 from airflow.typing_compat import Self
 
 if TYPE_CHECKING:
+    from sqlalchemy.orm import InstrumentedAttribute
     from sqlalchemy.sql import ColumnElement, Select
 
 
@@ -51,6 +52,7 @@ class SortParam(BaseParam[list[str]]):
         self.model = model
         self.to_replace = to_replace
         self._cached_resolution: list[tuple[str, ColumnElement, bool]] | None = None
+        self._leading_column: ColumnElement | InstrumentedAttribute | None = None
 
     def set_value(self, value: list[str] | None) -> Self:
         self._cached_resolution = None
@@ -128,7 +130,20 @@ class SortParam(BaseParam[list[str]]):
             columns = [col.asc() if is_desc else col.desc() for _, col, is_desc in resolved]
         else:
             columns = [col.desc() if is_desc else col.asc() for _, col, is_desc in resolved]
+        if self._leading_column is not None:
+            leading = self._leading_column
+            columns.insert(0, leading.desc() if resolved[0][2] != reversed else leading.asc())
         return select.order_by(None).order_by(*columns)
+
+    def lead_with(self, column: ColumnElement | InstrumentedAttribute) -> Self:
+        """
+        Order by *column* before the requested attributes, in the direction of the first one.
+
+        For a query whose rows all share one value of *column*, so the result order is unchanged
+        but an index starting with *column* can return the rows in order.
+        """
+        self._leading_column = column
+        return self
 
     def get_resolved_columns(self) -> list[tuple[str, ColumnElement, bool]]:
         """Return resolved sort columns as (attr_name, column_element, is_descending) tuples."""
