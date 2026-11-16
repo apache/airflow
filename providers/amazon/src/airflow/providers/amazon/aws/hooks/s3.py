@@ -244,7 +244,12 @@ class S3Hook(AwsBaseHook):
         if re.match(r"s3[na]?:", format[0], re.IGNORECASE):
             # Split by hand: urlsplit would treat "?" in an S3 key as the start of a query string.
             # Like urlsplit, drop tabs and newlines (e.g. a trailing newline from a templated value).
-            bucket_name, _, key = re.sub(r"[\t\r\n]", "", s3url).partition("//")[2].partition("/")
+            # Only a "//" directly after the scheme introduces the bucket name.
+            cleaned_url = re.sub(r"[\t\r\n]", "", s3url)
+            scheme_match = re.match(r"s3[na]?://", cleaned_url, re.IGNORECASE)
+            bucket_name, _, key = (
+                cleaned_url[scheme_match.end() :].partition("/") if scheme_match else ("", "", "")
+            )
             if not bucket_name:
                 raise S3HookUriParseFailure(
                     "Please provide a bucket name using a valid format of the form: "

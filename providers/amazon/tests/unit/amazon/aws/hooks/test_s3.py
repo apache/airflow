@@ -198,6 +198,20 @@ class TestAwsS3Hook:
     def test_parse_s3_url(self, url: str, expected: tuple[str, str]):
         assert S3Hook.parse_s3_url(url) == expected, "Incorrect parsing of the s3 url"
 
+    @pytest.mark.parametrize(
+        "url",
+        [
+            pytest.param("s3:/bucket//key", id="single slash after scheme"),
+            pytest.param("s3:bucket/key//x", id="no slash after scheme"),
+            pytest.param("s3:/bucket/key//x?y=1", id="single slash after scheme with ?"),
+            pytest.param("s3:///key", id="empty bucket"),
+            pytest.param("s3://", id="scheme only"),
+        ],
+    )
+    def test_parse_invalid_s3_url_missing_bucket(self, url: str):
+        with pytest.raises(S3HookUriParseFailure, match="Please provide a bucket name using a valid format"):
+            S3Hook.parse_s3_url(url)
+
     def test_parse_invalid_s3_url_virtual_hosted_style(self):
         with pytest.raises(
             S3HookUriParseFailure,
