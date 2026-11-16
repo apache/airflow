@@ -78,10 +78,11 @@ dependencies = [
     "snowflake-connector-python>=5.1.0; python_version >= '3.14'",
     "snowflake-sqlalchemy>=1.7.0",
     "snowflake-sqlalchemy>=2.1.0; python_version >= '3.14'",
-    # Snowpark requires connector<5; the dialect supporting SQLAlchemy 2.1 requires connector>=5.1.
+    # Snowpark requires connector<5, so on Python < 3.14 the dialect stays on snowflake-sqlalchemy 1.x,
+    # which breaks on SQLAlchemy 2.1 (it subclasses the now-private ORMSelectCompileState).
     # https://github.com/apache/airflow/issues/75118
     "sqlalchemy>=1.4.54,<2.1; python_version < '3.14'",
-    "sqlalchemy>=2.0.44; python_version >= '3.14'",
+    "sqlalchemy>=2.0.44,!=2.1.0; python_version >= '3.14'",
     # The "<9999" is a hint to the pip resolver to resolve this requirement early,
     # can be removed when the pip resolver is improved
     "snowflake-snowpark-python>=1.17.0,<9999;python_version<'3.12'",
@@ -113,6 +114,7 @@ dev = [
     "apache-airflow-providers-microsoft-azure",
     "apache-airflow-providers-openlineage",
     # Additional devel dependencies (do not remove this line and add extra development dependencies)
+    "boto3>=1.41.0",
     "responses>=0.25.0",
 ]
 

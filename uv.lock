@@ -8584,6 +8584,7 @@ dev = [
     { name = "apache-airflow-providers-microsoft-azure" },
     { name = "apache-airflow-providers-openlineage" },
     { name = "apache-airflow-task-sdk" },
+    { name = "boto3" },
     { name = "responses" },
 ]
 docs = [
@@ -8615,7 +8616,7 @@ requires-dist = [
     { name = "snowflake-sqlalchemy", specifier = ">=1.7.0" },
     { name = "snowflake-sqlalchemy", marker = "python_full_version >= '3.14'", specifier = ">=2.1.0" },
     { name = "sqlalchemy", marker = "python_full_version < '3.14'", specifier = ">=1.4.54,<2.1" },
-    { name = "sqlalchemy", marker = "python_full_version >= '3.14'", specifier = ">=2.0.44" },
+    { name = "sqlalchemy", marker = "python_full_version >= '3.14'", specifier = ">=2.0.44,!=2.1.0" },
 ]
 provides-extras = ["common-ai", "microsoft-azure", "openlineage"]
 
@@ -8629,6 +8630,7 @@ dev = [
     { name = "apache-airflow-providers-microsoft-azure", editable = "providers/microsoft/azure" },
     { name = "apache-airflow-providers-openlineage", editable = "providers/openlineage" },
     { name = "apache-airflow-task-sdk", editable = "task-sdk" },
+    { name = "boto3", specifier = ">=1.41.0" },
     { name = "responses", specifier = ">=0.25.0" },
 ]
 docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "devel-common" }]

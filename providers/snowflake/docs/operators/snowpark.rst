@@ -39,7 +39,7 @@ Prerequisite Tasks
 
     On Python 3.14 or later, this provider requires
     ``snowflake-connector-python>=5.1.0`` to support SQLAlchemy 2.1.
-    Snowpark 1.57.0 requires ``snowflake-connector-python<5`` and cannot be
+    Snowpark releases that require ``snowflake-connector-python<5`` cannot be
     installed alongside this provider, even when installed separately.
     Use Python 3.11, 3.12, or 3.13 for Snowpark workflows until Snowpark supports
     connector 5.1 or later.

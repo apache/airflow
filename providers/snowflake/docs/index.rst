@@ -118,7 +118,7 @@ PIP package                                 Version required
 ``snowflake-sqlalchemy``                    ``>=1.7.0``
 ``snowflake-sqlalchemy``                    ``>=2.1.0; python_version >= "3.14"``
 ``sqlalchemy``                              ``>=1.4.54,<2.1; python_version < "3.14"``
-``sqlalchemy``                              ``>=2.0.44; python_version >= "3.14"``
+``sqlalchemy``                              ``>=2.0.44,!=2.1.0; python_version >= "3.14"``
 ``snowflake-snowpark-python``               ``>=1.17.0,<9999; python_version < "3.12"``
 ``snowflake-snowpark-python``               ``>=1.27.0,<9999; python_version >= "3.12" and python_version < "3.14"``
 ``setuptools``                              ``>=80.0.0,<9999``
