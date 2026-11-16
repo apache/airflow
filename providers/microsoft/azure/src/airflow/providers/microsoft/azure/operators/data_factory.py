@@ -22,11 +22,14 @@ from collections.abc import Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
+from azure.core.exceptions import ResourceNotFoundError
+
 from airflow.providers.common.compat.sdk import (
     AirflowException,
     BaseHook,
     BaseOperator,
     BaseOperatorLink,
+    ResumableJobMixin,
     XCom,
     conf,
 )
@@ -40,6 +43,8 @@ from airflow.providers.microsoft.azure.triggers.data_factory import AzureDataFac
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
+    from pydantic import JsonValue
+
     from airflow.providers.common.compat.sdk import TaskInstanceKey
     from airflow.sdk import Context
 
@@ -80,7 +85,7 @@ class AzureDataFactoryPipelineRunLink(LoggingMixin, BaseOperatorLink):
         return url
 
 
-class AzureDataFactoryRunPipelineOperator(BaseOperator):
+class AzureDataFactoryRunPipelineOperator(ResumableJobMixin, BaseOperator):
     """
     Execute a data factory pipeline.
 
@@ -115,7 +120,12 @@ class AzureDataFactoryRunPipelineOperator(BaseOperator):
     :param check_interval: Time in seconds to check on a pipeline run's status for non-asynchronous waits.
         Used only if ``wait_for_termination`` is True.
     :param deferrable: Run operator in deferrable mode.
+    :param durable: Keep the pipeline run id in the task state store, so that a retry reconnects to the
+        run still in progress, or returns when it has succeeded, instead of starting a new one (default
+        is True). Needs Airflow 3.3 or later; below it the operator behaves as with ``durable=False``.
     """
+
+    external_id_key = "azure_data_factory_pipeline_run_id"
 
     template_fields: Sequence[str] = (
         "azure_data_factory_conn_id",
@@ -147,8 +157,12 @@ class AzureDataFactoryRunPipelineOperator(BaseOperator):
         timeout: int = 60 * 60 * 24 * 7,
         check_interval: int = 60,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        durable: bool | None = None,
         **kwargs,
     ) -> None:
+        # Named param so default_args reaches it below Airflow 3.3 too.
+        if durable is not None:
+            kwargs["durable"] = durable
         super().__init__(**kwargs)
         self.azure_data_factory_conn_id = azure_data_factory_conn_id
         self.pipeline_name = pipeline_name
@@ -163,6 +177,7 @@ class AzureDataFactoryRunPipelineOperator(BaseOperator):
         self.timeout = timeout
         self.check_interval = check_interval
         self.deferrable = deferrable
+        self.run_id: str | None = None
 
     @cached_property
     def hook(self) -> AzureDataFactoryHook:
@@ -170,6 +185,9 @@ class AzureDataFactoryRunPipelineOperator(BaseOperator):
         return AzureDataFactoryHook(azure_data_factory_conn_id=self.azure_data_factory_conn_id)
 
     def execute(self, context: Context) -> None:
+        self.execute_resumable(context)
+
+    def submit_job(self, context: Context) -> str:
         self.log.info("Executing the %s pipeline.", self.pipeline_name)
         response = self.hook.run_pipeline(
             self.pipeline_name,
@@ -181,11 +199,28 @@ class AzureDataFactoryRunPipelineOperator(BaseOperator):
             start_from_failure=self.start_from_failure,
             parameters=self.parameters,
         )
-        self.run_id = response.run_id
-        # Push the ``run_id`` value to XCom regardless of what happens during execution. This allows for
-        # retrieval the executed pipeline's ``run_id`` for downstream tasks especially if performing an
-        # asynchronous wait.
-        context["ti"].xcom_push(key="run_id", value=self.run_id)
+        self._record_run_id(response.run_id, context)
+        return response.run_id
+
+    def get_job_status(self, external_id: JsonValue, context: Context) -> str:
+        try:
+            return self.hook.get_pipeline_run_status(
+                str(external_id), self.resource_group_name, self.factory_name
+            )
+        except ResourceNotFoundError:
+            return "NotFound"
+
+    def is_job_active(self, status: str) -> bool:
+        return self.wait_for_termination and status in AzureDataFactoryPipelineRunStatus.INTERMEDIATE_STATES
+
+    def is_job_succeeded(self, status: str) -> bool:
+        # Without wait_for_termination a retry does not wait for a run in progress either.
+        return status == AzureDataFactoryPipelineRunStatus.SUCCEEDED or (
+            not self.wait_for_termination and status in AzureDataFactoryPipelineRunStatus.INTERMEDIATE_STATES
+        )
+
+    def poll_until_complete(self, external_id: JsonValue, context: Context) -> None:
+        self._record_run_id(str(external_id), context)
 
         if self.wait_for_termination:
             if self.deferrable is False:
@@ -237,6 +272,18 @@ class AzureDataFactoryRunPipelineOperator(BaseOperator):
                     UserWarning,
                     stacklevel=2,
                 )
+
+    def get_job_result(self, external_id: JsonValue, context: Context) -> None:
+        self._record_run_id(str(external_id), context)
+
+    def _record_run_id(self, run_id: str, context: Context) -> None:
+        if self.run_id == run_id:
+            return
+        self.run_id = run_id
+        # Push the ``run_id`` value to XCom regardless of what happens during execution. This allows for
+        # retrieval the executed pipeline's ``run_id`` for downstream tasks especially if performing an
+        # asynchronous wait.
+        context["ti"].xcom_push(key="run_id", value=run_id)
 
     def execute_complete(self, context: Context, event: dict[str, str]) -> None:
         """
