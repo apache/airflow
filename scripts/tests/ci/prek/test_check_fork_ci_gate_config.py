@@ -20,10 +20,19 @@ from datetime import UTC, datetime
 from unittest import mock
 
 import pytest
-from check_fork_ci_gate_config import find_violations, main, resolve_base_ref
+from check_fork_ci_gate_config import find_asf_yaml_sync_violations, find_violations, main, resolve_base_ref
 
 NOW = datetime(2026, 10, 15, 12, 0, tzinfo=UTC)
 BASE = 'enabled_since = 2026-01-01T00:00:00Z\n[pilot]\n"old-user" = 2026-09-01T00:00:00Z\n'
+VALID_ASF_YAML = """
+github:
+  pull_requests:
+    creation_cap:
+      bypass_users:
+        - alice
+        - Bob
+        - charlie
+"""
 
 
 @pytest.mark.parametrize(
@@ -113,3 +122,207 @@ def test_resolve_base_ref(mock_git, monkeypatch, base_ref_env, git_results, expe
 def test_main_fails_without_a_base(mock_resolve, capsys):
     assert main() == 1
     assert "no base revision to compare with" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize(
+    ("asf_yaml", "pilot_users"),
+    [
+        pytest.param(VALID_ASF_YAML, ["alice", "Bob", "charlie"], id="exact-sync"),
+        pytest.param(VALID_ASF_YAML, ["charlie", "alice", "Bob"], id="unordered-pilot-set-matches"),
+        pytest.param(
+            """
+github:
+  pull_requests:
+    creation_cap:
+      bypass_users: []
+""",
+            [],
+            id="empty-lists-in-sync",
+        ),
+    ],
+)
+def test_asf_yaml_sync_accepts(asf_yaml, pilot_users):
+    assert find_asf_yaml_sync_violations(asf_yaml, pilot_users) == []
+
+
+@pytest.mark.parametrize(
+    ("asf_yaml", "pilot_users", "expected_message"),
+    [
+        pytest.param(
+            VALID_ASF_YAML,
+            ["alice", "Bob", "charlie", "david"],
+            "missing pilot users in bypass_users: david",
+            id="pilot-missing-in-asf-yaml",
+        ),
+        pytest.param(
+            VALID_ASF_YAML,
+            ["alice", "Bob"],
+            "extra users in bypass_users not in [pilot]: charlie",
+            id="extra-user-in-asf-yaml",
+        ),
+        pytest.param(
+            """
+github:
+  pull_requests:
+    creation_cap:
+      bypass_users:
+        - charlie
+        - alice
+""",
+            ["alice", "charlie"],
+            "bypass_users must be sorted alphabetically (case-insensitive)",
+            id="unsorted-bypass-users",
+        ),
+        pytest.param(
+            """
+github:
+  pull_requests:
+    creation_cap:
+      bypass_users:
+        - alice
+        - alice
+""",
+            ["alice"],
+            "duplicate users in bypass_users: alice",
+            id="duplicate-bypass-user",
+        ),
+        pytest.param(
+            """
+github:
+  pull_requests:
+    creation_cap:
+      bypass_users:
+        - Alice
+        - alice
+""",
+            ["Alice"],
+            "duplicate users in bypass_users: alice",
+            id="duplicate-bypass-user-case-insensitive",
+        ),
+        pytest.param(
+            "not: [valid: yaml",
+            ["alice"],
+            "failed to parse YAML",
+            id="malformed-yaml",
+        ),
+        pytest.param(
+            "42",
+            ["alice"],
+            "root must be a YAML mapping",
+            id="root-not-mapping",
+        ),
+        pytest.param(
+            "github: null",
+            ["alice"],
+            "github must be a mapping",
+            id="github-null",
+        ),
+        pytest.param(
+            "github:\n  pull_requests: null",
+            ["alice"],
+            "github.pull_requests must be a mapping",
+            id="pull-requests-null",
+        ),
+        pytest.param(
+            "github:\n  pull_requests:\n    creation_cap: null",
+            ["alice"],
+            "github.pull_requests.creation_cap must be a mapping",
+            id="creation-cap-null",
+        ),
+        pytest.param(
+            "github:\n  pull_requests:\n    creation_cap: {}",
+            ["alice"],
+            "github.pull_requests.creation_cap.bypass_users is missing",
+            id="bypass-users-missing",
+        ),
+        pytest.param(
+            "github:\n  pull_requests:\n    creation_cap:\n      bypass_users: 'alice'",
+            ["alice"],
+            "github.pull_requests.creation_cap.bypass_users must be a list",
+            id="bypass-users-not-list",
+        ),
+        pytest.param(
+            "github:\n  pull_requests:\n    creation_cap:\n      bypass_users:\n        - 123",
+            ["123"],
+            "all entries in bypass_users must be strings",
+            id="bypass-users-non-string-entries",
+        ),
+        pytest.param(
+            """
+github:
+  pull_requests:
+    creation_cap:
+      bypass_users:
+        - Alice
+""",
+            ["alice"],
+            "casing mismatch for pilot users: Alice in .asf.yaml vs alice in [pilot]",
+            id="casing-mismatch",
+        ),
+    ],
+)
+def test_asf_yaml_sync_rejects(asf_yaml, pilot_users, expected_message):
+    violations = find_asf_yaml_sync_violations(asf_yaml, pilot_users)
+    assert any(expected_message in v for v in violations)
+
+
+@mock.patch("check_fork_ci_gate_config.resolve_base_ref", autospec=True, return_value="HEAD")
+@mock.patch("check_fork_ci_gate_config._git", autospec=True)
+def test_main_passes_when_gate_and_asf_yaml_are_in_sync(mock_git, mock_resolve, tmp_path, monkeypatch):
+    monkeypatch.setattr("check_fork_ci_gate_config.AIRFLOW_ROOT_PATH", tmp_path)
+    mock_git.return_value = 'enabled_since = 2026-01-01T00:00:00Z\n[pilot]\n"alice" = 2026-01-01T00:00:00Z\n'
+    (tmp_path / ".github").mkdir(parents=True)
+    (tmp_path / ".github" / "fork-ci-gate.toml").write_text(
+        'enabled_since = 2026-01-01T00:00:00Z\n[pilot]\n"alice" = 2026-01-01T00:00:00Z\n'
+    )
+    (tmp_path / ".asf.yaml").write_text(
+        "github:\n  pull_requests:\n    creation_cap:\n      bypass_users:\n        - alice\n"
+    )
+    assert main() == 0
+
+
+@mock.patch("check_fork_ci_gate_config.resolve_base_ref", autospec=True, return_value="HEAD")
+@mock.patch("check_fork_ci_gate_config._git", autospec=True)
+def test_main_fails_when_asf_yaml_is_out_of_sync(mock_git, mock_resolve, tmp_path, monkeypatch, capsys):
+    monkeypatch.setattr("check_fork_ci_gate_config.AIRFLOW_ROOT_PATH", tmp_path)
+    mock_git.return_value = 'enabled_since = 2026-01-01T00:00:00Z\n[pilot]\n"alice" = 2026-01-01T00:00:00Z\n'
+    (tmp_path / ".github").mkdir(parents=True)
+    (tmp_path / ".github" / "fork-ci-gate.toml").write_text(
+        'enabled_since = 2026-01-01T00:00:00Z\n[pilot]\n"alice" = 2026-01-01T00:00:00Z\n'
+    )
+    (tmp_path / ".asf.yaml").write_text(
+        "github:\n  pull_requests:\n    creation_cap:\n      bypass_users:\n        - bob\n"
+    )
+    assert main() == 1
+    err = capsys.readouterr().err
+    assert ".asf.yaml: missing pilot users in bypass_users: alice" in err
+    assert ".asf.yaml: extra users in bypass_users not in [pilot]: bob" in err
+
+
+@mock.patch("check_fork_ci_gate_config.resolve_base_ref", autospec=True, return_value="HEAD")
+@mock.patch("check_fork_ci_gate_config._git", autospec=True)
+def test_main_fails_when_asf_yaml_is_missing(mock_git, mock_resolve, tmp_path, monkeypatch, capsys):
+    monkeypatch.setattr("check_fork_ci_gate_config.AIRFLOW_ROOT_PATH", tmp_path)
+    mock_git.return_value = 'enabled_since = 2026-01-01T00:00:00Z\n[pilot]\n"alice" = 2026-01-01T00:00:00Z\n'
+    (tmp_path / ".github").mkdir(parents=True)
+    (tmp_path / ".github" / "fork-ci-gate.toml").write_text(
+        'enabled_since = 2026-01-01T00:00:00Z\n[pilot]\n"alice" = 2026-01-01T00:00:00Z\n'
+    )
+    assert main() == 1
+    assert ".asf.yaml: file does not exist" in capsys.readouterr().err
+
+
+@mock.patch("check_fork_ci_gate_config.resolve_base_ref", autospec=True, return_value="HEAD")
+@mock.patch("check_fork_ci_gate_config._git", autospec=True)
+def test_main_reports_a_pilot_that_is_not_a_table(mock_git, mock_resolve, tmp_path, monkeypatch, capsys):
+    monkeypatch.setattr("check_fork_ci_gate_config.AIRFLOW_ROOT_PATH", tmp_path)
+    mock_git.return_value = None
+    (tmp_path / ".github").mkdir(parents=True)
+    (tmp_path / ".github" / "fork-ci-gate.toml").write_text('pilot = ["alice"]\n')
+    (tmp_path / ".asf.yaml").write_text(
+        "github:\n  pull_requests:\n    creation_cap:\n      bypass_users:\n        - alice\n"
+    )
+    assert main() == 1
+    err = capsys.readouterr().err
+    assert ".github/fork-ci-gate.toml: pilot must be a table" in err
+    assert ".asf.yaml" not in err

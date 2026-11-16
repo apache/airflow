@@ -70,7 +70,7 @@ from airflow.models.log import Log
 from airflow.models.task_coordinates import LOOP_GATE_OPERATOR, TaskCoordinateResolver
 from airflow.models.task_state_store import TaskStateStoreModel
 from airflow.models.taskinstance import TaskInstance, clear_loop_task_instances, clear_task_instances
-from airflow.models.xcom import XComModel, XComModelV2
+from airflow.models.xcom import EXTERNAL_CLEAR_TARGET_XCOM_KEY, XComModel, XComModelV2
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.sdk import Asset, TaskGroup, TriggerRule, task, task_group
@@ -4987,6 +4987,61 @@ class TestTIUpdateState:
         assert session.scalars(
             select(TaskStateStoreModel).where(TaskStateStoreModel.task_id == ti.task_id)
         ).all()
+
+    def test_ti_update_state_to_success_records_the_external_clear_target(
+        self, client, session, create_task_instance
+    ):
+        ti = create_task_instance(task_id="mark", start_date=DEFAULT_START_DATE, state=State.RUNNING)
+        session.commit()
+        target = {
+            "dag_id": "child",
+            "task_id": "wait",
+            "logical_date": "2026-10-01T00:00:00Z",
+            "recursion_depth": 3,
+        }
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/state",
+            json={
+                "state": "success",
+                "end_date": DEFAULT_END_DATE.isoformat(),
+                "external_clear_target": target,
+            },
+        )
+
+        assert response.status_code == 204
+        session.expire_all()
+        stored = session.scalars(
+            select(XComModelV2.value).where(
+                XComModelV2.task_instance_id == ti.id, XComModelV2.key == EXTERNAL_CLEAR_TARGET_XCOM_KEY
+            )
+        ).one()
+        assert XComModel.deserialize_value_primitives(SimpleNamespace(value=stored)) == target
+
+    def test_ti_update_state_to_success_rejects_a_naive_external_clear_target_date(
+        self, client, session, create_task_instance
+    ):
+        ti = create_task_instance(task_id="mark", start_date=DEFAULT_START_DATE, state=State.RUNNING)
+        session.commit()
+        target = {
+            "dag_id": "child",
+            "task_id": "wait",
+            "logical_date": "2026-10-01T00:00:00",
+            "recursion_depth": 1,
+        }
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/state",
+            json={
+                "state": "success",
+                "end_date": DEFAULT_END_DATE.isoformat(),
+                "external_clear_target": target,
+            },
+        )
+
+        assert response.status_code == 422
+        session.expire_all()
+        assert session.get(TaskInstance, ti.id).state == State.RUNNING
 
 
 class TestTISkipDownstream:

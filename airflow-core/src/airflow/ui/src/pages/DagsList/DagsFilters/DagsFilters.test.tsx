@@ -66,6 +66,9 @@ describe("Paused filter with hide_paused_dags_by_default enabled", () => {
   it("defaults to showing only active dags", async () => {
     render(<AppWrapper initialEntries={["/dags"]} />);
 
+    await waitFor(() => expect(screen.getByText("tutorial_taskflow_api_success")).toBeInTheDocument());
+    await screen.findByTestId("paused-pill");
+
     await waitFor(() => {
       expect(screen.getByText("tutorial_taskflow_api_success")).toBeInTheDocument();
       expect(screen.queryByText("paused_dag")).not.toBeInTheDocument();
@@ -75,6 +78,9 @@ describe("Paused filter with hide_paused_dags_by_default enabled", () => {
   it("keeps draining dags under the default, since they are not paused yet", async () => {
     withDrainingDag();
     render(<AppWrapper initialEntries={["/dags"]} />);
+
+    await waitFor(() => expect(screen.getByText("draining_dag")).toBeInTheDocument());
+    await screen.findByTestId("paused-pill");
 
     await waitFor(() => {
       expect(screen.getByText("draining_dag")).toBeInTheDocument();
@@ -117,6 +123,9 @@ describe("Paused filter with hide_paused_dags_by_default enabled", () => {
 
   it("shows all dags after removing the paused filter", async () => {
     render(<AppWrapper initialEntries={["/dags"]} />);
+
+    await waitFor(() => expect(screen.getByText("tutorial_taskflow_api_success")).toBeInTheDocument());
+    await screen.findByTestId("paused-pill");
 
     await waitFor(() => {
       expect(screen.getByText("tutorial_taskflow_api_success")).toBeInTheDocument();

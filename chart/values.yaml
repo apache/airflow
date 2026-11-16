@@ -646,6 +646,7 @@ workers:
       failureThreshold: 5
       periodSeconds: 60
       command: ~
+      terminationGracePeriodSeconds: ~
 
     # Enable the default workers defined by the root `workers` and `workers.celery`
     # configurations to be created.

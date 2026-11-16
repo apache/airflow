@@ -160,6 +160,9 @@ Maintainer Tools
   open Pull Request queue (run deterministic quality checks, propose actions under explicit
   per-batch confirmation) and to surface backlog statistics by ``area:*`` label.
 
+* `Agent-assisted contribution <33_agent_assisted_contribution.md>`__ describes how to install the
+  ``apache/magpie`` agent skills used in this repository and where Airflow's overrides live.
+
 * `CLI Implementation Guide <27_cli_implementation_guide.rst>`__ describes where to implement new
   CLI features following AIP-94: remote commands go to ``airflowctl``, admin/deployment commands
   stay in the ``airflow`` CLI.
