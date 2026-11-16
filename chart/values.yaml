@@ -375,6 +375,10 @@ airflowLocalSettings: |-
   {{- end }}
   {{- end }}
 
+# Mount the Airflow config ConfigMap as a directory (at ``{airflowHome}/config``) and set
+# accordingly, instead of mounting ``airflow.cfg`` via ``subPath``.
+mountConfigAsDir: false
+
 # Enable RBAC (default on most clusters these days)
 rbac:
   # Specifies whether RBAC resources should be created
