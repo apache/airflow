@@ -53,6 +53,7 @@ type TriggerDAGFormProps = {
   readonly error?: unknown;
   readonly hasSchedule: boolean;
   readonly isPartitioned: boolean;
+  readonly isPartitionedAtRuntime: boolean;
   readonly isPaused: boolean;
   readonly isPending?: boolean;
   readonly onPausedDagActionChange?: () => void;
@@ -76,6 +77,7 @@ const TriggerDAGForm = ({
   error,
   hasSchedule,
   isPartitioned,
+  isPartitionedAtRuntime,
   isPaused,
   isPending = false,
   onPausedDagActionChange,
@@ -94,8 +96,9 @@ const TriggerDAGForm = ({
   const [pausedDagAction, setPausedDagAction] = useState<PausedDagAction>("unpause");
   const [hasAppliedPrefill, setHasAppliedPrefill] = useState(false);
   const { mutate: togglePause } = useTogglePause({ dagId });
-  // Only a partitioned Dag has a partition key field, so a suggestion for any other Dag is ignored.
-  const partitionKeySuggestion = isPartitioned ? suggestedPartitionKey : undefined;
+  const showsPartitionKey = isPartitioned || isPartitionedAtRuntime;
+  // Only a Dag that shows the partition key field takes a suggestion; for any other Dag it is ignored.
+  const partitionKeySuggestion = showsPartitionKey ? suggestedPartitionKey : undefined;
 
   const { control, handleSubmit, reset, setValue, watch } = useForm<DagRunTriggerParams>({
     defaultValues: {
@@ -379,6 +382,7 @@ const TriggerDAGForm = ({
           <TriggerDAGAdvancedOptions
             control={control}
             isPartitioned={isPartitioned}
+            isPartitionedAtRuntime={isPartitionedAtRuntime}
             isSuggestedValue={isSuggestedValue}
             onPartitionKeyEdit={onPartitionKeyEdit}
           />

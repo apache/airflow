@@ -370,6 +370,48 @@ describe("TriggerDAGForm partition key suggestion", () => {
     expect(screen.getByText(SUGGESTED_HELP)).toBeInTheDocument();
   });
 
+  it("shows the partition key field for a Dag partitioned at runtime", async () => {
+    const { container } = render(buildForm({ isPartitioned: false, isPartitionedAtRuntime: true }), {
+      wrapper: Wrapper,
+    });
+
+    await waitFor(() => expect(getPartitionKeyInput(container)).toBeInTheDocument());
+    expect(screen.getByText(PLAIN_HELP)).toBeInTheDocument();
+  });
+
+  it("pre-fills the suggestion and submits it for a Dag partitioned at runtime", async () => {
+    const onSubmitTrigger = vi.fn();
+    const { container } = render(
+      buildForm({
+        isPartitioned: false,
+        isPartitionedAtRuntime: true,
+        onSubmitTrigger,
+        suggestedPartitionKey: "2026-02-18T00:00:00",
+      }),
+      { wrapper: Wrapper },
+    );
+
+    await waitFor(() => expect(getPartitionKeyInput(container)).toHaveValue("2026-02-18T00:00:00"));
+    expect(screen.getByText(SUGGESTED_HELP)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId("trigger-dag-submit"));
+
+    await waitFor(() =>
+      expect(onSubmitTrigger).toHaveBeenCalledWith(
+        expect.objectContaining({ partitionKey: "2026-02-18T00:00:00" }) as unknown,
+      ),
+    );
+  });
+
+  it("applies a suggestion that arrives late for a Dag partitioned at runtime", async () => {
+    const runtimeProps = { isPartitioned: false, isPartitionedAtRuntime: true };
+    const { container, rerender } = render(buildForm(runtimeProps), { wrapper: Wrapper });
+
+    rerender(buildForm({ ...runtimeProps, suggestedPartitionKey: "2026-02-18T00:00:00" }));
+
+    await waitFor(() => expect(getPartitionKeyInput(container)).toHaveValue("2026-02-18T00:00:00"));
+  });
+
   it("does not apply a suggestion to a Dag that is not partitioned", async () => {
     const onSubmitTrigger = vi.fn();
     const { rerender } = render(buildForm({ isPartitioned: false, onSubmitTrigger }), { wrapper: Wrapper });

@@ -256,6 +256,18 @@ describe("TriggerDAGModal", () => {
     },
   );
 
+  it("shows the suggested partition key for a Dag partitioned at runtime", async () => {
+    vi.mocked(DagService.getDagDetails).mockResolvedValue({
+      ...dag,
+      suggested_partition_key: "2026-02-18T00:00:00",
+      timetable_partitioned: false,
+      timetable_partitioned_at_runtime: true,
+    });
+    const { container } = renderModal(createQueryClient());
+
+    await waitFor(() => expect(getPartitionKeyInput(container)).toHaveValue("2026-02-18T00:00:00"));
+  });
+
   it("clears the partition key when a refetch reports that there is no suggestion any more", async () => {
     const queryClient = createQueryClient();
 

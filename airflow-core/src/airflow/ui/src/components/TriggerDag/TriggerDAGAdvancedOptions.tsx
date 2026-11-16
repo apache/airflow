@@ -26,6 +26,7 @@ import type { DagRunTriggerParams } from "./types";
 type TriggerDAGAdvancedOptionsProps = {
   readonly control: Control<DagRunTriggerParams>;
   readonly isPartitioned: boolean;
+  readonly isPartitionedAtRuntime: boolean;
   readonly isSuggestedValue: boolean;
   readonly onPartitionKeyEdit: () => void;
 };
@@ -33,6 +34,7 @@ type TriggerDAGAdvancedOptionsProps = {
 const TriggerDAGAdvancedOptions = ({
   control,
   isPartitioned,
+  isPartitionedAtRuntime,
   isSuggestedValue,
   onPartitionKeyEdit,
 }: TriggerDAGAdvancedOptionsProps) => {
@@ -59,7 +61,7 @@ const TriggerDAGAdvancedOptions = ({
         )}
       />
 
-      {isPartitioned ? (
+      {isPartitioned || isPartitionedAtRuntime ? (
         <Controller
           control={control}
           name="partitionKey"

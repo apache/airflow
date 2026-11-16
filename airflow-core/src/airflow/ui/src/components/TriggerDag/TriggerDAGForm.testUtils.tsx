@@ -45,6 +45,7 @@ export const buildForm = (props: Partial<ComponentProps<typeof TriggerDAGForm>>)
     error={undefined}
     hasSchedule={false}
     isPartitioned
+    isPartitionedAtRuntime={false}
     isPaused={false}
     isPending={false}
     onSubmitTrigger={vi.fn()}
