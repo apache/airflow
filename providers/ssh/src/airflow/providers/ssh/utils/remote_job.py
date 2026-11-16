@@ -30,6 +30,30 @@ from typing import Literal
 POSIX_DEFAULT_BASE_DIR = "/tmp/airflow-ssh-jobs"
 WINDOWS_DEFAULT_BASE_DIR = "$env:TEMP\\airflow-ssh-jobs"
 
+# PowerShell ends a single-quoted string at any of these, not only the ASCII
+# apostrophe; a doubled one stands for itself.
+_PS_SINGLE_QUOTES = re.compile("(['\u2018\u2019\u201a\u201b])")
+_PS_ENV_PREFIX = re.compile(r"\$env:([A-Za-z_][A-Za-z0-9_]*)", re.IGNORECASE)
+
+
+def _ps_quote(value: str) -> str:
+    """Quote ``value`` as a PowerShell single-quoted string, which is never interpolated."""
+    return "'" + _PS_SINGLE_QUOTES.sub(r"\1\1", value) + "'"
+
+
+def _ps_path(path: str) -> str:
+    """
+    Return a PowerShell expression that evaluates to ``path``.
+
+    A leading ``$env:NAME``, as in the default base directory, is expanded on the remote
+    host. The rest of the path is literal, so a ``$``, backtick or quote in
+    ``remote_base_dir`` stays part of the directory name. Pass the result to
+    ``-LiteralPath``, since ``-Path`` would read ``[`` and ``]`` as wildcards.
+    """
+    if match := _PS_ENV_PREFIX.match(path):
+        return f"($env:{match.group(1)} + {_ps_quote(path[match.end() :])})"
+    return _ps_quote(path)
+
 
 def _validate_job_dir(
     job_dir: str, remote_os: Literal["posix", "windows"], base_dir: str | None = None
@@ -249,15 +273,23 @@ def build_windows_wrapper_command(
     environment: dict[str, str] | None = None,
 ) -> str:
     """
-    Build a PowerShell wrapper that runs the command detached via Start-Process.
+    Build a PowerShell wrapper that runs the command detached via ``Win32_Process.Create``.
 
     The wrapper:
 
-    - Creates the job directory
-    - Starts the command in a new detached PowerShell process
-    - Redirects stdout/stderr to the log file
-    - Writes the exit code atomically on completion
-    - Writes the PID for potential cancellation
+    - Creates the job directory and writes the command into it as ``cmd.ps1``, next to
+      the job script that runs it
+    - Starts the job script as a separate process that outlives the SSH session, in the
+      SSH session's working directory
+    - Appends everything the command writes, on every stream, to the log file as UTF-8
+    - Writes the exit code on completion, including when the command calls ``exit``,
+      throws, or fails to parse
+    - Writes the PID for potential cancellation, and fails the submission if the job
+      directory cannot be set up or the process cannot be started
+
+    The command runs as a script, so the host's execution policy applies to it with
+    ``-ExecutionPolicy Bypass`` for the process; a Group Policy that only allows signed
+    scripts fails the job with the policy error in its log.
 
     :param command: The command to execute (PowerShell script path or command)
     :param paths: RemoteJobPaths instance with all paths
@@ -268,42 +300,68 @@ def build_windows_wrapper_command(
     if environment:
         for key, value in environment.items():
             _validate_env_var_name(key)
-            escaped_value = value.replace("'", "''")
-            env_setup += f"$env:{key} = '{escaped_value}'; "
+            env_setup += f"$env:{key} = {_ps_quote(value)}; "
 
-    def ps_escape(s: str) -> str:
-        return s.replace("'", "''")
+    sep = paths.sep
 
-    job_dir = ps_escape(paths.job_dir)
-    log_file = ps_escape(paths.log_file)
-    exit_code_file = ps_escape(paths.exit_code_file)
-    exit_code_tmp = ps_escape(paths.exit_code_tmp_file)
-    pid_file = ps_escape(paths.pid_file)
-    status_file = ps_escape(paths.status_file)
-    escaped_command = ps_escape(command)
-    job_id = ps_escape(paths.job_id)
-
-    child_script = f"""$ErrorActionPreference = 'Continue'
-$env:LOG_FILE = '{log_file}'
-$env:STATUS_FILE = '{status_file}'
+    # Use $d and $b for directories to avoid passing long paths multiple times, and write
+    # the scripts to disk to avoid double base64 encoding. job.ps1 travels in a verbatim
+    # here-string and holds nothing user-supplied but quoted environment values; the command
+    # goes to its own cmd.ps1, so `exit N` in it ends only that script, with $LASTEXITCODE N.
+    # *>&1 keeps Write-Host and warnings; error records are turned into their message before
+    # Out-String formats objects the way a console would. The log writer shares the file for
+    # reading and flushes every line, so the trigger can tail it while the job runs.
+    # Windows reports a crashed process as a negative exit code; record it unsigned, since
+    # the trigger only accepts digits. The writer opens $logPath, not $env:LOG_FILE, so an
+    # environment entry of that name cannot redirect the job's log.
+    child_script = f"""$ErrorActionPreference = "Continue"
+$logPath = "$b{sep}stdout.log"
+$env:LOG_FILE = $logPath
+$env:STATUS_FILE = "$b{sep}status"
 {env_setup}
-{escaped_command}
-$ec = $LASTEXITCODE
-if ($null -eq $ec) {{ $ec = 0 }}
-Set-Content -NoNewline -Path '{exit_code_tmp}' -Value $ec
-Move-Item -Force -Path '{exit_code_tmp}' -Destination '{exit_code_file}'
+$log = [System.IO.StreamWriter]::new([System.IO.FileStream]::new($logPath, 'Append', 'Write', 'ReadWrite'), [System.Text.UTF8Encoding]::new($false))
+$log.AutoFlush = $true
+$ec = 1
+try {{
+  & "$b{sep}cmd.ps1" *>&1 |
+    ForEach-Object {{ if ($_ -is [System.Management.Automation.ErrorRecord]) {{ "$_" }} else {{ $_ }} }} |
+    Out-String -Stream |
+    ForEach-Object {{ $log.WriteLine($_) }}
+  $ec = if ($null -eq $LASTEXITCODE) {{ 0 }} else {{ $LASTEXITCODE }}
+}} catch {{
+  $log.WriteLine("$_")
+}} finally {{
+  $log.Close()
+  if ($ec -lt 0) {{ $ec += 4294967296 }}
+  Set-Content -NoNewline -LiteralPath "$b{sep}exit_code.tmp" -Value $ec
+  Move-Item -Force -LiteralPath "$b{sep}exit_code.tmp" -Destination "$b{sep}exit_code"
+}}
 """
-    child_script_bytes = child_script.encode("utf-16-le")
-    encoded_script = base64.b64encode(child_script_bytes).decode("ascii")
 
-    wrapper = f"""$jobDir = '{job_dir}'
-New-Item -ItemType Directory -Force -Path $jobDir | Out-Null
-$log = '{log_file}'
-'' | Set-Content -Path $log
+    # Launch as Win32_Process so that it doesn't die when SSH exits. job.ps1 is read and run
+    # as a script block rather than with -File, so execution policy never blocks the job's
+    # own bookkeeping, only the user's cmd.ps1. The launch quotes the already-resolved $d, so
+    # the child does not re-expand $env:NAME in its own environment. Create reports failure
+    # in ReturnValue instead of throwing.
+    wrapper = f"""$ErrorActionPreference = 'Stop'
+$ProgressPreference = 'SilentlyContinue'
+trap {{ [Console]::Error.WriteLine("$_"); exit 1 }}
+$d = {_ps_path(paths.job_dir)}
+New-Item -ItemType Directory -Force -Path $d | Out-Null
+[System.IO.File]::WriteAllText("$d{sep}cmd.ps1", {_ps_quote(command)}, [System.Text.UTF8Encoding]::new($true))
+@'
+{child_script}'@ | Set-Content -LiteralPath "$d{sep}job.ps1" -Encoding UTF8
+New-Item -ItemType File -Force -Path "$d{sep}stdout.log" | Out-Null
 
-$p = Start-Process -FilePath 'powershell.exe' -ArgumentList @('-NoProfile', '-NonInteractive', '-EncodedCommand', '{encoded_script}') -RedirectStandardOutput $log -RedirectStandardError $log -PassThru -WindowStyle Hidden
-Set-Content -NoNewline -Path '{pid_file}' -Value $p.Id
-Write-Output '{job_id}'
+$q = "'" + ($d -replace "{_PS_SINGLE_QUOTES.pattern}", '$1$1') + "'"
+$launch = 'powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command "$b = ' + $q + '; . ([scriptblock]::Create([IO.File]::ReadAllText($b + ''{sep}job.ps1'')))"'
+$p = ([wmiclass]'Win32_Process').Create($launch, $PWD.ProviderPath, $null)
+if ($p.ReturnValue -ne 0) {{
+  [Console]::Error.WriteLine("Win32_Process.Create failed with return value $($p.ReturnValue)")
+  exit 1
+}}
+Set-Content -NoNewline -LiteralPath "$d{sep}pid" -Value $p.ProcessId
+Write-Output {_ps_quote(paths.job_id)}
 """
     wrapper_bytes = wrapper.encode("utf-16-le")
     encoded_wrapper = base64.b64encode(wrapper_bytes).decode("ascii")
@@ -329,14 +387,17 @@ def build_windows_log_tail_command(log_file: str, offset: int, max_bytes: int) -
     """
     Build a PowerShell command to read log bytes from offset.
 
+    The chunk is written to stdout as UTF-8 bytes. Printing it as a PowerShell string would
+    re-encode it in the SSH session's console code page, which the trigger's strict UTF-8
+    decoding rejects for any non-ASCII character.
+
     :param log_file: Path to the log file
     :param offset: Byte offset to start reading from
     :param max_bytes: Maximum bytes to read
     :return: PowerShell command that outputs the log chunk
     """
-    escaped_path = log_file.replace("'", "''")
-    script = f"""$path = '{escaped_path}'
-if (Test-Path $path) {{
+    script = f"""$path = {_ps_path(log_file)}
+if (Test-Path -LiteralPath $path) {{
   try {{
     $fs = [System.IO.File]::Open($path, 'Open', 'Read', 'ReadWrite')
     $fs.Seek({offset}, [System.IO.SeekOrigin]::Begin) | Out-Null
@@ -344,7 +405,10 @@ if (Test-Path $path) {{
     $n = $fs.Read($buf, 0, $buf.Length)
     $fs.Close()
     if ($n -gt 0) {{
-      [System.Text.Encoding]::UTF8.GetString($buf, 0, $n)
+      $bytes = [System.Text.Encoding]::UTF8.GetBytes([System.Text.Encoding]::UTF8.GetString($buf, 0, $n))
+      $out = [Console]::OpenStandardOutput()
+      $out.Write($bytes, 0, $bytes.Length)
+      $out.Flush()
     }}
   }} catch {{}}
 }}"""
@@ -371,10 +435,9 @@ def build_windows_file_size_command(file_path: str) -> str:
     :param file_path: Path to the file
     :return: PowerShell command that outputs the file size
     """
-    escaped_path = file_path.replace("'", "''")
-    script = f"""$path = '{escaped_path}'
-if (Test-Path $path) {{
-  (Get-Item $path).Length
+    script = f"""$path = {_ps_path(file_path)}
+if (Test-Path -LiteralPath $path) {{
+  (Get-Item -LiteralPath $path).Length
 }} else {{
   0
 }}"""
@@ -401,10 +464,9 @@ def build_windows_completion_check_command(exit_code_file: str) -> str:
     :param exit_code_file: Path to the exit code file
     :return: PowerShell command that outputs exit code if done, empty otherwise
     """
-    escaped_path = exit_code_file.replace("'", "''")
-    script = f"""$path = '{escaped_path}'
-if (Test-Path $path) {{
-  $txt = Get-Content -Raw -Path $path
+    script = f"""$path = {_ps_path(exit_code_file)}
+if (Test-Path -LiteralPath $path) {{
+  $txt = Get-Content -Raw -LiteralPath $path
   if ($txt -match '^[0-9]+$') {{ $txt.Trim() }}
 }}"""
     script_bytes = script.encode("utf-16-le")
@@ -454,10 +516,9 @@ def build_windows_kill_command(pid_file: str) -> str:
     :param pid_file: Path to the PID file
     :return: PowerShell command to kill the process
     """
-    escaped_path = pid_file.replace("'", "''")
-    script = f"""$path = '{escaped_path}'
-if (Test-Path $path) {{
-  $procId = Get-Content $path
+    script = f"""$path = {_ps_path(pid_file)}
+if (Test-Path -LiteralPath $path) {{
+  $procId = Get-Content -LiteralPath $path
   & taskkill.exe /PID $procId /T /F 2>$null
 }}"""
     script_bytes = script.encode("utf-16-le")
@@ -490,8 +551,7 @@ def build_windows_cleanup_command(job_dir: str, base_dir: str | None = None) -> 
     :raises ValueError: If job_dir is not under the expected base directory
     """
     _validate_job_dir(job_dir, "windows", base_dir)
-    escaped_path = job_dir.replace("'", "''")
-    script = f"Remove-Item -Recurse -Force -Path '{escaped_path}' -ErrorAction SilentlyContinue"
+    script = f"Remove-Item -Recurse -Force -LiteralPath {_ps_path(job_dir)} -ErrorAction SilentlyContinue"
     script_bytes = script.encode("utf-16-le")
     encoded_script = base64.b64encode(script_bytes).decode("ascii")
     return f"powershell.exe -NoProfile -NonInteractive -EncodedCommand {encoded_script}"

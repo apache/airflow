@@ -30,7 +30,8 @@ from airflow.sdk.bases.xcom import (
     BaseXCom,
     XComCoordinate,
     _current_trigger_ti,
-    _is_legacy_xcom_backend,
+    is_legacy_xcom_backend,
+    is_stored_through_backend,
 )
 from airflow.sdk.execution_time.comms import (
     DeleteXCom,
@@ -360,7 +361,19 @@ class StoreMixin:
     ],
 )
 def test_is_legacy_xcom_backend(backend, expected):
-    assert _is_legacy_xcom_backend(backend) is expected
+    assert is_legacy_xcom_backend(backend) is expected
+
+
+@pytest.mark.parametrize(
+    ("key", "expected"),
+    [
+        pytest.param("return_value", True, id="task-value"),
+        pytest.param("skipmixin_key", False, id="skipmixin-key"),
+        pytest.param("my_link_key", True, id="link-not-at-the-start"),
+    ],
+)
+def test_is_stored_through_backend(key, expected):
+    assert is_stored_through_backend(key) is expected
 
 
 class TestStoreAndLoadValue:

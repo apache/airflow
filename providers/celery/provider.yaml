@@ -23,12 +23,13 @@ description: |
 
 state: ready
 lifecycle: production
-source-date-epoch: 1792489528
+source-date-epoch: 1793816745
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 4.0.0
   - 3.26.0
   - 3.25.0
   - 3.24.1
@@ -267,7 +268,9 @@ config:
           https://docs.celeryq.dev/en/latest/userguide/configuration.html#task-result-backend-settings
           The psycopg2 driver in the example below works on every supported Airflow version.
           Set db+postgresql+psycopg:// only on Airflow 3.2.0 and later - earlier releases do not
-          guarantee SQLAlchemy 2.0, which is where the psycopg (v3) dialect lives
+          guarantee SQLAlchemy 2.0, which is where the psycopg (v3) dialect lives.
+          A driverless db+postgresql:// URL, set here or derived from sql_alchemy_conn, uses psycopg (v3)
+          when psycopg and SQLAlchemy 2.0+ are installed and psycopg2 otherwise; name the driver to choose one
         version_added: ~
         type: string
         sensitive: true

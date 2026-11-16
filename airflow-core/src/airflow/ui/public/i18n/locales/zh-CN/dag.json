@@ -1,4 +1,5 @@
 {
+  "allMapIndexes": "所有映射索引",
   "allRuns": "所有执行",
   "blockingDeps": {
     "dependency": "依赖 ",
@@ -6,6 +7,7 @@
     "title": "依赖阻碍任务调度"
   },
   "calendar": {
+    "backfill": "回填",
     "daily": "每日",
     "hourly": "每小时",
     "legend": {
@@ -32,6 +34,21 @@
       "thursday": "周四",
       "tuesday": "周二",
       "wednesday": "周三"
+    }
+  },
+  "callbacks": {
+    "callback_one": "回调",
+    "callback_other": "回调",
+    "columns": {
+      "alertName": "截止期限警告",
+      "callback": "回调",
+      "deadlineTime": "截止时间",
+      "missedBy": "超出时长",
+      "type": "类型"
+    },
+    "types": {
+      "executor": "同步",
+      "triggerer": "异步"
     }
   },
   "code": {
@@ -96,8 +113,10 @@
     "noTryNumber": "没有重试次数",
     "search": {
       "matchCount": "{{current, number}} / {{total, number}}",
+      "nextMatch": "下一个匹配项",
       "noMatches": "无匹配项",
-      "placeholder": "搜索日志..."
+      "placeholder": "搜索日志...",
+      "previousMatch": "上一个匹配项"
     },
     "settings": "日志设置",
     "tryNotStarted": "此次尝试尚未开始。",
@@ -106,6 +125,37 @@
     "viewPreviousTry": "查看上一次尝试（第 {{tryNumber}} 次）的日志",
     "waitingToRetry": "第 {{tryNumber}} 次尝试正在等待重试。",
     "warning": "WARNING"
+  },
+  "loop": {
+    "history": {
+      "capLabel": "上限：{{max}}",
+      "iterationsAxis": "迭代次数",
+      "stats": {
+        "capHits": "达到上限",
+        "medianIterations": "迭代次数中位数"
+      },
+      "title": "每次执行的迭代次数"
+    },
+    "iterationLabel": "迭代 {{index}}",
+    "iterations": "迭代",
+    "outcome": "结果",
+    "reason": {
+      "cap_reached": "已达到迭代上限 ({{max}})",
+      "failed": "在迭代 {{index}} 时失败",
+      "iteration_failed": "迭代 {{index}} 在 {{taskId}} 中失败",
+      "ran_to_cap": "已执行全部 {{max}} 次允许的迭代",
+      "removed": "已移除",
+      "running": "执行中",
+      "skipped": "已跳过",
+      "stopped_early": "在迭代 {{index}} 时提前停止"
+    },
+    "rules": {
+      "behaviour": "行为",
+      "boundedFor": "执行固定次数的迭代",
+      "exitCriteria": "退出条件",
+      "maxIterations": "最大迭代次数",
+      "whileUntil": "重复执行，直到 {{criteria}}"
+    }
   },
   "notFound": {
     "back": "返回",
@@ -211,6 +261,7 @@
     "auditLog": "审计日志",
     "backfills": "回填",
     "calendar": "日历",
+    "callbacks": "回调",
     "code": "代码",
     "details": "详细信息",
     "logs": "日志",
@@ -223,6 +274,7 @@
     "taskInstances": "任务实例",
     "taskStateStore": "任务存储",
     "tasks": "任务",
+    "versions": "版本",
     "xcom": "XCom"
   },
   "taskGroups": {
@@ -250,5 +302,70 @@
       "never": "永不"
     },
     "title": "任务存储"
+  },
+  "versions": {
+    "base": "比较起始版本",
+    "categories": {
+      "asset": "资源",
+      "authorization": "授权",
+      "callback": "回调",
+      "deadline": "截止期限",
+      "dependency": "依赖",
+      "metadata": "元数据",
+      "param": "参数",
+      "provenance": "来源",
+      "schedule": "调度",
+      "task": "任务",
+      "unknown": "未知"
+    },
+    "codeAccess": "查看值需要 Dag 代码访问权限",
+    "columns": {
+      "after": "之后",
+      "before": "之前",
+      "category": "类别",
+      "impact": "影响",
+      "operation": "操作",
+      "path": "路径"
+    },
+    "heading": "版本 {{base}} → 版本 {{target}}",
+    "impacts": {
+      "authorization": "授权",
+      "execution": "执行",
+      "metadata": "元数据",
+      "provenance": "来源",
+      "unknown": "未知"
+    },
+    "limitReached": {
+      "description": "变更数量超出了最大变更数的限制。请提高限制以查看其余变更。",
+      "descriptionDefault": "变更数量超出了默认限制。请调高最大变更数以查看其余变更。",
+      "title": "仅显示前 {{limit, number}} 项变更"
+    },
+    "maxChanges": "最大变更数",
+    "maxChangesDefault": "默认",
+    "noChanges": "这些版本保存的状态相同。",
+    "operations": {
+      "added": "已添加",
+      "changed": "已修改",
+      "removed": "已移除"
+    },
+    "pathOccurrences_one": "1 项变更共享此路径",
+    "pathOccurrences_other": "{{count, number}} 项变更共享此路径",
+    "pathOccurrencesAtLeast_one": "至少 1 项变更共享此路径",
+    "pathOccurrencesAtLeast_other": "至少 {{count, number}} 项变更共享此路径",
+    "record_one": "记录",
+    "record_other": "记录",
+    "schemaChange": "序列化 Schema {{baseSchema}} → {{targetSchema}}",
+    "selectPrompt": "选择两个版本以查看它们之间的变更。",
+    "summary_one": "1 项变更",
+    "summary_other": "{{count, number}} 项变更",
+    "summaryAtLeast_one": "至少 1 项变更",
+    "summaryAtLeast_other": "至少 {{count, number}} 项变更",
+    "target": "比较目标版本",
+    "unavailable": {
+      "description": "无法比较这些版本。原因：",
+      "title": "无法比较",
+      "withoutReason": "无法比较这些版本。"
+    },
+    "valuesHidden": "值已隐藏"
   }
 }

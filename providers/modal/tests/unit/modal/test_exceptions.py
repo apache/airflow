@@ -18,10 +18,10 @@ from __future__ import annotations
 
 import pytest
 
-from airflow.providers.modal.exceptions import ModalConnectionError, ModalError
+from airflow.providers.modal.exceptions import ModalConnectionError, ModalError, ModalSandboxError
 
 
-@pytest.mark.parametrize("exc", [ModalError, ModalConnectionError])
+@pytest.mark.parametrize("exc", [ModalError, ModalConnectionError, ModalSandboxError])
 def test_provider_errors_share_base_and_are_not_airflow_exceptions(exc):
     # Every provider error is catchable via the ModalError base and is deliberately
     # NOT an AirflowException subclass, matching the other AI providers.

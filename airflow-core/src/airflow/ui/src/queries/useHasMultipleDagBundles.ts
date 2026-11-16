@@ -16,11 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useDagBundleServiceGetDagBundles } from "openapi/queries";
+import { useDagBundleServiceGetDagBundleCount } from "openapi/queries";
 
-/** Whether the user can see more than one Dag bundle, i.e. whether a bundle name tells anything apart. */
+/** Whether the user can read Dags or import errors in more than one bundle, i.e. whether a bundle name tells anything apart. */
 export const useHasMultipleDagBundles = (): boolean => {
-  const { data } = useDagBundleServiceGetDagBundles({ limit: 1 });
+  const { data } = useDagBundleServiceGetDagBundleCount();
 
   return (data?.total_entries ?? 0) > 1;
 };

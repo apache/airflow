@@ -607,6 +607,52 @@ class TestUpdateHITLDetailEndpoint:
         assert refreshed.next_method == "execute_complete"
         assert "event" in (refreshed.next_kwargs or {})
 
+    @pytest.mark.parametrize(
+        ("next_method", "resumed_offset", "expected_status"),
+        [
+            pytest.param(None, None, 200, id="first-run"),
+            pytest.param(
+                "resume_after_tool_approval", timedelta(minutes=-5), 200, id="resumed-run-asked-again"
+            ),
+            pytest.param("execute_complete", timedelta(minutes=5), 409, id="resumed-after-a-timeout"),
+        ],
+    )
+    @pytest.mark.usefixtures("sample_hitl_detail")
+    def test_response_to_a_running_task_is_stored_while_it_waits(
+        self,
+        test_client: TestClient,
+        sample_ti_url_identifier: str,
+        sample_update_payload: dict[str, Any],
+        sample_ti: TaskInstance,
+        session: Session,
+        next_method: str | None,
+        resumed_offset: timedelta | None,
+        expected_status: int,
+    ) -> None:
+        detail = session.scalar(select(HITLDetail).where(HITLDetail.ti_id == sample_ti.id))
+        ti = session.get(TIModel, sample_ti.id)
+        assert detail is not None
+        assert ti is not None
+        ti.state = TaskInstanceState.RUNNING
+        ti.next_method = next_method
+        # start_date comes from the worker's clock, which can run ahead of the API server's.
+        ti.start_date = detail.created_at + timedelta(seconds=2)
+        # The server stamps scheduled_dttm when it resumes a task.
+        ti.scheduled_dttm = None if resumed_offset is None else detail.created_at + resumed_offset
+        session.commit()
+
+        response = test_client.patch(f"{sample_ti_url_identifier}/hitlDetails", json=sample_update_payload)
+
+        assert response.status_code == expected_status
+        session.expire_all()
+        refreshed_detail = session.scalar(select(HITLDetail).where(HITLDetail.ti_id == sample_ti.id))
+        refreshed_ti = session.get(TIModel, sample_ti.id)
+        assert refreshed_detail is not None
+        assert refreshed_ti is not None
+        assert refreshed_detail.response_received is (expected_status == 200)
+        # The running task picks the answer up itself, so the response never resumes it.
+        assert refreshed_ti.state == TaskInstanceState.RUNNING
+
     @pytest.mark.usefixtures("sample_hitl_detail")
     def test_should_respond_400_for_invalid_option(
         self,

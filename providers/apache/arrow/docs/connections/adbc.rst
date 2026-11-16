@@ -36,18 +36,16 @@ Default Connection ID
 Configuring the Connection
 --------------------------
 
-Connection URL (Host field)
-    The database URI passed to the driver.  For drivers that use a standard
-    connection string (e.g. ``postgresql://user:pass@host:5432/db`` or
-    ``file::memory:``), put it here.  If the value contains ``::`` the hook
-    passes it through unchanged; otherwise the ``adbc://`` scheme prefix is
-    replaced with the dialect name.
+Host or URI (Host field)
+    Either the host name of the database, or the complete URI the driver
+    expects (e.g. ``postgresql://user:pass@host:5432/db`` or
+    ``file::memory:``).  A value that contains ``://`` or ``::``, or that
+    starts with ``/``, ``:`` or ``file:``, is passed to the driver unchanged.
 
-Login / Password
-    Convenience fields.  When set, Airflow builds a URI of the form
-    ``<dialect>://login:password@host/schema`` that is merged into
-    ``db_kwargs["uri"]``.  Driver-specific URIs in the Host field take
-    precedence.
+Login / Password / Port / Schema
+    Used when the Host field holds a host name: the hook then builds the URI
+    ``<dialect>://login:password@host:port/schema`` from these fields.  The
+    extras never end up in that URI.
 
 Extra (JSON)
     A JSON object with the following recognized keys:
@@ -186,7 +184,9 @@ Use :class:`~airflow.providers.apache.arrow.hooks.adbc.AdbcHook` in a task to qu
         # Run a query and get results as a list of tuples
         records = hook.get_records("SELECT id, name FROM users WHERE active = 1")
 
-        # Bulk-insert rows in chunks of 5 000 using Arrow-native transfer
+        # Insert rows in chunks of 5 000. By default each chunk is loaded with the
+        # driver's bulk ingest (e.g. COPY on PostgreSQL); pass fast_executemany=False
+        # to bind the rows to an INSERT statement instead.
         rows = [(1, "Alice"), (2, "Bob")]
         hook.insert_rows(
             table="users",

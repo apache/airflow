@@ -72,6 +72,7 @@ from airflow.sdk.definitions.decorators import (
 )
 from airflow.sdk.definitions.decorators.task_group import task_group as task_group
 from airflow.sdk.definitions.edges import EdgeModifier as EdgeModifier, Label as Label
+from airflow.sdk.definitions.external_clear import ExternalClearTarget as ExternalClearTarget
 from airflow.sdk.definitions.loop import LoopDecision as LoopDecision
 from airflow.sdk.definitions.param import Param as Param
 from airflow.sdk.definitions.partition_mappers.allowed_key import AllowedKeyMapper
@@ -112,6 +113,7 @@ from airflow.sdk.definitions.retry_policy import (
     RetryPolicy as RetryPolicy,
     RetryRule as RetryRule,
 )
+from airflow.sdk.definitions.task_handlers.registry import task_handler as task_handler
 from airflow.sdk.definitions.taskgroup import TaskGroup as TaskGroup
 from airflow.sdk.definitions.template import literal as literal
 from airflow.sdk.definitions.timetables.assets import (
@@ -180,6 +182,7 @@ __all__ = [
     "EdgeModifier",
     "EventsTimetable",
     "ExceptionRetryPolicy",
+    "ExternalClearTarget",
     "FanOutMapper",
     "FixedKeyMapper",
     "HourWindow",
@@ -238,6 +241,7 @@ __all__ = [
     "setup",
     "task",
     "task_group",
+    "task_handler",
     "teardown",
     "conf",
 ]

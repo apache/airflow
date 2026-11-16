@@ -18,11 +18,14 @@
 
 from __future__ import annotations
 
+import concurrent.futures
 import json
 import os
 import pathlib
 import re
+import shutil
 import socket
+import stat
 import subprocess
 import zlib
 from unittest.mock import MagicMock, patch
@@ -36,6 +39,7 @@ from airflow.sdk.coordinators._subprocess import _PopenActivitySubprocess
 from airflow.sdk.coordinators.java.coordinator import (
     JavaCoordinator,
     _calculate_classpath,
+    _get_classpath_link,
     _JarInfo,
     _JarMetadata,
     _walk_jars,
@@ -127,26 +131,33 @@ class TestJarMetadata:
 
 class TestCalculateClasspath:
     def test_single_jar(self, tmp_path):
-        tmp_path.joinpath("app.jar").write_bytes(b"")
-        result = _calculate_classpath([tmp_path], cwd=tmp_path)
-        assert result == "./app.jar"
+        jar = tmp_path.joinpath("app.jar")
+        jar.write_bytes(b"")
+        result = _calculate_classpath([tmp_path])
+        assert result == jar.as_posix()
 
     def test_multiple_jars_all_included(self, tmp_path):
         tmp_path.joinpath("a.jar").write_bytes(b"")
         tmp_path.joinpath("b.jar").write_bytes(b"")
         tmp_path.joinpath("c.jar").write_bytes(b"")
-        result = _calculate_classpath([tmp_path], cwd=tmp_path)
-        assert set(result.split(os.pathsep)) == {"./a.jar", "./b.jar", "./c.jar"}
+        result = _calculate_classpath([tmp_path])
+        entries = set(result.split(os.pathsep))
+        assert entries == {
+            tmp_path.joinpath("a.jar").as_posix(),
+            tmp_path.joinpath("b.jar").as_posix(),
+            tmp_path.joinpath("c.jar").as_posix(),
+        }
 
     def test_non_jar_files_excluded(self, tmp_path):
-        tmp_path.joinpath("app.jar").write_bytes(b"")
+        jar = tmp_path.joinpath("app.jar")
+        jar.write_bytes(b"")
         tmp_path.joinpath("readme.txt").write_bytes(b"")
         tmp_path.joinpath("config.yaml").write_bytes(b"")
-        result = _calculate_classpath([tmp_path], cwd=tmp_path)
-        assert result == "./app.jar"
+        result = _calculate_classpath([tmp_path])
+        assert result == jar.as_posix()
 
     def test_empty_directory_returns_empty_string(self, tmp_path):
-        result = _calculate_classpath([tmp_path], cwd=tmp_path)
+        result = _calculate_classpath([tmp_path])
         assert result == ""
 
     def test_primary_jar_goes_first(self, tmp_path):
@@ -155,35 +166,208 @@ class TestCalculateClasspath:
         b = tmp_path.joinpath("b.jar")
         b.write_bytes(b"")
 
-        result = _calculate_classpath([tmp_path], cwd=tmp_path, primary=b)
+        result = _calculate_classpath([tmp_path], primary=b)
 
-        assert result.split(os.pathsep) == ["./b.jar", "./a.jar"]
+        assert result.split(os.pathsep) == [b.as_posix(), a.as_posix()]
 
-    def test_entry_starting_with_at_sign_is_not_an_argfile(self, tmp_path):
-        tmp_path.joinpath("@scope").mkdir()
-        tmp_path.joinpath("@scope", "dep.jar").write_bytes(b"")
 
-        result = _calculate_classpath([tmp_path], cwd=tmp_path)
+TIMESTAMPED_VERSION = f"2026-11-02T15{os.pathsep}52{os.pathsep}20Z"
 
-        assert result == "./@scope/dep.jar"
 
-    def test_path_separator_above_cwd_stays_off_the_classpath(self, tmp_path):
-        root = tmp_path / f"2026-11-02T15{os.pathsep}52{os.pathsep}20Z"
-        root.mkdir()
-        root.joinpath("app.jar").write_bytes(b"")
-        root.joinpath("dep.jar").write_bytes(b"")
+@pytest.fixture
+def link_dir(tmp_path):
+    """Point the coordinator's temporary directory into *tmp_path* and return where its links go."""
+    tmp = tmp_path / "tmp"
+    tmp.mkdir()
+    with patch(
+        "airflow.sdk.coordinators.java.coordinator.tempfile.gettempdir",
+        autospec=True,
+        return_value=os.fspath(tmp),
+    ):
+        yield tmp / f"airflow-java-classpath-{os.getuid()}"
 
-        result = _calculate_classpath([root], cwd=root, primary=root / "dep.jar")
 
-        assert result.split(os.pathsep) == ["./dep.jar", "./app.jar"]
+def _make_timestamped_bundle(parent: pathlib.Path, name: str = TIMESTAMPED_VERSION) -> pathlib.Path:
+    root = parent / name
+    (root / "libs").mkdir(parents=True)
+    _make_jar(root / "app.jar", main_class="com.example.Dags", schema_version="2026-10-30")
+    _make_jar(root / "libs" / "dep.jar", main_class=None)
+    return root
 
-    def test_path_separator_below_cwd_raises(self, tmp_path):
-        nested = tmp_path / f"a{os.pathsep}b"
+
+class TestClasspathLink:
+    def test_root_without_separator_is_not_linked(self, tmp_path, link_dir):
+        jar = _make_jar(tmp_path / "app.jar")
+
+        assert _calculate_classpath([tmp_path]) == jar.as_posix()
+        assert not link_dir.exists()
+
+    def test_root_with_separator_is_reached_through_a_link(self, tmp_path, link_dir):
+        root = _make_timestamped_bundle(tmp_path)
+
+        result = _calculate_classpath([root], primary=root / "libs" / "dep.jar")
+
+        [link] = link_dir.iterdir()
+        assert result.split(os.pathsep) == [f"{link.as_posix()}/libs/dep.jar", f"{link.as_posix()}/app.jar"]
+        assert os.readlink(link) == os.fspath(root)
+        assert stat.S_IMODE(link_dir.stat().st_mode) == 0o700
+
+    def test_mixed_roots_link_only_the_root_with_separator(self, tmp_path, link_dir):
+        plain = tmp_path / "plain"
+        plain.mkdir()
+        lib = _make_jar(plain / "lib.jar", main_class=None)
+        root = _make_timestamped_bundle(tmp_path)
+
+        result = _calculate_classpath([plain, root])
+
+        [link] = link_dir.iterdir()
+        assert os.readlink(link) == os.fspath(root)
+        assert result.split(os.pathsep) == [
+            f"{link.as_posix()}/app.jar",
+            f"{link.as_posix()}/libs/dep.jar",
+            lib.as_posix(),
+        ]
+
+    @pytest.mark.parametrize(
+        ("inner_first", "link_count"),
+        [pytest.param(False, 1, id="outer-first"), pytest.param(True, 2, id="inner-first")],
+    )
+    def test_nested_roots(self, tmp_path, link_dir, inner_first, link_count):
+        root = _make_timestamped_bundle(tmp_path)
+        roots = [root / "libs", root] if inner_first else [root, root / "libs"]
+
+        entries = _calculate_classpath(roots).split(os.pathsep)
+
+        assert sorted(pathlib.Path(e).resolve() for e in entries) == sorted(
+            [(root / "app.jar").resolve(), (root / "libs" / "dep.jar").resolve()]
+        )
+        assert len(list(link_dir.iterdir())) == link_count
+
+    def test_link_is_reused(self, tmp_path, link_dir):
+        root = _make_timestamped_bundle(tmp_path)
+        link = _get_classpath_link(root)
+        inode = link.lstat().st_ino
+
+        assert _get_classpath_link(root) == link
+        assert link.lstat().st_ino == inode
+
+    @patch(
+        "airflow.sdk.coordinators.java.coordinator.os.replace",
+        autospec=True,
+        side_effect=OSError("replace failed"),
+    )
+    def test_staging_link_is_removed_when_replacing_fails(self, mock_replace, tmp_path, link_dir):
+        root = _make_timestamped_bundle(tmp_path)
+
+        with pytest.raises(OSError, match="replace failed"):
+            _get_classpath_link(root)
+
+        assert list(link_dir.iterdir()) == []
+
+    def test_link_to_another_target_is_replaced(self, tmp_path, link_dir):
+        root = _make_timestamped_bundle(tmp_path)
+        link = _get_classpath_link(root)
+        link.unlink()
+        link.symlink_to(tmp_path)
+
+        assert _get_classpath_link(root) == link
+        assert os.readlink(link) == os.fspath(root)
+
+    def test_dangling_links_are_removed_when_a_link_is_created(self, tmp_path, link_dir):
+        old = _get_classpath_link(_make_timestamped_bundle(tmp_path / "old"))
+        kept = _get_classpath_link(_make_timestamped_bundle(tmp_path / "kept"))
+        shutil.rmtree(tmp_path / "old")
+
+        new = _get_classpath_link(_make_timestamped_bundle(tmp_path / "new"))
+
+        assert sorted(link_dir.iterdir()) == sorted([kept, new])
+        assert not old.is_symlink()
+
+    def test_concurrent_callers_share_one_link(self, tmp_path, link_dir):
+        root = _make_timestamped_bundle(tmp_path)
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=16) as pool:
+            links = set(pool.map(lambda _: _get_classpath_link(root), range(64)))
+
+        assert len(links) == 1
+        assert list(link_dir.iterdir()) == [*links]
+
+    @pytest.mark.parametrize("unsafe", ["writable-by-others", "symlink", "file", "other-owner"])
+    def test_rejects_an_unsafe_link_dir(self, tmp_path, link_dir, unsafe):
+        root = _make_timestamped_bundle(tmp_path)
+        uid = os.getuid()
+        if unsafe == "writable-by-others":
+            link_dir.mkdir(mode=0o700)
+            link_dir.chmod(0o777)
+        elif unsafe == "symlink":
+            (tmp_path / "elsewhere").mkdir(mode=0o700)
+            link_dir.symlink_to(tmp_path / "elsewhere")
+        elif unsafe == "file":
+            link_dir.write_bytes(b"")
+        else:
+            uid += 1
+
+        with (
+            patch("airflow.sdk.coordinators.java.coordinator.os.getuid", autospec=True, return_value=uid),
+            pytest.raises(TaskLaunchError, match="Cannot keep Java classpath links") as ctx,
+        ):
+            _get_classpath_link(root)
+
+        assert ctx.value.retryable is False
+
+    def test_rejects_a_link_dir_holding_the_separator(self, tmp_path):
+        root = _make_timestamped_bundle(tmp_path)
+        tmp = tmp_path / f"tmp{os.pathsep}dir"
+        tmp.mkdir()
+
+        with (
+            patch(
+                "airflow.sdk.coordinators.java.coordinator.tempfile.gettempdir",
+                autospec=True,
+                return_value=os.fspath(tmp),
+            ),
+            pytest.raises(TaskLaunchError, match="Cannot keep Java classpath links") as ctx,
+        ):
+            _calculate_classpath([root])
+
+        assert ctx.value.retryable is False
+        assert list(tmp.iterdir()) == []
+
+    def test_separator_inside_the_bundle_raises_without_linking(self, tmp_path, link_dir):
+        root = _make_timestamped_bundle(tmp_path)
+        nested = root / f"a{os.pathsep}b"
         nested.mkdir()
-        nested.joinpath("app.jar").write_bytes(b"")
+        jar = _make_jar(nested / "app.jar")
 
-        with pytest.raises(ValueError, match="Cannot put these JARs on a Java classpath"):
-            _calculate_classpath([tmp_path], cwd=tmp_path)
+        with pytest.raises(TaskLaunchError, match="Cannot put these JARs on a Java classpath") as ctx:
+            _calculate_classpath([root])
+
+        assert ctx.value.retryable is False
+        assert os.fspath(jar) in str(ctx.value)
+        assert not link_dir.exists()
+
+    @pytest.mark.skipif(shutil.which("java") is None or shutil.which("javac") is None, reason="needs a JDK")
+    def test_jvm_loads_jars_through_the_link(self, tmp_path, link_dir):
+        src = tmp_path / "src"
+        src.mkdir()
+        (src / "Dep.java").write_text('public class Dep { public static String hi() { return "loaded"; } }')
+        (src / "Main.java").write_text(
+            "public class Main { public static void main(String[] a) { System.out.println(Dep.hi()); } }"
+        )
+        subprocess.run(["javac", "-d", os.fspath(src), *map(os.fspath, src.glob("*.java"))], check=True)
+        root = tmp_path / TIMESTAMPED_VERSION
+        (root / "libs").mkdir(parents=True)
+        make_jar(root / "app.jar", entries={"Main.class": (src / "Main.class").read_bytes()})
+        make_jar(root / "libs" / "dep.jar", entries={"Dep.class": (src / "Dep.class").read_bytes()})
+
+        result = subprocess.run(
+            ["java", "-classpath", _calculate_classpath([root]), "Main"],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+
+        assert result.stdout.strip() == "loaded"
 
 
 class TestMainJar:
@@ -334,16 +518,10 @@ class TestJavaCoordinatorAttributes:
         assert schema_version == "2026-06-16"
 
 
-# A bundle version directory named after a timestamp holds os.pathsep.
-TIMESTAMPED_DIR = f"2026-11-02T15{os.pathsep}52{os.pathsep}20Z"
-
-
 @pytest.fixture
-def jars_dir(request, tmp_path):
-    root = tmp_path / getattr(request, "param", "")
-    root.mkdir(exist_ok=True)
-    _make_jar(root / "app.jar", main_class="com.example.TaskRunner", schema_version="2026-06-16")
-    return root
+def jars_dir(tmp_path):
+    _make_jar(tmp_path.joinpath("app.jar"), main_class="com.example.TaskRunner", schema_version="2026-06-16")
+    return tmp_path
 
 
 @pytest.fixture
@@ -390,7 +568,6 @@ class TestJavaCoordinatorExecuteTask:
 
         def capture_popen(cmd, **kwargs):
             popen_calls.append(cmd)
-            self.popen_kwargs = kwargs
             return mock_proc
 
         with (
@@ -432,13 +609,24 @@ class TestJavaCoordinatorExecuteTask:
         assert "-classpath" in cmd
         cp_idx = cmd.index("-classpath")
         classpath = cmd[cp_idx + 1]
-        assert classpath == "./app.jar"
+        assert jars_dir.joinpath("app.jar").as_posix() in classpath
 
-    @pytest.mark.parametrize("jars_dir", ["", TIMESTAMPED_DIR], indirect=True, ids=["plain", "timestamped"])
-    def test_runs_in_the_bundle_directory(self, jars_dir, java_task_handlers, mock_client):
-        cmd = self._captured_popen_cmd(java_task_handlers, mock_client)
-        assert self.popen_kwargs["cwd"] == jars_dir
-        assert cmd[cmd.index("-classpath") + 1] == "./app.jar"
+    def test_timestamped_bundle_path_is_linked(self, tmp_path, link_dir, mock_client):
+        root = _make_timestamped_bundle(tmp_path)
+        bundle = {
+            "name": "java-task-handlers",
+            "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+            "kwargs": {"path": str(root)},
+        }
+        with conf_vars({("dag_processor", "dag_bundle_config_list"): json.dumps([bundle])}):
+            cmd = self._captured_popen_cmd(bundle["name"], mock_client)
+
+        [link] = link_dir.iterdir()
+        classpath = cmd[cmd.index("-classpath") + 1]
+        assert classpath.split(os.pathsep) == [
+            f"{link.as_posix()}/app.jar",
+            f"{link.as_posix()}/libs/dep.jar",
+        ]
 
     def test_main_class_present(self, java_task_handlers, mock_client):
         cmd = self._captured_popen_cmd(java_task_handlers, mock_client)
@@ -529,7 +717,7 @@ class TestJavaCoordinatorExecuteNativeDag:
         bundle = MagicMock(path=tmp_path, version="v1")
         bundle.name = "dags-folder"
         with (
-            patch("airflow.sdk.coordinators._subprocess._initialize_pinned_bundle", return_value=bundle),
+            patch("airflow.sdk.coordinators._subprocess.initialize_pinned_bundle", return_value=bundle),
             patch("airflow.sdk.coordinators._subprocess.BundleVersionLock"),
             patch.object(_PopenActivitySubprocess, "start") as mock_start,
         ):
@@ -618,17 +806,17 @@ class TestBuildParseDagCommand:
 
         command, schema_version = self._build(coordinator, tmp_path, jar)
 
-        assert command == ["/opt/java/bin/java", "-classpath", "./app.jar", "-Xmx256m", "com.example.Dags"]
+        assert command == ["/opt/java/bin/java", "-classpath", jar.as_posix(), "-Xmx256m", "com.example.Dags"]
         assert schema_version == "2026-10-30"
 
     def test_thin_jar_takes_the_schema_version_from_a_sibling(self, tmp_path):
         jar = _make_jar(tmp_path / "app.jar", main_class="com.example.Dags")
         (tmp_path / "libs").mkdir()
-        _make_jar(tmp_path / "libs" / "airflow-sdk.jar", main_class=None, schema_version="2026-10-30")
+        sdk = _make_jar(tmp_path / "libs" / "airflow-sdk.jar", main_class=None, schema_version="2026-10-30")
 
         command, schema_version = self._build(JavaCoordinator(), tmp_path, jar)
 
-        assert command[2].split(os.pathsep) == [f"./{jar.name}", "./libs/airflow-sdk.jar"]
+        assert command[2].split(os.pathsep) == [jar.as_posix(), sdk.as_posix()]
         assert command[-1] == "com.example.Dags"
         assert schema_version == "2026-10-30"
 
@@ -639,7 +827,7 @@ class TestBuildParseDagCommand:
 
         command, _ = self._build(JavaCoordinator(), tmp_path, jar)
 
-        assert command[2].split(os.pathsep) == [f"./{jar.name}", f"./{sibling.name}"]
+        assert command[2].split(os.pathsep) == [jar.as_posix(), sibling.as_posix()]
 
     def test_matches_the_execute_command(self, tmp_path):
         jar = _make_jar(tmp_path / "app.jar", main_class="com.example.Dags", schema_version="2026-10-30")
@@ -715,21 +903,15 @@ class TestBuildParseDagCommand:
 
     @patch("airflow.sdk.coordinators._subprocess._set_close_on_exec_above_stderr", autospec=True)
     @patch("airflow.sdk.coordinators._subprocess.signal.signal", autospec=True)
-    @patch("airflow.sdk.coordinators._subprocess.os.chdir", autospec=True)
     @patch("airflow.sdk.coordinators._subprocess.os.execvpe", autospec=True, side_effect=OSError("exec"))
-    @pytest.mark.parametrize("bundle_dir", ["", TIMESTAMPED_DIR], ids=["plain", "timestamped"])
-    def test_parse_dag_execs_the_jvm(
-        self, mock_execvpe, mock_chdir, mock_signal, mock_close_on_exec, tmp_path, bundle_dir
-    ):
-        root = tmp_path / bundle_dir
-        root.mkdir(exist_ok=True)
-        jar = _make_jar(root / "app.jar", main_class="com.example.Dags", schema_version="2026-10-30")
+    def test_parse_dag_execs_the_jvm(self, mock_execvpe, mock_signal, mock_close_on_exec, tmp_path):
+        jar = _make_jar(tmp_path / "app.jar", main_class="com.example.Dags", schema_version="2026-10-30")
         reported: list[str | None] = []
 
         with pytest.raises(OSError, match="exec"):
             JavaCoordinator().parse_dag(
                 path=jar,
-                bundle_path=root,
+                bundle_path=tmp_path,
                 comm_address=("127.0.0.1", 1001),
                 logs_address=("127.0.0.1", 1002),
                 report_schema_version=reported.append,
@@ -737,12 +919,35 @@ class TestBuildParseDagCommand:
 
         assert reported == ["2026-10-30"]
         argv = mock_execvpe.call_args.args[1]
-        mock_chdir.assert_called_once_with(root)
         assert argv == [
             "java",
             "-classpath",
-            "./app.jar",
+            jar.as_posix(),
             "com.example.Dags",
             "--comm=127.0.0.1:1001",
             "--logs=127.0.0.1:1002",
+        ]
+
+    @patch("airflow.sdk.coordinators._subprocess._set_close_on_exec_above_stderr", autospec=True)
+    @patch("airflow.sdk.coordinators._subprocess.signal.signal", autospec=True)
+    @patch("airflow.sdk.coordinators._subprocess.os.execvpe", autospec=True, side_effect=OSError("exec"))
+    def test_parse_dag_links_a_timestamped_bundle_path(
+        self, mock_execvpe, mock_signal, mock_close_on_exec, tmp_path, link_dir
+    ):
+        root = _make_timestamped_bundle(tmp_path)
+
+        with pytest.raises(OSError, match="exec"):
+            JavaCoordinator().parse_dag(
+                path=root / "app.jar",
+                bundle_path=root,
+                comm_address=("127.0.0.1", 1001),
+                logs_address=("127.0.0.1", 1002),
+                report_schema_version=lambda _: None,
+            )
+
+        [link] = link_dir.iterdir()
+        classpath = mock_execvpe.call_args.args[1][2]
+        assert classpath.split(os.pathsep) == [
+            f"{link.as_posix()}/app.jar",
+            f"{link.as_posix()}/libs/dep.jar",
         ]

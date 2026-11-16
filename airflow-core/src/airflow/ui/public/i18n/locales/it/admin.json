@@ -3,12 +3,17 @@
     "description": "Descrizione",
     "key": "Chiave",
     "name": "Nome",
+    "team": "Team",
     "value": "Valore"
   },
   "config": {
     "columns": {
       "section": "Sezione"
-    }
+    },
+    "config_many": "Configurazioni",
+    "config_one": "Configurazione",
+    "config_other": "Configurazioni",
+    "config_zero": "Nessuna configurazione"
   },
   "connections": {
     "add": "Aggiungi Connessione",
@@ -23,7 +28,7 @@
     "connection_other": "Connessioni",
     "connection_zero": "Nessuna connessione",
     "delete": {
-      "deleteConnection_many": "Elimina {{count, number}} connessioni",
+      "deleteConnection_many": "Elimina {{count, number}} di connessioni",
       "deleteConnection_one": "Elimina 1 connessione",
       "deleteConnection_other": "Elimina {{count, number}} connessioni",
       "deleteConnection_zero": "Nessuna connessione da eliminare",
@@ -33,13 +38,16 @@
       "firstConfirmMessage_zero": "Nessuna connessione da eliminare:",
       "title": "Elimina Connessione"
     },
+    "duplicate": "Duplica $t(connections.connection_one)",
     "edit": "Modifica Connessione",
     "form": {
       "connectionIdRequired": "L'ID della connessione è obbligatorio",
       "connectionIdRequirement": "L'ID della connessione non può contenere solo spazi",
+      "connectionTypeFields": "Campi di {{connectionType}}",
       "connectionTypeRequired": "Il tipo di connessione è obbligatorio",
       "extraFieldsJson": "Campi Extra JSON",
       "helperText": "Il tipo di connessione è mancante? Assicurati di aver installato il pacchetto corrispondente di Airflow Providers.",
+      "helperTextForDuplicatedRedactedFields": "I campi oscurati ('***') non vengono copiati. Compilali per la nuova connessione.",
       "helperTextForRedactedFields": "I campi redatti ('***') rimarranno invariati se non modificati.",
       "selectConnectionType": "Seleziona Tipo di Connessione",
       "standardFields": "Campi Standard"
@@ -53,6 +61,12 @@
     "searchPlaceholder": "Cercare Connessioni",
     "test": "Test Connessione",
     "testDisabled": "La funzione di test della connessione è disabilitata. Per favore contatta un amministratore per abilitarla.",
+    "testError": {
+      "title": "Test di $t(connections.connection_one) fallito"
+    },
+    "testSuccess": {
+      "title": "Test di $t(connections.connection_one) riuscito"
+    },
     "typeMeta": {
       "error": "Impossibile recuperare il tipo di connessione",
       "standardFields": {
@@ -78,6 +92,27 @@
   "formActions": {
     "save": "Salva"
   },
+  "jobs": {
+    "columns": {
+      "executorClass": "Classe dell'Executor",
+      "hostname": "Nome host",
+      "id": "ID",
+      "jobType": "Tipo di Job",
+      "latestHeartbeat": "Ultimo Heartbeat",
+      "unixname": "Nome Unix"
+    },
+    "filters": {
+      "allStates": "Tutti gli stati",
+      "allTypes": "Tutti i tipi",
+      "dagProcessorJob": "DagProcessorJob",
+      "schedulerJob": "SchedulerJob",
+      "triggererJob": "TriggererJob"
+    },
+    "job_many": "Jobs",
+    "job_one": "Job",
+    "job_other": "Jobs",
+    "job_zero": "Nessun Job"
+  },
   "plugins": {
     "columns": {
       "source": "Fonte"
@@ -86,6 +121,10 @@
     "importError_one": "Errore di Importazione Plugin",
     "importError_other": "Errori di Importazione Plugin",
     "importError_zero": "Nessun errore di importazione plugin",
+    "plugin_many": "Plugins",
+    "plugin_one": "Plugin",
+    "plugin_other": "Plugins",
+    "plugin_zero": "Nessun Plugin",
     "searchPlaceholder": "Cercare per file"
   },
   "pools": {
@@ -102,7 +141,8 @@
       "includeDeferred": "Includi Deferiti",
       "nameMaxLength": "Il nome può contenere un massimo di 256 caratteri",
       "nameRequired": "Il nome è obbligatorio",
-      "slots": "Slot"
+      "slots": "Slot",
+      "slotsHelperText": "Usa -1 per slot illimitati."
     },
     "noPoolsFound": "Nessun pool trovato",
     "pool_many": "Pools",
@@ -120,7 +160,11 @@
     "columns": {
       "packageName": "Nome del Pacchetto",
       "version": "Versione"
-    }
+    },
+    "provider_many": "Providers",
+    "provider_one": "Provider",
+    "provider_other": "Providers",
+    "provider_zero": "Nessun Provider"
   },
   "variables": {
     "add": "Aggiungi Variabile",
@@ -128,7 +172,7 @@
       "isEncrypted": "È Crittografata"
     },
     "delete": {
-      "deleteVariable_many": "Elimina {{count, number}} Variabili",
+      "deleteVariable_many": "Elimina {{count, number}} di Variabili",
       "deleteVariable_one": "Elimina 1 Variabile",
       "deleteVariable_other": "Elimina {{count, number}} Variabili",
       "deleteVariable_zero": "Nessuna variabile da eliminare",
@@ -164,6 +208,7 @@
           "title": "Salta"
         }
       },
+      "parsingFile": "Analisi del file...",
       "title": "Importa Variabili",
       "upload": "Carica un File JSON",
       "uploadPlaceholder": "Carica un file JSON contenente le variabili (es. {\"key\": \"value\", ...})"

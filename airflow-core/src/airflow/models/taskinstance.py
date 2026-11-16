@@ -101,7 +101,12 @@ from airflow.models.asset import AssetModel
 from airflow.models.base import Base, StringID
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbag import DBDagBag
-from airflow.models.deadline import Deadline, ReferenceModels
+from airflow.models.deadline import (
+    DAGRUN_QUEUED_TIMING,
+    EVALUATION_TIMING_FIELD,
+    Deadline,
+    ReferenceModels,
+)
 from airflow.models.deadline_alert import DeadlineAlert as DeadlineAlertModel
 from airflow.models.dynamic_region import (
     SENTINEL_REGION_ID,
@@ -210,7 +215,7 @@ def _add_log(
     )
 
 
-def _stop_remaining_tasks(*, task_instance: TaskInstance, task_teardown_map=None, session: Session):
+def _stop_remaining_tasks(*, task_instance: TaskInstance, dag: SerializedDAG, session: Session):
     """
     Stop non-teardown tasks in dag.
 
@@ -218,22 +223,14 @@ def _stop_remaining_tasks(*, task_instance: TaskInstance, task_teardown_map=None
     """
     if not task_instance.dag_run:
         raise ValueError("``task_instance`` must have ``dag_run`` set")
-    tis = task_instance.dag_run.get_task_instances(session=session)
-    if TYPE_CHECKING:
-        assert task_instance.task
-        assert task_instance.task.dag
-
+    tis = task_instance.dag_run.get_task_instances(state=State.unfinished, session=session)
     for ti in tis:
-        if ti.task_id == task_instance.task_id or ti.state in (
-            TaskInstanceState.SUCCESS,
-            TaskInstanceState.FAILED,
-        ):
+        if ti.task_id == task_instance.task_id:
             continue
-        if task_teardown_map:
-            teardown = task_teardown_map[ti.task_id]
-        else:
-            teardown = task_instance.task.dag.task_dict[ti.task_id].is_teardown
-        if not teardown:
+        if (task := dag.task_dict.get(ti.task_id)) is None:
+            log.info("Task %s is no longer in the Dag; not stopping it", ti.task_id)
+            continue
+        if not task.is_teardown:
             if ti.state == TaskInstanceState.RUNNING:
                 log.info("Forcing task %s to fail due to dag's `fail_fast` setting", ti.task_id)
                 msg = "Forcing task to fail due to dag's `fail_fast` setting."
@@ -284,8 +281,13 @@ def _recalculate_dagrun_queued_at_deadlines(dagrun: DagRun, *, session: Session)
         .where(
             Deadline.dagrun_id == dagrun.id,
             Deadline.missed == false(),
-            DeadlineAlertModel.reference[ReferenceModels.REFERENCE_TYPE_FIELD].as_string()
-            == ReferenceModels.DagRunQueuedAtDeadline.__name__,
+            or_(
+                DeadlineAlertModel.reference[EVALUATION_TIMING_FIELD].as_string() == DAGRUN_QUEUED_TIMING,
+                # Alerts serialized before the timing was persisted only identify the built-in
+                # queued reference by name.
+                DeadlineAlertModel.reference[ReferenceModels.REFERENCE_TYPE_FIELD].as_string()
+                == ReferenceModels.DagRunQueuedAtDeadline.__name__,
+            ),
         )
     ).all()
 
@@ -299,9 +301,17 @@ def _recalculate_dagrun_queued_at_deadlines(dagrun: DagRun, *, session: Session)
         try:
             decoded_alert = decode_deadline_alert_model(deadline_alert)
             interval = resolve_deadline_alert_interval(decoded_alert, session=session)
-        except (ValueError, TypeError):
-            # Either step can fail: the alert may hold a payload the decoder refuses, or a
-            # variable-backed interval may point at a Variable that is missing or non-numeric.
+            new_deadline_time = decoded_alert.reference.evaluate_with(
+                session=session,
+                interval=interval,
+                dagrun=dagrun,
+                dag_id=dagrun.dag_id,
+                run_id=dagrun.run_id,
+            )
+        except Exception:
+            # Any step can fail: the alert may hold a payload the decoder refuses, a
+            # variable-backed interval may point at a Variable that is missing or non-numeric,
+            # and the evaluation is the Dag author's own code, which may raise anything at all.
             # Leave this deadline alone rather than failing the whole clear.
             log.warning(
                 "Error while recalculating deadline %s for DagRun %s.%s, leaving it unchanged",
@@ -311,14 +321,6 @@ def _recalculate_dagrun_queued_at_deadlines(dagrun: DagRun, *, session: Session)
                 exc_info=True,
             )
             continue
-
-        new_deadline_time = decoded_alert.reference.evaluate_with(
-            session=session,
-            interval=interval,
-            dagrun=dagrun,
-            dag_id=dagrun.dag_id,
-            run_id=dagrun.run_id,
-        )
 
         if new_deadline_time is None:
             continue
@@ -2817,8 +2819,8 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         if not ti.is_eligible_to_retry():
             ti.state = TaskInstanceState.FAILED
 
-            if task and fail_fast:
-                _stop_remaining_tasks(task_instance=ti, session=session)
+            if fail_fast and task and task.dag:
+                _stop_remaining_tasks(task_instance=ti, dag=task.dag, session=session)
         else:
             allocate_next_try = ti.state != TaskInstanceState.UP_FOR_RETRY
             ti.state = State.UP_FOR_RETRY

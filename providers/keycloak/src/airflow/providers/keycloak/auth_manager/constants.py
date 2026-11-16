@@ -34,5 +34,6 @@ CONF_JWT_FEDERATED_CLIENT_IDS_KEY = "jwt_federated_client_ids"
 # Extra Cookie names
 COOKIE_NAME_ACCESS_TOKEN = "_access_token"
 COOKIE_NAME_ID_TOKEN = "_id_token"
+COOKIE_NAME_LOGIN_NEXT_URL = "_login_next_url"
 COOKIE_NAME_OAUTH_STATE = "_oauth_state"
 COOKIE_NAME_REFRESH_TOKEN = "_refresh_token"

@@ -26,15 +26,19 @@ import { Wrapper } from "src/utils/Wrapper";
 import { GridSelectionActionBar } from "./GridSelectionActionBar";
 import { getCellKey } from "./useGridSelection";
 
+// `loop.c` in run r2 is a loop pass, which the bulk actions name by its id.
 vi.mock("./useGridSelectedTaskInstances", () => ({
-  useGridSelectedTaskInstances: () => ({ data: [], isLoading: false }),
+  useGridSelectedTaskInstances: () => ({
+    data: [{ dag_id: "dag", dag_run_id: "r2", id: "pass-id", map_index: -1, task_id: "loop.c" }],
+    isLoading: false,
+  }),
 }));
 vi.mock("src/pages/TaskInstances/BulkClearTaskInstancesButton", () => ({ default: () => undefined }));
 vi.mock("src/pages/TaskInstances/BulkDeleteTaskInstancesButton", () => ({ default: () => undefined }));
-// Reports `group.b` in run r1 as updated, the way the bulk actions name task instances.
+// Reports `group.b` in run r1 and the loop pass as updated, the way the bulk actions name them.
 vi.mock("src/pages/TaskInstances/BulkMarkTaskInstancesAsButton", () => ({
   default: ({ deselectKeys }: { readonly deselectKeys: (keys: Array<string>) => void }) => (
-    <button onClick={() => deselectKeys(["dag.r1.group.b[-1]"])} type="button">
+    <button onClick={() => deselectKeys(["dag.r1.group.b[-1]", "pass-id"])} type="button">
       mark
     </button>
   ),
@@ -44,7 +48,7 @@ const selectionOf = (cells: Array<GridCell>) =>
   new Map(cells.map((cell) => [getCellKey(cell.runId, cell.taskId), cell]));
 
 describe("GridSelectionActionBar", () => {
-  it("deselects a group cell once one of its task instances is updated", () => {
+  it("deselects the group cells whose task instances are updated, loop passes included", () => {
     const deselectCells = vi.fn();
 
     render(
@@ -52,11 +56,18 @@ describe("GridSelectionActionBar", () => {
         clearSelection={vi.fn()}
         dagId="dag"
         deselectCells={deselectCells}
-        selectableGroups={new Map([["group", ["group.a", "group.b"]]])}
+        selectableGroups={
+          new Map([
+            ["group", ["group.a", "group.b"]],
+            ["loop", ["loop.c"]],
+          ])
+        }
         selection={selectionOf([
           { runId: "r1", taskId: "group" },
           { runId: "r2", taskId: "group" },
           { runId: "r1", taskId: "group.a" },
+          { runId: "r1", taskId: "loop" },
+          { runId: "r2", taskId: "loop" },
         ])}
       />,
       { wrapper: Wrapper },
@@ -64,6 +75,6 @@ describe("GridSelectionActionBar", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "mark" }));
 
-    expect(deselectCells).toHaveBeenCalledWith([getCellKey("r1", "group")]);
+    expect(deselectCells).toHaveBeenCalledWith([getCellKey("r1", "group"), getCellKey("r2", "loop")]);
   });
 });

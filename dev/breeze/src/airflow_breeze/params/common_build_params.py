@@ -29,8 +29,10 @@ from airflow_breeze.global_constants import (
     ALLOWED_INSTALL_MYSQL_CLIENT_TYPES,
     APACHE_AIRFLOW_GITHUB_REPOSITORY,
     DOCKER_DEFAULT_PLATFORM,
+    OS_DEPS_IMAGE_DEBIAN_VERSION,
     get_airflow_version,
     get_hardened_python_base_image,
+    get_pinned_os_deps_image,
 )
 from airflow_breeze.utils.console import console_print
 from airflow_breeze.utils.platforms import get_normalized_platform
@@ -74,6 +76,7 @@ class CommonBuildParams:
     version_suffix: str | None = None
     verbose: bool = False
     debian_version: str = ALLOWED_DEBIAN_VERSIONS[0]
+    use_pinned_os_deps_images: bool = True
     build_arg_values: list[str] = field(default_factory=list)
 
     @property
@@ -127,6 +130,40 @@ class CommonBuildParams:
         if self.python_image is not None:
             return self.python_image
         return get_hardened_python_base_image(self.python, self.debian_version)
+
+    @property
+    def _has_custom_dev_apt_dependencies(self) -> bool:
+        return any(
+            [
+                self.dev_apt_deps,
+                self.additional_dev_apt_deps,
+                self.dev_apt_command,
+                self.additional_dev_apt_command,
+                self.additional_dev_apt_env,
+            ]
+        )
+
+    def _has_custom_database_clients(self) -> bool:
+        """Whether the build installs other database clients than the OS-dependencies images carry."""
+        return self.install_mysql_client_type != ALLOWED_INSTALL_MYSQL_CLIENT_TYPES[0]
+
+    def _can_use_pinned_os_deps_images(self) -> bool:
+        """Whether the build may start from the pinned OS-dependencies images instead of BASE_IMAGE.
+
+        Those images are built on the pinned base image of the default Debian version with the default
+        apt dependencies and database clients, so any other base image, apt customization or choice
+        of database clients installs from the repositories.
+        A disabled image cache does not turn them off - the CI build retries with it after any failure.
+        """
+        return (
+            self.use_pinned_os_deps_images
+            and self.python_image is None
+            and self.debian_version == OS_DEPS_IMAGE_DEBIAN_VERSION
+            and not self._has_custom_database_clients()
+        )
+
+    def _set_os_deps_image_arg(self, image_type: str, build_arg: str):
+        self._opt_arg(build_arg, get_pinned_os_deps_image(image_type, self.python))
 
     @property
     def airflow_image_repository(self):
