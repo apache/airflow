@@ -315,7 +315,10 @@ def _get_latest_dag_run_row_query(*, dag_id: str, info: DagRunInfo):
         stmt = stmt.where(DagRun.partition_date == info.partition_date)
     if info.logical_date is not None:
         stmt = stmt.where(DagRun.logical_date == info.logical_date)
-    stmt = stmt.order_by(DagRun.start_date.is_(None), DagRun.start_date.desc())
+    # A requeued run has no start_date until it starts again, so fall back to queued_at;
+    # otherwise an older finished run of the same partition is taken as the latest.
+    latest_attempt = func.coalesce(DagRun.start_date, DagRun.queued_at)
+    stmt = stmt.order_by(latest_attempt.is_(None), latest_attempt.desc())
     return stmt.limit(1)
 
 
