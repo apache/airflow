@@ -81,7 +81,9 @@ def generate_token(
     else:
         expiration_seconds = conf.getint("api_auth", "jwt_expiration_time")
 
-    access_token = get_auth_manager().generate_jwt(user, expiration_time_in_seconds=expiration_seconds)
+    # The token is used with the ``Authorization`` header, without the cookies of the
+    # browser session it was generated from.
+    access_token = get_auth_manager().generate_api_jwt(user, expiration_time_in_seconds=expiration_seconds)
 
     log.info(
         "User %s generated a %s token (expires in %d seconds)",
