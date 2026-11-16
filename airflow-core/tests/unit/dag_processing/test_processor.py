@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import asyncio
 import inspect
 import json
 import logging
@@ -68,7 +67,6 @@ from airflow.dag_processing.processor import (
     DagFileProcessorProcess,
     ToDagProcessor,
     ToManager,
-    _DagParseCommsDecoder,
     _execute_callbacks,
     _execute_dag_callbacks,
     _execute_email_callbacks,
@@ -87,6 +85,7 @@ from airflow.sdk.definitions._internal.loop import create_loop
 from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
 from airflow.sdk.execution_time import comms, supervisor, task_runner
 from airflow.sdk.execution_time.comms import (
+    CommsDecoder,
     GetConnection,
     GetTaskStates,
     GetTICount,
@@ -811,9 +810,8 @@ def _make_callback_request(dag_id: str, task_id: str | None) -> CallbackRequest:
     ],
 )
 @conf_vars({("dag_processor", "use_execution_api"): "True"})
-@patch.object(_DagParseCommsDecoder, "send", autospec=True)
 def test_parse_file_exits_when_no_callback_target_loaded_after_api_failure(
-    send, spy_agency, monkeypatch, loaded_dag_ids, targets, api_request_failed, exits, expected_calls
+    spy_agency, monkeypatch, loaded_dag_ids, targets, api_request_failed, exits, expected_calls
 ):
     calls: list[str] = []
     with DAG(dag_id="a", on_failure_callback=lambda context: calls.append("a")) as dag_a:
@@ -826,8 +824,9 @@ def test_parse_file_exits_when_no_callback_target_loaded_after_api_failure(
             self.dags[dag_id] = dags[dag_id]
 
     spy_agency.spy_on(DagBag.collect_dags, call_fake=fake_collect_dags, owner=DagBag)
-    comms_decoder = _DagParseCommsDecoder(socket=MagicMock(spec=socket))
-    comms_decoder._received_api_error = api_request_failed
+    comms_decoder = MagicMock(
+        spec=CommsDecoder, has_api_errors=api_request_failed, has_pending_requests=False
+    )
     monkeypatch.setattr(task_runner, "SUPERVISOR_COMMS", comms_decoder, raising=False)
     msg = DagFileParseRequest(
         file="A",
@@ -844,9 +843,9 @@ def test_parse_file_exits_when_no_callback_target_loaded_after_api_failure(
         assert _parse_file(msg, log=structlog.get_logger()) is None
     assert calls == expected_calls
     if expected_calls:
-        send.assert_called_once_with(comms_decoder, DagCallbacksStarted())
+        comms_decoder.send.assert_called_once_with(DagCallbacksStarted())
     else:
-        send.assert_not_called()
+        comms_decoder.send.assert_not_called()
 
 
 @pytest.mark.parametrize("acknowledged", [False, True])
@@ -865,9 +864,7 @@ def test_callbacks_wait_for_start_acknowledgment(dagbag, execute, monkeypatch, a
     with child, parent, ThreadPoolExecutor(max_workers=1) as executor:
         child.settimeout(2)
         parent.settimeout(2)
-        decoder = _DagParseCommsDecoder(
-            socket=child, body_decoder=TypeAdapter[ToDagProcessor](ToDagProcessor)
-        )
+        decoder = CommsDecoder(socket=child, body_decoder=TypeAdapter[ToDagProcessor](ToDagProcessor))
         monkeypatch.setattr(task_runner, "SUPERVISOR_COMMS", decoder, raising=False)
         result = executor.submit(_parse_file, request, structlog.get_logger())
         try:
@@ -892,60 +889,6 @@ def test_callbacks_wait_for_start_acknowledgment(dagbag, execute, monkeypatch, a
         finally:
             # CommsDecoder uses blocking reads, including when an assertion above fails before the response.
             parent.shutdown(SHUT_RDWR)
-
-
-@pytest.mark.parametrize(
-    "send",
-    [
-        pytest.param(lambda comms_decoder, msg: comms_decoder.send(msg), id="send"),
-        pytest.param(lambda comms_decoder, msg: asyncio.run(comms_decoder.asend(msg)), id="asend"),
-    ],
-)
-@pytest.mark.parametrize(
-    ("error", "api_request_failed"),
-    [
-        pytest.param(ErrorType.API_SERVER_ERROR, True, id="api-request-failed"),
-        pytest.param(ErrorType.GENERIC_ERROR, False, id="unhandled-request"),
-    ],
-)
-def test_comms_decoder_records_only_failed_api_requests(send, error, api_request_failed):
-    reader, writer = socketpair()
-    with reader, writer:
-        writer.sendall(
-            comms._ResponseFrame(id=0, error=comms.ErrorResponse(error=error).model_dump()).as_bytes()
-        )
-        comms_decoder = _DagParseCommsDecoder(
-            socket=reader, body_decoder=TypeAdapter[ToDagProcessor](ToDagProcessor)
-        )
-
-        with pytest.raises(AirflowRuntimeError):
-            send(comms_decoder, GetVariable(key="key"))
-
-        assert comms_decoder.api_request_failed is api_request_failed
-        writer.sendall(comms._ResponseFrame(id=1).as_bytes())
-        send(comms_decoder, GetVariable(key="other"))
-
-    assert comms_decoder.api_request_failed is api_request_failed
-
-
-@pytest.mark.parametrize(
-    "send",
-    [lambda decoder, msg: decoder.send(msg), lambda decoder, msg: asyncio.run(decoder.asend(msg))],
-    ids=["send", "asend"],
-)
-@patch.object(_DagParseCommsDecoder, "_read_frame", autospec=True, side_effect=TimeoutError("interrupted"))
-def test_comms_decoder_retains_unanswered_request_after_interruption(read_frame, send):
-    reader, writer = socketpair()
-    with reader, writer:
-        decoder = _DagParseCommsDecoder(socket=reader)
-        with pytest.raises(TimeoutError, match="interrupted"):
-            send(decoder, GetVariable(key="key"))
-        assert decoder.api_request_failed
-        other = decoder._make_frame(GetVariable(key="other"))
-        decoder._from_frame(comms._ResponseFrame(id=other.id))
-        assert decoder.api_request_failed
-        decoder._from_frame(comms._ResponseFrame(id=other.id - 1))
-        assert not decoder.api_request_failed
 
 
 @pytest.mark.parametrize("api_mode", [True, False])
@@ -985,7 +928,7 @@ def test_callback_import_timeout_with_unanswered_api_request_requests_redelivery
             }
         ),
     ):
-        decoder = _DagParseCommsDecoder(socket=child)
+        decoder = CommsDecoder(socket=child)
         monkeypatch.setattr(task_runner, "SUPERVISOR_COMMS", decoder, raising=False)
         if api_mode:
             with pytest.raises(SystemExit) as exit_info:

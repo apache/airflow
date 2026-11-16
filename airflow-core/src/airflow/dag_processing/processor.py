@@ -44,7 +44,7 @@ from airflow.dag_processing.bundles.base import BundleVersionLock
 from airflow.dag_processing.bundles.manager import get_configured_bundle_team_names
 from airflow.dag_processing.dagbag import BundleDagBag, DagBag, LangSDKSerializedDAG
 from airflow.models.dag import DagModel
-from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType, TaskNotFound
+from airflow.sdk.exceptions import TaskNotFound
 from airflow.sdk.execution_time import supervisor, task_runner
 from airflow.sdk.execution_time.comms import (
     CommsDecoder,
@@ -200,32 +200,6 @@ ToDagProcessor = Annotated[
 ]
 
 
-@attrs.define()
-class _DagParseCommsDecoder(CommsDecoder[ToDagProcessor, ToManager]):
-    _received_api_error: bool = attrs.field(default=False, init=False)
-    _pending_request_ids: set[int] = attrs.field(factory=set, init=False)
-
-    @property
-    def api_request_failed(self) -> bool:
-        """Include unanswered requests interrupted by the Dag import timeout."""
-        return self._received_api_error or bool(self._pending_request_ids)
-
-    def _make_frame(self, msg: ToManagerMessage):
-        frame = super()._make_frame(msg)
-        self._pending_request_ids.add(frame.id)
-        return frame
-
-    def _from_frame(self, frame) -> ToDagProcessor | None:
-        # Match IDs so another response cannot hide an interrupted sync or async request.
-        self._pending_request_ids.discard(frame.id)
-        try:
-            return super()._from_frame(frame)
-        except AirflowRuntimeError as error:
-            if error.error.error == ErrorType.API_SERVER_ERROR:
-                self._received_api_error = True
-            raise
-
-
 def _pre_import_airflow_modules(file_path: str, log: FilteringBoundLogger) -> None:
     """
     Pre-import Airflow modules found in the given file.
@@ -255,7 +229,9 @@ def _parse_file_entrypoint():
     import structlog
 
     # Parse DAG file, send JSON back up!
-    comms_decoder = _DagParseCommsDecoder(body_decoder=TypeAdapter[ToDagProcessor](ToDagProcessor))
+    comms_decoder = CommsDecoder[ToDagProcessor, ToManager](
+        body_decoder=TypeAdapter[ToDagProcessor](ToDagProcessor)
+    )
 
     msg = comms_decoder._get_response()
     if not isinstance(msg, DagFileParseRequest):
@@ -299,7 +275,9 @@ def _parse_file(msg: DagFileParseRequest, log: FilteringBoundLogger) -> DagFileP
         targets_loaded = any(_is_callback_target_loaded(bag, request) for request in msg.callback_requests)
         if targets_loaded and conf.getboolean("dag_processor", "use_execution_api"):
             # Wait for the manager to record this before any callback can produce side effects.
-            cast("_DagParseCommsDecoder", task_runner.SUPERVISOR_COMMS).send(DagCallbacksStarted())
+            cast("CommsDecoder[ToDagProcessor, ToManager]", task_runner.SUPERVISOR_COMMS).send(
+                DagCallbacksStarted()
+            )
         # If the request is for callback, we shouldn't serialize the Dags
         _execute_callbacks(bag, msg.callback_requests, log)
         if not targets_loaded and _has_api_request_failed():
@@ -393,7 +371,9 @@ def _has_api_request_failed() -> bool:
     if not conf.getboolean("dag_processor", "use_execution_api"):
         return False
     comms_decoder = getattr(task_runner, "SUPERVISOR_COMMS", None)
-    return isinstance(comms_decoder, _DagParseCommsDecoder) and comms_decoder.api_request_failed
+    return isinstance(comms_decoder, CommsDecoder) and (
+        comms_decoder.has_pending_requests or comms_decoder.has_api_errors
+    )
 
 
 def _is_callback_target_loaded(dagbag: DagBag, request: CallbackRequest) -> bool:
