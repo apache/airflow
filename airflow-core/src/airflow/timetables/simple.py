@@ -439,6 +439,40 @@ class PartitionedAssetTimetable(AssetTriggeredTimetable):
             return anchors.pop()
         return None
 
+    def suggest_partition_key(self, now: DateTime) -> str | None:
+        """
+        Suggest a partition key for the period containing *now*, purely from the asset mappers.
+
+        This is a **guess**, not a derivation: it consults no asset events or
+        ``DagRun`` history, so it can suggest a value even for a Dag that has
+        never run.
+
+        Only a mapper with a callable ``format_period_containing`` can answer
+        (duck-typed, not ``isinstance``). Mappers that cannot answer are
+        ignored; the answering mappers must all agree on one key. Zero answers,
+        or answers that disagree, return ``None`` — same convention as
+        :meth:`_decode_partition_date`.
+        """
+        keys: set[str] = set()
+        for unique_key, _ in self.asset_condition.iter_assets():
+            mapper = self.get_partition_mapper(name=unique_key.name, uri=unique_key.uri)
+            key = _suggest_partition_key_from_mapper(mapper, now)
+            if key is not None:
+                keys.add(key)
+        for s_asset_ref in self.asset_condition.iter_asset_refs():
+            if isinstance(s_asset_ref, SerializedAssetNameRef):
+                mapper = self.get_partition_mapper(name=s_asset_ref.name)
+            elif isinstance(s_asset_ref, SerializedAssetUriRef):
+                mapper = self.get_partition_mapper(uri=s_asset_ref.uri)
+            else:
+                continue
+            key = _suggest_partition_key_from_mapper(mapper, now)
+            if key is not None:
+                keys.add(key)
+        if len(keys) == 1:
+            return keys.pop()
+        return None
+
     def serialize(self) -> dict[str, Any]:
         from airflow.serialization.serialized_objects import encode_asset_like
 
@@ -470,3 +504,17 @@ class PartitionedAssetTimetable(AssetTriggeredTimetable):
             },
         )
         return timetable
+
+
+def _suggest_partition_key_from_mapper(mapper: PartitionMapper, now: DateTime) -> str | None:
+    """
+    Return *mapper*'s guess for the downstream key of the period containing *now*, or ``None``.
+
+    A mapper that cannot answer returns ``None``. A mapper that raises is not ignored: the
+    exception propagates, so one misconfigured mapper cannot be silently left out of the
+    agreement check. The API layer isolates it and logs it together with the Dag id.
+    """
+    format_period_containing = getattr(mapper, "format_period_containing", None)
+    if not callable(format_period_containing):
+        return None
+    return format_period_containing(now)
