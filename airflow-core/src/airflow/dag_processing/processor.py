@@ -154,7 +154,7 @@ class DagFileParsingResult(BaseModel):
 
 
 class DagCallbacksStarted(BaseModel):
-    """Request permission to begin a callback batch after importing its Dag file."""
+    """Notify the manager that a callback batch is about to start, awaiting acknowledgment before execution."""
 
     type: Literal["DagCallbacksStarted"] = "DagCallbacksStarted"
 

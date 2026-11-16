@@ -379,7 +379,8 @@ type DagCallbackRequest struct {
 	VersionData *VersionData `msgpack:"version_data,omitempty"`
 }
 
-// Request permission to begin a callback batch after importing its Dag file.
+// Notify the manager that a callback batch is about to start, awaiting
+// acknowledgment before execution.
 type DagCallbacksStarted struct {
 	// Type corresponds to the JSON schema field "type".
 	Type string `msgpack:"type,omitempty"`
