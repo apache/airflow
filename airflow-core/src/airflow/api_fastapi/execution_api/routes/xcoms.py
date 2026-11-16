@@ -412,6 +412,75 @@ def _get_sliced_query_or_empty(query: Select, low: int, high: int) -> Select:
     return query.slice(low, high)
 
 
+def _read_xcom_slice(
+    xcom_read: _XComRead, *, start: int | None, stop: int | None, step: int | None, session: Session
+) -> list[JsonValue]:
+    """Read the values of a sequence read in its order, sliced like a Python sequence."""
+    entity = xcom_entity(xcom_read.statement)
+    query = xcom_read.statement.order_by(None)
+    ascending, descending = xcom_read.get_order(entity), xcom_read.get_order(entity, descending=True)
+
+    step = step or 1
+
+    # We want to optimize negative slicing (e.g. seq[-10:]) by not doing an
+    # additional COUNT query if possible. This is possible unless both start and
+    # stop are explicitly given and have different signs.
+    if start is None:
+        if stop is None:
+            if step >= 0:
+                query = query.order_by(*ascending)
+            else:
+                query = query.order_by(*descending)
+                step = -step
+        elif stop >= 0:
+            query = query.order_by(*ascending)
+            if step >= 0:
+                query = query.limit(stop)
+            else:
+                query = query.offset(stop + 1)
+        else:
+            query = query.order_by(*descending)
+            step = -step
+            if step > 0:
+                query = query.limit(-stop - 1)
+            else:
+                query = query.offset(-stop)
+    elif start >= 0:
+        query = query.order_by(*ascending)
+        if stop is None:
+            if step >= 0:
+                query = query.offset(start)
+            else:
+                query = query.limit(start + 1)
+        else:
+            if stop < 0:
+                stop += get_query_count(query, session=session)
+            if step >= 0:
+                query = _get_sliced_query_or_empty(query, start, stop)
+            else:
+                query = _get_sliced_query_or_empty(query, stop + 1, start + 1)
+    else:
+        query = query.order_by(*descending)
+        step = -step
+        if stop is None:
+            if step > 0:
+                query = query.offset(-start - 1)
+            else:
+                query = query.limit(-start)
+        else:
+            if stop >= 0:
+                stop -= get_query_count(query, session=session)
+            if step > 0:
+                query = _get_sliced_query_or_empty(query, -1 - start, -1 - stop)
+            else:
+                query = _get_sliced_query_or_empty(query, -stop, -start)
+
+    values = [row.value for row in session.execute(query.with_only_columns(entity.value)).all()]
+    if step != 1:
+        values = values[::step]
+    return values
+
+
 @router.get(
     "/{dag_id}/{run_id}/{task_id}/{key:path}/slice",
     dependencies=[ExecutionOrDagParseToken, DagInGrantedBundle],
@@ -445,68 +514,9 @@ def get_mapped_xcom_by_slice(
         previous_iteration=params.previous_iteration,
         sequence=True,
     )
-    entity = xcom_entity(xcom_read.statement)
-    query = xcom_read.statement.order_by(None)
-    ascending, descending = xcom_read.get_order(entity), xcom_read.get_order(entity, descending=True)
-
-    step = params.step or 1
-
-    # We want to optimize negative slicing (e.g. seq[-10:]) by not doing an
-    # additional COUNT query if possible. This is possible unless both start and
-    # stop are explicitly given and have different signs.
-    if (start := params.start) is None:
-        if (stop := params.stop) is None:
-            if step >= 0:
-                query = query.order_by(*ascending)
-            else:
-                query = query.order_by(*descending)
-                step = -step
-        elif stop >= 0:
-            query = query.order_by(*ascending)
-            if step >= 0:
-                query = query.limit(stop)
-            else:
-                query = query.offset(stop + 1)
-        else:
-            query = query.order_by(*descending)
-            step = -step
-            if step > 0:
-                query = query.limit(-stop - 1)
-            else:
-                query = query.offset(-stop)
-    elif start >= 0:
-        query = query.order_by(*ascending)
-        if (stop := params.stop) is None:
-            if step >= 0:
-                query = query.offset(start)
-            else:
-                query = query.limit(start + 1)
-        else:
-            if stop < 0:
-                stop += get_query_count(query, session=session)
-            if step >= 0:
-                query = _get_sliced_query_or_empty(query, start, stop)
-            else:
-                query = _get_sliced_query_or_empty(query, stop + 1, start + 1)
-    else:
-        query = query.order_by(*descending)
-        step = -step
-        if (stop := params.stop) is None:
-            if step > 0:
-                query = query.offset(-start - 1)
-            else:
-                query = query.limit(-start)
-        else:
-            if stop >= 0:
-                stop -= get_query_count(query, session=session)
-            if step > 0:
-                query = _get_sliced_query_or_empty(query, -1 - start, -1 - stop)
-            else:
-                query = _get_sliced_query_or_empty(query, -stop, -start)
-
-    values = [row.value for row in session.execute(query.with_only_columns(entity.value)).all()]
-    if step != 1:
-        values = values[::step]
+    values = _read_xcom_slice(
+        xcom_read, start=params.start, stop=params.stop, step=params.step, session=session
+    )
     return XComSequenceSliceResponse(values)
 
 
@@ -681,9 +691,7 @@ def get_xcom(
             previous_iteration=params.previous_iteration,
             sequence=True,
         )
-        entity = xcom_entity(mapped_read.statement)
-        query = mapped_read.statement.order_by(None).order_by(*mapped_read.get_order(entity))
-        values = [row.value for row in session.execute(query.with_only_columns(entity.value)).all()]
+        values = _read_xcom_slice(mapped_read, start=None, stop=None, step=None, session=session)
         return XComResponse(key=key, value=values)
     xcom_read = _build_xcom_read(
         dag_id=dag_id,
