@@ -17,47 +17,64 @@
  * under the License.
  */
 
-// Filters for the /durable/ page. State lives in the query string
-// (?capability=deferrable&provider=amazon&type=sensor&q=glue) so a filtered
-// view can be shared.
+// Filters for the /operators/ page. State lives in the query string
+// (?capability=durable&provider=amazon&type=sensor&q=glue) so a filtered
+// view can be shared. Type defaults to operator, so "all types" is written
+// to the URL as type=all.
 (function() {
-  const searchInput = document.getElementById('durable-search');
+  const searchInput = document.getElementById('operator-search');
   const capabilityButtons = document.querySelectorAll('.capability-btn');
-  const providerSelect = document.getElementById('durable-provider-filter');
-  const typeSelect = document.getElementById('durable-type-filter');
-  const status = document.getElementById('durable-status');
-  const emptyState = document.getElementById('durable-empty');
-  const groups = document.querySelectorAll('.durable-page .provider-group');
+  const providerSelect = document.getElementById('operator-provider-filter');
+  const typeSelect = document.getElementById('operator-type-filter');
+  const status = document.getElementById('operator-status');
+  const emptyState = document.getElementById('operator-empty');
+  const groups = document.querySelectorAll('.operators-page .provider-group');
 
   if (!searchInput || !providerSelect || !typeSelect) return;
 
-  const state = { capability: 'all', provider: 'all', type: 'all', q: '' };
+  const defaults = { capability: 'all', provider: 'all', type: 'operator', q: '' };
+  const state = { ...defaults };
   let debounceTimer;
 
-  function matches(item) {
+  function hasCapability(item, capability) {
+    const durable = item.dataset.durable === 'true';
+    const deferrable = item.dataset.deferrable === 'true';
+    return capability === 'all' ||
+      (capability === 'durable-or-deferrable' && (durable || deferrable)) ||
+      (capability === 'durable' && durable) ||
+      (capability === 'deferrable' && deferrable);
+  }
+
+  function matchesOtherFilters(item) {
     const search = state.q.toLowerCase();
-    const capability =
-      state.capability === 'all' ||
-      (state.capability === 'durable' && item.dataset.durable === 'true') ||
-      (state.capability === 'deferrable' && item.dataset.deferrable === 'true');
-    return capability &&
-      (state.type === 'all' || item.dataset.type === state.type) &&
+    return (state.type === 'all' || item.dataset.type === state.type) &&
       (!search || item.dataset.name.includes(search));
   }
 
   function apply() {
     let visible = 0;
+    const capabilityCounts = {};
+    capabilityButtons.forEach(btn => { capabilityCounts[btn.dataset.capability] = 0; });
     groups.forEach(group => {
       const inProvider = state.provider === 'all' || group.dataset.provider === state.provider;
       let groupVisible = 0;
       group.querySelectorAll('.module').forEach(item => {
-        const show = inProvider && matches(item);
+        const candidate = inProvider && matchesOtherFilters(item);
+        if (candidate) {
+          Object.keys(capabilityCounts).forEach(c => {
+            if (hasCapability(item, c)) capabilityCounts[c]++;
+          });
+        }
+        const show = candidate && hasCapability(item, state.capability);
         item.style.display = show ? '' : 'none';
         if (show) groupVisible++;
       });
       group.style.display = groupVisible ? '' : 'none';
       group.querySelector('h2 .count').textContent = groupVisible;
       visible += groupVisible;
+    });
+    capabilityButtons.forEach(btn => {
+      btn.querySelector('.count').textContent = capabilityCounts[btn.dataset.capability];
     });
     emptyState.hidden = visible !== 0;
     status.textContent = visible + ' module' + (visible === 1 ? '' : 's');
@@ -76,7 +93,7 @@
   function updateURL() {
     const params = new URLSearchParams();
     Object.entries(state).forEach(([key, value]) => {
-      if (value && value !== 'all') params.set(key, value);
+      if (value !== defaults[key]) params.set(key, value);
     });
     const qs = params.toString();
     history.replaceState(null, '', window.location.pathname + (qs ? '?' + qs : ''));
@@ -97,7 +114,7 @@
       setCapability(capability);
     }
     state.provider = selectFromURL(providerSelect, params.get('provider'));
-    state.type = selectFromURL(typeSelect, params.get('type'));
+    state.type = selectFromURL(typeSelect, params.get('type') || defaults.type);
     state.q = (params.get('q') || '').trim();
     searchInput.value = state.q;
   }

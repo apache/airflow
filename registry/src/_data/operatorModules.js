@@ -17,16 +17,12 @@
  * under the License.
  */
 
-// Groups every module that is durable or deferrable, across all providers,
-// for the /durable/ page: the same union the provider page's
-// "Durable (includes deferrable)" toggle shows.
+// Groups every module across all providers for the /operators/ page.
 const providersData = require("./providers.json");
 const modulesData = require("./modules.json");
 
 module.exports = function () {
-  const modules = modulesData.modules.filter(
-    (m) => m.supports_durable_execution || m.supports_deferrable,
-  );
+  const modules = modulesData.modules;
 
   const groupsById = new Map();
   for (const provider of providersData.providers) {
@@ -44,17 +40,11 @@ module.exports = function () {
     group.modules.push(m);
   }
 
-  // Durable modules lead each group: there are far fewer of them, and they are
-  // what someone looking for "durable operators" usually means.
   const groups = Array.from(groupsById.values())
     .filter((g) => g.modules.length > 0)
     .sort((a, b) => a.name.localeCompare(b.name));
   for (const g of groups) {
-    g.modules.sort(
-      (a, b) =>
-        Number(Boolean(b.supports_durable_execution)) - Number(Boolean(a.supports_durable_execution)) ||
-        a.name.localeCompare(b.name),
-    );
+    g.modules.sort((a, b) => a.name.localeCompare(b.name));
   }
 
   const typeCounts = {};
@@ -65,6 +55,7 @@ module.exports = function () {
     typeCounts,
     counts: {
       all: modules.length,
+      durableOrDeferrable: modules.filter((m) => m.supports_durable_execution || m.supports_deferrable).length,
       durable: modules.filter((m) => m.supports_durable_execution).length,
       deferrable: modules.filter((m) => m.supports_deferrable).length,
     },
