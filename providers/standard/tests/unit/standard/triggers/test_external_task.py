@@ -172,6 +172,67 @@ class TestWorkflowTrigger:
         )
         mock_sleep.assert_not_awaited()
 
+    @pytest.mark.parametrize(
+        ("run_ids", "counts"),
+        [
+            (["run_1", "run_2", "run_3"], [5, 6]),
+            (["run_1", "run_2", "run_3"], [6]),
+            (["external_task_run_id"], [1, 2]),
+        ],
+        ids=[
+            "five-of-six-polls-then-success",
+            "six-of-six-succeeds",
+            "one-of-two-polls-then-success",
+        ],
+    )
+    @mock.patch("airflow.sdk.execution_time.task_runner.RuntimeTaskInstance.get_ti_count")
+    @mock.patch("asyncio.sleep")
+    @pytest.mark.asyncio
+    async def test_task_workflow_trigger_success_threshold(self, mock_sleep, mock_get_count, run_ids, counts):
+        """The success threshold is len(task_ids) * len(runs).
+
+        With two tasks across three runs, an allowed count of five must keep
+        polling and six must emit success. With a single run, one of two tasks
+        succeeding must keep polling and not finish the trigger early.
+        """
+        mock_get_count.side_effect = counts
+
+        trigger = WorkflowTrigger(
+            external_dag_id=self.DAG_ID,
+            logical_dates=[self.LOGICAL_DATE],
+            run_ids=run_ids,
+            external_task_ids=["task_a", "task_b"],
+            allowed_states=["success"],
+        )
+
+        gen = trigger.run()
+        trigger_task = asyncio.create_task(gen.__anext__())
+        await trigger_task
+        assert trigger_task.done()
+        result = trigger_task.result()
+        assert isinstance(result, TriggerEvent)
+        assert result.payload == {"status": "success"}
+
+        # One get_count call per poll; one sleep between consecutive polls.
+        assert mock_get_count.call_count == len(counts)
+        mock_get_count.assert_has_calls(
+            [
+                mock.call(
+                    dag_id=self.DAG_ID,
+                    task_ids=["task_a", "task_b"],
+                    logical_dates=[self.LOGICAL_DATE],
+                    run_ids=run_ids,
+                    states=["success"],
+                )
+            ]
+            * len(counts)
+        )
+        assert mock_sleep.await_count == len(counts) - 1
+
+        # test that it returns after yielding
+        with pytest.raises(StopAsyncIteration):
+            await gen.__anext__()
+
     @pytest.mark.asyncio
     @mock.patch("airflow.sdk.execution_time.task_runner.RuntimeTaskInstance.get_ti_count")
     async def test_task_workflow_trigger_fail_count_eq_0(self, mock_get_count):
