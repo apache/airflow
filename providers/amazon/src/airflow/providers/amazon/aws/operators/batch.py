@@ -385,7 +385,7 @@ class BatchOperator(ResumableJobMixin, AwsBaseOperator[BatchClientHook]):
         if self.wait_for_completion:
             self.monitor_job(context)
 
-    def get_job_result(self, external_id: JsonValue, context: Context) -> str:
+    def get_job_result(self, external_id: JsonValue, context: Context) -> str | None:
         self._attach_to_job(external_id, context)
         return self.job_id
 
