@@ -1648,3 +1648,9 @@ def test_handle_clear_run_preserves_partition_key(dag_maker, session):
     )
     assert bdr is not None
     assert bdr.partition_key == partition_key
+
+
+@pytest.mark.parametrize("member", [*ReprocessBehavior, *BackfillDagRunExceptionReason])
+def test_enum_str_is_value(member):
+    # DB drivers may bind str-Enum members through str(); mysqlclient>=2.3.1 does.
+    assert str(member) == member.value
