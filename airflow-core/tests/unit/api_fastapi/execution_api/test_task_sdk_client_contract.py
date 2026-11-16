@@ -25,12 +25,15 @@ mocked tests in ``task-sdk/tests/task_sdk/api/test_client.py``.
 
 from __future__ import annotations
 
+import ast
 import json
+from pathlib import Path
 from uuid import uuid4
 
 import pytest
 from sqlalchemy import delete
 
+import airflow.sdk.api.client as client_module
 from airflow._shared.timezones import timezone
 from airflow.models.asset import AssetActive, AssetModel
 from airflow.models.asset_state_store import AssetStateStoreModel
@@ -40,7 +43,9 @@ from airflow.models.variable import Variable
 from airflow.models.xcom import XCOM_RETURN_KEY, XComModelV2
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
+from airflow.sdk.api.client import ServerResponseError
 from airflow.sdk.api.datamodels._generated import (
+    AssetResponse,
     AssetStateStoreResponse,
     ConnectionResponse,
     TaskStateStoreResponse,
@@ -49,11 +54,12 @@ from airflow.sdk.api.datamodels._generated import (
     XComSequenceIndexResponse,
     XComSequenceSliceResponse,
 )
-from airflow.sdk.exceptions import ErrorType
-from airflow.sdk.execution_time.comms import ErrorResponse, XComCountResponse
+from airflow.sdk.exceptions import ErrorType, TaskAlreadyRunningError
+from airflow.sdk.execution_time.comms import ErrorResponse, OKResponse, XComCountResponse
 from airflow.utils.session import create_session
+from airflow.utils.state import TaskInstanceState
 
-from tests_common.test_utils.db import clear_db_connections, clear_db_variables
+from tests_common.test_utils.db import clear_db_assets, clear_db_connections, clear_db_variables
 
 pytestmark = pytest.mark.db_test
 
@@ -234,6 +240,7 @@ class TestAssetStateStoreOperations:
         session.flush()
         session.add(AssetActive.for_asset(asset))
         session.add(AssetStateStoreModel(asset_id=asset.id, key="watermark", value=json.dumps("2026-04-29")))
+        session.add(AssetStateStoreModel(asset_id=asset.id, key="stored_null", value=json.dumps(None)))
         session.commit()
         yield asset
         with create_session() as cleanup:
@@ -245,12 +252,106 @@ class TestAssetStateStoreOperations:
         result = task_sdk_client.asset_state_store.get("watermark", **{by: getattr(asset, by)})
         assert result == AssetStateStoreResponse(value="2026-04-29")
 
-    def test_get_not_found(self, task_sdk_client, asset):
-        result = task_sdk_client.asset_state_store.get("missing", name=asset.name)
-        assert result == ErrorResponse(error=ErrorType.ASSET_STORE_NOT_FOUND, detail={"key": "missing"})
+    @pytest.mark.parametrize("key", ["missing", "stored_null"])
+    def test_get_not_found(self, task_sdk_client, asset, key):
+        result = task_sdk_client.asset_state_store.get(key, name=asset.name)
+        assert result == ErrorResponse(error=ErrorType.ASSET_STORE_NOT_FOUND, detail={"key": key})
 
     @pytest.mark.parametrize("by", [{"name": "missing"}, {"uri": "s3://bucket/missing"}])
     def test_get_missing_asset(self, task_sdk_client, by):
         """An asset that doesn't exist reads the same as a missing key."""
         result = task_sdk_client.asset_state_store.get("watermark", **by)
         assert result == ErrorResponse(error=ErrorType.ASSET_STORE_NOT_FOUND, detail={"key": "watermark"})
+
+
+class TestTaskInstanceOperations:
+    @pytest.mark.parametrize("state", [TaskInstanceState.RUNNING, TaskInstanceState.RESTARTING])
+    def test_start_running_elsewhere(self, task_sdk_client, create_task_instance, session, state):
+        ti = create_task_instance(state=state, hostname="other-host", pid=1, session=session)
+        session.commit()
+        with pytest.raises(TaskAlreadyRunningError):
+            task_sdk_client.task_instances.start(ti.id, 2, timezone.utcnow())
+
+    def test_start_finished(self, task_sdk_client, create_task_instance, session):
+        ti = create_task_instance(state=TaskInstanceState.SUCCESS, session=session)
+        session.commit()
+        with pytest.raises(ServerResponseError):
+            task_sdk_client.task_instances.start(ti.id, 1, timezone.utcnow())
+
+
+class TestDagRunOperations:
+    @pytest.fixture(autouse=True)
+    def dag(self, dag_maker, session):
+        with dag_maker(dag_id="target", session=session, serialized=True):
+            EmptyOperator(task_id="task")
+        session.commit()
+
+    def test_trigger_existing_run(self, task_sdk_client):
+        assert task_sdk_client.dag_runs.trigger("target", "runid") == OKResponse(ok=True)
+        result = task_sdk_client.dag_runs.trigger("target", "runid")
+        assert result == ErrorResponse(error=ErrorType.DAGRUN_ALREADY_EXISTS)
+
+    def test_trigger_existing_run_with_reset(self, task_sdk_client):
+        task_sdk_client.dag_runs.trigger("target", "runid")
+        result = task_sdk_client.dag_runs.trigger("target", "runid", reset_dag_run=True)
+        assert result == OKResponse(ok=True)
+
+
+class TestAssetOperations:
+    @pytest.fixture(autouse=True)
+    def asset(self, session):
+        clear_db_assets()
+        asset = AssetModel(name="asset", uri="s3://bucket/asset", group="asset")
+        session.add(asset)
+        session.flush()
+        session.add(AssetActive.for_asset(asset))
+        session.commit()
+        yield asset
+        clear_db_assets()
+
+    @pytest.mark.parametrize("by", ["name", "uri"])
+    def test_get(self, task_sdk_client, asset, by):
+        result = task_sdk_client.assets.get(**{by: getattr(asset, by)})
+        assert result == AssetResponse(name="asset", uri="s3://bucket/asset", group="asset", extra={})
+
+    @pytest.mark.parametrize("by", [{"name": "missing"}, {"uri": "s3://bucket/missing"}])
+    def test_get_not_found(self, task_sdk_client, by):
+        result = task_sdk_client.assets.get(**by)
+        assert result == ErrorResponse(error=ErrorType.ASSET_NOT_FOUND, detail=by)
+
+
+def _find_methods_handling_server_errors() -> set[str]:
+    tree = ast.parse(Path(client_module.__file__).read_text())
+    classes = {node.name: node for node in tree.body if isinstance(node, ast.ClassDef)}
+    properties = {
+        node.returns.id: node.name
+        for node in classes["Client"].body
+        if isinstance(node, ast.FunctionDef)
+        and isinstance(node.returns, ast.Name)
+        and node.returns.id.endswith("Operations")
+    }
+    return {
+        f"{prop}.{method.name}"
+        for cls_name, prop in properties.items()
+        for method in classes[cls_name].body
+        if isinstance(method, ast.FunctionDef)
+        and any(
+            isinstance(handler, ast.ExceptHandler)
+            and isinstance(handler.type, ast.Name)
+            and handler.type.id == "ServerResponseError"
+            for handler in ast.walk(method)
+        )
+    }
+
+
+def test_every_client_method_handling_server_errors_has_a_contract_test():
+    tree = ast.parse(Path(__file__).read_text())
+    called = {
+        f"{node.value.attr}.{node.attr}"
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Attribute)
+        and isinstance(node.value, ast.Attribute)
+        and isinstance(node.value.value, ast.Name)
+        and node.value.value.id == "task_sdk_client"
+    }
+    assert _find_methods_handling_server_errors() - called == set()
