@@ -370,30 +370,27 @@ class Timetable(Protocol):
 
     def suggest_partition_key(self, now: DateTime) -> str | None:
         """
-        Suggest a partition key for a manual trigger happening at *now*.
+        Suggest a partition key for manually triggering this Dag at *now*.
 
-        Used to pre-populate the partition key field when a user manually triggers a Dag
-        run through the UI, so they are not required to know the exact key format by
-        heart. Returns ``None`` when this timetable is not ``partitioned``, when it defers
-        partition selection to runtime (``partitioned_at_runtime``), or when the concrete
-        timetable does not implement a suggestion (the default).
+        This is a **suggestion, not a derivation**: it is used to pre-fill the
+        partition key field in the manual-trigger UI so the field is not left
+        empty, but the caller is not required to use the returned value and
+        validation still accepts ``None``. Returning ``None`` means this
+        timetable has no purely time-based suggestion to offer; the caller
+        should leave the field blank or fall back to another source.
 
-        :param now: The instant to compute the suggestion for — normally "right now", the
-            moment the trigger form is rendered.
-        :returns: A partition key string ready to pre-fill the trigger form, or ``None`` if
-            no suggestion is available.
-        """
-        if not self.partitioned or self.partitioned_at_runtime:
-            return None
-        return self._compute_current_partition_key(now)
+        This method must not access the database or open a session — it runs
+        on a deserialized timetable instance shared across the scheduler, Dag
+        processor, and API layers. Sources that require a database query
+        (e.g. the most recent successful run's partition key) belong in the
+        API layer, not here.
 
-    def _compute_current_partition_key(self, now: DateTime) -> str | None:
-        """
-        Compute the key of the partition that is current as of *now*.
+        Subclasses override this method directly; the default returns ``None``.
 
-        Called by :meth:`suggest_partition_key` only after the partitioned-state guards
-        pass. The default returns ``None``; partitioned timetables that can derive a
-        current partition from a point in time override this.
+        :param now: The current time, used to compute a candidate key. It is an aware
+            datetime; callers currently pass it in UTC, so an override must convert it to
+            the timetable's timezone itself when it needs local time.
+        :returns: A suggested partition key, or ``None`` if none can be derived.
         """
         return None
 
