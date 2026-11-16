@@ -356,6 +356,8 @@ Pre-send checklist:
   date -u -v+72H '+%Y-%m-%d %H:%M UTC'          # BSD date (macOS)
   ```
 
+* The RC commit passes the
+  [commit check](../dev/README_RELEASE_LANGUAGE_SDKS.md#check-the-release-candidate-commit).
 * Run `grep '<' email.txt` on the rendered email and confirm **no output** —
   any match means a template placeholder (`<N>`, `<NNNN>`, `<YYYY-MM-DD ...>`,
   etc.) was left unfilled.
@@ -367,7 +369,8 @@ The reviewer checklist for all language SDKs is in
 
 ### After a successful vote
 
-Reply with a `[RESULT][VOTE]` tally, then:
+Follow [After a successful vote](../dev/README_RELEASE_LANGUAGE_SDKS.md#after-a-successful-vote)
+in the shared release doc. Its "Publish the binaries" step for Java is:
 
 1. **Release** the staging repository so the artifacts sync to Maven Central
    (a few hours). Nothing is rebuilt or re-signed.
@@ -410,149 +413,10 @@ Reply with a `[RESULT][VOTE]` tally, then:
 
    Then select the repository in the Nexus UI and click *Drop*.
 
-3. **Move** the source package from `dist/dev` to `dist/release`:
-
-   ```bash
-   svn mv https://dist.apache.org/repos/dist/dev/airflow/java-sdk/<VERSION>-rc<N> \
-          https://dist.apache.org/repos/dist/release/airflow/java-sdk/<VERSION> \
-          -m "Release Apache Airflow Java SDK <VERSION>"
-   ```
-
-   Then remove the release this one supersedes. Per the
-   [ASF release distribution policy](https://infra.apache.org/release-distribution.html#archival),
-   `dist/release` should hold the latest release of each line still under
-   development, and older ones remain available from `archive.apache.org`. Confirm the previous release is on the
-   archive before removing it:
-
-   ```bash
-   curl -fsI https://archive.apache.org/dist/airflow/java-sdk/<PREVIOUS-VERSION>/apache-airflow-java-sdk-<PREVIOUS-VERSION>-src.tar.gz
-   svn rm https://dist.apache.org/repos/dist/release/airflow/java-sdk/<PREVIOUS-VERSION> \
-          -m "Remove superseded Apache Airflow Java SDK <PREVIOUS-VERSION>"
-   ```
-
-4. **Tag** the final version on the same commit that was voted:
-
-   ```bash
-   git tag -s java-sdk/<VERSION> <voted-commit-hash> -m "Apache Airflow Java SDK <VERSION>"
-   git push upstream java-sdk/<VERSION>
-   ```
-
-   Keep the RC tag for traceability.
-
-   Release branches are occasionally rewritten, which can leave the voted
-   commit reachable only through the RC tag. That does not block the Java
-   release, but check it so you can mention it in the GitHub release if
-   needed:
-
-   ```bash
-   git fetch upstream
-   git merge-base --is-ancestor <voted-commit-hash> upstream/<release-branch> \
-     || echo "Voted commit is not on <release-branch>"
-   ```
-
-5. Publish a **GitHub release**. Attach the **voted, signed** source artifacts,
-   exported from `dist/release` and verified again:
-
-   ```bash
-   svn export https://dist.apache.org/repos/dist/release/airflow/java-sdk/<VERSION>
-   cd <VERSION>
-   shasum -a 512 -c apache-airflow-java-sdk-<VERSION>-src.tar.gz.sha512
-   gpg --verify apache-airflow-java-sdk-<VERSION>-src.tar.gz.asc \
-       apache-airflow-java-sdk-<VERSION>-src.tar.gz
-
-   gh release create java-sdk/<VERSION> \
-     --repo apache/airflow \
-     --title "Apache Airflow Java SDK <VERSION>" \
-     --notes "<the Changes since line from the vote email>" \
-     --verify-tag \
-     --latest=false \
-     --prerelease \
-     apache-airflow-java-sdk-<VERSION>-src.tar.gz \
-     apache-airflow-java-sdk-<VERSION>-src.tar.gz.asc \
-     apache-airflow-java-sdk-<VERSION>-src.tar.gz.sha512
-   ```
-
-   Drop the `--prerelease` flag if this is not a prerelease. Keep
-   `--latest=false` either way. Otherwise the SDK release replaces Airflow core
-   as the repository's *Latest* release.
-
-6. Publish the **API docs.** Trigger the *Publish Docs to S3* workflow in
-   `apache/airflow` for the release tag:
-
-   ```bash
-   gh workflow run "Publish Docs to S3" --repo apache/airflow --ref main \
-     -f ref=java-sdk/<VERSION> \
-     -f include-docs=java-sdk \
-     -f destination=live
-   ```
-
-   Optionally use `destination=staging` first to check, then `live`. It may be
-   possible to `auto` instead, which resolves to `live` for a release tag.
-
-   Each run spends about 15 minutes building the CI image before the SDK jobs
-   start. If you are releasing the TypeScript SDK at the same time, one run can
-   build both with `-f include-docs="java-sdk ts-sdk"`, from any ref where both
-   SDK directories match their voted sources.
-
-   Confirm that `https://airflow.apache.org/docs/java-sdk/<VERSION>/` resolves.
-   `https://airflow.apache.org/docs/java-sdk/stable/` and the `/docs/java-sdk/`
-   redirect to it can show the previous version in the CDN for a while after
-   publishing.
-
-7. **Announce.** Wait ~1 hour after promoting so Maven Central has synced, then
-   send a plain-text `[ANNOUNCE]` email to `users@airflow.apache.org` (cc
-   `dev@airflow.apache.org`) using the "Announce email template" below.
-
-8. **Record** the release (version and date) in the ASF Committee Report
-   Helper: <https://reporter.apache.org/addrelease.html?airflow>. Name it
-   `Java SDK <VERSION>`, for example `Java SDK 1.0.0`, to match earlier entries
-   such as `Java SDK 1.0.0-beta1` and `Task SDK x.y.z`. The other language SDKs
-   use the same pattern (`TypeScript SDK <VERSION>`, `Go SDK <VERSION>`).
-
-### Announce email template
-
-Send to `users@airflow.apache.org`, cc `dev@airflow.apache.org`.
-
-```text
-Subject: [ANNOUNCE] Apache Airflow Java SDK <VERSION> Released
-
-Dear Airflow community,
-
-I'm happy to announce that Apache Airflow Java SDK <VERSION> was just released.
-
-The signed source release can be downloaded from:
-https://downloads.apache.org/airflow/java-sdk/<VERSION>/
-
-We also published the convenience binaries to Maven Central, under group id
-org.apache.airflow. Import airflow-sdk-bom:<VERSION> to keep the module versions
-aligned.
-
-The API documentation is available at:
-https://airflow.apache.org/docs/java-sdk/<VERSION>/
-
-<Optional: one or two lines on notable changes; omit for the first release.>
-
-Thanks to everyone who contributed to and tested this release.
-
-Cheers,
-<your name>
-```
-
-Pre-send checklist:
-
-* The Maven Central sync has completed (the BOM resolves for a fresh consumer)
-  and the docs URL above resolves.
-* Fill or delete the optional changes line.
-* Run `grep '<' email.txt` on the rendered email and confirm **no output** --
-  any match means a placeholder (`<VERSION>`, `<your name>`, ...) was left
-  unfilled.
-
-
 ### If the vote fails
 
-Close the vote, **drop** the staging repository in Nexus, remove the `dist/dev`
-candidate, fix the issue, and cut the next RC (`...-rc2`). The released version
-stays the same (e.g. `<VERSION>`); only the RC counter in the tag increments.
+Follow [If the vote fails](../dev/README_RELEASE_LANGUAGE_SDKS.md#if-the-vote-fails)
+in the shared release doc. For Java, also **drop** the staging repository in Nexus.
 
 ## Contributing
 

@@ -245,8 +245,35 @@ Pre-send checklist:
 
 * `go list -m github.com/apache/airflow/go-sdk@v<VERSION>-rc<N>` resolves.
 * `Changes since <the last release>` and the vote deadline are filled in.
+* The RC commit passes the
+  [commit check](../dev/README_RELEASE_LANGUAGE_SDKS.md#check-the-release-candidate-commit).
 * Run `grep '<' email.txt` on the rendered email and confirm **no output** —
   any match means a template placeholder was left unfilled.
+
+### After a successful vote
+
+Follow [After a successful vote](../dev/README_RELEASE_LANGUAGE_SDKS.md#after-a-successful-vote)
+in the shared release doc. Go has no binaries to publish. Its "Publish the
+binaries" step is:
+
+1. **Warm** the module proxy, so the release is fetchable right away and the
+   proxy records the tag's commit:
+
+   ```bash
+   GOPROXY=https://proxy.golang.org go list -m github.com/apache/airflow/go-sdk@v<VERSION>
+   ```
+
+   It should print `github.com/apache/airflow/go-sdk v<VERSION>`.
+
+2. **Request** the API docs on pkg.go.dev. Open
+   `https://pkg.go.dev/github.com/apache/airflow/go-sdk@v<VERSION>` and, if the
+   version isn't shown yet, click *Request*. Indexing can take a few minutes.
+
+### If the vote fails
+
+Follow [If the vote fails](../dev/README_RELEASE_LANGUAGE_SDKS.md#if-the-vote-fails)
+in the shared release doc. There is nothing Go-specific to undo: the module
+proxy keeps the RC tag, but `go get` only picks a prerelease when asked for it by version.
 
 ## Architectural decisions
 
