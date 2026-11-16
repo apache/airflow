@@ -100,6 +100,9 @@ the worker dies and the task retries, the operator checks that run instead of tr
 * If the run errored, was cancelled or no longer exists, the operator triggers a new run as before,
   which respects ``retry_from_failure``.
 
+The run id is saved right after the run is triggered. If the worker dies between the two, the retry
+finds nothing and triggers a second run. On reconnect, ``timeout`` starts counting again from zero.
+
 Clearing the task instance from the UI or the REST API discards the stored run id by default, so the
 next try triggers a new run. This is what you want after fixing upstream data. To keep the stored run
 id instead, tick "keep task state" in the clear dialog or pass ``keep_task_state=true`` to the clear

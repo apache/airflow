@@ -1167,6 +1167,50 @@ class TestDbtCloudRunJobOperatorDurable:
         self.task_store.set.assert_called_once_with("dbt_cloud_job_run_id", RUN_ID)
         self._assert_run_xcoms(RUN_ID, DEFAULT_ACCOUNT_JOB_RUN_RESPONSE["data"]["href"])
 
+    def test_stored_errored_run_retries_from_failure(self, mock_trigger, mock_wait, requests_mock):
+        self.ti.try_number = 2
+        self.task_store.get.return_value = STORED_RUN_ID
+        requests_mock.get(
+            STORED_RUN_API_URL,
+            json={
+                "data": {
+                    "id": STORED_RUN_ID,
+                    "status": DbtCloudJobRunStatus.ERROR.value,
+                    "href": STORED_RUN_URL,
+                }
+            },
+        )
+
+        assert self._operator(retry_from_failure=True).execute(self.context) == RUN_ID
+
+        mock_trigger.assert_called_once()
+        assert mock_trigger.call_args.kwargs["retry_from_failure"] is True
+        self.task_store.set.assert_called_once_with("dbt_cloud_job_run_id", RUN_ID)
+
+    @patch.object(DbtCloudHook, "get_job_runs", autospec=True)
+    def test_stored_run_takes_precedence_over_reuse_existing_run(
+        self, mock_get_job_runs, mock_trigger, mock_wait, requests_mock
+    ):
+        self.ti.try_number = 2
+        self.task_store.get.return_value = STORED_RUN_ID
+        requests_mock.get(
+            STORED_RUN_API_URL,
+            json={
+                "data": {
+                    "id": STORED_RUN_ID,
+                    "status": DbtCloudJobRunStatus.RUNNING.value,
+                    "href": STORED_RUN_URL,
+                }
+            },
+        )
+
+        assert self._operator(reuse_existing_run=True).execute(self.context) == STORED_RUN_ID
+
+        mock_get_job_runs.assert_not_called()
+        mock_trigger.assert_not_called()
+        mock_wait.assert_called_once()
+        assert mock_wait.call_args.kwargs["run_id"] == STORED_RUN_ID
+
     def test_stored_run_lookup_error_fails_without_triggering(self, mock_trigger, mock_wait, requests_mock):
         self.task_store.get.return_value = STORED_RUN_ID
         requests_mock.get(STORED_RUN_API_URL, status_code=500, reason="Internal Server Error")
