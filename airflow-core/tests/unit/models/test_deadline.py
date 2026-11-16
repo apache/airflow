@@ -916,6 +916,17 @@ class TestCustomDeadlineReference:
 
         assert later in DeadlineReference.TYPES.DAGRUN_QUEUED
 
+    def test_a_saved_types_value_can_be_reused(self):
+        """A saved TYPES value must stay valid after a registration under that same classification."""
+        queued = DeadlineReference.TYPES.DAGRUN_QUEUED
+        first = self.create_custom_ref_named("First", "team_a.refs")
+        second = self.create_custom_ref_named("Second", "team_a.refs")
+
+        DeadlineReference._add_custom_reference_to_namespace(first, queued)
+        DeadlineReference._add_custom_reference_to_namespace(second, queued)
+
+        assert {first, second} <= set(DeadlineReference.TYPES.DAGRUN_QUEUED)
+
     def test_two_modules_claiming_one_name_leaves_it_bound_to_neither(self, cap_structlog):
         """
         The shorthand is withheld from both rather than awarded by import order.

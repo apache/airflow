@@ -159,6 +159,17 @@ DeadlineReferenceType: TypeAlias = BaseDeadlineReference
 DeadlineReferenceTypes: TypeAlias = tuple[type[BaseDeadlineReference], ...]
 
 
+class _ClassifiedReferenceTypes(tuple[type[BaseDeadlineReference], ...]):
+    """A ``DeadlineReference.TYPES`` tuple that carries the name of its classification."""
+
+    classification: str
+
+    def __new__(cls, references, classification: str):
+        self = super().__new__(cls, references)
+        self.classification = classification
+        return self
+
+
 class DeadlineAlert:
     """Store Deadline values needed to calculate the need-by timestamp and the callback information."""
 
@@ -270,14 +281,15 @@ class DeadlineReference:
         """Collection of DeadlineReference types for type checking."""
 
         # Deadlines that should be created when the DagRun is created.
-        DAGRUN_CREATED: DeadlineReferenceTypes = (
-            DagRunLogicalDateDeadline,
-            FixedDatetimeDeadline,
-            AverageRuntimeDeadline,
+        DAGRUN_CREATED: DeadlineReferenceTypes = _ClassifiedReferenceTypes(
+            (DagRunLogicalDateDeadline, FixedDatetimeDeadline, AverageRuntimeDeadline),
+            DAGRUN_CREATED_TIMING,
         )
 
         # Deadlines that should be created when the DagRun is queued.
-        DAGRUN_QUEUED: DeadlineReferenceTypes = (DagRunQueuedAtDeadline,)
+        DAGRUN_QUEUED: DeadlineReferenceTypes = _ClassifiedReferenceTypes(
+            (DagRunQueuedAtDeadline,), DAGRUN_QUEUED_TIMING
+        )
 
         # All DagRun-related deadline types.
         DAGRUN: DeadlineReferenceTypes = DAGRUN_CREATED + DAGRUN_QUEUED
@@ -368,11 +380,8 @@ class DeadlineReference:
         name = reference_class.__name__
         key = qualname(reference_class)
 
-        for candidate in cls.TYPES._CLASSIFICATIONS:
-            if deadline_reference_type is getattr(cls.TYPES, candidate):
-                classification = candidate
-                break
-        else:
+        classification = getattr(deadline_reference_type, "classification", None)
+        if classification not in cls.TYPES._CLASSIFICATIONS:
             raise ValueError(
                 f"Invalid deadline reference type {deadline_reference_type}; "
                 "must be a valid DeadlineReference.TYPES option."
@@ -421,17 +430,13 @@ class DeadlineReference:
         # A contested class is still a valid reference: it serializes under its own qualname and
         # resolves through the plugin registry, so only the shorthand is withheld.  Drop any earlier
         # registration of the same qualname rather than appending beside it, because a re-parse
-        # produces a new class object for the same reference.  Both tuples are filtered so that a
-        # reference whose classification changes does not linger in the one it left.  A tuple is only
-        # replaced when its contents change, because the lookup above compares by identity and a
-        # caller may hold a saved copy.
+        # produces a new class object for the same reference.  Both tuples are filtered so a reference
+        # whose classification changes gets pruned from the old one.
         for attr in cls.TYPES._CLASSIFICATIONS:
-            current = getattr(cls.TYPES, attr)
-            kept = tuple(existing for existing in current if qualname(existing) != key)
+            kept = tuple(existing for existing in getattr(cls.TYPES, attr) if qualname(existing) != key)
             if attr == classification:
-                setattr(cls.TYPES, attr, kept + (reference_class,))
-            elif len(kept) != len(current):
-                setattr(cls.TYPES, attr, kept)
+                kept += (reference_class,)
+            setattr(cls.TYPES, attr, _ClassifiedReferenceTypes(kept, attr))
 
         # Set on contested classes too, so the serializer records the right timing for them.
         reference_class.evaluation_timing = classification
