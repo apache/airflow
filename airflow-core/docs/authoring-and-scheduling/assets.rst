@@ -577,8 +577,41 @@ the key of the latest tick at or before the current time, with ``run_offset`` an
 You can edit the suggestion; clearing the field triggers a run without a partition key. A custom
 timetable can provide its own suggestion by overriding
 :meth:`~airflow.timetables.base.Timetable.suggest_partition_key`. The default returns
-``None``, which leaves the field empty, and an exception raised by an override only means no
-suggestion is shown.
+``None``, which leaves the field empty, and an exception raised by an override means that timetable
+gives no suggestion; see below for what a Dag that also reads its run history then does.
+
+For a Dag scheduled with :class:`~airflow.sdk.PartitionedAssetTimetable`, and for a Dag that is partitioned at
+runtime (:class:`~airflow.sdk.PartitionedAtRuntime`, or a timetable that sets ``partitioned_at_runtime = True``),
+the suggestion is the first of these sources that has a value:
+
+#. The oldest pending partition: an upstream asset event with a partition key has arrived, but the scheduler has
+   not created a Dag run for that partition yet.
+#. The key of the period that contains the current time, worked out by the time-based partition mappers
+   (such as ``StartOfDayMapper``) in each mapper's own timezone. Mappers that cannot answer, such as
+   ``IdentityMapper``, are ignored, and no key is suggested from this source unless all the mappers that
+   can answer agree.
+#. The partition key of the most recently created successful Dag run. If that run has no partition key,
+   nothing is suggested. It can be a partition that has already run; re-running it is allowed.
+
+If the timetable cannot compute its suggestion, for example because a partition mapper raises, that source is
+skipped and a warning is logged; the last successful run is still tried.
+
+A Dag scheduled with ``PartitionedAssetTimetable`` can use all three sources. Pending partitions are only recorded
+for Dags scheduled with ``PartitionedAssetTimetable``, and ``PartitionedAtRuntime`` gives no time-based key, so for a
+Dag partitioned at runtime the last successful run is the only source that can supply a suggestion.
+:class:`~airflow.sdk.CronPartitionTimetable` uses only its own cron-based key. When no source has a value,
+the field is empty.
+
+The pending partition and last successful run sources are only used when the user is allowed to read the Dag's
+runs; without that permission the suggestion comes from the timetable alone.
+
+.. note::
+
+   A suggested pending partition is only a guess. Triggering a run for it manually does not mark the pending
+   partition as handled, and only the scheduler does that. Once the scheduler considers that partition ready, it
+   still creates its own run for the same partition, so the partition can run twice.
+   Until then the form keeps suggesting the same key. A pending partition also only means that at least
+   one upstream event has arrived, not that every upstream asset the Dag needs for that partition is ready.
 
 Pre-determined vs runtime partitioning
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
