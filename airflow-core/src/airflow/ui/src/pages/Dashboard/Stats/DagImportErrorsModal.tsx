@@ -187,7 +187,7 @@ export const DagImportErrorsModal = ({ onClose, open }: ImportDAGErrorModalProps
                   onReparsed={() => setPollAfterReparse(true)}
                 />
                 <ClipboardRoot value={importError.stack_trace}>
-                  <ClipboardIconButton variant="outline" />
+                  <ClipboardIconButton label={translate("importErrors.copyStackTrace")} variant="outline" />
                 </ClipboardRoot>
               </Box>
             </HStack>
