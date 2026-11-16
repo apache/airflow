@@ -698,24 +698,18 @@ class SQLToolset(ToolPrefixMixin, AirflowToolset):
         schema, table = self._split_table_identifier(table_name)
         if not self._is_ref_allowed("", schema, table):
             return dumps_masked({"error": f"Table {table_name!r} is not in the allowed tables list."})
-        inspector = self._get_inspector()
+        # Called only for its side effect: SQLAlchemy setup failures surface here as
+        # SQLToolsetConnectionError; dropping it lets them escape the hook as plain errors.
+        self._get_inspector()
         hook = self._get_db_hook()
-        # common-sql releases before the comment methods lack them; fall back to plain columns.
-        if get_columns := getattr(hook, "get_table_columns_with_comments", None):
-            columns = get_columns(table, schema=schema)
-        else:
-            columns = [
-                {"name": col["name"], "type": str(col["type"])}
-                for col in inspector.get_columns(table, schema=schema)
-            ]
+        columns = hook.get_table_columns_with_comments(table, schema=schema)
         table_comment: str | None = None
-        if get_comment := getattr(hook, "get_table_comment", None):
-            # Broad on purpose: a hook-level failure reading only the comment must not
-            # take get_schema down when the columns were read fine.
-            try:
-                table_comment = get_comment(table, schema=schema)
-            except Exception:
-                log.debug("Could not read the comment of table %s", table, exc_info=True)
+        # Broad on purpose: a hook-level failure reading only the comment must not
+        # take get_schema down when the columns were read fine.
+        try:
+            table_comment = hook.get_table_comment(table, schema=schema)
+        except Exception:
+            log.debug("Could not read the comment of table %s", table, exc_info=True)
         return build_schema_result(
             columns,
             max_columns=self._max_columns,

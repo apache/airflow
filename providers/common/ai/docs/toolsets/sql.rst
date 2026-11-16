@@ -371,9 +371,8 @@ where the database reports one:
      "column_count": 1, "table_comment": "Customer orders"}
 
 Comments are read through ``DbApiHook.get_table_comment`` and
-``DbApiHook.get_table_columns_with_comments``, which ``common.sql`` provides from the
-release that added them. With an older ``common.sql``, or on a dialect that cannot report
-comments (SQLite, for one), ``get_schema`` works as before and returns none. A failure reading
+``DbApiHook.get_table_columns_with_comments``. On a dialect that cannot report comments
+(SQLite, for one), ``get_schema`` works as before and returns none. A failure reading
 the *table* comment is ignored for the same reason; a failure reading the columns is not.
 
 Each comment is cut to 200 characters. Comments share ``max_result_bytes`` with the

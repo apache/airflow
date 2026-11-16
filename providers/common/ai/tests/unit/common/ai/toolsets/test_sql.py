@@ -983,16 +983,6 @@ class TestSQLToolsetComments:
 
         assert self._get_schema(ts)["column_count"] == 2
 
-    def test_get_schema_falls_back_on_hook_without_comment_methods(self):
-        """A common-sql release that predates the comment methods still serves get_schema."""
-        ts = SQLToolset("pg_default")
-        hook = MagicMock(spec=["inspector"])
-        hook.inspector.get_columns.return_value = [{"name": "id", "type": "INTEGER"}]
-        ts._hook = hook
-
-        assert self._get_schema(ts) == {"columns": [{"name": "id", "type": "INTEGER"}], "column_count": 1}
-        hook.inspector.get_columns.assert_called_once_with("users", schema=None)
-
     def test_comments_count_against_the_byte_budget(self):
         """Columns that fit on their own are summarized once their comments push past the budget."""
         columns = [{"name": f"c{i}", "type": "INTEGER"} for i in range(10)]
