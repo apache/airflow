@@ -1161,16 +1161,22 @@ class TestSQLToolsetSearchTables:
         with pytest.raises(ValueError, match="Unknown tool: 'search_tables'"):
             asyncio.run(ts.execute_tool("search_tables", {"query": "x"}, ctx=MagicMock(), tool=MagicMock()))
 
-    def test_error_hint_points_at_search_tables_only_when_registered(self):
-        for backend, mentioned in ((None, False), (_FakeSearchBackend([]), True)):
-            ts = SQLToolset("pg_default", search_backend=backend)
-            ts._hook = _make_mock_db_hook()
-            ts._hook.inspector.get_table_names.side_effect = Exception("boom")
+    @pytest.mark.parametrize(
+        ("backend", "mentioned"),
+        [
+            pytest.param(None, False, id="no-backend"),
+            pytest.param(_FakeSearchBackend([]), True, id="with-backend"),
+        ],
+    )
+    def test_error_hint_points_at_search_tables_only_when_registered(self, backend, mentioned):
+        ts = SQLToolset("pg_default", search_backend=backend)
+        ts._hook = _make_mock_db_hook()
+        ts._hook.inspector.get_table_names.side_effect = Exception("boom")
 
-            with pytest.raises(ModelRetry) as exc_info:
-                asyncio.run(ts.call_tool("list_tables", {}, ctx=MagicMock(), tool=MagicMock()))
+        with pytest.raises(ModelRetry) as exc_info:
+            asyncio.run(ts.call_tool("list_tables", {}, ctx=MagicMock(), tool=MagicMock()))
 
-            assert ("search_tables" in exc_info.value.message) is mentioned
+        assert ("search_tables" in exc_info.value.message) is mentioned
 
     @pytest.mark.parametrize(
         ("table_count", "listed"),
