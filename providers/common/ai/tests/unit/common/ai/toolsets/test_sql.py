@@ -227,6 +227,10 @@ class TestSQLToolsetToolPrefixModelFacingText:
         description = tools["pg_get_schema"].tool_def.description
         assert "Call pg_get_schema again" in description
 
+    def test_get_schema_description_names_the_table_comment_key(self):
+        tools = asyncio.run(SQLToolset("pg_default").get_tools(ctx=MagicMock()))
+        assert "`table_comment`" in tools["get_schema"].tool_def.description
+
     def test_get_schema_description_without_prefix_is_unchanged(self):
         tools = asyncio.run(SQLToolset("pg_default").get_tools(ctx=MagicMock()))
         assert "Call get_schema again" in tools["get_schema"].tool_def.description

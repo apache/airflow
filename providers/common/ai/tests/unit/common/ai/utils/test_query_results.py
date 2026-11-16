@@ -352,6 +352,19 @@ class TestSchemaToolName:
     def test_description_defaults_to_the_bare_name(self):
         assert "Call get_schema again" in build_get_schema_description()
 
+    @pytest.mark.parametrize(
+        ("include_comments", "mentions_comments"),
+        [
+            pytest.param(True, True, id="with-comments"),
+            pytest.param(False, False, id="without-comments"),
+        ],
+    )
+    def test_description_mentions_comments_only_when_asked(self, include_comments, mentions_comments):
+        description = build_get_schema_description(include_comments=include_comments)
+        assert ("`table_comment`" in description) is mentions_comments
+        assert ("`comments_omitted`" in description) is mentions_comments
+        assert ("comment" in description.casefold()) is mentions_comments
+
     def test_hints_name_the_given_tool(self):
         no_match = json.loads(
             build_schema_result(

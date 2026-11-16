@@ -500,7 +500,9 @@ class SQLToolset(ToolPrefixMixin, AirflowToolset):
             ("list_tables", "List available table names in the database.", _LIST_TABLES_SCHEMA),
             (
                 "get_schema",
-                build_get_schema_description(tool_name=self._build_tool_name("get_schema")),
+                build_get_schema_description(
+                    tool_name=self._build_tool_name("get_schema"), include_comments=True
+                ),
                 _GET_SCHEMA_SCHEMA,
             ),
             ("query", _QUERY_DESCRIPTION, _QUERY_SCHEMA),

@@ -99,14 +99,28 @@ _GET_SCHEMA_DESCRIPTION_TEMPLATE = (
     "where the budget allows a `type_histogram` and a `sample_columns` preview) with `truncated` "
     "set, `truncated_by` naming the limit that was hit, and a `hint`. Call {tool_name} again with "
     "a `name_contains` substring to retrieve the specific columns you need instead of the whole "
-    "table. A column or the table itself carries a `comment` when the database provides one; "
-    "`comments_omitted` in a summary means they were left out to fit."
+    "table."
+)
+
+# Appended only for toolsets whose results can carry comments, so the description never promises
+# keys a toolset does not return.
+_GET_SCHEMA_COMMENTS_DESCRIPTION = (
+    " Each column carries a `comment`, and the result a `table_comment`, when the database provides "
+    "one; `comments_omitted` means the column comments were left out to fit."
 )
 
 
-def build_get_schema_description(*, tool_name: str = "get_schema") -> str:
-    """Render the ``get_schema`` tool description naming the tool as the model sees it."""
-    return _GET_SCHEMA_DESCRIPTION_TEMPLATE.format(tool_name=tool_name)
+def build_get_schema_description(*, tool_name: str = "get_schema", include_comments: bool = False) -> str:
+    """
+    Render the ``get_schema`` tool description naming the tool as the model sees it.
+
+    :param tool_name: The tool name as the model sees it, including any prefix.
+    :param include_comments: Describe the comment keys; set only for toolsets that return comments.
+    """
+    description = _GET_SCHEMA_DESCRIPTION_TEMPLATE.format(tool_name=tool_name)
+    if include_comments:
+        description += _GET_SCHEMA_COMMENTS_DESCRIPTION
+    return description
 
 
 def _dumps(payload: Any) -> str:
