@@ -38,9 +38,12 @@ from airflow_breeze.utils.fork_ci_messages import (
     MAX_LISTED_FAILED_JOBS,
     OPEN_PR_LIMIT_URL,
     OVERLAP_LISTED,
+    STATES_WITH_JOB_COUNTS,
     BaseCheck,
     FailedJob,
+    JobCounts,
     Marker,
+    cancelled_jobs_status,
     ci_change_approval_comment,
     ci_modification_note_comment,
     ci_passed_description,
@@ -53,7 +56,9 @@ from airflow_breeze.utils.fork_ci_messages import (
     rebase_needed_description,
     released_comment,
     render_marker,
+    split_job_counts,
     state_comment,
+    status_description,
     strip_failed_job_list,
     tamper_close_comment,
     ungated_comment,
@@ -298,10 +303,71 @@ def test_setup_texts_give_the_exact_command(text):
     assert "gh workflow enable ci-amd.yml -R u/fork" in text
 
 
+@pytest.mark.parametrize(
+    ("state", "job_counts", "expected"),
+    [
+        pytest.param("green", JobCounts(130), "Fork CI passed - see Details (130 jobs passed)", id="counted"),
+        pytest.param("running", JobCounts(1), "Fork CI running - see Details (1 job passed)", id="one-job"),
+        pytest.param(
+            "failed",
+            JobCounts(97, 31),
+            "Fork CI failed - see Details (97 jobs passed, 31 cancelled)",
+            id="with-cancelled",
+        ),
+        pytest.param("green", None, "Fork CI passed - see Details", id="not-counted"),
+        pytest.param(
+            "setup_required",
+            JobCounts(3, 1),
+            "Fork CI not set up - see the pull request comment",
+            id="state-without-a-run",
+        ),
+    ],
+)
+def test_status_description_counts_jobs(state, job_counts, expected):
+    assert status_description(state, job_counts) == expected
+
+
+@pytest.mark.parametrize(
+    ("description", "expected"),
+    [
+        pytest.param(
+            "Fork CI passed - see Details (130 jobs passed)", ("Fork CI passed - see Details", JobCounts(130))
+        ),
+        pytest.param(
+            "Fork CI running - see Details (1 job passed)", ("Fork CI running - see Details", JobCounts(1))
+        ),
+        pytest.param(
+            "Fork CI failed - see Details (97 jobs passed, 31 cancelled)",
+            ("Fork CI failed - see Details", JobCounts(97, 31)),
+        ),
+        pytest.param("Fork CI passed - see Details", ("Fork CI passed - see Details", None)),
+        pytest.param(
+            "Fork CI passed (2 jobs passed) - see Details",
+            ("Fork CI passed (2 jobs passed) - see Details", None),
+        ),
+    ],
+)
+def test_split_job_counts(description, expected):
+    assert split_job_counts(description) == expected
+
+
+@pytest.mark.parametrize(
+    ("cancelled", "expected"),
+    [
+        pytest.param(31, ("failure", "31 jobs cancelled in the fork - see Details"), id="cancelled"),
+        pytest.param(1, ("failure", "1 job cancelled in the fork - see Details"), id="one"),
+        pytest.param(0, ("success", "No jobs cancelled in the latest fork run"), id="none"),
+    ],
+)
+def test_cancelled_jobs_status(cancelled, expected):
+    assert cancelled_jobs_status(cancelled) == expected
+
+
 def test_status_descriptions_fit_github_limit():
     base_ref = "providers-cncf-kubernetes/v10-22"
     descriptions = [
         *_STATUS_DESCRIPTIONS.values(),
+        *(status_description(state, JobCounts(99999, 99999)) for state in STATES_WITH_JOB_COUNTS),
         CI_PASSED_REVOKED_DESCRIPTION,
         ci_passed_description(BaseCheck("d" * 40, 199), base_ref=base_ref),
         *(
