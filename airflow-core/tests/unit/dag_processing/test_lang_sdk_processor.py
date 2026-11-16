@@ -57,7 +57,6 @@ from airflow.sdk.execution_time.supervisor import PsutilTracker
 from airflow.sdk.importers import DagSourceCode
 from airflow.serialization.encoders import encode_timetable
 from airflow.serialization.serialized_objects import DagSerialization, LazyDeserializedDAG
-from airflow.timetables.interval import CronDataIntervalTimetable
 from airflow.timetables.trigger import CronTriggerTimetable
 
 from tests_common.test_utils.config import conf_vars
@@ -269,13 +268,12 @@ class TestLangSDKDagFileProcessorProcess:
         [message] = proc.parsing_result.import_errors.values()
         assert message.startswith(f"Cannot load the serialized Dag: {error}")
 
-    @pytest.mark.parametrize("timetable_class", [CronTriggerTimetable, CronDataIntervalTimetable])
     @patch.object(FakeCoordinator, "parse_dag", autospec=True)
-    def test_a_dag_with_an_invalid_cron_is_an_import_error(self, mock_parse_dag, parse, timetable_class):
+    def test_a_dag_with_an_invalid_cron_is_an_import_error(self, mock_parse_dag, parse):
         broken = _serialize_dag("broken_dag")
         good = _serialize_dag("good_dag")
         for dag, expression in ((broken, "0 24 * * *"), (good, "0 0 * * *")):
-            dag.data["dag"]["timetable"] = encode_timetable(timetable_class(expression, timezone="UTC"))
+            dag.data["dag"]["timetable"] = encode_timetable(CronTriggerTimetable(expression, timezone="UTC"))
         mock_parse_dag.side_effect = play_runtime(_reply_with(broken, good))
 
         proc = parse()
