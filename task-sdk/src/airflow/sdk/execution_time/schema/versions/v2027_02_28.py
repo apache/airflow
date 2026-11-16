@@ -26,7 +26,7 @@ New bodies in this version:
 
 from __future__ import annotations
 
-from cadwyn import (
+from cadwyn_core import (
     RequestInfo,
     ResponseInfo,
     VersionChange,

@@ -26,7 +26,7 @@ require a ``VersionChange`` entry below.
 
 from __future__ import annotations
 
-from cadwyn import VersionChange, schema
+from cadwyn_core import VersionChange, schema
 
 from airflow.dag_processing.processor import DagFileParsingResult  # noqa: SDK002
 from airflow.sdk.api.datamodels._generated import (

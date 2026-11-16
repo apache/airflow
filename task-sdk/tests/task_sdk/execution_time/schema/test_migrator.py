@@ -36,7 +36,7 @@ from typing import Literal
 from uuid import UUID
 
 import pytest
-from cadwyn import (
+from cadwyn_core import (
     HeadVersion,
     Version,
     VersionBundle,
@@ -451,11 +451,11 @@ class TestResolveBodyClass:
 
 
 class TestLazyCadwynImport:
-    """``cadwyn`` (which imports FastAPI/Starlette/Jinja2) must stay off the worker import path.
+    """``cadwyn_core`` must stay off the worker import path, and ``cadwyn`` and FastAPI off all of it.
 
-    The Task SDK supervisor imports the schema package on every Celery pool worker, but ``cadwyn`` is
-    only needed on the foreign-language-SDK migration path, so its import is deferred. Each check runs
-    in a fresh interpreter because ``sys.modules`` is process-global and other tests import cadwyn.
+    The Task SDK supervisor imports the schema package on every Celery pool worker, but ``cadwyn_core``
+    is only needed on the foreign-language-SDK migration path, so its import is deferred. Each check
+    runs in a fresh interpreter because ``sys.modules`` is process-global and other tests import Cadwyn.
     """
 
     @pytest.mark.parametrize(
@@ -468,17 +468,20 @@ class TestLazyCadwynImport:
     def test_importing_worker_path_does_not_load_cadwyn(self, module):
         code = (
             f"import sys; import {module}; "
-            "assert 'cadwyn' not in sys.modules, sorted(m for m in sys.modules if 'cadwyn' in m); "
+            "loaded = sorted(m for m in sys.modules if m.partition('.')[0] in ('cadwyn', 'cadwyn_core')); "
+            "assert not loaded, loaded; "
             "assert 'fastapi' not in sys.modules, 'fastapi was imported'"
         )
         subprocess.run([sys.executable, "-c", code], check=True, capture_output=True, text=True)
 
-    def test_accessing_bundle_loads_cadwyn(self):
-        # The foreign-SDK migration path does need cadwyn; accessing the bundle is where it loads.
+    def test_accessing_bundle_loads_cadwyn_core_only(self):
+        # The foreign-SDK migration path does need cadwyn_core; accessing the bundle is where it loads.
         code = (
             "import sys; from airflow.sdk.execution_time.schema import bundle; "
             "assert bundle.versions, 'bundle should be built'; "
-            "assert 'cadwyn' in sys.modules, 'cadwyn should load when the bundle is accessed'"
+            "assert 'cadwyn_core' in sys.modules, 'cadwyn_core should load when the bundle is accessed'; "
+            "assert 'cadwyn' not in sys.modules, 'cadwyn was imported'; "
+            "assert 'fastapi' not in sys.modules, 'fastapi was imported'"
         )
         subprocess.run([sys.executable, "-c", code], check=True, capture_output=True, text=True)
 
