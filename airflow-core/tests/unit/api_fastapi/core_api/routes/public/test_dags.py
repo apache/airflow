@@ -2104,6 +2104,28 @@ class TestSuggestedPartitionKey(TestDagEndpoint):
         assert response.status_code == 200
         assert response.json()["suggested_partition_key"] == "2026-02-18T00:00:00"
 
+    @mock.patch.object(CronPartitionTimetable, "suggest_partition_key", autospec=True, side_effect=ValueError)
+    def test_details_endpoint_returns_null_when_timetable_suggestion_fails(
+        self, mock_suggest, session, test_client, dag_maker, caplog
+    ):
+        dag_id = "test_cron_partitioned_failing_suggestion"
+        with dag_maker(
+            dag_id=dag_id,
+            schedule=CronPartitionTimetable("0 0 * * *", timezone="UTC"),
+            session=session,
+            serialized=True,
+        ):
+            EmptyOperator(task_id=TASK_ID)
+        dag_maker.sync_dagbag_to_db()
+        session.commit()
+
+        response = test_client.get(f"/dags/{dag_id}/details")
+
+        assert response.status_code == 200
+        assert response.json()["suggested_partition_key"] is None
+        mock_suggest.assert_called_once()
+        assert {"event": "Failed to compute suggested partition key", "dag_id": dag_id} in caplog
+
 
 class TestDagWithoutFileloc(TestDagEndpoint):
     def _make_dag_without_fileloc(self, dag_maker, session, dag_id="test_dag_no_fileloc"):
