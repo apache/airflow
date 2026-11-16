@@ -2237,7 +2237,10 @@ class TestAgentOperatorDurable:
         assert listed.id is not None
         assert orders.id is None
 
-    def test_durable_fails_a_tool_that_raises_approval_required_with_unsupported_tool_deferral_error(self):
+    @patch("airflow.providers.common.ai.operators.agent.AIRFLOW_V_3_3_PLUS", False)
+    def test_durable_before_airflow_3_3_fails_a_tool_that_raises_approval_required(self):
+        """Approval parks the task in awaiting_input, which Airflow before 3.3 does not have."""
+
         def refund() -> str:
             raise ApprovalRequired
 
@@ -2708,19 +2711,10 @@ class TestAgentOperatorCancellation:
 class TestAgentOperatorHITLArgumentChecks:
     """The order in which __init__ reports conflicting HITL arguments."""
 
-    @pytest.mark.skipif(
-        not AIRFLOW_V_3_1_PLUS, reason="Human in the loop is only compatible with Airflow >= 3.1.0"
-    )
-    def test_durable_with_hitl_review_raises(self):
-        """Durable replay cannot be combined with HITL review."""
-        with pytest.raises(ValueError, match="durable=True and enable_hitl_review"):
-            AgentOperator(task_id="t", prompt="run", llm_conn_id="c", durable=True, enable_hitl_review=True)
-
     @pytest.mark.parametrize(
         "conflicting_kwargs",
         [
             pytest.param({"message_history": []}, id="message_history"),
-            pytest.param({"durable": True}, id="durable"),
         ],
     )
     @patch("airflow.providers.common.ai.operators.agent.AIRFLOW_V_3_1_PLUS", False)
