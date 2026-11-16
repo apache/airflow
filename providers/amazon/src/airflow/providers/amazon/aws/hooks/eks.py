@@ -669,11 +669,10 @@ class EksHook(AwsBaseHook):
         cluster_cert = cluster["cluster"]["certificateAuthority"]["data"]
         cluster_ep = cluster["cluster"]["endpoint"]
 
-        os.environ["AWS_STS_REGIONAL_ENDPOINTS"] = "regional"
-        try:
-            sts_url = f"{StsHook(region_name=session.region_name).conn_client_meta.endpoint_url}/?Action=GetCallerIdentity&Version=2011-06-15"
-        finally:
-            del os.environ["AWS_STS_REGIONAL_ENDPOINTS"]
+        # EKS needs the regional STS endpoint, which botocore uses by default since 1.40. Do not set
+        # AWS_STS_REGIONAL_ENDPOINTS here: the environment is shared by every trigger in the triggerer.
+        sts_endpoint = StsHook(region_name=session.region_name).conn_client_meta.endpoint_url
+        sts_url = f"{sts_endpoint}/?Action=GetCallerIdentity&Version=2011-06-15"
 
         cluster_config = {
             "apiVersion": "v1",
