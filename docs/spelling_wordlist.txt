@@ -1550,6 +1550,7 @@ rowid
 rpc
 rsa
 rshift
+rss
 rst
 rtype
 ru

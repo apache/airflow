@@ -1436,6 +1436,7 @@ class ReactAppResponse(BaseModel):
     category: Annotated[str | None, Field(title="Category")] = None
     nav_top_level: Annotated[bool | None, Field(title="Nav Top Level")] = False
     applies_to: PluginAppliesToResponse | None = None
+    show_icon_with_label: Annotated[bool | None, Field(title="Show Icon With Label")] = False
     bundle_url: Annotated[str, Field(title="Bundle Url")]
     destination: Annotated[Destination3 | None, Field(title="Destination")] = "nav"
 
@@ -2721,6 +2722,7 @@ class ExternalViewResponse(BaseModel):
     category: Annotated[str | None, Field(title="Category")] = None
     nav_top_level: Annotated[bool | None, Field(title="Nav Top Level")] = False
     applies_to: PluginAppliesToResponse | None = None
+    show_icon_with_label: Annotated[bool | None, Field(title="Show Icon With Label")] = False
     href: Annotated[str, Field(title="Href")]
     destination: Annotated[Destination | None, Field(title="Destination")] = "nav"
 
