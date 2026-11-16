@@ -467,7 +467,7 @@ class CronPartitionTimetable(CronTriggerTimetable):
         partition_key = self._format_key(partition_date)
         return partition_date, partition_key
 
-    def _compute_current_partition_key(self, now: DateTime) -> str:
+    def suggest_partition_key(self, now: DateTime) -> str | None:
         """
         Return the key of the most recently elapsed partition as of *now*.
 
