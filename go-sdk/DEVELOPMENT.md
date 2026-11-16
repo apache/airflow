@@ -244,6 +244,8 @@ Best,
 Pre-send checklist:
 
 * `go list -m github.com/apache/airflow/go-sdk@v<VERSION>-rc<N>` resolves.
+  Run it only after pushing the RC tag (see the warning in
+  [After a successful vote](#after-a-successful-vote)).
 * `Changes since <the last release>` and the vote deadline are filled in.
 * The RC commit passes the
   [commit check](../dev/README_RELEASE_LANGUAGE_SDKS.md#check-the-release-candidate-commit).
@@ -254,7 +256,13 @@ Pre-send checklist:
 
 Follow [After a successful vote](../dev/README_RELEASE_LANGUAGE_SDKS.md#after-a-successful-vote)
 in the shared release doc. Go has no binaries to publish. Its "Publish the
-binaries" step is:
+binaries" step is below.
+
+> [!WARNING]
+> Run these steps only after `go-sdk/v<VERSION>` is pushed to `apache/airflow`.
+> Both ask the Go module proxy for the version, and if it doesn't exist yet the
+> proxy caches the "not found" answer. The release then stays unreachable, on
+> the proxy and on pkg.go.dev, for up to an hour after the tag is pushed.
 
 1. **Warm** the module proxy, so the release is fetchable right away and the
    proxy records the tag's commit:
