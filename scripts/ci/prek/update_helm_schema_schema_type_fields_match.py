@@ -27,12 +27,6 @@ _VALUES_SCHEMA_FILE = AIRFLOW_ROOT_PATH / "chart/values.schema.json"
 _VALUES_SCHEMA_SCHEMA_FILE = AIRFLOW_ROOT_PATH / "chart/values_schema.schema.json"
 
 
-if __name__ != "__main__":
-    raise SystemExit(
-        "This file is intended to be executed as an executable program. You cannot use it as a module."
-    )
-
-
 def _list_all_field_types(data: dict | list) -> list:
     type_fields = []
 
@@ -96,4 +90,5 @@ def main() -> int:
     return 0
 
 
-sys.exit(main())
+if __name__ == "__main__":
+    sys.exit(main())
