@@ -1505,6 +1505,29 @@ class TestXComsGetOmittedMapIndex:
         assert response.json()["value"] == sliced.json()
         assert {"mapped 0", "mapped 2"} <= set(response.json()["value"])
 
+    @pytest.mark.parametrize(
+        ("same_run_caller", "status_code"),
+        [
+            pytest.param(True, 200, id="same-run-caller"),
+            pytest.param(False, 409, id="no-caller"),
+        ],
+    )
+    def test_same_run_caller_reads_by_its_own_dag_version(
+        self, client, mocker, session, dag_run, authenticate_as, same_run_caller, status_code
+    ):
+        # The task's live instances disagree on its definition across Dag versions.
+        mocker.patch.object(
+            TaskCoordinateResolver, "_producer_task", side_effect=AmbiguousProducerError("differ")
+        )
+        if same_run_caller:
+            authenticate_as(dag_run.get_task_instance("plain", session=session))
+
+        response = self.get(client, "mapped")
+
+        assert response.status_code == status_code
+        if same_run_caller:
+            assert response.json() == {"key": XCOM_RETURN_KEY, "value": ["mapped 0", "mapped 2"]}
+
     def test_another_dag_is_read_by_its_own_definition(
         self, client, dag_maker, session, dag_run, authenticate_as
     ):
