@@ -197,6 +197,7 @@
     },
     "save": "저장"
   },
+  "moreTabs": "더 보기",
   "nav": {
     "admin": "관리자",
     "assets": "에셋",
@@ -439,6 +440,7 @@
   "switchDag": "$t(dag_one) 전환",
   "switchDagRun": "$t(dagRun_one) 전환",
   "switchMapIndex": "$t(mapIndex) 전환",
+  "switchTask": "$t(task_one) 전환",
   "table": {
     "completedAt": "완료 시간",
     "createdAt": "생성 시간",

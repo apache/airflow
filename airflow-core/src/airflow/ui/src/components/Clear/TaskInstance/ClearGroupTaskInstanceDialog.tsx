@@ -59,6 +59,8 @@ export const ClearGroupTaskInstanceDialog = ({ onClose, open, taskInstance }: Pr
   const upstream = selectedOptions.includes("upstream");
   const downstream = selectedOptions.includes("downstream");
   const [keepTaskState, setKeepTaskState] = useState(keepTaskStateDefault);
+  const [includeDependentDags, setIncludeDependentDags] = useState(true);
+  const clearsDependentDags = downstream && includeDependentDags;
   const [note, setNote] = useState<string | null>(null);
 
   const onCloseDialog = () => {
@@ -118,6 +120,7 @@ export const ClearGroupTaskInstanceDialog = ({ onClose, open, taskInstance }: Pr
     },
     requestBody: {
       dag_run_id: runId,
+      include_dependent_dags: clearsDependentDags,
       include_downstream: downstream,
       include_future: future,
       include_past: past,
@@ -145,6 +148,7 @@ export const ClearGroupTaskInstanceDialog = ({ onClose, open, taskInstance }: Pr
               requestBody: {
                 dag_run_id: runId,
                 dry_run: false,
+                include_dependent_dags: clearsDependentDags,
                 include_downstream: downstream,
                 include_future: future,
                 include_past: past,
@@ -168,6 +172,13 @@ export const ClearGroupTaskInstanceDialog = ({ onClose, open, taskInstance }: Pr
             onCheckedChange={(event) => setKeepTaskState(Boolean(event.checked))}
           >
             {translate("dags:runAndTaskActions.options.keepTaskState")}
+          </Checkbox>
+          <Checkbox
+            checked={clearsDependentDags}
+            disabled={!downstream}
+            onCheckedChange={(event) => setIncludeDependentDags(Boolean(event.checked))}
+          >
+            {translate("dags:runAndTaskActions.options.includeDependentDags")}
           </Checkbox>
           {shouldShowRunOnLatestOption ? (
             <Checkbox
