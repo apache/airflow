@@ -21,15 +21,17 @@ Pydantic AI (Databricks Model Serving) connection
 =================================================
 
 The ``pydanticai_databricks`` connection type configures access to
-`Databricks Model Serving <https://docs.databricks.com/aws/en/machine-learning/model-serving/>`__'s
-OpenAI-compatible chat endpoint via the pydantic-ai framework. It backs
+`Databricks Model Serving <https://docs.databricks.com/aws/en/machine-learning/model-serving/>`__
+through its OpenAI-compatible Chat Completions API, via the pydantic-ai framework. It backs
 ``PydanticAIDatabricksHook``, the dedicated subclass of ``PydanticAIHook`` for Databricks.
 
-A plain ``pydanticai`` connection with ``https://<workspace>/serving-endpoints`` in **Host** and a
-personal access token in **Password** also works, but only for a static token. This connection type
-sources credentials from an existing :ref:`Databricks connection <howto/connection:databricks>`
-instead, so every token-based authentication method that connection supports (OAuth, Azure AD,
-managed identity, federation) is reused and refreshed on every request.
+.. note::
+    This hook has been unit-tested only and has not been run against a live workspace.
+
+This connection type sources credentials from an existing
+:ref:`Databricks connection <howto/connection:databricks>`, so the token-based authentication
+methods that connection supports (OAuth, Azure AD, managed identity, federation) are reused and
+refreshed on every request, except for the settings this hook rejects (see Authentication below).
 
 Install with:
 
@@ -54,11 +56,23 @@ instead.
 Model
     Serving endpoint name (e.g. ``databricks-claude-sonnet-4-5``).
 
-    A bare name is resolved to ``openai-chat:<name>``, which uses the Chat Completions API that
-    every serving endpoint speaks. An explicit ``openai:<name>`` uses the Responses API instead; see the
-    `Databricks API reference
-    <https://docs.databricks.com/aws/en/machine-learning/foundation-model-apis/api-reference>`__
-    for the models it supports.
+    A bare name is resolved to ``openai-chat:<name>``, which uses the Chat Completions API.
+    Databricks documents querying chat models through the OpenAI client for
+    `Foundation Model APIs
+    <https://docs.databricks.com/aws/en/machine-learning/model-serving/score-foundation-models>`__,
+    `external models <https://docs.databricks.com/aws/en/machine-learning/foundation-models/external-models>`__ and
+    `custom LLM endpoints
+    <https://docs.databricks.com/aws/en/machine-learning/model-serving/serve-custom-llms>`__
+    served with the chat task. Databricks does not document Chat Completions for other endpoint types,
+    such as embedding or traditional ML endpoints; this hook is not intended for them.
+
+    In pydantic-ai, the ``openai:`` prefix selects the Responses API and ``openai-chat:`` selects
+    Chat Completions, as described in the
+    `pydantic-ai OpenAI documentation <https://pydantic.dev/docs/ai/models/openai/>`__. An explicit
+    ``openai:<name>`` therefore sends Responses API requests. Databricks documents its Responses API
+    passthrough for OpenAI models; see
+    `Query chat models
+    <https://docs.databricks.com/aws/en/machine-learning/model-serving/query-chat-models>`__.
 
 Fallback Connections
     Other connection IDs to fail over to, in order, while this provider is unavailable. Stored in
@@ -75,33 +89,46 @@ Authentication
 --------------
 
 Credentials are not configured on this connection. A token is requested from the referenced
-Databricks connection on every request, so it works with every token-based method described on the
-:doc:`Databricks connection <databricks>` page. Username/password basic auth is not supported: the
-token request fails with "Token authentication isn't configured", which surfaces in
-**Test connection** and on the first request. The Databricks connection's ``proxies`` extra and
-TLS settings are not applied to these requests.
+Databricks connection on every request, so it works with the token-based methods described on the
+:doc:`Databricks connection <databricks>` page, except for the settings listed below that this hook
+rejects. Username/password basic auth is not supported: the token request fails with "Token
+authentication isn't configured", which surfaces in **Test connection** and on the first request.
+
+Databricks documents that
+`route-optimized endpoints <https://docs.databricks.com/aws/en/machine-learning/model-serving/route-optimization>`__
+are queried differently from other endpoints, including using a different URL and authentication
+using OAuth tokens. This hook only sends requests to ``/serving-endpoints``, so it does not support
+route-optimized endpoints.
+
+This hook does not route requests through a proxy and does not send the Azure workspace resource
+headers. A Databricks connection that sets the ``proxies`` or ``azure_resource_id`` extra is
+rejected with a ``ValueError`` when the model is built, instead of the setting being ignored
+silently.
 
 Limitations
 -----------
 
-The hook does not rewrite requests, so the limits of Databricks Model Serving apply. As documented
-by Databricks on its
+The hook does not rewrite requests, so the limits of Databricks Model Serving apply. Those limits
+vary by model and endpoint type and change over time. At the time of writing, Databricks' pages on
 `function calling <https://docs.databricks.com/aws/en/machine-learning/model-serving/function-calling>`__
 and
 `structured outputs <https://docs.databricks.com/aws/en/machine-learning/model-serving/structured-outputs>`__
-pages:
+list the following, among others, which are the authoritative and more complete source:
 
-- Parallel function calling is not supported, and at most 32 functions can be defined in ``tools``.
-- Function definitions do not support ``pattern``, ``anyOf``, ``oneOf``, ``allOf``, ``prefixItems``
-  or ``$ref``.
+- For Foundation Model APIs and external model endpoints, function calling does not support parallel
+  function calls, allows at most 32 functions in ``tools``, and rejects JSON schema keywords such as
+  ``pattern``, ``anyOf``, ``oneOf``, ``allOf``, ``prefixItems`` and ``$ref``. Databricks lists
+  these under limitations during Public Preview.
 - For Claude models, ``response_format`` cannot be combined with ``tools`` or ``tool_choice``.
+  Databricks also lists newer Claude models that return HTTP 400 for ``response_format`` on Chat
+  Completions.
+- Databricks' structured outputs page also lists that structured outputs are not supported with
+  streaming.
 
-Limits vary by model and change over time; see the Databricks documentation for the current ones.
-If an endpoint rejects parallel tool calls, pass ``model_settings={"parallel_tool_calls": False}``
-to the operator or agent.
-
-Only the ``/serving-endpoints`` base URL is supported. The hook has been unit-tested only and has
-not been run against a live workspace.
+The hook sends requests to the ``/serving-endpoints`` base URL that Databricks documents for the
+OpenAI client (see the
+`custom LLM endpoints <https://docs.databricks.com/aws/en/machine-learning/model-serving/serve-custom-llms>`__
+page); other base URLs are not supported.
 
 Example
 -------

@@ -62,6 +62,8 @@ def _mock_databricks_hook(mock_hook_cls):
     mock_hook = mock_hook_cls.return_value
     mock_hook.host = "adb-1.azuredatabricks.net"
     mock_hook.databricks_conn_id = "databricks_conn"
+    mock_hook.proxies = None
+    mock_hook.databricks_conn.extra_dejson = {}
     mock_hook._endpoint_url.return_value = SERVING_URL
     mock_hook._get_token.return_value = "real-token"
     return mock_hook
@@ -118,18 +120,158 @@ class TestGetProviderKwargs:
         )
         assert first["http_client"] is second["http_client"]
 
-    @pytest.mark.parametrize("host", [None, ""])
+    @pytest.mark.parametrize(
+        "raw_host",
+        [
+            pytest.param(None, id="none"),
+            pytest.param("", id="empty"),
+            pytest.param("https://", id="scheme-only"),
+            pytest.param("  ", id="blank"),
+            pytest.param("adb-1.azuredatabricks.net/serving-endpoints", id="with-path"),
+            pytest.param("adb-1.azuredatabricks.net#frag", id="with-fragment"),
+            pytest.param("adb-1.azuredatabricks.net:", id="empty-port"),
+            pytest.param("adb-1.azuredatabricks.net:abc", id="non-numeric-port"),
+            pytest.param("adb-1.azuredatabricks.net:99999", id="port-out-of-range"),
+            pytest.param("svc@adb-1.azuredatabricks.net", id="userinfo-username"),
+            pytest.param("@adb-1.azuredatabricks.net", id="userinfo-empty-username"),
+            pytest.param("svc:s3cr3t@adb-1.azuredatabricks.net", id="userinfo-username-and-password"),
+            pytest.param("svc:s3cr3t@adb-1.azuredatabricks.net/serving-endpoints", id="userinfo-and-path"),
+            pytest.param(":443", id="port-only"),
+            pytest.param("https://[::1]:443", id="ipv6-with-scheme"),
+            pytest.param("https://adb-1.azuredatabricks.net  ", id="trailing-whitespace-with-scheme"),
+        ],
+    )
     @mock.patch(f"{MODULE_PATH}.BaseDatabricksHook", autospec=True)
-    def test_raises_when_databricks_connection_has_no_host(self, mock_hook_cls, host):
+    def test_raises_when_databricks_connection_has_no_valid_host(self, mock_hook_cls, raw_host):
         mock_hook = _mock_databricks_hook(mock_hook_cls)
-        mock_hook.host = host
+        # Feed the host through the real normalisation the Databricks hook applies to the connection.
+        mock_hook.host = BaseDatabricksHook._parse_host(raw_host) if raw_host else raw_host
 
         hook = PydanticAIDatabricksHook(databricks_conn_id="databricks_conn")
-        with pytest.raises(ValueError, match="'databricks_conn' has no host"):
+        with pytest.raises(ValueError, match="'databricks_conn' has no valid host") as exc_info:
             hook._get_provider_kwargs(None, None, {})
 
+        # The host may carry credentials, so the message must never echo any part of it.
+        assert "s3cr3t" not in str(exc_info.value)
+        assert "svc" not in str(exc_info.value)
         mock_hook._endpoint_url.assert_not_called()
         assert hook._databricks_hook is None
+
+    @pytest.mark.parametrize(
+        "raw_host",
+        [
+            pytest.param("adb-1.azuredatabricks.net", id="bare"),
+            pytest.param("https://adb-1.azuredatabricks.net", id="with-scheme"),
+            pytest.param("adb-1.azuredatabricks.net/", id="trailing-slash"),
+            pytest.param("https://adb-1.azuredatabricks.net/", id="scheme-and-trailing-slash"),
+            pytest.param("adb-1.azuredatabricks.net:443", id="with-port"),
+            pytest.param("https://svc:s3cr3t@adb-1.azuredatabricks.net", id="scheme-drops-userinfo"),
+            pytest.param("[::1]:443", id="ipv6-bare"),
+        ],
+    )
+    @mock.patch(f"{MODULE_PATH}.BaseDatabricksHook", autospec=True)
+    def test_accepts_host_shapes_the_databricks_hook_accepts(self, mock_hook_cls, raw_host):
+        mock_hook = _mock_databricks_hook(mock_hook_cls)
+        mock_hook.host = BaseDatabricksHook._parse_host(raw_host)
+
+        hook = PydanticAIDatabricksHook(databricks_conn_id="databricks_conn")
+
+        assert hook._get_provider_kwargs(None, None, {})["base_url"] == SERVING_URL
+        mock_hook._endpoint_url.assert_called_once_with("serving-endpoints")
+
+    @pytest.mark.parametrize(
+        "proxies",
+        [
+            pytest.param({"https": "http://user:secret@proxy.example:3128"}, id="https"),
+            pytest.param({"http": "http://proxy.example:3128"}, id="http"),
+            pytest.param(
+                {"http": "http://proxy.example:3128", "https": "http://proxy.example:3128"}, id="both"
+            ),
+        ],
+    )
+    @mock.patch(f"{MODULE_PATH}.BaseDatabricksHook", autospec=True)
+    def test_raises_when_databricks_connection_sets_proxies(self, mock_hook_cls, proxies):
+        mock_hook = _mock_databricks_hook(mock_hook_cls)
+        mock_hook.proxies = proxies
+
+        hook = PydanticAIDatabricksHook(databricks_conn_id="databricks_conn")
+        with pytest.raises(ValueError, match="'databricks_conn' sets the 'proxies' extra") as exc_info:
+            hook._get_provider_kwargs(None, None, {})
+
+        assert "secret" not in str(exc_info.value)
+        assert hook._databricks_hook is None
+
+    @mock.patch(f"{MODULE_PATH}.BaseDatabricksHook", autospec=True)
+    def test_raises_when_databricks_connection_sets_azure_resource_id(self, mock_hook_cls):
+        mock_hook = _mock_databricks_hook(mock_hook_cls)
+        mock_hook.databricks_conn.extra_dejson = {"azure_resource_id": "/subscriptions/s3cr3t-sub"}
+
+        hook = PydanticAIDatabricksHook(databricks_conn_id="databricks_conn")
+        with pytest.raises(
+            ValueError, match="'databricks_conn' sets the 'azure_resource_id' extra"
+        ) as exc_info:
+            hook._get_provider_kwargs(None, None, {})
+
+        assert "s3cr3t-sub" not in str(exc_info.value)
+        mock_hook._endpoint_url.assert_not_called()
+        assert hook._databricks_hook is None
+
+    @pytest.mark.parametrize(
+        ("databricks_conn_kwargs", "expected_error"),
+        [
+            pytest.param(
+                {"host": "adb-1.azuredatabricks.net", "extra": {"proxies": {"https": "http://p:1"}}},
+                "sets the 'proxies' extra",
+                id="proxies",
+            ),
+            pytest.param(
+                {
+                    "host": "adb-1.azuredatabricks.net",
+                    "extra": {"azure_resource_id": "/subscriptions/s3cr3t-sub"},
+                },
+                "sets the 'azure_resource_id' extra",
+                id="azure-resource-id",
+            ),
+            pytest.param(
+                {"extra": {"host": "svc:s3cr3t@adb-1.azuredatabricks.net"}},
+                "has no valid host",
+                id="extra-host-with-userinfo",
+            ),
+            pytest.param(
+                {"host": "svc:s3cr3t@adb-1.azuredatabricks.net"},
+                "has no valid host",
+                id="connection-host-with-userinfo",
+            ),
+        ],
+    )
+    def test_rejects_unsupported_settings_on_a_real_databricks_connection(
+        self, databricks_conn_kwargs, expected_error
+    ):
+        """Run the guards against a real ``BaseDatabricksHook`` so a change in its attributes is caught."""
+        databricks_conn = Connection(conn_type="databricks", password="tok", **databricks_conn_kwargs)
+
+        with mock.patch.dict("os.environ", AIRFLOW_CONN_DBX=databricks_conn.get_uri()):
+            hook = PydanticAIDatabricksHook(databricks_conn_id="dbx")
+            with pytest.raises(ValueError, match=expected_error) as exc_info:
+                hook._get_databricks_hook({})
+
+        for secret in ("s3cr3t", "p:1", "svc"):
+            assert secret not in str(exc_info.value)
+        assert hook._databricks_hook is None
+
+    @mock.patch.dict(
+        "os.environ",
+        AIRFLOW_CONN_DBX=Connection(
+            conn_type="databricks", host="https://adb-1.azuredatabricks.net", password="tok"
+        ).get_uri(),
+    )
+    def test_accepts_a_plain_real_databricks_connection(self):
+        hook = PydanticAIDatabricksHook(databricks_conn_id="dbx")
+
+        databricks_hook = hook._get_databricks_hook({})
+
+        assert isinstance(databricks_hook, BaseDatabricksHook)
+        assert hook._base_url == SERVING_URL
 
     @mock.patch(f"{MODULE_PATH}.BaseDatabricksHook", autospec=True)
     def test_failed_first_build_is_not_remembered(self, mock_hook_cls):
@@ -402,5 +544,5 @@ class TestCommonAiVersionGuard:
             mock.patch("airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIHook", _OldPydanticAIHook),
         ):
             sys.modules.pop(MODULE_PATH, None)
-            with pytest.raises(AirflowOptionalProviderFeatureException, match="0.10.0"):
+            with pytest.raises(AirflowOptionalProviderFeatureException, match="1.0.0"):
                 importlib.import_module(MODULE_PATH)
