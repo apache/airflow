@@ -22,7 +22,7 @@ import json
 from ci.prek import update_helm_schema_schema_type_fields_match
 
 
-def test_main_updates_nested_leaf_type_matcher(tmp_path, monkeypatch):
+def test_main_updates_both_leaf_type_matchers(tmp_path, monkeypatch):
     values_schema_file = tmp_path / "values.schema.json"
     values_schema_file.write_text(
         json.dumps(
@@ -44,6 +44,7 @@ def test_main_updates_nested_leaf_type_matcher(tmp_path, monkeypatch):
             {
                 "$defs": {
                     "leaf": {
+                        "if": {"oneOf": []},
                         "properties": {"properties": {"additionalProperties": {"if": {"oneOf": []}}}},
                     }
                 }
@@ -61,8 +62,10 @@ def test_main_updates_nested_leaf_type_matcher(tmp_path, monkeypatch):
 
     leaf_definition = json.loads(meta_schema_file.read_text())["$defs"]["leaf"]
     nested_matcher = leaf_definition["properties"]["properties"]["additionalProperties"]["if"]["oneOf"]
+    outer_matcher = leaf_definition["if"]["oneOf"]
     matched_types = [match["properties"]["type"]["const"] for match in nested_matcher]
 
+    assert outer_matcher == nested_matcher
     assert "integer" in matched_types
     assert "object" in matched_types
     assert ["null", "string"] in matched_types

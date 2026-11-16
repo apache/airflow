@@ -4,7 +4,10 @@
     "description": "This schema is used to validate `values.schema.json` file.",
     "$defs": {
         "commonRequired": {
-            "required": []
+            "required": [
+                "description",
+                "default"
+            ]
         },
         "leaf": {
             "properties": {
@@ -268,10 +271,7 @@
                 ]
             },
             "then": {
-                "required": [
-                    "description",
-                    "default"
-                ]
+                "$ref": "#/$defs/commonRequired"
             }
         }
     },

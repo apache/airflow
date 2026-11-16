@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import copy
 import json
 from pathlib import Path
 from typing import Any
@@ -64,6 +65,38 @@ class TestChartQuality:
         validator = validator_class(VALUES_SCHEMA_SCHEMA)
 
         assert not list(validator.iter_errors(VALUES_SCHEMA))
+
+    @pytest.mark.parametrize("required_field", ["description", "default"])
+    def test_values_schema_requires_metadata_for_nested_leafs(self, required_field):
+        validator_class = validators.validator_for(VALUES_SCHEMA_SCHEMA)
+        validator = validator_class(VALUES_SCHEMA_SCHEMA)
+
+        assert not list(validator.iter_errors(VALUES_SCHEMA))
+
+        schema_without_metadata = copy.deepcopy(VALUES_SCHEMA)
+        del schema_without_metadata["properties"]["scheduler"]["properties"]["replicas"][required_field]
+
+        assert any(
+            list(error.absolute_path) == ["properties", "scheduler", "properties", "replicas"]
+            and error.message == f"'{required_field}' is a required property"
+            for error in validator.iter_errors(schema_without_metadata)
+        )
+
+    @pytest.mark.parametrize("required_field", ["description", "default"])
+    def test_values_schema_requires_metadata_for_top_level_properties(self, required_field):
+        validator_class = validators.validator_for(VALUES_SCHEMA_SCHEMA)
+        validator = validator_class(VALUES_SCHEMA_SCHEMA)
+
+        assert not list(validator.iter_errors(VALUES_SCHEMA))
+
+        schema_without_metadata = copy.deepcopy(VALUES_SCHEMA)
+        del schema_without_metadata["properties"]["scheduler"][required_field]
+
+        assert any(
+            list(error.absolute_path) == ["properties", "scheduler"]
+            and error.message == f"'{required_field}' is a required property"
+            for error in validator.iter_errors(schema_without_metadata)
+        )
 
     @pytest.mark.parametrize("path", SCHEMAS_WITH_EXAMPLES)
     def test_schema_examples_validate_against_their_own_schema(self, path):
