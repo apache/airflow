@@ -78,7 +78,8 @@ const TriggerDAGModal = ({ dagDisplayName, dagId, onClose, open, prefillConfig }
   const hasSchedule = dag?.timetable_summary !== null;
   const isPartitioned = dag ? dag.timetable_partitioned : false;
   const { error, isPending, resetError, triggerDagRun } = useTrigger({ dagId, onSuccessConfirm: onClose });
-  const suggestedPartitionKey = dag?.suggested_partition_key ?? undefined;
+  // Keep null: the form reads undefined as "not loaded yet" and null as "no suggestion", which empties the field.
+  const suggestedPartitionKey = dag?.suggested_partition_key;
   const maxDisplayLength = 59; // hard-coded length to prevent dag name overflowing the modal
   const nameOverflowing = dagDisplayName.length > maxDisplayLength;
 
@@ -149,6 +150,8 @@ const TriggerDAGModal = ({ dagDisplayName, dagId, onClose, open, prefillConfig }
               isPartitioned={isPartitioned}
               isPaused={isPaused}
               isPending={isPending}
+              // Remount per Dag so a partition key typed for the previous Dag does not carry over.
+              key={dagId}
               onPausedDagActionChange={Boolean(error) ? resetError : undefined}
               onSubmitTrigger={triggerDagRun}
               open={open}

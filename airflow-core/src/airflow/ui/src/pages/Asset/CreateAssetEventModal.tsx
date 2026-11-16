@@ -255,9 +255,11 @@ export const CreateAssetEventModal = ({ asset, onClose, open }: Props) => {
           isPartitioned={dag.timetable_partitioned}
           isPaused={dag.is_paused}
           isPending={isMaterializePending}
+          key={upstreamDagId}
           onPausedDagActionChange={Boolean(materializeError) ? resetMaterializeError : undefined}
           onSubmitTrigger={handleMaterializeSubmit}
           open={open}
+          suggestedPartitionKey={dag.suggested_partition_key}
         />
       ) : undefined}
     </Modal>

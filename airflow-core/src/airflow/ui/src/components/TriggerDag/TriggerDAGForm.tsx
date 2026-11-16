@@ -191,7 +191,7 @@ const TriggerDAGForm = ({
   // The suggestion is computed per request, so it can arrive late or change while the form is open.
   // Follow it until the user edits the field; clearing the field counts as an edit.
   useEffect(() => {
-    if (!open || userEditedPartitionKeyRef.current || suggestedPartitionKey === undefined) {
+    if (!open || !isPartitioned || userEditedPartitionKeyRef.current || suggestedPartitionKey === undefined) {
       return;
     }
     // A null suggestion means "none": the field is emptied.
@@ -199,7 +199,7 @@ const TriggerDAGForm = ({
 
     setAppliedSuggestion(suggestion);
     setValue("partitionKey", suggestion);
-  }, [open, setValue, suggestedPartitionKey]);
+  }, [open, isPartitioned, setValue, suggestedPartitionKey]);
 
   const onPartitionKeyEdit = useCallback(() => {
     userEditedPartitionKeyRef.current = true;

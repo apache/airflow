@@ -32,6 +32,7 @@ import type * as Ui from "src/system-components";
 
 import { Wrapper } from "src/utils/Wrapper";
 
+import { getPartitionKeyInput } from "./TriggerDAGForm.testUtils";
 import TriggerDAGModal from "./TriggerDAGModal";
 
 vi.mock("src/system-components", async (importOriginal) => {
@@ -57,7 +58,9 @@ vi.mock("src/queries/useDagParams", () => ({
 vi.mock("src/queries/useParamStore", () => ({
   useParamStore: () => ({ conf: "{}", initialParamDict: {}, setConf: vi.fn(), setInitialParamDict: vi.fn() }),
 }));
-vi.mock("../ConfigForm", () => ({ default: () => <div /> }));
+vi.mock("../ConfigForm", () => ({
+  default: ({ children }: { readonly children?: ReactNode }) => <div>{children}</div>,
+}));
 vi.mock("../DateTimeInput", () => ({
   DateTimeInput: ({ value }: { readonly value?: string }) => (
     <input aria-label="Logical Date" readOnly value={value} />
@@ -234,5 +237,75 @@ describe("TriggerDAGModal", () => {
     expect(DagRunService.triggerDagRun).toHaveBeenLastCalledWith(
       expect.objectContaining({ requestBody: expect.objectContaining({ drain_dag: false }) as unknown }),
     );
+  });
+
+  it.each([
+    { expected: "2026-02-18T00:00:00", suggested: "2026-02-18T00:00:00" },
+    { expected: "", suggested: null },
+  ])(
+    "shows $expected as the partition key for a suggestion of $suggested",
+    async ({ expected, suggested }) => {
+      vi.mocked(DagService.getDagDetails).mockResolvedValue({
+        ...dag,
+        suggested_partition_key: suggested,
+        timetable_partitioned: true,
+      });
+      const { container } = renderModal(createQueryClient());
+
+      await waitFor(() => expect(getPartitionKeyInput(container)).toHaveValue(expected));
+    },
+  );
+
+  it("clears the partition key when a refetch reports that there is no suggestion any more", async () => {
+    const queryClient = createQueryClient();
+
+    queryClient.setQueryData(UseDagServiceGetDagDetailsKeyFn({ dagId: DAG_ID }), {
+      ...dag,
+      suggested_partition_key: "2026-02-18T00:00:00",
+      timetable_partitioned: true,
+    });
+    vi.mocked(DagService.getDagDetails).mockResolvedValue({
+      ...dag,
+      suggested_partition_key: null,
+      timetable_partitioned: true,
+    });
+    const { container } = renderModal(queryClient);
+
+    await waitFor(() => expect(getPartitionKeyInput(container)).toHaveValue(""));
+  });
+
+  it("does not keep a partition key typed for the previous Dag when the Dag changes", async () => {
+    const queryClient = createQueryClient();
+    const partitionedDag = { ...dag, timetable_partitioned: true };
+
+    vi.mocked(DagService.getDagDetails).mockImplementation(
+      ({ dagId }) =>
+        new CancelablePromise<DAGDetailsResponse>((resolve) => {
+          resolve({ ...partitionedDag, dag_id: dagId, suggested_partition_key: `${dagId}-suggested` });
+        }),
+    );
+    queryClient.setQueryData(UseDagServiceGetDagDetailsKeyFn({ dagId: "dag_b" }), {
+      ...partitionedDag,
+      dag_id: "dag_b",
+      suggested_partition_key: "dag_b-suggested",
+    });
+    const { container, rerender } = render(
+      <QueryClientProvider client={queryClient}>
+        <TriggerDAGModal dagDisplayName="a" dagId="dag_a" onClose={vi.fn()} open />
+      </QueryClientProvider>,
+      { wrapper: Wrapper },
+    );
+
+    await waitFor(() => expect(getPartitionKeyInput(container)).toHaveValue("dag_a-suggested"));
+    fireEvent.change(getPartitionKeyInput(container), { target: { value: "mine" } });
+    await waitFor(() => expect(getPartitionKeyInput(container)).toHaveValue("mine"));
+
+    rerender(
+      <QueryClientProvider client={queryClient}>
+        <TriggerDAGModal dagDisplayName="b" dagId="dag_b" onClose={vi.fn()} open />
+      </QueryClientProvider>,
+    );
+
+    await waitFor(() => expect(getPartitionKeyInput(container)).toHaveValue("dag_b-suggested"));
   });
 });

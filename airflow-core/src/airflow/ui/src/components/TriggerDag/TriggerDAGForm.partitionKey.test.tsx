@@ -438,4 +438,19 @@ describe("TriggerDAGForm partition key suggestion", () => {
     await waitFor(() => expect(getPartitionKeyInput(container)).toHaveValue("b"));
     expect(screen.getByText(SUGGESTED_HELP)).toBeInTheDocument();
   });
+
+  it("does not apply a suggestion to a Dag that is not partitioned", async () => {
+    const onSubmitTrigger = vi.fn();
+    const { rerender } = render(buildForm({ isPartitioned: false, onSubmitTrigger }), { wrapper: Wrapper });
+
+    rerender(
+      buildForm({ isPartitioned: false, onSubmitTrigger, suggestedPartitionKey: "2026-02-18T00:00:00" }),
+    );
+    fireEvent.click(screen.getByTestId("trigger-dag-submit"));
+
+    await waitFor(() => expect(onSubmitTrigger).toHaveBeenCalledOnce());
+    expect(onSubmitTrigger).toHaveBeenCalledWith(
+      expect.objectContaining({ partitionKey: undefined }) as unknown,
+    );
+  });
 });
