@@ -19,7 +19,29 @@ from __future__ import annotations
 
 import pytest
 
-from airflow.sdk.definitions.context import get_current_context
+from airflow.sdk.definitions.context import context_merge, get_current_context
+
+
+class TestContextMerge:
+    def test_context_merge_empty_dict(self):
+        context: dict[str, str] = {}
+        context_merge(context, {"key": "value"})
+        assert context == {"key": "value"}
+
+    def test_context_merge_empty_dict_with_kwargs(self):
+        context: dict[str, str] = {}
+        context_merge(context, key="value", other="123")
+        assert context == {"key": "value", "other": "123"}
+
+    def test_context_merge_existing_dict(self):
+        context: dict[str, int] = {"a": 1, "b": 2}
+        context_merge(context, {"b": 3, "c": 4}, d=5)
+        assert context == {"a": 1, "b": 3, "c": 4, "d": 5}
+
+    def test_context_merge_iterable_key_value_pairs(self):
+        context: dict[str, str] = {}
+        context_merge(context, [("x", "1"), ("y", "2")])
+        assert context == {"x": "1", "y": "2"}
 
 
 class TestCurrentContext:
