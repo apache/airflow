@@ -278,9 +278,9 @@ def next_run_assets(
         return NextRunAssetsResponse.model_validate(model_data)
 
     # Partitioned Dags: enrich with per-asset received/required counts and rollup flag.
-    # FIFO matches the scheduler's pending-APDR processing order
-    # (``_create_dagruns_for_partitioned_asset_dags``), so the "next run" the UI
-    # surfaces is the same one the scheduler will fire next.
+    # This shows the pending APDR that has waited longest. It is not necessarily the
+    # next run: the scheduler (``_create_dagruns_for_partitioned_asset_dags``) visits
+    # pending APDRs in rotation and fires whichever is satisfied, whatever its age.
     pending_apdr = session.execute(
         select(AssetPartitionDagRun.id, AssetPartitionDagRun.partition_key)
         .where(

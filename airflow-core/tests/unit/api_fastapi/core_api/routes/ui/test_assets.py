@@ -453,11 +453,11 @@ class TestNextRunAssets:
 
     def test_pending_apdr_uses_fifo_order(self, test_client, dag_maker, session):
         """
-        The next-run view must surface the oldest pending APDR so it matches the
-        one the scheduler will fire next (``_create_dagruns_for_partitioned_asset_dags``
-        is strict FIFO over ``created_at``). When multiple partitions are
-        backlogged, showing the newest would confuse the operator about which
-        run is actually queued.
+        The next-run view must surface the pending APDR that has waited longest.
+
+        When multiple partitions are backlogged, showing the newest would hide the one
+        that has been queued longest. It is not necessarily the next to fire: the
+        scheduler fires whichever pending APDR is satisfied, whatever its age.
         """
         asset = Asset(uri="s3://bucket/fifo", name="fifo")
         with dag_maker(

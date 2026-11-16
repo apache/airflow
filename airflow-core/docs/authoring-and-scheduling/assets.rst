@@ -702,6 +702,21 @@ uses ``StartOfDayMapper`` (which expects a timestamp-like key), no downstream
 partition match can be produced, so the downstream Dag is not triggered for
 that key.
 
+While partitions wait for their upstream events, Airflow keeps pending
+partition-driven Dag runs for them. Each scheduler loop evaluates a bounded batch of
+pending runs and creates a Dag run for every one whose condition is met, oldest first.
+When more runs are pending than one loop evaluates, the scheduler goes through them
+in rotation over several loops, so runs that keep waiting, such as a rollup whose
+window is not complete yet, cannot hold the others back. Across those loops, Dag runs
+are created in rotation order rather than strictly oldest first. New pending runs are
+evaluated in the loop that finds them, in up to half of its batch, so while new runs
+that stay pending keep arriving at half a batch per loop or more, the rotation does not
+get back to the older ones. The ``scheduler.asset_partitions.pass_loops`` metric reports about how many
+loops a full rotation takes, and ``scheduler.asset_partitions.oldest_pending_age`` the
+age of the oldest pending run evaluated in the scheduler's last full rotation that
+evaluated one, or 0 once none is left to evaluate, for example because their Dags are
+paused.
+
 Inside partitioned Dag runs, access the resolved partition through
 ``dag_run.partition_key``. When the consumer's partition mapper can
 resolve the key to a ``datetime``, that value is also available as
