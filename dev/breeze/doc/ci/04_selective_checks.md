@@ -363,10 +363,12 @@ flowchart TD
    not from `git diff-tree`, with a renamed file counted under both paths, and the run is selected
    exactly like a pull request with those files. `is_committer_build` is always `False` because
    forks have no self-hosted runners. When the file list reaches the compare API's 300-file cap,
-   or the compare fails, everything runs, including the UI E2E tests, which otherwise only follow
-   matching files or the `full tests needed` label. Checks that compare a file with its previous version
+   or the compare fails, a local git diff fallback resolves the full change set against upstream to avoid
+   truncation; if local git diff is unavailable, the change set is treated as truncated and everything runs,
+   including the UI E2E tests, which otherwise only follow matching files or the `full tests needed` label. Checks that compare a file with its previous version
    (`pyproject.toml` and the provider dependency bump check) read the previous version at the
-   compare's merge base in `apache/airflow`, not at the pushed commit's parent, which after a
+   compare's merge base in `apache/airflow` (or directly from local git with `git show` when
+   the merge-base commit is present locally), not at the pushed commit's parent, which after a
    merge of upstream `main` is the contributor's own previous tip. A file missing at the merge
    base counts as new; any other failure to read it fails the selective checks instead of
    skipping the check. The labels come from the open
@@ -422,7 +424,7 @@ We have the following Groups of files for CI that determine which tests are run:
   drive prek static checks rather than the test matrix, so they only trigger the CI image build (via the
   `Prek files` group) — `mypy-scripts` and the image-based static checks still run, but the full test
   matrix does not; and **non-test workflows** (`.github/workflows/` for security scans, doc publishing,
-  notifications, backporting, calendar/stale bots, …) cannot change test outcomes. Workflows that run or
+  notifications, backporting, calendar/wiki/stale bots, …) cannot change test outcomes. Workflows that run or
   configure the test suite (`ci-amd`, `ci-arm`, `run-unit-tests`, `k8s-tests`, `helm-tests`, image builds,
   …) still force the full matrix.
 * `Prek files` - `scripts/ci/prek/...` static-check hooks. They do not force full tests, but they trigger
