@@ -29,7 +29,6 @@ from trino.exceptions import DatabaseError
 from trino.transaction import IsolationLevel
 
 from airflow.providers.common.compat.sdk import (
-    AirflowException,
     AirflowOptionalProviderFeatureException,
     conf,
 )
@@ -158,7 +157,7 @@ class TrinoHook(DbApiHook):
         if extra.get("auth") == "kerberos":
             auth_methods.append("kerberos")
         if len(auth_methods) > 1:
-            raise AirflowException(
+            raise ValueError(
                 f"Multiple authentication methods specified: {', '.join(auth_methods)}. Only one is allowed."
             )
         if db.password and db.login:
