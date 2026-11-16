@@ -425,7 +425,7 @@ and a pointer to ``search_tables`` instead of the whole list. Without a ``search
     )
 
 ``KeywordTableSearchBackend`` splits the query on whitespace and matches each word,
-case-insensitively, as a substring of the table name and of the table's comment; column
+case-insensitively, as a substring of the table name -- without its schema, for a ``SCHEMA.TABLE`` name -- and of the table's comment; column
 comments are not searched. A word found in
 the name counts three times a word found in the comment; tables matching nothing are
 dropped and ties are ordered by name. It introspects once per toolset instance, then

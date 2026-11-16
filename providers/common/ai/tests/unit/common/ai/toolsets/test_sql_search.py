@@ -48,6 +48,22 @@ class TestKeywordTableSearchBackend:
     def test_ranking(self, query, expected):
         assert _search(query) == expected
 
+    @pytest.mark.parametrize(
+        ("query", "expected"),
+        [
+            pytest.param("crm", ["MODEL_CRM.CRM_CONTACTS"], id="schema-word"),
+            pytest.param("astro", ["MODEL_CRM.SF_ASTRO_ORGS"], id="table-part-still-matches"),
+        ],
+    )
+    def test_schema_is_not_matched_as_part_of_the_name(self, query, expected):
+        catalog = [
+            ("MODEL_CRM.SF_ASTRO_ORGS", "Salesforce organisations"),
+            ("MODEL_CRM.CRM_CONTACTS", None),
+            ("MODEL_ASTRO.DEPLOYMENT", "Deployments"),
+        ]
+        result = KeywordTableSearchBackend().search_tables(query, 10, get_catalog=lambda: catalog)
+        assert [name for name, _ in result] == expected
+
     def test_ties_break_by_name_and_limit_applies(self):
         catalog = [("b_t", None), ("a_t", None), ("c_t", None)]
         result = KeywordTableSearchBackend().search_tables("t", 2, get_catalog=lambda: catalog)

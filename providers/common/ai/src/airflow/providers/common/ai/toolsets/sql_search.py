@@ -59,10 +59,10 @@ class SQLTableSearchBackend(Protocol):
 
 class KeywordTableSearchBackend:
     """
-    Default backend: case-insensitive substring match of each query word against table names and comments.
+    Default backend: case-insensitive substring match of each query word against table names (without their schema) and comments.
 
-    Query words are split on whitespace. A table's score is the number of words found in its name
-    weighted at ``_NAME_WEIGHT`` plus the number found in its comment; tables scoring zero are
+    Query words are split on whitespace. A table's score is the number of words found in its table name
+    (the part after any schema) weighted at ``_NAME_WEIGHT`` plus the number found in its comment; tables scoring zero are
     dropped, and ties are broken by name.
     """
 
@@ -76,7 +76,7 @@ class KeywordTableSearchBackend:
         scored: list[tuple[int, str, TableEntry]] = []
         for entry in get_catalog():
             name, comment = entry
-            name_text = name.casefold()
+            name_text = name.rpartition(".")[2].casefold()
             comment_text = (comment or "").casefold()
             score = sum(self._NAME_WEIGHT * (word in name_text) + (word in comment_text) for word in words)
             if score:
