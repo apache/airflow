@@ -170,6 +170,21 @@ class _ClassifiedReferenceTypes(tuple[type[BaseDeadlineReference], ...]):
         return self
 
 
+class _ContestedReferenceName:
+    """Stands in for a contested ``DeadlineReference`` shorthand, so using it explains why it is missing."""
+
+    def __init__(self, name: str):
+        self.name = name
+
+    def __get__(self, instance: object, owner: type | None = None) -> Any:
+        # Read the claimants on access, because later claimants are recorded without touching this.
+        claimants = ", ".join(sorted(DeadlineReference._contested_reference_names[self.name]))
+        raise AttributeError(
+            f"DeadlineReference.{self.name} is claimed by more than one class ({claimants}), so it is "
+            "not available as a shorthand.  Import the class you want directly instead."
+        )
+
+
 class DeadlineAlert:
     """Store Deadline values needed to calculate the need-by timestamp and the callback information."""
 
@@ -405,7 +420,7 @@ class DeadlineReference:
                 # Two different classes want the same shorthand, reject BOTH.
                 # Without this, the import order arbitrarily decides which gets the
                 # name and potentially breaks a Dag file which uses the short name.
-                delattr(cls, name)
+                setattr(cls, name, _ContestedReferenceName(name))
                 cls._contested_reference_names[name] = [cls._custom_reference_name_map.pop(name), key]
                 logger.warning(
                     "DeadlineReference.%s is claimed by more than one class (%s), so it is no longer "
@@ -414,8 +429,8 @@ class DeadlineReference:
                     ", ".join(sorted((previous, key))),
                 )
         elif hasattr(cls, name):
-            # Raise rather than contest the name: contesting calls delattr, which would unbind a
-            # built-in for every Dag that uses it.
+            # Raise rather than contest the name: contesting replaces the attribute, which would
+            # unbind a built-in for every Dag that uses it.
             raise ValueError(
                 f"{key} cannot be added to the DeadlineReference namespace as {name!r}, because "
                 f"DeadlineReference.{name} already exists.  Rename the class."

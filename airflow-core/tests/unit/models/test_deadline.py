@@ -944,6 +944,8 @@ class TestCustomDeadlineReference:
         DeadlineReference._add_custom_reference_to_namespace(second, DeadlineReference.TYPES.DAGRUN_QUEUED)
 
         assert not hasattr(DeadlineReference, "Contested")
+        with pytest.raises(AttributeError, match=r"\(team_a\.refs\.Contested, team_b\.reports\.Contested\)"):
+            DeadlineReference.Contested
         assert {
             "event": re.compile(r".*team_a\.refs\.Contested.*team_b\.reports\.Contested"),
             "level": "warning",
@@ -962,6 +964,8 @@ class TestCustomDeadlineReference:
             )
 
         assert not hasattr(DeadlineReference, "Contested")
+        with pytest.raises(AttributeError, match=r"team_c\.other\.Contested"):
+            DeadlineReference.Contested
         assert DeadlineReference._contested_reference_names["Contested"] == [
             "team_a.refs.Contested",
             "team_b.reports.Contested",

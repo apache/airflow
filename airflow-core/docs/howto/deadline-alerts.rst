@@ -539,9 +539,10 @@ to a parameterized one:
     The shorthand only goes by class name, so if two custom references in different modules share a
     class name, neither of them gets it and a warning naming both classes is logged.  Any Dag that
     uses the shorthand for that name will fail to import with an error such as
-    ``AttributeError: type object 'DeadlineReference' has no attribute 'MyQueuedReference'``.  To fix
-    it, import the class you want directly, as shown above.  Both references still work and the
-    scheduler can resolve either one; only the shorthand is unavailable.
+    ``AttributeError: DeadlineReference.MyQueuedReference is claimed by more than one class``,
+    followed by the names of both classes.  To fix it, import the class you want directly, as shown
+    above.  Both references still work and the scheduler can resolve either one; only the shorthand
+    is unavailable.
 
 Multiple Deadline Alerts
 ^^^^^^^^^^^^^^^^^^^^^^^^
