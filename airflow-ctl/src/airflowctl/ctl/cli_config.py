@@ -553,33 +553,11 @@ class GroupCommand(NamedTuple):
     name: str
     help: str
     subcommands: Iterable
-    api_operation: dict | None = None
     description: str | None = None
     epilog: str | None = None
 
 
-class GroupCommandParser(NamedTuple):
-    """ClI command with subcommands."""
-
-    name: str
-    help: str
-    subcommands: Iterable
-    description: str | None = None
-    epilog: str | None = None
-
-    @classmethod
-    def from_group_command(cls, group_command: GroupCommand) -> GroupCommandParser:
-        """Create GroupCommandParser from GroupCommand."""
-        return cls(
-            name=group_command.name,
-            help=group_command.help,
-            subcommands=group_command.subcommands,
-            description=group_command.description,
-            epilog=group_command.epilog,
-        )
-
-
-CLICommand = ActionCommand | GroupCommand | GroupCommandParser
+CLICommand = ActionCommand | GroupCommand
 
 
 class CommandFactory:
@@ -636,6 +614,7 @@ class CommandFactory:
         # (hyphenated into the subcommand name).
         # e.g. list_state_store -> "taskinstances state-store list".
         self.subgroups: dict[str, set[str]] = {
+            "AssetsOperations": {"state_store"},
             "TaskInstancesOperations": {"state_store"},
         }
 
@@ -1235,7 +1214,6 @@ def merge_commands(
                         name=command.name,
                         help=command.help,
                         subcommands=current_subcommands,
-                        api_operation=merged_command.api_operation,
                         description=merged_command.description,
                         epilog=command.epilog,
                     )

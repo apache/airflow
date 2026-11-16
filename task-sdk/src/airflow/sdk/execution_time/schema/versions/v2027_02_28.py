@@ -26,10 +26,19 @@ New bodies in this version:
 
 from __future__ import annotations
 
-from cadwyn import RequestInfo, VersionChange, convert_request_to_next_version_for, schema
+from cadwyn import (
+    RequestInfo,
+    ResponseInfo,
+    VersionChange,
+    convert_request_to_next_version_for,
+    convert_response_to_previous_version_for,
+    enum,
+    schema,
+)
 
 from airflow.sdk.api.datamodels._generated import TIRunContext, TISuccessStatePayload, VariableResponse
-from airflow.sdk.execution_time.comms import PutVariable
+from airflow.sdk.exceptions import ErrorType
+from airflow.sdk.execution_time.comms import ErrorResponse, PutVariable
 
 
 class AddExecutionTimeoutToSupervisorTIRunContext(VersionChange):
@@ -84,3 +93,17 @@ class MakeSupervisorVariableValueNonNullable(VersionChange):
         """Keep the old behavior of storing ``str(None)`` when an older runtime sets null."""
         if "value" in request.body and request.body["value"] is None:
             request.body["value"] = "None"
+
+
+class AddXComBackendErrorType(VersionChange):
+    """Report a failure of the configured XCom backend under its own error type."""
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (enum(ErrorType).didnt_have("XCOM_BACKEND_ERROR"),)
+
+    @convert_response_to_previous_version_for(ErrorResponse)  # type: ignore[arg-type]
+    def report_as_a_generic_error(response: ResponseInfo = None) -> None:  # type: ignore[assignment]
+        """Report the failure as a generic one to a runtime whose version has no type for it."""
+        if response.body.get("error") == ErrorType.XCOM_BACKEND_ERROR.value:
+            response.body["error"] = ErrorType.GENERIC_ERROR.value

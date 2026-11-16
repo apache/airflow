@@ -6057,6 +6057,18 @@ export const $ExternalViewResponse = {
                 }
             ]
         },
+        show_icon_with_label: {
+            anyOf: [
+                {
+                    type: 'boolean'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Show Icon With Label',
+            default: false
+        },
         href: {
             type: 'string',
             title: 'Href'
@@ -8725,6 +8737,18 @@ export const $ReactAppResponse = {
                     type: 'null'
                 }
             ]
+        },
+        show_icon_with_label: {
+            anyOf: [
+                {
+                    type: 'boolean'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Show Icon With Label',
+            default: false
         },
         bundle_url: {
             type: 'string',

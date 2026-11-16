@@ -152,6 +152,9 @@ class BaseUIResponse(BaseModel):
     # skipped there rather than failing the match). Omitting `applies_to` shows the item
     # everywhere. Display gating only, not an authorization boundary.
     applies_to: PluginAppliesToResponse | None = None
+    # Only read by plugin tabs: show the icon beside the label at full width, not only when the
+    # tab bar collapses to icons. Has no effect without an `icon`.
+    show_icon_with_label: bool | None = False
 
 
 class ExternalViewResponse(BaseUIResponse):

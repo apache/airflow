@@ -373,7 +373,8 @@ export type ErrorType =
   | "DAGRUN_ALREADY_EXISTS"
   | "PERMISSION_DENIED"
   | "GENERIC_ERROR"
-  | "API_SERVER_ERROR";
+  | "API_SERVER_ERROR"
+  | "XCOM_BACKEND_ERROR";
 export type Detail = {
   [k: string]: unknown;
 } | null;
@@ -394,7 +395,8 @@ export type ErrorType1 =
   | "DAGRUN_ALREADY_EXISTS"
   | "PERMISSION_DENIED"
   | "GENERIC_ERROR"
-  | "API_SERVER_ERROR";
+  | "API_SERVER_ERROR"
+  | "XCOM_BACKEND_ERROR";
 export type DagId7 = string;
 export type TaskId3 = string;
 export type LogicalDate3 = string;
