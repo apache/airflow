@@ -22,7 +22,6 @@ from typing import TYPE_CHECKING, cast
 from fastapi import HTTPException, status
 from fastapi.responses import JSONResponse
 from jwt import ExpiredSignatureError, InvalidTokenError
-from starlette.concurrency import run_in_threadpool
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from airflow.api_fastapi.app import get_auth_manager
@@ -53,6 +52,9 @@ else:
         return "/"
 
 
+# The core route that revokes the Airflow JWT sent with the request, relative to the root path.
+LOGOUT_PATH = "/api/v2/auth/logout"
+
 if TYPE_CHECKING:
     from fastapi import Request, Response
 
@@ -81,17 +83,15 @@ class KeycloakJWTMiddleware(BaseHTTPMiddleware):
             except (
                 AuthManagerRefreshTokenExpiredException,
                 HTTPException,
-            ) as exc:
+            ):
                 new_token = ""
                 # The session ends here and the response clears the Airflow JWT. Hide it
                 # from the inner middlewares and the route too: resolving it again without
                 # the Keycloak tokens yields no user, which ``get_user`` would hand to the
-                # authorization checks instead of answering 401. The logout route then has
-                # no token left to revoke, so a JWT that was not rejected itself is revoked
-                # here first.
-                if not isinstance(exc.__cause__, InvalidTokenError):
-                    await self._revoke_jwt(request)
-                self._drop_cookie(request, COOKIE_NAME_JWT_TOKEN)
+                # authorization checks instead of answering 401. The logout route needs no
+                # user and revokes the JWT it receives, so it keeps it.
+                if not self._is_logout(request):
+                    self._drop_cookie(request, COOKIE_NAME_JWT_TOKEN)
 
             if user is not None:
                 request.state.user = user
@@ -246,12 +246,10 @@ class KeycloakJWTMiddleware(BaseHTTPMiddleware):
         return response
 
     @staticmethod
-    async def _revoke_jwt(request: Request) -> None:
-        """Revoke the Airflow JWT sent with the request, where Airflow can revoke tokens (3.2+)."""
-        revoke_token = getattr(get_auth_manager(), "revoke_token", None)
-        if revoke_token is not None:
-            # Validates the token and writes to the database: keep it off the event loop.
-            await run_in_threadpool(revoke_token, request.cookies[COOKIE_NAME_JWT_TOKEN])
+    def _is_logout(request: Request) -> bool:
+        """Tell whether the request is for the core logout route."""
+        scope = request.scope
+        return scope["path"].removeprefix(scope.get("root_path", "")) == LOGOUT_PATH
 
     @staticmethod
     def _drop_cookie(request: Request, name: str) -> None:
@@ -309,8 +307,8 @@ class KeycloakJWTMiddleware(BaseHTTPMiddleware):
         auth_manager = cast("KeycloakAuthManager", get_auth_manager())
         try:
             user = await auth_manager.get_user_from_token(jwt_token, access_token, refresh_token)
-        except ExpiredSignatureError as exc:
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token Expired") from exc
-        except InvalidTokenError as exc:
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid JWT token") from exc
+        except ExpiredSignatureError:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token Expired")
+        except InvalidTokenError:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid JWT token")
         return get_auth_manager().refresh_user(user=user), user

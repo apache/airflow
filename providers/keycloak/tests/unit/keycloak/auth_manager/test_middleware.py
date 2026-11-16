@@ -69,7 +69,7 @@ class TestKeycloakJWTMiddleware:
         request.base_url.scheme = "https" if secure else "http"
         request.cookies = {}
         request.headers = {}
-        request.scope = {"type": "http", "headers": []}
+        request.scope = {"type": "http", "path": "/", "headers": []}
         request.state = MagicMock(name="state", spec=[])
         request.state.user = None
         del request.state.user_authenticated_via
@@ -518,6 +518,18 @@ def keycloak_access_token(*, expires_in: int) -> str:
     return f"header.{base64.urlsafe_b64encode(payload.encode()).decode().rstrip('=')}.signature"
 
 
+ENDED_KEYCLOAK_SESSIONS = [
+    pytest.param(
+        {
+            COOKIE_NAME_ACCESS_TOKEN: keycloak_access_token(expires_in=-300),
+            COOKIE_NAME_REFRESH_TOKEN: "refresh_token",
+        },
+        id="expired_refresh_token",
+    ),
+    pytest.param({}, id="no_keycloak_cookies"),
+]
+
+
 @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="The Keycloak JWTs travel in their own cookies since 3.3")
 class TestKeycloakJWTMiddlewareInTheApiServer:
     """The middlewares as the API server installs them, in front of a route that needs the user."""
@@ -536,6 +548,7 @@ class TestKeycloakJWTMiddlewareInTheApiServer:
     @pytest.fixture
     def client(self, token_validator, revoke_token):
         from airflow.api_fastapi.core_api.app import init_middlewares
+        from airflow.api_fastapi.core_api.routes.public.auth import auth_router
         from airflow.api_fastapi.core_api.security import get_user
 
         with conf_vars(
@@ -549,6 +562,8 @@ class TestKeycloakJWTMiddlewareInTheApiServer:
             auth_manager = KeycloakAuthManager()
 
         app = FastAPI()
+        app.state.auth_manager = auth_manager
+        app.include_router(auth_router, prefix="/api/v2")
 
         @app.get("/user")
         def read_user(user=Depends(get_user)):
@@ -591,23 +606,31 @@ class TestKeycloakJWTMiddlewareInTheApiServer:
         assert self.cleared_jwt_cookies(response) == []
         revoke_token.assert_not_called()
 
-    def test_expired_keycloak_session_answers_401_and_clears_the_cookie(self, client, revoke_token):
+    @pytest.mark.parametrize("keycloak_cookies", ENDED_KEYCLOAK_SESSIONS)
+    def test_ended_keycloak_session_answers_401_and_clears_the_cookie(
+        self, client, revoke_token, keycloak_cookies
+    ):
         client.cookies.set(COOKIE_NAME_JWT_TOKEN, "token")
-        client.cookies.set(COOKIE_NAME_ACCESS_TOKEN, keycloak_access_token(expires_in=-300))
-        client.cookies.set(COOKIE_NAME_REFRESH_TOKEN, "refresh_token")
+        for name, value in keycloak_cookies.items():
+            client.cookies.set(name, value)
 
         response = client.get("/user")
 
         assert response.status_code == 401
         assert self.cleared_jwt_cookies(response) != []
-        revoke_token.assert_called_once_with(ANY, "token")
+        revoke_token.assert_not_called()
 
-    def test_session_without_keycloak_cookies_answers_401_and_clears_the_cookie(self, client, revoke_token):
+    @pytest.mark.parametrize("keycloak_cookies", ENDED_KEYCLOAK_SESSIONS)
+    def test_logout_of_an_ended_keycloak_session_revokes_the_token(
+        self, client, revoke_token, keycloak_cookies
+    ):
         client.cookies.set(COOKIE_NAME_JWT_TOKEN, "token")
+        for name, value in keycloak_cookies.items():
+            client.cookies.set(name, value)
 
-        response = client.get("/user")
+        response = client.get("/api/v2/auth/logout", follow_redirects=False)
 
-        assert response.status_code == 401
+        assert response.status_code == 307
         assert self.cleared_jwt_cookies(response) != []
         revoke_token.assert_called_once_with(ANY, "token")
 
