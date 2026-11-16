@@ -574,7 +574,7 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
             )
 
         return self._filter_authorized(
-            dag_ids, is_authorized, cache_key=(user.get_id(), method, team_name, frozenset(dag_ids))
+            KeycloakResource.DAG, dag_ids, is_authorized, user=user, method=method, team_name=team_name
         )
 
     def batch_is_authorized_connection(
@@ -683,7 +683,7 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
             return self.is_authorized_asset(method=method, user=user, details=candidates[asset_id])
 
         return self._filter_authorized(
-            candidates, is_authorized, cache_key=(user.get_id(), method, frozenset(candidates))
+            KeycloakResource.ASSET, candidates, is_authorized, user=user, method=method
         )
 
     def filter_authorized_connections(
@@ -705,7 +705,12 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
             )
 
         return self._filter_authorized(
-            conn_ids, is_authorized, cache_key=(user.get_id(), method, team_name, frozenset(conn_ids))
+            KeycloakResource.CONNECTION,
+            conn_ids,
+            is_authorized,
+            user=user,
+            method=method,
+            team_name=team_name,
         )
 
     def filter_authorized_pools(
@@ -727,7 +732,7 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
             )
 
         return self._filter_authorized(
-            pool_names, is_authorized, cache_key=(user.get_id(), method, team_name, frozenset(pool_names))
+            KeycloakResource.POOL, pool_names, is_authorized, user=user, method=method, team_name=team_name
         )
 
     def filter_authorized_variables(
@@ -749,9 +754,12 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
             )
 
         return self._filter_authorized(
+            KeycloakResource.VARIABLE,
             variable_keys,
             is_authorized,
-            cache_key=(user.get_id(), method, team_name, frozenset(variable_keys)),
+            user=user,
+            method=method,
+            team_name=team_name,
         )
 
     def _is_batch_authorized(
@@ -807,7 +815,14 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
         return {r["name"][len(prefix) :] for r in resources_resp.json() if r["name"].startswith(prefix)}
 
     def _filter_authorized(
-        self, ids: Collection[str], is_authorized: Callable[[str], bool], *, cache_key: tuple
+        self,
+        resource_type: KeycloakResource,
+        ids: Collection[str],
+        is_authorized: Callable[[str], bool],
+        *,
+        user: KeycloakAuthManagerUser,
+        method: ResourceMethod,
+        team_name: str | None = None,
     ) -> set[str]:
         """
         Return the ids Keycloak authorizes, asking once per id or, with team-level authorization, once.
@@ -836,6 +851,8 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
                 candidate for candidate, authorized in zip(candidates, results, strict=True) if authorized
             }
 
+        # The cache is shared by all resource types, and a pool and a variable can have the same name.
+        cache_key = (resource_type, user.get_id(), method, team_name, frozenset(ids))
         return single_flight(cache_key, query_keycloak)
 
     @staticmethod

@@ -1706,5 +1706,18 @@ class TestKeycloakAuthManager:
             details=DagDetails(id="dag_0", team_name="team_a"),
         )
 
+    @patch.object(KeycloakAuthManager, "is_authorized_variable", autospec=True, return_value=False)
+    @patch.object(KeycloakAuthManager, "is_authorized_pool", autospec=True, return_value=True)
+    def test_filter_authorized_caches_the_decision_per_resource_type(
+        self, mock_is_authorized_pool, mock_is_authorized_variable, auth_manager, user
+    ):
+        """A pool and a variable of the same name do not share a cached decision."""
+        pools = auth_manager.filter_authorized_pools(pool_names={"default_pool"}, user=user)
+        variables = auth_manager.filter_authorized_variables(variable_keys={"default_pool"}, user=user)
+
+        assert pools == {"default_pool"}
+        assert variables == set()
+        mock_is_authorized_variable.assert_called_once()
+
     def test_get_fastapi_middleware(self, auth_manager):
         assert auth_manager.get_fastapi_middlewares() == [(KeycloakJWTMiddleware, {})]
