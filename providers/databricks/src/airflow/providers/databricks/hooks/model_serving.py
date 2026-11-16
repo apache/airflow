@@ -24,13 +24,14 @@ import contextvars
 import functools
 import inspect
 from typing import TYPE_CHECKING, Any
+from urllib.parse import urlsplit
 
 from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
 from airflow.providers.databricks.hooks.databricks_base import BaseDatabricksHook
 
 _COMMON_AI_REQUIREMENT_MESSAGE = (
-    "This feature requires apache-airflow-providers-common-ai>=0.10.0, which adds "
-    "'fallback_conn_ids' to PydanticAIHook. "
+    "This feature requires apache-airflow-providers-common-ai>=1.0.0 (a PydanticAIHook with "
+    "'fallback_conn_ids'). "
     "Install with apache-airflow-providers-databricks[common.ai]."
 )
 
@@ -55,12 +56,25 @@ _UNUSED_TOKEN_PLACEHOLDER = "unused-overridden-per-request"
 
 # Token refreshes run here, never on asyncio's default executor: ``asend()`` reads its reply on that
 # executor while holding the comms lock, so blocking lookups that fill it leave nothing to run the
-# read and the task hangs (see ``_executor`` in common.ai's ``hooks/pydantic_ai.py``). Some
-# ``_get_token`` paths do such lookups at request time (AWS federation resolves a second Airflow
-# connection through ``StsHook``). One worker also serializes these token refreshes among themselves
-# on Airflow 3.0 and 3.1, where the channel to the supervisor has no lock of its own; it is independent
-# of common.ai's single-worker executor, so the two do not serialize against each other.
+# read and the task hangs (common.ai>=1.1.0 guards against the same thing with ``_executor`` in
+# ``hooks/pydantic_ai.py``). Some ``_get_token`` paths do such lookups at request time (AWS
+# federation resolves a second Airflow connection through ``StsHook``). Kept local: common.ai's
+# ``_run_off_loop`` only exists from 1.1.0.
 _executor = concurrent.futures.ThreadPoolExecutor(max_workers=1, thread_name_prefix="databricks-serving-auth")
+
+
+def _is_valid_host(host: str | None) -> bool:
+    """Return whether ``host`` is a bare ``hostname[:port]`` as left by ``BaseDatabricksHook._parse_host``."""
+    if not host or host.endswith(":") or any(char.isspace() for char in host):
+        return False
+    parsed = urlsplit(f"//{host}")
+    if not parsed.hostname or parsed.netloc != host or parsed.username is not None:
+        return False
+    try:
+        parsed.port
+    except ValueError:
+        return False
+    return True
 
 
 class _DatabricksServingAuth(httpx2.Auth):
@@ -106,9 +120,14 @@ class PydanticAIDatabricksHook(PydanticAIHook):
           "databricks_conn_id": "databricks_default"}``
 
     A bare model name is a serving endpoint name and is qualified as ``openai-chat:<endpoint>``,
-    so requests use the Chat Completions API that every serving endpoint speaks. Databricks
-    limits apply: no parallel tool calls, at most 32 tools, and a JSON-schema subset without
-    ``$ref``, ``anyOf``, ``oneOf``, ``allOf``, ``prefixItems`` or ``pattern``.
+    so requests use the Chat Completions API. Databricks documents that API for chat endpoints
+    (Foundation Model APIs, external models and custom LLM endpoints), not for every endpoint
+    type. Databricks' own limits on function calling and structured outputs apply; see the
+    connection documentation for pointers.
+
+    A Databricks connection that sets the ``proxies`` or ``azure_resource_id`` extra is rejected,
+    because this hook does not route requests through a proxy or send the Azure workspace resource
+    headers.
 
     :param llm_conn_id: Airflow connection ID for this ``pydanticai_databricks`` connection.
     :param model_id: Serving endpoint name, e.g. ``"databricks-claude-sonnet-4-5"``.
@@ -171,10 +190,24 @@ class PydanticAIDatabricksHook(PydanticAIHook):
                 databricks_conn_id=self._get_databricks_conn_id(extra),
                 caller="PydanticAIDatabricksHook",
             )
-            if not databricks_hook.host:
+            if not _is_valid_host(databricks_hook.host):
+                # Must not include the host: it may carry credentials (``user:password@host``).
                 raise ValueError(
-                    f"Databricks connection '{databricks_hook.databricks_conn_id}' has no host. "
-                    "Set the workspace host on the connection or in its extra field."
+                    f"Databricks connection '{databricks_hook.databricks_conn_id}' has no valid host. "
+                    "Set the workspace host (hostname and optional port, no path or credentials) on "
+                    "the connection or in its extra field."
+                )
+            if databricks_hook.proxies:
+                raise ValueError(
+                    f"Databricks connection '{databricks_hook.databricks_conn_id}' sets the 'proxies' "
+                    "extra, which PydanticAIDatabricksHook does not support. Remove it, or use a "
+                    "Databricks connection without a proxy."
+                )
+            if "azure_resource_id" in databricks_hook.databricks_conn.extra_dejson:
+                raise ValueError(
+                    f"Databricks connection '{databricks_hook.databricks_conn_id}' sets the "
+                    "'azure_resource_id' extra, which PydanticAIDatabricksHook does not support. "
+                    "Remove it, or use a Databricks connection that does not need it."
                 )
             base_url = databricks_hook._endpoint_url("serving-endpoints")
             http_client = httpx2.AsyncClient(auth=_DatabricksServingAuth(databricks_hook))
