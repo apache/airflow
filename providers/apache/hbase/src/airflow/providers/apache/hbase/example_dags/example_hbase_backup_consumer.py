@@ -38,16 +38,9 @@ from __future__ import annotations
 import logging
 from datetime import datetime, timedelta
 
-from airflow.providers.apache.hbase.version_compat import AIRFLOW_V_3_0_PLUS
-
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.providers.standard.operators.bash import BashOperator
-    from airflow.providers.standard.operators.python import BranchPythonOperator
-    from airflow.sdk import DAG
-else:
-    from airflow import DAG
-    from airflow.operators.bash import BashOperator  # type: ignore[no-redef]
-    from airflow.operators.python import BranchPythonOperator  # type: ignore[no-redef]
+from airflow.providers.common.compat.sdk import DAG
+from airflow.providers.standard.operators.bash import BashOperator
+from airflow.providers.standard.operators.python import BranchPythonOperator
 
 from airflow.providers.apache.hbase.datasets.hbase import hbase_table_dataset
 from airflow.providers.apache.hbase.hooks.hbase_cli import HBaseCLIHook
