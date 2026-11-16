@@ -649,9 +649,16 @@ class SQLToolset(ToolPrefixMixin, AirflowToolset):
     def _get_table_entries(self, tables: list[tuple[str | None, str, str]]) -> list[TableEntry]:
         """Pair each table's display name with its comment, capped, read once per schema."""
         inspector = self._get_inspector()
+        names_by_schema: dict[str | None, list[str]] = {}
+        for table_schema, name, _ in tables:
+            names_by_schema.setdefault(table_schema, []).append(name)
+        # Names come from `tables` (as reflected), not from allowed_tables: SQLAlchemy's
+        # filter_names match is case-sensitive while allowed_tables matching is not.
         comments = {
-            table_schema: self._get_table_comments(inspector, table_schema)
-            for table_schema in {table_schema for table_schema, _, _ in tables}
+            table_schema: self._get_table_comments(
+                inspector, table_schema, None if self._allowed_canonical is None else names
+            )
+            for table_schema, names in names_by_schema.items()
         }
         return [
             (display, truncate_comment(comment) if (comment := comments[table_schema].get(name)) else None)
@@ -681,16 +688,30 @@ class SQLToolset(ToolPrefixMixin, AirflowToolset):
         return dumps_masked({"tables": tables})
 
     @staticmethod
-    def _get_table_comments(inspector: Inspector, schema: str | None) -> dict[str, str]:
-        """Return ``{table name: comment}`` for a schema in one call; empty when the dialect has none."""
+    def _get_table_comments(
+        inspector: Inspector, schema: str | None, table_names: Sequence[str] | None
+    ) -> dict[str, str]:
+        """
+        Return ``{table name: comment}`` for a schema in one call; empty when the dialect has none.
+
+        ``table_names`` limits the read to those tables; ``None`` reads the whole schema.
+        """
         # SQLAlchemy 1.4, which common-sql still supports, has no get_multi_table_comment.
         # Reading comments one table at a time instead would cost a query per table, so
         # on 1.4 the tables simply come back without comments.
         if (get_comments := getattr(inspector, "get_multi_table_comment", None)) is None:
             return {}
         try:
-            reflected = get_comments(schema=schema)
+            reflected = get_comments(schema=schema, filter_names=table_names)
         except NotImplementedError:
+            return {}
+        except Exception as e:
+            # A lost connection is not degraded: the result is cached by the search catalog.
+            if _is_lost_connection(e):
+                raise
+            # Unreadable comments (a role without access to the comment catalog, a driver
+            # error) must not take the table names down with them.
+            log.debug("Could not read the table comments of schema %s", schema, exc_info=True)
             return {}
         return {name: text for (_, name), info in reflected.items() if (text := info.get("text"))}
 

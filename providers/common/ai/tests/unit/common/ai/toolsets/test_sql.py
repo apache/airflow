@@ -20,7 +20,7 @@ import asyncio
 import json
 import sqlite3
 import traceback
-from unittest.mock import MagicMock, PropertyMock, patch
+from unittest.mock import MagicMock, PropertyMock, call, patch
 
 import pytest
 from pydantic_ai._run_context import RunContext
@@ -1019,7 +1019,7 @@ class TestSQLToolsetComments:
             {"name": "users", "comment": "u" * 199 + "\u2026"},
             {"name": "orders"},
         ]
-        ts._hook.inspector.get_multi_table_comment.assert_called_once_with(schema="public")
+        ts._hook.inspector.get_multi_table_comment.assert_called_once_with(schema="public", filter_names=None)
 
     def test_list_tables_with_comments_filters_and_qualifies(self):
         ts = SQLToolset("sf", allowed_tables=["S1.A"], include_table_comments=True)
@@ -1047,6 +1047,75 @@ class TestSQLToolsetComments:
         ts._hook.inspector.get_multi_table_comment.side_effect = NotImplementedError
 
         assert self._list_tables(ts) == [{"name": "users"}]
+
+    @pytest.mark.parametrize(
+        ("allowed_tables", "schema", "reflected", "expected_calls"),
+        [
+            pytest.param(
+                ["S1.A", "S2.C"],
+                None,
+                {"S1": ["A", "B"], "S2": ["C", "D"]},
+                [call(schema="S1", filter_names=["A"]), call(schema="S2", filter_names=["C"])],
+                id="qualified-per-schema",
+            ),
+            pytest.param(
+                ["users"],
+                "public",
+                {"public": ["USERS", "SECRETS"]},
+                [call(schema="public", filter_names=["USERS"])],
+                id="reflected-case-not-user-input",
+            ),
+        ],
+    )
+    def test_only_allowed_tables_comments_are_requested(
+        self, allowed_tables, schema, reflected, expected_calls
+    ):
+        ts = SQLToolset("sf", allowed_tables=allowed_tables, schema=schema, include_table_comments=True)
+        hook = _make_mock_db_hook()
+        hook.inspector.get_table_names.side_effect = lambda schema=None: reflected.get(schema, [])
+        ts._hook = hook
+
+        self._list_tables(ts)
+
+        comment_reads = hook.inspector.get_multi_table_comment
+        assert comment_reads.call_count == len(expected_calls)
+        comment_reads.assert_has_calls(expected_calls, any_order=True)
+
+    @pytest.mark.parametrize(
+        "tool",
+        [pytest.param("list_tables", id="list-tables"), pytest.param("search_tables", id="search-tables")],
+    )
+    def test_comment_read_failure_leaves_tables_without_comments(self, tool):
+        ts = SQLToolset("pg_default", include_table_comments=True, search_backend=KeywordTableSearchBackend())
+        ts._hook = _make_mock_db_hook(table_names=["users"])
+        ts._hook.inspector.get_multi_table_comment.side_effect = OperationalError(
+            "SELECT", {}, Exception("permission denied")
+        )
+        args = {"query": "users"} if tool == "search_tables" else {}
+
+        result = json.loads(_call(ts, tool, args))
+
+        assert result == ([{"name": "users"}] if tool == "list_tables" else {"tables": [{"name": "users"}]})
+
+    @pytest.mark.parametrize(
+        "tool",
+        [pytest.param("list_tables", id="list-tables"), pytest.param("search_tables", id="search-tables")],
+    )
+    def test_comment_read_on_lost_connection_raises_and_is_not_cached(self, tool):
+        ts = SQLToolset("pg_default", include_table_comments=True, search_backend=KeywordTableSearchBackend())
+        ts._hook = _make_mock_db_hook(table_names=["users"])
+        ts._hook.inspector.get_multi_table_comment.side_effect = OperationalError(
+            "SELECT",
+            {},
+            sqlite3.OperationalError("server closed the connection"),
+            connection_invalidated=True,
+        )
+        args = {"query": "users"} if tool == "search_tables" else {}
+
+        with pytest.raises(SQLToolsetConnectionError, match="server closed the connection"):
+            _call(ts, tool, args)
+
+        assert ts._catalog is None
 
 
 class _FakeSearchBackend:
@@ -1133,7 +1202,21 @@ class TestSQLToolsetSearchTables:
         assert first == {"tables": [{"name": "users", "comment": "Registered customers"}]}
         assert second == {"tables": [{"name": "orders"}]}
         ts._hook.inspector.get_table_names.assert_called_once_with(schema=None)
-        ts._hook.inspector.get_multi_table_comment.assert_called_once_with(schema=None)
+        ts._hook.inspector.get_multi_table_comment.assert_called_once_with(
+            schema=None, filter_names=["users", "orders"]
+        )
+
+    def test_degraded_catalog_is_cached(self):
+        ts = SQLToolset("pg_default", include_table_comments=True, search_backend=KeywordTableSearchBackend())
+        ts._hook = _make_mock_db_hook(table_names=["users"])
+        ts._hook.inspector.get_multi_table_comment.side_effect = OperationalError(
+            "SELECT", {}, Exception("permission denied")
+        )
+
+        self._call(ts, "search_tables", {"query": "users"})
+        self._call(ts, "search_tables", {"query": "users"})
+
+        assert ts._hook.inspector.get_multi_table_comment.call_count == 1
 
     def test_search_omits_comments_when_inspector_cannot_read_them_in_bulk(self):
         """SQLAlchemy 1.4's Inspector has no get_multi_table_comment."""

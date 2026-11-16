@@ -383,15 +383,18 @@ agent gets them back by asking for the columns it needs with ``name_contains``.
 
 ``include_table_comments=True`` adds the table comments to ``list_tables``, and the default
 search backend reads the same comments to build its catalog. Both call the Inspector's
-``get_multi_table_comment`` once per schema. What that costs depends on the dialect. Where the
+``get_multi_table_comment`` once per schema. When ``allowed_tables`` is set, only the allowed
+tables' comments are requested. What that costs depends on the dialect. Where the
 dialect does not implement ``get_multi_table_comment`` itself, SQLAlchemy's default reads the
 comments one table at a time. Based on the dialects' reflection implementations (read, not run
 against a live database), Snowflake (``snowflake-sqlalchemy`` 2.1.0) and BigQuery
-(``sqlalchemy-bigquery`` 1.17.3) do not implement it, so there each table costs one query, or one
-API call on BigQuery, and a schema with many tables makes this slow. On PostgreSQL it was a single
-query when tried. On such databases leave ``include_table_comments`` off for large schemas, or pass
-a custom ``search_backend`` that builds its catalog with one dialect-specific query, for example
-against ``INFORMATION_SCHEMA``.
+(``sqlalchemy-bigquery`` 1.17.3) do not implement it, so there each table whose comment is read
+costs one query, or one API call on BigQuery, and a schema with many tables makes this slow. On PostgreSQL it was a single
+query when tried. On such databases leave ``include_table_comments`` off for large schemas, or
+pass a custom ``search_backend`` that builds its catalog with one dialect-specific query, for
+example against ``INFORMATION_SCHEMA``. If the comments cannot be read, for example because the
+role cannot see the comment catalog, tables are returned without them. The toolset keeps the
+catalog it built for its lifetime, so the default search backend will not look for comments again.
 
 SQLAlchemy 1.4 has no ``get_multi_table_comment``, so there ``list_tables`` returns tables without
 comments rather than reading them table by table. The default search backend then has no comments
