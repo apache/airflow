@@ -132,9 +132,10 @@ class AthenaHook(AwsBaseHook):
         params = {
             "QueryString": query,
             "QueryExecutionContext": query_context,
-            "ResultConfiguration": result_configuration,
             "WorkGroup": workgroup,
         }
+        if result_configuration:
+            params["ResultConfiguration"] = result_configuration
         if client_request_token:
             params["ClientRequestToken"] = client_request_token
         if self.log_query:
@@ -327,9 +328,11 @@ class AthenaHook(AwsBaseHook):
             )
         return self.check_query_status(query_execution_id)
 
-    def get_output_location(self, query_execution_id: str) -> str:
+    def get_output_location(self, query_execution_id: str) -> str | None:
         """
         Get the output location of the query results in S3 URI format.
+
+        Returns None when the workgroup uses managed query results, which Athena stores itself.
 
         .. seealso::
             - :external+boto3:py:meth:`Athena.Client.get_query_execution`
@@ -343,7 +346,7 @@ class AthenaHook(AwsBaseHook):
             raise ValueError(f"Unable to get query information for execution id: {query_execution_id}")
 
         try:
-            return response["QueryExecution"]["ResultConfiguration"]["OutputLocation"]
+            return response["QueryExecution"].get("ResultConfiguration", {}).get("OutputLocation")
         except KeyError:
             self.log.error("Error retrieving OutputLocation. Query execution id: %s", query_execution_id)
             raise
