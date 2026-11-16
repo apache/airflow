@@ -21,6 +21,7 @@ import inspect
 import logging
 import logging.config
 import os
+import pprint
 import sys
 import textwrap
 from enum import Enum
@@ -30,6 +31,7 @@ from unittest.mock import patch
 import pytest
 
 from airflow_shared.secrets_masker.secrets_masker import (
+    _WRAPPED_SPACE_PATTERN,
     DEFAULT_SENSITIVE_FIELDS,
     RedactedIO,
     SecretsMasker,
@@ -39,6 +41,12 @@ from airflow_shared.secrets_masker.secrets_masker import (
 )
 
 from tests_common.test_utils.config import env_vars
+
+# Every character ``str.split()`` treats as whitespace except the plain space, which ``pprint`` prints as is,
+# and the line feed, which multi-line secrets handle per line.
+WHITESPACE_CHARS_PPRINT_ESCAPES = [
+    char for char in map(chr, range(sys.maxunicode + 1)) if char.isspace() and char not in " \n"
+]
 
 pytestmark = pytest.mark.enable_redact
 PASSWORD = "password"
@@ -1072,7 +1080,7 @@ class TestMaskSecretAdapter:
             self.secrets_masker.secret_mask_adapter = None
             mask_secret("a secret")
 
-        assert self.secrets_masker.patterns == {"a secret"}
+        assert self.secrets_masker.patterns == {"a secret", f"a{_WRAPPED_SPACE_PATTERN}secret"}
 
     @pytest.mark.parametrize(
         ("secret", "should_be_masked", "is_first_short", "comment"),
@@ -1292,6 +1300,54 @@ class TestEdgeCases:
         )
 
         assert secrets_masker.redact(formatted) == expected
+
+    @pytest.mark.parametrize(
+        ("secret", "formatted"),
+        [
+            pytest.param(
+                "alpha bravo charlie delta hotel foxtrot",
+                "{'k': 'alpha bravo '\n      'charlie delta '\n      'hotel foxtrot'}",
+                id="long-words",
+            ),
+            pytest.param(
+                "a" * 77 + " b",
+                "{'k': '" + "a" * 77 + " '\n      'b'}",
+                id="short-word-left-on-its-own-literal",
+            ),
+        ],
+    )
+    def test_secret_with_spaces_masked_when_split_into_adjacent_literals(self, secret, formatted):
+        secrets_masker = SecretsMasker()
+        configure_secrets_masker_for_test(secrets_masker)
+        secrets_masker.add_mask(secret)
+
+        assert secrets_masker.redact(formatted) == "{'k': '***'}"
+        assert secrets_masker.redact(f"x {secret} y") == "x *** y"
+
+    def test_secret_with_spaces_does_not_mask_its_words_alone(self):
+        secrets_masker = SecretsMasker()
+        configure_secrets_masker_for_test(secrets_masker)
+        secrets_masker.add_mask("a secret")
+
+        assert secrets_masker.redact("failed to load secret") == "failed to load secret"
+
+    @pytest.mark.parametrize(
+        "separator",
+        [pytest.param(char, id=f"U+{ord(char):04X}") for char in WHITESPACE_CHARS_PPRINT_ESCAPES],
+    )
+    @pytest.mark.parametrize("width", [80, 12])
+    def test_secret_with_whitespace_separator_masked_in_real_pprint_output(self, separator, width):
+        secret = f"alpha beta{separator}gamma delta"
+        secrets_masker = SecretsMasker()
+        configure_secrets_masker_for_test(secrets_masker)
+        secrets_masker.add_mask(secret)
+
+        for value in (secret, {"spec": {"env": [{"name": "X", "value": secret}]}}):
+            formatted = pprint.pformat(value, width=width)
+            redacted = secrets_masker.redact(formatted)
+
+            assert "alpha" in formatted
+            assert not any(word in redacted for word in ("alpha", "beta", "gamma", "delta"))
 
     @pytest.mark.parametrize("newline", ["\n", "\r\n"])
     def test_multiline_secret_registers_stripped_lines(self, newline):
