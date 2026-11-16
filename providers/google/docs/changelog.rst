@@ -41,6 +41,10 @@ Changelog
     ``log_path`` keyword argument (``log_path: str | None = None``), because ``read`` now passes it.
     With the old ``(self, ti_labels)`` signature every task log read fails with ``TypeError``.
 
+.. warning::
+    ``BigQueryGetDataOperator`` no longer accepts ``project_id``. Use ``table_project_id`` instead.
+    Dags that still pass ``project_id`` fail at parse time with ``TypeError``.
+
 .. note::
     ``BigQueryStreamingBufferEmptySensor`` now requires ``empty_confirmations`` consecutive empty
     readings (default 2), which can delay success by up to one ``poke_interval``. With

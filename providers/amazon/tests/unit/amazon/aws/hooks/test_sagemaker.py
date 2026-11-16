@@ -733,6 +733,42 @@ class TestSageMakerHook:
             assert transformed_param["Value"] == params_dict[transformed_param["Name"]]
 
     @patch("airflow.providers.amazon.aws.hooks.sagemaker.SageMakerHook.conn", new_callable=mock.PropertyMock)
+    def test_stop_processing_job(self, mock_conn):
+        hook = SageMakerHook(aws_conn_id="aws_default")
+
+        hook.stop_processing_job(processing_job_name="job_name")
+
+        mock_conn().stop_processing_job.assert_called_once_with(ProcessingJobName="job_name")
+
+    @patch("airflow.providers.amazon.aws.hooks.sagemaker.SageMakerHook.conn", new_callable=mock.PropertyMock)
+    def test_stop_processing_job_swallows_validation_exception(self, mock_conn):
+        mock_conn().stop_processing_job.side_effect = ClientError(
+            error_response={"Error": {"Code": "ValidationException", "Message": "already Completed"}},
+            operation_name="StopProcessingJob",
+        )
+
+        hook = SageMakerHook(aws_conn_id="aws_default")
+
+        hook.stop_processing_job(processing_job_name="job_name")
+
+        mock_conn().stop_processing_job.assert_called_once_with(ProcessingJobName="job_name")
+
+    @patch("airflow.providers.amazon.aws.hooks.sagemaker.SageMakerHook.conn", new_callable=mock.PropertyMock)
+    def test_stop_processing_job_raises_other_client_errors(self, mock_conn):
+        error = ClientError(
+            error_response={"Error": {"Code": "AccessDeniedException"}},
+            operation_name="StopProcessingJob",
+        )
+        mock_conn().stop_processing_job.side_effect = error
+
+        hook = SageMakerHook(aws_conn_id="aws_default")
+
+        with pytest.raises(ClientError) as raised_exception:
+            hook.stop_processing_job(processing_job_name="job_name")
+
+        assert raised_exception.value == error
+
+    @patch("airflow.providers.amazon.aws.hooks.sagemaker.SageMakerHook.conn", new_callable=mock.PropertyMock)
     def test_stop_training_job(self, mock_conn):
         hook = SageMakerHook(aws_conn_id="aws_default")
 

@@ -31,6 +31,13 @@ Changelog
 ......
 
 .. note::
+
+    ``AsyncKubernetesHook`` now reuses its API client for non-exec authentication.
+    Direct hook users must call ``await hook.close()`` when finished to release the
+    connection pool and SSL context. Pod and job triggers close the hook during cleanup.
+    TLS certificate material is retained until the client is closed and recreated.
+
+.. note::
   ``@task.kubernetes_cmd`` now renders only the command returned by the decorated function inside
   ``execute()``. Its other template fields are rendered once before ``execute()`` and are no
   longer rendered a second time.

@@ -99,7 +99,7 @@ def test_json_output_keeps_stdout_parseable(mock_files, monkeypatch):
     }
     assert payload["changed_files"] == ["airflow-core/docs/index.rst"]
     assert payload["items"] == [
-        {"kind": "docs", "command": "breeze build-docs apache-airflow", "runs_in": "breeze"}
+        {"kind": "docs", "command": "breeze build-docs apache-airflow task-sdk", "runs_in": "breeze"}
     ]
 
 

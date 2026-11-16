@@ -23,6 +23,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, NamedTuple
 
 import rich
+from rich.markup import escape
 
 from airflowctl.api.client import NEW_API_CLIENT, ClientKind, provide_api_client
 
@@ -838,5 +839,5 @@ def lint(args, api_client=NEW_API_CLIENT) -> None:
             rich.print("[green]No issues found in your airflow.cfg. It is ready for Airflow 3![/green]")
 
     except Exception as e:
-        rich.print(f"[red]Lint configs failed: {e}")
+        rich.print(f"[red]Lint configs failed: {escape(str(e))}")
         sys.exit(1)
