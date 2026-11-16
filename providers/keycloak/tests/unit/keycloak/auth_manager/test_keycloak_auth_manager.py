@@ -1672,16 +1672,14 @@ class TestKeycloakAuthManager:
         ],
     )
     @pytest.mark.parametrize("authorized", [True, False])
+    @conf_vars({(CONF_SECTION_NAME, CONF_TEAM_LEVEL_AUTHORIZATION_KEY): "True"})
     def test_filter_with_team_level_authorization_asks_keycloak_once(
         self, auth_manager, user, filter_name, check_name, resources, expected, authorized
     ):
         """One decision of Keycloak applies to every resource of the list, and is cached."""
-        with (
-            conf_vars({(CONF_SECTION_NAME, CONF_TEAM_LEVEL_AUTHORIZATION_KEY): "True"}),
-            patch.object(
-                KeycloakAuthManager, check_name, autospec=True, return_value=authorized
-            ) as mock_is_authorized,
-        ):
+        with patch.object(
+            KeycloakAuthManager, check_name, autospec=True, return_value=authorized
+        ) as mock_is_authorized:
             first = getattr(auth_manager, filter_name)(**resources, user=user, method="GET")
             second = getattr(auth_manager, filter_name)(**resources, user=user, method="GET")
 
@@ -1689,15 +1687,15 @@ class TestKeycloakAuthManager:
         mock_is_authorized.assert_called_once()
 
     @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="team_name not supported before Airflow 3.2.0")
+    @conf_vars({(CONF_SECTION_NAME, CONF_TEAM_LEVEL_AUTHORIZATION_KEY): "True"})
     @patch.object(KeycloakAuthManager, "is_authorized_dag", autospec=True, return_value=True)
     def test_filter_with_team_level_authorization_asks_for_a_listed_dag_of_the_team(
         self, mock_is_authorized, auth_manager_multi_team, user
     ):
         """The request names a Dag of the list and its team, as a check of that single Dag would."""
-        with conf_vars({(CONF_SECTION_NAME, CONF_TEAM_LEVEL_AUTHORIZATION_KEY): "True"}):
-            auth_manager_multi_team.filter_authorized_dag_ids(
-                dag_ids={"dag_1", "dag_0"}, user=user, method="PUT", team_name="team_a"
-            )
+        auth_manager_multi_team.filter_authorized_dag_ids(
+            dag_ids={"dag_1", "dag_0"}, user=user, method="PUT", team_name="team_a"
+        )
 
         mock_is_authorized.assert_called_once_with(
             auth_manager_multi_team,
