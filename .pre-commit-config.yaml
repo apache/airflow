@@ -1740,6 +1740,16 @@ repos:
         pass_filenames: true
         require_serial: true
         files: ^\.github/workflows/.*\.yml$
+      - id: check-fork-ci-tests-merge
+        name: Check fork CI jobs test the pushed commit merged with the base branch
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
+        description: Every job of a fork run that checks out the pushed commit merges it with the base branch
+        entry: ./scripts/ci/prek/check_fork_ci_tests_merge.py
+        language: python
+        pass_filenames: false
+        require_serial: true
+        files: ^\.github/workflows/.*\.yml$|^scripts/ci/prek/check_fork_ci_tests_merge\.py$
       - id: check-docstring-param-types
         name: Check that docstrings do not specify param types
         env:
