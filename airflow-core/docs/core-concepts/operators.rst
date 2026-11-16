@@ -316,7 +316,7 @@ Alternatively, Jinja can also be instructed to render a native Python object. Th
 Reserved params keyword
 -----------------------
 
-In Apache Airflow 2.2.0, the ``params`` variable is used during Dag serialization. Please do not use that name in third-party operators.
+Starting in Apache Airflow 2.2.0, the ``params`` variable is used during Dag serialization. Please do not use that name in third-party operators.
 If you upgrade your environment and get the following error:
 
 .. code-block::
@@ -365,7 +365,7 @@ For example, you can use the ``pre_execute`` method to elegantly determine if a 
         """
         Check if a given task instance should be skipped if the `tasks_to_skip` Airflow Variable is a list that contains the task id.
         """
-        tasks_to_skip = Variable.get("tasks_to_skip", deserialize_json=True)
+        tasks_to_skip = Variable.get("tasks_to_skip", default=[], deserialize_json=True)
         if context["task"].task_id in tasks_to_skip:
             raise AirflowSkipException("Task instance configured to be skipped by `tasks_to_skip` variable.")
 
