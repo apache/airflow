@@ -73,6 +73,7 @@ dependencies = [
     # declare no upper bound on cryptography, so an unconstrained resolve pairs them with a
     # cryptography they cannot import against. 22.1.0 is the first release with a correct bound.
     "pyOpenSSL>=22.1.0",
+    # 3.17.0 is the first version with Workload Identity Federation (WORKLOAD_IDENTITY authenticator).
     "snowflake-connector-python>=3.17.0",
     "snowflake-connector-python>=5.1.0; python_version >= '3.14'",
     "snowflake-sqlalchemy>=1.7.0",

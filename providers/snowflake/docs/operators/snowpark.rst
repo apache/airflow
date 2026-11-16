@@ -35,6 +35,15 @@ Use the :class:`SnowparkOperator <airflow.providers.snowflake.operators.snowpark
 Prerequisite Tasks
 ^^^^^^^^^^^^^^^^^^
 
+.. note::
+
+    On Python 3.14 or later, this provider requires
+    ``snowflake-connector-python>=5.1.0`` to support SQLAlchemy 2.1.
+    Snowpark 1.57.0 requires ``snowflake-connector-python<5`` and cannot be
+    installed alongside this provider, even when installed separately.
+    Use Python 3.11, 3.12, or 3.13 for Snowpark workflows until Snowpark supports
+    connector 5.1 or later.
+
 To use this operator, you must do a few things:
 
   * Install provider package via **pip**.
