@@ -16,7 +16,17 @@
 # under the License.
 from __future__ import annotations
 
+import time
+from typing import Any
+
 import httpx2
+
+from airflow.providers.common.ai.utils.readiness_errors import translate_readiness_errors
+
+# Endpoints and fields: https://lmstudio.ai/docs/developer/rest/list and
+# https://lmstudio.ai/docs/developer/rest/load
+_LIST_MODELS_PATH = "/api/v1/models"
+_LOAD_MODEL_PATH = "/api/v1/models/load"
 
 
 def build_lmstudio_native_root(base_url: str) -> str:
@@ -28,8 +38,11 @@ class LMStudioBackend:
     """
     Load control for a model served by LM Studio, through its native ``/api/v1/models`` endpoints.
 
-    Pass it to ``ensure_model_ready`` with
-    ``backend_factory=lambda model_name, base_url: LMStudioBackend(base_url, model_name)``.
+    Pass the class to ``ensure_model_ready`` as ``backend_factory=LMStudioBackend``.
+
+    The model list request gets *timeout* seconds and the load request gets what the list request left
+    of them. Each is an httpx2 timeout, which applies to the connect, write and read phases separately,
+    so the two requests together can still take longer than *timeout*.
 
     :param base_url: LM Studio URL; a trailing ``/v1`` (OpenAI-compatible) or ``/api/v1`` (native)
         is dropped to reach the server root.
@@ -38,8 +51,8 @@ class LMStudioBackend:
 
     :raises ValueError: If *base_url* is ``None`` or empty.
 
-    Known limitation: no ``Authorization`` header is sent, so servers behind authentication
-    are not supported.
+    Known limitation: no ``Authorization`` header is sent, so LM Studio with API token
+    authentication turned on is not supported.
     """
 
     def __init__(
@@ -57,47 +70,69 @@ class LMStudioBackend:
 
     def load(self, *, timeout: float) -> None:
         """
-        Load the model unless LM Studio already has it loaded, waiting at most *timeout* seconds.
+        Load the model unless LM Studio already lists it with a loaded instance, within *timeout* seconds.
 
-        :raises TimeoutError: If the server cannot be reached or does not finish loading within *timeout*.
-        :raises httpx2.HTTPStatusError: If the server answers with an error status; the message names the
-            model and carries the server's ``error`` text (the response body when it has none).
+        :raises TimeoutError: If the server cannot be reached, or a request exceeds the time it was given
+            (see the class docstring).
+        :raises httpx2.HTTPStatusError: If the server answers with an error status; the message says
+            whether listing or loading failed and carries the ``error`` text when the body has one,
+            otherwise the start of the response body.
+        :raises ValueError: If the model list is not a JSON object whose ``models`` is a list of objects.
         """
-        try:
-            with httpx2.Client(transport=self._transport, timeout=timeout) as client:
-                # The load docs do not say whether loading a loaded model is a no-op, so check first.
-                if self._is_loaded(client):
-                    return
-                response = client.post(f"{self.root}/api/v1/models/load", json={"model": self.model_name})
+        deadline = time.monotonic() + timeout
+        with httpx2.Client(transport=self._transport) as client:
+            with translate_readiness_errors(
+                server="LM Studio",
+                root=self.root,
+                timeout=timeout,
+                failure="could not list models",
+                timeout_failure="did not list its models",
+            ):
+                loaded = self._is_model_loaded(client, timeout=timeout)
+            if loaded:
+                return
+            if (remaining := deadline - time.monotonic()) <= 0:
+                raise TimeoutError(
+                    f"LM Studio spent all {timeout} seconds listing models, leaving no time to load "
+                    f"model '{self.model_name}'."
+                )
+            with translate_readiness_errors(
+                server="LM Studio",
+                root=self.root,
+                timeout=remaining,
+                failure=f"could not load model '{self.model_name}'",
+                timeout_failure=f"did not finish loading model '{self.model_name}'",
+            ):
+                # The load docs do not say what loading an already-loaded model does, hence the list first.
+                response = client.post(
+                    f"{self.root}{_LOAD_MODEL_PATH}", json={"model": self.model_name}, timeout=remaining
+                )
                 response.raise_for_status()
-        except httpx2.HTTPStatusError as e:
-            raise httpx2.HTTPStatusError(
-                f"LM Studio could not load model '{self.model_name}' ({e.response.status_code}): "
-                f"{self._extract_error_detail(e.response)}",
-                request=e.request,
-                response=e.response,
-            ) from e
-        except httpx2.ConnectTimeout as e:
-            raise TimeoutError(f"Could not reach LM Studio at {self.root} within {timeout} seconds.") from e
-        except httpx2.TimeoutException as e:
-            raise TimeoutError(
-                f"LM Studio did not finish loading model '{self.model_name}' within {timeout} seconds."
-            ) from e
 
-    def _is_loaded(self, client: httpx2.Client) -> bool:
-        """Return whether the model's entry in ``GET /api/v1/models`` has a loaded instance."""
-        response = client.get(f"{self.root}/api/v1/models")
+    def _is_model_loaded(self, client: httpx2.Client, *, timeout: float) -> bool:
+        """Return whether the model's entry in the model list has a loaded instance."""
+        response = client.get(f"{self.root}{_LIST_MODELS_PATH}", timeout=timeout)
         response.raise_for_status()
-        models = response.json().get("models", [])
-        return any(m.get("key") == self.model_name and m.get("loaded_instances") for m in models)
+        models = self._extract_models(response)
+        return any(
+            m.get("key") == self.model_name
+            and isinstance(instances := m.get("loaded_instances"), list)
+            and bool(instances)
+            for m in models
+        )
 
-    @staticmethod
-    def _extract_error_detail(response: httpx2.Response) -> str:
-        """Return the ``error`` field when it is a string, or the body cut to a short length."""
+    def _extract_models(self, response: httpx2.Response) -> list[dict[str, Any]]:
+        """Return the ``models`` entries of the list response, or raise ``ValueError`` on another shape."""
+        prefix = f"LM Studio at {self.root} answered GET {_LIST_MODELS_PATH} with"
         try:
             body = response.json()
-        except ValueError:
-            body = None
-        if isinstance(body, dict) and isinstance(error := body.get("error"), str) and error:
-            return error
-        return response.text.strip()[:200] or response.reason_phrase
+        except ValueError as e:
+            raise ValueError(f"{prefix} a body that is not JSON.") from e
+        if not isinstance(body, dict):
+            raise ValueError(f"{prefix} a JSON {type(body).__name__}, expected an object with 'models'.")
+        models = body.get("models")
+        if not isinstance(models, list):
+            raise ValueError(f"{prefix} 'models' of type {type(models).__name__}, expected a list.")
+        if not all(isinstance(m, dict) for m in models):
+            raise ValueError(f"{prefix} a 'models' list with entries that are not objects.")
+        return models
