@@ -429,9 +429,12 @@ the name counts three times a word found in the comment; tables matching nothing
 dropped and ties are ordered by name. It introspects once per toolset instance, then
 searches that result.
 
-Every result is checked against ``allowed_tables`` before the agent sees it, whichever
-backend produced it, so a backend that knows about more tables than the agent may use
-cannot widen access.
+When ``allowed_tables`` is set, every result is checked against it before the agent sees it,
+whichever backend produced it, so a backend that knows about more tables than the agent may
+use cannot widen access. When ``allowed_tables`` is unset (the default, allow-all), the
+toolset filters nothing: a backend indexed with a broader role than the agent's connection can
+show the agent table names and comments that connection cannot see. In that case the
+:ref:`warning below <sql-toolset-search-identity>` is the only control.
 
 **Plugging in another backend.** A backend is any object with a
 ``search_tables(query, limit, *, get_catalog)`` method returning ``(name, comment)``
@@ -442,6 +445,8 @@ must be in the form ``list_tables`` returns -- bare for the default schema,
 service or a retriever over table descriptions, ignores ``get_catalog`` and queries that
 index. This provider ships no such backend; integration code is yours to write and test
 against your own store.
+
+.. _sql-toolset-search-identity:
 
 .. warning::
 

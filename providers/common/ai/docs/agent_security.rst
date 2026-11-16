@@ -187,7 +187,9 @@ How ``allowed_tables`` is enforced
 When ``allowed_tables`` is set it governs every tool, not just discovery:
 
 - ``list_tables``, ``get_schema`` and, when a ``search_backend`` is set, ``search_tables``
-  only reveal listed tables.
+  only reveal listed tables. With ``allowed_tables`` unset, ``search_tables`` results are not filtered,
+  so a standalone backend indexed with a broader role than the agent's connection can leak
+  table names and comments; see :ref:`the identity warning <sql-toolset-search-identity>`.
 - ``query`` and ``check_query`` parse the SQL with `sqlglot
   <https://github.com/tobymao/sqlglot>`_ and reject it before execution if it
   references any table that is not on the list. Tables reached indirectly are
