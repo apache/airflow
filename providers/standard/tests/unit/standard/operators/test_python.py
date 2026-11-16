@@ -74,6 +74,7 @@ from tests_common.test_utils.version_compat import (
     AIRFLOW_V_3_1_PLUS,
     AIRFLOW_V_3_2_PLUS,
     AIRFLOW_V_3_3_PLUS,
+    AIRFLOW_V_3_4_PLUS,
     NOTSET,
 )
 
@@ -290,6 +291,31 @@ class TestPythonOperator(BasePythonTest):
         )
         rendered_op_kwargs = task.op_kwargs
         assert rendered_op_kwargs["a_callable"] == a_fn
+
+    @pytest.mark.skipif(
+        not AIRFLOW_V_3_4_PLUS, reason="context_merge empty-dict fix (#77137) is in Airflow 3.4+"
+    )
+    @pytest.mark.parametrize(
+        "use_async",
+        [pytest.param(False, id="sync"), pytest.param(True, id="async")],
+    )
+    def test_execute_with_empty_context_passes_op_kwargs(self, use_async):
+        class CustomPythonOperator(self.opcls):
+            pass
+
+        def add(a, b):
+            return a + b
+
+        async def async_add(a, b):
+            return a + b
+
+        task = CustomPythonOperator(
+            task_id="custom_python",
+            python_callable=async_add if use_async else add,
+            op_kwargs={"a": 1, "b": 2},
+        )
+        assert task.is_async is use_async
+        assert task.execute(context={}) == 3
 
     def test_python_operator_shallow_copy_attr(self):
         def not_callable(x):
