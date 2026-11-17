@@ -23,7 +23,6 @@ import pytest
 from celery import current_app
 from celery.contrib.testing.app import setup_default_app
 from sqlalchemy import event
-from sqlalchemy.engine import make_url
 
 from airflow.providers.celery.executors import default_celery
 from airflow.providers.celery.executors.celery_executor_utils import create_celery_app
@@ -66,12 +65,12 @@ def get_backend_connect_kwargs(backend):
 
 @pytest.mark.usefixtures("restore_current_celery_app")
 @pytest.mark.parametrize(
-    "result_backend",
+    ("result_backend", "expected_driver"),
     [
-        pytest.param(None, id="derived-from-metadata"),
-        pytest.param("db+postgresql+psycopg://user:pass@host/db", id="explicit-psycopg"),
-        pytest.param("db+postgresql://user:pass@host/db", id="sqlalchemy-default-driver"),
-        pytest.param("db+postgresql+psycopg2://user:pass@host/db", id="explicit-psycopg2"),
+        pytest.param(None, "psycopg", id="derived-from-metadata"),
+        pytest.param("db+postgresql+psycopg://user:pass@host/db", "psycopg", id="explicit-psycopg"),
+        pytest.param("db+postgresql://user:pass@host/db", "psycopg", id="explicit-driverless"),
+        pytest.param("db+postgresql+psycopg2://user:pass@host/db", "psycopg2", id="explicit-psycopg2"),
     ],
 )
 @pytest.mark.parametrize(
@@ -82,9 +81,7 @@ def get_backend_connect_kwargs(backend):
     ],
 )
 @requires_psycopg3
-def test_result_backend_disables_psycopg_preparation(result_backend, engine_options):
-    expected_url = result_backend or "db+postgresql+psycopg://user:pass@host/db"
-    expected_driver = make_url(expected_url.removeprefix("db+")).get_driver_name()
+def test_result_backend_disables_psycopg_preparation(result_backend, expected_driver, engine_options):
     expected_connect_args = {
         **({"prepare_threshold": None} if expected_driver == "psycopg" else {}),
         **engine_options.get("connect_args", {}),
@@ -453,31 +450,42 @@ def test_result_backend_transport_options_with_multiple_options():
 
 
 @pytest.mark.db_test
-@conf_vars(
-    {
-        ("celery", "result_backend"): None,
-        ("database", "sql_alchemy_conn"): "postgresql://user:pass@host/db",
-    }
+@pytest.mark.parametrize(
+    ("result_backend", "use_psycopg3", "expected"),
+    [
+        pytest.param(None, True, "db+postgresql+psycopg://user:pass@host/db", id="derived"),
+        pytest.param(None, False, "db+postgresql+psycopg2://user:pass@host/db", id="derived-no-psycopg3"),
+        pytest.param(
+            "db+postgresql://user:pass@host/db",
+            True,
+            "db+postgresql+psycopg://user:pass@host/db",
+            id="explicit-driverless",
+        ),
+        pytest.param(
+            "db+postgresql://user:pass@host/db",
+            False,
+            "db+postgresql+psycopg2://user:pass@host/db",
+            id="explicit-driverless-no-psycopg3",
+        ),
+        pytest.param(
+            "db+postgresql+psycopg2://user:pass@host/db",
+            True,
+            "db+postgresql+psycopg2://user:pass@host/db",
+            id="explicit-driver-kept",
+        ),
+    ],
 )
-def test_result_backend_derived_from_sql_alchemy_conn_uses_psycopg(monkeypatch):
-    """A driverless sql_alchemy_conn must derive a psycopg (v3) result_backend, not psycopg2."""
-    monkeypatch.setattr(default_celery, "_USE_PSYCOPG3", True)
-    config = default_celery.get_default_celery_config(conf)
-    assert config["result_backend"] == "db+postgresql+psycopg://user:pass@host/db"
-
-
-@pytest.mark.db_test
-@conf_vars(
-    {
-        ("celery", "result_backend"): None,
-        ("database", "sql_alchemy_conn"): "postgresql://user:pass@host/db",
-    }
-)
-def test_result_backend_falls_back_to_psycopg2_without_psycopg3(monkeypatch):
-    """Without psycopg/SQLAlchemy 2.0 available, the derivation must fall back to psycopg2."""
-    monkeypatch.setattr(default_celery, "_USE_PSYCOPG3", False)
-    config = default_celery.get_default_celery_config(conf)
-    assert config["result_backend"] == "db+postgresql+psycopg2://user:pass@host/db"
+def test_result_backend_postgres_driver(monkeypatch, result_backend, use_psycopg3, expected):
+    """A driverless PostgreSQL result_backend gets Airflow's default sync driver; a named driver is kept."""
+    monkeypatch.setattr(default_celery, "_USE_PSYCOPG3", use_psycopg3)
+    with conf_vars(
+        {
+            ("celery", "result_backend"): result_backend,
+            ("database", "sql_alchemy_conn"): "postgresql://user:pass@host/db",
+        }
+    ):
+        config = default_celery.get_default_celery_config(conf)
+    assert config["result_backend"] == expected
 
 
 @conf_vars({("celery_result_backend_transport_options", "sentinel_kwargs"): "invalid_json"})

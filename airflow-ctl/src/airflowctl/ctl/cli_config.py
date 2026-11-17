@@ -390,6 +390,12 @@ ARG_DAG_CLEAR_ONLY_RUNNING = Arg(
     action="store_true",
     help="Only clear running task instances",
 )
+ARG_DAG_CLEAR_KEEP_TASK_STATE = Arg(
+    flags=("--keep-task-state",),
+    default=False,
+    action="store_true",
+    help="Keep the task state store entries of cleared tasks so they resume from them",
+)
 ARG_DAG_CLEAR_YES = Arg(
     flags=("-y", "--yes"),
     default=False,
@@ -608,6 +614,7 @@ class CommandFactory:
         # (hyphenated into the subcommand name).
         # e.g. list_state_store -> "taskinstances state-store list".
         self.subgroups: dict[str, set[str]] = {
+            "AssetsOperations": {"state_store"},
             "TaskInstancesOperations": {"state_store"},
         }
 
@@ -1313,6 +1320,7 @@ DAG_COMMANDS = (
             ARG_DAG_PARTITION_DATE_END,
             ARG_DAG_CLEAR_ONLY_FAILED,
             ARG_DAG_CLEAR_ONLY_RUNNING,
+            ARG_DAG_CLEAR_KEEP_TASK_STATE,
             ARG_DAG_CLEAR_YES,
         ),
     ),

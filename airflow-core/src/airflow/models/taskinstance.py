@@ -121,6 +121,7 @@ from airflow.models.dynamic_region import (
 # Import HITLDetail at runtime so SQLAlchemy can resolve the relationship
 from airflow.models.hitl import HITLDetail  # noqa: F401
 from airflow.models.log import Log
+from airflow.models.task_state_store import TaskStateStoreModel
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.xcom import XCOM_RETURN_KEY, LazyXComPrimitivesSelectSequence, LazyXComSelectSequence
@@ -131,6 +132,7 @@ from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import REQUEUEABLE_DEPS, RUNNING_DEPS
 from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep
 from airflow.utils.db import exists_query
+from airflow.utils.helpers import chunks
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
 from airflow.utils.platform import getuser
@@ -149,6 +151,9 @@ from airflow.utils.state import DagRunState, State, TaskInstanceState
 TR = TaskReschedule
 
 log = logging.getLogger(__name__)
+
+# Five bind parameters per key. SQLite before 3.32 allows at most 999 per statement by default.
+_TASK_STATE_DISCARD_BATCH_SIZE = 150
 
 # Columns describing one attempt's execution; a successor attempt starts with them empty.
 _PER_ATTEMPT_COLUMNS = (
@@ -215,7 +220,7 @@ def _add_log(
     )
 
 
-def _stop_remaining_tasks(*, task_instance: TaskInstance, task_teardown_map=None, session: Session):
+def _stop_remaining_tasks(*, task_instance: TaskInstance, dag: SerializedDAG, session: Session):
     """
     Stop non-teardown tasks in dag.
 
@@ -223,22 +228,14 @@ def _stop_remaining_tasks(*, task_instance: TaskInstance, task_teardown_map=None
     """
     if not task_instance.dag_run:
         raise ValueError("``task_instance`` must have ``dag_run`` set")
-    tis = task_instance.dag_run.get_task_instances(session=session)
-    if TYPE_CHECKING:
-        assert task_instance.task
-        assert task_instance.task.dag
-
+    tis = task_instance.dag_run.get_task_instances(state=State.unfinished, session=session)
     for ti in tis:
-        if ti.task_id == task_instance.task_id or ti.state in (
-            TaskInstanceState.SUCCESS,
-            TaskInstanceState.FAILED,
-        ):
+        if ti.task_id == task_instance.task_id:
             continue
-        if task_teardown_map:
-            teardown = task_teardown_map[ti.task_id]
-        else:
-            teardown = task_instance.task.dag.task_dict[ti.task_id].is_teardown
-        if not teardown:
+        if (task := dag.task_dict.get(ti.task_id)) is None:
+            log.info("Task %s is no longer in the Dag; not stopping it", ti.task_id)
+            continue
+        if not task.is_teardown:
             if ti.state == TaskInstanceState.RUNNING:
                 log.info("Forcing task %s to fail due to dag's `fail_fast` setting", ti.task_id)
                 msg = "Forcing task to fail due to dag's `fail_fast` setting."
@@ -461,6 +458,7 @@ def clear_task_instances(
     *,
     whole_task_keys: Collection[tuple[str, str, str]] = (),
     superseded_ti_ids: Collection[UUID] = (),
+    keep_task_state: bool = False,
 ) -> list[TaskInstance]:
     """
     Clear a set of task instances, but make sure the running ones get killed.
@@ -482,6 +480,7 @@ def clear_task_instances(
         mapped expansion of such a task is archived and regenerated in a new region.
     :param superseded_ti_ids: executions whose generated work is replaced rather than retried; they
         are archived in place instead of receiving a successor.
+    :param keep_task_state: keep the ``task_state_store`` entries so the next attempt resumes from them.
 
     :meta private:
     """
@@ -677,7 +676,34 @@ def clear_task_instances(
             select(DagRun).where(tuple_(DagRun.dag_id, DagRun.run_id).in_(legacy_run_keys))
         ):
             legacy_run.reconcile_legacy_expansions(session=session)
+    if not keep_task_state:
+        _discard_task_state_store(cleared, session=session)
     return cleared
+
+
+def _discard_task_state_store(tis: Collection[TaskInstance], *, session: Session) -> None:
+    """
+    Delete the ``task_state_store`` entries of each task instance.
+
+    Only the metadata DB rows are deleted. A custom ``[state_store] backend`` is not touched, and a
+    custom ``[workers] state_store_backend`` payload is left to its own lifecycle/TTL policy.
+    """
+    columns = tuple_(
+        TaskStateStoreModel.dag_id,
+        TaskStateStoreModel.run_id,
+        TaskStateStoreModel.task_id,
+        TaskStateStoreModel.region_id,
+        TaskStateStoreModel.region_index,
+    )
+    keys = list({(ti.dag_id, ti.run_id, ti.task_id, ti.region_id, ti.region_index) for ti in tis})
+    deleted = 0
+    for batch in chunks(keys, _TASK_STATE_DISCARD_BATCH_SIZE):
+        result = session.execute(
+            delete(TaskStateStoreModel).where(columns.in_(batch)).execution_options(synchronize_session=False)
+        )
+        deleted += getattr(result, "rowcount", 0) or 0
+    if deleted:
+        log.info("Discarded %d task state store entries for %d cleared task instances", deleted, len(tis))
 
 
 @attrs.define(frozen=True)
@@ -863,6 +889,7 @@ def clear_loop_task_instances(
     run_on_latest_version: bool = False,
     prevent_running_task: bool | None = None,
     whole_task_keys: Collection[tuple[str, str, str]] = (),
+    keep_task_state: bool = False,
 ) -> LoopClearScope:
     """Clear selected loop tries and archive their replaced generated suffixes."""
     from airflow.models.dagrun import lock_dag_runs
@@ -889,6 +916,7 @@ def clear_loop_task_instances(
         run_on_latest_version=run_on_latest_version,
         prevent_running_task=prevent_running_task,
         whole_task_keys=whole_task_keys,
+        keep_task_state=keep_task_state,
     )
     return scope
 
@@ -901,6 +929,7 @@ def clear_task_instances_for_runs(
     run_on_latest_version: bool = False,
     prevent_running_task: bool | None = None,
     whole_task_keys: Collection[tuple[str, str, str]] = (),
+    keep_task_state: bool = False,
     later_loop_iterations: bool = True,
 ) -> None:
     """
@@ -922,6 +951,7 @@ def clear_task_instances_for_runs(
         run_on_latest_version=run_on_latest_version,
         prevent_running_task=prevent_running_task,
         whole_task_keys=whole_task_keys,
+        keep_task_state=keep_task_state,
     )
     for run_key in sorted(gate_runs):
         clear_loop_task_instances(
@@ -933,6 +963,7 @@ def clear_task_instances_for_runs(
             run_on_latest_version=run_on_latest_version,
             prevent_running_task=prevent_running_task,
             whole_task_keys=whole_task_keys,
+            keep_task_state=keep_task_state,
         )
 
 
@@ -945,6 +976,7 @@ def apply_loop_clear_scope(
     run_on_latest_version: bool = False,
     prevent_running_task: bool | None = None,
     whole_task_keys: Collection[tuple[str, str, str]] = (),
+    keep_task_state: bool = False,
 ) -> list[TaskInstance]:
     """Apply a planned clear while the caller holds its DagRun lock."""
     from airflow.exceptions import AirflowClearRunningTaskException
@@ -997,6 +1029,7 @@ def apply_loop_clear_scope(
         run_on_latest_version=run_on_latest_version,
         prevent_running_task=prevent_running_task,
         whole_task_keys=whole_task_keys,
+        keep_task_state=keep_task_state,
     )
 
 
@@ -2827,8 +2860,8 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         if not ti.is_eligible_to_retry():
             ti.state = TaskInstanceState.FAILED
 
-            if task and fail_fast:
-                _stop_remaining_tasks(task_instance=ti, session=session)
+            if fail_fast and task and task.dag:
+                _stop_remaining_tasks(task_instance=ti, dag=task.dag, session=session)
         else:
             allocate_next_try = ti.state != TaskInstanceState.UP_FOR_RETRY
             ti.state = State.UP_FOR_RETRY
