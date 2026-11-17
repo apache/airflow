@@ -289,6 +289,14 @@ class PlainXComArg(XComArg):
     def on_failure_fail_dagrun(self, val: bool):
         self.operator.on_failure_fail_dagrun = val
 
+    @property
+    def on_success_succeed_dagrun(self) -> bool:
+        return self.operator.on_success_succeed_dagrun
+
+    @on_success_succeed_dagrun.setter
+    def on_success_succeed_dagrun(self, val: bool):
+        self.operator.on_success_succeed_dagrun = val
+
     def as_setup(self) -> DependencyMixin:
         for operator, _ in self.iter_references():
             operator.is_setup = True
@@ -299,12 +307,15 @@ class PlainXComArg(XComArg):
         *,
         setups: BaseOperator | Iterable[BaseOperator] | None = None,
         on_failure_fail_dagrun: bool | None = None,
+        on_success_succeed_dagrun: bool | None = None,
     ):
         for operator, _ in self.iter_references():
             operator.is_teardown = True
             operator.trigger_rule = TriggerRule.ALL_DONE_SETUP_SUCCESS
             if on_failure_fail_dagrun is not None:
                 operator.on_failure_fail_dagrun = on_failure_fail_dagrun
+            if on_success_succeed_dagrun is not None:
+                operator.on_success_succeed_dagrun = on_success_succeed_dagrun
             if setups is not None:
                 setups = [setups] if isinstance(setups, DependencyMixin) else setups
                 for s in setups:

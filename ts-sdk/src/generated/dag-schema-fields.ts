@@ -121,6 +121,8 @@ export interface GeneratedTaskFields {
   readonly docMd?: string;
   /** Maps to the schema key `map_index_template`. */
   readonly mapIndexTemplate?: string;
+  /** Maps to the schema key `on_success_succeed_dagrun` (schema default `false`). */
+  readonly onSuccessSucceedDagrun?: boolean;
   /** Maps to the schema key `max_active_tis_per_dag`. */
   readonly maxActiveTisPerDag?: number;
   /** Maps to the schema key `max_active_tis_per_dagrun`. */
@@ -130,8 +132,7 @@ export interface GeneratedTaskFields {
 /** How a field is carried in the serialized Dag. `datetime` is fractional
  *  seconds since the epoch and `timedelta` is seconds; both are written as
  *  numbers. */
-export type SchemaFieldType =
-  "string" | "number" | "boolean" | "string[]" | "datetime" | "timedelta";
+export type SchemaFieldType = "string" | "number" | "boolean" | "string[]" | "datetime" | "timedelta";
 
 /** What the serializer needs to know about one authoring field. */
 export interface SchemaField {
@@ -162,11 +163,7 @@ export const DAG_SCHEMA_FIELDS = {
   dagrunTimeout: { key: "dagrun_timeout", type: "timedelta" },
   catchup: { key: "catchup", type: "boolean" },
   failFast: { key: "fail_fast", type: "boolean", default: false },
-  renderTemplateAsNativeObj: {
-    key: "render_template_as_native_obj",
-    type: "boolean",
-    default: false,
-  },
+  renderTemplateAsNativeObj: { key: "render_template_as_native_obj", type: "boolean", default: false },
   disableBundleVersioning: { key: "disable_bundle_versioning", type: "boolean" },
   isPausedUponCreation: { key: "is_paused_upon_creation", type: "boolean" },
 } as const satisfies Readonly<Record<keyof GeneratedDagFields, SchemaField>>;
@@ -178,16 +175,8 @@ export const TASK_SCHEMA_FIELDS = {
   endDate: { key: "end_date", type: "datetime" },
   triggerRule: { key: "trigger_rule", type: "string", default: "all_success" },
   dependsOnPast: { key: "depends_on_past", type: "boolean", default: false },
-  ignoreFirstDependsOnPast: {
-    key: "ignore_first_depends_on_past",
-    type: "boolean",
-    default: false,
-  },
-  waitForPastDependsBeforeSkipping: {
-    key: "wait_for_past_depends_before_skipping",
-    type: "boolean",
-    default: false,
-  },
+  ignoreFirstDependsOnPast: { key: "ignore_first_depends_on_past", type: "boolean", default: false },
+  waitForPastDependsBeforeSkipping: { key: "wait_for_past_depends_before_skipping", type: "boolean", default: false },
   waitForDownstream: { key: "wait_for_downstream", type: "boolean", default: false },
   retries: { key: "retries", type: "number", default: 0 },
   queue: { key: "queue", type: "string", default: "default" },
@@ -205,6 +194,7 @@ export const TASK_SCHEMA_FIELDS = {
   emailOnRetry: { key: "email_on_retry", type: "boolean", default: true },
   docMd: { key: "doc_md", type: "string" },
   mapIndexTemplate: { key: "map_index_template", type: "string" },
+  onSuccessSucceedDagrun: { key: "on_success_succeed_dagrun", type: "boolean", default: false },
   maxActiveTisPerDag: { key: "max_active_tis_per_dag", type: "number" },
   maxActiveTisPerDagrun: { key: "max_active_tis_per_dagrun", type: "number" },
 } as const satisfies Readonly<Record<keyof GeneratedTaskFields, SchemaField>>;

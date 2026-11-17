@@ -161,6 +161,10 @@ type TaskSpec struct {
 	// MaxRetryDelay corresponds to the JSON schema field "max_retry_delay".
 	MaxRetryDelay time.Duration
 
+	// OnSuccessSucceedDagrun corresponds to the JSON schema field
+	// "on_success_succeed_dagrun".
+	OnSuccessSucceedDagrun bool
+
 	// Owner corresponds to the JSON schema field "owner".
 	Owner string
 
