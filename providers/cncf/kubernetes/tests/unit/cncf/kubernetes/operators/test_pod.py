@@ -58,6 +58,7 @@ from airflow.providers.common.compat.sdk import (
     AirflowException,
     AirflowNotFoundException,
     AirflowSkipException,
+    AirflowTaskTimeout,
     TaskDeferred,
     timezone,
 )
@@ -2914,6 +2915,52 @@ class TestKubernetesPodOperatorDurableExecution:
             {"name": "new-pod", "namespace": "default"},
         )
         assert result == mock_pod_request_obj
+
+    @pytest.mark.parametrize(
+        ("durable", "on_kill_action", "expect_pod_kept"),
+        [
+            pytest.param(True, "keep_pod", True, id="durable_keep_pod"),
+            pytest.param(True, "delete_pod", False, id="durable_default_on_kill"),
+            pytest.param(False, "keep_pod", False, id="not_durable_keep_pod"),
+        ],
+    )
+    def test_execution_timeout_keeps_pod_only_when_durable_and_keep_pod(
+        self, durable, on_kill_action, expect_pod_kept
+    ):
+        k = KubernetesPodOperator(
+            image="ubuntu:16.04",
+            task_id="task",
+            name="hello",
+            log_pod_spec_on_failure=False,
+            durable=durable,
+            on_kill_action=on_kill_action,
+        )
+        context = create_context(k)
+        context["ti"] = MagicMock(spec=TaskInstance)
+        running_pod = MagicMock(spec=k8s.V1Pod)
+        running_pod.metadata.name = "running-pod"
+        running_pod.metadata.namespace = "default"
+
+        with (
+            patch.object(k, "build_pod_request_obj", return_value=MagicMock(spec=k8s.V1Pod)),
+            patch.object(k, "get_or_create_pod", return_value=running_pod),
+            patch.object(k, "find_pod", return_value=running_pod),
+            patch.object(k, "await_pod_start"),
+            patch.object(k, "await_init_containers_completion"),
+            patch.object(k, "await_pod_completion", side_effect=AirflowTaskTimeout("timed out")),
+            patch.object(k, "patch_already_checked", autospec=True) as mock_patch_already_checked,
+            patch.object(k, "process_pod_deletion", autospec=True) as mock_process_pod_deletion,
+        ):
+            # Without keep, cleanup raises its own failure for the non-succeeded pod, replacing the timeout.
+            with pytest.raises(AirflowTaskTimeout if expect_pod_kept else AirflowException):
+                k.execute_sync(context)
+
+        if expect_pod_kept:
+            mock_patch_already_checked.assert_not_called()
+            mock_process_pod_deletion.assert_not_called()
+        else:
+            mock_patch_already_checked.assert_called_once()
+            mock_process_pod_deletion.assert_called_once()
 
     def test_durable_true_without_state_store_fallsback(self):
         """No task_state_store key in context (e.g. Airflow <3.3): unchanged label-search behavior."""

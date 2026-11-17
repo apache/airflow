@@ -87,7 +87,13 @@ from airflow.providers.cncf.kubernetes.utils.pod_manager import (
     detect_pod_terminate_early_issues,
 )
 from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_3_PLUS
-from airflow.providers.common.compat.sdk import XCOM_RETURN_KEY, AirflowSkipException, Stats, conf
+from airflow.providers.common.compat.sdk import (
+    XCOM_RETURN_KEY,
+    AirflowSkipException,
+    AirflowTaskTimeout,
+    Stats,
+    conf,
+)
 
 if AIRFLOW_V_3_1_PLUS:
     from airflow.sdk import BaseHook, BaseOperator
@@ -265,7 +271,9 @@ class KubernetesPodOperator(BaseOperator):
     :param on_kill_action: What to do when the task is killed by the user (e.g. manually marked as
         success/failed from the Airflow UI). If "delete_pod" (default), the pod will be deleted.
         If "keep_pod", the pod will not be deleted. In deferrable mode this is forwarded to the
-        trigger which controls cleanup when a deferred task is cancelled.
+        trigger which controls cleanup when a deferred task is cancelled. With ``durable`` execution
+        in sync mode, "keep_pod" also keeps the pod when the try is interrupted by ``execution_timeout``,
+        so the retry can reattach to it instead of creating a fresh pod.
     :param termination_message_policy: The termination message policy of the base container.
         Default value is "File"
     :param active_deadline_seconds: The active_deadline_seconds which translates to active_deadline_seconds
@@ -531,6 +539,7 @@ class KubernetesPodOperator(BaseOperator):
         self._progress_callback = progress_callback
         self.callbacks = [] if not callbacks else callbacks if isinstance(callbacks, list) else [callbacks]
         self._killed: bool = False
+        self._keep_pod_after_timeout: bool = False
         self.container_name_log_prefix_enabled = container_name_log_prefix_enabled
         self.log_formatter = log_formatter
 
@@ -932,6 +941,13 @@ class KubernetesPodOperator(BaseOperator):
             self.remote_pod = self.pod_manager.await_pod_completion(
                 self.pod, istio_enabled, self.base_container_name, self.do_xcom_push
             )
+        except AirflowTaskTimeout:
+            # The task runner calls on_kill only after this propagates, so cleanup has to know now
+            # that the pod must be left running for the next try to reattach.
+            self._keep_pod_after_timeout = (
+                self.reattach_on_restart and self.on_kill_action == OnKillAction.KEEP_POD
+            )
+            raise
         finally:
             pod_to_clean = self.pod or self.pod_request_obj
             self.post_complete_action(
@@ -1409,6 +1425,15 @@ class KubernetesPodOperator(BaseOperator):
         # there. Cleaning it up again will raise an exception (which might cause retry).
         # 2. remote pod is null (ex: pod creation failed)
         if self._killed or not remote_pod:
+            return
+
+        if self._keep_pod_after_timeout:
+            self.log.info(
+                "Task interrupted by execution_timeout and on_kill_action is %r, keeping pod %s "
+                "so the next try can reattach.",
+                self.on_kill_action.value,
+                remote_pod.metadata.name,
+            )
             return
 
         istio_enabled = self.is_istio_enabled(remote_pod)
