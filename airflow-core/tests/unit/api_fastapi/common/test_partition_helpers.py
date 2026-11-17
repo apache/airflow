@@ -18,10 +18,15 @@ from __future__ import annotations
 
 from unittest import mock
 
+import pendulum
 import pytest
 
-from airflow.api_fastapi.common.partition_helpers import _extract_partitioned_timetable
+from airflow.api_fastapi.common.partition_helpers import (
+    _extract_partitioned_timetable,
+    suggest_partition_key_for_dag,
+)
 from airflow.exceptions import DeserializationError
+from airflow.timetables.base import Timetable
 
 
 def _make_serdag(exc: Exception):
@@ -95,3 +100,32 @@ def test_extract_partitioned_timetable_refactor_signal_exceptions_propagate(exc)
             _extract_partitioned_timetable(serdag)
 
     mock_log.warning.assert_not_called()
+
+
+NOW = pendulum.datetime(2026, 2, 18, tz="UTC")
+
+
+@pytest.mark.parametrize("suggestion", ["2026-02-18T00:00:00", None], ids=["a-key", "no-suggestion"])
+def test_suggest_partition_key_for_dag_returns_the_timetable_suggestion_as_is(suggestion):
+    timetable = mock.create_autospec(Timetable, instance=True)
+    timetable.suggest_partition_key.return_value = suggestion
+
+    with mock.patch("airflow.api_fastapi.common.partition_helpers.log") as mock_log:
+        result = suggest_partition_key_for_dag(dag_id="my_dag", timetable=timetable, now=NOW)
+
+    assert result == suggestion
+    timetable.suggest_partition_key.assert_called_once_with(NOW)
+    mock_log.warning.assert_not_called()
+
+
+def test_suggest_partition_key_for_dag_logs_and_returns_none_when_the_timetable_raises():
+    timetable = mock.create_autospec(Timetable, instance=True)
+    timetable.suggest_partition_key.side_effect = ValueError("plugin bug")
+
+    with mock.patch("airflow.api_fastapi.common.partition_helpers.log") as mock_log:
+        result = suggest_partition_key_for_dag(dag_id="my_dag", timetable=timetable, now=NOW)
+
+    assert result is None
+    assert mock_log.warning.mock_calls == [
+        mock.call("Failed to compute suggested partition key", dag_id="my_dag", exc_info=True)
+    ]
