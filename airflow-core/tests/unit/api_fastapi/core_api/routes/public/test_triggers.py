@@ -286,6 +286,7 @@ class TestGetTriggers:
             "queue": None,
             "team_name": None,
             "status": "failing",
+            "finished_at": None,
             "triggerer_hostname": "trig-a",
             "consecutive_failures": 3,
             "first_failed_at": "2026-10-21T11:46:00Z",

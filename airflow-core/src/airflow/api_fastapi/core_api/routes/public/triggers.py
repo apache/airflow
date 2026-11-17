@@ -19,7 +19,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Annotated
 
 from fastapi import Depends, HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.orm import contains_eager, defer, selectinload
 
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
@@ -68,12 +68,13 @@ def _sort_null_as_smallest(column: ColumnElement) -> list[ColumnElement]:
 
 
 def _build_triggers_select() -> Select:
-    # Only triggers their owner still refers to: the rest are deleted on the triggerer's next cleanup. The
-    # kwargs are never returned, so they are not even loaded.
+    # Only triggers their owner still refers to or that are finished and kept for the
+    # failure-retention window: the rest are deleted on the triggerer's next cleanup.
+    # The kwargs are never returned, so they are not even loaded.
     return (
         select(Trigger)
         .outerjoin(Trigger.triggerer_job)
-        .where(Trigger.owner_still_refers_expression())
+        .where(or_(Trigger.owner_still_refers_expression(), Trigger.finished_at.is_not(None)))
         .options(
             defer(Trigger.encrypted_kwargs),
             contains_eager(Trigger.triggerer_job),
@@ -148,6 +149,7 @@ def _build_response(
         queue=trigger.queue,
         team_name=trigger.team_name,
         status=trigger.status(),
+        finished_at=trigger.finished_at,
         triggerer_hostname=job.hostname if job is not None else None,
         consecutive_failures=trigger.consecutive_failures or 0,
         first_failed_at=trigger.first_failed_at,
