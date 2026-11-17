@@ -58,8 +58,9 @@ Password (optional)
     It can be left out to fall back on DefaultAzureCredential_.
 
 Host (optional)
-    Specify the storage account name or account URL for anonymous public read, Active Directory,
-    shared access key authentication.
+    Specify the storage account name, for example ``mystorageaccount``, rather than a full URL.
+    For a private endpoint or custom domain, set ``account_url`` in Extra for the hook, or
+    ``account_host`` for the ADLS filesystem used by ``ObjectStoragePath``.
     It can be left out to fall back on DefaultAzureCredential_.
 
 Extra (optional)

@@ -34,7 +34,7 @@ Create an ADLS Gen2 connection in Airflow with the following parameters:
 
 * **Connection Type**: adls
 * **Host**: Storage account name, for example ``mystorageaccount``. For a private endpoint or
-  custom domain, set the ``account_host`` field below rather than a full URL here.
+  custom domain, set ``account_host`` in Extra (see below) rather than a full URL here.
 * **Login**: Client ID for Active Directory authentication
 * **Password**: Client secret for Active Directory authentication, or account key for shared key authentication
 
@@ -42,6 +42,11 @@ The connection form provides additional configuration fields:
 
 * ``tenant_id``: Tenant ID for Active Directory authentication
 * ``connection_string``: ADLS Gen2 connection string; this takes precedence over other authentication fields
+* ``managed_identity_client_id``: Client ID of a user-assigned managed identity
+* ``workload_identity_tenant_id``: Tenant ID for workload identity authentication
+
+The following keys are also supported in the connection's Extra JSON:
+
 * ``account_name``: Optional explicit storage account name override
 * ``account_host``: Optional custom storage account host, for private endpoints or custom domains
 

@@ -213,6 +213,9 @@ def mocked_blob_file_system():
             },
         ),
         (
+            # No host and no account_name in Extra: get_fs sets no account, so adlfs needs
+            # AZURE_STORAGE_ACCOUNT_NAME to connect. This pins the options passed, not a
+            # configuration that works on its own; the next case supplies the account.
             Connection(
                 conn_id="testconn",
                 conn_type="adls",

@@ -79,8 +79,8 @@ def get_fs(conn_id: str | None, storage_options: dict[str, Any] | None = None) -
     elif conn_type != "adls" or conn.host or not tenant_id:
         # WASB, full-URL, and custom-endpoint connections keep the historical account_url path.
         options["account_url"] = parse_blob_account_url(conn.host, conn.login)
-    # Otherwise (adls + no host + a tenant_id) neither account_name nor account_url is set, so
-    # adlfs falls back to DefaultAzureCredential using the client_id/secret assembled below.
+    # Otherwise (adls + no host + a tenant_id) no account is set here: adlfs needs it from
+    # ``account_name`` in Extra or the AZURE_STORAGE_ACCOUNT_NAME environment variable.
 
     login = conn.login or ""
     password = conn.password or ""
