@@ -66,7 +66,7 @@ TEMURIN_VERSION=${TEMURIN_VERSION:-11}
 NODEJS_VERSION=${NODEJS_VERSION:-22.23.1}
 # Keep in sync with the "packageManager" pin in ts-sdk/package.json so the version corepack
 # resolves for ts-sdk is the one baked into the image.
-PNPM_VERSION=${PNPM_VERSION:-10.28.1}
+PNPM_VERSION=${PNPM_VERSION:-10.34.9}
 RUSTUP_DEFAULT_TOOLCHAIN=${RUSTUP_DEFAULT_TOOLCHAIN:-stable}
 RUSTUP_VERSION=${RUSTUP_VERSION:-1.29.0}
 # "hardened" images get Python from a Docker Hardened Image base, "legacy" ones compile it from

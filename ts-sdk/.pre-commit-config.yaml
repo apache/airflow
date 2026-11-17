@@ -37,7 +37,7 @@ repos:
           ^node_modules/.*|
           ^\.pnpm-store/.*|
           ^dist/.*
-        additional_dependencies: ['pnpm@10.28.1']
+        additional_dependencies: ['pnpm@10.34.9']
         pass_filenames: false
         require_serial: true
       - id: check-ts-sdk-supervisor-schema
@@ -51,7 +51,7 @@ repos:
           ^schema/supervisor-schema\.json$|
           ^src/generated/supervisor\.ts$|
           ^scripts/generate-supervisor\.mjs$
-        additional_dependencies: ['pnpm@10.28.1']
+        additional_dependencies: ['pnpm@10.34.9']
         pass_filenames: false
         require_serial: true
       - id: check-ts-sdk-dag-schema
@@ -65,7 +65,7 @@ repos:
           ^src/generated/dag-schema-fields\.ts$|
           ^schema/dag-schema\.json$|
           ^scripts/generate-dag-schema\.mjs$
-        additional_dependencies: ['pnpm@10.28.1']
+        additional_dependencies: ['pnpm@10.34.9']
         pass_filenames: false
         require_serial: true
       - id: check-ts-sdk-docs-package-version-in-sync
@@ -94,7 +94,7 @@ repos:
           ^pnpm-lock\.yaml$|
           ^pnpm-workspace\.yaml$|
           ^tsconfig(\.build)?\.json$
-        additional_dependencies: ['pnpm@10.28.1']
+        additional_dependencies: ['pnpm@10.34.9']
         pass_filenames: false
         require_serial: true
       - id: verify-ts-sdk-package
@@ -112,6 +112,6 @@ repos:
           ^pnpm-lock\.yaml$|
           ^pnpm-workspace\.yaml$|
           ^tsconfig(\.build)?\.json$
-        additional_dependencies: ['pnpm@10.28.1']
+        additional_dependencies: ['pnpm@10.34.9']
         pass_filenames: false
         require_serial: true
