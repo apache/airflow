@@ -33,9 +33,9 @@ export type JsonValue =
  */
 export interface GetXComOpts {
   key: string;
-  dagId?: string;
-  runId?: string;
-  taskId?: string;
+  dagId?: string | null;
+  runId?: string | null;
+  taskId?: string | null;
   mapIndex?: number | null;
   includePriorDates?: boolean;
 }
@@ -53,9 +53,9 @@ export interface GetXComOpts {
 export interface SetXComOpts {
   key: string;
   value: JsonValue;
-  dagId?: string;
-  runId?: string;
-  taskId?: string;
+  dagId?: string | null;
+  runId?: string | null;
+  taskId?: string | null;
   mapIndex?: number | null;
 }
 
