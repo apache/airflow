@@ -1467,7 +1467,7 @@ class PolarisCatalogHook(PolarisHook):
         :param schema: e.g. ``{"type": "struct", "fields": [{"id": 1, "name": "id", "type": "long",
             "required": False}]}``.
         :param partition_spec: e.g. ``{"fields": [{"source-id": 1, "field-id": 1000, "name":
-            "id_bucket", "transform": "bucket[16]"}]}``. Omit for an unpartitioned table.
+            "id_bucket", "transform": "bucket[16]"}]}``. Omit for a table without partitions.
             ``spec-id`` defaults to 0.
         :param sort_order: The table's write order, e.g. ``{"fields": [{"source-id": 1,
             "transform": "identity", "direction": "asc", "null-order": "nulls-first"}]}``.
