@@ -81,8 +81,8 @@ How it works
   from the cache are not part of ``usage``; with ``enable_hitl_review`` the
   ``run_id`` and ``usage`` reflect the initial model run, not the human-feedback
   regenerations; and a run that resumes after a tool approval (see
-  :doc:`tool_approval`) continues as ``<task-instance id>-resumed-<n>`` after
-  pause ``n``, which is the ``run_id`` the operator pushes, with ``usage``
+  :doc:`tool_approval`) without ``durable`` continues as ``<task-instance id>-resumed-<n>``
+  after pause ``n``, which is the ``run_id`` the operator pushes, with ``usage``
   covering every part.
   Airflow 2 has no task-instance id, so there the key is
   ``<dag_id>/<run_id>/<task_id>/<map_index>/<try_number>``, and spans carry the five
