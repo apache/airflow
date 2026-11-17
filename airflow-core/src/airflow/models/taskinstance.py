@@ -1577,7 +1577,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         session: Session = NEW_SESSION,
         lock_for_update: bool = False,
         keep_local_changes: bool = False,
-    ) -> None:
+    ) -> bool:
         """
         Refresh the task instance from the database based on the primary key.
 
@@ -1587,6 +1587,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
             session is committed.
         :param keep_local_changes: Force all attributes to the values from the database if False (the default),
             or if True don't overwrite locally set attributes
+        :return: False if the task instance no longer exists in the database
         """
         query = (
             select(
@@ -1617,9 +1618,11 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
                 dr_key = session.identity_key(type(self.dag_run), (self.dag_run.id,))
                 if (dr := session.identity_map.get(dr_key)) is not None:
                     set_committed_value(self, "dag_run", dr)
+            return True
 
-        else:
-            self.state = None
+        # Not a pending change: flushing an update for the missing row would raise StaleDataError.
+        set_committed_value(self, "state", None)
+        return False
 
     def refresh_from_task(
         self, task: Operator, pool_override: str | None = None, *, dag_run: DagRun | None = None
@@ -2816,7 +2819,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         *,
         session: Session,
         fail_fast: bool = False,
-    ):
+    ) -> TaskInstance | None:
         """
         Fetch the context needed to handle a failure.
 
@@ -2825,11 +2828,15 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         :param test_mode: doesn't record success or failure in the DB if True
         :param session: SQLAlchemy ORM Session
         :param fail_fast: if True, fail all downstream tasks
+        :return: the task instance to save, or None if it no longer exists in the database
         """
         if error:
             cls.logger().error("%s", error)
-        if not test_mode:
-            ti.refresh_from_db(session=session)
+        if not test_mode and not ti.refresh_from_db(session=session):
+            cls.logger().warning(
+                "Task instance no longer exists, skipping its failure handling", task_instance_key=ti.key
+            )
+            return None
 
         ti.end_date = timezone.utcnow()
         ti.set_duration()
@@ -2920,6 +2927,8 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
             session=session,
             fail_fast=fail_fast,
         )
+        if ti is None:
+            return self
 
         _log_state(task_instance=ti)
 
