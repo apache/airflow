@@ -28,6 +28,7 @@ from unittest import mock
 import pendulum
 import pytest
 from sqlalchemy import delete, func, select, update
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy.sql.selectable import Select
 
@@ -35,6 +36,7 @@ from airflow._shared.secrets_masker import mask_secret
 from airflow._shared.state import TaskScope
 from airflow._shared.timezones.timezone import datetime
 from airflow.api_fastapi.auth.managers.simple.user import SimpleAuthManagerUser
+from airflow.api_fastapi.common.exceptions import DB_CONTENTION_DETAIL
 from airflow.api_fastapi.core_api.services.public import task_instances as task_instances_service
 from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.dag_processing.dagbag import DagBag, sync_bag_to_db
@@ -4698,6 +4700,63 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         dagrun.refresh_from_db()
         assert dagrun.state == "running"
         assert all(ti.state == "running" for ti in tis)
+
+    @pytest.mark.parametrize(
+        ("pgcode", "sqlstate"),
+        [
+            pytest.param("55P03", None, id="postgres-lock-not-available"),
+            pytest.param(None, "55P03", id="psycopg3-lock-not-available"),
+            pytest.param("57014", None, id="postgres-statement-timeout"),
+            pytest.param(None, "57014", id="psycopg3-statement-timeout"),
+            pytest.param("40P01", None, id="postgres-deadlock"),
+            pytest.param(None, "40P01", id="psycopg3-deadlock"),
+        ],
+    )
+    def test_clear_task_instances_returns_503_on_db_contention(
+        self, test_client, session, mocker, pgcode, sqlstate
+    ):
+        """Transient database contention while locking runs maps to 503 instead of 500."""
+        self.create_task_instances(session, task_instances=[{"state": State.FAILED}], update_extras=False)
+        orig = mock.Mock(pgcode=pgcode, sqlstate=sqlstate, args=("database contention",))
+        mocker.patch(
+            "airflow.api_fastapi.core_api.routes.public.task_instances.lock_dag_runs",
+            side_effect=OperationalError("SELECT ... FOR UPDATE", {}, orig),
+        )
+
+        response = test_client.post(
+            "/dags/example_python_operator/clearTaskInstances",
+            json={"dry_run": False},
+        )
+
+        assert response.status_code == 503
+        assert response.json()["detail"] == DB_CONTENTION_DETAIL
+
+    def test_clear_task_instances_reraises_non_contention_error(self, test_client, session, mocker):
+        """Operational errors unrelated to contention keep the generic 500 response."""
+        self.create_task_instances(session, task_instances=[{"state": State.FAILED}], update_extras=False)
+        orig = mock.Mock(pgcode=None, sqlstate=None, args=("connection reset",))
+        mocker.patch(
+            "airflow.api_fastapi.core_api.routes.public.task_instances.lock_dag_runs",
+            side_effect=OperationalError("SELECT ... FOR UPDATE", {}, orig),
+        )
+
+        response = test_client.post(
+            "/dags/example_python_operator/clearTaskInstances",
+            json={"dry_run": False},
+        )
+
+        assert response.status_code == 500
+
+    def test_clear_task_instances_succeeds_without_contention(self, test_client, session):
+        """A normal clear is unaffected by the contention translation."""
+        self.create_task_instances(session, task_instances=[{"state": State.FAILED}], update_extras=False)
+
+        response = test_client.post(
+            "/dags/example_python_operator/clearTaskInstances",
+            json={"dry_run": False, "reset_dag_runs": True},
+        )
+
+        assert response.status_code == 200
 
     def test_should_respond_200_with_reset_dag_run(self, test_client, session):
         dag_id = "example_python_operator"

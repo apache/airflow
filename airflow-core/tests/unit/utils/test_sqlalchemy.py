@@ -43,6 +43,7 @@ from airflow.utils.sqlalchemy import (
     compact_uuid_default,
     ensure_pod_is_valid_after_unpickling,
     get_dialect_name,
+    is_db_contention_error,
     is_deadlock_error,
     prohibit_commit,
     with_row_locks,
@@ -581,3 +582,69 @@ class TestIsDeadlockError:
 
     def test_non_dbapi_error_is_not_deadlock(self):
         assert is_deadlock_error(RuntimeError("deadlock")) is False
+
+
+class TestIsDbContentionError:
+    @staticmethod
+    def _make_error(orig):
+        return OperationalError("statement", {}, orig)
+
+    @pytest.mark.parametrize(
+        ("orig", "expected"),
+        [
+            pytest.param(
+                mock.Mock(sqlstate=None, pgcode="55P03", args=("lock not available",)),
+                True,
+                id="postgres-lock-not-available",
+            ),
+            pytest.param(
+                mock.Mock(
+                    sqlstate="55P03",
+                    pgcode=None,
+                    args=("canceling statement due to lock timeout",),
+                ),
+                True,
+                id="psycopg3-lock-not-available",
+            ),
+            pytest.param(
+                mock.Mock(
+                    sqlstate=None,
+                    pgcode="57014",
+                    args=("canceling statement due to statement timeout",),
+                ),
+                True,
+                id="postgres-statement-timeout",
+            ),
+            pytest.param(
+                mock.Mock(
+                    sqlstate="57014",
+                    pgcode=None,
+                    args=("canceling statement due to statement timeout",),
+                ),
+                True,
+                id="psycopg3-statement-timeout",
+            ),
+            pytest.param(
+                mock.Mock(sqlstate=None, pgcode="40P01", args=("deadlock detected",)),
+                True,
+                id="postgres-deadlock",
+            ),
+            pytest.param(
+                mock.Mock(sqlstate=None, pgcode=None, args=(1205, "Lock wait timeout exceeded")),
+                True,
+                id="mysql-lock-wait-timeout",
+            ),
+            pytest.param(
+                mock.Mock(sqlstate=None, pgcode=None, args=(1213, "Deadlock found when trying to get lock")),
+                True,
+                id="mysql-deadlock",
+            ),
+            pytest.param(
+                mock.Mock(sqlstate=None, pgcode=None, args=("connection reset",)),
+                False,
+                id="other-operational",
+            ),
+        ],
+    )
+    def test_is_db_contention_error(self, orig, expected):
+        assert is_db_contention_error(self._make_error(orig)) is expected

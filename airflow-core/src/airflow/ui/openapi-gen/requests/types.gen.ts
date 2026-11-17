@@ -7246,6 +7246,10 @@ export type $OpenApiTs = {
                  * Validation Error
                  */
                 422: HTTPValidationError;
+                /**
+                 * Service Unavailable
+                 */
+                503: HTTPExceptionResponse;
             };
         };
     };
@@ -7335,6 +7339,10 @@ export type $OpenApiTs = {
                  * Validation Error
                  */
                 422: HTTPValidationError;
+                /**
+                 * Service Unavailable
+                 */
+                503: HTTPExceptionResponse;
             };
         };
     };
@@ -7366,6 +7374,10 @@ export type $OpenApiTs = {
                  * Validation Error
                  */
                 422: HTTPValidationError;
+                /**
+                 * Service Unavailable
+                 */
+                503: HTTPExceptionResponse;
             };
         };
     };
@@ -8681,6 +8693,10 @@ export type $OpenApiTs = {
                  * Validation Error
                  */
                 422: HTTPValidationError;
+                /**
+                 * Service Unavailable
+                 */
+                503: HTTPExceptionResponse;
             };
         };
     };

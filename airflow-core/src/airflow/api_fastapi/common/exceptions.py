@@ -17,18 +17,21 @@
 
 from __future__ import annotations
 
+import functools
 import logging
 import traceback
 from abc import ABC, abstractmethod
+from collections.abc import Callable
 from enum import Enum
-from typing import Generic, TypeVar
+from typing import Any, Generic, TypeVar
 
 from fastapi import FastAPI, HTTPException, Request, status
-from sqlalchemy.exc import DataError, IntegrityError, SQLAlchemyError
+from sqlalchemy.exc import DataError, IntegrityError, OperationalError, SQLAlchemyError
 
 from airflow.api_fastapi.compat import HTTP_422_UNPROCESSABLE_CONTENT
 from airflow.configuration import conf
 from airflow.exceptions import DeserializationError
+from airflow.utils.sqlalchemy import is_db_contention_error
 from airflow.utils.strings import get_random_string
 
 T = TypeVar("T", bound=Exception)
@@ -198,3 +201,37 @@ ERROR_HANDLERS: list[BaseErrorHandler] = [
 def init_error_handlers(app: FastAPI) -> None:
     for handler in ERROR_HANDLERS:
         app.add_exception_handler(handler.exception_cls, handler.exception_handler)
+
+
+DB_CONTENTION_DETAIL = (
+    "The Dag run is locked by another operation or the request timed out. Retry the request shortly."
+)
+
+
+def translate_db_contention_errors(func: Callable[..., Any]) -> Callable[..., Any]:
+    """
+    Translate a transient database contention ``OperationalError`` into HTTP 503.
+
+    Lock-not-available, query-cancellation and deadlock errors abort the statement or the transaction,
+    so the request cannot be completed as-is and the caller can only retry the whole request; 503 tells
+    clients the failure is transient.
+    """
+
+    @functools.wraps(func)
+    def wrapped(*args: Any, **kwargs: Any) -> Any:
+        try:
+            return func(*args, **kwargs)
+        except OperationalError as exc:
+            if not is_db_contention_error(exc):
+                raise
+            log.warning(
+                "Database contention in %s; returning HTTP 503",
+                func.__qualname__,
+                exc_info=True,
+            )
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=DB_CONTENTION_DETAIL,
+            ) from exc
+
+    return wrapped

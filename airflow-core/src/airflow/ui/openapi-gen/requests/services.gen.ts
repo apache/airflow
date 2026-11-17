@@ -1367,7 +1367,8 @@ export class DagRunService {
                 401: 'Unauthorized',
                 403: 'Forbidden',
                 404: 'Not Found',
-                422: 'Validation Error'
+                422: 'Validation Error',
+                503: 'Service Unavailable'
             }
         });
     }
@@ -1455,7 +1456,8 @@ export class DagRunService {
                 401: 'Unauthorized',
                 403: 'Forbidden',
                 404: 'Not Found',
-                422: 'Validation Error'
+                422: 'Validation Error',
+                503: 'Service Unavailable'
             }
         });
     }
@@ -1483,7 +1485,8 @@ export class DagRunService {
                 401: 'Unauthorized',
                 403: 'Forbidden',
                 404: 'Not Found',
-                422: 'Validation Error'
+                422: 'Validation Error',
+                503: 'Service Unavailable'
             }
         });
     }
@@ -3454,7 +3457,8 @@ export class TaskInstanceService {
                 403: 'Forbidden',
                 404: 'Not Found',
                 409: 'Conflict',
-                422: 'Validation Error'
+                422: 'Validation Error',
+                503: 'Service Unavailable'
             }
         });
     }

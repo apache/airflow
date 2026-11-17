@@ -3056,6 +3056,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Not Found
+        '503':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Service Unavailable
         '422':
           description: Validation Error
           content:
@@ -3270,6 +3276,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Not Found
+        '503':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Service Unavailable
         '422':
           description: Validation Error
           content:
@@ -3330,6 +3342,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Not Found
+        '503':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Service Unavailable
         '422':
           description: Validation Error
           content:
@@ -10282,6 +10300,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Conflict
+        '503':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Service Unavailable
         '422':
           description: Validation Error
           content:
