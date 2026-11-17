@@ -1117,6 +1117,37 @@ def test_iter_partition_dagrun_infos_inclusive_endpoint_pair() -> None:
             "2026-03-09T00:00:00",
             id="after-spring-forward-uses-dst-offset",
         ),
+        pytest.param(
+            CoreCronPartitionTimetable("0 * * * *", timezone="Asia/Kolkata"),
+            # Kolkata is UTC+5:30, so 06:45 UTC is 12:15 local and the hourly tick is 12:00 local
+            # (06:30 UTC), not the UTC-aligned 06:00 (11:30 local).
+            pendulum.datetime(2026, 2, 18, 6, 45, tz="UTC"),
+            "2026-02-18T12:00:00",
+            id="half-hour-offset-zone-ticks-on-local-hour",
+        ),
+        pytest.param(
+            CoreCronPartitionTimetable("0 0 * * *", timezone="Australia/Lord_Howe"),
+            # Lord Howe moves from UTC+10:30 to UTC+11 on 2026-10-04: 13:15 UTC on the 4th is 00:15 on
+            # the 5th local, tick = 10-05. Using the standard +10:30 gives 23:45 on the 4th, i.e. 10-04.
+            pendulum.datetime(2026, 10, 4, 13, 15, tz="UTC"),
+            "2026-10-05T00:00:00",
+            id="half-hour-dst-zone-uses-dst-offset",
+        ),
+        pytest.param(
+            CoreCronPartitionTimetable("0 * * * *", timezone="America/New_York"),
+            # US DST ended 2026-11-01: 06:30 UTC is 01:30 EST, the second pass through the repeated
+            # 01:00 hour; the hourly tick is 01:00.
+            pendulum.datetime(2026, 11, 1, 6, 30, tz="UTC"),
+            "2026-11-01T01:00:00",
+            id="inside-fall-back-repeated-hour",
+        ),
+        pytest.param(
+            CoreCronPartitionTimetable("0 * * * *", timezone="America/New_York"),
+            # 07:30 UTC is 02:30 EST, after the repeated hour; the hourly tick is 02:00.
+            pendulum.datetime(2026, 11, 1, 7, 30, tz="UTC"),
+            "2026-11-01T02:00:00",
+            id="after-fall-back-uses-standard-offset",
+        ),
     ],
 )
 def test_suggest_partition_key(timetable, now, expected) -> None:

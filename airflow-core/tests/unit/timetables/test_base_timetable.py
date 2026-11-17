@@ -20,6 +20,7 @@ import pendulum
 import pytest
 
 from airflow._shared.module_loading import qualname
+from airflow.timetables.base import Timetable
 from airflow.timetables.simple import NullTimetable
 
 
@@ -57,7 +58,6 @@ def test_custom_timetable_type_name_returns_qualname():
 )
 def test_suggest_partition_key_defaults_to_none(partitioned, partitioned_at_runtime):
     """The base timetable always suggests nothing, whatever its partitioned flags are."""
-    from airflow.timetables.base import Timetable
 
     class CustomTimetable(Timetable):
         pass
