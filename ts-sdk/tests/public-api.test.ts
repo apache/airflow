@@ -414,18 +414,18 @@ describe("public API", () => {
     }>();
     expectTypeOf<GetXComOpts>().toEqualTypeOf<{
       key: string;
-      dagId?: string;
-      runId?: string;
-      taskId?: string;
+      dagId?: string | null;
+      runId?: string | null;
+      taskId?: string | null;
       mapIndex?: number | null;
       includePriorDates?: boolean;
     }>();
     expectTypeOf<SetXComOpts>().toEqualTypeOf<{
       key: string;
       value: SetXComOpts["value"];
-      dagId?: string;
-      runId?: string;
-      taskId?: string;
+      dagId?: string | null;
+      runId?: string | null;
+      taskId?: string | null;
       mapIndex?: number | null;
     }>();
     expectTypeOf<ConnectionResult>().toEqualTypeOf<{
