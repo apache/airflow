@@ -224,7 +224,9 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
         # the cookie path those claims are covered by the Airflow JWT signature, so they
         # need no separate subject check. A browser token does not carry them and can
         # only be completed by KeycloakJWTMiddleware from the cookies; without them
-        # there is nothing to authorize against.
+        # there is nothing to authorize against. Return None rather than raise: the
+        # core JWTRefreshMiddleware resolves this token on every request without the
+        # cookies, and an exception there would end every browser session.
         return user if user.access_token else None
 
     def get_url_login(self, **kwargs) -> str:
