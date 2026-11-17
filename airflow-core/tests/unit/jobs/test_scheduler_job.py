@@ -43,6 +43,7 @@ from sqlalchemy import Delete, delete, event as sa_event, func, inspect, select,
 from sqlalchemy.dialects import mysql
 from sqlalchemy.exc import IntegrityError, InvalidRequestError
 from sqlalchemy.orm import joinedload
+from sqlalchemy.sql import Subquery, visitors
 
 from airflow import settings
 from airflow._shared.module_loading import qualname
@@ -71,6 +72,7 @@ from airflow.executors.workloads import WorkloadType
 from airflow.executors.workloads.types import TaskInstanceUuid
 from airflow.jobs.job import Job, run_job
 from airflow.jobs.scheduler_job_runner import (
+    CANDIDATE_BATCHES,
     MAX_TI_REFILL_QUERIES_PER_LOOP,
     TASK_STUCK_IN_QUEUED_RESCHEDULE_EVENT,
     SchedulerJobRunner,
@@ -4189,6 +4191,123 @@ class TestSchedulerJob:
             writer.commit()
 
             assert future.result(timeout=30) == ["unchanged"]
+
+    def test_build_schedulable_tis_query_joins_full_rows_to_a_few_batches_of_ids(self):
+        query = SchedulerJobRunner(job=Job())._build_schedulable_tis_query(set(), set(), set(), set(), 7)
+
+        (candidates,) = {
+            element
+            for element in visitors.iterate(query)
+            if isinstance(element, Subquery) and element.name == "candidates"
+        }
+        (ranked,) = candidates.element.get_final_froms()
+        assert set(ranked.c.keys()) == {
+            "id",
+            "row_num",
+            "dr_max_active_tasks",
+            "priority_weight_for_ordering",
+            "logical_date_for_ordering",
+            "region_index_for_ordering",
+        }
+        sql = str(candidates.element.compile(compile_kwargs={"literal_binds": True}))
+        assert re.search(rf"LIMIT {7 * CANDIDATE_BATCHES}$", sql)
+
+    @staticmethod
+    def _schedule_one_task_per_dag_run(dag_maker, session, dag_ids_and_priorities):
+        for dag_id, priority in dag_ids_and_priorities:
+            with dag_maker(dag_id=dag_id, session=session):
+                EmptyOperator(task_id="task", priority_weight=priority)
+            dag_run = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
+            dag_run.get_task_instance("task", session=session).state = State.SCHEDULED
+
+    def test_build_schedulable_tis_query_keeps_the_highest_priority_candidates(self, dag_maker, session):
+        # Dag ids sort lowest priority first, the order in which the ranking returns its rows (by Dag
+        # run), so a LIMIT without the candidates subquery's ORDER BY would keep the lowest priorities.
+        priorities = range(1, CANDIDATE_BATCHES + 2)
+        self._schedule_one_task_per_dag_run(dag_maker, session, ((f"p{p:03d}", p) for p in priorities))
+        session.flush()
+
+        query = SchedulerJobRunner(job=Job())._build_schedulable_tis_query(set(), set(), set(), set(), 1)
+
+        assert [ti.dag_id for ti in session.scalars(query)] == [f"p{priorities[-1]:03d}"]
+
+    def test_build_schedulable_tis_query_keeps_the_top_task_instances_of_a_dag_run(self, dag_maker, session):
+        with dag_maker(dag_id="one_run", session=session):
+            for priority in range(1, 7):
+                EmptyOperator(task_id=f"p{priority}", priority_weight=priority)
+        dag_run = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
+        for ti in dag_run.get_task_instances(session=session):
+            ti.state = State.SCHEDULED
+        session.flush()
+
+        query = SchedulerJobRunner(job=Job())._build_schedulable_tis_query(set(), set(), set(), set(), 3)
+
+        assert [ti.task_id for ti in session.scalars(query)] == ["p6", "p5", "p4"]
+
+    @staticmethod
+    def _select_while_locked(query, locked_ti_ids, attribute: str = "dag_id") -> list[str]:
+        """Run the selection in another thread while another transaction holds ``locked_ti_ids`` locked."""
+
+        def select_candidates():
+            with create_session(scoped=False) as selecting:
+                locked_query = with_row_locks(query, of=TaskInstance, session=selecting, skip_locked=True)
+                return [getattr(ti, attribute) for ti in selecting.scalars(locked_query)]
+
+        with ThreadPoolExecutor(max_workers=1) as pool, create_session(scoped=False) as locker:
+            locker.execute(
+                select(TaskInstance.id).where(TaskInstance.id.in_(locked_ti_ids)).with_for_update()
+            ).all()
+            future = pool.submit(select_candidates)
+            try:
+                # Fails instead of hanging if the selection waits for the locked rows.
+                return future.result(timeout=10)
+            finally:
+                locker.rollback()
+
+    @pytest.mark.backend("postgres", "mysql")
+    def test_build_schedulable_tis_query_replaces_candidates_locked_by_other_transactions(
+        self, dag_maker, session
+    ):
+        # Four Dag runs of one candidate each, the three highest-priority ones locked.
+        self._schedule_one_task_per_dag_run(dag_maker, session, [("p4", 4), ("p3", 3), ("p2", 2), ("p1", 1)])
+        session.commit()
+        locked = session.scalars(select(TaskInstance.id).where(TaskInstance.dag_id != "p1")).all()
+        query = SchedulerJobRunner(job=Job())._build_schedulable_tis_query(set(), set(), set(), set(), 1)
+
+        assert self._select_while_locked(query, locked) == ["p1"]
+
+    @pytest.mark.backend("postgres", "mysql")
+    def test_build_schedulable_tis_query_replaces_a_locked_candidate_from_the_same_dag_run(
+        self, dag_maker, session
+    ):
+        with dag_maker(dag_id="one_run", session=session):
+            EmptyOperator(task_id="p2", priority_weight=2)
+            EmptyOperator(task_id="p1", priority_weight=1)
+        dag_run = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
+        for ti in dag_run.get_task_instances(session=session):
+            ti.state = State.SCHEDULED
+        session.commit()
+        query = SchedulerJobRunner(job=Job())._build_schedulable_tis_query(set(), set(), set(), set(), 1)
+
+        locked = [dag_run.get_task_instance("p2", session=session).id]
+        assert self._select_while_locked(query, locked, attribute="task_id") == ["p1"]
+
+    @pytest.mark.backend("postgres", "mysql")
+    def test_build_schedulable_tis_query_leaves_candidates_for_other_dag_runs_when_one_is_locked(
+        self, dag_maker, session
+    ):
+        with dag_maker(dag_id="locked", session=session):
+            for i in range(CANDIDATE_BATCHES):
+                EmptyOperator(task_id=f"task_{i}", priority_weight=2)
+        locked_run = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
+        locked = locked_run.get_task_instances(session=session)
+        for ti in locked:
+            ti.state = State.SCHEDULED
+        self._schedule_one_task_per_dag_run(dag_maker, session, [("unlocked", 1)])
+        session.commit()
+        query = SchedulerJobRunner(job=Job())._build_schedulable_tis_query(set(), set(), set(), set(), 1)
+
+        assert self._select_while_locked(query, [ti.id for ti in locked]) == ["unlocked"]
 
     def test_find_executable_task_instances_task_concurrency_per_dagrun_for_first(self, dag_maker):
         scheduler_job = Job()
