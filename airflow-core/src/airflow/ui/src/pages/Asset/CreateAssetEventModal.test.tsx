@@ -101,6 +101,8 @@ vi.mock("src/components/TriggerDag/TriggerDAGForm", () => ({
     <>
       <span>{`paused=${String(isPaused)}`}</span>
       <span>{`suggested=${String(suggestedPartitionKey)}`}</span>
+      {/* Uncontrolled on purpose: its typed value survives a re-render and is lost only on a remount. */}
+      <input aria-label="mock form field" />
       <button onClick={onPausedDagActionChange} type="button">
         Keep paused
       </button>
@@ -410,4 +412,35 @@ describe("CreateAssetEventModal", () => {
       expect(await screen.findByText(`suggested=${String(suggested)}`)).toBeInTheDocument();
     },
   );
+
+  it("remounts the trigger form when the upstream Dag changes while the modal is open", async () => {
+    const otherAsset = { ...asset, id: 2 };
+    const dagKeyedDetails = (dagId: string) =>
+      ({
+        data: { ...upstreamDag, suggested_partition_key: `${dagId}-suggested` },
+      }) as ReturnType<typeof useDagServiceGetDagDetails>;
+
+    vi.mocked(useDependenciesServiceGetDependencies).mockReturnValue(withUpstreamDependencies);
+    vi.mocked(useDagServiceGetDagDetails).mockReturnValue(dagKeyedDetails("upstream_dag"));
+
+    const { rerender } = render(<CreateAssetEventModal asset={asset} onClose={vi.fn()} open />, {
+      wrapper: Wrapper,
+    });
+
+    fireEvent.click(screen.getByText("createEvent.materialize.label"));
+    fireEvent.change(await screen.findByLabelText("mock form field"), { target: { value: "typed" } });
+    expect(screen.getByLabelText("mock form field")).toHaveValue("typed");
+
+    vi.mocked(useDependenciesServiceGetDependencies).mockReturnValue({
+      data: {
+        edges: [{ source_id: "dag:other_dag", target_id: `asset:${otherAsset.id}` }],
+        nodes: [],
+      },
+    } as ReturnType<typeof useDependenciesServiceGetDependencies>);
+    vi.mocked(useDagServiceGetDagDetails).mockReturnValue(dagKeyedDetails("other_dag"));
+    rerender(<CreateAssetEventModal asset={otherAsset} onClose={vi.fn()} open />);
+
+    expect(await screen.findByText("suggested=other_dag-suggested")).toBeInTheDocument();
+    expect(screen.getByLabelText("mock form field")).toHaveValue("");
+  });
 });
