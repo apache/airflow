@@ -29,6 +29,7 @@ import { ReactPlugin } from "src/pages/ReactPlugin";
 
 import { KeyboardShortcutsModal } from "src/components/KeyboardShortcuts";
 
+import { DagsListSearchProvider } from "src/context/dagsListSearch";
 import { useConfig } from "src/queries/useConfig";
 import { DocumentTitleProvider } from "src/utils";
 
@@ -108,27 +109,29 @@ export const BaseLayout = ({ children }: PropsWithChildren) => {
   return (
     <LocaleProvider locale={i18n.language || "en"}>
       <DocumentTitleProvider>
-        <Box display="flex" flexDirection="column" h="100vh">
-          <KeyboardShortcutsModal />
-          <Nav />
-          <Box
-            _ltr={{ ml: 16 }}
-            _rtl={{ mr: 16 }}
-            data-testid="main-content"
-            display="flex"
-            flex={1}
-            flexDirection="column"
-            minH={0}
-            overflowY="auto"
-            p={3}
-            pb={0}
-          >
-            {baseReactPlugins.map((plugin) => (
-              <ReactPlugin key={plugin.name} reactApp={plugin} />
-            ))}
-            {children ?? <Outlet />}
+        <DagsListSearchProvider>
+          <Box display="flex" flexDirection="column" h="100vh">
+            <KeyboardShortcutsModal />
+            <Nav />
+            <Box
+              _ltr={{ ml: 16 }}
+              _rtl={{ mr: 16 }}
+              data-testid="main-content"
+              display="flex"
+              flex={1}
+              flexDirection="column"
+              minH={0}
+              overflowY="auto"
+              p={3}
+              pb={0}
+            >
+              {baseReactPlugins.map((plugin) => (
+                <ReactPlugin key={plugin.name} reactApp={plugin} />
+              ))}
+              {children ?? <Outlet />}
+            </Box>
           </Box>
-        </Box>
+        </DagsListSearchProvider>
       </DocumentTitleProvider>
     </LocaleProvider>
   );
