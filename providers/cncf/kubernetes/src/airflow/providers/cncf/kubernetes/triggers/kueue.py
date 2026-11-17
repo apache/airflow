@@ -52,7 +52,7 @@ class KueueJobState(str, Enum):
 
 JOB_STATE_MESSAGES = {
     KueueJobState.SUSPENDED: "is suspended: waiting for admission by Kueue, or preempted by Kueue",
-    KueueJobState.RUNNING: "is admitted by Kueue: its pods are running",
+    KueueJobState.RUNNING: "is admitted by Kueue: its pods are starting or running",
     KueueJobState.FINISHED: "is finished",
 }
 
@@ -95,7 +95,7 @@ def build_job_event(job: k8s.V1Job, xcom_results: dict[str, str]) -> dict[str, A
     Build the event of a finished Job, as passed to ``KubernetesStartKueueJobOperator.execute_complete``.
 
     :param job: the finished Job.
-    :param xcom_results: the raw XCom read from each pod, by pod name.
+    :param xcom_results: the raw XComs read from the pods, by pod name.
     """
     error_message = KubernetesHook.is_job_failed(job=job)
     return {
@@ -112,7 +112,7 @@ def build_job_event(job: k8s.V1Job, xcom_results: dict[str, str]) -> dict[str, A
 
 
 def get_succeeded_pod_xcoms(pods: Iterable[k8s.V1Pod], xcom_results: dict[str, str]) -> list[str]:
-    """Return the XCom read from the pods that succeeded, skipping failed pods and preempted runs."""
+    """Return the XComs read from the pods that succeeded, skipping failed and preempted pods."""
     return [
         xcom_results[pod.metadata.name]
         for pod in pods
@@ -169,26 +169,25 @@ def collect_xcom_results(
         except XComRetrievalError as e:
             pod_manager.log.warning("Cannot read the XCom of the pod %s: %s", pod.metadata.name, e)
         except ApiException as e:
-            # kubernetes.stream reports any failed exec with status 0, also for a pod deleted meanwhile.
-            # Skipping on other failures, such as a forbidden exec, would leave the sidecar keeping the
-            # Job running forever.
+            # Skip a pod deleted meanwhile, e.g. by a preemption: kubernetes.stream reports any failed
+            # exec with status 0, so check that the pod is gone. Raise other failures, such as a
+            # forbidden exec: skipped, the sidecar would keep the Job running forever.
             if e.status != 404 and not (e.status == 0 and is_pod_deleted(client, pod)):
                 raise
             pod_manager.log.warning("The pod %s was deleted before its XCom was read", pod.metadata.name)
         except json.JSONDecodeError as e:
-            # The sidecar is stopped anyway, so the pod is not read again. If the pod succeeded, the check
-            # of the number of XCom once the Job is finished fails the task.
+            # The sidecar is stopped anyway, so the pod is not read again. If the pod succeeded, the task
+            # fails once the Job is finished, as its XCom is missing.
             pod_manager.log.warning("The XCom of the pod %s is not valid JSON: %s", pod.metadata.name, e)
 
 
 class KubernetesKueueJobTrigger(BaseTrigger):
     """
-    Wait until a Job run through Kueue is finished, whatever Kueue does with it meanwhile.
+    Wait until a Job run through Kueue is finished, even if Kueue preempts it several times.
 
-    Unlike :class:`~airflow.providers.cncf.kubernetes.triggers.job.KubernetesJobTrigger`, it does not wait
-    on pods found when the Job started: Kueue may preempt the Job (its pods are deleted) and admit it again
-    (new pods start) any number of times. Only the Job itself is polled, and the XCom are read from the
-    pods the Job has at each poll.
+    Unlike :class:`~airflow.providers.cncf.kubernetes.triggers.job.KubernetesJobTrigger`, it polls the Job
+    rather than the pods found when the Job started, and reads the XComs from the pods the Job has at
+    each poll.
 
     :param job_name: The name of the job.
     :param job_namespace: The namespace of the job.

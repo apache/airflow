@@ -50,8 +50,9 @@ if AIRFLOW_V_3_1_PLUS:
 else:
     from airflow.models import BaseOperator
 
-# The ``error`` the scheduler gives a deferred task whose trigger timed out: Airflow 3 raises
-# ``TaskDeferralTimeout`` for it, from a module that changed in 3.2, and Airflow 2 a ``TaskDeferralError``
+# The ``error`` of a deferral timeout in Airflow 3 (``TriggerFailureReason.TRIGGER_TIMEOUT``) and in
+# Airflow 2. Matched as text: Airflow 2 raises the generic ``TaskDeferralError`` for any trigger
+# failure, and ``TaskDeferralTimeout`` moved to another module in Airflow 3.2.
 _DEFERRAL_TIMEOUT_ERRORS = ("Trigger timeout", "Trigger/execution timeout")
 
 if TYPE_CHECKING:
@@ -130,11 +131,8 @@ class KubernetesStartKueueJobOperator(KubernetesJobOperator):
     """
     Executes a Kubernetes Job in Kueue.
 
-    With ``wait_until_job_complete=True``, the operator polls the Job itself until it is finished, instead
-    of waiting on the pods found when the Job started: Kueue keeps the Job suspended without pods until it
-    admits it, and may preempt it (suspending it again and deleting its pods) then admit it again any
-    number of times. The XCom of each pod is read while the Job runs, and kept only for the pods that are
-    ``Succeeded`` once the Job is finished. Logs are read from the pods the Job has once it is finished.
+    With ``wait_until_job_complete=True``, the operator polls the Job itself rather than its pods: the Job
+    has no pods until Kueue admits it, and loses its running pods when Kueue preempts it.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -220,10 +218,9 @@ class KubernetesStartKueueJobOperator(KubernetesJobOperator):
 
     def execute_complete(self, context: Context, event: dict, **kwargs):
         if not isinstance(event.get("xcom_result"), dict):
-            # Event of the KubernetesJobTrigger that provider versions before KubernetesKueueJobTrigger
-            # deferred to, for a task deferred before the provider upgrade
+            # Only KubernetesKueueJobTrigger gives "xcom_result" as a dict (by pod name): this event is from
+            # KubernetesJobTrigger, for a task deferred before the provider upgrade
             return super().execute_complete(context, event, **kwargs)
-        # The pods found before a preemption by Kueue were deleted: read the ones the Job has now
         pods = sorted(
             list_job_pods(
                 self.client,
@@ -254,17 +251,17 @@ class KubernetesStartKueueJobOperator(KubernetesJobOperator):
         succeeded = (event["job"].get("status") or {}).get("succeeded") or 0
         if self.do_xcom_push and len(xcom_result) < succeeded:
             raise XComRetrievalError(
-                f"Read the XCom of {len(xcom_result)} of the {succeeded} pods that succeeded in the job "
-                f"'{event['name']}': the other pods were deleted, or their XCom could not be read"
+                f"Read the XComs of only {len(xcom_result)} of the {succeeded} pods that succeeded in "
+                f"the job '{event['name']}': the other pods were deleted, or their XComs could not be read"
             )
         return result
 
     def resume_execution(self, next_method: str, next_kwargs: dict[str, Any] | None, context: Context):
         if next_method == "__fail__" and (next_kwargs or {}).get("error") in _DEFERRAL_TIMEOUT_ERRORS:
-            self._kill_job_of_timed_out_deferral(context)
+            self._delete_job_after_deferral_timeout(context)
         return super().resume_execution(next_method, next_kwargs, context)
 
-    def _kill_job_of_timed_out_deferral(self, context: Context) -> None:
+    def _delete_job_after_deferral_timeout(self, context: Context) -> None:
         """
         Delete the Job when the deferral timed out, as ``on_kill`` does when the sync wait times out.
 
@@ -278,6 +275,7 @@ class KubernetesStartKueueJobOperator(KubernetesJobOperator):
         if not name:
             return
         self.log.info("Deleting the job '%s' as the task timed out while waiting for it", name)
+        # on_kill deletes self.job, with on_kill_propagation_policy and termination_grace_period
         self.job = k8s.V1Job(metadata=k8s.V1ObjectMeta(name=name, namespace=namespace))
         try:
             self.on_kill()

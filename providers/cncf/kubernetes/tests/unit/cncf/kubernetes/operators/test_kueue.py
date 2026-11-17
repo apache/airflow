@@ -460,6 +460,6 @@ class TestKubernetesStartKueueJobOperatorWait:
         self.set_pods([build_pod(name, base="terminated", phase="Succeeded") for name in pod_names])
         event = build_job_event(build_job(False, "Complete", succeeded=2), xcom_results)
 
-        with pytest.raises(XComRetrievalError, match="Read the XCom of 1 of the 2 pods that succeeded"):
+        with pytest.raises(XComRetrievalError, match="Read the XComs of only 1 of the 2 pods that succeeded"):
             self.build_operator(do_xcom_push=True).execute_complete(self.build_context(), event)
         self.mock_pod_manager.fetch_requested_container_logs.assert_called()
