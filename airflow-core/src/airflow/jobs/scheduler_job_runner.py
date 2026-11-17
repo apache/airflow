@@ -45,6 +45,7 @@ from sqlalchemy import (
     func,
     insert,
     inspect,
+    literal,
     or_,
     select,
     text,
@@ -52,7 +53,8 @@ from sqlalchemy import (
     update,
 )
 from sqlalchemy.exc import DBAPIError, OperationalError
-from sqlalchemy.orm import joinedload, lazyload, load_only, make_transient, selectinload
+from sqlalchemy.orm import contains_eager, defer, joinedload, load_only, make_transient, selectinload
+from sqlalchemy.orm.attributes import set_committed_value
 from sqlalchemy.sql import expression
 
 from airflow import settings
@@ -186,6 +188,10 @@ MAX_PARTITION_DAG_RUNS_PER_LOOP = 500
 
 # Max number of ADRQ rows deleted per statement, to keep the bind parameter count bounded.
 _ADRQ_DELETE_CHUNK_SIZE = 500
+
+# Max number of adopted task instances updated per statement: the same batches as the bulk reset of the
+# others (TaskInstance._reset_orphaned_attempts), each task instance binding one parameter in the IN list.
+_ADOPTED_TI_UPDATE_CHUNK_SIZE = 250
 
 # Caps how many dag_ids the cap log lists and how many per-Dag audit rows
 # are written per callback run. The backlog's distinct dag_id count is unbounded, so
@@ -4190,27 +4196,24 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         .values(state=JobState.FAILED, end_date=timezone.utcnow())
                     )
 
+                    # Every column but executor_config, and the Dag runs from the join: executors' adoption
+                    # code and the code below read various columns, and each one left to a lazy load would
+                    # cost a query per task instance while the jobs are locked.
                     query = (
                         select(TI)
-                        .options(lazyload(TI.dag_run))  # avoids double join to dag_run
                         .where(TI.state.in_(State.adoptable_states))
                         .join(TI.queued_by_job)
                         .where(Job.state.is_distinct_from(JobState.RUNNING))
                         .join(TI.dag_run)
                         .where(DagRun.state == DagRunState.RUNNING)
                         .options(
-                            load_only(
-                                TI.id,
-                                TI.dag_id,
-                                TI.task_id,
-                                TI.run_id,
-                                TI.region_id,
-                                TI.region_index,
-                                TI.dag_version_id,
-                                TI.try_number,
-                                TI.state,
-                                TI.external_executor_id,
-                            )
+                            # Deferred: only the reset and some executors' adoption code read it.
+                            defer(TI.executor_config),
+                            # Deferred: trigger payloads can be large, and the successor of a reset clears them.
+                            defer(TI.next_method),
+                            defer(TI.next_kwargs),
+                            # Its JSON columns would be repeated for each of the run's task instances.
+                            contains_eager(TI.dag_run).defer(DagRun.conf).defer(DagRun.context_carrier),
                         )
                     )
 
@@ -4227,24 +4230,18 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     for executor, tis in exec_to_tis.items():
                         to_reset.extend(executor.try_adopt_task_instances(tis))
 
-                    reset_tis_message = []
-                    for ti in to_reset:
-                        reset_tis_message.append(repr(ti))
-                        successor = ti.prepare_db_for_next_try(session=session)
-                        successor.state = None
-                        successor.clear_next_method_args()
-
-                    for ti in set(tis_to_adopt_or_reset) - set(to_reset):
-                        ti.queued_by_job_id = self.job.id
-                        # If old ti from Airflow 2 and last_heartbeat_at is None, set last_heartbeat_at to now
-                        if ti.last_heartbeat_at is None:
-                            ti.last_heartbeat_at = timezone.utcnow()
-                        # If old ti from Airflow 2 and dag_run.conf is None, set dag_run.conf to {}
-                        if ti.dag_run.conf is None:
-                            ti.dag_run.conf = {}
+                    reset_tis_message = [repr(ti) for ti in to_reset]
+                    declined = set(to_reset)
+                    adopted = [ti for ti in tis_to_adopt_or_reset if ti not in declined]
+                    # The row locks taken above must last until the commit, or another scheduler could
+                    # adopt or reset these task instances too, so the reset is not split into several
+                    # transactions. Other schedulers wait on the jobs marked failed above until then,
+                    # hence a bulk reset: a dead scheduler can leave thousands of task instances.
+                    TI._reset_orphaned_attempts(to_reset, session=session)
+                    self._record_adoption(adopted, session=session)
 
                     stats.incr("scheduler.orphaned_tasks.cleared", len(to_reset))
-                    stats.incr("scheduler.orphaned_tasks.adopted", len(tis_to_adopt_or_reset) - len(to_reset))
+                    stats.incr("scheduler.orphaned_tasks.adopted", len(adopted))
                     if to_reset:
                         task_instance_str = "\n\t".join(reset_tis_message)
                         self.log.info(
@@ -4261,6 +4258,38 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     raise
 
         return len(to_reset)
+
+    def _record_adoption(self, tis: Sequence[TI], *, session: Session) -> None:
+        """Make this scheduler's job the owner of adopted task instances, with one UPDATE per batch."""
+        now = timezone.utcnow()
+        for batch in chunks(list(tis), _ADOPTED_TI_UPDATE_CHUNK_SIZE):
+            # Task instances that never sent a heartbeat (queued ones, or ones from Airflow 2) get one now.
+            session.execute(
+                update(TI)
+                .where(TI.id.in_([ti.id for ti in batch]))
+                .values(
+                    queued_by_job_id=self.job.id,
+                    last_heartbeat_at=func.coalesce(
+                        TI.last_heartbeat_at, literal(now, TI.last_heartbeat_at.type)
+                    ),
+                    updated_at=now,
+                )
+                .execution_options(synchronize_session=False)
+            )
+            # The objects hold the values written, as after a flush.
+            for ti in batch:
+                set_committed_value(ti, "queued_by_job_id", self.job.id)
+                set_committed_value(ti, "updated_at", now)
+                if ti.last_heartbeat_at is None:
+                    set_committed_value(ti, "last_heartbeat_at", now)
+            # Dag runs from Airflow 2 may have no conf: they get an empty one.
+            runs = {ti.dag_run.id: ti.dag_run for ti in batch}
+            for run_id, run_conf in session.execute(
+                select(DagRun.id, DagRun.conf).where(DagRun.id.in_(list(runs)))
+            ):
+                set_committed_value(runs[run_id], "conf", run_conf)
+                if run_conf is None:
+                    runs[run_id].conf = {}
 
     @provide_session
     def check_trigger_timeouts(
