@@ -80,6 +80,22 @@ class Client internal constructor(
   val taskStateStore: TaskStateStore = TaskStateStore(details, impl, env)
 
   /**
+   * Gives the task the state store of each asset, which it looks up by the
+   * asset's name or URI.
+   *
+   * Entries belong to the asset, not to a task instance or a Dag run. A value
+   * that one Dag run stores, such as an incremental-load watermark, is still
+   * there in later runs:
+   *
+   * ```java
+   * var orders = client.getAssetStateStore().byName("orders");
+   * var watermark = (String) orders.get("watermark"); // null until a task sets it
+   * orders.set("watermark", "2026-10-01T00:00:00Z");
+   * ```
+   */
+  val assetStateStore: AssetStateStores = AssetStateStores(impl)
+
+  /**
    * Retrieves a connection from the Airflow connection store.
    *
    * @param id Connection ID as configured in Airflow.

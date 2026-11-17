@@ -136,6 +136,24 @@ private class FakeTrigger(
   override fun clearTaskStateStore(tiId: UUID): Unit = throw UnsupportedOperationException("not used in test")
 
   override fun skipDownstreamTasks(taskIds: List<String>): Unit = throw UnsupportedOperationException("not used in test")
+
+  override fun getAssetStateStore(
+    asset: AssetRef,
+    key: String,
+  ) = throw UnsupportedOperationException("not used in test")
+
+  override fun setAssetStateStore(
+    asset: AssetRef,
+    key: String,
+    value: Any,
+  ): Unit = throw UnsupportedOperationException("not used in test")
+
+  override fun deleteAssetStateStore(
+    asset: AssetRef,
+    key: String,
+  ): Unit = throw UnsupportedOperationException("not used in test")
+
+  override fun clearAssetStateStore(asset: AssetRef): Unit = throw UnsupportedOperationException("not used in test")
 }
 
 /** The trigger time the tests run at, so a generated run ID is the same on every run. */

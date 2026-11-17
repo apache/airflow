@@ -230,6 +230,14 @@ class AirflowClient:
         """Get a Dag run, with its state, run type and conf."""
         return self._make_request(method="GET", endpoint=f"dags/{dag_id}/dagRuns/{run_id}")
 
+    def get_asset_state_store_entry(self, asset_name: str, key: str):
+        """Get one key of an asset's state store via API, looking up the asset by its name."""
+        # name_pattern matches substrings, so keep only the asset named exactly asset_name.
+        assets = self._make_request(method="GET", endpoint="assets", params={"name_pattern": asset_name})
+        asset_ids = [asset["id"] for asset in assets["assets"] if asset["name"] == asset_name]
+        assert len(asset_ids) == 1, f"expected one asset named {asset_name!r}, got {assets!r}"
+        return self._make_request(method="GET", endpoint=f"assets/{asset_ids[0]}/state-store/{key}")
+
     def trigger_dag_and_wait(self, dag_id: str, json=None):
         """Trigger a DAG and wait for it to complete."""
         self.un_pause_dag(dag_id)
