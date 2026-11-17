@@ -1153,6 +1153,7 @@ class SerializedDAG:
         exclude_task_ids: frozenset[str] | frozenset[tuple[str, int]] | None = frozenset(),
         exclude_run_ids: frozenset[str] | None = frozenset(),
         run_on_latest_version: bool = False,
+        keep_task_state: bool = False,
         prevent_running_task: bool | None = None,
     ) -> set[str]: ...  # pragma: no cover
 
@@ -1171,6 +1172,7 @@ class SerializedDAG:
         exclude_task_ids: frozenset[str] | frozenset[tuple[str, int]] | None = frozenset(),
         exclude_run_ids: frozenset[str] | None = frozenset(),
         run_on_latest_version: bool = False,
+        keep_task_state: bool = False,
         prevent_running_task: bool | None = None,
     ) -> list[TaskInstance]: ...  # pragma: no cover
 
@@ -1189,6 +1191,7 @@ class SerializedDAG:
         exclude_task_ids: frozenset[str] | frozenset[tuple[str, int]] | None = frozenset(),
         exclude_run_ids: frozenset[str] | None = frozenset(),
         run_on_latest_version: bool = False,
+        keep_task_state: bool = False,
         prevent_running_task: bool | None = None,
     ) -> set[str] | list[TaskInstance]: ...  # pragma: no cover
 
@@ -1207,6 +1210,7 @@ class SerializedDAG:
         exclude_task_ids: frozenset[str] | frozenset[tuple[str, int]] | None = frozenset(),
         exclude_run_ids: frozenset[str] | None = frozenset(),
         run_on_latest_version: bool = False,
+        keep_task_state: bool = False,
         prevent_running_task: bool | None = None,
     ) -> int: ...  # pragma: no cover
 
@@ -1225,6 +1229,7 @@ class SerializedDAG:
         exclude_task_ids: frozenset[str] | frozenset[tuple[str, int]] | None = frozenset(),
         exclude_run_ids: frozenset[str] | None = frozenset(),
         run_on_latest_version: bool = False,
+        keep_task_state: bool = False,
         prevent_running_task: bool | None = None,
     ) -> list[TaskInstance]: ...  # pragma: no cover
 
@@ -1243,6 +1248,7 @@ class SerializedDAG:
         exclude_task_ids: frozenset[str] | frozenset[tuple[str, int]] | None = frozenset(),
         exclude_run_ids: frozenset[str] | None = frozenset(),
         run_on_latest_version: bool = False,
+        keep_task_state: bool = False,
         prevent_running_task: bool | None = None,
     ) -> int: ...  # pragma: no cover
 
@@ -1263,6 +1269,7 @@ class SerializedDAG:
         exclude_task_ids: frozenset[str] | frozenset[tuple[str, int]] | None = frozenset(),
         exclude_run_ids: frozenset[str] | None = frozenset(),
         run_on_latest_version: bool = False,
+        keep_task_state: bool = False,
         prevent_running_task: bool | None = None,
     ) -> int | Iterable[TaskInstance] | set[str]:
         """
@@ -1279,6 +1286,7 @@ class SerializedDAG:
             be changed.
         :param dry_run: Find the tasks to clear but don't clear them.
         :param run_on_latest_version: whether to run on latest serialized DAG and Bundle version
+        :param keep_task_state: keep the ``task_state_store`` entries so cleared tasks resume from them
         :param prevent_running_task: raise instead of clearing a task instance that is running
         :param session: The sqlalchemy session to use
         :param exclude_task_ids: A set of ``task_id`` or (``task_id``, ``map_index``)
@@ -1378,6 +1386,7 @@ class SerializedDAG:
             session=session,
             dag_run_state=dag_run_state,
             run_on_latest_version=run_on_latest_version,
+            keep_task_state=keep_task_state,
             prevent_running_task=prevent_running_task,
             later_loop_iterations=not (only_failed or only_running),
             whole_task_keys={
@@ -1407,6 +1416,7 @@ class SerializedDAG:
         only_running=False,
         dag_run_state=DagRunState.QUEUED,
         dry_run: bool = False,
+        keep_task_state: bool = False,
     ):
         if dry_run:
             tis = itertools.chain.from_iterable(
@@ -1430,6 +1440,7 @@ class SerializedDAG:
                 only_running=only_running,
                 dag_run_state=dag_run_state,
                 dry_run=False,
+                keep_task_state=keep_task_state,
             )
             for dag in dags
         )

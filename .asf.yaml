@@ -175,6 +175,28 @@ github:
               # contributor's fork for a gated pull request or in apache/airflow otherwise; until
               # then GitHub lists it on the pull request as expected and waiting.
               - context: "CI run started"
+    # Release tags of the language SDKs. The TypeScript npm release workflow and the
+    # `ts-sdk-npm-release` environment trust `ts-sdk/*` tags, and the Go module proxy caches a
+    # `go-sdk/*` tag's commit forever, so a release tag must not be moved or deleted. RC tags are
+    # covered too: they are kept for traceability after a failed vote. Committers can bypass it to
+    # repair a bad tag, the same as the CI rulesets above.
+    - name: "Protect language SDK release tags"
+      target: tag
+      enforcement: active
+      conditions:
+        ref_name:
+          include:
+            - "refs/tags/java-sdk/*"
+            - "refs/tags/go-sdk/*"
+            - "refs/tags/ts-sdk/*"
+          exclude: []
+      bypass_actors:
+        - actor_id: 4
+          actor_type: RepositoryRole
+          bypass_mode: always
+      rules:
+        - type: deletion
+        - type: update
     - name: "Branch protection"
       type: branch
       branches:

@@ -355,8 +355,8 @@ spec:
             {{- include "custom_airflow_environment" . | indent 10 }}
             {{- include "standard_airflow_environment" . | indent 10 }}
             {{- if $keda }}
+            {{- include "keda_airflow_environment" (merge (dict "UsePgbouncer" .Values.workers.celery.keda.usePgbouncer "AuthenticationRef" .Values.workers.celery.keda.authenticationRef) .) | indent 10 }}
             {{- include "metadata_db_environment" . | indent 10 }}
-            {{- include "keda_airflow_environment" (merge (dict "UsePgbouncer" .Values.workers.celery.keda.usePgbouncer) .) | indent 10 }}
             {{- else if not (include "celery_result_backend_configured" .) }}
             {{- include "metadata_db_sql_alchemy_environment" . | indent 10 }}
             {{- else }}
