@@ -36,7 +36,7 @@ from airflow.providers.microsoft.azure.triggers.powerbi import PowerBITrigger
 
 from tests_common.test_utils.operators.run_deferrable import run_trigger
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_3_PLUS
-from unit.microsoft.azure.test_utils import get_airflow_connection
+from unit.microsoft.azure.test_utils import TaskStateStore, get_airflow_connection
 
 DEFAULT_CONNECTION_CLIENT_SECRET = "powerbi_conn_id"
 TASK_ID = "run_powerbi_operator"
@@ -103,19 +103,6 @@ def previous_refresh(status: str) -> dict[str, str]:
         PowerBIDatasetRefreshFields.STATUS.value: status,
         PowerBIDatasetRefreshFields.ERROR.value: "None",
     }
-
-
-class TaskStateStore:
-    """In-memory stand-in for ``context["task_state_store"]``."""
-
-    def __init__(self, **values):
-        self.values = dict(values)
-
-    def get(self, key, default=None):
-        return self.values.get(key, default)
-
-    def set(self, key, value, *, retention=None):
-        self.values[key] = value
 
 
 class TestPowerBIDatasetRefreshOperator:
