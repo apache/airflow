@@ -526,20 +526,16 @@ class BaseXCom:
             ),
         )
 
-        if not isinstance(msg, XComResult):
-            raise TypeError(f"Expected XComResult, received: {type(msg)} {msg}")
-
-        if msg.value is not None:
-            return cls._load(msg)
-        log.debug(
-            "No XCom value found; defaulting to None.",
-            key=key,
-            dag_id=dag_id,
-            task_id=task_id,
-            run_id=run_id,
-            map_index=map_index,
-        )
-        return None
+        if (value := cls._load_result(msg)) is None:
+            log.debug(
+                "No XCom value found; defaulting to None.",
+                key=key,
+                dag_id=dag_id,
+                task_id=task_id,
+                run_id=run_id,
+                map_index=map_index,
+            )
+        return value
 
     @classmethod
     async def aget_one(
@@ -590,20 +586,16 @@ class BaseXCom:
             ),
         )
 
-        if not isinstance(msg, XComResult):
-            raise TypeError(f"Expected XComResult, received: {type(msg)} {msg}")
-
-        if msg.value is not None:
-            return await asyncio.to_thread(cls._load, msg)
-        log.debug(
-            "No XCom value found; defaulting to None.",
-            key=key,
-            dag_id=dag_id,
-            task_id=task_id,
-            run_id=run_id,
-            map_index=map_index,
-        )
-        return None
+        if (value := await asyncio.to_thread(cls._load_result, msg)) is None:
+            log.debug(
+                "No XCom value found; defaulting to None.",
+                key=key,
+                dag_id=dag_id,
+                task_id=task_id,
+                run_id=run_id,
+                map_index=map_index,
+            )
+        return value
 
     @classmethod
     def get_all(
@@ -651,10 +643,7 @@ class BaseXCom:
         if not isinstance(msg, XComSequenceSliceResult):
             raise TypeError(f"Expected XComSequenceSliceResult, received: {type(msg)} {msg}")
 
-        if not msg.root:
-            return None
-
-        return cls._load_many(msg.root)
+        return cls._load_result(msg)
 
     @classmethod
     async def aget_all(
@@ -702,10 +691,7 @@ class BaseXCom:
         if not isinstance(msg, XComSequenceSliceResult):
             raise TypeError(f"Expected XComSequenceSliceResult, received: {type(msg)} {msg}")
 
-        if not msg.root:
-            return None
-
-        return await asyncio.to_thread(cls._load_many, msg.root)
+        return await asyncio.to_thread(cls._load_result, msg)
 
     @classmethod
     def store_value(cls, coordinate: XComCoordinate, key: str, value: Any) -> JsonValue:
@@ -740,6 +726,18 @@ class BaseXCom:
         :meth:`deserialize_value`.
         """
         return cls.deserialize_value(_XComValueWrapper(stored))
+
+    @classmethod
+    def _load_result(cls, result: Any) -> Any:
+        """Load an XCom read's result, one stored value or a mapped task's values; *None* if empty."""
+        match result:
+            case XComResult(value=None) | XComSequenceSliceResult(root=[]):
+                return None
+            case XComResult():
+                return cls._load(result)
+            case XComSequenceSliceResult(root=values):
+                return cls._load_many(values)
+        raise TypeError(f"Expected XComResult or XComSequenceSliceResult, received: {type(result)} {result}")
 
     @classmethod
     def _load_many(cls, values: list[JsonValue]) -> list[Any]:

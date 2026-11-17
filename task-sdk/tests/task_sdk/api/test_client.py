@@ -52,6 +52,7 @@ from airflow.sdk.api.datamodels._generated import (
     TerminalTIState,
     VariableResponse,
     XComResponse,
+    XComSequenceSliceResponse,
 )
 from airflow.sdk.exceptions import ErrorType, TaskAlreadyRunningError
 from airflow.sdk.execution_time.comms import (
@@ -1306,8 +1307,8 @@ class TestXCOMOperations:
     @pytest.mark.parametrize(
         ("slice_values", "expected"),
         [
-            pytest.param(["a", "b"], ["a", "b"], id="mapped"),
-            pytest.param([], None, id="nothing"),
+            pytest.param(["a", "b"], XComSequenceSliceResponse(["a", "b"]), id="mapped"),
+            pytest.param([], XComResponse(key="key", value=None), id="nothing"),
         ],
     )
     def test_xcom_get_omitted_map_index_reads_the_slice_when_not_found(self, slice_values, expected):
@@ -1326,7 +1327,7 @@ class TestXCOMOperations:
             dag_id="dag_id", run_id="run_id", task_id="task_id", key="key", include_prior_dates=True
         )
 
-        assert result == XComResponse(key="key", value=expected)
+        assert result == expected
         assert [request.url.path for request in requests] == [
             "/xcoms/dag_id/run_id/task_id/key",
             "/xcoms/dag_id/run_id/task_id/key/slice",

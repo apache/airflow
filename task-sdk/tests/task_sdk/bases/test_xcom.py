@@ -106,16 +106,26 @@ class TestBaseXCom:
             mock.call(DeleteXCom(key="key", task_id="task", dag_id="dag", run_id="run")),
         ]
 
-    def test_get_one_without_map_index_loads_a_mapped_tasks_values(self, mock_supervisor_comms):
-        """The server answers an omitted map index on a mapped task with all its instances' values."""
-        mock_supervisor_comms.send.return_value = XComResult(key="key", value=[1, {"a": 2}])
+    def test_get_one_without_map_index_loads_each_of_a_mapped_tasks_values(self, mock_supervisor_comms):
+        """A mapped task's values are answered as a slice, and loaded one by one."""
+        mock_supervisor_comms.send.return_value = XComSequenceSliceResult(root=["a", "b"])
 
-        result = BaseXCom.get_one(key="key", task_id="task", dag_id="dag", run_id="run")
+        result = StoreXCom.get_one(key="key", task_id="task", dag_id="dag", run_id="run")
 
-        assert result == [1, {"a": 2}]
+        assert result == ["loaded a", "loaded b"]
         mock_supervisor_comms.send.assert_called_once_with(
             GetXCom(key="key", task_id="task", dag_id="dag", run_id="run", map_index=None)
         )
+
+    @pytest.mark.asyncio
+    async def test_aget_one_without_map_index_loads_each_of_a_mapped_tasks_values(
+        self, mock_supervisor_comms
+    ):
+        mock_supervisor_comms.asend = mock.AsyncMock(return_value=XComSequenceSliceResult(root=["a", "b"]))
+
+        result = await StoreXCom.aget_one(key="key", task_id="task", dag_id="dag", run_id="run")
+
+        assert result == ["loaded a", "loaded b"]
 
     @pytest.mark.asyncio
     async def test_aget_one_returns_value(self, mock_supervisor_comms):

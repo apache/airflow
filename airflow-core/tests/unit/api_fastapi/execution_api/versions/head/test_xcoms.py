@@ -54,6 +54,7 @@ from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.sdk import task_group
 from airflow.sdk.api.client import Client
+from airflow.sdk.api.datamodels import _generated as client_models
 from airflow.sdk.definitions._internal.loop import create_loop
 from airflow.sdk.serde import deserialize, serialize
 from airflow.utils.session import create_session
@@ -1399,16 +1400,24 @@ class TestTaskSdkClientGetXCom:
     @pytest.mark.parametrize(
         ("task_id", "map_index", "expected"),
         [
-            pytest.param("mapped", None, [0, 1], id="mapped-omitted"),
-            pytest.param("mapped", 1, 1, id="mapped-one"),
-            pytest.param("plain", None, "plain", id="unmapped-omitted"),
+            pytest.param(
+                "mapped", None, client_models.XComSequenceSliceResponse([0, 1]), id="mapped-omitted"
+            ),
+            pytest.param(
+                "mapped", 1, client_models.XComResponse(key=XCOM_RETURN_KEY, value=1), id="mapped-one"
+            ),
+            pytest.param(
+                "plain",
+                None,
+                client_models.XComResponse(key=XCOM_RETURN_KEY, value="plain"),
+                id="unmapped-omitted",
+            ),
         ],
     )
     def test_get(self, task_id, map_index, expected):
         client = Client(base_url=None, token="", dry_run=True, transport=InProcessExecutionAPI().transport)
         client.base_url = "http://in-process.invalid/"
-        response = client.xcoms.get("dag", "runid", task_id, XCOM_RETURN_KEY, map_index)
-        assert response.value == expected
+        assert client.xcoms.get("dag", "runid", task_id, XCOM_RETURN_KEY, map_index) == expected
 
 
 class TestXComsSetEndpoint:

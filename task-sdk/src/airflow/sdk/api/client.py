@@ -667,12 +667,12 @@ class XComOperations:
         include_prior_dates: bool = False,
         *,
         previous_iteration: bool = False,
-    ) -> XComResponse:
+    ) -> XComResponse | XComSequenceSliceResponse:
         """
         Get a XCom value from the API server.
 
         Any *map_index* is sent as given. An omitted one reads the task's result: its value, or for a
-        mapped task the values of all its instances as a list.
+        mapped task the values of all its instances, as a slice response.
         """
         params: dict[str, str | int] = {}
         if previous_iteration:
@@ -696,7 +696,7 @@ class XComOperations:
                 detail=e.detail,
                 status_code=e.response.status_code,
             )
-            value = self._get_mapped_values_or_none(
+            mapped = self._get_mapped_slice_or_none(
                 dag_id,
                 run_id,
                 task_id,
@@ -705,11 +705,13 @@ class XComOperations:
                 include_prior_dates=include_prior_dates,
                 previous_iteration=previous_iteration,
             )
+            if mapped is not None:
+                return mapped
             # A missing XCom is not an error, as in Airflow 2; xcom_pull then returns its default.
-            return XComResponse(key=key, value=value)
+            return XComResponse(key=key, value=None)
         return XComResponse.model_validate_json(resp.read())
 
-    def _get_mapped_values_or_none(
+    def _get_mapped_slice_or_none(
         self,
         dag_id: str,
         run_id: str,
@@ -719,7 +721,7 @@ class XComOperations:
         *,
         include_prior_dates: bool,
         previous_iteration: bool,
-    ) -> list[JsonValue] | None:
+    ) -> XComSequenceSliceResponse | None:
         """
         Read a mapped task's values from the slice endpoint.
 
@@ -729,7 +731,7 @@ class XComOperations:
         """
         if map_index is not None:
             return None
-        values = self.get_sequence_slice(
+        response = self.get_sequence_slice(
             dag_id,
             run_id,
             task_id,
@@ -739,8 +741,8 @@ class XComOperations:
             None,
             include_prior_dates,
             previous_iteration=previous_iteration,
-        ).root
-        return values or None  # Empty may also be an unmapped task.
+        )
+        return response if response.root else None  # Empty may also be an unmapped task.
 
     def set(
         self,
