@@ -161,6 +161,16 @@ class TestRetryWithDifferentJobStatuses:
         assert op.submitted_ids == []
         assert op.polled_ids == ["job-001"]
 
+    def test_reconnects_to_stored_id_zero(self):
+        op = ConcreteResumableOperator(task_id="test_task")
+        op._status_map["0"] = "RUNNING"
+        task_state = FakeTaskState({"test_job_id": 0})
+
+        op.execute_resumable(make_context(task_state))
+
+        assert op.submitted_ids == []
+        assert op.polled_ids == ["0"]
+
     def test_returns_result_immediately_without_polling(self):
         op = ConcreteResumableOperator(task_id="test_task")
         op._status_map["job-001"] = "SUCCEEDED"

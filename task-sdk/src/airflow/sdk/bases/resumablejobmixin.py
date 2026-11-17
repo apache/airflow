@@ -166,7 +166,7 @@ class ResumableJobMixin(ABC):
                 return ResumeDecision("submit")
 
             external_id = task_state_store.get(self.external_id_key)
-            if not external_id:
+            if external_id is None:
                 span.set_attribute("resumable.decision", "fresh_submit")
                 stats.incr("resumable_job.fresh_submit", tags=stats_tags)
                 self.log.debug(
