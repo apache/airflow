@@ -24,7 +24,6 @@ import type * as OpenapiQueries from "openapi/queries";
 
 import { Wrapper } from "src/utils/Wrapper";
 
-import TriggerDAGForm from "./TriggerDAGForm";
 import {
   buildForm,
   dagParams,
@@ -111,20 +110,9 @@ describe("TriggerDAGForm partition key suggestion", () => {
   });
 
   it("pre-fills the partition key field with the suggested value", async () => {
-    const { container } = render(
-      <TriggerDAGForm
-        dagId="example_partitioned_dag"
-        error={undefined}
-        hasSchedule={false}
-        isPartitioned
-        isPaused={false}
-        isPending={false}
-        onSubmitTrigger={vi.fn()}
-        open
-        suggestedPartitionKey="2026-02-18T00:00:00"
-      />,
-      { wrapper: Wrapper },
-    );
+    const { container } = render(buildForm({ suggestedPartitionKey: "2026-02-18T00:00:00" }), {
+      wrapper: Wrapper,
+    });
 
     await waitFor(() =>
       expect(container.querySelector<HTMLInputElement>('input[name="partitionKey"]')).toBeInTheDocument(),
@@ -137,19 +125,7 @@ describe("TriggerDAGForm partition key suggestion", () => {
   });
 
   it("leaves the partition key field blank when no suggestion is provided", async () => {
-    const { container } = render(
-      <TriggerDAGForm
-        dagId="example_partitioned_dag"
-        error={undefined}
-        hasSchedule={false}
-        isPartitioned
-        isPaused={false}
-        isPending={false}
-        onSubmitTrigger={vi.fn()}
-        open
-      />,
-      { wrapper: Wrapper },
-    );
+    const { container } = render(buildForm({}), { wrapper: Wrapper });
 
     await waitFor(() =>
       expect(container.querySelector<HTMLInputElement>('input[name="partitionKey"]')).toBeInTheDocument(),
@@ -162,38 +138,15 @@ describe("TriggerDAGForm partition key suggestion", () => {
   });
 
   it("applies a fresher suggestion arriving after the form is shown", async () => {
-    const { container, rerender } = render(
-      <TriggerDAGForm
-        dagId="example_partitioned_dag"
-        error={undefined}
-        hasSchedule={false}
-        isPartitioned
-        isPaused={false}
-        isPending={false}
-        onSubmitTrigger={vi.fn()}
-        open
-        suggestedPartitionKey="2026-02-18T00:00:00"
-      />,
-      { wrapper: Wrapper },
-    );
+    const { container, rerender } = render(buildForm({ suggestedPartitionKey: "2026-02-18T00:00:00" }), {
+      wrapper: Wrapper,
+    });
 
     await waitFor(() =>
       expect(container.querySelector<HTMLInputElement>('input[name="partitionKey"]')).toBeInTheDocument(),
     );
 
-    rerender(
-      <TriggerDAGForm
-        dagId="example_partitioned_dag"
-        error={undefined}
-        hasSchedule={false}
-        isPartitioned
-        isPaused={false}
-        isPending={false}
-        onSubmitTrigger={vi.fn()}
-        open
-        suggestedPartitionKey="2026-02-18T01:00:00"
-      />,
-    );
+    rerender(buildForm({ suggestedPartitionKey: "2026-02-18T01:00:00" }));
 
     await waitFor(() =>
       expect(container.querySelector<HTMLInputElement>('input[name="partitionKey"]')?.value).toBe(
@@ -204,20 +157,9 @@ describe("TriggerDAGForm partition key suggestion", () => {
   });
 
   it("keeps an edited partition key when a fresher suggestion arrives", async () => {
-    const { container, rerender } = render(
-      <TriggerDAGForm
-        dagId="example_partitioned_dag"
-        error={undefined}
-        hasSchedule={false}
-        isPartitioned
-        isPaused={false}
-        isPending={false}
-        onSubmitTrigger={vi.fn()}
-        open
-        suggestedPartitionKey="2026-02-18T00:00:00"
-      />,
-      { wrapper: Wrapper },
-    );
+    const { container, rerender } = render(buildForm({ suggestedPartitionKey: "2026-02-18T00:00:00" }), {
+      wrapper: Wrapper,
+    });
 
     await waitFor(() =>
       expect(container.querySelector<HTMLInputElement>('input[name="partitionKey"]')).toBeInTheDocument(),
@@ -227,19 +169,7 @@ describe("TriggerDAGForm partition key suggestion", () => {
 
     fireEvent.change(partitionKeyField as HTMLInputElement, { target: { value: "2026-01-01T00:00:00" } });
 
-    rerender(
-      <TriggerDAGForm
-        dagId="example_partitioned_dag"
-        error={undefined}
-        hasSchedule={false}
-        isPartitioned
-        isPaused={false}
-        isPending={false}
-        onSubmitTrigger={vi.fn()}
-        open
-        suggestedPartitionKey="2026-02-18T01:00:00"
-      />,
-    );
+    rerender(buildForm({ suggestedPartitionKey: "2026-02-18T01:00:00" }));
 
     await waitFor(() =>
       expect(container.querySelector<HTMLInputElement>('input[name="partitionKey"]')?.value).toBe(
@@ -382,6 +312,7 @@ describe("TriggerDAGForm partition key suggestion", () => {
     await waitFor(() => expect(getPartitionKeyInput(container)).toHaveValue("b"));
     expect(screen.getByText(SUGGESTED_HELP)).toBeInTheDocument();
   });
+
   it("treats a value the user retyped as the suggestion as their own edit", async () => {
     const { container, rerender } = render(buildForm({ suggestedPartitionKey: "a" }), { wrapper: Wrapper });
 
