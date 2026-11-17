@@ -157,6 +157,9 @@ apache-airflow = "airflow.__main__:main"
 "apache.pinot" = [
     "apache-airflow-providers-apache-pinot>=4.5.1"
 ]
+"apache.polaris" = [
+    "apache-airflow-providers-apache-polaris>=0.1.0"
+]
 "apache.spark" = [
     "apache-airflow-providers-apache-spark>=4.11.1"
 ]
@@ -447,6 +450,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-apache-livy>=3.9.2",
     "apache-airflow-providers-apache-pig>=4.6.0",
     "apache-airflow-providers-apache-pinot>=4.5.1",
+    "apache-airflow-providers-apache-polaris>=0.1.0",
     "apache-airflow-providers-apache-spark>=4.11.1",
     "apache-airflow-providers-apache-tinkerpop>=1.0.0; python_version !=\"3.14\"",
     "apache-airflow-providers-apprise>=1.4.1",
@@ -1179,6 +1183,8 @@ mypy_path = [
     "$MYPY_CONFIG_FILE_DIR/providers/apache/pig/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/apache/pinot/src",
     "$MYPY_CONFIG_FILE_DIR/providers/apache/pinot/tests",
+    "$MYPY_CONFIG_FILE_DIR/providers/apache/polaris/src",
+    "$MYPY_CONFIG_FILE_DIR/providers/apache/polaris/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/apache/spark/src",
     "$MYPY_CONFIG_FILE_DIR/providers/apache/spark/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/apache/tinkerpop/src",
@@ -1532,6 +1538,7 @@ apache-airflow-providers-apache-kylin = false
 apache-airflow-providers-apache-livy = false
 apache-airflow-providers-apache-pig = false
 apache-airflow-providers-apache-pinot = false
+apache-airflow-providers-apache-polaris = false
 apache-airflow-providers-apache-spark = false
 apache-airflow-providers-apache-tinkerpop = false
 apache-airflow-providers-apprise = false
@@ -1660,6 +1667,11 @@ uv = false
 # Remove this `exclude-newer-package` after 2026-11-02, when that release has been out for 4 days.
 pypdf = "2026-10-29T00:00:00Z"
 
+# apache-polaris 1.9.0, published 2026-11-16, is the first release the Apache Polaris provider can
+# use (it requires apache-polaris>=1.9.0). Remove this `exclude-newer-package` after 2026-11-21,
+# when that release has been out for 4 days.
+apache-polaris = "2026-11-17T00:00:00Z"
+
 [tool.airflow.dependency-floors]
 # Floors of these dependencies are raised by `breeze ci upgrade` (scripts/ci/prek/upgrade_dependency_floors.py),
 # see dev/breeze/doc/adr/0018-raise-dependency-floors-automatically.md.
@@ -1731,6 +1743,7 @@ apache-airflow-providers-apache-kylin = false
 apache-airflow-providers-apache-livy = false
 apache-airflow-providers-apache-pig = false
 apache-airflow-providers-apache-pinot = false
+apache-airflow-providers-apache-polaris = false
 apache-airflow-providers-apache-spark = false
 apache-airflow-providers-apache-tinkerpop = false
 apache-airflow-providers-apprise = false
@@ -1849,6 +1862,8 @@ pip = false
 uv = false
 # Temporary: see the pypdf note in `[tool.uv.exclude-newer-package]`.
 pypdf = "2026-10-29T00:00:00Z"
+# Temporary: see the apache-polaris note in `[tool.uv.exclude-newer-package]`.
+apache-polaris = "2026-11-17T00:00:00Z"
 
 [tool.uv.sources]
 # These names must match the names as defined in the pyproject.toml of the workspace items,
@@ -1905,6 +1920,7 @@ apache-airflow-providers-apache-kylin = { workspace = true }
 apache-airflow-providers-apache-livy = { workspace = true }
 apache-airflow-providers-apache-pig = { workspace = true }
 apache-airflow-providers-apache-pinot = { workspace = true }
+apache-airflow-providers-apache-polaris = { workspace = true }
 apache-airflow-providers-apache-spark = { workspace = true }
 apache-airflow-providers-apache-tinkerpop = { workspace = true }
 apache-airflow-providers-apprise = { workspace = true }
@@ -2052,6 +2068,7 @@ members = [
     "providers/apache/livy",
     "providers/apache/pig",
     "providers/apache/pinot",
+    "providers/apache/polaris",
     "providers/apache/spark",
     "providers/apache/tinkerpop",
     "providers/apprise",

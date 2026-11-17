@@ -1374,7 +1374,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "providers-test-types-list-as-strings-in-json": ALL_PROVIDERS_SELECTIVE_TEST_TYPES_AS_JSON,
                     "testable-core-integrations": "['kerberos', 'otel', 'redis']",
                     "testable-providers-integrations": "['celery', 'cassandra', 'drill', 'elasticsearch', 'opensearch', 'tinkerpop', 'kafka', "
-                    "'mongo', 'pinot', 'qdrant', 'redis', 'trino', 'ydb']",
+                    "'mongo', 'pinot', 'polaris', 'qdrant', 'redis', 'trino', 'ydb']",
                     "run-mypy-providers": "true",
                 },
                 id="All tests should be run when devel-common/ change",

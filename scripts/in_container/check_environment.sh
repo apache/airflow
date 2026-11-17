@@ -185,6 +185,11 @@ if [[ ${INTEGRATION_PINOT} == "true" ]]; then
     check_service "Pinot (Broker API)" "${CMD}" 50
 fi
 
+if [[ ${INTEGRATION_POLARIS} == "true" ]]; then
+    CMD="curl --max-time 1 -f http://polaris:8182/q/health"
+    check_service "Apache Polaris" "${CMD}" 50
+fi
+
 if [[ ${INTEGRATION_QDRANT} == "true" ]]; then
     check_service "Qdrant" "run_nc qdrant 6333" 50
     CMD="curl -f -X GET 'http://qdrant:6333/collections'"
