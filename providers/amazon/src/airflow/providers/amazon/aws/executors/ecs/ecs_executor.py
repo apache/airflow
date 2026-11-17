@@ -225,7 +225,12 @@ class AwsEcsExecutor(BaseExecutor):
                     del self.executor_queues[WorkloadType.EXECUTE_CALLBACK][key]
                 else:
                     del self.queued_callbacks[key]
-                self.execute_async(key=key, command=command, queue=None)
+                self.execute_async(
+                    key=key,
+                    command=command,
+                    queue=None,
+                    executor_config=getattr(workload, "executor_config", None),
+                )
                 self.running.add(key)
 
             else:

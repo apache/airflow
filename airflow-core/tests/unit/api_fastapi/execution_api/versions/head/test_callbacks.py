@@ -194,6 +194,27 @@ class TestUpdateCallbackState:
         assert running_callback.state == state
         assert running_callback.output == output
 
+    @pytest.mark.parametrize("state", ["success", "failed"])
+    @pytest.mark.parametrize(("length", "expected_status"), [(2000, 204), (2001, 422)])
+    def test_output_length_boundary(self, client, session, running_callback, state, length, expected_status):
+        running_callback.output = "captured earlier"
+        session.commit()
+        output = "x" * length
+
+        response = client.patch(
+            f"/execution/callbacks/{running_callback.id}/state", json={"state": state, "output": output}
+        )
+
+        assert response.status_code == expected_status
+        session.expire_all()
+        session.refresh(running_callback)
+        if expected_status == 204:
+            assert running_callback.state == state
+            assert running_callback.output == output
+        else:
+            assert running_callback.state == CallbackState.RUNNING
+            assert running_callback.output == "captured earlier"
+
     def test_output_is_left_alone_when_omitted(self, client, session, running_callback):
         running_callback.output = "captured earlier"
         session.commit()
@@ -510,11 +531,13 @@ WORKER = {"hostname": "worker-1", "pid": 4242, "attempt_id": "01890a5d-ac70-7a5b
 
 class TestRunCallbackRetriedExchange:
     def test_the_same_worker_can_repeat_its_exchange(self, client, session, queued_callback):
-        """A worker that lost the response to its exchange retries it, and still runs the callback once."""
+        """A worker can retry a lost exchange response without moving the callback's original start."""
         url = f"/execution/callbacks/{queued_callback.id}/run"
 
-        first = client.patch(url, json=WORKER)
-        retried = client.patch(url, json=WORKER)
+        with time_machine.travel(NOW, tick=False) as clock:
+            first = client.patch(url, json=WORKER)
+            clock.shift(timedelta(seconds=30))
+            retried = client.patch(url, json=WORKER)
 
         assert first.status_code == retried.status_code == 204
         payload = jwt.decode(retried.headers["Refreshed-API-Token"], options={"verify_signature": False})
@@ -524,6 +547,7 @@ class TestRunCallbackRetriedExchange:
         callback = session.get_one(Callback, queued_callback.id)
         assert callback.state == CallbackState.RUNNING
         assert callback.started_by == WORKER
+        assert callback.started_at == NOW
 
     @pytest.mark.parametrize(
         "retry_body",

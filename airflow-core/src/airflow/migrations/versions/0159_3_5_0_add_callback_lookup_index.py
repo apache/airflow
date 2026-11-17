@@ -20,7 +20,7 @@
 Add an index for looking callbacks up by type, state, and fetch method.
 
 Revision ID: f9520b8eed39
-Revises: 16d7301f124b
+Revises: feb8b1e719ee
 Create Date: 2026-10-23 09:00:00.000000
 
 """
@@ -31,7 +31,7 @@ import sqlalchemy as sa
 from alembic import op
 
 revision = "f9520b8eed39"
-down_revision = "16d7301f124b"
+down_revision = "feb8b1e719ee"
 branch_labels = None
 depends_on = None
 airflow_version = "3.5.0"

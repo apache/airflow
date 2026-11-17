@@ -300,6 +300,7 @@ class AwsLambdaExecutor(BaseExecutor):
                     key=key,
                     command=command,
                     queue=queue,
+                    executor_config=getattr(workload, "executor_config", None),
                 )
 
                 self.running.add(key)

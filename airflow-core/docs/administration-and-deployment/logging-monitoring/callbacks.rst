@@ -44,13 +44,19 @@ There are three different places where callbacks can be defined.
 
 .. note::
     Dag callbacks, and the task failure and retry callbacks and emails that a task cannot run itself (for example
-    after it was killed externally or stopped heartbeating), run in a Dag processor by default. Set
+    after it was killed externally or stopped sending heartbeats), run in a Dag processor by default. Set
     :ref:`callbacks.route_dag_processor_callbacks <config:callbacks__route_dag_processor_callbacks>` to ``True`` to
-    run them on executors instead: a task's callbacks run on the task's executor and queue, unless the task never
-    started, in which case they use the team's default executor and queue. A Dag's callbacks also use the team's
-    default executor. Their logs are then written under
+    run them on executors instead. A started task's callbacks use its executor, queue, and ``executor_config``
+    where supported by the executor. Dag callbacks and callbacks of tasks that never started use the default
+    executor and queue of the Dag's team. Their logs are then written under
     ``$AIRFLOW_HOME/logs/executor_callbacks/<dag_id>/<run_id>/``. Every executor must then be able to run callbacks,
     or the scheduler doesn't start.
+
+    Each scheduler limits new callbacks in a loop to half its free slots across executors and half the free slots
+    on each executor, rounded down with a minimum of one when a slot is free.
+    :ref:`callbacks.max_routed_callbacks_per_loop <config:callbacks__max_routed_callbacks_per_loop>` also caps
+    admissions in each loop. These limits apply to each scheduler's own executor instances. Shared workers can
+    still be occupied entirely by callbacks, including callbacks admitted over successive scheduler loops.
 
 .. note::
     As of Airflow 2.6.0, callbacks now supports a list of callback functions, allowing users to specify multiple functions
