@@ -346,7 +346,7 @@ export const DagsList = () => {
                       <DagsFilters />
                     </VStack>
                   }
-                  headingExtra={<DagImportErrors iconOnly />}
+                  headingExtra={<DagImportErrors bundleName={selectedBundle} iconOnly />}
                   initialState={tableURLState}
                   isLoading={isLoading}
                   modelName="common:dag"
