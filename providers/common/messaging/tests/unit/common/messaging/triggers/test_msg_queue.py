@@ -212,16 +212,6 @@ class TestMessageQueueTrigger:
 class TestMessageQueueTriggerScheme:
     """Test cases for the new scheme parameter functionality."""
 
-    @pytest.mark.filterwarnings("ignore::airflow.exceptions.AirflowProviderDeprecationWarning")
-    def test_queue_takes_precedence_over_scheme(self):
-        """Test that queue parameter takes precedence when both are provided."""
-        provider1 = MockProvider(PROVIDER_1_NAME, PROVIDER_1_PATTERN, scheme=PROVIDER_1_SCHEME)
-        provider2 = MockProvider(PROVIDER_2_NAME, PROVIDER_2_PATTERN, scheme=PROVIDER_2_SCHEME)
-        with mock.patch(MESSAGE_QUEUE_PROVIDERS_PATH, [provider1, provider2]):
-            trigger = MessageQueueTrigger(queue=PROVIDER_1_QUEUE, scheme=PROVIDER_2_SCHEME)
-            assert trigger.queue_uri == PROVIDER_1_QUEUE
-            assert trigger.scheme is None
-
     def test_legacy_queue_uri_with_scheme_keeps_uri_matching(self):
         """A broker URI passed as `queue` next to `scheme` must not become the trigger queue."""
         provider1 = MockProvider(PROVIDER_1_NAME, PROVIDER_1_PATTERN, scheme=PROVIDER_1_SCHEME)
@@ -375,8 +365,8 @@ class TestMessageQueueTriggerIntegration:
         assert trigger_by_scheme is not None
 
     def test_provider_integrations_validation(self):
-        """Test that either queue or scheme parameter must be provided."""
-        with pytest.raises(ValueError, match="Either `queue` or `scheme` parameter must be provided"):
+        """Test that scheme parameter must be provided."""
+        with pytest.raises(ValueError, match="The `scheme` parameter must be provided"):
             MessageQueueTrigger()
 
     def test_provider_integrations_deprecation_warning(self):

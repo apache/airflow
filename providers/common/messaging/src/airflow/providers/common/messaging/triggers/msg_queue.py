@@ -103,12 +103,10 @@ class MessageQueueTrigger(BaseEventTrigger):
             )
 
         if self.queue_uri is None and scheme is None:
-            raise ValueError(
-                "Either `queue` or `scheme` parameter must be provided. For more details on "
-                "trigger queues, see: "
-                "https://airflow.apache.org/docs/apache-airflow/stable/authoring-and-scheduling/deferring.html#controlling-triggerer-host-assignment-per-trigger"
-            )
+            raise ValueError("The `scheme` parameter must be provided.")
 
+        # Stored under our own name rather than through `BaseEventTrigger.__init__(queue=...)` so this
+        # works regardless of the installed airflow-core version, see `queue` property below.
         self._trigger_queue = queue if queue is not None else trigger_queue
         self.scheme = scheme if self.queue_uri is None else None
         self.kwargs = kwargs
