@@ -21,6 +21,7 @@ package org.apache.airflow.sdk
 
 import org.apache.airflow.sdk.execution.Logger
 import org.apache.airflow.sdk.execution.comm.StartupDetails
+import org.apache.airflow.sdk.internal.bindConf
 import java.time.OffsetDateTime
 import org.apache.airflow.sdk.execution.comm.DagRun.DagRunType as CommDagRunType
 
@@ -81,7 +82,8 @@ enum class DagRunType {
  * @property dataIntervalEnd End of the data interval.
  * @property runAfter A date-time tells the scheduler when the Dag run can be scheduled.
  * @property runType How the run was created.
- * @property conf The configuration for this run.
+ * @property conf The configuration for this run. [getConf] reads it into an
+ *    instance of a class with typed fields.
  */
 data class DagRun(
   @JvmField val dagId: String,
@@ -92,7 +94,67 @@ data class DagRun(
   @JvmField val runAfter: OffsetDateTime?,
   @JvmField val runType: DagRunType?,
   @JvmField val conf: Map<String, Any?>,
-)
+) {
+  /**
+   * Reads [conf] into a new instance of [type]. For example, [type] can be a
+   * class with one field per conf key.
+   *
+   * ```java
+   * public static class EtlConf {
+   *   public String targetTable; // set from the "target_table" key
+   *   public int limit = 100;    // stays 100 when the conf has no "limit" key
+   * }
+   *
+   * EtlConf etl = context.dagRun.getConf(EtlConf.class);
+   * ```
+   *
+   * Each key goes to the field, setter or record component whose name matches
+   * the key when case and underscores are ignored. If one key matches a name
+   * exactly, that key wins over keys that match the same name only when case
+   * and underscores are ignored. Objects nested in the conf follow the same
+   * rules, including objects in lists and objects that are map values. The keys
+   * of a map field stay as written.
+   *
+   * Keys that match no field are ignored, because other tasks in the run may
+   * read them. A field with no matching key keeps its default value. The conf
+   * holds only the values that the run was triggered with. This method does not
+   * add the defaults of the Dag's params, so in a scheduled run, where the conf
+   * is empty, no field has a matching key.
+   *
+   * The class needs a no-argument constructor and public fields or setters, so
+   * a nested class must be `static`. A record also works. A record component
+   * with no matching key is null. If the component has a primitive type, this
+   * method throws instead, so a task that reads the conf into a record with a
+   * primitive component fails in a scheduled run. In Kotlin, declare the fields
+   * with `@JvmField` so that a property such as `isEnabled` keeps its name.
+   *
+   * Annotating a field with [ArgName] has no effect on this method. To set a
+   * field from a key that no Java name can match, such as `target-table`, add
+   * `@JsonProperty("target-table")` to that field. `@JsonProperty` needs
+   * `com.fasterxml.jackson.core:jackson-annotations` in your build, because the
+   * SDK keeps Jackson off your compile classpath. You can also read the key
+   * from [conf].
+   *
+   * This method throws [IllegalArgumentException] in these cases:
+   *
+   * * A value, such as an empty string for an `int` field, cannot be converted
+   *   to the type of its field.
+   * * A key holds null for a primitive field, a list holds null for a primitive
+   *   array such as `int[]`, or a primitive record component has no matching
+   *   key. To let a field or a component receive null, declare it with a boxed
+   *   type, such as `Integer`.
+   * * Two keys, such as `target_table` and `TARGET_TABLE`, match the same field
+   *   after case and underscores are ignored, but neither key matches the field
+   *   name exactly.
+   * * The class has two fields whose names differ only in case or underscores,
+   *   such as `targetTable` and `target_table`. This method checks the class
+   *   even when the conf is empty, so it throws in a scheduled run too.
+   *
+   * @param type Class to read the conf into.
+   * @throws IllegalArgumentException in the cases listed above.
+   */
+  fun <T : Any> getConf(type: Class<T>): T = bindConf(conf, type)
+}
 
 /**
  * Identifies the task instance that is currently executing.

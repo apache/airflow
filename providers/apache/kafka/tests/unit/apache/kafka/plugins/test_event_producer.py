@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Callable
+from datetime import UTC, datetime
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -202,10 +203,29 @@ def test_produce_dr_message(
 
     body = _assert_common_message_fields(kafka_producer_mock, expected_event)
     assert body["run_type"] == _RUN_TYPE
-    assert body["logical_date"] == ""
-    assert body["start_date"] == ""
-    assert body["end_date"] == ""
+    assert body["logical_date"] is None
+    assert body["start_date"] is None
+    assert body["end_date"] is None
     assert body["msg"] == ""
+
+
+@conf_vars(
+    {
+        ("kafka_event_producer", "dag_run_events_enabled"): "True",
+        ("kafka_event_producer", "topic"): _KAFKA_TOPIC,
+        ("kafka_event_producer", "source"): _SOURCE,
+    }
+)
+def test_produce_dr_message_formats_dates_as_iso8601(dr_mock, kafka_producer_mock):
+    dr_mock.logical_date = None
+    dr_mock.start_date = datetime(2026, 10, 30, 14, 40, 5, 123456, tzinfo=UTC)
+
+    DagRunListener().on_dag_run_running(dag_run=dr_mock, msg="")
+
+    body = _assert_common_message_fields(kafka_producer_mock, "dag_run.running")
+    assert body["logical_date"] is None
+    assert body["start_date"] == "2026-10-30T14:40:05.123456+00:00"
+    assert body["end_date"] is None
 
 
 @pytest.mark.parametrize(

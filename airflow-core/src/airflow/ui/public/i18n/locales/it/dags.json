@@ -6,6 +6,11 @@
       "warning": "Questo rimuoverà tutti i metadati relativi al Dag, compresi i Run e le Task."
     }
   },
+  "draining": {
+    "badgeTooltip": "Questo Dag va in pausa quando terminano i run in corso.",
+    "label": "In drenaggio",
+    "tooltip": "Drenaggio di {{dagDisplayName}} — va in pausa quando terminano i run in corso. Fai clic per riprendere."
+  },
   "favoriteDag": "Dag Preferito",
   "filters": {
     "allRunTypes": "Tutti i Tipi di Run",
@@ -15,14 +20,37 @@
       "favorite": "Preferito",
       "unfavorite": "Rimuovi dai preferiti"
     },
+    "favoriteState": "Stato preferito",
+    "favoriteStatePlaceholder": "Seleziona lo stato preferito…",
+    "hasImportErrors": "Ha errori di importazione",
+    "noTimetableTypesFound": "Nessun tipo di programmazione trovato",
     "paused": {
       "active": "Attivo",
       "all": "Tutti",
       "paused": "In Pausa"
     },
-    "runIdPatternFilter": "Cercare Dag Runs"
+    "pausedPlaceholder": "Seleziona lo stato di pausa…",
+    "pausedState": "Stato di pausa",
+    "requiresHitlAction": "Richiede un'azione HITL",
+    "runIdPatternFilter": "Cercare Dag Runs",
+    "runState": "Stato del run",
+    "runStatePlaceholder": "Seleziona lo stato del run…",
+    "timetableType": "Tipo di programmazione"
+  },
+  "folders": {
+    "all": "Tutti i Dag",
+    "empty": "Nessuna cartella",
+    "hide": "Nascondi le cartelle",
+    "show": "Mostra le cartelle",
+    "title": "Cartelle"
   },
   "ownerLink": "Link dell'Owner per {{owner}}",
+  "recentTaskStateCounts": {
+    "description": "Stato dei Task di tutti i run del Dag in corso o, se non ce n'è nessuno, del run più recente. Puoi disattivarlo nelle impostazioni utente.",
+    "label": "Task recenti",
+    "loading": "Caricamento dei conteggi di stato dei Task recenti",
+    "tooltip": "{{state}}: {{formattedCount}} — fai clic per filtrare i Task"
+  },
   "runAndTaskActions": {
     "affectedTasks": {
       "noItemsFound": "Nessuna task trovata.",
@@ -33,6 +61,15 @@
       "buttonTooltip": "Premi shift+c per pulire",
       "error": "Impossibile pulire {{type}}",
       "title": "Pulisci {{type}}"
+    },
+    "clearAllMapped": {
+      "button": "Pulisci tutti i Task mappati",
+      "buttonTooltip": "Premi shift+c per pulire tutte le istanze di Task mappate",
+      "title": "Pulisci tutte le istanze di Task mappate"
+    },
+    "confirmationDialog": {
+      "description": "Il Task è nello stato {{state}}, avviato dall'utente {{user}} alle {{time}}. \nNon puoi pulire questo Task finché l'esecuzione non è terminata, oppure finché un utente non deseleziona l'opzione \"Impedisci la riesecuzione se la task è in esecuzione\" nella finestra di pulizia.",
+      "title": "Impossibile pulire l'istanza di Task"
     },
     "delete": {
       "button": "Elimina {{type}}",
@@ -53,25 +90,47 @@
         "failed": "Premi shift+f per marcare come fallito",
         "success": "Premi shift+s per marcare come successo"
       },
+      "skippedInfo": "Marcare un'istanza di Task come saltata registra che non è stata eseguita di proposito. I Task downstream vengono comunque valutati in base alle regole di trigger: con la regola predefinita \"all_success\" verranno saltati anch'essi. Si possono saltare solo le istanze che non hanno ancora iniziato l'esecuzione, e viene toccata solo questa istanza.",
       "title": "Marca {{type}} come {{state}}"
     },
     "options": {
       "downstream": "Downstream",
       "existingTasks": "Pulisci le task esistenti",
       "future": "Futuro",
+      "keepTaskState": "Conserva lo stato del Task e riprendi",
+      "laterIterations": "Iterazioni successive",
       "onlyFailed": "Pulisci solo le task fallite",
       "past": "Passato",
       "preventRunningTasks": "Impedisci la riesecuzione se la task è in esecuzione",
       "queueNew": "Inserisci nuove task",
       "runOnLatestVersion": "Esegui con l'ultima versione del bundle",
-      "upstream": "Upstream"
+      "runOnLatestVersionForced": "Usa sempre l'ultima versione: non c'è una versione precedente a cui tornare",
+      "upstream": "Upstream",
+      "wholeExpansion": "Espansione completa"
     }
+  },
+  "runStateCounts": {
+    "label": "Stati dei run",
+    "loading": "Caricamento dei conteggi di stato dei run",
+    "tooltip": "{{state}}: {{formattedCount}} — fai clic per filtrare i run"
+  },
+  "schedulingActions": {
+    "cancelDrain": "Annulla il drenaggio",
+    "drain": "Drena e poi metti in pausa",
+    "drainPrompt": "Questo Dag ha run in corso. Il drenaggio li lascia terminare prima che il Dag vada in pausa; mettere in pausa ora interrompe subito la programmazione, senza attenderli.",
+    "pauseNow": "Metti in pausa ora",
+    "pauseSelected": "Pausa / Drenaggio"
+  },
+  "schedulingBanner": {
+    "message": "Questo Dag è in drenaggio. Andrà in pausa quando termineranno i run in corso."
   },
   "search": {
     "advanced": "RiCercare Avanzata",
     "clear": "Pulisci la ricerca",
+    "dagRuns": "Cercare $t(common:dagRun_other)",
     "dags": "Cercare Dag",
     "hotkey": "+K",
+    "mapIndexes": "Cercare $t(common:mapIndex)",
     "tasks": "Cercare Task"
   },
   "sort": {
@@ -79,9 +138,9 @@
       "asc": "Ordina per Nome (A-Z)",
       "desc": "Ordina per Nome (Z-A)"
     },
-    "lastRunStartDate": {
-      "asc": "Ordina per Data di Inizio del Run più Recente (Prima-Ultimo)",
-      "desc": "Ordina per Data di Inizio del Run più Recente (Ultimo-Prima)"
+    "lastRunAfter": {
+      "asc": "Ordina per ultimo run dopo (dal meno recente)",
+      "desc": "Ordina per ultimo run dopo (dal più recente)"
     },
     "lastRunState": {
       "asc": "Ordina per Stato del Run più Recente (A-Z)",

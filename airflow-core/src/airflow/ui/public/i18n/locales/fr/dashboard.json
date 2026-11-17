@@ -57,6 +57,7 @@
   },
   "history": "Historique",
   "importErrors": {
+    "bundle": "Bundle",
     "dagImportError_many": "Erreurs d'importation de Dag",
     "dagImportError_one": "Erreur d'importation de Dag",
     "dagImportError_other": "Erreurs d'importation de Dag",

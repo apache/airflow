@@ -193,6 +193,32 @@ class S3ToAzureBlobStorageOperator(BaseOperator):
         # Return a list of the files that were moved
         return files_to_move
 
+    @staticmethod
+    def _strip_overlapping_folder_markers(keys: list[str]) -> tuple[list[str], list[str]]:
+        """
+        Drop trailing-slash keys that are strict prefixes of other listed keys.
+
+        Treated as directory markers. A lone trailing-slash key with no overlap
+        (e.g. ``lonely/``) is preserved, and a non-slash key that happens to be a
+        strict prefix of another (e.g. ``abc`` of ``abcdef``) is also preserved.
+        Returns ``(kept, dropped)``.
+
+        Mirrors ``airflow.providers.amazon.aws.utils.transfer.strip_overlapping_folder_markers``,
+        copied because the ``amazon`` extra has no version floor; keep the copies in sync.
+        """
+        if not keys:
+            return [], []
+        ordered = sorted(set(keys))
+        kept: list[str] = []
+        dropped: list[str] = []
+        for current, nxt in zip(ordered, ordered[1:]):
+            if current.endswith("/") and nxt.startswith(current):
+                dropped.append(current)
+            else:
+                kept.append(current)
+        kept.append(ordered[-1])
+        return kept, dropped
+
     def get_files_to_move(self) -> list[str]:
         """Determine the list of files that need to be moved, and return the name."""
         if self.s3_key:
@@ -202,7 +228,17 @@ class S3ToAzureBlobStorageOperator(BaseOperator):
             # Pull the keys from the s3_bucket using the provided prefix. Remove the prefix from the file
             # name, and add to the list of files to move
             s3_keys: list[str] = self.s3_hook.list_keys(bucket_name=self.s3_bucket, prefix=self.s3_prefix)
+            s3_keys, dropped_keys = self._strip_overlapping_folder_markers(s3_keys)
             files_to_move = [s3_key.replace(f"{self.s3_prefix}/", "", 1) for s3_key in s3_keys]
+            # A lone marker of s3_prefix itself leaves an empty file name that _create_key cannot use.
+            dropped_keys += [key for key, file in zip(s3_keys, files_to_move) if not file]
+            files_to_move = [file for file in files_to_move if file]
+            if dropped_keys:
+                self.log.info(
+                    "Skipping %s S3 folder-marker key(s) (omitted from transfer and XCom output): %s",
+                    len(dropped_keys),
+                    dropped_keys,
+                )
 
             # Now, make sure that there are not too many files to move to a single Azure blob
             if self.blob_name and len(files_to_move) > 1:

@@ -23,7 +23,7 @@ Run with::
 
 What is verified
 ----------------
-The test triggers the ``java_annotation_example`` Dag, which has this task
+The test triggers the ``java_task_handler_annotation_example`` Dag, which has this task
 graph::
 
     python_task_1 >> extract >> transform >> [load, python_task_2]
@@ -60,7 +60,7 @@ confirms:
    received, so it only succeeds if ``run_label`` reached its ``runLabel``
    field.
 
-The ``java_interface_example`` and ``scala_spark_example`` Dags are covered too:
+The ``java_task_handler_interface_example`` and ``scala_spark_example`` Dags are covered too:
 the former for tasks written against ``InputTask``, whose arguments the SDK
 resolves from the stub call site into a ``TaskInput`` and injects.
 """
@@ -90,9 +90,9 @@ _SPARK_TASK_TIMEOUT = 1200
 # Logs can lag slightly behind the task reaching a terminal state.
 _LOG_FETCH_TIMEOUT = 60
 
-_ANNOTATION_DAG_ID = "java_annotation_example"
-_INTERFACE_DAG_ID = "java_interface_example"
-_XCOM_CASTING_DAG_ID = "java_xcom_casting_example"
+_ANNOTATION_DAG_ID = "java_task_handler_annotation_example"
+_INTERFACE_DAG_ID = "java_task_handler_interface_example"
+_XCOM_CASTING_DAG_ID = "java_task_handler_xcom_casting_example"
 _SCALA_SPARK_DAG_ID = "scala_spark_example"
 _VARIABLE_WRITE_DAG_ID = "java_variable_write"
 _VARIABLE_WRITE_DESCRIPTION = "written by the Java SDK e2e test"

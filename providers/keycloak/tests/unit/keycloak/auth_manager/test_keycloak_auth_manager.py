@@ -372,6 +372,10 @@ class TestKeycloakAuthManager:
         result = auth_manager.get_url_login()
         assert result == f"{AUTH_MANAGER_FASTAPI_APP_PREFIX}/login"
 
+    def test_get_url_login_with_next_url(self, auth_manager):
+        result = auth_manager.get_url_login(next_url="/dags/my_dag?tab=grid")
+        assert result == f"{AUTH_MANAGER_FASTAPI_APP_PREFIX}/login?next=%2Fdags%2Fmy_dag%3Ftab%3Dgrid"
+
     def test_get_url_logout(self, auth_manager):
         result = auth_manager.get_url_logout()
         assert result == f"{AUTH_MANAGER_FASTAPI_APP_PREFIX}/logout"
@@ -1013,6 +1017,8 @@ class TestKeycloakAuthManager:
             ("AUDIT_LOGS_ALL", "False", "View#GET"),
             ("IMPORT_ERRORS", "True", "View#GET"),
             ("PLUGINS", "True", "View#GET"),
+            ("DAG_BUNDLES", "True", "AdminView#GET"),
+            ("DAG_BUNDLES", "False", "View#GET"),
         ],
     )
     def test_is_authorized_view_resource(

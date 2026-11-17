@@ -5,6 +5,7 @@
     "affectedNone": "Keine Läufe entsprechen den Kriterien.",
     "allRuns": "Alle Läufe",
     "backwards": "Verarbeitung in Rückwärtiger Reihenfolge",
+    "completed": "Komplett",
     "dateRange": "Datumsbereich",
     "errorStartDateBeforeEndDate": "Das Startdatum muss vor dem Enddatum liegen.",
     "exceptionReason": {
@@ -24,10 +25,12 @@
     "permissionDenied": "Testlauf fehlgeschlagen: Benutzer hat keine Berechtigung, Auffüllungen zu erstellen.",
     "reprocessBehavior": "Auffüll-Modus",
     "run": "Auffüllung starten",
+    "running": "Laufend",
     "scheduleNotBackfillable": "Der Zeitplan des Dags unterstützt keine Auffüllungen.",
     "schedulerPriorityHint": "Dag Läufe von Auffüllungen werden in jedem Planungszyklus nach anderen Dag-Läufen geordnet. Auffüllungs-Läufe können daher länger in der Warteschlange bleiben, wenn andere Läufe aktiv sind.",
     "selectDescription": "Dieses Dag für einen Datumsbereich in der Vergangenheit ausführen",
     "selectLabel": "Auffüllen",
+    "status": "Status",
     "title": "Auffüllung starten",
     "toaster": {
       "success": {
@@ -96,6 +99,7 @@
     "placeholderArray": "Fügen Sie einen Eintrag pro Zeile um eine Liste zu erzeugen",
     "placeholderExamples": "Tippen Sie ein paar Buchstaben für Vorschläge",
     "placeholderMulti": "Wählen Sie einen oder mehrere Werte",
+    "validationErrorArrayElement": "Ungültige {{type}} Wert(e): {{values}}",
     "validationErrorArrayNotArray": "Die Daten sind keine Liste.",
     "validationErrorArrayNotNumbers": "Alle Elemente in der Liste müssen numerisch sein.",
     "validationErrorArrayNotObject": "Alle Elemente in der Liste müssen Objekte (Dictionary) sein.",

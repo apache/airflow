@@ -27,6 +27,23 @@
 Changelog
 ---------
 
+7.1.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Cache the dialect on PostgresHook (#75656)``
+
+Misc
+~~~~
+
+* ``Remove unused Postgres cursor name generator (#75786)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``[main] Upgrade important CI environment (#76278)``
+
 7.1.1
 .....
 

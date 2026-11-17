@@ -277,13 +277,7 @@ class LLMBatchOperator(BaseOperator):
 
     @staticmethod
     def _identity(context: Context) -> tuple[str, str]:
-        ti = context["task_instance"]
-        key = state.compute_identity_key(
-            dag_id=ti.dag_id,
-            task_id=ti.task_id,
-            run_id=ti.run_id,
-            map_index=ti.map_index if ti.map_index is not None else -1,
-        )
+        key = state.compute_identity_key_for_context(context)
         return key, state.key16(key)
 
     @staticmethod

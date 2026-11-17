@@ -37,7 +37,7 @@ from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOperator
 from airflow.utils.trigger_rule import TriggerRule
 
-from system.openlineage.constants import DEFAULT_DAGRUN_TIMEOUT
+from system.openlineage.constants import CRITICAL_PATH_PRIORITY_WEIGHT, DEFAULT_DAGRUN_TIMEOUT
 from system.openlineage.expected_events import get_expected_event_file_path
 from system.openlineage.operator import OpenLineageTestOperator
 
@@ -49,7 +49,7 @@ def _build_child_dag(dag_id: str, bash_command: str) -> DAG:
         start_date=datetime(2021, 1, 1),
         schedule=None,
         catchup=False,
-        default_args={"retries": 0},
+        default_args={"retries": 0, "priority_weight": CRITICAL_PATH_PRIORITY_WEIGHT},
     ) as child_dag:
         BashOperator(task_id="run", bash_command=bash_command)
     return child_dag
@@ -93,7 +93,7 @@ with DAG(
     start_date=datetime(2021, 1, 1),
     schedule=None,
     catchup=False,
-    default_args={"retries": 0},
+    default_args={"retries": 0, "priority_weight": CRITICAL_PATH_PRIORITY_WEIGHT},
 ) as dag:
     # Not checks: each one triggers a child Dag and waits for it, so check_events can read the child's events.
     # Deferrable so the ten waits do not hold worker slots.

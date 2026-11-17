@@ -29,11 +29,15 @@ export type HITLResponseParams = {
   request_created_at?: string;
 };
 
-// A HITL task is "pending a response" while parked: pre-3.3 it parks in "deferred", from 3.3 it
-// parks in "awaiting_input". Either way an unanswered parked task is "response required", not
-// "no response received" (which is reserved for tasks no longer parked, e.g. cleared/finished).
+// A HITL task waits for a response in one of these states: pre-3.3 it parks in "deferred", from 3.3
+// it parks in "awaiting_input", and it is still "running" while it checks for the response before
+// parking. An unanswered task in one of them is "response required", not "no response received"
+// (which is reserved for tasks no longer waiting, e.g. cleared/finished). A run resumed after a
+// timeout is also "running" until it fails; the server refuses answers to it.
+export const HITL_PENDING_STATES: Array<TaskInstanceState> = ["deferred", "awaiting_input", "running"];
+
 export const isHITLPending = (state?: TaskInstanceState | null): boolean =>
-  state === "deferred" || state === "awaiting_input";
+  state !== undefined && state !== null && HITL_PENDING_STATES.includes(state);
 
 const getChosenOptionsValue = (hitlDetail: HITLDetailHistory) => {
   // if response_received is true, display the chosen_options, otherwise display the defaults

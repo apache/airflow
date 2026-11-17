@@ -23,12 +23,13 @@ description: |
 
 state: ready
 lifecycle: production
-source-date-epoch: 1792489528
+source-date-epoch: 1793816745
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 7.24.0
   - 7.23.0
   - 7.22.0
   - 7.21.0
@@ -146,6 +147,9 @@ integrations:
     how-to-guide:
       - /docs/apache-airflow-providers-databricks/operators/workflow.rst
     tags: [service]
+  - integration-name: Databricks Unity Gateway
+    external-doc-url: https://docs.databricks.com/aws/en/unity-gateway/concepts
+    tags: [service]
 
 operators:
   - integration-name: Databricks
@@ -199,6 +203,11 @@ sensors:
       - airflow.providers.databricks.sensors.databricks
       - airflow.providers.databricks.sensors.databricks_sql
       - airflow.providers.databricks.sensors.databricks_partition
+
+toolsets:
+  - integration-name: Databricks Unity Gateway
+    python-modules:
+      - airflow.providers.databricks.toolsets.unity_mcp
 
 connection-types:
   - hook-class-name: airflow.providers.databricks.hooks.databricks.DatabricksHook
