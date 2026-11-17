@@ -73,6 +73,7 @@ from airflow.providers.keycloak.auth_manager.constants import (
     CONF_REQUESTS_POOL_SIZE_KEY,
     CONF_SECTION_NAME,
     CONF_SERVER_URL_KEY,
+    CONF_TEAM_LEVEL_AUTHORIZATION_KEY,
 )
 from airflow.providers.keycloak.auth_manager.keycloak_auth_manager import (
     RESOURCE_ID_ATTRIBUTE_NAME,
@@ -371,6 +372,10 @@ class TestKeycloakAuthManager:
     def test_get_url_login(self, auth_manager):
         result = auth_manager.get_url_login()
         assert result == f"{AUTH_MANAGER_FASTAPI_APP_PREFIX}/login"
+
+    def test_get_url_login_with_next_url(self, auth_manager):
+        result = auth_manager.get_url_login(next_url="/dags/my_dag?tab=grid")
+        assert result == f"{AUTH_MANAGER_FASTAPI_APP_PREFIX}/login?next=%2Fdags%2Fmy_dag%3Ftab%3Dgrid"
 
     def test_get_url_logout(self, auth_manager):
         result = auth_manager.get_url_logout()
@@ -1629,6 +1634,92 @@ class TestKeycloakAuthManager:
             auth_manager.filter_authorized_dag_ids(dag_ids=dag_ids, user=user)
 
         mock_executor.assert_called_once_with(max_workers=expected_max_workers)
+
+    @pytest.mark.parametrize(
+        ("filter_name", "check_name", "resources", "expected"),
+        [
+            pytest.param(
+                "filter_authorized_dag_ids",
+                "is_authorized_dag",
+                {"dag_ids": {"dag_0", "dag_1", "dag_2"}},
+                {"dag_0", "dag_1", "dag_2"},
+                id="dags",
+            ),
+            pytest.param(
+                "filter_authorized_assets",
+                "is_authorized_asset",
+                {"assets": [AssetDetails(id="1"), AssetDetails(id="2"), AssetDetails(id=None)]},
+                {"1", "2"},
+                id="assets",
+            ),
+            pytest.param(
+                "filter_authorized_connections",
+                "is_authorized_connection",
+                {"conn_ids": {"conn_0", "conn_1", "conn_2"}},
+                {"conn_0", "conn_1", "conn_2"},
+                id="connections",
+            ),
+            pytest.param(
+                "filter_authorized_pools",
+                "is_authorized_pool",
+                {"pool_names": {"pool_0", "pool_1", "pool_2"}},
+                {"pool_0", "pool_1", "pool_2"},
+                id="pools",
+            ),
+            pytest.param(
+                "filter_authorized_variables",
+                "is_authorized_variable",
+                {"variable_keys": {"var_0", "var_1", "var_2"}},
+                {"var_0", "var_1", "var_2"},
+                id="variables",
+            ),
+        ],
+    )
+    @pytest.mark.parametrize("authorized", [True, False])
+    @conf_vars({(CONF_SECTION_NAME, CONF_TEAM_LEVEL_AUTHORIZATION_KEY): "True"})
+    def test_filter_with_team_level_authorization_asks_keycloak_once(
+        self, auth_manager, user, filter_name, check_name, resources, expected, authorized
+    ):
+        """One decision of Keycloak applies to every resource of the list, and is cached."""
+        with patch.object(
+            KeycloakAuthManager, check_name, autospec=True, return_value=authorized
+        ) as mock_is_authorized:
+            first = getattr(auth_manager, filter_name)(**resources, user=user, method="GET")
+            second = getattr(auth_manager, filter_name)(**resources, user=user, method="GET")
+
+        assert first == second == (expected if authorized else set())
+        mock_is_authorized.assert_called_once()
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="team_name not supported before Airflow 3.2.0")
+    @conf_vars({(CONF_SECTION_NAME, CONF_TEAM_LEVEL_AUTHORIZATION_KEY): "True"})
+    @patch.object(KeycloakAuthManager, "is_authorized_dag", autospec=True, return_value=True)
+    def test_filter_with_team_level_authorization_asks_for_a_listed_dag_of_the_team(
+        self, mock_is_authorized, auth_manager_multi_team, user
+    ):
+        """The request names a Dag of the list and its team, as a check of that single Dag would."""
+        auth_manager_multi_team.filter_authorized_dag_ids(
+            dag_ids={"dag_1", "dag_0"}, user=user, method="PUT", team_name="team_a"
+        )
+
+        mock_is_authorized.assert_called_once_with(
+            auth_manager_multi_team,
+            method="PUT",
+            user=user,
+            details=DagDetails(id="dag_0", team_name="team_a"),
+        )
+
+    @patch.object(KeycloakAuthManager, "is_authorized_variable", autospec=True, return_value=False)
+    @patch.object(KeycloakAuthManager, "is_authorized_pool", autospec=True, return_value=True)
+    def test_filter_authorized_caches_the_decision_per_resource_type(
+        self, mock_is_authorized_pool, mock_is_authorized_variable, auth_manager, user
+    ):
+        """A pool and a variable of the same name do not share a cached decision."""
+        pools = auth_manager.filter_authorized_pools(pool_names={"default_pool"}, user=user)
+        variables = auth_manager.filter_authorized_variables(variable_keys={"default_pool"}, user=user)
+
+        assert pools == {"default_pool"}
+        assert variables == set()
+        mock_is_authorized_variable.assert_called_once()
 
     def test_get_fastapi_middleware(self, auth_manager):
         assert auth_manager.get_fastapi_middlewares() == [(KeycloakJWTMiddleware, {})]

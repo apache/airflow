@@ -60,3 +60,27 @@ def java_task_state():
 
 
 java_task_state()
+
+
+@task.stub(queue="java-test")
+def wait_for_stop_request(): ...
+
+
+@dag(dag_id="java_stop_request")
+def java_stop_request():
+    wait_for_stop_request()
+
+
+java_stop_request()
+
+
+@task.stub(queue="java-test")
+def block_until_killed(): ...
+
+
+@dag(dag_id="java_stop_request_on_kill")
+def java_stop_request_on_kill():
+    block_until_killed()
+
+
+java_stop_request_on_kill()
