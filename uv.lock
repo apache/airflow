@@ -73,6 +73,7 @@ apache-airflow-providers-apache-kylin = false
 apache-airflow-providers-apache-livy = false
 apache-airflow-providers-apache-pig = false
 apache-airflow-providers-apache-pinot = false
+apache-airflow-providers-apache-polaris = false
 apache-airflow-providers-apache-spark = false
 apache-airflow-providers-apache-tinkerpop = false
 apache-airflow-providers-apprise = false
@@ -180,6 +181,7 @@ apache-airflow-shared-template-rendering = false
 apache-airflow-shared-timezones = false
 apache-airflow-task-sdk = false
 apache-airflow-task-sdk-integration-tests = false
+apache-polaris = "2026-11-17T00:00:00Z"
 google-cloud-aiplatform = "2026-08-13T00:00:00Z"
 pip = false
 pypdf = "2026-10-29T00:00:00Z"
@@ -221,6 +223,7 @@ members = [
     "apache-airflow-providers-apache-livy",
     "apache-airflow-providers-apache-pig",
     "apache-airflow-providers-apache-pinot",
+    "apache-airflow-providers-apache-polaris",
     "apache-airflow-providers-apache-spark",
     "apache-airflow-providers-apache-tinkerpop",
     "apache-airflow-providers-apprise",
@@ -1253,6 +1256,7 @@ all = [
     { name = "apache-airflow-providers-apache-livy" },
     { name = "apache-airflow-providers-apache-pig" },
     { name = "apache-airflow-providers-apache-pinot" },
+    { name = "apache-airflow-providers-apache-polaris" },
     { name = "apache-airflow-providers-apache-spark" },
     { name = "apache-airflow-providers-apache-tinkerpop", marker = "python_full_version != '3.14.*'" },
     { name = "apache-airflow-providers-apprise" },
@@ -1410,6 +1414,9 @@ apache-pig = [
 ]
 apache-pinot = [
     { name = "apache-airflow-providers-apache-pinot" },
+]
+apache-polaris = [
+    { name = "apache-airflow-providers-apache-polaris" },
 ]
 apache-spark = [
     { name = "apache-airflow-providers-apache-spark" },
@@ -1862,6 +1869,8 @@ requires-dist = [
     { name = "apache-airflow-providers-apache-pig", marker = "extra == 'apache-pig'", editable = "providers/apache/pig" },
     { name = "apache-airflow-providers-apache-pinot", marker = "extra == 'all'", editable = "providers/apache/pinot" },
     { name = "apache-airflow-providers-apache-pinot", marker = "extra == 'apache-pinot'", editable = "providers/apache/pinot" },
+    { name = "apache-airflow-providers-apache-polaris", marker = "extra == 'all'", editable = "providers/apache/polaris" },
+    { name = "apache-airflow-providers-apache-polaris", marker = "extra == 'apache-polaris'", editable = "providers/apache/polaris" },
     { name = "apache-airflow-providers-apache-spark", marker = "extra == 'all'", editable = "providers/apache/spark" },
     { name = "apache-airflow-providers-apache-spark", marker = "extra == 'apache-spark'", editable = "providers/apache/spark" },
     { name = "apache-airflow-providers-apache-tinkerpop", marker = "python_full_version != '3.14.*' and extra == 'all'", editable = "providers/apache/tinkerpop" },
@@ -2053,7 +2062,7 @@ requires-dist = [
     { name = "sentry-sdk", marker = "extra == 'sentry'", specifier = ">=2.30.0" },
     { name = "uv", marker = "extra == 'uv'", specifier = ">=0.13.7" },
 ]
-provides-extras = ["all-core", "async", "graphviz", "gunicorn", "kerberos", "memray", "otel", "statsd", "all-task-sdk", "airbyte", "akeyless", "alibaba", "amazon", "anthropic", "apache-arrow", "apache-beam", "apache-cassandra", "apache-drill", "apache-druid", "apache-flink", "apache-hdfs", "apache-hive", "apache-iceberg", "apache-impala", "apache-kafka", "apache-kylin", "apache-livy", "apache-pig", "apache-pinot", "apache-spark", "apache-tinkerpop", "apprise", "arangodb", "asana", "atlassian-jira", "celery", "clickhousedb", "cloudant", "cncf-kubernetes", "cohere", "common-ai", "common-compat", "common-io", "common-messaging", "common-sql", "databricks", "datadog", "dbt-cloud", "dingding", "discord", "docker", "duckdb", "edge3", "elasticsearch", "exasol", "fab", "facebook", "ftp", "git", "github", "google", "grpc", "hashicorp", "http", "huggingface", "ibm-db2", "ibm-mq", "imap", "influxdb", "informatica", "jdbc", "jenkins", "keycloak", "microsoft-azure", "microsoft-mssql", "microsoft-psrp", "microsoft-winrm", "modal", "mongo", "mysql", "neo4j", "odbc", "openai", "openfaas", "openlineage", "opensearch", "opsgenie", "oracle", "pagerduty", "papermill", "pgvector", "pinecone", "postgres", "presto", "qdrant", "redis", "salesforce", "samba", "segment", "sendgrid", "sftp", "singularity", "slack", "smtp", "snowflake", "sqlite", "ssh", "standard", "tableau", "telegram", "teradata", "trino", "vertica", "vespa", "weaviate", "yandex", "ydb", "zendesk", "all", "aiobotocore", "apache-atlas", "apache-webhdfs", "amazon-aws-auth", "cloudpickle", "fab-oauth", "github-enterprise", "google-auth", "ldap", "pandas", "polars", "rabbitmq", "sentry", "s3fs", "uv"]
+provides-extras = ["all-core", "async", "graphviz", "gunicorn", "kerberos", "memray", "otel", "statsd", "all-task-sdk", "airbyte", "akeyless", "alibaba", "amazon", "anthropic", "apache-arrow", "apache-beam", "apache-cassandra", "apache-drill", "apache-druid", "apache-flink", "apache-hdfs", "apache-hive", "apache-iceberg", "apache-impala", "apache-kafka", "apache-kylin", "apache-livy", "apache-pig", "apache-pinot", "apache-polaris", "apache-spark", "apache-tinkerpop", "apprise", "arangodb", "asana", "atlassian-jira", "celery", "clickhousedb", "cloudant", "cncf-kubernetes", "cohere", "common-ai", "common-compat", "common-io", "common-messaging", "common-sql", "databricks", "datadog", "dbt-cloud", "dingding", "discord", "docker", "duckdb", "edge3", "elasticsearch", "exasol", "fab", "facebook", "ftp", "git", "github", "google", "grpc", "hashicorp", "http", "huggingface", "ibm-db2", "ibm-mq", "imap", "influxdb", "informatica", "jdbc", "jenkins", "keycloak", "microsoft-azure", "microsoft-mssql", "microsoft-psrp", "microsoft-winrm", "modal", "mongo", "mysql", "neo4j", "odbc", "openai", "openfaas", "openlineage", "opensearch", "opsgenie", "oracle", "pagerduty", "papermill", "pgvector", "pinecone", "postgres", "presto", "qdrant", "redis", "salesforce", "samba", "segment", "sendgrid", "sftp", "singularity", "slack", "smtp", "snowflake", "sqlite", "ssh", "standard", "tableau", "telegram", "teradata", "trino", "vertica", "vespa", "weaviate", "yandex", "ydb", "zendesk", "all", "aiobotocore", "apache-atlas", "apache-webhdfs", "amazon-aws-auth", "cloudpickle", "fab-oauth", "github-enterprise", "google-auth", "ldap", "pandas", "polars", "rabbitmq", "sentry", "s3fs", "uv"]
 
 [package.metadata.requires-dev]
 ci-image = [
@@ -4349,6 +4358,52 @@ dev = [
     { name = "apache-airflow-providers-common-sql", editable = "providers/common/sql" },
     { name = "apache-airflow-providers-common-sql", extras = ["pandas", "polars"], editable = "providers/common/sql" },
     { name = "apache-airflow-task-sdk", editable = "task-sdk" },
+]
+docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "devel-common" }]
+
+[[package]]
+name = "apache-airflow-providers-apache-polaris"
+version = "0.1.0"
+source = { editable = "providers/apache/polaris" }
+dependencies = [
+    { name = "apache-airflow" },
+    { name = "apache-airflow-providers-common-compat" },
+    { name = "apache-polaris" },
+]
+
+[package.optional-dependencies]
+iceberg = [
+    { name = "pyiceberg" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "apache-airflow" },
+    { name = "apache-airflow-devel-common" },
+    { name = "apache-airflow-providers-common-compat" },
+    { name = "apache-airflow-task-sdk" },
+    { name = "pyiceberg" },
+]
+docs = [
+    { name = "apache-airflow-devel-common", extra = ["docs"] },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "apache-airflow", editable = "." },
+    { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
+    { name = "apache-polaris", specifier = ">=1.9.0" },
+    { name = "pyiceberg", marker = "extra == 'iceberg'", specifier = ">=0.12.0" },
+]
+provides-extras = ["iceberg"]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "apache-airflow", editable = "." },
+    { name = "apache-airflow-devel-common", editable = "devel-common" },
+    { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
+    { name = "apache-airflow-task-sdk", editable = "task-sdk" },
+    { name = "pyiceberg", specifier = ">=0.12.0" },
 ]
 docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "devel-common" }]
 
@@ -9944,6 +9999,22 @@ gcp = [
     { name = "pymysql" },
     { name = "python-tds" },
     { name = "regex" },
+]
+
+[[package]]
+name = "apache-polaris"
+version = "1.9.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "prettytable" },
+    { name = "pydantic" },
+    { name = "python-dateutil" },
+    { name = "pyyaml" },
+    { name = "typing-extensions" },
+    { name = "urllib3" },
+]
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/94/4c/75d6e2fe64617f00629c2398855aaf4fb6d2cd8830ee0f1bc89f14a27fac/apache_polaris-1.9.0-py3-none-any.whl", hash = "sha256:1b954bf6e66ec62e7869330b288adad7c6697db9fc55be48285a34d1fc2f20d5", size = 739660, upload-time = "2026-11-16T05:17:38.353Z" },
 ]
 
 [[package]]
@@ -20605,6 +20676,18 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/75/f1/470dab0972f09fabe721c6112f3dcbefce0da156260ca0e198ea0815ad96/presto-python-client-0.8.4.tar.gz", hash = "sha256:b5d9d7278c10af932c6b5ce3a417dfa883b539e947ece1f7f43ba4632c2994c5", size = 25247, upload-time = "2023-09-07T22:44:42.318Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/49/f1/0fe967745e50789113e19a485bc70888f79e1fab4c05171e650bd6802d33/presto_python_client-0.8.4-py3-none-any.whl", hash = "sha256:f8ae1e139f7676fb955dd180027ac9ac6450a8552d53b6b85b79fc1da6d37190", size = 23472, upload-time = "2023-09-07T22:44:40.548Z" },
+]
+
+[[package]]
+name = "prettytable"
+version = "3.18.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "wcwidth" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/81/74/ba08d81e668ccfe8658d7520a307e63c19862c08eb4ccb26f356c5239a7a/prettytable-3.18.0.tar.gz", hash = "sha256:439217116152244369caf3d9f1caf2f9fe29b03bd79e88d2928c8e718c95d680", size = 76373, upload-time = "2026-06-22T16:07:50.174Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/fe/be/2e6798ace5cc036f5d05d36b7b2fd85346f1a708c87060890b070d0ec607/prettytable-3.18.0-py3-none-any.whl", hash = "sha256:b3346e0e6f79180833aebaac088ae926340586cf6d7d991b9eb125b65f72313a", size = 37357, upload-time = "2026-06-22T16:07:48.595Z" },
 ]
 
 [[package]]

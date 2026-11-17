@@ -1345,6 +1345,7 @@ PodManager
 PodSpec
 podSpec
 podspec
+Polaris
 polars
 poller
 polyfill
