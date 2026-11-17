@@ -180,10 +180,40 @@ describe("NavTabs", () => {
     renderTabs("/dag/tab8");
 
     expect(getRowLabels()).toEqual(["Tab 0", "Tab 1", "Tab 2", "Tab 3", "Tab 4", "Tab 8"]);
-    expect(within(screen.getByRole("link", { name: "Tab 8" })).getByText("Tab 8")).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "Tab 8" }).firstElementChild).toHaveAttribute(
       "aria-current",
       "page",
     );
+  });
+
+  it("renders each label's text once while carrying it for the bold-width copy", () => {
+    vi.mocked(useContainerWidth).mockReturnValue(TABS.length * TAB_WIDTH);
+
+    renderTabs("/dag/tab0");
+
+    const link = screen.getByRole("link", { name: "Tab 1" });
+
+    expect(within(link).getByText("Tab 1")).toHaveAttribute("data-label", "Tab 1");
+    expect(link).toHaveTextContent(/^Tab 1$/u);
+  });
+
+  it("shows a tab's icon beside its label when showIconWithLabel is set", () => {
+    vi.mocked(useContainerWidth).mockReturnValue(TABS.length * TAB_WIDTH);
+
+    renderTabs("/dag/tab0", [
+      {
+        icon: <img alt="Warehouse" src="/icon.svg" />,
+        label: "Warehouse",
+        showIconWithLabel: true,
+        value: "plugin/warehouse",
+      },
+    ]);
+
+    const link = screen.getByRole("link", { name: "Warehouse" });
+
+    expect(link).toHaveTextContent("Warehouse");
+    expect(within(link).getByRole("img", { hidden: true })).toBeInTheDocument();
+    expect(within(link).queryByRole("img")).not.toBeInTheDocument();
   });
 
   it("shows icons and an icon-only More trigger in a narrow panel", async () => {

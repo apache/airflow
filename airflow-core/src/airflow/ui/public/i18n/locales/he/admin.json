@@ -34,6 +34,7 @@
       "firstConfirmMessage_two": "אתה עומד למחוק את החיבורים הבאים:",
       "title": "מחק חיבור"
     },
+    "duplicate": "שכפל חיבור",
     "edit": "ערוך חיבור",
     "form": {
       "connectionIdRequired": "נדרש מזהה חיבור",
@@ -42,6 +43,7 @@
       "connectionTypeRequired": "נדרש סוג חיבור",
       "extraFieldsJson": "שדות נוספים JSON",
       "helperText": "סוג החיבור המבוקש חסר? וודא שהתקנת את ההרחבה המתאימה",
+      "helperTextForDuplicatedRedactedFields": "שדות שהוסתרו ('***') אינם מועתקים. יש למלא אותם עבור החיבור החדש.",
       "helperTextForRedactedFields": "שדות שהוסתרו ('***') יישארו ללא שינוי אם לא בוצע בהם עדכון",
       "selectConnectionType": "בחר סוג חיבור",
       "standardFields": "שדות סטנדרטיים"
