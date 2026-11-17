@@ -688,16 +688,6 @@ class XComOperations:
         except ServerResponseError as e:
             if e.response.status_code != HTTPStatus.NOT_FOUND:
                 raise
-            log.debug(
-                "XCom not found",
-                dag_id=dag_id,
-                run_id=run_id,
-                task_id=task_id,
-                key=key,
-                map_index=map_index,
-                detail=e.detail,
-                status_code=e.response.status_code,
-            )
             mapped = self._get_mapped_slice_or_none(
                 dag_id,
                 run_id,
@@ -709,6 +699,16 @@ class XComOperations:
             )
             if mapped is not None:
                 return mapped
+            log.debug(
+                "XCom not found",
+                dag_id=dag_id,
+                run_id=run_id,
+                task_id=task_id,
+                key=key,
+                map_index=map_index,
+                detail=e.detail,
+                status_code=e.response.status_code,
+            )
             # A missing XCom is not an error, as in Airflow 2; xcom_pull then returns its default.
             return XComResponse(key=key, value=None)
         return XComResponse.model_validate_json(resp.read())
