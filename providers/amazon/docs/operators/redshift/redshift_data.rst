@@ -126,8 +126,9 @@ you don't pay for two. This assumes the statement survives the clear; keeping ta
 prevent cancellation via ``on_kill``. See :doc:`apache-airflow:core-concepts/resumable-tasks`
 for the ways of clearing.
 
-Clearing a task that is still running cancels the statement via ``on_kill``, also when the task is
-deferred, so the next attempt finds it canceled.
+By default (``cancel_on_kill=True``), clearing a running task requests cancellation via
+``on_kill``, including when deferred. With ``cancel_on_kill=False``, the statement is left
+running; a default clear submits the SQL again on the next synchronous attempt.
 
 To opt out and always submit fresh SQL on retry, set ``durable=False``:
 

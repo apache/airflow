@@ -225,8 +225,9 @@ of the Glue job run at that point:
      - Submits a new job run.
      - Submits a new job run.
 
-With ``deferrable=True``, the next attempt finds a still-running job run and reconnects to it on any
-clear, whether or not task state was kept.
+With ``deferrable=True``, ``durable=True`` and ``stop_job_run_on_kill=False`` (the default), the
+next attempt reconnects to a still-running job run on clear, whether or not task state was kept.
+With ``stop_job_run_on_kill=True`` instead, it stops the previous run before submitting a new one.
 
 Keep task state when a job run is still running and nothing about the code or inputs changed, so you
 don't pay for two. See :doc:`apache-airflow:core-concepts/resumable-tasks` for the ways of clearing.
