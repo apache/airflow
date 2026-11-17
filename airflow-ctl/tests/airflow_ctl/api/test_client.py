@@ -496,8 +496,10 @@ class TestCredentials:
         Credentials(api_url="http://old:8080", api_token="OLD_TOKEN", api_environment="prod").save()
         keyring_store.set_password.side_effect = error
 
-        with pytest.raises(type(error)):
+        with pytest.raises(AirflowCtlKeyringException) as excinfo:
             Credentials(api_url="http://new:8080", api_token="NEW_TOKEN", api_environment="prod").save()
+
+        assert excinfo.value.__cause__ is error
 
         credentials = Credentials(client_kind=ClientKind.CLI, api_environment="prod").load()
         assert (credentials.api_url, credentials.api_token) == ("http://new:8080", None)
@@ -657,6 +659,21 @@ class TestCredentials:
 
         with pytest.raises(AirflowCtlCredentialInvalidException, match="is not a JSON object"):
             Credentials(client_kind=ClientKind.CLI).load()
+
+    @patch("airflowctl.api.client.keyring", autospec=True)
+    def test_load_auth_kind_skips_a_locked_keyring(self, mock_keyring, monkeypatch, tmp_path):
+        """`auth login` sends no token, so a locked keyring must not stop it before it starts."""
+        monkeypatch.setenv("AIRFLOW_HOME", str(tmp_path))
+        monkeypatch.setenv("AIRFLOW_CLI_ENVIRONMENT", "TEST_LOCKED_KEYRING")
+        (tmp_path / "TEST_LOCKED_KEYRING.json").write_text(
+            json.dumps({"api_url": "http://x"}), encoding="utf-8"
+        )
+        mock_keyring.get_password.side_effect = KeyringLocked("Keyring is locked")
+
+        credentials = Credentials(client_kind=ClientKind.AUTH).load()
+
+        assert (credentials.api_url, credentials.api_token) == ("http://x", None)
+        mock_keyring.get_password.assert_not_called()
 
     def test_load_tolerates_an_unusable_file_for_auth_login(self, monkeypatch, tmp_path):
         """`auth login` is the recovery the error recommends, so it must survive an unusable file."""

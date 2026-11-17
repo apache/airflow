@@ -377,7 +377,7 @@ ARG_AUTH_NO_BROWSER = Arg(
 ARG_AUTH_TIMEOUT = Arg(
     flags=("--timeout",),
     type=positive_finite_float,
-    default=300,
+    default=None,
     dest="timeout",
     help="With --sso, seconds to wait for the browser login to complete",
 )

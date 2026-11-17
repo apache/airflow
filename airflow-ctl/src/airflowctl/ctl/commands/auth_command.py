@@ -49,10 +49,17 @@ from airflowctl.exceptions import (
     AirflowCtlKeyringException,
 )
 
+DEFAULT_SSO_TIMEOUT = 300
+
+
+def _exit_on_sso_only_args(args) -> None:
+    if not args.sso and (args.no_browser or args.timeout is not None):
+        rich.print("[red]--no-browser and --timeout can only be used with --sso.", file=sys.stderr)
+        sys.exit(1)
+
 
 def _get_token_with_browser(args, api_client: Client, api_url: str) -> str:
     """Log in through the browser and return the CLI token, if the API server offers it."""
-    api_client.refresh_base_url(base_url=api_url, kind=ClientKind.AUTH)
     metadata = api_client.login.get_cli_login_metadata(api_url)
     if (
         "authorization_code" not in metadata.grant_types_supported
@@ -67,7 +74,7 @@ def _get_token_with_browser(args, api_client: Client, api_url: str) -> str:
     authorization_code = get_authorization_code(
         authorization_url=authorization_url,
         open_browser=not args.no_browser,
-        timeout=args.timeout,
+        timeout=DEFAULT_SSO_TIMEOUT if args.timeout is None else args.timeout,
     )
     return api_client.login.login_with_authorization_code(
         token_url,
@@ -87,6 +94,7 @@ def login(args, api_client=NEW_API_CLIENT) -> None:
     password = args.password
     token = args.api_token or os.environ.get("AIRFLOW_CLI_TOKEN")
 
+    _exit_on_sso_only_args(args)
     if args.sso:
         if args.api_token or username or password:
             rich.print(
@@ -98,7 +106,9 @@ def login(args, api_client=NEW_API_CLIENT) -> None:
         except Exception as e:
             rich.print(f"[red]Login failed: {escape(str(e))}", file=sys.stderr)
             sys.exit(1)
-        not_stored_reason = "The token was not stored." if args.skip_keyring else ""
+        # Debug mode stores the token in a file even with --skip-keyring.
+        is_stored = not args.skip_keyring or os.getenv("AIRFLOW_CLI_DEBUG_MODE") == "true"
+        not_stored_reason = "" if is_stored else "The token was not stored."
         try:
             Credentials(
                 api_url=api_url,
@@ -106,14 +116,17 @@ def login(args, api_client=NEW_API_CLIENT) -> None:
                 api_environment=args.env,
                 client_kind=ClientKind.AUTH,
             ).save(args.skip_keyring)
-        except AirflowCtlKeyringException:
-            # Failing here would throw away the browser login the user just completed.
-            not_stored_reason = "No keyring is available, so the token was not stored."
+        except AirflowCtlKeyringException as e:
+            not_stored_reason = escape(str(e).splitlines()[0])
+        except (OSError, EOFError) as e:
+            not_stored_reason = escape(
+                f"Could not save the credentials: {str(e).splitlines()[0] if str(e) else type(e).__name__}"
+            )
         if not_stored_reason:
             # Nothing stores the token, so this is the only way to use the login that just happened.
             print(api_token)
             Console(stderr=True).print(
-                f"[yellow]{not_stored_reason} Set AIRFLOW_CLI_TOKEN to the printed token to use it.[/yellow]"
+                f"[yellow]{not_stored_reason}\nSet AIRFLOW_CLI_TOKEN to the printed token to use it.[/yellow]"
             )
             return
         rich.print(success_message)
@@ -186,6 +199,7 @@ def get_token(args, api_client=NEW_API_CLIENT) -> None:
     """Generate and print a JWT token for the given credentials to stdout."""
     api_url = args.api_url or get_default_api_url()
 
+    _exit_on_sso_only_args(args)
     if args.sso:
         if args.username or args.password:
             rich.print("[red]--sso is not compatible with --username or --password.", file=sys.stderr)

@@ -25,6 +25,7 @@ from unittest.mock import patch
 import httpx
 import pytest
 import structlog
+from keyring.errors import KeyringLocked, NoKeyringError, PasswordSetError
 
 from airflowctl.api.client import Client, ClientKind
 from airflowctl.api.datamodels.auth_generated import LoginResponse
@@ -331,7 +332,8 @@ class TestCliAuthCommands:
 
     @patch("airflowctl.ctl.commands.auth_command.get_authorization_code", autospec=True)
     @patch("airflowctl.api.client.keyring")
-    def test_login_with_sso(self, mock_keyring, mock_get_authorization_code):
+    def test_login_with_sso(self, mock_keyring, mock_get_authorization_code, monkeypatch, tmp_path):
+        monkeypatch.setenv("AIRFLOW_HOME", str(tmp_path))
         mock_get_authorization_code.return_value = AUTHORIZATION_CODE
         mock_keyring.get_password.return_value = None
 
@@ -361,8 +363,9 @@ class TestCliAuthCommands:
     @patch("airflowctl.ctl.commands.auth_command.get_authorization_code", autospec=True)
     @patch("airflowctl.api.client.keyring")
     def test_login_with_sso_skip_keyring_prints_token(
-        self, mock_keyring, mock_get_authorization_code, capsys
+        self, mock_keyring, mock_get_authorization_code, capsys, monkeypatch, tmp_path
     ):
+        monkeypatch.setenv("AIRFLOW_HOME", str(tmp_path))
         mock_get_authorization_code.return_value = AUTHORIZATION_CODE
         mock_keyring.get_password.return_value = None
 
@@ -376,18 +379,73 @@ class TestCliAuthCommands:
         assert capsys.readouterr().out == "SSO_TOKEN\n"
         mock_keyring.set_password.assert_not_called()
 
+    @patch("airflowctl.ctl.commands.auth_command.get_authorization_code", autospec=True)
+    @patch("airflowctl.api.client.keyring", autospec=True)
+    def test_login_with_sso_skip_keyring_in_debug_mode_reports_the_stored_token(
+        self, mock_keyring, mock_get_authorization_code, capsys, monkeypatch, tmp_path
+    ):
+        monkeypatch.setenv("AIRFLOW_HOME", str(tmp_path))
+        monkeypatch.setenv("AIRFLOW_CLI_DEBUG_MODE", "true")
+        mock_get_authorization_code.return_value = AUTHORIZATION_CODE
+
+        auth_command.login(
+            self.parser.parse_args(
+                ["auth", "login", "--api-url", "http://localhost:8080", "--sso", "--skip-keyring"]
+            ),
+            api_client=_make_sso_api_client(SSO_METADATA),
+        )
+
+        captured = capsys.readouterr()
+        assert "SSO_TOKEN" not in captured.out
+        assert "Login successful!" in captured.out
+        assert captured.err == ""
+        debug_creds = json.loads((tmp_path / "debug_creds_production.json").read_text())
+        assert debug_creds == {"api_token_production": "SSO_TOKEN"}
+
+    @pytest.mark.parametrize(
+        ("error", "expected_cause"),
+        [
+            pytest.param(
+                NoKeyringError("no backend"),
+                "Keyring backend is not available. Cannot save credentials.",
+                id="no-keyring",
+            ),
+            pytest.param(
+                KeyringLocked("Failed to unlock!"),
+                "Cannot save credentials to the keyring: Failed to unlock!",
+                id="locked",
+            ),
+            pytest.param(
+                PasswordSetError(),
+                "Cannot save credentials to the keyring: PasswordSetError",
+                id="set-error",
+            ),
+            pytest.param(
+                ValueError("Incorrect Password"),
+                "Cannot save credentials to the keyring: Incorrect Password",
+                id="wrong-password",
+            ),
+        ],
+    )
     # structlog prints to stdout unless configured, which __main__ does but the tests don't.
     @patch("airflowctl.api.client.log", spec=structlog.stdlib.BoundLogger)
     @patch("airflowctl.ctl.commands.auth_command.get_authorization_code", autospec=True)
     @patch("airflowctl.api.client.keyring")
-    def test_login_with_sso_without_keyring_prints_token(
-        self, mock_keyring, mock_get_authorization_code, mock_log, capsys
+    def test_login_with_sso_keyring_failure_prints_token(
+        self,
+        mock_keyring,
+        mock_get_authorization_code,
+        mock_log,
+        error,
+        expected_cause,
+        capsys,
+        monkeypatch,
+        tmp_path,
     ):
-        from keyring.errors import NoKeyringError
-
+        monkeypatch.setenv("AIRFLOW_HOME", str(tmp_path))
         mock_get_authorization_code.return_value = AUTHORIZATION_CODE
         mock_keyring.get_password.return_value = None
-        mock_keyring.set_password.side_effect = NoKeyringError("no backend")
+        mock_keyring.set_password.side_effect = error
 
         auth_command.login(
             self.parser.parse_args(["auth", "login", "--api-url", "http://localhost:8080", "--sso"]),
@@ -396,7 +454,46 @@ class TestCliAuthCommands:
 
         captured = capsys.readouterr()
         assert captured.out == "SSO_TOKEN\n"
-        assert "No keyring is available" in captured.err
+        assert captured.err.splitlines() == [
+            expected_cause,
+            "Set AIRFLOW_CLI_TOKEN to the printed token to use it.",
+        ]
+
+    @pytest.mark.parametrize(
+        ("error", "expected_cause"),
+        [
+            pytest.param(
+                PermissionError(13, "Permission denied"),
+                "Could not save the credentials: [Errno 13] Permission denied",
+                id="read-only-home",
+            ),
+            pytest.param(
+                OSError(28, "No space left on device"),
+                "Could not save the credentials: [Errno 28] No space left on device",
+                id="disk-full",
+            ),
+            pytest.param(EOFError(), "Could not save the credentials: EOFError", id="no-tty-for-password"),
+        ],
+    )
+    @patch("airflowctl.ctl.commands.auth_command.Credentials.save", autospec=True)
+    @patch("airflowctl.ctl.commands.auth_command.get_authorization_code", autospec=True)
+    def test_login_with_sso_save_failure_prints_token(
+        self, mock_get_authorization_code, mock_save, error, expected_cause, capsys
+    ):
+        mock_get_authorization_code.return_value = AUTHORIZATION_CODE
+        mock_save.side_effect = error
+
+        auth_command.login(
+            self.parser.parse_args(["auth", "login", "--api-url", "http://localhost:8080", "--sso"]),
+            api_client=_make_sso_api_client(SSO_METADATA),
+        )
+
+        captured = capsys.readouterr()
+        assert captured.out == "SSO_TOKEN\n"
+        assert captured.err.splitlines() == [
+            expected_cause,
+            "Set AIRFLOW_CLI_TOKEN to the printed token to use it.",
+        ]
 
     @pytest.mark.parametrize(
         "metadata",
@@ -487,6 +584,38 @@ class TestCliAuthCommands:
         )
 
         assert capsys.readouterr().out == "SSO_TOKEN\n"
+        mock_get_authorization_code.assert_called_once_with(
+            authorization_url="http://localhost:8080/auth/login/cli",
+            open_browser=True,
+            timeout=auth_command.DEFAULT_SSO_TIMEOUT,
+        )
+
+    @pytest.mark.parametrize(
+        ("command", "args"),
+        [
+            pytest.param(auth_command.login, ["login", "--api-token", "token"], id="login"),
+            pytest.param(auth_command.get_token, ["token", "--username", "u", "--password", "p"], id="token"),
+        ],
+    )
+    @pytest.mark.parametrize(
+        "extra_args",
+        [pytest.param(["--no-browser"], id="no-browser"), pytest.param(["--timeout", "30"], id="timeout")],
+    )
+    @patch("airflowctl.api.client.keyring")
+    def test_sso_only_args_without_sso(self, mock_keyring, command, args, extra_args, capsys):
+        api_client = mock.MagicMock()
+
+        with pytest.raises(SystemExit):
+            command(
+                self.parser.parse_args(["auth", *args, "--api-url", "http://localhost:8080", *extra_args]),
+                api_client=api_client,
+            )
+
+        api_client.login.login_with_username_and_password.assert_not_called()
+        mock_keyring.set_password.assert_not_called()
+        captured = capsys.readouterr()
+        assert captured.out == ""
+        assert "--no-browser and --timeout can only be used with --sso" in captured.err
 
 
 class TestCliAuthToken:
