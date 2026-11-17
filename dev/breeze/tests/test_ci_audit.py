@@ -166,6 +166,22 @@ def test_gh_problems_stop_the_audit(overrides, message):
             id="cloned-upstream-as-origin",
         ),
         pytest.param(
+            "origin\tgit@github.com:apache/airflow.git (fetch)\n",
+            (
+                "git remote rename origin upstream",
+                "git remote add origin git@github.com:someone/airflow.git",
+            ),
+            id="cloned-upstream-as-origin-ssh",
+        ),
+        pytest.param(
+            "origin\tgit@github-personal:apache/airflow.git (fetch)\n",
+            (
+                "git remote rename origin upstream",
+                "git remote add origin git@github-personal:someone/airflow.git",
+            ),
+            id="cloned-upstream-as-origin-ssh-alias",
+        ),
+        pytest.param(
             "origin\tgit@github.com:someone/airflow.git (fetch)\napache\thttps://github.com/apache/airflow (fetch)\n",
             ("git remote rename apache upstream",),
             id="upstream-named-apache",
@@ -180,6 +196,12 @@ def test_gh_problems_stop_the_audit(overrides, message):
             "upstream\thttps://github.com/apache/airflow.git (fetch)\n",
             ("git remote set-url origin https://github.com/someone/airflow.git",),
             id="origin-also-upstream",
+        ),
+        pytest.param(
+            "origin\tgit@github.com:apache/airflow.git (fetch)\n"
+            "upstream\tgit@github.com:apache/airflow.git (fetch)\n",
+            ("git remote set-url origin git@github.com:someone/airflow.git",),
+            id="origin-also-upstream-ssh",
         ),
         pytest.param(
             "origin\tgit@github.com:someone/airflow.git (fetch)\n"
@@ -214,6 +236,31 @@ def test_origin_is_added_once_when_upstream_was_cloned_as_origin():
     results = _audit(_machine(remotes=(0, "origin\thttps://github.com/apache/airflow.git (fetch)\n")))
 
     assert results[3].fix == ("gh repo fork apache/airflow --remote=false",)
+
+
+@pytest.mark.parametrize(
+    ("remotes", "origin_url"),
+    [
+        pytest.param(
+            "upstream\tgit@github.com:apache/airflow.git (fetch)\n",
+            "git@github.com:someone/airflow.git",
+            id="ssh-upstream",
+        ),
+        pytest.param(
+            "upstream\thttps://github.com/apache/airflow.git (fetch)\n"
+            "work\tgit@github-work:company/project.git (fetch)\n",
+            "https://github.com/someone/airflow.git",
+            id="https-upstream-ignores-unrelated-ssh-alias",
+        ),
+    ],
+)
+def test_origin_is_added_with_the_protocol_of_upstream(remotes, origin_url):
+    results = _audit(_machine(remotes=(0, remotes)))
+
+    assert results[3].fix == (
+        "gh repo fork apache/airflow --remote=false",
+        f"git remote add origin {origin_url}",
+    )
 
 
 @pytest.mark.parametrize(

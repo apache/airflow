@@ -217,6 +217,28 @@ def test_clean_unused(session, dag_maker):
     assert {result.id for result in results} == expected_trigger_ids
 
 
+def test_clean_unused_releases_trigger_held_by_task_instance_without_state(session, dag_maker):
+    """A task instance with a NULL state is not waiting on its trigger, so the trigger must be cleaned."""
+    trigger = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
+    session.add(trigger)
+    session.flush()
+
+    with dag_maker(session=session):
+        EmptyOperator(task_id="cleared")
+
+    dr = dag_maker.create_dagrun(logical_date=timezone.utcnow())
+    (ti,) = dr.task_instances
+    ti.state = None
+    ti.trigger_id = trigger.id
+    session.commit()
+
+    Trigger.clean_unused()
+    session.expire_all()
+
+    assert session.scalar(select(func.count()).select_from(Trigger)) == 0
+    assert session.get(TaskInstance, ti.id).trigger_id is None
+
+
 @pytest.mark.parametrize("reference_type", ["task-instance", "asset-watcher", "callback"])
 def test_delete_unused_batch_rechecks_new_references(session, create_task_instance, reference_type):
     trigger = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
@@ -871,7 +893,9 @@ def test_submit_event_task_end(mock_utcnow, session, create_task_instance, event
     # now, for each type, submit event
     # verify that (1) task ends in right state and (2) xcom is pushed
     Trigger.submit_event(
-        trigger.id, event_cls(xcoms={"return_value": "xcomret", "a": "b", "c": "d"}), session=session
+        trigger.id,
+        event_cls(xcoms={"return_value": "xcomret", "a": "b", "c": {"d": [1, 2]}}),
+        session=session,
     )
     # commit changes made by submit event and expire all cache to read from db.
     session.flush()
@@ -882,10 +906,7 @@ def test_submit_event_task_end(mock_utcnow, session, create_task_instance, event
     assert ti.end_date == now
     assert ti.duration is not None
     actual_xcoms = {x.key: x.value for x in get_xcoms(ti)}
-    expected_xcoms = {}
-    for k, v in {"return_value": "xcomret", "a": "b", "c": "d"}.items():
-        expected_xcoms[k] = json.dumps(v)
-    assert actual_xcoms == expected_xcoms
+    assert actual_xcoms == {"return_value": "xcomret", "a": "b", "c": {"d": [1, 2]}}
 
 
 @patch("airflow.callbacks.database_callback_sink.DatabaseCallbackSink.send")

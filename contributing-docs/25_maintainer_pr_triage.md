@@ -107,7 +107,7 @@ alongside `pr-management-triage` is out of scope here.
 ## Stage 1: invoking the `pr-management-triage` skill
 
 The skill is provided by the [`apache/magpie`](https://github.com/apache/magpie) framework,
-installed from its plugin marketplace (see [`README.md` → "Agent-assisted contribution"](../README.md#agent-assisted-contribution-apache-magpie) for the install commands). Nothing is
+installed from its plugin marketplace (see [Agent-assisted contribution](33_agent_assisted_contribution.md) for the install commands). Nothing is
 committed to this repo, so the install is per-developer and one-off; afterwards Claude Code
 exposes the skill as `magpie-pr-management:pr-management-triage`. Its entry point is
 [`SKILL.md`](https://github.com/apache/magpie/blob/main/plugins/magpie-pr-management/skills/pr-management-triage/SKILL.md); the rest of the directory breaks
@@ -273,20 +273,22 @@ for them, and the triage skill must treat those pull requests as out of scope fo
   `close_after_days`.
 
 Everything else the skill does (quality criteria, pings, suspicious-change flags) applies as
-usual. The `Fork CI / Tests (AMD)` commit status shows the fork CI state and links to the run in
-the fork. To move a single pull request back to project CI, add `use project ci`; the reconciler
-releases it on its next run; removing `fork ci required` by hand is not enough, the next run
-labels a gated pull request again. Adding the label does not start project CI by itself, and the
-reconciler deletes the gated `Tests (AMD)` runs, so there is usually nothing to re-run: close and
-reopen the pull request (`gh pr close <n> -R apache/airflow && gh pr reopen <n> -R apache/airflow`),
-or ask the author to push. Pull requests that change CI-defining files are not drafted
-and get no `ready for maintainer review` label even when the fork run is green. Their
-`Fork CI / Tests (AMD)` status stays pending without `CI passed`, and they are labelled
-`needs project ci` until a maintainer reviews the CI change and adds `use project ci`, unless
-the author keeps the pull request a draft. For every other pull request, when the fork run is green and trusted, the reconciler also posts the
-`CI passed` status the merge ruleset requires, so it can be merged or auto-merged without project
-CI. See
-[Fork CI for external contributors](../dev/breeze/doc/ci/08_fork_ci_for_external_contributors.md).
+usual. To move a single pull request to project CI:
+
+- Add `use project ci`. Removing `fork ci required` by hand is not enough: the next monitor run
+  labels a gated pull request again.
+- Right after adding the label, rebase the pull request (or ask the author to push), or close and
+  reopen it (`gh pr close <n> -R apache/airflow && gh pr reopen <n> -R apache/airflow`). Adding the
+  label does not start project CI, and the gated `Tests (AMD)` runs are deleted, so there is
+  nothing to re-run. A rebase also moves the head to a commit that has no fork result.
+- After a close and reopen, wait for the `CI passed` status to turn `pending` before merging or
+  enabling auto-merge: until the next monitor run, a green fork result on the head commit still
+  counts. To shorten the wait, start the monitor by hand
+  (`gh workflow run fork-ci-monitor.yml -R apache/airflow`).
+
+Why, and how `CI passed` is reported for gated pull requests:
+[The `CI passed` check](../dev/breeze/doc/ci/08_fork_ci_for_external_contributors.md#the-ci-passed-check).
+What contributors are told to do is in [CI in your fork](18_contribution_workflow.rst#ci-in-your-fork).
 
 ## For contributors
 

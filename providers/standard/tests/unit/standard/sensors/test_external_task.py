@@ -24,6 +24,7 @@ import re
 from datetime import time, timedelta
 from unittest import mock
 
+import pendulum
 import pytest
 from sqlalchemy import select
 
@@ -56,6 +57,7 @@ from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.providers.standard.sensors.external_task import (
     XCOM_EXTERNAL_RUN_IDS,
+    ExternalClearTarget,
     ExternalDagLink,
     ExternalTaskMarker,
     ExternalTaskSensor,
@@ -67,7 +69,7 @@ from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.state import DagRunState, State
 from airflow.utils.types import DagRunType
 
-from tests_common.test_utils.compat import OperatorSerialization
+from tests_common.test_utils.compat import DagSerialization, OperatorSerialization
 from tests_common.test_utils.dag import create_scheduler_dag, sync_dag_to_db, sync_dags_to_db
 from tests_common.test_utils.db import clear_db_runs
 from tests_common.test_utils.mock_operators import MockOperator
@@ -2004,6 +2006,171 @@ class TestExternalTaskMarker:
         assert deserialized_op.task_type == "ExternalTaskMarker"
         assert getattr(deserialized_op, "external_dag_id") == "external_task_marker_child"
         assert getattr(deserialized_op, "external_task_id") == "child_task1"
+
+    @pytest.mark.skipif(ExternalClearTarget is None, reason="Airflow without cross-Dag clear targets")
+    @pytest.mark.parametrize(
+        ("rendered_logical_date", "expected"),
+        [
+            pytest.param("2026-10-01T00:00:00+00:00", pendulum.datetime(2026, 10, 1), id="iso-utc"),
+            pytest.param(
+                "2026-10-01T05:30:00+05:30",
+                pendulum.datetime(2026, 10, 1),
+                id="iso-offset",
+            ),
+            pytest.param("2026-10-01", pendulum.datetime(2026, 10, 1), id="date-only-is-utc"),
+        ],
+    )
+    def test_external_clear_target_uses_rendered_fields(self, rendered_logical_date, expected):
+        marker = ExternalTaskMarker(
+            task_id="mark",
+            external_dag_id="child",
+            external_task_id="wait",
+            logical_date=rendered_logical_date,
+            recursion_depth=3,
+        )
+
+        target = marker.get_external_clear_target(context={})
+
+        assert target == ExternalClearTarget(
+            dag_id="child", task_id="wait", logical_date=expected, recursion_depth=3
+        )
+
+    @pytest.mark.skipif(ExternalClearTarget is None, reason="Airflow without cross-Dag clear targets")
+    @pytest.mark.parametrize("rendered_logical_date", ["", "P1D"], ids=["empty", "duration"])
+    def test_external_clear_target_rejects_logical_date_that_is_not_a_datetime(self, rendered_logical_date):
+        marker = ExternalTaskMarker(
+            task_id="mark",
+            external_dag_id="child",
+            external_task_id="wait",
+            logical_date=rendered_logical_date,
+        )
+
+        with pytest.raises(ValueError, match="must render to a date and time"):
+            marker.get_external_clear_target(context={})
+
+    @pytest.mark.skipif(ExternalClearTarget is None, reason="Airflow without cross-Dag clear targets")
+    def test_external_clear_target_without_a_date_leaves_it_to_the_run(self):
+        marker = ExternalTaskMarker(task_id="mark", external_dag_id="child", external_task_id="wait")
+
+        target = marker.get_external_clear_target(context={"logical_date": pendulum.datetime(2026, 10, 1, 5)})
+
+        assert target == ExternalClearTarget(dag_id="child", task_id="wait", logical_date=None)
+
+    @pytest.mark.skipif(ExternalClearTarget is None, reason="Airflow without cross-Dag clear targets")
+    def test_default_marker_renders_in_a_run_without_a_logical_date(self):
+        with DAG("marker_without_logical_date"):
+            marker = ExternalTaskMarker(task_id="mark", external_dag_id="child", external_task_id="wait")
+        context = {"params": {}}
+
+        marker.render_template_fields(context=context)
+
+        assert marker.get_external_clear_target(context=context).logical_date is None
+
+    @pytest.mark.skipif(ExternalClearTarget is None, reason="Airflow without cross-Dag clear targets")
+    def test_external_clear_target_uses_a_logical_date_rendered_as_a_datetime(self):
+        marker = ExternalTaskMarker(
+            task_id="mark",
+            external_dag_id="child",
+            external_task_id="wait",
+            logical_date="{{ logical_date }}",
+        )
+        marker.logical_date = pendulum.datetime(2026, 10, 1)
+
+        target = marker.get_external_clear_target(context={})
+
+        assert target == ExternalClearTarget(
+            dag_id="child", task_id="wait", logical_date=pendulum.datetime(2026, 10, 1)
+        )
+
+    @pytest.mark.skipif(ExternalClearTarget is None, reason="Airflow without cross-Dag clear targets")
+    @pytest.mark.parametrize(
+        ("kwargs", "expected_date"),
+        [
+            pytest.param({}, None, id="run-date"),
+            pytest.param(
+                {"logical_date": "2026-10-01T05:00:00+00:00"},
+                pendulum.datetime(2026, 10, 1, 5),
+                id="literal-date",
+            ),
+            pytest.param(
+                {"logical_date": timezone.datetime(2026, 10, 1)},
+                pendulum.datetime(2026, 10, 1),
+                id="datetime",
+            ),
+        ],
+    )
+    def test_marker_target_known_at_parse_time_skips_the_worker(self, kwargs, expected_date):
+        with DAG("marker_targets"):
+            marker = ExternalTaskMarker(
+                task_id="mark", external_dag_id="child", external_task_id="wait", **kwargs
+            )
+
+        assert marker.external_clear_target == ExternalClearTarget("child", "wait", expected_date)
+        assert marker.inherits_from_empty_operator is True
+
+    @pytest.mark.skipif(ExternalClearTarget is None, reason="Airflow without cross-Dag clear targets")
+    @pytest.mark.parametrize(
+        "kwargs",
+        [
+            pytest.param({"external_dag_id": "{{ params.child }}"}, id="templated-dag-id"),
+            pytest.param({"external_task_id": "{% if true %}wait{% endif %}"}, id="templated-task-id"),
+            pytest.param({"external_dag_id": lambda context, jinja_env: "child"}, id="callable-dag-id"),
+            pytest.param({"logical_date": "{{ ds }}"}, id="templated-date"),
+            pytest.param({"logical_date": "not a date"}, id="bad-literal-date-left-to-the-worker"),
+        ],
+    )
+    def test_marker_that_needs_rendering_runs_on_a_worker(self, kwargs):
+        with DAG("marker_targets"):
+            marker = ExternalTaskMarker(
+                task_id="mark", **{"external_dag_id": "child", "external_task_id": "wait", **kwargs}
+            )
+
+        assert marker.external_clear_target is None
+        assert marker.inherits_from_empty_operator is False
+
+    @pytest.mark.skipif(ExternalClearTarget is None, reason="Airflow without cross-Dag clear targets")
+    def test_mapped_marker_runs_on_a_worker(self):
+        with DAG("mapped_marker"):
+            marker = ExternalTaskMarker.partial(task_id="mark", external_dag_id="child").expand(
+                external_task_id=["a", "b"]
+            )
+
+        assert marker.inherits_from_empty_operator is False
+
+    @pytest.mark.skipif(ExternalClearTarget is None, reason="Airflow without cross-Dag clear targets")
+    def test_marker_reads_templates_with_the_dag_delimiters(self):
+        with DAG(
+            "marker_delimiters",
+            jinja_environment_kwargs={"variable_start_string": "[[", "variable_end_string": "]]"},
+        ):
+            literal = ExternalTaskMarker(
+                task_id="literal", external_dag_id="{{ x }}", external_task_id="wait"
+            )
+            templated = ExternalTaskMarker(
+                task_id="templated", external_dag_id="[[ x ]]", external_task_id="wait"
+            )
+
+        assert literal.external_clear_target == ExternalClearTarget("{{ x }}", "wait")
+        assert templated.external_clear_target is None
+
+    @pytest.mark.skipif(ExternalClearTarget is None, reason="Airflow without cross-Dag clear targets")
+    def test_marker_target_known_at_parse_time_is_stored_with_the_dag(self):
+        with DAG("marker_stored") as dag:
+            ExternalTaskMarker(
+                task_id="mark", external_dag_id="child", external_task_id="wait", recursion_depth=3
+            )
+
+        serialized = DagSerialization.to_dict(dag)
+        DagSerialization.validate_schema(serialized)
+        task = DagSerialization.from_dict(serialized).task_dict["mark"]
+
+        assert task.external_clear_target == {
+            "dag_id": "child",
+            "task_id": "wait",
+            "logical_date": None,
+            "recursion_depth": 3,
+        }
+        assert task.inherits_from_empty_operator is True
 
 
 @pytest.fixture

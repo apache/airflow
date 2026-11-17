@@ -61,6 +61,7 @@ from airflow.sdk.api.datamodels._generated import (
     DagRunNoteUpdatePayload,
     DagRunStateResponse,
     DagRunType,
+    ExternalClearTargetPayload,
     HITLDetailRequest,
     HITLDetailResponse,
     HITLUser,
@@ -344,6 +345,7 @@ class TaskInstanceOperations:
         rendered_map_index,
         *,
         loop_decision: LoopDecisionPayload | None = None,
+        external_clear_target: ExternalClearTargetPayload | None = None,
     ):
         """Tell the API server that this TI has succeeded."""
         body = TISuccessStatePayload(
@@ -352,6 +354,7 @@ class TaskInstanceOperations:
             outlet_events=outlet_events,
             rendered_map_index=rendered_map_index,
             loop_decision=loop_decision,
+            external_clear_target=external_clear_target,
         )
         self.client.patch(f"task-instances/{id}/state", content=body.model_dump_json())
 

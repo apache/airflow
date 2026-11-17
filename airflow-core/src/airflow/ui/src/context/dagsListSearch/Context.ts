@@ -16,30 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import jsonc from "eslint-plugin-jsonc";
+import { createContext, useContext } from "react";
 
-import { ERROR } from "./levels.js";
+export const DagsListSearchContext = createContext("");
 
-export const jsoncNamespace = "jsonc";
-
-/** @type {import("@typescript-eslint/utils/ts-eslint").FlatConfig.Config} */
-export const jsoncRules = {
-  files: ["public/i18n/locales/**/*.json"],
-  plugins: {
-    [jsoncNamespace]: jsonc,
-  },
-  rules: {
-    /**
-     * Enforce sorted keys.
-     *
-     * @see [jsonc/sort-keys](https://ota-meshi.github.io/eslint-plugin-jsonc/rules/sort-keys.html)
-     */
-    [`${jsoncNamespace}/sort-keys`]: [
-      ERROR,
-      "asc",
-      {
-        natural: true,
-      },
-    ],
-  },
-};
+export const useDagsListSearch = () => useContext(DagsListSearchContext);

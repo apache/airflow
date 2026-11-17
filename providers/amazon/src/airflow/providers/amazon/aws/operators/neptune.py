@@ -50,11 +50,11 @@ def handle_waitable_exception(
 
     if code in ("InvalidDBInstanceStateFault", "InvalidDBInstanceState"):
         if operator.deferrable:
-            operator.log.info("Deferring until instances become available: %s", operator.cluster_id)
+            operator.log.info("Deferring until instances become available: %s", operator.db_cluster_id)
             operator.defer(
                 trigger=NeptuneClusterInstancesAvailableTrigger(
                     aws_conn_id=operator.aws_conn_id,
-                    db_cluster_id=operator.cluster_id,
+                    db_cluster_id=operator.db_cluster_id,
                     region_name=operator.region_name,
                     botocore_config=operator.botocore_config,
                     verify=operator.verify,
@@ -62,15 +62,15 @@ def handle_waitable_exception(
                 method_name="execute",
             )
         else:
-            operator.log.info("Need to wait for instances to become available: %s", operator.cluster_id)
-            operator.hook.wait_for_cluster_instance_availability(cluster_id=operator.cluster_id)
+            operator.log.info("Need to wait for instances to become available: %s", operator.db_cluster_id)
+            operator.hook.wait_for_cluster_instance_availability(cluster_id=operator.db_cluster_id)
     if code in ["InvalidClusterState", "InvalidDBClusterStateFault"]:
         if operator.deferrable:
-            operator.log.info("Deferring until cluster becomes available: %s", operator.cluster_id)
+            operator.log.info("Deferring until cluster becomes available: %s", operator.db_cluster_id)
             operator.defer(
                 trigger=NeptuneClusterAvailableTrigger(
                     aws_conn_id=operator.aws_conn_id,
-                    db_cluster_id=operator.cluster_id,
+                    db_cluster_id=operator.db_cluster_id,
                     region_name=operator.region_name,
                     botocore_config=operator.botocore_config,
                     verify=operator.verify,
@@ -78,8 +78,8 @@ def handle_waitable_exception(
                 method_name="execute",
             )
         else:
-            operator.log.info("Need to wait for cluster to become available: %s", operator.cluster_id)
-            operator.hook.wait_for_cluster_availability(operator.cluster_id)
+            operator.log.info("Need to wait for cluster to become available: %s", operator.db_cluster_id)
+            operator.hook.wait_for_cluster_availability(operator.db_cluster_id)
 
 
 class NeptuneStartDbClusterOperator(AwsBaseOperator[NeptuneHook]):
@@ -116,7 +116,7 @@ class NeptuneStartDbClusterOperator(AwsBaseOperator[NeptuneHook]):
     """
 
     aws_hook_class = NeptuneHook
-    template_fields: Sequence[str] = aws_template_fields("cluster_id")
+    template_fields: Sequence[str] = aws_template_fields("db_cluster_id")
 
     def __init__(
         self,
@@ -128,26 +128,26 @@ class NeptuneStartDbClusterOperator(AwsBaseOperator[NeptuneHook]):
         **kwargs,
     ):
         super().__init__(**kwargs)
-        self.cluster_id = db_cluster_id
+        self.db_cluster_id = db_cluster_id
         self.wait_for_completion = wait_for_completion
         self.deferrable = deferrable
         self.waiter_delay = waiter_delay
         self.waiter_max_attempts = waiter_max_attempts
 
     def execute(self, context: Context, event: dict[str, Any] | None = None, **kwargs) -> dict[str, str]:
-        self.log.info("Starting Neptune cluster: %s", self.cluster_id)
+        self.log.info("Starting Neptune cluster: %s", self.db_cluster_id)
 
         # Check to make sure the cluster is not already available.
-        status = self.hook.get_cluster_status(self.cluster_id)
+        status = self.hook.get_cluster_status(self.db_cluster_id)
         if status.lower() in NeptuneHook.AVAILABLE_STATES:
-            self.log.info("Neptune cluster %s is already available.", self.cluster_id)
-            return {"db_cluster_id": self.cluster_id}
+            self.log.info("Neptune cluster %s is already available.", self.db_cluster_id)
+            return {"db_cluster_id": self.db_cluster_id}
         if status.lower() in NeptuneHook.ERROR_STATES:
             # some states will not allow you to start the cluster
             self.log.error(
-                "Neptune cluster %s is in error state %s and cannot be started", self.cluster_id, status
+                "Neptune cluster %s is in error state %s and cannot be started", self.db_cluster_id, status
             )
-            raise AirflowException(f"Neptune cluster {self.cluster_id} is in error state {status}")
+            raise AirflowException(f"Neptune cluster {self.db_cluster_id} is in error state {status}")
 
         """
         A cluster and its instances must be in a valid state to send the start request.
@@ -157,7 +157,7 @@ class NeptuneStartDbClusterOperator(AwsBaseOperator[NeptuneHook]):
         Let the waiters handle retries and detecting the error states.
         """
         try:
-            self.hook.conn.start_db_cluster(DBClusterIdentifier=self.cluster_id)
+            self.hook.conn.start_db_cluster(DBClusterIdentifier=self.db_cluster_id)
         except ClientError as ex:
             code = ex.response["Error"]["Code"]
             self.log.warning("Received client error when attempting to start the cluster: %s", code)
@@ -170,12 +170,12 @@ class NeptuneStartDbClusterOperator(AwsBaseOperator[NeptuneHook]):
                 raise
 
         if should_defer(deferrable=self.deferrable, wait_for_completion=self.wait_for_completion):
-            self.log.info("Deferring for cluster start: %s", self.cluster_id)
+            self.log.info("Deferring for cluster start: %s", self.db_cluster_id)
 
             self.defer(
                 trigger=NeptuneClusterAvailableTrigger(
                     aws_conn_id=self.aws_conn_id,
-                    db_cluster_id=self.cluster_id,
+                    db_cluster_id=self.db_cluster_id,
                     waiter_delay=self.waiter_delay,
                     waiter_max_attempts=self.waiter_max_attempts,
                     region_name=self.region_name,
@@ -186,12 +186,12 @@ class NeptuneStartDbClusterOperator(AwsBaseOperator[NeptuneHook]):
             )
 
         elif self.wait_for_completion:
-            self.log.info("Waiting for Neptune cluster %s to start.", self.cluster_id)
+            self.log.info("Waiting for Neptune cluster %s to start.", self.db_cluster_id)
             self.hook.wait_for_cluster_availability(
-                self.cluster_id, self.waiter_delay, self.waiter_max_attempts
+                self.db_cluster_id, self.waiter_delay, self.waiter_max_attempts
             )
 
-        return {"db_cluster_id": self.cluster_id}
+        return {"db_cluster_id": self.db_cluster_id}
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> dict[str, str]:
         validated_event = validate_execute_complete_event(event)
@@ -238,7 +238,7 @@ class NeptuneStopDbClusterOperator(AwsBaseOperator[NeptuneHook]):
     """
 
     aws_hook_class = NeptuneHook
-    template_fields: Sequence[str] = aws_template_fields("cluster_id")
+    template_fields: Sequence[str] = aws_template_fields("db_cluster_id")
 
     def __init__(
         self,
@@ -250,28 +250,28 @@ class NeptuneStopDbClusterOperator(AwsBaseOperator[NeptuneHook]):
         **kwargs,
     ):
         super().__init__(**kwargs)
-        self.cluster_id = db_cluster_id
+        self.db_cluster_id = db_cluster_id
         self.wait_for_completion = wait_for_completion
         self.deferrable = deferrable
         self.waiter_delay = waiter_delay
         self.waiter_max_attempts = waiter_max_attempts
 
     def execute(self, context: Context, event: dict[str, Any] | None = None, **kwargs) -> dict[str, str]:
-        self.log.info("Stopping Neptune cluster: %s", self.cluster_id)
+        self.log.info("Stopping Neptune cluster: %s", self.db_cluster_id)
 
         # Check to make sure the cluster is not already stopped or that its not in a bad state
-        status = self.hook.get_cluster_status(self.cluster_id)
+        status = self.hook.get_cluster_status(self.db_cluster_id)
         self.log.info("Current status: %s", status)
 
         if status.lower() in NeptuneHook.STOPPED_STATES:
-            self.log.info("Neptune cluster %s is already stopped.", self.cluster_id)
-            return {"db_cluster_id": self.cluster_id}
+            self.log.info("Neptune cluster %s is already stopped.", self.db_cluster_id)
+            return {"db_cluster_id": self.db_cluster_id}
         if status.lower() in NeptuneHook.ERROR_STATES:
             # some states will not allow you to stop the cluster
             self.log.error(
-                "Neptune cluster %s is in error state %s and cannot be stopped", self.cluster_id, status
+                "Neptune cluster %s is in error state %s and cannot be stopped", self.db_cluster_id, status
             )
-            raise AirflowException(f"Neptune cluster {self.cluster_id} is in error state {status}")
+            raise AirflowException(f"Neptune cluster {self.db_cluster_id} is in error state {status}")
 
         """
         A cluster and its instances must be in a valid state to send the stop request.
@@ -282,7 +282,7 @@ class NeptuneStopDbClusterOperator(AwsBaseOperator[NeptuneHook]):
         """
 
         try:
-            self.hook.conn.stop_db_cluster(DBClusterIdentifier=self.cluster_id)
+            self.hook.conn.stop_db_cluster(DBClusterIdentifier=self.db_cluster_id)
 
         # cluster must be in available state to stop it
         except ClientError as ex:
@@ -302,12 +302,12 @@ class NeptuneStopDbClusterOperator(AwsBaseOperator[NeptuneHook]):
                 raise
 
         if should_defer(deferrable=self.deferrable, wait_for_completion=self.wait_for_completion):
-            self.log.info("Deferring for cluster stop: %s", self.cluster_id)
+            self.log.info("Deferring for cluster stop: %s", self.db_cluster_id)
 
             self.defer(
                 trigger=NeptuneClusterStoppedTrigger(
                     aws_conn_id=self.aws_conn_id,
-                    db_cluster_id=self.cluster_id,
+                    db_cluster_id=self.db_cluster_id,
                     waiter_delay=self.waiter_delay,
                     waiter_max_attempts=self.waiter_max_attempts,
                     region_name=self.region_name,
@@ -318,11 +318,13 @@ class NeptuneStopDbClusterOperator(AwsBaseOperator[NeptuneHook]):
             )
 
         elif self.wait_for_completion:
-            self.log.info("Waiting for Neptune cluster %s to stop.", self.cluster_id)
+            self.log.info("Waiting for Neptune cluster %s to stop.", self.db_cluster_id)
 
-            self.hook.wait_for_cluster_stopped(self.cluster_id, self.waiter_delay, self.waiter_max_attempts)
+            self.hook.wait_for_cluster_stopped(
+                self.db_cluster_id, self.waiter_delay, self.waiter_max_attempts
+            )
 
-        return {"db_cluster_id": self.cluster_id}
+        return {"db_cluster_id": self.db_cluster_id}
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> dict[str, str]:
         validated_event = validate_execute_complete_event(event)

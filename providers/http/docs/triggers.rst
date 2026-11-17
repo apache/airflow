@@ -102,7 +102,7 @@ Here's an example of using the ``HttpEventTrigger`` in an ``AssetWatcher`` to mo
         method="GET",
         http_conn_id="http_default",  # HTTP connection with https://api.github.com/ as the Host
         headers=headers,
-        response_check_path="dags.check_airflow_releases.check_github_api_response",  # Path to the check_github_api_response callable
+        response_check_path="check_airflow_releases.check_github_api_response",  # Module path the triggerer can import
         poll_interval=600,  # Poll API every 600 seconds
     )
 
@@ -124,6 +124,34 @@ Here's an example of using the ``HttpEventTrigger`` in an ``AssetWatcher`` to mo
 
 
     check_airflow_releases()
+
+Watching an RSS feed
+--------------------
+
+This example polls the SEC's US GAAP filings feed and schedules a Dag when the feed contains filings whose GUIDs
+were not in the previous poll. The check parses the RSS response as XML and saves the new filings and the
+current feed's GUIDs in the asset state store. The task prints the new filings' titles and links. On the first
+non-empty response, every filing counts as new.
+
+It requires Airflow 3.3.2 or later for the asynchronous asset state store API. Save the example as
+``example_sec_rss.py`` in the Dag folder. The triggerer imports ``response_check_path`` by module name and does
+not add the Dag folder to ``sys.path``, so add the Dag folder to the triggerer's ``PYTHONPATH``. The GitHub
+example above needs the same setup. Create an HTTP connection named ``sec_edgar`` with host
+``https://www.sec.gov`` and a ``User-Agent`` header identifying your organization and contact email, as required
+by the `SEC's access guidance <https://www.sec.gov/search-filings/edgar-search-assistance/accessing-edgar-data>`_.
+
+.. exampleinclude:: /../../http/tests/system/http/example_sec_rss.py
+    :language: python
+    :start-after: [START howto_trigger_http_event_rss]
+    :end-before: [END howto_trigger_http_event_rss]
+
+The feed contains at most 200 recent filings and is updated every ten minutes. A filing that leaves the feed
+between polls can be missed. ``new_filings`` holds the latest batch, not a queue: a later poll can replace it
+before a task reads it. The batch is saved before the asset event is recorded, so an interruption between the
+two loses that notification. Use a durable external queue or ingestion store if every filing must be processed.
+
+The trigger also stores the whole response body, base64-encoded, in each asset event's ``extra``. For a large
+feed, every event adds a correspondingly large row to the metadata database.
 
 Parameters
 ----------

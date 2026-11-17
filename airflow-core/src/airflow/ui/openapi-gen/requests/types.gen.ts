@@ -79,6 +79,8 @@ export type AssetEventResponse = {
     source_run_id?: string | null;
     source_map_index: number;
     source_task_instance_id?: string | null;
+    source_region_id?: string | null;
+    source_region_index?: number | null;
     created_dagruns: Array<DagRunAssetReference>;
     timestamp: string;
     partition_key?: string | null;
@@ -498,6 +500,10 @@ export type BulkDAGRunClearBody = {
      * (Experimental) Run on the latest bundle version of the Dag after clearing. If not specified, falls back to the DAG-level ``rerun_with_latest_version`` parameter, then the ``[core] rerun_with_latest_version`` config option, and finally ``False``.
      */
     run_on_latest_version?: boolean | null;
+    /**
+     * Keep the task state store entries of the cleared task instances so the next attempt resumes from them. By default they are discarded, so the task starts over.
+     */
+    keep_task_state?: boolean;
     note?: string | null;
     dag_runs?: Array<BulkDAGRunBody>;
 };
@@ -793,6 +799,10 @@ export type ClearTaskInstancesBody = {
     dag_run_id?: string | null;
     include_upstream?: boolean;
     include_downstream?: boolean;
+    /**
+     * Also clear the tasks in other Dags that the cleared tasks recorded as external clear targets (for example through ``ExternalTaskMarker``), with their downstream tasks. If not specified, follows ``include_downstream``.
+     */
+    include_dependent_dags?: boolean | null;
     include_future?: boolean;
     include_past?: boolean;
     /**
@@ -1093,6 +1103,10 @@ export type DAGRunClearBody = {
      * (Experimental) Run on the latest bundle version of the Dag after clearing. If not specified, falls back to the DAG-level ``rerun_with_latest_version`` parameter, then the ``[core] rerun_with_latest_version`` config option, and finally ``False``.
      */
     run_on_latest_version?: boolean | null;
+    /**
+     * Keep the task state store entries of the cleared task instances so the next attempt resumes from them. By default they are discarded, so the task starts over.
+     */
+    keep_task_state?: boolean;
     note?: string | null;
 };
 
@@ -1649,6 +1663,7 @@ export type ExternalViewResponse = {
     category?: string | null;
     nav_top_level?: boolean | null;
     applies_to?: PluginAppliesToResponse | null;
+    show_icon_with_label?: boolean | null;
     href: string;
     destination?: 'nav' | 'dag' | 'dag_run' | 'task' | 'task_instance' | 'asset' | 'base';
     [key: string]: unknown | string;
@@ -2285,6 +2300,7 @@ export type ReactAppResponse = {
     category?: string | null;
     nav_top_level?: boolean | null;
     applies_to?: PluginAppliesToResponse | null;
+    show_icon_with_label?: boolean | null;
     bundle_url: string;
     destination?: 'nav' | 'dag' | 'dag_run' | 'task' | 'task_instance' | 'asset' | 'base' | 'dashboard' | 'dag_overview' | 'task_overview';
     [key: string]: unknown | string;
@@ -5624,7 +5640,7 @@ export type GetXcomEntriesData = {
     dagId: string;
     dagRunId: string;
     /**
-     * Leave out XComs whose keys Airflow reserves for itself, such as loop decision reasons.
+     * Leave out XComs whose keys Airflow reserves for itself, such as loop decision reasons and cross-Dag clear targets.
      */
     excludeInternalKeys?: boolean;
     limit?: number;
@@ -6011,7 +6027,15 @@ export type GetGridRunsResponse = Array<GridRunsResponse>;
 
 export type GetGridTiSummariesStreamData = {
     dagId: string;
+    endDateGt?: string | null;
+    endDateGte?: string | null;
+    endDateLt?: string | null;
+    endDateLte?: string | null;
     runIds?: Array<(string)> | null;
+    startDateGt?: string | null;
+    startDateGte?: string | null;
+    startDateLt?: string | null;
+    startDateLte?: string | null;
 };
 
 export type GetGridTiSummariesStreamResponse = string;

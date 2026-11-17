@@ -16,14 +16,17 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { OFF } from "./levels.js";
 
 /**
- * Generates an object with all the given rules set to {@link OFF}.
- *
- * @template {string} Rule
- * @param {ReadonlyArray<Rule>} rules Array of rules to turn off.
- * @returns Object with rules set to {@link OFF}.
+ * Airflow UI lint rules, in the plugin shape both ESLint and oxlint (`jsPlugins`) load.
  */
-export const off = (...rules) =>
-  /** @type {Readonly<Record<Rule, typeof OFF>>} */ (Object.fromEntries(rules.map((rule) => [rule, OFF])));
+import { noReactNamespaceTypes } from "./no-react-namespace-types.js";
+
+export const airflowNamespace = "airflow";
+
+export default {
+  meta: { name: airflowNamespace },
+  rules: {
+    "no-react-namespace-types": noReactNamespaceTypes,
+  },
+};
