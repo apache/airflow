@@ -58,7 +58,8 @@ An event means that the producer observed a newer committed Delta version. Its `
 * ``change``: ``enrollment``, ``new_version`` or ``recreated``.
 * ``delta_table_id``: the Delta table id from ``DESCRIBE DETAIL``.
 * ``dedup_id``: the asset URI, table id and version. Use it to drop duplicate events.
-* ``databricks_delta_checkpoint_key``: the ``checkpoint_key`` of the producer.
+* ``databricks_delta_checkpoint_key``: the ``checkpoint_key`` of the producer. Present only on
+  the table asset's event, not on other outlets.
 
 Commits are coalesced. If the table moved from version 5 to version 9 between two runs, the producer
 publishes one event for version 9. It does not publish events for versions 6, 7 and 8.

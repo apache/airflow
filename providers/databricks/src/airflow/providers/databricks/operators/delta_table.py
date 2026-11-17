@@ -286,7 +286,13 @@ class DatabricksDeltaTableVersionProducerOperator(BaseOperator):
             head=head, operation_entry=operation_entry, table_id=table_id, previous=previous, change=change
         )
         for outlet in self.outlets:
-            context["outlet_events"][outlet].extra = extra
+            if getattr(outlet, "uri", None) == self.asset.uri:
+                context["outlet_events"][outlet].extra = extra
+            else:
+                # Checkpoint markers are only for the table asset event used as the producer checkpoint.
+                context["outlet_events"][outlet].extra = {
+                    key: value for key, value in extra.items() if key != CHECKPOINT_KEY_EXTRA
+                }
         self.log.info(
             "Publishing %s event for %s at Delta version %s (previous %s).",
             change,

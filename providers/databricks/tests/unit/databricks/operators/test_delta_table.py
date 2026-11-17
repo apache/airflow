@@ -347,6 +347,22 @@ class TestEnrollment:
         result = op.execute(make_context())
         assert result[CHECKPOINT_KEY_EXTRA] == "producer.watch_orders"
 
+    def test_checkpoint_key_only_on_table_asset_outlet(self, hook, table):
+        other = Asset(uri="s3://bucket/other")
+        op = make_operator(outlets=[other, TABLE.to_asset()])
+        context = make_context()
+        result = op.execute(context)
+
+        table_extra = context["outlet_events"][TABLE.to_asset()].extra
+        other_extra = context["outlet_events"][other].extra
+
+        assert table_extra == result
+        assert table_extra["version"] == other_extra["version"] == 2
+        assert table_extra[CHECKPOINT_KEY_EXTRA] == KEY
+        assert CHECKPOINT_KEY_EXTRA not in other_extra
+        assert other_extra["delta_table_id"] == TABLE_ID
+        assert other_extra["change"] == "enrollment"
+
 
 class TestVersionChanges:
     def test_unchanged_version_skips_without_event(self, hook):
