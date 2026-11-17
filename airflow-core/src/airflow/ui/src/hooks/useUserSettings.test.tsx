@@ -17,7 +17,7 @@
  * under the License.
  */
 import { act, renderHook } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   CLEAR_KEEP_TASK_STATE_KEY,
@@ -42,6 +42,16 @@ import {
   useDefaultTaskInstanceTab,
   useMarkTaskInstanceDefaultOptions,
 } from "./useUserSettings";
+
+const mockConfig = vi.hoisted(() => ({ default_keep_task_state: false }));
+
+vi.mock("src/queries/useConfig", () => ({
+  useConfig: (key: string) => mockConfig[key as keyof typeof mockConfig],
+}));
+
+beforeEach(() => {
+  mockConfig.default_keep_task_state = false;
+});
 
 afterEach(() => {
   localStorage.clear();
@@ -136,7 +146,24 @@ describe("useClearPreventRunningTaskDefault", () => {
 });
 
 describe("useClearKeepTaskStateDefault", () => {
-  it("defaults to false", () => {
+  it("defaults to false when the server default is false", () => {
+    const { result } = renderHook(() => useClearKeepTaskStateDefault());
+
+    expect(result.current[0]).toBe(false);
+  });
+
+  it("uses the deployment-wide default when nothing is stored", () => {
+    mockConfig.default_keep_task_state = true;
+
+    const { result } = renderHook(() => useClearKeepTaskStateDefault());
+
+    expect(result.current[0]).toBe(true);
+  });
+
+  it("lets a stored browser preference override the deployment default", () => {
+    mockConfig.default_keep_task_state = true;
+    localStorage.setItem(CLEAR_KEEP_TASK_STATE_KEY, JSON.stringify(false));
+
     const { result } = renderHook(() => useClearKeepTaskStateDefault());
 
     expect(result.current[0]).toBe(false);

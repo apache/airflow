@@ -16,6 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import type { Dispatch, SetStateAction } from "react";
+
 import { useLocalStorage } from "usehooks-ts";
 
 import type { Direction } from "src/components/Graph/DirectionDropdown";
@@ -34,6 +36,7 @@ import {
   MARK_TASK_INSTANCE_DEFAULT_OPTIONS_KEY,
 } from "src/constants/localStorage";
 import type { DefaultTaskInstanceTab } from "src/constants/tab";
+import { useConfig } from "src/queries/useConfig";
 
 /** Page shown at the app root. */
 export type LandingPageOption = "dags" | "dashboard";
@@ -69,8 +72,16 @@ export const useClearTaskInstanceDefaultOptions = () =>
 export const useClearPreventRunningTaskDefault = () =>
   useLocalStorage<boolean>(CLEAR_PREVENT_RUNNING_TASK_KEY, true);
 
-/** Default state of the "keep task state" checkbox when clearing task instances. */
-export const useClearKeepTaskStateDefault = () => useLocalStorage<boolean>(CLEAR_KEEP_TASK_STATE_KEY, false);
+/**
+ * Default state of the "keep task state" checkbox when clearing task instances. A value saved in
+ * this browser wins; otherwise the deployment-wide `[api] default_keep_task_state` is used.
+ */
+export const useClearKeepTaskStateDefault = (): [boolean, Dispatch<SetStateAction<boolean | null>>] => {
+  const serverDefault = Boolean(useConfig("default_keep_task_state"));
+  const [stored, setStored] = useLocalStorage<boolean | null>(CLEAR_KEEP_TASK_STATE_KEY, null);
+
+  return [stored ?? serverDefault, setStored];
+};
 
 /** Default selection for the "Mark as" task-instance dialog toggle (past / future / … ). */
 export const useMarkTaskInstanceDefaultOptions = () =>

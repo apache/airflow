@@ -62,6 +62,7 @@ expected_config_response = {
     "instance_name": "Airflow",
     "enable_swagger_ui": True,
     "require_confirmation_dag_change": False,
+    "default_keep_task_state": False,
     "default_wrap": False,
     "test_connection": "Disabled",
     "dashboard_alert": [],
@@ -82,6 +83,7 @@ def _theme_conf_vars(theme: dict) -> dict:
         ("api", "default_wrap"): "false",
         ("api", "auto_refresh_interval"): "3",
         ("api", "require_confirmation_dag_change"): "false",
+        ("api", "default_keep_task_state"): "false",
         ("api", "theme"): json.dumps(theme),
     }
 

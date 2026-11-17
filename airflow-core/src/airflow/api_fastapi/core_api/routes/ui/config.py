@@ -40,6 +40,7 @@ API_CONFIG_KEYS = [
     "default_wrap",
     "auto_refresh_interval",
     "require_confirmation_dag_change",
+    "default_keep_task_state",
 ]
 
 

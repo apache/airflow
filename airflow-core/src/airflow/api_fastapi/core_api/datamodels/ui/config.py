@@ -33,6 +33,7 @@ class ConfigResponse(BaseModel):
     instance_name: str
     enable_swagger_ui: bool
     require_confirmation_dag_change: bool
+    default_keep_task_state: bool
     default_wrap: bool
     test_connection: str
     dashboard_alert: list[UIAlert]

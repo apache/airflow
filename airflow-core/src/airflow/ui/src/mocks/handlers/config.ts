@@ -22,6 +22,7 @@ export const handlers: Array<HttpHandler> = [
   http.get("/ui/config", () =>
     HttpResponse.json({
       auto_refresh_interval: 3,
+      default_keep_task_state: false,
       default_wrap: false,
       enable_swagger_ui: true,
       hide_paused_dags_by_default: false,
