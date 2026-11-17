@@ -54,11 +54,12 @@ class AthenaOperator(AwsBaseOperator[AthenaHook]):
         the ``query_execution_context`` will be used instead.
     :param catalog: Catalog to select. (templated)
     :param output_location: s3 path to write the query results into. (templated)
-        To run the query, you must specify the query results location using one of the ways:
-        either for individual queries using either this setting (client-side),
-        or in the workgroup, using WorkGroupConfiguration.
-        If none of them is set, Athena issues an error that no output location is provided.
-        Leave it unset for a workgroup with managed query results.
+        The query results location comes from one of three places: this setting
+        (client-side), the workgroup, using WorkGroupConfiguration, or Athena itself
+        for a workgroup with managed query results. Leave this setting unset for such
+        a workgroup, since Athena rejects a query that also sets an output location.
+        If none of the three applies, Athena issues an error that no output location
+        is provided.
     :param client_request_token: Unique token created by user to avoid multiple executions of same query
     :param workgroup: Athena workgroup in which query will be run. (templated)
     :param query_execution_context: Context in which query need to be run
