@@ -68,9 +68,10 @@ Durable execution
 The operator is :doc:`durable <apache-airflow:core-concepts/resumable-tasks>` by default: it keeps the
 pipeline run id in the :doc:`task state store <apache-airflow:core-concepts/task-state-store>` before it
 waits. A retry reconnects to a run that is still in progress, in both regular and deferrable mode, and does
-not start a new one once the run has succeeded. A run that failed, was cancelled or no longer exists is
-started again. With ``wait_for_termination=False``, a retry returns without waiting when the stored run is
-still in progress. Durable execution requires Airflow 3.3 or newer.
+not start a new one once the run has succeeded. A run that failed, was cancelled, is being cancelled or no
+longer exists is started again. With ``wait_for_termination=False``, a retry returns without waiting when the
+stored run is still in progress. In deferrable mode, an error while polling no longer cancels the run, so
+the retry can reconnect to it. Durable execution requires Airflow 3.3 or newer.
 
 Clearing the task instance from the UI or the REST API discards the stored run id by default, so the next
 try starts a new pipeline run. To keep the stored run id instead, tick "keep task state" in the clear
@@ -86,8 +87,8 @@ Clearing a task that is waiting on the worker cancels its pipeline run first, so
 run either way. Only a deferred task's run keeps going. See :ref:`apache-airflow:concepts-resumable-tasks`
 for details.
 
-Set ``durable=False`` to start a new pipeline run on every try. Below Airflow 3.3 the operator behaves as
-with ``durable=False``.
+Set ``durable=False`` to start a new pipeline run on every try, and to cancel the run when polling fails in
+deferrable mode. Below Airflow 3.3 the operator behaves as with ``durable=False``.
 
 
 Poll for status of a data factory pipeline run asynchronously

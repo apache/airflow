@@ -25,6 +25,7 @@ from unittest.mock import MagicMock, patch
 import pendulum
 import pytest
 from azure.core.exceptions import ResourceNotFoundError
+from azure.mgmt.datafactory.models import CreateRunResponse
 
 from airflow.models import DAG, Connection
 from airflow.models.dagrun import DagRun
@@ -522,7 +523,7 @@ class TestAzureDataFactoryRunPipelineOperatorDurable:
                 AzureDataFactoryHook,
                 "run_pipeline",
                 autospec=True,
-                return_value=MagicMock(run_id=NEW_RUN_ID),
+                return_value=MagicMock(spec=CreateRunResponse, run_id=NEW_RUN_ID),
             ) as self.mock_run_pipeline,
             patch.object(AzureDataFactoryHook, "get_pipeline_run_status", autospec=True) as self.mock_status,
             patch.object(
@@ -533,7 +534,7 @@ class TestAzureDataFactoryRunPipelineOperatorDurable:
 
     @staticmethod
     def make_context(**stored):
-        return {"ti": MagicMock(), "task_state_store": TaskStateStore(**stored)}
+        return {"ti": MagicMock(spec=TaskInstance), "task_state_store": TaskStateStore(**stored)}
 
     def test_execute_stores_run_id_of_fresh_submit(self):
         context = self.make_context()
@@ -545,7 +546,9 @@ class TestAzureDataFactoryRunPipelineOperatorDurable:
         assert context["task_state_store"].values == {RUN_ID_KEY: NEW_RUN_ID}
         context["ti"].xcom_push.assert_called_once_with(key="run_id", value=NEW_RUN_ID)
 
-    @pytest.mark.parametrize("status", sorted(AzureDataFactoryPipelineRunStatus.INTERMEDIATE_STATES))
+    @pytest.mark.parametrize(
+        "status", [AzureDataFactoryPipelineRunStatus.QUEUED, AzureDataFactoryPipelineRunStatus.IN_PROGRESS]
+    )
     def test_execute_reconnects_to_run_in_progress(self, status):
         self.mock_status.return_value = status
         context = self.make_context(**{RUN_ID_KEY: STORED_RUN_ID})
@@ -569,6 +572,7 @@ class TestAzureDataFactoryRunPipelineOperatorDurable:
         self.mock_run_pipeline.assert_not_called()
         assert isinstance(exc.value.trigger, AzureDataFactoryTrigger)
         assert exc.value.trigger.run_id == STORED_RUN_ID
+        assert exc.value.trigger.cancel_on_error is False
         context["ti"].xcom_push.assert_called_once_with(key="run_id", value=STORED_RUN_ID)
 
     def test_execute_deferrable_stores_run_id_before_deferring(self):
@@ -599,6 +603,7 @@ class TestAzureDataFactoryRunPipelineOperatorDurable:
         [
             AzureDataFactoryPipelineRunStatus.FAILED,
             AzureDataFactoryPipelineRunStatus.CANCELLED,
+            AzureDataFactoryPipelineRunStatus.CANCELING,
             "NotFound",
         ],
     )

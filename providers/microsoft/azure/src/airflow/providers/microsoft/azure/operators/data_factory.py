@@ -178,6 +178,7 @@ class AzureDataFactoryRunPipelineOperator(ResumableJobMixin, BaseOperator):
         self.check_interval = check_interval
         self.deferrable = deferrable
         self.run_id: str | None = None
+        self._pushed_run_id: str | None = None
 
     @cached_property
     def hook(self) -> AzureDataFactoryHook:
@@ -199,7 +200,7 @@ class AzureDataFactoryRunPipelineOperator(ResumableJobMixin, BaseOperator):
             start_from_failure=self.start_from_failure,
             parameters=self.parameters,
         )
-        self._record_run_id(response.run_id, context)
+        self.run_id = response.run_id
         return response.run_id
 
     def get_job_status(self, external_id: JsonValue, context: Context) -> str:
@@ -211,58 +212,61 @@ class AzureDataFactoryRunPipelineOperator(ResumableJobMixin, BaseOperator):
             return "NotFound"
 
     def is_job_active(self, status: str) -> bool:
-        return self.wait_for_termination and status in AzureDataFactoryPipelineRunStatus.INTERMEDIATE_STATES
-
-    def is_job_succeeded(self, status: str) -> bool:
-        # Without wait_for_termination a retry does not wait for a run in progress either.
-        return status == AzureDataFactoryPipelineRunStatus.SUCCEEDED or (
-            not self.wait_for_termination and status in AzureDataFactoryPipelineRunStatus.INTERMEDIATE_STATES
+        # A Canceling run can only end Cancelled, so the retry starts a new run instead of waiting on it.
+        return status in (
+            AzureDataFactoryPipelineRunStatus.QUEUED,
+            AzureDataFactoryPipelineRunStatus.IN_PROGRESS,
         )
 
+    def is_job_succeeded(self, status: str) -> bool:
+        return status == AzureDataFactoryPipelineRunStatus.SUCCEEDED
+
     def poll_until_complete(self, external_id: JsonValue, context: Context) -> None:
-        self._record_run_id(str(external_id), context)
+        run_id = str(external_id)
+        self._record_run_id(run_id, context)
 
         if self.wait_for_termination:
             if self.deferrable is False:
-                self.log.info("Waiting for pipeline run %s to terminate.", self.run_id)
+                self.log.info("Waiting for pipeline run %s to terminate.", run_id)
 
                 if self.hook.wait_for_pipeline_run_status(
-                    self.run_id,
+                    run_id,
                     AzureDataFactoryPipelineRunStatus.SUCCEEDED,
                     self.resource_group_name,
                     self.factory_name,
                     check_interval=self.check_interval,
                     timeout=self.timeout,
                 ):
-                    self.log.info("Pipeline run %s has completed successfully.", self.run_id)
+                    self.log.info("Pipeline run %s has completed successfully.", run_id)
                 else:
                     raise AzureDataFactoryPipelineRunException(
-                        f"Pipeline run {self.run_id} has failed or has been cancelled."
+                        f"Pipeline run {run_id} has failed or has been cancelled."
                     )
             else:
                 end_time = time.time() + self.timeout
                 pipeline_run_status = self.hook.get_pipeline_run_status(
-                    self.run_id, self.resource_group_name, self.factory_name
+                    run_id, self.resource_group_name, self.factory_name
                 )
                 if pipeline_run_status not in AzureDataFactoryPipelineRunStatus.TERMINAL_STATUSES:
                     self.defer(
                         timeout=self.execution_timeout,
                         trigger=AzureDataFactoryTrigger(
                             azure_data_factory_conn_id=self.azure_data_factory_conn_id,
-                            run_id=self.run_id,
+                            run_id=run_id,
                             wait_for_termination=self.wait_for_termination,
                             resource_group_name=self.resource_group_name,
                             factory_name=self.factory_name,
                             check_interval=self.check_interval,
                             end_time=end_time,
+                            cancel_on_error=not self.durable,
                         ),
                         method_name="execute_complete",
                     )
                 elif pipeline_run_status == AzureDataFactoryPipelineRunStatus.SUCCEEDED:
-                    self.log.info("Pipeline run %s has completed successfully.", self.run_id)
+                    self.log.info("Pipeline run %s has completed successfully.", run_id)
                 elif pipeline_run_status in AzureDataFactoryPipelineRunStatus.FAILURE_STATES:
                     raise AzureDataFactoryPipelineRunException(
-                        f"Pipeline run {self.run_id} has failed or has been cancelled."
+                        f"Pipeline run {run_id} has failed or has been cancelled."
                     )
         else:
             if self.deferrable is True:
@@ -277,9 +281,10 @@ class AzureDataFactoryRunPipelineOperator(ResumableJobMixin, BaseOperator):
         self._record_run_id(str(external_id), context)
 
     def _record_run_id(self, run_id: str, context: Context) -> None:
-        if self.run_id == run_id:
-            return
         self.run_id = run_id
+        if self._pushed_run_id == run_id:
+            return
+        self._pushed_run_id = run_id
         # Push the ``run_id`` value to XCom regardless of what happens during execution. This allows for
         # retrieval the executed pipeline's ``run_id`` for downstream tasks especially if performing an
         # asynchronous wait.
