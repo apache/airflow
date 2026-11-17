@@ -108,7 +108,7 @@ from airflow.sdk.execution_time.comms import (
     _new_encoder,
     _RequestFrame,
 )
-from airflow.sdk.execution_time.context import AssetStateStoreAccessors
+from airflow.sdk.execution_time.context import AssetStateStoreAccessors, set_current_team_name
 from airflow.sdk.execution_time.request_handlers import (
     handle_clear_asset_state_store_by_name,
     handle_clear_asset_state_store_by_uri,
@@ -446,6 +446,8 @@ class messages:
         # Format of list[str] is the exc traceback format
         failures: list[tuple[int, list[str] | None]] | None = None
         finished: list[int] | None = None
+        # Ids the runner has a live coroutine for; None when the message carries no information
+        running_ids: set[int] | None = None
 
     class TriggerStateSync(BaseModel):
         type: Literal["TriggerStateSync"] = "TriggerStateSync"
@@ -722,15 +724,9 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                 self.running_triggers.discard(id)
                 self.cancelling_triggers.discard(id)
                 self.releasing_triggers.discard(id)
-                if factory := self.logger_cache.pop(id, None):
-                    try:
-                        factory.upload_to_remote()
-                    except Exception:
-                        log.exception("Failed to upload trigger logs to remote", trigger_id=id)
-                    finally:
-                        # Close the FD explicitly even if upload raised, otherwise the file
-                        # handle leaks for every failed upload.
-                        factory.close()
+                self.finalize_trigger_log(id)
+
+            self.check_for_unhandled_triggers(msg.running_ids)
 
             # Drain the persist confirmations accumulated since the last sync.
             events_persisted: list[int] = []
@@ -915,6 +911,46 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         for attempt in run_with_db_retries():
             with attempt, create_session() as session:
                 Trigger.clean_unused(session=session)
+
+    def finalize_trigger_log(self, trigger_id: int) -> None:
+        """
+        Upload and close the log file of a trigger that no longer runs here.
+
+        Every path that drops an id from ``running_triggers`` has to call it: re-creation
+        reuses the log path, so a leftover entry is lost.
+        """
+        if factory := self.logger_cache.pop(trigger_id, None):
+            try:
+                factory.upload_to_remote()
+            except Exception:
+                log.exception("Failed to upload trigger logs to remote", trigger_id=trigger_id)
+            finally:
+                # Close the FD explicitly even if upload raised, otherwise the file handle
+                # leaks for every failed upload. close() flushes, so it can raise too.
+                try:
+                    factory.close()
+                except Exception:
+                    log.exception("Failed to close trigger log file", trigger_id=trigger_id)
+
+    def check_for_unhandled_triggers(self, running_ids: set[int] | None) -> None:
+        """
+        Re-create triggers we track as running that the runner has no coroutine for.
+
+        Only valid between finished-removal and to_create-addition in ``_handle_request``, where the
+        two sides agree. Dropping the leftovers lets :meth:`update_triggers` rebuild them.
+        """
+        if running_ids is None:
+            return
+        unhandled = self.running_triggers - running_ids
+        if not unhandled:
+            return
+        log.error("Triggers have no coroutine in the runner; re-creating", trigger_ids=sorted(unhandled))
+        self.running_triggers -= unhandled
+        self.cancelling_triggers -= unhandled
+        self.releasing_triggers -= unhandled
+        for trigger_id in unhandled:
+            self.finalize_trigger_log(trigger_id)
+        stats.incr("triggers.state_mismatch", len(unhandled), tags=prune_dict({"team_name": self.team_name}))
 
     def handle_failed_triggers(self):
         """
@@ -1611,6 +1647,7 @@ class TriggerRunner:
             raise RuntimeError(f"Required first message to be a messages.StartTriggerer, it was {msg}")
 
         self.team_name = msg.team_name
+        set_current_team_name(msg.team_name)
 
         await self.comms_decoder.start_reader()
 
@@ -1788,6 +1825,7 @@ class TriggerRunner:
         # Copy out of our dequeues in threadsafe manner to sync state with parent
         events_to_send: list[TriggerEventEntry] = []
         failures_to_send: list[tuple[int, list[str] | None]] = []
+        finished_to_send = list(finished_ids)
 
         while self.events:
             events_to_send.append(self.events.popleft())
@@ -1796,11 +1834,14 @@ class TriggerRunner:
             trigger_id, exc = self.failed_triggers.popleft()
             tb = format_exception(type(exc), exc, exc.__traceback__) if exc else None
             failures_to_send.append((trigger_id, tb))
+            if trigger_id not in self.triggers and trigger_id not in finished_to_send:
+                finished_to_send.append(trigger_id)
 
         return messages.TriggerStateChanges(
             events=events_to_send if events_to_send else None,
-            finished=finished_ids if finished_ids else None,
+            finished=finished_to_send if finished_to_send else None,
             failures=failures_to_send if failures_to_send else None,
+            running_ids=set(self.triggers),
         )
 
     def sanitize_trigger_events(self, msg: messages.TriggerStateChanges) -> messages.TriggerStateChanges:
@@ -1829,6 +1870,7 @@ class TriggerRunner:
             events=events_to_send if events_to_send else None,
             finished=msg.finished,
             failures=msg.failures,
+            running_ids=msg.running_ids,
         )
 
     async def sync_state_to_supervisor(self, finished_ids: list[int]) -> None:

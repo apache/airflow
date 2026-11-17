@@ -519,6 +519,13 @@ class DAGRunClearBody(BaseModel):
             title="Run On Latest Version",
         ),
     ] = None
+    keep_task_state: Annotated[
+        bool | None,
+        Field(
+            description="Keep the task state store entries of the cleared task instances so the next attempt resumes from them. By default they are discarded, so the task starts over.",
+            title="Keep Task State",
+        ),
+    ] = False
     note: Annotated[Note | None, Field(title="Note")] = None
 
 
@@ -1436,6 +1443,7 @@ class ReactAppResponse(BaseModel):
     category: Annotated[str | None, Field(title="Category")] = None
     nav_top_level: Annotated[bool | None, Field(title="Nav Top Level")] = False
     applies_to: PluginAppliesToResponse | None = None
+    show_icon_with_label: Annotated[bool | None, Field(title="Show Icon With Label")] = False
     bundle_url: Annotated[str, Field(title="Bundle Url")]
     destination: Annotated[Destination3 | None, Field(title="Destination")] = "nav"
 
@@ -2176,6 +2184,13 @@ class BulkDAGRunClearBody(BaseModel):
             title="Run On Latest Version",
         ),
     ] = None
+    keep_task_state: Annotated[
+        bool | None,
+        Field(
+            description="Keep the task state store entries of the cleared task instances so the next attempt resumes from them. By default they are discarded, so the task starts over.",
+            title="Keep Task State",
+        ),
+    ] = False
     note: Annotated[Note | None, Field(title="Note")] = None
     dag_runs: Annotated[list[BulkDAGRunBody] | None, Field(title="Dag Runs")] = None
 
@@ -2721,6 +2736,7 @@ class ExternalViewResponse(BaseModel):
     category: Annotated[str | None, Field(title="Category")] = None
     nav_top_level: Annotated[bool | None, Field(title="Nav Top Level")] = False
     applies_to: PluginAppliesToResponse | None = None
+    show_icon_with_label: Annotated[bool | None, Field(title="Show Icon With Label")] = False
     href: Annotated[str, Field(title="Href")]
     destination: Annotated[Destination | None, Field(title="Destination")] = "nav"
 

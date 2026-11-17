@@ -500,6 +500,10 @@ export type BulkDAGRunClearBody = {
      * (Experimental) Run on the latest bundle version of the Dag after clearing. If not specified, falls back to the DAG-level ``rerun_with_latest_version`` parameter, then the ``[core] rerun_with_latest_version`` config option, and finally ``False``.
      */
     run_on_latest_version?: boolean | null;
+    /**
+     * Keep the task state store entries of the cleared task instances so the next attempt resumes from them. By default they are discarded, so the task starts over.
+     */
+    keep_task_state?: boolean;
     note?: string | null;
     dag_runs?: Array<BulkDAGRunBody>;
 };
@@ -1099,6 +1103,10 @@ export type DAGRunClearBody = {
      * (Experimental) Run on the latest bundle version of the Dag after clearing. If not specified, falls back to the DAG-level ``rerun_with_latest_version`` parameter, then the ``[core] rerun_with_latest_version`` config option, and finally ``False``.
      */
     run_on_latest_version?: boolean | null;
+    /**
+     * Keep the task state store entries of the cleared task instances so the next attempt resumes from them. By default they are discarded, so the task starts over.
+     */
+    keep_task_state?: boolean;
     note?: string | null;
 };
 
@@ -1655,6 +1663,7 @@ export type ExternalViewResponse = {
     category?: string | null;
     nav_top_level?: boolean | null;
     applies_to?: PluginAppliesToResponse | null;
+    show_icon_with_label?: boolean | null;
     href: string;
     destination?: 'nav' | 'dag' | 'dag_run' | 'task' | 'task_instance' | 'asset' | 'base';
     [key: string]: unknown | string;
@@ -2291,6 +2300,7 @@ export type ReactAppResponse = {
     category?: string | null;
     nav_top_level?: boolean | null;
     applies_to?: PluginAppliesToResponse | null;
+    show_icon_with_label?: boolean | null;
     bundle_url: string;
     destination?: 'nav' | 'dag' | 'dag_run' | 'task' | 'task_instance' | 'asset' | 'base' | 'dashboard' | 'dag_overview' | 'task_overview';
     [key: string]: unknown | string;
