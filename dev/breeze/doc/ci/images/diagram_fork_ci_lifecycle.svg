@@ -33,8 +33,8 @@
 <!-- done -->
 <g id="node2" class="node">
 <title>done</title>
-<ellipse fill="#33404d" stroke="#33404d" cx="825.8" cy="-10.48" rx="6.48" ry="6.48"/>
-<ellipse fill="none" stroke="#33404d" cx="825.8" cy="-10.48" rx="10.48" ry="10.48"/>
+<ellipse fill="#33404d" stroke="#33404d" cx="822.8" cy="-10.48" rx="6.48" ry="6.48"/>
+<ellipse fill="none" stroke="#33404d" cx="822.8" cy="-10.48" rx="10.48" ry="10.48"/>
 </g>
 <!-- running -->
 <g id="node4" class="node">
@@ -92,18 +92,18 @@
 <!-- ready -->
 <g id="node6" class="node">
 <title>ready</title>
-<path fill="#e6f4ea" stroke="#3d8b57" d="M593.85,-419.5C593.85,-419.5 465.75,-419.5 465.75,-419.5 459.75,-419.5 453.75,-413.5 453.75,-407.5 453.75,-407.5 453.75,-383.98 453.75,-383.98 453.75,-377.98 459.75,-371.98 465.75,-371.98 465.75,-371.98 593.85,-371.98 593.85,-371.98 599.85,-371.98 605.85,-377.98 605.85,-383.98 605.85,-383.98 605.85,-407.5 605.85,-407.5 605.85,-413.5 599.85,-419.5 593.85,-419.5"/>
-<text xml:space="preserve" text-anchor="middle" x="529.8" y="-403.29" font-family="Helvetica,sans-Serif" font-size="11.00">Green</text>
-<text xml:space="preserve" text-anchor="middle" x="529.8" y="-391.29" font-family="Helvetica,sans-Serif" font-size="11.00">ready for maintainer review</text>
-<text xml:space="preserve" text-anchor="middle" x="529.8" y="-379.29" font-family="Helvetica,sans-Serif" font-size="11.00">CI passed</text>
+<path fill="#e6f4ea" stroke="#3d8b57" d="M587.85,-419.5C587.85,-419.5 459.75,-419.5 459.75,-419.5 453.75,-419.5 447.75,-413.5 447.75,-407.5 447.75,-407.5 447.75,-383.98 447.75,-383.98 447.75,-377.98 453.75,-371.98 459.75,-371.98 459.75,-371.98 587.85,-371.98 587.85,-371.98 593.85,-371.98 599.85,-377.98 599.85,-383.98 599.85,-383.98 599.85,-407.5 599.85,-407.5 599.85,-413.5 593.85,-419.5 587.85,-419.5"/>
+<text xml:space="preserve" text-anchor="middle" x="523.8" y="-403.29" font-family="Helvetica,sans-Serif" font-size="11.00">Green</text>
+<text xml:space="preserve" text-anchor="middle" x="523.8" y="-391.29" font-family="Helvetica,sans-Serif" font-size="11.00">ready for maintainer review</text>
+<text xml:space="preserve" text-anchor="middle" x="523.8" y="-379.29" font-family="Helvetica,sans-Serif" font-size="11.00">CI passed</text>
 </g>
 <!-- running&#45;&gt;ready -->
 <g id="edge5" class="edge">
 <title>running&#45;&gt;ready</title>
-<path fill="none" stroke="#5b6b80" d="M555.56,-595.46C550.95,-559.9 540.34,-478.08 534.28,-431.27"/>
-<polygon fill="#5b6b80" stroke="#5b6b80" points="537.75,-430.87 533,-421.4 530.81,-431.77 537.75,-430.87"/>
-<text xml:space="preserve" text-anchor="middle" x="572.08" y="-503.96" font-family="Helvetica,sans-Serif" font-size="9.00" fill="#33404d">passes on a</text>
-<text xml:space="preserve" text-anchor="middle" x="572.08" y="-494.21" font-family="Helvetica,sans-Serif" font-size="9.00" fill="#33404d">current base</text>
+<path fill="none" stroke="#5b6b80" d="M555.08,-595.46C549.47,-559.83 536.55,-477.74 529.19,-430.98"/>
+<polygon fill="#5b6b80" stroke="#5b6b80" points="532.69,-430.73 527.68,-421.39 525.78,-431.82 532.69,-430.73"/>
+<text xml:space="preserve" text-anchor="middle" x="569.68" y="-503.96" font-family="Helvetica,sans-Serif" font-size="9.00" fill="#33404d">passes on a</text>
+<text xml:space="preserve" text-anchor="middle" x="569.68" y="-494.21" font-family="Helvetica,sans-Serif" font-size="9.00" fill="#33404d">current base</text>
 </g>
 <!-- authordraft -->
 <g id="node7" class="node">
@@ -163,45 +163,45 @@
 <!-- ready&#45;&gt;running -->
 <g id="edge12" class="edge">
 <title>ready&#45;&gt;running</title>
-<path fill="none" stroke="#5b6b80" stroke-dasharray="5,2" d="M508.04,-419.58C486.22,-445.4 457.88,-488.75 473.3,-526.52 483.44,-551.37 504.58,-572.94 523.18,-588.29"/>
-<polygon fill="#5b6b80" stroke="#5b6b80" points="520.84,-590.91 530.85,-594.38 525.19,-585.42 520.84,-590.91"/>
-<text xml:space="preserve" text-anchor="middle" x="502.55" y="-499.08" font-family="Helvetica,sans-Serif" font-size="9.00" fill="#33404d">author pushes</text>
+<path fill="none" stroke="#5b6b80" stroke-dasharray="5,2" d="M502.48,-419.72C481.13,-445.67 453.54,-489.14 469.3,-526.52 479.95,-551.78 502.02,-573.31 521.45,-588.54"/>
+<polygon fill="#5b6b80" stroke="#5b6b80" points="519.12,-591.17 529.22,-594.38 523.33,-585.57 519.12,-591.17"/>
+<text xml:space="preserve" text-anchor="middle" x="498.55" y="-499.08" font-family="Helvetica,sans-Serif" font-size="9.00" fill="#33404d">author pushes</text>
 </g>
 <!-- project -->
 <g id="node10" class="node">
 <title>project</title>
-<path fill="#f2f4f7" stroke="#5b6b80" d="M763.72,-312.48C763.72,-312.48 661.88,-312.48 661.88,-312.48 655.88,-312.48 649.88,-306.48 649.88,-300.48 649.88,-300.48 649.88,-264.96 649.88,-264.96 649.88,-258.96 655.88,-252.96 661.88,-252.96 661.88,-252.96 763.72,-252.96 763.72,-252.96 769.72,-252.96 775.72,-258.96 775.72,-264.96 775.72,-264.96 775.72,-300.48 775.72,-300.48 775.72,-306.48 769.72,-312.48 763.72,-312.48"/>
-<text xml:space="preserve" text-anchor="middle" x="712.8" y="-296.27" font-family="Helvetica,sans-Serif" font-size="11.00">Project CI</text>
-<text xml:space="preserve" text-anchor="middle" x="712.8" y="-284.27" font-family="Helvetica,sans-Serif" font-size="11.00">(use project ci)</text>
-<text xml:space="preserve" text-anchor="middle" x="712.8" y="-272.27" font-family="Helvetica,sans-Serif" font-size="11.00">runs on the next push</text>
-<text xml:space="preserve" text-anchor="middle" x="712.8" y="-260.27" font-family="Helvetica,sans-Serif" font-size="11.00">or a close and reopen</text>
+<path fill="#f2f4f7" stroke="#5b6b80" d="M779.97,-312.48C779.97,-312.48 655.62,-312.48 655.62,-312.48 649.62,-312.48 643.62,-306.48 643.62,-300.48 643.62,-300.48 643.62,-264.96 643.62,-264.96 643.62,-258.96 649.62,-252.96 655.62,-252.96 655.62,-252.96 779.97,-252.96 779.97,-252.96 785.97,-252.96 791.97,-258.96 791.97,-264.96 791.97,-264.96 791.97,-300.48 791.97,-300.48 791.97,-306.48 785.97,-312.48 779.97,-312.48"/>
+<text xml:space="preserve" text-anchor="middle" x="717.8" y="-296.27" font-family="Helvetica,sans-Serif" font-size="11.00">Project CI</text>
+<text xml:space="preserve" text-anchor="middle" x="717.8" y="-284.27" font-family="Helvetica,sans-Serif" font-size="11.00">(use project ci)</text>
+<text xml:space="preserve" text-anchor="middle" x="717.8" y="-272.27" font-family="Helvetica,sans-Serif" font-size="11.00">starts when the maintainer</text>
+<text xml:space="preserve" text-anchor="middle" x="717.8" y="-260.27" font-family="Helvetica,sans-Serif" font-size="11.00">adds the label</text>
 </g>
 <!-- ready&#45;&gt;project -->
 <g id="edge17" class="edge">
 <title>ready&#45;&gt;project</title>
-<path fill="none" stroke="#5b6b80" stroke-dasharray="5,2" d="M555.35,-371.77C570.05,-359.23 589.24,-343.97 607.8,-332.48 617.71,-326.35 628.51,-320.49 639.3,-315.1"/>
-<polygon fill="#5b6b80" stroke="#5b6b80" points="640.79,-318.27 648.25,-310.75 637.72,-311.98 640.79,-318.27"/>
+<path fill="none" stroke="#5b6b80" stroke-dasharray="5,2" d="M551.87,-371.49C567.71,-359.01 588.19,-343.9 607.8,-332.48 616.55,-327.38 625.93,-322.47 635.38,-317.85"/>
+<polygon fill="#5b6b80" stroke="#5b6b80" points="636.76,-321.07 644.28,-313.61 633.75,-314.75 636.76,-321.07"/>
 <text xml:space="preserve" text-anchor="middle" x="640.8" y="-343.43" font-family="Helvetica,sans-Serif" font-size="9.00" fill="#33404d">maintainer adds</text>
 <text xml:space="preserve" text-anchor="middle" x="640.8" y="-333.68" font-family="Helvetica,sans-Serif" font-size="9.00" fill="#33404d">use project ci</text>
 </g>
 <!-- approved -->
 <g id="node11" class="node">
 <title>approved</title>
-<path fill="#f2f4f7" stroke="#5b6b80" d="M847.85,-193.46C847.85,-193.46 803.75,-193.46 803.75,-193.46 797.75,-193.46 791.75,-187.46 791.75,-181.46 791.75,-181.46 791.75,-169.46 791.75,-169.46 791.75,-163.46 797.75,-157.46 803.75,-157.46 803.75,-157.46 847.85,-157.46 847.85,-157.46 853.85,-157.46 859.85,-163.46 859.85,-169.46 859.85,-169.46 859.85,-181.46 859.85,-181.46 859.85,-187.46 853.85,-193.46 847.85,-193.46"/>
-<text xml:space="preserve" text-anchor="middle" x="825.8" y="-171.01" font-family="Helvetica,sans-Serif" font-size="11.00">Approved</text>
+<path fill="#f2f4f7" stroke="#5b6b80" d="M844.85,-193.46C844.85,-193.46 800.75,-193.46 800.75,-193.46 794.75,-193.46 788.75,-187.46 788.75,-181.46 788.75,-181.46 788.75,-169.46 788.75,-169.46 788.75,-163.46 794.75,-157.46 800.75,-157.46 800.75,-157.46 844.85,-157.46 844.85,-157.46 850.85,-157.46 856.85,-163.46 856.85,-169.46 856.85,-169.46 856.85,-181.46 856.85,-181.46 856.85,-187.46 850.85,-193.46 844.85,-193.46"/>
+<text xml:space="preserve" text-anchor="middle" x="822.8" y="-171.01" font-family="Helvetica,sans-Serif" font-size="11.00">Approved</text>
 </g>
 <!-- ready&#45;&gt;approved -->
 <g id="edge15" class="edge">
 <title>ready&#45;&gt;approved</title>
-<path fill="none" stroke="#5b6b80" d="M525.59,-371.52C521.41,-340.6 519.19,-285.96 547.8,-252.96 578.09,-218.03 709.4,-193.68 780.18,-182.83"/>
-<polygon fill="#5b6b80" stroke="#5b6b80" points="780.55,-186.31 789.92,-181.36 779.51,-179.39 780.55,-186.31"/>
-<text xml:space="preserve" text-anchor="middle" x="589.8" y="-279.05" font-family="Helvetica,sans-Serif" font-size="9.00" fill="#33404d">maintainer approves</text>
+<path fill="none" stroke="#5b6b80" d="M519.58,-371.51C515.39,-340.57 513.15,-285.92 541.8,-252.96 572.48,-217.67 705.5,-193.44 776.97,-182.71"/>
+<polygon fill="#5b6b80" stroke="#5b6b80" points="777.43,-186.18 786.81,-181.27 776.41,-179.26 777.43,-186.18"/>
+<text xml:space="preserve" text-anchor="middle" x="583.8" y="-279.05" font-family="Helvetica,sans-Serif" font-size="9.00" fill="#33404d">maintainer approves</text>
 </g>
 <!-- authordraft&#45;&gt;ready -->
 <g id="edge7" class="edge">
 <title>authordraft&#45;&gt;ready</title>
-<path fill="none" stroke="#5b6b80" d="M275.43,-478.81C286.44,-465.3 302.05,-449.04 319.55,-439.5 356.99,-419.09 402.98,-408.38 442.4,-402.78"/>
-<polygon fill="#5b6b80" stroke="#5b6b80" points="442.64,-406.28 452.09,-401.5 441.72,-399.34 442.64,-406.28"/>
+<path fill="none" stroke="#5b6b80" d="M275.7,-478.53C286.71,-465.1 302.21,-449.02 319.55,-439.5 355.1,-419.98 398.62,-409.36 436.34,-403.58"/>
+<polygon fill="#5b6b80" stroke="#5b6b80" points="436.42,-407.11 445.83,-402.22 435.43,-400.18 436.42,-407.11"/>
 <text xml:space="preserve" text-anchor="middle" x="352.17" y="-450.45" font-family="Helvetica,sans-Serif" font-size="9.00" fill="#33404d">author marks it</text>
 <text xml:space="preserve" text-anchor="middle" x="352.17" y="-440.7" font-family="Helvetica,sans-Serif" font-size="9.00" fill="#33404d">ready for review</text>
 </g>
@@ -216,10 +216,10 @@
 <!-- rebase&#45;&gt;approved -->
 <g id="edge16" class="edge">
 <title>rebase&#45;&gt;approved</title>
-<path fill="none" stroke="#5b6b80" stroke-dasharray="5,2" d="M893.22,-478.78C897.54,-428.19 902.61,-304.46 860.8,-213.46 859.04,-209.62 856.71,-205.92 854.09,-202.45"/>
-<polygon fill="#5b6b80" stroke="#5b6b80" points="856.84,-200.27 847.66,-194.98 851.53,-204.84 856.84,-200.27"/>
-<text xml:space="preserve" text-anchor="middle" x="947.51" y="-343.43" font-family="Helvetica,sans-Serif" font-size="9.00" fill="#33404d">maintainer approves;</text>
-<text xml:space="preserve" text-anchor="middle" x="947.51" y="-333.68" font-family="Helvetica,sans-Serif" font-size="9.00" fill="#33404d">merge waits for the rebase</text>
+<path fill="none" stroke="#5b6b80" stroke-dasharray="5,2" d="M893.49,-478.65C898.37,-427.8 904.47,-303.58 860.8,-213.46 858.87,-209.47 856.32,-205.68 853.45,-202.14"/>
+<polygon fill="#5b6b80" stroke="#5b6b80" points="856.24,-200 846.88,-195.04 851.1,-204.75 856.24,-200"/>
+<text xml:space="preserve" text-anchor="middle" x="948.56" y="-343.43" font-family="Helvetica,sans-Serif" font-size="9.00" fill="#33404d">maintainer approves;</text>
+<text xml:space="preserve" text-anchor="middle" x="948.56" y="-333.68" font-family="Helvetica,sans-Serif" font-size="9.00" fill="#33404d">merge waits for the rebase</text>
 </g>
 <!-- needs&#45;&gt;running -->
 <g id="edge13" class="edge">
@@ -231,23 +231,23 @@
 <!-- needs&#45;&gt;project -->
 <g id="edge18" class="edge">
 <title>needs&#45;&gt;project</title>
-<path fill="none" stroke="#5b6b80" d="M699,-484.29C701.38,-449.74 706.73,-371.93 710.03,-324.02"/>
-<polygon fill="#5b6b80" stroke="#5b6b80" points="713.5,-324.54 710.69,-314.33 706.52,-324.06 713.5,-324.54"/>
-<text xml:space="preserve" text-anchor="middle" x="768.04" y="-396.94" font-family="Helvetica,sans-Serif" font-size="9.00" fill="#33404d">maintainer reviews the</text>
-<text xml:space="preserve" text-anchor="middle" x="768.04" y="-387.19" font-family="Helvetica,sans-Serif" font-size="9.00" fill="#33404d">CI change, adds use project ci</text>
+<path fill="none" stroke="#5b6b80" d="M699.4,-484.29C702.57,-449.74 709.71,-371.93 714.1,-324.02"/>
+<polygon fill="#5b6b80" stroke="#5b6b80" points="717.56,-324.6 714.99,-314.32 710.59,-323.96 717.56,-324.6"/>
+<text xml:space="preserve" text-anchor="middle" x="770.96" y="-396.94" font-family="Helvetica,sans-Serif" font-size="9.00" fill="#33404d">maintainer reviews the</text>
+<text xml:space="preserve" text-anchor="middle" x="770.96" y="-387.19" font-family="Helvetica,sans-Serif" font-size="9.00" fill="#33404d">CI change, adds use project ci</text>
 </g>
 <!-- project&#45;&gt;approved -->
 <g id="edge19" class="edge">
 <title>project&#45;&gt;approved</title>
-<path fill="none" stroke="#5b6b80" d="M735.11,-252.66C745.56,-239.94 758.6,-225.26 771.8,-213.46 776.97,-208.84 782.75,-204.32 788.54,-200.11"/>
-<polygon fill="#5b6b80" stroke="#5b6b80" points="790.15,-203.26 796.35,-194.66 786.14,-197.52 790.15,-203.26"/>
+<path fill="none" stroke="#5b6b80" d="M737.99,-252.68C747.51,-239.96 759.48,-225.28 771.8,-213.46 776.5,-208.95 781.78,-204.53 787.11,-200.41"/>
+<polygon fill="#5b6b80" stroke="#5b6b80" points="788.87,-203.46 794.82,-194.7 784.7,-197.84 788.87,-203.46"/>
 <text xml:space="preserve" text-anchor="middle" x="813.8" y="-224.41" font-family="Helvetica,sans-Serif" font-size="9.00" fill="#33404d">project CI passes,</text>
 <text xml:space="preserve" text-anchor="middle" x="813.8" y="-214.66" font-family="Helvetica,sans-Serif" font-size="9.00" fill="#33404d">maintainer approves</text>
 </g>
 <!-- approved&#45;&gt;running -->
 <g id="edge14" class="edge">
 <title>approved&#45;&gt;running</title>
-<path fill="none" stroke="#5b6b80" stroke-dasharray="5,2" d="M860.33,-178.23C920.41,-183.37 1037.8,-203.44 1037.8,-281.72 1037.8,-503.76 1037.8,-503.76 1037.8,-503.76 1037.8,-542.47 1022.43,-556.59 988.8,-575.77 958.24,-593.2 707.79,-592.08 672.8,-595.77 654.85,-597.66 635.41,-600.3 617.71,-602.95"/>
+<path fill="none" stroke="#5b6b80" stroke-dasharray="5,2" d="M857.34,-178.02C918.12,-182.82 1037.8,-202.34 1037.8,-281.72 1037.8,-503.76 1037.8,-503.76 1037.8,-503.76 1037.8,-542.47 1022.43,-556.59 988.8,-575.77 958.24,-593.2 707.79,-592.08 672.8,-595.77 654.85,-597.66 635.41,-600.3 617.71,-602.95"/>
 <polygon fill="#5b6b80" stroke="#5b6b80" points="617.22,-599.48 607.86,-604.44 618.28,-606.4 617.22,-599.48"/>
 <text xml:space="preserve" text-anchor="middle" x="1067.05" y="-396.94" font-family="Helvetica,sans-Serif" font-size="9.00" fill="#33404d">author pushes</text>
 <text xml:space="preserve" text-anchor="middle" x="1067.05" y="-387.19" font-family="Helvetica,sans-Serif" font-size="9.00" fill="#33404d">or rebases</text>
@@ -255,22 +255,22 @@
 <!-- merged -->
 <g id="node12" class="node">
 <title>merged</title>
-<path fill="#e6f4ea" stroke="#3d8b57" d="M842.97,-97.96C842.97,-97.96 808.62,-97.96 808.62,-97.96 802.62,-97.96 796.62,-91.96 796.62,-85.96 796.62,-85.96 796.62,-73.96 796.62,-73.96 796.62,-67.96 802.62,-61.96 808.62,-61.96 808.62,-61.96 842.97,-61.96 842.97,-61.96 848.97,-61.96 854.97,-67.96 854.97,-73.96 854.97,-73.96 854.97,-85.96 854.97,-85.96 854.97,-91.96 848.97,-97.96 842.97,-97.96"/>
-<text xml:space="preserve" text-anchor="middle" x="825.8" y="-75.51" font-family="Helvetica,sans-Serif" font-size="11.00">Merged</text>
+<path fill="#e6f4ea" stroke="#3d8b57" d="M839.97,-97.96C839.97,-97.96 805.62,-97.96 805.62,-97.96 799.62,-97.96 793.62,-91.96 793.62,-85.96 793.62,-85.96 793.62,-73.96 793.62,-73.96 793.62,-67.96 799.62,-61.96 805.62,-61.96 805.62,-61.96 839.97,-61.96 839.97,-61.96 845.97,-61.96 851.97,-67.96 851.97,-73.96 851.97,-73.96 851.97,-85.96 851.97,-85.96 851.97,-91.96 845.97,-97.96 839.97,-97.96"/>
+<text xml:space="preserve" text-anchor="middle" x="822.8" y="-75.51" font-family="Helvetica,sans-Serif" font-size="11.00">Merged</text>
 </g>
 <!-- approved&#45;&gt;merged -->
 <g id="edge20" class="edge">
 <title>approved&#45;&gt;merged</title>
-<path fill="none" stroke="#5b6b80" d="M825.8,-157.31C825.8,-143.95 825.8,-125.11 825.8,-109.49"/>
-<polygon fill="#5b6b80" stroke="#5b6b80" points="829.3,-109.83 825.8,-99.83 822.3,-109.83 829.3,-109.83"/>
-<text xml:space="preserve" text-anchor="middle" x="875.3" y="-128.91" font-family="Helvetica,sans-Serif" font-size="9.00" fill="#33404d">merged, or auto&#45;merged</text>
-<text xml:space="preserve" text-anchor="middle" x="875.3" y="-119.16" font-family="Helvetica,sans-Serif" font-size="9.00" fill="#33404d">once CI passed is green</text>
+<path fill="none" stroke="#5b6b80" d="M822.8,-157.31C822.8,-143.95 822.8,-125.11 822.8,-109.49"/>
+<polygon fill="#5b6b80" stroke="#5b6b80" points="826.3,-109.83 822.8,-99.83 819.3,-109.83 826.3,-109.83"/>
+<text xml:space="preserve" text-anchor="middle" x="872.3" y="-128.91" font-family="Helvetica,sans-Serif" font-size="9.00" fill="#33404d">merged, or auto&#45;merged</text>
+<text xml:space="preserve" text-anchor="middle" x="872.3" y="-119.16" font-family="Helvetica,sans-Serif" font-size="9.00" fill="#33404d">once CI passed is green</text>
 </g>
 <!-- merged&#45;&gt;done -->
 <g id="edge23" class="edge">
 <title>merged&#45;&gt;done</title>
-<path fill="none" stroke="#5b6b80" d="M825.8,-61.58C825.8,-52.78 825.8,-42.01 825.8,-32.71"/>
-<polygon fill="#5b6b80" stroke="#5b6b80" points="829.3,-32.79 825.8,-22.79 822.3,-32.79 829.3,-32.79"/>
+<path fill="none" stroke="#5b6b80" d="M822.8,-61.58C822.8,-52.78 822.8,-42.01 822.8,-32.71"/>
+<polygon fill="#5b6b80" stroke="#5b6b80" points="826.3,-32.79 822.8,-22.79 819.3,-32.79 826.3,-32.79"/>
 </g>
 <!-- closed&#45;&gt;waiting -->
 <g id="edge22" class="edge">

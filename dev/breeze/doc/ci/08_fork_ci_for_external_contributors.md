@@ -120,9 +120,9 @@ and exempted organisations are not gated and follow the usual project CI flow.
   CI-defining files ([Trusting a green fork run](#trusting-a-green-fork-run)). Otherwise project CI
   sets it.
 - **`use project ci`** moves a single pull request to project CI at any point; `use fork ci` moves
-  it back ([Override labels](#override-labels)). Adding the label does not start project CI: it
-  runs on the next push, or when a maintainer closes and reopens the pull request, and waits for a
-  maintainer's approval when the repository's approval setting covers the author.
+  it back ([Override labels](#override-labels)). Adding `use project ci` starts the AMD project CI workflow for the current pull request
+  head commit without requiring another push or closing and reopening the pull request.
+  The run waits for a maintainer's approval when the repository's approval setting covers the author.
 
 
 ## Configuration
@@ -254,8 +254,8 @@ Consequences for the other components:
 - A pull request carrying both `fork ci required` and `use project ci` is *released*: the
   reconciler removes `fork ci required`, undrafts it if the bot drafted it, edits the state
   comment to say project CI is in use, and posts a `success` status with the description
-  "Project CI in use (label `use project ci`)". Project CI then runs on the next push, or when
-  a maintainer closes and reopens the pull request. From that run on, and until project CI has
+  "Project CI in use (label `use project ci`)". Adding `use project ci` triggers the AMD project CI workflow for the current head commit,
+  without another push or closing and reopening the pull request. From that run on, and until project CI has
   passed on the head commit, the pull request cannot merge: its `CI passed` status is `pending`
   (see "The `CI passed` check").
 - Both override labels on one pull request resolve to project CI and are reported to Slack as

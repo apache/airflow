@@ -304,6 +304,30 @@ def test_decide(event: GateEvent, config_overrides: dict, expected: Decision):
     assert decide(event, _config(**config_overrides)) == expected
 
 
+def test_project_ci_label_triggers_amd_workflow():
+    workflow = yaml.safe_load((AIRFLOW_ROOT_PATH / ".github" / "workflows" / "ci-amd.yml").read_text())
+
+    assert "labeled" in workflow[True]["pull_request"]["types"]
+
+
+def test_unrelated_label_skips_initial_ci_jobs():
+    workflow = yaml.safe_load((AIRFLOW_ROOT_PATH / ".github" / "workflows" / "ci-amd.yml").read_text())
+
+    for job in ("check-run-needed", "gate"):
+        condition = workflow["jobs"][job]["if"]
+        assert "github.event.action != 'labeled'" in condition
+        assert "github.event.label.name == 'use project ci'" in condition
+
+
+def test_unrelated_label_has_separate_concurrency_group():
+    workflow = yaml.safe_load((AIRFLOW_ROOT_PATH / ".github" / "workflows" / "ci-amd.yml").read_text())
+
+    group = workflow["concurrency"]["group"]
+    assert "github.event.action == 'labeled'" in group
+    assert "github.event.label.name != 'use project ci'" in group
+    assert "-ignored-label" in group
+
+
 def test_canonical_branch_filters_match_pull_request_release_branches():
     workflow = yaml.safe_load((AIRFLOW_ROOT_PATH / ".github" / "workflows" / "ci-amd.yml").read_text())
     # PyYAML parses the bare `on:` key as boolean True.

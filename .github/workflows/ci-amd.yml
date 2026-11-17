@@ -42,7 +42,7 @@ on:  # yamllint disable-line rule:truthy
       - chart/v[0-9]+-[0-9]+x-stable
       - airflow-ctl/v[0-9]+-[0-9]+-test
       - airflow-ctl/v[0-9]+-[0-9]+-stable
-    types: [opened, reopened, synchronize, ready_for_review]
+    types: [opened, reopened, synchronize, ready_for_review, labeled]
   push:
     # Every push triggers the workflow so that contributors get CI in their forks (AIP-120).
     # In apache/airflow the `gate` job keeps the old behaviour: only pushes to the release-prep /
@@ -71,13 +71,17 @@ concurrency:
   # cancels a full run of the branch.
   group: >-
     ci-amd-${{ github.event.pull_request.number || github.ref }}${{
-    github.event_name == 'push' && '-push' || '' }}
+    github.event_name == 'push' && '-push' ||
+    (github.event.action == 'labeled' && github.event.label.name != 'use project ci' && '-ignored-label') || '' }}
   # A scheduled canary queues behind a run in progress instead of cancelling it: it may well be a
   # manual run of the same commit, which the canary would otherwise cancel and then skip itself.
   cancel-in-progress: ${{ github.event_name != 'schedule' }}
 
 jobs:
   check-run-needed:
+    if: >-
+      github.event.action != 'labeled' ||
+      github.event.label.name == 'use project ci'
     name: "Check if the run is needed"
     # A scheduled canary is not needed when the last completed full run of this workflow on the
     # branch tested the same commit and succeeded: it would only repeat that run. A push run tests
@@ -192,6 +196,9 @@ jobs:
           fi
 
   gate:
+    if: >-
+      github.event.action != 'labeled' ||
+      github.event.label.name == 'use project ci'
     # Fork CI gate (AIP-120): decides whether project CI runs for this event. Configuration and
     # code come from the base branch so a pull request cannot change its own eligibility. See
     # dev/breeze/doc/ci/08_fork_ci_for_external_contributors.md. A pull request whose CI runs
