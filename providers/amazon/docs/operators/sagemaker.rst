@@ -90,10 +90,18 @@ when a timed out attempt is killed. A new submit is renamed with a timestamp suf
 Spot training resume through ``CheckpointConfig`` is unaffected, since the checkpoint
 ``S3Uri`` does not depend on the job name.
 
-Clearing a task is treated the same as a retry, which matters for a task whose job already
-completed: clearing does not delete the stored job name, so the next attempt returns the existing
-result without starting a new job. See :doc:`apache-airflow:core-concepts/resumable-tasks` for why,
-and for the ``[state_store] clear_on_success`` setting that restores "clearing always resubmits."
+On Airflow 3.3, clearing a task keeps the stored job name, so the next attempt is treated the same
+as a retry. A task whose job already completed returns the existing result without starting a new
+job.
+
+From Airflow 3.4, clearing a single task instance (UI, REST API or ``airflowctl``) deletes the
+stored job name by default, so the next attempt submits a new job. Set ``keep_task_state`` when
+clearing to keep it, and the next attempt then reconnects to the job or returns its result. Clearing
+a whole Dag run, marking a task as failed or success, and ``airflow tasks clear`` still keep the job
+name before Airflow 3.5. From Airflow 3.5, every way of clearing deletes it by default.
+
+See :doc:`apache-airflow:core-concepts/resumable-tasks` for the ways of clearing, and for the
+``[state_store] clear_on_success`` setting.
 
 To opt out and always start a new job on retry, set ``durable=False``:
 
