@@ -17,7 +17,7 @@
  * under the License.
  */
 import "@testing-library/jest-dom/vitest";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -102,8 +102,21 @@ const renderSearch = (initialEntry: string, route: string) =>
 
 const MAPPED_ROUTE = "/dags/:dagId/runs/:runId/tasks/:taskId/mapped/:mapIndex";
 
+// The component debounces the search by 300ms. Move a fake clock past it rather than wait in real
+// time, which a busy runner stretches; the clock otherwise keeps running for the requests.
+const typeSearch = (value: string) => {
+  vi.useFakeTimers({ shouldAdvanceTime: true });
+  fireEvent.change(screen.getByLabelText("Search"), { target: { value } });
+  act(() => {
+    vi.advanceTimersByTime(300);
+  });
+};
+
 describe("SearchMapIndexes", () => {
-  afterEach(() => vi.restoreAllMocks());
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
 
   it("names each instance by its rendered map index, with its state", () => {
     renderSearch("/dags/my_dag/runs/run_1/tasks/task_1/mapped/2", MAPPED_ROUTE);
@@ -166,7 +179,7 @@ describe("SearchMapIndexes", () => {
 
     renderSearch("/dags/my_dag/runs/run_1/tasks/task_1/mapped/2", MAPPED_ROUTE);
 
-    fireEvent.change(screen.getByLabelText("Search"), { target: { value: "alpha" } });
+    typeSearch("alpha");
 
     await waitFor(() =>
       expect(getMapped).toHaveBeenCalledWith(
@@ -194,7 +207,7 @@ describe("SearchMapIndexes", () => {
 
     renderSearch("/dags/my_dag/runs/run_1/tasks/task_1/mapped/2", MAPPED_ROUTE);
 
-    fireEvent.change(screen.getByLabelText("Search"), { target: { value: "alpha" } });
+    typeSearch("alpha");
 
     expect(await screen.findByRole("button", { name: "alpha (running)" })).toBeInTheDocument();
   });

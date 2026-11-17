@@ -16,7 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import "@testing-library/jest-dom/vitest";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -114,6 +115,16 @@ const buildRun = (dagRunId: string): DAGRunResponse => ({
 /** The listed run, as the mocked combo box renders it. */
 const RUN_2 = "run_2 (failed)";
 
+// The component debounces the search by 300ms. Move a fake clock past it rather than wait in real
+// time, which a busy runner stretches; the clock otherwise keeps running for the requests.
+const typeSearch = (value: string) => {
+  vi.useFakeTimers({ shouldAdvanceTime: true });
+  fireEvent.change(screen.getByLabelText("Search"), { target: { value } });
+  act(() => {
+    vi.advanceTimersByTime(300);
+  });
+};
+
 describe("SearchDagRuns", () => {
   beforeEach(() => {
     vi.spyOn(DagRunService, "getDagRuns").mockResolvedValue({
@@ -123,6 +134,7 @@ describe("SearchDagRuns", () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     vi.restoreAllMocks();
   });
 
@@ -137,7 +149,7 @@ describe("SearchDagRuns", () => {
   it("reaches past the listed runs when searched", async () => {
     renderSearch("/dags/my_dag/runs/run_1", "/dags/:dagId/runs/:runId");
 
-    fireEvent.change(screen.getByLabelText("Search"), { target: { value: "older" } });
+    typeSearch("older");
 
     await waitFor(() =>
       expect(DagRunService.getDagRuns).toHaveBeenCalledWith(
