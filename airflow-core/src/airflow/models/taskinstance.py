@@ -1254,13 +1254,15 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
     retry_at: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
 
     __table_args__ = (
+        # Do not index last_heartbeat_at or updated_at: every heartbeat writes both, and an index on either
+        # stops PostgreSQL from applying heartbeats as HOT updates (see
+        # test_ti_heartbeat_fast_path_writes_no_indexed_column).
         Index("ti_dag_state", dag_id, state),
         Index("ti_dag_run", dag_id, run_id),
         Index("ti_state", state),
         Index("ti_state_lkp", dag_id, task_id, run_id, state),
         Index("ti_pool", pool, state, priority_weight),
         Index("ti_trigger_id", trigger_id),
-        Index("ti_heartbeat", last_heartbeat_at),
         Index("ti_dag_version_id", dag_version_id),
         Index(
             "ti_current_state",
