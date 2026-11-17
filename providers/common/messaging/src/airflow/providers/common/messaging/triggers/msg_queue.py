@@ -52,8 +52,9 @@ class MessageQueueTrigger(BaseEventTrigger):
     :param scheme: The queue scheme (e.g., 'kafka', 'redis+pubsub', 'sqs'). Used for provider matching.
     :param queue: Assign this trigger to a specific trigger queue (see
         :ref:`config:triggerer__queues_enabled` and the ``--queues`` option of ``airflow triggerer``).
-        If ``scheme`` is not provided or the value matches a registered broker queue pattern, this parameter
-        is treated as the deprecated broker queue URI for backward compatibility.
+        If ``scheme`` is not provided, or the value contains ``://`` or matches a registered broker
+        queue pattern, this parameter is treated as the deprecated broker queue URI for backward
+        compatibility.
     :param trigger_queue: **Deprecated** Assign this trigger to a specific trigger queue.
         Deprecated alias for ``queue``. Use the ``scheme`` parameter together with ``queue`` instead.
 

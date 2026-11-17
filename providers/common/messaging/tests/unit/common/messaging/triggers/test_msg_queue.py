@@ -212,43 +212,41 @@ class TestMessageQueueTrigger:
 class TestMessageQueueTriggerScheme:
     """Test cases for the new scheme parameter functionality."""
 
-    def test_legacy_queue_uri_with_scheme_keeps_uri_matching(self):
-        """A broker URI passed as `queue` next to `scheme` must not become the trigger queue."""
-        provider1 = MockProvider(PROVIDER_1_NAME, PROVIDER_1_PATTERN, scheme=PROVIDER_1_SCHEME)
-        provider2 = MockProvider(PROVIDER_2_NAME, PROVIDER_2_PATTERN, scheme=PROVIDER_2_SCHEME)
-        with mock.patch(MESSAGE_QUEUE_PROVIDERS_PATH, [provider1, provider2]):
+    @pytest.mark.parametrize(
+        ("providers", "queue", "scheme"),
+        [
+            pytest.param(
+                [
+                    MockProvider(PROVIDER_1_NAME, PROVIDER_1_PATTERN, scheme=PROVIDER_1_SCHEME),
+                    MockProvider(PROVIDER_2_NAME, PROVIDER_2_PATTERN, scheme=PROVIDER_2_SCHEME),
+                ],
+                PROVIDER_1_QUEUE,
+                PROVIDER_2_SCHEME,
+                id="uri_scheme_matched_by_provider",
+            ),
+            pytest.param(
+                [MockProvider("CustomProvider", pattern="custom-prefix-", scheme="custom")],
+                "custom-prefix-abc",
+                "custom",
+                id="third_party_identifier_without_scheme",
+            ),
+            pytest.param(
+                [MockProvider("RedisProvider", pattern="nomatch://", scheme="redis+pubsub")],
+                "redis+pubsub://localhost:6379/ch",
+                "redis+pubsub",
+                id="uri_scheme_unmatched_by_provider",
+            ),
+        ],
+    )
+    def test_legacy_queue_with_scheme_keeps_uri_matching(self, providers, queue, scheme):
+        """A broker URI or identifier passed as `queue` next to `scheme` must not become the trigger queue."""
+        with mock.patch(MESSAGE_QUEUE_PROVIDERS_PATH, providers):
             with pytest.warns(
                 AirflowProviderDeprecationWarning,
                 match="Passing the broker queue URI as `queue` is deprecated",
             ):
-                trigger = MessageQueueTrigger(queue=PROVIDER_1_QUEUE, scheme=PROVIDER_2_SCHEME)
-            assert trigger.queue_uri == PROVIDER_1_QUEUE
-            assert trigger.scheme is None
-            assert trigger.queue is None
-
-    def test_legacy_queue_without_uri_scheme_keeps_uri_matching(self):
-        """A third-party broker queue identifier without `://` passed as `queue` keeps URI matching."""
-        provider = MockProvider("CustomProvider", pattern="custom-prefix-", scheme="custom")
-        with mock.patch(MESSAGE_QUEUE_PROVIDERS_PATH, [provider]):
-            with pytest.warns(AirflowProviderDeprecationWarning, match="broker queue URI as `queue`"):
-                trigger = MessageQueueTrigger(queue="custom-prefix-abc", scheme="custom")
-            assert trigger.queue_uri == "custom-prefix-abc"
-            assert trigger.scheme is None
-            assert trigger.queue is None
-
-    def test_legacy_queue_uri_with_unmatched_provider_keeps_uri_matching(self):
-        """A broker URI with `://` whose provider does not match queue_matches still keeps URI matching."""
-        provider = MockProvider("RedisProvider", pattern="nomatch://", scheme="redis+pubsub")
-        with mock.patch(MESSAGE_QUEUE_PROVIDERS_PATH, [provider]):
-            with pytest.warns(
-                AirflowProviderDeprecationWarning,
-                match="Passing the broker queue URI as `queue` is deprecated",
-            ):
-                trigger = MessageQueueTrigger(
-                    scheme="redis+pubsub",
-                    queue="redis+pubsub://localhost:6379/ch",
-                )
-            assert trigger.queue_uri == "redis+pubsub://localhost:6379/ch"
+                trigger = MessageQueueTrigger(queue=queue, scheme=scheme)
+            assert trigger.queue_uri == queue
             assert trigger.scheme is None
             assert trigger.queue is None
 
