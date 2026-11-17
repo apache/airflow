@@ -65,7 +65,7 @@ if AIRFLOW_V_3_1_PLUS:
         HumanFeedbackRequest,
         SessionStatus,
     )
-    from airflow.providers.common.compat.sdk import timezone
+    from airflow.providers.common.compat.sdk import XCom, timezone
     from airflow.sdk import TaskInstanceState
     from airflow.utils.session import create_session
 
@@ -96,7 +96,7 @@ if AIRFLOW_V_3_1_PLUS:
         region_id: UUID | None,
         key: str,
     ):
-        """Read a single XCom value from the database."""
+        """Read a single XCom value through the configured XCom backend."""
         scope: dict[str, Any] = (
             {"region_id": region_id, "include_node_regions": False} if AIRFLOW_V_3_4_PLUS else {}
         )
@@ -112,7 +112,7 @@ if AIRFLOW_V_3_1_PLUS:
         row = session.scalars(read).first()
         if row is None:
             return None
-        return row.value
+        return XCom.deserialize_value(row)
 
     def _read_xcom_by_prefix(
         session: Session,
@@ -135,9 +135,9 @@ if AIRFLOW_V_3_1_PLUS:
                 include_node_regions=False,
             )
             entity = read.column_descriptions[0]["entity"]
-            query = read.with_only_columns(entity.key, entity.value).where(entity.key.like(f"{prefix}%"))
+            query = read.where(entity.key.like(f"{prefix}%"))
         else:
-            query = select(XComModel.key, XComModel.value).where(
+            query = select(XComModel).where(
                 XComModel.dag_id == dag_id,
                 XComModel.run_id == run_id,
                 XComModel.task_id == task_id,
@@ -145,10 +145,10 @@ if AIRFLOW_V_3_1_PLUS:
                 XComModel.key.like(f"{prefix}%"),
             )
         result: dict[int, Any] = {}
-        for key, value in session.execute(query).all():
-            suffix = key[len(prefix) :]
+        for row in session.scalars(query):
+            suffix = row.key[len(prefix) :]
             if suffix.isdigit():
-                result[int(suffix)] = value
+                result[int(suffix)] = XCom.deserialize_value(row)
         return result
 
     def _write_xcom(

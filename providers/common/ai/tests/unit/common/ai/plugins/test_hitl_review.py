@@ -24,7 +24,7 @@ if not AIRFLOW_V_3_1_PLUS:
     pytest.skip("Human in the loop is only compatible with Airflow >= 3.1.0", allow_module_level=True)
 
 import datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from unittest import mock
 from uuid import UUID
 
@@ -55,6 +55,7 @@ from airflow.providers.common.ai.utils.hitl_review import (
 from airflow.providers.common.compat.sdk import timezone
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
+from airflow.sdk.bases.xcom import BaseXCom
 from airflow.utils.session import provide_session
 from airflow.utils.state import TaskInstanceState
 from airflow.utils.types import DagRunType
@@ -1734,6 +1735,103 @@ class TestRejectEndpoint:
         )
         assert response.status_code == 200
         assert response.json()["status"] == "rejected"
+
+
+class _ReferenceXComBackend(BaseXCom):
+    """Keep values outside the metadata database and store a reference there, as object-storage backends do."""
+
+    stored: dict[str, Any] = {}
+
+    @staticmethod
+    def deserialize_value(result) -> Any:
+        value = BaseXCom.deserialize_value(result)
+        if isinstance(value, str):
+            return _ReferenceXComBackend.stored.get(value, value)
+        return value
+
+
+@mock.patch("airflow.providers.common.ai.plugins.hitl_review.XCom", new=_ReferenceXComBackend)
+class TestReferenceStoringXComBackend:
+    """Review XComs a custom backend stored as references are read through the backend."""
+
+    PARAMS = {"dag_id": TEST_DAG_ID, "run_id": TEST_RUN_ID, "task_id": TEST_TASK_ID}
+
+    @pytest.fixture(autouse=True)
+    def setup(self, dag_maker, session):
+        _clear_db()
+        with dag_maker(TEST_DAG_ID, schedule=None, start_date=logical_date, serialized=True):
+            EmptyOperator(task_id=TEST_TASK_ID)
+        dag_maker.create_dagrun(run_id=TEST_RUN_ID, run_type=DagRunType.MANUAL, logical_date=logical_date)
+        dag_maker.sync_dagbag_to_db()
+        sess = AgentSessionData(
+            status=SessionStatus.PENDING_REVIEW,
+            iteration=2,
+            max_iterations=5,
+            prompt="Summarize",
+            current_output="Second output",
+        )
+        by_reference = {
+            XCOM_AGENT_SESSION: sess.model_dump(mode="json"),
+            f"{XCOM_AGENT_OUTPUT_PREFIX}2": "Second output",
+        }
+        stored_natively = {
+            f"{XCOM_AGENT_OUTPUT_PREFIX}1": "First output",
+            f"{XCOM_HUMAN_FEEDBACK_PREFIX}1": "Add more detail",
+        }
+        for key, value in by_reference.items():
+            reference = f"file:///xcom-store/{key}.json"
+            _ReferenceXComBackend.stored[reference] = value
+            stored_natively[key] = reference
+        for key, value in stored_natively.items():
+            _write_xcom(
+                session,
+                key=key,
+                value=value,
+                region_id=NO_REGION,
+                dag_id=TEST_DAG_ID,
+                task_id=TEST_TASK_ID,
+                run_id=TEST_RUN_ID,
+                map_index=MAP_INDEX,
+            )
+        session.commit()
+        yield
+        _ReferenceXComBackend.stored.clear()
+        _clear_db()
+
+    def test_find_resolves_references(self, test_client):
+        response = test_client.get("/hitl-review/sessions/find", params=self.PARAMS)
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["status"] == "pending_review"
+        assert data["iteration"] == 2
+        assert data["current_output"] == "Second output"
+        assert [(e["role"], e["content"], e["iteration"]) for e in data["conversation"]] == [
+            ("assistant", "First output", 1),
+            ("human", "Add more detail", 1),
+            ("assistant", "Second output", 2),
+        ]
+
+    @pytest.mark.parametrize(
+        ("endpoint", "body", "expected_status"),
+        [
+            ("feedback", {"feedback": "Shorter, please"}, "changes_requested"),
+            ("approve", None, "approved"),
+            ("reject", None, "rejected"),
+        ],
+    )
+    def test_action_resolves_references(self, test_client, endpoint, body, expected_status):
+        response = test_client.post(f"/hitl-review/sessions/{endpoint}", params=self.PARAMS, json=body)
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["status"] == expected_status
+        assert data["iteration"] == 2
+        assert data["current_output"] == "Second output"
+        assert [e["content"] for e in data["conversation"] if e["role"] == "assistant"] == [
+            "First output",
+            "Second output",
+        ]
 
 
 class TestConflictOnWrongStatus:

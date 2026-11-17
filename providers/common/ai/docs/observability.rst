@@ -119,7 +119,7 @@ How it works
   provider-reported billing. With a custom XCom backend that keeps large values in external
   storage (e.g. ``common.io`` with ``xcom_objectstorage_threshold`` set low), the tab cannot
   show those values: the public XCom endpoint it calls returns the reference the backend
-  stored in the database, since the API server never runs the backend's
+  stored in the database, since that endpoint never runs the backend's
   ``deserialize_value``. The tab lists the model name, usage or skills kept that way with
   their reference (e.g. an ``s3://...`` path) instead of rendering them. A model name that is
   itself a URI, such as one vLLM serves from ``--model s3://...``, is listed that way too.

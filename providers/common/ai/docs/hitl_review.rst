@@ -323,6 +323,13 @@ All keys use the prefix ``airflow_hitl_review_``.
      - Plugin, and the worker when it resumes
      - Per-iteration human feedback text
 
+The plugin reads these XComs through the configured ``[core] xcom_backend``, as the
+worker does. A custom backend that keeps values outside the metadata database, such as
+``XComObjectStorageBackend`` from the ``common.io`` provider, must therefore also be
+installed and configured on the API server, with access to its storage. The plugin
+writes its own entries straight to the metadata database, so the backend must return a
+value it did not store itself unchanged, as ``XComObjectStorageBackend`` does.
+
 Session lifecycle
 ^^^^^^^^^^^^^^^^^
 
