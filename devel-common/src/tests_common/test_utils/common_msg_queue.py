@@ -29,7 +29,7 @@ def collect_queue_param_deprecation_warning():
     """Collect deprecation warnings for queue parameter."""
     with pytest.warns(
         AirflowProviderDeprecationWarning,
-        match=r"(The `queue` parameter is deprecated|Passing the broker queue URI as `queue` is deprecated)",
+        match="Passing the broker queue URI as `queue` is deprecated",
     ):
         yield
 

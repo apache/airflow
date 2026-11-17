@@ -74,7 +74,9 @@ class MessageQueueTrigger(BaseEventTrigger):
         **kwargs: Any,
     ) -> None:
         if queue is not None and (
-            scheme is None or any(provider.queue_matches(queue) for provider in MESSAGE_QUEUE_PROVIDERS)
+            scheme is None
+            or "://" in queue
+            or any(provider.queue_matches(queue) for provider in MESSAGE_QUEUE_PROVIDERS)
         ):
             warnings.warn(
                 "Passing the broker queue URI as `queue` is deprecated and will be removed in future versions. "

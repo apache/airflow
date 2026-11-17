@@ -236,6 +236,22 @@ class TestMessageQueueTriggerScheme:
             assert trigger.scheme is None
             assert trigger.queue is None
 
+    def test_legacy_queue_uri_with_unmatched_provider_keeps_uri_matching(self):
+        """A broker URI with `://` whose provider does not match queue_matches still keeps URI matching."""
+        provider = MockProvider("RedisProvider", pattern="nomatch://", scheme="redis+pubsub")
+        with mock.patch(MESSAGE_QUEUE_PROVIDERS_PATH, [provider]):
+            with pytest.warns(
+                AirflowProviderDeprecationWarning,
+                match="Passing the broker queue URI as `queue` is deprecated",
+            ):
+                trigger = MessageQueueTrigger(
+                    scheme="redis+pubsub",
+                    queue="redis+pubsub://localhost:6379/ch",
+                )
+            assert trigger.queue_uri == "redis+pubsub://localhost:6379/ch"
+            assert trigger.scheme is None
+            assert trigger.queue is None
+
     def test_scheme_only_initialization(self):
         """Test initialization with scheme parameter only."""
         trigger = MessageQueueTrigger(scheme=PROVIDER_2_SCHEME)
