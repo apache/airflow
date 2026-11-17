@@ -99,6 +99,7 @@ export const MarkTaskInstanceAsButton = ({ isHotkeyEnabled = false, taskInstance
                 disabled={!isHotkeyEnabled || !hasShortcut}
                 key={menuState}
                 openDelay={100}
+                portalled
               >
                 {/* Not disabled when state matches: re-applying lets users also flip upstream/downstream tasks */}
                 <Menu.Item
