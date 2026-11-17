@@ -20,7 +20,7 @@ import os
 import shutil
 from contextlib import ExitStack, nullcontext
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from urllib.parse import urlparse
 
 import structlog
@@ -166,7 +166,7 @@ class GitDagBundle(BaseDagBundle):
             if repo is not None:
                 repo.close()
 
-    def _get_log_context(self) -> dict:
+    def _get_log_context(self) -> dict[str, Any]:
         return {
             "bare_repo_path": self.bare_repo_path,
             "repo_path": self.repo_path,

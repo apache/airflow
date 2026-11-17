@@ -19,6 +19,7 @@ from __future__ import annotations
 import os
 from functools import cached_property
 from pathlib import Path
+from typing import Any
 from urllib.parse import urlsplit, urlunsplit
 
 from airflow.providers.common.compat.bundles import BaseDagBundle
@@ -53,7 +54,7 @@ class WasbDagBundle(BaseDagBundle):
         self.prefix = prefix
         self.wasb_dags_dir: Path = self.base_dir
 
-    def _get_log_context(self) -> dict:
+    def _get_log_context(self) -> dict[str, Any]:
         return {
             "container_name": self.container_name,
             "prefix": self.prefix,

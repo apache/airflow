@@ -26,6 +26,7 @@ import sys
 import types
 from pathlib import Path
 from textwrap import dedent
+from typing import Any
 from unittest import mock
 from unittest.mock import patch
 
@@ -196,7 +197,7 @@ class TestGitDagBundle:
                 super().__init__(**kwargs)
                 self.team = team
 
-            def _get_log_context(self) -> dict:
+            def _get_log_context(self) -> dict[str, Any]:
                 return {**super()._get_log_context(), "team": self.team}
 
         bundle = TeamGitDagBundle(name="test", team="data", tracking_ref=GIT_DEFAULT_BRANCH)

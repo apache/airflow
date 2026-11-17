@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import inspect
+from typing import Any
 
 import structlog
 
@@ -29,18 +30,20 @@ if isinstance(inspect.getattr_static(_BaseDagBundle, "_log", None), property):
 else:
     # Older Airflow: inject _log via a transparent subclass so that all
     # bundle implementations can use self._log without version checks.
+    # Remove this branch once every Airflow version the providers support has BaseDagBundle._log.
     class BaseDagBundle(_BaseDagBundle):  # type: ignore[no-redef]
         """Drop-in replacement for BaseDagBundle with a back-filled _log property."""
 
+        def _get_log_context(self) -> dict[str, Any]:
+            """Return extra structlog context fields for this bundle. Override in subclasses."""
+            return {}
+
         @property
-        def _log(self):
-            """Lazy structlog logger bound with common bundle context."""
+        def _log(self) -> Any:
+            """Lazy structlog logger bound with common bundle context plus subclass-specific fields."""
             if not hasattr(self, "_compat_structlog"):
-                log_context = self._get_log_context() if hasattr(self, "_get_log_context") else {}
                 self._compat_structlog = structlog.get_logger(type(self).__module__).bind(
-                    bundle_name=self.name,
-                    version=self.version,
-                    **log_context,
+                    bundle_name=self.name, version=self.version, **self._get_log_context()
                 )
             return self._compat_structlog
 

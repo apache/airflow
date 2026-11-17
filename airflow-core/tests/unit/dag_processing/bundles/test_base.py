@@ -23,6 +23,7 @@ import tempfile
 import threading
 from datetime import timedelta
 from pathlib import Path
+from typing import Any
 from unittest.mock import call, patch
 
 import pytest
@@ -363,17 +364,18 @@ class BundleWithContext(BaseDagBundle):
 
     def refresh(self) -> None: ...
 
-    def _get_log_context(self) -> dict:
+    def _get_log_context(self) -> dict[str, Any]:
         return {"custom_key": "custom_value"}
 
 
 def test_log_is_lazy_and_cached():
     """_log is only created on first access and the same object is returned on repeated access."""
-    bundle = BasicBundle(name="lazy-test")
-    assert bundle._BaseDagBundle__log is None
-    first = bundle._log
-    assert first is not None
-    assert bundle._log is first
+    with patch("airflow.dag_processing.bundles.base.structlog.get_logger", autospec=True) as get_logger:
+        bundle = BasicBundle(name="lazy-test")
+        get_logger.assert_not_called()
+        first = bundle._log
+        assert bundle._log is first
+    get_logger.assert_called_once_with(BasicBundle.__module__)
 
 
 def test_log_includes_bundle_name_and_version():
@@ -399,3 +401,17 @@ def test_log_setter_allows_direct_assignment():
     custom_logger = structlog.get_logger("custom").bind(bundle_name="setter-test")
     bundle._log = custom_logger
     assert bundle._log is custom_logger
+
+
+def test_log_assigned_before_base_constructor_is_kept():
+    """A logger a subclass assigns before calling the base constructor is not replaced by the lazy one."""
+
+    class EarlyLogBundle(BasicBundle):
+        def __init__(self, **kwargs) -> None:
+            self._log = structlog.get_logger("custom").bind(custom_key="custom_value")
+            super().__init__(**kwargs)
+
+    bundle = EarlyLogBundle(name="early-log")
+    with structlog.testing.capture_logs() as cap:
+        bundle._log.info("test event")
+    assert cap[0]["custom_key"] == "custom_value"

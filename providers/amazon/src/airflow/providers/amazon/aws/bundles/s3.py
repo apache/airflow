@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+from typing import Any
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
@@ -56,7 +57,7 @@ class S3DagBundle(BaseDagBundle):
         self.s3_dags_dir: Path = self.base_dir
         self._s3_hook: S3Hook | None = None
 
-    def _get_log_context(self) -> dict:
+    def _get_log_context(self) -> dict[str, Any]:
         return {
             "bucket_name": self.bucket_name,
             "prefix": self.prefix,

@@ -316,6 +316,8 @@ class BaseDagBundle(ABC):
 
     _locked: bool = False
 
+    __log: Any = None
+
     def __init__(
         self,
         *,
@@ -325,7 +327,6 @@ class BaseDagBundle(ABC):
         version_data: dict[str, Any] | None = None,
         view_url_template: str | None = None,
     ) -> None:
-        self.__log: Any = None
         self.name = name
         self.version = version
         self.version_data = version_data

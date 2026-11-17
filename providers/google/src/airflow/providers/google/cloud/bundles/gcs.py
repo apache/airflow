@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+from typing import Any
 
 from google.api_core.exceptions import NotFound
 
@@ -57,7 +58,7 @@ class GCSDagBundle(BaseDagBundle):
         self.gcs_dags_dir: Path = self.base_dir
         self._gcs_hook: GCSHook | None = None
 
-    def _get_log_context(self) -> dict:
+    def _get_log_context(self) -> dict[str, Any]:
         return {
             "bucket_name": self.bucket_name,
             "prefix": self.prefix,
