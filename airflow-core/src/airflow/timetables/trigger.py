@@ -449,7 +449,7 @@ class CronPartitionTimetable(CronTriggerTimetable):
             return run_date
         # we will need to apply offset to determine run date
         partition_date = coerce_datetime(run_date)
-        log.info(
+        log.debug(
             "applying offset to partition date",
             partition_date=partition_date,
             run_offset=self._run_offset,
@@ -457,7 +457,7 @@ class CronPartitionTimetable(CronTriggerTimetable):
         iter_func = self._get_next if self._run_offset > 0 else self._get_prev
         for _ in range(abs(self._run_offset)):
             partition_date = iter_func(partition_date)
-        log.info("new partition date", partition_date=partition_date)
+        log.debug("new partition date", partition_date=partition_date)
         return partition_date
 
     def _get_partition_info(self, run_date: DateTime) -> tuple[DateTime, str]:
