@@ -322,8 +322,7 @@ class DatabricksDeltaTableVersionProducerOperator(BaseOperator):
             return DeltaCheckpoint(version=version, table_id=str(table_id) if table_id is not None else None)
         return None
 
-    @staticmethod
-    def _newest_events_paged(accessor: Any) -> Iterator[Any]:
+    def _newest_events_paged(self, accessor: Any) -> Iterator[Any]:
         """Yield the asset's events newest first, fetching ``_EVENT_PAGE_SIZE`` events per request."""
         seen: set[Any] = set()
         page = accessor.ascending(False).limit(_EVENT_PAGE_SIZE)
@@ -340,6 +339,13 @@ class DatabricksDeltaTableVersionProducerOperator(BaseOperator):
             oldest = events[-1].timestamp
             if oldest == events[0].timestamp:
                 # A full page with one timestamp. ``before`` is inclusive, so stop instead of looping.
+                self.log.warning(
+                    "Cannot advance asset event paging for %s: a full page of %s events shares "
+                    "timestamp %s. Older events are not scanned; this run may emit an enrollment event.",
+                    self.asset.uri,
+                    _EVENT_PAGE_SIZE,
+                    oldest,
+                )
                 return
             page = accessor.before(oldest)
 

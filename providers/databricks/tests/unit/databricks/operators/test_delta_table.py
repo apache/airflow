@@ -25,7 +25,10 @@ from typing import Any
 from unittest import mock
 
 import pytest
+from sqlalchemy import select
 
+from airflow.models.asset import AssetEvent
+from airflow.providers.common.compat.assets import Asset
 from airflow.providers.common.compat.sdk import DAG, AirflowSkipException
 from airflow.providers.databricks.assets.databricks import UnityTableIdentity
 from airflow.providers.databricks.exceptions import DatabricksDeltaTableError
@@ -35,7 +38,10 @@ from airflow.providers.databricks.operators.delta_table import (
     DatabricksDeltaTableVersionProducerOperator,
     DeltaCheckpoint,
 )
+from airflow.utils.session import create_session
 
+from tests_common.test_utils.dag import sync_dag_to_db
+from tests_common.test_utils.db import clear_db_assets, clear_db_dags, clear_db_runs
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_2_PLUS
 
 HOST = "xx.cloud.databricks.com"
@@ -227,9 +233,9 @@ def table():
 
 @pytest.fixture
 def hook(table):
-    with mock.patch(HOOK_PATH) as hook_cls:
+    with mock.patch(HOOK_PATH, autospec=True) as hook_cls:
         instance = hook_cls.return_value
-        instance.host = HOST
+        type(instance).host = mock.PropertyMock(return_value=HOST)
         instance.run.side_effect = table.run
         yield instance
 
@@ -251,8 +257,6 @@ class TestConstruction:
         assert op.table_name == QUOTED
 
     def test_keeps_user_inlets_and_outlets(self):
-        from airflow.providers.common.compat.assets import Asset
-
         other = Asset(uri="s3://bucket/other")
         op = make_operator(inlets=[other], outlets=[other, TABLE.to_asset()], max_active_tis_per_dag=4)
         assert [a.uri for a in op.inlets] == ["s3://bucket/other", URI]
@@ -260,8 +264,6 @@ class TestConstruction:
         assert op.max_active_tis_per_dag == 4
 
     def test_accepts_single_inlet_and_outlet(self):
-        from airflow.providers.common.compat.assets import Asset
-
         other = Asset(uri="s3://bucket/other")
         op = make_operator(inlets=other, outlets=TABLE.to_asset())
         assert [a.uri for a in op.inlets] == ["s3://bucket/other", URI]
@@ -269,8 +271,6 @@ class TestConstruction:
 
     @pytest.mark.parametrize("outlets", [[], ["s3://bucket/other"]])
     def test_rejects_outlets_without_the_table_asset(self, outlets):
-        from airflow.providers.common.compat.assets import Asset
-
         with pytest.raises(ValueError, match="outlets must include"):
             make_operator(outlets=[Asset(uri=uri) for uri in outlets])
 
@@ -374,19 +374,19 @@ class TestVersionChanges:
         assert table.statements[-1] == f"DESCRIBE HISTORY {QUOTED} LIMIT 3"
 
     @pytest.mark.parametrize(
-        "commits",
+        ("commits", "operation"),
         [
-            [(3, "WRITE"), (4, "OPTIMIZE"), (5, "VACUUM END")],
-            # Two data commits then OPTIMIZE: version stays at head, operation is the newest WRITE.
-            [(3, "WRITE"), (4, "WRITE"), (5, "OPTIMIZE")],
+            ([(3, "WRITE"), (4, "OPTIMIZE"), (5, "VACUUM END")], "WRITE"),
+            # WRITE then MERGE then OPTIMIZE: fails if the window is walked oldest-first.
+            ([(3, "WRITE"), (4, "MERGE"), (5, "OPTIMIZE")], "MERGE"),
         ],
-        ids=["write-behind-optimize-vacuum", "write-write-optimize"],
+        ids=["write-behind-optimize-vacuum", "write-merge-optimize"],
     )
-    def test_data_commit_hidden_behind_maintenance_publishes(self, hook, table, commits):
+    def test_data_commit_hidden_behind_maintenance_publishes(self, hook, table, commits, operation):
         table.commits += commits
         result = make_operator().execute(make_context([checkpoint_event(2)]))
         assert result["version"] == 5
-        assert result["operation"] == "WRITE"
+        assert result["operation"] == operation
 
     def test_ignored_operations_are_case_insensitive(self, hook, table):
         table.commits += [(3, "optimize")]
@@ -465,13 +465,13 @@ class TestTableErrors:
             make_operator().execute(make_context())
 
     def test_host_mismatch_fails_before_any_query(self, hook):
-        hook.host = "other.cloud.databricks.com"
+        type(hook).host = mock.PropertyMock(return_value="other.cloud.databricks.com")
         with pytest.raises(ValueError, match="does not match unity_table host"):
             make_operator().execute(make_context())
         hook.run.assert_not_called()
 
     def test_host_match_is_case_insensitive(self, hook):
-        hook.host = HOST.upper()
+        type(hook).host = mock.PropertyMock(return_value=HOST.upper())
         assert make_operator().execute(make_context())["version"] == 2
 
 
@@ -592,8 +592,6 @@ class TestProducerDagRuns:
 
     @pytest.fixture(autouse=True)
     def _clean_db(self):
-        from tests_common.test_utils.db import clear_db_assets, clear_db_dags, clear_db_runs
-
         clear_db_runs()
         clear_db_assets()
         clear_db_dags()
@@ -603,13 +601,6 @@ class TestProducerDagRuns:
         clear_db_dags()
 
     def test_events_and_skips_across_runs(self, hook, table):
-        from sqlalchemy import select
-
-        from airflow.models.asset import AssetEvent
-        from airflow.utils.session import create_session
-
-        from tests_common.test_utils.dag import sync_dag_to_db
-
         with DAG("delta_producer", schedule=None) as dag:
             DatabricksDeltaTableVersionProducerOperator(task_id="watch_orders", unity_table=TABLE)
         sync_dag_to_db(dag)
