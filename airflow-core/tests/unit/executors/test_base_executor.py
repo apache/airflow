@@ -18,7 +18,9 @@
 from __future__ import annotations
 
 import logging
+import random
 import warnings
+from collections import defaultdict
 from datetime import timedelta
 from pathlib import Path
 from textwrap import dedent
@@ -48,6 +50,7 @@ from airflow.models.connection_test import ConnectionTestKey, ConnectionTestStat
 from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
 from airflow.sdk import BaseOperator
 from airflow.sdk.execution_time.callback_supervisor import execute_callback
+from airflow.sdk.types import TaskInstanceKey as SdkTaskInstanceKey
 from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
 from airflow.utils.state import CallbackState, State, TaskInstanceState
 
@@ -431,6 +434,166 @@ def test_task_workloads_with_matching_coordinates_keep_distinct_attempts(next_tr
     executor.executor_queues[WorkloadType.EXECUTE_TASK].clear()
     assert not executor.has_task(first.ti)
     assert executor.has_task(second.ti)
+
+
+def test_event_drain_does_not_scan_every_tracked_task():
+    class UnscannableDict(dict):
+        def scan(self, *args, **kwargs):
+            raise AssertionError("scanned every tracked task")
+
+        __iter__ = keys = values = items = copy = scan
+
+    executor = BaseExecutor()
+    # Swapped in while empty, so entries are still only added by _register_task.
+    executor._task_coordinates = UnscannableDict()
+    executor._coordinate_task_ids = UnscannableDict()
+    tasks = [
+        mock.Mock(spec=TaskInstance, id=uuid4(), key=TaskInstanceKey("dag", f"task_{i}", "run", 1))
+        for i in range(3)
+    ]
+    for ti in tasks:
+        executor._register_task(ti)
+        executor.running.add(ti.key)
+    executor.get_event_buffer()
+
+    executor.success(tasks[0].key)
+
+    assert executor._drain_events_with_task_ids() == (
+        {TaskInstanceUuid(tasks[0].id): (TaskInstanceState.SUCCESS, None)},
+        {TaskInstanceUuid(tasks[0].id): tasks[0].key},
+    )
+    assert len(executor._task_coordinates) == 2
+    assert TaskInstanceUuid(tasks[0].id) not in executor._task_coordinates
+
+
+def test_sweep_tolerates_identity_missing_from_reverse_index():
+    executor = BaseExecutor()
+    unindexed = TaskInstanceUuid(uuid4())
+    executor._task_coordinates[unindexed] = TaskInstanceKey("dag", "unindexed", "run", 1)
+    executor.running.add(unindexed)
+    executor._drain_events_with_task_ids()
+    other = TaskInstanceUuid(uuid4())
+
+    executor.running.discard(unindexed)
+    executor.success(other)
+
+    assert executor._drain_events_with_task_ids() == ({other: (TaskInstanceState.SUCCESS, None)}, {})
+    assert executor._task_coordinates == {}
+    assert executor._coordinate_task_ids == {}
+
+
+class FullScanExecutor(BaseExecutor):
+    """Reference: the previous identity bookkeeping, ported onto the new hooks (without the warning log)."""
+
+    def _register_task(self, ti):
+        self._task_coordinates[TaskInstanceUuid(ti.id)] = ti.key
+
+    def _forget_unreferenced_tasks(self):
+        task_queue = self.executor_queues.get(WorkloadType.EXECUTE_TASK, {})
+        for task_id, coordinates in list(self._task_coordinates.items()):
+            if not any(
+                key in container
+                for key in (task_id, coordinates)
+                for container in (self.running, task_queue, self.event_buffer)
+            ):
+                del self._task_coordinates[task_id]
+
+    def _drain_events_with_task_ids(self, dag_ids=None):
+        captured_coordinates = self._task_coordinates.copy()
+        task_ids = {}
+        for task_id, coordinates in captured_coordinates.items():
+            task_ids[coordinates] = None if coordinates in task_ids else task_id
+        events, event_coordinates = {}, {}
+        for key, value in self.get_event_buffer(dag_ids).items():
+            if isinstance(key, TaskInstanceKey):
+                if (captured_id := task_ids.get(key)) is not None:
+                    events[captured_id] = value
+                    event_coordinates[captured_id] = key
+            else:
+                events[key] = value
+                if (
+                    isinstance(key, TaskInstanceUuid)
+                    and (captured := captured_coordinates.get(key)) is not None
+                ):
+                    event_coordinates[key] = captured
+        return events, event_coordinates
+
+
+OPERATIONS = {
+    "register": lambda executor, key, ti, dag_ids: executor._register_task(ti),
+    "add to running": lambda executor, key, ti, dag_ids: executor.running.add(key),
+    "remove from running": lambda executor, key, ti, dag_ids: executor.running.discard(key),
+    "queue": lambda executor, key, ti, dag_ids: executor.executor_queues[WorkloadType.EXECUTE_TASK].update(
+        {key: None}
+    ),
+    "dequeue": lambda executor, key, ti, dag_ids: executor.executor_queues[WorkloadType.EXECUTE_TASK].pop(
+        key, None
+    ),
+    "replace task queue": lambda executor, key, ti, dag_ids: executor.executor_queues.update(
+        {WorkloadType.EXECUTE_TASK: {}}
+    ),
+    "replace running": lambda executor, key, ti, dag_ids: setattr(executor, "running", set()),
+    "report success": lambda executor, key, ti, dag_ids: executor.change_state(
+        key, TaskInstanceState.SUCCESS
+    ),
+    "pop event": lambda executor, key, ti, dag_ids: executor.event_buffer.pop(key, None),
+    "report running": lambda executor, key, ti, dag_ids: executor.change_state(
+        key, TaskInstanceState.RUNNING, remove_running=False
+    ),
+    "drain events": lambda executor, key, ti, dag_ids: executor._drain_events_with_task_ids(dag_ids),
+    "get event buffer": lambda executor, key, ti, dag_ids: executor.get_event_buffer(dag_ids),
+}
+
+
+@pytest.mark.parametrize("seed", range(10))
+def test_identity_bookkeeping_matches_checking_every_identity_on_each_drain(seed):
+    # Few attempts and coordinates, so attempts share coordinates and keys come and go often.
+    rng = random.Random(seed)
+    task_ids = [TaskInstanceUuid(UUID(int=rng.getrandbits(128))) for _ in range(12)]
+    coordinates = [
+        TaskInstanceKey(dag_id, f"task_{i}", "run", try_number)
+        for dag_id in ("dag_a", "dag_b")
+        for i in range(2)
+        for try_number in (1, 2)
+    ]
+    tis = {
+        (task_id, ti_coordinates): mock.Mock(spec=TaskInstance, id=task_id.id, key=ti_coordinates)
+        for task_id in task_ids
+        for ti_coordinates in coordinates
+    }
+    callback_key = CallbackKey(id=str(UUID(int=rng.getrandbits(128))))
+    operation_names = sorted(OPERATIONS)
+    actual, expected = BaseExecutor(), FullScanExecutor()
+
+    for _ in range(2000):
+        task_id = rng.choice(task_ids)
+        task_coordinates = rng.choice(coordinates)
+        # Keys equal to coordinates reference identities whatever their type, e.g. the Task SDK's
+        # TaskInstanceKey or a plain tuple.
+        key = rng.choice(
+            [
+                task_id,
+                task_coordinates,
+                SdkTaskInstanceKey(*task_coordinates),
+                tuple(task_coordinates),
+                callback_key,
+            ]
+        )
+        ti = tis[task_id, rng.choice(coordinates)]
+        dag_ids = rng.choice([None, ["dag_a"]])
+        operation = OPERATIONS[rng.choice(operation_names)]
+
+        assert operation(actual, key, ti, dag_ids) == operation(expected, key, ti, dag_ids)
+        assert actual._task_coordinates == expected._task_coordinates
+        reverse_index: defaultdict[TaskInstanceKey, list[TaskInstanceUuid]] = defaultdict(list)
+        for known_id, known_coordinates in actual._task_coordinates.items():
+            reverse_index[known_coordinates].append(known_id)
+        assert {
+            known_coordinates: sorted(owners, key=str)
+            for known_coordinates, owners in actual._coordinate_task_ids.items()
+        } == {
+            known_coordinates: sorted(owners, key=str) for known_coordinates, owners in reverse_index.items()
+        }
 
 
 @pytest.mark.parametrize(

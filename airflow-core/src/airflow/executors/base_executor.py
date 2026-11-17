@@ -25,7 +25,7 @@ from collections import defaultdict, deque
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 from functools import cached_property, wraps
-from typing import TYPE_CHECKING, Any, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar, cast
 
 import pendulum
 
@@ -339,7 +339,18 @@ class BaseExecutor(LoggingMixin):
         )
         self.running: set[WorkloadKey] = set()
         self.event_buffer: dict[WorkloadKey, EventBufferValueType] = {}
+        # Only ``_register_task`` adds entries and only ``_forget_unreferenced_tasks`` removes them: the
+        # reverse index and the sweep rely on it.
         self._task_coordinates: dict[TaskInstanceUuid, TaskInstanceKey] = {}
+        # Reverse index of ``_task_coordinates``, so events keyed by coordinates resolve without a scan.
+        # Tuples: coordinates almost always have a single attempt, and a set costs 4x the memory.
+        self._coordinate_task_ids: dict[TaskInstanceKey, tuple[TaskInstanceUuid, ...]] = {}
+        # Identities registered since the last sweep, and the container keys it saw (see
+        # ``_forget_unreferenced_tasks``).
+        self._unswept_task_ids: set[TaskInstanceUuid] = set()
+        self._keys_at_last_sweep: tuple[set[WorkloadKey], ...] = (set(), set(), set())
+        # Identities forgotten by the sweep of the drain in progress in ``_drain_events_with_task_ids``.
+        self._task_coordinates_forgotten_by_drain: dict[TaskInstanceUuid, TaskInstanceKey] | None = None
         self._task_event_logs: deque[Log] = deque()
         self.conf = ExecutorConf(team_name)
 
@@ -424,8 +435,76 @@ class BaseExecutor(LoggingMixin):
         )
 
     def _register_task(self, ti: TaskInstance | TaskInstanceDTO) -> None:
-        """Snapshot identity before provider submission or adoption can emit events."""
-        self._task_coordinates[TaskInstanceUuid(ti.id)] = ti.key
+        """
+        Snapshot identity before provider submission or adoption can emit events.
+
+        Overrides must call ``super()._register_task(ti)``: the reverse index and the sweep of unreferenced
+        identities depend on it.
+        """
+        task_id = TaskInstanceUuid(ti.id)
+        coordinates = ti.key
+        previous = self._task_coordinates.get(task_id)
+        self._task_coordinates[task_id] = coordinates
+        if previous != coordinates:
+            if previous is not None:
+                self._discard_coordinate_owner(previous, task_id)
+            self._coordinate_task_ids[coordinates] = (
+                *self._coordinate_task_ids.get(coordinates, ()),
+                task_id,
+            )
+        self._unswept_task_ids.add(task_id)
+
+    def _discard_coordinate_owner(self, coordinates: TaskInstanceKey, task_id: TaskInstanceUuid) -> None:
+        # Tolerates identities missing from the index (added without ``_register_task``): the sweep runs
+        # after get_event_buffer() took the events, so raising here would lose them.
+        if owners := tuple(
+            owner for owner in self._coordinate_task_ids.get(coordinates, ()) if owner != task_id
+        ):
+            self._coordinate_task_ids[coordinates] = owners
+        else:
+            self._coordinate_task_ids.pop(coordinates, None)
+
+    def _forget_unreferenced_tasks(self) -> None:
+        """
+        Forget the identities of tasks no longer in the running set, the task queue or the event buffer.
+
+        An identity can only have become unreferenced since the last sweep if it was registered since,
+        or if one of its keys (attempt UUID or coordinates) left one of those containers since. Only
+        those identities are checked, so the result is the same as checking every identity, without a
+        Python-level pass over every task the executor tracks on each scheduler loop.
+
+        An identity added to ``_task_coordinates`` directly is missing from the reverse index, and one
+        deleted directly leaves a stale owner in it.
+
+        The containers are expected to change only on the thread that calls ``get_event_buffer()``. The
+        references are checked against the same copies that are diffed, so every identity kept is in the
+        latest copy, and its departure shows in the next diff even if another thread changed a container
+        during a sweep.
+        """
+        task_queue = self.executor_queues.get(WorkloadType.EXECUTE_TASK, {})
+        keys_now = tuple(set(container) for container in (self.running, task_queue, self.event_buffer))
+        candidates = self._unswept_task_ids
+        for keys_before, keys_after in zip(self._keys_at_last_sweep, keys_now):
+            # Matched by equality, like the check below: a key equal to an attempt id or to coordinates (the
+            # Task SDK's TaskInstanceKey, a plain tuple) references them whatever its type, and a key of any
+            # other kind matches nothing.
+            for key in keys_before - keys_after:
+                if key in self._task_coordinates:
+                    candidates.add(key)
+                candidates.update(self._coordinate_task_ids.get(cast("TaskInstanceKey", key), ()))
+        forgotten = self._task_coordinates_forgotten_by_drain
+        for task_id in candidates:
+            coordinates = self._task_coordinates.get(task_id)
+            if coordinates is None or any(
+                key in container_keys for key in (task_id, coordinates) for container_keys in keys_now
+            ):
+                continue
+            del self._task_coordinates[task_id]
+            self._discard_coordinate_owner(coordinates, task_id)
+            if forgotten is not None:
+                forgotten[task_id] = coordinates
+        self._unswept_task_ids = set()
+        self._keys_at_last_sweep = keys_now
 
     @classmethod
     def get_task_key(cls, ti: TaskInstance | TaskInstanceDTO) -> TaskInstanceUuid | TaskInstanceKey:
@@ -745,44 +824,42 @@ class BaseExecutor(LoggingMixin):
                 ):
                     cleared_events[key] = self.event_buffer.pop(key)
 
-        task_queue = self.executor_queues.get(WorkloadType.EXECUTE_TASK, {})
-        for task_id, coordinates in list(self._task_coordinates.items()):
-            if not any(
-                key in container
-                for key in (task_id, coordinates)
-                for container in (self.running, task_queue, self.event_buffer)
-            ):
-                del self._task_coordinates[task_id]
-
+        self._forget_unreferenced_tasks()
         return cleared_events
 
     def _drain_events_with_task_ids(
         self, dag_ids=None
     ) -> tuple[dict[WorkloadKey, EventBufferValueType], dict[TaskInstanceUuid, TaskInstanceKey]]:
         """Drain events with captured attempt identities and coordinates."""
-        captured_coordinates = self._task_coordinates.copy()
-        task_ids: dict[TaskInstanceKey, TaskInstanceUuid | None] = {}
-        for task_id, coordinates in captured_coordinates.items():
-            task_ids[coordinates] = None if coordinates in task_ids else task_id
+        # The sweep in get_event_buffer() forgets the identities of the tasks whose events it drains:
+        # they are kept aside, so events resolve against the identities known before the drain.
+        forgotten: dict[TaskInstanceUuid, TaskInstanceKey] = {}
+        self._task_coordinates_forgotten_by_drain = forgotten
+        try:
+            drained = self.get_event_buffer(dag_ids)
+        finally:
+            self._task_coordinates_forgotten_by_drain = None
+        forgotten_owners: defaultdict[TaskInstanceKey, list[TaskInstanceUuid]] = defaultdict(list)
+        for task_id, coordinates in forgotten.items():
+            forgotten_owners[coordinates].append(task_id)
         events: dict[WorkloadKey, EventBufferValueType] = {}
         event_coordinates: dict[TaskInstanceUuid, TaskInstanceKey] = {}
-        for key, value in self.get_event_buffer(dag_ids).items():
+        for key, value in drained.items():
             if isinstance(key, TaskInstanceKey):
-                captured_id = task_ids.get(key)
-                if captured_id is None:
+                owners = [*self._coordinate_task_ids.get(key, ()), *forgotten_owners.get(key, ())]
+                if len(owners) != 1:
                     self.log.warning(
                         "Discarding executor event without a unique captured task identity: %s", key
                     )
                     continue
-                events[captured_id] = value
-                event_coordinates[captured_id] = key
+                events[owners[0]] = value
+                event_coordinates[owners[0]] = key
             else:
                 events[key] = value
-                if (
-                    isinstance(key, TaskInstanceUuid)
-                    and (captured := captured_coordinates.get(key)) is not None
-                ):
-                    event_coordinates[key] = captured
+                if isinstance(key, TaskInstanceUuid):
+                    captured = self._task_coordinates.get(key, forgotten.get(key))
+                    if captured is not None:
+                        event_coordinates[key] = captured
         return events, event_coordinates
 
     def get_task_log(self, ti: TaskInstance, try_number: int) -> tuple[list[str], list[str]]:
