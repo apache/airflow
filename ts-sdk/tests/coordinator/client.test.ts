@@ -349,6 +349,7 @@ describe("XCom map index default", () => {
       ["another task with an explicit mapIndex", { taskId: "extract", mapIndex: 2 }, 2],
       ["another task with mapIndex 0", { taskId: "extract", mapIndex: 0 }, 0],
       ["the running task with mapIndex null", { mapIndex: null }, null],
+      ["the running task with null target ids", { dagId: null, taskId: null, runId: null }, 3],
     ] as [string, Omit<XComOpts, "key">, number | null][])(
       "from a mapped task targeting %s sends map_index %s",
       async (_label, target, expected) => {

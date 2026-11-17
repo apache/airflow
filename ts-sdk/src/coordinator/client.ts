@@ -166,7 +166,7 @@ const RETENTION_DAYS_ENV_VAR = "AIRFLOW__STATE_STORE__DEFAULT_RETENTION_DAYS";
 const MS_PER_SECOND = 1000;
 const SECONDS_PER_DAY = 24 * 60 * 60;
 
-function assertKey(key: string, label = "task state store key"): void {
+function assertKey(key: string, label: string): void {
   if (typeof key !== "string") {
     throw new TypeError(`${label} must be a string, got ${typeof key}`);
   }
@@ -281,7 +281,7 @@ export function createCoordinatorClient(
 
   const taskStateStore: TaskStateStore = {
     async get<T = unknown>(key: string): Promise<T | null> {
-      assertKey(key);
+      assertKey(key, "task state store key");
       const msg: GetTaskStateStore = { type: "GetTaskStateStore", ti_id: tiId, key };
       return rpc(
         "GetTaskStateStore",
@@ -297,7 +297,7 @@ export function createCoordinatorClient(
       value: NonNullable<JsonValue>,
       opts: TaskStateStoreSetOpts = {},
     ): Promise<void> {
-      assertKey(key);
+      assertKey(key, "task state store key");
       if (
         value === null ||
         value === undefined ||
@@ -316,7 +316,7 @@ export function createCoordinatorClient(
     },
 
     async delete(key: string): Promise<void> {
-      assertKey(key);
+      assertKey(key, "task state store key");
       const msg: DeleteTaskStateStore = { type: "DeleteTaskStateStore", ti_id: tiId, key };
       await rpc("DeleteTaskStateStore", "OKResponse", msg, () => undefined, "throw");
     },

@@ -85,8 +85,8 @@ export interface TaskClient {
    * // data is { count: number } | null
    * ```
    *
-   * @throws `TypeError` when `key`, `dagId`, `taskId` or `runId` is not a string, or `mapIndex` is not a number or `null`.
-   * @throws `RangeError` when `key`, `dagId`, `taskId` or `runId` is empty, or `mapIndex` is not an integer.
+   * @throws `TypeError` when `key` is not a string, `dagId`, `taskId` or `runId` is set to a non-string, or `mapIndex` is not a number or `null`.
+   * @throws `RangeError` when `key`, `dagId`, `taskId` or `runId` is an empty string, or `mapIndex` is not an integer.
    */
   getXCom<T = unknown>(opts: GetXComOpts): Promise<T | null>;
 
@@ -96,8 +96,8 @@ export interface TaskClient {
    * Target fields default to the current task's context; see
    * {@link SetXComOpts} for how `mapIndex` defaults.
    *
-   * @throws `TypeError` when `key`, `dagId`, `taskId` or `runId` is not a string, or `mapIndex` is not a number or `null`.
-   * @throws `RangeError` when `key`, `dagId`, `taskId` or `runId` is empty, or `mapIndex` is not an integer.
+   * @throws `TypeError` when `key` is not a string, `dagId`, `taskId` or `runId` is set to a non-string, or `mapIndex` is not a number or `null`.
+   * @throws `RangeError` when `key`, `dagId`, `taskId` or `runId` is an empty string, or `mapIndex` is not an integer.
    */
   setXCom(opts: SetXComOpts): Promise<void>;
 

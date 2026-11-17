@@ -24,8 +24,8 @@ export type JsonValue =
 /**
  * Options for pulling an XCom value.
  *
- * `dagId`, `taskId`, and `runId` default to the running task's context.
- * Pass them only when pulling an XCom value from another task or run.
+ * `dagId`, `taskId`, and `runId` default to the running task's context when
+ * omitted or `null`. Pass them only when pulling an XCom value from another task or run.
  *
  * `mapIndex` defaults to the running task's own map index when the target is
  * the running task, and to the unmapped value for any other task or run. Pass
@@ -43,7 +43,8 @@ export interface GetXComOpts {
 /**
  * Options for pushing an XCom value.
  *
- * `dagId`, `taskId`, and `runId` default to the running task's context.
+ * `dagId`, `taskId`, and `runId` default to the running task's context when
+ * omitted or `null`.
  *
  * `mapIndex` defaults to the running task's own map index when the target is
  * the running task, and to the unmapped value for any other task or run. Pass
