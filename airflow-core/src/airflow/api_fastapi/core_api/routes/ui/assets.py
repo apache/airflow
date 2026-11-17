@@ -16,15 +16,16 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Annotated, Any, cast
+from typing import TYPE_CHECKING, Annotated, Any, cast, get_args
 
 import structlog
-from fastapi import Depends, HTTPException, status
-from sqlalchemy import ColumnElement, and_, case, exists, func, select, true
+from fastapi import Depends, HTTPException, Query, status
+from sqlalchemy import ColumnElement, and_, case, distinct, exists, func, or_, select, true, union
+from sqlalchemy.orm import aliased
 
 from airflow.api_fastapi.common.asset_expression import redact_asset_expression
 from airflow.api_fastapi.common.db.assets import generate_assets_with_last_event_query
-from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
+from airflow.api_fastapi.common.db.common import SessionDep, apply_filters_to_select, paginated_select
 from airflow.api_fastapi.common.parameters import (
     QueryAssetDagIdPatternSearch,
     QueryAssetGroupPatternSearch,
@@ -45,6 +46,11 @@ from airflow.api_fastapi.common.partition_helpers import load_partitioned_timeta
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.assets import AssetCollectionResponse, AssetResponse
 from airflow.api_fastapi.core_api.datamodels.ui.assets import (
+    AssetPartitionCollectionResponse,
+    AssetPartitionProducerRunResponse,
+    AssetPartitionResponse,
+    AssetPartitionStatus,
+    AssetPartitionStatusCounts,
     NextRunAssetEventResponse,
     NextRunAssetsResponse,
 )
@@ -66,9 +72,15 @@ from airflow.models.asset import (
     AssetPartitionDagRun,
     DagScheduleAssetReference,
     PartitionedAssetKeyLog,
+    TaskOutletAssetReference,
+    association_table as dagrun_asset_event,
 )
+from airflow.models.dagrun import DagRun
+from airflow.utils.state import DagRunState
 
 if TYPE_CHECKING:
+    from sqlalchemy import Subquery
+
     from airflow.partition_mappers.base import RollupMapper
 
 log = structlog.get_logger(logger_name=__name__)
@@ -390,3 +402,219 @@ def next_run_assets(
         "pending_partition_count": pending_partition_count,
     }
     return NextRunAssetsResponse.model_validate(model_data)
+
+
+def _build_asset_partition_status_subquery(asset_id: int, readable_dag_ids: set[str] | None) -> Subquery:
+    """
+    Classify every partition key of an asset.
+
+    A producer run belongs to its own ``partition_key``, which is the key its asset
+    events get unless the task overrides it. A run that emitted this asset, but never
+    under its own key, is known to have overridden the key and is left out. For each
+    key, ``E`` is the newest event and ``R`` the newest attempt among the runs of the
+    Dags that declare the asset as an outlet:
+
+    - ``R`` queued or running, and no ``E`` since the attempt began: ``in_progress``
+    - ``R`` failed, and no ``E`` since the attempt began: ``failed``
+    - otherwise, ``E`` exists: ``materialized``
+    - otherwise the key is left out
+
+    An attempt begins at ``queued_at``, which is also reset when a task of the run is
+    cleared, whether or not the run has finished. A cleared run is therefore the newest
+    attempt and counts as not having produced an event yet.
+
+    Runs and events of Dags the caller may not read are left out before anything is
+    aggregated, so neither the rows nor the counts reveal them.
+    """
+    event_filters = [AssetEvent.asset_id == asset_id, AssetEvent.partition_key.is_not(None)]
+    run_filters = [
+        DagRun.dag_id.in_(
+            select(TaskOutletAssetReference.dag_id).where(TaskOutletAssetReference.asset_id == asset_id)
+        ),
+        DagRun.partition_key.is_not(None),
+    ]
+    if readable_dag_ids is not None:
+        # Events created through the API or by a watcher have no source Dag to authorize on.
+        event_filters.append(
+            or_(AssetEvent.source_dag_id.in_(readable_dag_ids), AssetEvent.source_dag_id.is_(None))
+        )
+        run_filters.append(DagRun.dag_id.in_(readable_dag_ids))
+
+    ranked_events = (
+        select(
+            AssetEvent.partition_key.label("partition_key"),
+            AssetEvent.id.label("event_id"),
+            AssetEvent.timestamp.label("event_timestamp"),
+            func.row_number()
+            .over(
+                partition_by=AssetEvent.partition_key,
+                order_by=(AssetEvent.timestamp.desc(), AssetEvent.id.desc()),
+            )
+            .label("position"),
+        )
+        .where(*event_filters)
+        .subquery("ranked_events")
+    )
+    last_events = select(ranked_events).where(ranked_events.c.position == 1).cte("last_events")
+
+    # One pass over the asset's events, rather than a lookup per run.
+    source_run = aliased(DagRun)
+    emitted_under_own_key = func.sum(case((AssetEvent.partition_key == source_run.partition_key, 1), else_=0))
+    key_overriding_runs = (
+        select(AssetEvent.source_dag_id.label("dag_id"), AssetEvent.source_run_id.label("run_id"))
+        .join(
+            source_run,
+            and_(
+                source_run.dag_id == AssetEvent.source_dag_id,
+                source_run.run_id == AssetEvent.source_run_id,
+            ),
+        )
+        .where(AssetEvent.asset_id == asset_id, AssetEvent.partition_key.is_not(None))
+        .group_by(AssetEvent.source_dag_id, AssetEvent.source_run_id)
+        .having(emitted_under_own_key == 0)
+        .cte("key_overriding_runs")
+    )
+    attempt_began_at = func.coalesce(DagRun.queued_at, DagRun.start_date, DagRun.run_after)
+    ranked_runs = (
+        select(
+            DagRun.partition_key.label("partition_key"),
+            DagRun.dag_id.label("run_dag_id"),
+            DagRun.run_id.label("run_id"),
+            DagRun.state.label("run_state"),
+            DagRun.start_date.label("run_start_date"),
+            DagRun.end_date.label("run_end_date"),
+            attempt_began_at.label("attempt_began_at"),
+            func.row_number()
+            .over(
+                partition_by=DagRun.partition_key,
+                order_by=(attempt_began_at.desc(), DagRun.id.desc()),
+            )
+            .label("position"),
+        )
+        .outerjoin(
+            key_overriding_runs,
+            and_(
+                key_overriding_runs.c.dag_id == DagRun.dag_id,
+                key_overriding_runs.c.run_id == DagRun.run_id,
+            ),
+        )
+        .where(*run_filters, key_overriding_runs.c.run_id.is_(None))
+        .subquery("ranked_runs")
+    )
+    last_runs = select(ranked_runs).where(ranked_runs.c.position == 1).cte("last_runs")
+    keys = union(select(last_events.c.partition_key), select(last_runs.c.partition_key)).cte("partition_keys")
+
+    no_event_since_attempt_began = or_(
+        last_events.c.event_id.is_(None),
+        last_events.c.event_timestamp < last_runs.c.attempt_began_at,
+    )
+    partition_status = case(
+        (
+            and_(
+                last_runs.c.run_state.in_([DagRunState.QUEUED, DagRunState.RUNNING]),
+                no_event_since_attempt_began,
+            ),
+            "in_progress",
+        ),
+        (and_(last_runs.c.run_state == DagRunState.FAILED, no_event_since_attempt_began), "failed"),
+        (last_events.c.event_id.is_not(None), "materialized"),
+        else_=None,
+    )
+    return (
+        select(
+            keys.c.partition_key,
+            partition_status.label("status"),
+            last_events.c.event_id.label("last_event_id"),
+            last_events.c.event_timestamp.label("last_event_timestamp"),
+            last_runs.c.run_dag_id,
+            last_runs.c.run_id,
+            last_runs.c.run_state,
+            last_runs.c.run_start_date,
+            last_runs.c.run_end_date,
+        )
+        .select_from(keys)
+        .outerjoin(last_events, last_events.c.partition_key == keys.c.partition_key)
+        .outerjoin(last_runs, last_runs.c.partition_key == keys.c.partition_key)
+        .subquery("asset_partitions")
+    )
+
+
+@assets_router.get(
+    "/assets/{asset_id}/partitions",
+    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+    dependencies=[Depends(requires_access_asset(method="GET"))],
+)
+def get_asset_partitions(
+    asset_id: int,
+    limit: QueryLimit,
+    offset: QueryOffset,
+    readable_dags_filter: ReadableDagsFilterDep,
+    session: SessionDep,
+    partition_status: Annotated[list[AssetPartitionStatus] | None, Query(alias="status")] = None,
+    partition_key_pattern: str | None = None,
+) -> AssetPartitionCollectionResponse:
+    """Return the partition keys of an asset with the status of each."""
+    if session.scalar(select(AssetModel.id).where(AssetModel.id == asset_id)) is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"The Asset with ID: `{asset_id}` was not found")
+
+    readable_dag_ids = readable_dags_filter.value
+    partitions = _build_asset_partition_status_subquery(asset_id, readable_dag_ids)
+    filters: list[ColumnElement[bool]] = [partitions.c.status.is_not(None)]
+    if partition_key_pattern:
+        filters.append(partitions.c.partition_key.icontains(partition_key_pattern, autoescape=True))
+
+    status_counts = AssetPartitionStatusCounts.model_validate(
+        {
+            name: count
+            for name, count in session.execute(
+                select(partitions.c.status, func.count()).where(*filters).group_by(partitions.c.status)
+            )
+        }
+    )
+    selected = set(partition_status or get_args(AssetPartitionStatus))
+    total_entries = sum(getattr(status_counts, name) for name in selected)
+
+    page_select = (
+        select(partitions)
+        .where(*filters, partitions.c.status.in_(selected))
+        .order_by(partitions.c.partition_key.desc())
+    )
+    rows = session.execute(apply_filters_to_select(statement=page_select, filters=[offset, limit])).all()
+
+    consumer_run_counts: dict[int, int] = {}
+    if last_event_ids := [row.last_event_id for row in rows if row.last_event_id is not None]:
+        consumer_select = (
+            select(dagrun_asset_event.c.event_id, func.count(distinct(DagRun.id)))
+            .join(DagRun, DagRun.id == dagrun_asset_event.c.dag_run_id)
+            .where(dagrun_asset_event.c.event_id.in_(last_event_ids))
+            .group_by(dagrun_asset_event.c.event_id)
+        )
+        if readable_dag_ids is not None:
+            consumer_select = consumer_select.where(DagRun.dag_id.in_(readable_dag_ids))
+        consumer_run_counts = {event_id: count for event_id, count in session.execute(consumer_select)}
+
+    return AssetPartitionCollectionResponse(
+        partitions=[
+            AssetPartitionResponse(
+                partition_key=row.partition_key,
+                status=row.status,
+                last_event_id=row.last_event_id,
+                last_event_timestamp=row.last_event_timestamp,
+                last_producer_run=(
+                    None
+                    if row.run_dag_id is None
+                    else AssetPartitionProducerRunResponse(
+                        dag_id=row.run_dag_id,
+                        run_id=row.run_id,
+                        state=row.run_state,
+                        start_date=row.run_start_date,
+                        end_date=row.run_end_date,
+                    )
+                ),
+                consumer_run_count=consumer_run_counts.get(row.last_event_id, 0),
+            )
+            for row in rows
+        ],
+        total_entries=total_entries,
+        status_counts=status_counts,
+    )

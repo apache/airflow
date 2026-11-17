@@ -11701,6 +11701,152 @@ export const $XComUpdateBody = {
     description: 'Payload serializer for updating an XCom entry.'
 } as const;
 
+export const $AssetPartitionCollectionResponse = {
+    properties: {
+        partitions: {
+            items: {
+                '$ref': '#/components/schemas/AssetPartitionResponse'
+            },
+            type: 'array',
+            title: 'Partitions'
+        },
+        total_entries: {
+            type: 'integer',
+            title: 'Total Entries'
+        },
+        status_counts: {
+            '$ref': '#/components/schemas/AssetPartitionStatusCounts'
+        }
+    },
+    type: 'object',
+    required: ['partitions', 'total_entries', 'status_counts'],
+    title: 'AssetPartitionCollectionResponse',
+    description: 'Partition keys of an asset with their status.'
+} as const;
+
+export const $AssetPartitionProducerRunResponse = {
+    properties: {
+        dag_id: {
+            type: 'string',
+            title: 'Dag Id'
+        },
+        run_id: {
+            type: 'string',
+            title: 'Run Id'
+        },
+        state: {
+            '$ref': '#/components/schemas/DagRunState'
+        },
+        start_date: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Start Date'
+        },
+        end_date: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'End Date'
+        }
+    },
+    type: 'object',
+    required: ['dag_id', 'run_id', 'state', 'start_date', 'end_date'],
+    title: 'AssetPartitionProducerRunResponse',
+    description: 'The latest run of a producing Dag for one partition key.'
+} as const;
+
+export const $AssetPartitionResponse = {
+    properties: {
+        partition_key: {
+            type: 'string',
+            title: 'Partition Key'
+        },
+        status: {
+            type: 'string',
+            enum: ['materialized', 'in_progress', 'failed'],
+            title: 'Status'
+        },
+        last_event_id: {
+            anyOf: [
+                {
+                    type: 'integer'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Last Event Id'
+        },
+        last_event_timestamp: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Last Event Timestamp'
+        },
+        last_producer_run: {
+            anyOf: [
+                {
+                    '$ref': '#/components/schemas/AssetPartitionProducerRunResponse'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        consumer_run_count: {
+            type: 'integer',
+            title: 'Consumer Run Count',
+            default: 0
+        }
+    },
+    type: 'object',
+    required: ['partition_key', 'status', 'last_event_id', 'last_event_timestamp', 'last_producer_run'],
+    title: 'AssetPartitionResponse',
+    description: 'Status of one partition key of an asset.'
+} as const;
+
+export const $AssetPartitionStatusCounts = {
+    properties: {
+        materialized: {
+            type: 'integer',
+            title: 'Materialized',
+            default: 0
+        },
+        in_progress: {
+            type: 'integer',
+            title: 'In Progress',
+            default: 0
+        },
+        failed: {
+            type: 'integer',
+            title: 'Failed',
+            default: 0
+        }
+    },
+    type: 'object',
+    title: 'AssetPartitionStatusCounts',
+    description: 'Number of partition keys per status.'
+} as const;
+
 export const $AuthenticatedMeResponse = {
     properties: {
         id: {

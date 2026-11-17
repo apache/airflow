@@ -115,6 +115,16 @@ export const useAssetServiceNextRunAssetsKey = "AssetServiceNextRunAssets";
 export const UseAssetServiceNextRunAssetsKeyFn = ({ dagId }: {
   dagId: string;
 }, queryKey?: Array<unknown>) => [useAssetServiceNextRunAssetsKey, ...(queryKey ?? [{ dagId }])];
+export type AssetServiceGetAssetPartitionsDefaultResponse = Awaited<ReturnType<typeof AssetService.getAssetPartitions>>;
+export type AssetServiceGetAssetPartitionsQueryResult<TData = AssetServiceGetAssetPartitionsDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
+export const useAssetServiceGetAssetPartitionsKey = "AssetServiceGetAssetPartitions";
+export const UseAssetServiceGetAssetPartitionsKeyFn = ({ assetId, limit, offset, partitionKeyPattern, status }: {
+  assetId: number;
+  limit?: number;
+  offset?: number;
+  partitionKeyPattern?: string;
+  status?: ("materialized" | "in_progress" | "failed")[];
+}, queryKey?: Array<unknown>) => [useAssetServiceGetAssetPartitionsKey, ...(queryKey ?? [{ assetId, limit, offset, partitionKeyPattern, status }])];
 export type BackfillServiceListBackfillsDefaultResponse = Awaited<ReturnType<typeof BackfillService.listBackfills>>;
 export type BackfillServiceListBackfillsQueryResult<TData = BackfillServiceListBackfillsDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useBackfillServiceListBackfillsKey = "BackfillServiceListBackfills";

@@ -218,6 +218,25 @@ export const useAssetServiceNextRunAssetsSuspense = <TData = Common.AssetService
   dagId: string;
 }, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseAssetServiceNextRunAssetsKeyFn({ dagId }, queryKey), queryFn: () => AssetService.nextRunAssets({ dagId }) as TData, ...options });
 /**
+* Get Asset Partitions
+* Return the partition keys of an asset with the status of each.
+* @param data The data for the request.
+* @param data.assetId
+* @param data.status
+* @param data.partitionKeyPattern
+* @param data.limit
+* @param data.offset
+* @returns AssetPartitionCollectionResponse Successful Response
+* @throws ApiError
+*/
+export const useAssetServiceGetAssetPartitionsSuspense = <TData = Common.AssetServiceGetAssetPartitionsDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ assetId, limit, offset, partitionKeyPattern, status }: {
+  assetId: number;
+  limit?: number;
+  offset?: number;
+  partitionKeyPattern?: string;
+  status?: ("materialized" | "in_progress" | "failed")[];
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseAssetServiceGetAssetPartitionsKeyFn({ assetId, limit, offset, partitionKeyPattern, status }, queryKey), queryFn: () => AssetService.getAssetPartitions({ assetId, limit, offset, partitionKeyPattern, status }) as TData, ...options });
+/**
 * List Backfills
 * @param data The data for the request.
 * @param data.dagId
