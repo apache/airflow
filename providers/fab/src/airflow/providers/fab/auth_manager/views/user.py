@@ -78,8 +78,8 @@ class MultiResourceUserMixin:
     def show(self, pk):
         pk = self._deserialize_pk_if_composite(pk)
         widgets = self._show(pk)
-        # The widget gets the view's shared ``self.actions`` dict, so build a filtered copy
-        # instead of popping from it, which would break ``/users/userinfo/`` for everyone.
+        # ``template_args["actions"]`` is the view's shared ``self.actions`` dict, never mutate it.
+        # userinfo and the action endpoints read from it too.
         show_args = widgets["show"].template_args
         show_args["actions"] = {
             name: action
