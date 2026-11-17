@@ -136,7 +136,7 @@ then you will want to turn catchup off, which is the default setting or can be d
 
     """
     Code that goes along with the Airflow tutorial located at:
-    https://github.com/apache/airflow/blob/main/airflow/example_dags/tutorial.py
+    https://github.com/apache/airflow/blob/main/airflow-core/src/airflow/example_dags/tutorial.py
     """
 
     from airflow.sdk import DAG
