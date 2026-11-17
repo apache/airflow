@@ -39,6 +39,7 @@ import pendulum
 import psutil
 import pytest
 import time_machine
+from fastapi import Response
 from sqlalchemy import Delete, delete, event as sa_event, func, inspect, select, update
 from sqlalchemy.dialects import mysql
 from sqlalchemy.exc import IntegrityError, InvalidRequestError, OperationalError
@@ -49,10 +50,23 @@ from airflow._shared.module_loading import qualname
 from airflow._shared.observability.metrics.base_stats_logger import StatsLogger
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.auth.tokens import JWTGenerator
+from airflow.api_fastapi.execution_api.datamodels.callback import (
+    CallbackRunPayload,
+    CallbackTerminalStatePayload,
+)
+from airflow.api_fastapi.execution_api.datamodels.dag_parsing import ProcessorWorkClaimBody
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
+    DagRun as DRDataModel,
     TaskInstance as TIDataModel,
+    TIRunContext,
     task_instance_to_runtime,
 )
+from airflow.api_fastapi.execution_api.routes.callbacks import (
+    get_callback_context,
+    run_callback,
+    update_callback_state,
+)
+from airflow.api_fastapi.execution_api.routes.dag_parsing import _CallbackWork, _claim_work
 from airflow.assets.manager import AssetManager
 from airflow.callbacks.callback_requests import (
     DagCallbackRequest,
@@ -102,6 +116,7 @@ from airflow.models.callback import (
     Callback,
     CallbackFetchMethod,
     CallbackKey,
+    CallbackType,
     DagProcessorCallback,
     ExecutorCallback,
 )
@@ -18427,7 +18442,39 @@ class TestRouteDagProcessorCallbacks:
         assert workload.bundle_info == BundleInfo(
             name=request.bundle_name, version="v1", version_data={"files": {"a.py": "1"}}
         )
+        assert workload.executor_config is None
         assert not self._queued_callbacks(other)
+
+    def test_routing_leaves_dag_processor_claims_untouched(self, dag_run, session):
+        request = self._dag_request(dag_run)
+        processor_callback = DagProcessorCallback(priority_weight=1, callback=request)
+        processor_job = Job()
+        session.add_all([processor_callback, processor_job])
+        session.flush()
+        routed_id = _add_waiting_callback(session, request)
+        body = ProcessorWorkClaimBody(claim_id=uuid4(), claim_sequence=1, bundle_names=[request.bundle_name])
+        claimed = _claim_work(
+            _CallbackWork(),
+            processor_job.id,
+            body,
+            frozenset(body.bundle_names),
+            session=session,
+        )
+        session.commit()
+        assert [work.id for work in claimed] == [str(processor_callback.id)]
+        executor = self._make_executor("default_exec")
+        runner = self._make_runner([executor])
+
+        runner._route_dag_processor_callbacks(session=session)
+        session.commit()
+
+        assert [work.callback.id for work in self._queued_callbacks(executor)] == [str(routed_id)]
+        session.refresh(processor_callback)
+        assert processor_callback.type == CallbackType.DAG_PROCESSOR
+        assert processor_callback.state is None
+        assert processor_callback.processor_job_id == processor_job.id
+        assert processor_callback.processor_claim_id == body.claim_id
+        assert processor_callback.get_callback_request() == request
 
     @pytest.mark.parametrize("callback_type", ["dag", "task"])
     def test_waiting_callback_keeps_its_file_and_bundle_when_run_is_cleared_on_latest_version(
@@ -18577,17 +18624,35 @@ class TestRouteDagProcessorCallbacks:
             pytest.param(False, "default_exec", {}, id="never-started"),
         ],
     )
+    @pytest.mark.parametrize("request_type", [TaskCallbackRequest, EmailRequest])
+    @pytest.mark.parametrize("executor_config", [None, {"overrides": {"cpu": "1024"}}])
     def test_routes_a_task_callback_by_whether_the_task_started(
-        self, dag_run, session, task_started, expected_executor, expected_routing
+        self,
+        dag_run,
+        session,
+        task_started,
+        expected_executor,
+        expected_routing,
+        request_type,
+        executor_config,
     ):
         executors = {alias: self._make_executor(alias) for alias in ("default_exec", "other_exec")}
         runner = self._make_runner(list(executors.values()))
         ti = dag_run.get_task_instance("task", session=session)
         ti.executor, ti.queue = "other_exec", "task_queue"
+        ti.executor_config = executor_config
         session.commit()
-        callback_id = _add_waiting_callback(
-            session, self._task_request(dag_run, session, task_started=task_started)
+        request = request_type(
+            filepath="moved_from.py",
+            bundle_name=dag_run.dag_model.bundle_name,
+            bundle_version=None,
+            ti=task_instance_to_runtime(ti, model=TIDataModel, map_index=-1),
+            task_started=task_started,
+            context_from_server=TIRunContext(
+                dag_run=DRDataModel.model_validate(dag_run, from_attributes=True), max_tries=ti.max_tries
+            ),
         )
+        callback_id = _add_waiting_callback(session, request)
 
         runner._route_dag_processor_callbacks(session=session)
         session.commit()
@@ -18595,8 +18660,62 @@ class TestRouteDagProcessorCallbacks:
         session.expunge_all()
         data = session.get_one(Callback, callback_id).data
         assert {key: data[key] for key in ("executor", "queue") if key in data} == expected_routing
+        assert "executor_config" not in data
         for alias, executor in executors.items():
             assert len(self._queued_callbacks(executor)) == (alias == expected_executor)
+        (workload,) = self._queued_callbacks(executors[expected_executor])
+        assert workload.executor_config == (executor_config if task_started else None)
+
+    @pytest.mark.parametrize("advance_attempt", ["retry", "clear"])
+    @pytest.mark.parametrize("replace_callback", [False, True])
+    def test_callback_executor_config_follows_the_original_task_attempt(
+        self, dag_run, session, advance_attempt, replace_callback
+    ):
+        default, other = self._make_executor("default_exec"), self._make_executor("other_exec")
+        runner = self._make_runner([default, other])
+        ti = dag_run.get_task_instance("task", session=session)
+        ti.executor, ti.queue = "other_exec", "original_queue"
+        original_config = {"overrides": {"cpu": "1024"}}
+        ti.executor_config = original_config
+        ti.state = TaskInstanceState.FAILED
+        session.commit()
+        request = self._task_request(dag_run, session, task_started=True)
+        callback_id = _add_waiting_callback(session, request)
+
+        if advance_attempt == "retry":
+            ti.state = TaskInstanceState.UP_FOR_RETRY
+            ti.end_date = ROUTING_NOW
+            next_attempt = ti.prepare_db_for_next_try(session)
+        else:
+            (next_attempt,) = clear_task_instances([ti], session=session)
+        next_attempt.executor, next_attempt.queue = "default_exec", "next_queue"
+        next_attempt.executor_config = {"overrides": {"cpu": "2048"}}
+        session.commit()
+        assert ti.working_set is None
+        assert next_attempt.id != request.ti.id
+
+        runner._route_dag_processor_callbacks(session=session)
+        session.commit()
+        if replace_callback:
+            key = CallbackKey(str(callback_id))
+            other.release_callback(key)
+            other.event_buffer[key] = (TaskInstanceState.FAILED, "publish failed")
+            SchedulerJobRunner.process_executor_events(
+                executor=other,
+                job_id=None,
+                scheduler_dag_bag=runner.scheduler_dag_bag,
+                session=session,
+            )
+            session.commit()
+            runner._route_dag_processor_callbacks(session=session)
+            session.commit()
+
+        (workload,) = self._queued_callbacks(other)
+        assert (workload.callback.id != str(callback_id)) is replace_callback
+        assert workload.executor_config == original_config
+        assert workload.callback.data["queue"] == "original_queue"
+        assert "executor_config" not in workload.callback.data
+        assert not self._queued_callbacks(default)
 
     @conf_vars({("scheduler", "num_stuck_in_queued_retries"): "0"})
     def test_a_task_failed_while_stuck_in_the_queue_avoids_its_queue(self, dag_run, session):
@@ -19135,6 +19254,159 @@ class TestRoutedCallbackOutcomes:
         session.commit()
         session.expunge_all()
         return callback.id
+
+    @staticmethod
+    @contextmanager
+    def _interleave_after_callback_read(session, action):
+        transitioned = False
+
+        def transition_after_read(execute_state):
+            nonlocal transitioned
+            if (
+                transitioned
+                or not execute_state.is_select
+                or execute_state.bind_mapper is None
+                or execute_state.bind_mapper.class_ not in (Callback, ExecutorCallback)
+            ):
+                return
+            result = execute_state.invoke_statement().freeze()
+            transitioned = True
+            action()
+            return result()
+
+        sa_event.listen(session, "do_orm_execute", transition_after_read, retval=True)
+        try:
+            yield
+        finally:
+            sa_event.remove(session, "do_orm_execute", transition_after_read)
+        assert transitioned
+
+    @time_machine.travel(ROUTING_NOW, tick=False)
+    @mock.patch("airflow.utils.sqlalchemy.USE_ROW_LEVEL_LOCKING", False)
+    @mock.patch("airflow.api_fastapi.execution_api.routes.callbacks.issue_execution_token", autospec=True)
+    @pytest.mark.parametrize("reported", [None, CallbackState.SUCCESS, CallbackState.FAILED])
+    def test_executor_failure_does_not_replace_a_callback_started_after_its_read(
+        self, issue_token, session, reported
+    ):
+        callback_id = self._add_routed_callback(
+            session,
+            state=CallbackState.QUEUED,
+            **{START_DEADLINE_KEY: (ROUTING_NOW + timedelta(seconds=600)).isoformat()},
+        )
+        executor = MockExecutor(do_update=False)
+        executor.event_buffer[CallbackKey(id=str(callback_id))] = (CallbackState.FAILED, "publish failed")
+
+        def start_worker():
+            with create_session(scoped=False) as starting_session:
+                run_callback(
+                    callback_id,
+                    Response(),
+                    starting_session,
+                    body=CallbackRunPayload(hostname="worker", pid=123, attempt_id=uuid4()),
+                )
+            with create_session(scoped=False) as context_session:
+                context = get_callback_context(callback_id, context_session).context
+                assert (context.dag_id, context.run_id) == ("test_dag", "test_run")
+            if reported is not None:
+                with create_session(scoped=False) as reporting_session:
+                    update_callback_state(
+                        callback_id,
+                        CallbackTerminalStatePayload(state=reported, output="worker result"),
+                        reporting_session,
+                    )
+
+        with self._interleave_after_callback_read(session, start_worker):
+            SchedulerJobRunner.process_executor_events(
+                executor=executor,
+                job_id=None,
+                scheduler_dag_bag=mock.Mock(spec=CachedDBDagBag),
+                session=session,
+            )
+        session.commit()
+
+        issue_token.assert_called_once()
+        session.expunge_all()
+        callback = session.get_one(Callback, callback_id)
+        assert callback.state == (reported or CallbackState.RUNNING)
+        assert callback.started_at == ROUTING_NOW
+        assert callback.output == ("worker result" if reported else None)
+        assert not session.scalars(select(Callback).where(Callback.id != callback_id)).all()
+
+    @time_machine.travel(ROUTING_NOW, tick=False)
+    @mock.patch("airflow.utils.sqlalchemy.USE_ROW_LEVEL_LOCKING", False)
+    @mock.patch("airflow.jobs.scheduler_job_runner.stats.incr", autospec=True)
+    @pytest.mark.parametrize("reported", [CallbackState.SUCCESS, CallbackState.FAILED])
+    def test_reaper_preserves_a_callback_reported_after_its_read(self, mock_stats_incr, session, reported):
+        callback_id = self._add_routed_callback(
+            session,
+            state=CallbackState.RUNNING,
+            **{
+                EXECUTION_TIMEOUT_KEY: 300,
+                STARTED_AT_KEY: (ROUTING_NOW - timedelta(seconds=450)).isoformat(),
+            },
+        )
+        runner = SchedulerJobRunner(job=Job(), executors=[MockExecutor(do_update=False)])
+
+        def report_worker_outcome():
+            with create_session(scoped=False) as reporting_session:
+                update_callback_state(
+                    callback_id,
+                    CallbackTerminalStatePayload(state=reported, output="worker result"),
+                    reporting_session,
+                )
+
+        with self._interleave_after_callback_read(session, report_worker_outcome):
+            runner._settle_routed_callbacks([callback_id], now=ROUTING_NOW, session=session)
+        session.commit()
+
+        session.expunge_all()
+        callback = session.get_one(Callback, callback_id)
+        assert (callback.state, callback.output) == (reported, "worker result")
+        mock_stats_incr.assert_not_called()
+
+    @time_machine.travel(ROUTING_NOW, tick=False)
+    @mock.patch("airflow.utils.sqlalchemy.USE_ROW_LEVEL_LOCKING", False)
+    @mock.patch("airflow.jobs.scheduler_job_runner.stats.incr", autospec=True)
+    @mock.patch("airflow.api_fastapi.execution_api.routes.callbacks.issue_execution_token", autospec=True)
+    def test_reaper_does_not_replace_a_start_committed_after_its_read(
+        self, issue_token, mock_stats_incr, session
+    ):
+        callback_id = self._add_routed_callback(
+            session, state=CallbackState.QUEUED, **{START_DEADLINE_KEY: ROUTING_NOW.isoformat()}
+        )
+        runner = SchedulerJobRunner(job=Job(), executors=[MockExecutor(do_update=False)])
+        started_at = ROUTING_NOW - timedelta(seconds=1)
+
+        with create_session(scoped=False) as starting_session:
+            with time_machine.travel(started_at, tick=False):
+                run_callback(
+                    callback_id,
+                    Response(),
+                    starting_session,
+                    body=CallbackRunPayload(hostname="worker", pid=123, attempt_id=uuid4()),
+                )
+
+            def commit_start():
+                # /run validated the deadline before the scan, but its request has not committed yet.
+                starting_session.commit()
+                with create_session(scoped=False) as context_session:
+                    context = get_callback_context(callback_id, context_session).context
+                    assert (context.dag_id, context.run_id) == ("test_dag", "test_run")
+
+            with self._interleave_after_callback_read(session, commit_start):
+                runner._settle_routed_callbacks([callback_id], now=ROUTING_NOW, session=session)
+            session.commit()
+
+        issue_token.assert_called_once()
+        session.expunge_all()
+        callback = session.get_one(Callback, callback_id)
+        assert (callback.state, callback.started_at, callback.output) == (
+            CallbackState.RUNNING,
+            started_at,
+            None,
+        )
+        assert not session.scalars(select(Callback).where(Callback.id != callback_id)).all()
+        mock_stats_incr.assert_not_called()
 
     @pytest.mark.parametrize("reported", [CallbackState.SUCCESS, CallbackState.FAILED])
     @pytest.mark.parametrize("event", [CallbackState.SUCCESS, CallbackState.FAILED])

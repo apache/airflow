@@ -600,3 +600,20 @@ class TestExecuteCallbackMakeDagAttribute:
         assert ("req_data" in workload.callback.data) is keeps_request
         assert workload.callback.data["req_class"] == "DagCallbackRequest"
         assert workload.dag_rel_path == Path("moved/dag.py")
+        assert workload.executor_config is None
+
+    @pytest.mark.parametrize("executor_config", [None, {}, {"pod_override": object()}])
+    def test_executor_config_stays_on_the_executor_side(self, executor_config):
+        callback, dag_run = TestExecuteCallbackMakeVersionData._make_mocks(
+            bundle_version=None, version_data=None
+        )
+        callback.fetch_method = CallbackFetchMethod.DAG_ATTRIBUTE
+
+        workload = ExecuteCallback.make(callback=callback, dag_run=dag_run, executor_config=executor_config)
+
+        assert workload.executor_config == executor_config
+        assert "executor_config" not in workload.callback.data
+        assert "executor_config" not in workload.model_dump()
+        assert "executor_config" not in workload.model_dump(mode="json")
+        received = ExecuteCallback.model_validate_json(workload.model_dump_json())
+        assert received.executor_config is None

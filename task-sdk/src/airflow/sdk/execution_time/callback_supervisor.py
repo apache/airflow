@@ -348,6 +348,12 @@ def _handle_previous_successful_dag_run_request(
     return PrevSuccessfulDagRunResult.from_dagrun_response(response), {"exclude_unset": True}
 
 
+def _check_callback_start_deadline(deadline: float | None, timeout: float | None) -> None:
+    if deadline is not None and time.monotonic() >= deadline:
+        stats.incr("callback.timeouts")
+        raise TimeoutError(f"Callback timed out after {timeout} seconds during startup")
+
+
 @attrs.define(kw_only=True)
 class CallbackSubprocess(WatchedSubprocess):
     """
@@ -364,6 +370,8 @@ class CallbackSubprocess(WatchedSubprocess):
     client: Client  # The HTTP client to use for communication with the API server.
     execution_timeout: float | None = None
     """Seconds the callback may run; ``None`` reads ``[callbacks] callback_execution_timeout``."""
+    execution_deadline: float | None = None
+    """Monotonic deadline shared with routed callback setup, including the token exchange."""
     timed_out: bool = attrs.field(default=False, init=False)
 
     decoder: ClassVar[TypeAdapter[CallbackToSupervisor | _UnsupportedRequest]] = TypeAdapter(
@@ -407,6 +415,7 @@ class CallbackSubprocess(WatchedSubprocess):
             )
             # Serialize before spawning so an invalid payload cannot leave a child waiting for startup.
             startup_frame = _ResponseFrame(id=0, body=msg.model_dump()).as_bytes()
+            _check_callback_start_deadline(kwargs.get("execution_deadline"), kwargs.get("execution_timeout"))
             proc = super().start(
                 id=UUID(id) if not isinstance(id, UUID) else id,
                 client=client,
@@ -479,6 +488,7 @@ class CallbackSubprocess(WatchedSubprocess):
                 sys.exit(1)
 
         _import_task_runner_before_fork()
+        _check_callback_start_deadline(kwargs.get("execution_deadline"), kwargs.get("execution_timeout"))
         return super().start(
             id=UUID(id) if not isinstance(id, UUID) else id,
             client=client,
@@ -530,31 +540,35 @@ class CallbackSubprocess(WatchedSubprocess):
         """
         Monitor the subprocess until it exits.
 
-        A simplified version of ActivitySubprocess._monitor_subprocess() without heartbeating
-        or timeout handling, just process output monitoring and stuck-socket cleanup.
+        A simplified version of ActivitySubprocess._monitor_subprocess() without heartbeating.
 
         If ``[callbacks] callback_execution_timeout`` is set to a positive value, the subprocess
-        is killed after that many seconds.
+        is killed after that many seconds. Routed callbacks retain the deadline from worker setup.
         """
         timeout = self._get_callback_execution_timeout()
-        start_monotonic = time.monotonic()
+        deadline = self.execution_deadline
+        if deadline is None and timeout > 0:
+            deadline = time.monotonic() + timeout
 
         while self._exit_code is None or self._open_sockets:
-            self._service_subprocess(max_wait_time=MIN_HEARTBEAT_INTERVAL)
-
-            # Enforce execution timeout if configured.
-            if timeout > 0 and self._exit_code is None:
-                elapsed = time.monotonic() - start_monotonic
-                if elapsed > timeout:
+            max_wait_time: float = MIN_HEARTBEAT_INTERVAL
+            if deadline is not None and self._exit_code is None:
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    if self._check_subprocess_exit() is not None:
+                        continue
                     log.warning(
                         "Callback execution timeout exceeded; terminating subprocess",
                         pid=self.pid,
                         timeout_seconds=timeout,
-                        elapsed_seconds=elapsed,
+                        elapsed_seconds=timeout - remaining,
                     )
                     self.kill(signal.SIGTERM, escalation_delay=5.0, force=True)
                     self.timed_out = True
                     break
+                max_wait_time = min(max_wait_time, remaining)
+
+            self._service_subprocess(max_wait_time=max_wait_time)
 
             # If the process has exited but sockets remain open, apply a timeout
             # to prevent hanging indefinitely on stuck sockets.
@@ -637,6 +651,13 @@ def supervise_callback(
     _make_process_nondumpable()
 
     start = time.monotonic()
+    deadline = (
+        start + execution_timeout
+        if fetch_method == DAG_ATTRIBUTE_FETCH_METHOD
+        and execution_timeout is not None
+        and execution_timeout > 0
+        else None
+    )
 
     logger: FilteringBoundLogger
     log_file_descriptor: BinaryIO | None = None
@@ -651,14 +672,17 @@ def supervise_callback(
         process = None
 
         try:
+            _check_callback_start_deadline(deadline, execution_timeout)
             if log_path:
                 logger, log_file_descriptor = _configure_logging(log_path, client)
             else:
                 logger = structlog.get_logger(logger_name="callback").bind()
 
+            _check_callback_start_deadline(deadline, execution_timeout)
             context = None
             if fetch_method == DAG_ATTRIBUTE_FETCH_METHOD:
                 context = client.callbacks.get_context(UUID(id)).context
+            _check_callback_start_deadline(deadline, execution_timeout)
             process = CallbackSubprocess.start(
                 id=id,
                 callback_path=callback_path,
@@ -671,6 +695,7 @@ def supervise_callback(
                 logger=logger,
                 subprocess_logs_to_stdout=True,
                 execution_timeout=execution_timeout,
+                execution_deadline=deadline,
             )
 
             exit_code = process.wait()

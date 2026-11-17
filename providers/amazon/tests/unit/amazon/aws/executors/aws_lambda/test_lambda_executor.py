@@ -393,6 +393,61 @@ class TestAwsLambdaExecutor:
         assert str(callback_id) in mock_executor.running_workloads
 
     @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="Test requires Airflow 3.3+")
+    @pytest.mark.parametrize("legacy_workload", [False, True], ids=["configured", "older-core"])
+    @mock.patch.object(
+        lambda_executor, "calculate_next_attempt_delay", autospec=True, return_value=dt.timedelta(0)
+    )
+    def test_callback_executor_config_survives_launch_retry(
+        self, mock_backoff, mock_executor, legacy_workload
+    ):
+        from airflow.executors.workloads import ExecuteCallback
+        from airflow.executors.workloads.base import BundleInfo
+        from airflow.executors.workloads.callback import CallbackDTO, CallbackFetchMethod
+
+        workload = ExecuteCallback(
+            callback=CallbackDTO(
+                id=str(uuid4()),
+                fetch_method=CallbackFetchMethod.IMPORT_PATH,
+                data={"path": "test.module.alert_func", "kwargs": {}},
+            ),
+            dag_rel_path="test.py",
+            bundle_info=BundleInfo(name="test_bundle", version="1.0"),
+            token="test_token",
+            log_path="test.log",
+        )
+        executor_config = {"callback_environment": "custom"}
+        if legacy_workload:
+            if hasattr(workload, "executor_config"):
+                del workload.executor_config
+        elif hasattr(workload, "executor_config"):
+            workload.executor_config = executor_config
+        else:
+            pytest.skip("Core does not carry executor configuration on callback workloads")
+
+        mock_executor.queue_workload(workload, session=None)
+        mock_executor._process_workloads([workload])
+        queued = mock_executor.pending_workloads[0]
+        assert queued.executor_config == ({} if legacy_workload else executor_config)
+        serialized = json.loads(queued.command[-1])
+        assert serialized["callback"]["id"] == str(workload.callback.id)
+        assert "executor_config" not in serialized
+        mock_executor.lambda_client.invoke.side_effect = [
+            RuntimeError("temporary launch failure"),
+            {"StatusCode": 202},
+        ]
+
+        mock_executor.attempt_workload_runs()
+        mock_executor.attempt_workload_runs()
+
+        assert not mock_executor.pending_workloads
+        assert mock_executor.lambda_client.invoke.call_count == 2
+        for call in mock_executor.lambda_client.invoke.call_args_list:
+            payload = json.loads(call.kwargs["Payload"])
+            assert payload["executor_config"] == ({} if legacy_workload else executor_config)
+            assert payload["command"] == queued.command
+        assert mock_executor.running_workloads[str(workload.callback.key)] == workload.callback.key
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="Test requires Airflow 3.3+")
     def test_task_sdk_callback_with_queue(self, mock_airflow_key, mock_executor):
         """Test callback workload execution with queue override."""
         from airflow.executors.workloads import ExecuteCallback

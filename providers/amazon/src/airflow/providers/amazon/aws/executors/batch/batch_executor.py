@@ -184,7 +184,12 @@ class AwsBatchExecutor(BaseExecutor):
                     del self.executor_queues[WorkloadType.EXECUTE_CALLBACK][callback_key]
                 else:
                     del self.queued_callbacks[callback_key]
-                self.execute_async(key=callback_key, command=callback_command, queue=queue)  # type: ignore[arg-type]
+                self.execute_async(
+                    key=callback_key,
+                    command=callback_command,  # type: ignore[arg-type]
+                    queue=queue,
+                    executor_config=getattr(workload, "executor_config", None),
+                )
                 self.running.add(callback_key)
             else:
                 raise RuntimeError(f"{type(self)} cannot handle workloads of type {type(workload)}")

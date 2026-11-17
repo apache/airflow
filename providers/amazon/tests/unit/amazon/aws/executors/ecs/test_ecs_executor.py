@@ -2552,6 +2552,64 @@ class TestEcsExecutorCallbackSupport:
         assert queued.command[3] == "--json-string"
 
     @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="Test requires Airflow 3.3+")
+    @pytest.mark.parametrize("legacy_workload", [False, True], ids=["configured", "older-core"])
+    @mock.patch.object(
+        ecs_executor, "calculate_next_attempt_delay", autospec=True, return_value=dt.timedelta(0)
+    )
+    def test_callback_executor_config_survives_launch_retry(
+        self, mock_backoff, mock_executor, callback_workload, legacy_workload
+    ):
+        executor_config = {
+            "overrides": {"taskRoleArn": "arn:aws:iam::123456789012:role/callback-role"},
+            "networkConfiguration": {"awsvpcConfiguration": {"subnets": ["callback-subnet"]}},
+        }
+        if legacy_workload:
+            if hasattr(callback_workload, "executor_config"):
+                del callback_workload.executor_config
+        elif hasattr(callback_workload, "executor_config"):
+            callback_workload.executor_config = executor_config
+        else:
+            pytest.skip("Core does not carry executor configuration on callback workloads")
+
+        mock_executor.queue_workload(callback_workload, session=None)
+        mock_executor._process_workloads([callback_workload])
+        queued = mock_executor.pending_workloads[0]
+        assert queued.executor_config == ({} if legacy_workload else executor_config)
+        serialized = json.loads(queued.command[-1])
+        assert serialized["callback"]["id"] == str(callback_workload.callback.id)
+        assert "executor_config" not in serialized
+        mock_executor.ecs.run_task.side_effect = [
+            RuntimeError("temporary launch failure"),
+            {
+                "tasks": [
+                    {
+                        "taskArn": ARN1,
+                        "lastStatus": "PENDING",
+                        "desiredStatus": "RUNNING",
+                        "containers": [{"name": "container-name"}],
+                    }
+                ],
+                "failures": [],
+            },
+        ]
+
+        mock_executor.attempt_workload_runs()
+        mock_executor.attempt_workload_runs()
+
+        assert not mock_executor.pending_workloads
+        assert mock_executor.ecs.run_task.call_count == 2
+        for call in mock_executor.ecs.run_task.call_args_list:
+            kwargs = call.kwargs
+            assert kwargs["overrides"].get("taskRoleArn") == (
+                None if legacy_workload else executor_config["overrides"]["taskRoleArn"]
+            )
+            assert kwargs["networkConfiguration"]["awsvpcConfiguration"]["subnets"] == (
+                ["sub1", "sub2"] if legacy_workload else ["callback-subnet"]
+            )
+            assert kwargs["overrides"]["containerOverrides"][0]["command"] == queued.command
+        assert mock_executor.active_workers.arn_to_key[ARN1] == callback_workload.callback.key
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="Test requires Airflow 3.3+")
     def test_callback_sync_running_success(self, mock_executor, callback_workload):
         """Test that sync_running_workloads correctly handles successful callback ECS tasks."""
         callback_key = callback_workload.callback.key

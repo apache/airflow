@@ -101,6 +101,7 @@ class ExecuteCallback(BaseDagBundleWorkload):
     """Execute the given Callback."""
 
     callback: CallbackDTO
+    executor_config: dict | None = Field(default=None, exclude=True)
 
     type: Literal[WorkloadType.EXECUTE_CALLBACK] = Field(init=False, default=WorkloadType.EXECUTE_CALLBACK)
 
@@ -140,6 +141,7 @@ class ExecuteCallback(BaseDagBundleWorkload):
         dag_rel_path: Path | None = None,
         generator: JWTGenerator | None = None,
         bundle_info: BundleInfo | None = None,
+        executor_config: dict | None = None,
     ) -> ExecuteCallback:
         """Create an ExecuteCallback workload from a Callback ORM model."""
         if not bundle_info:
@@ -167,4 +169,5 @@ class ExecuteCallback(BaseDagBundleWorkload):
             token=cls.generate_token(str(callback.id), generator),
             log_path=fname,
             bundle_info=bundle_info,
+            executor_config=executor_config,
         )

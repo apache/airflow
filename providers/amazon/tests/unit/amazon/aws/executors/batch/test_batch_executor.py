@@ -435,6 +435,68 @@ class TestAwsBatchExecutor:
         running_state_mock.assert_called_once_with(workload.callback.key, ARN1)
 
     @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="Test requires Airflow 3.3+")
+    @pytest.mark.parametrize("legacy_workload", [False, True], ids=["configured", "older-core"])
+    @mock.patch.object(
+        batch_executor, "calculate_next_attempt_delay", autospec=True, return_value=dt.timedelta(0)
+    )
+    def test_callback_executor_config_survives_launch_retry(
+        self, mock_backoff, mock_executor, legacy_workload
+    ):
+        from airflow.executors.workloads import ExecuteCallback
+        from airflow.executors.workloads.base import BundleInfo
+        from airflow.executors.workloads.callback import CallbackDTO, CallbackFetchMethod
+
+        workload = ExecuteCallback(
+            callback=CallbackDTO(
+                id=str(uuid4()),
+                fetch_method=CallbackFetchMethod.IMPORT_PATH,
+                data={"path": "test.module.alert_func", "kwargs": {}},
+            ),
+            dag_rel_path="test.py",
+            bundle_info=BundleInfo(name="test_bundle", version="1.0"),
+            token="test_token",
+            log_path="test.log",
+        )
+        resource_requirements = [{"type": "VCPU", "value": "2"}]
+        executor_config = {
+            "jobDefinition": "callback-job-def",
+            "containerOverrides": {"resourceRequirements": resource_requirements},
+        }
+        if legacy_workload:
+            if hasattr(workload, "executor_config"):
+                del workload.executor_config
+        elif hasattr(workload, "executor_config"):
+            workload.executor_config = executor_config
+        else:
+            pytest.skip("Core does not carry executor configuration on callback workloads")
+
+        mock_executor.queue_workload(workload, session=None)
+        mock_executor._process_workloads([workload])
+        queued = mock_executor.pending_jobs[0]
+        assert queued.executor_config == ({} if legacy_workload else executor_config)
+        serialized = json.loads(queued.command[-1])
+        assert serialized["callback"]["id"] == str(workload.callback.id)
+        assert "executor_config" not in serialized
+        mock_executor.batch.submit_job.side_effect = [
+            RuntimeError("temporary launch failure"),
+            {"jobId": ARN1, "jobName": "some-job-name"},
+        ]
+
+        mock_executor.attempt_submit_jobs()
+        mock_executor.attempt_submit_jobs()
+
+        assert not mock_executor.pending_jobs
+        assert mock_executor.batch.submit_job.call_count == 2
+        for call in mock_executor.batch.submit_job.call_args_list:
+            kwargs = call.kwargs
+            assert kwargs["jobDefinition"] == ("some-job-def" if legacy_workload else "callback-job-def")
+            assert kwargs["containerOverrides"].get("resourceRequirements") == (
+                None if legacy_workload else resource_requirements
+            )
+            assert kwargs["containerOverrides"]["command"] == queued.command
+        assert mock_executor.active_workers.id_to_key[ARN1] == workload.callback.key
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="Test requires Airflow 3.3+")
     @mock.patch("airflow.providers.amazon.aws.executors.batch.batch_executor.AwsBatchExecutor.running_state")
     def test_task_sdk_callback_with_queue(self, running_state_mock, mock_airflow_key, mock_executor):
         """Test task sdk execution for callbacks with queue from end-to-end."""
