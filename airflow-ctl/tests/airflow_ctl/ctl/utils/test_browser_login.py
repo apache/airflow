@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import base64
 import hashlib
+import os
 import queue
 import socket
 import threading
@@ -178,7 +179,29 @@ def test_get_authorization_code_keeps_waiting_after_stray_callback(mock_open, st
     assert result.code == "the-code"
     assert len(stray_pages) == 1
     assert stray_pages[0][0] == 400
-    assert b"Login failed" in stray_pages[0][1]
+    assert b"not for the current airflowctl login" in stray_pages[0][1]
+
+
+@patch("airflowctl.ctl.utils.browser_login.webbrowser.open", autospec=True)
+def test_get_authorization_code_keeps_browser_output_off_stdout(mock_open, capfd):
+    fake_browser = _fake_browser(lambda params: {"code": "the-code", "state": params["state"]}, queue.Queue())
+
+    def open_noisy_browser(login_url):
+        os.write(1, b"Opening in existing browser session.\n")
+        return fake_browser(login_url)
+
+    mock_open.side_effect = open_noisy_browser
+
+    get_authorization_code(
+        authorization_url="http://localhost:8080/auth/login/cli",
+        open_browser=True,
+        timeout=10,
+    )
+    os.write(1, b"token\n")
+
+    captured = capfd.readouterr()
+    assert captured.out == "token\n"
+    assert "Opening in existing browser session." in captured.err
 
 
 @patch("airflowctl.ctl.utils.browser_login.webbrowser.open", autospec=True)

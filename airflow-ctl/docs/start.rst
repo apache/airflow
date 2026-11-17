@@ -52,8 +52,7 @@ OR, when the auth manager of the API server offers browser login (for example to
 
 This opens the login page of the API server in your browser and waits for the login to complete.
 The browser redirects back to airflowctl on ``127.0.0.1``, so it must run on the same machine.
-On a remote machine, pass ``--no-browser`` to only print the login URL, and forward the port
-of the printed ``redirect_uri`` from your local machine, for example with ``ssh -L``.
+Pass ``--no-browser`` to only print the login URL, for example to open it in another browser.
 On a machine without a keyring, also pass ``--skip-keyring``: the token is printed instead of
 stored, and you can set ``AIRFLOW_CLI_TOKEN`` to it.
 

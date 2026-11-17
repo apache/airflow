@@ -370,8 +370,8 @@ ARG_AUTH_NO_BROWSER = Arg(
     default=False,
     action="store_true",
     help=(
-        "With --sso, print the login URL instead of opening a browser. The browser must still reach "
-        "this machine on 127.0.0.1, for example through 'ssh -L' when logged in remotely"
+        "With --sso, print the login URL instead of opening a browser. "
+        "The browser must run on this machine, because the login redirects to 127.0.0.1"
     ),
 )
 ARG_AUTH_TIMEOUT = Arg(

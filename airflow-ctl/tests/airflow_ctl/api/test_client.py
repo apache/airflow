@@ -433,6 +433,24 @@ class TestCredentials:
         monkeypatch.setattr("airflowctl.api.client.keyring", mock_keyring)
         return mock_keyring
 
+    @pytest.mark.parametrize(
+        ("skip_keyring", "debug_mode", "expected"),
+        [
+            pytest.param(False, False, True, id="keyring"),
+            pytest.param(True, False, False, id="skip-keyring"),
+            pytest.param(True, True, True, id="skip-keyring-in-debug-mode"),
+        ],
+    )
+    def test_save_returns_whether_token_is_stored(
+        self, keyring_store, monkeypatch, skip_keyring, debug_mode, expected
+    ):
+        if debug_mode:
+            monkeypatch.setenv("AIRFLOW_CLI_DEBUG_MODE", "true")
+
+        credentials = Credentials(api_url="http://localhost:8080", api_token="TOKEN", api_environment="prod")
+
+        assert credentials.save(skip_keyring=skip_keyring) is expected
+
     def test_save_skip_keyring_does_not_reuse_token_of_earlier_login(self, keyring_store):
         Credentials(api_url="http://old:8080", api_token="OLD_TOKEN", api_environment="prod").save()
         Credentials(api_url="http://new:8080", api_token="NEW_TOKEN", api_environment="prod").save(

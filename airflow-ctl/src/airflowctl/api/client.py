@@ -239,11 +239,12 @@ class Credentials:
         """Build the keyring/debug token key for a given environment name."""
         return f"api_token_{api_environment}"
 
-    def save(self, skip_keyring: bool = False):
+    def save(self, skip_keyring: bool = False) -> bool:
         """
         Save the credentials to keyring and URL to disk as a file.
 
         Skip saving the token to keyring if skip_keyring is True.
+        Return whether the token was stored, which debug mode does even with skip_keyring.
 
         The debug credentials file of an earlier login is removed first, and the
         config file records that the token is not in keyring until
@@ -268,7 +269,7 @@ class Credentials:
                     json.dump({self.token_key_for_environment(self.api_environment): self.api_token}, f)
             else:
                 if skip_keyring:
-                    return
+                    return False
                 # Replace the upstream EncryptedKeyring's unbounded password
                 # prompt with a bounded one before set_password can trigger it.
                 # The active backend may be a ChainerBackend that delegates to
@@ -301,6 +302,7 @@ class Credentials:
             raise AirflowCtlKeyringException(
                 f"Cannot save credentials to the keyring: {str(e) or type(e).__name__}"
             ) from e
+        return True
 
     def load(self) -> Credentials:
         """Load the credentials from keyring and URL from disk file."""

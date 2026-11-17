@@ -21,7 +21,9 @@ from __future__ import annotations
 
 import base64
 import hashlib
+import os
 import secrets
+import sys
 import time
 import webbrowser
 from dataclasses import dataclass
@@ -42,6 +44,11 @@ _CALLBACK_PAGE = (
 )
 _CALLBACK_FAILED_PAGE = (
     b"<!doctype html><title>airflowctl</title><p>Login failed. Return to the terminal for details.</p>"
+)
+_CALLBACK_WRONG_STATE_PAGE = (
+    b"<!doctype html><title>airflowctl</title>"
+    b"<p>This link is not for the current airflowctl login. "
+    b"Open the latest login URL printed in the terminal.</p>"
 )
 
 
@@ -85,6 +92,23 @@ def _find_login_error(params: dict[str, str]) -> str | None:
     return None
 
 
+def _open_browser(url: str) -> None:
+    """Open ``url`` in the default browser without giving the browser process our stdout."""
+    # A browser started by xdg-open keeps fd 1 open, so `TOKEN=$(airflowctl auth token --sso)` would hang.
+    sys.stdout.flush()
+    try:
+        saved_stdout = os.dup(1)
+    except OSError:
+        webbrowser.open(url)
+        return
+    try:
+        os.dup2(2, 1)
+        webbrowser.open(url)
+    finally:
+        os.dup2(saved_stdout, 1)
+        os.close(saved_stdout)
+
+
 class _CallbackServer(HTTPServer):
     state: str
     callback_params: dict[str, str] | None = None
@@ -104,7 +128,7 @@ class _CallbackHandler(BaseHTTPRequestHandler):
         params = {key: values[0] for key, values in parse_qs(url.query).items()}
         if not _has_login_state(params, self.server.state):
             # Any local process can reach this port, so only the real redirect may end the wait.
-            self._send_page(400, _CALLBACK_FAILED_PAGE)
+            self._send_page(400, _CALLBACK_WRONG_STATE_PAGE)
             return
         login_error = _find_login_error(params)
         self.server.callback_params = params
@@ -153,7 +177,7 @@ def get_authorization_code(
             f"[blue]Log in from your browser:[/blue] {escape(login_url)}"
         )
         if open_browser:
-            webbrowser.open(login_url)
+            _open_browser(login_url)
 
         deadline = time.monotonic() + timeout
         while server.callback_params is None:

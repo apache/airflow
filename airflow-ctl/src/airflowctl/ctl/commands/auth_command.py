@@ -106,16 +106,15 @@ def login(args, api_client=NEW_API_CLIENT) -> None:
         except Exception as e:
             rich.print(f"[red]Login failed: {escape(str(e))}", file=sys.stderr)
             sys.exit(1)
-        # Debug mode stores the token in a file even with --skip-keyring.
-        is_stored = not args.skip_keyring or os.getenv("AIRFLOW_CLI_DEBUG_MODE") == "true"
-        not_stored_reason = "" if is_stored else "The token was not stored."
+        not_stored_reason = ""
         try:
-            Credentials(
+            if not Credentials(
                 api_url=api_url,
                 api_token=api_token,
                 api_environment=args.env,
                 client_kind=ClientKind.AUTH,
-            ).save(args.skip_keyring)
+            ).save(args.skip_keyring):
+                not_stored_reason = "The token was not stored."
         except AirflowCtlKeyringException as e:
             not_stored_reason = escape(str(e).splitlines()[0])
         except (OSError, EOFError) as e:
