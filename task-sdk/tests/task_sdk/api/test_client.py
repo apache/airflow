@@ -1323,16 +1323,13 @@ class TestXCOMOperations:
             )
 
         client = make_client(transport=httpx2.MockTransport(handle_request))
-        result = client.xcoms.get(
-            dag_id="dag_id", run_id="run_id", task_id="task_id", key="key", include_prior_dates=True
-        )
+        result = client.xcoms.get(dag_id="dag_id", run_id="run_id", task_id="task_id", key="key")
 
         assert result == expected
         assert [request.url.path for request in requests] == [
             "/xcoms/dag_id/run_id/task_id/key",
             "/xcoms/dag_id/run_id/task_id/key/slice",
         ]
-        assert requests[1].url.params["include_prior_dates"] == "true"
 
     def test_xcom_get_omitted_map_index_raises_when_the_slice_fails(self):
         def handle_request(request: httpx2.Request) -> httpx2.Response:
@@ -1349,7 +1346,14 @@ class TestXCOMOperations:
 
         assert ctx.value.response.status_code == 403
 
-    def test_xcom_get_explicit_map_index_does_not_read_the_slice(self):
+    @pytest.mark.parametrize(
+        "kwargs",
+        [
+            pytest.param({"map_index": -1}, id="explicit-map-index"),
+            pytest.param({"include_prior_dates": True}, id="prior-dates"),
+        ],
+    )
+    def test_xcom_get_does_not_read_the_slice(self, kwargs):
         requests = []
 
         def handle_request(request: httpx2.Request) -> httpx2.Response:
@@ -1360,9 +1364,7 @@ class TestXCOMOperations:
             )
 
         client = make_client(transport=httpx2.MockTransport(handle_request))
-        result = client.xcoms.get(
-            dag_id="dag_id", run_id="run_id", task_id="task_id", key="key", map_index=-1
-        )
+        result = client.xcoms.get(dag_id="dag_id", run_id="run_id", task_id="task_id", key="key", **kwargs)
 
         assert result == XComResponse(key="key", value=None)
         assert len(requests) == 1

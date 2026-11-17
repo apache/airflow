@@ -671,8 +671,10 @@ class XComOperations:
         """
         Get a XCom value from the API server.
 
-        Any *map_index* is sent as given. An omitted one reads the task's result: its value, or for a
-        mapped task the values of all its instances, as a slice response.
+        Any *map_index* is sent as given. An omitted one reads the task's
+        result: its value, or for a mapped task the values of all its
+        instances, as a slice response. With *include_prior_dates*, a mapped
+        task reads as not found.
         """
         params: dict[str, str | int] = {}
         if previous_iteration:
@@ -728,8 +730,10 @@ class XComOperations:
         This is for a server that reads map index -1 for an omitted map index,
         and so finds nothing for a mapped task. A server that resolves it by
         how the task is defined never answers a mapped task as not found.
+        A read with *include_prior_dates* is left not found, since the slice
+        mixes earlier runs' values.
         """
-        if map_index is not None:
+        if map_index is not None or include_prior_dates:
             return None
         response = self.get_sequence_slice(
             dag_id,
@@ -739,7 +743,6 @@ class XComOperations:
             None,
             None,
             None,
-            include_prior_dates,
             previous_iteration=previous_iteration,
         )
         return response if response.root else None  # Empty may also be an unmapped task.

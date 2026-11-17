@@ -593,8 +593,9 @@ class RuntimeTaskInstance(TaskInstance):
 
         Setting ``map_indexes`` to *None* pulls the task's result: the XCom of a
         non-mapped task, or for a mapped task the XComs of all its instances as a
-        list (*None* instead of an empty list on Airflow 3.4). A map index the
-        task has no instance at matches no XCom.
+        list (*None* instead of an empty list on Airflow 3.4). With
+        ``include_prior_dates``, a mapped task matches no XCom. A map index the
+        task has no instance at matches no XCom either.
 
         In either case, ``default`` (*None* if not specified) is returned if no
         matching XComs are found.
