@@ -671,6 +671,13 @@ def is_worktree_isolation_enabled() -> bool:
     return not (get_shared_build_cache_path() / SUPPRESS_WORKTREE_ISOLATION_FILE).exists()
 
 
+ENABLE_PODMAN_FILE = "enable_podman"
+
+
+def is_podman_enabled() -> bool:
+    return (get_shared_build_cache_path() / ENABLE_PODMAN_FILE).exists()
+
+
 def get_isolated_worktree_path() -> Path | None:
     """
     Return the path of the linked worktree that owns this checkout's Docker resources.
