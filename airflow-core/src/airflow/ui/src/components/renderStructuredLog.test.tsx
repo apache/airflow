@@ -204,6 +204,20 @@ describe("extractTIContext", () => {
       dag_id: "my_dag",
     });
   });
+
+  it("collects fields bound after the first TI record, keeping the earliest value", () => {
+    const lines = [
+      { dag_id: "my_dag", event: "starting", task_id: "t1", ti_id: "abc-123" },
+      { dag_id: "other_dag", dag_tags: ["team:a"], event: "running" },
+    ];
+
+    expect(extractTIContext(lines as never)).toEqual({
+      dag_id: "my_dag",
+      dag_tags: ["team:a"],
+      task_id: "t1",
+      ti_id: "abc-123",
+    });
+  });
 });
 
 describe("renderTIContextPreamble", () => {

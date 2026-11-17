@@ -175,15 +175,23 @@ const extractFromStructuredDatum = (
 export const extractTIContext = (
   data: TaskInstancesLogResponse["content"],
 ): Record<string, unknown> | undefined => {
+  const merged: Record<string, unknown> = {};
+
+  // dag_tags is bound after the TI identity fields, so they can first appear on different records.
   for (const datum of data) {
     const ctx = extractFromStructuredDatum(datum);
 
     if (ctx !== undefined) {
-      return ctx;
+      for (const [field, value] of Object.entries(ctx)) {
+        merged[field] ??= value;
+      }
+      if (Object.keys(merged).length === tiContextFields.length) {
+        break;
+      }
     }
   }
 
-  return undefined;
+  return Object.keys(merged).length > 0 ? merged : undefined;
 };
 
 const renderStructuredLogImpl = ({
