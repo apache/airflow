@@ -41,6 +41,7 @@ from airflow.triggers.base import TriggerEvent
 TRIGGER_PATH = "airflow.providers.cncf.kubernetes.triggers.kueue.{}"
 JOB_NAME = "job-test"
 NAMESPACE = "team-a"
+JOB_UID = "job-uid"
 POD_LABEL_SELECTOR = "batch.kubernetes.io/controller-uid=job-uid"
 TRIGGER_KWARGS = {
     "job_name": JOB_NAME,
@@ -62,7 +63,7 @@ def build_job(suspend: bool, condition: str | None = None, succeeded: int | None
         else []
     )
     return k8s.V1Job(
-        metadata=k8s.V1ObjectMeta(name=JOB_NAME, namespace=NAMESPACE),
+        metadata=k8s.V1ObjectMeta(name=JOB_NAME, namespace=NAMESPACE, uid=JOB_UID),
         spec=k8s.V1JobSpec(
             suspend=suspend,
             template=k8s.V1PodTemplateSpec(),
@@ -73,9 +74,22 @@ def build_job(suspend: bool, condition: str | None = None, succeeded: int | None
 
 
 def build_pod(
-    name: str, base: str | None = None, sidecar: str | None = None, phase: str = "Running"
+    name: str,
+    base: str | None = None,
+    sidecar: str | None = None,
+    phase: str = "Running",
+    owner_uid: str | None = JOB_UID,
 ) -> k8s.V1Pod:
-    """Build a pod of the Job, with its base and XCom sidecar containers "running", "terminated" or None."""
+    """
+    Build a pod of the Job, with its base and XCom sidecar containers "running", "terminated" or None.
+
+    ``owner_uid`` is the uid of the Job that owns the pod, None for a pod without owner.
+    """
+    owner_references = (
+        [k8s.V1OwnerReference(api_version="batch/v1", kind="Job", name=JOB_NAME, uid=owner_uid)]
+        if owner_uid
+        else None
+    )
     statuses = [
         k8s.V1ContainerStatus(
             name=container_name,
@@ -96,6 +110,7 @@ def build_pod(
             name=name,
             namespace=NAMESPACE,
             labels={"try_number": "1", "batch.kubernetes.io/controller-uid": "job-uid"},
+            owner_references=owner_references,
         ),
         status=k8s.V1PodStatus(phase=phase, container_statuses=statuses),
     )
@@ -208,8 +223,23 @@ def test_list_job_pods_retries_transient_api_errors():
     pods = [build_pod("pod")]
     client.list_namespaced_pod.side_effect = [ApiException(status=503), k8s.V1PodList(items=pods)]
 
-    assert list_job_pods(client, NAMESPACE, POD_LABEL_SELECTOR) == pods
+    assert list_job_pods(client, NAMESPACE, POD_LABEL_SELECTOR, JOB_UID) == pods
     assert client.list_namespaced_pod.call_count == 2
+
+
+def test_list_job_pods_keeps_only_pods_owned_by_the_job():
+    """
+    With manualSelector, a selector that is not unique may also match the pods of other Jobs, or
+    orphan pods the Job controller has not adopted yet.
+    """
+    client = mock.create_autospec(CoreV1Api, instance=True)
+    owned = build_pod("owned")
+    client.list_namespaced_pod.return_value = k8s.V1PodList(
+        items=[owned, build_pod("other-job", owner_uid="other-job-uid"), build_pod("orphan", owner_uid=None)]
+    )
+
+    assert list_job_pods(client, NAMESPACE, POD_LABEL_SELECTOR, JOB_UID) == [owned]
+    client.list_namespaced_pod.assert_called_once_with(namespace=NAMESPACE, label_selector=POD_LABEL_SELECTOR)
 
 
 class TestKubernetesKueueJobTrigger:

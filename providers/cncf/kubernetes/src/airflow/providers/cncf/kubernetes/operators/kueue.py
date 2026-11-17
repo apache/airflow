@@ -225,7 +225,12 @@ class KubernetesStartKueueJobOperator(KubernetesJobOperator):
             return super().execute_complete(context, event, **kwargs)
         # The pods found before a preemption by Kueue were deleted: read the ones the Job has now
         pods = sorted(
-            list_job_pods(self.client, event["namespace"], event["pod_label_selector"]),
+            list_job_pods(
+                self.client,
+                event["namespace"],
+                event["pod_label_selector"],
+                event["job"]["metadata"]["uid"],
+            ),
             key=lambda pod: pod.metadata.name,
         )
         for pod in pods:

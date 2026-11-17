@@ -121,9 +121,15 @@ def get_succeeded_pod_xcoms(pods: Iterable[k8s.V1Pod], xcom_results: dict[str, s
 
 
 @generic_api_retry
-def list_job_pods(client: CoreV1Api, namespace: str, label_selector: str) -> list[k8s.V1Pod]:
-    """Return the pods the Job has now, selected by ``build_pod_label_selector``."""
-    return client.list_namespaced_pod(namespace=namespace, label_selector=label_selector).items
+def list_job_pods(client: CoreV1Api, namespace: str, label_selector: str, job_uid: str) -> list[k8s.V1Pod]:
+    """
+    Return the pods the Job has now: those matched by ``build_pod_label_selector`` that the Job owns.
+
+    With ``manualSelector``, the selector may also match the pods of other Jobs, such as the same task
+    in another Dag run; the Job controller tells them apart by owner too.
+    """
+    pods = client.list_namespaced_pod(namespace=namespace, label_selector=label_selector).items
+    return [pod for pod in pods if any(owner.uid == job_uid for owner in pod.metadata.owner_references or [])]
 
 
 @generic_api_retry
@@ -151,7 +157,7 @@ def collect_xcom_results(
     Reading the XCom also stops the XCom sidecar: until then the pod, and so the Job, cannot finish.
     Pods already read are skipped, so this is called at each poll.
     """
-    for pod in list_job_pods(client, job.metadata.namespace, build_pod_label_selector(job)):
+    for pod in list_job_pods(client, job.metadata.namespace, build_pod_label_selector(job), job.metadata.uid):
         if (
             pod.metadata.name in xcom_results
             or not container_is_terminated(pod, base_container_name)

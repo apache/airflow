@@ -423,11 +423,12 @@ class TestKubernetesStartKueueJobOperatorWait:
             [
                 build_pod("succeeded", base="terminated", phase="Succeeded"),
                 build_pod("failed", base="terminated", phase="Failed"),
+                build_pod("other-job", base="terminated", phase="Succeeded", owner_uid="other-job-uid"),
             ]
         )
         event = build_job_event(
             build_job(False, "Complete", succeeded=1),
-            {"succeeded": '{"a": 1}', "failed": '{"b": 2}', "preempted": "3"},
+            {"succeeded": '{"a": 1}', "failed": '{"b": 2}', "preempted": "3", "other-job": '{"c": 3}'},
         )
 
         result = self.build_operator(do_xcom_push=True, unwrap_single=False).execute_complete(
