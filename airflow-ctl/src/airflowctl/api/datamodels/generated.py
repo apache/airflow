@@ -519,6 +519,13 @@ class DAGRunClearBody(BaseModel):
             title="Run On Latest Version",
         ),
     ] = None
+    keep_task_state: Annotated[
+        bool | None,
+        Field(
+            description="Keep the task state store entries of the cleared task instances so the next attempt resumes from them. By default they are discarded, so the task starts over.",
+            title="Keep Task State",
+        ),
+    ] = False
     note: Annotated[Note | None, Field(title="Note")] = None
 
 
@@ -2177,6 +2184,13 @@ class BulkDAGRunClearBody(BaseModel):
             title="Run On Latest Version",
         ),
     ] = None
+    keep_task_state: Annotated[
+        bool | None,
+        Field(
+            description="Keep the task state store entries of the cleared task instances so the next attempt resumes from them. By default they are discarded, so the task starts over.",
+            title="Keep Task State",
+        ),
+    ] = False
     note: Annotated[Note | None, Field(title="Note")] = None
     dag_runs: Annotated[list[BulkDAGRunBody] | None, Field(title="Dag Runs")] = None
 
