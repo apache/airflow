@@ -22,6 +22,7 @@ import datetime
 import logging
 import os
 import re
+import threading
 import time
 from collections import Counter, deque
 from collections.abc import Callable, Generator, Iterator
@@ -41,13 +42,14 @@ import pytest
 import time_machine
 from sqlalchemy import Delete, delete, event as sa_event, func, inspect, select, text, update
 from sqlalchemy.dialects import mysql
-from sqlalchemy.exc import IntegrityError, InvalidRequestError
+from sqlalchemy.exc import IntegrityError, InvalidRequestError, OperationalError
 from sqlalchemy.orm import joinedload
 
 from airflow import settings
 from airflow._shared.module_loading import qualname
 from airflow._shared.observability.metrics.base_stats_logger import StatsLogger
 from airflow._shared.timezones import timezone
+from airflow.api.common.delete_dag import delete_dag
 from airflow.api_fastapi.auth.tokens import JWTGenerator
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import TaskInstance as TIDataModel
 from airflow.assets.manager import AssetManager
@@ -67,7 +69,7 @@ from airflow.executors.executor_constants import MOCK_EXECUTOR
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.executors.executor_utils import ExecutorName
 from airflow.executors.local_executor import LocalExecutor
-from airflow.executors.workloads import WorkloadType
+from airflow.executors.workloads import ExecuteTask, WorkloadType
 from airflow.executors.workloads.types import TaskInstanceUuid
 from airflow.jobs.job import Job, run_job
 from airflow.jobs.scheduler_job_runner import (
@@ -102,7 +104,7 @@ from airflow.models.dagwarning import DagWarning
 from airflow.models.db_callback_request import DbCallbackRequest
 from airflow.models.deadline import Deadline
 from airflow.models.deadline_alert import DeadlineAlert
-from airflow.models.dynamic_region import DynamicRegion
+from airflow.models.dynamic_region import SENTINEL_REGION_ID, DynamicRegion
 from airflow.models.hitl import HITLDetail
 from airflow.models.log import Log, resolve_team_name
 from airflow.models.pool import Pool, PoolStats
@@ -167,8 +169,9 @@ from airflow.timetables.simple import (
 )
 from airflow.triggers.base import AssetTriggerEvent, TriggerEvent
 from airflow.utils.event_scheduler import EventScheduler
+from airflow.utils.log.task_log_address import prepare_task_log_contexts
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
-from airflow.utils.sqlalchemy import CommitProhibitorGuard, with_row_locks
+from airflow.utils.sqlalchemy import CommitProhibitorGuard, get_dialect_name, with_row_locks
 from airflow.utils.state import CallbackState, DagRunState, DagSchedulingState, State, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
@@ -402,6 +405,13 @@ def _is_waiting_for_lock(waiter_id: int, blocker_id: int) -> bool:
             "WHERE trx_mysql_thread_id = :waiter AND trx_state = 'LOCK WAIT'"
         )
         return bool(probe.execute(waiting, {"waiter": waiter_id}).scalar())
+
+
+def _queue_and_enqueue(runner: SchedulerJobRunner, session: Session) -> int:
+    """Queue task instances and enqueue their workloads in one transaction, without the commit in between."""
+    queued_tis = runner._critical_section_queue_task_instances(session=session)
+    runner._enqueue_workloads(queued_tis, session=session)
+    return len(queued_tis)
 
 
 def assign_executor_to_team(executor: MagicMock, team_name: str) -> None:
@@ -2058,7 +2068,7 @@ class TestSchedulerJob:
         (ti1,) = dr1.task_instances
         ti1.state = State.SCHEDULED
 
-        self.job_runner._critical_section_enqueue_task_instances(session)
+        _queue_and_enqueue(self.job_runner, session)
         session.flush()
         ti1.refresh_from_db(session=session)
         assert ti1.state == State.SCHEDULED
@@ -2077,7 +2087,7 @@ class TestSchedulerJob:
         session.flush()
 
         self.job_runner = SchedulerJobRunner(job=Job(), executors=[self.null_exec])
-        self.job_runner._critical_section_enqueue_task_instances(session)
+        _queue_and_enqueue(self.job_runner, session)
         session.flush()
 
         task_instance.refresh_from_db(session=session)
@@ -2197,7 +2207,7 @@ class TestSchedulerJob:
         session.flush()
         assert dr1.run_type == DagRunType.BACKFILL_JOB
 
-        self.job_runner._critical_section_enqueue_task_instances(session)
+        _queue_and_enqueue(self.job_runner, session)
         session.flush()
         ti1.refresh_from_db()
         assert ti1.state == TaskInstanceState.QUEUED
@@ -4575,7 +4585,7 @@ class TestSchedulerJob:
         ],
     )
     @pytest.mark.usefixtures("mock_executors")
-    def test_critical_section_enqueue_task_instances(self, task1_exec, task2_exec, dag_maker, session):
+    def test_critical_section_queue_task_instances(self, task1_exec, task2_exec, dag_maker, session):
         dag_id = "SchedulerJobTest.test_execute_task_instances"
         # important that len(tasks) is less than max_active_tasks
         # because before scheduler._execute_task_instances would only
@@ -4630,7 +4640,7 @@ class TestSchedulerJob:
 
         assert dr2.state == State.RUNNING
 
-        num_queued = self.job_runner._critical_section_enqueue_task_instances(session=session)
+        num_queued = _queue_and_enqueue(self.job_runner, session)
         assert num_queued == 3
 
         # check that max_active_tasks is respected
@@ -4648,8 +4658,528 @@ class TestSchedulerJob:
         assert dr2_counter[State.QUEUED] == 3
         assert dr2_counter[State.SCHEDULED] == 1
 
-        num_queued = self.job_runner._critical_section_enqueue_task_instances(session=session)
+        num_queued = _queue_and_enqueue(self.job_runner, session)
         assert num_queued == 0
+
+    @mock.patch.object(ExecuteTask, "make", autospec=True, wraps=ExecuteTask.make)
+    def test_workloads_are_built_after_the_queued_state_is_committed(self, mock_make, dag_maker, session):
+        with dag_maker(dag_id="build_after_commit", session=session):
+            EmptyOperator(task_id="t1")
+        dr = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED, session=session)
+        (ti,) = dr.get_task_instances(session=session)
+        ti.state = TaskInstanceState.SCHEDULED
+        job = Job()
+        session.add(job)
+        session.commit()
+        self.job_runner = SchedulerJobRunner(job=job, executors=[self.null_exec])
+        committed_states = []
+
+        def read_committed_state(ti, **kwargs):
+            # A separate connection only sees committed rows, and the same commit releases the lock.
+            with create_session(scoped=False) as other_session:
+                committed_states.append(
+                    other_session.scalar(select(TaskInstance.state).where(TaskInstance.id == ti.id))
+                )
+            return mock.DEFAULT
+
+        mock_make.side_effect = read_committed_state
+
+        assert self.job_runner._do_scheduling(session) == 1
+        assert committed_states == [TaskInstanceState.QUEUED]
+
+    @pytest.mark.parametrize(
+        ("error", "raised"),
+        [
+            pytest.param(RuntimeError("boom"), True, id="error"),
+            pytest.param(SystemExit(0), True, id="shutdown"),
+            pytest.param(
+                OperationalError("lock", params=None, orig=RuntimeError("55P03")),
+                False,
+                id="lock-not-available",
+            ),
+        ],
+    )
+    @mock.patch.object(ExecuteTask, "make", autospec=True, wraps=ExecuteTask.make)
+    def test_queued_task_instances_go_back_to_scheduled_when_enqueuing_fails(
+        self, mock_make, error, raised, dag_maker, session
+    ):
+        with dag_maker(dag_id="enqueue_fails", session=session):
+            EmptyOperator(task_id="t1")
+            EmptyOperator(task_id="t2")
+        dr = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED, session=session)
+        for ti in dr.get_task_instances(session=session):
+            ti.state = TaskInstanceState.SCHEDULED
+        job = Job()
+        session.add(job)
+        session.commit()
+        # Like CeleryExecutor: external_executor_id is set with the QUEUED state.
+        self.null_exec.pre_assigns_external_executor_id = True
+        self.job_runner = SchedulerJobRunner(job=job, executors=[self.null_exec])
+        # The first workload reaches the executor's queue before the second one fails.
+        mock_make.side_effect = [mock.DEFAULT, error]
+
+        if raised:
+            with pytest.raises(type(error)):
+                self.job_runner._do_scheduling(session)
+            # As create_session() does when the error leaves the scheduler loop.
+            session.rollback()
+        else:
+            assert self.job_runner._do_scheduling(session) == 0
+
+        assert mock_make.call_count == 2
+        assert not self.null_exec.executor_queues[WorkloadType.EXECUTE_TASK]
+        assert {
+            (ti.task_id, ti.state, ti.queued_by_job_id, ti.queued_dttm, ti.external_executor_id)
+            for ti in dr.get_task_instances(session=session)
+        } == {
+            ("t1", TaskInstanceState.SCHEDULED, None, None, None),
+            ("t2", TaskInstanceState.SCHEDULED, None, None, None),
+        }
+
+    @mock.patch.object(SchedulerJobRunner, "_reset_task_instances_to_scheduled", autospec=True)
+    @mock.patch.object(ExecuteTask, "make", autospec=True, wraps=ExecuteTask.make)
+    def test_failed_reset_keeps_the_workloads_and_raises_the_original_error(
+        self, mock_make, mock_reset, dag_maker, session
+    ):
+        with dag_maker(dag_id="reset_fails", session=session):
+            EmptyOperator(task_id="t1")
+            EmptyOperator(task_id="t2")
+        dr = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED, session=session)
+        for ti in dr.get_task_instances(session=session):
+            ti.state = TaskInstanceState.SCHEDULED
+        job = Job()
+        session.add(job)
+        session.commit()
+        self.job_runner = SchedulerJobRunner(job=job, executors=[self.null_exec])
+        mock_make.side_effect = [mock.DEFAULT, RuntimeError("boom")]
+        mock_reset.side_effect = RuntimeError("cannot reset")
+
+        with pytest.raises(RuntimeError, match="boom"):
+            self.job_runner._do_scheduling(session)
+        session.rollback()
+
+        mock_reset.assert_called_once()
+        # Still QUEUED by this scheduler: the workload already built is kept, to be sent as usual.
+        assert len(self.null_exec.executor_queues[WorkloadType.EXECUTE_TASK]) == 1
+        assert {ti.state for ti in dr.get_task_instances(session=session)} == {TaskInstanceState.QUEUED}
+
+    @pytest.mark.parametrize("raised", [True, False], ids=["duplicate-row", "lock-not-available"])
+    def test_batch_is_reset_when_flushing_the_executor_writes_fails(self, raised, dag_maker, session):
+        with dag_maker(dag_id="flush_fails", session=session):
+            EmptyOperator(task_id="t1")
+        dr = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED, session=session)
+        (ti,) = dr.get_task_instances(session=session)
+        ti.state = TaskInstanceState.SCHEDULED
+        job = Job()
+        session.add(job)
+        session.commit()
+        queue_workload = self.null_exec.queue_workload
+
+        def queue_workload_and_write(workload, session):
+            # Like the EdgeExecutor, which writes its edge_job rows here.
+            queue_workload(workload, session)
+            if raised:
+                session.add(Pool(pool="default_pool", slots=1, include_deferred=False))
+            else:
+                session.add(Log(event="queued"))
+
+                def lock_not_available(*args, **kwargs):
+                    raise OperationalError("flush", params=None, orig=RuntimeError("55P03"))
+
+                sa_event.listen(session, "before_flush", lock_not_available, once=True)
+
+        self.null_exec.queue_workload = queue_workload_and_write
+        self.job_runner = SchedulerJobRunner(job=job, executors=[self.null_exec])
+
+        if raised:
+            with pytest.raises(IntegrityError):
+                self.job_runner._do_scheduling(session)
+            session.rollback()
+        else:
+            assert self.job_runner._do_scheduling(session) == 0
+
+        assert dr.get_task_instance("t1", session=session).state == TaskInstanceState.SCHEDULED
+        assert not self.null_exec.executor_queues[WorkloadType.EXECUTE_TASK]
+
+    @pytest.mark.parametrize("supports_uuid", [True, False], ids=["keyed-by-id", "keyed-by-coordinates"])
+    @mock.patch.object(ExecuteTask, "make", autospec=True, wraps=ExecuteTask.make)
+    def test_enqueuing_failure_discards_mapped_workloads_by_the_executor_key(
+        self, mock_make, supports_uuid, dag_maker, session
+    ):
+        class CoordinateKeyedExecutor(MockExecutor):
+            supports_task_instance_uuid = False
+
+        with dag_maker(dag_id="mapped_enqueue_fails", session=session):
+            MockOperator.partial(task_id="mapped").expand(arg1=[1, 2])
+        dr = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED, session=session)
+        dr.task_instance_scheduling_decisions(session=session)
+        for ti in dr.get_task_instances(session=session):
+            ti.state = TaskInstanceState.SCHEDULED
+        job = Job()
+        session.add(job)
+        session.commit()
+        executor = MockExecutor() if supports_uuid else CoordinateKeyedExecutor()
+        self.job_runner = SchedulerJobRunner(job=job, executors=[executor])
+        # The workload of the first mapped task instance is queued, keyed like the executor keys it.
+        mock_make.side_effect = [mock.DEFAULT, RuntimeError("boom")]
+
+        with pytest.raises(RuntimeError, match="boom"):
+            self.job_runner._do_scheduling(session)
+        session.rollback()
+
+        assert not executor.executor_queues[WorkloadType.EXECUTE_TASK]
+        assert {ti.state for ti in dr.get_task_instances(session=session)} == {TaskInstanceState.SCHEDULED}
+
+    @mock.patch.object(ExecuteTask, "make", autospec=True, wraps=ExecuteTask.make)
+    def test_enqueuing_failure_discards_the_workloads_of_every_executor(self, mock_make, dag_maker, session):
+        with dag_maker(dag_id="enqueue_fails_two_executors", session=session):
+            EmptyOperator(task_id="t1", executor="executor_b", priority_weight=2)
+            EmptyOperator(task_id="t2", executor="executor_a", priority_weight=1)
+        dr = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED, session=session)
+        for ti in dr.get_task_instances(session=session):
+            ti.state = TaskInstanceState.SCHEDULED
+            ti.external_executor_id = "previous-id"
+        job = Job()
+        session.add(job)
+        session.commit()
+        executor_a, executor_b = MockExecutor(), MockExecutor()
+        executor_a.name = ExecutorName(module_path="path.to.ExecutorA", alias="executor_a")
+        executor_b.name = ExecutorName(module_path="path.to.ExecutorB", alias="executor_b")
+        # Only executor_a's task instances get an external_executor_id with the QUEUED state.
+        executor_a.pre_assigns_external_executor_id = True
+        self.job_runner = SchedulerJobRunner(job=job, executors=[executor_a, executor_b])
+        # t1's workload reaches the queue of executor_b, the second executor, before t2's fails.
+        mock_make.side_effect = [mock.DEFAULT, RuntimeError("boom")]
+
+        with pytest.raises(RuntimeError, match="boom"):
+            self.job_runner._do_scheduling(session)
+        session.rollback()
+
+        assert [call.args[0].task_id for call in mock_make.call_args_list] == ["t1", "t2"]
+        assert not executor_a.executor_queues[WorkloadType.EXECUTE_TASK]
+        assert not executor_b.executor_queues[WorkloadType.EXECUTE_TASK]
+        assert {
+            (ti.task_id, ti.state, ti.external_executor_id) for ti in dr.get_task_instances(session=session)
+        } == {
+            ("t1", TaskInstanceState.SCHEDULED, "previous-id"),
+            ("t2", TaskInstanceState.SCHEDULED, None),
+        }
+
+    @mock.patch(
+        "airflow.jobs.scheduler_job_runner.prepare_task_log_contexts",
+        autospec=True,
+        wraps=prepare_task_log_contexts,
+        # A retry would succeed: only the first attempt fails.
+        side_effect=[KeyError("not a deleted region"), mock.DEFAULT],
+    )
+    def test_log_address_failure_not_caused_by_a_deletion_is_raised(self, mock_prepare, dag_maker, session):
+        with dag_maker(dag_id="log_address_fails", session=session):
+            EmptyOperator(task_id="t1")
+        dr = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED, session=session)
+        (ti,) = dr.get_task_instances(session=session)
+        ti.state = TaskInstanceState.SCHEDULED
+        job = Job()
+        session.add(job)
+        session.commit()
+        self.job_runner = SchedulerJobRunner(job=job, executors=[self.null_exec])
+
+        with pytest.raises(KeyError, match="not a deleted region"):
+            self.job_runner._do_scheduling(session)
+        session.rollback()
+
+        assert dr.get_task_instance("t1", session=session).state == TaskInstanceState.SCHEDULED
+
+    @staticmethod
+    def _schedule_dag_runs_with_a_mapped_task(dag_maker, session, num_runs: int = 2) -> list[DagRun]:
+        with dag_maker(dag_id="mapped_runs", session=session):
+            MockOperator.partial(task_id="mapped").expand(arg1=[1, 2])
+            EmptyOperator(task_id="plain")
+        dag_runs = [dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED, session=session)]
+        while len(dag_runs) < num_runs:
+            dag_runs.append(
+                dag_maker.create_dagrun_after(dag_runs[-1], run_type=DagRunType.SCHEDULED, session=session)
+            )
+        for dr in dag_runs:
+            dr.task_instance_scheduling_decisions(session=session)
+            for ti in dr.get_task_instances(session=session):
+                # Mapped task instances have a region, which their log address is read from.
+                assert (ti.region_id != SENTINEL_REGION_ID) == (ti.task_id == "mapped")
+                ti.state = TaskInstanceState.SCHEDULED
+        return dag_runs
+
+    @staticmethod
+    def _delete_dag_run(dr: DagRun) -> None:
+        with create_session(scoped=False) as other_session:
+            # Fail instead of hanging if the scheduler's transaction holds a lock this needs.
+            if get_dialect_name(other_session) == "postgresql":
+                other_session.execute(text("SET LOCAL lock_timeout = '5s'"))
+            other_session.execute(
+                delete(DagRun).where(DagRun.dag_id == dr.dag_id, DagRun.run_id == dr.run_id)
+            )
+
+    def _enqueued_task_instance_ids(self) -> set[UUID]:
+        assert self.null_exec is not None
+        return {
+            workload.ti.id
+            for workload in self.null_exec.executor_queues[WorkloadType.EXECUTE_TASK].values()
+            if isinstance(workload, ExecuteTask)
+        }
+
+    @mock.patch.object(
+        SchedulerJobRunner,
+        "_enqueue_workloads",
+        autospec=True,
+        wraps=SchedulerJobRunner._enqueue_workloads,
+    )
+    def test_task_instances_changed_after_they_are_queued_are_not_enqueued(
+        self, mock_enqueue, dag_maker, session
+    ):
+        deleted_run, kept_run = self._schedule_dag_runs_with_a_mapped_task(dag_maker, session)
+        job, other_job = Job(), Job()
+        session.add_all([job, other_job])
+        session.commit()
+        kept_tis = kept_run.get_task_instances(session=session)
+        marked_success = next(ti.id for ti in kept_tis if ti.task_id == "plain")
+        adopted, still_queued = sorted((ti.id for ti in kept_tis if ti.task_id == "mapped"), key=str)
+        self.job_runner = SchedulerJobRunner(job=job, executors=[self.null_exec])
+
+        def change_the_batch_after_the_commit(*args, **kwargs):
+            self._delete_dag_run(deleted_run)
+            with create_session(scoped=False) as other_session:
+                other_session.execute(
+                    update(TaskInstance)
+                    .where(TaskInstance.id == marked_success)
+                    .values(state=TaskInstanceState.SUCCESS)
+                )
+                other_session.execute(
+                    update(TaskInstance)
+                    .where(TaskInstance.id == adopted)
+                    .values(queued_by_job_id=other_job.id)
+                )
+            return mock.DEFAULT
+
+        mock_enqueue.side_effect = change_the_batch_after_the_commit
+
+        assert self.job_runner._do_scheduling(session) == 1
+        assert self._enqueued_task_instance_ids() == {still_queued}
+
+    @mock.patch(
+        "airflow.jobs.scheduler_job_runner.prepare_task_log_contexts",
+        autospec=True,
+        wraps=prepare_task_log_contexts,
+    )
+    @pytest.mark.parametrize("num_deleted", [1, 2], ids=["one-run-deleted", "another-deleted-on-retry"])
+    def test_task_instances_deleted_while_their_workloads_are_built_are_not_enqueued(
+        self, mock_prepare, num_deleted, dag_maker, session
+    ):
+        *deleted_runs, kept_run = self._schedule_dag_runs_with_a_mapped_task(
+            dag_maker, session, num_runs=num_deleted + 1
+        )
+        job = Job()
+        session.add(job)
+        session.commit()
+        kept_ids = {ti.id for ti in kept_run.get_task_instances(session=session)}
+        self.job_runner = SchedulerJobRunner(job=job, executors=[self.null_exec])
+
+        def delete_a_dag_run_on_each_attempt(*args, **kwargs):
+            if mock_prepare.call_count <= len(deleted_runs):
+                self._delete_dag_run(deleted_runs[mock_prepare.call_count - 1])
+            return mock.DEFAULT
+
+        mock_prepare.side_effect = delete_a_dag_run_on_each_attempt
+
+        assert self.job_runner._do_scheduling(session) == len(kept_ids)
+        assert self._enqueued_task_instance_ids() == kept_ids
+
+    @mock.patch(
+        "airflow.jobs.scheduler_job_runner.prepare_task_log_contexts",
+        autospec=True,
+        wraps=prepare_task_log_contexts,
+    )
+    def test_dag_deleted_while_workloads_are_built_with_a_pinned_bundle_version(
+        self, mock_prepare, dag_maker, session
+    ):
+        with dag_maker(dag_id="pinned_bundle", session=session):
+            EmptyOperator(task_id="t1")
+        dr = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED, session=session)
+        (ti,) = dr.get_task_instances(session=session)
+        ti.state = TaskInstanceState.SCHEDULED
+        dr.bundle_version = "v1"
+        dr.created_dag_version.bundle_version = "v1"
+        dr.created_dag_version.version_data = {"manifest": "v1"}
+        job = Job()
+        session.add(job)
+        session.commit()
+        self.job_runner = SchedulerJobRunner(job=job, executors=[self.null_exec])
+
+        def delete_dag_while_building(*args, **kwargs):
+            with create_session(scoped=False) as other_session:
+                delete_dag("pinned_bundle", session=other_session)
+            return mock.DEFAULT
+
+        mock_prepare.side_effect = delete_dag_while_building
+
+        # Everything ExecuteTask.make() reads was loaded with the batch, so building does not fail. The
+        # workload is sent, and the server rejects the start of the deleted task instance.
+        assert self.job_runner._do_scheduling(session) == 1
+        (workload,) = self.null_exec.executor_queues[WorkloadType.EXECUTE_TASK].values()
+        assert (workload.bundle_info.version, workload.bundle_info.version_data) == ("v1", {"manifest": "v1"})
+
+    @pytest.mark.parametrize(
+        "error",
+        [SystemExit(0), OperationalError("commit", params=None, orig=RuntimeError("connection lost"))],
+        ids=["shutdown", "connection-lost"],
+    )
+    def test_batch_is_not_put_back_after_its_final_commit(self, error, dag_maker, session):
+        with dag_maker(dag_id="fails_after_commit", session=session):
+            EmptyOperator(task_id="t1")
+        dr = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED, session=session)
+        (ti,) = dr.get_task_instances(session=session)
+        ti.state = TaskInstanceState.SCHEDULED
+        job = Job()
+        session.add(job)
+        session.commit()
+        self.job_runner = SchedulerJobRunner(job=job, executors=[self.null_exec])
+        queued_tis = self.job_runner._critical_section_queue_task_instances(session=session)
+        session.commit()
+        guard = mock.create_autospec(CommitProhibitorGuard, instance=True)
+
+        def commit_then_fail():
+            session.commit()
+            raise error
+
+        guard.commit.side_effect = commit_then_fail
+
+        with pytest.raises(type(error)):
+            self.job_runner._enqueue_workloads_or_reset(queued_tis, guard=guard, session=session)
+
+        assert dr.get_task_instance("t1", session=session).state == TaskInstanceState.QUEUED
+        assert len(self.null_exec.executor_queues[WorkloadType.EXECUTE_TASK]) == 1
+
+    @pytest.mark.backend("postgres", "mysql")
+    def test_enqueuing_does_not_wait_for_task_instance_row_locks(self, dag_maker, session):
+        with dag_maker(dag_id="locked_elsewhere", session=session):
+            EmptyOperator(task_id="t1")
+            EmptyOperator(task_id="t2")
+        dr = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED, session=session)
+        for ti in dr.get_task_instances(session=session):
+            ti.state = TaskInstanceState.SCHEDULED
+        job = Job()
+        session.add(job)
+        session.commit()
+        self.job_runner = SchedulerJobRunner(job=job, executors=[self.null_exec])
+        queued_tis = self.job_runner._critical_section_queue_task_instances(session=session)
+        session.commit()
+        mysql = get_dialect_name(session) == "mysql"
+
+        with create_session(scoped=False) as other_session:
+            # Another transaction holds the row lock of one task instance of the batch.
+            other_session.scalars(
+                select(TaskInstance.id).where(TaskInstance.id == queued_tis[0].id).with_for_update()
+            ).all()
+            # A wait would raise a lock error after a second instead of blocking the test.
+            if mysql:
+                session.execute(text("SET SESSION innodb_lock_wait_timeout = 1"))
+            else:
+                session.execute(text("SET LOCAL lock_timeout = '1s'"))
+            try:
+                assert self.job_runner._enqueue_workloads(queued_tis, session=session) == 2
+            finally:
+                if mysql:
+                    session.execute(text("SET SESSION innodb_lock_wait_timeout = DEFAULT"))
+                session.rollback()
+                other_session.rollback()
+
+        assert self._enqueued_task_instance_ids() == {ti.id for ti in queued_tis}
+
+    @pytest.mark.backend("postgres", "mysql")
+    @mock.patch.object(ExecuteTask, "make", autospec=True, wraps=ExecuteTask.make)
+    def test_reset_skips_a_task_instance_locked_elsewhere_and_keeps_its_workload(
+        self, mock_make, dag_maker, session
+    ):
+        with dag_maker(dag_id="reset_locked_elsewhere", session=session):
+            EmptyOperator(task_id="t1", priority_weight=2)
+            EmptyOperator(task_id="t2", priority_weight=1)
+        dr = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED, session=session)
+        for ti in dr.get_task_instances(session=session):
+            ti.state = TaskInstanceState.SCHEDULED
+        job = Job()
+        session.add(job)
+        session.commit()
+        t1_id = dr.get_task_instance("t1", session=session).id
+        self.job_runner = SchedulerJobRunner(job=job, executors=[self.null_exec])
+
+        with create_session(scoped=False) as other_session:
+            # If the reset waited for the lock, this releases it after 10 s instead of blocking the test,
+            # and t1 would be reset too.
+            release = threading.Timer(10, other_session.rollback)
+
+            def lock_t1_then_fail(ti, **kwargs):
+                if ti.task_id == "t1":
+                    return mock.DEFAULT
+                # Another transaction holds t1 while the batch is reset.
+                other_session.scalars(
+                    select(TaskInstance.id).where(TaskInstance.id == t1_id).with_for_update()
+                ).all()
+                release.start()
+                raise RuntimeError("boom")
+
+            mock_make.side_effect = lock_t1_then_fail
+            try:
+                with pytest.raises(RuntimeError, match="boom"):
+                    self.job_runner._do_scheduling(session)
+            finally:
+                release.cancel()
+                other_session.rollback()
+                session.rollback()
+
+        assert {ti.task_id: ti.state for ti in dr.get_task_instances(session=session)} == {
+            "t1": TaskInstanceState.QUEUED,
+            "t2": TaskInstanceState.SCHEDULED,
+        }
+        # t1 is still QUEUED by this scheduler: its workload is kept, to be sent as usual.
+        assert self._enqueued_task_instance_ids() == {t1_id}
+
+    @pytest.mark.parametrize(
+        "pre_assigns", [False, True], ids=["executor-id-kept", "pre-assigned-id-cleared"]
+    )
+    def test_reset_task_instances_to_scheduled_leaves_the_ones_that_changed(
+        self, pre_assigns, dag_maker, session
+    ):
+        with dag_maker(dag_id="reset_queued", session=session):
+            EmptyOperator(task_id="unchanged")
+            EmptyOperator(task_id="running")
+            EmptyOperator(task_id="queued_by_other_job")
+        dr = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED, session=session)
+        job, other_job = Job(), Job()
+        session.add_all([job, other_job])
+        session.flush()
+        tis = {ti.task_id: ti for ti in dr.get_task_instances(session=session)}
+        queued_dttm = timezone.utcnow()
+        for ti in tis.values():
+            ti.state = TaskInstanceState.QUEUED
+            ti.queued_dttm = queued_dttm
+            ti.queued_by_job_id = job.id
+            ti.external_executor_id = "executor-id"
+        tis["running"].state = TaskInstanceState.RUNNING
+        tis["queued_by_other_job"].queued_by_job_id = other_job.id
+        session.flush()
+        self.null_exec.pre_assigns_external_executor_id = pre_assigns
+        self.job_runner = SchedulerJobRunner(job=job, executors=[self.null_exec])
+
+        assert self.job_runner._reset_task_instances_to_scheduled(list(tis.values()), session=session) == {
+            tis["unchanged"].id
+        }
+
+        session.expire_all()
+        assert {
+            (ti.task_id, ti.state, ti.queued_by_job_id, ti.queued_dttm, ti.external_executor_id)
+            for ti in dr.get_task_instances(session=session)
+        } == {
+            ("unchanged", TaskInstanceState.SCHEDULED, None, None, None if pre_assigns else "executor-id"),
+            ("running", TaskInstanceState.RUNNING, job.id, queued_dttm, "executor-id"),
+            ("queued_by_other_job", TaskInstanceState.QUEUED, other_job.id, queued_dttm, "executor-id"),
+        }
 
     def test_execute_task_instances_limit_second_executor(self, dag_maker, mock_executors):
         dag_id = "SchedulerJobTest.test_execute_task_instances_limit"
@@ -4690,7 +5220,7 @@ class TestSchedulerJob:
             session.flush()
         scheduler_job.max_tis_per_query = 6
         # First pass we'll grab 6 of the 8 tasks (limited by max_tis_per_query)
-        res = self.job_runner._critical_section_enqueue_task_instances(session)
+        res = _queue_and_enqueue(self.job_runner, session)
         assert res == 6
         session.flush()
         for ti in tis1[:3] + tis2[:3]:
@@ -4701,7 +5231,7 @@ class TestSchedulerJob:
             assert ti.state == TaskInstanceState.SCHEDULED
 
         # The remaining TIs are queued
-        res = self.job_runner._critical_section_enqueue_task_instances(session)
+        res = _queue_and_enqueue(self.job_runner, session)
         assert res == 2
         session.flush()
 
@@ -4755,7 +5285,7 @@ class TestSchedulerJob:
             session.flush()
         scheduler_job.max_tis_per_query = 2
 
-        total_enqueued = self.job_runner._critical_section_enqueue_task_instances(session)
+        total_enqueued = _queue_and_enqueue(self.job_runner, session)
         assert total_enqueued == 2
 
     def test_execute_task_instances_limit_slots(self, dag_maker, mock_executors):
@@ -4800,12 +5330,12 @@ class TestSchedulerJob:
         # Check that we don't "overfill" an executor when the max tis per query is larger than slots
         # available. Of the 8 tasks returned by the query, the default executor will only take 2 and the
         # secondary executor will take 4 (since only 4 of the 8 TIs in the result will be for that executor)
-        res = self.job_runner._critical_section_enqueue_task_instances(session)
+        res = _queue_and_enqueue(self.job_runner, session)
         assert res == 6
 
         self.job_runner.executor.slots_available = 6  # The default executor has more slots freed now and
         # will take the other two TIs.
-        res = self.job_runner._critical_section_enqueue_task_instances(session)
+        res = _queue_and_enqueue(self.job_runner, session)
         assert res == 2
 
     def test_execute_task_instances_unlimited(self, dag_maker, mock_executor):
@@ -4843,7 +5373,7 @@ class TestSchedulerJob:
         self.job_runner.executor.parallelism = 32
         self.job_runner.executor.slots_available = 31
 
-        res = self.job_runner._critical_section_enqueue_task_instances(session)
+        res = _queue_and_enqueue(self.job_runner, session)
         # 20 dag runs * 2 tasks each = 40, but limited by number of slots available
         assert res == 31
         session.rollback()
@@ -4898,7 +5428,7 @@ class TestSchedulerJob:
             executor.slots_available = 31
 
         total_enqueued = 0
-        total_enqueued += self.job_runner._critical_section_enqueue_task_instances(session)
+        total_enqueued += _queue_and_enqueue(self.job_runner, session)
 
         if task1_exec != task2_exec:
             # Two executors will execute up to core parallelism

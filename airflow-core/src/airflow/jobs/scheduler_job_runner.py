@@ -1204,15 +1204,41 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             # transient (via make_transient) before ExecuteTask.make() reads
             # ti.dag_run.created_dag_version.version_data to ship the bundle manifest matching
             # the run's pinned bundle_version. Lazy loads on transient objects silently return
-            # None instead of raising DetachedInstanceError. Scope the SELECT to version_data
-            # (the PK is auto-included) so we read two columns rather than the full row.
+            # None instead of raising DetachedInstanceError. Scope the SELECT to version_data and
+            # bundle_version, the columns ExecuteTask.make() reads (the PK is auto-included), to
+            # avoid a lazy load after the commit, which fails once the Dag is deleted.
             .options(
                 joinedload(TI.dag_run)
                 .selectinload(DagRun.created_dag_version)
-                .load_only(DagVersion.version_data)
+                .load_only(DagVersion.version_data, DagVersion.bundle_version)
             )
             .limit(max_tis)
         )
+
+    def _build_pre_assigning_executor_filter(self) -> ColumnElement[bool] | bool:
+        """
+        Match the task instances routed to an executor that sets ``pre_assigns_external_executor_id``.
+
+        :return: ``True`` when every executor pre-assigns, ``False`` when none does, otherwise a condition
+            on ``TaskInstance.executor``.
+        """
+        pre_assign_executors = {e for e in self.executors if e.pre_assigns_external_executor_id}
+        if not pre_assign_executors:
+            return False
+        if pre_assign_executors == set(self.executors):
+            return True
+        opt_in_names: set[str] = set()
+        for exc in pre_assign_executors:
+            if exc.name:
+                if exc.name.alias:
+                    opt_in_names.add(exc.name.alias)
+                opt_in_names.add(exc.name.module_path)
+        conditions = []
+        if opt_in_names:
+            conditions.append(TI.executor.in_(opt_in_names))
+        if self.executor in pre_assign_executors:
+            conditions.append(TI.executor.is_(None))
+        return or_(*conditions) if conditions else False
 
     def _mark_task_instances_queued(self, executable_tis: list[TI], *, session: Session) -> list[TI]:
         """
@@ -1255,26 +1281,13 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             # pre_assigns_external_executor_id (e.g. CeleryExecutor uses it as the
             # Celery task_id passed to apply_async). In mixed-executor deployments,
             # a CASE expression limits the UUID to TIs targeting an opt-in executor.
-            pre_assign_executors = {e for e in self.executors if e.pre_assigns_external_executor_id}
-            if pre_assign_executors == set(self.executors):
-                # All executors opt in — unconditional UUID for every TI.
+            pre_assigning = self._build_pre_assigning_executor_filter()
+            if pre_assigning is True:
                 queued_values["external_executor_id"] = random_db_uuid()
-            elif pre_assign_executors:
-                # Mixed — only TIs routed to an opt-in executor get a UUID.
-                opt_in_names: set[str] = set()
-                default_opts_in = self.executor in pre_assign_executors
-                for exc in pre_assign_executors:
-                    if exc.name:
-                        if exc.name.alias:
-                            opt_in_names.add(exc.name.alias)
-                        opt_in_names.add(exc.name.module_path)
-                whens = []
-                if opt_in_names:
-                    whens.append((TI.executor.in_(opt_in_names), sql_cast(random_db_uuid(), Text)))
-                if default_opts_in:
-                    whens.append((TI.executor.is_(None), sql_cast(random_db_uuid(), Text)))
-                if whens:
-                    queued_values["external_executor_id"] = case(*whens, else_=TI.external_executor_id)
+            elif pre_assigning is not False:
+                queued_values["external_executor_id"] = case(
+                    (pre_assigning, sql_cast(random_db_uuid(), Text)), else_=TI.external_executor_id
+                )
 
             queued_update = (
                 update(TI)
@@ -1283,7 +1296,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 .execution_options(synchronize_session=False)
             )
 
-            if pre_assign_executors:
+            if pre_assigning is not False:
                 # Read the DB-generated UUIDs back onto the in-memory objects so the
                 # workload DTO carries them through to send_workload_to_executor (the
                 # objects are about to be detached by make_transient). Use RETURNING
@@ -1311,14 +1324,15 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         return executable_tis
 
     def _enqueue_task_instances_with_queued_state(
-        self, task_instances: list[TI], executor: BaseExecutor, session: Session
-    ) -> None:
+        self, task_instances: list[TI], executor: BaseExecutor, *, session: Session
+    ) -> int:
         """
         Enqueue task_instances which should have been set to queued with the executor.
 
         :param task_instances: TaskInstances to enqueue
         :param executor: The executor to enqueue tasks for
         :param session: The session object
+        :return: How many workloads were enqueued.
         """
 
         def _get_sentry_integration(executor: BaseExecutor) -> str:
@@ -1338,17 +1352,39 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 return ""
             return sentry_integration
 
-        log_contexts = prepare_task_log_contexts(
-            [
-                ti
-                for ti in task_instances
-                if ti.dag_version_id and ti.dag_run.state not in State.finished_dr_states
-            ],
-            session=session,
-            dag_bag=self.scheduler_dag_bag,
-            filename_template=conf.get("logging", "log_filename_template"),
-        )
+        log_tis = [
+            ti
+            for ti in task_instances
+            if ti.dag_version_id and ti.dag_run.state not in State.finished_dr_states
+        ]
+        while True:
+            try:
+                log_contexts = prepare_task_log_contexts(
+                    log_tis,
+                    session=session,
+                    dag_bag=self.scheduler_dag_bag,
+                    filename_template=conf.get("logging", "log_filename_template"),
+                )
+                break
+            except KeyError:
+                # Nothing locks the batch while its workloads are built, so a Dag run deleted meanwhile can
+                # take the regions a log address is read from: skip the task instances that are gone, and
+                # retry until none is missing (each pass drops at least one). A KeyError with nothing
+                # deleted is a bug and is raised. Deleted task instances without a region are not detected
+                # here: their workloads are sent, and the server rejects their start.
+                existing_ids = set(session.scalars(select(TI.id).where(TI.id.in_([ti.id for ti in log_tis]))))
+                if len(existing_ids) == len(log_tis):
+                    raise
+                deleted = [ti for ti in log_tis if ti.id not in existing_ids]
+                self.log.warning(
+                    "Not enqueuing %s task instances deleted while their workloads were built", len(deleted)
+                )
+                self.log.debug("Task instances deleted while their workloads were built: %s", deleted)
+                deleted_ids = {ti.id for ti in deleted}
+                task_instances = [ti for ti in task_instances if ti.id not in deleted_ids]
+                log_tis = [ti for ti in log_tis if ti.id in existing_ids]
         # actually enqueue them
+        num_enqueued = 0
         for ti in task_instances:
             if ti.dag_run.state in State.finished_dr_states:
                 ti.set_state(None, session=session)
@@ -1376,16 +1412,17 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 log_context=log_contexts[ti.id],
             )
             executor.queue_workload(workload, session=session)
+            num_enqueued += 1
+        return num_enqueued
 
-    def _critical_section_enqueue_task_instances(self, session: Session) -> int:
+    def _critical_section_queue_task_instances(self, *, session: Session) -> list[TI]:
         """
-        Enqueues TaskInstances for execution.
+        Pick TaskInstances to run and mark them QUEUED.
 
-        There are three steps:
+        There are two steps:
         1. Pick TIs by priority with the constraint that they are in the expected states
         and that we do not exceed max_active_runs or pool limits.
         2. Change the state for the TIs above atomically.
-        3. Enqueue the TIs in the executor.
 
         HA note: This function is a "critical section" meaning that only a single scheduler process can
         execute this function at the same time. This is achieved by doing
@@ -1394,8 +1431,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         etc.); DBs that don't support this (such as MariaDB or MySQL 5.x) the other schedulers will wait for
         the lock before continuing.
 
+        The lock is held until the caller commits. Build and enqueue the workloads only after that commit,
+        with ``_enqueue_workloads_or_reset``: building a workload signs a JWT for each task
+        instance, which with an asymmetric signing key costs up to a few milliseconds each.
+
         :param session:
-        :return: Number of task instance with state changed.
+        :return: The task instances moved to QUEUED.
         """
         # The user can either request a certain number of tis to schedule per main scheduler loop (default
         # is non-zero). If that value has been set to zero, that means use the value of core.parallelism (or
@@ -1411,15 +1452,43 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             max_tis = min(self.job.max_tis_per_query, self._parallelism - num_occupied_slots)
         if max_tis <= 0:
             self.log.debug("max_tis query size is less than or equal to zero. No query will be performed!")
-            return 0
+            return []
 
         pools, max_tis, starved_pools = self._acquire_pool_capacity(max_tis, session=session)
         if max_tis == 0:
-            return 0
-        queued_tis = self._select_task_instances_to_queue(max_tis, pools, starved_pools, session=session)
+            return []
+        return self._select_task_instances_to_queue(max_tis, pools, starved_pools, session=session)
 
+    def _enqueue_workloads(self, queued_tis: list[TI], *, session: Session) -> int:
+        """
+        Build the workloads of TaskInstances already committed as QUEUED and enqueue them in their executors.
+
+        :return: How many workloads were enqueued.
+        """
+        # Committing the QUEUED state released the row locks the selection took, so another transaction may
+        # have changed or deleted some of these task instances since. Building the workloads does not lock
+        # them again: it only builds workloads for the ones still queued by this scheduler.
+        still_queued_ids = set(
+            session.scalars(
+                select(TI.id).where(
+                    TI.id.in_([ti.id for ti in queued_tis]),
+                    TI.state == TaskInstanceState.QUEUED,
+                    TI.queued_by_job_id == self.job.id,
+                )
+            )
+        )
+        if len(still_queued_ids) < len(queued_tis):
+            skipped = [ti for ti in queued_tis if ti.id not in still_queued_ids]
+            self.log.info(
+                "Not enqueuing %s of %s task instances changed or deleted after they were queued",
+                len(skipped),
+                len(queued_tis),
+            )
+            self.log.debug("Task instances changed or deleted after they were queued: %s", skipped)
+            queued_tis = [ti for ti in queued_tis if ti.id in still_queued_ids]
         # Sort queued TIs to their respective executor
         executor_to_queued_tis = self._executor_to_workloads(queued_tis, session)
+        num_enqueued = 0
         for executor, queued_tis_per_executor in executor_to_queued_tis.items():
             self.log.info(
                 "Trying to enqueue tasks: %s for executor: %s",
@@ -1427,9 +1496,118 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 executor,
             )
 
-            self._enqueue_task_instances_with_queued_state(queued_tis_per_executor, executor, session=session)
+            num_enqueued += self._enqueue_task_instances_with_queued_state(
+                queued_tis_per_executor, executor, session=session
+            )
+        return num_enqueued
 
-        return len(queued_tis)
+    def _enqueue_workloads_or_reset(
+        self, queued_tis: list[TI], *, guard: CommitProhibitorGuard, session: Session
+    ) -> int:
+        """
+        Enqueue the workloads of TaskInstances committed as QUEUED, or reset them to SCHEDULED on failure.
+
+        A failure while building or enqueuing the workloads, or while flushing what the executors wrote,
+        resets the batch; a failure of the commit itself does not, since that commit may have succeeded.
+
+        :return: How many were enqueued; 0 when a lock error made it fail. Other errors are re-raised.
+        """
+        try:
+            num_enqueued = self._enqueue_workloads(queued_tis, session=session)
+            session.flush()
+        except BaseException as e:
+            self._reset_batch(queued_tis, error=e, guard=guard, session=session)
+            if isinstance(e, OperationalError) and is_lock_not_available_error(error=e):
+                return 0
+            raise
+        guard.commit()
+        return num_enqueued
+
+    def _reset_batch(
+        self, tis: list[TI], *, error: BaseException, guard: CommitProhibitorGuard, session: Session
+    ) -> None:
+        """Reset ``tis`` to SCHEDULED after ``error`` and drop the workloads of the ones reset, logging failures."""
+        # QUEUED is committed, so the batch would otherwise wait for task_queued_timeout. queue_workload()
+        # only buffers: executors send their queues on their next heartbeat, and anything else it writes is
+        # in this transaction, so nothing of the batch has run.
+        try:
+            session.rollback()
+            reset_ids = self._reset_task_instances_to_scheduled(tis, session=session)
+            guard.commit()
+        except Exception:
+            # The task instances stay QUEUED by this scheduler, so their workloads are kept and sent as usual.
+            self.log.exception(
+                "Failed to reset %s task instances to SCHEDULED after failing to enqueue their workloads",
+                len(tis),
+            )
+            with suppress(Exception):
+                session.rollback()
+            return
+        self._discard_unsent_workloads([ti for ti in tis if ti.id in reset_ids])
+        self.log.warning(
+            "Reset %s of %s task instances to SCHEDULED after failing to enqueue their workloads: %r",
+            len(reset_ids),
+            len(tis),
+            error,
+        )
+
+    def _discard_unsent_workloads(self, tis: list[TI]) -> None:
+        """Remove the workloads of ``tis`` from the executors' queues, before an executor heartbeat sends them."""
+        for executor in self.executors:
+            task_queue = executor.executor_queues[workloads.WorkloadType.EXECUTE_TASK]
+            for ti in tis:
+                task_queue.pop(executor.get_task_key(ti), None)
+
+    def _reset_task_instances_to_scheduled(self, tis: list[TI], *, session: Session) -> set[UUID]:
+        """
+        Reset TaskInstances this scheduler marked QUEUED to SCHEDULED, unless they changed since.
+
+        Clears what the QUEUED update set, including the ``external_executor_id`` pre-assigned for some
+        executors. Rows locked by another transaction are skipped instead of waited for: that transaction
+        is changing them, and what it leaves QUEUED is recovered by task_queued_timeout or adoption. This
+        needs row-level locking (the default): with ``[scheduler] use_row_level_locking = False``, which
+        is only for single-scheduler setups, the ``UPDATE`` can wait on rows another transaction holds.
+
+        :return: The ids of the task instances reset.
+        """
+        reset_ids = set(
+            session.scalars(
+                with_row_locks(
+                    select(TI.id).where(
+                        TI.id.in_([ti.id for ti in tis]),
+                        TI.state == TaskInstanceState.QUEUED,
+                        TI.queued_by_job_id == self.job.id,
+                    ),
+                    of=TI,
+                    session=session,
+                    skip_locked=True,
+                )
+            )
+        )
+        if len(reset_ids) < len(tis) and self.log.isEnabledFor(logging.DEBUG):
+            self.log.debug(
+                "Not resetting task instances changed or locked by another transaction: %s",
+                [ti for ti in tis if ti.id not in reset_ids],
+            )
+        if not reset_ids:
+            return reset_ids
+        values: dict[str, Any] = {
+            "state": TaskInstanceState.SCHEDULED,
+            "queued_dttm": None,
+            "queued_by_job_id": None,
+        }
+        pre_assigning = self._build_pre_assigning_executor_filter()
+        if pre_assigning is True:
+            values["external_executor_id"] = None
+        elif pre_assigning is not False:
+            values["external_executor_id"] = case((pre_assigning, None), else_=TI.external_executor_id)
+        session.execute(
+            update(TI)
+            .where(TI.id.in_(reset_ids))
+            .values(**values)
+            .execution_options(synchronize_session=False)
+        )
+        return reset_ids
 
     def _enqueue_executor_callbacks(self, session: Session) -> None:
         """
@@ -2298,10 +2476,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
           limit will allow more throughput for smaller DAGs but will likely slow down throughput for larger
           (>500 tasks.) DAGs
 
-        - Then, via a Critical Section (locking the rows of the Pool model) we queue tasks, and then send them
-          to the executor.
+        - Then, via a Critical Section (locking the rows of the Pool model) we queue tasks. Their workloads
+          are built and sent to the executors after the critical section.
 
-          See docs of _critical_section_enqueue_task_instances for more.
+          See docs of _critical_section_queue_task_instances for more.
 
         :return: Number of TIs enqueued in this iteration
         """
@@ -2350,17 +2528,17 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
             # Attempt to schedule even if some executors are full but not all.
             total_free_executor_slots = sum([executor.slots_available for executor in self.executors])
+            queued_tis: list[TI] = []
             if total_free_executor_slots <= 0:
                 # We know we can't do anything here, so don't even try!
                 self.log.debug("All executors are full, skipping critical section")
-                num_queued_tis = 0
             else:
                 try:
                     timer = stats.timer("scheduler.critical_section_duration")
                     timer.start()
 
-                    # Find any TIs in state SCHEDULED, try to QUEUE them (send it to the executors)
-                    num_queued_tis = self._critical_section_enqueue_task_instances(session=session)
+                    # Find any TIs in state SCHEDULED, try to QUEUE them
+                    queued_tis = self._critical_section_queue_task_instances(session=session)
 
                     # Make sure we only sent this metric if we obtained the lock, otherwise we'll skew the
                     # metric, way down
@@ -2375,9 +2553,13 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         return 0
                     raise
 
+            # Releases the critical-section lock.
             guard.commit()
 
-        return num_queued_tis
+            if queued_tis:
+                return self._enqueue_workloads_or_reset(queued_tis, guard=guard, session=session)
+
+        return 0
 
     def _warn_unreachable_asset_partition(
         self,
