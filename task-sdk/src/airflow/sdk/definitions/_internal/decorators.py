@@ -49,8 +49,7 @@ def remove_task_decorator(python_source: str, task_decorator_name: str) -> str:
     :param python_source: The python source code
     :param task_decorator_name: the decorator name
     """
-    # Imported here, not at module level: `bases/operator.py` imports this module, and libcst is slow
-    # to load.
+    # Imported here because `bases/operator.py` imports this module and libcst is slow to load.
     import libcst as cst
 
     class _TaskDecoratorRemover(cst.CSTTransformer):
