@@ -31,7 +31,7 @@ from fastapi.middleware.wsgi import WSGIMiddleware
 from flask import current_app, g
 from flask_appbuilder.const import AUTH_DB, AUTH_LDAP
 from sqlalchemy import select
-from sqlalchemy.exc import NoResultFound, SQLAlchemyError
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, joinedload
 
 from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX
@@ -310,24 +310,27 @@ class FabAuthManager(BaseAuthManager[User]):
     def session(self):
         return self.appbuilder.session
 
+    @staticmethod
+    def _validate_user(user: User | None, user_id: str) -> User:
+        if user is None:
+            raise ValueError(f"User with id {user_id} not found")
+        # A token stays syntactically valid until it expires, so the account it
+        # names has to be re-checked on every request rather than trusted from
+        # the signature alone. ``is_active`` reads the nullable ``active``
+        # column, and a null is treated as inactive here for the same reason it
+        # is on the password path in ``auth_user_db``.
+        if not user.is_active:
+            raise ValueError(f"User with id {user_id} is not active")
+        return user
+
     @cachedmethod(lambda self: self.cache, key=lambda _, token: int(token["sub"]))
     def deserialize_user(self, token: dict[str, Any]) -> User:
         user_id = int(token["sub"])
 
         def _fetch_user() -> User:
             with create_session() as session:
-                try:
-                    user = session.scalars(select(User).where(User.id == user_id)).one()
-                except NoResultFound:
-                    raise ValueError(f"User with id {token['sub']} not found")
-                # A token stays syntactically valid until it expires, so the account it
-                # names has to be re-checked on every request rather than trusted from
-                # the signature alone. ``is_active`` reads the nullable ``active``
-                # column, and a null is treated as inactive here for the same reason it
-                # is on the password path in ``auth_user_db``.
-                if not user.is_active:
-                    raise ValueError(f"User with id {token['sub']} is not active")
-                return user
+                user = session.scalars(select(User).where(User.id == user_id)).one_or_none()
+                return self._validate_user(user, token["sub"])
 
         try:
             return _fetch_user()
@@ -355,14 +358,8 @@ class FabAuthManager(BaseAuthManager[User]):
 
         async def _fetch_user() -> User:
             async with create_session_async() as session:
-                try:
-                    user = (await session.scalars(select(User).where(User.id == user_id))).one()
-                except NoResultFound:
-                    raise ValueError(f"User with id {token['sub']} not found")
-
-                if not user.is_active:
-                    raise ValueError(f"User with id {token['sub']} is not active")
-                return user
+                user = (await session.scalars(select(User).where(User.id == user_id))).one_or_none()
+                return self._validate_user(user, token["sub"])
 
         try:
             user = await _fetch_user()
