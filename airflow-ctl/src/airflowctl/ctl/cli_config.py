@@ -379,7 +379,7 @@ ARG_AUTH_TIMEOUT = Arg(
     type=positive_finite_float,
     default=None,
     dest="timeout",
-    help="With --sso, seconds to wait for the browser login to complete",
+    help="With --sso, seconds to wait for the browser login to complete (default: 300)",
 )
 
 # Dag Commands Args
