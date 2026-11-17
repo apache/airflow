@@ -207,9 +207,10 @@ credentials instead: `ASF_NEXUS_USERNAME`, `ASF_NEXUS_PASSWORD`, `SIGNING_KEY`,
 and `SIGNING_PASSWORD`. This is especially useful on e.g. CI.
 
 *NOTE:* We enable Gradle's configuration cache globally, but the staging tasks
-(`publishToApache`, `closeApacheStagingRepository`, `releaseApacheStagingRepository`)
-talk to the Nexus REST API and are not configuration-cache compatible. Hence
-the `--no-configuration-cache` flag on the release commands.
+(`publishToApache`, `closeApacheStagingRepository`, `findApacheStagingRepository`,
+`releaseApacheStagingRepository`) talk to the Nexus REST API and are not
+configuration-cache compatible. Hence the `--no-configuration-cache` flag on the
+release commands.
 
 ### Verify the upload
 
@@ -279,7 +280,8 @@ is the source-package URL you link in the vote.
 Send a `[VOTE]` email to `dev@airflow.apache.org` linking the git tag and
 commit, the source package in `dist/dev`, the closed Nexus staging repository,
 and the `KEYS` file. See "Vote email template" below for the exact fields to
-fill in, and "Verifying a release" for what to ask reviewers to check.
+fill in, and [`dev/README_RELEASE_LANGUAGE_SDKS.md`](../dev/README_RELEASE_LANGUAGE_SDKS.md)
+for what to ask reviewers to check.
 
 ### Vote email template
 
@@ -332,8 +334,9 @@ Please review and vote. The vote will remain open for at least 72 hours, until <
 
 Only votes from Airflow PMC members are binding, but everyone is welcome and encouraged to test the release and vote.
 
-The verification process can be found in the main repository:
-https://github.com/apache/airflow/tree/java-sdk/<VERSION>-rc<N>/java-sdk#verifying-a-release
+The verification process for PMC members and contributors can be found in:
+https://github.com/apache/airflow/blob/main/dev/README_RELEASE_LANGUAGE_SDKS.md#verify-the-release-candidate-by-pmc-members
+https://github.com/apache/airflow/blob/main/dev/README_RELEASE_LANGUAGE_SDKS.md#verify-the-release-candidate-by-contributors
 
 For more details on ASF release verification, see: https://www.apache.org/info/verification.html
 
@@ -345,196 +348,75 @@ Pre-send checklist:
 
 * Every staged artifact above resolves in the Nexus staging repository. Cross
   check against the BOM, not just this list from memory.
-* `Changes since rc<N-1>` and the vote deadline are filled in.
+* `Changes since rc<N-1>` and the vote deadline are filled in. Compute the
+  deadline rather than typing it, 72 hours from when you send the email:
+
+  ```bash
+  date -u -d '+72 hours' '+%Y-%m-%d %H:%M UTC'  # GNU date (Linux)
+  date -u -v+72H '+%Y-%m-%d %H:%M UTC'          # BSD date (macOS)
+  ```
+
+* The RC commit passes the
+  [commit check](../dev/README_RELEASE_LANGUAGE_SDKS.md#check-the-release-candidate-commit).
 * Run `grep '<' email.txt` on the rendered email and confirm **no output** —
   any match means a template placeholder (`<N>`, `<NNNN>`, `<YYYY-MM-DD ...>`,
   etc.) was left unfilled.
 
 ### Verifying a release
 
-Anyone on `dev@airflow.apache.org` can (and should) independently verify a
-candidate before voting. Below is the checklist a reviewer — or the release
-manager, before sending the vote — should run against the source package in
-`dist/dev`.
-
-1. **Checksum.** Confirm the published SHA-512 matches the downloaded tarball:
-
-   ```bash
-   sha512sum -c apache-airflow-java-sdk-<VERSION>-src.tar.gz.sha512
-   ```
-
-2. **Signature.** Import the `KEYS` file and verify the GPG signature:
-
-   ```bash
-   curl -O https://downloads.apache.org/airflow/KEYS
-   gpg --import KEYS
-   gpg --verify apache-airflow-java-sdk-<VERSION>-src.tar.gz.asc \
-       apache-airflow-java-sdk-<VERSION>-src.tar.gz
-   ```
-
-3. **Diff against the git tag.** Extract the tarball and compare it with a
-   clean checkout of the tag it claims to be built from. They should be
-   identical except for the files kept out of the source release via
-   `.gitattributes` `export-ignore`. The extracted top-level directory should be
-   `apache-airflow-java-sdk-<version>` without the `-src` suffix that only
-   appears in the tarball's own filename:
-
-   ```bash
-   tar xzf apache-airflow-java-sdk-<VERSION>-src.tar.gz
-   git clone --branch java-sdk/<VERSION>-rc<N> \
-     https://github.com/apache/airflow.git tag-checkout
-   diff -rq apache-airflow-java-sdk-<VERSION>/ tag-checkout/java-sdk/ \
-     | grep -vE ': (gradlew|gradlew\.bat|gradle-wrapper\.jar|scripts)$'
-   ```
-
-   Any remaining diff output is unexpected and should block the vote.
-
-4. **No binary files.** ASF source releases must not contain compiled code.
-   Scan for anything that isn't text:
-
-   ```bash
-   find apache-airflow-java-sdk-<VERSION>/ -type f \
-     -exec sh -c 'file -b "$1" | grep -qviE "text|json|xml|empty" && echo "$1"' _ {} \;
-   ```
-
-   This should print nothing.
-
-5. **Build from source.** Regenerate the Gradle wrapper from a locally installed
-   Gradle (see the *Upload the source package* section above):
-
-   ```bash
-   cd apache-airflow-java-sdk-<VERSION>
-   gradle wrapper \
-       --gradle-distribution-url <GRADLE-DISTRIBUTION-URL> \
-       --gradle-distribution-sha256-sum <GRADLE-DISTRIBUTION-SHA>
-   ./gradlew build
-   ```
-
-   Use values from `distributionUrl` and `distributionSha256Sum` in the bundled
-   `gradle/wrapper/gradle-wrapper.properties` to fill in
-   `<GRADLE-DISTRIBUTION-URL>` and `<GRADLE-DISTRIBUTION-SHA>`.
-
-6. **Staged-binary smoke test.** Resolve the staged Nexus artifacts from a
-   throwaway project to confirm they're actually consumable, following the
-   same pattern as the "Dry-run against a local repository" step: point a
-   `repositories {}` block at the staging repository URL, declare a dependency
-   on `org.apache.airflow:airflow-sdk-bom:<VERSION>`, and confirm the
-   transitive artifacts (including `airflow-sdk-jpl`) resolve and the example
-   bundle builds against them.
+The reviewer checklist for all language SDKs is in
+[`dev/README_RELEASE_LANGUAGE_SDKS.md`](../dev/README_RELEASE_LANGUAGE_SDKS.md#verify-the-release-candidate-by-pmc-members).
 
 ### After a successful vote
 
-Reply with a `[RESULT][VOTE]` tally, then:
+Follow [After a successful vote](../dev/README_RELEASE_LANGUAGE_SDKS.md#after-a-successful-vote)
+in the shared release doc. Its "Publish the binaries" step for Java is:
 
 1. **Release** the staging repository so the artifacts sync to Maven Central
-   (a few hours). Nothing is rebuilt or re-signed:
+   (a few hours). Nothing is rebuilt or re-signed.
+
+   The release usually runs in a new Gradle invocation, days after the one that
+   staged the artifacts, so Gradle no longer knows the staging repository ID.
+   Run `findApacheStagingRepository` first to look it up:
 
    ```bash
-   ./gradlew releaseApacheStagingRepository --no-configuration-cache
+   ./gradlew findApacheStagingRepository releaseApacheStagingRepository \
+     --no-configuration-cache \
+     -PprojectVersion=<VERSION>
    ```
 
-   (Or click *Release* on the repository in the Nexus UI.)
+   The lookup matches the repository description that staging set,
+   `org.apache.airflow:airflow-java-sdk:<VERSION>`. Pass `-PprojectVersion` so
+   the description matches even when the checkout is on a `-SNAPSHOT` version.
+   The lookup fails if more than one repository matches, so drop staging
+   repositories from failed candidates of the same version first.
 
-2. **Move** the source package from `dist/dev` to `dist/release`:
+   If the lookup does not work, click *Release* on the repository in the Nexus
+   UI, or promote it through the Nexus REST API with your Nexus token
+   (`curl` prompts for the password):
 
    ```bash
-   svn mv https://dist.apache.org/repos/dist/dev/airflow/java-sdk/<VERSION>-rc<N> \
-          https://dist.apache.org/repos/dist/release/airflow/java-sdk/<VERSION> \
-          -m "Release Apache Airflow Java SDK <VERSION>"
+   curl -fsS -u "<nexus-token-username>" -H "Content-Type: application/json" \
+     -X POST https://repository.apache.org/service/local/staging/bulk/promote \
+     -d '{"data":{"stagedRepositoryIds":["orgapacheairflow-<NNNN>"],"description":"Apache Airflow Java SDK <VERSION>"}}'
    ```
 
-3. **Tag** the final version on the same commit that was voted:
+2. **Drop** the staging repository once the release has reached Maven Central.
+   Nexus keeps a released repository listed under *Staging Repositories* until
+   it is dropped. Wait until the BOM metadata lists the new version as the
+   release:
 
    ```bash
-   git tag -s java-sdk/<VERSION> <voted-commit-hash> -m "Apache Airflow Java SDK <VERSION>"
-   git push upstream java-sdk/<VERSION>
+   curl -fsS https://repo1.maven.org/maven2/org/apache/airflow/airflow-sdk-bom/maven-metadata.xml \
+     | grep '<release>'
    ```
 
-   Keep the RC tag for traceability.
-
-4. Publish a **GitHub release**. Attach the **voted, signed** source artifacts.
-   From the directory holding the three signed files (e.g. `dist/release`):
-
-   ```bash
-   gh release create java-sdk/<VERSION> \
-     --repo apache/airflow \
-     --title "Apache Airflow Java SDK <VERSION>" \
-     --notes "See the Java SDK README for the features in this release." \
-     --verify-tag \
-     --prerelease \
-     apache-airflow-java-sdk-<VERSION>-src.tar.gz \
-     apache-airflow-java-sdk-<VERSION>-src.tar.gz.asc \
-     apache-airflow-java-sdk-<VERSION>-src.tar.gz.sha512
-   ```
-
-   Drop the `--prerelease` flag if this is not a prerelease.
-
-5. **Announce.** Wait ~1 hour after promoting so Maven Central has synced, then
-   send a plain-text `[ANNOUNCE]` email to `users@airflow.apache.org` (cc
-   `dev@airflow.apache.org`) using the "Announce email template" below, and
-   record the release (version + date) in the ASF Committee Report Helper:
-   <https://reporter.apache.org/addrelease.html?airflow>.
-
-6. Publish the **API docs.** Trigger the *Publish Docs to S3* workflow in
-   `apache/airflow` for the release tag:
-
-   ```bash
-   gh workflow run "Publish Docs to S3" --repo apache/airflow --ref main \
-     -f ref=java-sdk/<VERSION> \
-     -f include-docs=java-sdk \
-     -f destination=live
-   ```
-
-   Optionally use `destination=staging` first to check, then `live`. It may be
-   possible to `auto` instead, which resolves to `live` for a release tag.
-
-   Confirm that `https://airflow.apache.org/docs/java-sdk/stable/` resolves
-   (allow time for cache invalidation) and `/docs/java-sdk/` redirects to it.
-
-### Announce email template
-
-Send to `users@airflow.apache.org`, cc `dev@airflow.apache.org`.
-
-```text
-Subject: [ANNOUNCE] Apache Airflow Java SDK <VERSION> Released
-
-Dear Airflow community,
-
-I'm happy to announce that Apache Airflow Java SDK <VERSION> was just released.
-
-The signed source release can be downloaded from:
-https://downloads.apache.org/airflow/java-sdk/<VERSION>/
-
-We also published the convenience binaries to Maven Central, under group id
-org.apache.airflow. Import airflow-sdk-bom:<VERSION> to keep the module versions
-aligned.
-
-The API documentation is available at:
-https://airflow.apache.org/docs/java-sdk/<VERSION>/
-
-<Optional: one or two lines on notable changes; omit for the first release.>
-
-Thanks to everyone who contributed to and tested this release.
-
-Cheers,
-<your name>
-```
-
-Pre-send checklist:
-
-* The Maven Central sync has completed (the BOM resolves for a fresh consumer)
-  and the docs URL above resolves.
-* Fill or delete the optional changes line.
-* Run `grep '<' email.txt` on the rendered email and confirm **no output** --
-  any match means a placeholder (`<VERSION>`, `<your name>`, ...) was left
-  unfilled.
-
+   Then select the repository in the Nexus UI and click *Drop*.
 
 ### If the vote fails
 
-Close the vote, **drop** the staging repository in Nexus, remove the `dist/dev`
-candidate, fix the issue, and cut the next RC (`...-rc2`). The released version
-stays the same (e.g. `<VERSION>`); only the RC counter in the tag increments.
+Follow [If the vote fails](../dev/README_RELEASE_LANGUAGE_SDKS.md#if-the-vote-fails)
+in the shared release doc. For Java, also **drop** the staging repository in Nexus.
 
 ## Contributing
 

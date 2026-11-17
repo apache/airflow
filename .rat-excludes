@@ -15,6 +15,7 @@
 .eslintignore
 .eslintrc
 .oxfmtrc.json
+.oxlintrc.json
 .prettierignore
 .prettierrc
 .rat-excludes
@@ -213,6 +214,7 @@ www-hash.txt
 **/.rat-excludes
 **/.gitignore
 **/.oxfmtrc.json
+**/.oxlintrc.json
 **/.prettierignore
 **/.prettierrc
 **/.airflowignore

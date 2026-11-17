@@ -236,7 +236,7 @@ class Trigger(Base):
     def _encrypt_serialized_kwargs(serialized_kwargs: dict[str, Any]) -> str:
         import json
 
-        from airflow.models.crypto import get_fernet
+        from airflow.crypto import get_fernet
 
         return get_fernet().encrypt(json.dumps(serialized_kwargs).encode("utf-8")).decode("utf-8")
 
@@ -245,7 +245,7 @@ class Trigger(Base):
         """Decrypt the kwargs of the trigger."""
         import json
 
-        from airflow.models.crypto import get_fernet
+        from airflow.crypto import get_fernet
         from airflow.sdk.serde import deserialize
 
         # We weren't able to encrypt the kwargs in all migration paths,
@@ -271,7 +271,7 @@ class Trigger(Base):
 
     def rotate_fernet_key(self):
         """Encrypts data with a new key. See: :ref:`security/fernet`."""
-        from airflow.models.crypto import get_fernet
+        from airflow.crypto import get_fernet
 
         self.encrypted_kwargs = get_fernet().rotate(self.encrypted_kwargs.encode("utf-8")).decode("utf-8")
 
@@ -343,11 +343,13 @@ class Trigger(Base):
         if batch_size <= 0:
             raise ValueError("[triggerer] unreferenced_triggers_cleanup_batch_size must be at least 1")
 
-        # Update all task instances with trigger IDs that are not DEFERRED to remove them
+        # Update all task instances with trigger IDs that are not DEFERRED to remove them.
+        # A NULL state never satisfies ``!=`` in SQL, so match it explicitly. Clearing a task no longer
+        # leaves a NULL state with a ``trigger_id``, but rows written before 3.4 can still have one.
         session.execute(
             update(TaskInstance)
             .where(
-                TaskInstance.state != TaskInstanceState.DEFERRED,
+                or_(TaskInstance.state.is_(None), TaskInstance.state != TaskInstanceState.DEFERRED),
                 TaskInstance.trigger_id.is_not(None),
             )
             .values(trigger_id=None)
@@ -953,9 +955,17 @@ def _(event: BaseTaskEndEvent, *, task_instance: TaskInstance, session: Session)
 
     def _push_xcoms_if_necessary() -> None:
         """Pushes XComs to the database if they are provided."""
+        from airflow.models.xcom import XComModel
+
         if event.xcoms and callback_type != TaskInstanceState.UP_FOR_RETRY:
             for key, value in event.xcoms.items():
-                task_instance.xcom_push(key=key, value=value)
+                XComModel.set_for_attempt(
+                    task_instance_id=task_instance.id,
+                    key=key,
+                    value=value,
+                    serialize=False,
+                    session=session,
+                )
 
     # Send the callback before mutating task state so it reflects the retry-vs-terminal
     # decision derived above.

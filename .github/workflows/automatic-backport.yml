@@ -26,6 +26,7 @@ permissions:
 jobs:
   get-pr-info:
     name: "Get PR information"
+    if: github.repository == 'apache/airflow'
     runs-on: ubuntu-slim
     outputs:
       branches: ${{ steps.pr-info.outputs.branches }}

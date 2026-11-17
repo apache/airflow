@@ -64,6 +64,27 @@ class AssetProfile(BaseModel):
     type: Annotated[str, Field(title="Type")]
 
 
+class CallbackTerminalState(str, Enum):
+    """
+    Terminal states a callback can transition to from RUNNING.
+    """
+
+    SUCCESS = "success"
+    FAILED = "failed"
+
+
+class CallbackTerminalStatePayload(BaseModel):
+    """
+    Payload for transitioning a callback from RUNNING to a terminal state.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    state: CallbackTerminalState
+    output: Annotated[str | None, Field(title="Output")] = None
+
+
 class ConnectionResponse(BaseModel):
     """
     Connection schema for responses with fields that are needed for Runtime.
@@ -309,6 +330,20 @@ class DagWarningType(str, Enum):
 class EmailType(str, Enum):
     FAILURE = "failure"
     RETRY = "retry"
+
+
+class ExternalClearTargetPayload(BaseModel):
+    """
+    A task in another Dag that clearing the reporting task also clears, as resolved when it ran.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    dag_id: Annotated[str, Field(min_length=1, title="Dag Id")]
+    task_id: Annotated[str, Field(min_length=1, title="Task Id")]
+    logical_date: Annotated[AwareDatetime, Field(title="Logical Date")]
+    recursion_depth: Annotated[int, Field(gt=0, title="Recursion Depth")]
 
 
 class HITLUser(BaseModel):
@@ -651,6 +686,7 @@ class TISuccessStatePayload(BaseModel):
     outlet_events: Annotated[list[dict[str, Any]] | None, Field(title="Outlet Events")] = None
     rendered_map_index: Annotated[str | None, Field(title="Rendered Map Index")] = None
     loop_decision: LoopDecisionPayload | None = None
+    external_clear_target: ExternalClearTargetPayload | None = None
 
 
 class TITargetStatePayload(BaseModel):
