@@ -158,6 +158,11 @@ class TestDataFusionToolsetToolPrefixModelFacingText:
         tools = asyncio.run(ts.get_tools(ctx=MagicMock(spec=RunContext)))
         assert "Call lake_get_schema again" in tools["lake_get_schema"].tool_def.description
 
+    def test_get_schema_description_does_not_mention_comments(self):
+        ts = DataFusionToolset([_make_mock_datasource_config()])
+        tools = asyncio.run(ts.get_tools(ctx=MagicMock(spec=RunContext)))
+        assert "comment" not in tools["get_schema"].tool_def.description.casefold()
+
     def test_get_schema_hint_names_the_prefixed_tool(self):
         ts = DataFusionToolset([_make_mock_datasource_config()], tool_prefix="lake", max_columns=2)
         ts._engine = _make_mock_engine(
