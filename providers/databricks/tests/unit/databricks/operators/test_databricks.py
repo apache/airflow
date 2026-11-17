@@ -56,7 +56,7 @@ from airflow.providers.databricks.triggers.databricks import (
 )
 from airflow.providers.databricks.utils import databricks as utils
 
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_3_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_3_PLUS, AIRFLOW_V_3_5_PLUS
 
 DATE = "2017-04-20"
 DEFAULT_DATE = datetime(2024, 1, 1)
@@ -3667,6 +3667,7 @@ class TestDatabricksRunNowOperatorDurable:
         messages = [str(w.message) for w in recwarn if issubclass(w.category, UserWarning)]
         assert ("`resume_on_retry` has no effect on Airflow versions below 3.5." in messages) is warns
 
+    @pytest.mark.skipif(not AIRFLOW_V_3_5_PLUS, reason="resume_failed_job requires Airflow 3.5+")
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
     def test_repairs_stored_failed_run_instead_of_resubmitting(self, db_mock_class):
         op = DatabricksRunNowOperator(task_id=TASK_ID, job_id=JOB_ID)

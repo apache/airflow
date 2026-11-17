@@ -108,6 +108,7 @@ class ResumableJobMixin(ABC):
         On initial run: submits the job, persists the external ID to task_state_store, then polls.
 
         Behaviour on retry:
+
         - On retry with active job: skips submission, reconnects to the running job.
         - On retry with succeeded job: skips submission and polling, returns result immediately.
         - On retry with failed job: if ``resume_on_retry`` is set, asks ``resume_failed_job`` to resume

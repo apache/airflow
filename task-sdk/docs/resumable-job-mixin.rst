@@ -113,8 +113,8 @@ Resuming a failed job
 .. versionadded:: 3.5.0
 
 Some external systems can rerun a failed job from where it stopped, for example by repairing a
-Databricks run or redriving a Step Functions execution. To use that on retry, override the optional
-``resume_failed_job`` method:
+Databricks run or calling ``redrive_execution`` on a Step Functions execution. To use that on retry,
+override the optional ``resume_failed_job`` method:
 
 ``resume_failed_job(external_id, status, context)``
     Ask the external system to resume the failed job. Return the identifier to poll, which can be the
