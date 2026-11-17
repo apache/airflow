@@ -345,6 +345,11 @@ def _find_methods_handling_server_errors() -> set[str]:
 
 
 def test_every_client_method_handling_server_errors_has_a_contract_test():
+    """
+    Fail if a client method catches ``ServerResponseError`` but no test in this file calls it.
+
+    Such a method relies on the server's status codes or error body, so it needs a contract test.
+    """
     tree = ast.parse(Path(__file__).read_text())
     called = {
         f"{node.value.attr}.{node.attr}"
