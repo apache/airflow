@@ -847,8 +847,23 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             timer.start()
 
             try:
-                locked_query = with_row_locks(query, of=TI, session=session, skip_locked=True)
-                task_instances_to_examine = session.scalars(locked_query).all()
+                # The ranking subquery reads the statement's snapshot, but a locking read returns the latest
+                # version of the rows it locks, which can have left SCHEDULED since. The state is read as a
+                # column so that the check sees the locked row whatever TIs the session already holds. It is
+                # not checked in the outer WHERE: when the statistics show no SCHEDULED rows, PostgreSQL
+                # then joins through the ti_state index instead of the primary key.
+                locked_query = with_row_locks(
+                    query.add_columns(TI.state), of=TI, session=session, skip_locked=True
+                )
+                locked_rows = session.execute(locked_query).all()
+                task_instances_to_examine = [
+                    ti for ti, state in locked_rows if state == TaskInstanceState.SCHEDULED
+                ]
+
+                if skipped := len(locked_rows) - len(task_instances_to_examine):
+                    self.log.debug(
+                        "Skipped locked task instances that are no longer SCHEDULED", count=skipped
+                    )
 
                 if self.log.isEnabledFor(logging.DEBUG):
                     self.log.debug("Length of the tis to examine is %d", len(task_instances_to_examine))
