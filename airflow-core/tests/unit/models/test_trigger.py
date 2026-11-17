@@ -217,6 +217,28 @@ def test_clean_unused(session, dag_maker):
     assert {result.id for result in results} == expected_trigger_ids
 
 
+def test_clean_unused_releases_trigger_held_by_task_instance_without_state(session, dag_maker):
+    """A task instance with a NULL state is not waiting on its trigger, so the trigger must be cleaned."""
+    trigger = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
+    session.add(trigger)
+    session.flush()
+
+    with dag_maker(session=session):
+        EmptyOperator(task_id="cleared")
+
+    dr = dag_maker.create_dagrun(logical_date=timezone.utcnow())
+    (ti,) = dr.task_instances
+    ti.state = None
+    ti.trigger_id = trigger.id
+    session.commit()
+
+    Trigger.clean_unused()
+    session.expire_all()
+
+    assert session.scalar(select(func.count()).select_from(Trigger)) == 0
+    assert session.get(TaskInstance, ti.id).trigger_id is None
+
+
 @pytest.mark.parametrize("reference_type", ["task-instance", "asset-watcher", "callback"])
 def test_delete_unused_batch_rechecks_new_references(session, create_task_instance, reference_type):
     trigger = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
