@@ -67,7 +67,6 @@ def user_show_and_profile(fab_app):
             permissions=[
                 (permissions.ACTION_CAN_READ, permissions.RESOURCE_USER),
                 (permissions.ACTION_CAN_READ, permissions.RESOURCE_MY_PROFILE),
-                (permissions.ACTION_CAN_READ, permissions.RESOURCE_MY_PASSWORD),
                 (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
             ],
         )
