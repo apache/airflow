@@ -26,6 +26,11 @@ type Props = {
   readonly initialEntries: Array<string>;
 };
 
+/**
+ * Imports the route modules the entries resolve to, so a test renders them without waiting on a
+ * lazy import. Await it at the top of the test file: Vitest gives module collection no time limit,
+ * while a cold runner can take longer than a hook's to import a whole page.
+ */
 export const preloadAppRoutes = async (initialEntries: Array<string>) => {
   const routeLoaders = new Set<() => Promise<unknown>>();
 
