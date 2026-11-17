@@ -2290,6 +2290,8 @@ def _send_error_email_notification(
     context: Context,
     error: BaseException | str | None,
     log: Logger,
+    *,
+    raise_on_error: bool = False,
 ) -> None:
     """
     Send email notification for task errors through the configured email backend.
@@ -2302,6 +2304,9 @@ def _send_error_email_notification(
     Both the worker task-runner path (:func:`finalize`) and the DAG-processor callback path
     (``_execute_email_callbacks``) funnel through this function, so the resolved backend is used
     consistently regardless of how the task failed.
+
+    Routed email callbacks set ``raise_on_error`` to report delivery failures. Task finalization
+    keeps the default so notification failures do not interrupt reporting the task's own state.
     """
     if not task.email:
         return
@@ -2321,6 +2326,8 @@ def _send_error_email_notification(
                 "`apache-airflow-providers-smtp` is not installed. "
                 "Install this provider to enable email notifications."
             )
+            if raise_on_error:
+                raise
             return
         notifier_class = SmtpNotifier
 
@@ -2375,6 +2382,8 @@ def _send_error_email_notification(
         notifier(email_context)
     except Exception:
         log.exception("Failed to send email notification via %s", notifier_description)
+        if raise_on_error:
+            raise
 
 
 @detail_span("task.execute")
