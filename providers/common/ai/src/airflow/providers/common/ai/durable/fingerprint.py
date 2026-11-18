@@ -204,7 +204,7 @@ def _strip_part(part: Any) -> Any:
 
 
 def _strip_volatile(
-    messages_dump: list[dict[str, Any]], *, drop_response_model_id: bool = False
+    messages_dump: list[dict[str, Any]], *, exclude_response_model_id: bool = False
 ) -> list[dict[str, Any]]:
     """
     Drop per-attempt fields from a dumped message list.
@@ -217,7 +217,7 @@ def _strip_volatile(
     stripped = []
     for message in messages_dump:
         cleaned = {k: v for k, v in message.items() if k not in _VOLATILE_MESSAGE_KEYS}
-        if drop_response_model_id and cleaned.get("kind") == "response":
+        if exclude_response_model_id and cleaned.get("kind") == "response":
             cleaned.pop("model_id", None)
         if isinstance(cleaned.get("parts"), list):
             cleaned["parts"] = [_strip_part(part) for part in cleaned["parts"]]
@@ -562,6 +562,11 @@ def fingerprint_model_request(
     model invalidates the cached response; only each tool's ``capability_id`` and
     ``airflow`` metadata key, and ``deferred_capability_ids``, are left out.
 
+    ``exclude_response_model_id`` leaves the ``model_id`` of every response in the history
+    out of the hash. Pass ``True`` when the model stamps its own id on the responses it
+    puts in the history, replayed ones included, so that editing it does not change the
+    fingerprint of a step that already ran; leave it ``False`` otherwise.
+
     Returns ``None`` when the request cannot be fingerprinted. The journal then
     replays the step without verification, and only right after a step that
     replayed. Model settings, the tool definitions in the request parameters and
@@ -591,7 +596,7 @@ def fingerprint_model_request(
                 # history can hold ``***`` where the live one held the secret. Masking the
                 # history here as well makes both match.
                 "messages": _strip_volatile(
-                    mask_secrets(dumped), drop_response_model_id=exclude_response_model_id
+                    mask_secrets(dumped), exclude_response_model_id=exclude_response_model_id
                 ),
                 "settings": _render(_content_settings(model_settings)),
                 "params": _normalize_params(params),

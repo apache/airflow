@@ -852,6 +852,11 @@ def _find_unusable_answerer(response: ModelResponse, model: Model) -> str | None
         answerer = (
             member_model_id if member_conn_id is None else f"{member_model_id} on connection {member_conn_id}"
         )
+        if any(model_id == member_model_id for _, model_id in answerers):
+            return (
+                f"the model that answered this step, {answerer}, "
+                "is in the fallback chain only under a different connection"
+            )
         return f"the model that answered this step, {answerer}, is no longer in the fallback chain"
     return None
 

@@ -2110,11 +2110,59 @@ class TestFallbackChainEdits:
         assert {conn_id: calls[conn_id] for conn_id in calls_by_conn} == calls_by_conn
         reason = (
             "the model that answered this step, function:m on connection gateway, "
-            "is no longer in the fallback chain"
+            "is in the fallback chain only under a different connection"
         )
         assert [call.kwargs["reason"] for call in reject.call_args_list] == (
             [reason] if replayed == 0 else []
         )
+
+    @pytest.mark.parametrize(
+        ("first_conn_id", "second_conn_id", "answerer"),
+        [
+            pytest.param(None, "gateway", "function:m", id="connection added"),
+            pytest.param("gateway", None, "function:m on connection gateway", id="connection dropped"),
+        ],
+    )
+    @pytest.mark.asyncio
+    async def test_a_member_without_a_connection_id_matches_only_one_without(
+        self, memory_storage, first_conn_id, second_conn_id, answerer
+    ):
+        calls = Calls()
+
+        def build(members: list[tuple[str, str | None, bool]]) -> Agent[None, str]:
+            def member(name: str, conn_id: str | None, up: bool) -> MemberStampingModel:
+                def respond(messages: list[ModelMessage], info: AgentInfo) -> ModelResponse:
+                    calls.bump(name)
+                    if not up:
+                        raise ModelHTTPError(500, name)
+                    return ModelResponse(parts=[TextPart(f"{name} answered")])
+
+                return MemberStampingModel(FunctionModel(respond, model_name="m"), conn_id=conn_id)
+
+            return self.build_agent(
+                FallbackModel(*(member(*entry) for entry in members), fallback_on=(ModelAPIError,))
+            )
+
+        await attempt(memory_storage, build([("down", "down", False), ("first", first_conn_id, True)]))
+
+        journal = DurableJournal(memory_storage)
+        with (
+            journal_scope(journal),
+            mock.patch.object(DurableRun, "reject", autospec=True, side_effect=DurableRun.reject) as reject,
+        ):
+            result = await build([("second", second_conn_id, True)]).run("go")
+
+        assert result.output == "second answered"
+        assert journal.stats.replayed["model"] == 0
+        assert {name: calls[name] for name in ("down", "first", "second")} == {
+            "down": 1,
+            "first": 1,
+            "second": 1,
+        }
+        assert [call.kwargs["reason"] for call in reject.call_args_list] == [
+            f"the model that answered this step, {answerer}, "
+            "is in the fallback chain only under a different connection"
+        ]
 
     @pytest.mark.parametrize(
         ("second_attempt", "calls_of_c"),
@@ -2266,21 +2314,39 @@ class TestFallbackChainEdits:
         [history] = histories
         assert [message for message in history if isinstance(message, ModelResponse)] == []
 
+    @pytest.mark.parametrize(
+        ("build_model", "expected"),
+        [
+            pytest.param(
+                lambda: FunctionModel(
+                    lambda messages, info: ModelResponse(parts=[TextPart("hi")]), model_name="solo"
+                ),
+                [("function:solo", False)],
+                id="single model",
+            ),
+            pytest.param(
+                lambda: TestFallbackChainEdits.build_chain(
+                    Calls(), [("a", None), ("b", None)], up={"a", "b"}, stamped=False
+                ),
+                [("fallback:function,function:fallback:a,b", False)],
+                id="chain of unstamped members",
+            ),
+        ],
+    )
     @pytest.mark.asyncio
     @mock.patch(
         "airflow.providers.common.ai.durable.capability.fingerprint_model_request",
         autospec=True,
         side_effect=fingerprint_model_request,
     )
-    async def test_a_model_without_a_chain_keeps_its_fingerprint(
-        self, mock_fingerprint_model_request, memory_storage
+    async def test_a_model_without_a_stamped_chain_keeps_its_fingerprint(
+        self, mock_fingerprint_model_request, memory_storage, build_model, expected
     ):
-        agent = Agent(
-            FunctionModel(lambda messages, info: ModelResponse(parts=[TextPart("hi")]), model_name="solo"),
-            name="solo",
-            capabilities=[AirflowDurability()],
-        )
+        agent = Agent(build_model(), name="solo", capabilities=[AirflowDurability()])
 
         await attempt(memory_storage, agent)
 
-        assert [call.args[0] for call in mock_fingerprint_model_request.call_args_list] == ["function:solo"]
+        assert [
+            (call.args[0], call.kwargs["exclude_response_model_id"])
+            for call in mock_fingerprint_model_request.call_args_list
+        ] == expected

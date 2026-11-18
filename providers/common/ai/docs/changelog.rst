@@ -32,16 +32,16 @@ Changelog
   edited, as long as the connection that answered it is still in the chain and at least one
   fallback connection remains; with a single connection the hook passes the bare model
   instead of a chain, so every step runs live. A step answered by a connection that was
-  removed from the chain, or whose ``model`` changed, runs live. For a chain the hook builds,
-  the step also needs the connection that answered it to remain in the chain under the same
-  ID, so two connections serving the same model are told apart; renaming a connection runs its
-  steps live, while changing its host or credentials does not. A response the model left
-  suspended is resumed by pydantic-ai on the first connection in the chain that serves its
-  model, which need not be the one that answered it. The fingerprint of a chain request no
-  longer lists the connections, so the first retry after upgrading a task whose durable
-  journal holds steps recorded through a chain by an earlier version runs every step live,
-  tools included. A ``FallbackModel`` built outside the hook keeps the earlier behaviour: its
-  steps replay while the chain is unchanged, and run live once it is edited.
+  removed from the chain, or whose ``model`` changed, runs live. The step also needs the
+  connection that answered it to remain in the chain under the same ID, so two connections
+  serving the same model are told apart; renaming a connection runs its steps live, while
+  changing its host or credentials does not. A response the model left suspended is resumed
+  by pydantic-ai on the first connection in the chain that serves its model, which need not
+  be the one that answered it. The fingerprint of a chain request no longer lists the
+  connections, so the first retry after upgrading a task whose durable journal holds steps
+  recorded through a chain by an earlier version runs every step live, tools included. A
+  ``FallbackModel`` built outside the hook keeps the earlier behaviour: its steps replay
+  while the chain is unchanged, and run live once it is edited.
   See :doc:`recovery`.
 
 .. note::

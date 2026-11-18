@@ -152,7 +152,9 @@ by its ID, not by what it points at: renaming a connection runs the steps it ans
 live, while changing its host or credentials does not invalidate them. A response the
 model left suspended, such as an Anthropic ``pause_turn``, is resumed by pydantic-ai on
 the first connection in the chain that serves its model, which need not be the one that
-answered it.
+answered it. If that connection cannot continue it, the chain abandons the suspended
+response, tries to cancel its job on that connection (not the one that started it), and
+generates the turn again from the top of the chain.
 
 A ``FallbackModel`` built outside the hook, whose members do not record which one
 answered, keeps the earlier rule: its steps replay while the chain is unchanged and run
