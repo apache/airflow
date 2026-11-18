@@ -24,7 +24,7 @@ import pytest
 
 from airflow.dag_processing.loop_checks import normalize_loops
 from airflow.sdk import DAG, BaseOperator, task, task_group
-from airflow.sdk.definitions._internal.loop import create_loop
+from airflow.sdk.definitions._internal.loop import LoopGateOperator, create_loop
 from airflow.serialization.serialized_objects import DagSerialization
 
 
@@ -123,6 +123,11 @@ def _close_a_cycle_through_the_gate(data: dict) -> None:
             lambda data: _set_task_field(data, "body.__loop_gate", "task_type", "TypeScriptOperator"),
             "has to be serialized as LoopGateOperator, not TypeScriptOperator",
             id="gate-of-another-type",
+        ),
+        pytest.param(
+            lambda data: _set_task_field(data, "body.__loop_gate", "_is_empty", True),
+            "The gate 'body.__loop_gate' of loop 'body' cannot be empty",
+            id="empty-gate",
         ),
         pytest.param(
             lambda data: _set_task_field(data, "body.first", "task_type", "LoopGateOperator"),
@@ -234,6 +239,31 @@ def _serialize_mapped_gate() -> dict:
     return data
 
 
+def _serialize_gate_in_a_mapped_group() -> dict:
+    @task
+    def work(value):
+        return value
+
+    @task_group
+    def body():
+        @task_group
+        def inner(value):
+            work(value)
+
+        inner.expand(value=[1, 2])
+
+    with DAG("gate_in_mapped_group", schedule=None) as dag:
+        create_loop(body, max_iterations=2)
+    data = DagSerialization.to_dict(dag)
+    # Swap the roles, so the task in the mapped group is the gate and the loop is otherwise one core can run.
+    loop = data["dag"]["task_group"]["children"]["body"][1]["loop"]
+    loop["gate_task_id"], loop["terminal_task_id"] = "body.inner.work", "body.__loop_gate"
+    _set_task_field(data, "body.inner.work", "task_type", "LoopGateOperator")
+    _set_task_field(data, "body.__loop_gate", "task_type", "EmptyOperator")
+    _set_downstream(data, "body.inner.work", [])
+    return data
+
+
 def _serialize_nested_loop() -> dict:
     @task_group
     def inner():
@@ -241,15 +271,17 @@ def _serialize_nested_loop() -> dict:
 
     @task_group
     def outer():
-        create_loop(inner, max_iterations=2)
+        create_loop(inner, max_iterations=2) >> LoopGateOperator(task_id="gate")
 
     with DAG("nested", schedule=None) as dag:
         outer()
     data = DagSerialization.to_dict(dag)
-    outer_group = data["dag"]["task_group"]["children"]["outer"][1]
-    outer_group["loop"] = {
-        **outer_group["children"]["outer.inner"][1]["loop"],
+    # Python refuses to build this, so the outer loop is added as an SDK would have written it.
+    data["dag"]["task_group"]["children"]["outer"][1]["loop"] = {
         "max_iterations": 3,
+        "has_until": False,
+        "terminal_task_id": "outer.inner.__loop_gate",
+        "gate_task_id": "outer.gate",
     }
     return data
 
@@ -291,6 +323,11 @@ def _serialize_gate_outside_any_loop() -> dict:
             id="mapped-gate",
         ),
         pytest.param(
+            _serialize_gate_in_a_mapped_group,
+            "The gate 'body.inner.work' of loop 'body' has to be a direct child of the loop",
+            id="gate-in-a-mapped-group",
+        ),
+        pytest.param(
             _serialize_gate_outside_any_loop,
             "'alone' is serialized as LoopGateOperator but gates no loop",
             id="gate-in-a-dag-with-no-loop",
@@ -305,3 +342,25 @@ def _serialize_gate_outside_any_loop() -> dict:
 def test_a_loop_placement_core_cannot_run_is_refused(serialize, error):
     with pytest.raises(ValueError, match=re.escape(error)):
         _normalize(serialize())
+
+
+def test_a_mapped_task_can_expand_over_a_task_of_its_own_loop():
+    @task
+    def produce():
+        return [1]
+
+    @task
+    def consume(value):
+        return value
+
+    @task_group
+    def body():
+        consume.expand(value=produce())
+
+    with DAG("expand_inside", schedule=None) as dag:
+        create_loop(body, max_iterations=2)
+    data = DagSerialization.to_dict(dag)
+
+    _normalize(data)
+
+    assert _get_downstream(data)["body.consume"] == ["body.__loop_gate"]

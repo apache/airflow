@@ -208,7 +208,7 @@ type XComSequence interface {
 ## Consequences
 
 - **A fixed-count loop's gate only counts.** `Loop(3)` emits `has_until: false`, and its gate runs on
-  a worker and stops once `index` reaches `MaxIterations` (ADR-0017 decision 4).
+  a worker and ends the loop once `Index` reaches `MaxIterations` (ADR-0017 decision 4).
 - **The gate is an ordinary task.** `airflow.Until` takes `TaskOption`, so `airflow.TaskSpec{Queue: ...}`
   lands on it, and its task_id defaults to the Go function name under the group's prefix.
   `TaskSpec{TaskID: "accurate_enough"}` is how it gets a snake_case id, as for any task. A loop with

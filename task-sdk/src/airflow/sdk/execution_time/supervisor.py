@@ -3106,9 +3106,9 @@ def _redact_loop_decision(
     """
     Mask a loop gate's reason, then cut it to the byte limit, before it is stored and shown in the UI.
 
-    This process holds every value the task registered with ``MaskSecret``, so a gate in any language
-    is covered. Masking runs first, so a secret that crosses the limit is masked whole and no fragment
-    of it survives the cut.
+    The supervisor holds every value the task registered with ``MaskSecret``, so it masks the reason
+    of a gate written in any language. Masking runs first, so a secret that crosses the limit is masked
+    whole and no fragment of it survives the cut.
     """
     if decision is None or decision.reason is None:
         return decision

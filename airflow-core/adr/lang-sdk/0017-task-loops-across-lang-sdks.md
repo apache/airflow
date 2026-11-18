@@ -38,8 +38,8 @@ Proposed.
 ## Decision
 
 1. **Iteration creation stays in core for every language.** Regions, instance creation, rerun trajectories and the scope of every XCom read are core's. An SDK emits a loop group and runs one callable; it never creates an instance and never decides which iteration a read belongs to.
-2. **A loop is a task group with four more serialized fields** — `max_iterations`, `has_until`, `terminal_task_id` and `gate_task_id`. Core finds the gate by its operator name, `LoopGateOperator`, as it finds Python's, so every SDK serializes its gate with `task_type: "LoopGateOperator"` and core's gate handling stays as it is. This is the one exception to [ADR-0007](0007-taskflow-across-language-boundary.md) decision B: the name says what core does with the task, not which class runs it.
-3. **Loop validation and normalization belong to the Dag processor**, so every language gets the same errors: one terminal task, no nested loop, no loop inside a mapped task group, no `expand` over a body task from outside, and every body-to-outside edge rewired to leave from the gate. An SDK may repeat any check for earlier feedback; core's answer is the one that counts.
+2. **A loop is a task group with four more serialized fields**: `max_iterations`, `has_until`, `terminal_task_id` and `gate_task_id`. Core finds the gate by its task type, `LoopGateOperator`, as it finds Python's, so every SDK serializes its gate with `task_type: "LoopGateOperator"` and core's gate handling stays as it is. This is the one exception to [ADR-0007](0007-taskflow-across-language-boundary.md) decision B: the name says what core does with the task, not which class runs it.
+3. **Loop validation and normalization belong to the Dag processor**, so every language gets the same errors. It refuses a loop without exactly one terminal task, a nested loop, a loop inside a mapped task group, an `expand` over a body task from outside, a Dag result inside a loop, and a `LoopGateOperator` task that is no loop's gate. It also refuses a gate that is not typed `LoopGateOperator`, is mapped or empty, or sits anywhere but directly in its loop group, such as inside a mapped task group. It then rewires every body-to-outside edge to leave from the gate. An SDK may repeat any check for earlier feedback; core's answer is the one that counts.
 4. **A fixed-count loop's gate runs on a worker**, as Python's does. With `has_until: false` the SDK runs no callable and sends `stop` as `index >= max_iterations`, so the scheduler keeps no loop logic of its own.
 5. **The decision travels on `SucceedTask.loop_decision`**, which the supervisor schema already carries. An SDK sends `{stop, reason}`; core revalidates it and fails the gate when `stop` is false at `max_iterations`.
 6. **The loop context arrives on `TIRunContext.loop`** — `index`, `max_iterations`, `terminal_task_id`, `terminal_is_mapped` and the region fields. No SDK counts iterations or resolves a trajectory.
@@ -216,8 +216,8 @@ Nothing here is language-specific.
    `previous` is the existing XCom call with `previous_iteration: true`, and is absent at `index` 1.
    It is one accessor, not two: a mapped terminal makes it ADR-0016's sequence rather than a plain
    value, which is what Python's single `loop.previous` property does.
-3. On the gate, read this iteration's terminal result — one value, or ADR-0016's sequence when
-   `terminal_is_mapped` is true — and run `until`. A fixed-count gate reads nothing and decides
+3. On the gate, read this iteration's terminal result (one value, or ADR-0016's sequence when
+   `terminal_is_mapped` is true) and run `until`. A fixed-count gate reads nothing and decides
    `stop` as `index >= max_iterations`.
 4. Send the result on `SucceedTask.loop_decision`. A `stop` of false at `max_iterations` is core's to
    reject, so the SDK sends what the callable returned. A secret the reason might carry is registered

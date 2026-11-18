@@ -30,6 +30,7 @@ from airflow._shared.dagnode.cycle import detect_cycle
 from airflow.models.task_coordinates import LOOP_GATE_OPERATOR
 from airflow.serialization.definitions.mappedoperator import SerializedMappedOperator
 from airflow.serialization.definitions.taskgroup import SerializedLoopTaskGroup, SerializedMappedTaskGroup
+from airflow.serialization.enums import Encoding
 
 if TYPE_CHECKING:
     from airflow.serialization.definitions.dag import SerializedDAG
@@ -52,7 +53,7 @@ def normalize_loops(data: dict[str, Any], dag: SerializedDAG) -> None:
         _check_gates_are_in_their_loops(dag)
         return
     downstream = {
-        task["__var"]["task_id"]: set(task["__var"].get("downstream_task_ids", []))
+        task[Encoding.VAR]["task_id"]: set(task[Encoding.VAR].get("downstream_task_ids", []))
         for task in data["dag"]["tasks"]
     }
     members_by_loop = [(loop, _check_loop(loop, dag, downstream)) for loop in loops]
@@ -64,11 +65,11 @@ def normalize_loops(data: dict[str, Any], dag: SerializedDAG) -> None:
     if (task_id := detect_cycle(downstream, downstream.__getitem__)) is not None:
         raise ValueError(f"Making each loop's gate its only way out makes a cycle through {task_id!r}")
     for task in data["dag"]["tasks"]:
-        edges = downstream[task["__var"]["task_id"]]
+        edges = downstream[task[Encoding.VAR]["task_id"]]
         if edges:
-            task["__var"]["downstream_task_ids"] = sorted(edges)
+            task[Encoding.VAR]["downstream_task_ids"] = sorted(edges)
         else:
-            task["__var"].pop("downstream_task_ids", None)
+            task[Encoding.VAR].pop("downstream_task_ids", None)
 
 
 def _check_gates_are_in_their_loops(dag: SerializedDAG) -> None:
@@ -107,9 +108,17 @@ def _check_loop(
             f"The gate {loop.gate_task_id!r} of loop {loop.group_id!r} has to be serialized as "
             f"{LOOP_GATE_OPERATOR}, not {gate.task_type}"
         )
-    # One gate instance makes one decision per iteration.
+    # One gate instance makes one decision per iteration, so a mapped gate, or one under a mapped task
+    # group, would make several.
+    if gate.task_group is None or gate.task_group.group_id != loop.group_id:
+        raise ValueError(
+            f"The gate {loop.gate_task_id!r} of loop {loop.group_id!r} has to be a direct child of the loop"
+        )
     if isinstance(gate, SerializedMappedOperator):
         raise ValueError(f"The gate {loop.gate_task_id!r} of loop {loop.group_id!r} cannot be mapped")
+    # The scheduler completes an empty task without running it, so the gate would decide nothing.
+    if gate.inherits_from_empty_operator:
+        raise ValueError(f"The gate {loop.gate_task_id!r} of loop {loop.group_id!r} cannot be empty")
     for task in tasks:
         if task.returns_dag_result:
             raise ValueError(
