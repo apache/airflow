@@ -20,7 +20,7 @@ from __future__ import annotations
 import json
 import logging
 import secrets
-from typing import Annotated, cast
+from typing import Annotated, Literal, cast
 from urllib.parse import quote, urljoin
 
 from fastapi import HTTPException, Query, Request, status
@@ -127,7 +127,7 @@ def login_cli(
     # An S256 challenge is 43 base64url characters. ``auth_url`` does not encode its parameters,
     # so nothing else may reach it.
     code_challenge: Annotated[str, Query(pattern=r"^[A-Za-z0-9_-]{43}$")],
-    code_challenge_method: str,
+    code_challenge_method: Literal["S256"],
 ) -> RedirectResponse:
     """Start the browser login of a command-line client."""
     if not is_cli_authorization_code_enabled():
@@ -137,10 +137,6 @@ def login_cli(
         )
     if not is_cli_loopback_redirect_uri(redirect_uri):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid redirect_uri")
-    if code_challenge_method != "S256":
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="code_challenge_method must be S256"
-        )
 
     client = KeycloakAuthManager.get_keycloak_client()
     auth_url = client.auth_url(

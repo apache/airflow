@@ -62,7 +62,7 @@ class TestLoginRouter:
             pytest.param(
                 "True", {"redirect_uri": "https://evil.example.com/callback"}, 400, id="not-loopback"
             ),
-            pytest.param("True", {"code_challenge_method": "plain"}, 400, id="plain-challenge"),
+            pytest.param("True", {"code_challenge_method": "plain"}, 422, id="plain-challenge"),
             pytest.param("True", {"code_challenge": "c" * 42 + "&"}, 422, id="challenge-injection"),
             pytest.param("True", {"code_challenge": None}, 422, id="missing-challenge"),
         ],

@@ -52,6 +52,7 @@ paths:
         in: query
         required: true
         schema:
+          const: S256
           type: string
           title: Code Challenge Method
       responses:
@@ -179,6 +180,12 @@ paths:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
         '403':
           description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+        '503':
+          description: Service Unavailable
           content:
             application/json:
               schema:

@@ -17,17 +17,19 @@
 from __future__ import annotations
 
 import time
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import Mock, patch
 
 import fastapi
 import jwt
 import pytest
 import time_machine
 from keycloak import KeycloakAuthenticationError, KeycloakOpenID
-from keycloak.exceptions import KeycloakGetError, KeycloakPostError
+from keycloak.exceptions import KeycloakConnectionError, KeycloakGetError, KeycloakPostError
 
 from airflow.providers.common.compat.sdk import conf
+from airflow.providers.keycloak.auth_manager.keycloak_auth_manager import KeycloakAuthManager
 from airflow.providers.keycloak.auth_manager.services.token import (
+    AuthManagerRefreshTokenExpiredException,
     create_client_credentials_token,
     create_jwt_federated_token,
     create_token_for,
@@ -587,160 +589,147 @@ class TestCliTokenService:
         assert exc_info.value.detail == expected_detail
         mock_get_keycloak_client.assert_not_called()
 
+    @pytest.mark.parametrize(
+        ("error", "expected_status"),
+        [
+            pytest.param(KeycloakPostError("invalid_grant"), 403, id="invalid-code"),
+            pytest.param(KeycloakConnectionError("Can't connect to server"), 503, id="keycloak-down"),
+        ],
+    )
     @conf_vars({("keycloak_auth_manager", "cli_authorization_code_enabled"): "True"})
     @patch("airflow.providers.keycloak.auth_manager.services.token.KeycloakAuthManager.get_keycloak_client")
-    def test_create_token_from_authorization_code_keycloak_error(self, mock_get_keycloak_client):
+    def test_create_token_from_authorization_code_keycloak_error(
+        self, mock_get_keycloak_client, error, expected_status
+    ):
         mock_get_keycloak_client.return_value = Mock(spec=KeycloakOpenID)
-        mock_get_keycloak_client.return_value.token.side_effect = KeycloakPostError("invalid_grant")
+        mock_get_keycloak_client.return_value.token.side_effect = error
 
         with pytest.raises(fastapi.exceptions.HTTPException) as exc_info:
             create_token_from_authorization_code(
                 "code", self.code_verifier, self.redirect_uri, expiration_time_in_seconds=10
             )
 
-        assert exc_info.value.status_code == 403
+        assert exc_info.value.status_code == expected_status
+
+    @staticmethod
+    def mock_auth_manager(mock_get_auth_manager, refresh_token: str | None = "old_refresh") -> Mock:
+        auth_manager = Mock(spec=KeycloakAuthManager)
+        auth_manager.get_user_from_token.return_value = KeycloakAuthManagerUser(
+            user_id="sub", name="username", access_token="old_access", refresh_token=refresh_token
+        )
+        auth_manager.generate_api_jwt.return_value = TestCliTokenService.token
+        mock_get_auth_manager.return_value = auth_manager
+        return auth_manager
 
     @patch("airflow.providers.keycloak.auth_manager.services.token.AIRFLOW_V_3_2_PLUS", False)
     @patch("airflow.providers.keycloak.auth_manager.services.token.get_auth_manager")
-    @patch("airflow.providers.keycloak.auth_manager.services.token.KeycloakAuthManager.get_keycloak_client")
-    def test_refresh_cli_token_before_airflow_3_2_does_not_revoke(
-        self, mock_get_keycloak_client, mock_get_auth_manager
-    ):
-        mock_auth_manager = mock_get_auth_manager.return_value
-        mock_auth_manager.get_user_from_token = AsyncMock(
-            return_value=KeycloakAuthManagerUser(
-                user_id="sub", name="username", access_token="old_access", refresh_token="old_refresh"
-            )
-        )
-        mock_auth_manager.generate_api_jwt.return_value = self.token
-        mock_get_keycloak_client.return_value = Mock(spec=KeycloakOpenID)
-        mock_get_keycloak_client.return_value.refresh_token.return_value = {"access_token": "new_access"}
+    def test_refresh_cli_token_before_airflow_3_2_does_not_revoke(self, mock_get_auth_manager):
+        auth_manager = self.mock_auth_manager(mock_get_auth_manager)
+        auth_manager.refresh_tokens.return_value = {"access_token": "new_access"}
 
         assert refresh_cli_token(self.cli_token(expires_in=600)) == self.token
 
-        mock_auth_manager.revoke_token.assert_not_called()
+        auth_manager.revoke_token.assert_not_called()
 
     @time_machine.travel("2026-01-01 00:00:00", tick=False)
     @patch("airflow.providers.keycloak.auth_manager.services.token.AIRFLOW_V_3_2_PLUS", True)
     @patch("airflow.providers.keycloak.auth_manager.services.token.get_auth_manager")
-    @patch("airflow.providers.keycloak.auth_manager.services.token.KeycloakAuthManager.get_keycloak_client")
-    def test_refresh_cli_token_keeps_original_expiry(self, mock_get_keycloak_client, mock_get_auth_manager):
+    def test_refresh_cli_token_keeps_original_expiry(self, mock_get_auth_manager):
         old_token = self.cli_token(expires_in=600)
-        mock_auth_manager = mock_get_auth_manager.return_value
-        mock_auth_manager.get_user_from_token = AsyncMock(
-            return_value=KeycloakAuthManagerUser(
-                user_id="sub", name="username", access_token="old_access", refresh_token="old_refresh"
-            )
-        )
-        mock_auth_manager.generate_api_jwt.return_value = self.token
-        mock_get_keycloak_client.return_value = Mock(spec=KeycloakOpenID)
-        mock_get_keycloak_client.return_value.refresh_token.return_value = {
+        auth_manager = self.mock_auth_manager(mock_get_auth_manager)
+        auth_manager.refresh_tokens.return_value = {
             "access_token": "new_access",
             "refresh_token": "new_refresh",
         }
 
         assert refresh_cli_token(old_token) == self.token
 
-        mock_get_keycloak_client.return_value.refresh_token.assert_called_once_with("old_refresh")
-        user = mock_auth_manager.generate_api_jwt.call_args.args[0]
+        user = auth_manager.generate_api_jwt.call_args.args[0]
+        auth_manager.refresh_tokens.assert_called_once_with(user=user)
         assert (user.access_token, user.refresh_token) == ("new_access", "new_refresh")
-        mock_auth_manager.generate_api_jwt.assert_called_once_with(user, expiration_time_in_seconds=600)
-        mock_auth_manager.revoke_token.assert_called_once_with(old_token)
+        auth_manager.generate_api_jwt.assert_called_once_with(user, expiration_time_in_seconds=600)
+        auth_manager.revoke_token.assert_called_once_with(old_token)
 
     @time_machine.travel("2026-01-01 00:00:00", tick=False)
     @patch("airflow.providers.keycloak.auth_manager.services.token.get_auth_manager")
-    @patch("airflow.providers.keycloak.auth_manager.services.token.KeycloakAuthManager.get_keycloak_client")
-    def test_refresh_cli_token_keeps_refresh_token_keycloak_did_not_replace(
-        self, mock_get_keycloak_client, mock_get_auth_manager
-    ):
-        mock_auth_manager = mock_get_auth_manager.return_value
-        mock_auth_manager.get_user_from_token = AsyncMock(
-            return_value=KeycloakAuthManagerUser(
-                user_id="sub", name="username", access_token="old_access", refresh_token="old_refresh"
-            )
-        )
-        mock_auth_manager.generate_api_jwt.return_value = self.token
-        mock_get_keycloak_client.return_value = Mock(spec=KeycloakOpenID)
-        mock_get_keycloak_client.return_value.refresh_token.return_value = {"access_token": "new_access"}
+    def test_refresh_cli_token_keeps_refresh_token_keycloak_did_not_replace(self, mock_get_auth_manager):
+        auth_manager = self.mock_auth_manager(mock_get_auth_manager)
+        auth_manager.refresh_tokens.return_value = {"access_token": "new_access"}
 
         assert refresh_cli_token(self.cli_token(expires_in=600)) == self.token
 
-        user = mock_auth_manager.generate_api_jwt.call_args.args[0]
+        user = auth_manager.generate_api_jwt.call_args.args[0]
         assert (user.access_token, user.refresh_token) == ("new_access", "old_refresh")
 
     @pytest.mark.parametrize(
         "get_user_from_token",
         [
-            pytest.param(AsyncMock(side_effect=jwt.ExpiredSignatureError()), id="expired"),
-            pytest.param(
-                AsyncMock(side_effect=jwt.InvalidTokenError("Token has been revoked")), id="revoked"
-            ),
-            pytest.param(AsyncMock(return_value=None), id="no-keycloak-tokens"),
+            pytest.param({"side_effect": jwt.ExpiredSignatureError()}, id="expired"),
+            pytest.param({"side_effect": jwt.InvalidTokenError("Token has been revoked")}, id="revoked"),
+            pytest.param({"return_value": None}, id="no-keycloak-tokens"),
         ],
     )
     @patch("airflow.providers.keycloak.auth_manager.services.token.get_auth_manager")
-    @patch("airflow.providers.keycloak.auth_manager.services.token.KeycloakAuthManager.get_keycloak_client")
-    def test_refresh_cli_token_rejected(
-        self, mock_get_keycloak_client, mock_get_auth_manager, get_user_from_token
-    ):
-        mock_get_auth_manager.return_value.get_user_from_token = get_user_from_token
+    def test_refresh_cli_token_rejected(self, mock_get_auth_manager, get_user_from_token):
+        auth_manager = self.mock_auth_manager(mock_get_auth_manager)
+        auth_manager.get_user_from_token.configure_mock(**get_user_from_token)
 
         with pytest.raises(fastapi.exceptions.HTTPException) as exc_info:
             refresh_cli_token(self.token)
 
         assert exc_info.value.status_code == 403
-        mock_get_keycloak_client.assert_not_called()
-        mock_get_auth_manager.return_value.revoke_token.assert_not_called()
+        auth_manager.refresh_tokens.assert_not_called()
+        auth_manager.revoke_token.assert_not_called()
 
     @patch("airflow.providers.keycloak.auth_manager.services.token.get_auth_manager")
-    @patch("airflow.providers.keycloak.auth_manager.services.token.KeycloakAuthManager.get_keycloak_client")
-    def test_refresh_cli_token_without_refresh_token(self, mock_get_keycloak_client, mock_get_auth_manager):
-        mock_get_auth_manager.return_value.get_user_from_token = AsyncMock(
-            return_value=KeycloakAuthManagerUser(
-                user_id="sub", name="sa", access_token="access", refresh_token=None
-            )
-        )
+    def test_refresh_cli_token_without_refresh_token(self, mock_get_auth_manager):
+        auth_manager = self.mock_auth_manager(mock_get_auth_manager, refresh_token=None)
 
         with pytest.raises(fastapi.exceptions.HTTPException) as exc_info:
             refresh_cli_token(self.token)
 
         assert exc_info.value.status_code == 400
         assert "without a refresh token" in exc_info.value.detail
-        mock_get_keycloak_client.assert_not_called()
+        auth_manager.refresh_tokens.assert_not_called()
 
     @time_machine.travel("2026-01-01 00:00:00", tick=False)
     @patch("airflow.providers.keycloak.auth_manager.services.token.get_auth_manager")
-    @patch("airflow.providers.keycloak.auth_manager.services.token.KeycloakAuthManager.get_keycloak_client")
-    def test_refresh_cli_token_within_leeway_of_expiry(self, mock_get_keycloak_client, mock_get_auth_manager):
+    def test_refresh_cli_token_within_leeway_of_expiry(self, mock_get_auth_manager):
         """A token [api_auth] jwt_leeway still accepts must not refresh into a negative lifetime."""
-        mock_get_auth_manager.return_value.get_user_from_token = AsyncMock(
-            return_value=KeycloakAuthManagerUser(
-                user_id="sub", name="username", access_token="access", refresh_token="refresh"
-            )
-        )
+        auth_manager = self.mock_auth_manager(mock_get_auth_manager)
 
         with pytest.raises(fastapi.exceptions.HTTPException) as exc_info:
             refresh_cli_token(self.cli_token(expires_in=-5))
 
         assert exc_info.value.status_code == 403
-        mock_get_keycloak_client.assert_not_called()
+        auth_manager.refresh_tokens.assert_not_called()
 
+    @pytest.mark.parametrize(
+        ("refresh_tokens", "expected_status"),
+        [
+            pytest.param(
+                {"side_effect": AuthManagerRefreshTokenExpiredException("invalid_grant")},
+                403,
+                id="session-expired",
+            ),
+            # Airflow before 3.1.7 has no AuthManagerRefreshTokenExpiredException
+            pytest.param({"return_value": {}}, 403, id="session-expired-before-3-1-7"),
+            pytest.param(
+                {"side_effect": KeycloakConnectionError("Can't connect to server")}, 503, id="keycloak-down"
+            ),
+        ],
+    )
     @time_machine.travel("2026-01-01 00:00:00", tick=False)
     @patch("airflow.providers.keycloak.auth_manager.services.token.get_auth_manager")
-    @patch("airflow.providers.keycloak.auth_manager.services.token.KeycloakAuthManager.get_keycloak_client")
-    def test_refresh_cli_token_keycloak_session_expired(
-        self, mock_get_keycloak_client, mock_get_auth_manager
+    def test_refresh_cli_token_keycloak_refresh_fails(
+        self, mock_get_auth_manager, refresh_tokens, expected_status
     ):
-        mock_get_auth_manager.return_value.get_user_from_token = AsyncMock(
-            return_value=KeycloakAuthManagerUser(
-                user_id="sub", name="username", access_token="access", refresh_token="refresh"
-            )
-        )
-        mock_get_keycloak_client.return_value = Mock(spec=KeycloakOpenID)
-        mock_get_keycloak_client.return_value.refresh_token.side_effect = KeycloakPostError("invalid_grant")
+        auth_manager = self.mock_auth_manager(mock_get_auth_manager)
+        auth_manager.refresh_tokens.configure_mock(**refresh_tokens)
 
         with pytest.raises(fastapi.exceptions.HTTPException) as exc_info:
             refresh_cli_token(self.cli_token(expires_in=600))
 
-        assert exc_info.value.status_code == 403
-        mock_get_auth_manager.return_value.generate_api_jwt.assert_not_called()
+        assert exc_info.value.status_code == expected_status
+        auth_manager.generate_api_jwt.assert_not_called()
+        auth_manager.revoke_token.assert_not_called()
