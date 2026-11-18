@@ -507,13 +507,33 @@ def test_backfill_partitioned_does_not_duplicate_legacy_utc_keyed_run(dag_maker,
     assert bdr[0].exception_reason == BackfillDagRunExceptionReason.ALREADY_EXISTS
 
 
-def test_backfill_partitioned_requeued_run_is_in_flight(dag_maker, session):
-    """A requeued run blocks reprocessing even when the partition also has a finished run."""
+@pytest.mark.parametrize(
+    "runs",
+    [
+        pytest.param(
+            [
+                ("done", DagRunState.SUCCESS, "2026-02-19T00:00:00", "2026-02-18T23:00:00"),
+                # Clearing a finished run requeues it: start_date is reset, queued_at refreshed.
+                ("requeued", DagRunState.QUEUED, None, "2026-02-19T01:00:00"),
+            ],
+            id="finished_run_and_newer_requeued_run",
+        ),
+        pytest.param(
+            [
+                ("queued", DagRunState.QUEUED, None, "2026-02-18T23:00:00"),
+                ("done", DagRunState.SUCCESS, "2026-02-19T00:00:00", "2026-02-18T23:30:00"),
+            ],
+            id="older_queued_run_and_newer_finished_run",
+        ),
+    ],
+)
+def test_backfill_partitioned_unfinished_run_is_in_flight(dag_maker, session, runs):
+    """Any queued or running run of the partition blocks reprocessing, whatever its timestamps."""
     with dag_maker(schedule=CronPartitionTimetable("0 0 * * *", timezone="UTC")) as dag:
         PythonOperator(task_id="hi", python_callable=print)
 
     partition_date = pendulum.datetime(2026, 2, 18, tz="UTC")
-    for run_id, state in [("finished", DagRunState.SUCCESS), ("requeued", DagRunState.QUEUED)]:
+    for run_id, state, start_date, queued_at in runs:
         dag_maker.create_dagrun(
             run_id=run_id,
             logical_date=None,
@@ -523,14 +543,14 @@ def test_backfill_partitioned_requeued_run_is_in_flight(dag_maker, session):
             partition_date=partition_date,
             session=session,
         )
-    # Clearing a finished run requeues it: start_date is reset and queued_at is refreshed.
-    started = pendulum.datetime(2026, 2, 19, tz="UTC")
-    session.execute(update(DagRun).where(DagRun.run_id == "finished").values(start_date=started))
-    session.execute(
-        update(DagRun)
-        .where(DagRun.run_id == "requeued")
-        .values(start_date=None, queued_at=started.add(hours=1))
-    )
+        session.execute(
+            update(DagRun)
+            .where(DagRun.run_id == run_id)
+            .values(
+                start_date=pendulum.parse(start_date, tz="UTC") if start_date else None,
+                queued_at=pendulum.parse(queued_at, tz="UTC"),
+            )
+        )
     session.commit()
 
     b = _create_backfill(
@@ -547,7 +567,7 @@ def test_backfill_partitioned_requeued_run_is_in_flight(dag_maker, session):
     runs_at_partition = session.scalars(
         select(DagRun.run_id).where(DagRun.dag_id == dag.dag_id, DagRun.partition_date == partition_date)
     ).all()
-    assert sorted(runs_at_partition) == ["finished", "requeued"]
+    assert sorted(runs_at_partition) == sorted(run_id for run_id, *_ in runs)
     bdr = session.scalars(select(BackfillDagRun).where(BackfillDagRun.backfill_id == b.id)).all()
     assert [(x.dag_run_id, x.exception_reason) for x in bdr] == [
         (None, BackfillDagRunExceptionReason.IN_FLIGHT)

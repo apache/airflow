@@ -35,7 +35,7 @@ CLI and REST API values are:
 * **Missing and Errored Runs** (``failed``) - if a run exists and is failed, create a new run for this date
 * **All Runs** (``completed``) - if a run exists and is completed or failed, create a new run for this date
 
-If the latest run is still running or is queued, we do not create another run, no matter the chosen reprocessing behavior.
+If any run for that date or partition is still running or queued, we do not create another run, no matter the chosen reprocessing behavior.
 
 Concurrency control
 -------------------
