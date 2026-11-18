@@ -593,7 +593,8 @@ class AirflowTools:
                 return self._build_error_result(f"Not run: {reason}.")
             # No turn: a Codex turn spans the whole agent loop, many model responses, so using it
             # would count a tool's failures across the loop as one. Without a turn, calls that run
-            # at the same time count as one.
+            # at the same time would count as one, but Codex sends calls one after another, so
+            # each failure counts.
             with calling_framework("openai_codex"), tool_call_scope(run=state, turn=None):
                 try:
                     result = await airflow_tool.call(args)

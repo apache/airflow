@@ -129,9 +129,10 @@ Codex's error message shortened to 500 characters, and when the stream ends with
 
 The retry budget counts per run. A Codex turn spans the whole agent loop, many model
 responses, so the adapter cannot use it as the model turn that the Anthropic and Strands
-adapters count one failure per. Calls that run at the same time count as one failure, and
-calls one after another count separately, so a model that keeps sending a failing call
-exhausts the budget sooner here than it would per model turn. The adapter sets no limit on
+adapters count one failure per. Calls that run at the same time would count as one failure,
+but Codex sends calls one after another, so that does not happen with this adapter: two
+failed calls in the same response count twice. A model that keeps sending a failing call
+therefore exhausts the budget sooner here than it would per model turn. The adapter sets no limit on
 how many model responses a turn may take: bound the loop yourself, for example with the
 task's ``execution_timeout``.
 
@@ -212,7 +213,8 @@ value; it does not show what the model can do.
        failed to initialize" when the URL is wrong. ``mcpServerStatus/list`` does not raise in
        that case; it reports the failure in ``tools_error``.
    * - ``mcp_servers.<name>.supports_parallel_tool_calls=false``
-     - Hook calls run one at a time anyway; this keeps Codex from sending them in parallel.
+     - Keeps Codex from sending calls in parallel. The adapter itself queues only tools marked
+       ``sequential``; every other tool runs one at a time because of this flag.
        Codex does not echo a ``false`` value, so a test can show only that the key is known
        (``true`` is echoed), and whether ``false`` is the same as the default is not
        confirmed.
@@ -249,7 +251,8 @@ intended, not proven:
 1. **Login.** ``login_api_key`` succeeds, and after the run neither the temporary
    ``CODEX_HOME`` nor the worker's ``~/.codex`` holds a new auth file.
 2. **Tool round trip.** Run the example Dag. The model calls a ``SQLToolset`` tool through MCP,
-   the task log shows the call with ``framework=openai_codex``, and a result containing a
+   the task log shows a ``Tool call: <name>`` group for it, the ``common_ai.tool_calls`` metric
+   counts it with the ``framework=openai_codex`` tag, and a result containing a
    registered secret reaches the model masked. Also check a result near the 100,000 character
    limit, and that ``deny_all`` does not make Codex refuse the Airflow tool calls; if it does,
    the MCP server's tool approval setting is the place to look.
