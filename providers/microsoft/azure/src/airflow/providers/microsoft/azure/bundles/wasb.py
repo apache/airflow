@@ -19,11 +19,10 @@ from __future__ import annotations
 import os
 from functools import cached_property
 from pathlib import Path
+from typing import Any
 from urllib.parse import urlsplit, urlunsplit
 
-import structlog
-
-from airflow.dag_processing.bundles.base import BaseDagBundle
+from airflow.providers.common.compat.bundles import BaseDagBundle
 from airflow.providers.microsoft.azure.hooks.wasb import WasbHook
 
 
@@ -55,14 +54,12 @@ class WasbDagBundle(BaseDagBundle):
         self.prefix = prefix
         self.wasb_dags_dir: Path = self.base_dir
 
-        log = structlog.get_logger(__name__)
-        self._log = log.bind(
-            bundle_name=self.name,
-            version=self.version,
-            container_name=self.container_name,
-            prefix=self.prefix,
-            wasb_conn_id=self.wasb_conn_id,
-        )
+    def _get_log_context(self) -> dict[str, Any]:
+        return {
+            "container_name": self.container_name,
+            "prefix": self.prefix,
+            "wasb_conn_id": self.wasb_conn_id,
+        }
 
     def _initialize(self):
         with self.lock():
