@@ -212,12 +212,43 @@ class TestMessageQueueTrigger:
 class TestMessageQueueTriggerScheme:
     """Test cases for the new scheme parameter functionality."""
 
-    @pytest.mark.usefixtures("collect_queue_param_deprecation_warning")
-    def test_queue_takes_precedence_over_scheme(self):
-        """Test that queue parameter takes precedence when both are provided."""
-        trigger = MessageQueueTrigger(queue=PROVIDER_1_QUEUE, scheme=PROVIDER_2_SCHEME)
-        assert trigger.queue_uri == PROVIDER_1_QUEUE
-        assert trigger.scheme is None
+    @pytest.mark.parametrize(
+        ("providers", "queue", "scheme"),
+        [
+            pytest.param(
+                [
+                    MockProvider(PROVIDER_1_NAME, PROVIDER_1_PATTERN, scheme=PROVIDER_1_SCHEME),
+                    MockProvider(PROVIDER_2_NAME, PROVIDER_2_PATTERN, scheme=PROVIDER_2_SCHEME),
+                ],
+                PROVIDER_1_QUEUE,
+                PROVIDER_2_SCHEME,
+                id="uri_scheme_matched_by_provider",
+            ),
+            pytest.param(
+                [MockProvider("CustomProvider", pattern="custom-prefix-", scheme="custom")],
+                "custom-prefix-abc",
+                "custom",
+                id="third_party_identifier_without_scheme",
+            ),
+            pytest.param(
+                [MockProvider("RedisProvider", pattern="nomatch://", scheme="redis+pubsub")],
+                "redis+pubsub://localhost:6379/ch",
+                "redis+pubsub",
+                id="uri_scheme_unmatched_by_provider",
+            ),
+        ],
+    )
+    def test_legacy_queue_with_scheme_keeps_uri_matching(self, providers, queue, scheme):
+        """A broker URI or identifier passed as `queue` next to `scheme` must not become the trigger queue."""
+        with mock.patch(MESSAGE_QUEUE_PROVIDERS_PATH, providers):
+            with pytest.warns(
+                AirflowProviderDeprecationWarning,
+                match="Passing the broker queue URI as `queue` is deprecated",
+            ):
+                trigger = MessageQueueTrigger(queue=queue, scheme=scheme)
+            assert trigger.queue_uri == queue
+            assert trigger.scheme is None
+            assert trigger.queue is None
 
     def test_scheme_only_initialization(self):
         """Test initialization with scheme parameter only."""
@@ -238,17 +269,34 @@ class TestMessageQueueTriggerScheme:
         trigger = MessageQueueTrigger(scheme=PROVIDER_2_SCHEME)
         assert trigger.queue is None
 
-    @pytest.mark.usefixtures("collect_queue_param_deprecation_warning")
+    def test_queue_param_sets_trigger_queue_alongside_scheme(self):
+        """Test that the unified `queue` parameter sets the trigger queue when used with scheme."""
+        trigger = MessageQueueTrigger(scheme=PROVIDER_2_SCHEME, queue="my-trigger-queue")
+        assert trigger.scheme == PROVIDER_2_SCHEME
+        assert trigger.queue_uri is None
+        assert trigger.queue == "my-trigger-queue"
+
+    @pytest.mark.filterwarnings("ignore::airflow.exceptions.AirflowProviderDeprecationWarning")
     def test_trigger_queue_param_sets_trigger_queue_alongside_deprecated_queue(self):
-        """The deprecated `queue` (broker URI) parameter claims the `queue` keyword, so trigger
-        queue routing must go through the distinct `trigger_queue` parameter instead."""
+        """Test backward compatibility when passing a broker URI via `queue` and trigger queue via deprecated `trigger_queue`."""
         trigger = MessageQueueTrigger(queue=PROVIDER_1_QUEUE, trigger_queue="my-trigger-queue")
         assert trigger.queue_uri == PROVIDER_1_QUEUE
         assert trigger.queue == "my-trigger-queue"
 
-    def test_trigger_queue_param_sets_trigger_queue_alongside_scheme(self):
-        trigger = MessageQueueTrigger(scheme=PROVIDER_2_SCHEME, trigger_queue="my-trigger-queue")
+    def test_trigger_queue_param_deprecation_warning(self):
+        """Test that `trigger_queue` emits a deprecation warning in favor of `queue`."""
+        with pytest.warns(
+            AirflowProviderDeprecationWarning,
+            match="The `trigger_queue` parameter is deprecated and will be removed in a future version. Use the `scheme` parameter together with `queue` instead",
+        ):
+            trigger = MessageQueueTrigger(scheme=PROVIDER_2_SCHEME, trigger_queue="my-trigger-queue")
         assert trigger.queue == "my-trigger-queue"
+
+    @pytest.mark.filterwarnings("ignore::airflow.exceptions.AirflowProviderDeprecationWarning")
+    def test_queue_and_trigger_queue_both_provided_raises(self):
+        """Test that providing both `queue` and deprecated `trigger_queue` raises ValueError."""
+        with pytest.raises(ValueError, match="Cannot provide both `queue` and deprecated `trigger_queue`"):
+            MessageQueueTrigger(scheme=PROVIDER_2_SCHEME, queue="q1", trigger_queue="q2")
 
     def test_scheme_provider_matching(self):
         """Test that scheme matching works correctly."""
@@ -331,14 +379,14 @@ class TestMessageQueueTriggerIntegration:
         assert trigger_by_scheme is not None
 
     def test_provider_integrations_validation(self):
-        """Test that either queue or scheme parameter must be provided."""
-        with pytest.raises(ValueError, match="Either `queue` or `scheme` parameter must be provided"):
+        """Test that scheme parameter must be provided."""
+        with pytest.raises(ValueError, match="The `scheme` parameter must be provided"):
             MessageQueueTrigger()
 
     def test_provider_integrations_deprecation_warning(self):
-        """Test that a deprecation warning is raised when using the 'queue' parameter."""
+        """Test that a deprecation warning is raised when using the 'queue' parameter as broker URI."""
         with pytest.warns(
             AirflowProviderDeprecationWarning,
-            match="The `queue` parameter is deprecated and will be removed in future versions. Use the `scheme` parameter instead and pass configuration as keyword arguments to `MessageQueueTrigger`.",
+            match="Passing the broker queue URI as `queue` is deprecated and will be removed in future versions. Use the `scheme` parameter instead and pass configuration as keyword arguments to `MessageQueueTrigger`.",
         ):
             MessageQueueTrigger(queue="any queue")

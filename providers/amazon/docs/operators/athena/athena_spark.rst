@@ -65,12 +65,6 @@ in both synchronous and deferrable modes. Both modes return the same execution
 metadata when the calculation completes successfully and raise an exception
 if it fails or is canceled.
 
-.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_athena_spark.py
-    :language: python
-    :dedent: 4
-    :start-after: [START howto_operator_athena_spark_deferrable]
-    :end-before: [END howto_operator_athena_spark_deferrable]
-
 .. note::
 
     When the trigger reports that polling attempts have been exhausted, the
