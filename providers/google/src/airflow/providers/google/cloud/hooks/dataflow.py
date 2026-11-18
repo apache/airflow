@@ -474,7 +474,7 @@ class _DataflowJobsController(DataflowJobTerminalStateHelper):
         """
         job_name = job_name.lower()
         return max(
-            (job for job in self._fetch_all_jobs(name=job_name) if job.get("name") == job_name),
+            self._fetch_all_jobs(name=job_name),
             key=lambda job: datetime.fromisoformat(job["createTime"]),
             default=None,
         )
@@ -1610,16 +1610,10 @@ class AsyncDataflowHook(GoogleBaseAsyncHook, DataflowJobTerminalStateHelper):
         """
         job_name = job_name.lower()
         jobs = await self.list_jobs(project_id=project_id, location=location, name=job_name)
-        latest_job: Job | None = None
-        async for job in jobs:
-            if job.name != job_name:
-                continue
-            # create_time is typed as protobuf Timestamp, but proto-plus returns it as a datetime.
-            if latest_job is None or cast("datetime", job.create_time) > cast(
-                "datetime", latest_job.create_time
-            ):
-                latest_job = job
-        return latest_job
+        # create_time is typed as protobuf Timestamp, but proto-plus returns it as a datetime.
+        return max(
+            [job async for job in jobs], key=lambda job: cast("datetime", job.create_time), default=None
+        )
 
     async def list_job_messages(
         self,

@@ -1506,28 +1506,11 @@ class TestDataflowJob:
                         "currentState": DataflowJobStatus.JOB_STATE_FAILED,
                         "createTime": "2026-06-25T16:00:00Z",
                     },
-                    {
-                        "id": "job-other-name-id",
-                        "name": "test-job-other",
-                        "currentState": DataflowJobStatus.JOB_STATE_RUNNING,
-                        "createTime": "2026-06-25T17:00:00Z",
-                    },
                 ],
                 "job-newer-id",
-                id="newest_job_with_exact_name",
+                id="newest_job",
             ),
-            pytest.param(
-                [
-                    {
-                        "id": "job-other-name-id",
-                        "name": "test-job-other",
-                        "currentState": DataflowJobStatus.JOB_STATE_RUNNING,
-                        "createTime": "2026-06-25T17:00:00Z",
-                    },
-                ],
-                None,
-                id="no_job_with_name",
-            ),
+            pytest.param([], None, id="no_job_with_name"),
             pytest.param(
                 [
                     {
@@ -1935,9 +1918,10 @@ class TestAsyncDataflowHook:
             request=request,
         )
 
+    @pytest.mark.parametrize("name", [None, "test-job"])
     @pytest.mark.asyncio
     @mock.patch(DATAFLOW_STRING.format("AsyncDataflowHook.initialize_client"))
-    async def test_list_jobs(self, initialize_client_mock, hook, make_mock_awaitable):
+    async def test_list_jobs(self, initialize_client_mock, hook, make_mock_awaitable, name):
         client = initialize_client_mock.return_value
         make_mock_awaitable(client.get_job, None)
 
@@ -1945,6 +1929,7 @@ class TestAsyncDataflowHook:
             project_id=TEST_PROJECT_ID,
             location=TEST_LOCATION,
             jobs_filter=TEST_JOBS_FILTER,
+            name=name,
         )
 
         request = ListJobsRequest(
@@ -1954,23 +1939,11 @@ class TestAsyncDataflowHook:
                 "filter": TEST_JOBS_FILTER,
                 "page_size": None,
                 "page_token": None,
+                "name": name,
             }
         )
         initialize_client_mock.assert_called_once()
         client.list_jobs.assert_called_once_with(request=request)
-
-    @pytest.mark.asyncio
-    @mock.patch(DATAFLOW_STRING.format("AsyncDataflowHook.initialize_client"))
-    async def test_list_jobs_with_name(self, initialize_client_mock, hook):
-        client = initialize_client_mock.return_value
-
-        await hook.list_jobs(project_id=TEST_PROJECT_ID, location=TEST_LOCATION, name="test-job")
-
-        client.list_jobs.assert_called_once_with(
-            request=ListJobsRequest(
-                {"project_id": TEST_PROJECT_ID, "location": TEST_LOCATION, "name": "test-job"}
-            )
-        )
 
     @pytest.mark.parametrize(
         ("jobs", "expected_job_id"),
@@ -1979,16 +1952,11 @@ class TestAsyncDataflowHook:
                 [
                     Job(id="job-older-id", name="test-job", create_time={"seconds": 100}),
                     Job(id="job-newer-id", name="test-job", create_time={"seconds": 200}),
-                    Job(id="job-other-name-id", name="test-job-other", create_time={"seconds": 300}),
                 ],
                 "job-newer-id",
-                id="newest_job_with_exact_name",
+                id="newest_job",
             ),
-            pytest.param(
-                [Job(id="job-other-name-id", name="test-job-other", create_time={"seconds": 300})],
-                None,
-                id="no_job_with_name",
-            ),
+            pytest.param([], None, id="no_job_with_name"),
         ],
     )
     @pytest.mark.asyncio
