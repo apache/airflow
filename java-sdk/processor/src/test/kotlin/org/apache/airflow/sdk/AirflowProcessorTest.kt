@@ -281,10 +281,10 @@ class AirflowProcessorTest {
          import org.apache.airflow.sdk.Context;
          import org.apache.airflow.sdk.DagDef;
          import org.apache.airflow.sdk.Task;
+         import org.apache.airflow.sdk.TypeRef;
          import org.apache.airflow.sdk.internal.DagSource;
          import org.apache.airflow.sdk.internal.Refs;
          import org.apache.airflow.sdk.internal.TaskArgs;
-         import org.apache.airflow.sdk.internal.TypeRef;
 
          public final class TestExampleBuilder {
            public static DagDef build() {

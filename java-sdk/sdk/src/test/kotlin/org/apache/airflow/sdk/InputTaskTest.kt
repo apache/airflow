@@ -124,7 +124,7 @@ internal class InputTaskTest {
     // A native Dag has no stub call site, so there are no argument names to
     // match fields against: the input the wiring class fed this task decodes
     // into the whole TaskInput at once.
-    val context = contextWiredWith(listOf(Arg.lit(mapOf("region" to "emea", "threshold" to 0.5))))
+    val context = contextWiredWith(listOf(Arg.lit(mapOf("region_code" to "emea", "threshold" to 0.5))))
     val (client, _) = clientWith(null)
     val task = Summarize()
 
@@ -133,6 +133,17 @@ internal class InputTaskTest {
     val input = requireNotNull(task.received)
     assertEquals("emea", input.region)
     assertEquals(0.5, input.threshold)
+  }
+
+  @Test
+  @DisplayName("Should not bind a pinned TaskInput field from a wired key that has the name of the field")
+  fun shouldRejectFieldNameOfPinnedFieldInWiredInput() {
+    val context = contextWiredWith(listOf(Arg.lit(mapOf("region" to "emea", "threshold" to 0.5))))
+    val (client, _) = clientWith(null)
+
+    val error = assertThrows(IllegalArgumentException::class.java) { Summarize().execute(context, client) }
+
+    assertTrue(error.message.orEmpty().contains("Unrecognized field \"region\"")) { error.message.orEmpty() }
   }
 
   @Test
@@ -157,8 +168,8 @@ internal class InputTaskTest {
     val context =
       contextWiredWith(
         listOf(
-          LiteralArg(mapOf("region" to "emea", "threshold" to 0.5)),
-          LiteralArg(mapOf("region" to "apac", "threshold" to 0.1)),
+          LiteralArg(mapOf("region_code" to "emea", "threshold" to 0.5)),
+          LiteralArg(mapOf("region_code" to "apac", "threshold" to 0.1)),
         ),
       )
     val (client, _) = clientWith(null)
@@ -178,7 +189,7 @@ internal class InputTaskTest {
   @DisplayName("Should stay quiet when the Dag wired exactly one input for a TaskInput")
   fun shouldNotWarnWhenOneInputWiredForTaskInput() {
     LogSender.messages.clear()
-    val context = contextWiredWith(listOf(LiteralArg(mapOf("region" to "emea", "threshold" to 0.5))))
+    val context = contextWiredWith(listOf(LiteralArg(mapOf("region_code" to "emea", "threshold" to 0.5))))
     val (client, _) = clientWith(null)
 
     Summarize().execute(context, client)

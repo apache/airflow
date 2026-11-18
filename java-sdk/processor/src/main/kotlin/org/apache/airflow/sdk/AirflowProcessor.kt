@@ -37,7 +37,6 @@ import org.apache.airflow.sdk.internal.GROUP_ID
 import org.apache.airflow.sdk.internal.Refs
 import org.apache.airflow.sdk.internal.SchemaFields
 import org.apache.airflow.sdk.internal.TaskArgs
-import org.apache.airflow.sdk.internal.TypeRef
 import org.apache.airflow.sdk.internal.deriveJoinNodeIds
 import org.apache.airflow.sdk.internal.foldArgName
 import org.apache.airflow.sdk.internal.registrarName

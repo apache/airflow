@@ -23,6 +23,7 @@ import org.apache.airflow.sdk.execution.ArgBinding
 import org.apache.airflow.sdk.execution.Client
 import org.apache.airflow.sdk.execution.comm.StartupDetails
 import org.apache.airflow.sdk.execution.decodeArgBindings
+import org.apache.airflow.sdk.internal.bindXCom
 import java.time.Duration
 import java.time.OffsetDateTime
 import java.time.ZoneOffset
@@ -174,6 +175,88 @@ class Client internal constructor(
         mapIndex = mapIndex,
         includePriorDates = includePriorDates,
       ).value
+
+  /**
+   * Reads an XCom value pushed by another task into an instance of [type].
+   *
+   * ```java
+   * public static class Stats {
+   *   public long rowCount; // set from the "row_count" key
+   * }
+   *
+   * Stats stats = client.getXCom("extract", Stats.class);
+   * Long rows = client.getXCom("count_rows", Long.class);
+   * ```
+   *
+   * Keys match fields as [DagRun.getConf] describes, but a key that matches no
+   * field fails the read. A key that matches a field also fails the read when
+   * another key has the field's exact name. For example, a `ROW_COUNT` key fails
+   * the read when a `rowCount` key is also present.
+   *
+   * The current Dag run's [dagId][TaskInstance.dagId] and
+   * [runId][TaskInstance.runId] are used by default. Override them only when
+   * reading across Dags or runs.
+   *
+   * @param key XCom key to read. Defaults to [XCOM_RETURN_KEY].
+   * @param dagId Dag that owns the XCom. Defaults to the current Dag.
+   * @param taskId Task that pushed the XCom.
+   * @param runId Run that produced the XCom. Defaults to the current run.
+   * @param mapIndex Map index of the source task instance.
+   * @param includePriorDates If `true`, also search earlier Dag-run dates.
+   * @param type Class to read the value into.
+   * @return The converted value, or `null` if none was pushed.
+   * @throws ApiError if the API call fails.
+   * @throws IllegalArgumentException if the value cannot be converted to [type].
+   *    This method reads a value as strictly as the SDK reads a task argument. So
+   *    the conversion also fails on a key that matches no field. It also fails on
+   *    a key that matches a field when another key has the field's exact name.
+   */
+  @JvmOverloads fun <T : Any> getXCom(
+    key: String = XCOM_RETURN_KEY,
+    dagId: String = details.ti.dagId,
+    taskId: String,
+    runId: String = details.ti.runId,
+    mapIndex: Int? = null,
+    includePriorDates: Boolean = false,
+    type: Class<T>,
+  ): T? =
+    // A primitive class such as long.class, which is what Kotlin's Long::class.java
+    // gives, cannot cast the boxed value that the conversion returns.
+    type.kotlin.javaObjectType.cast(
+      bindXCom(getXCom(key, dagId, taskId, runId, mapIndex, includePriorDates), type),
+    )
+
+  /**
+   * Reads an XCom value pushed by another task into a generic type, which a
+   * `Class` cannot express. This method works like the overload that takes a
+   * `Class`.
+   *
+   * ```java
+   * List<Stats> stats = client.getXCom("extract", new TypeRef<List<Stats>>() {});
+   * ```
+   *
+   * @param key XCom key to read. Defaults to [XCOM_RETURN_KEY].
+   * @param dagId Dag that owns the XCom. Defaults to the current Dag.
+   * @param taskId Task that pushed the XCom.
+   * @param runId Run that produced the XCom. Defaults to the current run.
+   * @param mapIndex Map index of the source task instance.
+   * @param includePriorDates If `true`, also search earlier Dag-run dates.
+   * @param type Type to read the value into.
+   * @return The converted value, or `null` if none was pushed.
+   * @throws ApiError if the API call fails.
+   * @throws IllegalArgumentException if the value cannot be converted to [type].
+   */
+  @Suppress("UNCHECKED_CAST")
+  @JvmOverloads
+  fun <T : Any> getXCom(
+    key: String = XCOM_RETURN_KEY,
+    dagId: String = details.ti.dagId,
+    taskId: String,
+    runId: String = details.ti.runId,
+    mapIndex: Int? = null,
+    includePriorDates: Boolean = false,
+    type: TypeRef<T>,
+  ): T? = bindXCom(getXCom(key, dagId, taskId, runId, mapIndex, includePriorDates), type.type) as T?
 
   /**
    * Pushes an XCom value for downstream tasks to read.

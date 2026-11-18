@@ -22,7 +22,6 @@
 package org.apache.airflow.sdk
 
 import org.apache.airflow.sdk.internal.TaskArgs
-import org.apache.airflow.sdk.internal.TypeRef
 import org.junit.jupiter.api.Assertions.assertDoesNotThrow
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
@@ -32,6 +31,19 @@ import org.junit.jupiter.api.Test
 
 /** Fixes the type argument one level up, so the anonymous subclass carries none. */
 private abstract class NamesRef : TypeRef<List<String>>()
+
+/** Takes a type argument of its own, which is not the type that it passes to [TypeRef]. */
+private abstract class ListRef<E> : TypeRef<List<E>>()
+
+private fun <T> refOf(): TypeRef<T> = object : TypeRef<T>() {}
+
+private fun <T> listRefOf(): TypeRef<MutableList<T>> = object : TypeRef<MutableList<T>>() {}
+
+private fun <T> arrayRefOf(): TypeRef<Array<T>> = object : TypeRef<Array<T>>() {}
+
+private fun <T> producerRefOf(): TypeRef<MutableList<out T>> = object : TypeRef<MutableList<out T>>() {}
+
+private fun <T> consumerRefOf(): TypeRef<MutableList<in T>> = object : TypeRef<MutableList<in T>>() {}
 
 private fun argsWith(
   bindings: List<Map<String, Any?>>?,
@@ -326,11 +338,32 @@ internal class TaskArgsTest {
   @Test
   @DisplayName("Should reject a TypeRef whose type argument is fixed by an intermediate class")
   fun shouldRejectIndirectTypeRef() {
-    val error = assertThrows(IllegalArgumentException::class.java) { object : NamesRef() {} }
+    listOf<() -> Any>({ object : NamesRef() {} }, { object : ListRef<String>() {} }).forEach { create ->
+      val error = assertThrows(IllegalArgumentException::class.java) { create() }
 
-    assertEquals(
-      "TypeRef needs a concrete type argument on an anonymous subclass, e.g. new TypeRef<List<String>>() {}",
-      error.message,
-    )
+      assertEquals(
+        "TypeRef needs an anonymous class that extends TypeRef directly and has a concrete type argument, e.g. new TypeRef<List<String>>() {}",
+        error.message,
+      )
+    }
+  }
+
+  @Test
+  @DisplayName("Should reject a TypeRef whose type argument contains a type variable")
+  fun shouldRejectTypeVariableInTypeRef() {
+    listOf<() -> Any>(
+      { refOf<String>() },
+      { listRefOf<String>() },
+      { arrayRefOf<String>() },
+      { producerRefOf<String>() },
+      { consumerRefOf<String>() },
+    ).forEach { create ->
+      val error = assertThrows(IllegalArgumentException::class.java) { create() }
+
+      assertEquals(
+        "TypeRef needs an anonymous class that extends TypeRef directly and has a concrete type argument, e.g. new TypeRef<List<String>>() {}",
+        error.message,
+      )
+    }
   }
 }
