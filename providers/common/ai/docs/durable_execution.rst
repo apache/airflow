@@ -138,7 +138,8 @@ Without it, a step larger than ``[state_store] max_value_storage_bytes`` (64 KB 
 default) is still written to the database, and the task log warns that it exceeds the
 limit.
 
-When the agent run succeeds, its journal is deleted. On 3.3 and later, every step the
+When the agent run succeeds, its journal is deleted; with ``enable_hitl_review``, once the
+reviewer approves (:ref:`hitl-review-durable`). On 3.3 and later, every step the
 agent completes is one write to the task state store, a call the task makes to the API
 server while the agent waits. A first attempt reads back only the list of agent runs the
 task started (and, in ``AgentOperator``, the run id), since no earlier attempt recorded
@@ -240,7 +241,8 @@ instead.
 
 Some steps have no request to fingerprint: another capability's
 ``@durable_operation``, or tool discovery. Such a step replays on its name, and only when
-the step before it also replayed.
+the step before it also replayed. A step that settles tool calls waiting for approval is
+fingerprinted by those calls, so it replays only for them.
 
 The journal records:
 
@@ -255,11 +257,22 @@ The journal records:
   summary follows a tool set to run on every attempt.
 
 A tool that raises ``ModelRetry``, ``ToolFailed``, ``ApprovalRequired`` or
-``CallDeferred`` replays as the same signal. ``AgentOperator`` does not support tool
-approval or deferred tools with ``durable=True``, so there such a call fails the task
-with ``UnsupportedToolDeferralError``, as it would without ``durable``. A tool that raises
+``CallDeferred`` replays as the same signal. With ``AgentOperator`` on Airflow 3.3 and
+later, a tool that needs approval pauses the task (except with code mode or
+``enable_hitl_review``), and the reviewer's answer is recorded as a step, so a retry does
+not ask again, and replays an approved call that returned (:ref:`tool-approval-durable`
+has the exceptions). A deferred tool (``CallDeferred``) fails the task with
+``UnsupportedToolDeferralError``, as it would without ``durable``. A tool that raises
 any other exception runs again on retry; once it has failed the run on two attempts in a
-row, the next retry asks the model again, as described above.
+row, the next retry asks the model again, as described above. ``SQLToolset`` uses that
+split: a statement the database rejects is a ``ModelRetry`` and replays, while failing to
+reach the database raises, so the retry queries it again rather than handing the model the
+old failure.
+
+With ``enable_hitl_review``, the first output and each regeneration after feedback are
+runs in the same journal, and on Airflow 3.3 and later a retry applies the feedback the
+reviewer already gave instead of asking again; a review that ends in a reject starts over
+with a new answer from the model (:ref:`hitl-review-durable`).
 
 A task can run more than one agent, and an agent's tool can run another agent; each
 agent run is replayed on its own, and one a tool started is replayed under that tool
@@ -514,9 +527,8 @@ offered the tool, and the task is not retried:
 Limitations
 -----------
 
-- ``durable=True`` cannot be combined with ``enable_hitl_review``, a ``SandboxToolset``
-  or tool approval. ``AgentOperator`` raises ``ValueError`` for the first two when the Dag
-  is parsed.
+- ``durable=True`` cannot be combined with a ``SandboxToolset``. ``AgentOperator`` raises
+  ``ValueError`` when the Dag is parsed.
 - A task instance that is retried across an upgrade of this provider from a version
   without ``AirflowDurability`` runs its steps live once: the journal keys changed.
 

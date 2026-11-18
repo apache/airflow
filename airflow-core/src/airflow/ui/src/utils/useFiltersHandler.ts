@@ -122,6 +122,9 @@ export type FilterableSearchParamsKeys =
   | SearchParamsKeys.TEAMS
   | SearchParamsKeys.TIMETABLE_TYPE
   | SearchParamsKeys.TO_RANGE
+  | SearchParamsKeys.TRIGGER_KIND
+  | SearchParamsKeys.TRIGGER_STATUS
+  | SearchParamsKeys.TRIGGERER_HOSTNAME
   | SearchParamsKeys.TRIGGERING_USER_NAME_PATTERN
   | SearchParamsKeys.TRY_NUMBER
   | SearchParamsKeys.USER;

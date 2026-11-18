@@ -27,10 +27,12 @@ import sys
 import keyring
 import rich
 from keyring.errors import NoKeyringError
+from rich.console import Console
 from rich.markup import escape
 
 from airflowctl.api.client import (
     NEW_API_CLIENT,
+    Client,
     ClientKind,
     Credentials,
     _is_token_in_keyring,
@@ -40,7 +42,46 @@ from airflowctl.api.client import (
 )
 from airflowctl.api.datamodels.auth_generated import LoginBody
 from airflowctl.ctl.console_formatting import AirflowConsole
-from airflowctl.exceptions import AirflowCtlCredentialInvalidException
+from airflowctl.ctl.utils.browser_login import get_authorization_code, resolve_endpoint
+from airflowctl.exceptions import (
+    AirflowCtlBrowserLoginException,
+    AirflowCtlCredentialInvalidException,
+    AirflowCtlKeyringException,
+)
+
+DEFAULT_SSO_TIMEOUT = 300
+
+
+def _exit_on_sso_only_args(args) -> None:
+    if not args.sso and (args.no_browser or args.timeout is not None):
+        rich.print("[red]--no-browser and --timeout can only be used with --sso.", file=sys.stderr)
+        sys.exit(1)
+
+
+def _get_token_with_browser(args, api_client: Client, api_url: str) -> str:
+    """Log in through the browser and return the CLI token, if the API server offers it."""
+    metadata = api_client.login.get_cli_login_metadata(api_url)
+    if (
+        "authorization_code" not in metadata.grant_types_supported
+        or "S256" not in metadata.code_challenge_methods_supported
+        or not metadata.authorization_endpoint
+        or not metadata.token_endpoint
+    ):
+        raise AirflowCtlBrowserLoginException(f"{api_url} does not offer browser login (--sso).")
+
+    authorization_url = resolve_endpoint(api_url, metadata.authorization_endpoint)
+    token_url = resolve_endpoint(api_url, metadata.token_endpoint)
+    authorization_code = get_authorization_code(
+        authorization_url=authorization_url,
+        open_browser=not args.no_browser,
+        timeout=DEFAULT_SSO_TIMEOUT if args.timeout is None else args.timeout,
+    )
+    return api_client.login.login_with_authorization_code(
+        token_url,
+        code=authorization_code.code,
+        code_verifier=authorization_code.code_verifier,
+        redirect_uri=authorization_code.redirect_uri,
+    ).access_token
 
 
 @provide_api_client(kind=ClientKind.AUTH)
@@ -52,6 +93,43 @@ def login(args, api_client=NEW_API_CLIENT) -> None:
     username = args.username
     password = args.password
     token = args.api_token or os.environ.get("AIRFLOW_CLI_TOKEN")
+
+    _exit_on_sso_only_args(args)
+    if args.sso:
+        if args.api_token or username or password:
+            rich.print(
+                "[red]--sso is not compatible with --api-token, --username or --password.", file=sys.stderr
+            )
+            sys.exit(1)
+        try:
+            api_token = _get_token_with_browser(args, api_client, api_url)
+        except Exception as e:
+            rich.print(f"[red]Login failed: {escape(str(e))}", file=sys.stderr)
+            sys.exit(1)
+        not_stored_reason = ""
+        try:
+            if not Credentials(
+                api_url=api_url,
+                api_token=api_token,
+                api_environment=args.env,
+                client_kind=ClientKind.AUTH,
+            ).save(args.skip_keyring):
+                not_stored_reason = "The token was not stored."
+        except AirflowCtlKeyringException as e:
+            not_stored_reason = escape(str(e).splitlines()[0])
+        except (OSError, EOFError) as e:
+            not_stored_reason = escape(
+                f"Could not save the credentials: {str(e).splitlines()[0] if str(e) else type(e).__name__}"
+            )
+        if not_stored_reason:
+            # Nothing stores the token, so this is the only way to use the login that just happened.
+            print(api_token)
+            Console(stderr=True).print(
+                f"[yellow]{not_stored_reason}\nSet AIRFLOW_CLI_TOKEN to the printed token to use it.[/yellow]"
+            )
+            return
+        rich.print(success_message)
+        return
 
     # If credentials are incomplete, prompt interactively on a real terminal
     if not token and not (username and password):
@@ -119,6 +197,19 @@ def login(args, api_client=NEW_API_CLIENT) -> None:
 def get_token(args, api_client=NEW_API_CLIENT) -> None:
     """Generate and print a JWT token for the given credentials to stdout."""
     api_url = args.api_url or get_default_api_url()
+
+    _exit_on_sso_only_args(args)
+    if args.sso:
+        if args.username or args.password:
+            rich.print("[red]--sso is not compatible with --username or --password.", file=sys.stderr)
+            sys.exit(1)
+        try:
+            print(_get_token_with_browser(args, api_client, api_url))
+        except Exception as e:
+            rich.print(f"[red]Token generation failed: {escape(str(e))}[/red]", file=sys.stderr)
+            sys.exit(1)
+        return
+
     username = args.username
     password = args.password
 

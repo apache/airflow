@@ -151,8 +151,10 @@ class BigQueryInsertJobTrigger(BaseTrigger):
                 run_ids=[ti.run_id],
                 map_index=ti.map_index,
             )
+            # The execution API keys a mapped task instance as ``<task_id>_<map_index>``.
+            task_key = ti.task_id if ti.map_index < 0 else f"{ti.task_id}_{ti.map_index}"
             try:
-                task_state = task_states_response[ti.run_id][ti.task_id]
+                task_state = task_states_response[ti.run_id][task_key]
             except Exception:
                 msg = (
                     f"TaskInstance with dag_id: {ti.dag_id}, task_id: {ti.task_id}, "

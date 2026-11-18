@@ -130,6 +130,8 @@ class AzureDataFactoryTrigger(BaseTrigger):
     :param factory_name: The data factory name.
     :param wait_for_termination: Flag to wait on a pipeline run's termination.
     :param check_interval: Time in seconds to check on a pipeline run's status.
+    :param cancel_on_error: Cancel the pipeline run when polling fails unexpectedly (default is True).
+        A durable operator passes False, so that its retry reconnects to the run instead.
     """
 
     def __init__(
@@ -141,6 +143,7 @@ class AzureDataFactoryTrigger(BaseTrigger):
         factory_name: str,
         wait_for_termination: bool = True,
         check_interval: int = 60,
+        cancel_on_error: bool = True,
     ):
         super().__init__()
         self.azure_data_factory_conn_id = azure_data_factory_conn_id
@@ -150,6 +153,7 @@ class AzureDataFactoryTrigger(BaseTrigger):
         self.resource_group_name = resource_group_name
         self.factory_name = factory_name
         self.end_time = end_time
+        self.cancel_on_error = cancel_on_error
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         """Serialize AzureDataFactoryTrigger arguments and classpath."""
@@ -163,6 +167,7 @@ class AzureDataFactoryTrigger(BaseTrigger):
                 "resource_group_name": self.resource_group_name,
                 "factory_name": self.factory_name,
                 "end_time": self.end_time,
+                "cancel_on_error": self.cancel_on_error,
             },
         )
 
@@ -245,7 +250,7 @@ class AzureDataFactoryTrigger(BaseTrigger):
                     )
             except Exception as e:
                 self.log.exception(e)
-                if self.run_id:
+                if self.run_id and self.cancel_on_error:
                     try:
                         self.log.info("Cancelling pipeline run %s", self.run_id)
                         await hook.cancel_pipeline_run(
