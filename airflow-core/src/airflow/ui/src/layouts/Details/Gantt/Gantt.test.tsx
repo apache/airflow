@@ -30,8 +30,20 @@ import { BaseWrapper } from "src/utils/Wrapper";
 
 import { Gantt } from "./Gantt";
 
-const { mockUseGanttServiceGetGanttData, mockUseGridTiSummariesStream } = vi.hoisted(() => ({
+const { mockUseGanttServiceGetGanttData, mockUseGridRuns, mockUseGridTiSummariesStream } = vi.hoisted(() => ({
   mockUseGanttServiceGetGanttData: vi.fn(() => ({ data: undefined, isLoading: false })),
+  mockUseGridRuns: vi.fn(() => ({
+    data: [
+      {
+        end_date: "2024-03-14T10:10:00Z",
+        run_after: "2024-03-14T10:00:00Z",
+        run_id: "run_1",
+        start_date: "2024-03-14T10:00:00Z",
+        state: "success",
+      },
+    ],
+    isLoading: false,
+  })),
   mockUseGridTiSummariesStream: vi.fn(() => ({
     summariesByRunId: new Map([["run_1", { task_instances: [] }]]),
   })),
@@ -43,18 +55,7 @@ vi.mock("openapi/queries", async (importOriginal) => ({
 }));
 
 vi.mock("src/queries/useGridRuns", () => ({
-  useGridRuns: () => ({
-    data: [
-      {
-        end_date: "2024-03-14T10:10:00Z",
-        run_after: "2024-03-14T10:00:00Z",
-        run_id: "run_1",
-        start_date: "2024-03-14T10:00:00Z",
-        state: "success",
-      },
-    ],
-    isLoading: false,
-  }),
+  useGridRuns: mockUseGridRuns,
 }));
 
 vi.mock("src/queries/useGridStructure", () => ({
@@ -85,12 +86,30 @@ const createWrapper =
 
 beforeEach(() => {
   mockUseGanttServiceGetGanttData.mockClear();
+  mockUseGridRuns.mockClear();
   mockUseGridTiSummariesStream.mockClear();
 });
 
 afterEach(cleanup);
 
 describe("Gantt time range filter params", () => {
+  it("shares the Grid's run query in the combined view", () => {
+    render(<Gantt limit={10} offset={0} />, {
+      wrapper: createWrapper(["/dags/test_dag/runs/run_1"]),
+    });
+
+    expect(mockUseGridRuns).toHaveBeenCalledWith({
+      dagRunState: undefined,
+      limit: 11,
+      offset: 0,
+      runAfterGte: undefined,
+      runAfterLte: undefined,
+      runIdPattern: undefined,
+      runType: undefined,
+      triggeringUser: undefined,
+    });
+  });
+
   it("passes the URL date window to the backend query", () => {
     render(<Gantt limit={10} />, {
       wrapper: createWrapper([
