@@ -27,7 +27,7 @@ from collections.abc import Iterable
 from typing import TYPE_CHECKING, Any
 
 from airflow._shared.dagnode.cycle import detect_cycle
-from airflow.models.task_coordinates import LOOP_GATE_OPERATOR
+from airflow.models.task_coordinates import LOOP_GATE_OPERATOR, enclosing_loop
 from airflow.serialization.definitions.mappedoperator import SerializedMappedOperator
 from airflow.serialization.definitions.taskgroup import SerializedLoopTaskGroup, SerializedMappedTaskGroup
 from airflow.serialization.enums import Encoding
@@ -77,7 +77,7 @@ def _check_gates_are_in_their_loops(dag: SerializedDAG) -> None:
     for task in dag.task_dict.values():
         if task.task_type != LOOP_GATE_OPERATOR:
             continue
-        loop = _find_loop(task.task_group)
+        loop = enclosing_loop(task)
         if loop is None or loop.gate_task_id != task.task_id:
             raise ValueError(f"Task {task.task_id!r} is serialized as {LOOP_GATE_OPERATOR} but gates no loop")
 
@@ -108,9 +108,9 @@ def _check_loop(
             f"The gate {loop.gate_task_id!r} of loop {loop.group_id!r} has to be serialized as "
             f"{LOOP_GATE_OPERATOR}, not {gate.task_type}"
         )
-    # One gate instance makes one decision per iteration, so a mapped gate, or one under a mapped task
-    # group, would make several.
-    if gate.task_group is None or gate.task_group.group_id != loop.group_id:
+    # The gate has to sit directly in its loop group. One gate instance makes one decision per iteration,
+    # so a mapped gate, or one under a mapped task group, would make several.
+    if loop.gate_task_id not in loop.children:
         raise ValueError(
             f"The gate {loop.gate_task_id!r} of loop {loop.group_id!r} has to be a direct child of the loop"
         )
@@ -119,6 +119,11 @@ def _check_loop(
     # The scheduler completes an empty task without running it, so the gate would decide nothing.
     if gate.inherits_from_empty_operator:
         raise ValueError(f"The gate {loop.gate_task_id!r} of loop {loop.group_id!r} cannot be empty")
+    # A trigger event completes the task with no decision, which would end the loop after one pass.
+    if gate.start_from_trigger:
+        raise ValueError(
+            f"The gate {loop.gate_task_id!r} of loop {loop.group_id!r} cannot start from a trigger"
+        )
     for task in tasks:
         if task.returns_dag_result:
             raise ValueError(
@@ -147,7 +152,7 @@ def _find_loop(group: SerializedTaskGroup | None) -> SerializedLoopTaskGroup | N
 def _check_expansions_over_loop_tasks(dag: SerializedDAG, groups: Iterable[SerializedTaskGroup]) -> None:
     """Raise for a mapped task or group that expands over a task of a loop it is not in."""
     consumers: list[tuple[str | None, SerializedLoopTaskGroup | None, Any]] = [
-        (task.task_id, _find_loop(task.task_group), task.iter_mapped_dependencies())
+        (task.task_id, enclosing_loop(task), task.iter_mapped_dependencies())
         for task in dag.task_dict.values()
         if isinstance(task, SerializedMappedOperator)
     ]
@@ -158,7 +163,7 @@ def _check_expansions_over_loop_tasks(dag: SerializedDAG, groups: Iterable[Seria
     )
     for consumer_id, consumer_loop, producers in consumers:
         for producer in producers:
-            loop = _find_loop(producer.task_group)
+            loop = enclosing_loop(producer)
             if loop is not None and (consumer_loop is None or consumer_loop.group_id != loop.group_id):
                 raise ValueError(
                     f"{consumer_id!r} cannot expand over {producer.task_id!r}, a task in loop "

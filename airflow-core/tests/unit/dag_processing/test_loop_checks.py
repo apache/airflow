@@ -130,6 +130,11 @@ def _close_a_cycle_through_the_gate(data: dict) -> None:
             id="empty-gate",
         ),
         pytest.param(
+            lambda data: _set_task_field(data, "body.__loop_gate", "start_from_trigger", True),
+            "The gate 'body.__loop_gate' of loop 'body' cannot start from a trigger",
+            id="trigger-started-gate",
+        ),
+        pytest.param(
             lambda data: _set_task_field(data, "body.first", "task_type", "LoopGateOperator"),
             "'body.first' is serialized as LoopGateOperator but gates no loop",
             id="body-task-typed-as-gate",
@@ -239,23 +244,26 @@ def _serialize_mapped_gate() -> dict:
     return data
 
 
-def _serialize_gate_in_a_mapped_group() -> dict:
+def _serialize_gate_in_a_subgroup(*, mapped: bool) -> dict:
     @task
-    def work(value):
+    def work(value=None):
         return value
 
     @task_group
     def body():
         @task_group
-        def inner(value):
+        def inner(value=None):
             work(value)
 
-        inner.expand(value=[1, 2])
+        if mapped:
+            inner.expand(value=[1, 2])
+        else:
+            inner()
 
-    with DAG("gate_in_mapped_group", schedule=None) as dag:
+    with DAG("gate_in_subgroup", schedule=None) as dag:
         create_loop(body, max_iterations=2)
     data = DagSerialization.to_dict(dag)
-    # Swap the roles, so the task in the mapped group is the gate and the loop is otherwise one core can run.
+    # Swap the roles, so the task in the subgroup is the gate and the loop is otherwise one core can run.
     loop = data["dag"]["task_group"]["children"]["body"][1]["loop"]
     loop["gate_task_id"], loop["terminal_task_id"] = "body.inner.work", "body.__loop_gate"
     _set_task_field(data, "body.inner.work", "task_type", "LoopGateOperator")
@@ -323,9 +331,14 @@ def _serialize_gate_outside_any_loop() -> dict:
             id="mapped-gate",
         ),
         pytest.param(
-            _serialize_gate_in_a_mapped_group,
+            lambda: _serialize_gate_in_a_subgroup(mapped=True),
             "The gate 'body.inner.work' of loop 'body' has to be a direct child of the loop",
             id="gate-in-a-mapped-group",
+        ),
+        pytest.param(
+            lambda: _serialize_gate_in_a_subgroup(mapped=False),
+            "The gate 'body.inner.work' of loop 'body' has to be a direct child of the loop",
+            id="gate-in-a-subgroup",
         ),
         pytest.param(
             _serialize_gate_outside_any_loop,

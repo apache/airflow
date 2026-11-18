@@ -4990,7 +4990,10 @@ class TestHandleRequest:
     def test_loop_decision_reason_is_cut_only_over_the_limit(
         self, watched_subprocess, reason, sent, cut_from_bytes
     ):
-        """A language SDK runtime is not told the limit, so a longer reason is cut here and warned about."""
+        """
+        A language SDK runtime is not told the limit, so the supervisor cuts a longer reason to it and
+        warns in the task log. It leaves a reason at the limit, or no reason, as it is.
+        """
         watched_subprocess, _ = watched_subprocess
         process_log = watched_subprocess.process_log
 
