@@ -253,11 +253,13 @@ class TestOdbcHook:
         assert conf.getboolean("providers.odbc", "allow_driver_in_extra") is False
 
     def test_default_driver_set(self, caplog):
-        with patch.object(OdbcHook, "default_driver", "Blah driver"):
-            with caplog.at_level(logging.WARNING, logger="airflow.providers.odbc.hooks.odbc"):
-                hook = mock_db_hook(OdbcHook)
-                assert hook.driver == "Blah driver"
-                assert "You have supplied 'driver' via connection extra" not in caplog.text
+        with (
+            patch.object(OdbcHook, "default_driver", "Blah driver"),
+            caplog.at_level(logging.WARNING, logger="airflow.providers.odbc.hooks.odbc"),
+        ):
+            hook = mock_db_hook(OdbcHook)
+            assert hook.driver == "Blah driver"
+            assert "You have supplied 'driver' via connection extra" not in caplog.text
 
     def test_driver_extra_works_when_default_driver_set(self):
         with patch.object(OdbcHook, "default_driver", "Blah driver"):
