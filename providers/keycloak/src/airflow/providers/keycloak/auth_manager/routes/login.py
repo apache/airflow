@@ -25,7 +25,6 @@ from urllib.parse import quote, urljoin
 
 from fastapi import HTTPException, Query, Request, status
 from fastapi.responses import HTMLResponse, RedirectResponse
-from keycloak import KeycloakConnectionError
 
 from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX, get_auth_manager
 from airflow.api_fastapi.auth.managers.base_auth_manager import COOKIE_NAME_JWT_TOKEN
@@ -56,8 +55,8 @@ from airflow.providers.keycloak.auth_manager.keycloak_auth_manager import (
     is_cli_authorization_code_enabled,
 )
 from airflow.providers.keycloak.auth_manager.services.token import (
-    build_keycloak_unavailable_error,
     is_cli_loopback_redirect_uri,
+    translate_keycloak_outage,
 )
 from airflow.providers.keycloak.auth_manager.user import KeycloakAuthManagerUser
 
@@ -139,8 +138,8 @@ def login_cli(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid redirect_uri")
 
     client = KeycloakAuthManager.get_keycloak_client()
-    try:
-        # Fetches Keycloak's OpenID configuration.
+    # auth_url fetches Keycloak's OpenID configuration.
+    with translate_keycloak_outage():
         auth_url = client.auth_url(
             redirect_uri=quote(redirect_uri, safe=""),
             scope="openid",
@@ -148,8 +147,6 @@ def login_cli(
             code_challenge=code_challenge,
             code_challenge_method=code_challenge_method,
         )
-    except KeycloakConnectionError:
-        raise build_keycloak_unavailable_error()
     return RedirectResponse(auth_url)
 
 

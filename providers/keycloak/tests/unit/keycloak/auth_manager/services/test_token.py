@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import logging
 import time
 from unittest.mock import Mock, patch
 
@@ -120,14 +121,25 @@ class TestTokenService:
                 expiration_time_in_seconds=conf.getint("api_auth", "jwt_cli_expiration_time"),
             )
 
-    @pytest.mark.parametrize("failing_call", ["token", "userinfo"])
+    @pytest.mark.parametrize(
+        ("failing_call", "error"),
+        [
+            pytest.param("token", KeycloakConnectionError("Can't connect"), id="token-unreachable"),
+            pytest.param("token", KeycloakPostError("Unavailable", response_code=503), id="token-5xx"),
+            pytest.param("userinfo", KeycloakConnectionError("Can't connect"), id="userinfo-unreachable"),
+            pytest.param("userinfo", KeycloakGetError("Unavailable", response_code=502), id="userinfo-5xx"),
+        ],
+    )
     @conf_vars({("api_auth", "jwt_expiration_time"): "10"})
+    @patch("airflow.providers.keycloak.auth_manager.services.token.log", spec=logging.Logger)
     @patch("airflow.providers.keycloak.auth_manager.services.token.get_auth_manager")
     @patch("airflow.providers.keycloak.auth_manager.services.token.KeycloakAuthManager.get_keycloak_client")
-    def test_create_token_keycloak_down(self, mock_get_keycloak_client, mock_get_auth_manager, failing_call):
+    def test_create_token_keycloak_down(
+        self, mock_get_keycloak_client, mock_get_auth_manager, mock_log, failing_call, error
+    ):
         mock_keycloak_client = Mock(spec=KeycloakOpenID)
         mock_keycloak_client.token.return_value = {"access_token": self.test_access_token}
-        getattr(mock_keycloak_client, failing_call).side_effect = KeycloakConnectionError("Can't connect")
+        getattr(mock_keycloak_client, failing_call).side_effect = error
         mock_get_keycloak_client.return_value = mock_keycloak_client
 
         with pytest.raises(fastapi.exceptions.HTTPException) as exc_info:
@@ -135,6 +147,9 @@ class TestTokenService:
 
         assert exc_info.value.status_code == 503
         mock_get_auth_manager.return_value.generate_api_jwt.assert_not_called()
+        mock_log.warning.assert_called_once_with(
+            "Keycloak is unavailable (response code %s): %s", error.response_code, error
+        )
 
     @conf_vars({("api_auth", "jwt_expiration_time"): "10"})
     @patch("airflow.providers.keycloak.auth_manager.services.token.get_auth_manager")
@@ -611,8 +626,9 @@ class TestCliTokenService:
     @pytest.mark.parametrize(
         ("error", "expected_status"),
         [
-            pytest.param(KeycloakPostError("invalid_grant"), 403, id="invalid-code"),
+            pytest.param(KeycloakPostError("invalid_grant", response_code=400), 403, id="invalid-code"),
             pytest.param(KeycloakConnectionError("Can't connect to server"), 503, id="keycloak-down"),
+            pytest.param(KeycloakPostError("Unavailable", response_code=503), 503, id="keycloak-5xx"),
         ],
     )
     @conf_vars({("keycloak_auth_manager", "cli_authorization_code_enabled"): "True"})
@@ -633,12 +649,19 @@ class TestCliTokenService:
     @conf_vars({("keycloak_auth_manager", "cli_authorization_code_enabled"): "True"})
     @patch("airflow.providers.keycloak.auth_manager.services.token.get_auth_manager")
     @patch("airflow.providers.keycloak.auth_manager.services.token.KeycloakAuthManager.get_keycloak_client")
+    @pytest.mark.parametrize(
+        "error",
+        [
+            pytest.param(KeycloakConnectionError("Can't connect to server"), id="unreachable"),
+            pytest.param(KeycloakGetError("Unavailable", response_code=503), id="server-error"),
+        ],
+    )
     def test_create_token_from_authorization_code_userinfo_keycloak_down(
-        self, mock_get_keycloak_client, mock_get_auth_manager
+        self, mock_get_keycloak_client, mock_get_auth_manager, error
     ):
         mock_keycloak_client = Mock(spec=KeycloakOpenID)
         mock_keycloak_client.token.return_value = {"access_token": "access"}
-        mock_keycloak_client.userinfo.side_effect = KeycloakConnectionError("Can't connect to server")
+        mock_keycloak_client.userinfo.side_effect = error
         mock_get_keycloak_client.return_value = mock_keycloak_client
 
         with pytest.raises(fastapi.exceptions.HTTPException) as exc_info:
@@ -775,6 +798,9 @@ class TestCliTokenService:
             pytest.param({"return_value": {}}, 403, id="session-expired-before-3-1-7"),
             pytest.param(
                 {"side_effect": KeycloakConnectionError("Can't connect to server")}, 503, id="keycloak-down"
+            ),
+            pytest.param(
+                {"side_effect": KeycloakPostError("Down", response_code=503)}, 503, id="keycloak-5xx"
             ),
         ],
     )

@@ -20,7 +20,7 @@ from http.cookies import SimpleCookie
 from unittest.mock import ANY, Mock, patch
 
 import pytest
-from keycloak import KeycloakConnectionError
+from keycloak import KeycloakConnectionError, KeycloakGetError
 
 from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX
 
@@ -56,10 +56,17 @@ class TestLoginRouter:
             code_challenge_method="S256",
         )
 
+    @pytest.mark.parametrize(
+        "error",
+        [
+            pytest.param(KeycloakConnectionError("Can't connect"), id="unreachable"),
+            pytest.param(KeycloakGetError("Unavailable", response_code=503), id="server-error"),
+        ],
+    )
     @conf_vars({("keycloak_auth_manager", "cli_authorization_code_enabled"): "True"})
     @patch("airflow.providers.keycloak.auth_manager.routes.login.KeycloakAuthManager.get_keycloak_client")
-    def test_login_cli_keycloak_down(self, mock_get_keycloak_client, client):
-        mock_get_keycloak_client.return_value.auth_url.side_effect = KeycloakConnectionError("Can't connect")
+    def test_login_cli_keycloak_down(self, mock_get_keycloak_client, client, error):
+        mock_get_keycloak_client.return_value.auth_url.side_effect = error
 
         response = client.get(
             AUTH_MANAGER_FASTAPI_APP_PREFIX + "/login/cli", params=CLI_LOGIN_PARAMS, follow_redirects=False
