@@ -28,7 +28,6 @@ from airflow._shared.timezones import timezone
 from airflow.configuration import conf
 from airflow.dag_processing.bundles.manager import get_configured_bundle_team_names
 from airflow.executors.executor_loader import ExecutorLoader
-from airflow.executors.executor_utils import ExecutorName
 from airflow.jobs.dag_processor_job_runner import DagProcessorJobRunner
 from airflow.jobs.job import EXECUTOR_JOB_TYPE, HealthCheckResult, Job
 from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
@@ -37,6 +36,8 @@ from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
+
+    from airflow.executors.executor_utils import ExecutorName
 
 log = logging.getLogger(__name__)
 

@@ -477,12 +477,15 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         # going to report anything isn't a gap in coverage (see _configured_executor_keys in
         # airflow_health.py, which applies this same rule from the /monitor/health side). An executor
         # with no name is also skipped: _executor_health_key has nothing stable to key its row under.
+        # getattr rather than a plain attribute access: a test double standing in for an executor
+        # (e.g. a bare, non-speced MagicMock) has no real get_health of its own to compare, and should
+        # be treated the same as one that doesn't override it, not raise AttributeError.
         from airflow.executors.base_executor import BaseExecutor as _BaseExecutor
 
         self._executor_health_keys: dict[str, str | None] = {
             key: executor.team_name
             for executor in self.executors
-            if type(executor).get_health is not _BaseExecutor.get_health
+            if getattr(type(executor), "get_health", _BaseExecutor.get_health) is not _BaseExecutor.get_health
             and (key := _executor_health_key(executor)) is not None
         }
 
@@ -538,10 +541,14 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     self.log.warning("Health check for executor %s has stopped responding", key)
                     stats.incr(
                         "scheduler.executor_health_check.stalled",
-                        tags=prune_dict({"executor": type(executor).__name__, "team_name": executor.team_name}),
+                        tags=prune_dict(
+                            {"executor": type(executor).__name__, "team_name": executor.team_name}
+                        ),
                     )
                     try:
-                        self._record_executor_health_result(key, executor.team_name, HealthCheckResult.UNHEALTHY)
+                        self._record_executor_health_result(
+                            key, executor.team_name, HealthCheckResult.UNHEALTHY
+                        )
                     except Exception:
                         self.log.exception("Failed to record health check result for executor %s", key)
                 else:
@@ -559,7 +566,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             ).start()
             self._executor_health_check_futures[key] = (future, time.monotonic())
 
-    def _run_executor_health_check_and_resolve(self, executor: BaseExecutor, key: str, future: Future) -> None:
+    def _run_executor_health_check_and_resolve(
+        self, executor: BaseExecutor, key: str, future: Future
+    ) -> None:
         """Run one executor's health check and resolve its tracking future, even if it raises."""
         try:
             self._run_executor_health_check(executor, key)
@@ -607,7 +616,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         for key, team_name in self._executor_health_keys.items():
             job = self._get_or_create_executor_job(key, team_name, session=session)
             job.latest_heartbeat = now
-        session.commit()
 
     def _get_or_create_executor_job(
         self, executor_key: str, team_name: str | None, *, session: Session
@@ -677,7 +685,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         """
         job = self._get_or_create_executor_job(executor_key, team_name, session=session)
         job.health_check_result = result
-        session.commit()
 
     def _get_current_dag(self, dag_id: str, session: Session) -> SerializedDAG | None:
         try:

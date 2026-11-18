@@ -95,7 +95,10 @@ class _IsAliveFilter(BaseParam[bool]):
         # The case wraps the result so it is always True/False (never NULL), keeping the negated
         # is_alive=False query exact.
         alive = case(
-            (Job.is_alive_clause(("SchedulerJob", "TriggererJob", "DagProcessorJob", EXECUTOR_JOB_TYPE)), True),
+            (
+                Job.is_alive_clause(("SchedulerJob", "TriggererJob", "DagProcessorJob", EXECUTOR_JOB_TYPE)),
+                True,
+            ),
             else_=False,
         )
         return select.where(alive if self.value else ~alive)
