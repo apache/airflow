@@ -54,7 +54,7 @@ connection form because the workspace host and credentials come from the Databri
 instead.
 
 Model
-    Serving endpoint name (e.g. ``databricks-claude-sonnet-4-5``).
+    Serving endpoint name (e.g. ``my-serving-endpoint``).
 
     A bare name is resolved to ``openai-chat:<name>``, which uses the Chat Completions API.
     Databricks documents querying chat models through the OpenAI client for
@@ -147,7 +147,7 @@ Two connections: the Databricks connection holding credentials, and this one poi
 
     {
         "conn_type": "pydanticai_databricks",
-        "extra": "{\"model\": \"databricks-claude-sonnet-4-5\", \"databricks_conn_id\": \"databricks_default\"}"
+        "extra": "{\"model\": \"my-serving-endpoint\", \"databricks_conn_id\": \"databricks_default\"}"
     }
 
 Then use it from a task:

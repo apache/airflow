@@ -170,13 +170,13 @@ def get_provider_info():
                     "hidden-fields": ["schema", "port", "login", "host", "password"],
                     "relabeling": {},
                     "placeholders": {
-                        "extra": '{"model": "databricks-claude-sonnet-4-5", "databricks_conn_id": "databricks_default"}'
+                        "extra": '{"model": "my-serving-endpoint", "databricks_conn_id": "databricks_default"}'
                     },
                 },
                 "conn-fields": {
                     "model": {
                         "label": "Model",
-                        "description": "Serving endpoint name (e.g. databricks-claude-sonnet-4-5)",
+                        "description": "Serving endpoint name (e.g. my-serving-endpoint)",
                         "schema": {"type": ["string", "null"]},
                     },
                     "fallback_conn_ids": {
