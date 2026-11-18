@@ -264,7 +264,12 @@
     ],
     "unicorn/catch-error-name": "error",
     "unicorn/consistent-empty-array-spread": "error",
-    "unicorn/consistent-function-scoping": "off",
+    "unicorn/consistent-function-scoping": [
+      "error",
+      {
+        "checkArrowFunctions": true
+      }
+    ],
     "unicorn/error-message": "error",
     "unicorn/escape-case": "error",
     "unicorn/no-abusive-eslint-disable": "error",
@@ -285,7 +290,7 @@
     "unicorn/no-useless-fallback-in-spread": "error",
     "unicorn/no-useless-length-check": "error",
     "unicorn/no-useless-spread": "error",
-    "unicorn/no-useless-switch-case": "off",
+    "unicorn/no-useless-switch-case": "error",
     "unicorn/numeric-separators-style": "error",
     "unicorn/prefer-add-event-listener": "error",
     "unicorn/prefer-array-find": "error",
@@ -296,7 +301,7 @@
     "unicorn/prefer-date-now": "error",
     "unicorn/prefer-default-parameters": "error",
     "unicorn/prefer-dom-node-append": "error",
-    "unicorn/prefer-dom-node-dataset": "off",
+    "unicorn/prefer-dom-node-dataset": "error",
     "unicorn/prefer-dom-node-remove": "error",
     "unicorn/prefer-dom-node-text-content": "error",
     "unicorn/prefer-event-target": "error",
@@ -330,12 +335,6 @@
       }
     ],
     "react-js/destructuring-assignment": ["error", "always"],
-    "react-js/jsx-max-depth": [
-      "error",
-      {
-        "max": 7
-      }
-    ],
     "react-js/jsx-no-leaked-render": "error",
     "react-js/no-deprecated": "error",
     "typescript-js/no-invalid-this": [
@@ -345,14 +344,7 @@
       }
     ],
     "unicorn-js/consistent-destructuring": "error",
-    "unicorn-js/consistent-function-scoping": [
-      "error",
-      {
-        "checkArrowFunctions": true
-      }
-    ],
-    "unicorn-js/no-unnecessary-polyfills": "error",
-    "unicorn-js/no-useless-switch-case": "error"
+    "unicorn-js/no-unnecessary-polyfills": "error"
   },
   "overrides": [
     {

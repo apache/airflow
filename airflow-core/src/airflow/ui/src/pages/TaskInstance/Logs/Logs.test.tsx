@@ -92,6 +92,18 @@ describe("Task log source", () => {
   });
 });
 
+const expectRenderedLineNumber = async (pattern: RegExp, expectedLineNumber: number) => {
+  const row = (await screen.findByText(pattern)).closest('[data-testid^="virtualized-item-"]');
+
+  expect(row).not.toBeNull();
+
+  const anchor = row?.querySelector<HTMLAnchorElement>("a[id]");
+
+  expect(anchor).not.toBeNull();
+
+  expect(Number(anchor?.id)).toBe(expectedLineNumber);
+};
+
 const timestampPattern = /\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\]/u;
 const levelPattern = /INFO - /u;
 
@@ -101,6 +113,8 @@ const selectSetting = async (testId: string) => {
 };
 
 const logSourcePath = "/dags/log_grouping/runs/manual__2025-02-18T12:19/tasks/log_source";
+
+const getMatchCount = () => screen.getByRole("button", { name: /previousMatch/u }).previousElementSibling;
 
 const renderLogSourceTask = async (search = "") => {
   render(<AppWrapper initialEntries={[`${logSourcePath}${search}`]} />);
@@ -363,18 +377,17 @@ describe("Task log search", () => {
     await waitForLogs();
 
     const searchInput = screen.getByTestId("log-search-input");
-    const matchCount = () => screen.getByRole("button", { name: /previousMatch/u }).previousElementSibling;
 
     fireEvent.change(searchInput, { target: { value: "state" } });
     fireEvent.keyDown(searchInput, { key: "Enter" });
-    const afterEnter = matchCount()?.textContent;
+    const afterEnter = getMatchCount()?.textContent;
 
     await waitFor(() => expect(router.state.location.search).toContain("log_search=state"));
     // Let the page re-render from the new url before reading the counter again.
     await act(() => Promise.resolve());
 
     expect(afterEnter).toMatch(/^2 of /u);
-    expect(matchCount()?.textContent).toBe(afterEnter);
+    expect(getMatchCount()?.textContent).toBe(afterEnter);
   });
 
   it("follows the url search query on back navigation", async () => {
@@ -559,18 +572,6 @@ describe("Task log search", () => {
     );
 
     await waitForLogs();
-
-    const expectRenderedLineNumber = async (pattern: RegExp, expectedLineNumber: number) => {
-      const row = (await screen.findByText(pattern)).closest('[data-testid^="virtualized-item-"]');
-
-      expect(row).not.toBeNull();
-
-      const anchor = row?.querySelector<HTMLAnchorElement>("a[id]");
-
-      expect(anchor).not.toBeNull();
-
-      expect(Number(anchor?.id)).toBe(expectedLineNumber);
-    };
 
     const summaryPre = screen.getByTestId("summary-Pre task execution logs");
 

@@ -107,6 +107,19 @@ const formatElkEdge = (edge: EdgeResponse, font: string, node?: NodeResponse): F
   targets: [edge.target_id],
 });
 
+const setsEqual = (left: Set<string>, right: Set<string>) => {
+  if (left.size !== right.size) {
+    return false;
+  }
+  for (const value of left) {
+    if (!right.has(value)) {
+      return false;
+    }
+  }
+
+  return true;
+};
+
 /**
  * Returns true when every child task with at least one external connection
  * shares the **exact same full external profile** — the same set of external
@@ -184,19 +197,6 @@ export const hasUniformExternalConnectivity = (
   if (reference === undefined) {
     return false;
   }
-
-  const setsEqual = (left: Set<string>, right: Set<string>) => {
-    if (left.size !== right.size) {
-      return false;
-    }
-    for (const value of left) {
-      if (!right.has(value)) {
-        return false;
-      }
-    }
-
-    return true;
-  };
 
   return rest.every(
     (profile) =>

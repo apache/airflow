@@ -273,7 +273,7 @@ describe("Selection pinning across scrolling", () => {
     await waitFor(() => expect(screen.getByText(/starting attempt 1 of 3/iu)).toBeInTheDocument());
 
     const anchorRow = findRow("Starting attempt 1 of 3");
-    const anchorIndex = Number(anchorRow.getAttribute("data-index"));
+    const anchorIndex = Number(anchorRow.dataset.index);
     const neighborIndex = anchorIndex + 1;
     const textNode = anchorRow.querySelector("span")?.firstChild as Node;
     const range = document.createRange();
@@ -307,7 +307,7 @@ describe("Selection pinning across scrolling", () => {
     await waitFor(() => expect(screen.getByText(/starting attempt 1 of 3/iu)).toBeInTheDocument());
 
     const anchorRow = findRow("Starting attempt 1 of 3");
-    const anchorIndex = Number(anchorRow.getAttribute("data-index"));
+    const anchorIndex = Number(anchorRow.dataset.index);
     const textNode = anchorRow.querySelector("span")?.firstChild as Node;
     const range = document.createRange();
 
