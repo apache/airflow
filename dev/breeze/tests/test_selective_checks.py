@@ -27,7 +27,9 @@ import requests
 from rich.console import Console
 
 from airflow_breeze.global_constants import (
+    ALLOWED_ELASTICSEARCH_VERSIONS,
     ALLOWED_KUBERNETES_VERSIONS,
+    ALLOWED_OPENSEARCH_VERSIONS,
     ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS,
     CI_AMD_PLATFORM,
     CI_ARM_PLATFORM,
@@ -4532,6 +4534,53 @@ def test_testable_providers_integrations_matrix_has_one_entry_per_server_version
         {"integration": "celery", "id": "celery"},
         {"integration": "elasticsearch", "id": "elasticsearch-9.0.0", "elasticsearch-version": "9.0.0"},
         {"integration": "elasticsearch", "id": "elasticsearch-8.0.0", "elasticsearch-version": "8.0.0"},
+    ]
+
+
+@pytest.mark.parametrize(
+    ("changed_files", "integration", "versions"),
+    [
+        pytest.param(
+            ("providers/elasticsearch/src/airflow/providers/elasticsearch/log/es_task_handler.py",),
+            "elasticsearch",
+            ALLOWED_ELASTICSEARCH_VERSIONS,
+            id="elasticsearch-source",
+        ),
+        pytest.param(
+            ("providers/elasticsearch/tests/integration/elasticsearch/log/test_es_remote_log_io.py",),
+            "elasticsearch",
+            ALLOWED_ELASTICSEARCH_VERSIONS,
+            id="elasticsearch-integration-test",
+        ),
+        pytest.param(
+            ("providers/elasticsearch/pyproject.toml", "uv.lock"),
+            "elasticsearch",
+            ALLOWED_ELASTICSEARCH_VERSIONS,
+            id="elasticsearch-dependency-bump",
+        ),
+        pytest.param(
+            ("providers/opensearch/src/airflow/providers/opensearch/log/os_task_handler.py",),
+            "opensearch",
+            ALLOWED_OPENSEARCH_VERSIONS,
+            id="opensearch-source",
+        ),
+        pytest.param(
+            ("providers/opensearch/pyproject.toml", "uv.lock"),
+            "opensearch",
+            ALLOWED_OPENSEARCH_VERSIONS,
+            id="opensearch-dependency-bump",
+        ),
+    ],
+)
+def test_provider_change_runs_its_integration_once_per_server_version(changed_files, integration, versions):
+    selective_checks = SelectiveChecks(
+        files=changed_files,
+        commit_ref=NEUTRAL_COMMIT,
+        github_event=GithubEvents.PULL_REQUEST,
+        platform=CI_AMD_PLATFORM,
+    )
+    assert [entry["id"] for entry in json.loads(selective_checks.testable_providers_integrations_matrix)] == [
+        f"{integration}-{version}" for version in versions
     ]
 
 
