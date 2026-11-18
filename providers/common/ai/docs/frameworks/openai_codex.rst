@@ -213,8 +213,8 @@ value; it does not show what the model can do.
        failed to initialize" when the URL is wrong. ``mcpServerStatus/list`` does not raise in
        that case; it reports the failure in ``tools_error``.
    * - ``mcp_servers.<name>.supports_parallel_tool_calls=false``
-     - Keeps Codex from sending calls in parallel. The adapter itself queues only tools marked
-       ``sequential``; every other tool runs one at a time because of this flag.
+     - Asks Codex not to send calls in parallel. The adapter itself queues only tools marked
+       ``sequential``; every other tool runs one at a time only if Codex honours this flag.
        Codex does not echo a ``false`` value, so a test can show only that the key is known
        (``true`` is echoed), and whether ``false`` is the same as the default is not
        confirmed.

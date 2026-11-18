@@ -325,7 +325,8 @@ class AirflowTools:
                 uvicorn.Config(
                     app,
                     log_level="warning",
-                    # uvicorn's default logging dictConfig would remove and close the task process's log handlers.
+                    # uvicorn's default logging dictConfig would remove and close the task process's
+                    # log handlers.
                     log_config=None,
                     access_log=False,
                     lifespan="on",
