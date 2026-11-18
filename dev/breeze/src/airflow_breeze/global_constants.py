@@ -157,6 +157,16 @@ TESTABLE_PROVIDERS_INTEGRATION_OWNERS = {
     "trino": "trino",
     "ydb": "ydb",
 }
+# Server versions the elasticsearch and opensearch integrations can run against. The first one is
+# the default; CI runs each provider's integration tests once per listed version.
+ALLOWED_ELASTICSEARCH_VERSIONS = ["9.5.6", "8.19.25"]
+DEFAULT_ELASTICSEARCH_VERSION = ALLOWED_ELASTICSEARCH_VERSIONS[0]
+ALLOWED_OPENSEARCH_VERSIONS = ["3.10.0", "2.19.7"]
+DEFAULT_OPENSEARCH_VERSION = ALLOWED_OPENSEARCH_VERSIONS[0]
+PROVIDERS_INTEGRATION_SERVER_VERSIONS: dict[str, list[str]] = {
+    "elasticsearch": ALLOWED_ELASTICSEARCH_VERSIONS,
+    "opensearch": ALLOWED_OPENSEARCH_VERSIONS,
+}
 KEYCLOAK_INTEGRATION = "keycloak"
 STATSD_INTEGRATION = "statsd"
 OTEL_INTEGRATION = "otel"

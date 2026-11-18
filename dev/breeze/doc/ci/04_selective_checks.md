@@ -841,6 +841,7 @@ GitHub Actions to pass the list of parameters to a command to execute
 | sqlite-exclude                                          | Which versions of Sqlite to exclude for tests as JSON array                                             | []                                       |      |
 | testable-core-integrations                              | List of core integrations that are testable in the build as JSON array                                  | \['celery', 'kerberos'\]                 |      |
 | testable-providers-integrations                         | List of core integrations that are testable in the build as JSON array                                  | \['mongo', 'kafka'\]                     |      |
+| testable-providers-integrations-matrix                  | Matrix entries for the providers integration jobs: one per integration, and one per server version for integrations in `PROVIDERS_INTEGRATION_SERVER_VERSIONS` (elasticsearch, opensearch) | \[{}\]                                   |      |
 | upgrade-to-newer-dependencies                           | Whether the image build should attempt to upgrade all dependencies (true/false or commit hash); false when no CI image is built | false                                    |      |
 | use-pinned-os-deps-images                               | Whether the CI and PROD image builds start from the pinned OS-dependencies images; false with the `disable image cache` label or a changed OS-dependencies script | true                                     |      |
 

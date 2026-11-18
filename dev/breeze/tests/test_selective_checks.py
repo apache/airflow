@@ -4512,6 +4512,29 @@ def test_testable_providers_integrations_gated_by_affected_provider():
     assert "ydb" not in result
 
 
+@patch(
+    "airflow_breeze.utils.selective_checks.PROVIDERS_INTEGRATION_SERVER_VERSIONS",
+    {"elasticsearch": ["9.0.0", "8.0.0"]},
+)
+@patch.object(
+    SelectiveChecks,
+    "testable_providers_integrations",
+    new=property(lambda self: ["celery", "elasticsearch"]),
+)
+def test_testable_providers_integrations_matrix_has_one_entry_per_server_version():
+    selective_checks = SelectiveChecks(
+        files=(),
+        commit_ref=NEUTRAL_COMMIT,
+        github_event=GithubEvents.PULL_REQUEST,
+        platform=CI_AMD_PLATFORM,
+    )
+    assert json.loads(selective_checks.testable_providers_integrations_matrix) == [
+        {"integration": "celery", "id": "celery"},
+        {"integration": "elasticsearch", "id": "elasticsearch-9.0.0", "elasticsearch-version": "9.0.0"},
+        {"integration": "elasticsearch", "id": "elasticsearch-8.0.0", "elasticsearch-version": "8.0.0"},
+    ]
+
+
 def test_opensearch_provider_integration_triggered_by_affected_provider():
     """Verify that changes to the OpenSearch provider trigger its integration test."""
     selective_checks = SelectiveChecks(
