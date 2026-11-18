@@ -23,8 +23,6 @@ vi.mock("src/queries/useConfig", () => ({
   useConfig: vi.fn(() => undefined),
 }));
 
-import { useConfig } from "src/queries/useConfig";
-
 import {
   CLEAR_KEEP_TASK_STATE_KEY,
   CLEAR_PREVENT_RUNNING_TASK_KEY,
@@ -36,6 +34,7 @@ import {
   DEFAULT_TASK_INSTANCE_TAB_KEY,
   MARK_TASK_INSTANCE_DEFAULT_OPTIONS_KEY,
 } from "src/constants/localStorage";
+import { useConfig } from "src/queries/useConfig";
 
 import {
   useClearKeepTaskStateDefault,
