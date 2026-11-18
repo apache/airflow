@@ -1750,14 +1750,37 @@ class _ReferenceXComBackend(BaseXCom):
         return value
 
 
-@mock.patch("airflow.providers.common.ai.plugins.hitl_review.XCom", new=_ReferenceXComBackend)
+class _LoadValueReferenceXComBackend(BaseXCom):
+    """Resolve the same references through ``load_value`` only, as ``store_value`` backends do."""
+
+    @classmethod
+    def load_value(cls, stored) -> Any:
+        value = super().load_value(stored)
+        if isinstance(value, str):
+            return _ReferenceXComBackend.stored.get(value, value)
+        return value
+
+
 class TestReferenceStoringXComBackend:
     """Review XComs a custom backend stored as references are read through the backend."""
 
     PARAMS = {"dag_id": TEST_DAG_ID, "run_id": TEST_RUN_ID, "task_id": TEST_TASK_ID}
 
-    @pytest.fixture(autouse=True)
-    def setup(self, dag_maker, session):
+    @pytest.fixture(
+        autouse=True,
+        params=[
+            pytest.param(_ReferenceXComBackend, id="deserialize_value"),
+            pytest.param(
+                _LoadValueReferenceXComBackend,
+                id="load_value",
+                marks=pytest.mark.skipif(
+                    not hasattr(BaseXCom, "load_value"), reason="This Airflow version has no load_value hook"
+                ),
+            ),
+        ],
+    )
+    def setup(self, request, monkeypatch, dag_maker, session):
+        monkeypatch.setattr("airflow.providers.common.ai.plugins.hitl_review.XCom", request.param)
         _clear_db()
         with dag_maker(TEST_DAG_ID, schedule=None, start_date=logical_date, serialized=True):
             EmptyOperator(task_id=TEST_TASK_ID)

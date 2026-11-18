@@ -86,6 +86,11 @@ if AIRFLOW_V_3_1_PLUS:
 
     SessionDep = Annotated[Session, Depends(_get_session)]
 
+    def _load_xcom_value(row: XComModel) -> Any:
+        """Resolve an XCom row through the configured XCom backend, the way workers read it."""
+        # Where it exists, ``_load`` prefers a backend's ``load_value`` over ``deserialize_value``.
+        return getattr(XCom, "_load", XCom.deserialize_value)(row)
+
     def _read_xcom(
         session: Session,
         *,
@@ -112,7 +117,7 @@ if AIRFLOW_V_3_1_PLUS:
         row = session.scalars(read).first()
         if row is None:
             return None
-        return XCom.deserialize_value(row)
+        return _load_xcom_value(row)
 
     def _read_xcom_by_prefix(
         session: Session,
@@ -148,7 +153,7 @@ if AIRFLOW_V_3_1_PLUS:
         for row in session.scalars(query):
             suffix = row.key[len(prefix) :]
             if suffix.isdigit():
-                result[int(suffix)] = XCom.deserialize_value(row)
+                result[int(suffix)] = _load_xcom_value(row)
         return result
 
     def _write_xcom(
@@ -393,7 +398,7 @@ if AIRFLOW_V_3_1_PLUS:
         response_model=HITLReviewResponse,
         dependencies=[Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.HITL_DETAIL))],
     )
-    async def find_session(
+    def find_session(
         db: SessionDep,
         dag_id: str,
         task_id: str,
