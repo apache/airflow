@@ -82,8 +82,11 @@
                     },
                     "assetEvent": {
                         "id": "{{ is_numeric(result) }}",
-                        "watcherName": "openlineage_asset_watcher",
-                        "triggerClasspath": "system.openlineage.asset_watcher_triggers.FileDeleteWithPayloadTrigger",
+                        "source": {
+                            "type": "ASSET_WATCHER",
+                            "watcherName": "openlineage_asset_watcher",
+                            "triggerClasspath": "system.openlineage.asset_watcher_triggers.FileDeleteWithPayloadTrigger"
+                        },
                         "extra": {
                             "from_trigger": true,
                             "payload": {
@@ -133,8 +136,11 @@
                     },
                     "assetEvent": {
                         "id": "{{ is_numeric(result) }}",
-                        "watcherName": "openlineage_asset_watcher_second",
-                        "triggerClasspath": "system.openlineage.asset_watcher_triggers.FileDeleteWithPayloadTrigger",
+                        "source": {
+                            "type": "ASSET_WATCHER",
+                            "watcherName": "openlineage_asset_watcher_second",
+                            "triggerClasspath": "system.openlineage.asset_watcher_triggers.FileDeleteWithPayloadTrigger"
+                        },
                         "extra": {
                             "from_trigger": true,
                             "payload": {
@@ -182,8 +188,11 @@
                     },
                     "assetEvent": {
                         "id": "{{ is_numeric(result) }}",
-                        "watcherName": "openlineage_asset_watcher_shared_trigger",
-                        "triggerClasspath": "system.openlineage.asset_watcher_triggers.FileDeleteWithPayloadTrigger",
+                        "source": {
+                            "type": "ASSET_WATCHER",
+                            "watcherName": "openlineage_asset_watcher_shared_trigger",
+                            "triggerClasspath": "system.openlineage.asset_watcher_triggers.FileDeleteWithPayloadTrigger"
+                        },
                         "extra": {
                             "from_trigger": true,
                             "payload": {
@@ -226,8 +235,11 @@
                     },
                     "assetEvent": {
                         "id": "{{ is_numeric(result) }}",
-                        "watcherName": "openlineage_asset_watcher_untranslatable",
-                        "triggerClasspath": "system.openlineage.asset_watcher_triggers.FileDeleteWithPayloadTrigger",
+                        "source": {
+                            "type": "ASSET_WATCHER",
+                            "watcherName": "openlineage_asset_watcher_untranslatable",
+                            "triggerClasspath": "system.openlineage.asset_watcher_triggers.FileDeleteWithPayloadTrigger"
+                        },
                         "extra": {
                             "from_trigger": true,
                             "payload": {
@@ -277,8 +289,11 @@
                     },
                     "assetEvent": {
                         "id": "{{ is_numeric(result) }}",
-                        "watcherName": "openlineage_asset_watcher",
-                        "triggerClasspath": "system.openlineage.asset_watcher_triggers.FileDeleteWithPayloadTrigger",
+                        "source": {
+                            "type": "ASSET_WATCHER",
+                            "watcherName": "openlineage_asset_watcher",
+                            "triggerClasspath": "system.openlineage.asset_watcher_triggers.FileDeleteWithPayloadTrigger"
+                        },
                         "extra": {
                             "from_trigger": true,
                             "payload": {
@@ -328,8 +343,11 @@
                     },
                     "assetEvent": {
                         "id": "{{ is_numeric(result) }}",
-                        "watcherName": "openlineage_asset_watcher_second",
-                        "triggerClasspath": "system.openlineage.asset_watcher_triggers.FileDeleteWithPayloadTrigger",
+                        "source": {
+                            "type": "ASSET_WATCHER",
+                            "watcherName": "openlineage_asset_watcher_second",
+                            "triggerClasspath": "system.openlineage.asset_watcher_triggers.FileDeleteWithPayloadTrigger"
+                        },
                         "extra": {
                             "from_trigger": true,
                             "payload": {
@@ -377,8 +395,11 @@
                     },
                     "assetEvent": {
                         "id": "{{ is_numeric(result) }}",
-                        "watcherName": "openlineage_asset_watcher_shared_trigger",
-                        "triggerClasspath": "system.openlineage.asset_watcher_triggers.FileDeleteWithPayloadTrigger",
+                        "source": {
+                            "type": "ASSET_WATCHER",
+                            "watcherName": "openlineage_asset_watcher_shared_trigger",
+                            "triggerClasspath": "system.openlineage.asset_watcher_triggers.FileDeleteWithPayloadTrigger"
+                        },
                         "extra": {
                             "from_trigger": true,
                             "payload": {
@@ -421,8 +442,11 @@
                     },
                     "assetEvent": {
                         "id": "{{ is_numeric(result) }}",
-                        "watcherName": "openlineage_asset_watcher_untranslatable",
-                        "triggerClasspath": "system.openlineage.asset_watcher_triggers.FileDeleteWithPayloadTrigger",
+                        "source": {
+                            "type": "ASSET_WATCHER",
+                            "watcherName": "openlineage_asset_watcher_untranslatable",
+                            "triggerClasspath": "system.openlineage.asset_watcher_triggers.FileDeleteWithPayloadTrigger"
+                        },
                         "extra": {
                             "from_trigger": true,
                             "payload": {

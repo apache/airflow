@@ -148,6 +148,9 @@ _PRODUCER = f"https://github.com/apache/airflow/tree/providers-openlineage/{OPEN
 _JOB_TYPE_DAG: Literal["DAG"] = "DAG"
 _JOB_TYPE_TASK: Literal["TASK"] = "TASK"
 _JOB_TYPE_ASSET_WATCHER: Literal["ASSET_WATCHER"] = "ASSET_WATCHER"
+# What produced an asset event that is reported in its own events rather than in a task's events. It is also the
+# job type of those events.
+AssetEventSourceType = Literal["ASSET_WATCHER"]
 
 
 def try_import_from_string(string: str) -> Any:
@@ -2752,11 +2755,9 @@ def is_asset_event_from_asset_watcher(asset_event: ListenerAssetEvent) -> bool:
     )
 
 
-def build_asset_watcher_event_ol_run_id(
-    asset_event: ListenerAssetEvent, event_time: datetime.datetime
-) -> str:
+def build_asset_event_ol_run_id(asset_event: ListenerAssetEvent, event_time: datetime.datetime) -> str:
     """
-    Return the OpenLineage run id for an asset event produced by an asset watcher.
+    Return the OpenLineage run id for an asset event produced outside of any task, e.g. by an asset watcher.
 
     The id is deterministic when listeners are given the asset event's id. The timestamp and asset name are
     part of the seed because database ids can be reused, e.g. by SQLite after a rollback or after a
@@ -2775,12 +2776,16 @@ def build_asset_watcher_event_ol_run_id(
 
 
 def get_airflow_asset_event_run_facet(
-    asset_event: ListenerAssetEvent,
+    asset_event: ListenerAssetEvent, source_type: AssetEventSourceType
 ) -> dict[str, AirflowAssetEventRunFacet]:
-    """Return a run facet describing an asset event and its asset."""
+    """Return a run facet describing an asset event, its asset and what produced the event."""
     asset = asset_event.asset
     # Fields read with getattr are not passed to listeners by every supported Airflow version.
     partition_date = getattr(asset_event, "partition_date", None)
+    source: dict[str, Any] = {"type": source_type}
+    if source_type == _JOB_TYPE_ASSET_WATCHER:
+        source["watcherName"] = getattr(asset_event, "source_watcher_name", None)
+        source["triggerClasspath"] = getattr(asset_event, "source_trigger_classpath", None)
     return {
         "airflowAssetEvent": AirflowAssetEventRunFacet(
             asset={
@@ -2792,8 +2797,7 @@ def get_airflow_asset_event_run_facet(
             },
             assetEvent={
                 "id": getattr(asset_event, "id", None),
-                "watcherName": getattr(asset_event, "source_watcher_name", None),
-                "triggerClasspath": getattr(asset_event, "source_trigger_classpath", None),
+                "source": source,
                 "extra": _convert_to_json_safe(asset_event.extra, "assetEvent.extra") or {},
                 "partitionKey": asset_event.partition_key,
                 "partitionDate": partition_date.isoformat() if partition_date else None,

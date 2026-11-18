@@ -116,8 +116,11 @@
                     },
                     "assetEvent": {
                         "id": "{{ is_numeric(result) }}",
-                        "watcherName": "openlineage_asset_watcher_partition",
-                        "triggerClasspath": "system.openlineage.asset_watcher_triggers.PartitionedFileDeleteTrigger",
+                        "source": {
+                            "type": "ASSET_WATCHER",
+                            "watcherName": "openlineage_asset_watcher_partition",
+                            "triggerClasspath": "system.openlineage.asset_watcher_triggers.PartitionedFileDeleteTrigger"
+                        },
                         "extra": {
                             "from_trigger": true,
                             "payload": {
@@ -165,8 +168,11 @@
                     },
                     "assetEvent": {
                         "id": "{{ is_numeric(result) }}",
-                        "watcherName": "openlineage_asset_watcher_partition",
-                        "triggerClasspath": "system.openlineage.asset_watcher_triggers.PartitionedFileDeleteTrigger",
+                        "source": {
+                            "type": "ASSET_WATCHER",
+                            "watcherName": "openlineage_asset_watcher_partition",
+                            "triggerClasspath": "system.openlineage.asset_watcher_triggers.PartitionedFileDeleteTrigger"
+                        },
                         "extra": {
                             "from_trigger": true,
                             "payload": {

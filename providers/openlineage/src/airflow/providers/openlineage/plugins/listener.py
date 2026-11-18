@@ -44,10 +44,11 @@ from airflow.providers.openlineage.utils.emission_policy import (
     resolve_task_emission_policy,
 )
 from airflow.providers.openlineage.utils.utils import (
+    _JOB_TYPE_ASSET_WATCHER,
     AIRFLOW_V_3_0_PLUS,
     AIRFLOW_V_3_2_PLUS,
     DagRunInfo,
-    build_asset_watcher_event_ol_run_id,
+    build_asset_event_ol_run_id,
     get_airflow_dag_run_facet,
     get_airflow_debug_facet,
     get_airflow_job_facet,
@@ -298,9 +299,10 @@ class _AssetWatcherEventEmitter:
             return
         if self._adapter is None:
             self._adapter = OpenLineageAdapter()
-        self._adapter.asset_watcher_event(
+        self._adapter.asset_event(
             asset_event=asset_event,
-            run_id=build_asset_watcher_event_ol_run_id(asset_event, event_time),
+            source_type=_JOB_TYPE_ASSET_WATCHER,
+            run_id=build_asset_event_ol_run_id(asset_event, event_time),
             # All watchers of an asset share one job, so the name doesn't depend on whether Airflow passes the
             # watcher to listeners; the watcher is in the run facet instead.
             job_name=f"asset_watcher.{asset_name}",

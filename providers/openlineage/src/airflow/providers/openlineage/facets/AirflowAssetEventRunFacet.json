@@ -46,16 +46,29 @@
                     "description": "The id of the asset event in the Airflow metadata database. Absent on Airflow versions that do not pass it to listeners.",
                     "type": "integer"
                   },
-                  "watcherName": {
-                    "description": "The name of the asset watcher that produced the event. Absent on Airflow versions that do not pass it to listeners.",
-                    "type": "string"
-                  },
-                  "triggerClasspath": {
-                    "description": "The classpath of the trigger of the asset watcher. Absent on Airflow versions that do not pass it to listeners.",
-                    "type": "string"
+                  "source": {
+                    "description": "What produced the asset event.",
+                    "type": "object",
+                    "properties": {
+                      "type": {
+                        "description": "The kind of source of the event. It is also the job type of the event.",
+                        "type": "string",
+                        "examples": ["ASSET_WATCHER"]
+                      },
+                      "watcherName": {
+                        "description": "The name of the asset watcher that produced the event. Only for the ASSET_WATCHER type, and absent on Airflow versions that do not pass it to listeners.",
+                        "type": "string"
+                      },
+                      "triggerClasspath": {
+                        "description": "The classpath of the trigger of the asset watcher. Only for the ASSET_WATCHER type, and absent on Airflow versions that do not pass it to listeners.",
+                        "type": "string"
+                      }
+                    },
+                    "required": ["type"],
+                    "additionalProperties": true
                   },
                   "extra": {
-                    "description": "The extra of the asset event, holding the trigger payload.",
+                    "description": "The extra of the asset event, e.g. holding the trigger payload of an asset watcher.",
                     "type": "object",
                     "additionalProperties": true
                   },
@@ -76,7 +89,7 @@
                     }
                   }
                 },
-                "required": ["extra", "sourceAliases"],
+                "required": ["source", "extra", "sourceAliases"],
                 "additionalProperties": false
               }
             },

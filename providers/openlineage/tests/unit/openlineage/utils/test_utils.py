@@ -67,7 +67,7 @@ from airflow.providers.openlineage.utils.utils import (
     _get_task_groups_details,
     _get_tasks_details,
     _truncate_string_to_byte_size,
-    build_asset_watcher_event_ol_run_id,
+    build_asset_event_ol_run_id,
     build_dag_run_ol_run_id,
     build_task_event_job_facets,
     build_task_event_run_facets,
@@ -6854,35 +6854,37 @@ class TestAssetWatcherEventHelpers:
 
         assert is_asset_event_from_asset_watcher(asset_event) is expected
 
-    def test_build_asset_watcher_event_ol_run_id_is_deterministic_with_source_fields(self):
+    def test_build_asset_event_ol_run_id_is_deterministic_with_source_fields(self):
         asset_event = _build_listener_asset_event(with_source_fields=True)
         later = datetime.datetime(2026, 11, 5, tzinfo=datetime.UTC)
 
-        run_id = build_asset_watcher_event_ol_run_id(asset_event, asset_event.timestamp)
+        run_id = build_asset_event_ol_run_id(asset_event, asset_event.timestamp)
 
         assert UUID(run_id).version == 7
-        assert run_id == build_asset_watcher_event_ol_run_id(asset_event, later)
-        assert run_id != build_asset_watcher_event_ol_run_id(
+        assert run_id == build_asset_event_ol_run_id(asset_event, later)
+        assert run_id != build_asset_event_ol_run_id(
             _build_listener_asset_event(with_source_fields=True, id=43), asset_event.timestamp
         )
-        assert run_id != build_asset_watcher_event_ol_run_id(
+        assert run_id != build_asset_event_ol_run_id(
             _build_listener_asset_event(with_source_fields=True, timestamp=later), asset_event.timestamp
         )
 
-    def test_build_asset_watcher_event_ol_run_id_is_random_without_source_fields(self):
+    def test_build_asset_event_ol_run_id_is_random_without_source_fields(self):
         asset_event = _build_listener_asset_event()
         event_time = datetime.datetime(2026, 11, 4, 12, 0, tzinfo=datetime.UTC)
 
-        run_id = build_asset_watcher_event_ol_run_id(asset_event, event_time)
+        run_id = build_asset_event_ol_run_id(asset_event, event_time)
 
         assert UUID(run_id).version == 7
-        assert run_id != build_asset_watcher_event_ol_run_id(asset_event, event_time)
+        assert run_id != build_asset_event_ol_run_id(asset_event, event_time)
 
     def test_get_airflow_asset_event_run_facet_falls_back_to_empty_extra(self):
         circular: dict = {}
         circular["self"] = circular
 
-        facet = get_airflow_asset_event_run_facet(_build_listener_asset_event(extra=circular))
+        facet = get_airflow_asset_event_run_facet(
+            _build_listener_asset_event(extra=circular), "ASSET_WATCHER"
+        )
 
         assert facet["airflowAssetEvent"].assetEvent["extra"] == {}
 
@@ -6912,7 +6914,7 @@ class TestAssetWatcherEventHelpers:
             with_source_fields=with_source_fields, partition_date=partition_date
         )
 
-        assert get_airflow_asset_event_run_facet(asset_event) == {
+        assert get_airflow_asset_event_run_facet(asset_event, "ASSET_WATCHER") == {
             "airflowAssetEvent": AirflowAssetEventRunFacet(
                 asset={
                     "id": expected_source_fields["assetId"],
@@ -6923,8 +6925,11 @@ class TestAssetWatcherEventHelpers:
                 },
                 assetEvent={
                     "id": expected_source_fields["id"],
-                    "watcherName": expected_source_fields["watcherName"],
-                    "triggerClasspath": expected_source_fields["triggerClasspath"],
+                    "source": {
+                        "type": "ASSET_WATCHER",
+                        "watcherName": expected_source_fields["watcherName"],
+                        "triggerClasspath": expected_source_fields["triggerClasspath"],
+                    },
                     "extra": {"from_trigger": True, "payload": {"order_id": 1}},
                     "partitionKey": "2026-11-04",
                     "partitionDate": "2026-11-04T00:00:00+00:00",

@@ -3670,7 +3670,7 @@ class TestOpenLineageListenerAssetEvents:
             in_transport.set()
             release.wait(timeout=30)
 
-        mock_adapter_cls.return_value.asset_watcher_event.side_effect = _hang
+        mock_adapter_cls.return_value.asset_event.side_effect = _hang
         listener = OpenLineageListener()
         listener.log = MagicMock(spec=logging.Logger)
         asset_event = _build_listener_asset_event()
@@ -3840,14 +3840,15 @@ class TestAssetWatcherEventEmitter:
 
         emitter._emit(asset_event, self.EVENT_TIME)
 
-        mock_adapter_cls.return_value.asset_watcher_event.assert_called_once_with(
+        mock_adapter_cls.return_value.asset_event.assert_called_once_with(
             asset_event=asset_event,
+            source_type="ASSET_WATCHER",
             run_id=mock.ANY,
             job_name="asset_watcher.orders",
             event_time=self.EVENT_TIME,
             outputs=[self.ASSET_DATASET],
         )
-        run_id = mock_adapter_cls.return_value.asset_watcher_event.call_args.kwargs["run_id"]
+        run_id = mock_adapter_cls.return_value.asset_event.call_args.kwargs["run_id"]
         assert uuid.UUID(run_id).version == 7
 
     @patch(
@@ -3864,7 +3865,7 @@ class TestAssetWatcherEventEmitter:
         with conf_vars({("openlineage", "emission_policy"): json.dumps([rule])}):
             emitter._emit(_build_listener_asset_event(), self.EVENT_TIME)
 
-        mock_adapter_cls.return_value.asset_watcher_event.assert_not_called()
+        mock_adapter_cls.return_value.asset_event.assert_not_called()
         emitter.log.info.assert_called_once()
 
     @patch(
@@ -3880,7 +3881,7 @@ class TestAssetWatcherEventEmitter:
         with conf_vars({("openlineage", "emission_policy"): json.dumps([rule])}):
             emitter._emit(_build_listener_asset_event(), self.EVENT_TIME)
 
-        assert mock_adapter_cls.return_value.asset_watcher_event.call_args.kwargs["outputs"] == []
+        assert mock_adapter_cls.return_value.asset_event.call_args.kwargs["outputs"] == []
 
 
 @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Airflow 3 tests")
