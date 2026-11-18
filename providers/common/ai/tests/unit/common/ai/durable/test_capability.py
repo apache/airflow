@@ -2026,7 +2026,7 @@ class TestFallbackChainEdits:
         ("second_attempt", "replayed", "calls_by_member"),
         [
             pytest.param([("a", None), ("b", None)], 1, {"a": 1, "b": 1}, id="chain unchanged"),
-            pytest.param([("b", None)], 0, {"a": 1, "b": 2}, id="chain edited"),
+            pytest.param([("b", None), ("c", None)], 0, {"a": 1, "b": 2, "c": 0}, id="chain edited"),
         ],
     )
     @pytest.mark.parametrize("stamped_members", [0, 1], ids=["unstamped chain", "mixed chain"])

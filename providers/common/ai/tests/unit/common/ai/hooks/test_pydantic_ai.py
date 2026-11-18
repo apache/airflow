@@ -34,8 +34,8 @@ import pytest
 from pydantic_ai import Agent
 from pydantic_ai.capabilities import AbstractCapability
 from pydantic_ai.exceptions import FallbackExceptionGroup, ModelAPIError
-from pydantic_ai.messages import ModelResponse, TextPart, ToolCallPart, ToolReturnPart
-from pydantic_ai.models import Model
+from pydantic_ai.messages import ModelRequest, ModelResponse, TextPart, ToolCallPart, ToolReturnPart
+from pydantic_ai.models import Model, ModelRequestParameters
 from pydantic_ai.models.fallback import FallbackModel
 from pydantic_ai.models.function import FunctionModel
 from pydantic_ai.models.openai import OpenAIChatModel
@@ -43,7 +43,7 @@ from pydantic_ai.models.test import TestModel
 from pydantic_ai.providers import infer_provider_class
 
 from airflow.models.connection import Connection
-from airflow.providers.common.ai.durable.member_stamp import MemberStampingModel
+from airflow.providers.common.ai.durable.member_stamp import MemberStampingModel, get_member_model_id
 from airflow.providers.common.ai.get_provider_info import get_provider_info
 from airflow.providers.common.ai.hooks.pydantic_ai import (
     ModelReadinessBackend,
@@ -923,14 +923,25 @@ class TestPydanticAIHookFallback:
             infer_model_stub.models["groq:llama-4"],
         ]
 
-    def test_every_chain_member_is_stamped_with_its_model_id(self, registry, infer_model_stub):
+    @pytest.mark.asyncio
+    async def test_response_is_stamped_with_the_member_that_answered(self, registry, infer_model_stub):
+        def fail(messages, info):
+            raise ModelAPIError("primary", "down")
+
+        def answer(messages, info):
+            return ModelResponse(parts=[TextPart("answered")])
+
+        infer_model_stub.models["openai:gpt-5.6-sol"] = FunctionModel(fail, model_name="primary-model")
+        infer_model_stub.models["anthropic:claude-opus-4-6"] = FunctionModel(
+            answer, model_name="second-model"
+        )
         registry.add("primary", extra={"model": "openai:gpt-5.6-sol"})
         registry.add("second", extra={"model": "anthropic:claude-opus-4-6"})
 
         model = PydanticAIHook(llm_conn_id="primary", fallback_conn_ids=["second"]).get_conn()
+        response = await model.request([ModelRequest.user_text_prompt("go")], None, ModelRequestParameters())
 
-        assert isinstance(model, FallbackModel)
-        assert all(isinstance(member, MemberStampingModel) for member in model.models)
+        assert get_member_model_id(response) == "function:second-model"
 
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.FallbackModel", autospec=True)
     def test_chain_pins_fallback_on_to_model_api_error(self, mock_fallback_model, registry, infer_model_stub):
