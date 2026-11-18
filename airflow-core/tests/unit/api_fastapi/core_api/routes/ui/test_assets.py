@@ -1241,7 +1241,7 @@ class TestGetAssetPartitions:
                     "start_date": "2026-01-02T10:00:00Z",
                     "end_date": None,
                 },
-                "consumer_run_count": 0,
+                "consumer_runs": [],
             }
         ]
 
@@ -1374,6 +1374,27 @@ class TestGetAssetPartitions:
                 id="pattern-is-literal",
             ),
             pytest.param(
+                {"status": ["in_progress"], "partition_key_pattern": "2026-01-0"},
+                ["2026-01-04"],
+                1,
+                {"materialized": 2, "in_progress": 1, "failed": 1},
+                id="single-status",
+            ),
+            pytest.param(
+                {"status": ["failed"], "partition_key_pattern": "01-01"},
+                [],
+                0,
+                {"materialized": 1, "in_progress": 0, "failed": 0},
+                id="selected-status-without-keys-keeps-counts",
+            ),
+            pytest.param(
+                {"limit": 2, "offset": 10},
+                [],
+                5,
+                {"materialized": 3, "in_progress": 1, "failed": 1},
+                id="offset-past-the-end-keeps-counts",
+            ),
+            pytest.param(
                 {"limit": 2, "offset": 1},
                 ["2026-01-03", "2026-01-02"],
                 5,
@@ -1399,11 +1420,21 @@ class TestGetAssetPartitions:
         response = test_client.get(f"/assets/{asset.id}/partitions", params={"status": "missing"})
         assert response.status_code == 422
 
-    @pytest.mark.usefixtures("three_statuses")
-    def test_number_of_queries_does_not_grow_with_keys(self, test_client, asset):
-        # The asset lookup, the counts, the page and the consumer counts, plus two for the
-        # access check and the caller's readable Dags. Nothing runs once per key.
-        with assert_queries_count(6):
+    @pytest.mark.parametrize(
+        ("fixture_name", "expected_queries"),
+        [
+            pytest.param("three_statuses", 6, id="no-consumer-runs"),
+            pytest.param("consumed_events", 7, id="consumer-runs"),
+        ],
+    )
+    def test_number_of_queries_does_not_grow_with_keys(
+        self, test_client, asset, request, fixture_name, expected_queries
+    ):
+        # The asset lookup, counts with the page, the last events and their consumer runs, plus
+        # two for the access check and the caller's readable Dags. A further query ranks the events
+        # a consumer run consumed, but only when there is one. Nothing runs once per key or per run.
+        request.getfixturevalue(fixture_name)
+        with assert_queries_count(expected_queries):
             test_client.get(f"/assets/{asset.id}/partitions")
 
     @pytest.fixture
@@ -1426,15 +1457,18 @@ class TestGetAssetPartitions:
         session.commit()
 
     @pytest.mark.usefixtures("consumed_events")
-    def test_consumer_run_count_is_for_the_latest_event(self, test_client, asset):
+    def test_consumer_runs_are_those_of_the_latest_event(self, test_client, asset):
         response = test_client.get(f"/assets/{asset.id}/partitions")
 
         [partition] = response.json()["partitions"]
-        assert partition["consumer_run_count"] == 2
+        assert sorted((run["dag_id"], run["run_id"]) for run in partition["consumer_runs"]) == [
+            ("consumer_a", "run_latest_success"),
+            ("consumer_b", "run_latest_success"),
+        ]
 
     @mock.patch("airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager.get_authorized_dag_ids")
     @pytest.mark.usefixtures("consumed_events")
-    def test_consumer_run_count_leaves_out_dags_the_caller_may_not_read(
+    def test_consumer_runs_leave_out_dags_the_caller_may_not_read(
         self, mock_get_authorized_dag_ids, test_client, asset
     ):
         mock_get_authorized_dag_ids.return_value = {"consumer_b"}
@@ -1442,7 +1476,81 @@ class TestGetAssetPartitions:
         response = test_client.get(f"/assets/{asset.id}/partitions")
 
         [partition] = response.json()["partitions"]
-        assert partition["consumer_run_count"] == 1
+        assert [run["dag_id"] for run in partition["consumer_runs"]] == ["consumer_b"]
+
+    def test_only_the_newest_consumed_event_triggers_a_consumer_run(self, test_client, session, asset):
+        self._add_producer(session, asset)
+        session.add(DagModel(dag_id="consumer", bundle_name="testing"))
+        older = self._add_event(session, asset, "2026-01-01", BEFORE_RUN_START)
+        newer = self._add_event(session, asset, "2026-01-02", AFTER_RUN_START)
+        run = self._add_run(session, "consumed", DagRunState.SUCCESS, dag_id="consumer")
+        run.consumed_asset_events.extend([older, newer])
+        session.commit()
+
+        response = test_client.get(f"/assets/{asset.id}/partitions")
+
+        triggering_by_key = {
+            partition["partition_key"]: [r["triggering"] for r in partition["consumer_runs"]]
+            for partition in response.json()["partitions"]
+        }
+        assert triggering_by_key == {"2026-01-02": [True], "2026-01-01": [False]}
+
+    @pytest.fixture
+    def sortable_keys(self, session, asset):
+        """Keys b and d tie on the event time; c has no event, d has no producer run."""
+        self._add_producer(session, asset)
+        self._add_run(session, "a", DagRunState.FAILED, start_date=RUN_START.add(hours=2))
+        self._add_run(session, "b", DagRunState.RUNNING, start_date=RUN_START.add(hours=1))
+        self._add_run(session, "c", DagRunState.RUNNING, start_date=RUN_START)
+        self._add_event(session, asset, "a", BEFORE_RUN_START)
+        self._add_event(session, asset, "b", AFTER_RUN_START.add(hours=3))
+        self._add_event(session, asset, "d", AFTER_RUN_START.add(hours=3))
+        session.commit()
+
+    @pytest.mark.parametrize(
+        ("order_by", "expected_keys"),
+        [
+            pytest.param("partition_key", ["a", "b", "c", "d"], id="partition_key-asc"),
+            pytest.param("-partition_key", ["d", "c", "b", "a"], id="partition_key-desc"),
+            pytest.param("status", ["a", "c", "b", "d"], id="status-asc"),
+            pytest.param("-status", ["b", "d", "c", "a"], id="status-desc"),
+            pytest.param("last_event_timestamp", ["a", "b", "d", "c"], id="last_event_timestamp-asc"),
+            pytest.param("-last_event_timestamp", ["b", "d", "a", "c"], id="last_event_timestamp-desc"),
+            pytest.param("last_producer_run", ["c", "b", "a", "d"], id="last_producer_run-asc"),
+            pytest.param("-last_producer_run", ["a", "b", "c", "d"], id="last_producer_run-desc"),
+        ],
+    )
+    @pytest.mark.usefixtures("sortable_keys")
+    def test_order_by(self, test_client, asset, order_by, expected_keys):
+        response = test_client.get(f"/assets/{asset.id}/partitions", params={"order_by": order_by})
+
+        assert response.status_code == 200
+        assert [p["partition_key"] for p in response.json()["partitions"]] == expected_keys
+
+    @pytest.mark.parametrize(("offset", "expected_key"), [(0, "b"), (1, "d")])
+    @pytest.mark.usefixtures("sortable_keys")
+    def test_order_by_splits_a_tie_across_pages_of_a_status(self, test_client, asset, offset, expected_key):
+        response = test_client.get(
+            f"/assets/{asset.id}/partitions",
+            params={
+                "order_by": "-last_event_timestamp",
+                "status": "materialized",
+                "limit": 1,
+                "offset": offset,
+            },
+        )
+
+        body = response.json()
+        assert [p["partition_key"] for p in body["partitions"]] == [expected_key]
+        assert body["total_entries"] == 2
+        assert body["status_counts"] == {"materialized": 2, "in_progress": 1, "failed": 1}
+
+    @pytest.mark.parametrize("order_by", ["missing", "-missing", "consumer_runs", ""])
+    @pytest.mark.usefixtures("sortable_keys")
+    def test_should_respond_400_for_unknown_order_by(self, test_client, asset, order_by):
+        response = test_client.get(f"/assets/{asset.id}/partitions", params={"order_by": order_by})
+
+        assert response.status_code == 400
 
     @mock.patch("airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager.get_authorized_dag_ids")
     def test_leaves_out_runs_and_events_of_dags_the_caller_may_not_read(

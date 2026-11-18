@@ -3006,7 +3006,7 @@ export type AssetPartitionResponse = {
     last_event_id: number | null;
     last_event_timestamp: string | null;
     last_producer_run: AssetPartitionProducerRunResponse | null;
-    consumer_run_count?: number;
+    consumer_runs: Array<DagRunAssetReference>;
 };
 
 export type status = 'materialized' | 'in_progress' | 'failed';
@@ -4109,6 +4109,7 @@ export type GetAssetPartitionsData = {
     assetId: number;
     limit?: number;
     offset?: number;
+    orderBy?: string;
     partitionKeyPattern?: string | null;
     status?: Array<('materialized' | 'in_progress' | 'failed')> | null;
 };
@@ -6580,6 +6581,10 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: AssetPartitionCollectionResponse;
+                /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
                 /**
                  * Not Found
                  */

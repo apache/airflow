@@ -224,18 +224,20 @@ export const ensureUseAssetServiceNextRunAssetsData = (queryClient: QueryClient,
 * @param data.assetId
 * @param data.status
 * @param data.partitionKeyPattern
+* @param data.orderBy
 * @param data.limit
 * @param data.offset
 * @returns AssetPartitionCollectionResponse Successful Response
 * @throws ApiError
 */
-export const ensureUseAssetServiceGetAssetPartitionsData = (queryClient: QueryClient, { assetId, limit, offset, partitionKeyPattern, status }: {
+export const ensureUseAssetServiceGetAssetPartitionsData = (queryClient: QueryClient, { assetId, limit, offset, orderBy, partitionKeyPattern, status }: {
   assetId: number;
   limit?: number;
   offset?: number;
+  orderBy?: string;
   partitionKeyPattern?: string;
   status?: ("materialized" | "in_progress" | "failed")[];
-}) => queryClient.ensureQueryData({ queryKey: Common.UseAssetServiceGetAssetPartitionsKeyFn({ assetId, limit, offset, partitionKeyPattern, status }), queryFn: () => AssetService.getAssetPartitions({ assetId, limit, offset, partitionKeyPattern, status }) });
+}) => queryClient.ensureQueryData({ queryKey: Common.UseAssetServiceGetAssetPartitionsKeyFn({ assetId, limit, offset, orderBy, partitionKeyPattern, status }), queryFn: () => AssetService.getAssetPartitions({ assetId, limit, offset, orderBy, partitionKeyPattern, status }) });
 /**
 * List Backfills
 * @param data The data for the request.

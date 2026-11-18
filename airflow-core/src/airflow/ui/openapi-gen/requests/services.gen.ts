@@ -500,6 +500,7 @@ export class AssetService {
      * @param data.assetId
      * @param data.status
      * @param data.partitionKeyPattern
+     * @param data.orderBy
      * @param data.limit
      * @param data.offset
      * @returns AssetPartitionCollectionResponse Successful Response
@@ -515,10 +516,12 @@ export class AssetService {
             query: {
                 status: data.status,
                 partition_key_pattern: data.partitionKeyPattern,
+                order_by: data.orderBy,
                 limit: data.limit,
                 offset: data.offset
             },
             errors: {
+                400: 'Bad Request',
                 404: 'Not Found',
                 422: 'Validation Error'
             }

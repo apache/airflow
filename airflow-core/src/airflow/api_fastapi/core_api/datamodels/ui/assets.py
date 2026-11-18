@@ -22,6 +22,7 @@ from typing import Literal
 from pydantic import Field
 
 from airflow.api_fastapi.core_api.base import BaseModel
+from airflow.api_fastapi.core_api.datamodels.assets import DagRunAssetReference
 from airflow.api_fastapi.core_api.datamodels.common import MaybeAssetExpression
 from airflow.utils.state import DagRunState
 
@@ -83,7 +84,7 @@ class AssetPartitionResponse(BaseModel):
     last_event_id: int | None
     last_event_timestamp: datetime | None
     last_producer_run: AssetPartitionProducerRunResponse | None
-    consumer_run_count: int = 0
+    consumer_runs: list[DagRunAssetReference]
     """Dag runs that consumed the last event of the key."""
 
 

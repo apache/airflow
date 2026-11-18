@@ -365,6 +365,13 @@ paths:
           - type: string
           - type: 'null'
           title: Partition Key Pattern
+      - name: order_by
+        in: query
+        required: false
+        schema:
+          type: string
+          default: -partition_key
+          title: Order By
       - name: limit
         in: query
         required: false
@@ -388,6 +395,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AssetPartitionCollectionResponse'
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
         '404':
           content:
             application/json:
@@ -3343,10 +3356,11 @@ components:
           anyOf:
           - $ref: '#/components/schemas/AssetPartitionProducerRunResponse'
           - type: 'null'
-        consumer_run_count:
-          type: integer
-          title: Consumer Run Count
-          default: 0
+        consumer_runs:
+          items:
+            $ref: '#/components/schemas/DagRunAssetReference'
+          type: array
+          title: Consumer Runs
       type: object
       required:
       - partition_key
@@ -3354,6 +3368,7 @@ components:
       - last_event_id
       - last_event_timestamp
       - last_producer_run
+      - consumer_runs
       title: AssetPartitionResponse
       description: Status of one partition key of an asset.
     AssetPartitionStatusCounts:
@@ -4311,6 +4326,72 @@ components:
       title: DagFolderResponse
       description: A distinct Dag folder (directory of ``relative_fileloc``) within
         a bundle.
+    DagRunAssetReference:
+      properties:
+        run_id:
+          type: string
+          title: Run Id
+        dag_id:
+          type: string
+          title: Dag Id
+        logical_date:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Logical Date
+        start_date:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Start Date
+        end_date:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: End Date
+        state:
+          type: string
+          title: State
+        data_interval_start:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Data Interval Start
+        data_interval_end:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Data Interval End
+        partition_key:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Partition Key
+        triggering:
+          type: boolean
+          title: Triggering
+          description: Whether this asset event triggered the referenced dag run.
+            Only a run's most recent consumed asset event triggers it; earlier consumed
+            events are included in the run but did not trigger it.
+      type: object
+      required:
+      - run_id
+      - dag_id
+      - logical_date
+      - start_date
+      - end_date
+      - state
+      - data_interval_start
+      - data_interval_end
+      - partition_key
+      - triggering
+      title: DagRunAssetReference
+      description: DagRun serializer for asset responses.
     DagRunState:
       type: string
       enum:

@@ -23,13 +23,12 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { AssetService } from "openapi/requests";
-import type { AssetPartitionResponse } from "openapi/requests/types.gen";
+import type { AssetPartitionResponse, AssetPartitionStatusCounts } from "openapi/requests/types.gen";
 
 import { TimezoneProvider } from "src/context/timezone";
 import { BaseWrapper } from "src/utils/Wrapper";
 
 import { AssetPartitions } from "./AssetPartitions";
-import { groupByMonth } from "./partitionStatus";
 
 vi.mock("src/queries/useConfig", () => ({ useConfig: () => 25 }));
 
@@ -42,14 +41,18 @@ vi.mock("react-i18next", async (importOriginal) => ({
   }),
 }));
 
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.useRealTimers();
+  localStorage.clear();
+});
 
 const partition = (
   key: string,
   status: AssetPartitionResponse["status"],
   extra: Partial<AssetPartitionResponse> = {},
 ): AssetPartitionResponse => ({
-  consumer_run_count: 0,
+  consumer_runs: [],
   last_event_id: null,
   last_event_timestamp: null,
   last_producer_run: null,
@@ -58,10 +61,13 @@ const partition = (
   ...extra,
 });
 
-const renderPartitions = (partitions: Array<AssetPartitionResponse>) => {
+const renderPartitions = (
+  partitions: Array<AssetPartitionResponse>,
+  statusCounts: AssetPartitionStatusCounts = { failed: 1, in_progress: 0, materialized: 2 },
+) => {
   const getAssetPartitions = vi.spyOn(AssetService, "getAssetPartitions").mockResolvedValue({
     partitions,
-    status_counts: { failed: 1, in_progress: 0, materialized: 2 },
+    status_counts: statusCounts,
     total_entries: partitions.length,
   });
 
@@ -84,7 +90,20 @@ describe("AssetPartitions", () => {
   it("shows the count of each status and one row per key", async () => {
     renderPartitions([
       partition("2026-01-02", "failed", {
-        consumer_run_count: 7,
+        consumer_runs: [
+          {
+            dag_id: "consumer",
+            data_interval_end: null,
+            data_interval_start: null,
+            end_date: null,
+            logical_date: null,
+            partition_key: "2026-01-02",
+            run_id: "consumed__2026-01-02",
+            start_date: null,
+            state: "success",
+            triggering: true,
+          },
+        ],
         last_producer_run: {
           dag_id: "producer",
           end_date: null,
@@ -100,27 +119,13 @@ describe("AssetPartitions", () => {
       "href",
       "/dags/producer/runs/scheduled__2026-01-02",
     );
-    expect(screen.getByRole("cell", { name: "7" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "consumer" })).toHaveAttribute(
+      "href",
+      "/dags/consumer/runs/consumed__2026-01-02",
+    );
     expect(screen.getByTestId("partition-status-materialized")).toHaveTextContent("2");
     expect(screen.getByTestId("partition-status-failed")).toHaveTextContent("1");
     expect(screen.getByTestId("partition-status-in_progress")).toHaveTextContent("0");
-  });
-
-  it("draws one day cell per key when every key is a day", async () => {
-    renderPartitions([partition("2026-01-02", "failed"), partition("2026-01-01", "materialized")]);
-
-    await waitFor(() => expect(screen.getAllByTestId("partition-day-cell")).toHaveLength(2));
-    expect(screen.getAllByTestId("partition-day-cell").map((cell) => cell.dataset.status)).toEqual([
-      "materialized",
-      "failed",
-    ]);
-  });
-
-  it("draws no day grid when a key is not a day", async () => {
-    renderPartitions([partition("2026-01-01", "materialized"), partition("emea", "materialized")]);
-
-    expect(await screen.findByText("emea")).toBeInTheDocument();
-    expect(screen.queryByTestId("partition-day-grid")).not.toBeInTheDocument();
   });
 
   it("filters by the statuses that are switched on", async () => {
@@ -137,27 +142,38 @@ describe("AssetPartitions", () => {
       expect(screen.getByTestId("partition-status-failed")).toHaveAttribute("aria-pressed", "false"),
     );
   });
-});
 
-describe("groupByMonth", () => {
-  it("orders months by date and keys days by day of month", () => {
-    const months = groupByMonth([
-      partition("2026-02-01T00:00:00", "failed"),
-      partition("2026-01-31", "materialized"),
-    ]);
+  it("sorts by the clicked column", async () => {
+    const getAssetPartitions = renderPartitions([partition("2026-01-01", "materialized")]);
 
-    expect(months?.map(({ days, month }) => [month, [...days.keys()]])).toEqual([
-      ["2026-01", [31]],
-      ["2026-02", [1]],
-    ]);
+    expect(await screen.findByText("2026-01-01")).toBeInTheDocument();
+    expect(getAssetPartitions).toHaveBeenLastCalledWith(
+      expect.objectContaining({ orderBy: "-partition_key" }),
+    );
+
+    fireEvent.click(screen.getByText("assets:lastAssetEvent"));
+    await waitFor(() =>
+      expect(getAssetPartitions).toHaveBeenLastCalledWith(
+        expect.objectContaining({ orderBy: "last_event_timestamp" }),
+      ),
+    );
   });
 
-  it.each([
-    [[]],
-    [[partition("2026-01-01T00", "materialized")]],
-    [[partition("2026-01-32", "materialized")]],
-    [[partition("2026-01-01T00:00:00", "failed"), partition("2026-01-01", "materialized")]],
-  ])("returns nothing for %j", (partitions) => {
-    expect(groupByMonth(partitions)).toBeUndefined();
+  it("refreshes only while a partition is in progress", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const getAssetPartitions = renderPartitions([], { failed: 0, in_progress: 1, materialized: 0 });
+
+    await waitFor(() => expect(getAssetPartitions).toHaveBeenCalledTimes(1));
+    await vi.advanceTimersByTimeAsync(26_000);
+    await waitFor(() => expect(getAssetPartitions.mock.calls.length).toBeGreaterThan(1));
+  });
+
+  it("does not refresh when no partition is in progress", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const getAssetPartitions = renderPartitions([], { failed: 1, in_progress: 0, materialized: 0 });
+
+    await waitFor(() => expect(getAssetPartitions).toHaveBeenCalledTimes(1));
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(getAssetPartitions).toHaveBeenCalledTimes(1);
   });
 });

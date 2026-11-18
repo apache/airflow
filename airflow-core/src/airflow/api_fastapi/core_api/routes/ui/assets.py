@@ -20,11 +20,14 @@ from typing import TYPE_CHECKING, Annotated, Any, cast, get_args
 
 import structlog
 from fastapi import Depends, HTTPException, Query, status
-from sqlalchemy import ColumnElement, and_, case, distinct, exists, func, or_, select, true, union
-from sqlalchemy.orm import aliased
+from sqlalchemy import ColumnElement, and_, case, exists, func, or_, select, true, union
+from sqlalchemy.orm import aliased, selectinload
 
 from airflow.api_fastapi.common.asset_expression import redact_asset_expression
-from airflow.api_fastapi.common.db.assets import generate_assets_with_last_event_query
+from airflow.api_fastapi.common.db.assets import (
+    generate_assets_with_last_event_query,
+    resolve_triggering_event_refs,
+)
 from airflow.api_fastapi.common.db.common import SessionDep, apply_filters_to_select, paginated_select
 from airflow.api_fastapi.common.parameters import (
     QueryAssetDagIdPatternSearch,
@@ -44,7 +47,11 @@ from airflow.api_fastapi.common.parameters import (
 )
 from airflow.api_fastapi.common.partition_helpers import load_partitioned_timetable
 from airflow.api_fastapi.common.router import AirflowRouter
-from airflow.api_fastapi.core_api.datamodels.assets import AssetCollectionResponse, AssetResponse
+from airflow.api_fastapi.core_api.datamodels.assets import (
+    AssetCollectionResponse,
+    AssetResponse,
+    DagRunAssetReference,
+)
 from airflow.api_fastapi.core_api.datamodels.ui.assets import (
     AssetPartitionCollectionResponse,
     AssetPartitionProducerRunResponse,
@@ -73,7 +80,6 @@ from airflow.models.asset import (
     DagScheduleAssetReference,
     PartitionedAssetKeyLog,
     TaskOutletAssetReference,
-    association_table as dagrun_asset_event,
 )
 from airflow.models.dagrun import DagRun
 from airflow.utils.state import DagRunState
@@ -539,9 +545,28 @@ def _build_asset_partition_status_subquery(asset_id: int, readable_dag_ids: set[
     )
 
 
+PARTITION_SORT_COLUMNS = {
+    "partition_key": "partition_key",
+    "status": "status",
+    "last_event_timestamp": "last_event_timestamp",
+    "last_producer_run": "run_start_date",
+}
+
+
+def _build_partition_order(columns: Any, order_by: str) -> list[ColumnElement]:
+    """Order by an allow-listed column, NULLs last in both directions, with the unique key as tiebreak."""
+    sort_name = order_by.removeprefix("-")
+    column = columns.c[PARTITION_SORT_COLUMNS[sort_name]]
+    sort_key = [
+        case((column.is_(None), 1), else_=0),
+        column.desc() if order_by.startswith("-") else column.asc(),
+    ]
+    return sort_key if sort_name == "partition_key" else [*sort_key, columns.c.partition_key.asc()]
+
+
 @assets_router.get(
     "/assets/{asset_id}/partitions",
-    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+    responses=create_openapi_http_exception_doc([status.HTTP_400_BAD_REQUEST, status.HTTP_404_NOT_FOUND]),
     dependencies=[Depends(requires_access_asset(method="GET"))],
 )
 def get_asset_partitions(
@@ -552,8 +577,15 @@ def get_asset_partitions(
     session: SessionDep,
     partition_status: Annotated[list[AssetPartitionStatus] | None, Query(alias="status")] = None,
     partition_key_pattern: str | None = None,
+    order_by: str = "-partition_key",
 ) -> AssetPartitionCollectionResponse:
     """Return the partition keys of an asset with the status of each."""
+    sort_name = order_by.removeprefix("-")
+    if sort_name not in PARTITION_SORT_COLUMNS:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            f"Ordering with '{order_by}' is disallowed or the attribute does not exist on the model",
+        )
     if session.scalar(select(AssetModel.id).where(AssetModel.id == asset_id)) is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"The Asset with ID: `{asset_id}` was not found")
 
@@ -563,35 +595,54 @@ def get_asset_partitions(
     if partition_key_pattern:
         filters.append(partitions.c.partition_key.icontains(partition_key_pattern, autoescape=True))
 
-    status_counts = AssetPartitionStatusCounts.model_validate(
-        {
-            name: count
-            for name, count in session.execute(
-                select(partitions.c.status, func.count()).where(*filters).group_by(partitions.c.status)
-            )
-        }
-    )
     selected = set(partition_status or get_args(AssetPartitionStatus))
-    total_entries = sum(getattr(status_counts, name) for name in selected)
-
-    page_select = (
-        select(partitions)
-        .where(*filters, partitions.c.status.in_(selected))
-        .order_by(partitions.c.partition_key.desc())
-    )
-    rows = session.execute(apply_filters_to_select(statement=page_select, filters=[offset, limit])).all()
-
-    consumer_run_counts: dict[int, int] = {}
-    if last_event_ids := [row.last_event_id for row in rows if row.last_event_id is not None]:
-        consumer_select = (
-            select(dagrun_asset_event.c.event_id, func.count(distinct(DagRun.id)))
-            .join(DagRun, DagRun.id == dagrun_asset_event.c.dag_run_id)
-            .where(dagrun_asset_event.c.event_id.in_(last_event_ids))
-            .group_by(dagrun_asset_event.c.event_id)
+    filtered = select(partitions).where(*filters).cte("filtered_partitions")
+    counts = (
+        select(
+            *[
+                func.coalesce(func.sum(case((filtered.c.status == name, 1), else_=0)), 0).label(
+                    f"{name}_count"
+                )
+                for name in get_args(AssetPartitionStatus)
+            ]
         )
-        if readable_dag_ids is not None:
-            consumer_select = consumer_select.where(DagRun.dag_id.in_(readable_dag_ids))
-        consumer_run_counts = {event_id: count for event_id, count in session.execute(consumer_select)}
+        .select_from(filtered)
+        .cte("partition_counts")
+    )
+    page = apply_filters_to_select(
+        statement=select(filtered)
+        .where(filtered.c.status.in_(selected))
+        .order_by(*_build_partition_order(filtered, order_by)),
+        filters=[offset, limit],
+    ).cte("partition_page")
+    # The counts row is kept by the outer join, so an empty page still carries the counts.
+    all_rows = session.execute(
+        select(*counts.c, *page.c)
+        .select_from(counts.outerjoin(page, true()))
+        .order_by(*_build_partition_order(page, order_by))
+    ).all()
+    status_counts = AssetPartitionStatusCounts.model_validate(
+        {name: getattr(all_rows[0], f"{name}_count") for name in get_args(AssetPartitionStatus)}
+    )
+    total_entries = sum(getattr(status_counts, name) for name in selected)
+    rows = [row for row in all_rows if row.partition_key is not None]
+
+    consumer_runs: dict[int, list[DagRunAssetReference]] = {}
+    if last_event_ids := [row.last_event_id for row in rows if row.last_event_id is not None]:
+        events = session.scalars(
+            select(AssetEvent)
+            .where(AssetEvent.id.in_(last_event_ids))
+            .options(selectinload(AssetEvent.created_dagruns))
+        ).all()
+        triggering_refs = resolve_triggering_event_refs(events, session=session)
+        for event in events:
+            runs = []
+            for run in event.created_dagruns:
+                # In this route ``None`` means every Dag is readable.
+                if readable_dag_ids is None or run.dag_id in readable_dag_ids:
+                    run.triggering = (event.id, run.dag_id, run.run_id) in triggering_refs
+                    runs.append(DagRunAssetReference.model_validate(run))
+            consumer_runs[event.id] = runs
 
     return AssetPartitionCollectionResponse(
         partitions=[
@@ -611,7 +662,7 @@ def get_asset_partitions(
                         end_date=row.run_end_date,
                     )
                 ),
-                consumer_run_count=consumer_run_counts.get(row.last_event_id, 0),
+                consumer_runs=consumer_runs.get(row.last_event_id, []),
             )
             for row in rows
         ],

@@ -11812,14 +11812,16 @@ export const $AssetPartitionResponse = {
                 }
             ]
         },
-        consumer_run_count: {
-            type: 'integer',
-            title: 'Consumer Run Count',
-            default: 0
+        consumer_runs: {
+            items: {
+                '$ref': '#/components/schemas/DagRunAssetReference'
+            },
+            type: 'array',
+            title: 'Consumer Runs'
         }
     },
     type: 'object',
-    required: ['partition_key', 'status', 'last_event_id', 'last_event_timestamp', 'last_producer_run'],
+    required: ['partition_key', 'status', 'last_event_id', 'last_event_timestamp', 'last_producer_run', 'consumer_runs'],
     title: 'AssetPartitionResponse',
     description: 'Status of one partition key of an asset.'
 } as const;

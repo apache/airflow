@@ -224,18 +224,20 @@ export const useAssetServiceNextRunAssetsSuspense = <TData = Common.AssetService
 * @param data.assetId
 * @param data.status
 * @param data.partitionKeyPattern
+* @param data.orderBy
 * @param data.limit
 * @param data.offset
 * @returns AssetPartitionCollectionResponse Successful Response
 * @throws ApiError
 */
-export const useAssetServiceGetAssetPartitionsSuspense = <TData = Common.AssetServiceGetAssetPartitionsDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ assetId, limit, offset, partitionKeyPattern, status }: {
+export const useAssetServiceGetAssetPartitionsSuspense = <TData = Common.AssetServiceGetAssetPartitionsDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ assetId, limit, offset, orderBy, partitionKeyPattern, status }: {
   assetId: number;
   limit?: number;
   offset?: number;
+  orderBy?: string;
   partitionKeyPattern?: string;
   status?: ("materialized" | "in_progress" | "failed")[];
-}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseAssetServiceGetAssetPartitionsKeyFn({ assetId, limit, offset, partitionKeyPattern, status }, queryKey), queryFn: () => AssetService.getAssetPartitions({ assetId, limit, offset, partitionKeyPattern, status }) as TData, ...options });
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseAssetServiceGetAssetPartitionsKeyFn({ assetId, limit, offset, orderBy, partitionKeyPattern, status }, queryKey), queryFn: () => AssetService.getAssetPartitions({ assetId, limit, offset, orderBy, partitionKeyPattern, status }) as TData, ...options });
 /**
 * List Backfills
 * @param data The data for the request.
