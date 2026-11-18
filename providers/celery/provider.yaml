@@ -454,6 +454,17 @@ config:
       underlying celery broker transport. See:
       https://docs.celeryq.dev/en/latest/userguide/configuration.html#std:setting-broker_transport_options
     options:
+      global_keyprefix:
+        description: |
+          The global key prefix to use for all keys in the broker. This is useful when using a shared broker
+          with multiple Airflow instances to avoid key collisions. This option is only supported for Redis
+          celery brokers.
+          See:
+          https://docs.celeryq.dev/projects/kombu/en/stable/reference/kombu.transport.redis.html#kombu.transport.redis.Transport.Channel.global_keyprefix
+        version_added: ~
+        type: string
+        example: "airflow:"
+        default: ~
       visibility_timeout:
         description: |
           The visibility timeout defines the number of seconds to wait for the worker
@@ -502,6 +513,17 @@ config:
         version_added: "3.24.0"
         type: string
         example: '{"MessageSystemAttributeNames": ["SenderId", "SentTimestamp"]}'
+        default: ~
+      global_keyprefix:
+        description: |
+          The global key prefix to use for all keys in the broker. This is useful when using a shared broker
+          with multiple Airflow instances to avoid key collisions. This option is only supported for Redis
+          celery brokers.
+          See:
+          https://docs.celeryq.dev/projects/kombu/en/stable/reference/kombu.transport.redis.html#kombu.transport.redis.Transport.Channel.global_keyprefix
+        version_added: ~
+        type: string
+        example: "airflow:"
         default: ~
       kafka_admin_config:
         description: |

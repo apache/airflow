@@ -57,6 +57,7 @@ except (ImportError, ModuleNotFoundError):
 _BROKER_TRANSPORT_DICT_OPTIONS = [
     "client-config",
     "fetch_message_attributes",
+    "global_keyprefix",
     "kafka_admin_config",
     "kafka_common_config",
     "kafka_consumer_config",
