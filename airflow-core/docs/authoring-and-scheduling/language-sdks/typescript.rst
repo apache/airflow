@@ -403,6 +403,11 @@ previous iteration's result:
       return { stop: result.error < 1e-6, reason: `error ${result.error.toExponential(1)}` };
     }
 
+    const report = dag.task(async function report({ history }: { history: XComSequence<Metrics> }) {
+      console.log(`settled after ${await history.length()} iterations`);
+    });
+    const cleanup = dag.task(async function cleanup() {});
+
     const evaluated = evaluate({ estimate: improve() });
     const refinement = refine.loop(accurateEnough, { result: evaluated }, { maxIterations: 10 });
 
