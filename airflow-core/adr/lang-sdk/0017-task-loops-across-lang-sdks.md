@@ -221,7 +221,8 @@ Nothing here is language-specific.
    `stop` as `index >= max_iterations`.
 4. Send the result on `SucceedTask.loop_decision`. A `stop` of false at `max_iterations` is core's to
    reject, so the SDK sends what the callable returned. A secret the reason might carry is registered
-   with `MaskSecret` as it would be for a log line; the SDK does not redact.
+   with `MaskSecret` as it would be for a log line. The supervisor masks the reason (decision 8), so
+   the SDK does not have to redact it.
 5. A callable that throws fails the gate like any other task body, and the loop stops there.
 
 ## Consequences
@@ -241,10 +242,10 @@ Nothing here is language-specific.
   where an author first sees it; the Task SDK's parse-time checks stay as the faster feedback.
 - **Mapping inside a loop needs no further decision.** The terminal task may be mapped, and
   `terminal_is_mapped` is the only thing a runtime reads to know it.
-- **No new Execution API version, and no core change before an SDK's loop runs.** Every field a loop
-  needs shipped with `2026-10-30`, and core already drives a gate named `LoopGateOperator`. Decisions 3
-  and 8 are independent and can land in any order.
+- **No new Execution API version.** Every field a loop needs shipped with `2026-10-30`, and core
+  already drives a gate named `LoopGateOperator`. Decision 3 changes core and decision 8 changes the
+  supervisor. They are independent and can land in any order.
 - **A Python gate fails an over-long reason, and the supervisor cuts one from any other language.**
   Python masks the reason, then fails the task when more than 512 bytes remain, so an author sees the
-  error at once. A runtime that is not told the limit still sends a valid reason, because the supervisor
-  masks and then cuts. The same 600-byte reason fails a Python gate and is cut for a Go one.
+  error at once. Another runtime does not need to know the limit: the supervisor masks the reason,
+  cuts it to 512 bytes and warns in the task log.

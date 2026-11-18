@@ -144,28 +144,6 @@ def test_a_loop_core_cannot_run_is_refused(break_loop, error):
         _normalize(data)
 
 
-def test_a_nested_loop_is_refused():
-    @task_group
-    def inner():
-        BaseOperator(task_id="terminal")
-
-    @task_group
-    def outer():
-        create_loop(inner, max_iterations=2)
-
-    with DAG("nested", schedule=None) as dag:
-        outer()
-    data = DagSerialization.to_dict(dag)
-    outer_group = data["dag"]["task_group"]["children"]["outer"][1]
-    outer_group["loop"] = {
-        **outer_group["children"]["outer.inner"][1]["loop"],
-        "max_iterations": 3,
-    }
-
-    with pytest.raises(ValueError, match="Loop 'outer.inner' is inside loop 'outer'"):
-        _normalize(data)
-
-
 def _serialize_expand_over_a_loop_task(producer_id: str) -> dict:
     @task
     def produce():
@@ -256,6 +234,26 @@ def _serialize_mapped_gate() -> dict:
     return data
 
 
+def _serialize_nested_loop() -> dict:
+    @task_group
+    def inner():
+        BaseOperator(task_id="terminal")
+
+    @task_group
+    def outer():
+        create_loop(inner, max_iterations=2)
+
+    with DAG("nested", schedule=None) as dag:
+        outer()
+    data = DagSerialization.to_dict(dag)
+    outer_group = data["dag"]["task_group"]["children"]["outer"][1]
+    outer_group["loop"] = {
+        **outer_group["children"]["outer.inner"][1]["loop"],
+        "max_iterations": 3,
+    }
+    return data
+
+
 def _serialize_gate_outside_any_loop() -> dict:
     with DAG("no_loop", schedule=None) as dag:
         BaseOperator(task_id="alone")
@@ -296,6 +294,11 @@ def _serialize_gate_outside_any_loop() -> dict:
             _serialize_gate_outside_any_loop,
             "'alone' is serialized as LoopGateOperator but gates no loop",
             id="gate-in-a-dag-with-no-loop",
+        ),
+        pytest.param(
+            _serialize_nested_loop,
+            "Loop 'outer.inner' is inside loop 'outer'",
+            id="nested-loop",
         ),
     ],
 )

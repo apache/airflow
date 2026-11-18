@@ -4963,7 +4963,7 @@ class TestHandleRequest:
         ids=["task_state", "succeed_task"],
     )
     def test_loop_decision_reason_is_masked_before_it_is_sent(self, watched_subprocess, mocker, message):
-        """A gate's reason is masked here, once for a runtime of every language."""
+        """The supervisor masks a gate's reason for a runtime of every language."""
         watched_subprocess, _ = watched_subprocess
         mocker.patch(
             "airflow.sdk.execution_time.supervisor.redact",
