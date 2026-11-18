@@ -435,7 +435,6 @@ class TestPlainXComArgResolveMappedGroup:
     @staticmethod
     def _make_ti(*, computed):
         ti = mock.MagicMock()
-        ti._upstream_map_indexes = None
         ti._cached_template_context = {"expanded_ti_count": 1}
         ti.run_id = "run-1"
         ti.get_relevant_upstream_map_indexes.return_value = computed

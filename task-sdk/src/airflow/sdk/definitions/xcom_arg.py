@@ -340,26 +340,20 @@ class PlainXComArg(XComArg):
             # No mapped task group - pull from unmapped instance
             map_indexes: int | range | None = None
         else:
-            # Check for pre-computed value from server (backward compatibility)
-            upstream_map_indexes = getattr(ti, "_upstream_map_indexes", None)
-            if upstream_map_indexes is not None:
-                # Use None as default to match original behavior (filter for unmapped XCom)
-                map_indexes = upstream_map_indexes.get(task_id, None)
-            else:
-                # Compute lazily - ti_count will be queried if needed
-                cached_context = getattr(ti, "_cached_template_context", None)
-                ti_count = cached_context.get("expanded_ti_count") if cached_context else None
-                computed = ti.get_relevant_upstream_map_indexes(
-                    upstream=self.operator,
-                    ti_count=ti_count,
-                    session=None,  # Not used in SDK implementation
-                )
-                if computed is None:
-                    # Resolve the mapped task group as a list, even for a single expansion (#69036)
-                    # or all-None values (#48005). Stay lazy: serde materialises the sequence only if
-                    # the value is actually returned and pushed to XCom (see airflow.sdk.serde.serialize).
-                    return LazyXComSequence(xcom_arg=self, ti=ti)
-                map_indexes = computed
+            # Compute lazily - ti_count will be queried if needed
+            cached_context = getattr(ti, "_cached_template_context", None)
+            ti_count = cached_context.get("expanded_ti_count") if cached_context else None
+            computed = ti.get_relevant_upstream_map_indexes(
+                upstream=self.operator,
+                ti_count=ti_count,
+                session=None,  # Not used in SDK implementation
+            )
+            if computed is None:
+                # Resolve the mapped task group as a list, even for a single expansion (#69036)
+                # or all-None values (#48005). Stay lazy: serde materialises the sequence only if
+                # the value is actually returned and pushed to XCom (see airflow.sdk.serde.serialize).
+                return LazyXComSequence(xcom_arg=self, ti=ti)
+            map_indexes = computed
         result = ti.xcom_pull(
             task_ids=task_id,
             key=self.key,
