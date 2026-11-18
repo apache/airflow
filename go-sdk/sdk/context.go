@@ -91,8 +91,9 @@ type DagRunType = genmodels.DagRunType
 
 // DagRun identifies the Dag run the current task instance belongs to and
 // carries its scheduling timestamps, how it was created, and its conf. The
-// *time.Time fields are nil when the supervisor did not provide a value (for
-// example, a manually triggered run without a logical date).
+// time fields are in UTC. The *time.Time fields are nil when the supervisor did
+// not provide a value (for example, a manually triggered run without a logical
+// date).
 type DagRun struct {
 	DagID             string
 	RunID             string
@@ -105,5 +106,7 @@ type DagRun struct {
 	RunType DagRunType
 	// Conf is the run configuration, empty when none was supplied. Integers are
 	// int64, or uint64 above math.MaxInt64; floating-point values are float64.
+	// [DagRun.UnmarshalConf] reads the conf into a struct with typed fields
+	// instead.
 	Conf map[string]any
 }

@@ -66,15 +66,42 @@ describe("Paused filter with hide_paused_dags_by_default enabled", () => {
   it("defaults to showing only active dags", async () => {
     render(<AppWrapper initialEntries={["/dags"]} />);
 
+    await waitFor(() => expect(screen.getByText("tutorial_taskflow_api_success")).toBeInTheDocument());
+    await screen.findByTestId("paused-pill");
+
     await waitFor(() => {
       expect(screen.getByText("tutorial_taskflow_api_success")).toBeInTheDocument();
       expect(screen.queryByText("paused_dag")).not.toBeInTheDocument();
     });
   });
 
+  it("sends the paused default on every dags request, including the first", async () => {
+    const urls: Array<URL> = [];
+    const onRequest = ({ request }: { request: Request }) => {
+      urls.push(new URL(request.url));
+    };
+
+    server.events.on("request:start", onRequest);
+    try {
+      render(<AppWrapper initialEntries={["/dags"]} />);
+
+      await waitFor(() => expect(screen.getByText("tutorial_taskflow_api_success")).toBeInTheDocument());
+    } finally {
+      server.events.removeListener("request:start", onRequest);
+    }
+
+    const dagsRequests = urls.filter((url) => url.pathname === "/ui/dags");
+
+    expect(dagsRequests).toHaveLength(1);
+    expect(dagsRequests.every((url) => url.searchParams.get("paused") === "false")).toBe(true);
+  });
+
   it("keeps draining dags under the default, since they are not paused yet", async () => {
     withDrainingDag();
     render(<AppWrapper initialEntries={["/dags"]} />);
+
+    await waitFor(() => expect(screen.getByText("draining_dag")).toBeInTheDocument());
+    await screen.findByTestId("paused-pill");
 
     await waitFor(() => {
       expect(screen.getByText("draining_dag")).toBeInTheDocument();
@@ -118,13 +145,16 @@ describe("Paused filter with hide_paused_dags_by_default enabled", () => {
   it("shows all dags after removing the paused filter", async () => {
     render(<AppWrapper initialEntries={["/dags"]} />);
 
+    await waitFor(() => expect(screen.getByText("tutorial_taskflow_api_success")).toBeInTheDocument());
+    await screen.findByTestId("paused-pill");
+
     await waitFor(() => {
       expect(screen.getByText("tutorial_taskflow_api_success")).toBeInTheDocument();
       expect(screen.queryByText("paused_dag")).not.toBeInTheDocument();
     });
 
     // There is no "All" option any more; removing the pill is how you ask for every Dag.
-    fireEvent.click(screen.getByTestId("paused-pill-remove"));
+    fireEvent.click(await screen.findByTestId("paused-pill-remove"));
 
     await waitFor(() => expect(screen.getByText("paused_dag")).toBeInTheDocument());
     expect(screen.getByText("tutorial_taskflow_api_success")).toBeInTheDocument();

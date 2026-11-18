@@ -105,6 +105,7 @@ class _BaseUIDict(TypedDict):
     category: NotRequired[str | None]
     nav_top_level: NotRequired[bool | None]
     applies_to: NotRequired[AppliesToDict | None]
+    show_icon_with_label: NotRequired[bool | None]
 
 
 class ExternalViewDict(_BaseUIDict):

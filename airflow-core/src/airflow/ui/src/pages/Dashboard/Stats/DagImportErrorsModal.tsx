@@ -43,6 +43,7 @@ import { useHasMultipleDagBundles } from "src/queries/useHasMultipleDagBundles";
 import { createErrorToaster } from "src/utils";
 
 type ImportDAGErrorModalProps = {
+  readonly bundleName?: string;
   readonly onClose: () => void;
   readonly open: boolean;
 };
@@ -85,7 +86,7 @@ const ReparseButton = ({
   );
 };
 
-export const DagImportErrorsModal = ({ onClose, open }: ImportDAGErrorModalProps) => {
+export const DagImportErrorsModal = ({ bundleName, onClose, open }: ImportDAGErrorModalProps) => {
   const [page, setPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState("");
   const [pollAfterReparse, setPollAfterReparse] = useState(false);
@@ -94,6 +95,7 @@ export const DagImportErrorsModal = ({ onClose, open }: ImportDAGErrorModalProps
 
   const { data } = useImportErrorServiceGetImportErrors(
     {
+      bundleName,
       filenamePattern: searchQuery || undefined,
       limit: PAGE_LIMIT,
       offset: PAGE_LIMIT * (page - 1),
@@ -186,8 +188,8 @@ export const DagImportErrorsModal = ({ onClose, open }: ImportDAGErrorModalProps
                   fileToken={importError.file_token}
                   onReparsed={() => setPollAfterReparse(true)}
                 />
-                <ClipboardRoot value={importError.filename}>
-                  <ClipboardIconButton variant="outline" />
+                <ClipboardRoot value={importError.stack_trace}>
+                  <ClipboardIconButton label={translate("importErrors.copyStackTrace")} variant="outline" />
                 </ClipboardRoot>
               </Box>
             </HStack>

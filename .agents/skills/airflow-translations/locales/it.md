@@ -22,6 +22,26 @@ the word for a deadline. A loop is `Ciclo`; one pass of it is `Iterazione`.
 Do not copy an awkward existing string into a new key. `Mostrando`, for
 example, is not Italian.
 
+## Grammar and interface text
+
+Use Italian articles and prepositions around technical terms: `del Dag`,
+`del Task`, `della connessione` and `dell'operatore`. Match gender and number to
+the Italian noun in the sentence, including when a placeholder supplies its value.
+
+The Italian translation owner's feedback in
+[the earlier Italian guidelines PR](https://github.com/apache/airflow/pull/62685)
+prefers `Ultima esecuzione del Dag` for a new label describing the latest Dag
+run, and `ID della connessione` for a connection identifier. Existing short
+labels such as `Run del Dag` remain in use; do not copy `Ultimo Run del Dag`
+or `ID Connessione` into new prose merely because they occur in older strings.
+
+Use direct action labels, following the existing interface: `Aggiungi`,
+`Modifica`, `Elimina`, `Salva` and `Scarica`.
+
+Use sentence case for new sentences and preserve established labels in their
+existing context. Keep accents, including `è`, `ì` and `à`, and use the Italian
+apostrophe where needed, as in `L'ID della connessione è obbligatorio`.
+
 ## Plurals
 
 Italian needs `_zero`, `_one`, `_many` and `_other`
@@ -64,3 +84,11 @@ unaffected:
 
 The UI prints the count as digits (`1.000.000`), not as the words "un milione".
 Keep `{{count, number}}` anyway: that is the form i18next selects `_many` for.
+
+## Before submitting
+
+- Check the English key and nearby Italian strings before translating.
+- Reuse the terminology above and preserve interpolation tokens exactly.
+- Follow the validation commands in the parent skill.
+- Keep terminology corrections separate from unrelated translation updates and
+  explain them to the Italian translation owners during review.

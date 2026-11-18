@@ -27,8 +27,26 @@
 Changelog
 ---------
 
+.. note::
+    ``AsyncKubernetesHook`` now honors its ``config_file`` argument, so a deferrable
+    ``KubernetesJobOperator`` authenticates against the kubeconfig it was given rather than the
+    connection's ``kube_config_path`` or the default kubeconfig. The triggerer must therefore be
+    able to read that file: either make it available on the triggerer at the same path, or drop
+    ``config_file`` and put the kubeconfig contents in the connection's ``kube_config`` extra.
+    The connection's ``kube_config_path`` does not help here, since the triggerer resolves that
+    path too. Because ``config_file`` now takes part in the mutual-exclusion check, combining it
+    with ``in_cluster``, ``kube_config`` or ``config_dict`` raises instead of being ignored — drop
+    whichever option you did not mean to use.
+
 11.0.0
 ......
+
+.. note::
+
+    ``AsyncKubernetesHook`` now reuses its API client for non-exec authentication.
+    Direct hook users must call ``await hook.close()`` when finished to release the
+    connection pool and SSL context. Pod and job triggers close the hook during cleanup.
+    TLS certificate material is retained until the client is closed and recreated.
 
 .. note::
   ``@task.kubernetes_cmd`` now renders only the command returned by the decorated function inside

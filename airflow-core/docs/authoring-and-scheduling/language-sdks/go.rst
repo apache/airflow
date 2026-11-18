@@ -478,7 +478,8 @@ that runs under ``context.WithoutCancel(actx)``. A helper that takes a plain ``c
 ``airflow.Context`` back with ``airflow.FromContext``.
 
 ``Conf`` is a ``map[string]any`` whose values follow the :ref:`XCom type mapping <go-sdk/types>`. Use a map lookup
-or ``len`` to check for configuration entries.
+or ``len`` to check for configuration entries, or :ref:`read the conf into a struct <go-sdk/dag-run-conf>` with
+typed fields.
 
 A value the task returns becomes its ``return_value`` XCom. A non-nil ``error``, or a panic, fails the task, and
 retries it if the task has retries.
@@ -493,6 +494,36 @@ retries it if the task has retries.
         airflow.DagRun{DagID: "simple_dag", RunID: "run1"},
     )
     require.NoError(t, transform(actx, "uk", map[string]any{"rows": 42}))
+
+.. _go-sdk/dag-run-conf:
+
+Reading the Dag run conf
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+Reading ``Conf`` directly gives the value of a key as an ``any``, so a task that reads several keys asserts a Go
+type per key. ``UnmarshalConf`` reads the conf into a struct with typed fields instead:
+
+.. code-block:: go
+
+    type etlConf struct {
+        TargetTable string
+        Limit       int
+        Since       time.Time
+    }
+
+    func load(actx airflow.Context) error {
+        etl := etlConf{Limit: 100}
+        if err := actx.DagRun().UnmarshalConf(&etl); err != nil {
+            return err
+        }
+        ...
+    }
+
+For a run triggered with the conf ``{"target_table": "sales", "since": "2024-01-31T00:00:00Z"}``,
+``etl.TargetTable`` is ``"sales"``, ``etl.Since`` is that date, and ``etl.Limit`` stays ``100``.
+
+For how keys match fields and when it returns an error,
+see `DagRun.UnmarshalConf <https://pkg.go.dev/github.com/apache/airflow/go-sdk/sdk#DagRun.UnmarshalConf>`__.
 
 .. _go-sdk/client:
 
@@ -602,7 +633,7 @@ XCom type mapping
 -----------------
 
 XComs are stored as JSON, so a value read with ``GetXCom`` arrives as the matching Go type. The same mapping
-applies to the values in ``actx.DagRun().Conf``:
+applies to a value read with ``TaskStateStore().Get`` and to the values in ``actx.DagRun().Conf``:
 
 .. list-table::
    :header-rows: 1
@@ -613,7 +644,7 @@ applies to the values in ``actx.DagRun().Conf``:
      - Go type
    * - ``int``
      - number (integer)
-     - an integer type (see note)
+     - ``int64`` (see note)
    * - ``float``
      - number (decimal)
      - ``float64``
@@ -635,11 +666,10 @@ applies to the values in ``actx.DagRun().Conf``:
 
 .. note::
 
-  An integer arrives as a Go integer type whose width depends on the value. In ``actx.DagRun().Conf``, it
-  arrives as ``int64`` instead, or as ``uint64`` when it is above ``math.MaxInt64``, including in nested maps
-  and arrays. Type-switch over the integer types you expect, or round-trip the value through ``json.Marshal``
-  and ``json.Unmarshal`` into a typed Go value. A task input from ``airflow.Inputs`` or a TaskFlow argument is
-  already decoded into its parameter type.
+  An integer arrives as ``int64``, or as ``uint64`` when it is above ``math.MaxInt64``. This also applies to
+  values in nested maps and arrays. To get a typed Go value, round-trip the value through ``json.Marshal`` and
+  ``json.Unmarshal``. A task input from ``airflow.Inputs`` or a TaskFlow argument is already decoded into its
+  parameter type.
 
 .. _go-sdk/build:
 
