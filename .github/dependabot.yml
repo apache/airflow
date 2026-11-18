@@ -137,6 +137,7 @@ updates:
       oxc:
         patterns:
           - "oxfmt"
+          - "oxlint*"
       typescript:
         patterns:
           - "typescript*"

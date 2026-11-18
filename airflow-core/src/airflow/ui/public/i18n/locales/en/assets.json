@@ -62,5 +62,9 @@
   "taskDependencies": "Task Dependencies",
   "watcher_one": "Watcher",
   "watcher_other": "Watchers",
+  "watcherFailing_one": "Watcher Failing",
+  "watcherFailing_other": "Watchers Failing",
+  "watcherOrphaned_one": "Watcher Orphaned",
+  "watcherOrphaned_other": "Watchers Orphaned",
   "watchers": "Watchers"
 }

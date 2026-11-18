@@ -19,8 +19,8 @@
 import { Box, HStack, Text, VStack } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 
-import { useTaskStateStoreServiceGetTaskStateStore } from "openapi/queries";
-import type { TaskInstanceResponse, TaskInstanceState } from "openapi/requests";
+import { useDurableExecutionServiceGetDurableExecution } from "openapi/queries";
+import type { TaskInstanceResponse } from "openapi/requests";
 
 import { Alert, Tooltip } from "src/system-components";
 
@@ -30,29 +30,6 @@ import Time from "src/components/Time";
 import { useTaskInstanceCoordinates } from "src/hooks/useTaskInstanceCoordinates";
 import { isStatePending, useAutoRefresh } from "src/utils";
 import { renderDuration } from "src/utils/datetimeUtils";
-
-// Written by ResumableJobMixin in the Task SDK, which also defines DurableDecision.
-const DURABLE_RECORD_KEY = "__airflow_durable__";
-
-export const DurableDecision = {
-  ALREADY_SUCCEEDED: "already_succeeded",
-  RECONNECTED: "reconnected",
-  RESUBMITTED: "resubmitted",
-  SUBMITTED: "submitted",
-} as const;
-
-type DurableTry = {
-  readonly decision: (typeof DurableDecision)[keyof typeof DurableDecision];
-  readonly external_id: unknown;
-  readonly saved_seconds: number | null;
-  readonly status?: TaskInstanceState | null;
-  readonly try_number: number | null;
-};
-
-type DurableRecord = {
-  readonly submitted_at?: string;
-  readonly tries?: Array<DurableTry>;
-};
 
 export const DurableBanner = ({
   taskInstance,
@@ -68,12 +45,11 @@ export const DurableBanner = ({
   const coordinates = useTaskInstanceCoordinates();
   const refetchInterval = useAutoRefresh({ dagId: taskInstance?.dag_id });
 
-  const { data } = useTaskStateStoreServiceGetTaskStateStore(
+  const { data: record } = useDurableExecutionServiceGetDurableExecution(
     {
       ...coordinates,
       dagId: taskInstance?.dag_id ?? "",
       dagRunId: taskInstance?.dag_run_id ?? "",
-      key: DURABLE_RECORD_KEY,
       mapIndex: taskInstance?.map_index ?? -1,
       taskId: taskInstance?.task_id ?? "",
     },
@@ -82,17 +58,13 @@ export const DurableBanner = ({
       // A first try never reconnects or reuses a result, so only retries can show the banner.
       enabled: taskInstance !== undefined && (tryNumber ?? 0) > 1,
       refetchInterval: isStatePending(taskInstance?.state) && refetchInterval,
-      // Most tasks are not durable, so the key is usually missing.
-      retry: false,
     },
   );
 
-  const record = (data?.value ?? {}) as DurableRecord;
-  const entry = (record.tries ?? []).find(
+  const entry = (record?.tries ?? []).find(
     (attempt) =>
       attempt.try_number === tryNumber &&
-      (attempt.decision === DurableDecision.RECONNECTED ||
-        attempt.decision === DurableDecision.ALREADY_SUCCEEDED),
+      (attempt.decision === "reconnected" || attempt.decision === "already_succeeded"),
   );
 
   if (entry === undefined) {
@@ -104,7 +76,7 @@ export const DurableBanner = ({
     typeof entry.external_id === "string" ? entry.external_id : JSON.stringify(entry.external_id);
   let detail = translate(`logs.durable.detail.${entry.decision}`);
 
-  if (entry.decision === DurableDecision.RECONNECTED) {
+  if (entry.decision === "reconnected") {
     detail =
       seconds === null
         ? translate("logs.durable.detail.reconnectedRunning")
@@ -114,7 +86,7 @@ export const DurableBanner = ({
   const jobDetails = (
     <VStack align="start" gap={0}>
       <Text>{translate("logs.durable.job.id", { id: externalId })}</Text>
-      {record.submitted_at === undefined ? undefined : (
+      {record?.submitted_at === undefined || record.submitted_at === null ? undefined : (
         <Text>
           {translate("logs.durable.job.submittedAt")} <Time datetime={record.submitted_at} />
         </Text>
@@ -133,11 +105,9 @@ export const DurableBanner = ({
         <HStack gap={2}>
           <Text>{detail}</Text>
           <Tooltip content={jobDetails}>
-            <StateBadge state={entry.status ?? null}>
+            <StateBadge state={entry.status}>
               {translate("logs.durable.job.label")}
-              {entry.status === undefined || entry.status === null
-                ? undefined
-                : `: ${translate(`common:states.${entry.status}`)}`}
+              {entry.status === null ? undefined : `: ${translate(`common:states.${entry.status}`)}`}
             </StateBadge>
           </Tooltip>
         </HStack>

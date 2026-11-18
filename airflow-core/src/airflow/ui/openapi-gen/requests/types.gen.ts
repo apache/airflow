@@ -79,6 +79,8 @@ export type AssetEventResponse = {
     source_run_id?: string | null;
     source_map_index: number;
     source_task_instance_id?: string | null;
+    source_region_id?: string | null;
+    source_region_index?: number | null;
     created_dagruns: Array<DagRunAssetReference>;
     timestamp: string;
     partition_key?: string | null;
@@ -498,6 +500,10 @@ export type BulkDAGRunClearBody = {
      * (Experimental) Run on the latest bundle version of the Dag after clearing. If not specified, falls back to the DAG-level ``rerun_with_latest_version`` parameter, then the ``[core] rerun_with_latest_version`` config option, and finally ``False``.
      */
     run_on_latest_version?: boolean | null;
+    /**
+     * Keep the task state store entries of the cleared task instances so the next attempt resumes from them. By default they are discarded, so the task starts over.
+     */
+    keep_task_state?: boolean;
     note?: string | null;
     dag_runs?: Array<BulkDAGRunBody>;
 };
@@ -711,6 +717,11 @@ export type BulkUpdateAction_VariableBody_ = {
 };
 
 /**
+ * All possible states of callbacks.
+ */
+export type CallbackState = 'scheduled' | 'pending' | 'queued' | 'running' | 'success' | 'failed';
+
+/**
  * Request body for the clearPartitions endpoint (column-reset: set partition fields to None).
  */
 export type ClearPartitionsBody = {
@@ -793,6 +804,10 @@ export type ClearTaskInstancesBody = {
     dag_run_id?: string | null;
     include_upstream?: boolean;
     include_downstream?: boolean;
+    /**
+     * Also clear the tasks in other Dags that the cleared tasks recorded as external clear targets (for example through ``ExternalTaskMarker``), with their downstream tasks. If not specified, follows ``include_downstream``.
+     */
+    include_dependent_dags?: boolean | null;
     include_future?: boolean;
     include_past?: boolean;
     /**
@@ -1093,6 +1108,10 @@ export type DAGRunClearBody = {
      * (Experimental) Run on the latest bundle version of the Dag after clearing. If not specified, falls back to the DAG-level ``rerun_with_latest_version`` parameter, then the ``[core] rerun_with_latest_version`` config option, and finally ``False``.
      */
     run_on_latest_version?: boolean | null;
+    /**
+     * Keep the task state store entries of the cleared task instances so the next attempt resumes from them. By default they are discarded, so the task starts over.
+     */
+    keep_task_state?: boolean;
     note?: string | null;
 };
 
@@ -1649,6 +1668,7 @@ export type ExternalViewResponse = {
     category?: string | null;
     nav_top_level?: boolean | null;
     applies_to?: PluginAppliesToResponse | null;
+    show_icon_with_label?: boolean | null;
     href: string;
     destination?: 'nav' | 'dag' | 'dag_run' | 'task' | 'task_instance' | 'asset' | 'base';
     [key: string]: unknown | string;
@@ -2285,6 +2305,7 @@ export type ReactAppResponse = {
     category?: string | null;
     nav_top_level?: boolean | null;
     applies_to?: PluginAppliesToResponse | null;
+    show_icon_with_label?: boolean | null;
     bundle_url: string;
     destination?: 'nav' | 'dag' | 'dag_run' | 'task' | 'task_instance' | 'asset' | 'base' | 'dashboard' | 'dag_overview' | 'task_overview';
     [key: string]: unknown | string;
@@ -2656,6 +2677,10 @@ export type TriggerAssetWatcherReferenceResponse = {
     asset_name: string;
     asset_uri: string;
     watcher_name: string;
+    /**
+     * The Dags scheduled on the asset (directly or by an asset name or URI reference), which the watcher's events run; only those the caller can read.
+     */
+    scheduled_dag_ids: Array<(string)>;
 };
 
 /**
@@ -2665,7 +2690,7 @@ export type TriggerCallbackReferenceResponse = {
     id: string;
     dag_id: string | null;
     dag_run_id: string | null;
-    state: string | null;
+    state: CallbackState | null;
 };
 
 /**
@@ -2748,7 +2773,7 @@ export type TriggerDetailResponse = {
 };
 
 /**
- * What a trigger runs for, worked out from its owner rather than stored.
+ * What a trigger runs for, worked out from what it is used by rather than stored.
  */
 export type TriggerKind = 'task' | 'callback' | 'asset_watcher';
 
@@ -2781,7 +2806,7 @@ export type TriggerTaskInstanceReferenceResponse = {
     task_id: string;
     map_index: number;
     try_number: number;
-    state: string | null;
+    state: TaskInstanceState | null;
 };
 
 /**
@@ -2986,12 +3011,14 @@ export type BaseGraphResponse = {
 export type BaseNodeResponse = {
     id: string;
     label: string;
-    type: 'join' | 'task' | 'asset-condition' | 'asset' | 'asset-alias' | 'asset-name-ref' | 'asset-uri-ref' | 'dag' | 'sensor' | 'trigger';
+    type: 'join' | 'task' | 'asset-condition' | 'asset' | 'asset-alias' | 'asset-name-ref' | 'asset-uri-ref' | 'asset-watcher' | 'dag' | 'sensor' | 'trigger';
     team?: string | null;
     asset_condition_type?: 'or-gate' | 'and-gate' | null;
+    trigger_id?: number | null;
+    trigger_status?: TriggerStatus | null;
 };
 
-export type type = 'join' | 'task' | 'asset-condition' | 'asset' | 'asset-alias' | 'asset-name-ref' | 'asset-uri-ref' | 'dag' | 'sensor' | 'trigger';
+export type type = 'join' | 'task' | 'asset-condition' | 'asset' | 'asset-alias' | 'asset-name-ref' | 'asset-uri-ref' | 'asset-watcher' | 'dag' | 'sensor' | 'trigger';
 
 /**
  * Response model for calendar deadline aggregation results.
@@ -3029,11 +3056,6 @@ export type CalendarTimeRangeResponse = {
 };
 
 export type state = 'queued' | 'running' | 'success' | 'failed' | 'planned';
-
-/**
- * All possible states of callbacks.
- */
-export type CallbackState = 'scheduled' | 'pending' | 'queued' | 'running' | 'success' | 'failed';
 
 /**
  * configuration serializer.
@@ -3307,7 +3329,33 @@ export type DeadlineResponse = {
     callback_type: string;
     callback_state?: CallbackState | null;
     callback_path?: string | null;
+    /**
+     * The trigger running a triggerer callback, while it runs; see `GET /api/v2/triggers`.
+     */
+    callback_trigger_id?: number | null;
 };
+
+/**
+ * Durable execution history of a task instance, read by the logs banner.
+ */
+export type DurableExecutionResponse = {
+    submitted_at?: string | null;
+    tries: Array<DurableTryResponse>;
+};
+
+/**
+ * What one try did with the external job.
+ */
+export type DurableTryResponse = {
+    try_number: number | null;
+    decision: 'submitted' | 'resubmitted' | 'reconnected' | 'already_succeeded';
+    external_id: JsonValue;
+    status: TaskInstanceState | null;
+    saved_seconds: number | null;
+    previous_external_id?: JsonValue;
+};
+
+export type decision = 'submitted' | 'resubmitted' | 'reconnected' | 'already_succeeded';
 
 /**
  * Duration statistics for a DAG across historical runs.
@@ -3615,9 +3663,11 @@ export type NextRunAssetsResponse = {
 export type NodeResponse = {
     id: string;
     label: string;
-    type: 'join' | 'task' | 'asset-condition' | 'asset' | 'asset-alias' | 'asset-name-ref' | 'asset-uri-ref' | 'dag' | 'sensor' | 'trigger';
+    type: 'join' | 'task' | 'asset-condition' | 'asset' | 'asset-alias' | 'asset-name-ref' | 'asset-uri-ref' | 'asset-watcher' | 'dag' | 'sensor' | 'trigger';
     team?: string | null;
     asset_condition_type?: 'or-gate' | 'and-gate' | null;
+    trigger_id?: number | null;
+    trigger_status?: TriggerStatus | null;
     children?: Array<NodeResponse> | null;
     is_mapped?: boolean | null;
     is_loop?: boolean | null;
@@ -3818,6 +3868,10 @@ export type GetAssetsData = {
      */
     orderBy?: Array<(string)>;
     /**
+     * Return only the assets this trigger's watchers watch.
+     */
+    triggerId?: number | null;
+    /**
      * Exact-match filter on the full asset URI. Compiles to an indexed equality comparison (``uri = ...``). Repeat the parameter (``?uri=a&uri=b``) to match multiple assets.
      */
     uri?: Array<(string)>;
@@ -3892,6 +3946,10 @@ export type GetAssetEventsData = {
     timestampGte?: string | null;
     timestampLt?: string | null;
     timestampLte?: string | null;
+    /**
+     * Return only the events of the assets this trigger's watchers watch.
+     */
+    triggerId?: number | null;
 };
 
 export type GetAssetEventsResponse = AssetEventCollectionResponse;
@@ -5504,6 +5562,10 @@ export type DeleteAssetStateStoreResponse = void;
 export type ListTaskStateStoreData = {
     dagId: string;
     dagRunId: string;
+    /**
+     * Include keys starting with ``__airflow_``, which Airflow writes.
+     */
+    includeReserved?: boolean;
     limit?: number;
     mapIndex?: number;
     offset?: number;
@@ -5624,7 +5686,7 @@ export type GetXcomEntriesData = {
     dagId: string;
     dagRunId: string;
     /**
-     * Leave out XComs whose keys Airflow reserves for itself, such as loop decision reasons.
+     * Leave out XComs whose keys Airflow reserves for itself, such as loop decision reasons and cross-Dag clear targets.
      */
     excludeInternalKeys?: boolean;
     limit?: number;
@@ -5719,6 +5781,10 @@ export type GetTriggersData = {
      * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, created_date, consecutive_failures, last_failed_at, last_event_at`
      */
     orderBy?: Array<(string)>;
+    /**
+     * Return only the triggers of watchers on assets this Dag is scheduled on, directly or by an asset name or URI reference.
+     */
+    scheduledDagId?: string | null;
     /**
      * Return only triggers with one of these statuses.
      */
@@ -5926,6 +5992,17 @@ export type GetCallbackLogsData = {
 
 export type GetCallbackLogsResponse = TaskInstancesLogResponse;
 
+export type GetDurableExecutionData = {
+    dagId: string;
+    dagRunId: string;
+    mapIndex?: number;
+    regionId?: string | null;
+    regionIndex?: number | null;
+    taskId: string;
+};
+
+export type GetDurableExecutionResponse = DurableExecutionResponse;
+
 export type StructureDataData = {
     dagId: string;
     depth?: number | null;
@@ -6011,7 +6088,15 @@ export type GetGridRunsResponse = Array<GridRunsResponse>;
 
 export type GetGridTiSummariesStreamData = {
     dagId: string;
+    endDateGt?: string | null;
+    endDateGte?: string | null;
+    endDateLt?: string | null;
+    endDateLte?: string | null;
     runIds?: Array<(string)> | null;
+    startDateGt?: string | null;
+    startDateGte?: string | null;
+    startDateLt?: string | null;
+    startDateLte?: string | null;
 };
 
 export type GetGridTiSummariesStreamResponse = string;
@@ -10419,6 +10504,21 @@ export type $OpenApiTs = {
                  * Not Found
                  */
                 404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/ui/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/durable': {
+        get: {
+            req: GetDurableExecutionData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: DurableExecutionResponse;
                 /**
                  * Validation Error
                  */

@@ -39,6 +39,7 @@ from airflow.providers.common.ai.utils.tool_definition import (
     return_schema_kwargs,
     serialize_for_llm,
 )
+from airflow.providers.common.ai.utils.tool_prefix import validate_tool_prefix
 from airflow.providers.common.ai.utils.toolset_base import AirflowToolset, validate_max_retries
 
 if TYPE_CHECKING:
@@ -156,10 +157,7 @@ class HookToolset(AirflowToolset):
         pinned_arguments: dict[str, Any] | None = None,
         max_retries: int | None = None,
     ) -> None:
-        if tool_prefix and not tool_prefix.isidentifier():
-            # The prefixed names are rendered as Python function signatures under
-            # code mode, so a name that is not an identifier breaks there.
-            raise ValueError(f"tool_prefix must be a valid Python identifier, got {tool_prefix!r}.")
+        validate_tool_prefix(tool_prefix)
         if tool_name_prefix is not None:
             if tool_prefix and f"{tool_prefix}_" != tool_name_prefix:
                 raise ValueError(

@@ -25,6 +25,14 @@
 Changelog
 ---------
 
+.. note::
+
+    In ``MessageQueueTrigger``, the ``queue`` parameter now assigns the trigger to a trigger queue
+    when used with ``scheme``, aligning with ``BaseEventTrigger(queue=...)``.
+    The ``trigger_queue`` parameter introduced in 2.1.0 is deprecated in favor of ``queue``.
+    Passing a broker queue URI as ``queue`` is deprecated; use ``scheme`` instead and pass
+    broker configuration as keyword arguments.
+
 2.1.2
 .....
 

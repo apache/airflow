@@ -50,8 +50,6 @@ type ColumnsProps = {
   readonly translate: (key: string) => string;
 };
 
-const isReservedKey = (key: string) => key.startsWith("__airflow_");
-
 const getColumns = ({
   dagId,
   mapIndex,
@@ -146,16 +144,13 @@ export const TaskStateStore = () => {
   );
 
   const columns = getColumns({ dagId, mapIndex, runId, taskId, translate });
-  const entries = data?.task_state_store ?? [];
-  const visibleEntries = entries.filter((entry) => !isReservedKey(entry.key));
-  const total = (data?.total_entries ?? 0) - (entries.length - visibleEntries.length);
 
   return (
     <>
       <ErrorAlert error={error} />
       <DataTable
         columns={columns}
-        data={visibleEntries}
+        data={data?.task_state_store ?? []}
         displayMode="table"
         hideRowCountHeading
         initialState={tableURLState}
@@ -165,13 +160,13 @@ export const TaskStateStore = () => {
         onStateChange={setTableURLState}
         primaryActions={
           <>
-            {total > 0 ? (
+            {(data?.total_entries ?? 0) > 0 ? (
               <ClearAllTaskStateStoreButton dagId={dagId} mapIndex={mapIndex} runId={runId} taskId={taskId} />
             ) : undefined}
             <AddTaskStateStoreButton dagId={dagId} mapIndex={mapIndex} runId={runId} taskId={taskId} />
           </>
         }
-        total={total}
+        total={data?.total_entries ?? 0}
       />
     </>
   );

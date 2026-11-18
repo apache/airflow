@@ -120,6 +120,16 @@ paths:
           items:
             type: string
           title: Dag Ids
+      - name: trigger_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          description: Return only the assets this trigger's watchers watch.
+          title: Trigger Id
+        description: Return only the assets this trigger's watchers watch.
       - name: only_active
         in: query
         required: false
@@ -370,6 +380,18 @@ paths:
           - type: integer
           - type: 'null'
           title: Asset Id
+      - name: trigger_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          description: Return only the events of the assets this trigger's watchers
+            watch.
+          title: Trigger Id
+        description: Return only the events of the assets this trigger's watchers
+          watch.
       - name: source_dag_id
         in: query
         required: false
@@ -6516,6 +6538,15 @@ paths:
         schema:
           type: string
           title: Task Id
+      - name: include_reserved
+        in: query
+        required: false
+        schema:
+          type: boolean
+          description: Include keys starting with ``__airflow_``, which Airflow writes.
+          default: false
+          title: Include Reserved
+        description: Include keys starting with ``__airflow_``, which Airflow writes.
       - name: map_index
         in: query
         required: false
@@ -7494,11 +7525,11 @@ paths:
         schema:
           type: boolean
           description: Leave out XComs whose keys Airflow reserves for itself, such
-            as loop decision reasons.
+            as loop decision reasons and cross-Dag clear targets.
           default: false
           title: Exclude Internal Keys
         description: Leave out XComs whose keys Airflow reserves for itself, such
-          as loop decision reasons.
+          as loop decision reasons and cross-Dag clear targets.
       - name: limit
         in: query
         required: false
@@ -10860,10 +10891,10 @@ paths:
         is doing.
 
 
-        A trigger is visible to whoever can see its owner: the task instance or Dag
-        run of its Dag, or an asset
+        A trigger is visible to whoever can see what it is used by: the task instance
+        or Dag run of its Dag, or
 
-        one of its watchers watches.'
+        an asset one of its watchers watches.'
       operationId: get_triggers
       security:
       - OAuth2PasswordBearer: []
@@ -10952,6 +10983,18 @@ paths:
           description: Return only the triggers of this asset's watchers.
           title: Asset Id
         description: Return only the triggers of this asset's watchers.
+      - name: scheduled_dag_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Return only the triggers of watchers on assets this Dag is
+            scheduled on, directly or by an asset name or URI reference.
+          title: Scheduled Dag Id
+        description: Return only the triggers of watchers on assets this Dag is scheduled
+          on, directly or by an asset name or URI reference.
       - name: teams
         in: query
         required: false
@@ -12887,6 +12930,17 @@ components:
             format: uuid
           - type: 'null'
           title: Source Task Instance Id
+        source_region_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Source Region Id
+        source_region_index:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Source Region Index
         created_dagruns:
           items:
             $ref: '#/components/schemas/DagRunAssetReference'
@@ -13858,6 +13912,13 @@ components:
             after clearing. If not specified, falls back to the DAG-level ``rerun_with_latest_version``
             parameter, then the ``[core] rerun_with_latest_version`` config option,
             and finally ``False``.
+        keep_task_state:
+          type: boolean
+          title: Keep Task State
+          description: Keep the task state store entries of the cleared task instances
+            so the next attempt resumes from them. By default they are discarded,
+            so the task starts over.
+          default: false
         note:
           anyOf:
           - type: string
@@ -14305,6 +14366,17 @@ components:
       - action
       - entities
       title: BulkUpdateAction[VariableBody]
+    CallbackState:
+      type: string
+      enum:
+      - scheduled
+      - pending
+      - queued
+      - running
+      - success
+      - failed
+      title: CallbackState
+      description: All possible states of callbacks.
     ClearPartitionsBody:
       properties:
         partition_key:
@@ -14483,6 +14555,14 @@ components:
           type: boolean
           title: Include Downstream
           default: false
+        include_dependent_dags:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Include Dependent Dags
+          description: Also clear the tasks in other Dags that the cleared tasks recorded
+            as external clear targets (for example through ``ExternalTaskMarker``),
+            with their downstream tasks. If not specified, follows ``include_downstream``.
         include_future:
           type: boolean
           title: Include Future
@@ -15422,6 +15502,13 @@ components:
             after clearing. If not specified, falls back to the DAG-level ``rerun_with_latest_version``
             parameter, then the ``[core] rerun_with_latest_version`` config option,
             and finally ``False``.
+        keep_task_state:
+          type: boolean
+          title: Keep Task State
+          description: Keep the task state store entries of the cleared task instances
+            so the next attempt resumes from them. By default they are discarded,
+            so the task starts over.
+          default: false
         note:
           anyOf:
           - type: string
@@ -16824,6 +16911,12 @@ components:
           anyOf:
           - $ref: '#/components/schemas/PluginAppliesToResponse'
           - type: 'null'
+        show_icon_with_label:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Show Icon With Label
+          default: false
         href:
           type: string
           title: Href
@@ -18527,6 +18620,12 @@ components:
           anyOf:
           - $ref: '#/components/schemas/PluginAppliesToResponse'
           - type: 'null'
+        show_icon_with_label:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Show Icon With Label
+          default: false
         bundle_url:
           type: string
           title: Bundle Url
@@ -19708,12 +19807,21 @@ components:
         watcher_name:
           type: string
           title: Watcher Name
+        scheduled_dag_ids:
+          items:
+            type: string
+          type: array
+          title: Scheduled Dag Ids
+          description: The Dags scheduled on the asset (directly or by an asset name
+            or URI reference), which the watcher's events run; only those the caller
+            can read.
       type: object
       required:
       - asset_id
       - asset_name
       - asset_uri
       - watcher_name
+      - scheduled_dag_ids
       title: TriggerAssetWatcherReferenceResponse
       description: An asset watcher a trigger serves.
     TriggerCallbackReferenceResponse:
@@ -19733,9 +19841,8 @@ components:
           title: Dag Run Id
         state:
           anyOf:
-          - type: string
+          - $ref: '#/components/schemas/CallbackState'
           - type: 'null'
-          title: State
       type: object
       required:
       - id
@@ -19949,8 +20056,8 @@ components:
       - callback
       - asset_watcher
       title: TriggerKind
-      description: What a trigger runs for, worked out from its owner rather than
-        stored.
+      description: What a trigger runs for, worked out from what it is used by rather
+        than stored.
     TriggerResponse:
       properties:
         id:
@@ -20016,9 +20123,8 @@ components:
           title: Try Number
         state:
           anyOf:
-          - type: string
+          - $ref: '#/components/schemas/TaskInstanceState'
           - type: 'null'
-          title: State
       type: object
       required:
       - dag_id

@@ -63,7 +63,9 @@ from airflow.sdk.api.datamodels._generated import (
     TaskInstance,
     TIRunContext,
 )
+from airflow.sdk.exceptions import ErrorType
 from airflow.sdk.execution_time.comms import (
+    ErrorResponse,
     GetXCom,
     GetXComCount,
     GetXComSequenceItem,
@@ -656,6 +658,30 @@ class TestRealBundleRetryReason:
         body = {"type": "TaskState", "state": "failed", "end_date": None, "rendered_map_index": None}
         out = real_migrator.upgrade(body, TaskState, "2026-06-16")
         assert out["retry_reason"] is None
+
+
+class TestRealBundleXComBackendError:
+    """A runtime whose version has no type for an XCom backend failure gets a generic one."""
+
+    @pytest.fixture
+    def real_migrator(self) -> SchemaVersionMigrator:
+        return get_schema_version_migrator()
+
+    @pytest.mark.parametrize(
+        ("version", "expected"),
+        [
+            pytest.param("2027-02-28", ErrorType.XCOM_BACKEND_ERROR, id="head"),
+            pytest.param("2026-10-30", ErrorType.GENERIC_ERROR, id="3.4.0"),
+            pytest.param("2026-06-16", ErrorType.GENERIC_ERROR, id="oldest"),
+        ],
+    )
+    def test_downgrade_reports_the_error_the_version_knows(self, real_migrator, version, expected):
+        msg = ErrorResponse(error=ErrorType.XCOM_BACKEND_ERROR, detail={"message": "backend refused"})
+
+        out = real_migrator.downgrade(msg, version)
+
+        assert out.error.value == expected.value
+        assert out.detail == {"message": "backend refused"}
 
 
 class TestRealBundleFirstTaskRescheduleStartDate:

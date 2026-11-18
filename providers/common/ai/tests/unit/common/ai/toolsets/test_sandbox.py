@@ -193,6 +193,9 @@ class TestInit:
         with pytest.raises(ValueError, match="tool_prefix"):
             SandboxToolset(_RecordingBackend(), tool_prefix=bad)
 
+    def test_hint_points_to_tool_prefix(self):
+        assert "tool_prefix" in SandboxToolset(_RecordingBackend()).tool_name_conflict_hint
+
     def test_id_includes_backend_name_and_prefix(self):
         assert SandboxToolset(_RecordingBackend()).id == "sandbox-rec"
         assert SandboxToolset(_RecordingBackend(), tool_prefix="local").id == "sandbox-rec-local"

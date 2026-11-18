@@ -51,9 +51,12 @@ class DatabricksAgentInvocationTimeout(DatabricksAgentInvocationError):
 class DatabricksApiError(AirflowException):
     """Raised when a Databricks REST API call returns an error response."""
 
-    def __init__(self, message: str, *, http_status_code: int | None = None) -> None:
+    def __init__(
+        self, message: str, *, http_status_code: int | None = None, error_code: str | None = None
+    ) -> None:
         super().__init__(message)
         self.http_status_code = http_status_code
+        self.error_code = error_code
 
 
 class DatabricksUnityMCPError(DatabricksApiError):

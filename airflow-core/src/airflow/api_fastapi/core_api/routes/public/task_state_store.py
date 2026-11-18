@@ -52,6 +52,9 @@ from airflow.state.metastore import _get_db_backend
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
+# Keys Airflow writes for its own use, such as the durable execution record.
+RESERVED_KEY_PREFIX = "__airflow_"
+
 task_state_store_router = AirflowRouter(
     tags=["Task State Store"],
     prefix="/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/state-store",
@@ -193,6 +196,10 @@ def list_task_state_store(
     limit: QueryLimit,
     offset: QueryOffset,
     session: SessionDep,
+    include_reserved: Annotated[
+        bool,
+        Query(description=f"Include keys starting with ``{RESERVED_KEY_PREFIX}``, which Airflow writes."),
+    ] = False,
 ) -> TaskStateStoreCollectionResponse:
     """List all task state store entries for a task instance."""
     base = (
@@ -211,6 +218,8 @@ def list_task_state_store(
         )
         .order_by(TaskStateStoreModel.key.asc())
     )
+    if not include_reserved:
+        base = base.where(~TaskStateStoreModel.key.startswith(RESERVED_KEY_PREFIX, autoescape=True))
     paginated, total_entries = paginated_select(
         statement=base,
         filters=None,

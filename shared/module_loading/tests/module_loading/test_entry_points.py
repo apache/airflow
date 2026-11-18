@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import re
 from collections.abc import Iterable
 from unittest import mock
 
@@ -29,7 +30,8 @@ class MockDistribution:
     def __init__(
         self, name: str, entry_points: Iterable[metadata.EntryPoint], version: str = "1.0.0"
     ) -> None:
-        self.metadata: dict[str, str] | None = {"Name": name}
+        self.metadata = {"Name": name}
+        self._normalized_name = re.sub(r"[-_.]+", "_", name).lower()
         self.entry_points = entry_points
         self.version = version
 
@@ -97,17 +99,46 @@ def test_entry_points_with_dist_same_dist_in_two_versions_returns_first_only():
     ]
 
 
-# No metadata file at all, or metadata without a Name field (the key is absent, not None).
-@pytest.mark.parametrize("dist_metadata", [None, {"Version": "1.0.0"}], ids=["no-metadata", "no-name"])
-def test_entry_points_with_dist_without_name_are_not_deduplicated(dist_metadata):
+def test_entry_points_with_dist_deduplicates_without_reading_metadata():
+    distributions = [
+        MockDistribution("apache-airflow-providers-foo", [metadata.EntryPoint("a", "b", "group_x")]),
+        MockDistribution("apache_airflow_providers_foo", [metadata.EntryPoint("c", "d", "group_x")]),
+        MockDistribution("apache-airflow-providers-bar", [metadata.EntryPoint("e", "f", "group_x")]),
+    ]
+
+    with (
+        mock.patch("airflow_shared.module_loading.metadata", MockMetadata(distributions)),
+        mock.patch.object(
+            MockDistribution, "metadata", create=True, new_callable=mock.PropertyMock
+        ) as metadata_property,
+    ):
+        entries = list(entry_points_with_dist("group_x"))
+
+    assert [ep.name for ep, _ in entries] == ["a", "e"]
+    metadata_property.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "error",
+    [TypeError, KeyError, FileNotFoundError, AttributeError],
+    ids=["stdlib", "importlib-metadata-8", "importlib-metadata-9-no-file", "no-attribute"],
+)
+def test_entry_points_with_dist_without_name_are_not_deduplicated(error):
     distributions = [
         MockDistribution("unnamed", [metadata.EntryPoint("a", "b", "group_x")]),
         MockDistribution("unnamed", [metadata.EntryPoint("c", "d", "group_x")]),
     ]
-    for dist in distributions:
-        dist.metadata = dist_metadata
 
-    with mock.patch("airflow_shared.module_loading.metadata", MockMetadata(distributions)):
+    with (
+        mock.patch("airflow_shared.module_loading.metadata", MockMetadata(distributions)),
+        mock.patch.object(
+            MockDistribution,
+            "_normalized_name",
+            create=True,
+            new_callable=mock.PropertyMock,
+            side_effect=error,
+        ),
+    ):
         entries = list(entry_points_with_dist("group_x"))
 
     assert [ep.name for ep, _ in entries] == ["a", "c"]

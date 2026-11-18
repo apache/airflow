@@ -110,9 +110,11 @@ again. Whether a capability's work is replayed depends on where it runs:
     * - ``WebSearch``, ``WebFetch`` or ``ImageGeneration`` falling back to a local tool, for a
         provider without the native one; ``Toolset``, ``MCP``, ``PrefixTools``,
         ``CombinedCapability``, and capabilities from an agent spec file
-      - Tool results are replayed. Each toolset they contribute needs an ``id``; pydantic-ai
-        names one without it when the agent is built. An ``id`` on a ``Toolset`` capability
-        does not reach the toolset inside it, so set it on that toolset.
+      - Tool results are replayed. In ``AgentOperator``, a ``FunctionToolset`` held directly by
+        a ``Toolset`` capability needs no ``id`` (:ref:`durable-toolset-ids`); any other toolset
+        they contribute needs one, and pydantic-ai names one without it when the agent is
+        built. An ``id`` on a ``Toolset`` capability does not reach the toolset inside it, so
+        set it on that toolset.
     * - pydantic-ai-harness ``CodeMode``
       - Each ``run_code`` snippet runs again, and the tool calls it makes are replayed; see
         :ref:`durable-code-mode`.

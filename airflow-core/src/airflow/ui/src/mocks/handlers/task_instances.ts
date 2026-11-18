@@ -79,8 +79,8 @@ export const handlers: Array<HttpHandler> = [
   http.get("/api/v2/dags/:dagId/dagRuns/:dagRunId/taskInstances/:taskId/xcomEntries", () =>
     HttpResponse.json({ total_entries: 0, xcom_entries: [] }),
   ),
-  http.get("/api/v2/dags/:dagId/dagRuns/:dagRunId/taskInstances/:taskId/state-store/:key", () =>
-    HttpResponse.json({ detail: "Not found" }, { status: 404 }),
+  http.get("/ui/dags/:dagId/dagRuns/:dagRunId/taskInstances/:taskId/durable", () =>
+    HttpResponse.json({ submitted_at: null, tries: [] }),
   ),
   // Matches integer map indexes only: a handler that declines with `undefined` lets msw pass the
   // request through to the network without reporting it as unhandled, so sub-resources such as

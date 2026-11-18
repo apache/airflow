@@ -92,6 +92,7 @@ class Capability(NamedTuple):
 CAPABILITY_DIMENSIONS: list[Capability] = [
     Capability("task-logging", "MUST", "runtime", False),
     Capability("xcom-read-write", "MUST", "runtime", False),
+    Capability("custom-xcom-backend", "MAY", "runtime", False),
     Capability("connection-read", "MUST", "runtime", False),
     Capability("variable-read-write", "MUST", "runtime", False),
     Capability("self-contained-bundle", "MUST", "runtime", False),

@@ -184,6 +184,61 @@ describe("FilterBar multiselect filters", () => {
     expect(pill).toHaveTextContent("beta");
   });
 
+  it("shows each value by its option label", () => {
+    const kindConfig: FilterConfig = {
+      key: "kind",
+      label: "Kind",
+      options: [
+        { label: "Asset Watcher", value: "asset_watcher" },
+        { label: "Task", value: "task" },
+      ],
+      type: "multiselect",
+    };
+
+    render(
+      <FilterBar
+        configs={[kindConfig]}
+        initialValues={{ kind: ["asset_watcher"] }}
+        onFiltersChange={vi.fn()}
+      />,
+      { wrapper },
+    );
+
+    expect(screen.getByTestId("kind-pill")).toHaveTextContent("Asset Watcher");
+    expect(screen.getByTestId("kind-pill")).not.toHaveTextContent("asset_watcher");
+  });
+
+  it("draws rich option labels, such as state badges, in the menu and the pill", async () => {
+    const statusConfig: FilterConfig = {
+      key: "status",
+      label: "Status",
+      options: [
+        { label: <StateBadge state="failed">Failing</StateBadge>, value: "failing" },
+        { label: <StateBadge state="running">Running</StateBadge>, value: "running" },
+      ],
+      type: "multiselect",
+    };
+    const { unmount } = render(
+      <FilterBar
+        configs={[statusConfig]}
+        initialValues={{ status: ["failing"] }}
+        onFiltersChange={vi.fn()}
+      />,
+      { wrapper },
+    );
+
+    expect(within(screen.getByTestId("status-pill")).getByTestId("state-badge")).toHaveTextContent("Failing");
+    unmount();
+
+    render(<FilterBar configs={[statusConfig]} onFiltersChange={vi.fn()} />, { wrapper });
+    fireEvent.click(screen.getByTestId("add-filter-button"));
+    fireEvent.click(await screen.findByTestId("add-filter-status"));
+
+    expect(
+      within(await screen.findByRole("option", { name: "Running" })).getByTestId("state-badge"),
+    ).toBeVisible();
+  });
+
   it("does not render a pill for an empty array", () => {
     render(
       <FilterBar configs={[multiSelectConfig]} initialValues={{ tags: [] }} onFiltersChange={vi.fn()} />,

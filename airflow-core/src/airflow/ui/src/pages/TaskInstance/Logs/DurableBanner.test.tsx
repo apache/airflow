@@ -20,42 +20,42 @@ import "@testing-library/jest-dom/vitest";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-import { useTaskStateStoreServiceGetTaskStateStore } from "openapi/queries";
+import { useDurableExecutionServiceGetDurableExecution } from "openapi/queries";
 import type { TaskInstanceResponse } from "openapi/requests";
 
 import { Wrapper } from "src/utils/Wrapper";
 
-import { DurableBanner, DurableDecision } from "./DurableBanner";
+import { DurableBanner } from "./DurableBanner";
 
 vi.mock("openapi/queries", async () => ({
   ...(await vi.importActual("openapi/queries")),
-  useTaskStateStoreServiceGetTaskStateStore: vi.fn(),
+  useDurableExecutionServiceGetDurableExecution: vi.fn(),
 }));
 
 const TRIES = [
   {
-    decision: DurableDecision.SUBMITTED,
+    decision: "submitted",
     external_id: "run_1",
     saved_seconds: null,
     status: null,
     try_number: 1,
   },
   {
-    decision: DurableDecision.RECONNECTED,
+    decision: "reconnected",
     external_id: "run_1",
     saved_seconds: 90,
     status: "success",
     try_number: 2,
   },
   {
-    decision: DurableDecision.ALREADY_SUCCEEDED,
+    decision: "already_succeeded",
     external_id: "run_1",
     saved_seconds: null,
     status: "success",
     try_number: 3,
   },
   {
-    decision: DurableDecision.RECONNECTED,
+    decision: "reconnected",
     external_id: "run_1",
     saved_seconds: null,
     status: "running",
@@ -64,9 +64,9 @@ const TRIES = [
 ];
 
 const renderFor = (tryNumber: number) => {
-  vi.mocked(useTaskStateStoreServiceGetTaskStateStore).mockReturnValue({
-    data: { value: { tries: TRIES } },
-  } as unknown as ReturnType<typeof useTaskStateStoreServiceGetTaskStateStore>);
+  vi.mocked(useDurableExecutionServiceGetDurableExecution).mockReturnValue({
+    data: { tries: TRIES },
+  } as unknown as ReturnType<typeof useDurableExecutionServiceGetDurableExecution>);
 
   return render(
     <Wrapper>
@@ -99,7 +99,7 @@ describe("DurableBanner", () => {
   it("does not fetch the record on a first try", () => {
     renderFor(1);
 
-    expect(vi.mocked(useTaskStateStoreServiceGetTaskStateStore)).toHaveBeenLastCalledWith(
+    expect(vi.mocked(useDurableExecutionServiceGetDurableExecution)).toHaveBeenLastCalledWith(
       expect.anything(),
       undefined,
       expect.objectContaining({ enabled: false }),
