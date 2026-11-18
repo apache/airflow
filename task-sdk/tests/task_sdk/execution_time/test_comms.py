@@ -22,6 +22,7 @@ import gc
 import os
 import signal
 import threading
+import time
 import uuid
 import weakref
 from unittest import mock
@@ -58,6 +59,30 @@ def _is_taken(lock) -> bool:
     prober.start()
     prober.join()
     return not free[0]
+
+
+def _recv_exactly(sock, n: int) -> bytes:
+    """Read exactly ``n`` bytes: a stream socket may return fewer per call."""
+    buffer = bytearray()
+    while len(buffer) < n:
+        if not (chunk := sock.recv(n - len(buffer))):
+            raise EOFError("socket closed before a full frame was received")
+        buffer.extend(chunk)
+    return bytes(buffer)
+
+
+def _read_request(sock) -> _RequestFrame:
+    """Read one request frame, as the supervisor does."""
+    length = int.from_bytes(_recv_exactly(sock, 4), "big")
+    return msgspec.msgpack.decode(_recv_exactly(sock, length), type=_RequestFrame)
+
+
+def _respond(sock, request: _RequestFrame, value: str = "v") -> None:
+    """Answer ``request`` with a ``VariableResult`` carrying the request's own key."""
+    assert request.body is not None
+    resp = {"type": "VariableResult", "key": request.body["key"], "value": value}
+    encoded = msgspec.msgpack.encode(_ResponseFrame(request.id, resp, None))
+    sock.sendall(len(encoded).to_bytes(4, "big") + encoded)
 
 
 class TestCommsModels:
@@ -218,26 +243,14 @@ class TestCommsDecoder:
         for t in threads:
             t.start()
 
-        def _recv_exactly(sock, n):
-            buffer = bytearray()
-            while len(buffer) < n:
-                chunk = sock.recv(n - len(buffer))
-                if not chunk:
-                    raise EOFError("socket closed before a full frame was received")
-                buffer.extend(chunk)
-            return bytes(buffer)
-
         # The order in which the concurrent ``send`` calls reach the socket is not
         # deterministic, so the parent must not assume requests arrive in thread-index
         # order. Read each request as it arrives and echo a response built from that
         # request's own body, so every thread reliably gets the response to its own
         # message regardless of thread scheduling.
         for _ in range(num_threads):
-            length = int.from_bytes(_recv_exactly(w, 4), byteorder="big")
-            request = msgspec.msgpack.decode(_recv_exactly(w, length), type=_RequestFrame)
-            resp = {"type": "VariableResult", "key": request.body["key"], "value": request.body["value"]}
-            data = msgspec.msgpack.encode(_ResponseFrame(request.id, resp, None))
-            w.sendall(len(data).to_bytes(4, byteorder="big") + data)
+            request = _read_request(w)
+            _respond(w, request, value=request.body["value"])
 
         for t in threads:
             t.join(timeout=5)
@@ -256,29 +269,15 @@ class TestCommsDecoder:
         told to, then read and answer the second. Gives up after a few seconds by closing the
         socket, so a send() that would wait forever fails instead of hanging the test.
         """
-
-        def read_request() -> _RequestFrame:
-            length = int.from_bytes(sock.recv(4), "big")
-            body = b""
-            while len(body) < length:
-                body += sock.recv(length - len(body))
-            return msgspec.msgpack.decode(body, type=_RequestFrame)
-
-        def respond(request: _RequestFrame) -> None:
-            assert request.body is not None
-            resp = {"type": "VariableResult", "key": request.body["key"], "value": "v"}
-            encoded = msgspec.msgpack.encode(_ResponseFrame(request.id, resp, None))
-            sock.sendall(len(encoded).to_bytes(4, "big") + encoded)
-
         sock.settimeout(5)
         try:
-            first = read_request()
+            first = _read_request(sock)
             first_read.set()
             if not answer_first.wait(timeout=5):
                 raise TimeoutError
-            respond(first)
-            respond(read_request())
-        except (OSError, TimeoutError):
+            _respond(sock, first)
+            _respond(sock, _read_request(sock))
+        except (OSError, EOFError, TimeoutError):
             sock.close()
 
     @pytest.mark.asyncio
@@ -358,19 +357,6 @@ class TestCommsDecoder:
         r, w = socket_pair
         decoder = CommsDecoder(socket=r, log=structlog.get_logger())
 
-        def _read_request(sock) -> _RequestFrame:
-            length = int.from_bytes(sock.recv(4), "big")
-            body = b""
-            while len(body) < length:
-                body += sock.recv(length - len(body))
-            return msgspec.msgpack.decode(body, type=_RequestFrame)
-
-        def _respond(sock, req: _RequestFrame) -> None:
-            assert req.body is not None
-            resp = {"type": "VariableResult", "key": req.body["key"], "value": "v"}
-            encoded = msgspec.msgpack.encode(_ResponseFrame(req.id, resp, None))
-            sock.sendall(len(encoded).to_bytes(4, "big") + encoded)
-
         cancelled = asyncio.ensure_future(decoder.asend(GetVariable(key="cancelled")))
         cancelled_request = await asyncio.to_thread(_read_request, w)
         cancelled.cancel()
@@ -403,29 +389,17 @@ class TestCommsDecoder:
         send() called from the event loop thread after an asend() has finished (the lock is
         free) proceeds and returns its result: the sync socket I/O needs no event loop.
         """
-        import asyncio
-
         r, w = socket_pair
         decoder = CommsDecoder(socket=r, log=structlog.get_logger())
 
-        def _serve_one():
-            length = int.from_bytes(w.recv(4), "big")
-            body = b""
-            while len(body) < length:
-                body += w.recv(length - len(body))
-            req = msgspec.msgpack.decode(body, type=_RequestFrame)
-            resp = {"type": "VariableResult", "key": req.body["key"], "value": "v"}
-            encoded = msgspec.msgpack.encode(_ResponseFrame(req.id, resp, None))
-            w.sendall(len(encoded).to_bytes(4, "big") + encoded)
-
         # Phase 1: complete one asend() from this loop
-        server = threading.Thread(target=_serve_one, daemon=True)
+        server = threading.Thread(target=self._serve, args=(w, 1), daemon=True)
         server.start()
         await asyncio.wait_for(decoder.asend(GetVariable(key="prime")), timeout=5)
         server.join(timeout=2)
 
         # Phase 2: the lock is free; send() from the event loop thread succeeds.
-        server2 = threading.Thread(target=_serve_one, daemon=True)
+        server2 = threading.Thread(target=self._serve, args=(w, 1), daemon=True)
         server2.start()
         result = decoder.send(GetVariable(key="should_succeed"))
         server2.join(timeout=2)
@@ -442,25 +416,12 @@ class TestCommsDecoder:
         calls await SUPERVISOR_COMMS.asend(...). After execute() returns the loop is closed, and
         the task_runner calls SUPERVISOR_COMMS.send() to push XCom results.
         """
-        import asyncio
-
         r, w = socket_pair
         decoder = CommsDecoder(socket=r, log=structlog.get_logger())
 
-        # Helper: serve exactly one request from the given socket pair.
-        def _serve_one(sock):
-            length = int.from_bytes(sock.recv(4), "big")
-            body = b""
-            while len(body) < length:
-                body += sock.recv(length - len(body))
-            req = msgspec.msgpack.decode(body, type=_RequestFrame)
-            resp = {"type": "VariableResult", "key": req.body["key"], "value": "v"}
-            encoded = msgspec.msgpack.encode(_ResponseFrame(req.id, resp, None))
-            sock.sendall(len(encoded).to_bytes(4, "big") + encoded)
-
         # --- Phase 1: run the async part (simulates aexecute()) ---
         async def _async_phase():
-            server = threading.Thread(target=_serve_one, args=(w,), daemon=True)
+            server = threading.Thread(target=self._serve, args=(w, 1), daemon=True)
             server.start()
             await asyncio.wait_for(decoder.asend(GetVariable(key="async_key")), timeout=5)
             server.join(timeout=2)
@@ -473,7 +434,7 @@ class TestCommsDecoder:
             asyncio.set_event_loop(None)
 
         # --- Phase 2: sync send() after the loop is closed (simulates _push_xcom_if_needed) ---
-        server2 = threading.Thread(target=_serve_one, args=(w,), daemon=True)
+        server2 = threading.Thread(target=self._serve, args=(w, 1), daemon=True)
         server2.start()
 
         result = decoder.send(GetVariable(key="sync_key"))
@@ -484,23 +445,16 @@ class TestCommsDecoder:
     @staticmethod
     def _serve(sock, count: int, delay: float = 0.0) -> None:
         """Answer ``count`` requests with their own key, after ``delay`` seconds each; stop on a closed socket."""
-        import time
-
         try:
             for _ in range(count):
-                length = int.from_bytes(sock.recv(4), "big")
-                body = b""
-                while len(body) < length:
-                    body += sock.recv(length - len(body))
-                request = msgspec.msgpack.decode(body, type=_RequestFrame)
-                assert request.body is not None
+                request = _read_request(sock)
                 time.sleep(delay)
-                resp = {"type": "VariableResult", "key": request.body["key"], "value": "v"}
-                encoded = msgspec.msgpack.encode(_ResponseFrame(request.id, resp, None))
-                sock.sendall(len(encoded).to_bytes(4, "big") + encoded)
-        except OSError:
+                _respond(sock, request)
+        except (OSError, EOFError):
             pass
 
+    # Waiting for its own thread would never end: the limit turns a regression into a failure.
+    @pytest.mark.execution_timeout(10)
     def test_send_on_a_thread_already_in_a_request_raises_instead_of_waiting(self, socket_pair):
         """
         A call on a thread that holds the channel for its own request would wait for itself: the
@@ -528,6 +482,8 @@ class TestCommsDecoder:
         assert "already in the middle of a request" in str(raised[0])
         assert not _is_taken(decoder._thread_lock)
 
+    # Waiting for its own thread would never end: the limit turns a regression into a failure.
+    @pytest.mark.execution_timeout(10)
     @pytest.mark.skipif(not hasattr(signal, "setitimer"), reason="needs SIGALRM timers")
     def test_a_signal_handler_calling_send_during_a_send_raises_instead_of_freezing(self, socket_pair):
         """
@@ -560,22 +516,25 @@ class TestCommsDecoder:
 
     def test_a_failed_request_leaves_no_request_in_flight_behind(self, socket_pair):
         """
-        A request that fails mid-exchange releases the channel and clears its in-flight mark, so the
-        thread's next call is served instead of being taken for a call from inside a request.
+        A request whose response cannot be decoded releases the channel and clears its in-flight
+        mark, so the thread's next call gets its own response instead of being taken for a call
+        from inside a request.
         """
         r, w = socket_pair
         decoder = CommsDecoder(socket=r, log=structlog.get_logger())
         threading.Thread(target=self._serve, args=(w, 2), daemon=True).start()
 
+        # The frame is read before decoding fails, so no response of the failed request is left on
+        # the socket for the next call to read.
         with mock.patch.object(
-            CommsDecoder, "_get_response", autospec=True, side_effect=EOFError("supervisor gone")
+            CommsDecoder, "_from_frame", autospec=True, side_effect=ValueError("undecodable response")
         ):
-            with pytest.raises(EOFError):
+            with pytest.raises(ValueError, match="undecodable response"):
                 decoder.send(GetVariable(key="lost"))
 
-        assert decoder._exchanging is False
+        assert decoder._is_exchanging is False
         assert not _is_taken(decoder._thread_lock)
-        assert decoder.send(GetVariable(key="next")) is not None
+        assert decoder.send(GetVariable(key="next")).key == "next"
 
     # Waiting for its own thread would never end: the limit turns a regression into a failure.
     @pytest.mark.execution_timeout(10)
