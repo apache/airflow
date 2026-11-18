@@ -48,6 +48,7 @@ def security_manager():
 
 def _make_user_obj(
     *,
+    id: int = 1,
     username: str,
     email: str,
     first_name: str,
@@ -57,6 +58,7 @@ def _make_user_obj(
 ):
     role_objs = [types.SimpleNamespace(name=r) for r in (roles or [])]
     return types.SimpleNamespace(
+        id=id,
         username=username,
         email=email,
         first_name=first_name,
@@ -465,7 +467,10 @@ class TestUsersService:
             last_name="Liddell",
         )
 
-        security_manager.find_user.side_effect = [user_obj, object()]
+        other_user = _make_user_obj(
+            id=2, username="bob", email="bob@example.com", first_name="Bob", last_name="Builder"
+        )
+        security_manager.find_user.side_effect = [user_obj, other_user]
         fab_auth_manager.security_manager = security_manager
         get_fab_auth_manager.return_value = fab_auth_manager
 
@@ -490,7 +495,10 @@ class TestUsersService:
             first_name="Alice",
             last_name="Liddell",
         )
-        security_manager.find_user.side_effect = [user_obj, object()]
+        other_user = _make_user_obj(
+            id=2, username="bob", email="taken@example.com", first_name="Bob", last_name="Builder"
+        )
+        security_manager.find_user.side_effect = [user_obj, other_user]
         fab_auth_manager.security_manager = security_manager
         get_fab_auth_manager.return_value = fab_auth_manager
 
@@ -507,6 +515,107 @@ class TestUsersService:
             FABAuthManagerUsers.update_user("alice", patch_body)
         assert ex.value.status_code == 409
         assert "email" in ex.value.detail
+
+    @pytest.mark.parametrize(
+        ("field", "value"),
+        [
+            pytest.param("username", "Alice", id="username-differs-in-case-only"),
+            pytest.param("email", "Alice@Example.com", id="email-differs-in-case-only"),
+        ],
+    )
+    def test_update_user_lookup_returning_the_same_user_is_not_a_conflict(
+        self, get_fab_auth_manager, fab_auth_manager, security_manager, field, value
+    ):
+        user_obj = _make_user_obj(
+            username="alice",
+            email="alice@example.com",
+            first_name="Alice",
+            last_name="Liddell",
+        )
+        security_manager.find_user.return_value = user_obj
+        fab_auth_manager.security_manager = security_manager
+        get_fab_auth_manager.return_value = fab_auth_manager
+
+        patch_body = types.SimpleNamespace(
+            username=None,
+            email=None,
+            first_name=None,
+            last_name=None,
+            roles=None,
+            password=None,
+        )
+        setattr(patch_body, field, value)
+
+        out = FABAuthManagerUsers.update_user("alice", patch_body)
+
+        assert getattr(out, field) == value
+        security_manager.update_user.assert_called_once_with(user_obj)
+
+    def test_update_user_ignores_conflicts_outside_the_update_mask(
+        self, get_fab_auth_manager, fab_auth_manager, security_manager
+    ):
+        user_obj = _make_user_obj(
+            username="alice",
+            email="alice@example.com",
+            first_name="Alice",
+            last_name="Liddell",
+        )
+        other_user = _make_user_obj(
+            id=2, username="bob", email="taken@example.com", first_name="Bob", last_name="Builder"
+        )
+        security_manager.find_user.side_effect = lambda username=None, email=None: (
+            user_obj if username == "alice" else other_user
+        )
+        fab_auth_manager.security_manager = security_manager
+        get_fab_auth_manager.return_value = fab_auth_manager
+
+        patch_body = types.SimpleNamespace(
+            username="bob",
+            email="taken@example.com",
+            first_name="Alicia",
+            last_name=None,
+            roles=None,
+            password=None,
+        )
+
+        out = FABAuthManagerUsers.update_user("alice", patch_body, update_mask="first_name")
+
+        assert out.first_name == "Alicia"
+        assert out.username == "alice"
+        assert out.email == "alice@example.com"
+        security_manager.find_user.assert_called_once_with(username="alice")
+
+    def test_update_user_rejects_unknown_update_mask_before_checking_conflicts(
+        self, get_fab_auth_manager, fab_auth_manager, security_manager
+    ):
+        user_obj = _make_user_obj(
+            username="alice",
+            email="alice@example.com",
+            first_name="Alice",
+            last_name="Liddell",
+        )
+        other_user = _make_user_obj(
+            id=2, username="bob", email="taken@example.com", first_name="Bob", last_name="Builder"
+        )
+        security_manager.find_user.side_effect = lambda username=None, email=None: (
+            user_obj if username == "alice" else other_user
+        )
+        fab_auth_manager.security_manager = security_manager
+        get_fab_auth_manager.return_value = fab_auth_manager
+
+        patch_body = types.SimpleNamespace(
+            username="bob",
+            email=None,
+            first_name=None,
+            last_name=None,
+            roles=None,
+            password=None,
+        )
+
+        with pytest.raises(HTTPException) as ex:
+            FABAuthManagerUsers.update_user("alice", patch_body, update_mask="nickname")
+        assert ex.value.status_code == 400
+        security_manager.find_user.assert_called_once_with(username="alice")
 
     def test_update_user_unknown_update_mask(self, get_fab_auth_manager, fab_auth_manager, security_manager):
         user_obj = _make_user_obj(
