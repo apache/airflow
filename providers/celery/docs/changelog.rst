@@ -27,12 +27,25 @@
 Changelog
 ---------
 
+4.0.1
+.....
+
 .. note::
     An explicit ``[celery] result_backend`` with a driverless ``db+postgresql://`` URL now gets the same
     driver as one derived from ``sql_alchemy_conn``: ``db+postgresql+psycopg://...`` when psycopg (v3) and
     SQLAlchemy 2.0+ are installed, ``db+postgresql+psycopg2://...`` otherwise. Before, the URL went to
     SQLAlchemy unchanged, which picks psycopg2 on SQLAlchemy 2.0 and fails when psycopg2 is not installed.
     To keep psycopg2 with both drivers installed, set ``db+postgresql+psycopg2://`` explicitly.
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix driverless PostgreSQL Celery 'result_backend' requiring psycopg2 (#77166)``
+* ``Fix Celery workers rejecting deadline callbacks on Airflow 3.2 (#75438)``
+* ``Fix CeleryExecutor failing to load with Celery 5.7 (#76591)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
 
 4.0.0
 .....
