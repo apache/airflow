@@ -332,6 +332,48 @@ class TestParamsDict:
         pd2["key"] = 1
         pd2.validate()
 
+    @staticmethod
+    def _build_cascade(city, suppress_exception=False):
+        return ParamsDict(
+            {
+                "country": Param("de", type="string", enum=["de", "fr"]),
+                "city": Param(
+                    city,
+                    type=["null", "string"],
+                    depends_on="country",
+                    options_map={"de": ["berlin", "munich"], "fr": ["paris"]},
+                ),
+            },
+            suppress_exception=suppress_exception,
+        )
+
+    @pytest.mark.parametrize("valid_city", ["berlin", None], ids=["option-of-parent", "null-child"])
+    def test_validate_dependent_option(self, valid_city):
+        assert self._build_cascade(valid_city).validate() == {"country": "de", "city": valid_city}
+        with pytest.raises(
+            ParamValidationError,
+            match="Invalid input for param city: 'paris' is not an option for country='de'",
+        ):
+            self._build_cascade("paris").validate()
+
+    def test_validate_dependent_option_non_string_keys(self):
+        pd = ParamsDict(
+            {
+                "level": Param(1, type="integer"),
+                "item": Param("a", type="string", depends_on="level", options_map={1: ["a"], 2: ["b"]}),
+            }
+        )
+        assert pd.validate() == {"level": 1, "item": "a"}
+        pd["level"] = 2
+        with pytest.raises(ParamValidationError, match="'a' is not an option for level=2"):
+            pd.validate()
+
+    def test_validate_dependent_option_suppress_exception(self):
+        assert self._build_cascade("paris", suppress_exception=True).validate() == {
+            "country": "de",
+            "city": None,
+        }
+
     def test_update(self):
         pd = ParamsDict({"key": Param("value", type="string")})
 

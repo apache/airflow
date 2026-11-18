@@ -267,6 +267,19 @@ The following features are supported in the Trigger UI Form:
               | ``enum`` you can add the attribute
               | ``values_display`` with a dict and map data
               | values to display labels.
+            * | ``depends_on="country"`` and
+              | ``options_map={"de": ["Berlin"], "fr": ["Paris"]}``:
+              | Generates a drop-down select list with
+              | options that depend on the value of
+              | another param. ``depends_on`` names the
+              | parent param. ``options_map`` maps each
+              | parent value, as ``str()``, to a list of
+              | options. The parent value must be a
+              | string, an integer, a boolean or null.
+              | When the parent value changes,
+              | the form clears a value that is not in the
+              | new options. The backend checks the pair
+              | when the Dag is triggered.
             * | ``examples=["One", "Two", "Three"]``: If you
               | want to present proposals for values
               | (not restricting the user to a fixed ``enum``
