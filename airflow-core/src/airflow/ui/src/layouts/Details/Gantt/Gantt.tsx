@@ -117,7 +117,11 @@ export const Gantt = ({
 
   const { summariesByRunId } = useGridTiSummariesStream({
     dagId,
+    endDateGte,
+    endDateLte,
     runIds: runId && selectedRun ? [runId] : [],
+    startDateGte,
+    startDateLte,
     states: selectedRun ? [selectedRun.state] : [],
   });
   const gridTiSummaries = summariesByRunId.get(runId);
