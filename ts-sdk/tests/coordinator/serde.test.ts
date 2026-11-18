@@ -50,10 +50,7 @@ function place(
   upstream: readonly TaskRef[] = [],
   spec?: TaskSpec,
 ) {
-  const handler = async (_args: WiredArgs) => undefined;
-  // A group's task() returns a factory of loop task references, so each side is called apart.
-  const factory =
-    scope instanceof Dag ? scope.task(taskId, handler, spec) : scope.task(taskId, handler, spec);
+  const factory = scope.task(taskId, async (_args: WiredArgs) => undefined, spec);
   const inputs: Record<string, TaskRef> = {};
   upstream.forEach((ref, index) => {
     inputs[`in_${index}`] = ref;

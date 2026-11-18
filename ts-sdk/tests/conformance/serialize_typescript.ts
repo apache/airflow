@@ -123,12 +123,10 @@ function buildDag(dagCase: DagCase): Dag {
   for (const task of dagCase.tasks) {
     const label = `${dagCase.dag_id}.${qualifiedTaskId(task)}`;
     const spec = toAuthoringSpec(task.spec ?? {}, TASK_NAMES, label) as TaskSpec;
-    const handler = async (_inputs: Record<string, TaskRef>) => undefined;
+    const scope = task.group === undefined ? dag : groups.get(task.group)!;
     factories.set(
       qualifiedTaskId(task),
-      task.group === undefined
-        ? dag.task(task.task_id, handler, spec)
-        : groups.get(task.group)!.task(task.task_id, handler, spec),
+      scope.task(task.task_id, async (_inputs: Record<string, TaskRef>) => undefined, spec),
     );
   }
   const refs = new Map<string, TaskRef>();
