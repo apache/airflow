@@ -3020,6 +3020,18 @@ scheduler:
       type: float
       example: ~
       default: "120.0"
+    executor_health_check_interval:
+      description: |
+        How often, in seconds, the scheduler checks each configured executor's health via
+        ``get_health()``, reported on ``/monitor/health``. Each check runs in its own background
+        thread so a slow or unresponsive executor backend cannot delay task scheduling; this
+        setting controls how often a check is attempted, not how long a check is allowed to take.
+        Only meaningful for an executor that overrides ``get_health()``; the default implementation
+        returns ``None`` and nothing is reported for it.
+      version_added: 3.5.0
+      type: float
+      example: ~
+      default: "30.0"
     allowed_run_id_pattern:
       description: |
         The run_id pattern used to verify the validity of user input to the run_id parameter when
