@@ -93,6 +93,12 @@ November 17 at 05:00 needs the remote run with the logical date November 16 at 0
         timeout=6 * 60 * 60,
     )
 
+In Airflow 3 a manually triggered DAG run may have no logical date (when none is given in the trigger
+form or API call). Such a run cannot be matched by its logical date, so the sensor does not see it; the date
+in its run id (``manual__<date>``) is the time it was triggered, not its logical date. This is the same for
+``ExternalTaskSensor``. Also note that in Airflow 3 a run whose logical date is in the future does not start
+before that time.
+
 Tasks in a task group are referred to by their full id, with the group id before a dot. Waiting for a whole
 task group (``external_task_group_id``) and deferrable mode are not supported yet.
 
