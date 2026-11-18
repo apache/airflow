@@ -1326,9 +1326,7 @@ class SageMakerTrainingOperator(ResumableJobMixin, SageMakerBaseOperator):
             return self._execute_deferrable(context)
 
         self.execute_resumable(context)
-        # On reconnect the mixin returns poll_until_complete's value and never calls
-        # get_job_result, so the result is read off the operator instead.
-        return {"Training": self.serialized_training_data}
+        return self.get_job_result(self._training_job_name, context)
 
     def submit_job(self, context: Context) -> str:
         # Not in execute(): on a reconnecting retry the S3Operations uploads would raise on the
@@ -1368,8 +1366,8 @@ class SageMakerTrainingOperator(ResumableJobMixin, SageMakerBaseOperator):
             raise
 
     def is_job_active(self, status: str) -> bool:
-        # Narrower than non_terminal_states on purpose: a "Stopping" job never produces a model, and
-        # wait_for_training_job accepts the resulting "Stopped" as done when print_log is off.
+        # Narrower than non_terminal_states on purpose: wait_for_training_job accepts the "Stopped" a
+        # "Stopping" job ends in as done when print_log is off, so reconnecting would report success.
         return status == "InProgress"
 
     def is_job_succeeded(self, status: str) -> bool:

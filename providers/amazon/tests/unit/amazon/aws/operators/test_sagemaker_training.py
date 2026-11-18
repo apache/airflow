@@ -192,9 +192,9 @@ class TestSageMakerTrainingOperator:
         mock_desc.return_value = {"TrainingJobStatus": "InProgress"}
         self.sagemaker.cancel_on_kill = True
         store = self._task_state_store("previously_running_job")
+        mock_poll.side_effect = lambda *a, **k: self.sagemaker.on_kill()
 
         result = self.sagemaker.execute({"task_state_store": store})
-        self.sagemaker.on_kill()
 
         mock_stop.assert_called_once_with("previously_running_job")
 
@@ -204,6 +204,24 @@ class TestSageMakerTrainingOperator:
         assert mock_poll.call_args.args[1] == "previously_running_job"
         assert result == {"Training": ""}
         assert self.sagemaker.serialized_training_data == ""
+
+    @pytest.mark.skipif(
+        not AIRFLOW_V_3_3_PLUS,
+        reason="ResumableJobMixin reconnect requires task_state_store, available in Airflow 3.3+",
+    )
+    @mock.patch.object(SageMakerHook, "wait_for_training_job")
+    @mock.patch.object(SageMakerHook, "describe_training_job")
+    def test_execute_returns_overridden_serialize_result(self, mock_desc, _):
+        class TrimmedTrainingOperator(SageMakerTrainingOperator):
+            def serialize_result(self, job_name: str) -> dict[str, dict]:
+                return {"trimmed": {"job_name": job_name}}
+
+        mock_desc.return_value = {"TrainingJobStatus": "InProgress"}
+        op = TrimmedTrainingOperator(task_id="test_sagemaker_operator", config=CREATE_TRAINING_PARAMS.copy())
+
+        result = op.execute({"task_state_store": self._task_state_store("previously_running_job")})
+
+        assert result == {"trimmed": {"job_name": "previously_running_job"}}
 
     @pytest.mark.skipif(
         not AIRFLOW_V_3_3_PLUS,

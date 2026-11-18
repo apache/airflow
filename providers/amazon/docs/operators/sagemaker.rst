@@ -83,10 +83,13 @@ On retry the operator checks the prior job's status:
 * if it is ``Failed``, ``Stopped`` or ``Stopping``, or the name is no longer found, the operator
   submits a new job
 
-Unlike Glue, a job that is still ``Stopping`` gets a new submit rather than a reconnect. A stopping
-SageMaker job never produces a model, and ``cancel_on_kill`` leaves the job in exactly that state
-when a timed out attempt is killed. A new submit is renamed with a timestamp suffix when
-``action_if_job_exists="timestamp"`` (the default), because the earlier job still holds its name.
+Unlike Glue, a job that is still ``Stopping`` gets a new submit rather than a reconnect. With
+``print_log=False``, the wait treats ``Stopped`` as done, so reconnecting would let the task succeed
+without a finished training run. ``cancel_on_kill`` leaves the job in exactly that state when a
+timed out attempt is killed. A new submit is renamed with a timestamp suffix when
+``check_if_job_exists=True`` and ``action_if_job_exists="timestamp"`` (both defaults), because the
+earlier job still holds its name. With ``check_if_job_exists=False``, SageMaker rejects the new
+submit.
 Spot training resume through ``CheckpointConfig`` is unaffected, since the checkpoint
 ``S3Uri`` does not depend on the job name.
 
@@ -97,8 +100,13 @@ job.
 From Airflow 3.4, clearing a single task instance (UI, REST API or ``airflowctl``) deletes the
 stored job name by default, so the next attempt submits a new job. Set ``keep_task_state`` when
 clearing to keep it, and the next attempt then reconnects to the job or returns its result. Clearing
-a whole Dag run, marking a task as failed or success, and ``airflow tasks clear`` still keep the job
-name before Airflow 3.5. From Airflow 3.5, every way of clearing deletes it by default.
+a whole Dag run, marking a task as failed or success, and ``airflow tasks clear`` /
+``airflow dags clear`` still keep the job name before Airflow 3.5. From Airflow 3.5, every way of
+clearing deletes it by default.
+
+Clearing a running task leaves its job running by default, so the next attempt starts a second one
+and both are billed. To avoid that, set ``keep_task_state`` when clearing to reconnect, or set
+``cancel_on_kill=True`` to stop the old job.
 
 See :doc:`apache-airflow:core-concepts/resumable-tasks` for the ways of clearing, and for the
 ``[state_store] clear_on_success`` setting.
@@ -113,8 +121,8 @@ To opt out and always start a new job on retry, set ``durable=False``:
       durable=False,
   )
 
-Durable execution applies to the synchronous path. When ``deferrable=True`` is set, ``durable`` has
-no effect.
+Durable execution applies to the synchronous path. When ``deferrable=True`` and
+``wait_for_completion=True`` are both set, ``durable`` has no effect.
 
 Durable execution requires Airflow 3.3 or newer, since it relies on the task state store. Below
 3.3, ``durable`` has no effect either way: setting it explicitly only emits a warning, and the
