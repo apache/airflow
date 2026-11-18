@@ -2708,7 +2708,7 @@ class Processor(Iface, TProcessor):
         if name not in self._processMap:
             iprot.skip(TType.STRUCT)
             iprot.readMessageEnd()
-            x = TApplicationException(TApplicationException.UNKNOWN_METHOD, 'Unknown function %s' % (name))
+            x = TApplicationException(TApplicationException.UNKNOWN_METHOD, f'Unknown function {name}')
             oprot.writeMessageBegin(name, TMessageType.EXCEPTION, seqid)
             x.write(oprot)
             oprot.writeMessageEnd()
@@ -4109,9 +4109,9 @@ class exists_args(object):
         return
 
     def __repr__(self):
-        L = ['%s=%r' % (key, value)
+        L = [f'{key}={value!r}'
              for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+        return f"{self.__class__.__name__}({', '.join(L)})"
 
     def __eq__(self, other):
         return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
@@ -4183,9 +4183,9 @@ class exists_result(object):
         return
 
     def __repr__(self):
-        L = ['%s=%r' % (key, value)
+        L = [f'{key}={value!r}'
              for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+        return f"{self.__class__.__name__}({', '.join(L)})"
 
     def __eq__(self, other):
         return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
@@ -4269,9 +4269,9 @@ class existsAll_args(object):
         return
 
     def __repr__(self):
-        L = ['%s=%r' % (key, value)
+        L = [f'{key}={value!r}'
              for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+        return f"{self.__class__.__name__}({', '.join(L)})"
 
     def __eq__(self, other):
         return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
@@ -4351,9 +4351,9 @@ class existsAll_result(object):
         return
 
     def __repr__(self):
-        L = ['%s=%r' % (key, value)
+        L = [f'{key}={value!r}'
              for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+        return f"{self.__class__.__name__}({', '.join(L)})"
 
     def __eq__(self, other):
         return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
@@ -4429,9 +4429,9 @@ class get_args(object):
         return
 
     def __repr__(self):
-        L = ['%s=%r' % (key, value)
+        L = [f'{key}={value!r}'
              for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+        return f"{self.__class__.__name__}({', '.join(L)})"
 
     def __eq__(self, other):
         return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
@@ -4504,9 +4504,9 @@ class get_result(object):
         return
 
     def __repr__(self):
-        L = ['%s=%r' % (key, value)
+        L = [f'{key}={value!r}'
              for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+        return f"{self.__class__.__name__}({', '.join(L)})"
 
     def __eq__(self, other):
         return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
@@ -4592,9 +4592,9 @@ class getMultiple_args(object):
         return
 
     def __repr__(self):
-        L = ['%s=%r' % (key, value)
+        L = [f'{key}={value!r}'
              for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+        return f"{self.__class__.__name__}({', '.join(L)})"
 
     def __eq__(self, other):
         return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
@@ -4675,9 +4675,9 @@ class getMultiple_result(object):
         return
 
     def __repr__(self):
-        L = ['%s=%r' % (key, value)
+        L = [f'{key}={value!r}'
              for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+        return f"{self.__class__.__name__}({', '.join(L)})"
 
     def __eq__(self, other):
         return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
@@ -4753,9 +4753,9 @@ class put_args(object):
         return
 
     def __repr__(self):
-        L = ['%s=%r' % (key, value)
+        L = [f'{key}={value!r}'
              for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+        return f"{self.__class__.__name__}({', '.join(L)})"
 
     def __eq__(self, other):
         return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
@@ -4816,9 +4816,9 @@ class put_result(object):
         return
 
     def __repr__(self):
-        L = ['%s=%r' % (key, value)
+        L = [f'{key}={value!r}'
              for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+        return f"{self.__class__.__name__}({', '.join(L)})"
 
     def __eq__(self, other):
         return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
@@ -4946,9 +4946,9 @@ class checkAndPut_args(object):
         return
 
     def __repr__(self):
-        L = ['%s=%r' % (key, value)
+        L = [f'{key}={value!r}'
              for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+        return f"{self.__class__.__name__}({', '.join(L)})"
 
     def __eq__(self, other):
         return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
@@ -5024,9 +5024,9 @@ class checkAndPut_result(object):
         return
 
     def __repr__(self):
-        L = ['%s=%r' % (key, value)
+        L = [f'{key}={value!r}'
              for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+        return f"{self.__class__.__name__}({', '.join(L)})"
 
     def __eq__(self, other):
         return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
@@ -5110,9 +5110,9 @@ class putMultiple_args(object):
         return
 
     def __repr__(self):
-        L = ['%s=%r' % (key, value)
+        L = [f'{key}={value!r}'
              for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+        return f"{self.__class__.__name__}({', '.join(L)})"
 
     def __eq__(self, other):
         return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
@@ -5173,9 +5173,9 @@ class putMultiple_result(object):
         return
 
     def __repr__(self):
-        L = ['%s=%r' % (key, value)
+        L = [f'{key}={value!r}'
              for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+        return f"{self.__class__.__name__}({', '.join(L)})"
 
     def __eq__(self, other):
         return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
@@ -5251,9 +5251,9 @@ class deleteSingle_args(object):
         return
 
     def __repr__(self):
-        L = ['%s=%r' % (key, value)
+        L = [f'{key}={value!r}'
              for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+        return f"{self.__class__.__name__}({', '.join(L)})"
 
     def __eq__(self, other):
         return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
@@ -5314,9 +5314,9 @@ class deleteSingle_result(object):
         return
 
     def __repr__(self):
-        L = ['%s=%r' % (key, value)
+        L = [f'{key}={value!r}'
              for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+        return f"{self.__class__.__name__}({', '.join(L)})"
 
     def __eq__(self, other):
         return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
@@ -5400,9 +5400,9 @@ class deleteMultiple_args(object):
         return
 
     def __repr__(self):
-        L = ['%s=%r' % (key, value)
+        L = [f'{key}={value!r}'
              for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+        return f"{self.__class__.__name__}({', '.join(L)})"
 
     def __eq__(self, other):
         return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
@@ -5483,9 +5483,9 @@ class deleteMultiple_result(object):
         return
 
     def __repr__(self):
-        L = ['%s=%r' % (key, value)
+        L = [f'{key}={value!r}'
              for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+        return f"{self.__class__.__name__}({', '.join(L)})"
 
     def __eq__(self, other):
         return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
@@ -5613,9 +5613,9 @@ class checkAndDelete_args(object):
         return
 
     def __repr__(self):
-        L = ['%s=%r' % (key, value)
+        L = [f'{key}={value!r}'
              for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+        return f"{self.__class__.__name__}({', '.join(L)})"
 
     def __eq__(self, other):
         return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
@@ -5691,9 +5691,9 @@ class checkAndDelete_result(object):
         return
 
     def __repr__(self):
-        L = ['%s=%r' % (key, value)
+        L = [f'{key}={value!r}'
              for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+        return f"{self.__class__.__name__}({', '.join(L)})"
 
     def __eq__(self, other):
         return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
@@ -5769,9 +5769,9 @@ class increment_args(object):
         return
 
     def __repr__(self):
-        L = ['%s=%r' % (key, value)
+        L = [f'{key}={value!r}'
              for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+        return f"{self.__class__.__name__}({', '.join(L)})"
 
     def __eq__(self, other):
         return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
@@ -5844,9 +5844,9 @@ class increment_result(object):
         return
 
     def __repr__(self):
-        L = ['%s=%r' % (key, value)
+        L = [f'{key}={value!r}'
              for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+        return f"{self.__class__.__name__}({', '.join(L)})"
 
     def __eq__(self, other):
         return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
@@ -5922,9 +5922,9 @@ class append_args(object):
         return
 
     def __repr__(self):
-        L = ['%s=%r' % (key, value)
+        L = [f'{key}={value!r}'
              for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+        return f"{self.__class__.__name__}({', '.join(L)})"
 
     def __eq__(self, other):
         return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
@@ -5997,9 +5997,9 @@ class append_result(object):
         return
 
     def __repr__(self):
-        L = ['%s=%r' % (key, value)
+        L = [f'{key}={value!r}'
              for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+        return f"{self.__class__.__name__}({', '.join(L)})"
 
     def __eq__(self, other):
         return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
@@ -6075,9 +6075,9 @@ class openScanner_args(object):
         return
 
     def __repr__(self):
-        L = ['%s=%r' % (key, value)
+        L = [f'{key}={value!r}'
              for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+        return f"{self.__class__.__name__}({', '.join(L)})"
 
     def __eq__(self, other):
         return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
@@ -6149,9 +6149,9 @@ class openScanner_result(object):
         return
 
     def __repr__(self):
-        L = ['%s=%r' % (key, value)
+        L = [f'{key}={value!r}'
              for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+        return f"{self.__class__.__name__}({', '.join(L)})"
 
     def __eq__(self, other):
         return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
@@ -6224,9 +6224,9 @@ class getScannerRows_args(object):
         return
 
     def __repr__(self):
-        L = ['%s=%r' % (key, value)
+        L = [f'{key}={value!r}'
              for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+        return f"{self.__class__.__name__}({', '.join(L)})"
 
     def __eq__(self, other):
         return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
@@ -6318,9 +6318,9 @@ class getScannerRows_result(object):
         return
 
     def __repr__(self):
-        L = ['%s=%r' % (key, value)
+        L = [f'{key}={value!r}'
              for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+        return f"{self.__class__.__name__}({', '.join(L)})"
 
     def __eq__(self, other):
         return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
@@ -6383,9 +6383,9 @@ class closeScanner_args(object):
         return
 
     def __repr__(self):
-        L = ['%s=%r' % (key, value)
+        L = [f'{key}={value!r}'
              for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+        return f"{self.__class__.__name__}({', '.join(L)})"
 
     def __eq__(self, other):
         return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
@@ -6456,9 +6456,9 @@ class closeScanner_result(object):
         return
 
     def __repr__(self):
-        L = ['%s=%r' % (key, value)
+        L = [f'{key}={value!r}'
              for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+        return f"{self.__class__.__name__}({', '.join(L)})"
 
     def __eq__(self, other):
         return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
@@ -6535,9 +6535,9 @@ class mutateRow_args(object):
         return
 
     def __repr__(self):
-        L = ['%s=%r' % (key, value)
+        L = [f'{key}={value!r}'
              for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+        return f"{self.__class__.__name__}({', '.join(L)})"
 
     def __eq__(self, other):
         return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
@@ -6598,9 +6598,9 @@ class mutateRow_result(object):
         return
 
     def __repr__(self):
-        L = ['%s=%r' % (key, value)
+        L = [f'{key}={value!r}'
              for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+        return f"{self.__class__.__name__}({', '.join(L)})"
 
     def __eq__(self, other):
         return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
@@ -6687,9 +6687,9 @@ class getScannerResults_args(object):
         return
 
     def __repr__(self):
-        L = ['%s=%r' % (key, value)
+        L = [f'{key}={value!r}'
              for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+        return f"{self.__class__.__name__}({', '.join(L)})"
 
     def __eq__(self, other):
         return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
@@ -6771,9 +6771,9 @@ class getScannerResults_result(object):
         return
 
     def __repr__(self):
-        L = ['%s=%r' % (key, value)
+        L = [f'{key}={value!r}'
              for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+        return f"{self.__class__.__name__}({', '.join(L)})"
 
     def __eq__(self, other):
         return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
@@ -6859,9 +6859,9 @@ class getRegionLocation_args(object):
         return
 
     def __repr__(self):
-        L = ['%s=%r' % (key, value)
+        L = [f'{key}={value!r}'
              for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+        return f"{self.__class__.__name__}({', '.join(L)})"
 
     def __eq__(self, other):
         return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
@@ -6935,9 +6935,9 @@ class getRegionLocation_result(object):
         return
 
     def __repr__(self):
-        L = ['%s=%r' % (key, value)
+        L = [f'{key}={value!r}'
              for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+        return f"{self.__class__.__name__}({', '.join(L)})"
 
     def __eq__(self, other):
         return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
@@ -6999,9 +6999,9 @@ class getAllRegionLocations_args(object):
         return
 
     def __repr__(self):
-        L = ['%s=%r' % (key, value)
+        L = [f'{key}={value!r}'
              for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+        return f"{self.__class__.__name__}({', '.join(L)})"
 
     def __eq__(self, other):
         return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
@@ -7081,9 +7081,9 @@ class getAllRegionLocations_result(object):
         return
 
     def __repr__(self):
-        L = ['%s=%r' % (key, value)
+        L = [f'{key}={value!r}'
              for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+        return f"{self.__class__.__name__}({', '.join(L)})"
 
     def __eq__(self, other):
         return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
@@ -7223,9 +7223,9 @@ class checkAndMutate_args(object):
         return
 
     def __repr__(self):
-        L = ['%s=%r' % (key, value)
+        L = [f'{key}={value!r}'
              for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+        return f"{self.__class__.__name__}({', '.join(L)})"
 
     def __eq__(self, other):
         return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
@@ -7302,9 +7302,9 @@ class checkAndMutate_result(object):
         return
 
     def __repr__(self):
-        L = ['%s=%r' % (key, value)
+        L = [f'{key}={value!r}'
              for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+        return f"{self.__class__.__name__}({', '.join(L)})"
 
     def __eq__(self, other):
         return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
@@ -7367,9 +7367,9 @@ class getTableDescriptor_args(object):
         return
 
     def __repr__(self):
-        L = ['%s=%r' % (key, value)
+        L = [f'{key}={value!r}'
              for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+        return f"{self.__class__.__name__}({', '.join(L)})"
 
     def __eq__(self, other):
         return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
@@ -7441,9 +7441,9 @@ class getTableDescriptor_result(object):
         return
 
     def __repr__(self):
-        L = ['%s=%r' % (key, value)
+        L = [f'{key}={value!r}'
              for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+        return f"{self.__class__.__name__}({', '.join(L)})"
 
     def __eq__(self, other):
         return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
@@ -7514,9 +7514,9 @@ class getTableDescriptors_args(object):
         return
 
     def __repr__(self):
-        L = ['%s=%r' % (key, value)
+        L = [f'{key}={value!r}'
              for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+        return f"{self.__class__.__name__}({', '.join(L)})"
 
     def __eq__(self, other):
         return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
@@ -7596,9 +7596,9 @@ class getTableDescriptors_result(object):
         return
 
     def __repr__(self):
-        L = ['%s=%r' % (key, value)
+        L = [f'{key}={value!r}'
              for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+        return f"{self.__class__.__name__}({', '.join(L)})"
 
     def __eq__(self, other):
         return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
@@ -7659,9 +7659,9 @@ class tableExists_args(object):
         return
 
     def __repr__(self):
-        L = ['%s=%r' % (key, value)
+        L = [f'{key}={value!r}'
              for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+        return f"{self.__class__.__name__}({', '.join(L)})"
 
     def __eq__(self, other):
         return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
@@ -7732,9 +7732,9 @@ class tableExists_result(object):
         return
 
     def __repr__(self):
-        L = ['%s=%r' % (key, value)
+        L = [f'{key}={value!r}'
              for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+        return f"{self.__class__.__name__}({', '.join(L)})"
 
     def __eq__(self, other):
         return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
@@ -7807,9 +7807,9 @@ class getTableDescriptorsByPattern_args(object):
         return
 
     def __repr__(self):
-        L = ['%s=%r' % (key, value)
+        L = [f'{key}={value!r}'
              for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+        return f"{self.__class__.__name__}({', '.join(L)})"
 
     def __eq__(self, other):
         return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
@@ -7890,9 +7890,9 @@ class getTableDescriptorsByPattern_result(object):
         return
 
     def __repr__(self):
-        L = ['%s=%r' % (key, value)
+        L = [f'{key}={value!r}'
              for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+        return f"{self.__class__.__name__}({', '.join(L)})"
 
     def __eq__(self, other):
         return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
@@ -7954,9 +7954,9 @@ class getTableDescriptorsByNamespace_args(object):
         return
 
     def __repr__(self):
-        L = ['%s=%r' % (key, value)
+        L = [f'{key}={value!r}'
              for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+        return f"{self.__class__.__name__}({', '.join(L)})"
 
     def __eq__(self, other):
         return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
@@ -8036,9 +8036,9 @@ class getTableDescriptorsByNamespace_result(object):
         return
 
     def __repr__(self):
-        L = ['%s=%r' % (key, value)
+        L = [f'{key}={value!r}'
              for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+        return f"{self.__class__.__name__}({', '.join(L)})"
 
     def __eq__(self, other):
         return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
@@ -8111,9 +8111,9 @@ class getTableNamesByPattern_args(object):
         return
 
     def __repr__(self):
-        L = ['%s=%r' % (key, value)
+        L = [f'{key}={value!r}'
              for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+        return f"{self.__class__.__name__}({', '.join(L)})"
 
     def __eq__(self, other):
         return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
@@ -8194,9 +8194,9 @@ class getTableNamesByPattern_result(object):
         return
 
     def __repr__(self):
-        L = ['%s=%r' % (key, value)
+        L = [f'{key}={value!r}'
              for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+        return f"{self.__class__.__name__}({', '.join(L)})"
 
     def __eq__(self, other):
         return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
@@ -8258,9 +8258,9 @@ class getTableNamesByNamespace_args(object):
         return
 
     def __repr__(self):
-        L = ['%s=%r' % (key, value)
+        L = [f'{key}={value!r}'
              for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+        return f"{self.__class__.__name__}({', '.join(L)})"
 
     def __eq__(self, other):
         return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
@@ -8340,9 +8340,9 @@ class getTableNamesByNamespace_result(object):
         return
 
     def __repr__(self):
-        L = ['%s=%r' % (key, value)
+        L = [f'{key}={value!r}'
              for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+        return f"{self.__class__.__name__}({', '.join(L)})"
 
     def __eq__(self, other):
         return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
@@ -8424,9 +8424,9 @@ class createTable_args(object):
         return
 
     def __repr__(self):
-        L = ['%s=%r' % (key, value)
+        L = [f'{key}={value!r}'
              for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+        return f"{self.__class__.__name__}({', '.join(L)})"
 
     def __eq__(self, other):
         return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
@@ -8487,9 +8487,9 @@ class createTable_result(object):
         return
 
     def __repr__(self):
-        L = ['%s=%r' % (key, value)
+        L = [f'{key}={value!r}'
              for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+        return f"{self.__class__.__name__}({', '.join(L)})"
 
     def __eq__(self, other):
         return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
@@ -8552,9 +8552,9 @@ class deleteTable_args(object):
         return
 
     def __repr__(self):
-        L = ['%s=%r' % (key, value)
+        L = [f'{key}={value!r}'
              for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+        return f"{self.__class__.__name__}({', '.join(L)})"
 
     def __eq__(self, other):
         return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
@@ -8614,9 +8614,9 @@ class deleteTable_result(object):
         return
 
     def __repr__(self):
-        L = ['%s=%r' % (key, value)
+        L = [f'{key}={value!r}'
              for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+        return f"{self.__class__.__name__}({', '.join(L)})"
 
     def __eq__(self, other):
         return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
@@ -8692,9 +8692,9 @@ class truncateTable_args(object):
         return
 
     def __repr__(self):
-        L = ['%s=%r' % (key, value)
+        L = [f'{key}={value!r}'
              for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+        return f"{self.__class__.__name__}({', '.join(L)})"
 
     def __eq__(self, other):
         return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
@@ -8755,9 +8755,9 @@ class truncateTable_result(object):
         return
 
     def __repr__(self):
-        L = ['%s=%r' % (key, value)
+        L = [f'{key}={value!r}'
              for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+        return f"{self.__class__.__name__}({', '.join(L)})"
 
     def __eq__(self, other):
         return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
@@ -8820,9 +8820,9 @@ class enableTable_args(object):
         return
 
     def __repr__(self):
-        L = ['%s=%r' % (key, value)
+        L = [f'{key}={value!r}'
              for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+        return f"{self.__class__.__name__}({', '.join(L)})"
 
     def __eq__(self, other):
         return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
@@ -8882,9 +8882,9 @@ class enableTable_result(object):
         return
 
     def __repr__(self):
-        L = ['%s=%r' % (key, value)
+        L = [f'{key}={value!r}'
              for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+        return f"{self.__class__.__name__}({', '.join(L)})"
 
     def __eq__(self, other):
         return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
@@ -8947,9 +8947,9 @@ class disableTable_args(object):
         return
 
     def __repr__(self):
-        L = ['%s=%r' % (key, value)
+        L = [f'{key}={value!r}'
              for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+        return f"{self.__class__.__name__}({', '.join(L)})"
 
     def __eq__(self, other):
         return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
@@ -9009,9 +9009,9 @@ class disableTable_result(object):
         return
 
     def __repr__(self):
-        L = ['%s=%r' % (key, value)
+        L = [f'{key}={value!r}'
              for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+        return f"{self.__class__.__name__}({', '.join(L)})"
 
     def __eq__(self, other):
         return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
@@ -9074,9 +9074,9 @@ class isTableEnabled_args(object):
         return
 
     def __repr__(self):
-        L = ['%s=%r' % (key, value)
+        L = [f'{key}={value!r}'
              for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+        return f"{self.__class__.__name__}({', '.join(L)})"
 
     def __eq__(self, other):
         return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
@@ -9147,9 +9147,9 @@ class isTableEnabled_result(object):
         return
 
     def __repr__(self):
-        L = ['%s=%r' % (key, value)
+        L = [f'{key}={value!r}'
              for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+        return f"{self.__class__.__name__}({', '.join(L)})"
 
     def __eq__(self, other):
         return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
@@ -9212,9 +9212,9 @@ class isTableDisabled_args(object):
         return
 
     def __repr__(self):
-        L = ['%s=%r' % (key, value)
+        L = [f'{key}={value!r}'
              for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+        return f"{self.__class__.__name__}({', '.join(L)})"
 
     def __eq__(self, other):
         return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
@@ -9285,9 +9285,9 @@ class isTableDisabled_result(object):
         return
 
     def __repr__(self):
-        L = ['%s=%r' % (key, value)
+        L = [f'{key}={value!r}'
              for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+        return f"{self.__class__.__name__}({', '.join(L)})"
 
     def __eq__(self, other):
         return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
@@ -9350,9 +9350,9 @@ class isTableAvailable_args(object):
         return
 
     def __repr__(self):
-        L = ['%s=%r' % (key, value)
+        L = [f'{key}={value!r}'
              for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+        return f"{self.__class__.__name__}({', '.join(L)})"
 
     def __eq__(self, other):
         return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
@@ -9423,9 +9423,9 @@ class isTableAvailable_result(object):
         return
 
     def __repr__(self):
-        L = ['%s=%r' % (key, value)
+        L = [f'{key}={value!r}'
              for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+        return f"{self.__class__.__name__}({', '.join(L)})"
 
     def __eq__(self, other):
         return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
@@ -9502,9 +9502,9 @@ class addColumnFamily_args(object):
         return
 
     def __repr__(self):
-        L = ['%s=%r' % (key, value)
+        L = [f'{key}={value!r}'
              for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+        return f"{self.__class__.__name__}({', '.join(L)})"
 
     def __eq__(self, other):
         return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
@@ -9565,9 +9565,9 @@ class addColumnFamily_result(object):
         return
 
     def __repr__(self):
-        L = ['%s=%r' % (key, value)
+        L = [f'{key}={value!r}'
              for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+        return f"{self.__class__.__name__}({', '.join(L)})"
 
     def __eq__(self, other):
         return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
@@ -9643,9 +9643,9 @@ class deleteColumnFamily_args(object):
         return
 
     def __repr__(self):
-        L = ['%s=%r' % (key, value)
+        L = [f'{key}={value!r}'
              for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+        return f"{self.__class__.__name__}({', '.join(L)})"
 
     def __eq__(self, other):
         return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
@@ -9706,9 +9706,9 @@ class deleteColumnFamily_result(object):
         return
 
     def __repr__(self):
-        L = ['%s=%r' % (key, value)
+        L = [f'{key}={value!r}'
              for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+        return f"{self.__class__.__name__}({', '.join(L)})"
 
     def __eq__(self, other):
         return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
@@ -9785,9 +9785,9 @@ class modifyColumnFamily_args(object):
         return
 
     def __repr__(self):
-        L = ['%s=%r' % (key, value)
+        L = [f'{key}={value!r}'
              for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+        return f"{self.__class__.__name__}({', '.join(L)})"
 
     def __eq__(self, other):
         return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
@@ -9848,9 +9848,9 @@ class modifyColumnFamily_result(object):
         return
 
     def __repr__(self):
-        L = ['%s=%r' % (key, value)
+        L = [f'{key}={value!r}'
              for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+        return f"{self.__class__.__name__}({', '.join(L)})"
 
     def __eq__(self, other):
         return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
@@ -9913,9 +9913,9 @@ class modifyTable_args(object):
         return
 
     def __repr__(self):
-        L = ['%s=%r' % (key, value)
+        L = [f'{key}={value!r}'
              for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+        return f"{self.__class__.__name__}({', '.join(L)})"
 
     def __eq__(self, other):
         return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
@@ -9975,9 +9975,9 @@ class modifyTable_result(object):
         return
 
     def __repr__(self):
-        L = ['%s=%r' % (key, value)
+        L = [f'{key}={value!r}'
              for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+        return f"{self.__class__.__name__}({', '.join(L)})"
 
     def __eq__(self, other):
         return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
@@ -10040,9 +10040,9 @@ class createNamespace_args(object):
         return
 
     def __repr__(self):
-        L = ['%s=%r' % (key, value)
+        L = [f'{key}={value!r}'
              for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+        return f"{self.__class__.__name__}({', '.join(L)})"
 
     def __eq__(self, other):
         return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
@@ -10102,9 +10102,9 @@ class createNamespace_result(object):
         return
 
     def __repr__(self):
-        L = ['%s=%r' % (key, value)
+        L = [f'{key}={value!r}'
              for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+        return f"{self.__class__.__name__}({', '.join(L)})"
 
     def __eq__(self, other):
         return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
@@ -10167,9 +10167,9 @@ class modifyNamespace_args(object):
         return
 
     def __repr__(self):
-        L = ['%s=%r' % (key, value)
+        L = [f'{key}={value!r}'
              for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+        return f"{self.__class__.__name__}({', '.join(L)})"
 
     def __eq__(self, other):
         return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
@@ -10229,9 +10229,9 @@ class modifyNamespace_result(object):
         return
 
     def __repr__(self):
-        L = ['%s=%r' % (key, value)
+        L = [f'{key}={value!r}'
              for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+        return f"{self.__class__.__name__}({', '.join(L)})"
 
     def __eq__(self, other):
         return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
@@ -10293,9 +10293,9 @@ class deleteNamespace_args(object):
         return
 
     def __repr__(self):
-        L = ['%s=%r' % (key, value)
+        L = [f'{key}={value!r}'
              for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+        return f"{self.__class__.__name__}({', '.join(L)})"
 
     def __eq__(self, other):
         return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
@@ -10355,9 +10355,9 @@ class deleteNamespace_result(object):
         return
 
     def __repr__(self):
-        L = ['%s=%r' % (key, value)
+        L = [f'{key}={value!r}'
              for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+        return f"{self.__class__.__name__}({', '.join(L)})"
 
     def __eq__(self, other):
         return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
@@ -10419,9 +10419,9 @@ class getNamespaceDescriptor_args(object):
         return
 
     def __repr__(self):
-        L = ['%s=%r' % (key, value)
+        L = [f'{key}={value!r}'
              for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+        return f"{self.__class__.__name__}({', '.join(L)})"
 
     def __eq__(self, other):
         return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
@@ -10493,9 +10493,9 @@ class getNamespaceDescriptor_result(object):
         return
 
     def __repr__(self):
-        L = ['%s=%r' % (key, value)
+        L = [f'{key}={value!r}'
              for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+        return f"{self.__class__.__name__}({', '.join(L)})"
 
     def __eq__(self, other):
         return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
@@ -10538,9 +10538,9 @@ class listNamespaceDescriptors_args(object):
         return
 
     def __repr__(self):
-        L = ['%s=%r' % (key, value)
+        L = [f'{key}={value!r}'
              for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+        return f"{self.__class__.__name__}({', '.join(L)})"
 
     def __eq__(self, other):
         return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
@@ -10618,9 +10618,9 @@ class listNamespaceDescriptors_result(object):
         return
 
     def __repr__(self):
-        L = ['%s=%r' % (key, value)
+        L = [f'{key}={value!r}'
              for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+        return f"{self.__class__.__name__}({', '.join(L)})"
 
     def __eq__(self, other):
         return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
@@ -10663,9 +10663,9 @@ class listNamespaces_args(object):
         return
 
     def __repr__(self):
-        L = ['%s=%r' % (key, value)
+        L = [f'{key}={value!r}'
              for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+        return f"{self.__class__.__name__}({', '.join(L)})"
 
     def __eq__(self, other):
         return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
@@ -10742,9 +10742,9 @@ class listNamespaces_result(object):
         return
 
     def __repr__(self):
-        L = ['%s=%r' % (key, value)
+        L = [f'{key}={value!r}'
              for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+        return f"{self.__class__.__name__}({', '.join(L)})"
 
     def __eq__(self, other):
         return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
@@ -10787,9 +10787,9 @@ class getThriftServerType_args(object):
         return
 
     def __repr__(self):
-        L = ['%s=%r' % (key, value)
+        L = [f'{key}={value!r}'
              for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+        return f"{self.__class__.__name__}({', '.join(L)})"
 
     def __eq__(self, other):
         return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
@@ -10847,9 +10847,9 @@ class getThriftServerType_result(object):
         return
 
     def __repr__(self):
-        L = ['%s=%r' % (key, value)
+        L = [f'{key}={value!r}'
              for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+        return f"{self.__class__.__name__}({', '.join(L)})"
 
     def __eq__(self, other):
         return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
@@ -10891,9 +10891,9 @@ class getClusterId_args(object):
         return
 
     def __repr__(self):
-        L = ['%s=%r' % (key, value)
+        L = [f'{key}={value!r}'
              for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+        return f"{self.__class__.__name__}({', '.join(L)})"
 
     def __eq__(self, other):
         return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
@@ -10951,9 +10951,9 @@ class getClusterId_result(object):
         return
 
     def __repr__(self):
-        L = ['%s=%r' % (key, value)
+        L = [f'{key}={value!r}'
              for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+        return f"{self.__class__.__name__}({', '.join(L)})"
 
     def __eq__(self, other):
         return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
@@ -11033,9 +11033,9 @@ class getSlowLogResponses_args(object):
         return
 
     def __repr__(self):
-        L = ['%s=%r' % (key, value)
+        L = [f'{key}={value!r}'
              for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+        return f"{self.__class__.__name__}({', '.join(L)})"
 
     def __eq__(self, other):
         return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
@@ -11116,9 +11116,9 @@ class getSlowLogResponses_result(object):
         return
 
     def __repr__(self):
-        L = ['%s=%r' % (key, value)
+        L = [f'{key}={value!r}'
              for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+        return f"{self.__class__.__name__}({', '.join(L)})"
 
     def __eq__(self, other):
         return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
@@ -11187,9 +11187,9 @@ class clearSlowLogResponses_args(object):
         return
 
     def __repr__(self):
-        L = ['%s=%r' % (key, value)
+        L = [f'{key}={value!r}'
              for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+        return f"{self.__class__.__name__}({', '.join(L)})"
 
     def __eq__(self, other):
         return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
@@ -11268,9 +11268,9 @@ class clearSlowLogResponses_result(object):
         return
 
     def __repr__(self):
-        L = ['%s=%r' % (key, value)
+        L = [f'{key}={value!r}'
              for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+        return f"{self.__class__.__name__}({', '.join(L)})"
 
     def __eq__(self, other):
         return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
@@ -11333,9 +11333,9 @@ class grant_args(object):
         return
 
     def __repr__(self):
-        L = ['%s=%r' % (key, value)
+        L = [f'{key}={value!r}'
              for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+        return f"{self.__class__.__name__}({', '.join(L)})"
 
     def __eq__(self, other):
         return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
@@ -11406,9 +11406,9 @@ class grant_result(object):
         return
 
     def __repr__(self):
-        L = ['%s=%r' % (key, value)
+        L = [f'{key}={value!r}'
              for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+        return f"{self.__class__.__name__}({', '.join(L)})"
 
     def __eq__(self, other):
         return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
@@ -11471,9 +11471,9 @@ class revoke_args(object):
         return
 
     def __repr__(self):
-        L = ['%s=%r' % (key, value)
+        L = [f'{key}={value!r}'
              for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+        return f"{self.__class__.__name__}({', '.join(L)})"
 
     def __eq__(self, other):
         return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
@@ -11544,9 +11544,9 @@ class revoke_result(object):
         return
 
     def __repr__(self):
-        L = ['%s=%r' % (key, value)
+        L = [f'{key}={value!r}'
              for key, value in self.__dict__.items()]
-        return '%s(%s)' % (self.__class__.__name__, ', '.join(L))
+        return f"{self.__class__.__name__}({', '.join(L)})"
 
     def __eq__(self, other):
         return isinstance(other, self.__class__) and self.__dict__ == other.__dict__
