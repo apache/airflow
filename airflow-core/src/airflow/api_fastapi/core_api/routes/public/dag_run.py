@@ -362,6 +362,7 @@ def clear_dag_run(
         only_failed=body.only_failed,
         only_new=body.only_new,
         run_on_latest_version=body.run_on_latest_version,
+        keep_task_state=body.keep_task_state,
         note=body.note,
         user=user,
     )
@@ -465,6 +466,7 @@ def clear_dag_runs(
                 only_failed=body.only_failed,
                 only_new=body.only_new,
                 run_on_latest_version=body.run_on_latest_version,
+                keep_task_state=body.keep_task_state,
                 note=body.note,
                 user=user,
             )
