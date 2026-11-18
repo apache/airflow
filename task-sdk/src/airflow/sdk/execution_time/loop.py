@@ -20,6 +20,7 @@ from typing import TYPE_CHECKING, Any, cast
 
 import attrs
 
+from airflow.sdk._shared.secrets_masker import redact
 from airflow.sdk.api.datamodels._generated import LoopDecisionPayload
 from airflow.sdk.bases.decorator import determine_kwargs
 from airflow.sdk.definitions._internal.loop import LOOP_DECISION_REASON_MAX_BYTES
@@ -120,7 +121,6 @@ def execute_loop_gate(gate: LoopGateOperator, context: Context) -> None:
                     f"until must return a bool or LoopDecision, got {type(result).__name__}"
                 )
     if reason is not None:
-        # The supervisor masks the reason, for a gate of every language.
         try:
             encoded = reason.encode()
         except UnicodeEncodeError:
@@ -132,8 +132,10 @@ def execute_loop_gate(gate: LoopGateOperator, context: Context) -> None:
             )
         if "\x00" in reason:
             raise AirflowFailException("LoopDecision reason cannot contain NUL bytes")
+    # The supervisor masks the stored reason for a gate of every language. The exception below also
+    # reaches failure callbacks and emails, which do not mask, so its message is masked here.
     ti._loop_decision = LoopDecisionPayload(stop=stop, reason=reason)
-    suffix = "" if reason is None else f": {reason}"
+    suffix = "" if reason is None else f": {redact(reason)}"
     if not stop and loop.index >= loop.max_iterations:
         raise LoopMaxIterationsExceeded(
             f"Loop condition remained false at max_iterations={loop.max_iterations}{suffix}"

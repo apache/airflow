@@ -309,12 +309,19 @@ def test_unmet_condition_before_the_cap_continues_instead_of_failing(loop_ti, mo
             r"max_iterations=3: error 0.2, needs",
             "error 0.2, needs < 1e-06",
         ),
+        (
+            LoopDecision(stop=False, reason="token hunter2 rejected"),
+            r"max_iterations=3: token \*\*\* rejected$",
+            "token hunter2 rejected",
+        ),
     ],
-    ids=["bool", "decision_with_reason"],
+    ids=["bool", "decision_with_reason", "secret_in_reason_is_masked_in_the_error"],
 )
+@pytest.mark.enable_redact
 def test_gate_fails_without_retrying_when_the_condition_is_false_at_the_cap(
     loop_ti, mock_supervisor_comms, result, message, reason
 ):
+    _secrets_masker().add_mask("hunter2", None)
     ti = loop_ti(index=3, until=lambda: result)
 
     state, sent, error = task_runner.run(ti, context=ti.get_template_context(), log=ti.task.log)

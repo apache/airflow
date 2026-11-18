@@ -1027,6 +1027,29 @@ def _serialize_expand_over_a_loop_task(producer_id: str) -> dict:
     return DagSerialization.to_dict(dag)
 
 
+def _serialize_mapped_group_over_a_loop_task() -> dict:
+    @task
+    def produce():
+        return [1]
+
+    @task
+    def work(value):
+        return value
+
+    @task_group
+    def body():
+        produce()
+
+    @task_group
+    def consume(value):
+        work(value)
+
+    with DAG("mapped_group_outside", schedule=None) as dag:
+        create_loop(body, max_iterations=2)
+        consume.expand(value=dag.get_task("body.produce").output)
+    return DagSerialization.to_dict(dag)
+
+
 def _serialize_loop_in_a_mapped_group() -> dict:
     @task
     def work(value):
@@ -1095,6 +1118,11 @@ def _serialize_gate_outside_any_loop() -> dict:
             lambda: _serialize_expand_over_a_loop_task("body.__loop_gate"),
             "'consume' cannot expand over 'body.__loop_gate', a task in loop 'body'",
             id="expand-over-the-gate-from-outside",
+        ),
+        pytest.param(
+            _serialize_mapped_group_over_a_loop_task,
+            "'consume' cannot expand over 'body.produce', a task in loop 'body'",
+            id="mapped-group-expands-from-outside",
         ),
         pytest.param(
             _serialize_loop_in_a_mapped_group,
