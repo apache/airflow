@@ -179,8 +179,9 @@ the first task attempt fails. Read failures stop the attempt to avoid repeating
 completed LLM calls or tool operations when an existing journal cannot be read.
 
 A corrupt journal also fails the task attempt and is left unchanged. Retrying alone
-does not repair it: inspect and restore the journal before retrying. Deleting it
-allows completed LLM calls and tool operations to run again.
+does not repair it: the ``path`` field on the ``Durable: journal is corrupt`` task-log
+warning names the file to inspect and restore before retrying. Deleting it allows
+completed LLM calls and tool operations to run again.
 
 .. _durable-replay:
 
