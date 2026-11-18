@@ -194,7 +194,16 @@ class SnowparkContainerJobOperator(BaseOperator):
     def _submit_job(self) -> str:
         """Submit the job and return the name."""
         response = self._run_one(self._build_sql())
-        job_name = response[0].split("'")[1]
+
+        if not isinstance(response, (list, tuple)) or not response or not isinstance(response[0], str):
+            raise RuntimeError(f"Unexpected job submission response: {response!r}")
+
+        parts = response[0].split("'")
+        if len(parts) < 3 or not parts[1]:
+            raise RuntimeError(f"Unexpected job submission response: {response!r}")
+
+        job_name = parts[1]
+
         return job_name
 
     def _poll_for_status(self) -> str:

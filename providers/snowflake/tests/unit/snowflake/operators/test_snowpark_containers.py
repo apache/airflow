@@ -286,12 +286,26 @@ class TestSnowparkContainerJobOperator:
             op.on_kill()
         mock_error.assert_called_once()
 
+    @pytest.mark.parametrize(
+        "response",
+        [
+            pytest.param(None, id="none"),
+            pytest.param([], id="empty"),
+            pytest.param(["unexpected response"], id="unexpected_text"),
+            pytest.param([None], id="null_value"),
+            pytest.param([123], id="non_string"),
+            pytest.param(
+                ["Started Snowpark Container Services Job ''."],
+                id="empty_job_name",
+            ),
+        ],
+    )
     @mock.patch(MOCK_HOOK_PATH)
-    def test_submit_job_raises_on_malformed_response(self, mock_hook_cls):
-        mock_hook = mock_hook_cls.return_value
-        mock_hook.run.return_value = ["unexpected response"]
+    def test_submit_job_raises_on_malformed_response(self, mock_hook_cls, response):
+        mock_hook_cls.return_value.run.return_value = response
         op = _make_operator()
-        with pytest.raises(IndexError):
+
+        with pytest.raises(RuntimeError, match="Unexpected job submission response"):
             op._submit_job()
 
     @mock.patch.object(SnowparkContainerJobOperator, "_submit_job", return_value=None)
