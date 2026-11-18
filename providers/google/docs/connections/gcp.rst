@@ -517,14 +517,14 @@ Run the following inside the worker container to confirm the proxy and PySocks a
     python -c "import socks; print('PySocks OK')"
 
 Authenticating to Google Sovereign Cloud in Airflow
---------------------------------------------------
+----------------------------------------------------------------------
 
 When working with a Sovereign Cloud, you may need a universe domain other than
 ``googleapis.com``. Configure the universe domain for each Google connection
 using the ``universe_domain`` extra.
 
 Configure the connection
-~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 In the Airflow connection form, enter the domain in the **Universe Domain**
 field. Alternatively, add it to the connection extras:
@@ -542,7 +542,7 @@ Each connection can specify its own universe domain, allowing hooks using
 different connections to select different universes within the same deployment.
 
 Environment variable fallback
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The ``GOOGLE_CLOUD_UNIVERSE_DOMAIN`` environment variable remains supported:
 
@@ -560,7 +560,7 @@ An explicit ``googleapis.com`` connection extra takes precedence over a
 non-default environment variable.
 
 Client configuration
-~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The selected universe domain is used by supported hooks when constructing
 Google client options. Bigtable Admin uses an explicit
@@ -569,7 +569,6 @@ Google client options. Bigtable Admin uses an explicit
 Configuring a universe domain does not grant access to that universe.
 Credentials must be compatible with the target environment and have the
 permissions required for the requested operations.
----------------------------------------------------
 
 When working with a Sovereign Cloud, you are operating outside the standard ``googleapis.com`` domain.
 To point Airflow to the correct environment **in addition to your primary connection**, you must configure the **Universe Domain**.
