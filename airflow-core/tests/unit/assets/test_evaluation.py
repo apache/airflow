@@ -32,6 +32,8 @@ pytestmark = pytest.mark.db_test
 
 asset1 = SerializedAsset("asset-1", "s3://bucket1/data1", "asset", {}, [])
 asset2 = SerializedAsset("asset-2", "s3://bucket2/data2", "asset", {}, [])
+asset3 = SerializedAsset("asset-3", "s3://bucket3/data3", "asset", {}, [])
+asset4 = SerializedAsset("asset-4", "s3://bucket4/data4", "asset", {}, [])
 
 
 @pytest.fixture
@@ -196,3 +198,42 @@ class TestAssetAlias:
         assert (
             evaluator.run(resolved_asset_alias_2, {SerializedAssetUniqueKey.from_asset(asset): True}) is True
         )
+
+
+def _keys(*assets):
+    return {SerializedAssetUniqueKey.from_asset(a) for a in assets}
+
+
+@pytest.mark.parametrize(
+    ("consume", "queued", "expected"),
+    [
+        pytest.param("branch", (asset1, asset3, asset4), {asset3, asset4}, id="branch-keeps-partial-group"),
+        pytest.param("all", (asset1, asset3, asset4), {asset1, asset3, asset4}, id="all-consumes-everything"),
+        pytest.param("branch", (asset1, asset2, asset3, asset4), {asset1, asset2, asset3, asset4}, id="both"),
+        pytest.param("branch", (asset1, asset3), None, id="not-satisfied"),
+    ],
+)
+def test_find_satisfied_keys(evaluator, consume, queued, expected):
+    condition = SerializedAssetAny(
+        [SerializedAssetAll([asset1, asset2]), SerializedAssetAll([asset3, asset4])], consume=consume
+    )
+    statuses = dict.fromkeys(_keys(*queued), True)
+    result = evaluator.find_satisfied_keys(condition, statuses)
+    assert result == (None if expected is None else _keys(*expected))
+
+
+@pytest.mark.parametrize(
+    ("condition", "expected"),
+    [
+        pytest.param(SerializedAssetAny([asset1, asset2]), False, id="default"),
+        pytest.param(SerializedAssetAny([asset1, asset2], consume="branch"), True, id="top-level"),
+        pytest.param(
+            SerializedAssetAll([asset3, SerializedAssetAny([asset1, asset2], consume="branch")]),
+            True,
+            id="nested",
+        ),
+        pytest.param(asset1, False, id="asset"),
+    ],
+)
+def test_uses_branch_consumption(evaluator, condition, expected):
+    assert evaluator.uses_branch_consumption(condition) is expected

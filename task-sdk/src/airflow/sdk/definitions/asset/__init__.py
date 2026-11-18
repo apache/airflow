@@ -24,7 +24,7 @@ import os
 import urllib.parse
 import warnings
 from collections.abc import Callable
-from typing import TYPE_CHECKING, Any, ClassVar, overload
+from typing import TYPE_CHECKING, Any, ClassVar, Literal, overload
 
 import attrs
 
@@ -498,16 +498,41 @@ class AssetBooleanCondition(BaseAsset):
 
 
 class AssetAny(AssetBooleanCondition):
-    """Use to combine assets schedule references in an "or" relationship."""
+    """
+    Use to combine assets schedule references in an "or" relationship.
+
+    :param consume: Which queued asset events a triggered Dag run consumes.
+        ``"all"`` (default) consumes every queued event under this condition,
+        including events of branches that were not satisfied. ``"branch"``
+        consumes only the events of the satisfied branches; events of the other
+        branches stay queued for a later run.
+    """
+
+    def __init__(self, *objects: BaseAsset, consume: Literal["all", "branch"] = "all") -> None:
+        super().__init__(*objects)
+        if consume not in ("all", "branch"):
+            raise ValueError(f"consume must be 'all' or 'branch', got {consume!r}")
+        self.consume = consume
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, AssetAny):
+            return NotImplemented
+        return self.objects == other.objects and self.consume == other.consume
+
+    def __hash__(self) -> int:
+        return hash((tuple(self.objects), self.consume))
 
     def __or__(self, other: BaseAsset) -> BaseAsset:
         if not isinstance(other, BaseAsset):
             return NotImplemented
         # Optimization: X | (Y | Z) is equivalent to X | Y | Z.
-        return AssetAny(*self.objects, other)
+        return AssetAny(*self.objects, other, consume=self.consume)
 
     def __repr__(self) -> str:
-        return f"AssetAny({', '.join(map(str, self.objects))})"
+        args = ", ".join(map(str, self.objects))
+        if self.consume != "all":
+            args = f"{args}, consume={self.consume!r}"
+        return f"AssetAny({args})"
 
 
 class AssetAll(AssetBooleanCondition):

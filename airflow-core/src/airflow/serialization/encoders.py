@@ -240,7 +240,15 @@ def encode_asset_like(a: BaseAsset | SerializedAssetBase) -> dict[str, Any]:
         case AssetAll() | SerializedAssetAll():
             return {"__type": DAT.ASSET_ALL, "objects": [encode_asset_like(x) for x in a.objects]}
         case AssetAny() | SerializedAssetAny():
-            return {"__type": DAT.ASSET_ANY, "objects": [encode_asset_like(x) for x in a.objects]}
+            encoded: dict[str, Any] = {
+                "__type": DAT.ASSET_ANY,
+                "objects": [encode_asset_like(x) for x in a.objects],
+            }
+            # Omitted for the default so Dags that don't opt in serialize unchanged.
+            # getattr: an older task-sdk's AssetAny has no ``consume`` attribute.
+            if (consume := getattr(a, "consume", "all")) != "all":
+                encoded["consume"] = consume
+            return encoded
         case AssetRef() | SerializedAssetRef():
             return {"__type": DAT.ASSET_REF, **attrs.asdict(a)}
     raise ValueError(f"serialization not implemented for {type(a).__name__!r}")
