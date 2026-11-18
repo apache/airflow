@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import io
 import json
+import re
 import shlex
 import sys
 from pathlib import Path
@@ -50,14 +51,23 @@ Path(sys.argv[0]).with_name("mmdc-args.json").write_text(json.dumps(args))
 Path(args[args.index("-o") + 1]).write_text('<svg xmlns="http://www.w3.org/2000/svg"></svg>')
 """
 
+# Stands in for mermaid-cli when the diagram has a syntax error.
+FAILING_MMDC = """\
+import sys
 
-def test_mermaid_diagram_is_drawn_at_build_time_without_cdn_script(tmp_path):
+sys.stderr.write("Parse error on line 2")
+sys.exit(1)
+"""
+
+
+def _build_docs(tmp_path: Path, fake_mmdc_source: str) -> tuple[str, str]:
+    """Build a one-page Sphinx project with a mermaid diagram; return the page HTML and the warnings."""
     src = tmp_path / "src"
     src.mkdir()
     (src / "index.rst").write_text(INDEX_RST)
     (src / "conf.py").write_text("extensions = ['mermaid_svg']\n")
     fake_mmdc = tmp_path / "fake_mmdc.py"
-    fake_mmdc.write_text(FAKE_MMDC)
+    fake_mmdc.write_text(fake_mmdc_source)
     out = tmp_path / "out"
     warnings = io.StringIO()
 
@@ -72,12 +82,30 @@ def test_mermaid_diagram_is_drawn_at_build_time_without_cdn_script(tmp_path):
         warning=warnings,
     )
     app.build()
+    return (out / "index.html").read_text(), warnings.getvalue()
 
-    html = (out / "index.html").read_text()
+
+def test_mermaid_diagram_is_drawn_at_build_time_without_cdn_script(tmp_path):
+    html, warnings = _build_docs(tmp_path, FAKE_MMDC)
+
     mmdc_args = json.loads((tmp_path / "mmdc-args.json").read_text())
-    assert warnings.getvalue() == ""
+    assert warnings == ""
     assert '<object data="_images/mermaid-' in html
     assert "cdn.jsdelivr.net" not in html
     assert 'class="mermaid"' not in html
     assert mmdc_args[mmdc_args.index("--configFile") + 1].endswith("mermaid_config.json")
     assert mmdc_args[mmdc_args.index("--puppeteerConfigFile") + 1].endswith("mermaid_puppeteer_config.json")
+
+
+def test_mermaid_diagram_links_to_its_svg_file(tmp_path):
+    html, _ = _build_docs(tmp_path, FAKE_MMDC)
+
+    assert re.search(r'<a [^>]*href="(_images/mermaid-[^"]+\.svg)"[^>]*><object data="\1"', html), html
+
+
+def test_mermaid_syntax_error_logs_warning_that_fails_the_build(tmp_path):
+    html, warnings = _build_docs(tmp_path, FAILING_MMDC)
+
+    assert "Mermaid exited with error" in warnings
+    assert "Parse error on line 2" in warnings
+    assert "<object" not in html

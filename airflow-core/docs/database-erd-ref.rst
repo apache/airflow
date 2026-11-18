@@ -18,7 +18,8 @@
 ERD Schema of the Database
 ''''''''''''''''''''''''''
 
-Here is the current Database schema diagram.
+Here is the current Database schema diagram. Click it to open it at full size, where you can scroll
+around it and zoom with your browser.
 
 .. warning::
 
