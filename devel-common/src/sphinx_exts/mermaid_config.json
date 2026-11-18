@@ -1,3 +1,6 @@
 {
-  "fontFamily": "arial, \"Liberation Sans\", helvetica, sans-serif"
+  "fontFamily": "arial, \"Liberation Sans\", helvetica, sans-serif",
+  "er": {"useMaxWidth": false},
+  "flowchart": {"useMaxWidth": false},
+  "sequence": {"useMaxWidth": false}
 }
