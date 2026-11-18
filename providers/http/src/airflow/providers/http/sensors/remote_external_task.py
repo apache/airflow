@@ -26,6 +26,7 @@ from typing import TYPE_CHECKING, Any
 from requests.auth import AuthBase
 
 from airflow.providers.common.compat.sdk import (
+    AirflowException,
     AirflowFailException,
     AirflowOptionalProviderFeatureException,
     BaseSensorOperator,
@@ -43,6 +44,9 @@ if TYPE_CHECKING:
     from airflow.sdk import Context
 
 SUPPORTED_API_VERSIONS = ("v1", "v2")
+# 429 Too Many Requests and 5xx can be temporary problems of the remote Airflow: let retries handle them.
+RETRYABLE_STATUS_CODES = frozenset({429})
+TASK_INSTANCES_PAGE_LIMIT = 100
 
 
 class _BearerTokenAuth(AuthBase):
@@ -144,17 +148,21 @@ class RemoteExternalTaskSensor(ExternalTaskSensor):
 
     @staticmethod
     def _raise_for_remote_error(response: Response) -> None:
-        # Retrying will not help: a wrong URL, filter or credentials give the same error next time.
-        if response.status_code >= 400:
-            raise AirflowFailException(
-                f"{response.request.method} {response.url} returned {response.status_code}: "
-                f"{response.text[:500]}"
-            )
+        if response.status_code < 400:
+            return
+        message = (
+            f"{response.request.method} {response.url} returned {response.status_code}: {response.text[:500]}"
+        )
+        if response.status_code >= 500 or response.status_code in RETRYABLE_STATUS_CODES:
+            # The remote Airflow may be restarting or overloaded: fail this try, keep the task retries.
+            raise AirflowException(message)
+        # A wrong URL, filter or credentials give the same error on the next try: fail without retries.
+        raise AirflowFailException(message)
 
     # --- asking the remote Airflow -------------------------------------------------------------------
 
     def _count_remote_records(self, path: str, filters: dict[str, Any]) -> int:
-        """Return how many DAG runs or task instances the remote list endpoint finds for the filters."""
+        """Return how many records the remote list endpoint finds for the filters."""
         # Only the total is needed: one record is enough, total_entries is still the full count.
         response = self._get_remote_api_hook("POST").run(
             self._build_remote_api_endpoint(path),
@@ -170,34 +178,77 @@ class RemoteExternalTaskSensor(ExternalTaskSensor):
         date_in_utc = date.astimezone(datetime.UTC).isoformat()
         return {f"{date_field}_gte": date_in_utc, f"{date_field}_lte": date_in_utc}
 
-    def _count_remote_in_states(self, dttm_filter: Sequence[datetime.datetime], states: list[str]) -> int:
+    def _count_remote_dag_runs_in_states(
+        self, dttm_filter: Sequence[datetime.datetime], states: list[str]
+    ) -> int:
         """
-        Count remote task instances, or remote DAG runs if no task ids are given, in these states.
+        Count remote DAG runs on exactly the dates of ``dttm_filter`` that are in these states.
 
-        Only DAG runs or task instances on exactly the dates of ``dttm_filter`` are counted.
+        A DAG has at most one run per logical date (unique ``dag_id``, ``logical_date``), so the count is
+        the number of dates whose run is in one of the states.
         """
-        total = 0
-        for date in dttm_filter:
-            if self.external_task_ids:
-                total += self._count_remote_records(
-                    "dags/~/dagRuns/~/taskInstances/list",
-                    {
-                        "dag_ids": [self.external_dag_id],
-                        "task_ids": list(self.external_task_ids),
-                        "state": states,
-                        **self._build_exact_date_filter(date),
-                    },
-                )
-            else:
-                total += self._count_remote_records(
-                    "dags/~/dagRuns/list",
-                    {
-                        "dag_ids": [self.external_dag_id],
-                        "states": states,
-                        **self._build_exact_date_filter(date),
-                    },
-                )
-        return total
+        return sum(
+            self._count_remote_records(
+                "dags/~/dagRuns/list",
+                {"dag_ids": [self.external_dag_id], "states": states, **self._build_exact_date_filter(date)},
+            )
+            for date in dttm_filter
+        )
+
+    def _get_remote_task_states(self, date: datetime.datetime) -> dict[str, list[str | None]]:
+        """
+        Return the states of all remote task instances of ``external_task_ids`` on exactly this date.
+
+        Keyed by task id. A mapped task has one task instance per map index, so it can have several states.
+        """
+        states_by_task: dict[str, list[str | None]] = {}
+        offset = 0
+        while True:
+            response = self._get_remote_api_hook("POST").run(
+                self._build_remote_api_endpoint("dags/~/dagRuns/~/taskInstances/list"),
+                json={
+                    "dag_ids": [self.external_dag_id],
+                    "task_ids": list(self.external_task_ids or []),
+                    **self._build_exact_date_filter(date),
+                    "page_offset": offset,
+                    "page_limit": TASK_INSTANCES_PAGE_LIMIT,
+                },
+                extra_options={"check_response": False},
+            )
+            self._raise_for_remote_error(response)
+            body = response.json()
+            task_instances = body["task_instances"]
+            for task_instance in task_instances:
+                states_by_task.setdefault(task_instance["task_id"], []).append(task_instance["state"])
+            offset += len(task_instances)
+            if not task_instances or offset >= body["total_entries"]:
+                return states_by_task
+
+    def _count_dates_with_any_task_in_states(
+        self, task_states_by_date: list[dict[str, list[str | None]]], states: list[str]
+    ) -> int:
+        """Count dates on which at least one task instance (any map index) is in these states."""
+        return sum(
+            any(state in states for task_states in states_by_task.values() for state in task_states)
+            for states_by_task in task_states_by_date
+        )
+
+    def _count_dates_with_all_tasks_in_states(
+        self, task_states_by_date: list[dict[str, list[str | None]]], states: list[str]
+    ) -> int:
+        """
+        Count dates on which every external task is in these states.
+
+        A task counts only if it has task instances on that date and all of them (every map index of a
+        mapped task) are in the states, so extra map indexes of one task cannot stand in for another task.
+        """
+        return sum(
+            all(
+                states_by_task.get(task_id) and all(state in states for state in states_by_task[task_id])
+                for task_id in self.external_task_ids or []
+            )
+            for states_by_task in task_states_by_date
+        )
 
     def _check_remote_dag_and_tasks_exist(self) -> None:
         """Fail right away if the remote DAG or one of the external tasks does not exist."""
@@ -240,16 +291,30 @@ class RemoteExternalTaskSensor(ExternalTaskSensor):
             self._check_remote_dag_and_tasks_exist()
             self._has_checked_existence = True
 
-        if self.failed_states:
-            count = self._count_remote_in_states(dttm_filter, self.failed_states)
-            self._handle_failed_states(self._calculate_count(count, dttm_filter))
-
-        if self.skipped_states:
-            count = self._count_remote_in_states(dttm_filter, self.skipped_states)
-            self._handle_skipped_states(self._calculate_count(count, dttm_filter))
-
-        count = self._count_remote_in_states(dttm_filter, self.allowed_states)
-        completed_dates = self._calculate_count(count, dttm_filter)
+        if self.external_task_ids:
+            # One request per date gives the states of all external tasks, mapped ones included.
+            task_states_by_date = [self._get_remote_task_states(date) for date in dttm_filter]
+            if self.failed_states:
+                self._handle_failed_states(
+                    self._count_dates_with_any_task_in_states(task_states_by_date, self.failed_states)
+                )
+            if self.skipped_states:
+                self._handle_skipped_states(
+                    self._count_dates_with_any_task_in_states(task_states_by_date, self.skipped_states)
+                )
+            completed_dates = self._count_dates_with_all_tasks_in_states(
+                task_states_by_date, self.allowed_states
+            )
+        else:
+            if self.failed_states:
+                self._handle_failed_states(
+                    self._count_remote_dag_runs_in_states(dttm_filter, self.failed_states)
+                )
+            if self.skipped_states:
+                self._handle_skipped_states(
+                    self._count_remote_dag_runs_in_states(dttm_filter, self.skipped_states)
+                )
+            completed_dates = self._count_remote_dag_runs_in_states(dttm_filter, self.allowed_states)
         self.log.info(
             "Remote %s in states %s: %s of %s dates",
             target,

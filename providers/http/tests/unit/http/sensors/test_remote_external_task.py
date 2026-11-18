@@ -23,7 +23,7 @@ import datetime
 import pytest
 
 from airflow.models import Connection
-from airflow.providers.common.compat.sdk import AirflowFailException, AirflowSkipException
+from airflow.providers.common.compat.sdk import AirflowException, AirflowFailException, AirflowSkipException
 from airflow.providers.http.sensors.remote_external_task import RemoteExternalTaskSensor
 
 REMOTE = "http://remote-airflow:8080"
@@ -65,6 +65,19 @@ def poke(sensor: RemoteExternalTaskSensor) -> bool:
 
 def total(count: int) -> dict:
     return {"json": {"total_entries": count}}
+
+
+def task_instances(*instances: tuple[str, int, str | None]) -> dict:
+    """List endpoint response with task instances given as (task_id, map_index, state)."""
+    return {
+        "json": {
+            "task_instances": [
+                {"task_id": task_id, "map_index": map_index, "state": state}
+                for task_id, map_index, state in instances
+            ],
+            "total_entries": len(instances),
+        }
+    }
 
 
 class TestRemoteExternalTaskSensorInit:
@@ -118,20 +131,70 @@ class TestRemoteExternalTaskSensorV1:
         assert requests_mock.last_request.headers["Authorization"] == f"Basic {expected}"
         assert not any(r.url == TOKEN_URL for r in requests_mock.request_history)
 
-    @pytest.mark.parametrize(("finished", "expected"), [(1, False), (2, True)])
-    def test_all_external_tasks_must_be_in_allowed_state(self, requests_mock, finished, expected):
-        requests_mock.post(TASK_INSTANCES_V1, **total(finished))
+    def test_all_external_tasks_in_allowed_state(self, requests_mock):
+        requests_mock.post(
+            TASK_INSTANCES_V1, **task_instances(("group.a", -1, "success"), ("b", -1, "success"))
+        )
 
-        assert poke(make_sensor(external_task_ids=["group.a", "b"])) is expected
+        assert poke(make_sensor(external_task_ids=["group.a", "b"])) is True
 
         assert requests_mock.last_request.json() == {
             "dag_ids": ["remote_dag"],
             "task_ids": ["group.a", "b"],
-            "state": ["success"],
             "execution_date_gte": LOGICAL_DATE_ISO,
             "execution_date_lte": LOGICAL_DATE_ISO,
-            "page_limit": 1,
+            "page_offset": 0,
+            "page_limit": 100,
         }
+
+    @pytest.mark.parametrize(
+        "instances",
+        [
+            pytest.param([("a", -1, "success"), ("b", -1, "running")], id="one-task-running"),
+            pytest.param([("a", -1, "success")], id="one-task-has-no-instance-yet"),
+            pytest.param(
+                [("a", 0, "success"), ("a", 1, "success"), ("b", -1, "running")],
+                id="map-indexes-of-one-task-do-not-count-for-another",
+            ),
+            pytest.param(
+                [("a", 0, "success"), ("a", 1, "running"), ("b", -1, "success")],
+                id="mapped-task-with-one-index-running",
+            ),
+        ],
+    )
+    def test_waits_until_every_task_and_map_index_is_done(self, requests_mock, instances):
+        requests_mock.post(TASK_INSTANCES_V1, **task_instances(*instances))
+
+        assert poke(make_sensor(external_task_ids=["a", "b"])) is False
+
+    def test_mapped_task_with_all_indexes_done(self, requests_mock):
+        requests_mock.post(
+            TASK_INSTANCES_V1,
+            **task_instances(
+                ("a", 0, "success"), ("a", 1, "success"), ("a", 2, "success"), ("b", -1, "success")
+            ),
+        )
+
+        assert poke(make_sensor(external_task_ids=["a", "b"])) is True
+
+    def test_reads_all_pages_of_task_instances(self, requests_mock):
+        first_page = [{"task_id": "a", "map_index": i, "state": "success"} for i in range(100)]
+        requests_mock.post(
+            TASK_INSTANCES_V1,
+            [
+                {"json": {"task_instances": first_page, "total_entries": 101}},
+                {
+                    "json": {
+                        "task_instances": [{"task_id": "a", "map_index": 100, "state": "running"}],
+                        "total_entries": 101,
+                    }
+                },
+            ],
+        )
+
+        assert poke(make_sensor(external_task_id="a")) is False
+
+        assert [r.json()["page_offset"] for r in requests_mock.request_history] == [0, 100]
 
     def test_execution_delta_shifts_the_remote_date(self, requests_mock):
         requests_mock.post(DAG_RUNS_V1, **total(1))
@@ -181,7 +244,7 @@ class TestRemoteExternalTaskSensorV2:
         assert requests_mock.last_request.headers["Authorization"] == "Bearer second"
 
     def test_task_instances_use_logical_date(self, requests_mock):
-        requests_mock.post(TASK_INSTANCES_V2, **total(1))
+        requests_mock.post(TASK_INSTANCES_V2, **task_instances(("a", -1, "success")))
 
         assert poke(make_sensor(api_version="v2", external_task_id="a")) is True
 
@@ -219,19 +282,31 @@ class TestRemoteExternalTaskSensorStates:
         with pytest.raises(AirflowSkipException):
             poke(make_sensor(failed_states=["failed"], soft_fail=True))
 
-    def test_failed_external_task(self, requests_mock):
-        requests_mock.post(TASK_INSTANCES_V1, **total(1))
+    def test_one_failed_map_index_fails_the_sensor(self, requests_mock):
+        requests_mock.post(
+            TASK_INSTANCES_V1, **task_instances(("a", 0, "success"), ("a", 1, "failed"), ("b", -1, "running"))
+        )
 
-        with pytest.raises(Exception, match=r"Some of the external tasks \['a'\] in DAG remote_dag failed"):
-            poke(make_sensor(external_task_id="a", failed_states=["failed"]))
+        with pytest.raises(
+            Exception, match=r"Some of the external tasks \['a', 'b'\] in DAG remote_dag failed"
+        ):
+            poke(make_sensor(external_task_ids=["a", "b"], failed_states=["failed"]))
 
     def test_skipped_state_skips(self, requests_mock):
-        requests_mock.post(
-            TASK_INSTANCES_V1, additional_matcher=lambda r: r.json()["state"] == ["skipped"], **total(1)
-        )
+        requests_mock.post(TASK_INSTANCES_V1, **task_instances(("a", -1, "skipped")))
 
         with pytest.raises(AirflowSkipException):
             poke(make_sensor(external_task_id="a", skipped_states=["skipped"]))
+
+    def test_task_states_are_read_once_per_poke(self, requests_mock):
+        requests_mock.post(TASK_INSTANCES_V1, **task_instances(("a", -1, "running")))
+
+        assert (
+            poke(make_sensor(external_task_id="a", failed_states=["failed"], skipped_states=["skipped"]))
+            is False
+        )
+
+        assert requests_mock.call_count == 1
 
     def test_no_failed_runs_keeps_waiting(self, requests_mock):
         requests_mock.post(DAG_RUNS_V1, **total(0))
@@ -241,11 +316,20 @@ class TestRemoteExternalTaskSensorStates:
 
 
 class TestRemoteExternalTaskSensorErrors:
-    def test_api_error_fails_the_task(self, requests_mock):
+    def test_client_error_fails_without_retries(self, requests_mock):
         requests_mock.post(DAG_RUNS_V1, status_code=422, text="unknown field")
 
         with pytest.raises(AirflowFailException, match="422: unknown field"):
             poke(make_sensor())
+
+    @pytest.mark.parametrize("status_code", [429, 500, 502, 503, 504])
+    def test_temporary_error_keeps_retries(self, requests_mock, status_code):
+        requests_mock.post(DAG_RUNS_V1, status_code=status_code, text="try later")
+
+        with pytest.raises(AirflowException, match=f"{status_code}: try later") as error:
+            poke(make_sensor())
+
+        assert not isinstance(error.value, AirflowFailException)
 
     def test_check_existence_missing_dag(self, requests_mock):
         requests_mock.get(f"{REMOTE}/api/v1/dags/remote_dag", status_code=404)
