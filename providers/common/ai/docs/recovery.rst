@@ -126,10 +126,12 @@ Retries after the whole chain fails
 -----------------------------------
 
 With ``durable=True``, each step is recorded in the task instance's journal whichever
-connection answered it. When every connection fails, the task raises
-``FallbackChainExhaustedError`` and Airflow retries it. The retry replays the recorded steps,
-then sends its first live request through the chain from the top. The run continues on
-the first connection that answers, whether or not that is the one that answered before.
+connection answered it. When every connection fails, the operator (or ``@task.llm`` /
+``@task.agent``) raises ``FallbackChainExhaustedError``, and a plain ``@task`` with
+``AirflowDurability`` raises the bare ``FallbackExceptionGroup`` (see
+:doc:`provider_fallback`). Airflow retries either one. The retry replays the recorded steps,
+then sends its first live request through the chain from the top. The run continues on the
+first connection that answers, whether or not that is the one that answered before.
 
 A recorded model step replays only if the retry's request has the same fingerprint, and
 for a chain the model in the fingerprint is the whole chain, whichever connection
@@ -153,9 +155,10 @@ What is not covered
   error too, so a rule can fail a permanent error such as a bad request without failing
   outage retries, provided the two raise different exception types. Telling a rate limit
   from a bad request needs ``ModelRateLimitError`` and ``ModelRequestRejectedError``
-  rules; see :doc:`retry_policies` for the pydantic-ai-slim versions that have them. A plain ``ExceptionRetryPolicy`` compares only the
-  group, and a retry still counts against ``retries``. Retry policies need Airflow 3.3 or
-  later; see "When the connection also carries a fallback chain" in :doc:`retry_policies`.
+  rules; see :doc:`retry_policies` for the pydantic-ai-slim versions that have them. A plain
+  ``ExceptionRetryPolicy`` compares only the group, and a retry still counts against
+  ``retries``. Retry policies need Airflow 3.3 or later; see "When the connection also
+  carries a fallback chain" in :doc:`retry_policies`.
 - No connection type builds the ``AnthropicVertex`` client that Claude on Vertex AI
   needs, so a chain cannot include Claude on Vertex AI. A Vertex AI connection reaches
   Gemini.

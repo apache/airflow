@@ -394,23 +394,23 @@ error of the **last** connection, rule by rule in the order listed. A rule writt
 failures apart by exception type, such as retrying a rate-limit error but failing a bad-request
 error, keeps telling them apart. To separate those two, name ``ModelRateLimitError`` (from
 pydantic-ai-slim 2.59.0) and ``ModelRequestRejectedError`` (from 2.62.0) in the rules. This
-provider supports pydantic-ai-slim from 2.46.0, and on an older release a 429 and a 400 are
-both a plain ``ModelHTTPError``, which no rule can tell apart. When the connections failed
-with different errors, the last
-one decides; an earlier connection's rate limit does not make a final bad request retryable,
-and the reverse. A decision taken on the last connection's error says so in its reason. A rule
-cannot tell two failures of the same type apart, such as two ``ModelHTTPError`` with different
-status codes; that needs a classifier. Only these policies look at the members: a plain
-``ExceptionRetryPolicy`` still compares the chain's own error, so match
+provider supports pydantic-ai-slim from 2.46.0. Before 2.59.0 a 429 is also a plain
+``ModelHTTPError``; from 2.59.0 to 2.61.x a rule can single out a rate limit but not a
+rejected request. When the connections failed with different errors, the last one decides;
+an earlier connection's rate limit does not make a final bad request retryable, and the
+reverse. A decision taken on the last connection's error says so in its reason. A rule
+cannot tell two failures of the same type apart, such as two ``ModelHTTPError`` with
+different status codes; that needs a classifier. Only these policies look at the members: a
+plain ``ExceptionRetryPolicy`` still compares the chain's own error, so match
 ``FallbackExceptionGroup`` there.
 
 The model that classifies sees the same detail. The prompt lists each connection's error by
 type and message, redacted like the rest of the error and limited to ``max_exception_length``
-characters each, so a long message from one connection does not push the last one out, and, when the attempt kept a durable journal,
-how many steps the failed attempt replayed and recorded
-(``replayed_steps`` and ``recorded_steps`` on the error, which only the operator path sets). A retry still counts as an attempt
-against ``retries``: a policy can choose a longer delay or a different category from that
-detail, but cannot make a retry free.
+characters each, so a long message from one connection does not push the last one out, and,
+when the attempt kept a durable journal, how many steps the failed attempt replayed and
+recorded (``replayed_steps`` and ``recorded_steps`` on the error, which only the operator
+path sets). A retry still counts as an attempt against ``retries``: a policy can choose a
+longer delay or a different category from that detail, but cannot make a retry free.
 
 What the model can and cannot do
 --------------------------------

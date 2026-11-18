@@ -154,14 +154,13 @@ provider's own exception. Which one depends on how the agent runs:
   ``replayed_steps`` or ``recorded_steps``; read each connection's error from the group's
   ``.exceptions``. An ``except FallbackChainExhaustedError`` there never matches.
 
-On both paths ``LLMRetryPolicy`` and
-``ClassifierRetryPolicy`` match their ``fallback_rules`` against the chain's error and then
-against the last connection's error, so a rule written for a provider-specific exception type
-keeps matching. A plain ``ExceptionRetryPolicy``, or any other policy that compares one
-exception type, sees only the group, and a rule written for a provider-specific exception
-type stops matching there. Before adding a chain to a connection that Dags already use,
-read :doc:`retry_policies` -- the section "When the connection also carries a fallback
-chain" spells out what to check.
+On both paths ``LLMRetryPolicy`` and ``ClassifierRetryPolicy`` match their
+``fallback_rules`` against the chain's error and then against the last connection's error,
+so a rule written for a provider-specific exception type keeps matching. A plain
+``ExceptionRetryPolicy``, or any other policy that compares one exception type, sees only
+the group, and a rule written for a provider-specific exception type stops matching there.
+Before adding a chain to a connection that Dags already use, read :doc:`retry_policies` --
+the section "When the connection also carries a fallback chain" spells out what to check.
 
 Costs to know before configuring a long chain
 ---------------------------------------------
