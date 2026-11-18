@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+from collections import defaultdict
 from typing import TYPE_CHECKING, Annotated
 
 from fastapi import Depends, HTTPException, status
@@ -30,8 +31,11 @@ from airflow.api_fastapi.common.parameters.trigger import (
     QueryTriggerDagIdFilter,
     QueryTriggererHostnameFilter,
     QueryTriggerKindFilter,
+    QueryTriggerScheduledDagIdFilter,
     QueryTriggerStatusFilter,
     QueryTriggerTeamsFilter,
+    ReadableDagIdsDep,
+    select_scheduled_dag_ids,
 )
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.trigger import (
@@ -52,7 +56,7 @@ from airflow.models.taskinstance import TaskInstance
 from airflow.models.trigger import Trigger, TriggerKind
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable
+    from collections.abc import Callable, Iterable
     from uuid import UUID
 
     from sqlalchemy.orm import Session
@@ -68,12 +72,12 @@ def _sort_null_as_smallest(column: ColumnElement) -> list[ColumnElement]:
 
 
 def _build_triggers_select() -> Select:
-    # Only triggers their owner still refers to: the rest are deleted on the triggerer's next cleanup. The
-    # kwargs are never returned, so they are not even loaded.
+    # Only triggers still in use: the rest are deleted on the triggerer's next cleanup. The kwargs are
+    # never returned, so they are not even loaded.
     return (
         select(Trigger)
         .outerjoin(Trigger.triggerer_job)
-        .where(Trigger.owner_still_refers_expression())
+        .where(Trigger.still_used_expression())
         .options(
             defer(Trigger.encrypted_kwargs),
             contains_eager(Trigger.triggerer_job),
@@ -96,6 +100,25 @@ def _get_callback_dag_run_ids(triggers: Iterable[Trigger], *, session: Session) 
     return {callback_id: run_id for callback_id, run_id in rows}
 
 
+def _get_scheduled_dag_ids(
+    triggers: Iterable[Trigger],
+    *,
+    readable_asset_ids: set[int],
+    readable_dag_ids: Callable[[], set[str]],
+    session: Session,
+) -> dict[int, list[str]]:
+    """Return the readable Dags scheduled on each readable asset the triggers watch; one query for them all."""
+    asset_ids = {w.asset_id for trigger in triggers for w in trigger.asset_watchers} & readable_asset_ids
+    # No readable Dag, nothing to list: skip reading every Dag scheduled on the assets only to drop it.
+    if not asset_ids or not (readable := readable_dag_ids()):
+        return {}
+    scheduled: dict[int, set[str]] = defaultdict(set)
+    for asset_id, dag_id in session.execute(select_scheduled_dag_ids(asset_ids=asset_ids)):
+        if dag_id in readable:
+            scheduled[asset_id].add(dag_id)
+    return {asset_id: sorted(dag_ids) for asset_id, dag_ids in scheduled.items()}
+
+
 def _get_public_map_indexes(triggers: Iterable[Trigger], *, session: Session) -> dict[UUID, int]:
     """Return the public map index of each trigger's task instance; one query for those in a dynamic region."""
     task_instances = [trigger.task_instance for trigger in triggers if trigger.task_instance is not None]
@@ -116,9 +139,10 @@ def _build_response(
     readable_asset_ids: set[int],
     callback_dag_run_ids: dict[UUID, str],
     public_map_indexes: dict[UUID, int],
+    scheduled_dag_ids: dict[int, list[str]],
 ) -> TriggerDetailResponse | None:
     """
-    Describe a trigger and its owner, the same way for every kind; ``None`` if the owner just let go.
+    Describe a trigger and what it is used by, the same way for every kind; ``None`` if that just let go.
 
     A trigger can serve watchers on several assets; only those on assets the caller can read are listed.
     """
@@ -170,6 +194,7 @@ def _build_response(
                 asset_name=watcher.asset.name,
                 asset_uri=watcher.asset.uri,
                 watcher_name=watcher.name,
+                scheduled_dag_ids=scheduled_dag_ids.get(watcher.asset_id, []),
             )
             for watcher in sorted(trigger.asset_watchers, key=lambda w: (w.asset_id, w.name))
             if watcher.asset_id in readable_asset_ids
@@ -209,15 +234,17 @@ def get_triggers(
     triggerer_hostname: QueryTriggererHostnameFilter,
     dag_id: QueryTriggerDagIdFilter,
     asset_id: QueryTriggerAssetIdFilter,
+    scheduled_dag_id: QueryTriggerScheduledDagIdFilter,
     teams: QueryTriggerTeamsFilter,
     readable_triggers_filter: ReadableTriggersFilterDep,
+    readable_dag_ids: ReadableDagIdsDep,
     session: SessionDep,
 ) -> TriggerCollectionResponse:
     """
     Get the triggers the caller can see, of every kind, and how each is doing.
 
-    A trigger is visible to whoever can see its owner: the task instance or Dag run of its Dag, or an asset
-    one of its watchers watches.
+    A trigger is visible to whoever can see what it is used by: the task instance or Dag run of its Dag, or
+    an asset one of its watchers watches.
     """
     if asset_id.value is not None and asset_id.value not in readable_triggers_filter.asset_ids:
         # Which triggers watch an asset is the asset's to show.
@@ -230,6 +257,7 @@ def get_triggers(
             triggerer_hostname,
             dag_id,
             asset_id,
+            scheduled_dag_id,
             teams,
             readable_triggers_filter,
         ],
@@ -241,12 +269,19 @@ def get_triggers(
     triggers = session.scalars(triggers_select).unique().all()
     callback_dag_run_ids = _get_callback_dag_run_ids(triggers, session=session)
     public_map_indexes = _get_public_map_indexes(triggers, session=session)
+    scheduled_dag_ids = _get_scheduled_dag_ids(
+        triggers,
+        readable_asset_ids=readable_triggers_filter.asset_ids,
+        readable_dag_ids=readable_dag_ids,
+        session=session,
+    )
     responses = (
         _build_response(
             trigger,
             readable_asset_ids=readable_triggers_filter.asset_ids,
             callback_dag_run_ids=callback_dag_run_ids,
             public_map_indexes=public_map_indexes,
+            scheduled_dag_ids=scheduled_dag_ids,
         )
         for trigger in triggers
     )
@@ -264,6 +299,7 @@ def get_triggers(
 def get_trigger(
     trigger_id: int,
     readable_triggers_filter: ReadableTriggersFilterDep,
+    readable_dag_ids: ReadableDagIdsDep,
     session: SessionDep,
 ) -> TriggerDetailResponse:
     """Get a trigger, who it runs for, and how it is doing."""
@@ -278,6 +314,12 @@ def get_trigger(
             readable_asset_ids=readable_triggers_filter.asset_ids,
             callback_dag_run_ids=_get_callback_dag_run_ids([trigger], session=session),
             public_map_indexes=_get_public_map_indexes([trigger], session=session),
+            scheduled_dag_ids=_get_scheduled_dag_ids(
+                [trigger],
+                readable_asset_ids=readable_triggers_filter.asset_ids,
+                readable_dag_ids=readable_dag_ids,
+                session=session,
+            ),
         )
     )
     if response is None:

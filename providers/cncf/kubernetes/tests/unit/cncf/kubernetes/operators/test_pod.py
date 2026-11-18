@@ -1064,7 +1064,7 @@ class TestKubernetesPodOperator:
             assert result == mock_pod_request_obj
 
     def test_xcom_sidecar_container_image_custom(self):
-        image = "private.repo/alpine:3.24.3"
+        image = "private.repo/alpine:3.24.4"
         with temp_override_attr(PodDefaults.SIDECAR_CONTAINER, "image", image):
             k = KubernetesPodOperator(
                 name="test",
@@ -1081,7 +1081,7 @@ class TestKubernetesPodOperator:
             do_xcom_push=True,
         )
         pod = k.build_pod_request_obj(create_context(k))
-        assert pod.spec.containers[1].image == "alpine:3.24.3"
+        assert pod.spec.containers[1].image == "alpine:3.24.4"
 
     def test_xcom_sidecar_container_resources_default(self):
         k = KubernetesPodOperator(
@@ -3686,7 +3686,7 @@ class TestKubernetesPodOperatorAsync:
             deferrable=True,
         )
         pod = k.build_pod_request_obj(create_context(k))
-        assert pod.spec.containers[1].image == "alpine:3.24.3"
+        assert pod.spec.containers[1].image == "alpine:3.24.4"
 
     def test_async_xcom_sidecar_container_resources_default_should_execute_successfully(self):
         k = KubernetesPodOperator(
@@ -4350,11 +4350,11 @@ class TestKubernetesPodOperatorAsync:
     @patch(POD_MANAGER_CLASS)
     @patch(HOOK_CLASS)
     def test_async_trigger_reentry_returns_when_pod_gcd_on_success(self, mocked_hook, mock_manager):
-        """Pod GC'd between trigger firing and reentry should not fail a successful task."""
+        """Pod GC'd between trigger firing and reentry should not fail a successful task (no XCom)."""
         mocked_hook.return_value.get_pod.side_effect = ApiException(status=404, reason="Not Found")
-        k = KubernetesPodOperator(task_id="task", deferrable=True)
+        k = KubernetesPodOperator(task_id="task", deferrable=True, do_xcom_push=False)
         context = create_context(k)
-        context["ti"] = MagicMock()
+        context["ti"] = MagicMock(spec=TaskInstance)
 
         # Should return cleanly without raising
         result = k.trigger_reentry(
@@ -4370,6 +4370,33 @@ class TestKubernetesPodOperatorAsync:
         assert result is None
         # await_pod_completion in _clean must not be called with self.pod=None
         mock_manager.return_value.await_pod_completion.assert_not_called()
+
+    @patch(POD_MANAGER_CLASS)
+    @patch(HOOK_CLASS)
+    def test_async_trigger_reentry_raises_pod_not_found_on_success_when_xcom_push(
+        self, mocked_hook, mock_manager
+    ):
+        """Pod GC'd before reentry with do_xcom_push=True must not silently succeed (issue #73117).
+
+        The XCom sidecar died with the pod, so returning success would leave the task
+        SUCCESS with no return_value XCom, unrecoverably breaking downstream tasks.
+        Raising lets the task fail/retry so a fresh pod reproduces the result.
+        """
+        mocked_hook.return_value.get_pod.side_effect = ApiException(status=404, reason="Not Found")
+        k = KubernetesPodOperator(task_id="task", deferrable=True, do_xcom_push=True)
+        context = create_context(k)
+        context["ti"] = MagicMock(spec=TaskInstance)
+
+        with pytest.raises(PodNotFoundException, match="not found after resuming from deferral"):
+            k.trigger_reentry(
+                context=context,
+                event={
+                    "status": "success",
+                    "message": TEST_SUCCESS_MESSAGE,
+                    "name": TEST_NAME,
+                    "namespace": TEST_NAMESPACE,
+                },
+            )
 
     @patch(POD_MANAGER_CLASS)
     @patch(HOOK_CLASS)

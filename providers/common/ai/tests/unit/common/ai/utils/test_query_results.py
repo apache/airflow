@@ -24,8 +24,10 @@ import pytest
 
 from airflow.providers.common.ai.utils.query_results import (
     _SCHEMA_SAMPLE_SIZE,
+    build_get_schema_description,
     build_query_result,
     build_schema_result,
+    truncate_comment,
 )
 
 
@@ -173,6 +175,13 @@ def test_a_secret_that_json_escapes_is_masked_in_the_rows(register_secret):
     result = _build(["user", "password"], [["admin", secret]])
 
     assert result["rows"] == [["admin", "***"]]
+
+
+@pytest.mark.enable_redact
+def test_truncate_comment_masks_a_secret_before_cutting(registered_secret):
+    comment = "x" * 190 + registered_secret + "y" * 50
+
+    assert truncate_comment(comment) == "x" * 190 + "***" + "y" * 6 + "\u2026"
 
 
 def _schema(columns, *, max_columns=100, max_result_bytes=65_536, name_contains=None) -> dict:
@@ -334,3 +343,122 @@ class TestSchemaResult:
         assert data["sample_columns"] == []
         assert "type_histogram" not in data
         assert data["hint"]
+
+
+class TestSchemaToolName:
+    def test_description_names_the_given_tool(self):
+        assert "Call pg_get_schema again" in build_get_schema_description(tool_name="pg_get_schema")
+
+    def test_description_defaults_to_the_bare_name(self):
+        assert "Call get_schema again" in build_get_schema_description()
+
+    @pytest.mark.parametrize(
+        ("include_comments", "mentions_comments"),
+        [
+            pytest.param(True, True, id="with-comments"),
+            pytest.param(False, False, id="without-comments"),
+        ],
+    )
+    def test_description_mentions_comments_only_when_asked(self, include_comments, mentions_comments):
+        description = build_get_schema_description(include_comments=include_comments)
+        assert ("`table_comment`" in description) is mentions_comments
+        assert ("`comments_omitted`" in description) is mentions_comments
+        assert ("comment" in description.casefold()) is mentions_comments
+
+    def test_hints_name_the_given_tool(self):
+        no_match = json.loads(
+            build_schema_result(
+                _cols(3),
+                max_columns=100,
+                max_result_bytes=65_536,
+                name_contains="zzz",
+                tool_name="pg_get_schema",
+            )
+        )
+        summary = json.loads(
+            build_schema_result(
+                _cols(250), max_columns=100, max_result_bytes=65_536, tool_name="pg_get_schema"
+            )
+        )
+        assert "Call pg_get_schema without name_contains" in no_match["hint"]
+        assert "Call pg_get_schema with a name_contains substring" in summary["hint"]
+
+
+@pytest.mark.parametrize(
+    ("comment", "expected"),
+    [
+        pytest.param("short", "short", id="under-limit"),
+        pytest.param("a" * 200, "a" * 200, id="at-limit"),
+        pytest.param("a" * 201, "a" * 199 + "\u2026", id="over-limit"),
+    ],
+)
+def test_truncate_comment(comment, expected):
+    assert truncate_comment(comment) == expected
+
+
+class TestSchemaComments:
+    def test_table_comment_is_returned_only_when_present(self):
+        with_comment = json.loads(
+            build_schema_result(
+                _cols(2), max_columns=100, max_result_bytes=65_536, table_comment="Customer orders"
+            )
+        )
+        without = json.loads(build_schema_result(_cols(2), max_columns=100, max_result_bytes=65_536))
+        assert with_comment["table_comment"] == "Customer orders"
+        assert "table_comment" not in without
+
+    def test_summary_keeps_table_comment_and_drops_column_comments(self):
+        cols = [{**col, "comment": "note"} for col in _cols(250)]
+        data = json.loads(
+            build_schema_result(cols, max_columns=100, max_result_bytes=65_536, table_comment="Wide table")
+        )
+        assert data["truncated_by"] == "max_columns"
+        assert data["table_comment"] == "Wide table"
+        assert data["comments_omitted"] is True
+        assert "comments are omitted" in data["hint"]
+        assert all("comment" not in col for col in data["sample_columns"])
+
+    @pytest.mark.parametrize(
+        ("name_contains", "advice"),
+        [
+            pytest.param(None, "with a name_contains substring", id="unfiltered"),
+            pytest.param("col", "more specific name_contains", id="filtered"),
+        ],
+    )
+    def test_column_comments_are_dropped_before_summarizing(self, name_contains, advice):
+        cols = _cols(10)
+        data = json.loads(
+            build_schema_result(
+                [{**col, "comment": "x" * 200} for col in cols],
+                max_columns=100,
+                max_result_bytes=1000,
+                name_contains=name_contains,
+                table_comment="Wide",
+            )
+        )
+        assert data["columns"] == cols
+        assert "truncated" not in data
+        assert data["comments_omitted"] is True
+        assert data["table_comment"] == "Wide"
+        assert advice in data["hint"]
+        if name_contains is not None:
+            assert data["name_contains"] == name_contains
+            assert data["total_columns"] == 10
+
+    def test_columns_too_wide_even_without_comments_are_summarized(self):
+        data = json.loads(
+            build_schema_result(
+                [{**col, "comment": "x" * 200} for col in _cols(10, prefix="c" * 100)],
+                max_columns=100,
+                max_result_bytes=1000,
+            )
+        )
+        assert data["truncated_by"] == "max_result_bytes"
+        assert data["comments_omitted"] is True
+        assert "columns" not in data
+        assert data["sample_columns"]
+
+    def test_summary_without_comments_is_unchanged(self):
+        data = json.loads(build_schema_result(_cols(250), max_columns=100, max_result_bytes=65_536))
+        assert "comments_omitted" not in data
+        assert "table_comment" not in data

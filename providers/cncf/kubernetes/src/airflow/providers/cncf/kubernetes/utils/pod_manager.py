@@ -1049,14 +1049,17 @@ class PodManager(LoggingMixin):
                 stderr=True,
                 tty=False,
                 _preload_content=False,
+                binary=True,
             )
         ) as client:
             self.log.info("Running command... %s", command)
             client.run_forever()
             if client.peek_stderr():
-                stderr = client.read_stderr()
+                stderr = client.read_stderr().decode("utf-8", errors="replace")
                 self.log.error("stderr from command: %s", stderr)
-            result = client.read_all()
+            raw_result = client.read_all()
+            if raw_result is not None:
+                result = raw_result.decode("utf-8", errors="replace")
             if result and result.rstrip() != EMPTY_XCOM_RESULT:
                 # Note: result string is parsed to check if its valid json.
                 # This function still returns a string which is converted into json in the calling method.

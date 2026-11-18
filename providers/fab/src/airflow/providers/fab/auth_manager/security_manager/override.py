@@ -1569,8 +1569,8 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         password: str = "",
         hashed_password: str = "",
         groups: list[Group] | None = None,
-    ) -> User:
-        """Create a user."""
+    ) -> User | None:
+        """Create a user; return ``None`` if it cannot be saved."""
         roles: list[Role] = []
         if role:
             roles = role if isinstance(role, list) else [role]
@@ -1596,7 +1596,32 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         except Exception as e:
             log.error(const.LOGMSG_ERR_SEC_ADD_USER, e)
             self.session.rollback()
-            raise FabException(const.LOGMSG_ERR_SEC_ADD_USER) from e
+            return None
+
+    def _register_user_on_login(
+        self,
+        username: str,
+        first_name: str,
+        last_name: str,
+        email: str,
+        role: list[Role] | Role | None,
+    ) -> User | None:
+        """
+        Create a user on first login; return ``None`` if no active user can be used.
+
+        A parallel first login for the same username can win the insert, so the
+        user it created is used instead of denying this login.
+        """
+        user = self.add_user(
+            username=username, first_name=first_name, last_name=last_name, email=email, role=role
+        )
+        if user is None:
+            user = self.find_user(username=username)
+            if user is not None:
+                log.info("User %s was registered by a parallel login, using that user", username)
+        if user is None or not user.is_active:
+            return None
+        return user
 
     def load_user(self, pk: int) -> User | None:
         try:
@@ -2219,7 +2244,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
 
             # If the user is new, register them
             if (not user) and user_attributes and self.auth_user_registration:
-                user = self.add_user(
+                user = self._register_user_on_login(
                     username=username,
                     first_name=self.ldap_extract(user_attributes, self.auth_ldap_firstname_field, ""),
                     last_name=self.ldap_extract(user_attributes, self.auth_ldap_lastname_field, ""),
@@ -2378,7 +2403,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
 
         # If the user is new, register them
         if (not user) and self.auth_user_registration:
-            user = self.add_user(
+            user = self._register_user_on_login(
                 username=username,
                 first_name=userinfo.get("first_name", ""),
                 last_name=userinfo.get("last_name", ""),
@@ -2550,7 +2575,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
 
         # User does not exist, create one if auto user registration.
         if user is None and self.auth_user_registration:
-            user = self.add_user(
+            user = self._register_user_on_login(
                 # All we have is REMOTE_USER, so we set
                 # the other fields to blank.
                 username=username,
@@ -2561,8 +2586,8 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             )
 
         # If user does not exist on the DB and not auto user registration,
-        # or user is inactive, go away.
-        elif user is None or (not user.is_active):
+        # registration failed, or user is inactive, go away.
+        if user is None or (not user.is_active):
             log.info(LOGMSG_WAR_SEC_LOGIN_FAILED, username)
             return None
 

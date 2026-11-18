@@ -53,7 +53,7 @@ except ImportError as e:
 
 from airflow.providers.common.ai.observability import _content_capture_enabled
 from airflow.providers.common.ai.tools import AirflowTool, ToolCallError, _collect_tools
-from airflow.providers.common.ai.tools._from_toolset import tool_call_scope
+from airflow.providers.common.ai.tools._from_toolset import retry_count_restorer, tool_call_scope
 from airflow.providers.common.ai.tools.tracing import _task_identity
 from airflow.providers.common.ai.utils.masking import dumps_masked, mask_secrets
 from airflow.providers.common.ai.utils.tool_definition import serialize_for_llm
@@ -67,7 +67,8 @@ if TYPE_CHECKING:
     from opentelemetry.context import Context
     from opentelemetry.trace import Span as OtelSpan, TracerProvider
 
-    from airflow.providers.common.ai.tools import ToolProvider
+    from airflow.providers.common.ai.tools import ToolSource
+    from airflow.providers.common.ai.tools._from_toolset import RetryCount
 
 __all__ = ["AirflowTools", "AirflowTraceProcessor"]
 
@@ -76,6 +77,13 @@ _MCP_HINT = (
     "such as MCPServerStreamableHttp, instead."
 )
 
+# Set on a tool call's context: the count the call left in its tool's retry budget, for durable
+# execution to record with the result.
+_RETRY_COUNT = "_airflow_retry_count"
+# Set on each function tool these tools become: given the count a call the durable journal
+# replays left in the tool's retry budget, restores it.
+_REPLAY_RETRY = "_airflow_replay_retry"
+
 
 class AirflowTools(list[Tool]):
     """
@@ -83,7 +91,9 @@ class AirflowTools(list[Tool]):
 
     Pass toolsets that implement
     :class:`~airflow.providers.common.ai.tools.ToolProvider`, such as ``SQLToolset``
-    and ``HookToolset``, or individual
+    and ``HookToolset``, optionally wrapped with ``.filtered()``,
+    ``.prefixed()`` or ``.renamed()`` (a ``.filtered()`` function runs once, when this
+    is built, with ``ctx.deps`` set to ``None``), or individual
     :class:`~airflow.providers.common.ai.tools.AirflowTool` objects. The agent, its
     model and its runner stay plain OpenAI Agents SDK.
 
@@ -101,13 +111,14 @@ class AirflowTools(list[Tool]):
     It is a list of ``FunctionTool`` objects typed as ``Agent.tools`` is, so add your own
     tools with ``[*AirflowTools(warehouse), my_tool]``.
 
-    Each tool keeps the source tool's name, description and argument schema, and every
+    Each tool keeps its source's name, description and argument schema, and every
     result passes through Airflow's secret masker first. The schema is passed as it is,
     with ``strict_json_schema=False``: the SDK's strict mode would make every argument
     required. A failure the model can correct, such as a query naming a missing column,
     reaches it as ``{"error": ...}``, counted against the tool's retry limit afresh on
-    every run of the agent. Arguments that are not a JSON object also come back as
-    ``{"error": ...}``, bounded by the run's ``max_turns`` rather than that limit. A tool
+    every run of the agent; a retry of a durable run counts the ones it replays as well.
+    Arguments that are not a JSON object also come back as ``{"error": ...}``, bounded by
+    the run's ``max_turns`` rather than that limit. A tool
     still failing once the limit is used up, or any other failure, raises
     :class:`~airflow.providers.common.ai.tools.ToolCallError` out of ``Runner.run``, so
     the task fails and Airflow retries it. Tools a toolset marks sequential, such as the
@@ -120,7 +131,7 @@ class AirflowTools(list[Tool]):
     :param sources: Toolsets and tools to add, in order.
     """
 
-    def __init__(self, *sources: ToolProvider | AirflowTool) -> None:
+    def __init__(self, *sources: ToolSource) -> None:
         super().__init__(_to_function_tool(tool) for tool in _collect_tools(sources, mcp_hint=_MCP_HINT))
 
 
@@ -154,6 +165,15 @@ class _SameRun:
         return id(self._usage)
 
 
+class _RetryLimitReached(_FailedToolCall):
+    """
+    A tool kept failing in ways the model could correct until its retry limit ran out.
+
+    The model's answers used the limit up, not the call, so durable execution asks the model
+    again on a retry rather than replaying them into the same failure.
+    """
+
+
 def _to_function_tool(tool: AirflowTool) -> FunctionTool:
     async def call_airflow_tool(ctx: ToolContext[Any], arguments: str) -> str:
         # The SDK passes the model's arguments as it sent them, without parsing them first.
@@ -164,17 +184,30 @@ def _to_function_tool(tool: AirflowTool) -> FunctionTool:
         if not isinstance(parsed, dict):
             return serialize_for_llm({"error": "The arguments must be a JSON object."})
         # The SDK does not identify the model turn, so calls that run at the same time count once.
-        try:
-            with calling_framework("openai_agents"), tool_call_scope(run=_SameRun(ctx.usage)):
+        with (
+            calling_framework("openai_agents"),
+            tool_call_scope(run=_SameRun(ctx.usage), function=tool.function) as scope,
+        ):
+            try:
                 result = await tool.call(parsed)
-        except ToolCallError as e:
-            # Already masked, and logged to the task log with its traceback by AirflowTool.call.
-            raise _FailedToolCall(str(e)) from None
+            except ToolCallError as e:
+                # Already masked, and logged to the task log with its traceback by AirflowTool.call.
+                error = _RetryLimitReached if scope.limit_reached else _FailedToolCall
+                raise error(str(e)) from None
+        setattr(ctx, _RETRY_COUNT, scope.counted)
         if result.is_error:
             return serialize_for_llm({"error": result.content})
         return serialize_for_llm(result.content)
 
-    return FunctionTool(
+    restore = retry_count_restorer(tool)
+
+    async def replay_retry(ctx: ToolContext[Any], count: RetryCount) -> None:
+        # A tool without a retry budget, such as one a Dag edit swapped in since the count was
+        # recorded, has nothing to restore; the recorded result still replays as it is.
+        if restore is not None:
+            await restore(_SameRun(ctx.usage), count)
+
+    function_tool = FunctionTool(
         name=tool.name,
         description=tool.description,
         # The source schema can be a toolset's module-level constant, so hand over a copy.
@@ -182,6 +215,8 @@ def _to_function_tool(tool: AirflowTool) -> FunctionTool:
         on_invoke_tool=call_airflow_tool,
         strict_json_schema=False,
     )
+    setattr(function_tool, _REPLAY_RETRY, replay_retry)
+    return function_tool
 
 
 class AirflowTraceProcessor(TracingProcessor):
