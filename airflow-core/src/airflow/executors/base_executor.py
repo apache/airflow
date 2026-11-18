@@ -525,9 +525,10 @@ class BaseExecutor(LoggingMixin):
 
         This is called from a worker thread with no open database session, on its own schedule
         independent of :meth:`heartbeat`, so it must not assume either. The scheduler records an
-        explicit result either way: ``True``/``False`` become HEALTHY/UNHEALTHY, and a call that
-        raises or returns ``None`` is recorded as UNKNOWN rather than silently carrying over whatever
-        the previous result was. A hung call delays that update, not task scheduling.
+        explicit result either way: ``True``/``False`` become HEALTHY/UNHEALTHY, a call that returns
+        ``None`` or raises :class:`NotImplementedError` is recorded as UNKNOWN, and any other exception
+        is recorded as UNHEALTHY, rather than silently carrying over whatever the previous result was.
+        A hung call delays that update, not task scheduling.
         """
         return None
 

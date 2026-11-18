@@ -24,10 +24,11 @@ import operator
 import os
 import signal
 import sys
+import threading
 import time
 from collections import Counter, defaultdict, deque
 from collections.abc import Callable, Collection, Iterable, Iterator, Sequence
-from concurrent.futures import Future, ThreadPoolExecutor
+from concurrent.futures import Future
 from contextlib import ExitStack, suppress
 from datetime import datetime, timedelta
 from functools import lru_cache, partial
@@ -43,6 +44,7 @@ from sqlalchemy import (
     delete,
     exists,
     func,
+    insert,
     inspect,
     or_,
     select,
@@ -118,7 +120,7 @@ from airflow.models.pool import normalize_pool_name_for_stats
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.task_coordinates import LOOP_GATE_OPERATOR, TaskCoordinateResolver
 from airflow.models.taskinstance import TaskInstance
-from airflow.models.team import Team
+from airflow.models.team import JobTeam, Team
 from airflow.models.trigger import TRIGGER_FAIL_REPR, Trigger, TriggerFailureReason, handle_event_submit
 from airflow.observability.metrics import stats_utils
 from airflow.partition_mappers.base import is_rollup
@@ -131,6 +133,8 @@ from airflow.utils.event_scheduler import EventScheduler
 from airflow.utils.helpers import chunks, prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.log.task_log_address import prepare_task_log_contexts
+from airflow.utils.net import get_hostname
+from airflow.utils.platform import getuser
 from airflow.utils.retries import MAX_DB_RETRIES, retry_db_transaction, run_with_db_retries
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.sqlalchemy import (
@@ -366,17 +370,18 @@ def _build_pending_partitioned_apdr_filters() -> tuple[ColumnElement[bool], ...]
     )
 
 
-def _executor_health_key(executor: BaseExecutor) -> str:
+def _executor_health_key(executor: BaseExecutor) -> str | None:
     """
-    Return the key an executor's health is tracked and recorded under.
+    Return the key an executor's health is tracked and recorded under, or None if it has no name.
 
     ``ExecutorName.__repr__()`` is the identity ``ExecutorName`` itself already uses for equality and
     hashing, so using it here too keeps this side and ``_configured_executor_keys()`` in
-    ``airflow_health.py`` from drifting apart: an executor configured by a bare module path has no
-    alias, and comparing ``alias or module_path`` against ``alias or class name`` doesn't agree on
-    one for that case.
+    ``airflow_health.py`` from drifting apart. ``load_executor()`` always sets ``executor.name``, so
+    ``None`` only happens for an executor constructed without one; there is no class-name fallback for
+    that case, since a fallback key could never match ``_configured_executor_keys()``'s format and
+    would read DOWN forever with no way to tell why. An unnamed executor gets no row instead.
     """
-    return repr(executor.name) if executor.name is not None else type(executor).__name__
+    return repr(executor.name) if executor.name is not None else None
 
 
 class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
@@ -449,13 +454,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         self.executors: list[BaseExecutor] = executors if executors else ExecutorLoader.init_executors()
         self.executor: BaseExecutor = self.executors[0]
 
-        # Each executor's get_health() runs here, never on the scheduler loop's own thread: a check
-        # that talks to a broker or a cluster control plane can be slow or hang, and must not be able
-        # to delay task scheduling. One worker per configured executor is enough since each executor
-        # is only ever checked by one in-flight call at a time (see _check_executor_health).
-        self._executor_health_check_pool = ThreadPoolExecutor(
-            max_workers=max(1, len(self.executors)), thread_name_prefix="executor-health-check"
-        )
+        # Each executor's get_health() runs on its own daemon thread, never on the scheduler loop's own
+        # thread: a check that talks to a broker or a cluster control plane can be slow or hang, and
+        # must not be able to delay task scheduling. A pool isn't needed since each executor is only
+        # ever checked by one in-flight call at a time (see _check_executor_health); a daemon thread
+        # also means a hung check can't block process exit the way a ThreadPoolExecutor worker would.
         self._executor_health_check_futures: dict[str, tuple[Future, float]] = {}
         # A probe that ignores the timeout passed to it would otherwise occupy its slot forever: once
         # a pending future has been sitting this many intervals, it's reported as stalled instead of
@@ -472,13 +475,15 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         # Only executors that actually override get_health() get a Job row at all: one that was never
         # going to report anything isn't a gap in coverage (see _configured_executor_keys in
-        # airflow_health.py, which applies this same rule from the /monitor/health side).
+        # airflow_health.py, which applies this same rule from the /monitor/health side). An executor
+        # with no name is also skipped: _executor_health_key has nothing stable to key its row under.
         from airflow.executors.base_executor import BaseExecutor as _BaseExecutor
 
         self._executor_health_keys: dict[str, str | None] = {
-            _executor_health_key(executor): executor.team_name
+            key: executor.team_name
             for executor in self.executors
             if type(executor).get_health is not _BaseExecutor.get_health
+            and (key := _executor_health_key(executor)) is not None
         }
 
         if self._enable_tracemalloc:
@@ -513,15 +518,15 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         pile up work or block this (or any other) scheduler tick.
 
         ``get_health()`` is passed a timeout, but an implementation that ignores it can still leave its
-        future pending forever. That future's own worker slot is never reclaimed -- the pool is sized
-        one worker per executor, so a stuck probe can only ever cost that executor's own slot -- but
-        without this check it would silently stop being checked again, with no sign anything was
-        wrong. Once a pending future is a few intervals old, it's reported as stalled instead.
+        future pending forever. Once a pending future is a few intervals old, it's reported as stalled:
+        the scheduler records UNHEALTHY itself, since a check that hasn't answered isn't still-healthy,
+        and logs and emits a metric so the stall is visible. If the stuck call does eventually return,
+        its result overwrites this one.
         """
         for executor in self.executors:
             key = _executor_health_key(executor)
-            if key not in self._executor_health_keys:
-                # Doesn't override get_health(); there's nothing to check or record.
+            if key is None or key not in self._executor_health_keys:
+                # No name, or doesn't override get_health(): there's nothing to check or record.
                 continue
             future, started = self._executor_health_check_futures.get(key, (None, 0.0))
             if future is not None and not future.done():
@@ -531,23 +536,45 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 if time.monotonic() - started > stall_after and key not in self._stalled_health_checks:
                     self._stalled_health_checks.add(key)
                     self.log.warning("Health check for executor %s has stopped responding", key)
-                    stats.incr("scheduler.executor_health_check.stalled", tags={"executor": key})
+                    stats.incr(
+                        "scheduler.executor_health_check.stalled",
+                        tags=prune_dict({"executor": type(executor).__name__, "team_name": executor.team_name}),
+                    )
+                    try:
+                        self._record_executor_health_result(key, executor.team_name, HealthCheckResult.UNHEALTHY)
+                    except Exception:
+                        self.log.exception("Failed to record health check result for executor %s", key)
                 else:
                     self.log.debug(
                         "Skipping health check for executor %s, the previous check hasn't finished", key
                     )
                 continue
             self._stalled_health_checks.discard(key)
-            future = self._executor_health_check_pool.submit(self._run_executor_health_check, executor, key)
+            future = Future()
+            threading.Thread(
+                target=self._run_executor_health_check_and_resolve,
+                args=(executor, key, future),
+                name=f"executor-health-check-{key}",
+                daemon=True,
+            ).start()
             self._executor_health_check_futures[key] = (future, time.monotonic())
+
+    def _run_executor_health_check_and_resolve(self, executor: BaseExecutor, key: str, future: Future) -> None:
+        """Run one executor's health check and resolve its tracking future, even if it raises."""
+        try:
+            self._run_executor_health_check(executor, key)
+        finally:
+            future.set_result(None)
 
     def _run_executor_health_check(self, executor: BaseExecutor, key: str) -> None:
         """Run one executor's get_health() off the scheduler thread and record an explicit result."""
         try:
             healthy = executor.get_health(timeout=self._executor_health_check_timeout)
+        except NotImplementedError:
+            healthy = None
         except Exception:
             self.log.exception("Health check for executor %s raised an exception", key)
-            healthy = None
+            healthy = False
         if healthy is None:
             result = HealthCheckResult.UNKNOWN
         elif healthy:
@@ -593,6 +620,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         their own row, so one scheduler's healthy report can never paper over another's failing one.
         A restarted scheduler gets a fresh row for the same reason its own Job row is fresh -- a new
         id -- instead of quietly taking over a row left behind by its previous instance.
+
+        Inserted directly rather than through ``Job(...)``: that constructor fires the ``on_starting``
+        listener hook, meant for "a component is starting", but the scheduler is already running and
+        nothing here ever fires the matching ``before_stopping``. A plain insert sidesteps that, the
+        same way the Execution API's job-registration endpoint does for Jobs it creates on another
+        component's behalf.
         """
         job = session.scalar(
             select(Job).where(
@@ -603,16 +636,25 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             )
         )
         if job is None:
-            job = Job(
-                job_type=EXECUTOR_JOB_TYPE,
-                executor_class=executor_key,
-                owner_job_id=self.job.id,
-                health_check_result=HealthCheckResult.UNKNOWN,
-                team_names=[team_name] if team_name else [],
+            now = timezone.utcnow()
+            inserted = session.execute(
+                insert(Job).values(
+                    job_type=EXECUTOR_JOB_TYPE,
+                    executor_class=executor_key,
+                    owner_job_id=self.job.id,
+                    health_check_result=HealthCheckResult.UNKNOWN,
+                    state=JobState.RUNNING,
+                    start_date=now,
+                    latest_heartbeat=now,
+                    hostname=get_hostname(),
+                    unixname=getuser(),
+                )
             )
-            session.add(job)
-        elif team_name:
-            job.team_names = [team_name]
+            job_id = cast("CursorResult", inserted).inserted_primary_key[0]  # type: ignore[index]
+            if team_name:
+                session.add(JobTeam(job_id=job_id, team_name=team_name))
+            session.flush()
+            job = session.get(Job, job_id)
         job.state = JobState.RUNNING
         return job
 
@@ -2143,6 +2185,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         self.log.info("Starting the scheduler")
 
         reset_signals = self.register_signals()
+        # Matches the state execute_job() in job.py would give this scheduler's own Job row: SUCCESS
+        # for a normal return or SystemExit (^C, SIGTERM), FAILED if the loop raised.
+        executor_jobs_state = JobState.SUCCESS
         try:
             callback_sink: DatabaseCallbackSink
 
@@ -2168,6 +2213,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             if settings.Session is not None:
                 settings.Session.remove()
         except Exception as exc:
+            executor_jobs_state = JobState.FAILED
             stats.incr("scheduler.loop_exceptions", tags={"exception_class": type(exc).__name__})
             self.log.exception("Exception when executing SchedulerJob._run_scheduler_loop")
             raise
@@ -2178,15 +2224,37 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 except Exception:
                     self.log.exception("Exception when executing Executor.end on %s", executor)
 
-            # Don't block scheduler shutdown on a health check that's still in flight; it has no
-            # effect once nothing is left to record its result.
-            self._executor_health_check_pool.shutdown(wait=False, cancel_futures=True)
+            try:
+                self._end_executor_jobs(executor_jobs_state)
+            except Exception:
+                self.log.exception("Failed to close this scheduler's ExecutorJob rows")
 
             # Under normal execution, this doesn't matter, but by resetting signals it lets us run more things
             # in the same process under testing without leaking global state
             reset_signals.close()
             self.log.info("Exited execute loop")
         return None
+
+    @provide_session
+    def _end_executor_jobs(self, state: JobState, *, session: Session = NEW_SESSION) -> None:
+        """
+        Close this scheduler's own ExecutorJob rows on a clean exit, including SIGTERM.
+
+        Nothing else ever gives these rows an ``end_date``, so without this they stay RUNNING forever
+        after their scheduler exits, and every restart adds one more row per reporting executor. A
+        crash (SIGKILL, OOM, a lost node) skips this -- ``finally`` never runs -- so that case is
+        instead handled alongside ``adopt_or_reset_orphaned_tasks``, which already does the same for
+        stale SchedulerJob rows.
+        """
+        session.execute(
+            update(Job)
+            .where(
+                Job.job_type == EXECUTOR_JOB_TYPE,
+                Job.owner_job_id == self.job.id,
+                Job.end_date.is_(None),
+            )
+            .values(state=state, end_date=timezone.utcnow())
+        )
 
     @provide_session
     def _update_dag_run_state_for_paused_dags(self, *, session: Session = NEW_SESSION) -> None:
@@ -4108,6 +4176,23 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     if num_failed:
                         self.log.info("Marked %d SchedulerJob instances as failed", num_failed)
                         stats.incr(self.__class__.__name__.lower() + "_end", num_failed)
+
+                    # A separate statement, not folded into the SchedulerJob one above, so the
+                    # "Marked %d SchedulerJob instances as failed" log line and the _end metric keep
+                    # counting only schedulers. These ExecutorJob rows are left running with no
+                    # end_date when their owning scheduler is SIGKILLed or OOM-killed, since _execute's
+                    # own cleanup (_end_executor_jobs) never gets to run for that case; this also
+                    # catches a row a health check still in flight at that moment recreates after
+                    # _end_executor_jobs has already closed the others.
+                    session.execute(
+                        update(Job)
+                        .where(
+                            Job.job_type == EXECUTOR_JOB_TYPE,
+                            Job.state == JobState.RUNNING,
+                            Job.latest_heartbeat < (timezone.utcnow() - timedelta(seconds=timeout)),
+                        )
+                        .values(state=JobState.FAILED, end_date=timezone.utcnow())
+                    )
 
                     query = (
                         select(TI)

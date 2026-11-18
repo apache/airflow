@@ -19,6 +19,7 @@ from __future__ import annotations
 import logging
 from datetime import datetime
 from enum import Enum
+from functools import lru_cache
 from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import select
@@ -27,6 +28,7 @@ from airflow._shared.timezones import timezone
 from airflow.configuration import conf
 from airflow.dag_processing.bundles.manager import get_configured_bundle_team_names
 from airflow.executors.executor_loader import ExecutorLoader
+from airflow.executors.executor_utils import ExecutorName
 from airflow.jobs.dag_processor_job_runner import DagProcessorJobRunner
 from airflow.jobs.job import EXECUTOR_JOB_TYPE, HealthCheckResult, Job
 from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
@@ -123,10 +125,30 @@ def _dag_processor_instance_health(job: Job) -> dict[str, Any]:
     }
 
 
+@lru_cache
+def _configured_executor_names() -> dict[str, ExecutorName]:
+    """
+    Map every configured executor's health key to its ``ExecutorName``, for display purposes.
+
+    Cached for the same reason :func:`_configured_executor_keys` is: the configured executors can't
+    change while the process runs.
+    """
+    try:
+        return {repr(name): name for name in ExecutorLoader.get_executor_names(validate_teams=False)}
+    except Exception:
+        # A health probe must not fail on malformed executor config; the row's own key is still shown.
+        log.warning("Could not read the executor configuration", exc_info=True)
+        return {}
+
+
 def _executor_instance_health(job: Job) -> dict[str, Any]:
+    # job.executor_class is the internal identity key (e.g. ":CeleryExecutor:"), not the name the user
+    # configured. Reporting the alias or module path they wrote in [core] executor instead is a better
+    # user experience; the key itself is only shown as a fallback, e.g. for a since-reconfigured executor.
+    name = _configured_executor_names().get(job.executor_class) if job.executor_class else None
     return {
         **_job_instance_health(job, "latest_executor_heartbeat"),
-        "executor": job.executor_class,
+        "executor": (name.alias or name.module_path) if name else job.executor_class,
         "team_names": job.team_names,
         "health_check_result": job.health_check_result,
     }
@@ -148,15 +170,6 @@ def _live_executor_jobs(jobs: list[Job]) -> list[Job]:
     """
     live_scheduler_ids = _live_scheduler_job_ids()
     return [job for job in jobs if job.is_alive() and job.owner_job_id in live_scheduler_ids]
-
-
-def _executor_legacy_status(jobs: list[Job]) -> HealthStatus:
-    """Top-level status: unhealthy only when ``_executor_detailed_status`` reads DOWN."""
-    return (
-        HealthStatus.UNHEALTHY
-        if _executor_detailed_status(jobs) == DetailedHealthStatus.DOWN
-        else HealthStatus.HEALTHY
-    )
 
 
 # ``detailed_status`` answers "is every part of this component's work being done", which needs a
@@ -209,6 +222,7 @@ def _dag_processor_detailed_status(jobs: list[Job]) -> DetailedHealthStatus:
     return _coverage_status(expected, covered)
 
 
+@lru_cache
 def _configured_executor_keys() -> set[str]:
     """
     Return the key each configured executor that implements a health check would be recorded under.
@@ -218,11 +232,18 @@ def _configured_executor_keys() -> set[str]:
     that was never going to report anything isn't a gap in coverage, and a deployment where nothing
     implements a health check should see no ``executor`` block at all in ``/monitor/health``, not an
     ``unhealthy`` one.
+
+    Cached: this calls :meth:`~airflow.executors.executor_loader.ExecutorLoader.import_executor_cls`,
+    which imports every configured executor class, and the configured executors can't change while the
+    process runs. Without caching, an API server would redo those imports -- and reproduce any import
+    failure's warning and traceback -- on every single call to ``/monitor/health``. Team validation is
+    skipped (``validate_teams=False``), the same as ``connections.py`` does, so a database hiccup on
+    the first call can't get cached as "no executors".
     """
     from airflow.executors.base_executor import BaseExecutor
 
     try:
-        names = ExecutorLoader.get_executor_names()
+        names = ExecutorLoader.get_executor_names(validate_teams=False)
     except Exception:
         # A health probe must not fail on malformed executor config; callers fall back to liveness only.
         log.warning("Could not read the executor configuration", exc_info=True)
@@ -362,8 +383,12 @@ def get_airflow_health() -> dict[str, Any]:
     if report_executor_health:
         try:
             executor_jobs = get_jobs_health(EXECUTOR_JOB_TYPE)
-            executor_status = _executor_legacy_status(executor_jobs)
             executor_detailed_status = _executor_detailed_status(executor_jobs)
+            executor_status = (
+                HealthStatus.UNHEALTHY
+                if executor_detailed_status == DetailedHealthStatus.DOWN
+                else HealthStatus.HEALTHY
+            )
             if executor_jobs and executor_jobs[0].latest_heartbeat:
                 latest_executor_heartbeat = executor_jobs[0].latest_heartbeat.isoformat()
             if live_executor_jobs := _live_executor_jobs(executor_jobs):
