@@ -23,7 +23,7 @@
 
 Proposed.
 
-Depends on the supervisor running `[core] xcom_backend` in a per-task Python sidecar, which is not on main yet.
+Depends on the supervisor running `[core] xcom_backend` in a per-task Python sidecar, added in [#75184](https://github.com/apache/airflow/pull/75184).
 
 Amends [ADR-0007](0007-taskflow-across-language-boundary.md): it defines the bindings of a mapped stub task, and supports three forms 0007 rejects,
 a `.map()`, `.zip()` or `.concat()` result as an expand argument, a mapped upstream's aggregated output, and a stub task with arguments inside a mapped task group.
