@@ -36,6 +36,7 @@ from airflow.providers.amazon.aws.exceptions import (
     NeptuneImportTaskFailedError,
     NeptunePrivateEndpointCreationFailedError,
     NeptunePrivateEndpointDeletionFailedError,
+    RemovedFeatureError,
     S3HookPathTraversalError,
     S3HookUriParseFailure,
     WaiterMaxAttemptsError,
@@ -52,6 +53,7 @@ ECS_FAILURES = [
 LAST_RESPONSE = {"Cluster": {"Status": "FAILED", "StatusReason": "Insufficient capacity"}}
 
 AIRFLOW_EXCEPTION_SUBCLASSES = [
+    RemovedFeatureError,
     S3HookUriParseFailure,
     S3HookPathTraversalError,
     NeptuneGraphCreationFailedError,
