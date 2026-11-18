@@ -220,6 +220,11 @@ def _get_server_url(config: CodexConfig, server_name: str = "airflow") -> str:
     return json.loads(_parse_overrides(config)[f"mcp_servers.{server_name}.url"])
 
 
+# httpx2's default timeout is 5 s; calls to the real in-process server have hit ReadTimeout at ~5 s on CI,
+# so use a generous explicit limit.
+_HTTP_TIMEOUT = httpx2.Timeout(60.0)
+
+
 def _build_headers(config: CodexConfig) -> dict[str, str]:
     assert config.env is not None
     return {"Authorization": f"Bearer {config.env['AIRFLOW_CODEX_MCP_TOKEN']}"}
@@ -229,7 +234,9 @@ async def _call_over_http(
     config: CodexConfig, name: str, args: dict[str, Any], headers: dict[str, str] | None = None
 ) -> Any:
     """Call a tool the way Codex does: over the HTTP connection to the served MCP server."""
-    http = httpx2.AsyncClient(headers=_build_headers(config) if headers is None else headers)
+    http = httpx2.AsyncClient(
+        headers=_build_headers(config) if headers is None else headers, timeout=_HTTP_TIMEOUT
+    )
     async with (
         http,
         streamable_http_client(_get_server_url(config), http_client=http) as (read, write, *_),
@@ -250,7 +257,7 @@ class TestTools:
         tools = AirflowTools(ts)
 
         async with tools.serve() as config:
-            http = httpx2.AsyncClient(headers=_build_headers(config))
+            http = httpx2.AsyncClient(headers=_build_headers(config), timeout=_HTTP_TIMEOUT)
             async with (
                 http,
                 streamable_http_client(_get_server_url(config), http_client=http) as (read, write, *_),
@@ -289,7 +296,7 @@ class TestTools:
 
         async with tools.serve() as config:
             source.parameters["properties"]["key"]["type"] = "integer"
-            http = httpx2.AsyncClient(headers=_build_headers(config))
+            http = httpx2.AsyncClient(headers=_build_headers(config), timeout=_HTTP_TIMEOUT)
             async with (
                 http,
                 streamable_http_client(_get_server_url(config), http_client=http) as (read, write, *_),
