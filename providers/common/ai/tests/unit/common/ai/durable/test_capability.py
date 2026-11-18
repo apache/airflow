@@ -2050,6 +2050,56 @@ class TestFallbackChainEdits:
         assert journal.stats.replayed["model"] == replayed
         assert {name: calls[name] for name in calls_by_member} == calls_by_member
 
+    @pytest.mark.parametrize(
+        ("second_attempt", "calls_of_c"),
+        [
+            pytest.param(["a", "c"], 0, id="member after the answerer replaced"),
+            pytest.param(["c", "a"], 1, id="member added before the answerer"),
+        ],
+    )
+    @pytest.mark.asyncio
+    async def test_a_chain_edit_keeps_replaying_after_the_first_model_step(
+        self, memory_storage, second_attempt, calls_of_c
+    ):
+        calls = Calls()
+        fail_final = [True]
+
+        def build(names: list[str]) -> Agent[None, str]:
+            def down(messages: list[ModelMessage], info: AgentInfo) -> ModelResponse:
+                raise ModelHTTPError(500, "down")
+
+            def member(name: str) -> MemberStampingModel:
+                if name == "a":
+                    return MemberStampingModel(
+                        FunctionModel(clock_then_lookup(calls, fail_final=fail_final), model_name="a")
+                    )
+
+                def respond(messages: list[ModelMessage], info: AgentInfo) -> ModelResponse:
+                    calls.bump(name)
+                    return down(messages, info)
+
+                return MemberStampingModel(FunctionModel(respond, model_name=name))
+
+            chain = FallbackModel(*(member(name) for name in names), fallback_on=(ModelAPIError,))
+            return Agent(
+                chain,
+                name="chained",
+                toolsets=[_build_ops_toolset(calls)],
+                capabilities=[AirflowDurability()],
+            )
+
+        with pytest.raises(RuntimeError, match="worker died"):
+            await attempt(memory_storage, build(["a", "b"]))
+        fail_final[0] = False
+        journal = DurableJournal(memory_storage)
+        with journal_scope(journal):
+            result = await build(second_attempt).run("go")
+
+        assert result.output == "done"
+        assert journal.stats.replayed["model"] == 2
+        assert (calls["clock"], calls["lookup"], calls["model"]) == (1, 1, 4)
+        assert calls["c"] == calls_of_c
+
     @pytest.mark.asyncio
     async def test_a_stamped_chain_rejects_a_response_without_a_stamp(self, memory_storage):
         calls = Calls()

@@ -36,6 +36,9 @@ Fields that pydantic-ai regenerates on every attempt (message-level
 timestamps of the nested calls code mode records on a ``run_code`` return) are
 excluded from the fingerprint, and registered secrets in the message history are
 masked before hashing, as they are in the tool results the journal records.
+A chain whose members all stamp their answers also leaves out the ``model_id`` of
+the responses in the history: the agent writes the id of the current chain on each
+response it replays, so an edited chain would otherwise change every later step.
 Plain JSON tool arguments and settings are hashed exactly as before.  Everything
 else is rendered by pydantic: the message history and the request parameters by
 their json-mode dump, which is also what they were always hashed from, and other
@@ -200,7 +203,9 @@ def _strip_part(part: Any) -> Any:
     return cleaned
 
 
-def _strip_volatile(messages_dump: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def _strip_volatile(
+    messages_dump: list[dict[str, Any]], *, drop_response_model_id: bool = False
+) -> list[dict[str, Any]]:
     """
     Drop per-attempt fields from a dumped message list.
 
@@ -212,6 +217,8 @@ def _strip_volatile(messages_dump: list[dict[str, Any]]) -> list[dict[str, Any]]
     stripped = []
     for message in messages_dump:
         cleaned = {k: v for k, v in message.items() if k not in _VOLATILE_MESSAGE_KEYS}
+        if drop_response_model_id and cleaned.get("kind") == "response":
+            cleaned.pop("model_id", None)
         if isinstance(cleaned.get("parts"), list):
             cleaned["parts"] = [_strip_part(part) for part in cleaned["parts"]]
         stripped.append(cleaned)
@@ -545,6 +552,7 @@ def fingerprint_model_request(
     model_request_parameters: ModelRequestParameters,
     *,
     step: int | None = None,
+    exclude_response_model_id: bool = False,
 ) -> str | None:
     """
     Fingerprint a model request: model identity, message history, settings, and request parameters.
@@ -582,7 +590,9 @@ def fingerprint_model_request(
                 # live run's history is (an output function's result, for one), so a replayed
                 # history can hold ``***`` where the live one held the secret. Masking the
                 # history here as well makes both match.
-                "messages": _strip_volatile(mask_secrets(dumped)),
+                "messages": _strip_volatile(
+                    mask_secrets(dumped), drop_response_model_id=exclude_response_model_id
+                ),
                 "settings": _render(_content_settings(model_settings)),
                 "params": _normalize_params(params),
             }
