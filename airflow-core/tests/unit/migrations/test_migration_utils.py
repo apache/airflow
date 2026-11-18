@@ -56,6 +56,8 @@ from airflow.utils.db import (
     upgradedb,
 )
 
+from tests_common.test_utils.config import conf_vars
+
 # The stairway runs hundreds of upgrade/downgrade cycles. Each cycle goes
 # through ``_single_connection_pool`` which calls ``settings.reconfigure_orm()``
 # at entry and exit, and ``dispose_orm()`` cannot synchronously close asyncpg
@@ -162,20 +164,18 @@ def stairway_db():
     """
     original_async_conn = settings.SQL_ALCHEMY_CONN_ASYNC
     settings.SQL_ALCHEMY_CONN_ASYNC = ""
-    # Use NullPool: every connection is closed immediately on return to the
-    # pool. Each upgrade/downgrade leaks ~one connection from various places
-    # (alembic's env.py, _configured_alembic_environment, external DB manager
-    # post-migration hooks); over hundreds of revisions a normal pool fills up
-    # and exhausts Postgres' max_connections.
-    settings.dispose_orm(do_log=False)
-    settings.configure_orm(disable_connection_pool=True)
     try:
-        downgrade(to_revision=_STAIRWAY_START_REVISION)
+        # Set NullPool in config, not with configure_orm(disable_connection_pool=True):
+        # upgradedb() rebuilds the ORM from config on leaving _single_connection_pool, yet keeps
+        # using the disposed engine, whose pooled connections then stay open until a full GC.
+        with conf_vars({("database", "sql_alchemy_pool_enabled"): "False"}):
+            settings.reconfigure_orm()
+            downgrade(to_revision=_STAIRWAY_START_REVISION)
 
-        yield
+            yield
 
-        # Restore to latest heads even if the test failed mid-way.
-        upgradedb()
+            # Restore to latest heads even if the test failed mid-way.
+            upgradedb()
     finally:
         settings.SQL_ALCHEMY_CONN_ASYNC = original_async_conn
         settings.reconfigure_orm()
@@ -198,28 +198,21 @@ def test_migration_stairway(stairway_db) -> None:
     revisions = _get_revisions_in_order()
 
     for revision_id in revisions:
-        try:
-            _run_step_with_retry(
-                partial(upgradedb, to_revision=revision_id),
-                revision_id=revision_id,
-                label="upgrade",
-            )
-            _run_step_with_retry(
-                partial(downgrade, to_revision="-1"),
-                revision_id=revision_id,
-                label="downgrade",
-            )
-            _run_step_with_retry(
-                partial(upgradedb, to_revision=revision_id),
-                revision_id=revision_id,
-                label="re-upgrade",
-            )
-        finally:
-            # upgradedb()/downgrade() each enter ``_single_connection_pool``,
-            # which calls ``reconfigure_orm()`` and resets the pool to default.
-            # Re-apply NullPool so the iteration cap is preserved.
-            settings.dispose_orm(do_log=False)
-            settings.configure_orm(disable_connection_pool=True)
+        _run_step_with_retry(
+            partial(upgradedb, to_revision=revision_id),
+            revision_id=revision_id,
+            label="upgrade",
+        )
+        _run_step_with_retry(
+            partial(downgrade, to_revision="-1"),
+            revision_id=revision_id,
+            label="downgrade",
+        )
+        _run_step_with_retry(
+            partial(upgradedb, to_revision=revision_id),
+            revision_id=revision_id,
+            label="re-upgrade",
+        )
 
 
 class TestDisableSqliteFkeys:
