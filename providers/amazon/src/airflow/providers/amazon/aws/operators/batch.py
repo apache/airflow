@@ -361,13 +361,7 @@ class BatchOperator(ResumableJobMixin, AwsBaseOperator[BatchClientHook]):
 
         self.job_id = response["jobId"]
         self.log.info("AWS Batch job (%s) started: %s", self.job_id, response)
-        BatchJobDetailsLink.persist(
-            context=context,
-            operator=self,
-            region_name=self.hook.conn_region_name,
-            aws_partition=self.hook.conn_partition,
-            job_id=self.job_id,
-        )
+        self._persist_job_details_link(context)
         return self.job_id
 
     def get_job_status(self, external_id: JsonValue, context: Context) -> str:
@@ -386,15 +380,25 @@ class BatchOperator(ResumableJobMixin, AwsBaseOperator[BatchClientHook]):
             self.monitor_job(context)
 
     def get_job_result(self, external_id: JsonValue, context: Context) -> str | None:
-        self._attach_to_job(external_id, context)
+        # Not attached yet only when the stored job already succeeded, so monitor_job never ran.
+        if external_id is not None and self.job_id != external_id:
+            self._attach_to_job(external_id, context)
+            self._persist_links(context)
+            self._persist_cloudwatch_link(context)
         return self.job_id
 
     def _attach_to_job(self, external_id: JsonValue, context: Context) -> None:
         # None comes from subclasses whose submit_job override predates it returning the job id;
         # they still set self.job_id, so keep it.
-        if external_id is None or self.job_id == external_id:
+        if external_id is None:
+            self.log.warning("submit_job returned no job id, so a retry will submit a new job")
+            return
+        if self.job_id == external_id:
             return
         self.job_id = cast("str", external_id)
+        self._persist_job_details_link(context)
+
+    def _persist_job_details_link(self, context: Context) -> None:
         BatchJobDetailsLink.persist(
             context=context,
             operator=self,

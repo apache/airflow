@@ -773,15 +773,17 @@ class TestBatchOperatorDurable:
         monitor_mock.assert_called_once()
         assert result == self.NEW_JOB_ID
 
+    @pytest.mark.parametrize("status", ["SUBMITTED", "PENDING", "RUNNABLE", "STARTING", "RUNNING"])
     @mock.patch("airflow.providers.amazon.aws.links.batch.BatchJobDetailsLink.persist")
     @mock.patch.object(BatchOperator, "monitor_job", autospec=True)
-    def test_reconnects_to_running_job(self, monitor_mock, link_mock, client, task_store):
+    def test_reconnects_to_active_job(self, monitor_mock, link_mock, client, task_store, status):
         task_store.get.return_value = JOB_ID
-        client.describe_jobs.return_value = {"jobs": [{"jobId": JOB_ID, "status": "RUNNING"}]}
+        client.describe_jobs.return_value = {"jobs": [{"jobId": JOB_ID, "status": status}]}
         operator = self._make_operator()
 
         result = operator.execute(self._context(task_store))
 
+        client.describe_jobs.assert_called_once_with(jobs=[JOB_ID])
         client.submit_job.assert_not_called()
         task_store.set.assert_not_called()
         monitor_mock.assert_called_once()
@@ -789,9 +791,13 @@ class TestBatchOperatorDurable:
         assert operator.job_id == JOB_ID
         assert result == JOB_ID
 
+    @mock.patch.object(BatchOperator, "_persist_cloudwatch_link", autospec=True)
+    @mock.patch.object(BatchOperator, "_persist_links", autospec=True)
     @mock.patch("airflow.providers.amazon.aws.links.batch.BatchJobDetailsLink.persist")
     @mock.patch.object(BatchOperator, "monitor_job", autospec=True)
-    def test_already_succeeded_skips_submit_and_wait(self, monitor_mock, link_mock, client, task_store):
+    def test_already_succeeded_skips_submit_and_wait(
+        self, monitor_mock, link_mock, persist_links_mock, persist_cloudwatch_mock, client, task_store
+    ):
         task_store.get.return_value = JOB_ID
         client.describe_jobs.return_value = {"jobs": [{"jobId": JOB_ID, "status": "SUCCEEDED"}]}
 
@@ -800,6 +806,8 @@ class TestBatchOperatorDurable:
         client.submit_job.assert_not_called()
         monitor_mock.assert_not_called()
         assert link_mock.call_args.kwargs["job_id"] == JOB_ID
+        persist_links_mock.assert_called_once()
+        persist_cloudwatch_mock.assert_called_once()
         assert result == JOB_ID
 
     @pytest.mark.parametrize(
@@ -829,7 +837,7 @@ class TestBatchOperatorDurable:
         task_store.set.assert_not_called()
 
     @mock.patch.object(BatchOperator, "monitor_job", autospec=True)
-    def test_submit_job_override_returning_none_keeps_job_id(self, monitor_mock, client, task_store):
+    def test_submit_job_override_returning_none_keeps_job_id(self, monitor_mock, client, task_store, caplog):
         class LegacySubmitBatchOperator(BatchOperator):
             def submit_job(self, context):
                 super().submit_job(context)
@@ -841,6 +849,7 @@ class TestBatchOperatorDurable:
         monitor_mock.assert_called_once()
         assert operator.job_id == self.NEW_JOB_ID
         assert result == self.NEW_JOB_ID
+        assert "submit_job returned no job id, so a retry will submit a new job" in caplog
 
 
 class TestBatchCreateComputeEnvironmentOperator:
