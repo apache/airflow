@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import time
+from concurrent.futures import Future
+
 import pytest
 from sqlalchemy import select
 
 from airflow.executors.base_executor import BaseExecutor
 from airflow.executors.executor_utils import ExecutorName
-from airflow.jobs.job import EXECUTOR_JOB_TYPE, HealthCheckResult, Job
+from airflow.jobs.job import EXECUTOR_JOB_TYPE, HealthCheckResult, Job, JobState
 from airflow.jobs.scheduler_job_runner import SchedulerJobRunner, _executor_health_key
 
 from tests_common.test_utils.config import conf_vars
@@ -133,8 +136,19 @@ def test_run_executor_health_check_records_unknown_on_none(session):
     assert job.health_check_result == HealthCheckResult.UNKNOWN
 
 
-def test_run_executor_health_check_records_unknown_and_does_not_raise_when_get_health_raises(session):
+def test_run_executor_health_check_records_unhealthy_and_does_not_raise_when_get_health_raises(session):
     executor = _StubExecutor(result=RuntimeError("boom"))
+    runner = _make_runner(executor, session)
+    key = _executor_health_key(executor)
+
+    runner._run_executor_health_check(executor, key)
+
+    job = _get_executor_job(session, runner.job.id, key)
+    assert job.health_check_result == HealthCheckResult.UNHEALTHY
+
+
+def test_run_executor_health_check_records_unknown_when_get_health_raises_not_implemented(session):
+    executor = _StubExecutor(result=NotImplementedError())
     runner = _make_runner(executor, session)
     key = _executor_health_key(executor)
 
@@ -144,15 +158,15 @@ def test_run_executor_health_check_records_unknown_and_does_not_raise_when_get_h
     assert job.health_check_result == HealthCheckResult.UNKNOWN
 
 
+@conf_vars({("scheduler", "executor_health_check_interval"): "10.0"})
 def test_run_executor_health_check_passes_half_the_configured_interval_as_timeout(session):
-    with conf_vars({("scheduler", "executor_health_check_interval"): "10.0"}):
-        executor = _StubExecutor(result=True)
-        runner = _make_runner(executor, session)
-        key = _executor_health_key(executor)
+    executor = _StubExecutor(result=True)
+    runner = _make_runner(executor, session)
+    key = _executor_health_key(executor)
 
-        runner._run_executor_health_check(executor, key)
+    runner._run_executor_health_check(executor, key)
 
-        assert executor.calls == [5.0]
+    assert executor.calls == [5.0]
 
 
 def test_get_or_create_executor_job_reuses_the_row_for_the_same_scheduler(session):
@@ -194,3 +208,73 @@ def test_get_or_create_executor_job_gives_each_scheduler_its_own_row(session):
     assert job_a.id != job_b.id
     assert job_a.owner_job_id == runner_a.job.id
     assert job_b.owner_job_id == runner_b.job.id
+
+
+def test_executor_health_key_is_none_for_an_executor_with_no_name():
+    executor = BaseExecutor()
+    assert executor.name is None
+    assert _executor_health_key(executor) is None
+
+
+def test_unnamed_executor_that_overrides_get_health_gets_no_row(session):
+    executor = _StubExecutor()
+    executor.name = None
+    runner = _make_runner(executor, session)
+
+    assert runner._executor_health_keys == {}
+
+    runner._touch_executor_heartbeats(session=session)
+
+    assert session.scalar(select(Job).where(Job.job_type == EXECUTOR_JOB_TYPE)) is None
+
+
+def test_check_executor_health_records_unhealthy_when_a_check_stalls(session):
+    executor = _StubExecutor()
+    runner = _make_runner(executor, session)
+    key = _executor_health_key(executor)
+
+    pending: Future = Future()
+    runner._executor_health_check_interval = 0.01
+    runner._executor_health_check_futures[key] = (pending, time.monotonic() - 10)
+
+    runner._check_executor_health()
+
+    job = _get_executor_job(session, runner.job.id, key)
+    assert job is not None
+    assert job.health_check_result == HealthCheckResult.UNHEALTHY
+    assert key in runner._stalled_health_checks
+
+
+def test_end_executor_jobs_closes_this_scheduler_rows_with_the_given_state(session):
+    executor = _StubExecutor()
+    runner = _make_runner(executor, session)
+    key = _executor_health_key(executor)
+
+    runner._touch_executor_heartbeats(session=session)
+    job = _get_executor_job(session, runner.job.id, key)
+    assert job.end_date is None
+
+    runner._end_executor_jobs(JobState.SUCCESS, session=session)
+    session.commit()
+    session.refresh(job)
+
+    assert job.state == JobState.SUCCESS
+    assert job.end_date is not None
+
+
+def test_end_executor_jobs_does_not_touch_another_schedulers_rows(session):
+    executor_a = _StubExecutor()
+    executor_b = _StubExecutor()
+    runner_a = _make_runner(executor_a, session)
+    runner_b = _make_runner(executor_b, session)
+    key = _executor_health_key(executor_a)
+
+    runner_a._touch_executor_heartbeats(session=session)
+    runner_b._touch_executor_heartbeats(session=session)
+
+    runner_a._end_executor_jobs(JobState.SUCCESS, session=session)
+    session.commit()
+
+    job_b = _get_executor_job(session, runner_b.job.id, key)
+    assert job_b.state == JobState.RUNNING
+    assert job_b.end_date is None

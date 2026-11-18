@@ -28,8 +28,10 @@ from airflow.api.common.airflow_health import (
     HealthStatus,
     _configured_bundle_teams,
     _configured_executor_keys,
+    _configured_executor_names,
     _dag_processor_detailed_status,
     _executor_detailed_status,
+    _executor_instance_health,
     _triggerer_detailed_status,
     get_airflow_health,
     get_jobs_health,
@@ -715,6 +717,14 @@ class _HealthCheckingExecutor(BaseExecutor):
 class TestConfiguredExecutorKeys:
     """``_configured_executor_keys`` only counts an executor that actually implements get_health()."""
 
+    @pytest.fixture(autouse=True)
+    def clear_executor_caches(self):
+        _configured_executor_keys.cache_clear()
+        _configured_executor_names.cache_clear()
+        yield
+        _configured_executor_keys.cache_clear()
+        _configured_executor_names.cache_clear()
+
     def test_empty_when_no_executor_overrides_get_health(self):
         names = [ExecutorName(module_path="airflow.executors.local_executor.LocalExecutor", alias="Local")]
         with patch("airflow.api.common.airflow_health.ExecutorLoader.get_executor_names", return_value=names):
@@ -757,6 +767,51 @@ class TestConfiguredExecutorKeys:
             "airflow.api.common.airflow_health.ExecutorLoader.get_executor_names", side_effect=Exception
         ):
             assert _configured_executor_keys() == set()
+
+
+class TestExecutorInstanceHealthDisplayName:
+    """The API reports the name the user configured, not the internal executor_class key."""
+
+    @pytest.fixture(autouse=True)
+    def clear_executor_caches(self):
+        _configured_executor_names.cache_clear()
+        yield
+        _configured_executor_names.cache_clear()
+
+    def test_reports_alias_when_the_key_matches_a_configured_executor(self):
+        name = ExecutorName(
+            module_path=f"{_HealthCheckingExecutor.__module__}.{_HealthCheckingExecutor.__qualname__}",
+            alias="Celery",
+        )
+        job = _executor(alive=True, executor=repr(name))
+
+        with patch(
+            "airflow.api.common.airflow_health.ExecutorLoader.get_executor_names", return_value=[name]
+        ):
+            instance = _executor_instance_health(job)
+
+        assert instance["executor"] == "Celery"
+
+    def test_reports_module_path_when_the_configured_executor_has_no_alias(self):
+        name = ExecutorName(
+            module_path=f"{_HealthCheckingExecutor.__module__}.{_HealthCheckingExecutor.__qualname__}",
+        )
+        job = _executor(alive=True, executor=repr(name))
+
+        with patch(
+            "airflow.api.common.airflow_health.ExecutorLoader.get_executor_names", return_value=[name]
+        ):
+            instance = _executor_instance_health(job)
+
+        assert instance["executor"] == name.module_path
+
+    def test_falls_back_to_the_raw_key_when_nothing_configured_matches(self):
+        job = _executor(alive=True, executor=":SomeExecutor:")
+
+        with patch("airflow.api.common.airflow_health.ExecutorLoader.get_executor_names", return_value=[]):
+            instance = _executor_instance_health(job)
+
+        assert instance["executor"] == ":SomeExecutor:"
 
 
 class TestExecutorDetailedStatus:
@@ -847,8 +902,10 @@ class TestAirflowHealthExecutor:
     @pytest.fixture(autouse=True)
     def cleanup_jobs(self):
         clear_db_jobs()
+        _configured_executor_names.cache_clear()
         yield
         clear_db_jobs()
+        _configured_executor_names.cache_clear()
 
     def test_executor_key_omitted_when_nothing_implements_get_health(self):
         """The default, unmodified state: no executor overrides get_health, so there's no false alarm."""
