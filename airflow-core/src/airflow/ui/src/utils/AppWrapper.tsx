@@ -26,12 +26,9 @@ type Props = {
   readonly initialEntries: Array<string>;
 };
 
-/**
- * Imports the route modules the entries resolve to, so a test renders them without waiting on a
- * lazy import. Await it at the top of the test file: Vitest gives module collection no time limit,
- * while a cold runner can take longer than a hook's to import a whole page.
- */
-export const preloadAppRoutes = async (initialEntries: Array<string>) => {
+const preloadedRoutes = new Set<unknown>();
+
+const getRouteLoaders = (initialEntries: Array<string>) => {
   const routeLoaders = new Set<() => Promise<unknown>>();
 
   for (const entry of initialEntries) {
@@ -42,10 +39,29 @@ export const preloadAppRoutes = async (initialEntries: Array<string>) => {
     }
   }
 
+  return routeLoaders;
+};
+
+/**
+ * Imports the route modules the entries resolve to, so a test renders them without waiting on a
+ * lazy import. Await it at the top of the test file: Vitest gives module collection no time limit,
+ * while a cold runner can take longer than a hook's to import a whole page. AppWrapper refuses to
+ * render an entry that was not preloaded.
+ */
+export const preloadAppRoutes = async (initialEntries: Array<string>) => {
+  const routeLoaders = getRouteLoaders(initialEntries);
+
   await Promise.all([...routeLoaders].map((loadRoute) => loadRoute()));
+  routeLoaders.forEach((loadRoute) => preloadedRoutes.add(loadRoute));
 };
 
 export const AppWrapper = ({ initialEntries }: Props) => {
+  if ([...getRouteLoaders(initialEntries)].some((loadRoute) => !preloadedRoutes.has(loadRoute))) {
+    throw new Error(
+      `Add \`await preloadAppRoutes(${JSON.stringify(initialEntries)});\` at the top of the test file.`,
+    );
+  }
+
   // Strip the config loader from tests
   const config = routerConfig.map((route) => ({
     ...route,
