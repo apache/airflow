@@ -22,7 +22,7 @@ import json
 import uuid
 from math import ceil
 from typing import TYPE_CHECKING
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 import httpx
 import pytest
@@ -122,7 +122,12 @@ from airflowctl.api.datamodels.generated import (
     XComResponse,
     XComResponseNative,
 )
-from airflowctl.api.operations import BaseOperations, _build_query_params, _tolerant_model
+from airflowctl.api.operations import (
+    BaseOperations,
+    ServerResponseError,
+    _build_query_params,
+    _tolerant_model,
+)
 from airflowctl.exceptions import AirflowCtlConnectionException
 
 if TYPE_CHECKING:
@@ -2978,6 +2983,117 @@ class TestAuthOperations:
             )
         )
         assert response.access_token == "NO_TOKEN"
+
+    def test_get_cli_login_metadata(self):
+        metadata = {
+            "grant_types_supported": ["password", "authorization_code"],
+            "code_challenge_methods_supported": ["S256"],
+            "authorization_endpoint": "/auth/login/cli",
+            "device_authorization_endpoint": None,
+            "token_endpoint": "/auth/token/cli",
+        }
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == "/prefix/api/v2/auth/cli/metadata"
+            return httpx.Response(200, json=metadata)
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request), kind=ClientKind.AUTH)
+
+        response = client.login.get_cli_login_metadata("http://server/prefix/")
+
+        assert response.model_dump() == metadata
+
+    @pytest.mark.parametrize(
+        "response",
+        [
+            pytest.param(httpx.Response(404, json={"detail": "Not Found"}), id="json"),
+            pytest.param(httpx.Response(404, text="Not Found"), id="text"),
+        ],
+    )
+    def test_get_cli_login_metadata_without_discovery(self, response):
+        client = make_api_client(
+            transport=httpx.MockTransport(lambda request: response), kind=ClientKind.AUTH
+        )
+
+        metadata = client.login.get_cli_login_metadata("http://server")
+
+        assert metadata.grant_types_supported == []
+        assert metadata.token_endpoint is None
+
+    def test_get_cli_login_metadata_server_error(self):
+        client = make_api_client(
+            transport=httpx.MockTransport(lambda request: httpx.Response(403, json={"detail": "Forbidden"})),
+            kind=ClientKind.AUTH,
+        )
+
+        with pytest.raises(ServerResponseError):
+            client.login.get_cli_login_metadata("http://server")
+
+    def test_login_with_authorization_code(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert str(request.url) == "http://server/auth/token/cli"
+            assert json.loads(request.content) == {
+                "grant_type": "authorization_code",
+                "code": "code",
+                "code_verifier": "verifier",
+                "redirect_uri": "http://127.0.0.1:1234/callback",
+            }
+            return httpx.Response(201, json={"access_token": "TOKEN"})
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request), kind=ClientKind.AUTH)
+
+        response = client.login.login_with_authorization_code(
+            "http://server/auth/token/cli",
+            code="code",
+            code_verifier="verifier",
+            redirect_uri="http://127.0.0.1:1234/callback",
+        )
+
+        assert response.access_token == "TOKEN"
+
+    @patch("airflowctl.api.client.Client.request.retry.sleep", autospec=True)
+    def test_login_with_authorization_code_retries_connect_error(self, mock_sleep):
+        outcomes: list[httpx.Response | httpx.ConnectError] = [
+            httpx.ConnectError("Connection refused"),
+            httpx.Response(201, json={"access_token": "TOKEN"}),
+        ]
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            outcome = outcomes.pop(0)
+            if isinstance(outcome, httpx.ConnectError):
+                raise outcome
+            return outcome
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request), kind=ClientKind.AUTH)
+
+        response = client.login.login_with_authorization_code(
+            "http://server/auth/token/cli",
+            code="code",
+            code_verifier="verifier",
+            redirect_uri="http://127.0.0.1:1234/callback",
+        )
+
+        assert response.access_token == "TOKEN"
+        assert outcomes == []
+
+    def test_login_with_authorization_code_is_not_retried(self):
+        requests = []
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            requests.append(request)
+            return httpx.Response(503, json={"detail": "Unavailable"})
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request), kind=ClientKind.AUTH)
+
+        with pytest.raises(ServerResponseError):
+            client.login.login_with_authorization_code(
+                "http://server/auth/token/cli",
+                code="code",
+                code_verifier="verifier",
+                redirect_uri="http://127.0.0.1:1234/callback",
+            )
+
+        assert len(requests) == 1
 
 
 class TestXComOperations:
