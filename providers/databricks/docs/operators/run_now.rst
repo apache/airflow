@@ -142,10 +142,13 @@ stored, so a retry that comes later than that finds nothing and triggers a fresh
 reconnecting, whatever schedule ``airflow state-store clean`` runs on. Size that setting against
 your longest ``retry_delay``.
 
-Clearing a task deletes the stored run id by default (Airflow 3.4+), and so does clearing its whole
-Dag run (Airflow 3.5+). Set ``keep_task_state`` when clearing to keep it, and the next attempt then
-reads the stored run id back. What the next attempt does depends on the state of the Databricks run
-at that point:
+Clearing a task instance from the UI or the REST API (so ``airflowctl`` too) deletes the stored run
+id by default from Airflow 3.4. Every other clear, such as ``airflow tasks clear`` or clearing a
+whole Dag run, does so from Airflow 3.5. To keep it, tick **Keep task state and resume** in the
+Clear dialog, or send ``"keep_task_state": true`` in the request. The **Keep task state on clear**
+UI setting ticks that box by default. From Airflow 3.5, ``airflow tasks clear --keep-task-state``
+keeps it too. The next attempt then reads the stored run id back. In synchronous mode, what the next
+attempt does depends on the state of the Databricks run at that point:
 
 .. list-table::
    :header-rows: 1
@@ -155,7 +158,8 @@ at that point:
      - Default clear
      - Clear that keeps task state
    * - Still running (the task had already failed, or its worker died)
-     - Triggers a new job run. The first one keeps running.
+     - Triggers a new job run. The first one keeps running, unless ``cancel_previous_runs=True``
+       cancels it first.
      - Reconnects to the running run.
    * - Succeeded
      - Triggers a new job run.
@@ -163,6 +167,12 @@ at that point:
    * - Failed or canceled
      - Triggers a new job run.
      - Triggers a new job run.
+
+With ``deferrable=True``, the operator does not store the run id, so the next attempt triggers a
+new job run whether or not task state was kept.
+
+With ``[state_store] clear_on_success`` on, the stored run id is deleted when the task succeeds, so
+clearing a succeeded task submits again even when task state is kept.
 
 Keep task state when a run is still running and nothing about the code or inputs changed, so
 you don't pay for two. This assumes the run survives the clear; keeping task state does not

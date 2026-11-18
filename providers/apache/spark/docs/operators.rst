@@ -223,10 +223,13 @@ prerequisite each one needs before the operator can check driver status on retry
     immediately) still emits a deprecation warning on every Airflow version and maps onto
     ``durable``.
 
-Clearing a task deletes the stored driver ID by default (Airflow 3.4+), and so does clearing its
-whole Dag run (Airflow 3.5+). You can choose to keep task state when you clear, and the next attempt
-then reads the stored driver ID back. What the next attempt does depends on the state of the driver
-at that point:
+Clearing a task instance from the UI or the REST API (so ``airflowctl`` too) deletes the stored
+driver ID by default from Airflow 3.4. Every other clear, such as ``airflow tasks clear`` or
+clearing a whole Dag run, does so from Airflow 3.5. To keep it, tick **Keep task state and resume**
+in the Clear dialog, or send ``"keep_task_state": true`` in the request. The
+**Keep task state on clear** UI setting ticks that box by default. From Airflow 3.5,
+``airflow tasks clear --keep-task-state`` keeps it too. The next attempt then reads the stored
+driver ID back. What the next attempt does depends on the state of the driver at that point:
 
 .. list-table::
    :header-rows: 1
@@ -244,6 +247,9 @@ at that point:
    * - Failed or killed
      - Submits a new driver.
      - Submits a new driver.
+
+With ``[state_store] clear_on_success`` on, the stored driver ID is deleted when the task succeeds,
+so clearing a succeeded task submits again even when task state is kept.
 
 Keep task state when a driver is still running and nothing about the code or inputs changed, so
 you don't pay for two. This assumes the driver survives the clear; keeping task state does not

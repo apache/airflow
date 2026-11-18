@@ -99,9 +99,13 @@ the statement id won't be there for the next retry, and the operator will submit
 instead of reconnecting. Avoid running cleanup on a schedule shorter than your longest
 ``retry_delay``.
 
-Clearing a task deletes the stored statement id by default (Airflow 3.4+), and so does clearing its
-whole Dag run (Airflow 3.5+). You can choose to keep task state when you clear, and the next attempt
-then reads the stored statement id back. What the next attempt does depends on the state of the
+Clearing a task instance from the UI or the REST API (so ``airflowctl`` too) deletes the stored
+statement id by default from Airflow 3.4. Every other clear, such as ``airflow tasks clear`` or
+clearing a whole Dag run, does so from Airflow 3.5. To keep it, tick **Keep task state and resume**
+in the Clear dialog, or send ``"keep_task_state": true`` in the request. The
+**Keep task state on clear** UI setting ticks that box by default. From Airflow 3.5,
+``airflow tasks clear --keep-task-state`` keeps it too. The next attempt then reads the stored
+statement id back. In synchronous mode, what the next attempt does depends on the state of the
 statement at that point:
 
 .. list-table::
@@ -120,6 +124,12 @@ statement at that point:
    * - Failed or aborted
      - Submits the SQL again.
      - Submits the SQL again.
+
+With ``deferrable=True``, the operator does not store the statement id, so the next attempt submits
+the SQL again whether or not task state was kept.
+
+With ``[state_store] clear_on_success`` on, the stored statement id is deleted when the task
+succeeds, so clearing a succeeded task submits again even when task state is kept.
 
 Keep task state when a statement is still running and nothing about the code or inputs changed, so
 you don't pay for two. This assumes the statement survives the clear; keeping task state does not

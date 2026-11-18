@@ -189,10 +189,14 @@ between, the handles won't be there for the next retry, and the operator will su
 fresh instead of reconnecting. Avoid running cleanup on a schedule shorter than your longest
 ``retry_delay``.
 
-Clearing a task deletes the stored statement handles by default (Airflow 3.4+), and so does clearing
-its whole Dag run (Airflow 3.5+). You can choose to keep task state when you clear, and the next
-attempt then reads the stored statement handles back. What the next attempt does depends on the
-state of the statements at that point:
+Clearing a task instance from the UI or the REST API (so ``airflowctl`` too) deletes the stored
+statement handles by default from Airflow 3.4. Every other clear, such as ``airflow tasks clear`` or
+clearing a whole Dag run, does so from Airflow 3.5. To keep it, tick **Keep task state and resume**
+in the Clear dialog, or send ``"keep_task_state": true`` in the request. The
+**Keep task state on clear** UI setting ticks that box by default. From Airflow 3.5,
+``airflow tasks clear --keep-task-state`` keeps it too. The next attempt then reads the stored
+statement handles back. In synchronous mode, what the next attempt does depends on the state of the
+statements at that point:
 
 .. list-table::
    :header-rows: 1
@@ -210,6 +214,12 @@ state of the statements at that point:
    * - Failed or aborted
      - Submits the SQL again.
      - Submits the SQL again.
+
+With ``deferrable=True``, the operator does not store the statement handles, so the next attempt
+submits the SQL again whether or not task state was kept.
+
+With ``[state_store] clear_on_success`` on, the stored statement handles are deleted when the task
+succeeds, so clearing a succeeded task submits again even when task state is kept.
 
 Keep task state when statements are still running and nothing about the code or inputs changed, so
 you don't pay for two. This assumes the statements survive the clear; keeping task state does not
