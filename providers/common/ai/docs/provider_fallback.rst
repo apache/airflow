@@ -140,10 +140,21 @@ vendor can answer the same prompt now; a bad prompt, an exhausted quota on every
 a permanent data error still has to be decided by the retry policy.
 
 Adding a chain changes what the retry layer sees. When every connection in the chain
-fails, the exception the task raises is
-:class:`~airflow.providers.common.ai.fallback_exceptions.FallbackChainExhaustedError`, a subclass of
-``pydantic_ai.exceptions.FallbackExceptionGroup``, not the last provider's own exception.
-The error each connection raised is in its ``member_errors``. ``LLMRetryPolicy`` and
+fails, the task raises a ``pydantic_ai.exceptions.FallbackExceptionGroup``, not the last
+provider's own exception. Which one depends on how the agent runs:
+
+* ``LLMOperator``, ``AgentOperator``, their subclasses, and the matching ``@task.llm`` and
+  ``@task.agent`` decorators raise
+  :class:`~airflow.providers.common.ai.fallback_exceptions.FallbackChainExhaustedError`, a
+  subclass of ``FallbackExceptionGroup``. The error each connection raised is in its
+  ``member_errors``, and with ``durable=True`` its ``replayed_steps`` and ``recorded_steps``
+  say how far the attempt got.
+* In a plain ``@task`` that builds an agent with ``PydanticAIHook`` and runs it, the task
+  raises pydantic-ai's own ``FallbackExceptionGroup``. It has no ``member_errors``,
+  ``replayed_steps`` or ``recorded_steps``; read each connection's error from the group's
+  ``.exceptions``. An ``except FallbackChainExhaustedError`` there never matches.
+
+On both paths ``LLMRetryPolicy`` and
 ``ClassifierRetryPolicy`` match their ``fallback_rules`` against the chain's error and then
 against the last connection's error, so a rule written for a provider-specific exception type
 keeps matching. A plain ``ExceptionRetryPolicy``, or any other policy that compares one

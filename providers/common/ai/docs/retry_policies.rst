@@ -382,14 +382,21 @@ chain, the exception the task raises once that chain is exhausted is
 :class:`~airflow.providers.common.ai.fallback_exceptions.FallbackChainExhaustedError`. It subclasses
 ``pydantic_ai.exceptions.FallbackExceptionGroup``, so a rule or ``except`` clause written for the
 group keeps matching, and it is raised ``from`` the group the chain raised. The error each
-connection raised is in ``member_errors``, in chain order.
+connection raised is in ``member_errors``, in chain order. This holds for the operators, their
+subclasses and the ``@task.llm`` and ``@task.agent`` decorators; a plain ``@task`` that runs an
+agent built with ``PydanticAIHook`` raises the bare ``FallbackExceptionGroup``, without
+``member_errors``, and the rules below apply to it the same way (see :doc:`provider_fallback`).
 
 ``RetryRule`` still compares one exception type, so the policies here read the members for it:
 in ``fallback_rules``, each rule is tried against the chain's own error and then against the
 error of the **last** connection, rule by rule in the order listed. A rule written as
 ``RetryRule(exception=ModelHTTPError, ...)`` therefore matches again, and a rule set that tells
 failures apart by exception type, such as retrying a rate-limit error but failing a bad-request
-error, keeps telling them apart. When the connections failed with different errors, the last
+error, keeps telling them apart. To separate those two, name ``ModelRateLimitError`` (from
+pydantic-ai-slim 2.59.0) and ``ModelRequestRejectedError`` (from 2.62.0) in the rules. This
+provider supports pydantic-ai-slim from 2.46.0, and on an older release a 429 and a 400 are
+both a plain ``ModelHTTPError``, which no rule can tell apart. When the connections failed
+with different errors, the last
 one decides; an earlier connection's rate limit does not make a final bad request retryable,
 and the reverse. A decision taken on the last connection's error says so in its reason. A rule
 cannot tell two failures of the same type apart, such as two ``ModelHTTPError`` with different
@@ -401,7 +408,7 @@ The model that classifies sees the same detail. The prompt lists each connection
 type and message, redacted like the rest of the error and limited to ``max_exception_length``
 characters each, so a long message from one connection does not push the last one out, and, when the attempt kept a durable journal,
 how many steps the failed attempt replayed and recorded
-(``replayed_steps`` and ``recorded_steps`` on the error). A retry still counts as an attempt
+(``replayed_steps`` and ``recorded_steps`` on the error, which only the operator path sets). A retry still counts as an attempt
 against ``retries``: a policy can choose a longer delay or a different category from that
 detail, but cannot make a retry free.
 

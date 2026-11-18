@@ -42,7 +42,8 @@ What each failure costs
      - Kept. The next connection receives the run's message history, including every
        tool result, and continues the run.
    * - Every connection in the chain fails, and the task raises
-       ``FallbackChainExhaustedError``, a ``pydantic_ai.exceptions.FallbackExceptionGroup``
+       ``FallbackChainExhaustedError`` (a ``pydantic_ai.exceptions.FallbackExceptionGroup``;
+       see :doc:`provider_fallback` for which tasks raise it)
      - Airflow ``retries`` with ``durable=True``
      - Replayed. The retry replays the steps an earlier attempt recorded, whichever
        connection answered them, and continues on the first connection that answers now.
@@ -144,12 +145,15 @@ What is not covered
   whose worker died before its result was recorded. Make such tools idempotent; see
   "Side effects and idempotency" in :doc:`durable_execution`.
 - A request every provider rejects, such as a malformed one that each returns a 400
-  for, walks the whole chain on every attempt. The error the task raises,
-  ``FallbackChainExhaustedError``, is a ``FallbackExceptionGroup`` carrying each
-  connection's error in ``member_errors``. ``LLMRetryPolicy`` and ``ClassifierRetryPolicy``
-  match their ``fallback_rules`` against the last connection's error too, so a rule can
-  fail a permanent error such as a bad request without failing outage retries, provided the
-  two raise different exception types. A plain ``ExceptionRetryPolicy`` compares only the
+  for, walks the whole chain on every attempt. The error the task raises is a
+  ``FallbackExceptionGroup``: ``FallbackChainExhaustedError``, carrying each connection's
+  error in ``member_errors``, from the operators and decorators, and the plain group from a
+  hand-built agent (see :doc:`provider_fallback`). ``LLMRetryPolicy`` and
+  ``ClassifierRetryPolicy`` match their ``fallback_rules`` against the last connection's
+  error too, so a rule can fail a permanent error such as a bad request without failing
+  outage retries, provided the two raise different exception types. Telling a rate limit
+  from a bad request needs ``ModelRateLimitError`` and ``ModelRequestRejectedError``
+  rules; see :doc:`retry_policies` for the pydantic-ai-slim versions that have them. A plain ``ExceptionRetryPolicy`` compares only the
   group, and a retry still counts against ``retries``. Retry policies need Airflow 3.3 or
   later; see "When the connection also carries a fallback chain" in :doc:`retry_policies`.
 - No connection type builds the ``AnthropicVertex`` client that Claude on Vertex AI
