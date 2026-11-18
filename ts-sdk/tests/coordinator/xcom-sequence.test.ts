@@ -43,6 +43,15 @@ describe("materializeXComSequences", () => {
     expect(getXComSequenceSlice).toHaveBeenCalledTimes(1);
   });
 
+  it("reads an object that appears twice beside a sequence", async () => {
+    const { sequence } = makeSequence([1]);
+    const summary = { score: 0.9 };
+
+    expect(
+      await materializeXComSequences({ history: sequence, first: summary, second: summary }),
+    ).toEqual({ history: [1], first: summary, second: summary });
+  });
+
   it("refuses a value that contains itself", async () => {
     const { sequence } = makeSequence([]);
     const value: Record<string, unknown> = { sequence };

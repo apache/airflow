@@ -107,21 +107,15 @@ async function materialize(
   if (typeof value !== "object" || value === null) return value;
   if (!Array.isArray(value) && !isPlainObject(value)) return value;
   if (ancestors.has(value)) throw new TypeError("An XCom value cannot contain itself");
-  ancestors.add(value);
-  try {
-    if (Array.isArray(value)) {
-      return await Promise.all(value.map((item) => materialize(item, read, ancestors)));
-    }
-    const entries = await Promise.all(
-      Object.entries(value).map(async ([key, item]) => [
-        key,
-        await materialize(item, read, ancestors),
-      ]),
-    );
-    return Object.fromEntries(entries);
-  } finally {
-    ancestors.delete(value);
+  // A copy per container: siblings run concurrently, so a shared set would flag an object two siblings hold.
+  const path = new Set(ancestors).add(value);
+  if (Array.isArray(value)) {
+    return Promise.all(value.map((item) => materialize(item, read, path)));
   }
+  const entries = await Promise.all(
+    Object.entries(value).map(async ([key, item]) => [key, await materialize(item, read, path)]),
+  );
+  return Object.fromEntries(entries);
 }
 
 /**
