@@ -29,3 +29,7 @@ class HttpMethodException(AirflowException):
 
 class HttpSrvLookupException(AirflowException):
     """Exception raised when DNS SRV record resolution fails or is misconfigured in Http hook."""
+
+
+class RemoteAirflowApiUnavailableException(HttpErrorException):
+    """Raised when the REST API of a remote Airflow answers 429 or 5xx; task retries may succeed."""

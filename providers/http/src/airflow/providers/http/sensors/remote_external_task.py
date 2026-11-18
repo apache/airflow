@@ -20,17 +20,18 @@
 from __future__ import annotations
 
 import datetime
+import warnings
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
 from requests.auth import AuthBase
 
 from airflow.providers.common.compat.sdk import (
-    AirflowException,
     AirflowFailException,
     AirflowOptionalProviderFeatureException,
     BaseSensorOperator,
 )
+from airflow.providers.http.exceptions import RemoteAirflowApiUnavailableException
 from airflow.providers.http.hooks.http import HttpHook
 
 try:
@@ -87,10 +88,12 @@ class RemoteExternalTaskSensor(ExternalTaskSensor):
     :param http_conn_id: The :ref:`HTTP connection <howto/connection:http>` to the remote Airflow.
     :param api_version: ``"v1"`` for a remote Airflow 2, ``"v2"`` for a remote Airflow 3.
 
-    Task groups (``external_task_group_id``) and deferrable mode are not supported yet.
+    Task groups (``external_task_group_id``) are not supported yet. Deferrable mode is not supported
+    yet either: with ``deferrable=True`` the sensor warns and runs as a regular sensor.
     ``check_existence=True`` checks the DAG and tasks in the remote Airflow before the first poke.
     """
 
+    template_fields = [*ExternalTaskSensor.template_fields, "http_conn_id"]
     # ExternalDagLink of the parent points to the UI of the Airflow the sensor runs in.
     operator_extra_links: list = []
 
@@ -99,7 +102,6 @@ class RemoteExternalTaskSensor(ExternalTaskSensor):
         *,
         http_conn_id: str,
         api_version: str = "v2",
-        deferrable: bool = False,
         **kwargs: Any,
     ) -> None:
         if api_version not in SUPPORTED_API_VERSIONS:
@@ -107,9 +109,17 @@ class RemoteExternalTaskSensor(ExternalTaskSensor):
                 f"api_version must be one of {SUPPORTED_API_VERSIONS}: "
                 "'v1' for a remote Airflow 2, 'v2' for a remote Airflow 3."
             )
-        if deferrable:
-            raise ValueError("RemoteExternalTaskSensor does not support deferrable mode yet.")
-        super().__init__(deferrable=False, **kwargs)
+        super().__init__(**kwargs)
+        if self.deferrable:
+            # deferrable defaults to [operators] default_deferrable, so raising would break every
+            # instance of this sensor where that option is on.
+            warnings.warn(
+                "RemoteExternalTaskSensor does not support deferrable mode yet; it runs as a regular "
+                "sensor (poke or reschedule mode).",
+                UserWarning,
+                stacklevel=2,
+            )
+            self.deferrable = False
         if self.external_task_group_id:
             raise ValueError("RemoteExternalTaskSensor does not support external_task_group_id yet.")
         self.http_conn_id = http_conn_id
@@ -155,7 +165,7 @@ class RemoteExternalTaskSensor(ExternalTaskSensor):
         )
         if response.status_code >= 500 or response.status_code in RETRYABLE_STATUS_CODES:
             # The remote Airflow may be restarting or overloaded: fail this try, keep the task retries.
-            raise AirflowException(message)
+            raise RemoteAirflowApiUnavailableException(message)
         # A wrong URL, filter or credentials give the same error on the next try: fail without retries.
         raise AirflowFailException(message)
 

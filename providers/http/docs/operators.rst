@@ -100,7 +100,9 @@ in its run id (``manual__<date>``) is the time it was triggered, not its logical
 before that time.
 
 Tasks in a task group are referred to by their full id, with the group id before a dot. Waiting for a whole
-task group (``external_task_group_id``) and deferrable mode are not supported yet.
+task group (``external_task_group_id``) is not supported yet. Deferrable mode is not supported yet either:
+with ``deferrable=True`` (also when it comes from ``[operators] default_deferrable``) the sensor warns and
+runs as a regular sensor.
 
 Set ``check_existence=True`` if the DAG id may be mistyped: otherwise a DAG that does not exist in the remote
 Airflow looks the same as a run that has not finished yet, and the sensor waits until the timeout.

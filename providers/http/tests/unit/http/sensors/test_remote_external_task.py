@@ -25,6 +25,7 @@ import pytest
 
 from airflow.models import Connection
 from airflow.providers.common.compat.sdk import AirflowException, AirflowFailException, AirflowSkipException
+from airflow.providers.http.exceptions import RemoteAirflowApiUnavailableException
 from airflow.providers.http.sensors.remote_external_task import RemoteExternalTaskSensor
 
 if TYPE_CHECKING:
@@ -94,9 +95,11 @@ class TestRemoteExternalTaskSensorInit:
         with pytest.raises(ValueError, match="api_version must be one of"):
             make_sensor(api_version="v3")
 
-    def test_rejects_deferrable(self):
-        with pytest.raises(ValueError, match="deferrable"):
-            make_sensor(deferrable=True)
+    def test_deferrable_falls_back_to_a_regular_sensor(self):
+        with pytest.warns(UserWarning, match="does not support deferrable mode"):
+            sensor = make_sensor(deferrable=True)
+
+        assert sensor.deferrable is False
 
     def test_rejects_task_group(self):
         with pytest.raises(ValueError, match="external_task_group_id"):
@@ -105,6 +108,10 @@ class TestRemoteExternalTaskSensorInit:
     def test_keeps_external_task_sensor_validation(self):
         with pytest.raises(ValueError, match="Only one of `external_task_id` or `external_task_ids`"):
             make_sensor(external_task_id="a", external_task_ids=["b"])
+
+    def test_connection_id_is_templated(self):
+        assert "http_conn_id" in RemoteExternalTaskSensor.template_fields
+        assert set(RemoteExternalTaskSensor.template_fields) >= {"external_dag_id", "external_task_ids"}
 
     def test_has_no_link_to_local_ui(self):
         assert make_sensor().operator_extra_links == []
@@ -338,7 +345,7 @@ class TestRemoteExternalTaskSensorErrors:
     def test_temporary_error_keeps_retries(self, requests_mock, status_code):
         requests_mock.post(DAG_RUNS_V1, status_code=status_code, text="try later")
 
-        with pytest.raises(AirflowException, match=f"{status_code}: try later") as error:
+        with pytest.raises(RemoteAirflowApiUnavailableException, match=f"{status_code}: try later") as error:
             poke(make_sensor())
 
         assert not isinstance(error.value, AirflowFailException)
