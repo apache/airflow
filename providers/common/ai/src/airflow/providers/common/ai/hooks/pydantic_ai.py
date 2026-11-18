@@ -408,17 +408,20 @@ class PydanticAIHook(BaseHook):
             return self._model
 
         model = self._resolve_own_model()
-        fallback_models = self._resolve_fallback_models()
+        fallback_members = self._resolve_fallback_models()
         # Pin pydantic-ai's own default explicitly: the retry-layers docs pin this exact
         # scope (UnexpectedModelBehavior, UsageLimitExceeded, and ContentFilterError are
         # deliberately excluded), and pyproject has no upper bound on pydantic-ai-slim, so
         # an upstream default change would otherwise move that documented behaviour silently.
         self._model = (
             FallbackModel(
-                *(MemberStampingModel(member) for member in (model, *fallback_models)),
+                *(
+                    MemberStampingModel(member, conn_id=conn_id)
+                    for conn_id, member in ((self.llm_conn_id, model), *fallback_members)
+                ),
                 fallback_on=(ModelAPIError,),
             )
-            if fallback_models
+            if fallback_members
             else model
         )
         return self._model
@@ -730,9 +733,9 @@ class PydanticAIHook(BaseHook):
             )
         return [stripped for item in raw if (stripped := item.strip())]
 
-    def _resolve_fallback_models(self) -> list[Model]:
+    def _resolve_fallback_models(self) -> list[tuple[str, Model]]:
         """
-        Resolve one ``Model`` per fallback connection, in the configured order.
+        Resolve each fallback connection's ID and ``Model``, in the configured order.
 
         Each connection is resolved through the hook registered for its own
         ``conn_type``, so a chain can mix providers whose credentials live in
@@ -757,7 +760,7 @@ class PydanticAIHook(BaseHook):
 
         self.log.info("Resolving LLM fallback chain: %s", " -> ".join([self.llm_conn_id, *fallback_conn_ids]))
 
-        models: list[Model] = []
+        models: list[tuple[str, Model]] = []
         seen: set[str] = set()
         for conn_id in fallback_conn_ids:
             if conn_id == self.llm_conn_id:
@@ -795,10 +798,13 @@ class PydanticAIHook(BaseHook):
                     f"every provider directly on '{self.llm_conn_id}' instead."
                 )
             models.append(
-                hook._resolve_own_model(
-                    forwarded_model_id=forwarded_model_id,
-                    forwarded_from_conn_id=self.llm_conn_id,
-                    forwarded_model_provider=forwarded_model_provider,
+                (
+                    conn_id,
+                    hook._resolve_own_model(
+                        forwarded_model_id=forwarded_model_id,
+                        forwarded_from_conn_id=self.llm_conn_id,
+                        forwarded_model_provider=forwarded_model_provider,
+                    ),
                 )
             )
 

@@ -64,7 +64,11 @@ from airflow.providers.common.ai.durable.fingerprint import (
     fingerprint_tool_call,
 )
 from airflow.providers.common.ai.durable.journal import Unrecordable, current_journal
-from airflow.providers.common.ai.durable.member_stamp import MemberStampingModel, get_member_model_id
+from airflow.providers.common.ai.durable.member_stamp import (
+    MemberStampingModel,
+    get_member_conn_id,
+    get_member_model_id,
+)
 from airflow.providers.common.ai.durable.replay_usage import ReplayUsageLedger, is_successful_tool_payload
 from airflow.providers.common.ai.exceptions import DurableJournalError, DurableToolMetadataError
 from airflow.providers.common.ai.utils.masking import mask_secrets
@@ -209,8 +213,8 @@ def _lacks_id(leaf: AbstractToolset[Any]) -> TypeGuard[FunctionToolset[Any] | Dy
 # Why a recorded step that matched is run live anyway: it was written by a version whose
 # types have changed since, so replaying it would fail on every retry.
 _UNLOADABLE = "the recorded result no longer loads, so it was written by another version"
-# A chain replays a step only if its answering member is still in the chain; this applies when
-# the recorded response carries no stamp saying which member answered.
+# A chain replays a step only if its answering member is still in the chain; a response without
+# a stamp cannot say who answered, so the step runs live.
 _UNSTAMPED_ANSWERER = "the recorded response does not say which fallback chain member answered it"
 
 # How an operation's step is run: looked up in the journal and recorded, or always run live.
@@ -838,8 +842,17 @@ def _find_unusable_answerer(response: ModelResponse, model: Model) -> str | None
         return None
     if (member_model_id := get_member_model_id(response)) is None:
         return _UNSTAMPED_ANSWERER
-    if member_model_id not in {member.model_id for member in model.models}:
-        return f"the model that answered this step, {member_model_id}, is no longer in the fallback chain"
+    member_conn_id = get_member_conn_id(response)
+    answerers = {
+        (member.conn_id, member.model_id)
+        for member in model.models
+        if isinstance(member, MemberStampingModel)
+    }
+    if (member_conn_id, member_model_id) not in answerers:
+        answerer = (
+            member_model_id if member_conn_id is None else f"{member_model_id} on connection {member_conn_id}"
+        )
+        return f"the model that answered this step, {answerer}, is no longer in the fallback chain"
     return None
 
 

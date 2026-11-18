@@ -43,7 +43,11 @@ from pydantic_ai.models.test import TestModel
 from pydantic_ai.providers import infer_provider_class
 
 from airflow.models.connection import Connection
-from airflow.providers.common.ai.durable.member_stamp import MemberStampingModel, get_member_model_id
+from airflow.providers.common.ai.durable.member_stamp import (
+    MemberStampingModel,
+    get_member_conn_id,
+    get_member_model_id,
+)
 from airflow.providers.common.ai.get_provider_info import get_provider_info
 from airflow.providers.common.ai.hooks.pydantic_ai import (
     ModelReadinessBackend,
@@ -942,6 +946,29 @@ class TestPydanticAIHookFallback:
         response = await model.request([ModelRequest.user_text_prompt("go")], None, ModelRequestParameters())
 
         assert get_member_model_id(response) == "function:second-model"
+        assert get_member_conn_id(response) == "second"
+
+    @pytest.mark.asyncio
+    async def test_two_connections_serving_one_model_each_stamp_their_own_conn_id(
+        self, registry, infer_model_stub
+    ):
+        asked = []
+
+        def fail_then_answer(messages, info):
+            asked.append(info)
+            if len(asked) == 1:
+                raise ModelAPIError("shared", "down")
+            return ModelResponse(parts=[TextPart("answered")])
+
+        infer_model_stub.models["openai:gpt-5.6-sol"] = FunctionModel(fail_then_answer, model_name="shared")
+        registry.add("primary", extra={"model": "openai:gpt-5.6-sol"})
+        registry.add("gateway", extra={"model": "openai:gpt-5.6-sol"})
+
+        model = PydanticAIHook(llm_conn_id="primary", fallback_conn_ids=["gateway"]).get_conn()
+        response = await model.request([ModelRequest.user_text_prompt("go")], None, ModelRequestParameters())
+
+        assert get_member_conn_id(response) == "gateway"
+        assert get_member_model_id(response) == "function:shared"
 
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.FallbackModel", autospec=True)
     def test_chain_pins_fallback_on_to_model_api_error(self, mock_fallback_model, registry, infer_model_stub):

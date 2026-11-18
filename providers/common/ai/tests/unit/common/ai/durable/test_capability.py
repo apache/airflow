@@ -2051,15 +2051,82 @@ class TestFallbackChainEdits:
         assert {name: calls[name] for name in calls_by_member} == calls_by_member
 
     @pytest.mark.parametrize(
+        ("second_attempt", "output", "replayed", "calls_by_conn"),
+        [
+            pytest.param(
+                [("primary", True)],
+                "primary answered",
+                0,
+                {"primary": 2, "gateway": 1},
+                id="answering connection removed",
+            ),
+            pytest.param(
+                [("primary", False), ("gateway2", True)],
+                "gateway2 answered",
+                0,
+                {"primary": 2, "gateway": 1, "gateway2": 1},
+                id="answering connection renamed",
+            ),
+            pytest.param(
+                [("gateway", True)],
+                "gateway answered",
+                1,
+                {"primary": 1, "gateway": 1},
+                id="other connection removed",
+            ),
+        ],
+    )
+    @pytest.mark.asyncio
+    async def test_a_step_replays_only_while_its_answering_connection_is_in_the_chain(
+        self, memory_storage, second_attempt, output, replayed, calls_by_conn
+    ):
+        calls = Calls()
+
+        def build(members: list[tuple[str, bool]]) -> Agent[None, str]:
+            def member(conn_id: str, up: bool) -> MemberStampingModel:
+                def respond(messages: list[ModelMessage], info: AgentInfo) -> ModelResponse:
+                    calls.bump(conn_id)
+                    if not up:
+                        raise ModelHTTPError(500, conn_id)
+                    return ModelResponse(parts=[TextPart(f"{conn_id} answered")])
+
+                return MemberStampingModel(FunctionModel(respond, model_name="m"), conn_id=conn_id)
+
+            return self.build_agent(
+                FallbackModel(*(member(*entry) for entry in members), fallback_on=(ModelAPIError,))
+            )
+
+        await attempt(memory_storage, build([("primary", False), ("gateway", True)]))
+
+        journal = DurableJournal(memory_storage)
+        with (
+            journal_scope(journal),
+            mock.patch.object(DurableRun, "reject", autospec=True, side_effect=DurableRun.reject) as reject,
+        ):
+            result = await build(second_attempt).run("go")
+
+        assert result.output == output
+        assert journal.stats.replayed["model"] == replayed
+        assert {conn_id: calls[conn_id] for conn_id in calls_by_conn} == calls_by_conn
+        reason = (
+            "the model that answered this step, function:m on connection gateway, "
+            "is no longer in the fallback chain"
+        )
+        assert [call.kwargs["reason"] for call in reject.call_args_list] == (
+            [reason] if replayed == 0 else []
+        )
+
+    @pytest.mark.parametrize(
         ("second_attempt", "calls_of_c"),
         [
             pytest.param(["a", "c"], 0, id="member after the answerer replaced"),
             pytest.param(["c", "a"], 1, id="member added before the answerer"),
         ],
     )
+    @pytest.mark.parametrize("with_conn_ids", [False, True], ids=["no conn ids", "conn ids"])
     @pytest.mark.asyncio
     async def test_a_chain_edit_keeps_replaying_after_the_first_model_step(
-        self, memory_storage, second_attempt, calls_of_c
+        self, memory_storage, second_attempt, calls_of_c, with_conn_ids
     ):
         calls = Calls()
         fail_final = [True]
@@ -2069,16 +2136,18 @@ class TestFallbackChainEdits:
                 raise ModelHTTPError(500, "down")
 
             def member(name: str) -> MemberStampingModel:
+                conn_id = f"conn_{name}" if with_conn_ids else None
                 if name == "a":
                     return MemberStampingModel(
-                        FunctionModel(clock_then_lookup(calls, fail_final=fail_final), model_name="a")
+                        FunctionModel(clock_then_lookup(calls, fail_final=fail_final), model_name="a"),
+                        conn_id=conn_id,
                     )
 
                 def respond(messages: list[ModelMessage], info: AgentInfo) -> ModelResponse:
                     calls.bump(name)
                     return down(messages, info)
 
-                return MemberStampingModel(FunctionModel(respond, model_name=name))
+                return MemberStampingModel(FunctionModel(respond, model_name=name), conn_id=conn_id)
 
             chain = FallbackModel(*(member(name) for name in names), fallback_on=(ModelAPIError,))
             return Agent(
