@@ -2641,6 +2641,30 @@ class TestStateStoreMetrics:
             await call(self.task_store())
         incr.assert_called_once_with(expected, tags=self.TAGS)
 
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("make_store", "result", "key", "expected"),
+        [
+            pytest.param(
+                task_store, TaskStateStoreResult, "job_id", "task_state_store.read_found", id="task"
+            ),
+            pytest.param(
+                asset_store, AssetStateStoreResult, "watermark", "asset_state_store.read_found", id="asset"
+            ),
+        ],
+    )
+    async def test_aget_external_ref_counts_read(
+        self, mock_supervisor_comms, make_store, result, key, expected
+    ):
+        mock_supervisor_comms.asend.return_value = result(value=_wrap_external_ref("s3://bucket/ref"))
+        backend = MagicMock(spec=BaseStoreBackend)
+        with (
+            patch("airflow.sdk.execution_time.context._get_worker_state_store_backend", return_value=backend),
+            patch(self.PATCH) as incr,
+        ):
+            await make_store(self).aget(key)
+        incr.assert_called_once_with(expected, tags=self.TAGS)
+
     def test_no_tags_when_not_supplied(self, mock_supervisor_comms):
         mock_supervisor_comms.send.return_value = TaskStateStoreResult(value="job-001")
         with patch(self.PATCH) as incr:

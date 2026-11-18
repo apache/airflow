@@ -829,6 +829,7 @@ class TaskStateStoreAccessor:
             stored = resp.value
             backend = _get_worker_state_store_backend()
             if backend is not None and isinstance(stored, dict) and (ref := _unwrap_external_ref(stored)):
+                self._incr("read_found")
                 return await backend.adeserialize_task_state_store_from_ref(ref)
         return self._extract_get_response(resp, key, default)
 
@@ -1006,6 +1007,7 @@ class AssetStateStoreAccessor:
             stored = resp.value
             backend = _get_worker_state_store_backend()
             if backend is not None and isinstance(stored, dict) and (ref := _unwrap_external_ref(stored)):
+                self._incr("read_found")
                 return await backend.adeserialize_asset_state_store_from_ref(ref)
         return self._extract_get_response(resp, key, default)
 
