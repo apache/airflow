@@ -158,7 +158,7 @@ class BatchAdapter(ABC):
     without touching them.
     """
 
-    #: The ``model_id`` prefix this adapter serves (``"openai"`` in ``"openai:gpt-5"``).
+    #: The ``model_id`` prefix this adapter serves (``"openai"`` in ``"openai:gpt-6.1-sol"``).
     name: ClassVar[str]
     #: Airflow connection types whose ``password``/``host`` this adapter can turn into
     #: credentials. Dispatch rejects any other connection type with a clear error.
