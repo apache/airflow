@@ -202,6 +202,13 @@ COMPARE_FILES_CAP = 300
 SLACK_SECTION_LIMIT = 3000
 SLACK_MAX_BLOCKS = 50
 SLACK_ITEM_LIMIT = 500
+# The error text a Slack item quotes; the full error is in the run log.
+ERROR_TEXT_LIMIT = 200
+# How GitHubClient ends a failed `gh` call's message, after the call's arguments.
+GH_FAILURE = re.compile(
+    r" (?:failed: |(?=still failing after \d+ attempts: )|(?=still rate limited after \d+ attempts)"
+    r"|(?=timed out after \d+s))"
+)
 # Events whose runs use the workflow files of the pull request's merge commit, so a pull request
 # can change what they run. pull_request_target and issue_comment use the base branch's files.
 MERGE_REF_EVENTS = ("pull_request", "pull_request_review", "pull_request_review_comment")
@@ -589,6 +596,23 @@ def changed_paths(entries: Iterable[dict[str, Any]]) -> list[str]:
         if entry.get("previous_filename"):
             paths.append(entry["previous_filename"])
     return paths
+
+
+def describe_error(e: Exception) -> str:
+    """
+    The exception type and the first line of its message, for a Slack item.
+
+    A failed `gh` call's message starts with its arguments, which for GraphQL hold the whole query,
+    so only what `gh` reported is kept. A failure that persists gets the same text on every run, so
+    its item is still posted once.
+    """
+    message = str(e).strip()
+    failure = GH_FAILURE.search(message) if message.startswith("gh ") else None
+    if failure:
+        message = message[failure.end() :]
+    first_line = message.splitlines()[0].strip() if message else ""
+    text = f"{type(e).__name__}: {first_line}" if first_line else type(e).__name__
+    return text if len(text) <= ERROR_TEXT_LIMIT else f"{text[: ERROR_TEXT_LIMIT - 1]}…"
 
 
 def changes_ci_definition(files: Sequence[str], *, file_count: int | None = None) -> bool:
@@ -1560,7 +1584,7 @@ def report_project_ci_passed(
             successes += change[0] == "success"
         except Exception as e:
             console_print(f"[error]#{node['number']}: `{CI_PASSED_CONTEXT}` not updated: {e}[/]")
-            attention.append((node["number"], f"`{CI_PASSED_CONTEXT}` not updated: {type(e).__name__}"))
+            attention.append((node["number"], f"`{CI_PASSED_CONTEXT}` not updated: {describe_error(e)}"))
     return written
 
 
@@ -1744,7 +1768,7 @@ def discover(
         except Exception as e:
             console_print(f"[error]#{node['number']}: `{CI_PASSED_CONTEXT}` not updated: {e}[/]")
             if unknown is not None:
-                unknown.append((node["number"], f"`{CI_PASSED_CONTEXT}` not updated: {type(e).__name__}"))
+                unknown.append((node["number"], f"`{CI_PASSED_CONTEXT}` not updated: {describe_error(e)}"))
 
     for search_query in queries:
         for node in _search(client, DISCOVERY_QUERY % {"context": CI_PASSED_CONTEXT}, search_query):
@@ -3138,7 +3162,7 @@ def run_reconcile(
         # Writes made before the failure are not known, so the whole allowance is charged.
         ci_run_started_writes = MAX_CI_RUN_STARTED_PER_RUN
         ci_run_started_note = (
-            f"reporting `{CI_RUN_STARTED_CONTEXT}` for project CI failed: {type(e).__name__}"
+            f"reporting `{CI_RUN_STARTED_CONTEXT}` for project CI failed: {describe_error(e)}"
         )
     # Commit statuses belong to a commit, so a fork `success` posted for any pull request on one of
     # these would also let a pull request with `use project ci` merge. None when they could not be
@@ -3153,7 +3177,7 @@ def run_reconcile(
         project_ci_heads = None
         ci_passed_reserved = MAX_PROJECT_CI_PASSED_PER_RUN
         ci_passed_notes.append(
-            f"listing the pull requests with `{LABEL_USE_PROJECT_CI}` failed: {type(e).__name__}"
+            f"listing the pull requests with `{LABEL_USE_PROJECT_CI}` failed: {describe_error(e)}"
         )
     read_jobs: ReadJobs = {}
     job_status_budget = compute_job_status_budget(
@@ -3266,7 +3290,7 @@ def run_reconcile(
     except Exception as e:
         console_print(f"[error]Reporting `{CI_PASSED_CONTEXT}` for `{LABEL_USE_PROJECT_CI}` failed: {e}[/]")
         ci_passed_notes.append(
-            f"reporting `{CI_PASSED_CONTEXT}` for `{LABEL_USE_PROJECT_CI}` failed: {type(e).__name__}"
+            f"reporting `{CI_PASSED_CONTEXT}` for `{LABEL_USE_PROJECT_CI}` failed: {describe_error(e)}"
         )
     attention.extend(bypass_finder.ambiguous)
     attention.extend(job_reporter.delayed)
