@@ -1087,18 +1087,20 @@ class TestFallbackChain:
         assert not decision.reason.endswith("(last chain member)")
 
     def test_rules_apply_in_the_order_they_are_listed_across_both_targets(self):
-        # A catch-all on the group listed first still wins over a member rule listed after it.
+        # The member rule listed first wins over a group catch-all listed after it. Going target by
+        # target would reach the group catch-all first and fail.
         policy = LLMRetryPolicy(
             llm_conn_id="nonexistent",
             fallback_rules=[
-                RetryRule(exception=FallbackExceptionGroup, action=RetryAction.FAIL, reason="group"),
                 RetryRule(exception=_RateLimited, action=RetryAction.RETRY),
+                RetryRule(exception=FallbackExceptionGroup, action=RetryAction.FAIL, reason="group"),
             ],
         )
 
         decision = policy.evaluate(_exhausted_chain(_RateLimited("a")), try_number=1, max_tries=3)
 
-        assert (decision.action, decision.reason) == (RetryAction.FAIL, "group")
+        assert decision.action == RetryAction.RETRY
+        assert decision.reason.endswith("(last chain member)")
 
     def test_a_chain_with_no_matching_rule_keeps_the_task_default(self, rules):
         policy = LLMRetryPolicy(llm_conn_id="nonexistent", fallback_rules=rules)
