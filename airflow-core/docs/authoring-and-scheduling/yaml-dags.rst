@@ -203,9 +203,10 @@ Four markers opt a value into special handling:
 ``{$x: id}`` references an upstream output
     The XCom output of an upstream task. ``{$x: extract}`` references
     ``extract``'s return value, and ``{$x: extract, key: rows}`` a specific
-    key (``key`` defaults to ``return_value``). Binding a value this way also creates the dependency edge
-    implicitly, so a task that consumes another's output does not need to also
-    list it in ``needs:``. The long form is ``{$xcom: ...}``.
+    key (``key`` defaults to ``return_value``). Binding a value this way also
+    creates the dependency edge implicitly, so a task that consumes another's
+    output does not need to also list it in ``needs:``. The long form is
+    ``{$xcom: ...}``.
 
 ``{$f: path}`` reads a file's contents
     The contents of a file are read and used. The path is resolved against the
