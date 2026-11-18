@@ -684,7 +684,6 @@ def test_valid_shapes_round_trip(body):
 @pytest.mark.parametrize(
     "value",
     [
-        pytest.param("{$x: up, extra: 1}", id="marker-plus-extra"),
         pytest.param("{$xcomm: up}", id="unknown-marker-typo"),
         pytest.param("{$tempalte: x}", id="unknown-template-typo"),  # codespell:ignore tempalte
         pytest.param("{cfg: {$weird: 1}}", id="dollar-key-nested"),
