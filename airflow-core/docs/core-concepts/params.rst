@@ -330,11 +330,22 @@ The following features are supported in the Trigger UI Form:
         * - ``object``
           - | Generates a JSON entry field with
             | text validation.
-          - | The HTML form does only validate the syntax of the
-            | JSON input. In order to validate the content for
-            | specific structures take a look to the
-            | `JSON Schema Object details <https://json-schema.org/understanding-json-schema/reference/object.html>`_.
+          - * | The HTML form does only validate the syntax of the
+              | JSON input. In order to validate the content for
+              | specific structures take a look to the
+              | `JSON Schema Object details <https://json-schema.org/understanding-json-schema/reference/object.html>`_.
+            * | ``enum=[{"name": "dev"}, {"name": "prod"}]``:
+              | Generates a drop-down select list of objects;
+              | the selected object is passed as-is.
+            * | ``values_display={json.dumps({"name": "dev"}): "Development"}``:
+              | Labels for object choices are keyed by the
+              | JSON text of the object. Spacing and key
+              | order do not matter, so ``json.dumps()`` of
+              | the enum entry is the easiest way to write
+              | the key.
           - ``Param({"key": "value"}, type=["object", "null"])``
+
+            ``Param({"name": "dev"}, type="object", enum=[{"name": "dev"}, {"name": "prod"}])``
 
         * - ``null``
           - | Specifies that no content is expected.
