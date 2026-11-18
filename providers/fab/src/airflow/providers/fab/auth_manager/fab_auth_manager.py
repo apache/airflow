@@ -351,7 +351,8 @@ class FabAuthManager(BaseAuthManager[User]):
     async def deserialize_user_async(self, token: dict[str, Any]) -> User:
         """Deserialize a user for FastAPI JWT authentication without blocking its event loop."""
         # Preserve legacy synchronous overrides while the default FAB implementation uses async lookup below.
-        if type(self).deserialize_user is not FabAuthManager.deserialize_user:
+        deserialize_user_owner = next(cls for cls in type(self).__mro__ if "deserialize_user" in cls.__dict__)
+        if deserialize_user_owner is not FabAuthManager:
             return self.deserialize_user(token)
 
         user_id = int(token["sub"])
