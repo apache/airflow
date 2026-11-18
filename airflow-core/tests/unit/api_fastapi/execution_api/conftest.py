@@ -25,7 +25,9 @@ from airflow import settings
 from airflow.api_fastapi.app import cached_app
 from airflow.api_fastapi.execution_api.app import lifespan
 from airflow.api_fastapi.execution_api.datamodels.token import TIClaims, TIToken
+from airflow.api_fastapi.execution_api.in_process import InProcessExecutionAPI
 from airflow.api_fastapi.execution_api.security import require_auth
+from airflow.sdk.api.client import Client
 
 
 @pytest.fixture(autouse=True)
@@ -90,3 +92,20 @@ def client(request: pytest.FixtureRequest, async_db_engine):
             client.portal.call(async_db_engine.dispose)
 
     exec_app.dependency_overrides.pop(require_auth, None)
+
+
+@pytest.fixture
+def task_sdk_client():
+    """
+    A Task SDK client that sends its real requests to this tree's Execution API in process.
+
+    It is built the way the Dag processor and triggerer build theirs. Requests carry the
+    client's real ``Airflow-API-Version`` header and reach the real routes and database,
+    so a mismatch between what the client assumes and what the server does fails here.
+    Authorization is bypassed in process; the security tests cover it.
+    """
+    client = Client(base_url=None, token="", dry_run=True, transport=InProcessExecutionAPI().transport)
+    client.base_url = "http://in-process.invalid./"
+    # The transport stops its event loop and thread when it is garbage collected.
+    with client:
+        yield client

@@ -22,9 +22,10 @@ Human-in-the-loop (HITL) review for agents
 
 HITL Review adds an interactive feedback loop to agentic operators. After the
 LLM Agent produces an initial output, a human reviewer can **approve**, **reject**, or
-**request changes** through a chat UI. The operator blocks until a
-terminal action, or until a timeout is reached, max_iterations is reached, or
-polling the review XCom keeps failing.
+**request changes** through a chat UI. The review ends on a terminal action, or when
+``hitl_timeout`` or ``max_hitl_iterations`` is reached. On Airflow 3.3+ the task waits
+for the reviewer in the ``awaiting_input`` state and holds no worker or pool slot
+while it waits.
 
 This document describes the architecture, workflow, API, XCom schema, and usage.
 
@@ -41,53 +42,68 @@ Overview
 - **HITL Review Plugin**: FastAPI app mounted at ``/hitl-review`` on the
   Airflow API server. Provides REST endpoints and a chat UI for reviewers.
 
-**Storage**: All state is stored in XCom on the running task instance. The
-worker writes session and agent outputs; the plugin writes human feedback and
-actions. Both sides read and write the same keys.
+**Storage**: The review session, every output and every piece of feedback is
+stored in XCom on the task instance. The worker writes the session and the agent
+outputs; the plugin writes human feedback and actions. On Airflow 3.3+ the
+conversation the agent needs to regenerate is also kept in the task state store
+while the task waits.
 
 **Compatibility**: Requires Airflow 3.1+. Uses the Task SDK execution model
 where workers communicate via the Execution API and XCom; the plugin runs on
 the API server and accesses the metadata database.
 
-.. important::
-   **Worker slot usage**: Each HITL task **holds a worker slot for the entire
-   review duration** (until approve, reject, timeout, max_iterations, or
-   repeated XCom polling failures). The operator polls
-   XCom with ``time.sleep``; it does not defer. With a 10-second poll interval
-   and review times of 30+ minutes, the worker is occupied for the duration.
+**How the task waits**
 
-**Why the operator does not defer**: the agent state (message history, tool
-results) lives in the worker process. Polling XCom with ``time.sleep`` keeps it
-there for the whole review instead of serializing and restoring it across a
-defer and resume. The standard provider's ``HITLOperator`` defers because it
-carries no in-process state.
+- **Airflow 3.3+**: each review round is a Human-in-the-loop request on the task
+  instance, and the task parks in the ``awaiting_input`` state until the reviewer
+  answers it. A parked task holds no worker slot and no pool slot, so a review
+  that takes hours costs nothing while it waits. When the reviewer acts in the
+  chat UI, the plugin answers the request and the task is scheduled again; the
+  next round (regenerating with the feedback, or returning the approved output)
+  runs in a new worker process. ``hitl_poll_interval`` is not used.
+- **Airflow 3.1 and 3.2**: the task stays ``running`` and polls the human action
+  XCom every ``hitl_poll_interval`` seconds, holding its worker slot for the
+  whole review.
+
+Because each round is a Human-in-the-loop request, a parked review also appears
+on the **Required Actions** page. It can be answered there with *Approve*,
+*Request changes* (with feedback) or *Reject*, but the output and the earlier
+rounds are only shown in the chat UI.
+
+.. note::
+   On Airflow 3.3+ each round is a new run of the task, so ``execution_timeout``
+   applies to each round separately and ``hitl_timeout`` is what bounds the review
+   as a whole. ``pre_execute`` and ``on_execute_callback`` also run once per round.
+
+   The plugin on the API server resumes the parked task, so upgrade the provider on
+   the API server no later than on the workers. A worker on the new provider with an
+   API server on the old one parks, and the old plugin's answers never resume it.
 
 Workflow
 --------
 
-The operator and the plugin never talk to each other directly — every
-arrow below crosses the XCom store. The operator holds its worker slot for
-the whole loop; it polls instead of deferring because the agent's message
-history and tool state live in-process.
+The operator and the plugin never talk to each other directly. On Airflow 3.3+
+each round parks the task and the reviewer's answer schedules it again:
 
 .. mermaid::
 
     sequenceDiagram
         participant Op as Operator (worker)
-        participant X as XCom
+        participant A as Airflow (XCom, HITL request, task state)
         participant P as API server / plugin
         participant H as Reviewer
 
-        Op->>X: push agent_session + agent_output_1
-        loop until a terminal action
-            Op->>X: poll airflow_hitl_review_human_action
-            H->>P: open chat UI, submit action
-            P->>X: write human_action + feedback
-            X-->>Op: read action
-            Op->>Op: handle action (see below)
-        end
+        Op->>A: open HITL request, push agent_session + agent_output_N
+        Op->>A: park in awaiting_input (worker slot released)
+        H->>P: open chat UI, submit action
+        P->>A: write feedback XCom, answer the HITL request
+        A->>Op: task scheduled again, resumes with the answer
+        Op->>Op: handle the answer (see below), then park for the next round
 
-Once the operator reads a human action, it resolves to one of five outcomes:
+On Airflow 3.1 and 3.2 the operator stays running and polls the
+``airflow_hitl_review_human_action`` XCom instead of parking.
+
+The reviewer's answer resolves to one of five outcomes:
 
 .. mermaid::
 
@@ -120,8 +136,7 @@ Enable the review loop with ``enable_hitl_review=True``:
         llm_conn_id="openai",
         toolsets=[SQLToolset(db_conn_id="postgres")],
         enable_hitl_review=True,
-        hitl_timeout=timedelta(minutes=30),
-        hitl_poll_interval=10.0,
+        hitl_timeout=timedelta(hours=4),
     )
 
 **Parameters**
@@ -134,11 +149,15 @@ Enable the review loop with ``enable_hitl_review=True``:
   ``HITLMaxIterationsError`` without running the LLM. For example, ``5`` allows
   changes at iterations 1 to 4; the fifth output must be either approved or
   rejected. Default ``5``.
-- ``hitl_timeout``: Maximum wall-clock time to wait for all review rounds.
-  ``None`` = no wall-clock timeout. The task still fails, re-raising the XCom error, if polling
-  the human action XCom fails 10 times in a row.
+- ``hitl_timeout``: Maximum wall-clock time for all review rounds combined,
+  including the time spent regenerating. ``None`` = no wall-clock timeout. Once it
+  passes the task fails with ``HITLTimeoutError`` (on Airflow 3.3+ the scheduler
+  resumes the parked task to raise it), and ``retries`` apply as for any failure.
+  When polling, the task also fails, re-raising the XCom error, if pulling the human
+  action XCom fails 10 times in a row.
 - ``hitl_poll_interval``: Seconds between XCom polls while waiting for a
-  human response. Default ``10``.
+  human response on Airflow 3.1 and 3.2. Not used on Airflow 3.3+, where the
+  task parks instead. Default ``10``.
 
 **Accessing the chat UI**: The chat loads as a React plugin on the task
 instance page. Use the **HITL Review** extra link on the task instance, or
@@ -151,6 +170,59 @@ navigate to
     :language: python
     :start-after: [START howto_operator_agent_hitl_review]
     :end-before: [END howto_operator_agent_hitl_review]
+
+.. _hitl-review-durable:
+
+With durable execution
+----------------------
+
+With ``durable=True`` (see :doc:`durable_execution`), the first output and every
+regeneration are agent runs in the task's journal, so a retry replays them instead of
+calling the model and the tools again (on Airflow 3.1 and 3.2, only the first output; see the
+end of this section). Each regeneration logs its own ``Durable:`` line in the task log, after
+the first run's.
+
+On Airflow 3.3 and later, each request for changes is also kept in the task state store
+beside the journal, with the round it was given in and a digest of the output the reviewer
+read. When the task fails after the review has started (a regeneration hits a failing tool
+or an unavailable model, or the review times out) the retry replays the first output,
+applies the recorded feedback to it without asking, replays each regeneration, and shows
+the reviewer the first round nobody has answered yet. The HITL Review tab shows the replayed
+rounds with their feedback. The task log has a line for each:
+
+.. code-block:: text
+
+    Applying the feedback given on iteration 1 in an earlier attempt: Mention that Atlas Pro drove most of the growth.
+
+Each regeneration runs under the first run's id with ``-review-<n>`` appended, ``n`` being the
+round whose feedback it follows, the same on every attempt, so capabilities that keep state by
+run id find it again on a retry.
+
+Feedback applies only to the output it was given on. When a replayed run produces a
+different output, for example because a tool that :ref:`runs on every attempt
+<durable-tool-opt-out>` returned something new, the reviewer is asked again from that round,
+the feedback recorded for later rounds is dropped, and this warning is in the task log:
+
+.. code-block:: text
+
+    The output of iteration 1 is not the one the reviewer asked to change in an earlier attempt, so the reviewer is asked again.
+
+A review that ends in **Reject**, or in ``HITLMaxIterationsError``, fails the task, and the
+retry starts the review over: the recorded feedback is dropped, and the model is asked again
+for the first output. The tool calls before that answer replay, so the retry does not repeat
+their side effects. Without durable execution a retry runs everything again, tools included.
+The attempt that ended logs:
+
+.. code-block:: text
+
+    The review ended without an approved output; a retry asks the model again for the first output and starts the review over.
+
+When the reviewer approves, the task deletes the journal and the recorded feedback. A clear
+that deletes the task's state (:ref:`durable-clear`) starts the agent and the review over.
+
+On Airflow 3.1 and 3.2, where the review polls instead of parking, feedback is not recorded:
+a retry replays the first output and asks the reviewer about every round again, and each
+regeneration after an answer runs again, its model requests and tool calls included.
 
 REST API
 --------
@@ -238,7 +310,8 @@ All keys use the prefix ``airflow_hitl_review_``.
      - Value
    * - ``airflow_hitl_review_agent_session``
      - Worker
-     - ``AgentSessionData``: status, iteration, prompt, current_output
+     - ``AgentSessionData``: status, iteration, prompt, current_output, and
+       ``parked`` (``True`` when the task waits in ``awaiting_input``)
    * - ``airflow_hitl_review_human_action``
      - Plugin
      - ``HumanActionData``: action (approve|reject|changes_requested),
@@ -247,7 +320,7 @@ All keys use the prefix ``airflow_hitl_review_``.
      - Worker
      - Per-iteration AI output (string or JSON)
    * - ``airflow_hitl_review_human_feedback_1``, ``_2``, …
-     - Plugin
+     - Plugin, and the worker when it resumes
      - Per-iteration human feedback text
 
 Session lifecycle
@@ -255,10 +328,13 @@ Session lifecycle
 
 - **pending_review**: Awaiting human action. Plugin accepts approve, reject,
   or feedback.
-- **changes_requested**: Feedback submitted; worker is regenerating (or
-  polling for the next action). Plugin does not accept new actions until the
-  worker pushes a new output and status returns to ``pending_review``.
-- **approved** / **rejected**: Terminal. Worker has exited the loop.
+- **changes_requested**: Feedback submitted; the worker is regenerating. The
+  plugin does not accept new actions until the worker pushes a new output and
+  status returns to ``pending_review``.
+- **approved** / **rejected**: Terminal. The review has ended.
+
+On Airflow 3.3+ the plugin also refuses (409) an action when the task's request for
+the round has already been answered, for example on the Required Actions page.
 
 Chat UI
 -------

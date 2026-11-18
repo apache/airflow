@@ -18,7 +18,9 @@ from __future__ import annotations
 
 import asyncio
 import json
-from unittest.mock import MagicMock, PropertyMock, patch
+import sqlite3
+import traceback
+from unittest.mock import MagicMock, PropertyMock, call, patch
 
 import pytest
 from pydantic_ai._run_context import RunContext
@@ -26,10 +28,15 @@ from pydantic_ai.exceptions import ModelRetry
 from pydantic_ai.toolsets.abstract import ToolsetTool
 from pydantic_core import ValidationError
 from sqlalchemy.engine.reflection import Inspector
+from sqlalchemy.exc import OperationalError
 
+from airflow.providers.common.ai.exceptions import SQLToolsetConnectionError
 from airflow.providers.common.ai.toolsets.sql import SQLToolset
+from airflow.providers.common.ai.utils.sql_search import KeywordTableSearchBackend
 from airflow.providers.common.ai.utils.tool_definition import _SUPPORTS_RETURN_SCHEMA
 from airflow.providers.common.sql.hooks.sql import DbApiHook
+
+from unit.common.ai.sqlite_connection import SQLiteFileHook, create_orders_table, sqlite_connection
 
 
 class _FakeCursor:
@@ -62,8 +69,11 @@ def _make_mock_db_hook(
     """Create a mock DbApiHook with sensible defaults."""
     mock = MagicMock(spec=DbApiHook)
     mock.inspector = MagicMock(spec=Inspector)
+    # Assigned rather than taken from the spec: SQLAlchemy 1.4's Inspector has no such method.
+    mock.inspector.get_multi_table_comment = MagicMock(return_value={})
     mock.inspector.get_table_names.return_value = table_names or ["users", "orders"]
-    mock.get_table_schema.return_value = table_schema or [
+    mock.get_table_comment.return_value = None
+    mock.get_table_columns_with_comments.return_value = table_schema or [
         {"name": "id", "type": "INTEGER"},
         {"name": "name", "type": "VARCHAR"},
     ]
@@ -83,12 +93,15 @@ def _assert_executed(hook, sql: str) -> None:
     assert hook.run.call_args.args[0] == sql
 
 
+def _call(ts: SQLToolset, name: str, tool_args: dict) -> str:
+    return asyncio.run(
+        ts.call_tool(name, tool_args, ctx=MagicMock(spec=RunContext), tool=MagicMock(spec=ToolsetTool))
+    )
+
+
 def _query(ts: SQLToolset, sql: str) -> dict:
     """Run the ``query`` tool and decode its JSON result."""
-    result = asyncio.run(
-        ts.call_tool("query", {"sql": sql}, ctx=MagicMock(spec=RunContext), tool=MagicMock(spec=ToolsetTool))
-    )
-    return json.loads(result)
+    return json.loads(_call(ts, "query", {"sql": sql}))
 
 
 class TestSQLToolsetInit:
@@ -112,6 +125,15 @@ class TestSQLToolsetGetTools:
         ts = SQLToolset("pg_default")
         tools = asyncio.run(ts.get_tools(ctx=MagicMock()))
         assert set(tools.keys()) == {"list_tables", "get_schema", "query", "check_query"}
+
+    def test_search_tables_is_registered_only_with_a_backend(self):
+        ts = SQLToolset("pg_default", search_backend=KeywordTableSearchBackend())
+        tools = asyncio.run(ts.get_tools(ctx=MagicMock()))
+        assert set(tools.keys()) == {"list_tables", "get_schema", "query", "check_query", "search_tables"}
+        validator = tools["search_tables"].args_validator
+        assert validator.validate_python({"query": "orders"}) == {"query": "orders"}
+        with pytest.raises(ValidationError):
+            validator.validate_python({})
 
     def test_tool_definitions_have_descriptions(self):
         ts = SQLToolset("pg_default")
@@ -205,6 +227,10 @@ class TestSQLToolsetToolPrefixModelFacingText:
         description = tools["pg_get_schema"].tool_def.description
         assert "Call pg_get_schema again" in description
 
+    def test_get_schema_description_names_the_table_comment_key(self):
+        tools = asyncio.run(SQLToolset("pg_default").get_tools(ctx=MagicMock()))
+        assert "`table_comment`" in tools["get_schema"].tool_def.description
+
     def test_get_schema_description_without_prefix_is_unchanged(self):
         tools = asyncio.run(SQLToolset("pg_default").get_tools(ctx=MagicMock()))
         assert "Call get_schema again" in tools["get_schema"].tool_def.description
@@ -281,17 +307,6 @@ class TestSQLToolsetListTables:
         tables = json.loads(result)
         assert tables == ["orders"]
 
-    def test_introspection_error_raises_model_retry(self):
-        """A failure while listing tables is returned to the agent as a retry."""
-        ts = SQLToolset("pg_default")
-        mock_hook = _make_mock_db_hook()
-        mock_hook.inspector.get_table_names.side_effect = Exception("could not connect to server")
-        ts._hook = mock_hook
-
-        with pytest.raises(ModelRetry) as exc_info:
-            asyncio.run(ts.call_tool("list_tables", {}, ctx=MagicMock(), tool=MagicMock()))
-        assert "could not connect to server" in exc_info.value.message
-
 
 class TestSQLToolsetGetSchema:
     def test_returns_column_info(self):
@@ -307,7 +322,7 @@ class TestSQLToolsetGetSchema:
             "columns": [{"name": "id", "type": "INTEGER"}, {"name": "name", "type": "VARCHAR"}],
             "column_count": 2,
         }
-        mock_hook.get_table_schema.assert_called_once_with("users", schema=None)
+        mock_hook.get_table_columns_with_comments.assert_called_once_with("users", schema=None)
 
     def test_name_contains_filters_the_columns(self):
         """``name_contains`` threads from the tool call through to the bounded result."""
@@ -368,13 +383,13 @@ class TestSQLToolsetGetSchema:
         assert "error" in data
         assert "secrets" in data["error"]
         # The guard must short-circuit before touching the database.
-        ts._hook.get_table_schema.assert_not_called()
+        ts._hook.get_table_columns_with_comments.assert_not_called()
 
     def test_introspection_error_raises_model_retry(self):
         """A failure while reading a table's schema is returned to the agent as a retry."""
         ts = SQLToolset("pg_default")
         ts._hook = _make_mock_db_hook()
-        ts._hook.get_table_schema.side_effect = Exception('relation "users" does not exist')
+        ts._hook.get_table_columns_with_comments.side_effect = Exception('relation "users" does not exist')
 
         with pytest.raises(ModelRetry) as exc_info:
             asyncio.run(
@@ -600,13 +615,11 @@ class TestSQLToolsetQuery:
         [
             Exception("001003 (42000): SQL compilation error: unexpected 'rows'"),
             RuntimeError("type mismatch"),
-            ConnectionError("could not connect to server"),
         ],
     )
     def test_query_error_is_returned_to_agent_as_model_retry(self, error):
-        """Any error from the query, whatever its type, is handed back to the agent as a retry with
-        the database's own message. The toolset never inspects the error type or text; pydantic-ai's
-        max_retries bounds the loop, so an unrecoverable error still fails the task."""
+        """Any error once connected, whatever its type, is handed back to the agent as a retry with
+        the database's own message; pydantic-ai's max_retries bounds the loop."""
         ts = SQLToolset("pg_default")
         ts._hook = _make_mock_db_hook()
         ts._hook.run.side_effect = error
@@ -626,8 +639,8 @@ class TestSQLToolsetQuery:
     ):
         ts = SQLToolset("pg_default")
         ts._hook = _make_mock_db_hook()
-        ts._hook.run.side_effect = ConnectionError(
-            f'connection to "db:5432" failed: password "{registered_secret}" rejected'
+        ts._hook.run.side_effect = RuntimeError(
+            f'syntax error at or near "{registered_secret}": password "{registered_secret}" rejected'
         )
 
         with pytest.raises(ModelRetry) as exc_info:
@@ -782,7 +795,7 @@ class TestSQLToolsetHookResolution:
 
         ts = SQLToolset("bad_conn")
 
-        with pytest.raises(ValueError, match="does not provide a DbApiHook"):
+        with pytest.raises(SQLToolsetConnectionError, match="does not provide a DbApiHook"):
             ts._get_db_hook()
 
     @patch("airflow.providers.common.ai.toolsets.sql.BaseHook", autospec=True)
@@ -800,6 +813,548 @@ class TestSQLToolsetHookResolution:
         mock_base_hook.get_connection.assert_called_once()
 
 
+class TestSQLToolsetConnectionFailures:
+    """Failing to reach the database raises; a statement the database rejects goes back to the model."""
+
+    @pytest.mark.parametrize(
+        ("name", "tool_args"),
+        [
+            ("query", {"sql": "SELECT status FROM orders"}),
+            ("list_tables", {}),
+            ("get_schema", {"table_name": "orders"}),
+        ],
+    )
+    def test_raises_when_the_database_cannot_be_opened(self, tmp_path, name, tool_args):
+        ts = SQLToolset("warehouse")
+
+        with (
+            sqlite_connection("warehouse", tmp_path / "missing" / "warehouse.db"),
+            pytest.raises(
+                SQLToolsetConnectionError, match="connection 'warehouse': .*unable to open database file"
+            ),
+        ):
+            _call(ts, name, tool_args)
+
+    def test_query_naming_a_missing_column_goes_back_to_the_model(self, tmp_path):
+        """SQLite raises OperationalError for this too, so the exception class cannot decide it."""
+        path = tmp_path / "warehouse.db"
+        create_orders_table(path)
+        ts = SQLToolset("warehouse")
+
+        with sqlite_connection("warehouse", path), pytest.raises(ModelRetry, match="no such column: amount"):
+            _call(ts, "query", {"sql": "SELECT amount FROM orders"})
+
+    @pytest.mark.parametrize(
+        ("connection_invalidated", "expected"),
+        [(True, SQLToolsetConnectionError), (False, ModelRetry)],
+        ids=["connection-lost", "statement-rejected"],
+    )
+    def test_introspection_error_raises_only_when_the_connection_was_lost(
+        self, connection_invalidated, expected
+    ):
+        ts = SQLToolset("warehouse")
+        ts._hook = _make_mock_db_hook()
+        ts._hook.inspector.get_table_names.side_effect = OperationalError(
+            "SELECT name FROM sqlite_master",
+            {},
+            sqlite3.OperationalError("disk I/O error"),
+            connection_invalidated=connection_invalidated,
+        )
+
+        with pytest.raises(expected, match="disk I/O error"):
+            _call(ts, "list_tables", {})
+
+    def test_a_connection_that_is_not_defined_raises(self, tmp_path):
+        ts = SQLToolset("missing")
+
+        with (
+            sqlite_connection("warehouse", tmp_path / "warehouse.db"),
+            pytest.raises(
+                SQLToolsetConnectionError,
+                match="Could not reach the database of connection 'missing': .*isn't defined",
+            ),
+        ):
+            _call(ts, "query", {"sql": "SELECT 1"})
+
+    @pytest.mark.parametrize(
+        ("name", "tool_args"), [("list_tables", {}), ("get_schema", {"table_name": "orders"})]
+    )
+    def test_introspection_raises_when_sqlalchemy_cannot_be_set_up(self, tmp_path, name, tool_args):
+        """A failure before any connect, such as a dialect SQLAlchemy cannot load, is no SQL error either."""
+        create_orders_table(tmp_path / "warehouse.db")
+        ts = SQLToolset("warehouse")
+
+        with (
+            sqlite_connection("warehouse", tmp_path / "warehouse.db"),
+            patch.object(SQLiteFileHook, "get_uri", autospec=True, return_value="nosuchdialect://"),
+            pytest.raises(SQLToolsetConnectionError, match="connection 'warehouse': .*nosuchdialect"),
+        ):
+            _call(ts, name, tool_args)
+
+    @pytest.mark.parametrize(
+        ("name", "tool_args"),
+        [
+            ("query", {"sql": "SELECT status FROM orders"}),
+            ("list_tables", {}),
+            ("get_schema", {"table_name": "orders"}),
+        ],
+    )
+    def test_raises_when_building_the_uri_fails(self, tmp_path, name, tool_args):
+        """Some hooks fetch credentials to build their URI, before any statement is sent."""
+        create_orders_table(tmp_path / "warehouse.db")
+        ts = SQLToolset("warehouse")
+
+        with (
+            sqlite_connection("warehouse", tmp_path / "warehouse.db"),
+            patch.object(
+                SQLiteFileHook,
+                "get_uri",
+                autospec=True,
+                side_effect=RuntimeError("token endpoint unreachable"),
+            ),
+            pytest.raises(
+                SQLToolsetConnectionError, match="connection 'warehouse': token endpoint unreachable"
+            ),
+        ):
+            _call(ts, name, tool_args)
+
+    @pytest.mark.enable_redact
+    def test_a_connection_failure_carrying_a_secret_is_raised_masked(self, tmp_path, registered_secret):
+        """Raised rather than handed to the model, the error still passes through the toolset's masking."""
+        ts = SQLToolset("warehouse")
+
+        with (
+            sqlite_connection("warehouse", tmp_path / "warehouse.db"),
+            patch.object(
+                SQLiteFileHook,
+                "get_conn",
+                autospec=True,
+                side_effect=sqlite3.OperationalError(
+                    f"could not open postgresql://svc:{registered_secret}@db"
+                ),
+            ),
+            pytest.raises(SQLToolsetConnectionError) as exc_info,
+        ):
+            _call(ts, "query", {"sql": "SELECT 1"})
+
+        assert registered_secret not in "".join(traceback.format_exception(exc_info.value))
+        assert "postgresql://svc:***@db" in str(exc_info.value)
+
+
+class TestSQLToolsetComments:
+    @staticmethod
+    def _get_schema(ts: SQLToolset, **args) -> dict:
+        args = {"table_name": "users", **args}
+        return json.loads(asyncio.run(ts.call_tool("get_schema", args, ctx=MagicMock(), tool=MagicMock())))
+
+    @staticmethod
+    def _list_tables(ts: SQLToolset):
+        return json.loads(asyncio.run(ts.call_tool("list_tables", {}, ctx=MagicMock(), tool=MagicMock())))
+
+    def test_get_schema_returns_table_and_column_comments(self):
+        ts = SQLToolset("pg_default")
+        ts._hook = _make_mock_db_hook(
+            table_schema=[
+                {"name": "id", "type": "INTEGER", "comment": "Primary key"},
+                {"name": "name", "type": "VARCHAR"},
+            ]
+        )
+        ts._hook.get_table_comment.return_value = "Registered users"
+
+        assert self._get_schema(ts) == {
+            "columns": [
+                {"name": "id", "type": "INTEGER", "comment": "Primary key"},
+                {"name": "name", "type": "VARCHAR"},
+            ],
+            "column_count": 2,
+            "table_comment": "Registered users",
+        }
+        ts._hook.get_table_comment.assert_called_once_with("users", schema=None)
+
+    def test_get_schema_truncates_long_comments(self):
+        ts = SQLToolset("pg_default")
+        ts._hook = _make_mock_db_hook(table_schema=[{"name": "id", "type": "INTEGER", "comment": "c" * 500}])
+        ts._hook.get_table_comment.return_value = "t" * 500
+
+        data = self._get_schema(ts)
+        assert data["columns"][0]["comment"] == "c" * 199 + "\u2026"
+        assert data["table_comment"] == "t" * 199 + "\u2026"
+
+    @pytest.mark.enable_redact
+    @pytest.mark.parametrize(
+        "entry_point", ["get-schema-column", "get-schema-table", "list-tables", "search-tables"]
+    )
+    def test_a_secret_crossing_the_comment_cut_is_masked(self, entry_point, registered_secret):
+        comment = "x" * 190 + registered_secret + "y" * 50
+        ts = SQLToolset("pg_default", include_table_comments=True, search_backend=KeywordTableSearchBackend())
+        ts._hook = _make_mock_db_hook(
+            table_names=["users"], table_schema=[{"name": "id", "type": "INTEGER", "comment": comment}]
+        )
+        ts._hook.get_table_comment.return_value = comment
+        ts._hook.inspector.get_multi_table_comment.return_value = {(None, "users"): {"text": comment}}
+
+        if entry_point == "get-schema-column":
+            actual = self._get_schema(ts)["columns"][0]["comment"]
+        elif entry_point == "get-schema-table":
+            actual = self._get_schema(ts)["table_comment"]
+        elif entry_point == "list-tables":
+            actual = self._list_tables(ts)[0]["comment"]
+        else:
+            result = json.loads(
+                asyncio.run(
+                    ts.call_tool("search_tables", {"query": "users"}, ctx=MagicMock(), tool=MagicMock())
+                )
+            )
+            actual = result["tables"][0]["comment"]
+
+        assert actual == "x" * 190 + "***" + "y" * 6 + "\u2026"
+
+    def test_get_schema_survives_table_comment_failure(self):
+        ts = SQLToolset("pg_default")
+        ts._hook = _make_mock_db_hook()
+        ts._hook.get_table_comment.side_effect = Exception("permission denied")
+
+        assert self._get_schema(ts)["column_count"] == 2
+
+    def test_column_comments_are_dropped_before_the_columns(self):
+        """Columns that fit on their own are returned in full, without comments, once comments overflow."""
+        columns = [{"name": f"c{i}", "type": "INTEGER"} for i in range(10)]
+        with_comments = [{**col, "comment": "x" * 200} for col in columns]
+        budget = 800
+
+        plain = SQLToolset("pg_default", max_result_bytes=budget)
+        plain._hook = _make_mock_db_hook(table_schema=columns)
+        assert "truncated" not in self._get_schema(plain)
+
+        commented = SQLToolset("pg_default", max_result_bytes=budget)
+        commented._hook = _make_mock_db_hook(table_schema=with_comments)
+        data = self._get_schema(commented)
+        assert "truncated" not in data
+        assert data["columns"] == columns
+        assert data["column_count"] == 10
+        assert data["comments_omitted"] is True
+        assert "name_contains" in data["hint"]
+
+    def test_list_tables_default_shape_ignores_comments(self):
+        ts = SQLToolset("pg_default")
+        ts._hook = _make_mock_db_hook(table_names=["users", "orders"])
+
+        assert self._list_tables(ts) == ["users", "orders"]
+        ts._hook.inspector.get_multi_table_comment.assert_not_called()
+
+    def test_list_tables_with_comments_returns_name_and_comment(self):
+        ts = SQLToolset("pg_default", include_table_comments=True, schema="public")
+        ts._hook = _make_mock_db_hook(table_names=["users", "orders"])
+        ts._hook.inspector.get_multi_table_comment.return_value = {
+            ("public", "users"): {"text": "u" * 500},
+            ("public", "orders"): {"text": None},
+        }
+
+        assert self._list_tables(ts) == [
+            {"name": "users", "comment": "u" * 199 + "\u2026"},
+            {"name": "orders"},
+        ]
+        ts._hook.inspector.get_multi_table_comment.assert_called_once_with(schema="public", filter_names=None)
+
+    def test_list_tables_with_comments_filters_and_qualifies(self):
+        ts = SQLToolset("sf", allowed_tables=["S1.A"], include_table_comments=True)
+        hook = _make_mock_db_hook(table_names=["A", "B"])
+        hook.inspector.get_multi_table_comment.return_value = {
+            ("S1", "A"): {"text": "table a"},
+            ("S1", "B"): {"text": "secret b"},
+        }
+        ts._hook = hook
+
+        assert self._list_tables(ts) == [{"name": "S1.A", "comment": "table a"}]
+
+    def test_list_tables_omits_comments_when_inspector_cannot_read_them_in_bulk(self):
+        """SQLAlchemy 1.4's Inspector has no get_multi_table_comment."""
+        ts = SQLToolset("pg_default", include_table_comments=True)
+        ts._hook = _make_mock_db_hook()
+        ts._hook.inspector = MagicMock(spec=["get_table_names"])
+        ts._hook.inspector.get_table_names.return_value = ["users"]
+
+        assert self._list_tables(ts) == [{"name": "users"}]
+
+    def test_list_tables_with_comments_degrades_when_dialect_cannot_report(self):
+        ts = SQLToolset("pg_default", include_table_comments=True)
+        ts._hook = _make_mock_db_hook(table_names=["users"])
+        ts._hook.inspector.get_multi_table_comment.side_effect = NotImplementedError
+
+        assert self._list_tables(ts) == [{"name": "users"}]
+
+    @pytest.mark.parametrize(
+        ("allowed_tables", "schema", "reflected", "expected_calls"),
+        [
+            pytest.param(
+                ["S1.A", "S2.C"],
+                None,
+                {"S1": ["A", "B"], "S2": ["C", "D"]},
+                [call(schema="S1", filter_names=["A"]), call(schema="S2", filter_names=["C"])],
+                id="qualified-per-schema",
+            ),
+            pytest.param(
+                ["users"],
+                "public",
+                {"public": ["USERS", "SECRETS"]},
+                [call(schema="public", filter_names=["USERS"])],
+                id="reflected-case-not-user-input",
+            ),
+        ],
+    )
+    def test_only_allowed_tables_comments_are_requested(
+        self, allowed_tables, schema, reflected, expected_calls
+    ):
+        ts = SQLToolset("sf", allowed_tables=allowed_tables, schema=schema, include_table_comments=True)
+        hook = _make_mock_db_hook()
+        hook.inspector.get_table_names.side_effect = lambda schema=None: reflected.get(schema, [])
+        ts._hook = hook
+
+        self._list_tables(ts)
+
+        comment_reads = hook.inspector.get_multi_table_comment
+        assert comment_reads.call_count == len(expected_calls)
+        comment_reads.assert_has_calls(expected_calls, any_order=True)
+
+    @pytest.mark.parametrize(
+        "tool",
+        [pytest.param("list_tables", id="list-tables"), pytest.param("search_tables", id="search-tables")],
+    )
+    def test_comment_read_failure_leaves_tables_without_comments(self, tool):
+        ts = SQLToolset("pg_default", include_table_comments=True, search_backend=KeywordTableSearchBackend())
+        ts._hook = _make_mock_db_hook(table_names=["users"])
+        ts._hook.inspector.get_multi_table_comment.side_effect = OperationalError(
+            "SELECT", {}, Exception("permission denied")
+        )
+        args = {"query": "users"} if tool == "search_tables" else {}
+
+        result = json.loads(_call(ts, tool, args))
+
+        assert result == ([{"name": "users"}] if tool == "list_tables" else {"tables": [{"name": "users"}]})
+
+    @pytest.mark.parametrize(
+        "tool",
+        [pytest.param("list_tables", id="list-tables"), pytest.param("search_tables", id="search-tables")],
+    )
+    def test_comment_read_on_lost_connection_raises_and_is_not_cached(self, tool):
+        ts = SQLToolset("pg_default", include_table_comments=True, search_backend=KeywordTableSearchBackend())
+        ts._hook = _make_mock_db_hook(table_names=["users"])
+        ts._hook.inspector.get_multi_table_comment.side_effect = OperationalError(
+            "SELECT",
+            {},
+            sqlite3.OperationalError("server closed the connection"),
+            connection_invalidated=True,
+        )
+        args = {"query": "users"} if tool == "search_tables" else {}
+
+        with pytest.raises(SQLToolsetConnectionError, match="server closed the connection"):
+            _call(ts, tool, args)
+
+        assert ts._catalog is None
+
+
+class _FakeSearchBackend:
+    """Returns canned results, ignoring the query, so tests control exactly what the toolset must filter."""
+
+    def __init__(self, results: list[tuple[str, str | None]]) -> None:
+        self.results = results
+        self.limits: list[int] = []
+
+    def search_tables(self, query, limit, *, get_catalog):
+        self.limits.append(limit)
+        return self.results
+
+
+class _CatalogRecordingBackend:
+    """Records the catalog it is handed, so tests can see what a custom backend receives."""
+
+    def __init__(self) -> None:
+        self.catalogs: list = []
+
+    def search_tables(self, query, limit, *, get_catalog):
+        self.catalogs.append(list(get_catalog()))
+        return []
+
+
+class TestSQLToolsetSearchTables:
+    @staticmethod
+    def _call(ts: SQLToolset, name: str, args: dict | None = None):
+        return json.loads(asyncio.run(ts.call_tool(name, args or {}, ctx=MagicMock(), tool=MagicMock())))
+
+    @pytest.mark.enable_redact
+    def test_backend_receives_full_masked_comments(self, registered_secret):
+        backend = _CatalogRecordingBackend()
+        ts = SQLToolset("pg_default", search_backend=backend)
+        ts._hook = _make_mock_db_hook(table_names=["users"])
+        ts._hook.inspector.get_multi_table_comment.return_value = {
+            (None, "users"): {"text": "x" * 190 + registered_secret + "y" * 50}
+        }
+
+        self._call(ts, "search_tables", {"query": "users"})
+
+        assert backend.catalogs == [[("users", "x" * 190 + "***" + "y" * 50)]]
+
+    def test_default_backend_matches_words_past_the_output_cut(self):
+        ts = SQLToolset("pg_default", search_backend=KeywordTableSearchBackend())
+        ts._hook = _make_mock_db_hook(table_names=["ledger"])
+        ts._hook.inspector.get_multi_table_comment.return_value = {
+            (None, "ledger"): {"text": "a" * 300 + " invoices"}
+        }
+
+        result = self._call(ts, "search_tables", {"query": "invoices"})
+
+        assert result == {"tables": [{"name": "ledger", "comment": "a" * 199 + "\u2026"}]}
+
+    def test_results_outside_allowed_tables_are_filtered(self):
+        """A backend that knows about more tables than the agent may use cannot widen access."""
+        backend = _FakeSearchBackend([("secrets", "passwords"), ("orders", "Orders"), ("users", None)])
+        ts = SQLToolset("pg_default", allowed_tables=["orders", "users"], search_backend=backend)
+
+        result = self._call(ts, "search_tables", {"query": "anything"})
+
+        assert result == {"tables": [{"name": "orders", "comment": "Orders"}, {"name": "users"}]}
+
+    def test_qualified_results_are_matched_against_qualified_allowed_tables(self):
+        backend = _FakeSearchBackend([("S1.A", None), ("S2.A", None), ("A", None)])
+        ts = SQLToolset("sf", allowed_tables=["S1.A"], search_backend=backend)
+
+        assert self._call(ts, "search_tables", {"query": "a"}) == {"tables": [{"name": "S1.A"}]}
+
+    @pytest.mark.parametrize(
+        ("requested", "expected_limit"),
+        [
+            pytest.param(None, 10, id="default"),
+            pytest.param(3, 3, id="explicit"),
+            pytest.param(1000, 50, id="capped"),
+            pytest.param(-5, 1, id="floored"),
+            pytest.param(0, 1, id="zero-is-floored-not-defaulted"),
+        ],
+    )
+    def test_limit_is_bounded(self, requested, expected_limit):
+        backend = _FakeSearchBackend([])
+        ts = SQLToolset("pg_default", search_backend=backend)
+        args = {"query": "x"} if requested is None else {"query": "x", "limit": requested}
+
+        self._call(ts, "search_tables", args)
+
+        assert backend.limits == [expected_limit]
+
+    def test_results_are_cut_to_limit_after_filtering(self):
+        backend = _FakeSearchBackend([("secret", None), ("a", None), ("b", None), ("c", None)])
+        ts = SQLToolset("pg_default", allowed_tables=["a", "b", "c"], search_backend=backend)
+
+        result = self._call(ts, "search_tables", {"query": "x", "limit": 2})
+
+        assert [t["name"] for t in result["tables"]] == ["a", "b"]
+
+    def test_result_comments_are_truncated(self):
+        backend = _FakeSearchBackend([("orders", "c" * 500)])
+        ts = SQLToolset("pg_default", search_backend=backend)
+
+        result = self._call(ts, "search_tables", {"query": "x"})
+
+        assert result["tables"][0]["comment"] == "c" * 199 + "\u2026"
+
+    @pytest.mark.enable_redact
+    def test_custom_backend_comment_with_a_secret_crossing_the_cut_is_masked(self, registered_secret):
+        backend = _FakeSearchBackend([("users", "x" * 190 + registered_secret + "y" * 50)])
+        ts = SQLToolset("pg_default", search_backend=backend)
+
+        result = self._call(ts, "search_tables", {"query": "x"})
+
+        assert result["tables"][0]["comment"] == "x" * 190 + "***" + "y" * 6 + "\u2026"
+
+    def test_default_backend_introspects_once_with_the_toolsets_hook(self):
+        ts = SQLToolset(
+            "pg_default", allowed_tables=["users", "orders"], search_backend=KeywordTableSearchBackend()
+        )
+        ts._hook = _make_mock_db_hook(table_names=["users", "orders", "secrets"])
+        ts._hook.inspector.get_multi_table_comment.return_value = {
+            (None, "users"): {"text": "Registered customers"},
+            (None, "orders"): {"text": None},
+            (None, "secrets"): {"text": "customers passwords"},
+        }
+
+        first = self._call(ts, "search_tables", {"query": "customers"})
+        second = self._call(ts, "search_tables", {"query": "orders"})
+
+        assert first == {"tables": [{"name": "users", "comment": "Registered customers"}]}
+        assert second == {"tables": [{"name": "orders"}]}
+        ts._hook.inspector.get_table_names.assert_called_once_with(schema=None)
+        ts._hook.inspector.get_multi_table_comment.assert_called_once_with(
+            schema=None, filter_names=["users", "orders"]
+        )
+
+    def test_degraded_catalog_is_cached(self):
+        ts = SQLToolset("pg_default", include_table_comments=True, search_backend=KeywordTableSearchBackend())
+        ts._hook = _make_mock_db_hook(table_names=["users"])
+        ts._hook.inspector.get_multi_table_comment.side_effect = OperationalError(
+            "SELECT", {}, Exception("permission denied")
+        )
+
+        self._call(ts, "search_tables", {"query": "users"})
+        self._call(ts, "search_tables", {"query": "users"})
+
+        assert ts._hook.inspector.get_multi_table_comment.call_count == 1
+
+    def test_search_omits_comments_when_inspector_cannot_read_them_in_bulk(self):
+        """SQLAlchemy 1.4's Inspector has no get_multi_table_comment."""
+        ts = SQLToolset("pg_default", search_backend=KeywordTableSearchBackend())
+        ts._hook = _make_mock_db_hook()
+        ts._hook.inspector = MagicMock(spec=["get_table_names"])
+        ts._hook.inspector.get_table_names.return_value = ["users"]
+
+        assert self._call(ts, "search_tables", {"query": "users"}) == {"tables": [{"name": "users"}]}
+
+    def test_calling_search_tables_without_a_backend_is_unknown(self):
+        ts = SQLToolset("pg_default")
+        ts._hook = _make_mock_db_hook()
+
+        with pytest.raises(ValueError, match="Unknown tool: 'search_tables'"):
+            asyncio.run(ts.execute_tool("search_tables", {"query": "x"}, ctx=MagicMock(), tool=MagicMock()))
+
+    @pytest.mark.parametrize(
+        ("backend", "mentioned"),
+        [
+            pytest.param(None, False, id="no-backend"),
+            pytest.param(_FakeSearchBackend([]), True, id="with-backend"),
+        ],
+    )
+    def test_error_hint_points_at_search_tables_only_when_registered(self, backend, mentioned):
+        ts = SQLToolset("pg_default", search_backend=backend)
+        ts._hook = _make_mock_db_hook()
+        ts._hook.inspector.get_table_names.side_effect = Exception("boom")
+
+        with pytest.raises(ModelRetry) as exc_info:
+            asyncio.run(ts.call_tool("list_tables", {}, ctx=MagicMock(), tool=MagicMock()))
+
+        assert ("search_tables" in exc_info.value.message) is mentioned
+
+    @pytest.mark.parametrize(
+        ("table_count", "listed"),
+        [pytest.param(3, True, id="at-threshold"), pytest.param(4, False, id="over-threshold")],
+    )
+    def test_list_tables_stops_listing_over_max_listed_tables(self, table_count, listed):
+        names = [f"t{i}" for i in range(table_count)]
+        ts = SQLToolset("pg_default", search_backend=_FakeSearchBackend([]), max_listed_tables=3)
+        ts._hook = _make_mock_db_hook(table_names=names)
+
+        result = self._call(ts, "list_tables")
+
+        if listed:
+            assert result == names
+        else:
+            assert result["table_count"] == table_count
+            assert "search_tables" in result["hint"]
+
+    def test_list_tables_has_no_limit_without_a_backend(self):
+        names = [f"t{i}" for i in range(150)]
+        ts = SQLToolset("pg_default", max_listed_tables=3)
+        ts._hook = _make_mock_db_hook(table_names=names)
+
+        assert self._call(ts, "list_tables") == names
+
+
 class TestSQLToolsetMultiSchema:
     """Schema-qualified allowed_tables span multiple schemas in one database."""
 
@@ -808,7 +1363,8 @@ class TestSQLToolsetMultiSchema:
         hook = MagicMock(spec=DbApiHook)
         hook.inspector = MagicMock()
         hook.inspector.get_table_names.side_effect = lambda schema=None: tables_by_schema.get(schema, [])
-        hook.get_table_schema.return_value = [{"name": "id", "type": "INTEGER"}]
+        hook.get_table_columns_with_comments.return_value = [{"name": "id", "type": "INTEGER"}]
+        hook.get_table_comment.return_value = None
         return hook
 
     def test_list_tables_spans_multiple_schemas(self):
@@ -860,7 +1416,9 @@ class TestSQLToolsetMultiSchema:
             )
         )
         assert result == {"columns": [{"name": "id", "type": "INTEGER"}], "column_count": 1}
-        ts._hook.get_table_schema.assert_called_once_with("DEPLOYMENT_IMAGE_DETAILS", schema="MODEL_ASTRO")
+        ts._hook.get_table_columns_with_comments.assert_called_once_with(
+            "DEPLOYMENT_IMAGE_DETAILS", schema="MODEL_ASTRO"
+        )
 
     def test_get_schema_blocks_table_outside_allowed_schema(self):
         ts = SQLToolset("sf", allowed_tables=["MODEL_ASTRO.X"])
@@ -874,14 +1432,14 @@ class TestSQLToolsetMultiSchema:
             )
         )
         assert "error" in result
-        ts._hook.get_table_schema.assert_not_called()
+        ts._hook.get_table_columns_with_comments.assert_not_called()
 
     def test_get_schema_unqualified_uses_default_schema(self):
         ts = SQLToolset("pg", schema="public")
         ts._hook = self._schema_aware_hook({"public": ["users"]})
 
         asyncio.run(ts.call_tool("get_schema", {"table_name": "users"}, ctx=MagicMock(), tool=MagicMock()))
-        ts._hook.get_table_schema.assert_called_once_with("users", schema="public")
+        ts._hook.get_table_columns_with_comments.assert_called_once_with("users", schema="public")
 
     def test_list_tables_matches_case_insensitively(self):
         """Snowflake reflects unquoted names lowercased; uppercase allowed_tables still match."""
@@ -914,7 +1472,9 @@ class TestSQLToolsetMultiSchema:
             )
         )
         assert "error" not in result
-        ts._hook.get_table_schema.assert_called_once_with("deployment_image_details", schema="MODEL_ASTRO")
+        ts._hook.get_table_columns_with_comments.assert_called_once_with(
+            "deployment_image_details", schema="MODEL_ASTRO"
+        )
 
     def test_list_tables_deduplicates_same_table(self):
         """A table listed both qualified and unqualified appears once."""

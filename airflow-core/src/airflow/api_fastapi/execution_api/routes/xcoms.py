@@ -392,6 +392,7 @@ def get_mapped_xcom_by_index(
 
 
 def _get_sliced_query_or_empty(query: Select, low: int, high: int) -> Select:
+    low = max(low, 0)
     if high <= low:
         return query.limit(0)
     return query.slice(low, high)
