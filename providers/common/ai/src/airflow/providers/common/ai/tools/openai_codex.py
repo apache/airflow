@@ -542,7 +542,7 @@ class AirflowTools:
             f"{prefix}.required=true",
             f"{prefix}.tool_timeout_sec={self.tool_timeout}",
             # Only tools marked ``sequential`` are queued by the adapter; every other tool runs one at a
-            # time only if Codex honours this flag. Codex does not echo ``false``, so whether it equals
+            # time only if Codex honors this flag. Codex does not echo ``false``, so whether it equals
             # the default is unconfirmed; ``true`` is echoed.
             f"{prefix}.supports_parallel_tool_calls=false",
             f"{prefix}.tool_input_schema_max_bytes={max(_MIN_TOOL_INPUT_SCHEMA_BYTES, largest_schema)}",

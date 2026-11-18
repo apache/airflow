@@ -133,7 +133,7 @@ adapters count one failure per. Calls that run at the same time count as one fai
 calls one after another count separately. The adapter asks Codex to send calls one at a time
 (``supports_parallel_tool_calls=false``), so two failed calls in the same response normally
 count twice, which exhausts the budget sooner here than it would per model turn. Whether Codex
-honours that setting is not confirmed. The adapter sets no limit on how many model responses a
+honors that setting is not confirmed. The adapter sets no limit on how many model responses a
 turn may take: bound the loop yourself, for example with the task's ``execution_timeout``.
 
 Tool timeout
@@ -214,7 +214,7 @@ value; it does not show what the model can do.
        that case; it reports the failure in ``tools_error``.
    * - ``mcp_servers.<name>.supports_parallel_tool_calls=false``
      - Asks Codex not to send calls in parallel. The adapter itself queues only tools marked
-       ``sequential``; every other tool runs one at a time only if Codex honours this flag.
+       ``sequential``; every other tool runs one at a time only if Codex honors this flag.
        Codex does not echo a ``false`` value, so a test can show only that the key is known
        (``true`` is echoed), and whether ``false`` is the same as the default is not
        confirmed.
