@@ -23,6 +23,13 @@ A Scala + Apache Spark bundle for the Java SDK, exercised by the `java_sdk`
 end-to-end test. It shows a non-Java JVM language driving Spark from a
 `@task.stub` task and routing Log4j 2 logs into Airflow via `airflow-sdk-log4j2`.
 
+Scala projects can also be built with sbt. See
+[Using the Java SDK from Scala](../../airflow-core/docs/authoring-and-scheduling/language-sdks/java.rst)
+in the Java SDK guide for the interface call site, `TaskInput` and XCom limits,
+and an sbt thin-bundle recipe, including how to align `jackson-module-scala`
+when Spark is on the classpath
+([#66329](https://github.com/apache/airflow/issues/66329)).
+
 The `scala_spark_example` Dag chains three tasks, each running in its own JVM
 with a local `SparkSession` and passing scalar results over XCom:
 
