@@ -110,7 +110,7 @@ async function materialize(
     if (findXComSequence(value, new Set())) {
       throw new TypeError(
         "An XComSequence has to be in an array or a plain object to be pushed as an XCom value, " +
-          "not in a Map, a class instance or another kind of object",
+          `but it is in a ${value.constructor?.name || "non-plain object"}`,
       );
     }
     return value;
@@ -144,7 +144,7 @@ function findXComSequence(value: unknown, seen: Set<object>): boolean {
 
 function listHeldValues(value: object): unknown[] {
   if (Array.isArray(value)) return value;
-  if (value instanceof Map) return [...value.values()];
+  if (value instanceof Map) return [...value.keys(), ...value.values()];
   if (value instanceof Set) return [...value];
   if (value instanceof Date || value instanceof ArrayBuffer || ArrayBuffer.isView(value)) return [];
   return Object.values(value);

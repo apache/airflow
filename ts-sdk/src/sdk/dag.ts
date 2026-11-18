@@ -1564,7 +1564,15 @@ export class Dag {
       const inLoop = groupId === loopId || this.#findEnclosingLoop(groupId) === loopId;
       if (loop.gateTaskId !== taskId || !inLoop) continue;
       const movedTo = this.#childId(loopId, this.#getUniqueGateId(loopId, gateName));
-      this.#reserveNodeId(movedTo, "Task");
+      try {
+        this.#reserveNodeId(movedTo, "Task");
+      } catch (error) {
+        throw new Error(
+          `The gate of Loop "${loopId}" was moved to "${movedTo}" because a body task took its ID ` +
+            `"${taskId}": ${error instanceof Error ? error.message : String(error)}`,
+          { cause: error },
+        );
+      }
       renameKey(this.#tasks, taskId, movedTo, (record) => ({
         ...record,
         task: this.#createTaskRef(movedTo),

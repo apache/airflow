@@ -336,7 +336,8 @@ describe("TaskGroupRef.loop", () => {
       group.taskGroup("check__1");
 
       expect(() => group.task("check", async () => 1)).toThrow(
-        'Task "g.check__1" is already registered for Dag "ts_gate_moved_onto_a_group"',
+        'The gate of Loop "g" was moved to "g.check__1" because a body task took its ID "g.check": ' +
+          'Task "g.check__1" is already registered for Dag "ts_gate_moved_onto_a_group"',
       );
       expect(getDagLoops(dag).get("g")!.gateTaskId).toBe("g.check");
     });

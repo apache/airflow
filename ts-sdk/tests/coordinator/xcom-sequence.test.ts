@@ -57,16 +57,21 @@ describe("materializeXComSequences", () => {
   }
 
   it.each([
-    ["a class instance", (sequence: unknown) => new Box(sequence)],
-    ["a Map", (sequence: unknown) => new Map([["held", sequence]])],
-    ["a plain object inside a class instance", (sequence: unknown) => ({ box: new Box(sequence) })],
-  ])("refuses a sequence held by %s", async (_name, wrap) => {
+    ["a class instance", (sequence: unknown) => new Box(sequence), "but it is in a Box"],
+    ["a Map value", (sequence: unknown) => new Map([["held", sequence]]), "but it is in a Map"],
+    ["a Map key", (sequence: unknown) => new Map([[sequence, 1]]), "but it is in a Map"],
+    [
+      "a plain object inside a class instance",
+      (sequence: unknown) => ({ box: new Box(sequence) }),
+      "but it is in a Box",
+    ],
+  ])("refuses a sequence held by %s", async (_name, wrap, container) => {
     const { client, sequence } = makeSequence([1]);
     const value = wrap(sequence);
 
     expect(holdsXComSequence(client, value)).toBe(true);
     await expect(materializeXComSequences(value)).rejects.toThrow(
-      "An XComSequence has to be in an array or a plain object",
+      `An XComSequence has to be in an array or a plain object to be pushed as an XCom value, ${container}`,
     );
   });
 

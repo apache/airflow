@@ -940,7 +940,7 @@ Limitations
   run when the Dag processor reads them.
 * **Some CLI commands do not take a Dag declared in TypeScript.** ``airflow dags test``, ``tasks test`` and
   ``tasks render`` refuse it, and ``airflow dags reserialize`` skips it.
-* **A task handler cannot read every iteration of a loop.** From outside a loop, the ``TaskHandler`` of a
+* **An XCom read cannot return every iteration of a loop.** From outside a loop, the ``TaskHandler`` of a
   Python Dag's stub task and ``getClient().getXCom()`` in any TypeScript task fail on a loop task's XCom, since
   the runtime has no way to ask for every iteration. Read the loop's output in a Python task, or declare the
   Dag in TypeScript and pass the loop's ``all()`` as an input.
