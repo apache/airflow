@@ -25,6 +25,17 @@
 Changelog
 ---------
 
+3.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add DbApiHook.get_table_comment and get_table_columns_with_comments (#76799)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 3.0.0
 .....
 
