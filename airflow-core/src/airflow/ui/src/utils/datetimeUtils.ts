@@ -235,14 +235,18 @@ export const formatDate = (
 // Ordered largest first so the first unit the difference reaches wins: "45 minutes ago" rather than
 // "2700 seconds ago". Months and years use the mean Gregorian lengths CLDR assumes for relative
 // phrasing. Anything under a minute falls through to seconds.
-const RELATIVE_TIME_UNITS: Array<{ seconds: number; unit: Intl.RelativeTimeFormatUnit }> = [
+type RelativeTimeUnit = { seconds: number; unit: Intl.RelativeTimeFormatUnit };
+
+const SMALLEST_RELATIVE_TIME_UNIT: RelativeTimeUnit = { seconds: 1, unit: "second" };
+
+const RELATIVE_TIME_UNITS: Array<RelativeTimeUnit> = [
   { seconds: 31_557_600, unit: "year" },
   { seconds: 2_629_800, unit: "month" },
   { seconds: SECONDS_PER_DAY * 7, unit: "week" },
   { seconds: SECONDS_PER_DAY, unit: "day" },
   { seconds: SECONDS_PER_HOUR, unit: "hour" },
   { seconds: SECONDS_PER_MINUTE, unit: "minute" },
-  { seconds: 1, unit: "second" },
+  SMALLEST_RELATIVE_TIME_UNIT,
 ];
 
 export const getRelativeTime = (
@@ -257,7 +261,7 @@ export const getRelativeTime = (
   const magnitude = Math.abs(elapsed);
   const index = RELATIVE_TIME_UNITS.findIndex((entry) => magnitude >= entry.seconds);
   // Anything under a minute falls through to the smallest unit in the table.
-  const candidate = RELATIVE_TIME_UNITS[index] ?? RELATIVE_TIME_UNITS.at(-1)!;
+  const candidate = RELATIVE_TIME_UNITS[index] ?? SMALLEST_RELATIVE_TIME_UNIT;
   const rounded = Math.round(elapsed / candidate.seconds);
 
   // Rounding can saturate the unit the magnitude was picked from -- 59.7 minutes rounds to 60 -- so

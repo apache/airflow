@@ -46,7 +46,7 @@ type XComEntryProps = {
 
 const renderTextWithLinks = (text: string) => {
   const urls = text.match(urlRegex);
-  const parts = text.split(/(\s+)/u);
+  const parts = text.split(/(?<whitespace>\s+)/u);
 
   return (
     <>

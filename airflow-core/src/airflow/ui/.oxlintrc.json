@@ -210,7 +210,7 @@
     "react/no-array-index-key": "error",
     "react/no-danger": "error",
     "react/no-multi-comp": [
-      "warn",
+      "error",
       {
         "ignoreStateless": true
       }
@@ -329,7 +329,7 @@
     "react/rules-of-hooks": "error",
     "react/todo": "error",
     "react/only-export-components": [
-      "warn",
+      "error",
       {
         "allowConstantExport": true
       }
@@ -393,10 +393,10 @@
         ],
         "no-alert": "error",
         "no-await-in-loop": "error",
-        "no-bitwise": "warn",
+        "no-bitwise": "error",
         "no-caller": "error",
         "no-compare-neg-zero": "error",
-        "no-console": "warn",
+        "no-console": "error",
         "no-constructor-return": "error",
         "no-continue": "error",
         "no-control-regex": "error",
@@ -466,10 +466,10 @@
         "operator-assignment": "error",
         "prefer-arrow-callback": "error",
         "prefer-const": "error",
-        "prefer-exponentiation-operator": "warn",
-        "prefer-named-capture-group": "warn",
+        "prefer-exponentiation-operator": "error",
+        "prefer-named-capture-group": "error",
         "prefer-object-has-own": "error",
-        "prefer-object-spread": "warn",
+        "prefer-object-spread": "error",
         "prefer-regex-literals": "error",
         "prefer-rest-params": "error",
         "prefer-spread": "error",
@@ -614,7 +614,7 @@
         "typescript/no-mixed-enums": "error",
         "typescript/no-namespace": "error",
         "typescript/no-non-null-asserted-nullish-coalescing": "error",
-        "typescript/no-non-null-assertion": "warn",
+        "typescript/no-non-null-assertion": "error",
         "typescript/no-redundant-type-constituents": "error",
         "typescript/no-require-imports": "error",
         "typescript/no-restricted-types": [

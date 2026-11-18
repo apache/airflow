@@ -22,7 +22,7 @@ import type { PluginReactActionResponse } from "openapi/requests/types.gen";
 
 import { IconButton } from "src/system-components";
 
-import { loadPlugin, type PluginProps } from "src/pages/ReactPlugin";
+import { loadPlugin, type PluginProps } from "src/pages/loadPlugin";
 
 import { PluginBoundary } from "src/components/PluginBoundary";
 

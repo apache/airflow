@@ -24,7 +24,8 @@ import { afterEach, beforeAll, describe, expect, it } from "vitest";
 import "src/pages/TaskInstance";
 
 import i18n from "src/i18n/config";
-import { AppWrapper, createAppRouter } from "src/utils/AppWrapper";
+import { AppWrapper } from "src/utils/AppWrapper";
+import { createAppRouter } from "src/utils/createAppRouter";
 
 import dagLocale from "../../../../public/i18n/locales/en/dag.json";
 

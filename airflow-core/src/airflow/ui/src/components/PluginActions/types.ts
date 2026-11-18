@@ -29,7 +29,7 @@ import type {
   TaskInstanceResponse,
 } from "openapi/requests/types.gen";
 
-import type { PluginProps } from "src/pages/ReactPlugin";
+import type { PluginProps } from "src/pages/loadPlugin";
 
 /**
  * The `ui_actions` element type.

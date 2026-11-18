@@ -16,24 +16,15 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { createContext, useContext, useRef, type ReactNode } from "react";
+import { useRef, type ReactNode } from "react";
 
 import type { RecentTasks } from "src/queries/useRecentTaskStateCounts";
 
-export type RunStateCounts = {
-  readonly countsByDag: Record<string, Record<string, number> | undefined>;
-  readonly isLoading: boolean;
-  readonly stateCountLimit: number | undefined;
-};
-
-type DagsListCountsValue = {
-  readonly recentTasks: RecentTasks;
-  /** Dag ids whose cards have already revealed their lazily-rendered content. */
-  readonly revealedKeys: Set<string>;
-  readonly runStateCounts: RunStateCounts;
-};
-
-const DagsListCountsContext = createContext<DagsListCountsValue | undefined>(undefined);
+import {
+  DagsListCountsContext,
+  type DagsListCountsValue,
+  type RunStateCounts,
+} from "./DagsListCountsContext";
 
 /**
  * Carries the two polled count collections to the Dags list's cards and cells.
@@ -58,16 +49,3 @@ export const DagsListCountsProvider = ({
 
   return <DagsListCountsContext.Provider value={value}>{children}</DagsListCountsContext.Provider>;
 };
-
-export const useDagsListCounts = () => {
-  const ctx = useContext(DagsListCountsContext);
-
-  if (ctx === undefined) {
-    throw new Error("Dags list cards and cells must be used inside <DagsListCountsProvider>");
-  }
-
-  return ctx;
-};
-
-/** The reveal cache when rendered inside the list, and `undefined` for a card rendered on its own. */
-export const useRevealedDagCards = () => useContext(DagsListCountsContext)?.revealedKeys;

@@ -23,11 +23,7 @@ import { useTranslation } from "react-i18next";
 import { FiZap } from "react-icons/fi";
 
 import { useTriggerServiceGetTriggers } from "openapi/queries";
-import type {
-  GetTriggersData,
-  TriggerAssetWatcherReferenceResponse,
-  TriggerDetailResponse,
-} from "openapi/requests/types.gen";
+import type { TriggerAssetWatcherReferenceResponse, TriggerDetailResponse } from "openapi/requests/types.gen";
 
 import { Modal, RouterLink } from "src/system-components";
 
@@ -37,6 +33,7 @@ import { DataTable } from "./DataTable";
 import type { CardDef } from "./DataTable/types";
 import { StatusMessage } from "./StatusMessage";
 import Time from "./Time";
+import { getFailingWatchersParams } from "./failingWatchersParams";
 
 type FailingWatcher = {
   readonly trigger: TriggerDetailResponse;
@@ -48,10 +45,6 @@ type Props = {
   readonly onClose: () => void;
   readonly open: boolean;
 };
-
-/** The failing watchers' triggers on the assets the Dag is scheduled on, narrowed to the Dag on the server. */
-export const getFailingWatchersParams = (dagId: string) =>
-  ({ kind: ["asset_watcher"], scheduledDagId: dagId, status: ["failing"] }) satisfies GetTriggersData;
 
 /** A failing watcher, stated like an import error in DAGWarningsModal: when, why, and its trigger for the rest. */
 const FailingWatcherMessage = ({ trigger, watcher }: FailingWatcher) => {

@@ -26,7 +26,8 @@ import { StatusChip } from "src/components/StatusChip";
 
 import { useAutoRefresh } from "src/utils";
 
-import { FailingWatchersModal, getFailingWatchersParams } from "./FailingWatchersModal";
+import { FailingWatchersModal } from "./FailingWatchersModal";
+import { getFailingWatchersParams } from "./failingWatchersParams";
 
 /** Failing watchers on the assets the Dag is scheduled on, which keep it from running. */
 export const DagFailingWatchersChip = ({ dagId }: { readonly dagId: string }) => {

@@ -102,8 +102,10 @@ const REACT_MARKUP_ERRORS = [
   /Encountered two children with the same key/u,
 ];
 const markupErrors: Array<string> = [];
+// eslint-disable-next-line no-console -- records React markup errors, then still prints them
 const logError = console.error.bind(console);
 
+// eslint-disable-next-line no-console
 console.error = (...args: Array<unknown>) => {
   const message = args.map((arg) => String(arg)).join(" ");
 

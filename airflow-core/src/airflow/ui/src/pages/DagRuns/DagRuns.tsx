@@ -30,14 +30,13 @@ import { RouterLink, ActionBar } from "src/system-components";
 import { ClearRunButton } from "src/components/Clear";
 import { DagVersion } from "src/components/DagVersion";
 import { DataTable } from "src/components/DataTable";
-import type { DataTableFeatures } from "src/components/DataTable/features";
 import {
   SelectionHeaderCheckbox,
   SelectionProvider,
   SelectionRowCheckbox,
-  useRowSelection,
-  type GetColumnsParams,
-} from "src/components/DataTable/useRowSelection";
+} from "src/components/DataTable/RowSelection";
+import type { DataTableFeatures } from "src/components/DataTable/features";
+import { useRowSelection, type GetColumnsParams } from "src/components/DataTable/useRowSelection";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { DurationCell } from "src/components/DurationCell";
 import { ErrorAlert } from "src/components/ErrorAlert";
@@ -45,7 +44,7 @@ import { ExpandCollapseButtons } from "src/components/ExpandCollapseButtons";
 import { LimitedItemsList } from "src/components/LimitedItemsList";
 import { MarkRunAsButton } from "src/components/MarkAs";
 import { PluginActions } from "src/components/PluginActions";
-import { PluginActionsProvider } from "src/components/PluginActions/PluginActionsContext";
+import { PluginActionsProvider } from "src/components/PluginActions/PluginActionsProvider";
 import RenderedJsonField from "src/components/RenderedJsonField";
 import { RunTypeIcon } from "src/components/RunTypeIcon";
 import { StateBadge } from "src/components/StateBadge";
