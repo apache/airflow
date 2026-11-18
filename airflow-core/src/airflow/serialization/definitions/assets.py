@@ -31,6 +31,7 @@ if TYPE_CHECKING:
     from typing import Self
 
     from airflow.models.asset import AssetModel
+    from airflow.serialization.definitions.deadline import SerializedAssetDeadline
 
     AttrsInstance = attrs.AttrsInstance
 else:
@@ -125,6 +126,7 @@ class SerializedAsset(SerializedAssetBase):
     extra: dict[str, Any]
     watchers: MutableSequence[SerializedAssetWatcher]
     access_control: dict[str, Any] = attrs.field(factory=dict)
+    deadline: SerializedAssetDeadline | None = None
 
     def as_expression(self) -> Any:
         """

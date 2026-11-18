@@ -21,7 +21,7 @@ import { useState } from "react";
 import { Box, Code, HStack, Text } from "@chakra-ui/react";
 import { useReactFlow } from "@xyflow/react";
 import { useTranslation } from "react-i18next";
-import { MdOutlineStorage, MdTimeline } from "react-icons/md";
+import { MdAlarm, MdOutlineStorage, MdTimeline } from "react-icons/md";
 import { Group, Panel, Separator, useDefaultLayout } from "react-resizable-panels";
 import { Outlet, useParams } from "react-router-dom";
 
@@ -70,6 +70,11 @@ export const AssetLayout = () => {
       icon: <MdOutlineStorage />,
       label: translate("assets:assetStateStore.title"),
       value: "asset-state-store",
+    },
+    {
+      icon: <MdAlarm />,
+      label: translate("assets:deadlines.title"),
+      value: "deadlines",
     },
     ...externalTabs,
   ];
