@@ -166,7 +166,13 @@ class VerticaHook(DbApiHook):
 
     @property
     def sqlalchemy_url(self) -> URL:
-        """Return a SQLAlchemy URL object with properly formatted query parameters."""
+        """
+        Return a SQLAlchemy URL object with properly formatted query parameters.
+
+        The URL uses the ``vertica+vertica_python`` scheme: Vertica SQLAlchemy dialects register
+        themselves as ``vertica.vertica_python``, so a dialect package (for SQLAlchemy 2.x, for example
+        ``sqlalchemy-vertica``) has to be installed for ``get_sqlalchemy_engine()`` to work.
+        """
         try:
             from sqlalchemy.engine import URL
         except (ImportError, ModuleNotFoundError) as err:
@@ -185,7 +191,7 @@ class VerticaHook(DbApiHook):
         }
 
         return URL.create(
-            drivername="vertica-python",
+            drivername="vertica+vertica_python",
             username=conn.login,
             password=conn.password or "",
             host=conn.host or "localhost",
