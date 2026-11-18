@@ -2817,7 +2817,14 @@ class SelectiveChecks:
 
     @cached_property
     def testable_providers_integrations(self) -> list[str]:
-        if not self.run_unit_tests:
+        # A provider dependency bump runs no unit tests, but it can break the client/server
+        # compatibility that the provider's integration tests check.
+        provider_config_changed = bool(
+            self._matching_files(
+                FileGroupForCi.ALL_PROVIDERS_DISTRIBUTION_CONFIG_FILES, CI_FILE_GROUP_MATCHES
+            )
+        )
+        if not self.run_unit_tests and not provider_config_changed:
             return []
         if self.full_tests_needed or self._is_canary_run():
             # All tests are running - exercise every provider integration.

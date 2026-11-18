@@ -1077,7 +1077,9 @@ jobs:
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
       skip-providers-tests: ${{ needs.build-info.outputs.skip-providers-tests }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
-    if: needs.build-info.outputs.run-unit-tests == 'true'
+    if: >
+      needs.build-info.outputs.run-unit-tests == 'true' ||
+      needs.build-info.outputs.testable-providers-integrations != '[]'
 
   tests-with-lowest-direct-resolution-core:
     name: "Low dep tests:core"
