@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-11-18T12:39:57.169142
+# This constraints file was automatically generated on 2026-11-18T23:09:49.065666
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -31,7 +31,7 @@
 # pip install "apache-airflow==X.Y.Z" "snowflake-connector-python[pandas]=N.M.O"
 #
 APScheduler==3.11.3
-Authlib==1.9.5
+Authlib==1.9.6
 Deprecated==3.0.1
 Events==0.5
 Flask-JWT-Extended==4.7.4
@@ -308,7 +308,7 @@ duckdb==2.0.0
 durationpy==0.11
 elastic-transport==9.4.3
 elasticsearch==9.5.1
-email-validator==2.3.0
+email-validator==2.4.0
 entrypoints==0.4.2
 et_xmlfile==2.0.0
 eventlet==0.41.3
@@ -316,7 +316,7 @@ exasol-telemetry-client==0.2.1
 executing==2.3.0
 facebook_business==26.0.4
 fastapi-cli==0.0.34
-fastapi==0.162.7
+fastapi==0.163.0
 fastavro==1.13.1
 fastcore==2.2.41
 fasteners==0.20
@@ -674,7 +674,7 @@ snowflake-connector-python==4.8.1
 snowflake-snowpark-python==1.57.0
 snowflake-sqlalchemy==1.11.1
 sortedcontainers==2.4.0
-soupsieve==4.1
+soupsieve==4.1.1
 spython==0.3.14
 sqlalchemy-bigquery==1.18.0
 sqlalchemy-spanner==1.21.0
