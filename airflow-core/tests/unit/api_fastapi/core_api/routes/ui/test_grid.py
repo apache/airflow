@@ -1295,10 +1295,215 @@ class TestGetGridDataEndpoint:
         assert by_task_id["mapped_task_group.subtask"]["retry_at"] is None
         assert by_task_id["mapped_task_group"]["retry_at"] is None
 
+    @pytest.mark.parametrize(
+        ("filters", "expected_start"),
+        [
+            ({"start_date_gte": "2024-12-30T00:00:00Z"}, "2024-12-31T00:00:00Z"),
+            ({"end_date_lte": "2024-12-02T00:00:00Z"}, "2024-12-01T00:00:00Z"),
+            ({"start_date_gte": "2025-01-01T00:00:00Z"}, None),
+        ],
+    )
+    def test_grid_ti_summaries_filters_mapped_tasks_and_groups(
+        self, session, test_client, filters, expected_start
+    ):
+        tis = session.scalars(
+            select(TaskInstance).where(TaskInstance.dag_id == DAG_ID, TaskInstance.run_id == "run_1")
+        ).all()
+        for ti in tis:
+            ti.start_date = timezone.datetime(2024, 12, 1)
+            ti.end_date = ti.start_date + timedelta(minutes=1)
+            if ti.task_id == f"{TASK_GROUP_ID}.{MAPPED_TASK_ID}" and ti.map_index == 1:
+                ti.start_date = timezone.datetime(2024, 12, 31)
+                ti.end_date = ti.start_date + timedelta(minutes=1)
+        session.commit()
+
+        response = test_client.get(f"/grid/ti_summaries/{DAG_ID}", params={"run_ids": ["run_1"], **filters})
+        assert response.status_code == 200
+        [summary] = self._parse_ndjson(response)
+        if expected_start is None:
+            assert summary["task_instances"] == []
+        else:
+            by_task_id = {ti["task_id"]: ti for ti in summary["task_instances"]}
+            for task_id in (TASK_GROUP_ID, f"{TASK_GROUP_ID}.{MAPPED_TASK_ID}"):
+                assert by_task_id[task_id]["min_start_date"] == expected_start
+                assert by_task_id[task_id]["max_end_date"] == (
+                    timezone.parse(expected_start) + timedelta(minutes=1)
+                ).isoformat().replace("+00:00", "Z")
+
     @staticmethod
     def _parse_ndjson(response) -> list[dict]:
         """Parse NDJSON streaming response into a list of dicts."""
         return [json.loads(line) for line in response.text.splitlines() if line.strip()]
+
+    @pytest.mark.parametrize(
+        ("archived_state", "retry_state", "filters", "expected_state", "expected_end"),
+        [
+            (
+                "success",
+                "success",
+                {"end_date_lte": "2024-12-02T00:00:00Z"},
+                "success",
+                "2024-12-01T00:01:00Z",
+            ),
+            (
+                "success",
+                "up_for_retry",
+                {"end_date_lte": "2024-12-02T00:00:00Z"},
+                "success",
+                "2024-12-01T00:01:00Z",
+            ),
+            (
+                "failed",
+                "success",
+                {"start_date_gte": "2024-12-01T00:00:00Z"},
+                "success",
+                "2024-12-31T00:01:00Z",
+            ),
+            ("failed", "success", {"end_date_lte": "2024-12-02T00:00:00Z"}, "failed", "2024-12-01T00:01:00Z"),
+        ],
+    )
+    def test_grid_ti_summaries_filters_archived_group_attempts(
+        self,
+        dag_maker,
+        session,
+        test_client,
+        archived_state,
+        retry_state,
+        filters,
+        expected_state,
+        expected_end,
+    ):
+        with dag_maker("filtered_group_history", serialized=True):
+            with TaskGroup(group_id="group"):
+                EmptyOperator(task_id="work")
+        run = dag_maker.create_dagrun()
+        first = run.task_instances[0]
+        first.try_number = 1
+        first.state = archived_state
+        first.start_date = timezone.datetime(2024, 12, 1)
+        first.end_date = first.start_date + timedelta(minutes=1)
+        first.archive(reason="cleared", session=session)
+        retry = TaskInstance(
+            task=dag_maker.serialized_dag.get_task("group.work"),
+            run_id=run.run_id,
+            dag_version_id=first.dag_version_id,
+            region_id=first.region_id,
+            region_index=first.region_index,
+        )
+        retry.try_number = 2
+        retry.state = retry_state
+        retry.start_date = (
+            first.start_date
+            if retry_state == TaskInstanceState.UP_FOR_RETRY
+            else timezone.datetime(2024, 12, 31)
+        )
+        retry.end_date = retry.start_date + timedelta(minutes=1)
+        session.add(retry)
+        session.commit()
+
+        response = test_client.get(
+            f"/grid/ti_summaries/{run.dag_id}",
+            params={"run_ids": [run.run_id], **filters},
+        )
+        assert response.status_code == 200
+        [summary] = self._parse_ndjson(response)
+        group = next(ti for ti in summary["task_instances"] if ti["task_id"] == "group")
+        assert group["min_start_date"] == "2024-12-01T00:00:00Z"
+        assert group["max_end_date"] == expected_end
+        assert group["state"] == expected_state
+        assert group["child_states"] == {expected_state: 1}
+
+    @pytest.mark.parametrize("current_state", [TaskInstanceState.SUCCESS, TaskInstanceState.RUNNING])
+    def test_filtered_mapped_retries_count_each_coordinate_once(self, session, test_client, current_state):
+        task_id = f"{TASK_GROUP_ID}.{MAPPED_TASK_ID}"
+        tis = session.scalars(
+            select(TaskInstance).where(
+                TaskInstance.dag_id == DAG_ID,
+                TaskInstance.run_id == "run_1",
+                TaskInstance.task_id == task_id,
+            )
+        ).all()
+        assert {ti.region_index for ti in tis} == {0, 1, 2, 3}
+        for ti in tis:
+            ti.state = TaskInstanceState.FAILED
+            ti.try_number = 1
+            ti.start_date = timezone.datetime(2024, 12, 1)
+            ti.end_date = ti.start_date + timedelta(minutes=1)
+            current = ti.prepare_db_for_next_try(session=session)
+            current.state = current_state
+            current.start_date = timezone.datetime(2024, 12, 31)
+            current.end_date = (
+                current.start_date + timedelta(minutes=1)
+                if current_state == TaskInstanceState.SUCCESS
+                else None
+            )
+        session.commit()
+
+        response = test_client.get(
+            f"/grid/ti_summaries/{DAG_ID}",
+            params={"run_ids": ["run_1"], "start_date_gte": "2024-12-01T00:00:00Z"},
+        )
+        assert response.status_code == 200
+        [summary] = self._parse_ndjson(response)
+        mapped = next(ti for ti in summary["task_instances"] if ti["task_id"] == task_id)
+        assert mapped["child_states"] == {current_state: 4}
+        assert mapped["state"] == current_state
+        assert mapped["min_start_date"] == "2024-12-01T00:00:00Z"
+        expected_day = 31 if current_state == TaskInstanceState.SUCCESS else 1
+        assert mapped["max_end_date"] == f"2024-12-{expected_day:02}T00:01:00Z"
+
+    def test_filtered_archived_attempt_does_not_choose_an_old_group_structure(
+        self, dag_maker, session, test_client
+    ):
+        dag_id = "filtered_versioned_group"
+        with dag_maker(dag_id, serialized=True):
+            EmptyOperator(task_id="a")
+        run = dag_maker.create_dagrun(run_id="version_1")
+        archived = run.task_instances[0]
+        archived.try_number = 1
+        archived.state = TaskInstanceState.SUCCESS
+        archived.start_date = timezone.datetime(2024, 12, 1)
+        archived.end_date = archived.start_date + timedelta(minutes=1)
+        archived.archive(reason="cleared", session=session)
+
+        with dag_maker(dag_id, serialized=True):
+            EmptyOperator(task_id="a")
+            with TaskGroup(group_id="group"):
+                EmptyOperator(task_id="work")
+        dag_maker.create_dagrun(run_id="version_2", logical_date=timezone.datetime(2024, 12, 31))
+        version_id = session.scalar(
+            select(DagVersion.id)
+            .where(DagVersion.dag_id == dag_id)
+            .order_by(DagVersion.version_number.desc())
+            .limit(1)
+        )
+        for task_id, day in [("a", 31), ("group.work", 1)]:
+            ti = TaskInstance(
+                task=dag_maker.serialized_dag.get_task(task_id),
+                run_id=run.run_id,
+                dag_version_id=archived.dag_version_id if task_id == "a" else version_id,
+                region_id=archived.region_id,
+                region_index=archived.region_index,
+            )
+            ti.state = TaskInstanceState.SUCCESS
+            ti.start_date = timezone.datetime(2024, 12, day)
+            ti.end_date = ti.start_date + timedelta(minutes=1)
+            session.add(ti)
+        session.commit()
+
+        for filters in ({}, {"end_date_lte": "2024-12-02T00:00:00Z"}):
+            response = test_client.get(
+                f"/grid/ti_summaries/{dag_id}",
+                params={"run_ids": [run.run_id], **filters},
+            )
+            assert response.status_code == 200
+            [summary] = self._parse_ndjson(response)
+            group = next(ti for ti in summary["task_instances"] if ti["task_id"] == "group")
+            assert group["min_start_date"] == "2024-12-01T00:00:00Z"
+            assert group["max_end_date"] == "2024-12-01T00:01:00Z"
+            child = next(ti for ti in summary["task_instances"] if ti["task_id"] == "group.work")
+            assert child["state"] == TaskInstanceState.SUCCESS
+            assert group["child_states"] == {"success": 1}
 
     def test_grid_ti_summaries_stream_returns_all_runs(self, session, test_client):
         """Streaming endpoint returns one NDJSON line per requested run_id."""
@@ -1532,6 +1737,46 @@ class TestGetLoopSummaryEndpoint:
             "loop_exit_task_id": None,
             "loop_exit_criteria_doc": None,
         }
+
+    def test_filtered_loop_retries_preserve_iterations(self, executed_fixed_loop, session, test_client):
+        run = executed_fixed_loop
+        tis = session.scalars(
+            select(TaskInstance).where(
+                TaskInstance.dag_id == run.dag_id,
+                TaskInstance.run_id == run.run_id,
+                TaskInstance.task_id == "body.work",
+            )
+        ).all()
+        assert {ti.region_index for ti in tis} == {1, 2, 3}
+        for ti in tis:
+            ti.state = TaskInstanceState.FAILED
+            ti.start_date = timezone.datetime(2024, 12, 1)
+            ti.end_date = ti.start_date + timedelta(minutes=1)
+            current = ti.prepare_db_for_next_try(session=session)
+            current.state = TaskInstanceState.SUCCESS
+            current.start_date = timezone.datetime(2024, 12, 31)
+            current.end_date = current.start_date + timedelta(minutes=1)
+        session.commit()
+
+        response = test_client.get(
+            f"/grid/ti_summaries/{run.dag_id}",
+            params={
+                "run_ids": [run.run_id],
+                "start_date_gte": "2024-12-01T00:00:00Z",
+                "end_date_lte": "2025-01-01T00:00:00Z",
+            },
+        )
+        assert response.status_code == 200
+        [summary] = TestGetGridDataEndpoint._parse_ndjson(response)
+        work = next(ti for ti in summary["task_instances"] if ti["task_id"] == "body.work")
+        assert work["state"] == TaskInstanceState.SUCCESS
+        body = next(ti for ti in summary["task_instances"] if ti["task_id"] == "body")
+        # Each iteration contains both the work task and the loop gate.
+        assert body["child_states"] == {"success": 6}
+        assert body["loop_iterations_count"] == 3
+        assert work["latest_region_index"] == 3
+        assert work["min_start_date"] == "2024-12-01T00:00:00Z"
+        assert work["max_end_date"] == "2024-12-31T00:01:00Z"
 
     def test_ti_summaries_stream_rows_after_the_first(self, executed_fixed_loop, session):
         run = executed_fixed_loop

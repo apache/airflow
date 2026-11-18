@@ -30,8 +30,11 @@ import { BaseWrapper } from "src/utils/Wrapper";
 
 import { Gantt } from "./Gantt";
 
-const { mockUseGanttServiceGetGanttData } = vi.hoisted(() => ({
+const { mockUseGanttServiceGetGanttData, mockUseGridTiSummariesStream } = vi.hoisted(() => ({
   mockUseGanttServiceGetGanttData: vi.fn(() => ({ data: undefined, isLoading: false })),
+  mockUseGridTiSummariesStream: vi.fn(() => ({
+    summariesByRunId: new Map([["run_1", { task_instances: [] }]]),
+  })),
 }));
 
 vi.mock("openapi/queries", async (importOriginal) => ({
@@ -59,9 +62,7 @@ vi.mock("src/queries/useGridStructure", () => ({
 }));
 
 vi.mock("src/queries/useGridTISummaries", () => ({
-  useGridTiSummariesStream: () => ({
-    summariesByRunId: new Map([["run_1", { task_instances: [] }]]),
-  }),
+  useGridTiSummariesStream: mockUseGridTiSummariesStream,
 }));
 
 vi.mock("src/context/groups", () => ({
@@ -84,6 +85,7 @@ const createWrapper =
 
 beforeEach(() => {
   mockUseGanttServiceGetGanttData.mockClear();
+  mockUseGridTiSummariesStream.mockClear();
 });
 
 afterEach(cleanup);
@@ -110,6 +112,15 @@ describe("Gantt time range filter params", () => {
       undefined,
       expect.anything(),
     );
+    expect(mockUseGridTiSummariesStream).toHaveBeenCalledWith({
+      dagId: "test_dag",
+      endDateGte: "2024-03-14T10:01:00Z",
+      endDateLte: "2024-03-14T10:10:00Z",
+      runIds: ["run_1"],
+      startDateGte: "2024-03-14T10:00:00Z",
+      startDateLte: "2024-03-14T10:05:00Z",
+      states: ["success"],
+    });
   });
 
   it("requests the full run when no date window is set", () => {
