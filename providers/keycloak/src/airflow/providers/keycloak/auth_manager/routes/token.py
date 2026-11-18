@@ -37,7 +37,9 @@ token_router = AirflowRouter(tags=["KeycloakAuthManagerToken"])
 @token_router.post(
     "/token",
     status_code=status.HTTP_201_CREATED,
-    responses=create_openapi_http_exception_doc([status.HTTP_400_BAD_REQUEST, status.HTTP_403_FORBIDDEN]),
+    responses=create_openapi_http_exception_doc(
+        [status.HTTP_400_BAD_REQUEST, status.HTTP_403_FORBIDDEN, status.HTTP_503_SERVICE_UNAVAILABLE]
+    ),
 )
 def create_token(body: TokenBody) -> TokenResponse:
     token = body.root.create_token(

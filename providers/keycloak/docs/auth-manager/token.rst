@@ -145,7 +145,9 @@ Command-line clients
 ''''''''''''''''''''
 
 Command-line clients read which login methods are offered from ``GET /api/v2/auth/cli/metadata``, then call
-``/auth/token/cli``. Besides username and password, two grants are available.
+``/auth/token/cli``. Besides username and password, two grants are available. The metadata route exists on Airflow
+3.5 and later. On earlier versions the grants below still work, but nothing advertises them, so ``airflowctl`` cannot
+use the browser login.
 
 **Refresh.** The CLI token embeds the Keycloak access token, which usually expires within minutes. A client can
 exchange its current CLI token for one with fresh Keycloak tokens:
@@ -157,9 +159,10 @@ exchange its current CLI token for one with fresh Keycloak tokens:
         -H 'Content-Type: application/json' \
         -d '{"grant_type": "refresh_token", "token": "<current CLI token>"}'
 
-The new token expires at the same time as the current one, so refreshing never extends a CLI session. On Airflow 3.2
-and later, the current token is revoked once the new one is issued. Airflow 3.0 and 3.1 have no token revocation, so
-there the current token stays usable until it expires, and logging out does not end it. Expired and revoked tokens
+The new token expires no later than the current one, so refreshing never extends a CLI session. Its remaining
+lifetime is rounded down to the minute, so it can expire up to a minute earlier. On Airflow 3.2 and later, the
+current token is revoked once the new one is issued. Airflow 3.0 and 3.1 have no token revocation, so there the
+current token stays usable until it expires, and logging out does not end it. Expired and revoked tokens
 cannot be refreshed. A Keycloak client with "Use Refresh Tokens" turned off issues no refresh token, so its CLI tokens
 cannot be refreshed either; refreshing one returns ``400`` and the user has to log in again.
 

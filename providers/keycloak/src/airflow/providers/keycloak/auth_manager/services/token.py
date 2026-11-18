@@ -38,6 +38,7 @@ from airflow.providers.keycloak.auth_manager.constants import (
     CONF_SECTION_NAME,
     CONF_SERVER_URL_KEY,
 )
+from airflow.providers.keycloak.auth_manager.exceptions import AuthManagerRefreshTokenExpiredException
 from airflow.providers.keycloak.auth_manager.keycloak_auth_manager import (
     KeycloakAuthManager,
     is_cli_authorization_code_enabled,
@@ -45,18 +46,14 @@ from airflow.providers.keycloak.auth_manager.keycloak_auth_manager import (
 from airflow.providers.keycloak.auth_manager.user import KeycloakAuthManagerUser
 from airflow.providers.keycloak.version_compat import AIRFLOW_V_3_2_PLUS
 
-try:
-    from airflow.api_fastapi.auth.managers.exceptions import AuthManagerRefreshTokenExpiredException
-except ImportError:
-
-    class AuthManagerRefreshTokenExpiredException(Exception):  # type: ignore[no-redef]
-        """In case it is using a version of Airflow without ``AuthManagerRefreshTokenExpiredException``."""
-
-
 # RFC 8252 section 7.3 loopback redirects. ``localhost`` is left out because it can resolve
 # to a non-loopback interface.
 CLI_LOOPBACK_HOSTS = frozenset({"127.0.0.1", "::1"})
 CLI_CALLBACK_PATH = "/callback"
+
+
+def build_keycloak_unavailable_error() -> HTTPException:
+    return HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Keycloak is unavailable")
 
 
 def is_cli_loopback_redirect_uri(redirect_uri: str) -> bool:
@@ -132,8 +129,13 @@ def create_token_for(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Invalid credentials",
         )
+    except KeycloakConnectionError:
+        raise build_keycloak_unavailable_error()
 
-    return _create_api_jwt_from_keycloak_tokens(client, tokens, expiration_time_in_seconds)
+    try:
+        return _create_api_jwt_from_keycloak_tokens(client, tokens, expiration_time_in_seconds)
+    except KeycloakConnectionError:
+        raise build_keycloak_unavailable_error()
 
 
 def create_jwt_federated_token(
@@ -283,20 +285,23 @@ def create_token_from_authorization_code(
             scope="openid",
         )
     except KeycloakConnectionError:
-        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Keycloak is unavailable")
+        raise build_keycloak_unavailable_error()
     except KeycloakError:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid authorization code")
 
-    return _create_api_jwt_from_keycloak_tokens(client, tokens, expiration_time_in_seconds)
+    try:
+        return _create_api_jwt_from_keycloak_tokens(client, tokens, expiration_time_in_seconds)
+    except KeycloakConnectionError:
+        raise build_keycloak_unavailable_error()
 
 
 def refresh_cli_token(token: str) -> str:
     """
     Create a CLI token with fresh Keycloak tokens from a CLI token that is still valid.
 
-    The new token expires with the old one, so refreshing never extends a CLI session. On Airflow 3.2+
-    the old token is revoked; earlier versions have no token revocation, so it stays usable until it
-    expires. Expired and revoked tokens are refused by ``get_user_from_token``.
+    The new token expires no later than the old one, so refreshing never extends a CLI session. On
+    Airflow 3.2+ the old token is revoked; earlier versions have no token revocation, so it stays usable
+    until it expires. Expired and revoked tokens are refused by ``get_user_from_token``.
     """
     auth_manager = cast("KeycloakAuthManager", get_auth_manager())
     try:
@@ -314,16 +319,19 @@ def refresh_cli_token(token: str) -> str:
     # get_user_from_token allows [api_auth] jwt_leeway past exp.
     expires_at = jwt.decode(token, options={"verify_signature": False})["exp"]
     expiration_time_in_seconds = int(expires_at - time.time())
+    # BaseAuthManager._get_token_signer caches one signer per lifetime: keep the distinct lifetimes few.
+    if expiration_time_in_seconds > 60:
+        expiration_time_in_seconds -= expiration_time_in_seconds % 60
     if expiration_time_in_seconds <= 0:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid token")
 
     try:
-        # Airflow before 3.1.7 has no AuthManagerRefreshTokenExpiredException, so refresh_tokens returns {} there.
+        # Before Airflow 3.1.7 there is no AuthManagerRefreshTokenExpiredException: refresh_tokens returns {}.
         tokens = auth_manager.refresh_tokens(user=user)
     except AuthManagerRefreshTokenExpiredException:
         tokens = {}
     except KeycloakConnectionError:
-        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Keycloak is unavailable")
+        raise build_keycloak_unavailable_error()
     if not tokens:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid token")
 

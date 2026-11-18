@@ -101,7 +101,8 @@ config:
         description: |
           Let command-line clients such as ``airflowctl`` log in through the browser, with the
           authorization code flow and PKCE. The Keycloak client must allow the loopback redirect
-          URIs ``http://127.0.0.1/callback`` and ``http://[::1]/callback``.
+          URIs ``http://127.0.0.1/callback`` and ``http://[::1]/callback``. Clients discover this
+          login on Airflow 3.5 and later.
         type: boolean
         version_added: 0.13.0
         example: ~

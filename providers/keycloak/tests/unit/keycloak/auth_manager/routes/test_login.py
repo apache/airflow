@@ -20,6 +20,7 @@ from http.cookies import SimpleCookie
 from unittest.mock import ANY, Mock, patch
 
 import pytest
+from keycloak import KeycloakConnectionError
 
 from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX
 
@@ -28,7 +29,7 @@ from tests_common.test_utils.version_compat import AIRFLOW_V_3_3_PLUS
 
 CLI_LOGIN_PARAMS = {
     "redirect_uri": "http://127.0.0.1:53682/callback",
-    "state": "state",
+    "state": "a&b=c",
     "code_challenge": "c" * 43,
     "code_challenge_method": "S256",
 }
@@ -47,13 +48,25 @@ class TestLoginRouter:
         assert response.status_code == 307
         assert response.headers["location"] == "https://keycloak/auth"
         mock_get_keycloak_client.return_value.auth_url.assert_called_once_with(
-            # auth_url does not encode its parameters, so the route has to
+            # auth_url does not encode its parameters, so the route has to.
             redirect_uri="http%3A%2F%2F127.0.0.1%3A53682%2Fcallback",
             scope="openid",
-            state="state",
+            state="a%26b%3Dc",
             code_challenge="c" * 43,
             code_challenge_method="S256",
         )
+
+    @conf_vars({("keycloak_auth_manager", "cli_authorization_code_enabled"): "True"})
+    @patch("airflow.providers.keycloak.auth_manager.routes.login.KeycloakAuthManager.get_keycloak_client")
+    def test_login_cli_keycloak_down(self, mock_get_keycloak_client, client):
+        mock_get_keycloak_client.return_value.auth_url.side_effect = KeycloakConnectionError("Can't connect")
+
+        response = client.get(
+            AUTH_MANAGER_FASTAPI_APP_PREFIX + "/login/cli", params=CLI_LOGIN_PARAMS, follow_redirects=False
+        )
+
+        assert response.status_code == 503
+        assert response.json() == {"detail": "Keycloak is unavailable"}
 
     @pytest.mark.parametrize(
         ("enabled", "overrides", "expected_status"),
