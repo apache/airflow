@@ -1441,6 +1441,7 @@ def get_provider_info():
                         "schema": {"type": ["boolean", "null"], "default": False},
                     },
                     "quota_project_id": {"label": "Quota Project ID", "schema": {"type": ["string", "null"]}},
+                    "universe_domain": {"label": "Universe Domain", "schema": {"type": ["string", "null"]}},
                 },
             },
             {
@@ -1520,6 +1521,7 @@ def get_provider_info():
                         "schema": {"type": ["boolean", "null"], "default": False},
                     },
                     "quota_project_id": {"label": "Quota Project ID", "schema": {"type": ["string", "null"]}},
+                    "universe_domain": {"label": "Universe Domain", "schema": {"type": ["string", "null"]}},
                     "use_legacy_sql": {"label": "Use Legacy SQL", "schema": {"type": ["boolean", "null"]}},
                     "location": {"label": "Location", "schema": {"type": ["string", "null"]}},
                     "priority": {

@@ -59,6 +59,27 @@ class TestBigtableHookNoDefaultProjectId:
         ):
             self.bigtable_hook_no_default_project_id = BigtableHook(gcp_conn_id="test")
 
+    @pytest.mark.parametrize("env_value", [None, "env.example"])
+    @pytest.mark.parametrize(
+        "api_endpoint_override",
+        [None, "custom-override.example"],
+    )
+    def test_get_client_options_uses_connection_universe(self, monkeypatch, env_value, api_endpoint_override):
+        self.bigtable_hook_no_default_project_id.extras = {
+            "universe_domain": "universe-a.example",
+        }
+
+        if env_value is None:
+            monkeypatch.delenv("GOOGLE_CLOUD_UNIVERSE_DOMAIN", raising=False)
+        else:
+            monkeypatch.setenv("GOOGLE_CLOUD_UNIVERSE_DOMAIN", env_value)
+
+        options = self.bigtable_hook_no_default_project_id.get_client_options(
+            api_endpoint_override=api_endpoint_override
+        )
+
+        assert options.api_endpoint == "bigtableadmin.universe-a.example"
+
     @pytest.mark.parametrize("api_endpoint_override", [None, "custom-override-api_endpoint"])
     def test_get_client_options_non_default_universe(self, monkeypatch, api_endpoint_override):
         monkeypatch.setenv("GOOGLE_CLOUD_UNIVERSE_DOMAIN", "custom-universe.com")
