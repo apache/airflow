@@ -27,6 +27,7 @@ import { paramPlaceholder, useParamStore } from "src/queries/useParamStore";
 
 import type { FlexibleFormElementProps } from ".";
 import { FieldSelector } from "./FieldSelector";
+import { findDateBoundError } from "./findDateBoundError";
 import { isRequired } from "./isParamRequired";
 
 /** Render a normal form row with a field that is auto-selected */
@@ -42,6 +43,8 @@ export const FieldRow = ({
     isRequired(param) && param.value === null ? translate("flexibleForm.validationErrorRequired") : undefined,
   );
   const [isValid, setIsValid] = useState(!(isRequired(param) && param.value === null));
+  const dateBoundError = isValid ? findDateBoundError(name, paramsDict) : undefined;
+  const isInvalid = !isValid || dateBoundError !== undefined;
 
   const onUpdate = (value?: string, _error?: unknown) => {
     if (Boolean(_error)) {
@@ -60,7 +63,7 @@ export const FieldRow = ({
   };
 
   return (
-    <Field.Root invalid={!isValid} orientation="horizontal" required={isRequired(param)}>
+    <Field.Root invalid={isInvalid} orientation="horizontal" required={isRequired(param)}>
       <Stack minWidth={0} style={{ flexBasis: "30%" }}>
         <Field.Label fontSize="md" wordBreak="break-word">
           {param.schema.title ?? name} <Field.RequiredIndicator />
@@ -77,7 +80,13 @@ export const FieldRow = ({
         ) : (
           <Field.HelperText>{param.description}</Field.HelperText>
         )}
-        {isValid ? undefined : <Field.ErrorText>{String(error)}</Field.ErrorText>}
+        {isInvalid ? (
+          <Field.ErrorText>
+            {dateBoundError
+              ? translate(dateBoundError.messageKey, { bound: dateBoundError.bound })
+              : String(error)}
+          </Field.ErrorText>
+        ) : undefined}
       </Stack>
     </Field.Root>
   );
