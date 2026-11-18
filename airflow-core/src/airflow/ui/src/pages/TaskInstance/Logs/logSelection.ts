@@ -33,12 +33,12 @@ type RowRange = {
  */
 export const getRowIndexForNode = (node: Node | null, container: HTMLElement): number | undefined => {
   const element = node instanceof Element ? node : node?.parentElement;
-  const row = element?.closest("[data-index]");
+  const row = element?.closest<HTMLElement>("[data-index]");
 
   if (!row || !container.contains(row)) {
     return undefined;
   }
-  const index = Number(row.getAttribute("data-index"));
+  const index = Number(row.dataset.index);
 
   return Number.isInteger(index) ? index : undefined;
 };
@@ -227,7 +227,7 @@ export const extractSelectedLogText = ({
   }
 
   const mountedIndexes = new Set(
-    [...container.querySelectorAll("[data-index]")].map((row) => Number(row.getAttribute("data-index"))),
+    [...container.querySelectorAll<HTMLElement>("[data-index]")].map((row) => Number(row.dataset.index)),
   );
 
   let hasUnmountedRow = false;

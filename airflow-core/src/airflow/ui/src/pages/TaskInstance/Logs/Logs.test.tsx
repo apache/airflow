@@ -89,6 +89,18 @@ describe("Task log source", () => {
   });
 });
 
+const expectRenderedLineNumber = async (pattern: RegExp, expectedLineNumber: number) => {
+  const row = (await screen.findByText(pattern)).closest('[data-testid^="virtualized-item-"]');
+
+  expect(row).not.toBeNull();
+
+  const anchor = row?.querySelector<HTMLAnchorElement>("a[id]");
+
+  expect(anchor).not.toBeNull();
+
+  expect(Number(anchor?.id)).toBe(expectedLineNumber);
+};
+
 const timestampPattern = /\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\]/u;
 const levelPattern = /INFO - /u;
 
@@ -478,18 +490,6 @@ describe("Task log search", () => {
     );
 
     await waitForLogs();
-
-    const expectRenderedLineNumber = async (pattern: RegExp, expectedLineNumber: number) => {
-      const row = (await screen.findByText(pattern)).closest('[data-testid^="virtualized-item-"]');
-
-      expect(row).not.toBeNull();
-
-      const anchor = row?.querySelector<HTMLAnchorElement>("a[id]");
-
-      expect(anchor).not.toBeNull();
-
-      expect(Number(anchor?.id)).toBe(expectedLineNumber);
-    };
 
     const summaryPre = screen.getByTestId("summary-Pre task execution logs");
 

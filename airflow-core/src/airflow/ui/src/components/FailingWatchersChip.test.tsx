@@ -117,7 +117,7 @@ describe("DagFailingWatchersChip", () => {
   });
 
   it("pages through more failing watchers than a page holds, keeping a page until the next loads", async () => {
-    let showNextPage: () => void = () => undefined;
+    let showNextPage: (() => void) | undefined;
     const nextPage = new Promise<void>((resolve) => {
       showNextPage = resolve;
     });
@@ -136,7 +136,7 @@ describe("DagFailingWatchersChip", () => {
 
     await waitFor(() => expect(new URLSearchParams(requested.at(-1)).get("offset")).toBe(String(PAGE_SIZE)));
     expect(within(modal).getByText("QueueDoesNotExist: queue_2")).toBeInTheDocument();
-    showNextPage();
+    showNextPage?.();
     expect(await within(modal).findByText("QueueDoesNotExist: queue_3")).toBeInTheDocument();
     expect(within(modal).queryByText("QueueDoesNotExist: queue_1")).not.toBeInTheDocument();
   });

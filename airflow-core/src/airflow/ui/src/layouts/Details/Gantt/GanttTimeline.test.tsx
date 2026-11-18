@@ -116,6 +116,8 @@ const passSegment = (taskId: string, iteration: number): GanttDataItem => ({
   y: taskId,
 });
 
+const styleOf = (node: Element) => globalThis.getComputedStyle(node);
+
 const PASS_MEMBERS = ["refine.improve", "refine.evaluate"];
 
 describe("GanttTimeline segment bars", () => {
@@ -555,7 +557,6 @@ describe("GanttTimeline segment bars", () => {
     );
 
     const [first, second] = [...document.querySelectorAll("[data-pinned-pass]")];
-    const styleOf = (node: Element) => globalThis.getComputedStyle(node);
 
     // The run is ringed at its ends and along its length, but not down the seam between the
     // two states, which is inside the thing being highlighted rather than its edge.
