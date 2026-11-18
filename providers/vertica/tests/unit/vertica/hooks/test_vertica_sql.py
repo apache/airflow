@@ -23,8 +23,9 @@ from unittest import mock
 from unittest.mock import MagicMock, PropertyMock, patch
 
 import pytest
+import vertica_python
 from sqlalchemy.dialects import registry
-from sqlalchemy.engine import Engine, make_url
+from sqlalchemy.engine import make_url
 from sqlalchemy.engine.default import DefaultDialect
 
 from airflow.models import Connection
@@ -205,33 +206,6 @@ def test_get_uri(vertica_hook):
     assert vertica_hook.get_uri() == "vertica+vertica_python://user:pass@vertica.cloud.com:5433/test_db"
 
 
-def test_get_sqlalchemy_engine(vertica_hook):
-    """
-    Test that the get_sqlalchemy_engine() method returns a valid SQLAlchemy engine.
-    """
-
-    with patch("airflow.providers.common.sql.hooks.sql.create_engine") as mock_create_engine:
-        mock_engine = MagicMock(spec=Engine)
-        mock_create_engine.return_value = mock_engine
-
-        engine = vertica_hook.get_sqlalchemy_engine()
-
-        assert engine is mock_engine
-
-        mock_create_engine.assert_called_once()
-        call_args = mock_create_engine.call_args[1]
-        assert "url" in call_args
-
-        actual_url = call_args["url"]
-
-        assert actual_url.drivername == "vertica+vertica_python"
-        assert actual_url.username == "user"
-        assert actual_url.password == "pass"
-        assert actual_url.host == "vertica.cloud.com"
-        assert actual_url.port == 5433
-        assert actual_url.database == "test_db"
-
-
 class StubVerticaDialect(DefaultDialect):
     """Stand-in for a Vertica SQLAlchemy dialect package, registered under the same name they use."""
 
@@ -241,8 +215,6 @@ class StubVerticaDialect(DefaultDialect):
 
     @classmethod
     def import_dbapi(cls):
-        import vertica_python
-
         return vertica_python
 
     @classmethod
@@ -283,6 +255,8 @@ def test_get_sqlalchemy_engine_resolves_vertica_dialect(vertica_hook):
     engine = vertica_hook.get_sqlalchemy_engine()
     assert isinstance(engine.dialect, StubVerticaDialect)
     assert engine.url.drivername == "vertica+vertica_python"
+    assert engine.url.username == USER
+    assert engine.url.password == PASSWORD
     assert engine.url.host == HOST
     assert engine.url.port == PORT
     assert engine.url.database == DATABASE
