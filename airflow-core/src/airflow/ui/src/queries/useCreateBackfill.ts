@@ -26,11 +26,12 @@ import {
   UseDagServiceGetDagKeyFn,
   useBackfillServiceCreateBackfill,
   useBackfillServiceListBackfillsUiKey,
-  useDagServiceGetDagsUiKey,
 } from "openapi/queries";
 import type { BackfillResponse, CreateBackfillData } from "openapi/requests/types.gen";
 
 import { toaster } from "src/system-components";
+
+import { dagListQueryKeys } from "src/queries/gridViewQueryKeys";
 
 export const useCreateBackfill = ({ onSuccessConfirm }: { onSuccessConfirm: () => void }) => {
   const [dateValidationError, setDateValidationError] = useState<unknown>(undefined);
@@ -43,12 +44,11 @@ export const useCreateBackfill = ({ onSuccessConfirm }: { onSuccessConfirm: () =
       ? [
           UseDagServiceGetDagKeyFn({ dagId }, [{ dagId }]),
           UseDagServiceGetDagDetailsKeyFn({ dagId }, [{ dagId }]),
-          [useDagServiceGetDagsUiKey],
         ]
       : [];
 
     await Promise.all(
-      [[useBackfillServiceListBackfillsUiKey], ...drainKeys].map((queryKey) =>
+      [[useBackfillServiceListBackfillsUiKey], ...dagListQueryKeys, ...drainKeys].map((queryKey) =>
         queryClient.invalidateQueries({ queryKey }),
       ),
     );
