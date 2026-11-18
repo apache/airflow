@@ -396,14 +396,11 @@ def _get_callable_name(f: Callable | str) -> str:
 
 @attrs.define
 class _MapResult(Sequence):
-    value: Sequence | dict
+    value: Sequence
     callables: MapCallables
 
     def __getitem__(self, index: Any) -> Any:
-        if isinstance(self.value, dict):
-            value = list(self.value.items())[index]
-        else:
-            value = self.value[index]
+        value = self.value[index]
 
         for f in self.callables:
             value = f(value)
@@ -453,18 +450,22 @@ class MapXComArg(XComArg):
 
     def resolve(self, context: Mapping[str, Any]) -> Any:
         value = self.arg.resolve(context)
-        if not isinstance(value, (Sequence, dict)):
+        if isinstance(value, dict):
+            # dict upstreams follow the (key, value) convention; materialize once here
+            # so per-index access in _MapResult is not quadratic
+            value = list(value.items())
+        elif not isinstance(value, Sequence):
             raise ValueError(f"XCom map expects sequence or dict, not {type(value).__name__}")
         return _MapResult(value, self.callables)
 
 
 @attrs.define
 class _ZipResult(Sequence):
-    values: Sequence[Sequence | dict]
+    values: Sequence[Sequence]
     fillvalue: Any = attrs.field(default=NOTSET, kw_only=True)
 
     @staticmethod
-    def _get_or_fill(container: Sequence | dict, index: Any, fillvalue: Any) -> Any:
+    def _get_or_fill(container: Sequence, index: Any, fillvalue: Any) -> Any:
         try:
             return container[index]
         except (IndexError, KeyError):
@@ -518,12 +519,15 @@ class ZipXComArg(XComArg):
         for value in values:
             if not isinstance(value, (Sequence, dict)):
                 raise ValueError(f"XCom zip expects sequence or dict, not {type(value).__name__}")
+        # dict upstreams follow the (key, value) convention; materialize each once here
+        # so per-index access in _ZipResult is not quadratic
+        values = [list(v.items()) if isinstance(v, dict) else v for v in values]
         return _ZipResult(values, fillvalue=self.fillvalue)
 
 
 @attrs.define
 class _ConcatResult(Sequence):
-    values: Sequence[Sequence | dict]
+    values: Sequence[Sequence]
 
     def __getitem__(self, index: Any) -> Any:
         if index >= 0:
@@ -579,6 +583,9 @@ class ConcatXComArg(XComArg):
         for value in values:
             if not isinstance(value, (Sequence, dict)):
                 raise ValueError(f"XCom concat expects sequence or dict, not {type(value).__name__}")
+        # dict upstreams follow the (key, value) convention; materialize each once here
+        # so per-index access in _ConcatResult is not quadratic
+        values = [list(v.items()) if isinstance(v, dict) else v for v in values]
         return _ConcatResult(values)
 
 
