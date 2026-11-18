@@ -64,6 +64,7 @@ const partition = (
 const renderPartitions = (
   partitions: Array<AssetPartitionResponse>,
   statusCounts: AssetPartitionStatusCounts = { failed: 1, in_progress: 0, materialized: 2 },
+  initialEntry = "/assets/1/partitions",
 ) => {
   const getAssetPartitions = vi.spyOn(AssetService, "getAssetPartitions").mockResolvedValue({
     partitions,
@@ -73,7 +74,7 @@ const renderPartitions = (
 
   render(
     <BaseWrapper>
-      <MemoryRouter initialEntries={["/assets/1/partitions"]}>
+      <MemoryRouter initialEntries={[initialEntry]}>
         <TimezoneProvider>
           <Routes>
             <Route element={<AssetPartitions />} path="/assets/:assetId/partitions" />
@@ -128,19 +129,25 @@ describe("AssetPartitions", () => {
     expect(screen.getByTestId("partition-status-in_progress")).toHaveTextContent("0");
   });
 
-  it("filters by the statuses that are switched on", async () => {
-    const getAssetPartitions = renderPartitions([partition("2026-01-01", "materialized")]);
-
-    fireEvent.click(await screen.findByTestId("partition-status-failed"));
-    await waitFor(() =>
-      expect(getAssetPartitions).toHaveBeenLastCalledWith(expect.objectContaining({ status: ["failed"] })),
+  it("filters by the statuses in the URL and does not filter from the counts", async () => {
+    const getAssetPartitions = renderPartitions(
+      [partition("2026-01-01", "failed")],
+      undefined,
+      "/assets/1/partitions?partition_status=failed&partition_status=in_progress",
     );
-    expect(screen.getByTestId("partition-status-failed")).toHaveAttribute("aria-pressed", "true");
 
-    fireEvent.click(screen.getByTestId("partition-status-failed"));
     await waitFor(() =>
-      expect(screen.getByTestId("partition-status-failed")).toHaveAttribute("aria-pressed", "false"),
+      expect(getAssetPartitions).toHaveBeenLastCalledWith(
+        expect.objectContaining({ status: ["failed", "in_progress"] }),
+      ),
     );
+    // Once as the count label, once in the filter pill.
+    expect(screen.getAllByText("assets:partitions.status.in_progress")).toHaveLength(2);
+
+    const requests = getAssetPartitions.mock.calls.length;
+
+    fireEvent.click(screen.getByTestId("partition-status-materialized"));
+    expect(getAssetPartitions).toHaveBeenCalledTimes(requests);
   });
 
   it("sorts by the clicked column", async () => {

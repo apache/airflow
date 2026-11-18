@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Button, HStack } from "@chakra-ui/react";
+import { Box, HStack, Text } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { useTranslation } from "react-i18next";
 import { useParams, useSearchParams } from "react-router-dom";
@@ -46,7 +46,10 @@ import {
   STATUS_LABEL_KEY,
 } from "./partitionStatus";
 
-const FILTER_KEYS: Array<FilterableSearchParamsKeys> = [SearchParamsKeys.PARTITION_KEY];
+const FILTER_KEYS: Array<FilterableSearchParamsKeys> = [
+  SearchParamsKeys.PARTITION_KEY,
+  SearchParamsKeys.PARTITION_STATUS,
+];
 
 const isPartitionStatus = (value: string): value is PartitionStatus =>
   (PARTITION_STATUSES as Array<string>).includes(value);
@@ -114,11 +117,11 @@ export const AssetPartitions = () => {
   const { pagination, sorting } = tableURLState;
   const [sort] = sorting;
   const orderBy = sort ? `${sort.desc ? "-" : ""}${sort.id}` : "-partition_key";
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
   const { filterConfigs, handleFiltersChange, initialValues } = useFiltersHandler(FILTER_KEYS);
   const refetchInterval = useAutoRefresh({});
 
-  const selectedStatuses = searchParams.getAll(SearchParamsKeys.STATE).filter(isPartitionStatus);
+  const selectedStatuses = searchParams.getAll(SearchParamsKeys.PARTITION_STATUS).filter(isPartitionStatus);
 
   const { data, error, isLoading } = useAssetServiceGetAssetPartitions(
     {
@@ -138,40 +141,19 @@ export const AssetPartitions = () => {
     },
   );
 
-  const toggleStatus = (status: PartitionStatus) => {
-    const next = new URLSearchParams(searchParams);
-    const remaining = selectedStatuses.filter((selected) => selected !== status);
-
-    next.delete(SearchParamsKeys.STATE);
-    (remaining.length === selectedStatuses.length ? [...selectedStatuses, status] : remaining).forEach(
-      (selected) => next.append(SearchParamsKeys.STATE, selected),
-    );
-    // The filtered list is shorter, so the current page may not exist in it.
-    next.delete(SearchParamsKeys.OFFSET);
-    setSearchParams(next);
-  };
-
   const columns = getColumns(translate);
 
   return (
     <Box display="flex" flex={1} flexDirection="column" gap={3} minH={0} overflow="auto" px={4} py={2}>
       <ErrorAlert error={error} />
-      <HStack flexWrap="wrap" gap={1} ms={-2}>
+      <HStack flexWrap="wrap" gap={4}>
         {PARTITION_STATUSES.map((status) => (
-          <Button
-            aria-pressed={selectedStatuses.includes(status)}
-            data-testid={`partition-status-${status}`}
-            key={status}
-            onClick={() => toggleStatus(status)}
-            px={2}
-            size="sm"
-            variant={selectedStatuses.includes(status) ? "subtle" : "ghost"}
-          >
+          <HStack data-testid={`partition-status-${status}`} gap={2} key={status}>
             <StateBadge fontSize="md" state={RUN_STATE_BY_STATUS[status]}>
               {data === undefined ? " " : formatNumber(data.status_counts[status] ?? 0, i18n.language)}
             </StateBadge>
-            {translate(STATUS_LABEL_KEY[status])}
-          </Button>
+            <Text fontSize="sm">{translate(STATUS_LABEL_KEY[status])}</Text>
+          </HStack>
         ))}
       </HStack>
       <DataTable
