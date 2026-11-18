@@ -103,7 +103,9 @@ The shape of a document
     Dags. By default (see :ref:`config:core__dag_discovery_safe_mode`), a file
     that does not carry the canonical ``$schema`` URL is skipped, so a mistyped
     URL makes the file disappear the same way. An editor that understands
-    ``$schema`` can offer validation and completion from it.
+    ``$schema`` can offer validation and completion from it. A file pinned to
+    an older published version keeps working; it is migrated to the current
+    format when it is loaded.
 
 Dag-level keys
     Dag attributes sit at the top level, such as ``dag_id``, ``schedule``,

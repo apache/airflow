@@ -211,6 +211,25 @@ class XComRef(_MarkerRef):
     )
     key: str = Field(default=BaseXCom.XCOM_RETURN_KEY, title="XCom key")
 
+    @model_validator(mode="before")
+    @classmethod
+    def _reject_nested_target(cls, data: Any) -> Any:
+        """Point the removed ``{$x: {task: t, key: k}}`` form at its replacement."""
+        if not isinstance(data, dict):
+            return data
+        for marker in cls._marker_keys:
+            operand = data.get(marker)
+            if not isinstance(operand, dict) or "task" not in operand:
+                continue
+            if not operand.keys() <= {"task", "key"}:
+                continue  # Not the old form either; leave it to field validation.
+            if (key := operand.get("key")) is None:
+                fixed = f"{marker}: {operand['task']}"
+            else:
+                fixed = f"{marker}: {operand['task']}, key: {key}"
+            raise ValueError(f"the key of an XCom reference goes beside {marker}; write {{{fixed}}}")
+        return data
+
     def build_marker_flags(self) -> _MarkerFlags:
         return _MarkerFlags(needs_render=True, has_marker=True)
 

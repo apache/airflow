@@ -21,6 +21,7 @@ import datetime
 import io
 import json
 import pathlib
+import re
 import textwrap
 
 import jsonschema
@@ -109,9 +110,32 @@ def test_xcom_null_key_rejected():
         _task("- {id: t, uses: X, with: {a: {$x: up, key: null}}}")
 
 
-def test_xcom_nested_object_form_rejected_at_head():
-    with pytest.raises(YamlDagParseError, match="valid string"):
-        _task("- {id: t, uses: X, with: {a: {$x: {task: up, key: rows}}}}")
+@pytest.mark.parametrize(
+    ("value", "fixed"),
+    [
+        pytest.param("{$x: {task: up, key: rows}}", "{$x: up, key: rows}", id="x-keyed"),
+        pytest.param("{$xcom: {task: up, key: rows}}", "{$xcom: up, key: rows}", id="xcom-keyed"),
+        pytest.param("{$x: {task: up}}", "{$x: up}", id="x-task-only"),
+    ],
+)
+def test_xcom_nested_object_form_rejected_at_head(value, fixed):
+    with pytest.raises(YamlDagParseError, match=re.escape(f"write {fixed}")):
+        _task(f"- {{id: t, uses: X, with: {{a: {value}}}}}")
+
+
+@pytest.mark.parametrize("version", ["2027-02-28", "2026-10-30"])
+def test_xcom_nested_object_form_with_unknown_key_gets_no_suggestion(version):
+    text = textwrap.dedent(f"""\
+        $schema: https://airflow.apache.org/schemas/dag/{version}.json
+        dag_id: d
+        tasks:
+          - {{id: up, run: {{}}}}
+          - {{id: t, uses: X, with: {{a: {{$x: {{task: up, kye: rows}}}}}}}}
+    """)
+    with pytest.raises(YamlDagParseError) as ctx:
+        list(parse_documents(text))
+    assert "goes beside" not in str(ctx.value)
+    assert "valid string" in str(ctx.value)
 
 
 def test_xcom_nested_object_form_migrated_from_2026_10_30():
