@@ -191,16 +191,12 @@ def test_2027_02_28_leaves_other_task_keys_alone():
     assert out["tasks"] == [task]
 
 
-def test_2027_02_28_handles_shared_nodes():
-    shared = {"v": {"$x": {"task": "a", "key": "k"}}}
-    body = {
-        "$schema": migrator.schema_from_version("2026-10-30"),
-        "dag_id": "d",
-        "tasks": [{"id": "t1", "with": shared}, {"id": "t2", "with": shared}],
-    }
-    out = migrator.get_migrator().resolve_and_migrate(body)
-    assert [t["with"] for t in out["tasks"]] == [{"v": {"$x": "a", "key": "k"}}] * 2
-    assert shared == {"v": {"$x": {"task": "a", "key": "k"}}}  # the input is not mutated
+def test_2027_02_28_does_not_mutate_shared_nodes():
+    ref = {"$x": {"task": "a", "key": "k"}}
+    out = _migrate_from_2026_10_30(tasks=[{"id": "t", "with": {"v": ref}, "doc_md": ref}])
+    (task,) = out["tasks"]
+    assert task["with"] == {"v": {"$x": "a", "key": "k"}}
+    assert task["doc_md"] == {"$x": {"task": "a", "key": "k"}}
 
 
 class _AppendV2(VersionChange):
