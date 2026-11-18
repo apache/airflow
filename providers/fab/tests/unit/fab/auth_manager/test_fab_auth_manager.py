@@ -297,67 +297,50 @@ class TestFabAuthManager:
         assert result.get_id() == user.get_id()
         mock_deserialize_user.assert_not_called()
 
-    @mock.patch("airflow.providers.fab.auth_manager.fab_auth_manager.create_session_async")
+    @mock.patch(
+        "airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager._get_token_validator",
+        autospec=True,
+    )
     @pytest.mark.asyncio
-    async def test_deserialize_user_async_retries_once_after_db_error(
-        self, mock_create_session_async, auth_manager_with_appbuilder
+    async def test_get_user_from_token_uses_synchronous_deserialization_override(
+        self, mock_get_token_validator
     ):
-        user = Mock()
-        user.id = 99996
-        failed_session = MagicMock()
-        failed_session.scalars = mock.AsyncMock(
-            side_effect=OperationalError("connection dropped", None, Exception())
-        )
-        retry_session = MagicMock()
-        retry_query_result = Mock()
-        retry_query_result.one_or_none.return_value = user
-        retry_session.scalars = mock.AsyncMock(return_value=retry_query_result)
-        auth_manager_with_appbuilder.cache.pop(user.id, None)
+        user = mock.sentinel.user
 
-        @asynccontextmanager
-        async def create_session(session):
-            yield session
+        class CustomFabAuthManager(FabAuthManager):
+            def deserialize_user(self, token):
+                assert token == {"sub": "42"}
+                return user
 
-        mock_create_session_async.side_effect = [
-            create_session(failed_session),
-            create_session(retry_session),
-        ]
-        result = await auth_manager_with_appbuilder.deserialize_user_async({"sub": str(user.id)})
+        mock_get_token_validator.return_value.avalidated_claims = mock.AsyncMock(return_value={"sub": "42"})
 
-        assert result == user
-        failed_session.scalars.assert_awaited_once()
-        retry_session.scalars.assert_awaited_once()
+        result = await CustomFabAuthManager(None).get_user_from_token("token")
+
+        assert result is user
 
     @mock.patch("airflow.providers.fab.auth_manager.fab_auth_manager.create_session_async")
     @pytest.mark.asyncio
-    async def test_deserialize_user_async_propagates_second_db_error(
+    async def test_deserialize_user_async_propagates_db_error_without_retry(
         self, mock_create_session_async, auth_manager_with_appbuilder
     ):
-        user_id = 99995
+        user_id = 99996
         failed_session = MagicMock()
         failed_session.scalars = mock.AsyncMock(
-            side_effect=OperationalError("connection dropped", None, Exception())
-        )
-        retry_session = MagicMock()
-        retry_session.scalars = mock.AsyncMock(
             side_effect=OperationalError("connection dropped", None, Exception())
         )
         auth_manager_with_appbuilder.cache.pop(user_id, None)
 
         @asynccontextmanager
-        async def create_session(session):
-            yield session
+        async def create_session():
+            yield failed_session
 
-        mock_create_session_async.side_effect = [
-            create_session(failed_session),
-            create_session(retry_session),
-        ]
+        mock_create_session_async.side_effect = create_session
         with pytest.raises(OperationalError):
             await auth_manager_with_appbuilder.deserialize_user_async({"sub": str(user_id)})
 
         assert user_id not in auth_manager_with_appbuilder.cache
         failed_session.scalars.assert_awaited_once()
-        retry_session.scalars.assert_awaited_once()
+        mock_create_session_async.assert_called_once_with()
 
     def test_deserialize_user_rejects_inactive_user(self, flask_app, auth_manager_with_appbuilder):
         """A token naming a deactivated account must not resolve to a user."""

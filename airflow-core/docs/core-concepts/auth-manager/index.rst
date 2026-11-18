@@ -112,6 +112,9 @@ Authentication related methods
   It should contain all the information needed to identify the user and make an authorization request.
 * ``deserialize_user``: Create a user instance from a dict. The dict is the payload of the JWT token.
   This is the same dict returned by ``serialize_user``.
+* ``deserialize_user_async``: Asynchronously create a user instance from a dict. The default implementation calls
+  ``deserialize_user`` for compatibility with existing auth managers. Auth managers that perform I/O while
+  deserializing users should override this method with an asynchronous implementation.
 
 .. _auth-manager-cli-login:
 

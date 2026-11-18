@@ -350,6 +350,10 @@ class FabAuthManager(BaseAuthManager[User]):
 
     async def deserialize_user_async(self, token: dict[str, Any]) -> User:
         """Deserialize a user for FastAPI JWT authentication without blocking its event loop."""
+        # Preserve legacy synchronous overrides while the default FAB implementation uses async lookup below.
+        if type(self).deserialize_user is not FabAuthManager.deserialize_user:
+            return self.deserialize_user(token)
+
         user_id = int(token["sub"])
         try:
             return self.cache[user_id]
@@ -361,10 +365,7 @@ class FabAuthManager(BaseAuthManager[User]):
                 user = (await session.scalars(select(User).where(User.id == user_id))).one_or_none()
                 return self._validate_user(user, token["sub"])
 
-        try:
-            user = await _fetch_user()
-        except SQLAlchemyError:
-            user = await _fetch_user()
+        user = await _fetch_user()
 
         self.cache[user_id] = user
         return user
