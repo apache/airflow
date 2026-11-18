@@ -18,7 +18,6 @@
  */
 import { useState } from "react";
 
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import "@testing-library/jest-dom/vitest";
 import { render, screen } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
@@ -96,13 +95,9 @@ const renderWith = ({
   );
   const onRecheck = vi.fn();
 
-  render(
-    // The app does not retry a 4xx; the shared wrapper's client would, and outlast the assertion.
-    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-      <Harness fixedOnRecheck={fixedOnRecheck} hasImportError={hasImportError} onRecheck={onRecheck} />
-    </QueryClientProvider>,
-    { wrapper: Wrapper },
-  );
+  render(<Harness fixedOnRecheck={fixedOnRecheck} hasImportError={hasImportError} onRecheck={onRecheck} />, {
+    wrapper: Wrapper,
+  });
 
   return onRecheck;
 };

@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import type { PropsWithChildren } from "react";
+import { type PropsWithChildren, useMemo } from "react";
 
 import { ChakraProvider, defaultSystem } from "@chakra-ui/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -25,13 +25,18 @@ import { MemoryRouter } from "react-router-dom";
 import { TimezoneProvider } from "src/context/timezone";
 
 export const BaseWrapper = ({ children }: PropsWithChildren) => {
-  const queryClient = new QueryClient({
-    defaultOptions: {
-      queries: {
-        staleTime: Infinity,
-      },
-    },
-  });
+  // No retries: React Query's default backoff holds an error back for seconds, longer than a test
+  // waits for it. src/queryClient.test.ts covers the app's own retry rules.
+  const queryClient = useMemo(
+    () =>
+      new QueryClient({
+        defaultOptions: {
+          mutations: { retry: false },
+          queries: { retry: false, staleTime: Infinity },
+        },
+      }),
+    [],
+  );
 
   return (
     <ChakraProvider value={defaultSystem}>

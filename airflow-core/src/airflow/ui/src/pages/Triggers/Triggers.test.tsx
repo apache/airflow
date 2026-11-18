@@ -16,39 +16,18 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { ChakraProvider, defaultSystem } from "@chakra-ui/react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import "@testing-library/jest-dom/vitest";
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
-import { createMemoryRouter, RouterProvider } from "react-router-dom";
-import { beforeAll, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
-import { TimezoneProvider } from "src/context/timezone";
 import { alsoWatching, triggers } from "src/mocks/handlers/triggers";
 import { server } from "src/mocks/server";
-import { routerConfig } from "src/router";
-import { preloadAppRoutes } from "src/utils/AppWrapper";
+import { AppWrapper, preloadAppRoutes } from "src/utils/AppWrapper";
 
-beforeAll(() => preloadAppRoutes(["/triggers"]));
+await preloadAppRoutes(["/triggers"]);
 
-const renderAt = (path: string) =>
-  render(
-    <ChakraProvider value={defaultSystem}>
-      <QueryClientProvider
-        client={new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } })}
-      >
-        <TimezoneProvider>
-          <RouterProvider
-            router={createMemoryRouter(
-              routerConfig.map((route) => ({ ...route, loader: undefined })),
-              { initialEntries: [path] },
-            )}
-          />
-        </TimezoneProvider>
-      </QueryClientProvider>
-    </ChakraProvider>,
-  );
+const renderAt = (path: string) => render(<AppWrapper initialEntries={[path]} />);
 
 // Tests render i18n keys: the msw handlers serve empty translation bundles.
 describe("Triggers list", () => {
