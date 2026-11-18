@@ -1652,6 +1652,12 @@ export const $BulkDAGRunClearBody = {
             title: 'Run On Latest Version',
             description: '(Experimental) Run on the latest bundle version of the Dag after clearing. If not specified, falls back to the DAG-level ``rerun_with_latest_version`` parameter, then the ``[core] rerun_with_latest_version`` config option, and finally ``False``.'
         },
+        keep_task_state: {
+            type: 'boolean',
+            title: 'Keep Task State',
+            description: 'Keep the task state store entries of the cleared task instances so the next attempt resumes from them. By default they are discarded, so the task starts over.',
+            default: false
+        },
         note: {
             anyOf: [
                 {
@@ -2289,6 +2295,13 @@ export const $BulkUpdateAction_VariableBody_ = {
     type: 'object',
     required: ['action', 'entities'],
     title: 'BulkUpdateAction[VariableBody]'
+} as const;
+
+export const $CallbackState = {
+    type: 'string',
+    enum: ['scheduled', 'pending', 'queued', 'running', 'success', 'failed'],
+    title: 'CallbackState',
+    description: 'All possible states of callbacks.'
 } as const;
 
 export const $ClearPartitionsBody = {
@@ -4040,6 +4053,12 @@ export const $DAGRunClearBody = {
             ],
             title: 'Run On Latest Version',
             description: '(Experimental) Run on the latest bundle version of the Dag after clearing. If not specified, falls back to the DAG-level ``rerun_with_latest_version`` parameter, then the ``[core] rerun_with_latest_version`` config option, and finally ``False``.'
+        },
+        keep_task_state: {
+            type: 'boolean',
+            title: 'Keep Task State',
+            description: 'Keep the task state store entries of the cleared task instances so the next attempt resumes from them. By default they are discarded, so the task starts over.',
+            default: false
         },
         note: {
             anyOf: [
@@ -10575,10 +10594,18 @@ export const $TriggerAssetWatcherReferenceResponse = {
         watcher_name: {
             type: 'string',
             title: 'Watcher Name'
+        },
+        scheduled_dag_ids: {
+            items: {
+                type: 'string'
+            },
+            type: 'array',
+            title: 'Scheduled Dag Ids',
+            description: "The Dags scheduled on the asset (directly or by an asset name or URI reference), which the watcher's events run; only those the caller can read."
         }
     },
     type: 'object',
-    required: ['asset_id', 'asset_name', 'asset_uri', 'watcher_name'],
+    required: ['asset_id', 'asset_name', 'asset_uri', 'watcher_name', 'scheduled_dag_ids'],
     title: 'TriggerAssetWatcherReferenceResponse',
     description: 'An asset watcher a trigger serves.'
 } as const;
@@ -10614,13 +10641,12 @@ export const $TriggerCallbackReferenceResponse = {
         state: {
             anyOf: [
                 {
-                    type: 'string'
+                    '$ref': '#/components/schemas/CallbackState'
                 },
                 {
                     type: 'null'
                 }
-            ],
-            title: 'State'
+            ]
         }
     },
     type: 'object',
@@ -10932,7 +10958,7 @@ export const $TriggerKind = {
     type: 'string',
     enum: ['task', 'callback', 'asset_watcher'],
     title: 'TriggerKind',
-    description: 'What a trigger runs for, worked out from its owner rather than stored.'
+    description: 'What a trigger runs for, worked out from what it is used by rather than stored.'
 } as const;
 
 export const $TriggerResponse = {
@@ -11016,13 +11042,12 @@ export const $TriggerTaskInstanceReferenceResponse = {
         state: {
             anyOf: [
                 {
-                    type: 'string'
+                    '$ref': '#/components/schemas/TaskInstanceState'
                 },
                 {
                     type: 'null'
                 }
-            ],
-            title: 'State'
+            ]
         }
     },
     type: 'object',
@@ -11774,7 +11799,7 @@ export const $BaseNodeResponse = {
         },
         type: {
             type: 'string',
-            enum: ['join', 'task', 'asset-condition', 'asset', 'asset-alias', 'asset-name-ref', 'asset-uri-ref', 'dag', 'sensor', 'trigger'],
+            enum: ['join', 'task', 'asset-condition', 'asset', 'asset-alias', 'asset-name-ref', 'asset-uri-ref', 'asset-watcher', 'dag', 'sensor', 'trigger'],
             title: 'Type'
         },
         team: {
@@ -11799,6 +11824,27 @@ export const $BaseNodeResponse = {
                 }
             ],
             title: 'Asset Condition Type'
+        },
+        trigger_id: {
+            anyOf: [
+                {
+                    type: 'integer'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Trigger Id'
+        },
+        trigger_status: {
+            anyOf: [
+                {
+                    '$ref': '#/components/schemas/TriggerStatus'
+                },
+                {
+                    type: 'null'
+                }
+            ]
         }
     },
     type: 'object',
@@ -11895,13 +11941,6 @@ export const $CalendarTimeRangeResponse = {
     required: ['date', 'state', 'count'],
     title: 'CalendarTimeRangeResponse',
     description: 'Represents a summary of DAG runs for a specific calendar time range.'
-} as const;
-
-export const $CallbackState = {
-    type: 'string',
-    enum: ['scheduled', 'pending', 'queued', 'running', 'success', 'failed'],
-    title: 'CallbackState',
-    description: 'All possible states of callbacks.'
 } as const;
 
 export const $ConfigResponse = {
@@ -12929,6 +12968,18 @@ export const $DeadlineResponse = {
                 }
             ],
             title: 'Callback Path'
+        },
+        callback_trigger_id: {
+            anyOf: [
+                {
+                    type: 'integer'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Callback Trigger Id',
+            description: 'The trigger running a triggerer callback, while it runs; see `GET /api/v2/triggers`.'
         }
     },
     type: 'object',
@@ -14263,7 +14314,7 @@ export const $NodeResponse = {
         },
         type: {
             type: 'string',
-            enum: ['join', 'task', 'asset-condition', 'asset', 'asset-alias', 'asset-name-ref', 'asset-uri-ref', 'dag', 'sensor', 'trigger'],
+            enum: ['join', 'task', 'asset-condition', 'asset', 'asset-alias', 'asset-name-ref', 'asset-uri-ref', 'asset-watcher', 'dag', 'sensor', 'trigger'],
             title: 'Type'
         },
         team: {
@@ -14288,6 +14339,27 @@ export const $NodeResponse = {
                 }
             ],
             title: 'Asset Condition Type'
+        },
+        trigger_id: {
+            anyOf: [
+                {
+                    type: 'integer'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Trigger Id'
+        },
+        trigger_status: {
+            anyOf: [
+                {
+                    '$ref': '#/components/schemas/TriggerStatus'
+                },
+                {
+                    type: 'null'
+                }
+            ]
         },
         children: {
             anyOf: [
