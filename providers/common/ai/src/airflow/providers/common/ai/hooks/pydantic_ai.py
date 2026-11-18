@@ -760,7 +760,7 @@ class PydanticAIHook(BaseHook):
 
         self.log.info("Resolving LLM fallback chain: %s", " -> ".join([self.llm_conn_id, *fallback_conn_ids]))
 
-        models: list[tuple[str, Model]] = []
+        members: list[tuple[str, Model]] = []
         seen: set[str] = set()
         for conn_id in fallback_conn_ids:
             if conn_id == self.llm_conn_id:
@@ -797,7 +797,7 @@ class PydanticAIHook(BaseHook):
                     f"{FALLBACK_CONN_IDS_EXTRA_KEY}. Chains are not resolved recursively -- list "
                     f"every provider directly on '{self.llm_conn_id}' instead."
                 )
-            models.append(
+            members.append(
                 (
                     conn_id,
                     hook._resolve_own_model(
@@ -808,7 +808,7 @@ class PydanticAIHook(BaseHook):
                 )
             )
 
-        return models
+        return members
 
     def _get_conn_if_model_configured(self) -> Model | None:
         """Return the hook model only when the hook or connection explicitly configures one."""
