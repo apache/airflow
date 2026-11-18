@@ -5466,7 +5466,7 @@ class TestInProcessSupervisorCommsAcrossThreads:
         comms = self._comms(serve)
         with (
             patch.object(task_runner, "SUPERVISOR_COMMS", comms, create=True),
-            patch.object(supervisor, "_core_decides_server_side_per_request", return_value=False),
+            patch.object(supervisor, "_has_per_request_server_context", autospec=True, return_value=False),
         ):
             assert comms.send("request") == "done"
             seen["after"] = task_runner.get_supervisor_comms()

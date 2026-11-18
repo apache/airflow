@@ -271,9 +271,11 @@ def _supervisor_comms() -> CommsDecoder[ToTask, ToSupervisor] | None:
     are hidden.
     """
     task_runner = sys.modules.get("airflow.sdk.execution_time.task_runner")
-    if task_runner is None:
+    # ``task_runner`` may still be importing and not define the function yet.
+    get_supervisor_comms = getattr(task_runner, "get_supervisor_comms", None)
+    if get_supervisor_comms is None:
         return None
-    return task_runner.get_supervisor_comms()
+    return get_supervisor_comms()
 
 
 def mask_secret(secret: JsonValue, name: str | None = None) -> None:

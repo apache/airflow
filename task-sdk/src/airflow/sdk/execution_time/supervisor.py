@@ -2547,7 +2547,7 @@ to the socket.
 
 
 @functools.cache
-def _core_decides_server_side_per_request() -> bool:
+def _has_per_request_server_context() -> bool:
     """
     Whether the installed airflow-core has ``airflow.process_context``.
 
@@ -2577,7 +2577,7 @@ class InProcessSupervisorComms:
 
         self.log.debug("Sending request", msg=msg)
         hidden_comms = (
-            hide_supervisor_comms() if _core_decides_server_side_per_request() else set_supervisor_comms(None)
+            hide_supervisor_comms() if _has_per_request_server_context() else set_supervisor_comms(None)
         )
 
         responses: deque[BaseModel | None] = deque()
