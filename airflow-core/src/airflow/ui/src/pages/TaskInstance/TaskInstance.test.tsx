@@ -356,7 +356,7 @@ describe("TaskInstance", () => {
         { wrapper: createWrapper(queryClient) },
       );
       expect(await screen.findByText(`${TASK_A}:up_for_retry:2`)).toBeTruthy();
-      const expectedSearch = search ? "?try_number=1&log_level=error&log_source=task&log_search=boom" : "";
+      const expectedSearch = search ? "?try_number=1&log_level=error&log_search=boom&log_source=task" : "";
 
       fireEvent.click(screen.getByRole("link", { name: "tabs.details" }));
       expect(screen.getByTestId("location")).toHaveTextContent(`${path}/details${expectedSearch}`);

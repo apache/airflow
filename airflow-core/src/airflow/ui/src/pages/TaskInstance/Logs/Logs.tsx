@@ -34,6 +34,7 @@ import {
   LOG_SHOW_TIMESTAMP_KEY,
   LOG_WRAP_KEY,
 } from "src/constants/localStorage";
+import { LOG_SEARCH_PARAMS } from "src/constants/persistentSearchParams";
 import { SearchParamsKeys } from "src/constants/searchParams";
 import { SHORTCUTS } from "src/context/keyboardShortcuts";
 import { useShortcut } from "src/hooks/useShortcut";
@@ -55,8 +56,8 @@ export const Logs = () => {
   const { t: translate } = useTranslation("dag");
 
   const tryNumberParam = searchParams.get(SearchParamsKeys.TRY_NUMBER);
-  const logLevelFilters = searchParams.getAll(SearchParamsKeys.LOG_LEVEL);
-  const sourceFilters = searchParams.getAll(SearchParamsKeys.SOURCE);
+  const logLevelFilters = searchParams.getAll(LOG_SEARCH_PARAMS.level);
+  const sourceFilters = searchParams.getAll(LOG_SEARCH_PARAMS.source);
 
   const defaultTryNumber = taskInstance?.try_number;
 
@@ -118,7 +119,7 @@ export const Logs = () => {
 
   const getLogString = () => downloadTextLines.filter((line) => line !== "").join("\n");
 
-  const urlSearchQuery = searchParams.get(SearchParamsKeys.LOG_SEARCH) ?? "";
+  const urlSearchQuery = searchParams.get(LOG_SEARCH_PARAMS.search) ?? "";
   const [searchQuery, setSearchQuery] = useState(urlSearchQuery);
   const [lastUrlSearchQuery, setLastUrlSearchQuery] = useState(urlSearchQuery);
   const [activeSearchIndex, setActiveSearchIndex] = useState(0);
@@ -145,9 +146,9 @@ export const Logs = () => {
     setSearchParams(
       (params) => {
         if (query === "") {
-          params.delete(SearchParamsKeys.LOG_SEARCH);
+          params.delete(LOG_SEARCH_PARAMS.search);
         } else {
-          params.set(SearchParamsKeys.LOG_SEARCH, query);
+          params.set(LOG_SEARCH_PARAMS.search, query);
         }
 
         return params;
@@ -251,6 +252,10 @@ export const Logs = () => {
     onSelectTryNumber,
     search: {
       currentMatchIndex: activeSearchIndex,
+      // Clicking a tab blurs the input before the link navigates, so the link carries the last keystrokes.
+      onSearchBlur: () => {
+        syncSearchParam.flush();
+      },
       onSearchChange: handleSearchChange,
       onSearchNext: handleSearchNext,
       onSearchPrevious: handleSearchPrevious,

@@ -62,12 +62,13 @@ export const TASK_STREAM_SEARCH_PARAMS = {
   upstream: "upstream",
 } as const;
 
-// Written by the log header (level and source) and by the log search.
-export const LOG_FILTER_KEYS: ReadonlyArray<SearchParamsKeys> = [
-  SearchParamsKeys.LOG_LEVEL,
-  SearchParamsKeys.SOURCE,
-  SearchParamsKeys.LOG_SEARCH,
-];
+// The log header (level and source) and the log search read and write these, so a log filter added
+// here is carried across tabs.
+export const LOG_SEARCH_PARAMS = {
+  level: SearchParamsKeys.LOG_LEVEL,
+  search: SearchParamsKeys.LOG_SEARCH,
+  source: SearchParamsKeys.SOURCE,
+} as const;
 
 // A date range filter is listed by its filter key but writes a start and an end key, so resolve
 // those through the same config the filter bar uses.
@@ -80,7 +81,12 @@ export const usePersistentSearchParamKeys = (): ReadonlyArray<string> => {
     return startKey !== undefined && endKey !== undefined ? [startKey, endKey] : [key];
   });
 
-  return [...gridKeys, ...GRAPH_FILTER_KEYS, ...Object.values(TASK_STREAM_SEARCH_PARAMS), ...LOG_FILTER_KEYS];
+  return [
+    ...gridKeys,
+    ...GRAPH_FILTER_KEYS,
+    ...Object.values(TASK_STREAM_SEARCH_PARAMS),
+    ...Object.values(LOG_SEARCH_PARAMS),
+  ];
 };
 
 /**

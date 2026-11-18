@@ -332,6 +332,25 @@ describe("Task log search", () => {
     await waitFor(() => expect(router.state.location.search).not.toContain("log_search"));
   });
 
+  it("puts a search typed just before leaving on the tab links", async () => {
+    render(<AppWrapper initialEntries={[logSourcePath]} />);
+    await waitForLogs();
+
+    const searchInput = screen.getByTestId("log-search-input");
+
+    fireEvent.change(searchInput, { target: { value: "running" } });
+    // A real click blurs the focused input on mousedown, before the link navigates. The short timeout
+    // keeps the 200ms debounce from writing the url on its own.
+    fireEvent.blur(searchInput);
+    await waitFor(
+      () =>
+        expect(document.querySelector(`a[href^="${logSourcePath}/xcom"]`)?.getAttribute("href")).toContain(
+          "log_search=running",
+        ),
+      { timeout: 100 },
+    );
+  });
+
   it("follows the url search query on back navigation", async () => {
     const router = createAppRouter(
       [`${logSourcePath}?log_search=running`, `${logSourcePath}?log_search=state`],
