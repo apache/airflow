@@ -1248,11 +1248,18 @@ class TestKubernetesJobOperator:
 
     @pytest.mark.parametrize("retries", [3, 0])
     @pytest.mark.parametrize("parallelism", [1, 2])
+    @patch(JOB_OPERATORS_PATH.format("sleep"))
     @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.log_matching_pod"))
     @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator._build_find_pod_label_selector"))
     @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.client"), new_callable=mock.PropertyMock)
     def test_get_pods(
-        self, mock_client, mock_build_find_pod_label_selector, mock_log_matching_pod, parallelism, retries
+        self,
+        mock_client,
+        mock_build_find_pod_label_selector,
+        mock_log_matching_pod,
+        mock_sleep,
+        parallelism,
+        retries,
     ):
         mock_context = mock.MagicMock()
         mock_build_find_pod_label_selector.return_value = {
@@ -1279,16 +1286,26 @@ class TestKubernetesJobOperator:
         result = op.get_pods(mock.MagicMock(), mock_context)
 
         assert result == return_value
+        assert mock_sleep.call_args_list == [mock.call(2)] * retries
 
         for pod in return_value:
             mock_log_matching_pod.assert_any_call(pod=pod, context=mock_context)
 
-    @pytest.mark.parametrize("successful_try", [3, 1, 0])
+    @pytest.mark.parametrize(
+        ("successful_try", "delay"), [(3, None), (0, None), (None, None), (1, 0.5), (1, 0)]
+    )
+    @patch(JOB_OPERATORS_PATH.format("sleep"))
     @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.log_matching_pod"))
     @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator._build_find_pod_label_selector"))
     @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.client"), new_callable=mock.PropertyMock)
     def test_get_pods_retry(
-        self, mock_client, mock_build_find_pod_label_selector, mock_log_matching_pod, successful_try
+        self,
+        mock_client,
+        mock_build_find_pod_label_selector,
+        mock_log_matching_pod,
+        mock_sleep,
+        successful_try,
+        delay,
     ):
         retries = 3
         mock_context = mock.MagicMock()
@@ -1310,12 +1327,24 @@ class TestKubernetesJobOperator:
             side_effects.append(k8s.V1PodList(items=items))
         mock_client.return_value.list_namespaced_pod.side_effect = side_effects
 
-        op = KubernetesJobOperator(task_id="faketask", parallelism=1, discover_pods_retry_number=retries)
+        options = {} if delay is None else {"discover_pods_retry_delay": delay}
+        op = KubernetesJobOperator(
+            task_id="faketask", parallelism=1, discover_pods_retry_number=retries, **options
+        )
 
-        result = op.get_pods(mock.MagicMock(), mock_context)
+        if successful_try is None:
+            with pytest.raises(AirflowException, match="No pods running with labels"):
+                op.get_pods(mock.MagicMock(), mock_context)
+            expected_retries = retries
+        else:
+            assert op.get_pods(mock.MagicMock(), mock_context) == return_value
+            expected_retries = successful_try
 
-        assert result == return_value
-        assert mock_client.return_value.list_namespaced_pod.call_count == successful_try + 1
+        assert mock_client.return_value.list_namespaced_pod.call_count == expected_retries + 1
+        expected_delay = 2 if delay is None else delay
+        assert mock_sleep.call_args_list == (
+            [mock.call(expected_delay)] * expected_retries if expected_delay else []
+        )
 
     @pytest.mark.non_db_test_override
     @pytest.mark.parametrize(

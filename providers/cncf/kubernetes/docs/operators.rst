@@ -818,6 +818,11 @@ request that dynamically launches this Job.
 Users can specify a kubeconfig file using the ``config_file`` parameter, otherwise the operator will default
 to ``~/.kube/config``. It also allows users to supply a template YAML file using the ``job_template_file`` parameter.
 
+With ``wait_until_job_complete=True``, the operator lists the Job's Pods before monitoring them.
+By default it tries once immediately and waits two seconds between each of three retries if the
+expected number of Pods has not appeared. Set ``discover_pods_retry_delay`` to adjust the wait in
+seconds, or set it to ``0`` for immediate retries.
+
 .. exampleinclude:: /../tests/system/cncf/kubernetes/example_kubernetes_job.py
     :language: python
     :dedent: 4
