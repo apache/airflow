@@ -159,7 +159,7 @@ class TestTokenRouter:
 
         assert response.status_code == 201
         assert response.json() == {"access_token": self.token}
-        mock_refresh_cli_token.assert_called_once_with("old")
+        mock_refresh_cli_token.assert_called_once_with("old", expiration_time_in_seconds=10)
 
     @conf_vars({("api_auth", "jwt_cli_expiration_time"): "10"})
     @patch("airflow.providers.keycloak.auth_manager.datamodels.token.create_token_from_authorization_code")

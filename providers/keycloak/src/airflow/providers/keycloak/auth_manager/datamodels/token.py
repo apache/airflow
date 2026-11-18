@@ -99,7 +99,7 @@ class TokenRefreshBody(StrictBaseModel):
 
     def create_token(self, expiration_time_in_seconds: int) -> str:
         """Create token from a CLI token that is still valid, expiring no later than it."""
-        return refresh_cli_token(self.token)
+        return refresh_cli_token(self.token, expiration_time_in_seconds=expiration_time_in_seconds)
 
 
 class TokenAuthorizationCodeBody(StrictBaseModel):

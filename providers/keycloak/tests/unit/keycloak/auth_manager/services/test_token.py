@@ -508,6 +508,9 @@ class TestCliLoopbackRedirectUri:
         assert is_cli_loopback_redirect_uri(redirect_uri) is expected
 
 
+CLI_EXPIRATION = 3600
+
+
 class TestCliTokenService:
     token = "token"
     redirect_uri = "http://127.0.0.1:53682/callback"
@@ -664,7 +667,10 @@ class TestCliTokenService:
         auth_manager = self.mock_auth_manager(mock_get_auth_manager)
         auth_manager.refresh_tokens.return_value = {"access_token": "new_access"}
 
-        assert refresh_cli_token(self.cli_token(expires_in=600)) == self.token
+        assert (
+            refresh_cli_token(self.cli_token(expires_in=600), expiration_time_in_seconds=CLI_EXPIRATION)
+            == self.token
+        )
 
         auth_manager.revoke_token.assert_not_called()
 
@@ -674,6 +680,7 @@ class TestCliTokenService:
             pytest.param(600, 600, id="whole-minutes"),
             pytest.param(659, 600, id="rounded-down-to-the-minute"),
             pytest.param(59, 59, id="last-minute"),
+            pytest.param(86400, CLI_EXPIRATION, id="capped-at-cli-lifetime"),
         ],
     )
     @time_machine.travel("2026-01-01 00:00:00", tick=False)
@@ -689,7 +696,7 @@ class TestCliTokenService:
             "refresh_token": "new_refresh",
         }
 
-        assert refresh_cli_token(old_token) == self.token
+        assert refresh_cli_token(old_token, expiration_time_in_seconds=CLI_EXPIRATION) == self.token
 
         user = auth_manager.generate_api_jwt.call_args.args[0]
         auth_manager.refresh_tokens.assert_called_once_with(user=user)
@@ -705,7 +712,10 @@ class TestCliTokenService:
         auth_manager = self.mock_auth_manager(mock_get_auth_manager)
         auth_manager.refresh_tokens.return_value = {"access_token": "new_access"}
 
-        assert refresh_cli_token(self.cli_token(expires_in=600)) == self.token
+        assert (
+            refresh_cli_token(self.cli_token(expires_in=600), expiration_time_in_seconds=CLI_EXPIRATION)
+            == self.token
+        )
 
         user = auth_manager.generate_api_jwt.call_args.args[0]
         assert (user.access_token, user.refresh_token) == ("new_access", "old_refresh")
@@ -724,7 +734,7 @@ class TestCliTokenService:
         auth_manager.get_user_from_token.configure_mock(**get_user_from_token)
 
         with pytest.raises(fastapi.exceptions.HTTPException) as exc_info:
-            refresh_cli_token(self.token)
+            refresh_cli_token(self.token, expiration_time_in_seconds=CLI_EXPIRATION)
 
         assert exc_info.value.status_code == 403
         auth_manager.refresh_tokens.assert_not_called()
@@ -735,7 +745,7 @@ class TestCliTokenService:
         auth_manager = self.mock_auth_manager(mock_get_auth_manager, refresh_token=None)
 
         with pytest.raises(fastapi.exceptions.HTTPException) as exc_info:
-            refresh_cli_token(self.token)
+            refresh_cli_token(self.token, expiration_time_in_seconds=CLI_EXPIRATION)
 
         assert exc_info.value.status_code == 400
         assert "without a refresh token" in exc_info.value.detail
@@ -748,7 +758,7 @@ class TestCliTokenService:
         auth_manager = self.mock_auth_manager(mock_get_auth_manager)
 
         with pytest.raises(fastapi.exceptions.HTTPException) as exc_info:
-            refresh_cli_token(self.cli_token(expires_in=-5))
+            refresh_cli_token(self.cli_token(expires_in=-5), expiration_time_in_seconds=CLI_EXPIRATION)
 
         assert exc_info.value.status_code == 403
         auth_manager.refresh_tokens.assert_not_called()
@@ -777,7 +787,7 @@ class TestCliTokenService:
         auth_manager.refresh_tokens.configure_mock(**refresh_tokens)
 
         with pytest.raises(fastapi.exceptions.HTTPException) as exc_info:
-            refresh_cli_token(self.cli_token(expires_in=600))
+            refresh_cli_token(self.cli_token(expires_in=600), expiration_time_in_seconds=CLI_EXPIRATION)
 
         assert exc_info.value.status_code == expected_status
         auth_manager.generate_api_jwt.assert_not_called()

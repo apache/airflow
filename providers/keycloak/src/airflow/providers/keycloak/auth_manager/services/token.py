@@ -295,13 +295,15 @@ def create_token_from_authorization_code(
         raise build_keycloak_unavailable_error()
 
 
-def refresh_cli_token(token: str) -> str:
+def refresh_cli_token(token: str, expiration_time_in_seconds: int) -> str:
     """
     Create a CLI token with fresh Keycloak tokens from a CLI token that is still valid.
 
-    The new token expires no later than the old one, so refreshing never extends a CLI session. On
-    Airflow 3.2+ the old token is revoked; earlier versions have no token revocation, so it stays usable
-    until it expires. Expired and revoked tokens are refused by ``get_user_from_token``.
+    The new token expires no later than the old one, so refreshing never extends a CLI session, and
+    lasts at most ``expiration_time_in_seconds``, so a longer-lived API token does not refresh into a
+    CLI token outliving ``[api_auth] jwt_cli_expiration_time``. On Airflow 3.2+ the old token is
+    revoked; earlier versions have no token revocation, so it stays usable until it expires. Expired
+    and revoked tokens are refused by ``get_user_from_token``.
     """
     auth_manager = cast("KeycloakAuthManager", get_auth_manager())
     try:
@@ -318,7 +320,7 @@ def refresh_cli_token(token: str) -> str:
 
     # get_user_from_token allows [api_auth] jwt_leeway past exp.
     expires_at = jwt.decode(token, options={"verify_signature": False})["exp"]
-    expiration_time_in_seconds = int(expires_at - time.time())
+    expiration_time_in_seconds = min(int(expires_at - time.time()), expiration_time_in_seconds)
     # BaseAuthManager._get_token_signer caches one signer per lifetime: keep the distinct lifetimes few.
     if expiration_time_in_seconds > 60:
         expiration_time_in_seconds -= expiration_time_in_seconds % 60
