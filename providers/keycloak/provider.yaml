@@ -103,7 +103,7 @@ config:
           authorization code flow and PKCE. The Keycloak client must allow the loopback redirect
           URIs ``http://127.0.0.1/callback`` and ``http://[::1]/callback``.
         type: boolean
-        version_added: 0.12.0
+        version_added: 0.13.0
         example: ~
         default: "False"
       jwt_federated_client_ids:

@@ -78,6 +78,7 @@ from airflow.providers.keycloak.auth_manager.constants import (
 )
 from airflow.providers.keycloak.auth_manager.keycloak_auth_manager import (
     RESOURCE_ID_ATTRIBUTE_NAME,
+    CliLoginMethods,
     KeycloakAuthManager,
 )
 from airflow.providers.keycloak.auth_manager.middleware import KeycloakJWTMiddleware
@@ -382,7 +383,9 @@ class TestKeycloakAuthManager:
         result = auth_manager.get_url_logout()
         assert result == f"{AUTH_MANAGER_FASTAPI_APP_PREFIX}/logout"
 
-    @pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="CLI login discovery was added in Airflow 3.4")
+    @pytest.mark.skipif(
+        CliLoginMethods is None, reason="CLI login discovery is not available in this Airflow"
+    )
     @pytest.mark.parametrize(
         ("authorization_code_enabled", "expected"),
         [

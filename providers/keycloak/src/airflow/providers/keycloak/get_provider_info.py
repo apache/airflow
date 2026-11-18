@@ -74,7 +74,7 @@ def get_provider_info():
                     "cli_authorization_code_enabled": {
                         "description": "Let command-line clients such as ``airflowctl`` log in through the browser, with the\nauthorization code flow and PKCE. The Keycloak client must allow the loopback redirect\nURIs ``http://127.0.0.1/callback`` and ``http://[::1]/callback``.\n",
                         "type": "boolean",
-                        "version_added": "0.12.0",
+                        "version_added": "0.13.0",
                         "example": None,
                         "default": "False",
                     },
