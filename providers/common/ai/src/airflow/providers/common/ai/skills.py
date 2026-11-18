@@ -106,7 +106,7 @@ class _SkillsLocation:
     commit: str | None = None
 
 
-def _clone_git(source: GitSkills) -> tuple[str, str, str]:
+def _clone_git(source: GitSkills) -> tuple[str, str, str | None]:
     """
     Clone *source* into a fresh temp dir; return (skills_dir, temp_dir_to_remove, commit).
 
@@ -171,7 +171,8 @@ def _clone_git(source: GitSkills) -> tuple[str, str, str]:
         # Strip any embedded credential from .git/config so a skill script in the
         # checkout cannot read it back out of the temporary clone.
         repo.remote("origin").set_url(source.repo_url)
-        commit = repo.head.commit.hexsha
+        # An empty repository has no commit to record, and its clone still worked.
+        commit = repo.head.commit.hexsha if repo.head.is_valid() else None
     except Exception as exc:
         shutil.rmtree(temp_dir, ignore_errors=True)
         # GitPython errors embed the failing command, which may contain the

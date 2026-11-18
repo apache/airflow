@@ -25,6 +25,8 @@ from pydantic import Field, field_validator
 from airflow.api_fastapi.core_api.base import StrictBaseModel
 from airflow.jobs.job import JobState
 
+FILELOC_MAX_LENGTH = 2000
+
 
 class TerminalJobState(str, Enum):
     """States a Job can finish in."""
@@ -77,7 +79,7 @@ class DagParseTokenBody(StrictBaseModel):
 
     attempt_id: UUID
     bundle_name: str = Field(min_length=1, max_length=250)
-    relative_fileloc: str = Field(min_length=1, max_length=2000)
+    relative_fileloc: str = Field(min_length=1, max_length=FILELOC_MAX_LENGTH)
 
     @field_validator("relative_fileloc")
     @classmethod

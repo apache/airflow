@@ -25,6 +25,7 @@ from airflow.providers.anthropic.hooks.anthropic import (
     MAX_CONSECUTIVE_POLL_FAILURES,
     AnthropicHook,
     BatchStatus,
+    _is_permanent_poll_error,
 )
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
@@ -88,7 +89,11 @@ class AnthropicBatchTrigger(BaseTrigger):
             except Exception as e:
                 # Tolerate transient polling errors rather than failing a (up to 24h) wait.
                 consecutive_failures += 1
-                if consecutive_failures >= MAX_CONSECUTIVE_POLL_FAILURES or time.time() > self.end_time:
+                if (
+                    _is_permanent_poll_error(e)
+                    or consecutive_failures >= MAX_CONSECUTIVE_POLL_FAILURES
+                    or time.time() > self.end_time
+                ):
                     yield TriggerEvent({"status": "error", "batch_id": self.batch_id, "message": str(e)})
                     return
                 self.log.warning("Polling batch %s failed (%s); retrying.", self.batch_id, e)

@@ -40,7 +40,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, load_only
 from sqlalchemy.orm.attributes import set_committed_value
 
-from airflow import settings
+from airflow import plugins_manager, settings
 from airflow._shared.observability.metrics.base_stats_logger import StatsLogger
 from airflow._shared.observability.traces import new_dagrun_trace_carrier, new_task_run_carrier
 from airflow._shared.timezones import timezone
@@ -70,6 +70,7 @@ from airflow.models.taskinstance import (
     TaskInstance,
     TaskInstance as TI,
     TaskInstanceNote,
+    _stop_remaining_tasks,
     clear_loop_task_instances,
     clear_task_instances,
     find_relevant_relatives,
@@ -96,7 +97,13 @@ from airflow.sdk import (
 from airflow.sdk.api.datamodels._generated import AssetEventResponse, AssetResponse
 from airflow.sdk.definitions._internal.loop import create_loop
 from airflow.sdk.definitions.callback import AsyncCallback
-from airflow.sdk.definitions.deadline import DeadlineReference, VariableInterval
+from airflow.sdk.definitions.deadline import (
+    DAGRUN_CREATED_TIMING,
+    DAGRUN_QUEUED_TIMING,
+    BaseDeadlineReference,
+    DeadlineReference,
+    VariableInterval,
+)
 from airflow.sdk.definitions.param import process_params
 from airflow.sdk.definitions.taskgroup import TaskGroup
 from airflow.sdk.execution_time.comms import AssetEventsResult
@@ -104,7 +111,7 @@ from airflow.sdk.serde import serialize
 from airflow.serialization.definitions.assets import SerializedAsset
 from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
 from airflow.serialization.definitions.dag import SerializedDAG
-from airflow.serialization.encoders import ensure_serialized_asset
+from airflow.serialization.encoders import encode_deadline_reference, ensure_serialized_asset
 from airflow.serialization.serialized_objects import OperatorSerialization, create_scheduler_operator
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import REQUEUEABLE_DEPS, RUNNING_DEPS
@@ -2863,6 +2870,54 @@ class TestTaskInstance:
             "reg_Task4": State.SKIPPED,
         }
 
+    @pytest.mark.parametrize("victim_state", [None, TaskInstanceState.SCHEDULED, TaskInstanceState.RUNNING])
+    def test_stop_remaining_tasks_skips_task_removed_from_dag(self, dag_maker, session, victim_state):
+        dag_id = "test_stop_remaining_tasks_skips_task_removed_from_dag"
+        with dag_maker(dag_id=dag_id, fail_fast=True, serialized=True, session=session):
+            EmptyOperator(task_id="boom")
+            EmptyOperator(task_id="victim")
+        dr = dag_maker.create_dagrun(session=session)
+        tis = {ti.task_id: ti for ti in dr.get_task_instances(session=session)}
+        tis["boom"].state = TaskInstanceState.FAILED
+        tis["victim"].state = victim_state
+        session.flush()
+
+        # Re-parse without "victim"; the unversioned run resolves to this latest version.
+        with dag_maker(dag_id=dag_id, fail_fast=True, serialized=True, session=session):
+            EmptyOperator(task_id="boom")
+        latest_dag = DBDagBag().get_dag_for_run(dag_run=dr, session=session)
+        assert "victim" not in latest_dag.task_dict
+
+        _stop_remaining_tasks(task_instance=tis["boom"], dag=latest_dag, session=session)
+
+        assert tis["victim"].state == victim_state
+
+    def test_stop_remaining_tasks_leaves_finished_tis_unchanged(self, dag_maker, session):
+        with dag_maker(
+            dag_id="test_stop_remaining_tasks_leaves_finished_tis_unchanged",
+            fail_fast=True,
+            serialized=True,
+            session=session,
+        ):
+            for task_id in ("boom", "upstream_failed", "removed", "no_state"):
+                EmptyOperator(task_id=task_id)
+        dr = dag_maker.create_dagrun(session=session)
+        tis = {ti.task_id: ti for ti in dr.get_task_instances(session=session)}
+        tis["boom"].state = TaskInstanceState.FAILED
+        tis["upstream_failed"].state = TaskInstanceState.UPSTREAM_FAILED
+        tis["removed"].state = TaskInstanceState.REMOVED
+        tis["no_state"].state = None
+        session.flush()
+
+        _stop_remaining_tasks(task_instance=tis["boom"], dag=dag_maker.serialized_dag, session=session)
+
+        assert {task_id: ti.state for task_id, ti in tis.items()} == {
+            "boom": TaskInstanceState.FAILED,
+            "upstream_failed": TaskInstanceState.UPSTREAM_FAILED,
+            "removed": TaskInstanceState.REMOVED,
+            "no_state": TaskInstanceState.SKIPPED,
+        }
+
     def test_retries_on_other_exceptions(self, dag_maker):
         def fail():
             raise AirflowException("maybe this will pass?")
@@ -3678,7 +3733,7 @@ def test_defer_task(create_task_instance):
     assert isinstance(trigger_row, Trigger)
     assert trigger_row.classpath == "trigger_cls"
     assert trigger_row.kwargs == {"key": "value"}
-    assert (trigger_row.dag_id, trigger_row.owner_ref) == ("test_defer_task", {"ti_id": str(ti.id)})
+    assert (trigger_row.dag_id, trigger_row.used_by_ref) == ("test_defer_task", {"ti_id": str(ti.id)})
 
     # Check that session.flush was called
     session.flush.assert_called_once()
@@ -5027,6 +5082,161 @@ def test_clear_task_instances_skips_deadline_with_unresolvable_interval(dag_make
     # The alert decoded fine and the Variable lookup is what raised, so this is still covering
     # an unresolvable interval rather than an earlier failure that lands in the same except.
     mock_variable_get.assert_called_once_with("missing_deadline_interval_key", session=session)
+
+    assert mock_log.warning.call_count == 1
+    msg, *args = mock_log.warning.call_args.args
+    assert "Error while recalculating deadline" in msg
+    assert args[0] == deadline.id
+
+
+@pytest.mark.parametrize(
+    ("timing", "should_recalculate"),
+    [
+        pytest.param(DAGRUN_QUEUED_TIMING, True, id="queued"),
+        pytest.param(DAGRUN_CREATED_TIMING, False, id="created"),
+    ],
+)
+def test_clear_task_instances_recalculates_custom_queued_deadlines(
+    dag_maker, session, monkeypatch, timing, should_recalculate
+):
+    """Test that clearing tasks recalculates custom deadlines registered as queued-anchored."""
+    # An offset of its own, so the new deadline can only come from the reference's own evaluation
+    # and not from the queued_at the built-in reference would return.
+    offset = datetime.timedelta(minutes=30)
+
+    class CustomReference(BaseDeadlineReference):
+        evaluation_timing = timing
+
+        def _evaluate_with(self, *, session, dagrun):
+            return dagrun.queued_at + offset
+
+    reference = encode_deadline_reference(CustomReference())
+    # Decoding the alert to resolve its interval goes through the plugin registry, which is where
+    # a custom reference has to be registered for the scheduler to resolve it at all.
+    monkeypatch.setattr(
+        plugins_manager,
+        "get_deadline_references_plugins",
+        lambda: {reference["__class_path"]: CustomReference},
+    )
+
+    with dag_maker(
+        dag_id="test_recalculate_custom_deadlines",
+        schedule=datetime.timedelta(days=1),
+    ) as dag:
+        EmptyOperator(task_id="task_1")
+
+    dag_run = dag_maker.create_dagrun()
+    ti = dag_run.get_task_instance("task_1", session=session)
+    ti.set_state(TaskInstanceState.SUCCESS, session=session)
+
+    original_queued_at = timezone.utcnow() - datetime.timedelta(hours=2)
+    dag_run.queued_at = original_queued_at
+    session.flush()
+
+    interval = datetime.timedelta(hours=1)
+    deadline_alert = DeadlineAlertModel(
+        serialized_dag_id=session.scalar(
+            select(SerializedDagModel.id).where(SerializedDagModel.dag_id == dag.dag_id)
+        ),
+        reference=reference,
+        interval=serialize(interval),
+        callback_def=serialize(AsyncCallback(empty_callback_for_deadline)),
+    )
+    session.add(deadline_alert)
+    session.flush()
+
+    original_deadline_time = original_queued_at + offset + interval
+    session.add(
+        Deadline(
+            dagrun_id=dag_run.id,
+            deadline_alert_id=deadline_alert.id,
+            deadline_time=original_deadline_time,
+            callback=AsyncCallback(empty_callback_for_deadline),
+            dag_id=dag_run.dag_id,
+        )
+    )
+    session.flush()
+
+    tis = session.scalars(select(TI).where(TI.dag_id == dag.dag_id, TI.run_id == dag_run.run_id)).all()
+    clear_task_instances(tis, session)
+
+    dag_run = session.scalar(select(DagRun).where(DagRun.id == dag_run.id))
+    deadline = session.scalar(select(Deadline).where(Deadline.dagrun_id == dag_run.id))
+
+    if should_recalculate:
+        assert deadline.deadline_time == dag_run.queued_at + offset + interval
+    else:
+        assert deadline.deadline_time == original_deadline_time
+
+
+def test_clear_task_instances_skips_deadline_whose_reference_raises(dag_maker, session, monkeypatch):
+    """A clear must survive a custom reference that raises while it is being re-anchored.
+
+    The evaluation is the Dag author's own code and is reached straight from the clear API, so
+    anything it raises would otherwise surface there as an HTTP 500.
+    """
+
+    class RaisingReference(BaseDeadlineReference):
+        evaluation_timing = DAGRUN_QUEUED_TIMING
+
+        def _evaluate_with(self, *, session, dagrun):
+            raise RuntimeError("deliberate failure inside a custom deadline reference")
+
+    reference = encode_deadline_reference(RaisingReference())
+    monkeypatch.setattr(
+        plugins_manager,
+        "get_deadline_references_plugins",
+        lambda: {reference["__class_path"]: RaisingReference},
+    )
+
+    with dag_maker(
+        dag_id="test_recalculate_raising_reference",
+        schedule=datetime.timedelta(days=1),
+    ) as dag:
+        EmptyOperator(task_id="task_1")
+
+    dag_run = dag_maker.create_dagrun()
+    ti = dag_run.get_task_instance("task_1", session=session)
+    ti.set_state(TaskInstanceState.SUCCESS, session=session)
+
+    original_queued_at = timezone.utcnow() - datetime.timedelta(hours=2)
+    dag_run.queued_at = original_queued_at
+    session.flush()
+
+    interval = datetime.timedelta(hours=1)
+    deadline_alert = DeadlineAlertModel(
+        serialized_dag_id=session.scalar(
+            select(SerializedDagModel.id).where(SerializedDagModel.dag_id == dag.dag_id)
+        ),
+        reference=reference,
+        interval=serialize(interval),
+        callback_def=serialize(AsyncCallback(empty_callback_for_deadline)),
+    )
+    session.add(deadline_alert)
+    session.flush()
+
+    original_deadline_time = original_queued_at + interval
+    session.add(
+        Deadline(
+            dagrun_id=dag_run.id,
+            deadline_alert_id=deadline_alert.id,
+            deadline_time=original_deadline_time,
+            callback=AsyncCallback(empty_callback_for_deadline),
+            dag_id=dag_run.dag_id,
+        )
+    )
+    session.flush()
+
+    tis = session.scalars(select(TI).where(TI.dag_id == dag.dag_id, TI.run_id == dag_run.run_id)).all()
+
+    with mock.patch("airflow.models.taskinstance.log") as mock_log:
+        clear_task_instances(tis, session)
+
+    dag_run = session.scalar(select(DagRun).where(DagRun.id == dag_run.id))
+    assert dag_run.queued_at > original_queued_at
+
+    deadline = session.scalar(select(Deadline).where(Deadline.dagrun_id == dag_run.id))
+    assert deadline.deadline_time == original_deadline_time
 
     assert mock_log.warning.call_count == 1
     msg, *args = mock_log.warning.call_args.args

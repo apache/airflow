@@ -65,9 +65,6 @@ versions:
   - 1.0.1
   - 1.0.0
 
-excluded-python-versions:
-  - "3.14"
-
 integrations:
   - integration-name: Apache Cassandra
     external-doc-url: https://cassandra.apache.org/

@@ -303,3 +303,16 @@ def mock_authentication_provider(closed: bool | None = None) -> AuthenticationPr
         credential=mock_token_credentials(closed=closed)
     )
     return BaseBearerTokenAuthenticationProvider(access_token_provider=access_token_provider)
+
+
+class TaskStateStore:
+    """In-memory stand-in for ``context["task_state_store"]``."""
+
+    def __init__(self, **values):
+        self.values = dict(values)
+
+    def get(self, key, default=None):
+        return self.values.get(key, default)
+
+    def set(self, key, value, *, retention=None):
+        self.values[key] = value

@@ -17,7 +17,6 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterable
 from datetime import datetime
 from enum import Enum
 from typing import TYPE_CHECKING, Any
@@ -132,6 +131,11 @@ class BaseDAGRunClear(StrictBaseModel):
         "then the ``[core] rerun_with_latest_version`` config option, "
         "and finally ``False``.",
     )
+    keep_task_state: bool = Field(
+        default=False,
+        description="Keep the task state store entries of the cleared task instances so the next "
+        "attempt resumes from them. By default they are discarded, so the task starts over.",
+    )
     note: str | None = Field(default=None, max_length=1000)
 
     @model_validator(mode="before")
@@ -200,7 +204,7 @@ class DAGRunCollectionResponse(BaseModel):
     incorrect TypeScript types (see hey-api/openapi-ts#1613, #3270).
     """
 
-    dag_runs: Iterable[DAGRunResponse]
+    dag_runs: list[DAGRunResponse]
     total_entries: int | None = Field(
         default=None,
         description="Number of matching items. For offset pagination this is the exact total. "

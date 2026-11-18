@@ -87,15 +87,23 @@ def _describe_skill_source(skill_uri: str, locations: list[_SkillsLocation]) -> 
     }
 
 
-def _count_skill_calls(messages: Sequence[ModelMessage]) -> defaultdict[str, Counter[str]]:
-    """Count, per skill, the calls to each per-skill tool that returned a result."""
+def _count_skill_calls(messages: Sequence[ModelMessage], run_id: str) -> defaultdict[str, Counter[str]]:
+    """Count, per skill, the calls to each per-skill tool that succeeded in the agent run ``run_id``."""
     calls: dict[str, ToolCallPart] = {}
     counts: defaultdict[str, Counter[str]] = defaultdict(Counter)
     for message in messages:
         for part in message.parts:
+            # A call approved after a pause was made in the paused run, so calls are matched across
+            # the whole transcript while only this run's returns are counted.
             if isinstance(part, ToolCallPart):
                 calls[part.tool_call_id] = part
-            elif isinstance(part, ToolReturnPart) and (call := calls.get(part.tool_call_id)):
+            elif (
+                isinstance(part, ToolReturnPart)
+                and message.run_id == run_id
+                # A denied, failed or interrupted call never ran the skill tool to completion.
+                and part.outcome == "success"
+                and (call := calls.get(part.tool_call_id))
+            ):
                 # Two skills toolsets on one agent need ``prefixed()`` to keep their tool names apart.
                 tool = next(
                     (t for t in _PER_SKILL_TOOLS if call.tool_name == t or call.tool_name.endswith(f"_{t}")),
@@ -154,9 +162,14 @@ class AgentSkillsToolset(AbstractToolset):
         self._inner: Any = None
         self._cleanup: Callable[[], None] | None = None
         self._locations: list[_SkillsLocation] = []
-        # The run's messages, prior history included. Calls made before an approval pause or
-        # replayed on a durable retry never reach call_tool, so the skills XCom counts these.
+        # The run's messages, its history included. Calls replayed on a durable retry never reach
+        # call_tool, so the skills XCom counts these.
         self._messages: Sequence[ModelMessage] = ()
+        # The agent run this instance serves, set by get_tools. ``async with agent:`` also enters
+        # the instance passed to the agent, which never serves a run and so never publishes. Not
+        # set in for_run: a DynamicToolset builds this toolset on every model step, unless given
+        # per_run_step=False, without calling its for_run.
+        self._run_id: str | None = None
 
     @property
     def id(self) -> str | None:
@@ -229,25 +242,38 @@ class AgentSkillsToolset(AbstractToolset):
         except RuntimeError:
             # Used outside an Airflow task: there is no task instance to publish on.
             return
-        if not context["ti"].task.do_xcom_push:
+        run_id = self._run_id
+        if run_id is None or not context["ti"].task.do_xcom_push:
             return
         # Telemetry only: a failure here must not fail the run or skip the clean-up after it.
         try:
-            counts = _count_skill_calls(self._messages)
-            skills = {
-                name: {
+            # Only this run's calls: history seeded from another task holds that task's calls.
+            counts = _count_skill_calls(self._messages, run_id)
+            # An earlier run of this try (before an approval pause or a review regeneration), or
+            # another skills toolset on this run's agent, may have published already. Calls are kept
+            # per run: another toolset of this run counts the same calls and replaces them, while an
+            # earlier run's stay. XComs from an earlier try are cleared before this one starts.
+            ti = context["ti"]
+            stored = {
+                entry["name"]: entry
+                for entry in ti.xcom_pull(key=SKILLS_XCOM_KEY, task_ids=ti.task_id, map_indexes=ti.map_index)
+                or []
+            }
+            skills = {}
+            for name, skill in self._inner.skills.items():
+                calls_by_run = dict(stored.get(name, {}).get("calls_by_run", {}))
+                # A run that made no call to the skill is left out, so the XCom grows with calls,
+                # not with every resume of a paused run.
+                if calls := counts.get(name):
+                    calls_by_run[run_id] = dict(calls)
+                skills[name] = {
                     "name": name,
                     "description": skill.description,
                     "source": _describe_skill_source(skill.uri, self._locations),
-                    "calls": dict(counts.get(name, {})),
+                    "calls": dict(sum((Counter(calls) for calls in calls_by_run.values()), Counter())),
+                    "calls_by_run": calls_by_run,
                 }
-                for name, skill in self._inner.skills.items()
-            }
-            # Another skills toolset on the agent, or this run before it paused for approval, may
-            # have published already. XComs from an earlier try are cleared before this one starts.
-            ti = context["ti"]
-            stored = ti.xcom_pull(key=SKILLS_XCOM_KEY, task_ids=ti.task_id, map_indexes=ti.map_index) or []
-            merged = {entry["name"]: entry for entry in stored} | skills
+            merged = stored | skills
             ti.xcom_push(key=SKILLS_XCOM_KEY, value=[merged[name] for name in sorted(merged)])
         except Exception:
             log.warning("Failed to push the skills XCom", exc_info=True)
@@ -265,6 +291,7 @@ class AgentSkillsToolset(AbstractToolset):
         # retries say; resolve it the way the provider's other toolsets do instead.
         max_retries = ctx.max_retries if self._max_retries is None else self._max_retries
         self._messages = ctx.messages
+        self._run_id = ctx.run_id
         tools = await self._require_inner().get_tools(ctx)
         return {name: dataclasses.replace(tool, max_retries=max_retries) for name, tool in tools.items()}
 
