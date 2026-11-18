@@ -229,6 +229,8 @@ class TestFilesystemSnapshots:
         assert (destination / "dags" / "example.py").read_text() == "print('dag')\n"
         assert stat.S_IMODE((destination / "dags" / "example.py").stat().st_mode) == 0o444
         assert stat.S_IMODE((destination / "bin" / "task.sh").stat().st_mode) == 0o555
+        for directory in (destination / "dags", destination / "bin"):
+            assert stat.S_IMODE(directory.stat().st_mode) & stat.S_IWUSR
         embedded = json.loads((destination / MANIFEST_FILE_NAME).read_text())
         assert embedded["version"] == result.version
 
