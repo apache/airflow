@@ -645,6 +645,8 @@ class AssetManager(LoggingMixin):
                     target_dag=target_dag,
                     rollup_fingerprint=fingerprint,
                     allow_reuse=timetable.batch_asset_events,
+                    refire_policy=getattr(timetable, "refire_policy", None),
+                    asset_id=asset_id,
                     session=session,
                 )
                 log_record = PartitionedAssetKeyLog(
@@ -666,6 +668,8 @@ class AssetManager(LoggingMixin):
         target_dag: DagModel,
         rollup_fingerprint: dict,
         allow_reuse: bool,
+        refire_policy: str | None = None,
+        asset_id: int | None = None,
         session: Session,
     ) -> AssetPartitionDagRun:
         """
@@ -687,7 +691,24 @@ class AssetManager(LoggingMixin):
         ``rollup_fingerprint`` is the serialized mapper / window definition for all partitioned
         assets in the timetable at creation time; the scheduler discards APDRs whose stamp no
         longer matches the current timetable's fingerprint (mapper / window may have changed).
+
+        When ``refire_policy`` is set and the latest APDR has already fired, sibling asset-key
+        logs are copied to the new APDR so a corrected event can satisfy the asset condition again.
         """
+        latest_apdr = None
+        if refire_policy is not None:
+            latest_apdr = session.scalar(
+                select(AssetPartitionDagRun)
+                .where(
+                    AssetPartitionDagRun.partition_key == target_key,
+                    AssetPartitionDagRun.target_dag_id == target_dag.dag_id,
+                )
+                .order_by(AssetPartitionDagRun.id.desc())
+                .limit(1)
+            )
+            if latest_apdr is not None and latest_apdr.created_dag_run_id is not None and asset_id is None:
+                raise ValueError("asset_id is required to seed sibling asset-key logs for a refire.")
+
         if allow_reuse and (
             pending_apdr := cls._get_latest_pending_apdr(
                 target_key=target_key, target_dag_id=target_dag.dag_id, session=session
@@ -762,6 +783,40 @@ class AssetManager(LoggingMixin):
             target_dag.dag_id,
             exc_info=True,
         )
+
+        if (
+            refire_policy is not None
+            and latest_apdr is not None
+            and latest_apdr.created_dag_run_id is not None
+        ):
+            prior_logs = session.scalars(
+                select(PartitionedAssetKeyLog).where(
+                    PartitionedAssetKeyLog.asset_partition_dag_run_id == latest_apdr.id,
+                    PartitionedAssetKeyLog.asset_id != asset_id,
+                )
+            ).all()
+            for prior in prior_logs:
+                session.add(
+                    PartitionedAssetKeyLog(
+                        asset_id=prior.asset_id,
+                        asset_event_id=prior.asset_event_id,
+                        asset_partition_dag_run_id=apdr.id,
+                        source_partition_key=prior.source_partition_key,
+                        target_dag_id=prior.target_dag_id,
+                        target_partition_key=prior.target_partition_key,
+                    )
+                )
+            if prior_logs:
+                session.flush()
+                cls.logger().info(
+                    "Refire: seeded %d sibling key-log row(s) from fired APDR %s into new APDR %s "
+                    "for key %s dag_id %s",
+                    len(prior_logs),
+                    latest_apdr.id,
+                    apdr.id,
+                    target_key,
+                    target_dag.dag_id,
+                )
         return apdr
 
     @staticmethod
