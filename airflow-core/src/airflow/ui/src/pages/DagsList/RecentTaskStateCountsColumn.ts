@@ -22,26 +22,8 @@ import type { DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
 
 import type { DataTableFeatures } from "src/components/DataTable/features";
 
-import { useDagsListCounts } from "./DagsListCountsContext";
-import { RecentTaskStateCounts } from "./RecentTaskStateCounts";
+import { RecentTaskStateCountsCell } from "./DagsListCells";
 import { RecentTaskStateCountsHeader } from "./RecentTaskStateCountsHeader";
-
-const RecentTaskStateCountsCell = ({
-  row: { original },
-}: {
-  readonly row: { readonly original: DAGWithLatestDagRunsResponse };
-}) => {
-  const { recentTasks } = useDagsListCounts();
-
-  return (
-    <RecentTaskStateCounts
-      compact
-      dagId={original.dag_id}
-      entry={recentTasks.entriesByDag[original.dag_id]}
-      isLoading={recentTasks.isLoading}
-    />
-  );
-};
 
 /** The Dags table's "Recent tasks" column, or no column when the user turned it off. */
 export const buildRecentTaskStateCountsColumns = (

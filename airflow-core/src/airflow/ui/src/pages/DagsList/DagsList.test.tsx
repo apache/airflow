@@ -26,7 +26,8 @@ import type { DagSchedulingState } from "openapi/requests/types.gen";
 import { DAGS_LIST_DISPLAY_KEY, DAGS_LIST_SHOW_RECENT_TASKS_KEY } from "src/constants/localStorage";
 import { failedDag, pausedDag, successDag } from "src/mocks/handlers/dags";
 import { server } from "src/mocks/server";
-import { AppWrapper, preloadAppRoutes } from "src/utils/AppWrapper";
+import { AppWrapper } from "src/utils/AppWrapper";
+import { preloadAppRoutes } from "src/utils/preloadAppRoutes";
 
 beforeAll(() => preloadAppRoutes(["/dags"]));
 
@@ -499,6 +500,7 @@ describe("Dags list auto-refresh", () => {
 });
 
 const isBefore = (first: HTMLElement, second: HTMLElement) =>
+  // eslint-disable-next-line no-bitwise -- compareDocumentPosition returns a bitmask
   Boolean(first.compareDocumentPosition(second) & Node.DOCUMENT_POSITION_FOLLOWING);
 
 describe("Dag folder toggle", () => {

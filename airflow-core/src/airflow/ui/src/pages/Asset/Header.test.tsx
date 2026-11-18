@@ -23,7 +23,8 @@ import { beforeAll, describe, expect, it } from "vitest";
 
 import { assetWithDependencies } from "src/mocks/handlers/assets";
 import { server } from "src/mocks/server";
-import { AppWrapper, preloadAppRoutes } from "src/utils/AppWrapper";
+import { AppWrapper } from "src/utils/AppWrapper";
+import { preloadAppRoutes } from "src/utils/preloadAppRoutes";
 
 beforeAll(() => preloadAppRoutes(["/assets/1"]));
 

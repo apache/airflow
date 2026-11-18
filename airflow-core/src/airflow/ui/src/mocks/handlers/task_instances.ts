@@ -62,7 +62,7 @@ const buildTaskInstance = (params: PathParams, mapIndex: number) => {
 };
 
 const MAPPED_TASK_INSTANCE_PATH =
-  /\/api\/v2\/dags\/([^/]+)\/dagRuns\/([^/]+)\/taskInstances\/([^/]+)\/(-?\d+)$/u;
+  /\/api\/v2\/dags\/(?<dagId>[^/]+)\/dagRuns\/(?<dagRunId>[^/]+)\/taskInstances\/(?<taskId>[^/]+)\/(?<mapIndex>-?\d+)$/u;
 
 // Registered after the more specific task instance handlers (e.g. src/mocks/handlers/log.ts),
 // so these only answer what no fixture claims.
@@ -83,8 +83,8 @@ export const handlers: Array<HttpHandler> = [
   // request through to the network without reporting it as unhandled, so sub-resources such as
   // `/tries` or `/links` must not match here at all.
   http.get(MAPPED_TASK_INSTANCE_PATH, ({ request }) => {
-    const [, dagId, dagRunId, taskId, mapIndex] =
-      MAPPED_TASK_INSTANCE_PATH.exec(new URL(request.url).pathname) ?? [];
+    const { dagId, dagRunId, mapIndex, taskId } =
+      MAPPED_TASK_INSTANCE_PATH.exec(new URL(request.url).pathname)?.groups ?? {};
 
     return HttpResponse.json(
       buildTaskInstance(

@@ -17,7 +17,6 @@
  * under the License.
  */
 import { Box } from "@chakra-ui/react";
-import type { ColumnDef } from "@tanstack/react-table";
 
 import type { DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
 
@@ -26,8 +25,7 @@ import { RouterLink } from "src/system-components";
 import { DeleteDagButton } from "src/components/DagActions/DeleteDagButton";
 import { FavoriteDagButton } from "src/components/DagActions/FavoriteDagButton";
 import DagRunInfo from "src/components/DagRunInfo";
-import type { DataTableFeatures } from "src/components/DataTable/features";
-import { SelectionHeaderCheckbox, SelectionRowCheckbox } from "src/components/DataTable/useRowSelection";
+import { SelectionHeaderCheckbox, SelectionRowCheckbox } from "src/components/DataTable/RowSelection";
 import { DrainingBadge } from "src/components/DrainingBadge";
 import { NeedsReviewBadge } from "src/components/NeedsReviewBadge";
 import { PluginActions } from "src/components/PluginActions";
@@ -38,30 +36,24 @@ import { TriggerDAGButton } from "src/components/TriggerDag/TriggerDAGButton";
 import { DagRunStateCounts } from "./DagRunStateCounts";
 import { DagTags } from "./DagTags";
 import { useDagsListCounts } from "./DagsListCountsContext";
-import { buildRecentTaskStateCountsColumns } from "./RecentTaskStateCountsColumn";
+import { RecentTaskStateCounts } from "./RecentTaskStateCounts";
 import { Schedule } from "./Schedule";
-
-export const getRowKey = (dag: DAGWithLatestDagRunsResponse) => dag.dag_id;
-
-type GetColumnsParams = {
-  readonly multiTeam: boolean;
-  readonly showRecentTasks: boolean;
-};
+import { getRowKey } from "./dagsListRowKey";
 
 /**
- * Every cell renderer below is a module-level component rather than an inline arrow.
+ * Every cell renderer here is a module-level component rather than an inline arrow.
  * `flexRender` renders them as component types, so a new function identity each render would
  * remount the cell instead of updating it — see `DagsListCountsContext`.
  */
 type CellProps = { readonly row: { readonly original: DAGWithLatestDagRunsResponse } };
 
-const SelectHeader = () => <SelectionHeaderCheckbox colorPalette="brand" />;
+export const SelectHeader = () => <SelectionHeaderCheckbox colorPalette="brand" />;
 
-const SelectCell = ({ row }: CellProps) => (
+export const SelectCell = ({ row }: CellProps) => (
   <SelectionRowCheckbox colorPalette="brand" rowKey={getRowKey(row.original)} />
 );
 
-const PauseCell = ({ row: { original } }: CellProps) => (
+export const PauseCell = ({ row: { original } }: CellProps) => (
   <TogglePause
     dagDisplayName={original.dag_display_name}
     dagId={original.dag_id}
@@ -71,13 +63,13 @@ const PauseCell = ({ row: { original } }: CellProps) => (
   />
 );
 
-const DagNameCell = ({ row: { original } }: CellProps) => (
+export const DagNameCell = ({ row: { original } }: CellProps) => (
   <RouterLink fontWeight="bold" to={`/dags/${original.dag_id}`} whiteSpace="nowrap">
     {original.dag_display_name}
   </RouterLink>
 );
 
-const ScheduleCell = ({ row: { original } }: CellProps) => (
+export const ScheduleCell = ({ row: { original } }: CellProps) => (
   <Box whiteSpace="nowrap">
     <Schedule
       assetExpression={original.asset_expression}
@@ -89,7 +81,7 @@ const ScheduleCell = ({ row: { original } }: CellProps) => (
   </Box>
 );
 
-const NextRunCell = ({ row: { original } }: CellProps) =>
+export const NextRunCell = ({ row: { original } }: CellProps) =>
   original.is_paused ? undefined : original.scheduling_state === "draining" ? (
     <DrainingBadge dagId={original.dag_id} />
   ) : Boolean(original.next_dagrun_run_after) ? (
@@ -101,7 +93,7 @@ const NextRunCell = ({ row: { original } }: CellProps) =>
     </Box>
   ) : undefined;
 
-const LatestRunCell = ({ row: { original } }: CellProps) =>
+export const LatestRunCell = ({ row: { original } }: CellProps) =>
   original.latest_dag_runs[0] ? (
     <RouterLink
       fontWeight="bold"
@@ -118,7 +110,7 @@ const LatestRunCell = ({ row: { original } }: CellProps) =>
     </RouterLink>
   ) : undefined;
 
-const RunStateCountsCell = ({ row: { original } }: CellProps) => {
+export const RunStateCountsCell = ({ row: { original } }: CellProps) => {
   const { runStateCounts } = useDagsListCounts();
 
   return (
@@ -132,7 +124,7 @@ const RunStateCountsCell = ({ row: { original } }: CellProps) => {
   );
 };
 
-const TagsCell = ({
+export const TagsCell = ({
   row: {
     original: { tags },
   },
@@ -142,17 +134,17 @@ const TagsCell = ({
   </Box>
 );
 
-const TeamNameCell = ({ row: { original } }: CellProps) => (
+export const TeamNameCell = ({ row: { original } }: CellProps) => (
   <Box whiteSpace="nowrap">
     <TeamName teamName={original.team_name} />
   </Box>
 );
 
-const PendingActionsCell = ({ row: { original: dag } }: CellProps) => (
+export const PendingActionsCell = ({ row: { original: dag } }: CellProps) => (
   <NeedsReviewBadge pendingActions={dag.pending_actions} />
 );
 
-const TriggerCell = ({ row: { original } }: CellProps) => (
+export const TriggerCell = ({ row: { original } }: CellProps) => (
   <TriggerDAGButton
     allowedRunTypes={original.allowed_run_types}
     dagDisplayName={original.dag_display_name}
@@ -160,114 +152,33 @@ const TriggerCell = ({ row: { original } }: CellProps) => (
   />
 );
 
-const FavoriteCell = ({ row: { original } }: CellProps) => (
+export const FavoriteCell = ({ row: { original } }: CellProps) => (
   <FavoriteDagButton dagId={original.dag_id} isFavorite={original.is_favorite} />
 );
 
 // Plugin actions sit in this cell rather than a column of their own, so a deployment with no
 // Dag actions does not carry a permanently empty column -- and `PluginActions` renders nothing
 // when there are none, matching how the card lays them out.
-const DeleteCell = ({ row: { original } }: CellProps) => (
+export const DeleteCell = ({ row: { original } }: CellProps) => (
   <>
     <DeleteDagButton dagDisplayName={original.dag_display_name} dagId={original.dag_id} />
     <PluginActions entity={{ dag: original, destination: "dag" }} />
   </>
 );
 
-export const createColumns = (
-  translate: (key: string, options?: Record<string, unknown>) => string,
-  { multiTeam, showRecentTasks }: GetColumnsParams,
-): Array<ColumnDef<DataTableFeatures, DAGWithLatestDagRunsResponse>> => [
-  {
-    accessorKey: "select",
-    cell: SelectCell,
-    enableHiding: false,
-    enableSorting: false,
-    header: SelectHeader,
-    meta: {
-      skeletonWidth: 10,
-    },
-  },
-  {
-    accessorKey: "is_paused",
-    cell: PauseCell,
-    enableHiding: false,
-    enableSorting: false,
-    header: "",
-    meta: {
-      skeletonWidth: 10,
-    },
-  },
-  {
-    accessorKey: "dag_display_name",
-    cell: DagNameCell,
-    header: translate("dagId"),
-  },
-  {
-    accessorKey: "timetable_description",
-    cell: ScheduleCell,
-    enableSorting: false,
-    header: translate("dagDetails.schedule"),
-  },
-  {
-    accessorKey: "next_dagrun",
-    cell: NextRunCell,
-    header: translate("dagDetails.nextRun"),
-  },
-  {
-    accessorKey: "last_run_run_after",
-    cell: LatestRunCell,
-    header: translate("dagDetails.latestRun"),
-  },
-  {
-    accessorKey: "run_state_counts",
-    cell: RunStateCountsCell,
-    enableSorting: false,
-    header: translate("dags:runStateCounts.label"),
-  },
-  ...buildRecentTaskStateCountsColumns(showRecentTasks),
-  {
-    accessorKey: "tags",
-    cell: TagsCell,
-    enableSorting: false,
-    header: translate("dagDetails.tags"),
-  },
-  ...(multiTeam
-    ? [
-        {
-          accessorKey: "team_name",
-          cell: TeamNameCell,
-          enableSorting: false,
-          header: translate("dagDetails.team"),
-        },
-      ]
-    : []),
-  {
-    accessorKey: "pending_actions",
-    cell: PendingActionsCell,
-    enableHiding: false,
-    enableSorting: false,
-    header: "",
-  },
-  {
-    accessorKey: "trigger",
-    cell: TriggerCell,
-    enableHiding: false,
-    enableSorting: false,
-    header: "",
-  },
-  {
-    accessorKey: "favourite",
-    cell: FavoriteCell,
-    enableHiding: false,
-    enableSorting: false,
-    header: "",
-  },
-  {
-    accessorKey: "delete",
-    cell: DeleteCell,
-    enableHiding: false,
-    enableSorting: false,
-    header: "",
-  },
-];
+export const RecentTaskStateCountsCell = ({
+  row: { original },
+}: {
+  readonly row: { readonly original: DAGWithLatestDagRunsResponse };
+}) => {
+  const { recentTasks } = useDagsListCounts();
+
+  return (
+    <RecentTaskStateCounts
+      compact
+      dagId={original.dag_id}
+      entry={recentTasks.entriesByDag[original.dag_id]}
+      isLoading={recentTasks.isLoading}
+    />
+  );
+};

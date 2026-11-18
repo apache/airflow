@@ -10,8 +10,8 @@
   "scripts": {
     "dev": "vite --port 5173 --strictPort",
     "build": "vite build",
-    "lint": "oxlint --quiet && tsc --p tsconfig.app.json",
-    "lint:fix": "oxlint --fix && tsc --p tsconfig.app.json",
+    "lint": "oxlint --deny-warnings && tsc --p tsconfig.app.json",
+    "lint:fix": "oxlint --fix --deny-warnings && tsc --p tsconfig.app.json",
     "format": "oxfmt --write .",
     "format:check": "oxfmt --check .",
     "preview": "vite preview",

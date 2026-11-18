@@ -16,30 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { createContext, useContext, type ReactNode } from "react";
+import { createContext, useContext } from "react";
 
 import type { PluginActionsForDestination } from "src/hooks/usePluginActions";
 
 // Frozen at module level so a table rendered outside a provider keeps a stable identity.
 const NO_ACTIONS: PluginActionsForDestination = { actions: [], routeContext: { isLoading: false } };
 
-const PluginActionsContext = createContext<PluginActionsForDestination>(NO_ACTIONS);
-
-/**
- * Carries a table's plugin actions to its row cells.
- *
- * Passing them through the column factory instead would rebuild the columns whenever they
- * change -- and when any action is scoped, `routeContext` holds the page's own polled queries,
- * so that is every auto-refresh tick. `flexRender` would then see a new component type each
- * time and remount the actions cell, closing an open plugin surface along with whatever
- * dialog sat beside it.
- */
-export const PluginActionsProvider = ({
-  children,
-  value,
-}: {
-  readonly children: ReactNode;
-  readonly value: PluginActionsForDestination;
-}) => <PluginActionsContext.Provider value={value}>{children}</PluginActionsContext.Provider>;
+export const PluginActionsContext = createContext<PluginActionsForDestination>(NO_ACTIONS);
 
 export const usePluginActionsContext = (): PluginActionsForDestination => useContext(PluginActionsContext);

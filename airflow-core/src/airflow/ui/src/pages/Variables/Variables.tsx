@@ -30,14 +30,13 @@ import type { VariableResponse } from "openapi/requests/types.gen";
 import { Tooltip, ActionBar } from "src/system-components";
 
 import { DataTable } from "src/components/DataTable";
-import type { DataTableFeatures } from "src/components/DataTable/features";
 import {
   SelectionHeaderCheckbox,
   SelectionProvider,
   SelectionRowCheckbox,
-  useRowSelection,
-  type GetColumnsParams,
-} from "src/components/DataTable/useRowSelection";
+} from "src/components/DataTable/RowSelection";
+import type { DataTableFeatures } from "src/components/DataTable/features";
+import { useRowSelection, type GetColumnsParams } from "src/components/DataTable/useRowSelection";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { ExpandCollapseButtons } from "src/components/ExpandCollapseButtons";
