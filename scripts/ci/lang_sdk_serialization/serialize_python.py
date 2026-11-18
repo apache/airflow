@@ -41,6 +41,7 @@ import yaml
 from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOperator
 from airflow.sdk import DAG, BaseOperator, Label, TaskGroup
 from airflow.sdk.bases.branch import BaseBranchOperator
+from airflow.sdk.bases.decorator import get_unique_task_id
 from airflow.sdk.definitions._internal.loop import (
     LoopGateOperator,
     LoopTaskGroup,
@@ -140,7 +141,7 @@ def close_loop(group: LoopTaskGroup, until: str | None) -> None:
         return True
 
     gate = LoopGateOperator(
-        task_id=until or "__loop_gate",
+        task_id=get_unique_task_id(until or "__loop_gate", dag=group.dag, task_group=group),
         until=decide if until else None,
         dag=group.dag,
         task_group=group,

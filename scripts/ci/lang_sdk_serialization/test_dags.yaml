@@ -44,7 +44,8 @@
 #   arguments, so the Dag shows only that no edge comes of a literal and that Airflow loads it.
 # - loops: an entry of `loops` makes the group it names a task loop of `max_iterations`. `until`
 #   names the gate task the loop gets, which decides whether another iteration follows; without
-#   it the loop runs a fixed count. A loop is made after the `upstream` edges are drawn and before
+#   it the loop runs a fixed count. A gate name that a task already has is numbered as
+#   get_unique_task_id numbers it. A loop is made after the `upstream` edges are drawn and before
 #   the `order_edges`, as an author draws edges from a loop once it exists. A task outside a loop may
 #   list a task of the loop in its `upstream`; it then runs after the loop's gate.
 dags:
@@ -384,6 +385,26 @@ dags:
         upstream: [refine.improve, refine.evaluate]
       - task_id: finished
         upstream: [report]
+
+  # A gate whose name a task of its loop already has is numbered as get_unique_task_id numbers it. The
+  # refine gate is check__2, since the body holds check and check__1; the poll gate is __loop_gate__1.
+  - dag_id: conformance_loop_gate_collision
+    requires: [loops]
+    groups: [refine, poll]
+    loops:
+      - group: refine
+        max_iterations: 4
+        until: check
+      - group: poll
+        max_iterations: 2
+    tasks:
+      - task_id: check
+        group: refine
+      - task_id: check__1
+        group: refine
+        upstream: [refine.check]
+      - task_id: __loop_gate
+        group: poll
 
   # Loops in a plain group, one holding a plain group. The group's leaves include a loop's gate and
   # never a body task, and summarize, which reads a task of the wait loop, runs after its gate.

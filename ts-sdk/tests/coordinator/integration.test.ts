@@ -2103,7 +2103,9 @@ describe("coordinator runtime integration", () => {
         const failure = result.logRecords.find(
           (r) => r["event"] === "[ts-sdk.runtime] Task failed",
         );
-        expect(failure?.["error"]).toBe("Loop condition remained false at max_iterations=3");
+        expect(failure?.["error"]).toBe(
+          `Loop condition remained false at max_iterations=3${reason === undefined ? "" : `: ${reason}`}`,
+        );
       },
     );
 

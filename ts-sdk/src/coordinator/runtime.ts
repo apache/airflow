@@ -514,8 +514,10 @@ async function runLoopGate(
     return buildFailureResponse(details, message, { retry: false });
   }
   if (!decision.stop && loop.index >= loop.max_iterations) {
-    // Python raises LoopMaxIterationsExceeded, an AirflowFailException, which is never retried.
-    const message = `Loop condition remained false at max_iterations=${loop.max_iterations}`;
+    // Python raises LoopMaxIterationsExceeded, an AirflowFailException, which is never retried. The
+    // message only reaches the task log, where the supervisor masks the reason as Python's redact does.
+    const reason = decision.reason === undefined ? "" : `: ${decision.reason}`;
+    const message = `Loop condition remained false at max_iterations=${loop.max_iterations}${reason}`;
     logs.error("Task failed", { task_id: ctx.taskId, error: message });
     return buildFailureResponse(details, message, { retry: false, loopDecision: decision });
   }

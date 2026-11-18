@@ -279,6 +279,65 @@ describe("TaskGroupRef.loop", () => {
         'Task "g.leaf" is already registered for Dag "ts_gate_taskid_clash"',
       );
     });
+
+    it("keeps an id the author gave when a body task declared after loop() takes it", () => {
+      const dag = new Dag("ts_gate_taskid_late_clash");
+      const group = dag.taskGroup("g");
+      group.loop({ maxIterations: 2, taskId: "leaf" });
+
+      expect(() => group.task("leaf", async () => 1)).toThrow(
+        'Task "g.leaf" is already registered for Dag "ts_gate_taskid_late_clash"',
+      );
+    });
+
+    it("for a handler named like a group of the loop, which Python rejects as a duplicate", () => {
+      const dag = new Dag("ts_gate_named_like_a_group");
+      const group = dag.taskGroup("g");
+      group.taskGroup("check").task("leaf", async () => 1)();
+      async function check() {
+        return true;
+      }
+
+      expect(() => group.loop(check, {}, { maxIterations: 2 })).toThrow(
+        'Task "g.check" is already registered for Dag "ts_gate_named_like_a_group"',
+      );
+    });
+
+    it("once the body exists, when a body task declared after loop() takes the handler's name", () => {
+      const dag = new Dag("ts_gate_before_body");
+      const group = dag.taskGroup("g");
+      async function check() {
+        return true;
+      }
+      group.loop(check, {}, { maxIterations: 2 });
+      const first = group.task("check", async () => 1)();
+      const second = group.task("check__1", async () => 1)();
+      first.before(second);
+
+      const serialized = serialize(dag);
+      expect(getDagLoops(dag).get("g")!.gateTaskId).toBe("g.check__2");
+      const gate = getDagTaskRecords(dag).get("g.check__2")!;
+      expect(gate.task.taskId).toBe("g.check__2");
+      expect(gate.loopGate).toEqual({ groupId: "g" });
+      expect(groupObject(serialized, "g")["loop"]).toMatchObject({
+        terminal_task_id: "g.check__1",
+        gate_task_id: "g.check__2",
+      });
+      expect(downstreamOf(serialized).get("g.check__1")).toEqual(["g.check__2"]);
+    });
+
+    it("but not for a task outside the loop that takes it, which Python rejects as a duplicate", () => {
+      const dag = new Dag("ts_gate_late_outside");
+      const group = dag.taskGroup("g", { prefixGroupId: false });
+      async function check() {
+        return true;
+      }
+      group.loop(check, {}, { maxIterations: 2 });
+
+      expect(() => dag.task("check", async () => 1)).toThrow(
+        'Task "check" is already registered for Dag "ts_gate_late_outside"',
+      );
+    });
   });
 
   it.each([
@@ -503,6 +562,19 @@ describe("TaskGroupRef.loop", () => {
       expect(() => finalizeDag(dag)).toThrow(/but it holds no task/);
     });
 
+    it("a body whose tasks wait for each other, which leaves no task to end it", () => {
+      const dag = new Dag("ts_body_cycle");
+      const group = dag.taskGroup("g");
+      const a = group.task("a", async () => 1)();
+      const b = group.task("b", async () => 1)();
+      a.before(b);
+      b.before(a);
+      group.loop({ maxIterations: 2 });
+      expect(() => finalizeDag(dag)).toThrow(
+        'but its tasks wait for each other: "g.a" -> "g.b" -> "g.a"',
+      );
+    });
+
     it("an order-only edge from a body task to a task outside the loop", () => {
       const dag = new Dag("ts_body_edge");
       const group = dag.taskGroup("g");
@@ -540,6 +612,24 @@ describe("TaskGroupRef.loop", () => {
       );
     });
 
+    it("a body task that runs after a task the loop is ordered before, with no all() read", () => {
+      const dag = new Dag("ts_order_cycle");
+      const group = dag.taskGroup("g");
+      const a = group.task("a", async () => 1)();
+      const b = group.task("b", async () => 1)();
+      a.before(b);
+      const loop = group.loop({ maxIterations: 2 });
+      const x = dag.task("x", async () => undefined)();
+      loop.before(x);
+      x.before(a);
+
+      expect(() => finalizeDag(dag)).toThrow(
+        'Loop "g" of Dag "ts_order_cycle" would wait for itself: ' +
+          '"g.__loop_gate" -> "x" -> "g.a" -> "g.b" -> "g.__loop_gate". ' +
+          "A task downstream of the loop runs after its last iteration",
+      );
+    });
+
     it.each([
       ["before() on it", (every: TaskRef, outside: TaskRef) => every.before(outside)],
       ["after() on it", (every: TaskRef, outside: TaskRef) => every.after(outside)],
@@ -556,9 +646,33 @@ describe("TaskGroupRef.loop", () => {
       const outside = dag.task("outside", async () => undefined)();
 
       expect(() => draw(loop.all(leaf), outside)).toThrow(
-        /The all\(\) of "g.leaf" of Dag "ts_all_edge" cannot be an end of an edge.*reference loop\(\) returned/,
+        /The all\(\) of "g.leaf" of Dag "ts_all_edge" cannot be used with before\(\) or after\(\).*reference loop\(\) returned/,
       );
       expect(downstreamOf(serialize(dag)).get("g.leaf")).toEqual(["g.__loop_gate"]);
+    });
+
+    it.each([
+      ["Label.of(...).on()", (_dag: Dag, every: TaskRef) => Label.of("x").on(every)],
+      [
+        "then() or else()",
+        (dag: Dag, every: TaskRef) =>
+          dag.if(async () => true, undefined, { taskId: "decide" }).then(every),
+      ],
+      [
+        "case()",
+        (dag: Dag, every: TaskRef) =>
+          dag.switch(async () => every, undefined, { taskId: "decide" }).case(every),
+      ],
+    ])("the reference all() returned, given to %s", (use, place) => {
+      const dag = new Dag("ts_all_placed");
+      const group = dag.taskGroup("g");
+      const leaf = group.task("leaf", async () => 1)();
+      const loop = group.loop({ maxIterations: 2 });
+
+      expect(() => place(dag, loop.all(leaf))).toThrow(
+        `The all() of "g.leaf" of Dag "ts_all_placed" cannot be used with ${use}. Order the ` +
+          "whole loop through the reference loop() returned",
+      );
     });
 
     it("an order-only edge from a group nested in the body to a task outside", () => {

@@ -32,7 +32,8 @@ This ADR records the TypeScript spelling of them.
 
 ## Decision
 
-1. **`refine.loop(...)` closes a group.** `dag.taskGroup("refine")` builds and fills it as usual.
+1. **`refine.loop(...)` turns a group into a loop.** `dag.taskGroup("refine")` builds and fills it as
+   usual, before or after the `loop()` call.
 2. **The gate is a handler wired in one call**: `loop(until, inputs, spec)`, the shape
    `dag.if(handler, inputs, spec)` already has ([ADR-0002](0002-native-dag-interface.md)). `inputs` is
    the gate's own data, as any task's is.
@@ -50,8 +51,9 @@ This ADR records the TypeScript spelling of them.
    the all-iterations read from outside and the SDK records no argument type it could check instead.
    `all()` throws at once for a task that is not in that loop.
 7. **`LoopRef` carries `all`, `before` and `after`.** An order-only edge from a body ref to a task outside is
-   rejected when the Dag is read. The reference `all()` returns takes no part in the order: an edge
-   drawn on it throws at the call, and the loop's own reference orders the whole loop.
+   rejected when the Dag is read. The reference that `all()` returns cannot be ordered: `before()`,
+   `after()`, `Label.of(...).on()`, `then()` and `case()` throw on it at the call. The loop's own
+   reference orders the whole loop.
 
 ## Example
 
@@ -173,16 +175,24 @@ interface LoopContext {
 
 - **A fixed-count loop's gate only counts.** `loop({ maxIterations })` emits `has_until: false`, and its
   gate runs on a worker and ends the loop once `index` reaches `maxIterations` (ADR-0017 decision 4).
-- **The gate is an ordinary task.** `LoopOptions` takes the `TaskSpec` fields that do not change when
-  the gate runs, so `queue` and `retries` land on it; `triggerRule`, `dependsOnPast`, `startDate` and
-  `endDate` are rejected. Its id defaults to the handler's function name under the group's prefix. A
-  fixed-count loop has no handler to take a name from, so its gate is `__loop_gate`, as Python's is.
-  When a task already has that id the gate takes a `__1` style suffix, as `get_unique_task_id` gives it
-  in Python. It serializes as `LoopGateOperator`, the type core finds gates by, and the Dag processor
-  rejects a gate serialized under any other type.
+- **The gate is an ordinary task.** `LoopOptions` takes `TaskSpec` fields such as `queue` and
+  `retries`, which land on the gate. It rejects `triggerRule`, `dependsOnPast`, `startDate` and
+  `endDate`, which would change when the gate runs. The gate's id defaults to the handler's function
+  name under the group's prefix. A fixed-count loop has no handler to take a name from, so its gate is
+  `__loop_gate`, as Python's is. It serializes as `LoopGateOperator`, the type core finds gates by, and
+  the Dag processor rejects a gate serialized under any other type.
+- **A gate whose id is taken is numbered as Python numbers it.** If a task already has the id, the
+  gate gets a `__1` style suffix, the number `get_unique_task_id` gives it. Python picks the id once
+  the body exists, so a body task declared after `loop()` that takes the gate's id moves the gate on
+  instead of failing. Only tasks count, so a handler named like a child group fails as a duplicate
+  id, as in Python. An id the author gave in `taskId` is used as it is.
 - **A gate that still says to continue at `maxIterations` fails without a retry**, as Python's does.
-  The runtime fails it and sends the decision with the failure, so the reason is kept. Core still
-  revalidates a decision on success.
+  This departs from [ADR-0017](../../airflow-core/adr/lang-sdk/0017-task-loops-across-lang-sdks.md)
+  ("What an SDK runtime does", step 4), where the SDK sends the continue and core rejects it. Core
+  retries that rejection while tries remain, but Python's `LoopMaxIterationsExceeded` is never retried.
+  The runtime fails the gate itself and sends the decision with the failure, so core keeps the reason,
+  and the failure message carries it as Python's does. Core still revalidates a decision on success.
+  ADR-0017 is unchanged here; the Go and Java runtimes can follow when they add loops.
 - **The body's single leaf is checked twice**: by the SDK when the Dag is read, for the faster
   message, and by the Dag processor, which decides (ADR-0017 decision 3). A nested loop and a loop
   inside a mapped task group are rejected the same way.
