@@ -197,6 +197,7 @@
     },
     "save": "Save"
   },
+  "moreTabs": "More",
   "nav": {
     "admin": "Admin",
     "assets": "Assets",
@@ -260,6 +261,7 @@
     "asset_triggered": "Asset Triggered",
     "backfill": "Backfill",
     "manual": "Manual",
+    "operator_triggered": "Operator Triggered",
     "scheduled": "Scheduled"
   },
   "scroll": {
@@ -439,6 +441,7 @@
   "switchDag": "Switch $t(dag_one)",
   "switchDagRun": "Switch $t(dagRun_one)",
   "switchMapIndex": "Switch $t(mapIndex)",
+  "switchTask": "Switch $t(task_one)",
   "table": {
     "completedAt": "Completed at",
     "createdAt": "Created at",

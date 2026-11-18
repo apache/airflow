@@ -102,8 +102,9 @@ What a subclass implements
     class's ``call_tool`` masks it on the way out. Implement ``execute_tool`` rather than
     overriding ``call_tool``, since an override skips that masking and ``AgentOperator``
     then wraps the toolset in a masking layer of its own. With ``durable=True`` a result
-    has to be JSON-serializable, or the task fails with ``DurableJournalError`` and is
-    not retried.
+    has to be JSON-serializable or bytes (on their own or as values inside dicts and
+    lists), or the task fails with ``DurableJournalError`` and is not retried. Put bytes
+    in a dict, not in a field of a dataclass or Pydantic model.
 
 Two class attributes are optional:
 

@@ -57,6 +57,7 @@
   },
   "history": "היסטוריה",
   "importErrors": {
+    "bundle": "חבילה",
     "dagImportError_one": "שגיאה בטעינת Dag",
     "dagImportError_other": "שגיאות בטעינת Dag",
     "dagImportError_two": "שגיאות בטעינת Dag",

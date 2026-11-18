@@ -18,7 +18,6 @@
  */
 
 import java.io.File
-import java.net.URI
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
 import java.time.Duration
@@ -38,7 +37,6 @@ plugins {
     kotlin("plugin.serialization") version "2.4.20"
 }
 
-val schemaBaseUrl = "https://airflow.apache.org/schemas/supervisor-schema"
 val schemaInput = layout.projectDirectory.file("schema/schema.json")
 val pointersDir = layout.buildDirectory.dir("schema-pointers/main")
 val jsonSchemaPackage = "org.apache.airflow.sdk.execution.comm"
@@ -164,11 +162,12 @@ abstract class SyncSupervisorSchemaTask : DefaultTask() {
     @get:Input
     abstract val schemaVersion: Property<String>
 
-    @get:Input
-    abstract val baseUrl: Property<String>
-
     @get:Internal
     abstract val schemaFile: RegularFileProperty
+
+    /** The Task SDK schema; missing outside the monorepo. */
+    @get:Internal
+    abstract val sourceFile: RegularFileProperty
 
     private fun apiVersionOf(file: File): String =
         if (file.exists()) {
@@ -185,32 +184,24 @@ abstract class SyncSupervisorSchemaTask : DefaultTask() {
     fun sync() {
         val file = schemaFile.get().asFile
         val version = schemaVersion.get()
-        if (apiVersionOf(file) == version) {
-            logger.lifecycle("Supervisor Schema is up-to-date (api_version=$version).")
+        val source = sourceFile.get().asFile
+        if (apiVersionOf(source) == version) {
+            if (file.exists() && file.readBytes().contentEquals(source.readBytes())) {
+                logger.lifecycle("Supervisor Schema is up-to-date (api_version=$version).")
+                return
+            }
+            logger.lifecycle("Refreshing Supervisor Schema from $source")
+            file.parentFile.mkdirs()
+            Files.copy(source.toPath(), file.toPath(), StandardCopyOption.REPLACE_EXISTING)
             return
         }
-        val url = "${baseUrl.get()}/$version.json"
-        logger.lifecycle("Refreshing Supervisor Schema with $url")
-        file.parentFile.mkdirs()
-        val tempTarget = Files.createTempFile(file.parentFile.toPath(), "schema", ".json")
-        try {
-            val connection =
-                URI(url).toURL().openConnection().apply {
-                    // Timeout values are arbitrary.
-                    connectTimeout = 30_000
-                    readTimeout = 30_000
-                }
-            connection.getInputStream().use { input ->
-                Files.copy(input, tempTarget, StandardCopyOption.REPLACE_EXISTING)
-            }
-            val downloaded = apiVersionOf(tempTarget.toFile())
-            if (downloaded != version) {
-                throw GradleException("Schema declares api_version='$downloaded' but expected '$version' ($url)")
-            }
-            Files.move(tempTarget, file.toPath(), StandardCopyOption.REPLACE_EXISTING)
-        } finally {
-            Files.deleteIfExists(tempTarget)
+        val vendored = apiVersionOf(file)
+        if (vendored != version) {
+            throw GradleException(
+                "${file.name} is api_version='$vendored' but airflowSupervisorSchemaVersion is '$version'",
+            )
         }
+        logger.lifecycle("Supervisor Schema is up-to-date (api_version=$version).")
     }
 }
 
@@ -700,6 +691,52 @@ abstract class GenerateDagDslTask : DefaultTask() {
             |  )
             |
             |  /**
+            |   * Marks the method that stops a task when Airflow asks the task to stop.
+            |   *
+            |   * The class the annotation processor generates for the task then
+            |   * implements [StoppableTask]. The documentation of its `onKill` method
+            |   * explains when the SDK calls this method. This method is called on the
+            |   * object that runs the task method, so the two methods can share a
+            |   * `volatile` field:
+            |   *
+            |   * ```java
+            |   * private volatile String jobId;
+            |   *
+            |   * @Airflow.Task(id = "build_report", retries = 2)
+            |   * public void buildReport(Context context) throws Exception {
+            |   *   jobId = service.submit();
+            |   *   if (context.isCancelled()) {
+            |   *     service.cancel(jobId);
+            |   *     throw new IllegalStateException("Airflow asked the task to stop");
+            |   *   }
+            |   *   service.waitFor(jobId); // Throws if the job fails or is cancelled.
+            |   * }
+            |   *
+            |   * @Airflow.OnKill(task = "build_report")
+            |   * public void stopReport() throws Exception {
+            |   *   if (jobId != null) service.cancel(jobId);
+            |   * }
+            |   * ```
+            |   *
+            |   * The method can take a [Context] parameter. It cannot take any other
+            |   * parameter, and it cannot be private, static or abstract. If a task
+            |   * method only checks [Context.isCancelled] in a loop, this method can be
+            |   * empty. The generated class checks for a stop request just before it
+            |   * calls the task method, and fails the task if it finds a request.
+            |   *
+            |   * @param task ID of the task. The class that declares this method must
+            |   *    also declare the task with [Task], [If], [Switch] or [TaskHandler].
+            |   *    In a [TaskGroup] class, leave out the group's prefix. A task that
+            |   *    triggers a Dag run has no body to stop, so it cannot have a method
+            |   *    with this annotation.
+            |   */
+            |  @Target(AnnotationTarget.FUNCTION)
+            |  @MustBeDocumented
+            |  annotation class OnKill(
+            |    val task: String,
+            |  )
+            |
+            |  /**
             |   * Marks the nested class that declares this Dag's task graph.
             |   *
             |   * Declare it as a `static` nested class that implements the generated
@@ -816,8 +853,8 @@ abstract class GenerateDagDslTask : DefaultTask() {
 val syncSupervisorSchema by tasks.registering(SyncSupervisorSchemaTask::class) {
     description = "Ensure the bundled Supervisor Schema is up-to-date with the Gradle property."
     schemaVersion = airflowSupervisorSchemaVersion
-    baseUrl = schemaBaseUrl
     schemaFile = schemaInput
+    sourceFile = layout.projectDirectory.file("../../task-sdk/src/airflow/sdk/execution_time/schema/schema.json")
 }
 
 tasks.register<GenerateDiscriminatorTask>("generateDiscriminator") {

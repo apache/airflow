@@ -95,8 +95,7 @@ class ReplayUsageLedger:
     ``tool_calls += 1``. The ledger cancels each replay when it happens, so the run's
     counts only move for live work. Nothing here is persisted: the result is the same
     whether the journal entry was written by the previous attempt, an attempt that failed
-    halfway through its own replay, or an attempt before a clear (which resets the budget
-    but keeps the durable journal).
+    halfway through its own replay, or an attempt before a clear that kept task state.
 
     Two of pydantic-ai's limit checks run before the durable layer sees the step it
     guards: ``check_before_request`` before each model request, and the up-front

@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import copy
 import json
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -67,6 +67,9 @@ from airflow.providers.common.ai.toolsets.sql import SQLToolset
 from tests_common.test_utils.config import conf_vars
 from unit.common.ai.tools.test_tracing import TI
 from unit.common.ai.toolsets.test_sql import _make_mock_db_hook
+
+if TYPE_CHECKING:
+    from airflow.providers.common.ai.tools import ToolSource
 
 TRACING = "airflow.providers.common.ai.tools.tracing"
 MODULE = "airflow.providers.common.ai.tools.openai_agents"
@@ -133,7 +136,7 @@ def _tool(result: ToolResult | Exception) -> AirflowTool:
     )
 
 
-def _function_tools(*sources: AirflowTool | SQLToolset) -> list[FunctionTool]:
+def _function_tools(*sources: ToolSource) -> list[FunctionTool]:
     tools = []
     for tool in AirflowTools(*sources):
         assert isinstance(tool, FunctionTool)
@@ -176,6 +179,11 @@ class TestAirflowTools:
 
         assert tool.strict_json_schema is False
         assert tool.params_json_schema == source.parameters
+
+    def test_a_filtered_toolset_offers_every_tool_the_filter_keeps(self):
+        tools = _function_tools(SQLToolset("pg_default").filtered(lambda ctx, tool: tool.name != "query"))
+
+        assert [t.name for t in tools] == ["list_tables", "get_schema", "check_query"]
 
     def test_accepts_individual_tools_alongside_toolsets(self):
         tools = AirflowTools(_tool(ToolResult("a")), SQLToolset("pg_default"))

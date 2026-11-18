@@ -22,7 +22,6 @@ import pytest
 from celery import current_app
 from celery.contrib.testing.app import setup_default_app
 from sqlalchemy import event
-from sqlalchemy.engine import make_url
 
 from airflow.providers.celery.executors import default_celery
 from airflow.providers.celery.executors.celery_executor_utils import create_celery_app
@@ -65,12 +64,12 @@ def get_backend_connect_kwargs(backend):
 
 @pytest.mark.usefixtures("restore_current_celery_app")
 @pytest.mark.parametrize(
-    "result_backend",
+    ("result_backend", "expected_driver"),
     [
-        pytest.param(None, id="derived-from-metadata"),
-        pytest.param("db+postgresql+psycopg://user:pass@host/db", id="explicit-psycopg"),
-        pytest.param("db+postgresql://user:pass@host/db", id="sqlalchemy-default-driver"),
-        pytest.param("db+postgresql+psycopg2://user:pass@host/db", id="explicit-psycopg2"),
+        pytest.param(None, "psycopg", id="derived-from-metadata"),
+        pytest.param("db+postgresql+psycopg://user:pass@host/db", "psycopg", id="explicit-psycopg"),
+        pytest.param("db+postgresql://user:pass@host/db", "psycopg", id="explicit-driverless"),
+        pytest.param("db+postgresql+psycopg2://user:pass@host/db", "psycopg2", id="explicit-psycopg2"),
     ],
 )
 @pytest.mark.parametrize(
@@ -80,9 +79,7 @@ def get_backend_connect_kwargs(backend):
         pytest.param({"pool_recycle": 1800, "connect_args": {"connect_timeout": 7}}, id="custom-options"),
     ],
 )
-def test_result_backend_disables_psycopg_preparation(result_backend, engine_options):
-    expected_url = result_backend or "db+postgresql+psycopg://user:pass@host/db"
-    expected_driver = make_url(expected_url.removeprefix("db+")).get_driver_name()
+def test_result_backend_disables_psycopg_preparation(result_backend, expected_driver, engine_options):
     expected_connect_args = {
         **({"prepare_threshold": None} if expected_driver == "psycopg" else {}),
         **engine_options.get("connect_args", {}),

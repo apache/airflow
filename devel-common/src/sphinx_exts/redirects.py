@@ -18,14 +18,29 @@
 
 from __future__ import annotations
 
+import json
 import os
 
 from sphinx.builders import html as builders
 from sphinx.util import logging
 
-TEMPLATE = '<html><head><meta http-equiv="refresh" content="0; url={}"/></head></html>'
+# The script keeps the "#anchor" of the requested URL, which a meta refresh drops; the meta refresh
+# stays as the fallback when JavaScript is disabled.
+TEMPLATE = (
+    "<html><head>"
+    "<script>var target = {target};"
+    ' if (window.location.hash) {{ target = target.split("#")[0] + window.location.hash; }}'
+    " window.location.replace(target);</script>"
+    '<meta http-equiv="refresh" content="0; url={url}"/>'
+    "</head></html>"
+)
 
 log = logging.getLogger(__name__)
+
+
+def build_redirect_page(to_path: str) -> str:
+    """Return the HTML of a page that redirects to ``to_path``, keeping the anchor of the request."""
+    return TEMPLATE.format(target=json.dumps(to_path), url=to_path)
 
 
 def generate_redirects(app):
@@ -84,7 +99,7 @@ def generate_redirects(app):
             os.makedirs(redirected_directory, exist_ok=True)
 
             with open(redirected_filename, "w") as f:
-                f.write(TEMPLATE.format(to_path))
+                f.write(build_redirect_page(to_path))
 
 
 def setup(app):

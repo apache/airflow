@@ -268,7 +268,7 @@ are rejected. The timestamp cutoff still applies, and any Dag filters further re
 
     airflow db clean --tables asset_event --asset-ids 1,2 --clean-before-timestamp '2024-01-01T00:00:00+00:00' --dry-run
 
-By default, ``db clean`` will archive purged rows in tables of the form ``_airflow_deleted__<table>__<timestamp>``. Cascading attempt data may use a unique suffix instead of a timestamp. If you don't want the data preserved in this way, you may supply argument ``--skip-archive``.
+By default, ``db clean`` will archive purged rows in tables of the form ``_airflow_deleted__<table>__<timestamp>``. Cascading attempt data may use a unique suffix instead of a timestamp. If you supply ``--skip-archive``, the command deletes rows directly from the source tables without creating archive tables.
 
 When you encounter an error without using ``--skip-archive``, an archive table may remain in the DB. You can use ``db drop-archived`` to remove it. ``db export-archived`` and ``db drop-archived`` also accept the pre-upgrade names ``xcom`` and ``task_instance_history`` to find older archives.
 

@@ -41,7 +41,7 @@ import structlog
 from gunicorn.app.base import BaseApplication
 from gunicorn.arbiter import Arbiter
 from gunicorn.glogging import Logger as GunicornLogger
-from uvicorn.workers import UvicornWorker
+from uvicorn_worker import UvicornWorker
 
 from airflow.configuration import conf
 from airflow.exceptions import RemovedInAirflow4Warning
