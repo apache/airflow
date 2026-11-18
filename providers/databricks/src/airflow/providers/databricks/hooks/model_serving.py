@@ -116,7 +116,7 @@ class PydanticAIDatabricksHook(PydanticAIHook):
     instance; nothing currently closes it.
 
     Connection fields:
-        - **extra** JSON: ``{"model": "databricks-claude-sonnet-4-5",
+        - **extra** JSON: ``{"model": "my-serving-endpoint",
           "databricks_conn_id": "databricks_default"}``
 
     A bare model name is a serving endpoint name and is qualified as ``openai-chat:<endpoint>``,
@@ -130,7 +130,7 @@ class PydanticAIDatabricksHook(PydanticAIHook):
     headers.
 
     :param llm_conn_id: Airflow connection ID for this ``pydanticai_databricks`` connection.
-    :param model_id: Serving endpoint name, e.g. ``"databricks-claude-sonnet-4-5"``.
+    :param model_id: Serving endpoint name, e.g. ``"my-serving-endpoint"``.
     :param fallback_conn_ids: See :class:`~airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIHook`.
     :param databricks_conn_id: Connection ID of an existing Databricks connection to source the
         workspace host and credentials from. Takes precedence over the connection extra's
@@ -164,7 +164,7 @@ class PydanticAIDatabricksHook(PydanticAIHook):
             "hidden_fields": ["schema", "port", "login", "host", "password"],
             "relabeling": {},
             "placeholders": {
-                "extra": '{"model": "databricks-claude-sonnet-4-5", "databricks_conn_id": "databricks_default"}',
+                "extra": '{"model": "my-serving-endpoint", "databricks_conn_id": "databricks_default"}',
             },
         }
 
