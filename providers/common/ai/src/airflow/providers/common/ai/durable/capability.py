@@ -209,6 +209,8 @@ def _lacks_id(leaf: AbstractToolset[Any]) -> TypeGuard[FunctionToolset[Any] | Dy
 # Why a recorded step that matched is run live anyway: it was written by a version whose
 # types have changed since, so replaying it would fail on every retry.
 _UNLOADABLE = "the recorded result no longer loads, so it was written by another version"
+# A chain replays a step only if its answering member is still in the chain; this applies when
+# the recorded response carries no stamp saying which member answered.
 _UNSTAMPED_ANSWERER = "the recorded response does not say which fallback chain member answered it"
 
 # How an operation's step is run: looked up in the journal and recorded, or always run live.
