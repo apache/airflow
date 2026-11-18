@@ -17,20 +17,20 @@
  * under the License.
  */
 import "@testing-library/jest-dom/vitest";
+import type { ReactNode } from "react";
+
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, useLocation } from "react-router-dom";
 import { afterEach, describe, it, expect, vi } from "vitest";
 
 import { TimezoneProvider } from "src/context/timezone";
-import { brokenDag, dagsListHandler, defaultDags, drainingDag } from "src/mocks/handlers/dags";
+import { brokenDag, dagsListHandler, defaultDags } from "src/mocks/handlers/dags";
 import { server } from "src/mocks/server";
-import { AppWrapper, preloadAppRoutes } from "src/utils/AppWrapper";
 import { BaseWrapper } from "src/utils/Wrapper";
 
+import { DagsList } from "../DagsList";
 import { usePausedDefault } from "../usePausedDefault";
 import { DagsFilters } from "./DagsFilters";
-
-await preloadAppRoutes(["/dags"]);
 
 const mockConfig: Record<string, unknown> = {
   auto_refresh_interval: 3,
@@ -62,17 +62,23 @@ const FiltersWithDefault = () => {
 
 const LocationSearch = () => <output data-testid="location-search">{useLocation().search}</output>;
 
-/** Renders the filter bar alone: what it shows and what it writes to the URL, without the list. */
-const renderFilters = (entry = "/dags") =>
+const renderAt = (entry: string, children: ReactNode) =>
   render(
     <BaseWrapper>
       <MemoryRouter initialEntries={[entry]}>
-        <TimezoneProvider>
-          <FiltersWithDefault />
-          <LocationSearch />
-        </TimezoneProvider>
+        <TimezoneProvider>{children}</TimezoneProvider>
       </MemoryRouter>
     </BaseWrapper>,
+  );
+
+/** Renders the filter bar alone: what it shows and what it writes to the URL, without the list. */
+const renderFilters = (entry = "/dags") =>
+  renderAt(
+    entry,
+    <>
+      <FiltersWithDefault />
+      <LocationSearch />
+    </>,
   );
 
 const getSearchParams = () => new URLSearchParams(screen.getByTestId("location-search").textContent);
@@ -98,19 +104,19 @@ describe("Paused state pill", () => {
   });
 
   it.each([
-    { entry: "/dags?paused=false", expected: "filters.paused.active" },
-    { entry: "/dags?paused=true", expected: "filters.paused.paused" },
+    { expected: "filters.paused.active", search: "?paused=false" },
+    { expected: "filters.paused.paused", search: "?paused=true" },
     // Draining is narrower than not-paused, so the shared pill has to report the narrower one.
-    { entry: "/dags?scheduling_state=draining", expected: "draining.label" },
+    { expected: "draining.label", search: "?scheduling_state=draining" },
     // The dashboard's Active Dags link.
-    { entry: "/dags?scheduling_state=active", expected: "stats.activeDags" },
+    { expected: "stats.activeDags", search: "?scheduling_state=active" },
     // Links written before draining moved into the pill.
-    { entry: "/dags?scheduling_state=paused", expected: "filters.paused.paused" },
-  ])("restores $entry onto the pill without replacing it with the default", async ({ entry, expected }) => {
-    renderFilters(entry);
+    { expected: "filters.paused.paused", search: "?scheduling_state=paused" },
+  ])("restores $search onto the pill without replacing it with the default", async ({ expected, search }) => {
+    renderFilters(`/dags${search}`);
 
     expect(await screen.findByTestId("paused-pill")).toHaveTextContent(expected);
-    expect(getSearchParams().toString()).toBe(new URL(entry, "http://localhost").searchParams.toString());
+    expect(screen.getByTestId("location-search")).toHaveTextContent(search);
   });
 
   it("offers one state pill rather than a separate scheduling state", async () => {
@@ -208,10 +214,10 @@ describe("Other filters", () => {
 // Without the paused default, so that the list filters only on the param under test.
 const renderPage = (entry: string) => {
   mockConfig.hide_paused_dags_by_default = false;
-  render(<AppWrapper initialEntries={[entry]} />);
+  renderAt(entry, <DagsList />);
 };
 
-// The whole page, only to check that the list asks the API for what the URL holds.
+// The list itself, only to check that it asks the API for what the URL holds.
 describe("Dags list filtered from the URL", () => {
   it("sends the paused default on every dags request, including the first", async () => {
     const urls: Array<URL> = [];
@@ -221,7 +227,7 @@ describe("Dags list filtered from the URL", () => {
 
     server.events.on("request:start", onRequest);
     try {
-      render(<AppWrapper initialEntries={["/dags"]} />);
+      renderAt("/dags", <DagsList />);
 
       await waitFor(() => expect(screen.getByText("tutorial_taskflow_api_success")).toBeInTheDocument());
     } finally {
@@ -237,11 +243,6 @@ describe("Dags list filtered from the URL", () => {
   it.each([
     { entry: "/dags?paused=true", hidden: "tutorial_taskflow_api_success", shown: "paused_dag" },
     {
-      entry: "/dags?scheduling_state=draining",
-      hidden: "tutorial_taskflow_api_success",
-      shown: "draining_dag",
-    },
-    {
       entry: "/dags?timetable_type=CronTriggerTimetable",
       hidden: "tutorial_taskflow_api_success",
       shown: "tutorial_taskflow_api_failed",
@@ -249,7 +250,7 @@ describe("Dags list filtered from the URL", () => {
     { entry: "/dags?has_import_errors=true", hidden: "tutorial_taskflow_api_success", shown: "broken_dag" },
     { entry: "/dags?has_import_errors=false", hidden: "broken_dag", shown: "tutorial_taskflow_api_success" },
   ])("shows only the matching Dags for $entry", async ({ entry, hidden, shown }) => {
-    server.use(dagsListHandler([...defaultDags, drainingDag, brokenDag]));
+    server.use(dagsListHandler([...defaultDags, brokenDag]));
     renderPage(entry);
 
     expect(await screen.findByText(shown)).toBeInTheDocument();

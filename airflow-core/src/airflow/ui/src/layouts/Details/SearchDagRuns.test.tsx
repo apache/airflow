@@ -16,8 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import "@testing-library/jest-dom/vitest";
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -28,6 +27,7 @@ import { BaseWrapper } from "src/utils/Wrapper";
 import type { DagRunSearchOption } from "src/utils/option";
 
 import { SearchDagRuns } from "./SearchDagRuns";
+import { typeSearch } from "./typeSearch.testUtils";
 
 // Stands in for the real combo box: it lists whatever the panel was handed without a search, and
 // offers one button that runs a search, which is the split this component is built around.
@@ -115,16 +115,6 @@ const buildRun = (dagRunId: string): DAGRunResponse => ({
 /** The listed run, as the mocked combo box renders it. */
 const RUN_2 = "run_2 (failed)";
 
-// The component debounces the search by 300ms. Move a fake clock past it rather than wait in real
-// time, which a busy runner stretches; the clock otherwise keeps running for the requests.
-const typeSearch = (value: string) => {
-  vi.useFakeTimers({ shouldAdvanceTime: true });
-  fireEvent.change(screen.getByLabelText("Search"), { target: { value } });
-  act(() => {
-    vi.advanceTimersByTime(300);
-  });
-};
-
 describe("SearchDagRuns", () => {
   beforeEach(() => {
     vi.spyOn(DagRunService, "getDagRuns").mockResolvedValue({
@@ -135,7 +125,6 @@ describe("SearchDagRuns", () => {
 
   afterEach(() => {
     vi.useRealTimers();
-    vi.restoreAllMocks();
   });
 
   it("lists the runs it was handed, by run id and state, without asking for any", () => {

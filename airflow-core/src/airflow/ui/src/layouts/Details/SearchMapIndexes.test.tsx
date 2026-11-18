@@ -16,8 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import "@testing-library/jest-dom/vitest";
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -28,6 +27,7 @@ import { BaseWrapper } from "src/utils/Wrapper";
 import type { MapIndexSearchOption } from "src/utils/option";
 
 import { SearchMapIndexes } from "./SearchMapIndexes";
+import { typeSearch } from "./typeSearch.testUtils";
 
 vi.mock("chakra-react-select", () => ({
   Select: ({
@@ -102,20 +102,9 @@ const renderSearch = (initialEntry: string, route: string) =>
 
 const MAPPED_ROUTE = "/dags/:dagId/runs/:runId/tasks/:taskId/mapped/:mapIndex";
 
-// The component debounces the search by 300ms. Move a fake clock past it rather than wait in real
-// time, which a busy runner stretches; the clock otherwise keeps running for the requests.
-const typeSearch = (value: string) => {
-  vi.useFakeTimers({ shouldAdvanceTime: true });
-  fireEvent.change(screen.getByLabelText("Search"), { target: { value } });
-  act(() => {
-    vi.advanceTimersByTime(300);
-  });
-};
-
 describe("SearchMapIndexes", () => {
   afterEach(() => {
     vi.useRealTimers();
-    vi.restoreAllMocks();
   });
 
   it("names each instance by its rendered map index, with its state", () => {

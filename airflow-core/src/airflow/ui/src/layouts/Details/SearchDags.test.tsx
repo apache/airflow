@@ -30,6 +30,7 @@ import { BaseWrapper } from "src/utils/Wrapper";
 import type { DagSearchOption } from "src/utils/option";
 
 import { SearchDags } from "./SearchDags";
+import { typeSearch } from "./typeSearch.testUtils";
 
 vi.mock("react-router-dom", async (importOriginal) => {
   const original = await importOriginal();
@@ -110,9 +111,6 @@ const renderSearch = ({
   return onClose;
 };
 
-const typeSearch = (value: string) =>
-  fireEvent.change(screen.getByLabelText("Search"), { target: { value } });
-
 const selectDag = (name = "New Dag") => fireEvent.click(screen.getByRole("button", { name }));
 
 describe("SearchDags", () => {
@@ -130,7 +128,7 @@ describe("SearchDags", () => {
   });
 
   afterEach(() => {
-    vi.restoreAllMocks();
+    vi.useRealTimers();
   });
 
   it("matches the start of the name by default", async () => {

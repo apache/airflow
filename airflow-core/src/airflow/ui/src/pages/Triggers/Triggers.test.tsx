@@ -55,8 +55,7 @@ describe("Triggers list", () => {
   it("shows every kind with its status and a link to what it runs for", async () => {
     renderAt("/triggers");
 
-    // The first render loads the lazy page modules; under a full parallel run that takes over a second.
-    const taskLink = await screen.findByRole("link", { name: "deferring_dag / wait" }, { timeout: 5000 });
+    const taskLink = await screen.findByRole("link", { name: "deferring_dag / wait" });
 
     expect(taskLink).toHaveAttribute("href", "/dags/deferring_dag/runs/manual_run/tasks/wait");
     expect(screen.getByRole("link", { name: "deadline_dag / scheduled_run" })).toHaveAttribute(
@@ -88,7 +87,7 @@ describe("Triggers list", () => {
     );
     renderAt("/triggers");
 
-    const watcherRow = await screen.findByRole("row", { name: /^3\b/u }, { timeout: 5000 });
+    const watcherRow = await screen.findByRole("row", { name: /^3\b/u });
     const taskRow = screen.getByRole("row", { name: /^1\b/u });
     const column = screen
       .getAllByRole("columnheader")
@@ -114,9 +113,7 @@ describe("Triggers list", () => {
     vi.useFakeTimers({ now: new Date("2026-10-01T03:04:00Z"), toFake: ["Date"] });
     renderAt("/triggers");
 
-    expect(await screen.findByTestId("trigger-last-failed", undefined, { timeout: 5000 })).toHaveTextContent(
-      "3 hours ago",
-    );
+    expect(await screen.findByTestId("trigger-last-failed")).toHaveTextContent("3 hours ago");
     vi.useRealTimers();
   });
 
