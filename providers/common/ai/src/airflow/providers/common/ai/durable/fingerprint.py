@@ -563,9 +563,11 @@ def fingerprint_model_request(
     ``airflow`` metadata key, and ``deferred_capability_ids``, are left out.
 
     ``exclude_response_model_id`` leaves the ``model_id`` of every response in the history
-    out of the hash. Pass ``True`` when the model stamps its own id on the responses it
-    puts in the history, replayed ones included, so that editing it does not change the
-    fingerprint of a step that already ran; leave it ``False`` otherwise.
+    out of the hash. Pass ``True`` only for a fallback chain whose members all stamp which
+    of them answered: the agent writes the chain's id on every response it puts in the
+    history, replayed ones too, so editing the chain would otherwise change the fingerprint
+    of every later step. Leave it ``False`` for any other model, so that journals recorded
+    by earlier versions still match.
 
     Returns ``None`` when the request cannot be fingerprinted. The journal then
     replays the step without verification, and only right after a step that
