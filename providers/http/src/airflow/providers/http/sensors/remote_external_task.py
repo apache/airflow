@@ -270,7 +270,25 @@ class RemoteExternalTaskSensor(ExternalTaskSensor):
         # ExternalTaskSensor.execute defers to a trigger that reads the local metadata database.
         BaseSensorOperator.execute(self, context)
 
+    def _validate_rendered_ids(self) -> None:
+        """
+        Fail on ids that are only known after templating: empty, blank or duplicated.
+
+        ``ExternalTaskSensor`` validates the arguments in ``__init__``, before templates such as
+        ``{{ params.task_id }}`` are rendered; an empty id would otherwise be sent to the remote API.
+        """
+        if not str(self.external_dag_id or "").strip():
+            raise AirflowFailException("external_dag_id is empty after rendering the templates.")
+        task_ids = list(self.external_task_ids or [])
+        if any(not str(task_id).strip() for task_id in task_ids):
+            raise AirflowFailException(
+                f"external_task_ids contains an empty task id after rendering the templates: {task_ids}"
+            )
+        if len(task_ids) != len(set(task_ids)):
+            raise AirflowFailException(f"Duplicate task ids in external_task_ids: {task_ids}")
+
     def poke(self, context: Context) -> bool:
+        self._validate_rendered_ids()
         dttm_filter = self._get_dttm_filter(context)
         target = f"tasks {self.external_task_ids}" if self.external_task_ids else "DAG run"
         self.log.info(

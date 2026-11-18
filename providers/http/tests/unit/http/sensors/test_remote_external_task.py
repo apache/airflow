@@ -331,6 +331,29 @@ class TestRemoteExternalTaskSensorErrors:
 
         assert not isinstance(error.value, AirflowFailException)
 
+    @pytest.mark.parametrize(
+        ("kwargs", "message"),
+        [
+            pytest.param({"external_task_ids": [""]}, "empty task id", id="empty-task-id"),
+            pytest.param({"external_task_ids": ["a", "  "]}, "empty task id", id="blank-task-id"),
+            pytest.param({"external_task_ids": ["a", "a"]}, "Duplicate task ids", id="duplicate-task-ids"),
+        ],
+    )
+    def test_invalid_task_ids_fail_before_any_request(self, requests_mock, kwargs, message):
+        with pytest.raises(AirflowFailException, match=message):
+            poke(make_sensor(**kwargs))
+
+        assert requests_mock.call_count == 0
+
+    def test_empty_dag_id_fails_before_any_request(self, requests_mock):
+        sensor = make_sensor()
+        sensor.external_dag_id = ""  # as rendered from "{{ params.dag_id }}" with an empty param
+
+        with pytest.raises(AirflowFailException, match="external_dag_id is empty"):
+            poke(sensor)
+
+        assert requests_mock.call_count == 0
+
     def test_check_existence_missing_dag(self, requests_mock):
         requests_mock.get(f"{REMOTE}/api/v1/dags/remote_dag", status_code=404)
 
