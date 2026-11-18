@@ -325,7 +325,7 @@ class AirflowTools:
                 uvicorn.Config(
                     app,
                     log_level="warning",
-                    # uvicorn's default logging dictConfig would disable the task process's existing handlers.
+                    # uvicorn's default logging dictConfig would remove and close the task process's log handlers.
                     log_config=None,
                     access_log=False,
                     lifespan="on",
@@ -540,8 +540,9 @@ class AirflowTools:
             # Fail the thread start when the server is unreachable instead of running with no tools.
             f"{prefix}.required=true",
             f"{prefix}.tool_timeout_sec={self.tool_timeout}",
-            # The docs promise that hook calls run one at a time. Codex does not echo ``false``, so
-            # whether it equals the default is unconfirmed; ``true`` is echoed.
+            # Only tools marked ``sequential`` are queued by the adapter; every other tool runs one at a
+            # time only if Codex honours this flag. Codex does not echo ``false``, so whether it equals
+            # the default is unconfirmed; ``true`` is echoed.
             f"{prefix}.supports_parallel_tool_calls=false",
             f"{prefix}.tool_input_schema_max_bytes={max(_MIN_TOOL_INPUT_SCHEMA_BYTES, largest_schema)}",
         )
@@ -591,10 +592,9 @@ class AirflowTools:
                     else "the Airflow tool run has ended"
                 )
                 return self._build_error_result(f"Not run: {reason}.")
-            # No turn: a Codex turn spans the whole agent loop, many model responses, so using it
-            # would count a tool's failures across the loop as one. Without a turn, calls that run
-            # at the same time would count as one, but Codex sends calls one after another, so
-            # each failure counts.
+            # No turn: a Codex turn spans the whole agent loop, so a turn would count a tool's failures
+            # across the loop as one. Without a turn, failures of calls that run at the same time count
+            # as one; Codex is asked to send calls one at a time, so each failure normally counts.
             with calling_framework("openai_codex"), tool_call_scope(run=state, turn=None):
                 try:
                     result = await airflow_tool.call(args)

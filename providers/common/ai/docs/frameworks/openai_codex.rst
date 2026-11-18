@@ -129,12 +129,12 @@ Codex's error message shortened to 500 characters, and when the stream ends with
 
 The retry budget counts per run. A Codex turn spans the whole agent loop, many model
 responses, so the adapter cannot use it as the model turn that the Anthropic and Strands
-adapters count one failure per. Calls that run at the same time would count as one failure,
-but Codex sends calls one after another, so that does not happen with this adapter: two
-failed calls in the same response count twice. A model that keeps sending a failing call
-therefore exhausts the budget sooner here than it would per model turn. The adapter sets no limit on
-how many model responses a turn may take: bound the loop yourself, for example with the
-task's ``execution_timeout``.
+adapters count one failure per. Calls that run at the same time count as one failure, and
+calls one after another count separately. The adapter asks Codex to send calls one at a time
+(``supports_parallel_tool_calls=false``), so two failed calls in the same response normally
+count twice, which exhausts the budget sooner here than it would per model turn. Whether Codex
+honours that setting is not confirmed. The adapter sets no limit on how many model responses a
+turn may take: bound the loop yourself, for example with the task's ``execution_timeout``.
 
 Tool timeout
 -------------

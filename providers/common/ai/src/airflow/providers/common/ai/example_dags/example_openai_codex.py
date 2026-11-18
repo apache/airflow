@@ -33,8 +33,8 @@ need to be checked by hand; see the guide.
 
 Before running:
 
-1. Install this provider's ``openai-codex`` extra:
-   ``pip install "apache-airflow-providers-common-ai[openai-codex]"``.
+1. Install this provider's ``openai-codex`` and ``sql`` extras:
+   ``pip install "apache-airflow-providers-common-ai[openai-codex,sql]"``.
 2. Create a connection (``LLM_CONN_ID``, default ``openai_default``) whose password is
    an OpenAI API key.
 3. Create a database connection (``DB_CONN_ID``, default ``sql_default``) whose hook is a
