@@ -200,7 +200,7 @@ class CoordinatorClient(
     val message =
       SetXCom().also {
         it.key = key
-        it.value = value
+        it.value = jsonValue(value)
         it.dagId = dagId
         it.taskId = taskId
         it.runId = runId
@@ -253,7 +253,7 @@ class CoordinatorClient(
       SetTaskStateStore().also {
         it.tiId = tiId
         it.key = key
-        it.value = value
+        it.value = jsonValue(value)
         it.expiresAt = expiresAt
       }
     runBlocking { exec.communicate<OKResponse>(message) }

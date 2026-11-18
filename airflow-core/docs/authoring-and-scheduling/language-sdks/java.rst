@@ -709,7 +709,13 @@ The ``Client``
        read another key, Dag or run; see the API reference. For the Java types values arrive as, see
        :ref:`java-sdk/types`.
    * - ``setXCom(value)`` / ``setXCom(key, value)``
-     - Publishes an XCom value. The value must be JSON-serializable.
+     - Publishes an XCom value. The value must be JSON-serializable. Scala collections, ``Option``
+       and case classes raise ``IllegalArgumentException`` rather than being stored as bean
+       properties; convert them with ``.asJava`` from ``scala.jdk.CollectionConverters``, or pass a
+       ``Map`` or list. An object with no serializable properties is also rejected, because it would
+       be stored as ``{}``. Java objects with properties, including records and Kotlin data classes,
+       are stored as those properties. Byte arrays are rejected; encode them as a string first, for
+       example with Base64.
    * - ``getTaskStateStore()``
      - This task instance's key/value store, with ``get``, ``set``, ``delete`` and ``clear``. See
        :ref:`java-sdk/task-state-store`.
@@ -953,6 +959,10 @@ XComs are stored as JSON, so a value read with ``getXCom`` arrives as the matchi
    * - ``dict``
      - object
      - ``Map<String, Object>``
+
+``setXCom`` and the task-state store also accept a Java object with serializable properties, which
+is stored as a JSON object. A Scala collection, ``Option`` or case class, or an object with no
+serializable properties, fails the call with ``IllegalArgumentException``.
 
 A typed parameter receives the type it declares, so a ``double`` parameter accepts an integer and
 ``List<Double>`` holds ``Double`` elements. Use ``String`` rather than ``char``: a ``char`` parameter fails on a string

@@ -40,6 +40,8 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.Timeout
 import org.msgpack.core.MessagePack
 import org.msgpack.core.buffer.ArrayBufferInput
+import scala.fake.CaseClassLike
+import scala.fake.SeqLike
 import java.io.ByteArrayOutputStream
 import java.time.Duration
 import java.time.OffsetDateTime
@@ -815,6 +817,137 @@ class CommsTest {
     Assertions.assertTrue(runBlocking { fromClient.exhausted() }, "nothing should be written to the supervisor")
     comm.close()
   }
+
+  @Test
+  @DisplayName("setXCom rejects an object with no properties without writing anything to the supervisor")
+  @Timeout(value = 30, unit = TimeUnit.SECONDS)
+  fun setXComRejectsEmptyBeanBeforeWriting() {
+    val error = assertSetXComRejectedWithoutWriting(NoProperties())
+    Assertions.assertTrue(NoProperties::class.java.name in error.message.orEmpty(), error.message)
+    Assertions.assertTrue("would be stored as {}" in error.message.orEmpty(), error.message)
+  }
+
+  @Test
+  @DisplayName("setXCom rejects a Scala type without writing anything to the supervisor")
+  @Timeout(value = 30, unit = TimeUnit.SECONDS)
+  fun setXComRejectsScalaTypeBeforeWriting() {
+    val seq = assertSetXComRejectedWithoutWriting(SeqLike())
+    Assertions.assertTrue(SeqLike::class.java.name in seq.message.orEmpty(), seq.message)
+    Assertions.assertTrue("CollectionConverters" in seq.message.orEmpty(), seq.message)
+    val caseClass = assertSetXComRejectedWithoutWriting(CaseClassLike("eu", 0.5))
+    Assertions.assertTrue(CaseClassLike::class.java.name in caseClass.message.orEmpty(), caseClass.message)
+  }
+
+  @Test
+  @DisplayName("setXCom sends JSON scalars, maps and lists unchanged")
+  @Timeout(value = 30, unit = TimeUnit.SECONDS)
+  fun setXComSendsJsonValues() {
+    val details = setXComDetails()
+    for (value in listOf<Any>(42L, "ok", true, listOf(1L, 2L), mapOf("region" to "eu", "threshold" to 0.5))) {
+      val (body, failure) = roundTrip(::emptyResponseFrame, details) { it.setXCom(value = value) }
+      Assertions.assertNull(failure, "setXCom($value) should return normally, got $failure")
+      Assertions.assertEquals("SetXCom", body["type"])
+      Assertions.assertEquals(value, body["value"])
+    }
+  }
+
+  @Test
+  @DisplayName("setXCom still encodes a Java bean, enum and date-time as Jackson did before")
+  @Timeout(value = 30, unit = TimeUnit.SECONDS)
+  fun setXComSendsJavaObjectsAsBefore() {
+    val details = setXComDetails()
+    val at = OffsetDateTime.of(2024, 12, 1, 1, 0, 0, 0, ZoneOffset.UTC)
+
+    val (beanBody, beanFailure) = roundTrip(::emptyResponseFrame, details) { it.setXCom(value = Score("eu", 0.5)) }
+    Assertions.assertNull(beanFailure, "setXCom of a bean should return normally, got $beanFailure")
+    Assertions.assertEquals("SetXCom", beanBody["type"])
+    Assertions.assertEquals(mapOf("region" to "eu", "threshold" to 0.5), beanBody["value"])
+
+    val (enumBody, enumFailure) = roundTrip(::emptyResponseFrame, details) { it.setXCom(value = Region.EU) }
+    Assertions.assertNull(enumFailure, "setXCom of an enum should return normally, got $enumFailure")
+    Assertions.assertEquals("EU", enumBody["value"])
+
+    val (timeBody, timeFailure) = roundTrip(::emptyResponseFrame, details) { it.setXCom(value = at) }
+    Assertions.assertNull(timeFailure, "setXCom of an OffsetDateTime should return normally, got $timeFailure")
+    Assertions.assertEquals("2024-12-01T01:00:00Z", timeBody["value"])
+  }
+
+  @Test
+  @DisplayName("taskStateStore.set still encodes a Java bean as Jackson did before")
+  @Timeout(value = 30, unit = TimeUnit.SECONDS)
+  fun taskStateStoreSetSendsBean() {
+    val (body, failure) =
+      roundTrip(::okResponseFrame, currentTaskInstance()) {
+        it.taskStateStore.set("job_id", Score("eu", 0.5), TaskStateStore.NEVER_EXPIRE)
+      }
+    Assertions.assertNull(failure, "taskStateStore.set of a bean should return normally, got $failure")
+    Assertions.assertEquals("SetTaskStateStore", body["type"])
+    Assertions.assertEquals(mapOf("region" to "eu", "threshold" to 0.5), body["value"])
+  }
+
+  @Test
+  @DisplayName("taskStateStore.set rejects a Scala type without writing anything to the supervisor")
+  @Timeout(value = 30, unit = TimeUnit.SECONDS)
+  fun taskStateStoreSetRejectsScalaTypeBeforeWriting() {
+    val toClient = ByteChannel(autoFlush = true)
+    val fromClient = ByteChannel(autoFlush = true)
+    val comm = CoordinatorComm(toClient, fromClient)
+    val client = PublicClient(currentTaskInstance(), CoordinatorClient(comm))
+    runBlocking { toClient.writeFrame(okResponseFrame(0)) }
+
+    val error =
+      Assertions.assertThrows(IllegalArgumentException::class.java) {
+        client.taskStateStore.set("job_id", SeqLike(), TaskStateStore.NEVER_EXPIRE)
+      }
+
+    Assertions.assertTrue(SeqLike::class.java.name in error.message.orEmpty(), error.message)
+    runBlocking { fromClient.flushAndClose() }
+    Assertions.assertTrue(runBlocking { fromClient.exhausted() }, "nothing should be written to the supervisor")
+    comm.close()
+  }
+
+  private fun setXComDetails() =
+    StartupDetails().also {
+      it.ti =
+        TaskInstance().also { ti ->
+          ti.dagId = "d"
+          ti.taskId = "t"
+          ti.runId = "r"
+        }
+    }
+
+  private fun assertSetXComRejectedWithoutWriting(value: Any): IllegalArgumentException {
+    val toClient = ByteChannel(autoFlush = true)
+    val fromClient = ByteChannel(autoFlush = true)
+    val comm = CoordinatorComm(toClient, fromClient)
+    val client = PublicClient(setXComDetails(), CoordinatorClient(comm))
+    // Answer the first request in advance. If setXCom sent the value anyway,
+    // this reply would let setXCom return. Then assertThrows would fail at once
+    // instead of the test waiting for its 30-second timeout.
+    runBlocking { toClient.writeFrame(emptyResponseFrame(0)) }
+
+    val error =
+      Assertions.assertThrows(IllegalArgumentException::class.java) {
+        client.setXCom(value = value)
+      }
+
+    runBlocking { fromClient.flushAndClose() }
+    Assertions.assertTrue(runBlocking { fromClient.exhausted() }, "nothing should be written to the supervisor")
+    comm.close()
+    return error
+  }
+
+  /** A class with no JavaBean properties; Jackson would previously have stored `{}`. */
+  private class NoProperties
+
+  /** A class Jackson stores as its bean properties. */
+  @Suppress("unused")
+  private class Score(
+    val region: String,
+    val threshold: Double,
+  )
+
+  private enum class Region { EU }
 
   @Test
   @DisplayName("Should fail a pending call when the coordinator socket closes")

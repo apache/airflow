@@ -21,6 +21,7 @@ package org.apache.airflow.sdk.execution
 
 import com.fasterxml.jackson.annotation.JsonInclude
 import com.fasterxml.jackson.databind.DeserializationFeature
+import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.SerializationFeature
 import com.fasterxml.jackson.databind.util.StdDateFormat
@@ -62,6 +63,20 @@ object Frame {
       registerModule(TimestampToJavaOffsetDateTimeModule())
       setDateFormat(StdDateFormat().withColonInTimeZone(true))
       REQUIRED_NULLABLE_REQUESTS.forEach { addMixIn(it, KeepNullFields::class.java) }
+    }
+
+  /**
+   * Whether Jackson would encode [value] as an empty JSON object (`{}`) with
+   * the same mapper [toBody] uses for request fields.
+   */
+  internal fun encodesAsEmptyObject(value: Any): Boolean =
+    try {
+      val node = mapper.valueToTree<JsonNode>(value)
+      node.isObject && node.size() == 0
+    } catch (_: Exception) {
+      // If Jackson cannot encode [value], leave it alone so [toBody] fails the
+      // same way it did before, instead of turning that into a new error.
+      false
     }
 
   fun encodeRequest(

@@ -181,9 +181,17 @@ class Client internal constructor(
    * @param key XCom key; defaults to [XCOM_RETURN_KEY].
    * @param value Value to push. Must be JSON-serializable. The SDK rejects byte
    *    arrays, so encode binary data as a string first, for example with Base64.
+   *    Scala collections, `Option` and case classes are rejected rather than
+   *    stored as bean properties; convert a Scala collection with
+   *    `scala.jdk.CollectionConverters` (`.asJava`), and a case class to a
+   *    [Map] or list. An object with no serializable properties is also
+   *    rejected, because it would be stored as `{}`. Java objects with
+   *    properties, including records and Kotlin data classes, are stored as
+   *    those properties.
    * @throws ApiError if the API call fails.
    * @throws IllegalArgumentException if [value] is or contains a type that the
-   *    SDK cannot send, such as a byte array.
+   *    SDK cannot send, such as a byte array, a Scala collection, or an object
+   *    with no serializable properties.
    */
   @JvmOverloads fun setXCom(
     key: String = XCOM_RETURN_KEY,
@@ -236,7 +244,7 @@ class Client internal constructor(
  * Key-value state scoped to one task instance, shared across its retries
  * within the same Dag run.
  *
- * Values must be JSON-serializable. Every key has an expiry: by default the
+ * Values must be JSON-serializable, as [setXCom][Client.setXCom] accepts. Every key has an expiry: by default the
  * deployment's `[state_store] default_retention_days`, which the coordinator
  * passes to the JVM as `AIRFLOW__STATE_STORE__DEFAULT_RETENTION_DAYS`; [set]
  * also takes an explicit retention, or [NEVER_EXPIRE] for a key that garbage
@@ -272,11 +280,13 @@ class TaskStateStore internal constructor(
    * Stores [value] under [key], replacing any existing value.
    *
    * @param key State key.
-   * @param value Value to store. Must be JSON-serializable.
+   * @param value Value to store. Must be JSON-serializable, as
+   *   [setXCom][Client.setXCom] accepts.
    * @param retention How long to keep the key. Must be positive, or
    *   [NEVER_EXPIRE]; `null` uses `[state_store] default_retention_days`.
-   * @throws IllegalArgumentException if [retention] is zero or negative, or the
-   *   default retention from the environment is not a non-negative integer.
+   * @throws IllegalArgumentException if [value] is or contains a type that the
+   *   SDK cannot send, if [retention] is zero or negative, or if the default
+   *   retention from the environment is not a non-negative integer.
    * @throws IllegalStateException if [retention] is `null` and the coordinator
    *   did not pass `[state_store] default_retention_days` to the JVM.
    * @throws ApiError if the API call fails.
