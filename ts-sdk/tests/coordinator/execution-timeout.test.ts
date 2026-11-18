@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { setTimeout as sleep } from "node:timers/promises";
 import {
   createExecutionTimeout,
@@ -60,6 +60,10 @@ describe("executionTimeoutOf", () => {
 });
 
 describe("createExecutionTimeout", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it("returns what the task returns when it finishes in time", async () => {
     const timeout = timeoutOf(5, 1000);
 
@@ -120,10 +124,18 @@ describe("createExecutionTimeout", () => {
     expect(Date.now() - started).toBeLessThan(2000);
   });
 
-  it("leaves a timeout too long for a timer to the supervisor", async () => {
-    const timeout = timeoutOf(30 * 24 * 3600, 1000);
+  it("enforces a timeout too long for one timer", async () => {
+    vi.useFakeTimers();
+    const timeoutMs = 30 * 24 * 3600 * 1000;
+    const timeout = timeoutOf(timeoutMs / 1000, 1000);
 
-    await expect(timeout.wait(Promise.resolve("ok"))).resolves.toBe("ok");
+    const outcome = timeout.wait(new Promise<never>(() => {}));
+    const failed = expect(outcome).rejects.toBeInstanceOf(TaskTimeoutError);
+    await vi.advanceTimersByTimeAsync(timeoutMs - 1);
     expect(timeout.signal.aborted).toBe(false);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(timeout.signal.aborted).toBe(true);
+    await vi.advanceTimersByTimeAsync(1000);
+    await failed;
   });
 });

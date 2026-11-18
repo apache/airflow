@@ -35,6 +35,7 @@ import {
   COORDINATOR_RESPONSE_TIMEOUT_MS,
   startCoordinator,
 } from "../../src/coordinator/runtime.js";
+import { CommChannel } from "../../src/coordinator/comm-channel.js";
 import { Dag } from "../../src/sdk/dag.js";
 import { triggerDagRun } from "../../src/sdk/trigger-dag-run.js";
 import { approval, hitl } from "../../src/hitl/index.js";
@@ -72,6 +73,8 @@ interface MockResult {
   firstResponse: { id: number; body: unknown; isResponse: boolean } | null;
   logRecords: Record<string, unknown>[];
   runtimeRequests: { type: string; body: Record<string, unknown> }[];
+  /** Codes the runtime ended the process with, in place of `process.exit`. */
+  exitCodes: number[];
 }
 
 /** Callback used by `driveSupervisor` to answer runtime-initiated
@@ -177,10 +180,12 @@ async function driveSupervisor(initialFrame: unknown, responder?: Responder): Pr
   const commAccept = acceptOne(comm.server);
   const logsAccept = acceptOne(logs.server);
 
+  const exitCodes: number[] = [];
   const runtimeDone = startCoordinator(bundle, {
     commAddr: `127.0.0.1:${comm.port}`,
     logsAddr: `127.0.0.1:${logs.port}`,
     argv: [],
+    exitProcess: (code) => exitCodes.push(code),
   });
 
   const [commSock, logsSock] = await Promise.all([commAccept, logsAccept]);
@@ -233,7 +238,7 @@ async function driveSupervisor(initialFrame: unknown, responder?: Responder): Pr
   const lines = Buffer.concat(logChunks).toString("utf8").split("\n").filter(Boolean);
   const logRecords = lines.map((l) => JSON.parse(l) as Record<string, unknown>);
 
-  return { firstResponse, logRecords, runtimeRequests };
+  return { firstResponse, logRecords, runtimeRequests, exitCodes };
 }
 
 describe("coordinator runtime integration", () => {
@@ -1929,6 +1934,8 @@ describe("coordinator runtime integration", () => {
       expect(result.logRecords.some((r) => r["event"] === "[ts-sdk.runtime] Task timed out")).toBe(
         true,
       );
+      // Its outcome is reported, so nothing the task left running keeps the process alive.
+      expect(result.exitCodes).toEqual([0]);
     });
 
     it("fails without retry when the task has none left", async () => {
@@ -1968,6 +1975,7 @@ describe("coordinator runtime integration", () => {
 
       expect(result.firstResponse!.body).toMatchObject({ type: "SucceedTask" });
       expect(result.runtimeRequests.map((r) => r.type)).toEqual(["SetExecutionTimeout", "SetXCom"]);
+      expect(result.exitCodes).toEqual([]);
     });
 
     it.each([
@@ -2028,6 +2036,31 @@ describe("coordinator runtime integration", () => {
       ).toBe(true);
     });
 
+    it("still enforces the timeout when SetExecutionTimeout cannot be sent", async () => {
+      const request = CommChannel.prototype.request;
+      vi.spyOn(CommChannel.prototype, "request").mockImplementation(function (
+        this: CommChannel,
+        body,
+        opts,
+      ) {
+        return (body as { type?: string }).type === "SetExecutionTimeout"
+          ? Promise.reject(new Error("Response timed out: no response"))
+          : request.call(this, body, opts);
+      });
+      testDag.task("slow", waitForAbort({}))();
+
+      const result = await driveSupervisor(
+        makeStartupDetails("slow", "test_dag", "r1", { execution_timeout: 0.05 }),
+      );
+
+      expect(result.firstResponse!.body).toMatchObject({ type: "TaskState", state: "failed" });
+      expect(
+        result.logRecords.find(
+          (r) => r["event"] === "[ts-sdk.runtime] Could not send SetExecutionTimeout",
+        ),
+      ).toMatchObject({ error: "Response timed out: no response" });
+    });
+
     it("reports the timeout at once when the supervisor's SIGTERM comes during cleanup", async () => {
       testDag.task("ignores_signal", async () => {
         // Past the timeout, as the supervisor's deadline would be, but long before
@@ -2048,7 +2081,8 @@ describe("coordinator runtime integration", () => {
       expect(result.firstResponse!.body).toMatchObject({
         type: "RetryTask",
         retry_reason: "Task timed out after 0.05 seconds",
-      });
+      }); // The handler is still waiting, but the process does not wait for it.
+      expect(result.exitCodes).toEqual([0]);
     });
 
     it("keeps reporting SIGTERM, not a timeout, when Airflow stops the task first", async () => {
@@ -2095,6 +2129,9 @@ describe("coordinator runtime integration", () => {
         retry_reason: "Task timed out after 0.05 seconds",
       });
       expect(result.runtimeRequests[0]!.type).toBe("SetExecutionTimeout");
+      expect(
+        result.logRecords.find((r) => r["event"] === "[ts-sdk.runtime] Task timed out"),
+      ).toMatchObject({ task_id: "trigger", stack: expect.any(String) as unknown });
     });
   });
 });

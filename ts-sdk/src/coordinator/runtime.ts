@@ -55,7 +55,13 @@ import {
   type StartupDetails,
 } from "./protocol.js";
 import { getArgNames } from "../sdk/arg-names.js";
-import { bundleDags, bundleDagTaskIds, getBundleTask, type Bundle } from "../sdk/bundle.js";
+import {
+  bundleDags,
+  bundleDagTaskIds,
+  getBundleTask,
+  type Bundle,
+  type BundleTask,
+} from "../sdk/bundle.js";
 import { finalizeDag } from "../sdk/dag.js";
 import { SERIALIZATION_VERSION } from "../generated/dag-schema-fields.js";
 import { computeRelativeFileloc, serializeDag } from "./serde.js";
@@ -81,6 +87,8 @@ export interface StartCoordinatorOptions {
   logsAddr?: string;
   /** Source argv. Defaults to `process.argv`. */
   argv?: readonly string[];
+  /** Ends the process after a task times out. Defaults to `process.exit`; tests replace it. */
+  exitProcess?: (code: number) => void;
 }
 
 interface ParsedArgs {
@@ -148,6 +156,7 @@ export async function startCoordinator(
   let logs: LogChannel | null = null;
   let comm: CommChannel | null = null;
   let runtimeAbort: RuntimeAbort | null = null;
+  let timedOut = false;
 
   try {
     // Records emitted before the `--logs` socket connects are buffered and
@@ -192,7 +201,7 @@ export async function startCoordinator(
         map_index: body.ti.map_index ?? -1,
         bundle: body.bundle_info.name,
       });
-      const response = await handleTask(
+      const outcome = await handleTask(
         body,
         bundle,
         comm,
@@ -200,7 +209,12 @@ export async function startCoordinator(
         logs.child("client"),
         runtimeAbort.signal,
       );
+      const response = outcome.response;
+      timedOut = outcome.timedOut;
       await sendSupervisorResponse(firstFrame.id, response, comm, runtimeLogs);
+      if (timedOut) {
+        runtimeLogs.info("Exiting after the task timed out", { task_id: body.ti.task_id });
+      }
       if (response.type === "SucceedTask") {
         runtimeLogs.info("Task succeeded", { task_id: body.ti.task_id });
       } else if (response.type === "DeferTask") {
@@ -221,6 +235,10 @@ export async function startCoordinator(
     await comm?.close();
     await logs?.close();
   }
+  // A task that timed out may have left work running that ignored its signal,
+  // which would keep the process alive. Its outcome is already reported, so end
+  // the process as it would end once that work finished.
+  if (timedOut) (opts.exitProcess ?? process.exit)(0);
 }
 
 export function createRuntimeAbort(
@@ -350,7 +368,7 @@ async function handleTask(
   logs: LogChannel,
   clientLogs: LogChannel,
   signal: AbortSignal,
-): Promise<OperatorOutcome> {
+): Promise<{ response: OperatorOutcome; timedOut: boolean }> {
   const ti = details.ti;
   const task = getBundleTask(bundle, ti.dag_id, ti.task_id);
 
@@ -367,7 +385,7 @@ async function handleTask(
       state: "removed",
       end_date: new Date().toISOString(),
     };
-    return response;
+    return { response, timedOut: false };
   }
 
   const timeoutSeconds = executionTimeoutOf(details.ti_context);
@@ -391,10 +409,22 @@ async function handleTask(
     await sendTimeoutToSupervisor(comm, logs, timeout.seconds);
     return timeout.wait(start());
   };
-  if (task.kind === "handler") {
-    return runHandler(details, task.fn, ctx, client, logs, runTimed);
-  }
+  const response =
+    task.kind === "handler"
+      ? await runHandler(details, task.fn, ctx, client, logs, runTimed)
+      : await runOperatorTask(details, task, ctx, client, logs, runTimed);
+  return { response, timedOut: timeout?.signal.aborted ?? false };
+}
 
+/** Run an operator task under its execution_timeout. */
+async function runOperatorTask(
+  details: StartupDetails,
+  task: Extract<BundleTask, { kind: "operator" }>,
+  ctx: TaskContext,
+  client: CoordinatorClient,
+  logs: LogChannel,
+  runTimed: RunTimed,
+): Promise<OperatorOutcome> {
   // How an operator ends the task as a failure: log the reason, then report the task
   // as failed (or for retry, if it has retries left). Each operator gets this, and the
   // catch below uses it for any error an operator throws.
@@ -403,16 +433,21 @@ async function handleTask(
     return buildFailureResponse(details, message);
   };
   try {
-    switch (task.kind) {
-      case "operator":
-        return await runTimed(() =>
-          runOperator(
-            task.operator,
-            buildOperatorContext({ details, dag: task.dag, ctx, client, logs, fail }),
-          ),
-        );
-    }
+    return await runTimed(() =>
+      runOperator(
+        task.operator,
+        buildOperatorContext({ details, dag: task.dag, ctx, client, logs, fail }),
+      ),
+    );
   } catch (err) {
+    if (err instanceof TaskTimeoutError) {
+      logs.error("Task timed out", {
+        task_id: ctx.taskId,
+        error: err.message,
+        stack: err.stack ?? null,
+      });
+      return buildFailureResponse(details, err.message);
+    }
     return fail((err as Error).message ?? String(err));
   }
 }
@@ -489,19 +524,25 @@ type RunTimed = <T>(start: () => Promise<T>) => Promise<T>;
 
 /**
  * Tell the supervisor the task's timeout now, so its own deadline counts from the
- * same moment as the runtime's. A supervisor that rejects the message keeps the
- * deadline it set when the runtime started.
+ * same moment as the runtime's. If the message is rejected or cannot be sent, the
+ * supervisor keeps the deadline it set when the runtime started.
  */
 async function sendTimeoutToSupervisor(
   comm: CommChannel,
   logs: LogChannel,
   timeoutSeconds: number,
 ): Promise<void> {
-  const err = parseFrameError(
-    await comm.request({ type: "SetExecutionTimeout", timeout_seconds: timeoutSeconds }),
-  );
-  if (err) {
-    logs.warning("Supervisor did not take SetExecutionTimeout", { error: err.code });
+  try {
+    const err = parseFrameError(
+      await comm.request({ type: "SetExecutionTimeout", timeout_seconds: timeoutSeconds }),
+    );
+    if (err) {
+      logs.warning("Supervisor did not take SetExecutionTimeout", { error: err.code });
+    }
+  } catch (err) {
+    logs.warning("Could not send SetExecutionTimeout", {
+      error: (err as Error).message ?? String(err),
+    });
   }
 }
 

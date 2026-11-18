@@ -569,7 +569,7 @@ has retries.
 
 When a task's ``executionTimeout`` passes, ``signal`` is aborted with a ``TaskTimeoutError`` as its ``reason``. The
 handler then has up to 30 seconds to clean up before the task fails with the timeout, and retries if it has retries,
-even if the handler returns. A handler that never yields to the event loop, such as one stuck in a synchronous loop,
+even if the handler returns. The process then exits, so any work still running stops with it. A handler that never yields to the event loop, such as one stuck in a synchronous loop,
 cannot see the signal; Airflow stops its process ``killed_task_cleanup_time`` after the timeout.
 
 The ``TaskClient``

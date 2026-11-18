@@ -23,8 +23,8 @@
 
 import { TaskTimeoutError } from "../sdk/task.js";
 
-// setTimeout fires at once for a longer delay, so the supervisor alone enforces
-// a timeout past this (about 24.8 days).
+// setTimeout fires at once for a delay past this (about 24.8 days), so a longer
+// timeout re-arms the timer in steps of at most this.
 const MAX_TIMER_MS = 2 ** 31 - 1;
 
 // What the timer resolves with: no value a task returns can equal it.
@@ -54,7 +54,7 @@ export interface ExecutionTimeout {
    * stops there. The task then has the cleanup time to finish; what it returns
    * or throws by then is ignored, so a task that times out never succeeds. A
    * task that ignores the signal is not waited for longer: the timeout is
-   * reported, and the supervisor ends the process if it lingers.
+   * reported, and the runtime then ends the process.
    */
   wait<T>(running: Promise<T>): Promise<T>;
 }
@@ -79,12 +79,15 @@ export function createExecutionTimeout(
     seconds,
     signal: controller.signal,
     async wait<T>(running: Promise<T>): Promise<T> {
-      const timeoutMs = seconds * 1000;
-      if (timeoutMs > MAX_TIMER_MS) return running;
-
       let timer: ReturnType<typeof setTimeout> | undefined;
       const timedOut = new Promise<typeof TIMED_OUT>((resolve) => {
-        timer = setTimeout(() => resolve(TIMED_OUT), timeoutMs);
+        const arm = (leftMs: number) => {
+          timer =
+            leftMs > MAX_TIMER_MS
+              ? setTimeout(() => arm(leftMs - MAX_TIMER_MS), MAX_TIMER_MS)
+              : setTimeout(() => resolve(TIMED_OUT), leftMs);
+        };
+        arm(seconds * 1000);
       });
       let first: T | typeof TIMED_OUT;
       try {
