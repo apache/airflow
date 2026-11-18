@@ -289,11 +289,21 @@ export interface TaskGroupRef extends Node {
    */
   loop(options: LoopOptions): LoopRef;
   /**
-   * `NoInfer` keeps `TArgs` coming from the handler alone, so `inputs` is checked key by key
-   * against it rather than widening it, as `dag.if` takes its inputs.
+   * Run this group as a task loop whose gate is the handler `until`. It runs after every iteration
+   * and returns a boolean or a {@link LoopDecision}; `inputs` wires its own data as a task's inputs
+   * are wired, and `options` takes `maxIterations` and the gate's {@link TaskSpec}.
+   *
+   * ```ts
+   * refine.loop(accurateEnough, { result: evaluated }, { maxIterations: 10 });
+   * ```
+   *
+   * The gate's name, the body's terminal task, how a task outside the loop reads the body and how
+   * to order the loop are the rules of `loop(options)`.
    */
   loop<TArgs extends object>(
     until: UntilCallable<TArgs>,
+    // NoInfer keeps TArgs coming from the handler alone, so inputs is checked key by key against
+    // it rather than widening it, as dag.if takes its inputs.
     inputs: TaskInputs<NoInfer<TArgs>>,
     options: LoopOptions,
   ): LoopRef;
@@ -1554,6 +1564,7 @@ export class Dag {
       const inLoop = groupId === loopId || this.#findEnclosingLoop(groupId) === loopId;
       if (loop.gateTaskId !== taskId || !inLoop) continue;
       const movedTo = this.#childId(loopId, this.#getUniqueGateId(loopId, gateName));
+      this.#reserveNodeId(movedTo, "Task");
       renameKey(this.#tasks, taskId, movedTo, (record) => ({
         ...record,
         task: this.#createTaskRef(movedTo),
@@ -1604,8 +1615,7 @@ export class Dag {
       throw new Error(
         `"${upstream}" of Dag "${this.dagId}" is in loop "${loop}", so an edge from it to ` +
           `"${downstream}" would run "${downstream}" after one iteration rather than after the ` +
-          "loop; order the loop itself with the reference loop() returned: " +
-          `${loop.slice(loop.lastIndexOf(GROUP_SEPARATOR) + 1)}.before(...)`,
+          `loop; order the loop itself through the reference loop() returned for "${loop}"`,
       );
     }
     const { loopTerminals, downstreamTaskIds } = buildDagGraph(this);

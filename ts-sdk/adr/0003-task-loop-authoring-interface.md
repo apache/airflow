@@ -38,7 +38,7 @@ This ADR records the TypeScript spelling of them.
    `dag.if(handler, inputs, spec)` already has ([ADR-0002](0002-native-dag-interface.md)). `inputs` is
    the gate's own data, as any task's is.
 3. **The terminal task is the body's single leaf**, which the SDK orders before the gate. Wiring the
-   leaf into `inputs` is what gets the decision checked against what the body produces.
+   leaf into `inputs` is how the gate reads what the body produces.
 4. **`getLoop()` supplies the loop context**, beside `getContext()` and `getClient()` (ADR-0002
    decision 6). It is awaited, because reading the previous iteration is a round trip.
 5. **`index` and `maxIterations` are fields, and `getPrevious<T>()` is the one accessor** for the
@@ -60,7 +60,7 @@ This ADR records the TypeScript spelling of them.
 Newton's method for the square root of two, stopping on the error or at ten iterations.
 
 ```ts
-import { Dag, getLoop, type LoopDecision, type XComSequence } from "apache-airflow-ts-sdk";
+import { Dag, getLoop, type LoopDecision, type XComSequence } from "@apache-airflow/ts-sdk";
 
 type Metrics = { estimate: number; error: number };
 
@@ -201,8 +201,9 @@ interface LoopContext {
   type, and `terminal_is_mapped` tells the runtime which to build.
 - **The reading is written, not inferred.** `serializeArgBindings` records a task id and no argument
   type, so the SDK cannot tell which reading a consumer declared. `loop.all()` puts the outside reading in
-  the Dag instead, and `tsc` checks it because the accessor names its own return type. A bare body
-  ref outside the loop is rejected when the Dag is read rather than failing partway through the run.
+  the Dag instead. `tsc` does not check a wired value against the parameter it feeds, since `TaskInputs`
+  accepts any `TaskRef`. A bare body ref outside the loop is rejected when the Dag is read rather than
+  failing partway through the run.
 - **`loop()` runs once per group.** A group already on an edge can still become one, since `LoopRef`
   takes its edges over.
 

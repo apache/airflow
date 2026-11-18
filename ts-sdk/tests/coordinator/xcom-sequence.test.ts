@@ -52,6 +52,36 @@ describe("materializeXComSequences", () => {
     ).toEqual({ history: [1], first: summary, second: summary });
   });
 
+  class Box {
+    constructor(readonly held: unknown) {}
+  }
+
+  it.each([
+    ["a class instance", (sequence: unknown) => new Box(sequence)],
+    ["a Map", (sequence: unknown) => new Map([["held", sequence]])],
+    ["a plain object inside a class instance", (sequence: unknown) => ({ box: new Box(sequence) })],
+  ])("refuses a sequence held by %s", async (_name, wrap) => {
+    const { client, sequence } = makeSequence([1]);
+    const value = wrap(sequence);
+
+    expect(holdsXComSequence(client, value)).toBe(true);
+    await expect(materializeXComSequences(value)).rejects.toThrow(
+      "An XComSequence has to be in an array or a plain object",
+    );
+  });
+
+  it("leaves a class instance or a Map that holds no sequence as it is", async () => {
+    const { sequence } = makeSequence([1]);
+    const box = new Box("x");
+    const map = new Map([["k", 1]]);
+
+    expect(await materializeXComSequences({ history: sequence, box, map })).toEqual({
+      history: [1],
+      box,
+      map,
+    });
+  });
+
   it("refuses a value that contains itself", async () => {
     const { sequence } = makeSequence([]);
     const value: Record<string, unknown> = { sequence };

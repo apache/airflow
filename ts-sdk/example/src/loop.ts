@@ -54,8 +54,7 @@ const evaluate = refine.task(async function evaluate({
   return { estimate, error: Math.abs(estimate * estimate - 2) };
 });
 
-// The gate. It reads the terminal task as wired data, so the compiler checks
-// it against what `evaluate` returns.
+// The gate. It reads the terminal task's result as wired data.
 async function accurateEnough({ result }: { result: Metrics }): Promise<LoopDecision> {
   const threshold = 0.000001;
   if (result.error < threshold) {
@@ -81,7 +80,7 @@ const evaluated = evaluate({ estimate: improve() });
 const refinement = refine.loop(accurateEnough, { result: evaluated }, { maxIterations: 10 });
 // Outside the loop, the loop's all() reads every iteration's Metrics.
 report({ history: refinement.all(evaluated) });
-// Order only: after the whole loop, not after one iteration.
+// Order only: finished runs once, after the last iteration.
 refinement.before(finished());
 
 const accumulate = dag.taskGroup("accumulate");

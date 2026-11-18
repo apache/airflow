@@ -1987,6 +1987,36 @@ describe("coordinator runtime integration", () => {
       expect(requestsOf(result, "GetXCom")).toEqual([]);
     });
 
+    it("hands getLoop() to the handler of a Python Dag's stub task in a loop body", async () => {
+      let loop: LoopContext | undefined;
+      bundle.register(
+        new TaskHandler("py_dag", "refine.improve", async () => {
+          loop = await getLoop();
+          return loop.getPrevious<number>();
+        }),
+      );
+      const responder: Responder = (msgType, body) =>
+        msgType === "GetXCom"
+          ? { body: { type: "XComResult", key: body["key"], value: 1.5 } }
+          : { body: null };
+
+      const result = await driveSupervisor(
+        makeStartupDetails("refine.improve", "py_dag", "r1", { loop: loopContext(2) }),
+        responder,
+      );
+
+      expect(result.firstResponse!.body).toMatchObject({ type: "SucceedTask" });
+      expect(loop).toMatchObject({ index: 2, maxIterations: 3 });
+      expect(requestsOf(result, "GetXCom")).toEqual([
+        expect.objectContaining({
+          dag_id: "py_dag",
+          task_id: "refine.evaluate",
+          previous_iteration: true,
+        }),
+      ]);
+      expect(requestsOf(result, "SetXCom")[0]).toMatchObject({ dag_id: "py_dag", value: 1.5 });
+    });
+
     it("reads a mapped terminal's previous result as a sequence", async () => {
       let previous: unknown;
       const group = testDag.taskGroup("refine");

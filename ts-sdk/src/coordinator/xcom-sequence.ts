@@ -87,7 +87,9 @@ export class LazyXComSequence<T> implements XComSequence<T> {
 /**
  * `value` with every `XComSequence` in it read into an array, as Python's serde reads a
  * `LazyXComSequence` into a list when it is pushed. Pushed as it is, a sequence has no fields of its
- * own to send. Each sequence is read once, with one slice.
+ * own to send. Each sequence is read once, with one slice. A sequence held by a `Map`, a class
+ * instance or any other object that is not an array or a plain object is rejected, since the read
+ * values could not replace it there.
  */
 export async function materializeXComSequences(value: unknown): Promise<unknown> {
   return materialize(value, new Map(), new Set());
@@ -104,7 +106,15 @@ async function materialize(
     return values;
   }
   if (typeof value !== "object" || value === null) return value;
-  if (!Array.isArray(value) && !isPlainObject(value)) return value;
+  if (!Array.isArray(value) && !isPlainObject(value)) {
+    if (findXComSequence(value, new Set())) {
+      throw new TypeError(
+        "An XComSequence has to be in an array or a plain object to be pushed as an XCom value, " +
+          "not in a Map, a class instance or another kind of object",
+      );
+    }
+    return value;
+  }
   if (ancestors.has(value)) throw new TypeError("An XCom value cannot contain itself");
   // A copy per container: siblings run concurrently, so a shared set would flag an object two siblings hold.
   const path = new Set(ancestors).add(value);
@@ -118,8 +128,8 @@ async function materialize(
 }
 
 /**
- * Whether `value` holds a sequence `client` handed out, in an array or plain object. A client that
- * handed out none is not searched.
+ * Whether `value` holds a sequence `client` handed out, at any depth. A client that handed out none
+ * is not searched.
  */
 export function holdsXComSequence(client: CoordinatorClient, value: unknown): boolean {
   return clientsWithSequences.has(client) && findXComSequence(value, new Set());
@@ -129,8 +139,15 @@ function findXComSequence(value: unknown, seen: Set<object>): boolean {
   if (value instanceof LazyXComSequence) return true;
   if (typeof value !== "object" || value === null || seen.has(value)) return false;
   seen.add(value);
-  const items = Array.isArray(value) ? value : isPlainObject(value) ? Object.values(value) : [];
-  return items.some((item) => findXComSequence(item, seen));
+  return listHeldValues(value).some((item) => findXComSequence(item, seen));
+}
+
+function listHeldValues(value: object): unknown[] {
+  if (Array.isArray(value)) return value;
+  if (value instanceof Map) return [...value.values()];
+  if (value instanceof Set) return [...value];
+  if (value instanceof Date || value instanceof ArrayBuffer || ArrayBuffer.isView(value)) return [];
+  return Object.values(value);
 }
 
 function isPlainObject(value: object): boolean {

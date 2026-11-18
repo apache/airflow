@@ -326,6 +326,21 @@ describe("TaskGroupRef.loop", () => {
       expect(downstreamOf(serialized).get("g.check__1")).toEqual(["g.check__2"]);
     });
 
+    it("but not onto a group of the loop, which Python rejects as a duplicate", () => {
+      const dag = new Dag("ts_gate_moved_onto_a_group");
+      const group = dag.taskGroup("g");
+      async function check() {
+        return true;
+      }
+      group.loop(check, {}, { maxIterations: 2 });
+      group.taskGroup("check__1");
+
+      expect(() => group.task("check", async () => 1)).toThrow(
+        'Task "g.check__1" is already registered for Dag "ts_gate_moved_onto_a_group"',
+      );
+      expect(getDagLoops(dag).get("g")!.gateTaskId).toBe("g.check");
+    });
+
     it("but not for a task outside the loop that takes it, which Python rejects as a duplicate", () => {
       const dag = new Dag("ts_gate_late_outside");
       const group = dag.taskGroup("g", { prefixGroupId: false });
@@ -583,7 +598,7 @@ describe("TaskGroupRef.loop", () => {
       group.loop({ maxIterations: 2 });
       leaf.before(outside);
       expect(() => finalizeDag(dag)).toThrow(
-        /"g.leaf" of Dag "ts_body_edge" is in loop "g".*with the reference loop\(\) returned: g.before/,
+        /"g.leaf" of Dag "ts_body_edge" is in loop "g".*through the reference loop\(\) returned for "g"/,
       );
     });
 
