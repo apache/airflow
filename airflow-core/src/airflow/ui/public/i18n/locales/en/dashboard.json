@@ -55,6 +55,7 @@
   "history": "History",
   "importErrors": {
     "bundle": "Bundle",
+    "copyStackTrace": "Copy stack trace",
     "dagImportError_one": "Dag Import Error",
     "dagImportError_other": "Dag Import Errors",
     "searchByFile": "Search by file",
