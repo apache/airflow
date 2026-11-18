@@ -40,19 +40,17 @@ export const dag = new Dag("typescript_loop_example", {
 
 const refine = dag.taskGroup("refine");
 
-const improve = refine.task(async function improve(): Promise<number> {
+const improve = refine.task("improve", async () => {
+  const loop = await getLoop();
   // The terminal task's result of the iteration before; null at the first.
-  const estimate = (await getLoop()).getPrevious<Metrics>()?.estimate ?? 1.0;
+  const estimate = loop.getPrevious<Metrics>()?.estimate ?? 1.0;
   return (estimate + 2.0 / estimate) / 2.0;
 });
 
-const evaluate = refine.task(async function evaluate({
+const evaluate = refine.task("evaluate", ({ estimate }: { estimate: number }) => ({
   estimate,
-}: {
-  estimate: number;
-}): Promise<Metrics> {
-  return { estimate, error: Math.abs(estimate * estimate - 2) };
-});
+  error: Math.abs(estimate * estimate - 2),
+}));
 
 // The gate. It reads the terminal task's result as wired data.
 async function accurateEnough({ result }: { result: Metrics }): Promise<LoopDecision> {
@@ -63,7 +61,7 @@ async function accurateEnough({ result }: { result: Metrics }): Promise<LoopDeci
   return { stop: false, reason: `error ${result.error.toPrecision(2)}, needs < ${threshold}` };
 }
 
-const report = dag.task(async function report({ history }: { history: XComSequence<Metrics> }) {
+const report = dag.task("report", async ({ history }: { history: XComSequence<Metrics> }) => {
   const last = await history.at(-1);
   return {
     iterations: await history.length(),
@@ -72,11 +70,12 @@ const report = dag.task(async function report({ history }: { history: XComSequen
   };
 });
 
-const finished = dag.task(async function finished() {
+const finished = dag.task("finished", () => {
   console.log("Refinement finished.");
 });
 
-const evaluated = evaluate({ estimate: improve() });
+const estimate = improve();
+const evaluated = evaluate({ estimate });
 const refinement = refine.loop(accurateEnough, { result: evaluated }, { maxIterations: 10 });
 // Outside the loop, the loop's all() reads every iteration's Metrics.
 report({ history: refinement.all(evaluated) });
@@ -85,8 +84,10 @@ refinement.before(finished());
 
 const accumulate = dag.taskGroup("accumulate");
 
-accumulate.task(async function increment(): Promise<number> {
-  return ((await getLoop()).getPrevious<number>() ?? 0) + 1;
-})();
+const increment = accumulate.task("increment", async () => {
+  const loop = await getLoop();
+  return (loop.getPrevious<number>() ?? 0) + 1;
+});
+increment();
 
 accumulate.loop({ maxIterations: 3 }).after(refinement);

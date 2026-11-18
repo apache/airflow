@@ -391,24 +391,27 @@ previous iteration's result:
 
     const refine = dag.taskGroup("refine");
 
-    const improve = refine.task(async function improve(): Promise<number> {
-      const estimate = (await getLoop()).getPrevious<Metrics>()?.estimate ?? 1.0;
+    const improve = refine.task("improve", async () => {
+      const loop = await getLoop();
+      const estimate = loop.getPrevious<Metrics>()?.estimate ?? 1.0;
       return (estimate + 2.0 / estimate) / 2.0;
     });
-    const evaluate = refine.task(async function evaluate({ estimate }: { estimate: number }) {
-      return { estimate, error: Math.abs(estimate * estimate - 2) };
-    });
+    const evaluate = refine.task("evaluate", ({ estimate }: { estimate: number }) => ({
+      estimate,
+      error: Math.abs(estimate * estimate - 2),
+    }));
 
     async function accurateEnough({ result }: { result: Metrics }): Promise<LoopDecision> {
       return { stop: result.error < 1e-6, reason: `error ${result.error.toExponential(1)}` };
     }
 
-    const report = dag.task(async function report({ history }: { history: XComSequence<Metrics> }) {
+    const report = dag.task("report", async ({ history }: { history: XComSequence<Metrics> }) => {
       console.log(`settled after ${await history.length()} iterations`);
     });
-    const cleanup = dag.task(async function cleanup() {});
+    const cleanup = dag.task("cleanup", () => {});
 
-    const evaluated = evaluate({ estimate: improve() });
+    const estimate = improve();
+    const evaluated = evaluate({ estimate });
     const refinement = refine.loop(accurateEnough, { result: evaluated }, { maxIterations: 10 });
 
     report({ history: refinement.all(evaluated) });   // every iteration's Metrics, as an XComSequence
