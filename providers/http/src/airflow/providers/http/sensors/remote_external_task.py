@@ -139,7 +139,7 @@ class RemoteExternalTaskSensor(ExternalTaskSensor):
         self._raise_for_remote_error(response)
         return response.json()["access_token"]
 
-    def _get_remote_api_endpoint(self, path: str) -> str:
+    def _build_remote_api_endpoint(self, path: str) -> str:
         return f"api/{self.api_version}/{path.lstrip('/')}"
 
     @staticmethod
@@ -157,7 +157,7 @@ class RemoteExternalTaskSensor(ExternalTaskSensor):
         """Return how many DAG runs or task instances the remote list endpoint finds for the filters."""
         # Only the total is needed: one record is enough, total_entries is still the full count.
         response = self._get_remote_api_hook("POST").run(
-            self._get_remote_api_endpoint(path),
+            self._build_remote_api_endpoint(path),
             json={**filters, "page_limit": 1},
             extra_options={"check_response": False},
         )
@@ -206,7 +206,9 @@ class RemoteExternalTaskSensor(ExternalTaskSensor):
             f"dags/{self.external_dag_id}/tasks/{task_id}" for task_id in self.external_task_ids or []
         ]
         for path in paths:
-            response = hook.run(self._get_remote_api_endpoint(path), extra_options={"check_response": False})
+            response = hook.run(
+                self._build_remote_api_endpoint(path), extra_options={"check_response": False}
+            )
             if response.status_code == 404:
                 raise AirflowFailException(f"{path} does not exist in the remote Airflow: {response.url}")
             self._raise_for_remote_error(response)
