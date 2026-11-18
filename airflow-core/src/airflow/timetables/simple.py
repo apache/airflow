@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 from contextlib import suppress
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any, TypeAlias
 
 import attrs
@@ -51,7 +51,7 @@ except ModuleNotFoundError:
 log = structlog.get_logger()
 
 if TYPE_CHECKING:
-    from collections.abc import Collection, Sequence
+    from collections.abc import Collection, Iterable, Sequence
 
     from pendulum import DateTime
 
@@ -304,6 +304,62 @@ class AssetTriggeredTimetable(_TrivialTimetable):
 DEFAULT_PARTITION_MAPPER = IdentityMapper()
 
 
+def _BACKFILL_GRAIN_STEP() -> dict[type, timedelta]:
+    """Rollup grains that a backfill can walk, with a step that always lands in the next period."""
+    from airflow.partition_mappers.temporal import (
+        StartOfDayMapper,
+        StartOfMonthMapper,
+        StartOfQuarterMapper,
+        StartOfWeekMapper,
+        StartOfYearMapper,
+    )
+
+    return {
+        StartOfDayMapper: timedelta(days=1),
+        StartOfWeekMapper: timedelta(days=7),
+        StartOfMonthMapper: timedelta(days=32),
+        StartOfQuarterMapper: timedelta(days=93),
+        StartOfYearMapper: timedelta(days=367),
+    }
+
+
+def _iter_rollup_periods(mapper: Any, earliest: datetime, latest: datetime) -> Iterable[tuple[str, datetime]]:
+    """Walk the periods of a rollup mapper and yield (key, partition date) for those in the bounds."""
+    grain = mapper.upstream_mapper
+    step = _BACKFILL_GRAIN_STEP()[type(grain)]
+    # The walk is on local wall-clock values; each key's date is then resolved by the mapper.
+    current = grain.normalize(earliest.astimezone(grain._timezone).replace(tzinfo=None))
+    while True:
+        key = grain.format(current)
+        partition_date = mapper.to_partition_date(key)
+        if partition_date > latest:
+            return
+        if partition_date >= earliest:
+            if grain.normalize(grain.decode_downstream(key)) != current:
+                raise ValueError(f"the key format does not keep the period start of {key!r}")
+            _check_rollup_key(mapper, key)
+            yield key, partition_date
+        current = grain.normalize(current + step)
+
+
+def _check_rollup_key(mapper: Any, key: str) -> None:
+    """Raise unless *key* is the canonical key of one period and each of its inputs maps back to it."""
+    grain = mapper.upstream_mapper
+    try:
+        canonical = grain.format(grain.normalize(grain.decode_downstream(key)))
+    except ValueError as e:
+        raise ValueError(f"{key!r} is not a partition key of this Dag: {e}") from e
+    if canonical != key:
+        raise ValueError(f"{key!r} is not a canonical key; the key of that period is {canonical!r}")
+    inputs = mapper.to_upstream(key)
+    if not inputs:
+        raise ValueError(f"the key {key!r} has no inputs")
+    for input_key in inputs:
+        mapped = mapper.to_downstream(input_key)
+        if mapped != key:
+            raise ValueError(f"the input {input_key!r} of {key!r} maps to {mapped!r}, not to that key")
+
+
 @attrs.define(eq=False, repr=False, kw_only=True, slots=False)
 class PartitionedAssetTimetable(AssetTriggeredTimetable):
     """Asset-driven timetable that listens for partitioned assets."""
@@ -337,6 +393,146 @@ class PartitionedAssetTimetable(AssetTriggeredTimetable):
         ):
             return "Partition rollups require batch_asset_events=True"
         return super().get_batching_requirement()
+
+    def _backfill_mappers(self) -> list[PartitionMapper]:
+        return [
+            self.get_partition_mapper(name=unique_key.name, uri=unique_key.uri)
+            for unique_key, _ in self.asset_condition.iter_assets()
+        ]
+
+    def backfill_selects_keys_from_events(self) -> bool:
+        """
+        Whether a backfill takes this timetable's partition keys from existing asset events.
+
+        That is the case when every input uses ``IdentityMapper``. Such a key has no date of
+        its own: its date is the partition date of the run that wrote the event, which is the
+        date that live scheduling carries onto the consumer.
+        """
+        return all(type(mapper) is IdentityMapper for mapper in self._backfill_mappers())
+
+    def backfill_unsupported_reason(self) -> str | None:
+        """
+        Say why this timetable cannot be backfilled, or return None when it can.
+
+        A backfill needs to list the keys in a date range and all the inputs of each key.
+        Only a closed list of mappers gives both: a rollup with a day, week, month, quarter
+        or year grain, a forward window, the ``WaitForAll`` policy and a key format with no
+        timezone offset.
+        """
+        from airflow.partition_mappers.base import is_rollup
+        from airflow.partition_mappers.wait_policy import WaitForAll
+        from airflow.partition_mappers.window import Window
+
+        def only_assets_joined_with_and(condition: SerializedAssetBase) -> bool:
+            if isinstance(condition, SerializedAssetAll):
+                return all(only_assets_joined_with_and(member) for member in condition.objects)
+            return isinstance(condition, SerializedAsset)
+
+        if not only_assets_joined_with_and(self.asset_condition):
+            return (
+                "the asset condition must be one asset, or assets joined with &; "
+                "an alias, a reference by name or URI, and | are not supported"
+            )
+        if self.backfill_selects_keys_from_events():
+            return None
+        for mapper in self._backfill_mappers():
+            if not is_rollup(mapper):
+                return (
+                    f"{type(mapper).__name__} is not supported here; the inputs must all use "
+                    "IdentityMapper, or all use a supported RollupMapper"
+                )
+            grain = mapper.upstream_mapper
+            if type(grain) not in _BACKFILL_GRAIN_STEP():
+                return f"a rollup with {type(grain).__name__} is not supported"
+            if mapper.window.direction is not Window.Direction.FORWARD:
+                return "only a forward window is supported"
+            if type(mapper.wait_policy) is not WaitForAll:
+                return f"only the WaitForAll policy is supported, not {type(mapper.wait_policy).__name__}"
+            output_format = getattr(grain, "output_format", None) or ""
+            if "%z" in output_format or "%Z" in output_format:
+                return "a key format with a timezone offset is not supported"
+        return None
+
+    def iter_partition_dagrun_infos(self, *, earliest: datetime, latest: datetime) -> Iterable[DagRunInfo]:
+        """
+        Yield one DagRunInfo for each partition whose date is in ``[earliest, latest]``.
+
+        The bounds are instants and both ends are included. The date of a key is the start
+        of its period, as :meth:`PartitionMapper.to_partition_date` resolves it, so it is
+        the date that a live run for the same key gets.
+
+        :raises ValueError: when the timetable cannot be backfilled, a key does not match
+            its inputs, or the input assets do not select the same keys.
+        """
+        if reason := self.backfill_unsupported_reason():
+            raise ValueError(reason)
+        if self.backfill_selects_keys_from_events():
+            raise ValueError("the partition keys of an IdentityMapper input come from asset events")
+        per_asset = [
+            list(_iter_rollup_periods(mapper, earliest, latest)) for mapper in self._backfill_mappers()
+        ]
+        if any(periods != per_asset[0] for periods in per_asset[1:]):
+            raise ValueError("the input assets do not select the same keys with the same dates")
+        for key, partition_date in per_asset[0]:
+            run_after = timezone.coerce_datetime(partition_date)
+            yield DagRunInfo(
+                run_after=run_after, data_interval=None, partition_date=run_after, partition_key=key
+            )
+
+    def partition_dagrun_infos_for_keys(self, partition_keys: Collection[str]) -> list[DagRunInfo]:
+        """
+        Return one DagRunInfo for each of *partition_keys*, ordered by partition date.
+
+        Every key must be the canonical key of one period, and the input assets must give it
+        the same date.
+
+        :raises ValueError: when the timetable cannot be backfilled, or a key is not valid.
+        """
+        if reason := self.backfill_unsupported_reason():
+            raise ValueError(reason)
+        if self.backfill_selects_keys_from_events():
+            raise ValueError("the partition keys of an IdentityMapper input come from asset events")
+        if len(set(partition_keys)) != len(partition_keys):
+            raise ValueError("a partition key is listed more than once")
+        resolved: list[tuple[datetime, str]] = []
+        for key in partition_keys:
+            dates = set()
+            for mapper in self._backfill_mappers():
+                _check_rollup_key(mapper, key)
+                dates.add(mapper.to_partition_date(key))
+            partition_date = dates.pop() if len(dates) == 1 else None
+            if partition_date is None:
+                raise ValueError(f"the input assets do not give {key!r} one date")
+            resolved.append((partition_date, key))
+        infos = []
+        for partition_date, key in sorted(resolved):
+            run_after = timezone.coerce_datetime(partition_date)
+            infos.append(
+                DagRunInfo(
+                    run_after=run_after, data_interval=None, partition_date=run_after, partition_key=key
+                )
+            )
+        return infos
+
+    def generate_run_id(
+        self,
+        *,
+        run_type: DagRunType,
+        data_interval: DataInterval | None,
+        run_after: DateTime,
+        **extra,
+    ) -> str:
+        from airflow.models.dagrun import DagRun
+        from airflow.utils.types import DagRunType
+
+        if run_type == DagRunType.BACKFILL_JOB:
+            # A key can be backfilled more than once, and run_after is the key's date both
+            # times. With no logical date the helper adds a random part, as it does for the
+            # runs that live scheduling creates for this timetable.
+            return DagRun.generate_run_id(run_type=run_type, logical_date=None, run_after=run_after)
+        return super().generate_run_id(
+            run_type=run_type, data_interval=data_interval, run_after=run_after, **extra
+        )
 
     def _build_name_uri_mapping(self) -> None:
         for base_asset, partition_mapper in self.partition_mapper_config.items():

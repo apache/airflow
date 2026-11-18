@@ -23,10 +23,12 @@ Internal classes for management of dag backfills.
 
 from __future__ import annotations
 
-from collections.abc import Iterable
+from collections.abc import Iterable, Iterator
+from contextlib import contextmanager
+from contextvars import ContextVar
 from datetime import datetime
 from enum import Enum
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, NamedTuple
 
 import sqlalchemy as sa
 import structlog
@@ -37,6 +39,7 @@ from sqlalchemy import (
     Integer,
     String,
     UniqueConstraint,
+    and_,
     case,
     delete,
     func,
@@ -94,6 +97,14 @@ class DagNonPeriodicScheduleException(AirflowException):
     """
 
 
+class ConsumerBackfillNotSupported(DagNonPeriodicScheduleException):
+    """
+    Raised when a Dag scheduled on partitioned assets cannot be backfilled.
+
+    :meta private:
+    """
+
+
 class InvalidBackfillDirection(AirflowException):
     """
     Raised when backfill is attempted in reverse order with tasks that depend on past runs.
@@ -121,6 +132,22 @@ class InvalidBackfillDate(AirflowException):
 class InvalidBackfillDateRange(AirflowException):
     """
     Raised when from_date is after to_date in a backfill request.
+
+    :meta private:
+    """
+
+
+class TooManyBackfillPartitions(InvalidBackfillDateRange):
+    """
+    Raised when a backfill of a Dag scheduled on partitioned assets selects too many partitions.
+
+    :meta private:
+    """
+
+
+class InvalidBackfillPartitionKeys(InvalidBackfillDateRange):
+    """
+    Raised when the partition keys of a backfill request are not valid.
 
     :meta private:
     """
@@ -254,10 +281,15 @@ class BackfillDagRunExceptionReason(str, Enum):
 
     IN_FLIGHT = "in flight"
     ALREADY_EXISTS = "already exists"
+    MISSING_INPUT = "missing input"
+    NO_SINGLE_PARTITION_DATE = "no single partition date"
     UNKNOWN = "unknown"
 
     def __str__(self) -> str:
         return self.value
+
+
+BACKFILL_PLAN_RESULT_RUN = "run"
 
 
 class BackfillDagRun(Base):
@@ -367,16 +399,367 @@ def _validate_backfill_params(
             raise InvalidBackfillConf(str(e)) from e
 
 
-def _do_dry_run(
+def _is_asset_consumer(dag: SerializedDAG) -> bool:
+    from airflow.timetables.simple import PartitionedAssetTimetable
+
+    return isinstance(dag.timetable, PartitionedAssetTimetable)
+
+
+def _check_backfillable(dag: SerializedDAG, dag_id: str) -> None:
+    """Raise when the Dag's schedule cannot be backfilled."""
+    from airflow.timetables.simple import PartitionedAssetTimetable
+
+    timetable = dag.timetable
+    if timetable.periodic:
+        return
+    if not isinstance(timetable, PartitionedAssetTimetable):
+        raise DagNonPeriodicScheduleException(
+            f"{dag_id} has a non-periodic schedule that does not support backfills"
+        )
+    from airflow.configuration import conf
+
+    if conf.getboolean("core", "multi_team", fallback=False):
+        # Which consumers may receive an event is decided when the event arrives, with data
+        # that is not all stored. A backfill cannot repeat that decision for old events.
+        raise ConsumerBackfillNotSupported(
+            f"{dag_id} is scheduled on partitioned assets; such a Dag cannot be backfilled "
+            "when [core] multi_team is enabled"
+        )
+    if reason := timetable.backfill_unsupported_reason():
+        raise ConsumerBackfillNotSupported(
+            f"{dag_id} is scheduled on partitioned assets and cannot be backfilled: {reason}"
+        )
+
+
+def _consumer_infos_for_keys(
+    dag: SerializedDAG, partition_keys: list[str], session: Session
+) -> list[DagRunInfo]:
+    """Resolve explicit partition keys of a Dag scheduled on partitioned assets."""
+    from airflow.timetables.simple import PartitionedAssetTimetable
+
+    timetable = dag.timetable
+    if not isinstance(timetable, PartitionedAssetTimetable):
+        raise InvalidBackfillPartitionKeys(
+            f"partition_keys is only accepted for a Dag scheduled on partitioned assets, not for {dag.dag_id}"
+        )
+    if timetable.backfill_selects_keys_from_events():
+        return _consumer_infos_from_events(dag, session, partition_keys=partition_keys)
+    if not partition_keys:
+        raise InvalidBackfillPartitionKeys("partition_keys must not be empty")
+    try:
+        return _consumer_info_list(dag, timetable.partition_dagrun_infos_for_keys(partition_keys))
+    except ValueError as e:
+        raise InvalidBackfillPartitionKeys(str(e)) from e
+
+
+def _resolve_bounds(
+    dag: SerializedDAG,
+    from_date: datetime | None,
+    to_date: datetime | None,
+    partition_keys: list[str] | None,
+    session: Session,
+) -> tuple[datetime, datetime]:
+    """
+    Return the date bounds of a backfill request.
+
+    A request has a date range or partition keys. For partition keys, the bounds are the
+    earliest and the latest partition date of the keys.
+    """
+    if partition_keys is not None:
+        if from_date is not None or to_date is not None:
+            raise InvalidBackfillPartitionKeys("Give a date range or partition_keys, not both.")
+        infos = _consumer_infos_for_keys(dag, partition_keys, session)
+        dates = [info.partition_date for info in infos if info.partition_date is not None]
+        if not dates:
+            raise InvalidBackfillPartitionKeys("None of the partition keys has a single partition date.")
+        return min(dates), max(dates)
+    if from_date is None or to_date is None:
+        raise InvalidBackfillDateRange("from_date and to_date are required when partition_keys is not given.")
+    return from_date, to_date
+
+
+def _consumer_info_list(dag: SerializedDAG, infos: Iterable[DagRunInfo]) -> list[DagRunInfo]:
+    """List the partitions of a Dag scheduled on partitioned assets, up to the configured limit."""
+    from airflow.configuration import conf
+
+    limit = conf.getint("scheduler", "max_consumer_backfill_partitions", fallback=1000)
+    dagrun_info_list: list[DagRunInfo] = []
+    try:
+        for info in infos:
+            if len(dagrun_info_list) >= limit:
+                raise TooManyBackfillPartitions(
+                    f"The range selects more than {limit} partitions of Dag {dag.dag_id}. "
+                    "Use a shorter range."
+                )
+            dagrun_info_list.append(info)
+    except ValueError as e:
+        raise ConsumerBackfillNotSupported(
+            f"{dag.dag_id} is scheduled on partitioned assets and cannot be backfilled: {e}"
+        ) from e
+    return dagrun_info_list
+
+
+_EVIDENCE_OF_THIS_REQUEST: ContextVar[
+    dict[tuple[str, str], tuple[list[Any], list[tuple[str, str]]]] | None
+] = ContextVar("consumer_backfill_evidence", default=None)
+
+
+@contextmanager
+def _one_evidence_lookup() -> Iterator[None]:
+    """
+    Look up the evidence of each partition once inside the block, and reuse it.
+
+    A request reads the evidence of a key more than once: for the date of the key, for the
+    plan, and when the run is created. An event that arrives in between must not give the
+    run other events than the ones its date was taken from.
+    """
+    token = _EVIDENCE_OF_THIS_REQUEST.set({})
+    try:
+        yield
+    finally:
+        _EVIDENCE_OF_THIS_REQUEST.reset(token)
+
+
+def _consumer_evidence(
+    dag: SerializedDAG, partition_key: str, session: Session
+) -> tuple[list[Any], list[tuple[str, str]]]:
+    """
+    Find the newest existing asset event for each input of a partition.
+
+    Returns the events, and the (asset name, input key) pairs that have no event.
+    """
+    from airflow.models.asset import AssetEvent, AssetModel
+    from airflow.partition_mappers.base import is_rollup
+
+    cache = _EVIDENCE_OF_THIS_REQUEST.get()
+    if cache is not None and (dag.dag_id, partition_key) in cache:
+        return cache[dag.dag_id, partition_key]
+    timetable: Any = dag.timetable
+    events: list[Any] = []
+    missing: list[tuple[str, str]] = []
+    for unique_key, _ in timetable.asset_condition.iter_assets():
+        mapper = timetable.get_partition_mapper(name=unique_key.name, uri=unique_key.uri)
+        asset_id = session.scalar(
+            select(AssetModel.id).where(
+                AssetModel.name == unique_key.name,
+                AssetModel.uri == unique_key.uri,
+                AssetModel.active.has(),
+            )
+        )
+        input_keys = sorted(mapper.to_upstream(partition_key)) if is_rollup(mapper) else [partition_key]
+        for input_key in input_keys:
+            event = None
+            if asset_id is not None:
+                event = session.scalar(
+                    select(AssetEvent)
+                    .where(AssetEvent.asset_id == asset_id, AssetEvent.partition_key == input_key)
+                    .order_by(AssetEvent.timestamp.desc(), AssetEvent.id.desc())
+                    .limit(1)
+                )
+            if event is None:
+                missing.append((unique_key.name, input_key))
+            else:
+                events.append(event)
+    if cache is not None:
+        cache[dag.dag_id, partition_key] = (events, missing)
+    return events, missing
+
+
+def _evidence_partition_date(events: list[Any], session: Session) -> datetime | None:
+    """
+    Return the partition date that the evidence gives a key with no date of its own.
+
+    It is the partition date of the run that wrote each event, when the key of the event is the
+    key of that run. Live scheduling carries a date onto the consumer under the same condition:
+    the date of a run refers to the key of that run, not to another key that a task emitted.
+
+    There is no date when an event has no such run, when the run has another key or no partition
+    date, or when the events disagree.
+    """
+    from airflow.models.dagrun import DagRun
+
+    dates: set[datetime | None] = set()
+    for event in events:
+        partition_date = None
+        if event.source_dag_id and event.source_run_id:
+            source_run = session.execute(
+                select(DagRun.partition_key, DagRun.partition_date).where(
+                    DagRun.dag_id == event.source_dag_id, DagRun.run_id == event.source_run_id
+                )
+            ).one_or_none()
+            if source_run is not None and source_run.partition_key == event.partition_key:
+                partition_date = source_run.partition_date
+        dates.add(partition_date)
+    return dates.pop() if len(dates) == 1 else None
+
+
+def _consumer_infos_from_events(
+    dag: SerializedDAG,
+    session: Session,
+    *,
+    from_date: datetime | None = None,
+    to_date: datetime | None = None,
+    partition_keys: list[str] | None = None,
+) -> list[DagRunInfo]:
+    """
+    List the partitions of a consumer whose inputs all use ``IdentityMapper``.
+
+    For a date range, the keys are those of existing events whose source run has a partition
+    date in the range. The producer is not read. A key with one partition date comes first,
+    by date. A key with no single date comes after, and gets no run.
+    """
+    from airflow.configuration import conf
+    from airflow.models.asset import AssetEvent, AssetModel
+    from airflow.models.dagrun import DagRun
+    from airflow.timetables.base import DagRunInfo
+
+    limit = conf.getint("scheduler", "max_consumer_backfill_partitions", fallback=1000)
+    timetable: Any = dag.timetable
+    if partition_keys is None:
+        asset_ids = [
+            asset_id
+            for unique_key, _ in timetable.asset_condition.iter_assets()
+            if (
+                asset_id := session.scalar(
+                    select(AssetModel.id).where(
+                        AssetModel.name == unique_key.name,
+                        AssetModel.uri == unique_key.uri,
+                        AssetModel.active.has(),
+                    )
+                )
+            )
+            is not None
+        ]
+        keys = list(
+            session.scalars(
+                select(AssetEvent.partition_key)
+                .join(
+                    DagRun,
+                    and_(
+                        DagRun.dag_id == AssetEvent.source_dag_id, DagRun.run_id == AssetEvent.source_run_id
+                    ),
+                )
+                .where(
+                    AssetEvent.asset_id.in_(asset_ids),
+                    AssetEvent.partition_key.is_not(None),
+                    DagRun.partition_date >= from_date,
+                    DagRun.partition_date <= to_date,
+                )
+                .distinct()
+                .limit(limit + 1)
+            )
+        )
+    else:
+        if not partition_keys:
+            raise InvalidBackfillPartitionKeys("partition_keys must not be empty")
+        if len(set(partition_keys)) != len(partition_keys):
+            raise InvalidBackfillPartitionKeys("a partition key is listed more than once")
+        keys = list(partition_keys)
+    selected: list[str] = [key for key in keys if key is not None]
+    if len(selected) > limit:
+        # The limit is on the candidate keys, before the date of each one is known. It bounds
+        # the evidence lookups of a request, so it must be checked before they are made. A
+        # candidate that the date check below drops still counts.
+        raise TooManyBackfillPartitions(
+            f"The request has more than {limit} candidate partition keys of Dag {dag.dag_id}. "
+            "Use a shorter range."
+        )
+
+    dated: list[tuple[datetime, str]] = []
+    undated: list[str] = []
+    for key in selected:
+        events, _ = _consumer_evidence(dag, key, session)
+        partition_date = _evidence_partition_date(events, session)
+        if partition_date is None:
+            undated.append(key)
+        elif from_date is not None and to_date is not None and not from_date <= partition_date <= to_date:
+            # The key was found through an older event in the range, but its evidence is the
+            # newest event, and that one gives a date outside the range. The range applies to
+            # the date that the run would get, so the key is not selected.
+            continue
+        else:
+            dated.append((partition_date, key))
+    keys_by_date: dict[datetime, list[str]] = {}
+    for partition_date, key in dated:
+        keys_by_date.setdefault(partition_date, []).append(key)
+    for partition_date, same_date in keys_by_date.items():
+        if len(same_date) > 1:
+            # An existing run is found by its partition date, so two keys with one date
+            # cannot be told apart.
+            raise InvalidBackfillPartitionKeys(
+                f"The partition keys {sorted(same_date)} of Dag {dag.dag_id} have the same partition "
+                f"date {partition_date.isoformat()}. Request them one at a time with partition_keys."
+            )
+    infos = []
+    for partition_date, key in sorted(dated):
+        run_after = timezone.coerce_datetime(partition_date)
+        infos.append(
+            DagRunInfo(run_after=run_after, data_interval=None, partition_date=run_after, partition_key=key)
+        )
+    now = timezone.coerce_datetime(timezone.utcnow())
+    infos.extend(
+        DagRunInfo(run_after=now, data_interval=None, partition_date=None, partition_key=key)
+        for key in undated
+    )
+    return infos
+
+
+def _link_consumer_evidence(dag: SerializedDAG, dr: DagRun, evidence: list[Any], session: Session) -> None:
+    """Link the run to the events it reads, with the same rows that live scheduling writes."""
+    from airflow.models.asset import AssetPartitionDagRun, PartitionedAssetKeyLog
+    from airflow.timetables.base import compute_rollup_fingerprint
+
+    dr.consumed_asset_events.extend(evidence)
+    # The row is created already linked to the run, so it is never a pending row of live scheduling.
+    linked = AssetPartitionDagRun(
+        target_dag_id=dr.dag_id,
+        partition_key=dr.partition_key,
+        partition_date=dr.partition_date,
+        created_dag_run_id=dr.id,
+        rollup_fingerprint=compute_rollup_fingerprint(dag.timetable),
+    )
+    session.add(linked)
+    session.flush()
+    session.add_all(
+        PartitionedAssetKeyLog(
+            asset_id=event.asset_id,
+            asset_event_id=event.id,
+            asset_partition_dag_run_id=linked.id,
+            source_partition_key=event.partition_key,
+            target_dag_id=dr.dag_id,
+            target_partition_key=dr.partition_key,
+        )
+        for event in evidence
+    )
+
+
+class BackfillPlanEntry(NamedTuple):
+    """
+    What a backfill would do for one Dag run.
+
+    ``result`` is ``run``, or the reason why no run would be created. ``missing_inputs`` lists
+    the (asset name, partition key) pairs that have no asset event, for the result ``missing input``.
+
+    :meta private:
+    """
+
+    info: DagRunInfo
+    result: str
+    missing_inputs: list[tuple[str, str]]
+
+
+def _plan_backfill_inner(
     *,
     dag_id: str,
-    from_date: datetime,
-    to_date: datetime,
+    from_date: datetime | None,
+    to_date: datetime | None,
     reverse: bool,
     reprocess_behavior: ReprocessBehavior,
     session: Session,
     dag_run_conf: dict | None = None,
-) -> Iterable[DagRunInfo]:
+    partition_keys: list[str] | None = None,
+) -> list[BackfillPlanEntry]:
+    """List every Dag run that a backfill request selects, with what the backfill would do for it."""
     from airflow.models.serialized_dag import SerializedDagModel
 
     serdag = session.scalar(SerializedDagModel.latest_item_select_object(dag_id))
@@ -384,13 +767,11 @@ def _do_dry_run(
         raise DagNotFound(f"Could not find Dag {dag_id}")
     dag = serdag.dag
 
-    if not dag.timetable.periodic:
-        raise DagNonPeriodicScheduleException(
-            f"{dag_id} has a non-periodic schedule that does not support backfills"
-        )
+    _check_backfillable(dag, dag_id)
     if dag.allowed_run_types is not None and DagRunType.BACKFILL_JOB not in dag.allowed_run_types:
         raise DagRunTypeNotAllowed(f"Dag with dag_id: '{dag_id}' does not allow backfill runs")
 
+    from_date, to_date = _resolve_bounds(dag, from_date, to_date, partition_keys, session)
     _validate_backfill_params(
         dag,
         reverse,
@@ -404,20 +785,64 @@ def _do_dry_run(
         from_date=from_date,
         to_date=to_date,
         reverse=reverse,
+        partition_keys=partition_keys,
+        session=session,
     )
 
+    is_consumer = _is_asset_consumer(dag)
+    plan: list[BackfillPlanEntry] = []
     for info in dagrun_info_list:
-        if TYPE_CHECKING:
-            assert info.logical_date
+        if is_consumer and info.partition_date is None:
+            plan.append(
+                BackfillPlanEntry(info, BackfillDagRunExceptionReason.NO_SINGLE_PARTITION_DATE.value, [])
+            )
+            continue
         dr = session.scalar(
             statement=_get_latest_dag_run_row_query(dag_id=dag_id, info=info),
         )
-        if dr:
-            non_create_reason = _get_dag_run_no_create_reason(dr, reprocess_behavior)
-            if not non_create_reason:
-                yield info
-        else:
-            yield info
+        if dr and (reason := _get_dag_run_no_create_reason(dr, reprocess_behavior)):
+            plan.append(BackfillPlanEntry(info, str(getattr(reason, "value", reason)), []))
+            continue
+        if is_consumer and info.partition_key:
+            missing = _consumer_evidence(dag, info.partition_key, session)[1]
+            if missing:
+                plan.append(
+                    BackfillPlanEntry(info, BackfillDagRunExceptionReason.MISSING_INPUT.value, missing)
+                )
+                continue
+        plan.append(BackfillPlanEntry(info, BACKFILL_PLAN_RESULT_RUN, []))
+    return plan
+
+
+def _plan_backfill(**kwargs: Any) -> list[BackfillPlanEntry]:
+    """List every Dag run that a backfill request selects, with what the backfill would do for it."""
+    with _one_evidence_lookup():
+        return _plan_backfill_inner(**kwargs)
+
+
+def _do_dry_run(
+    *,
+    dag_id: str,
+    from_date: datetime | None,
+    to_date: datetime | None,
+    reverse: bool,
+    reprocess_behavior: ReprocessBehavior,
+    session: Session,
+    dag_run_conf: dict | None = None,
+    partition_keys: list[str] | None = None,
+) -> Iterable[DagRunInfo]:
+    for entry in _plan_backfill(
+        dag_id=dag_id,
+        from_date=from_date,
+        to_date=to_date,
+        reverse=reverse,
+        reprocess_behavior=reprocess_behavior,
+        session=session,
+        dag_run_conf=dag_run_conf,
+        partition_keys=partition_keys,
+    ):
+        if entry.result == BACKFILL_PLAN_RESULT_RUN:
+            yield entry.info
 
 
 def _create_backfill_dag_run_non_partitioned(
@@ -543,6 +968,25 @@ def _create_backfill_dag_run_partitioned(
     triggering_user_name: str | None,
     session: Session,
 ) -> None:
+    if info.partition_date is None and _is_asset_consumer(dag):
+        # The key takes its date from its evidence, and the evidence gives no single date.
+        # Without a date the run lookup below would match the runs of other keys.
+        session.add(
+            BackfillDagRun(
+                backfill_id=backfill_id,
+                dag_run_id=None,
+                logical_date=info.logical_date,
+                partition_key=info.partition_key,
+                exception_reason=BackfillDagRunExceptionReason.NO_SINGLE_PARTITION_DATE,
+                sort_ordinal=backfill_sort_ordinal,
+            )
+        )
+        log.warning(
+            "Skipping dag run creation.",
+            non_create_reason=BackfillDagRunExceptionReason.NO_SINGLE_PARTITION_DATE,
+            backfill_id=backfill_id,
+        )
+        return
     stmt = _get_latest_dag_run_row_query(dag_id=dag.dag_id, info=info)
     dr = session.scalar(stmt)
     if dr:
@@ -560,6 +1004,28 @@ def _create_backfill_dag_run_partitioned(
             )
             log.warning(
                 "Skipping dag run creation.", non_create_reason=non_create_reason, backfill_id=backfill_id
+            )
+            return
+
+    evidence: list[Any] = []
+    if _is_asset_consumer(dag) and info.partition_key:
+        evidence, missing = _consumer_evidence(dag, info.partition_key, session)
+        if missing:
+            session.add(
+                BackfillDagRun(
+                    backfill_id=backfill_id,
+                    dag_run_id=None,
+                    logical_date=info.logical_date,
+                    partition_key=info.partition_key,
+                    exception_reason=BackfillDagRunExceptionReason.MISSING_INPUT,
+                    sort_ordinal=backfill_sort_ordinal,
+                )
+            )
+            log.warning(
+                "Skipping dag run creation.",
+                non_create_reason=BackfillDagRunExceptionReason.MISSING_INPUT,
+                missing_inputs=missing,
+                backfill_id=backfill_id,
             )
             return
 
@@ -597,6 +1063,8 @@ def _create_backfill_dag_run_partitioned(
             partition_key=info.partition_key,
         )
     )
+    if evidence:
+        _link_consumer_evidence(dag, dr, evidence, session)
 
 
 def _get_info_list(
@@ -605,11 +1073,25 @@ def _get_info_list(
     to_date: datetime,
     reverse: bool,
     dag: SerializedDAG,
+    partition_keys: list[str] | None = None,
+    session: Session | None = None,
 ) -> list[DagRunInfo]:
+    timetable: Any = dag.timetable
+    from_events = _is_asset_consumer(dag) and timetable.backfill_selects_keys_from_events()
+    if partition_keys is not None or from_events:
+        if session is None:
+            raise RuntimeError("A session is needed to list the partitions of this Dag.")
+        if partition_keys is not None:
+            dagrun_info_list = _consumer_infos_for_keys(dag, partition_keys, session)
+        else:
+            dagrun_info_list = _consumer_infos_from_events(dag, session, from_date=from_date, to_date=to_date)
+        return list(reversed(dagrun_info_list)) if reverse else dagrun_info_list
     infos = dag.iter_dagrun_infos_between(from_date, to_date)
     if not dag.timetable.partitioned:
         now = timezone.utcnow()
         dagrun_info_list = [x for x in infos if x.data_interval and x.data_interval.end < now]
+    elif _is_asset_consumer(dag):
+        dagrun_info_list = _consumer_info_list(dag, infos)
     else:
         dagrun_info_list = list(infos)
     if reverse:
@@ -670,8 +1152,8 @@ def _handle_clear_run(
 def _create_backfill(
     *,
     dag_id: str,
-    from_date: datetime,
-    to_date: datetime,
+    from_date: datetime | None,
+    to_date: datetime | None,
     max_active_runs: int,
     reverse: bool,
     dag_run_conf: dict | None,
@@ -679,11 +1161,12 @@ def _create_backfill(
     reprocess_behavior: ReprocessBehavior | None = None,
     run_on_latest_version: bool = False,
     drain_dag: bool = False,
+    partition_keys: list[str] | None = None,
 ) -> Backfill:
     from airflow.models import DagModel
     from airflow.models.serialized_dag import SerializedDagModel
 
-    with create_session() as session:
+    with _one_evidence_lookup(), create_session() as session:
         serdag = session.scalar(SerializedDagModel.latest_item_select_object(dag_id))
         if not serdag:
             raise DagNotFound(f"Could not find dag {dag_id}")
@@ -697,10 +1180,7 @@ def _create_backfill(
                 raise DagRunTypeNotAllowed(f"Dag with dag_id: '{dag_id}' does not allow backfill runs")
 
         dag = serdag.dag
-        if not dag.timetable.periodic:
-            raise DagNonPeriodicScheduleException(
-                f"{dag_id} has a non-periodic schedule that does not support backfills"
-            )
+        _check_backfillable(dag, dag_id)
 
         num_active = session.scalar(
             select(func.count()).where(
@@ -716,6 +1196,7 @@ def _create_backfill(
                 f"There can be only one running backfill per Dag."
             )
 
+        from_date, to_date = _resolve_bounds(dag, from_date, to_date, partition_keys, session)
         _validate_backfill_params(
             dag,
             reverse,
@@ -730,6 +1211,8 @@ def _create_backfill(
             to_date=to_date,
             reverse=reverse,
             dag=dag,
+            partition_keys=partition_keys,
+            session=session,
         )
         if not dagrun_info_list:
             raise NoBackfillRunsToCreate(
