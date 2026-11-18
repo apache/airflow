@@ -47,15 +47,23 @@ const wrapperAt = (path: string) => {
 };
 
 describe("BrowseButton", () => {
-  it("lists Dag Runs and Task Instances for users who can see Dags", async () => {
+  it("lists Dag Runs, Task Instances and Triggers for users who can see Dags", async () => {
     render(<BrowseButton authorizedMenuItems={["Dags"]} externalViews={[]} />, { wrapper: Wrapper });
 
     await openMenu();
 
-    expect(hrefs()).toStrictEqual(["/dag_runs", "/task_instances"]);
+    expect(hrefs()).toStrictEqual(["/dag_runs", "/task_instances", "/triggers"]);
   });
 
-  it("hides Dag Runs and Task Instances without access to Dags", async () => {
+  it("lists Triggers for users who can see only assets", async () => {
+    render(<BrowseButton authorizedMenuItems={["Assets"]} externalViews={[]} />, { wrapper: Wrapper });
+
+    await openMenu();
+
+    expect(hrefs()).toStrictEqual(["/triggers"]);
+  });
+
+  it("hides Dag Runs, Task Instances and Triggers without access to Dags or assets", async () => {
     render(<BrowseButton authorizedMenuItems={["Jobs"]} externalViews={[]} />, { wrapper: Wrapper });
 
     await openMenu();
@@ -70,10 +78,10 @@ describe("BrowseButton", () => {
 
     await openMenu();
 
-    expect(hrefs()).toStrictEqual(["/dag_runs", "/jobs", "/task_instances", "/xcoms"]);
+    expect(hrefs()).toStrictEqual(["/dag_runs", "/jobs", "/task_instances", "/triggers", "/xcoms"]);
   });
 
-  it.each(["/dag_runs", "/task_instances"])("is highlighted on %s", (path) => {
+  it.each(["/dag_runs", "/task_instances", "/triggers"])("is highlighted on %s", (path) => {
     render(<BrowseButton authorizedMenuItems={["Dags"]} externalViews={[]} />, {
       wrapper: wrapperAt(path),
     });

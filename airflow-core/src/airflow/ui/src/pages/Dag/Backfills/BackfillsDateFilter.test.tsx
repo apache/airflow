@@ -32,10 +32,13 @@ const getFromDateCells = () =>
   screen.getAllByTestId("time-display").map((element) => element.getAttribute("datetime"));
 
 describe("Backfills start/end date filter", () => {
-  it("shows all backfills when no date filter is applied", async () => {
+  it("shows all backfills when no date filter is applied", async ({ task }) => {
     render(<AppWrapper initialEntries={["/dags/tutorial_taskflow_api/backfills"]} />);
 
-    await waitFor(() => expect(getFromDateCells()).toContain("2025-01-01T00:00:00Z"));
+    // The file's first render of the whole app can take over waitFor's default second on CI.
+    await waitFor(() => expect(getFromDateCells()).toContain("2025-01-01T00:00:00Z"), {
+      timeout: task.timeout,
+    });
     expect(getFromDateCells()).toContain("2024-12-01T00:00:00Z");
   });
 
