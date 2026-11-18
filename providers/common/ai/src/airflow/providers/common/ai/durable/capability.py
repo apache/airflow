@@ -699,8 +699,14 @@ class _AirflowOperationBackend(CallableOperationBackend[_StepMode]):
         # members: editing the chain must not invalidate steps a surviving member answered.
         # ``_find_unusable_answerer`` rejects the replay of a step whose answering member left
         # the chain. Any other chain cannot say who answered, so it keeps the member-listing name.
-        identity = "fallback" if _is_stamped_chain(model) else f"{model.system}:{model.model_name}"
-        return fingerprint_model_request(identity, messages, prepared_settings, prepared_parameters)
+        # The agent writes the chain's own id (``fallback:a,b``) on every response it puts in the
+        # history, replayed ones too, so a replayed response carries the edited chain's id and
+        # that field has to stay out of the fingerprint.
+        stamped = _is_stamped_chain(model)
+        identity = "fallback" if stamped else f"{model.system}:{model.model_name}"
+        return fingerprint_model_request(
+            identity, messages, prepared_settings, prepared_parameters, exclude_response_model_id=stamped
+        )
 
 
 @dataclass
