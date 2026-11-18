@@ -57,6 +57,7 @@ pytestmark = pytest.mark.db_test
 
 
 @pytest.mark.parametrize("supply_dag_bag", [False, True])
+@pytest.mark.filterwarnings("error::DeprecationWarning:airflow.api_fastapi.execution_api.app")
 @mock.patch("airflow.api_fastapi.common.dagbag.create_dag_bag", autospec=True)
 def test_create_app_initializes_dag_bag(mock_create_dag_bag, supply_dag_bag):
     dag_bag = mock.sentinel.dag_bag if supply_dag_bag else None
