@@ -28,6 +28,7 @@ beforeAll(() => preloadAppRoutes(["/dags"]));
 
 const mockConfig: Record<string, unknown> = {
   auto_refresh_interval: 3,
+  default_match_anywhere: false,
   default_wrap: false,
   enable_swagger_ui: true,
   hide_paused_dags_by_default: true,

@@ -20,13 +20,18 @@ import type { PropsWithChildren } from "react";
 
 import { act, renderHook } from "@testing-library/react";
 import { MemoryRouter, useSearchParams } from "react-router-dom";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { advancedSearchKey, DEFAULT_MATCH_ANYWHERE_KEY } from "src/constants/localStorage";
 import { SearchParamsKeys } from "src/constants/searchParams";
+import { useConfig } from "src/queries/useConfig";
 import { BaseWrapper } from "src/utils/Wrapper";
 
 import { useAdvancedSearch } from "./useAdvancedSearch";
+
+vi.mock("src/queries/useConfig", () => ({
+  useConfig: vi.fn(() => undefined),
+}));
 
 const createWrapper =
   (initialEntries: Array<string> = ["/dags"]) =>
@@ -48,6 +53,7 @@ const renderAdvancedSearch = (key: string, initialEntries?: Array<string>) =>
 
 afterEach(() => {
   localStorage.clear();
+  vi.mocked(useConfig).mockReturnValue(undefined);
 });
 
 describe("useAdvancedSearch reads", () => {
@@ -154,6 +160,24 @@ describe("useAdvancedSearch global default", () => {
     const { result } = renderAdvancedSearch("dags");
 
     expect(result.current.advanced.enabled).toBe(true);
+  });
+
+  it("follows the server-side default when this browser never saved one", () => {
+    vi.mocked(useConfig).mockReturnValue(true);
+
+    const { result } = renderAdvancedSearch("dags");
+
+    expect(result.current.advanced.enabled).toBe(true);
+    expect(localStorage.getItem(DEFAULT_MATCH_ANYWHERE_KEY)).toBeNull();
+  });
+
+  it("keeps the saved setting over the server-side default", () => {
+    vi.mocked(useConfig).mockReturnValue(true);
+    localStorage.setItem(DEFAULT_MATCH_ANYWHERE_KEY, JSON.stringify(false));
+
+    const { result } = renderAdvancedSearch("dags");
+
+    expect(result.current.advanced.enabled).toBe(false);
   });
 
   it("lets an explicit per-searchbar choice override the global default", () => {
