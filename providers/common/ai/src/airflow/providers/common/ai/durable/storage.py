@@ -24,6 +24,7 @@ from collections.abc import Iterable
 from functools import lru_cache
 from typing import Any
 
+from airflow.providers.common.ai.exceptions import DurableJournalError
 from airflow.providers.common.ai.utils.task_logger import get_task_logger
 
 log = get_task_logger()
@@ -94,7 +95,7 @@ class DurableStorage:
         try:
             cache = json.loads(path.read_text())
             if not isinstance(cache, dict):
-                # JSON that is not an object holds no steps, just like a cut-off file.
+                # JSON that is not an object is as corrupt as a cut-off file.
                 raise ValueError("the journal file does not hold a JSON object")
         except FileNotFoundError:
             cache = {}
@@ -104,12 +105,14 @@ class DurableStorage:
                 path=str(path),
             )
             raise
-        except (json.JSONDecodeError, ValueError):
+        except (json.JSONDecodeError, UnicodeDecodeError, ValueError) as err:
             log.warning(
                 "Durable: journal is corrupt; failing this attempt so finished steps don't run again",
                 path=str(path),
             )
-            raise
+            raise DurableJournalError(
+                "durable execution cannot replay a corrupt journal; inspect or restore the journal before retrying"
+            ) from err
 
         self._cache = cache
         return self._cache

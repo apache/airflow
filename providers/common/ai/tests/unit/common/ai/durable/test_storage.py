@@ -25,6 +25,7 @@ from structlog.typing import FilteringBoundLogger
 from airflow.providers.common.ai.durable import storage as storage_module
 from airflow.providers.common.ai.durable.journal import DurableJournal
 from airflow.providers.common.ai.durable.storage import DurableStorage
+from airflow.providers.common.ai.exceptions import DurableJournalError
 from airflow.providers.common.compat.sdk import ObjectStoragePath
 
 from tests_common.test_utils.config import conf_vars
@@ -94,33 +95,6 @@ class TestSaveLoad:
             "Durable: could not read the journal; failing this attempt so finished steps don't run again",
             path=str(storage._get_path()),
         )
-
-    @pytest.mark.parametrize(
-        ("contents", "expected_exception"),
-        [(b'{"k":', json.JSONDecodeError), (b"\xff", UnicodeDecodeError)],
-        ids=["truncated-json", "invalid-encoding"],
-    )
-    @patch.object(storage_module, "log", spec=FilteringBoundLogger)
-    def test_a_corrupt_journal_blocks_reads_and_writes(
-        self, mock_log, storage, tmp_path, contents, expected_exception
-    ):
-        storage.save_step("k", ENTRY)
-        journal = next(tmp_path.iterdir())
-        journal.write_bytes(contents)
-        storage._cache = None
-
-        with pytest.raises(expected_exception):
-            storage.load_step("k")
-
-        mock_log.warning.assert_called_once_with(
-            "Durable: journal is corrupt; failing this attempt so finished steps don't run again",
-            path=str(storage._get_path()),
-        )
-
-        with pytest.raises(expected_exception):
-            storage.save_step("new", ENTRY)
-
-        assert journal.read_bytes() == contents
 
     def test_an_entry_that_cannot_be_encoded_is_skipped_and_the_rest_kept(self, storage):
         circular: dict = {}
@@ -235,22 +209,30 @@ class TestStoreFailures:
 
 class TestJournalThatIsNotAnObject:
     @pytest.mark.parametrize(
-        ("content", "expected_exception"),
+        ("content", "cause_type"),
         [
             pytest.param(b"{truncated", json.JSONDecodeError, id="cut off mid-write"),
             pytest.param(b'["not", "a", "journal"]', ValueError, id="a JSON list"),
             pytest.param(b"null", ValueError, id="JSON null"),
+            pytest.param(b"\xff", UnicodeDecodeError, id="invalid encoding"),
         ],
     )
-    def test_is_not_treated_as_a_missing_journal(self, storage, content, expected_exception):
+    @patch.object(storage_module, "log", spec=FilteringBoundLogger)
+    def test_is_not_treated_as_a_missing_journal(self, mock_log, storage, content, cause_type):
         journal = storage._get_path()
         journal.write_bytes(content)
 
-        with pytest.raises(expected_exception):
+        with pytest.raises(DurableJournalError) as exc_info:
             storage.load_step("k")
+        assert isinstance(exc_info.value.__cause__, cause_type)
+        mock_log.warning.assert_called_once_with(
+            "Durable: journal is corrupt; failing this attempt so finished steps don't run again",
+            path=str(journal),
+        )
 
-        with pytest.raises(expected_exception):
+        with pytest.raises(DurableJournalError) as exc_info:
             storage.save_step("k", ENTRY)
+        assert isinstance(exc_info.value.__cause__, cause_type)
 
         assert journal.read_bytes() == content
 
