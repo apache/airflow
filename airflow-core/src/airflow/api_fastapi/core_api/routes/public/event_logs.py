@@ -292,6 +292,12 @@ def get_event_logs(
     ]
 
     if cursor is not None:
+        # A cursor carries the row's sort values, and `extra` is unbounded text: the token could outgrow
+        # URL limits, and MySQL orders TEXT by a prefix only, so keyset pages could skip or repeat rows.
+        if any(value.lstrip("-") == "extra" for value in order_by.value or []):
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST, "Sorting by `extra` is not supported with cursor pagination"
+            )
         page_limit = cast("int", limit.value)
         cursor_limit = LimitFilter().set_value(page_limit + 1)
         event_logs_select = apply_filters_to_select(statement=query, filters=[*filters, cursor_limit])
