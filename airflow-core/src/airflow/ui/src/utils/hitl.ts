@@ -136,7 +136,8 @@ export const getHITLParamsDict = (
       // Values arrive as stored JSON, so an object param's value is already an object. A string is
       // never parsed: a JSON-looking string would render as "[object Object]" and go back as an object.
       const finalValue = (hitlDetail.params_input?.[key] ?? (isWrapped ? paramData.value : value)) as
-        ParamValue | undefined;
+        | ParamValue
+        | undefined;
 
       const description: string =
         paramData && typeof paramData.description === "string" ? paramData.description : "";
