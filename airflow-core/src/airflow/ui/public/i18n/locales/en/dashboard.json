@@ -73,6 +73,7 @@
   "stats": {
     "activeDags": "Active Dags",
     "failedDags": "Failed Dags",
+    "failingTriggers": "Failing Triggers",
     "queuedDags": "Queued Dags",
     "requiredActions": "Required Actions",
     "runningDags": "Running Dags",
