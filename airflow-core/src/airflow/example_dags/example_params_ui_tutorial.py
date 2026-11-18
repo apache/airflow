@@ -39,6 +39,10 @@ def _get_script_interfaces_from_config() -> list[str]:
 
 
 SCRIPT_INTERFACES = _get_script_interfaces_from_config()
+DEPLOY_ENVIRONMENTS = [
+    {"name": "dev", "replicas": 1},
+    {"name": "prod", "replicas": 5},
+]
 
 with DAG(
     dag_id=Path(__file__).stem,
@@ -185,6 +189,20 @@ with DAG(
                 8: "Eight",
                 9: "Nine",
                 None: "None (clear selection)",
+            },
+            section="Drop-Downs and selection lists",
+        ),
+        # Enum values can also be objects. Labels for them are keyed by the JSON text of the object,
+        # any spacing and key order is accepted, so json.dumps() is the easiest way to write the key.
+        "pick_environment": Param(
+            DEPLOY_ENVIRONMENTS[0],
+            type="object",
+            title="Select an Environment",
+            description="Object enum values are shown as a drop down and the selected object is passed as-is.",
+            enum=DEPLOY_ENVIRONMENTS,
+            values_display={
+                json.dumps(DEPLOY_ENVIRONMENTS[0]): "Development (1 replica)",
+                json.dumps(DEPLOY_ENVIRONMENTS[1]): "Production (5 replicas)",
             },
             section="Drop-Downs and selection lists",
         ),
