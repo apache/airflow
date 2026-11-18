@@ -19,12 +19,16 @@ from __future__ import annotations
 
 import base64
 import datetime
+from typing import TYPE_CHECKING, cast
 
 import pytest
 
 from airflow.models import Connection
 from airflow.providers.common.compat.sdk import AirflowException, AirflowFailException, AirflowSkipException
 from airflow.providers.http.sensors.remote_external_task import RemoteExternalTaskSensor
+
+if TYPE_CHECKING:
+    from airflow.sdk import Context
 
 REMOTE = "http://remote-airflow:8080"
 LOGICAL_DATE = datetime.datetime(2026, 11, 17, 5, 0, tzinfo=datetime.UTC)
@@ -59,8 +63,13 @@ def make_sensor(**kwargs) -> RemoteExternalTaskSensor:
     return RemoteExternalTaskSensor(task_id="wait_remote", external_dag_id="remote_dag", **kwargs)
 
 
+def context_for(date: datetime.datetime) -> Context:
+    # ExternalTaskSensor reads "logical_date" on Airflow 3 and "execution_date" on Airflow 2.
+    return cast("Context", {"logical_date": date, "execution_date": date})
+
+
 def poke(sensor: RemoteExternalTaskSensor) -> bool:
-    return sensor.poke({"logical_date": LOGICAL_DATE})
+    return sensor.poke(context_for(LOGICAL_DATE))
 
 
 def total(count: int) -> dict:
@@ -208,7 +217,7 @@ class TestRemoteExternalTaskSensorV1:
         requests_mock.post(DAG_RUNS_V1, **total(1))
         bangkok = datetime.timezone(datetime.timedelta(hours=7))
 
-        make_sensor().poke({"logical_date": datetime.datetime(2026, 11, 17, 12, 0, tzinfo=bangkok)})
+        make_sensor().poke(context_for(datetime.datetime(2026, 11, 17, 12, 0, tzinfo=bangkok)))
 
         assert requests_mock.last_request.json()["execution_date_gte"] == LOGICAL_DATE_ISO
 
@@ -273,8 +282,11 @@ class TestRemoteExternalTaskSensorStates:
             DAG_RUNS_V1, additional_matcher=lambda r: r.json()["states"] == ["failed"], **total(1)
         )
 
-        with pytest.raises(Exception, match="The external DAG remote_dag failed"):
+        # ExternalDagFailedError in recent standard providers, AirflowException in older ones.
+        with pytest.raises(AirflowException, match="The external DAG remote_dag failed") as error:
             poke(make_sensor(failed_states=["failed"]))
+
+        assert not isinstance(error.value, AirflowSkipException)
 
     def test_failed_state_with_soft_fail_skips(self, requests_mock):
         requests_mock.post(DAG_RUNS_V1, **total(1))
@@ -288,7 +300,7 @@ class TestRemoteExternalTaskSensorStates:
         )
 
         with pytest.raises(
-            Exception, match=r"Some of the external tasks \['a', 'b'\] in DAG remote_dag failed"
+            AirflowException, match=r"Some of the external tasks \['a', 'b'\] in DAG remote_dag failed"
         ):
             poke(make_sensor(external_task_ids=["a", "b"], failed_states=["failed"]))
 
