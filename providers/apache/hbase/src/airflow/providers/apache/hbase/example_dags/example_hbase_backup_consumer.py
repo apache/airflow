@@ -38,10 +38,6 @@ from __future__ import annotations
 import logging
 from datetime import datetime, timedelta
 
-from airflow.providers.common.compat.sdk import DAG
-from airflow.providers.standard.operators.bash import BashOperator
-from airflow.providers.standard.operators.python import BranchPythonOperator
-
 from airflow.providers.apache.hbase.datasets.hbase import hbase_table_dataset
 from airflow.providers.apache.hbase.hooks.hbase_cli import HBaseCLIHook
 from airflow.providers.apache.hbase.operators.hbase import (
@@ -51,6 +47,9 @@ from airflow.providers.apache.hbase.operators.hbase import (
     HBaseBackupSetOperator,
     HBaseCreateBackupOperator,
 )
+from airflow.providers.common.compat.sdk import DAG
+from airflow.providers.standard.operators.bash import BashOperator
+from airflow.providers.standard.operators.python import BranchPythonOperator
 
 logger = logging.getLogger(__name__)
 

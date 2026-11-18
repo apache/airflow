@@ -38,15 +38,14 @@ from __future__ import annotations
 import logging
 from datetime import datetime, timedelta
 
-from airflow.providers.common.compat.sdk import DAG, Param
-from airflow.providers.standard.operators.python import PythonOperator
-
 from airflow.providers.apache.hbase.hooks.hbase import HBaseThriftHook
 from airflow.providers.apache.hbase.operators.hbase import (
     HBaseDeleteTableOperator,
     HBaseRestoreOperator,
     IfNotExistsAction,
 )
+from airflow.providers.common.compat.sdk import DAG, Param
+from airflow.providers.standard.operators.python import PythonOperator
 
 logger = logging.getLogger(__name__)
 

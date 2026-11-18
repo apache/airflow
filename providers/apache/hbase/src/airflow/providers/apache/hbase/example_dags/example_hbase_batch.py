@@ -21,7 +21,6 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from airflow.providers.common.compat.sdk import DAG
 from airflow.providers.apache.hbase.operators.hbase import (
     HBaseBatchGetOperator,
     HBaseBatchPutOperator,
@@ -29,6 +28,7 @@ from airflow.providers.apache.hbase.operators.hbase import (
     HBaseDeleteTableOperator,
     HBaseScanOperator,
 )
+from airflow.providers.common.compat.sdk import DAG
 
 HBASE_CONN_ID = "hbase_thrift2"
 TABLE_NAME = "test_batch_table"

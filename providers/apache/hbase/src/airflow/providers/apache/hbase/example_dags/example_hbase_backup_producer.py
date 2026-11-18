@@ -33,14 +33,13 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta
 
-from airflow.providers.common.compat.sdk import DAG
-
 from airflow.providers.apache.hbase.datasets.hbase import hbase_table_dataset
 from airflow.providers.apache.hbase.operators.hbase import (
     HBaseBatchPutOperator,
     HBaseCreateTableOperator,
     HBaseDeleteTableOperator,
 )
+from airflow.providers.common.compat.sdk import DAG
 
 default_args = {
     "owner": "airflow",

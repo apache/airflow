@@ -28,10 +28,9 @@ import logging
 import time
 from datetime import datetime
 
+from airflow.providers.apache.hbase.hooks.hbase import HBaseThriftHook
 from airflow.providers.common.compat.sdk import DAG
 from airflow.providers.standard.operators.python import PythonOperator
-
-from airflow.providers.apache.hbase.hooks.hbase import HBaseThriftHook
 
 logger = logging.getLogger(__name__)
 

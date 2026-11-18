@@ -26,10 +26,9 @@ from __future__ import annotations
 import logging
 from datetime import datetime
 
+from airflow.providers.apache.hbase.hooks.hbase_cli import HBaseCLIHook
 from airflow.providers.common.compat.sdk import DAG
 from airflow.providers.standard.operators.python import PythonOperator
-
-from airflow.providers.apache.hbase.hooks.hbase_cli import HBaseCLIHook
 
 logger = logging.getLogger(__name__)
 
