@@ -27,6 +27,9 @@
 Changelog
 ---------
 
+11.1.0
+......
+
 .. note::
     ``AsyncKubernetesHook`` now honors its ``config_file`` argument, so a deferrable
     ``KubernetesJobOperator`` authenticates against the kubeconfig it was given rather than the
@@ -44,15 +47,37 @@ Changelog
   of your triggerer or workers was granted ``get`` on ``jobs/status`` but not on ``jobs``, grant it
   ``get`` on ``jobs``.
 
-11.0.0
-......
-
 .. note::
 
     ``AsyncKubernetesHook`` now reuses its API client for non-exec authentication.
     Direct hook users must call ``await hook.close()`` when finished to release the
     connection pool and SSL context. Pod and job triggers close the hook during cleanup.
     TLS certificate material is retained until the client is closed and recreated.
+
+Features
+~~~~~~~~
+
+* ``Reduce SSL setup overhead in async Kubernetes triggers (#73399)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Make KubernetesStartKueueJobOperator wait through Kueue preemption (#75658)``
+* ``Fix XCom corruption on non-ASCII values split across exec frames (#76497)``
+* ``Honor config_file in deferrable KubernetesJobOperator (#76712)``
+* ``Fail deferrable KubernetesPodOperator instead of silent SUCCESS when a garbage-collected pod takes its XCom with it (#73749)``
+* ``Fail fast when an init container image cannot be pulled (#76393)``
+
+Misc
+~~~~
+
+* ``Use alpine:3.24.4 as the default XCom sidecar image (#76334)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+11.0.0
+......
 
 .. note::
   ``@task.kubernetes_cmd`` now renders only the command returned by the decorated function inside
