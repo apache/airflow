@@ -327,3 +327,64 @@ class TestVariableInterval:
         with pytest.warns(DeprecationWarning, match="VariableInterval.resolve"):
             with pytest.raises(ValueError, match=match):
                 interval.resolve()
+
+
+class TestAssetDeadline:
+    def test_valid_cron_and_interval(self):
+        from airflow.sdk import Asset, AssetDeadline, PartitionedAssetTimetable, SyncCallback
+
+        cb = SyncCallback(lambda: None)
+        cron_dl = AssetDeadline(cron="0 9 * * *", callback=cb, name="morning_sla")
+        assert cron_dl.cron == "0 9 * * *"
+        assert cron_dl.interval is None
+        assert cron_dl.name == "morning_sla"
+
+        interval_dl = AssetDeadline(interval=timedelta(hours=6), callback=cb)
+        assert interval_dl.interval == timedelta(hours=6)
+        assert interval_dl.cron is None
+
+        asset = Asset("orders_daily", deadline=cron_dl)
+        assert asset.deadline == cron_dl
+
+        timetable = PartitionedAssetTimetable(assets=asset, run_deadline=interval_dl)
+        assert timetable.run_deadline == interval_dl
+
+    @pytest.mark.parametrize(
+        ("kwargs", "match"),
+        [
+            ({}, "requires exactly one of 'cron' or 'interval'"),
+            (
+                {"cron": "0 9 * * *", "interval": timedelta(hours=1)},
+                "requires exactly one of 'cron' or 'interval'",
+            ),
+            ({"cron": "not-a-cron"}, "Invalid cron expression"),
+            ({"cron": "   "}, "Invalid cron expression"),
+            ({"interval": timedelta(0)}, "positive timedelta"),
+            ({"interval": timedelta(hours=-2)}, "positive timedelta"),
+            ({"interval": "1h"}, "Interval must be a `timedelta`"),
+        ],
+    )
+    def test_validation_errors(self, kwargs, match):
+        from airflow.sdk import AssetDeadline, SyncCallback
+
+        cb = SyncCallback(lambda: None)
+        with pytest.raises(ValueError, match=match):
+            AssetDeadline(callback=cb, **kwargs)
+
+    def test_invalid_callback_rejected(self):
+        from airflow.sdk import AssetDeadline
+
+        with pytest.raises(ValueError, match="Callbacks must be"):
+            AssetDeadline(cron="0 9 * * *", callback=lambda: None)  # type: ignore[arg-type]
+
+    def test_deduplication_equality_and_hash(self):
+        from airflow.sdk import AssetDeadline, SyncCallback
+
+        cb1 = SyncCallback(lambda: None)
+        cb2 = SyncCallback(lambda: None)
+        d1 = AssetDeadline(cron="0 9 * * *", callback=cb1, name="producer_name")
+        d2 = AssetDeadline(cron="0 9 * * *", callback=cb1, name="consumer_alias")
+        d3 = AssetDeadline(cron="0 10 * * *", callback=cb2)
+
+        assert d1 == d2
+        assert len({d1, d2, d3}) == 2

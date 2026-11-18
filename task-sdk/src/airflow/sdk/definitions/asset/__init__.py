@@ -38,6 +38,7 @@ if TYPE_CHECKING:
     from pydantic.types import JsonValue
 
     from airflow.sdk.api.datamodels._generated import AssetProfile
+    from airflow.sdk.definitions.deadline import AssetDeadline
     from airflow.sdk.io.path import ObjectStoragePath
     from airflow.triggers.base import BaseEventTrigger
 
@@ -288,6 +289,10 @@ class Asset(os.PathLike, BaseAsset):
     access_control: AssetAccessControl = attrs.field(
         factory=AssetAccessControl,
     )
+    deadline: AssetDeadline | None = attrs.field(
+        default=None,
+        kw_only=True,
+    )
 
     asset_type: ClassVar[str] = "asset"
     __version__: ClassVar[int] = 1
@@ -302,6 +307,7 @@ class Asset(os.PathLike, BaseAsset):
         extra: dict[str, JsonValue] | None = None,
         watchers: list[AssetWatcher] = ...,
         access_control: AssetAccessControl = ...,
+        deadline: AssetDeadline | None = None,
     ) -> None:
         """Canonical; both name and uri are provided."""
 
@@ -314,6 +320,7 @@ class Asset(os.PathLike, BaseAsset):
         extra: dict[str, JsonValue] | None = None,
         watchers: list[AssetWatcher] = ...,
         access_control: AssetAccessControl = ...,
+        deadline: AssetDeadline | None = None,
     ) -> None:
         """It's possible to only provide the name, either by keyword or as the only positional argument."""
 
@@ -326,6 +333,7 @@ class Asset(os.PathLike, BaseAsset):
         extra: dict[str, JsonValue] | None = None,
         watchers: list[AssetWatcher] = ...,
         access_control: AssetAccessControl = ...,
+        deadline: AssetDeadline | None = None,
     ) -> None:
         """It's possible to only provide the URI as a keyword argument."""
 
@@ -338,6 +346,7 @@ class Asset(os.PathLike, BaseAsset):
         extra: dict[str, JsonValue] | None = None,
         watchers: list[AssetWatcher] | None = None,
         access_control: AssetAccessControl | None = None,
+        deadline: AssetDeadline | None = None,
     ) -> None:
         if name is None and uri is None:
             raise TypeError("Asset() requires either 'name' or 'uri'")
@@ -361,6 +370,8 @@ class Asset(os.PathLike, BaseAsset):
             kwargs["watchers"] = watchers
         if access_control is not None:
             kwargs["access_control"] = access_control
+        if deadline is not None:
+            kwargs["deadline"] = deadline
 
         self.__attrs_init__(name=name, uri=uri, **kwargs)
 

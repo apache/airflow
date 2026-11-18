@@ -56,6 +56,7 @@ if TYPE_CHECKING:
     from pendulum import DateTime
 
     from airflow.partition_mappers.base import PartitionMapper
+    from airflow.serialization.definitions.deadline import SerializedAssetDeadline
     from airflow.timetables.base import TimeRestriction
     from airflow.utils.types import DagRunType
 
@@ -321,6 +322,7 @@ class PartitionedAssetTimetable(AssetTriggeredTimetable):
         converter=attrs.converters.default_if_none(factory=dict),  # type: ignore[misc]
     )
     default_partition_mapper: PartitionMapper = DEFAULT_PARTITION_MAPPER
+    run_deadline: SerializedAssetDeadline | None = None
     batch_asset_events: bool = attrs.field(
         default=attrs.Factory(_get_default_batch_asset_events, takes_self=True)
     )
@@ -440,6 +442,7 @@ class PartitionedAssetTimetable(AssetTriggeredTimetable):
         return None
 
     def serialize(self) -> dict[str, Any]:
+        from airflow.serialization.encoders import encode_asset_deadline
         from airflow.serialization.serialized_objects import encode_asset_like
 
         return {
@@ -450,11 +453,16 @@ class PartitionedAssetTimetable(AssetTriggeredTimetable):
                 for asset, partition_mapper in self.partition_mapper_config.items()
             ],
             "default_partition_mapper": encode_partition_mapper(self.default_partition_mapper),
+            **(
+                {"run_deadline": encode_asset_deadline(self.run_deadline)}
+                if self.run_deadline is not None
+                else {}
+            ),
         }
 
     @classmethod
     def deserialize(cls, data: dict[str, Any]) -> PartitionedAssetTimetable:
-        from airflow.serialization.decoders import decode_partition_mapper
+        from airflow.serialization.decoders import decode_asset_deadline, decode_partition_mapper
         from airflow.serialization.serialized_objects import decode_asset_like
 
         default_partition_mapper_data = data["default_partition_mapper"]
@@ -468,5 +476,6 @@ class PartitionedAssetTimetable(AssetTriggeredTimetable):
                 decode_asset_like(ser_asest): decode_partition_mapper(ser_partition_mapper)
                 for ser_asest, ser_partition_mapper in partition_mapper_mappping_data
             },
+            run_deadline=(decode_asset_deadline(data["run_deadline"]) if data.get("run_deadline") else None),
         )
         return timetable
