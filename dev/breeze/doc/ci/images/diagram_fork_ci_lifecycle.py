@@ -51,7 +51,7 @@ digraph lifecycle {
   authordraft [label="Green, author's draft\nstays a draft, no review label\nuntil the author marks it ready", fillcolor="#e6f4ea", color="#3d8b57"];
   rebase  [label="Green, base too old\nready for maintainer review\nCI passed pending until a rebase", fillcolor="#fff6db", color="#b38a1d"];
   needs   [label="Green, CI files changed\nneeds project ci", fillcolor="#fff6db", color="#b38a1d"];
-  project [label="Project CI\n(use project ci)\nstarts when the maintainer\nadds the label"];
+  project [label="Project CI\n(use project ci)\nmonitor re-runs on\nmaintainer label"];
   approved[label="Approved"];
   merged  [label="Merged", fillcolor="#e6f4ea", color="#3d8b57"];
   closed  [label="Closed after 30 days\nwithout fork CI activity", fillcolor="#eceff3", color="#8a96a3"];

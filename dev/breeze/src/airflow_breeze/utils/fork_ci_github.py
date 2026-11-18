@@ -256,6 +256,15 @@ class GitHubClient:
             {"state": "closed"},
         )
 
+    def rerun_run(self, pr: int, run_id: int) -> None:
+        """Rerun a gated workflow after project CI is authorized."""
+        self._mutate(
+            f"#{pr}: rerun workflow run {run_id}",
+            ["api", "-X", "POST", f"repos/{self.repo}/actions/runs/{run_id}/rerun"],
+            None,
+            retry_server_errors=False,
+        )
+
     def delete_run(self, pr: int, run_id: int) -> None:
         self._mutate(
             f"#{pr}: delete workflow run {run_id}",

@@ -2123,6 +2123,35 @@ class BypassFinder:
             and self._commit_changes_workflows(run, pr.base_ref) is False
         ]
 
+    def find_latest_gated_run(self, pr: PullRequestSnapshot) -> WorkflowRun | None:
+        """Find the current commit's original gated run, even after the tampering window."""
+        if not pr.head_repo or not pr.head_ref:
+            return None
+        path = (
+            f"repos/{self._repo}/actions/workflows/{CI_WORKFLOW_FILE}/runs?event=pull_request"
+            f"&branch={quote(pr.head_ref, safe='')}&head_sha={pr.head_sha}&per_page=100"
+        )
+        runs = [
+            run
+            for raw in self._client.rest_get(path).get("workflow_runs", [])
+            if (run := parse_workflow_run(raw)).head_repo.casefold() == pr.head_repo.casefold()
+            and run.head_branch == pr.head_ref
+            and run.head_sha == pr.head_sha
+            and run.event == "pull_request"
+            and run.workflow_file == CI_WORKFLOW_FILE
+        ]
+        latest = max(runs, key=lambda run: (run.created_at, run.id), default=None)
+        if (
+            latest is None
+            or latest.status != "completed"
+            or latest.run_attempt != 1
+            or self._did_run_project_ci(latest)
+            or not is_gated_skip_run(self._get_jobs(latest), self._now)
+            or self._commit_changes_workflows(latest, pr.base_ref) is not False
+        ):
+            return None
+        return latest
+
     def _commit_changes_workflows(self, run: WorkflowRun, base_ref: str) -> bool | None:
         """Whether the run's commit changes workflows against the base; None when not knowable."""
         key = (run.head_sha, base_ref)
@@ -2528,7 +2557,9 @@ class DraftChange:
     release: bool = False
 
 
-def apply_plan(client: GitHubClient, pr: PullRequestSnapshot, plan: Plan) -> DraftChange | None:
+def apply_plan(
+    client: GitHubClient, pr: PullRequestSnapshot, plan: Plan, *, rerun_run_id: int | None = None
+) -> DraftChange | None:
     """
     Apply the plan, except for the draft state change, which is returned.
 
@@ -2550,6 +2581,9 @@ def apply_plan(client: GitHubClient, pr: PullRequestSnapshot, plan: Plan) -> Dra
     # They carry no marker, so the state comment stays the earliest bot comment with one.
     for comment in plan.new_comments:
         client.create_comment(pr.number, comment)
+    # A failed or rejected rerun leaves `fork ci required` and the old marker in place for retry.
+    if rerun_run_id is not None:
+        client.rerun_run(pr.number, rerun_run_id)
     if plan.marker_comment is not None:
         if pr.marker_comment_id is not None:
             client.update_comment(pr.number, pr.marker_comment_id, plan.marker_comment)
@@ -2881,15 +2915,39 @@ def run_reconcile(
                 )
             ):
                 plan.ci_passed = None
-            draft_change = apply_plan(client, pr, plan)
+            # A newly authorized PR gets project CI from the original gated run. The lookup
+            # checks the latest run's attempt, so the next reconciliation does not request it again.
+            release_run = (
+                bypass_finder.find_latest_gated_run(pr)
+                if plan.state == ForkState.RELEASED
+                and LABEL_USE_PROJECT_CI in pr.labels
+                and LABEL_FORK_CI_REQUIRED in pr.labels
+                else None
+            )
+            draft_change = apply_plan(
+                client, pr, plan, rerun_run_id=release_run.id if release_run is not None else None
+            )
             if draft_change is not None:
                 draft_changes.append(draft_change)
             # The fork's result is in the `Fork CI / Tests (AMD)` status; the gated run's skipped
             # checks, and the cancelled ones of a run a newer push cancelled, only clutter the pull
             # request. Runs with any project CI work stay for the tampering check.
             if plan.state != ForkState.GATE_BYPASSED:
-                for run in bypass_finder.find_gated_runs(pr):
-                    client.delete_run(pr.number, run.id)
+                gated_runs = bypass_finder.find_gated_runs(pr)
+                # Keep the newest original gated run of this head until release. Historical
+                # gate-only runs are still removed to avoid cluttering the check list.
+                retained = (
+                    max(
+                        (run for run in gated_runs if run.head_sha == pr.head_sha),
+                        key=lambda run: (run.created_at, run.id),
+                        default=None,
+                    )
+                    if plan.state != ForkState.RELEASED
+                    else release_run
+                )
+                for run in gated_runs:
+                    if retained is None or run.id != retained.id:
+                        client.delete_run(pr.number, run.id)
             unknown.extend((pr.number, reason) for reason in plan.unknown)
             attention.extend((pr.number, item) for item in plan.attention)
         except PullRequestChangedError as e:
