@@ -20,18 +20,20 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 from pydantic_ai.models.wrapper import WrapperModel
 
 if TYPE_CHECKING:
     from pydantic_ai.messages import ModelMessage, ModelResponse
-    from pydantic_ai.models import ModelRequestParameters, StreamedResponse
+    from pydantic_ai.models import Model, ModelRequestParameters, StreamedResponse
     from pydantic_ai.settings import ModelSettings
     from pydantic_ai.tools import RunContext
 
 MEMBER_STAMP_KEY = "__airflow_common_ai__"
 MEMBER_MODEL_ID_KEY = "member_model_id"
+MEMBER_CONN_ID_KEY = "member_conn_id"
 
 
 def get_member_model_id(response: ModelResponse) -> str | None:
@@ -43,6 +45,16 @@ def get_member_model_id(response: ModelResponse) -> str | None:
     return member_model_id if isinstance(member_model_id, str) else None
 
 
+def get_member_conn_id(response: ModelResponse) -> str | None:
+    """Return the connection ID of the chain member that produced ``response``, if it was stamped with one."""
+    stamp = (response.metadata or {}).get(MEMBER_STAMP_KEY)
+    if not isinstance(stamp, dict):
+        return None
+    member_conn_id = stamp.get(MEMBER_CONN_ID_KEY)
+    return member_conn_id if isinstance(member_conn_id, str) else None
+
+
+@dataclass(init=False)
 class MemberStampingModel(WrapperModel):
     """
     Stamp each response with the ``model_id`` of the wrapped model.
@@ -51,12 +63,25 @@ class MemberStampingModel(WrapperModel):
     so a durable replay cannot otherwise tell whether the recorded answer came from a model
     that is still in the chain. The stamp lives under its own key rather than the
     ``__pydantic_ai__`` namespace that pydantic-ai owns.
+
+    The hook also passes the ID of the connection the model came from, so a replay can tell two
+    connections that serve the same model apart. It is a name, not an identity: it says nothing
+    about the connection's host or credentials. A member built without one stamps only the model.
     """
+
+    conn_id: str | None = None
+
+    def __init__(self, wrapped: Model, *, conn_id: str | None = None) -> None:
+        super().__init__(wrapped)
+        self.conn_id = conn_id
 
     def _stamp(self, response: ModelResponse | StreamedResponse) -> None:
         if response.metadata is None:
             response.metadata = {}
-        response.metadata[MEMBER_STAMP_KEY] = {MEMBER_MODEL_ID_KEY: self.wrapped.model_id}
+        stamp = {MEMBER_MODEL_ID_KEY: self.wrapped.model_id}
+        if self.conn_id is not None:
+            stamp[MEMBER_CONN_ID_KEY] = self.conn_id
+        response.metadata[MEMBER_STAMP_KEY] = stamp
 
     async def request(
         self,
