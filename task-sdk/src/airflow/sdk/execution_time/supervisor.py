@@ -1878,7 +1878,7 @@ class ActivitySubprocess(WatchedSubprocess):
                     when=msg.end_date or datetime.now(tz=UTC),
                     rendered_map_index=self._rendered_map_index,
                     retry_reason=msg.retry_reason,
-                    loop_decision=_redact_loop_decision(msg.loop_decision),
+                    loop_decision=_redact_loop_decision(msg.loop_decision, self.process_log),
                 )
             elif isinstance(msg, SucceedTask):
                 self.client.task_instances.succeed(
@@ -1887,7 +1887,7 @@ class ActivitySubprocess(WatchedSubprocess):
                     task_outlets=msg.task_outlets,
                     outlet_events=msg.outlet_events,
                     rendered_map_index=self._rendered_map_index,
-                    loop_decision=_redact_loop_decision(msg.loop_decision),
+                    loop_decision=_redact_loop_decision(msg.loop_decision, self.process_log),
                     external_clear_target=msg.external_clear_target,
                 )
             elif isinstance(msg, RetryTask):
@@ -3100,24 +3100,34 @@ def _configure_logging(log_path: str, client: Client) -> tuple[FilteringBoundLog
     return logger, log_file_descriptor
 
 
-def _redact_loop_decision(decision: LoopDecisionPayload | None) -> LoopDecisionPayload | None:
+def _redact_loop_decision(
+    decision: LoopDecisionPayload | None, log: FilteringBoundLogger
+) -> LoopDecisionPayload | None:
     """
-    Mask a loop gate's reason before it is stored and shown in the UI.
+    Mask a loop gate's reason, then cut it to the byte limit, before it is stored and shown in the UI.
 
     Done here rather than in each runtime, so a gate in any language is covered: this process holds
-    every value the task registered with ``MaskSecret``.
+    every value the task registered with ``MaskSecret``. Masking runs first, so a secret that crosses
+    the limit is still found and masked rather than left as a fragment.
     """
     if decision is None or decision.reason is None:
         return decision
     reason = str(redact(decision.reason))
-    if reason == decision.reason:
-        return decision
     # Imported here: the module loads the authoring classes, which the supervisor otherwise never needs.
     from airflow.sdk.definitions._internal.loop import LOOP_DECISION_REASON_MAX_BYTES
 
-    # A mask longer than the secret it hides can push a reason the runtime accepted past the limit
-    # the API server enforces.
-    reason = reason.encode()[:LOOP_DECISION_REASON_MAX_BYTES].decode(errors="ignore")
+    # A language SDK runtime is not told the limit, and a mask longer than the secret it hides can push
+    # a reason past it, so the reason is cut here rather than have the API server reject the gate.
+    encoded = reason.encode()
+    if len(encoded) > LOOP_DECISION_REASON_MAX_BYTES:
+        log.warning(
+            "Loop decision reason exceeds the byte limit and is cut to it",
+            reason_bytes=len(encoded),
+            max_reason_bytes=LOOP_DECISION_REASON_MAX_BYTES,
+        )
+        reason = encoded[:LOOP_DECISION_REASON_MAX_BYTES].decode(errors="ignore")
+    if reason == decision.reason:
+        return decision
     return decision.model_copy(update={"reason": reason})
 
 

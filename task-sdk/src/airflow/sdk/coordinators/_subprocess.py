@@ -77,7 +77,6 @@ from airflow.sdk.execution_time.comms import (
     GetXComSequenceSlice,
     RetryTask,
     SetXCom,
-    SucceedTask,
     TaskState,
     XComResult,
     XComSequenceIndexResult,
@@ -120,7 +119,7 @@ if TYPE_CHECKING:
     from airflow.sdk.api.datamodels._generated import TaskInstance, TIRunContext
     from airflow.sdk.bases.xcom import BaseXCom, _OwnTaskInstance
     from airflow.sdk.coordinators._xcom_backend import XComBackendResult
-    from airflow.sdk.execution_time.comms import AwaitInputTask, DeferTask, RescheduleTask, SetTaskStateStore
+    from airflow.sdk.execution_time.comms import SetTaskStateStore
     from airflow.sdk.execution_time.supervisor import RequestResult
 
     Tracked = TypeVar("Tracked", socket.socket, subprocess.Popen)
@@ -897,26 +896,6 @@ class _PopenActivitySubprocess(ActivitySubprocess):
             ]
         ),
     }
-
-    def _send_terminal_state_msg(
-        self, msg: TaskState | SucceedTask | RetryTask | DeferTask | RescheduleTask | AwaitInputTask
-    ) -> None:
-        # A language SDK runtime is not told core's limit on a gate's reason, so the supervisor cuts a
-        # longer one and warns in the task log, rather than have the API server reject the gate's finish.
-        if isinstance(msg, (TaskState, SucceedTask)) and (decision := msg.loop_decision) is not None:
-            # Imported here: the module loads the authoring classes, which the supervisor otherwise never needs.
-            from airflow.sdk.definitions._internal.loop import LOOP_DECISION_REASON_MAX_BYTES
-
-            encoded = (decision.reason or "").encode()
-            if len(encoded) > LOOP_DECISION_REASON_MAX_BYTES:
-                self.process_log.warning(
-                    "Loop decision reason exceeds the byte limit and is cut to it",
-                    reason_bytes=len(encoded),
-                    max_reason_bytes=LOOP_DECISION_REASON_MAX_BYTES,
-                )
-                reason = encoded[:LOOP_DECISION_REASON_MAX_BYTES].decode(errors="ignore")
-                msg = msg.model_copy(update={"loop_decision": decision.model_copy(update={"reason": reason})})
-        super()._send_terminal_state_msg(msg)
 
 
 def _build_request_error(exc: Exception) -> ErrorResponse:

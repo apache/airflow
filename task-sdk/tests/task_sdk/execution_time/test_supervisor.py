@@ -4978,21 +4978,60 @@ class TestHandleRequest:
         sent = getattr(watched_subprocess.client.task_instances, method).call_args.kwargs["loop_decision"]
         assert sent == LoopDecisionPayload(stop=False, reason="password *** rejected")
 
-    def test_loop_decision_reason_masked_past_the_limit_is_cut_to_it(self, watched_subprocess, mocker):
+    @pytest.mark.parametrize(
+        ("reason", "sent"),
+        [
+            pytest.param("a" * 513, "a" * 512, id="over-limit"),
+            pytest.param("\u00e9" * 257, "\u00e9" * 256, id="cut-on-a-character-boundary"),
+        ],
+    )
+    def test_loop_decision_reason_over_the_limit_is_cut_and_warns(
+        self, watched_subprocess, mocker, reason, sent
+    ):
+        """A language SDK runtime is not told the limit, so a longer reason is cut here."""
         watched_subprocess, _ = watched_subprocess
-        mocker.patch(
-            "airflow.sdk.execution_time.supervisor.redact",
-            autospec=True,
-            side_effect=lambda value: value.replace("s", "*" * 10),
+        process_log = mocker.patch.object(watched_subprocess, "process_log")
+
+        watched_subprocess._send_terminal_state_msg(
+            SucceedTask(
+                end_date=timezone.parse("2024-10-31T12:00:00Z"),
+                loop_decision=LoopDecisionPayload(stop=True, reason=reason),
+            )
         )
-        decision = LoopDecisionPayload(stop=True, reason="s" * 100)
+
+        loop_decision = watched_subprocess.client.task_instances.succeed.call_args.kwargs["loop_decision"]
+        assert loop_decision == LoopDecisionPayload(stop=True, reason=sent)
+        process_log.warning.assert_called_once_with(
+            "Loop decision reason exceeds the byte limit and is cut to it",
+            reason_bytes=len(reason.encode()),
+            max_reason_bytes=512,
+        )
+
+    def test_loop_decision_reason_at_the_limit_is_sent_unchanged(self, watched_subprocess, mocker):
+        watched_subprocess, _ = watched_subprocess
+        process_log = mocker.patch.object(watched_subprocess, "process_log")
+        decision = LoopDecisionPayload(stop=True, reason="a" * 512)
+
+        watched_subprocess._send_terminal_state_msg(
+            SucceedTask(end_date=timezone.parse("2024-10-31T12:00:00Z"), loop_decision=decision)
+        )
+
+        assert watched_subprocess.client.task_instances.succeed.call_args.kwargs["loop_decision"] == decision
+        process_log.warning.assert_not_called()
+
+    @pytest.mark.enable_redact
+    def test_loop_decision_reason_is_masked_before_it_is_cut(self, watched_subprocess):
+        """A secret that crosses the byte limit is masked whole, not cut into an unmasked fragment."""
+        watched_subprocess, _ = watched_subprocess
+        mask_secret("s3cr3t-API-key-value")
+        decision = LoopDecisionPayload(stop=True, reason="x" * 500 + "s3cr3t-API-key-value" + "y" * 20)
 
         watched_subprocess._send_terminal_state_msg(
             SucceedTask(end_date=timezone.parse("2024-10-31T12:00:00Z"), loop_decision=decision)
         )
 
         sent = watched_subprocess.client.task_instances.succeed.call_args.kwargs["loop_decision"]
-        assert sent == LoopDecisionPayload(stop=True, reason="*" * 512)
+        assert sent == LoopDecisionPayload(stop=True, reason="x" * 500 + "***" + "y" * 9)
 
 
 @pytest.mark.parametrize(

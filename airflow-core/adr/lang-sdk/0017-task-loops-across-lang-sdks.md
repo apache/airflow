@@ -133,7 +133,7 @@ mirrors it. An SDK implements this ADR against the protocol as it stands.
 | Where | What | Means |
 |---|---|---|
 | `TIRunContext.loop` | `node_id`, `index`, `max_iterations`, `terminal_task_id`, `terminal_is_mapped`, `region_id`, `trajectory`, `forked_from_region_id`, `resumes_from_index` | The iteration this task runs in. Absent when the task is not in a loop. |
-| `SucceedTask.loop_decision`, `TaskState.loop_decision` | `LoopDecisionPayload {stop, reason}` | What the gate decided. `reason` is at most 512 bytes of UTF-8 and holds no NUL. The supervisor cuts a longer reason from a language SDK runtime and warns in the task log, so no SDK needs the limit; the payload model rejects a NUL. |
+| `SucceedTask.loop_decision`, `TaskState.loop_decision` | `LoopDecisionPayload {stop, reason}` | What the gate decided. `reason` is at most 512 bytes of UTF-8 and holds no NUL. The supervisor masks the reason first, then cuts a longer one and warns in the task log, so no SDK needs the limit; the payload model rejects a NUL. |
 | `GetXCom`, `GetXComCount`, `GetXComSequenceItem`, `GetXComSequenceSlice` | `previous_iteration: bool` | Reads the iteration before this one instead of this one. |
 | `MaskSecret` | `value`, `name` | Already how a task process tells the supervisor what to redact. |
 | Serialized Dag, `task_group.loop` | `max_iterations`, `has_until`, `terminal_task_id`, `gate_task_id` | Declared in `serialization/schema.json`, so an SDK's Dag validates with no schema change. |
