@@ -158,7 +158,8 @@ TESTABLE_PROVIDERS_INTEGRATION_OWNERS = {
     "ydb": "ydb",
 }
 # Server versions the elasticsearch and opensearch integrations can run against. The first one is
-# the default; CI runs each provider's integration tests once per listed version.
+# the default; CI runs each provider's integration tests once per listed version. Keep the image tags in
+# airflow-e2e-tests/docker/elasticsearch.yml and opensearch.yml on the defaults.
 ALLOWED_ELASTICSEARCH_VERSIONS = ["9.5.6", "8.19.25"]
 DEFAULT_ELASTICSEARCH_VERSION = ALLOWED_ELASTICSEARCH_VERSIONS[0]
 ALLOWED_OPENSEARCH_VERSIONS = ["3.10.0", "2.19.7"]
