@@ -21,6 +21,7 @@ import json
 import uuid
 from collections import Counter
 from dataclasses import dataclass, field
+from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any
 from unittest import mock
 
@@ -121,6 +122,7 @@ class _Task:
         truncate_at_turn: int | None = None,
         kill_in_tool: str | None = None,
         map_index: int = -1,
+        loop: Any = None,
         **kwargs: Any,
     ) -> str:
         ti = _TaskInstance(map_index=map_index)
@@ -153,6 +155,8 @@ class _Task:
             return agent
 
         context = {"ti": ti, "task_state_store": self.store}
+        if loop is not None:
+            context["loop"] = loop
         with mock.patch.object(durable_strands, "get_current_context", autospec=True, return_value=context):
             return str(invoke_durably(factory, prompt, **kwargs)).strip()
 
@@ -293,6 +297,20 @@ class TestInvokeDurably:
 
         # And the first one still resumes where it stopped.
         assert task.run(map_index=0, storage=storage) == "done"
+        assert task.tool_calls["first"] == 2
+
+    def test_loop_iterations_sharing_a_storage_keep_their_own_state(self, task):
+        storage = InMemoryStorage()
+        region_id = uuid.uuid4()
+        with pytest.raises(RuntimeError):
+            task.run(fail_at_turn=1, loop=SimpleNamespace(region_id=region_id, index=1), storage=storage)
+
+        # The next iteration starts its own agent rather than resuming iteration 1's.
+        assert task.run(loop=SimpleNamespace(region_id=region_id, index=2), storage=storage) == "done"
+        assert task.tool_calls["first"] == 2
+
+        # And iteration 1 still resumes where it stopped.
+        assert task.run(loop=SimpleNamespace(region_id=region_id, index=1), storage=storage) == "done"
         assert task.tool_calls["first"] == 2
 
     def test_refuses_a_stateful_model(self, task):

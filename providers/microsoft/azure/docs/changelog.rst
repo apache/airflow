@@ -29,9 +29,35 @@ Changelog
 
 .. note::
 
+    On Airflow 3.3 and later, ``AzureDataFactoryRunPipelineOperator`` is durable by default: a retry
+    reconnects to the stored pipeline run instead of starting a new one, and returns without running the
+    pipeline again when that run has succeeded. On Airflow 3.3 and 3.4, clearing the whole Dag run keeps the
+    stored run id, so a task whose run succeeded does not re-run the pipeline. Clear the task instance
+    instead, or set ``durable=False`` to start a new run on every try. Below Airflow 3.3 nothing changes.
+
+15.3.1
+......
+
+.. note::
+
     ``S3ToAzureBlobStorageOperator`` now verifies S3 TLS certificates by default: ``s3_verify`` defaults
     to ``None``, deferring to the connection and botocore default. Pass ``s3_verify=False`` to keep the
     previous behaviour.
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Verify S3 TLS certificates by default in S3ToAzureBlobStorageOperator (#76222)``
+
+Misc
+~~~~
+
+* ``Raise azure-batch minimum to 15.1.0 and azure-mgmt-compute minimum to 38.0.0 (#75270)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``[main] Upgrade important CI environment (#76278)``
+   * ``Skip log accumulator disk spill when reading finished task logs (#70671)``
 
 15.3.0
 ......

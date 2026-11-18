@@ -64,6 +64,7 @@ from airflowctl.ctl.cli_config import (
     is_iso_datetime_type,
     json_dict_type,
     merge_commands,
+    positive_finite_float,
     safe_call_command,
 )
 from airflowctl.ctl.console_formatting import AirflowConsole
@@ -669,6 +670,14 @@ class TestCommandFactory:
 
 
 class TestCliConfigMethods:
+    @pytest.mark.parametrize("value", ["0", "-1", "inf", "nan", "abc"])
+    def test_positive_finite_float_rejects_invalid_values(self, value):
+        with pytest.raises(argparse.ArgumentTypeError, match="invalid positive number"):
+            positive_finite_float(value)
+
+    def test_positive_finite_float_accepts_positive_values(self):
+        assert positive_finite_float("0.5") == 0.5
+
     @pytest.mark.parametrize("method", ["GET", "HEAD", "OPTIONS", "POST", "PUT", "PATCH", "DELETE"])
     @pytest.mark.parametrize(
         ("failure", "ambiguous"),
@@ -795,6 +804,84 @@ class TestCliConfigMethods:
         assert ctx.value.code == 1
 
     @pytest.mark.parametrize(
+        ("raised_exception", "expected"),
+        [
+            pytest.param(
+                AirflowCtlNotFoundException("resource not found"),
+                ["command failed due to resource not found"],
+                id="airflowctl",
+            ),
+            pytest.param(
+                httpx.RemoteProtocolError("Server disconnected without sending a response."),
+                ["Remote protocol error:", "check if the server is running and the API URL is correct"],
+                id="protocol",
+            ),
+            pytest.param(
+                httpx.ReadTimeout("timed out"),
+                ["Request timeout error: timed out", "the API ready to accept calls"],
+                id="timeout",
+            ),
+            pytest.param(
+                ServerResponseError.from_response(
+                    httpx.Response(
+                        400,
+                        request=httpx.Request("GET", "http://localhost:8080/api/v2/dags"),
+                        json={"detail": "bad"},
+                    )
+                ),
+                [
+                    "Server response error: Client error message:",
+                    "Please check the command and its parameters",
+                ],
+                id="server-response",
+            ),
+        ],
+    )
+    def test_safe_call_command_reports_errors_on_stderr(self, raised_exception, expected, capsys):
+        def raise_error(_args):
+            raise raised_exception
+
+        with pytest.raises(SystemExit):
+            safe_call_command(raise_error, args=argparse.Namespace())
+
+        captured = capsys.readouterr()
+        assert captured.out == ""
+        err = " ".join(captured.err.split())
+        for text in expected:
+            assert text in err
+
+    @pytest.mark.parametrize(
+        "raised_exception",
+        [
+            AirflowCtlNotFoundException("not found [/bogus]"),
+            httpx.RemoteProtocolError("protocol error [/bogus]"),
+            httpx.ReadTimeout("timed out [/bogus]"),
+            httpx.HTTPStatusError(
+                "status error [/bogus]",
+                request=httpx.Request("GET", "http://localhost:8080/api/v2/dags"),
+                response=httpx.Response(302),
+            ),
+            ServerResponseError(
+                "server error [/bogus]",
+                request=httpx.Request("GET", "http://localhost:8080/api/v2/dags"),
+                response=httpx.Response(500, json={"detail": "boom"}),
+            ),
+        ],
+        ids=["airflowctl", "protocol", "timeout", "http-status", "server-response"],
+    )
+    def test_safe_call_command_prints_error_text_containing_markup(self, raised_exception, capsys):
+        def raise_error(_args):
+            raise raised_exception
+
+        with pytest.raises(SystemExit) as ctx:
+            safe_call_command(raise_error, args=argparse.Namespace())
+
+        assert ctx.value.code == 1
+        captured = capsys.readouterr()
+        assert captured.out == ""
+        assert "[/bogus]" in captured.err
+
+    @pytest.mark.parametrize(
         ("response", "hint_expected"),
         [
             pytest.param(
@@ -827,9 +914,9 @@ class TestCliConfigMethods:
 
         assert ctx.value.code == 1
         # Rich hard-wraps at the console width, so normalise before matching on a phrase.
-        out = " ".join(capsys.readouterr().out.split())
-        assert "Server response error:" in out
-        assert ("does not follow" in out) is hint_expected
+        err = " ".join(capsys.readouterr().err.split())
+        assert "Server response error:" in err
+        assert ("does not follow" in err) is hint_expected
 
     @pytest.mark.parametrize(
         ("model", "payload", "expected", "unexpected"),
@@ -867,11 +954,11 @@ class TestCliConfigMethods:
             safe_call_command(raise_validation_error, args=argparse.Namespace())
 
         assert ctx.value.code == 1
-        out = " ".join(capsys.readouterr().out.split())
+        err = " ".join(capsys.readouterr().err.split())
         for text in expected:
-            assert text in out
+            assert text in err
         for text in unexpected:
-            assert text not in out
+            assert text not in err
 
     def test_safe_call_command_reports_non_json_response(self, capsys):
         def raise_validation_error(_args):
@@ -881,8 +968,8 @@ class TestCliConfigMethods:
             safe_call_command(raise_validation_error, args=argparse.Namespace())
 
         assert ctx.value.code == 1
-        out = " ".join(capsys.readouterr().out.split())
-        assert "Server returned a non-JSON response for PoolResponse" in out
+        err = " ".join(capsys.readouterr().err.split())
+        assert "Server returned a non-JSON response for PoolResponse" in err
 
     def test_add_to_parser_drops_type_for_boolean_optional_action(self):
         """Test add_to_parser removes type for BooleanOptionalAction."""
@@ -1338,6 +1425,7 @@ class TestCliConfigMethods:
         ("group_name", "subcommand_name", "expected_help"),
         [
             ("assets", "get", "Retrieve an asset by its ID"),
+            ("assets", "state-store", "Manage the state store of an asset"),
             ("connections", "get", "Retrieve a connection by its ID"),
             ("taskinstances", "list", "List all task instances for a given Dag run"),
             ("taskinstances", "get", "Get a task instance for a given Dag run"),

@@ -503,6 +503,11 @@ ARG_SHUT_DOWN_LOGGING = Arg(
 ARG_UPSTREAM = Arg(("-u", "--upstream"), help="Include upstream tasks", action="store_true")
 ARG_ONLY_FAILED = Arg(("-f", "--only-failed"), help="Only failed jobs", action="store_true")
 ARG_ONLY_RUNNING = Arg(("-r", "--only-running"), help="Only running jobs", action="store_true")
+ARG_KEEP_TASK_STATE = Arg(
+    ("--keep-task-state",),
+    help="Keep the task state store entries of cleared tasks so they resume from them",
+    action="store_true",
+)
 ARG_DOWNSTREAM = Arg(("-d", "--downstream"), help="Include downstream tasks", action="store_true")
 ARG_DAG_REGEX = Arg(
     ("-R", "--dag-regex"), help="Search dag_id as regex instead of exact string", action="store_true"
@@ -550,7 +555,7 @@ ARG_DB_DRY_RUN = Arg(
 )
 ARG_DB_SKIP_ARCHIVE = Arg(
     ("--skip-archive",),
-    help="Don't preserve purged records in an archive table.",
+    help="Delete purged records directly without creating an archive table.",
     action="store_true",
 )
 ARG_DB_EXPORT_FORMAT = Arg(
@@ -767,7 +772,7 @@ ARG_API_SERVER_WORKERS = Arg(
 )
 ARG_API_SERVER_WORKER_TIMEOUT = Arg(
     ("-t", "--worker-timeout"),
-    default=120,
+    default=conf.get("api", "worker_timeout"),
     type=int,
     help="The timeout for waiting on API server workers",
 )
@@ -846,9 +851,13 @@ ARG_NUM_RUNS = Arg(
 
 ARG_ONLY_IDLE = Arg(
     ("-i", "--only-idle"),
-    default=conf.getboolean("scheduler", "only_idle", fallback=False),
-    help="Only count runs after the scheduler becomes idle.",
-    action="store_true",
+    default=None,
+    # Square brackets would be eaten as Rich markup by the help formatter, so name the option dotted.
+    help=(
+        "Only count runs after the scheduler becomes idle. Requires --num-runs to be a positive number. "
+        "Defaults to the scheduler.only_idle config option; pass --no-only-idle to override it."
+    ),
+    action=argparse.BooleanOptionalAction,
 )
 
 ARG_WITHOUT_MINGLE = Arg(
@@ -1266,6 +1275,7 @@ DAGS_COMMANDS = (
             ARG_PARTITION_DATE_END,
             ARG_ONLY_FAILED,
             ARG_ONLY_RUNNING,
+            ARG_KEEP_TASK_STATE,
             ARG_YES,
             ARG_VERBOSE,
         ),
@@ -1513,6 +1523,7 @@ TASKS_COMMANDS = (
             ARG_YES,
             ARG_ONLY_FAILED,
             ARG_ONLY_RUNNING,
+            ARG_KEEP_TASK_STATE,
             ARG_DAG_REGEX,
             ARG_VERBOSE,
         ),

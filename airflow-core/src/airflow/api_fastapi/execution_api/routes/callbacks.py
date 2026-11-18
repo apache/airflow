@@ -16,13 +16,15 @@
 # under the License.
 from __future__ import annotations
 
+from typing import Annotated
 from uuid import UUID
 
 from cadwyn import VersionedAPIRouter
-from fastapi import HTTPException, Response, Security, status
+from fastapi import Body, HTTPException, Response, Security, status
 
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
+from airflow.api_fastapi.execution_api.datamodels.callback import CallbackTerminalStatePayload
 from airflow.api_fastapi.execution_api.deps import DepContainer
 from airflow.api_fastapi.execution_api.security import (
     ExecutionAPIRoute,
@@ -35,7 +37,7 @@ from airflow.utils.state import CallbackState
 router = VersionedAPIRouter(
     route_class=ExecutionAPIRoute,
     dependencies=[
-        Security(require_auth, scopes=["cb:self", "token:callback"]),
+        Security(require_auth, scopes=["cb:self"]),
     ],
 )
 
@@ -43,6 +45,7 @@ router = VersionedAPIRouter(
 @router.patch(
     "/{callback_id}/run",
     status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Security(require_auth, scopes=["token:callback"])],
     responses=create_openapi_http_exception_doc(
         [
             (status.HTTP_404_NOT_FOUND, "Callback not found"),
@@ -83,3 +86,54 @@ def run_callback(
     callback.state = CallbackState.RUNNING
 
     issue_execution_token(services, response, sub=str(callback_id))
+
+
+@router.patch(
+    "/{callback_id}/state",
+    status_code=status.HTTP_204_NO_CONTENT,
+    responses=create_openapi_http_exception_doc(
+        [
+            (status.HTTP_404_NOT_FOUND, "Callback not found"),
+            (status.HTTP_409_CONFLICT, "The callback is not running and is not already in that state"),
+        ]
+    ),
+)
+def update_callback_state(
+    callback_id: UUID,
+    payload: Annotated[CallbackTerminalStatePayload, Body()],
+    session: SessionDep,
+) -> None:
+    """Report the final state of a callback that has finished running."""
+    callback = session.get(Callback, callback_id, with_for_update=True)
+    if callback is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "reason": "not_found",
+                "message": f"Callback {callback_id} not found",
+            },
+        )
+
+    # Accepting the state the row already holds keeps the report idempotent: the SDK client retries
+    # a lost response (Client.request defaults to retry=True), and a 409 there makes the supervisor
+    # log a failure for an outcome that is correct. Safe to replay because this route issues no
+    # token, unlike /run above.
+    reported_state = CallbackState(payload.state)
+    if callback.state not in (CallbackState.RUNNING, reported_state):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "reason": "invalid_state",
+                "message": (
+                    f"Callback {callback_id} is in state {callback.state}; a terminal state can only "
+                    f"be reported for a RUNNING callback, or for one already in {reported_state}."
+                ),
+                "previous_state": callback.state,
+            },
+        )
+
+    callback.state = reported_state
+    # Written on the idempotent path too: the scheduler may have reached this same terminal state
+    # first and stored its own placeholder output.
+    if payload.output is not None:
+        callback.output = payload.output

@@ -76,7 +76,7 @@ from airflow.jobs.triggerer_job_runner import (
     messages,
 )
 from airflow.models import Connection, DagModel, DagRun, Trigger, Variable
-from airflow.models.asset import AssetModel
+from airflow.models.asset import AssetEvent, AssetModel
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbag import DBDagBag
 from airflow.models.dagbundle import DagBundleModel
@@ -112,12 +112,21 @@ from airflow.sdk.execution_time.comms import (
     SetAssetStateStoreByUri,
     ToSupervisor,
     ToTask,
+    _new_encoder,
     _RequestFrame,
     _ResponseFrame,
 )
 from airflow.sdk.execution_time.context import AssetStateStoreAccessors
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
-from airflow.triggers.base import BaseEventTrigger, BaseTrigger, TriggerEvent
+from airflow.triggers.base import (
+    AssetTriggerEvent,
+    BaseEventTrigger,
+    BaseTrigger,
+    TaskFailedEvent,
+    TaskSkippedEvent,
+    TaskSuccessEvent,
+    TriggerEvent,
+)
 from airflow.triggers.shared_stream import SharedStreamProducer
 from airflow.triggers.testing import FailureTrigger, SuccessTrigger
 from airflow.utils.state import State, TaskInstanceState
@@ -125,6 +134,7 @@ from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import (
+    clear_db_assets,
     clear_db_connections,
     clear_db_dag_bundles,
     clear_db_dags,
@@ -1536,6 +1546,21 @@ def test_trigger_logger_fd_closed_when_upload_to_remote_raises(jobless_superviso
 
 
 class TestTriggerRunner:
+    @pytest.mark.asyncio
+    @mock.patch("airflow.jobs.triggerer_job_runner.set_current_team_name", autospec=True)
+    @mock.patch("airflow.sdk.execution_time.task_runner.SUPERVISOR_COMMS", create=True)
+    @mock.patch("airflow.jobs.triggerer_job_runner.TriggerCommsDecoder", autospec=True)
+    @mock.patch("asyncio.open_connection", autospec=True, return_value=(None, None))
+    @mock.patch("airflow.jobs.triggerer_job_runner.socket", autospec=True)
+    async def test_init_comms_sets_the_current_team(
+        self, _socket, _open_connection, mock_decoder_cls, _supervisor_comms, mock_set_current_team_name
+    ) -> None:
+        mock_decoder_cls.return_value._from_frame.return_value = messages.StartTriggerer(team_name="team_a")
+
+        await TriggerRunner().init_comms()
+
+        mock_set_current_team_name.assert_called_once_with("team_a")
+
     def test_blocked_main_thread_warning_threshold_decode(self) -> None:
         with conf_vars({("triggerer", "blocked_main_thread_warning_threshold"): "0.5"}):
             trigger_runner = TriggerRunner()
@@ -1837,11 +1862,25 @@ class TestTriggerRunner:
         # Group is torn down on unsubscribe.
         assert trigger_runner._shared_streams._groups == {}
 
-    def test_shared_stream_ack_mode_integration(self) -> None:
-        """A BaseEventTrigger whose producer factory is overridden advances only after the event's derived trigger event is confirmed persisted."""
-        advanced: list[Any] = []
-        # Container lets _drive() write trigger_runner back for post-run assertions.
-        state: dict[str, Any] = {}
+    @pytest.mark.parametrize("partition_key", [None, "2026-10-16"])
+    @pytest.mark.parametrize("commit_fails", [False, True])
+    def test_shared_stream_ack_mode_integration(
+        self, session, request, jobless_supervisor, partition_key: str | None, commit_fails: bool
+    ) -> None:
+        """Broker advancement requires successful commit of the event's native partition key."""
+        trigger_model = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
+        session.add(trigger_model)
+        session.flush()
+        asset = AssetModel("shared-stream-event")
+        asset.add_trigger(trigger_model, "shared-stream-watcher")
+        session.add(asset)
+        session.commit()
+        trigger_id, asset_id = trigger_model.id, asset.id
+        request.addfinalizer(clear_db_assets)
+
+        advanced: list[str] = []
+        advance_called = asyncio.Event()
+        event_queued = asyncio.Event()
 
         class _AckSharedProducer(SharedStreamProducer):
             async def open_stream(self):
@@ -1851,7 +1890,7 @@ class TestTriggerRunner:
 
             async def advance(self, batch):
                 advanced.extend(item.broker_payload for item in batch)
-                state["advance_called"].set()
+                advance_called.set()
 
         class _AckSharedTrigger(BaseEventTrigger):
             def __init__(self, queue_url: str, region: str | None = None):
@@ -1875,62 +1914,83 @@ class TestTriggerRunner:
             async def filter_shared_stream(self, shared_stream):
                 async for raw in shared_stream:
                     if self.region is None or raw["region"] == self.region:
-                        yield TriggerEvent(raw)
+                        if partition_key is None:
+                            yield TriggerEvent(raw)
+                        else:
+                            yield AssetTriggerEvent(raw, partition_key=partition_key)
+                        event_queued.set()
 
             async def run(self):  # pragma: no cover - replaced by filter_shared_stream
                 yield TriggerEvent({})
 
         async def _drive():
-            advance_called = asyncio.Event()
-            state["advance_called"] = advance_called
-
             trigger_runner = TriggerRunner()
             trigger_runner.triggers = {
-                1: {"task": MagicMock(spec=asyncio.Task), "is_watcher": True, "name": "us", "events": 0}
+                trigger_id: {
+                    "task": MagicMock(spec=asyncio.Task),
+                    "is_watcher": True,
+                    "name": "us",
+                    "events": 0,
+                }
             }
             trigger = _AckSharedTrigger(queue_url="https://ack-q", region="us")
             trigger.task_instance = MagicMock()
             trigger.task_instance.map_index = -1
-            state["trigger_runner"] = trigger_runner
 
-            run_task = asyncio.create_task(trigger_runner.run_trigger(1, trigger))
-            # Wait until the event lands on the outbound queue with its
-            # persist-confirmation seq.
-            for _ in range(100):
-                if trigger_runner.events:
-                    break
-                await asyncio.sleep(0.01)
-            assert trigger_runner.events, "the trigger event must reach the outbound queue"
-            _trigger_id, _event, seq = trigger_runner.events[0]
-            assert seq is not None, "a shared ack trigger's event must carry a seq"
+            async def exchange(msg: messages.TriggerStateChanges) -> messages.TriggerStateSync:
+                wire = _new_encoder().encode(msg.model_dump())
+                decoded = TypeAdapter(ToTriggerSupervisor).validate_python(msgspec.msgpack.decode(wire))
+                with mock.patch.object(TriggerRunnerSupervisor, "send_msg", autospec=True) as send_msg:
+                    jobless_supervisor._handle_request(decoded, log=jobless_supervisor.process_log, req_id=0)
+                response = send_msg.call_args.args[1]
+                wire = _new_encoder().encode(response.model_dump())
+                decoded_response = TypeAdapter(ToTriggerRunner).validate_python(msgspec.msgpack.decode(wire))
+                assert isinstance(decoded_response, messages.TriggerStateSync)
+                return decoded_response
 
-            # The subscriber moved past the event, but the advance is gated
-            # on persistence: nothing may advance before the confirmation arrives.
-            assert advanced == [], "advance must not run before the persist confirmation"
+            run_task = asyncio.create_task(trigger_runner.run_trigger(trigger_id, trigger))
+            try:
+                await asyncio.wait_for(event_queued.wait(), timeout=2.0)
+                assert trigger_runner.events[0].persist_seq is not None
+                with mock.patch.object(trigger_runner, "asend", autospec=True, side_effect=exchange):
+                    await trigger_runner.sync_state_to_supervisor(finished_ids=[])
+                    assert advanced == []
+                    if commit_fails:
+                        with mock.patch(
+                            "sqlalchemy.orm.Session.commit",
+                            autospec=True,
+                            side_effect=RuntimeError("commit failed"),
+                        ):
+                            with pytest.raises(RuntimeError, match="commit failed"):
+                                jobless_supervisor.handle_events()
+                    else:
+                        jobless_supervisor.handle_events()
 
-            # Simulate the supervisor confirming the persist on the next sync.
-            trigger_runner._shared_streams.confirm_persisted([seq])
-            await asyncio.wait_for(advance_called.wait(), timeout=2.0)
+                    asset_event = session.scalar(select(AssetEvent).where(AssetEvent.asset_id == asset_id))
+                    if commit_fails:
+                        assert asset_event is None
+                        assert list(jobless_supervisor.persisted_event_seqs) == []
+                    else:
+                        assert asset_event is not None
+                        assert asset_event.partition_key == partition_key
+                        assert asset_event.extra == {"from_trigger": True, "payload": {"region": "us"}}
 
-            run_task.cancel()
-            with contextlib.suppress(asyncio.CancelledError):
-                await run_task
+                    assert advanced == []
+                    await trigger_runner.sync_state_to_supervisor(finished_ids=[])
+                    if commit_fails:
+                        assert advanced == []
+                        assert not advance_called.is_set()
+                    else:
+                        await asyncio.wait_for(advance_called.wait(), timeout=2.0)
+            finally:
+                run_task.cancel()
+                with contextlib.suppress(asyncio.CancelledError):
+                    await run_task
+
+            assert trigger_runner._shared_streams._groups == {}
 
         asyncio.run(_drive())
-        trigger_runner = state["trigger_runner"]
-
-        events = list(trigger_runner.events)
-        assert len(events) == 1
-        trigger_id, event, _seq = events[0]
-        assert trigger_id == 1
-        assert event.payload == {"region": "us"}
-
-        # The producer's advance must have been called with the broker_payload.
-        assert advanced == ["receipt-handle-1"], (
-            "producer.advance must be called once the event's persistence is confirmed"
-        )
-        # Group is torn down on unsubscribe.
-        assert trigger_runner._shared_streams._groups == {}
+        assert advanced == ([] if commit_fails else ["receipt-handle-1"])
 
     def test_run_trigger_on_kill_timeout_does_not_block_cleanup(self, session) -> None:
         """A hanging on_kill() is interrupted after the timeout and cleanup still runs."""
@@ -2201,7 +2261,7 @@ class TestTriggerRunner:
     ):
         import json
 
-        from airflow.models.crypto import get_fernet
+        from airflow.crypto import get_fernet
         from airflow.sdk.serde import serialize
 
         SerializedKwargsTrigger.constructed.clear()
@@ -3719,10 +3779,41 @@ def test_trigger_state_messages_round_trip_with_seqs():
     assert decoded_sync.to_cancel == {5}
 
 
-def test_handle_events_records_persist_confirmations(jobless_supervisor):
+@pytest.mark.parametrize("persist_seq", [None, 7])
+@pytest.mark.parametrize("wire_format", ["json", "msgpack"])
+@pytest.mark.parametrize(
+    "event",
+    [
+        AssetTriggerEvent({"changed": True}, partition_key="2026-10-16"),
+        AssetTriggerEvent(True),
+        TriggerEvent({"type": "AssetTriggerEvent", "partition_key": "payload-only"}),
+        TaskSuccessEvent(),
+        TaskFailedEvent(),
+        TaskSkippedEvent(),
+    ],
+)
+def test_asset_trigger_event_state_message_round_trip(persist_seq, wire_format, event):
+    adapter = TypeAdapter(ToTriggerSupervisor)
+    changes = messages.TriggerStateChanges(type="TriggerStateChanges", events=[(1, event, persist_seq)])
+
+    if wire_format == "json":
+        decoded = adapter.validate_json(adapter.dump_json(changes))
+    else:
+        decoded = adapter.validate_python(msgspec.msgpack.decode(_new_encoder().encode(changes)))
+
+    assert isinstance(decoded, messages.TriggerStateChanges)
+    assert decoded.events is not None
+    assert decoded.events[0].event == event
+    assert type(decoded.events[0].event) is type(event)
+    assert decoded.events[0].event.payload == event.payload
+    assert decoded.events[0].persist_seq == persist_seq
+
+
+@pytest.mark.parametrize("event_class", [TriggerEvent, AssetTriggerEvent])
+def test_handle_events_records_persist_confirmations(jobless_supervisor, event_class):
     """handle_events confirms the seq of a persisted event; events without a seq are not confirmed."""
-    event_with_seq = TriggerEvent(True)
-    event_without_seq = TriggerEvent("x")
+    event_with_seq = event_class(True)
+    event_without_seq = event_class("x")
     jobless_supervisor.events.append(TriggerEventEntry(1, event_with_seq, 7))
     jobless_supervisor.events.append(TriggerEventEntry(2, event_without_seq, None))
 
@@ -4421,19 +4512,19 @@ class TestTriggerMetrics:
         assert 4 not in jobless_supervisor.trigger_kinds
 
 
-class TestOwnerOfTriggersCreatedWithoutOne:
-    """Rows created by components still on the previous version during a rolling upgrade have no owner."""
+class TestUsedByOfTriggersCreatedWithoutIt:
+    """During a rolling upgrade, components still on the previous version create rows without a used_by_ref."""
 
     @pytest.mark.usefixtures("testing_dag_bundle")
-    def test_the_owner_of_a_deferred_tasks_trigger_is_recorded(self, session, jobless_supervisor):
+    def test_a_deferred_tasks_trigger_records_it_is_used_by_the_task(self, session, jobless_supervisor):
         trigger = Trigger.from_object(SuccessTrigger())
         session.add(trigger)
         session.flush()
-        with DAG(dag_id="owner_dag") as dag:
-            task = PythonOperator(task_id="owner_task", python_callable=print)
-        session.add(DagModel(dag_id="owner_dag", bundle_name="testing"))
+        with DAG(dag_id="used_by_dag") as dag:
+            task = PythonOperator(task_id="used_by_task", python_callable=print)
+        session.add(DagModel(dag_id="used_by_dag", bundle_name="testing"))
         SerializedDagModel.write_dag(LazyDeserializedDAG.from_dag(dag), bundle_name="testing")
-        dag_run = DagRun(dag.dag_id, run_id="owner_run", run_type="manual", run_after=timezone.utcnow())
+        dag_run = DagRun(dag.dag_id, run_id="used_by_run", run_type="manual", run_after=timezone.utcnow())
         ti = create_task_instance(
             task,
             run_id=dag_run.run_id,
@@ -4448,7 +4539,7 @@ class TestOwnerOfTriggersCreatedWithoutOne:
 
         session.expire_all()
         row = session.get(Trigger, trigger.id)
-        assert (row.dag_id, row.owner_ref) == ("owner_dag", {"ti_id": str(ti.id)})
+        assert (row.dag_id, row.used_by_ref) == ("used_by_dag", {"ti_id": str(ti.id)})
 
     @pytest.mark.parametrize(
         ("data", "expected_dag_id"),
@@ -4461,20 +4552,185 @@ class TestOwnerOfTriggersCreatedWithoutOne:
             ),
         ],
     )
-    def test_the_owner_of_a_callbacks_trigger_is_recorded(self, mocker, data, expected_dag_id):
+    def test_a_callbacks_trigger_records_it_is_used_by_the_callback(self, mocker, data, expected_dag_id):
         callback = mocker.Mock(data=data, id=uuid.uuid4())
         callback.get_dag_id.return_value = data.get("dag_id")
         trigger = mocker.Mock(
-            spec=Trigger, owner_ref=None, dag_id=None, task_instance=None, callback=callback
+            spec=Trigger, used_by_ref=None, dag_id=None, task_instance=None, callback=callback
         )
 
-        TriggerRunnerSupervisor._record_missing_owner(trigger)
+        TriggerRunnerSupervisor._record_missing_used_by(trigger)
 
-        assert (trigger.dag_id, trigger.owner_ref) == (expected_dag_id, {"callback_id": str(callback.id)})
+        assert (trigger.dag_id, trigger.used_by_ref) == (expected_dag_id, {"callback_id": str(callback.id)})
 
-    def test_a_recorded_owner_is_kept(self, mocker):
-        trigger = mocker.Mock(spec=Trigger, owner_ref={"ti_id": "x"}, dag_id="d", task_instance=mocker.Mock())
+    def test_a_recorded_used_by_is_kept(self, mocker):
+        trigger = mocker.Mock(
+            spec=Trigger, used_by_ref={"ti_id": "x"}, dag_id="d", task_instance=mocker.Mock()
+        )
 
-        TriggerRunnerSupervisor._record_missing_owner(trigger)
+        TriggerRunnerSupervisor._record_missing_used_by(trigger)
 
-        assert (trigger.dag_id, trigger.owner_ref) == ("d", {"ti_id": "x"})
+        assert (trigger.dag_id, trigger.used_by_ref) == ("d", {"ti_id": "x"})
+
+
+class TestCheckForUnhandledTriggers:
+    """Tests for recovery of triggers the runner has no coroutine for."""
+
+    @pytest.mark.parametrize(
+        ("running_triggers", "running_ids", "expected_after"),
+        [
+            pytest.param({1, 2, 3}, {1, 2, 3}, {1, 2, 3}, id="in-sync"),
+            pytest.param(set(), set(), set(), id="no-triggers"),
+            pytest.param({1, 2, 3}, {1, 2}, {1, 2}, id="one-unhandled"),
+            pytest.param({1, 2, 3}, set(), set(), id="all-unhandled"),
+        ],
+    )
+    def test_unhandled_triggers_are_dropped(
+        self, jobless_supervisor, mocker, running_triggers, running_ids, expected_after
+    ):
+        incr = mocker.patch("airflow.jobs.triggerer_job_runner.stats.incr", autospec=True)
+        jobless_supervisor.running_triggers = set(running_triggers)
+        jobless_supervisor.cancelling_triggers = set(running_triggers)
+
+        jobless_supervisor.check_for_unhandled_triggers(running_ids)
+
+        unhandled = running_triggers - running_ids
+        assert jobless_supervisor.running_triggers == expected_after
+        assert jobless_supervisor.cancelling_triggers == expected_after
+        assert (
+            mocker.call("triggers.state_mismatch", len(unhandled), tags={}) in incr.call_args_list
+        ) is bool(unhandled)
+
+    def test_dropped_trigger_is_recreated_next_loop(self, jobless_supervisor, mocker):
+        """Dropping an unhandled id is what lets update_triggers rebuild its workload."""
+        build = mocker.patch.object(
+            TriggerRunnerSupervisor, "build_trigger_workloads", autospec=True, return_value=[]
+        )
+        jobless_supervisor.running_triggers = {1, 2, 3}
+        # A trigger released to another triggerer stays in running_triggers, so it can turn up
+        # unhandled too, and releasing_triggers also gates re-creation via known_trigger_ids.
+        jobless_supervisor.releasing_triggers = {3}
+
+        jobless_supervisor.check_for_unhandled_triggers({1})
+        jobless_supervisor.update_triggers({1, 2, 3})
+
+        assert build.call_args.args[1] == {2, 3}
+
+    def test_recovered_trigger_log_is_finalized(self, jobless_supervisor, mocker):
+        """Re-creation reuses the log path, so recovery has to upload and close it first."""
+        mocker.patch("airflow.jobs.triggerer_job_runner.stats.incr", autospec=True)
+        factory = MagicMock(spec=TriggerLoggingFactory)
+        jobless_supervisor.logger_cache[42] = factory
+        jobless_supervisor.running_triggers = {42}
+
+        jobless_supervisor.check_for_unhandled_triggers(set())
+
+        factory.upload_to_remote.assert_called_once()
+        factory.close.assert_called_once()
+        assert 42 not in jobless_supervisor.logger_cache
+
+    def test_recovery_survives_a_log_file_that_cannot_be_closed(self, jobless_supervisor, mocker):
+        """An unwritable log file must not strand the remaining ids, nor reach the runner."""
+        incr = mocker.patch("airflow.jobs.triggerer_job_runner.stats.incr", autospec=True)
+        factories = {}
+        for trigger_id in (1, 2):
+            factory = MagicMock(spec=TriggerLoggingFactory)
+            factory.close.side_effect = OSError("no space left on device")
+            factories[trigger_id] = factory
+        jobless_supervisor.logger_cache.update(factories)
+        jobless_supervisor.running_triggers = {1, 2}
+
+        jobless_supervisor.check_for_unhandled_triggers(set())
+
+        assert not jobless_supervisor.logger_cache
+        assert all(factory.close.called for factory in factories.values())
+        assert mocker.call("triggers.state_mismatch", 2, tags={}) in incr.call_args_list
+
+    def test_message_without_running_ids_is_ignored(self, jobless_supervisor):
+        """``None`` means the message carried no information, which must not read as "nothing running"."""
+        jobless_supervisor.running_triggers = {1, 2, 3}
+        jobless_supervisor.cancelling_triggers = {1, 2, 3}
+
+        jobless_supervisor.check_for_unhandled_triggers(None)
+
+        assert jobless_supervisor.running_triggers == {1, 2, 3}
+        assert jobless_supervisor.cancelling_triggers == {1, 2, 3}
+
+    def test_handle_request_checks_before_adding_to_create(self, jobless_supervisor, mocker):
+        """The check fires after finished processing but before to_create is added to running_triggers."""
+        mocker.patch.object(TriggerRunnerSupervisor, "send_msg", autospec=True)
+        jobless_supervisor.running_triggers = {1, 2}
+        jobless_supervisor.creating_triggers.append(
+            mocker.MagicMock(id=3),
+        )
+
+        jobless_supervisor._handle_request(
+            messages.TriggerStateChanges(
+                events=None,
+                failures=None,
+                finished=[1],
+                running_ids={2},
+            ),
+            log=MagicMock(spec=FilteringBoundLogger),
+            req_id=1,
+        )
+
+        assert jobless_supervisor.running_triggers == {2, 3}
+
+    def test_creation_failure_reported_in_finished(self, jobless_supervisor, mocker):
+        """A creation failure appears in both failures and finished, so running_triggers stays in sync."""
+        mocker.patch.object(TriggerRunnerSupervisor, "send_msg", autospec=True)
+        jobless_supervisor.running_triggers = {1, 2, 3}
+
+        jobless_supervisor._handle_request(
+            messages.TriggerStateChanges(
+                events=None,
+                failures=[(3, ["Traceback..."])],
+                finished=[3],
+                running_ids={1, 2},
+            ),
+            log=MagicMock(spec=FilteringBoundLogger),
+            req_id=1,
+        )
+
+        assert 3 not in jobless_supervisor.running_triggers
+
+
+class TestCreationFailureInFinished:
+    """Tests that creation failures (not in self.triggers) are included in finished_ids."""
+
+    def test_creation_failure_included_in_finished(self):
+        runner = TriggerRunner()
+        runner.failed_triggers.append((42, ValueError("bad classpath")))
+
+        msg = runner.process_trigger_events(finished_ids=[10])
+
+        assert msg.finished == [10, 42]
+        assert msg.running_ids == set()
+
+    def test_serialization_failure_not_in_finished(self):
+        runner = TriggerRunner()
+        runner.triggers = {42: {"task": MagicMock(), "is_watcher": False, "name": "t", "events": 0}}
+        runner.failed_triggers.append((42, ValueError("not serializable")))
+
+        msg = runner.process_trigger_events(finished_ids=[])
+
+        assert msg.finished is None
+        assert msg.running_ids == {42}
+
+    def test_failure_already_in_finished_ids_not_duplicated(self):
+        runner = TriggerRunner()
+        runner.failed_triggers.append((42, ValueError("exited without an event")))
+
+        msg = runner.process_trigger_events(finished_ids=[42])
+
+        assert msg.finished == [42]
+
+    def test_caller_finished_ids_not_mutated(self):
+        runner = TriggerRunner()
+        runner.failed_triggers.append((42, ValueError("bad classpath")))
+        finished_ids = [10]
+
+        runner.process_trigger_events(finished_ids=finished_ids)
+
+        assert finished_ids == [10]

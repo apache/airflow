@@ -27,8 +27,32 @@
 Changelog
 ---------
 
+.. note::
+    An explicit ``[celery] result_backend`` with a driverless ``db+postgresql://`` URL now gets the same
+    driver as one derived from ``sql_alchemy_conn``: ``db+postgresql+psycopg://...`` when psycopg (v3) and
+    SQLAlchemy 2.0+ are installed, ``db+postgresql+psycopg2://...`` otherwise. Before, the URL went to
+    SQLAlchemy unchanged, which picks psycopg2 on SQLAlchemy 2.0 and fails when psycopg2 is not installed.
+    To keep psycopg2 with both drivers installed, set ``db+postgresql+psycopg2://`` explicitly.
+
+4.0.0
+.....
+
 .. warning::
   The deprecated ``CeleryExecutor.cleanup_stuck_queued_tasks`` and ``CeleryKubernetesExecutor.cleanup_stuck_queued_tasks`` methods have been removed. Use ``revoke_task`` instead.
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Remove deprecated cleanup_stuck_queued_tasks from CeleryExecutor and CeleryKubernetesExecutor (#76129)``
+
+Misc
+~~~~
+
+* ``Make the celery visibility_timeout redelivery docs version-conditional (#75373)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``[main] Upgrade important CI environment (#76278)``
 
 3.26.0
 ......

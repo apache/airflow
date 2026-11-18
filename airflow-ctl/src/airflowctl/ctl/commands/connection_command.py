@@ -23,6 +23,7 @@ from typing import Any
 
 import rich
 from pydantic import ValidationError
+from rich.markup import escape
 
 from airflowctl.api.client import NEW_API_CLIENT, ClientKind, provide_api_client
 from airflowctl.api.datamodels.generated import (
@@ -91,9 +92,9 @@ def import_(args, api_client=NEW_API_CLIENT) -> None:
         )
         response = api_client.connections.bulk(BulkBodyConnectionBody(actions=[connection_create_action]))
         if response.create.errors:
-            rich.print(f"[red]Failed to import connections: {response.create.errors}[/red]")
+            rich.print(f"[red]Failed to import connections: {escape(str(response.create.errors))}[/red]")
             raise SystemExit(1)
         rich.print(f"[green]Successfully imported {response.create.success} connection(s)[/green]")
     except Exception as e:
-        rich.print(f"[red]Failed to import connections: {e}[/red]")
+        rich.print(f"[red]Failed to import connections: {escape(str(e))}[/red]")
         raise SystemExit(1)

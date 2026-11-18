@@ -19,6 +19,7 @@ from __future__ import annotations
 import asyncio
 import copy
 import json
+import re
 from typing import TYPE_CHECKING, Any
 from unittest.mock import MagicMock, patch
 from uuid import uuid4
@@ -32,9 +33,10 @@ from anthropic import Anthropic, AsyncAnthropic, DefaultAsyncHttpxClient, Defaul
 from anthropic.types.beta import BetaTextBlock
 from pydantic_ai.exceptions import ModelRetry
 
-from airflow.providers.common.ai.exceptions import ToolRunnerMaxIterationsError
+from airflow.providers.common.ai.exceptions import MCPToolsetNotSupportedError, ToolRunnerMaxIterationsError
 from airflow.providers.common.ai.tools import AirflowTool, ToolCallError, ToolResult
 from airflow.providers.common.ai.tools.anthropic import AirflowTools, AsyncAirflowTools
+from airflow.providers.common.ai.toolsets.mcp import MCPToolset
 from airflow.providers.common.ai.toolsets.sql import SQLToolset
 
 from unit.common.ai.tools.test__from_toolset import _scripted
@@ -203,6 +205,15 @@ def test_each_toolset_tool_becomes_a_runner_tool_with_its_schema(tools_class):
 
     assert [d["name"] for d in definitions] == ["lookup", "list_tables", "get_schema", "query", "check_query"]
     assert definitions[3]["input_schema"]["required"] == ["sql"]
+
+
+@pytest.mark.parametrize("tools_class", [AirflowTools, AsyncAirflowTools])
+def test_an_mcp_toolset_points_to_the_anthropic_sdks_async_mcp_helper(tools_class):
+    """The SDK's sync mcp_tool() needs an AnyIO worker thread, so both runners point at the async one."""
+    with pytest.raises(
+        MCPToolsetNotSupportedError, match=re.escape("anthropic.lib.tools.mcp.async_mcp_tool()")
+    ):
+        tools_class(MCPToolset("mcp_default"))
 
 
 @pytest.mark.parametrize("tools_class", [AirflowTools, AsyncAirflowTools])

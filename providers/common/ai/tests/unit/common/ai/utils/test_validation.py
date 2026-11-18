@@ -18,10 +18,7 @@ from __future__ import annotations
 
 import pytest
 
-from airflow.providers.common.ai.utils.validation import (
-    reject_sequence_with_unsupported_feature,
-    validate_prompt,
-)
+from airflow.providers.common.ai.utils.validation import validate_prompt
 
 
 class TestValidatePrompt:
@@ -100,30 +97,3 @@ class TestValidatePrompt:
     def test_rejects_bytes_like_in_sequence(self, value):
         with pytest.raises(TypeError, match="raw bytes are not a valid UserContent"):
             validate_prompt(value, decorator_name="@task.agent")
-
-
-class TestRejectSequenceWithUnsupportedFeature:
-    def test_noop_when_feature_disabled(self):
-        reject_sequence_with_unsupported_feature(
-            ["x", object()],
-            decorator_name="@task.agent",
-            feature_name="enable_hitl_review",
-            feature_enabled=False,
-        )
-
-    def test_noop_when_value_is_string(self):
-        reject_sequence_with_unsupported_feature(
-            "hello",
-            decorator_name="@task.agent",
-            feature_name="enable_hitl_review",
-            feature_enabled=True,
-        )
-
-    def test_raises_for_sequence_with_feature_enabled(self):
-        with pytest.raises(TypeError, match="enable_hitl_review=True"):
-            reject_sequence_with_unsupported_feature(
-                ["x", object()],
-                decorator_name="@task.agent",
-                feature_name="enable_hitl_review",
-                feature_enabled=True,
-            )

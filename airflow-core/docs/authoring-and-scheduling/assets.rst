@@ -538,6 +538,8 @@ depend on whether the producer and consumer have a team association:
 When Multi-Team mode is disabled, ``access_control`` is ignored and all asset events are delivered to all
 consuming Dags, preserving backward compatibility.
 
+.. _asset-partitions:
+
 Asset partitions
 ----------------
 

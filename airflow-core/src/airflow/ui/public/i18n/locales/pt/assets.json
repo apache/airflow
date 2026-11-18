@@ -1,9 +1,34 @@
 {
   "additional_data": "Dados Adicionais",
+  "alias_many": "Aliases",
+  "alias_one": "Alias",
+  "alias_other": "Aliases",
+  "alias_zero": "Nenhum alias",
+  "aliases": "Aliases",
   "asset_many": "Assets",
   "asset_one": "Asset",
   "asset_other": "Assets",
   "asset_zero": "Nenhum asset",
+  "assetStateStore": {
+    "add": "Adicionar armazenamento de estado do Asset",
+    "clearAll": {
+      "resource": "todo o armazenamento de estado do Asset",
+      "title": "Limpar todo o armazenamento de estado do Asset",
+      "warning": "Todo o armazenamento de estado do Asset será apagado. Tarefas que usam este armazenamento para coordenar trabalho perderão a memória persistida."
+    },
+    "delete": "Excluir armazenamento de estado do Asset",
+    "deleteWarning": "O Asset perderá esta entrada persistida do armazenamento de estado.",
+    "edit": "Editar armazenamento de estado do Asset",
+    "emptyState": "O armazenamento de estado do Asset guarda valores no âmbito de uma identidade de Asset, compartilhados entre todas as execuções do Dag. Os workers podem escrever no armazenamento de estado do Asset através do Task SDK.",
+    "entry_many": "Entradas",
+    "entry_one": "Entrada",
+    "entry_other": "Entradas",
+    "entry_zero": "Nenhuma entrada",
+    "lastUpdatedBy": "Última atualização por",
+    "lastUpdatedByApi": "API",
+    "lastUpdatedByWatcher": "Watcher",
+    "title": "Armazenamento de Estado do Asset"
+  },
   "consumingDags": "Consumindo Dags",
   "consumingTasks": "Tarefas Consumidoras",
   "createEvent": {
@@ -27,7 +52,12 @@
     },
     "title": "Criar Evento de Asset para {{name}}"
   },
-  "extra": "Extra",
+  "events": "Eventos",
+  "filters": {
+    "groupPlaceholder": "Pesquisar grupo",
+    "hasEvents": "Tem eventos",
+    "lastEventDateRange": "Data do último evento"
+  },
   "group": "Grupo",
   "lastAssetEvent": "Último Evento de Asset",
   "name": "Nome",
@@ -35,5 +65,10 @@
   "scheduledDags": "Dags Programados",
   "scheduling": "Agendamento",
   "searchPlaceholder": "Pesquisar Assets",
-  "taskDependencies": "Dependências de Tarefas"
+  "taskDependencies": "Dependências de Tarefas",
+  "watcher_many": "Watchers",
+  "watcher_one": "Watcher",
+  "watcher_other": "Watchers",
+  "watcher_zero": "Nenhum Watcher",
+  "watchers": "Watchers"
 }

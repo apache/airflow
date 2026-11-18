@@ -481,18 +481,30 @@ def check_providers_are_in_site_index(doc_packages: tuple[str, ...], exclude_doc
     default="main",
     show_default=True,
 )
-def workflow_run_release_constraints(version: str, ref: str, workflow_branch: str):
+@click.option(
+    "--fail-on-pending-provider-candidates",
+    type=click.Choice(["true", "false"]),
+    default=None,
+    help="Override the final-release guard. Unset derives it from the version (a final fails when a "
+    "provider's newest PyPI version is a pending rc). Set 'false' to pin the currently-released "
+    "providers and proceed through an overlapping provider wave.",
+)
+def workflow_run_release_constraints(
+    version: str, ref: str, workflow_branch: str, fail_on_pending_provider_candidates: str | None
+):
     if not RELEASE_VERSION_PATTERN.match(version):
         console_print(f"[red]Error: '{version}' is not a release version - expected X.Y.Z or X.Y.ZrcN.[/red]")
         sys.exit(1)
     stage = "candidate" if "rc" in version else "final"
     console_print(f"[blue]Triggering constraints generation for the {stage} {version} from {ref}[/blue]")
+    overrides = {"fail-on-pending-provider-candidates": fail_on_pending_provider_candidates or ""}
     trigger_workflow_and_monitor(
         workflow_name=WORKFLOW_NAME_MAPS["release-constraints"],
         repo=APACHE_AIRFLOW_REPO,
         branch=workflow_branch,
         version=version,
         ref=ref,
+        **overrides,
     )
 
 
@@ -507,8 +519,19 @@ def workflow_run_release_constraints(version: str, ref: str, workflow_branch: st
     help="Let the mirror run the main upgrade check when a tag moves past its pin. Turn it off when the "
     "main upgrade check is what runs the mirror.",
 )
-def workflow_run_mirror_base_images(trigger_upgrade_check: bool):
-    mirror_hardened_base_images(APACHE_AIRFLOW_REPO, trigger_upgrade_check=trigger_upgrade_check)
+@click.option(
+    "--build-os-deps-images/--no-build-os-deps-images",
+    default=True,
+    show_default=True,
+    help="Also build the OS-dependencies images on the mirrored base images. Turn it off when the "
+    "upgrade check is what runs the mirror: it pins the images the daily build published.",
+)
+def workflow_run_mirror_base_images(trigger_upgrade_check: bool, build_os_deps_images: bool):
+    mirror_hardened_base_images(
+        APACHE_AIRFLOW_REPO,
+        trigger_upgrade_check=trigger_upgrade_check,
+        build_os_deps_images=build_os_deps_images,
+    )
 
 
 @workflow_run_group.command(

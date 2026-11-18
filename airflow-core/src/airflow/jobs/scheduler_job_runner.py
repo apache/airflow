@@ -70,7 +70,8 @@ from airflow.callbacks.callback_requests import (
 )
 from airflow.configuration import conf
 from airflow.dag_processing.bundles.base import BundleUsageTrackingManager
-from airflow.exceptions import DagNotFound, TaskNotFound, UnknownExecutorException
+from airflow.dag_processing.maintenance import cleanup_processor_metadata
+from airflow.exceptions import DagNotFound, ParamValidationError, TaskNotFound, UnknownExecutorException
 from airflow.executors import workloads
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.executors.workloads.types import TaskInstanceUuid
@@ -176,6 +177,14 @@ MAX_PARTITION_DAG_RUNS_PER_LOOP = 500
 
 # Max number of ADRQ rows deleted per statement, to keep the bind parameter count bounded.
 _ADRQ_DELETE_CHUNK_SIZE = 500
+
+# Caps how many dag_ids the cap log lists and how many per-Dag audit rows
+# are written per callback run. The backlog's distinct dag_id count is unbounded, so
+# writing it straight into a log field or one DB row per Dag without a cap risks
+# an unbounded payload. 20 is enough for an operator to diagnose which Dags are
+# backlogged without letting the log field or the per-run row count run away.
+# Internal constant, not a user setting, for the same reason as the constant above.
+MAX_PARTITION_CAP_BACKLOG_DAG_IDS_LOGGED = 20
 
 MAX_TI_REFILL_QUERIES_PER_LOOP = 3
 """
@@ -340,6 +349,22 @@ def _get_current_dr_task_concurrency(states: Iterable[TaskInstanceState]) -> Sub
     )
 
 
+def _build_pending_partitioned_apdr_filters() -> tuple[ColumnElement[bool], ...]:
+    """
+    Build the predicates selecting the pending APDRs the scheduler can act on.
+
+    Callers join ``DagModel`` on ``target_dag_id``. The per-tick fetch and the periodic cap
+    backlog count share these predicates: counting rows the fetch can never select produces a
+    false cap warning.
+    """
+    return (
+        AssetPartitionDagRun.created_dag_run_id.is_(None),
+        DagModel.is_paused.is_(False),
+        DagModel.is_draining.is_(False),
+        DagModel.is_stale.is_(False),
+    )
+
+
 class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
     """
     SchedulerJobRunner runs for a specific time interval and schedules jobs that are ready to run.
@@ -399,6 +424,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         self._multi_team = conf.getboolean("core", "multi_team")
         self._dag_tags_in_metrics = conf.getboolean("metrics", "dag_tags_in_metrics", fallback=False)
         self._max_partition_dag_runs_per_loop = MAX_PARTITION_DAG_RUNS_PER_LOOP
+        # Edge-triggers the "partition Dag run cap reached" audit Log rows: the dag_ids whose row
+        # was committed during the current backlog episode. Cleared by
+        # `_report_partition_cap_backlog` when the backlog is at or below the cap.
+        # Process-local and deliberately not de-duplicated across schedulers: in an HA deployment
+        # each scheduler writes its own row, so a Dag gets one row per scheduler per episode.
+        self._partition_cap_reported_dag_ids: set[str] = set()
         self._dag_id_to_team_name: dict[str, str | None] = {}
 
         self.executors: list[BaseExecutor] = executors if executors else ExecutorLoader.init_executors()
@@ -1577,7 +1608,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         # Handle callback state events
         for callback_id in callback_keys_with_events:
             state, info = event_buffer.pop(callback_id)
-            callback = session.get(Callback, UUID(str(callback_id)))
+            callback_uuid = UUID(str(callback_id))
+            callback = session.get(Callback, callback_uuid)
             if not callback:
                 # This should not normally happen - we just received an event for this callback.
                 # Only possible if callback was deleted mid-execution (e.g., cascade delete from DagRun deletion).
@@ -1586,14 +1618,52 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 )
                 continue
 
+            # The supervisor reports the outcome through PATCH /callbacks/{id}/state, this is
+            # in case a supervisor dies before reporting.
+            if callback.state not in (CallbackState.QUEUED, CallbackState.RUNNING):
+                cls.logger().debug(
+                    "Callback %s is already %s; ignoring executor event with state %s",
+                    callback_id,
+                    callback.state,
+                    state,
+                )
+                continue
+
+            new_values: dict[str, Any] = {"state": state}
+            if state == CallbackState.FAILED:
+                new_values["output"] = str(info) if info else "Execution failed"
+
+            # The QUEUED/RUNNING check above reads an ORM snapshot, and the supervisor can report a
+            # terminal state through the API before this write lands. Repeating it here stops a
+            # terminal row moving.
+            updated = cast(
+                "CursorResult",
+                session.execute(
+                    update(Callback)
+                    .where(
+                        Callback.id == callback_uuid,
+                        Callback.state.in_((CallbackState.QUEUED, CallbackState.RUNNING)),
+                    )
+                    .values(**new_values)
+                    .execution_options(synchronize_session=False)
+                ),
+            )
+            # The row moved under us, so the ORM copy is stale either way.
+            session.expire(callback)
+
+            if not updated.rowcount:
+                cls.logger().info(
+                    "Callback %s reached a terminal state before its executor event (%s) was handled; "
+                    "keeping the reported result",
+                    callback_id,
+                    state,
+                )
+                continue
+
             if state == CallbackState.SUCCESS:
-                callback.state = CallbackState.SUCCESS
                 cls.logger().info("Callback %s completed successfully", callback_id)
-            elif state == CallbackState.FAILED:
-                callback.state = CallbackState.FAILED
-                callback.output = str(info) if info else "Execution failed"
-                cls.logger().error("Callback %s failed: %s", callback_id, callback.output)
-            session.add(callback)
+            else:
+                cls.logger().error("Callback %s failed: %s", callback_id, new_values["output"])
 
         # Return if no finished tasks
         if not tis_with_right_state:
@@ -2050,6 +2120,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         timers.call_regular_interval(60.0, self._update_dag_run_state_for_paused_dags)
         timers.call_regular_interval(5.0, self._finalize_draining_dags)
+        timers.call_regular_interval(60.0, self._report_partition_cap_backlog, non_fatal=True)
+        timers.call_regular_interval(
+            conf.getfloat("scheduler", "parsing_cleanup_interval"), cleanup_processor_metadata, non_fatal=True
+        )
 
         timers.call_regular_interval(
             conf.getfloat("scheduler", "task_queued_timeout_check_interval"),
@@ -2447,12 +2521,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         """
         Create Dag runs for pending :class:`AssetPartitionDagRun` rows whose partition is satisfied.
 
-        Returns the set of ``dag_id`` strings that received a new partition-driven Dag run in this
-        tick. The caller (:meth:`_create_dagruns_for_dags`) uses this set to exclude the same Dags
-        from the standard schedule-driven and asset-triggered creation paths so a single Dag never
-        gets two Dag runs for the same tick when it appears in more than one creation path. We
-        return ``dag_id`` strings rather than full Dag/DagRun objects because the only downstream
-        use is membership lookup, and a heavier return type would just be discarded.
+        Returns the set of ``dag_id`` strings with a satisfied partition in this tick, whether or not
+        creating the Dag run succeeded. The caller (:meth:`_create_dagruns_for_dags`) uses this set to
+        exclude the same Dags from the standard schedule-driven and asset-triggered creation paths so a
+        single Dag never gets two Dag runs for the same tick when it appears in more than one creation
+        path. We return ``dag_id`` strings rather than full Dag/DagRun objects because the only
+        downstream use is membership lookup, and a heavier return type would just be discarded.
 
         Asset deactivation freezes pending APDRs: when an asset becomes inactive
         (orphan — no Dag declares it any more), its ``PartitionedAssetKeyLog`` rows
@@ -2481,9 +2555,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         # scheduling work isn't starved. Remaining APDRs drain across subsequent ticks.
         # FIFO is intentional: the oldest pending APDR fires first. A persistently
         # unsatisfiable APDR at the head (e.g. broken mapper, upstream that will
-        # never arrive) blocks newer ones until an operator removes it or fixes
-        # the underlying mapper. We surface the stuck state rather than silently
-        # rotating past it.
+        # never arrive, a stored Dag whose Param default fails validation until a
+        # re-parse marks the Dag stale) blocks newer ones until an operator removes
+        # it or fixes the underlying mapper. We surface the stuck state rather than
+        # silently rotating past it.
         # `with_row_locks(skip_locked=True)` mirrors the sibling ADRQ claim path:
         # in HA two schedulers can otherwise both grab the same satisfied APDR
         # and race the `created_dag_run_id` UPDATE, orphaning whichever DagRun
@@ -2494,12 +2569,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             with_row_locks(
                 select(AssetPartitionDagRun)
                 .join(DagModel, DagModel.dag_id == AssetPartitionDagRun.target_dag_id)
-                .where(
-                    AssetPartitionDagRun.created_dag_run_id.is_(None),
-                    DagModel.is_paused.is_(False),
-                    DagModel.is_draining.is_(False),
-                    DagModel.is_stale.is_(False),
-                )
+                .where(*_build_pending_partitioned_apdr_filters())
                 .order_by(AssetPartitionDagRun.created_at, AssetPartitionDagRun.id)
                 .limit(self._max_partition_dag_runs_per_loop),
                 of=AssetPartitionDagRun,
@@ -2652,21 +2722,26 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     dag_id=apdr.target_dag_id,
                     carried_partition_date=apdr.partition_date,
                 )
-            dag_run = dag.create_dagrun(
-                run_id=DagRun.generate_run_id(
-                    run_type=DagRunType.ASSET_TRIGGERED, logical_date=None, run_after=run_after
-                ),
-                logical_date=None,
-                data_interval=None,
-                partition_key=apdr.partition_key,
-                partition_date=partition_date,
-                run_after=run_after,
-                run_type=DagRunType.ASSET_TRIGGERED,
-                triggered_by=DagRunTriggeredByType.ASSET,
-                state=DagRunState.QUEUED,
-                creating_job_id=self.job.id,
-                session=session,
-            )
+            try:
+                dag_run = dag.create_dagrun(
+                    run_id=DagRun.generate_run_id(
+                        run_type=DagRunType.ASSET_TRIGGERED, logical_date=None, run_after=run_after
+                    ),
+                    logical_date=None,
+                    data_interval=None,
+                    partition_key=apdr.partition_key,
+                    partition_date=partition_date,
+                    run_after=run_after,
+                    run_type=DagRunType.ASSET_TRIGGERED,
+                    triggered_by=DagRunTriggeredByType.ASSET,
+                    state=DagRunState.QUEUED,
+                    creating_job_id=self.job.id,
+                    session=session,
+                )
+            except ParamValidationError:
+                # A stored Dag can hold a default that became invalid after an upgrade, until re-parsed.
+                self.log.exception("Failed creating DagRun", dag_id=apdr.target_dag_id)
+                continue
             asset_events = session.scalars(
                 select(AssetEvent).where(
                     PartitionedAssetKeyLog.asset_partition_dag_run_id == apdr.id,
@@ -3093,29 +3168,34 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 if self._multi_team
                 else None
             )
-            for run_after, events in dag.timetable.group_asset_events(asset_events, triggered_date):
-                dag_run = dag.create_dagrun(
-                    run_id=DagRun.generate_run_id(
-                        run_type=DagRunType.ASSET_TRIGGERED, logical_date=None, run_after=run_after
-                    ),
-                    logical_date=None,
-                    data_interval=None,
-                    run_after=run_after,
-                    run_type=DagRunType.ASSET_TRIGGERED,
-                    triggered_by=DagRunTriggeredByType.ASSET,
-                    state=DagRunState.QUEUED,
-                    creating_job_id=self.job.id,
-                    session=session,
-                )
-                remaining_runs -= 1
-                stats.incr("asset.triggered_dagruns", tags=prune_dict({"team_name": team_name}))
-                dag_run.consumed_asset_events.extend(events)
-                self.log.info(
-                    "Created asset-triggered DagRun for '%s': run_id=%s, consumed %d asset events",
-                    dag.dag_id,
-                    dag_run.run_id,
-                    len(events),
-                )
+            try:
+                for run_after, events in dag.timetable.group_asset_events(asset_events, triggered_date):
+                    dag_run = dag.create_dagrun(
+                        run_id=DagRun.generate_run_id(
+                            run_type=DagRunType.ASSET_TRIGGERED, logical_date=None, run_after=run_after
+                        ),
+                        logical_date=None,
+                        data_interval=None,
+                        run_after=run_after,
+                        run_type=DagRunType.ASSET_TRIGGERED,
+                        triggered_by=DagRunTriggeredByType.ASSET,
+                        state=DagRunState.QUEUED,
+                        creating_job_id=self.job.id,
+                        session=session,
+                    )
+                    remaining_runs -= 1
+                    stats.incr("asset.triggered_dagruns", tags=prune_dict({"team_name": team_name}))
+                    dag_run.consumed_asset_events.extend(events)
+                    self.log.info(
+                        "Created asset-triggered DagRun for '%s': run_id=%s, consumed %d asset events",
+                        dag.dag_id,
+                        dag_run.run_id,
+                        len(events),
+                    )
+            except ParamValidationError:
+                # ADRQ rows stay queued so the run is created once the Dag is fixed.
+                self.log.exception("Failed creating DagRun", dag_id=dag.dag_id)
+                continue
             session.flush()  # Make consumed events visible to ADRQ cleanup.
             # Dequeue rows for events just consumed above and any stale ones.
             self._delete_consumed_asset_records(dag, locked_records=queued_adrqs, session=session)
@@ -4288,6 +4368,58 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             )
             .execution_options(synchronize_session="fetch")
         )
+
+    def _report_partition_cap_backlog(self) -> None:
+        """Log and audit the Dags in the pending partitioned Dag run backlog above the per-tick cap."""
+        with create_session() as session:
+            backlogs_per_dag = {
+                dag_id: count
+                for dag_id, count in session.execute(
+                    select(AssetPartitionDagRun.target_dag_id, func.count())
+                    .select_from(AssetPartitionDagRun)
+                    .join(DagModel, DagModel.dag_id == AssetPartitionDagRun.target_dag_id)
+                    .where(*_build_pending_partitioned_apdr_filters())
+                    .group_by(AssetPartitionDagRun.target_dag_id)
+                )
+            }
+            backlog_total = sum(backlogs_per_dag.values())
+            if backlog_total <= self._max_partition_dag_runs_per_loop:
+                self._partition_cap_reported_dag_ids.clear()
+                return
+
+            sorted_dag_ids = sorted(backlogs_per_dag, key=lambda dag_id: (-backlogs_per_dag[dag_id], dag_id))
+            displayed_dag_ids = sorted_dag_ids[:MAX_PARTITION_CAP_BACKLOG_DAG_IDS_LOGGED]
+            new_dag_ids = [
+                dag_id for dag_id in displayed_dag_ids if dag_id not in self._partition_cap_reported_dag_ids
+            ]
+            log_cap_reached = self.log.warning if new_dag_ids else self.log.debug
+            log_cap_reached(
+                (
+                    "Pending partitioned Dag runs exceed the per-tick cap; only the oldest pending "
+                    "runs up to the cap are evaluated per tick, newer ones wait behind them"
+                ),
+                cap=self._max_partition_dag_runs_per_loop,
+                backlog_total=backlog_total,
+                dag_ids=displayed_dag_ids,
+            )
+            session.add_all(
+                Log(
+                    event="partition Dag run cap reached",
+                    dag_id=dag_id,
+                    owner="scheduler",
+                    owner_display_name="Scheduler",
+                    extra=(
+                        f"This Dag has {backlogs_per_dag[dag_id]} pending partitioned Dag runs and "
+                        f"{backlog_total} are pending across all Dags, above the internal per-tick cap "
+                        f"of {self._max_partition_dag_runs_per_loop}; pending runs are counted whether "
+                        f"or not their partitions are satisfied yet. Only the oldest pending runs up "
+                        f"to the cap are evaluated per tick, and newer ones wait behind them."
+                    ),
+                )
+                for dag_id in new_dag_ids
+            )
+        # Must follow the commit above: a failed write leaves these Dags unreported so the next run retries.
+        self._partition_cap_reported_dag_ids.update(new_dag_ids)
 
     @provide_session
     def _update_asset_orphanage(self, *, session: Session = NEW_SESSION) -> None:

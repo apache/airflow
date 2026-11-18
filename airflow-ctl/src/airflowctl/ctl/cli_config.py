@@ -25,6 +25,7 @@ import ast
 import datetime
 import inspect
 import json
+import math
 import os
 import sys
 import typing
@@ -95,30 +96,35 @@ def safe_call_command(function: Callable, args: Iterable[Arg]) -> None:
         function(args)
     except AirflowCtlException as e:
         # The base class, so a new AirflowCtl error never regresses to a raw traceback.
-        rich.print(f"command failed due to {e}")
+        rich.print(f"command failed due to {escape(str(e))}", file=sys.stderr)
         sys.exit(1)
     except (httpx.RemoteProtocolError, httpx.ReadError, httpx.WriteError) as e:
-        rich.print(f"[red]Remote protocol error: {e}[/red]")
+        rich.print(f"[red]Remote protocol error: {escape(str(e))}[/red]", file=sys.stderr)
         if "Server disconnected without sending a response." in str(e):
             rich.print(
-                f"[red]Server response error: {e}. "
-                "Please check if the server is running and the API URL is correct.[/red]"
+                f"[red]Server response error: {escape(str(e))}. "
+                "Please check if the server is running and the API URL is correct.[/red]",
+                file=sys.stderr,
             )
         _warn_if_write_may_have_applied(e)
         sys.exit(1)
     except httpx.TimeoutException as e:
-        rich.print(f"[red]Request timeout error: {e}[/red]")
+        rich.print(f"[red]Request timeout error: {escape(str(e))}[/red]", file=sys.stderr)
         if "timed out" in str(e):
-            rich.print("[red]Please check if the server is running and the API ready to accept calls.[/red]")
+            rich.print(
+                "[red]Please check if the server is running and the API ready to accept calls.[/red]",
+                file=sys.stderr,
+            )
         _warn_if_write_may_have_applied(e)
         sys.exit(1)
     except ServerResponseError as e:
-        rich.print(f"Server response error: {e}")
+        rich.print(f"Server response error: {escape(str(e))}", file=sys.stderr)
         if "Client error message:" in str(e):
             rich.print(
                 "[red]Client error, [/red] "
                 "Please check the command and its parameters. "
-                "If you need help, run the command with --help."
+                "If you need help, run the command with --help.",
+                file=sys.stderr,
             )
         _warn_if_write_may_have_applied(e)
         sys.exit(1)
@@ -126,11 +132,12 @@ def safe_call_command(function: Callable, args: Iterable[Arg]) -> None:
     # turn into a ``ServerResponseError`` -- a 3xx, or a 4xx/5xx whose body is not JSON -- reach us
     # as the bare httpx error.
     except httpx.HTTPStatusError as e:
-        rich.print(f"[red]Server response error: {e}[/red]")
+        rich.print(f"[red]Server response error: {escape(str(e))}[/red]", file=sys.stderr)
         if e.response.is_redirect:
             rich.print(
                 "[red]The server answered with a redirect, which airflowctl does not follow. "
-                "Please check that the API URL you logged in with points at the Airflow API server.[/red]"
+                "Please check that the API URL you logged in with points at the Airflow API server.[/red]",
+                file=sys.stderr,
             )
         _warn_if_write_may_have_applied(e)
         sys.exit(1)
@@ -152,7 +159,7 @@ def safe_call_command(function: Callable, args: Iterable[Arg]) -> None:
                 f"Response did not match the airflowctl model {detail}. "
                 "If the server is newer than this client, try upgrading airflowctl."
             )
-        rich.print(f"[red]{message}[/red]")
+        rich.print(f"[red]{message}[/red]", file=sys.stderr)
         sys.exit(1)
 
 
@@ -226,6 +233,17 @@ def positive_int(*, allow_zero):
         raise argparse.ArgumentTypeError(f"invalid positive int value: '{value}'")
 
     return _check
+
+
+def positive_finite_float(value):
+    """Parse a float argument that must be positive and finite."""
+    try:
+        parsed = float(value)
+    except ValueError:
+        parsed = None
+    if parsed is None or not math.isfinite(parsed) or parsed <= 0:
+        raise argparse.ArgumentTypeError(f"invalid positive number: '{value}'")
+    return parsed
 
 
 def string_list_type(val):
@@ -339,6 +357,30 @@ ARG_AUTH_PASSWORD = Arg(
     dest="password",
     help="The password to use for authentication",
 )
+ARG_AUTH_SSO = Arg(
+    flags=("--sso",),
+    dest="sso",
+    default=False,
+    action="store_true",
+    help="Log in through the browser with the identity provider of the API server, if it offers it",
+)
+ARG_AUTH_NO_BROWSER = Arg(
+    flags=("--no-browser",),
+    dest="no_browser",
+    default=False,
+    action="store_true",
+    help=(
+        "With --sso, print the login URL instead of opening a browser. "
+        "The browser must run on this machine, because the login redirects to 127.0.0.1"
+    ),
+)
+ARG_AUTH_TIMEOUT = Arg(
+    flags=("--timeout",),
+    type=positive_finite_float,
+    default=None,
+    dest="timeout",
+    help="With --sso, seconds to wait for the browser login to complete (default: 300)",
+)
 
 # Dag Commands Args
 ARG_DAG_ID = Arg(
@@ -383,6 +425,12 @@ ARG_DAG_CLEAR_ONLY_RUNNING = Arg(
     default=False,
     action="store_true",
     help="Only clear running task instances",
+)
+ARG_DAG_CLEAR_KEEP_TASK_STATE = Arg(
+    flags=("--keep-task-state",),
+    default=False,
+    action="store_true",
+    help="Keep the task state store entries of cleared tasks so they resume from them",
 )
 ARG_DAG_CLEAR_YES = Arg(
     flags=("-y", "--yes"),
@@ -541,33 +589,11 @@ class GroupCommand(NamedTuple):
     name: str
     help: str
     subcommands: Iterable
-    api_operation: dict | None = None
     description: str | None = None
     epilog: str | None = None
 
 
-class GroupCommandParser(NamedTuple):
-    """ClI command with subcommands."""
-
-    name: str
-    help: str
-    subcommands: Iterable
-    description: str | None = None
-    epilog: str | None = None
-
-    @classmethod
-    def from_group_command(cls, group_command: GroupCommand) -> GroupCommandParser:
-        """Create GroupCommandParser from GroupCommand."""
-        return cls(
-            name=group_command.name,
-            help=group_command.help,
-            subcommands=group_command.subcommands,
-            description=group_command.description,
-            epilog=group_command.epilog,
-        )
-
-
-CLICommand = ActionCommand | GroupCommand | GroupCommandParser
+CLICommand = ActionCommand | GroupCommand
 
 
 class CommandFactory:
@@ -624,6 +650,7 @@ class CommandFactory:
         # (hyphenated into the subcommand name).
         # e.g. list_state_store -> "taskinstances state-store list".
         self.subgroups: dict[str, set[str]] = {
+            "AssetsOperations": {"state_store"},
             "TaskInstancesOperations": {"state_store"},
         }
 
@@ -1223,7 +1250,6 @@ def merge_commands(
                         name=command.name,
                         help=command.help,
                         subcommands=current_subcommands,
-                        api_operation=merged_command.api_operation,
                         description=merged_command.description,
                         epilog=command.epilog,
                     )
@@ -1253,7 +1279,8 @@ AUTH_COMMANDS = (
         description=(
             "Log in to the Airflow API server and store the credentials for the selected environment. "
             "Pass --api-token (or set AIRFLOW_CLI_TOKEN), or --username and --password; "
-            "missing credentials are prompted for when running in a terminal."
+            "missing credentials are prompted for when running in a terminal. "
+            "Pass --sso to log in through the browser when the API server offers it."
         ),
         func=lazy_load_command("airflowctl.ctl.commands.auth_command.login"),
         args=(
@@ -1262,6 +1289,9 @@ AUTH_COMMANDS = (
             ARG_AUTH_USERNAME,
             ARG_AUTH_PASSWORD,
             ARG_AUTH_SKIP_KEYRING,
+            ARG_AUTH_SSO,
+            ARG_AUTH_NO_BROWSER,
+            ARG_AUTH_TIMEOUT,
         ),
     ),
     ActionCommand(
@@ -1275,7 +1305,8 @@ AUTH_COMMANDS = (
         name="token",
         help="Generate and print a JWT token for the given credentials",
         description=(
-            "Authenticate with username and password and print the access token to stdout. "
+            "Authenticate with username and password, or through the browser with --sso, "
+            "and print the access token to stdout. "
             "Username and password are prompted interactively if not provided. "
             "In non-interactive runs, pass --username and either pass --password "
             "or pipe the password on stdin."
@@ -1285,6 +1316,9 @@ AUTH_COMMANDS = (
             ARG_AUTH_URL,
             ARG_AUTH_USERNAME,
             ARG_AUTH_PASSWORD,
+            ARG_AUTH_SSO,
+            ARG_AUTH_NO_BROWSER,
+            ARG_AUTH_TIMEOUT,
         ),
     ),
 )
@@ -1330,6 +1364,7 @@ DAG_COMMANDS = (
             ARG_DAG_PARTITION_DATE_END,
             ARG_DAG_CLEAR_ONLY_FAILED,
             ARG_DAG_CLEAR_ONLY_RUNNING,
+            ARG_DAG_CLEAR_KEEP_TASK_STATE,
             ARG_DAG_CLEAR_YES,
         ),
     ),

@@ -22,7 +22,7 @@ import json
 import uuid
 from math import ceil
 from typing import TYPE_CHECKING
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 import httpx
 import pytest
@@ -80,6 +80,8 @@ from airflowctl.api.datamodels.generated import (
     DAGWarningCollectionResponse,
     DAGWarningResponse,
     DagWarningType,
+    DryRunBackfillCollectionResponse,
+    DryRunBackfillResponse,
     ImportErrorCollectionResponse,
     ImportErrorResponse,
     JobCollectionResponse,
@@ -120,7 +122,12 @@ from airflowctl.api.datamodels.generated import (
     XComResponse,
     XComResponseNative,
 )
-from airflowctl.api.operations import BaseOperations, _build_query_params, _tolerant_model
+from airflowctl.api.operations import (
+    BaseOperations,
+    ServerResponseError,
+    _build_query_params,
+    _tolerant_model,
+)
 from airflowctl.exceptions import AirflowCtlConnectionException
 
 if TYPE_CHECKING:
@@ -304,6 +311,48 @@ class TestBaseOperations:
         # Verify limit is sent on both the first and second request
         for call in mock_client.get.call_args_list:
             assert call.kwargs["params"]["limit"] == 2
+
+    def test_execute_list_advances_by_entries_received_when_server_caps_limit(self):
+        """A server with a lower ``api.maximum_page_limit`` returns fewer entries than requested;
+        paging must continue from what was received or the entries in between are skipped."""
+        mock_client = Mock(spec=Client)
+        mock_client.get.side_effect = [
+            Mock(content=json.dumps({"hellos": [{"name": "a"}, {"name": "b"}], "total_entries": 5})),
+            Mock(content=json.dumps({"hellos": [{"name": "c"}, {"name": "d"}], "total_entries": 5})),
+            Mock(content=json.dumps({"hellos": [{"name": "e"}], "total_entries": 5})),
+        ]
+        base_operation = BaseOperations(client=mock_client)
+
+        response = base_operation.execute_list(path="hello", data_model=HelloCollectionResponse, limit=50)
+
+        assert [hello.name for hello in response.hellos] == ["a", "b", "c", "d", "e"]
+        assert [call.kwargs["params"]["offset"] for call in mock_client.get.call_args_list] == [0, 2, 4]
+
+    def test_execute_list_stops_when_server_returns_an_empty_page(self):
+        mock_client = Mock()
+        mock_client.get.side_effect = [
+            Mock(content=json.dumps({"hellos": [{"name": "a"}], "total_entries": 3})),
+            Mock(content=json.dumps({"hellos": [], "total_entries": 3})),
+        ]
+        base_operation = BaseOperations(client=mock_client)
+
+        response = base_operation.execute_list(path="hello", data_model=HelloCollectionResponse, limit=50)
+
+        assert [hello.name for hello in response.hellos] == ["a"]
+        assert mock_client.get.call_count == 2
+
+    def test_execute_list_returns_first_page_when_response_has_no_entries_list(self):
+        class _CountOnlyResponse(BaseModel):
+            total_entries: int
+
+        mock_client = Mock()
+        mock_client.get.return_value = Mock(content=json.dumps({"total_entries": 5}))
+        base_operation = BaseOperations(client=mock_client)
+
+        response = base_operation.execute_list(path="hello", data_model=_CountOnlyResponse, limit=2)
+
+        assert response == _CountOnlyResponse(total_entries=5)
+        assert mock_client.get.call_count == 1
 
     def test_execute_list_sends_offset_to_server(self):
         """``offset`` must reach the server on the first request, not only on subsequent pages."""
@@ -730,15 +779,29 @@ class TestBackfillOperations:
         backfills=[backfill_response],
         total_entries=1,
     )
+    dry_run_response = DryRunBackfillCollectionResponse(
+        backfills=[
+            DryRunBackfillResponse(
+                logical_date=datetime.datetime(2025, 1, 1, 0, 0, 0),
+                partition_key=None,
+                partition_date=None,
+            )
+        ],
+        total_entries=1,
+    )
 
     @pytest.mark.parametrize(
-        ("operation", "path"), [("create", "backfills"), ("create_dry_run", "backfills/dry_run")]
+        ("operation", "path", "server_response"),
+        [
+            ("create", "backfills", backfill_response),
+            ("create_dry_run", "backfills/dry_run", dry_run_response),
+        ],
     )
     @pytest.mark.parametrize(
         ("request_fields", "expected_fields"),
         [({}, {}), ({"drain_dag": False}, {}), ({"drain_dag": True}, {"drain_dag": True})],
     )
-    def test_create(self, operation, path, request_fields, expected_fields):
+    def test_create(self, operation, path, server_response, request_fields, expected_fields):
         expected_body = {
             "dag_id": "dag_id",
             "from_date": "2024-12-31T23:59:59",
@@ -753,13 +816,13 @@ class TestBackfillOperations:
             assert request.url.path == f"/api/v2/{path}"
             assert request.headers.get("content-type", "").startswith("application/json")
             assert json.loads(request.content.decode()) == expected_body
-            return httpx.Response(200, json=json.loads(self.backfill_response.model_dump_json()))
+            return httpx.Response(200, json=json.loads(server_response.model_dump_json()))
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
         response = getattr(client.backfills, operation)(
             backfill=self.backfill_body.model_copy(update=request_fields)
         )
-        assert response == self.backfill_response
+        assert response == server_response
 
     def test_get(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
@@ -1669,13 +1732,17 @@ class TestDagRunOperations:
     def test_list(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
             assert request.url.path == f"/api/v2/dags/{self.dag_id}/dagRuns"
+            assert {key: value for key, value in request.url.params.items() if "date" in key} == {
+                "start_date_gte": "2025-01-01T00:00:00",
+                "end_date_lte": "2025-01-02T00:00:00",
+            }
             return httpx.Response(200, json=json.loads(self.dag_run_collection_response.model_dump_json()))
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
         response = client.dag_runs.list(
             dag_id=self.dag_id,
             start_date=datetime.datetime(2025, 1, 1, 0, 0, 0),
-            end_date=datetime.datetime(2025, 1, 1, 0, 0, 0),
+            end_date=datetime.datetime(2025, 1, 2, 0, 0, 0),
             state=DagRunState.RUNNING,
             limit=1,
         )
@@ -2916,6 +2983,117 @@ class TestAuthOperations:
             )
         )
         assert response.access_token == "NO_TOKEN"
+
+    def test_get_cli_login_metadata(self):
+        metadata = {
+            "grant_types_supported": ["password", "authorization_code"],
+            "code_challenge_methods_supported": ["S256"],
+            "authorization_endpoint": "/auth/login/cli",
+            "device_authorization_endpoint": None,
+            "token_endpoint": "/auth/token/cli",
+        }
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == "/prefix/api/v2/auth/cli/metadata"
+            return httpx.Response(200, json=metadata)
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request), kind=ClientKind.AUTH)
+
+        response = client.login.get_cli_login_metadata("http://server/prefix/")
+
+        assert response.model_dump() == metadata
+
+    @pytest.mark.parametrize(
+        "response",
+        [
+            pytest.param(httpx.Response(404, json={"detail": "Not Found"}), id="json"),
+            pytest.param(httpx.Response(404, text="Not Found"), id="text"),
+        ],
+    )
+    def test_get_cli_login_metadata_without_discovery(self, response):
+        client = make_api_client(
+            transport=httpx.MockTransport(lambda request: response), kind=ClientKind.AUTH
+        )
+
+        metadata = client.login.get_cli_login_metadata("http://server")
+
+        assert metadata.grant_types_supported == []
+        assert metadata.token_endpoint is None
+
+    def test_get_cli_login_metadata_server_error(self):
+        client = make_api_client(
+            transport=httpx.MockTransport(lambda request: httpx.Response(403, json={"detail": "Forbidden"})),
+            kind=ClientKind.AUTH,
+        )
+
+        with pytest.raises(ServerResponseError):
+            client.login.get_cli_login_metadata("http://server")
+
+    def test_login_with_authorization_code(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert str(request.url) == "http://server/auth/token/cli"
+            assert json.loads(request.content) == {
+                "grant_type": "authorization_code",
+                "code": "code",
+                "code_verifier": "verifier",
+                "redirect_uri": "http://127.0.0.1:1234/callback",
+            }
+            return httpx.Response(201, json={"access_token": "TOKEN"})
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request), kind=ClientKind.AUTH)
+
+        response = client.login.login_with_authorization_code(
+            "http://server/auth/token/cli",
+            code="code",
+            code_verifier="verifier",
+            redirect_uri="http://127.0.0.1:1234/callback",
+        )
+
+        assert response.access_token == "TOKEN"
+
+    @patch("airflowctl.api.client.Client.request.retry.sleep", autospec=True)
+    def test_login_with_authorization_code_retries_connect_error(self, mock_sleep):
+        outcomes: list[httpx.Response | httpx.ConnectError] = [
+            httpx.ConnectError("Connection refused"),
+            httpx.Response(201, json={"access_token": "TOKEN"}),
+        ]
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            outcome = outcomes.pop(0)
+            if isinstance(outcome, httpx.ConnectError):
+                raise outcome
+            return outcome
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request), kind=ClientKind.AUTH)
+
+        response = client.login.login_with_authorization_code(
+            "http://server/auth/token/cli",
+            code="code",
+            code_verifier="verifier",
+            redirect_uri="http://127.0.0.1:1234/callback",
+        )
+
+        assert response.access_token == "TOKEN"
+        assert outcomes == []
+
+    def test_login_with_authorization_code_is_not_retried(self):
+        requests = []
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            requests.append(request)
+            return httpx.Response(503, json={"detail": "Unavailable"})
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request), kind=ClientKind.AUTH)
+
+        with pytest.raises(ServerResponseError):
+            client.login.login_with_authorization_code(
+                "http://server/auth/token/cli",
+                code="code",
+                code_verifier="verifier",
+                redirect_uri="http://127.0.0.1:1234/callback",
+            )
+
+        assert len(requests) == 1
 
 
 class TestXComOperations:

@@ -18,9 +18,11 @@
  */
 import "@testing-library/jest-dom/vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 
-import { AppWrapper } from "src/utils/AppWrapper";
+import { AppWrapper, preloadAppRoutes } from "src/utils/AppWrapper";
+
+beforeAll(() => preloadAppRoutes(["/task_instances"]));
 
 describe("Task Instances date filters", () => {
   it("shows a pill for a logical_date link so the filter is visible and removable", async () => {

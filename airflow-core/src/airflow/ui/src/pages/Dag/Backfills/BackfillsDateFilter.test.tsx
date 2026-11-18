@@ -18,9 +18,11 @@
  */
 import "@testing-library/jest-dom/vitest";
 import { render, screen, waitFor, within } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 
-import { AppWrapper } from "src/utils/AppWrapper";
+import { AppWrapper, preloadAppRoutes } from "src/utils/AppWrapper";
+
+beforeAll(() => preloadAppRoutes(["/dags/tutorial_taskflow_api/backfills"]));
 
 // The backfills mock handler (see src/mocks/handlers/backfills.ts) returns:
 //   - id 1 (start_date: 2024-12-01, end_date: 2024-12-31) — excluded when filtering Jan 2025
@@ -30,10 +32,13 @@ const getFromDateCells = () =>
   screen.getAllByTestId("time-display").map((element) => element.getAttribute("datetime"));
 
 describe("Backfills start/end date filter", () => {
-  it("shows all backfills when no date filter is applied", async () => {
+  it("shows all backfills when no date filter is applied", async ({ task }) => {
     render(<AppWrapper initialEntries={["/dags/tutorial_taskflow_api/backfills"]} />);
 
-    await waitFor(() => expect(getFromDateCells()).toContain("2025-01-01T00:00:00Z"));
+    // The file's first render of the whole app can take over waitFor's default second on CI.
+    await waitFor(() => expect(getFromDateCells()).toContain("2025-01-01T00:00:00Z"), {
+      timeout: task.timeout,
+    });
     expect(getFromDateCells()).toContain("2024-12-01T00:00:00Z");
   });
 

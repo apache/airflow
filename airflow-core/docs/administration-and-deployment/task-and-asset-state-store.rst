@@ -61,8 +61,8 @@ Number of days after which task state store rows expire. When a key is written w
 ~~~~~~~~~~~~~~~~~~~~
 
 Retention and ``clear_on_success`` are not the only ways task state store entries get removed:
-clearing a task instance through the REST API, the UI, or ``airflowctl`` also discards them by
-default unless ``keep_task_state`` is set. See :doc:`/core-concepts/resumable-tasks`.
+clearing a task instance or a Dag run (REST API, UI, ``airflowctl`` or the ``airflow`` CLI) also
+discards them by default unless ``keep_task_state`` is set. See :doc:`/core-concepts/resumable-tasks`.
 
 When ``True``, all task state store keys for a task instance are automatically deleted when that task instance moves to the ``success`` state. Defaults to ``False``, which preserves task state store entries after success for observability (e.g. the submitted job ID or the last row count is still readable from the UI or REST API after the run completes).
 
@@ -127,6 +127,8 @@ Custom backends
 ---------------
 
 A custom backend must subclass :class:`~airflow.sdk.state.BaseStoreBackend` and implement its abstract methods: ``get``, ``set``, ``delete``, and ``clear`` for synchronous callers and the ``aget``, ``aset``, ``adelete``, and ``aclear`` async equivalents. Refer to :class:`~airflow.sdk.state.BaseStoreBackend` for the full API.
+
+Values are passed to :meth:`~airflow.sdk.state.BaseStoreBackend.set` and returned from :meth:`~airflow.sdk.state.BaseStoreBackend.get` as JSON encoded strings, and are never the JSON ``null``. The Execution API reads values through :meth:`~airflow.sdk.state.BaseStoreBackend.get_value` (:meth:`~airflow.sdk.state.BaseStoreBackend.aget_value` is the async equivalent); a backend that stores values natively can override them to skip decoding on reads.
 
 Each method receives a ``scope`` argument that is either a :class:`~airflow.sdk.state.TaskScope` or an :class:`~airflow.sdk.state.AssetScope`. The union of the two is exported as ``airflow.sdk.state.StoreScope`` for type annotations. Use ``isinstance`` to dispatch:
 
