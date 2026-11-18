@@ -34,6 +34,17 @@ Changelog
   team's secret. Store secrets used outside any team under ids without ``/``, or set
   ``use_team_secrets_path=False`` if the deployment does not use team-scoped Vault paths.
 
+4.8.4
+.....
+
+Misc
+~~~~
+
+* ``Bump optional boto3 requirement to 1.42.93 (#73822)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 4.8.3
 .....
 

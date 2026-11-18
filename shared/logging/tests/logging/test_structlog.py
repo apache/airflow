@@ -436,6 +436,7 @@ def test_json_exc(structlog_config, get_logger, monkeypatch):
                         "filename": __file__,
                         "lineno": lineno,
                         "name": "test_json_exc",
+                        "line": "1 / 0",
                     },
                 ],
                 "is_cause": False,

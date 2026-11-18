@@ -78,17 +78,23 @@ const ImportVariablesForm = ({ onClose }: ImportVariablesFormProps) => {
     reader.addEventListener("load", (event) => {
       const text = event.target?.result as string;
 
-      try {
-        const parsedContent = JSON.parse(text) as Record<string, unknown>;
+      let parsedContent: unknown;
 
-        setFileContent(parsedContent);
+      try {
+        parsedContent = JSON.parse(text);
       } catch {
+        parsedContent = undefined;
+      }
+
+      if (parsedContent === null || typeof parsedContent !== "object" || Array.isArray(parsedContent)) {
         setError({
           body: {
             detail: translate("variables.import.errorParsingJsonFile"),
           },
         });
         setFileContent(undefined);
+      } else {
+        setFileContent(parsedContent as Record<string, unknown>);
       }
 
       setIsParsing(false);

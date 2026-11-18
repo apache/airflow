@@ -20,11 +20,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 
-import {
-  UseDagServiceGetDagKeyFn,
-  useDagRunServiceTriggerDagRun,
-  useDagServiceGetDagsUiKey,
-} from "openapi/queries";
+import { UseDagServiceGetDagKeyFn, useDagRunServiceTriggerDagRun } from "openapi/queries";
 import type { TriggerDagRunData, TriggerDagRunResponse } from "openapi/requests/types.gen";
 
 import { toaster } from "src/system-components";
@@ -32,7 +28,7 @@ import { toaster } from "src/system-components";
 import type { DagRunTriggerParams } from "src/components/TriggerDag/types";
 
 import { SearchParamsKeys } from "src/constants/searchParams";
-import { gridQueryKeys } from "src/queries/gridViewQueryKeys";
+import { dagListQueryKeys, gridQueryKeys } from "src/queries/gridViewQueryKeys";
 import { createErrorToaster, toNullablePartitionKey } from "src/utils";
 
 export const useTrigger = ({ dagId, onSuccessConfirm }: { dagId: string; onSuccessConfirm: () => void }) => {
@@ -47,12 +43,11 @@ export const useTrigger = ({ dagId, onSuccessConfirm }: { dagId: string; onSucce
       ? [UseDagServiceGetDagKeyFn({ dagId }, [{ dagId }])]
       : [];
 
-    await Promise.all([
-      queryClient.invalidateQueries({ queryKey: [useDagServiceGetDagsUiKey] }),
-      ...[...gridQueryKeys(dagId), ...drainKeys].map((key) =>
+    await Promise.all(
+      [...dagListQueryKeys, ...gridQueryKeys(dagId), ...drainKeys].map((key) =>
         queryClient.invalidateQueries({ queryKey: key }),
       ),
-    ]);
+    );
 
     toaster.create({
       description: translate("triggerDag.toaster.success.description"),

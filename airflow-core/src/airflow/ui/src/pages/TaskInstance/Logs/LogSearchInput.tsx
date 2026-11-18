@@ -85,7 +85,7 @@ export const LogSearchInput = ({
                   : translate("logs.search.noMatches")}
               </Text>
               <IconButton
-                aria-label="Previous match"
+                aria-label={translate("logs.search.previousMatch")}
                 disabled={totalMatches === 0}
                 onClick={onSearchPrevious}
                 size="2xs"
@@ -93,7 +93,7 @@ export const LogSearchInput = ({
                 <FiChevronUp />
               </IconButton>
               <IconButton
-                aria-label="Next match"
+                aria-label={translate("logs.search.nextMatch")}
                 disabled={totalMatches === 0}
                 onClick={onSearchNext}
                 size="2xs"

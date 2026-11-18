@@ -27,6 +27,8 @@ repos:
     hooks:
       - id: insert-license
         name: Add license for all Helm template files
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
         files: ^templates/.*
         args:
           - --comment-style
@@ -38,6 +40,8 @@ repos:
     hooks:
       - id: update-chart-dependencies
         name: Update chart dependencies to latest (manual)
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
         entry: ../scripts/ci/prek/update_chart_dependencies.py
         stages: ['manual']
         language: python
@@ -46,6 +50,8 @@ repos:
         require_serial: true
       - id: mypy-helm-tests
         name: Run mypy for helm-tests
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
         language: python
         entry: ../scripts/ci/prek/run_mypy_full_dist_local_venv_or_breeze_in_ci.py chart/tests
         pass_filenames: false
@@ -56,6 +62,8 @@ repos:
     hooks:
       - id: pretty-format-json
         name: Format JSON files
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
         args:
           - --autofix
           - --no-sort-keys
@@ -70,6 +78,8 @@ repos:
     hooks:
       - id: lint-helm-chart
         name: Lint Helm Chart
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
         entry: ../scripts/ci/prek/lint_helm.py
         language: python
         pass_filenames: false
@@ -77,12 +87,16 @@ repos:
         require_serial: true
       - id: validate-chart-annotations
         name: Validate chart annotations
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
         entry: ../scripts/ci/prek/validate_chart_annotations.py
         language: python
         pass_filenames: false
         files: ^Chart\.yaml$
       - id: kubeconform
         name: Kubeconform check on our helm chart
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
         entry: ../scripts/ci/prek/check_kubeconform.py
         language: python
         pass_filenames: false
@@ -90,6 +104,8 @@ repos:
         require_serial: true
       - id: build-kustomize-overlays
         name: Build and smoke-test Kustomize overlays
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
         entry: ../scripts/ci/prek/build_kustomize_overlays.py
         language: python
         pass_filenames: false
@@ -97,6 +113,8 @@ repos:
         require_serial: true
       - id: sort-helm-values-schema-file-type-field
         name: Sort Helm Values Schema File (type field)
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
         entry: ../scripts/ci/prek/sort_helm_values_schema_file_type_field.py
         language: python
         pass_filenames: false
@@ -104,6 +122,8 @@ repos:
         require_serial: true
       - id: update-helm-values-schema-schema-file-type-field-match
         name: Update Helm Values Schema Schema File (type field match)
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
         entry: ../scripts/ci/prek/update_helm_schema_schema_type_fields_match.py
         language: python
         pass_filenames: false
@@ -111,6 +131,8 @@ repos:
         require_serial: true
       - id: lint-json-schema
         name: Lint chart/values.schema.json
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
         entry: ../scripts/ci/prek/lint_json_schema.py
         args:
           - --spec-file
@@ -122,11 +144,15 @@ repos:
         require_serial: true
       - id: update-vendored-in-k8s-json-schema
         name: Vendor k8s definitions into values.schema.json
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
         entry: ../scripts/ci/prek/vendor_k8s_json_schema.py
         language: python
         files: ^values\.schema\.json$
       - id: lint-json-schema
         name: Lint chart/values.yaml
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
         entry: ../scripts/ci/prek/lint_json_schema.py
         args:
           - --enforce-defaults
@@ -139,6 +165,8 @@ repos:
         require_serial: true
       - id: lint-chart-schema
         name: Lint chart/values.schema.json file
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
         entry: ../scripts/ci/prek/chart_schema.py
         language: python
         pass_filenames: false

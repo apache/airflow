@@ -20,8 +20,9 @@
 import { Box, ChakraProvider } from "@chakra-ui/react";
 import type { FC } from "react";
 
-import { ModelPanel } from "src/components/ModelPanel";
+import { ModelLoading, ModelPanel } from "src/components/ModelPanel";
 import { NoModelInfo } from "src/components/NoModelInfo";
+import { type HostTaskInstance, isSelectionPending, regionOf } from "src/region";
 
 import { localSystem } from "./theme";
 
@@ -30,28 +31,43 @@ export interface PluginComponentProps {
   mapIndex?: string;
   runId?: string;
   taskId?: string;
+  taskInstance?: HostTaskInstance;
 }
 
 /**
  * Main plugin component for the AI Model tab.
  *
- * Receives dagId, runId, taskId, mapIndex as props from the Airflow React plugin
- * host (from route params). Renders ModelPanel when all params are present,
- * otherwise shows NoModelInfo fallback.
+ * Receives dagId, runId, taskId, mapIndex (from route params) and the selected
+ * taskInstance as props from the Airflow React plugin host. Renders ModelPanel when
+ * all params are present, otherwise shows NoModelInfo fallback.
  */
-const PluginComponent: FC<PluginComponentProps> = ({
-  dagId = "",
-  runId = "",
-  taskId = "",
-  mapIndex: mapIndexProp = "-1",
-}) => {
+const PluginComponent: FC<PluginComponentProps> = (props) => {
+  const {
+    dagId = "",
+    runId = "",
+    taskId = "",
+    mapIndex: mapIndexProp = "-1",
+    taskInstance,
+  } = props;
   const mapIndex = /^-?\d+$/.test(String(mapIndexProp)) ? parseInt(String(mapIndexProp), 10) : -1;
 
   if (!dagId || !runId || !taskId) {
     return <NoModelInfo />;
   }
 
-  return <ModelPanel dagId={dagId} runId={runId} taskId={taskId} mapIndex={mapIndex} />;
+  if (isSelectionPending(props)) {
+    return <ModelLoading />;
+  }
+
+  return (
+    <ModelPanel
+      dagId={dagId}
+      runId={runId}
+      taskId={taskId}
+      mapIndex={mapIndex}
+      region={regionOf(taskInstance)}
+    />
+  );
 };
 
 /**
@@ -59,7 +75,9 @@ const PluginComponent: FC<PluginComponentProps> = ({
  * Chakra semantic tokens handle light/dark mode automatically.
  */
 const WrappedPluginComponent: FC<PluginComponentProps> = (props) => {
-  const system = (globalThis as Record<string, unknown>).ChakraUISystem ?? localSystem;
+  const system =
+    (globalThis as typeof globalThis & { ChakraUISystem?: typeof localSystem }).ChakraUISystem ??
+    localSystem;
 
   return (
     <ChakraProvider value={system}>

@@ -45,14 +45,6 @@ type RunStateFilterConfig = {
   options: Array<SelectOption>;
 };
 
-const collapsePill = () => {
-  setTimeout(() => {
-    const activeElement = document.activeElement as HTMLElement;
-
-    activeElement.blur();
-  }, 0);
-};
-
 /**
  * One pill filtering Dags on a run state matched within a lookback: the latest run only, a
  * recent time window, or the whole run history. Committed as a composite value that the
@@ -79,7 +71,6 @@ export const RunStateFilter = ({ filter, onChange, onRemove }: FilterPluginProps
     }
     hasJustSelected.current = true;
     onChange({ lookback: value?.lookback ?? pendingLookback, state: newState });
-    collapsePill();
   };
 
   const handleLookbackChange = ({ value: selected }: { value: Array<string> }) => {
@@ -92,7 +83,6 @@ export const RunStateFilter = ({ filter, onChange, onRemove }: FilterPluginProps
     setPendingLookback(newLookback);
     if (value !== undefined) {
       onChange({ lookback: newLookback, state: value.state });
-      collapsePill();
     }
   };
 
@@ -164,12 +154,16 @@ export const RunStateFilter = ({ filter, onChange, onRemove }: FilterPluginProps
             defaultOpen={value === undefined}
             flex="1"
             h="full"
-            // Dismissing the menu hands focus back to the trigger inside the pill, so no blur
-            // fires and the pill would stay in edit mode. A close that follows a selection is
-            // left alone: the blur that selection triggers collapses the pill instead.
+            // Closing the menu hands focus back to the trigger inside the pill, so no blur fires
+            // and the pill would stay in edit mode. A close that follows a selection waits a tick,
+            // so the pill sees the chosen value instead of dropping the filter as abandoned.
             onOpenChange={({ open }) => {
-              if (!open && !hasJustSelected.current) {
-                onRequestClose();
+              if (!open) {
+                if (hasJustSelected.current) {
+                  setTimeout(onRequestClose, 0);
+                } else {
+                  onRequestClose();
+                }
               }
               hasJustSelected.current = false;
             }}
@@ -199,6 +193,9 @@ export const RunStateFilter = ({ filter, onChange, onRemove }: FilterPluginProps
               // Unlike the state select, closing this one without picking anything is not an
               // abandoned filter: the state select is the pill's primary control.
               if (!open) {
+                if (hasJustSelected.current && value !== undefined) {
+                  setTimeout(onRequestClose, 0);
+                }
                 hasJustSelected.current = false;
               }
             }}

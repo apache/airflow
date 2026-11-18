@@ -24,7 +24,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 
 import { createServer } from "vite";
 
-const server = await createServer({ server: { middlewareMode: true } });
+const server = await createServer({ server: { middlewareMode: true, ws: false } });
 after(() => server.close());
 const { default: Plugin } = await server.ssrLoadModule("src/main.tsx");
 

@@ -139,7 +139,7 @@ export const Tasks = () => {
         filterActions={<TaskFilters tasksData={data} />}
         isLoading={isLoading}
         modelName="common:task"
-        total={data ? data.total_entries : 0}
+        total={filteredTasks.length}
       />
     </>
   );

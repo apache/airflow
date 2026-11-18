@@ -26,6 +26,7 @@ import { useConfig } from "src/queries/useConfig";
 import type { NavItemResponse } from "src/utils/types";
 
 import { NavButton } from "./NavButton";
+import { NavMenu } from "./NavMenu";
 import { PluginMenuItem } from "./PluginMenuItem";
 
 const baseUrl = document.querySelector("base")?.href ?? "http://localhost:8080/";
@@ -60,39 +61,34 @@ export const DocsButton = ({
   const versionLink = `https://airflow.apache.org/docs/apache-airflow/${version}/index.html`;
 
   return (
-    <Menu.Root positioning={{ placement: "right" }}>
-      <Menu.Trigger asChild>
-        <NavButton icon={FiBookOpen} title={translate("nav.docs")} />
-      </Menu.Trigger>
-      <Menu.Content>
-        {links
-          .filter((link) => !(!showAPIDocs && link.key === "restApiReference"))
-          .map((link) => (
-            <Menu.Item asChild key={link.key} value={translate(`docs.${link.key}`)}>
-              <Link
-                aria-label={translate(`docs.${link.key}`)}
-                href={link.href}
-                rel="noopener noreferrer"
-                target="_blank"
-                textDecoration="none"
-              >
-                <Box flex="1">{translate(`docs.${link.key}`)}</Box>
-                <Icon as={FiExternalLink} boxSize={4} color="fg.muted" />
-              </Link>
-            </Menu.Item>
-          ))}
-        {version === undefined ? undefined : (
-          <Menu.Item asChild key={version} value={version}>
-            <Link aria-label={version} href={versionLink} rel="noopener noreferrer" target="_blank">
-              <Box flex="1">{version}</Box>
+    <NavMenu trigger={<NavButton icon={FiBookOpen} title={translate("nav.docs")} />}>
+      {links
+        .filter((link) => !(!showAPIDocs && link.key === "restApiReference"))
+        .map((link) => (
+          <Menu.Item asChild key={link.key} value={translate(`docs.${link.key}`)}>
+            <Link
+              aria-label={translate(`docs.${link.key}`)}
+              href={link.href}
+              rel="noopener noreferrer"
+              target="_blank"
+              textDecoration="none"
+            >
+              <Box flex="1">{translate(`docs.${link.key}`)}</Box>
               <Icon as={FiExternalLink} boxSize={4} color="fg.muted" />
             </Link>
           </Menu.Item>
-        )}
-        {externalViews.map((view) => (
-          <PluginMenuItem {...view} key={view.name} />
         ))}
-      </Menu.Content>
-    </Menu.Root>
+      {version === undefined ? undefined : (
+        <Menu.Item asChild key={version} value={version}>
+          <Link aria-label={version} href={versionLink} rel="noopener noreferrer" target="_blank">
+            <Box flex="1">{version}</Box>
+            <Icon as={FiExternalLink} boxSize={4} color="fg.muted" />
+          </Link>
+        </Menu.Item>
+      )}
+      {externalViews.map((view) => (
+        <PluginMenuItem {...view} key={view.name} />
+      ))}
+    </NavMenu>
   );
 };

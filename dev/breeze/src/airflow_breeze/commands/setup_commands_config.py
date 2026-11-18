@@ -69,6 +69,7 @@ SETUP_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--cheatsheet",
                 "--asciiart",
                 "--colour",
+                "--worktree-isolation",
             ],
         },
     ],

@@ -20,6 +20,7 @@ from __future__ import annotations
 import codecs
 import io
 import itertools
+import linecache
 import logging
 import os
 import re
@@ -363,6 +364,16 @@ def _make_safe_enc_hook(default):
     return safe_enc_hook
 
 
+def _add_source_lines(stacks: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Add each frame's source code ``line``, which structlog's ``ExceptionDictTransformer`` omits."""
+    for stack in stacks:
+        for frame in stack["frames"]:
+            linecache.checkcache(frame["filename"])
+            if line := linecache.getline(frame["filename"], frame["lineno"]).strip():
+                frame["line"] = line
+    return stacks
+
+
 @cache
 def structlog_processors(
     json_output: bool,
@@ -436,7 +447,9 @@ def structlog_processors(
             use_rich=False, show_locals=False, suppress=suppress
         )
 
-        dict_tracebacks = structlog.processors.ExceptionRenderer(dict_exc_formatter)
+        dict_tracebacks = structlog.processors.ExceptionRenderer(
+            lambda exc_info: _add_source_lines(dict_exc_formatter(exc_info))
+        )
 
         import msgspec
 

@@ -31,6 +31,7 @@ import org.apache.airflow.sdk.*;
     id = "java_native_annotation_example",
     description = "Pure-Java Dag authored with annotations",
     schedule = "@daily",
+    queue = "java",
     startDate = "2026-01-01T00:00:00Z",
     catchup = false,
     tags = {"example", "java-sdk"})
@@ -110,7 +111,10 @@ public class AnnotationExample {
       var extracted = extract();
       var transformed = transform(extracted, lit(1.5));
       var loaded = load(transformed);
-      hasRows(transformed).Then(loaded).Else(loadEmpty());
+      var gate = hasRows(transformed).Then(loaded).Else(loadEmpty());
+      // Then and Else already declared these edges. This call only adds
+      // labels to the edges.
+      gate.before(Label.of("rows found").on(loaded), Label.of("no rows").on(loadEmpty()));
       pickReport(transformed).Case(reportLong()).Case(reportShort());
       loaded.before(triggerDownstream());
       // Ordering-only edge: the checks group runs after extract, with no data

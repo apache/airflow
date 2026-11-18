@@ -1,8 +1,7 @@
 {
   "filters": {
     "body": "Corpo",
-    "createdAtFrom": "Creato da",
-    "createdAtTo": "Creato fino a",
+    "createdAt": "Creato il",
     "response": {
       "all": "Tutte",
       "pending": "In attesa",
@@ -26,8 +25,23 @@
     "received": "Risposta ricevuta il ",
     "respond": "Rispondi",
     "responded_by_user_name": "Risposto da (Nome utente)",
+    "selectAtLeastOne": "Seleziona almeno un'opzione",
     "success": "Risposta di {{taskId}} riuscita",
     "title": "Istanza di Task Umana - {{taskId}}"
+  },
+  "review": {
+    "detail": {
+      "selectRequiredAction": "Seleziona un'azione richiesta per vedere i dettagli"
+    },
+    "list": {
+      "completedRequiredActions": "Azioni richieste completate ({{count, number}})",
+      "loadError": "Impossibile caricare le azioni richieste",
+      "loadingActions": "Caricamento delle azioni richieste...",
+      "pendingRequiredActions": "Azioni richieste in sospeso ({{count, number}})"
+    },
+    "openReviewDrawer": "Apri il pannello di revisione",
+    "pageLimitHint": "Qui sono mostrate solo le prime azioni. Usa \"$t(review.viewAll)\" per vederle tutte.",
+    "viewAll": "Vedi tutte le azioni richieste"
   },
   "state": {
     "approvalReceived": "Approvazione ricevuta",

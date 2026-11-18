@@ -31,6 +31,8 @@ from airflow.sdk.execution_time.lazy_sequence import LazyXComSequence
 from airflow.sdk.execution_time.xcom import XCom
 
 if TYPE_CHECKING:
+    from uuid import UUID
+
     from airflow.sdk.api.datamodels._generated import LoopContext
     from airflow.sdk.definitions._internal.loop import LoopGateOperator
     from airflow.sdk.definitions.context import Context
@@ -55,8 +57,25 @@ class LoopContextAccessor:
         return self._descriptor.max_iterations
 
     @property
+    def region_id(self) -> UUID:
+        return self._descriptor.region_id
+
+    @property
+    def trajectory(self) -> int:
+        return self._descriptor.trajectory
+
+    @property
+    def forked_from_region_id(self) -> UUID | None:
+        return self._descriptor.forked_from_region_id
+
+    @property
+    def resumes_from_index(self) -> int | None:
+        return self._descriptor.resumes_from_index
+
+    @property
     def previous(self) -> Any:
-        return None if self.index == 0 else self._result(previous_iteration=True)
+        # Iterations count from one, so the first pass has no previous result.
+        return None if self.index == 1 else self._result(previous_iteration=True)
 
     @property
     def result(self) -> Any:
@@ -82,7 +101,7 @@ def execute_loop_gate(gate: LoopGateOperator, context: Context) -> None:
     ti = cast("RuntimeTaskInstance", context["ti"])
     reason: str | None = None
     if gate.until is None:
-        stop = loop.index + 1 >= loop.max_iterations
+        stop = loop.index >= loop.max_iterations
     else:
         match result := gate.until(**determine_kwargs(gate.until, (), context)):
             case bool():
@@ -117,7 +136,7 @@ def execute_loop_gate(gate: LoopGateOperator, context: Context) -> None:
             raise AirflowFailException("LoopDecision reason cannot contain NUL bytes")
     ti._loop_decision = LoopDecisionPayload(stop=stop, reason=reason)
     suffix = "" if reason is None else f": {reason}"
-    if not stop and loop.index + 1 >= loop.max_iterations:
+    if not stop and loop.index >= loop.max_iterations:
         raise LoopMaxIterationsExceeded(
             f"Loop condition remained false at max_iterations={loop.max_iterations}{suffix}"
         )

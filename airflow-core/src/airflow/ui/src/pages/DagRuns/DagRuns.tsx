@@ -44,6 +44,8 @@ import { ErrorAlert } from "src/components/ErrorAlert";
 import { ExpandCollapseButtons } from "src/components/ExpandCollapseButtons";
 import { LimitedItemsList } from "src/components/LimitedItemsList";
 import { MarkRunAsButton } from "src/components/MarkAs";
+import { PluginActions } from "src/components/PluginActions";
+import { PluginActionsProvider } from "src/components/PluginActions/PluginActionsContext";
 import RenderedJsonField from "src/components/RenderedJsonField";
 import { RunTypeIcon } from "src/components/RunTypeIcon";
 import { StateBadge } from "src/components/StateBadge";
@@ -53,6 +55,7 @@ import { TruncatedText } from "src/components/TruncatedText";
 
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { useAdvancedSearchArg } from "src/hooks/useAdvancedSearch";
+import { usePluginActions } from "src/hooks/usePluginActions";
 import { useConfig } from "src/queries/useConfig";
 import { formatNumber, useAutoRefresh, hasDagRunConfig, isStatePending, useDocumentTitle } from "src/utils";
 
@@ -239,8 +242,10 @@ const runColumns = ({
         <ClearRunButton dagRun={row.original} />
         <MarkRunAsButton dagRun={row.original} />
         <DeleteRunButton dagRun={row.original} />
+        <PluginActions entity={{ dagRun: row.original, destination: "dag_run" }} />
       </Flex>
     ),
+    enableHiding: false,
     enableSorting: false,
     header: "",
     meta: {
@@ -373,6 +378,8 @@ export const DagRuns = () => {
       getKey: getRowKey,
     });
 
+  const pluginActions = usePluginActions("dag_run");
+
   const selectedDagRuns = dagRuns.filter((dagRun) => selectedRows.has(getRowKey(dagRun)));
 
   const columns = runColumns({
@@ -389,31 +396,33 @@ export const DagRuns = () => {
       onSelectAll={handleSelectAll}
       selectedRows={selectedRows}
     >
-      <DataTable
-        columns={columns}
-        data={dagRuns}
-        errorMessage={<ErrorAlert error={error} />}
-        filterActions={<DagRunsFilters dagId={dagId} />}
-        initialState={tableURLState}
-        isLoading={isLoading}
-        modelName="common:dagRun"
-        nextCursor={nextCursor}
-        onStateChange={setTableURLState}
-        presentationActions={
-          dagRuns.length > 0 ? (
-            <ExpandCollapseButtons
-              collapseLabel={translate("common:collapseAllExtra")}
-              expandLabel={translate("common:expandAllExtra")}
-              isExpanded={open}
-              onCollapse={onClose}
-              onExpand={onOpen}
-            />
-          ) : undefined
-        }
-        previousCursor={previousCursor}
-        total={data?.total_entries ?? 0}
-        totalEntriesLimit={data?.total_entries_limit ?? undefined}
-      />
+      <PluginActionsProvider value={pluginActions}>
+        <DataTable
+          columns={columns}
+          data={dagRuns}
+          errorMessage={<ErrorAlert error={error} />}
+          filterActions={<DagRunsFilters dagId={dagId} />}
+          initialState={tableURLState}
+          isLoading={isLoading}
+          modelName="common:dagRun"
+          nextCursor={nextCursor}
+          onStateChange={setTableURLState}
+          presentationActions={
+            dagRuns.length > 0 ? (
+              <ExpandCollapseButtons
+                collapseLabel={translate("common:collapseAllExtra")}
+                expandLabel={translate("common:expandAllExtra")}
+                isExpanded={open}
+                onCollapse={onClose}
+                onExpand={onOpen}
+              />
+            ) : undefined
+          }
+          previousCursor={previousCursor}
+          total={data?.total_entries ?? 0}
+          totalEntriesLimit={data?.total_entries_limit ?? undefined}
+        />
+      </PluginActionsProvider>
       <ActionBar.Root closeOnInteractOutside={false} open={Boolean(selectedRows.size)}>
         <ActionBar.Content>
           <ActionBar.SelectionTrigger>

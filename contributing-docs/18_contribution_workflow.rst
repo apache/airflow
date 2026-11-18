@@ -43,7 +43,8 @@ In general, your contribution includes the following stages:
 2. Create a `local virtualenv <07_local_virtualenv.rst>`_,
    initialize the `Breeze environment <../dev/breeze/doc/README.rst>`__, and
    install `prek tool <08_static_code_checks.rst#prek-hooks>`__.
-   If you want to add more changes in the future, set up your fork and enable GitHub Actions.
+   Set up the ``upstream`` and ``origin`` remotes and check them with ``breeze ci audit``; if
+   fork CI applies to you (see `CI in your fork`_), enable CI in your fork as described there.
 
 3. Join `devlist <https://lists.apache.org/list.html?dev@airflow.apache.org>`__
    and set up a `Slack account <https://s.apache.org/airflow-slack>`__.
@@ -126,6 +127,154 @@ to make them immediately visible in the environment.
 6. Open your IDE (for example, PyCharm) and select the virtual environment you created
    as the project's default virtual environment in your IDE.
 
+CI in your fork
+~~~~~~~~~~~~~~~
+
+Pull requests from contributors who are not committers or collaborators are moving to running
+their CI in the contributor's own fork, on GitHub's free runners, instead of on the shared CI
+capacity of the Apache Software Foundation (`ADIP-12, formerly AIP-120
+<https://cwiki.apache.org/confluence/spaces/AIRFLOW/pages/451974711>`__).
+CI on a public fork costs you nothing and has no minute limit; it runs on every push to your
+fork, so you get feedback before a maintainer looks at your pull request. The change is being
+piloted: until it is switched on for everyone, it applies to pilot participants (see below) and
+to pull requests a maintainer labels ``use fork ci``.
+
+Set up your checkout and fork once:
+
+1. Name your remotes as described in `Git remote naming conventions <10_working_with_git.rst>`__:
+   ``upstream`` for ``apache/airflow`` and ``origin`` for your fork.
+
+2. If fork CI applies to you, enable the ``Tests (AMD)`` workflow in your fork: today that means
+   you joined the pilot or a maintainer labelled your pull request ``use fork ci``; once fork CI is
+   switched on for everyone, it means you are not a committer, a collaborator or a member of an
+   exempted organisation. GitHub disables workflows in new forks. Sync your fork's ``main`` with
+   ``apache/airflow`` first, so it has the current version of the workflow:
+
+   .. code-block:: bash
+
+      gh repo sync <you>/airflow --branch main
+      gh workflow enable ci-amd.yml -R <you>/airflow
+
+   GitHub Actions must also be enabled in your fork and allow all actions: ``Tests (AMD)`` uses
+   actions from other repositories. When your fork's Actions settings block the workflow, its run
+   ends in "Startup failure" before any job runs, and the fork CI monitor reports
+   ``Fork CI / Tests (AMD)`` as failed with "could not start". Open the run in your fork for GitHub's
+   error, which can also be an invalid workflow file, fix the settings under
+   **Settings > Actions > General** in your fork, and push again.
+
+   Keep the workflow enabled for as long as you have open pull requests. If it gets disabled, from
+   your fork's Actions tab or by GitHub after 60 days without activity in your fork, the fork CI
+   monitor comments on your pull requests with the commands to turn it back on.
+
+   GitHub can also pause GitHub Actions in your fork to reduce wasted compute, and it sends no
+   email when it does. Your pushes then start no run, and the fork CI monitor cannot tell this from
+   a commit you have not pushed yet. ``breeze ci audit`` reports it. The banner on your fork's
+   Actions page turns GitHub Actions back on, and a push made while it was paused must be pushed
+   again. To make the pause less likely,
+   ``breeze ci audit --fix`` disables the workflows in your fork that only run on a schedule or
+   after another workflow. Fork CI does not need them.
+
+3. Check everything at once. ``breeze ci audit`` prints one row per check and the command that fixes
+   anything missing; ``--fix`` runs those commands after asking:
+
+   .. code-block:: bash
+
+      breeze ci audit
+
+GitHub reports a committer whose membership of the ``apache`` GitHub organisation is private as an
+external contributor, so once fork CI is switched on for everyone, their pull requests use it. Make
+the membership public at https://github.com/orgs/apache/people to avoid that; ``breeze ci audit``
+reports it.
+
+What your pull request shows
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+When fork CI applies to your pull request, it is labelled ``fork ci required``. The fork CI monitor
+checks it about every 5 minutes and keeps one comment on the pull request up to date with the
+current state and what to do next. It posts a new comment only when you need to act, for example
+to push again after you enabled the workflow. The `pull request lifecycle
+<../dev/breeze/doc/ci/08_fork_ci_for_external_contributors.md#pull-request-lifecycle>`__
+diagram shows each step and who acts next.
+
+The checks of your pull request:
+
+* ``Fork CI / Tests (AMD)`` is the result of the ``Tests (AMD)`` run in your fork for the latest
+  commit and links to it: red when the workflow is not set up or the run failed, yellow while the
+  monitor waits for your push or the run is in progress, green when it passed.
+* ``Fork CI job / <job name>`` shows each finished job of that run and links to it in your fork.
+  These are for information only.
+* ``CI run started`` turns green once the monitor sees the run in your fork, usually within 5 to
+  10 minutes of your push.
+* ``CI passed`` is the check that merging requires. It is set when the fork run is green, your
+  branch is close enough to the target branch (see below) and the pull request does not change
+  CI files (see below).
+
+Draft state and labels:
+
+* The pull request is kept in draft until the ``Tests (AMD)`` workflow runs in your fork for its
+  latest commit. A failed run does not draft it.
+* Once the run is green, a pull request the monitor drafted is marked ready for review and labelled
+  ``ready for maintainer review``. A pull request you drafted yourself stays a draft, and gets the
+  label, once you mark it ready. A new push removes the label until the new run is green.
+* Marking a draft ready needs a free slot under the `limit on open pull requests
+  <32_open_pull_request_limit.rst>`__: at the limit, GitHub refuses it, also when a maintainer
+  tries, so close or finish one of your other open pull requests first.
+* A pull request whose fork CI has not run for 30 days, with no comments or reviews from people in
+  that time, is closed with an explanation. You can reopen it after setting up fork CI; reopening
+  restarts the 30 days.
+* A maintainer can move a single pull request to project CI with the ``use project ci`` label.
+  Project CI then runs on your next push, or when a maintainer closes and reopens the pull request.
+
+Like project CI, fork CI tests your branch merged with the target branch, as the target branch was
+when the run started; a push that conflicts with it fails at once and asks you to rebase. The
+``CI passed`` check that merging requires is reported only when that commit of the target branch is
+fewer than 200 commits behind the target branch. Otherwise the pull request comment asks you to
+rebase on ``upstream/main`` (or the target branch) and push, which runs fork CI again. Details:
+`Tested base <../dev/breeze/doc/ci/08_fork_ci_for_external_contributors.md#tested-base>`__.
+
+Changes to CI files
+^^^^^^^^^^^^^^^^^^^
+
+If your pull request changes files that decide which CI jobs run and where (anything under
+``.github/``, ``dev/breeze/src/`` or ``scripts/ci/prek/``, or ``dev/breeze/pyproject.toml``,
+``dev/breeze/uv.lock`` or ``scripts/ci/install_breeze.sh``), a green fork run is not enough, because
+that run used the files you changed. The pull request is labelled ``needs project ci`` instead of
+``ready for maintainer review``, ``Fork CI / Tests (AMD)`` stays yellow and ``CI passed`` is not
+reported. A maintainer reviews the CI change and adds ``use project ci`` to run project CI for it.
+Why: `Trusting a green fork run
+<../dev/breeze/doc/ci/08_fork_ci_for_external_contributors.md#trusting-a-green-fork-run>`__.
+
+A pull request using fork CI must not change the fork CI gate: the ``gate`` job of ``ci-amd.yml``,
+``dev/breeze/src/airflow_breeze/utils/fork_ci_gate.py``, the fork CI monitor or
+``.github/fork-ci-gate.toml``, except for your own ``[pilot]`` line. Such a pull request is closed
+with an explanation. If the change was accidental, revert it and reopen the pull request; if it is
+wanted, a maintainer adds ``use project ci``. A pull request for which project CI ran although it
+should not have is closed too, and only a maintainer can reopen it. Details: `Gate protection
+<../dev/breeze/doc/ci/08_fork_ci_for_external_contributors.md#gate-protection>`__.
+
+Joining and leaving the pilot
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+To join, open a pull request that adds your GitHub login to the ``[pilot]`` table in
+``.github/fork-ci-gate.toml``, with a join instant after the expected merge, for example the next day
+at 00:00 UTC:
+
+.. code-block:: toml
+
+   [pilot]
+   "your-login" = YYYY-MM-DDT00:00:00Z
+
+Every pull request you open after that instant uses fork CI. Your earlier pull requests keep project
+CI until you push to them, rebase them or close and reopen them after that instant, and use fork CI
+from then on. A pilot entry gates your pull requests whatever your role, so a committer in the pilot
+also enables the workflow; ``breeze ci audit`` tells you which applies to you.
+
+To leave, open a pull request that removes your line. Pull requests already labelled
+``fork ci required`` stay on fork CI until a maintainer adds ``use project ci`` to them.
+
+The design, for maintainers, is described in `Fork CI for external contributors
+<../dev/breeze/doc/ci/08_fork_ci_for_external_contributors.md>`__.
+
 Step 3: Connect with People
 ---------------------------
 
@@ -187,26 +336,10 @@ Step 4: Prepare PR
 
    * Run the appropriate tests as described in `Testing documentation <09_testing.rst>`__.
 
-   * Consider adding a newsfragment to your PR so you can add an entry in the release notes.
-     The following newsfragment types are supported:
-
-     * `significant`
-     * `feature`
-     * `improvement`
-     * `bugfix`
-     * `doc`
-     * `misc`
-
-     To add a newsfragment, create an ``rst`` file named ``{pr_number}.{type}.rst`` (e.g. ``1234.bugfix.rst``)
-     and place in either `airflow-core/newsfragments </airflow-core/newsfragments>`__ for core newsfragments,
-     or `chart/newsfragments </chart/newsfragments>`__ for helm chart newsfragments.
-
-     In general newsfragments must be one line.  For newsfragment type ``significant``, you may include summary and body separated by a blank line, similar to ``git`` commit messages.
-     One thing to note here is that a ``significant`` newsfragment doesn't have to be a breaking change, it can be something that is notable but not breaking.
-
-     A CI check validates that newsfragment filenames use the correct PR number. If you need to skip
-     this check (e.g. when cherry-picking a newsfragment from another PR), add the
-     ``skip newsfragment check`` label to your PR.
+   * Check whether your PR needs a newsfragment. Most PRs do not: the release notes for ordinary bug fixes,
+     features and doc changes are built from the commit title. Add one only for a change users must read
+     before upgrading, such as a behaviour change, a removal, a new default or migration steps. A maintainer
+     will ask if your PR needs one. See `Newsfragments`_ below for the details.
 
 2. Rebase your fork, squash commits, and resolve all conflicts. See `How to rebase PR <10_working_with_git.rst#how-to-rebase-pr>`_
    if you need help with rebasing your change. Remember to rebase often if your PR takes a lot of time to
@@ -242,6 +375,43 @@ Step 4: Prepare PR
    the time zones, holidays, busy periods, and expect that some discussions and conversation might take time
    and get stalled occasionally. Generally speaking it's the author's responsibility to follow-up on the PR when
    they want to get it reviewed and merged.
+
+
+Newsfragments
+~~~~~~~~~~~~~
+
+Newsfragments are only consumed by ``airflow-core/``, ``chart/`` and ``dev/mypy/``. Do not add one by default.
+
+For ``airflow-core/``, use only ``significant`` newsfragments, and only for a change users must read before
+upgrading:
+
+* a behaviour change, a removal or a new default,
+* a change that needs migration steps.
+
+``task-sdk/`` has no release notes of its own. Its changes are listed in the Airflow release notes, so put
+newsfragments for ``task-sdk/`` changes in ``airflow-core/newsfragments/``.
+
+A ``significant`` newsfragment does not have to be a breaking change. Do not add a newsfragment for an
+ordinary bug fix, feature, improvement or documentation change, or for internal refactors, CI, tooling and
+tests. For ``chart/``, add a newsfragment only for major or breaking changes.
+
+If you are unsure, leave it out. A maintainer will ask for one during review if it is needed.
+
+Never add newsfragments for ``providers/`` or ``airflow-ctl/``: their release managers regenerate the
+changelog from the commit history. For a user-visible note, edit the changelog directly: the provider's
+``docs/changelog.rst`` (see `providers/AGENTS.md </providers/AGENTS.md#changelog--never-use-newsfragments>`__)
+or ``airflow-ctl/RELEASE_NOTES.rst``.
+
+To add a newsfragment, create an ``rst`` file named ``{pr_number}.significant.rst`` (e.g. ``1234.significant.rst``)
+and place it in `airflow-core/newsfragments </airflow-core/newsfragments>`__ for core newsfragments, or
+`chart/newsfragments </chart/newsfragments>`__ for helm chart newsfragments. It can be a single line, or a
+summary and a body separated by a blank line, similar to ``git`` commit messages.
+
+Static checks in CI validate that newsfragment filenames use the correct PR number. Run locally, before the
+PR exists, they accept any number. If you need to skip this check (e.g. when cherry-picking a newsfragment
+from another PR), ask a maintainer to add the ``skip newsfragment check`` label to your PR, then re-run the
+failed static checks. When your PR's CI runs in your fork, re-run them there, or push again; maintainers
+cannot re-run jobs in your fork.
 
 
 Step 5: Pass PR Review

@@ -142,3 +142,9 @@ That extra installs ``llama-index-core``, ``llama-index-embeddings-openai``,
 and ``llama-index-llms-openai`` -- enough to back the hook's default
 OpenAI return values. For other LlamaIndex vendor packages, install
 their integration package separately.
+
+``llama-index-llms-openai`` caps ``openai`` below 3, while this provider's ``openai`` extra
+needs ``openai`` 3, so the two extras cannot be installed in one environment. For the same
+reason the ``llamaindex`` extra fails to install with a constraints file that pins
+``openai`` 3 or later: build the worker image without the constraints file for this step,
+or with a copy of it that pins ``openai`` below 3.

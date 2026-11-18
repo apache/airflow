@@ -26,6 +26,8 @@ import type { ClearTaskInstancesBody } from "openapi/requests/types.gen";
 
 import { Dialog } from "src/system-components";
 
+import { ErrorAlert } from "src/components/ErrorAlert";
+
 import { useClearTaskInstancesDryRun } from "src/queries/useClearTaskInstancesDryRun";
 import { useDurationFormat } from "src/utils";
 
@@ -49,7 +51,7 @@ const ClearTaskInstanceConfirmationDialog = ({
 }: Props) => {
   const { t: translate } = useTranslation();
   const { formatRelative } = useDurationFormat();
-  const { data, isFetching } = useClearTaskInstancesDryRun({
+  const { data, error, isFetching } = useClearTaskInstancesDryRun({
     dagId: dryRun?.dagId ?? "",
     options: {
       enabled: open && Boolean(dryRun),
@@ -68,7 +70,7 @@ const ClearTaskInstanceConfirmationDialog = ({
   const taskCurrentState = firstInstance?.state;
 
   useEffect(() => {
-    if (!isFetching && open && data) {
+    if (!isFetching && !Boolean(error) && open && data) {
       const isInTriggeringState = taskCurrentState === "queued" || taskCurrentState === "scheduled";
 
       if (!preventRunningTask || !isInTriggeringState) {
@@ -78,7 +80,7 @@ const ClearTaskInstanceConfirmationDialog = ({
         setIsReady(true);
       }
     }
-  }, [isFetching, data, open, taskCurrentState, preventRunningTask, onConfirm, onClose]);
+  }, [isFetching, error, data, open, taskCurrentState, preventRunningTask, onConfirm, onClose]);
 
   // This dialog opens as the clear dialog closes beneath it, and that close would dismiss it
   // twice over: removing a dialog layer dismisses the layers stacked above it, and the clear
@@ -100,6 +102,18 @@ const ClearTaskInstanceConfirmationDialog = ({
               {translate("common:task.documentation")}
             </Text>
           </VStack>
+        ) : Boolean(error) ? (
+          <>
+            <Dialog.Header>
+              <Dialog.Title>{translate("dags:runAndTaskActions.confirmationDialog.title")}</Dialog.Title>
+            </Dialog.Header>
+            <Dialog.Body>
+              <ErrorAlert error={error} />
+            </Dialog.Body>
+            <Dialog.Footer>
+              <Button onClick={onClose}>{translate("common:modal.cancel")}</Button>
+            </Dialog.Footer>
+          </>
         ) : isReady ? (
           <>
             <Dialog.Header>

@@ -865,6 +865,9 @@ class TestOpensearchRemoteLogIO:
         assert response is None
         mock_exception.assert_called_once()
 
+    def test_read_returns_no_logs_when_ti_is_none(self):
+        assert self.opensearch_io.read("executor_callbacks/dag/run/cb", None) == ([], [])
+
     def test_read_returns_missing_log_message_when_os_read_returns_none(self, ti):
         with patch.object(self.opensearch_io, "_os_read", return_value=None):
             log_source_info, log_messages = self.opensearch_io.read("", ti)

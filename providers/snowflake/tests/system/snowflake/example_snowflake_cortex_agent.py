@@ -27,8 +27,8 @@ import os
 from datetime import datetime
 
 from airflow import DAG
-from airflow.providers.snowflake.hooks.snowflake_cortex_agent import CreateMode
-from airflow.providers.snowflake.operators.snowflake_cortex_agent import (
+from airflow.providers.snowflake.hooks.cortex_agent import CreateMode
+from airflow.providers.snowflake.operators.cortex_agent import (
     SnowflakeCortexAgentCreateOperator,
     SnowflakeCortexAgentDeleteOperator,
     SnowflakeCortexAgentOperator,

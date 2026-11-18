@@ -17,21 +17,25 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+import struct
 from uuid import uuid4
 
 import pytest
-from sqlalchemy import event, func, insert, select, text
+from sqlalchemy import event, func, insert, select, text, union_all
 from sqlalchemy.exc import IntegrityError
 
 from airflow._shared.timezones import timezone
 from airflow.models.dagrun import DagRun
 from airflow.models.dynamic_region import (
+    _COORDINATES_CACHE_KEY,
+    MAX_REGION_DEPTH,
     SENTINEL_REGION_ID,
     AmbiguousProducerError,
     DynamicRegion,
     ProducerContext,
+    build_loop_family_legs,
     build_loop_sequence_order,
+    get_trajectory,
     resolve_current_producers,
     select_loop_producer_ids,
 )
@@ -47,9 +51,6 @@ from airflow.utils.state import TaskInstanceState
 
 from tests_common.test_utils.asserts import capture_orm_selects
 from tests_common.test_utils.db import clear_db_runs
-
-if TYPE_CHECKING:
-    from airflow.models.dagrun import DagRun
 
 pytestmark = pytest.mark.db_test
 
@@ -430,7 +431,7 @@ def test_mapping_revision_only_changes_selected_expansion(dag_maker, session):
     regional = TaskInstance(task, version, run_id=dr.run_id, map_index=3, region_id=uuid4())
     session.add_all([ordinary, regional])
     session.flush()
-    added = dr._revise_map_indexes_if_mapped(regional, session=session)
+    added, _ = dr._revise_map_indexes_if_mapped(regional, session=session)
     assert [(ti.region_id, ti.region_index) for ti in added] == [
         (regional.region_id, 0),
         (regional.region_id, 1),
@@ -626,6 +627,231 @@ def test_fork_is_exempt_but_a_source_can_only_be_forked_once(regional_tis, sessi
     add_region(session, run, forked_from_region_id=fork.id, resumes_from_index=2)
 
 
+def pack_index(value: int) -> bytes:
+    return struct.pack(">i", value)
+
+
+def test_top_level_region_is_its_own_family_with_an_empty_path(regional_tis, session):
+    run, _ = regional_tis
+    region = add_region(session, run)
+
+    assert region.family_root_id == region.id
+    assert region.path == b""
+
+
+def test_nested_regions_extend_the_path_by_the_parents_family_and_the_index(regional_tis, session):
+    run, _ = regional_tis
+    outer = add_region(session, run)
+    inner = add_region(session, run, parent_region_id=outer.id, parent_region_index=300)
+    innermost = add_region(session, run, parent_region_id=inner.id, parent_region_index=1)
+
+    assert inner.path == outer.id.bytes + pack_index(300)
+    assert innermost.path == inner.path + inner.id.bytes + pack_index(1)
+
+
+def test_forks_share_the_family_and_regions_nested_under_a_fork_use_its_family_root(regional_tis, session):
+    run, _ = regional_tis
+    original = add_region(session, run)
+    fork = add_region(session, run, forked_from_region_id=original.id)
+    forked_again = add_region(session, run, forked_from_region_id=fork.id)
+    child = add_region(session, run, parent_region_id=forked_again.id, parent_region_index=2)
+    grandchild = add_region(session, run, parent_region_id=child.id, parent_region_index=0)
+
+    assert fork.family_root_id == forked_again.family_root_id == original.id
+    assert child.family_root_id == child.id
+    assert child.path == original.id.bytes + pack_index(2)
+    assert grandchild.path == child.path + child.id.bytes + pack_index(0)
+
+
+@pytest.mark.parametrize("moved", ["parent", "index"])
+def test_fork_under_another_parent_than_its_source_is_rejected(regional_tis, session, moved):
+    run, _ = regional_tis
+    outer = add_region(session, run)
+    other = add_region(session, run, node_id="other")
+    original = add_region(session, run, node_id="body", parent_region_id=outer.id, parent_region_index=0)
+    fork_parent = {
+        "parent": {"parent_region_id": other.id, "parent_region_index": 0},
+        "index": {"parent_region_id": outer.id, "parent_region_index": 1},
+    }[moved]
+
+    with pytest.raises(ValueError, match="same parent"), session.begin_nested():
+        add_region(session, run, node_id="body", forked_from_region_id=original.id, **fork_parent)
+
+
+def test_regions_flushed_together_resolve_a_pending_parent(regional_tis, session):
+    run, _ = regional_tis
+    parent = make_region(run, id=uuid4())
+    child = make_region(run, node_id="child", parent_region_id=parent.id, parent_region_index=4)
+    session.add_all([parent, child])
+    session.flush()
+
+    assert child.path == parent.id.bytes + pack_index(4)
+
+
+def test_siblings_under_one_parent_read_the_parent_once(regional_tis, session):
+    run, _ = regional_tis
+    parent_id = uuid4()
+    session.execute(
+        insert(DynamicRegion).values(
+            id=parent_id,
+            dag_id=run.dag_id,
+            run_id=run.run_id,
+            node_id="parent",
+            family_root_id=parent_id,
+            path=b"",
+            resumes_from_index=0,
+            created_at=timezone.utcnow(),
+        )
+    )
+    statements = []
+
+    def record(conn, cursor, statement, parameters, context, executemany):
+        if statement.lstrip().upper().startswith("SELECT") and "dynamic_region" in statement:
+            statements.append(statement)
+
+    event.listen(session.get_bind(), "before_cursor_execute", record)
+    try:
+        session.add_all(
+            make_region(run, node_id=f"child{index}", parent_region_id=parent_id, parent_region_index=index)
+            for index in range(5)
+        )
+        session.flush()
+    finally:
+        event.remove(session.get_bind(), "before_cursor_execute", record)
+
+    assert len(statements) == 1
+
+
+@pytest.mark.parametrize(
+    ("kwargs", "role"),
+    [
+        pytest.param({"parent_region_id": uuid4(), "parent_region_index": 0}, "parent", id="parent"),
+        pytest.param({"forked_from_region_id": uuid4()}, "fork source", id="fork source"),
+    ],
+)
+def test_unknown_parent_or_fork_source_is_rejected(regional_tis, session, kwargs, role):
+    run, _ = regional_tis
+
+    with pytest.raises(ValueError, match=f"The {role} region .* does not exist"), session.begin_nested():
+        add_region(session, run, **kwargs)
+
+
+@pytest.mark.parametrize(
+    ("with_parent", "index", "message"),
+    [
+        pytest.param(True, None, "set together", id="parent without index"),
+        pytest.param(False, 3, "set together", id="index without parent"),
+        pytest.param(True, -1, "must not be negative", id="negative index"),
+    ],
+)
+def test_invalid_parent_coordinates_are_rejected(regional_tis, session, with_parent, index, message):
+    run, _ = regional_tis
+    outer = add_region(session, run)
+    parent = {"parent_region_id": outer.id} if with_parent else {}
+
+    with pytest.raises(ValueError, match=message), session.begin_nested():
+        add_region(session, run, node_id="body", parent_region_index=index, **parent)
+
+
+def test_regions_nest_at_most_the_maximum_depth(regional_tis, session):
+    run, _ = regional_tis
+    region = add_region(session, run)
+    for _ in range(MAX_REGION_DEPTH):
+        region = add_region(session, run, parent_region_id=region.id, parent_region_index=0)
+
+    with pytest.raises(ValueError, match="nest at most"), session.begin_nested():
+        add_region(session, run, parent_region_id=region.id, parent_region_index=0)
+
+
+def test_coordinates_of_a_rolled_back_region_are_forgotten(regional_tis, session):
+    run, _ = regional_tis
+    with session.begin_nested() as savepoint:
+        region_id = add_region(session, run).id
+        savepoint.rollback()
+
+    with pytest.raises(ValueError, match="fork source"), session.begin_nested():
+        add_region(session, run, forked_from_region_id=region_id)
+
+
+def test_coordinates_are_forgotten_after_the_flush(regional_tis, session):
+    run, _ = regional_tis
+    add_region(session, run)
+
+    assert _COORDINATES_CACHE_KEY not in session.info
+
+
+@pytest.fixture
+def family_rows(producer_tis, session):
+    """
+    Task instances of ``mapped`` in the loop family of ``producer_tis``, in a loop of another node and outside.
+
+    The family is three regions. Each has a row at the iteration it is named for, and the last has a second
+    one. Nested regions hold rows at iterations 0 to 3, one of them two levels deep.
+    """
+    tis, regions, _ = producer_tis
+    mapped = tis["mapped"]
+    other_loop = add_region(session, mapped.dag_run, node_id="other_loop")
+
+    def add_row(region: DynamicRegion, region_index: int = 0) -> TaskInstance:
+        ti = TaskInstance(
+            mapped.task,
+            mapped.dag_version_id,
+            run_id=mapped.run_id,
+            map_index=region_index,
+            region_id=region.id,
+        )
+        session.add(ti)
+        return ti
+
+    def add_nested(parent: DynamicRegion, iteration: int, node_id: str = "mapped") -> DynamicRegion:
+        return add_region(
+            session,
+            mapped.dag_run,
+            node_id=node_id,
+            parent_region_id=parent.id,
+            parent_region_index=iteration,
+        )
+
+    nested_in_first_pass = add_nested(regions[1], 0)
+    rows = {
+        "direct 0": add_row(regions[0], 0),
+        "direct 1": add_row(regions[1], 1),
+        "direct 2": add_row(regions[2], 2),
+        "direct 3": add_row(regions[2], 3),
+        "nested 0": add_row(nested_in_first_pass),
+        "nested 2": add_row(add_nested(regions[0], 2)),
+        "nested 3": add_row(add_nested(regions[2], 3)),
+        "deep 0": add_row(add_nested(nested_in_first_pass, 0, "deep")),
+        "other loop": add_row(add_nested(other_loop, 2)),
+        "outside": add_row(add_region(session, mapped.dag_run, node_id="outside")),
+    }
+    session.flush()
+    return regions, {name: ti.id for name, ti in rows.items()}
+
+
+@pytest.mark.parametrize(
+    ("iteration", "expected"),
+    [
+        pytest.param(
+            None,
+            ["direct 0", "direct 1", "direct 2", "direct 3", "nested 0", "nested 2", "nested 3", "deep 0"],
+        ),
+        pytest.param(0, ["direct 0", "nested 0", "deep 0"]),
+        pytest.param(2, ["direct 2", "nested 2"]),
+        pytest.param(3, ["direct 3", "nested 3"]),
+    ],
+)
+def test_loop_family_legs_select_every_member_and_everything_nested_once(
+    family_rows, session, iteration, expected
+):
+    regions, rows = family_rows
+
+    query = select(TaskInstance.id).where(TaskInstance.task_id == "mapped")
+    legs = build_loop_family_legs(query, regions[1], iteration=iteration)
+
+    assert sorted(session.scalars(union_all(*legs))) == sorted(rows[name] for name in expected)
+
+
 def test_get_or_create_returns_the_region_that_filled_the_slot(regional_tis, session):
     run, _ = regional_tis
     slot = {"dag_id": run.dag_id, "run_id": run.run_id, "node_id": "mapped", "session": session}
@@ -653,6 +879,8 @@ def test_get_or_create_finds_a_region_created_before_slot_keys_existed(regional_
             dag_id=run.dag_id,
             run_id=run.run_id,
             node_id="legacy",
+            family_root_id=region_id,
+            path=b"",
             resumes_from_index=0,
             created_at=timezone.utcnow(),
         )
@@ -679,31 +907,31 @@ def test_gate_rerun_after_chained_forks_keeps_later_passes_in_later_regions(comp
             if ti.task_id == loop.gate_task_id and ti.region_index == index
         )
 
+    clear_loop_task_instances([gate_at(3)], downstream=False, session=session)
+    complete_pass(3, "continue")
+    complete_pass(4, "continue")
     clear_loop_task_instances([gate_at(2)], downstream=False, session=session)
     complete_pass(2, "continue")
     complete_pass(3, "continue")
-    clear_loop_task_instances([gate_at(1)], downstream=False, session=session)
-    complete_pass(1, "continue")
-    complete_pass(2, "continue")
     before = {
         (ti.task_id, ti.region_index): (ti.id, ti.region_id) for ti in dr.get_task_instances(session=session)
     }
-    clear_loop_task_instances([gate_at(1)], downstream=False, later_loop_iterations=False, session=session)
+    clear_loop_task_instances([gate_at(2)], downstream=False, later_loop_iterations=False, session=session)
 
-    complete_pass(1, "continue")
+    complete_pass(2, "continue")
 
     current = {
         (ti.task_id, ti.region_index): (ti.id, ti.region_id) for ti in dr.get_task_instances(session=session)
     }
-    assert {key: value for key, value in current.items() if key[1] >= 2} == {
-        key: value for key, value in before.items() if key[1] >= 2
+    assert {key: value for key, value in current.items() if key[1] >= 3} == {
+        key: value for key, value in before.items() if key[1] >= 3
     }
 
 
 def test_repeated_rewind_appends_empty_forks_and_generates_in_latest_region(completed_loop, session):
     dr, loop, complete_pass = completed_loop
     original_region = next(ti.region_id for ti in dr.get_task_instances(session=session))
-    for index in (2, 1):
+    for index in (3, 2):
         gate = next(
             ti
             for ti in dr.get_task_instances(session=session)
@@ -714,21 +942,21 @@ def test_repeated_rewind_appends_empty_forks_and_generates_in_latest_region(comp
     regions = list(session.scalars(select(DynamicRegion).where(DynamicRegion.dag_id == dr.dag_id)))
     first = next(region for region in regions if region.forked_from_region_id == original_region)
     second = next(region for region in regions if region.forked_from_region_id == first.id)
-    assert (first.resumes_from_index, second.resumes_from_index) == (3, 2)
+    assert (first.resumes_from_index, second.resumes_from_index) == (4, 3)
     assert not session.scalar(
         select(TaskInstance.id).where(TaskInstance.region_id.in_([first.id, second.id]))
     )
     gate = next(
         ti
         for ti in dr.get_task_instances(session=session)
-        if ti.task_id == loop.gate_task_id and ti.region_index == 1
+        if ti.task_id == loop.gate_task_id and ti.region_index == 2
     )
 
     clear_loop_task_instances([gate], downstream=False, session=session)
-    complete_pass(1, "continue")
+    complete_pass(2, "continue")
 
     third = session.scalar(select(DynamicRegion).where(DynamicRegion.forked_from_region_id == second.id))
-    generated = [ti for ti in dr.get_task_instances(session=session) if ti.region_index == 2]
+    generated = [ti for ti in dr.get_task_instances(session=session) if ti.region_index == 3]
     assert len(generated) == 4
     assert {ti.region_id for ti in generated} == {third.id}
 
@@ -751,7 +979,7 @@ def test_loop_sequence_of_unmapped_task_is_ordered_by_iteration(loop_run, sessio
 
     sequence = read_loop_sequence(session, dr, loop, "body.prepare", is_mapped=False)
 
-    assert [ti.region_index for ti in sequence] == [0, 1, 2, 3, 4]
+    assert [ti.region_index for ti in sequence] == [1, 2, 3, 4, 5]
     assert {ti.task_id for ti in sequence} == {"body.prepare"}
 
 
@@ -761,7 +989,7 @@ def test_loop_sequence_of_mapped_task_is_iteration_major_then_map_index(loop_run
     sequence = read_loop_sequence(session, dr, loop, "body.process", is_mapped=True)
 
     assert [(iteration(ti), ti.region_index) for ti in sequence] == [
-        (index, slot) for index in range(5) for slot in range(2)
+        (index, slot) for index in range(1, 6) for slot in range(2)
     ]
 
 
@@ -785,7 +1013,7 @@ def test_loop_sequence_skips_archived_and_other_regions(loop_run, session):
 
     sequence = read_loop_sequence(session, dr, loop, "body.prepare", is_mapped=False)
 
-    assert [ti.region_index for ti in sequence] == [0, 1, 3, 4]
+    assert [ti.region_index for ti in sequence] == [1, 3, 4, 5]
 
 
 def test_loop_sequence_without_a_loop_region_is_empty(dag_maker, session):
@@ -824,13 +1052,13 @@ def test_loop_sequence_rejects_a_loop_with_several_executions(loop_run, session)
 def test_loop_sequence_takes_each_pass_from_the_region_that_owns_it(loop_run, session):
     dr, dag, loop, root, tis, iteration = loop_run
     first = add_region(
-        session, dr, node_id=loop.group_id, forked_from_region_id=root.id, resumes_from_index=3
+        session, dr, node_id=loop.group_id, forked_from_region_id=root.id, resumes_from_index=4
     )
     second = add_region(
-        session, dr, node_id=loop.group_id, forked_from_region_id=first.id, resumes_from_index=2
+        session, dr, node_id=loop.group_id, forked_from_region_id=first.id, resumes_from_index=3
     )
     prepare = dag.get_task("body.prepare")
-    for region, index in [(first, 3), (first, 4), (second, 2)]:
+    for region, index in [(first, 4), (first, 5), (second, 3)]:
         session.add(
             TaskInstance(
                 prepare, dr.created_dag_version_id, run_id=dr.run_id, region_id=region.id, region_index=index
@@ -841,21 +1069,21 @@ def test_loop_sequence_takes_each_pass_from_the_region_that_owns_it(loop_run, se
     sequence = read_loop_sequence(session, dr, loop, "body.prepare", is_mapped=False)
 
     assert [(ti.region_id, ti.region_index) for ti in sequence] == [
-        (root.id, 0),
         (root.id, 1),
-        (second.id, 2),
+        (root.id, 2),
+        (second.id, 3),
     ]
 
 
 def test_loop_sequence_of_mapped_task_skips_passes_a_fork_replaced(loop_run, session):
     dr, dag, loop, root, tis, iteration = loop_run
-    fork = add_region(session, dr, node_id=loop.group_id, forked_from_region_id=root.id, resumes_from_index=3)
+    fork = add_region(session, dr, node_id=loop.group_id, forked_from_region_id=root.id, resumes_from_index=4)
     replacement = add_region(
         session,
         dr,
         node_id="body.process",
         parent_region_id=fork.id,
-        parent_region_index=3,
+        parent_region_index=4,
     )
     process = dag.get_task("body.process")
     for slot in range(2):
@@ -874,12 +1102,24 @@ def test_loop_sequence_of_mapped_task_skips_passes_a_fork_replaced(loop_run, ses
 
     passes = {region.id: region.parent_region_index for region in session.scalars(select(DynamicRegion))}
     assert [(ti.region_id == replacement.id, passes[ti.region_id], ti.region_index) for ti in sequence] == [
-        (False, 0, 0),
-        (False, 0, 1),
         (False, 1, 0),
         (False, 1, 1),
         (False, 2, 0),
         (False, 2, 1),
-        (True, 3, 0),
-        (True, 3, 1),
+        (False, 3, 0),
+        (False, 3, 1),
+        (True, 4, 0),
+        (True, 4, 1),
     ]
+
+
+@pytest.mark.parametrize("forks", [0, 1, 2])
+def test_trajectory_counts_the_forks_a_region_descends_from(forks):
+    dag_run = DagRun(dag_id="dag", run_id="run")
+    region = make_region(dag_run, id=uuid4())
+    regions = {region.id: region}
+    for _ in range(forks):
+        region = make_region(dag_run, id=uuid4(), forked_from_region_id=region.id)
+        regions[region.id] = region
+
+    assert get_trajectory(region, regions) == forks + 1

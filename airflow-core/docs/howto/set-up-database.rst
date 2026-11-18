@@ -373,7 +373,7 @@ We recommend using the ``mysqlclient`` driver and specifying it in your SqlAlche
     mysql+mysqldb://<user>:<password>@<host>[:<port>]/<dbname>
 
 .. important::
-    The integration of MySQL backend has only been validated using the ``mysqlclient`` driver
+    The synchronous integration of MySQL backend has only been validated using the ``mysqlclient`` driver
     during Apache Airflow's continuous integration (CI) process.
 
 If you want to use other drivers visit the `MySQL Dialect <https://docs.sqlalchemy.org/en/20/dialects/mysql.html>`__  in SQLAlchemy documentation for more information regarding download
@@ -388,6 +388,32 @@ In addition, you also should pay particular attention to MySQL's encoding. Altho
     To avoid this error, you could disable ``NO_ZERO_DATE`` mode on you MySQL server.
     Read https://stackoverflow.com/questions/9192027/invalid-default-value-for-create-date-timestamp-field for how to disable it.
     See `SQL Mode - NO_ZERO_DATE <https://dev.mysql.com/doc/refman/8.0/en/sql-mode.html#sqlmode_no_zero_date>`__ for more information.
+
+Async SQLAlchemy engine and the async driver
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+When ``[database] sql_alchemy_conn_async`` is not set, Airflow derives the async MySQL
+metadata database URL from ``sql_alchemy_conn``. It selects ``asyncmy`` when installed:
+
+.. code-block:: text
+
+   mysql+asyncmy://<user>:<password>@<host>[:<port>]/<dbname>
+
+The MySQL provider installs ``asyncmy`` by default. If an older provider release does not
+install it, core falls back to ``aiomysql``, so upgrading core alone keeps working.
+The provider also keeps installing ``aiomysql`` for older supported core releases that
+always derive a ``mysql+aiomysql://`` URL.
+
+An explicit ``sql_alchemy_conn_async`` is never rewritten. To keep using ``aiomysql``,
+install ``apache-airflow-providers-mysql[aiomysql]`` and set:
+
+.. code-block:: ini
+
+   [database]
+   sql_alchemy_conn_async = mysql+aiomysql://<user>:<password>@<host>[:<port>]/<dbname>
+
+Review ``sql_alchemy_connect_args_async`` when changing drivers: driver-specific
+connection arguments must be supported by the selected driver.
 
 MsSQL Database
 --------------

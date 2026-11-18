@@ -16,10 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Alert, Badge, Box, Code, Flex, Heading, Text } from "@chakra-ui/react";
+import { Badge, Box, Heading, Text } from "@chakra-ui/react";
 import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
-import { LuInfo } from "react-icons/lu";
 
 import type { DagVersionDiffChangeResponse, DagVersionDiffResponse } from "openapi/requests/types.gen";
 
@@ -27,6 +26,10 @@ import { Tooltip } from "src/system-components";
 
 import { DataTable } from "src/components/DataTable";
 import type { MetaColumn } from "src/components/DataTable/types";
+
+import { DiffUnavailableAlert } from "./DiffUnavailableAlert";
+import { DiffValue } from "./DiffValue";
+import { PathText } from "./PathText";
 
 type VersionDiffProps = {
   readonly baseVersionNumber: number;
@@ -42,22 +45,6 @@ const IMPACT_COLORS: Record<string, string> = {
   unknown: "gray",
 };
 
-// A whole task added or removed carries its entire serialized payload, which would otherwise
-// unfold into one unreadable table cell.
-const MAX_VALUE_LENGTH = 120;
-
-const renderValue = (value: unknown) => {
-  if (value === undefined) {
-    return "—";
-  }
-
-  // A stored null is a value; only an absent side gets the dash above. An empty string is quoted
-  // so it reads as a value rather than as a blank cell.
-  const text = typeof value === "string" ? value || '""' : JSON.stringify(value);
-
-  return text.length > MAX_VALUE_LENGTH ? `${text.slice(0, MAX_VALUE_LENGTH)}…` : text;
-};
-
 type ChangeColumns = Array<MetaColumn<DagVersionDiffChangeResponse>>;
 
 const buildValueColumns = (translate: TFunction<"dag">): ChangeColumns => [
@@ -65,22 +52,30 @@ const buildValueColumns = (translate: TFunction<"dag">): ChangeColumns => [
     accessorKey: "before_value",
     // Read off the record rather than the accessor value, so a key the server omitted stays
     // distinguishable from one holding a stored null.
-    cell: ({ row }) => <Code fontSize="sm">{renderValue(row.original.before_value)}</Code>,
+    cell: ({ row }) => <DiffValue value={row.original.before_value} />,
     enableSorting: false,
     header: translate("versions.columns.before"),
   },
   {
     accessorKey: "after_value",
-    cell: ({ row }) => <Code fontSize="sm">{renderValue(row.original.after_value)}</Code>,
+    cell: ({ row }) => <DiffValue value={row.original.after_value} />,
     enableSorting: false,
     header: translate("versions.columns.after"),
   },
 ];
 
-const buildColumns = (translate: TFunction<"dag">, valuesShown: boolean): ChangeColumns => [
+const buildColumns = (
+  translate: TFunction<"dag">,
+  valuesShown: boolean,
+  truncated: boolean,
+): ChangeColumns => [
   {
     accessorKey: "path",
-    cell: ({ row }) => <Code fontSize="sm">{row.original.path}</Code>,
+    // Only a redacted record that merged changes sharing a public path counts more than one, so
+    // the count rides on the path it qualifies instead of a column that is almost always 1.
+    cell: ({ row }) => (
+      <PathText occurrences={row.original.occurrence_count} path={row.original.path} truncated={truncated} />
+    ),
     enableSorting: false,
     header: translate("versions.columns.path"),
   },
@@ -112,11 +107,6 @@ const buildColumns = (translate: TFunction<"dag">, valuesShown: boolean): Change
     enableSorting: false,
     header: translate("versions.columns.impact"),
   },
-  {
-    accessorKey: "occurrence_count",
-    enableSorting: false,
-    header: translate("versions.columns.occurrences"),
-  },
   ...(valuesShown ? buildValueColumns(translate) : []),
 ];
 
@@ -126,32 +116,25 @@ export const VersionDiff = ({ baseVersionNumber, diff, targetVersionNumber }: Ve
   const schemaChanged = diff.serializer_versions.base !== diff.serializer_versions.target;
 
   if (diff.mode === "unavailable") {
-    return (
-      <Alert.Root status="info" title={translate("versions.unavailable.title")}>
-        <Alert.Description>
-          {diff.unavailable_reason === null || diff.unavailable_reason === undefined ? (
-            translate("versions.unavailable.withoutReason")
-          ) : (
-            <>
-              {translate("versions.unavailable.description")}{" "}
-              {/* A machine token, so it is shown as code rather than folded into a translated sentence. */}
-              <Code fontSize="sm">{diff.unavailable_reason}</Code>
-            </>
-          )}
-        </Alert.Description>
-      </Alert.Root>
-    );
+    return <DiffUnavailableAlert reason={diff.unavailable_reason} />;
   }
 
   return (
-    <Box>
-      <Flex alignItems="center" gap={3} justifyContent="space-between" mb={2}>
+    <DataTable
+      columns={buildColumns(translate, valuesShown, diff.truncated)}
+      data={diff.changes}
+      // The summary heads the table's own header row, so the comparison, what it leaves out and
+      // the control over its columns read as one line rather than three stacked ones.
+      headingExtra={
         <Box>
           <Heading size="md">
             {translate("versions.heading", { base: baseVersionNumber, target: targetVersionNumber })}
           </Heading>
           <Text color="fg.muted" fontSize="sm">
-            {translate("versions.summary", { count: diff.total_changes })}
+            {/* A truncated count is a lower bound, so it says "at least" rather than a bare number. */}
+            {translate(diff.truncated ? "versions.summaryAtLeast" : "versions.summary", {
+              count: diff.total_changes,
+            })}
             {/* Only worth a mention when the two versions were stored by different serializers. */}
             {schemaChanged
               ? ` · ${translate("versions.schemaChange", {
@@ -161,39 +144,22 @@ export const VersionDiff = ({ baseVersionNumber, diff, targetVersionNumber }: Ve
               : undefined}
           </Text>
         </Box>
-        <Flex alignItems="center" gap={2}>
-          {/* The hover says what grants values, since the viewer cannot grant it here: the server
-              decides from the caller's access to Dag code. */}
-          {valuesShown ? undefined : (
-            <Tooltip content={translate("versions.codeAccess")} portalled>
-              <Badge colorPalette="gray">{translate("versions.valuesHidden")}</Badge>
-            </Tooltip>
-          )}
-          {/* Above the table rather than below it: a long diff would otherwise push the caveat
-              off-screen exactly when it matters most. */}
-          <Tooltip content={translate("versions.observedStateBoundary")} portalled>
-            <Box aria-label={translate("versions.aboutThisComparison")} as="button" color="fg.muted" p={1}>
-              <LuInfo />
-            </Box>
+      }
+      // The summary above already counts the changes. A second "N Records" count only invites a
+      // comparison that does not hold: a redacted record stands for every change sharing its path.
+      hideRowCountHeading
+      modelName="dag:versions.record"
+      noRowsMessage={translate("versions.noChanges")}
+      // The hover says what grants values, since the viewer cannot grant it here: the server
+      // decides from the caller's access to Dag code.
+      presentationActions={
+        valuesShown ? undefined : (
+          <Tooltip content={translate("versions.codeAccess")} portalled>
+            <Badge colorPalette="gray">{translate("versions.valuesHidden")}</Badge>
           </Tooltip>
-        </Flex>
-      </Flex>
-
-      {diff.truncated ? (
-        <Alert.Root mb={2} status="warning" title={translate("versions.truncated.title")}>
-          <Alert.Description>{translate("versions.truncated.description")}</Alert.Description>
-        </Alert.Root>
-      ) : undefined}
-
-      <DataTable
-        columns={buildColumns(translate, valuesShown)}
-        data={diff.changes}
-        modelName="dag:versions.record"
-        noRowsMessage={translate("versions.noChanges")}
-        // Records, not underlying changes: a redacted record stands for every change sharing its
-        // path, which is why this can read lower than the count in the summary above.
-        total={diff.changes.length}
-      />
-    </Box>
+        )
+      }
+      total={diff.changes.length}
+    />
   );
 };

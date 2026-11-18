@@ -163,7 +163,7 @@ Redistributable Client headers and ``MQ_FILE_PATH`` set at build time). First ch
 raising the lower bound to a release that ships wheels avoids the build — a download at test
 time makes the job depend on the upstream host being reachable. Bundling such SDKs in the base image has licence,
 maintenance, and image-size costs that the project does not want to pay on every CI run.
-The lowest-direct-dependency provider tests still call ``uv sync --all-extras`` inside the
+The lowest-direct-dependency provider tests still ``uv sync`` every extra of the provider inside the
 provider directory, so simply mocking the package in tests is not enough — the sync itself
 must succeed first. Use the per-provider pre-extras-install manifest:
 
@@ -173,7 +173,7 @@ must succeed first. Use the per-provider pre-extras-install manifest:
 
 2. **Register the provider** in ``PROVIDERS_NEEDING_PRE_EXTRAS_INSTALL`` in
    ``scripts/docker/entrypoint_ci.sh``. The hook runs immediately before
-   ``check_force_lowest_dependencies`` calls ``uv sync --all-extras`` for that provider. The
+   ``check_force_lowest_dependencies`` calls ``uv sync`` with every extra of that provider. The
    list is explicit on purpose so maintainers see when a new provider takes on this shape of
    cost, and so the surface for "drive-by privileged code" stays small.
 
@@ -221,7 +221,7 @@ must succeed first. Use the per-provider pre-extras-install manifest:
      observed to fail DNS resolution for that host.
    - ``env`` (optional mapping): each name must match ``^[A-Z][A-Z0-9_]*$``, each value must
      be a string. The interpreter writes ``export NAME='value'`` lines that the entrypoint
-     hook sources into the shell that subsequently runs ``uv sync --all-extras``.
+     hook sources into the shell that subsequently runs ``uv sync``.
 
    Any unknown top-level or per-entry key is a hard error.
 

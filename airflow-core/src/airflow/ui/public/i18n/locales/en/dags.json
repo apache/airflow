@@ -22,6 +22,7 @@
     },
     "favoriteState": "Favorite state",
     "favoriteStatePlaceholder": "Select favorite state…",
+    "hasImportErrors": "Has import errors",
     "noTimetableTypesFound": "No timetable types found",
     "paused": {
       "active": "Not paused",
@@ -96,6 +97,7 @@
       "downstream": "Downstream",
       "existingTasks": "Clear existing tasks",
       "future": "Future",
+      "includeDependentDags": "Clear tasks in dependent Dags",
       "keepTaskState": "Keep task state and resume",
       "laterIterations": "Later iterations",
       "onlyFailed": "Clear only failed tasks",
@@ -129,6 +131,7 @@
     "dagRuns": "Search $t(common:dagRun_other)",
     "dags": "Search $t(common:dag_other)",
     "hotkey": "+K",
+    "mapIndexes": "Search $t(common:mapIndex)",
     "tasks": "Search $t(common:task_other)"
   },
   "sort": {

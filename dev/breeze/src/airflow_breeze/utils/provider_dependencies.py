@@ -89,8 +89,12 @@ def regenerate_provider_dependencies_once() -> None:
     with _regenerate_provider_deps_lock:
         # Run the regeneration command from the repository root to ensure correct
         # relative paths if the script expects to be run from AIRFLOW_ROOT_PATH.
+        # CI runs this while deciding which jobs run, from the pull request's checkout: --no-config
+        # keeps a `[tool.uv]` index the pull request adds to pyproject.toml or uv.toml from choosing
+        # where the script's dependencies come from.
         subprocess.check_call(
-            ["uv", "run", UPDATE_PROVIDER_DEPENDENCIES_SCRIPT.as_posix()], cwd=AIRFLOW_ROOT_PATH
+            ["uv", "run", "--no-config", UPDATE_PROVIDER_DEPENDENCIES_SCRIPT.as_posix()],
+            cwd=AIRFLOW_ROOT_PATH,
         )
 
 

@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+import pytest
+
 from airflow.providers.common.ai.plugins._plugin_urls import get_base_url_path, get_bundle_url
 
 from tests_common.test_utils.config import conf_vars
@@ -36,11 +38,15 @@ class TestGetBundleUrl:
         with conf_vars({("api", "base_url"): "/"}):
             assert get_bundle_url("/ai-model", "model.umd.cjs") == "/ai-model/static/model.umd.cjs"
 
-    def test_http_base_url_returns_an_absolute_url(self):
-        """An absolute bundle_url is needed in Vite dev mode, where import() resolves
-        relative to the script origin (5173), not the document origin (28080)."""
-        with conf_vars({("api", "base_url"): "http://example.com/airflow/"}):
-            assert (
-                get_bundle_url("/ai-model", "model.umd.cjs")
-                == "http://example.com/airflow/ai-model/static/model.umd.cjs"
-            )
+    @pytest.mark.parametrize(
+        ("base_url", "expected"),
+        [
+            ("http://localhost:8080", "/ai-model/static/model.umd.cjs"),
+            ("http://example.com/airflow/", "/airflow/ai-model/static/model.umd.cjs"),
+        ],
+    )
+    def test_http_base_url_keeps_only_the_path(self, base_url, expected):
+        """The browser may reach Airflow on another origin than base_url names (a local proxy),
+        so the bundle URL must not carry base_url's scheme and host."""
+        with conf_vars({("api", "base_url"): base_url}):
+            assert get_bundle_url("/ai-model", "model.umd.cjs") == expected

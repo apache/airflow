@@ -36,9 +36,10 @@ import yaml
 from sqlalchemy import func, select
 
 from airflow import settings
+from airflow._shared.state import TaskScope
 from airflow._shared.timezones import timezone
 from airflow.cli import cli_parser
-from airflow.cli.commands import dag_command
+from airflow.cli.commands import dag_command, task_command
 from airflow.dag_processing.bundles.base import BaseDagBundle
 from airflow.dag_processing.dagbag import DagBag, sync_bag_to_db
 from airflow.dag_processing.processor import DagFileParsingResult, DagFileProcessorProcess
@@ -53,6 +54,7 @@ from airflow.sdk import DAG, Asset, BaseOperator, CronPartitionTimetable, Partit
 from airflow.sdk.definitions.dag import _run_inline_trigger
 from airflow.sdk.execution_time.comms import _RequestFrame, _ResponseFrame
 from airflow.serialization.serialized_objects import DagSerialization, LazyDeserializedDAG
+from airflow.state.metastore import MetastoreBackend
 from airflow.timetables.base import Timetable
 from airflow.triggers.base import TriggerEvent
 from airflow.utils.cli import get_db_dag
@@ -1299,8 +1301,8 @@ class TestCliDags:
             tis = dr.get_task_instances()
             assert next(x for x in tis if x.task_id == "abc").state == "success"
 
-    @mock.patch("airflow.sdk.execution_time.task_runner._execute_task")
-    def test_dag_test_with_mark_success(self, mock__execute_task):
+    @mock.patch("airflow.sdk.execution_time.task_runner._TaskRunner.run")
+    def test_dag_test_with_mark_success(self, mock_run):
         """
         option `--mark-success-pattern` should mark matching tasks as success without executing them.
         """
@@ -1317,8 +1319,8 @@ class TestCliDags:
         dag_command.dag_test(cli_args)
 
         # only second operator was actually executed, first one was marked as success
-        assert len(mock__execute_task.call_args_list) == 1
-        assert mock__execute_task.call_args_list[0].kwargs["ti"].task_id == "dummy_operator"
+        assert len(mock_run.call_args_list) == 1
+        assert mock_run.call_args_list[0].args[0].task_id == "dummy_operator"
 
     @conf_vars({("core", "load_examples"): "false"})
     def test_get_dag_excludes_examples_with_bundle(self, configure_testing_dag_bundle):
@@ -1326,7 +1328,7 @@ class TestCliDags:
         try:
             from airflow.utils.cli import get_bagged_dag
         except ImportError:  # Prior to Airflow 3.1.0.
-            from airflow.utils.cli import get_dag as get_bagged_dag  # type: ignore
+            from airflow.utils.cli import get_dag as get_bagged_dag
 
         with configure_testing_dag_bundle(TEST_DAGS_FOLDER / "test_sensor.py"):
             # example DAG should not be found since the testing bundle only exposes test_sensor.py
@@ -1521,6 +1523,25 @@ class TestCliDagsClear:
         args = parser.parse_args(["dags", "clear", self.DAG_ID, "--yes", *extra_args])
         with pytest.raises(SystemExit, match="mutually exclusive"):
             dag_command.dag_clear(args)
+
+    @pytest.mark.usefixtures("seeded_partitioned_runs")
+    @pytest.mark.parametrize(
+        ("command", "func"),
+        [
+            (["dags", "clear", DAG_ID, "--run-id", "part_2026_03_10"], dag_command.dag_clear),
+            (["tasks", "clear", DAG_ID], task_command.task_clear),
+        ],
+    )
+    @pytest.mark.parametrize(("extra_args", "kept"), [([], False), (["--keep-task-state"], True)])
+    def test_keep_task_state(self, parser, command, func, extra_args, kept):
+        scope = TaskScope(dag_id=self.DAG_ID, run_id="part_2026_03_10", task_id="t1", map_index=-1)
+        with create_session() as session:
+            MetastoreBackend().set(scope, "job_id", "app_1234", session=session)
+
+        func(parser.parse_args([*command, "--yes", *extra_args]))
+
+        with create_session() as session:
+            assert (MetastoreBackend().get(scope, "job_id", session=session) is not None) is kept
 
     @pytest.mark.usefixtures("seeded_partitioned_runs")
     def test_rejects_inverted_window(self, parser):

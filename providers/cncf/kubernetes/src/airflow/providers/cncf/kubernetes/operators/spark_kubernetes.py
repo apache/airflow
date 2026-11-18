@@ -223,12 +223,6 @@ class SparkKubernetesOperator(KubernetesPodOperator):
     def pod_manager(self) -> PodManager:
         return PodManager(kube_client=self.client)
 
-    def _try_numbers_match(self, context, pod) -> bool:
-        task_instance = context["task_instance"]
-        task_context_labels = self._get_ti_pod_labels(context)
-        pod_try_number = pod.metadata.labels.get(task_context_labels.get("try_number", ""), "")
-        return str(task_instance.try_number) == str(pod_try_number)
-
     @property
     def template_body(self):
         """Templated body for CustomObjectLauncher."""

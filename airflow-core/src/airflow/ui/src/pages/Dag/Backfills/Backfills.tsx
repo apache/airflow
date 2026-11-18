@@ -16,14 +16,24 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Button, Text } from "@chakra-ui/react";
+import { Badge, Button, HStack, Text } from "@chakra-ui/react";
+import { useQueryClient } from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
+import { MdPause, MdPlayArrow, MdStop } from "react-icons/md";
 import { useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 
-import { useBackfillServiceListBackfillsUi } from "openapi/queries";
+import {
+  useBackfillServiceCancelBackfill,
+  useBackfillServiceListBackfillsUi,
+  useBackfillServiceListBackfillsUiKey,
+  useBackfillServicePauseBackfill,
+  useBackfillServiceUnpauseBackfill,
+} from "openapi/queries";
 import type { BackfillResponse } from "openapi/requests/types.gen";
+
+import { IconButton } from "src/system-components";
 
 import { DataTable } from "src/components/DataTable";
 import type { DataTableFeatures } from "src/components/DataTable/features";
@@ -39,6 +49,7 @@ import { BackfillDagRunsModal } from "./BackfillDagRunsModal";
 import { BackfillsFilters } from "./BackfillsFilters";
 
 const {
+  ACTIVE: ACTIVE_PARAM,
   COMPLETED_AT_GTE: COMPLETED_AT_GTE_PARAM,
   COMPLETED_AT_LTE: COMPLETED_AT_LTE_PARAM,
   CREATED_AT_GTE: CREATED_AT_GTE_PARAM,
@@ -55,13 +66,19 @@ const {
 }: SearchParamsKeysType = SearchParamsKeys;
 
 type ColumnProps = {
+  readonly isActionPending: boolean;
+  readonly onCancel: (backfillId: number) => void;
   readonly onSelectBackfill: (backfillId: number) => void;
+  readonly onTogglePause: (backfill: BackfillResponse) => void;
   readonly translate: TFunction;
 } & Pick<DurationFormat, "formatElapsed">;
 
 const getColumns = ({
   formatElapsed,
+  isActionPending,
+  onCancel,
   onSelectBackfill,
+  onTogglePause,
   translate,
 }: ColumnProps): Array<ColumnDef<DataTableFeatures, BackfillResponse>> => [
   {
@@ -116,11 +133,18 @@ const getColumns = ({
   },
   {
     accessorKey: "completed_at",
-    cell: ({ row }) => (
-      <Text>
-        <Time datetime={row.original.completed_at} />
-      </Text>
-    ),
+    cell: ({ row }) =>
+      row.original.completed_at === null ? (
+        <Badge colorPalette="info" variant="subtle">
+          {row.original.is_paused
+            ? translate("dags:filters.paused.paused")
+            : translate("components:banner.backfillInProgress")}
+        </Badge>
+      ) : (
+        <Text>
+          <Time datetime={row.original.completed_at} />
+        </Text>
+      ),
     enableSorting: false,
     header: translate("table.completedAt"),
   },
@@ -141,10 +165,44 @@ const getColumns = ({
     enableSorting: false,
     header: translate("table.maxActiveRuns"),
   },
+  {
+    accessorKey: "actions",
+    cell: ({ row }) =>
+      row.original.completed_at === null ? (
+        <HStack gap={1}>
+          <IconButton
+            colorPalette="info"
+            label={
+              row.original.is_paused
+                ? translate("components:banner.unpause")
+                : translate("components:banner.pause")
+            }
+            loading={isActionPending}
+            onClick={() => onTogglePause(row.original)}
+            size="xs"
+            variant="outline"
+          >
+            {row.original.is_paused ? <MdPlayArrow /> : <MdPause />}
+          </IconButton>
+          <IconButton
+            colorPalette="info"
+            label={translate("components:banner.cancel")}
+            loading={isActionPending}
+            onClick={() => onCancel(row.original.id)}
+            size="xs"
+            variant="outline"
+          >
+            <MdStop />
+          </IconButton>
+        </HStack>
+      ) : undefined,
+    enableSorting: false,
+    header: "",
+  },
 ];
 
 export const Backfills = () => {
-  const { t: translate } = useTranslation(["common", "components"]);
+  const { t: translate } = useTranslation(["common", "components", "dags"]);
   const { formatElapsed } = useDurationFormat();
   const { setTableURLState, tableURLState } = useTableURLState();
   const location = useLocation();
@@ -171,9 +229,12 @@ export const Backfills = () => {
   const durationGte = searchParams.get(DURATION_GTE_PARAM);
   const durationLte = searchParams.get(DURATION_LTE_PARAM);
   const reprocessBehaviorParam = searchParams.get(REPROCESS_BEHAVIOR_PARAM);
+  const activeParam = searchParams.get(ACTIVE_PARAM);
   const reprocessBehavior = isReprocessBehavior(reprocessBehaviorParam) ? reprocessBehaviorParam : undefined;
 
   const { data, error, isLoading } = useBackfillServiceListBackfillsUi({
+    // The backend reads this as "completed_at is null", so only an explicit choice sends it.
+    active: activeParam === null || activeParam === "" ? undefined : activeParam === "true",
     completedAtGte: completedAtGte ?? undefined,
     completedAtLte: completedAtLte ?? undefined,
     createdAtGte: createdAtGte ?? undefined,
@@ -213,7 +274,29 @@ export const Backfills = () => {
       ),
     );
   };
-  const columns = getColumns({ formatElapsed, onSelectBackfill, translate });
+  const queryClient = useQueryClient();
+  const onSuccess = async () => {
+    await queryClient.invalidateQueries({ queryKey: [useBackfillServiceListBackfillsUiKey] });
+  };
+  const { isPending: isPausePending, mutate: pauseMutate } = useBackfillServicePauseBackfill({ onSuccess });
+  const { isPending: isUnpausePending, mutate: unpauseMutate } = useBackfillServiceUnpauseBackfill({
+    onSuccess,
+  });
+  const { isPending: isCancelPending, mutate: cancelMutate } = useBackfillServiceCancelBackfill({
+    onSuccess,
+  });
+
+  const columns = getColumns({
+    formatElapsed,
+    isActionPending: isPausePending || isUnpausePending || isCancelPending,
+    onCancel: (id) => cancelMutate({ backfillId: id }),
+    onSelectBackfill,
+    onTogglePause: (backfill) =>
+      backfill.is_paused
+        ? unpauseMutate({ backfillId: backfill.id })
+        : pauseMutate({ backfillId: backfill.id }),
+    translate,
+  });
 
   return (
     <>

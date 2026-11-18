@@ -34,7 +34,7 @@ import type { BulkBody_BulkDAGRunBody_, BulkResponse } from "openapi/requests/ty
 
 import { toaster } from "src/system-components";
 
-import { gridQueryKeys, tiPerAttemptQueryKeys } from "./gridViewQueryKeys";
+import { dagListQueryKeys, gridQueryKeys, tiPerAttemptQueryKeys } from "./gridViewQueryKeys";
 import { useClearDagRunDryRunKey } from "./useClearDagRunDryRun";
 
 type Props = {
@@ -50,7 +50,7 @@ export const useBulkPatchDagRun = ({ deselectKeys, onSuccessConfirm }: Props) =>
   const onSuccess = async (responseData: BulkResponse) => {
     // Marking runs changes run + task instance states, so invalidate the same surfaces the
     // single-run mark (usePatchDagRun) does: run/TI lists, run + single/mapped TI details, gantt,
-    // grid, and the clear dry-run preview.
+    // grid, the Dags list cards and the clear dry-run preview.
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: [useDagRunServiceGetDagRunsKey] }),
       queryClient.invalidateQueries({ queryKey: [useDagRunServiceGetDagRunKey] }),
@@ -59,6 +59,7 @@ export const useBulkPatchDagRun = ({ deselectKeys, onSuccessConfirm }: Props) =>
       queryClient.invalidateQueries({ queryKey: [useTaskInstanceServiceGetMappedTaskInstanceKey] }),
       queryClient.invalidateQueries({ queryKey: [useGanttServiceGetGanttDataKey] }),
       ...tiPerAttemptQueryKeys.map((key) => queryClient.invalidateQueries({ queryKey: key })),
+      ...dagListQueryKeys.map((key) => queryClient.invalidateQueries({ queryKey: key })),
       ...[...affectedDagIds.current].flatMap((dagId) => [
         ...gridQueryKeys(dagId).map((key) => queryClient.invalidateQueries({ queryKey: key })),
         queryClient.invalidateQueries({ queryKey: [useClearDagRunDryRunKey, dagId] }),

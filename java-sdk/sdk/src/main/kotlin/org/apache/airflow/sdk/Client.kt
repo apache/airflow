@@ -109,7 +109,7 @@ class Client internal constructor(
    * @return The variable value, or `null` if the variable is not set.
    * @throws ApiError if the API call fails.
    */
-  fun getVariable(key: String): Any? = impl.getVariable(key).value
+  fun getVariable(key: String): Any? = impl.getVariable(key)?.value
 
   /**
    * Stores an Airflow variable, replacing any existing value.
@@ -297,8 +297,6 @@ class TaskStateStore internal constructor(
           )
         else -> now.plus(retention)
       }
-    // TODO: warn when the serialized value exceeds [state_store] max_value_storage_bytes once the
-    //   coordinator passes it to the JVM, as the Python accessor does.
     impl.setTaskStateStore(tiId = details.ti.id, key = key, value = value, expiresAt = expiresAt)
   }
 

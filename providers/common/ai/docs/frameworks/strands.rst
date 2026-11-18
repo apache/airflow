@@ -270,8 +270,11 @@ as ``S3Storage``, inside the task; ``AwsBaseHook`` comes from the Amazon provide
     result = invoke_durably(agent, question, storage=storage)
 
 The default ``session_id`` is derived from the Dag id, run id, task id and map
-index, so it differs between Dag runs. If you pass your own ``session_id`` and the
-storage is shared across Dag runs, as a bucket is, it must differ between runs too. ``invoke_durably`` deletes the
+index, and inside a task loop also from the loop's trajectory and iteration, so it
+differs between Dag runs and between loop iterations. If you pass your own
+``session_id`` and the storage is shared across Dag runs, as a bucket is, it must
+differ between runs too, and inside a task loop between iterations, for example by
+including ``context["loop"].region_id`` and ``context["loop"].index``. ``invoke_durably`` deletes the
 state when the agent finishes or a try starts over; a task that never succeeds
 leaves it in the bucket.
 
@@ -296,7 +299,7 @@ Installation
 
 .. code-block:: bash
 
-    pip install apache-airflow-providers-common-ai "strands-agents>=1.56.0"
+    pip install "apache-airflow-providers-common-ai[sql]" "strands-agents>=1.56.0"
 
 Pin the ``strands-agents`` lower bound as above; 1.56 is the release this
 integration is tested with. Without a bound, a resolver that cannot satisfy Strands'

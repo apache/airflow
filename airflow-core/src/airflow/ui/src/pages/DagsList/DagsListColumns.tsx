@@ -30,6 +30,7 @@ import type { DataTableFeatures } from "src/components/DataTable/features";
 import { SelectionHeaderCheckbox, SelectionRowCheckbox } from "src/components/DataTable/useRowSelection";
 import { DrainingBadge } from "src/components/DrainingBadge";
 import { NeedsReviewBadge } from "src/components/NeedsReviewBadge";
+import { PluginActions } from "src/components/PluginActions";
 import { TeamName } from "src/components/TeamName";
 import { TogglePause } from "src/components/TogglePause";
 import { TriggerDAGButton } from "src/components/TriggerDag/TriggerDAGButton";
@@ -90,7 +91,7 @@ const ScheduleCell = ({ row: { original } }: CellProps) => (
 
 const NextRunCell = ({ row: { original } }: CellProps) =>
   original.is_paused ? undefined : original.scheduling_state === "draining" ? (
-    <DrainingBadge />
+    <DrainingBadge dagId={original.dag_id} />
   ) : Boolean(original.next_dagrun_run_after) ? (
     <Box whiteSpace="nowrap">
       <DagRunInfo
@@ -163,8 +164,14 @@ const FavoriteCell = ({ row: { original } }: CellProps) => (
   <FavoriteDagButton dagId={original.dag_id} isFavorite={original.is_favorite} />
 );
 
+// Plugin actions sit in this cell rather than a column of their own, so a deployment with no
+// Dag actions does not carry a permanently empty column -- and `PluginActions` renders nothing
+// when there are none, matching how the card lays them out.
 const DeleteCell = ({ row: { original } }: CellProps) => (
-  <DeleteDagButton dagDisplayName={original.dag_display_name} dagId={original.dag_id} />
+  <>
+    <DeleteDagButton dagDisplayName={original.dag_display_name} dagId={original.dag_id} />
+    <PluginActions entity={{ dag: original, destination: "dag" }} />
+  </>
 );
 
 export const createColumns = (
@@ -184,6 +191,7 @@ export const createColumns = (
   {
     accessorKey: "is_paused",
     cell: PauseCell,
+    enableHiding: false,
     enableSorting: false,
     header: "",
     meta: {
@@ -237,12 +245,14 @@ export const createColumns = (
   {
     accessorKey: "pending_actions",
     cell: PendingActionsCell,
+    enableHiding: false,
     enableSorting: false,
     header: "",
   },
   {
     accessorKey: "trigger",
     cell: TriggerCell,
+    enableHiding: false,
     enableSorting: false,
     header: "",
   },
@@ -256,6 +266,7 @@ export const createColumns = (
   {
     accessorKey: "delete",
     cell: DeleteCell,
+    enableHiding: false,
     enableSorting: false,
     header: "",
   },

@@ -99,7 +99,7 @@ Installation
 
 .. code-block:: bash
 
-    pip install apache-airflow-providers-common-ai "google-adk>=2.9.1"
+    pip install "apache-airflow-providers-common-ai[sql]" "google-adk>=2.9.1"
 
 ADK caps ``opentelemetry-api`` and ``opentelemetry-sdk`` at 1.42.1, which is lower than
 the version pinned in Airflow's constraints file, so the command above fails when

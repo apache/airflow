@@ -125,6 +125,34 @@ As you can see in the body of this code snippet, you can use XComs to get inform
 
 |
 
+Formatting the body
+-------------------
+
+The ``body`` of every HITL operator is rendered as Markdown in the UI.
+In Markdown, a single line break inside a paragraph is displayed as a space, so a multi-line value such as a
+templated XCom shows up on one line.
+To keep the line breaks, wrap the value in a fenced code block, or separate the lines with blank lines.
+
+.. code-block:: python
+
+    ApprovalOperator(
+        task_id="confirm_deletion",
+        subject="Should the following files be deleted?",
+        body="""Dry-run result:
+
+    ```
+    {{ ti.xcom_pull(task_ids='dry_run') }}
+    ```
+    """,
+    )
+
+.. versionchanged:: 3.4
+
+   Code blocks in the body keep their line breaks. On earlier versions, lines inside a code block are
+   also joined, so separate them with blank lines instead.
+
+|
+
 Branch Selection
 ----------------
 

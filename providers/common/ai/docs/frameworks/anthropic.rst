@@ -68,7 +68,9 @@ the runner still hands an exception from one of your own tools to the model. A r
 reaches ``max_iterations`` while the model is still calling tools has no answer, so
 ``tools.run`` raises
 :class:`~airflow.providers.common.ai.exceptions.ToolRunnerMaxIterationsError` and the
-task fails rather than returning an empty result.
+task fails rather than returning an empty result. A refusal has no answer either, but
+``tools.run`` returns it like any final message, so the task above checks for
+``stop_reason == "refusal"`` and raises, which fails the task.
 
 To reach Claude on Amazon Bedrock, Claude Platform on AWS, Google Vertex AI or Microsoft
 Foundry, build the
@@ -82,7 +84,9 @@ What each tool does
 ``AirflowTools`` accepts any toolset that implements
 :class:`~airflow.providers.common.ai.tools.ToolProvider`, and individual
 :class:`~airflow.providers.common.ai.tools.AirflowTool` objects. ``MCPToolset`` is the
-exception; give the runner the MCP server through the SDK instead. Each tool:
+exception; run the agent with ``AsyncAnthropic`` and
+:class:`~airflow.providers.common.ai.tools.anthropic.AsyncAirflowTools`, and convert the MCP
+server's tools with the SDK's ``anthropic.lib.tools.mcp.async_mcp_tool()`` instead. Each tool:
 
 - Keeps the toolset tool's name, description and argument schema.
 - Runs through the toolset, so connection resolution, SQL validation,
@@ -193,13 +197,14 @@ apply:
 Installation
 ------------
 
-Install this provider with its ``anthropic`` extra:
+Install this provider with its ``anthropic`` and ``sql`` extras:
 
 .. code-block:: bash
 
-    pip install "apache-airflow-providers-common-ai[anthropic]"
+    pip install "apache-airflow-providers-common-ai[anthropic,sql]"
 
-The ``anthropic`` extra installs the SDK. Add ``apache-airflow-providers-anthropic`` if
+The ``anthropic`` extra installs the SDK, and ``sql`` installs what the example's
+``SQLToolset`` imports. Add ``apache-airflow-providers-anthropic`` if
 you build the client with ``AnthropicHook``. ``tool_runner`` is a beta helper of the
 SDK. The adapter needs ``anthropic`` 1.1.0 or later, which the extra requires,
 and is tested with 1.8.0.

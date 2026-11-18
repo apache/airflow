@@ -162,3 +162,32 @@ def test_simple_table_add_column_smoke():
     table.add_column("column_1")
 
     assert table.columns[0].header == "column_1"
+
+
+MARKUP_LIKE_TEXT = pytest.mark.parametrize(
+    "text",
+    ["s3://[bucket]/path", "[red]not styled[/red]", "a[0-9]+ [/b]", r"path\[red]"],
+    ids=["unknown-tag", "style-tag", "closing-tag-only", "backslash-before-tag"],
+)
+
+
+@pytest.mark.parametrize("output", ["table", "plain"])
+@MARKUP_LIKE_TEXT
+def test_print_as_keeps_square_brackets_in_values(output, text):
+    """Values that look like Rich markup are shown as-is instead of being dropped or raising."""
+    console = console_formatting.AirflowConsole(record=True)
+
+    console.print_as([{"name": text}], output=output)
+
+    assert text in console.export_text()
+
+
+@pytest.mark.parametrize("output", ["table", "plain"])
+@MARKUP_LIKE_TEXT
+def test_print_as_keeps_square_brackets_in_headers(output, text):
+    """Column headers that look like Rich markup are shown as-is instead of being dropped or raising."""
+    console = console_formatting.AirflowConsole(record=True)
+
+    console.print_as([{text: "value"}], output=output)
+
+    assert text in console.export_text()

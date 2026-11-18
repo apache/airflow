@@ -1,0 +1,122 @@
+{
+  "history": {
+    "@odata.context": "https://wabi-north-europe-h-primary-redirect.analysis.windows.net/v1.0/myorg/groups/00000000-0000-4000-8000-000000000001/$metadata#refreshes",
+    "value": [
+      {
+        "requestId": "00000000-0000-4000-8000-000000000003",
+        "id": 1001,
+        "refreshType": "ViaEnhancedApi",
+        "startTime": "2026-10-12T14:09:43.34Z",
+        "endTime": "2026-10-12T14:09:46.763Z",
+        "status": "Completed",
+        "extendedStatus": "Completed",
+        "refreshAttempts": [
+          {
+            "attemptId": 1,
+            "startTime": "2026-10-12T14:09:43.9804475Z",
+            "endTime": "2026-10-12T14:09:46.7631279Z",
+            "type": "Data",
+            "executionMetrics": []
+          }
+        ]
+      },
+      {
+        "requestId": "00000000-0000-4000-8000-000000000004",
+        "id": 1002,
+        "refreshType": "OnDemand",
+        "startTime": "2026-10-12T13:34:26.643Z",
+        "endTime": "2026-10-12T13:34:29.503Z",
+        "status": "Completed",
+        "refreshAttempts": [
+          {
+            "attemptId": 1,
+            "startTime": "2026-10-12T13:34:26.6758493Z",
+            "endTime": "2026-10-12T13:34:28.6290889Z",
+            "type": "Data",
+            "executionMetrics": []
+          },
+          {
+            "attemptId": 1,
+            "startTime": "2026-10-12T13:34:28.8166028Z",
+            "endTime": "2026-10-12T13:34:29.0509883Z",
+            "type": "Query",
+            "executionMetrics": []
+          }
+        ]
+      },
+      {
+        "requestId": "00000000-0000-4000-8000-000000000005",
+        "id": 1003,
+        "refreshType": "WebModeling",
+        "startTime": "2026-10-12T13:30:56.287Z",
+        "endTime": "2026-10-12T13:31:01.023Z",
+        "status": "Completed",
+        "extendedStatus": "Completed",
+        "refreshAttempts": [
+          {
+            "attemptId": 1,
+            "startTime": "2026-10-12T13:30:56.6609601Z",
+            "endTime": "2026-10-12T13:31:01.0399565Z",
+            "type": "Data",
+            "executionMetrics": []
+          }
+        ]
+      }
+    ]
+  },
+  "execution": {
+    "startTime": "2026-10-12T14:09:43.34",
+    "endTime": "2026-10-12T14:09:46.763",
+    "type": "Full",
+    "commitMode": "Transactional",
+    "status": "Completed",
+    "extendedStatus": "Completed",
+    "currentRefreshType": "Full",
+    "numberOfAttempts": 1,
+    "objects": [
+      {"table": "ExampleTable", "partition": "ExampleTable", "status": "Completed"},
+      {
+        "table": "DateTableTemplate_00000000-0000-4000-8000-000000000006",
+        "partition": "DateTableTemplate_00000000-0000-4000-8000-000000000006",
+        "status": "Completed"
+      },
+      {
+        "table": "LocalDateTable_00000000-0000-4000-8000-000000000007",
+        "partition": "LocalDateTable_00000000-0000-4000-8000-000000000007",
+        "status": "Completed"
+      }
+    ],
+    "refreshAttempts": [
+      {
+        "attemptId": 1,
+        "startTime": "2026-10-12T14:09:43.9804475Z",
+        "endTime": "2026-10-12T14:09:46.7631279Z",
+        "type": "Data",
+        "executionMetrics": [
+          {
+            "timeStart": "2026-10-12T14:09:44.653Z",
+            "timeEnd": "2026-10-12T14:09:45.919Z",
+            "durationMs": 1266,
+            "externalQueryExecutionTimeMs": 32,
+            "vertipaqJobCpuTimeMs": 31,
+            "mEngineCpuTimeMs": 47,
+            "queryProcessingCpuTimeMs": 156,
+            "totalCpuTimeMs": 703,
+            "executionDelayMs": 19,
+            "approximatePeakMemConsumptionKB": 137951,
+            "mEnginePeakMemoryKB": 136228,
+            "tabularConnectionTimeoutMs": 17999000,
+            "commandType": "Batch",
+            "discoverType": 136,
+            "queryDialect": 4,
+            "refreshParallelism": 16,
+            "vertipaqTotalRows": 2563,
+            "intendedUsage": 2,
+            "qsoReplicaVersion": 1004
+          }
+        ]
+      }
+    ],
+    "initiatedBy": "ViaEnhancedApi"
+  }
+}

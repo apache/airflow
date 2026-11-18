@@ -149,34 +149,45 @@ export const FilterPill = ({
     );
   }
 
+  // The remove control is a button, so the pill body is a sibling button rather than the wrapper:
+  // nesting one button inside another is invalid HTML and React warns about it.
   return (
     <Box
       _hover={{ bg: "colorPalette.subtle" }}
       alignItems="center"
-      as="button"
       bg={hasValue ? "brand.emphasized" : "gray.muted"}
       borderRadius="full"
       color="colorPalette.fg"
       colorPalette={hasValue ? "brand" : "gray"}
-      cursor="pointer"
-      data-testid={`${filter.config.key}-pill`}
       display="flex"
       fontSize="sm"
       fontWeight="medium"
       gap={2}
       h="9"
-      onClick={handlePillClick}
-      pl={3}
       pr={1}
     >
-      {filter.config.icon ?? getDefaultFilterIcon(filter.config.type)}
-      <Box alignItems="center" display="flex" flex="1" textWrap="nowrap">
-        {filter.config.label}
-        {displayValue === undefined || displayValue === "" ? undefined : <strong>: {displayValue}</strong>}
+      <Box
+        alignItems="center"
+        as="button"
+        cursor="pointer"
+        data-testid={`${filter.config.key}-pill`}
+        display="flex"
+        flex="1"
+        gap={2}
+        h="100%"
+        onClick={handlePillClick}
+        pl={3}
+      >
+        {filter.config.icon ?? getDefaultFilterIcon(filter.config.type)}
+        <Box alignItems="center" display="flex" flex="1" textWrap="nowrap">
+          {filter.config.label}
+          {displayValue === undefined || displayValue === "" ? undefined : <strong>: {displayValue}</strong>}
+        </Box>
       </Box>
       <IconButton
         aria-label={`Remove ${filter.config.label} filter`}
         borderRadius="full"
+        data-testid={`${filter.config.key}-pill-remove`}
         label={translate("common:filters.removeFilter")}
         onClick={(event) => {
           event.stopPropagation();

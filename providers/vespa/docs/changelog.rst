@@ -25,6 +25,22 @@
 Changelog
 ---------
 
+0.1.3
+.....
+
+.. note::
+  Version 0.1.2 already declared Python 3.14 support. This release fixes its dependency
+  requirement on Python 3.14 by requiring ``pyvespa>=1.2.9``. Python 3.11-3.13 keep
+  ``pyvespa>=1.1.2``.
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Require pyvespa 1.2.9 or newer on Python 3.14 (#74559, #75062)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 0.1.2
 .....
 

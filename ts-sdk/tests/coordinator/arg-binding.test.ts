@@ -442,7 +442,7 @@ describe("resolveArgs", () => {
     // destructures to `undefined` and corrupts the task's output.
     const unknownKind = [{ name: "totals", kind: "dataset" }] as unknown as ArgBindings;
     await expect(bind(unknownKind)).rejects.toThrowError(
-      /has binding kind "dataset", which this version of apache-airflow-ts-sdk cannot bind/,
+      /has binding kind "dataset", which this version of @apache-airflow\/ts-sdk cannot bind/,
     );
   });
 

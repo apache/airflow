@@ -27,7 +27,7 @@ from collections import defaultdict
 from collections.abc import Callable, Collection, Iterable, Mapping, Sequence
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any, NamedTuple
-from urllib.parse import quote
+from urllib.parse import quote, urlencode
 from uuid import UUID
 
 import attrs
@@ -101,7 +101,12 @@ from airflow.models.asset import AssetModel
 from airflow.models.base import Base, StringID
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbag import DBDagBag
-from airflow.models.deadline import Deadline, ReferenceModels
+from airflow.models.deadline import (
+    DAGRUN_QUEUED_TIMING,
+    EVALUATION_TIMING_FIELD,
+    Deadline,
+    ReferenceModels,
+)
 from airflow.models.deadline_alert import DeadlineAlert as DeadlineAlertModel
 from airflow.models.dynamic_region import (
     SENTINEL_REGION_ID,
@@ -116,9 +121,10 @@ from airflow.models.dynamic_region import (
 # Import HITLDetail at runtime so SQLAlchemy can resolve the relationship
 from airflow.models.hitl import HITLDetail  # noqa: F401
 from airflow.models.log import Log
+from airflow.models.task_state_store import TaskStateStoreModel
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.models.taskreschedule import TaskReschedule
-from airflow.models.xcom import XCOM_RETURN_KEY, LazyXComSelectSequence
+from airflow.models.xcom import XCOM_RETURN_KEY, LazyXComPrimitivesSelectSequence, LazyXComSelectSequence
 from airflow.serialization.enums import stringify_encoding_keys
 from airflow.settings import task_instance_mutation_hook
 from airflow.task.priority_strategy import validate_and_load_priority_weight_strategy
@@ -126,6 +132,7 @@ from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import REQUEUEABLE_DEPS, RUNNING_DEPS
 from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep
 from airflow.utils.db import exists_query
+from airflow.utils.helpers import chunks
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
 from airflow.utils.platform import getuser
@@ -144,6 +151,23 @@ from airflow.utils.state import DagRunState, State, TaskInstanceState
 TR = TaskReschedule
 
 log = logging.getLogger(__name__)
+
+# Five bind parameters per key. SQLite before 3.32 allows at most 999 per statement by default.
+_TASK_STATE_DISCARD_BATCH_SIZE = 150
+
+# Columns describing one attempt's execution; a successor attempt starts with them empty.
+_PER_ATTEMPT_COLUMNS = (
+    "start_date",
+    "end_date",
+    "duration",
+    "hostname",
+    "unixname",
+    "pid",
+    "queued_dttm",
+    "scheduled_dttm",
+    "queued_by_job_id",
+    "last_heartbeat_at",
+)
 tracer = trace.get_tracer(__name__)
 
 if TYPE_CHECKING:
@@ -196,7 +220,7 @@ def _add_log(
     )
 
 
-def _stop_remaining_tasks(*, task_instance: TaskInstance, task_teardown_map=None, session: Session):
+def _stop_remaining_tasks(*, task_instance: TaskInstance, dag: SerializedDAG, session: Session):
     """
     Stop non-teardown tasks in dag.
 
@@ -204,22 +228,14 @@ def _stop_remaining_tasks(*, task_instance: TaskInstance, task_teardown_map=None
     """
     if not task_instance.dag_run:
         raise ValueError("``task_instance`` must have ``dag_run`` set")
-    tis = task_instance.dag_run.get_task_instances(session=session)
-    if TYPE_CHECKING:
-        assert task_instance.task
-        assert task_instance.task.dag
-
+    tis = task_instance.dag_run.get_task_instances(state=State.unfinished, session=session)
     for ti in tis:
-        if ti.task_id == task_instance.task_id or ti.state in (
-            TaskInstanceState.SUCCESS,
-            TaskInstanceState.FAILED,
-        ):
+        if ti.task_id == task_instance.task_id:
             continue
-        if task_teardown_map:
-            teardown = task_teardown_map[ti.task_id]
-        else:
-            teardown = task_instance.task.dag.task_dict[ti.task_id].is_teardown
-        if not teardown:
+        if (task := dag.task_dict.get(ti.task_id)) is None:
+            log.info("Task %s is no longer in the Dag; not stopping it", ti.task_id)
+            continue
+        if not task.is_teardown:
             if ti.state == TaskInstanceState.RUNNING:
                 log.info("Forcing task %s to fail due to dag's `fail_fast` setting", ti.task_id)
                 msg = "Forcing task to fail due to dag's `fail_fast` setting."
@@ -270,8 +286,13 @@ def _recalculate_dagrun_queued_at_deadlines(dagrun: DagRun, *, session: Session)
         .where(
             Deadline.dagrun_id == dagrun.id,
             Deadline.missed == false(),
-            DeadlineAlertModel.reference[ReferenceModels.REFERENCE_TYPE_FIELD].as_string()
-            == ReferenceModels.DagRunQueuedAtDeadline.__name__,
+            or_(
+                DeadlineAlertModel.reference[EVALUATION_TIMING_FIELD].as_string() == DAGRUN_QUEUED_TIMING,
+                # Alerts serialized before the timing was persisted only identify the built-in
+                # queued reference by name.
+                DeadlineAlertModel.reference[ReferenceModels.REFERENCE_TYPE_FIELD].as_string()
+                == ReferenceModels.DagRunQueuedAtDeadline.__name__,
+            ),
         )
     ).all()
 
@@ -285,9 +306,17 @@ def _recalculate_dagrun_queued_at_deadlines(dagrun: DagRun, *, session: Session)
         try:
             decoded_alert = decode_deadline_alert_model(deadline_alert)
             interval = resolve_deadline_alert_interval(decoded_alert, session=session)
-        except (ValueError, TypeError):
-            # Either step can fail: the alert may hold a payload the decoder refuses, or a
-            # variable-backed interval may point at a Variable that is missing or non-numeric.
+            new_deadline_time = decoded_alert.reference.evaluate_with(
+                session=session,
+                interval=interval,
+                dagrun=dagrun,
+                dag_id=dagrun.dag_id,
+                run_id=dagrun.run_id,
+            )
+        except Exception:
+            # Any step can fail: the alert may hold a payload the decoder refuses, a
+            # variable-backed interval may point at a Variable that is missing or non-numeric,
+            # and the evaluation is the Dag author's own code, which may raise anything at all.
             # Leave this deadline alone rather than failing the whole clear.
             log.warning(
                 "Error while recalculating deadline %s for DagRun %s.%s, leaving it unchanged",
@@ -297,14 +326,6 @@ def _recalculate_dagrun_queued_at_deadlines(dagrun: DagRun, *, session: Session)
                 exc_info=True,
             )
             continue
-
-        new_deadline_time = decoded_alert.reference.evaluate_with(
-            session=session,
-            interval=interval,
-            dagrun=dagrun,
-            dag_id=dagrun.dag_id,
-            run_id=dagrun.run_id,
-        )
 
         if new_deadline_time is None:
             continue
@@ -437,6 +458,7 @@ def clear_task_instances(
     *,
     whole_task_keys: Collection[tuple[str, str, str]] = (),
     superseded_ti_ids: Collection[UUID] = (),
+    keep_task_state: bool = False,
 ) -> list[TaskInstance]:
     """
     Clear a set of task instances, but make sure the running ones get killed.
@@ -458,6 +480,7 @@ def clear_task_instances(
         mapped expansion of such a task is archived and regenerated in a new region.
     :param superseded_ti_ids: executions whose generated work is replaced rather than retried; they
         are archived in place instead of receiving a successor.
+    :param keep_task_state: keep the ``task_state_store`` entries so the next attempt resumes from them.
 
     :meta private:
     """
@@ -554,6 +577,11 @@ def clear_task_instances(
                 ti.max_tries = max(ti.max_tries or 0, previous_try_number)
             ti.state = None
             ti.external_executor_id = None
+            # retry_delay_override is the functional one: next_retry_datetime() prefers it over
+            # the task's own retry_delay, so a stale value would retime the next retry.
+            ti.retry_reason = None
+            ti.retry_delay_override = None
+            ti.retry_at = None
             ti.clear_next_method_args()
             # Match DagVersion to latest serialized DAG when running on the latest version.
             if use_latest_version:
@@ -648,7 +676,34 @@ def clear_task_instances(
             select(DagRun).where(tuple_(DagRun.dag_id, DagRun.run_id).in_(legacy_run_keys))
         ):
             legacy_run.reconcile_legacy_expansions(session=session)
+    if not keep_task_state:
+        _discard_task_state_store(cleared, session=session)
     return cleared
+
+
+def _discard_task_state_store(tis: Collection[TaskInstance], *, session: Session) -> None:
+    """
+    Delete the ``task_state_store`` entries of each task instance.
+
+    Only the metadata DB rows are deleted. A custom ``[state_store] backend`` is not touched, and a
+    custom ``[workers] state_store_backend`` payload is left to its own lifecycle/TTL policy.
+    """
+    columns = tuple_(
+        TaskStateStoreModel.dag_id,
+        TaskStateStoreModel.run_id,
+        TaskStateStoreModel.task_id,
+        TaskStateStoreModel.region_id,
+        TaskStateStoreModel.region_index,
+    )
+    keys = list({(ti.dag_id, ti.run_id, ti.task_id, ti.region_id, ti.region_index) for ti in tis})
+    deleted = 0
+    for batch in chunks(keys, _TASK_STATE_DISCARD_BATCH_SIZE):
+        result = session.execute(
+            delete(TaskStateStoreModel).where(columns.in_(batch)).execution_options(synchronize_session=False)
+        )
+        deleted += getattr(result, "rowcount", 0) or 0
+    if deleted:
+        log.info("Discarded %d task state store entries for %d cleared task instances", deleted, len(tis))
 
 
 @attrs.define(frozen=True)
@@ -834,6 +889,7 @@ def clear_loop_task_instances(
     run_on_latest_version: bool = False,
     prevent_running_task: bool | None = None,
     whole_task_keys: Collection[tuple[str, str, str]] = (),
+    keep_task_state: bool = False,
 ) -> LoopClearScope:
     """Clear selected loop tries and archive their replaced generated suffixes."""
     from airflow.models.dagrun import lock_dag_runs
@@ -860,6 +916,7 @@ def clear_loop_task_instances(
         run_on_latest_version=run_on_latest_version,
         prevent_running_task=prevent_running_task,
         whole_task_keys=whole_task_keys,
+        keep_task_state=keep_task_state,
     )
     return scope
 
@@ -872,6 +929,7 @@ def clear_task_instances_for_runs(
     run_on_latest_version: bool = False,
     prevent_running_task: bool | None = None,
     whole_task_keys: Collection[tuple[str, str, str]] = (),
+    keep_task_state: bool = False,
     later_loop_iterations: bool = True,
 ) -> None:
     """
@@ -893,6 +951,7 @@ def clear_task_instances_for_runs(
         run_on_latest_version=run_on_latest_version,
         prevent_running_task=prevent_running_task,
         whole_task_keys=whole_task_keys,
+        keep_task_state=keep_task_state,
     )
     for run_key in sorted(gate_runs):
         clear_loop_task_instances(
@@ -904,6 +963,7 @@ def clear_task_instances_for_runs(
             run_on_latest_version=run_on_latest_version,
             prevent_running_task=prevent_running_task,
             whole_task_keys=whole_task_keys,
+            keep_task_state=keep_task_state,
         )
 
 
@@ -916,6 +976,7 @@ def apply_loop_clear_scope(
     run_on_latest_version: bool = False,
     prevent_running_task: bool | None = None,
     whole_task_keys: Collection[tuple[str, str, str]] = (),
+    keep_task_state: bool = False,
 ) -> list[TaskInstance]:
     """Apply a planned clear while the caller holds its DagRun lock."""
     from airflow.exceptions import AirflowClearRunningTaskException
@@ -968,6 +1029,7 @@ def apply_loop_clear_scope(
         run_on_latest_version=run_on_latest_version,
         prevent_running_task=prevent_running_task,
         whole_task_keys=whole_task_keys,
+        keep_task_state=keep_task_state,
     )
 
 
@@ -1107,6 +1169,11 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
     task_id: Mapped[str] = mapped_column(StringID(), nullable=False)
     dag_id: Mapped[str] = mapped_column(StringID(), nullable=False)
     run_id: Mapped[str] = mapped_column(StringID(), nullable=False)
+    # The slot this instance fills in its region, so its meaning follows the region's node: a loop
+    # region numbers its iterations from one and a mapped expansion numbers its slots from zero.
+    # -1 covers both a plain task, which belongs to no region at all and is the common case, and a
+    # mapped task that has not been expanded yet. Code that reads the column without knowing which
+    # node the region executes cannot tell an iteration from a map index.
     region_index: Mapped[int] = mapped_column(Integer, nullable=False, server_default="-1")
     map_index = synonym("region_index")
     region_id: Mapped[UUID] = mapped_column(
@@ -1132,6 +1199,11 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
     priority_weight: Mapped[int | None] = mapped_column(Integer, nullable=True)
     operator: Mapped[str | None] = mapped_column(String(1000), nullable=True)
     custom_operator_name: Mapped[str | None] = mapped_column(String(1000), nullable=True)
+    # Denormalized from the task so ti_run can tell a stub (foreign-runtime) task from a regular one
+    # without loading the serialized Dag. Null on rows written before the column existed. A row moved
+    # to a new Dag version without being refreshed from its task keeps the value it was created with,
+    # which fails closed: a task that has become a stub loses its arg_bindings rather than running wrong.
+    is_stub: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
     queued_dttm: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
     scheduled_dttm: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
     queued_by_job_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
@@ -1173,9 +1245,13 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
     dag_version = relationship("DagVersion", back_populates="task_instances")
 
     # Retry policy overrides: set by the task worker when a RetryPolicy is configured.
-    # Cleared on task start (ti_run).  Read by next_retry_datetime().
+    # Cleared on clear, on scheduling or deferring the next attempt, and on task start (ti_run).
+    # Read by next_retry_datetime().
     retry_delay_override: Mapped[float | None] = mapped_column(Float, nullable=True)
     retry_reason: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    # When an UP_FOR_RETRY attempt becomes due; written by the scheduler on its first pass after the
+    # attempt is created.
+    retry_at: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
 
     __table_args__ = (
         Index("ti_dag_state", dag_id, state),
@@ -1375,6 +1451,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
             "executor_config": task.executor_config,
             "operator": task.task_type,
             "custom_operator_name": getattr(task, "operator_name", None),
+            "is_stub": task.is_stub,
             "region_index": region_index,
             "region_id": region_id,
             "_task_display_property_value": task.task_display_name,
@@ -1423,11 +1500,20 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         """Log URL for TaskInstance."""
         run_id = quote(self.run_id)
         base_url = conf.get("api", "base_url", fallback="http://localhost:8080/")
-        map_index = f"/mapped/{self.region_index}" if self.region_index >= 0 else ""
-        try_number = f"?try_number={self.try_number}" if self.try_number > 0 else ""
-        _log_uri = f"{base_url.rstrip('/')}/dags/{self.dag_id}/runs/{run_id}/tasks/{self.task_id}{map_index}{try_number}"
-
-        return _log_uri
+        _log_uri = f"{base_url.rstrip('/')}/dags/{self.dag_id}/runs/{run_id}/tasks/{self.task_id}"
+        query: dict[str, Any] = {}
+        if self.region_id == SENTINEL_REGION_ID:
+            if self.region_index >= 0:
+                _log_uri += f"/mapped/{self.region_index}"
+        else:
+            # In a region, region_index is a map index only for a mapped task (in a loop it is the iteration
+            # otherwise), and the UI selects the task instance by its region, which tells loop iterations apart
+            if (task := getattr(self, "task", None)) is not None and task.get_needs_expansion():
+                _log_uri += f"/mapped/{self.region_index}"
+            query.update(region_id=self.region_id, region_index=self.region_index)
+        if self.try_number > 0:
+            query["try_number"] = self.try_number
+        return f"{_log_uri}?{urlencode(query)}" if query else _log_uri
 
     @property
     def mark_success_url(self) -> str:
@@ -1562,6 +1648,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         self.operator = task.task_type
         op_name = getattr(task, "operator_name", None)
         self.custom_operator_name = op_name if isinstance(op_name, str) else ""
+        self.is_stub = task.is_stub
         # Re-apply cluster policy here so that task default do not overload previous data
         task_instance_mutation_hook(self, dag_run=dag_run)
 
@@ -1594,8 +1681,15 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         self.log.debug("Setting task state for %s to %s", self, state)
         if self not in session:
             self.refresh_from_db(session=session)
+        previous_state = self.state
         self.state = state
         self.start_date = self.start_date or current_time
+        if previous_state == TaskInstanceState.UP_FOR_RETRY and state != TaskInstanceState.UP_FOR_RETRY:
+            # The pending attempt never runs, so it must not keep the previous one's values:
+            # prepare_db_for_next_try() would otherwise archive them under this try number.
+            self.retry_reason = None
+            self.retry_delay_override = None
+            self.retry_at = None
         if self.state in State.finished or self.state == TaskInstanceState.UP_FOR_RETRY:
             self.end_date = self.end_date or current_time
             self.duration = (self.end_date - self.start_date).total_seconds()
@@ -1723,12 +1817,22 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         """Archive this UUID and return its successor in the caller's transaction."""
         successor_state = self.state
         dag_version_id = self.dag_version_id
+        retry_at = None
+        # The execution API doesn't load the task, so a worker-reported retry without a policy
+        # override is left for DagRun._get_ready_tis.
+        if successor_state == TaskInstanceState.UP_FOR_RETRY and (
+            self.retry_delay_override is not None or self.task is not None
+        ):
+            retry_at = self._compute_retry_deadline(
+                failed_try_number=self.try_number, failed_end_date=self.end_date
+            )
         self.archive(reason="retry", session=session)
         values = {
             attribute.columns[0].name: getattr(self, attribute.key)
             for attribute in inspect(TaskInstance).column_attrs
         }
         values.update(
+            {name: None for name in _PER_ATTEMPT_COLUMNS},
             id=uuid7(),
             try_number=self.try_number + 1,
             working_set=True,
@@ -1737,6 +1841,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
             external_executor_id=None,
             dag_version_id=dag_version_id,
             state=successor_state,
+            retry_at=retry_at,
         )
         session.execute(insert(TaskInstance.__table__).values(values))
         successor = session.scalars(select(TaskInstance).where(TaskInstance.id == values["id"])).one()
@@ -2028,28 +2133,60 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
             return False
         return region is not None and region.node_id == self.task_id and region.parent_region_id is None
 
-    def next_retry_datetime(self):
+    def next_retry_datetime(self, *, session: Session | None = None) -> datetime:
         """
         Get datetime of the next retry if the task instance fails.
 
+        ``retry_at`` is usually written by the scheduler on its first pass after an
+        ``UP_FOR_RETRY`` attempt is created. Until then, or for a row from before that column, the
+        deadline is computed from the previous attempt's end date.
+        """
+        if self.state == TaskInstanceState.UP_FOR_RETRY:
+            if self.retry_at is not None:
+                return self.retry_at
+            return self._compute_retry_deadline(
+                failed_try_number=self.try_number - 1,
+                failed_end_date=self._get_previous_attempt_end_date(session=session) or self.end_date,
+            )
+        return self._compute_retry_deadline(failed_try_number=self.try_number, failed_end_date=self.end_date)
+
+    def _get_previous_attempt_end_date(self, *, session: Session | None) -> datetime | None:
+        session = session or inspect(self).session
+        if session is None:
+            return None
+        return session.scalar(
+            select(TaskInstance.end_date)
+            .where(
+                TaskInstance.dag_id == self.dag_id,
+                TaskInstance.run_id == self.run_id,
+                TaskInstance.task_id == self.task_id,
+                TaskInstance.region_id == self.region_id,
+                TaskInstance.region_index == self.region_index,
+                TaskInstance.try_number == self.try_number - 1,
+            )
+            .execution_options(include_all_attempts=True)
+        )
+
+    def _compute_retry_deadline(
+        self, *, failed_try_number: int, failed_end_date: datetime | None
+    ) -> datetime:
+        """
+        Compute when the attempt after ``failed_try_number`` may start.
+
         When a :class:`~airflow.sdk.definitions.retry_policy.RetryPolicy` has
-        overridden the delay, ``retry_delay_override`` is stored on the task
-        instance row and takes precedence over the static ``retry_delay`` /
-        exponential-backoff calculation.
+        overridden the delay, ``retry_delay_override`` takes precedence over the
+        static ``retry_delay`` / exponential-backoff calculation.
 
         For exponential backoff, retry_delay is used as base and will be converted to seconds.
         """
-        # Check for a policy-driven delay override.
+        base = failed_end_date if failed_end_date is not None else timezone.utcnow()
         if self.retry_delay_override is not None:
-            base = self.end_date if self.end_date is not None else timezone.utcnow()
             return base + timedelta(seconds=self.retry_delay_override)
 
         from airflow.sdk.definitions._internal.abstractoperator import MAX_RETRY_DELAY
 
-        # While waiting for retry, the live row already identifies the next attempt.
-        failed_try_number = (
-            self.try_number - 1 if self.state == TaskInstanceState.UP_FOR_RETRY else self.try_number
-        )
+        if TYPE_CHECKING:
+            assert self.task is not None
         delay = self.task.retry_delay
         multiplier = self.task.retry_exponential_backoff if self.task.retry_exponential_backoff != 0 else 1.0
         if multiplier != 1.0 and multiplier > 0:
@@ -2092,7 +2229,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
             delay = timedelta(seconds=delay_backoff_in_seconds)
             if self.task.max_retry_delay:
                 delay = min(self.task.max_retry_delay, delay)
-        return self.end_date + delay
+        return base + delay
 
     def ready_for_retry(self) -> bool:
         """Check on whether the task instance is in the right state and timeframe to be retried."""
@@ -2321,8 +2458,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
             Supported states: QUEUED and RUNNING
         """
         if self.end_date:
-            # if the task has an end date, it means that this is not its first round.
-            # we send the state transition time metric only on the first try, otherwise it gets more complex.
+            # This try already ran once (e.g. a sensor reschedule); only its first scheduling is timed.
             return
 
         # switch on state and deduce which metric to send
@@ -2636,6 +2772,8 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
                 classpath=start_trigger_args.trigger_cls,
                 kwargs=trigger_kwargs,
                 team_name=team_name,
+                dag_id=self.dag_id,
+                used_by_ref={"ti_id": str(self.id)},
             )
 
             # First, make the trigger entry
@@ -2646,6 +2784,10 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
             # Keep an eye on the logic in `check_and_change_state_before_execution()`
             # depending on self.next_method semantics
             self.state = TaskInstanceState.DEFERRED
+            # A start_from_trigger retry skips schedule_tis' UPDATE, so clear here too.
+            self.retry_reason = None
+            self.retry_delay_override = None
+            self.retry_at = None
             self.trigger_id = trigger_row.id
             self.next_method = start_trigger_args.next_method
             self.next_kwargs = stringify_encoding_keys(start_trigger_args.next_kwargs or {})
@@ -2718,8 +2860,8 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         if not ti.is_eligible_to_retry():
             ti.state = TaskInstanceState.FAILED
 
-            if task and fail_fast:
-                _stop_remaining_tasks(task_instance=ti, session=session)
+            if fail_fast and task and task.dag:
+                _stop_remaining_tasks(task_instance=ti, dag=task.dag, session=session)
         else:
             allocate_next_try = ti.state != TaskInstanceState.UP_FOR_RETRY
             ti.state = State.UP_FOR_RETRY
@@ -2839,9 +2981,16 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         map_indexes: int | Iterable[int] | None = None,
         default: Any = None,
         run_id: str | None = None,
+        full: bool = True,
     ) -> Any:
         """:meta private:"""  # noqa: D400
         # This is only kept for compatibility in tests for now while AIP-72 is in progress.
+        #
+        # `full=False` returns plain JSON types and never runs the Airflow
+        # serialization module, so a stored `__classname__` envelope is not imported or
+        # instantiated. Callers that evaluate task dependencies -- the ti_deps, run by
+        # the scheduler and by the API server's task instance dependencies endpoint --
+        # pass it, since they only need primitive values.
 
         from airflow.models.xcom import XComModel, xcom_entity
 
@@ -2879,9 +3028,12 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
                 return default
 
             if map_indexes is not None or first.map_index < 0:
-                return XComModel.deserialize_value(first)
+                if full:
+                    return XComModel.deserialize_value(first)
+                return XComModel.deserialize_value_primitives(first)
 
-            return LazyXComSelectSequence.from_select(
+            sequence_cls = LazyXComSelectSequence if full else LazyXComPrimitivesSelectSequence
+            return sequence_cls.from_select(
                 query.with_only_columns(entity.value).order_by(None),
                 order_by=[entity.map_index.expression],
                 session=session,
@@ -2907,7 +3059,8 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
             ordering.append(case(map_index_whens, value=entity.map_index))
         else:
             ordering.append(entity.map_index)
-        return LazyXComSelectSequence.from_select(
+        sequence_cls = LazyXComSelectSequence if full else LazyXComPrimitivesSelectSequence
+        return sequence_cls.from_select(
             query.with_only_columns(entity.value).order_by(None),
             order_by=ordering,
             session=session,
@@ -3583,7 +3736,7 @@ def find_relevant_relatives(
                     continue
                 relative_map_indexes = _get_relevant_map_indexes(
                     task=task,
-                    relative=relative,  # type: ignore[arg-type]
+                    relative=relative,
                     run_id=run_id,
                     map_index=map_index,
                     ti_count=ti_count,

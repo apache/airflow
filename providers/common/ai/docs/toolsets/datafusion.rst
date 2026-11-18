@@ -73,7 +73,9 @@ configs can be registered so that SQL queries can join across tables.
 
 The ``DataFusionEngine`` is created lazily on the first tool call. This
 toolset requires the ``datafusion`` extra of
-``apache-airflow-providers-common-sql``.
+``apache-airflow-providers-common-sql`` and the ``sql`` extra of this provider,
+which installs the ``sqlglot`` it validates queries with. If either is missing, importing
+``DataFusionToolset`` raises ``AirflowOptionalProviderFeatureException``.
 
 .. _datafusion-toolset-restricted:
 
@@ -130,7 +132,8 @@ Parameters
 
 - ``datasource_configs``: One or more
   :class:`~airflow.providers.common.sql.config.DataSourceConfig` entries.
-  Requires ``apache-airflow-providers-common-sql[datafusion]``.
+  Requires ``apache-airflow-providers-common-sql[datafusion]`` and
+  ``apache-airflow-providers-common-ai[sql]``.
 - ``allow_writes``: Allow data-modifying SQL (CREATE TABLE, CREATE VIEW,
   INSERT INTO, etc.). Default ``False``: only SELECT-family statements are
   permitted. DataFusion on object stores is mostly read-only, but it does
@@ -141,6 +144,9 @@ Parameters
   See :ref:`bounded-query-results` and :ref:`bounded-schema-results`.
 - ``max_columns``: Maximum columns ``get_schema`` returns in full. Default ``100``.
   Above it the result becomes a bounded summary. See :ref:`bounded-schema-results`.
+- ``tool_prefix``: Optional prefix joined to each tool name with an underscore (e.g. ``"lake"`` produces ``"lake_query"``).
+  Must be a valid Python identifier. Set it when one agent has another toolset with the
+  same tool names, since duplicate tool names are rejected.
 - ``max_retries``: How many times the model may correct a failed call to these
   tools. Default ``None``, the agent's ``retries``. See :ref:`toolset-retry-budget`.
 

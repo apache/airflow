@@ -121,50 +121,6 @@ def _get_expected_k8s_dict():
     }
 
 
-def _get_expected_application_dict_with_labels(task_name="default_yaml"):
-    """Create expected application dict with task context labels on-demand."""
-    task_context_labels = {
-        "dag_id": "dag",
-        "task_id": task_name,
-        "run_id": "manual__2016-01-01T0100000100-da4d1ce7b",
-        "spark_kubernetes_operator": "True",
-        "try_number": "0",
-        "version": "2.4.5",
-    }
-
-    return {
-        "apiVersion": "sparkoperator.k8s.io/v1beta2",
-        "kind": "SparkApplication",
-        "metadata": {"name": task_name, "namespace": "default"},
-        "spec": {
-            "type": "Scala",
-            "mode": "cluster",
-            "image": "gcr.io/spark-operator/spark:v2.4.5",
-            "imagePullPolicy": "Always",
-            "mainClass": "org.apache.spark.examples.SparkPi",
-            "mainApplicationFile": "local:///opt/spark/examples/jars/spark-examples_2.11-2.4.5.jar",
-            "sparkVersion": "2.4.5",
-            "restartPolicy": {"type": "Never"},
-            "volumes": [{"name": "test-volume", "hostPath": {"path": "/tmp", "type": "Directory"}}],
-            "driver": {
-                "cores": 1,
-                "coreLimit": "1200m",
-                "memory": "512m",
-                "labels": task_context_labels.copy(),
-                "serviceAccount": "spark",
-                "volumeMounts": [{"name": "test-volume", "mountPath": "/tmp"}],
-            },
-            "executor": {
-                "cores": 1,
-                "instances": 1,
-                "memory": "512m",
-                "labels": task_context_labels.copy(),
-                "volumeMounts": [{"name": "test-volume", "mountPath": "/tmp"}],
-            },
-        },
-    }
-
-
 def _get_expected_application_dict_without_task_context_labels(task_name="default_yaml", app_name=None):
     """Create expected application dict without task context labels (only original file labels)."""
     original_file_labels = {

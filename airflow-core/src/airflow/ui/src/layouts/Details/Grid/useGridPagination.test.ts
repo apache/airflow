@@ -16,11 +16,23 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { describe, expect, it } from "vitest";
+import { renderHook } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { GridRunsResponse } from "openapi/requests";
 
-import { computePaginationState } from "./useGridPagination";
+import { computePaginationState, useGridPagination } from "./useGridPagination";
+
+const { mockUseDagServiceGetLatestRunInfo } = vi.hoisted(() => ({
+  mockUseDagServiceGetLatestRunInfo: vi.fn(),
+}));
+
+vi.mock("react-router-dom", () => ({ useParams: () => ({ dagId: "my_dag" }) }));
+vi.mock("openapi/queries", () => ({
+  useDagServiceGetLatestRunInfo: mockUseDagServiceGetLatestRunInfo,
+}));
+
+afterEach(() => mockUseDagServiceGetLatestRunInfo.mockReset());
 
 /** Minimal GridRunsResponse stub with a given run_id. */
 const makeRun = (runId: string): GridRunsResponse => ({
@@ -157,5 +169,25 @@ describe("computePaginationState", () => {
 
       expect(hasNewerRuns).toBe(true);
     });
+  });
+});
+
+describe("useGridPagination", () => {
+  it("reuses the latest-run query when checking whether the newest run is visible", () => {
+    mockUseDagServiceGetLatestRunInfo.mockReturnValue({ data: { run_id: "run_3" } });
+
+    const { result } = renderHook(() =>
+      useGridPagination({
+        gridRuns: [makeRun("run_2"), makeRun("run_1")],
+        limit: 10,
+        offset: 0,
+        setOffset: vi.fn(),
+      }),
+    );
+
+    expect(mockUseDagServiceGetLatestRunInfo).toHaveBeenCalledWith({ dagId: "my_dag" }, undefined, {
+      enabled: true,
+    });
+    expect(result.current.latestNotVisible).toBe(true);
   });
 });

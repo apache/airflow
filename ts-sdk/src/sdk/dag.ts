@@ -111,6 +111,7 @@ export interface DagSpec extends GeneratedDagFields {
    * A native Dag's tasks are executed by the Node coordinator, which the
    * deployment's `queue_to_coordinator` maps a queue to, so this is what
    * routes them there. `queue` on a {@link TaskSpec} wins for that task.
+   * A `queue` that is set cannot be blank.
    */
   readonly queue?: string;
 }
@@ -270,6 +271,18 @@ export interface TaskGroupOptions {
 export interface OrderEdge {
   readonly upstream: string;
   readonly downstream: string;
+  readonly label?: string;
+}
+
+/**
+ * Internal: one label that a call of `before` or `after` set on an order-only edge. `receiver` is
+ * the end of the edge whose method was called.
+ */
+export interface EdgeLabelling {
+  readonly upstream: string;
+  readonly downstream: string;
+  readonly label: string;
+  readonly receiver: "upstream" | "downstream";
 }
 
 // A task id cannot hold a NUL, so a joined pair cannot collide with one.
@@ -291,6 +304,15 @@ export interface TaskGroupRecord {
 
 /** Separates a group ID from what it contains, as Python's `prefix_group_id` does. */
 const GROUP_SEPARATOR = ".";
+
+/**
+ * Internal: suffixes of the join nodes the Airflow UI draws at each end of a
+ * task group, as Python's `TaskGroup.upstream_join_id` and
+ * `downstream_join_id` name them.
+ */
+export const UPSTREAM_JOIN_SUFFIX = ".upstream_join_id";
+export const DOWNSTREAM_JOIN_SUFFIX = ".downstream_join_id";
+const JOIN_SUFFIXES = [UPSTREAM_JOIN_SUFFIX, DOWNSTREAM_JOIN_SUFFIX];
 
 /** The Dag's own view of a group, which it appends to as an author declares. */
 interface MutableTaskGroupRecord extends TaskGroupRecord {
@@ -317,8 +339,117 @@ export function isTaskRef(value: unknown): value is TaskRef {
 
 const conditionTasks = new WeakMap<object, TaskRef>();
 
+const labelledNodes = new WeakMap<
+  object,
+  { readonly nodes: readonly Node[]; readonly text: string }
+>();
+
 function resolveNode(node: Node): Node {
-  return (typeof node === "object" && node !== null && conditionTasks.get(node)) || node;
+  if (typeof node !== "object" || node === null) return node;
+  return conditionTasks.get(node) ?? node;
+}
+
+/**
+ * A text label for an edge. The Airflow UI shows the label on the edge in the graph, as it does
+ * for Python's `Label`. The text comes before the task that the label is put on. That way the
+ * text sits between the two tasks of the edge in the code, just as the label sits between them in
+ * the graph:
+ *
+ * ```ts
+ * // load >> Label("when empty") >> report_empty
+ * loaded.before(Label.of("when empty").on(reportedEmpty));
+ * // load >> Label("always") >> cleanup
+ * cleaned.after(Label.of("always").on(loaded));
+ * ```
+ */
+export class Label {
+  readonly #text: string;
+
+  // The constructor is private only in TypeScript. Plain JavaScript can still call
+  // `new Label("")`, so the text check lives here and not in `of`. A check in `of` would not run
+  // for that call.
+  private constructor(text: string) {
+    if (typeof text !== "string") {
+      throw new Error(
+        `Label.of() takes a string to name the edge with, not ${describeValue(text)}`,
+      );
+    }
+    if (text.trim() === "") {
+      throw new Error(
+        "Label.of() takes the text to put on the edge, not " +
+          (text === "" ? "an empty string" : "a blank string"),
+      );
+    }
+    this.#text = text;
+  }
+
+  /**
+   * Make a label with the given `text`. Use `on` to put the label on edges. `text` must not be
+   * empty or only whitespace.
+   */
+  static of(text: string): Label {
+    return new Label(text);
+  }
+
+  /**
+   * Put the label on each edge that a `before` or `after` call draws between its receiver and
+   * `node` or a node in `more`.
+   *
+   * So each edge of a fan-out can have its own label, and one label can go on several edges:
+   *
+   * ```ts
+   * checked.before(Label.of("rows found").on(processed), Label.of("no rows").on(reportedEmpty));
+   * // load >> Label("forks") >> [report_empty, notify]
+   * loaded.before(Label.of("forks").on(reportedEmpty, notified));
+   * ```
+   *
+   * Pass the value that `on` returns to `before` or `after`. Calling `before` or `after` on that
+   * value throws an error.
+   */
+  on(node: Node, ...more: readonly Node[]): Node {
+    const text = this.#text;
+    const nodes = [node, ...more].flatMap((each) => {
+      // Labelling a labelled node again replaces its label.
+      const labelled = labelledNodes.get(each);
+      if (labelled !== undefined) return labelled.nodes;
+      const target = resolveNode(each);
+      if (nodeId(target) === undefined) {
+        throw new Error(
+          `Label.of(${JSON.stringify(text)}).on() takes a task or task group reference, ` +
+            `not ${describeValue(each)}`,
+        );
+      }
+      return [target];
+    });
+    const { dagId } = nodes[0]!;
+    const stranger = nodes.find((each) => each.dagId !== dagId);
+    if (stranger !== undefined) {
+      throw new Error(
+        `Label.of(${JSON.stringify(text)}).on() takes nodes of one Dag, but ` +
+          `"${nodeId(nodes[0]!)}" is in Dag "${dagId}" and "${nodeId(stranger)}" is in Dag ` +
+          `"${stranger.dagId}"`,
+      );
+    }
+    const ids = nodes.map((each) => `"${nodeId(each)}"`).join(", ");
+    const misuse = (verb: "before" | "after"): never => {
+      throw new Error(
+        `Label.of(${JSON.stringify(text)}) on ${ids} of Dag "${dagId}" labels edges, so pass it ` +
+          `to before() or after() rather than calling ${verb}() on it`,
+      );
+    };
+    const labelled: Node = {
+      dagId,
+      before: () => misuse("before"),
+      after: () => misuse("after"),
+    };
+    brand(labelled, "LabelledNode");
+    labelledNodes.set(labelled, { nodes, text });
+    return Object.freeze(labelled);
+  }
+}
+
+function isLabelledNode(value: unknown): boolean {
+  return hasBrand(value, "LabelledNode");
 }
 
 /**
@@ -334,6 +465,8 @@ function resolveNode(node: Node): Node {
 function findNestedTaskRef(value: unknown, seen: WeakSet<object>): TaskRef | undefined {
   if (typeof value !== "object" || value === null) return undefined;
   if (isTaskRef(value)) return value;
+  const labelled = labelledNodes.get(value);
+  if (labelled !== undefined) return labelled.nodes.find(isTaskRef);
   // A literal that refers back to itself is not JSON either, but it reaches
   // here before anything else has rejected it.
   if (seen.has(value)) return undefined;
@@ -514,6 +647,7 @@ export type RecordedInputs = Readonly<Record<string, TaskRef | JsonValue>>;
 let taskRecordsOf: (dag: Dag) => ReadonlyMap<string, TaskRecord>;
 let inputsOf: (dag: Dag) => ReadonlyMap<string, RecordedInputs>;
 let orderEdgesOf: (dag: Dag) => readonly OrderEdge[];
+let labellingsOf: (dag: Dag) => readonly EdgeLabelling[];
 let definedInOf: (dag: Dag) => string | undefined;
 let groupsOf: (dag: Dag) => ReadonlyMap<string, TaskGroupRecord>;
 let finalizeOf: (dag: Dag) => void;
@@ -552,6 +686,10 @@ export class Dag {
   // Keyed by the two task ids, so declaring an edge twice records it once, and
   // insertion-ordered so the serialized Dag reads as written.
   readonly #orderEdges = new Map<string, OrderEdge>();
+  // Every label set on an order-only edge, in the order it was set. The serializer replays them
+  // the way Python writes `edge_info`. The end that set a label decides which task edges the
+  // label also covers, and the label set last on an entry is the one kept.
+  readonly #labellings: EdgeLabelling[] = [];
   readonly #definedIn: string | undefined;
   readonly #conditions = new Map<string, ConditionRecord>();
   readonly #branches = new Map<string, readonly TaskRef[]>();
@@ -567,6 +705,7 @@ export class Dag {
     taskRecordsOf = (dag) => dag.#tasks;
     inputsOf = (dag) => dag.#inputs;
     orderEdgesOf = (dag) => [...dag.#orderEdges.values()];
+    labellingsOf = (dag) => [...dag.#labellings];
     definedInOf = (dag) => dag.#definedIn;
     groupsOf = (dag) => dag.#groups;
     finalizeOf = (dag) => dag.#finalize();
@@ -693,6 +832,7 @@ export class Dag {
             "a condition names each side once",
         );
       }
+      this.#rejectLabel(target, `The "${side}" branch of "${taskId}"`, taskId);
       const taskRef = resolveNode(target) as TaskRef;
       this.#validateOwnNode(taskRef, `the "${side}" branch of "${taskId}"`);
       if (!isTaskRef(taskRef)) {
@@ -800,6 +940,7 @@ export class Dag {
       dagId: this.dagId,
       taskId,
       case: (taskRef) => {
+        this.#rejectLabel(taskRef, `A case of "${taskId}"`, taskId);
         this.#validateOwnNode(taskRef, `a case of "${taskId}"`);
         if (!isTaskRef(taskRef)) {
           throw new Error(
@@ -982,6 +1123,7 @@ export class Dag {
       }
       spec[key] = value[key];
     }
+    rejectBlankQueue(spec["queue"], `Dag "${this.dagId}" task "${taskId}"`);
     return spec as TaskSpec;
   }
 
@@ -1070,10 +1212,20 @@ export class Dag {
 
   // Tasks and groups share one namespace, as they do in Python: a serialized
   // Dag addresses both by a bare ID, so `dag.task("x")` and `dag.taskGroup("x")`
-  // cannot both exist.
+  // cannot both exist. A group's join node IDs are in it too, since edge labels
+  // at a group end are keyed by them.
   #reserveNodeId(id: string, kind: "Task" | "Task group"): void {
     if (this.#tasks.has(id) || this.#groups.has(id)) {
       throw new Error(`${kind} "${id}" is already registered for Dag "${this.dagId}"`);
+    }
+    for (const suffix of JOIN_SUFFIXES) {
+      const groupId = id.endsWith(suffix) ? id.slice(0, -suffix.length) : undefined;
+      if (groupId !== undefined && this.#groups.has(groupId)) {
+        throw new Error(
+          `${kind} "${id}" of Dag "${this.dagId}" takes the ID of a join node of task group ` +
+            `"${groupId}"; pick another ID`,
+        );
+      }
     }
   }
 
@@ -1121,6 +1273,27 @@ export class Dag {
   }
 
   #addOrderEdge(upstreamNode: Node, downstreamNode: Node, verb: "before" | "after"): void {
+    // Calling before() or after() on a labelled node throws, so only the argument can be a
+    // labelled node.
+    const argument = verb === "before" ? downstreamNode : upstreamNode;
+    const labelled = labelledNodes.get(argument);
+    // Every edge is checked before the first one is recorded, so a label on several nodes draws
+    // all of its edges or none of them.
+    const edges = (labelled?.nodes ?? [argument]).map((node) =>
+      verb === "before"
+        ? this.#checkOrderEdge(upstreamNode, node, verb)
+        : this.#checkOrderEdge(node, downstreamNode, verb),
+    );
+    for (const [upstreamId, downstreamId] of edges) {
+      this.#recordOrderEdge(upstreamId, downstreamId, labelled?.text, verb);
+    }
+  }
+
+  #checkOrderEdge(
+    upstreamNode: Node,
+    downstreamNode: Node,
+    verb: "before" | "after",
+  ): readonly [string, string] {
     const upstream = resolveNode(upstreamNode);
     const downstream = resolveNode(downstreamNode);
     if (this.#finalized) {
@@ -1133,35 +1306,72 @@ export class Dag {
     // Dag handed out, since it is what carries the method.
     const other = verb === "before" ? downstream : upstream;
     this.#validateOwnNode(other, `${verb}()`);
-    const upstreamId = nodeId(upstream);
-    const downstreamId = nodeId(downstream);
+    const upstreamId = nodeId(upstream)!;
+    const downstreamId = nodeId(downstream)!;
     if (upstreamId === downstreamId) {
       throw new Error(
         `${verb}() cannot draw an edge from node "${upstreamId}" of Dag "${this.dagId}" to ` +
           "itself; an edge orders two different nodes",
       );
     }
+    return [upstreamId, downstreamId];
+  }
+
+  #recordOrderEdge(
+    upstreamId: string,
+    downstreamId: string,
+    text: string | undefined,
+    verb: "before" | "after",
+  ): void {
     const key = `${upstreamId}${EDGE_KEY_SEPARATOR}${downstreamId}`;
     // Idempotent, so an edge drawn from both ends is one edge.
-    if (!this.#orderEdges.has(key)) {
-      this.#orderEdges.set(
-        key,
-        Object.freeze({ upstream: upstreamId!, downstream: downstreamId! }),
+    const edgeLabel = text ?? this.#orderEdges.get(key)?.label;
+    this.#orderEdges.set(
+      key,
+      Object.freeze({
+        upstream: upstreamId,
+        downstream: downstreamId,
+        ...(edgeLabel === undefined ? {} : { label: edgeLabel }),
+      }),
+    );
+    if (text !== undefined) {
+      this.#labellings.push(
+        Object.freeze({
+          upstream: upstreamId,
+          downstream: downstreamId,
+          label: text,
+          receiver: verb === "before" ? "upstream" : "downstream",
+        }),
       );
     }
   }
 
-  #validateOwnNode(node: Node, label: string): void {
+  #rejectLabel(node: unknown, context: string, deciderId: string): void {
+    if (isLabelledNode(node)) {
+      throw new Error(
+        `${context} of Dag "${this.dagId}" was given Label.of(...).on(...); label a branch edge ` +
+          `by redrawing it from "${deciderId}" with before(Label.of("text").on(task))`,
+      );
+    }
+  }
+
+  #validateOwnNode(node: Node, context: string): void {
     const id = nodeId(node);
+    if (id === undefined && isLabelledNode(node)) {
+      throw new Error(
+        `${context} on Dag "${this.dagId}" was given Label.of(...).on(...), which ` +
+          DUPLICATE_COPY_HINT,
+      );
+    }
     if (id === undefined) {
       throw new Error(
-        `${label} on Dag "${this.dagId}" takes tasks and task groups this Dag handed out, ` +
+        `${context} on Dag "${this.dagId}" takes tasks and task groups this Dag handed out, ` +
           "not arbitrary values",
       );
     }
     if (node.dagId !== this.dagId) {
       throw new Error(
-        `${label} cannot reach Dag "${node.dagId}" node "${id}" from Dag ` +
+        `${context} cannot reach Dag "${node.dagId}" node "${id}" from Dag ` +
           `"${this.dagId}"; an edge joins two nodes of one Dag`,
       );
     }
@@ -1171,7 +1381,7 @@ export class Dag {
     // the edge at this Dag's own group of that name.
     if (isTaskRef(node) ? this.#tasks.get(id)?.task !== node : this.#groupRefs.get(id) !== node) {
       throw new Error(
-        `${label} was given a reference to "${id}" that this Dag did not hand out; ` +
+        `${context} was given a reference to "${id}" that this Dag did not hand out; ` +
           `it comes from another Dag object with the same ID, or ${DUPLICATE_COPY_HINT}`,
       );
     }
@@ -1217,6 +1427,12 @@ export class Dag {
         );
       }
       const value = inputs[key];
+      if (isLabelledNode(value)) {
+        throw new Error(
+          `Input "${key}" of task "${taskId}" was given Label.of(...).on(...), which only goes ` +
+            "into before() or after(); pass the reference itself",
+        );
+      }
       // Anything unbranded is a literal argument, including a look-alike
       // `{dagId, taskId}` object: only a real reference makes an edge.
       if (!isTaskRef(value)) {
@@ -1326,6 +1542,13 @@ function validateDagSpec(dagId: string, spec: DagSpec): void {
       throw new Error(`Unknown option "${String(key)}" in the spec for Dag "${dagId}"`);
     }
   }
+  rejectBlankQueue(value["queue"], `Dag "${dagId}"`);
+}
+
+function rejectBlankQueue(queue: unknown, owner: string): void {
+  if (typeof queue === "string" && queue.trim() === "") {
+    throw new Error(`queue in the spec for ${owner} must not be blank`);
+  }
 }
 
 /**
@@ -1346,6 +1569,11 @@ export function getDagTaskGroups(dag: Dag): ReadonlyMap<string, TaskGroupRecord>
 /** Internal: the order-only edges of a Dag, in the order they were drawn. */
 export function getDagOrderEdges(dag: Dag): readonly OrderEdge[] {
   return orderEdgesOf(dag);
+}
+
+/** Internal: every label set on an order-only edge of a Dag, in the order it was set. */
+export function getDagEdgeLabellings(dag: Dag): readonly EdgeLabelling[] {
+  return labellingsOf(dag);
 }
 
 /** Internal: what each task of a Dag was called with, keyed by task ID.

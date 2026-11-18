@@ -31,7 +31,7 @@ from __future__ import annotations
 from datetime import datetime
 
 from airflow import DAG
-from airflow.providers.standard.operators.bash import BashOperator
+from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils.edgemodifier import Label
 
 from system.openlineage.constants import DEFAULT_DAGRUN_TIMEOUT
@@ -48,15 +48,17 @@ with DAG(
     catchup=False,
     default_args={"retries": 0},
 ) as dag:
+    # Only the Dag structure in the Dag START event is checked, so the tasks are EmptyOperators, which never use a
+    # worker slot.
     # task_1: all outgoing edges are labeled (fan-out with labels)
-    task_1 = BashOperator(task_id="task_1", bash_command="exit 0")
-    task_2 = BashOperator(task_id="task_2", bash_command="exit 0")
-    task_3 = BashOperator(task_id="task_3", bash_command="exit 0")
+    task_1 = EmptyOperator(task_id="task_1")
+    task_2 = EmptyOperator(task_id="task_2")
+    task_3 = EmptyOperator(task_id="task_3")
     # task_2: mixed — one labeled edge to task_4 and one unlabeled edge to task_5
-    task_4 = BashOperator(task_id="task_4", bash_command="exit 0")
-    task_5 = BashOperator(task_id="task_5", bash_command="exit 0")
+    task_4 = EmptyOperator(task_id="task_4")
+    task_5 = EmptyOperator(task_id="task_5")
     # task_5: no labels at all — both incoming and outgoing edges are unlabeled
-    task_6 = BashOperator(task_id="task_6", bash_command="exit 0")
+    task_6 = EmptyOperator(task_id="task_6")
 
     check_events = OpenLineageTestOperator(
         task_id="check_events", file_path=get_expected_event_file_path(DAG_ID)

@@ -327,6 +327,12 @@ definitions in Airflow.
         "icon": "https://example.com/icon.svg",
         # Optional dark icon for the dark theme, url to an svg file. If not provided, "icon" will be used for both light and dark themes.
         "icon_dark_mode": "https://example.com/dark_icon.svg",
+        # Optional flag, only relevant when the view renders as a tab (destination "dag", "dag_run", "task",
+        # "task_instance" or "asset"). When True, the tab shows its icon beside the name. When False, the tab shows
+        # only its name. Either way, when the tab bar is 600px wide or less, tabs show only their icon. Has no
+        # effect without "icon" (an "icon_dark_mode" alone is not enough). Defaults to False. Supported in
+        # Airflow 3.4.1 and later; earlier versions ignore it.
+        "show_icon_with_label": True,
         # Optional parameters, relative URL location for the External View rendering. If not provided, external view will be rendered as an external link. If provided
         # will be rendered inside an Iframe in the UI. Should not contain a leading slash.
         "url_route": "my_external_view",
@@ -360,11 +366,18 @@ definitions in Airflow.
         # It can also be put inside of an existing page, the supported views are ["dashboard", "dag_overview", "task_overview"]. You can position
         # element in the existing page via the css `order` rule which will determine the flex order.
         # Use "base" to mount the app in the base layout (e.g. a toolbar strip); the host uses a flex container so you can set ``order`` in your root JSX to control position.
+        # The server preloads the bundle of a "base" app from a plugin with no team, so it downloads alongside the UI's own scripts.
         "destination": "task",
         # Optional icon, url to an svg file.
         "icon": "https://example.com/icon.svg",
         # Optional dark icon for the dark theme, url to an svg file. If not provided, "icon" will be used for both light and dark themes.
         "icon_dark_mode": "https://example.com/dark_icon.svg",
+        # Optional flag, only relevant when the app renders as a tab (destination "dag", "dag_run", "task",
+        # "task_instance" or "asset"). When True, the tab shows its icon beside the name. When False, the tab shows
+        # only its name. Either way, when the tab bar is 600px wide or less, tabs show only their icon. Has no
+        # effect without "icon" (an "icon_dark_mode" alone is not enough). Defaults to False. Supported in
+        # Airflow 3.4.1 and later; earlier versions ignore it.
+        "show_icon_with_label": True,
         # URL route for the React app, relative to the Airflow UI base URL. Should not contain a leading slash.
         "url_route": "my_react_app",
         # Optional category, only relevant for destination "nav". This is used to group the react apps in the navigation bar. We will match the existing
@@ -395,6 +408,8 @@ definitions in Airflow.
         react_apps = [react_app_with_metadata]
 
 .. seealso:: :doc:`/howto/define-extra-link`
+
+.. _plugin-scoping:
 
 Scoping a view to specific Dags and tasks
 -----------------------------------------
@@ -564,6 +579,53 @@ Each invocation is a fresh process, so every warning for every plugin is reporte
     whether the UI offers the tab, not whether the underlying view can be reached — a user
     who knows the ``url_route`` can still navigate to it directly. Use access control to
     restrict who may view a plugin's data.
+
+.. _plugin-ui-actions:
+
+UI actions
+----------
+
+``ui_actions`` adds a button beside the actions Airflow already draws for an entity, rather
+than a whole page. See :doc:`/howto/custom-action-plugin` for the full guide; the fields are:
+
+.. code-block:: python
+
+    link_action = {
+        # Required. The button's tooltip and its accessible label, so write it as a label.
+        # A React action is also registered on the page under this name, which must therefore
+        # be unique across every React app and React action in the deployment.
+        "name": "Open runbook",
+        # Required. "link" opens a URL; "react" mounts a component of your own.
+        "action_type": "link",
+        # Required. Which entity the button belongs to, and so which surfaces it appears on:
+        # "dag", "dag_run" or "task_instance".
+        "destination": "dag",
+        # Required for "link". Templated with the entity's context, the same
+        # {DAG_ID}-style tokens an external view's href accepts.
+        "href": "https://runbooks.example.com/{DAG_ID}",
+        # Optional icon, url to an svg file. Defaults to a generic action icon.
+        "icon": "https://example.com/icon.svg",
+        # Optional dark icon for the dark theme, url to an svg file. If not provided, "icon"
+        # will be used for both light and dark themes.
+        "icon_dark_mode": "https://example.com/dark_icon.svg",
+        # Optional scoping, the same block external views and React apps take.
+        # See "Scoping a view to specific Dags and tasks" above.
+        "applies_to": {"dag.tags.name": ["production"]},
+    }
+
+    react_action = {
+        "name": "Inspect payload",
+        "action_type": "react",
+        "destination": "task_instance",
+        # Required for "react". Each React action needs its own bundle: the shared global is
+        # cleared before each import, and a browser will not re-execute a module it already has.
+        "bundle_url": "https://example.com/static/js/inspect_payload.js",
+    }
+
+An action naming a field no record has is withheld rather than shown unscoped, and an action
+Airflow cannot render is skipped with a warning while the plugin's other contributions load.
+
+.. _plugin-react-props:
 
 React app context props
 -----------------------

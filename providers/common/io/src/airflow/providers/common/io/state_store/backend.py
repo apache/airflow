@@ -42,6 +42,8 @@ from airflow.sdk.state import AssetScope, BaseStoreBackend, TaskScope
 
 SECTION = "common.io"
 
+_WRITE_CHUNK_CHARS = 1024 * 1024
+
 
 @cache
 def _get_base_path() -> ObjectStoragePath:
@@ -102,7 +104,10 @@ def _write_to_object_storage(path: ObjectStoragePath, value: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     compression = _get_compression()
     with path.open(mode="wb", compression=compression) as f:
-        f.write(value.encode("utf-8"))
+        # Encode slice by slice instead of making a full bytes copy of the string. Buffered
+        # filesystems such as s3fs copy each write into an upload buffer that they flush per block.
+        for start in range(0, len(value), _WRITE_CHUNK_CHARS):
+            f.write(value[start : start + _WRITE_CHUNK_CHARS].encode("utf-8"))
 
 
 def _read_from_object_storage(path: ObjectStoragePath) -> str | None:
@@ -207,7 +212,8 @@ class StateStoreObjectStorageBackend(BaseStoreBackend):
 
     def serialize_task_state_store_to_ref(self, *, value: JsonValue, key: str, scope: TaskScope) -> str:
         serialized = json.dumps(value)
-        if len(serialized.encode()) < _get_threshold():
+        # json.dumps escapes non-ASCII characters, so the string's length is its size in bytes.
+        if len(serialized) < _get_threshold():
             return serialized
         path = _build_task_path(scope, key)
         _write_to_object_storage(path, serialized)
@@ -225,7 +231,8 @@ class StateStoreObjectStorageBackend(BaseStoreBackend):
 
     def serialize_asset_state_store_to_ref(self, *, value: JsonValue, key: str, scope: AssetScope) -> str:
         serialized = json.dumps(value)
-        if len(serialized.encode()) < _get_threshold():
+        # json.dumps escapes non-ASCII characters, so the string's length is its size in bytes.
+        if len(serialized) < _get_threshold():
             return serialized
         path = _build_asset_path(scope, key)
         _write_to_object_storage(path, serialized)

@@ -31,9 +31,10 @@ from kubernetes.client import models as k8s
 from airflow.cli import cli_parser
 from airflow.executors import executor_loader
 from airflow.providers.cncf.kubernetes.cli import kubernetes_command
+from airflow.providers.cncf.kubernetes.executors.kubernetes_executor import KubernetesExecutor
 
 from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_PLUS
 
 pytestmark = pytest.mark.db_test
 
@@ -118,6 +119,24 @@ class TestGenerateDagYamlCommand:
         assert (output_path / path.name).stat().st_size > 0
 
 
+class _ExecutorWithOwnClient(KubernetesExecutor):
+    client_factory = "my_company.build_client"
+
+
+TEAM_CONF = {
+    ("core", "multi_team"): "True",
+    ("core", "executor"): (
+        f"KubernetesExecutor;team_a={__name__}._ExecutorWithOwnClient,KubernetesExecutor;"
+        "team_b=LocalExecutor,KubernetesExecutor"
+    ),
+    ("kubernetes_executor", "namespace"): "global-namespace",
+}
+TEAM_NAMESPACES = {
+    "AIRFLOW__TEAM_A___KUBERNETES_EXECUTOR__NAMESPACE": "team-a-namespace",
+    "AIRFLOW__TEAM_B___KUBERNETES_EXECUTOR__NAMESPACE": "team-b-namespace",
+}
+
+
 class TestCleanUpPodsCommand:
     label_selector = "dag_id,task_id,try_number,airflow_version"
 
@@ -128,12 +147,12 @@ class TestCleanUpPodsCommand:
             importlib.reload(cli_parser)
             cls.parser = cli_parser.get_parser()
 
-    @mock.patch("kubernetes.client.CoreV1Api.delete_namespaced_pod")
-    @mock.patch("airflow.providers.cncf.kubernetes.kube_client.config.load_incluster_config")
-    def test_delete_pod(self, load_incluster_config, delete_namespaced_pod):
-        kubernetes_command._delete_pod("dummy", "awesome-namespace")
-        delete_namespaced_pod.assert_called_with(body=mock.ANY, name="dummy", namespace="awesome-namespace")
-        load_incluster_config.assert_called_once()
+    def test_delete_pod(self):
+        kube_client = MagicMock()
+        kubernetes_command._delete_pod("dummy", "awesome-namespace", kube_client)
+        kube_client.delete_namespaced_pod.assert_called_with(
+            body=mock.ANY, name="dummy", namespace="awesome-namespace"
+        )
 
     @mock.patch("airflow.providers.cncf.kubernetes.cli.kubernetes_command._delete_pod")
     @mock.patch("kubernetes.client.CoreV1Api.list_namespaced_pod")
@@ -176,7 +195,7 @@ class TestCleanUpPodsCommand:
         list_namespaced_pod.assert_called_once_with(
             namespace="awesome-namespace", limit=500, label_selector=self.label_selector
         )
-        delete_pod.assert_called_with("dummy", "awesome-namespace")
+        delete_pod.assert_called_with("dummy", "awesome-namespace", mock.ANY)
         load_incluster_config.assert_called_once()
 
     @mock.patch("airflow.providers.cncf.kubernetes.cli.kubernetes_command._delete_pod")
@@ -226,7 +245,7 @@ class TestCleanUpPodsCommand:
         list_namespaced_pod.assert_called_once_with(
             namespace="awesome-namespace", limit=500, label_selector=self.label_selector
         )
-        delete_pod.assert_called_with("dummy3", "awesome-namespace")
+        delete_pod.assert_called_with("dummy3", "awesome-namespace", mock.ANY)
         load_incluster_config.assert_called_once()
 
     @mock.patch("airflow.providers.cncf.kubernetes.cli.kubernetes_command._delete_pod")
@@ -249,7 +268,7 @@ class TestCleanUpPodsCommand:
         list_namespaced_pod.assert_called_once_with(
             namespace="awesome-namespace", limit=500, label_selector=self.label_selector
         )
-        delete_pod.assert_called_with("dummy4", "awesome-namespace")
+        delete_pod.assert_called_with("dummy4", "awesome-namespace", mock.ANY)
         load_incluster_config.assert_called_once()
 
     @mock.patch("airflow.providers.cncf.kubernetes.cli.kubernetes_command._delete_pod")
@@ -271,7 +290,7 @@ class TestCleanUpPodsCommand:
         list_namespaced_pod.assert_called_once_with(
             namespace="awesome-namespace", limit=500, label_selector=self.label_selector
         )
-        delete_pod.assert_called_with("dummy5", "awesome-namespace")
+        delete_pod.assert_called_with("dummy5", "awesome-namespace", mock.ANY)
         load_incluster_config.assert_called_once()
 
     @mock.patch("airflow.providers.cncf.kubernetes.cli.kubernetes_command._delete_pod")
@@ -325,8 +344,182 @@ class TestCleanUpPodsCommand:
             ),
         ]
         list_namespaced_pod.assert_has_calls(calls)
-        delete_pod.assert_called_with("dummy", "awesome-namespace")
+        delete_pod.assert_called_with("dummy", "awesome-namespace", mock.ANY)
         load_incluster_config.assert_called_once()
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="team config requires Airflow 3.2+")
+    @pytest.mark.usefixtures("clean_executor_loader")
+    @pytest.mark.parametrize("has_resolve_executor_name", [True, False], ids=["resolve", "pre-3.4"])
+    @pytest.mark.parametrize(
+        ("cli_args", "team_client_kwargs", "namespace"),
+        [
+            pytest.param([], None, "global-namespace", id="global"),
+            pytest.param(
+                ["--team", "team_a"],
+                {"team_name": "team_a", "executor_client_factory": "my_company.build_client"},
+                "team-a-namespace",
+                id="team-default-executor",
+            ),
+            pytest.param(
+                ["--team", "team_a", "--executor", "KubernetesExecutor"],
+                {"team_name": "team_a", "executor_client_factory": None},
+                "team-a-namespace",
+                id="team-named-executor",
+            ),
+            pytest.param(
+                ["--team", "team_a", "--namespace", "other-namespace"],
+                {"team_name": "team_a", "executor_client_factory": "my_company.build_client"},
+                "other-namespace",
+                id="namespace-flag",
+            ),
+            pytest.param(
+                ["--team", "team_a", "--namespace", "global-namespace", "--allow-shared-namespace"],
+                {"team_name": "team_a", "executor_client_factory": "my_company.build_client"},
+                "global-namespace",
+                id="allow-shared-namespace",
+            ),
+        ],
+    )
+    @conf_vars(TEAM_CONF)
+    @mock.patch.dict(os.environ, TEAM_NAMESPACES)
+    @mock.patch("airflow.providers.cncf.kubernetes.cli.kubernetes_command._delete_pod", autospec=True)
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.cli.kubernetes_command._get_executor_kube_client", autospec=True
+    )
+    @mock.patch("airflow.providers.cncf.kubernetes.cli.kubernetes_command.get_kube_client", autospec=True)
+    def test_cleanup_pods_uses_the_teams_executor_client(
+        self,
+        get_kube_client,
+        get_executor_kube_client,
+        delete_pod,
+        monkeypatch,
+        cli_args,
+        team_client_kwargs,
+        namespace,
+        has_resolve_executor_name,
+    ):
+        if not has_resolve_executor_name:
+            monkeypatch.delattr(kubernetes_command.ExecutorLoader, "resolve_executor_name", raising=False)
+        kube_client = (get_executor_kube_client if team_client_kwargs else get_kube_client).return_value
+        pod = MagicMock()
+        pod.metadata.name = "dummy"
+        pod.metadata.creation_timestamp = parse("2021-12-20T08:01:07Z")
+        pod.status.phase = "Succeeded"
+        pod.status.reason = None
+        kube_client.list_namespaced_pod.return_value = MagicMock(
+            items=[pod], metadata=MagicMock(_continue=None)
+        )
+        kubernetes_command.cleanup_pods(self.parser.parse_args(["kubernetes", "cleanup-pods", *cli_args]))
+        if team_client_kwargs:
+            get_executor_kube_client.assert_called_once_with(**team_client_kwargs)
+            get_kube_client.assert_not_called()
+        else:
+            get_kube_client.assert_called_once_with()
+            get_executor_kube_client.assert_not_called()
+        kube_client.list_namespaced_pod.assert_called_once_with(
+            namespace=namespace, limit=500, label_selector=self.label_selector
+        )
+        delete_pod.assert_called_once_with("dummy", namespace, kube_client)
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="team config requires Airflow 3.2+")
+    @pytest.mark.usefixtures("clean_executor_loader")
+    @pytest.mark.parametrize("has_resolve_executor_name", [True, False], ids=["resolve", "pre-3.4"])
+    @pytest.mark.parametrize(
+        ("cli_args", "error"),
+        [
+            pytest.param(["--executor", "KubernetesExecutor"], "--executor requires --team", id="no-team"),
+            pytest.param(["--team", "team_c"], "Team 'team_c' has no executors", id="unknown-team"),
+            pytest.param(
+                ["--team", "team_a", "--executor", "CeleryExecutor"],
+                "Unknown executor",
+                id="unknown-executor",
+            ),
+            pytest.param(
+                ["--team", "team_b"],
+                "LocalExecutor of team 'team_b' isn't a KubernetesExecutor",
+                id="not-k8s",
+            ),
+            pytest.param(
+                ["--team", "team_a", "--namespace", "global-namespace"],
+                "also used by a global KubernetesExecutor",
+                id="shared-with-global",
+            ),
+            pytest.param(
+                ["--team", "team_a", "--namespace", "team-b-namespace"],
+                "also used by a KubernetesExecutor of team 'team_b'",
+                id="shared-with-team",
+            ),
+        ],
+    )
+    @conf_vars(TEAM_CONF)
+    @mock.patch.dict(os.environ, TEAM_NAMESPACES)
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.cli.kubernetes_command._get_executor_kube_client",
+        autospec=True,
+        side_effect=AssertionError("connected"),
+    )
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.cli.kubernetes_command.get_kube_client",
+        autospec=True,
+        side_effect=AssertionError("connected"),
+    )
+    def test_cleanup_pods_team_refuses(
+        self,
+        get_kube_client,
+        get_executor_kube_client,
+        monkeypatch,
+        cli_args,
+        error,
+        has_resolve_executor_name,
+    ):
+        if not has_resolve_executor_name:
+            monkeypatch.delattr(kubernetes_command.ExecutorLoader, "resolve_executor_name", raising=False)
+        with pytest.raises(SystemExit, match=error):
+            kubernetes_command.cleanup_pods(self.parser.parse_args(["kubernetes", "cleanup-pods", *cli_args]))
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="team config requires Airflow 3.2+")
+    @pytest.mark.usefixtures("clean_executor_loader")
+    @pytest.mark.parametrize(
+        "extra_conf",
+        [
+            pytest.param({("core", "executor"): "LocalExecutor;team_a=KubernetesExecutor"}, id="global"),
+            pytest.param(
+                {
+                    ("core", "executor"): "KubernetesExecutor;team_a=KubernetesExecutor;team_b=LocalExecutor",
+                    ("kubernetes_executor", "namespace"): "global-namespace",
+                },
+                id="team",
+            ),
+        ],
+    )
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.cli.kubernetes_command._get_executor_kube_client", autospec=True
+    )
+    def test_cleanup_pods_team_ignores_scopes_without_kubernetes_executor(
+        self, get_executor_kube_client, extra_conf
+    ):
+        # The other scope has no namespace set, so it has team_a's built-in default, but makes no pods.
+        kube_client = get_executor_kube_client.return_value
+        kube_client.list_namespaced_pod.return_value = MagicMock(items=[], metadata=MagicMock(_continue=None))
+        with conf_vars({("core", "multi_team"): "True", **extra_conf}):
+            kubernetes_command.cleanup_pods(
+                self.parser.parse_args(["kubernetes", "cleanup-pods", "--team", "team_a"])
+            )
+        kube_client.list_namespaced_pod.assert_called_once_with(
+            namespace="default", limit=500, label_selector=self.label_selector
+        )
+
+    @mock.patch.object(kubernetes_command, "AIRFLOW_V_3_2_PLUS", False)
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.cli.kubernetes_command.get_kube_client",
+        autospec=True,
+        side_effect=AssertionError("connected"),
+    )
+    def test_cleanup_pods_team_requires_airflow_3_2(self, get_kube_client):
+        with pytest.raises(SystemExit, match=r"--team requires Airflow 3\.2\+"):
+            kubernetes_command.cleanup_pods(
+                self.parser.parse_args(["kubernetes", "cleanup-pods", "--team", "team_a"])
+            )
 
     @pytest.mark.parametrize(
         ("pod_kwargs", "min_completed_minutes", "expect_deleted"),
@@ -405,7 +598,7 @@ class TestCleanUpPodsCommand:
             )
         )
         if expect_deleted:
-            delete_pod.assert_called_once_with("run-o1sxc2on", "awesome-namespace")
+            delete_pod.assert_called_once_with("run-o1sxc2on", "awesome-namespace", mock.ANY)
         else:
             delete_pod.assert_not_called()
 

@@ -237,6 +237,19 @@ Forking and cloning Project
    to clone the repo locally (you can also do it in your IDE - see the `Using your IDE`_
    chapter below)
 
+4. Add ``apache/airflow`` as the ``upstream`` remote, following the
+   `Git remote naming conventions <10_working_with_git.rst>`__:
+
+   .. code-block:: bash
+
+      git remote add upstream https://github.com/apache/airflow.git
+
+   If you use SSH with GitHub, add ``git@github.com:apache/airflow.git`` instead; ``breeze ci audit``
+   recognises both forms.
+
+   Once Breeze is installed, run ``breeze ci audit`` before your first push to check your remotes
+   and the CI in your fork; see `CI in your fork <18_contribution_workflow.rst#ci-in-your-fork>`__.
+
 .. note::
     For windows based machines, on cloning, the Git line endings may be different from unix based systems
     and might lead to unexpected behaviour on running breeze tooling. Manually setting a property will mitigate this issue.

@@ -19,12 +19,13 @@
 import "@testing-library/jest-dom/vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
-import { setupServer, type SetupServer } from "msw/node";
-import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type * as ColorMode from "src/context/colorMode";
-import { handlers } from "src/mocks/handlers";
-import { AppWrapper } from "src/utils/AppWrapper";
+import { server } from "src/mocks/server";
+import { AppWrapper, preloadAppRoutes } from "src/utils/AppWrapper";
+
+beforeAll(() => preloadAppRoutes(["/xcoms"]));
 
 vi.mock("src/components/MonacoEditor", () => ({
   default: ({ value }: { readonly value?: string }) => <div data-testid="monaco-editor">{value}</div>,
@@ -47,11 +48,8 @@ const xcomEntry = {
   timestamp: "2025-01-01T00:00:00Z",
 };
 
-let server: SetupServer;
-
-beforeAll(() => {
-  server = setupServer(
-    ...handlers,
+beforeEach(() => {
+  server.use(
     http.get("/api/v2/dags/~/dagRuns/~/taskInstances/~/xcomEntries", () =>
       HttpResponse.json({ total_entries: 1, xcom_entries: [xcomEntry] }),
     ),
@@ -59,9 +57,7 @@ beforeAll(() => {
       HttpResponse.json({ ...xcomEntry, value: { nested: { answer: 42 } } }),
     ),
   );
-  server.listen({ onUnhandledFrame: "bypass" });
 });
-afterAll(() => server.close());
 
 describe("XCom list expand/collapse", () => {
   it("expands and collapses XCom values via the expand/collapse all buttons", async () => {

@@ -198,7 +198,9 @@ Such a main build also publishes the latest "sphinx-airflow-theme" package to Gi
 of documentation can automatically pick it up from there. This means that if you want to make changes to
 `javascript` or `css` that are part of the theme, you need to do it in `airflow-site` repository and
 merge it to `main` branch in order to be able to run the documentation build in `apache-airflow` repository
-and pick up the latest version of the theme.
+and pick up the latest version of the theme. To preview an unreleased theme change, see the
+`--sphinx-airflow-theme-path` option in
+[Building documentation in Breeze](../contributing-docs/11_documentation_building.rst#building-documentation-in-breeze).
 
 The version of sphinx theme is fixed in both repositories:
 

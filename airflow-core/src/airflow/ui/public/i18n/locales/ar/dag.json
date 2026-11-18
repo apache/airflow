@@ -1,4 +1,5 @@
 {
+  "allMapIndexes": "جميع فهارس الخريطة",
   "allRuns": "جميع التشغيلات",
   "blockingDeps": {
     "dependency": "التبعية",
@@ -6,6 +7,7 @@
     "title": "التبعيات التي تمنع جدولة المهمة"
   },
   "calendar": {
+    "backfill": "التعبئة الرجعية",
     "daily": "يومي",
     "hourly": "ساعي",
     "legend": {
@@ -32,6 +34,25 @@
       "thursday": "الخميس",
       "tuesday": "الثلاثاء",
       "wednesday": "الأربعاء"
+    }
+  },
+  "callbacks": {
+    "callback_few": "استدعاءات رجعية",
+    "callback_many": "استدعاءات رجعية",
+    "callback_one": "استدعاء رجعي",
+    "callback_other": "استدعاءات رجعية",
+    "callback_two": "استدعاءان رجعيان",
+    "callback_zero": "لا يوجد أي استدعاء رجعي",
+    "columns": {
+      "alertName": "تنبيه الموعد النهائي",
+      "callback": "الاستدعاء الرجعي",
+      "deadlineTime": "وقت الموعد النهائي",
+      "missedBy": "فائت بمقدار",
+      "type": "النوع"
+    },
+    "types": {
+      "executor": "متزامن",
+      "triggerer": "غير متزامن"
     }
   },
   "code": {
@@ -104,10 +125,6 @@
     "critical": "حرِج",
     "debug": "تصحيح",
     "error": "خطأ",
-    "fullscreen": {
-      "button": "ملء الشاشة",
-      "tooltip": "اضغط على {{hotkey}} للدخول إلى وضع ملء الشاشة"
-    },
     "info": "معلومات",
     "noTryNumber": "لا يوجد رقم محاولة",
     "search": {
@@ -116,8 +133,43 @@
       "placeholder": "ابحث في السجلات..."
     },
     "settings": "سجل الإعدادات",
+    "tryNotStarted": "لم تبدأ هذه المحاولة بعد.",
+    "viewFailedTry": "عرض سجلات المحاولة الفاشلة {{tryNumber}}",
     "viewInExternal": "عرض السجلات في {{name}} (المحاولة {{attempt}})",
+    "viewPreviousTry": "عرض سجلات المحاولة السابقة {{tryNumber}}",
+    "waitingToRetry": "المحاولة {{tryNumber}} بانتظار إعادة المحاولة.",
     "warning": "تحذير"
+  },
+  "loop": {
+    "history": {
+      "capLabel": "الحد: {{max}}",
+      "iterationsAxis": "التكرارات",
+      "stats": {
+        "capHits": "بلغ الحد",
+        "medianIterations": "وسيط التكرارات"
+      },
+      "title": "التكرارات لكل تشغيل"
+    },
+    "iterationLabel": "التكرار {{index}}",
+    "iterations": "التكرارات",
+    "outcome": "النتيجة",
+    "reason": {
+      "cap_reached": "بلغ حد التكرارات ({{max}})",
+      "failed": "فشل عند التكرار {{index}}",
+      "iteration_failed": "فشل التكرار {{index}} في {{taskId}}",
+      "ran_to_cap": "نُفِّذت جميع التكرارات المسموح بها وعددها {{max}}",
+      "removed": "محذوف",
+      "running": "قيد التشغيل",
+      "skipped": "متجاوز",
+      "stopped_early": "توقف مبكراً عند التكرار {{index}}"
+    },
+    "rules": {
+      "behaviour": "السلوك",
+      "boundedFor": "يُنفِّذ عدداً ثابتاً من التكرارات",
+      "exitCriteria": "معايير الخروج",
+      "maxIterations": "الحد الأقصى للتكرارات",
+      "whileUntil": "يتكرر حتى {{criteria}}"
+    }
   },
   "notFound": {
     "back": "رجوع",
@@ -239,6 +291,7 @@
     "auditLog": "سجل التدقيق",
     "backfills": "التعبئة الرجعية",
     "calendar": "التقويم",
+    "callbacks": "الاستدعاءات الرجعية",
     "code": "الكود",
     "details": "التفاصيل",
     "logs": "السجلات",
@@ -255,6 +308,7 @@
     "taskInstances": "مثيلات المهام",
     "taskStateStore": "مخزن حالة المهمة",
     "tasks": "المهام",
+    "versions": "الإصدارات",
     "xcom": "XCom"
   },
   "taskGroups": {
@@ -272,6 +326,12 @@
     "deleteWarning": "ستفقد المهمة هذه الذاكرة المحفوظة. إذا كانت المهمة تستخدم هذا المفتاح لتتبع عمل خارجي (مثل معرّف وظيفة خارجية)، فلن تتمكن من استئنافه.",
     "edit": "تعديل مخزن حالة المهمة",
     "emptyStore": "يخزّن مخزن حالة المهمة قيماً تستمر عبر إعادات المحاولة. يمكن للعمّال الكتابة إلى مخزن حالة المهمة عبر Task SDK.",
+    "entry_few": "إدخالات",
+    "entry_many": "إدخالات",
+    "entry_one": "إدخال",
+    "entry_other": "إدخالات",
+    "entry_two": "إدخالان",
+    "entry_zero": "لا يوجد أي إدخال",
     "expiresAt": {
       "column": "تنتهي الصلاحية في",
       "custom": "مخصص",
@@ -280,5 +340,90 @@
       "never": "أبداً"
     },
     "title": "مخزن حالة المهمة"
+  },
+  "versions": {
+    "base": "المقارنة من",
+    "categories": {
+      "asset": "أصل",
+      "authorization": "التفويض",
+      "callback": "الاستدعاء الرجعي",
+      "deadline": "الموعد النهائي",
+      "dependency": "التبعية",
+      "metadata": "البيانات الوصفية",
+      "param": "المعلمة",
+      "provenance": "المصدر",
+      "schedule": "الجدول",
+      "task": "المهمة",
+      "unknown": "غير معروف"
+    },
+    "codeAccess": "تتطلب القيم صلاحية الوصول إلى كود Dag",
+    "columns": {
+      "after": "بعد",
+      "before": "قبل",
+      "category": "الفئة",
+      "impact": "التأثير",
+      "operation": "العملية",
+      "path": "المسار"
+    },
+    "heading": "الإصدار {{base}} ← الإصدار {{target}}",
+    "impacts": {
+      "authorization": "التفويض",
+      "execution": "التنفيذ",
+      "metadata": "البيانات الوصفية",
+      "provenance": "المصدر",
+      "unknown": "غير معروف"
+    },
+    "limitReached": {
+      "description": "عدد التغييرات أكبر مما يسمح به حد «الحد الأقصى للتغييرات». ارفع الحد لعرض الباقي.",
+      "descriptionDefault": "عدد التغييرات أكبر مما يسمح به الحد الافتراضي. اضبط «الحد الأقصى للتغييرات» على قيمة أعلى لعرض الباقي.",
+      "title": "عرض أول {{limit, number}} من التغييرات فقط"
+    },
+    "maxChanges": "الحد الأقصى للتغييرات",
+    "maxChangesDefault": "افتراضي",
+    "noChanges": "هذان الإصداران يحملان الحالة نفسها.",
+    "operations": {
+      "added": "مُضاف",
+      "changed": "مُعدَّل",
+      "removed": "محذوف"
+    },
+    "pathOccurrences_few": "{{count, number}} تغييرات تشترك في هذا المسار",
+    "pathOccurrences_many": "{{count, number}} تغييراً يشترك في هذا المسار",
+    "pathOccurrences_one": "تغيير واحد يشترك في هذا المسار",
+    "pathOccurrences_other": "{{count, number}} تغيير يشترك في هذا المسار",
+    "pathOccurrences_two": "تغييران يشتركان في هذا المسار",
+    "pathOccurrences_zero": "لا توجد تغييرات تشترك في هذا المسار",
+    "pathOccurrencesAtLeast_few": "{{count, number}} تغييرات على الأقل تشترك في هذا المسار",
+    "pathOccurrencesAtLeast_many": "{{count, number}} تغييراً على الأقل يشترك في هذا المسار",
+    "pathOccurrencesAtLeast_one": "تغيير واحد على الأقل يشترك في هذا المسار",
+    "pathOccurrencesAtLeast_other": "{{count, number}} تغيير على الأقل يشترك في هذا المسار",
+    "pathOccurrencesAtLeast_two": "تغييران على الأقل يشتركان في هذا المسار",
+    "pathOccurrencesAtLeast_zero": "{{count, number}} تغيير على الأقل يشترك في هذا المسار",
+    "record_few": "سجلات",
+    "record_many": "سجلات",
+    "record_one": "سجل",
+    "record_other": "سجلات",
+    "record_two": "سجلان",
+    "record_zero": "لا يوجد أي سجل",
+    "schemaChange": "المخطط المُسلسَل {{baseSchema}} ← {{targetSchema}}",
+    "selectPrompt": "اختر إصدارين لرؤية ما تغيّر بينهما.",
+    "summary_few": "{{count, number}} تغييرات",
+    "summary_many": "{{count, number}} تغييراً",
+    "summary_one": "تغيير واحد",
+    "summary_other": "{{count, number}} تغيير",
+    "summary_two": "تغييران",
+    "summary_zero": "لا توجد تغييرات",
+    "summaryAtLeast_few": "{{count, number}} تغييرات على الأقل",
+    "summaryAtLeast_many": "{{count, number}} تغييراً على الأقل",
+    "summaryAtLeast_one": "تغيير واحد على الأقل",
+    "summaryAtLeast_other": "{{count, number}} تغيير على الأقل",
+    "summaryAtLeast_two": "تغييران على الأقل",
+    "summaryAtLeast_zero": "{{count, number}} تغيير على الأقل",
+    "target": "المقارنة مع",
+    "unavailable": {
+      "description": "تعذّرت مقارنة هذين الإصدارين. السبب:",
+      "title": "المقارنة غير متاحة",
+      "withoutReason": "تعذّرت مقارنة هذين الإصدارين."
+    },
+    "valuesHidden": "القيم مخفية"
   }
 }

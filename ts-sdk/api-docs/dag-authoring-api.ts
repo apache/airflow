@@ -24,6 +24,7 @@ export {
   Dag,
   getClient,
   getContext,
+  Label,
   NEVER_EXPIRE,
   TaskHandler,
   triggerDagRun,

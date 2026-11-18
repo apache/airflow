@@ -39,6 +39,8 @@ import { isStatePending, useAutoRefresh } from "src/utils";
 import { DagRunSwitcherButton } from "./DagRunSwitcherButton";
 import { DagSwitcherButton } from "./DagSwitcherButton";
 import { IterationSwitcherButton } from "./IterationSwitcherButton";
+import { MapIndexSwitcherButton } from "./MapIndexSwitcherButton";
+import { TaskSwitcherButton } from "./TaskSwitcherButton";
 
 /** Levels that stand for a Dag run — both offer the run search. */
 const RUN_LEVEL_KEYS = new Set(["allRuns", "dagRun"]);
@@ -60,7 +62,9 @@ const BreadcrumbItem = ({
   isLast,
   isMapped,
   loopOptions,
+  runId,
   shape,
+  taskId,
 }: {
   readonly crumb: Crumb;
   readonly dagId: string;
@@ -68,7 +72,9 @@ const BreadcrumbItem = ({
   readonly isLast: boolean;
   readonly isMapped: boolean;
   readonly loopOptions: Array<LoopOption>;
+  readonly runId: string | undefined;
   readonly shape: CrumbShape;
+  readonly taskId: string | undefined;
 }) => {
   const content = (
     <CrumbStack
@@ -101,6 +107,29 @@ const BreadcrumbItem = ({
       <DagRunSwitcherButton dagId={dagId} isMapped={isMapped} shape={shape} to={crumb.to}>
         {content}
       </DagRunSwitcherButton>
+    );
+  }
+
+  if (crumb.key === "task") {
+    return (
+      <TaskSwitcherButton
+        dagId={dagId}
+        isCurrent={isLast}
+        runId={runId}
+        shape={shape}
+        taskId={taskId ?? ""}
+        to={isLast ? undefined : crumb.to}
+      >
+        {content}
+      </TaskSwitcherButton>
+    );
+  }
+
+  if (crumb.key === "mapIndex") {
+    return (
+      <MapIndexSwitcherButton dagId={dagId} shape={shape}>
+        {content}
+      </MapIndexSwitcherButton>
     );
   }
 
@@ -212,7 +241,6 @@ export const DagBreadcrumb = () => {
       hasState: true,
       key: "group",
       state: groupSummary?.state,
-      to: `/dags/${dagId}/groups/${groupId}`,
       value: groupId,
     });
   }
@@ -270,14 +298,21 @@ export const DagBreadcrumb = () => {
     }
   }
 
-  if (mapIndex !== "-1") {
-    crumbs.push({
-      caption: translate("mapIndex"),
-      hasState: true,
-      key: "mapIndex",
-      state: mappedTaskInstance?.state,
-      value: mappedTaskInstance?.rendered_map_index ?? mapIndex,
-    });
+  // The map index level stays on the bar for the whole of an expanded task, standing on "all
+  // instances" when none is picked, so the switch between instances is in the same place whether
+  // you are looking at one of them or at the summary of all of them.
+  if (hasExpandedInstances && runId !== undefined && taskId !== undefined) {
+    crumbs.push(
+      mapIndex === "-1"
+        ? { caption: translate("mapIndex"), key: "mapIndex", value: translate("dag:allMapIndexes") }
+        : {
+            caption: translate("mapIndex"),
+            hasState: true,
+            key: "mapIndex",
+            state: mappedTaskInstance?.state,
+            value: mappedTaskInstance?.rendered_map_index ?? mapIndex,
+          },
+    );
   }
 
   return (
@@ -291,7 +326,9 @@ export const DagBreadcrumb = () => {
           isMapped={hasExpandedInstances}
           key={crumb.key}
           loopOptions={loopOptions}
+          runId={runId}
           shape={{ hasNotch: index > 0, hasPoint: index < crumbs.length - 1 }}
+          taskId={taskId}
         />
       ))}
     </BreadcrumbRow>

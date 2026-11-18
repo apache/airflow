@@ -105,6 +105,7 @@ const getColumns = ({
         />
       </Flex>
     ),
+    enableHiding: false,
     enableSorting: false,
     header: "",
   },

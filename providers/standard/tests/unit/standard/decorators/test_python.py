@@ -54,9 +54,9 @@ else:
     )
     from airflow.decorators.base import DecoratedMappedOperator, _TaskDecorator  # type: ignore[no-redef]
     from airflow.models.baseoperator import BaseOperator  # type: ignore[no-redef]
-    from airflow.models.dag import DAG  # type: ignore[assignment,no-redef]
+    from airflow.models.dag import DAG  # type: ignore[no-redef]
     from airflow.models.expandinput import DictOfListsExpandInput  # type: ignore[attr-defined,no-redef]
-    from airflow.models.xcom_arg import XComArg  # type: ignore[no-redef]
+    from airflow.models.xcom_arg import XComArg
     from airflow.utils.task_group import TaskGroup  # type: ignore[no-redef]
 
 from airflow.providers.common.compat.sdk import timezone
@@ -64,13 +64,13 @@ from airflow.providers.common.compat.sdk import timezone
 if AIRFLOW_V_3_1_PLUS:
     from airflow.sdk import TriggerRule
 else:
-    from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
+    from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef]
 
 if AIRFLOW_V_3_2_PLUS:
     from airflow.serialization.definitions.mappedoperator import SerializedMappedOperator
 else:
     from airflow.models.mappedoperator import (  # type: ignore[no-redef]
-        MappedOperator as SerializedMappedOperator,  # type: ignore[assignment,attr-defined]
+        MappedOperator as SerializedMappedOperator,
     )
 
 if typing.TYPE_CHECKING:
@@ -931,7 +931,7 @@ def test_upstream_exception_produces_none_xcom(dag_maker, session):
         from airflow.sdk import TriggerRule
     except ImportError:
         # Compatibility for Airflow < 3.1
-        from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
+        from airflow.utils.trigger_rule import TriggerRule
 
     result = None
 
@@ -973,7 +973,7 @@ def test_multiple_outputs_produces_none_xcom_when_task_is_skipped(dag_maker, ses
         from airflow.sdk import TriggerRule
     except ImportError:
         # Compatibility for Airflow < 3.1
-        from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
+        from airflow.utils.trigger_rule import TriggerRule
 
     result = None
 
