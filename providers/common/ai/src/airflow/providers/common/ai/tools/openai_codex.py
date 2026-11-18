@@ -325,6 +325,8 @@ class AirflowTools:
                 uvicorn.Config(
                     app,
                     log_level="warning",
+                    # uvicorn's default logging dictConfig would disable the task process's existing handlers.
+                    log_config=None,
                     access_log=False,
                     lifespan="on",
                     timeout_graceful_shutdown=_SERVER_SHUTDOWN_TIMEOUT_SEC,

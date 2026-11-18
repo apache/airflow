@@ -35,6 +35,7 @@ pytest.importorskip("openai_codex")
 pytest.importorskip("mcp")
 
 import httpx2
+import uvicorn
 from mcp import ClientSession
 from mcp.client.streamable_http import streamable_http_client
 from openai_codex import (
@@ -965,6 +966,17 @@ class TestRealMcpServer:
         assert not _exists(created[0])
         async with tools.serve():
             pass
+
+    @pytest.mark.asyncio
+    @mock.patch(f"{MODULE}.uvicorn.Config", autospec=True, side_effect=uvicorn.Config)
+    async def test_serving_does_not_let_uvicorn_reconfigure_logging(self, config_class):
+        tools = AirflowTools(_build_tool(ToolResult("found")))
+
+        async with tools.serve():
+            pass
+
+        config_class.assert_called_once()
+        assert config_class.call_args.kwargs["log_config"] is None
 
     @pytest.mark.asyncio
     async def test_serving_leaves_the_workers_signal_handlers_alone(self):
