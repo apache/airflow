@@ -1341,7 +1341,24 @@ class TestBedrockCreateGuardrailOperator:
 GUARDRAIL_ID = "abc123"
 
 
+def _build_guardrail_in_transition_error(operation_name: str) -> ClientError:
+    return ClientError(
+        {
+            "Error": {
+                "Code": "ValidationException",
+                "Message": "This guardrail can't be modified at this time.",
+            }
+        },
+        operation_name,
+    )
+
+
 class TestBedrockDeleteGuardrailOperator:
+    IN_TRANSITION_ERROR = _build_guardrail_in_transition_error("DeleteGuardrail")
+    CONFLICT_ERROR = ClientError(
+        {"Error": {"Code": "ConflictException", "Message": "Conflict"}}, "DeleteGuardrail"
+    )
+
     def setup_method(self):
         self.operator = BedrockDeleteGuardrailOperator(
             task_id="delete_guardrail",
@@ -1372,6 +1389,69 @@ class TestBedrockDeleteGuardrailOperator:
         mock_client.delete_guardrail.assert_called_once_with(
             guardrailIdentifier=GUARDRAIL_ID, guardrailVersion="1"
         )
+
+    @pytest.mark.parametrize(
+        "error",
+        [
+            pytest.param(IN_TRANSITION_ERROR, id="in_transition"),
+            pytest.param(CONFLICT_ERROR, id="conflict"),
+        ],
+    )
+    @mock.patch("time.sleep", return_value=None)
+    @mock.patch.object(BedrockHook, "conn", new_callable=mock.PropertyMock)
+    def test_execute_retries_while_guardrail_is_in_transition(self, mock_conn, mock_sleep, error):
+        mock_client = mock.MagicMock()
+        mock_client.delete_guardrail.side_effect = [error, error, {}]
+        mock_conn.return_value = mock_client
+
+        self.operator.execute({})
+
+        assert mock_client.delete_guardrail.call_count == 3
+        assert mock_sleep.call_args_list == [mock.call(2), mock.call(2)]
+
+    @mock.patch("time.sleep", return_value=None)
+    @mock.patch.object(BedrockHook, "conn", new_callable=mock.PropertyMock)
+    def test_execute_stops_retrying_after_max_attempts(self, mock_conn, mock_sleep):
+        op = BedrockDeleteGuardrailOperator(
+            task_id="delete_guardrail",
+            guardrail_identifier=GUARDRAIL_ID,
+            waiter_delay=7,
+            waiter_max_attempts=2,
+        )
+        mock_client = mock.MagicMock()
+        mock_client.delete_guardrail.side_effect = self.IN_TRANSITION_ERROR
+        mock_conn.return_value = mock_client
+
+        with pytest.raises(ClientError):
+            op.execute({})
+
+        assert mock_client.delete_guardrail.call_count == 2
+        mock_sleep.assert_called_once_with(7)
+
+    @pytest.mark.parametrize(
+        ("code", "message"),
+        [
+            pytest.param("ValidationException", "Invalid guardrail identifier", id="other_message"),
+            pytest.param(
+                "AccessDeniedException", "This guardrail can't be modified at this time.", id="other_code"
+            ),
+        ],
+    )
+    @mock.patch("time.sleep", return_value=None)
+    @mock.patch.object(BedrockHook, "conn", new_callable=mock.PropertyMock)
+    def test_execute_does_not_retry_other_errors(self, mock_conn, mock_sleep, code, message):
+        mock_client = mock.MagicMock()
+        mock_client.delete_guardrail.side_effect = [
+            self.IN_TRANSITION_ERROR,
+            ClientError({"Error": {"Code": code, "Message": message}}, "DeleteGuardrail"),
+        ]
+        mock_conn.return_value = mock_client
+
+        with pytest.raises(ClientError, match=message):
+            self.operator.execute({})
+
+        assert mock_client.delete_guardrail.call_count == 2
+        mock_sleep.assert_called_once_with(2)
 
     def test_template_fields(self):
         validate_template_fields(self.operator)
@@ -1440,6 +1520,30 @@ class TestBedrockCreateGuardrailVersionOperator:
         )
         assert result == "2"
 
+    @mock.patch("time.sleep", return_value=None)
+    @mock.patch.object(BedrockHook, "conn", new_callable=mock.PropertyMock)
+    def test_execute_retries_while_guardrail_is_in_transition(self, mock_conn, mock_sleep):
+        op = BedrockCreateGuardrailVersionOperator(
+            task_id="create_guardrail_version",
+            guardrail_identifier=GUARDRAIL_ID,
+            wait_for_completion=False,
+            waiter_delay=7,
+        )
+        error = _build_guardrail_in_transition_error("CreateGuardrailVersion")
+        mock_client = mock.MagicMock()
+        mock_client.create_guardrail_version.side_effect = [
+            error,
+            error,
+            {"guardrailId": GUARDRAIL_ID, "version": "1"},
+        ]
+        mock_conn.return_value = mock_client
+
+        result = op.execute({})
+
+        assert result == "1"
+        assert mock_client.create_guardrail_version.call_count == 3
+        assert mock_sleep.call_args_list == [mock.call(7), mock.call(7)]
+
     def test_template_fields(self):
         validate_template_fields(self.operator)
 
@@ -1480,6 +1584,33 @@ class TestBedrockUpdateGuardrailOperator:
         assert result == GUARDRAIL_ID
         mock_client.update_guardrail.assert_called_once()
         _assert_guardrail_waiter_called(mock_get_waiter, expected_waiter_config)
+
+    @mock.patch("time.sleep", return_value=None)
+    @mock.patch.object(BedrockHook, "conn", new_callable=mock.PropertyMock)
+    def test_execute_retries_while_guardrail_is_in_transition(self, mock_conn, mock_sleep):
+        op = BedrockUpdateGuardrailOperator(
+            task_id="update_guardrail",
+            guardrail_identifier=GUARDRAIL_ID,
+            guardrail_name="updated-guardrail",
+            blocked_input_messaging="Blocked.",
+            blocked_outputs_messaging="Blocked.",
+            wait_for_completion=False,
+            waiter_delay=7,
+        )
+        error = _build_guardrail_in_transition_error("UpdateGuardrail")
+        mock_client = mock.MagicMock()
+        mock_client.update_guardrail.side_effect = [
+            error,
+            error,
+            {"guardrailId": GUARDRAIL_ID, "version": "DRAFT"},
+        ]
+        mock_conn.return_value = mock_client
+
+        result = op.execute({})
+
+        assert result == GUARDRAIL_ID
+        assert mock_client.update_guardrail.call_count == 3
+        assert mock_sleep.call_args_list == [mock.call(7), mock.call(7)]
 
     def test_template_fields(self):
         validate_template_fields(self.operator)

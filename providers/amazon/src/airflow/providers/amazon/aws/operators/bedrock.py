@@ -17,10 +17,12 @@
 from __future__ import annotations
 
 import json
+import logging
 from collections.abc import Sequence
 from time import sleep
 from typing import TYPE_CHECKING, Any, Literal
 
+import tenacity
 from botocore.exceptions import ClientError
 
 from airflow.providers.amazon.aws.hooks.bedrock import (
@@ -51,6 +53,7 @@ from airflow.utils.helpers import prune_dict
 if TYPE_CHECKING:
     from airflow.providers.amazon.aws.triggers.bedrock import BedrockBaseBatchInferenceTrigger
     from airflow.sdk import Context
+    from airflow.sdk.types import Logger
 
 
 class BedrockInvokeModelOperator(AwsBaseOperator[BedrockRuntimeHook]):
@@ -1489,9 +1492,37 @@ class BedrockCreateGuardrailOperator(AwsBaseOperator[BedrockHook]):
         return guardrail_id
 
 
+def _is_guardrail_in_transition_error(exception: BaseException) -> bool:
+    if not isinstance(exception, ClientError):
+        return False
+    error = exception.response.get("Error", {})
+    code = error.get("Code")
+    # Bedrock reports a guardrail in a transitional status as a ValidationException, the code it
+    # also uses for invalid input, so only the message tells the two apart. ConflictException is
+    # what the guardrail APIs document for a conflict, so it is retried in case Bedrock switches to it.
+    return code == "ConflictException" or (
+        code == "ValidationException" and "be modified at this time" in error.get("Message", "")
+    )
+
+
+def _build_guardrail_in_transition_retrying(
+    logger: Logger | logging.Logger, waiter_delay: int, waiter_max_attempts: int
+) -> tenacity.Retrying:
+    return tenacity.Retrying(
+        retry=tenacity.retry_if_exception(_is_guardrail_in_transition_error),
+        wait=tenacity.wait_fixed(waiter_delay),
+        stop=tenacity.stop_after_attempt(waiter_max_attempts),
+        before_sleep=tenacity.before_sleep_log(logger, logging.WARNING),
+        reraise=True,
+    )
+
+
 class BedrockDeleteGuardrailOperator(AwsBaseOperator[BedrockHook]):
     """
     Delete an Amazon Bedrock guardrail.
+
+    Amazon Bedrock rejects the delete while the guardrail is in a transitional status, for example
+    right after a version is published. The operator retries until the guardrail can be deleted.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -1499,6 +1530,9 @@ class BedrockDeleteGuardrailOperator(AwsBaseOperator[BedrockHook]):
 
     :param guardrail_identifier: The ID or ARN of the guardrail to delete. (templated)
     :param guardrail_version: Optional version number to delete a specific version. (templated)
+    :param waiter_delay: Time in seconds to wait before retrying a delete that was rejected because
+        the guardrail was in a transitional status. (default: 2)
+    :param waiter_max_attempts: Maximum number of times to attempt the delete. (default: 60)
     """
 
     aws_hook_class = BedrockHook
@@ -1509,11 +1543,15 @@ class BedrockDeleteGuardrailOperator(AwsBaseOperator[BedrockHook]):
         *,
         guardrail_identifier: str,
         guardrail_version: str | None = None,
+        waiter_delay: int = 2,
+        waiter_max_attempts: int = 60,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.guardrail_identifier = guardrail_identifier
         self.guardrail_version = guardrail_version
+        self.waiter_delay = waiter_delay
+        self.waiter_max_attempts = waiter_max_attempts
 
     def execute(self, context: Context) -> None:
         self.log.info("Deleting Bedrock guardrail %s", self.guardrail_identifier)
@@ -1523,7 +1561,9 @@ class BedrockDeleteGuardrailOperator(AwsBaseOperator[BedrockHook]):
                 "guardrailVersion": self.guardrail_version,
             }
         )
-        self.hook.conn.delete_guardrail(**kwargs)
+        _build_guardrail_in_transition_retrying(self.log, self.waiter_delay, self.waiter_max_attempts)(
+            self.hook.conn.delete_guardrail, **kwargs
+        )
         self.log.info("Deleted guardrail %s", self.guardrail_identifier)
 
 
@@ -1534,6 +1574,10 @@ class BedrockCreateGuardrailVersionOperator(AwsBaseOperator[BedrockHook]):
     Guardrails are created as DRAFT. This operator publishes a numbered version
     that can be referenced in production workloads.
 
+    Amazon Bedrock rejects the call while the guardrail is in a transitional status, for example
+    right after another version is published. The operator retries until the version can be created,
+    whether or not ``wait_for_completion`` is set.
+
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:BedrockCreateGuardrailVersionOperator`
@@ -1542,8 +1586,10 @@ class BedrockCreateGuardrailVersionOperator(AwsBaseOperator[BedrockHook]):
     :param description: Optional description for this version. (templated)
     :param wait_for_completion: Whether to wait for the guardrail to be in READY status, both before
         creating the version and after. (default: True)
-    :param waiter_delay: Time in seconds to wait between status checks. (default: 2)
-    :param waiter_max_attempts: Maximum number of attempts to check for guardrail readiness. (default: 60)
+    :param waiter_delay: Time in seconds to wait between status checks, and before retrying a call
+        that was rejected because the guardrail was in a transitional status. (default: 2)
+    :param waiter_max_attempts: Maximum number of attempts to check for guardrail readiness, and to
+        create the version. (default: 60)
     """
 
     aws_hook_class = BedrockHook
@@ -1588,7 +1634,9 @@ class BedrockCreateGuardrailVersionOperator(AwsBaseOperator[BedrockHook]):
                 "description": self.description,
             }
         )
-        response = self.hook.conn.create_guardrail_version(**kwargs)
+        response = _build_guardrail_in_transition_retrying(
+            self.log, self.waiter_delay, self.waiter_max_attempts
+        )(self.hook.conn.create_guardrail_version, **kwargs)
         guardrail_id = response["guardrailId"]
         version = response["version"]
         self.log.info("Guardrail %s version %s created.", guardrail_id, version)
@@ -1602,6 +1650,10 @@ class BedrockCreateGuardrailVersionOperator(AwsBaseOperator[BedrockHook]):
 class BedrockUpdateGuardrailOperator(AwsBaseOperator[BedrockHook]):
     """
     Update an Amazon Bedrock guardrail configuration.
+
+    Amazon Bedrock rejects the update while the guardrail is in a transitional status, for example
+    right after a version is published. The operator retries until the update is accepted, whether
+    or not ``wait_for_completion`` is set.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -1617,8 +1669,10 @@ class BedrockUpdateGuardrailOperator(AwsBaseOperator[BedrockHook]):
     :param word_policy_config: Optional word filter policy configuration dict.
     :param sensitive_information_policy_config: Optional sensitive information policy dict.
     :param wait_for_completion: Whether to wait for the guardrail to return to READY status. (default: True)
-    :param waiter_delay: Time in seconds to wait between status checks. (default: 2)
-    :param waiter_max_attempts: Maximum number of attempts to check for guardrail readiness. (default: 60)
+    :param waiter_delay: Time in seconds to wait between status checks, and before retrying an update
+        that was rejected because the guardrail was in a transitional status. (default: 2)
+    :param waiter_max_attempts: Maximum number of attempts to check for guardrail readiness, and to
+        update the guardrail. (default: 60)
     """
 
     aws_hook_class = BedrockHook
@@ -1672,7 +1726,9 @@ class BedrockUpdateGuardrailOperator(AwsBaseOperator[BedrockHook]):
                 "sensitiveInformationPolicyConfig": self.sensitive_information_policy_config,
             }
         )
-        response = self.hook.conn.update_guardrail(**kwargs)
+        response = _build_guardrail_in_transition_retrying(
+            self.log, self.waiter_delay, self.waiter_max_attempts
+        )(self.hook.conn.update_guardrail, **kwargs)
         guardrail_id = response["guardrailId"]
         self.log.info("Updated guardrail %s version %s", guardrail_id, response["version"])
 
