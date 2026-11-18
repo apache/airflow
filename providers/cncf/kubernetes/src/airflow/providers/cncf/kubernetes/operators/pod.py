@@ -271,9 +271,9 @@ class KubernetesPodOperator(BaseOperator):
     :param on_kill_action: What to do when the task is killed by the user (e.g. manually marked as
         success/failed from the Airflow UI). If "delete_pod" (default), the pod will be deleted.
         If "keep_pod", the pod will not be deleted. In deferrable mode this is forwarded to the
-        trigger which controls cleanup when a deferred task is cancelled. With ``durable`` execution
-        in sync mode, "keep_pod" also keeps the pod when the try is interrupted by ``execution_timeout``,
-        so the retry can reattach to it instead of creating a fresh pod.
+        trigger which controls cleanup when a deferred task is cancelled. In sync mode with ``durable``
+        (or ``reattach_on_restart`` below Airflow 3.3), "keep_pod" also keeps the pod when the try is
+        interrupted by ``execution_timeout`` and a retry follows, so the retry can reattach to it.
     :param termination_message_policy: The termination message policy of the base container.
         Default value is "File"
     :param active_deadline_seconds: The active_deadline_seconds which translates to active_deadline_seconds
@@ -783,6 +783,11 @@ class KubernetesPodOperator(BaseOperator):
 
                 if pod_phase == PodPhase.SUCCEEDED:
                     Stats.incr("resumable_job.already_succeeded", tags=stats_tags)
+                    # Without XCom there is nothing left to read from the pod, so a pod that finished
+                    # after its try was interrupted (e.g. a kept pod after a timeout) is this try's run.
+                    if not self.do_xcom_push:
+                        self.log.info("Reusing pod '%s', which already succeeded.", pod.metadata.name)
+                        return pod
                 else:
                     Stats.incr("resumable_job.terminal_resubmit", tags=stats_tags)
 
@@ -944,8 +949,11 @@ class KubernetesPodOperator(BaseOperator):
         except AirflowTaskTimeout:
             # The task runner calls on_kill only after this propagates, so cleanup has to know now
             # that the pod must be left running for the next try to reattach.
+            ti = context["ti"]
             self._keep_pod_after_timeout = (
-                self.reattach_on_restart and self.on_kill_action == OnKillAction.KEEP_POD
+                self.reattach_on_restart
+                and self.on_kill_action == OnKillAction.KEEP_POD
+                and ti.try_number <= ti.max_tries
             )
             raise
         finally:

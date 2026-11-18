@@ -987,6 +987,8 @@ class TestKubernetesPodOperator:
             task_id="task",
             name="hello",
             log_pod_spec_on_failure=False,
+            # With XCom on, a succeeded pod's result can't be read back, so it is still recreated.
+            do_xcom_push=True,
         )
         k.reattach_on_restart = True
         context = create_context(k)
@@ -1039,6 +1041,7 @@ class TestKubernetesPodOperator:
             task_id="task",
             name="hello",
             log_pod_spec_on_failure=False,
+            do_xcom_push=True,
         )
         k.reattach_on_restart = True
         context = create_context(k)
@@ -2834,10 +2837,16 @@ class TestKubernetesPodOperatorDurableExecution:
         self.create_mock.assert_not_called()
         assert result == running_pod
 
-    @pytest.mark.parametrize("pod_phase", [PodPhase.SUCCEEDED, PodPhase.FAILED])
+    @pytest.mark.parametrize(
+        ("pod_phase", "do_xcom_push"),
+        [
+            pytest.param(PodPhase.SUCCEEDED, True, id="succeeded-with-xcom"),
+            pytest.param(PodPhase.FAILED, False, id="failed"),
+        ],
+    )
     @patch(f"{KPO_MODULE}.KubernetesPodOperator.process_pod_deletion")
     def test_durable_reconnect_terminal_state_runs_existing_handling(
-        self, mock_process_pod_deletion, pod_phase
+        self, mock_process_pod_deletion, pod_phase, do_xcom_push
     ):
         k = KubernetesPodOperator(
             image="ubuntu:16.04",
@@ -2846,6 +2855,7 @@ class TestKubernetesPodOperatorDurableExecution:
             task_id="task",
             name="hello",
             log_pod_spec_on_failure=False,
+            do_xcom_push=do_xcom_push,
         )
         context = create_context(k)
         task_state_store = MagicMock()
@@ -2870,6 +2880,32 @@ class TestKubernetesPodOperatorDurableExecution:
         mock_process_pod_deletion.assert_called_once_with(terminal_pod)
         self.create_mock.assert_called_once_with(pod=mock_pod_request_obj)
         assert result == mock_pod_request_obj
+
+    @patch(f"{KPO_MODULE}.KubernetesPodOperator.process_pod_deletion")
+    def test_durable_reconnect_reuses_succeeded_pod_without_xcom(self, mock_process_pod_deletion):
+        k = KubernetesPodOperator(
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            arguments=["echo 10"],
+            task_id="task",
+            name="hello",
+        )
+        context = create_context(k)
+        task_state_store = MagicMock()
+        task_state_store.get.return_value = {"name": "prior-pod", "namespace": "default"}
+        context["task_state_store"] = task_state_store
+
+        succeeded_pod = MagicMock()
+        succeeded_pod.status.phase = PodPhase.SUCCEEDED
+        succeeded_pod.status.reason = None
+        succeeded_pod.metadata.name = "prior-pod"
+        k.hook.get_pod = MagicMock(return_value=succeeded_pod)
+
+        result = k.get_or_create_pod(pod_request_obj=MagicMock(), context=context)
+
+        mock_process_pod_deletion.assert_not_called()
+        self.create_mock.assert_not_called()
+        assert result == succeeded_pod
 
     def test_durable_reconnect_skips_already_checked_pod_and_creates_fresh(self):
         k = KubernetesPodOperator(
@@ -2917,15 +2953,16 @@ class TestKubernetesPodOperatorDurableExecution:
         assert result == mock_pod_request_obj
 
     @pytest.mark.parametrize(
-        ("durable", "on_kill_action", "expect_pod_kept"),
+        ("durable", "on_kill_action", "try_number", "expect_pod_kept"),
         [
-            pytest.param(True, "keep_pod", True, id="durable_keep_pod"),
-            pytest.param(True, "delete_pod", False, id="durable_default_on_kill"),
-            pytest.param(False, "keep_pod", False, id="not_durable_keep_pod"),
+            pytest.param(True, "keep_pod", 1, True, id="durable_keep_pod"),
+            pytest.param(True, "keep_pod", 2, False, id="durable_keep_pod_last_try"),
+            pytest.param(True, "delete_pod", 1, False, id="durable_default_on_kill"),
+            pytest.param(False, "keep_pod", 1, False, id="not_durable_keep_pod"),
         ],
     )
     def test_execution_timeout_keeps_pod_only_when_durable_and_keep_pod(
-        self, durable, on_kill_action, expect_pod_kept
+        self, durable, on_kill_action, try_number, expect_pod_kept
     ):
         k = KubernetesPodOperator(
             image="ubuntu:16.04",
@@ -2936,7 +2973,7 @@ class TestKubernetesPodOperatorDurableExecution:
             on_kill_action=on_kill_action,
         )
         context = create_context(k)
-        context["ti"] = MagicMock(spec=TaskInstance)
+        context["ti"] = MagicMock(spec=TaskInstance, try_number=try_number, max_tries=1)
         running_pod = MagicMock(spec=k8s.V1Pod)
         running_pod.metadata.name = "running-pod"
         running_pod.metadata.namespace = "default"

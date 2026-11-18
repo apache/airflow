@@ -28,6 +28,13 @@ Changelog
 ---------
 
 .. note::
+    When a retry reattaches to the pod of a previous try and finds it ``Succeeded``,
+    ``KubernetesPodOperator`` now treats that pod as the finished run instead of deleting it and
+    starting a new pod. This applies only with ``do_xcom_push=False``; with XCom on, the pod is still
+    deleted and recreated because its result can no longer be read. Set ``reattach_on_restart=False``
+    (or ``durable=False`` on Airflow 3.3+) to always start a new pod on retry.
+
+.. note::
     ``AsyncKubernetesHook`` now honors its ``config_file`` argument, so a deferrable
     ``KubernetesJobOperator`` authenticates against the kubeconfig it was given rather than the
     connection's ``kube_config_path`` or the default kubeconfig. The triggerer must therefore be
