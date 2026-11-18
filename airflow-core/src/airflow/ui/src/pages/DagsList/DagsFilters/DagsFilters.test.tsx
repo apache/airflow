@@ -63,10 +63,13 @@ describe("Paused filter with hide_paused_dags_by_default enabled", () => {
     mockConfig.multi_team = false;
   });
 
-  it("defaults to showing only active dags", async () => {
+  it("defaults to showing only active dags", async ({ task }) => {
     render(<AppWrapper initialEntries={["/dags"]} />);
 
-    await waitFor(() => expect(screen.getByText("tutorial_taskflow_api_success")).toBeInTheDocument());
+    // The file's first render of the whole app can take over waitFor's default second on CI.
+    await waitFor(() => expect(screen.getByText("tutorial_taskflow_api_success")).toBeInTheDocument(), {
+      timeout: task.timeout,
+    });
     await screen.findByTestId("paused-pill");
 
     await waitFor(() => {
