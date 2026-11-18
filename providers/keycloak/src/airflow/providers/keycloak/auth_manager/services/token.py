@@ -75,7 +75,7 @@ def is_cli_loopback_redirect_uri(redirect_uri: str) -> bool:
     )
 
 
-def _build_user_from_userinfo(
+def build_user_from_userinfo(
     client: KeycloakOpenID, tokens: dict, *, is_service_account: bool = False
 ) -> KeycloakAuthManagerUser:
     """Build the Airflow user that Keycloak's UserInfo endpoint describes for ``tokens``."""
@@ -105,7 +105,7 @@ def _create_api_jwt_from_keycloak_tokens(
     *,
     is_service_account: bool = False,
 ) -> str:
-    user = _build_user_from_userinfo(client, tokens, is_service_account=is_service_account)
+    user = build_user_from_userinfo(client, tokens, is_service_account=is_service_account)
     return get_auth_manager().generate_api_jwt(user, expiration_time_in_seconds=expiration_time_in_seconds)
 
 
@@ -198,7 +198,7 @@ def create_jwt_federated_token(
     # own claims alone.
     client = KeycloakAuthManager.get_keycloak_client()
     try:
-        user = _build_user_from_userinfo(client, {"access_token": assertion}, is_service_account=True)
+        user = build_user_from_userinfo(client, {"access_token": assertion}, is_service_account=True)
     except KeycloakError:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
