@@ -27,7 +27,6 @@ from unittest import mock
 import pytest
 from sqlalchemy import select
 
-from airflow.models.asset import AssetEvent
 from airflow.providers.common.compat.assets import Asset
 from airflow.providers.common.compat.sdk import DAG, AirflowSkipException
 from airflow.providers.databricks.assets.databricks import UnityTableIdentity
@@ -40,6 +39,7 @@ from airflow.providers.databricks.operators.delta_table import (
 )
 from airflow.utils.session import create_session
 
+from tests_common.test_utils.compat import AssetEvent
 from tests_common.test_utils.dag import sync_dag_to_db
 from tests_common.test_utils.db import clear_db_assets, clear_db_dags, clear_db_runs
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_2_PLUS
