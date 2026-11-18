@@ -33,7 +33,6 @@ import type { JsonValue } from "../sdk/client-types.js";
 import { isPlainRecord, type Dag } from "../sdk/dag.js";
 import { getDagDownstreamTaskIds } from "../sdk/dag-graph.js";
 import { brandOperator, type OperatorContext, type OperatorOutcome } from "../sdk/operator.js";
-import { runInTaskScope } from "../sdk/task.js";
 import type { HITLResult, HITLTask, HITLTaskFields, HITLText, HITLUser } from "./spec.js";
 
 export const APPROVE = "Approve";
@@ -63,12 +62,12 @@ export function createHITLTask<TArgs extends object | void>(
 
 /** The first run: write the request, then park the task until a response arrives. */
 async function executeHITL(task: HITLTask<never>, op: OperatorContext): Promise<OperatorOutcome> {
-  const { details, ctx, client, logs, scope } = op;
+  const { details, ctx, client, logs } = op;
   // The inputs are read here only, for the text: the resumed run must not depend on upstream
   // XComs still being there.
   const args = await op.resolveArgs(task.argNames);
   const render = (text: HITLText<never, string | null>) =>
-    runInTaskScope(scope, () => renderText(text, args));
+    op.runInScope(() => renderText(text, args));
   const subject = await render(task.subject);
   const body = task.body === undefined ? null : await render(task.body);
   if (typeof subject !== "string" || subject.length === 0) {

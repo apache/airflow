@@ -21,7 +21,7 @@
 
 ## Status
 
-Proposed.
+Accepted, as it was implemented.
 
 ## Context
 
@@ -50,7 +50,8 @@ This ADR records the TypeScript spelling of them.
    the all-iterations read from outside and the SDK records no argument type it could check instead.
    `all()` throws at once for a task that is not in that loop.
 7. **`LoopRef` carries `all`, `before` and `after`.** An order-only edge from a body ref to a task outside is
-   rejected when the Dag is read.
+   rejected when the Dag is read. The reference `all()` returns takes no part in the order: an edge
+   drawn on it throws at the call, and the loop's own reference orders the whole loop.
 
 ## Example
 
@@ -110,7 +111,7 @@ poll.loop({ maxIterations: 3 });
 
 ```ts
 /** Options of a loop, the trailing argument of `loop()`. */
-interface LoopOptions extends TaskSpec {
+interface LoopOptions extends Omit<TaskSpec, "triggerRule" | "dependsOnPast" | "startDate" | "endDate"> {
   maxIterations: number;
 }
 
@@ -121,8 +122,8 @@ interface LoopDecision {
 }
 
 /**
- * The gate's handler. `TArgs` is its own arguments, one key each, exactly as a task handler takes
- * its own. Nothing of the SDK's is in `TArgs`; the loop context comes from `getLoop()`.
+ * The gate's handler. `TArgs` holds the gate's own inputs, one key per input, like a task handler's.
+ * The loop context is not in `TArgs`; read it with `getLoop()`.
  */
 type UntilCallable<TArgs extends object> = (
   args: TArgs,
@@ -144,7 +145,7 @@ interface TaskGroupRef {
 /** What `loop()` returns: the whole loop as one node, which is what an ordering edge leaves from. */
 interface LoopRef extends Node {
   readonly groupId: string;
-  /** Every iteration's value of `task`, a task of this loop: the one reading core serves from outside. */
+  /** Every iteration's value of `task`, a task of this loop. This is the only read core serves from outside the loop. */
   all<T>(task: TaskRef<T>): TaskRef<XComSequence<T>>;
   before(...downstream: readonly Node[]): LoopRef;
   after(...upstream: readonly Node[]): LoopRef;
@@ -172,11 +173,16 @@ interface LoopContext {
 
 - **A fixed-count loop's gate only counts.** `loop({ maxIterations })` emits `has_until: false`, and its
   gate runs on a worker and ends the loop once `index` reaches `maxIterations` (ADR-0017 decision 4).
-- **The gate is an ordinary task.** `LoopOptions` extends `TaskSpec`, so `queue` and `retries` land on
-  it, and its id defaults to the handler's function name under the group's prefix. A fixed-count loop
-  has no handler to take a name from, so its gate is `__loop_gate`, as Python's is.
-  It serializes as `LoopGateOperator`, the type core finds gates by, and the Dag processor rejects a
-  gate serialized under any other type.
+- **The gate is an ordinary task.** `LoopOptions` takes the `TaskSpec` fields that do not change when
+  the gate runs, so `queue` and `retries` land on it; `triggerRule`, `dependsOnPast`, `startDate` and
+  `endDate` are rejected. Its id defaults to the handler's function name under the group's prefix. A
+  fixed-count loop has no handler to take a name from, so its gate is `__loop_gate`, as Python's is.
+  When a task already has that id the gate takes a `__1` style suffix, as `get_unique_task_id` gives it
+  in Python. It serializes as `LoopGateOperator`, the type core finds gates by, and the Dag processor
+  rejects a gate serialized under any other type.
+- **A gate that still says to continue at `maxIterations` fails without a retry**, as Python's does.
+  The runtime fails it and sends the decision with the failure, so the reason is kept. Core still
+  revalidates a decision on success.
 - **The body's single leaf is checked twice**: by the SDK when the Dag is read, for the faster
   message, and by the Dag processor, which decides (ADR-0017 decision 3). A nested loop and a loop
   inside a mapped task group are rejected the same way.

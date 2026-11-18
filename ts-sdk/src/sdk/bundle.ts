@@ -20,7 +20,7 @@
 // The bundle: what a TypeScript bundle process provides, and how it serves it.
 
 import { brand, DUPLICATE_COPY_HINT, hasBrand } from "./brand.js";
-import { Dag, finalizeDag, getDagTaskRecords, isDag } from "./dag.js";
+import { Dag, finalizeDag, getDagLoops, getDagTaskRecords, isDag } from "./dag.js";
 import { getTaskHandlerFunction, isTaskHandler, TaskHandler } from "./task-handler.js";
 import type { Operator } from "./operator.js";
 import type { TaskFunction } from "./task.js";
@@ -258,7 +258,7 @@ export function getBundleTask(
   if (record === undefined) return undefined;
   if (record.operator) return { kind: BundleTaskKind.OPERATOR, operator: record.operator, dag };
   if (record.loopGate) {
-    const { hasUntil } = record.loopGate;
+    const { hasUntil } = getDagLoops(dag).get(record.loopGate.groupId)!;
     return { kind: BundleTaskKind.LOOP_GATE, fn: record.fn, hasUntil, dag };
   }
   return { kind: BundleTaskKind.HANDLER, fn: record.fn, dag };

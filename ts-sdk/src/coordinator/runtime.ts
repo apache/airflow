@@ -464,8 +464,9 @@ async function bindArgs(
 /**
  * Run a loop's gate: decide whether another iteration follows, and send core the decision.
  *
- * The gate pushes no return value. Core validates the decision, rejecting a `stop` of false at the
- * last iteration, and creates the next iteration in the same transaction (ADR-0017 decision 5).
+ * The gate pushes no return value. Core creates the next iteration in the same transaction that
+ * accepts the decision (ADR-0017 decision 5). A `stop` of false at the last iteration fails the gate
+ * here without a retry, as Python does, and the decision goes with the failure so its reason is kept.
  */
 async function runLoopGate(
   details: StartupDetails,
@@ -511,6 +512,12 @@ async function runLoopGate(
     const message = (err as Error).message;
     logs.error("Task failed", { task_id: ctx.taskId, error: message });
     return buildFailureResponse(details, message, { retry: false });
+  }
+  if (!decision.stop && loop.index >= loop.max_iterations) {
+    // Python raises LoopMaxIterationsExceeded, an AirflowFailException, which is never retried.
+    const message = `Loop condition remained false at max_iterations=${loop.max_iterations}`;
+    logs.error("Task failed", { task_id: ctx.taskId, error: message });
+    return buildFailureResponse(details, message, { retry: false, loopDecision: decision });
   }
   return succeedGate(loop, decision, ctx.taskId, logs);
 }
@@ -608,7 +615,10 @@ async function sendSupervisorResponse(
 function buildFailureResponse(
   details: StartupDetails,
   message: string,
-  { retry = true }: { readonly retry?: boolean } = {},
+  {
+    retry = true,
+    loopDecision,
+  }: { readonly retry?: boolean; readonly loopDecision?: LoopDecisionPayload } = {},
 ): RuntimeRetryTask | RuntimeTaskState {
   const endDate = new Date().toISOString();
   if (retry && details.ti_context.should_retry) {
@@ -622,6 +632,7 @@ function buildFailureResponse(
     type: "TaskState",
     state: "failed",
     end_date: endDate,
+    ...(loopDecision !== undefined && { loop_decision: loopDecision }),
   };
 }
 

@@ -18,12 +18,12 @@
  */
 
 /**
- * Every result a task produced, read on demand rather than delivered whole. Each value is JSON, as
- * XCom stores it.
+ * Every result a task produced, fetched as it is read. Each value is JSON, as XCom stores it.
  *
  * What a task outside a loop receives for an input given as a loop task's `all()`: one value per
  * iteration, in iteration order. Nothing is fetched until it is asked for, as Python's
- * `LazyXComSequence` does, so a handler that only needs the last value reads one.
+ * `LazyXComSequence` does, so a handler that only needs the last value reads one. `for await` is the
+ * exception: it fetches every value in one call.
  *
  * ```ts
  * const report = dag.task(async function report({ history }: { history: XComSequence<Metrics> }) {

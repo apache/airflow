@@ -32,7 +32,7 @@ import type { JsonValue } from "../sdk/client-types.js";
 import { isPlainRecord, skipTasks, type Dag } from "../sdk/dag.js";
 import { getBooleanEnv } from "../sdk/env.js";
 import type { Operator, OperatorContext, OperatorOutcome } from "../sdk/operator.js";
-import type { TaskContext, TaskScope } from "../sdk/task.js";
+import { runInTaskScope, type TaskContext, type TaskScope } from "../sdk/task.js";
 
 const EXECUTE_COMPLETE = "execute_complete";
 /** `TRIGGER_FAIL_REPR`: the `next_method` of a task Airflow could not resume. */
@@ -87,7 +87,7 @@ export function buildOperatorContext(deps: OperatorContextDeps): OperatorContext
     client,
     logs,
     fail,
-    scope: deps.scope,
+    runInScope: (fn) => runInTaskScope(deps.scope, fn),
     async resolveArgs(argNames = NO_ARG_NAMES) {
       const bound = await resolveArgs(details.ti_context?.arg_bindings, {
         client,

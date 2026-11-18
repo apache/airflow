@@ -409,14 +409,14 @@ previous iteration's result:
     report({ history: refinement.all(evaluated) });   // every iteration's Metrics, as an XComSequence
     refinement.before(cleanup());                     // after the whole loop
 
-Without a handler, ``poll.loop({ maxIterations: 3 })`` runs the group a fixed number of times. A task outside the loop reads a body task's output through
-the loop's ``all()``, which gives every iteration's value as an ``XComSequence``. See :ref:`loops-and-mapped-tasks` for
-when to use a loop, and the API reference for
+Without a handler, ``poll.loop({ maxIterations: 3 })`` runs the group a fixed number of times. A task outside
+the loop reads a body task's output through the loop's ``all()``, which gives every iteration's value as an
+``XComSequence``. See :ref:`loops-and-mapped-tasks` for when to use a loop. The API reference for
 `loop <https://airflow.apache.org/docs/ts-sdk/stable/module/authoring/taskgroupref/#loop>`__,
 `LoopRef <https://airflow.apache.org/docs/ts-sdk/stable/module/authoring/loopref/>`__,
 `getLoop <https://airflow.apache.org/docs/ts-sdk/stable/module/authoring/getloop/>`__ and
-`XComSequence <https://airflow.apache.org/docs/ts-sdk/stable/module/authoring/xcomsequence/>`__ for the
-rules a loop follows.
+`XComSequence <https://airflow.apache.org/docs/ts-sdk/stable/module/authoring/xcomsequence/>`__ lists the rules
+a loop follows.
 
 Triggering another Dag
 ~~~~~~~~~~~~~~~~~~~~~~
@@ -935,6 +935,10 @@ Limitations
   run when the Dag processor reads them.
 * **Some CLI commands do not take a Dag declared in TypeScript.** ``airflow dags test``, ``tasks test`` and
   ``tasks render`` refuse it, and ``airflow dags reserialize`` skips it.
+* **A stub task cannot read every iteration of a loop.** When the ``TaskHandler`` of a Python Dag's stub task
+  takes the output of a loop task from outside the loop, its XCom read fails: the runtime has no way to ask
+  for every iteration. Read the loop's output in a Python task, or declare the Dag in TypeScript and use
+  ``all()``.
 * **Experimental.** The API may change in incompatible ways between releases.
 * **One Node.js process per task instance.** Tasks cannot share in-process state; use XComs or an external
   store.

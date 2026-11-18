@@ -96,7 +96,7 @@ describe("TaskGroupRef.loop", () => {
       gateTaskId: "refine.accurateEnough",
     });
     expect(getDagTaskRecords(dag).get("refine.accurateEnough")!.loopGate).toEqual({
-      hasUntil: true,
+      groupId: "refine",
     });
     expect(getAllIterationsArgNames(dag, "report")).toEqual(new Set(["history"]));
     expect(getAllIterationsArgNames(dag, "refine.evaluate")).toEqual(new Set());
@@ -240,6 +240,61 @@ describe("TaskGroupRef.loop", () => {
     expect(record.spec).toEqual({ taskId: "enough", retries: 3 });
   });
 
+  describe("numbers the gate's id as Python's get_unique_task_id does", () => {
+    it("for handler-less loops whose groups add no prefix", () => {
+      const dag = new Dag("ts_unprefixed_gates");
+      for (const id of ["a", "b", "c"]) {
+        const group = dag.taskGroup(id, { prefixGroupId: false });
+        group.task(`leaf_${id}`, async () => 1)();
+        group.loop({ maxIterations: 2 });
+      }
+
+      finalizeDag(dag);
+      expect([...getDagLoops(dag).values()].map((loop) => loop.gateTaskId)).toEqual([
+        "__loop_gate",
+        "__loop_gate__1",
+        "__loop_gate__2",
+      ]);
+    });
+
+    it("for a handler named like a body task, one past the highest number in use", () => {
+      const dag = new Dag("ts_gate_named_like_a_task");
+      const group = dag.taskGroup("g");
+      group.task("check", async () => 1);
+      const leaf = group.task("check__1", async () => 1)();
+      async function check({ value }: { value: number }) {
+        return value > 0;
+      }
+      group.loop(check, { value: leaf }, { maxIterations: 2 });
+
+      expect(getDagLoops(dag).get("g")!.gateTaskId).toBe("g.check__2");
+    });
+
+    it("keeps an id the author gave, so a clash with it is theirs to fix", () => {
+      const dag = new Dag("ts_gate_taskid_clash");
+      const group = dag.taskGroup("g");
+      group.task("leaf", async () => 1)();
+
+      expect(() => group.loop({ maxIterations: 2, taskId: "leaf" })).toThrow(
+        'Task "g.leaf" is already registered for Dag "ts_gate_taskid_clash"',
+      );
+    });
+  });
+
+  it.each([
+    ["triggerRule", "always"],
+    ["dependsOnPast", true],
+    ["startDate", new Date("2026-01-01")],
+    ["endDate", new Date("2026-02-01")],
+  ])("rejects %s on the gate, since it would change when the gate runs", (option, value) => {
+    const group = new Dag("ts_gate_option").taskGroup("g");
+    group.task("leaf", async () => 1)();
+
+    expect(() => group.loop({ maxIterations: 2, [option]: value } as never)).toThrow(
+      `The options of Loop "g" of Dag "ts_gate_option" cannot set ${option}`,
+    );
+  });
+
   it("falls back to Python's gate name for a handler with no usable name", () => {
     const dag = new Dag("ts_anonymous_gate");
     const group = dag.taskGroup("g");
@@ -360,7 +415,7 @@ describe("TaskGroupRef.loop", () => {
         (body: TaskRef<number>, dag: Dag) => {
           dag.task("outside", async (_: { value: number }) => undefined)({ value: body });
         },
-        /Input "value" of task "outside" .* takes "g.leaf", a task of loop "g", from outside that loop.*g\.all\(\.\.\.\)/,
+        /Input "value" of task "outside" .* takes "g.leaf", a task of loop "g", from outside that loop.*all\(\) on the reference loop\(\) returned for "g"/,
       ],
       [
         "with all() inside its own loop",
@@ -458,6 +513,52 @@ describe("TaskGroupRef.loop", () => {
       expect(() => finalizeDag(dag)).toThrow(
         /"g.leaf" of Dag "ts_body_edge" is in loop "g".*with the reference loop\(\) returned: g.before/,
       );
+    });
+
+    it("a body task that depends on a task reading the loop through all()", () => {
+      const dag = new Dag("ts_loop_cycle");
+      const group = dag.taskGroup("g");
+      const first = group.task("first", async () => 1)();
+      const loop = group.loop({ maxIterations: 2 });
+      const reader = dag.task(
+        "reader",
+        async (_: { all: XComSequence<number> }) => 1,
+      )({
+        all: loop.all(first),
+      });
+      group.task(
+        "last",
+        async (_: { fromReader: number; first: number }) => 1,
+      )({
+        fromReader: reader,
+        first,
+      });
+
+      expect(() => finalizeDag(dag)).toThrow(
+        'Loop "g" of Dag "ts_loop_cycle" would wait for itself: ' +
+          '"g.__loop_gate" -> "reader" -> "g.last" -> "g.__loop_gate"',
+      );
+    });
+
+    it.each([
+      ["before() on it", (every: TaskRef, outside: TaskRef) => every.before(outside)],
+      ["after() on it", (every: TaskRef, outside: TaskRef) => every.after(outside)],
+      [
+        "it as the argument of before()",
+        (every: TaskRef, outside: TaskRef) => outside.before(every),
+      ],
+      ["it as the argument of after()", (every: TaskRef, outside: TaskRef) => outside.after(every)],
+    ])("an edge drawn with %s, where the loop's own reference orders the loop", (_label, draw) => {
+      const dag = new Dag("ts_all_edge");
+      const group = dag.taskGroup("g");
+      const leaf = group.task("leaf", async () => 1)();
+      const loop = group.loop({ maxIterations: 2 });
+      const outside = dag.task("outside", async () => undefined)();
+
+      expect(() => draw(loop.all(leaf), outside)).toThrow(
+        /The all\(\) of "g.leaf" of Dag "ts_all_edge" cannot be an end of an edge.*reference loop\(\) returned/,
+      );
+      expect(downstreamOf(serialize(dag)).get("g.leaf")).toEqual(["g.__loop_gate"]);
     });
 
     it("an order-only edge from a group nested in the body to a task outside", () => {

@@ -25,9 +25,8 @@ import { getTaskScope } from "./task.js";
 /**
  * What a loop's `until` handler returns. A bare `boolean` is `{ stop }`.
  *
- * `reason` is shown in the Airflow UI next to the iteration, so a secret the handler masked does not
- * belong in it unredacted; the supervisor redacts it on the way out. Airflow keeps its first
- * 512 bytes of UTF-8, and an empty one is the same as none.
+ * `reason` is shown in the Airflow UI next to the iteration, with known secrets masked. Airflow keeps
+ * its first 512 bytes of UTF-8 and treats an empty string as no reason.
  */
 export interface LoopDecision {
   readonly stop: boolean;
@@ -35,8 +34,8 @@ export interface LoopDecision {
 }
 
 /**
- * The gate's handler. `TArgs` is its own arguments, one key each, exactly as a task handler takes its
- * own. Nothing of the SDK's is in `TArgs`; the loop context comes from {@link getLoop}.
+ * The gate's handler. `TArgs` holds the gate's own inputs, one key per input, like a task handler's.
+ * The loop context is not in `TArgs`; read it with {@link getLoop}.
  */
 export type UntilCallable<TArgs extends object> = (
   args: TArgs,

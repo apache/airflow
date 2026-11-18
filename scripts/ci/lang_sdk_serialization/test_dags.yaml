@@ -45,7 +45,8 @@
 # - loops: an entry of `loops` makes the group it names a task loop of `max_iterations`. `until`
 #   names the gate task the loop gets, which decides whether another iteration follows; without
 #   it the loop runs a fixed count. A loop is made after the `upstream` edges are drawn and before
-#   the `order_edges`, as an author draws edges from a loop once it exists.
+#   the `order_edges`, as an author draws edges from a loop once it exists. A task outside a loop may
+#   list a task of the loop in its `upstream`; it then runs after the loop's gate.
 dags:
   # No schedule and no options: NullTimetable plus the fields Python always emits.
   - dag_id: conformance_minimal
@@ -363,3 +364,47 @@ dags:
     tasks:
       - task_id: increment
         group: accumulate
+
+  # A task outside a loop that reads body tasks, the terminal one and another: both edges leave from
+  # the gate instead.
+  - dag_id: conformance_loop_data_edge
+    requires: [loops]
+    groups: [refine]
+    loops:
+      - group: refine
+        max_iterations: 5
+        until: accurate_enough
+    tasks:
+      - task_id: improve
+        group: refine
+      - task_id: evaluate
+        group: refine
+        upstream: [refine.improve]
+      - task_id: report
+        upstream: [refine.improve, refine.evaluate]
+      - task_id: finished
+        upstream: [report]
+
+  # Loops in a plain group, one holding a plain group. The group's leaves include a loop's gate and
+  # never a body task, and summarize, which reads a task of the wait loop, runs after its gate.
+  - dag_id: conformance_loop_in_group
+    requires: [loops]
+    groups: [outer, outer.poll, outer.wait, outer.wait.sub]
+    loops:
+      - group: outer.poll
+        max_iterations: 3
+      - group: outer.wait
+        max_iterations: 2
+    tasks:
+      - task_id: prepare
+        group: outer
+      - task_id: check
+        group: outer.poll
+      - task_id: probe
+        group: outer.wait.sub
+      - task_id: summarize
+        group: outer
+        upstream: [outer.wait.sub.probe]
+      - task_id: finished
+    order_edges:
+      - [outer, finished]

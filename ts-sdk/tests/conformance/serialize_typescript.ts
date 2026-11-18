@@ -39,6 +39,7 @@ import {
   Dag,
   Label,
   type DagSpec,
+  type LoopRef,
   type TaskGroupRef,
   type TaskRef,
   type TaskSpec,
@@ -106,11 +107,31 @@ function qualifiedTaskId(task: TaskCase): string {
   return task.group === undefined ? task.task_id : `${task.group}.${task.task_id}`;
 }
 
+/** The loop a task or group sits in, given its fully qualified id: the longest loop group id above it. */
+function enclosingLoopOf(id: string, loopGroupIds: ReadonlySet<string>): string | undefined {
+  let found: string | undefined;
+  for (let cut = id.indexOf("."); cut !== -1; cut = id.indexOf(".", cut + 1)) {
+    if (loopGroupIds.has(id.slice(0, cut))) found = id.slice(0, cut);
+  }
+  return found;
+}
+
+/** Whether `consumer` reads `producer` from outside the loop `producer` is in. */
+function isOutsideRead(
+  producer: string,
+  consumer: string,
+  loopGroupIds: ReadonlySet<string>,
+): boolean {
+  const loopId = enclosingLoopOf(producer, loopGroupIds);
+  return loopId !== undefined && loopId !== enclosingLoopOf(consumer, loopGroupIds);
+}
+
 function buildDag(dagCase: DagCase): Dag {
   const dag = new Dag(
     dagCase.dag_id,
     toAuthoringSpec(dagCase.spec ?? {}, DAG_NAMES, dagCase.dag_id) as DagSpec,
   );
+  const loopGroupIds = new Set((dagCase.loops ?? []).map((loop) => loop.group));
   // A group id is fully qualified, so its parent is whatever comes before the last dot.
   const groups = new Map<string, TaskGroupRef>();
   for (const groupId of dagCase.groups ?? []) {
@@ -130,27 +151,43 @@ function buildDag(dagCase: DagCase): Dag {
     );
   }
   const refs = new Map<string, TaskRef>();
-  for (const task of dagCase.tasks) {
+  const loopRefs = new Map<string, LoopRef>();
+  // A task outside a loop reads a body task through the loop's all(), so it is wired once the loop
+  // exists, as is every task after it.
+  const deferred: TaskCase[] = [];
+  const wire = (task: TaskCase) => {
     const inputs: Record<string, TaskRef> = {};
     for (const upstream of task.upstream ?? []) {
       const ref = refs.get(upstream);
       if (!ref)
         throw new Error(`${dagCase.dag_id}: "${upstream}" has to come before its downstream`);
-      inputs[`from_${upstream}`] = ref;
+      inputs[`from_${upstream}`] = isOutsideRead(upstream, qualifiedTaskId(task), loopGroupIds)
+        ? loopRefs.get(enclosingLoopOf(upstream, loopGroupIds)!)!.all(ref)
+        : ref;
     }
     refs.set(qualifiedTaskId(task), factories.get(qualifiedTaskId(task))!(inputs));
+  };
+  for (const task of dagCase.tasks) {
+    const readsLoop = (task.upstream ?? []).some(
+      (upstream) =>
+        deferred.some((each) => qualifiedTaskId(each) === upstream) ||
+        isOutsideRead(upstream, qualifiedTaskId(task), loopGroupIds),
+    );
+    if (readsLoop) deferred.push(task);
+    else wire(task);
   }
   // After the upstream edges and before the order-only ones, as test_dags.yaml says.
   for (const loop of dagCase.loops ?? []) {
     const group = groups.get(loop.group)!;
     if (loop.until === undefined) {
-      group.loop({ maxIterations: loop.max_iterations });
+      loopRefs.set(loop.group, group.loop({ maxIterations: loop.max_iterations }));
     } else {
       // The gate is named after its handler.
       const until = Object.defineProperty(async () => true, "name", { value: loop.until });
-      group.loop(until, {}, { maxIterations: loop.max_iterations });
+      loopRefs.set(loop.group, group.loop(until, {}, { maxIterations: loop.max_iterations }));
     }
   }
+  deferred.forEach(wire);
   for (const [upstream, downstream, text] of dagCase.order_edges ?? []) {
     const from = groups.get(upstream) ?? refs.get(upstream);
     const to = groups.get(downstream) ?? refs.get(downstream);

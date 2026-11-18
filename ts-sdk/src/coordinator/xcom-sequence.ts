@@ -50,7 +50,7 @@ export class LazyXComSequence<T> implements XComSequence<T> {
 
   async at(index: number): Promise<T> {
     if (!Number.isSafeInteger(index)) {
-      throw new RangeError(`An XComSequence index is an integer, not ${String(index)}`);
+      throw new RangeError(`An XComSequence index must be an integer, not ${String(index)}`);
     }
     const entry = await this.#client.getXComSequenceItem({ ...this.#opts, offset: index });
     if (!entry.found) {
@@ -67,7 +67,9 @@ export class LazyXComSequence<T> implements XComSequence<T> {
       ["stop", stop],
     ] as const) {
       if (bound !== undefined && !Number.isSafeInteger(bound)) {
-        throw new RangeError(`An XComSequence slice ${name} is an integer, not ${String(bound)}`);
+        throw new RangeError(
+          `An XComSequence slice ${name} must be an integer, not ${String(bound)}`,
+        );
       }
     }
     return (await this.#client.getXComSequenceSlice({
@@ -78,10 +80,7 @@ export class LazyXComSequence<T> implements XComSequence<T> {
   }
 
   async *[Symbol.asyncIterator](): AsyncIterator<T> {
-    const length = await this.length();
-    for (let index = 0; index < length; index += 1) {
-      yield await this.at(index);
-    }
+    yield* await this.slice();
   }
 }
 

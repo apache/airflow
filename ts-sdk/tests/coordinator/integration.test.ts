@@ -2076,21 +2076,51 @@ describe("coordinator runtime integration", () => {
       },
     );
 
-    it("passes a decision to continue at the bound on, for core to reject", async () => {
+    it.each([
+      ["a boolean", async () => false, undefined],
+      ["a decision with a reason", async () => ({ stop: false, reason: "still 0.4" }), "still 0.4"],
+    ])(
+      "fails the gate without a retry for %s to continue at the bound",
+      async (_label, until, reason) => {
+        const group = testDag.taskGroup("g");
+        const leaf = group.task("leaf", async () => 1)();
+        group.loop(until, { value: leaf } as never, { maxIterations: 3 });
+
+        const result = await driveSupervisor(
+          makeStartupDetails("g.__loop_gate", "test_dag", "r1", {
+            loop: loopContext(3, { node_id: "g", terminal_task_id: "g.leaf" }),
+            arg_bindings: [{ name: "value", kind: "literal", value: 1 }],
+            should_retry: true,
+          }),
+        );
+
+        // The decision goes with the failure so core keeps the reason, as Python's does.
+        expect(result.firstResponse!.body).toMatchObject({
+          type: "TaskState",
+          state: "failed",
+          loop_decision: { stop: false, ...(reason !== undefined && { reason }) },
+        });
+        const failure = result.logRecords.find(
+          (r) => r["event"] === "[ts-sdk.runtime] Task failed",
+        );
+        expect(failure?.["error"]).toBe("Loop condition remained false at max_iterations=3");
+      },
+    );
+
+    it("succeeds a gate that stops at the bound", async () => {
       const group = testDag.taskGroup("g");
-      const leaf = group.task("leaf", async () => 1)();
-      group.loop(async () => false, { value: leaf } as never, { maxIterations: 3 });
+      group.task("leaf", async () => 1)();
+      group.loop(async () => ({ stop: true }), {}, { maxIterations: 3 });
 
       const result = await driveSupervisor(
         makeStartupDetails("g.__loop_gate", "test_dag", "r1", {
           loop: loopContext(3, { node_id: "g", terminal_task_id: "g.leaf" }),
-          arg_bindings: [{ name: "value", kind: "literal", value: 1 }],
         }),
       );
 
       expect(result.firstResponse!.body).toMatchObject({
         type: "SucceedTask",
-        loop_decision: { stop: false },
+        loop_decision: { stop: true },
       });
     });
 
@@ -2113,13 +2143,18 @@ describe("coordinator runtime integration", () => {
     });
 
     it.each([
-      ["a number", 1, /returns a boolean or \{ stop, reason \}, not the number 1/],
+      ["a number", 1, /must return a boolean or \{ stop, reason \}, not the number 1/],
+      ["nothing", undefined, /must return a boolean or \{ stop, reason \}, not undefined$/],
       [
         "a non-boolean stop",
         { stop: "yes" },
-        /stop of a loop decision is a boolean, not the string/,
+        /stop of a loop decision must be a boolean, not the string/,
       ],
-      ["a non-string reason", { stop: true, reason: 3 }, /reason of a loop decision is a string/],
+      [
+        "a non-string reason",
+        { stop: true, reason: 3 },
+        /reason of a loop decision must be a string/,
+      ],
       ["a NUL", { stop: true, reason: "a\u0000b" }, /cannot hold a NUL character or a lone/],
       ["a lone surrogate", { stop: true, reason: "\uD800" }, /or a lone surrogate/],
     ])("fails the gate without a retry for %s", async (_label, returned, message) => {
@@ -2362,6 +2397,8 @@ describe("coordinator runtime integration", () => {
         seen.history = all;
         const read: number[] = [];
         for await (const value of all) read.push(value);
+        await all.length();
+        await all.length();
         await expect(all.at(5)).rejects.toThrow(/has no value at index 5/);
         await expect(all.at(0.5)).rejects.toThrow(RangeError);
         await expect(all.slice(0.5)).rejects.toThrow(RangeError);
@@ -2369,6 +2406,9 @@ describe("coordinator runtime integration", () => {
       })({ all: loop.all(leaf) });
       const responder: Responder = (msgType, body) => {
         if (msgType === "GetXComCount") return { body: { type: "XComCountResponse", len: 2 } };
+        if (msgType === "GetXComSequenceSlice") {
+          return { body: { type: "XComSequenceSliceResult", root: [0, 10] } };
+        }
         if (msgType === "GetXComSequenceItem") {
           const offset = body["offset"] as number;
           return offset < 2
@@ -2387,6 +2427,8 @@ describe("coordinator runtime integration", () => {
 
       expect(result.firstResponse!.body).toMatchObject({ type: "SucceedTask" });
       expect(requestsOf(result, "SetXCom")[0]).toMatchObject({ value: [0, 10] });
+      // Iterating reads every value with one call, not one per value.
+      expect(requestsOf(result, "GetXComSequenceSlice")).toHaveLength(1);
       // The length is asked for once however often the sequence is read.
       expect(requestsOf(result, "GetXComCount")).toHaveLength(1);
     });

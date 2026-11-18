@@ -25,7 +25,7 @@ import { buildOperatorContext, runOperator } from "../../src/coordinator/operato
 import type { StartupDetails } from "../../src/coordinator/protocol.js";
 import { Dag } from "../../src/sdk/dag.js";
 import type { Operator, OperatorContext, OperatorOutcome } from "../../src/sdk/operator.js";
-import type { TaskContext } from "../../src/sdk/task.js";
+import { getContext, type TaskContext } from "../../src/sdk/task.js";
 
 const SUCCEEDED = {
   type: "SucceedTask",
@@ -143,6 +143,12 @@ describe("buildOperatorContext", () => {
     await op.succeed({ ok: true });
 
     expect(setXCom).toHaveBeenCalledWith({ key: "return_value", value: { ok: true } });
+  });
+
+  it("runs a callable in the task's scope", () => {
+    const { op } = makeContext();
+
+    expect(op.runInScope(() => getContext().taskId)).toBe("t");
   });
 
   it("skips tasks as SkipMixin does", async () => {
