@@ -807,6 +807,7 @@ const ErrorTypeGENERICERROR ErrorType = "GENERIC_ERROR"
 const ErrorTypePERMISSIONDENIED ErrorType = "PERMISSION_DENIED"
 const ErrorTypeTASKSTORENOTFOUND ErrorType = "TASK_STORE_NOT_FOUND"
 const ErrorTypeVARIABLENOTFOUND ErrorType = "VARIABLE_NOT_FOUND"
+const ErrorTypeXCOMBACKENDERROR ErrorType = "XCOM_BACKEND_ERROR"
 const ErrorTypeXCOMNOTFOUND ErrorType = "XCOM_NOT_FOUND"
 
 // A task in another Dag that clearing the reporting task also clears, as resolved
@@ -2037,6 +2038,8 @@ type TupleArgBinding struct {
 	ValueSchema *ArgValueSchema `msgpack:"value_schema,omitempty"`
 }
 
+type Warnings []interface{}
+
 // Variable schema for responses with fields that are needed for Runtime.
 type VariableResponse struct {
 	// Key corresponds to the JSON schema field "key".
@@ -2047,8 +2050,6 @@ type VariableResponse struct {
 }
 
 type VersionData map[string]interface{}
-
-type Warnings []interface{}
 
 type UpdateDagRunNote struct {
 	// Note corresponds to the JSON schema field "note".
