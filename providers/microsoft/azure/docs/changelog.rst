@@ -27,6 +27,14 @@
 Changelog
 ---------
 
+.. note::
+
+    On Airflow 3.3 and later, ``AzureDataFactoryRunPipelineOperator`` is durable by default: a retry
+    reconnects to the stored pipeline run instead of starting a new one, and returns without running the
+    pipeline again when that run has succeeded. On Airflow 3.3 and 3.4, clearing the whole Dag run keeps the
+    stored run id, so a task whose run succeeded does not re-run the pipeline. Clear the task instance
+    instead, or set ``durable=False`` to start a new run on every try. Below Airflow 3.3 nothing changes.
+
 15.3.1
 ......
 

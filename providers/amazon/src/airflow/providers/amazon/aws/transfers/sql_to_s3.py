@@ -269,14 +269,19 @@ class SqlToS3Operator(BaseOperator):
         """Format the paginated SQL statement using the current format."""
         return self.paginated_sql_statement_clause.format(self.query, self.page_size, offset)
 
-    def render_template_fields(
+    def _do_render_template_fields(
         self,
+        parent: Any,
+        template_fields: Iterable[str],
         context: Context,
-        jinja_env: jinja2.Environment | None = None,
+        jinja_env: jinja2.Environment,
+        seen_oids: set[int],
     ) -> None:
-        super().render_template_fields(context=context, jinja_env=jinja_env)
+        super()._do_render_template_fields(parent, template_fields, context, jinja_env, seen_oids)
+        # Hooked here rather than in render_template_fields because a mapped task never calls
+        # that one -- MappedOperator renders through _do_render_template_fields on the unmapped task.
         # A templated page_size renders as a string; the paging decision needs the number.
-        if self.page_size is not None:
+        if parent is self and self.page_size is not None:
             self.page_size = int(self.page_size)
             if self.page_size < 0:
                 raise ValueError(f"SqlToS3Operator argument page_size can not be negative: {self.page_size}")

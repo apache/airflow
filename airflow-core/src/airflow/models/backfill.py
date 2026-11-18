@@ -167,6 +167,9 @@ class ReprocessBehavior(str, Enum):
     COMPLETED = "completed"
     NONE = "none"
 
+    def __str__(self) -> str:
+        return self.value
+
 
 class Backfill(Base):
     """Model representing a backfill job."""
@@ -252,6 +255,9 @@ class BackfillDagRunExceptionReason(str, Enum):
     IN_FLIGHT = "in flight"
     ALREADY_EXISTS = "already exists"
     UNKNOWN = "unknown"
+
+    def __str__(self) -> str:
+        return self.value
 
 
 class BackfillDagRun(Base):

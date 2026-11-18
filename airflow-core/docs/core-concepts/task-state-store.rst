@@ -295,6 +295,22 @@ Mapped tasks
 
 When a task is dynamically mapped (``task.expand(...)``), each map index has its own task state store namespace. ``clear()`` clears only the current index's store.
 
+.. warning::
+
+    The map index is positional, not an identity: index ``N`` names whatever item happens to sit at
+    position ``N`` in the expanded input, and the upstream task may return its items in a different
+    order on a rerun. If the upstream list changes between attempts
+    (an insertion, a deletion, a reordering), index ``N`` names a different item than it did before.
+
+    Clearing a task instance discards its state by default, so the next attempt starts over and this
+    does not arise. It matters when state outlives the re-expansion: if you clear with
+    ``keep_task_state``, or use one of the clear paths that still keep state unconditionally (see
+    :doc:`resumable-tasks`), index ``N`` reads the state written by whatever item was at index ``N``
+    on the previous attempt. Nothing detects the mismatch and the task still reports success. In the
+    `External job resumption`_ pattern this means reconnecting to a job submitted for a different item.
+
+    Only keep task state across a clear of a mapped task when the expanded input is unchanged.
+
 To wipe state across all map indices of a task, use the :doc:`Core API </administration-and-deployment/task-and-asset-state-store>` (e.g. via the UI or CLI) after the task group has finished.
 
 .. code-block:: python
@@ -306,9 +322,8 @@ To wipe state across all map indices of a task, use the :doc:`Core API </adminis
 Automatic cleanup (``clear_on_success``)
 ----------------------------------------
 
-Task state store entries are also removed when a task instance is cleared through the REST API, the
-UI, or ``airflowctl``: clearing discards them by default so the next attempt starts over, unless
-``keep_task_state`` is set. See :doc:`resumable-tasks` for that behaviour.
+Task state store entries are also removed when a task instance or a Dag run is cleared: clearing
+discards them by default so the next attempt starts over, unless ``keep_task_state`` is set. See :doc:`resumable-tasks` for that behaviour.
 
 When ``[state_store] clear_on_success = True``, all task state store keys for a task instance are automatically deleted when the task moves to the ``success`` state. This is useful for reducing storage when post-success observability is not needed.
 
