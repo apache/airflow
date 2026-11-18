@@ -116,7 +116,7 @@ class DataflowJobStatusSensor(BaseSensorOperator):
         )
 
         job: dict | None
-        if self.job_id:
+        if self.job_id is not None:
             job = self.hook.get_job(
                 job_id=self.job_id,
                 project_id=self.project_id,

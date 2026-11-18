@@ -292,7 +292,7 @@ class DataflowJobStatusTrigger(BaseTrigger):
         """
         try:
             while True:
-                if self.job_id:
+                if self.job_id is not None:
                     job_id = self.job_id
                     job_status = await self.async_hook.get_job_status(
                         job_id=self.job_id,

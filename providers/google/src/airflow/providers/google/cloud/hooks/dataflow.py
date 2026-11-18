@@ -1195,7 +1195,8 @@ class DataflowHook(GoogleBaseHook):
         Job names are not unique in Dataflow, so if more than one job has this name, the newest one
         is returned.
 
-        :param job_name: Name of the job.
+        :param job_name: Name of the job. It is converted to lowercase because Dataflow job names
+            are always lowercase.
         :param project_id: Optional, the Google Cloud project ID in which the job was started.
             If set to None or missing, the default project_id from the Google Cloud connection is used.
         :param location: The location of the Dataflow job (for example europe-west1). See:

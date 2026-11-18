@@ -179,7 +179,7 @@ class TestDataflowJobStatusSensor:
                 **job_kwargs,
             )
 
-    @mock.patch("airflow.providers.google.cloud.sensors.dataflow.DataflowJobStatusSensor.poke")
+    @mock.patch("airflow.providers.google.cloud.sensors.dataflow.DataflowJobStatusSensor.poke", autospec=True)
     def test_execute_with_job_name_passes_it_to_trigger(self, mock_poke):
         mock_poke.return_value = False
         task = DataflowJobStatusSensor(
