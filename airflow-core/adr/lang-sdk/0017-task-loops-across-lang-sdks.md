@@ -44,9 +44,10 @@ Proposed.
 5. **The decision travels on `SucceedTask.loop_decision`**, which the supervisor schema already carries. An SDK sends `{stop, reason}`; core revalidates it and fails the gate when `stop` is false at `max_iterations`.
 6. **The loop context arrives on `TIRunContext.loop`** — `index`, `max_iterations`, `terminal_task_id`, `terminal_is_mapped` and the region fields. No SDK counts iterations or resolves a trajectory.
 7. **Loops add no XCom call of their own.** Reading the previous iteration is the existing call with `previous_iteration: true`; reading every iteration is ADR-0016 decision 8's lazy sequence, ordered iteration first, then map index.
-8. **The reason is masked in the supervisor**, once for every language. Python redacts it in the task
-   process today, but the supervisor already holds whatever a task added through `MaskSecret`, so
-   moving the redaction there leaves each SDK one existing call rather than a masker of its own.
+8. **The reason is masked in the supervisor**, for every language. The supervisor already holds
+   whatever a task added through `MaskSecret`, so an SDK needs one existing call and no masker of its
+   own. Python also masks the reason in the task process, so its callbacks and listeners see the
+   masked text.
 
 ## Context
 
@@ -68,7 +69,7 @@ SDK's own, and is recorded in that SDK's own ADR directory.
 | Dag processor | Python | Validates the loop and rewires the edges out of the body. |
 | Scheduler | Python | Creates iteration 1. |
 | API server, Execution API | Python | Sends `TIRunContext.loop`; on the gate's success, validates the decision and creates the next iteration in the same transaction. |
-| Supervisor | Python, in the worker process | Masks the reason; forwards every XCom request with the caller's iteration already pinned by its token. |
+| Supervisor | Python, in the worker process | Masks the reason and cuts it to the byte limit; forwards every XCom request with the caller's iteration already pinned by its token. |
 | SDK runtime | the SDK's own language | Runs the body handlers and the gate, and returns the decision: `until`'s, or `index >= max_iterations` for a fixed-count loop. |
 
 ## Authoring interface
@@ -133,7 +134,7 @@ mirrors it. An SDK implements this ADR against the protocol as it stands.
 | Where | What | Means |
 |---|---|---|
 | `TIRunContext.loop` | `node_id`, `index`, `max_iterations`, `terminal_task_id`, `terminal_is_mapped`, `region_id`, `trajectory`, `forked_from_region_id`, `resumes_from_index` | The iteration this task runs in. Absent when the task is not in a loop. |
-| `SucceedTask.loop_decision`, `TaskState.loop_decision` | `LoopDecisionPayload {stop, reason}` | What the gate decided. `reason` is at most 512 bytes of UTF-8 and holds no NUL. The supervisor masks the reason first, then cuts a longer one and warns in the task log, so no SDK needs the limit; the payload model rejects a NUL. |
+| `SucceedTask.loop_decision`, `TaskState.loop_decision` | `LoopDecisionPayload {stop, reason}` | What the gate decided. `reason` is at most 512 bytes of UTF-8 and holds no NUL. The supervisor masks the reason, then cuts a longer one and warns in the task log, so an SDK does not have to enforce the limit; the payload model rejects a NUL. A Python gate masks the reason and checks the limit itself, and fails the task on a longer one. |
 | `GetXCom`, `GetXComCount`, `GetXComSequenceItem`, `GetXComSequenceSlice` | `previous_iteration: bool` | Reads the iteration before this one instead of this one. |
 | `MaskSecret` | `value`, `name` | Already how a task process tells the supervisor what to redact. |
 | Serialized Dag, `task_group.loop` | `max_iterations`, `has_until`, `terminal_task_id`, `gate_task_id` | Declared in `serialization/schema.json`, so an SDK's Dag validates with no schema change. |
@@ -141,13 +142,13 @@ mirrors it. An SDK implements this ADR against the protocol as it stands.
 
 ### What changes
 
-No field is added or removed, so **no new Execution API version is needed**. The decisions above are
-core-internal, and only two of them change core.
+No field is added or removed, so **no new Execution API version is needed**. Decision 3 changes core,
+decision 8 changes the Task SDK supervisor, and the rest need no change.
 
 | Decision | Change |
 |---|---|
 | 3 | The Dag processor runs the loop checks and rewires the edges out of the body for a Dag a language SDK serialized. A Python Dag is already checked and rewired by the Task SDK. |
-| 8 | `redact(reason)` moves out of the task process (`execution_time/loop.py`) into the supervisor, beside the redaction it already does for logs. |
+| 8 | The supervisor masks the reason and cuts it to the byte limit, beside the redaction it already does for logs. Python's task process keeps masking it (`execution_time/loop.py`). |
 
 ## One loop, end to end
 
@@ -173,7 +174,7 @@ Three iterations of `refine` — `improve` and `evaluate` in the body, `accurate
     │
     └─ gate (L,1) ────────▶ binding: the terminal result of (L,1)
                             until(result) → { stop: false, reason }
-                            supervisor redacts reason
+                            supervisor masks and cuts reason
                             SucceedTask{loop_decision} ──────────▶ lock DagRun + gate
                                                                    validate_loop_decision
                                                                    store the reason XCom
@@ -243,7 +244,7 @@ Nothing here is language-specific.
 - **No new Execution API version, and no core change before an SDK's loop runs.** Every field a loop
   needs shipped with `2026-10-30`, and core already drives a gate named `LoopGateOperator`. Decisions 3
   and 8 are independent and can land in any order.
-- **Python's reason is redacted one process later.** Decision 8 moves `redact` from the task process
-  to the supervisor, which is a behaviour change for Python tasks even though no field moves: a task
-  that masks a value and then puts it in a reason is covered by the `MaskSecret` it already sends, but
-  one that redacts by hand before returning is unaffected either way.
+- **A Python gate fails an over-long reason, and the supervisor cuts one from any other language.**
+  Python masks the reason, then fails the task when more than 512 bytes remain, so an author sees the
+  error at once. A runtime that is not told the limit still sends a valid reason, because the supervisor
+  masks and then cuts. The same 600-byte reason fails a Python gate and is cut for a Go one.

@@ -121,6 +121,8 @@ def execute_loop_gate(gate: LoopGateOperator, context: Context) -> None:
                     f"until must return a bool or LoopDecision, got {type(result).__name__}"
                 )
     if reason is not None:
+        # Mask here, where we can know what the task has masked.
+        reason = cast("str", redact(reason))
         try:
             encoded = reason.encode()
         except UnicodeEncodeError:
@@ -132,10 +134,8 @@ def execute_loop_gate(gate: LoopGateOperator, context: Context) -> None:
             )
         if "\x00" in reason:
             raise AirflowFailException("LoopDecision reason cannot contain NUL bytes")
-    # The supervisor masks the stored reason for a gate of every language. The exception below also
-    # reaches failure callbacks and emails, which do not mask, so its message is masked here.
     ti._loop_decision = LoopDecisionPayload(stop=stop, reason=reason)
-    suffix = "" if reason is None else f": {redact(reason)}"
+    suffix = "" if reason is None else f": {reason}"
     if not stop and loop.index >= loop.max_iterations:
         raise LoopMaxIterationsExceeded(
             f"Loop condition remained false at max_iterations={loop.max_iterations}{suffix}"

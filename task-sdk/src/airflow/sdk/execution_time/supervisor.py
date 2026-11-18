@@ -3106,9 +3106,9 @@ def _redact_loop_decision(
     """
     Mask a loop gate's reason, then cut it to the byte limit, before it is stored and shown in the UI.
 
-    Done here rather than in each runtime, so a gate in any language is covered: this process holds
-    every value the task registered with ``MaskSecret``. Masking runs first, so a secret that crosses
-    the limit is still found and masked rather than left as a fragment.
+    This process holds every value the task registered with ``MaskSecret``, so a gate in any language
+    is covered. Masking runs first, so a secret that crosses the limit is masked whole and no fragment
+    of it survives the cut.
     """
     if decision is None or decision.reason is None:
         return decision
@@ -3117,7 +3117,7 @@ def _redact_loop_decision(
     from airflow.sdk.definitions._internal.loop import LOOP_DECISION_REASON_MAX_BYTES
 
     # A language SDK runtime is not told the limit, and a mask longer than the secret it hides can push
-    # a reason past it, so the reason is cut here rather than have the API server reject the gate.
+    # a reason past it. Cutting here keeps the API server from rejecting the gate.
     encoded = reason.encode()
     if len(encoded) > LOOP_DECISION_REASON_MAX_BYTES:
         log.warning(

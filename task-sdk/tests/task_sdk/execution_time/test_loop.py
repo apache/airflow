@@ -199,7 +199,7 @@ def test_previous_and_current_result_preserve_falsey_values(loop_ti, mock_superv
         (
             1,
             lambda: LoopDecision(stop=True, reason="token hunter2 expired"),
-            LoopDecisionPayload(stop=True, reason="token hunter2 expired"),
+            LoopDecisionPayload(stop=True, reason="token *** expired"),
         ),
     ],
     ids=[
@@ -213,7 +213,7 @@ def test_previous_and_current_result_preserve_falsey_values(loop_ti, mock_superv
         "decision_with_reason",
         "reason_at_byte_limit",
         "empty_reason_is_no_reason",
-        "secret_in_reason_is_left_to_the_supervisor",
+        "secret_in_reason_is_masked",
     ],
 )
 @pytest.mark.enable_redact
@@ -309,19 +309,12 @@ def test_unmet_condition_before_the_cap_continues_instead_of_failing(loop_ti, mo
             r"max_iterations=3: error 0.2, needs",
             "error 0.2, needs < 1e-06",
         ),
-        (
-            LoopDecision(stop=False, reason="token hunter2 rejected"),
-            r"max_iterations=3: token \*\*\* rejected$",
-            "token hunter2 rejected",
-        ),
     ],
-    ids=["bool", "decision_with_reason", "secret_in_reason_is_masked_in_the_error"],
+    ids=["bool", "decision_with_reason"],
 )
-@pytest.mark.enable_redact
 def test_gate_fails_without_retrying_when_the_condition_is_false_at_the_cap(
     loop_ti, mock_supervisor_comms, result, message, reason
 ):
-    _secrets_masker().add_mask("hunter2", None)
     ti = loop_ti(index=3, until=lambda: result)
 
     state, sent, error = task_runner.run(ti, context=ti.get_template_context(), log=ti.task.log)
