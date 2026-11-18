@@ -6265,6 +6265,15 @@ def test_in_process_api_server_caches_instance():
         in_process_api_server.cache_clear()
 
 
+def test_in_process_api_server_serves_while_debugger_paused():
+    """dag.test() calls the API from the thread a debugger pauses, so the API's loop must keep running."""
+    in_process_api_server.cache_clear()
+    try:
+        assert in_process_api_server().serve_while_debugger_paused is True
+    finally:
+        in_process_api_server.cache_clear()
+
+
 def test_api_client_clears_dag_bag_override_when_dag_is_none():
     """_api_client(dag=None) removes stale dag_bag_from_app overrides set by a previous call."""
     from unittest.mock import MagicMock
