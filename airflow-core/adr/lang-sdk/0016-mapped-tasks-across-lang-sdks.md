@@ -103,8 +103,9 @@ The coordinator only starts the SDK runtime subprocess; the supervisor handles e
 - A reduce consumer receives a sequence of the element type, not the element type.
 - Expanding over a list of `T` gives each instance a `T`; expanding over a dict gives each instance a `[key, value]` pair, as a Python task gets `(key, value)`.
 
-The running example, in the TypeScript SDK. Every later section follows this same `extract →
-transform → report`.
+The running example, in the TypeScript SDK, whose full spelling is
+[`ts-sdk/adr/0004`](../../../ts-sdk/adr/0004-task-mapping-authoring-interface.md). Every later
+section follows this same `extract → transform → report`.
 
 ```ts
 async function extract(): Promise<string[]>; // ["uk ", " fr", "de "]
@@ -143,7 +144,7 @@ run.
     "arg": {"task_id": "extract", "key": "return_value"},
     "callables": ["(row) => row.trim()"]}}}}}
 
-// .expand({ row: rows.zip(lookup, { fillValue: "" }) })
+// .expand({ row: rows.zip(lookup, { padding: "" }) })
 "expand_input": {"type": "dict-of-lists", "value": {"__type": "dict", "__var": {
   "row": {"__type": "xcomref", "__var": {
     "type": "zip",
@@ -568,15 +569,15 @@ still reads as mapped:
 
 | Producer | Map index | The read returns |
 |---|---|---|
-| Not mapped | none | its value |
-| Not mapped | any | an error |
+| Not mapped | none or `-1` | its value |
+| Not mapped | any other | not found |
 | Mapped | none | every instance's value, as a list in map-index order; `[]` when it expanded to nothing |
-| Mapped | `0 <= i <` instance count | instance `i`'s value |
-| Mapped | any other, negative included | an error |
+| Mapped | `0 <= i < length` | instance `i`'s value |
+| Mapped | any other | not found |
 
-An error is not a missing value: a read in range with nothing pushed still returns null.
+Not found reads as null in every SDK, the same as a value nothing pushed.
 Unlike a reduce binding, the whole-output read is materialized, because the handler asked for the value.
-It is an Execution API mode of its own; Python's `XCom.get_one`, where no map index still means the `-1` row, is unchanged.
+The server resolves an omitted map index this way on the ordinary read, and a Python task reading with no map index, as `XCom.get_one(map_index=None)` does, gets the same answers.
 
 ### Python sidecar subprocess for the XCom backend
 
