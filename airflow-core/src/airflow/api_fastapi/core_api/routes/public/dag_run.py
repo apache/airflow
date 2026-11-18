@@ -48,6 +48,7 @@ from airflow.api_fastapi.common.db.dag_runs import (
     eager_load_dag_run_for_list,
 )
 from airflow.api_fastapi.common.db.dags import eager_load_teams
+from airflow.api_fastapi.common.exceptions import translate_db_contention_errors
 from airflow.api_fastapi.common.parameters import (
     FilterOptionEnum,
     FilterParam,
@@ -322,12 +323,15 @@ def get_upstream_asset_events(
 
 @dag_run_router.post(
     "/{dag_run_id}/clear",
-    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+    responses=create_openapi_http_exception_doc(
+        [status.HTTP_404_NOT_FOUND, status.HTTP_503_SERVICE_UNAVAILABLE]
+    ),
     dependencies=[
         Depends(requires_access_dag(method="PUT", access_entity=DagAccessEntity.RUN)),
         Depends(action_logging()),
     ],
 )
+@translate_db_contention_errors
 def clear_dag_run(
     dag_id: str,
     dag_run_id: str,
@@ -370,9 +374,12 @@ def clear_dag_run(
 
 @dag_run_at_dag_router.post(
     "/clearDagRuns",
-    responses=create_openapi_http_exception_doc([status.HTTP_400_BAD_REQUEST, status.HTTP_404_NOT_FOUND]),
+    responses=create_openapi_http_exception_doc(
+        [status.HTTP_400_BAD_REQUEST, status.HTTP_404_NOT_FOUND, status.HTTP_503_SERVICE_UNAVAILABLE]
+    ),
     dependencies=[Depends(requires_access_dag_run_clear_bulk()), Depends(action_logging())],
 )
+@translate_db_contention_errors
 def clear_dag_runs(
     dag_id: str,
     body: BulkDAGRunClearBody,
@@ -479,12 +486,15 @@ def clear_dag_runs(
 
 @dag_run_at_dag_router.post(
     "/clearPartitions",
-    responses=create_openapi_http_exception_doc([status.HTTP_400_BAD_REQUEST, status.HTTP_404_NOT_FOUND]),
+    responses=create_openapi_http_exception_doc(
+        [status.HTTP_400_BAD_REQUEST, status.HTTP_404_NOT_FOUND, status.HTTP_503_SERVICE_UNAVAILABLE]
+    ),
     dependencies=[
         Depends(requires_access_dag(method="PUT", access_entity=DagAccessEntity.RUN)),
         Depends(action_logging()),
     ],
 )
+@translate_db_contention_errors
 def clear_dag_run_partitions(
     dag_id: str,
     body: ClearPartitionsBody,

@@ -785,3 +785,25 @@ def is_deadlock_error(error: Exception) -> bool:
         or (error.orig.args[0] if error.orig.args else None)
     )
     return db_err_code in ("40P01", 1213)
+
+
+def is_db_contention_error(error: OperationalError) -> bool:
+    """
+    Check if the error is a transient database contention error.
+
+    Covers lock-not-available, query cancellations (including statement timeouts) and deadlocks. Some of
+    these errors abort the caller's transaction and some only abort the statement; in all cases the
+    request cannot be completed as-is, so the only safe recovery is retrying the whole request.
+    """
+    if is_lock_not_available_error(error) or is_deadlock_error(error):
+        return True
+    # PostgreSQL 55P03 (lock_not_available) also needs an explicit check here: psycopg3 exposes the
+    # SQLSTATE as ``sqlstate`` and has no ``pgcode``, while is_lock_not_available_error only reads
+    # ``pgcode``. 57014 (query_canceled) covers statement_timeout as well as other query
+    # cancellations; psycopg2 exposes it as ``pgcode`` and psycopg3 as ``sqlstate``.
+    db_err_code = (
+        getattr(error.orig, "pgcode", None)
+        or getattr(error.orig, "sqlstate", None)
+        or (error.orig.args[0] if error.orig and error.orig.args else None)
+    )
+    return db_err_code in ("55P03", "57014")

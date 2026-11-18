@@ -49,6 +49,7 @@ from airflow.api_fastapi.common.db.common import (
 )
 from airflow.api_fastapi.common.db.dags import eager_load_teams
 from airflow.api_fastapi.common.db.task_instances import eager_load_task_instance_for_validation
+from airflow.api_fastapi.common.exceptions import translate_db_contention_errors
 from airflow.api_fastapi.common.parameters import (
     FilterOptionEnum,
     FilterParam,
@@ -1038,6 +1039,7 @@ def get_mapped_task_instance_try_details(
             status.HTTP_400_BAD_REQUEST,
             status.HTTP_404_NOT_FOUND,
             status.HTTP_409_CONFLICT,
+            status.HTTP_503_SERVICE_UNAVAILABLE,
         ]
     ),
     dependencies=[
@@ -1045,6 +1047,7 @@ def get_mapped_task_instance_try_details(
         Depends(requires_access_dag(method="PUT", access_entity=DagAccessEntity.TASK_INSTANCE)),
     ],
 )
+@translate_db_contention_errors
 def post_clear_task_instances(
     dag_id: str,
     dag_bag: DagBagDep,

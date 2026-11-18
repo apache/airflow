@@ -28,6 +28,7 @@ import time_machine
 import uuid6
 from fastapi import HTTPException, status
 from sqlalchemy import delete, func, insert, select, update
+from sqlalchemy.exc import OperationalError
 
 from airflow import plugins_manager
 from airflow._shared.module_loading import qualname
@@ -36,6 +37,7 @@ from airflow._shared.timezones import timezone
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity, DagDetails
 from airflow.api_fastapi.auth.managers.simple.user import SimpleAuthManagerUser
 from airflow.api_fastapi.common.dagbag import resolve_run_on_latest_version
+from airflow.api_fastapi.common.exceptions import DB_CONTENTION_DETAIL
 from airflow.api_fastapi.core_api.datamodels.dag_versions import DagVersionResponse
 from airflow.api_fastapi.core_api.services.public.dag_run import DagRunWaiter
 from airflow.exceptions import ParamValidationError
@@ -2320,6 +2322,27 @@ class TestClearDagRun:
         )
 
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_clear_dag_run_returns_503_on_db_contention(self, test_client, mocker):
+        """Transient database contention while clearing a run maps to 503 instead of 500."""
+        orig = mock.Mock(
+            pgcode="57014",
+            sqlstate=None,
+            args=("canceling statement due to statement timeout",),
+        )
+        mocker.patch(
+            "airflow.api_fastapi.core_api.routes.public.dag_run.perform_clear_dag_run",
+            side_effect=OperationalError("SELECT ... FOR UPDATE", {}, orig),
+        )
+
+        response = test_client.post(
+            f"/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}/clear",
+            json={"dry_run": False},
+        )
+
+        assert response.status_code == 503
+        assert response.json()["detail"] == DB_CONTENTION_DETAIL
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     @pytest.mark.parametrize(
         ("url", "extra_body"),
         [
@@ -2634,6 +2657,27 @@ class TestBulkClearDagRuns:
         for run in body["dag_runs"]:
             assert run["state"] == "queued"
             assert run["dag_id"] == DAG1_ID
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_bulk_clear_returns_503_on_db_contention(self, test_client, mocker):
+        """Transient database contention while clearing runs maps to 503 instead of 500."""
+        orig = mock.Mock(
+            pgcode=None,
+            sqlstate="55P03",
+            args=("canceling statement due to lock timeout",),
+        )
+        mocker.patch(
+            "airflow.api_fastapi.core_api.routes.public.dag_run.perform_clear_dag_run",
+            side_effect=OperationalError("SELECT ... FOR UPDATE", {}, orig),
+        )
+
+        response = test_client.post(
+            f"/dags/{DAG1_ID}/clearDagRuns",
+            json={"dry_run": False, "dag_runs": [{"dag_run_id": DAG1_RUN1_ID}]},
+        )
+
+        assert response.status_code == 503
+        assert response.json()["detail"] == DB_CONTENTION_DETAIL
 
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     def test_bulk_clear_wildcard_across_dags(self, test_client, session):
@@ -3246,6 +3290,27 @@ class TestClearPartitions:
         # Other runs untouched
         run_b = session.scalar(select(DagRun).where(DagRun.run_id == info["run_b_id"]))
         assert run_b.partition_key == "key-b"
+
+    def test_returns_503_on_db_contention(self, test_client, mocker, partitioned_dag_with_runs):
+        """Transient database contention while clearing partitions maps to 503 instead of 500."""
+        info = partitioned_dag_with_runs
+        orig = mock.Mock(
+            pgcode=None,
+            sqlstate="55P03",
+            args=("canceling statement due to lock timeout",),
+        )
+        mocker.patch(
+            "airflow.api_fastapi.core_api.routes.public.dag_run.clear_partition_fields",
+            side_effect=OperationalError("SELECT ... FOR UPDATE", {}, orig),
+        )
+
+        response = test_client.post(
+            f"/dags/{info['dag_id']}/clearPartitions",
+            json={"run_id": info["run_a_id"], "dry_run": False},
+        )
+
+        assert response.status_code == 503
+        assert response.json()["detail"] == DB_CONTENTION_DETAIL
 
     def test_partition_key_selector_clears_partition_fields(
         self, test_client, session, partitioned_dag_with_runs
