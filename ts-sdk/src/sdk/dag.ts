@@ -222,32 +222,27 @@ export interface TaskGroupRef extends Node {
   readonly dagId: string;
   /** Group ID, including any enclosing group's prefix. */
   readonly groupId: string;
-  /**
-   * Declare a task in this group; its id carries the group prefix unless it is turned off.
-   *
-   * The reference it returns is a {@link LoopTaskRef}, for when the group, or one holding it,
-   * becomes a loop.
-   */
+  /** Declare a task in this group; its id carries the group prefix unless it is turned off. */
   task<TArgs extends object | void = void, TReturn = unknown>(
     taskId: string,
     handler: (args: TArgs) => TReturn | Promise<TReturn>,
     options?: TaskOptions,
-  ): LoopTaskFactory<TArgs, TReturn>;
+  ): TaskFactory<TArgs, TReturn>;
   /** Declare a task whose id is the handler's function name, prefixed the same way. */
   task<TArgs extends object | void = void, TReturn = unknown>(
     handler: (args: TArgs) => TReturn | Promise<TReturn>,
     options?: TaskOptions,
-  ): LoopTaskFactory<TArgs, TReturn>;
+  ): TaskFactory<TArgs, TReturn>;
   /** Declare a task an operator runs, such as `triggerDagRun(...)`, prefixed the same way. */
   task<TArgs extends object | void = void, TResult = unknown>(
     taskId: string,
     operator: Operator<TArgs, TResult>,
     options?: TaskOptions,
-  ): LoopTaskFactory<TArgs, TResult>;
+  ): TaskFactory<TArgs, TResult>;
   task<TArgs extends object | void = void, TResult = unknown>(
     operator: Operator<TArgs, TResult>,
     options: TaskOptions,
-  ): LoopTaskFactory<TArgs, TResult>;
+  ): TaskFactory<TArgs, TResult>;
   /** Nest a group inside this one. */
   taskGroup(groupId: string, options?: TaskGroupOptions): TaskGroupRef;
   /** Declare a condition in this group; its id is prefixed as a task's is. */
@@ -282,7 +277,7 @@ export interface TaskGroupRef extends Node {
    * The body has to end in one task, the terminal task, whose result is the iteration's answer and
    * what {@link LoopContext.getPrevious} reads. Inside the loop a body task's reference reads that
    * iteration's value. A task outside the loop reads every iteration's value through
-   * {@link LoopTaskRef.all}, and runs after the last iteration; the bare reference is rejected there
+   * {@link LoopRef.all}, and runs after the last iteration; the bare reference is rejected there
    * when the Dag is read. Order the whole loop against other tasks through the {@link LoopRef} this
    * returns: an order-only edge from a body task to a task outside the loop is rejected too, since it
    * would follow one iteration. A loop cannot be nested in another. Call it once per group, after or
@@ -312,35 +307,6 @@ export interface LoopOptions extends TaskSpec {
 }
 
 /**
- * What a task declared in a task group returns: a {@link TaskRef} that a task loop can also be read
- * through, once the group, or one holding it, is a loop.
- *
- * Inside the loop the reference reads one iteration's value, as any reference reads its task's.
- * Outside it, {@link all} reads every iteration's value, and the bare reference is rejected when the
- * Dag is read: core serves only that reading from outside, and nothing records which reading an
- * argument's type asks for.
- */
-export interface LoopTaskRef<TReturn = unknown> extends TaskRef<TReturn> {
-  /**
-   * Group ID of the loop the task is in.
-   *
-   * @throws when read while the task is in no loop.
-   */
-  readonly loopId: string;
-  /** Every iteration's value, in iteration order: what a task outside the loop reads. */
-  all(): TaskRef<XComSequence<TReturn>>;
-  before(...downstream: readonly Node[]): LoopTaskRef<TReturn>;
-  after(...upstream: readonly Node[]): LoopTaskRef<TReturn>;
-}
-
-/** What `group.task(...)` returns: a {@link TaskFactory} whose call returns a {@link LoopTaskRef}. */
-export type LoopTaskFactory<TArgs extends object | void = void, TReturn = unknown> = [
-  TArgs,
-] extends [void]
-  ? () => LoopTaskRef<TReturn>
-  : (inputs: TaskInputs<TArgs>) => LoopTaskRef<TReturn>;
-
-/**
  * A task group that runs as a loop, returned by {@link TaskGroupRef.loop}.
  *
  * Its edges order the whole loop: a task after it waits for the last iteration, and one before it
@@ -349,6 +315,19 @@ export type LoopTaskFactory<TArgs extends object | void = void, TReturn = unknow
 export interface LoopRef extends Node {
   /** Group ID of the loop, including any enclosing group's prefix. */
   readonly groupId: string;
+  /**
+   * Every iteration's value of `task`, in iteration order: what a task outside the loop reads.
+   *
+   * ```ts
+   * const loop = refine.loop(accurateEnough, { result: evaluated }, { maxIterations: 10 });
+   * report({ history: loop.all(evaluated) }); // XComSequence<Metrics>
+   * ```
+   *
+   * The reading task runs after the last iteration.
+   *
+   * @throws when `task` is not a task of this loop.
+   */
+  all<TReturn>(task: TaskRef<TReturn>): TaskRef<XComSequence<TReturn>>;
   before(...downstream: readonly Node[]): LoopRef;
   after(...upstream: readonly Node[]): LoopRef;
 }
@@ -448,7 +427,7 @@ export function isTaskRef(value: unknown): value is TaskRef {
 // task, a loop its group.
 const conditionTasks = new WeakMap<object, Node>();
 
-// Each reference `all()` returned, to the body task whose every iteration it reads.
+// Each reference a loop's `all()` returned, to the body task whose every iteration it reads.
 const allIterationReads = new WeakMap<object, TaskRef>();
 
 const labelledNodes = new WeakMap<
@@ -838,6 +817,8 @@ export class Dag {
   readonly #groupRefs = new Map<string, TaskGroupRef>();
   // Keyed by the loop's group ID.
   readonly #loops = new Map<string, LoopRecord>();
+  // Each body task's reference to the one a loop's all() returned for it.
+  readonly #allIterationRefs = new WeakMap<TaskRef, TaskRef>();
   #finalized = false;
 
   static {
@@ -1231,7 +1212,7 @@ export class Dag {
       );
     }
     this.#reserveNodeId(taskId, "Task");
-    const task = this.#createTaskRef(taskId, groupId !== undefined);
+    const task = this.#createTaskRef(taskId);
     if (groupId !== undefined) this.#groups.get(groupId)!.taskIds.push(taskId);
     // The runtime dispatches every handler through one instantiation, as it
     // does a registered TaskHandler.
@@ -1486,6 +1467,8 @@ export class Dag {
     const placed: LoopRef = {
       dagId: this.dagId,
       groupId,
+      all: <TReturn>(task: TaskRef<TReturn>) =>
+        this.#readAllIterations(groupId, task) as TaskRef<XComSequence<TReturn>>,
       before: (...downstream) => {
         group.before(...downstream);
         return placed;
@@ -1558,7 +1541,7 @@ export class Dag {
 
   /**
    * Reject a read of a loop task that core cannot serve: one iteration's value from outside the loop,
-   * where only every iteration's is served, and `all()` of a task in no loop or from inside its own.
+   * where only every iteration's is served, and every iteration's value from inside the loop.
    */
   #checkLoopReads(): void {
     for (const [taskId, inputs] of this.#inputs) {
@@ -1569,12 +1552,6 @@ export class Dag {
         const loop = this.#findEnclosingLoop(producer);
         const label = `Input "${name}" of task "${taskId}" of Dag "${this.dagId}"`;
         if (allIterationReads.has(value)) {
-          if (loop === undefined) {
-            throw new Error(
-              `${label} reads every iteration of "${producer}" with all(), but "${producer}" is ` +
-                "in no loop; pass the reference itself",
-            );
-          }
           if (loop === ownLoop) {
             throw new Error(
               `${label} reads every iteration of "${producer}" with all() from inside loop ` +
@@ -1584,14 +1561,15 @@ export class Dag {
         } else if (loop !== undefined && loop !== ownLoop) {
           throw new Error(
             `${label} takes "${producer}", a task of loop "${loop}", from outside that loop, ` +
-              "where only every iteration's value can be read; pass its reference's all()",
+              "where only every iteration's value can be read; pass the loop's all() of it: " +
+              `${loop.slice(loop.lastIndexOf(GROUP_SEPARATOR) + 1)}.all(...)`,
           );
         }
       }
     }
   }
 
-  #createTaskRef(taskId: string, inGroup: boolean): TaskRef {
+  #createTaskRef(taskId: string): TaskRef {
     const task: TaskRef = {
       dagId: this.dagId,
       taskId,
@@ -1604,31 +1582,24 @@ export class Dag {
         return task;
       },
     };
-    if (inGroup) {
-      let every: TaskRef | undefined;
-      Object.defineProperties(task, {
-        loopId: {
-          // A group becomes a loop only when loop() is called, which can follow this reference. Not
-          // enumerable, so copying or printing a reference in a plain group does not throw.
-          get: () => {
-            const loop = this.#findEnclosingLoop(taskId);
-            if (loop === undefined) {
-              throw new Error(`Task "${taskId}" of Dag "${this.dagId}" is not in a loop`);
-            }
-            return loop;
-          },
-        },
-        all: {
-          value: () => (every ??= this.#createAllIterationsRef(task)),
-        },
-      });
-    }
     brand(task, "TaskRef");
     return Object.freeze(task);
   }
 
-  /** The reference that reads every iteration of `task`, which is the same node in an edge. */
-  #createAllIterationsRef(task: TaskRef): TaskRef {
+  /**
+   * The reference that reads every iteration of `task`, a task of loop `loopId`. It is the same node
+   * as `task` in an edge, and the same reference on every call.
+   */
+  #readAllIterations(loopId: string, task: unknown): TaskRef {
+    const label = `all() of loop "${loopId}" of Dag "${this.dagId}"`;
+    if (!isTaskRef(task) || allIterationReads.has(task)) {
+      throw new Error(`${label} takes a task reference, not ${describeValue(task)}`);
+    }
+    if (task.dagId !== this.dagId || this.#findEnclosingLoop(task.taskId) !== loopId) {
+      throw new Error(`${label} takes a task of the loop, and "${task.taskId}" is not one`);
+    }
+    const cached = this.#allIterationRefs.get(task);
+    if (cached !== undefined) return cached;
     const every: TaskRef = {
       dagId: this.dagId,
       taskId: task.taskId,
@@ -1644,7 +1615,8 @@ export class Dag {
     brand(every, "TaskRef");
     allIterationReads.set(every, task);
     conditionTasks.set(every, task);
-    return Object.freeze(every);
+    this.#allIterationRefs.set(task, Object.freeze(every));
+    return every;
   }
 
   #addOrderEdge(upstreamNode: Node, downstreamNode: Node, verb: "before" | "after"): void {

@@ -38,7 +38,6 @@ export type {
   LoopDecision,
   LoopOptions,
   LoopRef,
-  LoopTaskRef,
   Registerable,
   TaskClient,
   TaskContext,

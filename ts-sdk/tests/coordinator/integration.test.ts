@@ -1940,8 +1940,8 @@ describe("coordinator runtime integration", () => {
         return { iterations: await history.length(), last, all: await history.slice() };
       });
       const evaluated = evaluate({ estimate: improve() });
-      refine.loop(accurateEnough, { result: evaluated }, { maxIterations: 3 });
-      report({ history: evaluated.all() });
+      const loop = refine.loop(accurateEnough, { result: evaluated }, { maxIterations: 3 });
+      report({ history: loop.all(evaluated) });
     }
 
     it("hands a body task its iteration and the previous terminal result", async () => {
@@ -2195,7 +2195,7 @@ describe("coordinator runtime integration", () => {
       let seen: number | undefined;
       const first = testDag.taskGroup("first");
       const produced = first.task("produce", async (): Promise<number> => 1)();
-      first.loop({ maxIterations: 2 });
+      const firstLoop = first.loop({ maxIterations: 2 });
       const second = testDag.taskGroup("second");
       second.task("work", async () => 1)();
       second.loop(
@@ -2203,7 +2203,7 @@ describe("coordinator runtime integration", () => {
           seen = await history.length();
           return true;
         },
-        { history: produced.all() },
+        { history: firstLoop.all(produced) },
         { maxIterations: 2 },
       );
       const responder: Responder = (msgType) =>
@@ -2230,10 +2230,10 @@ describe("coordinator runtime integration", () => {
     it("pushes a returned sequence as the values it holds, as Python's serde does", async () => {
       const work = testDag.taskGroup("work");
       const produced = work.task("produce", async (): Promise<number> => 1)();
-      work.loop({ maxIterations: 2 });
+      const loop = work.loop({ maxIterations: 2 });
       testDag.task("keep", async ({ history }: { history: XComSequence<number> }) => ({
         history,
-      }))({ history: produced.all() });
+      }))({ history: loop.all(produced) });
       const responder: Responder = (msgType) =>
         msgType === "GetXComSequenceSlice"
           ? { body: { type: "XComSequenceSliceResult", root: [3, 4] } }
@@ -2255,14 +2255,14 @@ describe("coordinator runtime integration", () => {
     it("hands an operator task outside the loop every iteration of a body task", async () => {
       const work = testDag.taskGroup("work");
       const produced = work.task("produce", async (): Promise<number> => 1)();
-      work.loop({ maxIterations: 2 });
+      const loop = work.loop({ maxIterations: 2 });
       testDag.task(
         "sign_off",
         approval({
           subject: async ({ history }: { history: XComSequence<number> }) =>
             `Ship after ${await history.length()} runs?`,
         }),
-      )({ history: produced.all() });
+      )({ history: loop.all(produced) });
       const responder: Responder = (msgType) => {
         if (msgType === "GetXComCount") return { body: { type: "XComCountResponse", len: 2 } };
         if (msgType === "CreateHITLDetailPayload") return HITL_CREATED;
@@ -2357,7 +2357,7 @@ describe("coordinator runtime integration", () => {
       const seen: { history?: XComSequence<number> } = {};
       const group = testDag.taskGroup("g");
       const leaf = group.task("leaf", async () => 1)();
-      group.loop({ maxIterations: 2 });
+      const loop = group.loop({ maxIterations: 2 });
       testDag.task("collect", async ({ all }: { all: XComSequence<number> }) => {
         seen.history = all;
         const read: number[] = [];
@@ -2366,7 +2366,7 @@ describe("coordinator runtime integration", () => {
         await expect(all.at(0.5)).rejects.toThrow(RangeError);
         await expect(all.slice(0.5)).rejects.toThrow(RangeError);
         return read;
-      })({ all: leaf.all() });
+      })({ all: loop.all(leaf) });
       const responder: Responder = (msgType, body) => {
         if (msgType === "GetXComCount") return { body: { type: "XComCountResponse", len: 2 } };
         if (msgType === "GetXComSequenceItem") {

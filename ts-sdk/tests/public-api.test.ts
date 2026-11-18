@@ -29,7 +29,6 @@ import type {
   LoopDecision,
   LoopOptions,
   LoopRef,
-  LoopTaskRef,
   Node,
   SetXComOpts,
   TaskClient,
@@ -314,18 +313,17 @@ describe("public API", () => {
       { result: evaluated },
       { maxIterations: 3 },
     );
-    // Inside the loop the reference reads one iteration's value; outside, all() reads every one.
-    expectTypeOf(evaluated).toEqualTypeOf<LoopTaskRef<Metrics>>();
-    expectTypeOf(evaluated.all()).toEqualTypeOf<TaskRef<XComSequence<Metrics>>>();
-    expectTypeOf<LoopTaskRef<Metrics>>().toMatchTypeOf<TaskRef<Metrics>>();
+    // Inside the loop the reference reads one iteration's value; outside, the loop's all() reads
+    // every one.
+    expectTypeOf(evaluated).toEqualTypeOf<TaskRef<Metrics>>();
+    expectTypeOf(loop.all(evaluated)).toEqualTypeOf<TaskRef<XComSequence<Metrics>>>();
     dag.task(
       "report",
       async (_: { history: XComSequence<Metrics> }) => undefined,
     )({
-      history: evaluated.all(),
+      history: loop.all(evaluated),
     });
     expect(loop).toMatchObject({ dagId: "public_api_loop", groupId: "refine" });
-    expect(evaluated.loopId).toBe("refine");
     expectTypeOf<LoopRef["before"]>().toEqualTypeOf<(...downstream: readonly Node[]) => LoopRef>();
   });
 
@@ -398,6 +396,9 @@ describe("public API", () => {
     // Both satisfy Node, which is what lets an edge join either kind.
     expectTypeOf<TaskRef>().toExtend<Node>();
     expectTypeOf<TaskGroupRef>().toExtend<Node>();
+    // A helper can declare a task in either scope: both task() methods return the same factory.
+    const declareIn = (scope: Dag | TaskGroupRef) => scope.task("t", async () => 1)();
+    expectTypeOf(declareIn).returns.toEqualTypeOf<TaskRef<number>>();
     // Wiring moved to the factory call, and the spec is the trailing argument
     // itself.
     expectTypeOf<TaskOptions>().toEqualTypeOf<TaskSpec>();

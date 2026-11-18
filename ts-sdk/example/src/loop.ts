@@ -79,8 +79,8 @@ const finished = dag.task(async function finished() {
 
 const evaluated = evaluate({ estimate: improve() });
 const refinement = refine.loop(accurateEnough, { result: evaluated }, { maxIterations: 10 });
-// Outside the loop, all() reads every iteration's Metrics.
-report({ history: evaluated.all() });
+// Outside the loop, the loop's all() reads every iteration's Metrics.
+report({ history: refinement.all(evaluated) });
 // Order only: after the whole loop, not after one iteration.
 refinement.before(finished());
 

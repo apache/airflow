@@ -406,14 +406,14 @@ previous iteration's result:
     const evaluated = evaluate({ estimate: improve() });
     const refinement = refine.loop(accurateEnough, { result: evaluated }, { maxIterations: 10 });
 
-    report({ history: evaluated.all() });   // every iteration's Metrics, as an XComSequence
-    refinement.before(cleanup());           // after the whole loop
+    report({ history: refinement.all(evaluated) });   // every iteration's Metrics, as an XComSequence
+    refinement.before(cleanup());                     // after the whole loop
 
-Without a handler, ``poll.loop({ maxIterations: 3 })`` runs the group a fixed number of times. A task outside the loop reads a body task's output with
-``all()``, which gives every iteration's value as an ``XComSequence``. See :ref:`loops-and-mapped-tasks` for
+Without a handler, ``poll.loop({ maxIterations: 3 })`` runs the group a fixed number of times. A task outside the loop reads a body task's output through
+the loop's ``all()``, which gives every iteration's value as an ``XComSequence``. See :ref:`loops-and-mapped-tasks` for
 when to use a loop, and the API reference for
 `loop <https://airflow.apache.org/docs/ts-sdk/stable/module/authoring/taskgroupref/#loop>`__,
-`LoopTaskRef <https://airflow.apache.org/docs/ts-sdk/stable/module/authoring/looptaskref/>`__,
+`LoopRef <https://airflow.apache.org/docs/ts-sdk/stable/module/authoring/loopref/>`__,
 `getLoop <https://airflow.apache.org/docs/ts-sdk/stable/module/authoring/getloop/>`__ and
 `XComSequence <https://airflow.apache.org/docs/ts-sdk/stable/module/authoring/xcomsequence/>`__ for the
 rules a loop follows.

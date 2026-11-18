@@ -38,7 +38,6 @@ export type {
   DagSpec,
   LoopOptions,
   LoopRef,
-  LoopTaskRef,
   Node,
   TaskFactory,
   TaskGroupOptions,

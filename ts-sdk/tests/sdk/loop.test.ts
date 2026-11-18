@@ -28,8 +28,9 @@ import {
   getDagLoops,
   getDagTaskRecords,
   Label,
-  type LoopTaskRef,
+  type LoopRef,
   type TaskGroupRef,
+  type TaskRef,
 } from "../../src/sdk/dag.js";
 import type { XComSequence } from "../../src/sdk/xcom-sequence.js";
 
@@ -79,7 +80,7 @@ function buildRefine(): { dag: Dag; refine: TaskGroupRef } {
 
   const evaluated = evaluate({ estimate: improve() });
   const refinement = refine.loop(accurateEnough, { result: evaluated }, { maxIterations: 10 });
-  report({ history: evaluated.all() });
+  report({ history: refinement.all(evaluated) });
   refinement.before(cleanup());
   return { dag, refine };
 }
@@ -187,8 +188,13 @@ describe("TaskGroupRef.loop", () => {
     const outer = dag.taskGroup("outer");
     const inner = outer.taskGroup("inner");
     const produced = inner.task("produce", async () => 1)();
-    inner.loop({ maxIterations: 3 });
-    outer.task("sum", async (_: { all: XComSequence<number> }) => 1)({ all: produced.all() });
+    const innerLoop = inner.loop({ maxIterations: 3 });
+    outer.task(
+      "sum",
+      async (_: { all: XComSequence<number> }) => 1,
+    )({
+      all: innerLoop.all(produced),
+    });
     dag
       .task("after", async () => undefined)()
       .after(Label.of("done").on(outer));
@@ -283,24 +289,57 @@ describe("TaskGroupRef.loop", () => {
   });
 
   describe("a body task's reference", () => {
-    it("names its loop once the group, or one holding it, is a loop", () => {
-      const dag = new Dag("ts_loop_id");
+    it("is read every iteration through its loop's all(), the same reference on every call", () => {
+      const dag = new Dag("ts_loop_all");
       const group = dag.taskGroup("g");
       const direct = group.task("direct", async () => 1)();
       const nested = group.taskGroup("sub").task("nested", async () => 1)();
-      const plain = dag.taskGroup("plain").task("leaf", async () => 1)();
-
-      expect(() => direct.loopId).toThrow(/Task "g.direct" of Dag "ts_loop_id" is not in a loop/);
       direct.before(nested);
-      group.loop({ maxIterations: 2 });
+      const loop = group.loop({ maxIterations: 2 });
 
-      expect(direct.loopId).toBe("g");
-      expect(nested.loopId).toBe("g");
-      expect(() => plain.loopId).toThrow(/is not in a loop/);
-      // Copying or printing a reference outside any loop does not read loopId.
-      expect(() => JSON.stringify({ ...plain })).not.toThrow();
-      expect(direct.all()).toBe(direct.all());
-      expect("all" in dag.task("top", async () => 1)()).toBe(false);
+      expect(loop.all(direct)).toBe(loop.all(direct));
+      expect(loop.all(nested).taskId).toBe("g.sub.nested");
+    });
+
+    it.each([
+      [
+        "a task of a plain group",
+        (dag: Dag) => dag.taskGroup("plain").task("leaf", async () => 1)(),
+      ],
+      ["a task of the Dag", (dag: Dag) => dag.task("top", async () => 1)()],
+      [
+        "a task of another loop",
+        (dag: Dag) => {
+          const other = dag.taskGroup("other");
+          const task = other.task("leaf", async () => 1)();
+          other.loop({ maxIterations: 2 });
+          return task;
+        },
+      ],
+      [
+        "a task of another Dag",
+        () => new Dag("ts_elsewhere").taskGroup("g").task("leaf", async () => 1)(),
+      ],
+    ])("is not read through all() of a loop it is not in: %s", (_label, make) => {
+      const dag = new Dag("ts_loop_all_rejects");
+      const group = dag.taskGroup("g");
+      group.task("leaf", async () => 1)();
+      const loop = group.loop({ maxIterations: 2 });
+
+      expect(() => loop.all(make(dag))).toThrow(
+        /all\(\) of loop "g" of Dag "ts_loop_all_rejects" takes a task of the loop, and ".*" is not one/,
+      );
+    });
+
+    it("is read through all() only as a task reference", () => {
+      const group = new Dag("ts_loop_all_value").taskGroup("g");
+      const leaf = group.task("leaf", async () => 1)();
+      const loop = group.loop({ maxIterations: 2 });
+
+      expect(() => loop.all({ dagId: "d", taskId: "g.leaf" } as never)).toThrow(
+        /takes a task reference, not/,
+      );
+      expect(() => loop.all(loop.all(leaf))).toThrow(/takes a task reference, not/);
     });
 
     it("is read every iteration through all(), as a plain xcom binding with the edge from the gate", () => {
@@ -318,19 +357,19 @@ describe("TaskGroupRef.loop", () => {
     it.each([
       [
         "bare outside its loop",
-        (body: LoopTaskRef<number>, dag: Dag) => {
+        (body: TaskRef<number>, dag: Dag) => {
           dag.task("outside", async (_: { value: number }) => undefined)({ value: body });
         },
-        /Input "value" of task "outside" .* takes "g.leaf", a task of loop "g", from outside that loop.*all\(\)/,
+        /Input "value" of task "outside" .* takes "g.leaf", a task of loop "g", from outside that loop.*g\.all\(\.\.\.\)/,
       ],
       [
         "with all() inside its own loop",
-        (body: LoopTaskRef<number>, _dag: Dag, group: TaskGroupRef) => {
+        (body: TaskRef<number>, _dag: Dag, group: TaskGroupRef, loop: LoopRef) => {
           group.task(
             "inside",
             async (_: { value: XComSequence<number> }) => 1,
           )({
-            value: body.all(),
+            value: loop.all(body),
           });
         },
         /Input "value" of task "g.inside" .* with all\(\) from inside loop "g"/,
@@ -339,23 +378,10 @@ describe("TaskGroupRef.loop", () => {
       const dag = new Dag("ts_loop_reads");
       const group = dag.taskGroup("g");
       const body = group.task("leaf", async () => 1)();
-      read(body, dag, group);
-      group.loop({ maxIterations: 2 });
+      const loop = group.loop({ maxIterations: 2 });
+      read(body, dag, group, loop);
 
       expect(() => finalizeDag(dag)).toThrow(message);
-    });
-
-    it("is rejected when read with all() while in no loop", () => {
-      const dag = new Dag("ts_no_loop");
-      const body = dag.taskGroup("g").task("leaf", async () => 1)();
-      dag.task(
-        "outside",
-        async (_: { value: XComSequence<number> }) => undefined,
-      )({
-        value: body.all(),
-      });
-
-      expect(() => finalizeDag(dag)).toThrow(/"g.leaf" is in no loop; pass the reference itself/);
     });
   });
 

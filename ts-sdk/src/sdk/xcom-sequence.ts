@@ -30,7 +30,7 @@
  *   const last = await history.at(-1);
  *   for await (const metrics of history) console.log(metrics.error);
  * });
- * report({ history: evaluated.all() });
+ * report({ history: refinement.all(evaluated) });
  * ```
  */
 export interface XComSequence<T> extends AsyncIterable<T> {

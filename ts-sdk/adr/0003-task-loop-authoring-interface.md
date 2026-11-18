@@ -44,11 +44,12 @@ This ADR records the TypeScript spelling of them.
    previous iteration's terminal result — one, not two, as ADR-0017 asks of every runtime. It is a
    generic method naming its own return type, as `client.getXCom<T>()` is, not a field with a typed
    view beside it.
-6. **A body task returns a `LoopTaskRef<T>`**, a `TaskRef<T>` that records the loop it came from.
-   Inside the loop it reads as one iteration's `T`. Outside it, `all()` returns a
+6. **A body task returns a plain `TaskRef<T>`, and the loop reads every iteration of it.** Inside
+   the loop the ref reads as one iteration's `T`. Outside it, `loop.all(ref)` returns a
    `TaskRef<XComSequence<T>>` and a bare ref is rejected when the Dag is read, since core serves only
    the all-iterations read from outside and the SDK records no argument type it could check instead.
-7. **`LoopRef` carries `before` and `after`.** An order-only edge from a body ref to a task outside is
+   `all()` throws at once for a task that is not in that loop.
+7. **`LoopRef` carries `all`, `before` and `after`.** An order-only edge from a body ref to a task outside is
    rejected when the Dag is read.
 
 ## Example
@@ -89,12 +90,12 @@ const evaluated = evaluate({ estimate });
 
 const refinement = refine.loop(accurateEnough, { result: evaluated }, { maxIterations: 10 });
 
-report({ history: evaluated.all() }); // every iteration's metrics, through the gate
+report({ history: refinement.all(evaluated) }); // every iteration's metrics, through the gate
 refinement.before(cleanup()); // order only: the whole loop, not one iteration
 ```
 
 `evaluated` is written twice. Inside the loop it is one iteration's `Metrics`, which is what the
-gate takes. Outside it only `evaluated.all()` is allowed, an `XComSequence<Metrics>`, which is what
+gate takes. Outside it only `refinement.all(evaluated)` is allowed, an `XComSequence<Metrics>`, which is what
 `report` takes; a bare `evaluated` out there is rejected when the Dag is read.
 
 A loop that only counts needs no handler:
@@ -143,19 +144,10 @@ interface TaskGroupRef {
 /** What `loop()` returns: the whole loop as one node, which is what an ordering edge leaves from. */
 interface LoopRef extends Node {
   readonly groupId: string;
+  /** Every iteration's value of `task`, a task of this loop: the one reading core serves from outside. */
+  all<T>(task: TaskRef<T>): TaskRef<XComSequence<T>>;
   before(...downstream: readonly Node[]): LoopRef;
   after(...upstream: readonly Node[]): LoopRef;
-}
-
-/**
- * What a loop body task returns. It is a `TaskRef<T>`, so it goes wherever one goes; the loop it
- * records is what lets the SDK tell a body ref from an ordinary one when the Dag is read.
- */
-interface LoopTaskRef<T> extends TaskRef<T> {
-  readonly loopId: string;
-
-  /** Every iteration's value, the one reading core serves from outside the loop. */
-  all(): TaskRef<XComSequence<T>>;
 }
 
 /**
@@ -192,7 +184,7 @@ interface LoopContext {
 - **A mapped terminal needs no new call.** `getPrevious<XComSequence<Metrics>>()` names the sequence
   type, and `terminal_is_mapped` tells the runtime which to build.
 - **The reading is written, not inferred.** `serializeArgBindings` records a task id and no argument
-  type, so the SDK cannot tell which reading a consumer declared. `all()` puts the outside reading in
+  type, so the SDK cannot tell which reading a consumer declared. `loop.all()` puts the outside reading in
   the Dag instead, and `tsc` checks it because the accessor names its own return type. A bare body
   ref outside the loop is rejected when the Dag is read rather than failing partway through the run.
 - **`loop()` runs once per group.** A group already on an edge can still become one, since `LoopRef`
@@ -214,3 +206,8 @@ interface LoopContext {
   serialize cleanly and fail partway through the run. The Go SDK keeps the bare ref because
   registration records its handlers' parameter types, and the Java SDK because it generates an
   overload per reading; TypeScript has neither, so it asks for the reading instead.
+- **`all()` on the ref a group's task returns**, `evaluated.all()`. Rejected: `group.task()` would
+  return a different type from `dag.task()`, so a helper typed `Dag | TaskGroupRef` that calls
+  `.task()` stops compiling, which breaks code that compiles on 1.0.0. A group becomes a loop only
+  when `loop()` is called, so the ref of a task in a plain group would offer an `all()` that fails
+  when the Dag is read.
