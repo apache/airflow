@@ -242,7 +242,7 @@ class _RequestWorker:
         self._pid: int | None = None
         self._lock = threading.Lock()
 
-    def executor(self) -> ThreadPoolExecutor:
+    def get_executor(self) -> ThreadPoolExecutor:
         """Return this process's single-thread executor, for ``loop.run_in_executor``."""
         if self._pid != (pid := os.getpid()):
             with self._lock:
@@ -275,14 +275,14 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
     err_decoder: TypeAdapter[ErrorResponse] = attrs.field(factory=lambda: TypeAdapter(ToTask), repr=False)
 
     # Reentrant, so that a send() which interrupts its own thread's (a signal handler on the main
-    # thread) is let in instead of waiting for itself, and can tell from _exchanging whether that
+    # thread) is let in instead of waiting for itself, and can tell from _is_exchanging whether that
     # thread was in the middle of a request. The RLock records its owner when it is taken, so no
     # moment is left where the thread holds the lock but is not yet known as its holder.
     _thread_lock: threading.RLock = attrs.field(factory=threading.RLock, repr=False)
-    _worker: _RequestWorker = attrs.field(factory=lambda: _RequestWorker(), repr=False, init=False)
+    _worker: _RequestWorker = attrs.field(factory=_RequestWorker, repr=False, init=False)
     # Whether the thread holding _thread_lock is between writing a request and reading its
     # response. Only that thread can read it as True once it holds the lock itself.
-    _exchanging: bool = attrs.field(default=False, repr=False, init=False)
+    _is_exchanging: bool = attrs.field(default=False, repr=False, init=False)
 
     def _make_frame(self, msg: SendMsgType) -> _RequestFrame:
         carrier: dict[str, str] = {}
@@ -306,7 +306,7 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
             # it in again: in the middle of that request, the call would wait for its own response,
             # so it raises; before the request is written or after its response is read, the
             # channel is free and this call is exchanged whole in between.
-            if self._exchanging:
+            if self._is_exchanging:
                 raise DeadlockImminentError(msg)
             return self._exchange(msg, frame_bytes)
 
@@ -314,16 +314,10 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
         """
         Write one request and read its response; the caller holds ``_thread_lock``.
 
-        Responses are read in order: :meth:`_get_response` takes the next frame and does not check
-        its id. An exception that unwinds this between the write and the read therefore leaves the
-        response on the socket, and the next request reads it as its own. That happens when a
-        signal handler interrupts the request on the main thread and raises into it: the
-        ``DeadlockImminentError`` of a handler that calls :meth:`send` itself, or the
-        ``AirflowTaskTimeout`` of the ``execution_timeout`` alarm, which any task can hit. Making
-        the channel safe after that needs a read that resumes a partly read frame, or a channel
-        marked unusable, and is left to a change of its own.
+        An exception raised between the write and the read leaves the response on the socket for
+        the next request: https://github.com/apache/airflow/issues/77240.
         """
-        self._exchanging = True
+        self._is_exchanging = True
         try:
             self.socket.sendall(frame_bytes)
             if isinstance(msg, ResendLoggingFD):
@@ -342,9 +336,9 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
 
             return self._get_response()
         finally:
-            self._exchanging = False
+            self._is_exchanging = False
 
-    def _locked_exchange(
+    def _acquire_and_exchange(
         self, msg: SendMsgType, frame_bytes: bytes | bytearray, abandoned: threading.Event
     ) -> ReceiveMsgType | None:
         """
@@ -374,7 +368,7 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
         abandoned = threading.Event()
         try:
             return await asyncio.get_running_loop().run_in_executor(
-                self._worker.executor(), self._locked_exchange, msg, frame_bytes, abandoned
+                self._worker.get_executor(), self._acquire_and_exchange, msg, frame_bytes, abandoned
             )
         except BaseException:
             abandoned.set()
