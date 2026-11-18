@@ -28,6 +28,7 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
 import org.apache.airflow.sdk.execution.comm.Discriminator
 import org.apache.airflow.sdk.execution.comm.PutVariable
 import org.apache.airflow.sdk.execution.comm.SetTaskStateStore
+import org.apache.airflow.sdk.internal.ArgNameIntrospector
 import org.msgpack.core.MessagePack
 import org.msgpack.core.MessageUnpacker
 import org.msgpack.core.buffer.ArrayBufferInput
@@ -56,6 +57,9 @@ object Frame {
 
   private val mapper =
     ObjectMapper().apply {
+      // The SDK reads a field pinned with @ArgName only from the pinned key, so an
+      // object that a task pushes has to use that key too.
+      setAnnotationIntrospector(ArgNameIntrospector)
       configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
       disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
       registerModule(JavaTimeModule())
