@@ -25,7 +25,7 @@ Prerequisite Tasks
 ^^^^^^^^^^^^^^^^^^
 
 To use this operators, you must do a few things:
-  * Add custom robot to chat group group which you want to send a message.
+  * Add custom robot to chat group which you want to send a message.
   * Get `DingTalk Custom Robot webhook token <https://open.dingtalk.com/document/robots/custom-robot-access>`__.
   * Put the access token in the password field of the ``dingding_default`` Connection.
     Note: You need only token value rather than the whole webhook string.

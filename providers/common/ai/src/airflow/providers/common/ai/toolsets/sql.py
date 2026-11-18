@@ -18,10 +18,13 @@
 
 from __future__ import annotations
 
+import logging
 from contextlib import suppress
 from typing import TYPE_CHECKING, Any
 
 try:
+    from sqlalchemy.exc import DBAPIError
+
     from airflow.providers.common.ai.utils.sql_validation import (
         SQLSafetyError,
         collect_table_references,
@@ -40,7 +43,8 @@ from pydantic_ai.exceptions import ModelRetry
 from pydantic_ai.tools import ToolDefinition
 from pydantic_ai.toolsets.abstract import ToolsetTool
 
-from airflow.providers.common.ai.utils.masking import dumps_masked
+from airflow.providers.common.ai.exceptions import SQLToolsetConnectionError
+from airflow.providers.common.ai.utils.masking import dumps_masked, mask_secrets
 from airflow.providers.common.ai.utils.query_results import (
     DEFAULT_MAX_COLUMNS,
     DEFAULT_MAX_RESULT_BYTES,
@@ -48,6 +52,7 @@ from airflow.providers.common.ai.utils.query_results import (
     build_get_schema_description,
     build_query_result,
     build_schema_result,
+    truncate_comment,
 )
 from airflow.providers.common.ai.utils.tool_definition import build_args_validator, return_schema_kwargs
 from airflow.providers.common.ai.utils.tool_prefix import ToolPrefixMixin
@@ -55,10 +60,15 @@ from airflow.providers.common.ai.utils.toolset_base import AirflowToolset, valid
 from airflow.providers.common.compat.sdk import BaseHook
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import Callable, Sequence
 
     from pydantic_ai._run_context import RunContext
+    from sqlalchemy.engine.reflection import Inspector
 
+    from airflow.providers.common.ai.utils.sql_search import SQLTableSearchBackend, TableEntry
+
+
+log = logging.getLogger(__name__)
 
 # Sentinel distinguishing "caller did not pass ``allowed_tables``" (expose every
 # table) from an explicit value. Every explicit falsy value -- ``None`` as much as
@@ -88,6 +98,26 @@ _GET_SCHEMA_SCHEMA: dict[str, Any] = {
     "required": ["table_name"],
 }
 
+_DEFAULT_SEARCH_LIMIT = 10
+_MAX_SEARCH_LIMIT = 50
+
+_SEARCH_TABLES_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "properties": {
+        "query": {
+            "type": "string",
+            "description": "Words describing the data you are looking for, matched against table names and comments.",
+        },
+        "limit": {
+            "type": "integer",
+            "description": "Maximum number of tables to return (default 10, at most 50).",
+            "minimum": 1,
+            "maximum": 50,
+        },
+    },
+    "required": ["query"],
+}
+
 _QUERY_SCHEMA: dict[str, Any] = {
     "type": "object",
     "properties": {
@@ -103,6 +133,33 @@ _CHECK_QUERY_SCHEMA: dict[str, Any] = {
     },
     "required": ["sql"],
 }
+
+
+def _build_connection_error(conn_id: str, error: Exception) -> SQLToolsetConnectionError:
+    return SQLToolsetConnectionError(f"Could not reach the database of connection {conn_id!r}: {error}")
+
+
+def _raise_connection_failures(get_conn: Callable[[], Any], conn_id: str) -> Callable[[], Any]:
+    """Wrap a hook's ``get_conn`` so a failure to connect is told apart from a failing statement."""
+
+    def wrapper() -> Any:
+        try:
+            return get_conn()
+        except Exception as e:
+            raise _build_connection_error(conn_id, e) from e
+
+    return wrapper
+
+
+def _is_lost_connection(error: Exception) -> bool:
+    """
+    Whether SQLAlchemy reports ``error`` as a connection failure rather than a failing statement.
+
+    ``list_tables`` and ``get_schema`` go through the SQLAlchemy inspector, which raises a
+    failure to connect without a statement and marks a connection lost mid-statement as
+    invalidated.
+    """
+    return isinstance(error, DBAPIError) and (error.statement is None or error.connection_invalidated)
 
 
 def _trusted_row_count(cursor: Any, *, fetched: int) -> int | None:
@@ -184,12 +241,14 @@ class SQLToolset(ToolPrefixMixin, AirflowToolset):
     Uses a :class:`~airflow.providers.common.sql.hooks.sql.DbApiHook` resolved
     lazily from the given ``db_conn_id``.
 
-    When a tool fails, the database's error message is returned to the agent as a
-    retry (:class:`pydantic_ai.ModelRetry`) so the model can correct its SQL within
-    the run instead of failing the task. ``pydantic-ai`` bounds this by the tool's
-    ``max_retries``, so an unrecoverable error -- a bad connection or an auth
-    failure -- exhausts the retries and fails the task for Airflow to retry. The
-    toolset does not inspect the error type or message.
+    When the statement fails, the database's error message is returned to the agent as
+    a retry (:class:`pydantic_ai.ModelRetry`) so the model can correct its SQL within
+    the run, bounded by the tool's ``max_retries``. When the toolset cannot reach the
+    database -- the connection is missing or misconfigured, the host is unreachable,
+    the credentials are rejected, or SQLAlchemy reports the connection lost -- the
+    error is raised instead, failing the attempt for Airflow to retry: no change to
+    the SQL can fix it. Under durable execution a raised call is not recorded, so the
+    retry runs it against the database again rather than replaying the failure.
 
     :param db_conn_id: Airflow connection ID for the database. Templated when the
         toolset is passed to ``AgentOperator`` / ``@task.agent``, so each task
@@ -274,6 +333,21 @@ class SQLToolset(ToolPrefixMixin, AirflowToolset):
     :param max_retries: How many times the model may correct a failed call to one of these
         tools before the run fails. ``None`` (the default) uses the agent's tool retry
         budget, its ``retries``, as pydantic-ai's own toolsets do.
+    :param include_table_comments: When ``True``, ``list_tables`` returns
+        ``{"name": ..., "comment": ...}`` objects instead of bare names, with ``comment``
+        present only for tables that have one (each capped to 200 characters). Without a
+        ``search_backend`` the list has no size limit: the total is not bound by
+        ``max_result_bytes``. Default ``False`` keeps the list of names. ``get_schema`` always
+        returns table and column comments where the database reports them, regardless of this flag.
+    :param search_backend: Registers a ``search_tables`` tool that finds tables by a free-text
+        query, for databases with too many tables to list. Pass
+        :class:`~airflow.providers.common.ai.utils.sql_search.KeywordTableSearchBackend` for a
+        keyword match over table names and comments, or any object implementing
+        :class:`~airflow.providers.common.ai.utils.sql_search.SQLTableSearchBackend`. Whatever it
+        returns is filtered through ``allowed_tables``. ``None`` (the default) registers no search tool.
+    :param max_listed_tables: With a ``search_backend``, ``list_tables`` returns only the number of
+        tables and a pointer to ``search_tables`` once there are more than this many. Default ``100``.
+        Without a ``search_backend`` there is no limit.
     """
 
     # Rendered, on a copy, by AgentOperator. Deliberately not ``template_fields``, which
@@ -293,6 +367,9 @@ class SQLToolset(ToolPrefixMixin, AirflowToolset):
         max_columns: int = DEFAULT_MAX_COLUMNS,
         tool_prefix: str = "",
         max_retries: int | None = None,
+        include_table_comments: bool = False,
+        search_backend: SQLTableSearchBackend | None = None,
+        max_listed_tables: int = 100,
     ) -> None:
         self._max_retries = validate_max_retries(max_retries)
         self._set_tool_prefix(tool_prefix)
@@ -319,6 +396,10 @@ class SQLToolset(ToolPrefixMixin, AirflowToolset):
         self._max_rows = max_rows
         self._max_result_bytes = max_result_bytes
         self._max_columns = max_columns
+        self._include_table_comments = include_table_comments
+        self._search_backend = search_backend
+        self._max_listed_tables = max_listed_tables
+        self._catalog: list[TableEntry] | None = None
         self._hook: DbApiHook | None = None
 
         # Canonical ``(catalog, schema, table)`` view of allowed_tables for membership
@@ -384,15 +465,29 @@ class SQLToolset(ToolPrefixMixin, AirflowToolset):
 
     def _get_db_hook(self) -> DbApiHook:
         if self._hook is None:
-            connection = BaseHook.get_connection(self._db_conn_id)
-            hook = connection.get_hook()
+            try:
+                hook = BaseHook.get_connection(self._db_conn_id).get_hook()
+            except Exception as e:
+                raise _build_connection_error(self._db_conn_id, e) from e
             if not isinstance(hook, DbApiHook):
-                raise ValueError(
+                raise SQLToolsetConnectionError(
                     f"Connection {self._db_conn_id!r} does not provide a DbApiHook. "
                     f"Got {type(hook).__name__}."
                 )
+            # DbApiHook.run and every in-tree override connect through get_conn, so this is
+            # where the query tool's connection failures surface.
+            hook.get_conn = _raise_connection_failures(hook.get_conn, self._db_conn_id)  # type: ignore[method-assign]
             self._hook = hook
         return self._hook
+
+    def _get_inspector(self) -> Inspector:
+        hook = self._get_db_hook()
+        # Building the inspector fetches credentials (Databricks), loads the SQLAlchemy dialect
+        # and connects, none of which goes through get_conn.
+        try:
+            return hook.inspector
+        except Exception as e:
+            raise _build_connection_error(self._db_conn_id, e) from e
 
     # ------------------------------------------------------------------
     # AbstractToolset interface
@@ -402,16 +497,30 @@ class SQLToolset(ToolPrefixMixin, AirflowToolset):
         max_retries = self._get_tool_max_retries(ctx)
         tools: dict[str, ToolsetTool[Any]] = {}
 
-        for base, description, schema in (
+        definitions = [
             ("list_tables", "List available table names in the database.", _LIST_TABLES_SCHEMA),
             (
                 "get_schema",
-                build_get_schema_description(tool_name=self._build_tool_name("get_schema")),
+                build_get_schema_description(
+                    tool_name=self._build_tool_name("get_schema"), include_comments=True
+                ),
                 _GET_SCHEMA_SCHEMA,
             ),
             ("query", _QUERY_DESCRIPTION, _QUERY_SCHEMA),
             ("check_query", "Validate SQL syntax without executing it.", _CHECK_QUERY_SCHEMA),
-        ):
+        ]
+        if self._search_backend is not None:
+            definitions.append(
+                (
+                    "search_tables",
+                    "Find tables by words describing the data you need, matched against table names "
+                    "and comments. Returns JSON of the form "
+                    '{"tables": [{"name": ..., "comment": ...}, ...]}; pass a returned name to '
+                    f"{self._build_tool_name('get_schema')}.",
+                    _SEARCH_TABLES_SCHEMA,
+                )
+            )
+        for base, description, schema in definitions:
             # sequential=True keeps pydantic-ai from running these calls concurrently
             # within a turn; run_blocking's process-wide lock serializes them with the
             # blocking calls of the other toolsets that use it.
@@ -442,26 +551,38 @@ class SQLToolset(ToolPrefixMixin, AirflowToolset):
         tool: ToolsetTool[Any],
     ) -> Any:
         base = self._find_base_tool_name(name)
-        if base not in ("list_tables", "get_schema", "query", "check_query"):
+        if base not in self._get_tool_names():
             raise ValueError(f"Unknown tool: {name!r}")
         try:
             return await self.run_blocking(self._run_tool, base, tool_args)
+        except SQLToolsetConnectionError:
+            # Handed to the model as a retry, a connection failure makes it give up and
+            # answer without data, or spend its retries on something no SQL can fix.
+            raise
         except Exception as e:
-            # Hand the database's own error back to the agent as a retry so it can
-            # read the message and fix its SQL within the run. pydantic-ai bounds
-            # this by the tool's max_retries, so an unrecoverable error (a bad
-            # connection, an auth failure) exhausts the budget and fails the task
-            # for Airflow to retry, rather than being silently worked around.
+            if _is_lost_connection(e):
+                raise _build_connection_error(self._db_conn_id, e) from e
+            # The statement failed: hand the database's own error back to the agent so it
+            # can fix its SQL within the run, bounded by the tool's max_retries.
             raise ModelRetry(
                 f"The {name} tool failed: {e}\n"
-                f"Use the {self._build_tool_name('list_tables')} and {self._build_tool_name('get_schema')} tools "
-                "to inspect the database, "
-                "then fix the query and try again."
+                f"Use the {' and '.join(self._build_tool_name(n) for n in self._get_discovery_tool_names())} tools "
+                "to inspect the database, then fix the query and try again."
             ) from e
+
+    def _get_tool_names(self) -> tuple[str, ...]:
+        names = ("list_tables", "get_schema", "query", "check_query")
+        return (*names, "search_tables") if self._search_backend is not None else names
+
+    def _get_discovery_tool_names(self) -> tuple[str, ...]:
+        names = ("list_tables", "get_schema")
+        return (*names, "search_tables") if self._search_backend is not None else names
 
     def _run_tool(self, name: str, tool_args: dict[str, Any]) -> str:
         if name == "list_tables":
             return self._list_tables()
+        if name == "search_tables":
+            return self._search_tables(tool_args["query"], tool_args.get("limit"))
         if name == "get_schema":
             return self._get_schema(tool_args["table_name"], tool_args.get("name_contains"))
         if name == "query":
@@ -479,9 +600,10 @@ class SQLToolset(ToolPrefixMixin, AirflowToolset):
             return self._schema, table_name
         return schema, table
 
-    def _list_tables(self) -> str:
-        hook = self._get_db_hook()
-        tables: list[str] = []
+    def _find_allowed_tables(self) -> list[tuple[str | None, str, str]]:
+        """Introspect the exposed schemas; return ``(schema, name, display name)`` per allowed table."""
+        inspector = self._get_inspector()
+        tables: list[tuple[str | None, str, str]] = []
         # Dedupe by (schema, table) so a table reachable both qualified and via the
         # default schema (e.g. "public.users" and "users" with schema="public") is
         # listed once. Case-folded because databases reflect identifiers in their case.
@@ -491,40 +613,146 @@ class SQLToolset(ToolPrefixMixin, AirflowToolset):
             key = self._canonical_ref("", schema, name)
             if self._is_ref_allowed("", schema, name) and key not in seen:
                 seen.add(key)
-                tables.append(display)
+                tables.append((schema, name, display))
 
         # Schemas referenced by qualified allowed_tables entries: introspect each
         # and return matching tables fully qualified so they round-trip to get_schema.
         for schema in sorted(self._qualified_schemas):
-            for name in hook.inspector.get_table_names(schema=schema):
+            for name in inspector.get_table_names(schema=schema):
                 add(schema, name, f"{schema}.{name}")
 
         # Default schema: used for allow-all and unqualified allowed_tables entries.
         # Names stay bare to preserve the single-schema behaviour.
         if self._include_default_schema:
-            for name in hook.inspector.get_table_names(schema=self._schema):
+            for name in inspector.get_table_names(schema=self._schema):
                 add(self._schema, name, name)
+        return tables
 
-        return dumps_masked(tables)
+    def _list_tables(self) -> str:
+        tables = self._find_allowed_tables()
+        if self._search_backend is not None and len(tables) > self._max_listed_tables:
+            return dumps_masked(
+                {
+                    "table_count": len(tables),
+                    "hint": (
+                        f"There are {len(tables)} tables, too many to list (the limit is "
+                        f"{self._max_listed_tables}). Use {self._build_tool_name('search_tables')} to find the ones you need."
+                    ),
+                }
+            )
+        if not self._include_table_comments:
+            return dumps_masked([display for _, _, display in tables])
+        return dumps_masked(
+            [
+                {"name": name, **({"comment": truncate_comment(comment)} if comment else {})}
+                for name, comment in self._get_table_entries(tables)
+            ]
+        )
+
+    def _get_table_entries(self, tables: list[tuple[str | None, str, str]]) -> list[TableEntry]:
+        """Pair each table's display name with its full comment, registered secrets masked, read once per schema."""
+        inspector = self._get_inspector()
+        names_by_schema: dict[str | None, list[str]] = {}
+        for table_schema, name, _ in tables:
+            names_by_schema.setdefault(table_schema, []).append(name)
+        # Names come from `tables` (as reflected), not from allowed_tables: SQLAlchemy's
+        # filter_names match is case-sensitive while allowed_tables matching is not.
+        comments = {
+            table_schema: self._get_table_comments(
+                inspector, table_schema, None if self._allowed_canonical is None else names
+            )
+            for table_schema, names in names_by_schema.items()
+        }
+        # Full text so search sees the whole comment; masked because the catalog is handed to `search_backend`.
+        return [
+            (display, mask_secrets(comment) if (comment := comments[table_schema].get(name)) else None)
+            for table_schema, name, display in tables
+        ]
+
+    def _get_catalog(self) -> list[TableEntry]:
+        """Return the exposed tables with comments, introspected on first use and kept for this toolset."""
+        if self._catalog is None:
+            self._catalog = self._get_table_entries(self._find_allowed_tables())
+        return self._catalog
+
+    def _search_tables(self, query: str, limit: int | None) -> str:
+        if self._search_backend is None:
+            raise ValueError("search_tables requires a search_backend")
+        # The schema's maximum is only advice to the model; the cap has to hold here.
+        limit = min(max(_DEFAULT_SEARCH_LIMIT if limit is None else limit, 1), _MAX_SEARCH_LIMIT)
+        found = self._search_backend.search_tables(query, limit, get_catalog=self._get_catalog)
+        tables: list[dict[str, str]] = []
+        for display, comment in found:
+            schema, table = self._split_table_identifier(display)
+            if not self._is_ref_allowed("", schema, table):
+                continue
+            tables.append({"name": display, **({"comment": truncate_comment(comment)} if comment else {})})
+            if len(tables) == limit:
+                break
+        return dumps_masked({"tables": tables})
+
+    @staticmethod
+    def _get_table_comments(
+        inspector: Inspector, schema: str | None, table_names: Sequence[str] | None
+    ) -> dict[str, str]:
+        """
+        Return ``{table name: comment}`` for a schema in one call; empty when the dialect has none.
+
+        ``table_names`` limits the read to those tables; ``None`` reads the whole schema.
+        """
+        # SQLAlchemy 1.4, which common-sql still supports, has no get_multi_table_comment.
+        # Reading comments one table at a time instead would cost a query per table, so
+        # on 1.4 the tables simply come back without comments.
+        if (get_comments := getattr(inspector, "get_multi_table_comment", None)) is None:
+            return {}
+        try:
+            reflected = get_comments(schema=schema, filter_names=table_names)
+        except NotImplementedError:
+            return {}
+        except Exception as e:
+            # A lost connection is not degraded: the result is cached by the search catalog.
+            if _is_lost_connection(e):
+                raise
+            # Unreadable comments (a role without access to the comment catalog, a driver
+            # error) must not take the table names down with them.
+            log.debug("Could not read the table comments of schema %s", schema, exc_info=True)
+            return {}
+        return {name: text for (_, name), info in reflected.items() if (text := info.get("text"))}
 
     def _get_schema(self, table_name: str, name_contains: str | None = None) -> str:
         schema, table = self._split_table_identifier(table_name)
         if not self._is_ref_allowed("", schema, table):
             return dumps_masked({"error": f"Table {table_name!r} is not in the allowed tables list."})
+        # Called only for its side effect: SQLAlchemy setup failures surface here as
+        # SQLToolsetConnectionError; dropping it lets them escape the hook as plain errors.
+        self._get_inspector()
         hook = self._get_db_hook()
-        columns = hook.get_table_schema(table, schema=schema)
+        columns = hook.get_table_columns_with_comments(table, schema=schema)
+        table_comment: str | None = None
+        # Broad on purpose: a hook-level failure reading only the comment must not
+        # take get_schema down when the columns were read fine.
+        try:
+            table_comment = hook.get_table_comment(table, schema=schema)
+        except Exception:
+            log.debug("Could not read the comment of table %s", table, exc_info=True)
         return build_schema_result(
             columns,
             max_columns=self._max_columns,
             max_result_bytes=self._max_result_bytes,
             name_contains=name_contains,
             tool_name=self._build_tool_name("get_schema"),
+            table_comment=table_comment,
         )
 
     def _dialect_for_validation(self) -> str | None:
         """Resolve the hook's sqlglot dialect so DESCRIBE/SHOW validate correctly."""
         hook = self._get_db_hook()
-        return resolve_sqlglot_dialect(getattr(hook, "dialect_name", None))
+        # dialect_name builds the hook's URI, which can fetch credentials (Databricks).
+        try:
+            dialect_name = getattr(hook, "dialect_name", None)
+        except Exception as e:
+            raise _build_connection_error(self._db_conn_id, e) from e
+        return resolve_sqlglot_dialect(dialect_name)
 
     def _query(self, sql: str) -> str:
         hook = self._get_db_hook()

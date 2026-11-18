@@ -21,12 +21,12 @@
 
 Write Apache Airflow Dags in TypeScript, and run them on Node.js.
 
-**Status:** 1.0.0-beta2 · API may change · Node 22+ · ESM-only
+**Status:** Experimental · API may change · Node 22+ · ESM-only
 
 ## Installation
 
 ```bash
-npm install @apache-airflow/ts-sdk@1.0.0-beta2
+npm install @apache-airflow/ts-sdk@1.0.0
 npm install --save-dev esbuild
 ```
 
@@ -116,6 +116,7 @@ Do not edit the table by hand. Update the manifest and run the `update-ts-sdk-re
 | **Task runtime** |  |  |  |  |  |
 | capability: `task-logging` | MUST | ✓ | 3.4.0 | 1.0.0 | structured records over the log socket |
 | capability: `xcom-read-write` | MUST | ✓ | 3.4.0 | 1.0.0 | getXCom / setXCom |
+| capability: `custom-xcom-backend` | MAY | ✓ | 3.5.0 | 1.0.0 | the supervisor runs the configured [core] xcom_backend |
 | capability: `connection-read` | MUST | ✓ | 3.4.0 | 1.0.0 | getConnection |
 | capability: `variable-read-write` | MUST | ✓ | 3.4.0 | 1.0.0 | getVariable / setVariable / deleteVariable |
 | capability: `self-contained-bundle` | MUST | ✓ | 3.4.0 | 1.0.0 | Airflow metadata embedded in the bundle |

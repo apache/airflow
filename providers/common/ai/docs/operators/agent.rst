@@ -431,9 +431,12 @@ Parameters
 - ``durable``: When ``True``, records each step the agent completes (model
   requests, tool calls, other capabilities' ``@durable_operation`` methods) in a
   journal kept for the task instance, and replays the recorded steps on retry
-  instead of running them again. Every ``FunctionToolset``, ``MCPToolset`` and
-  ``DynamicToolset`` needs an ``id``. On Airflow >= 3.3 the journal uses the task
-  state store (no configuration needed); on older Airflow versions it requires the
+  instead of running them again. A pydantic-ai ``MCPToolset`` needs an ``id``. A
+  ``FunctionToolset`` or a function that builds a toolset, passed in ``toolsets`` or
+  ``agent_params["toolsets"]``, needs none, and neither does a ``FunctionToolset`` held
+  directly by a ``Toolset`` capability (:ref:`durable-toolset-ids`). On Airflow >= 3.3
+  the journal uses the task state store (no configuration needed); on older Airflow
+  versions it requires the
   ``[common.ai] durable_cache_path`` config option to be set. Default ``False``. A replayed
   step adds nothing to the usage counted against ``usage_limits`` or reported
   in the ``usage`` XCom -- not its request, tokens, cost, or tool calls -- so
@@ -463,8 +466,9 @@ Parameters
 
 **HITL review parameters**: ``enable_hitl_review``, ``max_hitl_iterations``,
 ``hitl_timeout`` and ``hitl_poll_interval`` turn on and bound the iterative review
-loop, which needs the ``hitl_review`` plugin. :doc:`../hitl_review` documents each
-parameter and the review workflow.
+loop, which needs the ``hitl_review`` plugin. On Airflow 3.3+ the task waits for the
+reviewer in the ``awaiting_input`` state and holds no worker slot. :doc:`../hitl_review`
+documents each parameter and the review workflow.
 
 Logging
 -------
