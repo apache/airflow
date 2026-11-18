@@ -130,9 +130,6 @@ apache-airflow = "airflow.__main__:main"
 "apache.flink" = [
     "apache-airflow-providers-apache-flink>=1.6.0"
 ]
-"apache.hbase" = [
-    "apache-airflow-providers-apache-hbase>=1.1.0"
-]
 "apache.hdfs" = [
     "apache-airflow-providers-apache-hdfs>=4.6.0"
 ]
@@ -441,7 +438,6 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-apache-drill>=2.8.1",
     "apache-airflow-providers-apache-druid>=3.12.0",
     "apache-airflow-providers-apache-flink>=1.6.0",
-    "apache-airflow-providers-apache-hbase>=1.1.0",
     "apache-airflow-providers-apache-hdfs>=4.6.0",
     "apache-airflow-providers-apache-hive>=8.2.1",
     "apache-airflow-providers-apache-iceberg>=1.2.0",
