@@ -59,6 +59,10 @@ class DatabricksApiError(AirflowException):
         self.error_code = error_code
 
 
+class DatabricksDeltaTableError(AirflowException):
+    """Raised when a Delta table cannot be read or its version cannot be determined."""
+
+
 class DatabricksUnityMCPError(DatabricksApiError):
     """Raised when a call to a Unity Gateway MCP Service fails."""
 
