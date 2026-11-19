@@ -23,6 +23,7 @@ import threading
 import time
 from contextlib import AsyncExitStack
 from datetime import UTC, datetime
+from typing import Any
 from unittest import mock
 
 import httpx2
@@ -100,7 +101,8 @@ def _prompt_of(messages: list[ModelMessage]) -> str:
 
 
 # Anthropic's strict JSON-schema mode refuses more than 24 optional fields and recursive types.
-WIDE = create_model("Wide", **{f"field_{i}": (str | None, None) for i in range(25)})
+_WIDE_FIELDS: dict[str, Any] = {f"field_{i}": (str | None, None) for i in range(25)}
+WIDE = create_model("Wide", **_WIDE_FIELDS)
 
 
 class Node(BaseModel):
