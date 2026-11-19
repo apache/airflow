@@ -74,7 +74,7 @@ def get_provider_info():
             },
             {
                 "hook-class-name": "airflow.providers.apache.hbase.hooks.hbase_cli.HBaseCLIHook",
-                "connection-type": "hbase",
+                "connection-type": "hbase_cli",
             },
         ],
     }

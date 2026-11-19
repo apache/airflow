@@ -86,4 +86,19 @@ connection-types:
             }
           }
   - hook-class-name: airflow.providers.apache.hbase.hooks.hbase_cli.HBaseCLIHook
-    connection-type: hbase
+    connection-type: hbase_cli
+    ui-field-behaviour:
+      hidden-fields:
+        - schema
+        - port
+        - login
+        - password
+      relabeling:
+        host: HBase Host
+      placeholders:
+        host: localhost
+        extra: |
+          {
+            "java_home": "/usr/lib/jvm/java-8-openjdk-amd64",
+            "hbase_home": "/usr/lib/hbase"
+          }

@@ -78,7 +78,7 @@ def decide_backup_type(**_context) -> str:
     Returns:
         Task ID to execute next
     """
-    hook = HBaseCLIHook(hbase_conn_id="hbase_thrift2")
+    hook = HBaseCLIHook(hbase_conn_id="hbase_cli_default")
     history = hook.get_backup_history()  # Get full history without filter
 
     # Check if there are any backups for our table
@@ -113,7 +113,7 @@ with DAG(
         action=BackupSetAction.ADD,
         backup_set_name="test_backup_set_v2",
         tables=["test_table_backup_v2"],
-        hbase_conn_id="hbase_thrift2",
+        hbase_conn_id="hbase_cli_default",
     )
 
     # Decide backup type based on history
@@ -133,7 +133,7 @@ with DAG(
         backup_path="hdfs:///hbase/backup",  # HDFS URI
         backup_set_name="test_backup_set_v2",
         workers=1,
-        hbase_conn_id="hbase_thrift2",
+        hbase_conn_id="hbase_cli_default",
         do_xcom_push=True,  # Push backup ID to XCom
     )
 
@@ -145,7 +145,7 @@ with DAG(
         backup_path="hdfs:///hbase/backup",  # Same path as FULL
         backup_set_name="test_backup_set_v2",
         workers=1,
-        hbase_conn_id="hbase_thrift2",
+        hbase_conn_id="hbase_cli_default",
         do_xcom_push=True,  # Push backup ID to XCom
     )
 
@@ -153,7 +153,7 @@ with DAG(
     get_backup_history = HBaseBackupHistoryOperator(
         task_id="get_backup_history",
         backup_set_name="test_backup_set_v2",
-        hbase_conn_id="hbase_thrift2",
+        hbase_conn_id="hbase_cli_default",
         trigger_rule="none_failed_min_one_success",
     )
 

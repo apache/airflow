@@ -315,7 +315,7 @@ class HBaseBackupSetOperator(BaseOperator):
         action: BackupSetAction,
         backup_set_name: str | None = None,
         tables: list[str] | None = None,
-        hbase_conn_id: str = HBaseThriftHook.default_conn_name,
+        hbase_conn_id: str = HBaseCLIHook.default_conn_name,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -372,7 +372,7 @@ class HBaseCreateBackupOperator(BaseOperator):
         backup_set_name: str | None = None,
         tables: list[str] | None = None,
         workers: int = 3,
-        hbase_conn_id: str = HBaseThriftHook.default_conn_name,
+        hbase_conn_id: str = HBaseCLIHook.default_conn_name,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -454,7 +454,7 @@ class HBaseRestoreOperator(BaseOperator):
         backup_set_name: str | None = None,
         tables: list[str] | None = None,
         overwrite: bool = False,
-        hbase_conn_id: str = HBaseThriftHook.default_conn_name,
+        hbase_conn_id: str = HBaseCLIHook.default_conn_name,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -500,7 +500,7 @@ class HBaseBackupHistoryOperator(BaseOperator):
         self,
         backup_set_name: str | None = None,
         backup_path: str | None = None,
-        hbase_conn_id: str = HBaseThriftHook.default_conn_name,
+        hbase_conn_id: str = HBaseCLIHook.default_conn_name,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)

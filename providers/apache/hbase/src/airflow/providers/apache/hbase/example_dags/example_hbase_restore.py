@@ -158,7 +158,7 @@ restore_backup = HBaseRestoreOperator(
     backup_id="{{ params.backup_id }}",
     tables=["test_table_backup_v2"],
     overwrite=True,
-    hbase_conn_id="hbase_thrift2",
+    hbase_conn_id="hbase_cli_default",
     do_xcom_push=True,
     dag=dag,
 )

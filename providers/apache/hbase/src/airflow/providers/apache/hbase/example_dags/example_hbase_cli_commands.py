@@ -32,7 +32,7 @@ from airflow.providers.standard.operators.python import PythonOperator
 
 logger = logging.getLogger(__name__)
 
-HBASE_CONN_ID = "hbase_thrift2"
+HBASE_CONN_ID = "hbase_cli_default"
 
 
 def describe_backup_set(**context):

@@ -49,9 +49,9 @@ class HBaseCLIHook(BaseHook):
     """
 
     conn_name_attr = "hbase_conn_id"
-    default_conn_name = "hbase_default"
-    conn_type = "hbase"
-    hook_name = "HBase Administration"
+    default_conn_name = "hbase_cli_default"
+    conn_type = "hbase_cli"
+    hook_name = "HBase Administration (CLI)"
 
     def __init__(
         self,
