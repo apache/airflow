@@ -27,6 +27,7 @@ import requests
 from airflow.providers.common.ai.toolsets import ManagedAgentToolset
 from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
 from airflow.providers.databricks.hooks import genie as genie_module
+from airflow.providers.databricks.hooks.databricks_base import _TokenAuth
 from airflow.providers.databricks.hooks.genie import (
     DatabricksGenieError,
     DatabricksGenieHook,
@@ -213,6 +214,31 @@ class TestDatabricksGenieHook:
 
         assert request.call_count == 1
         assert "secret-token" not in str(error.value)
+
+    def test_token_request_uses_token_auth_so_netrc_cannot_override_bearer(self):
+        """_TokenAuth keeps requests from applying ~/.netrc over the bearer token."""
+        hook = DatabricksGenieHook()
+        hook._endpoint_url = mock.Mock(return_value="https://workspace/api/2.0/genie/message")
+        hook.user_agent_header = {}
+        hook._get_aad_headers = mock.Mock(return_value={})
+        hook._get_token = mock.Mock(return_value="secret-token")
+        hook._get_requests_kwargs = mock.Mock(return_value={})
+        response = requests.Response()
+        response.status_code = 200
+        response._content = b'{"status":"COMPLETED"}'
+        response._content_consumed = True
+        response.url = "https://workspace/api/2.0/genie/message"
+
+        with mock.patch(
+            "airflow.providers.databricks.hooks.genie.requests.request",
+            return_value=response,
+        ) as request:
+            assert hook._request("GET", "message", retry_read=True) == {"status": "COMPLETED"}
+
+        auth = request.call_args.kwargs["auth"]
+        assert isinstance(auth, _TokenAuth)
+        assert auth.token == "secret-token"
+        assert "Authorization" not in request.call_args.kwargs["headers"]
 
     def test_get_read_is_retried_after_a_server_error(self):
         hook = DatabricksGenieHook(retry_limit=2, retry_delay=0.001)

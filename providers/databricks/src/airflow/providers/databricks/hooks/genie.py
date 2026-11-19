@@ -31,7 +31,7 @@ from airflow.providers.common.compat.sdk import (
     AirflowException,
     AirflowOptionalProviderFeatureException,
 )
-from airflow.providers.databricks.hooks.databricks_base import BaseDatabricksHook
+from airflow.providers.databricks.hooks.databricks_base import BaseDatabricksHook, _TokenAuth
 
 if TYPE_CHECKING:
     from airflow.providers.common.ai.managed_agents.base import (
@@ -282,10 +282,11 @@ class DatabricksGenieHook(BaseDatabricksHook, BaseManagedAgentHook):
                 "Databricks Genie requires HTTPS so connection credentials are not sent in cleartext."
             )
         headers = {**self.user_agent_header, **self._get_aad_headers()}
+        # Pass _TokenAuth (not auth=None with a Bearer header) so requests does not
+        # apply a matching ~/.netrc entry and overwrite the token with Basic auth.
         token = self._get_token()
-        auth = None
         if token:
-            headers["Authorization"] = f"Bearer {token}"
+            auth = _TokenAuth(token)
         else:
             auth = HTTPBasicAuth(self._get_connection_attr("login"), self.databricks_conn.password)
 
