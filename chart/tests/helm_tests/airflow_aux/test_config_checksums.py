@@ -18,15 +18,6 @@ from __future__ import annotations
 
 from chart_utils.helm_template_generator import render_chart
 
-# The checksum/* annotations exist so that a configuration change restarts the component that
-# reads it. Hashing the whole rendered manifest also pulled in metadata.labels, which carry
-# helm.sh/chart, so the checksums moved on a chart version bump and every component restarted
-# even though nothing it reads had changed.
-
-# A label added through the `labels` value lands in the same metadata.labels block as
-# chart: "airflow-<version>", so it stands in for the chart version, which is not settable
-# through values.
-#
 # jwtSecret and the metadata connection password are generated when not supplied, which would
 # make any two renders differ for reasons unrelated to the configuration.
 STABLE_VALUES = {
