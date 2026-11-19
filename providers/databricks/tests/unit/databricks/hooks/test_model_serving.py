@@ -26,10 +26,12 @@ import importlib
 import json
 import sys
 import threading
+from importlib.metadata import version as get_package_version
 from unittest import mock
 
 import httpx2
 from openai import AsyncOpenAI
+from packaging.version import Version
 from pydantic_ai import Agent
 from pydantic_ai.exceptions import ModelAPIError
 from pydantic_ai.messages import ModelResponse, TextPart
@@ -58,6 +60,9 @@ DATABRICKS_CONN_URI = Connection(conn_type="pydanticai_databricks", extra=CONNEC
 LEFTOVER_PASSWORD_CONN_URI = Connection(
     conn_type="pydanticai_databricks", password="leftover-password", extra=CONNECTION_EXTRA
 ).get_uri()
+# openai before 3.15.0 wraps any exception raised while sending a request, including one from an
+# httpx2 auth, in APIConnectionError; from 3.15.0 only httpx2 request errors are wrapped.
+_OPENAI_WRAPS_EVERY_SEND_ERROR = Version(get_package_version("openai")) < Version("3.15.0")
 PRIMARY_CONN_URI = Connection(
     conn_type="pydanticai",
     password="sk-test",
@@ -598,7 +603,11 @@ class TestGetConn:
     @pytest.mark.parametrize("kind", ["retry_exhausted_explicit_cause", "not_configured"])
     @pytest.mark.asyncio
     async def test_fallback_chain_depends_on_token_failure_kind(self, mock_hook_cls, kind):
-        """Only a token endpoint that stays unreachable fails over; a misconfigured one fails the task."""
+        """Only a token endpoint that stays unreachable fails over; a misconfigured one fails the task.
+
+        The second half needs openai>=3.15.0: older clients turn the auth's own exception into
+        APIConnectionError, which the fallback model treats like an unreachable endpoint.
+        """
         error, is_transient = _token_errors_by_kind()[kind]
         mock_hook = _mock_databricks_hook(mock_hook_cls)
         mock_hook._get_token.side_effect = error
@@ -625,7 +634,7 @@ class TestGetConn:
         )
         model = FallbackModel(first, FunctionModel(fallback_response), fallback_on=(ModelAPIError,))
 
-        if is_transient:
+        if is_transient or _OPENAI_WRAPS_EVERY_SEND_ERROR:
             result = await Agent(model).run("hello")
             assert result.output == "from fallback"
         else:
