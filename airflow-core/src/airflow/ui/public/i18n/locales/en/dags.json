@@ -22,6 +22,7 @@
     },
     "favoriteState": "Favorite state",
     "favoriteStatePlaceholder": "Select favorite state…",
+    "hasImportErrors": "Has import errors",
     "noTimetableTypesFound": "No timetable types found",
     "paused": {
       "active": "Not paused",
