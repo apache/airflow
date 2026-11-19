@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import jmespath
 import pytest
+import yaml
 from chart_utils.helm_template_generator import HelmFailedError, render_chart
 from chart_utils.log_groomer import LogGroomerTestBase
 
@@ -167,12 +168,24 @@ class TestWorker:
             ({"persistence": {"enabled": True, "subPath": "test/logs"}}, "test/logs"),
         ],
     )
-    def test_logs_mount_on_wait_for_migrations_initcontainer(self, logs_values, expect_sub_path):
+    @pytest.mark.parametrize(
+        ("airflow_home", "expected_logs_mount_path"),
+        [
+            (None, "/opt/airflow/logs"),
+            ("/usr/local/airflow", "/usr/local/airflow/logs"),
+        ],
+    )
+    def test_logs_mount_on_wait_for_migrations_initcontainer(
+        self, logs_values, expect_sub_path, airflow_home, expected_logs_mount_path
+    ):
+        values = {
+            "executor": "CeleryExecutor",
+            "logs": logs_values,
+        }
+        if airflow_home is not None:
+            values["airflowHome"] = airflow_home
         docs = render_chart(
-            values={
-                "executor": "CeleryExecutor",
-                "logs": logs_values,
-            },
+            values=values,
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
@@ -183,11 +196,16 @@ class TestWorker:
         assert mounts is not None, (
             "wait-for-airflow-migrations initContainer not found or has no volumeMounts"
         )
-        assert any(m.get("name") == "logs" and m.get("mountPath") == "/opt/airflow/logs" for m in mounts)
+        main_container_logs_mount_path = jmespath.search(
+            "spec.template.spec.containers[?name=='worker'] | [0].volumeMounts[?name=='logs'] | [0].mountPath",
+            docs[0],
+        )
+        assert main_container_logs_mount_path == expected_logs_mount_path
+        assert any(m.get("name") == "logs" and m.get("mountPath") == expected_logs_mount_path for m in mounts)
         if expect_sub_path is not None:
             assert any(
                 m.get("name") == "logs"
-                and m.get("mountPath") == "/opt/airflow/logs"
+                and m.get("mountPath") == expected_logs_mount_path
                 and m.get("subPath") == expect_sub_path
                 for m in mounts
             )
@@ -712,6 +730,36 @@ class TestWorker:
         livenessprobe = jmespath.search("spec.template.spec.containers[0].livenessProbe", docs[0])
         assert livenessprobe is None
 
+    def test_livenessprobe_termination_grace_period_unset_by_default(self):
+        docs = render_chart(show_only=["templates/workers/worker-deployment.yaml"])
+
+        assert (
+            jmespath.search(
+                "spec.template.spec.containers[0].livenessProbe.terminationGracePeriodSeconds", docs[0]
+            )
+            is None
+        )
+
+    def test_livenessprobe_termination_grace_period(self):
+        docs = render_chart(
+            values={"workers": {"celery": {"livenessProbe": {"terminationGracePeriodSeconds": 120}}}},
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        assert (
+            jmespath.search(
+                "spec.template.spec.containers[0].livenessProbe.terminationGracePeriodSeconds", docs[0]
+            )
+            == 120
+        )
+
+    def test_livenessprobe_termination_grace_period_rejects_zero(self):
+        with pytest.raises(HelmFailedError):
+            render_chart(
+                values={"workers": {"celery": {"livenessProbe": {"terminationGracePeriodSeconds": 0}}}},
+                show_only=["templates/workers/worker-deployment.yaml"],
+            )
+
     def test_extra_init_container_restart_policy_is_configurable(self):
         docs = render_chart(
             values={
@@ -822,107 +870,9 @@ class TestWorker:
             "mountPath": "/opt/airflow/config/airflow_local_settings.py",
             "subPath": "airflow_local_settings.py",
             "readOnly": True,
-        } in jmespath.search("spec.template.spec.containers[2].volumeMounts", docs[0])
-
-    def test_kerberos_init_container_default(self):
-        docs = render_chart(show_only=["templates/workers/worker-deployment.yaml"])
-        assert (
-            jmespath.search("spec.template.spec.initContainers[?name=='kerberos-init'] | [0]", docs[0])
-            is None
+        } in jmespath.search(
+            "spec.template.spec.initContainers[?name=='worker-kerberos'] | [0].volumeMounts", docs[0]
         )
-
-    def test_kerberos_init_container_default_different_versions(self):
-        docs = render_chart(
-            show_only=["templates/workers/worker-deployment.yaml"],
-        )
-
-        assert (
-            jmespath.search("spec.template.spec.initContainers[?name=='kerberos-init'] | [0]", docs[0])
-            is None
-        )
-
-    def test_kerberos_init_container_enable(self):
-        docs = render_chart(
-            values={
-                "workers": {"celery": {"kerberosInitContainer": {"enabled": True}}},
-            },
-            show_only=["templates/workers/worker-deployment.yaml"],
-        )
-
-        assert (
-            jmespath.search("spec.template.spec.initContainers[?name=='kerberos-init'] | [0]", docs[0])
-            is not None
-        )
-
-    def test_kerberos_init_container_name_and_args_default(self):
-        docs = render_chart(
-            values={
-                "workers": {
-                    "celery": {"kerberosInitContainer": {"enabled": True}},
-                },
-            },
-            show_only=["templates/workers/worker-deployment.yaml"],
-        )
-
-        initContainers = jmespath.search(
-            "spec.template.spec.initContainers[?name=='kerberos-init'] | [0]", docs[0]
-        )
-
-        assert initContainers["name"] == "kerberos-init"
-        assert initContainers["args"] == ["kerberos", "-o"]
-
-    def test_kerberos_init_container_resources(self):
-        docs = render_chart(
-            values={
-                "workers": {
-                    "celery": {
-                        "kerberosInitContainer": {
-                            "enabled": True,
-                            "resources": {
-                                "requests": {"cpu": "1m", "memory": "2Mi"},
-                                "limits": {"cpu": "3m", "memory": "4Mi"},
-                            },
-                        }
-                    }
-                },
-            },
-            show_only=["templates/workers/worker-deployment.yaml"],
-        )
-
-        assert jmespath.search(
-            "spec.template.spec.initContainers[?name=='kerberos-init'] | [0].resources", docs[0]
-        ) == {
-            "requests": {
-                "cpu": "1m",
-                "memory": "2Mi",
-            },
-            "limits": {
-                "cpu": "3m",
-                "memory": "4Mi",
-            },
-        }
-
-    def test_kerberos_init_container_lifecycle_hooks(self):
-        docs = render_chart(
-            name="test-release",
-            values={
-                "workers": {
-                    "celery": {
-                        "kerberosInitContainer": {
-                            "enabled": True,
-                            "containerLifecycleHooks": {
-                                "postStart": {"exec": {"command": ["echo", "{{ .Release.Name }}"]}}
-                            },
-                        }
-                    }
-                }
-            },
-            show_only=["templates/workers/worker-deployment.yaml"],
-        )
-
-        assert jmespath.search(
-            "spec.template.spec.initContainers[?name=='kerberos-init'] | [0].lifecycle", docs[0]
-        ) == {"postStart": {"exec": {"command": ["echo", "test-release"]}}}
 
     @pytest.mark.parametrize("readonly_cache", [False, True])
     def test_kerberos_readonly_cache(self, readonly_cache: bool):
@@ -1923,6 +1873,25 @@ class TestWorkerService:
 
         assert jmespath.search("spec.ipFamilyPolicy", docs[0]) is None
         assert jmespath.search("spec.ipFamilies", docs[0]) is None
+
+    def test_selector_excludes_kubernetes_executor_pods(self):
+        docs = render_chart(
+            values={"executor": "KubernetesExecutor,CeleryExecutor"},
+            show_only=[
+                "templates/configmaps/configmap.yaml",
+                "templates/workers/worker-deployment.yaml",
+                "templates/workers/worker-service.yaml",
+            ],
+        )
+
+        configmap, worker, service = docs
+        selector = jmespath.search("spec.selector", service).items()
+        celery_pod_labels = jmespath.search("spec.template.metadata.labels", worker).items()
+        pod_template = yaml.safe_load(jmespath.search('data."pod_template_file.yaml"', configmap))
+        kubernetes_pod_labels = jmespath.search("metadata.labels", pod_template).items()
+
+        assert selector <= celery_pod_labels
+        assert not selector <= kubernetes_pod_labels
 
 
 class TestWorkerCeleryServiceAccount:

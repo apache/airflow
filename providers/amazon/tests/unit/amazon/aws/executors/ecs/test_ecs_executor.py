@@ -16,19 +16,23 @@
 # under the License.
 from __future__ import annotations
 
+import contextlib
 import datetime as dt
 import json
 import logging
 import os
 import re
+import threading
 import time
 from collections.abc import Callable
+from concurrent.futures import Future, wait
 from functools import partial
 from unittest import mock
 from unittest.mock import MagicMock, patch
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
+import time_machine
 import yaml
 from botocore.exceptions import ClientError
 from inflection import camelize
@@ -48,6 +52,7 @@ from airflow.providers.amazon.aws.executors.ecs.ecs_executor import (
 from airflow.providers.amazon.aws.executors.ecs.utils import (
     CONFIG_DEFAULTS,
     EcsExecutorTask,
+    EcsQueuedTask,
     _recursive_flatten_dict,
     parse_assign_public_ip,
 )
@@ -59,7 +64,18 @@ from airflow.version import version as airflow_version_str
 
 from tests_common import RUNNING_TESTS_AGAINST_AIRFLOW_PACKAGES
 from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_3_PLUS
+from tests_common.test_utils.version_compat import (
+    AIRFLOW_V_3_0_PLUS,
+    AIRFLOW_V_3_1_PLUS,
+    AIRFLOW_V_3_3_PLUS,
+    AIRFLOW_V_3_4_PLUS,
+)
+
+if hasattr(BaseExecutor, "get_task_key"):
+    from airflow.executors.workloads.types import TaskInstanceUuid
+
+    if not AIRFLOW_V_3_4_PLUS:
+        from airflow.models.taskinstancehistory import TaskInstanceHistory
 
 airflow_version = VersionInfo(*map(int, airflow_version_str.split(".")[:3]))
 
@@ -420,12 +436,25 @@ class TestAwsEcsExecutor:
 
         workload = mock.Mock(spec=ExecuteTask)
         workload.ti = mock.Mock(spec=TaskInstance)
+        workload.ti.id = uuid4()
         workload.ti.key = mock_airflow_key()
         tags_exec_config = [{"key": "FOO", "value": "BAR"}]
         workload.ti.executor_config = {"tags": tags_exec_config}
         ser_workload = json.dumps({"test_key": "test_value"})
         workload.model_dump_json.return_value = ser_workload
 
+        if AIRFLOW_V_3_4_PLUS:
+            from airflow.executors.workloads.base import WorkloadType
+
+            workload.type = WorkloadType.EXECUTE_TASK
+            workload.key = workload.ti.key
+            task_queue = mock_executor.executor_queues[WorkloadType.EXECUTE_TASK]
+        else:
+            task_queue = mock_executor.queued_tasks
+
+        executor_key = (
+            TaskInstanceUuid(workload.ti.id) if mock_executor.supports_task_instance_uuid else workload.ti.key
+        )
         mock_executor.queue_workload(workload, mock.Mock())
 
         mock_executor.ecs.run_task.return_value = {
@@ -440,13 +469,13 @@ class TestAwsEcsExecutor:
             "failures": [],
         }
 
-        assert mock_executor.queued_tasks[workload.ti.key] == workload
+        assert task_queue[executor_key] == workload
         assert len(mock_executor.pending_workloads) == 0
         assert len(mock_executor.running) == 0
         mock_executor._process_workloads([workload])
-        assert len(mock_executor.queued_tasks) == 0
+        assert len(task_queue) == 0
         assert len(mock_executor.running) == 1
-        assert workload.ti.key in mock_executor.running
+        assert executor_key in mock_executor.running
         assert len(mock_executor.pending_workloads) == 1
         assert mock_executor.pending_workloads[0].command == [
             "python",
@@ -497,9 +526,9 @@ class TestAwsEcsExecutor:
 
         # Task is stored in active worker.
         assert len(mock_executor.active_workers) == 1
-        assert ARN1 in mock_executor.active_workers.task_by_key(workload.ti.key).task_arn
+        assert ARN1 in mock_executor.active_workers.task_by_key(executor_key).task_arn
         change_state_mock.assert_called_once_with(
-            workload.ti.key, TaskInstanceState.RUNNING, ARN1, remove_running=False
+            executor_key, TaskInstanceState.RUNNING, ARN1, remove_running=False
         )
 
     @mock.patch.object(ecs_executor, "calculate_next_attempt_delay", return_value=dt.timedelta(seconds=0))
@@ -1202,7 +1231,7 @@ class TestAwsEcsExecutor:
             # The task is removed from active_workers in this state
             assert len(mock_executor.active_workers) == 0
 
-    def test_update_running_tasks_success(self, mock_executor):
+    def test_update_running_tasks_success(self, mock_executor, mocker):
         self._add_mock_task(mock_executor, ARN1)
         test_response_task_json = {
             "taskArn": ARN1,
@@ -1217,16 +1246,13 @@ class TestAwsEcsExecutor:
                 }
             ],
         }
-        patcher = mock.patch(
-            "airflow.providers.amazon.aws.executors.ecs.ecs_executor.AwsEcsExecutor.success", auth_spec=True
-        )
-        mock_success_function = patcher.start()
+        mock_success_function = mocker.patch.object(AwsEcsExecutor, "success", autospec=True)
         mock_executor.ecs.describe_tasks.return_value = {"tasks": [test_response_task_json], "failures": []}
         mock_executor.sync_running_workloads()
         assert len(mock_executor.active_workers) == 0
         mock_success_function.assert_called_once()
 
-    def test_update_running_tasks_failed(self, mock_executor, caplog):
+    def test_update_running_tasks_failed(self, mock_executor, caplog, mocker):
         mock_executor.max_run_task_attempts = "1"
         caplog.set_level(logging.WARNING)
         self._add_mock_task(mock_executor, ARN1)
@@ -1246,10 +1272,7 @@ class TestAwsEcsExecutor:
             ],
         }
 
-        patcher = mock.patch(
-            "airflow.providers.amazon.aws.executors.ecs.ecs_executor.AwsEcsExecutor.fail", auth_spec=True
-        )
-        mock_failed_function = patcher.start()
+        mock_failed_function = mocker.patch.object(AwsEcsExecutor, "fail", autospec=True)
         mock_executor.ecs.describe_tasks.return_value = {"tasks": [test_response_task_json], "failures": []}
         mock_executor.sync_running_workloads()
         assert len(mock_executor.active_workers) == 0
@@ -1299,6 +1322,8 @@ class TestAwsEcsExecutor:
             task.dag_id = "test_dag"
             task.run_id = "test_run"
             task.map_index = -1
+            task.region_id = UUID(int=0)
+            task.region_index = -1
             task.pool_slots = 1
             task.priority_weight = 1
             task.context_carrier = {}
@@ -1327,7 +1352,31 @@ class TestAwsEcsExecutor:
                     "2024-01-01",
                 ]
 
-        not_adopted_tasks = mock_executor.try_adopt_task_instances(orphaned_tasks)
+        with contextlib.ExitStack() as stack:
+            # Newer Airflow versions look up the task log address through the task instance's session, which
+            # the mocks do not have. Older versions have no such lookup: the import fails, nothing is patched.
+            with contextlib.suppress(ImportError):
+                from airflow.utils.log.task_log_address import TaskLogContext
+
+                stack.enter_context(
+                    mock.patch("airflow.executors.workloads.task.object_session", autospec=True)
+                )
+                stack.enter_context(
+                    mock.patch(
+                        "airflow.utils.log.task_log_address.prepare_task_log_contexts",
+                        autospec=True,
+                        side_effect=lambda tis, **_: {
+                            ti.id: TaskLogContext(
+                                filename_template="{dag_id}/{run_id}/{task_id}/{try_number}.log",
+                                logical_date="",
+                                data_interval_start="",
+                                data_interval_end="",
+                            )
+                            for ti in tis
+                        },
+                    )
+                )
+            not_adopted_tasks = mock_executor.try_adopt_task_instances(orphaned_tasks)
 
         mock_executor.ecs.describe_tasks.assert_called_once()
         # Two of the three tasks should be adopted.
@@ -1359,6 +1408,262 @@ class TestAwsEcsExecutor:
         mock_executor.try_adopt_task_instances([])
 
         mock_timer.assert_called_once_with("ecs_executor.adopt_task_instances.duration", tags=expected_tags)
+
+
+@pytest.fixture
+def concurrent_executor(set_env_vars):
+    with conf_vars({(CONFIG_GROUP_NAME, AllEcsConfigKeys.RUN_TASK_CONCURRENCY): "2"}):
+        executor = AwsEcsExecutor()
+    executor.IS_BOTO_CONNECTION_HEALTHY = True
+    executor.ecs = mock.Mock(spec=executor.ecs)
+    yield executor
+    if executor._run_task_pool is not None:
+        executor._run_task_pool.shutdown(wait=True, cancel_futures=True)
+
+
+class TestRunTaskConcurrency:
+    """RunTask calls made in background threads when ``run_task_concurrency`` is above 1."""
+
+    def test_scheduler_loop_does_not_wait_for_run_task(self, concurrent_executor):
+        started = threading.Semaphore(0)
+        release = threading.Event()
+
+        def run_task(**kwargs):
+            started.release()
+            release.wait(timeout=10)
+            task_number = kwargs["overrides"]["containerOverrides"][0]["command"][-1]
+            task = {
+                "taskArn": f"{ARN1}-{task_number}",
+                "lastStatus": "",
+                "desiredStatus": "",
+                "containers": [{"name": "some-ecs-container"}],
+            }
+            return {"tasks": [task], "failures": []}
+
+        concurrent_executor.ecs.run_task.side_effect = run_task
+        keys = [TaskInstanceKey("dag", f"task_{i}", "run", 1, -1) for i in range(3)]
+        for i, key in enumerate(keys):
+            concurrent_executor.execute_async(key, ["airflow", "tasks", str(i)])
+
+        concurrent_executor.attempt_workload_runs()
+
+        assert started.acquire(timeout=10)
+        assert started.acquire(timeout=10)
+        assert not started.acquire(timeout=0.2), "more RunTask calls in flight than run_task_concurrency"
+        assert not concurrent_executor.pending_workloads
+        assert len(concurrent_executor._run_task_futures) == 3
+        assert len(concurrent_executor.active_workers) == 0
+
+        release.set()
+        wait(list(concurrent_executor._run_task_futures), timeout=10)
+        concurrent_executor.attempt_workload_runs()
+
+        assert not concurrent_executor._run_task_futures
+        assert set(concurrent_executor.active_workers.get_all_task_keys()) == set(keys)
+        assert set(concurrent_executor.active_workers.get_all_arns()) == {f"{ARN1}-{i}" for i in range(3)}
+
+    def test_credentials_error_is_raised_once_for_all_finished_calls(self, concurrent_executor):
+        release = threading.Event()
+
+        def run_task(**kwargs):
+            release.wait(timeout=10)
+            raise ClientError({"Error": {"Code": "ExpiredTokenException", "Message": "expired"}}, "RunTask")
+
+        concurrent_executor.ecs.run_task.side_effect = run_task
+        for i in range(2):
+            concurrent_executor.execute_async(
+                TaskInstanceKey("dag", f"task_{i}", "run", 1, -1), ["airflow", "tasks", str(i)]
+            )
+        concurrent_executor.attempt_workload_runs()
+        release.set()
+        wait(list(concurrent_executor._run_task_futures), timeout=10)
+
+        with pytest.raises(ClientError, match="ExpiredTokenException"):
+            concurrent_executor.attempt_workload_runs()
+
+        assert not concurrent_executor._run_task_futures
+        assert len(concurrent_executor.pending_workloads) == 2
+
+    def test_end_waits_for_in_flight_run_task_calls(self, concurrent_executor):
+        in_flight = Future()
+        concurrent_executor._run_task_futures[in_flight] = mock.Mock(spec=EcsQueuedTask)
+
+        def finish_run_task_on_second_sync():
+            if concurrent_executor.sync.call_count == 2:
+                del concurrent_executor._run_task_futures[in_flight]
+
+        concurrent_executor.sync = mock.create_autospec(
+            concurrent_executor.sync, side_effect=finish_run_task_on_second_sync
+        )
+
+        concurrent_executor.end(heartbeat_interval=0)
+
+        assert concurrent_executor.sync.call_count == 2
+
+    def test_terminate_stops_the_tasks_of_run_task_calls_in_flight(self, concurrent_executor):
+        started = threading.Semaphore(0)
+        release = threading.Event()
+
+        def run_task(**kwargs):
+            started.release()
+            release.wait(timeout=10)
+            task_number = kwargs["overrides"]["containerOverrides"][0]["command"][-1]
+            task = {
+                "taskArn": f"{ARN1}-{task_number}",
+                "lastStatus": "",
+                "desiredStatus": "",
+                "containers": [{"name": "some-ecs-container"}],
+            }
+            return {"tasks": [task], "failures": []}
+
+        concurrent_executor.ecs.run_task.side_effect = run_task
+        for i in range(3):
+            concurrent_executor.execute_async(
+                TaskInstanceKey("dag", f"task_{i}", "run", 1, -1), ["airflow", "tasks", str(i)]
+            )
+        concurrent_executor.attempt_workload_runs()
+        # Two calls run (run_task_concurrency is 2), the third waits for a thread.
+        assert started.acquire(timeout=10)
+        assert started.acquire(timeout=10)
+        threading.Timer(0.2, release.set).start()
+
+        with mock.patch.object(concurrent_executor, "end"):
+            concurrent_executor.terminate()
+
+        assert concurrent_executor.ecs.run_task.call_count == 2
+        assert not concurrent_executor._run_task_futures
+        stopped = {call.kwargs["task"] for call in concurrent_executor.ecs.stop_task.call_args_list}
+        assert stopped == {f"{ARN1}-0", f"{ARN1}-1"}
+
+    def test_terminate_stops_the_tasks_started_when_another_response_fails(self, concurrent_executor):
+        task = {
+            "taskArn": ARN1,
+            "lastStatus": "",
+            "desiredStatus": "",
+            "containers": [{"name": "some-ecs-container"}],
+        }
+        release = threading.Event()
+
+        def run_task(**kwargs):
+            release.wait(timeout=10)
+            if kwargs["overrides"]["containerOverrides"][0]["command"][-1] == "0":
+                # Neither tasks nor failures: handling this response raises an EcsExecutorException.
+                return {"tasks": [], "failures": []}
+            return {"tasks": [task], "failures": []}
+
+        concurrent_executor.ecs.run_task.side_effect = run_task
+        for i in range(2):
+            concurrent_executor.execute_async(
+                TaskInstanceKey("dag", f"task_{i}", "run", 1, -1), ["airflow", "tasks", str(i)]
+            )
+        concurrent_executor.attempt_workload_runs()
+        release.set()
+        wait(list(concurrent_executor._run_task_futures), timeout=10)
+
+        with mock.patch.object(concurrent_executor, "end"):
+            concurrent_executor.terminate()
+
+        concurrent_executor.ecs.stop_task.assert_called_once_with(
+            cluster=concurrent_executor.cluster, task=ARN1, reason="Airflow Executor received a SIGTERM"
+        )
+
+    def test_run_task_calls_are_made_in_the_scheduler_loop_after_terminate(self, concurrent_executor):
+        task = {
+            "taskArn": ARN1,
+            "lastStatus": "",
+            "desiredStatus": "",
+            "containers": [{"name": "some-ecs-container"}],
+        }
+        concurrent_executor.ecs.run_task.return_value = {"tasks": [task], "failures": []}
+        with mock.patch.object(concurrent_executor, "end"):
+            concurrent_executor.terminate()
+        key = TaskInstanceKey("dag", "task", "run", 1, -1)
+        concurrent_executor.execute_async(key, ["airflow", "tasks", "run"])
+
+        concurrent_executor.attempt_workload_runs()
+
+        assert not concurrent_executor._run_task_futures
+        assert concurrent_executor.active_workers.get_all_task_keys() == [key]
+
+    @pytest.mark.parametrize("concurrency", ["0", "-1"])
+    def test_run_task_concurrency_below_one_is_rejected(self, set_env_vars, concurrency):
+        with conf_vars({(CONFIG_GROUP_NAME, AllEcsConfigKeys.RUN_TASK_CONCURRENCY): concurrency}):
+            with pytest.raises(
+                ValueError, match=f"run_task_concurrency must be 1 or more, got {concurrency}"
+            ):
+                AwsEcsExecutor()
+
+    @pytest.mark.parametrize(
+        ("concurrency", "connection_config", "expected_pool_size"),
+        [
+            pytest.param("16", {}, 17, id="one-per-thread-and-for-the-scheduler-thread"),
+            pytest.param("16", {"max_pool_connections": 50}, 50, id="larger-connection-setting-kept"),
+        ],
+    )
+    def test_client_has_a_connection_for_each_thread(
+        self, set_env_vars, monkeypatch, concurrency, connection_config, expected_pool_size
+    ):
+        config_kwargs = {"connect_timeout": 7, **connection_config}
+        monkeypatch.setenv(
+            "AIRFLOW_CONN_AWS_DEFAULT",
+            json.dumps({"conn_type": "aws", "extra": {"config_kwargs": config_kwargs}}),
+        )
+        with conf_vars({(CONFIG_GROUP_NAME, AllEcsConfigKeys.RUN_TASK_CONCURRENCY): concurrency}):
+            executor = AwsEcsExecutor(parallelism=32)
+
+        assert executor.ecs.meta.config.max_pool_connections == expected_pool_size
+        assert executor.ecs.meta.config.connect_timeout == 7
+
+
+class TestRunTaskThrottling:
+    @pytest.mark.parametrize("concurrency", ["1", "2"])
+    @time_machine.travel("2026-10-27 12:00:00", tick=False)
+    def test_throttled_run_task_is_retried_without_using_an_attempt(self, set_env_vars, concurrency):
+        with conf_vars({(CONFIG_GROUP_NAME, AllEcsConfigKeys.RUN_TASK_CONCURRENCY): concurrency}):
+            executor = AwsEcsExecutor()
+        executor.ecs = mock.Mock(spec=executor.ecs)
+        executor.ecs.run_task.side_effect = ClientError(
+            {"Error": {"Code": "ThrottlingException", "Message": "Rate exceeded"}}, "RunTask"
+        )
+        key = TaskInstanceKey("dag", "task", "run", 1, -1)
+        executor.execute_async(key, ["airflow", "tasks", "run"])
+
+        executor.attempt_workload_runs()
+        if executor._run_task_pool is not None:
+            wait(list(executor._run_task_futures), timeout=10)
+            executor.attempt_workload_runs()
+            executor._run_task_pool.shutdown(wait=True)
+
+        assert executor.ecs.run_task.call_count == 1
+        [ecs_task] = executor.pending_workloads
+        assert ecs_task.attempt_number == 1
+        assert ecs_task.throttled_attempts == 1
+        assert ecs_task.next_attempt_time == timezone.utcnow() + dt.timedelta(seconds=2)
+        assert key not in executor.event_buffer
+
+    @time_machine.travel("2026-10-27 12:00:00", tick=False)
+    def test_throttled_run_task_retries_back_off_then_use_attempts(self, mock_executor):
+        mock_executor.ecs.run_task.side_effect = ClientError(
+            {"Error": {"Code": "ThrottlingException", "Message": "Rate exceeded"}}, "RunTask"
+        )
+        key = TaskInstanceKey("dag", "task", "run", 1, -1)
+        mock_executor.execute_async(key, ["airflow", "tasks", "run"])
+        delays = []
+        for _ in range(ecs_executor.MAX_THROTTLED_RUN_TASK_RETRIES + 1):
+            mock_executor.pending_workloads[0].next_attempt_time = timezone.utcnow()
+            mock_executor.attempt_workload_runs()
+            delays.append((mock_executor.pending_workloads[0].next_attempt_time - timezone.utcnow()).seconds)
+
+        assert delays == [2, 4, 8, 16, 32, 4]
+        assert mock_executor.pending_workloads[0].attempt_number == 2
+
+    @mock.patch.object(ecs_executor, "Stats")
+    def test_run_task_duration_is_timed(self, stats_mock, mock_executor):
+        mock_executor.execute_async(TaskInstanceKey("dag", "task", "run", 1, -1), ["airflow", "tasks", "run"])
+
+        mock_executor.attempt_workload_runs()
+
+        stats_mock.timer.assert_called_once_with("ecs_executor.run_task.duration", tags={})
 
 
 class TestEcsExecutorConfig:
@@ -1492,12 +1797,13 @@ class TestEcsExecutorConfig:
         found_keys = {convert_camel_to_snake(key): key for key in task_kwargs.keys()}
 
         for expected_key, expected_value_raw in CONFIG_DEFAULTS.items():
-            # conn_id, max_run_task_attempts, and check_health_on_startup are used by the executor,
-            # but are not expected to appear in the task_kwargs.
+            # conn_id, max_run_task_attempts, check_health_on_startup and run_task_concurrency are used by
+            # the executor, but are not expected to appear in the task_kwargs.
             if expected_key in [
                 AllEcsConfigKeys.AWS_CONN_ID,
                 AllEcsConfigKeys.MAX_RUN_TASK_ATTEMPTS,
                 AllEcsConfigKeys.CHECK_HEALTH_ON_STARTUP,
+                AllEcsConfigKeys.RUN_TASK_CONCURRENCY,
             ]:
                 assert expected_key not in found_keys.keys()
             else:
@@ -2127,3 +2433,113 @@ class TestEcsExecutorCallbackSupport:
         assert len(collection) == 2
         assert collection.key_to_arn[task_key] == ARN1
         assert collection.key_to_arn[callback_key] == ARN2
+
+
+@pytest.mark.skipif(not hasattr(BaseExecutor, "get_task_key"), reason="Requires executor UUID capability")
+class TestTaskIdentity:
+    @pytest.mark.parametrize(("native", "modern_queue"), [(True, True), (False, True), (False, False)])
+    @pytest.mark.parametrize("success", [False, True])
+    def test_task_results_preserve_submitted_identity(
+        self, mock_executor, task_identity_workloads, monkeypatch, native, modern_queue, success
+    ):
+        monkeypatch.setattr(ecs_executor, "AIRFLOW_V_3_4_PLUS", modern_queue)
+        if not native:
+            monkeypatch.setattr(AwsEcsExecutor, "supports_task_instance_uuid", False)
+            task_identity_workloads[1].ti.try_number = 2
+        keys = [TaskInstanceUuid(w.ti.id) if native else w.ti.key for w in task_identity_workloads]
+        for workload in task_identity_workloads:
+            mock_executor.queue_workload(workload, session=None)
+        mock_executor._process_workloads(task_identity_workloads)
+        assert mock_executor.running == set(keys)
+        mock_executor.ecs.run_task.side_effect = [
+            {
+                "tasks": [
+                    {"taskArn": name, "lastStatus": "RUNNING", "desiredStatus": "RUNNING", "containers": []}
+                ],
+                "failures": [],
+            }
+            for name in ("remote-a", "remote-b")
+        ]
+        mock_executor.attempt_workload_runs()
+        mock_executor.get_event_buffer()
+        mock_executor.max_run_task_attempts = 1
+        mock_executor.ecs.describe_tasks.return_value = {
+            "tasks": [
+                {
+                    "taskArn": "remote-a",
+                    "lastStatus": "STOPPED",
+                    "desiredStatus": "STOPPED",
+                    "startedAt": 1,
+                    "containers": [{"name": "worker", "exitCode": 0 if success else 1}],
+                }
+            ],
+            "failures": [],
+        }
+        mock_executor.sync_running_workloads()
+        assert mock_executor.get_event_buffer() == {
+            keys[0]: (
+                TaskInstanceState.SUCCESS if success else TaskInstanceState.FAILED,
+                None,
+            )
+        }
+        assert mock_executor.running == {keys[1]}
+
+    @pytest.mark.parametrize("native", [False, True])
+    def test_adoption_captures_uuid_for_remote_task(
+        self, mock_executor, task_identity_workloads, monkeypatch, native
+    ):
+        if not native:
+            monkeypatch.setattr(AwsEcsExecutor, "supports_task_instance_uuid", False)
+        source = task_identity_workloads[0].ti
+        ti = mock.Mock(
+            spec=TaskInstance,
+            id=source.id,
+            key=source.key,
+            state=TaskInstanceState.RUNNING,
+            try_number=source.try_number,
+            queue="default",
+            executor_config={},
+        )
+        ti.external_executor_id = "remote-a"
+        expected_key = TaskInstanceUuid(ti.id) if native else ti.key
+        mock_executor.ecs.describe_tasks.return_value = {
+            "tasks": [
+                {"taskArn": "remote-a", "lastStatus": "RUNNING", "desiredStatus": "RUNNING", "containers": []}
+            ],
+            "failures": [],
+        }
+        with mock.patch.object(mock_executor, "_build_task_command", autospec=True, return_value=["command"]):
+            assert mock_executor.try_adopt_task_instances([ti]) == []
+        ti.id = uuid4()
+        assert mock_executor.active_workers.arn_to_key["remote-a"] == expected_key
+        assert mock_executor.running == {expected_key}
+
+    @pytest.mark.db_test
+    def test_retry_does_not_adopt_previous_worker(self, mock_executor, create_task_instance, session):
+        ti = create_task_instance(state=TaskInstanceState.RUNNING, external_executor_id="previous-worker")
+        ti.task.retries = 1
+        ti.try_number = 1
+        ti.max_tries = 1
+        session.commit()
+        old_id = ti.id
+
+        if AIRFLOW_V_3_4_PLUS:
+            successor = ti.handle_failure("worker lost", session=session)
+            history = session.get(TaskInstance, old_id)
+            ti = successor
+        else:
+            ti.handle_failure("worker lost", session=session)
+            session.refresh(ti)
+            history = session.get(TaskInstanceHistory, old_id)
+
+        assert ti.state == TaskInstanceState.UP_FOR_RETRY
+        assert ti.id != old_id
+        assert ti.try_number == 2
+        assert ti.external_executor_id is None
+        assert history.external_executor_id == "previous-worker"
+        ti.state = TaskInstanceState.QUEUED
+        session.flush()
+        assert mock_executor.try_adopt_task_instances([ti]) == [ti]
+        mock_executor.ecs.describe_tasks.assert_not_called()
+        assert not mock_executor.running
+        assert not mock_executor.get_event_buffer()

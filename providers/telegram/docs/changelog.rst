@@ -27,6 +27,43 @@
 Changelog
 ---------
 
+4.10.1
+......
+
+Misc
+~~~~
+
+* ``Drop support for Python 3.10 (#74157)``
+
+Doc-only
+~~~~~~~~
+
+* ``Update provider READMEs for the Python 3.11 baseline (#74158)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove provider tests that restate 'template_fields' and other class constants (#74359)``
+   * ``[main] Upgrade important CI environment (#73629)``
+
+4.10.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add telegram_conn_id to TelegramOperator and TelegramFileOperator template_fields (#73263)``
+
+Misc
+~~~~
+
+* ``Remove the duplicated extra entry from the Telegram connection hidden fields (#72087)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Revert "[main] Upgrade important CI environment (#73308)" (#73621)``
+   * ``[main] Upgrade important CI environment (#73308)``
+   * ``Adopt flit 4 as the provider distribution build backend (#71186)``
+
 4.9.6
 .....
 

@@ -35,7 +35,7 @@ def example_langchain_chat():
     def summarize(text: str) -> str:
         hook = LangChainHook(
             llm_conn_id="langchain_default",
-            llm_model="openai:gpt-4o",
+            llm_model="openai:gpt-5",
         )
         llm = hook.get_chat_model()
         # LangChain BaseMessage.content is `str | list[...]` (multi-modal union);
@@ -85,7 +85,7 @@ def example_langchain_chat_and_embedding():
     def use_both() -> dict:
         hook = LangChainHook(
             llm_conn_id="langchain_default",
-            llm_model="openai:gpt-4o",
+            llm_model="openai:gpt-5",
             embed_model="openai:text-embedding-3-small",
         )
         chat = hook.get_chat_model()
@@ -113,7 +113,7 @@ def example_langchain_different_conns():
         hook = LangChainHook(
             llm_conn_id="openai_chat",
             embed_conn_id="openai_embed",
-            llm_model="openai:gpt-4o",
+            llm_model="openai:gpt-5",
             embed_model="openai:text-embedding-3-small",
         )
         chat = hook.get_chat_model()

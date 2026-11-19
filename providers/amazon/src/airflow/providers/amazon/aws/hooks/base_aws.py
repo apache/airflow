@@ -56,7 +56,6 @@ from airflow.providers.amazon.aws.utils.connection_wrapper import AwsConnectionW
 from airflow.providers.amazon.aws.utils.identifiers import generate_uuid
 from airflow.providers.amazon.aws.utils.suppress import return_on_error
 from airflow.providers.common.compat.sdk import AirflowException, AirflowNotFoundException, BaseHook, conf
-from airflow.providers_manager import ProvidersManager
 from airflow.utils.helpers import exactly_one
 from airflow.utils.log.logging_mixin import LoggingMixin
 
@@ -78,7 +77,13 @@ if TYPE_CHECKING:
 
     from airflow.models.connection import Connection
     from airflow.sdk.execution_time.secrets_masker import mask_secret
+    from airflow.sdk.providers_manager_runtime import ProvidersManagerTaskRuntime as ProvidersManager
 else:
+    try:
+        from airflow.sdk.providers_manager_runtime import ProvidersManagerTaskRuntime as ProvidersManager
+    except ImportError:
+        from airflow.providers_manager import ProvidersManager
+
     try:
         from airflow.sdk.log import mask_secret
     except ImportError:
@@ -399,8 +404,10 @@ class BaseSessionFactory(LoggingMixin):
             )
             self.log.debug("idp_response.content= %s", idp_response.content)
             self.log.debug("xpath= %s", xpath)
-        # Extract SAML Assertion from the returned HTML / XML
-        xml = etree.fromstring(idp_response.content)
+        # Remote IdP content: pin entity resolution and network access off so a future
+        # libxml2/lxml default change cannot silently reintroduce external-entity exposure.
+        parser = etree.XMLParser(resolve_entities=False, no_network=True, load_dtd=False)
+        xml = etree.fromstring(idp_response.content, parser=parser)
         saml_assertion = xml.xpath(xpath)
         if isinstance(saml_assertion, list):
             if len(saml_assertion) == 1:

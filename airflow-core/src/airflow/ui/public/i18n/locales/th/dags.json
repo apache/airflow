@@ -1,5 +1,5 @@
 {
-  "assetSchedule": "{{count}} จาก {{total}} รายการ Assets อัปเดตแล้ว",
+  "assetSchedule": "{{count, number}} จาก {{total, number}} รายการ Assets อัปเดตแล้ว",
   "dagActions": {
     "delete": {
       "button": "ลบ Dag",
@@ -26,7 +26,7 @@
   "runAndTaskActions": {
     "affectedTasks": {
       "noItemsFound": "ไม่พบงาน",
-      "title": "งานที่ได้รับผลกระทบ: {{count}}"
+      "title": "งานที่ได้รับผลกระทบ: {{count, number}}"
     },
     "clear": {
       "button": "ล้าง {{type}}",

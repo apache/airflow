@@ -20,21 +20,25 @@ from datetime import datetime, timedelta
 from unittest.mock import MagicMock, patch
 
 import pytest
+import time_machine
 
 from airflow._shared.timezones import timezone
 from airflow.api.common.airflow_health import (
-    DEGRADED,
-    DOWN,
-    HEALTHY,
-    UNHEALTHY,
+    DetailedHealthStatus,
+    HealthStatus,
+    _configured_bundle_teams,
+    _dag_processor_detailed_status,
+    _triggerer_detailed_status,
     get_airflow_health,
     get_jobs_health,
 )
-from airflow.jobs.job import Job, JobState
+from airflow.jobs.dag_processor_job_runner import DagProcessorJobRunner
+from airflow.jobs.job import Job, JobState, health_check_threshold
 from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
 from airflow.jobs.triggerer_job_runner import TriggererJobRunner
 from airflow.utils.session import provide_session
 
+from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_jobs
 
 pytestmark = pytest.mark.db_test
@@ -42,28 +46,36 @@ pytestmark = pytest.mark.db_test
 STALE_HEARTBEAT_AGE = timedelta(minutes=5)
 
 
+def _patch_bundles(bundle_teams: dict[str, str | None]):
+    """Patch the declared bundle/team partition that ``detailed_status`` is measured against."""
+    return patch(
+        "airflow.api.common.airflow_health._configured_bundle_teams",
+        return_value=bundle_teams,
+    )
+
+
 def _mock_job(
     *,
     hostname: str,
     heartbeat: datetime,
     alive: bool,
-    team_name: str | None = None,
+    team_names: list[str] | None = None,
     bundle_names: list[str] | None = None,
 ) -> MagicMock:
     job = MagicMock(spec=Job)
     job.hostname = hostname
     job.latest_heartbeat = heartbeat
     job.is_alive = MagicMock(return_value=alive)
-    job.team_name = team_name
+    job.team_names = team_names or []
     job.bundle_names = bundle_names
     return job
 
 
 def _empty_component(heartbeat_field: str) -> dict:
     return {
-        "status": UNHEALTHY,
+        "status": HealthStatus.UNHEALTHY,
         heartbeat_field: None,
-        "detailed_status": DOWN,
+        "detailed_status": DetailedHealthStatus.DOWN,
         "instances": None,
     }
 
@@ -73,24 +85,21 @@ def _create_job(
     runner_class,
     *,
     hostname: str,
-    heartbeat: datetime,
+    heartbeat: datetime | None,
     state: JobState = JobState.RUNNING,
     end_date: datetime | None = None,
-    team_name: str | None = None,
+    team_names: list[str] | None = None,
     bundle_names: list[str] | None = None,
 ) -> Job:
     job = Job(
+        job_type=runner_class.job_type,
         state=state,
         latest_heartbeat=heartbeat,
         hostname=hostname,
         end_date=end_date,
-        team_name=team_name,
+        team_names=team_names or [],
         bundle_names=bundle_names,
     )
-    if runner_class is TriggererJobRunner:
-        runner_class(job=job, capacity=1)
-    else:
-        runner_class(job=job)
     session.add(job)
     return job
 
@@ -108,13 +117,13 @@ ALIVE_TRIGGERER_JOB_MOCK = _mock_job(
     hostname="triggerer-alive",
     heartbeat=datetime(2024, 2, 1),
     alive=True,
-    team_name="team-a",
+    team_names=["team-a"],
 )
 STALE_TRIGGERER_JOB_MOCK = _mock_job(
     hostname="triggerer-stale",
     heartbeat=datetime(2024, 1, 1),
     alive=False,
-    team_name="team-b",
+    team_names=["team-b"],
 )
 
 ALIVE_DAG_PROCESSOR_JOB_MOCK = _mock_job(
@@ -131,7 +140,7 @@ def test_get_airflow_health_no_jobs(mock_get_jobs_health):
     health_status = get_airflow_health()
 
     assert health_status == {
-        "metadatabase": {"status": HEALTHY},
+        "metadatabase": {"status": HealthStatus.HEALTHY},
         "scheduler": _empty_component("latest_scheduler_heartbeat"),
         "triggerer": _empty_component("latest_triggerer_heartbeat"),
         "dag_processor": _empty_component("latest_dag_processor_heartbeat"),
@@ -143,7 +152,7 @@ def test_get_airflow_health_metadatabase_unhealthy(mock_get_jobs_health):
     health_status = get_airflow_health()
 
     assert health_status == {
-        "metadatabase": {"status": UNHEALTHY},
+        "metadatabase": {"status": HealthStatus.UNHEALTHY},
         "scheduler": _empty_component("latest_scheduler_heartbeat"),
         "triggerer": _empty_component("latest_triggerer_heartbeat"),
         "dag_processor": _empty_component("latest_dag_processor_heartbeat"),
@@ -156,15 +165,14 @@ def test_get_airflow_health_one_alive_job(mock_get_jobs_health):
     health_status = get_airflow_health()
 
     assert health_status == {
-        "metadatabase": {"status": HEALTHY},
+        "metadatabase": {"status": HealthStatus.HEALTHY},
         "scheduler": {
-            "status": HEALTHY,
+            "status": HealthStatus.HEALTHY,
             "latest_scheduler_heartbeat": ALIVE_SCHEDULER_JOB_MOCK.latest_heartbeat.isoformat(),
-            "detailed_status": HEALTHY,
+            "detailed_status": DetailedHealthStatus.HEALTHY,
             "instances": [
                 {
                     "hostname": ALIVE_SCHEDULER_JOB_MOCK.hostname,
-                    "status": HEALTHY,
                     "latest_scheduler_heartbeat": ALIVE_SCHEDULER_JOB_MOCK.latest_heartbeat.isoformat(),
                 }
             ],
@@ -183,23 +191,14 @@ def test_get_airflow_health_mixed_alive_and_stale_jobs(mock_get_jobs_health):
     ]
     health_status = get_airflow_health()
 
-    assert health_status["scheduler"]["status"] == HEALTHY
-    assert health_status["scheduler"]["detailed_status"] == DEGRADED
+    assert health_status["scheduler"]["status"] == HealthStatus.HEALTHY
+    # Schedulers are symmetric, so a stale row alongside a live one is not a partial outage.
+    assert health_status["scheduler"]["detailed_status"] == DetailedHealthStatus.HEALTHY
+    # The rows the two dead replicas left behind name hosts that are gone, so they are not listed.
     assert health_status["scheduler"]["instances"] == [
         {
             "hostname": ALIVE_SCHEDULER_JOB_MOCK.hostname,
-            "status": HEALTHY,
             "latest_scheduler_heartbeat": ALIVE_SCHEDULER_JOB_MOCK.latest_heartbeat.isoformat(),
-        },
-        {
-            "hostname": STALE_SCHEDULER_JOB_MOCK.hostname,
-            "status": UNHEALTHY,
-            "latest_scheduler_heartbeat": STALE_SCHEDULER_JOB_MOCK.latest_heartbeat.isoformat(),
-        },
-        {
-            "hostname": STALE_SCHEDULER_JOB_MOCK_2.hostname,
-            "status": UNHEALTHY,
-            "latest_scheduler_heartbeat": STALE_SCHEDULER_JOB_MOCK_2.latest_heartbeat.isoformat(),
         },
     ]
     assert (
@@ -219,46 +218,29 @@ def test_get_airflow_health_all_stale_jobs(mock_get_jobs_health):
     ]
     health_status = get_airflow_health()
 
-    assert health_status["scheduler"]["status"] == UNHEALTHY
-    assert health_status["scheduler"]["detailed_status"] == DOWN
-    assert health_status["scheduler"]["instances"] == [
-        {
-            "hostname": STALE_SCHEDULER_JOB_MOCK.hostname,
-            "status": UNHEALTHY,
-            "latest_scheduler_heartbeat": STALE_SCHEDULER_JOB_MOCK.latest_heartbeat.isoformat(),
-        },
-        {
-            "hostname": STALE_SCHEDULER_JOB_MOCK_2.hostname,
-            "status": UNHEALTHY,
-            "latest_scheduler_heartbeat": STALE_SCHEDULER_JOB_MOCK_2.latest_heartbeat.isoformat(),
-        },
-        {
-            "hostname": STALE_SCHEDULER_JOB_MOCK_3.hostname,
-            "status": UNHEALTHY,
-            "latest_scheduler_heartbeat": STALE_SCHEDULER_JOB_MOCK_3.latest_heartbeat.isoformat(),
-        },
-    ]
+    assert health_status["scheduler"]["status"] == HealthStatus.UNHEALTHY
+    assert health_status["scheduler"]["detailed_status"] == DetailedHealthStatus.DOWN
+    assert health_status["scheduler"]["instances"] is None
+    # A component with no live replica still reports when it was last heard from.
+    assert (
+        health_status["scheduler"]["latest_scheduler_heartbeat"]
+        == STALE_SCHEDULER_JOB_MOCK.latest_heartbeat.isoformat()
+    )
 
 
 @patch("airflow.api.common.airflow_health.get_jobs_health")
-def test_get_airflow_health_mixed_triggerers_include_team_name(mock_get_jobs_health):
+def test_get_airflow_health_mixed_triggerers_include_team_names(mock_get_jobs_health):
     mock_get_jobs_health.side_effect = [[], [ALIVE_TRIGGERER_JOB_MOCK, STALE_TRIGGERER_JOB_MOCK], []]
     health_status = get_airflow_health()
 
-    assert health_status["triggerer"]["status"] == HEALTHY
-    assert health_status["triggerer"]["detailed_status"] == DEGRADED
+    assert health_status["triggerer"]["status"] == HealthStatus.HEALTHY
+    # Multi-team is off here, so every live triggerer serves every trigger regardless of team.
+    assert health_status["triggerer"]["detailed_status"] == DetailedHealthStatus.HEALTHY
     assert health_status["triggerer"]["instances"] == [
         {
             "hostname": ALIVE_TRIGGERER_JOB_MOCK.hostname,
-            "status": HEALTHY,
             "latest_triggerer_heartbeat": ALIVE_TRIGGERER_JOB_MOCK.latest_heartbeat.isoformat(),
-            "team_name": ALIVE_TRIGGERER_JOB_MOCK.team_name,
-        },
-        {
-            "hostname": STALE_TRIGGERER_JOB_MOCK.hostname,
-            "status": UNHEALTHY,
-            "latest_triggerer_heartbeat": STALE_TRIGGERER_JOB_MOCK.latest_heartbeat.isoformat(),
-            "team_name": STALE_TRIGGERER_JOB_MOCK.team_name,
+            "team_names": ALIVE_TRIGGERER_JOB_MOCK.team_names,
         },
     ]
     assert (
@@ -267,35 +249,34 @@ def test_get_airflow_health_mixed_triggerers_include_team_name(mock_get_jobs_hea
     )
 
 
+@_patch_bundles({"bundle-a": None})
 @patch("airflow.api.common.airflow_health.get_jobs_health")
-def test_get_airflow_health_triggerer_and_dag_processor_healthy(mock_get_jobs_health):
+def test_get_airflow_health_triggerer_and_dag_processor_healthy(mock_get_jobs_health, _mock_bundles):
     mock_get_jobs_health.side_effect = [[], [ALIVE_TRIGGERER_JOB_MOCK], [ALIVE_DAG_PROCESSOR_JOB_MOCK]]
     health_status = get_airflow_health()
 
     assert health_status == {
-        "metadatabase": {"status": HEALTHY},
+        "metadatabase": {"status": HealthStatus.HEALTHY},
         "scheduler": _empty_component("latest_scheduler_heartbeat"),
         "triggerer": {
-            "status": HEALTHY,
+            "status": HealthStatus.HEALTHY,
             "latest_triggerer_heartbeat": ALIVE_TRIGGERER_JOB_MOCK.latest_heartbeat.isoformat(),
-            "detailed_status": HEALTHY,
+            "detailed_status": DetailedHealthStatus.HEALTHY,
             "instances": [
                 {
                     "hostname": ALIVE_TRIGGERER_JOB_MOCK.hostname,
-                    "status": HEALTHY,
                     "latest_triggerer_heartbeat": ALIVE_TRIGGERER_JOB_MOCK.latest_heartbeat.isoformat(),
-                    "team_name": ALIVE_TRIGGERER_JOB_MOCK.team_name,
+                    "team_names": ALIVE_TRIGGERER_JOB_MOCK.team_names,
                 }
             ],
         },
         "dag_processor": {
-            "status": HEALTHY,
+            "status": HealthStatus.HEALTHY,
             "latest_dag_processor_heartbeat": ALIVE_DAG_PROCESSOR_JOB_MOCK.latest_heartbeat.isoformat(),
-            "detailed_status": HEALTHY,
+            "detailed_status": DetailedHealthStatus.HEALTHY,
             "instances": [
                 {
                     "hostname": ALIVE_DAG_PROCESSOR_JOB_MOCK.hostname,
-                    "status": HEALTHY,
                     "latest_dag_processor_heartbeat": ALIVE_DAG_PROCESSOR_JOB_MOCK.latest_heartbeat.isoformat(),
                     "bundle_names": ALIVE_DAG_PROCESSOR_JOB_MOCK.bundle_names,
                 }
@@ -304,49 +285,273 @@ def test_get_airflow_health_triggerer_and_dag_processor_healthy(mock_get_jobs_he
     }
 
 
+def _processor(*, alive: bool, bundle_names: list[str] | None) -> MagicMock:
+    return _mock_job(
+        hostname=f"dag-processor-{'alive' if alive else 'stale'}",
+        heartbeat=datetime(2024, 2, 1),
+        alive=alive,
+        bundle_names=bundle_names,
+    )
+
+
+def _triggerer(*, alive: bool, team_name: str | None) -> MagicMock:
+    return _mock_job(
+        hostname=f"triggerer-{team_name}-{'alive' if alive else 'stale'}",
+        heartbeat=datetime(2024, 2, 1),
+        alive=alive,
+        team_names=[team_name] if team_name else [],
+    )
+
+
+class TestDagProcessorDetailedStatus:
+    """``detailed_status`` measures which configured bundles a live processor is parsing."""
+
+    BUNDLES = {"bundle-a": None, "bundle-b": None}
+
+    @pytest.mark.parametrize(
+        ("jobs", "expected"),
+        [
+            pytest.param(
+                [_processor(alive=True, bundle_names=["bundle-a", "bundle-b"])],
+                DetailedHealthStatus.HEALTHY,
+                id="one_processor_parses_every_bundle",
+            ),
+            pytest.param(
+                [
+                    _processor(alive=True, bundle_names=["bundle-a"]),
+                    _processor(alive=True, bundle_names=["bundle-b"]),
+                ],
+                DetailedHealthStatus.HEALTHY,
+                id="a_processor_per_bundle",
+            ),
+            pytest.param(
+                [_processor(alive=True, bundle_names=None)],
+                DetailedHealthStatus.HEALTHY,
+                id="processor_without_bundle_name_parses_all",
+            ),
+            pytest.param(
+                [_processor(alive=True, bundle_names=[])],
+                DetailedHealthStatus.HEALTHY,
+                id="empty_bundle_names_parses_all",
+            ),
+            pytest.param(
+                [_processor(alive=True, bundle_names=["bundle-a"])],
+                DetailedHealthStatus.DEGRADED,
+                id="one_bundle_left_unparsed",
+            ),
+            pytest.param(
+                [_processor(alive=False, bundle_names=["bundle-a", "bundle-b"])],
+                DetailedHealthStatus.DOWN,
+                id="only_processor_is_stale",
+            ),
+            pytest.param(
+                [_processor(alive=True, bundle_names=["bundle-removed-from-config"])],
+                DetailedHealthStatus.DOWN,
+                id="processor_parses_nothing_configured",
+            ),
+            pytest.param([], DetailedHealthStatus.DOWN, id="no_processor_at_all"),
+        ],
+    )
+    def test_bundle_coverage(self, jobs, expected):
+        with _patch_bundles(self.BUNDLES):
+            assert _dag_processor_detailed_status(jobs) == expected
+
+    def test_restarted_processor_leaves_the_component_healthy(self):
+        """A hard-killed replica keeps an unfinished job row; its replacement must still read healthy."""
+        jobs = [
+            _processor(alive=True, bundle_names=["bundle-a", "bundle-b"]),
+            _processor(alive=False, bundle_names=["bundle-a", "bundle-b"]),
+        ]
+
+        with _patch_bundles(self.BUNDLES):
+            assert _dag_processor_detailed_status(jobs) == DetailedHealthStatus.HEALTHY
+
+    @pytest.mark.parametrize(
+        ("jobs", "expected"),
+        [
+            pytest.param(
+                [_processor(alive=True, bundle_names=None)],
+                DetailedHealthStatus.HEALTHY,
+                id="a_processor_is_alive",
+            ),
+            pytest.param(
+                [_processor(alive=False, bundle_names=None)],
+                DetailedHealthStatus.DOWN,
+                id="no_processor_is_alive",
+            ),
+        ],
+    )
+    def test_falls_back_to_liveness_without_configured_bundles(self, jobs, expected):
+        with _patch_bundles({}):
+            assert _dag_processor_detailed_status(jobs) == expected
+
+
+class TestTriggererDetailedStatus:
+    """Under multi-team a triggerer only serves its own team, so every team scope needs one."""
+
+    BUNDLES = {"bundle-a": "team-a", "bundle-b": "team-b", "bundle-shared": None}
+
+    @pytest.mark.parametrize(
+        ("jobs", "expected"),
+        [
+            pytest.param(
+                [
+                    _triggerer(alive=True, team_name="team-a"),
+                    _triggerer(alive=True, team_name="team-b"),
+                    _triggerer(alive=True, team_name=None),
+                ],
+                DetailedHealthStatus.HEALTHY,
+                id="every_team_scope_covered",
+            ),
+            pytest.param(
+                [
+                    _triggerer(alive=True, team_name="team-a"),
+                    _triggerer(alive=True, team_name=None),
+                ],
+                DetailedHealthStatus.DEGRADED,
+                id="one_team_has_no_triggerer",
+            ),
+            pytest.param(
+                [
+                    _triggerer(alive=True, team_name="team-a"),
+                    _triggerer(alive=True, team_name="team-b"),
+                ],
+                DetailedHealthStatus.DEGRADED,
+                id="unscoped_bundles_have_no_triggerer",
+            ),
+            pytest.param(
+                [_triggerer(alive=False, team_name="team-a")],
+                DetailedHealthStatus.DOWN,
+                id="no_triggerer_is_alive",
+            ),
+            pytest.param(
+                [_triggerer(alive=True, team_name="team-of-a-removed-bundle")],
+                DetailedHealthStatus.DOWN,
+                id="triggerer_serves_no_configured_team",
+            ),
+            pytest.param([], DetailedHealthStatus.DOWN, id="no_triggerer_at_all"),
+        ],
+    )
+    def test_team_coverage(self, jobs, expected):
+        with conf_vars({("core", "multi_team"): "True"}), _patch_bundles(self.BUNDLES):
+            assert _triggerer_detailed_status(jobs) == expected
+
+    def test_restarted_triggerer_leaves_the_component_healthy(self):
+        jobs = [
+            _triggerer(alive=True, team_name="team-a"),
+            _triggerer(alive=False, team_name="team-a"),
+        ]
+
+        with conf_vars({("core", "multi_team"): "True"}), _patch_bundles({"bundle-a": "team-a"}):
+            assert _triggerer_detailed_status(jobs) == DetailedHealthStatus.HEALTHY
+
+    @pytest.mark.parametrize(
+        ("jobs", "expected"),
+        [
+            pytest.param(
+                [_triggerer(alive=True, team_name="team-a"), _triggerer(alive=False, team_name="team-b")],
+                DetailedHealthStatus.HEALTHY,
+                id="a_triggerer_is_alive",
+            ),
+            pytest.param(
+                [_triggerer(alive=False, team_name=None)],
+                DetailedHealthStatus.DOWN,
+                id="no_triggerer_is_alive",
+            ),
+        ],
+    )
+    def test_ignores_teams_without_multi_team(self, jobs, expected):
+        with conf_vars({("core", "multi_team"): "False"}), _patch_bundles(self.BUNDLES):
+            assert _triggerer_detailed_status(jobs) == expected
+
+    def test_falls_back_to_liveness_without_configured_bundles(self):
+        with conf_vars({("core", "multi_team"): "True"}), _patch_bundles({}):
+            assert (
+                _triggerer_detailed_status([_triggerer(alive=True, team_name="team-a")])
+                == DetailedHealthStatus.HEALTHY
+            )
+
+
+@conf_vars({("dag_processor", "dag_bundle_config_list"): "not json"})
+def test_configured_bundle_teams_survives_unreadable_config():
+    assert _configured_bundle_teams() == {}
+
+
 class TestAirflowHealthFromDb:
     @pytest.fixture(autouse=True)
     def cleanup_jobs(self):
         clear_db_jobs()
+        health_check_threshold.cache_clear()
         yield
         clear_db_jobs()
+        health_check_threshold.cache_clear()
 
+    @pytest.mark.parametrize(
+        ("runner_class", "threshold"),
+        [(SchedulerJobRunner, 17), (TriggererJobRunner, 41.5), (DagProcessorJobRunner, 73)],
+    )
+    @pytest.mark.parametrize("latest_failed", [False, True])
+    @time_machine.travel("2026-11-09T09:00:00Z", tick=False)
+    @conf_vars(
+        {
+            ("scheduler", "scheduler_health_check_threshold"): "17",
+            ("triggerer", "triggerer_health_check_threshold"): "41.5",
+            ("dag_processor", "health_check_threshold"): "73",
+        }
+    )
     @provide_session
-    def test_get_jobs_health_returns_unfinished_jobs_ordered_by_heartbeat(self, *, session):
-        older = timezone.utcnow() - timedelta(minutes=5)
-        newer = timezone.utcnow()
-        older_job = _create_job(session, SchedulerJobRunner, hostname="older", heartbeat=older)
-        newer_job = _create_job(session, SchedulerJobRunner, hostname="newer", heartbeat=newer)
+    def test_get_jobs_health_returns_live_jobs_and_latest_unfinished(
+        self, runner_class, threshold, latest_failed, *, session
+    ):
+        now = timezone.utcnow()
+        cutoff = now - timedelta(seconds=threshold)
+        _create_job(session, runner_class, hostname="live-newer", heartbeat=now - timedelta(seconds=1))
+        _create_job(
+            session, runner_class, hostname="live-older", heartbeat=cutoff + timedelta(microseconds=1)
+        )
+        _create_job(session, runner_class, hostname="at-threshold", heartbeat=cutoff)
+        _create_job(session, runner_class, hostname="stale", heartbeat=cutoff - timedelta(microseconds=1))
         _create_job(
             session,
-            SchedulerJobRunner,
+            runner_class,
             hostname="ended",
-            heartbeat=newer,
-            end_date=newer,
+            heartbeat=now + timedelta(seconds=1),
+            end_date=now,
         )
-        unfinished_failed = _create_job(
+        _create_job(
             session,
-            SchedulerJobRunner,
+            runner_class,
             hostname="failed-unfinished",
-            heartbeat=older - timedelta(minutes=1),
+            heartbeat=now if latest_failed else now - timedelta(seconds=2),
             state=JobState.FAILED,
         )
-        _create_job(session, TriggererJobRunner, hostname="triggerer", heartbeat=newer)
+        other_runner = SchedulerJobRunner if runner_class is TriggererJobRunner else TriggererJobRunner
+        _create_job(session, other_runner, hostname="other-component", heartbeat=now)
+        session.commit()
+
+        jobs = get_jobs_health(runner_class, session=session)
+
+        expected = ["live-newer", "live-older"]
+        if latest_failed:
+            expected.insert(0, "failed-unfinished")
+        assert [job.hostname for job in jobs] == expected
+
+    @provide_session
+    def test_get_jobs_health_keeps_one_job_with_null_heartbeat(self, *, session):
+        _create_job(session, SchedulerJobRunner, hostname="no-heartbeat-1", heartbeat=None)
+        _create_job(session, SchedulerJobRunner, hostname="no-heartbeat-2", heartbeat=None)
         session.commit()
 
         jobs = get_jobs_health(SchedulerJobRunner, session=session)
 
-        assert [job.hostname for job in jobs] == [
-            newer_job.hostname,
-            older_job.hostname,
-            unfinished_failed.hostname,
-        ]
+        assert len(jobs) == 1
+        assert jobs[0].latest_heartbeat is None
 
     def test_get_airflow_health_no_jobs(self):
         health_status = get_airflow_health()
 
         assert health_status == {
-            "metadatabase": {"status": HEALTHY},
+            "metadatabase": {"status": HealthStatus.HEALTHY},
             "scheduler": _empty_component("latest_scheduler_heartbeat"),
             "triggerer": _empty_component("latest_triggerer_heartbeat"),
             "dag_processor": _empty_component("latest_dag_processor_heartbeat"),
@@ -367,13 +572,12 @@ class TestAirflowHealthFromDb:
 
         health_status = get_airflow_health()
 
-        assert health_status["metadatabase"]["status"] == HEALTHY
-        assert health_status["scheduler"]["status"] == HEALTHY
-        assert health_status["scheduler"]["detailed_status"] == HEALTHY
+        assert health_status["metadatabase"]["status"] == HealthStatus.HEALTHY
+        assert health_status["scheduler"]["status"] == HealthStatus.HEALTHY
+        assert health_status["scheduler"]["detailed_status"] == DetailedHealthStatus.HEALTHY
         assert health_status["scheduler"]["instances"] == [
             {
                 "hostname": job.hostname,
-                "status": HEALTHY,
                 "latest_scheduler_heartbeat": heartbeat.isoformat(),
             }
         ]
@@ -389,33 +593,20 @@ class TestAirflowHealthFromDb:
         alive = _create_job(
             session, SchedulerJobRunner, hostname="scheduler-alive", heartbeat=alive_heartbeat
         )
-        stale = _create_job(
-            session, SchedulerJobRunner, hostname="scheduler-stale", heartbeat=stale_heartbeat
-        )
-        older_stale = _create_job(
+        _create_job(session, SchedulerJobRunner, hostname="scheduler-stale", heartbeat=stale_heartbeat)
+        _create_job(
             session, SchedulerJobRunner, hostname="scheduler-stale-2", heartbeat=older_stale_heartbeat
         )
         session.commit()
 
         health_status = get_airflow_health()
 
-        assert health_status["scheduler"]["status"] == HEALTHY
-        assert health_status["scheduler"]["detailed_status"] == DEGRADED
+        assert health_status["scheduler"]["status"] == HealthStatus.HEALTHY
+        assert health_status["scheduler"]["detailed_status"] == DetailedHealthStatus.HEALTHY
         assert health_status["scheduler"]["instances"] == [
             {
                 "hostname": alive.hostname,
-                "status": HEALTHY,
                 "latest_scheduler_heartbeat": alive_heartbeat.isoformat(),
-            },
-            {
-                "hostname": stale.hostname,
-                "status": UNHEALTHY,
-                "latest_scheduler_heartbeat": stale_heartbeat.isoformat(),
-            },
-            {
-                "hostname": older_stale.hostname,
-                "status": UNHEALTHY,
-                "latest_scheduler_heartbeat": older_stale_heartbeat.isoformat(),
             },
         ]
         assert health_status["scheduler"]["latest_scheduler_heartbeat"] == alive_heartbeat.isoformat()
@@ -425,28 +616,23 @@ class TestAirflowHealthFromDb:
         first = timezone.utcnow() - STALE_HEARTBEAT_AGE
         second = first - timedelta(minutes=1)
         third = second - timedelta(minutes=1)
-        jobs = [
-            _create_job(session, SchedulerJobRunner, hostname="stale-1", heartbeat=first),
-            _create_job(session, SchedulerJobRunner, hostname="stale-2", heartbeat=second),
-            _create_job(session, SchedulerJobRunner, hostname="stale-3", heartbeat=third),
-        ]
+        _create_job(session, SchedulerJobRunner, hostname="stale-1", heartbeat=first)
+        _create_job(session, SchedulerJobRunner, hostname="stale-2", heartbeat=second)
+        _create_job(session, SchedulerJobRunner, hostname="stale-3", heartbeat=third)
         session.commit()
+
+        jobs = get_jobs_health(SchedulerJobRunner, session=session)
+        assert [job.hostname for job in jobs] == ["stale-1"]
 
         health_status = get_airflow_health()
 
-        assert health_status["scheduler"]["status"] == UNHEALTHY
-        assert health_status["scheduler"]["detailed_status"] == DOWN
-        assert health_status["scheduler"]["instances"] == [
-            {
-                "hostname": job.hostname,
-                "status": UNHEALTHY,
-                "latest_scheduler_heartbeat": job.latest_heartbeat.isoformat(),
-            }
-            for job in jobs
-        ]
+        assert health_status["scheduler"]["status"] == HealthStatus.UNHEALTHY
+        assert health_status["scheduler"]["detailed_status"] == DetailedHealthStatus.DOWN
+        assert health_status["scheduler"]["instances"] is None
+        assert health_status["scheduler"]["latest_scheduler_heartbeat"] == first.isoformat()
 
     @provide_session
-    def test_get_airflow_health_mixed_triggerers_include_team_name(self, testing_team, *, session):
+    def test_get_airflow_health_mixed_triggerers_include_team_names(self, testing_team, *, session):
         alive_heartbeat = timezone.utcnow()
         stale_heartbeat = timezone.utcnow() - STALE_HEARTBEAT_AGE
         alive = _create_job(
@@ -454,33 +640,26 @@ class TestAirflowHealthFromDb:
             TriggererJobRunner,
             hostname="triggerer-alive",
             heartbeat=alive_heartbeat,
-            team_name=testing_team.name,
+            team_names=[testing_team.name],
         )
-        stale = _create_job(
+        _create_job(
             session,
             TriggererJobRunner,
             hostname="triggerer-stale",
             heartbeat=stale_heartbeat,
-            team_name=testing_team.name,
+            team_names=[testing_team.name],
         )
         session.commit()
 
         health_status = get_airflow_health()
 
-        assert health_status["triggerer"]["status"] == HEALTHY
-        assert health_status["triggerer"]["detailed_status"] == DEGRADED
+        assert health_status["triggerer"]["status"] == HealthStatus.HEALTHY
+        assert health_status["triggerer"]["detailed_status"] == DetailedHealthStatus.HEALTHY
         assert health_status["triggerer"]["instances"] == [
             {
                 "hostname": alive.hostname,
-                "status": HEALTHY,
                 "latest_triggerer_heartbeat": alive_heartbeat.isoformat(),
-                "team_name": testing_team.name,
-            },
-            {
-                "hostname": stale.hostname,
-                "status": UNHEALTHY,
-                "latest_triggerer_heartbeat": stale_heartbeat.isoformat(),
-                "team_name": testing_team.name,
+                "team_names": [testing_team.name],
             },
         ]
         assert health_status["triggerer"]["latest_triggerer_heartbeat"] == alive_heartbeat.isoformat()

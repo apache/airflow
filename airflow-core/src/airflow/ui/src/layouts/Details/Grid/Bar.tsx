@@ -44,7 +44,6 @@ export const Bar = ({ max, onClick, run, showVersionIndicatorMode }: Props) => {
   const [searchParams] = useSearchParams();
 
   const isSelected = runId === run.run_id;
-  const search = searchParams.toString();
 
   return (
     <Box
@@ -87,7 +86,7 @@ export const Bar = ({ max, onClick, run, showVersionIndicatorMode }: Props) => {
           minHeight="14px"
           runAfter={run.run_after}
           runId={run.run_id}
-          searchParams={search}
+          searchParams={searchParams.toString()}
           state={run.state}
           style={run.has_note ? { background: NOTE_GRADIENT } : undefined}
           zIndex={1}

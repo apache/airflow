@@ -946,3 +946,58 @@ class TestVaultSecrets:
             ]
         )
         assert connection.get_uri() == "postgres://airflow:airflow@host:5432/airflow?foo=bar&baz=taz"
+
+    @pytest.mark.parametrize(
+        ("mount_point", "key"),
+        [
+            pytest.param("airflow", "team1/db_password", id="mount-point-set"),
+            pytest.param(None, "airflow/team1/db_password", id="mount-point-in-key"),
+        ],
+    )
+    @conf_vars({("core", "multi_team"): "True"})
+    @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
+    def test_caller_with_no_team_cannot_reach_a_teams_namespace(self, mock_hvac, mount_point, key):
+        """With no team, ``{base}/{key}`` is where team paths are built, so a nested key is refused."""
+        mock_client = mock.MagicMock()
+        mock_hvac.Client.return_value = mock_client
+        mock_client.secrets.kv.v2.read_secret_version.return_value = {"data": {"data": {"value": "x"}}}
+
+        test_client = VaultBackend(
+            connections_path="connections",
+            variables_path="variables",
+            mount_point=mount_point,
+            auth_type="token",
+            url="http://127.0.0.1:8200",
+            token="s.7AU0I51yv1Q1lxOIg1F3ZRAS",
+        )
+
+        assert test_client.get_variable(key) is None
+        assert test_client.get_conn_value(key) is None
+        mock_client.secrets.kv.v2.read_secret_version.assert_not_called()
+
+    @pytest.mark.parametrize(
+        ("multi_team", "extra_kwargs", "team_name"),
+        [
+            pytest.param("False", {}, None, id="multi-team-off"),
+            pytest.param("True", {"use_team_secrets_path": False}, None, id="team-paths-disabled"),
+            pytest.param("True", {}, "team1", id="caller-with-a-team"),
+        ],
+    )
+    @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
+    def test_nested_keys_still_resolve_where_no_team_namespace_is_reachable(
+        self, mock_hvac, multi_team, extra_kwargs, team_name
+    ):
+        mock_client = mock.MagicMock()
+        mock_hvac.Client.return_value = mock_client
+        mock_client.secrets.kv.v2.read_secret_version.return_value = {"data": {"data": {"value": "nested"}}}
+
+        with conf_vars({("core", "multi_team"): multi_team}):
+            test_client = VaultBackend(
+                variables_path="variables",
+                mount_point="airflow",
+                auth_type="token",
+                url="http://127.0.0.1:8200",
+                token="s.7AU0I51yv1Q1lxOIg1F3ZRAS",
+                **extra_kwargs,
+            )
+            assert test_client.get_variable("nested/my_var", team_name) == "nested"

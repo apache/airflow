@@ -45,7 +45,10 @@ class DingdingOperator(BaseOperator):
     :param at_all: Remind all people in group or not. If True, will overwrite ``at_mobiles``
     """
 
-    template_fields: Sequence[str] = ("message",)
+    template_fields: Sequence[str] = (
+        "message",
+        "dingding_conn_id",
+    )
     ui_color = "#4ea4d4"  # Operator icon color
 
     def __init__(

@@ -23,13 +23,14 @@ import type { TaskInstanceResponse } from "openapi/requests/types.gen";
 
 import { Checkbox } from "src/system-components";
 
+import type { DataTableFeatures } from "src/components/DataTable/features";
 import type { MetaColumn } from "src/components/DataTable/types";
 import { StateBadge } from "src/components/StateBadge";
 
-// Stable per-row key; dag_run_id keeps the same task distinct across runs (past/future
-// expansion), and map_index disambiguates the mapped instances of one task.
+// Keyed by coordinate rather than row id: a retry of the same execution comes back with a new
+// id, and an exclusion the user ticked should survive that.
 export const taskInstanceKey = (ti: TaskInstanceResponse): string =>
-  `${ti.dag_run_id}:${ti.task_id}:${ti.map_index}`;
+  `${ti.dag_id}:${ti.dag_run_id}:${ti.task_id}:${ti.map_index}:${ti.region_id}:${ti.region_index}`;
 
 // When provided, rows render a leading checkbox so the user can exclude individual
 // task instances from the action. Excluded keys are tracked by the caller.
@@ -39,7 +40,10 @@ export type RowSelection = {
 };
 
 // Header "select all" checkbox that toggles every task instance in its table at once.
-const renderSelectAllHeader = (selection: RowSelection, table: Table<TaskInstanceResponse>) => {
+const renderSelectAllHeader = (
+  selection: RowSelection,
+  table: Table<DataTableFeatures, TaskInstanceResponse>,
+) => {
   const keys = table.getRowModel().rows.map((row) => taskInstanceKey(row.original));
   const excludedCount = keys.filter((key) => selection.excludedKeys.has(key)).length;
   const allExcluded = keys.length > 0 && excludedCount === keys.length;
@@ -58,9 +62,15 @@ const renderSelectAllHeader = (selection: RowSelection, table: Table<TaskInstanc
   );
 };
 
+type ColumnOptions = {
+  readonly hasLoopIteration?: boolean;
+  readonly hasMultipleDags?: boolean;
+};
+
 export const getColumns = (
   translate: TFunction,
   selection?: RowSelection,
+  { hasLoopIteration = false, hasMultipleDags = false }: ColumnOptions = {},
 ): Array<MetaColumn<TaskInstanceResponse>> => [
   ...(selection
     ? [
@@ -78,16 +88,24 @@ export const getColumns = (
             );
           },
           enableSorting: false,
-          header: ({ table }: { table: Table<TaskInstanceResponse> }) =>
+          header: ({ table }: { table: Table<DataTableFeatures, TaskInstanceResponse> }) =>
             renderSelectAllHeader(selection, table),
           meta: { skeletonWidth: 10 },
+        } satisfies MetaColumn<TaskInstanceResponse>,
+      ]
+    : []),
+  // A clear can reach tasks in other Dags, and same-named tasks there would be indistinguishable.
+  ...(hasMultipleDags
+    ? [
+        {
+          accessorKey: "dag_id",
+          header: translate("dagId"),
         } satisfies MetaColumn<TaskInstanceResponse>,
       ]
     : []),
   {
     accessorKey: "task_id",
     header: translate("taskId"),
-    size: 200,
   },
   {
     accessorKey: "state",
@@ -106,6 +124,17 @@ export const getColumns = (
     accessorKey: "map_index",
     header: translate("mapIndex"),
   },
+  ...(hasLoopIteration
+    ? [
+        {
+          accessorKey: "loop_iteration",
+          cell: ({ row: { original } }: { row: { original: TaskInstanceResponse } }) =>
+            original.loop_iteration?.iteration,
+          enableSorting: false,
+          header: translate("taskInstance.iteration"),
+        } satisfies MetaColumn<TaskInstanceResponse>,
+      ]
+    : []),
   {
     accessorKey: "dag_run_id",
     header: translate("runId"),

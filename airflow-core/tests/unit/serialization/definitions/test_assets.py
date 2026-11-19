@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 from airflow.api_fastapi.execution_api.datamodels.asset import AssetProfile
 from airflow.serialization.definitions.assets import (
     SerializedAsset,
@@ -34,6 +36,23 @@ asset1 = SerializedAsset(
     extra={},
     watchers=[],
 )
+
+
+@pytest.mark.parametrize(
+    ("condition", "requires_batching"),
+    [
+        (asset1, False),
+        (SerializedAssetAlias(name="alias", group=""), False),
+        (SerializedAssetAll([]), False),
+        (SerializedAssetAll([asset1]), False),
+        (SerializedAssetAny([asset1, asset1]), False),
+        (SerializedAssetAll([asset1, asset1]), True),
+        (SerializedAssetAny([asset1, SerializedAssetAll([asset1, asset1])]), True),
+        (SerializedAssetAll([SerializedAssetAny([SerializedAssetAll([asset1, asset1])])]), True),
+    ],
+)
+def test_asset_condition_requires_batching(condition, requires_batching):
+    assert condition.requires_batching is requires_batching
 
 
 def test_asset_iter_assets():

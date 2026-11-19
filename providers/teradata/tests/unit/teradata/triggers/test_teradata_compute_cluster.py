@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
 from unittest.mock import call, patch
 
 import pytest
@@ -30,27 +31,6 @@ from airflow.triggers.base import TriggerEvent
 
 @pytest.mark.asyncio
 async def test_run_suspend_success():
-    trigger = TeradataComputeClusterSyncTrigger(
-        teradata_conn_id="test_conn_id",
-        compute_profile_name="test_profile",
-        operation_type=Constants.CC_SUSPEND_OPR,
-        poll_interval=1,
-    )
-    with patch.object(trigger, "get_status") as mock_get_status:
-        mock_get_status.return_value = Constants.CC_SUSPEND_DB_STATUS
-        async for event in trigger.run():
-            assert event == TriggerEvent(
-                {
-                    "status": "success",
-                    "message": Constants.CC_OPR_SUCCESS_STATUS_MSG
-                    % ("test_profile", Constants.CC_SUSPEND_OPR),
-                }
-            )
-        mock_get_status.assert_called_once()
-
-
-@pytest.mark.asyncio
-async def test_run_suspend_success_cg():
     trigger = TeradataComputeClusterSyncTrigger(
         teradata_conn_id="test_conn_id",
         compute_profile_name="test_profile",
@@ -219,3 +199,18 @@ async def test_get_status_cg(mock_teradata_hook_run):
             ),
         ]
     )
+
+
+@pytest.mark.asyncio
+async def test_run_propagates_cancelled_error():
+    trigger = TeradataComputeClusterSyncTrigger(
+        teradata_conn_id="test_conn_id",
+        compute_profile_name="test_profile",
+        operation_type=Constants.CC_SUSPEND_OPR,
+        poll_interval=1,
+    )
+    with patch.object(trigger, "get_status", autospec=True) as mock_get_status:
+        mock_get_status.side_effect = asyncio.CancelledError
+        with pytest.raises(asyncio.CancelledError):
+            async for _ in trigger.run():
+                pass

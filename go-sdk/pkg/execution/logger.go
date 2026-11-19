@@ -47,7 +47,8 @@ const (
 //   - "event" for the log message (not "msg")
 //   - "level" in lowercase (not "INFO"/"ERROR")
 //   - "timestamp" in RFC3339Nano format (not "time")
-//   - Additional attributes are included as top-level fields
+//   - Additional attributes are included as top-level fields; one whose key
+//     collides with a standard field is moved to "fields.<key>"
 //
 // Groups are encoded as dotted key prefixes on a flat JSON object
 // (`{"grp.key": "val"}`), not as nested objects. The Airflow supervisor's
@@ -236,12 +237,6 @@ func (h *SocketLogHandler) Handle(_ context.Context, r slog.Record) error {
 
 	entry := make(map[string]any)
 
-	// Set standard fields.
-	entry["event"] = r.Message
-	if !r.Time.IsZero() {
-		entry["timestamp"] = r.Time.Format(time.RFC3339Nano)
-	}
-
 	// Apply pre-configured attrs. Keys are already qualified with the groups
 	// active at the WithAttrs call site, so the current h.groups is NOT
 	// applied here — only to record-level attrs below. The stored key already
@@ -259,6 +254,12 @@ func (h *SocketLogHandler) Handle(_ context.Context, r slog.Record) error {
 		return true
 	})
 
+	moveClashingAttrs(entry)
+
+	entry["event"] = r.Message
+	if !r.Time.IsZero() {
+		entry["timestamp"] = r.Time.Format(time.RFC3339Nano)
+	}
 	if loggerName != "" {
 		entry["logger"] = loggerName
 	}
@@ -280,6 +281,27 @@ func (h *SocketLogHandler) Handle(_ context.Context, r slog.Record) error {
 
 	_, err = h.shared.writer.Write(line)
 	return err
+}
+
+// standardLogFields are the keys SocketLogHandler writes itself on every line.
+// The supervisor takes a task's message out of "event" and decodes "timestamp"
+// as a datetime, so an attribute must never end up occupying those slots.
+var standardLogFields = []string{"event", "timestamp", "level", "logger"}
+
+// clashedAttrPrefix qualifies an attribute whose key collides with a standard
+// field, the way logrus does. Letting the standard field simply overwrite it
+// would discard a value the caller asked to log.
+const clashedAttrPrefix = "fields."
+
+// moveClashingAttrs re-keys any attribute sitting in a standard field's slot,
+// so that writing the standard field afterwards keeps both values.
+func moveClashingAttrs(entry map[string]any) {
+	for _, key := range standardLogFields {
+		if value, ok := entry[key]; ok {
+			entry[clashedAttrPrefix+key] = value
+			delete(entry, key)
+		}
+	}
 }
 
 func (h *SocketLogHandler) WithAttrs(attrs []slog.Attr) slog.Handler {

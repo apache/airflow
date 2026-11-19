@@ -86,6 +86,10 @@ class BigQueryToGCSOperator(BaseOperator):
     :param reattach_states: Set of BigQuery job's states in case of which we should reattach
         to the job. Should be other than final states.
     :param deferrable: Run operator in the deferrable mode
+    :param cancel_on_kill: Flag which indicates whether cancel the hook's job or not, when on_kill is called.
+        With ``force_rerun=False``, a retry reuses the same job ID, and a cancelled job cannot be
+        reattached through ``reattach_states``. Set ``force_rerun=True`` for retries to start a new
+        job, or ``cancel_on_kill=False`` to keep reattaching to the running one.
     :return: URIs for the objects created in Google Cloud Storage
     """
 
@@ -96,6 +100,7 @@ class BigQueryToGCSOperator(BaseOperator):
         "labels",
         "impersonation_chain",
         "job_id",
+        "gcp_conn_id",
     )
     template_ext: Sequence[str] = ()
     ui_color = "#e4e6f0"
@@ -121,6 +126,7 @@ class BigQueryToGCSOperator(BaseOperator):
         force_rerun: bool = False,
         reattach_states: set[str] | None = None,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        cancel_on_kill: bool = True,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -142,6 +148,7 @@ class BigQueryToGCSOperator(BaseOperator):
         self.reattach_states: set[str] = reattach_states or set()
         self.hook: BigQueryHook | None = None
         self.deferrable = deferrable
+        self.cancel_on_kill = cancel_on_kill
 
     @staticmethod
     def _handle_job_error(job: BigQueryJob | UnknownJob) -> None:
@@ -269,6 +276,7 @@ class BigQueryToGCSOperator(BaseOperator):
                     project_id=self.project_id or self.hook.project_id,
                     location=self.location or self.hook.location,
                     impersonation_chain=self.impersonation_chain,
+                    cancel_on_kill=self.cancel_on_kill,
                 ),
                 method_name="execute_complete",
             )
@@ -294,6 +302,12 @@ class BigQueryToGCSOperator(BaseOperator):
         self.job_id = event.get("job_id")
 
         return self.destination_cloud_storage_uris
+
+    def on_kill(self) -> None:
+        if self.hook and self.job_id and self.cancel_on_kill:
+            self.hook.cancel_job(job_id=self.job_id, project_id=self.project_id, location=self.location)
+        else:
+            self.log.info("Skipping to cancel job: %s:%s.%s", self.project_id, self.location, self.job_id)
 
     def get_openlineage_facets_on_complete(self, task_instance):
         """Implement on_complete as we will include final BQ job id."""

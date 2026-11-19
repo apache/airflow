@@ -69,6 +69,8 @@ class SnowparkOperator(PythonOperator):
         the time you connect to Snowflake
     """
 
+    template_fields: Sequence[str] = (*PythonOperator.template_fields, "snowflake_conn_id")
+
     def __init__(
         self,
         *,

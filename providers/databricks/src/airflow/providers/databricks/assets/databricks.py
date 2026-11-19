@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass, fields
 from typing import TYPE_CHECKING
 
 from airflow.providers.common.compat.assets import Asset
@@ -40,6 +41,42 @@ def create_asset(
 ) -> Asset:
     port = f":{port}" if port else ""
     return Asset(uri=f"databricks://{host}{port}/{catalog}/{schema}/{table}", extra=extra)
+
+
+@dataclass(frozen=True, slots=True)
+class UnityTableIdentity:
+    """
+    Static identity of a Unity Catalog table in one Databricks workspace.
+
+    :param host: Workspace hostname. A URL such as ``https://xx.cloud.databricks.com`` is
+        reduced to its hostname, as the Databricks connection does.
+    :param catalog: Unity Catalog catalog name.
+    :param schema: Schema name inside ``catalog``.
+    :param table: Table name inside ``schema``.
+    """
+
+    host: str
+    catalog: str
+    schema: str
+    table: str
+
+    def __post_init__(self) -> None:
+        from airflow.providers.databricks.hooks.databricks_base import BaseDatabricksHook
+
+        object.__setattr__(self, "host", BaseDatabricksHook._parse_host(self.host))
+        for field in fields(self):
+            value = getattr(self, field.name)
+            if not value:
+                raise ValueError(f"UnityTableIdentity.{field.name} must not be empty.")
+            if "{{" in value or "{%" in value:
+                raise ValueError(
+                    f"UnityTableIdentity.{field.name} must be static, got Jinja {value!r}. "
+                    "It is not a template field and is never rendered."
+                )
+            object.__setattr__(self, field.name, value.lower())
+
+    def to_asset(self) -> Asset:
+        return create_asset(host=self.host, catalog=self.catalog, schema=self.schema, table=self.table)
 
 
 def convert_asset_to_openlineage(asset: Asset, lineage_context) -> OpenLineageDataset:

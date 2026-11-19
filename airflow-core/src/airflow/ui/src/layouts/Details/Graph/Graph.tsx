@@ -190,7 +190,7 @@ export const Graph = () => {
           width="100%"
           zIndex={10}
         >
-          <Spinner color="blue.500" size="xl" />
+          <Spinner color="brand.solid" size="xl" />
         </Box>
       ) : undefined}
       <ReactFlow

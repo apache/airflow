@@ -1,4 +1,3 @@
-
  .. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
@@ -69,7 +68,7 @@ apache-airflow-providers-ssh package
 `Secure Shell (SSH) <https://tools.ietf.org/html/rfc4251>`__
 
 
-Release: 6.0.1
+Release: 7.0.3
 
 Provider package
 ----------------
@@ -93,8 +92,8 @@ The minimum Apache Airflow version supported by this provider distribution is ``
 PIP package                                 Version required
 ==========================================  ==================
 ``apache-airflow``                          ``>=2.11.0``
-``apache-airflow-providers-common-compat``  ``>=1.12.0``
-``asyncssh``                                ``>=2.12.0``
+``apache-airflow-providers-common-compat``  ``>=1.21.0``
+``asyncssh``                                ``>=2.18.0``
 ``paramiko``                                ``>=4.0.0``
 ==========================================  ==================
 
@@ -104,5 +103,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-ssh 6.0.1 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_ssh-6.0.1.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_ssh-6.0.1.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_ssh-6.0.1.tar.gz.sha512>`__)
-* `The apache-airflow-providers-ssh 6.0.1 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_ssh-6.0.1-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_ssh-6.0.1-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_ssh-6.0.1-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-ssh 7.0.3 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_ssh-7.0.3.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_ssh-7.0.3.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_ssh-7.0.3.tar.gz.sha512>`__)
+* `The apache-airflow-providers-ssh 7.0.3 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_ssh-7.0.3-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_ssh-7.0.3-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_ssh-7.0.3-py3-none-any.whl.sha512>`__)

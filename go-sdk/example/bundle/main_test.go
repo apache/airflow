@@ -24,15 +24,17 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	"github.com/apache/airflow/go-sdk/airflow"
 	"github.com/apache/airflow/go-sdk/sdk"
 )
 
 // This file serves as an example of how you could write unit tests against your own Go Tasks.
 // An example of how to write a test for a Task function!
 
-type mockVars struct{}
+// mockVars embeds sdk.Client so it satisfies the whole interface while only defining
+// the method this test expects. Calling any other method panics on the nil embedded client.
+type mockVars struct{ sdk.Client }
 
-// GetVariable implements sdk.VariableClient.
 func (m *mockVars) GetVariable(ctx context.Context, key string) (string, error) {
 	switch key {
 	case "my_variable":
@@ -42,27 +44,12 @@ func (m *mockVars) GetVariable(ctx context.Context, key string) (string, error) 
 	}
 }
 
-// UnmarshalJSONVariable implements sdk.VariableClient.
-func (m *mockVars) UnmarshalJSONVariable(ctx context.Context, key string, pointer any) error {
-	panic("unimplemented")
-}
-
-// SetVariable implements sdk.VariableClient.
-func (m *mockVars) SetVariable(ctx context.Context, key, value, description string) error {
-	panic("unimplemented")
-}
-
-// DeleteVariable implements sdk.VariableClient.
-func (m *mockVars) DeleteVariable(ctx context.Context, key string) error {
-	panic("unimplemented")
-}
-
-var _ sdk.VariableClient = (*mockVars)(nil)
-
 func Test_transform(t *testing.T) {
-	log := slog.Default()
 	// This is not the best test, but it is a good proof of concept -- you can just call the function.
-	ctx := sdk.NewTIRunContext(context.Background(), sdk.TaskInstance{}, sdk.DagRun{})
-	err := transform(ctx, &mockVars{}, log, "uk", map[string]any{"go_version": "go1.24"})
+	actx := airflow.NewContext(
+		context.Background(), slog.Default(), &mockVars{},
+		airflow.TaskInstance{}, airflow.DagRun{},
+	)
+	err := transform(actx, "uk", map[string]any{"go_version": "go1.24"})
 	assert.NoError(t, err)
 }

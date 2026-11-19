@@ -24,9 +24,24 @@ class OpenAIBatchJobException(AirflowException):
     """Raise when OpenAI Batch Job fails to start AFTER processing the request."""
 
 
+class OpenAIBatchCancelled(OpenAIBatchJobException):
+    """
+    Raise when an OpenAI Batch Job was cancelled.
+
+    Cancellation is a decision, not a failure, so it gets its own subclass: callers
+    that want to distinguish "someone cancelled this batch" from "the batch failed"
+    can catch this specifically, while existing handlers written against
+    ``OpenAIBatchJobException`` keep working unchanged.
+    """
+
+
 class OpenAIBatchTimeout(AirflowException):
     """Raise when OpenAI Batch Job times out."""
 
 
 class OpenAITriggerEventError(AirflowException):
     """Raise when a deferred task resumes with a missing or malformed trigger event."""
+
+
+class OpenAIAgentSessionError(AirflowException):
+    """Raise when a Managed Agents session fails or cannot run."""

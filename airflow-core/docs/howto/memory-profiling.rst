@@ -1,4 +1,4 @@
-.. Licensed to the Apache Software Foundation (ASF) under one
+ .. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
     regarding copyright ownership.  The ASF licenses this file
@@ -240,7 +240,7 @@ Precautions
 
 1. **Profile in Non-Production Environments**
    Memory profiling adds significant overhead, including increased memory usage and performance
-   degradation. Use it in development that mirror your production setup.
+   degradation. Use it in a development environment that mirrors your production setup.
 
 2. **Use Representative Workloads**
    Ensure the workload you're profiling is representative of your actual use case.

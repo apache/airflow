@@ -26,13 +26,16 @@ from airflow_breeze.commands.ci_image_commands import (
     build_ci_image_if_needed,
     confirm_build_if_sources_changed,
     get_ci_image_sources_hash_label,
+    import_mount_cache,
     is_ci_image_built_from_current_sources,
+    load,
+    save,
 )
 from airflow_breeze.global_constants import CI_IMAGE_SOURCES_HASH_LABEL
 from airflow_breeze.params.build_ci_params import BuildCiParams
 from airflow_breeze.utils.md5_build_check import calculate_ci_sources_hash
 
-CI_IMAGE = "ghcr.io/apache/airflow/main/ci/python3.10"
+CI_IMAGE = BuildCiParams(python="3.11").airflow_image_name
 
 
 def test_calculate_ci_sources_hash_is_stable_across_checkouts(tmp_path, monkeypatch):
@@ -186,3 +189,123 @@ def test_build_ci_image_if_needed_does_not_query_docker_when_marker_present(
     mock_check_if_image_building_is_needed.return_value = False
     build_ci_image_if_needed(command_params=command_params)
     mock_is_ci_image_built_from_current_sources.assert_not_called()
+
+
+@mock.patch("airflow_breeze.commands.ci_image_commands.run_command", autospec=True)
+@mock.patch("airflow_breeze.commands.ci_image_commands.make_sure_builder_configured", autospec=True)
+@mock.patch("airflow_breeze.commands.ci_image_commands.perform_environment_checks", autospec=True)
+def test_import_mount_cache_does_not_prune_the_imported_cache_mount(
+    mock_perform_environment_checks,
+    mock_make_sure_builder_configured,
+    mock_run_command,
+    tmp_path,
+):
+    cache_file = tmp_path / "ci-cache-mount-save-v3-3.11.tar.gz"
+    cache_file.write_bytes(b"")
+    import_mount_cache.callback(builder="autodetect", cache_file=cache_file)
+    commands = [call.args[0] for call in mock_run_command.call_args_list]
+    assert commands[-2:] == [
+        ["docker", "rmi", "airflow-import-cache"],
+        ["docker", "image", "prune", "-f"],
+    ]
+
+
+def save_snapshot(snapshot_file, image_file_dir):
+    save.callback(
+        python="3.11",
+        platform="linux/amd64",
+        github_repository="apache/airflow",
+        image_file=None,
+        image_file_dir=image_file_dir,
+        snapshot_file=snapshot_file,
+    )
+
+
+def load_snapshot(snapshot_file, image_file_dir):
+    load.callback(
+        from_run=None,
+        from_pr=None,
+        github_repository="apache/airflow",
+        github_token=None,
+        image_file=None,
+        image_file_dir=image_file_dir,
+        platform="linux/amd64",
+        python="3.11",
+        skip_image_file_deletion=False,
+        snapshot_file=snapshot_file,
+        tag_as=None,
+    )
+
+
+@mock.patch("airflow_breeze.commands.ci_image_commands.mark_image_as_rebuilt", autospec=True)
+@mock.patch("airflow_breeze.commands.ci_image_commands.run_command", autospec=True)
+@mock.patch("airflow_breeze.commands.ci_image_commands.perform_environment_checks", autospec=True)
+def test_load_restores_snapshot_with_the_checks_of_an_image_file_load(
+    mock_perform_environment_checks, mock_run_command, mock_mark_image_as_rebuilt, tmp_path
+):
+    mock_run_command.return_value = mock.MagicMock(returncode=0)
+    snapshot_file = tmp_path / "ci-image-snapshot-linux_amd64-3.11.tar.zst"
+
+    load_snapshot(snapshot_file, tmp_path)
+
+    commands = [call.args[0] for call in mock_run_command.call_args_list]
+    assert commands[0][1:] == ["restore", str(snapshot_file)]
+    assert commands[0][0].endswith("scripts/ci/docker_data_root_snapshot.sh")
+    assert commands[1] == ["docker", "image", "inspect", "--format", "{{.Id}}", CI_IMAGE]
+    assert not [command for command in commands if command[:3] == ["docker", "image", "load"]]
+    mock_perform_environment_checks.assert_called_once()
+    mock_mark_image_as_rebuilt.assert_called_once()
+
+
+@pytest.mark.parametrize(
+    ("returncodes", "expected_exit"),
+    [pytest.param([3], 3, id="snapshot-does-not-fit"), pytest.param([0, 1], 1, id="image-missing")],
+)
+@mock.patch("airflow_breeze.commands.ci_image_commands.mark_image_as_rebuilt", autospec=True)
+@mock.patch("airflow_breeze.commands.ci_image_commands.run_command", autospec=True)
+@mock.patch("airflow_breeze.commands.ci_image_commands.perform_environment_checks", autospec=True)
+def test_load_exits_when_snapshot_is_not_restored(
+    mock_perform_environment_checks,
+    mock_run_command,
+    mock_mark_image_as_rebuilt,
+    tmp_path,
+    returncodes,
+    expected_exit,
+):
+    mock_run_command.side_effect = [mock.MagicMock(returncode=code) for code in returncodes]
+
+    with pytest.raises(SystemExit) as exit_info:
+        load_snapshot(tmp_path / "ci-image-snapshot-linux_amd64-3.11.tar.zst", tmp_path)
+
+    assert exit_info.value.code == expected_exit
+    mock_mark_image_as_rebuilt.assert_not_called()
+
+
+@mock.patch("airflow_breeze.commands.ci_image_commands.run_command", autospec=True)
+@mock.patch("airflow_breeze.commands.ci_image_commands.perform_environment_checks", autospec=True)
+def test_save_creates_snapshot_with_the_snapshot_script(
+    mock_perform_environment_checks, mock_run_command, tmp_path
+):
+    mock_run_command.return_value = mock.MagicMock(returncode=0)
+    snapshot_file = tmp_path / "ci-image-snapshot-linux_amd64-3.11.tar.zst"
+
+    save_snapshot(snapshot_file, tmp_path)
+
+    commands = [call.args[0] for call in mock_run_command.call_args_list]
+    assert len(commands) == 1
+    assert commands[0][0].endswith("scripts/ci/docker_data_root_snapshot.sh")
+    assert commands[0][1:] == ["create", str(snapshot_file)]
+    mock_perform_environment_checks.assert_called_once()
+
+
+@mock.patch("airflow_breeze.commands.ci_image_commands.run_command", autospec=True)
+@mock.patch("airflow_breeze.commands.ci_image_commands.perform_environment_checks", autospec=True)
+def test_save_exits_with_the_snapshot_script_code(
+    mock_perform_environment_checks, mock_run_command, tmp_path
+):
+    mock_run_command.return_value = mock.MagicMock(returncode=3)
+
+    with pytest.raises(SystemExit) as exit_info:
+        save_snapshot(tmp_path / "ci-image-snapshot-linux_amd64-3.11.tar.zst", tmp_path)
+
+    assert exit_info.value.code == 3

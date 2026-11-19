@@ -19,13 +19,20 @@
 
 package org.apache.airflow.e2e;
 
+import static java.lang.System.Logger.Level.INFO;
+
+import java.time.Duration;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import org.apache.airflow.sdk.*;
 import org.jetbrains.annotations.NotNull;
 
 /**
  * Bundle for the runner-behaviour E2E tests: deliberately broken task classes that exercise
- * instantiation failures, and a task that round-trips Airflow Variables through the supervisor.
+ * instantiation failures, tasks that round-trip Airflow Variables and task state through the
+ * supervisor, and tasks that run until Airflow asks them to stop.
  */
 public class TestBundleBuilder implements BundleBuilder {
   public static class MissingNoArgConstructor implements Task {
@@ -49,7 +56,8 @@ public class TestBundleBuilder implements BundleBuilder {
 
   /**
    * Stores this run's id where the E2E test can read it back through the REST API, then writes
-   * and deletes a scratch variable to exercise the delete path.
+   * and deletes a scratch variable to exercise the delete path, and reads it back to check that a
+   * missing variable reads as null.
    */
   public static class WriteAndDeleteVariable implements Task {
     public void execute(@NotNull Context context, Client client) {
@@ -57,6 +65,81 @@ public class TestBundleBuilder implements BundleBuilder {
           "java_e2e_variable", context.dagRun.runId, "written by the Java SDK e2e test");
       client.setVariable("java_e2e_scratch", "scratch");
       client.deleteVariable("java_e2e_scratch");
+      if (client.getVariable("java_e2e_scratch") != null) {
+        throw new IllegalStateException("java_e2e_scratch survived its delete");
+      }
+    }
+  }
+
+  /**
+   * Writes task state keys the E2E test reads back through the REST API, and reads them back
+   * here to exercise the get path. No clear: the E2E test reads the keys after the task ends.
+   */
+  public static class RoundtripTaskState implements Task {
+    public void execute(@NotNull Context context, Client client) {
+      var store = client.getTaskStateStore();
+      var runId = context.dagRun.runId;
+      store.set("java_e2e_run_id", runId, TaskStateStore.NEVER_EXPIRE);
+      store.set("java_e2e_counter", Map.of("processed", 3, "cursor", "abc-123"));
+      store.set("java_e2e_retained", "retained");
+      store.set("java_e2e_scratch", "scratch");
+      store.delete("java_e2e_scratch");
+
+      var readBack = store.get("java_e2e_run_id");
+      if (!runId.equals(readBack)) {
+        throw new IllegalStateException("java_e2e_run_id: got " + readBack + ", want " + runId);
+      }
+      var counter = store.get("java_e2e_counter");
+      if (!Map.of("processed", 3L, "cursor", "abc-123").equals(counter)) {
+        throw new IllegalStateException("java_e2e_counter: got " + counter);
+      }
+      if (store.get("java_e2e_scratch") != null) {
+        throw new IllegalStateException("java_e2e_scratch survived its delete");
+      }
+    }
+  }
+
+  /**
+   * Runs until Airflow asks it to stop. The task sees the request through its context. The E2E test
+   * makes the request by marking the task instance failed.
+   */
+  public static class WaitForStopRequest implements StoppableTask {
+    private static final System.Logger log = System.getLogger(WaitForStopRequest.class.getName());
+
+    public void execute(@NotNull Context context, Client client) throws InterruptedException {
+      log.log(INFO, "Waiting for a stop request");
+      if (!context.awaitCancellation(Duration.ofMinutes(5))) {
+        throw new IllegalStateException("No stop request arrived within five minutes");
+      }
+      log.log(INFO, "Stopping at Airflow's request");
+    }
+
+    public void onKill(@NotNull Context context) {}
+  }
+
+  /**
+   * Blocks in a call that never looks at the context, so only the {@code @Airflow.OnKill} method can
+   * release the task. The E2E test asks this task to stop the same way as it asks {@link
+   * WaitForStopRequest}.
+   */
+  public static class OnKillHandlers {
+    private static final System.Logger log = System.getLogger(OnKillHandlers.class.getName());
+
+    private final CountDownLatch killed = new CountDownLatch(1);
+
+    @Airflow.TaskHandler(dag = "java_stop_request_on_kill", task = "block_until_killed")
+    public void blockUntilKilled() throws InterruptedException {
+      log.log(INFO, "Waiting for a stop request");
+      if (!killed.await(5, TimeUnit.MINUTES)) {
+        throw new IllegalStateException("onKill did not run within five minutes");
+      }
+      log.log(INFO, "Stopping at Airflow's request");
+    }
+
+    @Airflow.OnKill(task = "block_until_killed")
+    public void stop() {
+      log.log(INFO, "onKill ran");
+      killed.countDown();
     }
   }
 
@@ -68,11 +151,15 @@ public class TestBundleBuilder implements BundleBuilder {
     uninstantiable.addTask("non_static_inner", NonStaticInner.class);
     var variableWrite = new DagDef("java_variable_write");
     variableWrite.addTask("write_and_delete", WriteAndDeleteVariable.class);
-    return List.of(uninstantiable, variableWrite);
+    var taskState = new DagDef("java_task_state");
+    taskState.addTask("roundtrip_task_state", RoundtripTaskState.class);
+    var stopRequest = new DagDef("java_stop_request");
+    stopRequest.addTask("wait_for_stop_request", WaitForStopRequest.class);
+    return List.of(uninstantiable, variableWrite, taskState, stopRequest);
   }
 
   public static void main(String[] args) {
-    var bundle = new TestBundleBuilder().build();
+    var bundle = new TestBundleBuilder().build().register(OnKillHandlers.class);
     Server.create(args).serve(bundle);
   }
 }

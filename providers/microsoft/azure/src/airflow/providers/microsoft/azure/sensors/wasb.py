@@ -42,7 +42,7 @@ class WasbBlobSensor(BaseSensorOperator):
     :param public_read: whether an anonymous public read access should be used. Default is False
     """
 
-    template_fields: Sequence[str] = ("container_name", "blob_name")
+    template_fields: Sequence[str] = ("container_name", "blob_name", "wasb_conn_id")
 
     def __init__(
         self,
@@ -120,7 +120,7 @@ class WasbPrefixSensor(BaseSensorOperator):
     :param deferrable: Run operator in the deferrable mode.
     """
 
-    template_fields: Sequence[str] = ("container_name", "prefix")
+    template_fields: Sequence[str] = ("container_name", "prefix", "wasb_conn_id")
 
     def __init__(
         self,

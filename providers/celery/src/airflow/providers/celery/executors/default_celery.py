@@ -23,7 +23,10 @@ import json
 import logging
 import re
 import ssl
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
+
+from sqlalchemy.engine import make_url
+from sqlalchemy.exc import ArgumentError, NoSuchModuleError
 
 from airflow.exceptions import AirflowConfigException as CoreAirflowConfigException
 from airflow.providers.celery.version_compat import AIRFLOW_V_3_0_PLUS
@@ -87,7 +90,9 @@ def _broker_transport_options(broker_url: str, conf: AirflowSDKConfigParser | An
             log.warning(
                 "No visibility_timeout configured in [celery_broker_transport_options]. "
                 "Using default of 86400 seconds (24 hours). Celery tasks running longer than this "
-                "will be redelivered by the broker, which terminates the original task. "
+                "will be redelivered by the broker. On Airflow 3.2.0 and newer the redelivered "
+                "message is discarded and the original task keeps running; on earlier versions the "
+                "redelivery terminates the original task. "
                 "If you have long-running tasks, increase this value in your Airflow configuration: "
                 "[celery_broker_transport_options] visibility_timeout = <seconds>"
             )
@@ -110,6 +115,36 @@ def _broker_transport_options(broker_url: str, conf: AirflowSDKConfigParser | An
                     f"Broker transport option {option} value should be written in the correct JSON format."
                 ) from exc
     return broker_transport_options
+
+
+def _apply_default_postgres_driver(result_backend: str) -> str:
+    """
+    Give a driverless ``db+postgresql://`` result backend Airflow's default sync Postgres driver.
+
+    SQLAlchemy before 2.1 picks psycopg2 for a driverless URL, while Airflow defaults to psycopg (v3);
+    fall back to psycopg2 without psycopg/SQLAlchemy 2.0, matching PostgresHook's USE_PSYCOPG3 gating.
+    """
+    if not result_backend.startswith("db+postgresql://"):
+        return result_backend
+    driver = "psycopg" if _USE_PSYCOPG3 else "psycopg2"
+    return result_backend.replace("db+postgresql://", f"db+postgresql+{driver}://", 1)
+
+
+def _get_database_engine_options(result_backend: str, options: dict[str, Any]) -> dict[str, Any]:
+    if not result_backend.startswith("db+"):
+        return options
+    try:
+        driver = make_url(result_backend.removeprefix("db+")).get_driver_name()
+    except (ArgumentError, NoSuchModuleError):
+        # Defer invalid or unavailable dialects to Celery's backend initialization.
+        return options
+    if driver != "psycopg":
+        return options
+    # Celery creates its own engines, so metadata-engine defaults do not protect transaction poolers.
+    return {
+        **options,
+        "connect_args": {"prepare_threshold": None, **options.get("connect_args", {})},
+    }
 
 
 def get_default_celery_config(team_conf: AirflowSDKConfigParser | Any) -> dict[str, Any]:
@@ -135,14 +170,8 @@ def get_default_celery_config(team_conf: AirflowSDKConfigParser | Any) -> dict[s
         result_backend = team_conf.get_mandatory_value("celery", "RESULT_BACKEND")
     else:
         log.debug("Value for celery result_backend not found. Using sql_alchemy_conn with db+ prefix.")
-        sql_alchemy_conn = team_conf.get("database", "SQL_ALCHEMY_CONN")
-        # Airflow's sync metadata-database driver default is psycopg (v3); mirror that explicitly
-        # for driverless PostgreSQL URLs instead of relying on SQLAlchemy's own default. Fall back to
-        # psycopg2 when psycopg/SQLAlchemy 2.0 aren't both available, matching PostgresHook's own
-        # USE_PSYCOPG3 gating so this doesn't break environments still on the older combination.
-        target_scheme = "postgresql+psycopg://" if _USE_PSYCOPG3 else "postgresql+psycopg2://"
-        sql_alchemy_conn = sql_alchemy_conn.replace("postgresql://", target_scheme, 1)
-        result_backend = f"db+{sql_alchemy_conn}"
+        result_backend = f"db+{team_conf.get('database', 'SQL_ALCHEMY_CONN')}"
+    result_backend = _apply_default_postgres_driver(result_backend)
 
     # Handle result backend transport options (for Redis Sentinel support)
     result_backend_transport_options: dict = (
@@ -177,8 +206,12 @@ def get_default_celery_config(team_conf: AirflowSDKConfigParser | Any) -> dict[s
         ),
         "result_backend": result_backend,
         "result_backend_transport_options": result_backend_transport_options,
-        "database_engine_options": team_conf.getjson(
-            "celery", "result_backend_sqlalchemy_engine_options", fallback={}
+        "database_engine_options": _get_database_engine_options(
+            result_backend,
+            cast(
+                "dict[str, Any]",
+                team_conf.getjson("celery", "result_backend_sqlalchemy_engine_options", fallback={}),
+            ),
         ),
         "worker_concurrency": team_conf.getint("celery", "WORKER_CONCURRENCY", fallback=16),
         "worker_enable_remote_control": team_conf.getboolean(

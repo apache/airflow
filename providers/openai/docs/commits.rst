@@ -1,4 +1,3 @@
-
  .. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
@@ -28,7 +27,7 @@ Package apache-airflow-providers-openai
 
 `OpenAI <https://platform.openai.com/docs/introduction>`__ provider for Apache Airflow.
 Enables interaction with OpenAI APIs for text generation, embeddings,
-and other AI-powered workflows directly from Airflow DAGs.
+and other AI-powered workflows directly from Airflow Dags.
 
 
 This is detailed commit list of changes for versions provider package: ``openai``.

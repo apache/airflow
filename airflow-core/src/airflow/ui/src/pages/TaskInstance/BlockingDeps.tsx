@@ -34,6 +34,8 @@ export const BlockingDeps = ({ refetchInterval, taskInstance }: BlockingDepsProp
       dagId: taskInstance.dag_id,
       dagRunId: taskInstance.dag_run_id,
       mapIndex: taskInstance.map_index,
+      regionId: taskInstance.region_id,
+      regionIndex: taskInstance.region_index,
       taskId: taskInstance.task_id,
     },
     undefined,

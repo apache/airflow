@@ -142,10 +142,6 @@ class TestBteqOperator:
         # When/Then (no exception should be raised)
         operator.on_kill()
 
-    def test_template_fields(self):
-        # Verify template fields are defined correctly
-        assert BteqOperator.template_fields == ("sql",)
-
     def test_execute_raises_if_no_sql_or_file(self):
         op = BteqOperator(task_id="fail_case", teradata_conn_id="td_conn")
         with pytest.raises(

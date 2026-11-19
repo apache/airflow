@@ -46,6 +46,8 @@ const EditXComButton = ({ xcom }: EditXComButtonProps) => {
         mapIndex={xcom.map_index}
         mode="edit"
         onClose={onClose}
+        regionId={xcom.region_id}
+        regionIndex={xcom.region_index}
         runId={xcom.run_id}
         taskId={xcom.task_id}
         xcomKey={xcom.key}

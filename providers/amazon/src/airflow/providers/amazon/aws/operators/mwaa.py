@@ -25,6 +25,7 @@ from airflow.providers.amazon.aws.hooks.mwaa import MwaaHook
 from airflow.providers.amazon.aws.operators.base_aws import AwsBaseOperator
 from airflow.providers.amazon.aws.triggers.mwaa import MwaaDagRunCompletedTrigger
 from airflow.providers.amazon.aws.utils import validate_execute_complete_event
+from airflow.providers.amazon.aws.utils.deferral import should_defer
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 from airflow.providers.common.compat.sdk import AirflowException, conf
 
@@ -58,8 +59,9 @@ class MwaaTriggerDagRunOperator(AwsBaseOperator[MwaaHook]):
     :param waiter_delay: Time in seconds to wait between status checks. (default: 60)
     :param waiter_max_attempts: Maximum number of attempts to check for Dag run completion. (default: 20)
     :param deferrable: If True, the operator will wait asynchronously for the Dag run to stop.
-        This implies waiting for completion. This mode requires aiobotocore module to be installed.
-        (default: False)
+        This mode requires aiobotocore module to be installed. (default: False)
+        Deferring when ``wait_for_completion`` is False is deprecated; from the next major release
+        this has no effect when ``wait_for_completion`` is False.
     :param aws_conn_id: The Airflow connection used for AWS credentials.
         If this is ``None`` or empty then the default boto3 behaviour is used. If
         running Airflow in a distributed manner and aws_conn_id is None or
@@ -160,7 +162,7 @@ class MwaaTriggerDagRunOperator(AwsBaseOperator[MwaaHook]):
         self.log.info("Dag run %s of Dag %s created", dag_run_id, self.trigger_dag_id)
 
         task_description = f"Dag run {dag_run_id} of Dag {self.trigger_dag_id} to complete"
-        if self.deferrable:
+        if should_defer(deferrable=self.deferrable, wait_for_completion=self.wait_for_completion):
             self.log.info("Deferring for %s", task_description)
             self.defer(
                 trigger=MwaaDagRunCompletedTrigger(
@@ -170,6 +172,9 @@ class MwaaTriggerDagRunOperator(AwsBaseOperator[MwaaHook]):
                     waiter_delay=self.waiter_delay,
                     waiter_max_attempts=self.waiter_max_attempts,
                     aws_conn_id=self.aws_conn_id,
+                    region_name=self.region_name,
+                    verify=self.verify,
+                    botocore_config=self.botocore_config,
                 ),
                 method_name="execute_complete",
             )

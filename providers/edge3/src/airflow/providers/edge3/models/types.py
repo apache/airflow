@@ -18,10 +18,14 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, TypeAlias, TypeGuard
 
+from sqlalchemy import and_, literal
+
 from airflow.executors.workloads import ExecuteTask
 from airflow.providers.edge3.version_compat import AIRFLOW_V_3_3_PLUS
 
 if TYPE_CHECKING:
+    from sqlalchemy.sql.elements import ColumnElement
+
     from airflow.executors import workloads
     from airflow.executors.workloads import ExecuteCallback
 
@@ -44,3 +48,36 @@ def is_callback_execute(workload: workloads.All) -> TypeGuard[ExecuteCallback]:
 # This is the key used to identify execute_callback jobs.
 # Changing this value may break compatibility with existing data in the edge_job table.
 EXECUTE_CALLBACK_TAG = "ExecuteCallback"
+
+# The rest of the identity queue_workload() writes for a callback row. "ExecuteCallback" is a valid
+# Dag id, so a row is a callback only when all four fields match.
+CALLBACK_JOB_TRY_NUMBER = 0
+CALLBACK_JOB_MAP_INDEX = -1
+CALLBACK_JOB_RUN_ID_PREFIX = f"{EXECUTE_CALLBACK_TAG}-"
+
+
+def build_callback_run_id(callback_id: str) -> str:
+    return f"{CALLBACK_JOB_RUN_ID_PREFIX}{callback_id}"
+
+
+def is_callback_job(dag_id: str, task_id: str, run_id: str, try_number: int, map_index: int) -> bool:
+    """Return whether a job row matches the identity ``queue_workload()`` writes for a callback."""
+    return (
+        dag_id == EXECUTE_CALLBACK_TAG
+        and run_id == build_callback_run_id(task_id)
+        and try_number == CALLBACK_JOB_TRY_NUMBER
+        and map_index == CALLBACK_JOB_MAP_INDEX
+    )
+
+
+def build_callback_job_filter() -> ColumnElement[bool]:
+    """Return :func:`is_callback_job` as a SQL filter on ``edge_job`` rows."""
+    # Imported here because the edge_job module imports this one.
+    from airflow.providers.edge3.models.edge_job import EdgeJobModel
+
+    return and_(
+        EdgeJobModel.dag_id == EXECUTE_CALLBACK_TAG,
+        EdgeJobModel.run_id == literal(CALLBACK_JOB_RUN_ID_PREFIX) + EdgeJobModel.task_id,
+        EdgeJobModel.try_number == CALLBACK_JOB_TRY_NUMBER,
+        EdgeJobModel.map_index == CALLBACK_JOB_MAP_INDEX,
+    )

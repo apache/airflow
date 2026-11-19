@@ -21,6 +21,10 @@
 # node binary from the same image conftest builds the bundle with into a
 # shared volume. The bundle is bind-mounted where NodeCoordinator scans, and
 # the worker consumes the "typescript" queue where @task.stub tasks are routed.
+#
+# A native TypeScript Dag has no Python Dag file: the Dag processor runs node on
+# the bundle itself to parse it, so it gets the same bundle mount and node binary.
+# The API server reads Dag source from the database and needs neither.
 ---
 services:
   node-provider:
@@ -28,6 +32,20 @@ services:
     command: ["cp", "/usr/local/bin/node", "/opt/nodejs/node"]
     volumes:
       - nodejs-bin:/opt/nodejs
+
+  airflow-dag-processor:
+    environment:
+      # The dynamic Dag test swaps a YAML file and waits for the Dag IDs to change. Re-parse the
+      # bundle every few seconds, and mark a Dag stale soon after it leaves the YAML.
+      AIRFLOW__DAG_PROCESSOR__MIN_FILE_PROCESS_INTERVAL: '5'
+      AIRFLOW__DAG_PROCESSOR__STALE_DAG_THRESHOLD: '10'
+      AIRFLOW__SCHEDULER__PARSING_CLEANUP_INTERVAL: '5'
+    volumes:
+      - ./ts-bundles:/opt/airflow/ts-bundles:ro
+      - nodejs-bin:/opt/nodejs:ro
+    depends_on:
+      node-provider:
+        condition: service_completed_successfully
 
   airflow-worker:
     volumes:

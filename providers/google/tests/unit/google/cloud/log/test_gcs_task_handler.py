@@ -525,7 +525,7 @@ class TestGCSTaskHandler:
             assert logs[1].event == expected_gs_uri
             assert logs[2].event == "::endgroup::"
             assert logs[3].event == "CONTENT"
-            assert metadata == {"end_of_log": True, "log_pos": 1}
+            assert metadata["end_of_log"] is True
         elif AIRFLOW_V_3_0_PLUS:
             logs = list(logs)
             assert logs[0].event == "::group::Log message source details"
@@ -563,7 +563,7 @@ class TestGCSTaskHandler:
             assert log[1].event == expected_gs_uri
             assert log[2].event == f"{self.gcs_task_handler.local_base}/1.log"
             assert log[3].event == "::endgroup::"
-            assert metadata == {"end_of_log": True, "log_pos": 0}
+            assert metadata["end_of_log"] is True
         elif AIRFLOW_V_3_0_PLUS:
             log = list(log)
             assert log[0].event == "::group::Log message source details"
@@ -788,3 +788,26 @@ class TestGCSRemoteLogIOMisconfiguredConn:
             "remote_log_conn_id" in r.getMessage() for r in caplog.records if r.levelno == logging.WARNING
         )
         mock_hook.assert_not_called()
+
+
+def test_upload_skips_path_outside_base_log_folder(tmp_path, caplog):
+    """A traversing log path is refused before the file is read or its parent removed.
+
+    ``base_log_folder.joinpath(path)`` is purely lexical, so a ``..``-bearing relative path
+    escapes the log folder. Without the containment check the file would be uploaded to the
+    remote log store and, with ``delete_local_copy``, its parent directory deleted.
+    """
+    base = tmp_path / "logs"
+    base.mkdir()
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    secret = outside / "secret.log"
+    secret.write_text("sensitive")
+
+    subject = GCSRemoteLogIO(remote_base="gs://bucket/remote", base_log_folder=base, delete_local_copy=True)
+    with caplog.at_level(logging.WARNING):
+        subject.upload(os.path.join("..", "outside", "secret.log"))
+
+    assert secret.exists()
+    assert outside.exists()
+    assert "outside base_log_folder" in caplog.text

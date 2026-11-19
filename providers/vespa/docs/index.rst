@@ -1,4 +1,3 @@
-
  .. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
@@ -9,7 +8,7 @@
 
  ..   http://www.apache.org/licenses/LICENSE-2.0
 
-.. Unless required by applicable law or agreed to in writing,
+ .. Unless required by applicable law or agreed to in writing,
     software distributed under the License is distributed on an
     "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
     KIND, either express or implied.  See the License for the
@@ -70,7 +69,7 @@ apache-airflow-providers-vespa package
 `Vespa <https://vespa.ai/>`__
 
 
-Release: 0.1.1
+Release: 0.1.3
 
 Provider package
 ----------------
@@ -90,13 +89,14 @@ Requirements
 
 The minimum Apache Airflow version supported by this provider distribution is ``2.11.0``.
 
-==========================================  ==================
+==========================================  =====================================
 PIP package                                 Version required
-==========================================  ==================
+==========================================  =====================================
 ``apache-airflow``                          ``>=2.11.0``
 ``apache-airflow-providers-common-compat``  ``>=1.12.0``
-``pyvespa``                                 ``>=1.1.2``
-==========================================  ==================
+``pyvespa``                                 ``>=1.2.9; python_version >= "3.14"``
+``pyvespa``                                 ``>=1.1.2; python_version < "3.14"``
+==========================================  =====================================
 
 Downloading official packages
 -----------------------------
@@ -104,5 +104,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-vespa 0.1.1 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_vespa-0.1.1.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_vespa-0.1.1.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_vespa-0.1.1.tar.gz.sha512>`__)
-* `The apache-airflow-providers-vespa 0.1.1 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_vespa-0.1.1-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_vespa-0.1.1-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_vespa-0.1.1-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-vespa 0.1.3 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_vespa-0.1.3.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_vespa-0.1.3.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_vespa-0.1.3.tar.gz.sha512>`__)
+* `The apache-airflow-providers-vespa 0.1.3 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_vespa-0.1.3-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_vespa-0.1.3-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_vespa-0.1.3-py3-none-any.whl.sha512>`__)

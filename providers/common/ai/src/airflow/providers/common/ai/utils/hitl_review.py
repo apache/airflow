@@ -27,7 +27,7 @@ task instance.  See the *XCom key constants* below for the key naming scheme.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Any, Literal
 
@@ -62,10 +62,17 @@ Actual key: ``airflow_hitl_review_agent_output_1``, ``_2``, ...
 """
 
 XCOM_HUMAN_FEEDBACK_PREFIX = f"{_XCOM_PREFIX}human_feedback_"
-"""Per-iteration human feedback (append-only, written by plugin).
+"""Per-iteration human feedback (append-only, written by the plugin, and by the worker when it resumes).
 
 Actual key: ``airflow_hitl_review_human_feedback_1``, ``_2``, ...
 """
+
+# On Airflow 3.3+ each review round is also a Human-in-the-loop request on the task instance, which
+# the task parks on. The plugin answers it with one of these options and the reviewer's feedback.
+HITL_OPTION_APPROVE = "Approve"
+HITL_OPTION_REQUEST_CHANGES = "Request changes"
+HITL_OPTION_REJECT = "Reject"
+HITL_FEEDBACK_PARAM = "feedback"
 
 
 class SessionStatus(str, Enum):
@@ -85,7 +92,7 @@ class ConversationEntry(BaseModel):
     role: Literal["assistant", "human"]
     content: str
     iteration: int
-    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
 class AgentSessionData(BaseModel):
@@ -100,6 +107,8 @@ class AgentSessionData(BaseModel):
     max_iterations: int = 5
     prompt: str = ""
     current_output: str = ""
+    parked: bool = False
+    """``True`` when the task waits for the reviewer in ``awaiting_input`` rather than polling XCom."""
 
 
 class HumanActionData(BaseModel):

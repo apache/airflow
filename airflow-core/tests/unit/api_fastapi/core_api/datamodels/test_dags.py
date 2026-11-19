@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -84,7 +84,7 @@ class TestGetDefaultArgsValidator:
         assert result == {"retry_delay": td}
 
     def test_datetime_values_are_preserved(self):
-        start_date = datetime(2024, 1, 1, tzinfo=timezone.utc)
+        start_date = datetime(2024, 1, 1, tzinfo=UTC)
         result = self._call_validator({"start_date": start_date})
         assert result == {"start_date": start_date}
 

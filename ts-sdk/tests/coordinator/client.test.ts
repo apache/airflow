@@ -17,11 +17,16 @@
  * under the License.
  */
 
-import { describe, it, expect } from "vitest";
+import { afterEach, describe, it, expect, vi } from "vitest";
 import { ConnectionNotFoundError } from "../../src/sdk/client.js";
+import { NEVER_EXPIRE } from "../../src/sdk/client-types.js";
 import { createCoordinatorClient } from "../../src/coordinator/client.js";
 import type { CommChannel } from "../../src/coordinator/comm-channel.js";
+import type { TaskClient } from "../../src/sdk/client.js";
+import type { GetXComOpts } from "../../src/sdk/client-types.js";
 import type { TaskContext } from "../../src/sdk/task.js";
+
+const RETENTION_ENV_VAR = "AIRFLOW__STATE_STORE__DEFAULT_RETENTION_DAYS";
 
 function fakeComm(frames: { body: unknown; error?: unknown }[]): CommChannel {
   let i = 0;
@@ -36,11 +41,40 @@ const FAKE_CTX: TaskContext = {
   runId: "r",
   tryNumber: 1,
   mapIndex: -1,
+  conf: {},
   signal: new AbortController().signal,
 };
 
+const FAKE_TI_ID = "01890f3e-0000-7000-8000-000000000001";
+
 function client(frames: { body: unknown; error?: unknown }[]) {
-  return createCoordinatorClient(fakeComm(frames), FAKE_CTX);
+  return createCoordinatorClient(fakeComm(frames), FAKE_CTX, FAKE_TI_ID);
+}
+
+const MAPPED_CTX: TaskContext = { ...FAKE_CTX, mapIndex: 3 };
+
+type XComOpts = Pick<GetXComOpts, "key" | "dagId" | "runId" | "taskId" | "mapIndex">;
+
+/** Each XCom call that takes a target, with the reply the supervisor gives it. */
+const XCOM_CALLS = [
+  [
+    "getXCom",
+    { type: "XComResult", key: "k", value: null },
+    (c: TaskClient, o: XComOpts) => c.getXCom(o),
+  ],
+  ["setXCom", null, (c: TaskClient, o: XComOpts) => c.setXCom({ ...o, value: 1 })],
+] as const;
+
+/** Captures the request bodies sent, answering each one with `reply`. */
+function recordingClient(reply: unknown = null, ctx: TaskContext = FAKE_CTX) {
+  const sent: Record<string, unknown>[] = [];
+  const comm = {
+    request: async (body: Record<string, unknown>) => {
+      sent.push(body);
+      return { body: reply };
+    },
+  } as unknown as CommChannel;
+  return { client: createCoordinatorClient(comm, ctx, FAKE_TI_ID), sent };
 }
 
 describe("getVariable not-found contract", () => {
@@ -76,10 +110,96 @@ describe("getVariableOrThrow", () => {
     const c = client([{ body: { type: "ErrorResponse", error: "VARIABLE_NOT_FOUND" } }]);
     await expect(c.getVariableOrThrow("x")).rejects.toThrow(/Variable not found: x/);
   });
+});
 
-  it("throws VariableNotFoundError on a null-valued result", async () => {
-    const c = client([{ body: { type: "VariableResult", key: "x", value: null } }]);
-    await expect(c.getVariableOrThrow("x")).rejects.toThrow(/Variable not found: x/);
+describe("setVariable", () => {
+  it("sends the description the caller gave", async () => {
+    const { client: c, sent } = recordingClient();
+
+    await c.setVariable("threshold", "42", "rows above this take the slow path");
+
+    expect(sent[0]).toEqual({
+      type: "PutVariable",
+      key: "threshold",
+      value: "42",
+      description: "rows above this take the slow path",
+    });
+  });
+
+  it("sends description as null when the caller gives none", async () => {
+    const { client: c, sent } = recordingClient();
+
+    await c.setVariable("threshold", "42");
+
+    expect(sent[0]).toEqual({
+      type: "PutVariable",
+      key: "threshold",
+      value: "42",
+      description: null,
+    });
+  });
+
+  it.each([
+    ["null", null],
+    ["undefined", undefined],
+    ["number", 42],
+  ])("rejects a %s value without sending a request", async (_label, value) => {
+    const { client: c, sent } = recordingClient();
+    // @ts-expect-error exercising the runtime guard against an untyped caller.
+    await expect(c.setVariable("threshold", value)).rejects.toThrow(TypeError);
+    expect(sent).toHaveLength(0);
+  });
+});
+
+describe("deleteVariable", () => {
+  it("sends DeleteVariable and resolves on the supervisor's OKResponse", async () => {
+    const { client: c, sent } = recordingClient({ type: "OKResponse", ok: true });
+
+    await expect(c.deleteVariable("threshold")).resolves.toBeUndefined();
+
+    expect(sent[0]).toEqual({ type: "DeleteVariable", key: "threshold" });
+  });
+});
+
+describe("skipDownstreamTasks", () => {
+  it("sends SkipDownstreamTasks with the task ids", async () => {
+    const { client: c, sent } = recordingClient({ type: "OKResponse", ok: true });
+
+    await c.skipDownstreamTasks(["load_fallback"]);
+
+    expect(sent).toEqual([{ type: "SkipDownstreamTasks", tasks: ["load_fallback"] }]);
+  });
+
+  it("sends nothing for an empty list", async () => {
+    const { client: c, sent } = recordingClient();
+
+    await c.skipDownstreamTasks([]);
+
+    expect(sent).toEqual([]);
+  });
+});
+
+describe("writes do not read a supervisor 404 as absence", () => {
+  it.each([
+    ["setVariable", "PutVariable", (c: TaskClient) => c.setVariable("k", "v")],
+    ["deleteVariable", "DeleteVariable", (c: TaskClient) => c.deleteVariable("k")],
+    ["setXCom", "SetXCom", (c: TaskClient) => c.setXCom({ key: "k", value: 1 })],
+    [
+      "taskStateStore.set",
+      "SetTaskStateStore",
+      (c: TaskClient) => c.taskStateStore.set("k", 1, { retention: 60 }),
+    ],
+    [
+      "taskStateStore.delete",
+      "DeleteTaskStateStore",
+      (c: TaskClient) => c.taskStateStore.delete("k"),
+    ],
+    ["taskStateStore.clear", "ClearTaskStateStore", (c: TaskClient) => c.taskStateStore.clear()],
+  ])("%s rejects", async (_name, op, call) => {
+    const c = client([
+      { body: null, error: { error: "API_SERVER_ERROR", detail: { status_code: 404 } } },
+    ]);
+    await expect(call(c)).rejects.toThrow(`${op} failed: API_SERVER_ERROR`);
   });
 });
 
@@ -87,6 +207,33 @@ describe("getXCom not-found contract", () => {
   it("returns null for the exact XCOM_NOT_FOUND code", async () => {
     const c = client([{ body: { type: "ErrorResponse", error: "XCOM_NOT_FOUND" } }]);
     expect(await c.getXCom({ key: "k" })).toBeNull();
+  });
+});
+
+describe("getXComEntry", () => {
+  // `getXCom` answers null for an absent row and a stored null alike, which is
+  // the friendlier shape for handler code but cannot drive a decision between
+  // the two. Argument binding needs both: an upstream that pushed no output
+  // fails the task, while one that pushed null binds null.
+  it("reports an absent row as not found", async () => {
+    const c = client([{ body: { type: "ErrorResponse", error: "XCOM_NOT_FOUND" } }]);
+    expect(await c.getXComEntry({ key: "k" })).toEqual({ found: false, value: null });
+  });
+
+  it("reports a stored null as found", async () => {
+    const c = client([{ body: { type: "XComResult", key: "k", value: null } }]);
+    expect(await c.getXComEntry({ key: "k" })).toEqual({ found: true, value: null });
+  });
+
+  it("reports a stored value as found", async () => {
+    const c = client([{ body: { type: "XComResult", key: "k", value: { orders: 12 } } }]);
+    expect(await c.getXComEntry({ key: "k" })).toEqual({ found: true, value: { orders: 12 } });
+  });
+
+  it("is what getXCom reads, so both see one round-trip", async () => {
+    const c = client([{ body: { type: "XComResult", key: "k", value: false } }]);
+    // `false` also pins that getXCom's `?? null` does not flatten a falsy value.
+    expect(await c.getXCom({ key: "k" })).toBe(false);
   });
 });
 
@@ -99,7 +246,7 @@ describe("client is bound to TaskContext", () => {
         return { body: null };
       },
     } as unknown as CommChannel;
-    const c = createCoordinatorClient(recordingComm, FAKE_CTX);
+    const c = createCoordinatorClient(recordingComm, FAKE_CTX, FAKE_TI_ID);
 
     await c.setXCom({ key: "echo", value: 1 });
     await c.setXCom({
@@ -134,7 +281,7 @@ describe("client is bound to TaskContext", () => {
         return { body: { type: "XComResult", key: b.key, value: null } };
       },
     } as unknown as CommChannel;
-    const c = createCoordinatorClient(recordingComm, FAKE_CTX);
+    const c = createCoordinatorClient(recordingComm, FAKE_CTX, FAKE_TI_ID);
 
     await c.getXCom({ key: "k" });
 
@@ -160,10 +307,10 @@ describe("client is bound to TaskContext", () => {
           : { body: null };
       },
     } as unknown as CommChannel;
-    // ctx with a real map index — to prove -1 from opts wins over a
+    // ctx with a real map index, to prove -1 from opts wins over a
     // mapped ctx value (caller is explicitly asking "the non-mapped row").
     const mappedCtx: TaskContext = { ...FAKE_CTX, mapIndex: 3 };
-    const c = createCoordinatorClient(recordingComm, mappedCtx);
+    const c = createCoordinatorClient(recordingComm, mappedCtx, FAKE_TI_ID);
 
     await c.setXCom({ key: "k", value: 1, mapIndex: -1 });
     await c.setXCom({ key: "k", value: 2, mapIndex: null });
@@ -188,6 +335,57 @@ describe("client is bound to TaskContext", () => {
       include_prior_dates: true,
     });
     expect(sent[3]).toMatchObject({ type: "SetXCom", map_index: 5 });
+  });
+});
+
+describe("XCom map index default", () => {
+  describe.each(XCOM_CALLS)("%s", (_name, reply, call) => {
+    it.each([
+      ["the running task", {}, 3],
+      ["the running task named explicitly", { dagId: "d", taskId: "t", runId: "r" }, 3],
+      ["another task", { taskId: "extract" }, null],
+      ["another Dag", { dagId: "other_dag" }, null],
+      ["another run", { runId: "manual__1" }, null],
+      ["another task with an explicit mapIndex", { taskId: "extract", mapIndex: 2 }, 2],
+      ["another task with mapIndex 0", { taskId: "extract", mapIndex: 0 }, 0],
+      ["the running task with mapIndex null", { mapIndex: null }, null],
+      ["the running task with null target ids", { dagId: null, taskId: null, runId: null }, 3],
+    ] as [string, Omit<XComOpts, "key">, number | null][])(
+      "from a mapped task targeting %s sends map_index %s",
+      async (_label, target, expected) => {
+        const { client: c, sent } = recordingClient(reply, MAPPED_CTX);
+
+        await call(c, { key: "k", ...target });
+
+        expect(sent[0]).toMatchObject({ map_index: expected });
+      },
+    );
+  });
+});
+
+describe("XCom key and map index guards", () => {
+  describe.each(XCOM_CALLS)("%s", (_name, reply, call) => {
+    it.each([
+      ["an empty key", { key: "" }, RangeError],
+      ["an undefined key", { key: undefined }, TypeError],
+      ["a numeric key", { key: 1 }, TypeError],
+      ["a fractional mapIndex", { key: "k", mapIndex: 1.5 }, RangeError],
+      ["a NaN mapIndex", { key: "k", mapIndex: Number.NaN }, RangeError],
+      ["an Infinity mapIndex", { key: "k", mapIndex: Number.POSITIVE_INFINITY }, RangeError],
+      ["a string mapIndex", { key: "k", mapIndex: "1" }, TypeError],
+      ["a numeric dagId", { key: "k", dagId: 1 }, TypeError],
+      ["a numeric taskId", { key: "k", taskId: 1 }, TypeError],
+      ["an empty runId", { key: "k", runId: "" }, RangeError],
+    ] as [string, unknown, ErrorConstructor][])(
+      "rejects %s without sending a request",
+      async (_label, opts, errorType) => {
+        const { client: c, sent } = recordingClient(reply);
+
+        await expect(call(c, opts as XComOpts)).rejects.toThrow(errorType);
+
+        expect(sent).toHaveLength(0);
+      },
+    );
   });
 });
 
@@ -266,5 +464,223 @@ describe("getConnectionOrThrow", () => {
   it("propagates non-not-found errors instead of ConnectionNotFoundError", async () => {
     const c = client([{ body: { type: "ErrorResponse", error: "API_SERVER_ERROR" } }]);
     await expect(c.getConnectionOrThrow("warehouse")).rejects.toThrow(/API_SERVER_ERROR/);
+  });
+});
+
+describe("taskStateStore.get", () => {
+  it("sends GetTaskStateStore with the bound ti_id and returns the stored value", async () => {
+    const { client: c, sent } = recordingClient({ type: "TaskStateStoreResult", value: { n: 1 } });
+
+    await expect(c.taskStateStore.get("k")).resolves.toEqual({ n: 1 });
+
+    expect(sent[0]).toEqual({ type: "GetTaskStateStore", ti_id: FAKE_TI_ID, key: "k" });
+  });
+
+  it("returns null for the exact TASK_STORE_NOT_FOUND code", async () => {
+    const c = client([{ body: { type: "ErrorResponse", error: "TASK_STORE_NOT_FOUND" } }]);
+    expect(await c.taskStateStore.get("k")).toBeNull();
+  });
+
+  it("rejects for an API_SERVER_ERROR with status 404, which is not in its absence policy", async () => {
+    const c = client([
+      { body: null, error: { error: "API_SERVER_ERROR", detail: { status_code: 404 } } },
+    ]);
+    await expect(c.taskStateStore.get("k")).rejects.toThrow(/API_SERVER_ERROR/);
+  });
+
+  it("rejects for VARIABLE_NOT_FOUND, which is not in its absence policy", async () => {
+    const c = client([{ body: { type: "ErrorResponse", error: "VARIABLE_NOT_FOUND" } }]);
+    await expect(c.taskStateStore.get("k")).rejects.toThrow(/VARIABLE_NOT_FOUND/);
+  });
+
+  it("rejects on an empty key without sending a request", async () => {
+    const { client: c, sent } = recordingClient();
+    await expect(c.taskStateStore.get("")).rejects.toThrow(RangeError);
+    expect(sent).toHaveLength(0);
+  });
+});
+
+describe("getVariable does not read TASK_STORE_NOT_FOUND as absence", () => {
+  it("rejects for TASK_STORE_NOT_FOUND, which is not in its absence policy", async () => {
+    const c = client([{ body: { type: "ErrorResponse", error: "TASK_STORE_NOT_FOUND" } }]);
+    await expect(c.getVariable("k")).rejects.toThrow(/TASK_STORE_NOT_FOUND/);
+  });
+});
+
+describe("taskStateStore.set retention", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
+
+  it("sends expires_at null for NEVER_EXPIRE", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-01-01T00:00:00.000Z"));
+    const { client: c, sent } = recordingClient({ type: "OKResponse", ok: true });
+
+    await c.taskStateStore.set("k", 1, { retention: NEVER_EXPIRE });
+
+    expect(sent[0]).toEqual({
+      type: "SetTaskStateStore",
+      ti_id: FAKE_TI_ID,
+      key: "k",
+      value: 1,
+      expires_at: null,
+    });
+  });
+
+  it("sends now + retention for a finite retention", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-01-01T00:00:00.000Z"));
+    const { client: c, sent } = recordingClient({ type: "OKResponse", ok: true });
+
+    await c.taskStateStore.set("k", 1, { retention: 60 });
+
+    expect(sent[0]).toMatchObject({ expires_at: "2026-01-01T00:01:00.000Z" });
+  });
+
+  it("sends now (expire immediately) for retention 0", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-01-01T00:00:00.000Z"));
+    const { client: c, sent } = recordingClient({ type: "OKResponse", ok: true });
+
+    await c.taskStateStore.set("k", 1, { retention: 0 });
+
+    expect(sent[0]).toMatchObject({ expires_at: "2026-01-01T00:00:00.000Z" });
+  });
+
+  it.each([
+    ["0", "0", null],
+    ["7", "7", "2026-01-08T00:00:00.000Z"],
+    ["7.0", "7.0", "2026-01-08T00:00:00.000Z"],
+  ])("resolves the default_retention_days env var: %s", async (_label, raw, expected) => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-01-01T00:00:00.000Z"));
+    vi.stubEnv(RETENTION_ENV_VAR, raw);
+    const { client: c, sent } = recordingClient({ type: "OKResponse", ok: true });
+
+    await c.taskStateStore.set("k", 1);
+
+    expect(sent[0]).toMatchObject({ expires_at: expected });
+  });
+
+  it.each([
+    ["-1", "-1"],
+    ["abc", "abc"],
+    ["fractional", "7.5"],
+    ["empty", ""],
+  ])("rejects an invalid default_retention_days env var: %s", async (_label, raw) => {
+    vi.stubEnv(RETENTION_ENV_VAR, raw);
+    const { client: c, sent } = recordingClient({ type: "OKResponse", ok: true });
+
+    await expect(c.taskStateStore.set("k", 1)).rejects.toThrow(RangeError);
+    expect(sent).toHaveLength(0);
+  });
+
+  it("rejects when the coordinator did not pass default_retention_days", async () => {
+    vi.stubEnv(RETENTION_ENV_VAR, undefined);
+    const { client: c, sent } = recordingClient({ type: "OKResponse", ok: true });
+
+    await expect(c.taskStateStore.set("k", 1)).rejects.toThrow(RETENTION_ENV_VAR);
+    expect(sent).toHaveLength(0);
+  });
+});
+
+describe("taskStateStore.set guards", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it.each([
+    ["null", null],
+    ["undefined", undefined],
+    ["NaN", Number.NaN],
+    ["Infinity", Number.POSITIVE_INFINITY],
+    ["-Infinity", Number.NEGATIVE_INFINITY],
+  ])("rejects a %s value without sending a request", async (_label, value) => {
+    const { client: c, sent } = recordingClient();
+    // @ts-expect-error exercising the runtime guard against an untyped caller.
+    await expect(c.taskStateStore.set("k", value)).rejects.toThrow(TypeError);
+    expect(sent).toHaveLength(0);
+  });
+
+  it.each([
+    ["negative", -1],
+    ["NaN", Number.NaN],
+  ])("rejects retention=%s without sending a request", async (_label, retention) => {
+    const { client: c, sent } = recordingClient();
+    await expect(c.taskStateStore.set("k", 1, { retention })).rejects.toThrow(RangeError);
+    expect(sent).toHaveLength(0);
+  });
+
+  it("reports an overflowing retention in seconds", async () => {
+    const { client: c, sent } = recordingClient();
+    await expect(c.taskStateStore.set("k", 1, { retention: 1e12 })).rejects.toThrow(
+      "a retention that ends 1000000000000s from now",
+    );
+    expect(sent).toHaveLength(0);
+  });
+
+  it("rejects an empty key without sending a request", async () => {
+    const { client: c, sent } = recordingClient();
+    await expect(c.taskStateStore.set("", 1, { retention: 60 })).rejects.toThrow(RangeError);
+    expect(sent).toHaveLength(0);
+  });
+});
+
+describe("taskStateStore.delete", () => {
+  it("sends DeleteTaskStateStore and resolves on the supervisor's OKResponse", async () => {
+    const { client: c, sent } = recordingClient({ type: "OKResponse", ok: true });
+
+    await expect(c.taskStateStore.delete("k")).resolves.toBeUndefined();
+
+    expect(sent[0]).toEqual({ type: "DeleteTaskStateStore", ti_id: FAKE_TI_ID, key: "k" });
+  });
+
+  it("rejects on an empty key without sending a request", async () => {
+    const { client: c, sent } = recordingClient();
+    await expect(c.taskStateStore.delete("")).rejects.toThrow(RangeError);
+    expect(sent).toHaveLength(0);
+  });
+});
+
+describe("task state store key type guard", () => {
+  it.each([
+    [
+      "get",
+      (c: TaskClient) => {
+        // @ts-expect-error exercising the runtime guard against an untyped caller.
+        return c.taskStateStore.get(undefined);
+      },
+    ],
+    [
+      "set",
+      (c: TaskClient) => {
+        // @ts-expect-error exercising the runtime guard against an untyped caller.
+        return c.taskStateStore.set(undefined, 1, { retention: 60 });
+      },
+    ],
+    [
+      "delete",
+      (c: TaskClient) => {
+        // @ts-expect-error exercising the runtime guard against an untyped caller.
+        return c.taskStateStore.delete(undefined);
+      },
+    ],
+  ])("%s rejects a non-string key without sending a request", async (_label, call) => {
+    const { client: c, sent } = recordingClient();
+    await expect(call(c)).rejects.toThrow(TypeError);
+    expect(sent).toHaveLength(0);
+  });
+});
+
+describe("taskStateStore.clear", () => {
+  it("sends ClearTaskStateStore with no key and resolves on the supervisor's OKResponse", async () => {
+    const { client: c, sent } = recordingClient({ type: "OKResponse", ok: true });
+
+    await expect(c.taskStateStore.clear()).resolves.toBeUndefined();
+
+    expect(sent[0]).toEqual({ type: "ClearTaskStateStore", ti_id: FAKE_TI_ID });
   });
 });

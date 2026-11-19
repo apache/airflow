@@ -24,6 +24,13 @@ permissions:
 on:  # yamllint disable-line rule:truthy
   workflow_call:
     inputs:
+      merge-with:
+        description: >-
+          The base branch commit and merge base to merge the pushed commit with, space-separated;
+          empty outside fork CI runs.
+        required: false
+        default: ""
+        type: string
       runners:
         description: "The array of labels (in json form) determining runners."
         required: true
@@ -73,6 +80,11 @@ jobs:
         with:
           fetch-depth: 2
           persist-credentials: false
+      - name: "Merge with the base branch"
+        if: ${{ !startsWith(inputs.airflow-version, '2.') && inputs.merge-with != '' }}
+        uses: ./.github/actions/merge-with-base
+        with:
+          merge-with: ${{ inputs.merge-with }}
       - name: "Prepare breeze & PROD image: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
         if: ${{ !startsWith(inputs.airflow-version, '2.') }}
         uses: ./.github/actions/prepare_breeze_and_image
@@ -97,7 +109,7 @@ jobs:
           cd ./airflow-e2e-tests && zip -r logs.zip logs
       - name: "Upload logs"
         if: ${{ always() && !startsWith(inputs.airflow-version, '2.') }}
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
         with:
           name: "openlineage-e2e-compat-logs-${{ inputs.airflow-version }}"
           path: './airflow-e2e-tests/logs.zip'

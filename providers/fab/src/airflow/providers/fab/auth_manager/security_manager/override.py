@@ -53,8 +53,6 @@ from flask_appbuilder.security.registerviews import (
     RegisterUserOAuthView,
 )
 from flask_appbuilder.security.views import (
-    AuthDBView,
-    AuthLDAPView,
     AuthRemoteUserView,
     AuthView,
     RegisterUserModelView,
@@ -87,6 +85,7 @@ from airflow.providers.fab.auth_manager.models import (
 )
 from airflow.providers.fab.auth_manager.models.anonymous_user import AnonymousUser
 from airflow.providers.fab.auth_manager.security_manager.constants import EXISTING_ROLES
+from airflow.providers.fab.auth_manager.views.auth_login import CustomAuthDBView, CustomAuthLDAPView
 from airflow.providers.fab.auth_manager.views.auth_oauth import CustomAuthOAuthView
 from airflow.providers.fab.auth_manager.views.permissions import (
     ActionModelView,
@@ -163,6 +162,10 @@ class FabException(Exception):
     """Custom exception for FAB security manager."""
 
 
+class DagAccessControlValidationError(FabException, ValueError):
+    """The Dag's access control names an invalid role, resource, or permission."""
+
+
 class AzureTenantResolutionError(FabException):
     """Raised when an Azure AD tenant identifier cannot be resolved to a canonical GUID."""
 
@@ -209,9 +212,9 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
     permission_model = Permission
 
     """ Views """
-    authdbview = AuthDBView
+    authdbview = CustomAuthDBView
     """ Override if you want your own Authentication DB view """
-    authldapview = AuthLDAPView
+    authldapview = CustomAuthLDAPView
     """ Override if you want your own Authentication LDAP view """
     authoauthview = CustomAuthOAuthView
     """ Custom Authentication OAuth view with session commit fix for #57981 """
@@ -316,6 +319,8 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
     # [START security_op_perms]
     OP_PERMISSIONS = [
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_ADMIN_MENU),
+        (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DAG_BUNDLE),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_BUNDLE),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_CONFIG),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_CONNECTION),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_POOL),
@@ -1036,7 +1041,14 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                         self._merge_perm(action_name, dag_resource_name)
 
             if dag.access_control is not None:
-                self.sync_perm_for_dag(dag.dag_id, dag.access_control)
+                try:
+                    self.sync_perm_for_dag(dag.dag_id, dag.access_control)
+                except FabException:
+                    self.log.exception(
+                        "Failed to sync permissions for Dag '%s'; skipping it and continuing with "
+                        "the remaining Dags. Fix its access_control configuration and re-run sync-perm.",
+                        dag.dag_id,
+                    )
 
     def sync_perm_for_dag(
         self,
@@ -1122,7 +1134,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         for rolename, resource_actions_raw in access_control.items():
             role = self.find_role(rolename)
             if not role:
-                raise FabException(
+                raise DagAccessControlValidationError(
                     f"The access_control mapping for DAG '{dag_id}' includes a role named "
                     f"'{rolename}', but that role does not exist"
                 )
@@ -1136,7 +1148,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
 
             for resource_name, actions in resource_actions.items():
                 if resource_name not in self.RESOURCE_DETAILS_MAP:
-                    raise FabException(
+                    raise DagAccessControlValidationError(
                         f"The access_control map for DAG '{dag_id}' includes the following invalid "
                         f"resource name: '{resource_name}'; "
                         f"The set of valid resource names is: {self.RESOURCE_DETAILS_MAP.keys()}"
@@ -1148,7 +1160,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                 invalid_actions = set(actions) - self.RESOURCE_DETAILS_MAP[resource_name]["actions"]
 
                 if invalid_actions:
-                    raise FabException(
+                    raise DagAccessControlValidationError(
                         f"The access_control map for DAG '{dag_resource_name}' includes "
                         f"the following invalid permissions: {invalid_actions}; "
                         f"The set of valid permissions is: {self.RESOURCE_DETAILS_MAP[resource_name]['actions']}"
@@ -1557,8 +1569,8 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         password: str = "",
         hashed_password: str = "",
         groups: list[Group] | None = None,
-    ) -> User:
-        """Create a user."""
+    ) -> User | None:
+        """Create a user; return ``None`` if it cannot be saved."""
         roles: list[Role] = []
         if role:
             roles = role if isinstance(role, list) else [role]
@@ -1584,7 +1596,32 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         except Exception as e:
             log.error(const.LOGMSG_ERR_SEC_ADD_USER, e)
             self.session.rollback()
-            raise FabException(const.LOGMSG_ERR_SEC_ADD_USER) from e
+            return None
+
+    def _register_user_on_login(
+        self,
+        username: str,
+        first_name: str,
+        last_name: str,
+        email: str,
+        role: list[Role] | Role | None,
+    ) -> User | None:
+        """
+        Create a user on first login; return ``None`` if no active user can be used.
+
+        A parallel first login for the same username can win the insert, so the
+        user it created is used instead of denying this login.
+        """
+        user = self.add_user(
+            username=username, first_name=first_name, last_name=last_name, email=email, role=role
+        )
+        if user is None:
+            user = self.find_user(username=username)
+            if user is not None:
+                log.info("User %s was registered by a parallel login, using that user", username)
+        if user is None or not user.is_active:
+            return None
+        return user
 
     def load_user(self, pk: int) -> User | None:
         try:
@@ -1666,7 +1703,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                 new_role_ids = {r.id for r in user.roles}
                 new_group_ids = {grp.id for grp in user.groups}
                 if existing_role_ids != new_role_ids or existing_group_ids != new_group_ids:
-                    user.changed_on = datetime.datetime.now(tz=datetime.timezone.utc)
+                    user.changed_on = datetime.datetime.now(tz=datetime.UTC)
             merged_user = self.session.merge(user)
             self.session.commit()
             self._reset_user_permissions_cache(merged_user)
@@ -2207,7 +2244,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
 
             # If the user is new, register them
             if (not user) and user_attributes and self.auth_user_registration:
-                user = self.add_user(
+                user = self._register_user_on_login(
                     username=username,
                     first_name=self.ldap_extract(user_attributes, self.auth_ldap_firstname_field, ""),
                     last_name=self.ldap_extract(user_attributes, self.auth_ldap_lastname_field, ""),
@@ -2366,7 +2403,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
 
         # If the user is new, register them
         if (not user) and self.auth_user_registration:
-            user = self.add_user(
+            user = self._register_user_on_login(
                 username=username,
                 first_name=userinfo.get("first_name", ""),
                 last_name=userinfo.get("last_name", ""),
@@ -2538,7 +2575,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
 
         # User does not exist, create one if auto user registration.
         if user is None and self.auth_user_registration:
-            user = self.add_user(
+            user = self._register_user_on_login(
                 # All we have is REMOTE_USER, so we set
                 # the other fields to blank.
                 username=username,
@@ -2549,8 +2586,8 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             )
 
         # If user does not exist on the DB and not auto user registration,
-        # or user is inactive, go away.
-        elif user is None or (not user.is_active):
+        # registration failed, or user is inactive, go away.
+        if user is None or (not user.is_active):
             log.info(LOGMSG_WAR_SEC_LOGIN_FAILED, username)
             return None
 

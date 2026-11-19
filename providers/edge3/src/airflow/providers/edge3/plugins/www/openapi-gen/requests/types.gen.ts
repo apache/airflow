@@ -98,6 +98,10 @@ export type Job = {
      */
     try_number: number;
     /**
+     * Task-instance UUID, or empty for a legacy job.
+     */
+    task_instance_id?: string;
+    /**
      * State of the job from the view of the executor.
      */
     state: TaskInstanceState;
@@ -260,6 +264,12 @@ export type WorkerQueuesBody = {
      * Number of free concurrency slots on the worker.
      */
     free_concurrency: number;
+    /**
+     * Supports Task Instance Uuid
+     *
+     * Whether the worker reports task-instance UUIDs when updating jobs.
+     */
+    supports_task_instance_uuid?: boolean;
 };
 
 /**

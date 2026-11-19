@@ -233,8 +233,16 @@ create the X.Y branches" above before proceeding.
 > for a new minor (e.g. `0.2.0rc1`), the release manager may cut the RC
 > directly from `airflow-ctl/vX-Y-test` without opening a sync PR to
 > `airflow-ctl/vX-Y-stable`. However, they **must** verify that the
-> `airflow-ctl/vX-Y-test` push CI action ("Tests" workflow) has succeeded
-> before cutting the RC.
+> full CI runs ("Tests (AMD)" and "Tests (ARM)" workflows) of the
+> `airflow-ctl/vX-Y-test` HEAD have succeeded before cutting the RC.
+
+Release branches do not run the full CI on push: `release-branch-ci.yml`
+starts it a few times a day until the branch HEAD has a successful full
+run, and each push runs only the tests for the changes since the last
+successful run. Check the full run of the HEAD before cutting an RC as
+described in
+[CI of the `vX-Y-test` branch](README_RELEASE_AIRFLOW.md#ci-of-the-vx-y-test-branch)
+(use `airflow-ctl/vX-Y-test` as the branch name).
 
 Before cutting an RC, confirm the set of commits on the maintenance
 branch is what you expect:
@@ -709,6 +717,29 @@ you need to run several workflows to publish the documentation. More details abo
 emergency cases.
 
 We have two options publishing the documentation 1. Using breeze commands 2. Manually using GitHub Actions.:
+
+### Sync staging with main (skip if another vote is in progress)
+
+Before publishing the staging docs, reset the `staging` branches of
+[`apache/airflow-site`](https://github.com/apache/airflow-site) and
+[`apache/airflow-site-archive`](https://github.com/apache/airflow-site-archive) to `main`, so the staging
+site starts from the current live site rather than from whatever an earlier release left there:
+
+```shell script
+breeze workflow-run sync-staging-to-main
+```
+
+It triggers the `Reset staging to main` workflow in
+[`airflow-site`](https://github.com/apache/airflow-site/actions/workflows/reset-staging.yml) and in
+[`airflow-site-archive`](https://github.com/apache/airflow-site-archive/actions/workflows/reset-staging.yml).
+Each force-updates its repository's `staging` branch to the current `main` commit (`main` itself is not
+changed); in `airflow-site` it also rebuilds the staging site.
+
+> [!WARNING]
+> **Skip this step if a vote for any other release (Airflow, Providers, Helm Chart, airflowctl, ...) is
+> in progress.** Its release candidate docs are on the `staging` branches, and resetting `staging` to `main`
+> would overwrite the staging docs prepared for that vote. The command asks for confirmation before it
+> does anything; answer `n` to skip it.
 
 ### Using breeze commands
 
@@ -1242,13 +1273,17 @@ end-to-end against a live API server in a single non-interactive `breeze shell` 
 
 ```shell
 # install the RC from PyPI (published with the rcN suffix)
-CTL_VERSION=${VERSION_RC} breeze shell --load-example-dags --backend sqlite \
-    "bash dev/verify_airflow_ctl_rc.sh"
+breeze shell --load-example-dags --backend sqlite \
+    "CTL_VERSION=${VERSION_RC} bash dev/verify_airflow_ctl_rc.sh"
 
-# or test the exact SVN wheel (copy it under ./dist first so it is visible at /opt/airflow/dist)
-CTL_WHEEL=/opt/airflow/dist/apache_airflow_ctl-${VERSION}-py3-none-any.whl \
-    breeze shell --load-example-dags --backend sqlite "bash dev/verify_airflow_ctl_rc.sh"
+# or test the exact SVN wheel (copy it under ./dist first so it is visible at /dist)
+breeze shell --load-example-dags --backend sqlite \
+    "CTL_WHEEL=/dist/apache_airflow_ctl-${VERSION}-py3-none-any.whl bash dev/verify_airflow_ctl_rc.sh"
 ```
+
+Set `CTL_VERSION` or `CTL_WHEEL` inside the quoted command: `breeze shell` forwards only a fixed
+list of environment variables into the container, so a `CTL_VERSION=...` prefix on the host never
+reaches the script.
 
 The script prints `AIRFLOW_CTL_RC_VERIFY: OK` on success.
 
@@ -1570,7 +1605,7 @@ Announcement is done from official Apache-Airflow accounts.
 
 * LinkedIn: https://www.linkedin.com/company/apache-airflow/
 * Fosstodon: https://fosstodon.org/@airflow
-* Bluesky: https://bsky.app/profile/apache-airflow.bsky.social
+* Bluesky: https://bsky.app/profile/airflow.apache.org
 
 Make sure attach the release image generated with Figma to the post.
 If you don't have access to the account ask a PMC member to post.

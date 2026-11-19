@@ -19,7 +19,7 @@ from __future__ import annotations
 import argparse
 import base64
 import os
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import boto3
 from botocore.signers import RequestSigner
@@ -31,7 +31,7 @@ TOKEN_EXPIRATION_MINUTES = 14
 
 
 def get_expiration_time():
-    token_expiration = datetime.now(timezone.utc) + timedelta(minutes=TOKEN_EXPIRATION_MINUTES)
+    token_expiration = datetime.now(UTC) + timedelta(minutes=TOKEN_EXPIRATION_MINUTES)
 
     return token_expiration.strftime("%Y-%m-%dT%H:%M:%SZ")
 
@@ -49,14 +49,14 @@ def get_parser():
     return parser
 
 
-def fetch_access_token_for_cluster(eks_cluster_name: str, sts_url: str, region_name: str) -> str:
-    # This will use the credentials from the caller set as the standard AWS env variables
-    session = boto3.Session(region_name=region_name)
+# EKS only accepts the token if sts_url is the regional STS endpoint. The URL is signed as given.
+def fetch_access_token_for_cluster(
+    eks_cluster_name: str, sts_url: str, region_name: str, session: boto3.Session | None = None
+) -> str:
+    if session is None:
+        # This will use the credentials from the caller set as the standard AWS env variables
+        session = boto3.Session(region_name=region_name)
     eks_client = session.client("eks")
-    # This env variable is required so that we get a regionalized endpoint for STS in regions that
-    # otherwise default to global endpoints. The mechanism below to generate the token is very picky that
-    # the endpoint is regional.
-    os.environ["AWS_STS_REGIONAL_ENDPOINTS"] = "regional"
 
     credentials = session.get_credentials()
     if credentials is None:
@@ -97,6 +97,9 @@ def fetch_access_token_for_cluster(eks_cluster_name: str, sts_url: str, region_n
 
 
 def main():
+    # Keeps any STS call made here for credentials regional too. This is the kubeconfig exec plugin's
+    # own short-lived process, so setting the env var can't affect another thread.
+    os.environ["AWS_STS_REGIONAL_ENDPOINTS"] = "regional"
     parser = get_parser()
     args = parser.parse_args()
     access_token = fetch_access_token_for_cluster(

@@ -36,7 +36,10 @@ RUN wget --progress=dot:giga "https://github.com/pgbouncer/pgbouncer/releases/do
     && tar -xzvf pgbouncer-$PGBOUNCER_VERSION.tar.gz
 
 WORKDIR /pgbouncer-$PGBOUNCER_VERSION
-RUN ./configure --prefix=/usr --disable-debug && make && make install \
+# Release tarballs no longer ship prebuilt man pages, and `make install` would need pandoc to
+# generate them. Only the binary is copied to the final image, so build and install just that.
+RUN ./configure --prefix=/usr --disable-debug && make pgbouncer \
+    && install -m 755 pgbouncer /usr/bin/pgbouncer \
     && mkdir /etc/pgbouncer \
     && cp ./etc/pgbouncer.ini /etc/pgbouncer/ \
     && touch /etc/pgbouncer/userlist.txt \
@@ -56,7 +59,8 @@ ARG COMMIT_SHA
 # We want to make sure this one includes latest security fixes.
 # "Pin versions in apk add" https://github.com/hadolint/hadolint/wiki/DL3018
 # hadolint ignore=DL3018
-RUN apk --no-cache add libevent libressl c-ares
+RUN apk --no-cache upgrade \
+    && apk --no-cache add libevent libssl3 libcrypto3 c-ares
 
 COPY --from=builder /etc/pgbouncer /etc/pgbouncer
 COPY --from=builder /usr/bin/pgbouncer /usr/bin/pgbouncer

@@ -17,8 +17,13 @@
 
 .. _howto/operator:document_loader:
 
-``DocumentLoaderOperator``
-==========================
+Load documents: ``DocumentLoaderOperator``
+==========================================
+
+.. note::
+
+    Experimental: this can change or be removed in a minor release of this provider.
+    See :ref:`howto/stability`.
 
 Use :class:`~airflow.providers.common.ai.operators.document_loader.DocumentLoaderOperator`
 to parse files into ``list[dict(text, metadata)]`` for downstream embedding
@@ -32,8 +37,8 @@ LangChain, or any other AI framework.
 Basic usage
 -----------
 
-``.txt``, ``.md``, ``.csv``, and ``.json`` are handled with zero extra
-dependencies:
+``.txt``, ``.md``, ``.csv``, ``.json``, and ``.jsonl`` are handled with zero
+extra dependencies:
 
 .. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_document_loader.py
     :language: python
@@ -45,6 +50,9 @@ with a top-level array produce one document per element; a single JSON object
 produces one document. By default each dict is flattened into ``"key: value,
 key: value"`` text so the embedding sees content tokens rather than JSON
 syntax (see the ``json_text_field`` section below for the structured variant).
+JSON Lines files produce one document per non-empty line. A JSON array on a
+single line remains one document rather than being expanded, and
+``json_text_field`` applies to each line just as it does to JSON records.
 
 PDF parsing
 -----------
@@ -52,7 +60,7 @@ PDF parsing
 Install the ``pdf`` extra to parse PDF files via
 `pypdf <https://pypdf.readthedocs.io/>`__::
 
-    pip install apache-airflow-providers-common-ai[pdf]
+    pip install "apache-airflow-providers-common-ai[pdf]"
 
 Each page with extractable text becomes a separate document. Empty pages are
 skipped. ``page_number`` is included in the document metadata.
@@ -63,16 +71,37 @@ DOCX parsing
 Install the ``docx`` extra to parse Word documents via
 `python-docx <https://python-docx.readthedocs.io/>`__::
 
-    pip install apache-airflow-providers-common-ai[docx]
+    pip install "apache-airflow-providers-common-ai[docx]"
 
-All non-empty paragraphs are concatenated into a single document per file.
+Paragraphs and tables in the document body are concatenated, in document
+order, into a single document per file. Empty paragraphs and table rows are
+skipped. Each table row becomes one line:
+
+.. code-block:: text
+
+    Quarterly results
+
+    | Region | Revenue |
+    | EMEA | 1.2M |
+
+A cell merged across columns appears once, with an empty cell for each further
+column it spans, so later values stay under their headers. A cell merged down
+several rows is repeated on each of those rows, so every row still reads on its own.
+A table nested inside a cell is flattened into that cell, with ``/`` between its
+cells and ``;`` between its rows. A table is skipped with a warning when it is
+malformed, such as one with a broken vertical merge or a cell whose column span
+does not fit the table, when it has more than 1,000 columns, or when its output,
+including any tables nested in it, would be longer than about 1,000,000
+characters. If a skipped table is nested inside a cell, only that table is left
+out.
 
 .. note::
 
-   DOCX extraction reads paragraph text only. Tables, headers, footers, and
-   footnotes are not included. For richer DOCX parsing, use a dedicated
-   extraction tool (``Unstructured``, ``docling``) as a custom parser
-   backend.
+   Only paragraphs and tables in the document body are read. Headers, footers,
+   footnotes, content controls, text boxes, and pending tracked insertions are
+   not included. For richer DOCX parsing, use a dedicated extraction tool
+   (``Unstructured``, ``docling``) in a ``@task`` that returns the same
+   ``list[dict(text, metadata)]`` shape.
 
 Directory mode and filtering
 ----------------------------
@@ -149,20 +178,15 @@ model and is intentionally left to a downstream text-splitter or embedding
 operator (LlamaIndex's ``LlamaIndexEmbeddingOperator``, LangChain's text splitters,
 ...).
 
-Format coverage roadmap
------------------------
+Formats without a built-in parser
+---------------------------------
 
-The current built-in dispatch covers ``.txt``, ``.md``, ``.csv``, ``.json``,
-``.pdf``, ``.docx``. Additional formats are deferred to follow-ups, each
-gated behind its own extra so users only install what they need:
-
-- ``.pptx`` via ``python-pptx``
-- ``.epub`` via ``ebooklib``
-- ``.xlsx`` via ``openpyxl``
-- ``.html`` / ``.htm`` via ``beautifulsoup4``
-- Image OCR (``.png`` / ``.jpg``) via ``pytesseract``
-- Audio transcription via a model call (``LLMOperator`` or ``AgentOperator``
-  is a better fit for transcription than this parser)
+The built-in dispatch covers ``.txt``, ``.md``, ``.csv``, ``.json``, ``.jsonl``, ``.pdf``
+and ``.docx``. There is no built-in parser for ``.pptx`` (``python-pptx``), ``.epub``
+(``ebooklib``), ``.xlsx`` (``openpyxl``), ``.html`` (``beautifulsoup4``) or image OCR
+(``pytesseract``); the library in brackets is the usual choice for a ``@task`` that does
+it. For audio, a model call through ``LLMOperator`` or ``AgentOperator`` is a better fit
+than a parser.
 
 For anything not in the dispatch map, set ``parser`` explicitly (``"text"``
 to read as plain text) or write the parser inline in a ``@task`` that calls
@@ -184,7 +208,7 @@ directly into embedding operators. With LlamaIndex's ``LlamaIndexEmbeddingOperat
     embed = LlamaIndexEmbeddingOperator(
         task_id="embed",
         documents="{{ ti.xcom_pull(task_ids='load') }}",
-        llm_conn_id="openai_default",
+        llm_conn_id="llamaindex_default",
     )
 
     load >> embed
@@ -233,13 +257,13 @@ download-then-parse pattern still works:
 Non-UTF-8 inputs
 ----------------
 
-The text parsers (``.txt`` / ``.md`` / ``.csv`` / ``.json``) and the bytes
-path default to UTF-8. To handle Windows-1252 CSVs, files with a leading
-``utf-8-sig`` byte-order mark, or any other encoding, set the ``encoding``
-parameter on the operator (and optionally ``encoding_errors="replace"`` to
-tolerate mixed-encoding sources at the cost of some character loss). A
-failed decode includes the offending file path in the error so
-directory-mode runs are easy to diagnose.
+The text parsers (``.txt`` / ``.md`` / ``.csv`` / ``.json`` / ``.jsonl``) and
+the bytes path default to UTF-8. To handle Windows-1252 CSVs, files with a
+leading ``utf-8-sig`` byte-order mark, or any other encoding, set the
+``encoding`` parameter on the operator (and optionally
+``encoding_errors="replace"`` to tolerate mixed-encoding sources at the cost
+of some character loss). A failed decode includes the offending file path in
+the error so directory-mode runs are easy to diagnose.
 
 Metadata precedence
 -------------------
@@ -287,12 +311,12 @@ Parameters
        not override auto-extracted keys.
    * - ``encoding``
      - Text encoding for the bytes path and ``.txt`` / ``.md`` / ``.csv`` /
-       ``.json`` files. Defaults to ``"utf-8"``.
+       ``.json`` / ``.jsonl`` files. Defaults to ``"utf-8"``.
    * - ``encoding_errors``
      - How decode errors are handled (``"strict"`` / ``"replace"`` /
        ``"ignore"``). Defaults to ``"strict"``.
    * - ``json_text_field``
-     - When parsing JSON, treat this key as the embedding text; every other
-       key on the same item lands in ``metadata``. When unset, dicts are
-       flattened to ``"k: v, k: v"`` so the embedding sees content tokens
-       rather than JSON syntax.
+     - When parsing JSON or JSON Lines, treat this key as the embedding text;
+       every other key on the same item lands in ``metadata``. When unset,
+       dicts are flattened to ``"k: v, k: v"`` so the embedding sees content
+       tokens rather than JSON syntax.

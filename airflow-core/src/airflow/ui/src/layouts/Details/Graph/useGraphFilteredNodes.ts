@@ -52,11 +52,7 @@ const getTaskDurationSeconds = (
   const start = new Date(minStartDate).getTime();
   const end = new Date(maxEndDate).getTime();
 
-  if (Number.isNaN(start) || Number.isNaN(end)) {
-    return undefined;
-  }
-
-  return (end - start) / 1000;
+  return Number.isNaN(start) || Number.isNaN(end) ? undefined : (end - start) / 1000;
 };
 
 const isNodeFiltered = (node: ReactFlowNode<CustomNodeProps>, filters: GraphFilterValues): boolean => {

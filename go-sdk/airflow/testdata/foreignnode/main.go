@@ -1,0 +1,39 @@
+// Licensed to the Apache Software Foundation (ASF) under one
+// or more contributor license agreements.  See the NOTICE file
+// distributed with this work for additional information
+// regarding copyright ownership.  The ASF licenses this file
+// to you under the Apache License, Version 2.0 (the
+// "License"); you may not use this file except in compliance
+// with the License.  You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing,
+// software distributed under the License is distributed on an
+// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+// KIND, either express or implied.  See the License for the
+// specific language governing permissions and limitations
+// under the License.
+
+// Command foreignnode tries to use a node that package airflow did not define as an edge
+// endpoint. It must not compile. TestNodeRejectsForeignTypes builds it and expects that failure.
+package main
+
+import "github.com/apache/airflow/go-sdk/airflow"
+
+type foreignNode struct{}
+
+func (foreignNode) Before(...airflow.Node) airflow.Node { return nil }
+
+func (foreignNode) After(...airflow.Node) airflow.Node { return nil }
+
+// An unexported method name belongs to the package that declares it, so this method is not the
+// node method of airflow.Node even though it is spelled the same.
+func (foreignNode) node() {}
+
+func extract(airflow.Context) error { return nil }
+
+func main() {
+	dag := airflow.Dag("etl")
+	dag.Task(extract).Before(foreignNode{})
+}

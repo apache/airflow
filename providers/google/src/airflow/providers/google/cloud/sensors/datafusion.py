@@ -22,7 +22,9 @@ from __future__ import annotations
 from collections.abc import Iterable, Sequence
 from typing import TYPE_CHECKING
 
-from airflow.providers.common.compat.sdk import AirflowException, AirflowNotFoundException, BaseSensorOperator
+from requests.exceptions import HTTPError
+
+from airflow.providers.common.compat.sdk import AirflowException, BaseSensorOperator
 from airflow.providers.google.cloud.hooks.datafusion import DataFusionHook
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 
@@ -56,7 +58,10 @@ class CloudDataFusionPipelineStateSensor(BaseSensorOperator):
 
     """
 
-    template_fields: Sequence[str] = ("pipeline_id",)
+    template_fields: Sequence[str] = (
+        "pipeline_id",
+        "gcp_conn_id",
+    )
 
     def __init__(
         self,
@@ -110,11 +115,8 @@ class CloudDataFusionPipelineStateSensor(BaseSensorOperator):
                 namespace=self.namespace,
             )
             pipeline_status = pipeline_workflow.get("status")
-        except AirflowNotFoundException:
-            message = "Specified Pipeline ID was not found."
-            raise AirflowException(message)
-        except AirflowException:
-            pass  # Because the pipeline may not be visible in system yet
+        except HTTPError:
+            pass  # A newly started pipeline run may not be visible in CDAP yet
         if pipeline_status is not None:
             if self.failure_statuses and pipeline_status in self.failure_statuses:
                 message = (

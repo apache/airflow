@@ -38,6 +38,12 @@ from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 
 
 class BaseEc2TestClass:
+    @pytest.fixture(autouse=True)
+    def _skip_state_poll_sleep(self):
+        # moto flips instance state on the next describe call, so the wait between polls is pure delay.
+        with mock.patch("airflow.providers.amazon.aws.hooks.ec2.time.sleep"):
+            yield
+
     @classmethod
     def _get_image_id(cls, hook):
         """Get a valid image id to create an instance."""

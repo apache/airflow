@@ -20,6 +20,7 @@
 from __future__ import annotations
 
 import datetime
+import logging
 import subprocess
 import sys
 import warnings
@@ -30,6 +31,7 @@ from tempfile import NamedTemporaryFile, TemporaryDirectory
 from typing import TYPE_CHECKING
 
 import pendulum
+import tenacity
 
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 
@@ -692,8 +694,8 @@ class GCSFileTransformOperator(GoogleCloudBaseOperator):
         super().__init__(**kwargs)
         self.source_bucket = source_bucket
         self.source_object = source_object
-        self.destination_bucket = destination_bucket or self.source_bucket
-        self.destination_object = destination_object or self.source_object
+        self.destination_bucket = destination_bucket
+        self.destination_object = destination_object
 
         self.gcp_conn_id = gcp_conn_id
         self.transform_script = transform_script
@@ -701,6 +703,8 @@ class GCSFileTransformOperator(GoogleCloudBaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context: Context) -> None:
+        self.destination_bucket = self.destination_bucket or self.source_bucket
+        self.destination_object = self.destination_object or self.source_object
         hook = GCSHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
 
         with NamedTemporaryFile() as source_file, NamedTemporaryFile() as destination_file:
@@ -747,8 +751,8 @@ class GCSFileTransformOperator(GoogleCloudBaseOperator):
             name=self.source_object,
         )
         output_dataset = Dataset(
-            namespace=f"gs://{self.destination_bucket}",
-            name=self.destination_object,
+            namespace=f"gs://{self.destination_bucket or self.source_bucket}",
+            name=self.destination_object or self.source_object,
         )
 
         return OperatorLineage(inputs=[input_dataset], outputs=[output_dataset])
@@ -983,6 +987,16 @@ class GCSTimeSpanFileTransformOperator(GoogleCloudBaseOperator):
             # Get storage client once (storage.Client is thread-safe for concurrent requests).
             client = source_hook.get_conn()
 
+            # A transient ``GoogleCloudError`` retries the whole download. ``reraise`` keeps the
+            # original error after the last attempt, for the ``download_continue_on_fail``
+            # handling below. The waits (2, 4, 8 s, ...) match ``GCSHook.download``.
+            @tenacity.retry(
+                stop=tenacity.stop_after_attempt(self.download_num_attempts),
+                wait=tenacity.wait_exponential(multiplier=2, max=60),
+                retry=tenacity.retry_if_exception_type(GoogleCloudError),
+                before_sleep=tenacity.before_sleep_log(self.log, logging.WARNING),
+                reraise=True,
+            )
             def _download(blob_name: str):
 
                 bucket = client.bucket(bucket_name=self.source_bucket)
@@ -1063,6 +1077,14 @@ class GCSTimeSpanFileTransformOperator(GoogleCloudBaseOperator):
             # Get storage client once (storage.Client is thread-safe for concurrent requests).
             client = destination_hook.get_conn()
 
+            # Same retry policy as the downloads, for ``upload_num_attempts``.
+            @tenacity.retry(
+                stop=tenacity.stop_after_attempt(self.upload_num_attempts),
+                wait=tenacity.wait_exponential(multiplier=2, max=60),
+                retry=tenacity.retry_if_exception_type(GoogleCloudError),
+                before_sleep=tenacity.before_sleep_log(self.log, logging.WARNING),
+                reraise=True,
+            )
             def _upload(upload_file: Path):
 
                 bucket = client.bucket(bucket_name=self.destination_bucket)
@@ -1075,9 +1097,7 @@ class GCSTimeSpanFileTransformOperator(GoogleCloudBaseOperator):
 
                 blob = bucket.blob(blob_name=upload_file_name, chunk_size=self.chunk_size)
 
-                blob.upload_from_filename(
-                    filename=str(upload_file),
-                )
+                blob.upload_from_filename(filename=str(upload_file))
 
                 return upload_file_name
 

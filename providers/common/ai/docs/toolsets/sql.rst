@@ -1,0 +1,726 @@
+ .. Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+ ..   http://www.apache.org/licenses/LICENSE-2.0
+
+ .. Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+SQL databases: ``SQLToolset``
+=============================
+
+Curated toolset wrapping
+:class:`~airflow.providers.common.sql.hooks.sql.DbApiHook` with four tools, and a fifth,
+``search_tables``, when you pass a ``search_backend``:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 20 50
+
+   * - Tool
+     - Description
+   * - ``list_tables``
+     - Lists available table names (filtered by ``allowed_tables`` if set). With a
+       ``search_backend``, returns only a count once there are more than
+       ``max_listed_tables`` (see :ref:`sql-toolset-table-search`)
+   * - ``get_schema``
+     - Returns a table's columns as JSON, with table and column comments where the
+       database has them, a ``name_contains`` filter and a bounded summary on very
+       wide tables (see :ref:`bounded-schema-results`)
+   * - ``search_tables``
+     - Only with ``search_backend``. Finds tables by a free-text query over table names
+       and comments (see :ref:`sql-toolset-table-search`)
+   * - ``query``
+     - Executes a SQL query and returns bounded, columnar JSON (see
+       :ref:`bounded-query-results`)
+   * - ``check_query``
+     - Validates SQL syntax without executing it, with the same statement and
+       ``allowed_tables`` rules as ``query``, so it accepts writes only when
+       ``allow_writes=True``
+
+.. code-block:: python
+
+    from airflow.providers.common.ai.toolsets.sql import SQLToolset
+
+    toolset = SQLToolset(
+        db_conn_id="postgres_default",
+        allowed_tables=["customers", "orders"],
+        max_rows=20,
+    )
+
+The ``DbApiHook`` is resolved lazily from ``db_conn_id`` on first tool call
+via ``BaseHook.get_connection(conn_id).get_hook()``.
+
+In read-only mode (``allow_writes=False``, the default) the ``query`` tool also
+accepts read-only metadata statements -- ``DESCRIBE``/``DESC`` and ``SHOW`` --
+in addition to SELECT-family queries. Agents commonly open with ``DESCRIBE`` to
+learn a table's columns, so permitting it keeps runs deterministic instead of
+hard-failing on schema discovery. The toolset passes the connection's dialect to
+the validator, so ``SHOW`` is recognized on databases that support it (Snowflake,
+MySQL, etc.); on databases without ``SHOW`` it stays rejected. Data-modifying
+statements remain blocked -- including ones hidden behind ``DESCRIBE``/``EXPLAIN``
+(e.g. ``EXPLAIN DELETE ...``, ``DESCRIBE DROP TABLE ...``), which the validator
+rejects by scanning the parsed statement for write operations. When
+``allowed_tables`` is set it scopes these statements too: a ``DESCRIBE`` names a
+table, so its target must be on the list, while ``SHOW`` enumerates objects beyond
+any single table and is rejected outright (see :ref:`allowed-tables-enforcement`).
+
+The read-only check inspects statement types, not what a function does. By default
+(no ``allowed_tables``) a function call inside a ``SELECT`` is not examined, so
+``SELECT nextval('seq')``, ``SELECT pg_terminate_backend(pid)`` or
+``SELECT dblink_exec(...)`` pass validation and run with the connection's
+privileges. Setting ``allowed_tables`` turns on the function check: every function
+sqlglot cannot type is rejected unless it is listed in ``allowed_functions``. The
+check rejects only functions sqlglot cannot type; typed syntax such as T-SQL
+``NEXT VALUE FOR seq`` or Snowflake ``seq.nextval`` still passes, so
+``allowed_tables`` is not a guarantee against side-effecting functions. Either way,
+point the connection at a least-privilege role and, where the database supports it,
+a read-only default for that role or session (for example
+``ALTER ROLE <role> SET default_transaction_read_only = on`` on PostgreSQL). The
+toolset opens its own connection per call, so you cannot set a transaction from the
+Dag, and a read-only setting is defense in depth: it does not stop every
+side-effecting function.
+
+.. _sql-toolset-restricted:
+
+Restricting the agent
+---------------------
+
+Every limit can be set on one task: the toolset holds most of them, and the
+operator holds the tool-call limit. This agent can query two tables, cannot write, gets
+bounded results, and has a budget for both refused and successful calls:
+
+.. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_sql_toolset.py
+    :language: python
+    :start-after: [START howto_toolset_sql_restricted]
+    :end-before: [END howto_toolset_sql_restricted]
+
+A refused query never reaches the database. The model gets the reason back as an
+error it can correct, and the run carries on. Run against a Postgres warehouse that
+also holds a ``secrets`` table, these queries were refused with these messages:
+
+``SELECT token FROM secrets``
+    ``The query tool failed: Query references tables that are not in the allowed
+    tables list: secrets. Use list_tables to see the allowed tables.``
+
+``SELECT pg_read_file('/etc/passwd')``
+    ``The query tool failed: Query uses a data source that cannot be checked against
+    allowed_tables: function(s) the parser cannot verify against allowed_tables
+    (pg_read_file); if these functions are trusted, permit them via
+    allowed_functions. Query the allowed tables directly: use list_tables to see
+    them.``
+
+``DELETE FROM orders``
+    ``The query tool failed: Statement type 'Delete' is not allowed. Allowed types:
+    Select, Union, Intersect, Except, Describe, Show``
+
+Each message ends with the same two lines:
+
+.. code-block:: text
+
+    Use the list_tables and get_schema tools to inspect the database, then fix the query and try again.
+
+    Fix the errors and try again.
+
+This query runs, because the example lists ``json_build_object`` in
+``allowed_functions``:
+
+.. code-block:: sql
+
+    SELECT c.region, json_build_object('revenue', sum(o.amount)) AS revenue
+    FROM orders o JOIN customers c ON c.id = o.customer_id
+    GROUP BY c.region ORDER BY c.region
+
+It returns:
+
+.. code-block:: json
+
+    {"columns":["region","revenue"],"rows":[["AMER",{"revenue":50}],["EMEA",{"revenue":200}]],"row_count":2}
+
+Without ``allowed_functions``, the same query is refused with the same message as
+``pg_read_file``, naming ``json_build_object``.
+
+The two budgets count different calls, and running out of either fails the task.
+``max_retries`` counts refused and failed calls, and a fourth refused ``query`` call
+in a row ends the run with ``UnexpectedModelBehavior``:
+
+.. code-block:: text
+
+    Tool 'query' exceeded max retries count of 3. Consider raising the retry limit, or see the docs on tool retries: https://pydantic.dev/docs/ai/tools-toolsets/tools-advanced/#tool-retries
+
+``tool_calls_limit`` counts successful calls only, and fails the run with
+``UsageLimitExceeded`` before any call that would take the count past 20:
+
+.. code-block:: text
+
+    The next tool call(s) would exceed the tool_calls_limit of 20 (tool_calls=21). Consider raising the limit, or see the docs on usage limits for budget-aware patterns: https://pydantic.dev/docs/ai/core-concepts/agent/#usage-limits
+
+The task's own ``retries`` then decide whether it runs again, and the budgets differ
+there too. ``max_retries`` starts again on each attempt. On Airflow 3.3 and later,
+``usage_limits`` counts across every attempt, so a retry after ``tool_calls_limit``
+ran out fails at its first tool call; see
+:ref:`the usage budget <agent-usage-budget>`. ``UsageLimits`` also keeps
+pydantic-ai's default ``request_limit`` of 50 model requests, which refused calls
+use up too.
+
+``allowed_tables`` works by parsing the SQL, so a query the parser reads differently
+from the database, or a function listed in ``allowed_functions``, can get past it.
+The connection's role is the limit that holds regardless. The example's
+``warehouse_agent_reader`` connection logs in as a role created with:
+
+.. code-block:: sql
+
+    CREATE ROLE warehouse_agent_reader LOGIN PASSWORD '...';
+    GRANT SELECT ON orders, customers TO warehouse_agent_reader;
+
+With that role and no ``allowed_tables``, ``SELECT token FROM secrets`` reaches
+Postgres, which refuses it, and the model gets ``The query tool failed: permission
+denied for table secrets``. :ref:`allowed-tables-enforcement` lists what the parser
+checks and where it stops.
+
+Multi-schema warehouses
+-------------------------
+
+When an agent's tables live in several schemas of one database -- common on
+Snowflake -- list them with schema-qualified ``allowed_tables`` entries:
+
+.. code-block:: python
+
+    SQLToolset(
+        db_conn_id="snowflake_hq",
+        allowed_tables=["MODEL_ASTRO.DEPLOYMENT_IMAGE_DETAILS", "MODEL_CRM.SF_ASTRO_ORGS"],
+    )
+
+``list_tables`` then introspects each referenced schema and returns the matching
+tables fully qualified (e.g. ``MODEL_ASTRO.DEPLOYMENT_IMAGE_DETAILS``), and
+``get_schema`` routes each qualified name to its own schema. Without this, a
+single ``schema`` only covers one namespace, and leaving ``schema`` unset made
+introspection query a literal ``"None"`` schema and fail. Unqualified entries
+fall back to ``schema``, and table-name matching is case-insensitive (databases
+reflect identifiers in their own case). For tables in a different *database*, use
+a separate toolset whose connection points at that database.
+
+.. _sql-toolset-templated-connection:
+
+Templated connection IDs
+------------------------
+
+``db_conn_id`` is a Jinja template, rendered for each task instance just before it
+runs, so one toolset definition can reach a different database depending on where
+and for what the task runs:
+
+- **Per environment.** The same Dag reads the staging warehouse in staging and the
+  production one in production, with the environment name kept in a Variable:
+  ``SQLToolset(db_conn_id="warehouse_{{ var.value.environment }}")``.
+- **Per unit of work.** A mapped task gives each map index its own connection --
+  one per customer, region, or shard -- as in the example below.
+
+Each task instance renders its own copy of the toolset, so the object in the Dag
+file keeps its template and no rendered connection carries over to another task
+instance. The task log records which connection each instance got, as a
+``Rendered toolset sql-warehouse_prod`` line. A toolset wrapped with
+``.prefixed()`` or ``.filtered()``, passed as a ``Toolset`` capability, or passed
+in ``agent_params["toolsets"]`` is rendered the same way. A ``Toolset``
+capability built from a callable is resolved when the run starts and is not
+rendered. ``MCPToolset.mcp_conn_id`` and ``HookToolset``'s hook connection ID are
+templated the same way (see :ref:`hook-toolset-templated-connection`).
+
+.. warning::
+
+    Build the connection ID from values the Dag controls -- a Variable, upstream
+    task output -- not from ``params`` or ``dag_run.conf``. Whoever triggers the Dag
+    controls those, and a task can read any connection it names, so a templated
+    ``db_conn_id`` taken from trigger input lets the trigger pick the database.
+
+Only the connection ID is templated. ``allowed_tables`` is validated when the
+toolset is created, so a template in it stays a literal table name.
+``DataFusionToolset`` takes data source configs and is not templated.
+
+One connection per customer
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Customer-facing analytics must only ever read one customer's rows. The boundary
+that holds is the database's own: a role or database per customer, reached
+through its own Airflow connection. A mapped agent task can give each customer's
+task instance that customer's connection:
+
+.. code-block:: python
+
+    from airflow.providers.common.ai.toolsets.sql import SQLToolset
+    from airflow.sdk import dag, task
+
+
+    @dag
+    def customer_reports():
+        @task
+        def customers() -> list[str]:
+            return ["acme", "globex"]
+
+        @task.agent(
+            llm_conn_id="pydanticai_default",
+            toolsets=[SQLToolset(db_conn_id="analytics_{{ task.op_kwargs.customer }}")],
+        )
+        def report(customer: str) -> str:
+            return f"Summarize this month's orders for {customer}."
+
+        report.expand(customer=customers())
+
+
+    customer_reports()
+
+The ``acme`` task instance queries through ``analytics_acme`` and the ``globex``
+one through ``analytics_globex``. Write ``{{ task.op_kwargs.customer }}``, not
+``{{ customer }}``: the task's arguments are not template variables, and the
+undefined name fails the task.
+
+``AgentOperator`` mapped over prompts has no customer argument to read, so the
+connection has to come from the map index. That works when the prompts are built
+from the same list, in the same order, as the one the template indexes:
+
+.. code-block:: python
+
+    names = customers()
+    AgentOperator.partial(
+        task_id="report",
+        llm_conn_id="pydanticai_default",
+        toolsets=[SQLToolset(db_conn_id="analytics_{{ ti.xcom_pull(task_ids='customers')[ti.map_index] }}")],
+    ).expand(prompt=names.map(lambda name: f"Summarize this month's orders for {name}."))
+
+Prefer ``@task.agent`` where you can: ``task.op_kwargs`` names the customer
+directly instead of relying on the two lists lining up.
+
+Parameters
+----------
+
+- ``db_conn_id``: Airflow connection ID for the database. Templated (see
+  :ref:`sql-toolset-templated-connection`).
+- ``allowed_tables``: Restrict the agent to a fixed set of tables. Omit the
+  argument (the default) to expose all tables in ``schema``. No value means
+  allow-all: ``None`` and an empty list both raise ``ValueError``, so an allow-list
+  built at runtime that resolves to nothing fails at import instead of silently
+  exposing every table. Entries may be schema-qualified
+  (``"SCHEMA.TABLE"``) to span multiple schemas; see above. Matching is
+  case-insensitive. When set, the list is enforced on ``query`` and
+  ``check_query`` as well as discovery -- every table a query references must be
+  on it. See :ref:`allowed-tables-enforcement` for what this does and does not
+  guarantee.
+- ``allowed_functions``: Names of functions that sqlglot does not recognize as
+  builtins but are safe to run while ``allowed_tables`` is active (e.g.
+  ``["json_build_object"]`` or a project UDF). ``None`` (default) rejects every
+  unrecognized function. Matching is case-insensitive. Only consulted when
+  ``allowed_tables`` is set.
+- ``schema``: Default schema/namespace for unqualified table listing and
+  introspection. Schema-qualified ``allowed_tables`` entries override it per table.
+- ``allow_writes``: Allow data-modifying SQL (INSERT, UPDATE, DELETE, etc.).
+  Default ``False`` -- only SELECT-family and read-only metadata
+  (``DESCRIBE``/``SHOW``) statements are permitted. To have a person approve a
+  ``query`` call before it runs, wrap the toolset with ``.approval_required()`` and
+  return ``tool_def.name == f"{prefix}_query"`` from its function, where ``prefix`` is
+  your ``tool_prefix`` (with none set, compare against ``"query"``). The function sees
+  the prefixed name, so a bare ``"query"`` comparison never matches once a prefix is
+  set and writes run without approval. Compare the full name with ``==``; do not use
+  ``endswith("query")``, which also matches ``check_query``. Reads and writes both go
+  through ``query``, so every query pauses for a decision. On Airflow 3.3 a task
+  instance can pause only once per Dag run, so there this fits an agent that runs one
+  query, such as a single write; see :doc:`../tool_approval`.
+- ``max_rows``: Maximum rows returned from the ``query`` tool. Default ``50``.
+  Rows beyond it are not read out of a DBAPI cursor; what the driver has already
+  transferred is its own call. See :ref:`bounded-query-results`.
+- ``max_result_bytes``: Budget for the serialized ``query`` result, and the byte backstop
+  that also triggers the ``get_schema`` summary. Default 64 KiB.
+  See :ref:`bounded-query-results` and :ref:`bounded-schema-results`.
+- ``max_columns``: Maximum columns ``get_schema`` returns in full. Default ``100``.
+  Above it the result becomes a bounded summary. See :ref:`bounded-schema-results`.
+- ``tool_prefix``: Optional prefix joined to each tool name with an underscore (e.g. ``"pg"`` produces ``"pg_query"``).
+  Must be a valid Python identifier. Set it when one agent has another toolset with the
+  same tool names, since duplicate tool names are rejected. A function passed to
+  ``.approval_required()`` sees these prefixed names; see ``allow_writes`` above.
+- ``include_table_comments``: When ``True``, ``list_tables`` returns
+  ``{"name": ..., "comment": ...}`` objects instead of bare names; ``comment`` is
+  present only for tables that have one. Default ``False``. ``get_schema`` returns
+  comments regardless. Without a ``search_backend`` the list has no size limit: each
+  comment is capped at 200 characters, but the total is not bound by ``max_result_bytes``.
+  See :ref:`sql-toolset-comments`.
+- ``search_backend``: Registers the ``search_tables`` tool. Default ``None``, no search
+  tool. See :ref:`sql-toolset-table-search`.
+- ``max_listed_tables``: With a ``search_backend``, the number of tables above which
+  ``list_tables`` stops listing and points at ``search_tables``. Default ``100``. No
+  effect without a ``search_backend``.
+- ``max_retries``: How many times the model may correct a failed call to these
+  tools. Default ``None``, the agent's ``retries``. See :ref:`toolset-retry-budget`.
+
+.. _sql-toolset-comments:
+
+Table and column comments
+-------------------------
+
+A column named ``amt_adj_2`` tells an agent little; the comment the database holds for
+it often does. ``get_schema`` returns ``table_comment`` and a ``comment`` on each column
+where the database reports one. This is what it returned for a ``customers`` table with
+comments, on PostgreSQL (the ``email`` and ``country_code`` columns have comments, the
+others do not):
+
+.. code-block:: json
+
+    {"columns":[{"name":"customer_id","type":"INTEGER"},{"name":"email","type":"TEXT","comment":"Login address, unique per customer"},{"name":"full_name","type":"TEXT"},{"name":"created_at","type":"TIMESTAMP"},{"name":"country_code","type":"CHAR(2)","comment":"ISO 3166-1 alpha-2"}],"column_count":5,"table_comment":"People who have an account in the shop."}
+
+Comments are read through ``DbApiHook.get_table_comment`` and
+``DbApiHook.get_table_columns_with_comments``. On a dialect that cannot report comments
+(SQLite, for one), ``get_schema`` works as before and returns none. A failure reading the
+columns fails the call. A failure reading the *table* comment, of any kind, a permission
+error included, is logged at debug level and ``get_schema`` returns the columns without
+``table_comment``.
+
+Each comment is cut to 200 characters. Comments share ``max_result_bytes`` with the
+columns, so a wide table with long comments can cross the budget where the same table
+without them would not. When the columns fit but their comments do not, ``get_schema``
+returns the full column list without the column comments and says so with ``comments_omitted``.
+Only when the columns alone do not fit is the result summarized (see
+:ref:`bounded-schema-results`), and the summary leaves the column comments out too. In both
+cases the agent gets the comments back by asking for the columns it needs with ``name_contains``.
+
+``include_table_comments=True`` adds the table comments to ``list_tables``, and the default
+search backend reads the same comments to build its catalog. Both call the Inspector's
+``get_multi_table_comment`` once per schema. When ``allowed_tables`` is set, only the allowed
+tables' comments are requested. What that costs depends on the dialect. Where the dialect does
+not implement ``get_multi_table_comment`` itself, SQLAlchemy's default reads the comments one
+table at a time.
+
+On PostgreSQL 14 with SQLAlchemy 2.0, one ``list_tables`` call with
+``include_table_comments=True`` on a schema of ten tables issued two SQL statements, counted
+with SQLAlchemy's ``before_cursor_execute`` event: one listing the table names and one
+reading the comments of all the tables. Snowflake and BigQuery were not run. Reading their
+SQLAlchemy dialects' source suggests they do not implement ``get_multi_table_comment``, so
+there each table whose comment is read would cost one query, or one API call on BigQuery, and a
+schema with many tables would make this slow. On such databases leave
+``include_table_comments`` off for large schemas, or pass a custom ``search_backend`` that
+builds its catalog with one dialect-specific query, for example against
+``INFORMATION_SCHEMA`` (see :ref:`sql-toolset-custom-search-backend`). If the comments cannot
+be read, for example because the role cannot see the comment catalog, tables are returned
+without them. A lost connection is still reported as a connection error. The catalog the
+search backend reads is built once per toolset instance (see
+:ref:`sql-toolset-table-search`), so the default search backend will not look for comments
+again.
+
+SQLAlchemy 1.4 has no ``get_multi_table_comment``, so there ``list_tables`` returns tables without
+comments rather than reading them table by table. The default search backend then has no comments
+to match, and a query whose words appear only in comments returns nothing; matching on table
+names still works.
+
+.. _sql-toolset-table-search:
+
+Finding tables in a large warehouse
+-----------------------------------
+
+Listing every table stops working once there are hundreds. Pass a ``search_backend`` and the
+agent gets a ``search_tables`` tool that takes a free-text ``query`` and an optional
+``limit`` (default 10, at most 50) and returns matching tables with their comments. Once
+there are more than ``max_listed_tables`` tables, ``list_tables`` returns only their number
+and a pointer to ``search_tables`` instead of the whole list. Without a ``search_backend``
+``list_tables`` is unchanged, however many tables there are.
+
+.. code-block:: python
+
+    from airflow.providers.common.ai.toolsets.sql import SQLToolset
+    from airflow.providers.common.ai.utils.sql_search import KeywordTableSearchBackend
+
+    toolset = SQLToolset(
+        db_conn_id="warehouse",
+        schema="analytics",
+        search_backend=KeywordTableSearchBackend(),
+    )
+
+The outputs below come from a run on PostgreSQL with ten tables. That run also set
+``include_table_comments=True`` and ``max_listed_tables=5``, which the block above leaves at
+their defaults (``False`` and 100), so with the block as written ``list_tables`` would list all
+ten tables. With those two arguments set, ``list_tables`` returned:
+
+.. code-block:: json
+
+    {"table_count": 10, "hint": "There are 10 tables, too many to list (the limit is 5). Use search_tables to find the ones you need."}
+
+and ``search_tables`` with the query ``parcels carrier`` returned:
+
+.. code-block:: json
+
+    {"tables": [{"name": "shipments", "comment": "Parcels handed to a carrier for an order."}]}
+
+A query that matches nothing returns ``{"tables": []}``. Comments are cut to 200
+characters in these results, the same as in ``list_tables``.
+
+``KeywordTableSearchBackend`` splits the query on whitespace and matches each word,
+case-insensitively, as a substring of the table name and of the table's comment. For a
+``SCHEMA.TABLE`` name only the table part is matched, not the schema. Column comments are
+not searched, and a word is not stemmed: a query for ``returned`` does not match a table
+named ``returns``. A word found in the name counts three times a word found in the comment;
+tables matching nothing are dropped and ties are ordered by name.
+
+The toolset builds the table catalog the first time a backend asks for it and keeps it for
+the lifetime of the toolset instance. This holds for any backend that calls ``get_catalog``,
+the default one included, so a table created after the first search does not show up until
+the toolset is built again.
+
+When ``allowed_tables`` is set, every result is checked against it before the agent sees it,
+whichever backend produced it, so a backend that knows about more tables than the agent may
+use cannot widen access. When ``allowed_tables`` is unset (the default, allow-all), the
+toolset filters nothing: a backend indexed with a broader role than the agent's connection can
+show the agent table names and comments that connection cannot see. In that case the
+:ref:`warning below <sql-toolset-search-identity>` is the only control.
+
+.. _sql-toolset-search-identity:
+
+.. warning::
+
+    Introspection must run as the same identity the agent queries with, because
+    ``INFORMATION_SCHEMA`` and the equivalent catalogs show a role only what that role can see.
+    The default path is correct by construction: the toolset introspects through the same
+    ``db_conn_id`` it queries with. A standalone backend, an external vector store for
+    instance, is responsible for building its index with that identity or equivalent
+    privileges. Otherwise it can surface tables the agent cannot use, or miss tables it can.
+
+.. _sql-toolset-custom-search-backend:
+
+Plugging in another backend
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+A backend is any object with a ``search_tables(query, limit, *, get_catalog)`` method
+returning ``(name, comment)`` pairs, best match first (see
+:class:`~airflow.providers.common.ai.utils.sql_search.SQLTableSearchBackend`). Names
+must be in the form ``list_tables`` returns -- bare for the default schema,
+``SCHEMA.TABLE`` otherwise. A backend with its own index, such as a vector store, a search
+service or a retriever over table descriptions, ignores ``get_catalog`` and queries that
+index. This provider ships no such backend; integration code is yours to write and test
+against your own store.
+
+``get_catalog`` is how the default backend reads comments, through SQLAlchemy's reflection; on a
+dialect without ``get_multi_table_comment`` that costs one query per table. A backend that avoids
+it has to reach the database itself. This example resolves a hook from the same ``db_conn_id``
+the toolset queries with and runs one query against the PostgreSQL catalogs. The query reads
+PostgreSQL's ``pg_class`` and ``pg_description``, the catalogs SQLAlchemy's PostgreSQL dialect
+reads table comments from; adapt it to the catalog of your database:
+
+.. code-block:: python
+
+    from collections.abc import Callable, Sequence
+
+    from airflow.providers.common.ai.toolsets.sql import SQLToolset
+    from airflow.providers.common.ai.utils.sql_search import TableEntry
+    from airflow.providers.common.compat.sdk import BaseHook
+
+
+    class PostgresCatalogSearchBackend:
+        def __init__(self, db_conn_id: str, schema: str) -> None:
+            self._db_conn_id = db_conn_id
+            self._schema = schema
+
+        def search_tables(
+            self, query: str, limit: int, *, get_catalog: Callable[[], Sequence[TableEntry]]
+        ) -> Sequence[TableEntry]:
+            hook = BaseHook.get_connection(self._db_conn_id).get_hook()
+            patterns = [f"%{word}%" for word in query.casefold().split()]
+            if not patterns:
+                return []
+            rows = hook.get_records(
+                "SELECT c.relname, d.description "
+                "FROM pg_catalog.pg_class c "
+                "JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace "
+                "LEFT JOIN pg_catalog.pg_description d "
+                "ON d.objoid = c.oid AND d.objsubid = 0 "
+                "AND d.classoid = 'pg_catalog.pg_class'::regclass "
+                "WHERE n.nspname = %s AND c.relkind IN ('r', 'p', 'f') "
+                "AND (lower(c.relname) LIKE ANY (%s) OR lower(d.description) LIKE ANY (%s)) "
+                "ORDER BY c.relname LIMIT %s",
+                parameters=(self._schema, patterns, patterns, limit),
+            )
+            return [(name, comment) for name, comment in rows]
+
+
+    toolset = SQLToolset(
+        db_conn_id="warehouse",
+        schema="analytics",
+        search_backend=PostgresCatalogSearchBackend("warehouse", "analytics"),
+    )
+
+This backend splits the query into words like the default one, but it is not equivalent to it.
+``%`` and ``_`` in the agent's query act as ``LIKE`` wildcards (the values are bound, so this
+is not injection), it does not weigh a name match above a comment match, and it orders by table
+name.
+
+When ``allowed_tables`` is set, the toolset checks what such a backend returns against it
+before the agent sees it, the same as for the default backend. With ``allowed_tables`` unset
+nothing is filtered, so the warning above applies: the backend queries with whatever identity
+its hook's connection has. Comments the backend returns are masked for registered secrets
+and cut to 200 characters before the agent sees them.
+
+.. _bounded-query-results:
+
+Bounded query results
+---------------------
+
+A tool result stays in the model's message history for the rest of the run, so its
+cost is re-paid on every subsequent model request. The ``query`` tool of both
+``SQLToolset`` and ``DataFusionToolset`` bounds that in three ways.
+
+**The result is columnar.** Column names appear once, not once per row:
+
+.. code-block:: json
+
+    {"columns": ["id", "name"], "rows": [[1, "Alice"], [2, "Bob"]], "row_count": 2}
+
+On a table with thousands of columns the repeated names, not the values, are the bulk
+of a row-of-dicts payload. Positional rows also keep columns that share a name --
+``SELECT o.id, c.id`` -- which a dict per row silently collapsed to one.
+
+**Rows are fetched, not filtered.** ``max_rows`` bounds what leaves the cursor, so a
+query matching a whole table costs the worker roughly what one matching ``max_rows``
+costs. How much is saved depends on the driver: with a server-side cursor the
+remaining rows are never sent, while a client-buffering driver (psycopg2's default
+cursor, MySQLdb) has already received them and only the per-row conversion is skipped.
+Hooks whose cursor is not DBAPI 2.0 (``ExasolHook`` passes a pyexasol statement) fall
+back to a full fetch, where the payload is bounded but the transfer is not.
+``DataFusionToolset`` pushes the bound into the query instead: it runs the statement
+with a DataFusion ``LIMIT`` of ``max_rows + 1``, so the engine never materializes more
+than that and the extra row only signals truncation.
+
+**A byte budget bounds the payload.** ``max_rows`` caps rows, which says nothing about
+size -- one row of a 3000-column table is larger than a thousand rows of a narrow one.
+``max_result_bytes`` is what actually bounds context. Rows are returned as a contiguous
+prefix: the result stops at the first row that does not fit the remaining budget rather
+than skipping it and packing later ones, so a single wide row early in the result ends
+it. The result says which limit it hit:
+
+.. code-block:: json
+
+    {"columns": ["..."], "rows": ["..."], "row_count": 3,
+     "truncated": true, "truncated_by": "max_result_bytes"}
+
+``truncated_by`` is ``max_rows`` or ``max_result_bytes``. When not even one row fits,
+or the column names alone exceed the budget, the result carries a ``hint`` telling the
+agent to narrow its projection -- the only move that helps. ``total_rows`` is present
+when the driver reports a row count for the query; several (SQLite, some warehouse
+drivers) do not, and it is then omitted rather than guessed. ``DataFusionToolset``
+never reports it, because it reads only ``max_rows + 1`` rows and so has no total to
+report; an agent that needs one runs ``COUNT(*)``.
+
+The default budget is deliberately generous: the columnar shape alone shrinks a wide
+result several-fold, so results that fit before still fit. Lower ``max_result_bytes``
+when an agent makes many queries in one run, since every result is re-paid on every
+later request.
+
+.. _bounded-schema-results:
+
+Bounded schema results
+----------------------
+
+``get_schema`` has the same context problem as ``query`` but cannot be solved the same
+way. Column names are what the agent needs to write SQL, so truncating to the first N
+columns would leave it unable to reference or discover the rest. The tool filters and
+summarizes instead.
+
+**Filter with** ``name_contains``. Pass a case-insensitive substring to get back only
+the columns whose name contains it, so on a very wide table the agent asks for the
+columns relevant to its question rather than all of them.
+
+**A summary replaces a very wide list.** Above ``max_columns`` (default ``100``), or when
+the serialized columns exceed ``max_result_bytes``, the full list is replaced by a
+summary that reports the shape and points at the filter:
+
+.. code-block:: json
+
+    {"column_count": 3200, "truncated": true, "truncated_by": "max_columns",
+     "hint": "...", "type_histogram": {"VARCHAR": 2000, "NUMBER": 1200},
+     "sample_columns": [{"name": "id", "type": "NUMBER"}]}
+
+``truncated_by`` is ``max_columns`` or ``max_result_bytes``. ``type_histogram`` counts
+columns per type (capped to the most common, the tail folded into one entry), and
+``sample_columns`` previews the first columns -- both only while they fit the budget, so
+a pathologically small budget still returns the ``column_count`` and ``hint``. Column comments count
+against the same budget (see :ref:`sql-toolset-comments`). A filtered
+call echoes ``name_contains`` and adds ``total_columns`` so a subset is never mistaken for
+the whole table.
+
+When to choose it
+-----------------
+
+**Choose it when** the question is a query and the data is in a DBAPI database.
+:class:`~airflow.providers.common.ai.toolsets.sql.SQLToolset` gives the agent
+four tools: list tables, get schema, query, check query. Set ``allowed_tables``
+and that allow-list is enforced by parsing the SQL rather than by matching
+strings; see :ref:`allowed-tables-enforcement` for how the walk handles CTEs,
+subqueries and joins.
+
+**What it cannot do**
+
+- ``allowed_tables`` is an application-level guardrail, not a replacement for
+  database permissions. Its own docstring says so, and names the residual gap:
+  an engine or query the parser reads differently. Point ``db_conn_id`` at a
+  least-privilege role whose grants match the allow-list.
+- It cannot bound the fetch for every driver. Hooks that hand their handler
+  something other than a DBAPI cursor (``ExasolHook`` and its pyexasol
+  statement, for instance) fall back to a full fetch. The payload handed to the
+  model is still bounded; the transfer is not. See :ref:`bounded-query-results`.
+- Its parser-level closure is opt-in, not the default. The table walk returns
+  immediately while ``allowed_tables`` is unset, so out of the box the agent
+  reaches every table the connection can see. Only omitting the argument grants
+  that: an explicit ``None`` or empty list is rejected at construction.
+  ``DESCRIBE`` and ``SHOW`` both pass, on dialects that parse them, while
+  ``allowed_tables`` stays unset. Set ``allowed_tables`` and the walk
+  turns fail-closed for ``SHOW``, but not for ``DESCRIBE``: it instead
+  becomes an ordinary table reference, allowed only when the table it names
+  is on the list. See :ref:`allowed-tables-enforcement` for what else the
+  walk rejects once ``allowed_tables`` is active. Statements that modify
+  data, ``COPY`` among them, are rejected either way while ``allow_writes``
+  is ``False``.
+- It tells an unreachable database from a bad statement by when the error
+  happens, not by what it says. Failing to reach the database fails the
+  attempt straight away for Airflow to retry: the connection is not defined,
+  connecting fails (an unreachable host, rejected credentials), SQLAlchemy
+  cannot be set up for ``list_tables`` or ``get_schema`` (a dialect it cannot
+  load, a token it cannot fetch), or SQLAlchemy reports the connection lost
+  while they run. With :doc:`../durable_execution` the retry queries the
+  database again instead of replaying the failure. The task fails with
+  :class:`~airflow.providers.common.ai.exceptions.SQLToolsetConnectionError`,
+  whose message reads ``Could not reach the database of connection '<id>': ...``,
+  or ``Connection '<id>' does not provide a DbApiHook`` when the connection is
+  of the wrong type. Match that class in a retry policy
+  (:doc:`../retry_policies`) to retry an unreachable database on a different
+  schedule from other failures. When the driver's message carries a secret the
+  masker cannot remove from the exception, the task fails with a ``RuntimeError``
+  holding the masked message instead, and a rule on the class does not match it.
+  Inside :doc:`../code_mode` the split does not hold: a
+  tool the model's code calls hands any exception back to the model as a
+  retry, this one included.
+  Once connected, an error from the statement becomes a ``ModelRetry`` so the
+  model can correct it, bounded by the retry budget
+  (:ref:`toolset-retry-budget`). A connection that drops while a ``query``
+  runs falls in this second group, since the driver reports it like any
+  other statement error; the model usually runs the query again, on a new
+  connection. So does any failure of a hook whose ``get_conn`` does not open
+  a network connection, since nothing is reached until the statement runs.
+  Two paths do not raise: ``check_query`` catches its own errors and reports
+  them back as a normal ``{"valid": false, ...}`` result, and ``get_schema``
+  returns a normal ``{"error": ...}`` result instead of raising when the
+  requested table is outside ``allowed_tables``.
+
+**A real example.** ``example_pydantic_ai_hook.py`` builds an agent around
+``SQLToolset`` inside a plain ``@task`` function, with no operator involved:
+
+.. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_pydantic_ai_hook.py
+    :language: python
+    :start-after: [START howto_task_with_toolsets]
+    :end-before: [END howto_task_with_toolsets]
+
+**Credentials and where it runs.** ``db_conn_id`` is resolved through
+``BaseHook.get_connection``, and the connection must supply a ``DbApiHook``.
+Queries run from the Airflow worker process against the database. Its tool
+calls act as barriers, as they do for the other routes that build their own
+tools; see :ref:`toolset-call-barriers`.

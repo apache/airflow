@@ -25,11 +25,13 @@ from airflow.api_fastapi.core_api.routes.ui.backfills import backfills_router
 from airflow.api_fastapi.core_api.routes.ui.calendar import calendar_router
 from airflow.api_fastapi.core_api.routes.ui.config import config_router
 from airflow.api_fastapi.core_api.routes.ui.connections import connections_router
+from airflow.api_fastapi.core_api.routes.ui.dag_bundles import dag_bundles_router
 from airflow.api_fastapi.core_api.routes.ui.dag_runs import dag_runs_router
 from airflow.api_fastapi.core_api.routes.ui.dags import dags_router
 from airflow.api_fastapi.core_api.routes.ui.dashboard import dashboard_router
 from airflow.api_fastapi.core_api.routes.ui.deadlines import deadlines_router
 from airflow.api_fastapi.core_api.routes.ui.dependencies import dependencies_router
+from airflow.api_fastapi.core_api.routes.ui.execution import execution_router
 from airflow.api_fastapi.core_api.routes.ui.gantt import gantt_router
 from airflow.api_fastapi.core_api.routes.ui.grid import grid_router
 from airflow.api_fastapi.core_api.routes.ui.partitioned_dag_runs import partitioned_dag_runs_router
@@ -44,9 +46,11 @@ ui_router = AirflowRouter(prefix="/ui", include_in_schema=False, dependencies=[D
 ui_router.include_router(auth_router)
 ui_router.include_router(assets_router)
 ui_router.include_router(dag_runs_router)
+ui_router.include_router(execution_router)
 ui_router.include_router(partitioned_dag_runs_router)
 ui_router.include_router(config_router)
 ui_router.include_router(connections_router)
+ui_router.include_router(dag_bundles_router)
 ui_router.include_router(dags_router)
 ui_router.include_router(dependencies_router)
 ui_router.include_router(dashboard_router)

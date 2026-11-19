@@ -49,7 +49,20 @@ _naming_convention = {
 }
 
 
+def _get_live_bind():
+    """Return the live database connection, or ``None`` in offline (``--sql``) mode."""
+    # Do not reach for op.get_bind() directly: in --sql mode alembic swaps the connection for a
+    # MockConnection that writes to the output buffer, so it is never None there and sa.inspect()
+    # on it raises NoInspectionAvailable. as_sql is the only reliable discriminator.
+    return None if op.get_context().as_sql else op.get_bind()
+
+
 def _mysql_run_procedure(procedure_name: str, body: str) -> str:
+    """Wrap ``body`` in a throwaway procedure so MySQL can guard DDL behind an ``IF``."""
+    # Offline (--sql) only. The result is a multi-statement script: drivers that leave
+    # CLIENT_MULTI_STATEMENTS off (pymysql) reject it, and the `mysql` client needs a DELIMITER
+    # around the procedure body. A live connection has nothing to guess at, so the callers
+    # below introspect the schema and emit plain single statements instead.
     return f"""
     DROP PROCEDURE IF EXISTS {procedure_name};
     CREATE PROCEDURE {procedure_name}()
@@ -147,17 +160,28 @@ def _mysql_drop_unique_constraints_on_ab_register_user_email() -> str:
     )
 
 
+def _find_unique_constraint_names(bind, table_name: str, column_name: str) -> list[str]:
+    """Names of the unique constraints on ``table_name`` that cover ``column_name``."""
+    return [
+        uq["name"]
+        for uq in sa.inspect(bind).get_unique_constraints(table_name)
+        if uq["name"] is not None and column_name in uq["column_names"]
+    ]
+
+
 def _drop_unique_constraint_if_exists(table_name: str, constraint_name: str) -> None:
     dialect_name = op.get_context().dialect.name
+    bind = _get_live_bind()
 
     if dialect_name == "postgresql":
         op.execute(sa.text(f'ALTER TABLE "{table_name}" DROP CONSTRAINT IF EXISTS "{constraint_name}"'))
     elif dialect_name == "mysql":
-        op.execute(
-            sa.text(
-                _mysql_run_procedure(
-                    "DropUniqueIfExists",
-                    f"""
+        if bind is None:
+            op.execute(
+                sa.text(
+                    _mysql_run_procedure(
+                        "DropUniqueIfExists",
+                        f"""
                 IF EXISTS (
                     SELECT 1
                     FROM information_schema.TABLE_CONSTRAINTS
@@ -172,9 +196,11 @@ def _drop_unique_constraint_if_exists(table_name: str, constraint_name: str) -> 
                     SELECT 1;
                 END IF;
                     """,
+                    )
                 )
             )
-        )
+        elif any(uq["name"] == constraint_name for uq in sa.inspect(bind).get_unique_constraints(table_name)):
+            op.drop_constraint(constraint_name, table_name, type_="unique")
     else:
         with op.batch_alter_table(table_name, schema=None) as batch_op:
             with contextlib.suppress(ValueError):
@@ -192,13 +218,15 @@ def _resolve_fk_name(bind, table_name: str, column_name: str, default: str) -> s
 
 def _drop_index_if_exists(table_name: str, index_name: str) -> None:
     dialect_name = op.get_context().dialect.name
+    bind = _get_live_bind()
 
     if dialect_name == "mysql":
-        op.execute(
-            sa.text(
-                _mysql_run_procedure(
-                    "DropIndexIfExists",
-                    f"""
+        if bind is None:
+            op.execute(
+                sa.text(
+                    _mysql_run_procedure(
+                        "DropIndexIfExists",
+                        f"""
                 IF EXISTS (
                     SELECT 1
                     FROM information_schema.STATISTICS
@@ -210,16 +238,18 @@ def _drop_index_if_exists(table_name: str, index_name: str) -> None:
                     DROP INDEX `{index_name}` ON `{table_name}`;
                 END IF;
                     """,
+                    )
                 )
             )
-        )
+        elif any(idx["name"] == index_name for idx in sa.inspect(bind).get_indexes(table_name)):
+            op.drop_index(index_name, table_name=table_name)
     else:
         op.drop_index(index_name, table_name=table_name, if_exists=True)
 
 
 def upgrade() -> None:
     dialect_name = op.get_context().dialect.name
-    bind = op.get_bind()
+    bind = _get_live_bind()
     if dialect_name == "postgresql":
         op.create_index(
             "idx_ab_user_username",
@@ -286,18 +316,20 @@ def upgrade() -> None:
         )
 
     # Drop any existing unique constraint on email, regardless of its name.
-    # Raw SQL is used so this works in both online and offline (--sql) mode.
     if dialect_name == "postgresql":
         op.execute(sa.text(_postgresql_drop_unique_constraints_on_ab_register_user_email()))
     elif dialect_name == "mysql":
-        op.execute(sa.text(_mysql_drop_unique_constraints_on_ab_register_user_email()))
+        if bind is None:
+            op.execute(sa.text(_mysql_drop_unique_constraints_on_ab_register_user_email()))
+        else:
+            for name in _find_unique_constraint_names(bind, "ab_register_user", "email"):
+                op.drop_constraint(name, "ab_register_user", type_="unique")
     elif dialect_name == "sqlite" and bind is not None:
         # SQLite: batch mode rewrites the table; requires a live connection.
         # Offline mode for SQLite is not supported by Airflow.
-        for uq in sa.inspect(bind).get_unique_constraints("ab_register_user"):
-            if "email" in uq["column_names"] and uq["name"] is not None:
-                with op.batch_alter_table("ab_register_user", schema=None) as batch_op:
-                    batch_op.drop_constraint(uq["name"], type_="unique")
+        for name in _find_unique_constraint_names(bind, "ab_register_user", "email"):
+            with op.batch_alter_table("ab_register_user", schema=None) as batch_op:
+                batch_op.drop_constraint(name, type_="unique")
     with op.batch_alter_table("ab_register_user", schema=None) as batch_op:
         batch_op.create_unique_constraint(batch_op.f("ab_register_user_email_uq"), ["email"])
 

@@ -52,7 +52,7 @@ class PineconeIngestOperator(BaseOperator):
     :param upsert_kwargs: .. seealso:: https://docs.pinecone.io/reference/upsert
     """
 
-    template_fields: Sequence[str] = ("index_name", "input_vectors", "namespace")
+    template_fields: Sequence[str] = ("index_name", "input_vectors", "namespace", "conn_id")
 
     def __init__(
         self,
@@ -115,6 +115,8 @@ class CreatePodIndexOperator(BaseOperator):
     :param metric: The metric to use. Defaults to cosine.
     :param timeout: The timeout to use.
     """
+
+    template_fields: Sequence[str] = ("conn_id",)
 
     def __init__(
         self,
@@ -186,6 +188,8 @@ class CreateServerlessIndexOperator(BaseOperator):
     :param metric: The metric to use.
     :param timeout: The timeout to use.
     """
+
+    template_fields: Sequence[str] = ("conn_id",)
 
     def __init__(
         self,

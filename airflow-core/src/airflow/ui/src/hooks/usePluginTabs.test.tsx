@@ -30,8 +30,10 @@ vi.mock("openapi/queries", () => ({
   usePluginServiceGetPlugins: vi.fn(),
 }));
 
+const { colorModeState } = vi.hoisted(() => ({ colorModeState: { value: "light" } }));
+
 vi.mock("src/context/colorMode", () => ({
-  useColorMode: () => ({ colorMode: "light" }),
+  useColorMode: () => ({ colorMode: colorModeState.value }),
 }));
 
 vi.mock("src/hooks/usePluginAppliesToContext", () => ({
@@ -63,12 +65,13 @@ const dag = {
 describe("usePluginTabs", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    colorModeState.value = "light";
     mockUseContext.mockReturnValue({ dag, isLoading: false });
   });
 
   it.each([
-    ["a matching applies_to", { dag_tags: ["ml"] }, 1],
-    ["a non-matching applies_to", { dag_ids: ["etl_orders"] }, 0],
+    ["a matching applies_to", { "dag.tags.name": ["ml"] }, 1],
+    ["a non-matching applies_to", { "dag.dag_id": ["etl_orders"] }, 0],
   ])("includes the right tabs for %s", (_label, appliesTo: PluginAppliesToResponse, expected) => {
     setPlugins([makeView({ applies_to: appliesTo })]);
 
@@ -96,7 +99,7 @@ describe("usePluginTabs", () => {
 
   it("withholds a scoped tab until its context resolves, avoiding a flicker", () => {
     mockUseContext.mockReturnValue({ dag: undefined, isLoading: true });
-    setPlugins([makeView({ applies_to: { dag_tags: ["ml"] } }), makeView({ url_route: "always" })]);
+    setPlugins([makeView({ applies_to: { "dag.tags.name": ["ml"] } }), makeView({ url_route: "always" })]);
 
     const { result } = renderHook(() => usePluginTabs("dag_run"));
 
@@ -108,15 +111,49 @@ describe("usePluginTabs", () => {
     ["no view is scoped", [{}], false],
     [
       "a view for another destination is scoped",
-      [{ applies_to: { dag_ids: ["x"] }, destination: "task" as const }],
+      [{ applies_to: { "dag.dag_id": ["x"] }, destination: "task" as const }],
       false,
     ],
-    ["a view for this destination is scoped", [{ applies_to: { dag_ids: ["x"] } }], true],
+    ["a view for this destination is scoped", [{ applies_to: { "dag.dag_id": ["x"] } }], true],
   ])("resolves the context only when %s", (_label, views: Array<Partial<ExternalViewResponse>>, enabled) => {
     setPlugins(views.map(makeView));
 
     renderHook(() => usePluginTabs("dag_run"));
 
     expect(mockUseContext).toHaveBeenCalledWith(enabled);
+  });
+
+  it.each<{
+    colorMode: string;
+    expected: boolean;
+    label: string;
+    overrides: Partial<ExternalViewResponse>;
+  }>([
+    { colorMode: "light", expected: false, label: "the flag is unset", overrides: { icon: "/icon.svg" } },
+    {
+      colorMode: "light",
+      expected: true,
+      label: "the flag is on with an icon",
+      overrides: { icon: "/icon.svg", show_icon_with_label: true },
+    },
+    {
+      colorMode: "light",
+      expected: false,
+      label: "the flag is on without an icon",
+      overrides: { show_icon_with_label: true },
+    },
+    {
+      colorMode: "dark",
+      expected: false,
+      label: "the flag is on with only a dark icon, in dark mode",
+      overrides: { icon_dark_mode: "/dark.svg", show_icon_with_label: true },
+    },
+  ])("sets showIconWithLabel when $label", ({ colorMode, expected, overrides }) => {
+    colorModeState.value = colorMode;
+    setPlugins([makeView(overrides)]);
+
+    const { result } = renderHook(() => usePluginTabs("dag_run"));
+
+    expect(result.current[0]?.showIconWithLabel).toBe(expected);
   });
 });

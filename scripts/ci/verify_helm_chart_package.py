@@ -34,7 +34,7 @@
 # `chart/.helmignore` should not appear here.
 #
 # /// script
-# requires-python = ">=3.10"
+# requires-python = ">=3.11"
 # dependencies = []
 # ///
 from __future__ import annotations

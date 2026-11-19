@@ -32,7 +32,7 @@ if _spec is None or _spec.loader is None:
 _mod = importlib.util.module_from_spec(_spec)
 # Register in sys.modules before exec so dataclasses can resolve the module via cls.__module__
 sys.modules["check_migration_patterns"] = _mod
-_spec.loader.exec_module(_mod)  # type: ignore[union-attr]  # typeshed: Loader lacks exec_module
+_spec.loader.exec_module(_mod)  # typeshed: Loader lacks exec_module
 MigrationFile = _mod.MigrationFile
 check_mig001 = _mod.check_mig001
 check_mig002 = _mod.check_mig002

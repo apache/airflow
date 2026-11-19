@@ -139,7 +139,7 @@ the connection metadata is structured as follows:
    * - Schema: string
      - Set schema to execute SQL operations on by default
    * - Extra: dictionary
-     - ``warehouse``, ``account``, ``database``, ``region``, ``role``, ``authenticator``, ``refresh_token``. If using OAuth must specify ``refresh_token`` (`obtained here <https://community.snowflake.com/s/article/HOW-TO-OAUTH-TOKEN-GENERATION-USING-SNOWFLAKE-CUSTOM-OAUTH>`__)
+     - ``warehouse``, ``account``, ``database``, ``region``, ``role``, ``authenticator``, ``refresh_token``. For OAuth, specify ``refresh_token`` (`obtained here <https://community.snowflake.com/s/article/HOW-TO-OAUTH-TOKEN-GENERATION-USING-SNOWFLAKE-CUSTOM-OAUTH>`__). To use the ``client_credentials`` grant or ``azure_conn_id`` instead, also set ``authenticator`` to ``oauth``. See :ref:`howto/connection:snowflake`.
 
 An example usage of the SnowflakeSqlApiHook is as follows:
 
@@ -189,15 +189,46 @@ between, the handles won't be there for the next retry, and the operator will su
 fresh instead of reconnecting. Avoid running cleanup on a schedule shorter than your longest
 ``retry_delay``.
 
-Clearing a task is treated the same as a retry, which matters specifically for a task whose
-statements already succeeded: clearing does not delete the stored handles, so the next attempt
-reads them back and returns immediately without submitting the SQL again. See
-:doc:`apache-airflow:core-concepts/resumable-tasks` for why, and for the
-``[state_store] clear_on_success`` setting that restores "clearing always resubmits."
+Clearing a task instance from the UI or the REST API (so ``airflowctl`` too) deletes the stored
+statement handles by default from Airflow 3.4. Every other clear, such as ``airflow tasks clear`` or
+clearing a whole Dag run, does so from Airflow 3.5. To keep it, tick **Keep task state and resume**
+in the Clear dialog, or send ``"keep_task_state": true`` in the request. The
+**Keep task state on clear** UI setting ticks that box by default. From Airflow 3.5,
+``airflow tasks clear --keep-task-state`` keeps it too. The next attempt then reads the stored
+statement handles back. In synchronous mode, what the next attempt does depends on the state of the
+statements at that point:
 
-This is most reliable for deferred tasks (``deferrable=True``); clearing a task that's actively
-polling synchronously can cancel the statements via ``on_kill`` before the next attempt gets a
-chance to reconnect -- see :doc:`apache-airflow:core-concepts/resumable-tasks` for why.
+.. list-table::
+   :header-rows: 1
+   :widths: 20 40 40
+
+   * - Statement state
+     - Default clear
+     - Clear that keeps task state
+   * - Still running (the task had already failed, or its worker died)
+     - Submits the SQL again. The first statements keep running.
+     - Reconnects to the running statements.
+   * - Succeeded
+     - Submits the SQL again.
+     - Returns right away without running the SQL again.
+   * - Failed or aborted
+     - Submits the SQL again.
+     - Submits the SQL again.
+
+With ``deferrable=True``, the operator does not store the statement handles, so the next attempt
+submits the SQL again whether or not task state was kept.
+
+With ``[state_store] clear_on_success`` on, the stored statement handles are deleted when the task
+succeeds, so clearing a succeeded task submits again even when task state is kept.
+
+Keep task state when statements are still running and nothing about the code or inputs changed, so
+you don't pay for two. This assumes the statements survive the clear; keeping task state does not
+prevent cancellation via ``on_kill``. See :doc:`apache-airflow:core-concepts/resumable-tasks`
+for the ways of clearing.
+
+By default (``cancel_on_kill=True``), clearing a running task requests cancellation via
+``on_kill``, including when deferred (Airflow 3.3+). With ``cancel_on_kill=False``, the statements
+are left running; a default clear submits the SQL again on the next synchronous attempt.
 
 To opt out and always submit fresh SQL on retry, set ``durable=False``:
 
@@ -218,3 +249,39 @@ already tracks the statement handles across the wait, so deferrable mode takes p
 Durable execution requires Airflow 3.3 or newer, since it relies on the task state store. Below
 3.3, ``durable`` has no effect either way: setting it explicitly only emits a warning, and the
 operator always submits fresh SQL on retry, exactly as before this feature existed.
+
+
+SnowflakeNotebookOperator
+=========================
+
+Use the :class:`SnowflakeNotebookOperator <airflow.providers.snowflake.operators.snowflake.SnowflakeNotebookOperator>`
+to execute a `Snowflake Notebook <https://docs.snowflake.com/en/sql-reference/sql/execute-notebook>`__
+via the Snowflake SQL API.
+
+This operator builds an ``EXECUTE NOTEBOOK`` statement and delegates execution to
+:class:`SnowflakeSqlApiOperator <airflow.providers.snowflake.operators.snowflake.SnowflakeSqlApiOperator>`.
+
+Using the Operator
+^^^^^^^^^^^^^^^^^^
+
+.. exampleinclude:: /../../snowflake/tests/system/snowflake/example_snowflake_notebook.py
+    :language: python
+    :start-after: [START howto_operator_snowflake_notebook]
+    :end-before: [END howto_operator_snowflake_notebook]
+    :dedent: 4
+
+You can pass parameters to the notebook:
+
+.. exampleinclude:: /../../snowflake/tests/system/snowflake/example_snowflake_notebook.py
+    :language: python
+    :start-after: [START howto_operator_snowflake_notebook_with_params]
+    :end-before: [END howto_operator_snowflake_notebook_with_params]
+    :dedent: 4
+
+You can also run the operator in deferrable mode:
+
+.. exampleinclude:: /../../snowflake/tests/system/snowflake/example_snowflake_notebook.py
+    :language: python
+    :start-after: [START howto_operator_snowflake_notebook_deferrable]
+    :end-before: [END howto_operator_snowflake_notebook_deferrable]
+    :dedent: 4

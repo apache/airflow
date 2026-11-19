@@ -100,6 +100,7 @@ class BaseSQLToGCSOperator(BaseOperator):
         "parameters",
         "impersonation_chain",
         "partition_columns",
+        "gcp_conn_id",
     )
     template_ext: Sequence[str] = (".sql",)
     template_fields_renderers = {"sql": "sql"}

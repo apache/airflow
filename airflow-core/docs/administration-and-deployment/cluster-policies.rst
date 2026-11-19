@@ -41,10 +41,13 @@ There are three main types of cluster policy:
   ``task_instance_mutation_hook`` applies not to a task but to the instance of a task that
   relates to a particular DagRun. It is executed scheduler-side while task instances are created or
   reconciled (not in the Dag file processor, and not on the worker). The policy is only applied to the
-  currently executed run (i.e. instance) of that task. The ``dag_run`` argument lets the policy route on
-  run configuration (``dag_run.conf``); it may be ``None`` in early task-instance construction, and a hook
-  that only declares ``task_instance`` keeps working unchanged. Note that ``dag_run.conf`` is only populated
-  for manually triggered or API-triggered runs; scheduled runs carry an empty ``conf``.
+  currently executed run (i.e. instance) of that task. The policy can run more than once for the same task
+  instance, for example when it is created or reconciled, so implementations should be idempotent. It also
+  runs when a retry is scheduled, with ``task_instance.try_number`` set to the attempt about to run. The
+  ``dag_run`` argument lets the policy route on run configuration (``dag_run.conf``); it may be ``None`` in
+  early task-instance construction, and a hook that only declares ``task_instance`` keeps working
+  unchanged. Note that ``dag_run.conf`` is only populated for manually triggered or API-triggered runs;
+  scheduled runs carry an empty ``conf``.
 
 .. warning::
 
@@ -66,7 +69,7 @@ cluster policy's value will take precedence.
 
 .. _administration-and-deployment:cluster-policies-define:
 
-How do define a policy function
+How to define a policy function
 -------------------------------
 
 There are two ways to configure cluster policies:
@@ -165,7 +168,7 @@ Here's an example of enforcing a maximum timeout policy on every task:
         :start-after: [START example_task_cluster_policy]
         :end-before: [END example_task_cluster_policy]
 
-You could also implement to protect against common errors, rather than as technical security controls. For example, don't run tasks without Airflow owners:
+You could also implement cluster policies to protect against common errors, rather than as technical security controls. For example, don't run tasks without Airflow owners:
 
 .. literalinclude:: /../tests/unit/cluster_policies/__init__.py
         :language: python

@@ -1,0 +1,24 @@
+TaskInstance try numbers now increase before the next try starts
+
+.. note::
+  If you have any external systems that look at task logs or TI state for an
+  up-for-retry TI, you will need to be aware of this change and update your
+  code.
+
+  For example, if you made a request to ``GET
+  /api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}`` expecting
+  to get info about the failed try, you will now need to look at ``GET
+  /api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/tries/{try_number - 1}``
+
+When a task is up_for_retry, try_number now identifies the upcoming try. To
+retrieve the try that failed, request ``/tries/{try_number - 1}``. The UI shows
+the pending try and provides a link to the previous try's logs.
+
+Airflow now allocates a task instance's UUID and try number together immutably
+so they consistently identify the same try.
+
+Previously when a task entered the retry cooldown period, it would be given a
+new UUID, but keep on try number N and have the state of UP_FOR_RETRY until that
+period was up (at which point that try would be marked FAILED and the try number
+incremented). Instead, the failed try is immediately marked with state of
+FAILED, and a new try created in state UP_FOR_RETRY.

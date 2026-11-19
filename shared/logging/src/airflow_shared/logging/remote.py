@@ -60,8 +60,12 @@ class RemoteLogIO(Protocol):
         """Upload the given log path to the remote storage."""
         ...
 
-    def read(self, relative_path: str, ti: RuntimeTI) -> LogResponse:
-        """Read logs from the given remote log path."""
+    def read(self, relative_path: str, ti: RuntimeTI | None) -> LogResponse:
+        """
+        Read logs from the given remote log path.
+
+        ``ti`` is None for logs not tied to a task instance, such as deadline callbacks.
+        """
         ...
 
 
@@ -69,8 +73,12 @@ class RemoteLogIO(Protocol):
 class RemoteLogStreamIO(RemoteLogIO, Protocol):
     """Interface for remote task loggers with stream-based read support."""
 
-    def stream(self, relative_path: str, ti: RuntimeTI) -> StreamingLogResponse:
-        """Stream-based read interface for reading logs from the given remote log path."""
+    def stream(self, relative_path: str, ti: RuntimeTI | None) -> StreamingLogResponse:
+        """
+        Stream-based read interface for reading logs from the given remote log path.
+
+        ``ti`` is None for logs not tied to a task instance, such as deadline callbacks.
+        """
         ...
 
 

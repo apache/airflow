@@ -26,6 +26,8 @@ repos:
     hooks:
       - id: check-core-imports
         name: Check for core imports in task-sdk files
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
         entry: ../scripts/ci/prek/check_core_imports_in_sdk.py
         language: python
         types: [python]
@@ -54,12 +56,16 @@ repos:
           ^src/airflow/sdk/types.py$
       - id: check-init-decorator-arguments
         name: Sync model __init__ and decorator arguments
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
         language: python
         entry: ../scripts/ci/prek/check_init_decorator_arguments.py
         pass_filenames: false
         files: ^src/airflow/sdk/definitions/dag\.py$|^src/airflow/sdk/definitions/decorators/task_group\.py$
       - id: mypy-task-sdk
         name: Run mypy for task-sdk
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
         language: python
         entry: ../scripts/ci/prek/run_mypy_full_dist_local_venv_or_breeze_in_ci.py task-sdk
         pass_filenames: false

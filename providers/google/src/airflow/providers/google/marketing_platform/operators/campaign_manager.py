@@ -424,6 +424,7 @@ class GoogleCampaignManagerBatchInsertConversionsOperator(BaseOperator):
         "encryption_entity_id",
         "encryption_source",
         "impersonation_chain",
+        "gcp_conn_id",
     )
 
     def __init__(
@@ -509,6 +510,7 @@ class GoogleCampaignManagerBatchUpdateConversionsOperator(BaseOperator):
         "encryption_entity_id",
         "encryption_source",
         "impersonation_chain",
+        "gcp_conn_id",
     )
 
     def __init__(

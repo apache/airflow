@@ -103,6 +103,8 @@ class GCSToSambaOperator(BaseOperator):
         "source_object",
         "destination_path",
         "impersonation_chain",
+        "gcp_conn_id",
+        "samba_conn_id",
     )
     ui_color = "#f0eee4"
 

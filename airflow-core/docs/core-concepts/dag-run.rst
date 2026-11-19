@@ -28,7 +28,7 @@ Dag Run Status
 
 A Dag Run status is determined when the execution of the Dag is finished.
 The execution of the Dag depends on its containing tasks and their dependencies.
-The status is assigned to the Dag Run when all of the tasks are in the one of the terminal states (i.e. if there is no possible transition to another state) like ``success``, ``failed`` or ``skipped``.
+The status is assigned to the Dag Run when all of the tasks are in one of the terminal states (i.e. if there is no possible transition to another state) like ``success``, ``failed`` or ``skipped``.
 The Dag Run is having the status assigned based on the so-called "leaf nodes" or simply "leaves". Leaf nodes are the tasks with no children.
 
 There are two possible terminal states for the Dag Run:
@@ -39,6 +39,10 @@ There are two possible terminal states for the Dag Run:
 .. note::
     Be careful if some of your tasks have defined some specific :ref:`trigger rule <concepts:trigger-rules>`.
     These can lead to some unexpected behavior, e.g. if you have a leaf task with trigger rule `"all_done"`, it will be executed regardless of the states of the rest of the tasks and if it will succeed, then the whole Dag Run will also be marked as ``success``, even if something failed in the middle.
+
+.. note::
+    Another exception is when :ref:`dagrun_timeout <troubleshooting-dag-run-timeout>` expires: the scheduler marks the Dag Run as ``failed`` and unfinished task instances as ``skipped``, regardless of whether they are mapped.
+    Therefore, a timed-out Dag Run can be ``failed`` even when every leaf task instance is ``success`` or ``skipped``.
 
 *Added in Airflow 2.7*
 
@@ -132,7 +136,7 @@ then you will want to turn catchup off, which is the default setting or can be d
 
     """
     Code that goes along with the Airflow tutorial located at:
-    https://github.com/apache/airflow/blob/main/airflow/example_dags/tutorial.py
+    https://github.com/apache/airflow/blob/main/airflow-core/src/airflow/example_dags/tutorial.py
     """
 
     from airflow.sdk import DAG
@@ -250,8 +254,17 @@ There are multiple options you can select to re-run -
 * **Downstream** - The downstream tasks in the current Dag
 * **Recursive** - All the tasks in the child Dags and parent Dags
 * **Failed** - Only the failed tasks in the Dag's most recent run
+* **Keep task state and resume** - Preserve the task's ``task_state_store`` entries instead of
+  discarding them, so the next attempt resumes from a checkpoint or reconnects to an external job
+  instead of starting over. See :doc:`resumable-tasks` for details.
 
-You can also clear the task through CLI using the command:
+Clearing a task instance or a Dag run discards task state store entries by default, so the next
+attempt starts from the beginning instead of resuming a checkpoint or reconnecting to an external
+job. See :doc:`resumable-tasks` for when to keep it instead.
+
+You can also clear the task through CLI using ``airflowctl tasks clear``, or the deprecated
+``airflow tasks clear`` command below. Both discard task state the same way and accept
+``--keep-task-state`` to opt back in:
 
 .. code-block:: bash
 
@@ -332,6 +345,12 @@ Example of a parameterized Dag:
 
 
 **Note**: The parameters from ``dag_run.conf`` can only be used in a template field of an operator.
+
+.. note::
+
+   ``dag_run.conf`` is meant for small metadata, such as a path, a table name, or an identifier. The entire value is stored in
+   the metadata database and sent to every task worker process on startup. Avoid putting large payloads in it. Use a
+   reference instead, and have the task read the actual data from external storage.
 
 Wait for a Dag Run
 ------------------

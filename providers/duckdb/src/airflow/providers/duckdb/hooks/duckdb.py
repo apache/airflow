@@ -107,7 +107,7 @@ class DuckDBHook(DbApiHook):
     def __init__(
         self,
         *args,
-        duckdb_conn_id: str = default_conn_name,
+        duckdb_conn_id: str | None = None,
         database: str | None = None,
         extensions: Sequence[str] | None = None,
         extension_directory: str | None = None,
@@ -121,7 +121,9 @@ class DuckDBHook(DbApiHook):
         settings: dict[str, Any] | None = None,
         **kwargs,
     ) -> None:
-        kwargs[self.conn_name_attr] = duckdb_conn_id
+        # Resolved here rather than as a parameter default, which would bind this class's value and
+        # so hand a subclass declaring its own default_conn_name the wrong connection id.
+        kwargs[self.conn_name_attr] = duckdb_conn_id or self.default_conn_name
         super().__init__(*args, **kwargs)
         self.database = database
         # Stored unresolved: ``None`` means "not set explicitly", so the connection extra may supply

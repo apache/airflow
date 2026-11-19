@@ -60,7 +60,13 @@ class SalesforceToS3Operator(BaseOperator):
         to the S3 bucket.
     """
 
-    template_fields: Sequence[str] = ("salesforce_query", "s3_bucket_name", "s3_key")
+    template_fields: Sequence[str] = (
+        "salesforce_query",
+        "s3_bucket_name",
+        "s3_key",
+        "salesforce_conn_id",
+        "aws_conn_id",
+    )
     template_ext: Sequence[str] = (".sql",)
     template_fields_renderers = {"salesforce_query": "sql"}
 

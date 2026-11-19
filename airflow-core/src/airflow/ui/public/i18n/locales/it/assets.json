@@ -1,5 +1,36 @@
 {
+  "additional_data": "Dati aggiuntivi",
+  "alias_many": "Alias",
+  "alias_one": "Alias",
+  "alias_other": "Alias",
+  "alias_zero": "Nessun alias",
+  "aliases": "Alias",
+  "asset_many": "Assets",
+  "asset_one": "Asset",
+  "asset_other": "Assets",
+  "asset_zero": "Nessun asset",
+  "assetStateStore": {
+    "add": "Aggiungi store di stato dell'Asset",
+    "clearAll": {
+      "resource": "tutto lo store di stato degli Asset",
+      "title": "Cancella tutto lo store di stato degli Asset",
+      "warning": "Lo store di stato degli Asset verrà azzerato. I Task che lo usano per coordinare il lavoro perderanno la memoria persistente."
+    },
+    "delete": "Elimina lo store di stato dell'Asset",
+    "deleteWarning": "L'Asset perderà questa voce dello store di stato persistente.",
+    "edit": "Modifica lo store di stato dell'Asset",
+    "emptyState": "Lo store di stato dell'Asset memorizza valori legati all'identità di un Asset, condivisi tra tutti i run del Dag. I worker possono scrivere nello store di stato dell'Asset tramite il Task SDK.",
+    "entry_many": "Voci",
+    "entry_one": "Voce",
+    "entry_other": "Voci",
+    "entry_zero": "Nessuna voce",
+    "lastUpdatedBy": "Ultimo aggiornamento di",
+    "lastUpdatedByApi": "API",
+    "lastUpdatedByWatcher": "Watcher",
+    "title": "Store di stato dell'Asset"
+  },
   "consumingDags": "Dag Consumatori",
+  "consumingTasks": "Task che consumano",
   "createEvent": {
     "button": "Creare un Evento",
     "manual": {
@@ -21,10 +52,23 @@
     },
     "title": "Creare Evento Asset per {{name}}"
   },
+  "events": "Eventi",
+  "filters": {
+    "groupPlaceholder": "Cercare un gruppo",
+    "hasEvents": "Ha eventi",
+    "lastEventDateRange": "Data dell'ultimo evento"
+  },
   "group": "Gruppo",
   "lastAssetEvent": "Ultimo Evento Asset",
   "name": "Nome",
   "producingTasks": "Task Produttori",
   "scheduledDags": "Dag Programmati",
-  "searchPlaceholder": "Cercare Assets"
+  "scheduling": "Programmazione",
+  "searchPlaceholder": "Cercare Assets",
+  "taskDependencies": "Dipendenze dei Task",
+  "watcher_many": "Watchers",
+  "watcher_one": "Watcher",
+  "watcher_other": "Watchers",
+  "watcher_zero": "Nessun Watcher",
+  "watchers": "Watchers"
 }

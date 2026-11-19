@@ -25,6 +25,57 @@
 Changelog
 ---------
 
+2.2.0
+.....
+
+.. note::
+
+    In ``MessageQueueTrigger``, the ``queue`` parameter now assigns the trigger to a trigger queue
+    when used with ``scheme``, aligning with ``BaseEventTrigger(queue=...)``.
+    The ``trigger_queue`` parameter introduced in 2.1.0 is deprecated in favor of ``queue``.
+    Passing a broker queue URI as ``queue`` is deprecated; use ``scheme`` instead and pass
+    broker configuration as keyword arguments.
+
+Features
+~~~~~~~~
+
+* ``Unify 'queue' parameter on 'MessageQueueTrigger' with trigger queues (#77046)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``[main] Upgrade important CI environment (#76278)``
+
+2.1.2
+.....
+
+Misc
+~~~~
+
+* ``Drop support for Python 3.10 (#74157)``
+
+Doc-only
+~~~~~~~~
+
+* ``Update provider READMEs for the Python 3.11 baseline (#74158)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``[main] Upgrade important CI environment (#73629)``
+
+2.1.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Enforce the message queue provider contract without breaking scheme-only providers (#73168)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Revert "[main] Upgrade important CI environment (#73308)" (#73621)``
+   * ``[main] Upgrade important CI environment (#73308)``
+   * ``Add missing unit tests for the common-messaging provider base class (#72915)``
+
 2.1.0
 .....
 

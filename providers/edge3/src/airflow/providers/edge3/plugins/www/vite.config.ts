@@ -23,7 +23,7 @@ import dts from "vite-plugin-dts";
 import { defineConfig } from "vitest/config";
 
 // https://vitejs.dev/config/
-export default defineConfig(({ command }) => {
+export default defineConfig(({ command, mode }) => {
   const isLibraryBuild = command === "build";
 
   return {
@@ -57,7 +57,7 @@ export default defineConfig(({ command }) => {
       global: "globalThis",
       "process.env": "{}",
       // Define process.env for browser compatibility
-      "process.env.NODE_ENV": JSON.stringify("production"),
+      "process.env.NODE_ENV": JSON.stringify(mode === "test" ? "test" : "production"),
     },
     plugins: [
       react(),

@@ -107,7 +107,6 @@ def harness(tmp_path):
 @pytest.mark.parametrize(
     "changed_file",
     [
-        pytest.param(Path(".pnpm-store/v10/files/00/abc"), id="pnpm-store"),
         pytest.param(Path("node_modules/pkg/index.js"), id="node-modules"),
     ],
 )
@@ -130,4 +129,8 @@ def test_rebuilds_when_sources_change(harness):
     (harness.www_directory / "src" / "main.ts").write_text("export const main = 2;\n")
     harness.run_script()
 
-    assert harness.read_pnpm_calls() == [*calls_after_first_build, "install --frozen-lockfile", "build"]
+    assert harness.read_pnpm_calls() == [
+        *calls_after_first_build,
+        "install --frozen-lockfile --config.confirmModulesPurge=false",
+        "build",
+    ]

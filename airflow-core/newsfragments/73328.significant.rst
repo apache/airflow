@@ -1,0 +1,6 @@
+The ``POST /assets/{asset_id}/materialize`` endpoint now requires a JSON request body.
+
+Previously a request with no body was accepted and the asset was materialized with default
+values. The endpoint now requires an explicit JSON body, consistent with the other mutating
+endpoints: a request without a body is rejected with ``422``, and an empty HTML form is not a
+valid input anymore. All body fields remain optional, so an empty object (``{}``) is a valid body.

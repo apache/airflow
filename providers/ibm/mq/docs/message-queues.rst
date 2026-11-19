@@ -1,4 +1,4 @@
-.. Licensed to the Apache Software Foundation (ASF) under one
+ .. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
     regarding copyright ownership.  The ASF licenses this file
@@ -43,9 +43,20 @@ via the common message queue interface
 :class:`~airflow.providers.common.messaging.triggers.msg_queue.MessageQueueTrigger`.
 
 
-.. include:: /../src/airflow/providers/ibm/mq/queues/mq.py
-    :start-after: [START ibmmq_message_queue_provider_description]
-    :end-before: [END ibmmq_message_queue_provider_description]
+* It uses ``ibmmq`` as scheme for identifying IBM MQ queues.
+* For parameter definitions take a look at
+  :class:`~airflow.providers.ibm.mq.triggers.mq.AwaitMessageTrigger`.
+
+.. code-block:: python
+
+    from airflow.providers.common.messaging.triggers.msg_queue import MessageQueueTrigger
+    from airflow.sdk import Asset, AssetWatcher
+
+    trigger = MessageQueueTrigger(
+        queue="ibmmq://mq_default/MY.QUEUE.NAME",
+    )
+
+    asset = Asset("mq_topic_asset", watchers=[AssetWatcher(name="mq_watcher", trigger=trigger)])
 
 
 .. _howto/triggers:IBMMQMessageQueueTrigger:

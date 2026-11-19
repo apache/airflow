@@ -49,11 +49,21 @@
   "events": "Events",
   "filters": {
     "groupPlaceholder": "Search group",
+    "hasEvents": "Has Events",
     "lastEventDateRange": "Last Event Date"
   },
   "group": "Group",
   "lastAssetEvent": "Last Asset Event",
   "name": "Name",
+  "partitions": {
+    "consumerRuns": "Consumer Runs",
+    "consumerRunsHelp": "Dag runs that consumed the last asset event of the partition",
+    "lastProducerRun": "Last Producer Run",
+    "status": {
+      "in_progress": "In Progress",
+      "materialized": "Materialized"
+    }
+  },
   "producingTasks": "Producing Tasks",
   "scheduledDags": "Scheduled Dags",
   "scheduling": "Scheduling",
@@ -61,5 +71,9 @@
   "taskDependencies": "Task Dependencies",
   "watcher_one": "Watcher",
   "watcher_other": "Watchers",
+  "watcherFailing_one": "Watcher Failing",
+  "watcherFailing_other": "Watchers Failing",
+  "watcherOrphaned_one": "Watcher Orphaned",
+  "watcherOrphaned_other": "Watchers Orphaned",
   "watchers": "Watchers"
 }

@@ -59,6 +59,32 @@ class TestBigtableHookNoDefaultProjectId:
         ):
             self.bigtable_hook_no_default_project_id = BigtableHook(gcp_conn_id="test")
 
+    @pytest.mark.parametrize("api_endpoint_override", [None, "custom-override-api_endpoint"])
+    def test_get_client_options_non_default_universe(self, monkeypatch, api_endpoint_override):
+        monkeypatch.setenv("GOOGLE_CLOUD_UNIVERSE_DOMAIN", "custom-universe.com")
+        with mock.patch.object(BigtableHook, "log", new_callable=PropertyMock) as mock_log_property:
+            result = self.bigtable_hook_no_default_project_id.get_client_options(
+                api_endpoint_override=api_endpoint_override
+            )
+
+        assert result.api_endpoint == "bigtableadmin.custom-universe.com"
+        assert mock_log_property.return_value.info.called is (api_endpoint_override is not None)
+
+    @mock.patch("airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_client_options")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigtable.BigtableHook.is_default_universe")
+    def test_get_client_options_default_universe(
+        self, mock_is_default_universe, mock_base_get_client_options
+    ):
+        mock_is_default_universe.return_value = True
+        test_api_endpoint = "custom-override-api_endpoint"
+        result = self.bigtable_hook_no_default_project_id.get_client_options(
+            api_endpoint_override=test_api_endpoint
+        )
+
+        mock_is_default_universe.assert_called_once()
+        mock_base_get_client_options.assert_called_once_with(api_endpoint_override=test_api_endpoint)
+        assert result == mock_base_get_client_options.return_value
+
     @mock.patch("airflow.providers.google.cloud.hooks.bigtable.BigtableHook.get_client_options")
     @mock.patch("airflow.providers.google.cloud.hooks.bigtable.BigtableHook.get_credentials")
     @mock.patch("airflow.providers.google.cloud.hooks.bigtable.Client")

@@ -223,15 +223,38 @@ prerequisite each one needs before the operator can check driver status on retry
     immediately) still emits a deprecation warning on every Airflow version and maps onto
     ``durable``.
 
-Clearing a task is treated the same as a retry, which matters specifically for a task whose driver
-already succeeded: clearing does not delete the stored driver ID, so the next attempt reads it
-back and returns immediately without resubmitting. See
-:doc:`apache-airflow:core-concepts/resumable-tasks` for why, and for the
-``[state_store] clear_on_success`` setting that restores "clearing always resubmits."
+Clearing a task instance from the UI or the REST API (so ``airflowctl`` too) deletes the stored
+driver ID by default from Airflow 3.4. Every other clear, such as ``airflow tasks clear`` or
+clearing a whole Dag run, does so from Airflow 3.5. To keep it, tick **Keep task state and resume**
+in the Clear dialog, or send ``"keep_task_state": true`` in the request. The
+**Keep task state on clear** UI setting ticks that box by default. From Airflow 3.5,
+``airflow tasks clear --keep-task-state`` keeps it too. The next attempt then reads the stored
+driver ID back. What the next attempt does depends on the state of the driver at that point:
 
-This is most reliable for deferred tasks (``deferrable=True``); clearing a task that's actively
-polling synchronously can cancel the driver via ``on_kill`` before the next attempt gets a chance
-to reconnect -- see :doc:`apache-airflow:core-concepts/resumable-tasks` for why.
+.. list-table::
+   :header-rows: 1
+   :widths: 20 40 40
+
+   * - Driver state
+     - Default clear
+     - Clear that keeps task state
+   * - Still running (the task had already failed, or its worker died)
+     - Submits a new driver. The first one keeps running.
+     - Reconnects to the running driver.
+   * - Succeeded
+     - Submits a new driver.
+     - Returns right away without submitting another one.
+   * - Failed or killed
+     - Submits a new driver.
+     - Submits a new driver.
+
+With ``[state_store] clear_on_success`` on, the stored driver ID is deleted when the task succeeds,
+so clearing a succeeded task submits again even when task state is kept.
+
+Keep task state when a driver is still running and nothing about the code or inputs changed, so
+you don't pay for two. This assumes the driver survives the clear; keeping task state does not
+prevent cancellation via ``on_kill``. See :doc:`apache-airflow:core-concepts/resumable-tasks`
+for the ways of clearing.
 
 .. _cluster-mode-crash-recovery-spark-standalone:
 

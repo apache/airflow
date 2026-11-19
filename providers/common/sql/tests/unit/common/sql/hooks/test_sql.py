@@ -20,11 +20,15 @@ from __future__ import annotations
 
 import inspect
 import logging
+import sqlite3
+from contextlib import closing
 from unittest.mock import MagicMock, PropertyMock, patch
 
 import pandas as pd
 import polars as pl
 import pytest
+from sqlalchemy import event
+from sqlalchemy.engine import Inspector
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import Connection
@@ -461,6 +465,65 @@ class TestDbApiHookGetTableSchema:
         mock_inspector.get_columns.assert_called_once_with("my_table", schema="my_schema")
 
 
+class TestDbApiHookGetTableComments:
+    @pytest.mark.db_test
+    @pytest.mark.parametrize(
+        ("inspector_result", "expected"),
+        [
+            pytest.param({"text": "Customer orders"}, "Customer orders", id="has-comment"),
+            pytest.param({"text": None}, None, id="comment-is-none"),
+            pytest.param({}, None, id="no-text-key"),
+            pytest.param(NotImplementedError(), None, id="dialect-unsupported"),
+        ],
+    )
+    def test_get_table_comment(self, inspector_result, expected):
+        dbapi_hook = mock_db_hook(DbApiHook)
+        mock_inspector = MagicMock(spec=Inspector)
+        if isinstance(inspector_result, Exception):
+            mock_inspector.get_table_comment.side_effect = inspector_result
+        else:
+            mock_inspector.get_table_comment.return_value = inspector_result
+        with patch.object(
+            type(dbapi_hook), "inspector", new_callable=PropertyMock, return_value=mock_inspector
+        ):
+            result = dbapi_hook.get_table_comment("orders", schema="sales")
+
+        assert result == expected
+        mock_inspector.get_table_comment.assert_called_once_with("orders", schema="sales")
+
+    @pytest.mark.db_test
+    def test_get_table_columns_with_comments(self):
+        dbapi_hook = mock_db_hook(DbApiHook)
+        mock_inspector = MagicMock(spec=Inspector)
+        mock_inspector.get_columns.return_value = [
+            {"name": "id", "type": "INTEGER", "comment": "Primary key"},
+            {"name": "name", "type": "VARCHAR(255)", "comment": None},
+            {"name": "note", "type": "TEXT", "comment": ""},
+            {"name": "created", "type": "TIMESTAMP"},
+        ]
+        with patch.object(
+            type(dbapi_hook), "inspector", new_callable=PropertyMock, return_value=mock_inspector
+        ):
+            result = dbapi_hook.get_table_columns_with_comments("users", schema="s")
+
+        assert result == [
+            {"name": "id", "type": "INTEGER", "comment": "Primary key"},
+            {"name": "name", "type": "VARCHAR(255)"},
+            {"name": "note", "type": "TEXT"},
+            {"name": "created", "type": "TIMESTAMP"},
+        ]
+        mock_inspector.get_columns.assert_called_once_with("users", schema="s")
+
+    def test_comment_methods_on_dialect_without_comment_support(self, tmp_path):
+        db_path = tmp_path / "plain.db"
+        with closing(sqlite3.connect(db_path)) as conn:
+            conn.execute("CREATE TABLE users (id INTEGER)")
+        hook = DBApiHookForTests(conn_id=DEFAULT_CONN_ID)
+        with patch.object(hook, "get_uri", autospec=True, return_value=f"sqlite:///{db_path}"):
+            assert hook.get_table_comment("users") is None
+            assert hook.get_table_columns_with_comments("users") == [{"name": "id", "type": "INTEGER"}]
+
+
 def test_inspector_is_cached():
     """inspector should return the same object on repeated access (not create N engines)."""
     hook = DBApiHookForTests(conn_id=DEFAULT_CONN_ID)
@@ -470,3 +533,33 @@ def test_inspector_is_cached():
         inspector2 = hook.inspector
         assert inspector1 is inspector2
         mock_get_engine.assert_called_once()
+
+
+def test_inspector_closes_its_dbapi_connections_after_each_inspection(tmp_path):
+    """A cached inspector must not hold a pooled DBAPI connection open for the hook's lifetime."""
+    db_path = tmp_path / "inspect.db"
+    with closing(sqlite3.connect(db_path)) as conn:
+        conn.execute("CREATE TABLE users (id INTEGER, name TEXT)")
+    hook = DBApiHookForTests(conn_id=DEFAULT_CONN_ID)
+    opened, closed = [], []
+    real_get_sqlalchemy_engine = hook.get_sqlalchemy_engine
+
+    def get_sqlalchemy_engine_with_listeners(engine_kwargs=None):
+        engine = real_get_sqlalchemy_engine(engine_kwargs)
+        event.listen(engine, "connect", lambda dbapi_conn, _record: opened.append(dbapi_conn))
+        event.listen(engine, "close", lambda dbapi_conn, _record: closed.append(dbapi_conn))
+        return engine
+
+    with (
+        patch.object(hook, "get_uri", autospec=True, return_value=f"sqlite:///{db_path}"),
+        patch.object(
+            hook, "get_sqlalchemy_engine", autospec=True, side_effect=get_sqlalchemy_engine_with_listeners
+        ),
+    ):
+        columns = hook.get_table_schema("users")
+        table_names = hook.inspector.get_table_names()
+
+    assert columns == [{"name": "id", "type": "INTEGER"}, {"name": "name", "type": "TEXT"}]
+    assert table_names == ["users"]
+    assert opened
+    assert closed == opened

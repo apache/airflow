@@ -25,3 +25,7 @@ class HttpErrorException(AirflowException):
 
 class HttpMethodException(AirflowException):
     """Exception raised for invalid HTTP methods in Http hook."""
+
+
+class HttpSrvLookupException(AirflowException):
+    """Exception raised when DNS SRV record resolution fails or is misconfigured in Http hook."""

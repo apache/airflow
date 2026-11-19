@@ -60,7 +60,10 @@ class FileSensor(BaseSensorOperator):
 
     """
 
-    template_fields: Sequence[str] = ("filepath",)
+    template_fields: Sequence[str] = (
+        "filepath",
+        "fs_conn_id",
+    )
     ui_color = "#91818a"
     start_trigger_args = StartTriggerArgs(
         trigger_cls="airflow.providers.standard.triggers.file.FileTrigger",
@@ -144,5 +147,5 @@ class FileSensor(BaseSensorOperator):
 
     def execute_complete(self, context: Context, event: bool | None = None) -> None:
         if not event:
-            raise AirflowException("%s task failed as %s not found.", self.task_id, self.filepath)
+            raise AirflowException(f"{self.task_id} task failed as {self.filepath} not found.")
         self.log.info("%s completed successfully as %s found.", self.task_id, self.filepath)

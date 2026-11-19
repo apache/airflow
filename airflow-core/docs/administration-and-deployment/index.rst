@@ -29,6 +29,7 @@ This section contains information about deploying Dags into production and the a
     lineage
     listeners
     dag-bundles
+    dag-importers
     dag-serialization
     modules_management
     scheduler

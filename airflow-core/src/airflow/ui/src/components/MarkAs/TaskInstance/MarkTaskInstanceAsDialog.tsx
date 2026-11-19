@@ -23,7 +23,7 @@ import { useTranslation } from "react-i18next";
 
 import type { TaskInstanceResponse, TaskInstanceState } from "openapi/requests/types.gen";
 
-import { Modal, SegmentedControl } from "src/system-components";
+import { Alert, Modal, SegmentedControl } from "src/system-components";
 
 import { ActionAccordion } from "src/components/ActionAccordion";
 import { StateBadge } from "src/components/StateBadge";
@@ -32,6 +32,7 @@ import Time from "src/components/Time";
 import { useMarkTaskInstanceDefaultOptions } from "src/hooks/useUserSettings";
 import { usePatchTaskInstance } from "src/queries/usePatchTaskInstance";
 import { usePatchTaskInstanceDryRun } from "src/queries/usePatchTaskInstanceDryRun";
+import { isLoopTaskInstance } from "src/utils/loopTaskInstance";
 
 type Props = {
   readonly onClose: () => void;
@@ -45,15 +46,18 @@ const MarkTaskInstanceAsDialog = ({ onClose, open, state, taskInstance }: Props)
   const dagRunId = taskInstance.dag_run_id;
   const taskId = taskInstance.task_id;
   const mapIndex = taskInstance.map_index;
+  const regional = isLoopTaskInstance(taskInstance);
   const { t: translate } = useTranslation();
 
   const [markTaskInstanceDefaultOptions] = useMarkTaskInstanceDefaultOptions();
   const [selectedOptions, setSelectedOptions] = useState<Array<string>>(markTaskInstanceDefaultOptions);
 
-  const past = selectedOptions.includes("past");
-  const future = selectedOptions.includes("future");
-  const upstream = selectedOptions.includes("upstream");
-  const downstream = selectedOptions.includes("downstream");
+  // Skipping is limited to this task instance, so the options affecting other task instances are ignored.
+  const isSkipped = state === "skipped";
+  const past = !isSkipped && !regional && selectedOptions.includes("past");
+  const future = !isSkipped && !regional && selectedOptions.includes("future");
+  const upstream = !isSkipped && selectedOptions.includes("upstream");
+  const downstream = !isSkipped && selectedOptions.includes("downstream");
 
   const [note, setNote] = useState<string | null>(taskInstance.note);
 
@@ -84,6 +88,7 @@ const MarkTaskInstanceAsDialog = ({ onClose, open, state, taskInstance }: Props)
       refetchOnMount: "always",
     },
     requestBody: {
+      ...(regional ? { region_id: taskInstance.region_id, region_index: taskInstance.region_index } : {}),
       include_downstream: downstream,
       include_future: future,
       include_past: past,
@@ -110,6 +115,9 @@ const MarkTaskInstanceAsDialog = ({ onClose, open, state, taskInstance }: Props)
               dagRunId,
               mapIndex,
               requestBody: {
+                ...(regional
+                  ? { region_id: taskInstance.region_id, region_index: taskInstance.region_index }
+                  : {}),
                 include_downstream: downstream,
                 include_future: future,
                 include_past: past,
@@ -144,31 +152,39 @@ const MarkTaskInstanceAsDialog = ({ onClose, open, state, taskInstance }: Props)
     >
       <Flex justifyContent="center">
         <SegmentedControl
-          defaultValues={markTaskInstanceDefaultOptions}
+          defaultValues={isSkipped ? [] : markTaskInstanceDefaultOptions}
+          key={isSkipped ? "skipped" : "default"}
           multiple
           onChange={setSelectedOptions}
           options={[
             {
-              disabled: taskInstance.logical_date === null,
+              disabled: isSkipped || regional || taskInstance.logical_date === null,
               label: translate("dags:runAndTaskActions.options.past"),
               value: "past",
             },
             {
-              disabled: taskInstance.logical_date === null,
+              disabled: isSkipped || regional || taskInstance.logical_date === null,
               label: translate("dags:runAndTaskActions.options.future"),
               value: "future",
             },
             {
+              disabled: isSkipped,
               label: translate("dags:runAndTaskActions.options.upstream"),
               value: "upstream",
             },
             {
+              disabled: isSkipped,
               label: translate("dags:runAndTaskActions.options.downstream"),
               value: "downstream",
             },
           ]}
         />
       </Flex>
+      {isSkipped ? (
+        <Alert mb={3} status="info">
+          {translate("dags:runAndTaskActions.markAs.skippedInfo")}
+        </Alert>
+      ) : undefined}
       <ActionAccordion affectedTasks={affectedTasks} note={note} setNote={setNote} />
     </Modal>
   );

@@ -101,6 +101,8 @@ class PowerBITrigger(BasePowerBITrigger):
     :param check_interval: Time in seconds to wait between each poll.
     :param wait_for_termination: Wait for the dataset refresh to complete or fail.
     :param request_body: Additional arguments to pass to the request body, as described in https://learn.microsoft.com/en-us/rest/api/power-bi/datasets/refresh-dataset-in-group#request-body.
+    :param cancel_on_error: Cancel the dataset refresh when polling fails unexpectedly (default is True).
+        A durable operator passes False, so that its retry reconnects to the refresh instead.
     """
 
     def __init__(
@@ -115,6 +117,7 @@ class PowerBITrigger(BasePowerBITrigger):
         check_interval: int = 60,
         wait_for_termination: bool = True,
         request_body: dict[str, Any] | None = None,
+        cancel_on_error: bool = True,
     ):
         super().__init__(conn_id=conn_id, timeout=timeout, proxies=proxies, api_version=api_version)
         self.dataset_id = dataset_id
@@ -123,6 +126,7 @@ class PowerBITrigger(BasePowerBITrigger):
         self.check_interval = check_interval
         self.wait_for_termination = wait_for_termination
         self.request_body = request_body
+        self.cancel_on_error = cancel_on_error
 
     def serialize(self):
         """Serialize the trigger instance."""
@@ -139,6 +143,7 @@ class PowerBITrigger(BasePowerBITrigger):
                 "check_interval": self.check_interval,
                 "wait_for_termination": self.wait_for_termination,
                 "request_body": self.request_body,
+                "cancel_on_error": self.cancel_on_error,
             },
         )
 
@@ -242,7 +247,7 @@ class PowerBITrigger(BasePowerBITrigger):
             )
             return
         except Exception as error:
-            if self.dataset_refresh_id:
+            if self.dataset_refresh_id and self.cancel_on_error:
                 try:
                     self.log.info(
                         "Unexpected error %s caught. Canceling dataset refresh %s",

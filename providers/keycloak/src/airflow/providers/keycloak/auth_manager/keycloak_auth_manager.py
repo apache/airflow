@@ -22,10 +22,10 @@ import logging
 import time
 import warnings
 from base64 import urlsafe_b64decode
-from collections.abc import Sequence
+from collections.abc import Callable, Collection, Sequence
 from concurrent.futures import ThreadPoolExecutor
 from typing import TYPE_CHECKING, Any, cast
-from urllib.parse import urljoin
+from urllib.parse import urlencode, urljoin
 
 import requests
 from fastapi import FastAPI
@@ -62,6 +62,7 @@ from airflow.providers.keycloak.auth_manager.constants import (
     CONF_REQUESTS_RETRIES_KEY,
     CONF_SECTION_NAME,
     CONF_SERVER_URL_KEY,
+    CONF_TEAM_LEVEL_AUTHORIZATION_KEY,
 )
 from airflow.providers.keycloak.auth_manager.resources import KeycloakResource
 from airflow.providers.keycloak.auth_manager.user import KeycloakAuthManagerUser
@@ -90,6 +91,11 @@ if TYPE_CHECKING:
 log = logging.getLogger(__name__)
 
 RESOURCE_ID_ATTRIBUTE_NAME = "resource_id"
+
+# ``AccessView`` values showing records beyond the Dags a caller can read. In multi-team mode they
+# are checked against ``AdminView``, which only ``SuperAdmin`` holds. Compared by value because
+# older Airflow versions lack some members.
+ADMIN_ACCESS_VIEW_NAMES = frozenset({"AUDIT_LOGS_ALL", "DAG_BUNDLES", "IMPORT_ERRORS_ALL", "REPARSE_ALL"})
 
 
 TEAM_SCOPED_RESOURCES = frozenset(
@@ -219,12 +225,17 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
         # the cookie path those claims are covered by the Airflow JWT signature, so they
         # need no separate subject check. A browser token does not carry them and can
         # only be completed by KeycloakJWTMiddleware from the cookies; without them
-        # there is nothing to authorize against.
+        # there is nothing to authorize against. Return None rather than raise: the
+        # core JWTRefreshMiddleware resolves this token on every request without the
+        # cookies, and an exception there would end every browser session.
         return user if user.access_token else None
 
     def get_url_login(self, **kwargs) -> str:
         base_url = conf.get("api", "base_url", fallback="/")
-        return urljoin(base_url, f"{AUTH_MANAGER_FASTAPI_APP_PREFIX}/login")
+        login_url = urljoin(base_url, f"{AUTH_MANAGER_FASTAPI_APP_PREFIX}/login")
+        if next_url := kwargs.get("next_url"):
+            return f"{login_url}?{urlencode({'next': next_url})}"
+        return login_url
 
     def get_url_logout(self) -> str | None:
         base_url = conf.get("api", "base_url", fallback="/")
@@ -394,9 +405,16 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
     def is_authorized_view(
         self, *, access_view: AccessView, user: KeycloakAuthManagerUser, team_name: str | None = None
     ) -> bool:
+        resource_type = KeycloakResource.VIEW
+        if access_view.value in ADMIN_ACCESS_VIEW_NAMES and conf.getboolean(
+            "core", "multi_team", fallback=False
+        ):
+            # Every team role can read ``VIEW`` in multi-team mode, so these views are checked
+            # against a separate resource that the CLI grants to ``SuperAdmin`` only.
+            resource_type = KeycloakResource.ADMIN_VIEW
         return self._is_authorized(
             method="GET",
-            resource_type=KeycloakResource.VIEW,
+            resource_type=resource_type,
             user=user,
             resource_id=access_view.value,
             team_name=team_name,
@@ -523,8 +541,16 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
             return False
         if resp.status_code == 400:
             error = json.loads(resp.text)
-            if is_team_resource and error.get("error") == "invalid_resource":
+            # Keycloak's uma-ticket grant often returns 400 invalid_grant (not 401)
+            # when the nested access token used as bearer is expired or invalid.
+            if error.get("error") == "invalid_grant":
+                log.debug("Received invalid_grant from Keycloak: %s", resp.text)
+                return False
+            if (is_team_resource or resource_type == KeycloakResource.ADMIN_VIEW) and error.get(
+                "error"
+            ) == "invalid_resource":
                 # filter_authorized_dag_ids will return this error if team resources have not been added to the Keycloak Client.
+                # The same applies to the ``AdminView`` resource on a client provisioned by an older CLI.
                 log.warning(
                     "Keycloak authorization resource is missing; denying access. Response: %s", resp.text
                 )
@@ -542,34 +568,19 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
         method: ResourceMethod = "GET",
         team_name: str | None = None,
     ) -> set[str]:
-        cache_key = (user.get_id(), method, team_name, frozenset(dag_ids))
-
-        def query_keycloak() -> set[str]:
-            if not dag_ids:
-                return set()
-            # Cap workers at the HTTP connection pool size: each is_authorized_dag() call
-            # goes through the shared requests.Session, so extra threads would just block
-            # waiting for a free connection in urllib3's pool.
-            max_workers = min(
-                len(dag_ids), conf.getint(CONF_SECTION_NAME, CONF_REQUESTS_POOL_SIZE_KEY, fallback=10)
+        def is_authorized(dag_id: str) -> bool:
+            details_kwargs: dict[str, Any] = {"id": dag_id}
+            if team_name is not None:
+                details_kwargs["team_name"] = team_name
+            return self.is_authorized_dag(
+                method=method,
+                user=user,
+                details=DagDetails(**details_kwargs),
             )
 
-            def check(dag_id: str) -> tuple[str, bool]:
-                details_kwargs: dict[str, Any] = {"id": dag_id}
-                if team_name is not None:
-                    details_kwargs["team_name"] = team_name
-                return dag_id, self.is_authorized_dag(
-                    method=method,
-                    user=user,
-                    details=DagDetails(**details_kwargs),
-                )
-
-            with ThreadPoolExecutor(max_workers=max_workers) as executor:
-                results = executor.map(check, dag_ids)
-
-            return {dag_id for dag_id, authorized in results if authorized}
-
-        return single_flight(cache_key, query_keycloak)
+        return self._filter_authorized(
+            KeycloakResource.DAG, dag_ids, is_authorized, user=user, method=method, team_name=team_name
+        )
 
     def batch_is_authorized_connection(
         self,
@@ -671,30 +682,14 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
         user: KeycloakAuthManagerUser,
         method: ResourceMethod = "GET",
     ) -> set[str]:
-        candidates = [details for details in assets if details.id is not None]
-        cache_key = (
-            user.get_id(),
-            method,
-            frozenset(cast("str", details.id) for details in candidates),
+        candidates = {details.id: details for details in assets if details.id is not None}
+
+        def is_authorized(asset_id: str) -> bool:
+            return self.is_authorized_asset(method=method, user=user, details=candidates[asset_id])
+
+        return self._filter_authorized(
+            KeycloakResource.ASSET, candidates, is_authorized, user=user, method=method
         )
-
-        def query_keycloak() -> set[str]:
-            if not candidates:
-                return set()
-            max_workers = min(
-                len(candidates), conf.getint(CONF_SECTION_NAME, CONF_REQUESTS_POOL_SIZE_KEY, fallback=10)
-            )
-
-            def check(details: AssetDetails) -> tuple[str, bool]:
-                return cast("str", details.id), self.is_authorized_asset(
-                    method=method, user=user, details=details
-                )
-
-            with ThreadPoolExecutor(max_workers=max_workers) as executor:
-                results = executor.map(check, candidates)
-            return {asset_id for asset_id, authorized in results if authorized}
-
-        return single_flight(cache_key, query_keycloak)
 
     def filter_authorized_connections(
         self,
@@ -704,30 +699,24 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
         method: ResourceMethod = "GET",
         team_name: str | None = None,
     ) -> set[str]:
-        cache_key = (user.get_id(), method, team_name, frozenset(conn_ids))
-
-        def query_keycloak() -> set[str]:
-            if not conn_ids:
-                return set()
-            max_workers = min(
-                len(conn_ids), conf.getint(CONF_SECTION_NAME, CONF_REQUESTS_POOL_SIZE_KEY, fallback=10)
+        def is_authorized(conn_id: str) -> bool:
+            details_kwargs: dict[str, Any] = {"conn_id": conn_id}
+            if team_name is not None:
+                details_kwargs["team_name"] = team_name
+            return self.is_authorized_connection(
+                method=method,
+                user=user,
+                details=ConnectionDetails(**details_kwargs),
             )
 
-            def check(conn_id: str) -> tuple[str, bool]:
-                details_kwargs: dict[str, Any] = {"conn_id": conn_id}
-                if team_name is not None:
-                    details_kwargs["team_name"] = team_name
-                return conn_id, self.is_authorized_connection(
-                    method=method,
-                    user=user,
-                    details=ConnectionDetails(**details_kwargs),
-                )
-
-            with ThreadPoolExecutor(max_workers=max_workers) as executor:
-                results = executor.map(check, conn_ids)
-            return {conn_id for conn_id, authorized in results if authorized}
-
-        return single_flight(cache_key, query_keycloak)
+        return self._filter_authorized(
+            KeycloakResource.CONNECTION,
+            conn_ids,
+            is_authorized,
+            user=user,
+            method=method,
+            team_name=team_name,
+        )
 
     def filter_authorized_pools(
         self,
@@ -737,30 +726,19 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
         method: ResourceMethod = "GET",
         team_name: str | None = None,
     ) -> set[str]:
-        cache_key = (user.get_id(), method, team_name, frozenset(pool_names))
-
-        def query_keycloak() -> set[str]:
-            if not pool_names:
-                return set()
-            max_workers = min(
-                len(pool_names), conf.getint(CONF_SECTION_NAME, CONF_REQUESTS_POOL_SIZE_KEY, fallback=10)
+        def is_authorized(pool_name: str) -> bool:
+            details_kwargs: dict[str, Any] = {"name": pool_name}
+            if team_name is not None:
+                details_kwargs["team_name"] = team_name
+            return self.is_authorized_pool(
+                method=method,
+                user=user,
+                details=PoolDetails(**details_kwargs),
             )
 
-            def check(pool_name: str) -> tuple[str, bool]:
-                details_kwargs: dict[str, Any] = {"name": pool_name}
-                if team_name is not None:
-                    details_kwargs["team_name"] = team_name
-                return pool_name, self.is_authorized_pool(
-                    method=method,
-                    user=user,
-                    details=PoolDetails(**details_kwargs),
-                )
-
-            with ThreadPoolExecutor(max_workers=max_workers) as executor:
-                results = executor.map(check, pool_names)
-            return {pool_name for pool_name, authorized in results if authorized}
-
-        return single_flight(cache_key, query_keycloak)
+        return self._filter_authorized(
+            KeycloakResource.POOL, pool_names, is_authorized, user=user, method=method, team_name=team_name
+        )
 
     def filter_authorized_variables(
         self,
@@ -770,30 +748,24 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
         method: ResourceMethod = "GET",
         team_name: str | None = None,
     ) -> set[str]:
-        cache_key = (user.get_id(), method, team_name, frozenset(variable_keys))
-
-        def query_keycloak() -> set[str]:
-            if not variable_keys:
-                return set()
-            max_workers = min(
-                len(variable_keys), conf.getint(CONF_SECTION_NAME, CONF_REQUESTS_POOL_SIZE_KEY, fallback=10)
+        def is_authorized(variable_key: str) -> bool:
+            details_kwargs: dict[str, Any] = {"key": variable_key}
+            if team_name is not None:
+                details_kwargs["team_name"] = team_name
+            return self.is_authorized_variable(
+                method=method,
+                user=user,
+                details=VariableDetails(**details_kwargs),
             )
 
-            def check(variable_key: str) -> tuple[str, bool]:
-                details_kwargs: dict[str, Any] = {"key": variable_key}
-                if team_name is not None:
-                    details_kwargs["team_name"] = team_name
-                return variable_key, self.is_authorized_variable(
-                    method=method,
-                    user=user,
-                    details=VariableDetails(**details_kwargs),
-                )
-
-            with ThreadPoolExecutor(max_workers=max_workers) as executor:
-                results = executor.map(check, variable_keys)
-            return {variable_key for variable_key, authorized in results if authorized}
-
-        return single_flight(cache_key, query_keycloak)
+        return self._filter_authorized(
+            KeycloakResource.VARIABLE,
+            variable_keys,
+            is_authorized,
+            user=user,
+            method=method,
+            team_name=team_name,
+        )
 
     def _is_batch_authorized(
         self,
@@ -821,6 +793,9 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
             return set()
         if resp.status_code == 400:
             error = json.loads(resp.text)
+            if error.get("error") == "invalid_grant":
+                log.debug("Received invalid_grant from Keycloak: %s", resp.text)
+                return set()
             raise AirflowException(
                 f"Request not recognized by Keycloak. {error.get('error')}. {error.get('error_description')}"
             )
@@ -843,6 +818,47 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
         resources_resp.raise_for_status()
 
         return {r["name"][len(prefix) :] for r in resources_resp.json() if r["name"].startswith(prefix)}
+
+    def _filter_authorized(
+        self,
+        resource_type: KeycloakResource,
+        ids: Collection[str],
+        is_authorized: Callable[[str], bool],
+        *,
+        user: KeycloakAuthManagerUser,
+        method: ResourceMethod,
+        team_name: str | None = None,
+    ) -> set[str]:
+        """
+        Return the ids Keycloak authorizes, asking once per id or, with team-level authorization, once.
+
+        The auth manager sends the id of the resource as a claim, so that a policy can decide per
+        resource. When no policy of the realm reads that claim (``team_level_authorization``), Keycloak
+        answers the same for every Dag, connection, pool and variable of a team, and for every asset:
+        the answer for one id of the list then holds for all of them.
+        """
+
+        def query_keycloak() -> set[str]:
+            if not ids:
+                return set()
+            if conf.getboolean(CONF_SECTION_NAME, CONF_TEAM_LEVEL_AUTHORIZATION_KEY, fallback=False):
+                return set(ids) if is_authorized(min(ids)) else set()
+            # Cap workers at the HTTP connection pool size: each is_authorized call goes through
+            # the shared requests.Session, so extra threads would just block waiting for a free
+            # connection in urllib3's pool.
+            max_workers = min(
+                len(ids), conf.getint(CONF_SECTION_NAME, CONF_REQUESTS_POOL_SIZE_KEY, fallback=10)
+            )
+            candidates = list(ids)
+            with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                results = executor.map(is_authorized, candidates)
+            return {
+                candidate for candidate, authorized in zip(candidates, results, strict=True) if authorized
+            }
+
+        # The cache is shared by all resource types, and a pool and a variable can have the same name.
+        cache_key = (resource_type, user.get_id(), method, team_name, frozenset(ids))
+        return single_flight(cache_key, query_keycloak)
 
     @staticmethod
     def _get_token_url(server_url, realm):

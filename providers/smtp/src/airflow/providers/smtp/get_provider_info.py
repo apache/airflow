@@ -100,4 +100,5 @@ def get_provider_info():
             }
         ],
         "notifications": ["airflow.providers.smtp.notifications.smtp.SmtpNotifier"],
+        "email-backends": ["airflow.providers.smtp.utils.emailer.send_email_smtp"],
     }

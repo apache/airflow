@@ -21,11 +21,25 @@ import datetime
 import ftplib  # nosec: B402
 import logging
 from collections.abc import Callable
+from contextlib import suppress
 from typing import Any, cast
 
 from airflow.providers.common.compat.sdk import BaseHook
 
 logger = logging.getLogger(__name__)
+
+
+def _get_passive_mode(extra: dict[str, Any]) -> bool:
+    """
+    Read the ``passive`` connection extra as a boolean.
+
+    Extras parsed from a connection URI (e.g. ``ftp://host?passive=false``) are strings,
+    and a non-empty string such as ``"false"`` is truthy.
+    """
+    passive = extra.get("passive", True)
+    if isinstance(passive, str):
+        return passive.strip().lower() not in ("false", "0", "no", "off")
+    return bool(passive)
 
 
 class FTPHook(BaseHook):
@@ -63,7 +77,7 @@ class FTPHook(BaseHook):
         """Return an FTP connection object."""
         if self.conn is None:
             params = self.get_connection(self.ftp_conn_id)
-            pasv = params.extra_dejson.get("passive", True)
+            pasv = _get_passive_mode(params.extra_dejson)
             encoding = params.extra_dejson.get("encoding")
             self.encoding = encoding
             if encoding:
@@ -280,13 +294,15 @@ class FTPHook(BaseHook):
         """
         conn = self.get_conn()
         size = conn.size(path)
-        return int(size) if size else None
+        return int(size) if size is not None else None
 
     def test_connection(self) -> tuple[bool, str]:
-        """Test the FTP connection by calling path with directory."""
+        """Test the FTP connection by asking the server for the current directory."""
         try:
-            conn = self.get_conn()
-            conn.pwd
+            if not self.get_connection(self.ftp_conn_id).host:
+                return False, "Connection has no host to connect to"
+            # PWD needs a logged-in session on most servers; NOOP would not catch a missing login.
+            self.get_conn().pwd()
             return True, "Connection successfully tested"
         except Exception as e:
             return False, str(e)
@@ -301,7 +317,7 @@ class FTPSHook(FTPHook):
 
         if self.conn is None:
             params = self.get_connection(self.ftp_conn_id)
-            pasv = params.extra_dejson.get("passive", True)
+            pasv = _get_passive_mode(params.extra_dejson)
             encoding = params.extra_dejson.get("encoding")
             self.encoding = encoding
 
@@ -314,13 +330,19 @@ class FTPSHook(FTPHook):
             params.password = cast("str", params.password)
             params.login = cast("str", params.login)
             if encoding:
-                self.conn = ftplib.FTP_TLS(
+                conn = ftplib.FTP_TLS(
                     params.host, params.login, params.password, context=context, encoding=encoding
                 )  # nosec: B321
             else:
-                self.conn = ftplib.FTP_TLS(params.host, params.login, params.password, context=context)  # nosec: B321
-            self.conn.set_pasv(pasv)
-            # Without prot_p() ftplib transfers file payloads over cleartext sockets even though the control connection is TLS.
-            self.conn.prot_p()
+                conn = ftplib.FTP_TLS(params.host, params.login, params.password, context=context)  # nosec: B321
+            try:
+                conn.set_pasv(pasv)
+                # Without prot_p() file payloads use cleartext despite TLS on the control connection.
+                conn.prot_p()
+            except BaseException:
+                with suppress(Exception):
+                    conn.close()
+                raise
+            self.conn = conn
 
         return self.conn

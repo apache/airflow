@@ -1,4 +1,3 @@
-
  .. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
@@ -37,6 +36,7 @@
     Connection types (InfluxDB 2.x) <connections/influxdb>
     Connection types (InfluxDB 3.x) <connections/influxdb3>
     Operators <operators/index>
+    Sensors <sensors/index>
 
 .. toctree::
     :hidden:
@@ -78,7 +78,7 @@ apache-airflow-providers-influxdb package
 `InfluxDB <https://www.influxdata.com/>`__
 
 
-Release: 2.11.1
+Release: 2.13.0
 
 Provider package
 ----------------
@@ -98,15 +98,18 @@ Requirements
 
 The minimum Apache Airflow version supported by this provider distribution is ``2.11.0``.
 
-==========================================  ==================
+==========================================  =================================================================
 PIP package                                 Version required
-==========================================  ==================
+==========================================  =================================================================
 ``apache-airflow``                          ``>=2.11.0``
-``apache-airflow-providers-common-compat``  ``>=1.8.0``
+``apache-airflow-providers-common-compat``  ``>=1.17.0``
+``pandas``                                  ``>=2.1.2; python_version < "3.13"``
+``pandas``                                  ``>=2.2.3; python_version >= "3.13" and python_version < "3.14"``
+``pandas``                                  ``>=2.3.3; python_version >= "3.14"``
 ``influxdb-client``                         ``>=1.19.0``
-``influxdb3-python``                        ``>=0.7.0``
+``influxdb3-python``                        ``>=0.12.0``
 ``requests``                                ``>=2.32.0,<3``
-==========================================  ==================
+==========================================  =================================================================
 
 Downloading official packages
 -----------------------------
@@ -114,5 +117,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-influxdb 2.11.1 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_influxdb-2.11.1.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_influxdb-2.11.1.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_influxdb-2.11.1.tar.gz.sha512>`__)
-* `The apache-airflow-providers-influxdb 2.11.1 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_influxdb-2.11.1-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_influxdb-2.11.1-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_influxdb-2.11.1-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-influxdb 2.13.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_influxdb-2.13.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_influxdb-2.13.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_influxdb-2.13.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-influxdb 2.13.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_influxdb-2.13.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_influxdb-2.13.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_influxdb-2.13.0-py3-none-any.whl.sha512>`__)

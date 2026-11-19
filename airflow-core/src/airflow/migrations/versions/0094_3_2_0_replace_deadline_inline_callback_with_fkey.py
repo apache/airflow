@@ -27,7 +27,7 @@ Create Date: 2025-10-24 00:34:57.111239
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from textwrap import dedent
 
 import sqlalchemy as sa
@@ -56,7 +56,7 @@ _ASYNC_CALLBACK_CLASSNAME = "airflow.sdk.definitions.deadline.AsyncCallback"
 
 def _upgrade_postgresql(conn, batch_size):
     """Writable CTE per batch: SELECT window → INSERT callback → UPDATE deadline in one round-trip."""
-    timestamp = datetime.now(timezone.utc)
+    timestamp = datetime.now(UTC)
     batch_num = 0
     last_id = "00000000-0000-0000-0000-000000000000"
 
@@ -147,7 +147,7 @@ def _upgrade_mysql_sqlite(conn, batch_size):
 
     import uuid6
 
-    timestamp = datetime.now(timezone.utc)
+    timestamp = datetime.now(UTC)
 
     deadline_table = table(
         "deadline",

@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 import json
-import logging
 import os
 import sys
 import zipfile
@@ -26,8 +25,6 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pytest
-
-from tests_common.test_utils.log_handlers import non_pytest_handlers
 
 # We should set these before loading _any_ of the rest of airflow so that the
 # unit test mode config is set as early as possible.
@@ -42,39 +39,6 @@ collect_ignore = [
     "tests/unit/dags_corrupted/test_impersonation_custom.py",
     "tests_common/test_utils/perf/dags/elastic_dag.py",
 ]
-
-
-@pytest.fixture
-def reset_environment():
-    """Resets env variables."""
-    init_env = os.environ.copy()
-    yield
-    changed_env = os.environ
-    for key in changed_env:
-        if key not in init_env:
-            del os.environ[key]
-        else:
-            os.environ[key] = init_env[key]
-
-
-def remove_non_pytest_log_handlers(logger, *classes):
-    for handler in non_pytest_handlers(logger.handlers):
-        logger.removeHandler(handler)
-
-
-def remove_all_non_pytest_log_handlers():
-    # Remove handlers from the root logger
-    remove_non_pytest_log_handlers(logging.getLogger())
-    # Remove handlers from all other loggers
-    for logger_name in logging.root.manager.loggerDict:
-        remove_non_pytest_log_handlers(logging.getLogger(logger_name))
-
-
-@pytest.fixture
-def clear_all_logger_handlers():
-    remove_all_non_pytest_log_handlers()
-    yield
-    remove_all_non_pytest_log_handlers()
 
 
 @contextmanager

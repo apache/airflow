@@ -50,7 +50,7 @@ class FileTransferOperator(BaseOperator):
         :ref:`howto/operator:FileTransferOperator`
     """
 
-    template_fields: Sequence[str] = ("src", "dst")
+    template_fields: Sequence[str] = ("src", "dst", "source_conn_id")
 
     def __init__(
         self,

@@ -17,12 +17,7 @@
  * under the License.
  */
 import { usePluginAppliesToContext } from "src/hooks/usePluginAppliesToContext";
-import {
-  hasAppliesToCriteria,
-  isAppliesToPending,
-  matchesAppliesTo,
-  type PluginView,
-} from "src/utils/pluginAppliesTo";
+import { filterScopedViews, hasAppliesToCriteria, type PluginView } from "src/utils/pluginAppliesTo";
 
 /**
  * Filter plugin views to those that belong on the current route: matching `destination` and
@@ -38,10 +33,5 @@ export const useScopedPluginViews = <View extends PluginView>(
     views.some((view) => view.destination === destination && hasAppliesToCriteria(view)),
   );
 
-  return views.filter(
-    (view) =>
-      view.destination === destination &&
-      !isAppliesToPending(view, context) &&
-      matchesAppliesTo(view, context),
-  );
+  return filterScopedViews(views, destination, context);
 };

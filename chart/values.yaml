@@ -64,14 +64,14 @@ airflowHome: /opt/airflow
 defaultAirflowRepository: apache/airflow
 
 # Default Airflow tag to deploy
-defaultAirflowTag: "3.3.2"
+defaultAirflowTag: "3.4.0"
 
 # Default Airflow digest. If specified, it takes precedence over tag
 defaultAirflowDigest: ~
 
 # Airflow version (Used to make some decisions based on Airflow Version being deployed)
 # Version 3.1.0 and above is supported.
-airflowVersion: "3.3.2"
+airflowVersion: "3.4.0"
 
 images:
   airflow:
@@ -113,11 +113,11 @@ images:
     pullPolicy: IfNotPresent
   pgbouncer:
     repository: apache/airflow
-    tag: airflow-pgbouncer-2026.04.17-1.23.1
+    tag: airflow-pgbouncer-2026.10.13-1.25.2
     pullPolicy: IfNotPresent
   pgbouncerExporter:
     repository: apache/airflow
-    tag: airflow-pgbouncer-exporter-2026.04.17-0.18.0
+    tag: airflow-pgbouncer-exporter-2026.10.13-0.21.0
     pullPolicy: IfNotPresent
   gitSync:
     repository: registry.k8s.io/git-sync/git-sync
@@ -313,6 +313,10 @@ airflowConfigAnnotations: {}
 # 'airflow_local_settings' file as a string (templated)
 airflowLocalSettings: ~
 
+# Mount the Airflow config ConfigMap as a directory (at ``{airflowHome}/config``) and set
+# accordingly, instead of mounting ``airflow.cfg`` via ``subPath``.
+mountConfigAsDir: false
+
 # Enable RBAC (default on most clusters these days)
 rbac:
   # Specifies whether RBAC resources should be created
@@ -376,6 +380,8 @@ priorityClasses: []
 #    preemptionPolicy: PreemptLowerPriority
 #    value: 10000
 #  - name: class2
+#    annotations:
+#      class2.annotation.key: class2_annotation_value
 #    preemptionPolicy: Never
 #    value: 100000
 
@@ -644,6 +650,7 @@ workers:
       failureThreshold: 5
       periodSeconds: 60
       command: ~
+      terminationGracePeriodSeconds: ~
 
     # Enable the default workers defined by the root `workers` and `workers.celery`
     # configurations to be created.
@@ -773,6 +780,17 @@ workers:
       # This configuration will be ignored if PGBouncer is not enabled
       usePgbouncer: true
 
+      # Reference to a KEDA TriggerAuthentication (or ClusterTriggerAuthentication) holding
+      # the database connection for the scaler. When set, it is used instead of the connection
+      # the chart passes through the worker environment (connectionFromEnv / connectionStringFromEnv),
+      # and the worker no longer needs the kedaConnection key in the metadata Secret.
+      # The TriggerAuthentication must be created outside of this chart.
+      # For PostgreSQL use the "connection" parameter; for MySQL use "connectionString".
+      # authenticationRef:
+      #   name: airflow-keda-db
+      #   kind: TriggerAuthentication
+      authenticationRef: ~
+
     # Allow HPA for Airflow Celery workers (KEDA must be disabled)
     hpa:
       enabled: false
@@ -844,36 +862,15 @@ workers:
       # Container level lifecycle hooks
       containerLifecycleHooks: {}
 
-      # Startup probe for the kerberos sidecar: `klist -s` succeeds once the credential
-      # cache holds a valid, unexpired ticket. Disable for custom images without `klist`.
+      # Wait for a valid Kerberos ticket before starting the Airflow Celery worker.
+      # Disabling this probe allows them to start before a ticket is available.
+      # Custom images must provide `klist` to use this probe.
       startupProbe:
         enabled: true
         timeoutSeconds: 5
         initialDelaySeconds: 0
         periodSeconds: 10
         failureThreshold: 6
-
-    # Kerberos init container configuration for Airflow Celery workers
-    # If not set, the values from `workers.kerberosInitContainer` section will be used.
-    kerberosInitContainer:
-      # Enable kerberos init container
-      # If `workers.kerberosInitContainer.enabled` is set to True, this flag has no effect
-      enabled: false
-
-      resources: {}
-      #  limits:
-      #   cpu: 100m
-      #   memory: 128Mi
-      #  requests:
-      #   cpu: 100m
-      #   memory: 128Mi
-
-      # Detailed default security context for kerberos init container
-      securityContexts:
-        container: {}
-
-      # Container level lifecycle hooks
-      containerLifecycleHooks: {}
 
     # Should the kerberos-ccache mount be readonly for Celery Workers
     readonlyKerberosCache: true
@@ -1103,8 +1100,9 @@ workers:
       # Container level lifecycle hooks
       containerLifecycleHooks: {}
 
-      # Startup probe for the kerberos sidecar: `klist -s` succeeds once the credential
-      # cache holds a valid, unexpired ticket. Disable for custom images without `klist`.
+      # Wait for a valid Kerberos ticket before starting pod-template-file base container.
+      # Disabling this probe allows them to start before a ticket is available.
+      # Custom images must provide `klist` to use this probe.
       startupProbe:
         enabled: true
         timeoutSeconds: 5
@@ -1112,29 +1110,7 @@ workers:
         periodSeconds: 10
         failureThreshold: 6
 
-    # Kerberos init container configuration for pods created with pod-template-file
-    # If not set, the values from `workers.kerberosInitContainer` section will be used.
-    kerberosInitContainer:
-      # Enable kerberos init container
-      # If `workers.kerberosInitContainer.enabled` is set to True, this flag has no effect
-      enabled: false
-
-      resources: {}
-      #  limits:
-      #   cpu: 100m
-      #   memory: 128Mi
-      #  requests:
-      #   cpu: 100m
-      #   memory: 128Mi
-
-      # Detailed default security context for kerberos init container
-      securityContexts:
-        container: {}
-
-      # Container level lifecycle hooks
-      containerLifecycleHooks: {}
-
-    # Should the kerberos-ccache mount be readonly for Celery Workers
+    # Should the kerberos-ccache mount be readonly for Kubernetes Workers
     readonlyKerberosCache: true
 
     # Resource configuration for pods created with pod-template-file
@@ -2259,6 +2235,8 @@ dagProcessor:
   # when it wants to scale a node down.
   safeToEvict: true
 
+  hostAliases: []
+
   # Launch additional containers into dag processor (templated).
   extraContainers: []
 
@@ -2343,6 +2321,8 @@ dagProcessor:
 
     securityContexts:
       container: {}
+
+    containerLifecycleHooks: {}
 
     env: []
 
@@ -2763,6 +2743,8 @@ otelCollector:
   labels: {}
   podAnnotations: {}
 
+  # Detailed security contexts for the OTel Collector.
+  # By default, the container disallows privilege escalation and drops all capabilities.
   securityContexts:
     pod: {}
     container: {}
@@ -2924,6 +2906,9 @@ pgbouncer:
 
   # Launch additional containers into PgBouncer pod.
   extraContainers: []
+
+  # Add additional init containers into PgBouncer pod (templated).
+  extraInitContainers: []
 
   # Select certain nodes for PgBouncer pods.
   nodeSelector: {}

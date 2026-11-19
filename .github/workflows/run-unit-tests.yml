@@ -20,6 +20,13 @@ name: Unit tests
 on:  # yamllint disable-line rule:truthy
   workflow_call:
     inputs:
+      merge-with:
+        description: >-
+          The base branch commit and merge base to merge the pushed commit with, space-separated;
+          empty outside fork CI runs.
+        required: false
+        default: ""
+        type: string
       runners:
         description: "The array of labels (in json form) determining public AMD runners."
         required: true
@@ -130,7 +137,9 @@ on:  # yamllint disable-line rule:truthy
         required: true
         type: string
       job-timeout-minutes:
-        description: "How long the job may run before GitHub cancels it"
+        description: >
+          How long the job may run before GitHub cancels it. A caller raises it when its job
+          carries steps expensive enough to squeeze the tests out of the default.
         required: false
         default: 65
         type: number
@@ -150,7 +159,9 @@ jobs:
     runs-on: ${{ fromJSON(inputs.runners) }}
     strategy:
       fail-fast: false
-      max-parallel: 20
+      # 20 keeps runs on GitHub-hosted runners within the ASF limit of 20 concurrent jobs. The RunsOn
+      # runners are the project's own capacity, so a run there starts the whole matrix at once.
+      max-parallel: ${{ contains(inputs.runners, 'runs-on=') && 256 || 20 }}
       matrix:
         python-version: "${{fromJSON(inputs.python-versions)}}"
         backend-version: "${{fromJSON(inputs.backend-versions)}}"
@@ -195,6 +206,11 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           persist-credentials: false
+      - name: "Merge with the base branch"
+        if: inputs.merge-with != ''
+        uses: ./.github/actions/merge-with-base
+        with:
+          merge-with: ${{ inputs.merge-with }}
       - name: "Make /mnt writeable"
         run: ./scripts/ci/make_mnt_writeable.sh
       - name: "Move docker to /mnt"
@@ -214,7 +230,10 @@ jobs:
           python-version: ${{ matrix.python-version }}
         # Any new python version should be disabled below via `&& matrix.python-version != '3.xx'` until the first
         # Airflow version that supports it is released - otherwise there's nothing to migrate back to.
-        if: inputs.run-migration-tests == 'true' && inputs.test-group == 'core' && matrix.python-version != '3.14'
+        if: >-
+          inputs.run-migration-tests == 'true' && inputs.test-group == 'core' &&
+          matrix.python-version != '3.14' &&
+          matrix.test-types.description == fromJSON(inputs.test-types-as-strings-in-json)[0].description
       - name: >
           ${{ inputs.test-group }}:${{ inputs.test-scope }} Tests ${{ inputs.test-name }} ${{ matrix.backend-version }}
           Py${{ matrix.python-version }}:${{ env.PARALLEL_TEST_TYPES }}

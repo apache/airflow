@@ -142,7 +142,7 @@ class DagRunNotFound(AirflowNotFoundException):
 
 
 class DagVersionNotFound(AirflowNotFoundException):
-    """Raised when a DagVersion for the given dag_id / bundle_version is not found."""
+    """Raised when a requested DagVersion is not found."""
 
 
 class DagNotPartitionedError(ValueError):

@@ -22,8 +22,6 @@ import { Box, type BoxProps, Button, Icon, type IconProps, Link, type ButtonProp
 import type { IconType } from "react-icons";
 import { Link as RouterLink, matchPath, useLocation } from "react-router-dom";
 
-const noMatchPaths: Array<string> = [];
-
 const commonLabelProps: BoxProps = {
   fontSize: "2xs",
   overflow: "hidden",
@@ -36,10 +34,9 @@ const commonLabelProps: BoxProps = {
 type NavButtonProps = {
   readonly icon: ForwardRefExoticComponent<IconProps & RefAttributes<SVGSVGElement>> | IconType;
   readonly isExternal?: boolean;
-  // Extra routes that should also mark this button active, on top of `to` (e.g. the Dags button
-  // should also highlight for the standalone dag runs and task instances routes).
-  readonly matchPaths?: Array<string>;
   readonly pluginIcon?: ReactNode;
+  // Only applies to a single internal `to`.
+  readonly search?: string;
   readonly title: string;
   // A single destination renders the button as a link; an array only affects isActive matching
   // (used for buttons like menu triggers that should highlight for any of several routes).
@@ -49,15 +46,15 @@ type NavButtonProps = {
 export const NavButton = ({
   icon,
   isExternal = false,
-  matchPaths = noMatchPaths,
   pluginIcon,
+  search,
   title,
   to,
   ...rest
 }: NavButtonProps) => {
   const { pathname } = useLocation();
 
-  const activePaths = [...(to === undefined ? [] : Array.isArray(to) ? to : [to]), ...matchPaths];
+  const activePaths = to === undefined ? [] : Array.isArray(to) ? to : [to];
   const isActive = activePaths.some((path) => matchPath({ end: path === "/", path }, pathname) !== null);
 
   const commonButtonProps: ButtonProps = {
@@ -115,18 +112,18 @@ export const NavButton = ({
 
   if (isExternal) {
     return (
-      <Link asChild href={to} rel="noopener noreferrer" target="_blank">
-        <Button {...commonButtonProps}>
+      <Button {...commonButtonProps} asChild>
+        <a href={to} rel="noopener noreferrer" target="_blank">
           {pluginIcon ?? <Icon as={icon} boxSize={5} />}
           <Box {...commonLabelProps}>{title}</Box>
-        </Button>
-      </Link>
+        </a>
+      </Button>
     );
   }
 
   return (
     <Button as={Link} asChild {...commonButtonProps}>
-      <RouterLink to={to}>
+      <RouterLink to={{ pathname: to, search }}>
         {pluginIcon ?? <Icon as={icon} boxSize={5} />}
         <Box {...commonLabelProps}>{title}</Box>
       </RouterLink>

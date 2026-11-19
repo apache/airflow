@@ -18,7 +18,7 @@
  */
 import type { PropsWithChildren } from "react";
 
-import "@testing-library/jest-dom";
+import "@testing-library/jest-dom/vitest";
 import { render, screen } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
@@ -48,8 +48,12 @@ vi.mock("react-i18next", () => ({
 }));
 
 vi.mock("src/components/NeedsReviewButton", () => ({ NeedsReviewButtonWithModal: () => null }));
-vi.mock("src/utils", () => ({ useAutoRefresh: () => false }));
+vi.mock("src/utils", () => ({
+  formatNumber: String,
+  useAutoRefresh: () => false,
+}));
 vi.mock("./DagImportErrors", () => ({ DagImportErrors: () => null }));
+vi.mock("./FailingTriggers", () => ({ FailingTriggers: () => null }));
 vi.mock("./PluginImportErrors", () => ({ PluginImportErrors: () => null }));
 
 // Dashboard renders under the /home route. Mount Stats as that route's element so relative links
