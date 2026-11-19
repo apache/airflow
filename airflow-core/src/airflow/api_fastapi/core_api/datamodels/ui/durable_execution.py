@@ -32,6 +32,7 @@ class DurableTryResponse(BaseModel):
     decision: Literal["submitted", "resubmitted", "reconnected", "already_succeeded"]
     external_id: JsonValue
     status: TaskInstanceState | None
+    submitted_at: datetime | None = None
     saved_seconds: float | None
     previous_external_id: JsonValue = None
 
@@ -39,5 +40,4 @@ class DurableTryResponse(BaseModel):
 class DurableExecutionResponse(BaseModel):
     """Durable execution history of a task instance, read by the logs banner."""
 
-    submitted_at: datetime | None = None
     tries: list[DurableTryResponse]

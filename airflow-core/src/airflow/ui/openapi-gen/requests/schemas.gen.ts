@@ -12976,18 +12976,6 @@ export const $DeadlineResponse = {
 
 export const $DurableExecutionResponse = {
     properties: {
-        submitted_at: {
-            anyOf: [
-                {
-                    type: 'string',
-                    format: 'date-time'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Submitted At'
-        },
         tries: {
             items: {
                 '$ref': '#/components/schemas/DurableTryResponse'
@@ -13032,6 +13020,18 @@ export const $DurableTryResponse = {
                     type: 'null'
                 }
             ]
+        },
+        submitted_at: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Submitted At'
         },
         saved_seconds: {
             anyOf: [

@@ -3339,7 +3339,6 @@ export type DeadlineResponse = {
  * Durable execution history of a task instance, read by the logs banner.
  */
 export type DurableExecutionResponse = {
-    submitted_at?: string | null;
     tries: Array<DurableTryResponse>;
 };
 
@@ -3351,6 +3350,7 @@ export type DurableTryResponse = {
     decision: 'submitted' | 'resubmitted' | 'reconnected' | 'already_succeeded';
     external_id: JsonValue;
     status: TaskInstanceState | null;
+    submitted_at?: string | null;
     saved_seconds: number | null;
     previous_external_id?: JsonValue;
 };

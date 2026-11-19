@@ -48,7 +48,12 @@ class DurableDecision(StrEnum):
 
 
 class ResumeDecision(NamedTuple):
-    """Result of :meth:`ResumableJobMixin.get_resume_decision`."""
+    """
+    Result of :meth:`ResumableJobMixin.get_resume_decision`.
+
+    ``external_id`` is the stored job to reconnect to or take the result of. On ``submit`` it is the
+    previous job that ended without success, or ``None`` when there is none.
+    """
 
     action: Literal["reconnect", "already_succeeded", "submit"]
     external_id: JsonValue | None = None
@@ -146,18 +151,22 @@ class ResumableJobMixin(ABC):
 
         decision = self.get_resume_decision(context)
         if decision.action == "reconnect":
-            self._record_try(context, DurableDecision.RECONNECTED, decision.external_id)
-            result = self.poll_until_complete(decision.external_id, context)
-            self._record_try(context, DurableDecision.RECONNECTED, decision.external_id, job_finished=True)
+            self._record_try(context, DurableDecision.RECONNECTED, decision.external_id, status="running")
+            try:
+                result = self.poll_until_complete(decision.external_id, context)
+            except Exception:
+                self._record_try(context, DurableDecision.RECONNECTED, decision.external_id, status="failed")
+                raise
+            self._record_reconnect_outcome(context, decision.external_id)
             return result
         if decision.action == "already_succeeded":
-            self._record_try(context, DurableDecision.ALREADY_SUCCEEDED, decision.external_id)
+            self._record_try(
+                context, DurableDecision.ALREADY_SUCCEEDED, decision.external_id, status="success"
+            )
             return self.get_job_result(decision.external_id, context)
 
-        # A "submit" decision covers both a first submit and one after a failed job; only the
-        # latter still has an id stored, which the banner shows as the job that was replaced.
-        task_state_store = context.get("task_state_store")
-        failed_id = task_state_store.get(self.external_id_key) if task_state_store is not None else None
+        # The replaced job's ID is kept in the history record; the banner does not show resubmits.
+        failed_id = decision.external_id
         external_id = self.submit_job(context)
         self.persist_job_id(context, external_id)
         if external_id is not None:
@@ -238,7 +247,7 @@ class ResumableJobMixin(ABC):
                 external_id=external_id,
                 status=status,
             )
-            return ResumeDecision("submit")
+            return ResumeDecision("submit", external_id)
 
     def persist_job_id(self, context: Context, external_id: JsonValue) -> None:
         """Store a newly submitted job's external ID so a retry can reconnect to it."""
@@ -254,16 +263,33 @@ class ResumableJobMixin(ABC):
             external_id=external_id,
         )
 
+    def _record_reconnect_outcome(self, context: Context, external_id: JsonValue) -> None:
+        """Record the reconnected job's status once polling returns, which may be before the job ends."""
+        try:
+            job_status = self.get_job_status(external_id, context)
+        except Exception:
+            self.log.warning("Could not read job status for durable execution history", exc_info=True)
+            return
+        if self.is_job_succeeded(job_status):
+            self._record_try(context, DurableDecision.RECONNECTED, external_id, status="success")
+        elif not self.is_job_active(job_status):
+            self._record_try(context, DurableDecision.RECONNECTED, external_id, status="failed")
+
     def _record_try(
         self,
         context: Context,
         decision: DurableDecision,
         external_id: JsonValue,
         *,
-        job_finished: bool = False,
+        status: Literal["running", "success", "failed"] | None = None,
         previous_external_id: JsonValue = None,
     ) -> None:
-        """Record this try for the logs banner; a finished reconnect stores the job's run time as saved."""
+        """
+        Record this try for the logs banner.
+
+        ``status`` is an Airflow state rather than the provider's raw status so the UI can render it.
+        A reconnect that ends in success stores the job's run time as saved.
+        """
         task_state_store = context.get("task_state_store")
         if task_state_store is None:
             return
@@ -271,30 +297,36 @@ class ResumableJobMixin(ABC):
             now = datetime.now(tz=UTC)
             stored = task_state_store.get(DURABLE_RECORD_KEY)
             record: dict[str, Any] = stored if isinstance(stored, dict) else {}
-            if decision in (DurableDecision.SUBMITTED, DurableDecision.RESUBMITTED):
-                record["submitted_at"] = now.isoformat()
-            saved_seconds = None
-            if job_finished and record.get("submitted_at"):
-                saved_seconds = (now - datetime.fromisoformat(record["submitted_at"])).total_seconds()
-            # Airflow states rather than the provider's raw status string, so the UI can render them.
-            status = None
-            if decision == DurableDecision.RECONNECTED:
-                status = "success" if job_finished else "running"
-            elif decision == DurableDecision.ALREADY_SUCCEEDED:
-                status = "success"
             try_number = getattr(context.get("ti"), "try_number", None)
-            record["tries"] = [t for t in record.get("tries", []) if t.get("try_number") != try_number]
-            record["tries"].append(
+            tries = [t for t in record.get("tries", []) if t.get("try_number") != try_number]
+            submitted_at: str | None
+            if decision in (DurableDecision.SUBMITTED, DurableDecision.RESUBMITTED):
+                submitted_at = now.isoformat()
+            else:
+                # Per try, so a later resubmit cannot change the submit time an earlier try shows.
+                submitted_at = next(
+                    (
+                        t["submitted_at"]
+                        for t in reversed(tries)
+                        if t.get("external_id") == external_id and t.get("submitted_at")
+                    ),
+                    None,
+                )
+            saved_seconds = None
+            if decision == DurableDecision.RECONNECTED and status == "success" and submitted_at:
+                saved_seconds = (now - datetime.fromisoformat(submitted_at)).total_seconds()
+            tries.append(
                 {
                     "try_number": try_number,
                     "decision": decision.value,
                     "external_id": external_id,
                     "status": status,
+                    "submitted_at": submitted_at,
                     "saved_seconds": saved_seconds,
                     **({"previous_external_id": previous_external_id} if previous_external_id else {}),
                 }
             )
-            task_state_store.set(DURABLE_RECORD_KEY, record)
+            task_state_store.set(DURABLE_RECORD_KEY, {"tries": tries})
         except Exception:
             # Only feeds the UI, so it must never fail the task.
             self.log.warning("Could not record durable execution history", exc_info=True)

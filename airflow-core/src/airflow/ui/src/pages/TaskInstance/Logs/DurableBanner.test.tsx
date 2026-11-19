@@ -27,6 +27,11 @@ import { Wrapper } from "src/utils/Wrapper";
 
 import { DurableBanner } from "./DurableBanner";
 
+vi.mock("src/utils", async () => ({
+  ...(await vi.importActual("src/utils")),
+  useAutoRefresh: () => 3000,
+}));
+
 vi.mock("openapi/queries", async () => ({
   ...(await vi.importActual("openapi/queries")),
   useDurableExecutionServiceGetDurableExecution: vi.fn(),
@@ -61,9 +66,23 @@ const TRIES = [
     status: "running",
     try_number: 4,
   },
+  {
+    decision: "reconnected",
+    external_id: "run_1",
+    saved_seconds: null,
+    status: "success",
+    try_number: 5,
+  },
+  {
+    decision: "reconnected",
+    external_id: "run_1",
+    saved_seconds: null,
+    status: "failed",
+    try_number: 6,
+  },
 ];
 
-const renderFor = (tryNumber: number) => {
+const renderFor = (tryNumber: number, taskInstance: Partial<TaskInstanceResponse> = {}) => {
   vi.mocked(useDurableExecutionServiceGetDurableExecution).mockReturnValue({
     data: { tries: TRIES },
   } as unknown as ReturnType<typeof useDurableExecutionServiceGetDurableExecution>);
@@ -71,7 +90,15 @@ const renderFor = (tryNumber: number) => {
   return render(
     <Wrapper>
       <DurableBanner
-        taskInstance={{ dag_id: "d", dag_run_id: "r", map_index: -1, task_id: "t" } as TaskInstanceResponse}
+        taskInstance={
+          {
+            dag_id: "d",
+            dag_run_id: "r",
+            map_index: -1,
+            task_id: "t",
+            ...taskInstance,
+          } as TaskInstanceResponse
+        }
         tryNumber={tryNumber}
       />
     </Wrapper>,
@@ -83,6 +110,8 @@ describe("DurableBanner", () => {
     [2, "logs.durable.title.reconnected", "logs.durable.detail.reconnected"],
     [3, "logs.durable.title.already_succeeded", "logs.durable.detail.already_succeeded"],
     [4, "logs.durable.title.reconnected", "logs.durable.detail.reconnectedRunning"],
+    [5, "logs.durable.title.reconnected", "logs.durable.detail.reconnectedNoDuration"],
+    [6, "logs.durable.title.reconnected", "logs.durable.detail.reconnectedFailed"],
   ])("shows what durable execution did on try %i", (tryNumber, title, detail) => {
     renderFor(tryNumber);
 
@@ -97,6 +126,39 @@ describe("DurableBanner", () => {
 
     expect(badge).toHaveAccessibleName("common:states.running");
     expect(badge).not.toHaveTextContent(/\S/u);
+  });
+
+  it.each([
+    {
+      endDate: null,
+      expected: 3000,
+      fetchedAt: "2026-11-10T10:00:00Z",
+      name: "the task is still running",
+      state: "running",
+    },
+    {
+      endDate: "2026-11-10T10:00:05Z",
+      expected: 3000,
+      fetchedAt: "2026-11-10T10:00:00Z",
+      name: "the last fetch predates the task end",
+      state: "success",
+    },
+    {
+      endDate: "2026-11-10T10:00:05Z",
+      expected: false,
+      fetchedAt: "2026-11-10T10:00:10Z",
+      name: "the last fetch came after the task end",
+      state: "success",
+    },
+  ] as const)("refetch interval when $name", ({ endDate, expected, fetchedAt, state }) => {
+    renderFor(4, { end_date: endDate, state });
+
+    const options = vi.mocked(useDurableExecutionServiceGetDurableExecution).mock.lastCall?.[2];
+    const refetchInterval = options?.refetchInterval as (query: {
+      state: { dataUpdatedAt: number };
+    }) => number | false;
+
+    expect(refetchInterval({ state: { dataUpdatedAt: Date.parse(fetchedAt) } })).toBe(expected);
   });
 
   it("does not fetch the record on a first try", () => {

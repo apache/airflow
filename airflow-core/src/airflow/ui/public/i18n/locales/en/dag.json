@@ -114,6 +114,8 @@
       "detail": {
         "already_succeeded": "The job had already finished, so no new run was needed.",
         "reconnected": "Avoided running a second copy of a ~{{duration}} job.",
+        "reconnectedFailed": "Waited on the existing job instead of starting a second copy, but it failed.",
+        "reconnectedNoDuration": "Used the existing job instead of starting a second copy.",
         "reconnectedRunning": "Waiting on the running job instead of starting it again."
       },
       "job": {

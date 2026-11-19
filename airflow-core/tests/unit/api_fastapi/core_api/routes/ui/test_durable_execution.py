@@ -38,13 +38,13 @@ RUN_ID = DagRun.generate_run_id(run_type=DagRunType.MANUAL, logical_date=LOGICAL
 URL = f"/dags/{DAG_ID}/dagRuns/{RUN_ID}/taskInstances/{TASK_ID}/durable"
 
 RECORD = {
-    "submitted_at": "2026-01-01T00:00:00+00:00",
     "tries": [
         {
             "try_number": 1,
             "decision": "submitted",
             "external_id": "job-1",
             "status": None,
+            "submitted_at": "2026-01-01T00:00:00+00:00",
             "saved_seconds": None,
         },
         {
@@ -52,6 +52,7 @@ RECORD = {
             "decision": "reconnected",
             "external_id": "job-1",
             "status": "success",
+            "submitted_at": "2026-01-01T00:00:00+00:00",
             "saved_seconds": 123.0,
         },
     ],
@@ -95,8 +96,10 @@ class TestGetDurableExecution:
 
         assert response.status_code == 200
         assert response.json() == {
-            "submitted_at": "2026-01-01T00:00:00Z",
-            "tries": [{**t, "previous_external_id": None} for t in RECORD["tries"]],
+            "tries": [
+                {**t, "submitted_at": "2026-01-01T00:00:00Z", "previous_external_id": None}
+                for t in RECORD["tries"]
+            ],
         }
 
     def test_returns_empty_when_task_not_durable(self, test_client):
@@ -105,7 +108,22 @@ class TestGetDurableExecution:
         response = test_client.get(URL)
 
         assert response.status_code == 200
-        assert response.json() == {"submitted_at": None, "tries": []}
+        assert response.json() == {"tries": []}
+
+    @pytest.mark.parametrize(
+        "value",
+        [
+            pytest.param({"__airflow_state_ref__": "s3://bucket/key"}, id="offloaded-ref"),
+            pytest.param({"tries": "not-a-list"}, id="invalid-record"),
+        ],
+    )
+    def test_returns_empty_when_record_unreadable(self, test_client, value):
+        self._store("__airflow_durable__", value)
+
+        response = test_client.get(URL)
+
+        assert response.status_code == 200
+        assert response.json() == {"tries": []}
 
     def test_unauthorized_returns_401(self, unauthenticated_test_client):
         assert unauthenticated_test_client.get(URL).status_code == 401

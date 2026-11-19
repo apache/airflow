@@ -17,6 +17,7 @@
  * under the License.
  */
 import { Box, HStack, Text, VStack } from "@chakra-ui/react";
+import dayjs from "dayjs";
 import { useTranslation } from "react-i18next";
 
 import { useDurableExecutionServiceGetDurableExecution } from "openapi/queries";
@@ -37,7 +38,7 @@ export const DurableBanner = ({
 }: {
   readonly taskInstance?: Pick<
     TaskInstanceResponse,
-    "dag_id" | "dag_run_id" | "map_index" | "state" | "task_id"
+    "dag_id" | "dag_run_id" | "end_date" | "map_index" | "state" | "task_id"
   >;
   readonly tryNumber?: number;
 }) => {
@@ -57,7 +58,11 @@ export const DurableBanner = ({
     {
       // A first try never reconnects or reuses a result, so only retries can show the banner.
       enabled: taskInstance !== undefined && (tryNumber ?? 0) > 1,
-      refetchInterval: isStatePending(taskInstance?.state) && refetchInterval,
+      // The final record lands just before the task ends, so fetch once more if the last fetch predates the end.
+      refetchInterval: (query) =>
+        (isStatePending(taskInstance?.state) ||
+          dayjs(query.state.dataUpdatedAt).isBefore(taskInstance?.end_date)) &&
+        refetchInterval,
     },
   );
 
@@ -77,18 +82,24 @@ export const DurableBanner = ({
   let detail = translate(`logs.durable.detail.${entry.decision}`);
 
   if (entry.decision === "reconnected") {
-    detail =
-      seconds === null
-        ? translate("logs.durable.detail.reconnectedRunning")
-        : translate("logs.durable.detail.reconnected", { duration: renderDuration(Math.round(seconds)) });
+    if (entry.status === "failed") {
+      detail = translate("logs.durable.detail.reconnectedFailed");
+    } else if (entry.status === "success") {
+      detail =
+        seconds === null
+          ? translate("logs.durable.detail.reconnectedNoDuration")
+          : translate("logs.durable.detail.reconnected", { duration: renderDuration(Math.round(seconds)) });
+    } else {
+      detail = translate("logs.durable.detail.reconnectedRunning");
+    }
   }
 
   const jobDetails = (
     <VStack align="start" gap={0}>
       <Text>{translate("logs.durable.job.id", { id: externalId })}</Text>
-      {record?.submitted_at === undefined || record.submitted_at === null ? undefined : (
+      {entry.submitted_at === undefined || entry.submitted_at === null ? undefined : (
         <Text>
-          {translate("logs.durable.job.submittedAt")} <Time datetime={record.submitted_at} />
+          {translate("logs.durable.job.submittedAt")} <Time datetime={entry.submitted_at} />
         </Text>
       )}
       {seconds === null ? undefined : (

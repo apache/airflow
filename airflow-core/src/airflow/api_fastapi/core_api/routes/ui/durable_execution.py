@@ -19,6 +19,7 @@ from __future__ import annotations
 import json
 
 from fastapi import Depends
+from pydantic import ValidationError
 from sqlalchemy import select
 
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
@@ -56,4 +57,8 @@ def get_durable_execution(scope: TaskScopeDep, session: SessionDep) -> DurableEx
     )
     if value is None:
         return DurableExecutionResponse(tries=[])
-    return DurableExecutionResponse.model_validate(json.loads(value))
+    try:
+        return DurableExecutionResponse.model_validate(json.loads(value))
+    except ValidationError:
+        # With [workers] state_store_backend set, the row holds only a reference to the offloaded value.
+        return DurableExecutionResponse(tries=[])

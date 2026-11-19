@@ -4512,12 +4512,6 @@ components:
       description: Deadline serializer for responses.
     DurableExecutionResponse:
       properties:
-        submitted_at:
-          anyOf:
-          - type: string
-            format: date-time
-          - type: 'null'
-          title: Submitted At
         tries:
           items:
             $ref: '#/components/schemas/DurableTryResponse'
@@ -4550,6 +4544,12 @@ components:
           anyOf:
           - $ref: '#/components/schemas/TaskInstanceState'
           - type: 'null'
+        submitted_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Submitted At
         saved_seconds:
           anyOf:
           - type: number
