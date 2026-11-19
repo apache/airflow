@@ -90,7 +90,7 @@ tasks:
 
    - The value of a `$expand` indicates the source, as in Decision 2, except that a literal list's items must be mappings or `$x`. Each element is one instance's keyword arguments, and one that is not a mapping, such as a `$zip` element, fails the instance, as in Python.
    - On a `uses:` task, the element's keys are the operator's arguments.
-   - On a `run:` task, the `run:` keys are the handler's parameters, in order. `{$: expand}` (Decision 6) marks the ones set by `$expand` elements, and there must be at least one. `{$: expand, default: v}` gives the argument a default, used when an element leaves it out; without one, such an element fails the instance.
+   - On a `run:` task, the `run:` keys are the handler's parameters, in order. `{$: expand}` (Decision 6) marks the ones set by `$expand` elements, and there must be at least one. `{$: expand, default: v}` gives the argument a default, used when an element leaves it out; without one, such an element fails the instance. A row key that is no `run:` argument, or that names a partial one, fails the instance (Language SDK ADR-0016, *Which signature a call is checked against*).
    - A task may use either this form, or argument-level `$expand`s, never both.
    - Any other key starting with `$` in `with:` or `run:` is an error.
 
