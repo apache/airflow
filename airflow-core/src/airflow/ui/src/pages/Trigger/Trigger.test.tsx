@@ -22,11 +22,11 @@ import "@testing-library/jest-dom/vitest";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { createMemoryRouter, RouterProvider } from "react-router-dom";
-import { beforeAll, describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it, vi } from "vitest";
 
 import type { TriggerDetailResponse } from "openapi/requests/types.gen";
 
-import { TimezoneProvider } from "src/context/timezone";
+import { TimezoneContext } from "src/context/timezone";
 import { assetWithDependencies } from "src/mocks/handlers/assets";
 import { alsoWatching, triggers } from "src/mocks/handlers/triggers";
 import { server } from "src/mocks/server";
@@ -39,14 +39,15 @@ const renderAt = (path: string) =>
   render(
     <ChakraProvider value={defaultSystem}>
       <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-        <TimezoneProvider>
+        {/* Times render in UTC, whatever the timezone of the machine running the tests. */}
+        <TimezoneContext.Provider value={{ selectedTimezone: "UTC", setSelectedTimezone: vi.fn() }}>
           <RouterProvider
             router={createMemoryRouter(
               routerConfig.map((route) => ({ ...route, loader: undefined })),
               { initialEntries: [path] },
             )}
           />
-        </TimezoneProvider>
+        </TimezoneContext.Provider>
       </QueryClientProvider>
     </ChakraProvider>,
   );

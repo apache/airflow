@@ -37,7 +37,7 @@ from opentelemetry.sdk.resources import SERVICE_NAME, Resource
 from ..common import get_otel_data_exporter
 from ..exceptions import InvalidStatsNameException
 from ..otel_env_config import load_metrics_env_config
-from .protocols import Timer
+from .protocols import DurationEmittingTimer, Timer
 from .validators import (
     OTEL_NAME_MAX_LENGTH,
     ListValidator,
@@ -152,31 +152,6 @@ def _skip_due_to_rate(rate: float) -> bool:
     if rate < 0:
         raise ValueError("rate must be a positive value.")
     return rate < 1 and random.random() > rate
-
-
-class _OtelTimer(Timer):
-    """
-    An implementation of stats.Timer() which records the result in the OTel Metrics Map.
-
-    OpenTelemetry does not have a native timer; values are stored as a Histogram so that
-    all observations (count, sum, bucket distribution) are preserved across multiple recordings.
-
-    :param name: The name of the timer.
-    :param tags: Tags to append to the timer.
-    """
-
-    def __init__(self, otel_logger: SafeOtelLogger, name: str | None, tags: Attributes):
-        super().__init__()
-        self.otel_logger = otel_logger
-        self.name = name
-        self.tags = tags
-
-    def stop(self, send: bool = True) -> None:
-        super().stop(send)
-        if self.name and send and self.duration is not None:
-            self.otel_logger.metrics_map.record_histogram_value(
-                full_name(prefix=self.otel_logger.prefix, name=self.name), self.duration, self.tags
-            )
 
 
 class SafeOtelLogger:
@@ -317,8 +292,14 @@ class SafeOtelLogger:
         **kwargs,
     ) -> Timer:
         """Timer context manager returns the duration and can be cancelled."""
-        safe_stat = stat if self._is_recordable(stat) else None
-        return _OtelTimer(self, safe_stat, tags)
+        if not (stat and self._is_recordable(stat)):
+            return Timer()
+        # OpenTelemetry has no native timer; a Histogram preserves count, sum and bucket distribution.
+        return DurationEmittingTimer(
+            lambda duration: self.metrics_map.record_histogram_value(
+                full_name(prefix=self.prefix, name=stat), duration, tags
+            )
+        )
 
 
 class InternalGauge:
