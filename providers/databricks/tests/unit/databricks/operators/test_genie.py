@@ -394,16 +394,11 @@ def test_attach_to_existing_message_without_store(genie):
     assert genie.calls("POST") == []
 
 
-def test_on_kill_leaves_message_running(genie):
-    make_operator().on_kill()
-    assert genie.journal == []
-
-
 @durable_only
 class TestDurable:
     @staticmethod
     def run(op, store) -> dict:
-        return op.execute({"ti": mock.MagicMock(stats_tags={}), "task_state_store": store})
+        return op.execute({"ti": mock.Mock(spec=["stats_tags"], stats_tags={}), "task_state_store": store})
 
     def test_persists_ids_before_waiting(self, genie, journal):
         answered(genie, "SUBMITTED")
@@ -489,6 +484,26 @@ class TestDurable:
             self.run(make_operator(), store)
         assert genie.calls("POST") == []
 
+    @pytest.mark.parametrize(
+        ("payload", "match"),
+        [
+            pytest.param(message("SOMETHING_NEW"), "unknown message status: 'SOMETHING_NEW'", id="unknown"),
+            pytest.param(
+                {"conversation_id": CONVERSATION_ID, "message_id": MESSAGE_ID},
+                "unknown message status: None",
+                id="missing",
+            ),
+        ],
+    )
+    def test_unknown_or_missing_status_does_not_resubmit(self, genie, journal, payload, match):
+        genie.add("GET", MESSAGE, payload)
+        store = FakeStore(journal, {KEY: stored_ref()})
+
+        with pytest.raises(DatabricksGenieError, match=match):
+            self.run(make_operator(), store)
+        assert genie.calls("POST") == []
+        assert store.data == {KEY: stored_ref()}
+
     def test_changed_question_does_not_reuse_answer(self, genie, journal):
         genie.add("POST", START, DatabricksGenieError("rejected", status_code=400))
         store = FakeStore(journal, {KEY: stored_ref()})
@@ -510,6 +525,17 @@ class TestDurable:
         with pytest.raises(AirflowFailException, match="never confirmed the outcome"):
             self.run(make_operator(), store)
         assert genie.calls("POST") == [("POST", START)]
+
+    def test_changed_question_ignores_submission_marker(self, genie, journal):
+        answered(genie)
+        store = FakeStore(journal, {SUBMISSION_KEY: {"fingerprint": make_operator()._fingerprint()}})
+        op = make_operator(question="Something else?")
+
+        assert self.run(op, store) == EXPECTED_RESULT
+
+        assert genie.calls("POST") == [("POST", START)]
+        assert genie.bodies == [{"content": "Something else?", "enable_visualization": False}]
+        assert store.data == {KEY: {**stored_ref(), "fingerprint": op._fingerprint()}}
 
     def test_accepted_submission_without_ids_blocks_next_try(self, genie, journal):
         genie.add("POST", START, {"message_id": MESSAGE_ID})

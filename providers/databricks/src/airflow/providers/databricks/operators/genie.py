@@ -42,6 +42,7 @@ GenieMessageRef = dict[str, str]
 
 _NOT_FOUND = "NOT_FOUND"
 _STALE = "STALE"
+_TERMINAL_STATUSES = frozenset({"COMPLETED", "FAILED", "CANCELLED", "QUERY_RESULT_EXPIRED"})
 
 
 class DatabricksGenieOperator(ResumableJobMixin, BaseOperator):
@@ -184,7 +185,12 @@ class DatabricksGenieOperator(ResumableJobMixin, BaseOperator):
     def submit_job(self, context: Context) -> Any:
         store = self._task_state_store(context)
         if store is not None:
-            if store.get(self._submission_key) and not self.resubmit_unconfirmed:
+            marker = store.get(self._submission_key)
+            if (
+                marker is not None
+                and not self.resubmit_unconfirmed
+                and (not isinstance(marker, dict) or marker.get("fingerprint") == self._fingerprint())
+            ):
                 raise AirflowFailException(
                     "An earlier try submitted this Genie question but Databricks never confirmed the "
                     "outcome, so a message may already exist. Inspect the Genie space, then set "
@@ -252,7 +258,10 @@ class DatabricksGenieOperator(ResumableJobMixin, BaseOperator):
             if err.status_code == 404:
                 return _NOT_FOUND
             raise
-        return str(message.get("status"))
+        status = message.get("status")
+        if status in _PENDING_STATUSES or status in _TERMINAL_STATUSES:
+            return str(status)
+        raise DatabricksGenieError(f"Genie returned an unknown message status: {status!r}.")
 
     def is_job_active(self, status: str) -> bool:
         return status in _PENDING_STATUSES
