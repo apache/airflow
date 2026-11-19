@@ -28,7 +28,7 @@ from unittest import mock
 
 import httpx2
 import pytest
-from pydantic import BaseModel, TypeAdapter
+from pydantic import BaseModel, TypeAdapter, create_model
 from structlog.typing import FilteringBoundLogger
 
 pytest.importorskip("anthropic")
@@ -39,10 +39,16 @@ from anthropic._decoders.jsonl import AsyncJSONLDecoder
 from anthropic.resources.beta.messages.batches import AsyncBatches as AnthropicBatches
 from anthropic.types.beta.messages import BetaMessageBatchIndividualResponse
 from google.genai.batches import AsyncBatches
-from google.genai.types import BatchJob, JobState
+from google.genai.files import AsyncFiles
+from google.genai.types import BatchJob, BatchJobDestination, JobError, JobState
 from openai.resources.batches import AsyncBatches as OpenAIAsyncBatches
 from openai.types import Batch as OpenAIBatch
-from pydantic_ai.exceptions import ModelHTTPError, UserError
+from pydantic_ai.exceptions import (
+    ModelHTTPError,
+    ModelRequestRejectedError,
+    UnexpectedModelBehavior,
+    UserError,
+)
 from pydantic_ai.messages import (
     ModelMessage,
     ModelRequest,
@@ -71,7 +77,6 @@ from airflow.providers.common.ai.batch.pydantic_ai_backend import (
     GoogleBatchAdapter,
     OpenAIBatchAdapter,
     PydanticAIBatchAdapter,
-    _run,
     _stream,
 )
 from airflow.providers.common.ai.exceptions import (
@@ -101,6 +106,15 @@ def _prompt_of(messages: list[ModelMessage]) -> str:
     last = messages[-1]
     assert isinstance(last, ModelRequest)
     return str(next(part.content for part in last.parts if isinstance(part, UserPromptPart)))
+
+
+# Anthropic's strict JSON-schema mode refuses more than 24 optional fields and recursive types.
+WIDE = create_model("Wide", **{f"field_{i}": (str | None, None) for i in range(25)})
+
+
+class Node(BaseModel):
+    value: str
+    children: list[Node]
 
 
 class _Recorder:
@@ -449,7 +463,7 @@ class TestInMemoryBatchRoundTrip:
 
     def test_an_unreadable_result_is_skipped_so_the_merge_counts_it_missing(self):
         def reply(prompt):
-            raise RuntimeError("boom")
+            raise ValueError("boom")
 
         recorder = _Recorder(reply)
         submitted = _submit(_adapter(recorder.model), [{"prompt": "a"}])
@@ -457,6 +471,38 @@ class TestInMemoryBatchRoundTrip:
         rows = list(_adapter(recorder.model, handle=submitted.handle).iter_results(submitted.batch_id))
 
         assert rows == []
+
+    def test_a_programming_error_while_decoding_propagates_instead_of_marking_every_row_missing(self):
+        recorder = _Recorder()
+        adapter = _adapter(recorder.model)
+        result = BatchResult(custom_id=f"{KEY}-0", status="succeeded", body="{}")
+        parameters = adapter._output_parameters(recorder.model, build_output_spec(str))
+
+        with mock.patch.object(
+            FunctionModel, "batch_decode", autospec=True, side_effect=TypeError("changed")
+        ):
+            with pytest.raises(TypeError, match="changed"):
+                adapter._decode_or_skip(recorder.model, result, parameters, "b")
+
+    @pytest.mark.parametrize(
+        "failure",
+        [
+            ValueError("not json"),
+            KeyError("content"),
+            IndexError("no parts"),
+            AttributeError("no text"),
+            UnexpectedModelBehavior("empty response"),
+        ],
+        ids=lambda failure: type(failure).__name__,
+    )
+    def test_a_malformed_result_is_skipped(self, failure):
+        recorder = _Recorder()
+        adapter = _adapter(recorder.model)
+        result = BatchResult(custom_id=f"{KEY}-0", status="succeeded", body="{}")
+        parameters = adapter._output_parameters(recorder.model, build_output_spec(str))
+
+        with mock.patch.object(FunctionModel, "batch_decode", autospec=True, side_effect=failure):
+            assert adapter._decode_or_skip(recorder.model, result, parameters, "b") is None
 
     def test_a_result_with_a_foreign_custom_id_is_skipped(self):
         recorder = _Recorder()
@@ -485,25 +531,6 @@ class TestInMemoryBatchRoundTrip:
         assert (row.index, row.provider_status) == (3, expected)
         assert row.raw is None
         assert row.error["stage"] == "provider"
-
-
-class TestSyncEntryPointsFromARunningLoop:
-    def test_a_kill_signal_arriving_inside_a_running_loop_can_still_cancel(self):
-        """``on_kill`` can interrupt the thread while ``asyncio.run`` is on its stack."""
-
-        async def inside_a_loop():
-            return _run(asyncio.sleep(0, "done"))
-
-        assert asyncio.run(inside_a_loop()) == "done"
-
-    def test_an_error_from_the_batch_call_is_not_chained_onto_the_loop_probe(self):
-        async def fails():
-            raise LLMBatchInputError("bad request")
-
-        with pytest.raises(LLMBatchInputError) as raised:
-            _run(fails())
-
-        assert raised.value.__context__ is None
 
 
 class TestRequestSettings:
@@ -621,6 +648,53 @@ class TestRealModelEncoding:
         body = json.loads(encoded.body)
         assert body["output_config"]["format"]["type"] == "json_schema"
         assert body["output_config"]["format"]["schema"]["properties"].keys() == {"label", "score"}
+
+    @pytest.mark.parametrize("output_type", [WIDE, Node], ids=["25-optional-fields", "recursive"])
+    def test_a_schema_anthropics_strict_mode_rejects_is_sent_through_the_forced_output_tool(
+        self, output_type
+    ):
+        adapter = AnthropicBatchAdapter(model_id=CLAUDE, model_factory=lambda _id: _claude())
+
+        (encoded,) = _real_encode(adapter, [{"prompt": "hi"}], spec=build_output_spec(output_type))
+
+        body = json.loads(encoded.body)
+        assert "output_config" not in body
+        assert [tool["name"] for tool in body["tools"]] == [output_type.__name__]
+        assert body["tool_choice"]["type"] == "any"
+
+    def test_results_for_a_schema_sent_through_the_tool_are_decoded_with_the_same_mode(self):
+        spec = build_output_spec(Node)
+        model = _claude()
+        adapter = AnthropicBatchAdapter(model_id=CLAUDE, model_factory=lambda _id: model, output_spec=spec)
+        message = {
+            "id": "msg_1",
+            "type": "message",
+            "role": "assistant",
+            "model": "claude-sonnet-4-5",
+            "content": [
+                {"type": "tool_use", "id": "toolu_1", "name": "Node", "input": {"value": "x", "children": []}}
+            ],
+            "stop_reason": "tool_use",
+            "stop_sequence": None,
+            "usage": {"input_tokens": 3, "output_tokens": 2},
+        }
+        result = BatchResult(
+            custom_id=f"{KEY}-0",
+            status="succeeded",
+            body=json.dumps({"type": "succeeded", "message": message}),
+        )
+
+        row = adapter._decode_one(model, result, adapter._output_parameters(model, spec))
+
+        assert adapter.extract_output(row, spec).value == {"value": "x", "children": []}
+
+    def test_a_request_the_provider_refuses_locally_is_an_input_error_naming_the_request(self):
+        adapter = AnthropicBatchAdapter(model_id=CLAUDE, model_factory=lambda _id: _claude())
+        refusal = ModelRequestRejectedError("claude-sonnet-4-5", "too complex")
+
+        with mock.patch.object(AnthropicModel, "batch_encode", autospec=True, side_effect=refusal):
+            with pytest.raises(LLMBatchInputError, match="Request 0 cannot be sent as a batch.*too complex"):
+                _real_encode(adapter, [{"prompt": "hi"}])
 
     def test_a_model_without_native_json_schema_gets_a_forced_output_tool(self):
         adapter = AnthropicBatchAdapter(
@@ -1255,15 +1329,6 @@ class TestGeminiJobStates:
 
         assert (state.status, state.counts) == (status, counts)
 
-    def test_a_failed_job_reports_the_providers_reason(self, adapter):
-        adapter, model = adapter
-
-        state = asyncio.run(adapter._describe(model, _ended("JOB_STATE_FAILED")))
-
-        assert state.status == "failed"
-        assert state.counts is None
-        assert "quota exhausted" in state.error_message
-
     @pytest.mark.parametrize("status", ["in_progress", "canceling"])
     def test_a_job_that_has_not_ended_is_in_progress(self, adapter, status):
         adapter, model = adapter
@@ -1292,13 +1357,6 @@ class TestGeminiJobStates:
 
         assert not isinstance(raised.value, LLMBatchJobError)
 
-    def test_a_transient_api_error_describing_a_failed_job_is_not_reported_as_the_jobs_failure(self, adapter):
-        adapter, model = adapter
-        model.error = ModelHTTPError(503, "gemini", {"error": {"message": "unavailable"}})
-
-        with pytest.raises(ModelHTTPError, match="unavailable"):
-            asyncio.run(adapter._describe(model, _ended("JOB_STATE_FAILED")))
-
     def test_a_failed_job_without_results_is_a_job_error(self, adapter):
         adapter, model = adapter
 
@@ -1313,6 +1371,74 @@ class TestGeminiJobStates:
 
         with pytest.raises(ModelHTTPError, match="quota exhausted"):
             asyncio.run(adapter._collect(model, _ended(job_state)))
+
+
+class TestGeminiFailedJobs:
+    """A failed job is told from one that wrote results by its metadata; nothing is downloaded to decide."""
+
+    @staticmethod
+    def _job(*, dest_file: str | None, error: str | None = "quota exhausted") -> BatchJob:
+        return BatchJob(
+            name="batches/1",
+            state=JobState.JOB_STATE_FAILED,
+            dest=BatchJobDestination(file_name=dest_file) if dest_file else None,
+            error=JobError(code=8, message=error) if error else None,
+        )
+
+    @pytest.fixture
+    def serve(self):
+        """Patch the SDK's job lookup and download; yield a function that sets the job and returns the download mock."""
+        with (
+            mock.patch.object(AsyncBatches, "get", autospec=True) as get,
+            mock.patch.object(AsyncFiles, "download", autospec=True) as download,
+        ):
+
+            def set_job(job):
+                get.return_value = job
+                return download
+
+            yield set_job
+
+    def test_a_failed_job_without_a_results_file_is_failed_with_the_jobs_own_error(self, serve):
+        download = serve(self._job(dest_file=None))
+        model = _gemini()
+        adapter = GoogleBatchAdapter(model_id=GEMINI, model_factory=lambda _id: model)
+
+        state = asyncio.run(adapter._describe(model, _ended("JOB_STATE_FAILED")))
+
+        assert (state.status, state.error_message) == (
+            "failed",
+            "Gemini batch job batches/1 failed. quota exhausted",
+        )
+        download.assert_not_called()
+
+    def test_a_failed_job_that_wrote_a_results_file_is_completed_so_its_rows_land(self, serve):
+        download = serve(self._job(dest_file="files/out"))
+        model = _gemini()
+        adapter = GoogleBatchAdapter(model_id=GEMINI, model_factory=lambda _id: model)
+
+        state = asyncio.run(adapter._describe(model, _ended("JOB_STATE_FAILED")))
+
+        assert (state.status, state.error_message) == ("completed", None)
+        download.assert_not_called()
+
+    def test_a_failed_job_with_no_error_detail_still_says_it_failed(self, serve):
+        serve(self._job(dest_file=None, error=None))
+        model = _gemini()
+        adapter = GoogleBatchAdapter(model_id=GEMINI, model_factory=lambda _id: model)
+
+        state = asyncio.run(adapter._describe(model, _ended("JOB_STATE_FAILED")))
+
+        assert (state.status, state.error_message) == ("failed", "Gemini batch job batches/1 failed.")
+
+    def test_a_transient_api_error_describing_a_failed_job_is_not_reported_as_the_jobs_failure(self):
+        model = _gemini()
+        adapter = GoogleBatchAdapter(model_id=GEMINI, model_factory=lambda _id: model)
+        outage = ModelHTTPError(503, "gemini", {"error": {"message": "unavailable"}})
+
+        with mock.patch.object(AsyncBatches, "get", autospec=True, side_effect=outage):
+            with pytest.raises(ModelHTTPError, match="unavailable"):
+                asyncio.run(adapter._describe(model, _ended("JOB_STATE_FAILED")))
 
 
 class TestAdapterRegistration:
@@ -1333,7 +1459,7 @@ class TestAdapterRegistration:
         hook._get_fallback_conn_ids.return_value = ["backup"]
         conn = Connection(conn_id="primary", conn_type="pydanticai")
         with (
-            mock.patch.object(PydanticAIHook, "get_hook", autospec=True, return_value=hook),
+            mock.patch.object(PydanticAIHook, "get_hook_for_connection", autospec=True, return_value=hook),
             mock.patch.object(backend_module, "log", spec=FilteringBoundLogger) as log,
         ):
             adapter = AnthropicBatchAdapter.from_connection(conn, model_id=CLAUDE)
@@ -1341,6 +1467,20 @@ class TestAdapterRegistration:
         log.warning.assert_called_once()
         assert "fallback" in log.warning.call_args.args[0]
         assert adapter._hook is hook
+
+    def test_building_the_adapter_looks_the_connection_up_once(self):
+        conn = Connection(conn_id="primary", conn_type="pydanticai", password="sk-ant-test")
+        with (
+            mock.patch.object(PydanticAIHook, "get_connection", autospec=True, return_value=conn) as lookup,
+        ):
+            adapter = AnthropicBatchAdapter.from_connection(conn, model_id=CLAUDE)
+            adapter._hook.get_conn()
+
+        lookup.assert_not_called()
+
+    @pytest.mark.parametrize("adapter_cls", [AnthropicBatchAdapter, GoogleBatchAdapter])
+    def test_the_providers_fix_the_completion_window(self, adapter_cls):
+        assert adapter_cls.supports_completion_window is False
 
     def test_the_hook_builds_the_model_the_adapter_polls(self):
         hook = mock.create_autospec(PydanticAIHook, instance=True)

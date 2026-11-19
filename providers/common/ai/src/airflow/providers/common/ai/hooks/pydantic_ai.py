@@ -249,7 +249,19 @@ class PydanticAIHook(BaseHook):
         :raises ValueError: if the connection's type is registered to a hook that is not a
             ``PydanticAIHook``.
         """
-        conn = cls.get_connection(conn_id)
+        return cls.get_hook_for_connection(cls.get_connection(conn_id), hook_params)
+
+    @classmethod
+    def get_hook_for_connection(cls, conn: Connection, hook_params: dict | None = None):
+        """
+        Return the hook for an already-fetched ``conn``, built with ``hook_params``.
+
+        Does what :meth:`get_hook` does after its lookup, so a caller that holds the
+        connection does not fetch it a second time.
+
+        :raises ValueError: if the connection's type is registered to a hook that is not a
+            ``PydanticAIHook``.
+        """
         hooks = _get_registered_hooks()
         # Resolved from the registry rather than from ``cls.conn_type`` or the subclasses
         # imported so far: operators call this on the base class, and a subclass from another
@@ -265,7 +277,7 @@ class PydanticAIHook(BaseHook):
         ):
             expected_types = sorted(conn_type for conn_type in hooks if conn_type.startswith("pydanticai"))
             raise ValueError(
-                f"Connection {conn_id!r} has type {conn.conn_type!r}, but a Pydantic AI hook needs "
+                f"Connection {conn.conn_id!r} has type {conn.conn_type!r}, but a Pydantic AI hook needs "
                 f"one of {expected_types}. Change the connection type to 'pydanticai', put the API key "
                 "in the API Key field (stored as the password) and the model (e.g. 'openai:gpt-5') in Model."
             )

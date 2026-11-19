@@ -34,18 +34,24 @@ settings types are imported inside the methods that need them.
 from __future__ import annotations
 
 import asyncio
-import concurrent.futures
 import dataclasses
 import functools
 import queue
 import threading
-from collections.abc import AsyncGenerator, AsyncIterator, Callable, Coroutine, Generator, Iterator, Mapping
+import warnings
+from collections.abc import AsyncGenerator, AsyncIterator, Callable, Generator, Iterator, Mapping
 from contextlib import AsyncExitStack, aclosing, asynccontextmanager, closing, suppress
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any, ClassVar, Literal, TypeVar, cast
 
 from pydantic import BaseModel, JsonValue, TypeAdapter
-from pydantic_ai.exceptions import ModelAPIError, ModelHTTPError, UserError
+from pydantic_ai.exceptions import (
+    ModelAPIError,
+    ModelHTTPError,
+    ModelRequestRejectedError,
+    UnexpectedModelBehavior,
+    UserError,
+)
 from pydantic_ai.messages import (
     ModelRequest,
     ModelRequestPart,
@@ -85,6 +91,7 @@ from airflow.providers.common.ai.exceptions import (
     LLMBatchStateReadError,
 )
 from airflow.providers.common.ai.hooks.pydantic_ai import PydanticAIHook
+from airflow.providers.common.ai.utils.coroutines import run_coroutine_sync
 from airflow.providers.common.ai.utils.task_logger import get_task_logger
 
 if TYPE_CHECKING:
@@ -152,6 +159,11 @@ _OPENAI_UNRUN_STATUSES: dict[str, Literal["expired", "canceled"]] = {
 #: Gemini documents no request limit, and the ABC wants an int.
 _NO_REQUEST_LIMIT = 2**63 - 1
 
+#: What decoding one provider result raises when the result is malformed: a body that is not valid JSON or
+#: does not validate (``ValueError`` covers ``json.JSONDecodeError`` and pydantic's ``ValidationError``), a
+#: missing field or index, a body of the wrong shape, or pydantic-ai refusing the content.
+_MALFORMED_RESULT = (ValueError, KeyError, IndexError, AttributeError, UnexpectedModelBehavior)
+
 #: Decoded rows a batch's results may run ahead of the task that reads them.
 _RESULT_BUFFER = 64
 
@@ -165,25 +177,6 @@ class _ResultsContext:
 
     model: Model
     parameters: ModelRequestParameters
-
-
-def _run(coro: Coroutine[Any, Any, T]) -> T:
-    """
-    Run ``coro`` to completion from synchronous code.
-
-    ``asyncio.run`` refuses to start inside a thread that already runs a loop, which is where a
-    kill signal's ``on_kill`` can land while a poll is in flight, so that case uses a helper thread.
-    """
-    try:
-        asyncio.get_running_loop()
-    except RuntimeError:
-        # No loop in this thread. Run outside the ``except`` so an error from ``coro`` isn't chained
-        # onto this probe in the task log.
-        pass
-    else:
-        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
-            return executor.submit(asyncio.run, coro).result()
-    return asyncio.run(coro)
 
 
 class _OpenAILineResponse(BaseModel):
@@ -385,6 +378,8 @@ class PydanticAIBatchAdapter(BatchAdapter):
     accepts_raw_params: ClassVar[bool] = True
     #: The key of the batch's ``provider_details`` that names the uploaded input file.
     input_file_key: ClassVar[str] = "input_file"
+    # pydantic-ai fixes the completion window of the provider batch APIs it drives.
+    supports_completion_window = False
 
     def __init__(
         self,
@@ -411,7 +406,7 @@ class PydanticAIBatchAdapter(BatchAdapter):
         batch_handle: str | None = None,
         output_spec: OutputSpec | None = None,
     ) -> PydanticAIBatchAdapter:
-        hook = PydanticAIHook.get_hook(conn.conn_id, {"model_id": model_id})
+        hook = PydanticAIHook.get_hook_for_connection(conn, {"model_id": model_id})
         if hook._get_fallback_conn_ids():
             log.warning(
                 "Connection has fallback connections configured; batch ignores them and uses the primary",
@@ -482,8 +477,7 @@ class PydanticAIBatchAdapter(BatchAdapter):
         Turn ``request_params`` and a request's ``params`` into ``ModelSettings``.
 
         Typed keys become settings. Any other key is a raw provider request field and goes through
-        ``extra_body``, which is how these parameters worked before the adapter used pydantic-ai.
-        Returns the settings and the managed keys that were dropped.
+        ``extra_body``. Returns the settings and the managed keys that were dropped.
         """
         typed = _typed_settings(self._settings_type())
         merged: dict[str, Any] = {}
@@ -529,17 +523,31 @@ class PydanticAIBatchAdapter(BatchAdapter):
         """
         Ask for ``spec``'s schema the strongest way the model supports.
 
-        Native JSON-schema output where the model has it. Otherwise a single forced output tool,
-        which is a hard format constraint too. Neither is pydantic-ai's profile default
-        (``tool`` mode with no output tool sends no schema at all), so the mode is set explicitly.
+        Native JSON-schema output where the model has it and accepts this schema. Otherwise a single
+        forced output tool, which is a hard format constraint too. Neither is pydantic-ai's profile
+        default (``tool`` mode with no output tool sends no schema at all), so the mode is set explicitly.
+
+        Anthropic compiles a strict schema into a grammar and refuses one over its complexity limits
+        (more than 24 optional or 16 union-typed fields, or a recursive type). ``prepare_request`` raises
+        that refusal locally, before anything is sent, so a schema it refuses takes the tool path. The
+        choice depends only on the model and the schema, so encoding and decoding make the same one.
         """
         if not spec.is_structured:
             return ModelRequestParameters()
         if model.profile.get("supports_json_schema_output"):
-            return ModelRequestParameters(
+            native = ModelRequestParameters(
                 output_mode="native",
                 output_object=OutputObjectDefinition(json_schema=spec.json_schema, name=spec.schema_name),
             )
+            try:
+                with warnings.catch_warnings():
+                    # The schema transformer's warnings are about the native path this may not take.
+                    warnings.simplefilter("ignore")
+                    model.prepare_request(None, native)
+            except ModelRequestRejectedError:
+                pass
+            else:
+                return native
         return ModelRequestParameters(
             output_mode="tool",
             output_tools=[
@@ -611,7 +619,7 @@ class PydanticAIBatchAdapter(BatchAdapter):
                         model_request_parameters=parameters,
                     )
                 )
-            except UserError as e:
+            except (UserError, ModelRequestRejectedError) as e:
                 raise LLMBatchInputError(f"Request {index} cannot be sent as a batch: {e}") from e
             if index == 0:
                 first_id = model_id
@@ -697,7 +705,7 @@ class PydanticAIBatchAdapter(BatchAdapter):
             ):
                 pass
 
-        _run(validate())
+        run_coroutine_sync(validate())
 
     def submit(
         self,
@@ -724,7 +732,7 @@ class PydanticAIBatchAdapter(BatchAdapter):
             ) as (submitter, encoded):
                 return await submitter.batch_create(encoded)
 
-        batch = _run(create())
+        batch = run_coroutine_sync(create())
         self._handle = _BATCH_ADAPTER.dump_json(batch).decode()
         return SubmitResult(
             batch_id=batch.id,
@@ -743,14 +751,14 @@ class PydanticAIBatchAdapter(BatchAdapter):
         )
 
     def get_batch(self, batch_id: str) -> BatchState:
-        return _run(self.aget_batch(batch_id))
+        return run_coroutine_sync(self.aget_batch(batch_id))
 
     async def acancel_batch(self, batch_id: str) -> None:
         async with self._existing(batch_id) as (model, stored):
             await model.batch_cancel(stored)
 
     def cancel_batch(self, batch_id: str) -> None:
-        _run(self.acancel_batch(batch_id))
+        run_coroutine_sync(self.acancel_batch(batch_id))
 
     def find_orphaned_batch(
         self, idempotency_key: str, input_fingerprint: str, not_before: str
@@ -808,8 +816,9 @@ class PydanticAIBatchAdapter(BatchAdapter):
     ) -> RawResultItem | None:
         try:
             return self._decode_one(model, result, parameters)
-        except Exception as e:
+        except _MALFORMED_RESULT as e:
             # One malformed item must not abort the whole batch; the merge counts the index as missing.
+            # Anything else (a ``TypeError`` after a pydantic-ai change, say) is a bug and propagates.
             log.warning(
                 "Skipping unparsable result item for batch",
                 batch_id=batch_id,
@@ -1106,13 +1115,35 @@ class GoogleBatchAdapter(PydanticAIBatchAdapter):
                 status = self._UNRUN_STATES[state]
                 return BatchState(status=status, counts={status: batch.request_count}, error_message=None)
             if state == "JOB_STATE_FAILED":
-                message = f"Gemini batch job {batch.id} failed."
-                try:
-                    await model.batch_results(batch)
-                except BatchJobError as e:
-                    message = f"{message} {_reason(e)}"
-                return BatchState(status="failed", counts=None, error_message=message)
+                return await self._describe_failed(model, batch)
         return await super()._describe(model, batch)
+
+    async def _describe_failed(self, model: Model, batch: Batch) -> BatchState:
+        """
+        Classify a failed job by whether it wrote a results file, without downloading it.
+
+        pydantic-ai raises ``BatchJobError`` only for a job with no results file, so a job that failed
+        after running some requests can have rows to land. Those are reported as completed, so the
+        operator lands them (each row keeps its own error) instead of clearing the state and paying
+        for a resubmission. A job with no results file is failed, with the job's own error message.
+        """
+        # Heavy third-party SDK: importing the Google model module imports ``google.genai``.
+        from pydantic_ai.models.google import GoogleModel
+
+        if not isinstance(model, GoogleModel):
+            raise LLMBatchJobError(f"Cannot read Gemini batch job {batch.id} with {type(model).__name__}.")
+        job = await model.client.aio.batches.get(name=batch.id)
+        if job.dest is not None and job.dest.file_name:
+            log.warning(
+                "Gemini batch job failed after writing results; landing them",
+                batch_id=batch.id,
+                error=job.error.message if job.error else None,
+            )
+            return BatchState(status="completed", counts=None, error_message=None)
+        message = f"Gemini batch job {batch.id} failed."
+        if job.error is not None and job.error.message:
+            message = f"{message} {job.error.message}"
+        return BatchState(status="failed", counts=None, error_message=message)
 
     async def _collect(self, model: Model, batch: Batch) -> list[BatchResult]:
         try:

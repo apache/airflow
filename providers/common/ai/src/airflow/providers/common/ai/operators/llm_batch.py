@@ -384,7 +384,10 @@ class LLMBatchOperator(BaseOperator):
                 output_schema_digest=output_schema_digest,
                 intent_at=intent_at,
             )
-            if self.completion_window != _DEFAULT_COMPLETION_WINDOW:
+            if (
+                self.completion_window != _DEFAULT_COMPLETION_WINDOW
+                and not adapter.supports_completion_window
+            ):
                 self.log.warning(
                     "completion_window=%r is ignored: %s batches run on the provider's default window.",
                     self.completion_window,
@@ -496,7 +499,7 @@ class LLMBatchOperator(BaseOperator):
                 record.batch_id,
                 reason,
             )
-            self._cancel_recorded_batch(record, adapter, adapter_name, model_id)
+            self._cancel_recorded_batch(record, adapter, adapter_name)
             return None, None
 
         # Intent recorded, no batch id: a previous attempt crashed between submit and recording.
@@ -552,16 +555,12 @@ class LLMBatchOperator(BaseOperator):
         return None, None
 
     def _cancel_recorded_batch(
-        self, record: BatchStateRecord, adapter: BatchAdapter, adapter_name: str, model_id: str | None
+        self, record: BatchStateRecord, adapter: BatchAdapter, adapter_name: str
     ) -> None:
         """Cancel a stale batch through the connection and model that own it, which may differ from the current ones."""
         owner: BatchAdapter = adapter
         own_adapter = False
-        if record.llm_conn_id and (
-            record.llm_conn_id != self.llm_conn_id
-            or record.adapter != adapter_name
-            or (record.model_id and record.model_id != model_id)
-        ):
+        if record.llm_conn_id and (record.llm_conn_id != self.llm_conn_id or record.adapter != adapter_name):
             try:
                 owner = dispatch.build_adapter(
                     record.adapter or adapter_name,

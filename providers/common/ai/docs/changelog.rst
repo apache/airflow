@@ -116,7 +116,13 @@ Changelog
     working; whether LiteLLM implements them for ``/v1/responses`` has not been verified. Azure OpenAI
     still has no adapter.
   - Structured output uses the model's native JSON-schema output instead of a forced tool call or
-    ``response_format``, except for models without it.
+    ``response_format``, except for models without it and, on Anthropic, for schemas its strict mode
+    refuses (more than 24 optional fields, more than 16 union-typed fields, or a recursive type), which
+    still go through a forced tool call.
+  - Creating a batch is not retried by the SDK: pydantic-ai sends it with ``max_retries=0`` because
+    creating a batch is not idempotent, where the earlier adapters used the SDK's default of two retries.
+    A 429 or 529 on create now fails the attempt, so it costs an Airflow task retry, or raises
+    ``LLMBatchOrphanedIntentError`` with ``on_orphaned_intent='fail'``.
   - A cancelled batch is recognized from its landed results, because Anthropic reports it as ended.
   - OpenAI no longer recovers a batch whose submit response was never recorded by reading the batch's
     metadata. Like Anthropic and Gemini, it falls through to ``on_orphaned_intent``, whose default

@@ -489,9 +489,10 @@ class TestFingerprintMismatchTriggersCancelAndResubmit:
         assert fake_adapter.cancel_calls == ["batch_1"]
         assert len(fake_adapter.submit_calls) == 2
 
-    def test_stale_batch_is_cancelled_through_the_model_it_was_submitted_with(
+    def test_stale_batch_under_another_model_is_cancelled_through_the_handle_the_adapter_was_built_with(
         self, fake_adapter, result_path
     ):
+        fake_adapter.submit_handle = '{"model_name": "gpt-5"}'
         ctx = _context()
         with _running(fake_adapter) as build_adapter:
             with pytest.raises(TaskDeferred):
@@ -501,10 +502,12 @@ class TestFingerprintMismatchTriggersCancelAndResubmit:
                 _make_operator(
                     result_path=result_path, deferrable=True, model_id="openai:gpt-5-mini"
                 ).execute(ctx)
+            build_from_connection = dispatch.build_adapter_from_connection
 
-        build_adapter.assert_any_call(
-            "openai", llm_conn_id="my_openai", model_id="openai:gpt-5", batch_handle=None
-        )
+        # One adapter serves the cancel: it carries the recorded handle, whose model the adapter polls and
+        # cancels with, so no second adapter is built for the old model.
+        build_adapter.assert_not_called()
+        assert build_from_connection.call_args.kwargs["batch_handle"] == '{"model_name": "gpt-5"}'
         assert fake_adapter.cancel_calls == ["batch_1"]
 
     def test_stale_batch_without_a_recorded_model_is_cancelled_through_the_current_adapter(
@@ -528,10 +531,27 @@ class TestFingerprintMismatchTriggersCancelAndResubmit:
         assert fake_adapter.cancel_calls == ["batch_1"]
 
 
+class _FixedWindowAdapter(_FakeAdapter):
+    supports_completion_window = False
+
+
 class TestCompletionWindow:
-    def test_a_non_default_window_is_flagged_as_ignored_by_the_pydantic_ai_backends(
+    def test_a_non_default_window_is_flagged_as_ignored_by_an_adapter_that_fixes_its_window(
+        self, result_path, caplog
+    ):
+        with _running(_FixedWindowAdapter()), caplog.at_level(logging.WARNING):
+            with pytest.raises(TaskDeferred):
+                _make_operator(result_path=result_path, deferrable=True, completion_window="12h").execute(
+                    _context()
+                )
+
+        assert any("completion_window" in r.getMessage() for r in caplog.records)
+
+    def test_a_non_default_window_is_not_flagged_for_an_adapter_that_honours_it(
         self, fake_adapter, result_path, caplog
     ):
+        # Dispatched under a name other than "openai", as a third-party adapter would be: only what the
+        # adapter's class says about the window matters.
         with _running(fake_adapter), caplog.at_level(logging.WARNING):
             with pytest.raises(TaskDeferred):
                 _make_operator(
@@ -541,16 +561,7 @@ class TestCompletionWindow:
                     completion_window="12h",
                 ).execute(_context())
 
-        assert any("completion_window" in r.getMessage() for r in caplog.records)
-
-    def test_a_non_default_window_is_flagged_for_openai_too(self, fake_adapter, result_path, caplog):
-        with _running(fake_adapter), caplog.at_level(logging.WARNING):
-            with pytest.raises(TaskDeferred):
-                _make_operator(result_path=result_path, deferrable=True, completion_window="12h").execute(
-                    _context()
-                )
-
-        assert any("completion_window" in r.getMessage() for r in caplog.records)
+        assert not any("completion_window" in r.getMessage() for r in caplog.records)
 
     def test_the_default_window_is_not_flagged(self, fake_adapter, result_path, caplog):
         with _running(fake_adapter), caplog.at_level(logging.WARNING):
