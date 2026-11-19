@@ -17,7 +17,6 @@
 
 from __future__ import annotations
 
-import json
 import logging
 import secrets
 from typing import Annotated, Literal, cast
@@ -57,9 +56,9 @@ from airflow.providers.keycloak.auth_manager.keycloak_auth_manager import (
 )
 from airflow.providers.keycloak.auth_manager.services.token import (
     build_keycloak_unavailable_error,
+    build_user_from_userinfo,
     is_cli_loopback_redirect_uri,
 )
-from airflow.providers.keycloak.auth_manager.user import KeycloakAuthManagerUser
 
 log = logging.getLogger(__name__)
 login_router = AirflowRouter(tags=["KeycloakAuthManagerLogin"])
@@ -172,16 +171,7 @@ def login_callback(request: Request):
         code=code,
         redirect_uri=str(redirect_uri),
     )
-    userinfo_raw: dict | bytes = client.userinfo(tokens["access_token"])
-    # Decode bytes to dict if necessary
-    userinfo: dict = json.loads(userinfo_raw) if isinstance(userinfo_raw, bytes) else userinfo_raw
-
-    user = KeycloakAuthManagerUser(
-        user_id=userinfo["sub"],
-        name=userinfo["preferred_username"],
-        access_token=tokens["access_token"],
-        refresh_token=tokens.get("refresh_token"),
-    )
+    user = build_user_from_userinfo(client, tokens)
     token = get_auth_manager().generate_jwt(user)
     request.state.jwt_token_issued = True
 
