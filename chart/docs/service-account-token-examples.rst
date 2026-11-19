@@ -111,8 +111,8 @@ Kyverno Policy Compliance
 Configuration that complies with Kyverno policies requiring ``automountServiceAccountToken: false``
 (`Restrict Auto-Mount of Service Account Tokens in Service Account`_ and `Restrict Auto-Mount of Service Account Tokens`_):
 
-.. _Restrict Auto-Mount of Service Account Tokens in Service Account: https://kyverno.io/policies/other/restrict-sa-automount-sa-token/restrict-sa-automount-sa-token/
-.. _Restrict Auto-Mount of Service Account Tokens: https://kyverno.io/policies/other/restrict-sa-automount-sa-token/restrict-sa-automount-sa-token/
+.. _Restrict Auto-Mount of Service Account Tokens in Service Account: https://kyverno.io/policies/other-vpol/restrict-sa-automount-sa-token/restrict-sa-automount-sa-token/
+.. _Restrict Auto-Mount of Service Account Tokens: https://github.com/kyverno/policies/blob/release-1.19/other/restrict-automount-sa-token/restrict-automount-sa-token.yaml
 
 .. code-block:: yaml
    :caption: values.yaml
