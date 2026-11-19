@@ -30,7 +30,7 @@ from alembic.config import Config
 from alembic.migration import MigrationContext
 from alembic.runtime.environment import EnvironmentContext
 from alembic.script import ScriptDirectory
-from sqlalchemy import Column, Integer, MetaData, String, Table, delete, select
+from sqlalchemy import Column, Integer, MetaData, String, Table, delete, select, text
 from sqlalchemy.orm import declarative_base
 
 from airflow import settings
@@ -38,6 +38,7 @@ from airflow.models import Base as airflow_base
 from airflow.models.team import Team
 from airflow.utils.db import (
     AutocommitEngineForMySQL,
+    DBLocks,
     LazySelectSequence,
     _get_alembic_config,
     _get_current_revision,
@@ -46,6 +47,7 @@ from airflow.utils.db import (
     check_team_names_can_be_lower_cased,
     compare_server_default,
     compare_type,
+    create_global_lock,
     downgrade,
     get_default_connections,
     initdb,
@@ -499,6 +501,24 @@ class TestReflectTablesSchemaQualified:
         synchronize_log_template(session=session)
 
         session.execute.assert_called()
+
+
+@pytest.mark.backend("postgres")
+def test_postgres_migration_lock_does_not_block_create_index_concurrently():
+    """The held migration lock must not block CREATE INDEX CONCURRENTLY run by migrations."""
+    engine = settings.get_engine()
+    table = "test_migration_lock_cic"
+    with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as ddl:
+        ddl.execute(text(f"DROP TABLE IF EXISTS {table}"))
+        ddl.execute(text(f"CREATE TABLE {table} (id INTEGER)"))
+        try:
+            with create_session() as session, create_global_lock(session=session, lock=DBLocks.MIGRATIONS):
+                # Fails with a statement timeout instead of hanging if the lock connection blocks it.
+                ddl.execute(text("SET statement_timeout = '10s'"))
+                ddl.execute(text(f"CREATE INDEX CONCURRENTLY idx_{table} ON {table} (id)"))
+        finally:
+            ddl.execute(text("RESET statement_timeout"))
+            ddl.execute(text(f"DROP TABLE IF EXISTS {table}"))
 
 
 class TestAutocommitEngineForMySQL:
