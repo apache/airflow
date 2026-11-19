@@ -2112,6 +2112,44 @@ class TestSparkSubmitHook:
         assert result == "Succeeded"
         mock_info.assert_any_call("%s has been identified as the driver container", "custom-driver")
 
+    @pytest.mark.parametrize(
+        ("container_name", "expected_driver"),
+        [
+            pytest.param("\n  custom-driver \n", "custom-driver", id="padded-name-is-stripped"),
+            pytest.param("  \n ", "app-driver", id="whitespace-only-falls-back-to-heuristic"),
+        ],
+    )
+    @patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
+    def test_poll_k8s_driver_container_name_whitespace(
+        self, mock_get_client, container_name, expected_driver
+    ):
+        hook = SparkSubmitHook(
+            conn_id="spark_k8s_cluster",
+            track_driver_via_k8s_api=True,
+            kubernetes_driver_container_name=container_name,
+        )
+        hook._kubernetes_driver_pod_name = "spark-app-abc-driver"
+        hook._kubernetes_application_id = "spark-abc"
+
+        terminated_status = V1ContainerStatus(
+            name=expected_driver,
+            state=V1ContainerState(terminated=V1ContainerStateTerminated(exit_code=0)),
+            ready=False,
+            restart_count=0,
+            image="spark:3",
+            image_id="",
+        )
+        mock_get_client.return_value.read_namespaced_pod.return_value = V1Pod(
+            spec=V1PodSpec(containers=[V1Container(name=expected_driver), V1Container(name="sidecar")]),
+            status=V1PodStatus(phase="Running", container_statuses=[terminated_status]),
+        )
+
+        with patch.object(hook, "_run_post_submit_commands"), patch.object(hook.log, "info") as mock_info:
+            result = hook._poll_k8s_driver_via_api()
+
+        assert result == "Succeeded"
+        mock_info.assert_any_call("%s has been identified as the driver container", expected_driver)
+
     @patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
     def test_poll_k8s_driver_custom_container_name_no_match_raises(self, mock_get_client):
         """An override that matches no container on the pod must raise, not fall back silently,

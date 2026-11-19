@@ -333,7 +333,10 @@ the exact container name:
    )
 
 If ``kubernetes_driver_container_name`` doesn't match any container on the pod, the task fails
-immediately with a ``ValueError`` rather than silently falling back to the heuristic.
+immediately with a ``ValueError`` rather than silently falling back to the heuristic. Before
+failing, the operator deletes the driver pod, which terminates the running Spark application. Since
+``kubernetes_driver_container_name`` is a templated field, a typo in it will therefore kill a
+live job. A value that is empty or only whitespace after rendering is treated as unset.
 
 If the pod phase reports ``Failed`` but the driver container itself exited 0 (for example, a
 sidecar crashed after the driver finished), the operator logs a warning and still treats the task
@@ -343,8 +346,6 @@ If the driver container could not be identified, ``pod.status.phase`` will be us
 completion. This matters if your driver pods have sidecar containers: the pod
 phase may not advance to ``Succeeded`` until every container exits. To avoid indefinite
 waits, set ``execution_timeout`` as a hard bound.
-
-Set ``durable=False`` to always submit a fresh driver on retry.
 
 .. _yarn-resourcemanager-api-tracking:
 

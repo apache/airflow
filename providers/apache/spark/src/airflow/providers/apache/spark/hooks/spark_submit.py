@@ -1256,7 +1256,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         Raises ``RuntimeError`` on failure phases or unrecoverable API errors.
         """
         kubernetes_driver_pod_name = self._kubernetes_driver_pod_name
-        kubernetes_driver_container_name = self.kubernetes_driver_container_name
+        kubernetes_driver_container_name = (self.kubernetes_driver_container_name or "").strip()
         namespace = self._connection["namespace"]
         app_id = self._kubernetes_application_id or kubernetes_driver_pod_name
 
