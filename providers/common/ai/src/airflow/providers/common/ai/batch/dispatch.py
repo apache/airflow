@@ -49,6 +49,7 @@ from airflow.providers.common.compat.sdk import BaseHook
 
 if TYPE_CHECKING:
     from airflow.providers.common.ai.batch.base import BatchAdapter
+    from airflow.providers.common.ai.batch.output_schema import OutputSpec
     from airflow.sdk import Connection
 
 ENTRY_POINT_GROUP = "airflow.providers.common.ai.batch_adapters"
@@ -56,12 +57,24 @@ ENTRY_POINT_GROUP = "airflow.providers.common.ai.batch_adapters"
 #: adapter name -> (module path, class name), resolved lazily by :func:`import_adapter_class`.
 _ADAPTER_MODULES: dict[str, tuple[str, str]] = {
     "openai": ("airflow.providers.common.ai.batch.openai", "OpenAIBatchAdapter"),
-    "anthropic": ("airflow.providers.common.ai.batch.anthropic", "AnthropicBatchAdapter"),
+    "anthropic": ("airflow.providers.common.ai.batch.pydantic_ai_backend", "AnthropicBatchAdapter"),
+    "google": ("airflow.providers.common.ai.batch.pydantic_ai_backend", "GoogleBatchAdapter"),
 }
 
 #: model_id prefix -> the adapter that serves it under another name. ``openai-chat`` is
 #: pydantic-ai's Chat Completions prefix, and Chat Completions is what the ``openai`` adapter submits.
 _ADAPTER_ALIASES: dict[str, str] = {"openai-chat": "openai"}
+
+#: model_id prefixes that name a platform whose batch API has no adapter, with the fix to offer.
+_GEMINI_PLATFORM_REFUSAL = (
+    "Gemini batch runs on the Gemini Developer API; Vertex AI batch prediction reads from and writes "
+    "to Cloud Storage or BigQuery, which this provider does not drive. Use a 'google:<model>' model id "
+    "on a 'pydanticai' connection whose API Key is a Gemini API key."
+)
+_REFUSED_PREFIXES: dict[str, str] = {
+    "google-cloud": _GEMINI_PLATFORM_REFUSAL,
+    "google-vertex": _GEMINI_PLATFORM_REFUSAL,
+}
 
 #: Adapter classes registered at runtime through :func:`register_adapter`.
 _REGISTERED_ADAPTERS: dict[str, type[BatchAdapter]] = {}
@@ -142,7 +155,14 @@ def get_adapter_class(conn_type: str | None, model_id: str | None) -> type[Batch
         accept this connection type (e.g. ``pydanticai_azure`` today).
     """
     prefix, _ = split_model_id(model_id)
-    adapter_cls = import_adapter_class(adapter_name_for_prefix(prefix))
+    try:
+        adapter_cls = import_adapter_class(adapter_name_for_prefix(prefix))
+    except UnsupportedBatchProviderError:
+        if prefix in _REFUSED_PREFIXES:
+            raise BatchProviderNotYetSupportedError(
+                f"No batch adapter serves {prefix!r}. {_REFUSED_PREFIXES[prefix]}"
+            ) from None
+        raise
     if conn_type not in adapter_cls.conn_types:
         raise BatchProviderNotYetSupportedError(
             f"The {prefix!r} batch adapter does not support connection type {conn_type!r}; it "
@@ -159,18 +179,42 @@ def resolve_adapter_name(conn_type: str | None, model_id: str | None) -> str:
     return get_adapter_class(conn_type, model_id).name
 
 
-def build_adapter_from_connection(name: str, conn: Connection) -> BatchAdapter:
+def build_adapter_from_connection(
+    name: str,
+    conn: Connection,
+    *,
+    model_id: str | None = None,
+    batch_handle: str | None = None,
+    output_spec: OutputSpec | None = None,
+) -> BatchAdapter:
     """
     Instantiate an already-resolved adapter from a fetched connection.
 
-    Uses the connection's ``password``/``host`` fields as ``api_key``/``base_url``,
-    the same fields :class:`~airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIHook`
-    reads for the synchronous ``@task.llm`` path.
+    The adapter decides how to use the connection through
+    :meth:`~airflow.providers.common.ai.batch.base.BatchAdapter.from_connection`. The default
+    reads ``password``/``host`` as ``api_key``/``base_url``; the pydantic-ai adapters resolve the
+    connection through :class:`~airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIHook`
+    instead, so they get the same credentials ``@task.llm`` does.
     """
     adapter_cls = import_adapter_class(name)
-    return adapter_cls(api_key=conn.password or None, base_url=conn.host or None)
+    return adapter_cls.from_connection(
+        conn, model_id=model_id, batch_handle=batch_handle, output_spec=output_spec
+    )
 
 
-def build_adapter(name: str, *, llm_conn_id: str) -> BatchAdapter:
+def build_adapter(
+    name: str,
+    *,
+    llm_conn_id: str,
+    model_id: str | None = None,
+    batch_handle: str | None = None,
+    output_spec: OutputSpec | None = None,
+) -> BatchAdapter:
     """Fetch ``llm_conn_id`` and instantiate the adapter; the trigger's entry point, which only carries the id."""
-    return build_adapter_from_connection(name, BaseHook.get_connection(llm_conn_id))
+    return build_adapter_from_connection(
+        name,
+        BaseHook.get_connection(llm_conn_id),
+        model_id=model_id,
+        batch_handle=batch_handle,
+        output_spec=output_spec,
+    )
