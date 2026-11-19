@@ -142,6 +142,30 @@ def task_instance_session():
         yield
 
 
+def _build_pod_with_running_sidecar(base_container_exit_code: int) -> MagicMock:
+    """Build a Running pod whose base container has exited while a user sidecar keeps running."""
+    base_status = MagicMock()
+    base_status.name = "base"
+    base_status.state.terminated.exit_code = base_container_exit_code
+    base_status.state.terminated.message = "task failed" if base_container_exit_code else None
+
+    sidecar_status = MagicMock()
+    sidecar_status.name = "sidecar"
+    sidecar_status.state.terminated = None
+
+    base_spec, sidecar_spec = MagicMock(), MagicMock()
+    base_spec.name, sidecar_spec.name = "base", "sidecar"
+
+    pod = MagicMock()
+    pod.metadata.name = TEST_NAME
+    pod.metadata.namespace = TEST_NAMESPACE
+    pod.status.phase = "Running"
+    pod.status.container_statuses = [base_status, sidecar_status]
+    pod.status.init_container_statuses = None
+    pod.spec.containers = [base_spec, sidecar_spec]
+    return pod
+
+
 def create_context(task, persist_to_db=False, map_index=None):
     if task.has_dag():
         dag = task.dag
@@ -1368,6 +1392,47 @@ class TestKubernetesPodOperator:
                 k.execute(context=context)
         else:
             k.execute(context=context)
+
+    @pytest.mark.parametrize(
+        ("base_container_exit_code", "on_finish_action", "expect_failure", "should_be_deleted"),
+        [
+            pytest.param(0, "delete_pod", False, True, id="base-succeeded-delete-pod"),
+            pytest.param(0, "keep_pod", False, False, id="base-succeeded-keep-pod"),
+            pytest.param(1, "delete_pod", True, True, id="base-failed-delete-pod"),
+        ],
+    )
+    @patch(f"{POD_MANAGER_CLASS}.delete_pod")
+    @patch(f"{POD_MANAGER_CLASS}.await_pod_completion")
+    @patch(f"{KPO_MODULE}.KubernetesPodOperator.find_pod")
+    def test_cleanup_with_user_sidecar_uses_base_container_status(
+        self,
+        find_pod_mock,
+        await_pod_completion_mock,
+        delete_pod_mock,
+        base_container_exit_code,
+        on_finish_action,
+        expect_failure,
+        should_be_deleted,
+    ):
+        """
+        A user sidecar leaves the pod Running after the base container exits, so cleanup reads the
+        outcome off the base container and still applies ``on_finish_action`` to the pod.
+        """
+        remote_pod = _build_pod_with_running_sidecar(base_container_exit_code)
+        await_pod_completion_mock.return_value = remote_pod
+        find_pod_mock.return_value = remote_pod
+
+        k = KubernetesPodOperator(task_id="task", on_finish_action=on_finish_action)
+        context = create_context(k)
+        context["ti"].xcom_push = MagicMock()
+
+        if expect_failure:
+            with pytest.raises(AirflowException, match="task failed"):
+                k.execute(context=context)
+        else:
+            k.execute(context=context)
+
+        assert delete_pod_mock.called is should_be_deleted
 
     @pytest.mark.parametrize(
         ("task_kwargs", "should_be_deleted"),
@@ -4536,6 +4601,47 @@ def test_async_kpo_wait_termination_before_cleanup_on_failure(
 
     # assert that the cleanup is called
     post_complete_action.assert_called_once()
+
+
+@pytest.mark.parametrize(
+    ("base_container_exit_code", "expect_failure"),
+    [
+        pytest.param(0, False, id="base-succeeded"),
+        pytest.param(1, True, id="base-failed"),
+    ],
+)
+@patch("time.sleep")
+@patch(HOOK_CLASS)
+def test_async_trigger_reentry_does_not_wait_on_user_sidecar(
+    mocked_hook, mock_sleep, base_container_exit_code, expect_failure
+):
+    """
+    After the trigger reports the base container done, re-entry must not wait for a pod phase that a
+    still-running user sidecar keeps at Running, and the outcome follows the base container.
+    """
+    pod = _build_pod_with_running_sidecar(base_container_exit_code)
+    mocked_hook.return_value.get_pod.return_value = pod
+    # A finite supply of reads turns a hang on the Running phase into a StopIteration failure.
+    mocked_hook.return_value.core_v1_client.read_namespaced_pod.side_effect = [pod] * 5
+    event = {
+        "status": "failed" if expect_failure else "success",
+        "message": "Container state failed",
+        "name": TEST_NAME,
+        "namespace": TEST_NAMESPACE,
+    }
+
+    k = KubernetesPodOperator(task_id="task", deferrable=True, get_logs=False)
+    context = create_context(k)
+    context["ti"].xcom_push = MagicMock()
+
+    if expect_failure:
+        with pytest.raises(AirflowException):
+            k.trigger_reentry(context, event)
+    else:
+        k.trigger_reentry(context, event)
+
+    mock_sleep.assert_not_called()
+    mocked_hook.return_value.core_v1_client.delete_namespaced_pod.assert_called_once()
 
 
 @patch(KUB_OP_PATH.format("extract_xcom"))

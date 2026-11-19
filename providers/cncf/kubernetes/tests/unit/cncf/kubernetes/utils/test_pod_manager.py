@@ -89,6 +89,8 @@ def pod_factory():
         terminated: bool = False,
         waiting_reason: str | None = None,
         waiting_message: str | None = None,
+        sidecar_names: tuple[str, ...] = (),
+        init_container_names: tuple[str, ...] = (),
     ) -> mock.MagicMock:
         pod = mock.MagicMock()
         pod.status.phase = pod_phase
@@ -100,8 +102,18 @@ def pod_factory():
             mock.MagicMock(reason=waiting_reason, message=waiting_message or "") if waiting_reason else None
         )
         pod.status.container_statuses = [cs]
-        c_spec = mock.MagicMock(name=container_name)
-        pod.spec.containers = [c_spec]
+
+        def make_specs(names):
+            # ``name`` is consumed by the MagicMock constructor, so it must be assigned afterwards.
+            specs = []
+            for name in names:
+                spec = mock.MagicMock()
+                spec.name = name
+                specs.append(spec)
+            return specs
+
+        pod.spec.containers = make_specs((container_name, *sidecar_names))
+        pod.spec.init_containers = make_specs(init_container_names)
         return pod
 
     return _make
@@ -1584,6 +1596,38 @@ class TestPodManager:
 
         assert result is succeeded
         assert mock_sleep.call_count == 1
+
+    @pytest.mark.parametrize(
+        ("pod_kwargs", "expected_read_index"),
+        [
+            pytest.param({"sidecar_names": ("sidecar",)}, 1, id="regular-sidecar-stops-on-base-completion"),
+            pytest.param(
+                {"init_container_names": ("native-sidecar",)}, 2, id="native-sidecar-waits-for-pod-phase"
+            ),
+        ],
+    )
+    @mock.patch("time.sleep")
+    def test_await_pod_completion_with_other_containers(
+        self, mock_sleep, pod_factory, pod_kwargs, expected_read_index
+    ):
+        """
+        A regular sidecar keeps the pod Running after the base container exits, so the wait ends on
+        base completion. A native sidecar (init container) is stopped by the kubelet, so the wait still
+        ends on the pod phase.
+        """
+        reads = [
+            pod_factory(pod_phase=PodPhase.RUNNING, terminated=False, **pod_kwargs),
+            pod_factory(pod_phase=PodPhase.RUNNING, terminated=True, **pod_kwargs),
+            pod_factory(pod_phase=PodPhase.SUCCEEDED, terminated=True, **pod_kwargs),
+        ]
+        self.pod_manager.read_pod = mock.MagicMock(side_effect=reads)
+
+        result = self.pod_manager.await_pod_completion(
+            pod=mock.MagicMock(), istio_enabled=False, container_name="base", do_xcom_push=False
+        )
+
+        assert result is reads[expected_read_index]
+        assert mock_sleep.call_count == expected_read_index
 
     @mock.patch("time.sleep")
     def test_await_pod_completion_breaks_on_early_termination_issue(self, mock_sleep, pod_factory):
