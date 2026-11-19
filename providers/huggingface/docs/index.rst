@@ -95,6 +95,7 @@ Guides
     :caption: System tests
 
     System Tests <_api/tests/system/huggingface/index>
+    System Tests Dashboard <https://apache-airflow-huggingface.github.io/hf-airflow-system-tests/>
 
 The system-test DAGs under ``tests/system/huggingface/`` also serve as runnable
 examples and are collected with pytest through Airflow's ``get_test_run(dag)``
