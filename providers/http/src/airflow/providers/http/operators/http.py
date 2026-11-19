@@ -23,7 +23,13 @@ from typing import TYPE_CHECKING, Any
 from aiohttp import BasicAuth
 from requests import Response
 
-from airflow.providers.common.compat.sdk import AirflowException, BaseHook, BaseOperator, conf
+from airflow.providers.common.compat.sdk import (
+    AirflowException,
+    BaseHook,
+    BaseOperator,
+    conf,
+    determine_kwargs,
+)
 from airflow.providers.http.triggers.http import HttpResponseSerializer, HttpTrigger, serialize_auth_type
 from airflow.utils.helpers import merge_dicts
 
@@ -278,8 +284,6 @@ class HttpOperator(BaseOperator):
 
     def process_response(self, context: Context, response: Response | list[Response]) -> Any:
         """Process the response."""
-        from airflow.utils.operator_helpers import determine_kwargs
-
         make_default_response: Callable = self._default_response_maker(response=response)
 
         if self.log_response:
