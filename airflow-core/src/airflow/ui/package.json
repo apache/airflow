@@ -102,7 +102,7 @@
     "eslint-plugin-perfectionist": "^5.13.0",
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^7.1.1",
-    "eslint-plugin-react-refresh": "^0.5.7",
+    "eslint-plugin-react-refresh": "^0.5.8",
     "eslint-plugin-unicorn": "^79.0.0",
     "globals": "^17.14.0",
     "happy-dom": "^21.0.4",
