@@ -238,6 +238,24 @@ connection via **CLI**:
    :class:`~airflow.providers.smtp.hooks.smtp.SmtpHook` and the SMTP notifier never read it;
    they take all settings from the Connection.
 
+Connection settings vs the ``[smtp]`` section for the email backend
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The email backend reads its defaults from the ``[smtp]`` configuration section
+(``SMTP_HOST``, ``SMTP_PORT``, ``SMTP_STARTTLS``, ``SMTP_SSL``, ``SMTP_TIMEOUT``
+and ``SMTP_RETRY_LIMIT``). When a connection is supplied through ``conn_id``, any
+value present on the connection wins over the configuration, using the same extra
+keys :class:`~airflow.providers.smtp.hooks.smtp.SmtpHook` standardizes:
+
+* **Host** and **Port** override ``SMTP_HOST`` / ``SMTP_PORT`` when non-empty.
+* Extra ``disable_tls`` / ``disable_ssl`` (inverted) override
+  ``SMTP_STARTTLS`` / ``SMTP_SSL`` when the key is present.
+* Extra ``timeout`` / ``retry_limit`` override ``SMTP_TIMEOUT`` /
+  ``SMTP_RETRY_LIMIT`` when set.
+
+Anything missing from the connection keeps falling back to the ``[smtp]``
+section, so deployments that rely on configuration alone are unaffected.
+
 Using ``SmtpHook`` in a Dag
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
