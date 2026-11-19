@@ -25,9 +25,6 @@ The ``pydanticai_databricks`` connection type configures access to
 through its OpenAI-compatible Chat Completions API, via the pydantic-ai framework. It backs
 ``PydanticAIDatabricksHook``, the dedicated subclass of ``PydanticAIHook`` for Databricks.
 
-.. note::
-    This hook has been unit-tested only and has not been run against a live workspace.
-
 This connection type sources credentials from an existing
 :ref:`Databricks connection <howto/connection:databricks>`, so the token-based authentication
 methods that connection supports (OAuth, Azure AD, managed identity, federation) are reused and
