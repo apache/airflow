@@ -23,7 +23,7 @@ import concurrent.futures
 import contextvars
 import functools
 import inspect
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 from urllib.parse import urlsplit
 
 from tenacity import RetryError
@@ -104,7 +104,7 @@ def _get_databricks_token(databricks_hook: BaseDatabricksHook) -> str:
     conn = databricks_hook.databricks_conn
     if conn.login == "token" and conn.password:
         return conn.password
-    return databricks_hook._get_token(raise_error=True)
+    return cast("str", databricks_hook._get_token(raise_error=True))
 
 
 class _DatabricksServingAuth(httpx2.Auth):
