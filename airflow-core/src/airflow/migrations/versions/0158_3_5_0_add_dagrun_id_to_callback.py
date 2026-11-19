@@ -30,6 +30,7 @@ import json
 
 import sqlalchemy as sa
 from alembic import context, op
+from sqlalchemy.dialects import postgresql
 
 from airflow.configuration import conf
 from airflow.migrations.utils import disable_sqlite_fkeys
@@ -40,6 +41,8 @@ down_revision = "c64b10719069"
 branch_labels = None
 depends_on = None
 airflow_version = "3.5.0"
+
+_CALLBACK_DATA_TYPE = sa.JSON().with_variant(postgresql.JSONB(), "postgresql")
 
 
 def _deserialize_callback_data(data):
@@ -154,7 +157,7 @@ def _restore_legacy_dagrun_id(conn, batch_size: int) -> None:
         "callback",
         sa.column("id", sa.Uuid()),
         sa.column("type", sa.String(20)),
-        sa.column("data", sa.Text()),
+        sa.column("data", _CALLBACK_DATA_TYPE),
         sa.column("dagrun_id", sa.Integer()),
     )
 
@@ -177,11 +180,9 @@ def _restore_legacy_dagrun_id(conn, batch_size: int) -> None:
             deserialized_data = _deserialize_callback_data(data)
             if deserialized_data is None:
                 continue
-            serialized_data, callback_data = deserialized_data
+            callback_data = deserialized_data[1]
             callback_data["dag_run_id"] = str(dagrun_id)
-            conn.execute(
-                callback.update().where(callback.c.id == callback_id).values(data=json.dumps(serialized_data))
-            )
+            conn.execute(callback.update().where(callback.c.id == callback_id).values(data=data))
 
         last_id = rows[-1].id
 

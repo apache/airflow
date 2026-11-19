@@ -23,9 +23,13 @@ import uuid
 from pathlib import Path
 from unittest.mock import patch
 
+import pytest
 import sqlalchemy as sa
 from alembic.migration import MigrationContext
 from alembic.operations import Operations
+from sqlalchemy.dialects.postgresql.psycopg import PGDialect_psycopg
+
+from airflow import settings
 
 from tests_common.test_utils.paths import AIRFLOW_CORE_SOURCES_PATH
 
@@ -154,6 +158,43 @@ def test_restore_legacy_dagrun_id_for_downgrade():
     data_by_callback_id = {row["id"]: json.loads(row["data"]) for row in rows}
     assert data_by_callback_id[wrapped_id]["__var"]["dag_run_id"] == "1"
     assert data_by_callback_id[plain_id]["dag_run_id"] == "2"
+
+
+def test_restore_legacy_dagrun_id_uses_jsonb_with_psycopg():
+    callback = sa.table(
+        "callback",
+        sa.column("id", sa.Uuid()),
+        sa.column("data", _migration._CALLBACK_DATA_TYPE),
+    )
+
+    statement = callback.update().where(callback.c.id == uuid.uuid4()).values(data={"dag_run_id": "1"})
+
+    assert "::JSONB" in str(statement.compile(dialect=PGDialect_psycopg()))
+
+
+@pytest.mark.db_test
+def test_restore_legacy_dagrun_id_with_postgresql_jsonb():
+    if settings.engine.dialect.name != "postgresql":
+        pytest.skip("PostgreSQL JSONB regression test")
+
+    callback_id = uuid.uuid4()
+    with settings.engine.begin() as conn:
+        conn.execute(
+            sa.text(
+                "CREATE TEMPORARY TABLE callback "
+                "(id UUID PRIMARY KEY, type TEXT NOT NULL, data JSONB NOT NULL, dagrun_id INTEGER)"
+            )
+        )
+        conn.execute(
+            sa.text("INSERT INTO callback (id, type, data, dagrun_id) VALUES (:id, 'executor', :data, 1)"),
+            {"id": callback_id, "data": json.dumps({"__var": {"path": "callback.path"}})},
+        )
+
+        _migration._restore_legacy_dagrun_id(conn, batch_size=1)
+
+        assert conn.scalar(sa.text("SELECT data FROM callback WHERE id = :id"), {"id": callback_id}) == {
+            "__var": {"path": "callback.path", "dag_run_id": "1"}
+        }
 
 
 def test_sqlite_upgrade_and_downgrade_preserve_deadline_callback():
