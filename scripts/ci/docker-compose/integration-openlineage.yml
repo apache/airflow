@@ -21,6 +21,7 @@ services:
     labels:
       org.apache.airflow.breeze: "true"
       org.apache.airflow.breeze.worktree: "${BREEZE_WORKTREE_PATH:-}"
+      org.apache.airflow.breeze.host: "${BREEZE_HOST_ID:-}"
       breeze.description: "Integration required for Openlineage hooks."
     environment:
       - POSTGRES_USER=marquez
@@ -38,6 +39,7 @@ services:
     labels:
       org.apache.airflow.breeze: "true"
       org.apache.airflow.breeze.worktree: "${BREEZE_WORKTREE_PATH:-}"
+      org.apache.airflow.breeze.host: "${BREEZE_HOST_ID:-}"
     image: marquezproject/marquez-web:0.49.0
     environment:
       - MARQUEZ_HOST=marquez

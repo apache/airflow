@@ -18,7 +18,7 @@
  */
 import { type ReactNode, forwardRef } from "react";
 
-import { Box, Button, type ButtonProps, HStack, type StackProps } from "@chakra-ui/react";
+import { Box, type BoxProps, Button, type ButtonProps, HStack, type StackProps } from "@chakra-ui/react";
 import { Link } from "react-router-dom";
 
 import type { TaskInstanceState } from "openapi/requests/types.gen";
@@ -96,6 +96,26 @@ export const CrumbLink = ({
   >
     <Link to={to}>{children}</Link>
   </Button>
+);
+
+/**
+ * The naming half of a switcher whose level has nowhere to send you. It matches `CrumbLink`'s
+ * layout so the two halves sit the same, without the hover or the focus a link would offer for a
+ * trip that would only reload the page the user is on.
+ */
+export const CrumbStatic = ({ children, ...rest }: { readonly children: ReactNode } & BoxProps) => (
+  <Box
+    alignItems="flex-start"
+    display="flex"
+    flexDirection="column"
+    gap={0}
+    justifyContent="center"
+    py={1.5}
+    {...getWedgePadding({ hasNotch: false, hasPoint: false })}
+    {...rest}
+  >
+    {children}
+  </Box>
 );
 
 /** The level the page is already on: it goes nowhere, so it is not a button. */

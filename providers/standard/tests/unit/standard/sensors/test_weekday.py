@@ -37,7 +37,7 @@ from tests_common.test_utils.version_compat import (
 if AIRFLOW_V_3_2_PLUS:
     from airflow.dag_processing.dagbag import DagBag
 else:
-    from airflow.models import DagBag  # type: ignore[attr-defined, no-redef]
+    from airflow.models import DagBag
 
 pytestmark = pytest.mark.db_test
 

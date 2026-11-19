@@ -16,18 +16,20 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import type { RefObject } from "react";
+import type { MouseEvent, RefObject } from "react";
 import { useCallback, useMemo, useRef } from "react";
 
 import { Box, Flex } from "@chakra-ui/react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import dayjs from "dayjs";
 import dayjsDuration from "dayjs/plugin/duration";
+import { useTranslation } from "react-i18next";
 import { useParams, useSearchParams } from "react-router-dom";
 
 import type { DagRunState, DagRunType, GridRunsResponse } from "openapi/requests";
 
 import type { VersionIndicatorOptions } from "src/constants/showVersionIndicatorOptions";
+import type { GridCell } from "src/context/gridSelection";
 import { useGroups } from "src/context/groups";
 import { NavigationModes, useNavigation } from "src/hooks/navigation";
 import { useGridRuns } from "src/queries/useGridRuns.ts";
@@ -37,13 +39,23 @@ import { useGridTiSummariesStream } from "src/queries/useGridTISummaries.ts";
 import { Bar } from "./Bar";
 import { DurationAxis } from "./DurationAxis";
 import { DurationTick } from "./DurationTick";
-import { GridPaginationButtons } from "./GridPaginationButtons";
+import { NewerRunsButtons, OlderRunsButton } from "./GridPaginationButtons";
+import { GridSelectionActionBar } from "./GridSelectionActionBar";
 import { TaskInstancesColumn } from "./TaskInstancesColumn";
 import { TaskNames } from "./TaskNames";
-import { GANTT_ROW_OFFSET_PX, GRID_HEADER_HEIGHT_PX, GRID_HEADER_PADDING_PX, ROW_HEIGHT } from "./constants";
+import {
+  GANTT_ROW_OFFSET_PX,
+  GRID_HEADER_HEIGHT_PX,
+  GRID_HEADER_PADDING_PX,
+  PINNED_RUN_BUTTONS_WIDTH_PX,
+  ROW_HEIGHT,
+  SCROLLBAR_SPACER_WIDTH_PX,
+  TASK_NAME_COLUMN_MIN_WIDTH_PX,
+} from "./constants";
 import { useGridPagination } from "./useGridPagination";
 import { useGridRunsWithVersionFlags } from "./useGridRunsWithVersionFlags";
 import { useGridScrollRestore } from "./useGridScrollRestore";
+import { buildSelectableGroups, getCoveredCellKeys, useGridSelection } from "./useGridSelection";
 import { estimateTaskNameColumnWidthPx, flattenNodes } from "./utils";
 
 dayjs.extend(dayjsDuration);
@@ -66,7 +78,7 @@ type Props = {
 
 const GRID_INNER_SCROLL_PADDING_START_PX = GRID_HEADER_PADDING_PX + GRID_HEADER_HEIGHT_PX;
 // Reserves right-edge space for the scrollbar, and widens to fit the newer/reset pager buttons when shown.
-const ScrollbarSpacer = ({ width = "16px" }: { readonly width?: string }) => (
+const ScrollbarSpacer = ({ width }: { readonly width: string }) => (
   <Box aria-hidden flexShrink={0} minWidth={width} width={width} />
 );
 
@@ -87,11 +99,13 @@ export const Grid = ({
 }: Props) => {
   const gridRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+  const taskNameColumnRef = useRef<HTMLDivElement>(null);
+  const { i18n } = useTranslation();
 
   const usesSharedScroll = Boolean(sharedScrollContainerRef && showGantt);
 
   const { openGroupIds, toggleGroupId } = useGroups();
-  const { dagId = "", groupId: selectedGroupId, taskId: selectedTaskId } = useParams();
+  const { dagId = "", groupId: selectedGroupId, runId: selectedRunId, taskId: selectedTaskId } = useParams();
   const [searchParams] = useSearchParams();
 
   const filterRoot = searchParams.get("root") ?? undefined;
@@ -116,11 +130,18 @@ export const Grid = ({
   const { handleNewerRuns, handleOlderRuns, hasNewerRuns, hasOlderRuns, latestNotVisible } =
     useGridPagination({ gridRuns: dataGridRuns, limit, offset, setOffset });
 
-  const scrollbarSpacerWidth = hasNewerRuns || latestNotVisible ? "32px" : "16px";
+  // The scrollbar and the pager buttons both cover the run columns at this edge. The spacer keeps
+  // the newest run clear of them once the Grid is scrolled to the end; the reveal below keeps every
+  // other run clear of them too, off the same width.
+  const reservedEndWidth =
+    hasNewerRuns || latestNotVisible ? PINNED_RUN_BUTTONS_WIDTH_PX : SCROLLBAR_SPACER_WIDTH_PX;
+  const scrollbarSpacerWidth = `${reservedEndWidth}px`;
+
+  const runIds = gridRuns?.map((dr: GridRunsResponse) => dr.run_id) ?? [];
 
   const { summariesByRunId } = useGridTiSummariesStream({
     dagId,
-    runIds: gridRuns?.map((dr: GridRunsResponse) => dr.run_id) ?? [],
+    runIds,
     states: gridRuns?.map((dr: GridRunsResponse) => dr.state),
   });
 
@@ -158,6 +179,7 @@ export const Grid = ({
   // and on the click handlers below, `flatNodes` and the handlers get fresh references every render, so
   // each TI-summaries stream line re-renders every column instead of only the run whose summary changed.
   const { flatNodes } = useMemo(() => flattenNodes(dagStructure, openGroupIds), [dagStructure, openGroupIds]);
+  const selectableGroups = useMemo(() => buildSelectableGroups(dagStructure), [dagStructure]);
 
   const taskNameColumnWidthPx = showGantt ? estimateTaskNameColumnWidthPx(flatNodes) : undefined;
 
@@ -173,7 +195,7 @@ export const Grid = ({
       : {
           flexGrow: 1,
           flexShrink: 0,
-          minW: "200px",
+          minW: `${TASK_NAME_COLUMN_MIN_WIDTH_PX}px`,
         };
 
   const { setMode } = useNavigation({
@@ -182,8 +204,29 @@ export const Grid = ({
     tasks: flatNodes,
   });
 
+  const { clearSelection, deselectCells, handleSelectionClick, selection } = useGridSelection({
+    flatNodes,
+    runIds: gridRuns?.map((dr: GridRunsResponse) => dr.run_id) ?? [],
+    summariesByRunId,
+  });
+
+  const selectedCellKeys = useMemo(
+    () => getCoveredCellKeys(selection, selectableGroups),
+    [selection, selectableGroups],
+  );
+
   const handleRowClick = useCallback(() => setMode(NavigationModes.TASK), [setMode]);
-  const handleCellClick = useCallback(() => setMode(NavigationModes.TI), [setMode]);
+  const handleCellClick = useCallback(
+    (event: MouseEvent<HTMLAnchorElement>, cell: GridCell) => {
+      if (handleSelectionClick(event, cell)) {
+        event.preventDefault();
+
+        return;
+      }
+      setMode(NavigationModes.TI);
+    },
+    [handleSelectionClick, setMode],
+  );
   const handleColumnClick = useCallback(() => setMode(NavigationModes.RUN), [setMode]);
 
   const headerPad = usesSharedScroll ? GANTT_ROW_OFFSET_PX : GRID_INNER_SCROLL_PADDING_START_PX;
@@ -198,7 +241,20 @@ export const Grid = ({
     scrollPaddingStart: headerPad,
   });
 
-  useGridScrollRestore({ dagId, flatNodes, headerPad, rowVirtualizer, selectedGroupId, selectedTaskId });
+  useGridScrollRestore({
+    dagId,
+    flatNodes,
+    headerPad,
+    isRtl: i18n.dir() === "rtl",
+    reservedEndWidth,
+    rowVirtualizer,
+    runIds,
+    selectedGroupId,
+    selectedRunId,
+    selectedTaskId,
+    sharesScroller: usesSharedScroll,
+    taskNameColumnRef,
+  });
 
   const virtualItems = rowVirtualizer.getVirtualItems();
 
@@ -219,7 +275,7 @@ export const Grid = ({
         <Box
           bg="bg"
           borderTopRadius="md"
-          left={0}
+          insetStart={0}
           position="sticky"
           pt={`${GRID_HEADER_PADDING_PX}px`}
           zIndex={1}
@@ -242,6 +298,12 @@ export const Grid = ({
             <DurationAxis top="4px" />
             {/* Isolated so version indicators stay beneath the sticky task name column when scrolled
               behind it. Pagination buttons sit outside on purpose: the older-runs button overlaps that column. */}
+            <OlderRunsButton
+              hasOlderRuns={hasOlderRuns}
+              isLoading={isLoading}
+              onOlderRuns={handleOlderRuns}
+              taskNameColumnWidthPx={taskNameColumnWidthPx ?? TASK_NAME_COLUMN_MIN_WIDTH_PX}
+            />
             <Flex flexDirection="row-reverse" style={{ isolation: "isolate" }}>
               {!showGantt && <ScrollbarSpacer width={scrollbarSpacerWidth} />}
               {runsWithVersionFlags?.map((dr) => (
@@ -254,23 +316,42 @@ export const Grid = ({
                 />
               ))}
             </Flex>
-            <GridPaginationButtons
+            <NewerRunsButtons
               hasNewerRuns={hasNewerRuns}
-              hasOlderRuns={hasOlderRuns}
               isLoading={isLoading}
               latestNotVisible={latestNotVisible}
               onJumpToLatest={onJumpToLatest}
               onNewerRuns={handleNewerRuns}
-              onOlderRuns={handleOlderRuns}
             />
           </Flex>
         </Flex>
       </Flex>
 
-      {/* Grid body */}
-      <Flex bg="bg" height={`${rowVirtualizer.getTotalSize()}px`} position="relative">
-        <Box left={0} position="sticky" zIndex={1} {...taskNameColumnStyles}>
-          <TaskNames nodes={flatNodes} onRowClick={handleRowClick} virtualItems={virtualItems} />
+      {/* Grid body. minWidth matches the header: without it the body is only as wide as the
+        scrollport, so the sticky task name column runs out of containing block partway through a
+        horizontal scroll and slides out of view, leaving the rows unlabelled. */}
+      <Flex
+        bg="bg"
+        height={`${rowVirtualizer.getTotalSize()}px`}
+        minWidth={usesSharedScroll ? undefined : "max-content"}
+        position="relative"
+      >
+        {/* bg is what the run columns scroll behind: the rows themselves only paint a background
+          when selected, so without it the cells show through the pinned column. */}
+        <Box
+          bg="bg"
+          insetStart={0}
+          position="sticky"
+          ref={taskNameColumnRef}
+          zIndex={1}
+          {...taskNameColumnStyles}
+        >
+          <TaskNames
+            nodes={flatNodes}
+            onRowClick={handleRowClick}
+            tiSummaries={selectedRunId === undefined ? undefined : summariesByRunId.get(selectedRunId)}
+            virtualItems={virtualItems}
+          />
         </Box>
         <Flex flexDirection="row-reverse" flexShrink={0} style={{ isolation: "isolate" }}>
           {!showGantt && <ScrollbarSpacer width={scrollbarSpacerWidth} />}
@@ -280,6 +361,7 @@ export const Grid = ({
               nodes={flatNodes}
               onCellClick={handleCellClick}
               run={dr}
+              selectedCellKeys={selectedCellKeys}
               showVersionIndicatorMode={showVersionIndicatorMode}
               tiSummaries={summariesByRunId.get(dr.run_id)}
               virtualItems={virtualItems}
@@ -310,6 +392,13 @@ export const Grid = ({
           {gridHeaderAndBody}
         </Box>
       )}
+      <GridSelectionActionBar
+        clearSelection={clearSelection}
+        dagId={dagId}
+        deselectCells={deselectCells}
+        selectableGroups={selectableGroups}
+        selection={selection}
+      />
     </Flex>
   );
 };

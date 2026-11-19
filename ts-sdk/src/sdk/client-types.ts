@@ -24,14 +24,18 @@ export type JsonValue =
 /**
  * Options for pulling an XCom value.
  *
- * `dagId`, `taskId`, and `runId` default to the running task's context.
- * Pass them only when pulling an XCom value from another task or run.
+ * `dagId`, `taskId`, and `runId` default to the running task's context when
+ * omitted or `null`. Pass them only when pulling an XCom value from another task or run.
+ *
+ * `mapIndex` defaults to the running task's own map index when the target is
+ * the running task, and to the unmapped value for any other task or run. Pass
+ * a number to pick one mapped instance, or `null` for the unmapped one.
  */
 export interface GetXComOpts {
   key: string;
-  dagId?: string;
-  runId?: string;
-  taskId?: string;
+  dagId?: string | null;
+  runId?: string | null;
+  taskId?: string | null;
   mapIndex?: number | null;
   includePriorDates?: boolean;
 }
@@ -39,38 +43,43 @@ export interface GetXComOpts {
 /**
  * Options for pushing an XCom value.
  *
- * `dagId`, `taskId`, and `runId` default to the running task's context.
+ * `dagId`, `taskId`, and `runId` default to the running task's context when
+ * omitted or `null`.
+ *
+ * `mapIndex` defaults to the running task's own map index when the target is
+ * the running task, and to the unmapped value for any other task or run. Pass
+ * a number to pick one mapped instance, or `null` for the unmapped one.
  */
 export interface SetXComOpts {
   key: string;
   value: JsonValue;
-  dagId?: string;
-  runId?: string;
-  taskId?: string;
+  dagId?: string | null;
+  runId?: string | null;
+  taskId?: string | null;
   mapIndex?: number | null;
 }
 
 /**
- * Pass as {@link TaskStateStoreSetOpts.retentionMs} to store a task state store
- * key with no expiry, regardless of the deployment default.
+ * Pass as {@link TaskStateStoreSetOpts.retention} to store a task state
+ * store key with no expiry, regardless of the deployment default.
  *
  * A symbol rather than a number, so a retention that reaches `Infinity` by
  * accident (a division by zero, for example) is rejected instead of silently
  * storing a key forever.
  */
-export const NEVER_EXPIRE: unique symbol = Symbol("apache-airflow-ts-sdk/NEVER_EXPIRE");
+export const NEVER_EXPIRE: unique symbol = Symbol("@apache-airflow/ts-sdk/NEVER_EXPIRE");
 
 /** Options for a task state store write. */
 export interface TaskStateStoreSetOpts {
   /**
-   * Milliseconds to retain the key, counted from the write; `0` expires it
-   * immediately.
+   * How long to keep the key, in seconds, counted from the write; `0` expires
+   * it immediately.
    *
    * Omitting it follows the deployment's `[state_store] default_retention_days`,
    * which the coordinator passes to the runtime. Pass {@link NEVER_EXPIRE} to
    * store the key with no expiry regardless of that default.
    */
-  retentionMs?: number | typeof NEVER_EXPIRE;
+  retention?: number | typeof NEVER_EXPIRE;
 }
 
 /** Airflow Connection details returned by a task client. */

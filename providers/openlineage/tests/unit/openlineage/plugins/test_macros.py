@@ -27,9 +27,11 @@ from airflow.providers.openlineage.conf import namespace
 from airflow.providers.openlineage.plugins.macros import (
     lineage_job_name,
     lineage_job_namespace,
+    lineage_job_type,
     lineage_parent_id,
     lineage_root_job_name,
     lineage_root_job_namespace,
+    lineage_root_job_type,
     lineage_root_run_id,
     lineage_run_id,
 )
@@ -404,3 +406,86 @@ def test_lineage_root_macros_use_dagrun_info_when_missing_or_invalid_conf_af2(co
     assert root_run_id == "016f5e9e-c4c8-7c30-9eda-d9c646d633ea"
     assert root_job_name == "dag_id"
     assert root_job_namespace == _DAG_NAMESPACE
+
+
+def test_lineage_job_type():
+    assert lineage_job_type() == {"processingType": "BATCH", "integration": "AIRFLOW", "jobType": "TASK"}
+
+
+_ROOT_ID = {
+    "rootParentRunId": "22222222-2222-2222-2222-222222222222",
+    "rootParentJobNamespace": "rootns",
+    "rootParentJobName": "rootjob",
+}
+_PARENT_ID = {
+    "parentRunId": "33333333-3333-3333-3333-333333333333",
+    "parentJobNamespace": "parentns",
+    "parentJobName": "parentjob",
+}
+_ROOT_TYPE = {"processingType": "STREAMING", "integration": "CUSTOM", "jobType": "PIPELINE"}
+_PARENT_TYPE = {"processingType": "BATCH", "integration": "SPARK", "jobType": "JOB"}
+_DAG_TYPE = {"processingType": "BATCH", "integration": "AIRFLOW", "jobType": "DAG"}
+
+
+@pytest.mark.parametrize(
+    ("dr_conf", "expected"),
+    [
+        pytest.param({}, _DAG_TYPE, id="no-conf"),
+        pytest.param({"openlineage": {**_ROOT_ID, "rootParentJobType": _ROOT_TYPE}}, _ROOT_TYPE, id="root"),
+        pytest.param(
+            {
+                "openlineage": {
+                    **_ROOT_ID,
+                    "rootParentJobType": _ROOT_TYPE,
+                    **_PARENT_ID,
+                    "parentJobType": _PARENT_TYPE,
+                }
+            },
+            _ROOT_TYPE,
+            id="root-over-parent",
+        ),
+        pytest.param({"openlineage": _ROOT_ID}, None, id="root-without-type"),
+        pytest.param(
+            {"openlineage": {**_ROOT_ID, "rootParentJobType": "invalid"}}, None, id="root-with-invalid-type"
+        ),
+        pytest.param(
+            {"openlineage": {**_PARENT_ID, "parentJobType": _PARENT_TYPE}}, _PARENT_TYPE, id="parent-as-root"
+        ),
+        pytest.param({"openlineage": _PARENT_ID}, None, id="parent-as-root-without-type"),
+        pytest.param(
+            {"openlineage": {**_ROOT_ID, "rootParentJobType": {"processingType": "STREAMING"}}},
+            None,
+            id="root-with-partial-type",
+        ),
+        pytest.param(
+            {
+                "openlineage": {
+                    **_PARENT_ID,
+                    "parentJobType": {"processingType": "BATCH", "integration": "SPARK"},
+                }
+            },
+            None,
+            id="parent-as-root-with-partial-type",
+        ),
+        pytest.param(
+            {
+                "openlineage": {
+                    **_ROOT_ID,
+                    "rootParentRunId": "not-a-uuid",
+                    "rootParentJobType": _ROOT_TYPE,
+                }
+            },
+            _DAG_TYPE,
+            id="rejected-root-type-ignored",
+        ),
+        pytest.param(
+            {"openlineage": {"rootParentJobName": "rootjob", "rootParentJobType": _ROOT_TYPE}},
+            _DAG_TYPE,
+            id="incomplete-root-type-ignored",
+        ),
+    ],
+)
+@mock.patch("airflow.providers.openlineage.plugins.macros._get_dag_run_conf", autospec=True)
+def test_lineage_root_job_type(mock_get_conf, dr_conf, expected):
+    mock_get_conf.return_value = dr_conf
+    assert lineage_root_job_type(mock.MagicMock()) == expected

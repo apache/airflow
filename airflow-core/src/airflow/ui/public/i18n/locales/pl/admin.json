@@ -38,6 +38,7 @@
       "firstConfirmMessage_other": "Zamierzasz usunąć następujące połączenia:",
       "title": "Usuń połączenie"
     },
+    "duplicate": "Duplikuj połączenie",
     "edit": "Edytuj połączenie",
     "form": {
       "connectionIdRequired": "Identyfikator połączenia jest wymagany",
@@ -45,8 +46,9 @@
       "connectionTypeFields": "Pola typu {{connectionType}}",
       "connectionTypeRequired": "Typ połączenia jest wymagany",
       "extraFieldsJson": "Dodatkowe pola JSON",
-      "helperText": "Brakuje typu połączenia? Upewnij się, że zainstalowałeś odpowiedniego dostawcę.",
-      "helperTextForRedactedFields": "Ukryte pola ('***') nie bedą zapisane jeśli nie zostaną zmienione.",
+      "helperText": "Brakuje typu połączenia? Upewnij się, że zainstalowano odpowiedniego Providera.",
+      "helperTextForDuplicatedRedactedFields": "Ukryte pola ('***') nie są kopiowane. Uzupełnij je dla nowego połączenia.",
+      "helperTextForRedactedFields": "Ukryte pola ('***') nie będą zapisane, jeśli nie zostaną zmienione.",
       "selectConnectionType": "Wybierz typ połączenia",
       "standardFields": "Standardowe pola"
     },
@@ -104,7 +106,7 @@
       "allTypes": "Wszystkie typy",
       "dagProcessorJob": "Zadanie procesora Dagów",
       "schedulerJob": "Zadanie harmonogramu",
-      "triggererJob": "Zadanie cyngla"
+      "triggererJob": "Zadanie wyzwalacza"
     },
     "job_few": "Zadania",
     "job_many": "Zadań",

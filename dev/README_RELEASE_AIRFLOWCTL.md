@@ -233,8 +233,16 @@ create the X.Y branches" above before proceeding.
 > for a new minor (e.g. `0.2.0rc1`), the release manager may cut the RC
 > directly from `airflow-ctl/vX-Y-test` without opening a sync PR to
 > `airflow-ctl/vX-Y-stable`. However, they **must** verify that the
-> `airflow-ctl/vX-Y-test` push CI action ("Tests" workflow) has succeeded
-> before cutting the RC.
+> full CI runs ("Tests (AMD)" and "Tests (ARM)" workflows) of the
+> `airflow-ctl/vX-Y-test` HEAD have succeeded before cutting the RC.
+
+Release branches do not run the full CI on push: `release-branch-ci.yml`
+starts it a few times a day until the branch HEAD has a successful full
+run, and each push runs only the tests for the changes since the last
+successful run. Check the full run of the HEAD before cutting an RC as
+described in
+[CI of the `vX-Y-test` branch](README_RELEASE_AIRFLOW.md#ci-of-the-vx-y-test-branch)
+(use `airflow-ctl/vX-Y-test` as the branch name).
 
 Before cutting an RC, confirm the set of commits on the maintenance
 branch is what you expect:
@@ -1265,13 +1273,17 @@ end-to-end against a live API server in a single non-interactive `breeze shell` 
 
 ```shell
 # install the RC from PyPI (published with the rcN suffix)
-CTL_VERSION=${VERSION_RC} breeze shell --load-example-dags --backend sqlite \
-    "bash dev/verify_airflow_ctl_rc.sh"
+breeze shell --load-example-dags --backend sqlite \
+    "CTL_VERSION=${VERSION_RC} bash dev/verify_airflow_ctl_rc.sh"
 
-# or test the exact SVN wheel (copy it under ./dist first so it is visible at /opt/airflow/dist)
-CTL_WHEEL=/opt/airflow/dist/apache_airflow_ctl-${VERSION}-py3-none-any.whl \
-    breeze shell --load-example-dags --backend sqlite "bash dev/verify_airflow_ctl_rc.sh"
+# or test the exact SVN wheel (copy it under ./dist first so it is visible at /dist)
+breeze shell --load-example-dags --backend sqlite \
+    "CTL_WHEEL=/dist/apache_airflow_ctl-${VERSION}-py3-none-any.whl bash dev/verify_airflow_ctl_rc.sh"
 ```
+
+Set `CTL_VERSION` or `CTL_WHEEL` inside the quoted command: `breeze shell` forwards only a fixed
+list of environment variables into the container, so a `CTL_VERSION=...` prefix on the host never
+reaches the script.
 
 The script prints `AIRFLOW_CTL_RC_VERIFY: OK` on success.
 
@@ -1593,7 +1605,7 @@ Announcement is done from official Apache-Airflow accounts.
 
 * LinkedIn: https://www.linkedin.com/company/apache-airflow/
 * Fosstodon: https://fosstodon.org/@airflow
-* Bluesky: https://bsky.app/profile/apache-airflow.bsky.social
+* Bluesky: https://bsky.app/profile/airflow.apache.org
 
 Make sure attach the release image generated with Figma to the post.
 If you don't have access to the account ask a PMC member to post.

@@ -37,3 +37,16 @@ val GROUP_ID: Regex = Regex("[A-Za-z0-9_-]+")
  * check an ID it derives the same way; not user-facing API.
  */
 fun deriveTaskId(definition: Class<*>): String = definition.simpleName.replaceFirstChar { it.lowercaseChar() }
+
+/**
+ * @suppress
+ *
+ * The IDs of the two join nodes that the Airflow UI draws for the task group
+ * with full ID [groupId]. Python's `TaskGroup.upstream_join_id` and
+ * `TaskGroup.downstream_join_id` return the same IDs. The UI draws the edges
+ * into the group through the first node and the edges out of it through the
+ * second. Python reserves both IDs once the group exists. The annotation
+ * processor checks these IDs too, so this function is public. It is not part
+ * of the user-facing API.
+ */
+fun deriveJoinNodeIds(groupId: String): List<String> = listOf("$groupId.upstream_join_id", "$groupId.downstream_join_id")

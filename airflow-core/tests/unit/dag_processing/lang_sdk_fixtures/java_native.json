@@ -27,6 +27,7 @@
                 "task_type": "DumpExtract",
                 "_task_module": "org.apache.airflow.sdk.execution",
                 "language": "java",
+                "is_stub": true,
                 "template_fields": [],
                 "retries": 2,
                 "queue": "java",
@@ -44,6 +45,7 @@
                 "task_type": "DumpLoad",
                 "_task_module": "org.apache.airflow.sdk.execution",
                 "language": "java",
+                "is_stub": true,
                 "template_fields": [],
                 "queue": "java",
                 "trigger_rule": "all_done"
@@ -112,6 +114,7 @@
                 "task_type": "DumpExtract",
                 "_task_module": "org.apache.airflow.sdk.execution",
                 "language": "java",
+                "is_stub": true,
                 "template_fields": []
               }
             }

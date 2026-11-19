@@ -24,8 +24,9 @@ from datetime import timedelta
 from typing import TYPE_CHECKING, Any, ClassVar, Literal, Protocol
 
 from jinja2 import TemplateError
-from pydantic import BaseModel, TypeAdapter
 
+from airflow.providers.common.ai.utils.output_type import dump_output_to_json
+from airflow.providers.common.ai.utils.prompt import describe_prompt
 from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_3_PLUS
 
 if AIRFLOW_V_3_3_PLUS:
@@ -38,9 +39,45 @@ log = logging.getLogger(__name__)
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
+    from pydantic_ai.messages import UserContent
+
     from airflow.providers.common.compat.notifier import BaseNotifier
     from airflow.sdk import Context
     from airflow.sdk.execution_time.hitl import HITLUser
+
+
+def _object_from_the_form_as_text(modified: dict[str, Any], generated_output: str) -> str:
+    """
+    Turn the object the HITL form sent back into review text, keeping ``generated_output`` if untouched.
+
+    The form round-trips the value through JavaScript, which rounds integers above 2**53, writes ``1.0``
+    as ``1`` and may reorder keys (so may the metadata database), so compare values the same way rather
+    than text; a re-dumped untouched object would otherwise read as an edit and could change a value.
+    """
+    try:
+        generated = json.loads(generated_output)
+    except ValueError:
+        generated = None
+    if _with_javascript_numbers(modified) == _with_javascript_numbers(generated):
+        return generated_output
+    return json.dumps(modified, separators=(",", ":"), ensure_ascii=False)
+
+
+def _with_javascript_numbers(value: Any) -> Any:
+    """Map every number to a float, as ``JSON.parse`` does, so values compare as the browser sees them."""
+    if isinstance(value, bool):
+        # Tagged, because Python treats ``False == 0.0`` and ``True == 1.0`` as equal and JSON does not.
+        return ("bool", value)
+    if isinstance(value, int | float):
+        try:
+            return float(value)
+        except OverflowError:
+            return value
+    if isinstance(value, dict):
+        return {key: _with_javascript_numbers(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_with_javascript_numbers(item) for item in value]
+    return value
 
 
 def normalize_assigned_users(value: Any, *, param: str) -> list[HITLUser]:
@@ -80,7 +117,7 @@ class DeferForApprovalProtocol(Protocol):
     on_approval_timeout: Literal["fail", "approve", "reject"]
     approval_notifiers: Sequence[BaseNotifier]
     approval_assigned_users: list[HITLUser]
-    prompt: str
+    prompt: str | Sequence[UserContent]
     task_id: str
     defer: Any
 
@@ -113,15 +150,17 @@ class LLMApprovalMixin:
     ``{{ task.subject }}`` and ``{{ task.body }}`` in notifier templates.  A
     notifier whose delivery raises is logged without failing the task, while a
     template error fails the task.  A retry re-runs the LLM and re-notifies
-    with the regenerated output, while the open review keeps the original
-    subject and body.
+    with the regenerated output.  On Airflow 3.4+ the reopened review shows the
+    regenerated output too; on Airflow 3.1 to 3.3 it keeps the original subject,
+    body and editable output, so approving it unedited returns the first
+    attempt's output.
 
     ``approval_assigned_users`` restricts the review to the named users, the way
     :class:`~airflow.providers.standard.operators.hitl.HITLOperator` does with
     ``assigned_users``.  Leaving it empty lets any user with the permission
-    respond.  The list is stored when the review is first created; clearing
-    the task re-runs it against the existing review row, so a changed list
-    does not take effect.
+    respond.  On Airflow 3.1 to 3.3 the list is stored when the review is first
+    created, so clearing the task after changing it does not take effect; on
+    3.4+ a cleared or retried task replaces it.
 
     Operators that use this mixin must set the following attributes:
 
@@ -131,7 +170,7 @@ class LLMApprovalMixin:
     - ``on_approval_timeout`` (``Literal["fail", "approve", "reject"]``)
     - ``approval_notifiers`` (``Sequence[BaseNotifier]``)
     - ``approval_assigned_users`` (``list[HITLUser]``)
-    - ``prompt`` (``str``)
+    - ``prompt`` (``str`` or ``Sequence[UserContent]``)
     """
 
     APPROVE = "Approve"
@@ -139,16 +178,7 @@ class LLMApprovalMixin:
     TIMEOUT_DEFAULTS: ClassVar[dict[str, list[str]]] = {"approve": [APPROVE], "reject": [REJECT]}
 
     def validate_approval_prompt(self: DeferForApprovalProtocol) -> None:
-        """Fail fast when the prompt cannot be rendered as text in the approval review body."""
-        if not isinstance(self.prompt, str):
-            raise TypeError(
-                f"{type(self).__name__}: require_approval=True is not supported "
-                f"with a non-string prompt (got {type(self.prompt).__name__}). "
-                "The approval review body renders the prompt as text; passing a "
-                "Sequence[UserContent] would expose object reprs (and any embedded "
-                "bytes) in the human review UI. Return a str prompt, or disable "
-                "require_approval."
-            )
+        """Check the prompt before the review opens; the default accepts every prompt."""
 
     def defer_for_approval(
         self: DeferForApprovalProtocol,
@@ -194,11 +224,8 @@ class LLMApprovalMixin:
         self.validate_approval_prompt()
 
         raw_output = output
-        if isinstance(output, BaseModel):
-            output = output.model_dump_json()
-        elif not isinstance(output, str):
-            # JSON round-trip: execute_complete validates the string back into output_type.
-            output = TypeAdapter(type(output)).dump_json(output).decode()
+        # JSON round-trip: execute_complete validates the string back into output_type.
+        output = dump_output_to_json(output)
 
         ti_id = context["task_instance"].id
         timeout_defaults = LLMApprovalMixin.TIMEOUT_DEFAULTS.get(self.on_approval_timeout)
@@ -207,7 +234,7 @@ class LLMApprovalMixin:
             subject = f"Review output for task `{self.task_id}`"
 
         if body is None:
-            body = f"```\nPrompt: {self.prompt}\n\n{output}\n```"
+            body = f"```\nPrompt: {describe_prompt(self.prompt)}\n\n{output}\n```"
 
         hitl_params: dict[str, dict[str, Any]] = {}
         if self.allow_modifications:
@@ -357,7 +384,11 @@ class LLMApprovalMixin:
                             }
                         )
                 # Compact so an unchanged selection compares equal to generated_output
-                modified = json.dumps(modified, separators=(",", ":"))
+                modified = json.dumps(modified, separators=(",", ":"), ensure_ascii=False)
+            elif isinstance(modified, dict):
+                # TODO: Drop once the HITL form stops parsing a string param that looks like JSON into an
+                # object (airflow-core ui/src/utils/hitl.ts); until then a model output comes back as a dict.
+                modified = _object_from_the_form_as_text(modified, generated_output)
             if modified is not None and not isinstance(modified, str):
                 # On the awaiting_input path nothing upstream schema-validates params_input
                 # (HITLTrigger did on the legacy path), so enforce the string contract here

@@ -23,17 +23,23 @@ import threading
 import weakref
 from contextlib import AsyncExitStack
 from functools import cached_property
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 import attrs
 import structlog
 from starlette.requests import Request
 
+from airflow.process_context import force_server_context
+
 if TYPE_CHECKING:
-    import httpx
+    import httpx2
+    from a2wsgi.asgi_typing import ASGIApp
     from fastapi import FastAPI
+    from starlette.types import Receive, Scope, Send
 
 logger = structlog.get_logger(logger_name=__name__)
+
+TRIGGER_TI_ID_HEADER = "Airflow-Trigger-Ti-Id"
 
 
 # Finalizer arguments must not reference the transport, or it cannot be garbage collected.
@@ -51,12 +57,17 @@ def _shutdown_loop(
     thread.join(timeout=5)
 
 
-def _configure_in_process_auth(app: FastAPI) -> None:
+def _configure_in_process_auth(app: FastAPI, *, triggerer_id: int | None = None) -> None:
     from airflow.api_fastapi.execution_api.datamodels.token import TIClaims, TIToken
     from airflow.api_fastapi.execution_api.routes.connections import has_connection_access
     from airflow.api_fastapi.execution_api.routes.variables import has_variable_access
     from airflow.api_fastapi.execution_api.routes.xcoms import has_xcom_access
-    from airflow.api_fastapi.execution_api.security import _IN_PROCESS_NON_TI_CALLER, _jwt_bearer
+    from airflow.api_fastapi.execution_api.security import (
+        _IN_PROCESS_NON_TI_CALLER,
+        _IN_PROCESS_TRIGGERER_ID,
+        ASSET_WATCHER_ID,
+        _jwt_bearer,
+    )
 
     async def always_allow(request: Request):
         from uuid import UUID
@@ -64,13 +75,15 @@ def _configure_in_process_auth(app: FastAPI) -> None:
         ti_id = UUID(
             request.path_params.get("task_instance_id")
             or request.headers.get("X-Airflow-In-Process-Attempt-Id")
-            or "00000000-0000-0000-0000-000000000000"
+            or str(ASSET_WATCHER_ID)
         )
         # Watchers and other trusted in-process callers may have no task identity.
         request.scope[_IN_PROCESS_NON_TI_CALLER] = (
             "task_instance_id" not in request.path_params
             and "X-Airflow-In-Process-Attempt-Id" not in request.headers
         )
+        if triggerer_id is not None:
+            request.scope[_IN_PROCESS_TRIGGERER_ID] = triggerer_id
         claims = TIClaims(scope="execution")
         return TIToken(id=ti_id, claims=claims)
 
@@ -80,16 +93,32 @@ def _configure_in_process_auth(app: FastAPI) -> None:
     app.dependency_overrides[has_xcom_access] = always_allow
 
 
+class _RequestScopedServerContextApp:
+    """Wrap an ASGI app so in-process requests behave like server-side API handling."""
+
+    def __init__(self, app: FastAPI) -> None:
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        with force_server_context():
+            await self.app(scope, receive, send)
+
+
 @attrs.define()
 class InProcessExecutionAPI:
     """
     A helper class to make it possible to run the ExecutionAPI "in-process".
 
     The sync version of this makes use of a2wsgi which runs the async loop in a separate thread. This is
-    needed so that we can use the sync httpx client
+    needed so that we can use the sync httpx2 client
+
+    Requests are always dispatched in a server process context, with no way to opt out: this app *is*
+    the server side of the Execution API, and in a single process its route handlers would otherwise
+    read the caller's ``SUPERVISOR_COMMS`` and re-enter the API through the Task SDK.
     """
 
     _app: FastAPI | None = None
+    triggerer_id: int | None = None
 
     @cached_property
     def app(self):
@@ -105,13 +134,13 @@ class InProcessExecutionAPI:
             self._app = create_task_execution_api_app(lifespan=attrs.evolve(lifespan, registry=registry))
             # Auth dependency overrides bypass validation, so the stub skips validator setup in lifespan().
             registry.register_value(JWTValidator, None)
-            _configure_in_process_auth(self._app)
+            _configure_in_process_auth(self._app, triggerer_id=self.triggerer_id)
 
         return self._app
 
     @cached_property
-    def transport(self) -> httpx.WSGITransport:
-        import httpx
+    def transport(self) -> httpx2.WSGITransport:
+        import httpx2
         from a2wsgi import ASGIMiddleware
 
         from airflow import settings
@@ -121,7 +150,10 @@ class InProcessExecutionAPI:
         thread = threading.Thread(target=loop.run_forever, name="InProcessExecutionAPI-loop", daemon=True)
         thread.start()
 
-        middleware = ASGIMiddleware(self.app, loop=loop)
+        app = self.app
+        # a2wsgi types ASGI scopes and messages as TypedDict unions and Starlette as mutable mappings,
+        # so no app typed against Starlette matches a2wsgi's ``ASGIApp``.
+        middleware = ASGIMiddleware(cast("ASGIApp", _RequestScopedServerContextApp(app)), loop=loop)
 
         # https://github.com/abersheeran/a2wsgi/discussions/64
         async def start_lifespan(cm: AsyncExitStack, app: FastAPI):
@@ -131,9 +163,9 @@ class InProcessExecutionAPI:
         cm = AsyncExitStack()
 
         # Wait for startup so callers see a ready app and the finalizer can close an entered context.
-        asyncio.run_coroutine_threadsafe(start_lifespan(cm, self.app), loop).result()
+        asyncio.run_coroutine_threadsafe(start_lifespan(cm, app), loop).result()
 
-        transport = httpx.WSGITransport(app=middleware)  # type: ignore[arg-type]
+        transport = httpx2.WSGITransport(app=middleware)  # type: ignore[arg-type]
 
         # Callers can retain the transport after dropping this instance; finalizing on self would
         # stop the loop while requests still need it.
@@ -142,7 +174,7 @@ class InProcessExecutionAPI:
         return transport
 
     @cached_property
-    def atransport(self) -> httpx.ASGITransport:
-        import httpx
+    def atransport(self) -> httpx2.ASGITransport:
+        import httpx2
 
-        return httpx.ASGITransport(app=self.app)
+        return httpx2.ASGITransport(app=_RequestScopedServerContextApp(self.app))

@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+import copy
 import dataclasses
 import json
 from typing import Any, overload
@@ -46,7 +47,8 @@ def mask_secrets(value: Any) -> Any:
 
     Strings are masked wherever they sit in nested dicts, lists, tuples, sets and dataclasses,
     dict keys included, and the shape and types are kept. Bytes are masked as UTF-8 text. A
-    Pydantic model is turned into the JSON-compatible data the model would be shown. Images,
+    Pydantic model that holds a registered secret is turned into the JSON-compatible data the
+    model would be shown, with the secret masked; one that holds none is returned as it is. Images,
     documents and other multimodal content, and any other object, pass through as they are.
     Registered secrets are the ones Airflow knows about, such as connection passwords and
     sensitive connection extras; a credential that only appears in the data itself is not
@@ -78,6 +80,9 @@ def dumps_masked(value: Any, **kwargs: Any) -> str:
 def _json_default(value: object) -> Any:
     if isinstance(value, bytes):
         return value.decode("utf-8", "replace")
+    if isinstance(value, BaseModel):
+        # Only reached for a model mask_secrets kept as it was, so one holding no secret.
+        return to_jsonable_python(value)
     if dataclasses.is_dataclass(value) and not isinstance(value, type):
         return {field.name: getattr(value, field.name) for field in dataclasses.fields(value)}
     return mask_secrets(str(value))
@@ -91,7 +96,11 @@ def _mask(value: Any, seen: frozenset[int]) -> Any:
         masked = mask_secrets(text)
         return value if masked == text else masked.encode("utf-8", "surrogateescape")
     if isinstance(value, BaseModel):
-        return _mask(to_jsonable_python(value), seen)
+        data = to_jsonable_python(value)
+        masked = _mask(data, seen)
+        # Kept as the model when there was nothing to mask, so code that reads its attributes
+        # later, such as a ToolReturn's metadata in the message history, still can.
+        return value if masked == data else masked
     if isinstance(value, (dict, list, tuple, set, frozenset)) or _is_masked_dataclass(value):
         if id(value) in seen:
             return _CYCLE
@@ -105,10 +114,15 @@ def _mask(value: Any, seen: frozenset[int]) -> Any:
     if isinstance(value, (set, frozenset)):
         return type(value)(_mask(item, seen) for item in value)
     if _is_masked_dataclass(value):
-        # Rebuilt rather than turned into a dict, so a type the framework acts on, such as
-        # pydantic-ai's TextContent, still is one.
-        fields = [field for field in dataclasses.fields(value) if field.init]
-        return dataclasses.replace(value, **{f.name: _mask(getattr(value, f.name), seen) for f in fields})
+        # A copy with its fields masked, rather than a dict, so a type the framework acts on,
+        # such as pydantic-ai's TextContent, still is one. Not dataclasses.replace, which fails
+        # on an InitVar without a default and resets fields declared with init=False.
+        masked = copy.copy(value)
+        for field in dataclasses.fields(value):
+            if hasattr(value, field.name):
+                # object.__setattr__ so a frozen dataclass can be masked too.
+                object.__setattr__(masked, field.name, _mask(getattr(value, field.name), seen))
+        return masked
     return value
 
 

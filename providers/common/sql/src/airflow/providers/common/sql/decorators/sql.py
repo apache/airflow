@@ -110,7 +110,9 @@ class _SQLDecoratedOperator(DecoratedOperator, SQLExecuteQueryOperator):
                 "string or a non-empty list of non-empty strings."
             )
 
-        self.render_template_fields(context)
+        # Render only the SQL the callable returned. The other template fields were already
+        # rendered before execute().
+        self.sql = self.render_template(self.sql, context)
 
         return super().execute(context)
 

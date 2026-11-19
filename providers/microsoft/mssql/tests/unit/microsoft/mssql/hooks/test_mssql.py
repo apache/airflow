@@ -370,6 +370,28 @@ class TestMsSqlHook:
         hook = MsSqlHook()
         assert isinstance(hook.dialect, MsSqlDialect)
 
+    def test_dialect_is_cached_per_hook(self):
+        hook = MsSqlHook()
+        assert hook.dialect is hook.dialect
+
+    @mock.patch("airflow.providers.microsoft.mssql.hooks.mssql.MsSqlHook.get_connection")
+    @mock.patch(
+        "airflow.providers.microsoft.mssql.hooks.mssql.MsSqlHook.inspector", new_callable=mock.PropertyMock
+    )
+    def test_generate_insert_sql_looks_the_columns_up_once_per_hook(self, inspector, get_connection):
+        get_connection.return_value = Connection(
+            conn_type="mssql", host="ip", schema="share", login="u", password="p"
+        )
+        inspector.return_value.get_columns.return_value = [{"name": "id"}, {"name": "value"}]
+        hook = MsSqlHook()
+        hook._resolve_target_fields = True
+
+        first = hook._generate_insert_sql("dbo.table", [1, "a"])
+        second = hook._generate_insert_sql("dbo.table", [2, "b"])
+
+        assert first == second
+        inspector.return_value.get_columns.assert_called_once()
+
     def test_reserved_words(self):
         hook = MsSqlHook()
         assert hook.reserved_words == sqlalchemy.dialects.mssql.base.RESERVED_WORDS

@@ -253,13 +253,55 @@ def doctree_read(app, doctree):
             else:
                 modname = ".".join(split_modname)
             modname = modname.replace(".py", "")
+        elif filepath.name.endswith(".py") and "src" in filepath.parts:
+            # A module from another distribution is rendered in these docs too, so each version links to
+            # the source it was built with, and is named by its import path rather than where it sits.
+            src_index = len(filepath.parts) - 1 - filepath.parts[::-1].index("src")
+            module_path = Path(*filepath.parts[src_index + 1 :])
+            modname = ".".join(module_path.with_suffix("").parts)
         else:
             modname = None
             module_path = filepath.resolve()
-        show_button = register_source(app, env, modname, filepath)
+        show_button = "sphinx.ext.viewcode" in app.extensions and register_source(app, env, modname, filepath)
+        if show_button:
+            _included_modules(env).setdefault(modname, (str(filepath), set()))[1].add(env.docname)
         onlynode = create_node(env, module_path.as_posix(), show_button)
 
         objnode.replace_self(onlynode)
+
+
+def _included_modules(env) -> dict[str, tuple[str, set[str]]]:
+    """Modules shown by an example include, with the file each comes from and the pages that include it."""
+    if not hasattr(env, "_exampleinclude_modules"):
+        env._exampleinclude_modules = {}
+    return env._exampleinclude_modules
+
+
+def env_purge_doc(app, env, docname):
+    for modname, (_filepath, docnames) in list(_included_modules(env).items()):
+        docnames.discard(docname)
+        if not docnames:
+            del env._exampleinclude_modules[modname]
+
+
+def env_merge_info(app, env, docnames, other):
+    for modname, (filepath, other_docnames) in _included_modules(other).items():
+        _included_modules(env).setdefault(modname, (filepath, set()))[1].update(other_docnames)
+
+
+def env_updated(app, env):
+    """
+    Register the included modules again before the source pages are written.
+
+    Sphinx's viewcode drops a module whenever a page is read again unless documented code refers to it,
+    and a module that only an example include shows has no such reference.
+    """
+    if not hasattr(env, "_viewcode_modules"):
+        env._viewcode_modules = {}
+    for modname, (filepath, _docnames) in _included_modules(env).items():
+        if modname not in env._viewcode_modules:
+            register_source(app, env, modname, filepath)
+    return []
 
 
 def setup(app):
@@ -271,6 +313,9 @@ def setup(app):
     """
     directives.register_directive("exampleinclude", ExampleInclude)
     app.connect("doctree-read", doctree_read)
+    app.connect("env-purge-doc", env_purge_doc)
+    app.connect("env-merge-info", env_merge_info)
+    app.connect("env-updated", env_updated)
     app.add_config_value("exampleinclude_sourceroot", None, "env")
     if not airflow_theme_is_available:
         # Sphinx airflow theme has its own styles.

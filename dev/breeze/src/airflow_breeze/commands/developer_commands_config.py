@@ -380,6 +380,7 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--github-repository",
                 "--builder",
                 "--distributions-list",
+                "--sphinx-airflow-theme-path",
             ],
         },
     ],

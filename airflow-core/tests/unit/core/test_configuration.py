@@ -1112,6 +1112,30 @@ class TestConf:
         assert test_conf.get("database", "sql_alchemy_conn") == expected_scheme
 
     @pytest.mark.parametrize(
+        ("input_url", "should_warn"),
+        [
+            pytest.param("postgres://user:pass@host/db", True, id="postgres"),
+            pytest.param("postgres+psycopg2://user:pass@host/db", True, id="postgres+psycopg2"),
+            pytest.param("postgresql://user:pass@host/db", False, id="postgresql-bare"),
+        ],
+    )
+    @mock.patch.dict("os.environ", {}, clear=False)
+    @mock.patch("airflow.configuration.find_spec", return_value=object())
+    def test_upgrade_postgres_metastore_conn_warning(self, mock_find_spec, input_url, should_warn):
+        """Only the really unsupported ``postgres`` schemes warn; bare ``postgresql`` is valid."""
+        os.environ["AIRFLOW__DATABASE__SQL_ALCHEMY_CONN"] = input_url
+        test_conf = AirflowConfigParser()
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            test_conf._upgrade_postgres_metastore_conn()
+        future = [w for w in caught if issubclass(w.category, FutureWarning)]
+        if should_warn:
+            assert len(future) == 1
+            assert "Unsupported scheme" in str(future[0].message)
+        else:
+            assert future == []
+
+    @pytest.mark.parametrize(
         ("input_scheme", "expected_scheme"),
         [
             pytest.param(

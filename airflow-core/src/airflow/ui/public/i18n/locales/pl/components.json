@@ -2,11 +2,12 @@
   "backfill": {
     "affected_few": "{{count, number}} wykonania zostaną uruchomione.",
     "affected_many": "{{count, number}} wykonań zostanie uruchomionych.",
-    "affected_one": "Dotyczy 1 wykonania.",
-    "affected_other": "Dotyczy {{count, number}} wykonań.",
+    "affected_one": "1 wykonanie zostanie uruchomione.",
+    "affected_other": "{{count, number}} wykonań zostanie uruchomionych.",
     "affectedNone": "Brak wykonań spełniających wybrane kryteria.",
     "allRuns": "Wszystkie wykonania",
     "backwards": "Uruchom wstecz",
+    "completed": "Zakończone",
     "dateRange": "Zakres dat",
     "errorStartDateBeforeEndDate": "Data początkowa musi być wcześniejsza niż data końcowa",
     "exceptionReason": {
@@ -27,16 +28,18 @@
     "partitionsNone": "Brak partycji pasujących do wybranego zakresu.",
     "permissionDenied": "Próba nieudana: Użytkownik nie ma uprawnień do tworzenia wypełnień wstecznych.",
     "reprocessBehavior": "Zachowanie ponownego przetwarzania",
-    "run": "Uruchom ponowne przetwarzanie",
+    "run": "Uruchom wypełnienie wsteczne",
+    "running": "Wykonywane",
     "scheduleNotBackfillable": "Harmonogram tego Daga nie obsługuje wypełnień wstecznych",
     "schedulerPriorityHint": "Uruchomienia wypełnienia wstecznego są szeregowane po uruchomieniach niebędących wypełnieniem wstecznym w każdym cyklu harmonogramu. Uruchomienia wypełnienia wstecznego mogą dłużej pozostawać w kolejce, jeśli obecne są inne uruchomienia niebędące wypełnieniem wstecznym.",
-    "selectDescription": "Uruchom ten Dag dla zakresu dat",
+    "selectDescription": "Uruchom tego Daga dla zakresu dat",
     "selectLabel": "Wypełnienie wsteczne",
-    "title": "Uruchom uzupełnienie wsteczne",
+    "status": "Stan",
+    "title": "Uruchom wypełnienie wsteczne",
     "toaster": {
       "success": {
-        "description": "Ponowne przetworzenie zostało uruchomione.",
-        "title": "Ponowne przetwarzanie uruchomione"
+        "description": "Zadania wypełnienia wstecznego zostały pomyślnie uruchomione.",
+        "title": "Wygenerowano wypełnienie wsteczne"
       }
     },
     "validation": {
@@ -47,9 +50,9 @@
   },
   "banner": {
     "backfillInProgress": "Wypełnienie wsteczne w toku",
-    "cancel": "Anuluj uzupełnienie wsteczne",
-    "pause": "Wstrzymaj uzupełnienie wsteczne",
-    "unpause": "Wznów uzupełnienie wsteczne"
+    "cancel": "Anuluj wypełnienie wsteczne",
+    "pause": "Wstrzymaj wypełnienie wsteczne",
+    "unpause": "Wznów wypełnienie wsteczne"
   },
   "clipboard": {
     "copy": "Kopiuj"
@@ -60,12 +63,19 @@
     "invalidJson": "Nieprawidłowy format JSON: {{errorMessage}}"
   },
   "dagWarnings": {
-    "error_one": "Błąd",
-    "errorAndWarning": "1 Błąd i {{warningText}}",
-    "warning_few": "{{count, number}} Ostrzeżenia",
-    "warning_many": "{{count, number}} Ostrzeżeń",
-    "warning_one": "1 Ostrzeżenie",
-    "warning_other": "{{count, number}} Ostrzeżenia"
+    "error_one": "1 błąd",
+    "errorAndWarning": "1 błąd i {{warningText}}",
+    "types": {
+      "asset conflict": "Konflikt zasobu",
+      "duplicate dag id": "Zduplikowany Dag ID",
+      "non-existent pool": "Nieistniejąca pula",
+      "runtime varying value": "Wartość zmienna w czasie wykonania",
+      "task group cycle": "Cykl w grupie zadań"
+    },
+    "warning_few": "{{count, number}} ostrzeżenia",
+    "warning_many": "{{count, number}} ostrzeżeń",
+    "warning_one": "1 ostrzeżenie",
+    "warning_other": "{{count, number}} ostrzeżenia"
   },
   "dateRangeFilter": {
     "validation": {
@@ -101,6 +111,7 @@
     "placeholderArray": "Wprowadź każdy ciąg w nowej linii",
     "placeholderExamples": "Zacznij pisać, aby zobaczyć opcje",
     "placeholderMulti": "Wybierz jedną lub wiele wartości",
+    "validationErrorArrayElement": "Nieprawidłowe wartości typu {{type}}: {{values}}",
     "validationErrorArrayNotArray": "Wartość musi być tablicą.",
     "validationErrorArrayNotNumbers": "Wszystkie elementy w tablicy muszą być liczbami.",
     "validationErrorArrayNotObject": "Wszystkie elementy w tablicy muszą być obiektami.",
@@ -116,10 +127,10 @@
     "downloadImageError": "Nie udało się pobrać obrazu grafu.",
     "downloadImageErrorTitle": "Pobieranie nieudane",
     "otherDagRuns": "+Inne wykonania",
-    "taskCount_few": "{{count, number}} Zadania",
-    "taskCount_many": "{{count, number}} Zadań",
-    "taskCount_one": "{{count, number}} Zadanie",
-    "taskCount_other": "{{count, number}} Zadań",
+    "taskCount_few": "{{count, number}} zadania",
+    "taskCount_many": "{{count, number}} zadań",
+    "taskCount_one": "{{count, number}} zadanie",
+    "taskCount_other": "{{count, number}} zadań",
     "taskGroup": "Grupa zadań",
     "zoomToTask": "Powiększ do wybranego zadania"
   },
@@ -131,10 +142,10 @@
   },
   "limitedList": "+{{count, number}} więcej",
   "limitedList.allItems": "Wszystkie {{count, number}} elementy:",
-  "limitedList.allTags_few": "Wszystkie tagi ({{count, number}})",
-  "limitedList.allTags_many": "Wszystkie tagi ({{count, number}})",
-  "limitedList.allTags_one": "Wszystkie tagi (1)",
-  "limitedList.allTags_other": "Wszystkie tagi ({{count, number}})",
+  "limitedList.allTags_few": "Wszystkie etykiety ({{count, number}})",
+  "limitedList.allTags_many": "Wszystkie etykiety ({{count, number}})",
+  "limitedList.allTags_one": "Wszystkie etykiety (1)",
+  "limitedList.allTags_other": "Wszystkie etykiety ({{count, number}})",
   "limitedList.clickToInteract": "Kliknij etykietę, aby przefiltrować Dagi",
   "limitedList.clickToOpenFull": "Kliknij \"+{{count, number}} więcej\", aby zobaczyć pełną listę",
   "limitedList.copyPasteText": "Możesz skopiować i wkleić powyższy tekst",
@@ -163,11 +174,12 @@
     "unpause": "Wznów",
     "unpauseDescription": "Dag staje się aktywny: niezakończone wykonania są kontynuowane, a harmonogram zostaje wznowiony. Wstrzymane wypełnienia wsteczne pozostają wstrzymane."
   },
-  "reparseDag": "Ponowne przetworznie Daga",
+  "reparseDag": "Ponowne przetworzenie Daga",
   "slowestTaskInstances": {
     "empty": "Brak zakończonych instancji zadań w tym zakresie",
     "title": "Najwolniejsze instancje zadań"
   },
+  "sort": "sortuj",
   "sortMultiColumnHint": "Kliknij z wciśniętym Shift, aby sortować według wielu kolumn",
   "sortedAscending": "posortowane rosnąco",
   "sortedDescending": "posortowane malejąco",
@@ -185,6 +197,12 @@
   "toggleTableView": "Pokaż widok tabeli",
   "triggerDag": {
     "button": "Uruchom Daga",
+    "dagStartEndDate": {
+      "both": "Data rozpoczęcia Daga: {{startDate}}, data zakończenia: {{endDate}}",
+      "end": "Data zakończenia Daga: {{endDate}}",
+      "noTaskWillRun": "Żadne zadanie nie zostanie uruchomione.",
+      "start": "Data rozpoczęcia Daga: {{startDate}}"
+    },
     "dataInterval": "Interwał danych",
     "dataIntervalAuto": "Wywnioskowany z daty logicznej i harmonogramu",
     "dataIntervalManual": "Określ ręcznie",
@@ -195,8 +213,10 @@
     "loadingFailed": "Nie udało się załadować informacji o Dagach. Spróbuj ponownie.",
     "manualRunDenied": "Ręczne uruchamianie nie jest dozwolone dla tego Daga",
     "partitionKeyHelp": "Opcjonalne - dotyczy tylko Dagów partycjonowanych",
+    "recentConfig": "Ostatnie konfiguracje",
+    "recentConfigPlaceholder": "Wybierz ostatnią konfigurację",
     "runIdHelp": "Opcjonalne - zostanie wygenerowane, jeśli nie podano",
-    "selectDescription": "Wyzwól pojedyncze wykonanie",
+    "selectDescription": "Uruchom pojedyncze wykonanie tego Daga",
     "selectLabel": "Pojedyncze wykonanie",
     "title": "Uruchom Daga",
     "toaster": {
@@ -217,9 +237,9 @@
     "noContent": "Brak treści"
   },
   "versionDetails": {
-    "bundleLink": "Link do pakietu",
-    "bundleName": "Nazwa pakietu",
-    "bundleVersion": "Wersja pakietu",
+    "bundleLink": "Link do paczki",
+    "bundleName": "Nazwa paczki",
+    "bundleVersion": "Wersja paczki",
     "createdAt": "Utworzono",
     "versionId": "Identyfikator wersji"
   },

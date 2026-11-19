@@ -27,6 +27,40 @@
 Changelog
 ---------
 
+7.0.3
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix SSHHookAsync deadlock on the extra and compress by default like SSHHook; raise asyncssh minimum to 2.18.0 (#76528)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+7.0.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix 'SSHRemoteJobOperator' on Windows hosts (#73352)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``[main] Upgrade important CI environment (#76278)``
+
+7.0.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix 'SSHRemoteJobOperator' mangling environment values with spaces or shell characters (#74810)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 7.0.0
 .....
 

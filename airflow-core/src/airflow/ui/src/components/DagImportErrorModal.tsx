@@ -16,17 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { ClipboardRoot, HStack, Text } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { LuFileWarning } from "react-icons/lu";
-import { PiFilePy } from "react-icons/pi";
 
 import type { ImportErrorResponse } from "openapi/requests/types.gen";
 
-import { ClipboardIconButton } from "src/system-components";
-
+import { DagImportErrorDetails } from "src/components/DagImportErrorDetails";
 import { ErrorModal } from "src/components/ErrorModal";
-import Time from "src/components/Time";
 
 type Props = {
   readonly importError: ImportErrorResponse;
@@ -35,7 +31,7 @@ type Props = {
 };
 
 export const DagImportErrorModal = ({ importError, onClose, open }: Props) => {
-  const { t: translate } = useTranslation(["dashboard", "components"]);
+  const { t: translate } = useTranslation("dashboard");
 
   return (
     <ErrorModal
@@ -44,26 +40,7 @@ export const DagImportErrorModal = ({ importError, onClose, open }: Props) => {
       open={open}
       title={translate("importErrors.dagImportError", { count: 1 })}
     >
-      <HStack alignItems="center" flexWrap="wrap" gap={2} mb={2}>
-        <Text fontWeight="bold">
-          {translate("components:versionDetails.bundleName")}
-          {": "}
-          {importError.bundle_name}
-        </Text>
-        <PiFilePy />
-        {importError.filename}
-        <ClipboardRoot value={importError.filename}>
-          <ClipboardIconButton variant="outline" />
-        </ClipboardRoot>
-      </HStack>
-      <Text color="fg.muted" fontSize="sm" mb={2}>
-        {translate("importErrors.timestamp")}
-        {": "}
-        <Time datetime={importError.timestamp} />
-      </Text>
-      <Text color="fg.error" fontSize="sm" whiteSpace="pre-wrap">
-        <code>{importError.stack_trace}</code>
-      </Text>
+      <DagImportErrorDetails importError={importError} />
     </ErrorModal>
   );
 };

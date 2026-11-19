@@ -157,6 +157,10 @@ def upgrade():
             sa.Column("parent_region_id", CompactUUID(), nullable=True),
             sa.Column("parent_region_index", sa.Integer(), nullable=True),
             sa.Column("forked_from_region_id", CompactUUID(), nullable=True),
+            sa.Column("family_root_id", CompactUUID(), nullable=False),
+            sa.Column(
+                "path", sa.LargeBinary().with_variant(sa.VARBINARY(300), "mysql", "mariadb"), nullable=False
+            ),
             sa.Column("resumes_from_index", sa.Integer(), nullable=False, server_default="0"),
             sa.Column("created_at", UtcDateTime(), nullable=False),
             sa.PrimaryKeyConstraint("id", name="dynamic_region_pkey"),
@@ -187,6 +191,8 @@ def upgrade():
             ["dag_id", "run_id", "node_id", "parent_region_id", "parent_region_index"],
         )
         op.create_index("idx_dynamic_region_parent_region_id", "dynamic_region", ["parent_region_id"])
+        op.create_index("idx_dynamic_region_family_root_id", "dynamic_region", ["family_root_id"])
+        op.create_index("idx_dynamic_region_path", "dynamic_region", ["path"])
         for table_name in ("task_instance", "task_state_store"):
             op.add_column(
                 table_name,

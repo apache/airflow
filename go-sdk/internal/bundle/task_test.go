@@ -236,11 +236,11 @@ func (s *TaskSuite) TestExecuteRequiresCoordinatorClient() {
 	}
 }
 
-// branchClient records each XCom that a task pushes and keeps the last value of each key.
+// recordingClient records each XCom that a task pushes and keeps the last value of each key.
 // PushXCom fails for the call whose record equals failOn. Its skip method stands in for the
 // function that the runtime passes through WithSkipDownstreamTasks. skip records each call in the
 // same list as the XComs, so that the tests see the order of the calls. It returns skipErr.
-type branchClient struct {
+type recordingClient struct {
 	sdk.Client
 	calls   []string
 	values  map[string]any
@@ -248,7 +248,7 @@ type branchClient struct {
 	skipErr error
 }
 
-func (c *branchClient) PushXCom(
+func (c *recordingClient) PushXCom(
 	_ context.Context,
 	ti sdk.TaskInstance,
 	key string,
@@ -266,15 +266,15 @@ func (c *branchClient) PushXCom(
 	return nil
 }
 
-func (c *branchClient) skip(_ context.Context, taskIDs []string) error {
+func (c *recordingClient) skip(_ context.Context, taskIDs []string) error {
 	c.calls = append(c.calls, fmt.Sprintf("SkipDownstreamTasks %v", taskIDs))
 	return c.skipErr
 }
 
-// runBranch runs task as the task instance decide of dag1 with client. When ti is false, the
+// runTask runs task as the task instance decide of dag1 with client. When ti is false, the
 // context has no task instance. When canSkip is false, the context has no function to skip
 // tasks with.
-func runBranch(task Task, client *branchClient, ti, canSkip bool) error {
+func runTask(task Task, client *recordingClient, ti, canSkip bool) error {
 	ctx := context.WithValue(
 		context.Background(),
 		sdkcontext.SdkClientContextKey,
@@ -305,8 +305,8 @@ func (s *TaskSuite) TestBranchFunctionPushesTheValueAndSkipsTheTasksThatDecideRe
 	)
 	s.Require().NoError(err)
 
-	client := &branchClient{}
-	s.Require().NoError(runBranch(task, client, true, true))
+	client := &recordingClient{}
+	s.Require().NoError(runTask(task, client, true, true))
 
 	s.Equal(true, got)
 	s.Equal([]string{
@@ -323,8 +323,8 @@ func (s *TaskSuite) TestBranchFunctionPushesNoNilPointer() {
 	)
 	s.Require().NoError(err)
 
-	client := &branchClient{}
-	s.Require().NoError(runBranch(task, client, true, true))
+	client := &recordingClient{}
+	s.Require().NoError(runTask(task, client, true, true))
 
 	s.Equal([]string{
 		"PushXCom decide skipmixin_key map[skipped:[load]]",
@@ -341,8 +341,8 @@ func (s *TaskSuite) TestBranchFunctionWithNothingToSkip() {
 			)
 			s.Require().NoError(err)
 
-			client := &branchClient{}
-			s.Require().NoError(runBranch(task, client, true, true))
+			client := &recordingClient{}
+			s.Require().NoError(runTask(task, client, true, true))
 
 			s.Equal([]string{"PushXCom decide return_value true"}, client.calls)
 		})
@@ -364,10 +364,10 @@ func (s *TaskSuite) TestBranchFunctionThatFailsPushesAndSkipsNothing() {
 			})
 			s.Require().NoError(err)
 
-			client := &branchClient{}
+			client := &recordingClient{}
 			func() {
 				defer func() { _ = recover() }()
-				s.Error(runBranch(task, client, true, true))
+				s.Error(runTask(task, client, true, true))
 			}()
 
 			s.False(called)
@@ -385,14 +385,29 @@ func (s *TaskSuite) TestBranchFunctionFailsWhenDecideReturnsAnError() {
 	)
 	s.Require().NoError(err)
 
-	client := &branchClient{}
-	s.EqualError(runBranch(task, client, true, true), "not one of the cases")
+	client := &recordingClient{}
+	s.EqualError(runTask(task, client, true, true), "not one of the cases")
 	s.Empty(client.calls)
+}
+
+func (s *TaskSuite) TestBranchFunctionFailsWhenItCannotPushTheValue() {
+	task, err := NewPositionalBranchFunction(
+		func(contexttest.Context) (bool, error) { return true, nil },
+		func(any) (any, []string, error) { return "chosen", []string{"load"}, nil },
+	)
+	s.Require().NoError(err)
+
+	client := &recordingClient{failOn: "PushXCom decide return_value chosen"}
+	s.EqualError(
+		runTask(task, client, true, true),
+		"setting the return value XCom: xcom refused",
+	)
+	s.Equal([]string{"PushXCom decide return_value chosen"}, client.calls)
 }
 
 func (s *TaskSuite) TestBranchFunctionFailsWhenItCannotSkip() {
 	cases := map[string]struct {
-		client    *branchClient
+		client    *recordingClient
 		withTI    bool
 		canSkip   bool
 		wantErr   string
@@ -400,17 +415,17 @@ func (s *TaskSuite) TestBranchFunctionFailsWhenItCannotSkip() {
 		wantCalls []string
 	}{
 		"runtime cannot skip": {
-			client:  &branchClient{},
+			client:  &recordingClient{},
 			withTI:  true,
 			wantErr: "the task runtime cannot skip downstream tasks",
 		},
 		"no task instance": {
-			client:  &branchClient{},
+			client:  &recordingClient{},
 			canSkip: true,
 			wantErr: "task runtime context is missing",
 		},
 		"recording the skipped tasks fails": {
-			client: &branchClient{
+			client: &recordingClient{
 				failOn: "PushXCom decide skipmixin_key map[skipped:[load]]",
 			},
 			withTI:  true,
@@ -423,7 +438,7 @@ func (s *TaskSuite) TestBranchFunctionFailsWhenItCannotSkip() {
 			},
 		},
 		"skip fails": {
-			client:  &branchClient{skipErr: errors.New("supervisor refused")},
+			client:  &recordingClient{skipErr: errors.New("supervisor refused")},
 			withTI:  true,
 			canSkip: true,
 			wantErr: `skipping the downstream tasks ["load"]: supervisor refused`,
@@ -447,9 +462,66 @@ func (s *TaskSuite) TestBranchFunctionFailsWhenItCannotSkip() {
 			)
 			s.Require().NoError(err)
 
-			s.EqualError(runBranch(task, tt.client, tt.withTI, tt.canSkip), tt.wantErr)
+			s.EqualError(runTask(task, tt.client, tt.withTI, tt.canSkip), tt.wantErr)
 			s.Equal(tt.wantRun, ran, "whether fn ran")
 			s.Equal(tt.wantCalls, tt.client.calls)
 		})
 	}
+}
+
+func (s *TaskSuite) TestPushesTheReturnValue() {
+	task, err := NewTaskFunction(func(contexttest.Context) (int, error) { return 7, nil })
+	s.Require().NoError(err)
+
+	client := &recordingClient{}
+	s.Require().NoError(runTask(task, client, true, false))
+
+	s.Equal([]string{"PushXCom decide return_value 7"}, client.calls)
+}
+
+func (s *TaskSuite) TestPushesNoNilPointer() {
+	task, err := NewTaskFunction(func(contexttest.Context) (*int, error) { return nil, nil })
+	s.Require().NoError(err)
+
+	client := &recordingClient{}
+	s.Require().NoError(runTask(task, client, true, false))
+
+	s.Empty(client.calls)
+}
+
+func (s *TaskSuite) TestFailsWhenItCannotPushTheReturnValue() {
+	cases := map[string]struct {
+		client  *recordingClient
+		withTI  bool
+		wantErr string
+	}{
+		"push fails": {
+			client:  &recordingClient{failOn: "PushXCom decide return_value 7"},
+			withTI:  true,
+			wantErr: "setting the return value XCom: xcom refused",
+		},
+		"no task instance": {
+			client:  &recordingClient{},
+			wantErr: "setting the return value XCom: task runtime context is missing",
+		},
+	}
+	for name, tt := range cases {
+		s.Run(name, func() {
+			task, err := NewTaskFunction(func(contexttest.Context) (int, error) { return 7, nil })
+			s.Require().NoError(err)
+
+			s.EqualError(runTask(task, tt.client, tt.withTI, false), tt.wantErr)
+		})
+	}
+}
+
+func (s *TaskSuite) TestFailedTaskPushesNoReturnValue() {
+	task, err := NewTaskFunction(
+		func(contexttest.Context) (int, error) { return 0, errors.New("no table") },
+	)
+	s.Require().NoError(err)
+
+	client := &recordingClient{}
+	s.EqualError(runTask(task, client, true, false), "no table")
+	s.Empty(client.calls)
 }

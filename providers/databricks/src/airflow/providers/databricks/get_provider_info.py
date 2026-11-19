@@ -36,6 +36,7 @@ def get_provider_info():
                     "/docs/apache-airflow-providers-databricks/operators/submit_run.rst",
                     "/docs/apache-airflow-providers-databricks/operators/run_now.rst",
                     "/docs/apache-airflow-providers-databricks/operators/task.rst",
+                    "/docs/apache-airflow-providers-databricks/operators/agent.rst",
                 ],
                 "logo": "/docs/integration-logos/Databricks.png",
                 "tags": ["service"],
@@ -48,6 +49,7 @@ def get_provider_info():
                     "/docs/apache-airflow-providers-databricks/operators/sql_statements.rst",
                     "/docs/apache-airflow-providers-databricks/operators/warehouse.rst",
                     "/docs/apache-airflow-providers-databricks/operators/copy_into.rst",
+                    "/docs/apache-airflow-providers-databricks/operators/delta_table_producer.rst",
                 ],
                 "tags": ["service"],
             },
@@ -67,16 +69,25 @@ def get_provider_info():
                 "how-to-guide": ["/docs/apache-airflow-providers-databricks/operators/workflow.rst"],
                 "tags": ["service"],
             },
+            {
+                "integration-name": "Databricks Unity Gateway",
+                "external-doc-url": "https://docs.databricks.com/aws/en/unity-gateway/concepts",
+                "tags": ["service"],
+            },
         ],
         "operators": [
             {
                 "integration-name": "Databricks",
-                "python-modules": ["airflow.providers.databricks.operators.databricks"],
+                "python-modules": [
+                    "airflow.providers.databricks.operators.databricks",
+                    "airflow.providers.databricks.operators.agent",
+                ],
             },
             {
                 "integration-name": "Databricks SQL",
                 "python-modules": [
                     "airflow.providers.databricks.operators.databricks_sql",
+                    "airflow.providers.databricks.operators.delta_table",
                     "airflow.providers.databricks.operators.warehouse",
                 ],
             },
@@ -111,6 +122,7 @@ def get_provider_info():
                 "python-modules": [
                     "airflow.providers.databricks.hooks.databricks",
                     "airflow.providers.databricks.hooks.databricks_base",
+                    "airflow.providers.databricks.hooks.agent",
                 ],
             },
             {
@@ -121,7 +133,10 @@ def get_provider_info():
         "triggers": [
             {
                 "integration-name": "Databricks",
-                "python-modules": ["airflow.providers.databricks.triggers.databricks"],
+                "python-modules": [
+                    "airflow.providers.databricks.triggers.databricks",
+                    "airflow.providers.databricks.triggers.agent",
+                ],
             }
         ],
         "sensors": [

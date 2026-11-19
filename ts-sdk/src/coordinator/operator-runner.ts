@@ -108,7 +108,7 @@ export function buildOperatorContext(deps: OperatorContextDeps): OperatorContext
       return {
         type: "AwaitInputTask",
         state: "awaiting_input",
-        timeout: toIsoDuration(opts.timeoutSeconds),
+        timeout: toIsoDuration(opts.timeout),
         next_method: EXECUTE_COMPLETE,
         next_kwargs: opts.kwargs ?? {},
       };
@@ -119,7 +119,7 @@ export function buildOperatorContext(deps: OperatorContextDeps): OperatorContext
         state: "deferred",
         classpath: opts.classpath,
         trigger_kwargs: opts.kwargs,
-        trigger_timeout: toIsoDuration(opts.timeoutSeconds),
+        trigger_timeout: toIsoDuration(opts.timeout),
         // `_defer_task` hands the trigger the task's queue only when triggerer queues are enabled.
         queue:
           opts.queue !== undefined

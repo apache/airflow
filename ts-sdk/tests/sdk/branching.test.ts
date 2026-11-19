@@ -22,8 +22,10 @@ import {
   Dag,
   finalizeDag,
   getDagOrderEdges,
+  getDagTaskGroups,
   getDagTaskInputs,
   getDagTaskRecords,
+  Label,
   type TaskRef,
 } from "../../src/sdk/dag.js";
 import { serializeDag } from "../../src/coordinator/serde.js";
@@ -182,6 +184,21 @@ describe("dag.switch", () => {
     expect(getDagOrderEdges(dag)).toContainEqual({ upstream: "pick_path", downstream: "notify" });
   });
 
+  it("declares a switch in a task group, under the group's prefix", async () => {
+    const dag = new Dag("d");
+    const long = dag.task("handle_long", async () => undefined)();
+    const short = dag.task("handle_short", async () => undefined)();
+    const pick = dag
+      .taskGroup("routing")
+      .switch(async () => long, undefined, { taskId: "pick_path" });
+    pick.case(long).case(short);
+
+    expect(pick.taskId).toBe("routing.pick_path");
+    expect(getDagTaskGroups(dag).get("routing")?.taskIds).toEqual(["routing.pick_path"]);
+    const { skipDownstreamTasks } = await runHandler(dag, "routing.pick_path");
+    expect(skipDownstreamTasks).toHaveBeenCalledWith(["handle_short"]);
+  });
+
   it("is a branch of a condition, so a switch can sit under dag.if", () => {
     const { dag, long, short, decider } = branchedDag();
     decider.case(long).case(short);
@@ -193,6 +210,15 @@ describe("dag.switch", () => {
   });
 
   describe("rejects", () => {
+    it("a labelled case", () => {
+      const { long, decider } = branchedDag();
+
+      expect(() => decider.case(Label.of("long").on(long) as never)).toThrowError(
+        'A case of "pick_path" of Dag "d" was given Label.of(...).on(...); label a branch ' +
+          'edge by redrawing it from "pick_path" with before(Label.of("text").on(task))',
+      );
+    });
+
     it("a task group as a case", () => {
       const { dag, decider } = branchedDag();
       const group = dag.taskGroup("staging");

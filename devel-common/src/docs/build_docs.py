@@ -22,7 +22,9 @@ from __future__ import annotations
 import itertools
 import multiprocessing
 import os
+import re
 import shutil
+import subprocess
 import sys
 from collections import defaultdict
 from collections.abc import Callable, Iterable, Sequence
@@ -73,6 +75,10 @@ ERRORS_ELIGIBLE_TO_REBUILD = [
 ]
 
 ON_GITHUB_ACTIONS = os.environ.get("GITHUB_ACTIONS", "false") == "true"
+
+MERMAID_DIRECTIVE = re.compile(r"^\s*\.\. mermaid::", re.MULTILINE)
+INSTALL_MERMAID_CLI_SCRIPT = AIRFLOW_CONTENT_ROOT_PATH / "scripts" / "in_container" / "install_mermaid_cli.sh"
+CHROMIUM_PATH = Path("/usr/bin/chromium")
 
 console = Console(force_terminal=True, color_system="standard", width=CONSOLE_WIDTH)
 
@@ -324,6 +330,36 @@ def is_command_available(command):
     return shutil.which(command) is not None
 
 
+def _uses_mermaid(package_name: str) -> bool:
+    src_dir = AirflowDocsBuilder(package_name=package_name)._src_dir
+    return any(MERMAID_DIRECTIVE.search(rst.read_text()) for rst in src_dir.rglob("*.rst"))
+
+
+def ensure_mermaid_cli(packages_to_build: Iterable[str]) -> None:
+    """
+    Make mermaid-cli available when a package to build contains a ``.. mermaid::`` diagram.
+
+    The diagrams are drawn at build time (see ``sphinx_exts/mermaid_svg.py``). mermaid-cli and
+    Chromium are installed into the breeze container on demand rather than baked into the CI image,
+    which every CI job loads, because only a handful of packages have diagrams.
+    """
+    if not any(_uses_mermaid(package_name) for package_name in packages_to_build):
+        return
+    if not is_command_available("mmdc"):
+        if os.environ.get("BREEZE", "").lower() != "true":
+            console.print(
+                "[yellow]A package to build contains mermaid diagrams, and mermaid-cli (mmdc) is not "
+                "installed. Run `breeze build-docs`, or install it with "
+                "`npm install --global @mermaid-js/mermaid-cli`.[/]"
+            )
+            return
+        with with_group("Installing mermaid-cli to draw mermaid diagrams"):
+            subprocess.run([INSTALL_MERMAID_CLI_SCRIPT.as_posix()], check=True)
+    if CHROMIUM_PATH.exists():
+        # Point puppeteer at Debian's chromium; mermaid-cli was installed without puppeteer's own.
+        os.environ.setdefault("PUPPETEER_EXECUTABLE_PATH", CHROMIUM_PATH.as_posix())
+
+
 click.rich_click.OPTION_GROUPS = {
     "build-docs": [
         {
@@ -480,6 +516,7 @@ def build_docs(
                     shutil.rmtree(api_dir)
             except StopIteration:
                 pass
+    ensure_mermaid_cli(packages_to_build)
     with with_group("Fetching inventories"):
         # Inventories that could not be retrieved should be built first. This may mean this is a
         # new package.

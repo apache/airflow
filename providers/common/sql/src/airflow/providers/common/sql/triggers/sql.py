@@ -17,7 +17,10 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
 from typing import TYPE_CHECKING
+
+from asgiref.sync import sync_to_async
 
 from airflow.providers.common.compat.sdk import AirflowException, BaseHook
 from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_2_PLUS
@@ -25,8 +28,10 @@ from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 if TYPE_CHECKING:
-    from collections.abc import AsyncIterator
+    from collections.abc import AsyncIterator, Iterable, Mapping
     from typing import Any
+
+NO_ROWS_MESSAGE = "No rows returned, raising as per fail_on_empty flag"
 
 
 class SQLExecuteQueryTrigger(BaseTrigger):
@@ -36,6 +41,7 @@ class SQLExecuteQueryTrigger(BaseTrigger):
     :param sql: the sql statement to be executed (str) or a list of sql statements to execute
     :param conn_id: the connection ID used to connect to the database
     :param hook_params: hook parameters
+    :param parameters: The parameters to render the SQL query with (optional).
     """
 
     def __init__(
@@ -43,12 +49,14 @@ class SQLExecuteQueryTrigger(BaseTrigger):
         sql: str | list[str],
         conn_id: str,
         hook_params: dict | None = None,
+        parameters: Iterable | Mapping[str, Any] | None = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
         self.sql = sql
         self.conn_id = conn_id
         self.hook_params = hook_params
+        self.parameters = parameters
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         """Serialize the SQLExecuteQueryTrigger arguments and classpath."""
@@ -58,6 +66,7 @@ class SQLExecuteQueryTrigger(BaseTrigger):
                 "sql": self.sql,
                 "conn_id": self.conn_id,
                 "hook_params": self.hook_params,
+                "parameters": self.parameters,
             },
         )
 
@@ -79,15 +88,18 @@ class SQLExecuteQueryTrigger(BaseTrigger):
             )
         return hook
 
-    async def _get_records(self) -> Any:
-        from asgiref.sync import sync_to_async
+    def _fetch_records(self, hook: DbApiHook) -> Any:
+        if self.parameters is None:
+            return hook.get_records(self.sql)
+        return hook.get_records(self.sql, self.parameters)
 
+    async def _get_records(self) -> Any:
         hook = self.get_hook()
 
         if AIRFLOW_V_3_2_PLUS:
             # This is only supported from Airflow 3.2 or higher due to added async support in CommsDecoder
-            return await sync_to_async(hook.get_records)(self.sql)
-        return hook.get_records(self.sql)
+            return await sync_to_async(self._fetch_records)(hook)
+        return self._fetch_records(hook)
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
         try:
@@ -100,6 +112,69 @@ class SQLExecuteQueryTrigger(BaseTrigger):
             self.log.info("Reading records from %s done!", self.conn_id)
             self.log.debug("results: %s", results)
             yield TriggerEvent({"status": "success", "results": results})
+        except Exception as e:
+            self.log.exception("An error occurred: %s", e)
+            yield TriggerEvent({"status": "failure", "message": str(e)})
+
+
+class SqlSensorTrigger(SQLExecuteQueryTrigger):
+    """
+    Poll a SQL query until the first cell of the first row is truthy.
+
+    This is the default ``SqlSensor`` condition. The trigger waits ``poke_interval``
+    seconds before each query, because the sensor checks once on the worker before
+    deferring. Each poll, connection lookup included, runs in a thread so a slow query
+    does not block other triggers. The triggerer only serves connection lookups from
+    threads safely on Airflow 2 and on 3.2.2 or later, so ``SqlSensor`` only defers there.
+
+    An error during a poll ends the wait with a failure event, so the task fails and
+    retries as it would if the same error happened in poke mode.
+
+    :param sql: The SQL query to poll.
+    :param conn_id: The connection ID used to connect to the database.
+    :param poke_interval: Seconds to wait before each query.
+    :param parameters: The parameters to render the SQL query with (optional).
+    :param hook_params: Extra config params to be passed to the underlying hook.
+    :param fail_on_empty: Yield a failure event when the query returns no rows.
+    """
+
+    def __init__(
+        self,
+        *,
+        sql: str,
+        conn_id: str,
+        poke_interval: float,
+        parameters: Iterable | Mapping[str, Any] | None = None,
+        hook_params: dict | None = None,
+        fail_on_empty: bool = False,
+        **kwargs,
+    ):
+        super().__init__(sql=sql, conn_id=conn_id, hook_params=hook_params, parameters=parameters, **kwargs)
+        self.poke_interval = poke_interval
+        self.fail_on_empty = fail_on_empty
+
+    def serialize(self) -> tuple[str, dict[str, Any]]:
+        """Serialize the SqlSensorTrigger arguments and classpath."""
+        classpath, kwargs = super().serialize()
+        return classpath, {**kwargs, "poke_interval": self.poke_interval, "fail_on_empty": self.fail_on_empty}
+
+    def _poll(self) -> Any:
+        return self._fetch_records(self.get_hook())
+
+    async def run(self) -> AsyncIterator[TriggerEvent]:
+        try:
+            while True:
+                await asyncio.sleep(self.poke_interval)
+                self.log.info("Poking: %s (with parameters %s)", self.sql, self.parameters)
+                records = await sync_to_async(self._poll, thread_sensitive=False)()
+                if not records:
+                    if self.fail_on_empty:
+                        yield TriggerEvent({"status": "failure", "message": NO_ROWS_MESSAGE})
+                        return
+                elif records[0][0]:
+                    yield TriggerEvent({"status": "success"})
+                    return
+                self.log.info("Criteria not met; checking again in %s seconds.", self.poke_interval)
         except Exception as e:
             self.log.exception("An error occurred: %s", e)
             yield TriggerEvent({"status": "failure", "message": str(e)})

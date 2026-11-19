@@ -71,6 +71,11 @@ Option A – Breeze on Your Laptop
 
     git clone https://github.com/<you>/airflow.git
     cd airflow
+    git remote add upstream https://github.com/apache/airflow.git
+
+Before your first push, run ``breeze ci audit`` (after installing Breeze below) to check that your
+remotes and the CI in your fork are set up; see
+`CI in your fork <18_contribution_workflow.rst#ci-in-your-fork>`__.
 
 2.  **Set up Git hooks and install Breeze**
 

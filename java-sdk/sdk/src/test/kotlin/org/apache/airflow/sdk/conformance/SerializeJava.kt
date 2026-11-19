@@ -39,6 +39,7 @@ import org.apache.airflow.sdk.ConditionTask
 import org.apache.airflow.sdk.Context
 import org.apache.airflow.sdk.DagDef
 import org.apache.airflow.sdk.Deps
+import org.apache.airflow.sdk.Label
 import org.apache.airflow.sdk.SwitchRef
 import org.apache.airflow.sdk.SwitchTask
 import org.apache.airflow.sdk.Task
@@ -253,7 +254,10 @@ private fun buildDag(case: JsonNode): DagDef {
 
   case.path("order_edges").forEach { edge ->
     val node = { id: String -> groups[id] as Deps.Flow? ?: tasks.getValue(id) }
-    node(edge[0].asText()).before(node(edge[1].asText()))
+    val downstream = node(edge[1].asText())
+    // A third item is the label of the edge.
+    val labeled = if (edge.size() > 2) Label.of(edge[2].asText()).on(downstream) else downstream
+    node(edge[0].asText()).before(labeled)
   }
   return dag
 }

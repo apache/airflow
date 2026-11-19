@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import time
 from collections.abc import AsyncIterator
 from typing import Any
@@ -38,7 +39,11 @@ class DbtCloudRunJobTrigger(BaseTrigger):
         the task is considered timed out.
     :param account_id: The ID of a dbt Cloud account.
     :param poll_interval:  polling period in seconds to check for the status.
-    :param hook_params: Extra arguments passed to the DbtCloudHook constructor.
+    :param hook_params: Extra arguments passed to the DbtCloudHook constructor. Airflow serializes
+        trigger arguments to store them in the metadata database, so the trigger keeps only the
+        arguments whose values can be serialized to JSON. For example, the trigger drops a
+        ``retry_args`` value that holds tenacity objects, and the hook in the trigger then retries
+        according to ``retry_limit`` and ``retry_delay``.
     """
 
     def __init__(
@@ -58,7 +63,22 @@ class DbtCloudRunJobTrigger(BaseTrigger):
         self.end_time = end_time
         self.execution_deadline = execution_deadline
         self.poll_interval = poll_interval
-        self.hook_params = hook_params or {}
+        # Since Airflow 3.2, the task runner serializes trigger arguments with airflow.sdk.serde instead
+        # of BaseSerialization. When the task defers, serde raises TypeError for a type that it has no
+        # serializer for, such as a tenacity object. The operator has already started the dbt Cloud job
+        # before the task defers. Before 3.2, BaseSerialization stores the same value as a string.
+        self.hook_params: dict[str, Any] = {}
+        for name, value in (hook_params or {}).items():
+            try:
+                json.dumps(value)
+            except (TypeError, ValueError):
+                self.log.warning(
+                    "The trigger drops hook_params[%r] because the value cannot be serialized to JSON. "
+                    "The DbtCloudHook in the trigger uses the default value for this argument instead.",
+                    name,
+                )
+            else:
+                self.hook_params[name] = value
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         """Serialize DbtCloudRunJobTrigger arguments and classpath."""

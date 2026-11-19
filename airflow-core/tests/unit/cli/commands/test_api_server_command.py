@@ -16,7 +16,9 @@
 # under the License.
 from __future__ import annotations
 
+import os
 import ssl
+import subprocess
 import sys
 from unittest import mock
 
@@ -26,6 +28,7 @@ from rich.console import Console
 from airflow.cli.commands import api_server_command
 from airflow.exceptions import AirflowConfigException
 
+from tests_common.test_utils.config import conf_vars
 from unit.cli.commands._common_cli_classes import _CommonCLIUvicornTestClass
 
 console = Console(width=400, color_system="standard")
@@ -34,6 +37,22 @@ console = Console(width=400, color_system="standard")
 @pytest.mark.db_test
 class TestCliApiServer(_CommonCLIUvicornTestClass):
     main_process_regexp = r"airflow api-server"
+
+    def test_uses_worker_timeout_config_as_cli_default(self):
+        result = subprocess.run(
+            [
+                sys.executable,
+                "-c",
+                "from airflow.cli.cli_parser import get_parser; "
+                "print(f\"worker_timeout={get_parser().parse_args(['api-server']).worker_timeout!r}\")",
+            ],
+            env={**os.environ, "AIRFLOW__API__WORKER_TIMEOUT": "321"},
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+
+        assert "worker_timeout=321" in result.stdout.splitlines()
 
     @pytest.mark.parametrize(
         "args",
@@ -384,6 +403,24 @@ class TestCliApiServer(_CommonCLIUvicornTestClass):
         args = self.parser.parse_args(["api-server", "--ssl-ciphers", "NOT-A-REAL-CIPHER"])
         with pytest.raises(AirflowConfigException, match="Invalid ssl_ciphers option 'NOT-A-REAL-CIPHER'"):
             api_server_command._ssl_ciphers(args)
+
+    @pytest.mark.parametrize("missing_module", ["gunicorn", "uvicorn_worker"])
+    def test_gunicorn_server_type_without_extra_raises_config_error(self, monkeypatch, missing_module):
+        args = self.parser.parse_args(["api-server"])
+        monkeypatch.setitem(sys.modules, missing_module, None)
+
+        with (
+            conf_vars({("api", "server_type"): "gunicorn"}),
+            mock.patch.object(
+                api_server_command, "_run_api_server_with_gunicorn", autospec=True
+            ) as mock_run_gunicorn,
+            pytest.raises(AirflowConfigException, match=r"pip install 'apache-airflow-core\[gunicorn\]'"),
+        ):
+            api_server_command._run_api_server(
+                args, apps="all", num_workers=1, worker_timeout=120, proxy_headers=False
+            )
+
+        mock_run_gunicorn.assert_not_called()
 
     @pytest.fixture
     def ssl_cert_key_and_ca(self, tmp_path):

@@ -1,0 +1,1 @@
+Custom deadline references registered as ``DeadlineReference.TYPES.DAGRUN_QUEUED`` are now re-anchored to the new queued time when a Dag run is cleared, as the built-in ``DeadlineReference.DAGRUN_QUEUED_AT`` already was. Deadline alerts serialized before this fix pick the behaviour up once their Dag is parsed again.

@@ -31,7 +31,7 @@ import { ActionAccordion } from "src/components/ActionAccordion";
 import { getRunOnLatestVersionState } from "src/components/Clear/TaskInstance/runOnLatestVersion";
 import { useRerunWithLatestVersion } from "src/components/Clear/useRerunWithLatestVersion";
 
-import { useClearRunDefaultOptions } from "src/hooks/useUserSettings";
+import { useClearKeepTaskStateDefault, useClearRunDefaultOptions } from "src/hooks/useUserSettings";
 import { useClearDagRunDryRun } from "src/queries/useClearDagRunDryRun";
 import { useClearDagRun } from "src/queries/useClearRun";
 import { isStatePending, useAutoRefresh } from "src/utils";
@@ -48,6 +48,8 @@ const ClearRunDialog = ({ dagRun, onClose, open }: Props) => {
   const { t: translate } = useTranslation();
 
   const [note, setNote] = useState<string | null>(dagRun.note);
+  const [keepTaskStateDefault] = useClearKeepTaskStateDefault();
+  const [keepTaskState, setKeepTaskState] = useState(keepTaskStateDefault);
 
   useEffect(() => {
     if (open) {
@@ -113,26 +115,37 @@ const ClearRunDialog = ({ dagRun, onClose, open }: Props) => {
   return (
     <Modal
       footerActions={
+        <Button
+          disabled={affectedTasks.total_entries === 0}
+          loading={isPending}
+          onClick={() => {
+            mutate({
+              dagId,
+              dagRunId,
+              requestBody: {
+                dry_run: false,
+                keep_task_state: keepTaskState && !onlyNew,
+                note: note === dagRun.note ? undefined : note,
+                only_failed: onlyFailed,
+                only_new: onlyNew,
+                run_on_latest_version: runOnLatestVersion,
+              },
+            });
+          }}
+        >
+          <CgRedo /> {translate("modal.confirm")}
+        </Button>
+      }
+      footerOptions={
         <>
-          <Button
-            disabled={affectedTasks.total_entries === 0}
-            loading={isPending}
-            onClick={() => {
-              mutate({
-                dagId,
-                dagRunId,
-                requestBody: {
-                  dry_run: false,
-                  note: note === dagRun.note ? undefined : note,
-                  only_failed: onlyFailed,
-                  only_new: onlyNew,
-                  run_on_latest_version: runOnLatestVersion,
-                },
-              });
-            }}
-          >
-            <CgRedo /> {translate("modal.confirm")}
-          </Button>
+          {onlyNew ? undefined : (
+            <Checkbox
+              checked={keepTaskState}
+              onCheckedChange={(event) => setKeepTaskState(Boolean(event.checked))}
+            >
+              {translate("dags:runAndTaskActions.options.keepTaskState")}
+            </Checkbox>
+          )}
           {shouldShowBundleVersionOption ? (
             <Checkbox
               checked={runOnLatestVersionForced || runOnLatestVersion}

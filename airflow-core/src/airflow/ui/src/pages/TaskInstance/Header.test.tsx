@@ -20,7 +20,7 @@ import "@testing-library/jest-dom/vitest";
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { TaskInstanceResponse } from "openapi/requests/types.gen";
+import type { LoopSummaryResponse, TaskInstanceResponse } from "openapi/requests/types.gen";
 
 import i18n from "src/i18n/config";
 import { Wrapper } from "src/utils/Wrapper";
@@ -42,7 +42,18 @@ vi.mock("src/components/NotePreview", () => ({
   NotePreview: () => <button type="button">Edit note</button>,
 }));
 
+const gridSelection = vi.hoisted(() => ({ hasSelection: false }));
+
+vi.mock("src/context/gridSelection", () => ({
+  useHasGridSelection: () => gridSelection.hasSelection,
+}));
+
 const mockConfig: Record<string, unknown> = { multi_team: false };
+const mockLoopSummary: { data?: Partial<LoopSummaryResponse> } = {};
+
+vi.mock("src/queries/useLoopSummary", () => ({
+  useLoopSummary: () => ({ data: mockLoopSummary.data }),
+}));
 
 vi.mock("src/queries/useConfig", () => ({
   useConfig: (key: string) => mockConfig[key],
@@ -96,6 +107,21 @@ describe("Header", () => {
     expect(screen.getByRole("link", { name: "team-a" })).toHaveAttribute("href", "/dags?teams=team-a");
   });
 
+  it.each([
+    { hasSelection: false, shown: true },
+    { hasSelection: true, shown: false },
+  ])(
+    "shows the actions only without a grid selection (selection: $hasSelection)",
+    ({ hasSelection, shown }) => {
+      gridSelection.hasSelection = hasSelection;
+      render(<Header taskInstance={baseTaskInstance} />, { wrapper: Wrapper });
+
+      expect(screen.queryByRole("button", { name: "Clear task" }) !== null).toBe(shown);
+      expect(screen.queryByRole("button", { name: "Mark task" }) !== null).toBe(shown);
+      gridSelection.hasSelection = false;
+    },
+  );
+
   it("hides the team stat when multi-team is disabled", () => {
     render(<Header taskInstance={{ ...baseTaskInstance, team_name: "team-a" }} />, { wrapper: Wrapper });
 
@@ -106,6 +132,33 @@ describe("Header", () => {
 const renderHeader = (overrides: Partial<TaskInstanceResponse>) =>
   render(<Header taskInstance={{ ...baseTaskInstance, ...overrides }} />, { wrapper: Wrapper });
 
+describe("Header loop decision", () => {
+  beforeEach(() => {
+    mockLoopSummary.data = {
+      iterations: [
+        { decision_reason: "error 0.25, needs < 1e-06", index: 0 },
+        { index: 1 },
+        { decision_reason: "error 6e-06, needs < 1e-06", index: 2 },
+      ],
+      iterations_ran: 3,
+    };
+  });
+
+  it("shows the reason its own iteration's gate gave", () => {
+    renderHeader({ loop_iteration: { iteration: 2, loop_id: "refine" } });
+
+    expect(screen.getByText(i18n.t("common:taskInstance.loopDecision"))).toBeInTheDocument();
+    expect(screen.getByText("error 6e-06, needs < 1e-06")).toBeInTheDocument();
+    expect(screen.queryByText("error 0.25, needs < 1e-06")).not.toBeInTheDocument();
+  });
+
+  it("omits the stat for an iteration without a reason", () => {
+    renderHeader({ loop_iteration: { iteration: 1, loop_id: "refine" } });
+
+    expect(screen.queryByText(i18n.t("common:taskInstance.loopDecision"))).not.toBeInTheDocument();
+  });
+});
+
 describe("Header state reason banner", () => {
   // Without the bundle i18n.t() echoes the key, so the titles below would assert nothing.
   beforeEach(() => {
@@ -115,7 +168,7 @@ describe("Header state reason banner", () => {
   it("does not render when there is no reason", () => {
     renderHeader({ state: "failed", state_reason: null });
 
-    expect(screen.queryByTestId("state-reason-alert")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("state-reason-stat")).not.toBeInTheDocument();
   });
 
   // Cleared only once the task next reaches RUNNING, so these states still carry a stale reason.
@@ -124,7 +177,7 @@ describe("Header state reason banner", () => {
     (state) => {
       renderHeader({ state, state_reason: "auth error, do not retry" });
 
-      expect(screen.queryByTestId("state-reason-alert")).not.toBeInTheDocument();
+      expect(screen.queryByTestId("state-reason-stat")).not.toBeInTheDocument();
     },
   );
 
@@ -132,26 +185,15 @@ describe("Header state reason banner", () => {
     { maxTries: 2, state: "failed", titleKey: "failed", totalTries: 3, tryNumber: 3 },
     // Differing numbers are what make a swapped or off-by-one interpolation visible.
     { maxTries: 3, state: "up_for_retry", titleKey: "upForRetry", totalTries: 4, tryNumber: 2 },
-  ] as const)(
-    "titles the banner for a $state task",
-    ({ maxTries, state, titleKey, totalTries, tryNumber }) => {
-      renderHeader({ max_tries: maxTries, state, state_reason: "auth error", try_number: tryNumber });
+  ] as const)("labels the stat for a $state task", ({ maxTries, state, titleKey, totalTries, tryNumber }) => {
+    renderHeader({ max_tries: maxTries, state, state_reason: "auth error", try_number: tryNumber });
 
-      expect(screen.getByTestId("state-reason-alert")).toHaveTextContent(
+    // The summary is the stat's label and the reason its value, so they are separate elements.
+    expect(
+      screen.getByText(
         i18n.t(`common:taskInstance.stateReasonSummary.${titleKey}`, { totalTries, tryNumber }),
-      );
-      expect(screen.getByTestId("state-reason-alert")).toHaveTextContent("auth error");
-    },
-  );
-
-  // Chakra puts `status` in a generated class, so "not identical" is all that can be asserted.
-  it("styles a failed banner differently from an up_for_retry one", () => {
-    const { unmount } = renderHeader({ state: "failed", state_reason: "auth error" });
-    const failedClass = screen.getByTestId("state-reason-alert").className;
-
-    unmount();
-    renderHeader({ state: "up_for_retry", state_reason: "auth error" });
-
-    expect(screen.getByTestId("state-reason-alert").className).not.toBe(failedClass);
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByTestId("state-reason-stat")).toHaveTextContent("auth error");
   });
 });

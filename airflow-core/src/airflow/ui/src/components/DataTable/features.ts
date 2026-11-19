@@ -18,15 +18,18 @@
  */
 import {
   columnVisibilityFeature,
+  rowExpandingFeature,
   rowPaginationFeature,
   rowSortingFeature,
   tableFeatures,
 } from "@tanstack/react-table";
 
 // Pagination and sorting are server-side (`manualPagination`/`manualSorting`), so no row models
-// are registered: rows render in the order and slice the API returns them.
+// are registered: rows render in the order and slice the API returns them. Expanding only tracks
+// which rows are open, for tables that pass `renderSubComponent`.
 export const dataTableFeatures = tableFeatures({
   columnVisibilityFeature,
+  rowExpandingFeature,
   rowPaginationFeature,
   rowSortingFeature,
 });

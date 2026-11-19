@@ -36,4 +36,5 @@ In addition to the standard logging and metrics capabilities, Airflow supports t
     callbacks
 
     check-health
+    triggers
     errors

@@ -148,24 +148,6 @@ class CustomAssetGatedTimetable(MockTimetable):
     asset_gated = True
 
 
-def serialize_timetable(timetable: Timetable) -> str:
-    """
-    Mock serialization function for Timetable objects.
-
-    :param timetable: The Timetable object to serialize.
-    """
-    return "serialized_timetable"
-
-
-def deserialize_timetable(serialized: str) -> MockTimetable:
-    """
-    Mock deserialization function for Timetable objects.
-
-    :param serialized: The serialized data of the timetable.
-    """
-    return MockTimetable()
-
-
 @pytest.fixture
 def test_timetable() -> MockTimetable:
     """Pytest fixture for creating a MockTimetable object."""

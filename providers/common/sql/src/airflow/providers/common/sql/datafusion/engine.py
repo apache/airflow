@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import os
+from dataclasses import replace
 from typing import TYPE_CHECKING, Any
 from urllib.parse import parse_qsl, urlsplit
 
@@ -64,14 +65,15 @@ class DataFusionEngine(LoggingMixin):
             else:
                 connection_config = self._get_connection_config(datasource_config.conn_id)
 
-            self._register_object_store(datasource_config, connection_config)
+            canonical_uri = self._register_object_store(datasource_config, connection_config)
+            datasource_config = replace(datasource_config, uri=canonical_uri)
 
         self._register_data_source_format(datasource_config)
 
     def _register_object_store(
         self, datasource_config: DataSourceConfig, connection_config: ConnectionConfig | None
-    ):
-        """Register object stores."""
+    ) -> str:
+        """Register the object store and return the canonical URI to register the table under."""
         if TYPE_CHECKING:
             assert datasource_config.storage_type is not None
 
@@ -80,9 +82,14 @@ class DataFusionEngine(LoggingMixin):
             object_store = storage_provider.create_object_store(
                 datasource_config.uri, connection_config=connection_config
             )
+            canonical_uri = storage_provider.normalize_uri(datasource_config.uri)
             schema = storage_provider.get_scheme()
-            self.session_context.register_object_store(schema=schema, store=object_store)
-            self.log.info("Registered object store for schema: %s", schema)
+            # abfs(s) folds account+container into one host token, so the container-name host
+            # DataFusion defaults to when host is omitted would miss the registered store.
+            host = urlsplit(canonical_uri).netloc
+            self.session_context.register_object_store(schema=schema, store=object_store, host=host)
+            self.log.info("Registered object store for schema: %s host: %s", schema, host)
+            return canonical_uri
         except Exception as e:
             raise ObjectStoreCreationException(
                 f"Error while creating object store for {datasource_config.storage_type}: {e}"
@@ -240,6 +247,9 @@ class DataFusionEngine(LoggingMixin):
                     credentials.update(
                         {"client_id": conn.login, "client_secret": conn.password, "tenant_id": tenant_id}
                     )
+                    if not conn.host:
+                        # login holds the client_id here, so it cannot name the storage account.
+                        credentials["account"] = None
                     credential_tier = "client_secret"
                 elif shared_access_key := _get_wasb_extra_field(extra_dejson, "shared_access_key"):
                     # Checked ahead of sas_token to match WasbHook.get_conn's precedence.
@@ -353,7 +363,8 @@ class DataFusionEngine(LoggingMixin):
 
         From ``host`` (its netloc's first label) when set, falling back to ``login`` only when
         ``host`` is empty -- login holds the service-principal client_id otherwise, not the
-        account name. Returns ``None`` when neither is set, so the binding falls back to
+        account name (the caller drops the login-derived account for service principals).
+        Returns ``None`` when neither is set, so the binding falls back to
         ``AZURE_STORAGE_ACCOUNT_NAME`` rather than the literal string ``"None"``. Reimplemented
         locally instead of importing
         ``airflow.providers.microsoft.azure.utils.parse_blob_account_url``, to avoid pulling in

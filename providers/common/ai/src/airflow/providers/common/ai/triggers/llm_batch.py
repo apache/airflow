@@ -34,11 +34,6 @@ class LLMBatchTrigger(BaseTrigger):
     """
     Poll a batch adapter until the batch reaches a terminal state.
 
-    .. note::
-
-        Experimental: this can change or be removed in a minor release of this provider.
-        See :ref:`howto/stability`.
-
     Deliberately thin: this trigger only polls and, on kill or timeout,
     cancels. It never downloads or validates results; that is
     :meth:`~airflow.providers.common.ai.operators.llm_batch.LLMBatchOperator.execute_complete`'s

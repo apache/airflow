@@ -158,13 +158,25 @@ class AwsTaskLogFetcher(Thread):
          NOTE: some restrictions apply:
          - if logs are too old, the response will be empty
          - the max number of messages we can retrieve is constrained by cloudwatch limits (10,000).
+         - if the log stream does not exist, an empty list is returned.
         """
-        response = self.hook.conn.get_log_events(
-            logGroupName=self.log_group,
-            logStreamName=self.log_stream_name,
-            startFromHead=False,
-            limit=number_messages,
-        )
+        try:
+            response = self.hook.conn.get_log_events(
+                logGroupName=self.log_group,
+                logStreamName=self.log_stream_name,
+                startFromHead=False,
+                limit=number_messages,
+            )
+        except ClientError as error:
+            if error.response["Error"]["Code"] != "ResourceNotFoundException":
+                raise
+            self.logger.warning(
+                "Cannot find log stream, check that the log group and stream are correct: "
+                "group: %s\tstream: %s",
+                self.log_group,
+                self.log_stream_name,
+            )
+            return []
         return [log["message"] for log in response["events"]]
 
     def get_last_log_message(self) -> str | None:

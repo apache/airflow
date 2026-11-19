@@ -23,7 +23,7 @@ import type { LoopSummaryResponse } from "openapi/requests/types.gen";
 
 import commonLocale from "../../../../public/i18n/locales/en/common.json";
 import dagLocale from "../../../../public/i18n/locales/en/dag.json";
-import { getSelectedIteration, reasonSentence } from "./loopUtils";
+import { reasonSentence } from "./loopUtils";
 
 const i18n = i18next.createInstance();
 
@@ -72,15 +72,12 @@ describe("loop locale keys", () => {
   it.each([
     "dag:loop.outcome",
     "dag:loop.iterations",
-    "dag:loop.iteration",
+    "dag:loop.iterationLabel",
     "dag:loop.rules.behaviour",
     "dag:loop.rules.boundedFor",
     "dag:loop.rules.whileUntil",
     "dag:loop.rules.maxIterations",
     "dag:loop.rules.exitCriteria",
-    "dag:loop.filter.all",
-    "dag:loop.filter.invocation",
-    "dag:loop.filter.label",
     "dag:loop.history.title",
     "dag:loop.history.iterationsAxis",
     "dag:loop.history.capLabel",
@@ -89,22 +86,5 @@ describe("loop locale keys", () => {
     "common:taskInstance.loopIterations",
   ])("defines %s in the English bundle", (key) => {
     expect(i18n.exists(key)).toBe(true);
-  });
-});
-
-const ran = (...indexes: Array<number>) =>
-  buildSummary({
-    iterations: indexes.map((index) => ({ end_date: null, index, start_date: null, state: "success" })),
-  });
-
-describe("getSelectedIteration", () => {
-  it.each([
-    { expected: "1", param: null, summary: ran(0, 1) },
-    { expected: "0", param: "0", summary: ran(0, 1) },
-    { expected: "all", param: "all", summary: ran(0, 1) },
-    { expected: "1", param: "9", summary: ran(0, 1) },
-    { expected: "all", param: null, summary: ran() },
-  ])("selects $expected for iteration=$param", ({ expected, param, summary }) => {
-    expect(getSelectedIteration(param, summary)).toBe(expected);
   });
 });

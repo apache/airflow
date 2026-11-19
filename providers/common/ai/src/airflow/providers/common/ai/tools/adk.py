@@ -17,7 +17,7 @@
 """
 Give Airflow tools to a `Google ADK <https://google.github.io/adk-docs/>`__ agent.
 
-.. note:: Experimental; see :mod:`airflow.providers.common.ai.tools`.
+.. note:: Experimental; see :ref:`howto/stability`.
 """
 
 from __future__ import annotations
@@ -34,7 +34,7 @@ except ImportError as e:
 
     raise AirflowOptionalProviderFeatureException(e)
 
-from airflow.providers.common.ai.tools import AirflowTool, collect_tools
+from airflow.providers.common.ai.tools import AirflowTool, _collect_tools
 from airflow.providers.common.ai.tools._from_toolset import tool_call_scope
 from airflow.providers.common.ai.utils.tool_metrics import calling_framework
 
@@ -42,9 +42,11 @@ if TYPE_CHECKING:
     from google.adk.agents.readonly_context import ReadonlyContext
     from google.adk.tools.tool_context import ToolContext
 
-    from airflow.providers.common.ai.tools import ToolProvider
+    from airflow.providers.common.ai.tools import ToolSource
 
 __all__ = ["AirflowTools"]
+
+_MCP_HINT = "Connect ADK's McpToolset to the server instead."
 
 
 class AirflowTools(BaseToolset):
@@ -53,7 +55,9 @@ class AirflowTools(BaseToolset):
 
     Pass toolsets that implement
     :class:`~airflow.providers.common.ai.tools.ToolProvider`, such as ``SQLToolset``
-    and ``HookToolset``, or individual
+    and ``HookToolset``, optionally wrapped with ``.filtered()``,
+    ``.prefixed()`` or ``.renamed()`` (a ``.filtered()`` function runs once, when this
+    is built, with ``ctx.deps`` set to ``None``), or individual
     :class:`~airflow.providers.common.ai.tools.AirflowTool` objects. The agent, its
     model and its runner stay plain ADK.
 
@@ -67,7 +71,7 @@ class AirflowTools(BaseToolset):
         warehouse = SQLToolset("warehouse", allowed_tables=["orders"])
         agent = LlmAgent(name="analyst", model=model, tools=[AirflowTools(warehouse)])
 
-    Each tool keeps the source tool's name, description and argument schema, and every
+    Each tool keeps its source's name, description and argument schema, and every
     result passes through Airflow's secret masker first. A result reaches the model as
     ``{"result": ...}``; a failure the model can correct, such as a query naming a
     missing column, as ``{"error": ...}``, ADK's own convention for a failed tool. Such
@@ -80,9 +84,11 @@ class AirflowTools(BaseToolset):
     :param sources: Toolsets and tools to add, in order.
     """
 
-    def __init__(self, *sources: ToolProvider | AirflowTool) -> None:
+    def __init__(self, *sources: ToolSource) -> None:
         super().__init__()
-        self._adk_tools: list[BaseTool] = [_AirflowAdkTool(tool) for tool in collect_tools(sources)]
+        self._adk_tools: list[BaseTool] = [
+            _AirflowAdkTool(tool) for tool in _collect_tools(sources, mcp_hint=_MCP_HINT)
+        ]
 
     async def get_tools(self, readonly_context: ReadonlyContext | None = None) -> list[BaseTool]:
         return self._adk_tools
