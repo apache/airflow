@@ -150,7 +150,6 @@ dependencies = [
     "universal-pathlib>=0.3.8",
     "uuid6>=2024.7.10",
     "apache-airflow-task-sdk==1.2.1",
-    "apache-airflow-ctl<0.1.7,>=0.1.6",
     # pre-installed providers
     "apache-airflow-providers-common-compat>=1.7.4",
     "apache-airflow-providers-common-io>=1.6.3",
