@@ -707,7 +707,7 @@ Things to know:
   (``HostedMCPTool``). After you remove the approval requirement, clearing the task with
   its task state kept replays the turns before that call and asks the model again from
   there, so a tool call made in that same answer runs again if the model asks for it. A
-  default clear discards the task state and starts the agent over.
+  clear that discards the task state starts the agent over (see :ref:`durable-clear`).
 - Every pause carries the answers the task has received so far, so keep the approvals one
   run asks for to a handful.
 

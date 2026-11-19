@@ -222,7 +222,8 @@ A retry runs some work again:
 
 A retry resumes the saved conversation with the system prompt it was saved with.
 So does a clear that keeps task state. To run a changed system prompt on a failed
-task, clear it without keeping its task state, which is the default.
+task, clear it without keeping its task state (see :ref:`durable-clear` for when a
+clear keeps it).
 
 An agent whose model keeps the conversation server-side (``model.stateful``) raises
 ``ValueError``: Strands' `session manager

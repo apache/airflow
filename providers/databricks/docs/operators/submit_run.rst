@@ -247,7 +247,7 @@ prevent cancellation via ``on_kill``. See :doc:`apache-airflow:core-concepts/res
 for the ways of clearing.
 
 Clearing a task that is still running cancels the run via ``on_kill``, also when the task is
-deferred, so the next attempt finds it canceled.
+deferred (Airflow 3.3+), so the next attempt finds it canceled.
 
 To opt out and always submit a fresh run on retry, set ``durable=False``:
 

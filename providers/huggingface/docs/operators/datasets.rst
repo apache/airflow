@@ -193,15 +193,18 @@ suffix carrying the marker. Clearing a task removes this state by default: from
 the UI or the REST API from Airflow 3.4, and on every other clear from Airflow
 3.5. If you set ``keep_task_state`` when clearing, a cleared task can return
 the stored commit and emit its asset event again without pushing. This avoids
-reusing an older publication after the branch has advanced. The task emits an
-asset event with the same commit SHA and URL only after successful publication.
-Publication uses Datasets ``push_to_hub``, which rewrites the README's YAML
-card metadata, including ``dataset_info`` and ``configs``, in the push commit.
-Only a publication to ``main`` without ``create_pr`` emits the repo-level asset
-event; pull request and non-main revision pushes do not change the revision
-referenced by ``hf://datasets/<repo_id>``. For those pushes the operator
-removes ``hf://datasets/<repo_id>`` from ``outlets`` even when you list it
-there yourself, and in a mapped task this follows each expanded ``push_kwargs``
+reusing an older publication after the branch has advanced. With
+``[state_store] clear_on_success`` on, the stored commit is deleted when the
+task succeeds, so clearing a succeeded task pushes again even when task state
+is kept. The task emits an asset event with the same commit SHA and URL only
+after successful publication. Publication uses Datasets ``push_to_hub``, which
+rewrites the README's YAML card metadata, including ``dataset_info`` and
+``configs``, in the push commit. Only a publication to ``main`` without
+``create_pr`` emits the repo-level asset event; pull request and non-main
+revision pushes do not change the revision referenced by
+``hf://datasets/<repo_id>``. For those pushes the operator removes
+``hf://datasets/<repo_id>`` from ``outlets`` even when you list it there
+yourself, and in a mapped task this follows each expanded ``push_kwargs``
 entry.
 
 Example

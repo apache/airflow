@@ -227,8 +227,8 @@ prevent cancellation via ``on_kill``. See :doc:`apache-airflow:core-concepts/res
 for the ways of clearing.
 
 By default (``cancel_on_kill=True``), clearing a running task requests cancellation via
-``on_kill``, including when deferred. With ``cancel_on_kill=False``, the statements are left
-running; a default clear submits the SQL again on the next synchronous attempt.
+``on_kill``, including when deferred (Airflow 3.3+). With ``cancel_on_kill=False``, the statements
+are left running; a default clear submits the SQL again on the next synchronous attempt.
 
 To opt out and always submit fresh SQL on retry, set ``durable=False``:
 
