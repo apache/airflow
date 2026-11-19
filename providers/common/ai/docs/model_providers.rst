@@ -100,12 +100,16 @@ reaches (connections and toolsets alike), see :doc:`supported_services`.
        OAuth, PAT or key-pair credentials from an existing Snowflake connection.
    * - Databricks Model Serving
      - ``openai-chat:``
-     - ``apache-airflow-providers-databricks[common.ai]`` and
-       ``apache-airflow-providers-common-ai[openai]``
-     - ``pydanticai_databricks``
+     - ``[openai]`` for ``pydanticai``, or
+       ``apache-airflow-providers-databricks[common.ai]`` and
+       ``apache-airflow-providers-common-ai[openai]`` for ``pydanticai_databricks``
+     - ``pydanticai``, or ``pydanticai_databricks``
        (:doc:`apache-airflow-providers-databricks:connections/pydantic_ai_databricks`)
-     - Sourced from an existing Databricks connection (PAT, OAuth, Azure or federated
-       credentials); leave **Password** empty.
+     - For a personal access token with ``pydanticai``: model ``openai-chat:<endpoint>``,
+       ``https://<workspace>/serving-endpoints`` in **Host**, token in **Password**. The
+       ``pydanticai_databricks`` connection type instead sources PAT, OAuth, Azure or federated
+       credentials from an existing Databricks connection, refreshing the token on each request;
+       leave **Password** empty.
    * - TypeSafe Jev (decision model, does not write text)
      - ``typesafe:``
      - ``[typesafe]``
