@@ -61,6 +61,7 @@
   "dagWarnings": {
     "error_one": "오류 1개",
     "errorAndWarning": "오류 1개 및 {{warningText}}",
+    "failingWatcher": "{{assetName}}의 Watcher {{watcherName}}이(가) 실패하고 있습니다",
     "types": {
       "asset conflict": "에셋 충돌",
       "duplicate dag id": "중복된 Dag ID",
@@ -68,6 +69,7 @@
       "runtime varying value": "런타임에 변하는 값",
       "task group cycle": "태스크 그룹 순환"
     },
+    "viewTrigger": "트리거 보기",
     "warning_one": "경고 1개",
     "warning_other": "경고 {{count, number}}개"
   },
