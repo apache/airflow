@@ -35,8 +35,6 @@ integrations:
     how-to-guide:
       - /docs/apache-airflow-providers-apache-hbase/operators.rst
       - /docs/apache-airflow-providers-apache-hbase/sensors.rst
-      - /docs/apache-airflow-providers-apache-hbase/hooks.rst
-      - /docs/apache-airflow-providers-apache-hbase/connections.rst
     tags: [apache, software]
 
 operators:
