@@ -98,6 +98,7 @@ export type FilterableSearchParamsKeys =
   | SearchParamsKeys.OWNERS
   | SearchParamsKeys.PARTITION_KEY
   | SearchParamsKeys.PARTITION_KEY_PATTERN
+  | SearchParamsKeys.PARTITION_STATUS
   | SearchParamsKeys.PAUSED
   | SearchParamsKeys.POOL_NAME_PATTERN
   | SearchParamsKeys.QUEUE_NAME_PATTERN

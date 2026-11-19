@@ -19,6 +19,23 @@
 Changelog
 ---------
 
+1.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Keep the previous Dag source when a GitDagBundle refresh fails, on Airflow 3.5+ (#74789)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix GitDagBundle source link for SSH repos with .git in the name (#76949)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``[main] Upgrade important CI environment (#76278)``
+
 1.0.1
 .....
 
