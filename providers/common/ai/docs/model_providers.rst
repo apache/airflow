@@ -100,7 +100,8 @@ reaches (connections and toolsets alike), see :doc:`supported_services`.
        OAuth, PAT or key-pair credentials from an existing Snowflake connection.
    * - Databricks Model Serving
      - ``openai-chat:``
-     - ``apache-airflow-providers-databricks[common.ai]``
+     - ``apache-airflow-providers-databricks[common.ai]`` and
+       ``apache-airflow-providers-common-ai[openai]``
      - ``pydanticai_databricks``
        (:doc:`apache-airflow-providers-databricks:connections/pydantic_ai_databricks`)
      - Sourced from an existing Databricks connection (PAT, OAuth, Azure or federated
@@ -123,7 +124,8 @@ name the matching ``pydantic-ai-slim`` extra instead, because this provider does
 for them. The Snowflake entry lists one install per connection type: ``pydanticai`` uses the
 ``pydantic-ai-slim`` extra, while the ``pydanticai_snowflake`` type ships with the Snowflake
 provider and is installed through its ``[common.ai]`` extra. The ``pydanticai_databricks`` type
-ships with the Databricks provider and is installed through its ``[common.ai]`` extra the same way.
+ships with the Databricks provider and is installed through its ``[common.ai]`` extra the same way,
+together with this provider's ``[openai]`` extra.
 
 Any other vendor that `pydantic-ai supports <https://ai.pydantic.dev/models/overview/>`__
 (Cohere, OpenRouter, Hugging Face and more) works the same
