@@ -459,11 +459,13 @@ class BaseDagBundle(ABC):
         return self._view_url_template
 
     @contextmanager
-    def lock(self):
+    def lock(self, *, wait: bool = True):
         """
         Ensure only a single bundle can enter this context at a time, by taking an exclusive lock on a lockfile.
 
         This is useful when a bundle needs to perform operations that are not safe to run concurrently.
+
+        With ``wait=False``, raise ``BlockingIOError`` if another process holds the lock.
         """
         if self._locked:
             yield
@@ -474,8 +476,8 @@ class BaseDagBundle(ABC):
         lock_file_path = lock_dir_path / f"{self.name}.lock"
 
         with open(lock_file_path, "w") as lock_file:
-            # Exclusive lock - blocks until it is available
-            fcntl.flock(lock_file, fcntl.LOCK_EX)
+            flags = fcntl.LOCK_EX if wait else fcntl.LOCK_EX | fcntl.LOCK_NB
+            fcntl.flock(lock_file, flags)
             try:
                 self._locked = True
                 yield

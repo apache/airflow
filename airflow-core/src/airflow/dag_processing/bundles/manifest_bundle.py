@@ -171,6 +171,11 @@ class PreparedPublishSource:
     file_version_ids: Mapping[str, str] | None = None
     source_type: str = ""
     source_identity: str = ""
+    # Remote observations must be stable across hosts; mirror inode metadata is not.
+    source_signature: str | None = None
+    file_sha256_by_path: Mapping[str, str] | None = None
+    confirmation_data: Any = None
+    release_source_metadata: dict[str, str] | None = None
 
 
 class ManifestDagBundleBase(BaseDagBundle, ABC):
@@ -298,6 +303,18 @@ class ManifestDagBundleBase(BaseDagBundle, ABC):
     @abstractmethod
     def confirm_publish_source(self, prepared: PreparedPublishSource) -> None:
         """Raise if the concrete source no longer matches ``prepared``."""
+
+    def validate_release_transition(
+        self, *, current_ref: BundleManifestRef | None, prepared: PreparedPublishSource
+    ) -> None:
+        """Check source-specific deployment constraints before replacing a release."""
+
+    def is_current_release_source(
+        self, *, current_ref: BundleManifestRef, prepared: PreparedPublishSource
+    ) -> bool:
+        return prepared.release_source_metadata is None or (
+            current_ref.ref_payload.get("source") == prepared.release_source_metadata
+        )
 
     def get_current_version(self) -> BundleVersion:
         """
@@ -463,6 +480,7 @@ class ManifestDagBundleBase(BaseDagBundle, ABC):
                 "source_type and source_identity, which tell the sources of different publishers apart"
             )
         self._validate_publish_source_paths(prepared.root)
+        self.validate_release_transition(current_ref=current_ref, prepared=prepared)
         snapshot = prepared.source_snapshot
         source_is_confirmed = _get_source_key(prepared) == self._confirmed_source_key
         if source_is_confirmed:
@@ -506,11 +524,13 @@ class ManifestDagBundleBase(BaseDagBundle, ABC):
             root=prepared.root,
             backend_type=self._store.backend_type,
             source_snapshot=snapshot,
+            precomputed_file_sha256=prepared.file_sha256_by_path,
             file_version_ids=prepared.file_version_ids,
         )
         if (
             current_ref is not None
             and current_ref.version == manifest_result.version
+            and self.is_current_release_source(current_ref=current_ref, prepared=prepared)
             and self._store.snapshot_exists(manifest_result.version)
         ):
             self._record_confirmed_source(prepared, manifest_result.version)
@@ -525,9 +545,11 @@ class ManifestDagBundleBase(BaseDagBundle, ABC):
                     "Bundle source stability candidate changed before automatic publication"
                 )
             latest_ref = self._read_current_manifest_ref_or_none()
+            self.validate_release_transition(current_ref=latest_ref, prepared=prepared)
             if (
                 latest_ref is not None
                 and latest_ref.version == manifest_result.version
+                and self.is_current_release_source(current_ref=latest_ref, prepared=prepared)
                 and self._store.snapshot_exists(manifest_result.version)
             ):
                 self._record_confirmed_source(prepared, manifest_result.version)
@@ -620,7 +642,7 @@ class ManifestDagBundleBase(BaseDagBundle, ABC):
         state = _AutoPublishCandidateState(
             source_type=prepared.source_type,
             source_identity=prepared.source_identity,
-            source_signature=prepared.source_snapshot.signature,
+            source_signature=_get_source_key(prepared)[2],
             first_observed_at=time.time(),
         )
         try:
@@ -1088,6 +1110,13 @@ class ManifestDagBundleBase(BaseDagBundle, ABC):
             file_count=file_count,
             total_size=total_size,
         )
+        if "source" in payload:
+            source_metadata = payload["source"]
+            if not isinstance(source_metadata, dict) or not all(
+                isinstance(key, str) and isinstance(value, str) for key, value in source_metadata.items()
+            ):
+                raise BundleManifestError(f"Bundle manifest reference {source} has invalid source metadata")
+            ref_payload["source"] = dict(source_metadata)
         return BundleManifestRef(
             version=version,
             ref_payload=ref_payload,
@@ -1350,24 +1379,32 @@ def publish_prepared_manifest_dag_bundle(
             expected_current_version = validate_bundle_version(
                 expected_current_version, source="expected current version"
             )
-            try:
-                current_version = bundle._read_current_manifest_ref().version
-            except BundleManifestNotFoundError as e:
+        current_ref = None
+        # An unconditional local publication can repair an invalid reference. Source
+        # transition guards still need a valid reference to check the previous release.
+        if expected_current_version is not None or prepared_source.release_source_metadata is not None:
+            current_ref = bundle._read_current_manifest_ref_or_none()
+        if expected_current_version is not None:
+            if current_ref is None:
                 raise BundleManifestReferenceChangedError(
                     f"Bundle '{bundle.name}' has no published version to compare with "
                     "expected_current_version. Omit it for the initial publication."
-                ) from e
+                )
+            current_version = current_ref.version
             if current_version != expected_current_version:
                 raise BundleManifestReferenceChangedError(
                     f"Bundle '{bundle.name}' manifest reference changed: expected "
                     f"{expected_current_version!r}, found {current_version!r}"
                 )
 
+        bundle.validate_release_transition(current_ref=current_ref, prepared=prepared_source)
+
         manifest_result = build_bundle_version_manifest(
             bundle_name=bundle.name,
             root=source_path,
             backend_type=bundle._store.backend_type,
             source_snapshot=prepared_source.source_snapshot,
+            precomputed_file_sha256=prepared_source.file_sha256_by_path,
             file_version_ids=prepared_source.file_version_ids,
         )
         try:
@@ -1402,6 +1439,8 @@ def _publish_manifest_result(
     # must name the manifest the store kept, which a store may return without validating.
     bundle._validate_snapshot_manifest(publication.manifest, expected_version=version)
     ref_payload = build_ref_payload_from_manifest(publication.manifest)
+    if prepared_source.release_source_metadata is not None:
+        ref_payload["source"] = prepared_source.release_source_metadata
     manifest_ref = bundle._build_manifest_ref_from_payload(ref_payload, source="publisher")
 
     bundle.confirm_publish_source(prepared_source)
@@ -1482,7 +1521,11 @@ def _is_finite_non_negative_number(value: object) -> TypeGuard[int | float]:
 
 
 def _get_source_key(prepared: PreparedPublishSource) -> tuple[str, str, str]:
-    return (prepared.source_type, prepared.source_identity, prepared.source_snapshot.signature)
+    return (
+        prepared.source_type,
+        prepared.source_identity,
+        prepared.source_signature or prepared.source_snapshot.signature,
+    )
 
 
 def _is_same_source(state: _AutoPublishCandidateState, prepared: PreparedPublishSource) -> bool:

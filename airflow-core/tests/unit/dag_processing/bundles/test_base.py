@@ -143,6 +143,24 @@ def test_lock_exception_handling():
         assert acquired
 
 
+@pytest.mark.non_db_test_override
+def test_nonblocking_lock_rejects_contention_and_can_be_retried():
+    holder = BasicBundle(name="locktest")
+    contender = BasicBundle(name="locktest")
+
+    with holder.lock():
+        with holder.lock(wait=False):
+            assert holder._locked
+        with pytest.raises(BlockingIOError), contender.lock(wait=False):
+            pytest.fail("Acquired another instance's lock")
+        assert not contender._locked
+        assert holder._locked
+
+    with contender.lock(wait=False):
+        assert contender._locked
+    assert not contender._locked
+
+
 LOCK_WAIT_TIMEOUT = 10
 
 

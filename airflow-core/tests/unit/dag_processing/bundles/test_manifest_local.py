@@ -543,6 +543,28 @@ class TestPinned:
 
 
 class TestPublish:
+    @pytest.mark.parametrize("invalid_ref", ["{", '{"schema_version": -1}'])
+    @pytest.mark.parametrize("check_current_version", [False, True])
+    def test_explicit_publish_repairs_invalid_reference_only_without_precondition(
+        self, tmp_path, invalid_ref, check_current_version
+    ):
+        bundle, source, first = _published_bundle(tmp_path)
+        _get_ref_path(bundle).write_text(invalid_ref)
+        _write_file(source, "dags/example.py", "print('new')")
+
+        if check_current_version:
+            with pytest.raises(BundleManifestError):
+                publish_manifest_local_dag_bundle(
+                    bundle=bundle, source_path=source, expected_current_version=first.version
+                )
+            assert _get_ref_path(bundle).read_text() == invalid_ref
+        else:
+            result = publish_manifest_local_dag_bundle(bundle=bundle, source_path=source)
+            assert result.version != first.version
+            assert json.loads(_get_ref_path(bundle).read_text()) == result.ref_payload
+            bundle.refresh()
+            assert (bundle.path / "dags/example.py").read_text() == "print('new')"
+
     def test_publish_and_refresh_support_nested_paths_before_root_files(self, tmp_path):
         source = tmp_path / "source"
         _write_file(source, "z.py", "print('root')")

@@ -45,3 +45,15 @@ Example of using the GCSDagBundle:
         }
       }
     ]'
+
+ManifestGCSDagBundle
+===================
+
+Use :class:`~airflow.providers.google.cloud.bundles.manifest_gcs.ManifestGCSDagBundle`
+to publish immutable snapshots of a GCS source and keep retries and reruns pinned to
+the published files. Requires Apache Airflow 3.5 or later.
+
+.. toctree::
+    :maxdepth: 1
+
+    manifest-gcs
