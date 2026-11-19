@@ -231,9 +231,8 @@ table as a whole at thread level, so passing it as is would drop the adapter's o
 when ``config`` defines an MCP server named ``server_name`` (nested or dotted), when
 ``mcp_servers`` or one of its servers is not a dict, when a server name contains anything but
 letters, digits, ``_``, ``-``, ``:``, ``@`` and ``/``, when a setting name contains anything but
-letters, digits, ``_`` and ``-`` (verified with 0.167.0: Codex does not accept a quoted
-``mcp_servers."a.b".url`` key, so a name with a ``.``, a quote or a space cannot be passed this
-way), or when the same setting is written both nested and dotted. An ``mcp_servers`` of ``None``
+letters, digits, ``_`` and ``-`` (Codex does not accept a quoted ``mcp_servers."a.b".url`` key
+segment, so a name with a ``.``, a quote or a space cannot be written as a dotted key), or when the same setting is written both nested and dotted. An ``mcp_servers`` of ``None``
 is treated as not set. ``serve()`` puts nothing
 of yours in the environment: add what you need to ``CodexConfig.env`` yourself, or build a
 modified copy with ``dataclasses.replace``.
@@ -313,13 +312,11 @@ Install this provider with its ``openai-codex`` extra:
 
 The extra installs the SDK, ``openai-codex-cli-bin`` (the ``codex`` binary, 119 to 152 MB
 per platform), ``mcp`` 2.2.0 or later, whose server API the adapter uses, and ``uvicorn``. The
-adapter needs ``openai-codex`` 0.163.0 or later. It was first tested with 0.163.0; Airflow's lock, and
-so CI, has 0.167.0. The SDK is at an early version and the ``codex app-server`` protocol it wraps
-marks many fields unstable; every default above was observed with 0.163.0 and is not a documented
-guarantee. Strands Agents 1.62 and earlier
-pin ``mcp`` below 2.2, so they cannot be installed together with this extra; later releases
-allow ``mcp`` 2.2. The adapter's
-tests were run on ``mcp`` 2.2.0 in a local environment; Airflow's lock, and so CI, has 2.3.0.
+adapter needs ``openai-codex`` 0.163.0 or later. The SDK is at an early version and the
+``codex app-server`` protocol it wraps marks many fields unstable; every default above was
+observed with 0.163.0 and is not a documented guarantee. Strands Agents 1.62 and earlier pin
+``mcp`` below 2.2, so they cannot be installed together with this extra; later releases allow
+``mcp`` 2.2.
 
 .. seealso::
 
