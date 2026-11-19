@@ -302,12 +302,13 @@ class SmtpHook(BaseHook):
     def test_connection(self) -> tuple[bool, str]:
         """Test SMTP connectivity from UI."""
         try:
-            smtp_client = self.get_conn()._smtp_client
-            if smtp_client is not None:
-                smtp_client = cast("smtplib.SMTP_SSL | smtplib.SMTP", smtp_client)
-                status = smtp_client.noop()
-                if status[0] == 250:
-                    return True, "Connection successfully tested"
+            with self as smtp_hook:
+                smtp_client = smtp_hook._smtp_client
+                if smtp_client is not None:
+                    smtp_client = cast("smtplib.SMTP_SSL | smtplib.SMTP", smtp_client)
+                    status = smtp_client.noop()
+                    if status[0] == 250:
+                        return True, "Connection successfully tested"
         except Exception as e:
             return False, str(e)
         return False, "Failed to establish connection"
@@ -315,16 +316,17 @@ class SmtpHook(BaseHook):
     async def atest_connection(self) -> tuple[bool, str]:
         """Test SMTP connectivity (async)."""
         try:
-            smtp_client = (await self.aget_conn())._smtp_client
-            if smtp_client is None:
-                return False, "SMTP client not initialized"
+            async with self as smtp_hook:
+                smtp_client = smtp_hook._smtp_client
+                if smtp_client is None:
+                    return False, "SMTP client not initialized"
 
-            if isinstance(smtp_client, aiosmtplib.SMTP):
-                async_client: aiosmtplib.SMTP = smtp_client
-                response = await async_client.noop()
-                if response.code == 250:
-                    return True, "Async connection successfully tested"
-                return False, f"Connection test failed with code: {response.code}"
+                if isinstance(smtp_client, aiosmtplib.SMTP):
+                    async_client: aiosmtplib.SMTP = smtp_client
+                    response = await async_client.noop()
+                    if response.code == 250:
+                        return True, "Async connection successfully tested"
+                    return False, f"Connection test failed with code: {response.code}"
 
         except Exception as e:
             return False, str(e)

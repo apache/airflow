@@ -622,15 +622,51 @@ class TestSmtpHook:
     def test_test_connection_handles_noop_responses(self, mock_smtplib, noop_response, expected_result):
         mock_conn = _create_fake_smtp(mock_smtplib)
         mock_conn.noop.return_value = noop_response
+        hook = SmtpHook()
 
-        assert SmtpHook().test_connection() == expected_result
+        assert hook.test_connection() == expected_result
         mock_conn.noop.assert_called_once_with()
+        mock_conn.close.assert_called_once_with()
+        assert hook._smtp_client is None
+
+    @patch(smtplib_string)
+    def test_test_connection_closes_client_after_noop_error(self, mock_smtplib):
+        mock_conn = _create_fake_smtp(mock_smtplib)
+        mock_conn.noop.side_effect = OSError("NOOP failed")
+        hook = SmtpHook()
+
+        assert hook.test_connection() == (False, "NOOP failed")
+        mock_conn.close.assert_called_once_with()
+        assert hook._smtp_client is None
 
 
 @pytest.mark.asyncio
 @pytest.mark.skipif(not AIRFLOW_V_3_1_PLUS, reason="Async support was added to BaseNotifier in 3.1.0")
 class TestSmtpHookAsync:
     """Tests for async functionality in SmtpHook."""
+
+    @pytest.mark.parametrize(
+        ("response_code", "noop_error", "expected_result"),
+        [
+            pytest.param(250, None, (True, "Async connection successfully tested"), id="success"),
+            pytest.param(421, None, (False, "Connection test failed with code: 421"), id="failure"),
+            pytest.param(250, OSError("NOOP failed"), (False, "NOOP failed"), id="noop-error"),
+        ],
+    )
+    @patch.object(SmtpHook, "_abuild_client", autospec=True)
+    async def test_atest_connection_closes_client(
+        self, build_client, mock_get_connection, response_code, noop_error, expected_result
+    ):
+        client = mock.create_autospec(aiosmtplib.SMTP, instance=True)
+        client.noop.return_value = aiosmtplib.response.SMTPResponse(response_code, "response")
+        client.noop.side_effect = noop_error
+        build_client.return_value = client
+        hook = SmtpHook()
+
+        assert await hook.atest_connection() == expected_result
+        client.noop.assert_awaited_once_with()
+        client.quit.assert_awaited_once_with()
+        assert hook._smtp_client is None
 
     @pytest.mark.parametrize("quit_fails", [False, True])
     async def test_reconnect_after_context_exit(self, mock_get_connection, mocker, quit_fails):
