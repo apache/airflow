@@ -3898,7 +3898,6 @@ dependencies = [
     { name = "apache-airflow" },
     { name = "apache-airflow-providers-common-compat" },
     { name = "thrift" },
-    { name = "thrift-sasl" },
 ]
 
 [package.optional-dependencies]
@@ -3925,7 +3924,6 @@ requires-dist = [
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
     { name = "apache-airflow-providers-openlineage", marker = "extra == 'openlineage'", editable = "providers/openlineage" },
     { name = "thrift", specifier = ">=0.13.0" },
-    { name = "thrift-sasl", specifier = ">=0.4.3" },
 ]
 provides-extras = ["openlineage"]
 
