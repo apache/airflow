@@ -19,7 +19,9 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import datetime
 import os
+import ssl
 import subprocess
 import sys
 import tempfile
@@ -28,6 +30,10 @@ from unittest import mock
 from unittest.mock import MagicMock, call, patch
 
 import pytest
+from cryptography import x509
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.asymmetric import ec
+from cryptography.x509.oid import NameOID
 from sqlalchemy import text
 from sqlalchemy.engine import Engine, make_url
 from sqlalchemy.ext.asyncio import AsyncEngine
@@ -589,6 +595,121 @@ def test_explicit_sql_alchemy_conn_async_is_not_rewritten(explicit_async_uri):
             assert explicit_async_uri == settings.SQL_ALCHEMY_CONN_ASYNC
     finally:
         settings.configure_vars()
+
+
+@pytest.fixture
+def ca_file(tmp_path):
+    key = ec.generate_private_key(ec.SECP256R1())
+    name = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "test-ca")])
+    certificate = (
+        x509.CertificateBuilder()
+        .subject_name(name)
+        .issuer_name(name)
+        .public_key(key.public_key())
+        .serial_number(x509.random_serial_number())
+        .not_valid_before(datetime.datetime(2020, 1, 1, tzinfo=datetime.UTC))
+        .not_valid_after(datetime.datetime(2100, 1, 1, tzinfo=datetime.UTC))
+        .add_extension(x509.BasicConstraints(ca=True, path_length=None), critical=True)
+        .sign(key, hashes.SHA256())
+    )
+    path = tmp_path / "ca.pem"
+    path.write_bytes(certificate.public_bytes(serialization.Encoding.PEM))
+    return str(path)
+
+
+class TestTranslateMysqlSslMode:
+    """mysqlclient's ``ssl_mode`` is not an aiomysql/asyncmy connect argument."""
+
+    @pytest.mark.parametrize("driver", ["aiomysql", "asyncmy"])
+    @pytest.mark.parametrize("mode", ["REQUIRED", "required"])
+    def test_required_encrypts_without_verification(self, driver, mode):
+        uri, connect_args = settings._translate_mysql_ssl_mode(
+            f"mysql+{driver}://u:p@h:3307/db?charset=utf8mb4&ssl_mode={mode}", {}
+        )
+
+        assert make_url(uri) == make_url(f"mysql+{driver}://u:p@h:3307/db?charset=utf8mb4")
+        context = connect_args["ssl"]
+        assert context.verify_mode == ssl.CERT_NONE
+        assert context.check_hostname is False
+
+    @pytest.mark.parametrize(("mode", "check_hostname"), [("VERIFY_CA", False), ("VERIFY_IDENTITY", True)])
+    def test_verify_modes_trust_the_given_ca(self, ca_file, mode, check_hostname):
+        uri, connect_args = settings._translate_mysql_ssl_mode(
+            f"mysql+aiomysql://u:p@h/db?ssl_mode={mode}&ssl_ca={ca_file}", {}
+        )
+
+        assert make_url(uri) == make_url("mysql+aiomysql://u:p@h/db")
+        context = connect_args["ssl"]
+        assert context.verify_mode == ssl.CERT_REQUIRED
+        assert context.check_hostname is check_hostname
+        assert len(context.get_ca_certs()) == 1
+
+    @pytest.mark.parametrize("mode", ["VERIFY_CA", "VERIFY_IDENTITY"])
+    def test_verify_modes_require_ssl_ca(self, mode):
+        with pytest.raises(ValueError, match="requires ssl_ca"):
+            settings._translate_mysql_ssl_mode(f"mysql+aiomysql://u:p@h/db?ssl_mode={mode}", {})
+
+    def test_disabled_drops_the_parameter_without_tls(self):
+        uri, connect_args = settings._translate_mysql_ssl_mode(
+            "mysql+asyncmy://u:p@h/db?ssl_mode=DISABLED", {"a": 1}
+        )
+
+        assert make_url(uri) == make_url("mysql+asyncmy://u:p@h/db")
+        assert connect_args == {"a": 1}
+
+    @pytest.mark.parametrize("mode", ["PREFERRED", "bogus"])
+    def test_unsupported_mode_raises(self, mode):
+        with pytest.raises(ValueError, match=f"Unsupported ssl_mode={mode.upper()}"):
+            settings._translate_mysql_ssl_mode(f"mysql+aiomysql://u:p@h/db?ssl_mode={mode}", {})
+
+    def test_repeated_parameter_uses_the_last_value(self):
+        uri, connect_args = settings._translate_mysql_ssl_mode(
+            "mysql+aiomysql://u:p@h/db?ssl_mode=DISABLED&ssl_mode=REQUIRED", {}
+        )
+
+        assert "ssl_mode" not in make_url(uri).query
+        assert connect_args["ssl"].verify_mode == ssl.CERT_NONE
+
+    def test_explicit_ssl_connect_arg_wins(self):
+        explicit = object()
+
+        _, connect_args = settings._translate_mysql_ssl_mode(
+            "mysql+aiomysql://u:p@h/db?ssl_mode=REQUIRED", {"ssl": explicit, "a": 1}
+        )
+
+        assert connect_args == {"ssl": explicit, "a": 1}
+
+    def test_ssl_ca_without_ssl_mode_is_left_alone(self):
+        uri = "mysql+aiomysql://u:p@h/db?ssl_ca=/certs/ca.pem"
+
+        assert settings._translate_mysql_ssl_mode(uri, {"a": 1}) == (uri, {"a": 1})
+
+    @pytest.mark.parametrize(
+        "sync_uri",
+        [
+            "mysql://u:p@h/db?ssl_mode=REQUIRED",
+            "mysql+mysqldb://u:p@h/db?ssl_mode=REQUIRED",
+        ],
+    )
+    @pytest.mark.parametrize(
+        "async_uri",
+        [None, "mysql+aiomysql://u:p@h/db?ssl_mode=REQUIRED"],
+        ids=["derived", "explicit"],
+    )
+    @patch("airflow.settings.setup_event_handlers")
+    @patch("airflow.settings.create_async_metadata_engine")
+    def test_hook_receives_the_translated_arguments(self, mock_create_async_engine, _, sync_uri, async_uri):
+        """The override hook gets URL and connect args already translated, so an override keeps the fix."""
+        mock_create_async_engine.return_value = MagicMock()
+        uri = async_uri or settings._get_async_conn_uri_from_sync(sync_uri)
+
+        with patch("airflow.settings.SQL_ALCHEMY_CONN_ASYNC", uri):
+            settings._configure_async_session()
+
+        hook_uri = mock_create_async_engine.call_args.args[0]
+        assert "ssl_mode" not in make_url(hook_uri).query
+        assert mock_create_async_engine.call_args.kwargs["connect_args"]["ssl"].verify_mode == ssl.CERT_NONE
+        assert "ssl_mode" in make_url(uri).query
 
 
 class TestDisposeOrm:

@@ -404,7 +404,8 @@ install it, core falls back to ``aiomysql``, so upgrading core alone keeps worki
 The provider also keeps installing ``aiomysql`` for older supported core releases that
 always derive a ``mysql+aiomysql://`` URL.
 
-An explicit ``sql_alchemy_conn_async`` is never rewritten. To keep using ``aiomysql``,
+An explicit ``sql_alchemy_conn_async`` is never rewritten, apart from the ``ssl_mode`` translation
+described below. To keep using ``aiomysql``,
 install ``apache-airflow-providers-mysql[aiomysql]`` and set:
 
 .. code-block:: ini
@@ -414,6 +415,19 @@ install ``apache-airflow-providers-mysql[aiomysql]`` and set:
 
 Review ``sql_alchemy_connect_args_async`` when changing drivers: driver-specific
 connection arguments must be supported by the selected driver.
+
+``mysqlclient`` takes its TLS settings from ``ssl_mode`` in the URL, but ``asyncmy`` and ``aiomysql`` have no
+such argument and accept TLS only as an ``ssl.SSLContext``. When the async URL, derived or explicit, contains
+``ssl_mode``, Airflow removes it together with ``ssl_ca`` and passes an equivalent ``ssl`` connect argument
+to the engine. An ``ssl`` entry in ``sql_alchemy_connect_args_async`` takes precedence.
+
+* ``DISABLED``: no TLS.
+* ``REQUIRED``: encrypts without verifying the server certificate or host name, as ``mysqlclient`` does.
+* ``VERIFY_CA``: verifies the server certificate against ``ssl_ca``, which is required.
+* ``VERIFY_IDENTITY``: also verifies the host name.
+
+``PREFERRED`` and any other value are rejected, because the async drivers cannot fall back to plaintext.
+Other ``ssl_*`` URL parameters are not translated; set them through ``sql_alchemy_connect_args_async``.
 
 MsSQL Database
 --------------
