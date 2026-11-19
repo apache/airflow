@@ -1455,10 +1455,14 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     continue
 
                 if callback.dagrun_id is None:
+                    error_message = "Executor callback is missing dagrun_id."
                     self.log.error(
-                        "Executor callback is missing dagrun_id.",
+                        error_message,
                         callback_id=callback.id,
                     )
+                    callback.state = CallbackState.FAILED
+                    callback.output = error_message
+                    session.add(callback)
                     continue
 
                 dag_run = callback.dag_run
