@@ -160,6 +160,88 @@ If you do not wish to have Dags auto-registered, you can disable the behavior by
     global variable.
 
 
+Reusing a Dag-building function
+-------------------------------
+
+When several Dags have the same tasks and dependencies, put their construction in a function in a
+separate Python module. Each Dag file can then supply its own Dag configuration and task arguments.
+This keeps the shared task structure in one place and lets you test it without importing every Dag file.
+
+For example, create ``my_company_utils/reusable_dag.py`` in your Dag folder:
+
+.. code-block:: python
+
+    from airflow.sdk import DAG, task
+
+
+    def build_greeting_dag(dag: DAG, name: str) -> DAG:
+        with dag:
+
+            @task
+            def make_greeting(name: str) -> str:
+                return f"Hello, {name}!"
+
+            @task
+            def print_greeting(greeting: str) -> None:
+                print(greeting)
+
+            print_greeting(make_greeting(name=name))
+
+        return dag
+
+Add an empty ``my_company_utils/__init__.py`` and add ``my_company_utils/*`` to
+``.airflowignore`` (using glob syntax). The helper module remains importable, but Airflow does not
+scan it for Dags. Use a unique package name for your shared code; see :doc:`/administration-and-deployment/modules_management`.
+
+A Dag file can import the function and keep the returned Dag in a module-level variable:
+
+.. code-block:: python
+
+    from airflow.sdk import DAG
+    from my_company_utils.reusable_dag import build_greeting_dag
+
+    dag = build_greeting_dag(DAG(dag_id="greeting_world", schedule=None), name="world")
+
+Another Dag file can call the same function with a different ``dag_id``, schedule, and name.
+Alternatively, generate several Dags in one file:
+
+.. code-block:: python
+
+    from airflow.sdk import DAG
+    from my_company_utils.reusable_dag import build_greeting_dag
+
+    configs = {"first": "world", "second": "Airflow"}
+
+    for config_name, name in sorted(configs.items()):
+        build_greeting_dag(DAG(dag_id=f"greeting_{config_name}", schedule=None), name=name)
+
+When Airflow parses this Dag file, it automatically registers the Dags created through the
+``with dag:`` context, as described above. Keep Dag IDs unique across files, including when using both examples.
+
+You can test the shared structure and the supplied arguments without running the tasks. For example,
+put this test outside your Dag folder and make ``my_company_utils`` importable in your test environment:
+
+.. code-block:: python
+
+    import pytest
+
+    from airflow.sdk import DAG
+    from my_company_utils.reusable_dag import build_greeting_dag
+
+
+    @pytest.mark.parametrize("dag_id,name", [("greeting_world", "world"), ("greeting_airflow", "Airflow")])
+    def test_greeting_dag(dag_id, name):
+        dag = build_greeting_dag(DAG(dag_id=dag_id, schedule=None), name=name)
+
+        assert dag.dag_id == dag_id
+        assert set(dag.task_ids) == {"make_greeting", "print_greeting"}
+        assert dag.get_task("make_greeting").downstream_task_ids == {"print_greeting"}
+        assert dag.get_task("make_greeting").op_kwargs == {"name": name}
+
+This checks construction of the Dag, not task execution or successful parsing of each deployed Dag file.
+For those checks, see :doc:`/best-practices`.
+
+
 Optimizing Dag parsing delays during execution
 ----------------------------------------------
 
