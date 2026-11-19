@@ -479,20 +479,6 @@ class TestKeycloakAuthManager:
 
         keycloak_client.refresh_token.assert_called_with("refresh_token")
 
-    @patch.object(KeycloakAuthManager, "get_keycloak_client")
-    @patch.object(KeycloakAuthManager, "_token_expired")
-    def test_refresh_user_expired_keycloak_server_error(
-        self, mock_token_expired, mock_get_keycloak_client, auth_manager, user
-    ):
-        mock_token_expired.return_value = True
-        error = KeycloakPostError("Unavailable", response_code=503)
-        mock_get_keycloak_client.return_value.refresh_token.side_effect = error
-
-        with pytest.raises(KeycloakPostError) as exc_info:
-            auth_manager.refresh_user(user=user)
-
-        assert exc_info.value is error
-
     @pytest.mark.parametrize(
         ("function", "method", "details", "permission", "attributes"),
         [

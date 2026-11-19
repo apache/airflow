@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import logging
 import time
+from functools import partial
 from unittest.mock import Mock, patch
 
 import fastapi
@@ -41,6 +42,7 @@ from airflow.providers.keycloak.auth_manager.services.token import (
 from airflow.providers.keycloak.auth_manager.user import KeycloakAuthManagerUser
 
 from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_7_PLUS
 
 
 class TestTokenService:
@@ -877,12 +879,6 @@ class TestCliTokenService:
             ),
             # Airflow before 3.1.7 has no AuthManagerRefreshTokenExpiredException
             pytest.param({"return_value": {}}, 403, id="session-expired-before-3-1-7"),
-            pytest.param(
-                {"side_effect": KeycloakConnectionError("Can't connect to server")}, 503, id="keycloak-down"
-            ),
-            pytest.param(
-                {"side_effect": KeycloakPostError("Down", response_code=503)}, 503, id="keycloak-5xx"
-            ),
         ],
     )
     @time_machine.travel("2026-01-01 00:00:00", tick=False)
@@ -899,3 +895,27 @@ class TestCliTokenService:
         assert exc_info.value.status_code == expected_status
         auth_manager.generate_api_jwt.assert_not_called()
         auth_manager.revoke_token.assert_not_called()
+
+    @pytest.mark.parametrize(
+        ("error", "expected_status"),
+        [
+            pytest.param(KeycloakPostError("invalid_grant", response_code=400), 403, id="session-ended"),
+            pytest.param(KeycloakConnectionError("Can't connect"), 503, id="unreachable"),
+            # Before Airflow 3.1.7, refresh_tokens returns {} for every Keycloak error it gets back.
+            pytest.param(
+                KeycloakPostError("Down", response_code=503), 503 if AIRFLOW_V_3_1_7_PLUS else 403, id="5xx"
+            ),
+        ],
+    )
+    @time_machine.travel("2026-01-01 00:00:00", tick=False)
+    @patch("airflow.providers.keycloak.auth_manager.services.token.get_auth_manager")
+    def test_refresh_cli_token_keycloak_error(self, mock_get_auth_manager, error, expected_status):
+        auth_manager = self.mock_auth_manager(mock_get_auth_manager)
+        auth_manager.get_keycloak_client.return_value.refresh_token.side_effect = error
+        auth_manager.refresh_tokens = partial(KeycloakAuthManager.refresh_tokens, auth_manager)
+
+        with pytest.raises(fastapi.exceptions.HTTPException) as exc_info:
+            refresh_cli_token(self.cli_token(expires_in=600), expiration_time_in_seconds=CLI_EXPIRATION)
+
+        assert exc_info.value.status_code == expected_status
+        auth_manager.generate_api_jwt.assert_not_called()

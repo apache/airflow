@@ -70,14 +70,20 @@ def build_keycloak_unavailable_error(error: Exception) -> HTTPException:
 
 
 @contextmanager
-def translate_keycloak_outage() -> Iterator[None]:
-    """Raise a ``503`` instead of a Keycloak error that :func:`is_keycloak_outage` matches."""
+def translate_keycloak_outage(rejected_detail: str | None = None) -> Iterator[None]:
+    """
+    Raise a ``503`` instead of a Keycloak error that :func:`is_keycloak_outage` matches.
+
+    With ``rejected_detail``, any other Keycloak error becomes a ``403`` with that detail.
+    """
     try:
         yield
     except KeycloakError as e:
         if is_keycloak_outage(e):
             raise build_keycloak_unavailable_error(e) from e
-        raise
+        if rejected_detail is None:
+            raise
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=rejected_detail)
 
 
 def is_cli_loopback_redirect_uri(redirect_uri: str) -> bool:
@@ -218,16 +224,8 @@ def create_jwt_federated_token(
     # Confirm the assertion is still live (not revoked) rather than trusting the JWT's
     # own claims alone.
     client = KeycloakAuthManager.get_keycloak_client()
-    with translate_keycloak_outage():
-        try:
-            user = build_user_from_userinfo(client, {"access_token": assertion}, is_service_account=True)
-        except KeycloakError as e:
-            if is_keycloak_outage(e):
-                raise
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Invalid Keycloak assertion",
-            )
+    with translate_keycloak_outage(rejected_detail="Invalid Keycloak assertion"):
+        user = build_user_from_userinfo(client, {"access_token": assertion}, is_service_account=True)
 
     return get_auth_manager().generate_api_jwt(user, expiration_time_in_seconds=expiration_time_in_seconds)
 
@@ -300,19 +298,15 @@ def create_token_from_authorization_code(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid redirect_uri")
 
     client = KeycloakAuthManager.get_keycloak_client()
+    with translate_keycloak_outage(rejected_detail="Invalid authorization code"):
+        tokens = client.token(
+            grant_type="authorization_code",
+            code=code,
+            redirect_uri=redirect_uri,
+            code_verifier=code_verifier,
+            scope="openid",
+        )
     with translate_keycloak_outage():
-        try:
-            tokens = client.token(
-                grant_type="authorization_code",
-                code=code,
-                redirect_uri=redirect_uri,
-                code_verifier=code_verifier,
-                scope="openid",
-            )
-        except KeycloakError as e:
-            if is_keycloak_outage(e):
-                raise
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid authorization code")
         return _create_api_jwt_from_keycloak_tokens(client, tokens, expiration_time_in_seconds)
 
 
@@ -351,7 +345,10 @@ def refresh_cli_token(token: str, expiration_time_in_seconds: int) -> str:
     try:
         with translate_keycloak_outage():
             tokens = auth_manager.refresh_tokens(user=user)
-    except AuthManagerRefreshTokenExpiredException:
+    except AuthManagerRefreshTokenExpiredException as e:
+        # refresh_tokens raises this for every Keycloak error it gets back, outages included.
+        if isinstance(e.__context__, KeycloakError) and is_keycloak_outage(e.__context__):
+            raise build_keycloak_unavailable_error(e.__context__) from e
         tokens = {}
     # Before Airflow 3.1.7 there is no AuthManagerRefreshTokenExpiredException: refresh_tokens returns {}.
     if not tokens:

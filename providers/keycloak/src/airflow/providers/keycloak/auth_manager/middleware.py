@@ -22,7 +22,6 @@ from typing import TYPE_CHECKING, cast
 from fastapi import HTTPException, status
 from fastapi.responses import JSONResponse
 from jwt import ExpiredSignatureError, InvalidTokenError
-from keycloak import KeycloakError
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from airflow.api_fastapi.app import get_auth_manager
@@ -33,11 +32,7 @@ from airflow.providers.keycloak.auth_manager.constants import (
     COOKIE_NAME_ACCESS_TOKEN,
     COOKIE_NAME_REFRESH_TOKEN,
 )
-from airflow.providers.keycloak.auth_manager.exceptions import (
-    AuthManagerRefreshTokenExpiredException,
-    is_keycloak_outage,
-)
-from airflow.providers.keycloak.auth_manager.services.token import build_keycloak_unavailable_error
+from airflow.providers.keycloak.auth_manager.exceptions import AuthManagerRefreshTokenExpiredException
 from airflow.providers.keycloak.version_compat import AIRFLOW_V_3_1_8_PLUS
 
 if AIRFLOW_V_3_1_8_PLUS:
@@ -76,11 +71,6 @@ class KeycloakJWTMiddleware(BaseHTTPMiddleware):
             try:
                 new_user, current_user = await self._refresh_user(request)
                 user = new_user or current_user
-            except KeycloakError as exc:
-                if not is_keycloak_outage(exc):
-                    raise
-                # Keep the cookies: the session is still valid once Keycloak is back.
-                raise build_keycloak_unavailable_error(exc) from exc
             except (
                 AuthManagerRefreshTokenExpiredException,
                 HTTPException,

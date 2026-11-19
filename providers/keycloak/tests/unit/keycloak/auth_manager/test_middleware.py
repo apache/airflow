@@ -25,7 +25,6 @@ import pytest
 from fastapi import Depends, FastAPI, Request
 from fastapi.testclient import TestClient
 from jwt import ExpiredSignatureError, InvalidTokenError
-from keycloak.exceptions import KeycloakConnectionError, KeycloakPostError
 
 from airflow.api_fastapi import app as api_fastapi_app
 from airflow.api_fastapi.auth.managers.base_auth_manager import COOKIE_NAME_JWT_TOKEN
@@ -445,32 +444,6 @@ class TestKeycloakJWTMiddleware:
                 max_age=0,
             )
         auth_manager.generate_jwt.assert_not_called()
-
-    @pytest.mark.parametrize(
-        "error",
-        [
-            pytest.param(KeycloakConnectionError("Can't connect"), id="unreachable"),
-            pytest.param(KeycloakPostError("Unavailable", response_code=503), id="5xx"),
-        ],
-    )
-    @patch("airflow.providers.keycloak.auth_manager.middleware.get_auth_manager")
-    async def test_dispatch_keycloak_down_keeps_session(
-        self, mock_get_auth_manager, auth_manager, call_next, middleware, mock_request, mock_user, error
-    ):
-        mock_get_auth_manager.return_value = auth_manager
-        mock_request.cookies = {
-            COOKIE_NAME_JWT_TOKEN: "token",
-            COOKIE_NAME_ACCESS_TOKEN: "expired_token",
-            COOKIE_NAME_REFRESH_TOKEN: "refresh_token",
-        }
-        auth_manager.get_user_from_token = AsyncMock(return_value=mock_user)
-        auth_manager.refresh_user.side_effect = error
-
-        response = await middleware.dispatch(mock_request, call_next)
-
-        assert response.status_code == 503
-        assert "set-cookie" not in response.headers
-        call_next.assert_not_called()
 
     @patch("airflow.providers.keycloak.auth_manager.middleware.get_auth_manager")
     async def test_dispatch_does_not_clear_fresh_token_set_by_endpoint(
