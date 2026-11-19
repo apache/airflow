@@ -186,7 +186,8 @@ A refresh fails with:
 - ``403`` when the token is expired or revoked, or the Keycloak session has ended. The user has to log in again.
 - ``400`` when Keycloak issued the token without a refresh token, which happens when "Use Refresh Tokens" is turned
   off in the Keycloak client. The user has to log in again.
-- ``503`` when Keycloak cannot be reached or answers with a server error. The client can try again later.
+- ``503`` when Keycloak cannot be reached or answers with a server error. The client can try again later. Before
+  Airflow 3.1.7, a server error returns ``403`` instead.
 
 Browser login
 ~~~~~~~~~~~~~

@@ -74,7 +74,7 @@ def get_provider_info():
                     "cli_authorization_code_enabled": {
                         "description": "Let command-line clients such as ``airflowctl`` log in through the browser\n(authorization code flow with PKCE). Add ``http://127.0.0.1/callback`` and\n``http://[::1]/callback`` to the valid redirect URIs of the Keycloak client. Clients\ndiscover this login on Airflow 3.5 and later.\n",
                         "type": "boolean",
-                        "version_added": "0.13.0",
+                        "version_added": "0.14.0",
                         "example": None,
                         "default": "False",
                     },

@@ -105,7 +105,7 @@ config:
           ``http://[::1]/callback`` to the valid redirect URIs of the Keycloak client. Clients
           discover this login on Airflow 3.5 and later.
         type: boolean
-        version_added: 0.13.0
+        version_added: 0.14.0
         example: ~
         default: "False"
       jwt_federated_client_ids:
