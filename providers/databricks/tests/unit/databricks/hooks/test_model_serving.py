@@ -21,6 +21,7 @@ import pytest
 pytest.importorskip("airflow.providers.common.ai.hooks.pydantic_ai")
 pytest.importorskip("pydantic_ai.providers.openai")
 
+import concurrent.futures
 import contextvars
 import importlib
 import json
@@ -29,12 +30,20 @@ import threading
 from unittest import mock
 
 import httpx2
+from openai import AsyncOpenAI
 from pydantic_ai import Agent
+from pydantic_ai.exceptions import ModelAPIError
+from pydantic_ai.messages import ModelResponse, TextPart
+from pydantic_ai.models.fallback import FallbackModel
+from pydantic_ai.models.function import FunctionModel
 from pydantic_ai.models.openai import OpenAIChatModel
+from pydantic_ai.providers.openai import OpenAIProvider
+from requests import exceptions as requests_exceptions
+from tenacity import RetryError
 
 from airflow.models import Connection
 from airflow.providers.common.ai.hooks.pydantic_ai import PydanticAIHook
-from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
+from airflow.providers.common.compat.sdk import AirflowException, AirflowOptionalProviderFeatureException
 from airflow.providers.databricks import hooks as databricks_hooks
 from airflow.providers.databricks.get_provider_info import get_provider_info
 from airflow.providers.databricks.hooks.databricks_base import BaseDatabricksHook
@@ -67,6 +76,53 @@ def _mock_databricks_hook(mock_hook_cls):
     mock_hook._endpoint_url.return_value = SERVING_URL
     mock_hook._get_token.return_value = "real-token"
     return mock_hook
+
+
+def _build_token_error(error: Exception, *, cause: BaseException | None = None, context=None) -> Exception:
+    error.__cause__ = cause
+    error.__context__ = context
+    return error
+
+
+def _retry_exhausted() -> RetryError:
+    return RetryError(concurrent.futures.Future())
+
+
+def _build_token_errors_by_kind() -> dict[str, tuple[Exception, bool]]:
+    """Map each kind of token failure to the exception ``_get_token`` raises and whether it is transient."""
+    return {
+        "retry_exhausted_explicit_cause": (
+            _build_token_error(
+                AirflowException("API requests to Databricks failed"), cause=_build_retry_exhausted_error()
+            ),
+            True,
+        ),
+        "retry_exhausted_implicit_context": (
+            _build_token_error(
+                AirflowException("API requests to Azure failed"), context=_build_retry_exhausted_error()
+            ),
+            True,
+        ),
+        "managed_identity_connection_error": (
+            _build_token_error(
+                ConnectionError("Failed to reach Azure Metadata Service"),
+                context=_build_retry_exhausted_error(),
+            ),
+            True,
+        ),
+        "not_configured": (AirflowException("Token authentication isn't configured"), False),
+        "rejected_credentials": (
+            _build_token_error(
+                AirflowException("Response: Unauthorized, Status Code: 401"),
+                context=requests_exceptions.HTTPError("401"),
+            ),
+            False,
+        ),
+        "metadata_not_azure": (
+            _build_token_error(ConnectionError("Can't reach Azure Metadata Service"), context=ValueError()),
+            False,
+        ),
+    }
 
 
 class TestDatabricksConnIdResolution:
@@ -377,6 +433,26 @@ class TestDatabricksServingAuth:
 
         assert seen_values == ["from-caller"]
 
+    @pytest.mark.parametrize("kind", list(_build_token_errors_by_kind()))
+    def test_token_failure_is_converted_only_when_transient(self, kind):
+        error, is_transient = _build_token_errors_by_kind()[kind]
+        databricks_hook = mock.create_autospec(BaseDatabricksHook, instance=True)
+        databricks_hook._get_token.side_effect = error
+        handler = mock.Mock(spec=["__call__"])
+        client = httpx2.Client(
+            auth=_DatabricksServingAuth(databricks_hook), transport=httpx2.MockTransport(handler)
+        )
+
+        with pytest.raises(httpx2.ConnectError if is_transient else type(error)) as exc_info:
+            client.get("https://example.com/x")
+
+        if is_transient:
+            assert exc_info.value.__cause__ is error
+            assert exc_info.value.request.url == "https://example.com/x"
+        else:
+            assert exc_info.value is error
+        handler.assert_not_called()
+
 
 class TestGetConn:
     @mock.patch.dict("os.environ", AIRFLOW_CONN_TEST_CONN=DATABRICKS_CONN_URI)
@@ -468,6 +544,45 @@ class TestGetConn:
         mock_hook_cls.assert_called_once_with(
             databricks_conn_id="databricks_conn", caller="PydanticAIDatabricksHook"
         )
+
+    @mock.patch.dict("os.environ", AIRFLOW_CONN_TEST_CONN=DATABRICKS_CONN_URI)
+    @mock.patch(f"{MODULE_PATH}.BaseDatabricksHook", autospec=True)
+    @pytest.mark.parametrize("kind", ["retry_exhausted_explicit_cause", "not_configured"])
+    @pytest.mark.asyncio
+    async def test_fallback_chain_depends_on_token_failure_kind(self, mock_hook_cls, kind):
+        """Only a token endpoint that stays unreachable fails over; a misconfigured one fails the task."""
+        error, is_transient = _token_errors_by_kind()[kind]
+        mock_hook = _mock_databricks_hook(mock_hook_cls)
+        mock_hook._get_token.side_effect = error
+        fallback_calls: list[int] = []
+
+        def fallback_response(messages, info) -> ModelResponse:
+            fallback_calls.append(1)
+            return ModelResponse(parts=[TextPart("from fallback")])
+
+        hook = PydanticAIDatabricksHook(llm_conn_id="test_conn")
+        kwargs = hook._get_provider_kwargs(None, None, hook._get_conn_and_extra()[1])
+        client = httpx2.AsyncClient(
+            auth=kwargs["http_client"].auth, transport=httpx2.MockTransport(mock.Mock(spec=["__call__"]))
+        )
+        # max_retries=0 keeps openai from sleeping between attempts.
+        first = OpenAIChatModel(
+            "databricks-claude-sonnet-4-5",
+            provider=OpenAIProvider(
+                openai_client=AsyncOpenAI(
+                    base_url=SERVING_URL, api_key=_UNUSED_TOKEN_PLACEHOLDER, http_client=client, max_retries=0
+                )
+            ),
+        )
+        model = FallbackModel(first, FunctionModel(fallback_response), fallback_on=(ModelAPIError,))
+
+        if is_transient:
+            result = await Agent(model).run("hello")
+            assert result.output == "from fallback"
+        else:
+            with pytest.raises(AirflowException, match="Token authentication isn't configured"):
+                await Agent(model).run("hello")
+            assert fallback_calls == []
 
 
 class TestTestConnection:

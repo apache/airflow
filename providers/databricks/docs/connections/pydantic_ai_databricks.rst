@@ -77,7 +77,10 @@ Model
 Fallback Connections
     Other connection IDs to fail over to, in order, while this provider is unavailable. Stored in
     ``extra["fallback_conn_ids"]``. Entries may name any ``pydanticai`` connection type, so one
-    chain can span vendors. See :doc:`apache-airflow-providers-common-ai:provider_fallback`.
+    chain can span vendors. Fail-over also happens when the Databricks token endpoint stays
+    unreachable after its retries; a configuration error, such as unset or rejected credentials,
+    does not fail over and fails the task. See
+    :doc:`apache-airflow-providers-common-ai:provider_fallback`.
 
 Databricks Connection ID
     Connection ID of an existing :ref:`Databricks connection <howto/connection:databricks>` to
