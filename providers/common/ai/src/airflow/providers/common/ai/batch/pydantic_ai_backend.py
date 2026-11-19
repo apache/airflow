@@ -105,6 +105,7 @@ if TYPE_CHECKING:
 log = get_task_logger()
 
 T = TypeVar("T")
+L = TypeVar("L", bound=BaseModel)
 
 _BATCH_ADAPTER: TypeAdapter[Batch] = TypeAdapter(Batch)
 
@@ -234,6 +235,44 @@ def _openai_unrun_result(details: Mapping[str, Any], custom_id: str, line_number
     )
 
 
+async def _split_lines(chunks: AsyncIterator[bytes]) -> AsyncGenerator[bytes, None]:
+    r"""
+    Yield the lines of a byte stream, split on ``\n`` only.
+
+    ``str.splitlines`` also splits on U+2028, U+0085 and the like, which JSON allows unescaped inside
+    a string, so it can cut a result line in two. A partial line is kept until the rest of it arrives.
+    """
+    pending = b""
+    async for chunk in chunks:
+        pending += chunk
+        *lines, pending = pending.split(b"\n")
+        for line in lines:
+            yield line
+    if pending:
+        yield pending
+
+
+def _parse_line(line_type: type[L], raw: bytes, *, file_id: str, line_number: int) -> L | None:
+    """
+    Return the parsed line, or ``None`` for one that is blank or unreadable.
+
+    The provider serves the same bytes on every retry, so a line that cannot be parsed would fail the
+    landing every time. Skipping it leaves the request missing from the merge, which counts it.
+    """
+    try:
+        if not raw.strip():
+            raise ValueError("the line is blank")
+        return line_type.model_validate_json(raw.decode())
+    except ValueError as e:
+        log.warning(
+            "Skipping unreadable line of an OpenAI batch file",
+            file_id=file_id,
+            line_number=line_number,
+            error=str(e),
+        )
+        return None
+
+
 def _stream(source: AsyncGenerator[T, None]) -> Generator[T, None, None]:
     """
     Read an async generator from synchronous code without collecting it first.
@@ -319,15 +358,28 @@ def _typed_settings(settings_type: type) -> frozenset[str]:
 
 
 def _error_body(error: ModelHTTPError) -> Mapping[str, Any]:
-    """Return the ``error`` object of an HTTP error's body, which carries the provider's own type and message."""
+    """
+    Return the object of an HTTP error's body that carries the provider's own type, code and message.
+
+    Anthropic and Gemini nest it under ``error``. OpenAI's batch decoder has already unwrapped it, so
+    the body is the object itself.
+    """
     body = error.body
-    inner = body.get("error") if isinstance(body, Mapping) else None
-    return inner if isinstance(inner, Mapping) else {}
+    if not isinstance(body, Mapping):
+        return {}
+    inner = body.get("error")
+    return inner if isinstance(inner, Mapping) else body
 
 
 def _reason(error: ModelHTTPError) -> str:
     """Return the provider's own explanation of an HTTP error; pydantic-ai's message wraps it in status and model."""
     return str(_error_body(error).get("message") or error.message)
+
+
+def _error_code(error: ModelHTTPError) -> str | int:
+    """Return the provider's own code for an HTTP error, or its status when the provider sent none."""
+    body = _error_body(error)
+    return error.provider_error_code or body.get("type") or body.get("code") or error.status_code
 
 
 def _error_info(status: str, message: str, provider_code: str | int | None = None) -> dict[str, Any]:
@@ -844,10 +896,11 @@ class PydanticAIBatchAdapter(BatchAdapter):
                 PydanticAIBatchRequest(custom_id=custom_id, messages=[], model_request_parameters=parameters),
             )
         except ModelAPIError as e:
-            provider_code = None
             if isinstance(e, ModelHTTPError):
-                provider_code = _error_body(e).get("type") or e.status_code
-            return _failed(custom_id, index, "errored", _error_info(result.status, e.message, provider_code))
+                info = _error_info(result.status, _reason(e), _error_code(e))
+            else:
+                info = _error_info(result.status, e.message)
+            return _failed(custom_id, index, "errored", info)
         details = response.provider_details or {}
         return RawResultItem(
             custom_id=custom_id,
@@ -916,16 +969,36 @@ class OpenAIBatchAdapter(PydanticAIBatchAdapter):
     def _responses_model_id(model_id: str) -> str:
         """Return ``model_id`` with pydantic-ai's Chat Completions prefix swapped for the Responses one."""
         prefix, sep, bare = model_id.partition(":")
-        if sep and prefix == "openai-chat":
-            log.info(
-                "Batches run on the OpenAI Responses API; using openai:<model> in place of openai-chat:<model>",
-                model=bare,
-            )
-            return f"openai:{bare}"
-        return model_id
+        return f"openai:{bare}" if sep and prefix == "openai-chat" else model_id
 
     async def _amodel(self, model_id: str) -> Model:
         return await super()._amodel(self._responses_model_id(model_id))
+
+    async def _encode(
+        self, stack: AsyncExitStack, requests: list[BatchRequest], **kwargs: Any
+    ) -> tuple[Model, str, list[EncodedBatchRequest]]:
+        # Logged here, which only validating and submitting reach, not on every poll, cancel and landing.
+        for model_id in sorted({self._model_id or "", *(request.get("model") or "" for request in requests)}):
+            if (responses_id := self._responses_model_id(model_id)) != model_id:
+                log.info(
+                    "Batches run on the OpenAI Responses API; using openai:<model> in place of openai-chat:<model>",
+                    model=responses_id.partition(":")[2],
+                )
+        return await super()._encode(stack, requests, **kwargs)
+
+    async def acancel_batch(self, batch_id: str) -> None:
+        if self._handle or not self._model_id:
+            await super().acancel_batch(batch_id)
+            return
+        # A batch an earlier version of this provider recorded has no handle, but cancelling takes only its id.
+        async with await self._amodel(self._model_id) as model:
+            # Heavy third-party SDK: importing the OpenAI model module imports ``openai``.
+            from pydantic_ai.models.openai import OpenAIResponsesModel
+
+            if not isinstance(model, OpenAIResponsesModel):
+                await super().acancel_batch(batch_id)
+                return
+            await model.client.batches.cancel(batch_id)
 
     async def _stream_results(self, model: Model, batch: Batch) -> AsyncGenerator[BatchResult, None]:
         # Heavy third-party SDK: importing the OpenAI model module imports ``openai``.
@@ -944,25 +1017,38 @@ class OpenAIBatchAdapter(PydanticAIBatchAdapter):
         for file_id in (details.get("output_file_id"), details.get("error_file_id")):
             if file_id:
                 async with aclosing(self._file_lines(model, file_id)) as lines:
-                    async for line in lines:
-                        result = _openai_result(_OpenAIOutputLine.model_validate_json(line))
+                    line_number = 0
+                    async for raw in lines:
+                        line_number += 1
+                        if (
+                            line := _parse_line(
+                                _OpenAIOutputLine, raw, file_id=file_id, line_number=line_number
+                            )
+                        ) is None:
+                            continue
+                        result = _openai_result(line)
                         seen.add(result.custom_id)
                         yield result
         if details["status"] != "completed":
             # The output and error files have no line for a request the batch didn't run, so the input file lists them.
-            async with aclosing(self._file_lines(model, details["input_file_id"])) as lines:
+            input_file_id = details["input_file_id"]
+            async with aclosing(self._file_lines(model, input_file_id)) as lines:
                 line_number = 0
-                async for line in lines:
+                async for raw in lines:
                     line_number += 1
-                    if (custom_id := _OpenAIInputLine.model_validate_json(line).custom_id) not in seen:
-                        yield _openai_unrun_result(details, custom_id, line_number)
+                    input_line = _parse_line(
+                        _OpenAIInputLine, raw, file_id=input_file_id, line_number=line_number
+                    )
+                    if input_line is not None and input_line.custom_id not in seen:
+                        yield _openai_unrun_result(details, input_line.custom_id, line_number)
 
     @staticmethod
-    async def _file_lines(model: OpenAIResponsesModel, file_id: str) -> AsyncGenerator[str, None]:
+    async def _file_lines(model: OpenAIResponsesModel, file_id: str) -> AsyncGenerator[bytes, None]:
         """Yield a file's lines as they arrive; the response is closed when the iteration ends or is closed."""
         async with model.client.files.with_streaming_response.content(file_id) as response:
-            async for line in response.iter_lines():
-                yield line
+            async with aclosing(_split_lines(response.iter_bytes())) as lines:
+                async for line in lines:
+                    yield line
 
     async def _unrecorded_batch(self, model: Model, batch_id: str) -> Batch:
         """

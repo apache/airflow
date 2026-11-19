@@ -77,6 +77,8 @@ from airflow.providers.common.ai.batch.pydantic_ai_backend import (
     GoogleBatchAdapter,
     OpenAIBatchAdapter,
     PydanticAIBatchAdapter,
+    _error_code,
+    _split_lines,
     _stream,
 )
 from airflow.providers.common.ai.exceptions import (
@@ -445,7 +447,7 @@ class TestInMemoryBatchRoundTrip:
             ("absent", None, None),
         ]
 
-    def test_an_http_error_becomes_an_errored_row_with_its_status(self):
+    def test_an_http_error_becomes_an_errored_row_with_the_providers_message_and_code(self):
         def reply(prompt):
             raise ModelHTTPError(
                 429, "claude", {"error": {"type": "rate_limit_error", "message": "slow down"}}
@@ -457,9 +459,25 @@ class TestInMemoryBatchRoundTrip:
         (row,) = _adapter(recorder.model, handle=submitted.handle).iter_results(submitted.batch_id)
 
         assert row.provider_status == "errored"
-        assert row.error["provider_code"] == "rate_limit_error"
-        assert row.error["stage"] == "provider"
-        assert "429" in row.error["message"]
+        assert row.error == {
+            "type": "errored",
+            "message": "slow down",
+            "provider_code": "rate_limit_error",
+            "stage": "provider",
+        }
+
+    def test_an_http_error_whose_body_has_no_provider_object_keeps_the_status_and_pydantic_ais_message(self):
+        def reply(prompt):
+            raise ModelHTTPError(502, "claude", "bad gateway")
+
+        recorder = _Recorder(reply)
+        submitted = _submit(_adapter(recorder.model), [{"prompt": "a"}])
+
+        (row,) = _adapter(recorder.model, handle=submitted.handle).iter_results(submitted.batch_id)
+
+        assert row.error["provider_code"] == 502
+        assert "502" in row.error["message"]
+        assert "bad gateway" in row.error["message"]
 
     def test_an_unreadable_result_is_skipped_so_the_merge_counts_it_missing(self):
         def reply(prompt):
@@ -1104,10 +1122,18 @@ class TestStream:
 
 
 class _Lines(httpx2.AsyncByteStream):
-    """A file's body served one line per chunk, which can stop arriving after ``fail_after`` lines."""
+    """
+    A file's body served one line per chunk, which can stop arriving after ``fail_after`` lines.
 
-    def __init__(self, lines: list[dict], fail_after: int | None = None):
-        self.lines = [(json.dumps(line) + "\n").encode() for line in lines]
+    A ``str`` line is served as it is, to stand for a line that is not JSON. JSON is written without
+    escaping non-ASCII characters, as the API may write it.
+    """
+
+    def __init__(self, lines: list[dict | str], fail_after: int | None = None):
+        self.lines = [
+            ((line if isinstance(line, str) else json.dumps(line, ensure_ascii=False)) + "\n").encode()
+            for line in lines
+        ]
         self.fail_after = fail_after
         self.pulled = 0
         self.closed = False
@@ -1123,7 +1149,7 @@ class _Lines(httpx2.AsyncByteStream):
         self.closed = True
 
 
-def _openai_output(index: int, status_code: int = 200) -> dict:
+def _openai_output(index: int, status_code: int = 200, text: str | None = None) -> dict:
     """One line of OpenAI's output file, as the API writes it."""
     if status_code == 200:
         body = {
@@ -1138,7 +1164,9 @@ def _openai_output(index: int, status_code: int = 200) -> dict:
                     "type": "message",
                     "role": "assistant",
                     "status": "completed",
-                    "content": [{"type": "output_text", "text": f"answer {index}", "annotations": []}],
+                    "content": [
+                        {"type": "output_text", "text": text or f"answer {index}", "annotations": []}
+                    ],
                 }
             ],
             "usage": {
@@ -1282,6 +1310,120 @@ class TestOpenAIResultsStream:
         assert served["file-out"].closed
         assert served["file-out"].pulled <= _RESULT_BUFFER + 3
         assert not [t for t in threading.enumerate() if t.name == "llm-batch-results"]
+
+    def test_a_rate_limited_row_keeps_openais_code_and_message(self):
+        details, files = _OPENAI_JOBS["completed"]
+        with self._job(details, files) as (adapter, *_):
+            rows = {row.index: row for row in adapter.iter_results("batch_1")}
+
+        assert rows[1].provider_status == "errored"
+        assert rows[1].error["provider_code"] == "rate_limit_exceeded"
+        assert rows[1].error["message"] == "slow down"
+
+    def test_a_request_the_error_file_reports_with_another_code_is_an_errored_row(self):
+        details = {"status": "completed", "error_file_id": "file-err"}
+        files = {"file-err": [_openai_error(0, "server_error")]}
+        with self._job(details, files) as (adapter, *_):
+            (row,) = adapter.iter_results("batch_1")
+
+        assert row.provider_status == "errored"
+        assert row.error["provider_code"] == "server_error"
+        assert row.error["message"] == "request 0: server_error"
+
+    def test_a_response_with_line_separators_inside_its_text_lands(self):
+        text = "one\u2028two\u0085three\x0bfour\x0cfive\x1csix"
+        details = {"status": "completed", "output_file_id": "file-out"}
+        files = {"file-out": [_openai_output(0, text=text), _openai_output(1)]}
+        with self._job(details, files) as (adapter, *_):
+            rows = sorted(adapter.iter_results("batch_1"), key=lambda row: row.index)
+
+        assert [adapter.extract_output(row, build_output_spec(str)).text for row in rows] == [
+            text,
+            "answer 1",
+        ]
+
+    def test_a_blank_or_unparsable_line_is_skipped_with_a_warning_and_the_rest_land(self):
+        details = {"status": "completed", "output_file_id": "file-out"}
+        files = {"file-out": [_openai_output(0), "{not json", "", _openai_output(3), '{"custom_id": 4}']}
+        with (
+            self._job(details, files) as (adapter, *_),
+            mock.patch.object(backend_module, "log", spec=FilteringBoundLogger) as log,
+        ):
+            rows = list(adapter.iter_results("batch_1"))
+
+        assert sorted(row.index for row in rows) == [0, 3]
+        assert [
+            (call.kwargs["file_id"], call.kwargs["line_number"]) for call in log.warning.call_args_list
+        ] == [("file-out", 2), ("file-out", 3), ("file-out", 5)]
+
+    def test_an_unreadable_input_line_does_not_shift_the_line_numbers_of_the_ones_after_it(self):
+        details = {
+            "status": "failed",
+            "errors": [
+                {"code": "bad", "line": 1, "message": "first line problem"},
+                {"code": "bad", "line": 3, "message": "third line problem"},
+            ],
+        }
+        input_lines = _openai_input(3)
+        files = {"file-in": [input_lines[0], "{not json", input_lines[2]]}
+        with self._job(details, files) as (adapter, *_):
+            rows = sorted(adapter.iter_results("batch_1"), key=lambda row: row.index)
+
+        assert [row.index for row in rows] == [0, 2]
+        assert "first line problem" in rows[0].error["message"]
+        assert "third line problem" not in rows[0].error["message"]
+        assert "third line problem" in rows[1].error["message"]
+        assert "first line problem" not in rows[1].error["message"]
+
+
+class TestErrorCode:
+    @pytest.mark.parametrize(
+        ("body", "kwargs", "code"),
+        [
+            (
+                {"message": "m", "type": "t", "code": "c"},
+                {"provider_error_code": "RESOURCE_EXHAUSTED"},
+                "RESOURCE_EXHAUSTED",
+            ),
+            ({"error": {"type": "overloaded_error"}}, {}, "overloaded_error"),
+            ({"message": "m", "code": "server_error"}, {}, "server_error"),
+            (None, {}, 503),
+        ],
+        ids=["the code pydantic-ai parsed", "type under error", "code of an unwrapped body", "status"],
+    )
+    def test_the_providers_code_wins_over_the_status(self, body, kwargs, code):
+        assert _error_code(ModelHTTPError(503, "m", body, **kwargs)) == code
+
+
+class TestSplitLines:
+    @staticmethod
+    async def _chunks(*chunks: bytes):
+        for chunk in chunks:
+            yield chunk
+
+    def _split(self, *chunks: bytes) -> list[bytes]:
+        async def collect():
+            return [line async for line in _split_lines(self._chunks(*chunks))]
+
+        return asyncio.run(collect())
+
+    def test_lines_are_split_on_newlines_only(self):
+        assert self._split("a\u2028b\u0085c\r\nd\n".encode()) == ["a\u2028b\u0085c\r".encode(), b"d"]
+
+    def test_a_line_split_across_chunks_is_joined_even_inside_a_character(self):
+        euro = "\u20ac".encode()
+
+        assert self._split(b"ab", euro[:1], euro[1:] + b"\ncd", b"\n", b"ef") == [
+            b"ab" + euro,
+            b"cd",
+            b"ef",
+        ]
+
+    def test_a_file_without_a_final_newline_keeps_its_last_line(self):
+        assert self._split(b"a\nb") == [b"a", b"b"]
+
+    def test_blank_lines_are_kept_for_the_caller_to_skip(self):
+        assert self._split(b"a\n\nb\n") == [b"a", b"", b"b"]
 
 
 def _ended(state: str | None, *, status: BatchStatus = "ended", count: int = 2) -> Batch:
@@ -1571,15 +1713,52 @@ class TestOpenAIBatches:
         hook.aget_primary_model.return_value = _gpt()
         adapter = OpenAIBatchAdapter(hook=hook, model_id=f"{prefix}:gpt-5-mini")
 
-        with mock.patch.object(backend_module, "log", spec=FilteringBoundLogger) as log:
-            asyncio.run(adapter._amodel(f"{prefix}:gpt-5-mini"))
+        asyncio.run(adapter._amodel(f"{prefix}:gpt-5-mini"))
 
         hook.aget_primary_model.assert_awaited_once_with("openai:gpt-5-mini")
-        if prefix == "openai-chat":
-            log.info.assert_called_once()
-            assert "in place of openai-chat:<model>" in log.info.call_args.args[0]
-        else:
-            log.info.assert_not_called()
+
+    def test_an_openai_responses_model_id_is_built_as_a_responses_model_by_the_connections_hook(self):
+        conn = Connection(conn_id="my_openai", conn_type="pydanticai", password="sk-test")
+        with mock.patch.object(PydanticAIHook, "get_connection", new=classmethod(lambda cls, conn_id: conn)):
+            hook = PydanticAIHook(llm_conn_id="my_openai")
+            adapter = OpenAIBatchAdapter(hook=hook, model_id="openai-responses:gpt-5-mini")
+
+            model = asyncio.run(adapter._amodel("openai-responses:gpt-5-mini"))
+
+        assert isinstance(model, OpenAIResponsesModel)
+        assert model.model_name == "gpt-5-mini"
+
+    def test_the_openai_chat_prefix_is_logged_when_validating_and_submitting_but_not_when_polling(self):
+        recorder = _Recorder()
+        chat_id = "openai-chat:gpt-5-mini"
+        spec = build_output_spec(str)
+        adapter = _adapter(recorder.model, cls=OpenAIBatchAdapter, model_id=chat_id)
+
+        with mock.patch.object(backend_module, "log", spec=FilteringBoundLogger) as log:
+            adapter.validate_requests(
+                [{"prompt": "a"}], model="gpt-5-mini", output_spec=spec, idempotency_key=KEY
+            )
+            validated = log.info.call_count
+            submitted = _submit(adapter, [{"prompt": "a"}], spec=spec)
+            submit_logs = log.info.call_count - validated
+            log.info.reset_mock()
+            later = _adapter(
+                recorder.model, cls=OpenAIBatchAdapter, model_id=chat_id, handle=submitted.handle
+            )
+            later.get_batch(submitted.batch_id)
+            list(later.iter_results(submitted.batch_id))
+            later.cancel_batch(submitted.batch_id)
+
+        assert (validated, submit_logs) == (1, 1)
+        log.info.assert_not_called()
+
+    def test_a_batch_recorded_without_a_handle_is_cancelled_by_its_id(self):
+        adapter = OpenAIBatchAdapter(model_id=GPT, model_factory=lambda _id: _gpt())
+
+        with mock.patch.object(OpenAIAsyncBatches, "cancel", autospec=True) as cancel:
+            adapter.cancel_batch("batch_old")
+
+        assert cancel.call_args.args[1] == "batch_old"
 
     def test_a_per_request_openai_chat_model_is_accepted_and_built_as_a_responses_model(self):
         hook = mock.create_autospec(PydanticAIHook, instance=True)
@@ -1743,6 +1922,23 @@ class TestOpenAIJobStates:
         assert state.counts is None
         assert "line 2: bad line" in state.error_message
         assert "too many tokens" in state.error_message
+
+    def test_a_rejection_reason_falls_back_to_the_code_and_then_to_unknown_error(self, adapter):
+        adapter, model = adapter
+        errors = [{"code": "token_limit", "line": 4}, {"line": 5}, "not an object"]
+
+        state = asyncio.run(adapter._describe(model, _openai_batch("failed", errors=errors)))
+
+        assert state.error_message == (
+            "OpenAI batch batch_1 failed before processing. line 4: token_limit; line 5: unknown error"
+        )
+
+    def test_a_rejected_job_without_reasons_still_says_it_failed(self, adapter):
+        adapter, model = adapter
+
+        state = asyncio.run(adapter._describe(model, _openai_batch("failed")))
+
+        assert state.error_message == "OpenAI batch batch_1 failed before processing."
 
     @pytest.mark.parametrize("status", ["in_progress", "canceling"])
     def test_a_job_that_has_not_ended_is_in_progress(self, adapter, status):

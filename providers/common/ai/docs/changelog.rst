@@ -76,9 +76,6 @@ Changelog
   - A task that was deferred by an earlier version of this provider and is still waiting when you
     upgrade cannot poll its batch: the trigger reports an error naming the cause, and the task's retry
     re-attaches to the batch.
-  - pydantic-ai deletes an OpenAI batch's uploaded input file only inside its own result collection,
-    which streaming OpenAI results does not call, so OpenAI keeps the input file for 30 days. Gemini's
-    file is deleted when the submitting process collects an ended job, and otherwise expires.
 
   A ``BatchAdapter`` written for the earlier contract keeps working: the new members have defaults.
 

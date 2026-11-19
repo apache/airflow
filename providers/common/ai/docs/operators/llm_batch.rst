@@ -308,9 +308,10 @@ Recovering from a crash between submit and recording it
 ---------------------------------------------------------
 
 The operator records its intent to submit before the paid call, so a crash after the provider
-accepted the batch but before the response was recorded leaves a trace. The next attempt asks
-the provider for a matching batch, by the recorded identity key **and** a fingerprint of the
-exact input, so it can never recover an unrelated submission.
+accepted the batch but before the response was recorded leaves a trace. An adapter whose
+``find_orphaned_batch`` can look a batch up on the provider uses it on the next attempt, matching the
+recorded identity key **and** a fingerprint of the exact input, so it can never recover an unrelated
+submission.
 
 **None of the built-in adapters can do that lookup.** pydantic-ai's batch-create call takes no
 ``metadata`` and batches cannot be listed by ``custom_id``, so an orphan falls through to
@@ -368,13 +369,15 @@ OpenAI
 
 OpenAI batches run on the Responses API: pydantic-ai batches only its ``OpenAIResponsesModel``, so the
 requests are ``/v1/responses`` bodies and the batch is created against that endpoint. An
-``openai-chat:<model>`` model id is built as ``openai:<model>`` and the task log says so. Every request
+``openai-chat:<model>`` model id is built as ``openai:<model>`` and the task log says so when it validates
+and submits the batch. ``openai-responses:<model>`` selects the same adapter. Every request
 in a batch must use the same model, because OpenAI's batch is tied to one, and the operator rejects a
 mixed batch before submitting it. Azure OpenAI (a ``pydanticai_azure`` connection) has no adapter.
 
 The batch's input is uploaded as a file. pydantic-ai deletes that file only inside its own result
 collection, which the operator does not use because it streams OpenAI results instead, so OpenAI keeps
-the input file for its 30-day retention.
+the input file for its 30-day retention. The earlier OpenAI adapter did not delete it either, so this
+is unchanged.
 
 An OpenAI job reports one ended state for every outcome, so the operator reads the job's own status: an
 expired or cancelled job lands whatever results it wrote and reports the rest as ``expired`` or

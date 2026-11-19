@@ -63,8 +63,9 @@ _ADAPTER_MODULES: dict[str, tuple[str, str]] = {
 
 #: model_id prefix -> the adapter that serves it under another name. ``openai-chat`` is
 #: pydantic-ai's Chat Completions prefix; the ``openai`` adapter batches on the Responses API
-#: instead and builds the ``openai:`` model of the same name.
-_ADAPTER_ALIASES: dict[str, str] = {"openai-chat": "openai"}
+#: instead and builds the ``openai:`` model of the same name. ``openai-responses`` is pydantic-ai's
+#: own name for that Responses model.
+_ADAPTER_ALIASES: dict[str, str] = {"openai-chat": "openai", "openai-responses": "openai"}
 
 #: model_id prefixes that name a platform whose batch API has no adapter, with the fix to offer.
 _GEMINI_PLATFORM_REFUSAL = (

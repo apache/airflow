@@ -90,9 +90,11 @@ class TestGetAdapterClass:
         with pytest.raises(UnsupportedBatchProviderError, match="'groq' has no batch adapter"):
             dispatch.get_adapter_class("pydanticai", "groq:llama")
 
-    def test_openai_chat_prefix_selects_the_openai_adapter(self):
-        """``openai-chat`` is served by the OpenAI adapter, which runs the batch on the Responses API."""
-        assert dispatch.get_adapter_class("pydanticai", "openai-chat:gpt-5") is OpenAIBatchAdapter
+    @pytest.mark.parametrize("prefix", ["openai-chat", "openai-responses"])
+    def test_pydantic_ais_other_openai_prefixes_select_the_openai_adapter(self, prefix):
+        """Both are served by the OpenAI adapter, which runs the batch on the Responses API."""
+        assert dispatch.get_adapter_class("pydanticai", f"{prefix}:gpt-5") is OpenAIBatchAdapter
+        assert dispatch.resolve_adapter_name("pydanticai", f"{prefix}:gpt-5") == "openai"
 
     @pytest.mark.parametrize("model_id", ["google-cloud:gemini-2.5-flash", "google-vertex:gemini-2.5-flash"])
     def test_vertex_is_refused_with_the_fix(self, model_id):
@@ -132,19 +134,27 @@ class TestRegistration:
 
 
 class TestBuildAdapter:
-    def test_openai_adapter_is_built_from_the_connection_hook(self):
-        conn = Connection(conn_id="my_openai", conn_type="pydanticai", password="sk-test")
+    @pytest.mark.parametrize(
+        ("name", "model_id", "adapter_cls"),
+        [
+            ("openai", "openai:gpt-5-mini", OpenAIBatchAdapter),
+            ("anthropic", "anthropic:claude-sonnet-4-5", AnthropicBatchAdapter),
+            ("google", "google:gemini-2.5-flash", GoogleBatchAdapter),
+        ],
+    )
+    def test_a_built_in_adapter_is_built_from_the_connection_hook(self, name, model_id, adapter_cls):
+        conn = Connection(conn_id="my_llm", conn_type="pydanticai", password="sk-test")
         hook = mock.create_autospec(PydanticAIHook, instance=True)
         hook._get_fallback_conn_ids.return_value = []
         with mock.patch.object(
             PydanticAIHook, "get_hook_for_connection", autospec=True, return_value=hook
         ) as get_hook:
             adapter = dispatch.build_adapter_from_connection(
-                "openai", conn, model_id="openai:gpt-5-mini", batch_handle='{"id": "b"}'
+                name, conn, model_id=model_id, batch_handle='{"id": "b"}'
             )
 
-        get_hook.assert_called_once_with(conn, {"model_id": "openai:gpt-5-mini"})
-        assert isinstance(adapter, OpenAIBatchAdapter)
+        get_hook.assert_called_once_with(conn, {"model_id": model_id})
+        assert isinstance(adapter, adapter_cls)
         assert adapter._hook is hook
         assert adapter._handle == '{"id": "b"}'
 
@@ -162,28 +172,6 @@ class TestBuildAdapter:
 
         get_conn.assert_called_once_with("my_openai")
         assert isinstance(adapter, OpenAIBatchAdapter)
-
-    def test_pydantic_ai_adapter_is_built_from_the_connection_hook(self):
-        conn = Connection(conn_id="my_anthropic", conn_type="pydanticai", password="sk-ant")
-        hook = mock.create_autospec(PydanticAIHook, instance=True)
-        hook._get_fallback_conn_ids.return_value = []
-        with (
-            mock.patch.object(dispatch.BaseHook, "get_connection", autospec=True, return_value=conn),
-            mock.patch.object(
-                PydanticAIHook, "get_hook_for_connection", autospec=True, return_value=hook
-            ) as get_hook,
-        ):
-            adapter = dispatch.build_adapter(
-                "anthropic",
-                llm_conn_id="my_anthropic",
-                model_id="anthropic:claude-sonnet-4-5",
-                batch_handle='{"id": "b"}',
-            )
-
-        get_hook.assert_called_once_with(conn, {"model_id": "anthropic:claude-sonnet-4-5"})
-        assert isinstance(adapter, AnthropicBatchAdapter)
-        assert adapter._hook is hook
-        assert adapter._handle == '{"id": "b"}'
 
 
 class TestNoSdkImportAtDispatchTime:
