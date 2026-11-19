@@ -452,11 +452,6 @@ class RuntimeTaskInstance(TaskInstance):
                     }
                 )
 
-            # Backward compatibility: old servers may still send upstream_map_indexes
-            upstream_map_indexes = getattr(from_server, "upstream_map_indexes", None)
-            if upstream_map_indexes is not None:
-                setattr(self, "_upstream_map_indexes", upstream_map_indexes)
-
         return self._cached_template_context
 
     @detail_span("render_templates")

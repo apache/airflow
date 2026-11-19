@@ -27,7 +27,7 @@ from airflow.sdk.definitions.task_handlers.declaration import TaskHandlerParam, 
 from airflow.sdk.importers.base import FilesystemDagDefinition
 from airflow.sdk.importers.yaml_importer.importer import YamlDagImporter
 
-HEAD_SCHEMA = "https://airflow.apache.org/schemas/dag/2026-10-30.json"
+HEAD_SCHEMA = "https://airflow.apache.org/schemas/dag/2027-02-28.json"
 
 
 pytestmark = pytest.mark.usefixtures("clean_task_handlers")

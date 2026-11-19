@@ -1,4 +1,3 @@
-
  .. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
@@ -162,7 +161,7 @@ apache-airflow-providers-common-ai package
 AI/LLM hooks and operators for Airflow pipelines using `pydantic-ai <https://ai.pydantic.dev/>`__.
 
 
-Release: 1.1.0
+Release: 1.2.0
 
 Provider package
 ----------------
@@ -189,7 +188,7 @@ PIP package                                 Version required
 ``apache-airflow-providers-common-compat``  ``>=1.22.0``
 ``apache-airflow-providers-standard``       ``>=1.20.0``
 ``httpx2``                                  ``>=2.7``
-``pydantic-ai-slim``                        ``>=2.46.0``
+``pydantic-ai-slim``                        ``>=2.66.0``
 ``structlog``                               ``>=24.2.0``
 ==========================================  ==================
 
@@ -228,9 +227,9 @@ Install them when installing from PyPI. For example:
 ====================  =======================================================================================================================================
 Extra                 Dependencies
 ====================  =======================================================================================================================================
-``anthropic``         ``pydantic-ai-slim[anthropic]>=2.46.0``, ``anthropic>=1.1.0,<2``
+``anthropic``         ``pydantic-ai-slim[anthropic]>=2.66.0``, ``anthropic>=1.15.0,<2``
 ``bedrock``           ``pydantic-ai-slim[bedrock]>=2.46.0``
-``google``            ``pydantic-ai-slim[google]>=2.46.0``
+``google``            ``pydantic-ai-slim[google]>=2.66.0``, ``google-genai>=2.30.0``
 ``openai``            ``pydantic-ai-slim[openai]>=2.46.0``, ``openai>=2.47.0``
 ``typesafe``          ``typesafe-sdk>=0.6.0``
 ``mcp``               ``pydantic-ai-slim[mcp]>=2.46.0``
@@ -244,14 +243,15 @@ Extra                 Dependencies
 ``islo``              ``islo>=0.3.19``
 ``avro``              ``fastavro>=1.10.0; python_version < "3.14"``, ``fastavro>=1.12.1; python_version >= "3.14"``
 ``parquet``           ``pyarrow>=18.0.0; python_version < '3.14'``, ``pyarrow>=22.0.0; python_version >= '3.14'``
-``sql``               ``apache-airflow-providers-common-sql>=2.2.0``, ``sqlglot>=30.0.0``
-``common.sql``        ``apache-airflow-providers-common-sql>=2.2.0``
+``sql``               ``apache-airflow-providers-common-sql>=3.1.0``, ``sqlglot>=30.0.0``
+``common.sql``        ``apache-airflow-providers-common-sql>=3.1.0``
 ``langchain``         ``langchain>=1.0.0``
 ``llamaindex``        ``dataclasses-json>=0.6.7``, ``llama-index-core>=0.14.5``, ``llama-index-embeddings-openai>=0.6.0``, ``llama-index-llms-openai>=0.6.8``
 ``pdf``               ``pypdf>=4.0.0``
-``docx``              ``python-docx>=1.0.0``
+``docx``              ``python-docx>=1.1.2``
 ``git``               ``apache-airflow-providers-git``
 ``claude-agent-sdk``  ``claude-agent-sdk>=0.2.160``
+``openai-codex``      ``openai-codex>=0.163.0``, ``mcp>=2.2.0``, ``uvicorn>=0.31.1``
 ====================  =======================================================================================================================================
 
 Downloading official packages
@@ -260,5 +260,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-common-ai 1.1.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_ai-1.1.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_ai-1.1.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_ai-1.1.0.tar.gz.sha512>`__)
-* `The apache-airflow-providers-common-ai 1.1.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_ai-1.1.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_ai-1.1.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_ai-1.1.0-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-common-ai 1.2.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_ai-1.2.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_ai-1.2.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_ai-1.2.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-common-ai 1.2.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_ai-1.2.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_ai-1.2.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_ai-1.2.0-py3-none-any.whl.sha512>`__)

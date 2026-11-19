@@ -50,12 +50,13 @@ class MessageQueueTrigger(BaseEventTrigger):
     This makes it easy to switch providers without modifying the trigger.
 
     :param scheme: The queue scheme (e.g., 'kafka', 'redis+pubsub', 'sqs'). Used for provider matching.
-    :param queue: **Deprecated** The queue identifier (URI format). If provided, this takes precedence over scheme parameter.
-        This parameter is deprecated and will be removed in future versions. Use the 'scheme' parameter instead.
-    :param trigger_queue: Assign this trigger to a specific trigger queue (see
+    :param queue: Assign this trigger to a specific trigger queue (see
         :ref:`config:triggerer__queues_enabled` and the ``--queues`` option of ``airflow triggerer``).
-        Named differently from the ``queue`` parameter above, which is the deprecated broker queue URI
-        and cannot be repurposed for triggerer routing without breaking existing callers.
+        If ``scheme`` is not provided, or the value contains ``://`` or matches a registered broker
+        queue pattern, this parameter is treated as the deprecated broker queue URI for backward
+        compatibility.
+    :param trigger_queue: **Deprecated** Assign this trigger to a specific trigger queue.
+        Deprecated alias for ``queue``. Use the ``scheme`` parameter together with ``queue`` instead.
 
     .. seealso::
         For more information on how to use this trigger, take a look at the guide:
@@ -68,32 +69,49 @@ class MessageQueueTrigger(BaseEventTrigger):
     def __init__(
         self,
         *,
-        queue: str | None = None,
         scheme: str | None = None,
+        queue: str | None = None,
         trigger_queue: str | None = None,
         **kwargs: Any,
     ) -> None:
-        # Stored under our own name rather than through `BaseEventTrigger.__init__(queue=...)` so this
-        # works regardless of the installed airflow-core version, see `queue` property below.
-        self._trigger_queue = trigger_queue
-
-        if queue is None and scheme is None:
-            raise ValueError("Either `queue` or `scheme` parameter must be provided.")
-
-        # For backward compatibility, queue takes precedence
-        if queue is not None:
+        if queue is not None and (
+            scheme is None
+            or "://" in queue
+            or any(provider.queue_matches(queue) for provider in MESSAGE_QUEUE_PROVIDERS)
+        ):
             warnings.warn(
-                "The `queue` parameter is deprecated and will be removed in future versions. "
+                "Passing the broker queue URI as `queue` is deprecated and will be removed in future versions. "
                 "Use the `scheme` parameter instead and pass configuration as keyword arguments to `MessageQueueTrigger`.",
                 AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
             self.queue_uri = queue
-            self.scheme = None
+            queue = None
         else:
             self.queue_uri = None
-            self.scheme = scheme
 
+        if trigger_queue is not None:
+            warnings.warn(
+                "The `trigger_queue` parameter is deprecated and will be removed in a future version. "
+                "Use the `scheme` parameter together with `queue` instead to assign this trigger to a trigger queue.",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
+
+        if queue is not None and trigger_queue is not None:
+            raise ValueError(
+                "Cannot provide both `queue` and deprecated `trigger_queue`. For more details on "
+                "trigger queues, see: "
+                "https://airflow.apache.org/docs/apache-airflow/stable/authoring-and-scheduling/deferring.html#controlling-triggerer-host-assignment-per-trigger"
+            )
+
+        if self.queue_uri is None and scheme is None:
+            raise ValueError("The `scheme` parameter must be provided.")
+
+        # Stored under our own name rather than through `BaseEventTrigger.__init__(queue=...)` so this
+        # works regardless of the installed airflow-core version, see `queue` property below.
+        self._trigger_queue = queue if queue is not None else trigger_queue
+        self.scheme = scheme if self.queue_uri is None else None
         self.kwargs = kwargs
 
     @property
