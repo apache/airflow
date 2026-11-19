@@ -46,6 +46,7 @@ from sqlalchemy.orm import joinedload
 from airflow import settings
 from airflow._shared.module_loading import qualname
 from airflow._shared.observability.metrics.base_stats_logger import StatsLogger
+from airflow._shared.observability.metrics.metrics_registry import MetricsRegistry
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.auth.tokens import JWTGenerator
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import TaskInstance as TIDataModel
@@ -72,6 +73,7 @@ from airflow.jobs.job import Job, run_job
 from airflow.jobs.scheduler_job_runner import (
     MAX_TI_REFILL_QUERIES_PER_LOOP,
     TASK_STUCK_IN_QUEUED_RESCHEDULE_EVENT,
+    TI_METRIC_STATES,
     SchedulerJobRunner,
 )
 from airflow.listeners.listener import get_listener_manager
@@ -4129,6 +4131,13 @@ class TestSchedulerJob:
         mock_stats.gauge.assert_any_call("pool.open_slots", mock.ANY, tags=expected_tags)
         mock_stats.gauge.assert_any_call("pool.queued_slots", mock.ANY, tags=expected_tags)
         mock_stats.gauge.assert_any_call("pool.running_slots", mock.ANY, tags=expected_tags)
+
+    @pytest.mark.parametrize("state", sorted(TI_METRIC_STATES))
+    def test_ti_metric_state_has_legacy_name(self, state):
+        """Plain StatsD drops tags, so a gauge without a legacy name merges every task into one series."""
+        metric = MetricsRegistry().get(f"ti.{state}")
+        assert metric is not None
+        assert metric.get("legacy_name", "-") != "-"
 
     @pytest.mark.parametrize(
         ("multi_team", "expected_tags"),

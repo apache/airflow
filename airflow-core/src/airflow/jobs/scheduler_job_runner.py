@@ -167,6 +167,11 @@ DM = DagModel
 TASK_STUCK_IN_QUEUED_RESCHEDULE_EVENT = "stuck in queued reschedule"
 """:meta private:"""
 
+TI_METRIC_STATES = frozenset(
+    {State.SCHEDULED, State.QUEUED, State.RUNNING, State.DEFERRED, State.AWAITING_INPUT}
+)
+""":meta private:"""
+
 
 # Per-tick cap on pending AssetPartitionDagRun rows the scheduler evaluates.
 # Bounds the per-tick transaction so executor heartbeats and regular scheduling
@@ -3676,7 +3681,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
     @provide_session
     def _emit_ti_metrics(self, *, session: Session = NEW_SESSION) -> None:
-        metric_states = {State.SCHEDULED, State.QUEUED, State.RUNNING, State.DEFERRED, State.AWAITING_INPUT}
         stmt = (
             select(
                 TaskInstance.state,
@@ -3685,7 +3689,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 TaskInstance.queue,
                 func.count(TaskInstance.task_id).label("count"),
             )
-            .filter(TaskInstance.state.in_(metric_states))
+            .filter(TaskInstance.state.in_(TI_METRIC_STATES))
             .group_by(TaskInstance.state, TaskInstance.dag_id, TaskInstance.task_id, TaskInstance.queue)
         )
         all_states_metric = session.execute(stmt).all()
@@ -3696,7 +3700,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         else:
             dag_id_to_team_name = {}
 
-        for state in metric_states:
+        for state in TI_METRIC_STATES:
             if state not in self.previous_ti_metrics:
                 self.previous_ti_metrics[state] = {}
 
