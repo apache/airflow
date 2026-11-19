@@ -27,6 +27,33 @@
 Changelog
 ---------
 
+5.2.0
+.....
+
+.. note::
+  This release includes a database migration, which is why it is a minor release although it only
+  contains bug fixes. The migration changes ``edge_job.command`` from ``VARCHAR(2048)`` to ``TEXT``
+  (``MEDIUMTEXT`` on MySQL), so large deadline callback payloads no longer crash the scheduler. Run
+  ``airflow db migrate`` after upgrading.
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Edge: Return 400 instead of 500 on invalid worker version (#72925)``
+* ``Fix scheduler crash loop from large Edge deadline callbacks (#74445)``
+
+Misc
+~~~~
+
+* ``Bump @tanstack/react-query to 5.107.1, axios to 1.21.1, react-hotkeys-hook to 5.4.0, @rolldown/plugin-babel to 0.3.1, @vitejs/plugin-react to 6.3.0, vite to 8.3.7 (#77039)``
+* ``Bump @chakra-ui/react to 3.38.0, @tanstack/react-query to 5.106.1, semver to 7.8.6, vite to 8.3.6 (#76763)``
+* ``Bump happy-dom to 21.0.4 in edge plugin UI (#76097)``
+* ``Bump @tanstack/react-query to 5.105.2, axios to 1.21.0, react-router-dom to 7.18.5, typescript-eslint to 8.72.1, eslint to 10.14.0, vite to 8.3.5 and other edge UI dependencies (#76615)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix global env vars shadowing team secrets in tasks and triggers (#75998)``
+
 5.1.1
 .....
 

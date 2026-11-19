@@ -26,6 +26,57 @@
 Changelog
 ---------
 
+9.41.0
+......
+
+.. note::
+
+    ``BatchOperator`` supports durable execution and ``durable`` defaults to ``True``. A retry now
+    reconnects to the Batch job the previous try submitted instead of submitting a new one. This
+    applies to the synchronous path only. Pass ``durable=False`` to keep the old behaviour.
+    Reconnecting needs Airflow 3.3 or later. On Airflow 3.3 and 3.4 most clears keep the stored job
+    id, so a cleared task whose job already succeeded returns without submitting a new one.
+
+.. note::
+
+    ``SageMakerTrainingOperator`` supports durable execution and ``durable`` defaults to ``True``.
+    A retry now reconnects to the training job the previous try submitted instead of submitting a
+    new one, so a worker crash no longer leaves a duplicate job running and billing. This applies
+    to the synchronous path only; a deferrable run is unchanged. Pass ``durable=False`` to keep
+    submitting a new job on every try. Reconnecting needs Airflow 3.3 or later; below that the
+    operator behaves as with ``durable=False``.
+
+Features
+~~~~~~~~
+
+* ``Redirect to the requested page after AWS SAML login (#77209)``
+* ``Add S3ArchiveDagBundle for single-archive staging (#73015)``
+* ``Support Athena managed query results in AthenaHook (#77067)``
+* ``Add deferrable support to AthenaSparkOperator (#75915)``
+* ``Support durable execution in SageMakerTrainingOperator (#76036, #76964)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix templated page_size staying a string in mapped SqlToS3Operator tasks (#77153)``
+* ``Rename the cluster_id attribute and template field of the Neptune cluster operators to db_cluster_id, matching the constructor argument (#70491)``
+* ``Fix AwsEksExecutor dying with a 401 after its credentials rotate (#76332)``
+* ``Fix unexpected stdout output in async S3Hook decorator (#76855)``
+
+Misc
+~~~~
+
+* ``Raise boto3 and botocore minimum to 1.43.6 (#76334)``
+
+Doc-only
+~~~~~~~~
+
+* ``Let the Athena Spark example Dag follow default_deferrable (#77173)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Delete the CloudWatch log group left by example_mwaa_serverless (#76810)``
+
 9.40.0
 ......
 
@@ -41,7 +92,9 @@ Changelog
 Features
 ~~~~~~~~
 
-* ``Add stop_training_job_on_kill to SageMakerTrainingOperator to stop the job when the task is killed (#76033)``
+* ``Add cancel_on_kill to SageMakerTrainingOperator and SageMakerProcessingOperator to stop the job when the task is killed (#76033, #76413)``
+* ``Add environment_variables to MWAA Serverless create/update workflow operators (#76496)``
+* ``Stream remote task logs from S3 instead of reading whole objects (#73517)``
 * ``Let the ECS executor start tasks in parallel (#75907)``
 * ``Page SqlToS3Operator like GenericTransfer (#75730)``
 * ``Let the EKS executor run per team and next to KubernetesExecutor (#75449)``
@@ -59,10 +112,13 @@ Bug Fixes
 * ``Skip S3 keys that map to the local sync directory (#74322)``
 * ``Fix SageMaker credential failures being reported as timeouts (#74867)``
 * ``Treat in-progress Bedrock batch inference jobs as scheduled (#75264)``
+* ``Stop deferred AWS tasks failing on a botocore Config object (#74843)``
+* ``Stop AWS Glue job run when a deferred task is cleared (#73702)``
 
 Misc
 ~~~~
 
+* ``Warn when AwsDuckDBHook ignores the AWS connection's credentials (#76639)``
 * ``Log the AWS identity used by AwsDuckDBHook (#75997)``
 * ``Raise boto3 and botocore minimum to 1.43.4 (#75270, #76278)``
 * ``Report AwsEksExecutor as the caller in its AWS user agent (#75698)``
@@ -74,11 +130,13 @@ Misc
 Doc-only
 ~~~~~~~~
 
+* ``Add a connection page for the DuckDB on AWS connection (#76634)``
 * ``Fix env var names in AWS ECS and Lambda executor setup docs (#76155)``
 * ``Document virtual-hosted-style S3 addressing for AWS connections (#75135)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare providers release 2026-11-03 (#76490)``
    * ``Enable DMS task logging in example_dms system test (#76336)``
    * ``Skip log accumulator disk spill when reading finished task logs (#70671)``
    * ``Remove unused S3 bundle test upload helper (#75888)``

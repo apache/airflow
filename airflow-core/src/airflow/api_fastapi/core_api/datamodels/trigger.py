@@ -23,6 +23,7 @@ from pydantic import BeforeValidator, ConfigDict, Field
 
 from airflow.api_fastapi.core_api.base import BaseModel
 from airflow.models.trigger import TriggerKind, TriggerStatus
+from airflow.utils.state import CallbackState, TaskInstanceState
 
 
 def _remove_kwargs(_: object) -> str:
@@ -64,7 +65,7 @@ class TriggerTaskInstanceReferenceResponse(BaseModel):
     task_id: str
     map_index: int
     try_number: int
-    state: str | None
+    state: TaskInstanceState | None
 
 
 class TriggerCallbackReferenceResponse(BaseModel):
@@ -73,7 +74,7 @@ class TriggerCallbackReferenceResponse(BaseModel):
     id: str
     dag_id: str | None
     dag_run_id: str | None
-    state: str | None
+    state: CallbackState | None
 
 
 class TriggerAssetWatcherReferenceResponse(BaseModel):
@@ -83,6 +84,10 @@ class TriggerAssetWatcherReferenceResponse(BaseModel):
     asset_name: str
     asset_uri: str
     watcher_name: str
+    scheduled_dag_ids: list[str] = Field(
+        description="The Dags scheduled on the asset (directly or by an asset name or URI reference), which the "
+        "watcher's events run; only those the caller can read."
+    )
 
 
 class TriggerDetailResponse(BaseModel):

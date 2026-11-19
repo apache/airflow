@@ -50,11 +50,14 @@ from airflow.models.asset import (
 from airflow.models.base import ID_LEN
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagrun import DagRun
+from airflow.models.dynamic_region import DynamicRegion
 from airflow.models.serialized_dag import SerializedDagModel
+from airflow.models.taskinstance import TaskInstance
 from airflow.models.team import Team
 from airflow.models.trigger import Trigger
 from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.sdk import Asset
+from airflow.sdk import Asset, task_group
+from airflow.sdk.definitions._internal.loop import create_loop
 from airflow.timetables.simple import PartitionedAtRuntime
 from airflow.timetables.trigger import CronPartitionTimetable
 from airflow.utils.session import provide_session
@@ -71,6 +74,7 @@ from tests_common.test_utils.db import (
     clear_db_logs,
     clear_db_runs,
     clear_db_teams,
+    clear_db_triggers,
 )
 from tests_common.test_utils.format_datetime import from_datetime_to_zulu_without_ms
 from tests_common.test_utils.logs import check_last_log
@@ -329,6 +333,20 @@ def _create_asset_dag_run(session, num: int = 2):
     session.commit()
 
 
+def _watch_assets(session, watched: dict[str, list[int]]) -> dict[str, int]:
+    """Create a trigger for each name, watching the assets with these ids; return the triggers' ids."""
+    triggers = {name: Trigger(classpath=name, kwargs={}) for name in watched}
+    session.add_all(triggers.values())
+    session.flush()
+    session.add_all(
+        AssetWatcherModel(name=f"{name}_{asset_id}", asset_id=asset_id, trigger_id=triggers[name].id)
+        for name, asset_ids in watched.items()
+        for asset_id in asset_ids
+    )
+    session.commit()
+    return {name: trigger.id for name, trigger in triggers.items()}
+
+
 class TestAssets:
     @pytest.fixture
     def time_freezer(self) -> Generator:
@@ -349,6 +367,7 @@ class TestAssets:
         yield
 
         clear_db_assets()
+        clear_db_triggers()
         clear_db_runs()
         clear_db_dags()
         clear_db_teams()
@@ -460,6 +479,26 @@ class TestGetAssets(TestAssets):
         assert [asset["id"] for asset in body["assets"]] == [1, 3]
         # The count must be scoped too, so the existence of hidden assets does not leak.
         assert body["total_entries"] == 2
+
+    @mock.patch(
+        "airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager.get_authorized_assets"
+    )
+    def test_filter_by_trigger_id_returns_the_readable_assets_its_watchers_watch(
+        self, mock_get_authorized_assets, test_client, session
+    ):
+        self.create_assets(session=session, num=4)
+        trigger_ids = _watch_assets(session, {"shared": [1, 2, 3], "other": [4]})
+        mock_get_authorized_assets.return_value = {1, 2, 4}
+
+        def assets(trigger_id):
+            response = test_client.get("/assets", params={"trigger_id": trigger_id})
+            assert response.status_code == 200
+            body = response.json()
+            return [asset["id"] for asset in body["assets"]], body["total_entries"]
+
+        assert assets(trigger_ids["shared"]) == ([1, 2], 2)
+        assert assets(trigger_ids["other"]) == ([4], 1)
+        assert assets(trigger_ids["other"] + 1) == ([], 0)
 
     @mock.patch("airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager.get_authorized_dag_ids")
     def test_should_return_only_references_of_readable_dags(
@@ -1200,6 +1239,49 @@ class TestGetAssetEvents(TestAssets):
         assert response.status_code == 200, response.text
         assert [row["source_task_instance_id"] for row in response.json()["asset_events"]] == [None]
 
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_reports_the_source_task_instance_region(self, test_client, dag_maker, session):
+        """An event emitted inside a task loop carries the region the UI needs to link to its iteration."""
+
+        @task_group
+        def body():
+            EmptyOperator(task_id="produce")
+
+        with dag_maker("loop_producer", serialized=True):
+            loop = create_loop(body, max_iterations=3)
+        run = dag_maker.create_dagrun(run_id="loop_run")
+        region = session.scalar(select(DynamicRegion).where(DynamicRegion.node_id == loop.group_id))
+        source = TaskInstance(
+            task=dag_maker.dag.get_task("body.produce"),
+            run_id=run.run_id,
+            dag_version_id=run.created_dag_version_id,
+            region_id=region.id,
+            region_index=2,
+        )
+        session.add(source)
+        session.flush()
+        (asset,) = _create_assets(session, num=1)
+        session.add(
+            AssetEvent(
+                asset_id=asset.id,
+                source_dag_id=run.dag_id,
+                source_run_id=run.run_id,
+                source_task_id="body.produce",
+                source_map_index=-1,
+                source_task_instance_id=source.id,
+                timestamp=DEFAULT_DATE,
+            )
+        )
+        session.commit()
+
+        response = test_client.get("/assets/events")
+
+        assert response.status_code == 200, response.text
+        (event,) = response.json()["asset_events"]
+        assert event["source_task_instance_id"] == str(source.id)
+        assert event["source_region_id"] == str(region.id)
+        assert event["source_region_index"] == 2
+
     def test_should_respond_200(self, test_client, session):
         asset1, asset2 = self.create_assets(session=session)
         self.create_assets_events(session=session)
@@ -1230,6 +1312,8 @@ class TestGetAssetEvents(TestAssets):
                     "source_run_id": "source_run_id_1",
                     "source_map_index": -1,
                     "source_task_instance_id": None,
+                    "source_region_id": None,
+                    "source_region_index": None,
                     "created_dagruns": [
                         {
                             "run_id": "source_run_id_1",
@@ -1259,6 +1343,8 @@ class TestGetAssetEvents(TestAssets):
                     "source_run_id": "source_run_id_2",
                     "source_map_index": -1,
                     "source_task_instance_id": None,
+                    "source_region_id": None,
+                    "source_region_index": None,
                     "created_dagruns": [
                         {
                             "run_id": "source_run_id_2",
@@ -1373,6 +1459,27 @@ class TestGetAssetEvents(TestAssets):
         assert response.status_code == 200
         assert response.json()["total_entries"] == total_entries
 
+    @provide_session
+    def test_filter_by_trigger_id_pages_the_events_of_its_watched_assets(self, test_client, *, session):
+        # However many assets a trigger watches, the request names only the trigger.
+        self.create_assets(num=3)
+        session.add_all(
+            AssetEvent(id=i, asset_id=asset_id, timestamp=DEFAULT_DATE + timedelta(days=i))
+            for i, asset_id in enumerate([1, 1, 1, 2, 2, 3], start=1)
+        )
+        trigger_ids = _watch_assets(session, {"shared": [1, 2], "other": [3]})
+
+        def events(trigger_id, **params):
+            response = test_client.get("/assets/events", params={"trigger_id": trigger_id, **params})
+            assert response.status_code == 200
+            body = response.json()
+            return [event["id"] for event in body["asset_events"]], body["total_entries"]
+
+        assert events(trigger_ids["shared"], offset=2, limit=2) == ([3, 4], 5)
+        assert events(trigger_ids["shared"], order_by="-timestamp", offset=1, limit=3) == ([4, 3, 2], 5)
+        assert events(trigger_ids["other"]) == ([6], 1)
+        assert events(trigger_ids["other"] + 1) == ([], 0)
+
     @pytest.mark.parametrize(
         ("params", "expected_ids"),
         [
@@ -1479,6 +1586,8 @@ class TestGetAssetEvents(TestAssets):
                     "source_run_id": "source_run_id_1",
                     "source_map_index": -1,
                     "source_task_instance_id": None,
+                    "source_region_id": None,
+                    "source_region_index": None,
                     "created_dagruns": [
                         {
                             "run_id": "source_run_id_1",
@@ -1508,6 +1617,8 @@ class TestGetAssetEvents(TestAssets):
                     "source_run_id": "source_run_id_2",
                     "source_map_index": -1,
                     "source_task_instance_id": None,
+                    "source_region_id": None,
+                    "source_region_index": None,
                     "created_dagruns": [
                         {
                             "run_id": "source_run_id_2",
@@ -2673,6 +2784,8 @@ class TestPostAssetEvents(TestAssets):
             "source_run_id": None,
             "source_map_index": -1,
             "source_task_instance_id": None,
+            "source_region_id": None,
+            "source_region_index": None,
             "created_dagruns": [],
             "timestamp": from_datetime_to_zulu_without_ms(DEFAULT_DATE),
             "partition_key": None,
@@ -2773,6 +2886,8 @@ class TestPostAssetEvents(TestAssets):
             "source_run_id": None,
             "source_map_index": -1,
             "source_task_instance_id": None,
+            "source_region_id": None,
+            "source_region_index": None,
             "created_dagruns": [],
             "timestamp": from_datetime_to_zulu_without_ms(DEFAULT_DATE),
             "partition_key": None,
@@ -2825,6 +2940,7 @@ class TestPostAssetEventsTeamResolution(TestAssets):
             extra={"from_rest_api": True},
             source_map_index=-1,
             source_task_instance_id=None,
+            source_task_instance=None,
             timestamp=DEFAULT_DATE,
             source_task_id=None,
             source_dag_id=None,
