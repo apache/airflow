@@ -21,6 +21,7 @@ import json
 import logging
 import os
 import shutil
+import time
 from contextlib import nullcontext
 from copy import copy
 from unittest import mock
@@ -1223,8 +1224,14 @@ class TestKubernetesPodOperatorSystem:
         expectation = (
             pytest.raises(AirflowException, match="returned a failure") if base_exit_code else nullcontext()
         )
+        started = time.monotonic()
         with expectation:
             _execute_through_deferral(k, context)
+        elapsed = time.monotonic() - started
+        # The base container exits after about 5s. Without the duration check, a hang that the class
+        # ``execution_timeout`` interrupts still passes the failed-base case, because cleanup then
+        # raises the same "returned a failure" error that case expects.
+        assert elapsed < 90, f"Operator took {elapsed:.0f}s to finish after the base container exited"
 
         client = KubernetesHook(conn_id=None, in_cluster=False).core_v1_client
         remote_pods = client.list_namespaced_pod(
