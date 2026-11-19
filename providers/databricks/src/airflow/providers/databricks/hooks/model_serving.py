@@ -26,7 +26,9 @@ import inspect
 from typing import TYPE_CHECKING, Any
 from urllib.parse import urlsplit
 
-from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
+from tenacity import RetryError
+
+from airflow.providers.common.compat.sdk import AirflowException, AirflowOptionalProviderFeatureException
 from airflow.providers.databricks.hooks.databricks_base import BaseDatabricksHook
 
 _COMMON_AI_REQUIREMENT_MESSAGE = (
@@ -77,6 +79,20 @@ def _is_valid_host(host: str | None) -> bool:
     return True
 
 
+def _is_transient_token_failure(error: BaseException) -> bool:
+    """Return whether ``error`` follows an exhausted retry of a token request."""
+    # BaseDatabricksHook has no dedicated exception type: a tenacity RetryError on the chain is the
+    # only signal that the token endpoint was unreachable, not misconfigured.
+    seen: set[int] = set()
+    node: BaseException | None = error
+    while node is not None and id(node) not in seen:
+        if isinstance(node, RetryError):
+            return True
+        seen.add(id(node))
+        node = node.__cause__ or node.__context__
+    return False
+
+
 class _DatabricksServingAuth(httpx2.Auth):
     """
     Refresh the ``Authorization`` header on every request from a Databricks hook.
@@ -86,20 +102,29 @@ class _DatabricksServingAuth(httpx2.Auth):
     to run the refresh on a worker thread instead of the httpx2 default of driving the sync
     ``auth_flow`` inline on the event loop. ``auth_flow`` itself is kept for sync ``httpx2.Client``
     callers, which have no event loop to block.
+
+    A token fetch that still cannot reach the token endpoint after its retries raises
+    ``httpx2.ConnectError`` so that ``fallback_conn_ids`` can fail over. Any other failure, such as
+    missing credentials or a rejected secret, keeps its original exception.
     """
 
     def __init__(self, databricks_hook: BaseDatabricksHook) -> None:
         self._databricks_hook = databricks_hook
 
-    def _get_auth_header(self) -> str:
-        return f"Bearer {self._databricks_hook._get_token(raise_error=True)}"
+    def _get_auth_header(self, request: Request) -> str:
+        try:
+            return f"Bearer {self._databricks_hook._get_token(raise_error=True)}"
+        except (AirflowException, ConnectionError) as e:
+            if _is_transient_token_failure(e):
+                raise httpx2.ConnectError(f"Could not fetch a Databricks token: {e}", request=request) from e
+            raise
 
     def auth_flow(self, request: Request) -> Generator[Request, Response, None]:
-        request.headers["Authorization"] = self._get_auth_header()
+        request.headers["Authorization"] = self._get_auth_header(request)
         yield request
 
     async def async_auth_flow(self, request: Request) -> AsyncGenerator[Request, Response]:
-        call = functools.partial(contextvars.copy_context().run, self._get_auth_header)
+        call = functools.partial(contextvars.copy_context().run, self._get_auth_header, request)
         request.headers["Authorization"] = await asyncio.get_running_loop().run_in_executor(_executor, call)
         yield request
 
