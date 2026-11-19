@@ -471,6 +471,89 @@ func TestTaskRunnerArgBindingsMissingRequiredFields(t *testing.T) {
 	}
 }
 
+func TestTaskRunnerArgBindingsMappedTaskNotImplemented(t *testing.T) {
+	cases := []struct {
+		what string
+		spec map[string]any
+	}{
+		{
+			what: `binding kind "sequence"`,
+			spec: map[string]any{"name": "country", "kind": "sequence", "task_id": "extract"},
+		},
+		{
+			what: `binding kind "tuple"`,
+			spec: map[string]any{"name": "country", "kind": "tuple", "parts": []any{}},
+		},
+		{
+			what: "map_index",
+			spec: map[string]any{
+				"name": "country", "kind": "xcom", "task_id": "extract", "map_index": 0,
+			},
+		},
+		{
+			what: "element_index",
+			spec: map[string]any{
+				"name": "country", "kind": "xcom", "task_id": "extract", "element_index": 1,
+			},
+		},
+		{
+			what: "apply_map",
+			spec: map[string]any{
+				"name": "country", "kind": "xcom", "task_id": "extract", "apply_map": true,
+			},
+		},
+		{
+			what: "apply_map",
+			spec: map[string]any{
+				"name": "country", "kind": "literal", "value": "x", "apply_map": true,
+			},
+		},
+		{
+			what: "kwarg",
+			spec: map[string]any{
+				"name": "country", "kind": "literal", "value": "x", "kwarg": "country",
+			},
+		},
+		{
+			what: "fallback",
+			spec: map[string]any{
+				"name": "country", "kind": "literal", "value": "x",
+				"fallback": map[string]any{"kind": "literal", "value": "y"},
+			},
+		},
+	}
+	for _, tc := range cases {
+		t.Run(fmt.Sprintf("%s on %s", tc.what, tc.spec["kind"]), func(t *testing.T) {
+			ran := false
+			bundle := buildBundle(t, func(r testBundle) {
+				r.AddDag("test_dag").AddTaskWithName("transform",
+					func(actx contexttest.Context, country string) error {
+						ran = true
+						return nil
+					})
+			})
+
+			details := newStartupDetails("transform", tc.spec)
+			details.TIContext.ShouldRetry = true
+
+			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+			comm := NewCoordinatorComm(bytes.NewReader(nil), io.Discard, logger)
+
+			result := RunTask(context.Background(), bundle, details, comm, logger)
+			assertRetryTask(
+				t,
+				result,
+				fmt.Sprintf(
+					`("country"): %s needs mapped task support, which this version of the Go SDK `+
+						"does not implement; version 1.1.0 will add it",
+					tc.what,
+				),
+			)
+			assert.False(t, ran, "the task body must not run on a binding it cannot honour")
+		})
+	}
+}
+
 func TestTaskRunnerMalformedSpecHonorsShouldRetry(t *testing.T) {
 	bundle := buildBundle(t, func(r testBundle) {
 		r.AddDag("test_dag").AddTaskWithName("transform",

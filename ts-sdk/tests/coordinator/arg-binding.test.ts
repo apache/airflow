@@ -446,6 +446,31 @@ describe("resolveArgs", () => {
     );
   });
 
+  it.each([
+    ['binding kind "sequence"', { name: "totals", kind: "sequence", task_id: "make_totals" }],
+    ['binding kind "tuple"', { name: "totals", kind: "tuple", parts: [] }],
+    ["map_index", xcom("totals", "make_totals", { map_index: 0 })],
+    ["element_index", xcom("totals", "make_totals", { element_index: 1 })],
+    ["apply_map", xcom("totals", "make_totals", { apply_map: true })],
+    ["apply_map", literal("totals", 1, { apply_map: true })],
+    ["kwarg", literal("totals", 1, { kwarg: "totals" })],
+    ["fallback", literal("totals", 1, { fallback: { kind: "literal", value: 2 } })],
+  ])("refuses %s as not implemented, before pulling anything", async (what, binding) => {
+    const { client, getXComEntry } = makeClient({ make_totals: { found: true, value: 1 } });
+    await expect(
+      resolveArgs([binding] as ArgBindings, {
+        client,
+        signal: new AbortController().signal,
+        logs: makeLogs().logs,
+        argNames: NO_RENAMES,
+      }),
+    ).rejects.toThrowError(
+      `Task argument "totals": ${what} needs mapped task support, which this version of ` +
+        "@apache-airflow/ts-sdk does not implement; version 1.1.0 will add it",
+    );
+    expect(getXComEntry).not.toHaveBeenCalled();
+  });
+
   describe("with explicit renames", () => {
     it("binds a name the Python side never used", async () => {
       const { args } = await bind([literal("run_label", "nightly")], {

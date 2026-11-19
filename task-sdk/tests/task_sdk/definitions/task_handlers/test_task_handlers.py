@@ -141,3 +141,39 @@ class TestBinding:
 
     def test_none_bindings_is_empty(self):
         assert _bound(None) == {}
+
+    @pytest.mark.parametrize(
+        ("binding", "match"),
+        [
+            pytest.param(
+                {"kind": "sequence", "task_id": "t"}, "binding kind 'sequence' needs", id="sequence"
+            ),
+            pytest.param(
+                {"kind": "tuple", "parts": [{"kind": "literal", "value": 1}]},
+                "binding kind 'tuple' needs",
+                id="tuple",
+            ),
+            pytest.param({"kind": "xcom", "task_id": "t", "map_index": 0}, "map_index needs", id="map-index"),
+            pytest.param(
+                {"kind": "xcom", "task_id": "t", "element_index": 1},
+                "element_index needs",
+                id="element-index",
+            ),
+            pytest.param(
+                {"kind": "xcom", "task_id": "t", "apply_map": True}, "apply_map needs", id="apply-map"
+            ),
+            pytest.param({"kind": "xcom", "task_id": "t", "kwarg": "x"}, "kwarg needs", id="kwarg"),
+            pytest.param(
+                {"kind": "literal", "value": 1, "fallback": {"kind": "literal", "value": 2}},
+                "fallback needs",
+                id="fallback",
+            ),
+        ],
+    )
+    def test_per_map_index_binding_refused_before_any_pull(self, binding, match):
+        pulled = []
+        bindings = [_xc("events", "extract"), TaskArgBinding.model_validate({"name": "row", **binding})]
+
+        with pytest.raises(NotImplementedError, match=f"{match} mapped task support"):
+            _bound(bindings, lambda *args: pulled.append(args))
+        assert pulled == []

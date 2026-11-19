@@ -164,6 +164,32 @@ class SchedulerDictOfListsExpandInput:
         lengths = self._get_map_lengths(run_id, session=session, producer_contexts=producer_contexts)
         return functools.reduce(operator.mul, (lengths[name] for name in self.value), 1)
 
+    def resolve_expansion_sub_indexes(
+        self, map_index: int, keys: Sequence[str], lengths: Mapping[str, int]
+    ) -> dict[str, int]:
+        """
+        Decompose a task instance's map index into one index per expanded kwarg.
+
+        Server-side counterpart of the SDK's ``DictOfListsExpandInput._expand_mapped_field``: the
+        cross product of the expanded kwargs is ordered with the last kwarg varying fastest.
+
+        :param keys: The expanded kwargs in Dag-file order. The stored Dag may have re-ordered
+            ``value``, e.g. on a Postgres JSONB column or when serialized Dags are compressed.
+        :param lengths: The map length of each expanded kwarg.
+        :raises ValueError: if *keys* are not the expanded kwargs, or an expanded kwarg's length is
+            zero, e.g. an upstream was cleared and re-ran to an empty list after this task instance
+            was expanded.
+        """
+        if sorted(keys) != sorted(self.value):
+            raise ValueError(f"expected the expanded kwargs {sorted(self.value)}, got {list(keys)}")
+        sub_indexes = {}
+        for key in reversed(keys):
+            if (length := lengths[key]) < 1:
+                raise ValueError(f"cannot decompose map index over expanded kwarg {key!r} of length 0")
+            sub_indexes[key] = map_index % length
+            map_index //= length
+        return sub_indexes
+
     def iter_references(self) -> Iterable[tuple[Operator, str]]:
         from airflow.models.referencemixin import ReferenceMixin
 

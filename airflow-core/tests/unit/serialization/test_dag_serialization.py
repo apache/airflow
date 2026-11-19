@@ -3775,6 +3775,138 @@ def test_task_is_stub_fails_closed_on_non_boolean(raw):
     assert DagSerialization.from_dict(ser_dag).task_dict["simple_task"].is_stub is False
 
 
+def test_mapped_stub_arg_bindings_round_trip():
+    """A mapped stub's ``param`` bindings, and the fields the server derives them from, survive the round trip."""
+    from airflow.models.expandinput import SchedulerDictOfListsExpandInput, SchedulerListOfDictsExpandInput
+    from airflow.sdk import task
+
+    with DAG(dag_id="mapped_arg_bindings_dag", schedule=None) as dag:
+
+        @task.stub
+        def transform(country: str, region: str, extracted, retries_num: int = 3): ...
+
+        @task.stub
+        def load(country: str, retries_num: int = 3): ...
+
+        @task
+        def plain(x): ...
+
+        transform.partial(extracted={"a": 1}).expand(country=["uk", "fr"], region=["eu", "us"])
+        load.partial(retries_num=5).expand_kwargs([{"country": "uk"}], strict=True)
+        plain.expand(x=[1, 2])
+
+    ser_dag = DagSerialization.to_dict(dag)
+    DagSerialization.validate_schema(ser_dag)
+    encoded_tasks = {t[Encoding.VAR]["task_id"]: t[Encoding.VAR] for t in ser_dag["dag"]["tasks"]}
+    retries_num = {
+        "name": "retries_num",
+        "kind": "param",
+        "value_schema": {"type": "integer", "format": "int64"},
+        "default": 3,
+    }
+    expected_transform = [
+        {
+            "name": "country",
+            "kind": "param",
+            "value_schema": {"type": "string"},
+            "expand_keys": ["country", "region"],
+        },
+        {
+            "name": "region",
+            "kind": "param",
+            "value_schema": {"type": "string"},
+            "expand_keys": ["country", "region"],
+        },
+        {"name": "extracted", "kind": "param"},
+        retries_num,
+    ]
+    # partial() sets retries_num, so its default is never read.
+    expected_load = [
+        {"name": "country", "kind": "param", "value_schema": {"type": "string"}},
+        {"name": "retries_num", "kind": "param", "value_schema": {"type": "integer", "format": "int64"}},
+    ]
+    assert encoded_tasks["transform"]["_arg_bindings"] == expected_transform, (
+        "bindings must follow declaration order"
+    )
+    assert encoded_tasks["load"]["_arg_bindings"] == expected_load
+    assert "_arg_bindings" not in encoded_tasks["plain"], "only tasks flagged is_stub get bindings"
+
+    round_tripped = DagSerialization.from_dict(ser_dag)
+    transform_task = round_tripped.task_dict["transform"]
+    assert transform_task.arg_bindings == expected_transform
+    assert transform_task.partial_kwargs["op_kwargs"] == {"extracted": {"a": 1}}
+    expand_input = transform_task._get_specified_expand_input()
+    assert isinstance(expand_input, SchedulerDictOfListsExpandInput)
+    assert expand_input.value == {"country": ["uk", "fr"], "region": ["eu", "us"]}
+    assert transform_task._disallow_kwargs_override is False
+
+    load_task = round_tripped.task_dict["load"]
+    assert load_task.arg_bindings == expected_load
+    assert load_task.partial_kwargs["op_kwargs"] == {"retries_num": 5}
+    expand_input = load_task._get_specified_expand_input()
+    assert isinstance(expand_input, SchedulerListOfDictsExpandInput)
+    assert expand_input.value == [{"country": "uk"}]
+    assert load_task._disallow_kwargs_override is True
+
+    assert round_tripped.task_dict["plain"].arg_bindings is None
+
+
+def test_task_group_stub_arg_bindings_round_trip():
+    """A stub inside a mapped task group binds its other arguments at parse time."""
+    from airflow.sdk import task, task_group
+
+    @task.stub
+    def extract(): ...
+
+    @task.stub
+    def transform(country: str, extracted, retries_num: int = 3): ...
+
+    with DAG(dag_id="task_group_arg_bindings_dag", schedule=None) as dag:
+        extracted = extract()
+
+        @task_group
+        def group(country):
+            transform(country, extracted)
+
+        group.expand(country=["uk", "fr"])
+
+    ser_dag = DagSerialization.to_dict(dag)
+    DagSerialization.validate_schema(ser_dag)
+    transform_task = DagSerialization.from_dict(ser_dag).task_dict["group.transform"]
+
+    assert transform_task.arg_bindings == [
+        {
+            "name": "country",
+            "kind": "param",
+            "group_arg": {"group_id": "group", "key": "country"},
+            "value_schema": {"type": "string"},
+        },
+        {"name": "extracted", "kind": "xcom", "task_id": "extract"},
+        {
+            "name": "retries_num",
+            "kind": "literal",
+            "value": 3,
+            "from_default": True,
+            "value_schema": {"type": "integer", "format": "int64"},
+        },
+    ]
+
+
+def test_mapped_stub_capture_error_fails_serialization():
+    """A rejected mapped capture surfaces as a Dag serialization (import) error."""
+    from airflow.sdk import task
+
+    with DAG(dag_id="mapped_arg_bindings_invalid_dag", schedule=None) as dag:
+
+        @task.stub
+        def transform(country: str): ...
+
+        transform.expand_kwargs([{"region": "uk"}])
+
+    with pytest.raises(SerializationError, match="passes unknown parameters"):
+        DagSerialization.to_dict(dag)
+
+
 def test_handle_v1_serdag():
     v1 = {
         "__version": 1,
