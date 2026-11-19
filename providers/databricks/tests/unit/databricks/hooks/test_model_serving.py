@@ -481,6 +481,29 @@ class TestDatabricksServingAuth:
 
         assert seen_auth_headers == ([] if expected is None else [expected])
 
+    @mock.patch.object(BaseDatabricksHook, "_get_sp_token", autospec=True, return_value="sp-oauth-token")
+    def test_auth_flow_prefers_oauth_over_login_token_password(self, mock_get_sp_token):
+        databricks_conn = Connection(
+            conn_type="databricks",
+            host="adb-1.azuredatabricks.net",
+            login="token",
+            password="the-pat",
+            extra={"service_principal_oauth": True},
+        )
+        seen_auth_headers = []
+
+        def handler(request: httpx2.Request) -> httpx2.Response:
+            seen_auth_headers.append(request.headers["Authorization"])
+            return httpx2.Response(200, json={"ok": True})
+
+        with mock.patch.dict("os.environ", AIRFLOW_CONN_DBX=databricks_conn.get_uri()):
+            auth = _DatabricksServingAuth(BaseDatabricksHook(databricks_conn_id="dbx"))
+            client = httpx2.Client(auth=auth, transport=httpx2.MockTransport(handler))
+            client.get("https://example.com/x")
+
+        mock_get_sp_token.assert_called_once()
+        assert seen_auth_headers == ["Bearer sp-oauth-token"]
+
 
 class TestGetConn:
     @mock.patch.dict("os.environ", AIRFLOW_CONN_TEST_CONN=DATABRICKS_CONN_URI)
@@ -583,6 +606,7 @@ class TestGetConn:
         mock_hook = _mock_databricks_hook(mock_hook_cls)
         mock_hook._get_token.side_effect = error
         fallback_calls: list[int] = []
+        first_handler = mock.Mock(spec=["__call__"])
 
         def fallback_response(messages, info) -> ModelResponse:
             fallback_calls.append(1)
@@ -591,7 +615,7 @@ class TestGetConn:
         hook = PydanticAIDatabricksHook(llm_conn_id="test_conn")
         kwargs = hook._get_provider_kwargs(None, None, hook._get_conn_and_extra()[1])
         client = httpx2.AsyncClient(
-            auth=kwargs["http_client"].auth, transport=httpx2.MockTransport(mock.Mock(spec=["__call__"]))
+            auth=kwargs["http_client"].auth, transport=httpx2.MockTransport(first_handler)
         )
         # max_retries=0 keeps openai from sleeping between attempts.
         first = OpenAIChatModel(
@@ -611,6 +635,7 @@ class TestGetConn:
             with pytest.raises(AirflowException, match="Token authentication isn't configured"):
                 await Agent(model).run("hello")
             assert fallback_calls == []
+        first_handler.assert_not_called()
 
 
 class TestTestConnection:
@@ -623,6 +648,22 @@ class TestTestConnection:
         assert ok is True
         assert "only checked for being set, not validated against the workspace" in message
         mock_hook_cls.return_value._get_token.assert_called_once_with()
+
+    @mock.patch("requests.adapters.HTTPAdapter.send", autospec=True)
+    def test_personal_access_token_is_accepted_without_a_request(self, mock_send):
+        databricks_conn = Connection(
+            conn_type="databricks", host="adb-1.azuredatabricks.net", login="token", password="the-pat"
+        )
+        with mock.patch.dict(
+            "os.environ",
+            AIRFLOW_CONN_TEST_CONN=DATABRICKS_CONN_URI,
+            AIRFLOW_CONN_DATABRICKS_CONN=databricks_conn.get_uri(),
+        ):
+            ok, message = PydanticAIDatabricksHook(llm_conn_id="test_conn").test_connection()
+
+        assert ok is True
+        assert "only checked for being set, not validated against the workspace" in message
+        mock_send.assert_not_called()
 
     @mock.patch.dict("os.environ", AIRFLOW_CONN_TEST_CONN=DATABRICKS_CONN_URI)
     @mock.patch(f"{MODULE_PATH}.BaseDatabricksHook", autospec=True)
