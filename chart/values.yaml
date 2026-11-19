@@ -2926,10 +2926,9 @@ pgbouncer:
     container: {}
 
   # Container level lifecycle hooks.
-  # No preStop hook is set by default. On shutdown Kubernetes sends SIGTERM to
-  # PgBouncer, which keeps serving the clients that are already connected and
-  # exits once they have all disconnected (or when terminationGracePeriodSeconds
-  # runs out).
+  # On shutdown Kubernetes sends SIGTERM to PgBouncer, which keeps serving the
+  # clients that are already connected and exits once they have all disconnected
+  # (or when `terminationGracePeriodSeconds` runs out).
   containerLifecycleHooks: {}
 
   # Grace period for PgBouncer to finish after SIGTERM is sent from Kubernetes.
