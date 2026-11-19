@@ -293,6 +293,9 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
             client = self.get_keycloak_client()
             return client.refresh_token(user.refresh_token)
         except KeycloakPostError as exc:
+            if (exc.response_code or 0) >= 500:
+                # The session may still be valid: ending it would log users out on a Keycloak blip.
+                raise
             try:
                 from airflow.api_fastapi.auth.managers.exceptions import (
                     AuthManagerRefreshTokenExpiredException,

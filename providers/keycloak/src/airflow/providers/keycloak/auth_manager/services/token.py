@@ -18,7 +18,10 @@
 from __future__ import annotations
 
 import json
+import logging
 import time
+from collections.abc import Iterator
+from contextlib import contextmanager
 from functools import cache
 from typing import cast
 from urllib.parse import urlsplit
@@ -51,9 +54,28 @@ from airflow.providers.keycloak.version_compat import AIRFLOW_V_3_2_PLUS
 CLI_LOOPBACK_HOSTS = frozenset({"127.0.0.1", "::1"})
 CLI_CALLBACK_PATH = "/callback"
 
+log = logging.getLogger(__name__)
+
 
 def build_keycloak_unavailable_error() -> HTTPException:
     return HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Keycloak is unavailable")
+
+
+def is_keycloak_outage(error: KeycloakError) -> bool:
+    """Return whether ``error`` means Keycloak could not be reached or failed on its side."""
+    return isinstance(error, KeycloakConnectionError) or (error.response_code or 0) >= 500
+
+
+@contextmanager
+def translate_keycloak_outage() -> Iterator[None]:
+    """Raise a ``503`` instead of a Keycloak error that :func:`is_keycloak_outage` matches."""
+    try:
+        yield
+    except KeycloakError as e:
+        if is_keycloak_outage(e):
+            log.warning("Keycloak is unavailable (response code %s): %s", e.response_code, e)
+            raise build_keycloak_unavailable_error() from e
+        raise
 
 
 def is_cli_loopback_redirect_uri(redirect_uri: str) -> bool:
@@ -122,20 +144,15 @@ def create_token_for(
 ) -> str:
     client = KeycloakAuthManager.get_keycloak_client()
 
-    try:
-        tokens = client.token(username, password)
-    except KeycloakAuthenticationError:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Invalid credentials",
-        )
-    except KeycloakConnectionError:
-        raise build_keycloak_unavailable_error()
-
-    try:
+    with translate_keycloak_outage():
+        try:
+            tokens = client.token(username, password)
+        except KeycloakAuthenticationError:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Invalid credentials",
+            )
         return _create_api_jwt_from_keycloak_tokens(client, tokens, expiration_time_in_seconds)
-    except KeycloakConnectionError:
-        raise build_keycloak_unavailable_error()
 
 
 def create_jwt_federated_token(
@@ -276,23 +293,20 @@ def create_token_from_authorization_code(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid redirect_uri")
 
     client = KeycloakAuthManager.get_keycloak_client()
-    try:
-        tokens = client.token(
-            grant_type="authorization_code",
-            code=code,
-            redirect_uri=redirect_uri,
-            code_verifier=code_verifier,
-            scope="openid",
-        )
-    except KeycloakConnectionError:
-        raise build_keycloak_unavailable_error()
-    except KeycloakError:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid authorization code")
-
-    try:
+    with translate_keycloak_outage():
+        try:
+            tokens = client.token(
+                grant_type="authorization_code",
+                code=code,
+                redirect_uri=redirect_uri,
+                code_verifier=code_verifier,
+                scope="openid",
+            )
+        except KeycloakError as e:
+            if is_keycloak_outage(e):
+                raise
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid authorization code")
         return _create_api_jwt_from_keycloak_tokens(client, tokens, expiration_time_in_seconds)
-    except KeycloakConnectionError:
-        raise build_keycloak_unavailable_error()
 
 
 def refresh_cli_token(token: str, expiration_time_in_seconds: int) -> str:
@@ -328,12 +342,11 @@ def refresh_cli_token(token: str, expiration_time_in_seconds: int) -> str:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid token")
 
     try:
-        # Before Airflow 3.1.7 there is no AuthManagerRefreshTokenExpiredException: refresh_tokens returns {}.
-        tokens = auth_manager.refresh_tokens(user=user)
+        with translate_keycloak_outage():
+            tokens = auth_manager.refresh_tokens(user=user)
     except AuthManagerRefreshTokenExpiredException:
         tokens = {}
-    except KeycloakConnectionError:
-        raise build_keycloak_unavailable_error()
+    # Before Airflow 3.1.7 there is no AuthManagerRefreshTokenExpiredException: refresh_tokens returns {}.
     if not tokens:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid token")
 
