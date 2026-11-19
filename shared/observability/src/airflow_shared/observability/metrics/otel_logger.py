@@ -435,6 +435,7 @@ def get_otel_logger(
     metrics_block_list: str | None = None,
     stat_name_handler: Callable[[str], str] | None = None,
     statsd_influxdb_enabled: bool = False,
+    path: str | None = None,
 ) -> SafeOtelLogger:
     """
     Build and return a :class:`SafeOtelLogger` backed by a configured :class:`MeterProvider`.
@@ -472,6 +473,7 @@ def get_otel_logger(
         host=host,
         port=port,
         ssl_active=ssl_active,
+        path=path,
     )
 
     readers = [
