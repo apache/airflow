@@ -466,3 +466,78 @@ class TestCommsDecoder:
         assert isinstance(result, VariableResult)
         assert result.key == "k"
         assert result.value == "v"
+
+    class _Interrupted(BaseException):
+        """Stands in for an exception raised from a signal handler, such as AirflowTaskTimeout."""
+
+    class _InterruptingSupervisor:
+        """
+        Fake supervisor end of the socket.
+
+        Every request gets a VariableResult echoing the requested key, using the request's id. When
+        ``interrupt_at`` is set, the read that would go past that many response bytes raises
+        ``_Interrupted`` once, like a signal handler raising while the task waits for a response.
+        """
+
+        def __init__(self, interrupt_at: int | None = None):
+            self.inbound = bytearray()
+            self.pos = 0
+            self.interrupt_at = interrupt_at
+
+        def setblocking(self, flag):
+            pass
+
+        def sendall(self, data):
+            request = msgspec.msgpack.decode(bytes(data[4:]), type=_RequestFrame)
+            resp = {"type": "VariableResult", "key": request.body["key"], "value": request.body["key"]}
+            encoded = msgspec.msgpack.encode(_ResponseFrame(request.id, resp, None))
+            self.inbound += len(encoded).to_bytes(4, byteorder="big") + encoded
+
+        def _take(self, n: int) -> bytes:
+            if self.interrupt_at is not None:
+                if self.pos >= self.interrupt_at:
+                    self.interrupt_at = None
+                    raise TestCommsDecoder._Interrupted()
+                n = min(n, self.interrupt_at - self.pos)
+            chunk = bytes(self.inbound[self.pos : self.pos + n])
+            self.pos += len(chunk)
+            return chunk
+
+        def recv(self, n):
+            return self._take(n)
+
+        def recv_into(self, buf):
+            chunk = self._take(len(buf))
+            buf[: len(chunk)] = chunk
+            return len(chunk)
+
+    @pytest.mark.parametrize(
+        "interrupt_at",
+        [
+            pytest.param(0, id="before-reading-the-response"),
+            pytest.param(2, id="inside-the-length-header"),
+            pytest.param(10, id="inside-the-body"),
+        ],
+    )
+    def test_interrupted_request_does_not_leak_its_response_into_the_next(self, interrupt_at):
+        sock = self._InterruptingSupervisor(interrupt_at=interrupt_at)
+        decoder = CommsDecoder(socket=sock, log=structlog.get_logger())
+
+        with pytest.raises(self._Interrupted):
+            decoder.send(GetVariable(key="first"))
+
+        result = decoder.send(GetVariable(key="second"))
+
+        assert isinstance(result, VariableResult)
+        assert result.key == "second"
+        # Both responses have been consumed, nothing is left for a later request to misread.
+        assert sock.pos == len(sock.inbound)
+
+    def test_response_for_a_newer_request_raises(self, socket_pair):
+        r, w = socket_pair
+        decoder = CommsDecoder(socket=r, log=structlog.get_logger())
+        encoded = msgspec.msgpack.encode(_ResponseFrame(5, {"type": "VariableResult", "key": "k"}, None))
+        w.sendall(len(encoded).to_bytes(4, byteorder="big") + encoded)
+
+        with pytest.raises(RuntimeError, match="response for request 5 while waiting for request 0"):
+            decoder._get_response(0)
