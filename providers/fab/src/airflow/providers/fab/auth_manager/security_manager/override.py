@@ -109,6 +109,7 @@ from airflow.providers.fab.version_compat import AIRFLOW_V_3_1_PLUS
 from airflow.providers.fab.www.security import permissions
 from airflow.providers.fab.www.security_manager import AirflowSecurityManagerV2
 from airflow.providers.fab.www.session import AirflowDatabaseSessionInterface
+from airflow.providers.fab.www.utils import get_fab_auth_manager
 
 if TYPE_CHECKING:
     from authlib.integrations.flask_client import OAuth
@@ -648,7 +649,10 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             return False
         self.set_user_password(user, password)
         self.reset_user_sessions(user)
-        return self.update_user(user)
+        if not self.update_user(user):
+            return False
+        get_fab_auth_manager().cache.pop(user.id, None)
+        return True
 
     def reset_user_sessions(self, user: User) -> None:
         if isinstance(current_app.session_interface, AirflowDatabaseSessionInterface):

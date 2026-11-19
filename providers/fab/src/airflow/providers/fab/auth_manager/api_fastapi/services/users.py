@@ -140,7 +140,8 @@ class FABAuthManagerUsers:
     @classmethod
     def update_user(cls, username: str, body: UserPatchBody, update_mask: str | None = None) -> UserResponse:
         """Update an existing user."""
-        security_manager = get_fab_auth_manager().security_manager
+        auth_manager = get_fab_auth_manager()
+        security_manager = auth_manager.security_manager
 
         user = security_manager.find_user(username=username)
         if user is None:
@@ -217,6 +218,7 @@ class FABAuthManagerUsers:
             # first would log the user out even when the password update then fails,
             # leaving the old password working and the user evicted for nothing.
             security_manager.reset_user_sessions(user)
+            auth_manager.cache.pop(user.id, None)
 
         return UserResponse.model_validate(user)
 

@@ -215,6 +215,8 @@ class FabAuthManager(BaseAuthManager[User]):
     This auth manager is responsible for providing a backward compatible user management experience to users.
     """
 
+    # Pop a user only after their change is committed: a request served in between would
+    # cache the row as it was before the change.
     cache: TTLCache = TTLCache(maxsize=1024, ttl=CACHE_TTL)
     _user_fetch_locks: WeakValueDictionary[int, asyncio.Lock] = WeakValueDictionary()
     appbuilder: AirflowAppBuilder | None = None
@@ -337,8 +339,8 @@ class FabAuthManager(BaseAuthManager[User]):
         user = self._get_active_user(user_id)
         if token_generation > user.token_generation:
             # The token was issued after a password change that the cached user predates.
-            user = self._fetch_active_user(user_id)
-            self.cache[user_id] = user
+            self.cache.pop(user_id, None)
+            user = self._get_active_user(user_id)
         if token_generation != user.token_generation:
             raise ValueError(f"Token of user with id {user_id} was issued before their last password change")
         return user

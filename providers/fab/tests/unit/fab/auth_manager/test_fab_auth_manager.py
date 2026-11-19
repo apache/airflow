@@ -26,7 +26,6 @@ from unittest.mock import MagicMock, Mock
 from urllib.parse import urlencode
 
 import pytest
-from cachetools import TTLCache
 from flask import Flask, g, session as flask_session
 from flask_appbuilder.const import AUTH_DB, AUTH_LDAP, AUTH_OAUTH, AUTH_REMOTE_USER
 from flask_login import LoginManager, login_user
@@ -547,29 +546,19 @@ class TestFabAuthManager:
         "update_password",
         [pytest.param(_change_password, id="change"), pytest.param(_reset_password, id="reset")],
     )
-    def test_password_update_ends_earlier_tokens_once_cached_user_expires(
+    def test_password_update_ends_earlier_tokens_at_once(
         self, flask_app, auth_manager_with_appbuilder, update_password
     ):
-        """
-        After a password change or reset, earlier tokens work for at most ``[fab] cache_ttl``.
+        """After a password change or reset, earlier tokens fail at once on the API server that made it."""
+        user = create_user(flask_app, "test_password_update")
+        old_token = auth_manager_with_appbuilder.serialize_user(user)
+        auth_manager_with_appbuilder.cache.clear()
+        auth_manager_with_appbuilder.deserialize_user(old_token)
 
-        Until then, the API server compares tokens with the user it cached before the change.
-        """
-        now = [0]
-        with mock.patch.object(
-            auth_manager_with_appbuilder, "cache", TTLCache(maxsize=1, ttl=30, timer=lambda: now[0])
-        ):
-            user = create_user(flask_app, "test_password_update")
-            user_id, old_token = user.id, auth_manager_with_appbuilder.serialize_user(user)
+        update_password(auth_manager_with_appbuilder, "test_password_update")
+
+        with pytest.raises(ValueError, match=ISSUED_BEFORE_PASSWORD_CHANGE):
             auth_manager_with_appbuilder.deserialize_user(old_token)
-
-            update_password(auth_manager_with_appbuilder, "test_password_update")
-
-            now[0] = 29
-            assert auth_manager_with_appbuilder.deserialize_user(old_token).id == user_id
-            now[0] = 30
-            with pytest.raises(ValueError, match=ISSUED_BEFORE_PASSWORD_CHANGE):
-                auth_manager_with_appbuilder.deserialize_user(old_token)
 
     def test_token_issued_after_password_change_ends_earlier_tokens_at_once(
         self, flask_app, auth_manager_with_appbuilder
@@ -577,21 +566,41 @@ class TestFabAuthManager:
         """
         A token issued after a password change works right away, even where the cached user predates
         the change, and from then on earlier tokens fail without waiting for the cache to expire.
+
+        The change is written to the database only: a change made by another process, such as the
+        CLI or another API server, leaves this process's cache as it was.
         """
         user_id = create_user(flask_app, "test_stale_cache").id
         old_token = {"sub": str(user_id), "token_generation": 0}
+        new_token = {"sub": str(user_id), "token_generation": 1}
         auth_manager_with_appbuilder.cache.clear()
         auth_manager_with_appbuilder.deserialize_user(old_token)
-        security_manager = auth_manager_with_appbuilder.security_manager
-        assert security_manager.reset_password(user_id, "new-password")
-        new_token = auth_manager_with_appbuilder.serialize_user(security_manager.get_user_by_id(user_id))
-        assert auth_manager_with_appbuilder.cache[user_id].token_generation == 0
+        _set_stored_token_generation(user_id, 1)
 
         with _spy_on_user_reads() as fetch_active_user:
             assert auth_manager_with_appbuilder.deserialize_user(new_token).id == user_id
             with pytest.raises(ValueError, match=ISSUED_BEFORE_PASSWORD_CHANGE):
                 auth_manager_with_appbuilder.deserialize_user(old_token)
         assert fetch_active_user.call_count == 1
+
+    def test_failed_reload_does_not_keep_outdated_cached_user(self, flask_app, auth_manager_with_appbuilder):
+        """
+        When re-reading the user for a newer token fails, the outdated cached user is dropped too.
+
+        Here the user was deactivated after a password change made by another process, so earlier
+        tokens must fail as well instead of matching the user cached before the change.
+        """
+        user_id = create_user(flask_app, "test_failed_reload").id
+        old_token = {"sub": str(user_id), "token_generation": 0}
+        auth_manager_with_appbuilder.cache.clear()
+        auth_manager_with_appbuilder.deserialize_user(old_token)
+        with create_session() as session:
+            session.execute(update(User).where(User.id == user_id).values(token_generation=1, active=False))
+
+        with pytest.raises(ValueError, match="is not active"):
+            auth_manager_with_appbuilder.deserialize_user({"sub": str(user_id), "token_generation": 1})
+        with pytest.raises(ValueError, match="is not active"):
+            auth_manager_with_appbuilder.deserialize_user(old_token)
 
     def test_login_racing_password_change_issues_token_for_the_generation_it_read(
         self, flask_app, auth_manager_with_appbuilder
