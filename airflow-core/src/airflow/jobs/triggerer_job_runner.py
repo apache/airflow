@@ -182,6 +182,10 @@ _REASSIGNED_CANCEL_MSG = "__airflow_reassigned__"
 
 _ON_CANCEL_TIMEOUT: int = conf.getint("triggerer", "on_kill_timeout", fallback=30)
 
+# Workers for the pool that uploads finished triggers' logs: enough to overlap
+# slow remote uploads without hitting the remote store with an unbounded burst.
+_LOG_UPLOAD_MAX_WORKERS = 4
+
 # Task instance of the trigger whose request the supervisor is handling, sent to the API as
 # ``TRIGGER_TI_ID_HEADER``.
 _handling_trigger_ti_id: contextvars.ContextVar[UUID | None] = contextvars.ContextVar(
@@ -716,7 +720,9 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
     # slow remote store cannot stall the main loop (and its heartbeats) behind a batch of
     # uploads. The small pool also bounds how hard the remote store is hit at once.
     _log_upload_executor: ThreadPoolExecutor = attrs.field(
-        factory=lambda: ThreadPoolExecutor(max_workers=4, thread_name_prefix="trigger-log-upload"),
+        factory=lambda: ThreadPoolExecutor(
+            max_workers=_LOG_UPLOAD_MAX_WORKERS, thread_name_prefix="trigger-log-upload"
+        ),
         init=False,
         repr=False,
     )
@@ -724,8 +730,14 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
     # Uploads submitted to ``_log_upload_executor`` that have not finished yet, by log path.
     # A new trigger can reuse a finished one's log path (a re-created trigger, or a task
     # that resumed and deferred again), so creation of such a trigger is deferred until
-    # the previous upload of that path has finished (see ``_create_workload``).
-    _pending_log_uploads: dict[str, Future[None]] = attrs.field(factory=dict, init=False, repr=False)
+    # every upload of that path has finished (see ``_create_workload``). Several futures
+    # can share one path, so each path maps to a list — overwriting one future with
+    # another would lose track of the first upload still in flight.
+    _pending_log_uploads: dict[str, list[Future[None]]] = attrs.field(factory=dict, init=False, repr=False)
+
+    # Guards ``_pending_log_uploads``: entries are added on the main loop and removed
+    # from the pool's worker threads in ``_on_log_upload_done``.
+    _pending_log_uploads_lock: threading.Lock = attrs.field(factory=threading.Lock, init=False, repr=False)
 
     # A list of triggers that we have told the async process to cancel. We keep them here until we receive the
     # FinishedTriggers message
@@ -975,7 +987,12 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
     @contextmanager
     def run_context(self) -> Iterator[None]:
         """Wrap the run loop. Subclasses can override to install setup/teardown."""
-        yield
+        try:
+            yield
+        finally:
+            # The main loop has exited, so heartbeating no longer matters: drain
+            # any uploads still in flight instead of dropping their logs.
+            self._log_upload_executor.shutdown(wait=True)
 
     def should_stop(self) -> bool:
         """Return True when the run loop should exit."""
@@ -1064,6 +1081,23 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             with attempt, create_session() as session:
                 Trigger.clean_unused(session=session)
 
+    def _is_log_upload_pending(self, log_path: str) -> bool:
+        """
+        Return True if an upload of ``log_path`` is still running.
+
+        A new logger for the path would truncate the file, and the remote handler
+        may delete it after upload, so callers must defer creating the trigger
+        until this returns False. The trigger is retried on the next pass.
+        """
+        with self._pending_log_uploads_lock:
+            pending = bool(self._pending_log_uploads.get(log_path))
+        if pending:
+            log.debug(
+                "Deferring trigger creation until the previous log upload finishes",
+                log_path=log_path,
+            )
+        return pending
+
     def finalize_trigger_log(self, trigger_id: int) -> None:
         """
         Upload and close the log file of a trigger that no longer runs here.
@@ -1080,12 +1114,27 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         self._trigger_log_errors_at.pop(trigger_id, None)
         if factory := self.logger_cache.pop(trigger_id, None):
             future = self._log_upload_executor.submit(self._upload_trigger_log, factory, trigger_id)
-            self._pending_log_uploads[factory.log_path] = future
+            with self._pending_log_uploads_lock:
+                self._pending_log_uploads.setdefault(factory.log_path, []).append(future)
             future.add_done_callback(functools.partial(self._on_log_upload_done, factory.log_path))
 
     def _on_log_upload_done(self, log_path: str, future: Future[None]) -> None:
-        if self._pending_log_uploads.get(log_path) is future:
-            del self._pending_log_uploads[log_path]
+        # Safety net: _upload_trigger_log catches everything it can, but log
+        # anything unexpected that still escaped so a failed upload is never silent.
+        try:
+            exc = future.exception()
+        except Exception:
+            # A cancelled future raises here; there is nothing to log and the
+            # entry is removed below regardless.
+            exc = None
+        if exc is not None:
+            log.exception("Trigger log upload raised an unexpected exception", log_path=log_path)
+        with self._pending_log_uploads_lock:
+            pending = self._pending_log_uploads.get(log_path)
+            if pending is not None and future in pending:
+                pending.remove(future)
+                if not pending:
+                    del self._pending_log_uploads[log_path]
 
     @staticmethod
     def _upload_trigger_log(factory: TriggerLoggingFactory, trigger_id: int) -> None:
@@ -1266,14 +1315,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                 # One directory per callback: with delete_local_logs, remote handlers delete the
                 # log file's parent directory after upload, which must not hold other callbacks' logs.
                 callback_log_path = f"triggerer_callbacks/{dag_id}/{run_id}/{callback.id}/callback.log"
-                if callback_log_path in self._pending_log_uploads:
-                    # The previous upload of this path has not finished; the new logger
-                    # would truncate the file and the remote handler may delete it after
-                    # upload. Skip this pass; the trigger is retried on the next one.
-                    log.debug(
-                        "Deferring trigger creation until the previous log upload finishes",
-                        log_path=callback_log_path,
-                    )
+                if self._is_log_upload_pending(callback_log_path):
                     return None
                 self.logger_cache[trigger.id] = TriggerLoggingFactory(
                     log_path=callback_log_path,
@@ -1327,14 +1369,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         # metadata Job need their own log retrieval path.
         log_id = self.job.id if self.job is not None else self.id
         trigger_log_path = f"{log_path}.trigger.{log_id}.log"
-        if trigger_log_path in self._pending_log_uploads:
-            # The previous upload of this path has not finished; the new logger would
-            # truncate the file and the remote handler may delete it after upload.
-            # Skip this pass; the trigger is retried on the next one.
-            log.debug(
-                "Deferring trigger creation until the previous log upload finishes",
-                log_path=trigger_log_path,
-            )
+        if self._is_log_upload_pending(trigger_log_path):
             return None
         self.logger_cache[trigger.id] = TriggerLoggingFactory(
             log_path=trigger_log_path,

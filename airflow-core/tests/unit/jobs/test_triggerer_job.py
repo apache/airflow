@@ -34,6 +34,7 @@ import time
 import typing
 import uuid
 from collections.abc import AsyncIterator
+from concurrent.futures import Future
 from pathlib import Path
 from socket import socket, socketpair
 from typing import Any, ClassVar
@@ -659,7 +660,28 @@ def jobless_supervisor(mocker):
     mock_selector = mocker.Mock(spec=selectors.DefaultSelector)
     mock_selector.select.return_value = []
     supervisor.selector = mock_selector
-    return supervisor
+    yield supervisor
+    # Drain any log uploads submitted during the test so a failing test cannot
+    # leak the pool's threads into the next test.
+    supervisor._log_upload_executor.shutdown(wait=True)
+
+
+def _drain_log_uploads(supervisor, timeout: float = 10.0) -> None:
+    """Block until every log upload submitted so far has finished.
+
+    Unlike ``shutdown(wait=True)`` this leaves the pool usable, so it is the
+    sync point for assertions that need uploads to have completed mid-test;
+    the ``jobless_supervisor`` fixture shuts the pool down at teardown.
+    """
+    deadline = time.monotonic() + timeout
+    while True:
+        with supervisor._pending_log_uploads_lock:
+            pending = bool(supervisor._pending_log_uploads)
+        if not pending:
+            return
+        if time.monotonic() > deadline:
+            raise AssertionError("timed out waiting for pending log uploads to finish")
+        time.sleep(0.01)
 
 
 def test_start_without_job_generates_uuid_id(mocker):
@@ -1552,7 +1574,7 @@ def test_trigger_logger_fd_closed_when_upload_to_remote_raises(jobless_superviso
 
     msg = messages.TriggerStateChanges(finished=[42])
     jobless_supervisor._handle_request(msg, log=MagicMock(spec=FilteringBoundLogger), req_id=0)
-    jobless_supervisor._log_upload_executor.shutdown(wait=True)
+    _drain_log_uploads(jobless_supervisor)
 
     factory.upload_to_remote.assert_called_once()
     factory.close.assert_called_once()
@@ -3031,13 +3053,39 @@ def test_finished_trigger_logs_upload_off_the_main_loop(jobless_supervisor):
     jobless_supervisor._handle_request(msg, log=MagicMock(spec=FilteringBoundLogger), req_id=0)
     blocked = time.monotonic() - start
 
-    # Inline, these uploads would take 40 * 0.05 = 2s; on the pool the request returns promptly.
-    assert blocked < 1.0
+    # Inline, these uploads would take len(trigger_ids) * 0.05 = 2s; on the pool
+    # the request returns after only submitting them. Assert it returns well
+    # before the inline cost, with a margin for slow CI (half the inline cost),
+    # and that not all uploads have finished yet — 40 uploads at 0.05s on
+    # 4 workers need at least 0.5s of worker time, so a prompt return proves
+    # the work happened off the main loop.
+    inline_cost = len(trigger_ids) * 0.05
+    assert blocked < inline_cost / 2
+    assert len(uploaded) < len(trigger_ids)
 
-    jobless_supervisor._log_upload_executor.shutdown(wait=True)
+    _drain_log_uploads(jobless_supervisor)
     assert sorted(uploaded) == trigger_ids
     assert sorted(closed) == trigger_ids
     assert not jobless_supervisor.logger_cache
+
+
+def _callback_trigger(mocker, callback_id: uuid.UUID, trigger_id: int):
+    """Build a Mock callback trigger whose log path is derived from ``callback_id``."""
+    callback = mocker.Mock()
+    callback.id = callback_id
+    callback.data = {
+        "dag_id": "test_dag",
+        "kwargs": {"context": {"dag_run": {"dag_id": "test_dag", "dag_run_id": "manual__2024-01-01"}}},
+    }
+    trigger = mocker.Mock()
+    trigger.id = trigger_id
+    trigger.classpath = "airflow.triggers.callback.CallbackTrigger"
+    trigger.encrypted_kwargs = ""
+    trigger.consecutive_failures = None
+    trigger.task_instance = None
+    trigger.assets = None
+    trigger.callback = callback
+    return trigger
 
 
 def test_create_workload_defers_while_previous_log_upload_pending(jobless_supervisor, mocker):
@@ -3049,12 +3097,6 @@ def test_create_workload_defers_while_previous_log_upload_pending(jobless_superv
     gets a new trigger row but writes to the same log path.
     """
     callback_id = uuid.uuid4()
-    callback = mocker.Mock()
-    callback.id = callback_id
-    callback.data = {
-        "dag_id": "test_dag",
-        "kwargs": {"context": {"dag_run": {"dag_id": "test_dag", "dag_run_id": "manual__2024-01-01"}}},
-    }
     log_path = f"triggerer_callbacks/test_dag/manual__2024-01-01/{callback_id}/callback.log"
 
     factory = MagicMock(spec=TriggerLoggingFactory)
@@ -3071,14 +3113,7 @@ def test_create_workload_defers_while_previous_log_upload_pending(jobless_superv
     jobless_supervisor.finalize_trigger_log(7)
     assert upload_started.wait(timeout=5)
 
-    trigger = mocker.Mock()
-    trigger.id = 8
-    trigger.classpath = "airflow.triggers.callback.CallbackTrigger"
-    trigger.encrypted_kwargs = ""
-    trigger.consecutive_failures = None
-    trigger.task_instance = None
-    trigger.assets = None
-    trigger.callback = callback
+    trigger = _callback_trigger(mocker, callback_id, trigger_id=8)
 
     workload = jobless_supervisor._create_workload(
         trigger=trigger,
@@ -3090,7 +3125,7 @@ def test_create_workload_defers_while_previous_log_upload_pending(jobless_superv
     assert trigger.id not in jobless_supervisor.logger_cache
 
     release_upload.set()
-    jobless_supervisor._log_upload_executor.shutdown(wait=True)
+    _drain_log_uploads(jobless_supervisor)
     assert log_path not in jobless_supervisor._pending_log_uploads
     factory.close.assert_called_once()
 
@@ -3102,6 +3137,99 @@ def test_create_workload_defers_while_previous_log_upload_pending(jobless_superv
     )
     assert workload is not None
     assert jobless_supervisor.logger_cache[trigger.id].log_path == log_path
+
+
+def test_create_workload_defers_until_all_uploads_of_a_path_finish(jobless_supervisor, mocker):
+    """Creation defers until every pending upload of a log path has finished.
+
+    Two triggers can reuse one log path, so tracking a single future per path
+    lost the first upload when a second one was submitted for the same path
+    and creation could proceed while it was still running.
+    """
+    callback_id = uuid.uuid4()
+    log_path = f"triggerer_callbacks/test_dag/manual__2024-01-01/{callback_id}/callback.log"
+
+    def make_blocked_factory() -> tuple[MagicMock, threading.Event, threading.Event]:
+        factory = MagicMock(spec=TriggerLoggingFactory)
+        factory.log_path = log_path
+        started = threading.Event()
+        release = threading.Event()
+
+        def upload() -> None:
+            started.set()
+            release.wait(timeout=10)
+
+        factory.upload_to_remote.side_effect = upload
+        return factory, started, release
+
+    factory_a, started_a, release_a = make_blocked_factory()
+    factory_b, started_b, release_b = make_blocked_factory()
+    jobless_supervisor.logger_cache[7] = factory_a
+    jobless_supervisor.logger_cache[9] = factory_b
+    jobless_supervisor.finalize_trigger_log(7)
+    jobless_supervisor.finalize_trigger_log(9)
+    assert started_a.wait(timeout=5)
+    assert started_b.wait(timeout=5)
+    assert len(jobless_supervisor._pending_log_uploads[log_path]) == 2
+
+    def pending_count() -> int:
+        with jobless_supervisor._pending_log_uploads_lock:
+            return len(jobless_supervisor._pending_log_uploads.get(log_path, []))
+
+    trigger = _callback_trigger(mocker, callback_id, trigger_id=8)
+    create_kwargs = {
+        "trigger": trigger,
+        "dag_bag": mocker.Mock(),
+        "render_log_fname": mocker.Mock(),
+        "session": mocker.Mock(),
+    }
+    assert jobless_supervisor._create_workload(**create_kwargs) is None
+
+    release_a.set()
+    deadline = time.monotonic() + 5
+    while pending_count() != 1:
+        if time.monotonic() > deadline:
+            raise AssertionError("first upload of the shared path did not finish")
+        time.sleep(0.01)
+    # The second upload is still running, so creation must still defer.
+    assert jobless_supervisor._create_workload(**create_kwargs) is None
+    factory_a.close.assert_called_once()
+
+    release_b.set()
+    _drain_log_uploads(jobless_supervisor)
+    assert jobless_supervisor._create_workload(**create_kwargs) is not None
+    assert jobless_supervisor.logger_cache[trigger.id].log_path == log_path
+
+
+def test_run_context_drains_pending_log_uploads(jobless_supervisor):
+    """Exiting run_context() drains pending uploads and shuts the pool down."""
+    factory = MagicMock(spec=TriggerLoggingFactory)
+    factory.log_path = "some/path.log"
+    jobless_supervisor.logger_cache[7] = factory
+    jobless_supervisor.finalize_trigger_log(7)
+
+    with jobless_supervisor.run_context():
+        pass
+
+    factory.upload_to_remote.assert_called_once()
+    factory.close.assert_called_once()
+    with pytest.raises(RuntimeError):
+        jobless_supervisor._log_upload_executor.submit(lambda: None)
+
+
+def test_log_upload_done_logs_unexpected_future_exception(jobless_supervisor, mocker):
+    """An exception escaping the upload worker must be logged, not swallowed."""
+    future: Future[None] = Future()
+    future.set_exception(RuntimeError("boom"))
+    jobless_supervisor._pending_log_uploads["some/path.log"] = [future]
+    mock_log = mocker.patch("airflow.jobs.triggerer_job_runner.log")
+
+    jobless_supervisor._on_log_upload_done("some/path.log", future)
+
+    assert "some/path.log" not in jobless_supervisor._pending_log_uploads
+    mock_log.exception.assert_called_once_with(
+        "Trigger log upload raised an unexpected exception", log_path="some/path.log"
+    )
 
 
 class TestTriggerRunner:
@@ -6183,7 +6311,7 @@ class TestCheckForUnhandledTriggers:
         jobless_supervisor.running_triggers = {42}
 
         jobless_supervisor.check_for_unhandled_triggers(set())
-        jobless_supervisor._log_upload_executor.shutdown(wait=True)
+        _drain_log_uploads(jobless_supervisor)
 
         factory.upload_to_remote.assert_called_once()
         factory.close.assert_called_once()
@@ -6201,7 +6329,7 @@ class TestCheckForUnhandledTriggers:
         jobless_supervisor.running_triggers = {1, 2}
 
         jobless_supervisor.check_for_unhandled_triggers(set())
-        jobless_supervisor._log_upload_executor.shutdown(wait=True)
+        _drain_log_uploads(jobless_supervisor)
 
         assert not jobless_supervisor.logger_cache
         assert all(factory.close.called for factory in factories.values())
