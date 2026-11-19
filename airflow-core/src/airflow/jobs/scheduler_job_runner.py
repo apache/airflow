@@ -2282,6 +2282,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     if callback_to_run:
                         self._send_dag_callbacks_to_processor(dag, callback_to_run)
         except Exception as e:  # should not fail the scheduler
+            # A failed flush leaves the session unusable, and the commit @provide_session runs on return
+            # would raise PendingRollbackError past this handler and end the scheduler loop.
+            session.rollback()
             self.log.exception("Failed to update dag run state for paused dags due to %s", e)
 
     @provide_session
