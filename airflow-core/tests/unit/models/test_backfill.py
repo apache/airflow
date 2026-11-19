@@ -50,7 +50,7 @@ from airflow.models.backfill import (
     _handle_clear_run,
 )
 from airflow.providers.standard.operators.python import PythonOperator
-from airflow.sdk import Asset, CronPartitionTimetable, PartitionedAssetTimetable
+from airflow.sdk import Asset, CronPartitionTimetable, Param, PartitionedAssetTimetable
 from airflow.ti_deps.dep_context import DepContext
 from airflow.timetables.base import DagRunInfo, DataInterval
 from airflow.utils.state import DagRunState, DagSchedulingState, TaskInstanceState
@@ -736,7 +736,6 @@ def test_backfill_empty_conf_overrides_existing_dag_run(dag_maker, session):
 
 def test_backfill_rejects_invalid_conf(dag_maker, session):
     """Backfill with invalid conf should fail validation before creating any runs."""
-    from airflow.sdk import Param
 
     with dag_maker(
         schedule="@daily",
@@ -759,9 +758,30 @@ def test_backfill_rejects_invalid_conf(dag_maker, session):
     assert session.scalar(select(DagRun).where(DagRun.dag_id == dag.dag_id)) is None
 
 
+def test_backfill_without_conf_rejects_invalid_stored_default(dag_maker, session):
+    """A stored invalid default must fail validation even when no conf is given, before any row is written."""
+
+    with dag_maker(schedule="@daily") as dag:
+        PythonOperator(task_id="hi", python_callable=print)
+        # Bypass the parse-time check: simulates a Dag serialized before the stricter validation.
+        dag_maker.dag.params["d"] = Param("garbage", type="string", format="date-time")
+
+    with pytest.raises(InvalidBackfillConf, match="Invalid input for param d"):
+        _create_backfill(
+            dag_id=dag.dag_id,
+            from_date=pendulum.parse("2021-01-01"),
+            to_date=pendulum.parse("2021-01-05"),
+            max_active_runs=10,
+            reverse=False,
+            triggering_user_name="pytest",
+            dag_run_conf=None,
+        )
+
+    assert session.scalar(select(Backfill).where(Backfill.dag_id == dag.dag_id)) is None
+
+
 def test_do_dry_run_rejects_invalid_conf(dag_maker, session):
     """Dry run with invalid conf should fail validation."""
-    from airflow.sdk import Param
 
     with dag_maker(
         schedule="@daily",
