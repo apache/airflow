@@ -140,7 +140,8 @@ type XComClient interface {
 
 	// PushXCom stores value under key for the given task instance ti.
 	//
-	// value must be JSON serializable; nil is allowed and is pushed as null.
+	// value must be JSON serializable; nil, including a nil pointer, is allowed
+	// and is pushed as null. A nil slice or map is pushed as an empty one.
 	// A time.Time, a byte slice or array such as a uuid.UUID, or a non-finite
 	// float is rejected before it is sent.
 	PushXCom(ctx context.Context, ti TaskInstance, key string, value any) error

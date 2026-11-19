@@ -481,8 +481,9 @@ that runs under ``context.WithoutCancel(actx)``. A helper that takes a plain ``c
 or ``len`` to check for configuration entries, or :ref:`read the conf into a struct <go-sdk/dag-run-conf>` with
 typed fields.
 
-A value the task returns becomes its ``return_value`` XCom. A non-nil ``error``, or a panic, fails the task, and
-retries it if the task has retries.
+A value the task returns becomes its ``return_value`` XCom. A function that returns only ``error`` pushes nothing.
+A nil pointer or nil interface stores null, and a nil slice or map is pushed as an empty list or mapping.
+A non-nil ``error``, or a panic, fails the task, and retries it if the task has retries.
 
 ``airflow.NewContext`` builds a Context, so a unit test calls a task as an ordinary function:
 
@@ -554,12 +555,12 @@ The ``sdk.Client``
        index. A map index reads one instance of a mapped task; one that selects no task instance reads ``nil``.
        See :ref:`go-sdk/types`.
    * - ``PushXCom(ctx, ti, key, value)``
-     - Publishes an XCom value.
+     - Publishes an XCom value. ``nil`` stores null; a nil slice or map is pushed as an empty one.
    * - ``TaskStateStore()``
      - This task instance's key/value store. See :ref:`go-sdk/task-state-store`.
 
-A missing value returns an error that wraps ``sdk.VariableNotFound``, ``sdk.ConnectionNotFound``,
-``sdk.XComNotFound`` or ``sdk.TaskStateNotFound``, so test for it with ``errors.Is``.
+A missing Variable, Connection or task state value returns an error that wraps ``sdk.VariableNotFound``,
+``sdk.ConnectionNotFound`` or ``sdk.TaskStateNotFound``, so test for it with ``errors.Is``.
 
 ``sdk.Client`` is made of ``VariableClient``, ``ConnectionClient``, ``XComClient`` and ``TaskStateStoreClient``,
 so a helper can take only the one it needs, and a test can pass a fake.
