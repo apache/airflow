@@ -1552,6 +1552,7 @@ def test_trigger_logger_fd_closed_when_upload_to_remote_raises(jobless_superviso
 
     msg = messages.TriggerStateChanges(finished=[42])
     jobless_supervisor._handle_request(msg, log=MagicMock(spec=FilteringBoundLogger), req_id=0)
+    jobless_supervisor._log_upload_executor.shutdown(wait=True)
 
     factory.upload_to_remote.assert_called_once()
     factory.close.assert_called_once()
@@ -2998,6 +2999,109 @@ class TestWatcherLogFile(WatcherLogFileHelpers):
         assert not both.broken
         for factory in factories.values():
             factory.close.assert_called_once()
+
+
+def test_finished_trigger_logs_upload_off_the_main_loop(jobless_supervisor):
+    """A batch of finished triggers must not block _handle_request behind slow uploads.
+
+    Regression test for https://github.com/apache/airflow/issues/77278: uploads ran
+    inline, one after another, so a batch of finished triggers held the supervisor's
+    main loop past the runner health-check threshold and it stopped heartbeating.
+    """
+    trigger_ids = list(range(40))
+    uploaded: list[int] = []
+    closed: list[int] = []
+
+    def make_factory(trigger_id: int) -> MagicMock:
+        factory = MagicMock(spec=TriggerLoggingFactory)
+
+        def upload() -> None:
+            time.sleep(0.05)
+            uploaded.append(trigger_id)
+
+        factory.upload_to_remote.side_effect = upload
+        factory.close.side_effect = lambda: closed.append(trigger_id)
+        return factory
+
+    jobless_supervisor.logger_cache.update({tid: make_factory(tid) for tid in trigger_ids})
+    jobless_supervisor.running_triggers.update(trigger_ids)
+
+    msg = messages.TriggerStateChanges(finished=trigger_ids)
+    start = time.monotonic()
+    jobless_supervisor._handle_request(msg, log=MagicMock(spec=FilteringBoundLogger), req_id=0)
+    blocked = time.monotonic() - start
+
+    # Inline, these uploads would take 40 * 0.05 = 2s; on the pool the request returns promptly.
+    assert blocked < 1.0
+
+    jobless_supervisor._log_upload_executor.shutdown(wait=True)
+    assert sorted(uploaded) == trigger_ids
+    assert sorted(closed) == trigger_ids
+    assert not jobless_supervisor.logger_cache
+
+
+def test_create_workload_defers_while_previous_log_upload_pending(jobless_supervisor, mocker):
+    """A new trigger reusing a log path is deferred until the previous upload of it finishes.
+
+    The new logger truncates the file on open and the remote handler may delete it after
+    upload, so neither may race a still-running upload of the same path. The previous
+    upload may belong to a different trigger id: a task that resumed and deferred again
+    gets a new trigger row but writes to the same log path.
+    """
+    callback_id = uuid.uuid4()
+    callback = mocker.Mock()
+    callback.id = callback_id
+    callback.data = {
+        "dag_id": "test_dag",
+        "kwargs": {"context": {"dag_run": {"dag_id": "test_dag", "dag_run_id": "manual__2024-01-01"}}},
+    }
+    log_path = f"triggerer_callbacks/test_dag/manual__2024-01-01/{callback_id}/callback.log"
+
+    factory = MagicMock(spec=TriggerLoggingFactory)
+    factory.log_path = log_path
+    upload_started = threading.Event()
+    release_upload = threading.Event()
+
+    def upload() -> None:
+        upload_started.set()
+        release_upload.wait(timeout=10)
+
+    factory.upload_to_remote.side_effect = upload
+    jobless_supervisor.logger_cache[7] = factory
+    jobless_supervisor.finalize_trigger_log(7)
+    assert upload_started.wait(timeout=5)
+
+    trigger = mocker.Mock()
+    trigger.id = 8
+    trigger.classpath = "airflow.triggers.callback.CallbackTrigger"
+    trigger.encrypted_kwargs = ""
+    trigger.consecutive_failures = None
+    trigger.task_instance = None
+    trigger.assets = None
+    trigger.callback = callback
+
+    workload = jobless_supervisor._create_workload(
+        trigger=trigger,
+        dag_bag=mocker.Mock(),
+        render_log_fname=mocker.Mock(),
+        session=mocker.Mock(),
+    )
+    assert workload is None
+    assert trigger.id not in jobless_supervisor.logger_cache
+
+    release_upload.set()
+    jobless_supervisor._log_upload_executor.shutdown(wait=True)
+    assert log_path not in jobless_supervisor._pending_log_uploads
+    factory.close.assert_called_once()
+
+    workload = jobless_supervisor._create_workload(
+        trigger=trigger,
+        dag_bag=mocker.Mock(),
+        render_log_fname=mocker.Mock(),
+        session=mocker.Mock(),
+    )
+    assert workload is not None
+    assert jobless_supervisor.logger_cache[trigger.id].log_path == log_path
 
 
 class TestTriggerRunner:
@@ -6079,6 +6183,7 @@ class TestCheckForUnhandledTriggers:
         jobless_supervisor.running_triggers = {42}
 
         jobless_supervisor.check_for_unhandled_triggers(set())
+        jobless_supervisor._log_upload_executor.shutdown(wait=True)
 
         factory.upload_to_remote.assert_called_once()
         factory.close.assert_called_once()
@@ -6096,6 +6201,7 @@ class TestCheckForUnhandledTriggers:
         jobless_supervisor.running_triggers = {1, 2}
 
         jobless_supervisor.check_for_unhandled_triggers(set())
+        jobless_supervisor._log_upload_executor.shutdown(wait=True)
 
         assert not jobless_supervisor.logger_cache
         assert all(factory.close.called for factory in factories.values())
