@@ -5,6 +5,7 @@
     "affectedNone": "No runs matching selected criteria.",
     "allRuns": "All Runs",
     "backwards": "Run Backwards",
+    "completed": "Completed",
     "dateRange": "Date Range",
     "errorStartDateBeforeEndDate": "Start Date must be before the End Date",
     "exceptionReason": {
@@ -24,10 +25,12 @@
     "permissionDenied": "Dry Run Failed: User does not have permission to create backfills.",
     "reprocessBehavior": "Reprocess Behavior",
     "run": "Run Backfill",
+    "running": "Running",
     "scheduleNotBackfillable": "This Dag's schedule does not support backfills",
     "schedulerPriorityHint": "Backfill Dag runs are ordered after non-backfill Dag runs in each scheduler cycle. Backfill runs may remain queued longer if other non-backfill runs are present.",
     "selectDescription": "Run this Dag for a range of dates",
     "selectLabel": "Backfill",
+    "status": "Status",
     "title": "Run Backfill",
     "toaster": {
       "success": {

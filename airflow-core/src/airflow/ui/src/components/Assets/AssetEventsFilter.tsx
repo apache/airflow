@@ -25,6 +25,9 @@ const FILTER_KEYS: Array<FilterableSearchParamsKeys> = [
   SearchParamsKeys.ASSET_EVENT_DATE_RANGE,
   SearchParamsKeys.DAG_ID,
   SearchParamsKeys.TASK_ID,
+  SearchParamsKeys.SOURCE_RUN_ID,
+  SearchParamsKeys.SOURCE_MAP_INDEX,
+  SearchParamsKeys.PARTITION_KEY,
 ];
 
 export const AssetEventsFilter = () => {
