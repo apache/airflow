@@ -619,6 +619,59 @@ describe("runPack", () => {
     expect(existsSync(path.join(outdir, "bundle.pack-staging.mjs"))).toBe(false);
   });
 
+  it("reports the error from a bundle that fails on a minified line over 64 KiB", async () => {
+    outdir = mkdtempSync(path.join(tmpdir(), "ts-pack-"));
+    const entry = path.join(outdir, "long-line-entry.ts");
+    writeFileSync(
+      entry,
+      [
+        `(globalThis as Record<string, unknown>).padding = ${JSON.stringify("x".repeat(70_000))};`,
+        'throw new Error("final failure");',
+      ].join("\n"),
+    );
+    const stderr = captureStderr();
+
+    await expect(runPack([entry, "--outdir", outdir])).rejects.toHaveProperty(
+      "message",
+      "Error: final failure",
+    );
+    expect(stderr()).toBe("");
+  });
+
+  it("passes on what a working bundle writes to stderr", async () => {
+    outdir = mkdtempSync(path.join(tmpdir(), "ts-pack-"));
+    const entry = path.join(outdir, "warning-entry.ts");
+    writeFileSync(
+      entry,
+      [
+        `import { Bundle, Dag } from ${JSON.stringify(SDK_INDEX)};`,
+        'console.warn("heads up");',
+        'const warningDag = new Dag("warning_dag");',
+        'warningDag.task("solo", async () => undefined)();',
+        "await new Bundle(warningDag).serve();",
+      ].join("\n"),
+    );
+    const stderr = captureStderr();
+
+    await runPack([entry, "--outdir", outdir]);
+
+    expect(stderr()).toBe("heads up\n");
+    expect(existsSync(path.join(outdir, "bundle.min.mjs"))).toBe(true);
+  });
+
+  it("reports the end of stderr from a bundle that fails without an error line", async () => {
+    outdir = mkdtempSync(path.join(tmpdir(), "ts-pack-"));
+    const entry = path.join(outdir, "exit-entry.ts");
+    writeFileSync(
+      entry,
+      'process.stderr.write("x".repeat(5000) + "\\nlast words\\n");\nprocess.exit(1);',
+    );
+
+    await expect(runPack([entry, "--outdir", outdir])).rejects.toThrow(
+      /^Running the bundle with --airflow-metadata failed: [^]*\nx{1,1999}\nlast words$/,
+    );
+  });
+
   // A bundle can print the sentinel itself, so nothing on that line is trusted.
   it.each([
     [
