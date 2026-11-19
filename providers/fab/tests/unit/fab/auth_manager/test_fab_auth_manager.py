@@ -43,7 +43,7 @@ from airflow.utils.db import resetdb
 
 from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.config import conf_vars
-from unit.fab.auth_manager.test_utils import create_user, delete_user
+from unit.fab.auth_manager.test_utils import create_role, create_user, delete_role, delete_user
 
 with suppress(ImportError):
     from airflow.api_fastapi.auth.managers.models.resource_details import (
@@ -1236,6 +1236,46 @@ class TestFabAuthManager:
         assert results == expected_results
 
         delete_user(flask_app, "username")
+
+    @pytest.mark.parametrize(
+        ("method", "role_permissions", "expected_results"),
+        [
+            pytest.param("GET", [(ACTION_CAN_READ, "DAG:test_dag1")], {"test_dag1"}, id="read-one-dag"),
+            pytest.param(
+                "PUT",
+                [(ACTION_CAN_EDIT, "DAG:test_dag1"), (ACTION_CAN_EDIT, "DAG:test_dag2")],
+                {"test_dag1", "test_dag2"},
+                id="edit-two-dags",
+            ),
+        ],
+    )
+    def test_get_authorized_dag_ids_for_public_user(
+        self, method, role_permissions, expected_results, auth_manager_with_appbuilder, flask_app, dag_maker
+    ):
+        for dag_id in ("test_dag1", "test_dag2", "test_dag3"):
+            with dag_maker(dag_id):
+                EmptyOperator(task_id="task")
+            if AIRFLOW_V_3_1_PLUS:
+                sync_dag_to_db(dag_maker.dag)
+        dag_maker.session.commit()
+        dag_maker.session.close()
+
+        security_manager = auth_manager_with_appbuilder.security_manager
+        security_manager.sync_perm_for_dag("test_dag1")
+        security_manager.sync_perm_for_dag("test_dag2")
+        delete_role(flask_app, "public_test")
+        create_role(flask_app, "public_test", role_permissions)
+
+        previous = flask_app.config.get("AUTH_ROLE_PUBLIC")
+        flask_app.config["AUTH_ROLE_PUBLIC"] = "public_test"
+        try:
+            user = auth_manager_with_appbuilder.build_public_user()
+            results = auth_manager_with_appbuilder.get_authorized_dag_ids(user=user, method=method)
+        finally:
+            flask_app.config["AUTH_ROLE_PUBLIC"] = previous
+            delete_role(flask_app, "public_test")
+
+        assert results == expected_results
 
     def test_get_authorized_pools(self, auth_manager):
         session = Mock()

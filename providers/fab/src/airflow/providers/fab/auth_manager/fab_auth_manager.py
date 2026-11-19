@@ -678,32 +678,36 @@ class FabAuthManager(BaseAuthManager[User]):
             # If user is authorized to access all DAGs, return all DAGs
             return {dag.dag_id for dag in session.execute(select(DagModel.dag_id))}
         if isinstance(user, AnonymousUser):
-            return set()
-        user_query = (
-            session.scalars(
-                select(User)
-                .options(
-                    joinedload(User.roles)
-                    .subqueryload(Role.permissions)
-                    .options(joinedload(Permission.action), joinedload(Permission.resource))
+            # The public user has no row in ab_user. Its permissions are loaded when it is built.
+            user_permissions = self._get_user_permissions(user)
+        else:
+            user_query = (
+                session.scalars(
+                    select(User)
+                    .options(
+                        joinedload(User.roles)
+                        .subqueryload(Role.permissions)
+                        .options(joinedload(Permission.action), joinedload(Permission.resource))
+                    )
+                    .where(User.id == user.id)
                 )
-                .where(User.id == user.id)
+                .unique()
+                .one()
             )
-            .unique()
-            .one()
-        )
-        roles = user_query.roles
+            user_permissions = {
+                (permission.action.name, permission.resource.name)
+                for role in user_query.roles
+                for permission in role.permissions
+            }
 
         fab_action = get_fab_action_from_method_map().get(method)
         resources = set()
-        for role in roles:
-            for permission in role.permissions:
-                if permission.action.name == fab_action:
-                    resource = permission.resource.name
-                    if resource == permissions.RESOURCE_DAG:
-                        return {dag.dag_id for dag in session.execute(select(DagModel.dag_id))}
-                    if resource.startswith(permissions.RESOURCE_DAG_PREFIX):
-                        resources.add(resource[len(permissions.RESOURCE_DAG_PREFIX) :])
+        for action, resource in user_permissions:
+            if action == fab_action:
+                if resource == permissions.RESOURCE_DAG:
+                    return {dag.dag_id for dag in session.execute(select(DagModel.dag_id))}
+                if resource.startswith(permissions.RESOURCE_DAG_PREFIX):
+                    resources.add(resource[len(permissions.RESOURCE_DAG_PREFIX) :])
         return set(session.scalars(select(DagModel.dag_id).where(DagModel.dag_id.in_(resources))))
 
     @provide_session
