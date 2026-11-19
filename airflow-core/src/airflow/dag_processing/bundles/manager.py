@@ -41,7 +41,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Collection, Iterable
+    from collections.abc import Callable, Collection, Hashable, Iterable
     from contextlib import AbstractContextManager
 
     from sqlalchemy.engine import CursorResult
@@ -359,6 +359,23 @@ class DagBundlesManager(LoggingMixin):
                 team_name=bundle_config.team_name,
             )
         self.log.info("DAG bundles loaded: %s", ", ".join(self._bundle_config.keys()))
+        self._warn_about_bundles_with_the_same_source()
+
+    def _warn_about_bundles_with_the_same_source(self) -> None:
+        """Warn when two configured bundles read the same files, e.g. one repository over SSH and HTTPS."""
+        names_by_source: dict[Hashable, list[str]] = {}
+        for name, bundle_config in self._bundle_config.items():
+            source_key = bundle_config.bundle_class.source_key(**bundle_config.kwargs)
+            if source_key is not None:
+                names_by_source.setdefault(source_key, []).append(name)
+        for names in names_by_source.values():
+            if len(names) > 1:
+                self.log.warning(
+                    "DAG bundles %s read the same source. Every file in it is parsed once per bundle "
+                    "and each Dag keeps moving from one bundle to the other. Configure this source "
+                    "in one bundle only.",
+                    ", ".join(names),
+                )
 
     @provide_session
     def sync_bundles_to_db(self, *, deactivate_missing: bool = True, session: Session = NEW_SESSION) -> None:

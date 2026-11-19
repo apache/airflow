@@ -172,6 +172,13 @@ See :doc:`apache-airflow-providers-google:bundles/index` for the full list of kw
 
 You can combine multiple bundle types in a single deployment. The default ``LocalDagBundle`` can be removed if you no longer need it, or kept alongside other bundles:
 
+.. note::
+    Two bundles must not read the same source, for example the same Git repository, branch and subdir
+    once over SSH and once over HTTPS. Every file is then parsed once per bundle, import errors are
+    reported once per bundle, and each Dag keeps moving from one bundle to the other
+    (see :ref:`faq:duplicate-dag-id-warning`). Airflow logs a warning when it loads such a configuration
+    and can tell that the sources are the same.
+
 .. code-block:: ini
 
     [dag_processor]

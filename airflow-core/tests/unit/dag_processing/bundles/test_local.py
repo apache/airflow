@@ -43,3 +43,16 @@ class TestLocalDagBundle:
         bundle = LocalDagBundle(name="test", path="/hello")
 
         assert bundle.get_current_version() is None
+
+
+def test_source_key_ignores_how_the_path_is_written(tmp_path):
+    key = LocalDagBundle.source_key(path=str(tmp_path))
+
+    assert key == LocalDagBundle.source_key(path=f"{tmp_path}/")
+    assert key != LocalDagBundle.source_key(path=str(tmp_path / "other"))
+
+
+def test_source_key_defaults_to_the_dags_folder():
+    from airflow import settings
+
+    assert LocalDagBundle.source_key() == LocalDagBundle.source_key(path=settings.DAGS_FOLDER)

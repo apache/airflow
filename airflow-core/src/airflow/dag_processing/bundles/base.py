@@ -38,6 +38,8 @@ from pendulum.parsing import ParserError
 from airflow.configuration import conf
 
 if TYPE_CHECKING:
+    from collections.abc import Hashable
+
     from pendulum import DateTime
 
     from airflow.typing_compat import Self
@@ -363,6 +365,19 @@ class BaseDagBundle(ABC):
                 self.name,
                 bundle_path,
             )
+
+    @classmethod
+    def source_key(cls, **kwargs: Any) -> Hashable | None:
+        """
+        Identify where a bundle configured with these ``kwargs`` reads its files from.
+
+        Two bundles that return the same key read the same files. Airflow warns about that when it
+        loads the bundle configuration, because every file is then parsed once per bundle and each
+        Dag keeps moving from one bundle to the other.
+
+        Return ``None``, as the default does, when the source cannot be told from the kwargs alone.
+        """
+        return None
 
     @property
     @abstractmethod

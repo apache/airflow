@@ -436,6 +436,10 @@ appears for both the old and new paths and then clears on its own once the old f
 If the warning does not clear, two files with the same ``dag_id`` genuinely coexist. Which one "wins" is
 not guaranteed to stay stable across parses, so rename one of them to give each Dag a unique ``dag_id``.
 
+If every Dag has the warning, check whether two :doc:`Dag bundles </administration-and-deployment/dag-bundles>`
+read the same source, for example the same Git repository configured once with an SSH URL and once with
+an HTTPS URL. Configure each source in one bundle only.
+
 
 Dag construction
 ^^^^^^^^^^^^^^^^

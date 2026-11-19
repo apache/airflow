@@ -17,10 +17,15 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from airflow import settings
 from airflow.dag_processing.bundles.base import BaseDagBundle
+
+if TYPE_CHECKING:
+    from collections.abc import Hashable
 
 
 class LocalDagBundle(BaseDagBundle):
@@ -39,6 +44,11 @@ class LocalDagBundle(BaseDagBundle):
             path = settings.DAGS_FOLDER
 
         self._path = Path(path)
+
+    @classmethod
+    def source_key(cls, *, path: str | None = None, **kwargs) -> Hashable | None:
+        """Identify the directory, so that two spellings of the same path compare equal."""
+        return ("local", os.path.realpath(path or settings.DAGS_FOLDER))
 
     def get_current_version(self) -> None:
         return None

@@ -510,6 +510,42 @@ class GitDagBundle(BaseDagBundle):
 
             self.repo.close()
 
+    @classmethod
+    def source_key(
+        cls,
+        *,
+        repo_url: str | None = None,
+        tracking_ref: str | None = None,
+        subdir: str | None = None,
+        **kwargs,
+    ) -> tuple[str, str, str, str] | None:
+        """
+        Identify the repository, ref and subdir a bundle with these kwargs reads.
+
+        SSH and HTTPS URLs of one repository give the same key. Returns ``None`` when the URL is
+        not in the kwargs (it then comes from the connection) or is not a remote URL.
+        """
+        if not repo_url or not tracking_ref:
+            return None
+        if (repository := cls._normalize_repo_url(repo_url)) is None:
+            return None
+        return ("git", repository, tracking_ref, (subdir or "").strip("/"))
+
+    @staticmethod
+    def _normalize_repo_url(url: str) -> str | None:
+        """Reduce a remote repository URL to ``host/path``, without user, port or ``.git``."""
+        url = url.strip()
+        if "://" in url:
+            parsed_url = urlparse(url)
+            host, path = parsed_url.hostname, parsed_url.path
+        else:
+            # scp-like syntax: [user@]host:path
+            user_and_host, separator, path = url.partition(":")
+            host = user_and_host.rpartition("@")[2] if separator else None
+        if not host:
+            return None
+        return f"{host.lower()}/{path.strip('/').removesuffix('.git')}"
+
     @staticmethod
     def _convert_git_ssh_url_to_https(url: str) -> str:
         if not url.startswith("git@"):

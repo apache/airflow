@@ -2122,3 +2122,53 @@ class TestSkippedRowLifecycle:
         assert restored.is_stale is False
         assert restored.bundle_name == "configured-bundle"
         assert restored.relative_fileloc == "legacy.py"
+
+
+@pytest.mark.parametrize(
+    ("second_path", "expect_warning"),
+    [
+        pytest.param("/tmp/same_source_dags/", True, id="same-directory"),
+        pytest.param("/tmp/another_source_dags", False, id="different-directory"),
+    ],
+)
+def test_parse_config_warns_about_bundles_with_the_same_source(caplog, second_path, expect_warning):
+    local_bundle = "airflow.dag_processing.bundles.local.LocalDagBundle"
+    config = [
+        {"name": "one", "classpath": local_bundle, "kwargs": {"path": "/tmp/same_source_dags"}},
+        {"name": "two", "classpath": local_bundle, "kwargs": {"path": second_path}},
+    ]
+    with (
+        conf_vars(
+            {
+                ("dag_processor", "dag_bundle_config_list"): json.dumps(config),
+                ("core", "LOAD_EXAMPLES"): "False",
+            }
+        ),
+        caplog.at_level("WARNING"),
+    ):
+        DagBundlesManager()
+
+    assert ("DAG bundles one, two read the same source" in caplog.text) is expect_warning
+
+
+def test_parse_config_does_not_compare_bundles_with_an_unknown_source(caplog):
+    config = [
+        {
+            "name": name,
+            "classpath": "unit.dag_processing.bundles.test_dag_bundle_manager.BasicBundle",
+            "kwargs": {"refresh_interval": 1},
+        }
+        for name in ("one", "two")
+    ]
+    with (
+        conf_vars(
+            {
+                ("dag_processor", "dag_bundle_config_list"): json.dumps(config),
+                ("core", "LOAD_EXAMPLES"): "False",
+            }
+        ),
+        caplog.at_level("WARNING"),
+    ):
+        DagBundlesManager()
+
+    assert "read the same source" not in caplog.text

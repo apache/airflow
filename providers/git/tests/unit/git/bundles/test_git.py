@@ -2276,3 +2276,49 @@ class TestGitDagBundle:
 
         mock_working_repo.git.custom_environment.assert_called_once_with(GIT_SSH_COMMAND=SSH_CMD)
         mock_rmtree.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "repo_url",
+    [
+        pytest.param("git@github.com:example-org/example-dags.git", id="scp-like-ssh"),
+        pytest.param("ssh://git@github.com:22/example-org/example-dags.git", id="ssh-url"),
+        pytest.param("https://github.com/example-org/example-dags.git", id="https"),
+        pytest.param("https://user:token@GitHub.com/example-org/example-dags", id="https-with-user"),
+        pytest.param("https://github.com/example-org/example-dags/", id="https-trailing-slash"),
+    ],
+)
+def test_source_key_is_the_same_for_ssh_and_https_urls(repo_url):
+    key = GitDagBundle.source_key(repo_url=repo_url, tracking_ref="main", subdir="/dags/")
+
+    assert key == ("git", "github.com/example-org/example-dags", "main", "dags")
+
+
+@pytest.mark.parametrize(
+    "kwargs",
+    [
+        pytest.param({"repo_url": "https://github.com/example-org/other-dags.git"}, id="repository"),
+        pytest.param({"tracking_ref": "release"}, id="tracking-ref"),
+        pytest.param({"subdir": "more_dags"}, id="subdir"),
+    ],
+)
+def test_source_key_differs_for_another_repository_ref_or_subdir(kwargs):
+    same = {
+        "repo_url": "git@github.com:example-org/example-dags.git",
+        "tracking_ref": "main",
+        "subdir": "dags",
+    }
+
+    assert GitDagBundle.source_key(**same) != GitDagBundle.source_key(**{**same, **kwargs})
+
+
+@pytest.mark.parametrize(
+    "kwargs",
+    [
+        pytest.param({"git_conn_id": "git_default", "tracking_ref": "main"}, id="url-from-connection"),
+        pytest.param({"repo_url": "/path/to/repo", "tracking_ref": "main"}, id="local-path"),
+        pytest.param({"repo_url": "file:///path/to/repo", "tracking_ref": "main"}, id="file-url"),
+    ],
+)
+def test_source_key_is_none_when_the_repository_is_not_known(kwargs):
+    assert GitDagBundle.source_key(**kwargs) is None
