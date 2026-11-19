@@ -1070,6 +1070,7 @@ neo4j
 neptune
 neq
 NetworkPolicy
+newsfragments
 NFS
 nginx
 nobr
@@ -1156,6 +1157,7 @@ Paramiko
 paramiko
 Params
 params
+parseable
 parsers
 passwd
 pathlib
@@ -1283,6 +1285,7 @@ pythonic
 PythonOperator
 pythonpath
 pywinrm
+pyyaml
 Qdrant
 qdrant
 Qingping
@@ -1730,6 +1733,7 @@ unmapping
 unnoticeably
 unpause
 unpaused
+unpauses
 unpausing
 unpredicted
 unsanitized
