@@ -34,7 +34,10 @@ Install with:
 
 .. code-block:: bash
 
-    pip install 'apache-airflow-providers-databricks[common.ai]'
+    pip install 'apache-airflow-providers-databricks[common.ai]' 'apache-airflow-providers-common-ai[openai]'
+
+The ``common.ai`` extra provides the Common AI hook this one builds on, but not the OpenAI client
+the Chat Completions API calls go through, so also install ``apache-airflow-providers-common-ai[openai]``.
 
 Default Connection IDs
 ----------------------
