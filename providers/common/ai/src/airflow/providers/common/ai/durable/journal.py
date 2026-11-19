@@ -1069,6 +1069,40 @@ def journal_scope(journal: DurableJournal) -> Iterator[DurableJournal]:
         _ACTIVE_JOURNAL.reset(token)
 
 
+def _get_task_context_and_attempt() -> tuple[Any, str] | None:
+    """Return the running task's context and attempt key, or ``None`` outside a task."""
+    try:
+        context = get_current_context()
+    except (RuntimeError, AirflowException):
+        # Airflow 3 raises RuntimeError outside a task, Airflow 2 AirflowException.
+        return None
+    return context, make_task_instance_run_key(context["task_instance"])
+
+
+def _find_attempt_journal(attempt: str) -> DurableJournal | None:
+    """Return the cached journal if it belongs to ``attempt``, else ``None``."""
+    if _task_journal is not None and _task_journal[0] == attempt:
+        return _task_journal[1]
+    return None
+
+
+def find_active_journal() -> DurableJournal | None:
+    """
+    Return the journal already recording this run, without creating one.
+
+    A journal set with :func:`journal_scope` wins. Otherwise, inside a running task, this
+    returns the task attempt's journal if something already created it. ``None`` means no
+    journal is recording: outside a task, or inside one where nothing has used durable
+    execution yet.
+    """
+    if (journal := _ACTIVE_JOURNAL.get()) is not None:
+        return journal
+    if (found := _get_task_context_and_attempt()) is None:
+        return None
+    _, attempt = found
+    return _find_attempt_journal(attempt)
+
+
 def current_journal() -> DurableJournal | None:
     """
     Return the active journal, or ``None`` outside an Airflow task.
@@ -1076,18 +1110,17 @@ def current_journal() -> DurableJournal | None:
     A journal set with :func:`journal_scope` wins. Otherwise, inside a running task,
     this returns the task attempt's own journal, created on first use, which deletes the
     steps of each run as soon as it succeeds. Outside a task there is nothing to replay
-    into, so durable execution is off and the agent runs as it would without it.
+    into, so durable execution is off and the agent runs as it would without it. To read
+    the journal without creating it, use :func:`find_active_journal`.
     """
     global _task_journal
 
     if (journal := _ACTIVE_JOURNAL.get()) is not None:
         return journal
-    try:
-        context = get_current_context()
-    except (RuntimeError, AirflowException):
-        # Airflow 3 raises RuntimeError outside a task, Airflow 2 AirflowException.
+    if (found := _get_task_context_and_attempt()) is None:
         return None
-    attempt = make_task_instance_run_key(context["task_instance"])
-    if _task_journal is None or _task_journal[0] != attempt:
-        _task_journal = (attempt, DurableJournal(build_task_storage(context), clean_up_after_run=True))
+    context, attempt = found
+    if (journal := _find_attempt_journal(attempt)) is not None:
+        return journal
+    _task_journal = (attempt, DurableJournal(build_task_storage(context), clean_up_after_run=True))
     return _task_journal[1]

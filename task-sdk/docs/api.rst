@@ -106,6 +106,8 @@ Bases
 
 .. autoclass:: airflow.sdk.ResumableJobMixin
 
+.. autoclass:: airflow.sdk.ResumeDecision
+
 .. autoapiclass:: airflow.sdk.BaseHook
 
 Callbacks

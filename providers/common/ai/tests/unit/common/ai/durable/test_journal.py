@@ -36,6 +36,7 @@ from airflow.providers.common.ai.durable.journal import (
     DurableJournal,
     DurableRun,
     current_journal,
+    find_active_journal,
     journal_scope,
 )
 
@@ -1647,3 +1648,44 @@ class TestCurrentJournal:
             ti.id = "ti-2"
 
             assert current_journal() is not first
+
+
+class TestFindActiveJournal:
+    def test_a_scoped_journal_is_returned(self, memory_storage):
+        journal = DurableJournal(memory_storage)
+
+        with journal_scope(journal):
+            assert find_active_journal() is journal
+        assert find_active_journal() is None
+
+    def test_inside_a_task_it_does_not_create_the_journal(self, memory_storage, monkeypatch):
+        monkeypatch.setattr(journal_module, "_task_journal", None)
+        context = {"task_instance": SimpleNamespace(id="ti-1")}
+        with (
+            mock.patch.object(journal_module, "get_current_context", autospec=True, return_value=context),
+            mock.patch.object(
+                journal_module, "build_task_storage", autospec=True, return_value=memory_storage
+            ) as build_storage,
+        ):
+            assert find_active_journal() is None
+
+        build_storage.assert_not_called()
+        assert journal_module._task_journal is None
+
+    def test_it_returns_the_journal_the_attempt_already_created(self, memory_storage, monkeypatch):
+        monkeypatch.setattr(journal_module, "_task_journal", None)
+        ti = SimpleNamespace(id="ti-1")
+        with (
+            mock.patch.object(
+                journal_module, "get_current_context", autospec=True, return_value={"task_instance": ti}
+            ),
+            mock.patch.object(
+                journal_module, "build_task_storage", autospec=True, return_value=memory_storage
+            ),
+        ):
+            created = current_journal()
+            assert find_active_journal() is created
+
+            ti.id = "ti-2"
+
+            assert find_active_journal() is None

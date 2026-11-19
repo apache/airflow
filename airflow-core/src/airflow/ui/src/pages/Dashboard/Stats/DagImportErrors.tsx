@@ -22,7 +22,6 @@ import { LuFileWarning } from "react-icons/lu";
 
 import { useImportErrorServiceGetImportErrors } from "openapi/queries/queries";
 
-import { ErrorAlert } from "src/components/ErrorAlert";
 import { StateBadge } from "src/components/StateBadge";
 import { StatsCard } from "src/components/StatsCard";
 
@@ -30,13 +29,18 @@ import { formatNumber } from "src/utils";
 
 import { DagImportErrorsModal } from "./DagImportErrorsModal";
 
-export const DagImportErrors = ({ iconOnly = false }: { readonly iconOnly?: boolean }) => {
+type DagImportErrorsProps = {
+  readonly bundleName?: string;
+  readonly iconOnly?: boolean;
+};
+
+export const DagImportErrors = ({ bundleName, iconOnly = false }: DagImportErrorsProps) => {
   const { onClose, onOpen, open } = useDisclosure();
   const { i18n, t: translate } = useTranslation("dashboard");
 
   const isRTL = i18n.dir() === "rtl";
 
-  const { data, error, isLoading } = useImportErrorServiceGetImportErrors({ limit: 1 });
+  const { data, isLoading } = useImportErrorServiceGetImportErrors({ bundleName, limit: 1 });
   const importErrorsCount = data?.total_entries ?? 0;
 
   if (isLoading) {
@@ -49,7 +53,6 @@ export const DagImportErrors = ({ iconOnly = false }: { readonly iconOnly?: bool
 
   return (
     <Box alignItems="center" display="flex">
-      <ErrorAlert error={error} />
       {iconOnly ? (
         <StateBadge
           aria-label={translate("importErrors.dagImportError", { count: importErrorsCount })}
@@ -73,7 +76,7 @@ export const DagImportErrors = ({ iconOnly = false }: { readonly iconOnly?: bool
           onClick={onOpen}
         />
       )}
-      <DagImportErrorsModal onClose={onClose} open={open} />
+      <DagImportErrorsModal bundleName={bundleName} onClose={onClose} open={open} />
     </Box>
   );
 };

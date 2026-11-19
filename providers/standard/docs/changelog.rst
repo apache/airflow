@@ -47,19 +47,25 @@ Changelog
 Features
 ~~~~~~~~
 
+* ``Restore clearing 'ExternalTaskMarker' targets in other Dags on Airflow 3.5+ (#75874)``
 * ``Add AssetEventSensor to standard provider (#70225)``
 * ``Allow asking for human input from inside a Python task on Airflow 3.4+ (#75358)``
 
 Bug Fixes
 ~~~~~~~~~
 
+* ``Fix ExternalTaskSensor link pointing to the wrong external Dag run (#74528)``
 * ``Render only the returned value in TaskFlow decorators that template it (#76244)``
 * ``Propagate OpenLineage parent and root job types to triggered Dags (#75303)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
-   * ``[main] Upgrade important CI environment (#76278)``
+   * ``Fix TimeSensor test failing when host time zone is ahead of UTC (#76901)``
+   * ``Prepare amazon provider RC2 for 2026-11-10 (#76789)``
+   * ``Revert "Remove deprecated TimeDeltaSensorAsync (#76131)" (#76732)``
    * ``Remove deprecated TimeDeltaSensorAsync (#76131)``
+   * ``Prepare providers release 2026-11-03 (#76490)``
+   * ``[main] Upgrade important CI environment (#76278)``
 
 1.21.0
 ......
