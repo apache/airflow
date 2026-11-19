@@ -20,7 +20,7 @@ import re
 from dataclasses import dataclass, field
 from datetime import timedelta
 from enum import Enum
-from typing import Annotated, Any, Literal
+from typing import Annotated, Literal
 
 from pydantic import (
     AfterValidator,
@@ -29,13 +29,13 @@ from pydantic import (
     BaseModel,
     BeforeValidator,
     ConfigDict,
-    GetCoreSchemaHandler,
     JsonValue,
+    SerializeAsAny,
+    WrapValidator,
     field_validator,
     model_serializer,
     model_validator,
 )
-from pydantic_core import core_schema
 
 from airflow._shared.timezones import timezone
 
@@ -74,18 +74,7 @@ class TimeDelta(BaseModel):
 TimeDeltaWithValidation = Annotated[TimeDelta, BeforeValidator(_validate_timedelta_field)]
 
 
-class _SkipJsonValueWalk:
-    def __get_pydantic_core_schema__(
-        self, source_type: Any, handler: GetCoreSchemaHandler
-    ) -> core_schema.CoreSchema:
-        return core_schema.no_info_wrap_validator_function(
-            lambda value, _validate: value,
-            handler(source_type),
-            serialization=core_schema.plain_serializer_function_ser_schema(lambda value: value),
-        )
-
-
-DecodedJsonValue = Annotated[JsonValue, _SkipJsonValueWalk()]
+DecodedJsonValue = Annotated[JsonValue, WrapValidator(lambda value, _handler: value), SerializeAsAny()]
 """
 A ``JsonValue`` that is already decoded JSON, such as a request body or a value read from a JSON store.
 
