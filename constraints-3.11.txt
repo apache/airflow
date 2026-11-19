@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-11-19T06:51:57.329469
+# This constraints file was automatically generated on 2026-11-19T12:02:08.397281
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -317,7 +317,7 @@ exasol-telemetry-client==0.2.1
 executing==2.3.0
 facebook_business==26.0.4
 fastapi-cli==0.0.34
-fastapi==0.163.0
+fastapi==0.163.1
 fastavro==1.13.1
 fastcore==2.2.41
 fasteners==0.20
