@@ -192,6 +192,7 @@ class DbApiHook(BaseHook):
         handler: None = ...,
         split_statements: bool = ...,
         return_last: bool = ...,
+        read_only: bool = ...,
     ) -> None: ...
     @overload
     async def arun(
@@ -202,6 +203,7 @@ class DbApiHook(BaseHook):
         handler: HANDLER = ...,
         split_statements: bool = ...,
         return_last: bool = ...,
+        read_only: bool = ...,
     ) -> tuple | list | list[tuple] | list[list[tuple] | tuple] | None: ...
     @overload
     def run(
