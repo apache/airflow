@@ -640,6 +640,28 @@ class CommsTest {
   }
 
   @Test
+  @DisplayName("setXCom keeps a null value on the wire so the supervisor stores a null XCom")
+  @Timeout(value = 30, unit = TimeUnit.SECONDS)
+  fun setXComKeepsNullValueOnTheWire() {
+    val details =
+      StartupDetails().also {
+        it.ti =
+          TaskInstance().also { ti ->
+            ti.dagId = "d"
+            ti.taskId = "t"
+            ti.runId = "r"
+          }
+      }
+    val (body, failure) = roundTrip(::emptyResponseFrame, details) { it.setXCom(value = null) }
+
+    Assertions.assertNull(failure, "setXCom should return normally on an empty response, got $failure")
+    Assertions.assertEquals("SetXCom", body["type"])
+    Assertions.assertEquals("return_value", body["key"])
+    Assertions.assertTrue(body.containsKey("value"), "value must be sent even when null: $body")
+    Assertions.assertNull(body["value"])
+  }
+
+  @Test
   @DisplayName("setVariable sends the description when one is given")
   @Timeout(value = 30, unit = TimeUnit.SECONDS)
   fun setVariableSendsDescription() {
