@@ -223,19 +223,19 @@ value; it does not show what the model can do.
        descriptions. The adapter raises the limit to at least 65,536 bytes, or the size of the
        largest tool schema.
 
-``build_thread_options()`` lets a value you pass win. It rewrites a nested ``mcp_servers`` table
-in ``config`` into dotted ``mcp_servers.<name>.<key>`` keys (a list stays whole; a nested table
-becomes one key per leaf) and leaves the dict you passed unchanged. Codex replaces a nested
-table as a whole at thread level, so passing it as is would drop the adapter's own server and its
-``required=true``, and the thread would start without the Airflow tools. It raises ``ValueError``
-when ``config`` defines an MCP server named ``server_name`` (nested or dotted), when
-``mcp_servers`` or one of its servers is not a dict, when a server name contains anything but
-letters, digits, ``_``, ``-``, ``:``, ``@`` and ``/``, when a setting name contains anything but
-letters, digits, ``_`` and ``-`` (Codex does not accept a quoted ``mcp_servers."a.b".url`` key
-segment, so a name with a ``.``, a quote or a space cannot be written as a dotted key), or when the same setting is written both nested and dotted. An ``mcp_servers`` of ``None``
-is treated as not set. ``serve()`` puts nothing
-of yours in the environment: add what you need to ``CodexConfig.env`` yourself, or build a
-modified copy with ``dataclasses.replace``.
+``build_thread_options()`` lets a value you pass win. It rewrites a nested ``mcp_servers`` table in
+``config`` into dotted ``mcp_servers.<name>.<key>`` keys (a list stays whole; a nested table becomes
+one key per leaf) and leaves the dict you passed unchanged. Codex replaces a nested table as a whole
+at thread level, so passing it as is would drop the adapter's own server and its ``required=true``,
+and the thread would start without the Airflow tools. It raises ``ValueError`` when ``config``
+defines an MCP server named ``server_name`` (nested or dotted), when ``mcp_servers`` or one of its
+servers is not a dict, when a server name contains anything but letters, digits, ``_``, ``-``,
+``:``, ``@`` and ``/``, when a setting name contains anything but letters, digits, ``_`` and ``-``
+(Codex does not accept a quoted ``mcp_servers."a.b".url`` key segment, so a name with a ``.``, a
+quote or a space cannot be written as a dotted key), or when the same setting is written both nested
+and dotted. An ``mcp_servers`` of ``None`` is treated as not set. ``serve()`` puts nothing of yours
+in the environment: add what you need to ``CodexConfig.env`` yourself, or build a modified copy with
+``dataclasses.replace``.
 
 Removing Codex's file-editing tool
 -----------------------------------
