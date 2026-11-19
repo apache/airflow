@@ -218,7 +218,8 @@ class OpenAIHook(BaseHook):
 
         :param async_client: Return an ``AsyncOpenAI`` instead, for sync code that passes one to
             an async library. The connection lookup blocks, so in async code use :meth:`aget_conn`.
-            Each call builds a new client.
+            Each call builds a new client. An async client is tied to the event loop it first
+            runs in, so use it inside one loop and get a new client for each ``asyncio.run`` call.
         """
         conn = self.get_connection(self.conn_id)
         client_class = AsyncOpenAI if async_client else OpenAI
