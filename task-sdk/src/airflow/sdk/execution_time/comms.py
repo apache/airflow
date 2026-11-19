@@ -284,6 +284,14 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
     # response. Only that thread can read it as True once it holds the lock itself.
     _is_exchanging: bool = attrs.field(default=False, repr=False, init=False)
 
+    # State of the response frame being read. It is kept across calls so that an exception raised
+    # part way through a read (for example AirflowTaskTimeout from the execution_timeout alarm)
+    # does not lose the framing: the next read finishes this frame before starting a new one.
+    _rx_header: bytearray = attrs.field(factory=bytearray, repr=False, init=False)
+    _rx_body: bytearray | None = attrs.field(default=None, repr=False, init=False)
+    _rx_pos: int = attrs.field(default=0, repr=False, init=False)
+    _rx_fds: list[int] = attrs.field(factory=list, repr=False, init=False)
+
     def _make_frame(self, msg: SendMsgType) -> _RequestFrame:
         carrier: dict[str, str] = {}
         _trace_propagator.inject(carrier)
@@ -300,7 +308,7 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
         itself in the middle of a request raises :class:`DeadlockImminentError`, as waiting there
         would never end.
         """
-        frame_bytes = self._make_frame(msg).as_bytes()
+        frame = self._make_frame(msg)
         with self._thread_lock:
             # Another thread's request makes the acquire above wait for it. This thread's own lets
             # it in again: in the middle of that request, the call would wait for its own response,
@@ -308,25 +316,25 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
             # channel is free and this call is exchanged whole in between.
             if self._is_exchanging:
                 raise DeadlockImminentError(msg)
-            return self._exchange(msg, frame_bytes)
+            return self._exchange(msg, frame)
 
-    def _exchange(self, msg: SendMsgType, frame_bytes: bytes | bytearray) -> ReceiveMsgType | None:
+    def _exchange(self, msg: SendMsgType, frame: _RequestFrame) -> ReceiveMsgType | None:
         """
         Write one request and read its response; the caller holds ``_thread_lock``.
 
-        An exception raised between the write and the read leaves the response on the socket for
-        the next request: https://github.com/apache/airflow/issues/77240.
+        If an exception interrupted an earlier request after it was written, its response is still on
+        the socket: ``_read_response`` discards it and reads on to this request's own.
         """
         self._is_exchanging = True
         try:
-            self.socket.sendall(frame_bytes)
+            self.socket.sendall(frame.as_bytes())
             if isinstance(msg, ResendLoggingFD):
                 if recv_fds is None:
                     return None
                 # We need special handling here! The server can't send us the fd number, as the number on the
                 # supervisor will be different to in this process, so we have to mutate the message ourselves here.
-                frame, fds = self._read_frame(maxfds=1)
-                resp = self._from_frame(frame)
+                resp_frame, fds = self._read_response(frame.id, maxfds=1)
+                resp = self._from_frame(resp_frame)
                 if TYPE_CHECKING:
                     assert isinstance(resp, SentFDs)
                 resp.fds = fds
@@ -334,12 +342,12 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
                 # always be in the return type union
                 return resp  # type: ignore[return-value]
 
-            return self._get_response()
+            return self._get_response(frame.id)
         finally:
             self._is_exchanging = False
 
     def _acquire_and_exchange(
-        self, msg: SendMsgType, frame_bytes: bytes | bytearray, abandoned: threading.Event
+        self, msg: SendMsgType, frame: _RequestFrame, abandoned: threading.Event
     ) -> ReceiveMsgType | None:
         """
         Take ``_thread_lock``, exchange one request and its response, and release it.
@@ -352,7 +360,7 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
         with self._thread_lock:
             if abandoned.is_set():
                 return None
-            return self._exchange(msg, frame_bytes)
+            return self._exchange(msg, frame)
 
     async def asend(self, msg: SendMsgType) -> ReceiveMsgType | None:
         """
@@ -364,11 +372,11 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
         sent has its response drained before the thread lets go of the channel, so the next request
         never reads a response that was not its own.
         """
-        frame_bytes = self._make_frame(msg).as_bytes()
+        frame = self._make_frame(msg)
         abandoned = threading.Event()
         try:
             return await asyncio.get_running_loop().run_in_executor(
-                self._worker.get_executor(), self._acquire_and_exchange, msg, frame_bytes, abandoned
+                self._worker.get_executor(), self._acquire_and_exchange, msg, frame, abandoned
             )
         except BaseException:
             abandoned.set()
@@ -388,39 +396,84 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
         """
         if self.socket:
             self.socket.setblocking(True)
-        fds = None
-        if maxfds:
-            len_bytes, fds, flag, address = recv_fds(self.socket, 4, maxfds)
-        else:
-            len_bytes = self.socket.recv(4)
 
-        if not len_bytes:
-            raise EOFError("Request socket closed before length")
+        header = self._rx_header
+        if maxfds and not header:
+            len_bytes, fds, flag, address = recv_fds(self.socket, 4, maxfds)
+            if not len_bytes:
+                raise EOFError("Request socket closed before length")
+            self._rx_fds.extend(fds or [])
+            header.extend(len_bytes)
 
         # Stream sockets may return fewer bytes than requested; accumulate the header.
-        len_buf = bytearray(len_bytes)
-        while len(len_buf) < 4:
-            chunk = self.socket.recv(4 - len(len_buf))
+        while len(header) < 4:
+            chunk = self.socket.recv(4 - len(header))
             if not chunk:
-                raise EOFError(f"Request socket closed mid-length after {len(len_buf)} of 4 bytes")
-            len_buf.extend(chunk)
+                if not header:
+                    raise EOFError("Request socket closed before length")
+                raise EOFError(f"Request socket closed mid-length after {len(header)} of 4 bytes")
+            header.extend(chunk)
 
-        length = int.from_bytes(len_buf, byteorder="big")
-
-        buffer = bytearray(length)
-        mv = memoryview(buffer)
-
-        pos = 0
-        while pos < length:
-            nread = self.socket.recv_into(mv[pos:])
+        if self._rx_body is None:
+            self._rx_body = bytearray(int.from_bytes(header, byteorder="big"))
+        body = self._rx_body
+        length = len(body)
+        mv = memoryview(body)
+        while self._rx_pos < length:
+            nread = self.socket.recv_into(mv[self._rx_pos :])
             if nread == 0:
                 raise EOFError(f"Request socket closed before response was complete ({self.id_counter=})")
-            pos += nread
+            self._rx_pos += nread
 
-        resp = self.resp_decoder.decode(mv)
+        fds = self._rx_fds
+        # The frame is complete, start the next read from a clean state.
+        self._rx_header = bytearray()
+        self._rx_body = None
+        self._rx_pos = 0
+        self._rx_fds = []
+
+        resp = self.resp_decoder.decode(body)
         if maxfds:
-            return resp, fds or []
+            return resp, fds
         return resp
+
+    @overload
+    def _read_response(self, request_id: int, maxfds: None = None) -> tuple[_ResponseFrame, None]: ...
+
+    @overload
+    def _read_response(self, request_id: int, maxfds: int) -> tuple[_ResponseFrame, list[int]]: ...
+
+    def _read_response(
+        self, request_id: int, maxfds: int | None = None
+    ) -> tuple[_ResponseFrame, list[int] | None]:
+        """
+        Read frames until the response to ``request_id`` arrives.
+
+        If an exception (such as a timeout raised from a signal handler) interrupted an earlier
+        request after it was sent, its response is still waiting on the socket. Without this check
+        the next request would read that response as its own, so responses to older requests are
+        discarded here.
+        """
+        fds: list[int] | None
+        while True:
+            if maxfds:
+                frame, fds = self._read_frame(maxfds=maxfds)
+            else:
+                frame, fds = self._read_frame(), None
+            if frame.id == request_id:
+                return frame, fds
+            if frame.id > request_id:
+                raise RuntimeError(
+                    f"Received a response for request {frame.id} while waiting for request {request_id}"
+                )
+            if self.log:
+                self.log.warning(
+                    "Discarding response to an interrupted request",
+                    response_id=frame.id,
+                    request_id=request_id,
+                )
+            for fd in fds or ():
+                os.close(fd)
 
     def _from_frame(self, frame) -> ReceiveMsgType | None:
         from airflow.sdk.exceptions import AirflowRuntimeError
@@ -438,8 +491,17 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
             self.log.exception("Unable to decode message")
             raise
 
-    def _get_response(self) -> ReceiveMsgType | None:
-        frame = self._read_frame()
+    def _get_response(self, request_id: int | None = None) -> ReceiveMsgType | None:
+        """
+        Read and decode a message from the parent.
+
+        With ``request_id``, wait for the response to that request. Without it, return the next
+        message, which is how the unsolicited startup message is received.
+        """
+        if request_id is None:
+            frame = self._read_frame()
+        else:
+            frame, _ = self._read_response(request_id)
         return self._from_frame(frame)
 
 
