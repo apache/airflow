@@ -320,6 +320,56 @@ class TestSupervisor:
         assert "base_url" in entries[1]["event"]
         assert entries[1]["server"] == server
 
+    @pytest.mark.parametrize(
+        ("component_length", "writes_log_file"),
+        [
+            pytest.param(255, True, id="at-filename-limit"),
+            pytest.param(256, False, id="over-filename-limit"),
+        ],
+    )
+    def test_supervise_task_runs_without_log_file_when_name_too_long(
+        self, mocker, tmp_path, caplog, component_length, writes_log_file
+    ):
+        ti = TaskInstance(
+            id=uuid7(),
+            task_id="b",
+            dag_id="c",
+            run_id="d",
+            try_number=1,
+            dag_version_id=uuid7(),
+            queue="default",
+        )
+        log_path = f"dag_id=c/run_id={'r' * (component_length - len('run_id='))}/attempt=1.log"
+        coordinator = mocker.Mock(spec=BaseCoordinator)
+        coordinator.execute_task.return_value.exit_code = 0
+        mocker.patch(
+            "airflow.sdk.execution_time.supervisor.get_coordinator_manager", autospec=True
+        ).return_value.for_queue.return_value = coordinator
+
+        with conf_vars({("logging", "base_log_folder"): str(tmp_path)}):
+            exit_code = supervise_task(
+                ti=ti,
+                dag_rel_path="c.py",
+                token="",
+                client=mocker.Mock(spec=sdk_client.Client),
+                bundle_info=BundleInfo(name="my-bundle", version=None),
+                log_path=log_path,
+            )
+
+        assert exit_code == 0
+        coordinator.execute_task.assert_called_once()
+        task_logger = coordinator.execute_task.call_args.kwargs["logger"]
+        if writes_log_file:
+            assert task_logger is not None
+            assert (tmp_path / log_path).is_file()
+        else:
+            assert task_logger is None
+            assert {
+                "event": "Cannot create the task log file because a path component is too long; "
+                "the task logs will not be written to a local file",
+                "log_level": "warning",
+            } in caplog
+
 
 def _response_error(status: int, detail: dict[str, Any]) -> ServerResponseError:
     error = ServerResponseError.from_response(

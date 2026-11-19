@@ -94,6 +94,9 @@ _STATES_WITH_COMPLETED_ATTEMPT = frozenset(
     }
 )
 
+# NAME_MAX on Linux (ext4, xfs, ...) and the file name limit of most other filesystems.
+_MAX_LOG_PATH_COMPONENT_BYTES = 255
+
 
 logger = logging.getLogger(__name__)
 
@@ -393,6 +396,18 @@ def _get_compatible_log_stream(
     )
 
 
+def _find_too_long_path_component(relative_path: str) -> str | None:
+    """Return the first component of *relative_path* that is too long for a file name, if any."""
+    return next(
+        (
+            part
+            for part in Path(relative_path).parts
+            if len(os.fsencode(part)) > _MAX_LOG_PATH_COMPONENT_BYTES
+        ),
+        None,
+    )
+
+
 class FileTaskHandler(logging.Handler):
     """
     FileTaskHandler is a python log handler that handles and reads task instance logs.
@@ -560,6 +575,7 @@ class FileTaskHandler(logging.Handler):
         # initializing the handler. Thus explicitly getting log location
         # is needed to get correct log path.
         worker_log_rel_path = self._render_filename(ti, try_number)
+        too_long_component = _find_too_long_path_component(worker_log_rel_path)
         sources: LogSourceInfo = []
         source_list: list[str] = []
         remote_logs: list[RawLogStream] = []
@@ -601,12 +617,20 @@ class FileTaskHandler(logging.Handler):
                 source_list.extend(sources)
                 has_executor_log = True
 
-        if not (remote_logs and ti.state not in State.unfinished):
+        if too_long_component is None and not (remote_logs and ti.state not in State.unfinished):
             # when finished, if we have remote logs, no need to check local
             worker_log_full_path = Path(self.local_base, worker_log_rel_path)
             sources, local_logs = self._read_from_local(worker_log_full_path)
             source_list.extend(sources)
-        if ti.state in (TaskInstanceState.RUNNING, TaskInstanceState.DEFERRED) and not has_executor_log:
+        if too_long_component is not None:
+            # The worker could not create a file at this path, so there is no local or served log.
+            source_list.append(
+                f"Local task log is not available because the log path component '{too_long_component}' "
+                f"is longer than {_MAX_LOG_PATH_COMPONENT_BYTES} bytes, the file name limit of most "
+                "filesystems. Use shorter Dag, run or task IDs, a shorter [logging] log_filename_template, "
+                "or remote logging."
+            )
+        elif ti.state in (TaskInstanceState.RUNNING, TaskInstanceState.DEFERRED) and not has_executor_log:
             sources, served_logs = self._read_from_logs_server(ti, worker_log_rel_path)
             source_list.extend(sources)
         elif (ti.state not in State.unfinished or ti.state in _STATES_WITH_COMPLETED_ATTEMPT) and not (

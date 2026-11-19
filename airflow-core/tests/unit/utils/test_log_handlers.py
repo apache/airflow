@@ -660,6 +660,44 @@ class TestFileTaskLogHandler:
         assert list(log_streams[1]) == ["file2 content", "file2 content2"]
 
     @pytest.mark.parametrize(
+        ("run_id", "path_too_long"),
+        [
+            pytest.param("r" * 248, False, id="at-filename-limit"),
+            pytest.param("r" * 249, True, id="over-filename-limit"),
+            pytest.param("é" * 125, True, id="multibyte-over-filename-limit"),
+        ],
+    )
+    def test__read_explains_missing_local_log_when_path_component_too_long(
+        self, create_task_instance, run_id, path_too_long
+    ):
+        with conf_vars({("scheduler", "allowed_run_id_pattern"): "^.+$"}):
+            ti = create_task_instance(dag_id="dag_for_long_run_id", task_id="task", run_id=run_id)
+        ti.state = TaskInstanceState.SUCCESS
+        fth = FileTaskHandler("")
+        with (
+            patch.object(fth, "_read_from_local", autospec=True, return_value=([], [])) as mock_read_local,
+            patch.object(
+                fth, "_read_from_logs_server", autospec=True, return_value=([], [])
+            ) as mock_read_served,
+        ):
+            log_handler_output_stream, _ = fth._read(ti=ti, try_number=1)
+
+        events = extract_events(log_handler_output_stream, skip_source_info=False)
+        explanation = [event for event in events if "longer than 255 bytes" in event]
+        if path_too_long:
+            assert explanation == [
+                f"Local task log is not available because the log path component 'run_id={run_id}' "
+                "is longer than 255 bytes, the file name limit of most filesystems. Use shorter "
+                "Dag, run or task IDs, a shorter [logging] log_filename_template, or remote logging."
+            ]
+            mock_read_local.assert_not_called()
+            mock_read_served.assert_not_called()
+        else:
+            assert explanation == []
+            mock_read_local.assert_called_once()
+            mock_read_served.assert_called_once()
+
+    @pytest.mark.parametrize(
         ("remote_logs", "local_logs", "served_logs_checked"),
         [
             (True, True, False),
