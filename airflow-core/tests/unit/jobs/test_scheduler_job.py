@@ -1397,14 +1397,43 @@ class TestSchedulerJob:
         assert stored.output == PRIOR_OUTPUT
 
     @pytest.mark.parametrize(
-        ("dagrun_id", "expected_event", "expected_log_level"),
+        (
+            "dagrun_id",
+            "expected_event",
+            "expected_log_level",
+            "expected_state",
+            "expected_output",
+            "expected_session_add",
+        ),
         [
-            (None, "Executor callback is missing dagrun_id.", "error"),
-            (123, "Could not find DagRun for executor callback. DagRun may have been deleted.", "warning"),
+            (
+                None,
+                "Executor callback is missing dagrun_id.",
+                "error",
+                CallbackState.FAILED,
+                "Executor callback is missing dagrun_id.",
+                True,
+            ),
+            (
+                123,
+                "Could not find DagRun for executor callback. DagRun may have been deleted.",
+                "warning",
+                CallbackState.PENDING,
+                None,
+                False,
+            ),
         ],
     )
     def test_enqueue_executor_callbacks_logs_missing_dagrun_reference(
-        self, dagrun_id, expected_event, expected_log_level, caplog, mocker
+        self,
+        dagrun_id,
+        expected_event,
+        expected_log_level,
+        expected_state,
+        expected_output,
+        expected_session_add,
+        caplog,
+        mocker,
     ):
         def test_callback():
             pass
@@ -1436,8 +1465,13 @@ class TestSchedulerJob:
             "callback_id": callback.id,
             "log_level": expected_log_level,
         } in caplog
+        assert callback.state == expected_state
+        assert callback.output == expected_output
         executor.queue_workload.assert_not_called()
-        assert callback.state == CallbackState.PENDING
+        if expected_session_add:
+            session.add.assert_called_once_with(callback)
+        else:
+            session.add.assert_not_called()
 
     @mock.patch("airflow.jobs.scheduler_job_runner.TaskCallbackRequest")
     @mock.patch("airflow._shared.observability.metrics.stats._get_backend")
