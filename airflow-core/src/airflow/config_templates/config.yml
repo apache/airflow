@@ -1402,6 +1402,16 @@ metrics:
       type: string
       example: ~
       default: "airflow"
+    otel_path:
+      description: |
+        Path component of the endpoint URL for the OpenTelemetry metrics exporter.
+        Use this to customize the path when your collector expects metrics at a
+        non-default location (e.g. VictoriaMetrics expects `/opentelemetry/api/v1/push`).
+        The default is `/v1/metrics`.
+      version_added: 3.2.0
+      type: string
+      example: "/opentelemetry/api/v1/push"
+      default: "/v1/metrics"
     otel_interval_milliseconds:
       description: |
         Defines the interval, in milliseconds, at which Airflow sends batches of metrics
