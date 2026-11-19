@@ -21,7 +21,6 @@ import pytest
 pytest.importorskip("airflow.providers.common.ai.hooks.pydantic_ai")
 pytest.importorskip("pydantic_ai.providers.openai")
 
-import concurrent.futures
 import contextvars
 import importlib
 import json
@@ -39,7 +38,7 @@ from pydantic_ai.models.function import FunctionModel
 from pydantic_ai.models.openai import OpenAIChatModel
 from pydantic_ai.providers.openai import OpenAIProvider
 from requests import exceptions as requests_exceptions
-from tenacity import RetryError
+from tenacity import Future, RetryError
 
 from airflow.models import Connection
 from airflow.providers.common.ai.hooks.pydantic_ai import PydanticAIHook
@@ -84,7 +83,7 @@ def _build_token_error(error: Exception, *, cause: BaseException | None = None, 
 
 
 def _retry_exhausted() -> RetryError:
-    return RetryError(concurrent.futures.Future())
+    return RetryError(Future(1))
 
 
 def _token_errors_by_kind() -> dict[str, tuple[Exception, bool]]:
