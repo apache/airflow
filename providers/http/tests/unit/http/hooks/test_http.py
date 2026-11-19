@@ -627,6 +627,10 @@ class TestHttpHook:
             # A connection without a host leaves the authority empty, so the base url is the
             # scheme separator itself and must not be mistaken for a trailing path slash.
             pytest.param("https://", "/v1/test", "https:///v1/test", id="scheme-only-base"),
+            # The usual way to use such a connection: the endpoint carries the host.
+            pytest.param(
+                "https://", "example.org/v1/test", "https://example.org/v1/test", id="scheme-only-base-host"
+            ),
         ],
     )
     def test_url_from_endpoint(self, base_url: str, endpoint: str | None, expected_url: str):
