@@ -94,7 +94,7 @@ and set ``dbapi_driver`` to ``mssql_python`` in the connection extra. As a URI, 
 
 .. code-block:: bash
 
-    export AIRFLOW_CONN_MSSQL_DEFAULT='mssql://username:password@server.com:1433/database_name?dbapi_driver=mssql_python&TrustServerCertificate=yes'
+    export AIRFLOW_CONN_MSSQL_DEFAULT='mssql://username:password@example.com:1433/database_name?dbapi_driver=mssql_python&TrustServerCertificate=yes'
 
 If serializing with JSON:
 
@@ -105,7 +105,7 @@ If serializing with JSON:
         "conn_type": "mssql",
         "login": "username",
         "password": "password",
-        "host": "server.com",
+        "host": "example.com",
         "port": 1433,
         "schema": "database_name",
         "extra": {"dbapi_driver": "mssql_python", "TrustServerCertificate": "yes"}
