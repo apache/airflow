@@ -196,7 +196,7 @@ class Client internal constructor(
    */
   @JvmOverloads fun setXCom(
     key: String = XCOM_RETURN_KEY,
-    value: Any,
+    value: Any?,
   ) = impl.setXCom(
     key = key,
     value = value,
