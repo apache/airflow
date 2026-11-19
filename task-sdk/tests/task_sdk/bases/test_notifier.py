@@ -97,3 +97,19 @@ class TestBaseNotifier:
             }
         )
         assert notifier.message == "task: some_task"
+
+    def test_render_with_serialized_dag(self):
+        """Test notifier rendering works with SerializedDAG (which lacks get_template_env)."""
+
+        # Create a mock object that acts like SerializedDAG: has a dag_id but no get_template_env method
+        class MockSerializedDAG:
+            dag_id = "test_serialized_dag"
+
+        notifier = MockNotifier(message="Hello {{ dag.dag_id }}")
+        mock_serialized_dag = MockSerializedDAG()
+        context: Context = {"dag": mock_serialized_dag}
+
+        # This should not raise AttributeError anymore
+        notifier.render_template_fields(context)
+        # The template should fall back to default environment and render successfully
+        assert notifier.message == "Hello test_serialized_dag"
