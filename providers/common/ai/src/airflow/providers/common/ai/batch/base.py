@@ -173,6 +173,9 @@ class BatchAdapter(ABC):
     max_requests: ClassVar[int]
     max_payload_bytes: ClassVar[int]
     allows_per_request_model: ClassVar[bool]
+    #: ``False`` when the provider's batch API fixes its completion window, so the operator's
+    #: ``completion_window`` has no effect on it and a non-default value is reported as ignored.
+    supports_completion_window: ClassVar[bool] = True
 
     def __init__(
         self, *, api_key: str | None = None, base_url: str | None = None, client: Any | None = None

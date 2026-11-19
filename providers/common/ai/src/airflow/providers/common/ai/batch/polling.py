@@ -142,8 +142,9 @@ class BatchPoller:
         """
         if self.cancel_on_timeout and cancelled:
             fate = (
-                "The batch was cancelled (cancel_on_timeout=True); a retry re-attaches and lands "
-                "whatever finished."
+                "The batch was cancelled (cancel_on_timeout=True). A retry re-attaches and lands the "
+                "results that finished, then fails with LLMBatchCancelledError if any request was "
+                "cancelled; the attempt after that submits a new batch."
             )
         elif self.cancel_on_timeout:
             fate = (

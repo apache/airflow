@@ -163,7 +163,9 @@ class TestBuildAdapter:
         hook._get_fallback_conn_ids.return_value = []
         with (
             mock.patch.object(dispatch.BaseHook, "get_connection", autospec=True, return_value=conn),
-            mock.patch.object(PydanticAIHook, "get_hook", autospec=True, return_value=hook) as get_hook,
+            mock.patch.object(
+                PydanticAIHook, "get_hook_for_connection", autospec=True, return_value=hook
+            ) as get_hook,
         ):
             adapter = dispatch.build_adapter(
                 "anthropic",
@@ -172,7 +174,7 @@ class TestBuildAdapter:
                 batch_handle='{"id": "b"}',
             )
 
-        get_hook.assert_called_once_with("my_anthropic", {"model_id": "anthropic:claude-sonnet-4-5"})
+        get_hook.assert_called_once_with(conn, {"model_id": "anthropic:claude-sonnet-4-5"})
         assert isinstance(adapter, AnthropicBatchAdapter)
         assert adapter._hook is hook
         assert adapter._handle == '{"id": "b"}'

@@ -102,8 +102,9 @@ class TestFinishTimeout:
         assert "timeout=600s" in event["message"]
         assert "deadline 1970-01-12T13:46:40+00:00" in event["message"]
         assert (
-            "was cancelled (cancel_on_timeout=True); a retry re-attaches and lands whatever finished"
-            in event["message"]
+            "The batch was cancelled (cancel_on_timeout=True). A retry re-attaches and lands the results "
+            "that finished, then fails with LLMBatchCancelledError if any request was cancelled; the "
+            "attempt after that submits a new batch." in event["message"]
         )
 
     def test_message_reports_a_failed_cancel(self):

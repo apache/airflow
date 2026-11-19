@@ -104,7 +104,12 @@ Changelog
     now fails before submission, and a key the operator manages (``model``, ``messages``, ...) is
     ignored with a warning.
   - Structured output uses the model's native JSON-schema output instead of a forced tool call, except
-    for models without it.
+    for models without it and for schemas Anthropic's strict mode refuses (more than 24 optional fields,
+    more than 16 union-typed fields, or a recursive type), which still go through a forced tool call.
+  - Creating a batch is not retried by the SDK: pydantic-ai sends it with ``max_retries=0`` because
+    creating a batch is not idempotent, where the earlier adapter used the SDK's default of two retries.
+    A 429 or 529 on create now fails the attempt, so it costs an Airflow task retry, or raises
+    ``LLMBatchOrphanedIntentError`` with ``on_orphaned_intent='fail'``.
   - A cancelled batch is recognized from its landed results, because Anthropic reports it as ended.
   - The state file records pydantic-ai's batch handle (state version 2). A batch that an earlier
     version of this provider submitted and is still running is re-attached; its state file is left as it is. An
