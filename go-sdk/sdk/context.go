@@ -106,5 +106,7 @@ type DagRun struct {
 	RunType DagRunType
 	// Conf is the run configuration, empty when none was supplied. Integers are
 	// int64, or uint64 above math.MaxInt64; floating-point values are float64.
+	// [DagRun.UnmarshalConf] reads the conf into a struct with typed fields
+	// instead.
 	Conf map[string]any
 }
