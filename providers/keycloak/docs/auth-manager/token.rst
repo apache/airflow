@@ -176,7 +176,8 @@ The new token:
 - never expires later than the current one, so refreshing never extends a session.
 - lasts at most ``[api_auth] jwt_cli_expiration_time``, so refreshing a longer-lived token from ``/auth/token``
   shortens it.
-- can expire up to a minute early, because its lifetime is rounded down to the minute.
+- can expire up to a minute earlier than the current one, because its lifetime is rounded down to the minute. These
+  minutes add up, so frequent refreshes end the session sooner.
 
 On Airflow 3.2 and later, the current token is revoked once the new one is issued. Airflow 3.0 and 3.1 cannot revoke
 tokens, so there the current token keeps working until it expires, even after logging out.
