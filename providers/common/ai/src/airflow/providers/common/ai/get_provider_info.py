@@ -193,7 +193,7 @@ def get_provider_info():
                     "relabeling": {"password": "API Key"},
                     "placeholders": {
                         "host": "https://api.openai.com/v1 (optional, for custom endpoints / Ollama)",
-                        "extra": '{"model": "gpt-6.1-sol"}',
+                        "extra": '{"model": "openai:gpt-6.1-sol"}',
                     },
                 },
                 "conn-fields": {

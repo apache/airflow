@@ -133,7 +133,7 @@ know about yet. Options worth knowing about:
   ``previous_response_id`` cannot reference it.
 - ``previous_response_id``: the id of a prior response to continue a multi-turn conversation from.
   Cannot be used together with ``conversation`` — pass one or the other, not both.
-- - ``reasoning``: configuration for reasoning models, for example ``{"effort": ...}`` (supported
+- ``reasoning``: configuration for reasoning models, for example ``{"effort": ...}`` (supported
   values include ``"none"``, ``"low"``, ``"medium"``, ``"high"``, ``"xhigh"``, and ``"max"``).
   The operator's default model (``gpt-6-luna``) is a reasoning model that defaults to
   ``"medium"`` effort, so this option takes effect by default.
