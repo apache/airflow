@@ -450,7 +450,7 @@ What the server sends for each authoring form, and what the runtime receives aft
 |---|---|---|
 | `.expand({ row: ["a", "b"] })` | `literal`, `value` already the element | that `literal` |
 | `.expand({ row: rows })` | `xcom`, `task_id`, `element_index=i` | `literal`: element `i` of the row |
-| `.expand({ row: mappedUpstream })` | `xcom`, `task_id`, `map_index=i` | `literal`: that row |
+| `.expand({ row: mappedUpstream })` | `xcom`, `task_id`, and the `map_index` of the producer's `i`-th non-null row in map-index order | `literal`: that row |
 | `.expand({ a: …, b: … })` | one binding per argument, each with its own coordinate | one `literal` per argument |
 | `.partial({ region: … })` | `literal`, or `xcom` with no index | the same value at every index |
 | `.expandKwargs(rows)` | per parameter: `xcom` with `element_index=i`, `kwarg` and `fallback` | `literal`: that key of element `i`, else the fallback |
@@ -463,6 +463,7 @@ What the server sends for each authoring form, and what the runtime receives aft
 
 An element of a dict is its `(key, value)` pair in the stored value's order, the pair a Python task reading the same XCom gets.
 A runtime receives it as a two-item array, such as `["uk", 3]`.
+A mapped producer's null result gives the consumer no instance, so instance `i` reads the producer's `i`-th non-null row in map-index order rather than producer map index `i`, as Python's lazy sequence does. A Python producer writes no row for `None`; a null row a language-SDK producer stores, which [#77281](https://github.com/apache/airflow/pull/77281) allows, is left out by the sequence reads, as its follow-up "Nulls in mapped results" proposes.
 With `.expandKwargs(…)`, each key of this index's dict follows *Which signature a call is checked against*.
 
 A Dag definition and a Python Dag with stub TaskHandler differ only in who applies `map()` callables.
