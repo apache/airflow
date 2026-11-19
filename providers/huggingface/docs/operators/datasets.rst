@@ -129,9 +129,9 @@ Execution proceeds in this order:
    config/revision, and pull-request setting. On Airflow 3.3 and later, it checks
    task state first. It searches Hub refs only when task state records that a
    prior attempt may have started the push. A matching final commit recovers an
-   interrupted publication. Clearing a task preserves that marker state on
-   Airflow 3.3. On Airflow 3.4, clearing a Dag run also preserves it; clearing
-   an individual task instance removes it only when ``keep_task_state`` is off.
+   interrupted publication. Clearing a task removes that marker state by
+   default: from the UI or the REST API from Airflow 3.4, and on every other
+   clear from Airflow 3.5. Set ``keep_task_state`` when clearing to keep it.
 #. **Create a lazy stream if recovery found no commit.** The operator calls
    ``load_dataset(..., streaming=True)`` and passes the optional configuration,
    split, and pinned revision. Hugging Face Datasets reads rows incrementally.
@@ -189,21 +189,23 @@ the same artifact to another target is a separate publication. Airflow 3.3 and
 later task state store support caches the result and records that a push may
 have started. A retry searches the intended branch or pull request ref only
 after that record exists, and only reuses the latest commit without a generated
-suffix carrying the marker. Clearing a task preserves this state on Airflow
-3.3. On Airflow 3.4, clearing a Dag run also preserves it; clearing an
-individual task instance removes it only when ``keep_task_state`` is off. In
-the cases that preserve state, a cleared task can return the stored commit and
-emit its asset event again without pushing. This avoids reusing an older
-publication after the branch has advanced. The task
-emits an asset event with the same commit SHA and URL only after successful
-publication. Publication uses Datasets ``push_to_hub``, which rewrites the
-README's YAML card metadata, including ``dataset_info`` and ``configs``, in the
-push commit. Only a publication to ``main`` without ``create_pr`` emits the
-repo-level asset event; pull request and non-main revision pushes do not change
-the revision referenced by ``hf://datasets/<repo_id>``. For those pushes the
-operator removes ``hf://datasets/<repo_id>`` from ``outlets`` even when you list
-it there yourself, and in a mapped task this follows each expanded
-``push_kwargs`` entry.
+suffix carrying the marker. Clearing a task removes this state by default: from
+the UI or the REST API from Airflow 3.4, and on every other clear from Airflow
+3.5. If you set ``keep_task_state`` when clearing, a cleared task can return
+the stored commit and emit its asset event again without pushing. This avoids
+reusing an older publication after the branch has advanced. With
+``[state_store] clear_on_success`` on, the stored commit is deleted when the
+task succeeds, so clearing a succeeded task pushes again even when task state
+is kept. The task emits an asset event with the same commit SHA and URL only
+after successful publication. Publication uses Datasets ``push_to_hub``, which
+rewrites the README's YAML card metadata, including ``dataset_info`` and
+``configs``, in the push commit. Only a publication to ``main`` without
+``create_pr`` emits the repo-level asset event; pull request and non-main
+revision pushes do not change the revision referenced by
+``hf://datasets/<repo_id>``. For those pushes the operator removes
+``hf://datasets/<repo_id>`` from ``outlets`` even when you list it there
+yourself, and in a mapped task this follows each expanded ``push_kwargs``
+entry.
 
 Example
 -------
