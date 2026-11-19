@@ -33,6 +33,9 @@ If a user or service needs to interact with the Airflow public API, they can cre
 - ``/auth/token/cli``: Create token for command-line clients such as ``airflowctl``, with a ``[config][api_auth]jwt_cli_expiration_time`` expiration time.
   Besides username and password, it supports token refresh and browser login, see :ref:`keycloak-cli-browser-login`.
 
+Both endpoints return ``503`` when Keycloak cannot be reached or answers with a server error. The client can try again
+later.
+
 
 Example
 '''''''

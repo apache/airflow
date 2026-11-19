@@ -60,7 +60,12 @@ CLI_CALLBACK_PATH = "/callback"
 log = logging.getLogger(__name__)
 
 
-def build_keycloak_unavailable_error() -> HTTPException:
+def build_keycloak_unavailable_error(error: Exception) -> HTTPException:
+    log.warning(
+        "Keycloak is unavailable (%s, response code %s)",
+        type(error).__name__,
+        getattr(error, "response_code", None),
+    )
     return HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Keycloak is unavailable")
 
 
@@ -71,8 +76,7 @@ def translate_keycloak_outage() -> Iterator[None]:
         yield
     except KeycloakError as e:
         if is_keycloak_outage(e):
-            log.warning("Keycloak is unavailable (%s, response code %s)", type(e).__name__, e.response_code)
-            raise build_keycloak_unavailable_error() from e
+            raise build_keycloak_unavailable_error(e) from e
         raise
 
 
@@ -191,6 +195,8 @@ def create_jwt_federated_token(
             audience=client_id,
             issuer=issuer,
         )
+    except jwt.PyJWKClientConnectionError as e:
+        raise build_keycloak_unavailable_error(e) from e
     except jwt.PyJWTError:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -212,13 +218,16 @@ def create_jwt_federated_token(
     # Confirm the assertion is still live (not revoked) rather than trusting the JWT's
     # own claims alone.
     client = KeycloakAuthManager.get_keycloak_client()
-    try:
-        user = build_user_from_userinfo(client, {"access_token": assertion}, is_service_account=True)
-    except KeycloakError:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Invalid Keycloak assertion",
-        )
+    with translate_keycloak_outage():
+        try:
+            user = build_user_from_userinfo(client, {"access_token": assertion}, is_service_account=True)
+        except KeycloakError as e:
+            if is_keycloak_outage(e):
+                raise
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Invalid Keycloak assertion",
+            )
 
     return get_auth_manager().generate_api_jwt(user, expiration_time_in_seconds=expiration_time_in_seconds)
 
@@ -257,17 +266,17 @@ def create_client_credentials_token(
         client_secret=client_secret,
     )
 
-    try:
-        tokens = client.token(grant_type="client_credentials")
-    except KeycloakAuthenticationError:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Client credentials authentication failed",
+    with translate_keycloak_outage():
+        try:
+            tokens = client.token(grant_type="client_credentials")
+        except KeycloakAuthenticationError:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Client credentials authentication failed",
+            )
+        return _create_api_jwt_from_keycloak_tokens(
+            client, tokens, expiration_time_in_seconds, is_service_account=True
         )
-
-    return _create_api_jwt_from_keycloak_tokens(
-        client, tokens, expiration_time_in_seconds, is_service_account=True
-    )
 
 
 def create_token_from_authorization_code(

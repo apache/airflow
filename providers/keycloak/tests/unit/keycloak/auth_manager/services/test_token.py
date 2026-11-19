@@ -289,6 +289,31 @@ class TestTokenService:
         assert wrong_secret.value.status_code == wrong_client.value.status_code
         assert wrong_secret.value.detail == wrong_client.value.detail
 
+    @pytest.mark.parametrize(
+        ("failing_call", "error"),
+        [
+            pytest.param("token", KeycloakConnectionError("Can't connect"), id="token-unreachable"),
+            pytest.param("token", KeycloakPostError("Unavailable", response_code=503), id="token-5xx"),
+            pytest.param("userinfo", KeycloakGetError("Unavailable", response_code=502), id="userinfo-5xx"),
+        ],
+    )
+    @conf_vars({("keycloak_auth_manager", "client_id"): "airflow"})
+    @patch("airflow.providers.keycloak.auth_manager.services.token.get_auth_manager")
+    @patch("airflow.providers.keycloak.auth_manager.services.token.KeycloakAuthManager.get_keycloak_client")
+    def test_create_token_client_credentials_keycloak_down(
+        self, mock_get_keycloak_client, mock_get_auth_manager, failing_call, error
+    ):
+        mock_keycloak_client = Mock(spec=KeycloakOpenID)
+        mock_keycloak_client.token.return_value = {"access_token": self.test_access_token}
+        getattr(mock_keycloak_client, failing_call).side_effect = error
+        mock_get_keycloak_client.return_value = mock_keycloak_client
+
+        with pytest.raises(fastapi.exceptions.HTTPException) as exc_info:
+            create_client_credentials_token(client_id="airflow", client_secret="secret")
+
+        assert exc_info.value.status_code == 503
+        mock_get_auth_manager.return_value.generate_api_jwt.assert_not_called()
+
 
 class TestCreateJwtFederatedToken:
     token = "token"
@@ -498,6 +523,62 @@ class TestCreateJwtFederatedToken:
             create_jwt_federated_token(assertion=self.test_assertion)
 
         assert exc_info.value.status_code == 403
+
+    @pytest.mark.parametrize(
+        "userinfo_error",
+        [
+            pytest.param(KeycloakConnectionError("Can't connect"), id="unreachable"),
+            pytest.param(KeycloakGetError("Unavailable", response_code=503), id="5xx"),
+        ],
+    )
+    @conf_vars(
+        {
+            ("keycloak_auth_manager", "client_id"): "airflow",
+            ("keycloak_auth_manager", "realm"): "airflow",
+            ("keycloak_auth_manager", "server_url"): "https://keycloak.example.com",
+            ("keycloak_auth_manager", "jwt_federated_client_ids"): "team-platform-admin-sa",
+        }
+    )
+    @patch("airflow.providers.keycloak.auth_manager.services.token.get_auth_manager")
+    @patch("airflow.providers.keycloak.auth_manager.services.token.KeycloakAuthManager.get_keycloak_client")
+    @patch("airflow.providers.keycloak.auth_manager.services.token.jwt.decode")
+    @patch("airflow.providers.keycloak.auth_manager.services.token._get_jwks_client")
+    def test_create_jwt_federated_token_userinfo_keycloak_down(
+        self,
+        mock_jwks_client_cls,
+        mock_jwt_decode,
+        mock_get_keycloak_client,
+        mock_get_auth_manager,
+        userinfo_error,
+    ):
+        mock_jwks_client_cls.return_value.get_signing_key_from_jwt.return_value = Mock(key="fake-key")
+        mock_jwt_decode.return_value = {"sub": "sub", "azp": "team-platform-admin-sa", "aud": ["airflow"]}
+        mock_get_keycloak_client.return_value = Mock(spec=KeycloakOpenID)
+        mock_get_keycloak_client.return_value.userinfo.side_effect = userinfo_error
+
+        with pytest.raises(fastapi.exceptions.HTTPException) as exc_info:
+            create_jwt_federated_token(assertion=self.test_assertion)
+
+        assert exc_info.value.status_code == 503
+        mock_get_auth_manager.return_value.generate_api_jwt.assert_not_called()
+
+    @conf_vars(
+        {
+            ("keycloak_auth_manager", "client_id"): "airflow",
+            ("keycloak_auth_manager", "realm"): "airflow",
+            ("keycloak_auth_manager", "server_url"): "https://keycloak.example.com",
+        }
+    )
+    @patch("airflow.providers.keycloak.auth_manager.services.token._get_jwks_client")
+    def test_create_jwt_federated_token_jwks_keycloak_down(self, mock_jwks_client_cls):
+        mock_jwks_client_cls.return_value.get_signing_key_from_jwt.side_effect = (
+            jwt.PyJWKClientConnectionError("Fail to fetch data from the url")
+        )
+
+        with pytest.raises(fastapi.exceptions.HTTPException) as exc_info:
+            create_jwt_federated_token(assertion=self.test_assertion)
+
+        assert exc_info.value.status_code == 503
 
 
 class TestCliLoopbackRedirectUri:
