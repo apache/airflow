@@ -104,6 +104,7 @@ export enum SearchParamsKeys {
   OWNERS = "owners",
   PARTITION_KEY = "partition_key",
   PARTITION_KEY_PATTERN = "partition_key_pattern",
+  PARTITION_STATUS = "partition_status",
   PAUSED = "paused",
   POOL = "pool",
   POOL_NAME_PATTERN = "pool_name_pattern",

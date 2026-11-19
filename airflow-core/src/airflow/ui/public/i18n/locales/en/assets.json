@@ -55,6 +55,15 @@
   "group": "Group",
   "lastAssetEvent": "Last Asset Event",
   "name": "Name",
+  "partitions": {
+    "consumerRuns": "Consumer Runs",
+    "consumerRunsHelp": "Dag runs that consumed the last asset event of the partition",
+    "lastProducerRun": "Last Producer Run",
+    "status": {
+      "in_progress": "In Progress",
+      "materialized": "Materialized"
+    }
+  },
   "producingTasks": "Producing Tasks",
   "scheduledDags": "Scheduled Dags",
   "scheduling": "Scheduling",
