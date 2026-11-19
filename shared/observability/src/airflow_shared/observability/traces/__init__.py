@@ -211,7 +211,10 @@ def _get_backcompat_config(conf: ConfigParser) -> tuple[str | None, Resource | N
     if not os.environ.get("OTEL_SERVICE_NAME") and not os.environ.get("OTEL_RESOURCE_ATTRIBUTES"):
         service_name = conf.get("traces", "otel_service", fallback=None)
         if service_name:
-            resource = Resource({"service.name": service_name})
+            # ``Resource.create()``, not ``Resource(...)``: it imports ``concurrent.futures.thread``, so that
+            # module's at-fork hooks are registered before ``TracerProvider``'s and the forked child does not
+            # deadlock (open-telemetry/opentelemetry-python#5789).
+            resource = Resource.create({"service.name": service_name})
 
     endpoint = None
     if not os.environ.get("OTEL_EXPORTER_OTLP_ENDPOINT") and not os.environ.get(
