@@ -17,6 +17,9 @@
 # under the License.
 from __future__ import annotations
 
+import subprocess
+import sys
+
 import pytest
 from opentelemetry import context, trace
 from opentelemetry.sdk.trace import TracerProvider
@@ -360,3 +363,62 @@ class TestGetTaskSpanDetailLevel:
 
         span = trace.get_current_span(ctx)
         assert get_task_span_detail_level(span) == 3
+
+
+class TestConfigureOtelServiceName:
+    FORK_AFTER_EXECUTOR_SCRIPT = """
+import os
+import signal
+import sys
+from configparser import ConfigParser
+
+from opentelemetry import trace
+
+assert "concurrent.futures.thread" not in sys.modules, (
+    "concurrent.futures.thread was imported before the traces module, "
+    "so this run cannot show that the traces module orders the fork hooks"
+)
+
+from airflow_shared.observability.traces import configure_otel
+
+conf = ConfigParser()
+conf.read_dict({"traces": {"otel_on": "True", "otel_service": "my-service"}})
+configure_otel(conf)
+
+# Keep this import after configure_otel: earlier, it registers the thread hooks first and hides the bug.
+from concurrent.futures import ThreadPoolExecutor
+
+with ThreadPoolExecutor(max_workers=1) as executor:
+    executor.submit(int).result()
+
+pid = os.fork()
+if pid == 0:
+    os._exit(0)
+
+
+def kill_deadlocked_child(signum, frame):
+    os.kill(pid, signal.SIGKILL)
+    os.waitpid(pid, 0)
+    sys.exit("forked child deadlocked")
+
+
+signal.signal(signal.SIGALRM, kill_deadlocked_child)
+signal.alarm(10)
+os.waitpid(pid, 0)
+print(trace.get_tracer_provider().resource.attributes["service.name"])
+"""
+
+    def test_fork_after_executor_use_does_not_deadlock(self, monkeypatch):
+        """Runs in a fresh interpreter because pytest has already imported ``concurrent.futures.thread``."""
+        monkeypatch.setenv("OTEL_TRACES_EXPORTER", "console")
+
+        proc = subprocess.run(
+            [sys.executable, "-c", self.FORK_AFTER_EXECUTOR_SCRIPT],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+
+        assert proc.returncode == 0, f"Process failed\nstdout:\n{proc.stdout}\nstderr:\n{proc.stderr}"
+        assert proc.stdout.strip() == "my-service"
