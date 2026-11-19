@@ -40,7 +40,7 @@ from contextvars import ContextVar
 from datetime import UTC, datetime
 from enum import Enum, auto
 from http import HTTPStatus
-from socket import socket, socketpair
+from socket import SHUT_RD, socket, socketpair
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -1316,6 +1316,11 @@ class WatchedSubprocess:
                 try:
                     if socket_type != "requests":
                         sock.setblocking(False)
+                        # The killed process may have left a child that inherited this socket and
+                        # keeps writing to it. Stop accepting new data so that the drain below reads
+                        # what is already queued and then sees EOF, instead of never catching up.
+                        with suppress(OSError):
+                            sock.shutdown(SHUT_RD)
                         while True:
                             try:
                                 if not socket_handler(sock):

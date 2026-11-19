@@ -5960,6 +5960,77 @@ def test_cleanup_sockets_after_kill_drains_logs_but_not_requests(mocker):
         log_write.close()
 
 
+def test_cleanup_sockets_after_kill_ends_while_a_child_keeps_writing(mocker):
+    """A process that inherited the killed subprocess's stdout must not keep the drain running forever."""
+    import subprocess as stdlib_subprocess
+
+    stdin_read, stdin_write = socket.socketpair()
+    stdout_read, stdout_write = socket.socketpair()
+
+    proc = ActivitySubprocess(
+        process_log=mocker.MagicMock(),
+        id=TI_ID,
+        pid=12345,
+        stdin=stdin_write,
+        client=mocker.Mock(),
+        process=mocker.Mock(),
+    )
+    selector = selectors.DefaultSelector()
+    proc.selector = selector
+
+    first_lines: list[bytes] = []
+
+    def collect():
+        while True:
+            line = yield
+            if len(first_lines) < 1:
+                first_lines.append(bytes(line))
+
+    def on_close(sock):
+        selector.unregister(sock)
+        proc._open_sockets.pop(sock, None)
+
+    read, on_close = make_buffered_socket_reader(collect(), on_close=on_close)
+
+    def slow_read(sock):
+        # Handling a chunk of log lines takes longer than writing one, so the writer refills the
+        # socket before the drain gets to the end of it.
+        time.sleep(0.001)
+        return read(sock)
+
+    proc._open_sockets[stdout_read] = "stdout"
+    selector.register(stdout_read, selectors.EVENT_READ, (slow_read, on_close))
+
+    stdout_write.sendall(b"written before the kill\n")
+    writer = stdlib_subprocess.Popen(
+        [sys.executable, "-c", "import os\nwhile True:\n    os.write(1, b'still writing\\n' * 4096)"],
+        stdout=stdout_write.fileno(),
+        stderr=stdlib_subprocess.DEVNULL,
+    )
+    stdout_write.close()
+    drain = threading.Thread(target=proc.cleanup_sockets_after_kill, daemon=True)
+    try:
+        # Only start once the writer is running, or the drain finds the socket empty and stops.
+        deadline = time.monotonic() + 10
+        while b"still writing" not in stdout_read.recv(4096, socket.MSG_PEEK):
+            assert time.monotonic() < deadline, "the writer never started"
+            time.sleep(0.01)
+
+        drain.start()
+        drain.join(timeout=5)
+
+        assert not drain.is_alive(), "the drain is still reading from a socket that never closes"
+        assert first_lines == [b"written before the kill\n"]
+        assert not proc._open_sockets
+    finally:
+        writer.kill()
+        writer.wait()
+        drain.join(timeout=10)
+        selector.close()
+        stdin_read.close()
+        stdin_write.close()
+
+
 def test_reinit_supervisor_comms(monkeypatch, client_with_ti_start, caplog):
     def subprocess_main():
         # This is run in the subprocess!
