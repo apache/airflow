@@ -179,6 +179,7 @@ class Deadline(Base):
         self.callback = Callback.create_from_sdk_def(
             callback_def=callback, prefix=CALLBACK_METRICS_PREFIX, dag_id=dag_id
         )
+        self.callback.dagrun_id = dagrun_id
         self.callback.bundle_name = bundle_name
         self.deadline_alert_id = deadline_alert_id
 

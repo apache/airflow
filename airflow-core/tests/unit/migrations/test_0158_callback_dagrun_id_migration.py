@@ -20,6 +20,7 @@ from __future__ import annotations
 import importlib.util
 import json
 import uuid
+from io import StringIO
 from pathlib import Path
 from unittest.mock import patch
 
@@ -170,6 +171,36 @@ def test_restore_legacy_dagrun_id_uses_jsonb_with_psycopg():
     statement = callback.update().where(callback.c.id == uuid.uuid4()).values(data={"dag_run_id": "1"})
 
     assert "::JSONB" in str(statement.compile(dialect=PGDialect_psycopg()))
+
+
+@pytest.mark.parametrize(
+    ("migration_name", "warning"),
+    [
+        (
+            "upgrade",
+            "-- WARNING: callback.dagrun_id backfill is skipped in offline mode; "
+            "existing pending executor callbacks without dagrun_id will not run.",
+        ),
+        (
+            "downgrade",
+            "-- WARNING: callback.data restoration of dag_run_id is skipped in offline mode; "
+            "downgrading loses dagrun_id from existing executor callbacks.",
+        ),
+    ],
+)
+def test_offline_migration_emits_callback_data_warning(migration_name, warning):
+    output = StringIO()
+    operations = Operations(
+        MigrationContext.configure(dialect_name="postgresql", opts={"as_sql": True, "output_buffer": output})
+    )
+
+    with (
+        patch.object(_migration, "op", operations),
+        patch.object(_migration.context, "is_offline_mode", return_value=True),
+    ):
+        getattr(_migration, migration_name)()
+
+    assert warning in output.getvalue()
 
 
 @pytest.mark.db_test
