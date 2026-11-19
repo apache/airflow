@@ -375,7 +375,7 @@ class TestDatabricksServingAuth:
         client.get("https://example.com/x")
 
         assert seen_auth_headers == ["Bearer token-1", "Bearer token-2"]
-        databricks_hook._get_token.assert_called_with(raise_error=True)
+        databricks_hook._get_token.assert_called_with()
 
     @pytest.mark.asyncio
     async def test_async_auth_flow_refreshes_off_the_event_loop(self):
@@ -453,6 +453,36 @@ class TestDatabricksServingAuth:
             assert exc_info.value is error
         handler.assert_not_called()
 
+    @pytest.mark.parametrize(
+        ("login", "expected"),
+        [
+            pytest.param("token", "Bearer the-pat", id="login-token-is-a-pat"),
+            pytest.param(None, "Bearer the-pat", id="empty-login-is-a-pat"),
+            pytest.param("some-user", None, id="other-login-is-not-a-pat"),
+        ],
+    )
+    def test_auth_flow_treats_login_token_with_password_as_pat(self, login, expected):
+        """The base hook sends Login ``token`` as Basic auth; serving endpoints need a Bearer header."""
+        databricks_conn = Connection(
+            conn_type="databricks", host="adb-1.azuredatabricks.net", login=login, password="the-pat"
+        )
+        seen_auth_headers = []
+
+        def handler(request: httpx2.Request) -> httpx2.Response:
+            seen_auth_headers.append(request.headers["Authorization"])
+            return httpx2.Response(200, json={"ok": True})
+
+        with mock.patch.dict("os.environ", AIRFLOW_CONN_DBX=databricks_conn.get_uri()):
+            auth = _DatabricksServingAuth(BaseDatabricksHook(databricks_conn_id="dbx"))
+            client = httpx2.Client(auth=auth, transport=httpx2.MockTransport(handler))
+            if expected is None:
+                with pytest.raises(AirflowException, match="Token authentication isn't configured"):
+                    client.get("https://example.com/x")
+            else:
+                client.get("https://example.com/x")
+
+        assert seen_auth_headers == ([] if expected is None else [expected])
+
 
 class TestGetConn:
     @mock.patch.dict("os.environ", AIRFLOW_CONN_TEST_CONN=DATABRICKS_CONN_URI)
@@ -472,7 +502,7 @@ class TestGetConn:
         await client.get("https://example.com/x")
 
         assert isinstance(model, OpenAIChatModel)
-        mock_hook._get_token.assert_called_once_with(raise_error=True)
+        mock_hook._get_token.assert_called_once_with()
 
     @mock.patch.dict("os.environ", AIRFLOW_CONN_TEST_CONN=LEFTOVER_PASSWORD_CONN_URI)
     @mock.patch(f"{MODULE_PATH}.BaseDatabricksHook", autospec=True)
@@ -593,8 +623,8 @@ class TestTestConnection:
         ok, message = PydanticAIDatabricksHook(llm_conn_id="test_conn").test_connection()
 
         assert ok is True
-        assert message
-        mock_hook_cls.return_value._get_token.assert_called_once_with(raise_error=True)
+        assert "only checked for being set, not validated against the workspace" in message
+        mock_hook_cls.return_value._get_token.assert_called_once_with()
 
     @mock.patch.dict("os.environ", AIRFLOW_CONN_TEST_CONN=DATABRICKS_CONN_URI)
     @mock.patch(f"{MODULE_PATH}.BaseDatabricksHook", autospec=True)

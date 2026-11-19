@@ -94,8 +94,13 @@ Authentication
 Credentials are not configured on this connection. A token is requested from the referenced
 Databricks connection on every request, so it works with the token-based methods described on the
 :doc:`Databricks connection <databricks>` page, except for the settings listed below that this hook
-rejects. Username/password basic auth is not supported: the token request fails with "Token
-authentication isn't configured", which surfaces in **Test connection** and on the first request.
+rejects. A personal access token works with the Login left empty or set to ``token``. Username/password
+basic auth is not supported: the token request fails with "Token authentication isn't configured",
+which surfaces in **Test connection** and on the first request.
+
+**Test connection** only checks that a token is available. A personal access token is not sent to the
+workspace, so a revoked or mistyped one still passes; the token types fetched from an identity
+provider are validated by that fetch.
 
 Databricks documents that
 `route-optimized endpoints <https://docs.databricks.com/aws/en/machine-learning/model-serving/route-optimization>`__

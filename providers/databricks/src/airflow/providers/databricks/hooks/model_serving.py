@@ -93,6 +93,20 @@ def _is_transient_token_failure(error: BaseException) -> bool:
     return False
 
 
+def _get_databricks_token(databricks_hook: BaseDatabricksHook) -> str:
+    """Return the token for ``databricks_hook``, accepting Login ``token`` with a Password as a PAT."""
+    # ``_get_token`` returns None only when no other auth setting applies, so a PAT login never
+    # takes over from OAuth, Azure or federation settings. The base hook sends such a connection as
+    # Basic auth, which this hook cannot use against /serving-endpoints.
+    token = databricks_hook._get_token()
+    if token:
+        return token
+    conn = databricks_hook.databricks_conn
+    if conn.login == "token" and conn.password:
+        return conn.password
+    return databricks_hook._get_token(raise_error=True)
+
+
 class _DatabricksServingAuth(httpx2.Auth):
     """
     Refresh the ``Authorization`` header on every request from a Databricks hook.
@@ -113,7 +127,7 @@ class _DatabricksServingAuth(httpx2.Auth):
 
     def _get_auth_header(self, request: Request) -> str:
         try:
-            return f"Bearer {self._databricks_hook._get_token(raise_error=True)}"
+            return f"Bearer {_get_databricks_token(self._databricks_hook)}"
         except (AirflowException, ConnectionError) as e:
             if _is_transient_token_failure(e):
                 raise httpx2.ConnectError(f"Could not fetch a Databricks token: {e}", request=request) from e
@@ -264,15 +278,22 @@ class PydanticAIDatabricksHook(PydanticAIHook):
 
     def test_connection(self) -> tuple[bool, str]:
         """
-        Test connection by resolving the model and fetching a Databricks token.
+        Test connection by resolving the model and obtaining a Databricks token.
 
-        A bad credential is reported here. Does NOT call the serving endpoint.
+        A missing or unusable credential is reported here. A personal access token is only checked
+        for being set: it is not sent to the workspace, so a revoked or mistyped one still passes.
+        Token types that are fetched from an identity provider are validated by that fetch. Does NOT
+        call the serving endpoint.
         """
         ok, message = super().test_connection()
         if not ok:
             return ok, message
         try:
-            self._get_databricks_hook(self._get_conn_and_extra()[1])._get_token(raise_error=True)
+            _get_databricks_token(self._get_databricks_hook(self._get_conn_and_extra()[1]))
         except Exception as e:
             return False, str(e)
-        return True, "Model resolved and Databricks token fetched successfully."
+        return (
+            True,
+            "Model resolved and a Databricks token is available. A personal access token is only "
+            "checked for being set, not validated against the workspace.",
+        )
