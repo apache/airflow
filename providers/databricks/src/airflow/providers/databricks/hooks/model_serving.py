@@ -119,7 +119,10 @@ class _DatabricksServingAuth(httpx2.Auth):
 
     A token fetch that still cannot reach the token endpoint after its retries raises
     ``httpx2.ConnectError`` so that ``fallback_conn_ids`` can fail over. Any other failure, such as
-    missing credentials or a rejected secret, keeps its original exception.
+    missing credentials or a rejected secret, keeps its original exception. That guarantee needs
+    ``openai>=3.15.0``: earlier versions catch every exception raised while sending a request and
+    re-raise it as ``openai.APIConnectionError``, so in a ``fallback_conn_ids`` chain such a
+    configuration error fails over instead of failing the task.
     """
 
     def __init__(self, databricks_hook: BaseDatabricksHook) -> None:

@@ -89,7 +89,9 @@ Fallback Connections
     ``extra["fallback_conn_ids"]``. Entries may name any ``pydanticai`` connection type, so one
     chain can span vendors. Fail-over also happens when the Databricks token endpoint cannot be
     reached or keeps failing after its retries; a configuration error, such as unset or rejected
-    credentials, does not fail over and fails the task. See
+    credentials, does not fail over and fails the task. This needs ``openai>=3.15.0``: with an
+    earlier version, a configuration error also fails over to the next connection, so upgrade
+    ``openai`` if you want it to fail the task. See
     :doc:`apache-airflow-providers-common-ai:provider_fallback`.
 
 Databricks Connection ID
