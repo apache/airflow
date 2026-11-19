@@ -71,6 +71,13 @@ def get_provider_info():
                         "example": None,
                         "default": None,
                     },
+                    "cli_authorization_code_enabled": {
+                        "description": "Let command-line clients such as ``airflowctl`` log in through the browser\n(authorization code flow with PKCE). Add ``http://127.0.0.1/callback`` and\n``http://[::1]/callback`` to the valid redirect URIs of the Keycloak client. Clients\ndiscover this login on Airflow 3.5 and later.\n",
+                        "type": "boolean",
+                        "version_added": "0.14.0",
+                        "example": None,
+                        "default": "False",
+                    },
                     "jwt_federated_client_ids": {
                         "description": "Comma-separated allow-list of Keycloak client ids (``azp`` claim) permitted to\nexchange a Keycloak-issued access token for an Airflow token via the\n``urn:ietf:params:oauth:grant-type:jwt-bearer`` grant at ``/auth/token``. Unset\nor empty denies every caller.\n",
                         "type": "string",
