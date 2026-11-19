@@ -101,9 +101,9 @@ apache-airflow-providers-mongo = false
 apache-airflow-providers-apprise = false
 apache-airflow-providers-apache-impala = false
 apache-airflow-ctl = false
+apache-airflow-providers-zendesk = false
 apache-airflow-providers-github = false
 apache-airflow-providers-snowflake = false
-apache-airflow-providers-zendesk = false
 apache-airflow-providers-presto = false
 apache-airflow-providers-airbyte = false
 apache-airflow-providers-apache-hive = false
@@ -1735,7 +1735,6 @@ dependencies = [
     { name = "a2wsgi" },
     { name = "aiosqlite" },
     { name = "alembic" },
-    { name = "apache-airflow-ctl" },
     { name = "apache-airflow-providers-common-compat" },
     { name = "apache-airflow-providers-common-io" },
     { name = "apache-airflow-providers-common-sql" },
@@ -1863,7 +1862,6 @@ requires-dist = [
     { name = "aiosqlite", specifier = ">=0.20.0,<0.22.0" },
     { name = "alembic", specifier = ">=1.13.1,<2.0" },
     { name = "apache-airflow-core", extras = ["graphviz", "gunicorn", "kerberos", "otel", "statsd"], marker = "extra == 'all'", editable = "airflow-core" },
-    { name = "apache-airflow-ctl", editable = "airflow-ctl" },
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
     { name = "apache-airflow-providers-common-io", editable = "providers/common/io" },
     { name = "apache-airflow-providers-common-sql", editable = "providers/common/sql" },
