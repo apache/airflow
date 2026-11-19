@@ -104,12 +104,11 @@ export const DurableBanner = ({
       <Alert status="info" title={translate(`logs.durable.title.${entry.decision}`)}>
         <HStack gap={2}>
           <Text>{detail}</Text>
-          <Tooltip content={jobDetails}>
-            <StateBadge state={entry.status}>
-              {translate("logs.durable.job.label")}
-              {entry.status === null ? undefined : `: ${translate(`common:states.${entry.status}`)}`}
-            </StateBadge>
-          </Tooltip>
+          {entry.status === null ? undefined : (
+            <Tooltip content={jobDetails}>
+              <StateBadge aria-label={translate(`common:states.${entry.status}`)} state={entry.status} />
+            </Tooltip>
+          )}
         </HStack>
       </Alert>
     </Box>

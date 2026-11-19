@@ -118,7 +118,6 @@
       },
       "job": {
         "id": "Job ID: {{id}}",
-        "label": "Job",
         "runTime": "Run time: {{duration}}",
         "submittedAt": "Submitted:"
       },

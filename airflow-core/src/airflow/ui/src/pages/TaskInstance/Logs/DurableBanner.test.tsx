@@ -90,10 +90,13 @@ describe("DurableBanner", () => {
     expect(screen.getByText(detail)).toBeInTheDocument();
   });
 
-  it("shows the job status in a badge", () => {
+  it("shows the job status as an icon-only badge", () => {
     renderFor(4);
 
-    expect(screen.getByText("logs.durable.job.label: common:states.running")).toBeInTheDocument();
+    const badge = screen.getByTestId("state-badge");
+
+    expect(badge).toHaveAccessibleName("common:states.running");
+    expect(badge).not.toHaveTextContent(/\S/u);
   });
 
   it("does not fetch the record on a first try", () => {
