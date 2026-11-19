@@ -22,7 +22,7 @@ import logging
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
-from .protocols import Timer
+from .protocols import DurationEmittingTimer, Timer
 from .validators import (
     PatternAllowListValidator,
     PatternBlockListValidator,
@@ -134,12 +134,18 @@ class SafeDogStatsdLogger:
         self,
         stat: str | None = None,
         tags: dict[str, str] | None = None,
-        **kwargs,
+        sample_rate: float | None = None,
     ) -> Timer:
         """Timer metric that can be cancelled."""
         tags_list = self._build_tags_list(tags)
         if stat and self.metrics_validator.test(stat):
-            return Timer(self.dogstatsd.timed(stat, tags=tags_list, **kwargs))
+            # DogStatsd.timed() reports seconds unless the client sets use_ms, and rounds to whole
+            # milliseconds when it does, so the duration measured by Timer is sent instead.
+            return DurationEmittingTimer(
+                lambda duration: self.dogstatsd.timing(
+                    metric=stat, value=duration, tags=tags_list, sample_rate=sample_rate
+                )
+            )
         return Timer()
 
 

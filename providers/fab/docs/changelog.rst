@@ -20,6 +20,26 @@
 Changelog
 ---------
 
+3.11.1
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix FAB role rename to an existing name returning 200 (#76972)``
+* ``Fix FAB userinfo page breaking after viewing a user (#76473)``
+* ``Fix FAB user auto-registration failing with a 500 when add_user fails; add_user now returns None instead of raising FabException (#76746)``
+* ``Release the scoped session on the handler thread in the FAB FastAPI routes (#76403)``
+
+Misc
+~~~~
+
+* ``Bump @babel/core, @babel/eslint-parser and @babel/plugin-transform-runtime to 8.1.2, prettier to 3.10.1 (#77170)``
+* ``Bump @babel/core to 8.1.0, eslint to 10.14.0, stylelint to 18.0.0, webpack-cli to 7.3.1, moment-timezone to 0.6.6 (#76764)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 3.11.0
 ......
 

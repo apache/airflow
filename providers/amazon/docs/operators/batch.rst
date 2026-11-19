@@ -51,6 +51,32 @@ use :class:`~airflow.providers.amazon.aws.operators.batch.BatchOperator`.
     :start-after: [START howto_operator_batch]
     :end-before: [END howto_operator_batch]
 
+Durable execution
+=================
+
+By default ``BatchOperator`` saves the Batch job id to the
+:doc:`task state store <apache-airflow:core-concepts/task-state-store>` right after submitting the
+job. If the worker crashes and the task is retried, the operator checks that job first:
+
+* still active (``SUBMITTED`` through ``RUNNING``): reconnects and keeps waiting on it
+* already ``SUCCEEDED``: returns the job id without submitting again
+* ``FAILED``, or no longer returned by AWS Batch: submits a new job
+
+This applies to the synchronous path only; a deferrable run is unchanged.
+
+Reconnecting only helps when the worker dies without a chance to clean up, such as an OOM kill or a
+lost node. On SIGTERM (for example a pod eviction) or on ``execution_timeout``, ``on_kill`` terminates
+the Batch job, so the retry submits a new one.
+
+Clearing a task can keep the stored job id. On Airflow 3.3 every clear keeps it. On 3.4 only clearing
+task instances through the UI or REST API discards it. When the id is kept and that job already
+succeeded, the cleared task returns without submitting a new job. From Airflow 3.5, every clear
+discards it by default. See :doc:`apache-airflow:core-concepts/resumable-tasks` for the clear paths,
+and set ``durable=False`` if every clear must submit a new job.
+
+Set ``durable=False`` to submit a new job on every try. Durable execution needs Airflow 3.3 or
+later; on earlier versions the operator always submits a new job.
+
 .. _howto/operator:BatchCreateComputeEnvironmentOperator:
 
 Create an AWS Batch compute environment

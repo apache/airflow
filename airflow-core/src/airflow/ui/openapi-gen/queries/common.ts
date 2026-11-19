@@ -6,7 +6,7 @@ import { DagRunState, DagSchedulingState, ReprocessBehavior, TriggerKind, Trigge
 export type AssetServiceGetAssetsDefaultResponse = Awaited<ReturnType<typeof AssetService.getAssets>>;
 export type AssetServiceGetAssetsQueryResult<TData = AssetServiceGetAssetsDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useAssetServiceGetAssetsKey = "AssetServiceGetAssets";
-export const UseAssetServiceGetAssetsKeyFn = ({ dagIds, limit, namePattern, namePrefixPattern, offset, onlyActive, orderBy, uri, uriPattern, uriPrefixPattern }: {
+export const UseAssetServiceGetAssetsKeyFn = ({ dagIds, limit, namePattern, namePrefixPattern, offset, onlyActive, orderBy, triggerId, uri, uriPattern, uriPrefixPattern }: {
   dagIds?: string[];
   limit?: number;
   namePattern?: string;
@@ -14,10 +14,11 @@ export const UseAssetServiceGetAssetsKeyFn = ({ dagIds, limit, namePattern, name
   offset?: number;
   onlyActive?: boolean;
   orderBy?: string[];
+  triggerId?: number;
   uri?: string[];
   uriPattern?: string;
   uriPrefixPattern?: string;
-} = {}, queryKey?: Array<unknown>) => [useAssetServiceGetAssetsKey, ...(queryKey ?? [{ dagIds, limit, namePattern, namePrefixPattern, offset, onlyActive, orderBy, uri, uriPattern, uriPrefixPattern }])];
+} = {}, queryKey?: Array<unknown>) => [useAssetServiceGetAssetsKey, ...(queryKey ?? [{ dagIds, limit, namePattern, namePrefixPattern, offset, onlyActive, orderBy, triggerId, uri, uriPattern, uriPrefixPattern }])];
 export type AssetServiceGetAssetAliasesDefaultResponse = Awaited<ReturnType<typeof AssetService.getAssetAliases>>;
 export type AssetServiceGetAssetAliasesQueryResult<TData = AssetServiceGetAssetAliasesDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useAssetServiceGetAssetAliasesKey = "AssetServiceGetAssetAliases";
@@ -37,7 +38,7 @@ export const UseAssetServiceGetAssetAliasKeyFn = ({ assetAliasId }: {
 export type AssetServiceGetAssetEventsDefaultResponse = Awaited<ReturnType<typeof AssetService.getAssetEvents>>;
 export type AssetServiceGetAssetEventsQueryResult<TData = AssetServiceGetAssetEventsDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useAssetServiceGetAssetEventsKey = "AssetServiceGetAssetEvents";
-export const UseAssetServiceGetAssetEventsKeyFn = ({ assetId, extra, limit, namePattern, namePrefixPattern, offset, orderBy, partitionKey, partitionKeyRegexpPattern, sourceDagId, sourceMapIndex, sourceRunId, sourceTaskId, sourceTaskInstanceId, timestampGt, timestampGte, timestampLt, timestampLte }: {
+export const UseAssetServiceGetAssetEventsKeyFn = ({ assetId, extra, limit, namePattern, namePrefixPattern, offset, orderBy, partitionKey, partitionKeyRegexpPattern, sourceDagId, sourceMapIndex, sourceRunId, sourceTaskId, sourceTaskInstanceId, timestampGt, timestampGte, timestampLt, timestampLte, triggerId }: {
   assetId?: number;
   extra?: string[];
   limit?: number;
@@ -56,7 +57,8 @@ export const UseAssetServiceGetAssetEventsKeyFn = ({ assetId, extra, limit, name
   timestampGte?: string;
   timestampLt?: string;
   timestampLte?: string;
-} = {}, queryKey?: Array<unknown>) => [useAssetServiceGetAssetEventsKey, ...(queryKey ?? [{ assetId, extra, limit, namePattern, namePrefixPattern, offset, orderBy, partitionKey, partitionKeyRegexpPattern, sourceDagId, sourceMapIndex, sourceRunId, sourceTaskId, sourceTaskInstanceId, timestampGt, timestampGte, timestampLt, timestampLte }])];
+  triggerId?: number;
+} = {}, queryKey?: Array<unknown>) => [useAssetServiceGetAssetEventsKey, ...(queryKey ?? [{ assetId, extra, limit, namePattern, namePrefixPattern, offset, orderBy, partitionKey, partitionKeyRegexpPattern, sourceDagId, sourceMapIndex, sourceRunId, sourceTaskId, sourceTaskInstanceId, timestampGt, timestampGte, timestampLt, timestampLte, triggerId }])];
 export type AssetServiceGetAssetQueuedEventsDefaultResponse = Awaited<ReturnType<typeof AssetService.getAssetQueuedEvents>>;
 export type AssetServiceGetAssetQueuedEventsQueryResult<TData = AssetServiceGetAssetQueuedEventsDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useAssetServiceGetAssetQueuedEventsKey = "AssetServiceGetAssetQueuedEvents";
@@ -113,6 +115,17 @@ export const useAssetServiceNextRunAssetsKey = "AssetServiceNextRunAssets";
 export const UseAssetServiceNextRunAssetsKeyFn = ({ dagId }: {
   dagId: string;
 }, queryKey?: Array<unknown>) => [useAssetServiceNextRunAssetsKey, ...(queryKey ?? [{ dagId }])];
+export type AssetServiceGetAssetPartitionsDefaultResponse = Awaited<ReturnType<typeof AssetService.getAssetPartitions>>;
+export type AssetServiceGetAssetPartitionsQueryResult<TData = AssetServiceGetAssetPartitionsDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
+export const useAssetServiceGetAssetPartitionsKey = "AssetServiceGetAssetPartitions";
+export const UseAssetServiceGetAssetPartitionsKeyFn = ({ assetId, limit, offset, orderBy, partitionKeyPattern, status }: {
+  assetId: number;
+  limit?: number;
+  offset?: number;
+  orderBy?: string;
+  partitionKeyPattern?: string;
+  status?: ("materialized" | "in_progress" | "failed")[];
+}, queryKey?: Array<unknown>) => [useAssetServiceGetAssetPartitionsKey, ...(queryKey ?? [{ assetId, limit, offset, orderBy, partitionKeyPattern, status }])];
 export type BackfillServiceListBackfillsDefaultResponse = Awaited<ReturnType<typeof BackfillService.listBackfills>>;
 export type BackfillServiceListBackfillsQueryResult<TData = BackfillServiceListBackfillsDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useBackfillServiceListBackfillsKey = "BackfillServiceListBackfills";
@@ -1038,17 +1051,18 @@ export const UseTaskServiceGetTaskKeyFn = ({ dagId, taskId, versionNumber }: {
 export type TriggerServiceGetTriggersDefaultResponse = Awaited<ReturnType<typeof TriggerService.getTriggers>>;
 export type TriggerServiceGetTriggersQueryResult<TData = TriggerServiceGetTriggersDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useTriggerServiceGetTriggersKey = "TriggerServiceGetTriggers";
-export const UseTriggerServiceGetTriggersKeyFn = ({ assetId, dagId, kind, limit, offset, orderBy, status, teams, triggererHostname }: {
+export const UseTriggerServiceGetTriggersKeyFn = ({ assetId, dagId, kind, limit, offset, orderBy, scheduledDagId, status, teams, triggererHostname }: {
   assetId?: number;
   dagId?: string;
   kind?: TriggerKind[];
   limit?: number;
   offset?: number;
   orderBy?: string[];
+  scheduledDagId?: string;
   status?: TriggerStatus[];
   teams?: string[];
   triggererHostname?: string;
-} = {}, queryKey?: Array<unknown>) => [useTriggerServiceGetTriggersKey, ...(queryKey ?? [{ assetId, dagId, kind, limit, offset, orderBy, status, teams, triggererHostname }])];
+} = {}, queryKey?: Array<unknown>) => [useTriggerServiceGetTriggersKey, ...(queryKey ?? [{ assetId, dagId, kind, limit, offset, orderBy, scheduledDagId, status, teams, triggererHostname }])];
 export type TriggerServiceGetTriggerDefaultResponse = Awaited<ReturnType<typeof TriggerService.getTrigger>>;
 export type TriggerServiceGetTriggerQueryResult<TData = TriggerServiceGetTriggerDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useTriggerServiceGetTriggerKey = "TriggerServiceGetTrigger";

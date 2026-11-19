@@ -79,6 +79,14 @@ class TestBuildOutputSpecStructuredTypes:
         else:
             assert "anyOf" in inner
 
+    def test_definitions_of_a_wrapped_schema_stay_at_the_root_where_refs_resolve(self):
+        spec = build_output_spec(list[Diagnosis])
+
+        assert spec.wrapped is True
+        assert "Diagnosis" in spec.json_schema["$defs"]
+        assert "$defs" not in spec.json_schema["properties"]["response"]
+        assert spec.json_schema["properties"]["response"]["items"] == {"$ref": "#/$defs/Diagnosis"}
+
     def test_object_roots_are_not_wrapped(self):
         spec = build_output_spec(Diagnosis)
         assert spec.wrapped is False

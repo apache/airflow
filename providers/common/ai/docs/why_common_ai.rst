@@ -159,7 +159,7 @@ What a plain task leaves to you
       - ``fallback_conn_ids`` fails over to other connections in order.
       - :doc:`provider_fallback`
     * - Thousands of prompts need an answer, and not within seconds.
-      - The batch operator sends them through the OpenAI or Anthropic batch API at
+      - The batch operator sends them through the OpenAI, Anthropic or Gemini batch API at
         roughly half the per-token cost. A retry re-attaches to the batch already
         submitted if the prompts, model, output schema and connection are unchanged.
         With ``deferrable=True`` the wait does not hold a worker slot.

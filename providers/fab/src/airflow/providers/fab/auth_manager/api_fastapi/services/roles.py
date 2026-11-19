@@ -155,14 +155,30 @@ class FABAuthManagerRoles:
             fields_to_update &= normalized_fields
 
         update_data = RoleResponse.model_validate(existing)
+        permissions = body.permissions or []
+        target_pairs = {(ar.action.name, ar.resource.name) for ar in permissions}
         if "permissions" in fields_to_update:
-            cls._replace_role_permissions(security_manager, existing, body.permissions or [])
-            update_data.permissions = body.permissions or []
-        if "name" in fields_to_update:
+            cls._check_action_and_resource(security_manager, list(target_pairs))
+
+        # Rename before touching permissions: each permission change is committed on its own,
+        # so a rename rejected afterwards would leave the role half-updated.
+        if "name" in fields_to_update and body.name != existing.name:
+            conflict = security_manager.find_role(name=body.name)
+            if conflict and conflict.id != existing.id:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail=f"Role with name {body.name!r} already exists",
+                )
+            if security_manager.update_role(role_id=existing.id, name=body.name) is None:
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="Role was not renamed due to an unexpected error.",
+                )
             update_data.name = body.name
 
-        if update_data.name != existing.name:
-            security_manager.update_role(role_id=existing.id, name=update_data.name)
+        if "permissions" in fields_to_update:
+            cls._replace_role_permissions(security_manager, existing, target_pairs)
+            update_data.permissions = permissions
         return update_data
 
     @classmethod
@@ -170,18 +186,15 @@ class FABAuthManagerRoles:
         cls,
         security_manager: FabAirflowSecurityManagerOverride,
         role: Role,
-        permissions: list[ActionResource],
+        target_pairs: set[tuple[str, str]],
     ) -> None:
         """
-        Make the role's permissions match `permissions` exactly.
+        Make the role's permissions match the `(action, resource)` pairs in `target_pairs` exactly.
 
         Unlike the additive sync used on role creation, a PATCH that touches the permission
         set must also revoke permissions currently on the role that are absent from the
         request -- otherwise permissions could be added but never removed via the API.
         """
-        target_pairs = {(ar.action.name, ar.resource.name) for ar in permissions}
-        cls._check_action_and_resource(security_manager, list(target_pairs))
-
         current_permissions = {(p.action.name, p.resource.name): p for p in role.permissions}
 
         for action_name, resource_name in target_pairs - current_permissions.keys():
