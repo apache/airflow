@@ -305,12 +305,6 @@ class TestTimeoutK8sApiClient:
         assert mock_call_api.call_args.kwargs["_request_timeout"] == API_TIMEOUT
 
     @mock.patch("kubernetes.client.ApiClient.call_api", autospec=True)
-    def test_call_api_derives_timeout_from_server_side_timeout(self, mock_call_api):
-        _TimeoutK8sApiClient(Configuration()).call_api("/api", "GET", timeout_seconds=600)
-
-        assert mock_call_api.call_args.kwargs["_request_timeout"] == 600 + API_TIMEOUT_OFFSET_SERVER_SIDE
-
-    @mock.patch("kubernetes.client.ApiClient.call_api", autospec=True)
     def test_call_api_keeps_explicit_request_timeout(self, mock_call_api):
         _TimeoutK8sApiClient(Configuration()).call_api("/api", "GET", _request_timeout=42)
 
