@@ -395,7 +395,7 @@ class TestDeadline:
         mock_stats.incr.assert_any_call(stat="deadline_alerts.callback_failed", tags=mock.ANY)
 
     @pytest.mark.db_test
-    def test_handle_miss_persists_executor_callback_routing_data(self, dagrun, session):
+    def test_constructor_persists_executor_callback_routing_data(self, dagrun, session):
         deadline_orm = Deadline(
             deadline_time=DEFAULT_DATE,
             callback=SyncCallback(TEST_CALLBACK_PATH, TEST_CALLBACK_KWARGS),
@@ -410,6 +410,9 @@ class TestDeadline:
         deadline_id = deadline_orm.id
         dagrun_id = dagrun.id
         dag_id = dagrun.dag_id
+
+        assert deadline_orm.callback.state == CallbackState.SCHEDULED
+        assert deadline_orm.callback.dagrun_id == dagrun_id
 
         deadline_orm.handle_miss(session)
         session.commit()

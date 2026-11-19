@@ -198,6 +198,11 @@ def upgrade():
             batch_size = conf.getint("database", "migration_batch_size")
             _backfill_dagrun_id_from_deadline(conn, batch_size)
             _backfill_dagrun_id(conn, batch_size)
+        else:
+            op.execute(
+                "-- WARNING: callback.dagrun_id backfill is skipped in offline mode; "
+                "existing pending executor callbacks without dagrun_id will not run."
+            )
 
         with op.batch_alter_table("callback") as batch_op:
             batch_op.create_index("callback_dagrun_id_idx", ["dagrun_id"], unique=False)
@@ -211,6 +216,11 @@ def downgrade():
     with disable_sqlite_fkeys(op):
         if not context.is_offline_mode():
             _restore_legacy_dagrun_id(op.get_bind(), conf.getint("database", "migration_batch_size"))
+        else:
+            op.execute(
+                "-- WARNING: callback.data restoration of dag_run_id is skipped in offline mode; "
+                "downgrading loses dagrun_id from existing executor callbacks."
+            )
 
         with op.batch_alter_table("callback") as batch_op:
             batch_op.drop_constraint(batch_op.f("callback_dagrun_id_fkey"), type_="foreignkey")
