@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
 import time
 from contextlib import ExitStack, asynccontextmanager, contextmanager, suppress
 from itertools import chain
@@ -254,6 +255,52 @@ class TestFabAuthManager:
             result = await auth_manager_with_appbuilder.deserialize_user_async({"sub": str(user.id)})
 
         assert result.get_id() == user.get_id()
+
+    @mock.patch("airflow.providers.fab.auth_manager.fab_auth_manager.create_session_async", autospec=True)
+    @pytest.mark.asyncio
+    async def test_deserialize_user_async_coalesces_concurrent_cache_misses(
+        self, mock_create_session_async, auth_manager_with_appbuilder
+    ):
+        user_id = 99996
+        user = Mock(spec=["id", "is_active"])
+        user.id = user_id
+        user.is_active = True
+        query_result = Mock(spec=["one_or_none"])
+        query_result.one_or_none.return_value = user
+        query_started = asyncio.Event()
+        release_query = asyncio.Event()
+        session = MagicMock(spec=["scalars"])
+
+        async def scalars(*args, **kwargs):
+            query_started.set()
+            await release_query.wait()
+            return query_result
+
+        session.scalars = mock.AsyncMock(side_effect=scalars)
+        auth_manager_with_appbuilder.cache.pop(user_id, None)
+
+        @asynccontextmanager
+        async def create_session():
+            yield session
+
+        mock_create_session_async.side_effect = create_session
+        first_request = asyncio.create_task(
+            auth_manager_with_appbuilder.deserialize_user_async({"sub": str(user_id)})
+        )
+        await query_started.wait()
+        second_request = asyncio.create_task(
+            auth_manager_with_appbuilder.deserialize_user_async({"sub": str(user_id)})
+        )
+        await asyncio.sleep(0)
+
+        session.scalars.assert_awaited_once()
+        release_query.set()
+
+        first_result, second_result = await asyncio.gather(first_request, second_request)
+
+        assert first_result is user
+        assert second_result is user
+        mock_create_session_async.assert_called_once_with()
 
     @pytest.mark.asyncio
     async def test_deserialize_user_async_rejects_unknown_user(self, auth_manager_with_appbuilder):

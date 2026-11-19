@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
 import logging
 import threading
 import warnings
@@ -24,6 +25,7 @@ from contextlib import suppress
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 from urllib.parse import urlencode, urljoin
+from weakref import WeakValueDictionary
 
 from cachetools import TTLCache, cachedmethod
 from fastapi import FastAPI
@@ -212,6 +214,7 @@ class FabAuthManager(BaseAuthManager[User]):
     """
 
     cache: TTLCache = TTLCache(maxsize=1024, ttl=CACHE_TTL)
+    _user_fetch_locks: WeakValueDictionary[int, asyncio.Lock] = WeakValueDictionary()
     appbuilder: AirflowAppBuilder | None = None
     flask_app: Flask | None = None
     _flask_app_lock = threading.Lock()
@@ -361,15 +364,19 @@ class FabAuthManager(BaseAuthManager[User]):
         except KeyError:
             pass
 
-        async def _fetch_user() -> User:
+        lock = self._user_fetch_locks.setdefault(user_id, asyncio.Lock())
+        async with lock:
+            try:
+                return self.cache[user_id]
+            except KeyError:
+                pass
+
             async with create_session_async() as session:
                 user = (await session.scalars(select(User).where(User.id == user_id))).one_or_none()
-                return self._validate_user(user, token["sub"])
+                user = self._validate_user(user, token["sub"])
 
-        user = await _fetch_user()
-
-        self.cache[user_id] = user
-        return user
+            self.cache[user_id] = user
+            return user
 
     def serialize_user(self, user: User) -> dict[str, Any]:
         return {"sub": str(user.id)}
