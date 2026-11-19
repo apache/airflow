@@ -3594,7 +3594,7 @@ def test_expected_output_fork_push(
                 "airflow-core/src/airflow/datasets/",
             ),
             {
-                "selected-providers-list-as-string": "amazon common.compat common.io common.sql "
+                "selected-providers-list-as-string": "amazon apache.hbase common.compat common.io common.sql "
                 "databricks dbt.cloud ftp google jdbc microsoft.azure microsoft.mssql mysql "
                 "openlineage oracle postgres sftp snowflake standard trino",
                 "all-python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
@@ -3613,7 +3613,7 @@ def test_expected_output_fork_push(
                     [
                         {
                             "description": "amazon...standard",
-                            "test_types": "Providers[amazon] Providers[common.compat,common.io,common.sql,"
+                            "test_types": "Providers[amazon] Providers[apache.hbase,common.compat,common.io,common.sql,"
                             "databricks,dbt.cloud,ftp,jdbc,microsoft.azure,microsoft.mssql,mysql,openlineage,oracle,"
                             "postgres,sftp,snowflake,trino] Providers[google] Providers[standard]",
                         }
