@@ -15,17 +15,10 @@
     specific language governing permissions and limitations
     under the License.
 
-``apache-airflow-providers-hbase``
+``apache-airflow-providers-apache-hbase``
 
 Changelog
 ---------
-
-1.1.0
-.....
-
-* Added backward compatibility with Airflow 2.11.x via ``version_compat.py`` module.
-* Updated all operator execute signatures for Airflow 3 Task SDK compliance.
-* Updated example DAGs for dual Airflow 2.x/3.x compatibility.
 
 1.0.0
 .....
