@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-11-18T23:07:33.279832
+# This constraints file was automatically generated on 2026-11-19T06:48:06.484931
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -249,7 +249,6 @@ google-cloud-aiplatform==1.164.0
 google-cloud-alloydb==0.11.4
 google-cloud-appengine-logging==1.11.0
 google-cloud-audit-log==0.6.3
-google-cloud-automl==2.21.0
 google-cloud-batch==0.22.4
 google-cloud-bigquery-datatransfer==3.24.0
 google-cloud-bigquery-storage==2.43.0
@@ -259,7 +258,6 @@ google-cloud-build==3.42.0
 google-cloud-compute==1.56.0
 google-cloud-container==2.67.0
 google-cloud-core==2.8.0
-google-cloud-datacatalog==3.32.0
 google-cloud-dataflow-client==0.13.0
 google-cloud-dataform==0.11.4
 google-cloud-dataplex==2.21.0
@@ -302,7 +300,6 @@ gremlinpython==3.8.2
 griffelib==2.4.1
 grpc-google-iam-v1==0.14.6
 grpc-interceptor==0.15.4
-grpcio-gcp==0.2.2
 grpcio-health-checking==1.81.1
 grpcio-status==1.85.1
 grpcio-tools==1.81.1
