@@ -50,8 +50,6 @@ class TestContainerLifecycleHooks:
             ],
         )
 
-        # No service, including pgbouncer, sets lifecycle hooks by default.
-        # PgBouncer relies on SIGTERM and terminationGracePeriodSeconds to drain.
         for doc in docs:
             assert jmespath.search("spec.template.spec.containers[0].lifecycle", doc) is None
 
