@@ -27,6 +27,7 @@ import { DagsLayout } from "src/layouts/DagsLayout";
 
 import { Asset } from "src/pages/Asset";
 import { AssetEvents } from "src/pages/Asset/AssetEvents";
+import { AssetPartitions } from "src/pages/Asset/AssetPartitions";
 import { AssetStateStore } from "src/pages/Asset/AssetStateStore";
 import { AssetsList } from "src/pages/AssetsList";
 import { Configs } from "src/pages/Configs";
@@ -150,6 +151,7 @@ export const routerConfig = [
       {
         children: [
           { element: <AssetEvents />, index: true },
+          { element: <AssetPartitions />, path: "partitions" },
           { element: <AssetStateStore />, path: "asset-state-store" },
           pluginRoute,
         ],
