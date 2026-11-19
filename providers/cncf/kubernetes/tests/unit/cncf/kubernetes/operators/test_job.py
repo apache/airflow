@@ -1362,6 +1362,12 @@ class TestKubernetesJobOperator:
         )
 
     @pytest.mark.non_db_test_override
+    @pytest.mark.parametrize("delay", [-1, float("inf"), float("nan")], ids=["negative", "inf", "nan"])
+    def test_reject_invalid_discover_pods_retry_delay(self, delay):
+        with pytest.raises(ValueError, match="discover_pods_retry_delay must be finite and non-negative"):
+            KubernetesJobOperator(task_id="test", discover_pods_retry_delay=delay)
+
+    @pytest.mark.non_db_test_override
     @pytest.mark.parametrize(
         ("unwrap_single", "parallelism", "expected"),
         [
