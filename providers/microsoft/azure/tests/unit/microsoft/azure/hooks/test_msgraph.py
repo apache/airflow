@@ -125,6 +125,26 @@ class TestKiotaRequestAdapterHook:
             assert actual.base_url == "https://graph.microsoft.com/v1.0/"
 
     @pytest.mark.asyncio
+    async def test_get_async_conn_builds_one_adapter_for_concurrent_callers(self):
+        """Hooks awaiting the same connection for the first time at once share a single request adapter."""
+        with (
+            patch_hook(),
+            patch.object(
+                KiotaRequestAdapterHook,
+                "_build_request_adapter",
+                autospec=True,
+                side_effect=KiotaRequestAdapterHook._build_request_adapter,
+            ) as mock_build_request_adapter,
+        ):
+            adapters = await asyncio.gather(
+                *(KiotaRequestAdapterHook(conn_id="msgraph_api").get_async_conn() for _ in range(5))
+            )
+
+        mock_build_request_adapter.assert_called_once()
+        assert all(adapter is adapters[0] for adapter in adapters)
+        assert KiotaRequestAdapterHook.cached_request_adapters["msgraph_api"][1] is adapters[0]
+
+    @pytest.mark.asyncio
     async def test_get_async_conn_with_custom_base_url(self):
         with patch_hook(
             side_effect=lambda conn_id: get_airflow_connection(

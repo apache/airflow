@@ -26,6 +26,7 @@ from airflow.providers.common.compat.sdk import (
     BaseSensorOperator,
     PokeReturnValue,
     conf,
+    determine_kwargs,
     timezone,
 )
 from airflow.providers.http.hooks.http import HttpHook
@@ -132,8 +133,6 @@ class HttpSensor(BaseSensorOperator):
         self.request_kwargs = request_kwargs or {}
 
     def poke(self, context: Context) -> bool | PokeReturnValue:
-        from airflow.utils.operator_helpers import determine_kwargs
-
         hook = HttpHook(
             method=self.method,
             http_conn_id=self.http_conn_id,
@@ -198,8 +197,6 @@ class HttpSensor(BaseSensorOperator):
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> Any:
         if self.response_check:
-            from airflow.utils.operator_helpers import determine_kwargs
-
             if not isinstance(event, dict) or "response" not in event:
                 raise ValueError(
                     "The trigger event does not contain the HTTP response required to "
