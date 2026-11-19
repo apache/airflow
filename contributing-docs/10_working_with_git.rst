@@ -37,6 +37,9 @@ you should configure your local checkout to match:
 * ``origin`` — your personal fork of ``apache/airflow`` (where you push branches
   for PRs).
 
+``breeze ci audit`` checks these names, offers the commands below when they differ, and also checks
+the CI in your fork; see `CI in your fork <18_contribution_workflow.rst#ci-in-your-fork>`__.
+
 Always push PR branches to ``origin``; don't push to ``upstream`` (the branch
 protection on ``apache/airflow`` will reject it anyway). Working on dedicated
 branches is recommended, though developing directly on your fork's ``main`` is

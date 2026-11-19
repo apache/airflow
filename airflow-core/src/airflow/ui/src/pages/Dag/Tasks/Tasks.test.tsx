@@ -74,6 +74,7 @@ const renderTasks = async () => {
   );
 
   await waitFor(() => expect(getTaskNames()).toEqual(["extract", "transform", "load"]));
+  expect(screen.getByRole("heading")).toHaveTextContent("3 common:task");
 };
 
 const selectOption = async (filterTestId: string, option: string) => {
@@ -97,6 +98,7 @@ describe("Dag tasks filters", () => {
       await selectOption(filterTestId, option);
 
       await waitFor(() => expect(getTaskNames()).toEqual(expected));
+      expect(screen.getByRole("heading")).toHaveTextContent(`${expected.length} common:task`);
     },
   );
 
@@ -106,5 +108,6 @@ describe("Dag tasks filters", () => {
     fireEvent.change(screen.getByPlaceholderText("searchTasks"), { target: { value: "trans" } });
 
     await waitFor(() => expect(getTaskNames()).toEqual(["transform"]));
+    expect(screen.getByRole("heading")).toHaveTextContent("1 common:task");
   });
 });

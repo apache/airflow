@@ -529,7 +529,9 @@ def _execute_chain_calls_resumable(cls: type, depth: int) -> bool:
     """Return True if some class along `cls`'s resolved `execute()` chain calls execute_resumable().
 
     Same walk as `_delegates_execute_to`: a delegating override's own source may not mention
-    `execute_resumable` even though the class it hands off to does.
+    `execute_resumable` even though the class it hands off to does. Only a real call counts,
+    so the match is made on the parsed tree: a comment, docstring or other string literal
+    naming the call is not the call.
     """
     owner = _find_owner_of_execute(cls.__mro__, 0)
     remaining = depth
@@ -537,8 +539,14 @@ def _execute_chain_calls_resumable(cls: type, depth: int) -> bool:
         source = _get_method_source(owner, "execute")
         if source is None:
             return False
-        if "execute_resumable" in source:
+        if any(
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Attribute)
+            and node.func.attr == "execute_resumable"
+            for node in ast.walk(ast.parse(textwrap.dedent(source)))
+        ):
             return True
+        source = _strip_comment_lines(source)
         if remaining <= 0:
             return False
         owner = _next_execute_hop(cls, owner, source)

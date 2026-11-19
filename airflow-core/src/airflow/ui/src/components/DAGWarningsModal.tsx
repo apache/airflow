@@ -20,33 +20,45 @@ import { Heading, HStack, Spacer, VStack } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { LuFileWarning } from "react-icons/lu";
 
-import type { DAGWarningResponse } from "openapi/requests/types.gen";
+import type { DAGWarningResponse, ImportErrorResponse } from "openapi/requests/types.gen";
 
 import { Modal } from "src/system-components";
 
-import { ErrorAlert } from "./ErrorAlert";
+import { getApiErrorDetail } from "src/utils";
+
+import { DagImportErrorDetails } from "./DagImportErrorDetails";
+import type { ExpandedApiError } from "./ErrorAlert";
+import { StatusMessage } from "./StatusMessage";
 import { WarningAlert } from "./WarningAlert";
 
-/** The modal lists the page error as one more item next to the warnings, so the button count does too. */
-export const countDagWarnings = (warningsTotal: number | undefined, error: unknown): number =>
-  (warningsTotal ?? 0) + Number(Boolean(error));
-
-type ImportDAGErrorModalProps = {
+type Props = {
+  /** Stated as one more warning, for a Dag that is no longer in its file. */
+  readonly deactivatedMessage?: string;
   readonly error?: unknown;
+  /** Names the whole list. Derived with the chip's own label, so the two cannot disagree. */
+  readonly heading: string;
+  readonly importError?: ImportErrorResponse;
   readonly onClose: () => void;
   readonly open: boolean;
   readonly warnings?: Array<DAGWarningResponse>;
 };
 
-export const DAGWarningsModal = ({ error, onClose, open, warnings }: ImportDAGErrorModalProps) => {
-  const { t: translate } = useTranslation("components");
-  const heading = Boolean(error)
-    ? warnings?.length !== undefined && warnings.length > 0
-      ? translate("dagWarnings.errorAndWarning", {
-          warning: translate("dagWarnings.warning", { count: warnings.length }),
-        })
-      : translate("dagWarnings.error_one")
-    : "";
+export const DAGWarningsModal = ({
+  deactivatedMessage,
+  error,
+  heading,
+  importError,
+  onClose,
+  open,
+  warnings,
+}: Props) => {
+  const { t: translate } = useTranslation("common");
+  const apiError = error as ExpandedApiError | undefined;
+  // What the request itself said, falling back to the bare word when it carried no status or message.
+  const pageErrorHeading =
+    [apiError?.status, apiError?.message].filter(Boolean).join(" ") || translate("error.title");
+  const detail = getApiErrorDetail(error);
+  const errorDetail = Array.isArray(detail) ? detail.join("\n") : detail;
 
   return (
     <Modal
@@ -63,9 +75,25 @@ export const DAGWarningsModal = ({ error, onClose, open, warnings }: ImportDAGEr
       open={open}
       scrollBehavior="inside"
     >
+      {importError === undefined ? undefined : (
+        <VStack>
+          <StatusMessage
+            body={<DagImportErrorDetails importError={importError} />}
+            heading={translate("dashboard:importErrors.dagImportError", { count: 1 })}
+            severity="error"
+          />
+          <Spacer />
+        </VStack>
+      )}
       {Boolean(error) && (
         <VStack>
-          <ErrorAlert error={error} />
+          <StatusMessage body={errorDetail} heading={pageErrorHeading} severity="error" />
+          <Spacer />
+        </VStack>
+      )}
+      {deactivatedMessage === undefined ? undefined : (
+        <VStack>
+          <StatusMessage heading={deactivatedMessage} severity="warning" />
           <Spacer />
         </VStack>
       )}

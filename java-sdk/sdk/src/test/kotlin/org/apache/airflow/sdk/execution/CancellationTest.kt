@@ -19,6 +19,18 @@
 
 package org.apache.airflow.sdk.execution
 
+import io.ktor.utils.io.ByteChannel
+import org.apache.airflow.sdk.Bundle
+import org.apache.airflow.sdk.Client
+import org.apache.airflow.sdk.Context
+import org.apache.airflow.sdk.DagDef
+import org.apache.airflow.sdk.StoppableTask
+import org.apache.airflow.sdk.TaskDef
+import org.apache.airflow.sdk.clientWith
+import org.apache.airflow.sdk.execution.comm.DagRun
+import org.apache.airflow.sdk.execution.comm.TaskState
+import org.apache.airflow.sdk.startupDetails
+import org.apache.airflow.sdk.taskContext
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Assumptions
 import org.junit.jupiter.api.DisplayName
@@ -27,8 +39,10 @@ import org.junit.jupiter.api.Timeout
 import sun.misc.Signal
 import sun.misc.SignalHandler
 import java.util.concurrent.BlockingQueue
+import java.util.concurrent.CountDownLatch
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * Runs [block] while the named [signals], such as "TERM", go to a recorder instead of the JVM's own
@@ -63,20 +77,40 @@ internal fun pollSignals(
 /**
  * Main class of the JVMs that [CancellationTest] starts.
  *
- * Without arguments, it prints each signal that trapStopSignals cannot catch. With `give-back`, it
- * raises SIGTERM in a trap whose callback declines the signal. With `hold`, it raises SIGTERM in a
- * trap whose callback takes the signal. In both modes it prints what happens next.
+ * Without arguments, TrapProbe prints each signal that trapStopSignals cannot catch. With `stoppable`,
+ * the probe runs a stoppable task that Airflow would retry if it failed, and prints the task's result and
+ * each error that the SDK logs. With `give-back`, it raises SIGTERM in a trap whose callback
+ * declines the signal. With `hold`, it raises SIGTERM in a trap whose callback takes the signal. In the
+ * last two modes it prints what happens next.
  */
 object TrapProbe {
   @JvmStatic
   fun main(args: Array<String>) {
     when (args.singleOrNull()) {
       null -> {
-        trapStopSignals { false }.close()
+        trapStopSignals { false }?.close()
         LogCapture
           .drain()
           .filter { it.event == "Cannot catch signal, so the task cannot see it" }
           .forEach { println("${it.arguments["signal"]} ${it.arguments["error"]?.javaClass?.name}") }
+      }
+      "stoppable" -> {
+        val bundle = Bundle(listOf(DagDef("d").addTask(TaskDef("t", TaskTest.StoppableSuccessTask::class.java))))
+        val details =
+          startupDetails(argBindings = null).also {
+            it.tiContext.dagRun =
+              DagRun().apply {
+                dagId = "d"
+                runId = "r"
+              }
+            it.tiContext.shouldRetry = true
+          }
+        val result = Cancellation().use { TaskRunner.runTask(bundle, details, clientWith(argBindings = null).first, it) }
+        println((result as? TaskState)?.state ?: result.javaClass.simpleName)
+        LogCapture
+          .drain()
+          .filter { it.level == Level.ERROR }
+          .forEach { println("${it.event}: ${it.arguments["error"]}") }
       }
       else -> {
         val take = args.single() == "hold"
@@ -92,6 +126,78 @@ object TrapProbe {
 }
 
 class CancellationTest {
+  @Test
+  @DisplayName("Should pass a stop request to the task, and a second signal to the JVM, while other callers wait for room in LogSender")
+  @Timeout(value = 60, unit = TimeUnit.SECONDS, threadMode = Timeout.ThreadMode.SEPARATE_THREAD)
+  fun seesStopRequestWhileOtherCallersWaitForLogRoom() =
+    withSignalRecorder("TERM") { recorded ->
+      val savedGlobal = Log.globalThreshold
+      val savedNamed = Log.namedThresholds
+      // The signal handler logs a warning. The thresholds below let that warning reach LogSender.
+      Log.globalThreshold = Level.INFO
+      Log.namedThresholds = emptyMap()
+      val channel = ByteChannel(autoFlush = true)
+      val waiting = blockLogRoom(channel)
+      val onKillRan = CountDownLatch(1)
+      val task =
+        object : StoppableTask {
+          override fun execute(
+            context: Context,
+            client: Client,
+          ) = Unit
+
+          override fun onKill(context: Context) = onKillRan.countDown()
+        }
+      try {
+        Cancellation().use { cancellation ->
+          cancellation.hold(task, taskContext())
+          Signal.raise(Signal("TERM"))
+          Assertions.assertTrue(onKillRan.await(10, TimeUnit.SECONDS), "onKill should run although other callers wait for room")
+          Assertions.assertTrue(cancellation.check(), "the task should see the stop request")
+          Signal.raise(Signal("TERM"))
+          Assertions.assertEquals(listOf("SIGTERM"), pollSignals(recorded, 1), "the second SIGTERM should reach the JVM's handler")
+          cancellation.finish()
+        }
+      } finally {
+        releaseLogRoom(channel, waiting)
+        Log.globalThreshold = savedGlobal
+        Log.namedThresholds = savedNamed
+      }
+    }
+
+  @Test
+  @DisplayName("Should wait for a running onKill on an interrupted thread, and leave the thread interrupted")
+  @Timeout(value = 60, unit = TimeUnit.SECONDS)
+  fun finishWaitsForOnKillOnInterruptedThread() =
+    withSignalRecorder("TERM") { _ ->
+      val started = CountDownLatch(1)
+      val returned = AtomicBoolean()
+      val task =
+        object : StoppableTask {
+          override fun execute(
+            context: Context,
+            client: Client,
+          ) = Unit
+
+          override fun onKill(context: Context) {
+            started.countDown()
+            Thread.sleep(300)
+            returned.set(true)
+          }
+        }
+      Cancellation().use { cancellation ->
+        cancellation.hold(task, taskContext())
+        Signal.raise(Signal("TERM"))
+        Assertions.assertTrue(started.await(10, TimeUnit.SECONDS), "onKill should start")
+
+        Thread.currentThread().interrupt()
+        cancellation.finish()
+
+        Assertions.assertTrue(Thread.interrupted(), "the wait should keep the thread's interrupt flag")
+        Assertions.assertTrue(returned.get(), "finish should return only after onKill does")
+      }
+    }
+
   @Test
   @DisplayName("Should pass SIGINT and SIGTERM to the callback until closed, then hand them back")
   @Timeout(value = 60, unit = TimeUnit.SECONDS)
@@ -172,6 +278,22 @@ class CancellationTest {
     Assertions.assertEquals(
       0 to listOf("SIGINT java.lang.IllegalArgumentException", "SIGTERM java.lang.IllegalArgumentException"),
       runTrapProbe(jvmOptions = listOf("-Xrs")),
+    )
+  }
+
+  @Test
+  @DisplayName("Should fail a stoppable task before it starts, without a retry, in a JVM started with -Xrs")
+  @Timeout(value = 60, unit = TimeUnit.SECONDS)
+  fun failsStoppableTaskWithoutRetryWhenTheJvmKeepsTheSignals() {
+    Assertions.assertEquals(
+      0 to
+        listOf(
+          "failed",
+          "Error executing task: org.apache.airflow.sdk.execution.CannotCatchStopSignalsException: The SDK cannot catch " +
+            "SIGTERM or SIGINT in this JVM, so the task cannot see a stop request. The JVM might run with -Xrs, or without " +
+            "the jdk.unsupported module",
+        ),
+      runTrapProbe("stoppable", jvmOptions = listOf("-Xrs")),
     )
   }
 

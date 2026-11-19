@@ -63,6 +63,12 @@ columns alone:
 With Object Storage or a Database Table
 ---------------------------------------
 
+.. note::
+
+    A source whose connection is not a ``DbApiHook`` runs on the DataFusion
+    engine of ``common.sql``, which pins ``datafusion`` below 52 because the DataFusion
+    52 crate is not supported with ``iceberg-core``.
+
 Use ``data_sources`` with
 :class:`~airflow.providers.common.sql.config.DataSourceConfig` to include
 object-storage sources (S3, GCS, Azure Blob Storage, Parquet, CSV, Iceberg, etc.) in the comparison.
@@ -134,10 +140,6 @@ expire with the default ``on_approval_timeout="fail"``, fails the task:
     :language: python
     :start-after: [START howto_operator_llm_schema_compare_approval]
     :end-before: [END howto_operator_llm_schema_compare_approval]
-
-``require_approval=True`` requires a string prompt: a decorated callable
-returning a ``Sequence[UserContent]`` raises ``TypeError`` before the LLM
-call.
 
 ``approval_timeout``, ``on_approval_timeout``, ``allow_modifications``,
 ``approval_notifiers``, ``approval_assigned_users``, and the rest of the approval
@@ -225,3 +227,6 @@ Logging
 After each LLM call, the operator logs a summary with model name, token usage,
 and request count at INFO level. See :ref:`AgentOperator logging <howto/operator:agent>`
 for details on the log format.
+
+Like :doc:`llm`, the operator also pushes ``usage``, ``run_id`` and the model name to
+XCom, on a failed run too. See :doc:`../observability`.

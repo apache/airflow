@@ -20,6 +20,13 @@ name: Push image cache
 on:  # yamllint disable-line rule:truthy
   workflow_call:
     inputs:
+      merge-with:
+        description: >-
+          The base branch commit and merge base to merge the pushed commit with, space-separated;
+          empty outside fork CI runs.
+        required: false
+        default: ""
+        type: string
       runners:
         description: "The array of labels (in json form) determining runners."
         required: true
@@ -79,7 +86,7 @@ on:  # yamllint disable-line rule:truthy
 jobs:
   push-ci-image-cache:
     name: "Push CI ${{ inputs.cache-type }}:${{ matrix.python }} image cache "
-    runs-on: ${{ fromJSON(inputs.runners) }}
+    runs-on: ${{ format(fromJSON(inputs.runners)[0], '8+16', '32+64') }}
     permissions:
       contents: read
       packages: write
@@ -117,6 +124,11 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           persist-credentials: false
+      - name: "Merge with the base branch"
+        if: inputs.merge-with != ''
+        uses: ./.github/actions/merge-with-base
+        with:
+          merge-with: ${{ inputs.merge-with }}
       - name: "Free up disk space"
         run: ./scripts/tools/free_up_disk_space.sh
       - name: "Install Breeze"
@@ -149,7 +161,7 @@ jobs:
 
   push-prod-image-cache:
     name: "Push PROD ${{ inputs.cache-type }}:${{ matrix.python }} image cache"
-    runs-on: ${{ fromJSON(inputs.runners) }}
+    runs-on: ${{ format(fromJSON(inputs.runners)[0], '8+16', '32+64') }}
     permissions:
       contents: read
       packages: write
@@ -187,6 +199,11 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           persist-credentials: false
+      - name: "Merge with the base branch"
+        if: inputs.merge-with != ''
+        uses: ./.github/actions/merge-with-base
+        with:
+          merge-with: ${{ inputs.merge-with }}
       - name: "Free up disk space"
         run: ./scripts/tools/free_up_disk_space.sh
       - name: "Install Breeze"

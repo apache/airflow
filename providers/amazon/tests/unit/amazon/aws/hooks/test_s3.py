@@ -679,6 +679,19 @@ class TestAwsS3Hook:
         )
 
     @pytest.mark.asyncio
+    async def test_get_head_object_async_does_not_print_to_stdout(self, capsys):
+        """Async S3 calls must not emit debug output to stdout."""
+        hook = S3Hook(aws_conn_id=None)
+        client = AsyncMock(spec=["head_object"])
+        client.head_object = AsyncMock(return_value={"ContentLength": 10})
+
+        result = await hook.get_head_object_async(client, "test-key", "test-bucket")
+
+        assert result == {"ContentLength": 10}
+        client.head_object.assert_awaited_once_with(Bucket="test-bucket", Key="test-key")
+        assert capsys.readouterr().out == ""
+
+    @pytest.mark.asyncio
     async def test_s3_key_hook_get_head_object_with_error_async(self):
         """
         Test for 404 error if key not found and assert based on response.
@@ -2147,6 +2160,57 @@ class TestAwsS3Hook:
         assert "S3 object last modified" in logs_string
         assert "local file last modified" in logs_string
         assert "Downloaded dag_04.py to" in logs_string
+
+    @pytest.mark.parametrize(
+        ("prefix", "key"),
+        [
+            pytest.param("dags/", "dags/.", id="prefix-dot"),
+            pytest.param("dags/", "dags/./.", id="repeated-dot"),
+            pytest.param("dags/", "dags/../s3_sync_dir", id="parent-directory"),
+            pytest.param("", ".", id="bucket-root-dot"),
+        ],
+    )
+    def test_sync_to_local_dir_skips_keys_mapping_to_root(self, s3_bucket, s3_client, tmp_path, prefix, key):
+        s3_client.put_object(Bucket=s3_bucket, Key=key, Body=b"directory key")
+        s3_client.put_object(Bucket=s3_bucket, Key=f"{prefix}nested/dag.py", Body=b"dag content")
+        s3_client.put_object(Bucket=s3_bucket, Key=f"{prefix}.airflowignore", Body=b"ignore content")
+        sync_local_dir = tmp_path / "s3_sync_dir"
+        sync_local_dir.mkdir()
+        stale_file = sync_local_dir / "stale.py"
+        stale_file.write_bytes(b"stale")
+
+        S3Hook().sync_to_local_dir(bucket_name=s3_bucket, local_dir=sync_local_dir, s3_prefix=prefix)
+
+        assert sync_local_dir.is_dir()
+        assert (sync_local_dir / "nested/dag.py").read_bytes() == b"dag content"
+        assert (sync_local_dir / ".airflowignore").read_bytes() == b"ignore content"
+        assert not stale_file.exists()
+        assert s3_client.get_object(Bucket=s3_bucket, Key=key)["Body"].read() == b"directory key"
+
+    @pytest.mark.parametrize(
+        ("key", "when_added"),
+        [
+            pytest.param("dags/nested/.", "before", id="fresh_sync_dot"),
+            pytest.param("dags/nested/deep/..", "after", id="refresh_parent"),
+        ],
+    )
+    def test_sync_to_local_dir_skips_keys_mapping_to_nested_directory(
+        self, s3_bucket, s3_client, tmp_path, key, when_added
+    ):
+        if when_added == "before":
+            s3_client.put_object(Bucket=s3_bucket, Key=key, Body=b"directory key")
+        s3_client.put_object(Bucket=s3_bucket, Key="dags/nested/dag.py", Body=b"dag content")
+        sync_local_dir = tmp_path / "s3_sync_dir"
+        sync_local_dir.mkdir()
+
+        hook = S3Hook()
+        hook.sync_to_local_dir(bucket_name=s3_bucket, local_dir=sync_local_dir, s3_prefix="dags/")
+        assert (sync_local_dir / "nested/dag.py").read_bytes() == b"dag content"
+
+        if when_added == "after":
+            s3_client.put_object(Bucket=s3_bucket, Key=key, Body=b"directory key")
+        hook.sync_to_local_dir(bucket_name=s3_bucket, local_dir=sync_local_dir, s3_prefix="dags/")
+        assert (sync_local_dir / "nested/dag.py").read_bytes() == b"dag content"
 
     def test_sync_to_local_dir_rejects_key_path_traversal(self, s3_bucket, s3_client, tmp_path):
         s3_client.put_object(Bucket=s3_bucket, Key="dags/../../outside.py", Body=b"test data")

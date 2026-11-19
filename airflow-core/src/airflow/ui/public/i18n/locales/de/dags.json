@@ -22,6 +22,7 @@
     },
     "favoriteState": "Favorisierter Zustand",
     "favoriteStatePlaceholder": "Favorisierten Zustand auswählen…",
+    "hasImportErrors": "Hat Fehler mein Parsen",
     "noTimetableTypesFound": "Keine Zeitplantypen gefunden",
     "paused": {
       "active": "Aktiv",
@@ -129,7 +130,7 @@
     "dagRuns": "Suche $t(common:dagRun_other)",
     "dags": "Dags suchen",
     "hotkey": "+K",
-    "mapIndexes": "Suche $t(common:mapIndex)",
+    "mapIndexes": "Nach $t(common:mapIndex) suchen",
     "tasks": "Tasks suchen"
   },
   "sort": {

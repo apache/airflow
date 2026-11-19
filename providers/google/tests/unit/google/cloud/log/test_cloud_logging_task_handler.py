@@ -28,6 +28,7 @@ from urllib.parse import parse_qs, urlsplit
 
 import pytest
 from google.cloud.logging import Resource
+from google.cloud.logging.handlers.transports import BackgroundThreadTransport
 from google.cloud.logging_v2.types import ListLogEntriesRequest, ListLogEntriesResponse, LogEntry
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
@@ -666,11 +667,23 @@ class TestCloudLoggingRemoteLogIO:
         "airflow.providers.google.cloud.log.cloud_logging_task_handler.get_credentials_and_project_id"
     )
     @mock.patch("airflow.providers.google.cloud.log.cloud_logging_task_handler.gcp_logging.Client")
-    def test_processors_skips_non_task_logger(self, mock_client, mock_get_creds_and_project_id):
+    @pytest.mark.parametrize(
+        "relative_path_patch",
+        [
+            pytest.param({"return_value": None}, id="not-a-file-logger"),
+            pytest.param(
+                {"side_effect": ValueError("'/elsewhere/x.log' is not in the subpath of '/logs'")},
+                id="file-outside-base-log-folder",
+            ),
+        ],
+    )
+    def test_processors_skips_logger_without_uploadable_path(
+        self, mock_client, mock_get_creds_and_project_id, relative_path_patch
+    ):
         mock_get_creds_and_project_id.return_value = ("creds", "project_id")
 
         mock_transport_type = mock.MagicMock()
-        with mock.patch("airflow.sdk.log.relative_path_from_logger", return_value=None):
+        with mock.patch("airflow.sdk.log.relative_path_from_logger", **relative_path_patch):
             io = CloudLoggingRemoteLogIO(
                 base_log_folder=self.local_log_location,
                 gcp_log_name="airflow",
@@ -1199,6 +1212,19 @@ class TestCloudLoggingTaskHandlerExceptionHandling:
         assert "Cloud Logging is currently unavailable" in message
         assert "sa@project.iam.gserviceaccount.com" not in message
         assert "logging.logEntries.list" not in message
+
+    @mock.patch(
+        "airflow.providers.google.cloud.log.cloud_logging_task_handler.get_credentials_and_project_id"
+    )
+    @mock.patch("airflow.providers.google.cloud.log.cloud_logging_task_handler.gcp_logging.Client")
+    def test_close_does_not_build_unused_transport(self, mock_client, mock_get_creds_and_project_id):
+        mock_get_creds_and_project_id.return_value = ("creds", "project_id")
+        transport_cls = mock.create_autospec(BackgroundThreadTransport)
+        handler = CloudLoggingTaskHandler(transport=transport_cls)
+
+        handler.close()
+
+        transport_cls.assert_not_called()
 
     def test_close_swallows_transport_flush_errors(self, capsys):
         """``close()`` must never raise — even when transport ``flush()`` fails."""

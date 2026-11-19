@@ -109,11 +109,39 @@ Credential Configuration File
 
     Not required if using application default credentials.
 
+IdP Token Issue URL (Client Credentials Grant Flow)
+    URL of an external identity provider (IdP) token endpoint. When set, Airflow uses the OAuth 2.0
+    Client Credentials Grant flow to request an OIDC token from this endpoint and passes it as the
+    subject token of the ``Credential Configuration File``, which is required in that case.
+
+Client ID (Client Credentials Grant Flow)
+    Client ID of the application registered with the IdP. Sent in the token request to
+    ``IdP Token Issue URL``.
+
+Client Secret (Client Credentials Grant Flow)
+    Client secret of the application registered with the IdP. Sent in the token request to
+    ``IdP Token Issue URL``.
+
+IdP Extra Request Parameters
+    JSON object with additional parameters to include in the token request to ``IdP Token Issue URL``,
+    for example ``{"audience": "api://my-application"}``.
+
+Anonymous credentials (ignores all other settings)
+    Use anonymous credentials for APIs that do not require authentication, such as reading public
+    Cloud Storage objects. Cannot be combined with ``Keyfile Path``, ``Keyfile JSON``,
+    ``Credential Configuration File`` or ``Secret name which holds Keyfile JSON``.
+
 Secret name which holds Keyfile JSON
     Name of the secret in Secret Manager which contains a `service account
     <https://cloud.google.com/docs/authentication/#service_accounts>`_ key.
 
     Not required if using application default credentials.
+
+Keyfile Secret Project Id (in GCP Secret Manager)
+    Project ID containing the secret specified by ``key_secret_name``. Used only when a secret name is set.
+    If omitted, Airflow uses the project ID returned by ``google.auth.default()``.
+    Set ``key_secret_project_id`` if the secret is in a different project or ADC cannot resolve a project ID.
+    The connection's ``Project Id`` setting is not used to locate the secret.
 
 Scopes (comma separated)
     A list of comma-separated `Google Cloud scopes
@@ -135,7 +163,7 @@ Quota Project ID (optional)
 Number of Retries
     Integer, number of times to retry with randomized
     exponential backoff. If all retries fail, the :class:`googleapiclient.errors.HttpError`
-    represents the last request. If zero (default), we attempt the
+    represents the last request. The default is 5. If zero, we attempt the
     request only once.
 
 Impersonation Chain
@@ -160,10 +188,18 @@ Impersonation Chain
         * ``project`` - Project Id
         * ``key_path`` - Keyfile Path
         * ``keyfile_dict`` - Keyfile JSON
+        * ``credential_config_file`` - Credential Configuration File
         * ``key_secret_name`` - Secret name which holds Keyfile JSON
         * ``key_secret_project_id`` - Project Id which holds Keyfile JSON
         * ``scope`` - Scopes
         * ``num_retries`` - Number of Retries
+        * ``impersonation_chain`` - Impersonation Chain
+        * ``quota_project_id`` - Quota Project ID
+        * ``is_anonymous`` - Anonymous credentials
+        * ``idp_issuer_url`` - IdP Token Issue URL
+        * ``client_id`` - Client ID
+        * ``client_secret`` - Client Secret
+        * ``idp_extra_parameters`` - IdP Extra Request Parameters
 
 
     Note that all components of the URI should be URL-encoded.

@@ -161,6 +161,12 @@ After installation, prek hooks are run automatically when you commit the
 code or push it to the repository (depending on stages configured for the hooks). Some of the
 hooks are configured to run on "manual" stage only and are not run automatically.
 
+The hooks of the root ``.pre-commit-config.yaml`` run one at a time, except for some slow checks
+that set ``priority: 1000``. Those checks run in parallel at the end. Before you set that priority
+on another hook, read the rules in ``scripts/ci/prek/AGENTS.md``. ``check-prek-parallel-hooks``
+fails when a hook sets a priority other than 1000, or sets 1000 but is not listed in
+``PARALLEL_HOOKS`` in ``scripts/ci/prek/check_prek_parallel_hooks.py``.
+
 By default when you run ``prek``, the ``pre-commit`` stage hooks are run.
 
 But you can run prek hooks manually as needed.

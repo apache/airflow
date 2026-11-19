@@ -6,6 +6,7 @@
     "affectedNone": "לא נמצאו ריצות התואמות לקריטריונים שנבחרו.",
     "allRuns": "כל ההרצות",
     "backwards": "הרץ לאחור",
+    "completed": "הושלם",
     "dateRange": "טווח תאריכים",
     "errorStartDateBeforeEndDate": "תאריך ההתחלה חייב להיות לפני תאריך הסיום",
     "exceptionReason": {
@@ -26,10 +27,12 @@
     "permissionDenied": "הרצה יבשה (Dry Run) נכשלה: למשתמש אין הרשאה ליצור Backfills.",
     "reprocessBehavior": "התנהגות עיבוד מחדש",
     "run": "הרץ Backfill",
+    "running": "בריצה",
     "scheduleNotBackfillable": "תזמון ה-Dag הזה אינו תומך בהשלמה למפרע",
     "schedulerPriorityHint": "הרצות Dag של Backfill מסודרות אחרי הרצות Dag שאינן Backfill בכל מחזור של המתזמן. ייתכן שהרצות Backfill יישארו זמן רב יותר בתור אם קיימות הרצות אחרות שאינן Backfill.",
     "selectDescription": "הרץ Dag זה עבור טווח תאריכים",
     "selectLabel": "Backfill",
+    "status": "סטטוס",
     "title": "הרץ Backfill",
     "toaster": {
       "success": {
@@ -60,6 +63,13 @@
   "dagWarnings": {
     "error_one": "שגיאה",
     "errorAndWarning": "שגיאה אחת ו-{{warningText}}",
+    "types": {
+      "asset conflict": "התנגשות בנכס",
+      "duplicate dag id": "Dag ID כפול",
+      "non-existent pool": "מאגר משאבים לא קיים",
+      "runtime varying value": "ערך משתנה בזמן ריצה",
+      "task group cycle": "מעגל בקבוצת המשימות"
+    },
     "warning_one": "אזהרה אחת",
     "warning_other": "{{count, number}} אזהרות",
     "warning_two": "{{count, number}} אזהרות"
@@ -95,6 +105,7 @@
     "placeholderArray": "הכנס כל מחרוזת בשורה חדשה",
     "placeholderExamples": "התחל להקליד כדי לראות אפשרויות",
     "placeholderMulti": "בחר ערך אחד או יותר",
+    "validationErrorArrayElement": "ערכי {{type}} שאינם תקינים: {{values}}",
     "validationErrorArrayNotArray": "הערך חייב להיות מערך.",
     "validationErrorArrayNotNumbers": "כל האיברים במערך חייבים להיות מספרים.",
     "validationErrorArrayNotObject": "כל האיברים במערך חייבים להיות אובייקטים.",
@@ -157,6 +168,7 @@
     "empty": "אין מופעי משימה שהסתיימו בטווח הזה",
     "title": "מופעי המשימה האיטיים ביותר"
   },
+  "sort": "מיון",
   "sortMultiColumnHint": "לחץ תוך כדי החזקת Shift כדי למיין לפי כמה עמודות",
   "sortedAscending": "ממוין בסדר עולה",
   "sortedDescending": "ממוין בסדר יורד",
@@ -174,6 +186,12 @@
   "toggleTableView": "הצג תצוגת טבלה",
   "triggerDag": {
     "button": "הפעל",
+    "dagStartEndDate": {
+      "both": "תאריך ההתחלה של ה-Dag: {{startDate}}, תאריך הסיום של ה-Dag: {{endDate}}",
+      "end": "תאריך הסיום של ה-Dag: {{endDate}}",
+      "noTaskWillRun": "אף משימה לא תרוץ.",
+      "start": "תאריך ההתחלה של ה-Dag: {{startDate}}"
+    },
     "dataInterval": "מרווח נתונים",
     "dataIntervalAuto": "מוסק מתוך התאריך הלוגי וטבלת הזמנים",
     "dataIntervalManual": "הגדר ידנית",

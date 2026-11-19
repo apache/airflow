@@ -55,6 +55,13 @@ on:  # yamllint disable-line rule:truthy
 
   workflow_call:
     inputs:
+      merge-with:
+        description: >-
+          The base branch commit and merge base to merge the pushed commit with, space-separated;
+          empty outside fork CI runs.
+        required: false
+        default: ""
+        type: string
       workflow-name:
         description: "Name of the test"
         type: string
@@ -88,7 +95,7 @@ jobs:
   test-ui-e2e-tests:
     timeout-minutes: 90
     name: ${{ inputs.workflow-name || 'UI E2E Tests' }}
-    runs-on: ${{ fromJSON(inputs.runners || '["ubuntu-24.04"]') }}
+    runs-on: ${{ format(fromJSON(inputs.runners || '["ubuntu-24.04"]')[0], '8+16', '32+64') }}
     env:
       PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version || '3.11' }}"
       GITHUB_REPOSITORY: ${{ github.repository }}
@@ -107,6 +114,11 @@ jobs:
         with:
           fetch-depth: 2
           persist-credentials: false
+      - name: "Merge with the base branch"
+        if: inputs.merge-with != ''
+        uses: ./.github/actions/merge-with-base
+        with:
+          merge-with: ${{ inputs.merge-with }}
       - name: "Prepare breeze & PROD image: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
         uses: ./.github/actions/prepare_breeze_and_image
         with:
@@ -121,7 +133,7 @@ jobs:
         uses: ./.github/actions/breeze
         if: github.event_name == 'workflow_dispatch'
       - name: "Setup pnpm"
-        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413  # v6.1.0
+        uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115  # v6.1.1
         with:
           version: 9
           run_install: false

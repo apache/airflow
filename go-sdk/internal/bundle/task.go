@@ -183,28 +183,28 @@ func (f *taskFunction) call(
 			)
 		}
 	}
+	if err != nil {
+		return err
+	}
 	if branch != nil {
-		// The task pushes the value that decide returns, and decide runs only on a result that fn
-		// returned without an error. So the task pushes no XCom when fn or decide fails.
-		if err != nil {
-			return err
-		}
+		// The task pushes the value that decide returns.
 		value, skipped, err := f.decide(retValues[0].Interface())
 		if err != nil {
 			return err
 		}
 		rv := reflect.ValueOf(value)
 		if rv.Kind() != reflect.Ptr || !rv.IsNil() {
-			f.sendXcom(ctx, value, sdkClient, logger)
+			if err := pushReturnValue(ctx, value, sdkClient); err != nil {
+				return err
+			}
 		}
 		return branch.skipDownstream(ctx, sdkClient, skipped, logger)
 	}
 	// If there are two results, convert the first only if it's not a nil pointer
 	if len(retValues) > 1 && (retValues[0].Kind() != reflect.Ptr || !retValues[0].IsNil()) {
-		res := retValues[0].Interface()
-		f.sendXcom(ctx, res, sdkClient, logger)
+		return pushReturnValue(ctx, retValues[0].Interface(), sdkClient)
 	}
-	return err
+	return nil
 }
 
 // skipMixinXComKey is the key of the XCom that lists the tasks a task skipped. When one of those
@@ -240,11 +240,19 @@ func startBranch(ctx context.Context) (*branchRun, error) {
 	if !ok {
 		return nil, errors.New("the task runtime cannot skip downstream tasks")
 	}
+	ti, err := taskInstanceFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return &branchRun{skip: skip, ti: ti}, nil
+}
+
+func taskInstanceFrom(ctx context.Context) (sdk.TaskInstance, error) {
 	runtimeContext, ok := ctx.Value(sdkcontext.RuntimeContextKey).(sdk.TIRunContext)
 	if !ok {
-		return nil, errors.New("task runtime context is missing")
+		return sdk.TaskInstance{}, errors.New("task runtime context is missing")
 	}
-	return &branchRun{skip: skip, ti: runtimeContext.TaskInstance()}, nil
+	return runtimeContext.TaskInstance(), nil
 }
 
 // skipDownstream records taskIDs in the skipmixin_key XCom, and then skips those tasks.
@@ -268,27 +276,17 @@ func (b *branchRun) skipDownstream(
 	return nil
 }
 
-func (f *taskFunction) sendXcom(
-	ctx context.Context,
-	value any,
-	c sdk.XComClient,
-	logger *slog.Logger,
-) {
-	runtimeContext, ok := ctx.Value(sdkcontext.RuntimeContextKey).(sdk.TIRunContext)
-	if !ok {
-		logger.ErrorContext(ctx, "Unable to set XCom", "err", "task runtime context is missing")
-		return
-	}
-	ti := runtimeContext.TaskInstance()
-	err := c.PushXCom(ctx, sdk.TaskInstance{
-		DagID:    ti.DagID,
-		RunID:    ti.RunID,
-		TaskID:   ti.TaskID,
-		MapIndex: ti.MapIndex,
-	}, sdk.XComReturnValueKey, value)
+// pushReturnValue pushes the task's return value. A failure fails the task: leaving it successful
+// would only move the error to the downstream tasks, which fail later on the XCom that is not there.
+func pushReturnValue(ctx context.Context, value any, c sdk.XComClient) error {
+	ti, err := taskInstanceFrom(ctx)
 	if err != nil {
-		logger.ErrorContext(ctx, "Unable to set XCom", "err", err)
+		return fmt.Errorf("setting the return value XCom: %w", err)
 	}
+	if err := c.PushXCom(ctx, ti, sdk.XComReturnValueKey, value); err != nil {
+		return fmt.Errorf("setting the return value XCom: %w", err)
+	}
+	return nil
 }
 
 func (f *taskFunction) validateFn(

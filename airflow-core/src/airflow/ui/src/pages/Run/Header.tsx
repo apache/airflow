@@ -35,12 +35,15 @@ import { LimitedItemsList } from "src/components/LimitedItemsList";
 import { MarkRunAsButton } from "src/components/MarkAs";
 import { NeedsReviewButtonWithModal } from "src/components/NeedsReviewButton";
 import { NotePreview } from "src/components/NotePreview";
+import { PluginActions } from "src/components/PluginActions";
 import RenderedJsonField from "src/components/RenderedJsonField";
 import { RunTypeIcon } from "src/components/RunTypeIcon";
 import { TeamName } from "src/components/TeamName";
 import Time from "src/components/Time";
 
 import { SearchParamsKeys } from "src/constants/searchParams";
+import { useHasGridSelection } from "src/context/gridSelection";
+import { usePluginActions } from "src/hooks/usePluginActions";
 import { useShowTeam } from "src/hooks/useShowTeam";
 import { useDagRunNote } from "src/queries/useDagRunNote";
 import { hasDagRunConfig, useDurationFormat } from "src/utils";
@@ -48,8 +51,11 @@ import { hasDagRunConfig, useDurationFormat } from "src/utils";
 import { DeadlineStatus } from "./DeadlineStatus";
 
 export const Header = ({ dagRun }: { readonly dagRun: DAGRunResponse }) => {
+  // The grid's bulk actions replace these while task instances are selected there.
+  const hasGridSelection = useHasGridSelection();
   const { t: translate } = useTranslation();
   const { formatElapsed } = useDurationFormat();
+  const pluginActions = usePluginActions("dag_run");
   const { isPending, note, onOpen, onSave, setNote } = useDagRunNote(dagRun);
   const showTeam = useShowTeam(dagRun.team_name);
   const navigate = useNavigate();
@@ -66,9 +72,18 @@ export const Header = ({ dagRun }: { readonly dagRun: DAGRunResponse }) => {
         actions={
           <>
             <NeedsReviewButtonWithModal dagId={dagId} runId={dagRunId} variant="chip" />
-            <ClearRunButton bg="bg" dagRun={dagRun} isHotkeyEnabled variant="outline" />
-            <MarkRunAsButton bg="bg" dagRun={dagRun} isHotkeyEnabled variant="outline" />
-            <DeleteRunButton bg="bg" dagRun={dagRun} variant="outline" />
+            {hasGridSelection ? undefined : (
+              <>
+                <ClearRunButton bg="bg" dagRun={dagRun} isHotkeyEnabled variant="outline" />
+                <MarkRunAsButton bg="bg" dagRun={dagRun} isHotkeyEnabled variant="outline" />
+                <DeleteRunButton bg="bg" dagRun={dagRun} variant="outline" />
+              </>
+            )}
+            <PluginActions
+              {...pluginActions}
+              buttonProps={{ bg: "bg", variant: "outline" }}
+              entity={{ dagRun, destination: "dag_run" }}
+            />
           </>
         }
         icon={<FiBarChart />}

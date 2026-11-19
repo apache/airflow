@@ -92,7 +92,6 @@
   "dagRun_other": "Εκτελέσεις Dag",
   "dagRunId": "ID Εκτέλεσης Dag",
   "dagRunState": "Κατάσταση Εκτέλεσης Dag",
-  "dagWarnings": "Προειδοποιήσεις/Σφάλματα Dag",
   "delete": "Διαγραφή",
   "diff": "Διαφορές",
   "diffCompareWith": "Σύγκριση με",

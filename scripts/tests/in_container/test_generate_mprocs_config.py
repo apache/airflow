@@ -19,6 +19,7 @@ from __future__ import annotations
 import importlib.util
 from pathlib import Path
 
+import pytest
 import yaml
 
 MODULE_PATH = Path(__file__).parents[2] / "in_container" / "bin" / "generate_mprocs_config.py"
@@ -37,3 +38,32 @@ def test_quit_key_quits_immediately():
     config = yaml.safe_load(module.generate_mprocs_config())
 
     assert config["keymap_procs"] == {"<q>": {"c": "quit"}}
+
+
+@pytest.mark.parametrize(
+    ("airflow_version", "web_process"),
+    [pytest.param("", "api_server", id="airflow-3"), pytest.param("2.11.0", "webserver", id="airflow-2")],
+)
+def test_every_process_restarts_after_it_exits(monkeypatch, airflow_version, web_process):
+    monkeypatch.setenv("USE_AIRFLOW_VERSION", airflow_version)
+    monkeypatch.setenv("INTEGRATION_CELERY", "true")
+    monkeypatch.setenv("CELERY_FLOWER", "true")
+    monkeypatch.setenv("STANDALONE_DAG_PROCESSOR", "true")
+    monkeypatch.setenv(
+        "AIRFLOW__CORE__EXECUTOR", "airflow.providers.edge3.executors.edge_executor.EdgeExecutor"
+    )
+    module = load_module()
+
+    procs = yaml.safe_load(module.generate_mprocs_config())["procs"]
+
+    assert set(procs) == {
+        "scheduler",
+        web_process,
+        "triggerer",
+        "celery_worker",
+        "flower",
+        "edge_worker",
+        "dag_processor",
+        "shell",
+    }
+    assert {name: proc.get("autorestart") for name, proc in procs.items()} == dict.fromkeys(procs, True)

@@ -26,6 +26,53 @@
 Changelog
 ---------
 
+7.25.0
+......
+
+.. note::
+    On Airflow 3.3 and later, ``DatabricksNotebookOperator`` and ``DatabricksTaskOperator`` are durable
+    by default: a retry reconnects to the Databricks run the previous try submitted instead of
+    submitting a new one, and returns without resubmitting when that run has already succeeded. Set
+    ``durable=False`` to submit a new run on every try. Below Airflow 3.3 nothing changes.
+
+Features
+~~~~~~~~
+
+* ``Add a Delta table version producer for externally written tables (#76156)``
+* ``Support durable execution in DatabricksNotebookOperator and DatabricksTaskOperator (#76295)``
+* ``Add a Databricks toolset for Unity Gateway MCP Services (#74198)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Prevent Databricks task failure after successful repair (#76904)``
+* ``Resubmit lost Databricks runs instead of failing every retry (#76718)``
+* ``Sanitize error message in DatabricksExecutionTrigger (#70385)``
+
+Doc-only
+~~~~~~~~
+
+* ``Fix Databricks retry parameter names in deferrable-mode docs (#76744)``
+* ``Document supported 'databricks_retry_args' usage for deferrable Databricks operators (#68017)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+7.24.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add Databricks agent invocation operator and hook (#74386)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``[main] Upgrade important CI environment (#76278)``
+   * ``Remove empty Databricks mixin test placeholders (#75893)``
+   * ``Remove duplicate Databricks timeout retry test (#75891)``
+   * ``Remove duplicate Databricks retry test (#75889)``
+
 7.23.0
 ......
 

@@ -155,7 +155,8 @@ const ClearTaskInstanceDialog = (props: Props) => {
 
   // The Dag details and run versions behind the run-on-latest option are read for one run.
   const singleRun = groups.length === 1;
-  const dagId = groups[0]?.dagId ?? "";
+  // Undefined while there is nothing to clear: the bulk actions keep this dialog mounted.
+  const dagId = groups[0]?.dagId;
   const dagRunId = groups[0]?.dagRunId ?? "";
   const loopMode = targets.some((target) => target.in_loop);
   const initialNote = targets.length === 1 ? (targets[0]?.note ?? null) : null;
@@ -177,6 +178,8 @@ const ClearTaskInstanceDialog = (props: Props) => {
   const wholeExpansions = selectedOptions.includes(WHOLE_EXPANSION);
   const [keepTaskState, setKeepTaskState] = useState(keepTaskStateDefault);
   const [preventRunningTask, setPreventRunningTask] = useState(preventRunningTaskDefault);
+  const [includeDependentDags, setIncludeDependentDags] = useState(true);
+  const clearsDependentDags = downstream && includeDependentDags;
 
   const [note, setNote] = useState<string | null>(initialNote);
 
@@ -201,9 +204,11 @@ const ClearTaskInstanceDialog = (props: Props) => {
     closeDialog();
   };
 
-  const { data: dagDetails } = useDagServiceGetDagDetails({ dagId }, undefined, { enabled: singleRun });
+  const { data: dagDetails } = useDagServiceGetDagDetails({ dagId: dagId ?? "" }, undefined, {
+    enabled: singleRun,
+  });
 
-  const { data: dagRun } = useDagRunServiceGetDagRun({ dagId, dagRunId }, undefined, {
+  const { data: dagRun } = useDagRunServiceGetDagRun({ dagId: dagId ?? "", dagRunId }, undefined, {
     enabled: openDialog && singleRun,
   });
 
@@ -256,6 +261,7 @@ const ClearTaskInstanceDialog = (props: Props) => {
     requestBody: loopMode
       ? {
           dag_run_id: group.dagRunId,
+          include_dependent_dags: clearsDependentDags,
           include_downstream: downstream,
           include_later_loop_iterations: laterLoopIterations,
           include_upstream: upstream,
@@ -268,6 +274,7 @@ const ClearTaskInstanceDialog = (props: Props) => {
         }
       : {
           dag_run_id: group.dagRunId,
+          include_dependent_dags: clearsDependentDags,
           include_downstream: downstream,
           include_future: future,
           include_past: past,
@@ -398,6 +405,13 @@ const ClearTaskInstanceDialog = (props: Props) => {
               onCheckedChange={(event) => setPreventRunningTask(Boolean(event.checked))}
             >
               {translate("dags:runAndTaskActions.options.preventRunningTasks")}
+            </Checkbox>
+            <Checkbox
+              checked={clearsDependentDags}
+              disabled={!downstream}
+              onCheckedChange={(event) => setIncludeDependentDags(Boolean(event.checked))}
+            >
+              {translate("dags:runAndTaskActions.options.includeDependentDags")}
             </Checkbox>
             {shouldShowRunOnLatestOption ? (
               <Checkbox

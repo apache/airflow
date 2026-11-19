@@ -90,15 +90,44 @@ server.events.on("request:unhandled", ({ request }) => {
   unhandledRequests.push(`${request.method} ${request.url}`);
 });
 
+// React reports invalid markup and duplicate keys by logging, not by failing anything, so these
+// reach CI as console noise nobody reads and ship as browser console errors. Fail the test that
+// produced one instead. Each pattern here is a bug in the markup, never a property of the
+// environment, so none of them is noise to allow-list.
+const REACT_MARKUP_ERRORS = [
+  /validateDOMNesting/u,
+  /cannot contain a nested/u,
+  /cannot appear as a descendant of/u,
+  /cannot be a descendant of/u,
+  /Encountered two children with the same key/u,
+];
+const markupErrors: Array<string> = [];
+const logError = console.error.bind(console);
+
+console.error = (...args: Array<unknown>) => {
+  const message = args.map((arg) => String(arg)).join(" ");
+
+  if (REACT_MARKUP_ERRORS.some((pattern) => pattern.test(message))) {
+    markupErrors.push(message.split("\n")[0] ?? message);
+  }
+
+  logError(...args);
+};
+
 beforeEach(() => server.resetHandlers());
 afterEach(() => {
   cleanup();
 
   const requests = unhandledRequests.splice(0);
+  const markup = markupErrors.splice(0);
 
   if (requests.length > 0) {
     throw new Error(
       `Requests without an msw handler (add one to src/mocks/handlers or with server.use()):\n${requests.join("\n")}`,
     );
+  }
+
+  if (markup.length > 0) {
+    throw new Error(`React reported invalid markup:\n${markup.join("\n")}`);
   }
 });

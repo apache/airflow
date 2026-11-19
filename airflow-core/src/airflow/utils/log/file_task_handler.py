@@ -144,25 +144,6 @@ class LogType(str, Enum):
     WORKER = "worker"
 
 
-def _set_task_deferred_context_var():
-    """
-    Tell task log handler that task exited with deferral.
-
-    This exists for the sole purpose of telling elasticsearch handler not to
-    emit end_of_log mark after task deferral.
-
-    Depending on how the task is run, we may need to set this in task command or in local task job.
-    Kubernetes executor requires the local task job invocation; local executor requires the task
-    command invocation.
-
-    :meta private:
-    """
-    logger = logging.getLogger()
-    with suppress(StopIteration):
-        h = next(h for h in logger.handlers if hasattr(h, "ctx_task_deferred"))
-        h.ctx_task_deferred = True
-
-
 def _fetch_logs_from_service(url: str, log_relative_path: str) -> Response:
     # Import occurs in function scope for perf. Ref: https://github.com/apache/airflow/pull/21438
     import requests
@@ -531,13 +512,24 @@ class FileTaskHandler(logging.Handler):
         :return: executor of the task instance
         """
         executor_name = ti.executor or self.DEFAULT_EXECUTOR_KEY
-        executor = self.executor_instances.get(executor_name)
+        team_name = None
+        if conf.getboolean("core", "multi_team"):
+            from airflow.models.dag import DagModel
+
+            team_name = DagModel.get_team_name(ti.dag_id)
+        # A team's executor has its own config, such as the cluster its pods run on.
+        cache_key = f"{team_name}:{executor_name}" if team_name else executor_name
+        executor = self.executor_instances.get(cache_key)
         if executor is None:
-            if executor_name == self.DEFAULT_EXECUTOR_KEY:
+            if team_name:
+                executor = ExecutorLoader.load_executor(
+                    ExecutorLoader.resolve_executor_name(ti.executor, team_name)
+                )
+            elif executor_name == self.DEFAULT_EXECUTOR_KEY:
                 executor = ExecutorLoader.get_default_executor()
             else:
                 executor = ExecutorLoader.load_executor(executor_name)
-            self.executor_instances[executor_name] = executor
+            self.executor_instances[cache_key] = executor
 
         return executor
 
@@ -553,18 +545,16 @@ class FileTaskHandler(logging.Handler):
         :param ti: task instance record
         :param try_number: current try_number to read log from
         :param metadata: log metadata,
-                         can be used for steaming log reading and auto-tailing.
+                         can be used for streaming log reading and auto-tailing.
                          Following attributes are used:
-                         log_pos: (absolute) Char position to which the log
-                                  which was retrieved in previous calls, this
-                                  part will be skipped and only following test
-                                  returned to be added to tail.
-        :return: log message as a string and metadata.
+                         log_pos: Number of log records returned by previous calls.
+                                  These records are skipped and only the following ones are returned.
+        :return: log stream and metadata.
                  Following attributes are used in metadata:
                  end_of_log: Boolean, True if end of log is reached or False
                              if further calls might get more log text.
-                             This is determined by the status of the TaskInstance
-                 log_pos: (absolute) Char position to which the log is retrieved
+                             This is determined by the state and try number of the TaskInstance
+                 log_pos: Number of log records read so far. Only present when end_of_log is False.
         """
         # Task instance here might be different from task instance when
         # initializing the handler. Thus explicitly getting log location
@@ -647,21 +637,21 @@ class FileTaskHandler(logging.Handler):
             TaskInstanceState.DEFERRED,
         )
 
-        with LogStreamAccumulator(out_stream, HEAP_DUMP_SIZE) as stream_accumulator:
-            log_pos = stream_accumulator.total_lines
-            out_stream = stream_accumulator.stream
+        out_metadata: LogMetadata = {"end_of_log": end_of_log}
+        if not end_of_log:
+            # Counting lines for log_pos drains the stream; skip when no token is needed.
+            with LogStreamAccumulator(out_stream, HEAP_DUMP_SIZE) as stream_accumulator:
+                out_metadata["log_pos"] = stream_accumulator.total_lines
+                out_stream = stream_accumulator.stream
 
-            # skip log stream until the last position
-            if metadata and "log_pos" in metadata:
-                out_stream = islice(out_stream, metadata["log_pos"], None)
-            else:
-                # first time reading log, add messages before interleaved log stream
-                out_stream = chain(header, out_stream)
+        # skip log stream until the last position
+        if metadata and "log_pos" in metadata:
+            out_stream = islice(out_stream, metadata["log_pos"], None)
+        else:
+            # first time reading log, add messages before interleaved log stream
+            out_stream = chain(header, out_stream)
 
-            return out_stream, {
-                "end_of_log": end_of_log,
-                "log_pos": log_pos,
-            }
+        return out_stream, out_metadata
 
     @staticmethod
     def _get_pod_namespace(ti: TaskInstance):

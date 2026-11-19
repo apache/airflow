@@ -28,6 +28,7 @@ import {
   MdCode,
   MdComputer,
   MdDateRange,
+  MdErrorOutline,
   MdHistory,
   MdHourglassEmpty,
   MdLoop,
@@ -41,6 +42,7 @@ import {
 import { PiQueue } from "react-icons/pi";
 
 import { useTeamsServiceListTeams } from "openapi/queries";
+import { $TriggerKind, $TriggerStatus } from "openapi/requests/schemas.gen";
 import type { DagRunState, DagRunType, TaskInstanceState } from "openapi/requests/types.gen";
 
 import type { FilterConfig } from "src/components/FilterBar";
@@ -59,6 +61,7 @@ import {
 } from "src/components/FilterBar/filters/runStateParams";
 import { RunTypeIcon } from "src/components/RunTypeIcon";
 import { StateBadge } from "src/components/StateBadge";
+import { TriggerStatusBadge } from "src/components/TriggerStatusBadge";
 
 import { DagIcon } from "src/assets/DagIcon";
 import { TaskIcon } from "src/assets/TaskIcon";
@@ -99,6 +102,7 @@ export const useFilterConfigs = () => {
     "common",
     "components",
     "admin",
+    "dashboard",
     "dags",
     "hitl",
   ]);
@@ -113,6 +117,15 @@ export const useFilterConfigs = () => {
   }));
 
   const filterConfigMap = {
+    [SearchParamsKeys.ACTIVE]: {
+      icon: <MdPlayArrow />,
+      label: translate("components:backfill.status"),
+      options: [
+        { label: translate("components:backfill.running"), value: "true" },
+        { label: translate("components:backfill.completed"), value: "false" },
+      ],
+      type: FilterTypes.SELECT,
+    },
     [SearchParamsKeys.ASSET_EVENT_DATE_RANGE]: {
       endKey: SearchParamsKeys.END_DATE,
       icon: <MdDateRange />,
@@ -265,6 +278,15 @@ export const useFilterConfigs = () => {
       ],
       type: FilterTypes.SELECT,
     },
+    [SearchParamsKeys.HAS_IMPORT_ERRORS]: {
+      icon: <MdErrorOutline />,
+      label: translate("dags:filters.hasImportErrors"),
+      options: [
+        { label: translate("common:yes"), value: "true" },
+        { label: translate("common:no"), value: "false" },
+      ],
+      type: FilterTypes.SELECT,
+    },
     [SearchParamsKeys.HOSTNAME]: {
       hotkeyDisabled: true,
       icon: <MdComputer />,
@@ -372,6 +394,12 @@ export const useFilterConfigs = () => {
       placeholder: translate("common:table.ownerPlaceholder"),
       type: FilterTypes.MULTISELECT,
     },
+    [SearchParamsKeys.PARTITION_KEY]: {
+      hotkeyDisabled: true,
+      icon: <MdSearch />,
+      label: translate("common:dagRun.partitionKey"),
+      type: FilterTypes.TEXT,
+    },
     [SearchParamsKeys.PARTITION_KEY_PATTERN]: {
       hotkeyDisabled: true,
       icon: <MdSearch />,
@@ -379,12 +407,34 @@ export const useFilterConfigs = () => {
       supportsAdvancedSearch: true,
       type: FilterTypes.TEXT,
     },
+    [SearchParamsKeys.PARTITION_STATUS]: {
+      icon: <MdCheckCircle />,
+      label: translate("common:state"),
+      options: [
+        {
+          label: (
+            <StateBadge state="success">{translate("assets:partitions.status.materialized")}</StateBadge>
+          ),
+          value: "materialized",
+        },
+        {
+          label: <StateBadge state="running">{translate("assets:partitions.status.in_progress")}</StateBadge>,
+          value: "in_progress",
+        },
+        {
+          label: <StateBadge state="failed">{translate("common:states.failed")}</StateBadge>,
+          value: "failed",
+        },
+      ],
+      type: FilterTypes.MULTISELECT,
+    },
     [SearchParamsKeys.PAUSED]: {
       fromSearchParams: pausedStateFromSearchParams,
       icon: <MdPause />,
       label: translate("dags:filters.pausedState"),
       options: [
         { label: translate("dags:filters.paused.active"), value: "not_paused" },
+        { label: translate("dashboard:stats.activeDags"), value: "active" },
         { label: translate("dags:draining.label"), value: "draining" },
         { label: translate("dags:filters.paused.paused"), value: "paused" },
       ],
@@ -488,6 +538,18 @@ export const useFilterConfigs = () => {
       })),
       type: FilterTypes.SELECT,
     },
+    [SearchParamsKeys.SOURCE_MAP_INDEX]: {
+      icon: <LuBrackets />,
+      label: translate("common:mapIndex"),
+      min: -1,
+      type: FilterTypes.NUMBER,
+    },
+    [SearchParamsKeys.SOURCE_RUN_ID]: {
+      hotkeyDisabled: true,
+      icon: <FiBarChart />,
+      label: translate("common:runId"),
+      type: FilterTypes.TEXT,
+    },
     [SearchParamsKeys.START_DATE_RANGE]: {
       endKey: SearchParamsKeys.START_DATE_LTE,
       icon: <MdDateRange />,
@@ -556,6 +618,30 @@ export const useFilterConfigs = () => {
       label: translate("common:table.to"),
       startKey: SearchParamsKeys.TO_DATE_GTE,
       type: FilterTypes.DATERANGE,
+    },
+    [SearchParamsKeys.TRIGGER_KIND]: {
+      icon: <MdBuild />,
+      label: translate("browse:triggers.columns.kind"),
+      options: $TriggerKind.enum.map((kind) => ({
+        label: translate(`browse:triggers.kind.${kind}`),
+        value: kind,
+      })),
+      type: FilterTypes.MULTISELECT,
+    },
+    [SearchParamsKeys.TRIGGER_STATUS]: {
+      icon: <MdCheckCircle />,
+      label: translate("browse:triggers.columns.status"),
+      options: $TriggerStatus.enum.map((status) => ({
+        label: <TriggerStatusBadge status={status} />,
+        value: status,
+      })),
+      type: FilterTypes.MULTISELECT,
+    },
+    [SearchParamsKeys.TRIGGERER_HOSTNAME]: {
+      hotkeyDisabled: true,
+      icon: <MdComputer />,
+      label: translate("browse:triggers.filters.triggererHostname"),
+      type: FilterTypes.TEXT,
     },
     [SearchParamsKeys.TRIGGERING_USER_NAME_PATTERN]: {
       hotkeyDisabled: true,

@@ -1,4 +1,5 @@
 {
+  "allMapIndexes": "Todos os índices do mapa",
   "allRuns": "Todas as Execuções",
   "blockingDeps": {
     "dependency": "Dependência",
@@ -6,6 +7,7 @@
     "title": "Dependências Bloqueando Tarefa de Ser Agendada"
   },
   "calendar": {
+    "backfill": "Backfill",
     "daily": "Diário",
     "hourly": "Por Hora",
     "legend": {
@@ -34,23 +36,79 @@
       "wednesday": "Qua"
     }
   },
+  "callbacks": {
+    "callback_many": "Callbacks",
+    "callback_one": "Callback",
+    "callback_other": "Callbacks",
+    "callback_zero": "Nenhum Callback",
+    "columns": {
+      "alertName": "Nome do alerta",
+      "callback": "Callback",
+      "deadlineTime": "Hora do prazo",
+      "missedBy": "Atraso",
+      "type": "Tipo"
+    },
+    "types": {
+      "executor": "Síncrono",
+      "triggerer": "Assíncrono"
+    }
+  },
   "code": {
     "bundleUrl": "URL do Bundle",
     "noCode": "Nenhum Código Encontrado",
     "parseDuration": "Duração do Processamento:",
     "parsedAt": "Processado em:"
   },
+  "deadlineAlerts": {
+    "completionRule": "Deve terminar em até {{interval}} a partir de {{reference}}",
+    "completionRuleDynamic": "Deve terminar em um intervalo variável medido a partir de {{reference}}",
+    "count_many": "{{count, number}} de prazos",
+    "count_one": "{{count, number}} prazo",
+    "count_other": "{{count, number}} prazos",
+    "count_zero": "Nenhum prazo",
+    "referenceType": {
+      "AverageRuntimeDeadline": "tempo médio de execução",
+      "DagRunLogicalDateDeadline": "data lógica",
+      "DagRunQueuedAtDeadline": "tempo de fila"
+    }
+  },
+  "deadlineStatus": {
+    "actual": "Real",
+    "expected": "Esperado",
+    "finishedEarly": "Terminou {{duration}} antes do prazo",
+    "finishedLate": "Terminou {{duration}} depois do prazo",
+    "label": "Prazo",
+    "met": "Cumprido",
+    "missed": "Não cumprido",
+    "missedCount_many": "{{count, number}} de prazos não cumpridos",
+    "missedCount_one": "{{count, number}} prazo não cumprido",
+    "missedCount_other": "{{count, number}} prazos não cumpridos",
+    "missedCount_zero": "Nenhum prazo não cumprido",
+    "mixedCount": "{{missedCount, number}} não cumpridos, {{upcomingCount, number}} iminentes",
+    "stillRunning": "Ainda executando",
+    "upcoming": "Iminente",
+    "upcomingCount_many": "{{count, number}} de prazos iminentes",
+    "upcomingCount_one": "{{count, number}} prazo iminente",
+    "upcomingCount_other": "{{count, number}} prazos iminentes",
+    "upcomingCount_zero": "Nenhum prazo iminente"
+  },
   "extraLinks": "Links Extra",
   "grid": {
     "buttons": {
+      "newerRuns": "Execuções mais recentes",
+      "olderRuns": "Execuções mais antigas",
       "resetToLatest": "Redefinir para a Última",
       "toggleGroup": "Alternar Grupo"
-    }
+    },
+    "runTypeLegend": "Legenda do tipo de execução"
   },
   "header": {
     "buttons": {
       "advanced": "Avançado",
       "dagDocs": "Documentação do Dag"
+    },
+    "status": {
+      "deactivated": "Desativado"
     }
   },
   "logs": {
@@ -59,19 +117,53 @@
     "critical": "CRÍTICO",
     "debug": "DEBUG",
     "error": "ERRO",
-    "fullscreen": {
-      "button": "Tela cheia",
-      "tooltip": "Pressione {{hotkey}} para tela cheia"
-    },
     "info": "INFO",
     "noTryNumber": "Nenhum número de tentativa",
+    "search": {
+      "matchCount": "{{current, number}} de {{total, number}}",
+      "nextMatch": "Correspondência seguinte",
+      "noMatches": "Nenhuma correspondência",
+      "placeholder": "Pesquisar logs...",
+      "previousMatch": "Correspondência anterior"
+    },
     "settings": "Configurações",
+    "tryNotStarted": "Esta tentativa ainda não começou.",
+    "viewFailedTry": "Ver logs da tentativa falhada {{tryNumber}}",
     "viewInExternal": "Ver logs em {{name}} (tentativa {{attempt}})",
+    "viewPreviousTry": "Ver logs da tentativa anterior {{tryNumber}}",
+    "waitingToRetry": "A tentativa {{tryNumber}} está aguardando para tentar novamente.",
     "warning": "AVISO"
   },
-  "navigation": {
-    "navigation": "Navegação: Shift+{{arrow}}",
-    "toggleGroup": "Alternar grupo: Espaço"
+  "loop": {
+    "history": {
+      "capLabel": "Limite: {{max}}",
+      "iterationsAxis": "Iterações",
+      "stats": {
+        "capHits": "Atingiu o limite",
+        "medianIterations": "Mediana de iterações"
+      },
+      "title": "Iterações por execução"
+    },
+    "iterationLabel": "Iteração {{index}}",
+    "iterations": "Iterações",
+    "outcome": "Resultado",
+    "reason": {
+      "cap_reached": "Atingiu o limite de iterações ({{max}})",
+      "failed": "Falhou na iteração {{index}}",
+      "iteration_failed": "A iteração {{index}} falhou em {{taskId}}",
+      "ran_to_cap": "Executou todas as {{max}} iterações permitidas",
+      "removed": "Removido",
+      "running": "Executando",
+      "skipped": "Pulado",
+      "stopped_early": "Parou antes, na iteração {{index}}"
+    },
+    "rules": {
+      "behaviour": "Comportamento",
+      "boundedFor": "Executa um número fixo de iterações",
+      "exitCriteria": "Critério de saída",
+      "maxIterations": "Máximo de iterações",
+      "whileUntil": "Repete até {{criteria}}"
+    }
   },
   "notFound": {
     "back": "Voltar",
@@ -100,6 +192,10 @@
       "assetEvent_other": "Eventos de Asset Criados",
       "assetEvent_zero": "Nenhum evento de asset criado"
     },
+    "deadlines": {
+      "showAll": "Mostrar tudo",
+      "title": "Prazos"
+    },
     "failedLogs": {
       "hideLogs": "Ocultar Logs",
       "showLogs": "Mostrar Logs",
@@ -111,23 +207,27 @@
     "buttons": {
       "options": "Opções",
       "showGantt": "Mostrar Gantt",
-      "showGraphShortcut": "Mostrar Gráfico (Pressione g)",
+      "showGraphShortcut": "Mostrar Grafo (Pressione g)",
       "showGridShortcut": "Mostrar Grade (Pressione g)"
     },
     "dagRuns": {
       "label": "Número de Execuções do Dag"
     },
     "dependencies": {
-      "label": "Dependências",
-      "options": {
-        "allDagDependencies": "Todas as Dependências do Dag",
-        "externalConditions": "Condições Externas",
-        "onlyTasks": "Somente Tarefas"
-      },
-      "placeholder": "Dependências"
+      "allDagDependencies": "Todas as dependências do Dag"
     },
     "graphDirection": {
-      "label": "Direção do Gráfico"
+      "label": "Direção do Grafo"
+    },
+    "graphFilters": {
+      "clearFilters": "Limpar filtros",
+      "durationGte": "Duração mínima (s)",
+      "durationGteHint": "Para tarefas mapeadas, mede o intervalo total entre todas as instâncias",
+      "mapIndex": "Índice do mapa mínimo",
+      "mapIndexHint": "Mostra tarefas mapeadas expandidas pelo menos até este índice",
+      "selectStatus": "Selecionar estado",
+      "selectTaskGroup": "Selecionar grupo de tarefas",
+      "title": "Filtros de tarefas"
     },
     "showVersionIndicator": {
       "label": "Mostrar Indicador de Versão",
@@ -177,6 +277,7 @@
     "auditLog": "Log de Auditoria",
     "backfills": "Backfills",
     "calendar": "Calendário",
+    "callbacks": "Callbacks",
     "code": "Código",
     "details": "Detalhes",
     "logs": "Logs",
@@ -189,11 +290,112 @@
     "requiredActions": "Ações Necessárias",
     "runs": "Execuções",
     "taskInstances": "Instâncias de Tarefa",
+    "taskStateStore": "Armazenamento de estado da tarefa",
     "tasks": "Tarefas",
+    "versions": "Versões",
     "xcom": "XCom"
   },
   "taskGroups": {
     "collapseAll": "Recolher todos os grupos de tarefas",
     "expandAll": "Expandir todos os grupos de tarefas"
+  },
+  "taskStateStore": {
+    "add": "Adicionar armazenamento de estado da tarefa",
+    "clearAll": {
+      "resource": "todo o armazenamento de estado da tarefa",
+      "title": "Limpar todo o armazenamento de estado da tarefa",
+      "warning": "Todo o armazenamento de estado da tarefa será apagado. Tarefas que usam este armazenamento para acompanhar trabalho externo não poderão retomar sem executar de novo desde o início."
+    },
+    "delete": "Excluir armazenamento de estado da tarefa",
+    "deleteWarning": "A tarefa perderá esta memória persistida. Se a tarefa usa esta chave para acompanhar trabalho externo (por exemplo, o ID de um job externo), não poderá retomá-lo.",
+    "edit": "Editar armazenamento de estado da tarefa",
+    "emptyStore": "O armazenamento de estado da tarefa guarda valores que persistem entre tentativas. Os workers podem escrever no armazenamento de estado da tarefa através do Task SDK.",
+    "entry_many": "Entradas",
+    "entry_one": "Entrada",
+    "entry_other": "Entradas",
+    "entry_zero": "Nenhuma entrada",
+    "expiresAt": {
+      "column": "Expira em",
+      "custom": "Personalizado",
+      "default": "Padrão ({{interval}})",
+      "label": "Expiração",
+      "never": "Nunca"
+    },
+    "title": "Armazenamento de Estado da Tarefa"
+  },
+  "versions": {
+    "base": "Comparar de",
+    "categories": {
+      "asset": "Asset",
+      "authorization": "Autorização",
+      "callback": "Callback",
+      "deadline": "Prazo",
+      "dependency": "Dependência",
+      "metadata": "Metadados",
+      "param": "Parâmetro",
+      "provenance": "Proveniência",
+      "schedule": "Agendamento",
+      "task": "Tarefa",
+      "unknown": "Desconhecido"
+    },
+    "codeAccess": "Os valores exigem acesso ao código do Dag",
+    "columns": {
+      "after": "Depois",
+      "before": "Antes",
+      "category": "Categoria",
+      "impact": "Impacto",
+      "operation": "Operação",
+      "path": "Caminho"
+    },
+    "heading": "Versão {{base}} → Versão {{target}}",
+    "impacts": {
+      "authorization": "Autorização",
+      "execution": "Execução",
+      "metadata": "Metadados",
+      "provenance": "Proveniência",
+      "unknown": "Desconhecido"
+    },
+    "limitReached": {
+      "description": "Há mais alterações do que o limite de Máximo de alterações permite. Aumente o limite para ver o restante.",
+      "descriptionDefault": "Há mais alterações do que o limite padrão permite. Defina Máximo de alterações mais alto para ver o restante.",
+      "title": "Mostrando apenas as primeiras {{limit, number}} alterações"
+    },
+    "maxChanges": "Máximo de alterações",
+    "maxChangesDefault": "Padrão",
+    "noChanges": "Estas versões têm o mesmo estado.",
+    "operations": {
+      "added": "Adicionado",
+      "changed": "Alterado",
+      "removed": "Removido"
+    },
+    "pathOccurrences_many": "{{count, number}} de alterações compartilham este caminho",
+    "pathOccurrences_one": "{{count, number}} alteração compartilha este caminho",
+    "pathOccurrences_other": "{{count, number}} alterações compartilham este caminho",
+    "pathOccurrences_zero": "Nenhuma alteração compartilha este caminho",
+    "pathOccurrencesAtLeast_many": "Pelo menos {{count, number}} de alterações compartilham este caminho",
+    "pathOccurrencesAtLeast_one": "Pelo menos {{count, number}} alteração compartilha este caminho",
+    "pathOccurrencesAtLeast_other": "Pelo menos {{count, number}} alterações compartilham este caminho",
+    "pathOccurrencesAtLeast_zero": "Nenhuma alteração compartilha este caminho",
+    "record_many": "Registros",
+    "record_one": "Registro",
+    "record_other": "Registros",
+    "record_zero": "Nenhum registro",
+    "schemaChange": "Schema serializado {{baseSchema}} → {{targetSchema}}",
+    "selectPrompt": "Selecione duas versões para ver o que mudou entre elas.",
+    "summary_many": "{{count, number}} de alterações",
+    "summary_one": "{{count, number}} alteração",
+    "summary_other": "{{count, number}} alterações",
+    "summary_zero": "Nenhuma alteração",
+    "summaryAtLeast_many": "Pelo menos {{count, number}} de alterações",
+    "summaryAtLeast_one": "Pelo menos {{count, number}} alteração",
+    "summaryAtLeast_other": "Pelo menos {{count, number}} alterações",
+    "summaryAtLeast_zero": "Nenhuma alteração",
+    "target": "Comparar com",
+    "unavailable": {
+      "description": "Não foi possível comparar estas versões. Motivo:",
+      "title": "Comparação indisponível",
+      "withoutReason": "Não foi possível comparar estas versões."
+    },
+    "valuesHidden": "Valores ocultos"
   }
 }

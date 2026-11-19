@@ -101,7 +101,6 @@ def provide_bucket_name(func: Callable) -> Callable:
         @wraps(func)
         async def wrapper(*args: Any, **kwargs: Any) -> Any:
             bound_args = await maybe_add_bucket_name(*args, **kwargs)
-            print(f"invoking async function {func=}")
             return await func(*bound_args.args, **bound_args.kwargs)
 
     elif inspect.isasyncgenfunction(func):
@@ -1877,11 +1876,13 @@ class S3Hook(AwsBaseHook):
             obj_path = Path(obj.key)
             local_target_path = local_dir.joinpath(obj_path.relative_to(s3_prefix))
             try:
-                local_target_path.resolve().relative_to(local_dir_resolved)
+                resolved_relative_path = local_target_path.resolve().relative_to(local_dir_resolved)
             except ValueError:
                 raise S3HookPathTraversalError(
                     f"S3 object key {obj.key!r} resolves outside local directory {local_dir}"
                 ) from None
+            if resolved_relative_path == Path(".") or obj.key.endswith(("/.", "/..")):
+                continue
             if not local_target_path.parent.exists():
                 local_target_path.parent.mkdir(parents=True, exist_ok=True)
                 self.log.debug("Created local directory: %s", local_target_path.parent)

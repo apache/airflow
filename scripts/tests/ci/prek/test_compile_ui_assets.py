@@ -111,7 +111,6 @@ def harness(tmp_path):
 @pytest.mark.parametrize(
     "changed_file",
     [
-        pytest.param(Path(".pnpm-store/v10/files/00/abc"), id="pnpm-store"),
         pytest.param(Path("node_modules/pkg/index.js"), id="node-modules"),
     ],
 )

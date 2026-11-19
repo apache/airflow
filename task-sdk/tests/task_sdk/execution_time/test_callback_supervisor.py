@@ -31,6 +31,8 @@ from unittest.mock import ANY, Mock, patch
 import pytest
 import structlog
 
+from airflow.sdk.api.client import CallbackOperations, Client
+from airflow.sdk.api.datamodels._generated import CallbackTerminalState, XComResponse
 from airflow.sdk.execution_time.callback_supervisor import (
     CallbackSubprocess,
     Path,
@@ -43,9 +45,11 @@ from airflow.sdk.execution_time.comms import (
     GetConnection,
     GetVariable,
     GetVariableKeys,
+    GetXCom,
     MaskSecret,
     VariableKeysResult,
     VariableResult,
+    XComResult,
     _RequestFrame,
 )
 
@@ -318,6 +322,38 @@ class TestCallbackHandleRequest:
                 method_path="variables.keys",
                 kwargs={"prefix": "test_", "limit": 1000, "offset": 0},
                 response=VariableKeysResult(keys=["test_key"], total_entries=1),
+            ),
+        ),
+        RequestCase(
+            message=GetXCom(
+                key="return_value",
+                dag_id="test_dag",
+                run_id="test_run_1",
+                task_id="upstream_task",
+            ),
+            test_id="get_xcom",
+            client_mock=ClientMock(
+                method_path="xcoms.get",
+                args=("test_dag", "test_run_1", "upstream_task", "return_value", None, False),
+                kwargs={"previous_iteration": False},
+                response=XComResponse(key="return_value", value="xcom_payload"),
+            ),
+        ),
+        RequestCase(
+            message=GetXCom(
+                key="custom_key",
+                dag_id="dag_a",
+                run_id="run_42",
+                task_id="task_b",
+                map_index=3,
+                include_prior_dates=True,
+            ),
+            test_id="get_xcom_with_map_index",
+            client_mock=ClientMock(
+                method_path="xcoms.get",
+                args=("dag_a", "run_42", "task_b", "custom_key", 3, True),
+                kwargs={"previous_iteration": False},
+                response=XComResponse(key="custom_key", value={"nested": "data"}),
             ),
         ),
         RequestCase(
@@ -639,6 +675,37 @@ class TestCallbackSubprocessStart:
 
         assert exc_info.value.code == 1
 
+    def _run_target_with_context(self, base_start_kwargs, context):
+        CallbackSubprocess.start(**{**base_start_kwargs, "callback_kwargs": {"context": context}})
+        self.mock_super_start.call_args.kwargs["target"]()
+        return self.mock_execute_callback.call_args.kwargs["callback_kwargs"]["context"]
+
+    @pytest.mark.parametrize(
+        ("xcom_value", "expected"),
+        [
+            pytest.param("payload", "payload", id="value"),
+            pytest.param(None, "fallback", id="missing"),
+        ],
+    )
+    def test_context_xcom_pull_uses_dag_run_ids(self, base_start_kwargs, xcom_value, expected):
+        comms = self.mock_comms_decoder.__getitem__.return_value.return_value
+        comms.send.return_value = XComResult(key="out", value=xcom_value)
+
+        context = self._run_target_with_context(
+            base_start_kwargs, {"dag_run": {"dag_id": "dag_a", "dag_run_id": "run_1"}}
+        )
+
+        assert context["xcom_pull"]("upstream", key="out", map_index=2, default="fallback") == expected
+        comms.send.assert_called_once_with(
+            GetXCom(key="out", dag_id="dag_a", run_id="run_1", task_id="upstream", map_index=2)
+        )
+
+    def test_context_without_dag_run_has_no_xcom_pull(self, base_start_kwargs, caplog):
+        context = self._run_target_with_context(base_start_kwargs, {"deadline": {"id": "x"}})
+
+        assert "xcom_pull" not in context
+        assert "Callback context has no Dag run, so xcom_pull is not available" in caplog
+
     @pytest.mark.parametrize("option_value", ["True", "False"])
     def test_start_keeps_bare_fork_regardless_of_exec_option(self, base_start_kwargs, option_value):
         """
@@ -663,6 +730,13 @@ class TestCallbackSubprocessStart:
             CallbackSubprocess.start(**base_start_kwargs)
 
         assert calls == ["import task runner", "fork"]
+
+
+@pytest.fixture
+def callback_client():
+    client = Mock(spec=Client)
+    client.callbacks = Mock(spec=CallbackOperations)
+    return client
 
 
 class TestSuperviseCallbackExchangesTokenFirst:
@@ -698,14 +772,19 @@ class TestSuperviseCallbackExchangesTokenFirst:
 
     @patch("airflow.sdk.execution_time.callback_supervisor._make_process_nondumpable")
     @patch.object(CallbackSubprocess, "start")
-    def test_rejected_exchange_prevents_the_subprocess_from_starting(self, mock_start, _nondumpable):
-        client = Mock()
+    def test_rejected_exchange_prevents_the_subprocess_from_starting(
+        self, mock_start, _nondumpable, callback_client
+    ):
+        client = callback_client
         client.callbacks.run.side_effect = RuntimeError("409 Conflict: token already exchanged")
 
         with pytest.raises(RuntimeError, match="already exchanged"):
             self._supervise(client)
 
         mock_start.assert_not_called()
+        # The row is still QUEUED, which the state endpoint rejects; the scheduler's
+        # executor-event fallback is what fails it.
+        client.callbacks.finish.assert_not_called()
 
     @pytest.mark.parametrize("callback_kwargs_encoding", [None, "serde"])
     @patch("airflow.sdk.execution_time.callback_supervisor._make_process_nondumpable")
@@ -725,3 +804,72 @@ class TestSuperviseCallbackExchangesTokenFirst:
         )
 
         assert mock_start.call_args.kwargs["callback_kwargs_encoding"] == callback_kwargs_encoding
+
+
+class TestSuperviseCallbackReportsTerminalState:
+    """Every path that starts the subprocess must report a terminal state to the API."""
+
+    CALLBACK_ID = "01890a5d-ac70-7a5b-b7d5-0dd5b1c7be47"
+
+    def _supervise(self, client):
+        return supervise_callback(
+            id=self.CALLBACK_ID,
+            callback_path="does.not.matter",
+            callback_kwargs={},
+            dag_rel_path=Path("dag.py"),
+            client=client,
+        )
+
+    @patch("airflow.sdk.execution_time.callback_supervisor._make_process_nondumpable")
+    @patch.object(CallbackSubprocess, "start")
+    def test_clean_exit_reports_success(self, mock_start, _nondumpable, callback_client):
+        client = callback_client
+        mock_start.return_value = Mock(wait=Mock(return_value=0))
+
+        assert self._supervise(client) == 0
+
+        client.callbacks.finish.assert_called_once_with(
+            uuid.UUID(self.CALLBACK_ID),
+            state=CallbackTerminalState.SUCCESS,
+            output=None,
+        )
+
+    @patch("airflow.sdk.execution_time.callback_supervisor._make_process_nondumpable")
+    @patch.object(CallbackSubprocess, "start")
+    def test_nonzero_exit_reports_failed_before_raising(self, mock_start, _nondumpable, callback_client):
+        client = callback_client
+        mock_start.return_value = Mock(wait=Mock(return_value=3))
+
+        with pytest.raises(RuntimeError, match="exited with code 3"):
+            self._supervise(client)
+
+        client.callbacks.finish.assert_called_once_with(
+            uuid.UUID(self.CALLBACK_ID),
+            state=CallbackTerminalState.FAILED,
+            output="Callback subprocess exited with code 3",
+        )
+
+    @patch("airflow.sdk.execution_time.callback_supervisor._make_process_nondumpable")
+    @patch.object(CallbackSubprocess, "start")
+    def test_supervisor_error_reports_failed_with_the_cause(self, mock_start, _nondumpable, callback_client):
+        client = callback_client
+        mock_start.side_effect = ValueError("boom")
+
+        with pytest.raises(ValueError, match="boom"):
+            self._supervise(client)
+
+        client.callbacks.finish.assert_called_once_with(
+            uuid.UUID(self.CALLBACK_ID),
+            state=CallbackTerminalState.FAILED,
+            output="Callback supervisor error: ValueError: boom",
+        )
+
+    @patch("airflow.sdk.execution_time.callback_supervisor._make_process_nondumpable")
+    @patch.object(CallbackSubprocess, "start")
+    def test_a_failure_to_report_does_not_mask_the_outcome(self, mock_start, _nondumpable, callback_client):
+        """The scheduler fallback still has the executor event, so a reporting blip is not fatal."""
+        client = callback_client
+        client.callbacks.finish.side_effect = RuntimeError("API unreachable")
+        mock_start.return_value = Mock(wait=Mock(return_value=0))
+
+        assert self._supervise(client) == 0

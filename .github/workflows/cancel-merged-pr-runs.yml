@@ -1,0 +1,119 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+---
+# Cancels the `pull_request` runs that are still going after their pull request merged. Merging
+# pushes to the target branch, so this starts right after the merge. A push run can cancel the runs
+# of fork pull requests too. It never checks out or runs pull request code. See "Cancelling runs of
+# merged pull requests" in dev/breeze/doc/ci/05_workflows.md.
+name: "Cancel the runs of merged pull requests"
+on:  # yamllint disable-line rule:truthy
+  push:
+    # The branches pull requests merge into, as in the `pull_request` trigger of ci-amd.yml. A push
+    # runs the workflow file of the pushed branch, so a release branch needs its own copy.
+    branches:
+      - main
+      - v[0-9]+-[0-9]+-test
+      - v[0-9]+-[0-9]+-stable
+      - providers-[a-z]+-?[a-z]*/v[0-9]+-[0-9]+
+      - chart/v[0-9]+-[0-9]+x-test
+      - chart/v[0-9]+-[0-9]+x-stable
+      - airflow-ctl/v[0-9]+-[0-9]+-test
+      - airflow-ctl/v[0-9]+-[0-9]+-stable
+permissions:
+  actions: write
+  contents: read
+  pull-requests: read
+jobs:
+  cancel:
+    name: "Cancel the runs of merged pull requests"
+    if: github.repository == 'apache/airflow'
+    runs-on: ["ubuntu-slim"]
+    timeout-minutes: 10
+    steps:
+      - name: "Cancel the runs"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.sha }}
+        run: |
+          # The statuses of a run that has not finished. A run waiting for approval is "completed".
+          statuses=(queued in_progress waiting pending requested)
+          # Runs of a fork pull request do not list their pull request, so runs are matched by the
+          # head commit and repository. Only runs created before the merge count: workflows
+          # triggered by the merge itself, for example on `closed`, are meant to run.
+          list_runs() {
+            local head_repo=$1 head_sha=$2 merged_at=$3 status
+            for status in "${statuses[@]}"; do
+              gh api --paginate \
+                "repos/${REPO}/actions/runs?event=pull_request&head_sha=${head_sha}&status=${status}" \
+                --jq ".workflow_runs[] | select(.head_repository.full_name == \"${head_repo}\"
+                  and .created_at < \"${merged_at}\") | .id" || return 1
+            done
+          }
+          # Lookups run in command substitutions rather than process substitutions, so that a failed
+          # one fails the job instead of looking like nothing to cancel. GitHub associates the merge
+          # commit with its pull request some seconds after the push, as automatic-backport.yml
+          # also notes; a push that is not a merge finds nothing after a minute.
+          for _ in {1..6}; do
+            merged=$(gh api "repos/${REPO}/commits/${SHA}/pulls" --jq '.[]
+              | select(.merged_at != null)
+              | [.number, .head.repo.full_name, .head.sha, .merged_at] | @tsv')
+            [[ -n "${merged}" ]] && break
+            sleep 10
+          done
+          to_cancel=()
+          while IFS=$'\t' read -r number head_repo head_sha merged_at; do
+            [[ -n "${number}" ]] || continue
+            # The same commit can be the head of another pull request that is still open.
+            open=$(gh pr list -R "${REPO}" --state open --search "${head_sha}" --json headRefOid \
+              --jq "[.[] | select(.headRefOid == \"${head_sha}\")] | length")
+            if [[ "${open}" != 0 ]]; then
+              echo "#${number}: ${head_sha} is the head of an open pull request, nothing cancelled"
+              continue
+            fi
+            runs=$(list_runs "${head_repo}" "${head_sha}" "${merged_at}")
+            mapfile -t ids <<< "${runs}"
+            for id in "${ids[@]}"; do
+              [[ -n "${id}" ]] || continue
+              echo "#${number}: cancel run ${id}"
+              # A run that finished meanwhile cannot be cancelled (HTTP 409); that is fine.
+              gh api -X POST "repos/${REPO}/actions/runs/${id}/cancel" > /dev/null || true
+              to_cancel+=("${id}")
+            done
+          done <<< "${merged}"
+          # A job that ignores the cancellation keeps its runner, so a run still going after five
+          # minutes is force-cancelled.
+          for _ in {1..10}; do
+            remaining=()
+            for id in "${to_cancel[@]}"; do
+              [[ "$(gh api "repos/${REPO}/actions/runs/${id}" --jq .status)" == completed ]] \
+                || remaining+=("${id}")
+            done
+            to_cancel=("${remaining[@]}")
+            [[ ${#to_cancel[@]} == 0 ]] && exit 0
+            sleep 30
+          done
+          failed=0
+          for id in "${to_cancel[@]}"; do
+            echo "force-cancel run ${id}"
+            if ! out=$(gh api -X POST "repos/${REPO}/actions/runs/${id}/force-cancel" 2>&1); then
+              echo "${out}"
+              [[ "${out}" == *"(HTTP 409)"* ]] || failed=1
+            fi
+          done
+          exit "${failed}"

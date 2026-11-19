@@ -22,7 +22,7 @@ import ipaddress
 # [START dag_decorator_usage]
 from typing import TYPE_CHECKING, Any
 
-import httpx
+import httpx2
 import pendulum
 
 from airflow.providers.standard.operators.bash import BashOperator
@@ -42,7 +42,7 @@ class GetRequestOperator(BaseOperator):
         self.url = url
 
     def execute(self, context: Context):
-        return httpx.get(self.url).json()
+        return httpx2.get(self.url).json()
 
 
 @dag(

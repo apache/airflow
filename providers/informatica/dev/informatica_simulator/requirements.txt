@@ -5,4 +5,4 @@ python-multipart
 uvicorn==0.21.1
 pyarrow==14.0.1
 python-dateutil==2.8.2
-paramiko==3.4.0
+paramiko==5.0.0

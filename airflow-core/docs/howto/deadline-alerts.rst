@@ -387,6 +387,9 @@ as long as the variables being templated are included in the simplified context.
 ID and the calculated deadline time of the Deadline Alert as well as the data included in the ``GET`` REST API
 response for Dag Run. Support for more comprehensive context and templating will be added in future versions.
 
+Synchronous callbacks can also read XComs from tasks in the same Dag run through ``context["xcom_pull"]``,
+for example ``context["xcom_pull"]("extract")`` or ``context["xcom_pull"]("extract", key="row_count")``.
+
 Deadline Calculation
 ^^^^^^^^^^^^^^^^^^^^
 

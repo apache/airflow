@@ -24,8 +24,9 @@ a contributor work in one or both of these locations:
 Read these two documents early in every session — they contain the authoritative reference material:
 
 - `airflow-core/docs/authoring-and-scheduling/language-sdks/java.rst` — user-facing guide:
-  annotation vs. interface API, XCom type mapping, Gradle/Maven steps, coordinator config.
-- `java-sdk/README.md` — contributor guide: repository layout, detailed execution walkthrough,
+  Dag definition, stub TaskHandlers, XCom type mapping, Gradle/Maven steps, coordinator config.
+- `java-sdk/README.md` — user-facing landing page: installation, quick start, compatibility matrix.
+- `java-sdk/DEVELOPMENT.md` — contributor guide: repository layout, detailed execution walkthrough,
   Gradle + Breeze test commands, coding conventions, common tasks, and PR checklist.
 
 ---
@@ -97,7 +98,7 @@ the Dag bundle or startup fails. Every JAR in the Dag bundle goes on one classpa
 ## Running tests
 
 Always use `./gradlew` from inside `java-sdk/`; never run Gradle via apt's `gradle`.
-See `java-sdk/README.md#testing` for the full list of Gradle commands.
+See `java-sdk/DEVELOPMENT.md#testing` for the full list of Gradle commands.
 
 For the Python coordinator, use Breeze (never `pytest` directly on the host):
 
@@ -131,5 +132,5 @@ When upgrading to a newer Supervisor Schema version:
 - Regenerate models with `./gradlew generateJsonSchema2Pojo`
 - Modify `execution/Client.kt` to handle changes
 
-The `java-sdk/README.md#contributing` section walks through the full "adding a new Client
+The `java-sdk/DEVELOPMENT.md#contributing` section walks through the full "adding a new Client
 method" sequence step by step.

@@ -57,6 +57,7 @@ const handleDateRangeChange = (
 };
 
 export type FilterableSearchParamsKeys =
+  | SearchParamsKeys.ACTIVE
   | SearchParamsKeys.ASSET_EVENT_DATE_RANGE
   | SearchParamsKeys.BODY_SEARCH
   | SearchParamsKeys.BUNDLE_VERSION
@@ -79,6 +80,7 @@ export type FilterableSearchParamsKeys =
   | SearchParamsKeys.FROM_RANGE
   | SearchParamsKeys.GROUP_PATTERN
   | SearchParamsKeys.HAS_EVENTS
+  | SearchParamsKeys.HAS_IMPORT_ERRORS
   | SearchParamsKeys.HOSTNAME
   | SearchParamsKeys.JOB_STATE
   | SearchParamsKeys.JOB_TYPE
@@ -94,7 +96,9 @@ export type FilterableSearchParamsKeys =
   | SearchParamsKeys.NEEDS_REVIEW
   | SearchParamsKeys.OPERATOR_NAME_PATTERN
   | SearchParamsKeys.OWNERS
+  | SearchParamsKeys.PARTITION_KEY
   | SearchParamsKeys.PARTITION_KEY_PATTERN
+  | SearchParamsKeys.PARTITION_STATUS
   | SearchParamsKeys.PAUSED
   | SearchParamsKeys.POOL_NAME_PATTERN
   | SearchParamsKeys.QUEUE_NAME_PATTERN
@@ -107,6 +111,8 @@ export type FilterableSearchParamsKeys =
   | SearchParamsKeys.RUN_ID_PATTERN
   | SearchParamsKeys.RUN_STATE
   | SearchParamsKeys.RUN_TYPE
+  | SearchParamsKeys.SOURCE_MAP_INDEX
+  | SearchParamsKeys.SOURCE_RUN_ID
   | SearchParamsKeys.START_DATE_RANGE
   | SearchParamsKeys.STATE
   | SearchParamsKeys.SUBJECT_SEARCH
@@ -117,6 +123,9 @@ export type FilterableSearchParamsKeys =
   | SearchParamsKeys.TEAMS
   | SearchParamsKeys.TIMETABLE_TYPE
   | SearchParamsKeys.TO_RANGE
+  | SearchParamsKeys.TRIGGER_KIND
+  | SearchParamsKeys.TRIGGER_STATUS
+  | SearchParamsKeys.TRIGGERER_HOSTNAME
   | SearchParamsKeys.TRIGGERING_USER_NAME_PATTERN
   | SearchParamsKeys.TRY_NUMBER
   | SearchParamsKeys.USER;
@@ -178,7 +187,10 @@ export const useFiltersHandler = (searchParamKeys: Array<FilterableSearchParamsK
     }
   });
 
-  const handleFiltersChange = (filters: Record<string, FilterValue>) => {
+  const handleFiltersChange = (
+    filters: Record<string, FilterValue>,
+    { clearKeys = [] }: { readonly clearKeys?: ReadonlyArray<string> } = {},
+  ) => {
     setTableURLState({
       cursor: undefined,
       pagination: { ...pagination, pageIndex: 0 },
@@ -220,6 +232,7 @@ export const useFiltersHandler = (searchParamKeys: Array<FilterableSearchParamsK
         }
       });
 
+      clearKeys.forEach((key) => newParams.delete(key));
       newParams.delete(SearchParamsKeys.OFFSET);
       newParams.delete(SearchParamsKeys.CURSOR);
 

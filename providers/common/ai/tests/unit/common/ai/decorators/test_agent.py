@@ -26,6 +26,7 @@ from pydantic_ai.toolsets.function import FunctionToolset
 
 from airflow.providers.common.ai.decorators.agent import _AgentDecoratedOperator
 from airflow.providers.common.ai.toolsets.logging import ToolLoggingCapability
+from airflow.providers.common.ai.toolsets.sql import SQLToolset
 from airflow.providers.common.ai.utils.prompt_cache import PromptCaching
 from airflow.providers.common.ai.utils.toolset_base import MaskingToolset
 
@@ -113,27 +114,31 @@ class TestAgentDecoratedOperator:
             prompt, usage_limits=None, run_id="ti-1", cancellation_token=ANY, usage=ANY
         )
 
+    @patch("airflow.providers.common.ai.operators.agent.AgentOperator.run_hitl_review", autospec=True)
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
-    def test_sequence_prompt_with_hitl_review_raises_before_run_sync(self, mock_hook_cls):
-        """Sequence prompt + enable_hitl_review=True fails before the agent runs."""
+    def test_sequence_prompt_with_hitl_review_reaches_the_review(
+        self, mock_hook_cls, mock_run_hitl, make_mock_run_result
+    ):
         from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
 
         if not AIRFLOW_V_3_1_PLUS:
             pytest.skip("enable_hitl_review requires Airflow >= 3.1.0")
 
         mock_agent = MagicMock(spec=["run_sync", "instrument"])
+        mock_agent.run_sync.return_value = make_mock_run_result("Initial output")
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+        prompt = ["x", ImageUrl(url="https://example.com/x.png")]
 
         op = _AgentDecoratedOperator(
             task_id="test",
-            python_callable=lambda: ["x", ImageUrl(url="https://example.com/x.png")],
+            python_callable=lambda: prompt,
             llm_conn_id="my_llm",
             enable_hitl_review=True,
         )
-        with pytest.raises(TypeError, match="enable_hitl_review=True"):
-            op.execute(context={})
 
-        mock_agent.run_sync.assert_not_called()
+        assert op.execute(context=_make_context()) == "Initial output"
+        mock_run_hitl.assert_called_once()
+        assert mock_agent.run_sync.call_args.args[0] == prompt
 
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
     def test_execute_merges_op_kwargs_into_callable(self, mock_hook_cls, make_mock_run_result):
@@ -157,6 +162,25 @@ class TestAgentDecoratedOperator:
         mock_agent.run_sync.assert_called_once_with(
             "Analyze revenue trends", usage_limits=None, run_id="ti-1", cancellation_token=ANY, usage=ANY
         )
+
+    @patch("airflow.providers.common.ai.operators.agent.AgentOperator.execute", autospec=True)
+    def test_execute_renders_only_the_returned_prompt(self, mock_execute):
+        """Fields rendered before execute() are not rendered again; only the returned value is."""
+        op = _AgentDecoratedOperator(
+            task_id="test",
+            python_callable=lambda: "Summarize {{ topic }}",
+            llm_conn_id="my_llm",
+            system_prompt="{{ note }}",
+            toolsets=[SQLToolset(db_conn_id="{{ note }}")],
+        )
+        context = {"topic": "logs", "note": "{{ other }}", "other": "rendered twice"}
+
+        op.render_template_fields(context)
+        op.execute(context=context)
+
+        assert op.prompt == "Summarize logs"
+        assert op.system_prompt == "{{ other }}"
+        assert op.toolsets[0].id == "sql-{{ other }}"
 
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
     def test_execute_passes_toolsets_through(self, mock_hook_cls, make_mock_run_result):

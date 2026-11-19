@@ -135,7 +135,8 @@ const ConnectionForm = ({
 
       return formattedJson;
     } catch (error_) {
-      const errorMessage = error_ instanceof Error ? error_.message : translate("common:error.unknown");
+      const errorMessage =
+        error_ instanceof Error ? error_.message : translate("common:error.defaultMessage");
 
       setErrors((prev) => ({
         ...prev,

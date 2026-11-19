@@ -379,6 +379,7 @@ def cleanup_tables(args):
         batch_size=args.batch_size,
         dag_ids=args.dag_ids,
         exclude_dag_ids=args.exclude_dag_ids,
+        asset_ids=args.asset_ids,
         error_on_cleanup_failure=args.error_on_cleanup_failure,
     )
 

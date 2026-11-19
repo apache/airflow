@@ -30,37 +30,66 @@ import { NavButton } from "./NavButton";
 import { NavMenu } from "./NavMenu";
 import { PluginMenuItem } from "./PluginMenuItem";
 
-const links = [
+type BrowseLink = {
+  readonly href: string;
+  readonly key: string;
+  readonly labelKey?: string;
+  // Shown to users who have any of these menu items.
+  readonly titles: Array<MenuItem>;
+};
+
+const links: Array<BrowseLink> = [
   {
     href: "/events",
     key: "auditLog",
-    title: "Audit Log",
+    titles: ["Audit Log"],
   },
   {
     href: "/dag_bundles",
     key: "dagBundles",
     // Must stay byte-identical to MenuItem.DAG_BUNDLES: the filter below matches on this string.
-    title: "Dag Bundles",
+    titles: ["Dag Bundles"],
+  },
+  {
+    href: "/dag_runs",
+    key: "dagRuns",
+    // Reuses the label the Dags pages already show on their tabs.
+    labelKey: "dagRun_other",
+    // There is no menu item of its own for Dag runs: they follow the Dags permission.
+    titles: ["Dags"],
   },
   {
     href: "/deadlines",
     key: "deadlines",
-    title: "Deadlines",
+    titles: ["Deadlines"],
   },
   {
     href: "/jobs",
     key: "jobs",
-    title: "Jobs",
+    titles: ["Jobs"],
+  },
+  {
+    href: "/task_instances",
+    key: "taskInstances",
+    labelKey: "taskInstance_other",
+    titles: ["Dags"],
+  },
+  {
+    href: "/triggers",
+    key: "triggers",
+    // No menu item of its own: a trigger is shown to whoever can see what it is used by, a Dag's task
+    // instance or run, or a watched asset, so the entry follows the Dags and Assets permissions.
+    titles: ["Dags", "Assets"],
   },
   {
     href: "/xcoms",
     key: "xcoms",
-    title: "XComs",
+    titles: ["XComs"],
   },
   {
     href: "/required_actions",
     key: "requiredActions",
-    title: "Required Actions",
+    titles: ["Required Actions"],
   },
 ];
 
@@ -72,14 +101,20 @@ export const BrowseButton = ({
   readonly externalViews: Array<NavItemResponse>;
 }) => {
   const { t: translate } = useTranslation();
-  const authorizedLinks = links.filter(({ title }) => authorizedMenuItems.includes(title as MenuItem));
-  const menuItems = authorizedLinks.map((link) => (
-    <Menu.Item asChild key={link.key} value={translate(`browse.${link.key}`)}>
-      <RouterLink aria-label={translate(`browse.${link.key}`)} to={link.href}>
-        {translate(`browse.${link.key}`)}
-      </RouterLink>
-    </Menu.Item>
-  ));
+  const authorizedLinks = links.filter(({ titles }) =>
+    titles.some((title) => authorizedMenuItems.includes(title)),
+  );
+  const menuItems = authorizedLinks.map((link) => {
+    const label = translate(link.labelKey ?? `browse.${link.key}`);
+
+    return (
+      <Menu.Item asChild key={link.key} value={label}>
+        <RouterLink aria-label={label} to={link.href}>
+          {label}
+        </RouterLink>
+      </Menu.Item>
+    );
+  });
 
   if (!menuItems.length && !externalViews.length) {
     return undefined;

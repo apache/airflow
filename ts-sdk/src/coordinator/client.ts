@@ -58,14 +58,35 @@ import type {
  */
 type AbsentRowPolicy = "throw" | { codes: readonly string[]; apiServer404: boolean };
 
-function resolveWireMapIndex(
-  requestedMapIndex: number | null | undefined,
-  contextMapIndex: number,
-): number | null {
-  // `mapIndex` is nullable, so only use the context value when the user did
-  // not provide one. If the user passes null, send null to the supervisor.
-  const mapIndex = requestedMapIndex === undefined ? contextMapIndex : requestedMapIndex;
-  return mapIndex == null || mapIndex < 0 ? null : mapIndex;
+type XComTargetOpts = Pick<GetXComOpts, "key" | "dagId" | "runId" | "taskId" | "mapIndex">;
+
+function resolveXComTarget(opts: XComTargetOpts, ctx: TaskContext) {
+  // The supervisor never replies to a frame with a wrongly typed field, so the
+  // task would hang instead of failing fast.
+  assertKey(opts.key, "XCom key");
+  for (const [label, id] of [
+    ["dagId", opts.dagId],
+    ["taskId", opts.taskId],
+    ["runId", opts.runId],
+  ] as const) {
+    if (id != null) assertKey(id, `XCom ${label}`);
+  }
+  assertMapIndex(opts.mapIndex);
+  const dag_id = opts.dagId ?? ctx.dagId;
+  const task_id = opts.taskId ?? ctx.taskId;
+  const run_id = opts.runId ?? ctx.runId;
+  // A map index only names a row of the task that owns it, so another task or
+  // run does not inherit it. `mapIndex` is nullable: an explicit null stays null.
+  const targetsSelf = dag_id === ctx.dagId && task_id === ctx.taskId && run_id === ctx.runId;
+  const mapIndex =
+    opts.mapIndex === undefined ? (targetsSelf ? ctx.mapIndex : null) : opts.mapIndex;
+  return {
+    key: opts.key,
+    dag_id,
+    task_id,
+    run_id,
+    map_index: mapIndex === null || mapIndex < 0 ? null : mapIndex,
+  };
 }
 
 function fromWireConnection(body: WireConnectionResult): ConnectionResult {
@@ -142,14 +163,25 @@ const TASK_STATE_STORE_ABSENT_POLICY: AbsentRowPolicy = {
 // `[state_store] default_retention_days` at launch
 // (task-sdk/src/airflow/sdk/coordinators/_subprocess.py).
 const RETENTION_DAYS_ENV_VAR = "AIRFLOW__STATE_STORE__DEFAULT_RETENTION_DAYS";
-const MS_PER_DAY = 24 * 60 * 60 * 1000;
+const MS_PER_SECOND = 1000;
+const SECONDS_PER_DAY = 24 * 60 * 60;
 
-function assertKey(key: string): void {
+function assertKey(key: string, label: string): void {
   if (typeof key !== "string") {
-    throw new TypeError(`task state store key must be a string, got ${typeof key}`);
+    throw new TypeError(`${label} must be a string, got ${typeof key}`);
   }
   if (key === "") {
-    throw new RangeError("task state store key must not be empty");
+    throw new RangeError(`${label} must not be empty`);
+  }
+}
+
+function assertMapIndex(mapIndex: number | null | undefined): void {
+  if (mapIndex === undefined || mapIndex === null) return;
+  if (typeof mapIndex !== "number") {
+    throw new TypeError(`XCom mapIndex must be an integer or null, got ${typeof mapIndex}`);
+  }
+  if (!Number.isInteger(mapIndex)) {
+    throw new RangeError(`XCom mapIndex must be an integer, got ${mapIndex}`);
   }
 }
 
@@ -157,28 +189,29 @@ function assertKey(key: string): void {
 // past 9999, and the supervisor silently drops a frame it cannot decode
 // rather than replying with an error, so the task would hang instead of
 // failing fast. Route both retention paths through this check.
-function toExpiresAt(ms: number): string {
-  const at = new Date(Date.now() + ms);
+function toExpiresAt(seconds: number): string {
+  const at = new Date(Date.now() + seconds * MS_PER_SECOND);
   if (Number.isNaN(at.getTime()) || at.getUTCFullYear() > 9999) {
     throw new RangeError(
-      `retention of ${ms}ms overflows the wire timestamp; use NEVER_EXPIRE instead`,
+      `a retention that ends ${seconds}s from now overflows the wire timestamp; ` +
+        "use NEVER_EXPIRE instead",
     );
   }
   return at.toISOString();
 }
 
-/** Resolve `retentionMs` (or the deployment default) to a wire `expires_at`. */
-function resolveExpiresAt(retentionMs: number | typeof NEVER_EXPIRE | undefined): string | null {
-  if (retentionMs === undefined) {
+/** Resolve `retention` (or the deployment default) to a wire `expires_at`. */
+function resolveExpiresAt(seconds: number | typeof NEVER_EXPIRE | undefined): string | null {
+  if (seconds === undefined) {
     return resolveDefaultExpiresAt();
   }
-  if (retentionMs === NEVER_EXPIRE) {
+  if (seconds === NEVER_EXPIRE) {
     return null;
   }
-  if (!Number.isFinite(retentionMs) || retentionMs < 0) {
-    throw new RangeError(`retentionMs must be >= 0 or NEVER_EXPIRE, got ${String(retentionMs)}`);
+  if (!Number.isFinite(seconds) || seconds < 0) {
+    throw new RangeError(`retention must be >= 0 or NEVER_EXPIRE, got ${String(seconds)}`);
   }
-  return toExpiresAt(retentionMs);
+  return toExpiresAt(seconds);
 }
 
 // The coordinator always passes the setting, so an absent or malformed value is
@@ -189,8 +222,8 @@ function resolveDefaultExpiresAt(): string | null {
   if (raw === undefined) {
     throw new Error(
       `${RETENTION_DAYS_ENV_VAR} is not set, so the default retention is unknown. It carries ` +
-        "[state_store] default_retention_days to the runtime; pass retentionMs or NEVER_EXPIRE to " +
-        "set the expiry explicitly.",
+        "[state_store] default_retention_days to the runtime; pass retention or " +
+        "NEVER_EXPIRE to set the expiry explicitly.",
     );
   }
   const days = Number(raw);
@@ -202,7 +235,7 @@ function resolveDefaultExpiresAt(): string | null {
       `[state_store] default_retention_days must be >= 0, got ${raw}. Set to 0 to disable expiry.`,
     );
   }
-  return days === 0 ? null : toExpiresAt(days * MS_PER_DAY);
+  return days === 0 ? null : toExpiresAt(days * SECONDS_PER_DAY);
 }
 
 export function createCoordinatorClient(
@@ -248,7 +281,7 @@ export function createCoordinatorClient(
 
   const taskStateStore: TaskStateStore = {
     async get<T = unknown>(key: string): Promise<T | null> {
-      assertKey(key);
+      assertKey(key, "task state store key");
       const msg: GetTaskStateStore = { type: "GetTaskStateStore", ti_id: tiId, key };
       return rpc(
         "GetTaskStateStore",
@@ -264,7 +297,7 @@ export function createCoordinatorClient(
       value: NonNullable<JsonValue>,
       opts: TaskStateStoreSetOpts = {},
     ): Promise<void> {
-      assertKey(key);
+      assertKey(key, "task state store key");
       if (
         value === null ||
         value === undefined ||
@@ -277,13 +310,13 @@ export function createCoordinatorClient(
         ti_id: tiId,
         key,
         value,
-        expires_at: resolveExpiresAt(opts.retentionMs),
+        expires_at: resolveExpiresAt(opts.retention),
       };
       await rpc("SetTaskStateStore", "OKResponse", msg, () => undefined, "throw");
     },
 
     async delete(key: string): Promise<void> {
-      assertKey(key);
+      assertKey(key, "task state store key");
       const msg: DeleteTaskStateStore = { type: "DeleteTaskStateStore", ti_id: tiId, key };
       await rpc("DeleteTaskStateStore", "OKResponse", msg, () => undefined, "throw");
     },
@@ -303,7 +336,7 @@ export function createCoordinatorClient(
         "GetVariable",
         "VariableResult",
         msg,
-        (body) => (body!.value as string) ?? null,
+        (body) => body!.value as string,
         VARIABLE_ABSENT_POLICY,
       );
     },
@@ -315,6 +348,12 @@ export function createCoordinatorClient(
     },
 
     async setVariable(key: string, value: string, description?: string | null): Promise<void> {
+      // The supervisor can't decode a non-string value and never replies.
+      if (typeof value !== "string") {
+        throw new TypeError(
+          `variable value must be a string, got ${value === null ? "null" : typeof value}`,
+        );
+      }
       // `description` is a required wire field the supervisor validates, so it
       // is always sent; null is what Python's `Variable.set` stores by default.
       const msg: PutVariable = {
@@ -336,11 +375,7 @@ export function createCoordinatorClient(
     async getXComEntry(opts: GetXComOpts): Promise<XComEntry> {
       const msg: GetXCom = {
         type: "GetXCom",
-        key: opts.key,
-        dag_id: opts.dagId ?? ctx.dagId,
-        task_id: opts.taskId ?? ctx.taskId,
-        run_id: opts.runId ?? ctx.runId,
-        map_index: resolveWireMapIndex(opts.mapIndex, ctx.mapIndex),
+        ...resolveXComTarget(opts, ctx),
         include_prior_dates: opts.includePriorDates ?? false,
       };
       const entry = await rpc<XComEntry>(
@@ -367,12 +402,8 @@ export function createCoordinatorClient(
     async setXCom(opts: SetXComOpts): Promise<void> {
       const msg: SetXCom = {
         type: "SetXCom",
-        key: opts.key,
+        ...resolveXComTarget(opts, ctx),
         value: opts.value,
-        dag_id: opts.dagId ?? ctx.dagId,
-        task_id: opts.taskId ?? ctx.taskId,
-        run_id: opts.runId ?? ctx.runId,
-        map_index: resolveWireMapIndex(opts.mapIndex, ctx.mapIndex),
       };
       await rpc("SetXCom", null, msg, () => undefined, "throw");
     },

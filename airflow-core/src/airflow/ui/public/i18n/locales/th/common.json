@@ -75,7 +75,6 @@
   "dagRun_one": "Dag Run",
   "dagRun_other": "Dag Runs",
   "dagRunId": "Dag Run ID",
-  "dagWarnings": "คำเตือน/ข้อผิดพลาดของ Dag",
   "defaultToGraphView": "ค่าเริ่มต้นเป็นมุมมองกราฟ",
   "defaultToGridView": "ค่าเริ่มต้นเป็นมุมมองกริด",
   "direction": "ทิศทาง",

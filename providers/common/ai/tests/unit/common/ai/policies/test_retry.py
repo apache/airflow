@@ -17,10 +17,12 @@
 from __future__ import annotations
 
 import copy
+import importlib.util
 import json
 import logging
 import math
 import re
+import sys
 import traceback
 import warnings
 from datetime import timedelta
@@ -30,13 +32,17 @@ import pytest
 from pydantic import TypeAdapter, ValidationError
 from pydantic_ai import Agent
 from pydantic_ai.agent import AgentRunResult
-from pydantic_ai.exceptions import UnexpectedModelBehavior
+from pydantic_ai.exceptions import FallbackExceptionGroup, UnexpectedModelBehavior
 from pydantic_ai.messages import ModelResponse
 
 # LLMRetryPolicy depends on the RetryPolicy ABC introduced in Airflow 3.3 (AIP-105).
 # Skip the entire test module on older Airflow versions tested in compat CI.
 pytest.importorskip("airflow.sdk.definitions.retry_policy", reason="RetryPolicy requires Airflow 3.3+")
 
+from airflow.models.connection import Connection
+from airflow.providers.common.ai.fallback_exceptions import FallbackChainExhaustedError
+from airflow.providers.common.ai.hooks.pydantic_ai import PydanticAIAzureHook, PydanticAIHook
+from airflow.providers.common.ai.policies import retry as retry_module
 from airflow.providers.common.ai.policies.retry import (
     CLASSIFIER_INSTRUCTIONS,
     DEFAULT_CATEGORIES,
@@ -48,6 +54,7 @@ from airflow.providers.common.ai.policies.retry import (
     redact_registered_secrets,
 )
 from airflow.providers.common.ai.utils.decision import picked_key
+from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
 from airflow.sdk._shared.secrets_masker import reset_secrets_masker
 from airflow.sdk.definitions.retry_policy import RetryAction, RetryDecision, RetryPolicy, RetryRule
 from airflow.sdk.log import mask_secret
@@ -79,14 +86,21 @@ def _agent(output, **kwargs):
     return agent
 
 
+def _stub_hook(mock_hook_cls):
+    """Make ``get_hook`` return a hook instance that keeps the real method signatures."""
+    hook = create_autospec(PydanticAIHook, instance=True)
+    mock_hook_cls.get_hook.return_value = hook
+    return hook
+
+
 def _install(mock_hook_cls, agent):
     """Wire a mock agent behind the patched hook class and return the mock agent."""
-    mock_hook_cls.return_value.create_agent.return_value = agent
+    _stub_hook(mock_hook_cls).create_agent.return_value = agent
     return agent
 
 
 def _output_type(mock_hook_cls):
-    return mock_hook_cls.return_value.create_agent.call_args.kwargs["output_type"]
+    return mock_hook_cls.get_hook.return_value.create_agent.call_args.kwargs["output_type"]
 
 
 def _options(output_type):
@@ -107,6 +121,15 @@ def test_redact_registered_secrets_masks_only_registered_values():
         redact_registered_secrets("contact user@example.com with super-secret-conn-password")
         == "contact user@example.com with ***"
     )
+
+
+def test_import_without_retry_policy_support_raises_optional_feature_exception():
+    """A fresh copy of the module is executed so the real one in ``sys.modules`` stays intact."""
+    spec = importlib.util.spec_from_file_location("_retry_without_support", retry_module.__file__)
+    module = importlib.util.module_from_spec(spec)
+    with patch.dict(sys.modules, {"airflow.sdk.definitions.retry_policy": None}):
+        with pytest.raises(AirflowOptionalProviderFeatureException, match="Airflow 3.3"):
+            spec.loader.exec_module(module)
 
 
 class TestErrorCategory:
@@ -177,7 +200,20 @@ class TestClassifierRetryPolicyConstruction:
             min_confidence=0.6,
         )
 
-        mock_hook_cls.assert_not_called()
+        mock_hook_cls.get_hook.assert_not_called()
+
+    def test_hook_resolves_to_the_connection_types_subclass(self):
+        """An Azure connection must get ``PydanticAIAzureHook``, not the base hook's ``base_url`` kwargs."""
+        policy = ClassifierRetryPolicy(
+            llm_conn_id="azure_conn", model_id="azure:gpt-5", categories=DEFAULT_CATEGORIES
+        )
+        conn = Connection(conn_id="azure_conn", conn_type="pydanticai_azure")
+
+        with patch.object(PydanticAIHook, "get_connection", return_value=conn):
+            hook = policy._hook()
+
+        assert isinstance(hook, PydanticAIAzureHook)
+        assert hook.model_id == "azure:gpt-5"
 
     def test_categories_must_be_a_mapping(self):
         with pytest.raises(TypeError, match="categories must be a mapping"):
@@ -366,7 +402,7 @@ class TestClassification:
             agent.run_sync.return_value = _run_result(kwargs["output_type"]("rate_limit"))
             return agent
 
-        mock_hook_cls.return_value.create_agent.side_effect = capture
+        _stub_hook(mock_hook_cls).create_agent.side_effect = capture
         policy = ClassifierRetryPolicy(llm_conn_id="test", categories=DEFAULT_CATEGORIES)
 
         decision = policy.evaluate(RuntimeError("429"), try_number=1, max_tries=3)
@@ -391,7 +427,7 @@ class TestClassification:
             agent.run_sync.return_value = _run_result(kwargs["output_type"](name))
             return agent
 
-        mock_hook_cls.return_value.create_agent.side_effect = capture
+        _stub_hook(mock_hook_cls).create_agent.side_effect = capture
         policy = ClassifierRetryPolicy(
             llm_conn_id="test",
             categories={
@@ -489,7 +525,7 @@ class TestClassification:
         policy.evaluate(RuntimeError("x"), try_number=1, max_tries=3)
 
         assert (
-            mock_hook_cls.return_value.create_agent.call_args.kwargs["instructions"]
+            mock_hook_cls.get_hook.return_value.create_agent.call_args.kwargs["instructions"]
             == "Snowflake errors only."
         )
 
@@ -502,7 +538,9 @@ class TestClassification:
 
         policy.evaluate(RuntimeError("x"), try_number=1, max_tries=3)
 
-        mock_hook_cls.assert_called_once_with(llm_conn_id="jev_default", model_id="typesafe:jev-1.13.0")
+        mock_hook_cls.get_hook.assert_called_once_with(
+            "jev_default", hook_params={"model_id": "typesafe:jev-1.13.0"}
+        )
 
     @patch(HOOK, autospec=True)
     def test_timeout_passed_via_model_settings(self, mock_hook_cls):
@@ -918,6 +956,160 @@ class TestPrompt:
         assert prompt == f"{PROMPT_HEADER}{expected}"
 
 
+class _RateLimited(Exception):
+    """A connection answered 429."""
+
+
+class _BadRequest(Exception):
+    """A connection answered 400."""
+
+
+def _exhausted_chain(*members: Exception, replayed=None, recorded=None) -> FallbackChainExhaustedError:
+    return FallbackChainExhaustedError.from_group(
+        FallbackExceptionGroup("All models from FallbackModel failed", list(members)),
+        replayed_steps=replayed,
+        recorded_steps=recorded,
+    )
+
+
+class TestFallbackChain:
+    """A failed chain reaches the policy as one error; the policy still sees the members and the progress."""
+
+    @pytest.mark.parametrize("policy_cls", POLICY_CLASSES)
+    @patch(HOOK, autospec=True)
+    def test_prompt_names_every_member_error_in_chain_order(self, mock_hook_cls, policy_cls):
+        # Without the member lines in ``_prompt`` the model sees only the group's message.
+        error = _exhausted_chain(_RateLimited("primary throttled"), _BadRequest("secondary rejected"))
+
+        prompt = _prompt_for(mock_hook_cls, policy_cls, error)
+
+        assert prompt.index("chain member 1 of 2: _RateLimited: primary throttled") < prompt.index(
+            "chain member 2 of 2: _BadRequest: secondary rejected"
+        )
+
+    @pytest.mark.enable_redact
+    @pytest.mark.parametrize("policy_cls", POLICY_CLASSES)
+    @patch(HOOK, autospec=True)
+    def test_prompt_redacts_a_secret_in_a_member_error(self, mock_hook_cls, policy_cls):
+        # Dropping the member lines from the redacted ``text`` leaks the secret into the prompt.
+        reset_secrets_masker()
+        secret_value = "member-secret-token"
+        mask_secret(secret_value)
+        error = _exhausted_chain(_BadRequest(f"bad token {secret_value}"), _RateLimited("slow down"))
+
+        prompt = _prompt_for(mock_hook_cls, policy_cls, error)
+
+        assert "chain member 1 of 2: _BadRequest: bad token ***" in prompt
+        assert secret_value not in prompt
+
+    @pytest.mark.parametrize("policy_cls", POLICY_CLASSES)
+    @patch(HOOK, autospec=True)
+    def test_a_long_earlier_member_does_not_push_the_last_one_out_of_the_prompt(
+        self, mock_hook_cls, policy_cls
+    ):
+        # Truncating the joined text instead of each member keeps the head and drops the last member.
+        error = _exhausted_chain(_RateLimited("x" * 500), _BadRequest("final rejection"))
+
+        prompt = _prompt_for(mock_hook_cls, policy_cls, error, max_exception_length=100)
+
+        assert "chain member 1 of 2: _RateLimited: " + "x" * 100 + "... (truncated)" in prompt
+        assert "chain member 2 of 2: _BadRequest: final rejection" in prompt
+
+    @pytest.mark.parametrize("policy_cls", POLICY_CLASSES)
+    @patch(HOOK, autospec=True)
+    def test_prompt_says_how_far_the_durable_attempt_got(self, mock_hook_cls, policy_cls):
+        error = _exhausted_chain(_RateLimited("a"), _RateLimited("b"), replayed=2, recorded=1)
+
+        prompt = _prompt_for(mock_hook_cls, policy_cls, error)
+
+        assert "replayed 2 and recorded 1 durable journal steps" in prompt
+
+    @pytest.mark.parametrize("policy_cls", POLICY_CLASSES)
+    @patch(HOOK, autospec=True)
+    def test_prompt_has_no_progress_line_without_a_journal(self, mock_hook_cls, policy_cls):
+        error = _exhausted_chain(_RateLimited("a"), _RateLimited("b"))
+
+        prompt = _prompt_for(mock_hook_cls, policy_cls, error)
+
+        assert "journal" not in prompt
+
+    @patch(HOOK, autospec=True)
+    def test_traceback_prompt_is_left_to_the_exception_group_formatter(self, mock_hook_cls):
+        error = _exhausted_chain(_RateLimited("a"), _BadRequest("b"))
+
+        prompt = _prompt_for(mock_hook_cls, ClassifierRetryPolicy, error, include_traceback=True)
+
+        assert "chain member" not in prompt
+        assert "_BadRequest: b" in prompt
+
+    @pytest.fixture
+    def rules(self):
+        return [
+            RetryRule(exception=_RateLimited, action=RetryAction.RETRY, retry_delay=timedelta(seconds=60)),
+            RetryRule(exception=_BadRequest, action=RetryAction.FAIL, reason="bad request"),
+        ]
+
+    @pytest.mark.parametrize("policy_cls", POLICY_CLASSES)
+    def test_rules_match_the_members_when_all_are_rate_limited(self, rules, policy_cls):
+        # Without the last-member target, only the group is compared and no rule matches.
+        policy = policy_cls(llm_conn_id="nonexistent", fallback_rules=rules)
+
+        decision = policy.evaluate(
+            _exhausted_chain(_RateLimited("a"), _RateLimited("b")), try_number=1, max_tries=3
+        )
+
+        assert (decision.action, decision.retry_delay) == (RetryAction.RETRY, timedelta(seconds=60))
+        assert decision.reason.endswith("(last chain member)")
+
+    @pytest.mark.parametrize(
+        ("members", "expected"),
+        [
+            pytest.param((_RateLimited("a"), _BadRequest("b")), RetryAction.FAIL, id="last-is-400"),
+            pytest.param((_BadRequest("a"), _RateLimited("b")), RetryAction.RETRY, id="last-is-429"),
+        ],
+    )
+    def test_the_last_member_decides_when_the_members_disagree(self, rules, members, expected):
+        policy = LLMRetryPolicy(llm_conn_id="nonexistent", fallback_rules=rules)
+
+        decision = policy.evaluate(_exhausted_chain(*members), try_number=1, max_tries=3)
+
+        assert decision.action == expected
+
+    def test_a_rule_on_the_chain_error_itself_keeps_matching(self):
+        policy = LLMRetryPolicy(
+            llm_conn_id="nonexistent",
+            fallback_rules=[RetryRule(exception=FallbackExceptionGroup, action=RetryAction.FAIL)],
+        )
+
+        decision = policy.evaluate(_exhausted_chain(_RateLimited("a")), try_number=1, max_tries=3)
+
+        assert decision.action == RetryAction.FAIL
+        assert not decision.reason.endswith("(last chain member)")
+
+    def test_rules_apply_in_the_order_they_are_listed_across_both_targets(self):
+        # The member rule listed first wins over a group catch-all listed after it. Going target by
+        # target would reach the group catch-all first and fail.
+        policy = LLMRetryPolicy(
+            llm_conn_id="nonexistent",
+            fallback_rules=[
+                RetryRule(exception=_RateLimited, action=RetryAction.RETRY),
+                RetryRule(exception=FallbackExceptionGroup, action=RetryAction.FAIL, reason="group"),
+            ],
+        )
+
+        decision = policy.evaluate(_exhausted_chain(_RateLimited("a")), try_number=1, max_tries=3)
+
+        assert decision.action == RetryAction.RETRY
+        assert decision.reason.endswith("(last chain member)")
+
+    def test_a_chain_with_no_matching_rule_keeps_the_task_default(self, rules):
+        policy = LLMRetryPolicy(llm_conn_id="nonexistent", fallback_rules=rules)
+
+        decision = policy.evaluate(_exhausted_chain(ValueError("a")), try_number=1, max_tries=3)
+
+        assert decision.action == RetryAction.DEFAULT
+
+
 class TestFallbackBehaviour:
     """When the LLM call itself fails the deterministic path decides, unchanged."""
 
@@ -971,7 +1163,7 @@ class TestFallbackBehaviour:
 
     @patch(HOOK, autospec=True)
     def test_hook_creation_failure_triggers_fallback(self, mock_hook_cls):
-        mock_hook_cls.return_value.create_agent.side_effect = RuntimeError("unexpected")
+        _stub_hook(mock_hook_cls).create_agent.side_effect = RuntimeError("unexpected")
         policy = ClassifierRetryPolicy(
             llm_conn_id="test",
             fallback_rules=[RetryRule(exception=ValueError, action=RetryAction.FAIL, reason="caught")],
@@ -1058,7 +1250,7 @@ class TestOnUncertain:
         def create_agent(**kwargs):
             return llm if kwargs["output_type"] is ErrorClassification else classifier
 
-        mock_hook_cls.return_value.create_agent.side_effect = create_agent
+        _stub_hook(mock_hook_cls).create_agent.side_effect = create_agent
         return ClassifierRetryPolicy(
             llm_conn_id="jev",
             min_confidence=bar,
@@ -1097,7 +1289,7 @@ class TestOnUncertain:
 
         assert decision.action == RetryAction.RETRY
         assert decision.reason == "category=network confidence=0.95 threshold=0.80 action=retry delay=10s"
-        assert mock_hook_cls.return_value.create_agent.call_count == 1
+        assert mock_hook_cls.get_hook.return_value.create_agent.call_count == 1
 
     @patch(HOOK, autospec=True)
     def test_unsure_classifier_escalates_to_the_llm(self, mock_hook_cls):
@@ -1256,7 +1448,7 @@ class TestOnUncertain:
     @patch(HOOK, autospec=True)
     def test_nested_classifiers_both_down_still_reach_the_outer_fail_rule(self, mock_hook_cls):
         """A ClassifierRetryPolicy as fallback_policy falls back with a DEFAULT of its own; the outer rules must still run."""
-        mock_hook_cls.return_value.create_agent.return_value.run_sync.side_effect = TimeoutError("down")
+        _stub_hook(mock_hook_cls).create_agent.return_value.run_sync.side_effect = TimeoutError("down")
         inner = ClassifierRetryPolicy(llm_conn_id="jev_b", min_confidence=0.5)
         policy = ClassifierRetryPolicy(
             llm_conn_id="jev_a",
@@ -1271,7 +1463,7 @@ class TestOnUncertain:
 
         assert decision.action == RetryAction.FAIL
         assert decision.reason == "classifier answer not applied (model_error); never retry 403"
-        assert mock_hook_cls.return_value.create_agent.call_count == 2
+        assert mock_hook_cls.get_hook.return_value.create_agent.call_count == 2
 
 
 def _open_agent(category, should_retry, delay=0, reasoning="test"):
@@ -1316,7 +1508,7 @@ class TestLLMRetryPolicy:
         _install(mock_hook_cls, _open_agent("auth", should_retry=False))
         LLMRetryPolicy(llm_conn_id="test").evaluate(PermissionError("403"), try_number=1, max_tries=3)
 
-        kwargs = mock_hook_cls.return_value.create_agent.call_args.kwargs
+        kwargs = mock_hook_cls.get_hook.return_value.create_agent.call_args.kwargs
         assert kwargs["output_type"] is ErrorClassification
         assert kwargs["instructions"] == DEFAULT_INSTRUCTIONS
 
@@ -1368,7 +1560,7 @@ class TestLLMRetryPolicy:
         assert decision.action == RetryAction.RETRY
         assert decision.retry_delay == timedelta(seconds=30)
         assert decision.reason == "warehouse_suspended: auto-resume"
-        assert mock_hook_cls.return_value.create_agent.call_args.kwargs["instructions"].startswith(
+        assert mock_hook_cls.get_hook.return_value.create_agent.call_args.kwargs["instructions"].startswith(
             "'Warehouse suspended'"
         )
 

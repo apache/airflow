@@ -47,6 +47,7 @@ from airflow.providers.amazon.aws.utils import (
     build_resource_in_use_retry_args,
     validate_execute_complete_event,
 )
+from airflow.providers.amazon.aws.utils.deferral import should_defer
 from airflow.providers.amazon.aws.utils.mixins import AwsHookParams, aws_template_fields
 from airflow.providers.amazon.aws.utils.waiter_with_logging import wait
 from airflow.providers.cncf.kubernetes.utils.pod_manager import OnFinishAction
@@ -268,8 +269,9 @@ class EksCreateClusterOperator(AwsBaseOperator[EksHook]):
     :param waiter_delay: Time (in seconds) to wait between two consecutive calls to check cluster state
     :param waiter_max_attempts: The maximum number of attempts to check cluster state
     :param deferrable: If True, the operator will wait asynchronously for the job to complete.
-        This implies waiting for completion. This mode requires aiobotocore module to be installed.
-        (default: False)
+        Deferring when ``wait_for_completion`` is False is deprecated; from the next major release
+        this has no effect when ``wait_for_completion`` is False.
+        This mode requires aiobotocore module to be installed. (default: False)
     :param delete_nodegroup_on_failure: Whether to attempt best-effort deletion of the managed nodegroup if creation
         fails during the wait phase after successful initiation. Defaults to True.
     """
@@ -321,8 +323,6 @@ class EksCreateClusterOperator(AwsBaseOperator[EksHook]):
         self.nodegroup_role_arn = nodegroup_role_arn
         self.fargate_pod_execution_role_arn = fargate_pod_execution_role_arn
         self.create_fargate_profile_kwargs = create_fargate_profile_kwargs or {}
-        if deferrable:
-            wait_for_completion = False
         self.wait_for_completion = wait_for_completion
         self.waiter_delay = waiter_delay
         self.waiter_max_attempts = waiter_max_attempts
@@ -366,7 +366,11 @@ class EksCreateClusterOperator(AwsBaseOperator[EksHook]):
 
         # Short circuit early if we don't need to wait to attach compute
         # and the caller hasn't requested to wait for the cluster either.
-        if not any([self.compute, self.wait_for_completion, self.deferrable]):
+        if (
+            not self.compute
+            and not self.wait_for_completion
+            and not should_defer(deferrable=self.deferrable, wait_for_completion=self.wait_for_completion)
+        ):
             return None
 
         self.log.info("Waiting for EKS Cluster to provision. This will take some time.")
@@ -446,7 +450,7 @@ class EksCreateClusterOperator(AwsBaseOperator[EksHook]):
                 cluster_name=self.cluster_name,
                 aws_conn_id=self.aws_conn_id,
                 region=self.region_name,
-                wait_for_completion=self.wait_for_completion,
+                wait_for_completion=False,
                 waiter_delay=self.waiter_delay,
                 waiter_max_attempts=self.waiter_max_attempts,
                 nodegroup_name=self.nodegroup_name,
@@ -459,6 +463,11 @@ class EksCreateClusterOperator(AwsBaseOperator[EksHook]):
                 subnets=cast("list[str]", self.resources_vpc_config.get("subnetIds")),
                 delete_nodegroup_on_failure=self.delete_nodegroup_on_failure,
             )
+            # The cluster wait above is needed to attach compute; waiting for the compute itself is not.
+            if not self.compute or not should_defer(
+                deferrable=self.deferrable, wait_for_completion=self.wait_for_completion
+            ):
+                return
             if self.compute == "fargate":
                 self.defer(
                     trigger=EksCreateFargateProfileTrigger(
@@ -535,8 +544,9 @@ class EksCreateNodegroupOperator(AwsBaseOperator[EksHook]):
     :param waiter_delay: Time (in seconds) to wait between two consecutive calls to check nodegroup state
     :param waiter_max_attempts: The maximum number of attempts to check nodegroup state
     :param deferrable: If True, the operator will wait asynchronously for the nodegroup to be created.
-        This implies waiting for completion. This mode requires aiobotocore module to be installed.
-        (default: False)
+        Deferring when ``wait_for_completion`` is False is deprecated; from the next major release
+        this has no effect when ``wait_for_completion`` is False.
+        This mode requires aiobotocore module to be installed. (default: False)
     :param delete_nodegroup_on_failure: Whether to attempt best-effort deletion of the managed nodegroup if creation
         fails during the wait phase after successful initiation. Defaults to True.
     """
@@ -572,8 +582,6 @@ class EksCreateNodegroupOperator(AwsBaseOperator[EksHook]):
         self.nodegroup_role_arn = nodegroup_role_arn
         self.nodegroup_name = nodegroup_name
         self.create_nodegroup_kwargs = create_nodegroup_kwargs or {}
-        if deferrable:
-            wait_for_completion = False
         self.wait_for_completion = wait_for_completion
         self.waiter_delay = waiter_delay
         self.waiter_max_attempts = waiter_max_attempts
@@ -605,12 +613,13 @@ class EksCreateNodegroupOperator(AwsBaseOperator[EksHook]):
                     )
             self.nodegroup_subnets = nodegroup_subnets_list
 
+        defer = should_defer(deferrable=self.deferrable, wait_for_completion=self.wait_for_completion)
         _create_compute(
             compute=self.compute,
             cluster_name=self.cluster_name,
             aws_conn_id=self.aws_conn_id,
             region=self.region_name,
-            wait_for_completion=self.wait_for_completion,
+            wait_for_completion=self.wait_for_completion and not defer,
             waiter_delay=self.waiter_delay,
             waiter_max_attempts=self.waiter_max_attempts,
             nodegroup_name=self.nodegroup_name,
@@ -620,7 +629,7 @@ class EksCreateNodegroupOperator(AwsBaseOperator[EksHook]):
             delete_nodegroup_on_failure=self.delete_nodegroup_on_failure,
         )
 
-        if self.deferrable:
+        if defer:
             self.defer(
                 trigger=EksCreateNodegroupTrigger(
                     cluster_name=self.cluster_name,
@@ -672,8 +681,9 @@ class EksCreateFargateProfileOperator(AwsBaseOperator[EksHook]):
     :param waiter_delay: Time (in seconds) to wait between two consecutive calls to check profile status
     :param waiter_max_attempts: The maximum number of attempts to check the status of the profile.
     :param deferrable: If True, the operator will wait asynchronously for the profile to be created.
-        This implies waiting for completion. This mode requires aiobotocore module to be installed.
-        (default: False)
+        Deferring when ``wait_for_completion`` is False is deprecated; from the next major release
+        this has no effect when ``wait_for_completion`` is False.
+        This mode requires aiobotocore module to be installed. (default: False)
     """
 
     aws_hook_class = EksHook
@@ -705,8 +715,6 @@ class EksCreateFargateProfileOperator(AwsBaseOperator[EksHook]):
         self.pod_execution_role_arn = pod_execution_role_arn
         self.fargate_profile_name = fargate_profile_name
         self.create_fargate_profile_kwargs = create_fargate_profile_kwargs or {}
-        if deferrable:
-            wait_for_completion = False
         self.wait_for_completion = wait_for_completion
         self.waiter_delay = waiter_delay
         self.waiter_max_attempts = waiter_max_attempts
@@ -723,12 +731,13 @@ class EksCreateFargateProfileOperator(AwsBaseOperator[EksHook]):
         super().__init__(**kwargs)
 
     def execute(self, context: Context):
+        defer = should_defer(deferrable=self.deferrable, wait_for_completion=self.wait_for_completion)
         _create_compute(
             compute=self.compute,
             cluster_name=self.cluster_name,
             aws_conn_id=self.aws_conn_id,
             region=self.region_name,
-            wait_for_completion=self.wait_for_completion,
+            wait_for_completion=self.wait_for_completion and not defer,
             waiter_delay=self.waiter_delay,
             waiter_max_attempts=self.waiter_max_attempts,
             fargate_profile_name=self.fargate_profile_name,
@@ -736,7 +745,7 @@ class EksCreateFargateProfileOperator(AwsBaseOperator[EksHook]):
             fargate_selectors=self.selectors,
             create_fargate_profile_kwargs=self.create_fargate_profile_kwargs,
         )
-        if self.deferrable:
+        if defer:
             self.defer(
                 trigger=EksCreateFargateProfileTrigger(
                     cluster_name=self.cluster_name,
@@ -787,8 +796,9 @@ class EksDeleteClusterOperator(AwsBaseOperator[EksHook]):
     :param waiter_delay: Time (in seconds) to wait between two consecutive calls to check cluster state
     :param waiter_max_attempts: The maximum number of attempts to check cluster state
     :param deferrable: If True, the operator will wait asynchronously for the cluster to be deleted.
-        This implies waiting for completion. This mode requires aiobotocore module to be installed.
-        (default: False)
+        Deferring when ``wait_for_completion`` is False is deprecated; from the next major release
+        this has no effect when ``wait_for_completion`` is False.
+        This mode requires aiobotocore module to be installed. (default: False)
 
     """
 
@@ -810,8 +820,6 @@ class EksDeleteClusterOperator(AwsBaseOperator[EksHook]):
     ) -> None:
         self.cluster_name = cluster_name
         self.force_delete_compute = force_delete_compute
-        if deferrable:
-            wait_for_completion = False
         self.wait_for_completion = wait_for_completion
         self.deferrable = deferrable
         self.waiter_delay = waiter_delay
@@ -828,7 +836,7 @@ class EksDeleteClusterOperator(AwsBaseOperator[EksHook]):
         super().__init__(**kwargs)
 
     def execute(self, context: Context):
-        if self.deferrable:
+        if should_defer(deferrable=self.deferrable, wait_for_completion=self.wait_for_completion):
             self.defer(
                 trigger=EksDeleteClusterTrigger(
                     cluster_name=self.cluster_name,
@@ -941,8 +949,9 @@ class EksDeleteNodegroupOperator(AwsBaseOperator[EksHook]):
     :param waiter_delay: Time (in seconds) to wait between two consecutive calls to check nodegroup state
     :param waiter_max_attempts: The maximum number of attempts to check nodegroup state
     :param deferrable: If True, the operator will wait asynchronously for the nodegroup to be deleted.
-        This implies waiting for completion. This mode requires aiobotocore module to be installed.
-        (default: False)
+        Deferring when ``wait_for_completion`` is False is deprecated; from the next major release
+        this has no effect when ``wait_for_completion`` is False.
+        This mode requires aiobotocore module to be installed. (default: False)
 
     """
 
@@ -982,7 +991,7 @@ class EksDeleteNodegroupOperator(AwsBaseOperator[EksHook]):
         for attempt in tenacity.Retrying(**build_resource_in_use_retry_args(self.log)):
             with attempt:
                 self.hook.delete_nodegroup(clusterName=self.cluster_name, nodegroupName=self.nodegroup_name)
-        if self.deferrable:
+        if should_defer(deferrable=self.deferrable, wait_for_completion=self.wait_for_completion):
             self.defer(
                 trigger=EksDeleteNodegroupTrigger(
                     cluster_name=self.cluster_name,
@@ -1037,8 +1046,9 @@ class EksDeleteFargateProfileOperator(AwsBaseOperator[EksHook]):
     :param waiter_delay: Time (in seconds) to wait between two consecutive calls to check profile status
     :param waiter_max_attempts: The maximum number of attempts to check the status of the profile.
     :param deferrable: If True, the operator will wait asynchronously for the profile to be deleted.
-        This implies waiting for completion. This mode requires aiobotocore module to be installed.
-        (default: False)
+        Deferring when ``wait_for_completion`` is False is deprecated; from the next major release
+        this has no effect when ``wait_for_completion`` is False.
+        This mode requires aiobotocore module to be installed. (default: False)
     """
 
     aws_hook_class = EksHook
@@ -1078,7 +1088,7 @@ class EksDeleteFargateProfileOperator(AwsBaseOperator[EksHook]):
                 self.hook.delete_fargate_profile(
                     clusterName=self.cluster_name, fargateProfileName=self.fargate_profile_name
                 )
-        if self.deferrable:
+        if should_defer(deferrable=self.deferrable, wait_for_completion=self.wait_for_completion):
             self.defer(
                 trigger=EksDeleteFargateProfileTrigger(
                     cluster_name=self.cluster_name,

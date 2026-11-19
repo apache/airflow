@@ -25,11 +25,12 @@ from uuid import uuid4
 import pytest
 from pydantic_ai import Agent
 from pydantic_ai.exceptions import UsageLimitExceeded
-from pydantic_ai.messages import ModelResponse, TextPart
+from pydantic_ai.messages import BinaryContent, ModelResponse, TextPart
 from pydantic_ai.models.function import FunctionModel
 from pydantic_ai.usage import UsageLimits
 
 from airflow.providers.common.ai.exceptions import ReviewedOutputValidationError
+from airflow.providers.common.ai.hooks.pydantic_ai import PydanticAIHook
 from airflow.providers.common.ai.operators.llm_schema_compare import (
     LLMSchemaCompareOperator,
     SchemaCompareResult,
@@ -295,9 +296,32 @@ class TestLLMSchemaCompareOperator:
             retries=None,
         )
         mock_agent.run_sync.assert_called_once_with(
-            "user_prompt", usage_limits=None, cancellation_token=mock.ANY
+            "user_prompt", usage=mock.ANY, usage_limits=None, cancellation_token=mock.ANY
         )
         assert result == {"compatible": True, "mismatches": [], "summary": "All good"}
+
+    @pytest.mark.parametrize("model_name", ["gpt-5", None])
+    @mock.patch.object(LLMSchemaCompareOperator, "_build_schema_context", return_value="schema_context")
+    def test_run_usage_run_id_and_model_name_pushed_to_xcom(
+        self, mock_build_schema_context, make_reporting_agent, reporting_task_instance, model_name
+    ):
+        mock_agent, expected_pushes = make_reporting_agent(
+            SchemaCompareResult(compatible=True, mismatches=[], summary="All good"), model_name=model_name
+        )
+        op = LLMSchemaCompareOperator(
+            task_id="test",
+            prompt="Compare",
+            llm_conn_id="llm_conn",
+            db_conn_ids=["a", "b"],
+            table_names=["t"],
+        )
+        op.llm_hook = MagicMock(spec=PydanticAIHook)
+        op.llm_hook.create_agent.return_value = mock_agent
+        ti = reporting_task_instance
+
+        op.execute(context={"task_instance": ti})
+
+        assert {c.kwargs["key"]: c.kwargs["value"] for c in ti.xcom_push.call_args_list} == expected_pushes
 
     @mock.patch(
         "airflow.providers.common.ai.operators.llm_schema_compare.LLMSchemaCompareOperator._build_schema_context"
@@ -414,6 +438,7 @@ class TestLLMSchemaCompareOperator:
 
         mock_agent.run_sync.assert_called_once_with(
             "Compare S3 Parquet schema against the Postgres table and flag breaking changes",
+            usage=mock.ANY,
             usage_limits=None,
             cancellation_token=mock.ANY,
         )
@@ -827,13 +852,36 @@ class TestLLMSchemaCompareOperatorApproval:
         with pytest.raises(ReviewedOutputValidationError, match="output_type SchemaCompareResult"):
             op.execute_complete({}, generated_output=result.model_dump_json(), event=event)
 
-    def test_execute_rejects_sequence_prompt_with_require_approval(self):
+    @mock.patch(
+        "airflow.providers.common.ai.operators.llm_schema_compare.LLMSchemaCompareOperator._build_schema_context"
+    )
+    @mock.patch(
+        "airflow.providers.common.ai.operators.llm_schema_compare.LLMSchemaCompareOperator._build_system_prompt"
+    )
+    @mock.patch("airflow.providers.standard.triggers.hitl.HITLTrigger", autospec=True)
+    @mock.patch("airflow.sdk.execution_time.hitl.upsert_hitl_detail")
+    def test_execute_with_approval_reviews_a_sequence_prompt(
+        self,
+        mock_upsert,
+        mock_trigger_cls,
+        mock_build_system_prompt,
+        mock_build_schema_context,
+        make_mock_run_result,
+    ):
+        mock_build_schema_context.return_value = "schema_context"
+        mock_build_system_prompt.return_value = "system_prompt"
         op = LLMSchemaCompareOperator(
-            task_id="test_task",
-            prompt=["describe", b"bytes"],
-            llm_conn_id="llm_conn",
+            **{**_BASE_KWARGS, "prompt": ["Compare", BinaryContent(data=b"\x89PNG", media_type="image/png")]},
             **self._APPROVAL_KWARGS,
         )
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
+        mock_agent.run_sync.return_value = make_mock_run_result(
+            SchemaCompareResult(compatible=True, mismatches=[], summary="All good")
+        )
+        op.llm_hook = mock.Mock(spec=PydanticAIHook)
+        op.llm_hook.create_agent.return_value = mock_agent
 
-        with pytest.raises(TypeError, match="require_approval=True"):
+        with pytest.raises(TaskAwaitingInput):
             op.execute(context=_make_context())
+
+        assert "Prompt: Compare\n[image/png, 4 bytes]" in mock_upsert.call_args.kwargs["body"]

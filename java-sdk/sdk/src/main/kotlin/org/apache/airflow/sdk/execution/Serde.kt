@@ -145,15 +145,16 @@ private fun serializeTask(
     // value never matches the tuple default it is compared against), so it
     // is unconditional here too. Java tasks have no template fields.
     data["template_fields"] = emptyList<Any?>()
-    // What marks a task whose arguments Airflow resolves per instance for a
-    // runtime outside Python, as `@task.stub` does on the Python side.
-    // `get_arg_bindings` reads nothing without it.
-    data["is_stub"] = true
     argBindings(taskId, def)?.let { data["_arg_bindings"] = it }
   }
+  // The Java runtime runs every task of a Java Dag, a trigger task included, so
+  // every one of them is a stub. is_stub marks a task whose arguments Airflow
+  // resolves per instance for a runtime outside Python, as `@task.stub` does on
+  // the Python side. `get_arg_bindings` reads nothing without it.
+  data["is_stub"] = true
   // Lets NotPreviouslySkippedDep re-skip a cleared downstream, as Python's SkipMixin does.
   if (def.decider != null) data["_can_skip_downstream"] = true
-  // A trigger task takes the Dag's queue too, because the Java runtime runs it.
+  // The worker picks a runtime by queue, so a trigger task takes the Dag's queue too.
   val config =
     if (dagQueue == null || "queue" in def.configValues) def.configValues else def.configValues + ("queue" to dagQueue)
   // Emit only config entries that differ from their schema default, mirroring

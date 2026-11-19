@@ -23,14 +23,9 @@ import { BasePage } from "tests/e2e/pages/BasePage";
 export class DagCalendarTab extends BasePage {
   public readonly dailyToggle: Locator;
   public readonly hourlyToggle: Locator;
-  public readonly totalToggle = this.page.getByRole("button", { name: /total/i });
 
   public get activeCells(): Locator {
     return this.page.locator('[data-testid="calendar-cell"][data-has-data="true"]');
-  }
-
-  public get calendarCells(): Locator {
-    return this.page.getByTestId("calendar-cell");
   }
 
   public constructor(page: Page) {
@@ -78,12 +73,6 @@ export class DagCalendarTab extends BasePage {
 
     await expect(this.page.getByTestId("calendar-hourly-view")).toBeVisible({ timeout: 30_000 });
     await this.waitForCalendarReady();
-  }
-
-  public async switchToTotalView(): Promise<void> {
-    await this.totalToggle.click();
-
-    await expect(this.page).toHaveURL(/calendar-view-mode=total/u);
   }
 
   private async waitForCalendarReady(): Promise<void> {
