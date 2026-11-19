@@ -71,7 +71,7 @@ ARG AIRFLOW_VERSION="3.3.2"
 # build fails if a version passed here does not match it. Breeze passes the Python patchlevel that
 # "breeze ci upgrade" last moved, so a new patch release also rebuilds the legacy flavor.
 ARG AIRFLOW_IMAGE_FLAVOR="hardened"
-ARG BASE_IMAGE="ghcr.io/apache/airflow/base/python:3.13.18-debian13-dev@sha256:2f8b04d82244e0cc8250e1558a3e617407b69e28142763419f28079f16454c44"
+ARG BASE_IMAGE="ghcr.io/apache/airflow/base/python:3.13.18-debian13-dev@sha256:dbe603d026e33548f420346eb3963d3dd385a06148c1913bb5af32218829d4e2"
 
 # DEV_OS_DEPS_IMAGE / RUNTIME_OS_DEPS_IMAGE: the images the build and the final image install their OS
 # dependencies on. By default both are BASE_IMAGE and the build installs them from the apt repositories.
@@ -87,7 +87,7 @@ ARG AIRFLOW_PYTHON_VERSION=""
 # Also use `force pip` label on your PR to swap all places we use `uv` to `pip`
 ARG AIRFLOW_PIP_VERSION=26.3
 # ARG AIRFLOW_PIP_VERSION="git+https://github.com/pypa/pip.git@main"
-ARG AIRFLOW_UV_VERSION=0.13.7
+ARG AIRFLOW_UV_VERSION=0.13.9
 ARG AIRFLOW_USE_UV="false"
 ARG AIRFLOW_IMAGE_REPOSITORY="https://github.com/apache/airflow"
 ARG AIRFLOW_IMAGE_README_URL="https://raw.githubusercontent.com/apache/airflow/main/docs/docker-stack/README.md"
