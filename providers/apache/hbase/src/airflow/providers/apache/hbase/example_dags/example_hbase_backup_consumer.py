@@ -56,7 +56,6 @@ logger = logging.getLogger(__name__)
 default_args = {
     "owner": "airflow",
     "depends_on_past": False,
-    "start_date": datetime(2024, 1, 1),
     "email_on_failure": False,
     "email_on_retry": False,
     "retries": 1,
@@ -95,6 +94,7 @@ def decide_backup_type(**_context) -> str:
 with DAG(
     "example_hbase_backup_consumer",
     default_args=default_args,
+    start_date=datetime(2024, 1, 1),
     description="Automatic HBase backup triggered by data updates",
     schedule=[backup_table_dataset],  # Triggered by dataset updates
     catchup=False,

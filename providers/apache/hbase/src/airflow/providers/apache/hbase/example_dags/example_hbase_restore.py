@@ -52,7 +52,6 @@ logger = logging.getLogger(__name__)
 default_args = {
     "owner": "airflow",
     "depends_on_past": False,
-    "start_date": datetime(2024, 1, 1),
     "email_on_failure": False,
     "email_on_retry": False,
     "retries": 1,
@@ -62,6 +61,7 @@ default_args = {
 dag = DAG(
     "example_hbase_restore",
     default_args=default_args,
+    start_date=datetime(2024, 1, 1),
     description="HBase restore operations with verification",
     schedule=None,
     catchup=False,

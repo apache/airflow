@@ -44,7 +44,6 @@ from airflow.providers.common.compat.sdk import DAG
 default_args = {
     "owner": "airflow",
     "depends_on_past": False,
-    "start_date": datetime(2024, 1, 1),
     "email_on_failure": False,
     "email_on_retry": False,
     "retries": 1,
@@ -57,6 +56,7 @@ backup_table_dataset = hbase_table_dataset(host="hbase", port=9090, table_name="
 with DAG(
     "example_hbase_backup_producer",
     default_args=default_args,
+    start_date=datetime(2024, 1, 1),
     description="Generate data for HBase backup",
     schedule="@daily",  # Runs daily
     catchup=False,

@@ -41,7 +41,6 @@ from airflow.providers.common.compat.sdk import DAG
 default_args = {
     "owner": "airflow",
     "depends_on_past": False,
-    "start_date": datetime(2024, 1, 1),
     "email_on_failure": False,
     "email_on_retry": False,
     "retries": 1,
@@ -51,6 +50,7 @@ default_args = {
 dag = DAG(
     "example_hbase",
     default_args=default_args,
+    start_date=datetime(2024, 1, 1),
     description="Example HBase DAG using Hook with Thrift2",
     schedule=None,
     catchup=False,

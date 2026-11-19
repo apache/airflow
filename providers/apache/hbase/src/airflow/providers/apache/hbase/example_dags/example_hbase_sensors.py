@@ -46,7 +46,6 @@ logger = logging.getLogger(__name__)
 default_args = {
     "owner": "airflow",
     "depends_on_past": False,
-    "start_date": datetime(2024, 1, 1),
     "email_on_failure": False,
     "email_on_retry": False,
     "retries": 1,
@@ -115,6 +114,7 @@ def process_data():
 with DAG(
     "example_hbase_sensors",
     default_args=default_args,
+    start_date=datetime(2024, 1, 1),
     description="Example DAG demonstrating HBase sensors for data availability",
     schedule=None,
     catchup=False,
