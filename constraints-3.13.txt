@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-11-19T11:58:16.918158
+# This constraints file was automatically generated on 2026-11-19T21:52:23.043075
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -517,7 +517,7 @@ nbformat==5.11.1
 neo4j==6.4.1
 nest-asyncio2==1.7.4
 nest-asyncio==1.6.0
-numpy==2.5.4
+numpy==2.5.5
 oauthlib==4.0.1
 objsize==0.7.1
 openai==2.54.0
@@ -590,7 +590,7 @@ pyasn1_modules==0.4.2
 pybreaker==1.4.1
 pycountry==26.2.16
 pycparser==3.12
-pycryptodome==4.4.0
+pycryptodome==4.5.0
 pydantic-ai-slim==2.68.0
 pydantic-extra-types==2.11.1
 pydantic-graph==2.68.0
@@ -635,7 +635,7 @@ reactivex==6.1.0
 redis==8.1.0
 redshift_connector==2.2.0
 referencing==0.37.0
-regex==2026.11.9
+regex==2026.11.15
 requests-file==3.0.1
 requests-kerberos==0.15.0
 requests-oauthlib==2.0.0
