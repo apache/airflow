@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import asyncio
+import copy
 import dataclasses
 import importlib
 import json
@@ -1021,10 +1022,149 @@ class TestOptions:
             ok_tools.build_thread_options()
 
     @pytest.mark.asyncio
-    async def test_a_colliding_server_name_raises(self, ok_tools):
+    @pytest.mark.parametrize(
+        "config",
+        [
+            pytest.param({"mcp_servers": {"airflow": {}}}, id="nested"),
+            pytest.param({"mcp_servers.airflow": {"url": "x"}}, id="dotted-table"),
+            pytest.param({"mcp_servers.airflow.url": "x"}, id="dotted-leaf"),
+        ],
+    )
+    async def test_a_colliding_server_name_raises(self, ok_tools, config):
         async with ok_tools.serve():
             with pytest.raises(ValueError, match="already has an MCP server named 'airflow'"):
-                ok_tools.build_thread_options(config={"mcp_servers": {"airflow": {}}})
+                ok_tools.build_thread_options(config=config)
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "config",
+        [
+            pytest.param({"mcp_servers.airflow_other.url": "x"}, id="dotted-longer-name"),
+            pytest.param({"mcp_servers.air.url": "x"}, id="dotted-shorter-name"),
+            pytest.param({"mcp_servers": {"airflow_other": {"url": "x"}}}, id="nested-longer-name"),
+        ],
+    )
+    async def test_a_server_whose_name_only_starts_like_ours_does_not_collide(self, ok_tools, config):
+        async with ok_tools.serve():
+            options = ok_tools.build_thread_options(config=config)
+
+        assert list(options["config"].values()) == ["x"]
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("config", "expected"),
+        [
+            pytest.param(
+                {"mcp_servers": {"github": {"url": "u", "required": True}}},
+                {"mcp_servers.github.url": "u", "mcp_servers.github.required": True},
+                id="scalar-leaves",
+            ),
+            pytest.param(
+                {"mcp_servers": {"s": {"command": "c", "args": ["-a", "b"]}}},
+                {"mcp_servers.s.command": "c", "mcp_servers.s.args": ["-a", "b"]},
+                id="list-value-kept-whole",
+            ),
+            pytest.param(
+                {"mcp_servers": {"s": {"env": {"A": "1", "B": {"C": "2"}}}}},
+                {"mcp_servers.s.env.A": "1", "mcp_servers.s.env.B.C": "2"},
+                id="nested-tables",
+            ),
+            pytest.param(
+                {"mcp_servers": {"a": {"url": "1"}, "b": {"url": "2"}}},
+                {"mcp_servers.a.url": "1", "mcp_servers.b.url": "2"},
+                id="two-servers",
+            ),
+            pytest.param({"mcp_servers": {"s": {}}}, {}, id="empty-server-table"),
+            pytest.param(
+                {"mcp_servers": {"a:b": {"url": "u"}, "a@b": {"url": "u"}, "a/b": {"url": "u"}}},
+                {"mcp_servers.a:b.url": "u", "mcp_servers.a@b.url": "u", "mcp_servers.a/b.url": "u"},
+                id="colon-at-slash-in-server-name",
+            ),
+            pytest.param({"mcp_servers": {}}, {}, id="empty-mcp-servers"),
+            pytest.param({"mcp_servers": None}, {}, id="none-mcp-servers"),
+            pytest.param(
+                {"model_verbosity": "low", "mcp_servers": {"s": {"url": "u"}}, "features.x": True},
+                {"model_verbosity": "low", "features.x": True, "mcp_servers.s.url": "u"},
+                id="other-keys-survive",
+            ),
+        ],
+    )
+    async def test_a_nested_mcp_servers_table_is_flattened_into_dotted_keys(self, ok_tools, config, expected):
+        async with ok_tools.serve():
+            options = ok_tools.build_thread_options(config=config)
+
+        assert options["config"] == expected
+        assert list(options["config"]) == list(expected)
+
+    @pytest.mark.asyncio
+    async def test_building_options_does_not_modify_the_callers_config(self, ok_tools):
+        config = {"mcp_servers": {"s": {"url": "u", "env": {"A": "1"}}}, "model_verbosity": "low"}
+        before = copy.deepcopy(config)
+        async with ok_tools.serve():
+            options = ok_tools.build_thread_options(config=config)
+
+        assert config == before
+        assert options["config"] is not config
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("config", "match"),
+        [
+            pytest.param({"mcp_servers": []}, "must be a dict of server name", id="empty-list"),
+            pytest.param({"mcp_servers": ["airflow"]}, "must be a dict of server name", id="list"),
+            pytest.param({"mcp_servers": "airflow"}, "must be a dict of server name", id="string"),
+            pytest.param({"mcp_servers": 1}, "must be a dict of server name", id="int"),
+            pytest.param({"mcp_servers": {"github": "url"}}, "'github'\\] must be a dict", id="server-str"),
+            pytest.param(["mcp_servers"], "config must be a dict", id="config-list"),
+        ],
+    )
+    async def test_an_mcp_servers_value_that_is_not_a_mapping_raises(self, ok_tools, config, match):
+        async with ok_tools.serve():
+            with pytest.raises(ValueError, match=match):
+                ok_tools.build_thread_options(config=config)
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "config",
+        [
+            pytest.param(
+                {"mcp_servers": {"github": {"url": "a"}}, "mcp_servers.github.url": "b"}, id="same-leaf"
+            ),
+            pytest.param(
+                {"mcp_servers": {"github": {"url": "a"}}, "mcp_servers.github": {"url": "b"}},
+                id="dotted-table-over-nested-leaf",
+            ),
+            pytest.param(
+                {"mcp_servers": {"github": {"env": {"A": "1"}}}, "mcp_servers.github.env": {"A": "2"}},
+                id="dotted-prefix-of-nested-leaf",
+            ),
+        ],
+    )
+    async def test_a_nested_and_a_dotted_spelling_of_one_setting_raise(self, ok_tools, config):
+        async with ok_tools.serve():
+            with pytest.raises(ValueError, match="Write each setting once"):
+                ok_tools.build_thread_options(config=config)
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("name", ["my server", 'quo"te', "", "my.server", '"a"', 1])
+    async def test_a_server_name_that_cannot_be_a_dotted_key_raises(self, ok_tools, name):
+        async with ok_tools.serve():
+            with pytest.raises(ValueError, match="letters, digits, '_', '-', ':', '@' and '/'"):
+                ok_tools.build_thread_options(config={"mcp_servers": {name: {"url": "u"}}})
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "server",
+        [
+            pytest.param({"env": {"A.B": "1"}}, id="dotted-nested-field"),
+            pytest.param({"a b": 1}, id="space-field"),
+            pytest.param({1: "x"}, id="non-string-field"),
+        ],
+    )
+    async def test_a_field_key_that_cannot_be_a_dotted_key_raises(self, ok_tools, server):
+        async with ok_tools.serve():
+            with pytest.raises(ValueError, match="letters, digits"):
+                ok_tools.build_thread_options(config={"mcp_servers": {"github": server}})
 
     @pytest.mark.parametrize("server_name", ["has space", "dotted.name", 'quo"te', ""])
     def test_a_server_name_that_is_not_a_bare_config_key_raises(self, server_name):
@@ -1366,6 +1506,21 @@ class TestRealAppServer:
             async with AsyncCodex(wrong_port) as codex:
                 with pytest.raises(InternalRpcError, match="required MCP servers failed to initialize"):
                     await codex.thread_start(**ok_tools.build_thread_options())
+
+    @pytest.mark.asyncio
+    async def test_a_nested_user_mcp_server_does_not_remove_the_required_airflow_server(self, ok_tools):
+        async with ok_tools.serve() as config:
+            port = _get_server_url(config).split(":")[2].split("/")[0]
+            wrong_port = dataclasses.replace(
+                config,
+                config_overrides=tuple(o.replace(f":{port}/", ":1/") for o in config.config_overrides),
+            )
+            options = ok_tools.build_thread_options(
+                config={"mcp_servers": {"github": {"url": "http://127.0.0.1:1/mcp"}}}
+            )
+            async with AsyncCodex(wrong_port) as codex:
+                with pytest.raises(InternalRpcError, match="required MCP servers failed to initialize"):
+                    await codex.thread_start(**options)
 
     @pytest.mark.asyncio
     async def test_an_unreachable_server_is_reported_in_the_status_and_not_raised(self, ok_tools):

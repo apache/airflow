@@ -103,8 +103,13 @@ _SERVER_SHUTDOWN_TIMEOUT_SEC = 5
 # The variable that carries the bearer token to the Codex child process. Only its name is in
 # ``codex --config`` (so in argv, visible to ``ps``); the value goes through the environment.
 _MCP_TOKEN_ENV_VAR = "AIRFLOW_CODEX_MCP_TOKEN"
-# ``server_name`` becomes an unquoted TOML key in ``mcp_servers.<server_name>.*``.
+# ``server_name`` becomes an unquoted key in a dotted ``mcp_servers.<server_name>.*`` config key,
+# and so does every setting name below a user's server. Codex does not parse a quoted segment
+# there (observed: ``mcp_servers."a.b".url`` is rejected, ``"a b"`` is taken literally with the quotes).
 _SERVER_NAME_RE = re.compile(r"[A-Za-z0-9_-]+")
+# A name in a user's ``mcp_servers`` table may also hold ``:``, ``@`` and ``/``, which Codex takes
+# as part of an unquoted segment (observed with 0.167.0), but not ``.``, quotes or whitespace.
+_USER_SERVER_NAME_RE = re.compile(r"[A-Za-z0-9_:@/-]+")
 
 
 def _truncate_result_text(text: str) -> str:
@@ -126,6 +131,65 @@ def _bound_detail(text: str) -> str:
 def _to_toml_string(value: str) -> str:
     # A JSON string is a valid TOML basic string.
     return json.dumps(value)
+
+
+def _defines_server(config: dict[str, Any], server_name: str) -> bool:
+    nested = config.get("mcp_servers")
+    if isinstance(nested, dict) and server_name in nested:
+        return True
+    prefix = f"mcp_servers.{server_name}"
+    return any(isinstance(key, str) and (key == prefix or key.startswith(f"{prefix}.")) for key in config)
+
+
+def _flatten_mcp_servers(config: dict[str, Any]) -> dict[str, Any]:
+    """Return ``config`` with a nested ``mcp_servers`` table rewritten as ``mcp_servers.<name>.<key>`` leaves."""
+    if "mcp_servers" not in config:
+        return config
+    servers = config["mcp_servers"]
+    rest = {key: value for key, value in config.items() if key != "mcp_servers"}
+    if servers is None:
+        return rest
+    if not isinstance(servers, dict):
+        raise ValueError(
+            f"config['mcp_servers'] must be a dict of server name to its settings, got {type(servers).__name__}."
+        )
+    flattened: dict[str, Any] = {}
+    for name, settings in servers.items():
+        if not isinstance(name, str) or not _USER_SERVER_NAME_RE.fullmatch(name):
+            raise ValueError(
+                f"The MCP server name {name!r} in config cannot be written as a Codex config key in "
+                "a flattened mcp_servers table. A name with only letters, digits, '_', '-', ':', '@' "
+                "and '/' works."
+            )
+        if not isinstance(settings, dict):
+            raise ValueError(
+                f"config['mcp_servers'][{name!r}] must be a dict of setting to value, "
+                f"got {type(settings).__name__}."
+            )
+        _collect_leaves(f"mcp_servers.{name}", settings, flattened)
+    for key in flattened:
+        for other in rest:
+            if isinstance(other, str) and (
+                key == other or key.startswith(f"{other}.") or other.startswith(f"{key}.")
+            ):
+                raise ValueError(
+                    f"config sets {key!r} both in the nested mcp_servers table and as {other!r}. "
+                    "Write each setting once."
+                )
+    return {**rest, **flattened}
+
+
+def _collect_leaves(prefix: str, table: dict[str, Any], out: dict[str, Any]) -> None:
+    for key, value in table.items():
+        if not isinstance(key, str) or not _SERVER_NAME_RE.fullmatch(key):
+            raise ValueError(
+                f"The MCP server setting name {key!r} under {prefix!r} cannot be written as a Codex "
+                "config key. A name with only letters, digits, '_' and '-' works."
+            )
+        if isinstance(value, dict):
+            _collect_leaves(f"{prefix}.{key}", value, out)
+        else:
+            out[f"{prefix}.{key}"] = value
 
 
 def _find_final_response(items: list[ThreadItem]) -> str | None:
@@ -373,20 +437,32 @@ class AirflowTools:
         so the only way to refuse them is to make Codex never ask. A keyword you pass wins.
         The model and anything else are passed through unchanged.
 
+        A nested ``config["mcp_servers"]`` table is rewritten into dotted
+        ``mcp_servers.<name>.<key>`` keys, because Codex replaces a nested table as a whole at
+        thread level, which would drop this adapter's own server and its ``required=true``. The
+        dict you pass is not modified.
+
         Call it inside the :meth:`serve` block.
 
         :raises RuntimeError: when called outside the :meth:`serve` block.
-        :raises ValueError: when ``config`` already has an ``mcp_servers`` entry named
-            :attr:`server_name`.
+        :raises ValueError: when ``config`` is not a dict, or defines an MCP server named
+            :attr:`server_name` (nested or dotted), or its ``mcp_servers`` is not a
+            dict, or a server name cannot be written as a dotted key (only letters, digits,
+            ``_``, ``-``, ``:``, ``@`` and ``/`` can), or a setting name cannot (only letters,
+            digits, ``_`` and ``-`` can), or the same setting is written twice.
         """
         if self._serving is None:
             raise RuntimeError("build_thread_options() has to be called inside the serve() block.")
-        mcp_servers = (kwargs.get("config") or {}).get("mcp_servers") or {}
-        if self.server_name in mcp_servers:
-            raise ValueError(
-                f"config already has an MCP server named {self.server_name!r}. Pass a different "
-                "server_name to AirflowTools, or drop it from config."
-            )
+        config = kwargs.get("config")
+        if config is not None:
+            if not isinstance(config, dict):
+                raise ValueError(f"config must be a dict, got {type(config).__name__}.")
+            if _defines_server(config, self.server_name):
+                raise ValueError(
+                    f"config already has an MCP server named {self.server_name!r}. Pass a different "
+                    "server_name to AirflowTools, or drop it from config."
+                )
+            kwargs["config"] = _flatten_mcp_servers(config)
         kwargs.setdefault("approval_mode", ApprovalMode.deny_all)
         kwargs.setdefault("sandbox", Sandbox.read_only)
         kwargs.setdefault("cwd", self._serving.cwd)
