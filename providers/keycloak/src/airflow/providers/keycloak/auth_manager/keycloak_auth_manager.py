@@ -71,6 +71,7 @@ from airflow.providers.keycloak.auth_manager.constants import (
     CONF_SERVER_URL_KEY,
     CONF_TEAM_LEVEL_AUTHORIZATION_KEY,
 )
+from airflow.providers.keycloak.auth_manager.exceptions import is_keycloak_outage
 from airflow.providers.keycloak.auth_manager.resources import KeycloakResource
 from airflow.providers.keycloak.auth_manager.user import KeycloakAuthManagerUser
 from airflow.providers.keycloak.version_compat import AIRFLOW_V_3_3_PLUS
@@ -293,7 +294,7 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
             client = self.get_keycloak_client()
             return client.refresh_token(user.refresh_token)
         except KeycloakPostError as exc:
-            if (exc.response_code or 0) >= 500:
+            if is_keycloak_outage(exc):
                 # The session may still be valid: ending it would log users out on a Keycloak blip.
                 raise
             try:

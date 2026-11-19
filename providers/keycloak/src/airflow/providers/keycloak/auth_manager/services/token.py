@@ -30,7 +30,7 @@ import jwt
 from asgiref.sync import async_to_sync
 from fastapi import HTTPException, status
 from jwt import PyJWKClient
-from keycloak import KeycloakAuthenticationError, KeycloakConnectionError, KeycloakError, KeycloakOpenID
+from keycloak import KeycloakAuthenticationError, KeycloakError, KeycloakOpenID
 
 from airflow.api_fastapi.app import get_auth_manager
 from airflow.providers.common.compat.sdk import conf
@@ -41,7 +41,10 @@ from airflow.providers.keycloak.auth_manager.constants import (
     CONF_SECTION_NAME,
     CONF_SERVER_URL_KEY,
 )
-from airflow.providers.keycloak.auth_manager.exceptions import AuthManagerRefreshTokenExpiredException
+from airflow.providers.keycloak.auth_manager.exceptions import (
+    AuthManagerRefreshTokenExpiredException,
+    is_keycloak_outage,
+)
 from airflow.providers.keycloak.auth_manager.keycloak_auth_manager import (
     KeycloakAuthManager,
     is_cli_authorization_code_enabled,
@@ -61,11 +64,6 @@ def build_keycloak_unavailable_error() -> HTTPException:
     return HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Keycloak is unavailable")
 
 
-def is_keycloak_outage(error: KeycloakError) -> bool:
-    """Return whether ``error`` means Keycloak could not be reached or failed on its side."""
-    return isinstance(error, KeycloakConnectionError) or (error.response_code or 0) >= 500
-
-
 @contextmanager
 def translate_keycloak_outage() -> Iterator[None]:
     """Raise a ``503`` instead of a Keycloak error that :func:`is_keycloak_outage` matches."""
@@ -73,7 +71,7 @@ def translate_keycloak_outage() -> Iterator[None]:
         yield
     except KeycloakError as e:
         if is_keycloak_outage(e):
-            log.warning("Keycloak is unavailable (response code %s): %s", e.response_code, e)
+            log.warning("Keycloak is unavailable (%s, response code %s)", type(e).__name__, e.response_code)
             raise build_keycloak_unavailable_error() from e
         raise
 

@@ -148,7 +148,7 @@ class TestTokenService:
         assert exc_info.value.status_code == 503
         mock_get_auth_manager.return_value.generate_api_jwt.assert_not_called()
         mock_log.warning.assert_called_once_with(
-            "Keycloak is unavailable (response code %s): %s", error.response_code, error
+            "Keycloak is unavailable (%s, response code %s)", type(error).__name__, error.response_code
         )
 
     @conf_vars({("api_auth", "jwt_expiration_time"): "10"})
