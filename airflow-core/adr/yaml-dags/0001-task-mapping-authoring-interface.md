@@ -55,7 +55,7 @@ tasks:
 
 2. **Expansion is possible on a literal list, a `$x`, or one of `$zip` and `$concat`.**
    - A list gives one instance per item. Its items are literal values; a marker inside it is an error. Any other literal is an error.
-   - `{$x: task}` expands over the task's return value. When `task` is itself mapped, the instances line up one-to-one by map index. `$x` with a `key` is rejected, as in Python.
+   - `{$x: task}` expands over the task's return value. When `task` is itself mapped, each of its non-null results gives one instance, in map-index order; a null result gives none. `$x` with a `key` is rejected, as in Python.
 
 3. **`$zip` and `$concat` spell Python's `zip()` and `concat()`.**
    - `{$zip: [a, b, ...]}`, optionally with `default: v` beside the `$zip` key. Without `default`, the zip is as long as its shortest source; with it, as long as its longest, and `v` stands in for the missing items of the shorter ones.
@@ -127,7 +127,7 @@ tasks:
       path: {$expand: [a.csv, b.csv]}
       bucket: {$expand: [raw, eu]}
 
-  # one instance per process instance
+  # one instance per non-null process result
   - id: audit
     run:
       size: {$expand: {$x: process}}

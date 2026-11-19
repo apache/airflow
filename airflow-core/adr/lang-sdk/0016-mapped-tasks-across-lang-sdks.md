@@ -469,9 +469,10 @@ Each change ships behind an Execution API version with a mirrored supervisor wir
 ```
 
 [`get_task_map_length`](https://github.com/apache/airflow/blob/27b8c82f54d44830176eb049f2e42916c7849bb0/airflow-core/src/airflow/serialization/definitions/xcom_arg.py#L150)
-reads `xcom.mapped_length` for an unmapped producer and counts rows for a mapped one. `zip` takes
-the `min` of its arguments, or the `max` when a fill value is set; `concat` takes the sum; `map`
-delegates to the argument it wraps, because it is elementwise and cannot change the count.
+reads `xcom.mapped_length` for an unmapped producer and counts the non-null rows of a mapped one
+(see *Read path*). `zip` takes the `min` of its arguments, or the `max` when a fill value is set;
+`concat` takes the sum; `map` delegates to the argument it wraps, because it is elementwise and
+cannot change the count.
 
 ### Acting on `needs_mapped_length`
 
@@ -504,7 +505,7 @@ What the server sends for each authoring form, and what the runtime receives aft
 |---|---|---|
 | `.expand({ row: ["a", "b"] })` | `literal`, `value` already the element | that `literal` |
 | `.expand({ row: rows })` | `xcom`, `task_id`, `element_index=i` | `literal`: element `i` of the row |
-| `.expand({ row: mappedUpstream })` | `xcom`, `task_id`, `map_index=i` | `literal`: that row |
+| `.expand({ row: mappedUpstream })` | `xcom`, `task_id`, and the `map_index` of the producer's `i`-th non-null row in map-index order | `literal`: that row |
 | `.expand({ a: …, b: … })` | one binding per argument, each with its own coordinate | one `literal` per argument |
 | `.partial({ region: … })` | `literal`, or `xcom` with no index | the same value at every index |
 | `.expandKwargs(rows)` | per parameter that `partial()` does not set (with `strict=False`, every parameter): a binding with `kwarg` and `fallback`, read from the run context's `expand_kwargs` | `literal`: that key of the resolved dict, else the fallback |
@@ -517,6 +518,7 @@ What the server sends for each authoring form, and what the runtime receives aft
 
 An element of a dict is its `(key, value)` pair in the stored value's order, the pair a Python task reading the same XCom gets.
 A runtime receives it as a two-item array, such as `["uk", 3]`.
+A mapped producer's null result gives the consumer no instance, so instance `i` reads the producer's `i`-th non-null row in map-index order rather than producer map index `i`, as Python's lazy sequence does. A Python producer writes no row for `None`. A language-SDK producer can store a null row ([#77281](https://github.com/apache/airflow/pull/77281)), so the map length the server counts and the sequence reads both have to leave such rows out. Neither does yet: the count is `count(map_index)` over every row, and the reads filter only SQL `NULL`, not a JSON `null` value.
 With `.expandKwargs(…)`, each key of this index's dict follows *Which signature a call is checked against*.
 
 A Dag definition and a Python Dag with stub TaskHandler differ only in who applies `map()` callables.
