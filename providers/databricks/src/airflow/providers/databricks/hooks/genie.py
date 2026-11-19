@@ -24,7 +24,7 @@ from typing import TYPE_CHECKING, Any
 from urllib.parse import quote, urlsplit
 
 import requests
-from requests.auth import HTTPBasicAuth
+from requests.auth import AuthBase, HTTPBasicAuth
 from tenacity import RetryError
 
 from airflow.providers.common.compat.sdk import (
@@ -286,7 +286,7 @@ class DatabricksGenieHook(BaseDatabricksHook, BaseManagedAgentHook):
         # apply a matching ~/.netrc entry and overwrite the token with Basic auth.
         token = self._get_token()
         if token:
-            auth = _TokenAuth(token)
+            auth: AuthBase = _TokenAuth(token)
         else:
             auth = HTTPBasicAuth(self._get_connection_attr("login"), self.databricks_conn.password)
 
