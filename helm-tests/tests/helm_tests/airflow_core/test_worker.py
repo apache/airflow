@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import jmespath
 import pytest
+import yaml
 from chart_utils.helm_template_generator import HelmFailedError, render_chart
 from chart_utils.log_groomer import LogGroomerTestBase
 
@@ -2902,6 +2903,25 @@ class TestWorkerService:
         labels = jmespath.search("metadata.labels", docs[0])
         assert labels["test_label"] == "test_label_value"
         assert "key" not in labels
+
+    def test_selector_excludes_kubernetes_executor_pods(self):
+        docs = render_chart(
+            values={"executor": "KubernetesExecutor,CeleryExecutor"},
+            show_only=[
+                "templates/configmaps/configmap.yaml",
+                "templates/workers/worker-deployment.yaml",
+                "templates/workers/worker-service.yaml",
+            ],
+        )
+
+        configmap, worker, service = docs
+        selector = jmespath.search("spec.selector", service).items()
+        celery_pod_labels = jmespath.search("spec.template.metadata.labels", worker).items()
+        pod_template = yaml.safe_load(jmespath.search('data."pod_template_file.yaml"', configmap))
+        kubernetes_pod_labels = jmespath.search("metadata.labels", pod_template).items()
+
+        assert selector <= celery_pod_labels
+        assert not selector <= kubernetes_pod_labels
 
 
 class TestWorkerCeleryServiceAccount:

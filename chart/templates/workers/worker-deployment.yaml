@@ -110,9 +110,9 @@ spec:
         tier: airflow
         component: worker
         release: {{ .Release.Name }}
-        {{- if ne .Values.workers.name "default" }}
+        {{- /* Set for every worker set, unlike the immutable spec.selector, so the worker Service can tell
+          Celery workers apart from KubernetesExecutor pods, which carry the same labels above. */}}
         worker-set: {{ .Values.workers.name }}
-        {{- end }}
         {{- if or .Values.labels .Values.workers.labels }}
           {{- mustMerge .Values.workers.labels .Values.labels | toYaml | nindent 8 }}
         {{- end }}
