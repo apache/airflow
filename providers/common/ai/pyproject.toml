@@ -32,7 +32,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "apache-airflow-providers-common-ai"
-version = "1.1.0"
+version = "1.2.0"
 description = "Provider package apache-airflow-providers-common-ai for Apache Airflow"
 readme = "README.rst"
 license = "Apache-2.0"
@@ -160,11 +160,11 @@ dependencies = [
     "pyarrow>=22.0.0; python_version >= '3.14'",
 ]
 "sql" = [
-    "apache-airflow-providers-common-sql>=2.2.0",  # use next version
+    "apache-airflow-providers-common-sql>=3.1.0",
     "sqlglot>=30.0.0",
 ]
 "common.sql" = [
-    "apache-airflow-providers-common-sql>=2.2.0"  # use next version
+    "apache-airflow-providers-common-sql>=3.1.0"
 ]
 "langchain" = [
     "langchain>=1.0.0",
@@ -179,7 +179,9 @@ dependencies = [
     "llama-index-llms-openai>=0.6.8",
 ]
 "pdf" = ["pypdf>=4.0.0"]
-"docx" = ["python-docx>=1.0.0"]
+# python-docx 1.1.1 added grid_cols_before/grid_cols_after but pins lxml<=4.9.2, which does
+# not build on 3.12, so 1.1.2 is the first release that works.
+"docx" = ["python-docx>=1.1.2"]
 "git" = [
     "apache-airflow-providers-git"
 ]
@@ -216,6 +218,8 @@ dev = [
     "grpcio>=1.78.0",
     "protobuf>=6.31.1",
     "claude-agent-sdk>=0.2.160",
+    # The DOCX parser tests build real documents in memory instead of mocking python-docx.
+    "python-docx>=1.1.2",
 ]
 
 # To build docs:
@@ -244,8 +248,8 @@ apache-airflow-providers-common-sql = {workspace = true}
 apache-airflow-providers-standard = {workspace = true}
 
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-common-ai/1.1.0"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-common-ai/1.1.0/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-common-ai/1.2.0"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-common-ai/1.2.0/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"

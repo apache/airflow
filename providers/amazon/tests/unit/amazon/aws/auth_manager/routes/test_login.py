@@ -19,6 +19,7 @@ from __future__ import annotations
 import base64
 import json
 import time
+from typing import Any
 from unittest.mock import Mock, patch
 
 import pytest
@@ -48,6 +49,7 @@ from airflow.providers.amazon.aws.auth_manager.routes.login import (  # noqa: E4
     COOKIE_NAME_LOGIN_STATE,
     LOGIN_MODE_REDIRECT,
     LOGIN_MODE_TOKEN,
+    MAX_NEXT_URL_JSON_LENGTH,
     _sign_login_state,
 )
 
@@ -86,27 +88,30 @@ BASE_CONF = {
 }
 
 
-def make_login_state(*entries: tuple[str, str, str], expires_in: float = 600) -> str:
+def make_login_state(
+    *entries: tuple[str, str, str] | tuple[str, str, str, str | None],
+    expires_in: float = 600,
+) -> str:
     """
     Build the signed login-state cookie a browser would hold for ``entries``.
 
-    Each entry is ``(nonce, request_id, mode)``. Must be called inside the ``conf_vars``
-    block that sets the signing key, so the signature matches what the route computes.
+    Each entry is ``(nonce, request_id, mode)`` or ``(nonce, request_id, mode, next_url)``.
+    Must be called inside the ``conf_vars`` block that sets the signing key, so the
+    signature matches what the route computes.
     """
-    payload = base64.urlsafe_b64encode(
-        json.dumps(
-            [
-                {
-                    "nonce": nonce,
-                    "request_id": request_id,
-                    "mode": mode,
-                    "exp": time.time() + expires_in,
-                }
-                for nonce, request_id, mode in entries
-            ],
-            separators=(",", ":"),
-        ).encode()
-    ).decode()
+    items = []
+    for entry in entries:
+        nonce, request_id, mode = entry[:3]
+        item: dict[str, Any] = {
+            "nonce": nonce,
+            "request_id": request_id,
+            "mode": mode,
+            "exp": time.time() + expires_in,
+        }
+        if len(entry) > 3 and entry[3]:
+            item["next"] = entry[3]
+        items.append(item)
+    payload = base64.urlsafe_b64encode(json.dumps(items, separators=(",", ":")).encode()).decode()
     return f"{payload}.{_sign_login_state(payload)}"
 
 
@@ -116,6 +121,15 @@ def read_login_state_cookie(response) -> str | None:
         if header.startswith(f"{COOKIE_NAME_LOGIN_STATE}="):
             return header.split("=", 1)[1].split(";", 1)[0]
     return None
+
+
+def parse_login_state_cookie(response) -> list[dict[str, Any]]:
+    """Decode and return the pending login entries from the login-state cookie."""
+    cookie = read_login_state_cookie(response)
+    if not cookie:
+        return []
+    payload, _, _ = cookie.rpartition(".")
+    return json.loads(base64.urlsafe_b64decode(payload))
 
 
 @pytest.fixture(autouse=True)
@@ -149,7 +163,7 @@ def get_login_callback_response(
     relay_state: str,
     *,
     base_url: str = "http://testserver",
-    pending: list[tuple[str, str, str]] | None = None,
+    pending: list[tuple[str, str, str] | tuple[str, str, str, str | None]] | None = None,
     raw_login_state: str | None = None,
     expires_in: float = 600,
     in_response_to: str | None = None,
@@ -160,10 +174,11 @@ def get_login_callback_response(
     """
     Post a SAML response to the callback.
 
-    ``pending`` is what this browser has started, as ``(nonce, request_id, mode)`` tuples; it
-    defaults to a single entry answering ``relay_state``, i.e. a browser that really did start
-    this login. ``raw_login_state`` sets the cookie verbatim instead -- pass ``""`` for a
-    browser that started nothing.
+    ``pending`` is what this browser has started, as ``(nonce, request_id, mode)`` or
+    ``(nonce, request_id, mode, next_url)`` tuples; it defaults to a single entry
+    answering ``relay_state``, i.e. a browser that really did start this login.
+    ``raw_login_state`` sets the cookie verbatim instead -- pass ``""`` for a browser
+    that started nothing.
     """
     with conf_vars({**BASE_CONF, **(extra_conf or {})}):
         with (
@@ -225,6 +240,75 @@ class TestLoginRouter:
         assert response.headers["location"].startswith(
             "https://portal.sso.us-east-1.amazonaws.com/saml/assertion/"
         )
+
+    @pytest.mark.parametrize(
+        ("next_url", "expected_stored_next"),
+        [
+            ("/dags/my_dag", "/dags/my_dag"),
+            ("/dags/my_dag/runs/run_1/tasks/task_1", "/dags/my_dag/runs/run_1/tasks/task_1"),
+            ("/dags?search=日本", "/dags?search=日本"),
+            ("https://attacker.example.net/dags", None),
+            ("//attacker.example.net/dags", None),
+            ("javascript:alert(1)", None),
+            ("/dags/" + "a" * (MAX_NEXT_URL_JSON_LENGTH + 1), None),
+            ("/dags?search=" + "日" * 70, None),
+        ],
+    )
+    def test_login_stores_next_url(self, test_client, next_url, expected_stored_next):
+        response = test_client.get(
+            AUTH_MANAGER_FASTAPI_APP_PREFIX + "/login",
+            params={"next": next_url},
+            follow_redirects=False,
+        )
+        assert response.status_code == 307
+        entries = parse_login_state_cookie(response)
+        assert len(entries) == 1
+        assert entries[0].get("next") == expected_stored_next
+
+    def test_login_token_does_not_store_next_url(self, test_client):
+        response = test_client.get(
+            AUTH_MANAGER_FASTAPI_APP_PREFIX + "/login/token",
+            params={"next": "/dags/my_dag"},
+            follow_redirects=False,
+        )
+        assert response.status_code == 307
+        entries = parse_login_state_cookie(response)
+        assert len(entries) == 1
+        assert "next" not in entries[0]
+
+    def test_login_preserves_per_tab_next_url(self, test_client):
+        """Each tab calling /login keeps its own next_url in the pending login state."""
+        response1 = test_client.get(
+            AUTH_MANAGER_FASTAPI_APP_PREFIX + "/login",
+            params={"next": "/dags/dag_a"},
+            follow_redirects=False,
+        )
+        assert response1.status_code == 307
+
+        response2 = test_client.get(
+            AUTH_MANAGER_FASTAPI_APP_PREFIX + "/login",
+            params={"next": "/dags/dag_b"},
+            follow_redirects=False,
+        )
+        assert response2.status_code == 307
+
+        entries = parse_login_state_cookie(response2)
+        assert len(entries) == 2
+        assert entries[0].get("next") == "/dags/dag_a"
+        assert entries[1].get("next") == "/dags/dag_b"
+
+    @pytest.mark.parametrize(
+        ("next_url", "expected_location"),
+        [
+            ("/dags/my_dag/runs/run_id/tasks/my_task", "/dags/my_dag/runs/run_id/tasks/my_task"),
+            (None, "http://localhost:8080/"),
+        ],
+    )
+    def test_login_callback_redirects_to_next_url(self, next_url, expected_location):
+        pending = [(TEST_NONCE, EXPECTED_REQUEST_ID, LOGIN_MODE_REDIRECT, next_url)]
+        response = get_login_callback_response(RELAY_REDIRECT, pending=pending)
+        assert response.status_code == 303
+        assert response.headers["location"] == expected_location
 
     def test_login_callback_successful_with_relay_state_redirect(self):
         response = get_login_callback_response(RELAY_REDIRECT)
