@@ -462,3 +462,84 @@ class TestInitializeApiServerStats:
         with mock.patch.object(app_module, "_initialize_api_server_stats") as mock_init:
             with client():
                 mock_init.assert_called_once()
+
+    def test_listeners_notified_during_lifespan(self, client):
+        """Listener on_starting and before_stopping hooks must be called during API server lifespan."""
+        with mock.patch("airflow.api_fastapi.app.get_listener_manager") as mock_get_lm:
+            mock_lm = mock.MagicMock()
+            mock_get_lm.return_value = mock_lm
+            with client(apps="core") as c:
+                mock_lm.hook.on_starting.assert_called_once_with(component=c.app)
+                mock_lm.hook.before_stopping.assert_not_called()
+            mock_lm.hook.before_stopping.assert_called_once_with(component=c.app)
+
+    def test_listener_hook_exceptions_do_not_crash_lifespan(self, client):
+        """Exceptions in listener on_starting and before_stopping hooks must not crash lifespan."""
+        with mock.patch("airflow.api_fastapi.app.get_listener_manager") as mock_get_lm:
+            mock_lm = mock.MagicMock()
+            mock_lm.hook.on_starting.side_effect = RuntimeError("startup error")
+            mock_lm.hook.before_stopping.side_effect = RuntimeError("shutdown error")
+            mock_get_lm.return_value = mock_lm
+            with client(apps="core") as c:
+                mock_lm.hook.on_starting.assert_called_once_with(component=c.app)
+            mock_lm.hook.before_stopping.assert_called_once_with(component=c.app)
+
+    def test_pluggy_hook_wrapper_executes_around_lifespan_hooks(self, client):
+        """Native Pluggy hook dispatch executes hook wrappers before and after listeners."""
+        import pluggy
+
+        from airflow.listeners.listener import get_listener_manager
+
+        hookimpl = pluggy.HookimplMarker("airflow")
+        events: list[str] = []
+
+        class WrapperPlugin:
+            @hookimpl(wrapper=True)
+            def on_starting(self, component):
+                events.append("wrapper_start_before")
+                try:
+                    return (yield)
+                finally:
+                    events.append("wrapper_start_after")
+
+            @hookimpl(wrapper=True)
+            def before_stopping(self, component):
+                events.append("wrapper_stop_before")
+                try:
+                    return (yield)
+                finally:
+                    events.append("wrapper_stop_after")
+
+        class NormalPlugin:
+            @hookimpl
+            def on_starting(self, component):
+                events.append(f"normal_start:{component.__class__.__name__}")
+
+            @hookimpl
+            def before_stopping(self, component):
+                events.append(f"normal_stop:{component.__class__.__name__}")
+
+        lm = get_listener_manager()
+        wrapper = WrapperPlugin()
+        normal = NormalPlugin()
+        lm.pm.register(wrapper)
+        lm.pm.register(normal)
+
+        try:
+            with client(apps="core") as c:
+                assert events == [
+                    "wrapper_start_before",
+                    f"normal_start:{c.app.__class__.__name__}",
+                    "wrapper_start_after",
+                ]
+            assert events == [
+                "wrapper_start_before",
+                f"normal_start:{c.app.__class__.__name__}",
+                "wrapper_start_after",
+                "wrapper_stop_before",
+                f"normal_stop:{c.app.__class__.__name__}",
+                "wrapper_stop_after",
+            ]
+        finally:
+            lm.pm.unregister(wrapper)
+            lm.pm.unregister(normal)
