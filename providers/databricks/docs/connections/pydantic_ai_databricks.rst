@@ -39,6 +39,16 @@ Install with:
 The ``common.ai`` extra provides the Common AI hook this one builds on, but not the OpenAI client
 the Chat Completions API calls go through, so also install ``apache-airflow-providers-common-ai[openai]``.
 
+Choosing a connection type
+--------------------------
+
+For a personal access token, a plain ``pydanticai`` connection is enough: set the Model to
+``openai-chat:<endpoint>``, the Host to ``https://<workspace>/serving-endpoints`` and put the token
+in Password (see :doc:`apache-airflow-providers-common-ai:connections/pydantic_ai`). Use
+``pydanticai_databricks`` when you want to reuse an existing Databricks connection, or when the
+credential needs a fresh token per request, such as OAuth for a service principal, Azure or
+token federation. A personal access token also works with this connection type.
+
 Default Connection IDs
 ----------------------
 
@@ -77,9 +87,9 @@ Model
 Fallback Connections
     Other connection IDs to fail over to, in order, while this provider is unavailable. Stored in
     ``extra["fallback_conn_ids"]``. Entries may name any ``pydanticai`` connection type, so one
-    chain can span vendors. Fail-over also happens when the Databricks token endpoint stays
-    unreachable after its retries; a configuration error, such as unset or rejected credentials,
-    does not fail over and fails the task. See
+    chain can span vendors. Fail-over also happens when the Databricks token endpoint cannot be
+    reached or keeps failing after its retries; a configuration error, such as unset or rejected
+    credentials, does not fail over and fails the task. See
     :doc:`apache-airflow-providers-common-ai:provider_fallback`.
 
 Databricks Connection ID
@@ -141,14 +151,17 @@ page); other base URLs are not supported.
 Example
 -------
 
-Two connections: the Databricks connection holding credentials, and this one pointing at it.
+Two connections: the Databricks connection holding credentials, here a Databricks-managed service
+principal using OAuth (see :doc:`databricks`), and this one pointing at it.
 
 .. code-block:: json
 
     {
         "conn_type": "databricks",
         "host": "https://adb-1234567890123456.7.azuredatabricks.net",
-        "password": "<personal_access_token>"
+        "login": "<service_principal_client_id>",
+        "password": "<service_principal_secret>",
+        "extra": "{\"service_principal_oauth\": true}"
     }
 
 .. code-block:: json
