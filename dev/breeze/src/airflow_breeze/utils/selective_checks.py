@@ -262,7 +262,8 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
             r"^\.github/workflows/(?!("
             r"asf-allowlist-check|automatic-backport|backport-cli|ci-duration-monitor|ci-notification|"
             r"codeql-analysis|e2e-flaky-tests-report|milestone-tag-assistant|notify-uv-lock-conflicts|"
-            r"publish-docs-to-s3|recheck-old-bug-report|scheduled-verify-release-calendar|stale"
+            r"publish-docs-to-s3|recheck-old-bug-report|scheduled-verify-improvement-proposals-wiki|"
+            r"scheduled-verify-release-calendar|stale"
             r")\.yml$)",
             r"^dev/breeze/src",
             r"^dev/breeze/pyproject\.toml",
@@ -1218,6 +1219,21 @@ class SelectiveChecks:
 
     def _get_previous_file_content(self, path: str) -> str | None:
         if self._fork_merge_base:
+            commit_check = run_command(
+                ["git", "cat-file", "-e", f"{self._fork_merge_base}^{{commit}}"],
+                capture_output=True,
+                cwd=AIRFLOW_ROOT_PATH,
+                check=False,
+            )
+            if commit_check.returncode == 0:
+                result = run_command(
+                    ["git", "show", f"{self._fork_merge_base}:{path}"],
+                    capture_output=True,
+                    text=True,
+                    cwd=AIRFLOW_ROOT_PATH,
+                    check=False,
+                )
+                return result.stdout if result.returncode == 0 else None
             return get_upstream_file(path=path, ref=self._fork_merge_base)
         result = run_command(
             ["git", "show", f"{self._commit_ref}^:{path}"],

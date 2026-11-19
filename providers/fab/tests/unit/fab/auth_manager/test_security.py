@@ -1286,12 +1286,9 @@ def test_users_can_be_found(app, security_manager, session, caplog):
 
     create_user(app, "Test_cbf")  # cbf ==can be found
 
-    with pytest.raises(FabException):
-        create_user(app, "test_cbf")
-    with pytest.raises(FabException):
-        create_user(app, "TEST_CBF")
-    with pytest.raises(FabException):
-        create_user(app, "TeSt_cbf")
+    assert create_user(app, "test_cbf") is None
+    assert create_user(app, "TEST_CBF") is None
+    assert create_user(app, "TeSt_cbf") is None
     assert security_manager.find_user("Test_cbf")
     users = security_manager.get_all_users()
     assert len(users) == 1 + prior_user_count
