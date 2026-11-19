@@ -26,7 +26,7 @@ Package ``apache-airflow-providers-apache-hbase``
 Release: ``1.1.0``
 
 
-`Apache HBase <https://hbase.apache.org/>`__ 
+`Apache HBase <https://hbase.apache.org/>`__
 
 
 Provider package

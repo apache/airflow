@@ -417,9 +417,7 @@ class TestHBaseCLIHook:
     @patch("airflow.providers.apache.hbase.hooks.hbase_cli.subprocess.run")
     def test_hbase_home_from_extra_overrides_constructor(self, mock_run, mock_get_conn):
         """Test that hbase_home from connection Extra overrides constructor value."""
-        mock_get_conn.return_value = MagicMock(
-            extra_dejson={"hbase_home": "/custom/hbase"}
-        )
+        mock_get_conn.return_value = MagicMock(extra_dejson={"hbase_home": "/custom/hbase"})
         mock_run.return_value = MagicMock(returncode=0, stdout="OK")
 
         hook = HBaseCLIHook(hbase_conn_id="hbase_default", hbase_home="/fallback/hbase")
