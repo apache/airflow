@@ -197,6 +197,20 @@ async def _stream_codex_turn(
             closed.append(True)
 
 
+class _FailingCloseStream:
+    """A notification stream whose ``aclose`` raises, after closing ``stream``."""
+
+    def __init__(self, stream: AsyncIterator[Notification]) -> None:
+        self._stream = stream
+
+    def __aiter__(self) -> AsyncIterator[Notification]:
+        return self._stream
+
+    async def aclose(self) -> None:
+        await self._stream.aclose()  # type: ignore[attr-defined]
+        raise OSError("close failed")
+
+
 async def _serve_and_leave(tools: AirflowTools) -> None:
     async with tools.serve():
         pass
@@ -621,6 +635,60 @@ class TestRun:
 
         turn.interrupt.assert_awaited_once_with()
         mock_log.warning.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_a_call_that_arrives_while_a_cancelled_run_waits_for_the_interrupt_does_not_run(self):
+        ran: list[dict[str, Any]] = []
+        tools = AirflowTools(_build_tool(ToolResult("ok"), ran))
+        gate = asyncio.Event()
+        interrupting = asyncio.Event()
+        release = asyncio.Event()
+
+        async def _blocked() -> AsyncIterator[Notification]:
+            await gate.wait()
+            yield _build_turn_completed()
+
+        async def _wait_for_release() -> None:
+            interrupting.set()
+            await release.wait()
+
+        turn = _build_turn(_blocked())
+        turn.interrupt.side_effect = _wait_for_release
+
+        task = asyncio.ensure_future(tools.run(turn))
+        await asyncio.sleep(0)
+        task.cancel()
+        await asyncio.wait_for(interrupting.wait(), 5)
+
+        result = await tools._handlers["lookup"]({"key": "late"})
+        release.set()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+
+        assert result.is_error is True
+        assert _extract_text(result) == "Not run: the Airflow tool run has ended."
+        assert ran == []
+
+    @pytest.mark.asyncio
+    @mock.patch(f"{MODULE}.log", autospec=True)
+    async def test_a_failing_stream_close_after_a_completed_turn_propagates(self, mock_log, ok_tools):
+        stream = _FailingCloseStream(_stream_notifications([_build_turn_completed()]))
+
+        with pytest.raises(OSError, match="close failed"):
+            await ok_tools.run(_build_turn(stream))
+
+        mock_log.warning.assert_not_called()
+
+    @pytest.mark.asyncio
+    @mock.patch(f"{MODULE}.log", autospec=True)
+    async def test_a_failing_stream_close_does_not_hide_the_tools_failure(self, mock_log, denied_tools):
+        stream = _FailingCloseStream(_stream_codex_turn(denied_tools._handlers, [("lookup", {"key": "a"})]))
+
+        with pytest.raises(ToolCallError, match="PermissionError"):
+            await denied_tools.run(_build_turn(stream))
+
+        mock_log.warning.assert_called_once()
+        assert "close failed" in str(mock_log.warning.call_args.args)
 
     @pytest.mark.asyncio
     async def test_a_failure_before_the_stream_ends_without_turn_completed_still_raises_it(

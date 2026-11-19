@@ -480,8 +480,8 @@ class AirflowTools:
         calling tools. The interrupt is a request, bounded to 10 seconds; if it fails, that is
         logged and does not replace the original exception, and a cancellation still propagates
         as ``asyncio.CancelledError``.
-        A tool call that arrives after this returns or raises is answered with an ``isError``
-        "Not run" result.
+        A tool call that arrives while a cancelled run waits for its interrupt, or after this
+        returns or raises, is answered with an ``isError`` "Not run" result.
 
         :raises RuntimeError: when this instance is already running a turn, when the stream ends
             without a ``turn/completed`` notification, or when the turn did not complete
@@ -538,6 +538,8 @@ class AirflowTools:
             # Interrupt before the stream is closed and ``self._run`` is cleared: a late tool call
             # from this turn would otherwise resolve to the next run's state.
             if completed is None and not interrupted:
+                # The interrupt can take up to 10 s; calls that arrive meanwhile must not run.
+                state.ended = True
                 await self._interrupt_turn(turn)
             raise
         finally:
