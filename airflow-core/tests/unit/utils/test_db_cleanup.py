@@ -2356,6 +2356,12 @@ class TestCallbackCleanupConfig:
         selected, _ = _effective_table_names(table_names=["callback"])
         assert selected == ["deadline", "callback"]
 
+    def test_callback_cleanup_is_scoped_through_its_dag_run(self):
+        config = config_dict["callback"]
+
+        assert "dagrun_id" in config.extra_columns
+        assert config.dag_id_scope == _IndirectDagScope(fk_column="dagrun_id", referenced_table="dag_run")
+
 
 @pytest.mark.db_test
 class TestCallbackCleanup:
