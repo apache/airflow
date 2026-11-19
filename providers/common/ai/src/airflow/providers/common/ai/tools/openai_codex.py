@@ -95,10 +95,12 @@ _MIN_TOOL_INPUT_SCHEMA_BYTES = 65_536
 # Codex stops waiting for a tool after this long (its default is 60 s, too short for a SQL query).
 # What happens to the hook when Codex gives up is not verified.
 _DEFAULT_TOOL_TIMEOUT_SEC = 600.0
-# How long ``serve()`` waits for the HTTP server to start, and for open connections to drain on exit.
+# How long ``serve()`` waits for the HTTP server to start.
 _SERVER_START_TIMEOUT_SEC = 10.0
 # How long ``run()`` waits for Codex to confirm an interrupt before it raises the tool failure anyway.
 _INTERRUPT_TIMEOUT_SEC = 10.0
+# How long the HTTP server waits for open connections to drain on exit (uvicorn's
+# ``timeout_graceful_shutdown``).
 _SERVER_SHUTDOWN_TIMEOUT_SEC = 5
 # The variable that carries the bearer token to the Codex child process. Only its name is in
 # ``codex --config`` (so in argv, visible to ``ps``); the value goes through the environment.

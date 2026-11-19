@@ -44,6 +44,7 @@ Before running:
 from __future__ import annotations
 
 import asyncio
+import datetime
 import os
 
 from airflow.providers.common.compat.sdk import BaseHook, dag, task
@@ -61,7 +62,7 @@ DEFAULT_QUESTION = "Which tables exist, and how many rows does each contain?"
 def example_openai_codex():
     """Answer a question about a database with the OpenAI Codex SDK's agent loop."""
 
-    @task
+    @task(execution_timeout=datetime.timedelta(minutes=10))
     def ask_the_warehouse(question: str = DEFAULT_QUESTION) -> str | None:
         # Imported here because the openai-codex and sql extras are optional: at module level these
         # would fail Dag parsing wherever the extras are not installed.
