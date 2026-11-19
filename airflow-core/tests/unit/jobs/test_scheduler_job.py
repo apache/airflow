@@ -10560,7 +10560,10 @@ class TestSchedulerJob:
         ):
             self.job_runner._update_dag_run_state_for_paused_dags()
 
-        assert "Failed to update dag run state for paused dags" in caplog.text
+        assert {
+            "event": re.compile("^Failed to update dag run state for paused dags"),
+            "log_level": "error",
+        } in caplog
         assert session.scalar(select(DagRun.state).where(DagRun.id == run_id)) == DagRunState.RUNNING
 
     def test_update_dagrun_state_for_paused_dag_not_for_backfill(self, dag_maker, session):
