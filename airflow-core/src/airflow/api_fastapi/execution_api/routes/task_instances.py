@@ -452,7 +452,9 @@ def ti_run(
     responses={
         status.HTTP_200_OK: {"description": "The TI was already in the requested state"},
         status.HTTP_404_NOT_FOUND: {"description": "Task Instance not found"},
-        status.HTTP_409_CONFLICT: {"description": "The TI is not in a valid state for this transition"},
+        status.HTTP_409_CONFLICT: {
+            "description": "The TI is not in a valid state for this transition, or is running elsewhere"
+        },
         status.HTTP_410_GONE: {"description": "The task attempt has been archived"},
         HTTP_422_UNPROCESSABLE_CONTENT: {"description": "Invalid payload for the state transition"},
     },
@@ -566,6 +568,7 @@ def ti_update_state(
             TI.region_index,
             TI.region_id,
             TI.hostname,
+            TI.pid,
             DR.logical_date,
             DagModel.owners,
             TI.working_set,
@@ -577,7 +580,7 @@ def ti_update_state(
         .with_for_update(of=TI)
         .execution_options(include_all_attempts=True)
     )
-    # A 12-column select exceeds SQLAlchemy's typed ``select()`` overloads, so the row is untyped.
+    # A 13-column select exceeds SQLAlchemy's typed ``select()`` overloads, so the row is untyped.
     previous_state: str | None
     try_number: int
     max_tries: int
@@ -587,6 +590,7 @@ def ti_update_state(
     region_index: int
     region_id: UUID
     hostname: str | None
+    pid: int | None
     logical_date: datetime | None
     owners: str | None
     working_set: bool | None
@@ -601,6 +605,7 @@ def ti_update_state(
             region_index,
             region_id,
             hostname,
+            pid,
             logical_date,
             owners,
             working_set,
@@ -643,6 +648,11 @@ def ti_update_state(
                 "previous_state": previous_state,
             },
         )
+
+    sender = (ti_patch_payload.hostname, ti_patch_payload.pid)
+    # Clients older than Execution API 2027-02-28 cannot send a sender, so their updates are not checked.
+    if sender != (None, None) and sender != (hostname, pid):
+        _raise_running_elsewhere(current=(hostname, pid), requested=sender)
 
     # Validate outlet event partition keys early, before entering the catch-all
     # except block that would otherwise swallow the HTTPException and mark the TI failed.
@@ -689,6 +699,8 @@ def ti_update_state(
             "retry_reason",
             "loop_decision",
             "external_clear_target",
+            "hostname",
+            "pid",
         },
         exclude_unset=True,
     )
@@ -823,7 +835,9 @@ def ti_update_state(
 def _build_rejected_gate_payload(
     payload: TISuccessStatePayload, *, reason: str, retry: bool
 ) -> TIRetryStatePayload | TITerminalStatePayload:
-    carried = payload.model_dump(include={"end_date", "rendered_map_index"}, exclude_unset=True)
+    carried = payload.model_dump(
+        include={"end_date", "rendered_map_index", "hostname", "pid"}, exclude_unset=True
+    )
     if retry:
         return TIRetryStatePayload(state=IntermediateTIState.UP_FOR_RETRY, retry_reason=reason, **carried)
     return TITerminalStatePayload(state=TerminalStateNonSuccess.FAILED, retry_reason=reason, **carried)
@@ -1062,7 +1076,9 @@ def _create_ti_state_update_query_and_update_state(
                     payload=ti_patch_payload,
                     mysql_timestamp_max=_MYSQL_TIMESTAMP_MAX,
                 )
-                data = ti_patch_payload.model_dump(exclude={"reschedule_date"}, exclude_unset=True)
+                data = ti_patch_payload.model_dump(
+                    exclude={"reschedule_date", "hostname", "pid"}, exclude_unset=True
+                )
                 query = update(TI).where(TI.id == task_instance_id).values(data)
                 if session.bind is not None:
                     query = TI.duration_expression_update(timezone.utcnow(), query, session.bind)
@@ -1190,6 +1206,27 @@ def ti_skip_downstream(
 
     result = session.execute(query)
     log.info("Downstream tasks skipped", tasks_skipped=getattr(result, "rowcount", 0))
+
+
+def _raise_running_elsewhere(
+    *, current: tuple[str | None, int | None], requested: tuple[str | None, int | None]
+) -> NoReturn:
+    log.warning(
+        "Task running elsewhere",
+        current_hostname=current[0],
+        current_pid=current[1],
+        requested_hostname=requested[0],
+        requested_pid=requested[1],
+    )
+    raise HTTPException(
+        status_code=status.HTTP_409_CONFLICT,
+        detail={
+            "reason": "running_elsewhere",
+            "message": "TI is already running elsewhere",
+            "current_hostname": current[0],
+            "current_pid": current[1],
+        },
+    )
 
 
 def _raise_ti_not_in_live_table(task_instance_id: UUID, *, archived_in_history: bool) -> NoReturn:
@@ -1335,23 +1372,8 @@ async def ti_heartbeat(
         # instead of 404 Not Found to give the client a more specific signal.
         _raise_ti_not_in_live_table(task_instance_id, archived_in_history=True)
 
-    if hostname != ti_payload.hostname or pid != ti_payload.pid:
-        log.warning(
-            "Task running elsewhere",
-            current_hostname=hostname,
-            current_pid=pid,
-            requested_hostname=ti_payload.hostname,
-            requested_pid=ti_payload.pid,
-        )
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail={
-                "reason": "running_elsewhere",
-                "message": "TI is already running elsewhere",
-                "current_hostname": hostname,
-                "current_pid": pid,
-            },
-        )
+    if (hostname, pid) != (ti_payload.hostname, ti_payload.pid):
+        _raise_running_elsewhere(current=(hostname, pid), requested=(ti_payload.hostname, ti_payload.pid))
 
     if previous_state != TaskInstanceState.RUNNING:
         log.warning("Task not in running state", current_state=previous_state)

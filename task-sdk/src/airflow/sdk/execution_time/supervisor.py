@@ -1858,6 +1858,7 @@ class ActivitySubprocess(WatchedSubprocess):
                 state=self.final_state,
                 when=datetime.now(tz=UTC),
                 rendered_map_index=self._rendered_map_index,
+                pid=self.pid,
             )
 
     def _send_terminal_state_msg(
@@ -1875,6 +1876,7 @@ class ActivitySubprocess(WatchedSubprocess):
                     when=msg.end_date or datetime.now(tz=UTC),
                     rendered_map_index=self._rendered_map_index,
                     retry_reason=msg.retry_reason,
+                    pid=self.pid,
                     loop_decision=msg.loop_decision,
                 )
             elif isinstance(msg, SucceedTask):
@@ -1884,6 +1886,7 @@ class ActivitySubprocess(WatchedSubprocess):
                     task_outlets=msg.task_outlets,
                     outlet_events=msg.outlet_events,
                     rendered_map_index=self._rendered_map_index,
+                    pid=self.pid,
                     loop_decision=msg.loop_decision,
                     external_clear_target=msg.external_clear_target,
                 )
@@ -1894,13 +1897,14 @@ class ActivitySubprocess(WatchedSubprocess):
                     rendered_map_index=self._rendered_map_index,
                     retry_delay_seconds=getattr(msg, "retry_delay_seconds", None),
                     retry_reason=getattr(msg, "retry_reason", None),
+                    pid=self.pid,
                 )
             elif isinstance(msg, DeferTask):
-                self.client.task_instances.defer(self.id, msg)
+                self.client.task_instances.defer(self.id, msg, pid=self.pid)
             elif isinstance(msg, RescheduleTask):
-                self.client.task_instances.reschedule(self.id, msg)
+                self.client.task_instances.reschedule(self.id, msg, pid=self.pid)
             elif isinstance(msg, AwaitInputTask):
-                self.client.task_instances.await_input(self.id, msg)
+                self.client.task_instances.await_input(self.id, msg, pid=self.pid)
         except ServerResponseError as error:
             if error.response.status_code != HTTPStatus.CONFLICT:
                 raise
@@ -3087,8 +3091,9 @@ def _fail_task_before_runtime(
     from airflow.sdk._shared.secrets_masker import redact
     from airflow.sdk.log import upload_to_remote
 
+    pid = os.getpid()
     try:
-        ti_context = client.task_instances.start(ti.id, os.getpid(), datetime.now(tz=UTC))
+        ti_context = client.task_instances.start(ti.id, pid, datetime.now(tz=UTC))
     except Exception as e:
         if _is_start_rejected_as_cleared(e):
             logger.info(_START_REJECTED_AS_CLEARED_MESSAGE)
@@ -3107,7 +3112,7 @@ def _fail_task_before_runtime(
         try:
             if error.retryable and ti_context.should_retry:
                 client.task_instances.retry(
-                    ti.id, end_date=end_date, rendered_map_index=None, retry_reason=reason[:500]
+                    ti.id, end_date=end_date, rendered_map_index=None, retry_reason=reason[:500], pid=pid
                 )
             else:
                 client.task_instances.finish(
@@ -3116,6 +3121,7 @@ def _fail_task_before_runtime(
                     when=end_date,
                     rendered_map_index=None,
                     retry_reason=reason[:500],
+                    pid=pid,
                 )
         except ServerResponseError as e:
             if e.response.status_code != HTTPStatus.CONFLICT:

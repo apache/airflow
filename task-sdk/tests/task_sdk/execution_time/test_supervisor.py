@@ -387,6 +387,7 @@ class TestSuperviseTaskLaunchError:
             when=mock.ANY,
             rendered_map_index=None,
             retry_reason="no jar for 'extract'",
+            pid=os.getpid(),
         )
         client.task_instances.retry.assert_not_called()
 
@@ -399,7 +400,11 @@ class TestSuperviseTaskLaunchError:
 
         assert exit_code == 1
         client.task_instances.retry.assert_called_once_with(
-            ti.id, end_date=mock.ANY, rendered_map_index=None, retry_reason="no jar for 'extract'"
+            ti.id,
+            end_date=mock.ANY,
+            rendered_map_index=None,
+            retry_reason="no jar for 'extract'",
+            pid=os.getpid(),
         )
         client.task_instances.finish.assert_not_called()
 
@@ -417,6 +422,7 @@ class TestSuperviseTaskLaunchError:
             when=mock.ANY,
             rendered_map_index=None,
             retry_reason="wrong coordinator",
+            pid=os.getpid(),
         )
         client.task_instances.retry.assert_not_called()
 
@@ -1147,6 +1153,7 @@ class TestWatchedSubprocess:
                 trigger_timeout=None,
                 next_kwargs={},
             ),
+            pid=mock_client.task_instances.start.call_args.args[1],
         )
 
         # We are asserting the log messages here to ensure the task ran successfully
@@ -2553,6 +2560,7 @@ REQUEST_TEST_CASES = [
         client_mock=ClientMock(
             method_path="task_instances.defer",
             args=(TI_ID, DeferTask(next_method="execute_callback", classpath="my-classpath")),
+            kwargs={"pid": 12345},
         ),
     ),
     RequestTestCase(
@@ -2561,6 +2569,7 @@ REQUEST_TEST_CASES = [
         client_mock=ClientMock(
             method_path="task_instances.await_input",
             args=(TI_ID, AwaitInputTask(next_method="execute_complete")),
+            kwargs={"pid": 12345},
         ),
     ),
     RequestTestCase(
@@ -2578,6 +2587,7 @@ REQUEST_TEST_CASES = [
                     end_date=timezone.parse("2024-10-31T12:00:00Z"),
                 ),
             ),
+            kwargs={"pid": 12345},
         ),
     ),
     RequestTestCase(
@@ -2803,6 +2813,7 @@ REQUEST_TEST_CASES = [
                 "task_outlets": None,
                 "when": timezone.parse("2024-10-31T12:00:00Z"),
                 "rendered_map_index": "test success task",
+                "pid": 12345,
                 "loop_decision": LoopDecisionPayload(stop=True, reason="converged"),
                 "external_clear_target": ExternalClearTargetPayload(
                     dag_id="child",
@@ -4307,6 +4318,7 @@ class TestHandleRequest:
             rendered_map_index="retrying",
             retry_delay_seconds=37,
             retry_reason="rate limited",
+            pid=process.pid,
         )
         process.client.task_instances.finish.assert_not_called()
 
@@ -4950,7 +4962,23 @@ class TestHandleRequest:
             state=TaskInstanceState.FAILED,
             when=mocker.ANY,
             rendered_map_index=None,
+            pid=watched_subprocess.pid,
             **{"retry_reason": None, "loop_decision": None, **extra},
+        )
+
+    def test_failure_inferred_from_exit_code_is_reported_with_the_task_pid(self, watched_subprocess, mocker):
+        watched_subprocess, _ = watched_subprocess
+        watched_subprocess._exit_code = 1
+        watched_subprocess._should_retry = False
+
+        watched_subprocess.update_task_state_if_needed()
+
+        watched_subprocess.client.task_instances.finish.assert_called_once_with(
+            id=watched_subprocess.id,
+            state=TaskInstanceState.FAILED,
+            when=mocker.ANY,
+            rendered_map_index=None,
+            pid=watched_subprocess.pid,
         )
 
 
@@ -5081,6 +5109,7 @@ class TestInProcessTestSupervisor:
             rendered_map_index=None,
             retry_delay_seconds=None,
             retry_reason=None,
+            pid=os.getpid(),
         )
         client.task_instances.finish.assert_not_called()
 
@@ -5115,6 +5144,7 @@ class TestInProcessTestSupervisor:
             rendered_map_index=None,
             retry_delay_seconds=None,
             retry_reason=None,
+            pid=os.getpid(),
         )
         client.task_instances.finish.assert_not_called()
 

@@ -101,6 +101,22 @@ pytestmark = pytest.mark.db_test
 
 DEFAULT_START_DATE = timezone.parse("2024-10-31T11:00:00Z")
 DEFAULT_END_DATE = timezone.parse("2024-10-31T12:00:00Z")
+
+SENDER_CHECKED_PAYLOADS = [
+    pytest.param(
+        {"state": "deferred", "classpath": "my-classpath", "next_method": "execute_callback"},
+        id="deferred",
+    ),
+    pytest.param(
+        {
+            "state": "up_for_reschedule",
+            "reschedule_date": "2024-10-31T11:03:00+00:00",
+            "end_date": DEFAULT_END_DATE.isoformat(),
+        },
+        id="up_for_reschedule",
+    ),
+    pytest.param({"state": "failed", "end_date": DEFAULT_END_DATE.isoformat()}, id="failed"),
+]
 DEFAULT_RENDERED_MAP_INDEX = "test rendered map index"
 
 CONTINUE = {"stop": False}
@@ -2939,6 +2955,39 @@ class TestTIUpdateState:
         assert gate.state == State.FAILED
         assert [ti.region_index for ti in gate.dag_run.get_task_instances(session=session)] == [1, 1]
 
+    def test_loop_gate_missing_from_its_pinned_version_rejects_sender_that_does_not_own_it(
+        self, client, session, running_loop_gate, dag_maker
+    ):
+        gate = running_loop_gate
+
+        def renamed_gate(loop):
+            return True
+
+        @task_group
+        def body():
+            PythonOperator(task_id="terminal", python_callable=list)
+
+        with dag_maker(serialized=True, session=session):
+            create_loop(body, max_iterations=3, until=renamed_gate)
+        gate.dag_version_id = DagVersion.get_latest_version(gate.dag_id, session=session).id
+        gate.hostname, gate.pid = "worker-b", 200
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{gate.id}/state",
+            json={
+                "state": "success",
+                "end_date": DEFAULT_END_DATE.isoformat(),
+                "hostname": "worker-a",
+                "pid": 100,
+            },
+        )
+
+        assert response.status_code == 409
+        assert response.json()["detail"]["reason"] == "running_elsewhere"
+        session.expire_all()
+        assert gate.state == State.RUNNING
+
     def test_loop_gate_state_update_error_rolls_back_next_pass(
         self, client, session, running_loop_gate, mocker
     ):
@@ -4132,6 +4181,77 @@ class TestTIUpdateState:
         assert trs[0].reschedule_date == timezone.parse("2024-10-31T11:03:00+00:00")
         assert trs[0].task_instance.map_index == -1
         assert trs[0].duration == 129600
+
+    @pytest.mark.parametrize("payload", SENDER_CHECKED_PAYLOADS)
+    @pytest.mark.parametrize(
+        ("hostname", "pid"),
+        [pytest.param("worker-a", 200, id="other-host"), pytest.param("worker-b", 100, id="other-pid")],
+    )
+    def test_ti_update_state_rejects_sender_that_does_not_own_the_attempt(
+        self, client, session, create_task_instance, payload, hostname, pid
+    ):
+        ti = create_task_instance(task_id="test_ti_update_state_sender", state=State.RUNNING, session=session)
+        ti.hostname, ti.pid = "worker-b", 200
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/state", json={**payload, "hostname": hostname, "pid": pid}
+        )
+
+        assert response.status_code == 409
+        assert response.json()["detail"]["reason"] == "running_elsewhere"
+        session.expire_all()
+        ti = session.get(TaskInstance, ti.id)
+        assert (ti.state, ti.hostname, ti.pid) == (State.RUNNING, "worker-b", 200)
+        assert session.scalars(select(Trigger)).all() == []
+        assert session.scalars(select(TaskReschedule)).all() == []
+
+    @pytest.mark.parametrize("payload", SENDER_CHECKED_PAYLOADS)
+    @pytest.mark.parametrize(
+        ("hostname", "pid"),
+        [pytest.param("worker-b", 200, id="owner"), pytest.param(None, None, id="explicit-null")],
+    )
+    def test_ti_update_state_accepts_sender_that_owns_the_attempt(
+        self, client, session, create_task_instance, payload, hostname, pid
+    ):
+        ti = create_task_instance(task_id="test_ti_update_state_sender", state=State.RUNNING, session=session)
+        ti.hostname, ti.pid = "worker-b", 200
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/state", json={**payload, "hostname": hostname, "pid": pid}
+        )
+
+        assert response.status_code == 204
+        session.expire_all()
+        ti = session.get(TaskInstance, ti.id)
+        assert (ti.state, ti.hostname, ti.pid) == (payload["state"], "worker-b", 200)
+
+    @pytest.mark.backend("mysql")
+    def test_ti_update_state_reschedule_mysql_limit_keeps_owner_on_null_sender(
+        self, client, session, create_task_instance
+    ):
+        ti = create_task_instance(
+            task_id="test_mysql_limit_null_sender", state=State.RUNNING, session=session
+        )
+        ti.hostname, ti.pid = "worker-b", 200
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/state",
+            json={
+                "state": TaskInstanceState.UP_FOR_RESCHEDULE,
+                "reschedule_date": timezone.datetime(2038, 1, 19, 3, 14, 8).isoformat(),
+                "end_date": DEFAULT_END_DATE.isoformat(),
+                "hostname": None,
+                "pid": None,
+            },
+        )
+
+        assert response.status_code == 204
+        session.expire_all()
+        ti = session.get(TaskInstance, ti.id)
+        assert (ti.state, ti.hostname, ti.pid) == (State.FAILED, "worker-b", 200)
 
     @pytest.mark.backend("mysql")
     def test_ti_update_state_reschedule_mysql_limit(

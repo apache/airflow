@@ -157,12 +157,16 @@ class TISuccessStatePayload(StrictBaseModel):
     loop_decision: LoopDecisionPayload | None = None
     external_clear_target: ExternalClearTargetPayload | None = None
     """A task in another Dag to clear whenever this attempt is cleared with its downstream tasks."""
+    hostname: str | None = None
+    pid: int | None = None
 
 
 class TITargetStatePayload(StrictBaseModel):
     """Schema for updating TaskInstance to a target state, excluding terminal and running states."""
 
     state: IntermediateTIState
+    hostname: str | None = None
+    pid: int | None = None
 
 
 class TIDeferredStatePayload(StrictBaseModel):
@@ -198,6 +202,8 @@ class TIDeferredStatePayload(StrictBaseModel):
     Both forms will be passed along to the TaskSDK upon resume, the server will not handle either.
     """
     rendered_map_index: str | None = None
+    hostname: str | None = None
+    pid: int | None = None
 
 
 class TIRescheduleStatePayload(StrictBaseModel):
@@ -216,6 +222,8 @@ class TIRescheduleStatePayload(StrictBaseModel):
     ]
     reschedule_date: UtcDateTime
     end_date: UtcDateTime
+    hostname: str | None = None
+    pid: int | None = None
 
 
 class TIAwaitingInputStatePayload(StrictBaseModel):
@@ -243,6 +251,8 @@ class TIAwaitingInputStatePayload(StrictBaseModel):
     Both forms will be passed along to the TaskSDK upon resume, the server will not handle either.
     """
     rendered_map_index: str | None = None
+    hostname: str | None = None
+    pid: int | None = None
 
 
 class TIRetryStatePayload(StrictBaseModel):
@@ -263,6 +273,8 @@ class TIRetryStatePayload(StrictBaseModel):
     rendered_map_index: str | None = None
     retry_delay_seconds: float | None = None
     retry_reason: str | None = None
+    hostname: str | None = None
+    pid: int | None = None
 
 
 class TISkippedDownstreamTasksStatePayload(StrictBaseModel):
