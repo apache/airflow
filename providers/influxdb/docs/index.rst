@@ -109,7 +109,6 @@ PIP package                                 Version required
 ``pandas``                                  ``>=2.3.3; python_version >= "3.14"``
 ``influxdb-client``                         ``>=1.19.0``
 ``influxdb3-python``                        ``>=0.12.0``
-``requests``                                ``>=2.32.0,<3``
 ==========================================  =================================================================
 
 Downloading official packages

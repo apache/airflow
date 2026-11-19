@@ -94,7 +94,6 @@ PIP package                                 Version required
 ``apache-airflow``                          ``>=2.11.0``
 ``apache-airflow-providers-common-compat``  ``>=1.8.0``
 ``google-auth``                             ``>=1.0.0,<3.0.0``
-``google-auth-httplib2``                    ``>=0.0.1``
 ``grpcio``                                  ``>=1.59.0``
 ==========================================  ==================
 
