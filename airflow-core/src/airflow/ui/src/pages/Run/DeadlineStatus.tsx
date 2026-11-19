@@ -23,52 +23,40 @@ import dayjs from "dayjs";
 import { useTranslation } from "react-i18next";
 import { FiAlertTriangle, FiCheck, FiClock } from "react-icons/fi";
 
-import { useDeadlinesServiceGetDeadlines } from "openapi/queries";
-import type { DAGRunResponse, DeadlineAlertResponse } from "openapi/requests/types.gen";
+import type { DeadlineAlertResponse, DeadlineCollectionResponse } from "openapi/requests/types.gen";
 
 import { Tooltip } from "src/system-components";
 
 import Time from "src/components/Time";
 
 import { useDurationFormat } from "src/utils";
-import { isDeadlineAlertApplicable, translateCompletionRule } from "src/utils/deadlines";
+import { translateCompletionRule } from "src/utils/deadlines";
 
 import { DeadlineStatusModal } from "./DeadlineStatusModal";
 
 type DeadlineStatusProps = {
   readonly dagId: string;
   readonly dagRunId: string;
+  readonly deadlineData: DeadlineCollectionResponse;
   readonly endDate: string | null;
-  readonly runType: DAGRunResponse["run_type"];
 };
 
-export const DeadlineStatus = ({ dagId, dagRunId, endDate, runType }: DeadlineStatusProps) => {
+export const DeadlineStatus = ({ dagId, dagRunId, deadlineData, endDate }: DeadlineStatusProps) => {
   const { t: translate } = useTranslation("dag");
   const { locale, renderDuration } = useDurationFormat();
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  const { data: deadlineData, isLoading: isLoadingDeadlines } = useDeadlinesServiceGetDeadlines({
-    dagId,
-    dagRunId,
-    includeAlerts: true,
-    limit: 10,
-    orderBy: ["deadline_time"],
-  });
-  const applicableAlerts = (deadlineData?.deadline_alerts ?? []).filter((deadlineAlert) =>
-    isDeadlineAlertApplicable(deadlineAlert, runType),
+  const applicableAlerts = (deadlineData.deadline_alerts ?? []).filter(
+    (deadlineAlert) => deadlineAlert.is_applicable,
   );
 
   const alertMap = new Map<string, DeadlineAlertResponse>();
 
-  for (const deadlineAlert of deadlineData?.deadline_alerts ?? []) {
+  for (const deadlineAlert of deadlineData.deadline_alerts ?? []) {
     alertMap.set(deadlineAlert.id, deadlineAlert);
   }
 
-  if (isLoadingDeadlines) {
-    return undefined;
-  }
-
-  const deadlines = deadlineData?.deadlines ?? [];
+  const { deadlines, total_entries: totalEntries } = deadlineData;
   const hasAlerts = applicableAlerts.length > 0;
 
   if (deadlines.length === 0 && !hasAlerts) {
@@ -96,7 +84,6 @@ export const DeadlineStatus = ({ dagId, dagRunId, endDate, runType }: DeadlineSt
     );
   }
 
-  const totalEntries = deadlineData?.total_entries ?? 0;
   const runEndDate = endDate ?? undefined;
 
   // When there are multiple deadline instances, collapse into a single compact badge to

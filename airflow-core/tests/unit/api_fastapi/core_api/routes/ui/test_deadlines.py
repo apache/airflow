@@ -272,6 +272,26 @@ def setup(dag_maker, session):
 class TestGetDagRunDeadlines:
     """Tests for GET /dags/{dag_id}/dagRuns/{dag_run_id}/deadlines."""
 
+    @pytest.mark.parametrize(
+        ("run_type_filter", "expected"),
+        [(None, True), (["scheduled"], True), (["manual"], False), (["manual", "scheduled"], True)],
+    )
+    def test_included_alerts_report_current_run_applicability(
+        self, test_client, session, run_type_filter, expected
+    ):
+        alert = session.scalar(select(DeadlineAlert).where(DeadlineAlert.name == ALERT_NAME))
+        alert.run_type_filter = run_type_filter
+        session.commit()
+
+        response = test_client.get(
+            f"/dags/{DAG_ID}/dagRuns/{RUN_ALERT}/deadlines", params={"include_alerts": True}
+        )
+
+        assert response.status_code == 200
+        included = next(item for item in response.json()["deadline_alerts"] if item["name"] == ALERT_NAME)
+        assert included["is_applicable"] is expected
+        assert any(deadline["alert_id"] == included["id"] for deadline in response.json()["deadlines"])
+
     @pytest.mark.parametrize("run_id", [RUN_ALERT, RUN_EMPTY, RUN_MULTI])
     def test_include_alerts_adds_one_query(self, test_client, run_id):
         url = f"/dags/{DAG_ID}/dagRuns/{run_id}/deadlines"
@@ -818,11 +838,11 @@ class TestGetDagDeadlineAlerts:
         assert response.json()["detail"] == f"Dag with id {dag_id} and version number 999 was not found"
 
     @pytest.mark.parametrize(
-        ("original_filter", "latest_filter"),
-        [(["scheduled"], ["scheduled", "backfill"]), (["backfill"], ["scheduled"])],
+        ("original_filter", "latest_filter", "is_applicable"),
+        [(["scheduled"], ["scheduled", "backfill"], False), (["backfill"], ["scheduled"], True)],
     )
     def test_run_uses_creation_version_filters(
-        self, test_client, dag_maker, session, original_filter, latest_filter
+        self, test_client, dag_maker, session, original_filter, latest_filter, is_applicable
     ):
         dag_id = self._make_two_versions_with_alerts(dag_maker, session)
         versions = session.scalars(
@@ -848,8 +868,9 @@ class TestGetDagDeadlineAlerts:
 
         assert response.status_code == 200
         assert [
-            (alert["name"], alert["run_type_filter"]) for alert in response.json()["deadline_alerts"]
-        ] == [("v1_alert", original_filter)]
+            (alert["name"], alert["run_type_filter"], alert["is_applicable"])
+            for alert in response.json()["deadline_alerts"]
+        ] == [("v1_alert", original_filter, is_applicable)]
         latest = test_client.get(f"/dags/{dag_id}/deadlineAlerts").json()["deadline_alerts"]
         assert [(alert["name"], alert["run_type_filter"]) for alert in latest] == [
             ("v2_alert", latest_filter)

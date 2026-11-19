@@ -17,6 +17,9 @@
  * under the License.
  */
 import "@testing-library/jest-dom/vitest";
+import type { PropsWithChildren } from "react";
+
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -27,6 +30,7 @@ import type {
   DeadlineCollectionResponse,
   DeadlineResponse,
   DAGRunResponse,
+  RunDeadlineAlertResponse,
 } from "openapi/requests/types.gen";
 
 import i18n from "src/i18n/config";
@@ -88,11 +92,13 @@ const baseDagRun = {
 
 const buildAlert = (
   filter: DeadlineAlertResponse["run_type_filter"],
-  id = "alert",
-): DeadlineAlertResponse => ({
+  id: string,
+  isApplicable: boolean,
+): RunDeadlineAlertResponse => ({
   created_at: "2025-01-01T00:00:00Z",
   id,
   interval: 25,
+  is_applicable: isApplicable,
   reference_type: "DagRunQueuedAtDeadline",
   run_type_filter: filter,
 });
@@ -131,34 +137,35 @@ describe("Header", () => {
   });
 
   it.each([
-    { filters: [["scheduled"]], runType: "backfill", visible: false },
-    { filters: [["scheduled"]], runType: "scheduled", visible: true },
-    { filters: [null], runType: "backfill", visible: true },
-    { filters: [["scheduled"], ["manual"]], runType: "backfill", visible: false },
-    { filters: [["scheduled"], ["backfill"]], runType: "backfill", visible: true },
-  ] as const)(
-    "shows deadline status=$visible for $runType with $filters",
-    ({ filters, runType, visible }) => {
-      mockDeadlineData({
-        deadline_alerts: filters.map((filter, index) =>
-          buildAlert(filter === null ? null : [...filter], String(index)),
-        ),
-      });
-      render(<Header dagRun={{ ...baseDagRun, run_type: runType }} />, { wrapper: Wrapper });
-      expect(Boolean(screen.queryByText(i18n.t("dag:deadlineStatus.label")))).toBe(visible);
-      expect(Boolean(screen.queryByText(i18n.t("dag:deadlineStatus.met")))).toBe(visible);
-      for (const [params] of vi.mocked(useDeadlinesServiceGetDeadlines).mock.calls) {
-        expect(params).toEqual(headerQuery);
-      }
-      expect(useDeadlinesServiceGetDagDeadlineAlerts).not.toHaveBeenCalled();
-    },
-  );
-
-  it.each([{ filter: ["scheduled"] }, { filter: ["backfill"] }, { filter: null }] satisfies Array<{
-    filter: DeadlineAlertResponse["run_type_filter"];
-  }>)("shows stored deadlines for backfill with $filter", ({ filter }) => {
+    { applicability: [false], visible: false },
+    { applicability: [true], visible: true },
+    { applicability: [false, false], visible: false },
+    { applicability: [false, true], visible: true },
+  ])("shows deadline status=$visible for API applicability $applicability", ({ applicability, visible }) => {
     mockDeadlineData({
-      deadline_alerts: [buildAlert(filter)],
+      deadline_alerts: applicability.map((isApplicable, index) =>
+        buildAlert(["scheduled"], String(index), isApplicable),
+      ),
+    });
+    render(<Header dagRun={{ ...baseDagRun, run_type: "backfill" }} />, { wrapper: Wrapper });
+    expect(Boolean(screen.queryByText(i18n.t("dag:deadlineStatus.label")))).toBe(visible);
+    expect(Boolean(screen.queryByText(i18n.t("dag:deadlineStatus.met")))).toBe(visible);
+    for (const [params] of vi.mocked(useDeadlinesServiceGetDeadlines).mock.calls) {
+      expect(params).toEqual(headerQuery);
+    }
+    expect(useDeadlinesServiceGetDagDeadlineAlerts).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    { filter: ["scheduled"], isApplicable: false },
+    { filter: ["backfill"], isApplicable: true },
+    { filter: null, isApplicable: true },
+  ] satisfies Array<{
+    filter: DeadlineAlertResponse["run_type_filter"];
+    isApplicable: boolean;
+  }>)("shows stored deadlines for backfill with $filter", ({ filter, isApplicable }) => {
+    mockDeadlineData({
+      deadline_alerts: [buildAlert(filter, "alert", isApplicable)],
       deadlines: [buildDeadline()],
       total_entries: 1,
     });
@@ -168,7 +175,7 @@ describe("Header", () => {
 
   it.each(["excluded", "included"])("shows stored %s history with mixed filters", (storedAlert) => {
     mockDeadlineData({
-      deadline_alerts: [buildAlert(["scheduled"], "excluded"), buildAlert(null, "included")],
+      deadline_alerts: [buildAlert(["scheduled"], "excluded", false), buildAlert(null, "included", true)],
       deadlines: [buildDeadline(storedAlert)],
       total_entries: 1,
     });
@@ -186,7 +193,7 @@ describe("Header", () => {
   it("shares one service request between the header and deadline status", async () => {
     const actual = await vi.importActual<typeof OpenapiQueries>("openapi/queries");
     const request = vi.spyOn(DeadlinesService, "getDeadlines").mockResolvedValue({
-      deadline_alerts: [buildAlert(["scheduled"])],
+      deadline_alerts: [buildAlert(["scheduled"], "alert", false)],
       deadlines: [buildDeadline()],
       total_entries: 1,
     });
@@ -199,8 +206,72 @@ describe("Header", () => {
     request.mockRestore();
   });
 
+  it.each([
+    { filter: ["backfill"], initialApplicable: false, nextApplicable: true },
+    { filter: ["scheduled"], initialApplicable: true, nextApplicable: false },
+  ] satisfies Array<{
+    filter: DeadlineAlertResponse["run_type_filter"];
+    initialApplicable: boolean;
+    nextApplicable: boolean;
+  }>)(
+    "refreshes applicability from $initialApplicable to $nextApplicable when the same run becomes backfill",
+    async ({ filter, initialApplicable, nextApplicable }) => {
+      const queryClient = new QueryClient({
+        defaultOptions: { queries: { retry: false, staleTime: 5 * 60 * 1000 } },
+      });
+      const StableWrapper = ({ children }: PropsWithChildren) => (
+        <Wrapper>
+          <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+        </Wrapper>
+      );
+      const actual = await vi.importActual<typeof OpenapiQueries>("openapi/queries");
+      const initialData: DeadlineCollectionResponse = {
+        deadline_alerts: [buildAlert(filter, "alert", initialApplicable)],
+        deadlines: [],
+        total_entries: 0,
+      };
+      const request = vi.spyOn(DeadlinesService, "getDeadlines").mockResolvedValue(initialData);
+
+      vi.mocked(useDeadlinesServiceGetDeadlines).mockImplementation(actual.useDeadlinesServiceGetDeadlines);
+
+      try {
+        const dagRun = { ...baseDagRun, run_type: "scheduled" as const };
+        const { rerender } = render(<Header dagRun={dagRun} />, { wrapper: StableWrapper });
+
+        await waitFor(() => {
+          expect(request).toHaveBeenCalledTimes(1);
+          expect(queryClient.isFetching()).toBe(0);
+          expect(Boolean(screen.queryByText(i18n.t("dag:deadlineStatus.met")))).toBe(initialApplicable);
+        });
+
+        rerender(<Header dagRun={{ ...dagRun, duration: 42 }} />);
+        expect(request).toHaveBeenCalledTimes(1);
+
+        request.mockResolvedValue({
+          ...initialData,
+          deadline_alerts: [buildAlert(filter, "alert", nextApplicable)],
+        });
+        rerender(<Header dagRun={{ ...dagRun, run_type: "backfill" }} />);
+
+        await waitFor(() => {
+          expect(request).toHaveBeenCalledTimes(2);
+          expect(queryClient.isFetching()).toBe(0);
+          expect(Boolean(screen.queryByText(i18n.t("dag:deadlineStatus.label")))).toBe(nextApplicable);
+          expect(Boolean(screen.queryByText(i18n.t("dag:deadlineStatus.met")))).toBe(nextApplicable);
+        });
+        for (const [params] of request.mock.calls) {
+          expect(params).toEqual(headerQuery);
+        }
+        expect(useDeadlinesServiceGetDagDeadlineAlerts).not.toHaveBeenCalled();
+      } finally {
+        queryClient.clear();
+        request.mockRestore();
+      }
+    },
+  );
+
   it("keeps alert metadata on every modal page without requesting it again", async () => {
-    const alerts = [buildAlert(["scheduled"], "excluded"), buildAlert(["backfill"], "included")];
+    const alerts = [buildAlert(["scheduled"], "excluded", false), buildAlert(["backfill"], "included", true)];
     const records = [
       ...Array.from({ length: 12 }, (_, index) => ({
         ...buildDeadline("excluded"),

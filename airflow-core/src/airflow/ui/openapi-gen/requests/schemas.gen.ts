@@ -13238,7 +13238,7 @@ export const $DeadlineCollectionResponse = {
             anyOf: [
                 {
                     items: {
-                        '$ref': '#/components/schemas/DeadlineAlertResponse'
+                        '$ref': '#/components/schemas/RunDeadlineAlertResponse'
                     },
                     type: 'array'
                 },
@@ -15264,6 +15264,71 @@ export const $PartitionedDagRunResponse = {
     required: ['id', 'partition_key', 'total_received', 'total_required'],
     title: 'PartitionedDagRunResponse',
     description: 'Single partitioned Dag run item.'
+} as const;
+
+export const $RunDeadlineAlertResponse = {
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid',
+            title: 'Id'
+        },
+        name: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Name'
+        },
+        run_type_filter: {
+            anyOf: [
+                {
+                    items: {
+                        '$ref': '#/components/schemas/DagRunType'
+                    },
+                    type: 'array'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Run Type Filter'
+        },
+        reference_type: {
+            type: 'string',
+            title: 'Reference Type'
+        },
+        interval: {
+            anyOf: [
+                {
+                    type: 'number'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Interval',
+            description: 'Interval in seconds between the reference time and the deadline. Null for a dynamic interval (e.g. a VariableInterval) whose value is only resolved at scheduler evaluation time.'
+        },
+        created_at: {
+            type: 'string',
+            format: 'date-time',
+            title: 'Created At'
+        },
+        is_applicable: {
+            type: 'boolean',
+            title: 'Is Applicable',
+            description: "Whether the alert's run type filter matches the Dag run's current type. This does not indicate whether a deadline was created or met."
+        }
+    },
+    type: 'object',
+    required: ['id', 'reference_type', 'created_at', 'is_applicable'],
+    title: 'RunDeadlineAlertResponse',
+    description: 'Alert definition and applicability to the current Dag run type.'
 } as const;
 
 export const $StandardHookFields = {

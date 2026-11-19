@@ -3411,7 +3411,7 @@ export type DeadlineAlertResponse = {
 export type DeadlineCollectionResponse = {
     deadlines: Array<DeadlineResponse>;
     total_entries: number;
-    deadline_alerts?: Array<DeadlineAlertResponse> | null;
+    deadline_alerts?: Array<RunDeadlineAlertResponse> | null;
 };
 
 /**
@@ -3842,6 +3842,25 @@ export type PartitionedDagRunResponse = {
     dag_id?: string | null;
     state?: string | null;
     created_dag_run_id?: string | null;
+};
+
+/**
+ * Alert definition and applicability to the current Dag run type.
+ */
+export type RunDeadlineAlertResponse = {
+    id: string;
+    name?: string | null;
+    run_type_filter?: Array<DagRunType> | null;
+    reference_type: string;
+    /**
+     * Interval in seconds between the reference time and the deadline. Null for a dynamic interval (e.g. a VariableInterval) whose value is only resolved at scheduler evaluation time.
+     */
+    interval?: number | null;
+    created_at: string;
+    /**
+     * Whether the alert's run type filter matches the Dag run's current type. This does not indicate whether a deadline was created or met.
+     */
+    is_applicable: boolean;
 };
 
 /**

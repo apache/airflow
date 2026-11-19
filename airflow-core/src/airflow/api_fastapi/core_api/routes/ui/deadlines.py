@@ -49,6 +49,7 @@ from airflow.api_fastapi.core_api.datamodels.ui.deadline import (
     DeadlineAlertCollectionResponse,
     DeadlineAlertResponse,
     DeadlineCollectionResponse,
+    RunDeadlineAlertResponse,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.routes.public.log import (
@@ -122,7 +123,8 @@ def get_deadlines(
     Dags and Dag runs.
 
     For a specific run, `include_alerts` also returns its creation-version alert
-    definitions, independently of the deadline filters and pagination.
+    definitions and their applicability to the current run type, independently
+    of the deadline filters and pagination.
     """
     if include_alerts and (dag_id == "~" or dag_run_id == "~"):
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "include_alerts requires a specific Dag and run")
@@ -173,9 +175,12 @@ def get_deadlines(
     alerts = None
     if include_alerts:
         alerts = [
-            DeadlineAlertResponse.model_validate(alert)
-            for alert in session.scalars(
-                select(DeadlineAlert)
+            RunDeadlineAlertResponse(
+                **DeadlineAlertResponse.model_validate(alert).model_dump(),
+                is_applicable=alert.is_applicable_to_run_type(run_type),
+            )
+            for alert, run_type in session.execute(
+                select(DeadlineAlert, DagRun.run_type)
                 .join(SerializedDagModel, DeadlineAlert.serialized_dag_id == SerializedDagModel.id)
                 .join(DagRun, DagRun.created_dag_version_id == SerializedDagModel.dag_version_id)
                 .where(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id)
