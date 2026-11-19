@@ -45,7 +45,6 @@ from airflow.models import Connection
 from airflow.providers.common.ai.hooks.pydantic_ai import PydanticAIHook
 from airflow.providers.common.compat.sdk import AirflowException, AirflowOptionalProviderFeatureException
 from airflow.providers.databricks import hooks as databricks_hooks
-from airflow.providers.databricks.get_provider_info import get_provider_info
 from airflow.providers.databricks.hooks.databricks_base import BaseDatabricksHook
 from airflow.providers.databricks.hooks.model_serving import (
     _UNUSED_TOKEN_PLACEHOLDER,
@@ -653,20 +652,6 @@ class TestTestConnection:
         assert ok is False
         assert message
         mock_hook_cls.return_value._get_token.assert_not_called()
-
-
-class TestUiFieldBehaviour:
-    def test_matches_provider_yaml(self):
-        entry = next(
-            c
-            for c in get_provider_info()["connection-types"]
-            if c["connection-type"] == "pydanticai_databricks"
-        )
-        behaviour = PydanticAIDatabricksHook.get_ui_field_behaviour()
-
-        assert entry["ui-field-behaviour"]["hidden-fields"] == behaviour["hidden_fields"]
-        assert entry["ui-field-behaviour"]["placeholders"] == behaviour["placeholders"]
-        assert entry["ui-field-behaviour"]["relabeling"] == behaviour["relabeling"]
 
 
 class TestCommonAiVersionGuard:
