@@ -144,14 +144,12 @@ PIP package                                 Version required
 ``google-cloud-bigquery-storage``           ``>=2.38.0; python_version < "3.13"``
 ``google-cloud-bigquery-storage``           ``>=2.38.0; python_version >= "3.13"``
 ``google-cloud-alloydb``                    ``>=0.9.0``
-``google-cloud-automl``                     ``>=2.19.0``
 ``google-cloud-bigquery``                   ``>=3.41.0``
 ``google-cloud-bigquery-datatransfer``      ``>=3.22.0``
 ``google-cloud-bigtable``                   ``>=2.38.0``
 ``google-cloud-build``                      ``>=3.36.0``
 ``google-cloud-compute``                    ``>=1.47.0``
 ``google-cloud-container``                  ``>=2.64.0``
-``google-cloud-datacatalog``                ``>=3.30.0``
 ``google-cloud-dataflow-client``            ``>=0.13.0``
 ``google-cloud-dataform``                   ``>=0.10.0``
 ``google-cloud-dataplex``                   ``>=2.19.0``
@@ -181,7 +179,6 @@ PIP package                                 Version required
 ``google-cloud-workflows``                  ``>=1.22.0``
 ``google-cloud-run``                        ``>=0.16.0``
 ``google-cloud-batch``                      ``>=0.21.0``
-``grpcio-gcp``                              ``>=0.2.2``
 ``httpx2``                                  ``>=2.0.0``
 ``looker-sdk``                              ``>=22.4.0,!=24.18.0``
 ``pandas-gbq``                              ``>=0.7.0``
