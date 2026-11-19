@@ -550,6 +550,7 @@ class TestUsersService:
 
         assert getattr(out, field) == value
         security_manager.update_user.assert_called_once_with(user_obj)
+        security_manager.find_user.assert_any_call(**{field: value})
 
     def test_update_user_ignores_conflicts_outside_the_update_mask(
         self, get_fab_auth_manager, fab_auth_manager, security_manager
