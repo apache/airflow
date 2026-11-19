@@ -436,6 +436,26 @@ the service confirms that the job is in the queue, use TargetState.SCHEDULED.
     :start-after: [START howto_sensor_bedrock_batch_inference_scheduled]
     :end-before: [END howto_sensor_bedrock_batch_inference_scheduled]
 
+.. _howto/sensor:BedrockAgentRuntimeReadySensor:
+
+Wait for an Amazon Bedrock AgentCore Runtime
+============================================
+
+To wait until an Amazon Bedrock AgentCore Runtime is ``READY`` you can use
+:class:`~airflow.providers.amazon.aws.sensors.bedrock.BedrockAgentRuntimeReadySensor`.
+The sensor fails when the runtime reaches ``CREATE_FAILED``, ``UPDATE_FAILED``, ``DELETING`` or
+``DELETE_FAILED`` and includes the failure reason reported by the service.
+
+This is useful when the runtime is created or updated outside of the DAG, for example by an
+infrastructure pipeline, and the DAG only needs to wait for it before invoking it. Pass
+``agent_runtime_version`` to watch a specific version, for example the one returned by an update.
+
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_bedrock_agentcore.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_sensor_bedrock_agent_runtime_ready]
+    :end-before: [END howto_sensor_bedrock_agent_runtime_ready]
+
 .. _howto/operator:BedrockCreateGuardrailOperator:
 
 Create a Guardrail
