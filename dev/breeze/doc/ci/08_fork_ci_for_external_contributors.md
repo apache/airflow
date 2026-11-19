@@ -1328,7 +1328,11 @@ Unknown means any of:
 - A state comment whose marker cannot be parsed.
 
 Expected states never alert. The message lists the pull request numbers and the reason for
-each, with a link to the workflow run, so a maintainer can act. The run itself still ends
+each, with a link to the workflow run, so a maintainer can act. An item or note about a failed
+call names the exception and the first line of its message, shortened to 200 characters; a failed
+`gh` call's arguments, which for GraphQL hold the whole query, are left out, and the run log has
+the error in full. A failure that persists gives the same text on every run, so it is still posted
+once. The run itself still ends
 green unless the reconciler could not talk to GitHub at all.
 
 ### Budget

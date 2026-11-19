@@ -22,6 +22,7 @@ import {
   Dag,
   finalizeDag,
   getDagOrderEdges,
+  getDagTaskGroups,
   getDagTaskInputs,
   getDagTaskRecords,
   Label,
@@ -217,6 +218,29 @@ describe("dag.if", () => {
     notified.after(gated);
 
     expect(getDagOrderEdges(dag)).toContainEqual({ upstream: "has_rows", downstream: "notify" });
+  });
+
+  it("declares a condition in a task group, under the group's prefix", async () => {
+    const dag = new Dag("d");
+    const ifReady = dag.task("load_if_ready", async () => undefined)();
+    const fallback = dag.task("load_fallback", async () => undefined)();
+    const gate = dag.taskGroup("checks").if(async () => true, undefined, { taskId: "has_rows" });
+    gate.then(ifReady).else(fallback);
+
+    expect(gate.taskId).toBe("checks.has_rows");
+    expect(getDagTaskGroups(dag).get("checks")?.taskIds).toEqual(["checks.has_rows"]);
+    const { skipDownstreamTasks } = await runHandler(dag, "checks.has_rows");
+    expect(skipDownstreamTasks).toHaveBeenCalledWith(["load_fallback"]);
+  });
+
+  it("names the group method when a group's condition is awaited", async () => {
+    const gate = new Dag("d")
+      .taskGroup("checks")
+      .if(async () => true, undefined, { taskId: "has_rows" });
+
+    await expect(Promise.resolve(gate as unknown as Promise<void>)).rejects.toThrow(
+      /taskGroup\("checks"\)\.if\(\.\.\.\) of Dag "d" was awaited/,
+    );
   });
 
   it("takes another condition as a branch", () => {
