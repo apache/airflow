@@ -78,8 +78,13 @@ If serializing with JSON:
 Choosing the DBAPI driver
 -------------------------
 
-By default the hook connects with `pymssql <https://pypi.org/project/pymssql/>`__. To use Microsoft's
-`mssql-python <https://pypi.org/project/mssql-python/>`__ driver instead, install the extra:
+By default the hook connects with `pymssql <https://pypi.org/project/pymssql/>`__. Microsoft's own
+`mssql-python <https://pypi.org/project/mssql-python/>`__ driver is available as an alternative. Compared
+with pymssql it supports Microsoft Entra ID authentication, and it uses Microsoft's ODBC driver (installed
+with it) instead of FreeTDS. Switching changes a few things, which are listed in the notes below. For
+example, SQL written with ``%s`` placeholders has to be rewritten to use ``?``.
+
+To use it, install the extra:
 
 .. code-block:: bash
 
@@ -114,6 +119,15 @@ Notes
   ``Authentication``, can be supplied through connection extras.
 * The default SQLAlchemy scheme is ``mssql+mssqlpython``, which requires SQLAlchemy 2.1
   or newer. Override it using ``sqlalchemy_scheme`` in the connection extra or hook argument.
+  The Airflow constraint files pin SQLAlchemy 2.0 and Airflow 2.11 requires it below 2.0, so on a
+  constrained install ``get_conn()`` works, but methods that create a SQLAlchemy engine, such as
+  ``get_sqlalchemy_engine()``, fail with ``NoSuchModuleError`` until SQLAlchemy is upgraded past the
+  constraints.
 * Use ``?`` placeholders with positional parameters or ``%(name)s`` with named parameters.
   Plain ``%s`` placeholders are not supported. The hook defaults to ``?`` for generated statements.
 * Driver-level connection pooling is enabled by default.
+* Connection extras are passed to the driver as connection string keywords. ``get_conn()`` logs a warning
+  and ignores keywords that mssql-python does not know, but the SQLAlchemy URL is rejected by the driver.
+  Remove options that only pymssql understands, such as ``charset`` or ``tds_version``, when you switch.
+* ``MsSqlToHiveOperator`` and ``MSSQLToGCSOperator`` map column types with pymssql type codes, so they
+  need the default ``pymssql`` driver for now.

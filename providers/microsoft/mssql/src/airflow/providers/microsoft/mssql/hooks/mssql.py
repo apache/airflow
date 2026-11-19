@@ -23,12 +23,15 @@ from functools import cached_property
 from importlib import import_module
 from typing import TYPE_CHECKING, Any
 
+import pymssql
+
 from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.microsoft.mssql.dialects.mssql import MsSqlDialect
 
 if TYPE_CHECKING:
     from pymssql import Connection as PymssqlConnection
+    from sqlalchemy.engine import URL
 
     from airflow.providers.common.compat.sdk import Connection
     from airflow.providers.common.sql.dialects.dialect import Dialect
@@ -63,7 +66,7 @@ class MsSqlHook(DbApiHook):
     _AIRFLOW_ONLY_EXTRAS = frozenset({"sqlalchemy_scheme", "dbapi_driver"})
     # mssql-python takes every other extra as a connection string keyword, and the string built from a
     # SQLAlchemy URL fails on unknown keywords. So the extras that ``DbApiHook`` reads for itself are
-    # filtered out for both the direct connection and the URI.
+    # filtered out for both the direct connection and the SQLAlchemy URL.
     _MSSQL_PYTHON_IGNORED_EXTRAS = _AIRFLOW_ONLY_EXTRAS | frozenset(
         {
             "placeholder",
@@ -131,21 +134,49 @@ class MsSqlHook(DbApiHook):
     def dialect(self) -> Dialect:
         return MsSqlDialect(self)
 
+    @property
+    def sqlalchemy_url(self) -> URL:
+        """
+        Return the SQLAlchemy URL when ``dbapi_driver`` is ``mssql_python``.
+
+        The URL is built from the connection fields and extras. ``Connection.get_uri()`` packs extras that
+        do not survive a round trip (a ``true`` for example) into one ``__extra__`` parameter, which
+        mssql-python rejects as an unknown keyword. With ``pymssql`` the URI from ``get_uri()`` is used.
+        """
+        if self.dbapi_driver != self.DBAPI_DRIVER_MSSQL_PYTHON:
+            return super().sqlalchemy_url
+        try:
+            from sqlalchemy.engine import URL
+        except (ImportError, ModuleNotFoundError) as err:
+            raise AirflowOptionalProviderFeatureException(
+                "SQLAlchemy is not installed. Install it with: "
+                "pip install 'apache-airflow-providers-common-sql[sqlalchemy]'"
+            ) from err
+
+        conn = self.connection
+        return URL.create(
+            drivername=self.sqlalchemy_scheme,
+            username=conn.login or None,
+            password=conn.password or None,
+            host=conn.host or None,
+            port=conn.port,
+            database=self.schema or conn.schema or None,
+            query={key: str(val) for key, val in self._mssql_python_extras().items()},
+        )
+
     def get_uri(self) -> str:
+        if self.dbapi_driver == self.DBAPI_DRIVER_MSSQL_PYTHON:
+            return self.sqlalchemy_url.render_as_string(hide_password=False)
+
         from urllib.parse import parse_qs, urlencode, urlsplit, urlunsplit
 
         r = list(urlsplit(super().get_uri()))
         # change the sqlalchemy driver:
         r[0] = self.sqlalchemy_scheme
         # remove query string parameters that are meant for the hook, not for the sqlalchemy dialect:
-        hook_only_extras = (
-            self._MSSQL_PYTHON_IGNORED_EXTRAS
-            if self.dbapi_driver == self.DBAPI_DRIVER_MSSQL_PYTHON
-            else self._AIRFLOW_ONLY_EXTRAS
-        )
         qs = parse_qs(r[3], keep_blank_values=True)
         for k in list(qs.keys()):
-            if k.lower() in hook_only_extras:
+            if k.lower() in self._AIRFLOW_ONLY_EXTRAS:
                 qs.pop(k, None)
         r[3] = urlencode(qs, doseq=True)
         return urlunsplit(r)
@@ -165,8 +196,6 @@ class MsSqlHook(DbApiHook):
 
     def _get_pymssql_conn(self) -> PymssqlConnection:
         """Return ``pymssql`` connection object."""
-        import pymssql
-
         conn = self.connection
         extra_conn_args = {
             key: val for key, val in conn.extra_dejson.items() if key.lower() not in self._AIRFLOW_ONLY_EXTRAS
@@ -179,6 +208,14 @@ class MsSqlHook(DbApiHook):
             port=str(conn.port),
             **extra_conn_args,
         )
+
+    def _mssql_python_extras(self) -> dict[str, Any]:
+        """Return the connection extras that are passed on to mssql-python, without the empty ones."""
+        return {
+            key: val
+            for key, val in self.connection.extra_dejson.items()
+            if key.lower() not in self._MSSQL_PYTHON_IGNORED_EXTRAS and val not in (None, "")
+        }
 
     def _get_mssql_python_conn(self) -> Any:
         """Return ``mssql_python`` connection object."""
@@ -200,13 +237,7 @@ class MsSqlHook(DbApiHook):
             "UID": conn.login,
             "PWD": conn.password,
         }
-        params.update(
-            {
-                key: val
-                for key, val in conn.extra_dejson.items()
-                if key.lower() not in self._MSSQL_PYTHON_IGNORED_EXTRAS
-            }
-        )
+        params.update(self._mssql_python_extras())
         # The keyword arguments are escaped by mssql-python when it builds the connection string.
         return mssql_python.connect(**{key: val for key, val in params.items() if val not in (None, "")})
 

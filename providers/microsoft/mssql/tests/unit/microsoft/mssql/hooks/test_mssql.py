@@ -405,7 +405,7 @@ class TestMsSqlHook:
         assert hook.get_connection().extra
 
 
-def _mssql_hook(extra: str = "{}") -> MsSqlHook:
+def _mssql_hook(extra: str = "{}", port: int | None = 1433) -> MsSqlHook:
     conn = Connection(
         conn_id="mssql_default",
         conn_type="mssql",
@@ -413,12 +413,10 @@ def _mssql_hook(extra: str = "{}") -> MsSqlHook:
         login="user",
         password="secret",
         schema="db",
-        port=1433,
+        port=port,
         extra=extra,
     )
-    hook = MsSqlHook()
-    hook.get_connection = mock.Mock(return_value=conn)  # type: ignore[method-assign]
-    return hook
+    return MsSqlHook(connection=conn)
 
 
 class TestMsSqlHookDbapiDriver:
@@ -477,6 +475,33 @@ class TestMsSqlHookDbapiDriver:
         assert "escape_word_format" not in uri
         assert "TrustServerCertificate=yes" in uri
 
+    def test_get_uri_mssql_python_has_no_extra_param_for_non_string_extras(self):
+        hook = _mssql_hook('{"dbapi_driver": "mssql_python", "TrustServerCertificate": true}')
+        uri = hook.get_uri()
+        assert "__extra__" not in uri
+        assert "dbapi_driver" not in uri
+        assert "TrustServerCertificate=True" in uri
+
+    def test_sqlalchemy_url_for_mssql_python(self):
+        hook = _mssql_hook(
+            '{"dbapi_driver": "mssql_python", "placeholder": "?", '
+            '"TrustServerCertificate": true, "Encrypt": ""}'
+        )
+        url = hook.sqlalchemy_url
+        assert url.drivername == "mssql+mssqlpython"
+        assert (url.username, url.password, url.host, url.port, url.database) == (
+            "user",
+            "secret",
+            "localhost",
+            1433,
+            "db",
+        )
+        assert dict(url.query) == {"TrustServerCertificate": "True"}
+
+    def test_sqlalchemy_url_is_not_built_for_pymssql(self):
+        with pytest.raises(NotImplementedError):
+            _ = _mssql_hook().sqlalchemy_url
+
     def test_mssql_python_placeholder_defaults_to_qmark(self):
         assert _mssql_hook('{"dbapi_driver": "mssql_python"}').placeholder == "?"
 
@@ -501,6 +526,17 @@ class TestMsSqlHookDbapiDriver:
             TrustServerCertificate="yes",
         )
         assert conn is mock_import_module.return_value.connect.return_value
+
+    @mock.patch("airflow.providers.microsoft.mssql.hooks.mssql.import_module")
+    def test_get_conn_mssql_python_without_port(self, mock_import_module):
+        hook = _mssql_hook('{"dbapi_driver": "mssql_python"}', port=None)
+        hook.get_conn()
+        mock_import_module.return_value.connect.assert_called_once_with(
+            Server="localhost",
+            Database="db",
+            UID="user",
+            PWD="secret",
+        )
 
     @mock.patch(
         "airflow.providers.microsoft.mssql.hooks.mssql.import_module",
