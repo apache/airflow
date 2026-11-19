@@ -286,7 +286,8 @@ config_list: list[_TableConfig] = [
     _TableConfig(
         table_name="callback",
         recency_column_name="created_at",
-        extra_columns=["id", "state"],
+        extra_columns=["id", "state", "dagrun_id"],
+        dag_id_scope=_IndirectDagScope(fk_column="dagrun_id", referenced_table="dag_run"),
         # Callback deletion cascades to deadlines, so preserve active or unknown states and
         # SCHEDULED callbacks still referenced by a deadline. Stateless Dag-processor
         # callbacks are eligible even while pending, once older than the cleanup cutoff.
