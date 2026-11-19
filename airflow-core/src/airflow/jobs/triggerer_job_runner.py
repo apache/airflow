@@ -854,11 +854,17 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
     @contextmanager
     def run_context(self) -> Iterator[None]:
         """Wrap the run loop. Subclasses can override to install setup/teardown."""
+        yield
+
+    def kill(self, *args: Any, **kwargs: Any) -> None:
+        """Terminate the subprocess, then drain pending log uploads."""
         try:
-            yield
+            super().kill(*args, **kwargs)
         finally:
-            # The main loop has exited, so heartbeating no longer matters: drain
-            # any uploads still in flight instead of dropping their logs.
+            # kill() is the last point that services subprocess requests, so a
+            # finished-trigger message can still arrive until it returns. Drain
+            # the pool only once it has, or a late finalize_trigger_log would
+            # submit to a shut-down executor and lose the log.
             self._log_upload_executor.shutdown(wait=True)
 
     def should_stop(self) -> bool:
@@ -987,7 +993,9 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             # entry is removed below regardless.
             exc = None
         if exc is not None:
-            log.exception("Trigger log upload raised an unexpected exception", log_path=log_path)
+            log.exception(
+                "Trigger log upload raised an unexpected exception", log_path=log_path, exc_info=exc
+            )
         with self._pending_log_uploads_lock:
             pending = self._pending_log_uploads.get(log_path)
             if pending is not None and future in pending:
