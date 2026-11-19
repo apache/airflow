@@ -507,7 +507,9 @@ class TriggerRuleDep(BaseTIDep):
                 elif trigger_rule == TR.NONE_FAILED_MIN_ONE_SUCCESS:
                     if upstream_failed or failed:
                         new_state = TaskInstanceState.UPSTREAM_FAILED
-                    elif skipped == upstream:
+                    elif skipped and skipped == upstream - removed:
+                        # Removed upstreams no longer exist, so they do not stop the skip from
+                        # propagating when every upstream that is left was skipped.
                         new_state = TaskInstanceState.SKIPPED
                     elif upstream_done and success == 0:
                         new_state = TaskInstanceState.UPSTREAM_FAILED
