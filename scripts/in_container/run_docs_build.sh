@@ -21,6 +21,12 @@
 git config --global --add safe.directory /opt/airflow
 
 cd "${AIRFLOW_SOURCES}" || exit 1
+
+# Mounted by `breeze build-docs --sphinx-airflow-theme-path`.
+if [[ -n "${SPHINX_AIRFLOW_THEME_PATH:-}" ]]; then
+    uv pip install --reinstall-package sphinx-airflow-theme /opt/sphinx_airflow_theme
+fi
+
 python -m docs.build_docs "${@}"
 
 # Copy the generated documentation to the mounted volume

@@ -16,15 +16,18 @@
 # under the License.
 from __future__ import annotations
 
+import os
+import subprocess
+import sys
+
 import pytest
 
 from airflow.models.base import get_id_collation_args
 
 from tests_common.test_utils.config import conf_vars
 
-pytestmark = pytest.mark.db_test
 
-
+@pytest.mark.db_test
 @pytest.mark.parametrize(
     ("dsn", "expected", "extra"),
     [
@@ -50,3 +53,39 @@ pytestmark = pytest.mark.db_test
 def test_collation(dsn, expected, extra):
     with conf_vars({("database", "sql_alchemy_conn"): dsn, **extra}):
         assert expected == get_id_collation_args()
+
+
+def test_models_configure_in_process_that_skips_orm_setup():
+    # Models name each other in string relationships, which resolve only once every model is imported.
+    # This process never calls configure_orm(), so building the first model must import the rest.
+    code = "from airflow.models.connection import Connection; Connection(conn_id='test', conn_type='http')"
+
+    result = subprocess.run(
+        [sys.executable, "-c", code],
+        env={**os.environ, "PYTHON_OPERATORS_VIRTUAL_ENV_MODE": "1"},
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
+
+
+def test_local_settings_can_build_models_while_airflow_is_imported(tmp_path):
+    # airflow_local_settings is imported before configure_orm() runs.
+    (tmp_path / "airflow_local_settings.py").write_text(
+        "from sqlalchemy.orm import configure_mappers\n"
+        "from airflow.models.team import Team\n"
+        "configure_mappers()\n"
+    )
+    python_path = os.pathsep.join(filter(None, [str(tmp_path), os.environ.get("PYTHONPATH")]))
+
+    result = subprocess.run(
+        [sys.executable, "-c", "import airflow"],
+        env={**os.environ, "PYTHONPATH": python_path},
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr

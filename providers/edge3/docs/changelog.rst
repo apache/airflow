@@ -27,6 +27,81 @@
 Changelog
 ---------
 
+5.2.0
+.....
+
+.. note::
+  This release includes a database migration, which is why it is a minor release although it only
+  contains bug fixes. The migration changes ``edge_job.command`` from ``VARCHAR(2048)`` to ``TEXT``
+  (``MEDIUMTEXT`` on MySQL), so large deadline callback payloads no longer crash the scheduler. Run
+  ``airflow db migrate`` after upgrading.
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Edge: Return 400 instead of 500 on invalid worker version (#72925)``
+* ``Fix scheduler crash loop from large Edge deadline callbacks (#74445)``
+
+Misc
+~~~~
+
+* ``Bump @tanstack/react-query to 5.107.1, axios to 1.21.1, react-hotkeys-hook to 5.4.0, @rolldown/plugin-babel to 0.3.1, @vitejs/plugin-react to 6.3.0, vite to 8.3.7 (#77039)``
+* ``Bump @chakra-ui/react to 3.38.0, @tanstack/react-query to 5.106.1, semver to 7.8.6, vite to 8.3.6 (#76763)``
+* ``Bump happy-dom to 21.0.4 in edge plugin UI (#76097)``
+* ``Bump @tanstack/react-query to 5.105.2, axios to 1.21.0, react-router-dom to 7.18.5, typescript-eslint to 8.72.1, eslint to 10.14.0, vite to 8.3.5 and other edge UI dependencies (#76615)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix global env vars shadowing team secrets in tasks and triggers (#75998)``
+
+5.1.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix Edge workers not reporting the final state of deadline callbacks (#74784)``
+
+Misc
+~~~~
+
+* ``Bump edge3 UI packages: react and react-dom to 19.3.1, @tanstack/react-query to 5.104.3, typescript-eslint and plugins to 8.71.2, vitest and @vitest/coverage-v8 to 4.1.12, eslint to 10.13.0, eslint-plugin-prettier to 5.5.7 (#75291)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``[main] Upgrade important CI environment (#76278)``
+   * ``[main] Upgrade important CI environment (#75270)``
+   * ``Allow FastAPI 0.137+ by requiring cadwyn 8.1 (#75689)``
+
+5.1.0
+.....
+
+.. note::
+  Instead of strict queue order, ``EdgeExecutor`` now hands out queued callbacks first, then tasks
+  by ``priority_weight``, as in the other executors. A steady stream of higher-priority tasks can
+  hold back lower-priority tasks on the same queue. With the default
+  ``[core] default_task_weight_rule`` of ``downstream``, a task's weight includes the weights of its
+  downstream tasks. Upstream tasks of large Dags therefore go first even when no ``priority_weight``
+  is set. Setting the rule to ``absolute`` keeps tasks without their own ``priority_weight`` in
+  queue order among themselves. The rule affects every executor.
+
+Features
+~~~~~~~~
+
+* ``Support priority_weight in EdgeExecutor (#72057)``
+* ``Keep Edge worker logs separate for each task attempt and loop iteration (#74345)``
+
+Misc
+~~~~
+
+* ``Bump Edge UI dependencies: @tanstack/react-query to 5.104.2, @types/node to 26.6.5, @typescript-eslint packages and typescript-eslint to 8.71.1, @vitejs/plugin-react to 6.1.2, eslint to 10.12.0, globals to 17.13.0, happy-dom to 20.14.6, prettier to 3.9.10, vite to 8.3.4 and vite-plugin-dts to 5.1.2 (#74879)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Stop parallel prek hooks racing on __pycache__ cleanup (#73823)``
+   * ``Pass runtime values to example Dag shell commands through env (#73787)``
+   * ``Run loop gates and advance iterations atomically (#74348)``
+
 5.0.0
 .....
 

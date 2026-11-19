@@ -34,6 +34,7 @@ export const BackfillsFilters = () => {
     SearchParamsKeys.DURATION_GTE,
     SearchParamsKeys.DURATION_LTE,
     SearchParamsKeys.REPROCESS_BEHAVIOR,
+    SearchParamsKeys.ACTIVE,
   ];
 
   const { filterConfigs, handleFiltersChange, initialValues } = useFiltersHandler(searchParamKeys);

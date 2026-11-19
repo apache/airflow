@@ -87,6 +87,13 @@ class AthenaHook(AwsBaseHook):
         "CANCELLED",
     )
 
+    SPARK_INTERMEDIATE_STATES = (
+        "CREATING",
+        "CREATED",
+        "QUEUED",
+        "RUNNING",
+        "CANCELING",
+    )
     SPARK_FAILURE_STATES = (
         "FAILED",
         "CANCELED",
@@ -103,7 +110,7 @@ class AthenaHook(AwsBaseHook):
         self,
         query: str,
         query_context: dict[str, str],
-        result_configuration: dict[str, Any],
+        result_configuration: dict[str, Any] | None = None,
         client_request_token: str | None = None,
         workgroup: str = "primary",
     ) -> str:
@@ -116,7 +123,8 @@ class AthenaHook(AwsBaseHook):
         :param query: Trino/Presto query to run.
         :param query_context: Context in which query need to be run.
         :param result_configuration: Dict with path to store results in and
-            config related to encryption.
+            config related to encryption. Leave it unset for a workgroup with
+            managed query results, which keeps the results in Athena.
         :param client_request_token: Unique token created by user to avoid
             multiple executions of same query.
         :param workgroup: Athena workgroup name, when not specified, will be ``'primary'``.
@@ -125,9 +133,10 @@ class AthenaHook(AwsBaseHook):
         params = {
             "QueryString": query,
             "QueryExecutionContext": query_context,
-            "ResultConfiguration": result_configuration,
             "WorkGroup": workgroup,
         }
+        if result_configuration:
+            params["ResultConfiguration"] = result_configuration
         if client_request_token:
             params["ClientRequestToken"] = client_request_token
         if self.log_query:
@@ -320,9 +329,12 @@ class AthenaHook(AwsBaseHook):
             )
         return self.check_query_status(query_execution_id)
 
-    def get_output_location(self, query_execution_id: str) -> str:
+    def get_output_location(self, query_execution_id: str) -> str | None:
         """
         Get the output location of the query results in S3 URI format.
+
+        Returns None when the workgroup has managed query results enabled, since Athena
+        stores those results itself instead of in S3.
 
         .. seealso::
             - :external+boto3:py:meth:`Athena.Client.get_query_execution`
@@ -336,7 +348,10 @@ class AthenaHook(AwsBaseHook):
             raise ValueError(f"Unable to get query information for execution id: {query_execution_id}")
 
         try:
-            return response["QueryExecution"]["ResultConfiguration"]["OutputLocation"]
+            query_execution = response["QueryExecution"]
+            if query_execution.get("ManagedQueryResultsConfiguration", {}).get("Enabled"):
+                return None
+            return query_execution["ResultConfiguration"]["OutputLocation"]
         except KeyError:
             self.log.error("Error retrieving OutputLocation. Query execution id: %s", query_execution_id)
             raise

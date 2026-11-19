@@ -21,6 +21,7 @@ services:
     labels:
       org.apache.airflow.breeze: "true"
       org.apache.airflow.breeze.worktree: "${BREEZE_WORKTREE_PATH:-}"
+      org.apache.airflow.breeze.host: "${BREEZE_HOST_ID:-}"
       breeze.description: "Integration that provides Kerberos authentication."
     hostname: krb5-kdc-server-example-com
     domainname: example.com
@@ -83,6 +84,7 @@ volumes:
     labels:
       org.apache.airflow.breeze: "true"
       org.apache.airflow.breeze.worktree: "${BREEZE_WORKTREE_PATH:-}"
+      org.apache.airflow.breeze.host: "${BREEZE_HOST_ID:-}"
 
 networks:
   example.com:

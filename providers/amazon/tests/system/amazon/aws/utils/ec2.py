@@ -60,10 +60,19 @@ def get_latest_ami_id():
 
     # Amazon Linux images are published with a description such as
     # "Amazon Linux 2023 AMI 2023.9.20260819.0 arm64 HVM kernel-6.1", so this prefix matches every
-    # generation without needing an update when a new one is released. It also matches the preview
-    # images of unreleased generations, which are filtered out below.
+    # generation without needing an update when a new one is released. Unsuitable variants are
+    # filtered out below.
     image_prefix = "Amazon Linux*"
     root_device_name = "/dev/xvda"
+
+    # Variants which must not be selected, matched against the image name and description.
+    #   preview: images of an unreleased Amazon Linux generation are always newer than the latest
+    #            released one, and are not supported by every AWS service.
+    #   minimal: these carry a 2 GiB root volume and do not preinstall amazon-ssm-agent, leaving
+    #            no headroom for tests that install packages (see example_ssm.py).
+    #   ecs:     the ECS-optimized variants carry a 30 GiB root volume and extra preinstalled
+    #            software that these tests do not need.
+    excluded_variants = ("preview", "minimal", "ecs")
 
     images = boto3.client("ec2").describe_images(
         Filters=[
@@ -81,19 +90,19 @@ def get_latest_ami_id():
         Owners=["amazon"],
     )
 
-    # Preview images of an unreleased Amazon Linux generation are always newer than the latest released
-    # one, and they are not supported by every AWS service, so they must not be picked here. describe_images
-    # filters cannot express "does not contain", hence the filtering below.
-    released_images = [
+    suitable_images = [
         image
         for image in images["Images"]
-        if "preview" not in f"{image.get('Name', '')} {image.get('Description', '')}".lower()
+        if not any(
+            variant in f"{image.get('Name', '')} {image.get('Description', '')}".lower()
+            for variant in excluded_variants
+        )
     ]
-    if not released_images:
-        raise ValueError("No released Amazon Linux AMI matching the requested criteria was found.")
+    if not suitable_images:
+        raise ValueError("No suitable Amazon Linux AMI matching the requested criteria was found.")
 
     # Sort on CreationDate
-    return max(released_images, key=itemgetter("CreationDate"))["ImageId"]
+    return max(suitable_images, key=itemgetter("CreationDate"))["ImageId"]
 
 
 @task

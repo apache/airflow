@@ -41,6 +41,8 @@ KEYS: dict[str, str] = {
     "postgres": "7FCC7D46ACCC4CF8",
     # Microsoft APT repository signing key (MSSQL ODBC)
     "microsoft": "EB3E94ADBE1229CF",
+    # Microsoft signs the Debian 13 (trixie) repository with its newer general signing key
+    "microsoft-2025": "EE4D7792F748182B",
 }
 
 

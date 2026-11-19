@@ -22,18 +22,29 @@ import cssInjectedByJsPlugin from "vite-plugin-css-injected-by-js";
 import dts from "vite-plugin-dts";
 import { defineConfig } from "vite";
 
-export default defineConfig(({ command }) => {
+export default defineConfig(({ command, mode }) => {
   const isLibraryBuild = command === "build";
+  // Vite's lib mode cannot bundle multiple entries into one UMD/IIFE output (each needs its
+  // own global name), so each plugin bundle is built via a separate `vite build --mode <name>`
+  // invocation into the same dist/ directory -- see package.json's "build" script.
+  const isModelEntry = mode === "model";
+  const entryFile = isModelEntry ? "model.tsx" : "main.tsx";
+  const entryName = isModelEntry ? "model" : "main";
 
   return {
     base: "./",
     build: isLibraryBuild
       ? {
           chunkSizeWarningLimit: 1600,
+          // Only the first build of a `pnpm build` run should clear stale dist/ output.
+          emptyOutDir: !isModelEntry,
           lib: {
-            entry: resolve("src", "main.tsx"),
-            fileName: "main",
+            entry: resolve("src", entryFile),
+            fileName: entryName,
             formats: ["umd"],
+            // The host (ReactPlugin.tsx) clears `globalThis.AirflowPlugin` before each dynamic
+            // import and recaptures it under `globalThis[reactApp.name]` right after -- every
+            // plugin bundle must use this same generic UMD global name, not a bundle-specific one.
             name: "AirflowPlugin",
           },
           rollupOptions: {
@@ -70,7 +81,7 @@ export default defineConfig(({ command }) => {
       ...(isLibraryBuild
         ? [
             dts({
-              include: ["src/main.tsx"],
+              include: [`src/${entryFile}`],
               insertTypesEntry: true,
               outDir: "dist",
             }),
@@ -81,6 +92,10 @@ export default defineConfig(({ command }) => {
     server: {
       cors: true,
       proxy: {
+        "/api": {
+          changeOrigin: true,
+          target: "http://localhost:28080",
+        },
         "/hitl-review": {
           changeOrigin: true,
           target: "http://localhost:28080",

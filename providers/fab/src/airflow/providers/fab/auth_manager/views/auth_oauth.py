@@ -26,6 +26,7 @@ from flask_appbuilder import expose
 from flask_appbuilder.security.views import AuthOAuthView
 
 from airflow.providers.common.compat.sdk import conf
+from airflow.providers.fab.auth_manager.views.auth_login import redirect_if_authenticated
 
 log = logging.getLogger(__name__)
 
@@ -37,6 +38,14 @@ class CustomAuthOAuthView(AuthOAuthView):
     Fixes issue #57981 where UI requests fail with 401 during OAuth flow because
     the Flask session is not yet committed when the redirect response is sent.
     """
+
+    @expose("/login/")
+    @expose("/login/<provider>")
+    def login(self, provider=None):
+        """Redirect already-authenticated users to ``next`` instead of the index page."""
+        if (response := redirect_if_authenticated()) is not None:
+            return response
+        return super().login(provider)
 
     @expose("/oauth-authorized/<provider>")
     def oauth_authorized(self, provider):

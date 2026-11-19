@@ -46,6 +46,15 @@ class CallbackFetchMethod(str, Enum):
     # For deadline callbacks since they import callbacks through the import path
     IMPORT_PATH = "import_path"
 
+    def __str__(self) -> str:
+        return self.value
+
+
+# Key in ``CallbackDTO.data`` naming how ``data["kwargs"]`` is encoded. Without it the kwargs are
+# passed to the callback as they are, as for callbacks stored before the key was introduced.
+CALLBACK_KWARGS_ENCODING_KEY = "kwargs_encoding"
+SERDE_KWARGS_ENCODING = "serde"
+
 
 class CallbackDTO(BaseModel):
     """Schema for Callback with minimal required fields needed for Executors and Task SDK."""

@@ -1,0 +1,31 @@
+Airflow's CI and production images are now based on `Docker Hardened Images <https://dhi.io>`_ for Python and Debian 13 "trixie"
+
+Python is no longer compiled from source during the image build - it comes from the hardened base image
+instead, which removes the source download, its signature verification and the compilation itself from the
+build (the OS dependency layer of the production image went from roughly 210s to 105s in a local
+cache-disabled build). Python still lives in ``/usr/python``, which is now a symlink to the ``/opt/python``
+location the base image uses, so paths inside the image are unchanged.
+
+The hardened images ship the standard library without any ``.pyc`` files, so the image build compiles it.
+Without that, every standard library import would miss the bytecode cache and be unable to populate it -
+the standard library is owned by root and the image runs as ``airflow`` - and each miss leaks a negative
+dentry, which is the memory growth that was fixed for the previous images in #58944.
+
+The ``BASE_IMAGE`` build argument now defaults to ``ghcr.io/apache/airflow/base/python:<version>-debian13-dev``,
+Airflow's public mirror of the upstream ``dhi.io/python`` image - building an image needs no registry
+credentials. Anyone overriding ``BASE_IMAGE`` with a plain ``debian:bookworm-slim`` image has to switch to
+an image that already provides Python, or build the ``legacy`` flavor.
+
+The base OS moved from Debian 12 "bookworm" to Debian 13 "trixie". Library packages renamed in trixie's
+64-bit ``time_t`` transition (for example ``libssl3`` is now ``libssl3t64``) have to be updated in custom
+``RUNTIME_APT_DEPS`` / ``ADDITIONAL_RUNTIME_APT_DEPS``, and the MySQL-compatible client now comes from
+MariaDB 11.8.
+
+For the 3.4.x line, production images built the previous way - Python compiled from sources on
+``debian:bookworm-slim`` - are still published as the deprecated ``legacy`` flavor, selected with the new
+``AIRFLOW_IMAGE_FLAVOR="legacy"`` build argument. They will be removed in Airflow 3.5.0.
+
+The ``PYTHON_LTO`` build argument is gone. It existed to disable Link-Time Optimization when compiling
+Python in FIPS mode; the legacy flavor always compiles with LTO. To build a FIPS-compliant image,
+point ``BASE_IMAGE`` at a FIPS variant of the hardened image instead, for example
+``dhi.io/python:3.13.16-debian13-fips-dev``.

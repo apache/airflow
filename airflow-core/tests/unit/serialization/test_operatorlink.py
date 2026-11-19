@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import json
 from types import SimpleNamespace
 from unittest import mock
 
@@ -41,3 +42,23 @@ def test_operator_link_lookup_is_bounded(create_session):
     session.execute.assert_called_once()
     statement = session.execute.call_args.args[0]
     assert "LIMIT 1" in str(statement.compile(compile_kwargs={"literal_binds": True}))
+
+
+@mock.patch("airflow.sdk.serde.deserialize", autospec=True)
+@mock.patch("airflow.serialization.definitions.operatorlink.create_session", autospec=True)
+def test_operator_link_renders_airflow_class_payload(create_session, serde_deserialize):
+    session = mock.create_autospec(Session, instance=True)
+    create_session.return_value.__enter__.return_value = session
+    result = mock.create_autospec(Result, instance=True)
+    payload = {
+        "__classname__": "airflow.sdk.definitions.asset.AssetAlias",
+        "__version__": 0,
+        "__data__": {"name": "x", "group": "asset"},
+    }
+    result.first.return_value = SimpleNamespace(value=json.dumps(payload))
+    session.execute.return_value = result
+    link = XComOperatorLink(name="Example", xcom_key="_link_example")
+    ti_key = TaskInstanceKey(dag_id="example", task_id="task", run_id="run", try_number=1, map_index=-1)
+
+    assert link.get_link(None, ti_key=ti_key) == "AssetAlias(name='x', group='asset')"
+    serde_deserialize.assert_not_called()

@@ -41,6 +41,8 @@ from airflow.providers.openlineage.token_provider import (
     resolve_airflow_connection_auth,
 )
 from airflow.providers.openlineage.utils.utils import (
+    _JOB_TYPE_DAG,
+    _JOB_TYPE_TASK,
     _PRODUCER,
     OpenLineageRedactor,
     build_dag_run_ol_run_id,
@@ -71,9 +73,6 @@ else:
 
 
 set_producer(_PRODUCER)
-
-_JOB_TYPE_DAG: Literal["DAG"] = "DAG"
-_JOB_TYPE_TASK: Literal["TASK"] = "TASK"
 
 
 class OpenLineageAdapter(LoggingMixin):

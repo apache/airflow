@@ -26,6 +26,8 @@ repos:
     hooks:
       - id: ts-compile-lint-hitl-review-ui
         name: Compile / format / lint HITL Review UI
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
         description: TS types generation / ESLint / Prettier new UI files in HITL Review
         language: node
         files: |
@@ -41,6 +43,8 @@ repos:
         require_serial: true
       - id: compile-common-ai-provider-assets
         name: Compile Common AI provider assets
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
         language: node
         stages: ['pre-commit', 'manual']
         files: ^src/airflow/providers/common/ai/plugins/www/
@@ -49,6 +53,8 @@ repos:
         additional_dependencies: ['pnpm@10.25.0']
       - id: check-http-exception-import-from-fastapi
         name: Check HTTPException is imported from fastapi
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
         entry: ../../../scripts/ci/prek/check_http_exception_import_from_fastapi.py
         language: python
         pass_filenames: true

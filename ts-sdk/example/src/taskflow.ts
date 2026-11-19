@@ -28,7 +28,7 @@
 // `buildSummaryMessage` implements a task named `build_message`, exactly as the other Dag has, and
 // the two share nothing else.
 
-import { getClient, getContext, withArgNames } from "apache-airflow-ts-sdk";
+import { getClient, getContext, withArgNames } from "@apache-airflow/ts-sdk";
 
 /** What `make_totals` returns on the Python side. */
 export interface Totals {

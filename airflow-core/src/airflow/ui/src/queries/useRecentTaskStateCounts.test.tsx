@@ -43,6 +43,26 @@ const makeDag = (overrides: Partial<DAGWithLatestDagRunsResponse>) =>
   }) as DAGWithLatestDagRunsResponse;
 
 describe("useRecentTaskStateCounts", () => {
+  it.each([false, true])("discards deleted-run counts when another Dag has runs: %s", (hasOtherDag) => {
+    const cachedResponse = {
+      data: { dags: [{ dag_id: "my_dag", run_ids: ["run"], state_counts: { success: 60 } }] },
+      isLoading: false,
+    } as ReturnType<typeof useDagServiceGetRecentTaskInstanceStateCountsUi>;
+
+    vi.mocked(useDagServiceGetRecentTaskInstanceStateCountsUi)
+      .mockReturnValueOnce(cachedResponse)
+      .mockReturnValueOnce(cachedResponse);
+    const { rerender, result } = renderHook(({ dags }) => useRecentTaskStateCounts(dags), {
+      initialProps: { dags: [makeDag({})] },
+    });
+
+    expect(result.current.entriesByDag.my_dag?.state_counts).toEqual({ success: 60 });
+    rerender({
+      dags: [makeDag({ latest_dag_runs: [] }), ...(hasOtherDag ? [makeDag({ dag_id: "other_dag" })] : [])],
+    });
+    expect(result.current.entriesByDag).toEqual({});
+  });
+
   it.each([
     { expected: 3000, has_unfinished_runs: true, is_paused: false },
     { expected: false, has_unfinished_runs: false, is_paused: false },

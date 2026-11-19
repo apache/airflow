@@ -156,12 +156,15 @@ Those users should be highly trusted not to misuse this capability.
 About Sensitive information
 ...........................
 
-Sensitive information consists of connection details, variables, and configuration. In versions later than Airflow 3.0
-sensitive information will not be exposed to users via API, UI, and ``airflowctl``.
-However, ``task-sdk`` still provides access to sensitive information (e.g., Use SDK API Client to get
-Variables with task-specific ``JWT`` token). Local CLI will only return keys except when using ``--show_values``.
-Sensitive information has been masked in logs, UI, and API outputs. In case of Dag author expose sensitive
-information in other way (e.g., via environment variables), those values will not be masked.
+Sensitive information consists of connection details, variables, and configuration. In Airflow 3 and later,
+Airflow masks sensitive information in task logs, the UI, API responses, and ``airflowctl`` output by default.
+Some execution-time channels are still able to retrieve sensitive values when the caller is already
+authorized to do so, for example ``task-sdk`` can access variables through the Task Execution API using a
+task-specific ``JWT`` token. The local CLI returns keys by default and only shows values when
+``--show-values`` is used.
+
+If Dag author code exposes sensitive information in another way (for example via environment variables),
+those values will not be masked automatically.
 
 Audit log users
 ...............
@@ -532,10 +535,11 @@ potentially still executes with direct database access in the Dag File Processor
    * **Tightened deserialization allowlist.** The serializer's class-name allowlist regex is
      anchored to require a full-string match, so attacker-controlled values cannot smuggle
      untrusted class names by appending an allowed suffix to a non-allowed name.
-   * **Typed JWT claims schema.** Even after cryptographic validation, claims are run through a
-     typed Pydantic schema (``TIClaims``) that enforces the ``scope`` literal, and then through
-     ``TIToken`` which parses ``sub`` as a UUID. A token whose ``scope`` is unknown or whose
-     ``sub`` is not a valid UUID is rejected before any route handler runs.
+   * **Typed JWT claims schemas.** Even after cryptographic validation, ``ExecutionToken`` validates
+     ``sub`` as a UUID and selects a claims schema by ``scope``: ``TIClaims`` for task, workload,
+     and callback credentials, or ``DagProcessorSessionClaims``, ``DagProcessorClaims``, or
+     ``DagParseClaims`` for processor credentials. Unknown scopes, invalid subjects, and missing
+     required scope-specific claims are rejected before any route handler runs.
 
 **Token signing key might be a shared secret**
    In symmetric key mode (``[api_auth] jwt_secret``), the same secret key is used to both generate and

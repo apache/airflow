@@ -19,7 +19,7 @@
 import type { ReactNode } from "react";
 
 import "@testing-library/jest-dom/vitest";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import type * as ReactI18Next from "react-i18next";
 import type * as ReactRouterDom from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -37,6 +37,16 @@ let mockParams: Record<string, string | undefined> = {
   taskId: "mapped_task",
 };
 let mockSearchParams = new URLSearchParams();
+
+const { bulkClearMock, bulkDeleteMock, bulkMarkMock } = vi.hoisted(() => ({
+  bulkClearMock: vi.fn(() => null),
+  bulkDeleteMock: vi.fn(() => null),
+  bulkMarkMock: vi.fn(() => null),
+}));
+
+vi.mock("./BulkClearTaskInstancesButton", () => ({ default: bulkClearMock }));
+vi.mock("./BulkDeleteTaskInstancesButton", () => ({ default: bulkDeleteMock }));
+vi.mock("./BulkMarkTaskInstancesAsButton", () => ({ default: bulkMarkMock }));
 
 vi.mock("react-i18next", async (importOriginal) => {
   const actual = await importOriginal<typeof ReactI18Next>();
@@ -70,6 +80,15 @@ vi.mock("openapi/queries", async (importOriginal) => {
   };
 });
 
+// The loop filter now only applies where the page is inside that loop, so the table has to
+// know which loops the Dag declares.
+vi.mock("src/queries/useIsLoopGroup", () => ({
+  // Membership comes from the structure now, so the mock answers per node rather than
+  // claiming every page is inside the loop.
+  useLoopGroupIds: (nodeId?: string) =>
+    nodeId === undefined || nodeId === "batch" || nodeId.startsWith("batch.") ? ["batch"] : [],
+}));
+
 vi.mock("./TaskInstancesFilter", () => ({
   TaskInstancesFilter: () => null,
 }));
@@ -82,25 +101,30 @@ vi.mock("src/components/DataTable", () => ({
     readonly columns: ReadonlyArray<{
       accessorKey?: string;
       cell?: (props: { row: { original: TaskInstanceResponse } }) => ReactNode;
-      header?: unknown;
+      header?: (() => ReactNode) | ReactNode;
     }>;
     readonly data: ReadonlyArray<TaskInstanceResponse>;
   }) => {
     const renderedColumns = columns.filter(
-      (column) => column.accessorKey === "rendered_map_index" || column.accessorKey === "dag_run_id",
+      (column) =>
+        column.accessorKey === "select" ||
+        column.accessorKey === "rendered_map_index" ||
+        column.accessorKey === "dag_run_id",
     );
+    const selectionColumn = columns.find((column) => column.accessorKey === "select");
     const iterationColumn = columns.find((column) => column.accessorKey === "loop_iteration");
 
     return (
       <table>
         <thead>
           <tr>
+            <th>{typeof selectionColumn?.header === "function" ? selectionColumn.header() : undefined}</th>
             {iterationColumn === undefined ? undefined : <th>{iterationColumn.header as ReactNode}</th>}
           </tr>
         </thead>
         <tbody>
           {data.map((taskInstance) => (
-            <tr key={`${taskInstance.task_id}-${taskInstance.map_index}`}>
+            <tr aria-label={taskInstance.task_id} key={`${taskInstance.task_id}-${taskInstance.map_index}`}>
               {renderedColumns.map((column) => (
                 <td key={column.accessorKey}>{column.cell?.({ row: { original: taskInstance } })}</td>
               ))}
@@ -148,6 +172,33 @@ describe("TaskInstances", () => {
       taskId: "mapped_task",
     };
     mockSearchParams = new URLSearchParams();
+  });
+
+  it.each([
+    { action: "clear", actionMock: bulkClearMock },
+    { action: "mark", actionMock: bulkMarkMock },
+    { action: "delete", actionMock: bulkDeleteMock },
+  ])("passes selections from both pages to the bulk $action action", async ({ actionMock }) => {
+    const firstTask = { ...mappedTaskInstance, id: "first-id", task_id: "first_task" };
+    const secondTask = { ...mappedTaskInstance, id: "second-id", task_id: "second_task" };
+
+    vi.mocked(useTaskInstanceServiceGetTaskInstances).mockReturnValue(getTaskInstancesResponse([firstTask]));
+    const { rerender } = render(<TaskInstances />, { wrapper: Wrapper });
+
+    fireEvent.click(within(screen.getByRole("row", { name: "first_task" })).getByRole("checkbox"));
+    await screen.findByText("1 selected");
+    vi.mocked(useTaskInstanceServiceGetTaskInstances).mockReturnValue(getTaskInstancesResponse([secondTask]));
+    mockSearchParams = new URLSearchParams("cursor=second-page");
+    rerender(<TaskInstances />);
+    fireEvent.click(within(screen.getByRole("row", { name: "second_task" })).getByRole("checkbox"));
+
+    await screen.findByText("2 selected");
+    await waitFor(() =>
+      expect(actionMock).toHaveBeenLastCalledWith(
+        expect.objectContaining({ selectedTaskInstances: [firstTask, secondTask] }),
+        undefined,
+      ),
+    );
   });
 
   it.each([
@@ -238,32 +289,7 @@ describe("TaskInstances", () => {
     expect(screen.getByText("eu-west")).toBeInTheDocument();
   });
 
-  it("keeps loop iteration filters separate from mapped slot filters", () => {
-    mockParams.groupId = "loop";
-    mockSearchParams = new URLSearchParams("map_index=1");
-    vi.mocked(useTaskInstanceServiceGetTaskInstances).mockReturnValue(getTaskInstancesResponse([]));
-    render(<TaskInstances iteration="3" loopGroupId="loop" />, { wrapper: Wrapper });
-    expect(useTaskInstanceServiceGetTaskInstances).toHaveBeenLastCalledWith(
-      expect.objectContaining({
-        iteration: 3,
-        loopId: "loop",
-        mapIndex: [1],
-      }),
-      undefined,
-      expect.any(Object),
-    );
-  });
-  it("does not fetch a loop group's list before its iteration is known", () => {
-    mockParams.groupId = "loop";
-    vi.mocked(useTaskInstanceServiceGetTaskInstances).mockReturnValue(getTaskInstancesResponse([]));
-    render(<TaskInstances loopGroupId="loop" />, { wrapper: Wrapper });
-    expect(useTaskInstanceServiceGetTaskInstances).toHaveBeenLastCalledWith(
-      expect.objectContaining({ iteration: undefined, loopId: "loop" }),
-      undefined,
-      expect.objectContaining({ enabled: false }),
-    );
-  });
-  it("ignores stale loop selectors outside a loop group", () => {
+  it("drops a stale iteration that no loop in the URL counts", () => {
     mockSearchParams = new URLSearchParams("iteration=3");
     vi.mocked(useTaskInstanceServiceGetTaskInstances).mockReturnValue(getTaskInstancesResponse([]));
     render(<TaskInstances />, { wrapper: Wrapper });
@@ -271,6 +297,68 @@ describe("TaskInstances", () => {
       expect.objectContaining({ iteration: undefined, loopId: undefined }),
       undefined,
       expect.any(Object),
+    );
+  });
+
+  it("sends the pair once a loop names the pass", () => {
+    // Dotted ids mean a task inside the loop is named for it, which is what puts it in scope.
+    mockParams.taskId = "batch.member";
+    mockSearchParams = new URLSearchParams("loop_id=batch&iteration=3");
+    vi.mocked(useTaskInstanceServiceGetTaskInstances).mockReturnValue(getTaskInstancesResponse([]));
+    render(<TaskInstances />, { wrapper: Wrapper });
+    expect(useTaskInstanceServiceGetTaskInstances).toHaveBeenLastCalledWith(
+      expect.objectContaining({ iteration: 3, loopId: "batch" }),
+      undefined,
+      expect.any(Object),
+    );
+  });
+
+  it("ignores a loop carried in from a page outside it", () => {
+    // The filter now survives navigation, so an unrelated task must not inherit the scope.
+    mockParams.taskId = "unrelated_task";
+    mockSearchParams = new URLSearchParams("loop_id=batch&iteration=3");
+    vi.mocked(useTaskInstanceServiceGetTaskInstances).mockReturnValue(getTaskInstancesResponse([]));
+    render(<TaskInstances />, { wrapper: Wrapper });
+    expect(useTaskInstanceServiceGetTaskInstances).toHaveBeenLastCalledWith(
+      expect.objectContaining({ iteration: undefined, loopId: undefined }),
+      undefined,
+      expect.any(Object),
+    );
+  });
+});
+
+describe("TaskInstances date filters", () => {
+  beforeEach(() => {
+    mockParams = { dagId: "example_dag", runId: "manual__2026-06-07T00:00:00+00:00" };
+    vi.mocked(useTaskInstanceServiceGetTaskInstances).mockReturnValue(getTaskInstancesResponse([]));
+  });
+
+  it("sends the run_after range from the URL", () => {
+    mockSearchParams = new URLSearchParams(
+      "run_after_gte=2026-06-01T00:00:00Z&run_after_lte=2026-06-30T00:00:00Z",
+    );
+
+    render(<TaskInstances />, { wrapper: Wrapper });
+
+    expect(useTaskInstanceServiceGetTaskInstances).toHaveBeenCalledWith(
+      expect.objectContaining({
+        runAfterGte: "2026-06-01T00:00:00Z",
+        runAfterLte: "2026-06-30T00:00:00Z",
+      }),
+      undefined,
+      expect.anything(),
+    );
+  });
+
+  it("still honours logical_date links even though the pill is gone", () => {
+    mockSearchParams = new URLSearchParams("logical_date_gte=2026-06-01T00:00:00Z");
+
+    render(<TaskInstances />, { wrapper: Wrapper });
+
+    expect(useTaskInstanceServiceGetTaskInstances).toHaveBeenCalledWith(
+      expect.objectContaining({ logicalDateGte: "2026-06-01T00:00:00Z" }),
+      undefined,
+      expect.anything(),
     );
   });
 });

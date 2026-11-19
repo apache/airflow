@@ -316,6 +316,21 @@ class TestCloudRemoteLogIO:
         dag_dir = self.local_log_location / "dag_id=a"
         assert dag_dir.exists()
 
+    @mock.patch("airflow.sdk.log.relative_path_from_logger")
+    @mock.patch.object(CloudWatchRemoteLogIO, "handler", new_callable=mock.PropertyMock)
+    def test_processors_skip_log_file_outside_base_log_folder(self, mock_handler, mock_relative_path):
+        mock_relative_path.side_effect = ValueError("'/elsewhere/x.log' is not in the subpath of '/logs'")
+        subject = CloudWatchRemoteLogIO(
+            base_log_folder=self.local_log_location,
+            log_group_arn=f"arn:aws:logs:{self.region_name}:11111111:log-group:{self.remote_log_group}",
+        )
+        event = {"event": "Hi"}
+
+        result = subject.processors[0](mock.MagicMock(), "info", event)
+
+        assert result is event
+        mock_handler.return_value.handle.assert_not_called()
+
     @time_machine.travel(timezone.datetime(2025, 3, 27, 21, 58, 1, 2345), tick=False)
     def test_log_message(self):
         # Use a context instead of a decorator on the test method because we need access to self to

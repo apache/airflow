@@ -20,7 +20,7 @@
     "optionsLabel": "Lehetőségek",
     "received": "Válasz beérkezett: ",
     "respond": "Válaszadás",
-    "responded_by_user_name": "Válaszolta: {{userName}}",
+    "responded_by_user_name": "Válaszolta (felhasználónév)",
     "success": "A(z) {{taskId}} feladatpéldányhoz tartozó válasz sikeres",
     "title": "Emberi feladat példány - {{taskId}}"
   },

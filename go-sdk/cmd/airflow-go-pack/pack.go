@@ -165,7 +165,9 @@ func runPack(stdout, stderr io.Writer, opts *packOptions) error {
 		return err
 	}
 	if len(meta.Dags) == 0 && len(meta.DagSourceFiles) == 0 {
-		return fmt.Errorf("bundle exposes no dags: nothing to pack")
+		fmt.Fprintln(stderr, "warning: no Dags or task handlers were registered at pack time; "+
+			"this is expected only if the bundle generates its Dags at run time, "+
+			"and those Dags show the entrypoint source in the Code view")
 	}
 	for dagID, dag := range meta.Dags {
 		if len(dag.Tasks) == 0 {

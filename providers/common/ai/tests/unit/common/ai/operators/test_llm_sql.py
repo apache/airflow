@@ -53,7 +53,7 @@ else:
 
 def _make_mock_agent(output: str, make_mock_run_result):
     """Create a mock agent that returns the given output string."""
-    mock_agent = MagicMock(spec=["run_sync"])
+    mock_agent = MagicMock(spec=["run_sync", "instrument"])
     mock_agent.run_sync.return_value = make_mock_run_result(output)
     return mock_agent
 
@@ -209,7 +209,7 @@ class TestLLMSQLQueryOperator:
             "model_id",
             "fallback_conn_ids",
             "system_prompt",
-            "agent_params",
+            "model_settings",
             "usage_limits",
             "db_conn_id",
             "table_names",
@@ -252,8 +252,22 @@ class TestLLMSQLQueryOperator:
 
         assert result == "SELECT id, name FROM users WHERE active = true"
         mock_agent.run_sync.assert_called_once_with(
-            "Get active users", usage_limits=None, cancellation_token=ANY
+            "Get active users", usage=ANY, usage_limits=None, run_id=ANY, cancellation_token=ANY
         )
+
+    @pytest.mark.parametrize("model_name", ["gpt-5", None])
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    def test_run_usage_run_id_and_model_name_pushed_to_xcom(
+        self, mock_hook_cls, make_reporting_agent, reporting_task_instance, model_name
+    ):
+        mock_agent, expected_pushes = make_reporting_agent("SELECT 1", model_name=model_name)
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+        op = LLMSQLQueryOperator(task_id="test", prompt="Get one", llm_conn_id="my_llm")
+        ti = reporting_task_instance
+
+        op.execute(context={"task_instance": ti})
+
+        assert {c.kwargs["key"]: c.kwargs["value"] for c in ti.xcom_push.call_args_list} == expected_pushes
 
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
     def test_execute_coerces_usage_limits_dict_before_run_sync(
@@ -321,8 +335,8 @@ class TestLLMSQLQueryOperator:
         assert result == "DROP TABLE users"
 
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
-    def test_execute_passes_agent_params(self, mock_hook_cls, make_mock_run_result):
-        """agent_params inherited from LLMOperator are unpacked into create_agent."""
+    def test_execute_passes_model_settings_and_output_retries(self, mock_hook_cls, make_mock_run_result):
+        """model_settings and output_retries inherited from LLMOperator reach create_agent."""
         mock_hook_cls.get_hook.return_value.create_agent.return_value = _make_mock_agent(
             "SELECT 1", make_mock_run_result
         )
@@ -331,13 +345,14 @@ class TestLLMSQLQueryOperator:
             task_id="test",
             prompt="test",
             llm_conn_id="my_llm",
-            agent_params={"retries": 3, "model_settings": {"temperature": 0}},
+            model_settings={"temperature": 0},
+            output_retries=3,
         )
         op.execute(context=MagicMock())
 
         create_agent_call = mock_hook_cls.get_hook.return_value.create_agent.call_args
-        assert create_agent_call[1]["retries"] == 3
-        assert create_agent_call[1]["model_settings"] == {"temperature": 0}
+        assert create_agent_call.kwargs["retries"] == 3
+        assert create_agent_call.kwargs["model_settings"] == {"temperature": 0}
 
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
     def test_system_prompt_appended_to_sql_instructions(self, mock_hook_cls, make_mock_run_result):
@@ -974,32 +989,6 @@ class TestLLMSQLQueryOperatorApproval:
         result = op.execute_complete({}, generated_output="SELECT 1", event=event)
 
         assert result == "SELECT 1"
-
-
-@pytest.mark.skipif(
-    not AIRFLOW_V_3_1_PLUS, reason="Human in the loop is only compatible with Airflow >= 3.1.0"
-)
-class TestLLMSQLQueryOperatorMultimodalPromptGuard:
-    """LLMSQLQueryOperator.execute raises before agent.run_sync when require_approval=True
-    and self.prompt is not a string."""
-
-    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
-    def test_execute_rejects_sequence_prompt_with_require_approval(self, mock_hook_cls):
-        mock_agent = MagicMock(spec=["run_sync"])
-        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
-
-        op = LLMSQLQueryOperator(
-            task_id="t",
-            prompt="placeholder",
-            llm_conn_id="c",
-            require_approval=True,
-        )
-        op.prompt = ["x", object()]
-
-        with pytest.raises(TypeError, match="require_approval=True"):
-            op.execute(context=_make_context())
-
-        mock_agent.run_sync.assert_not_called()
 
 
 def test_decision_policy_with_a_bar_is_rejected_at_construction():

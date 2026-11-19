@@ -35,6 +35,7 @@ from airflow.providers.amazon.aws.triggers.redshift_cluster import (
     RedshiftResumeClusterTrigger,
 )
 from airflow.providers.amazon.aws.utils import validate_execute_complete_event
+from airflow.providers.amazon.aws.utils.deferral import should_defer
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 from airflow.providers.common.compat.sdk import AirflowException, conf
 from airflow.utils.helpers import prune_dict
@@ -110,6 +111,8 @@ class RedshiftCreateClusterOperator(AwsBaseOperator[RedshiftHook]):
     :param max_attempt: The maximum number of attempts to be made. Default: 5
     :param poll_interval: The amount of time in seconds to wait between attempts. Default: 60
     :param deferrable: If True, the operator will run in deferrable mode.
+        Deferring when ``wait_for_completion`` is False is deprecated; from the next major release
+        this has no effect when ``wait_for_completion`` is False.
     :param delete_cluster_on_failure: If True, best-effort deletion of the redshift cluster will be attempted
         after post-creation failure. Default: True.
     :param cleanup_timeout_seconds: Maximum time in seconds to attempt
@@ -372,7 +375,7 @@ class RedshiftCreateClusterOperator(AwsBaseOperator[RedshiftHook]):
             self.master_user_password,
             params,
         )
-        if self.deferrable:
+        if should_defer(deferrable=self.deferrable, wait_for_completion=self.wait_for_completion):
             self.defer(
                 trigger=RedshiftCreateClusterTrigger(
                     cluster_identifier=self.cluster_identifier,
@@ -448,6 +451,8 @@ class RedshiftCreateClusterSnapshotOperator(AwsBaseOperator[RedshiftHook]):
     :param verify: Whether or not to verify SSL certificates. See:
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
     :param deferrable: If True, the operator will run as a deferrable operator.
+        Deferring when ``wait_for_completion`` is False is deprecated; from the next major release
+        this has no effect when ``wait_for_completion`` is False.
     """
 
     template_fields: Sequence[str] = aws_template_fields(
@@ -494,7 +499,7 @@ class RedshiftCreateClusterSnapshotOperator(AwsBaseOperator[RedshiftHook]):
             retention_period=self.retention_period,
             tags=self.tags,
         )
-        if self.deferrable:
+        if should_defer(deferrable=self.deferrable, wait_for_completion=self.wait_for_completion):
             self.defer(
                 trigger=RedshiftCreateClusterSnapshotTrigger(
                     cluster_identifier=self.cluster_identifier,
@@ -837,6 +842,8 @@ class RedshiftDeleteClusterOperator(AwsBaseOperator[RedshiftHook]):
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
     :param poll_interval: Time (in seconds) to wait between two consecutive calls to check cluster state
     :param deferrable: Run operator in the deferrable mode.
+        Deferring when ``wait_for_completion`` is False is deprecated; from the next major release
+        this has no effect when ``wait_for_completion`` is False.
     :param max_attempts: The maximum number of attempts to be made, both when retrying the delete while
         the cluster is busy and when waiting for deletion to complete; combined with ``poll_interval``
         the default gives a ~15 minute window, long enough to outlast a pause/resize.
@@ -914,7 +921,8 @@ class RedshiftDeleteClusterOperator(AwsBaseOperator[RedshiftHook]):
         Issue the delete once (deferrable mode), then defer.
 
         If accepted, defer to :class:`RedshiftDeleteClusterTrigger` to await deletion. If the cluster is
-        busy (``InvalidClusterStateFault``), defer to :class:`RedshiftClusterSettledTrigger`; the
+        busy (``InvalidClusterStateFault``), defer to :class:`RedshiftClusterSettledTrigger` regardless of
+        ``wait_for_completion``, since the delete cannot be issued until it settles; the
         ``_retry_delete_when_settled`` callback re-issues the delete once it settles.
         """
         try:
@@ -943,7 +951,8 @@ class RedshiftDeleteClusterOperator(AwsBaseOperator[RedshiftHook]):
             )
             return
 
-        self._defer_until_deleted()
+        if should_defer(deferrable=self.deferrable, wait_for_completion=self.wait_for_completion):
+            self._defer_until_deleted()
 
     def _defer_until_deleted(self) -> None:
         """Defer to the delete-completion waiter, short-circuiting if the cluster is already gone."""

@@ -22,8 +22,10 @@ import {
   Dag,
   finalizeDag,
   getDagOrderEdges,
+  getDagTaskGroups,
   getDagTaskInputs,
   getDagTaskRecords,
+  Label,
   type TaskRef,
 } from "../../src/sdk/dag.js";
 import { serializeDag } from "../../src/coordinator/serde.js";
@@ -218,6 +220,29 @@ describe("dag.if", () => {
     expect(getDagOrderEdges(dag)).toContainEqual({ upstream: "has_rows", downstream: "notify" });
   });
 
+  it("declares a condition in a task group, under the group's prefix", async () => {
+    const dag = new Dag("d");
+    const ifReady = dag.task("load_if_ready", async () => undefined)();
+    const fallback = dag.task("load_fallback", async () => undefined)();
+    const gate = dag.taskGroup("checks").if(async () => true, undefined, { taskId: "has_rows" });
+    gate.then(ifReady).else(fallback);
+
+    expect(gate.taskId).toBe("checks.has_rows");
+    expect(getDagTaskGroups(dag).get("checks")?.taskIds).toEqual(["checks.has_rows"]);
+    const { skipDownstreamTasks } = await runHandler(dag, "checks.has_rows");
+    expect(skipDownstreamTasks).toHaveBeenCalledWith(["load_fallback"]);
+  });
+
+  it("names the group method when a group's condition is awaited", async () => {
+    const gate = new Dag("d")
+      .taskGroup("checks")
+      .if(async () => true, undefined, { taskId: "has_rows" });
+
+    await expect(Promise.resolve(gate as unknown as Promise<void>)).rejects.toThrow(
+      /taskGroup\("checks"\)\.if\(\.\.\.\) of Dag "d" was awaited/,
+    );
+  });
+
   it("takes another condition as a branch", () => {
     const { dag, ifReady, gated } = gatedDag();
     const inner = dag.if(async () => true, undefined, { taskId: "is_weekday" });
@@ -231,7 +256,29 @@ describe("dag.if", () => {
     });
   });
 
+  it("labels a branch edge redrawn from the condition", () => {
+    const { dag, ifReady, gated } = gatedDag();
+    gated.then(ifReady);
+
+    gated.before(Label.of("rows found").on(ifReady));
+
+    expect(getDagOrderEdges(dag)).toContainEqual({
+      upstream: "has_rows",
+      downstream: "load_if_ready",
+      label: "rows found",
+    });
+  });
+
   describe("rejects", () => {
+    it("a labelled branch", () => {
+      const { ifReady, gated } = gatedDag();
+
+      expect(() => gated.then(Label.of("rows found").on(ifReady) as never)).toThrowError(
+        'The "then" branch of "has_rows" of Dag "d" was given Label.of(...).on(...); label a ' +
+          'branch edge by redrawing it from "has_rows" with before(Label.of("text").on(task))',
+      );
+    });
+
     it("a task group as a branch", () => {
       const { dag, gated } = gatedDag();
       const group = dag.taskGroup("staging");

@@ -19,10 +19,14 @@ from __future__ import annotations
 
 import copy
 import os
+import subprocess
+import sys
 import tempfile
 from unittest import mock
 
-from airflow.providers.sendgrid.utils.emailer import send_email
+import pytest
+
+from airflow.providers.sendgrid.utils.emailer import _get_email_address_list, send_email
 
 
 class TestSendEmailSendGrid:
@@ -124,3 +128,32 @@ class TestSendEmailSendGrid:
             from_name="Foo Bar",
         )
         mock_post.assert_called_once_with(self.expected_mail_data_sender, "sendgrid_default")
+
+
+class TestGetEmailAddressList:
+    @pytest.mark.parametrize(
+        "addresses", ["foo@foo.com, bar@bar.com", "foo@foo.com;bar@bar.com"], ids=["comma", "semicolon"]
+    )
+    def test_splits_string(self, addresses):
+        assert _get_email_address_list(addresses) == ["foo@foo.com", "bar@bar.com"]
+
+    @pytest.mark.parametrize(
+        ("addresses", "match"),
+        [
+            pytest.param(1, "Unexpected argument type: Received 'int'", id="not_iterable"),
+            pytest.param(["foo@foo.com", 2], "The items in your iterable must be strings", id="not_string"),
+        ],
+    )
+    def test_rejects_non_strings(self, addresses, match):
+        with pytest.raises(TypeError, match=match):
+            _get_email_address_list(addresses)
+
+
+def test_emailer_imports_without_core_email_utils():
+    """``airflow.utils.email`` is moving to the SMTP provider, so the emailer must not import it."""
+    script = (
+        "import sys\n"
+        "sys.modules['airflow.utils.email'] = None\n"
+        "import airflow.providers.sendgrid.utils.emailer\n"
+    )
+    subprocess.run([sys.executable, "-c", script], check=True)

@@ -51,6 +51,8 @@ export type FormattedNode = {
   loopMaxIterations?: number;
   setupTeardownType?: NodeResponse["setup_teardown_type"];
   team?: string | null;
+  triggerId?: number | null;
+  triggerStatus?: NodeResponse["trigger_status"];
   uiColor?: string | null;
   uiFgcolor?: string | null;
 } & ElkShape &
@@ -375,6 +377,11 @@ export const generateElkGraph = ({
 
     const label = `${node.label}${node.is_mapped ? "[1000]" : ""}${node.children ? ` + ${node.children.length} tasks` : ""}`;
     let width = getTextWidth(label, font) + 16; // 16 for icons
+
+    // Budget the inline loop-iteration badge's width too, else it overlaps the "+ N tasks" button.
+    if (node.is_loop) {
+      width += getTextWidth(` ${node.loop_max_iterations ?? ""}`, font) + 20; // 20 for the loop icon
+    }
     const hasStateBar = Boolean(node.is_mapped) || Boolean(node.children);
     let height = hasStateBar ? 90 : 80;
 
@@ -401,6 +408,8 @@ export const generateElkGraph = ({
       setupTeardownType: node.setup_teardown_type,
       team: node.team,
       tooltip: node.tooltip,
+      triggerId: node.trigger_id,
+      triggerStatus: node.trigger_status,
       type: node.type,
       uiColor: node.ui_color,
       uiFgcolor: node.ui_fgcolor,
@@ -418,9 +427,6 @@ export const generateElkGraph = ({
     layoutOptions: {
       "elk.core.options.EdgeLabelPlacement": "CENTER",
       "elk.direction": direction,
-      // SIMPLE placement is a single-pass algorithm — much faster than the
-      // default BRANDES_KOEPF four-pass approach with acceptable quality for DAGs.
-      "elk.layered.nodePlacement.strategy": "SIMPLE",
       // Crossing minimisation thoroughness (default 7) controls how many random
       // sweeps are attempted. Drop to 3 for large graphs where the extra passes
       // rarely pay off and add noticeable layout latency.

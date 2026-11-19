@@ -26,6 +26,18 @@
 Changelog
 ---------
 
+6.3.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix an issue with getting dataflow_job_id for Dataflow Runner when logging is disabled in Pipeline (#72809)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``[main] Upgrade important CI environment (#76278)``
+
 6.3.1
 .....
 

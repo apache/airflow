@@ -36,14 +36,33 @@
   "group": "المجموعة",
   "health": {
     "dagProcessor": "معالج الDag",
+    "degraded": "متدهور",
+    "degradedHint": {
+      "dagProcessor": "بعض حزم Dag المُكوَّنة ليس لها معالج Dag يحللها.",
+      "triggerer": "بعض الفرق ليس لديها مُطلِق يشغّل المهام المؤجلة الخاصة بها."
+    },
+    "down": "متوقف",
     "health": "الصحة",
     "healthy": "سليم",
+    "instances": {
+      "bundles": "الحزم",
+      "hostname": "المضيف",
+      "team": "الفريق",
+      "title_few": "{{title}} — {{status}} ({{count, number}} مثيلات)",
+      "title_many": "{{title}} — {{status}} ({{count, number}} مثيلاً)",
+      "title_one": "{{title}} — {{status}} (مثيل واحد)",
+      "title_other": "{{title}} — {{status}} ({{count, number}} مثيل)",
+      "title_two": "{{title}} — {{status}} (مثيلان)",
+      "title_zero": "{{title}} — {{status}} (لا توجد مثيلات)",
+      "unknownHostname": "مضيف غير معروف"
+    },
     "lastHeartbeat": "آخر نبضة",
     "metaDatabase": "قاعدة البيانات الوصفية",
     "scheduler": "المُجَدْوِل",
     "status": "الحالة",
     "triggerer": "المُطلِق",
-    "unhealthy": "غير سليم"
+    "unhealthy": "غير سليم",
+    "unknownStatus": "غير معروف"
   },
   "history": "التاريخ",
   "importErrors": {

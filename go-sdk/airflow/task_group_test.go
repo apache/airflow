@@ -531,7 +531,7 @@ func TestTaskGroupIsSafeForConcurrentUse(t *testing.T) {
 			task := groupTask(t, group, fmt.Sprintf("task_%d", i))
 			nested := group.TaskGroup(fmt.Sprintf("group_%d", i))
 			groupTask(t, nested, "rows")
-			extracted.Before(Label(nested, fmt.Sprintf("to %d", i)))
+			extracted.Before(Label(fmt.Sprintf("to %d", i)).On(nested))
 			nested.After(task)
 		})
 	}
@@ -694,9 +694,9 @@ func TestAGroupEdgeLeavesTheLabelOfATaskEdgeAlone(t *testing.T) {
 	group := dag.TaskGroup("transform")
 	cleaned := groupTask(t, group, "clean")
 	validated := groupTask(t, group, "validate")
-	extracted.Before(Label(validated, "rows"))
+	extracted.Before(Label("rows").On(validated))
 
-	extracted.Before(Label(group, "to transform"))
+	extracted.Before(Label("to transform").On(group))
 	Bundle().Register(dag)
 
 	assertGroupEdgeLabel(t, dag, "extract", "transform", "to transform")
@@ -718,7 +718,7 @@ func TestALabelOnAGroupEdge(t *testing.T) {
 		{
 			name: "a task before a labelled group",
 			declare: func(extracted *TaskRef, transform, _ *TaskGroupRef) {
-				extracted.Before(Label(transform, "x"))
+				extracted.Before(Label("x").On(transform))
 			},
 			upstream: "extract", downstream: "transform",
 			taskEdgeLabel: "x",
@@ -726,21 +726,21 @@ func TestALabelOnAGroupEdge(t *testing.T) {
 		{
 			name: "a task after a labelled group",
 			declare: func(extracted *TaskRef, transform, _ *TaskGroupRef) {
-				extracted.After(Label(transform, "x"))
+				extracted.After(Label("x").On(transform))
 			},
 			upstream: "transform", downstream: "extract",
 		},
 		{
 			name: "a group before a labelled task",
 			declare: func(extracted *TaskRef, transform, _ *TaskGroupRef) {
-				transform.Before(Label(extracted, "x"))
+				transform.Before(Label("x").On(extracted))
 			},
 			upstream: "transform", downstream: "extract",
 		},
 		{
 			name: "a group after a labelled task",
 			declare: func(extracted *TaskRef, transform, _ *TaskGroupRef) {
-				transform.After(Label(extracted, "x"))
+				transform.After(Label("x").On(extracted))
 			},
 			upstream: "extract", downstream: "transform",
 			taskEdgeLabel: "x",
@@ -748,7 +748,7 @@ func TestALabelOnAGroupEdge(t *testing.T) {
 		{
 			name: "a group before a labelled group",
 			declare: func(_ *TaskRef, transform, publish *TaskGroupRef) {
-				transform.Before(Label(publish, "x"))
+				transform.Before(Label("x").On(publish))
 			},
 			upstream: "transform", downstream: "publish",
 		},
@@ -786,7 +786,7 @@ func TestALabelOnAnEdgeBetweenTasksOfDifferentGroupsKeepsTheTaskEdge(t *testing.
 	cleaned.Before(validated)
 	loaded := orderedTask(t, dag, "load")
 
-	cleaned.Before(Label(loaded, "rows"))
+	cleaned.Before(Label("rows").On(loaded))
 	Bundle().Register(dag)
 
 	assertEdgeLabel(t, dag, "transform.clean", "load", "rows")
@@ -803,7 +803,7 @@ func TestALabelOnAGroupEdgeFromAGroupedTaskStaysOnTheGroupEdge(t *testing.T) {
 	transform := dag.TaskGroup("transform")
 	groupTask(t, transform, "clean")
 
-	pulled.Before(Label(transform, "rows"))
+	pulled.Before(Label("rows").On(transform))
 	Bundle().Register(dag)
 
 	assertGroupEdgeLabel(t, dag, "extract.pull", "transform", "rows")
@@ -816,7 +816,7 @@ func TestRedeclaringAGroupEdgeIsIdempotent(t *testing.T) {
 	group := dag.TaskGroup("transform")
 	groupTask(t, group, "clean")
 
-	extracted.Before(Label(group, "rows"))
+	extracted.Before(Label("rows").On(group))
 	group.After(extracted)
 
 	require.Len(t, dag.groupEdges, 1)
@@ -938,8 +938,8 @@ func TestGroupEdgeVerbsRejectAGroupTheDagDidNotReturn(t *testing.T) {
 		},
 		{
 			name: "a nil group in a label",
-			call: func() { Label((*TaskGroupRef)(nil), "rows") },
-			want: "airflow.Label: node is a nil *airflow.TaskGroupRef",
+			call: func() { Label("rows").On((*TaskGroupRef)(nil)) },
+			want: "airflow.LabelRef.On: node is a nil *airflow.TaskGroupRef",
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -1263,7 +1263,8 @@ func snapshot(dag *DagRef) dagSnapshot {
 		s.groups = append(s.groups, group.groupID)
 		for _, child := range group.children {
 			s.children[group.groupID] = append(
-				s.children[group.groupID], endpoints("child", child)[0].id(),
+				s.children[group.groupID],
+				appendEndpoints(nil, child, position{"snapshot", "child", -1})[0].id(),
 			)
 		}
 	}
@@ -1329,7 +1330,7 @@ func TestAPanicLeavesTheDagAsItWas(t *testing.T) {
 		{
 			name: "a fan-out that relabels a group edge before a later pair fails",
 			call: func(p dagParts) {
-				p.extracted.Before(Label(p.transform, "relabelled"), p.extracted)
+				p.extracted.Before(Label("relabelled").On(p.transform), p.extracted)
 			},
 			want: `task "extract" cannot depend on itself`,
 		},
@@ -1363,7 +1364,7 @@ func TestAPanicLeavesTheDagAsItWas(t *testing.T) {
 			transform := dag.TaskGroup("transform")
 			cleaned := groupTask(t, transform, "clean")
 			checks := transform.TaskGroup("checks")
-			extracted.Before(Label(transform, "rows"))
+			extracted.Before(Label("rows").On(transform))
 			parts := dagParts{dag, transform, checks, extracted, cleaned}
 			if tc.prepare != nil {
 				tc.prepare(parts)

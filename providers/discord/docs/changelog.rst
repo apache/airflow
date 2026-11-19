@@ -27,6 +27,17 @@
 Changelog
 ---------
 
+3.12.5
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix Discord embed author name length validation using wrong limit (#74940)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 3.12.4
 ......
 

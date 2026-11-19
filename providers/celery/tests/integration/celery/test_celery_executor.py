@@ -473,10 +473,9 @@ class TestBulkStateFetcher:
                 )
         assert mock_retry_db_result.call_count == 2
         assert result == {"123": ("SUCCESS", None), "456": ("PENDING", None)}
-        assert caplog.messages == [
-            "Failed operation _query_task_cls_from_db_backend.  Retrying 2 more times.",
-            "Fetched 2 state(s) for 2 task(s)",
-        ]
+        assert len(caplog.messages) == 2
+        assert "_query_task_cls_from_db_backend in 0 seconds as it raised DatabaseError" in caplog.messages[0]
+        assert caplog.messages[1] == "Fetched 2 state(s) for 2 task(s)"
 
     def test_should_support_base_backend(self, caplog):
         from airflow.providers.celery.executors import celery_executor_utils

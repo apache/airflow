@@ -61,7 +61,7 @@ try:
     from airflow.providers.common.ai.sandbox import ModalSandboxBackend
 except Exception:
     modal = None  # type: ignore[assignment]
-    ModalSandboxBackend = None  # type: ignore[assignment,misc]
+    ModalSandboxBackend = None
 
 
 # Pydantic output classes live at module scope so downstream tasks can re-import

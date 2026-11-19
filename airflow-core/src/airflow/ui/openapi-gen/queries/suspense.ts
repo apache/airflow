@@ -1,8 +1,8 @@
 // generated with @7nohe/openapi-react-query-codegen@1.6.2 
 
 import { UseQueryOptions, useSuspenseQuery } from "@tanstack/react-query";
-import { AssetService, AssetStateStoreService, AuthLinksService, BackfillService, CalendarService, ConfigService, ConnectionService, DagBundleService, DagRunService, DagService, DagSourceService, DagStatsService, DagVersionService, DagWarningService, DashboardService, DeadlinesService, DependenciesService, EventLogService, ExperimentalService, ExtraLinksService, GanttService, GridService, ImportErrorService, JobService, LoginService, MonitorService, PartitionedDagRunService, PluginService, PoolService, ProviderService, StructureService, TaskInstanceService, TaskService, TaskStateStoreService, TeamsService, VariableService, VersionService, XcomService } from "../requests/services.gen";
-import { DagRunState, DagSchedulingState, ReprocessBehavior } from "../requests/types.gen";
+import { AssetService, AssetStateStoreService, AuthLinksService, BackfillService, CalendarService, ConfigService, ConnectionService, DagBundleService, DagRunService, DagService, DagSourceService, DagStatsService, DagVersionService, DagWarningService, DashboardService, DeadlinesService, DependenciesService, EventLogService, ExperimentalService, ExtraLinksService, GanttService, GridService, ImportErrorService, JobService, LoginService, MonitorService, PartitionedDagRunService, PluginService, PoolService, ProviderService, StructureService, TaskInstanceService, TaskService, TaskStateStoreService, TeamsService, TriggerService, VariableService, VersionService, XcomService } from "../requests/services.gen";
+import { DagRunState, DagSchedulingState, ReprocessBehavior, TriggerKind, TriggerStatus } from "../requests/types.gen";
 import * as Common from "./common";
 /**
 * Get Assets
@@ -16,12 +16,13 @@ import * as Common from "./common";
 * @param data.uriPattern Case-insensitive substring match (SQL `ILIKE`). Slower than `uri_prefix_pattern` on large tables — see "Filtering with pattern parameters".
 * @param data.uriPrefixPattern Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
 * @param data.dagIds
+* @param data.triggerId Return only the assets this trigger's watchers watch.
 * @param data.onlyActive
 * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, name, uri, created_at, updated_at`
 * @returns AssetCollectionResponse Successful Response
 * @throws ApiError
 */
-export const useAssetServiceGetAssetsSuspense = <TData = Common.AssetServiceGetAssetsDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagIds, limit, namePattern, namePrefixPattern, offset, onlyActive, orderBy, uri, uriPattern, uriPrefixPattern }: {
+export const useAssetServiceGetAssetsSuspense = <TData = Common.AssetServiceGetAssetsDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagIds, limit, namePattern, namePrefixPattern, offset, onlyActive, orderBy, triggerId, uri, uriPattern, uriPrefixPattern }: {
   dagIds?: string[];
   limit?: number;
   namePattern?: string;
@@ -29,10 +30,11 @@ export const useAssetServiceGetAssetsSuspense = <TData = Common.AssetServiceGetA
   offset?: number;
   onlyActive?: boolean;
   orderBy?: string[];
+  triggerId?: number;
   uri?: string[];
   uriPattern?: string;
   uriPrefixPattern?: string;
-} = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseAssetServiceGetAssetsKeyFn({ dagIds, limit, namePattern, namePrefixPattern, offset, onlyActive, orderBy, uri, uriPattern, uriPrefixPattern }, queryKey), queryFn: () => AssetService.getAssets({ dagIds, limit, namePattern, namePrefixPattern, offset, onlyActive, orderBy, uri, uriPattern, uriPrefixPattern }) as TData, ...options });
+} = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseAssetServiceGetAssetsKeyFn({ dagIds, limit, namePattern, namePrefixPattern, offset, onlyActive, orderBy, triggerId, uri, uriPattern, uriPrefixPattern }, queryKey), queryFn: () => AssetService.getAssets({ dagIds, limit, namePattern, namePrefixPattern, offset, onlyActive, orderBy, triggerId, uri, uriPattern, uriPrefixPattern }) as TData, ...options });
 /**
 * Get Asset Aliases
 * Get asset aliases.
@@ -71,6 +73,7 @@ export const useAssetServiceGetAssetAliasSuspense = <TData = Common.AssetService
 * @param data.offset
 * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `source_task_id, source_dag_id, source_run_id, source_map_index, timestamp`
 * @param data.assetId
+* @param data.triggerId Return only the events of the assets this trigger's watchers watch.
 * @param data.sourceDagId
 * @param data.sourceTaskId
 * @param data.sourceTaskInstanceId
@@ -88,7 +91,7 @@ export const useAssetServiceGetAssetAliasSuspense = <TData = Common.AssetService
 * @returns AssetEventCollectionResponse Successful Response
 * @throws ApiError
 */
-export const useAssetServiceGetAssetEventsSuspense = <TData = Common.AssetServiceGetAssetEventsDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ assetId, extra, limit, namePattern, namePrefixPattern, offset, orderBy, partitionKey, partitionKeyRegexpPattern, sourceDagId, sourceMapIndex, sourceRunId, sourceTaskId, sourceTaskInstanceId, timestampGt, timestampGte, timestampLt, timestampLte }: {
+export const useAssetServiceGetAssetEventsSuspense = <TData = Common.AssetServiceGetAssetEventsDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ assetId, extra, limit, namePattern, namePrefixPattern, offset, orderBy, partitionKey, partitionKeyRegexpPattern, sourceDagId, sourceMapIndex, sourceRunId, sourceTaskId, sourceTaskInstanceId, timestampGt, timestampGte, timestampLt, timestampLte, triggerId }: {
   assetId?: number;
   extra?: string[];
   limit?: number;
@@ -107,7 +110,8 @@ export const useAssetServiceGetAssetEventsSuspense = <TData = Common.AssetServic
   timestampGte?: string;
   timestampLt?: string;
   timestampLte?: string;
-} = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseAssetServiceGetAssetEventsKeyFn({ assetId, extra, limit, namePattern, namePrefixPattern, offset, orderBy, partitionKey, partitionKeyRegexpPattern, sourceDagId, sourceMapIndex, sourceRunId, sourceTaskId, sourceTaskInstanceId, timestampGt, timestampGte, timestampLt, timestampLte }, queryKey), queryFn: () => AssetService.getAssetEvents({ assetId, extra, limit, namePattern, namePrefixPattern, offset, orderBy, partitionKey, partitionKeyRegexpPattern, sourceDagId, sourceMapIndex, sourceRunId, sourceTaskId, sourceTaskInstanceId, timestampGt, timestampGte, timestampLt, timestampLte }) as TData, ...options });
+  triggerId?: number;
+} = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseAssetServiceGetAssetEventsKeyFn({ assetId, extra, limit, namePattern, namePrefixPattern, offset, orderBy, partitionKey, partitionKeyRegexpPattern, sourceDagId, sourceMapIndex, sourceRunId, sourceTaskId, sourceTaskInstanceId, timestampGt, timestampGte, timestampLt, timestampLte, triggerId }, queryKey), queryFn: () => AssetService.getAssetEvents({ assetId, extra, limit, namePattern, namePrefixPattern, offset, orderBy, partitionKey, partitionKeyRegexpPattern, sourceDagId, sourceMapIndex, sourceRunId, sourceTaskId, sourceTaskInstanceId, timestampGt, timestampGte, timestampLt, timestampLte, triggerId }) as TData, ...options });
 /**
 * Get Asset Queued Events
 * Get queued asset events for an asset.
@@ -213,6 +217,27 @@ export const useAssetServiceGetAssetsUiSuspense = <TData = Common.AssetServiceGe
 export const useAssetServiceNextRunAssetsSuspense = <TData = Common.AssetServiceNextRunAssetsDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId }: {
   dagId: string;
 }, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseAssetServiceNextRunAssetsKeyFn({ dagId }, queryKey), queryFn: () => AssetService.nextRunAssets({ dagId }) as TData, ...options });
+/**
+* Get Asset Partitions
+* Return the partition keys of an asset with the status of each.
+* @param data The data for the request.
+* @param data.assetId
+* @param data.status
+* @param data.partitionKeyPattern
+* @param data.orderBy
+* @param data.limit
+* @param data.offset
+* @returns AssetPartitionCollectionResponse Successful Response
+* @throws ApiError
+*/
+export const useAssetServiceGetAssetPartitionsSuspense = <TData = Common.AssetServiceGetAssetPartitionsDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ assetId, limit, offset, orderBy, partitionKeyPattern, status }: {
+  assetId: number;
+  limit?: number;
+  offset?: number;
+  orderBy?: string;
+  partitionKeyPattern?: string;
+  status?: ("materialized" | "in_progress" | "failed")[];
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseAssetServiceGetAssetPartitionsKeyFn({ assetId, limit, offset, orderBy, partitionKeyPattern, status }, queryKey), queryFn: () => AssetService.getAssetPartitions({ assetId, limit, offset, orderBy, partitionKeyPattern, status }) as TData, ...options });
 /**
 * List Backfills
 * @param data The data for the request.
@@ -630,11 +655,8 @@ export const useDagSourceServiceGetDagSourceSuspense = <TData = Common.DagSource
 * Reports the version of each bundle Airflow currently holds and when a Dag processor last
 * refreshed it, so whoever deployed the code can tell whether it has been picked up yet.
 *
-* A bundle is visible to a user who can read at least one Dag recorded against it. A bundle
-* holding no registered Dag at all has nothing to authorize against, so it is listed only for a
-* user holding the admin-by-default ``AccessView.IMPORT_ERRORS_ALL`` for that bundle's team --
-* the same view, scoped the same way, that governs import errors for a file that never
-* registered a Dag.
+* Needs ``AccessView.DAG_BUNDLES``. In a multi-team deployment it is checked against each
+* bundle's team, and bundles of a team the caller cannot see are left out.
 * @param data The data for the request.
 * @param data.limit
 * @param data.offset
@@ -662,10 +684,12 @@ export const useDagBundleServiceGetDagBundleSuspense = <TData = Common.DagBundle
 * Get Dag Bundle Files
 * List the files in a Dag bundle, ordered by path.
 *
-* A file is listed when the caller can read at least one Dag it defines. A file that recorded an
-* import error without registering any Dag is listed too, on the same admin-by-default terms as
-* ``GET /importErrors`` -- a file that fails before defining a Dag has no Dag to authorize on,
-* and it is the case this page most needs to show.
+* Every file the bundle holds is listed, with counts covering the whole file: the bundle is
+* authorized as a unit, so its contents are not narrowed to the Dags the caller may read. What a
+* file's Dags contain, and the text of its import error, stay behind their own permissions.
+*
+* ``can_read_import_error`` is per caller, unlike the counts: it says whether ``GET /importErrors``
+* would return the file's error to them.
 *
 * ``dag_count`` counts live Dags only. Dag rows are never deleted: a file that fails to import
 * has every Dag in it marked stale, and so does a file dropped from the bundle. A file therefore
@@ -687,6 +711,19 @@ export const useDagBundleServiceGetDagBundleFilesSuspense = <TData = Common.DagB
   limit?: number;
   offset?: number;
 }, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseDagBundleServiceGetDagBundleFilesKeyFn({ bundleName, limit, offset }, queryKey), queryFn: () => DagBundleService.getDagBundleFiles({ bundleName, limit, offset }) as TData, ...options });
+/**
+* Get Dag Bundle Count
+* Count the Dag bundles holding a Dag or an import error the caller may read.
+*
+* Readable by anyone who can read Dags, unlike ``GET /dagBundles``, so the UI can tell whether a
+* bundle name is worth showing next to an import error. Stale Dags count, and so do import errors
+* in files that never registered a Dag, which ``GET /importErrors`` shows to holders of
+* ``AccessView.IMPORT_ERRORS_ALL``: a bundle whose files all fail to import is where the name
+* matters most.
+* @returns DagBundleCountResponse Successful Response
+* @throws ApiError
+*/
+export const useDagBundleServiceGetDagBundleCountSuspense = <TData = Common.DagBundleServiceGetDagBundleCountDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>(queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseDagBundleServiceGetDagBundleCountKeyFn(queryKey), queryFn: () => DagBundleService.getDagBundleCount() as TData, ...options });
 /**
 * Get Dag Stats
 * Get Dag statistics.
@@ -781,7 +818,7 @@ export const useDagWarningServiceListDagWarningsSuspense = <TData = Common.DagWa
 * @param data.dagRunEndDateLte
 * @param data.dagRunEndDateLt
 * @param data.dagRunState
-* @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `dag_id, dag_display_name, next_dagrun, state, start_date, last_run_state, last_run_start_date`
+* @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `dag_id, dag_display_name, next_dagrun, last_run_state, last_run_start_date`
 * @param data.isFavorite
 * @param data.timetableType
 * @returns DAGCollectionResponse Successful Response
@@ -886,7 +923,7 @@ export const useDagServiceGetDagTagsSuspense = <TData = Common.DagServiceGetDagT
 * @param data.bundleName
 * @param data.bundleVersion
 * @param data.relativeFilelocPrefix Filter Dags by the folder (directory of ``relative_fileloc``) they live in. Matches the given folder and all of its subfolders.
-* @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `dag_id, dag_display_name, next_dagrun, state, start_date, last_run_state, last_run_start_date, last_run_run_after`
+* @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `dag_id, dag_display_name, next_dagrun, last_run_state, last_run_start_date, last_run_run_after`
 * @param data.isFavorite
 * @param data.hasAssetSchedule Filter Dags with asset-based scheduling
 * @param data.assetDependency Filter Dags by asset dependency (name or URI)
@@ -1379,9 +1416,9 @@ export const useTaskInstanceServiceGetMappedTaskInstanceSuspense = <TData = Comm
 * @param data.dagRunId
 * @param data.regionId
 * @param data.regionIndex
+* @param data.loopId Task group id of a loop; matches every instance it produced.
+* @param data.iteration Narrow ``loop_id`` to a single pass of that loop. Iterations count from one.
 * @param data.cursor Cursor for keyset-based pagination. Pass an empty string for the first page, then use ``next_cursor`` from the response. When ``cursor`` is provided, ``offset`` is ignored.
-* @param data.loopId
-* @param data.iteration
 * @param data.taskId
 * @param data.runAfterGte
 * @param data.runAfterGt
@@ -1837,6 +1874,17 @@ export const useProviderServiceGetProvidersSuspense = <TData = Common.ProviderSe
   offset?: number;
 } = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseProviderServiceGetProvidersKeyFn({ limit, offset }, queryKey), queryFn: () => ProviderService.getProviders({ limit, offset }) as TData, ...options });
 /**
+* Get Provider
+* Get detailed information about an installed provider.
+* @param data The data for the request.
+* @param data.providerName
+* @returns ProviderDetailsResponse Successful Response
+* @throws ApiError
+*/
+export const useProviderServiceGetProviderSuspense = <TData = Common.ProviderServiceGetProviderDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ providerName }: {
+  providerName: string;
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseProviderServiceGetProviderKeyFn({ providerName }, queryKey), queryFn: () => ProviderService.getProvider({ providerName }) as TData, ...options });
+/**
 * List Asset State Store
 * List all state store entries for an asset.
 * @param data The data for the request.
@@ -1952,6 +2000,7 @@ export const useXcomServiceGetXcomEntrySuspense = <TData = Common.XcomServiceGet
 * @param data.mapIndex
 * @param data.regionId
 * @param data.regionIndex
+* @param data.excludeInternalKeys Leave out XComs whose keys Airflow reserves for itself, such as loop decision reasons and cross-Dag clear targets.
 * @param data.limit
 * @param data.offset
 * @param data.xcomKeyPattern Case-insensitive substring match (SQL `ILIKE`). Slower than `xcom_key_prefix_pattern` on large tables — see "Filtering with pattern parameters".
@@ -1976,11 +2025,12 @@ export const useXcomServiceGetXcomEntrySuspense = <TData = Common.XcomServiceGet
 * @returns XComCollectionResponse Successful Response
 * @throws ApiError
 */
-export const useXcomServiceGetXcomEntriesSuspense = <TData = Common.XcomServiceGetXcomEntriesDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagDisplayNamePattern, dagDisplayNamePrefixPattern, dagId, dagRunId, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, mapIndex, mapIndexFilter, offset, orderBy, regionId, regionIndex, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runIdPattern, runIdPrefixPattern, taskId, taskIdPattern, taskIdPrefixPattern, teams, xcomKey, xcomKeyPattern, xcomKeyPrefixPattern }: {
+export const useXcomServiceGetXcomEntriesSuspense = <TData = Common.XcomServiceGetXcomEntriesDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagDisplayNamePattern, dagDisplayNamePrefixPattern, dagId, dagRunId, excludeInternalKeys, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, mapIndex, mapIndexFilter, offset, orderBy, regionId, regionIndex, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runIdPattern, runIdPrefixPattern, taskId, taskIdPattern, taskIdPrefixPattern, teams, xcomKey, xcomKeyPattern, xcomKeyPrefixPattern }: {
   dagDisplayNamePattern?: string;
   dagDisplayNamePrefixPattern?: string;
   dagId: string;
   dagRunId: string;
+  excludeInternalKeys?: boolean;
   limit?: number;
   logicalDateGt?: string;
   logicalDateGte?: string;
@@ -2005,7 +2055,7 @@ export const useXcomServiceGetXcomEntriesSuspense = <TData = Common.XcomServiceG
   xcomKey?: string;
   xcomKeyPattern?: string;
   xcomKeyPrefixPattern?: string;
-}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseXcomServiceGetXcomEntriesKeyFn({ dagDisplayNamePattern, dagDisplayNamePrefixPattern, dagId, dagRunId, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, mapIndex, mapIndexFilter, offset, orderBy, regionId, regionIndex, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runIdPattern, runIdPrefixPattern, taskId, taskIdPattern, taskIdPrefixPattern, teams, xcomKey, xcomKeyPattern, xcomKeyPrefixPattern }, queryKey), queryFn: () => XcomService.getXcomEntries({ dagDisplayNamePattern, dagDisplayNamePrefixPattern, dagId, dagRunId, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, mapIndex, mapIndexFilter, offset, orderBy, regionId, regionIndex, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runIdPattern, runIdPrefixPattern, taskId, taskIdPattern, taskIdPrefixPattern, teams, xcomKey, xcomKeyPattern, xcomKeyPrefixPattern }) as TData, ...options });
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseXcomServiceGetXcomEntriesKeyFn({ dagDisplayNamePattern, dagDisplayNamePrefixPattern, dagId, dagRunId, excludeInternalKeys, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, mapIndex, mapIndexFilter, offset, orderBy, regionId, regionIndex, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runIdPattern, runIdPrefixPattern, taskId, taskIdPattern, taskIdPrefixPattern, teams, xcomKey, xcomKeyPattern, xcomKeyPrefixPattern }, queryKey), queryFn: () => XcomService.getXcomEntries({ dagDisplayNamePattern, dagDisplayNamePrefixPattern, dagId, dagRunId, excludeInternalKeys, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, mapIndex, mapIndexFilter, offset, orderBy, regionId, regionIndex, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runIdPattern, runIdPrefixPattern, taskId, taskIdPattern, taskIdPrefixPattern, teams, xcomKey, xcomKeyPattern, xcomKeyPrefixPattern }) as TData, ...options });
 /**
 * Get Tasks
 * Get tasks for Dag.
@@ -2038,6 +2088,49 @@ export const useTaskServiceGetTaskSuspense = <TData = Common.TaskServiceGetTaskD
   taskId: unknown;
   versionNumber?: number;
 }, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseTaskServiceGetTaskKeyFn({ dagId, taskId, versionNumber }, queryKey), queryFn: () => TaskService.getTask({ dagId, taskId, versionNumber }) as TData, ...options });
+/**
+* Get Triggers
+* Get the triggers the caller can see, of every kind, and how each is doing.
+*
+* A trigger is visible to whoever can see what it is used by: the task instance or Dag run of its Dag, or
+* an asset one of its watchers watches.
+* @param data The data for the request.
+* @param data.limit
+* @param data.offset
+* @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, created_date, consecutive_failures, last_failed_at, last_event_at`
+* @param data.kind Return only triggers of these kinds.
+* @param data.status Return only triggers with one of these statuses.
+* @param data.triggererHostname Return only the triggers assigned to the triggerer on this host.
+* @param data.dagId Return only the triggers of this Dag's task instances and callbacks.
+* @param data.assetId Return only the triggers of this asset's watchers.
+* @param data.scheduledDagId Return only the triggers of watchers on assets this Dag is scheduled on, directly or by an asset name or URI reference.
+* @param data.teams Return only the triggers of these teams.
+* @returns TriggerCollectionResponse Successful Response
+* @throws ApiError
+*/
+export const useTriggerServiceGetTriggersSuspense = <TData = Common.TriggerServiceGetTriggersDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ assetId, dagId, kind, limit, offset, orderBy, scheduledDagId, status, teams, triggererHostname }: {
+  assetId?: number;
+  dagId?: string;
+  kind?: TriggerKind[];
+  limit?: number;
+  offset?: number;
+  orderBy?: string[];
+  scheduledDagId?: string;
+  status?: TriggerStatus[];
+  teams?: string[];
+  triggererHostname?: string;
+} = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseTriggerServiceGetTriggersKeyFn({ assetId, dagId, kind, limit, offset, orderBy, scheduledDagId, status, teams, triggererHostname }, queryKey), queryFn: () => TriggerService.getTriggers({ assetId, dagId, kind, limit, offset, orderBy, scheduledDagId, status, teams, triggererHostname }) as TData, ...options });
+/**
+* Get Trigger
+* Get a trigger, who it runs for, and how it is doing.
+* @param data The data for the request.
+* @param data.triggerId
+* @returns TriggerDetailResponse Successful Response
+* @throws ApiError
+*/
+export const useTriggerServiceGetTriggerSuspense = <TData = Common.TriggerServiceGetTriggerDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ triggerId }: {
+  triggerId: number;
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseTriggerServiceGetTriggerKeyFn({ triggerId }, queryKey), queryFn: () => TriggerService.getTrigger({ triggerId }) as TData, ...options });
 /**
 * Get Variable
 * Get a variable entry.
@@ -2150,6 +2243,13 @@ export const useLoginServiceLoginSuspense = <TData = Common.LoginServiceLoginDef
   next?: string;
 } = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseLoginServiceLoginKeyFn({ next }, queryKey), queryFn: () => LoginService.login({ next }) as TData, ...options });
 /**
+* Get Cli Login Metadata
+* Return the login methods the AuthManager configured offers to command-line clients.
+* @returns CliLoginMetadataResponse Successful Response
+* @throws ApiError
+*/
+export const useLoginServiceGetCliLoginMetadataSuspense = <TData = Common.LoginServiceGetCliLoginMetadataDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>(queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseLoginServiceGetCliLoginMetadataKeyFn(queryKey), queryFn: () => LoginService.getCliLoginMetadata() as TData, ...options });
+/**
 * Logout
 * Logout the user.
 * @returns unknown Successful Response
@@ -2245,7 +2345,7 @@ export const useDashboardServiceDagStatsSuspense = <TData = Common.DashboardServ
 * @param data.dagRunId
 * @param data.limit
 * @param data.offset
-* @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, deadline_time, created_at, last_updated_at, missed, dag_id, dag_run_id, alert_name`
+* @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, deadline_time, created_at, last_updated_at, missed, dag_id, dag_run_id, alert_name, callback_state, callback_type`
 * @param data.missed
 * @param data.deadlineTimeGte
 * @param data.deadlineTimeGt
@@ -2278,23 +2378,42 @@ export const useDeadlinesServiceGetDeadlinesSuspense = <TData = Common.Deadlines
 }, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseDeadlinesServiceGetDeadlinesKeyFn({ dagId, dagRunId, deadlineTimeGt, deadlineTimeGte, deadlineTimeLt, deadlineTimeLte, lastUpdatedAtGt, lastUpdatedAtGte, lastUpdatedAtLt, lastUpdatedAtLte, limit, missed, offset, orderBy, teams }, queryKey), queryFn: () => DeadlinesService.getDeadlines({ dagId, dagRunId, deadlineTimeGt, deadlineTimeGte, deadlineTimeLt, deadlineTimeLte, lastUpdatedAtGt, lastUpdatedAtGte, lastUpdatedAtLt, lastUpdatedAtLte, limit, missed, offset, orderBy, teams }) as TData, ...options });
 /**
 * Get Dag Deadline Alerts
-* Get all deadline alerts defined on a Dag.
+* Get deadline alerts defined on a Dag, optionally filtered by name pattern.
 * @param data The data for the request.
 * @param data.dagId
 * @param data.versionNumber
 * @param data.limit
+* @param data.namePattern Case-insensitive substring match (SQL `ILIKE`). Slower than `name_prefix_pattern` on large tables — see "Filtering with pattern parameters".
 * @param data.offset
 * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, created_at, name`
 * @returns DeadlineAlertCollectionResponse Successful Response
 * @throws ApiError
 */
-export const useDeadlinesServiceGetDagDeadlineAlertsSuspense = <TData = Common.DeadlinesServiceGetDagDeadlineAlertsDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, limit, offset, orderBy, versionNumber }: {
+export const useDeadlinesServiceGetDagDeadlineAlertsSuspense = <TData = Common.DeadlinesServiceGetDagDeadlineAlertsDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, limit, namePattern, offset, orderBy, versionNumber }: {
   dagId: string;
   limit?: number;
+  namePattern?: string;
   offset?: number;
   orderBy?: string[];
   versionNumber?: number;
-}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseDeadlinesServiceGetDagDeadlineAlertsKeyFn({ dagId, limit, offset, orderBy, versionNumber }, queryKey), queryFn: () => DeadlinesService.getDagDeadlineAlerts({ dagId, limit, offset, orderBy, versionNumber }) as TData, ...options });
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseDeadlinesServiceGetDagDeadlineAlertsKeyFn({ dagId, limit, namePattern, offset, orderBy, versionNumber }, queryKey), queryFn: () => DeadlinesService.getDagDeadlineAlerts({ dagId, limit, namePattern, offset, orderBy, versionNumber }) as TData, ...options });
+/**
+* Get Callback Logs
+* Get the execution logs of a deadline callback.
+* @param data The data for the request.
+* @param data.dagId
+* @param data.dagRunId
+* @param data.callbackId
+* @param data.accept
+* @returns TaskInstancesLogResponse Successful Response
+* @throws ApiError
+*/
+export const useDeadlinesServiceGetCallbackLogsSuspense = <TData = Common.DeadlinesServiceGetCallbackLogsDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ accept, callbackId, dagId, dagRunId }: {
+  accept?: "application/json" | "*/*" | "application/x-ndjson";
+  callbackId: string;
+  dagId: string;
+  dagRunId: string;
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseDeadlinesServiceGetCallbackLogsKeyFn({ accept, callbackId, dagId, dagRunId }, queryKey), queryFn: () => DeadlinesService.getCallbackLogs({ accept, callbackId, dagId, dagRunId }) as TData, ...options });
 /**
 * Structure Data
 * Get Structure Data.
@@ -2412,13 +2531,29 @@ export const useGridServiceGetGridRunsSuspense = <TData = Common.GridServiceGetG
 * @param data The data for the request.
 * @param data.dagId
 * @param data.runIds
+* @param data.startDateGte
+* @param data.startDateGt
+* @param data.startDateLte
+* @param data.startDateLt
+* @param data.endDateGte
+* @param data.endDateGt
+* @param data.endDateLte
+* @param data.endDateLt
 * @returns string NDJSON stream — one ``GridTISummaries`` JSON object per line, one per Dag run
 * @throws ApiError
 */
-export const useGridServiceGetGridTiSummariesStreamSuspense = <TData = Common.GridServiceGetGridTiSummariesStreamDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, runIds }: {
+export const useGridServiceGetGridTiSummariesStreamSuspense = <TData = Common.GridServiceGetGridTiSummariesStreamDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, endDateGt, endDateGte, endDateLt, endDateLte, runIds, startDateGt, startDateGte, startDateLt, startDateLte }: {
   dagId: string;
+  endDateGt?: string;
+  endDateGte?: string;
+  endDateLt?: string;
+  endDateLte?: string;
   runIds?: string[];
-}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseGridServiceGetGridTiSummariesStreamKeyFn({ dagId, runIds }, queryKey), queryFn: () => GridService.getGridTiSummariesStream({ dagId, runIds }) as TData, ...options });
+  startDateGt?: string;
+  startDateGte?: string;
+  startDateLt?: string;
+  startDateLte?: string;
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseGridServiceGetGridTiSummariesStreamKeyFn({ dagId, endDateGt, endDateGte, endDateLt, endDateLte, runIds, startDateGt, startDateGte, startDateLt, startDateLte }, queryKey), queryFn: () => GridService.getGridTiSummariesStream({ dagId, endDateGt, endDateGte, endDateLt, endDateLte, runIds, startDateGt, startDateGte, startDateLt, startDateLte }) as TData, ...options });
 /**
 * Get Loop Summary
 * Summarize one loop invocation from the run's live task instances.
@@ -2457,13 +2592,29 @@ export const useGridServiceGetLoopHistorySuspense = <TData = Common.GridServiceG
 * @param data The data for the request.
 * @param data.dagId
 * @param data.runId
+* @param data.startDateGte
+* @param data.startDateGt
+* @param data.startDateLte
+* @param data.startDateLt
+* @param data.endDateGte
+* @param data.endDateGt
+* @param data.endDateLte
+* @param data.endDateLt
 * @returns GanttResponse Successful Response
 * @throws ApiError
 */
-export const useGanttServiceGetGanttDataSuspense = <TData = Common.GanttServiceGetGanttDataDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, runId }: {
+export const useGanttServiceGetGanttDataSuspense = <TData = Common.GanttServiceGetGanttDataDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, endDateGt, endDateGte, endDateLt, endDateLte, runId, startDateGt, startDateGte, startDateLt, startDateLte }: {
   dagId: string;
+  endDateGt?: string;
+  endDateGte?: string;
+  endDateLt?: string;
+  endDateLte?: string;
   runId: string;
-}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseGanttServiceGetGanttDataKeyFn({ dagId, runId }, queryKey), queryFn: () => GanttService.getGanttData({ dagId, runId }) as TData, ...options });
+  startDateGt?: string;
+  startDateGte?: string;
+  startDateLt?: string;
+  startDateLte?: string;
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseGanttServiceGetGanttDataKeyFn({ dagId, endDateGt, endDateGte, endDateLt, endDateLte, runId, startDateGt, startDateGte, startDateLt, startDateLte }, queryKey), queryFn: () => GanttService.getGanttData({ dagId, endDateGt, endDateGte, endDateLt, endDateLte, runId, startDateGt, startDateGte, startDateLt, startDateLte }) as TData, ...options });
 /**
 * Get Calendar
 * Get calendar data for a Dag including historical and planned Dag runs.

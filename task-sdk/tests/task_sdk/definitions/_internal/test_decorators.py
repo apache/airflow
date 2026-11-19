@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+import subprocess
+import sys
 from textwrap import dedent
 
 import pytest
@@ -49,3 +51,19 @@ class TestExternalPythonDecorator:
 
         res = remove_task_decorator(python_source=py_source, task_decorator_name="@task.external_python")
         assert res == expected_source
+
+
+def test_sdk_import_does_not_load_libcst():
+    code = dedent(
+        """
+        import sys
+        from airflow.sdk import DAG, task
+
+        print("libcst" in sys.modules)
+        """
+    )
+
+    result = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, check=False)
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.strip().splitlines()[-1] == "False"

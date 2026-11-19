@@ -22,6 +22,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+	"math"
 
 	"github.com/vmihailenco/msgpack/v5"
 
@@ -95,11 +96,11 @@ func writeFrame(w io.Writer, payload []byte) error {
 	// below and put a corrupt length prefix on the wire, desynchronising
 	// the peer instead of failing loudly here. Mirrors the OverflowError
 	// raised by task-sdk comms.py:_FrameMixin.as_bytes.
-	if len(payload) > MaxFrameSize {
+	if uint64(len(payload)) > MaxFrameSize {
 		return fmt.Errorf(
 			"frame payload length %d exceeds max %d",
 			len(payload),
-			MaxFrameSize,
+			uint64(MaxFrameSize),
 		)
 	}
 	buf := make([]byte, 4+len(payload))
@@ -131,7 +132,16 @@ func readFrame(r io.Reader) (IncomingFrame, error) {
 		return IncomingFrame{}, fmt.Errorf(
 			"frame payload length %d exceeds max %d",
 			payloadLen,
-			MaxFrameSize,
+			uint64(MaxFrameSize),
+		)
+	}
+	// Where int is 32 bits, a length past math.MaxInt wraps negative in int()
+	// and make panics instead of the read failing.
+	if uint64(payloadLen) > math.MaxInt {
+		return IncomingFrame{}, fmt.Errorf(
+			"frame payload length %d exceeds this platform's max %d",
+			payloadLen,
+			math.MaxInt,
 		)
 	}
 	payload := make([]byte, int(payloadLen))

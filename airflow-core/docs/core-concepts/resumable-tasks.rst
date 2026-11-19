@@ -159,13 +159,12 @@ To resume from the checkpoint instead, set ``keep_task_state`` when clearing, or
 corresponding box in the clear dialog. That is the right choice when nothing about the inputs or the
 code changed and you only want the task to carry on where it stopped.
 
-This applies to clearing individual task instances through the REST API, the UI, or
-``airflowctl dags clear`` (which clears every task instance in the matched Dag run(s) through this
-same endpoint). Clearing an entire Dag run through the Clear Run dialog/API, marking a task as
-failed or success (which clears downstream tasks as a side effect), and the core CLI's
-``airflow tasks clear`` / ``airflow dags clear`` (which call ``clear_task_instances()`` directly and
-never reach the discard endpoint) all still keep task state unconditionally today; see
-`#72929 <https://github.com/apache/airflow/issues/72929>`_.
+This applies to every way of clearing a task: clearing task instances or whole Dag runs through
+the REST API, the UI or ``airflowctl``, the ``airflow dags clear`` / ``airflow tasks clear``
+commands (``--keep-task-state`` opts out), and downstream tasks cleared when a task is marked as
+failed or success. Backfills that reprocess existing runs, ``TriggerDagRunOperator`` with
+``reset_dag_run=True``, and partition clears that also clear task instances discard task state too,
+with no opt-out.
 
 **Clearing a task that submitted an external job**
 

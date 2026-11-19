@@ -95,6 +95,7 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
         kube_config: Configuration,
         supports_task_instance_uuid: bool = False,
         team_name: str | None = None,
+        client_factory: str | None = None,
     ):
         super().__init__()
         self.namespace = namespace
@@ -103,16 +104,19 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
         self.resource_version = resource_version
         self.kube_config = kube_config
         self.supports_task_instance_uuid = supports_task_instance_uuid
-        # A string survives the spawn start method, so the watcher can resolve its team's factory
-        # from configuration in its own process.
+        # Strings survive the spawn start method, so the watcher can build its team's client in its
+        # own process.
         self.team_name = team_name
+        self.client_factory = client_factory
 
     def run(self) -> None:
         """Perform watching."""
         if TYPE_CHECKING:
             assert self.scheduler_job_id
 
-        kube_client: client.CoreV1Api = _get_executor_kube_client(team_name=self.team_name)
+        kube_client: client.CoreV1Api = _get_executor_kube_client(
+            team_name=self.team_name, executor_client_factory=self.client_factory
+        )
         while True:
             try:
                 self.resource_version = self._run(
@@ -507,6 +511,8 @@ class AirflowKubernetesScheduler(LoggingMixin):
         scheduler_job_id: str,
         team_name: str | None = None,
         supports_task_instance_uuid: bool = False,
+        client_factory: str | None = None,
+        async_client_factory: str | None = None,
     ):
         super().__init__()
         self.log.debug("Creating Kubernetes executor")
@@ -521,6 +527,8 @@ class AirflowKubernetesScheduler(LoggingMixin):
         self.scheduler_job_id = scheduler_job_id
         # Set before the watchers are built, since they are told which team they are watching for.
         self.team_name = team_name
+        self.client_factory = client_factory
+        self.async_client_factory = async_client_factory
         self.kube_watchers = self._make_kube_watchers()
         # Async pod-creation state; populated lazily, only used when async_pod_creation is enabled.
         self._async_loop: asyncio.AbstractEventLoop | None = None
@@ -573,6 +581,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
             kube_config=self.kube_config,
             supports_task_instance_uuid=self.supports_task_instance_uuid,
             team_name=self.team_name,
+            client_factory=self.client_factory,
         )
         watcher.start()
         return watcher
@@ -720,7 +729,9 @@ class AirflowKubernetesScheduler(LoggingMixin):
     ) -> list[Exception | None]:
         """Issue create_namespaced_pod calls concurrently, bounded by a semaphore; one result per pod, in order."""
         if self._async_pod_client is None:
-            self._async_pod_client = await _get_executor_async_kube_client(team_name=self.team_name)
+            self._async_pod_client = await _get_executor_async_kube_client(
+                team_name=self.team_name, executor_client_factory=self.async_client_factory
+            )
         api = self._async_pod_client
         semaphore = asyncio.Semaphore(self.pod_creation_max_concurrency)
         request_kwargs: dict[str, Any] = self.kube_config.kube_client_request_args or {}

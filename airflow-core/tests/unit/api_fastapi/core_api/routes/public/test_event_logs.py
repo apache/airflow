@@ -409,7 +409,7 @@ class TestGetEventLogs(TestEventLogsEndpoint):
             dag_id=run.dag_id, run_id=run.run_id, node_id=loop.group_id, session=session
         )
         passes = {}
-        for index in (1, 2):
+        for index in (2, 3):
             passes[index] = TaskInstance(
                 task=dag.get_task("body.work"),
                 run_id=run.run_id,
@@ -419,7 +419,7 @@ class TestGetEventLogs(TestEventLogsEndpoint):
             )
             session.add(passes[index])
         session.flush()
-        archived = passes[2]
+        archived = passes[3]
         retried = archived.prepare_db_for_next_try(session=session)
         events = {
             name: Log(
@@ -428,7 +428,7 @@ class TestGetEventLogs(TestEventLogsEndpoint):
             for name, ti_id in [
                 ("first try", archived.id),
                 ("second try", retried.id),
-                ("other pass", passes[1].id),
+                ("other pass", passes[2].id),
                 ("unattributed", None),
             ]
         }
@@ -436,7 +436,7 @@ class TestGetEventLogs(TestEventLogsEndpoint):
         session.commit()
 
         response = test_client.get(
-            "/eventLogs", params={"region_id": str(region.id), "region_index": 2, "task_id": "body.work"}
+            "/eventLogs", params={"region_id": str(region.id), "region_index": 3, "task_id": "body.work"}
         )
 
         assert response.status_code == 200, response.text

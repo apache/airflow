@@ -284,7 +284,7 @@ func TestDeclaringTheEdgeOfAConditionAgainChangesNothing(t *testing.T) {
 
 	gate := dag.If(isReady)
 	gate.Then(loaded)
-	gate.task.Before(Label(loaded, "when ready"))
+	gate.task.Before(Label("when ready").On(loaded))
 
 	assertTasks(t, gate.task.downstreams, loaded)
 	assertTasks(t, loaded.upstreams, gate.task)

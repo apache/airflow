@@ -51,6 +51,7 @@ if TYPE_CHECKING:
         OperatorExpandKwargsArgument,
     )
     from airflow.sdk.definitions.dag import DAG
+    from airflow.sdk.definitions.loop import LoopDecision
 
 FParams = ParamSpec("FParams")
 FReturn = TypeVar("FReturn", None, DAGNode)
@@ -132,7 +133,9 @@ class _TaskGroupFactory(ExpandableFactory, Generic[FParams, FReturn]):
         self._task_group_created = True
         return evolved
 
-    def loop(self, *, max_iterations: int, until: Callable[..., bool] | None = None) -> TaskGroup:
+    def loop(
+        self, *, max_iterations: int, until: Callable[..., bool | LoopDecision] | None = None
+    ) -> TaskGroup:
         """
         Repeat this group's tasks, creating each iteration when the previous gate continues.
 
@@ -142,6 +145,7 @@ class _TaskGroupFactory(ExpandableFactory, Generic[FParams, FReturn]):
         :param max_iterations: Positive upper bound on the number of iterations.
         :param until: Synchronous callable receiving task context keyword arguments.
             True stops the loop. False at the iteration limit fails the gate.
+            May instead return a :class:`~airflow.sdk.LoopDecision` to attach a reason.
             Omit for a fixed-count loop that succeeds at its limit.
         """
         return create_loop(self, max_iterations=max_iterations, until=until)
