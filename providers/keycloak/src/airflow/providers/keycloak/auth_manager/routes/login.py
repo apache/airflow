@@ -50,10 +50,12 @@ except ImportError:
 
 
 from airflow.api_fastapi.common.router import AirflowRouter
+from airflow.api_fastapi.core_api.security import is_safe_url
 from airflow.providers.common.compat.sdk import conf
 from airflow.providers.keycloak.auth_manager.constants import (
     COOKIE_NAME_ACCESS_TOKEN,
     COOKIE_NAME_ID_TOKEN,
+    COOKIE_NAME_LOGIN_NEXT_URL,
     COOKIE_NAME_OAUTH_STATE,
     COOKIE_NAME_REFRESH_TOKEN,
 )
@@ -93,6 +95,20 @@ def login(request: Request) -> RedirectResponse:
     response.set_cookie(
         COOKIE_NAME_OAUTH_STATE, state, max_age=300, path=cookie_path, httponly=True, secure=secure
     )
+    # Remember where the user was going so the callback can send them back there
+    next_url = request.query_params.get("next")
+    if next_url and is_safe_url(next_url, request=request):
+        response.set_cookie(
+            COOKIE_NAME_LOGIN_NEXT_URL,
+            next_url,
+            max_age=300,
+            path=cookie_path,
+            httponly=True,
+            secure=secure,
+        )
+    else:
+        # Do not let a target left over from an earlier, unfinished login be used
+        response.delete_cookie(COOKIE_NAME_LOGIN_NEXT_URL, path=cookie_path, httponly=True, secure=secure)
     return response
 
 
@@ -128,7 +144,10 @@ def login_callback(request: Request):
     token = get_auth_manager().generate_jwt(user)
     request.state.jwt_token_issued = True
 
-    response = RedirectResponse(url=conf.get("api", "base_url", fallback="/"), status_code=303)
+    fallback_url = conf.get("api", "base_url", fallback="/")
+    next_url = request.cookies.get(COOKIE_NAME_LOGIN_NEXT_URL)
+    redirect_url = next_url if next_url and is_safe_url(next_url, request=request) else fallback_url
+    response = RedirectResponse(url=redirect_url, status_code=303)
     secure = request.base_url.scheme == "https" or bool(conf.get("api", "ssl_cert", fallback=""))
     # In Airflow 3.1.1 authentication changes, front-end no longer handle the token
     # See https://github.com/apache/airflow/pull/55506
@@ -158,6 +177,7 @@ def login_callback(request: Request):
                 httponly=True,
             )
 
+    response.delete_cookie(COOKIE_NAME_LOGIN_NEXT_URL, path=cookie_path, secure=secure, httponly=True)
     return response
 
 

@@ -31,6 +31,7 @@ import { ReactPlugin } from "src/pages/ReactPlugin";
 
 import { KeyboardShortcutsModal } from "src/components/KeyboardShortcuts";
 
+import { DagsListSearchProvider } from "src/context/dagsListSearch";
 import { GridSelectionProvider } from "src/context/gridSelection";
 import { useConfig } from "src/queries/useConfig";
 import { DocumentTitleProvider } from "src/utils";
@@ -112,38 +113,40 @@ export const BaseLayout = ({ children }: PropsWithChildren) => {
   return (
     <LocaleProvider locale={i18n.language || "en"}>
       <DocumentTitleProvider>
-        <Box display="flex" flexDirection="column" h="100vh">
-          <ProgressBar
-            aria-label={translate("loading")}
-            insetInlineEnd={0}
-            insetInlineStart={16}
-            pointerEvents="none"
-            position="fixed"
-            size="xs"
-            top={0}
-            visibility={navigation.state === "idle" ? "hidden" : "visible"}
-            zIndex="toast"
-          />
-          <KeyboardShortcutsModal />
-          <Nav />
-          <Box
-            _ltr={{ ml: 16 }}
-            _rtl={{ mr: 16 }}
-            data-testid="main-content"
-            display="flex"
-            flex={1}
-            flexDirection="column"
-            minH={0}
-            overflowY="auto"
-            p={3}
-            pb={0}
-          >
-            {baseReactPlugins.map((plugin) => (
-              <ReactPlugin key={plugin.name} reactApp={plugin} />
-            ))}
-            <GridSelectionProvider>{children ?? <Outlet />}</GridSelectionProvider>
+        <DagsListSearchProvider>
+          <Box display="flex" flexDirection="column" h="100vh">
+            <ProgressBar
+              aria-label={translate("loading")}
+              insetInlineEnd={0}
+              insetInlineStart={16}
+              pointerEvents="none"
+              position="fixed"
+              size="xs"
+              top={0}
+              visibility={navigation.state === "idle" ? "hidden" : "visible"}
+              zIndex="toast"
+            />
+            <KeyboardShortcutsModal />
+            <Nav />
+            <Box
+              _ltr={{ ml: 16 }}
+              _rtl={{ mr: 16 }}
+              data-testid="main-content"
+              display="flex"
+              flex={1}
+              flexDirection="column"
+              minH={0}
+              overflowY="auto"
+              p={3}
+              pb={0}
+            >
+              {baseReactPlugins.map((plugin) => (
+                <ReactPlugin key={plugin.name} reactApp={plugin} />
+              ))}
+              <GridSelectionProvider>{children ?? <Outlet />}</GridSelectionProvider>
+            </Box>
           </Box>
-        </Box>
+        </DagsListSearchProvider>
       </DocumentTitleProvider>
     </LocaleProvider>
   );

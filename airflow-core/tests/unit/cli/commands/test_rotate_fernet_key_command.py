@@ -25,8 +25,8 @@ from sqlalchemy import select
 
 from airflow.cli import cli_parser
 from airflow.cli.commands import rotate_fernet_key_command
+from airflow.crypto import get_fernet
 from airflow.models import Connection, Variable
-from airflow.models.crypto import get_fernet
 from airflow.sdk import BaseHook
 from airflow.utils.session import provide_session
 

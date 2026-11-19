@@ -28,6 +28,19 @@
 Changelog
 ---------
 
+4.4.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Use the vertica+vertica_python scheme in VerticaHook.sqlalchemy_url (#76804)``
+* ``Raise errors from all statements of multi-statement SQL in VerticaHook (#75967)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``[main] Upgrade important CI environment (#76278)``
+
 4.4.1
 .....
 
