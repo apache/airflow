@@ -25,6 +25,23 @@
 Changelog
 ---------
 
+0.13.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add team-level authorization to Keycloak auth manager list filters (#77007)``
+* ``Redirect to the requested page after Keycloak login (#76362)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix 500 from the Keycloak auth manager when a browser session has no Keycloak tokens (#76353)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 0.12.0
 ......
 
