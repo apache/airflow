@@ -457,6 +457,15 @@ class JobState(str, Enum):
     FAILED = "failed"
 
 
+class LiteralValue(BaseModel):
+    """
+    One inline value.
+    """
+
+    kind: Annotated[Literal["literal"], Field(title="Kind")]
+    value: JsonValue | None = None
+
+
 class LoopContext(BaseModel):
     """
     Pinned loop definition and enclosing iteration for a task execution.
@@ -871,6 +880,17 @@ class VariableResponse(BaseModel):
     value: Annotated[str, Field(title="Value")]
 
 
+class XComRef(BaseModel):
+    """
+    One upstream value, read by the supervisor.
+    """
+
+    kind: Annotated[Literal["xcom"], Field(title="Kind")]
+    task_id: Annotated[str, Field(title="Task Id")]
+    map_index: Annotated[int | None, Field(title="Map Index")] = None
+    element_index: Annotated[int | None, Field(title="Element Index")] = None
+
+
 class XComResponse(BaseModel):
     """
     XCom schema for responses with fields that are needed for Runtime.
@@ -947,6 +967,10 @@ class TriggerRule(str, Enum):
 class DagAttributeTypes(str, Enum):
     OP = "operator"
     TASK_GROUP = "taskgroup"
+
+
+class ArgPart(RootModel[XComRef | LiteralValue]):
+    root: Annotated[XComRef | LiteralValue, Field(discriminator="kind", title="ArgPart")]
 
 
 class ArgValueSchema(RootModel[dict[str, JsonValue | None]]):
@@ -1108,13 +1132,16 @@ class JobHeartbeatResponse(BaseModel):
 
 class LiteralArgBinding(BaseModel):
     """
-    One positional stub-task argument carrying an inline literal from the Dag file.
+    An argument carrying an inline value from the Dag file.
     """
 
-    name: Annotated[str, Field(title="Name")]
-    value_schema: ArgValueSchema | None = None
     kind: Annotated[Literal["literal"], Field(title="Kind")]
     value: JsonValue | None = None
+    name: Annotated[str, Field(title="Name")]
+    value_schema: ArgValueSchema | None = None
+    apply_map: Annotated[bool | None, Field(title="Apply Map")] = False
+    kwarg: Annotated[str | None, Field(title="Kwarg")] = None
+    fallback: ArgPart | None = None
     from_default: Annotated[bool | None, Field(title="From Default")] = False
 
 
@@ -1135,14 +1162,47 @@ class TITerminalStatePayload(BaseModel):
     loop_decision: LoopDecisionPayload | None = None
 
 
-class XComArgBinding(BaseModel):
+class TupleArgBinding(BaseModel):
     """
-    One positional stub-task argument pulled from an upstream task's XCom.
+    One ``zip()`` element: several values gathered into a single argument.
     """
 
     name: Annotated[str, Field(title="Name")]
     value_schema: ArgValueSchema | None = None
+    apply_map: Annotated[bool | None, Field(title="Apply Map")] = False
+    kwarg: Annotated[str | None, Field(title="Kwarg")] = None
+    fallback: ArgPart | None = None
+    kind: Annotated[Literal["tuple"], Field(title="Kind")]
+    parts: Annotated[list[ArgPart], Field(title="Parts")]
+
+
+class XComArgBinding(BaseModel):
+    """
+    An argument read from an upstream task.
+    """
+
     kind: Annotated[Literal["xcom"], Field(title="Kind")]
+    task_id: Annotated[str, Field(title="Task Id")]
+    map_index: Annotated[int | None, Field(title="Map Index")] = None
+    element_index: Annotated[int | None, Field(title="Element Index")] = None
+    name: Annotated[str, Field(title="Name")]
+    value_schema: ArgValueSchema | None = None
+    apply_map: Annotated[bool | None, Field(title="Apply Map")] = False
+    kwarg: Annotated[str | None, Field(title="Kwarg")] = None
+    fallback: ArgPart | None = None
+
+
+class XComSequenceArgBinding(BaseModel):
+    """
+    A mapped task's whole output, read as a lazy sequence.
+    """
+
+    name: Annotated[str, Field(title="Name")]
+    value_schema: ArgValueSchema | None = None
+    apply_map: Annotated[bool | None, Field(title="Apply Map")] = False
+    kwarg: Annotated[str | None, Field(title="Kwarg")] = None
+    fallback: ArgPart | None = None
+    kind: Annotated[Literal["sequence"], Field(title="Kind")]
     task_id: Annotated[str, Field(title="Task Id")]
 
 
@@ -1227,8 +1287,13 @@ class DagRunContext(BaseModel):
     last_ti: TaskInstance | None = None
 
 
-class TaskArgBinding(RootModel[XComArgBinding | LiteralArgBinding]):
-    root: Annotated[XComArgBinding | LiteralArgBinding, Field(discriminator="kind", title="TaskArgBinding")]
+class TaskArgBinding(
+    RootModel[XComArgBinding | LiteralArgBinding | XComSequenceArgBinding | TupleArgBinding]
+):
+    root: Annotated[
+        XComArgBinding | LiteralArgBinding | XComSequenceArgBinding | TupleArgBinding,
+        Field(discriminator="kind", title="TaskArgBinding"),
+    ]
 
 
 class DagCallbackRequest(BaseModel):

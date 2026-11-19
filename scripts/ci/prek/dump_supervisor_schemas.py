@@ -31,6 +31,8 @@ from __future__ import annotations
 import json
 import os
 import sys
+from collections.abc import Iterator
+from typing import Any
 
 from pydantic import json_schema
 
@@ -81,6 +83,27 @@ for key, val in defs.items():
             "title": key,
             "type": ["object", "array", "string", "number", "boolean", "null"],
         }
+
+
+# go-jsonschema also aborts on ``anyOf: [<union>, null]`` when the union is a bare ``oneOf``, which has
+# no type to merge with null. Every branch of a discriminated union is an object, so say so.
+def _iter_nullable_refs(node: Any) -> Iterator[str]:
+    if isinstance(node, dict):
+        branches = node.get("anyOf") or ()
+        if {"type": "null"} in branches:
+            yield from (branch["$ref"] for branch in branches if "$ref" in branch)
+        for value in node.values():
+            yield from _iter_nullable_refs(value)
+    elif isinstance(node, list):
+        for value in node:
+            yield from _iter_nullable_refs(value)
+
+
+for ref in set(_iter_nullable_refs(defs)):
+    name = ref.removeprefix("#/$defs/")
+    entry = defs[renames.get(name, name)]
+    if "discriminator" in entry and "type" not in entry:
+        entry["type"] = "object"
 
 output = json.dumps(snapshot, indent=2)
 for old, new in renames.items():

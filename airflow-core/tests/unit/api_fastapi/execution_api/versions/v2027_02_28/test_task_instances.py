@@ -21,7 +21,7 @@ from datetime import timedelta
 
 import pytest
 
-from airflow.sdk import task
+from airflow.sdk import task, task_group
 from airflow.utils.state import State
 
 from tests_common.test_utils.db import clear_db_runs
@@ -82,3 +82,143 @@ class TestExecutionTimeoutBackwardCompat:
         response = client.patch(f"/execution/task-instances/{stub_ti.id}/run", json=RUN_PATCH_BODY)
         assert response.status_code == 200
         assert response.json()["execution_timeout"] == 90.0
+
+
+@pytest.mark.parametrize("version", ["2026-10-30", "2027-02-28"])
+def test_xcom_arg_binding_schema_by_version(client, version):
+    response = client.get(f"/execution/openapi.json?version={version}")
+    assert response.status_code == 200
+    schemas = response.json()["components"]["schemas"]
+    binding = schemas["XComArgBinding"]["properties"]
+    for field in ("map_index", "element_index", "apply_map", "kwarg", "fallback"):
+        assert (field in binding) == (version == "2027-02-28")
+    kinds = set(schemas["TaskArgBinding"]["discriminator"]["mapping"])
+    assert kinds == (
+        {"xcom", "literal", "sequence", "tuple"} if version == "2027-02-28" else {"xcom", "literal"}
+    )
+
+
+class TestMappedStubArgBindingsBackwardCompat:
+    def setup_method(self):
+        clear_db_runs()
+
+    def teardown_method(self):
+        clear_db_runs()
+
+    def test_old_version_skips_mapped_stub_derivation(self, old_ver_client, dag_maker):
+        with dag_maker("test_mapped_arg_bindings_compat", serialized=True):
+
+            @task.stub
+            def extract(): ...
+
+            @task.stub
+            def transform(extracted: dict): ...
+
+            transform.expand(extracted=extract())
+
+        ti = dag_maker.create_dagrun().get_task_instance("transform")
+        ti.set_state(State.QUEUED)
+        dag_maker.session.flush()
+
+        # At head this placeholder fails ti_run, since it has no map index to derive bindings for.
+        response = old_ver_client.patch(f"/execution/task-instances/{ti.id}/run", json=RUN_PATCH_BODY)
+        assert response.status_code == 200
+        assert "arg_bindings" not in response.json()
+
+    @pytest.fixture
+    def reduce_ti(self, dag_maker):
+        with dag_maker("test_sequence_arg_bindings_compat", serialized=True):
+
+            @task.stub
+            def transform(n: int): ...
+
+            @task.stub
+            def report(totals): ...
+
+            report(transform.expand(n=[1, 2]))
+
+        ti = dag_maker.create_dagrun().get_task_instance("report")
+        ti.set_state(State.QUEUED)
+        dag_maker.session.flush()
+        return ti
+
+    def test_old_version_rejects_arg_bindings_with_new_kinds(self, old_ver_client, reduce_ti):
+        response = old_ver_client.patch(f"/execution/task-instances/{reduce_ti.id}/run", json=RUN_PATCH_BODY)
+        assert response.status_code == 422
+        assert response.json()["detail"]["reason"] == "invalid_arg_bindings"
+        assert "2027-02-28 or later" in response.json()["detail"]["message"]
+
+    def test_old_version_rejects_mapped_task_group_member_reading_a_group_row(
+        self, old_ver_client, dag_maker
+    ):
+        with dag_maker("test_group_member_arg_bindings_compat", serialized=True):
+
+            @task.stub
+            def prepare(country: str): ...
+
+            @task.stub
+            def transform(prepared): ...
+
+            @task_group
+            def group(country):
+                transform(prepare(country))
+
+            group.expand(country=["uk", "fr"])
+
+        ti = dag_maker.create_dagrun().get_task_instance("group.transform", map_index=0)
+        ti.set_state(State.QUEUED)
+        dag_maker.session.flush()
+
+        response = old_ver_client.patch(f"/execution/task-instances/{ti.id}/run", json=RUN_PATCH_BODY)
+        assert response.status_code == 422
+        assert "2027-02-28 or later" in response.json()["detail"]["message"]
+
+    def test_head_version_includes_arg_bindings_with_new_kinds(self, client, reduce_ti):
+        response = client.patch(f"/execution/task-instances/{reduce_ti.id}/run", json=RUN_PATCH_BODY)
+        assert response.status_code == 200
+        assert response.json()["arg_bindings"] == [
+            {"name": "totals", "kind": "sequence", "task_id": "transform"}
+        ]
+
+    def test_old_version_keeps_plain_bindings_of_mapped_task_group_member(self, old_ver_client, dag_maker):
+        with dag_maker("test_group_member_plain_arg_bindings_compat", serialized=True):
+
+            @task.stub
+            def transform(country: str): ...
+
+            @task_group
+            def group(country):
+                transform(country)
+
+            group.expand(country=["uk", "fr"])
+
+        ti = dag_maker.create_dagrun().get_task_instance("group.transform", map_index=0)
+        ti.set_state(State.QUEUED)
+        dag_maker.session.flush()
+
+        response = old_ver_client.patch(f"/execution/task-instances/{ti.id}/run", json=RUN_PATCH_BODY)
+        assert response.status_code == 200
+        assert response.json()["arg_bindings"] == [
+            {"name": "country", "kind": "literal", "value_schema": {"type": "string"}, "value": "uk"}
+        ]
+
+    def test_old_version_keeps_plain_arg_bindings(self, old_ver_client, dag_maker):
+        with dag_maker("test_plain_arg_bindings_compat", serialized=True):
+
+            @task.stub
+            def extract(): ...
+
+            @task.stub
+            def transform(extracted): ...
+
+            transform(extract())
+
+        ti = dag_maker.create_dagrun().get_task_instance("transform")
+        ti.set_state(State.QUEUED)
+        dag_maker.session.flush()
+
+        response = old_ver_client.patch(f"/execution/task-instances/{ti.id}/run", json=RUN_PATCH_BODY)
+        assert response.status_code == 200
+        assert response.json()["arg_bindings"] == [
+            {"name": "extracted", "kind": "xcom", "task_id": "extract"}
+        ]
