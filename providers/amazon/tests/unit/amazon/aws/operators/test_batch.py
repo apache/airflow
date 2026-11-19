@@ -836,20 +836,23 @@ class TestBatchOperatorDurable:
         task_store.get.assert_not_called()
         task_store.set.assert_not_called()
 
+    @pytest.mark.parametrize("durable", [True, False])
     @mock.patch.object(BatchOperator, "monitor_job", autospec=True)
-    def test_submit_job_override_returning_none_keeps_job_id(self, monitor_mock, client, task_store, caplog):
+    def test_submit_job_override_returning_none_keeps_job_id(
+        self, monitor_mock, client, task_store, caplog, durable
+    ):
         class LegacySubmitBatchOperator(BatchOperator):
             def submit_job(self, context):
                 super().submit_job(context)
 
-        operator = self._make_operator(operator_class=LegacySubmitBatchOperator)
+        operator = self._make_operator(operator_class=LegacySubmitBatchOperator, durable=durable)
 
         result = operator.execute(self._context(task_store))
 
         monitor_mock.assert_called_once()
         assert operator.job_id == self.NEW_JOB_ID
         assert result == self.NEW_JOB_ID
-        assert "submit_job returned no job id, so a retry will submit a new job" in caplog
+        assert ("submit_job returned no job id, so a retry will submit a new job" in caplog) is durable
 
 
 class TestBatchCreateComputeEnvironmentOperator:

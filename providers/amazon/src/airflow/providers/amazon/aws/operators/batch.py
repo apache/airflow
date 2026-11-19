@@ -391,7 +391,8 @@ class BatchOperator(ResumableJobMixin, AwsBaseOperator[BatchClientHook]):
         # None comes from subclasses whose submit_job override predates it returning the job id;
         # they still set self.job_id, so keep it.
         if external_id is None:
-            self.log.warning("submit_job returned no job id, so a retry will submit a new job")
+            if self.durable:
+                self.log.warning("submit_job returned no job id, so a retry will submit a new job")
             return
         if self.job_id == external_id:
             return
