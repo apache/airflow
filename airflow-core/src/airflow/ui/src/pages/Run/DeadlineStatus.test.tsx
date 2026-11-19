@@ -20,8 +20,7 @@ import "@testing-library/jest-dom/vitest";
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import type * as OpenapiQueries from "openapi/queries";
-import type { DeadlineAlertResponse } from "openapi/requests/types.gen";
+import type { DeadlineCollectionResponse, RunDeadlineAlertResponse } from "openapi/requests/types.gen";
 
 import i18n from "src/i18n/config";
 import { Wrapper } from "src/utils/Wrapper";
@@ -29,24 +28,12 @@ import { Wrapper } from "src/utils/Wrapper";
 import dagLocale from "../../../public/i18n/locales/en/dag.json";
 import { DeadlineStatus } from "./DeadlineStatus";
 
-vi.mock("openapi/queries", async (importOriginal) => {
-  const actual = await importOriginal<typeof OpenapiQueries>();
-
-  return { ...actual, useDeadlinesServiceGetDeadlines: vi.fn() };
-});
-
-const { useDeadlinesServiceGetDeadlines } = await import("openapi/queries");
-
-const buildAlert = (
-  id: string,
-  filter: DeadlineAlertResponse["run_type_filter"],
-  interval: number,
-): DeadlineAlertResponse => ({
+const buildAlert = (id: string, isApplicable: boolean, interval: number): RunDeadlineAlertResponse => ({
   created_at: "2025-01-01T00:00:00Z",
   id,
   interval,
+  is_applicable: isApplicable,
   reference_type: "DagRunQueuedAtDeadline",
-  run_type_filter: filter,
 });
 
 const getCompletionRule = (interval: string) =>
@@ -60,43 +47,37 @@ describe("DeadlineStatus", () => {
     i18n.addResourceBundle("en", "dag", dagLocale, true, true);
   });
 
-  it.each([{ runTypeFilter: ["manual"] }, { runTypeFilter: ["backfill", "manual"] }] satisfies Array<{
-    runTypeFilter: DeadlineAlertResponse["run_type_filter"];
-  }>)(
-    "shows only applicable alert rules for a manual run with run_type_filter=$runTypeFilter",
-    async ({ runTypeFilter }) => {
-      vi.mocked(useDeadlinesServiceGetDeadlines).mockReturnValue({
-        data: {
-          deadline_alerts: [
-            buildAlert("manual", runTypeFilter, 30),
-            buildAlert("scheduled", ["scheduled"], 3600),
-            buildAlert("unrestricted", null, 120),
-          ],
-          deadlines: [],
-          total_entries: 0,
-        },
-        isLoading: false,
-      } as ReturnType<typeof useDeadlinesServiceGetDeadlines>);
-      vi.useFakeTimers();
+  it("shows only alert rules marked applicable by the API", async () => {
+    const deadlineData: DeadlineCollectionResponse = {
+      deadline_alerts: [
+        buildAlert("manual", true, 30),
+        buildAlert("scheduled", false, 3600),
+        buildAlert("unrestricted", true, 120),
+      ],
+      deadlines: [],
+      total_entries: 0,
+    };
 
-      try {
-        render(<DeadlineStatus dagId="test_dag" dagRunId="manual_run" endDate={null} runType="manual" />, {
-          wrapper: Wrapper,
-        });
+    vi.useFakeTimers();
 
-        await act(async () => {
-          fireEvent.pointerEnter(screen.getByText(i18n.t("dag:deadlineStatus.met")));
-          await vi.advanceTimersByTimeAsync(1500);
-        });
+    try {
+      render(
+        <DeadlineStatus dagId="test_dag" dagRunId="manual_run" deadlineData={deadlineData} endDate={null} />,
+        { wrapper: Wrapper },
+      );
 
-        const tooltip = screen.getByRole("tooltip");
+      await act(async () => {
+        fireEvent.pointerEnter(screen.getByText(i18n.t("dag:deadlineStatus.met")));
+        await vi.advanceTimersByTimeAsync(1500);
+      });
 
-        expect(tooltip).toHaveTextContent(getCompletionRule("30 seconds"));
-        expect(tooltip).toHaveTextContent(getCompletionRule("2 minutes"));
-        expect(tooltip).not.toHaveTextContent(getCompletionRule("1 hour"));
-      } finally {
-        vi.useRealTimers();
-      }
-    },
-  );
+      const tooltip = screen.getByRole("tooltip");
+
+      expect(tooltip).toHaveTextContent(getCompletionRule("30 seconds"));
+      expect(tooltip).toHaveTextContent(getCompletionRule("2 minutes"));
+      expect(tooltip).not.toHaveTextContent(getCompletionRule("1 hour"));
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });

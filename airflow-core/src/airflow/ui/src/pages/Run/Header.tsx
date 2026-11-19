@@ -47,7 +47,6 @@ import { usePluginActions } from "src/hooks/usePluginActions";
 import { useShowTeam } from "src/hooks/useShowTeam";
 import { useDagRunNote } from "src/queries/useDagRunNote";
 import { hasDagRunConfig, useDurationFormat } from "src/utils";
-import { isDeadlineAlertApplicable } from "src/utils/deadlines";
 
 import { DeadlineStatus } from "./DeadlineStatus";
 
@@ -64,16 +63,22 @@ export const Header = ({ dagRun }: { readonly dagRun: DAGRunResponse }) => {
   const dagId = dagRun.dag_id;
   const dagRunId = dagRun.dag_run_id;
 
-  const { data: deadlineData } = useDeadlinesServiceGetDeadlines({
+  const deadlineQuery = {
     dagId,
     dagRunId,
     includeAlerts: true,
     limit: 10,
     orderBy: ["deadline_time"],
-  });
+  };
+  // Reprocessing can change the run type without changing the run ID.
+  const { data: deadlineData } = useDeadlinesServiceGetDeadlines(deadlineQuery, [
+    deadlineQuery,
+    dagRun.run_type,
+  ]);
   const hasDeadlineAlerts =
-    (deadlineData?.total_entries ?? 0) > 0 ||
-    (deadlineData?.deadline_alerts ?? []).some((alert) => isDeadlineAlertApplicable(alert, dagRun.run_type));
+    deadlineData !== undefined &&
+    (deadlineData.total_entries > 0 ||
+      (deadlineData.deadline_alerts ?? []).some((alert) => alert.is_applicable));
 
   return (
     <Box display="flex" flexDirection="column" gap={2}>
@@ -181,8 +186,8 @@ export const Header = ({ dagRun }: { readonly dagRun: DAGRunResponse }) => {
                     <DeadlineStatus
                       dagId={dagId}
                       dagRunId={dagRunId}
+                      deadlineData={deadlineData}
                       endDate={dagRun.end_date}
-                      runType={dagRun.run_type}
                     />
                   ),
                 },

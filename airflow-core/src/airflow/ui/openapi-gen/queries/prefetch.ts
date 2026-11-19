@@ -2354,7 +2354,8 @@ export const prefetchUseDashboardServiceDagStats = (queryClient: QueryClient) =>
 * Dags and Dag runs.
 *
 * For a specific run, `include_alerts` also returns its creation-version alert
-* definitions, independently of the deadline filters and pagination.
+* definitions and their applicability to the current run type, independently
+* of the deadline filters and pagination.
 * @param data The data for the request.
 * @param data.dagId
 * @param data.dagRunId

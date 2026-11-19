@@ -91,12 +91,23 @@ class DeadlineAlertResponse(BaseModel):
         return None
 
 
+class RunDeadlineAlertResponse(DeadlineAlertResponse):
+    """Alert definition and applicability to the current Dag run type."""
+
+    is_applicable: bool = Field(
+        description=(
+            "Whether the alert's run type filter matches the Dag run's current type. "
+            "This does not indicate whether a deadline was created or met."
+        )
+    )
+
+
 class DeadlineCollectionResponse(BaseModel):
     """Deadline Collection serializer for responses."""
 
     deadlines: list[DeadlineResponse]
     total_entries: int
-    deadline_alerts: list[DeadlineAlertResponse] | None = Field(
+    deadline_alerts: list[RunDeadlineAlertResponse] | None = Field(
         default=None,
         exclude_if=lambda alerts: alerts is None,
     )
