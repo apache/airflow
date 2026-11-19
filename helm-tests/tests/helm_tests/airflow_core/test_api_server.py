@@ -256,6 +256,21 @@ class TestAPIServerDeployment:
         assert "test_label" in jmespath.search("spec.template.metadata.labels", docs[0])
         assert jmespath.search("spec.template.metadata.labels", docs[0])["test_label"] == "test_label_value"
 
+    @pytest.mark.parametrize(
+        ("api_server_values", "expected"),
+        [
+            ({}, 30),
+            ({"apiServer": {"terminationGracePeriodSeconds": 1200}}, 1200),
+        ],
+    )
+    def test_termination_grace_period_seconds(self, api_server_values, expected):
+        docs = render_chart(
+            values=api_server_values,
+            show_only=["templates/api-server/api-server-deployment.yaml"],
+        )
+
+        assert jmespath.search("spec.template.spec.terminationGracePeriodSeconds", docs[0]) == expected
+
     def test_should_create_valid_affinity_tolerations_and_node_selector(self):
         docs = render_chart(
             values={
