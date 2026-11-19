@@ -159,6 +159,10 @@ def test_build_pod_label_selector(selector, expected_label_selector):
     assert build_pod_label_selector(job) == expected_label_selector
 
 
+TERMINATING_POD = build_pod("preempted")
+TERMINATING_POD.metadata.deletion_timestamp = "2026-01-01T00:00:00Z"
+
+
 class TestCollectXcomResults:
     def setup_method(self):
         self.client = mock.create_autospec(CoreV1Api, instance=True)
@@ -186,12 +190,13 @@ class TestCollectXcomResults:
         assert xcom_results == {"already-read": "{}", "ready": '{"a": 1}'}
 
     @pytest.mark.parametrize(
-        ("error", "read_pod_error", "expectation"),
+        ("error", "read_pod", "expectation"),
         [
             (XComRetrievalError("sidecar stopped"), None, nullcontext()),
             (ApiException(status=404), None, nullcontext()),
             (ApiException(status=0), ApiException(status=404), nullcontext()),
-            (ApiException(status=0), None, pytest.raises(ApiException)),
+            (ApiException(status=0), TERMINATING_POD, nullcontext()),
+            (ApiException(status=0), build_pod("preempted"), pytest.raises(ApiException)),
             (ApiException(status=403), None, pytest.raises(ApiException)),
             (json.JSONDecodeError("Unterminated string", '{"a', 1), None, nullcontext()),
         ],
@@ -199,16 +204,17 @@ class TestCollectXcomResults:
             "sidecar-stopped",
             "pod-deleted",
             "exec-failed-on-deleted-pod",
+            "exec-failed-on-terminating-pod",
             "exec-failed-on-existing-pod",
             "other-api-error",
             "partial-xcom-json",
         ],
     )
-    def test_skips_pods_stopped_or_deleted_by_preemption(self, error, read_pod_error, expectation):
+    def test_skips_pods_stopped_or_deleted_by_preemption(self, error, read_pod, expectation):
         self.client.list_namespaced_pod.return_value = k8s.V1PodList(
             items=[build_pod("preempted", base="terminated", sidecar="running")]
         )
-        self.client.read_namespaced_pod.side_effect = read_pod_error
+        self.client.read_namespaced_pod.side_effect = [read_pod]
         self.pod_manager.extract_xcom.side_effect = error
         xcom_results: dict[str, str] = {}
 
