@@ -512,6 +512,10 @@ class SnowflakeSqlApiOperator(ResumableJobMixin, SQLExecuteQueryOperator):
                 queries_in_progress.remove(query_id)
             elif statement_status.get("status") == "running":
                 statement_running_status[query_id] = statement_status
+            else:
+                raise RuntimeError(
+                    f"Unexpected Snowflake SQL API status for query {query_id}: {statement_status.get('status')!r}"
+                )
         # Only wait before the next poll cycle if something is still running. Sleeping
         # unconditionally after every handle would delay returning even when this cycle
         # already resolved everything (e.g. all statements finished, or one failed).
@@ -544,8 +548,12 @@ class SnowflakeSqlApiOperator(ResumableJobMixin, SQLExecuteQueryOperator):
                 raise
         if "error" in statuses:
             return "error"
+        if any(status not in {"success", "running"} for status in statuses):
+            raise RuntimeError(f"Unexpected Snowflake SQL API query statuses: {statuses}")
         if "running" in statuses:
             return "running"
+        if not statuses:
+            raise RuntimeError("No Snowflake SQL API query statuses returned")
         return "success"
 
     def is_job_active(self, status: str) -> bool:

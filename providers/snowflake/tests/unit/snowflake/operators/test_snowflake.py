@@ -432,6 +432,29 @@ class TestSnowflakeSqlApiOperator:
         assert result["running"] == {"uuid2": {"status": "running"}}
 
     @pytest.mark.parametrize(
+        "statement_status",
+        [
+            {"status": "unknown"},
+            {"status": None},
+            {},
+        ],
+    )
+    def test_poll_on_queries_rejects_unexpected_status(self, mock_get_sql_api_query_status, statement_status):
+        operator = SnowflakeSqlApiOperator(
+            task_id=TASK_ID,
+            snowflake_conn_id=CONN_ID,
+            sql=SINGLE_STMT,
+        )
+        operator.query_ids = ["uuid1"]
+        mock_get_sql_api_query_status.return_value = statement_status
+
+        with mock.patch("time.sleep") as mock_sleep:
+            with pytest.raises(RuntimeError, match="Unexpected Snowflake SQL API status for query uuid1"):
+                operator.poll_on_queries()
+
+        mock_sleep.assert_not_called()
+
+    @pytest.mark.parametrize(
         ("mock_sql", "statement_count"),
         [pytest.param(SQL_MULTIPLE_STMTS, 4, id="multi"), pytest.param(SINGLE_STMT, 1, id="single")],
     )
@@ -980,6 +1003,28 @@ class TestSnowflakeSqlApiOperatorDurable:
 
         with pytest.raises(requests.exceptions.HTTPError):
             operator.get_job_status(["uuid1"], context={})
+
+    @pytest.mark.parametrize(
+        "statuses",
+        [
+            ["unknown"],
+            ["success", "unknown"],
+            ["running", "unknown"],
+            [],
+        ],
+    )
+    def test_get_job_status_rejects_unexpected_statuses(self, mock_get_sql_api_query_status, statuses):
+        operator = self._make_operator()
+        mock_get_sql_api_query_status.side_effect = [{"status": status} for status in statuses]
+
+        with pytest.raises(
+            RuntimeError,
+            match="Unexpected Snowflake SQL API|No Snowflake SQL API query statuses returned",
+        ):
+            operator.get_job_status(
+                [f"uuid{i}" for i in range(len(statuses))],
+                context={},
+            )
 
     def test_is_job_active_and_is_job_succeeded_predicates(self):
         operator = self._make_operator()
