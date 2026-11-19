@@ -168,7 +168,6 @@ def test_result_backend_does_not_add_psycopg_options_to_sqlite():
         ("celery", "result_backend_sqlalchemy_engine_options"): '{"pool_recycle": 1800}',
     }
 )
-@requires_psycopg3
 def test_non_database_result_backend_keeps_engine_options():
     config = default_celery.get_default_celery_config(conf)
     assert config["result_backend"] == "redis://redis:6379/0"
@@ -181,7 +180,6 @@ def test_non_database_result_backend_keeps_engine_options():
         ("celery", "result_backend_sqlalchemy_engine_options"): '{"pool_recycle": 1800}',
     }
 )
-@requires_psycopg3
 def test_unknown_database_dialect_keeps_engine_options():
     config = default_celery.get_default_celery_config(conf)
     assert config["result_backend"] == "db+bad_schema:///"
