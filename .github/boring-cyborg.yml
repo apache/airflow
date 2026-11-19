@@ -78,6 +78,9 @@ labelPRBasedOnFilePath:
   provider:apache-pinot:
     - providers/apache/pinot/**
 
+  provider:apache-polaris:
+    - providers/apache/polaris/**
+
   provider:apache-spark:
     - providers/apache/spark/**
 
