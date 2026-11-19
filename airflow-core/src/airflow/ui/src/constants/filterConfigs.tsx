@@ -407,6 +407,27 @@ export const useFilterConfigs = () => {
       supportsAdvancedSearch: true,
       type: FilterTypes.TEXT,
     },
+    [SearchParamsKeys.PARTITION_STATUS]: {
+      icon: <MdCheckCircle />,
+      label: translate("common:state"),
+      options: [
+        {
+          label: (
+            <StateBadge state="success">{translate("assets:partitions.status.materialized")}</StateBadge>
+          ),
+          value: "materialized",
+        },
+        {
+          label: <StateBadge state="running">{translate("assets:partitions.status.in_progress")}</StateBadge>,
+          value: "in_progress",
+        },
+        {
+          label: <StateBadge state="failed">{translate("common:states.failed")}</StateBadge>,
+          value: "failed",
+        },
+      ],
+      type: FilterTypes.MULTISELECT,
+    },
     [SearchParamsKeys.PAUSED]: {
       fromSearchParams: pausedStateFromSearchParams,
       icon: <MdPause />,
