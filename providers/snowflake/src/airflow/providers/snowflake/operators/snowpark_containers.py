@@ -269,8 +269,7 @@ class SnowparkContainerJobOperator(BaseOperator):
             raise ValueError("Must provide either 'spec_text' or both 'spec' and 'spec_stage'")
 
         self.job_name = self._submit_job()
-        if not self.job_name:
-            raise RuntimeError("Job name was not returned")
+
         if not self.wait_for_completion:
             return self.job_name
         if self.deferrable:

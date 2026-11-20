@@ -308,12 +308,6 @@ class TestSnowparkContainerJobOperator:
         with pytest.raises(RuntimeError, match="Unexpected job submission response"):
             op._submit_job()
 
-    @mock.patch.object(SnowparkContainerJobOperator, "_submit_job", return_value=None)
-    def test_execute_raises_when_job_name_not_returned(self, mock_submit):
-        op = _make_operator()
-        with pytest.raises(RuntimeError, match="Job name was not returned"):
-            op.execute(context=None)
-
     @mock.patch(MOCK_HOOK_PATH)
     def test_execute_no_wait(self, mock_hook_cls):
         mock_hook = mock_hook_cls.return_value
