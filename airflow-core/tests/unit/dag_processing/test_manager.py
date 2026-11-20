@@ -689,6 +689,33 @@ class TestDagFileProcessorManager:
         assert len(import_errors) == 1
         assert import_errors[0].filename == "test_zip.zip/broken_dag.py"
 
+    def test_refresh_dag_bundles_services_parsers_between_bundles(self, tmp_path, configure_dag_bundles):
+        paths = {}
+        for name in ("bundleone", "bundletwo"):
+            paths[name] = tmp_path / name
+            paths[name].mkdir()
+            (paths[name] / "test_dag.py").write_text("from airflow.sdk import DAG\n")
+
+        with configure_dag_bundles(paths):
+            DagBundlesManager().sync_bundles_to_db()
+            manager = DagFileProcessorManager(max_runs=1)
+            manager._dag_bundles = list(DagBundlesManager().get_all_dag_bundles())
+            events: list[str] = []
+            for bundle in manager._dag_bundles:
+                original = bundle.refresh
+                bundle.refresh = lambda b=bundle, o=original: (events.append(f"refresh:{b.name}"), o())[1]
+            with (
+                mock.patch.object(manager, "_service_processor_sockets"),
+                mock.patch.object(manager, "_collect_results", side_effect=lambda: events.append("collect")),
+            ):
+                manager._refresh_dag_bundles({})
+
+        assert events[:3] == [
+            f"refresh:{manager._dag_bundles[0].name}",
+            "collect",
+            f"refresh:{manager._dag_bundles[1].name}",
+        ]
+
     def test_refresh_dag_bundles_calls_legacy_deactivate_deleted_dags_override(
         self, tmp_path, configure_dag_bundles
     ):

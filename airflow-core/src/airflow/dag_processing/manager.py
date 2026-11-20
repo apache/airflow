@@ -1211,6 +1211,12 @@ class DagFileProcessorManager(LoggingMixin):
         for bundle in self._dag_bundles:
             if not periodic_check_due and bundle.name not in urgent_bundles:
                 continue
+            if any_refreshed:
+                # A previous refresh may have blocked on network I/O for a while. Keep draining parser
+                # output so children don't stall on IPC and finished results are collected promptly.
+                # ponytail: doesn't start new processes here (would race with refresh_changes_source).
+                self._service_processor_sockets(timeout=0)
+                self._collect_results()
             with self._use_bundle(bundle.name):
                 if catalog is not None and bundle.name not in catalog:
                     self._discard_unusable_bundle_source(bundle.name)
