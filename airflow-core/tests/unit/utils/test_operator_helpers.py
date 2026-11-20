@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import pytest
 
+from airflow.sdk.bases.decorator import determine_kwargs
 from airflow.utils import operator_helpers
 
 
@@ -106,5 +107,5 @@ def test_make_kwargs_callable_conflict():
     ],
 )
 def test_args_and_kwargs_conflicts(func, args, kwargs, expected):
-    kwargs_result = operator_helpers.determine_kwargs(func, args=args, kwargs=kwargs)
+    kwargs_result = determine_kwargs(func, args=args, kwargs=kwargs)
     assert expected == kwargs_result

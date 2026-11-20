@@ -130,9 +130,10 @@ Each advertised grant must follow the contract below, so that clients work with 
 to ``token_endpoint`` returns ``201`` with ``{"access_token": ...}``, valid for ``[api_auth] jwt_cli_expiration_time``.
 
 * ``password``: the client sends ``username`` and ``password``. This is the default when ``grant_type`` is omitted.
-* ``authorization_code``: the browser opens ``authorization_endpoint`` with ``redirect_uri`` (``http`` loopback
-  only), ``state`` and a required ``S256`` ``code_challenge``. The client then sends ``code``, ``code_verifier`` and
-  ``redirect_uri``.
+* ``authorization_code``: the browser opens ``authorization_endpoint`` with ``redirect_uri``, ``state`` and a
+  required ``S256`` ``code_challenge``. ``redirect_uri`` must be ``http://127.0.0.1:<port>/callback`` or
+  ``http://[::1]:<port>/callback``, with any port, so admins can register one fixed URI in the identity provider.
+  The client then sends ``code``, ``code_verifier`` and ``redirect_uri``.
 * ``urn:ietf:params:oauth:grant-type:device_code``: ``device_authorization_endpoint`` returns the RFC 8628 fields.
   The client polls with ``device_code``, and gets ``400`` with ``authorization_pending`` or ``slow_down`` until the
   user approves.
