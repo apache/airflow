@@ -28,7 +28,7 @@ import threading
 import time
 import typing
 import uuid
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Callable, Iterable
 from socket import socket, socketpair
 from typing import Any, ClassVar
 from unittest import mock
@@ -626,6 +626,11 @@ def test_run_context_exits_when_subprocess_dies(supervisor_builder, mocker):
 @pytest.fixture
 def jobless_supervisor(mocker):
     """Build a TriggerRunnerSupervisor with ``job=None`` for testing the optional-job path."""
+    return _make_jobless_supervisor(mocker)
+
+
+def _make_jobless_supervisor(mocker) -> TriggerRunnerSupervisor:
+    """Build the ``jobless_supervisor`` fixture's supervisor; for tests that patch class settings first."""
     import psutil
 
     process = mocker.Mock(spec=psutil.Process, pid=42)
@@ -1538,11 +1543,403 @@ def test_trigger_logger_fd_closed_when_upload_to_remote_raises(jobless_superviso
 
     msg = messages.TriggerStateChanges(finished=[42])
     jobless_supervisor._handle_request(msg, log=MagicMock(spec=FilteringBoundLogger), req_id=0)
+    jobless_supervisor.drain_log_uploads()
 
     factory.upload_to_remote.assert_called_once()
     factory.close.assert_called_once()
     assert 42 not in jobless_supervisor.logger_cache
     assert 42 not in jobless_supervisor.running_triggers
+
+
+# Only reached when an implementation never releases or never runs an upload; no test waits this long
+# when the code under test is correct.
+_UPLOAD_SAFETY_TIMEOUT = 30
+
+
+class _BlockingUploads:
+    """
+    Remote log uploads that stay blocked on ``release`` until the test sets it.
+
+    An upload that runs on the main thread is the bug these tests guard against: it is recorded in
+    ``on_main_thread`` and returns at once, so a test on the old code fails instead of hanging.
+    """
+
+    def __init__(self):
+        self.release = threading.Event()
+        self._cond = threading.Condition()
+        self.on_main_thread: list[int] = []
+        self.started: list[int] = []
+        self.uploaded: list[int] = []
+        # (trigger_id, closed on the main thread)
+        self.closed: list[tuple[int, bool]] = []
+        self.active = 0
+        self.max_active = 0
+
+    def factory(
+        self, trigger_id: int, upload_error: Exception | None = None, log_path: str | None = None
+    ) -> TriggerLoggingFactory:
+        return typing.cast(
+            "TriggerLoggingFactory",
+            _FakeLogFactory(self, trigger_id, upload_error, log_path or f"trigger-{trigger_id}.log"),
+        )
+
+    def wait_for(self, predicate: Callable[[], bool]) -> bool:
+        with self._cond:
+            return self._cond.wait_for(predicate, timeout=_UPLOAD_SAFETY_TIMEOUT)
+
+    def upload(self, factory: _FakeLogFactory) -> None:
+        if threading.current_thread() is threading.main_thread():
+            with self._cond:
+                self.on_main_thread.append(factory.trigger_id)
+                self._cond.notify_all()
+            return
+        with self._cond:
+            self.started.append(factory.trigger_id)
+            self.active += 1
+            self.max_active = max(self.max_active, self.active)
+            self._cond.notify_all()
+        try:
+            if not self.release.wait(_UPLOAD_SAFETY_TIMEOUT):
+                raise TimeoutError("upload was never released")
+            if factory.upload_error:
+                raise factory.upload_error
+        finally:
+            with self._cond:
+                self.active -= 1
+                self._cond.notify_all()
+        with self._cond:
+            self.uploaded.append(factory.trigger_id)
+            self._cond.notify_all()
+
+    def close(self, factory: _FakeLogFactory) -> None:
+        with self._cond:
+            self.closed.append((factory.trigger_id, threading.current_thread() is threading.main_thread()))
+            self._cond.notify_all()
+
+
+class _FakeLogFactory:
+    """Stands in for a TriggerLoggingFactory in ``logger_cache``; cheaper than a spec'd mock per trigger."""
+
+    def __init__(
+        self, uploads: _BlockingUploads, trigger_id: int, upload_error: Exception | None, log_path: str
+    ):
+        self.uploads = uploads
+        self.trigger_id = trigger_id
+        self.upload_error = upload_error
+        self.log_path = log_path
+
+    def upload_to_remote(self) -> None:
+        self.uploads.upload(self)
+
+    def close(self) -> None:
+        self.uploads.close(self)
+
+
+@pytest.fixture
+def blocking_uploads():
+    uploads = _BlockingUploads()
+    yield uploads
+    # Never leave an upload thread parked after a failing test.
+    uploads.release.set()
+
+
+def _finish_triggers(supervisor: TriggerRunnerSupervisor, trigger_ids: Iterable[int]) -> None:
+    """Deliver the runner's report that ``trigger_ids`` finished, the way ``_service_subprocess`` does."""
+    supervisor._handle_request(
+        messages.TriggerStateChanges(events=None, finished=list(trigger_ids), running_ids=set()),
+        log=MagicMock(spec=FilteringBoundLogger),
+        req_id=1,
+    )
+
+
+def _callback_trigger(mocker, trigger_id: int, callback_id: uuid.UUID | None = None):
+    """A callback trigger row, which ``_create_workload`` turns into a workload without the database."""
+    callback = mocker.Mock()
+    callback.id = callback_id or uuid.uuid4()
+    callback.data = {
+        "dag_id": "test_dag",
+        "kwargs": {"context": {"dag_run": {"dag_id": "test_dag", "dag_run_id": "manual__2024-01-01"}}},
+    }
+    trigger = mocker.Mock()
+    trigger.id = trigger_id
+    trigger.classpath = "airflow.triggers.callback.CallbackTrigger"
+    trigger.encrypted_kwargs = ""
+    trigger.consecutive_failures = None
+    trigger.task_instance = None
+    trigger.assets = None
+    trigger.callback = callback
+    return trigger
+
+
+def test_heartbeat_continues_while_finished_trigger_logs_upload(supervisor_builder, blocking_uploads, mocker):
+    """
+    Thousands of triggers finishing at once must not stall the loop on their log uploads.
+
+    Uploading inline kept the runner waiting for its reply and the triggerer from heartbeating, so the
+    runner watchdog skipped the heartbeat and other triggerers took over this one's triggers.
+    """
+    supervisor = supervisor_builder()
+    trigger_ids = range(1, 2001)
+    for trigger_id in trigger_ids:
+        supervisor.logger_cache[trigger_id] = blocking_uploads.factory(trigger_id)
+    supervisor.running_triggers.update(trigger_ids)
+
+    mocker.patch.object(TriggerRunnerSupervisor, "load_triggers", autospec=True)
+    mocker.patch.object(TriggerRunnerSupervisor, "clean_unused", autospec=True)
+    mocker.patch.object(TriggerRunnerSupervisor, "emit_metrics", autospec=True)
+    send_msg = mocker.patch.object(TriggerRunnerSupervisor, "send_msg", autospec=True)
+    mocker.patch.object(
+        TriggerRunnerSupervisor,
+        "_service_subprocess",
+        autospec=True,
+        side_effect=lambda self, _max_wait: _finish_triggers(self, trigger_ids),
+    )
+    uploaded_at_heartbeat: list[int] = []
+    perform_heartbeat = mocker.patch(
+        "airflow.jobs.triggerer_job_runner.perform_heartbeat",
+        side_effect=lambda *args, **kwargs: uploaded_at_heartbeat.append(len(blocking_uploads.uploaded)),
+    )
+
+    supervisor.run_once()
+
+    assert blocking_uploads.on_main_thread == []
+    # The runner got its reply and the triggerer heartbeat while every upload was still blocked.
+    send_msg.assert_called_once()
+    perform_heartbeat.assert_called_once()
+    assert uploaded_at_heartbeat == [0]
+    # Popped on the main thread, so log lines that arrive late go to the fallback logger.
+    assert not supervisor.logger_cache
+    assert not supervisor.running_triggers
+
+    blocking_uploads.release.set()
+    assert blocking_uploads.wait_for(lambda: len(blocking_uploads.closed) == len(trigger_ids))
+    assert sorted(blocking_uploads.uploaded) == list(trigger_ids)
+    assert sorted(trigger_id for trigger_id, _ in blocking_uploads.closed) == list(trigger_ids)
+
+
+def test_log_uploads_never_exceed_the_worker_count(blocking_uploads, mocker):
+    """The pool size bounds how many uploads hit the remote store at once."""
+    mocker.patch.object(TriggerRunnerSupervisor, "log_upload_workers", 3)
+    mocker.patch.object(TriggerRunnerSupervisor, "send_msg", autospec=True)
+    supervisor = _make_jobless_supervisor(mocker)
+    trigger_ids = range(1, 11)
+    for trigger_id in trigger_ids:
+        supervisor.logger_cache[trigger_id] = blocking_uploads.factory(trigger_id)
+    supervisor.running_triggers.update(trigger_ids)
+
+    _finish_triggers(supervisor, trigger_ids)
+
+    assert blocking_uploads.on_main_thread == []
+    assert blocking_uploads.wait_for(lambda: len(blocking_uploads.started) == 3)
+    blocking_uploads.release.set()
+    assert blocking_uploads.wait_for(lambda: len(blocking_uploads.closed) == len(trigger_ids))
+    assert blocking_uploads.max_active == 3
+
+
+def test_failed_log_upload_still_closes_the_file_off_the_main_thread(
+    jobless_supervisor, blocking_uploads, mocker
+):
+    """A failed upload is logged and its file still closed, by the upload thread rather than the loop."""
+    log = mocker.patch("airflow.jobs.triggerer_job_runner.log")
+    mocker.patch.object(TriggerRunnerSupervisor, "send_msg", autospec=True)
+    blocking_uploads.release.set()
+    jobless_supervisor.logger_cache[42] = blocking_uploads.factory(
+        42, upload_error=RuntimeError("simulated remote-logging failure")
+    )
+    jobless_supervisor.running_triggers.add(42)
+
+    _finish_triggers(jobless_supervisor, [42])
+
+    assert blocking_uploads.on_main_thread == []
+    assert blocking_uploads.wait_for(lambda: bool(blocking_uploads.closed))
+    assert blocking_uploads.closed == [(42, False)]
+    log.exception.assert_any_call("Failed to upload trigger logs to remote", trigger_id=42)
+
+
+def test_remote_log_handler_is_loaded_on_the_main_thread_before_any_upload(blocking_uploads, mocker):
+    """Loading the handler is not thread-safe, so the pool's threads must find it already loaded."""
+    loads: list[tuple[bool, int]] = []
+    mocker.patch(
+        "airflow.sdk.log.load_remote_log_handler",
+        side_effect=lambda: loads.append(
+            (threading.current_thread() is threading.main_thread(), len(blocking_uploads.started))
+        ),
+    )
+    mocker.patch.object(TriggerRunnerSupervisor, "send_msg", autospec=True)
+    supervisor = _make_jobless_supervisor(mocker)
+    supervisor.logger_cache[42] = blocking_uploads.factory(42)
+    supervisor.running_triggers.add(42)
+
+    _finish_triggers(supervisor, [42])
+    blocking_uploads.release.set()
+
+    assert blocking_uploads.on_main_thread == []
+    assert blocking_uploads.wait_for(lambda: bool(blocking_uploads.closed))
+    # (on the main thread, uploads started so far)
+    assert loads[:1] == [(True, 0)]
+
+
+def _start_blocked_upload(supervisor, blocking_uploads, mocker, trigger_id: int, log_path: str) -> None:
+    """Finish ``trigger_id`` and wait until the upload of its log at ``log_path`` is blocked mid-flight."""
+    mocker.patch.object(TriggerRunnerSupervisor, "send_msg", autospec=True)
+    supervisor.logger_cache[trigger_id] = blocking_uploads.factory(trigger_id, log_path=log_path)
+    supervisor.running_triggers.add(trigger_id)
+    _finish_triggers(supervisor, [trigger_id])
+    assert blocking_uploads.on_main_thread == []
+    assert blocking_uploads.wait_for(lambda: blocking_uploads.started == [trigger_id])
+    assert blocking_uploads.uploaded == []
+
+
+def _callback_log_path(trigger) -> str:
+    """The log path ``_create_workload`` gives a ``_callback_trigger``."""
+    return f"triggerer_callbacks/test_dag/manual__2024-01-01/{trigger.callback.id}/callback.log"
+
+
+def _assert_log_creation_waits_for_upload(supervisor, blocking_uploads, mocker, old_id: int, trigger):
+    """``_create_workload`` for ``trigger`` blocks until the pending upload of its log path has finished."""
+    _start_blocked_upload(supervisor, blocking_uploads, mocker, old_id, _callback_log_path(trigger))
+
+    uploaded_when_created: list[list[int]] = []
+    real_factory = TriggerLoggingFactory
+
+    def record_factory(**kwargs):
+        uploaded_when_created.append(list(blocking_uploads.uploaded))
+        return real_factory(**kwargs)
+
+    mocker.patch("airflow.jobs.triggerer_job_runner.TriggerLoggingFactory", side_effect=record_factory)
+    workloads_created: list[workloads.RunTrigger | None] = []
+    creator = threading.Thread(
+        target=lambda: workloads_created.append(
+            supervisor._create_workload(
+                trigger=trigger,
+                dag_bag=mocker.Mock(),
+                render_log_fname=mocker.Mock(),
+                session=mocker.Mock(),
+            )
+        )
+    )
+    creator.start()
+    creator.join(timeout=1)
+
+    # Still waiting on the blocked upload, well short of log_upload_timeout.
+    assert creator.is_alive()
+    assert uploaded_when_created == []
+
+    blocking_uploads.release.set()
+    creator.join(_UPLOAD_SAFETY_TIMEOUT)
+
+    assert not creator.is_alive()
+    assert workloads_created[0] is not None
+    assert uploaded_when_created == [[old_id]]
+
+
+def test_recreated_trigger_waits_for_its_pending_log_upload(jobless_supervisor, blocking_uploads, mocker):
+    """Re-creation reuses the log path, so opening the new log must not truncate a file mid-upload."""
+    _assert_log_creation_waits_for_upload(
+        jobless_supervisor, blocking_uploads, mocker, old_id=8, trigger=_callback_trigger(mocker, 8)
+    )
+
+
+def test_new_trigger_with_the_same_log_path_waits_for_the_pending_upload(
+    jobless_supervisor, blocking_uploads, mocker
+):
+    """A task deferring again in the same try gets a new trigger id but the same log path, so it waits too."""
+    _assert_log_creation_waits_for_upload(
+        jobless_supervisor, blocking_uploads, mocker, old_id=8, trigger=_callback_trigger(mocker, 9)
+    )
+
+
+def test_recreated_trigger_stops_waiting_for_a_stuck_log_upload(jobless_supervisor, blocking_uploads, mocker):
+    """A stuck upload delays re-creation by at most the timeout, and says so."""
+    mocker.patch.object(TriggerRunnerSupervisor, "log_upload_timeout", 0.01)
+    trigger = _callback_trigger(mocker, 8)
+    _start_blocked_upload(jobless_supervisor, blocking_uploads, mocker, 8, _callback_log_path(trigger))
+    log = mocker.patch("airflow.jobs.triggerer_job_runner.log")
+
+    workload = jobless_supervisor._create_workload(
+        trigger=trigger,
+        dag_bag=mocker.Mock(),
+        render_log_fname=mocker.Mock(),
+        session=mocker.Mock(),
+    )
+
+    assert workload is not None
+    assert isinstance(jobless_supervisor.logger_cache[8], TriggerLoggingFactory)
+    assert blocking_uploads.uploaded == []
+    log.warning.assert_called_once()
+    assert log.warning.call_args.kwargs["trigger_id"] == 8
+
+
+def test_run_drains_log_uploads_after_run_context_exits(supervisor_builder, blocking_uploads, mocker):
+    """Shutdown waits for pending uploads, outside run_context so a subclass's teardown has run."""
+    supervisor = supervisor_builder()
+    trigger_ids = range(1, 6)
+    for trigger_id in trigger_ids:
+        supervisor.logger_cache[trigger_id] = blocking_uploads.factory(trigger_id)
+    supervisor.running_triggers.update(trigger_ids)
+    events: list[str] = []
+
+    @contextlib.contextmanager
+    def fake_run_context(self):
+        events.append("enter")
+        try:
+            yield
+        finally:
+            events.append("exit")
+            # Uploads can only finish once run_context has unwound, so a drain inside it would time out.
+            blocking_uploads.release.set()
+
+    def fake_run_once(self):
+        _finish_triggers(self, trigger_ids)
+        self.stop = True
+
+    mocker.patch.object(TriggerRunnerSupervisor, "run_context", fake_run_context)
+    mocker.patch.object(TriggerRunnerSupervisor, "run_once", fake_run_once)
+    mocker.patch.object(TriggerRunnerSupervisor, "is_alive", return_value=True)
+    mocker.patch.object(TriggerRunnerSupervisor, "send_msg", autospec=True)
+
+    supervisor.run()
+
+    assert blocking_uploads.on_main_thread == []
+    assert events == ["enter", "exit"]
+    # run() returned only once every upload had finished and closed its file.
+    assert sorted(blocking_uploads.uploaded) == list(trigger_ids)
+    assert sorted(trigger_id for trigger_id, _ in blocking_uploads.closed) == list(trigger_ids)
+
+
+def test_run_cancels_queued_log_uploads_once_the_drain_times_out(
+    supervisor_builder, blocking_uploads, mocker
+):
+    """A stuck upload can't hold up run(): it returns, and uploads not yet started never start."""
+    mocker.patch.object(TriggerRunnerSupervisor, "log_upload_workers", 1)
+    mocker.patch.object(TriggerRunnerSupervisor, "log_upload_timeout", 0.01)
+    supervisor = supervisor_builder()
+    trigger_ids = range(1, 4)
+    for trigger_id in trigger_ids:
+        supervisor.logger_cache[trigger_id] = blocking_uploads.factory(trigger_id)
+    supervisor.running_triggers.update(trigger_ids)
+
+    def fake_run_once(self):
+        _finish_triggers(self, trigger_ids)
+        # The one worker holds the first upload, so the other two are still queued when the drain starts.
+        assert blocking_uploads.wait_for(lambda: blocking_uploads.started == [1])
+        self.stop = True
+
+    mocker.patch.object(TriggerRunnerSupervisor, "run_once", fake_run_once)
+    mocker.patch.object(TriggerRunnerSupervisor, "is_alive", return_value=True)
+    mocker.patch.object(TriggerRunnerSupervisor, "send_msg", autospec=True)
+
+    supervisor.run()
+
+    assert blocking_uploads.on_main_thread == []
+    assert blocking_uploads.active == 1
+    blocking_uploads.release.set()
+    # Workers exit once the cancelled queue is empty; after that nothing else can start.
+    for thread in threading.enumerate():
+        if thread.name.startswith("triggerer-log-upload"):
+            thread.join(_UPLOAD_SAFETY_TIMEOUT)
+    assert blocking_uploads.started == [1]
+    assert blocking_uploads.closed == [(1, False)]
 
 
 class TestTriggerRunner:
@@ -4624,6 +5021,7 @@ class TestCheckForUnhandledTriggers:
         jobless_supervisor.running_triggers = {42}
 
         jobless_supervisor.check_for_unhandled_triggers(set())
+        jobless_supervisor.drain_log_uploads()
 
         factory.upload_to_remote.assert_called_once()
         factory.close.assert_called_once()
@@ -4641,6 +5039,7 @@ class TestCheckForUnhandledTriggers:
         jobless_supervisor.running_triggers = {1, 2}
 
         jobless_supervisor.check_for_unhandled_triggers(set())
+        jobless_supervisor.drain_log_uploads()
 
         assert not jobless_supervisor.logger_cache
         assert all(factory.close.called for factory in factories.values())

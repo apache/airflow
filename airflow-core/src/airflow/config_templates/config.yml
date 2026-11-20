@@ -3156,6 +3156,15 @@ triggerer:
       type: float
       example: ~
       default: "30"
+    log_upload_workers:
+      description: |
+        Number of threads that upload the logs of finished triggers to remote storage. Uploads run off
+        the triggerer's main loop, so many triggers finishing at once don't delay its heartbeat; this
+        bounds how many uploads hit the remote store at the same time.
+      version_added: 3.5.0
+      type: integer
+      example: ~
+      default: "4"
     blocked_main_thread_warning_threshold:
       description: |
         Threshold in seconds for logging a warning when the Triggerer's async thread appears blocked.
