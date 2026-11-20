@@ -21,10 +21,34 @@ from __future__ import annotations
 import asyncio
 import concurrent.futures
 import contextvars
-from typing import TYPE_CHECKING, Any
+import functools
+from typing import TYPE_CHECKING, Any, TypeVar
+
+from typing_extensions import ParamSpec
 
 if TYPE_CHECKING:
-    from collections.abc import Coroutine
+    from collections.abc import Callable, Coroutine
+
+P = ParamSpec("P")
+R = TypeVar("R")
+
+# Blocking calls to the supervisor made from a coroutine run here, never on asyncio's default
+# executor: ``asend()`` reads its reply on that executor while it holds the comms lock, so
+# blocking calls that fill it leave nothing to run the read and the task hangs. One worker also
+# serializes these calls on Airflow 3.0 and 3.1, where the channel to the supervisor has no
+# lock of its own.
+_executor = concurrent.futures.ThreadPoolExecutor(max_workers=1, thread_name_prefix="common-ai-blocking")
+
+
+async def run_off_loop(fn: Callable[P, R], /, *args: P.args, **kwargs: P.kwargs) -> R:
+    """
+    Run the blocking ``fn`` on this provider's own worker thread, keeping the event loop free.
+
+    ``fn`` sees the caller's context variables (task logging binds them). Calls are serialized
+    across the process, so ``fn`` must not wait on another call made through this function.
+    """
+    call = functools.partial(contextvars.copy_context().run, fn, *args, **kwargs)
+    return await asyncio.get_running_loop().run_in_executor(_executor, call)
 
 
 def run_coroutine_sync(coroutine: Coroutine[Any, Any, Any]) -> Any:
