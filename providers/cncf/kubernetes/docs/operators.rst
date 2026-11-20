@@ -53,7 +53,7 @@ YAML file using the ``pod_template_file`` parameter.
 Ultimately, it allows Airflow to act a job orchestrator - no matter the language those jobs are written in.
 
 OpenLineage pod identities
-^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 When the optional OpenLineage provider and client are installed and OpenLineage emission is enabled,
 ``KubernetesPodOperator`` reports the pod it launches or actually reattaches to as **workload** identity.

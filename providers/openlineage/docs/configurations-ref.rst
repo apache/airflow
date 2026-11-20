@@ -196,8 +196,9 @@ metadata omitted):
 These values describe the worker emitting that event, not an entire task's execution history. A deferred
 task can resume on a different worker, so its worker identity can change between events. Events emitted
 by the scheduler or triggerer do not acquire worker identity through this configuration; their own
-environment must not be interpreted as the task-running worker's identity. There is no cluster
-autodetection, additional Kubernetes API request or additional RBAC requirement.
+environment must not be interpreted as the task-running worker's identity. This configuration does not
+automatically detect the cluster, make additional Kubernetes API requests, or require additional RBAC
+permissions.
 
 This worker identity is separate from a KubernetesPodOperator's launched workload pod. The latter uses
 the standard ``tags`` run facet with keys ``airflow.workload.pod.name`` and
