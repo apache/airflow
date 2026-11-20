@@ -459,6 +459,7 @@ class DagRun(Base, LoggingMixin):
         "Callback",
         back_populates="dag_run",
         uselist=True,
+        cascade="all, delete",
         passive_deletes=True,
     )
 

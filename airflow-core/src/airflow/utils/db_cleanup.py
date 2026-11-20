@@ -98,12 +98,15 @@ class _IndirectDagScope:
     :param referenced_table: the table ``fk_column`` points at
     :param referenced_pk_column: the primary key of ``referenced_table`` that ``fk_column`` matches
     :param referenced_dag_id_column: the Dag id column on ``referenced_table``
+    :param preserve_nulls_when_excluding: retain rows with a NULL foreign key when using
+        ``--exclude-dag-ids``, because their Dag ownership cannot be determined
     """
 
     fk_column: str
     referenced_table: str
     referenced_pk_column: str = "id"
     referenced_dag_id_column: str = "dag_id"
+    preserve_nulls_when_excluding: bool = False
 
 
 @dataclasses.dataclass
@@ -287,7 +290,9 @@ config_list: list[_TableConfig] = [
         table_name="callback",
         recency_column_name="created_at",
         extra_columns=["id", "state", "dagrun_id"],
-        dag_id_scope=_IndirectDagScope(fk_column="dagrun_id", referenced_table="dag_run"),
+        dag_id_scope=_IndirectDagScope(
+            fk_column="dagrun_id", referenced_table="dag_run", preserve_nulls_when_excluding=True
+        ),
         # Callback deletion cascades to deadlines, so preserve active or unknown states and
         # SCHEDULED callbacks still referenced by a deadline. Stateless Dag-processor
         # callbacks are eligible even while pending, once older than the cleanup cutoff.
@@ -410,12 +415,14 @@ def _archive_cascading_attempt_data(
     *, source, parent_archive, archives: dict[str, Table], archive_suffix: str, session: Session
 ) -> None:
     """Archive owned rows under parent locks before their FK cascades run."""
-    names = [_format_table_name(source.schema, name) for name in _ATTEMPT_ARCHIVE_TABLES]
+    archive_table_names = set(_ATTEMPT_ARCHIVE_TABLES)
+    if source.name == "dag_run":
+        archive_table_names.add("callback")
+    names = [_format_table_name(source.schema, name) for name in archive_table_names]
     metadata = reflect_tables(names, session)
-    tables = {
-        name: metadata.tables[_format_table_name(source.schema, name)] for name in _ATTEMPT_ARCHIVE_TABLES
-    }
+    tables = {name: metadata.tables[_format_table_name(source.schema, name)] for name in archive_table_names}
     ti = tables["task_instance"]
+    parent_ids = select(parent_archive.c.id)
     if source.name == "task_instance":
         producer_ids = select(ti.c.id).where(ti.c.id.in_(select(parent_archive.c.id)))
     else:
@@ -443,6 +450,8 @@ def _archive_cascading_attempt_data(
                 select(parent_archive.c.dag_id, parent_archive.c.run_id)
             )
         )
+        callback = tables["callback"]
+        selections["callback"] = select(callback).where(callback.c.dagrun_id.in_(parent_ids))
 
     if not archives:
         archive_names = {}
@@ -462,7 +471,6 @@ def _archive_cascading_attempt_data(
         archives.update(
             {name: archive_metadata.tables[archive_name] for name, archive_name in archive_names.items()}
         )
-    parent_ids = select(parent_archive.c.id)
     lock_queries = [select(source.c.id).where(source.c.id.in_(parent_ids))]
     if source.name == "dag_run":
         lock_queries.append(producer_ids)
@@ -775,8 +783,11 @@ def _build_query(
         if dag_ids:
             conditions.append(fk_col.in_(_rows_for(dag_ids)))
         if exclude_dag_ids:
-            # NULL-safe for the same reason as the direct-column branch above.
-            conditions.append(or_(fk_col.is_(None), fk_col.not_in(_rows_for(exclude_dag_ids))))
+            exclusion = fk_col.not_in(_rows_for(exclude_dag_ids))
+            if not dag_id_scope.preserve_nulls_when_excluding:
+                # NULL-safe for the same reason as the direct-column branch above.
+                exclusion = or_(fk_col.is_(None), exclusion)
+            conditions.append(exclusion)
 
     if keep_last:
         max_date_col_name = "max_date_per_group"

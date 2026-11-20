@@ -176,7 +176,12 @@ class Callback(Base, BaseWorkload):
             postgresql_where=trigger_id.is_not(None),
             sqlite_where=trigger_id.is_not(None),
         ),
-        Index("callback_dagrun_id_idx", dagrun_id, unique=False),
+        Index(
+            "callback_dagrun_id_idx",
+            dagrun_id,
+            postgresql_where=dagrun_id.is_not(None),
+            sqlite_where=dagrun_id.is_not(None),
+        ),
     )
 
     def __init__(self, priority_weight: int = 1, prefix: str = "", **kwargs):
@@ -198,6 +203,8 @@ class Callback(Base, BaseWorkload):
 
     def get_metric_info(self, status: CallbackState, result: Any, team_name: str | None = None) -> dict:
         tags = {"result": result, **self.data}
+        if self.dagrun_id is not None:
+            tags["dag_run_id"] = str(self.dagrun_id)
         tags.pop("prefix", None)
         tags.pop(CALLBACK_KWARGS_ENCODING_KEY, None)
 
