@@ -131,6 +131,22 @@ class TestRunAgentAsync:
         with pytest.raises(RunCancelled):
             await asyncio.wait_for(mixin.run_agent_async(Agent(FunctionModel(hang)), "prompt"), timeout=10)
 
+    @pytest.mark.asyncio
+    async def test_a_failed_fallback_chain_is_raised_as_the_chain_error(self):
+        """As ``run_agent_sync``: retry policies read the member errors from the provider's own error."""
+        chain = FallbackModel(FunctionModel(_failing_member(429)), FunctionModel(_failing_member(400)))
+        mixin = CancellableAgentRunMixin()
+
+        with pytest.raises(FallbackChainExhaustedError) as caught:
+            await mixin.run_agent_async(Agent(chain), "go")
+
+        error = caught.value
+        assert isinstance(error.__cause__, FallbackExceptionGroup)
+        assert not isinstance(error.__cause__, FallbackChainExhaustedError)
+        assert [member.status_code for member in error.member_errors] == [429, 400]
+        assert (error.replayed_steps, error.recorded_steps) == (None, None)
+        assert mixin._cancellation_token is None
+
 
 class TestFallbackChainExhausted:
     @pytest.fixture
@@ -236,6 +252,7 @@ class TestFallbackChainExhausted:
             CancellableAgentRunMixin().run_agent_sync(agent, "go")
 
         assert caught.value is original
+        assert original.__cause__ is None
 
 
 class TestOnKill:
