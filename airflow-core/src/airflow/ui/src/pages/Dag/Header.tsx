@@ -16,6 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { Link, Text } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiBookOpen } from "react-icons/fi";
 import { useParams } from "react-router-dom";
@@ -70,6 +71,7 @@ export const Header = ({
   const showTeam = useShowTeam(dag?.team_name);
   const pluginActions = usePluginActions("dag");
   const isStale = dag?.is_stale;
+  const dagVersion = dag?.latest_dag_version;
 
   const nextRunStat = isStale
     ? []
@@ -146,6 +148,30 @@ export const Header = ({
       label: translate("dagDetails.latestDagVersion"),
       value: <DagVersion version={dag?.latest_dag_version} />,
     },
+    ...(dagVersion !== undefined && dagVersion !== null && dagVersion.bundle_version !== null
+      ? [
+          {
+            label: translate("dagDetails.bundleVersion"),
+            value: (
+              <Text fontFamily="mono" maxW="20ch" overflowWrap="anywhere">
+                {dagVersion.bundle_url === null ? (
+                  dagVersion.bundle_version
+                ) : (
+                  <Link
+                    color="fg.info"
+                    display="inline"
+                    href={dagVersion.bundle_url}
+                    rel="noopener noreferrer"
+                    target="_blank"
+                  >
+                    {dagVersion.bundle_version}
+                  </Link>
+                )}
+              </Text>
+            ),
+          },
+        ]
+      : []),
   ];
 
   return (
