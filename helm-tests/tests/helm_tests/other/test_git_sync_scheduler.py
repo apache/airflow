@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+from subprocess import CalledProcessError
+
 import jmespath
 import pytest
 from chart_utils.helm_template_generator import render_chart
@@ -23,6 +25,29 @@ from chart_utils.helm_template_generator import render_chart
 
 class TestGitSyncSchedulerTest:
     """Test git sync scheduler. This is ignored when Airflow >=3 or a separate dag processor is used."""
+
+    @pytest.mark.parametrize("link", ["myrepo", "repo.v2", "repo-name", "repo_name", "123", "_repo", "-repo"])
+    def test_custom_link_is_passed_to_git_sync(self, link):
+        docs = render_chart(
+            values={
+                "airflowVersion": "2.11.0",
+                "executor": "LocalExecutor",
+                "dags": {"gitSync": {"enabled": True, "link": link}},
+            },
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+
+        env = jmespath.search("spec.template.spec.containers[?name=='git-sync'] | [0].env", docs[0])
+        assert {"name": "GIT_SYNC_DEST", "value": link} in env
+        assert {"name": "GITSYNC_LINK", "value": link} in env
+
+    @pytest.mark.parametrize("link", ["", "/tmp/dags", ".", "..", ".worktrees", "a/b", "../repo", "my repo"])
+    def test_invalid_link(self, link):
+        with pytest.raises(CalledProcessError) as exc_info:
+            render_chart(values={"dags": {"gitSync": {"enabled": True, "link": link}}})
+
+        assert "link" in exc_info.value.stderr.decode()
+        assert "pattern" in exc_info.value.stderr.decode()
 
     def test_should_add_dags_volume(self):
         docs = render_chart(
