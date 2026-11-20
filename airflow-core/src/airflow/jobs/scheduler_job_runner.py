@@ -454,42 +454,24 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         self.executors: list[BaseExecutor] = executors if executors else ExecutorLoader.init_executors()
         self.executor: BaseExecutor = self.executors[0]
 
-        # Each executor's get_health() runs on its own daemon thread, never on the scheduler loop's own
-        # thread: a check that talks to a broker or a cluster control plane can be slow or hang, and
-        # must not be able to delay task scheduling. A pool isn't needed since each executor is only
-        # ever checked by one in-flight call at a time (see _check_executor_health); a daemon thread
-        # also means a hung check can't block process exit the way a ThreadPoolExecutor worker would.
+        # Daemon thread per check, not a pool: only one check is ever in flight per executor, and a
+        # hung check can't block process exit the way a pool worker would.
         self._executor_health_check_futures: dict[str, tuple[Future, float]] = {}
-        # A probe that ignores the timeout passed to it would otherwise occupy its slot forever: once
-        # a pending future has been sitting this many intervals, it's reported as stalled instead of
-        # silently skipped on every later tick (see _check_executor_health).
+        # A probe that ignores its timeout would otherwise occupy its slot forever.
         self._executor_health_check_stall_after_intervals = 3
         self._stalled_health_checks: set[str] = set()
 
         self._executor_health_check_interval = conf.getfloat(
             "scheduler", "executor_health_check_interval", fallback=30.0
         )
-        # Must be comfortably below the check interval so a probe that honours it always finishes
-        # before the next tick fires; half the interval is the starting point.
         self._executor_health_check_timeout = self._executor_health_check_interval / 2
 
-        # Only executors that actually override get_health() get a Job row at all: one that was never
-        # going to report anything isn't a gap in coverage (see _configured_executor_keys in
-        # airflow_health.py, which applies this same rule from the /monitor/health side). An executor
-        # with no name is also skipped: _executor_health_key has nothing stable to key its row under.
-        # issubclass(type(executor), ...), not isinstance(executor, ...): a test double standing in
-        # for an executor (a MagicMock, even one speced to BaseExecutor) passes isinstance, since mock
-        # fakes that check, but calling a method on it never runs the real classmethod body, it just
-        # hands back another mock, which this dict would then read as "overrides it". type() bypasses
-        # that trick and correctly reports such a double as not a real BaseExecutor subclass.
-        from airflow.executors.base_executor import BaseExecutor as _BaseExecutor
-
+        # Only executors that override get_health() get a Job row; one with no name has nothing
+        # stable to key its row under.
         self._executor_health_keys: dict[str, str | None] = {
             key: executor.team_name
             for executor in self.executors
-            if issubclass(type(executor), _BaseExecutor)
-            and type(executor).overrides_get_health()
-            and (key := _executor_health_key(executor)) is not None
+            if executor.overrides_get_health() and (key := _executor_health_key(executor)) is not None
         }
 
         if self._enable_tracemalloc:
@@ -2437,20 +2419,20 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             non_fatal=True,
         )
 
-        timers.call_regular_interval(
-            # A floor, not just self.job.heartrate directly: that can be configured down to 0 (and
-            # tests commonly do), and a zero delay re-queues itself at "now" on every single pass
-            # through the event scheduler, which never lets a non-blocking run() return.
-            delay=max(self.job.heartrate, 1.0),
-            action=self._touch_executor_heartbeats,
-            non_fatal=True,
-        )
+        if self._executor_health_keys:
+            if self.job.heartrate > 0:
+                timers.call_regular_interval(
+                    delay=self.job.heartrate,
+                    action=self._touch_executor_heartbeats,
+                    non_fatal=True,
+                )
 
-        timers.call_regular_interval(
-            delay=self._executor_health_check_interval,
-            action=self._check_executor_health,
-            non_fatal=True,
-        )
+            if self._executor_health_check_interval > 0:
+                timers.call_regular_interval(
+                    delay=self._executor_health_check_interval,
+                    action=self._check_executor_health,
+                    non_fatal=True,
+                )
 
         idle_count = 0
 
@@ -4190,13 +4172,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         self.log.info("Marked %d SchedulerJob instances as failed", num_failed)
                         stats.incr(self.__class__.__name__.lower() + "_end", num_failed)
 
-                    # A separate statement, not folded into the SchedulerJob one above, so the
-                    # "Marked %d SchedulerJob instances as failed" log line and the _end metric keep
-                    # counting only schedulers. These ExecutorJob rows are left running with no
-                    # end_date when their owning scheduler is SIGKILLed or OOM-killed, since _execute's
-                    # own cleanup (_end_executor_jobs) never gets to run for that case; this also
-                    # catches a row a health check still in flight at that moment recreates after
-                    # _end_executor_jobs has already closed the others.
+                    # Separate from the SchedulerJob update above so that log line and metric keep
+                    # counting only schedulers. Catches ExecutorJob rows left running when their
+                    # owning scheduler is killed before _end_executor_jobs can close them.
                     session.execute(
                         update(Job)
                         .where(

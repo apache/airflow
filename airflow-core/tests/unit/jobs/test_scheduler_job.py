@@ -69,7 +69,7 @@ from airflow.executors.executor_utils import ExecutorName
 from airflow.executors.local_executor import LocalExecutor
 from airflow.executors.workloads import WorkloadType
 from airflow.executors.workloads.types import TaskInstanceUuid
-from airflow.jobs.job import Job, run_job
+from airflow.jobs.job import EXECUTOR_JOB_TYPE, Job, run_job
 from airflow.jobs.scheduler_job_runner import (
     MAX_TI_REFILL_QUERIES_PER_LOOP,
     TASK_STUCK_IN_QUEUED_RESCHEDULE_EVENT,
@@ -491,6 +491,7 @@ class TestSchedulerJob:
         default_executor.team_name = None  # Global executor
         default_executor.sentry_integration = ""
         default_executor._drain_events_with_task_ids.return_value = {}, {}
+        default_executor.overrides_get_health.return_value = False
         second_executor = mock.MagicMock(
             spec=BaseExecutor, name="SeconadaryExecutor", slots_available=8, slots_occupied=0
         )
@@ -499,6 +500,7 @@ class TestSchedulerJob:
         second_executor.team_name = None  # Global executor
         second_executor.sentry_integration = ""
         second_executor._drain_events_with_task_ids.return_value = {}, {}
+        second_executor.overrides_get_health.return_value = False
 
         # TODO: Task-SDK Make it look like a bound method. Needed until we remove the old queue_workload
         # interface from executors
@@ -7177,6 +7179,30 @@ class TestSchedulerJob:
         assert old_task_job.state == State.RUNNING
         assert "Marked 1 SchedulerJob instances as failed" in caplog.messages
 
+    def test_adopt_or_reset_orphaned_tasks_fails_stale_executor_jobs(self):
+        """A stale ExecutorJob row gets marked failed with an end_date, a fresh one is left alone."""
+        session = settings.Session()
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job)
+
+        stale_executor_job = Job(job_type=EXECUTOR_JOB_TYPE, state=State.RUNNING)
+        stale_executor_job.latest_heartbeat = timezone.utcnow() - timedelta(minutes=15)
+        session.add(stale_executor_job)
+
+        fresh_executor_job = Job(job_type=EXECUTOR_JOB_TYPE, state=State.RUNNING)
+        fresh_executor_job.latest_heartbeat = timezone.utcnow()
+        session.add(fresh_executor_job)
+        session.flush()
+
+        self.job_runner.adopt_or_reset_orphaned_tasks(session=session)
+        session.expire_all()
+
+        assert stale_executor_job.state == State.FAILED
+        assert stale_executor_job.end_date is not None
+        assert fresh_executor_job.state == State.RUNNING
+        assert fresh_executor_job.end_date is None
+
     def test_should_update_dag_next_dagrun(self, session, dag_maker):
         """We should always update next_dagrun after scheduler creates a new dag run."""
         with dag_maker(schedule="0 0 * * *"):
@@ -12035,6 +12061,7 @@ class TestSchedulerJob:
         # Mock the executor to simulate a task failure
         mock_executor = MagicMock(spec=BaseExecutor)
         mock_executor.has_task = mock.MagicMock(return_value=False)
+        mock_executor.overrides_get_health.return_value = False
         scheduler_job = Job()
         self.job_runner = SchedulerJobRunner(scheduler_job, executors=[mock_executor])
 
