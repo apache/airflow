@@ -535,7 +535,7 @@ class TestAirflowHealthFromDb:
         _create_job(session, other_runner, hostname="other-component", heartbeat=now)
         session.commit()
 
-        jobs = get_jobs_health(runner_class, session=session)
+        jobs = get_jobs_health(runner_class.job_type, session=session)
 
         expected = ["live-newer", "live-older"]
         if latest_failed:
@@ -627,7 +627,7 @@ class TestAirflowHealthFromDb:
         _create_job(session, SchedulerJobRunner, hostname="stale-3", heartbeat=third)
         session.commit()
 
-        jobs = get_jobs_health(SchedulerJobRunner, session=session)
+        jobs = get_jobs_health(SchedulerJobRunner.job_type, session=session)
         assert [job.hostname for job in jobs] == ["stale-1"]
 
         health_status = get_airflow_health()

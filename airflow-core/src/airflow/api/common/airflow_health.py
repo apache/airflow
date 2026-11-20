@@ -58,15 +58,12 @@ class DetailedHealthStatus(str, Enum):
 
 
 @provide_session
-def get_jobs_health(job_runner_class: type | str, *, session: Session = NEW_SESSION) -> list[Job]:
+def get_jobs_health(job_type: str, *, session: Session = NEW_SESSION) -> list[Job]:
     """
     Return live unfinished jobs and the latest unfinished job of the given job type, ordered by heartbeat.
 
-    Keep the latest job even when dead so health responses retain its heartbeat. ``job_runner_class`` is
-    a job runner class that reports its own ``job_type`` (e.g. ``SchedulerJobRunner``), or a bare
-    job_type string for a job with no runner class of its own, like the executor's ``EXECUTOR_JOB_TYPE``.
+    Keep the latest job even when dead so health responses retain its heartbeat.
     """
-    job_type = getattr(job_runner_class, "job_type", job_runner_class)
     unfinished = Job.end_date.is_(None)
     # Two separate queries rather than one ``id IN (... UNION ALL ...)``: MySQL cannot semijoin that
     # form and runs it as a dependent subquery per ``job`` row, which scales with job history.
@@ -157,7 +154,7 @@ def _executor_instance_health(job: Job) -> dict[str, Any]:
 
 def _live_scheduler_job_ids() -> set[int]:
     """Ids of the currently-alive SchedulerJob rows, used to age out a dead scheduler's own rows."""
-    return {job.id for job in get_jobs_health(SchedulerJobRunner) if job.is_alive()}
+    return {job.id for job in get_jobs_health(SchedulerJobRunner.job_type) if job.is_alive()}
 
 
 def _live_executor_jobs(jobs: list[Job]) -> list[Job]:
@@ -337,7 +334,7 @@ def get_airflow_health() -> dict[str, Any]:
     executor_detailed_status = DetailedHealthStatus.DOWN
 
     try:
-        scheduler_jobs = get_jobs_health(SchedulerJobRunner)
+        scheduler_jobs = get_jobs_health(SchedulerJobRunner.job_type)
         scheduler_status = _legacy_status(scheduler_jobs)
         scheduler_detailed_status = _liveness_status(scheduler_jobs)
         if scheduler_jobs and scheduler_jobs[0].latest_heartbeat:
@@ -350,7 +347,7 @@ def get_airflow_health() -> dict[str, Any]:
         metadatabase_status = HealthStatus.UNHEALTHY
 
     try:
-        triggerer_jobs = get_jobs_health(TriggererJobRunner)
+        triggerer_jobs = get_jobs_health(TriggererJobRunner.job_type)
         triggerer_status = _legacy_status(triggerer_jobs)
         triggerer_detailed_status = _triggerer_detailed_status(triggerer_jobs)
         if triggerer_jobs and triggerer_jobs[0].latest_heartbeat:
@@ -363,7 +360,7 @@ def get_airflow_health() -> dict[str, Any]:
         triggerer_detailed_status = DetailedHealthStatus.DOWN
 
     try:
-        dag_processor_jobs = get_jobs_health(DagProcessorJobRunner)
+        dag_processor_jobs = get_jobs_health(DagProcessorJobRunner.job_type)
         dag_processor_status = _legacy_status(dag_processor_jobs)
         dag_processor_detailed_status = _dag_processor_detailed_status(dag_processor_jobs)
         if dag_processor_jobs and dag_processor_jobs[0].latest_heartbeat:
