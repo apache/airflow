@@ -1266,13 +1266,11 @@ class TestFabAuthManager:
         delete_role(flask_app, "public_test")
         create_role(flask_app, "public_test", role_permissions)
 
-        previous = flask_app.config.get("AUTH_ROLE_PUBLIC")
-        flask_app.config["AUTH_ROLE_PUBLIC"] = "public_test"
         try:
-            user = auth_manager_with_appbuilder.build_public_user()
-            results = auth_manager_with_appbuilder.get_authorized_dag_ids(user=user, method=method)
+            with conf_vars({("fab", "auth_role_public"): "public_test"}):
+                user = auth_manager_with_appbuilder.build_public_user()
+                results = auth_manager_with_appbuilder.get_authorized_dag_ids(user=user, method=method)
         finally:
-            flask_app.config["AUTH_ROLE_PUBLIC"] = previous
             delete_role(flask_app, "public_test")
 
         assert results == expected_results
