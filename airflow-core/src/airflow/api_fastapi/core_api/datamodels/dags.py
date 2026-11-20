@@ -235,7 +235,7 @@ class DAGDetailsResponse(DAGResponse):
         """Convert timezone attribute to string representation."""
         if tz is None:
             return None
-        return str(tz)
+        return tz.name
 
     @field_validator("doc_md", mode="before")
     @classmethod
