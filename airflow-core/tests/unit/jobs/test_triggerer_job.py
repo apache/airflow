@@ -21,6 +21,7 @@ import asyncio
 import contextlib
 import datetime
 import itertools
+import logging
 import os
 import random
 import selectors
@@ -544,6 +545,81 @@ def test_process_log_messages_configures_logging_matching_json_logs(supervisor_b
         next(gen)  # prime the generator -- this is what calls configure_logging()
 
     configure_logging.assert_called_once_with(json_output=json_logs)
+
+
+EXCEPTION_PAYLOAD = [
+    {
+        "exc_type": "RuntimeError",
+        "exc_value": "outer",
+        "exc_notes": [],
+        "syntax_error": None,
+        "is_cause": False,
+        "frames": [{"filename": "/dags/t.py", "lineno": 12, "name": "run"}],
+        "is_group": False,
+        "exceptions": [],
+    },
+    {
+        "exc_type": "ValueError",
+        "exc_value": "inner",
+        "exc_notes": [],
+        "syntax_error": None,
+        "is_cause": True,
+        "frames": [{"filename": "/dags/t.py", "lineno": 7, "name": "boom"}],
+        "is_group": False,
+        "exceptions": [],
+    },
+]
+
+
+@pytest.mark.parametrize(
+    ("json_logs", "expected"),
+    [
+        pytest.param(
+            False,
+            {
+                "exception": (
+                    "Traceback (most recent call last):\n"
+                    '  File "/dags/t.py", line 7, in boom\n'
+                    "ValueError: inner\n"
+                    "\n"
+                    "The above exception was the direct cause of the following exception:\n"
+                    "\n"
+                    "Traceback (most recent call last):\n"
+                    '  File "/dags/t.py", line 12, in run\n'
+                    "RuntimeError: outer"
+                )
+            },
+            id="text",
+        ),
+        pytest.param(True, {"error_detail": EXCEPTION_PAYLOAD}, id="json"),
+    ],
+)
+def test_process_log_messages_renders_exceptions_from_the_triggerer_itself(
+    supervisor_builder, mocker, cap_structlog, json_logs, expected
+):
+    """Text logs get a stack trace under exception. JSON and task logs keep the dicts."""
+    supervisor = supervisor_builder()
+    task_log_factory = MagicMock(spec=TriggerLoggingFactory)
+    supervisor.logger_cache[1] = task_log_factory
+    malformed = [{"exc_type": "ValueError", "exc_notes": None}]
+    # Priming the generator calls configure_logging(), which reconfigures structlog globally
+    # and would replace the capture cap_structlog installed.
+    mocker.patch("airflow.sdk.log.configure_logging", autospec=True)
+    mocker.patch("airflow.sdk.log.logging_processors", autospec=True)
+
+    with conf_vars({("logging", "json_logs"): str(json_logs)}):
+        gen = supervisor._process_log_messages_from_subprocess()
+        next(gen)
+    gen.send(msgspec.json.encode({"event": "Bad payload", "level": "error", "exception": malformed}))
+    failed = {"event": "Trigger failed", "level": "error", "exception": EXCEPTION_PAYLOAD}
+    gen.send(msgspec.json.encode(failed))
+    gen.send(msgspec.json.encode({**failed, "trigger_id": 1}))
+
+    assert {"event": "Bad payload", "error_detail": malformed} in cap_structlog
+    assert {"event": "Trigger failed", "log_level": "error", **expected} in cap_structlog
+    task_log_factory.return_value.log.assert_called_once_with(
+        logging.ERROR, "Trigger failed", error_detail=EXCEPTION_PAYLOAD
+    )
 
 
 def test_client_delegates_to_make_client_and_caches_result(supervisor_builder, mocker):
