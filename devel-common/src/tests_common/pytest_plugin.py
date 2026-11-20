@@ -207,7 +207,10 @@ else:
 # End of copied code from breeze
 
 os.environ["AIRFLOW__CORE__ALLOWED_DESERIALIZATION_CLASSES"] = "airflow.*\nunit.*\n"
-if "--system" not in sys.argv:
+run_system_tests = "--system" in sys.argv or os.environ.get("_AIRFLOW_SYSTEM_TESTS") == "true"
+if run_system_tests:
+    os.environ["_AIRFLOW_SYSTEM_TESTS"] = "true"
+else:
     os.environ["AIRFLOW__CORE__PLUGINS_FOLDER"] = os.fspath(AIRFLOW_CORE_TESTS_PATH / "unit" / "plugins")
 
 IS_MOCK_PLUGINS_MANAGER = bool(
