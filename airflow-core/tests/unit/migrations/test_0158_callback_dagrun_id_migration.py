@@ -99,6 +99,7 @@ def test_backfill_dagrun_id_from_legacy_callback_data():
     extended_id = uuid.uuid4().hex
     plain_id = uuid.uuid4().hex
     deadline_id = uuid.uuid4().hex
+    deadline_triggerer_id = uuid.uuid4().hex
     invalid_id = uuid.uuid4().hex
     triggerer_id = uuid.uuid4().hex
     malformed_id = uuid.uuid4().hex
@@ -110,6 +111,8 @@ def test_backfill_dagrun_id_from_legacy_callback_data():
         _insert_callback(conn, plain_id, {"dag_run_id": 2})
         _insert_callback(conn, deadline_id, {"path": "callback.without.dagrun.id"})
         _insert_deadline(conn, deadline_id, 1)
+        _insert_callback(conn, deadline_triggerer_id, {"path": "callback.without.dagrun.id"}, "triggerer")
+        _insert_deadline(conn, deadline_triggerer_id, 2)
         _insert_callback(conn, invalid_id, {"__var": {"dag_run_id": "missing"}, "__type": "dict"})
         _insert_callback(conn, triggerer_id, {"__var": {"dag_run_id": "1"}, "__type": "dict"}, "triggerer")
         conn.execute(
@@ -126,6 +129,7 @@ def test_backfill_dagrun_id_from_legacy_callback_data():
     assert dagrun_id_by_callback_id[extended_id] == 1
     assert dagrun_id_by_callback_id[plain_id] == 2
     assert dagrun_id_by_callback_id[deadline_id] == 1
+    assert dagrun_id_by_callback_id[deadline_triggerer_id] == 2
     assert dagrun_id_by_callback_id[invalid_id] is None
     missing_dagrun_id = uuid.uuid4().hex
     with engine.begin() as conn:
@@ -213,7 +217,7 @@ def test_restore_legacy_dagrun_id_with_postgresql_jsonb():
         conn.execute(
             sa.text(
                 "CREATE TEMPORARY TABLE callback "
-                "(id UUID PRIMARY KEY, type TEXT NOT NULL, data JSONB NOT NULL, dagrun_id INTEGER)"
+                "(id UUID PRIMARY KEY, type TEXT NOT NULL, data JSONB NOT NULL, dagrun_id INTEGER) ON COMMIT DROP"
             )
         )
         conn.execute(
@@ -251,11 +255,11 @@ def test_sqlite_upgrade_and_downgrade_preserve_deadline_callback():
         conn.execute(sa.text("INSERT INTO dag_run (id) VALUES (1)"))
         conn.execute(
             sa.text("INSERT INTO callback (id, type, data) VALUES (:id, :type, :data)"),
-            {"id": str(callback_id), "type": "executor", "data": json.dumps({"dag_run_id": "1"})},
+            {"id": callback_id.hex, "type": "executor", "data": json.dumps({"dag_run_id": "1"})},
         )
         conn.execute(
             sa.text("INSERT INTO deadline (id, callback_id, dagrun_id) VALUES (:id, :callback_id, 1)"),
-            {"id": str(deadline_id), "callback_id": str(callback_id)},
+            {"id": str(deadline_id), "callback_id": callback_id.hex},
         )
         conn.commit()
 
@@ -268,6 +272,15 @@ def test_sqlite_upgrade_and_downgrade_preserve_deadline_callback():
             assert (
                 conn.scalar(sa.text("SELECT COUNT(*) FROM deadline WHERE id = :id"), {"id": str(deadline_id)})
                 == 1
+            )
+            assert (
+                conn.scalar(sa.text("SELECT dagrun_id FROM callback WHERE id = :id"), {"id": callback_id.hex})
+                == 1
+            )
+            assert "WHERE dagrun_id IS NOT NULL" in conn.scalar(
+                sa.text(
+                    "SELECT sql FROM sqlite_master WHERE type = 'index' AND name = 'callback_dagrun_id_idx'"
+                )
             )
 
             _migration.downgrade()

@@ -194,6 +194,14 @@ class TestCallback:
             "dag_id": TEST_DAG_ID,
         }
 
+    def test_get_metric_info_includes_dagrun_id_from_column(self):
+        callback = ExecutorCallback(TEST_SYNC_CALLBACK, fetch_method=CallbackFetchMethod.IMPORT_PATH)
+        callback.dagrun_id = 42
+
+        metric_info = callback.get_metric_info(CallbackState.SUCCESS, "0")
+
+        assert metric_info["tags"]["dag_run_id"] == "42"
+
     @pytest.mark.parametrize(
         "encoded_interval",
         [
@@ -484,6 +492,23 @@ class TestTriggererCallback:
 
 
 class TestExecutorCallback:
+    def test_is_deleted_with_its_dag_run(self, dag_maker, session):
+        with dag_maker(dag_id="test_executor_callback_cascade"):
+            pass
+        dag_run = dag_maker.create_dagrun()
+        callback = ExecutorCallback(TEST_SYNC_CALLBACK, fetch_method=CallbackFetchMethod.IMPORT_PATH)
+        callback.dagrun_id = dag_run.id
+        session.add(callback)
+        session.flush()
+
+        callback_id = callback.id
+        assert dag_run.callbacks == [callback]
+
+        session.delete(dag_run)
+        session.flush()
+
+        assert session.get(Callback, callback_id) is None
+
     def test_polymorphic_serde(self, session):
         """Test that ExecutorCallback can be serialized and deserialized"""
         callback = ExecutorCallback(TEST_SYNC_CALLBACK, fetch_method=CallbackFetchMethod.IMPORT_PATH)

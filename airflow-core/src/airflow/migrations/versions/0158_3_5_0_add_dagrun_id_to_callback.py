@@ -75,7 +75,6 @@ def _backfill_dagrun_id_from_deadline(conn, batch_size: int) -> None:
     callback = sa.table(
         "callback",
         sa.column("id", sa.Uuid()),
-        sa.column("type", sa.String(20)),
         sa.column("dagrun_id", sa.Integer()),
     )
     deadline = sa.table(
@@ -94,7 +93,7 @@ def _backfill_dagrun_id_from_deadline(conn, batch_size: int) -> None:
                     dag_run, deadline.c.dagrun_id == dag_run.c.id
                 )
             )
-            .where(callback.c.type == "executor", callback.c.dagrun_id.is_(None))
+            .where(callback.c.dagrun_id.is_(None))
             .order_by(callback.c.id)
             .limit(batch_size)
         )
@@ -189,6 +188,7 @@ def _restore_legacy_dagrun_id(conn, batch_size: int) -> None:
 
 def upgrade():
     """Add callback.dagrun_id and backfill it from legacy callback.data."""
+    dagrun_id_is_not_null = sa.column("dagrun_id").is_not(None)
     with disable_sqlite_fkeys(op):
         with op.batch_alter_table("callback") as batch_op:
             batch_op.add_column(sa.Column("dagrun_id", sa.Integer(), nullable=True))
@@ -205,7 +205,13 @@ def upgrade():
             )
 
         with op.batch_alter_table("callback") as batch_op:
-            batch_op.create_index("callback_dagrun_id_idx", ["dagrun_id"], unique=False)
+            batch_op.create_index(
+                "callback_dagrun_id_idx",
+                ["dagrun_id"],
+                unique=False,
+                postgresql_where=dagrun_id_is_not_null,
+                sqlite_where=dagrun_id_is_not_null,
+            )
             batch_op.create_foreign_key(
                 batch_op.f("callback_dagrun_id_fkey"), "dag_run", ["dagrun_id"], ["id"], ondelete="CASCADE"
             )
