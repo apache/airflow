@@ -477,15 +477,18 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         # going to report anything isn't a gap in coverage (see _configured_executor_keys in
         # airflow_health.py, which applies this same rule from the /monitor/health side). An executor
         # with no name is also skipped: _executor_health_key has nothing stable to key its row under.
-        # getattr rather than a plain attribute access: a test double standing in for an executor
-        # (e.g. a bare, non-speced MagicMock) has no real get_health of its own to compare, and should
-        # be treated the same as one that doesn't override it, not raise AttributeError.
+        # issubclass(type(executor), ...), not isinstance(executor, ...): a test double standing in
+        # for an executor (a MagicMock, even one speced to BaseExecutor) passes isinstance, since mock
+        # fakes that check, but calling a method on it never runs the real classmethod body, it just
+        # hands back another mock, which this dict would then read as "overrides it". type() bypasses
+        # that trick and correctly reports such a double as not a real BaseExecutor subclass.
         from airflow.executors.base_executor import BaseExecutor as _BaseExecutor
 
         self._executor_health_keys: dict[str, str | None] = {
             key: executor.team_name
             for executor in self.executors
-            if getattr(type(executor), "get_health", _BaseExecutor.get_health) is not _BaseExecutor.get_health
+            if issubclass(type(executor), _BaseExecutor)
+            and type(executor).overrides_get_health()
             and (key := _executor_health_key(executor)) is not None
         }
 
@@ -2435,7 +2438,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         )
 
         timers.call_regular_interval(
-            delay=self.job.heartrate,
+            # A floor, not just self.job.heartrate directly: that can be configured down to 0 (and
+            # tests commonly do), and a zero delay re-queues itself at "now" on every single pass
+            # through the event scheduler, which never lets a non-blocking run() return.
+            delay=max(self.job.heartrate, 1.0),
             action=self._touch_executor_heartbeats,
             non_fatal=True,
         )
