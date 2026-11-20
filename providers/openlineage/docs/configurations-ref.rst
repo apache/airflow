@@ -137,6 +137,73 @@ Example content of config YAML file:
     Detailed description, together with example config files, can be found `in Python client documentation <https://openlineage.io/docs/client/python/configuration#transports>`_.
 
 
+Worker pod identity
+-------------------
+
+To identify the Kubernetes pod running an Airflow task, explicitly expose its name and namespace to the
+task-running worker using the Kubernetes Downward API. Then opt in to the OpenLineage Python client's
+existing ``environmentVariables`` run facet by setting:
+
+.. code-block:: bash
+
+    OPENLINEAGE__FACETS__ENVIRONMENT_VARIABLES='["POD_NAME", "POD_NAMESPACE"]'
+
+Set these variables in the worker environment **before the OpenLineage client is created**. Collection
+is not enabled by default: exposing ``POD_NAME`` and ``POD_NAMESPACE`` alone does not add them to events.
+Keep any other names you already collect in the environment-variable allowlist; the example is not
+intended to replace an existing allowlist. Existing OpenLineage client configuration precedence and
+facet settings still apply; this does not introduce a separate Airflow configuration override.
+
+For the Apache Airflow Helm chart, the following values configure KubernetesExecutor task pods only:
+
+.. code-block:: yaml
+
+    executor: KubernetesExecutor
+    workers:
+      kubernetes:
+        env:
+          - name: POD_NAME
+            valueFrom:
+              fieldRef:
+                apiVersion: v1
+                fieldPath: metadata.name
+          - name: POD_NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+          - name: OPENLINEAGE__FACETS__ENVIRONMENT_VARIABLES
+            value: '["POD_NAME", "POD_NAMESPACE"]'
+
+``apiVersion`` is optional. For Celery workers deployed on Kubernetes, use ``executor: CeleryExecutor``
+and place the same ``env`` list under ``workers.celery`` instead of ``workers.kubernetes``. With a custom
+pod template or another deployment mechanism, configure the equivalent environment on each task-running
+worker container. Do not put this configuration in global chart ``env`` or ``extraEnv`` merely to
+identify workers: those settings also affect other Airflow components.
+
+On worker-originated START, COMPLETE and FAIL events, the client serializes the selected values as
+name/value entries in ``run.facets.environmentVariables.environmentVariables``, for example (facet
+metadata omitted):
+
+.. code-block:: json
+
+    {
+      "environmentVariables": [
+        {"name": "POD_NAME", "value": "airflow-worker-abc"},
+        {"name": "POD_NAMESPACE", "value": "airflow"}
+      ]
+    }
+
+These values describe the worker emitting that event, not an entire task's execution history. A deferred
+task can resume on a different worker, so its worker identity can change between events. Events emitted
+by the scheduler or triggerer do not acquire worker identity through this configuration; their own
+environment must not be interpreted as the task-running worker's identity. There is no cluster
+autodetection, additional Kubernetes API request or additional RBAC requirement.
+
+This worker identity is separate from a KubernetesPodOperator's launched workload pod. The latter uses
+the standard ``tags`` run facet with keys ``airflow.workload.pod.name`` and
+``airflow.workload.pod.namespace``; it does not replace the worker's ``environmentVariables`` facet.
+
+
 .. _configuration_custom_facets:openlineage:
 
 Custom Facets
