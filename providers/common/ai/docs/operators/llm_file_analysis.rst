@@ -145,7 +145,7 @@ Parameters
   Parquet, and Avro inputs. This controls structural preview depth, while
   ``max_file_size_bytes`` and ``max_total_size_bytes`` are byte-level read
   guards and ``max_text_chars`` is the final prompt-text budget. Default ``10``.
-- ``model_id``: Model identifier (e.g. ``"openai:gpt-5"``). Overrides the
+- ``model_id``: Model identifier (e.g. ``"openai:gpt-6.1-sol"``). Overrides the
   connection's extra field.
 - ``system_prompt``: System-level instructions appended to the operator's
   built-in read-only guidance.

@@ -29,7 +29,15 @@ if TYPE_CHECKING:
 
 #: The agent framework a tool call came through, as the ``framework`` tag reports it.
 Framework = Literal[
-    "pydantic_ai", "strands", "adk", "langchain", "anthropic", "openai_agents", "claude_agent_sdk", "none"
+    "pydantic_ai",
+    "strands",
+    "adk",
+    "langchain",
+    "anthropic",
+    "openai_agents",
+    "claude_agent_sdk",
+    "openai_codex",
+    "none",
 ]
 
 # Set by each framework adapter around the calls it makes.

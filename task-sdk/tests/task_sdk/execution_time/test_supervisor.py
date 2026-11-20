@@ -176,6 +176,7 @@ from airflow.sdk.execution_time.comms import (
 )
 from airflow.sdk.execution_time.coordinator import BaseCoordinator, TaskLaunchError
 from airflow.sdk.execution_time.supervisor import (
+    _IN_PROCESS_RESPONSE_SINK,
     SERVER_TERMINATED,
     ActivitySubprocess,
     InProcessSupervisorComms,
@@ -5374,6 +5375,105 @@ class TestInProcessTestSupervisor:
         assert isinstance(collected[0], _Failure)
 
 
+class TestInProcessSupervisorCommsAcrossThreads:
+    """
+    dag.test() serves a task's requests in the task's own process, possibly for several of the task's
+    threads at once. While a request is served, the code serving it stops seeing the comms, and only
+    that code: the task's other threads keep theirs. The in-process API server's side is covered in the
+    execution API's test_app.py.
+    """
+
+    @staticmethod
+    def _comms(serve):
+        """In-process comms whose supervisor answers each request with ``serve(msg)``."""
+        comms = InProcessSupervisorComms(supervisor=mock.Mock(spec=InProcessTestSupervisor))
+
+        def handle_request(msg, log, req_id):
+            sink = _IN_PROCESS_RESPONSE_SINK.get()
+            assert sink is not None
+            sink.append(serve(msg))
+
+        comms.supervisor._handle_request.side_effect = handle_request
+        return comms
+
+    def test_only_the_code_serving_a_request_stops_seeing_the_comms(self):
+        """
+        While one thread's request is served, the task's other threads must keep their comms: seeing
+        none, they would take their Variable and Connection lookups for the server side and find nothing.
+        """
+        seen: dict[str, object] = {}
+        serving = threading.Event()
+        sibling_read = threading.Event()
+
+        def serve(msg):
+            seen["serving"] = task_runner.get_supervisor_comms()
+            serving.set()
+            sibling_read.wait(5)
+            return "done"
+
+        def sibling():
+            serving.wait(5)
+            seen["sibling"] = task_runner.get_supervisor_comms()
+            sibling_read.set()
+
+        comms = self._comms(serve)
+        with patch.object(task_runner, "SUPERVISOR_COMMS", comms, create=True):
+            threads = [
+                threading.Thread(target=comms.send, args=("request",)),
+                threading.Thread(target=sibling),
+            ]
+            for thread in threads:
+                thread.start()
+            for thread in threads:
+                thread.join(5)
+            # Once answered, the sender sees its comms again, and the module attribute never went
+            # away, which is what `from task_runner import SUPERVISOR_COMMS` needs.
+            seen["after"] = task_runner.get_supervisor_comms()
+            seen["attribute"] = hasattr(task_runner, "SUPERVISOR_COMMS")
+
+        assert seen == {"serving": None, "sibling": comms, "after": comms, "attribute": True}
+
+    def test_hide_supervisor_comms_restores_the_previous_state(self):
+        with patch.object(task_runner, "SUPERVISOR_COMMS", "comms", create=True):
+            with task_runner.hide_supervisor_comms():
+                with task_runner.hide_supervisor_comms():
+                    assert task_runner.get_supervisor_comms() is None
+                assert task_runner.get_supervisor_comms() is None
+            assert task_runner.get_supervisor_comms() == "comms"
+
+    @pytest.mark.parametrize("serving", [False, True], ids=["task-code", "serving-a-request"])
+    def test_mask_secret_is_forwarded_only_from_task_code(self, serving):
+        from airflow.sdk.log import mask_secret
+
+        comms = mock.Mock(spec=InProcessSupervisorComms)
+        with patch.object(task_runner, "SUPERVISOR_COMMS", comms, create=True):
+            with task_runner.hide_supervisor_comms() if serving else nullcontext():
+                mask_secret("s3cr3t-value", "key")
+
+        assert comms.send.called is not serving
+
+    def test_with_an_older_core_the_comms_are_removed_while_a_request_is_served(self):
+        """
+        An airflow-core without ``airflow.process_context`` only checks whether ``SUPERVISOR_COMMS``
+        exists, so its code serving the request must not find the attribute.
+        """
+        seen: dict[str, object] = {}
+
+        def serve(msg):
+            seen["serving"] = hasattr(task_runner, "SUPERVISOR_COMMS")
+            return "done"
+
+        comms = self._comms(serve)
+        with (
+            patch.object(task_runner, "SUPERVISOR_COMMS", comms, create=True),
+            patch.object(supervisor, "_has_per_request_server_context", autospec=True, return_value=False),
+        ):
+            assert comms.send("request") == "done"
+            seen["after"] = task_runner.get_supervisor_comms()
+
+        assert seen == {"serving": False, "after": comms}
+
+
 class TestInProcessClient:
     def test_no_retries(self):
         called = 0
@@ -6161,6 +6261,15 @@ def test_in_process_api_server_caches_instance():
         in_process_api_server.cache_clear()
         third = in_process_api_server()
         assert third is not first
+    finally:
+        in_process_api_server.cache_clear()
+
+
+def test_in_process_api_server_serves_while_debugger_paused():
+    """dag.test() calls the API from the thread a debugger pauses, so the API's loop must keep running."""
+    in_process_api_server.cache_clear()
+    try:
+        assert in_process_api_server().serve_while_debugger_paused is True
     finally:
         in_process_api_server.cache_clear()
 

@@ -1032,7 +1032,6 @@ class PodManager(LoggingMixin):
             f"then cat {PodDefaults.XCOM_MOUNT_PATH}/return.json; "
             f"else echo {EMPTY_XCOM_RESULT}; fi"
         )
-        result = None
         with closing(
             kubernetes_stream(
                 self._client.connect_get_namespaced_pod_exec,
@@ -1057,16 +1056,12 @@ class PodManager(LoggingMixin):
             if client.peek_stderr():
                 stderr = client.read_stderr().decode("utf-8", errors="replace")
                 self.log.error("stderr from command: %s", stderr)
-            raw_result = client.read_all()
-            if raw_result is not None:
-                result = raw_result.decode("utf-8", errors="replace")
+            result = client.read_all().decode("utf-8", errors="replace")
             if result and result.rstrip() != EMPTY_XCOM_RESULT:
                 # Note: result string is parsed to check if its valid json.
                 # This function still returns a string which is converted into json in the calling method.
                 json.loads(result)
 
-        if result is None:
-            raise XComRetrievalError(f"Failed to extract xcom from pod: {pod.metadata.name}")
         return result
 
     @generic_api_retry
