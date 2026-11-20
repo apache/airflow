@@ -199,7 +199,13 @@ class OpenAIHook(BaseHook):
         """Return an OpenAI connection object."""
         return self.get_conn()
 
-    def get_conn(self) -> OpenAI:
+    @overload
+    def get_conn(self, *, async_client: Literal[False] = False) -> OpenAI: ...
+
+    @overload
+    def get_conn(self, *, async_client: Literal[True]) -> AsyncOpenAI: ...
+
+    def get_conn(self, *, async_client: bool = False) -> OpenAI | AsyncOpenAI:
         """
         Return an OpenAI connection object.
 
@@ -209,9 +215,15 @@ class OpenAIHook(BaseHook):
         * ``"api_key"`` -- use the API key from the connection password (or ``openai_client_kwargs``).
         * ``"workload_identity"`` -- exchange a short-lived identity token for API access using the
           OpenAI client's workload identity support. See :meth:`_build_workload_identity`.
+
+        :param async_client: Return an ``AsyncOpenAI`` instead, for sync code that passes one to
+            an async library. The connection lookup blocks, so in async code use :meth:`aget_conn`.
+            Each call builds a new client. An async client is tied to the event loop it first
+            runs in, so use it inside one loop and get a new client for each ``asyncio.run`` call.
         """
         conn = self.get_connection(self.conn_id)
-        return OpenAI(**self._client_kwargs(conn, conn.extra_dejson))
+        client_class = AsyncOpenAI if async_client else OpenAI
+        return client_class(**self._client_kwargs(conn, conn.extra_dejson))
 
     async def aget_conn(self) -> AsyncOpenAI:
         """
