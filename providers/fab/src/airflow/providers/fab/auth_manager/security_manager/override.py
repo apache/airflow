@@ -109,7 +109,6 @@ from airflow.providers.fab.version_compat import AIRFLOW_V_3_1_PLUS
 from airflow.providers.fab.www.security import permissions
 from airflow.providers.fab.www.security_manager import AirflowSecurityManagerV2
 from airflow.providers.fab.www.session import AirflowDatabaseSessionInterface
-from airflow.providers.fab.www.utils import get_fab_auth_manager
 
 if TYPE_CHECKING:
     from authlib.integrations.flask_client import OAuth
@@ -626,7 +625,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
 
     def set_user_password(self, user: User, password: str) -> None:
         """
-        Set a new password and invalidate the tokens and sessions issued under the old one.
+        Set a new password and invalidate the API tokens and Flask sessions issued under the old one.
 
         Nothing is committed: the caller persists both changes together, normally with
         ``update_user``.
@@ -1730,9 +1729,10 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             log.error(const.LOGMSG_ERR_SEC_UPD_USER, e)
             self.session.rollback()
             return False
-        auth_manager = get_fab_auth_manager()
-        with auth_manager.cache_lock:
-            auth_manager.cache.pop(user.id, None)
+        from airflow.providers.fab.auth_manager.fab_auth_manager import FabAuthManager
+
+        with FabAuthManager.cache_lock:
+            FabAuthManager.cache.pop(user.id, None)
         return True
 
     @staticmethod

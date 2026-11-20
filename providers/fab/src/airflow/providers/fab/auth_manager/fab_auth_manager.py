@@ -353,7 +353,7 @@ class FabAuthManager(BaseAuthManager[User]):
         with self.cache_lock:
             user = self.cache.get(user_id)
             if user is not None and user.token_generation < token_generation:
-                del self.cache[user_id]
+                self.cache.pop(user_id, None)
                 return None
         return user
 

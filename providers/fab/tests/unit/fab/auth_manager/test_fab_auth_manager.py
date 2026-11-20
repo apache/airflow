@@ -17,10 +17,9 @@
 from __future__ import annotations
 
 import asyncio
-import threading
 import time
 from contextlib import ExitStack, asynccontextmanager, contextmanager, nullcontext, suppress
-from itertools import chain
+from itertools import chain, count
 from typing import TYPE_CHECKING
 from unittest import mock
 from unittest.mock import MagicMock, Mock
@@ -214,22 +213,21 @@ QUERIES_PER_USER_READ = 2
 
 
 class _LockCheckingCache(TTLCache):
-    """A ``TTLCache`` that fails any read or write made without holding ``lock``."""
+    """A ``TTLCache`` that fails any read or write made without holding ``FabAuthManager.cache_lock``."""
 
-    def __init__(self, lock: threading.Lock):
+    def __init__(self):
         super().__init__(maxsize=1024, ttl=60)
-        self.lock = lock
 
     def __getitem__(self, key):
-        assert self.lock.locked()
+        assert FabAuthManager.cache_lock.locked()
         return super().__getitem__(key)
 
     def __setitem__(self, key, value):
-        assert self.lock.locked()
+        assert FabAuthManager.cache_lock.locked()
         super().__setitem__(key, value)
 
     def __delitem__(self, key):
-        assert self.lock.locked()
+        assert FabAuthManager.cache_lock.locked()
         super().__delitem__(key)
 
 
@@ -1596,6 +1594,30 @@ class TestTokenGeneration:
         with pytest.raises(ValueError, match="is not active"):
             await deserialize(old_token)
 
+    @mock.patch.object(
+        FabAuthManager,
+        "cache",
+        new_callable=lambda: TTLCache(maxsize=1024, ttl=10, timer=count(step=6).__next__),
+    )
+    @pytest.mark.asyncio
+    async def test_newer_token_accepted_when_cached_user_expires_as_it_is_dropped(
+        self, _, flask_app, deserialize
+    ):
+        """
+        A cached user that expires between being read and being dropped as outdated does not turn a
+        newer token into a failure.
+
+        Every read of the cache's clock moves it forward by more than half the TTL, so the cached
+        user is still valid when it is read and has expired by the time it is dropped.
+        """
+        user_id = create_user(flask_app, "test_expiring_cached_user").id
+        await deserialize({"sub": str(user_id), "token_generation": 0})
+        _set_stored_token_generation(user_id, 1)
+
+        user = await deserialize({"sub": str(user_id), "token_generation": 1})
+
+        assert user.token_generation == 1
+
     # The user cache: updates made by this process, and concurrent requests
 
     @pytest.mark.asyncio
@@ -1635,27 +1657,24 @@ class TestTokenGeneration:
         roles = (await auth_manager_with_appbuilder.deserialize_user_async(token)).roles
         assert [role.name for role in roles] == ["test_role_update_after"]
 
+    @mock.patch.object(FabAuthManager, "cache", new_callable=_LockCheckingCache)
     @pytest.mark.asyncio
-    async def test_cache_is_accessed_only_under_cache_lock(self, flask_app, auth_manager_with_appbuilder):
+    async def test_cache_is_accessed_only_under_cache_lock(
+        self, cache, flask_app, auth_manager_with_appbuilder
+    ):
         """
         Every read and write of the user cache holds ``cache_lock``: caching a user on either path,
         dropping it for a newer token, and dropping it after a user update.
         """
         user_id = create_user(flask_app, "test_cache_lock").id
-        lock = threading.Lock()
-        cache = _LockCheckingCache(lock)
 
-        with (
-            mock.patch.object(FabAuthManager, "cache", cache),
-            mock.patch.object(FabAuthManager, "cache_lock", lock),
-        ):
-            auth_manager_with_appbuilder.deserialize_user({"sub": str(user_id), "token_generation": 0})
-            _set_stored_token_generation(user_id, 1)
-            await auth_manager_with_appbuilder.deserialize_user_async(
-                {"sub": str(user_id), "token_generation": 1}
-            )
-            assert user_id in cache
-            _change_password(auth_manager_with_appbuilder, "test_cache_lock")
+        auth_manager_with_appbuilder.deserialize_user({"sub": str(user_id), "token_generation": 0})
+        _set_stored_token_generation(user_id, 1)
+        await auth_manager_with_appbuilder.deserialize_user_async(
+            {"sub": str(user_id), "token_generation": 1}
+        )
+        assert user_id in cache
+        _change_password(auth_manager_with_appbuilder, "test_cache_lock")
 
         assert user_id not in cache
 
@@ -1699,21 +1718,18 @@ class TestTokenGeneration:
 
     # Flask sessions
 
+    @conf_vars(
+        {
+            ("core", "auth_manager"): "airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager",
+            ("fab", "session_backend"): "securecookie",
+        }
+    )
     def test_session_from_before_password_reset_no_longer_issues_api_tokens(self):
         """
         The login page issues API tokens from a Flask session only while the session matches the
         user's ``token_generation``, so a ``securecookie`` session cannot outlive a password reset.
         """
-        with conf_vars(
-            {
-                (
-                    "core",
-                    "auth_manager",
-                ): "airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager",
-                ("fab", "session_backend"): "securecookie",
-            }
-        ):
-            app = create_app(enable_plugins=False)
+        app = create_app(enable_plugins=False)
         app.config["WTF_CSRF_ENABLED"] = False
         # Requests run outside this test's app context: a request reuses an active app context,
         # and with it the user Flask-Login cached in ``g`` by an earlier request.
@@ -1729,14 +1745,19 @@ class TestTokenGeneration:
         new_session = client_with_login(app, username="test_session_reset", password="new-password")
         assert _get_issued_api_token(new_session.get("/login/"))
 
-    def test_login_on_another_flask_app_leaves_its_session_alone(self, flask_app):
-        """Only logins on the FAB app record ``token_generation``, not those on other Flask apps."""
+    def test_login_records_token_generation_only_on_the_fab_app(self, flask_app):
+        """
+        A login on the FAB app records the user's ``token_generation`` in its session, while a login
+        on another Flask app in the same process leaves that app's session alone.
+        """
+        user = User(id=1, username="test_login_records_generation", active=True, token_generation=3)
         other_app = Flask(__name__)
         other_app.secret_key = "test-secret-key"
         LoginManager(other_app)
-        user = Mock(spec=["get_id", "is_active"], is_active=True)
-        user.get_id.return_value = "1"
 
+        with flask_app.test_request_context():
+            assert login_user(user)
+            assert flask_session[SESSION_TOKEN_GENERATION_KEY] == 3
         with other_app.test_request_context():
             assert login_user(user)
             assert SESSION_TOKEN_GENERATION_KEY not in flask_session
