@@ -49,7 +49,8 @@ def mocked_blob_file_system():
                 host="testaccountname.blob.core.windows.net",
             ),
             {
-                "account_url": "https://testaccountname.blob.core.windows.net",
+                "account_name": "testaccountname",
+                "account_host": "testaccountname.blob.core.windows.net",
             },
         ),
         (
@@ -59,7 +60,7 @@ def mocked_blob_file_system():
                 login="testaccountname",
             ),
             {
-                "account_url": "https://testaccountname.blob.core.windows.net/",
+                "account_name": "testaccountname",
             },
         ),
         (
@@ -96,10 +97,9 @@ def mocked_blob_file_system():
                 },
             ),
             {
-                "account_url": "https://testaccountname.blob.core.windows.net/",
-                "account_name": "account_name",
                 "client_id": "testaccountname",
                 "client_secret": "password",
+                "account_name": "account_name",
                 "account_key": "account_key",
                 "sas_token": "sas_token",
                 "tenant_id": "tenant_id",
@@ -118,7 +118,7 @@ def mocked_blob_file_system():
                 extra={},
             ),
             {
-                "account_url": "https://testaccountname.blob.core.windows.net/",
+                "account_name": "testaccountname",
                 "account_key": "password",
             },
         ),
@@ -134,9 +134,71 @@ def mocked_blob_file_system():
                 },
             ),
             {
-                "account_url": "https://testaccountname.blob.core.windows.net/",
+                "account_name": "testaccountname",
                 "account_host": "mystorageaccount.blob.core.mydomain.io",
                 "account_key": "password",
+            },
+        ),
+        (
+            # Service principal without a host: the login is a client id, so
+            # no account_name or account_host may be derived from it; the
+            # account comes from extras alone.
+            Connection(
+                conn_id="testconn",
+                conn_type="wasb",
+                login="testclientid",
+                password="testclientsecret",
+                extra={
+                    "account_name": "actualstorage",
+                    "tenant_id": "tenant_id",
+                },
+            ),
+            {
+                "client_id": "testclientid",
+                "client_secret": "testclientsecret",
+                "account_name": "actualstorage",
+                "tenant_id": "tenant_id",
+            },
+        ),
+        (
+            # Same, but with a bare identifier in host: it is not an endpoint,
+            # so no account_host may be derived from the login-built URL.
+            Connection(
+                conn_id="testconn",
+                conn_type="wasb",
+                login="testclientid",
+                password="testclientsecret",
+                host="testaccountID",
+                extra={
+                    "account_name": "actualstorage",
+                    "tenant_id": "tenant_id",
+                },
+            ),
+            {
+                "client_id": "testclientid",
+                "client_secret": "testclientsecret",
+                "account_name": "actualstorage",
+                "tenant_id": "tenant_id",
+            },
+        ),
+        (
+            # Service principal with a bare identifier host and no account in
+            # extras: nothing may be derived from the client id login, so
+            # adlfs can fall back to AZURE_STORAGE_ACCOUNT_NAME.
+            Connection(
+                conn_id="testconn",
+                conn_type="wasb",
+                login="testclientid",
+                password="testclientsecret",
+                host="testaccountID",
+                extra={
+                    "tenant_id": "tenant_id",
+                },
+            ),
+            {
+                "client_id": "testclientid",
+                "client_secret": "testclientsecret",
+                "tenant_id": "tenant_id",
             },
         ),
         (
@@ -273,3 +335,32 @@ def test_get_fs(mocked_connection, expected_options, mocked_blob_file_system):
 )
 def test_bare_account_name_from_host(host, expected):
     assert _bare_account_name_from_host(host) == expected
+
+
+@pytest.mark.parametrize(
+    "mocked_connection",
+    [
+        Connection(
+            conn_id="testconn",
+            conn_type="wasb",
+            login="testaccountname",
+            password="testaccountkey",
+        ),
+        Connection(
+            conn_id="testconn",
+            conn_type="wasb",
+            host="https://testaccountname.blob.core.windows.net",
+            password="testaccountkey",
+        ),
+    ],
+    indirect=["mocked_connection"],
+)
+def test_get_fs_with_real_filesystem(mocked_connection, monkeypatch):
+    # The mocked test above cannot catch a keyword adlfs does not accept, so
+    # build the real filesystem: with only the account name or URL on the
+    # connection it must construct instead of raising
+    # "Must provide either a connection_string or account_name".
+    monkeypatch.delenv("AZURE_STORAGE_ACCOUNT_NAME", raising=False)
+    fs = get_fs(mocked_connection.conn_id)
+    assert fs.account_name == "testaccountname"
+    assert fs.account_url == "https://testaccountname.blob.core.windows.net"
