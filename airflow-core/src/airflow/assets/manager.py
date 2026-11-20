@@ -53,6 +53,7 @@ if TYPE_CHECKING:
 
     from sqlalchemy.orm.session import Session
 
+    from airflow.models.asset import AssetWatcherModel
     from airflow.models.dag import DagModel
     from airflow.models.taskinstance import TaskInstance
     from airflow.serialization.definitions.assets import (
@@ -230,6 +231,7 @@ class AssetManager(LoggingMixin):
         api_allow_consumer_teams: list[str] | None = None,
         api_allow_global_consumers: bool = True,
         callback_sink: list[Callable[[], None]] | None = None,
+        source_asset_watcher: AssetWatcherModel | None = None,
         **kwargs,
     ) -> AssetEvent | None:
         """
@@ -257,6 +259,7 @@ class AssetManager(LoggingMixin):
             API-triggered event. Only used when source_is_api=True. Defaults to True.
         :param callback_sink: If specified, registration callbacks are added
             into the list instead of executed inline.
+        :param source_asset_watcher: The asset watcher whose trigger emitted the event, if any.
         """
         from airflow.models.dag import DagModel
 
@@ -364,7 +367,13 @@ class AssetManager(LoggingMixin):
             source_aliases=[aam.to_serialized() for aam in asset_alias_models],
             partition_key=partition_key,
             partition_date=partition_date,
+            id=asset_event.id,
+            timestamp=asset_event.timestamp,
+            asset_id=asset_model.id,
         )
+        if source_asset_watcher is not None:
+            listener_asset_event.source_watcher_name = source_asset_watcher.name
+            listener_asset_event.source_trigger_classpath = source_asset_watcher.trigger.classpath
         if callback_sink is None:
             cls.notify_asset_changed(asset=asset)
             cls.nofity_asset_event_emitted(asset_event=listener_asset_event)
