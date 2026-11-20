@@ -672,17 +672,20 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         )
         return session.scalar(query) is not None
 
-    def _defer_tis_to_triggerer(self, task_instances: Collection[TI], *, session: Session) -> None:
+    def _defer_tis_to_triggerer(self, task_instances: Collection[TI], *, session: Session) -> int:
         """
         Defer the selected TIs whose task has ``start_from_trigger`` to the triggerer.
 
         This runs in the critical section, so a TI that fails to defer is logged and stays SCHEDULED
         instead of failing the critical section for every Dag.
 
+        :return: Number of TIs deferred.
+
         :meta private:
         """
         if not task_instances:
-            return
+            return 0
+        num_deferred = 0
         serialized_dags: dict[tuple[str, str], SerializedDAG | None] = {}
         team_names = (
             self._get_team_names_for_dag_ids({ti.dag_id for ti in task_instances}, session)
@@ -713,10 +716,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     task_instance.defer_task(
                         team_name=team_names.get(task_instance.dag_id, NOTSET), session=session
                     )
+                    num_deferred += 1
             except DBAPIError:
                 raise
             except Exception:
                 self.log.exception("Failed to defer %s to the triggerer, it stays scheduled", task_instance)
+        return num_deferred
 
     def _task_concurrency_allows_execution(
         self,
@@ -861,6 +866,21 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         max_tis_to_queue: int | None = None,
         session: Session,
     ) -> list[TI]:
+        """Return the TIs that ``_select_task_instances_to_queue_or_defer`` moved to QUEUED state."""
+        queued_tis, _ = self._select_task_instances_to_queue_or_defer(
+            max_tis, pools, starved_pools, max_tis_to_queue=max_tis_to_queue, session=session
+        )
+        return queued_tis
+
+    def _select_task_instances_to_queue_or_defer(
+        self,
+        max_tis: int,
+        pools: dict[str, PoolStats],
+        starved_pools: set[str],
+        *,
+        max_tis_to_queue: int | None = None,
+        session: Session,
+    ) -> tuple[list[TI], int]:
         """
         Select SCHEDULED TIs that can run given pool and concurrency constraints, and mark them QUEUED.
 
@@ -876,7 +896,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         :param pools: Current pool utilisation as returned by ``Pool.slots_stats``.
         :param starved_pools: Pools that are already at capacity; TIs in these pools are skipped.
         :param session: SQLAlchemy session (must remain open until the caller commits).
-        :return: TIs that were moved to QUEUED state.
+        :return: TIs that were moved to QUEUED state, and the number of TIs deferred to the triggerer.
         """
         from airflow.models.pool import Pool
 
@@ -1192,9 +1212,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         stats.gauge("scheduler.tasks.starving", num_starving_tasks_total)
         stats.gauge("scheduler.tasks.executable", len(executable_tis))
 
-        self._defer_tis_to_triggerer(tis_to_defer, session=session)
+        num_deferred_tis = self._defer_tis_to_triggerer(tis_to_defer, session=session)
 
-        return self._mark_task_instances_queued(executable_tis, session=session)
+        return self._mark_task_instances_queued(executable_tis, session=session), num_deferred_tis
 
     def _build_schedulable_tis_query(
         self,
@@ -1481,7 +1501,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             )
             executor.queue_workload(workload, session=session)
 
-    def _critical_section_enqueue_task_instances(self, session: Session) -> int:
+    def _critical_section_enqueue_task_instances(
+        self, session: Session, *, has_tis_to_defer: bool | None = None
+    ) -> int:
         """
         Enqueues TaskInstances for execution.
 
@@ -1499,6 +1521,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         the lock before continuing.
 
         :param session:
+        :param has_tis_to_defer: Whether a TI waits to be deferred to the triggerer, when the caller
+            already checked it; checked here when needed otherwise.
         :return: Number of task instance with state changed.
         """
         # The user can either request a certain number of tis to schedule per main scheduler loop (default
@@ -1515,8 +1539,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             max_tis_to_queue = 0
         # TIs deferred to the triggerer take no executor slot. When executor slots limit the selection, select
         # past them only if such TIs exist, so the critical section does no extra work otherwise.
-        if max_tis_to_queue < max_tis and not self._has_tis_to_defer(session=session):
-            max_tis = max_tis_to_queue
+        if max_tis_to_queue < max_tis:
+            if has_tis_to_defer is None:
+                has_tis_to_defer = self._has_tis_to_defer(session=session)
+            if not has_tis_to_defer:
+                max_tis = max_tis_to_queue
         if max_tis <= 0:
             self.log.debug("max_tis query size is less than or equal to zero. No query will be performed!")
             return 0
@@ -1524,7 +1551,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         pools, max_tis, starved_pools = self._acquire_pool_capacity(max_tis, session=session)
         if max_tis == 0:
             return 0
-        queued_tis = self._select_task_instances_to_queue(
+        queued_tis, num_deferred_tis = self._select_task_instances_to_queue_or_defer(
             max_tis, pools, starved_pools, max_tis_to_queue=max_tis_to_queue, session=session
         )
 
@@ -1539,7 +1566,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
             self._enqueue_task_instances_with_queued_state(queued_tis_per_executor, executor, session=session)
 
-        return len(queued_tis)
+        return len(queued_tis) + num_deferred_tis
 
     def _enqueue_executor_callbacks(self, session: Session) -> None:
         """
@@ -2413,7 +2440,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
           See docs of _critical_section_enqueue_task_instances for more.
 
-        :return: Number of TIs enqueued in this iteration
+        :return: Number of TIs enqueued or deferred to the triggerer in this iteration
         """
         # Put a check in place to make sure we don't commit unexpectedly
         with prohibit_commit(session) as guard:
@@ -2461,7 +2488,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             # Attempt to schedule even if some executors are full but not all.
             total_free_executor_slots = sum([executor.slots_available for executor in self.executors])
             # TIs deferred to the triggerer need no executor slot, so they still need the critical section.
-            if total_free_executor_slots <= 0 and not self._has_tis_to_defer(session=session):
+            has_tis_to_defer = (
+                self._has_tis_to_defer(session=session) if total_free_executor_slots <= 0 else None
+            )
+            if total_free_executor_slots <= 0 and not has_tis_to_defer:
                 # We know we can't do anything here, so don't even try!
                 self.log.debug("All executors are full, skipping critical section")
                 num_queued_tis = 0
@@ -2471,7 +2501,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     timer.start()
 
                     # Find any TIs in state SCHEDULED, try to QUEUE them (send it to the executors)
-                    num_queued_tis = self._critical_section_enqueue_task_instances(session=session)
+                    num_queued_tis = self._critical_section_enqueue_task_instances(
+                        session=session, has_tis_to_defer=has_tis_to_defer
+                    )
 
                     # Make sure we only sent this metric if we obtained the lock, otherwise we'll skew the
                     # metric, way down

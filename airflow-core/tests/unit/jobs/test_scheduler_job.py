@@ -2595,7 +2595,7 @@ class TestSchedulerJob:
             executor.slots_available = 0
             executor.slots_occupied = self.job_runner._parallelism
 
-        assert self.job_runner._do_scheduling(session) == 0
+        assert self.job_runner._do_scheduling(session) == 1
 
         states = session.execute(
             select(TaskInstance.task_id, TaskInstance.state).where(
