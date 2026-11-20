@@ -49,7 +49,7 @@ from airflow.providers.google.cloud.operators.gen_ai import (
 )
 
 from system.google.cloud.gen_ai import llm_models
-from system.google.cloud.vertex_ai.endpoint_helpers import undeploy_models_and_delete_endpoint
+from system.google.cloud.vertex_ai.helpers import undeploy_models_and_delete_endpoint
 
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
 DAG_ID = "gen_ai_generative_model_tuning_dag"
