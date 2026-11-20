@@ -977,8 +977,8 @@ class TestAwsAuthManager:
     def test_serialize_user(self, auth_manager, test_user):
         result = auth_manager.serialize_user(test_user)
         assert result == {
-            "sub": test_user.get_id(),
-            "groups": test_user.get_groups(),
-            "username": test_user.username,
-            "email": test_user.email,
+            "sub": "test_user_id",
+            "groups": [],
+            "username": "test_username",
+            "email": None,
         }
