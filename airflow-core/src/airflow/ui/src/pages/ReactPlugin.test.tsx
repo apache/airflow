@@ -17,7 +17,9 @@
  * under the License.
  */
 import "@testing-library/jest-dom/vitest";
-import { render } from "@testing-library/react";
+import { useEffect } from "react";
+
+import { render, screen } from "@testing-library/react";
 import type * as ReactRouterDom from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -237,5 +239,49 @@ describe("ReactPlugin loading fallback", () => {
     const { container } = render(<ReactPlugin reactApp={loading("base")} />, { wrapper: Wrapper });
 
     expect(container.querySelector(".chakra-spinner")).not.toBeInTheDocument();
+  });
+});
+
+const throwPluginError = () => {
+  throw new Error("plugin bug");
+};
+
+const ThrowsWhileRendering = () => throwPluginError();
+
+const ThrowsInEffect = () => {
+  useEffect(throwPluginError, []);
+
+  return <p>Plugin content</p>;
+};
+
+describe("ReactPlugin failures", () => {
+  afterEach(() => {
+    (globalThis as Record<string, unknown>)[reactApp.name] = undefined;
+  });
+
+  it.each([
+    ["while rendering", ThrowsWhileRendering],
+    ["in an effect", ThrowsInEffect],
+  ])("keeps the page and renders nothing when a plugin throws %s", (_when, component) => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    (globalThis as Record<string, unknown>)[reactApp.name] = component;
+
+    const { container } = render(
+      <>
+        <p>Page content</p>
+        <ReactPlugin reactApp={reactApp} />
+      </>,
+      { wrapper: Wrapper },
+    );
+
+    expect(screen.getByText("Page content")).toBeInTheDocument();
+    expect(screen.queryByText("Plugin content")).not.toBeInTheDocument();
+    expect(container).toHaveTextContent(/^Page content$/u);
+    expect(consoleError).toHaveBeenCalledWith(
+      `Plugin "${reactApp.name}" failed to render`,
+      expect.any(Error),
+      expect.any(String),
+    );
   });
 });
