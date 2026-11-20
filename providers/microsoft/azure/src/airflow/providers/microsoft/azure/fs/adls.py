@@ -36,7 +36,7 @@ def _bare_account_name_from_host(host: str | None) -> str | None:
 
     A bare host such as ``mystorageaccount`` is the ADLS account name itself. A full host
     like ``mystorageaccount.dfs.core.windows.net`` (or anything with a scheme, port or path)
-    is an endpoint and should keep the ``account_url`` handling instead.
+    is an endpoint and goes through the account-URL derivation instead.
     """
     if not host:
         return None
@@ -77,8 +77,14 @@ def get_fs(conn_id: str | None, storage_options: dict[str, Any] | None = None) -
         # is the storage account name rather than part of an account URL.
         options["account_name"] = account_name
     elif conn_type != "adls" or conn.host or not tenant_id:
-        # WASB, full-URL, and custom-endpoint connections keep the historical account_url path.
-        options["account_url"] = parse_blob_account_url(conn.host, conn.login)
+        # WASB, full-URL, and custom-endpoint connections: derive the account name (and a
+        # non-default host) from the account URL instead of passing ``account_url`` itself,
+        # which adlfs ignores.
+        account_url = urlparse(parse_blob_account_url(conn.host, conn.login))
+        account_name = account_url.netloc.split(".")[0]
+        options["account_name"] = account_name
+        if account_url.netloc != f"{account_name}.blob.core.windows.net":
+            options["account_host"] = account_url.netloc
     # Otherwise (adls + no host + a tenant_id) no account is set here: adlfs needs it from
     # ``account_name`` in Extra or the AZURE_STORAGE_ACCOUNT_NAME environment variable.
 

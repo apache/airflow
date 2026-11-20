@@ -35,7 +35,7 @@ pytestmark = pytest.mark.db_test
 
 @pytest.fixture
 def mocked_blob_file_system():
-    with mock.patch("adlfs.AzureBlobFileSystem") as m:
+    with mock.patch("adlfs.AzureBlobFileSystem", autospec=True) as m:
         yield m
 
 
@@ -49,7 +49,7 @@ def mocked_blob_file_system():
                 host="testaccountname.blob.core.windows.net",
             ),
             {
-                "account_url": "https://testaccountname.blob.core.windows.net",
+                "account_name": "testaccountname",
             },
         ),
         (
@@ -59,7 +59,7 @@ def mocked_blob_file_system():
                 login="testaccountname",
             ),
             {
-                "account_url": "https://testaccountname.blob.core.windows.net/",
+                "account_name": "testaccountname",
             },
         ),
         (
@@ -96,10 +96,9 @@ def mocked_blob_file_system():
                 },
             ),
             {
-                "account_url": "https://testaccountname.blob.core.windows.net/",
-                "account_name": "account_name",
                 "client_id": "testaccountname",
                 "client_secret": "password",
+                "account_name": "account_name",
                 "account_key": "account_key",
                 "sas_token": "sas_token",
                 "tenant_id": "tenant_id",
@@ -118,7 +117,7 @@ def mocked_blob_file_system():
                 extra={},
             ),
             {
-                "account_url": "https://testaccountname.blob.core.windows.net/",
+                "account_name": "testaccountname",
                 "account_key": "password",
             },
         ),
@@ -134,7 +133,7 @@ def mocked_blob_file_system():
                 },
             ),
             {
-                "account_url": "https://testaccountname.blob.core.windows.net/",
+                "account_name": "testaccountname",
                 "account_host": "mystorageaccount.blob.core.mydomain.io",
                 "account_key": "password",
             },
@@ -273,3 +272,79 @@ def test_get_fs(mocked_connection, expected_options, mocked_blob_file_system):
 )
 def test_bare_account_name_from_host(host, expected):
     assert _bare_account_name_from_host(host) == expected
+
+
+@pytest.mark.parametrize(
+    ("mocked_connection", "storage_options", "expected_options"),
+    [
+        pytest.param(
+            Connection(
+                conn_id="testconn",
+                conn_type="wasb",
+                login="testaccountname",
+                password="password",
+            ),
+            None,
+            {"account_name": "testaccountname", "account_key": "password"},
+            id="wasb-account-key",
+        ),
+        pytest.param(
+            Connection(
+                conn_id="testconn",
+                conn_type="azure_data_lake",
+                host="https://testaccountname.blob.core.windows.net/",
+                password="password",
+            ),
+            None,
+            {"account_name": "testaccountname", "account_key": "password"},
+            id="full-url-host",
+        ),
+        pytest.param(
+            Connection(
+                conn_id="testconn",
+                conn_type="azure_data_lake",
+                host="https://testaccountname.blob.core.mydomain.io/",
+                password="password",
+            ),
+            None,
+            {
+                "account_name": "testaccountname",
+                "account_host": "testaccountname.blob.core.mydomain.io",
+                "account_key": "password",
+            },
+            id="full-url-custom-host",
+        ),
+        pytest.param(
+            Connection(
+                conn_id="testconn",
+                conn_type="wasb",
+                host="https://testaccountname.blob.core.mydomain.io/",
+                password="password",
+                extra={
+                    "account_name": "extraaccount",
+                    "account_key": "extra_key",
+                    "account_host": "extraaccount.blob.core.mydomain.io",
+                },
+            ),
+            {
+                "account_name": "overrideaccount",
+                "account_key": "override_key",
+                "account_host": "overrideaccount.blob.core.mydomain.io",
+            },
+            {
+                "account_name": "overrideaccount",
+                "account_key": "override_key",
+                "account_host": "overrideaccount.blob.core.mydomain.io",
+            },
+            id="storage-options-override",
+        ),
+    ],
+    indirect=["mocked_connection"],
+)
+@mock.patch("adlfs.AzureBlobFileSystem", autospec=True)
+def test_get_fs_account_information(
+    mocked_blob_file_system, mocked_connection, storage_options, expected_options
+):
+    get_fs(mocked_connection.conn_id, storage_options=storage_options)
+
+    mocked_blob_file_system.assert_called_once_with(**expected_options)
