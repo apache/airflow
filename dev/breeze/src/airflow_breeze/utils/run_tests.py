@@ -314,18 +314,36 @@ def are_all_test_paths_excluded(
     return all(is_path_under_any(p, excluded_or_suspended) for p in test_dir_paths)
 
 
+PUBLIC_API_TEST_FOLDER = "airflow-core/tests/unit/api_fastapi/core_api/routes/public"
+CLI_TASK_TEST_FILE = "airflow-core/tests/unit/cli/commands/test_task_command.py"
+MODELS_TI_TEST_FILES = [
+    "airflow-core/tests/unit/models/test_cleartasks.py",
+    "airflow-core/tests/unit/models/test_mappedoperator.py",
+    "airflow-core/tests/unit/models/test_taskinstance.py",
+]
+
 TEST_TYPE_CORE_MAP_TO_PYTEST_ARGS: dict[str, list[str]] = {
     "Always": ["airflow-core/tests/unit/always"],
-    "API": ["airflow-core/tests/unit/api", "airflow-core/tests/unit/api_fastapi"],
-    "CLI": ["airflow-core/tests/unit/cli"],
+    "API": [
+        "airflow-core/tests/unit/api",
+        "airflow-core/tests/unit/api_fastapi",
+        f"--ignore={PUBLIC_API_TEST_FOLDER}",
+    ],
+    "PublicAPI": [PUBLIC_API_TEST_FOLDER],
+    "CLI": ["airflow-core/tests/unit/cli", f"--ignore={CLI_TASK_TEST_FILE}"],
+    "CLITask": [CLI_TASK_TEST_FILE],
     "Core": [
         "airflow-core/tests/unit/core",
         "airflow-core/tests/unit/executors",
         "airflow-core/tests/unit/jobs",
-        "airflow-core/tests/unit/models",
         "airflow-core/tests/unit/ti_deps",
         "airflow-core/tests/unit/utils",
     ],
+    "Models": [
+        "airflow-core/tests/unit/models",
+        *(f"--ignore={test_file}" for test_file in MODELS_TI_TEST_FILES),
+    ],
+    "ModelsTI": MODELS_TI_TEST_FILES,
     "Integration": ["airflow-core/tests/integration"],
     "Serialization": [
         "airflow-core/tests/unit/serialization",
@@ -690,4 +708,15 @@ def convert_parallel_types_to_folders(test_group: GroupOfTests, parallel_test_ty
         )
     all_test_prefixes = get_all_test_group_folders()
     # leave only folders, strip --pytest-args that exclude some folders with `-` prefix
-    return [arg for arg in args if any(arg.startswith(prefix) for prefix in all_test_prefixes)]
+    folders = [arg for arg in args if any(arg.startswith(prefix) for prefix in all_test_prefixes)]
+    ignores = [
+        arg for arg in args if arg.startswith("--ignore=") and arg.removeprefix("--ignore=") not in folders
+    ]
+    return [
+        *(
+            folder
+            for folder in folders
+            if not any(folder != other and folder.startswith(f"{other}/") for other in folders)
+        ),
+        *ignores,
+    ]
