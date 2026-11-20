@@ -27,6 +27,8 @@ from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.models.base import Base, StringID
 from airflow.utils.sqlalchemy import UtcDateTime
 
+IMPORT_ERROR_FILENAME_MAX_LENGTH = 1024
+
 
 class ParseImportError(Base):
     """Stores all Import Errors which are recorded when parsing DAGs and displayed on the Webserver."""
@@ -34,7 +36,7 @@ class ParseImportError(Base):
     __tablename__ = "import_error"
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     timestamp: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
-    filename: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+    filename: Mapped[str | None] = mapped_column(String(IMPORT_ERROR_FILENAME_MAX_LENGTH), nullable=True)
     source_reference: Mapped[str | None] = mapped_column(String(2000), nullable=True)
     bundle_name: Mapped[str | None] = mapped_column(StringID(), nullable=True)
     stacktrace: Mapped[str | None] = mapped_column(Text, nullable=True)

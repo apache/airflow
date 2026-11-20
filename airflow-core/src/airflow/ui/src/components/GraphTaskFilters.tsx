@@ -90,7 +90,7 @@ export const GraphTaskFilters = () => {
   };
 
   const handleNumberChange =
-    (key: string, condition: (n: number) => boolean) => (details: NumberInputValueChangeDetails) => {
+    (key: string, condition: (value: number) => boolean) => (details: NumberInputValueChangeDetails) => {
       setSearchParams(
         (prev) => {
           const next = new URLSearchParams(prev);

@@ -23,7 +23,7 @@ from typing import Annotated
 
 from fastapi import Depends, HTTPException, Query, status
 from sqlalchemy import and_, false, func, literal, select, union_all
-from sqlalchemy.orm import defaultload
+from sqlalchemy.orm import aliased, defaultload
 
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
 from airflow.api_fastapi.common.asset_expression import redact_asset_expression
@@ -88,11 +88,11 @@ from airflow.api_fastapi.core_api.services.public.task_coordinates import TaskCo
 from airflow.configuration import conf
 from airflow.models import DagModel, DagRun
 from airflow.models.dag_favorite import DagFavorite
-from airflow.models.hitl import HITLDetail
+from airflow.models.hitl import HITLDetail, awaiting_response_clause
 from airflow.models.renderedtifields import load_legacy_rendered_fields
 from airflow.models.task_coordinates import TaskCoordinateResolver
 from airflow.models.taskinstance import TaskInstance
-from airflow.utils.state import DagRunState, State, TaskInstanceState
+from airflow.utils.state import DagRunState, State
 
 dags_router = AirflowRouter(prefix="/dags", tags=["DAG"])
 
@@ -285,10 +285,7 @@ def get_dags(
             .options(
                 defaultload(HITLDetail.task_instance).joinedload(TaskInstance.rendered_task_instance_fields)
             )
-            .where(
-                HITLDetail.responded_at.is_(None),
-                TaskInstance.state.in_((TaskInstanceState.DEFERRED, TaskInstanceState.AWAITING_INPUT)),
-            )
+            .where(HITLDetail.responded_at.is_(None), awaiting_response_clause())
             .where(TaskInstance.dag_id.in_([dag.dag_id for dag in dags]))
             .order_by(TaskInstance.dag_id)
         )
@@ -444,21 +441,27 @@ def get_latest_run_info(dag_id: str, session: SessionDep) -> DAGRunLightResponse
             "`~` was supplied as dag_id, but querying multiple dags is not supported.",
         )
 
-    latest_run_info_select = (
-        select(
-            DagRun.id,
-            DagRun.dag_id,
-            DagRun.run_id,
-            DagRun.end_date,
-            DagRun.logical_date,
-            DagRun.run_after,
-            DagRun.start_date,
-            DagRun.state,
-        )
-        .where(DagRun.dag_id == dag_id)
-        .order_by(DagRun.run_after.desc())
+    # Correlated through the Dag row rather than filtered on the literal dag_id: with a literal,
+    # Postgres can pick idx_dag_run_run_after for a Dag with many runs and, if those runs are
+    # old, scan most of dag_run instead of using idx_dag_run_dag_id_run_after.
+    latest_run = aliased(DagRun)
+    latest_run_id = (
+        select(latest_run.id)
+        .where(latest_run.dag_id == DagModel.dag_id)
+        .order_by(latest_run.run_after.desc())
         .limit(1)
+        .scalar_subquery()
     )
+    latest_run_info_select = select(
+        DagRun.id,
+        DagRun.dag_id,
+        DagRun.run_id,
+        DagRun.end_date,
+        DagRun.logical_date,
+        DagRun.run_after,
+        DagRun.start_date,
+        DagRun.state,
+    ).where(DagRun.id == select(latest_run_id).where(DagModel.dag_id == dag_id).scalar_subquery())
     latest_run_info = session.execute(latest_run_info_select).one_or_none()
 
     return DAGRunLightResponse(**latest_run_info._mapping) if latest_run_info else None

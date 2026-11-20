@@ -30,6 +30,7 @@ permissions:
 jobs:
   upgrade-main:
     name: "[main] Upgrade"
+    if: github.event_name != 'schedule' || github.repository == 'apache/airflow'
     uses: ./.github/workflows/upgrade-check.yml
     with:
       target-branch: main

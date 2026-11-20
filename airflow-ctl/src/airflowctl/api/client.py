@@ -33,7 +33,7 @@ import httpx
 import keyring
 import structlog
 from httpx import URL
-from keyring.errors import NoKeyringError
+from keyring.errors import KeyringError, NoKeyringError
 from tenacity import (
     before_sleep_log,
     retry,
@@ -198,6 +198,10 @@ def _read_api_url(path: str) -> str:
     return api_url
 
 
+def _is_token_in_keyring(path: str) -> bool:
+    return _read_cli_config(path).get("token_in_keyring") is not False
+
+
 # Credentials for the API
 class Credentials:
     """Credentials for the API."""
@@ -235,29 +239,37 @@ class Credentials:
         """Build the keyring/debug token key for a given environment name."""
         return f"api_token_{api_environment}"
 
-    def save(self, skip_keyring: bool = False):
+    def save(self, skip_keyring: bool = False) -> bool:
         """
         Save the credentials to keyring and URL to disk as a file.
 
-        Skip saving the token to keyring if skip_keyring is True, in this case,
-        only the config file with the API URL is created.
+        Skip saving the token to keyring if skip_keyring is True.
+        Return whether the token was stored, which debug mode does even with skip_keyring.
+
+        The debug credentials file of an earlier login is removed first, and the
+        config file records that the token is not in keyring until
+        keyring.set_password succeeds. So a later command never reads a token
+        that this login did not store.
         """
         default_config_dir = os.environ.get("AIRFLOW_HOME", os.path.expanduser("~/airflow"))
         os.makedirs(default_config_dir, exist_ok=True)
         config_path = _safe_path_under_airflow_home(default_config_dir, self.input_cli_config_file)
+        debug_mode = os.getenv("AIRFLOW_CLI_DEBUG_MODE") == "true"
+        debug_path = _safe_path_under_airflow_home(
+            default_config_dir, f"debug_creds_{self.input_cli_config_file}"
+        )
+        with contextlib.suppress(FileNotFoundError):
+            os.remove(debug_path)
         with open(config_path, "w") as f:
-            json.dump({"api_url": self.api_url}, f)
+            json.dump({"api_url": self.api_url, "token_in_keyring": False}, f)
 
         try:
-            if os.getenv("AIRFLOW_CLI_DEBUG_MODE") == "true":
-                debug_path = _safe_path_under_airflow_home(
-                    default_config_dir, f"debug_creds_{self.input_cli_config_file}"
-                )
+            if debug_mode:
                 with open(debug_path, "w") as f:
                     json.dump({self.token_key_for_environment(self.api_environment): self.api_token}, f)
             else:
                 if skip_keyring:
-                    return
+                    return False
                 # Replace the upstream EncryptedKeyring's unbounded password
                 # prompt with a bounded one before set_password can trigger it.
                 # The active backend may be a ChainerBackend that delegates to
@@ -274,6 +286,8 @@ class Credentials:
                     self.token_key_for_environment(self.api_environment),
                     self.api_token,
                 )
+                with open(config_path, "w") as f:
+                    json.dump({"api_url": self.api_url}, f)
         except (NoKeyringError, NotImplementedError) as e:
             log.error(e)
             raise AirflowCtlKeyringException(
@@ -283,6 +297,12 @@ class Credentials:
                 "the --api-token flag to any command.\n"
                 "Use `airflowctl auth login --skip-keyring ...` to dismiss this error."
             ) from e
+        except (KeyringError, ValueError) as e:
+            # A wrong EncryptedKeyring password raises ValueError.
+            raise AirflowCtlKeyringException(
+                f"Cannot save credentials to the keyring: {str(e) or type(e).__name__}"
+            ) from e
+        return True
 
     def load(self) -> Credentials:
         """Load the credentials from keyring and URL from disk file."""
@@ -290,7 +310,8 @@ class Credentials:
         config_path = _safe_path_under_airflow_home(default_config_dir, self.input_cli_config_file)
         try:
             self.api_url = _read_api_url(config_path)
-            if self.client_kind == ClientKind.NO_AUTH:
+            # Neither kind sends a token, so a locked or missing keyring must not block them.
+            if self.client_kind in (ClientKind.AUTH, ClientKind.NO_AUTH):
                 return self
             if self.api_token is not None:
                 return self
@@ -310,7 +331,7 @@ class Credentials:
                             "Set AIRFLOW_CLI_DEBUG_MODE=false or log in with debug mode enabled first."
                         ) from e
                     self.api_token = None
-            else:
+            elif _is_token_in_keyring(config_path):
                 try:
                     self.api_token = keyring.get_password(
                         "airflowctl", self.token_key_for_environment(self.api_environment)
@@ -426,7 +447,7 @@ class Client(httpx.Client):
         **kwargs: Any,
     ) -> None:
         auth: httpx.Auth | None = None
-        if kind != ClientKind.NO_AUTH:
+        if kind == ClientKind.CLI:
             auth = BearerAuth(token)
         kwargs["base_url"] = self._get_base_url(base_url=base_url, kind=kind)
         # Connect stays short so an unreachable host fails fast; the rest is generous because

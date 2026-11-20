@@ -267,9 +267,15 @@ def _supervisor_comms() -> CommsDecoder[ToTask, ToSupervisor] | None:
     Every process that sets ``SUPERVISOR_COMMS`` has already imported ``task_runner``, so it is read
     from ``sys.modules`` rather than imported: importing it here would load the whole task runtime
     into every other process (CLI, scheduler, API server) that masks a config value at startup.
+    Asked through ``task_runner.get_supervisor_comms()``, which also answers ``None`` where the comms
+    are hidden.
     """
     task_runner = sys.modules.get("airflow.sdk.execution_time.task_runner")
-    return getattr(task_runner, "SUPERVISOR_COMMS", None)
+    # ``task_runner`` may still be importing and not define the function yet.
+    get_supervisor_comms = getattr(task_runner, "get_supervisor_comms", None)
+    if get_supervisor_comms is None:
+        return None
+    return get_supervisor_comms()
 
 
 def mask_secret(secret: JsonValue, name: str | None = None) -> None:

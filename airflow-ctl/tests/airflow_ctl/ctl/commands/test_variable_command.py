@@ -193,3 +193,48 @@ class TestCliVariableCommands:
                 self.parser.parse_args(["variables", "import", expected_json_path.as_posix()]),
                 api_client=api_client,
             )
+
+    def test_print_file_error_containing_markup(self, capsys):
+        variable_command._print_file_error("Missing variable file", "/tmp/[/x]/vars.json")
+        output = capsys.readouterr().out
+        assert "/tmp/[/x]/vars.json" in output
+
+    def test_import_success_prints_variable_keys_containing_markup(self, tmp_path, monkeypatch, capsys):
+        bulk_response = BulkResponse(
+            create=BulkActionResponse(success=["key_[/x]"], errors=[]), update=None, delete=None
+        )
+        api_client = SimpleNamespace(variables=SimpleNamespace(bulk=lambda variables: bulk_response))
+        monkeypatch.chdir(tmp_path)
+        expected_json_path = tmp_path / self.export_file_name
+        expected_json_path.write_text(json.dumps({"key_[/x]": "value"}))
+
+        response = variable_command.import_(
+            self.parser.parse_args(["variables", "import", expected_json_path.as_posix()]),
+            api_client=api_client,
+        )
+        assert response == ["key_[/x]"]
+        output = capsys.readouterr().out
+        assert "key_[/x]" in output
+
+    def test_import_error_containing_markup(self, tmp_path, monkeypatch, capsys):
+        bulk_response = BulkResponse(
+            create=BulkActionResponse(
+                success=[],
+                errors=[{"error": "Failed for [/x] key", "status_code": 400}],
+            ),
+            update=None,
+            delete=None,
+        )
+        api_client = SimpleNamespace(variables=SimpleNamespace(bulk=lambda variables: bulk_response))
+        monkeypatch.chdir(tmp_path)
+        expected_json_path = tmp_path / self.export_file_name
+        expected_json_path.write_text(json.dumps({self.key: self.value}))
+
+        with pytest.raises(SystemExit) as exit_info:
+            variable_command.import_(
+                self.parser.parse_args(["variables", "import", expected_json_path.as_posix()]),
+                api_client=api_client,
+            )
+        assert exit_info.value.code == 1
+        output = capsys.readouterr().out
+        assert "[/x]" in output

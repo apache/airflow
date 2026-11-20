@@ -31,15 +31,23 @@ import { routerConfig, taskInstanceRoutes } from "src/router";
 // Links address the current execution at these coordinates; a try_number would pin the page to one attempt.
 export const getTaskInstanceLink = (
   tiOrParams:
-    | Pick<
-        TaskInstanceResponse,
-        "dag_id" | "dag_run_id" | "map_index" | "region_id" | "region_index" | "task_id"
-      >
+    | TaskInstanceResponse
     | {
         dagId: string;
         dagRunId: string;
         mapIndex?: number;
         taskId: string;
+      }
+    | {
+        readonly dag_id: string;
+        readonly dag_run_id: string;
+        readonly map_index: number;
+        // Required when the task instance is described by hand: one inside a task loop can only be
+        // addressed with its region, so the caller passes undefined deliberately when there is none.
+        // A TaskInstanceResponse already carries its region, omitted only when it has none.
+        readonly region_id: string | undefined;
+        readonly region_index: number | undefined;
+        readonly task_id: string;
       },
   tab?: TaskInstanceTabValue,
 ): string => {

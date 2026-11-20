@@ -124,3 +124,24 @@ class TestLLMFileAnalysisDecoratedOperator:
         mock_agent.run_sync.assert_called_once_with(
             "prepared prompt", usage=ANY, usage_limits=None, cancellation_token=ANY
         )
+
+    @patch(
+        "airflow.providers.common.ai.operators.llm_file_analysis.LLMFileAnalysisOperator.execute",
+        autospec=True,
+    )
+    def test_execute_renders_only_the_returned_prompt(self, mock_execute):
+        """Fields rendered before execute() are not rendered again; only the returned prompt is."""
+        op = _LLMFileAnalysisDecoratedOperator(
+            task_id="test",
+            python_callable=lambda: "Summarize {{ topic }}",
+            llm_conn_id="my_llm",
+            system_prompt="{{ note }}",
+            file_path="/tmp/app.log",
+        )
+        context = {"topic": "logs", "note": "{{ other }}", "other": "rendered twice"}
+
+        op.render_template_fields(context)
+        op.execute(context=context)
+
+        assert op.prompt == "Summarize logs"
+        assert op.system_prompt == "{{ other }}"

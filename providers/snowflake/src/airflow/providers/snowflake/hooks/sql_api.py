@@ -59,6 +59,9 @@ class SnowflakeSqlApiHook(SnowflakeHook):
        ID and client secret. With ``azure_conn_id``, the token comes from that Azure connection instead.
     3. PAT (Programmatic Access Token): set ``authenticator`` to ``programmatic_access_token`` in the
        connection extras and put the PAT value in the connection ``password`` field.
+    4. Workload Identity Federation (WIF): when no private key is configured, set ``authenticator`` to
+       ``WORKLOAD_IDENTITY`` and ``workload_identity_provider`` to ``AWS``, ``AZURE``, ``GCP`` or
+       ``OIDC``. A configured private key takes precedence.
 
     :param snowflake_conn_id: Reference to
         :ref:`Snowflake connection id<howto/connection:snowflake>`
@@ -230,7 +233,7 @@ class SnowflakeSqlApiHook(SnowflakeHook):
         return self.query_ids
 
     def get_headers(self) -> dict[str, Any]:
-        """Form auth headers based on OAuth token, PAT, or JWT token from private key."""
+        """Form auth headers from an OAuth token, PAT, private-key JWT, or workload identity token."""
         if self._rest_token_provider is None:
             self._rest_token_provider = SnowflakeRestTokenProvider(
                 self,

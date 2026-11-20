@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import subprocess
+from contextlib import nullcontext
 from pathlib import Path
 from types import SimpleNamespace
 from unittest import mock
@@ -323,7 +324,7 @@ def test_get_package_version_possibly_from_stable_txt_for_ts_sdk(
     monkeypatch.setattr(global_constants, "AIRFLOW_ROOT_PATH", tmp_path)
     package_json = tmp_path / "ts-sdk" / "package.json"
     package_json.parent.mkdir(parents=True)
-    package_json.write_text('{"name": "apache-airflow-ts-sdk", "version": "0.2.0-alpha.1"}\n')
+    package_json.write_text('{"name": "@apache-airflow/ts-sdk", "version": "0.2.0-alpha.1"}\n')
     if stable_txt_content is not None:
         stable_txt = tmp_path / "generated" / "_build" / "docs" / "ts-sdk" / "stable.txt"
         stable_txt.parent.mkdir(parents=True)
@@ -394,7 +395,25 @@ def test_prepare_provider_distributions_skip_git_fetch(
     assert len(fetches) == expected_fetches
 
 
-def test_tag_providers_detects_push_remote_in_dry_run(monkeypatch, tmp_path):
+@pytest.mark.parametrize(
+    ("push_urls", "expected_remote"),
+    [
+        pytest.param({"upstream": "https://github.com/apache/airflow.git"}, "upstream", id="upstream"),
+        pytest.param({"upstream": "https://github.com/apache/airflow"}, "upstream", id="no-git-suffix"),
+        pytest.param(
+            {
+                "upstream": "https://github.com/someone/airflow.git",
+                "origin": "git@github.com:apache/airflow.git",
+            },
+            "origin",
+            id="falls-through-to-origin",
+        ),
+        pytest.param(
+            {"upstream": "https://github.com/myapache/airflow.git"}, None, id="no-apache-airflow-remote"
+        ),
+    ],
+)
+def test_tag_providers_detects_push_remote_in_dry_run(monkeypatch, tmp_path, push_urls, expected_remote):
     commands: list[list[str]] = []
 
     def fake_run_command(cmd, **kwargs):
@@ -402,8 +421,8 @@ def test_tag_providers_detects_push_remote_in_dry_run(monkeypatch, tmp_path):
         if cmd[:4] == ["git", "remote", "get-url", "--push"]:
             if shared_options.get_dry_run(kwargs.get("dry_run_override")):
                 return SimpleNamespace(returncode=0, stdout="")
-            if cmd[-1] == "upstream":
-                return SimpleNamespace(returncode=0, stdout="https://github.com/apache/airflow.git\n")
+            if cmd[-1] in push_urls:
+                return SimpleNamespace(returncode=0, stdout=f"{push_urls[cmd[-1]]}\n")
             raise subprocess.CalledProcessError(2, cmd)
         return SimpleNamespace(returncode=0, stdout="")
 
@@ -411,13 +430,21 @@ def test_tag_providers_detects_push_remote_in_dry_run(monkeypatch, tmp_path):
     monkeypatch.setattr(release_management_commands, "AIRFLOW_DIST_PATH", tmp_path)
     (tmp_path / "apache_airflow_providers_amazon-9.29.0-py3-none-any.whl").touch()
 
+    expectation = (
+        pytest.raises(ValueError, match="Could not find the remote")
+        if expected_remote is None
+        else nullcontext()
+    )
     shared_options.set_dry_run(True)
     try:
-        release_management_commands.tag_providers.callback(clean_tags=False, release_date="2026-08-06")
+        with expectation:
+            release_management_commands.tag_providers.callback(clean_tags=False, release_date="2026-08-06")
     finally:
         shared_options.set_dry_run(False)
 
-    assert ["git", "push", "upstream", "providers-amazon/9.29.0"] in commands
+    pushes = [cmd for cmd in commands if cmd[:2] == ["git", "push"]]
+    expected_pushes = [["git", "push", expected_remote, "providers-amazon/9.29.0"]] if expected_remote else []
+    assert pushes == expected_pushes
 
 
 DOCS_DESTINATION = "s3://staging-docs-airflow-apache-org/docs/"
@@ -484,3 +511,49 @@ def test_publish_docs_to_s3_rejects_invalid_options(
     mock_generate_packages_metadata.assert_not_called()
     mock_publish_all.assert_not_called()
     mock_publish_stable.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    ("slim_flag", "expected_constraints_mode"),
+    [
+        pytest.param([], None, id="regular-uses-dockerfile-default"),
+        pytest.param(["--slim-images"], "constraints-no-providers", id="slim-without-providers"),
+    ],
+)
+@mock.patch.object(release_management_commands, "check_docker_buildx_plugin", autospec=True)
+@mock.patch.object(release_management_commands, "perform_environment_checks", autospec=True)
+@mock.patch.object(release_management_commands, "check_remote_ghcr_io_commands", autospec=True)
+@mock.patch.object(release_management_commands, "check_airflow_cache_builder_configured", autospec=True)
+@mock.patch.object(release_management_commands, "run_command", autospec=True)
+def test_release_prod_images_constraints_mode(
+    mock_run_command,
+    mock_builder,
+    mock_ghcr,
+    mock_environment,
+    mock_buildx,
+    slim_flag,
+    expected_constraints_mode,
+    tmp_path,
+):
+    result = CliRunner().invoke(
+        release_management_commands.release_prod_images,
+        [
+            "--airflow-version",
+            "3.2.0",
+            "--python",
+            "3.12",
+            "--platform",
+            "linux/amd64",
+            "--metadata-folder",
+            str(tmp_path),
+            "--skip-latest",
+            *slim_flag,
+        ],
+        catch_exceptions=False,
+    )
+
+    assert result.exit_code == 0
+    command = mock_run_command.call_args.args[0]
+    build_args = dict(command[i + 1].split("=", 1) for i, arg in enumerate(command) if arg == "--build-arg")
+    assert build_args.get("AIRFLOW_CONSTRAINTS_MODE") == expected_constraints_mode
+    assert "AIRFLOW_CONSTRAINTS" not in build_args

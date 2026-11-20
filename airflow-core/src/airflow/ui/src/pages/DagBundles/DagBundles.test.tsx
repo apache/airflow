@@ -19,10 +19,12 @@
 import "@testing-library/jest-dom/vitest";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { server } from "src/mocks/server";
-import { AppWrapper } from "src/utils/AppWrapper";
+import { AppWrapper, preloadAppRoutes } from "src/utils/AppWrapper";
+
+beforeAll(() => preloadAppRoutes(["/dag_bundles"]));
 
 /** Requests the page has made to the bundles endpoint since the last reset. */
 let requestCount = 0;

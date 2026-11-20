@@ -205,7 +205,9 @@ class OpenAIResponseOperator(BaseOperator):
     only reflects the current attempt rather than a silently under-reported total across
     retries. With ``text_format`` set, both keys are pushed before the structured output is
     checked, so a response that then fails the task still records its id and token usage.
-    Both XCom pushes are skipped when ``do_xcom_push=False``.
+    The exception is output the SDK cannot parse, such as JSON cut off mid-object: it raises
+    before returning a response object, so there is no id or usage to push and neither key
+    is recorded. Both XCom pushes are skipped when ``do_xcom_push=False``.
     """
 
     template_fields: Sequence[str] = (
@@ -222,7 +224,7 @@ class OpenAIResponseOperator(BaseOperator):
         self,
         conn_id: str,
         input_text: str | list[Any],
-        model: str = "gpt-4o-mini",
+        model: str = "gpt-6-luna",
         response_kwargs: dict | None = None,
         *,
         max_output_tokens: int | str | None = None,

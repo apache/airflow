@@ -25,6 +25,7 @@ from keycloak import KeycloakAdmin, KeycloakError
 from keycloak.exceptions import KeycloakGetError, KeycloakPostError, raise_error_from_response
 
 from airflow.api_fastapi.auth.managers.base_auth_manager import ResourceMethod
+from airflow.api_fastapi.auth.managers.models.resource_details import AccessView
 from airflow.api_fastapi.common.types import MenuItem
 from airflow.providers.common.compat.sdk import conf
 from airflow.providers.keycloak.auth_manager.cli.utils import dry_run_message_wrap, dry_run_preview
@@ -64,11 +65,9 @@ TEAM_MENU_ITEMS = {
     MenuItem.ASSETS,
     MenuItem.DOCS,
 }
-# A Dag bundle is visible to whoever can read a Dag inside it, so this entry belongs with ``DAGS``
-# in the base team set rather than the admin one: every team role that can already reach the
-# bundles through the API should be able to find the page. Guarded because this provider also runs
-# against Airflow versions predating the menu item.
-if hasattr(MenuItem, "DAG_BUNDLES"):
+# Airflow 3.4.0 has the Dag bundles menu item but not its view, and shows the bundles to anyone who
+# can read a Dag in them, so there every team role keeps the menu entry.
+if hasattr(MenuItem, "DAG_BUNDLES") and not hasattr(AccessView, "DAG_BUNDLES"):
     TEAM_MENU_ITEMS.add(MenuItem.DAG_BUNDLES)
 TEAM_ADMIN_MENU_ITEMS = TEAM_MENU_ITEMS | {
     MenuItem.CONNECTIONS,

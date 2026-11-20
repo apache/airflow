@@ -97,7 +97,9 @@ def load_workflow(path):
 
 
 def summary_steps():
-    steps = load_workflow("workflows/finalize-tests.yml")["jobs"]["dependency-upgrade-summary"]["steps"]
+    steps = load_workflow("workflows/dependency-upgrade-summary.yml")["jobs"]["dependency-upgrade-summary"][
+        "steps"
+    ]
     return {step["name"]: step for step in steps}
 
 

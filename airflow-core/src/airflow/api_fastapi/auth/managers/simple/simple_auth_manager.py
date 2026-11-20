@@ -386,13 +386,15 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
     ) -> bool:
         # Views covering records that have no per-Dag key to authorize on are admin-only --
         # import errors for files with no registered Dag, audit log rows not tied to a Dag, and
-        # reparsing a file with no registered Dag. Every other view stays readable by viewers.
-        allow_role = (
-            SimpleAuthManagerRole.ADMIN
-            if access_view
-            in (AccessView.IMPORT_ERRORS_ALL, AccessView.AUDIT_LOGS_ALL, AccessView.REPARSE_ALL)
-            else SimpleAuthManagerRole.VIEWER
-        )
+        # reparsing a file with no registered Dag. Dag bundles show every file deployed, whatever
+        # Dags the caller may read, so they are left to operators. Every other view stays
+        # readable by viewers.
+        if access_view in (AccessView.IMPORT_ERRORS_ALL, AccessView.AUDIT_LOGS_ALL, AccessView.REPARSE_ALL):
+            allow_role = SimpleAuthManagerRole.ADMIN
+        elif access_view is AccessView.DAG_BUNDLES:
+            allow_role = SimpleAuthManagerRole.OP
+        else:
+            allow_role = SimpleAuthManagerRole.VIEWER
         return self._is_authorized(method="GET", allow_role=allow_role, user=user, team_name=team_name)
 
     def is_authorized_custom_view(

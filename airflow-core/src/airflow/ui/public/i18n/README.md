@@ -202,6 +202,12 @@ Remove unused entries for all locales:
 breeze ui check-translation-completeness --remove-unused
 ```
 
+Print the report as machine-readable JSON, e.g. for scripts or agents (stdout carries only the JSON document, so it can be piped straight to `jq`):
+
+```bash
+breeze ui check-translation-completeness --language <language_code> --json
+```
+
 ## Locale-specific guidance
 
 Before translating, read the locale-specific guide if one exists. Those files contain glossary and style choices
@@ -225,6 +231,7 @@ primarily intended for LLM-assisted translation work, but can also be used by hu
 | `nl`        | Dutch                   | [.agents/skills/airflow-translations/locales/nl.md](../../../../../../.agents/skills/airflow-translations/locales/nl.md)  |
 | `pl`        | Polish                  | [.agents/skills/airflow-translations/locales/pl.md](../../../../../../.agents/skills/airflow-translations/locales/pl.md)  |
 | `pt`        | Portuguese              | [.agents/skills/airflow-translations/locales/pt.md](../../../../../../.agents/skills/airflow-translations/locales/pt.md)  |
+| `ru`        | Russian                 | [.agents/skills/airflow-translations/locales/ru.md](../../../../../../.agents/skills/airflow-translations/locales/ru.md)  |
 | `th`        | Thai                    | [.agents/skills/airflow-translations/locales/th.md](../../../../../../.agents/skills/airflow-translations/locales/th.md)  |
 | `tr`        | Turkish                 | [.agents/skills/airflow-translations/locales/tr.md](../../../../../../.agents/skills/airflow-translations/locales/tr.md)  |
 | `zh-CN`     | Simplified Chinese      | [.agents/skills/airflow-translations/locales/zh-CN.md](../../../../../../.agents/skills/airflow-translations/locales/zh-CN.md) |

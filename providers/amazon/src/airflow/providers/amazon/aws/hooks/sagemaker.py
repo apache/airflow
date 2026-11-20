@@ -307,9 +307,39 @@ class SageMakerHook(AwsBaseHook):
         self.check_training_config(config)
 
         response = self.get_conn().create_training_job(**config)
+        self.wait_for_training_job(
+            config["TrainingJobName"],
+            wait_for_completion=wait_for_completion,
+            print_log=print_log,
+            check_interval=check_interval,
+            max_ingestion_time=max_ingestion_time,
+        )
+
+        return response
+
+    def wait_for_training_job(
+        self,
+        training_job_name: str,
+        wait_for_completion: bool = True,
+        print_log: bool = True,
+        check_interval: int = 30,
+        max_ingestion_time: int | None = None,
+    ) -> None:
+        """
+        Wait for a training job to reach a terminal state, optionally tailing its logs.
+
+        :param training_job_name: name of the training job to wait for
+        :param wait_for_completion: if the program should keep running until job finishes
+        :param print_log: if the CloudWatch logs of the job should be printed
+        :param check_interval: the time interval in seconds which the operator
+            will check the status of any SageMaker job
+        :param max_ingestion_time: the maximum ingestion time in seconds. Any
+            SageMaker jobs that run longer than this will fail. Setting this to
+            None implies no timeout for any SageMaker job.
+        """
         if print_log:
             self.check_training_status_with_log(
-                config["TrainingJobName"],
+                training_job_name,
                 self.non_terminal_states,
                 self.training_failed_states,
                 wait_for_completion,
@@ -318,7 +348,7 @@ class SageMakerHook(AwsBaseHook):
             )
         elif wait_for_completion:
             describe_response = self.check_status(
-                config["TrainingJobName"],
+                training_job_name,
                 "TrainingJobStatus",
                 self.describe_training_job,
                 check_interval,
@@ -331,8 +361,6 @@ class SageMakerHook(AwsBaseHook):
                 instance_count=describe_response["ResourceConfig"]["InstanceCount"],
             )
             self.log.info("Billable seconds: %d", billable_seconds)
-
-        return response
 
     def create_tuning_job(
         self,
@@ -561,6 +589,47 @@ class SageMakerHook(AwsBaseHook):
                 non_terminal_states=self.endpoint_non_terminal_states,
             )
         return response
+
+    def _stop_job(self, api_name: str, name_kwarg: str, job_kind: str, job_name: str) -> None:
+        """
+        Call a SageMaker ``stop_*`` API, tolerating a job that is no longer running.
+
+        :param api_name: name of the boto3 client method to call.
+        :param name_kwarg: name of the job-name keyword that method takes.
+        :param job_kind: job kind as it should read in the log message.
+        :param job_name: name of the job to stop.
+        """
+        try:
+            getattr(self.conn, api_name)(**{name_kwarg: job_name})
+        except ClientError as ce:
+            # SageMaker only accepts a stop for a job in InProgress; a ValidationException here means
+            # the job reached a terminal state (or never existed) before the stop landed.
+            if ce.response["Error"]["Code"] == "ValidationException":
+                self.log.warning("Could not stop %s job %s: %s", job_kind, job_name, ce)
+                return
+            raise
+
+    def stop_training_job(self, training_job_name: str) -> None:
+        """
+        Stop a running SageMaker training job.
+
+        .. seealso::
+            - :external+boto3:py:meth:`SageMaker.Client.stop_training_job`
+
+        :param training_job_name: name of the training job to stop.
+        """
+        self._stop_job("stop_training_job", "TrainingJobName", "training", training_job_name)
+
+    def stop_processing_job(self, processing_job_name: str) -> None:
+        """
+        Stop a running SageMaker processing job.
+
+        .. seealso::
+            - :external+boto3:py:meth:`SageMaker.Client.stop_processing_job`
+
+        :param processing_job_name: name of the processing job to stop.
+        """
+        self._stop_job("stop_processing_job", "ProcessingJobName", "processing", processing_job_name)
 
     def describe_training_job(self, name: str):
         """

@@ -379,15 +379,38 @@ retry behaviour with no change to the Dag. Two things follow:
 Separately, and regardless of this policy: if the connection **the task itself** uses to call
 the LLM (for example ``llm_conn_id`` on ``LLMOperator`` or ``AgentOperator``) carries a fallback
 chain, the exception the task raises once that chain is exhausted is
-``pydantic_ai.exceptions.FallbackExceptionGroup``, not the last provider's own exception.
-``RetryRule`` matches with ``isinstance``, so a rule written as
-``RetryRule(exception=ModelHTTPError, ...)`` -- in ``fallback_rules`` here or in a plain
-``ExceptionRetryPolicy`` -- stops matching. Match ``pydantic_ai.exceptions.FallbackExceptionGroup``
-explicitly as well; its only common ancestor with ``ModelAPIError`` is ``Exception``, too
-broad to write a rule against. The original per-model exceptions are still available on
-``FallbackExceptionGroup.exceptions``, but ``RetryRule`` only compares the top-level
-exception type, so a rule set that told 429s apart from 400s collapses into one rule once
-the chain is in play.
+:class:`~airflow.providers.common.ai.fallback_exceptions.FallbackChainExhaustedError`. It subclasses
+``pydantic_ai.exceptions.FallbackExceptionGroup``, so a rule or ``except`` clause written for the
+group keeps matching, and it is raised ``from`` the group the chain raised. The error each
+connection raised is in ``member_errors``, in chain order. This holds for the operators, their
+subclasses and the ``@task.llm`` and ``@task.agent`` decorators; a plain ``@task`` that runs an
+agent built with ``PydanticAIHook`` raises the bare ``FallbackExceptionGroup``, without
+``member_errors``, and the rules below apply to it the same way (see :doc:`provider_fallback`).
+
+``RetryRule`` still compares one exception type, so the policies here read the members for it:
+in ``fallback_rules``, each rule is tried against the chain's own error and then against the
+error of the **last** connection, rule by rule in the order listed. A rule written as
+``RetryRule(exception=ModelHTTPError, ...)`` therefore matches again, and a rule set that tells
+failures apart by exception type, such as retrying a rate-limit error but failing a bad-request
+error, keeps telling them apart. To separate those two, name ``ModelRateLimitError`` (from
+pydantic-ai-slim 2.59.0) and ``ModelRequestRejectedError`` (from 2.62.0) in the rules. This
+provider supports pydantic-ai-slim from 2.46.0. Before 2.59.0 a 429 is also a plain
+``ModelHTTPError``; from 2.59.0 to 2.61.x a rule can single out a rate limit but not a
+rejected request. When the connections failed with different errors, the last one decides;
+an earlier connection's rate limit does not make a final bad request retryable, and the
+reverse. A decision taken on the last connection's error says so in its reason. A rule
+cannot tell two failures of the same type apart, such as two ``ModelHTTPError`` with
+different status codes; that needs a classifier. Only these policies look at the members: a
+plain ``ExceptionRetryPolicy`` still compares the chain's own error, so match
+``FallbackExceptionGroup`` there.
+
+The model that classifies sees the same detail. The prompt lists each connection's error by
+type and message, redacted like the rest of the error and limited to ``max_exception_length``
+characters each, so a long message from one connection does not push the last one out, and,
+when the attempt kept a durable journal, how many steps the failed attempt replayed and
+recorded (``replayed_steps`` and ``recorded_steps`` on the error, which only the operator
+path sets). A retry still counts as an attempt against ``retries``: a policy can choose a
+longer delay or a different category from that detail, but cannot make a retry free.
 
 What the model can and cannot do
 --------------------------------
@@ -527,7 +550,7 @@ Both policies share every parameter below except ``categories``,
      - Airflow connection ID for the LLM provider.
    * - ``model_id``
      - None
-     - Override the model from the connection (e.g., ``"openai:gpt-5-mini"``).
+     - Override the model from the connection (e.g., ``"openai:gpt-6.1-terra"``).
    * - ``instructions``
      - (built-in)
      - Custom system prompt for error classification. On ``LLMRetryPolicy`` it

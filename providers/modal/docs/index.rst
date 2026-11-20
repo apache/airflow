@@ -39,6 +39,8 @@ piece of Airflow code resolves it through:
 * ``ModalHook.lookup_app``, ``get_secret``, ``get_volume`` resolve the other named resources.
 * ``ModalHook.client`` is the underlying ``modal.Client`` for anything not covered above;
   ``client_kwargs`` splats it into SDK calls that take only ``client=``.
+* ``@task.modal`` runs a function's body in a sandbox, in an image without Airflow; see
+  :doc:`task_decorator`.
 
 Every hook method applies both the connection's credentials and its ``environment``. Raw SDK
 calls made with ``client_kwargs`` carry the credentials only; see :doc:`usage` for what that
@@ -64,6 +66,14 @@ resolution, so a worker that already ran ``modal token new`` needs no Airflow se
 
     Connection types <connections>
     Using Modal from Airflow <usage>
+    Running a Python function on Modal <task_decorator>
+
+.. toctree::
+    :hidden:
+    :maxdepth: 1
+    :caption: System tests
+
+    System Tests <_api/tests/system/modal/index>
 
 .. toctree::
     :hidden:
@@ -90,10 +100,11 @@ apache-airflow-providers-modal package
 
 `Modal <https://modal.com/>`__ provider for Apache Airflow.
 Owns the ``modal`` connection type and a hook that turns it into an authenticated
-Modal client, so operators, toolsets and executors share one credential path.
+Modal client, so operators, toolsets and executors share one credential path, and
+``@task.modal``, which runs a Python function in a Modal sandbox.
 
 
-Release: 0.1.0
+Release: 0.2.0
 
 Provider package
 ----------------
@@ -127,5 +138,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-modal 0.1.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_modal-0.1.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_modal-0.1.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_modal-0.1.0.tar.gz.sha512>`__)
-* `The apache-airflow-providers-modal 0.1.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_modal-0.1.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_modal-0.1.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_modal-0.1.0-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-modal 0.2.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_modal-0.2.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_modal-0.2.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_modal-0.2.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-modal 0.2.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_modal-0.2.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_modal-0.2.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_modal-0.2.0-py3-none-any.whl.sha512>`__)

@@ -26,6 +26,9 @@
 Changelog
 ---------
 
+6.8.0
+.....
+
 .. note::
 
    The provider now installs ``asyncmy`` for the async metadata database engine.
@@ -36,6 +39,15 @@ Changelog
    To explicitly select the previous driver, set ``[database] sql_alchemy_conn_async``
    to a ``mysql+aiomysql://`` URL. The ``[aiomysql]`` extra also declares this driver
    for installations that need it after it becomes optional.
+
+Features
+~~~~~~~~
+
+* ``Install asyncmy for the async metadata database engine and add an aiomysql extra (#75218)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``[main] Upgrade important CI environment (#76278)``
 
 6.7.1
 .....
