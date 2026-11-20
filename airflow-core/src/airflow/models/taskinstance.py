@@ -619,7 +619,7 @@ def clear_task_instances(
                 )
             )
         ).all()
-        if reset_dag_runs:
+        if dag_run_state is not False:
             dag_run_state = DagRunState(dag_run_state)  # Validate the state value.
         for dr in drs:
             was_finished = dr.state in State.finished_dr_states
