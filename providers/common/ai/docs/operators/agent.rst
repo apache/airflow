@@ -239,8 +239,13 @@ working directory, not the Dag file.
 With durable execution (on by default for a task that can retry on Airflow 3.3 and later;
 see :doc:`../durable_execution`), the toolsets that spec-file capabilities contribute are
 replayed like any other, and need an id the same way. The
-operator cannot see inside a spec file when the Dag is parsed, so a missing id there
-fails the task when the agent is built rather than the Dag when it loads.
+operator cannot see inside a spec file when the Dag is parsed, so pydantic-ai checks them
+only when the agent is built. Where it refuses one, ``durable=True`` fails the task. Under
+the default, the task runs without durable execution and the log gives pydantic-ai's
+reason, unless the journal already holds a run, such as one an earlier attempt started:
+then the task fails too, since running the agent live would repeat that run's steps. A HITL
+review's regeneration is the exception, as it continues from the conversation (see
+:ref:`durable-not-journaled`).
 
 Agent features
 --------------

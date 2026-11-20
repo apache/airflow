@@ -150,7 +150,13 @@ reason, in these cases:
   kind of capability contributes, such as ``Capability(toolsets=[...])``, is checked by
   pydantic-ai when the task runs, as in the next case.
 - A capability pydantic-ai refuses to run durably, such as one with ``@durable_operation``
-  methods and no ``id``. The task log quotes pydantic-ai's error.
+  methods and no ``id``. The task log quotes pydantic-ai's error. pydantic-ai checks this when
+  the agent is built, so a retry of a Dag that changed since the failed attempt can reach it
+  too. The task fails instead, and the log says why, when the journal already holds a run,
+  such as one an earlier attempt started or one that paused for tool approval, since running
+  the agent live would repeat its steps. Pass ``durable=False`` to such a task. A HITL
+  review's regeneration still runs without durable execution: it continues from the
+  conversation, so it repeats none of them.
 - An agent pydantic-ai refuses only once its durable run has started, such as one that a
   ``SelectModel`` or ``ModelFallback`` capability moves to a model instance the agent was not
   built with, or a capability whose ``for_run`` returns one with another ``id``. The agent runs

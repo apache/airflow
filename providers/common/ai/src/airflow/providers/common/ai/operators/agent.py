@@ -1177,7 +1177,9 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
         pydantic-ai checks a durable agent when it builds it and refuses some shapes the checks in
         ``_durable_problem`` do not cover, such as a capability with durable operations and no
         ``id``. Under the default, such an agent is built without durable execution and the task
-        log gives pydantic-ai's reason; ``durable=True`` keeps the error.
+        log gives pydantic-ai's reason, unless the task's first run would repeat steps the journal
+        holds, such as a tool call of an earlier attempt of a Dag that changed since.
+        ``durable=True`` keeps the error.
         """
         try:
             return self._build_agent(approval_context=approval_context)
@@ -1185,11 +1187,34 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
             if not self._is_durable_run or self.durable is not None:
                 raise
             self._is_durable_run = False
-            self._durable_journal = None
             # Built first: an error unrelated to durable execution raises again here, unlogged.
             agent = self._build_agent(approval_context=approval_context)
+            # A regeneration after a review round (a later run) continues from the conversation, so it
+            # repeats none of the journal's runs, and the first run's steps stay for a retry.
+            if (journal := self._durable_journal) is not None and journal.next_run_number == 0:
+                if journal.holds_steps():
+                    self._is_durable_run = True
+                    self._log_kept_refusal(
+                        "agent",
+                        "the journal holds steps that running it without durable execution could repeat",
+                        error,
+                    )
+                    raise
+                # What an earlier attempt left before its run started, such as the run's id.
+                journal.cleanup()
+            self._durable_journal = None
             self.log.info("Durable execution is off for this task: %s", error)
             return agent
+
+    def _log_kept_refusal(self, refused: str, why: str, error: UserError) -> None:
+        """Log why the default keeps pydantic-ai's refusal of a durable ``refused`` and fails the task."""
+        self.log.warning(
+            "pydantic-ai refused this durable %s, and %s, so the task fails. Pass durable=False to run "
+            "this agent without durable execution: %s",
+            refused,
+            why,
+            error,
+        )
 
     def _supports_tool_approval(self) -> bool:
         """
@@ -1406,12 +1431,7 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
             why = "the review's regenerations would be refused the same way"
         else:
             return True
-        self.log.warning(
-            "pydantic-ai refused this durable run, and %s, so the task fails. Pass durable=False to run "
-            "this agent without durable execution: %s",
-            why,
-            error,
-        )
+        self._log_kept_refusal("run", why, error)
         return False
 
     def _run_again_without_durable(
@@ -1518,9 +1538,11 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
         # of letting callees read `self._run_usage` (which mypy can't narrow past None).
         run_usage: RunUsage = self._run_usage
 
+        if self._is_durable_run:
+            # Opened before the build, which reads it if pydantic-ai refuses the durable agent.
+            self._durable_journal = self._open_journal(context)
         agent = self._build_agent_as_decided(approval_context=context)
         if self._is_durable_run:
-            self._durable_journal = self._open_journal(context)
             self._approval_steps = 0
             if self._supports_tool_approval() and (store := context.get("task_state_store")) is not None:
                 self._load_tool_approval_answers(store)
