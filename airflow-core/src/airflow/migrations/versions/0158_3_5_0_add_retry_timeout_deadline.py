@@ -26,7 +26,7 @@ from airflow.migrations.utils import sqlite_rebuilds
 from airflow.utils.sqlalchemy import UtcDateTime
 
 revision = "f30d798a2c41"
-down_revision = "d8c6f3a129b0"
+down_revision = "c64b10719069"
 branch_labels = None
 depends_on = None
 airflow_version = "3.5.0"

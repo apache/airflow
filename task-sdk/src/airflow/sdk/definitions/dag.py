@@ -1432,7 +1432,7 @@ class DAG:
 
             while dr.state == DagRunState.RUNNING:
                 session.expire_all()
-                schedulable_tis, _ = dr.update_state(session=session)
+                schedulable_tis, _, _ = dr.update_state(session=session)
                 for s in schedulable_tis:
                     if s.try_number == 0:
                         s.try_number = 1
