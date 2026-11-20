@@ -1,0 +1,20 @@
+Tasks with ``start_from_trigger`` respect pools and concurrency limits
+
+The scheduler now defers tasks with ``start_from_trigger=True`` in the same step where it queues other
+tasks. They wait for a free slot in their pool and for ``max_active_tasks``, ``max_active_tis_per_dag``
+and ``max_active_tis_per_dagrun`` before going to the triggerer, but they do not need an executor slot.
+Before, they were deferred as soon as they were scheduled, and pools did not limit them.
+
+If these tasks share a pool that other tasks fill, they now wait for a slot. Give them their own pool,
+or set ``include_deferred=True`` on the pool to also limit how many run in the triggerer at once.
+
+* Types of change
+
+  * [ ] Dag changes
+  * [ ] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [x] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [ ] Code interface changes

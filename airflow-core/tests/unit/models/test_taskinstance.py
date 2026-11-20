@@ -123,6 +123,7 @@ from airflow.ti_deps.deps.base_ti_dep import TIDepStatus
 from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep
 from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep, _UpstreamTIStates
 from airflow.timetables.simple import PartitionedAtRuntime
+from airflow.triggers.base import StartTriggerArgs
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
@@ -3171,6 +3172,7 @@ class TestTaskInstance:
             "operator": "some_custom_operator",
             "custom_operator_name": "some_custom_operator",
             "is_stub": False,
+            "start_from_trigger": True,
             "queued_dttm": run_date + datetime.timedelta(hours=1),
             "scheduled_dttm": run_date + datetime.timedelta(hours=1),
             "rendered_map_index": None,
@@ -5602,6 +5604,66 @@ def test_insert_mapping_carries_is_stub(dag_maker, session, is_stub):
     )
 
     assert mapping["is_stub"] is is_stub
+
+
+START_FROM_TRIGGER_CASES = [
+    pytest.param(
+        True,
+        StartTriggerArgs(
+            trigger_cls="airflow.triggers.testing.SuccessTrigger", next_method="execute_complete"
+        ),
+        True,
+        id="started-from-trigger",
+    ),
+    pytest.param(True, None, False, id="without-start-trigger-args"),
+    pytest.param(
+        False,
+        StartTriggerArgs(
+            trigger_cls="airflow.triggers.testing.SuccessTrigger", next_method="execute_complete"
+        ),
+        False,
+        id="start-from-trigger-disabled",
+    ),
+]
+
+
+@pytest.mark.parametrize(("start_from_trigger", "start_trigger_args", "expected"), START_FROM_TRIGGER_CASES)
+def test_refresh_from_task_copies_start_from_trigger(start_from_trigger, start_trigger_args, expected):
+    """The scheduler selects the TIs to defer from the row, so the flag has to travel from the task."""
+    ser_task = create_scheduler_operator(EmptyOperator(task_id="empty"))
+    ser_task.start_from_trigger = start_from_trigger
+    ser_task.start_trigger_args = start_trigger_args
+
+    ti = TI(ser_task, run_id=None, dag_version_id=uuid6.uuid7())
+
+    assert ti.start_from_trigger is expected
+
+
+@pytest.mark.db_test
+@pytest.mark.parametrize(("start_from_trigger", "start_trigger_args", "expected"), START_FROM_TRIGGER_CASES)
+def test_insert_mapping_carries_start_from_trigger(
+    dag_maker, session, start_from_trigger, start_trigger_args, expected
+):
+    """The scheduler bulk-inserts rows from this mapping, so the flag has to be in it."""
+    with dag_maker("test_insert_mapping_start_from_trigger"):
+        EmptyOperator(task_id="t1")
+    session.flush()
+
+    op = create_scheduler_operator(dag_maker.dag.get_task("t1"))
+    op.start_from_trigger = start_from_trigger
+    op.start_trigger_args = start_trigger_args
+    dag_run = mock.MagicMock(spec=DagRun)
+    dag_run.context_carrier = new_dagrun_trace_carrier()
+
+    mapping = TaskInstance.insert_mapping(
+        run_id="test_run",
+        task=op,
+        map_index=0,
+        dag_version_id=None,
+        dag_run=dag_run,
+    )
+
+    assert mapping["start_from_trigger"] is expected
 
 
 @pytest.mark.db_test
