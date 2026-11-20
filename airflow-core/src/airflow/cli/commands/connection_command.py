@@ -26,6 +26,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit, urlunsplit
 
+from rich.markup import escape
 from sqlalchemy import select
 from sqlalchemy.orm import exc
 
@@ -473,5 +474,5 @@ def connections_test(args) -> None:
     if status is True:
         console.print("[bold green]\nConnection success!\n")
     else:
-        console.print(f"[bold][red]\nConnection failed![/bold]\n{message}\n")
+        console.print(f"[bold][red]\nConnection failed![/bold]\n{escape(str(message))}\n")
         raise SystemExit(1)
