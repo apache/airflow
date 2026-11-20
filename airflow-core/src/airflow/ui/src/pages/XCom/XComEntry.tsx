@@ -18,14 +18,14 @@
  */
 import { useState } from "react";
 
-import { Skeleton, Button, HStack, Text, Link } from "@chakra-ui/react";
+import { Skeleton, Button, HStack, Heading, Text, Link } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiAlertCircle } from "react-icons/fi";
 
 import { useXcomServiceGetXcomEntry } from "openapi/queries";
 import type { XComResponseNative } from "openapi/requests/types.gen";
 
-import { ClipboardIconButton, ClipboardRoot } from "src/system-components";
+import { ClipboardIconButton, ClipboardRoot, Dialog, Modal } from "src/system-components";
 
 import { ErrorAlert, type ExpandedApiError } from "src/components/ErrorAlert";
 import { ErrorModal } from "src/components/ErrorModal";
@@ -43,6 +43,12 @@ type XComEntryProps = {
   readonly taskId: string;
   readonly xcomKey: string;
 };
+
+const MAX_PREVIEW_LENGTH = 200;
+const MAX_PREVIEW_LINES = 5;
+
+const isLongText = (text: string) =>
+  text.length > MAX_PREVIEW_LENGTH || text.split("\n").length > MAX_PREVIEW_LINES;
 
 const renderTextWithLinks = (text: string) => {
   const urls = text.match(urlRegex);
@@ -107,6 +113,52 @@ const XComError = ({ error }: { readonly error: unknown }) => {
   );
 };
 
+const XComFullValue = ({ value }: { readonly value: string }) => {
+  const { t: translate } = useTranslation("browse");
+  const [open, setOpen] = useState(false);
+
+  return (
+    <>
+      <Button
+        aria-haspopup="dialog"
+        data-testid="xcom-view-full"
+        fontSize="sm"
+        onClick={() => setOpen(true)}
+        px={0}
+        size="xs"
+        variant="plain"
+      >
+        {translate("xcom.viewFull")}
+      </Button>
+      <Modal
+        bodyProps={{ overflowWrap: "anywhere" }}
+        contentProps={{ padding: 4 }}
+        headerProps={{
+          children: (
+            <HStack gap={2} minW={0}>
+              <Dialog.Title asChild>
+                <Heading fontSize="lg">{translate("xcom.value")}</Heading>
+              </Dialog.Title>
+              <ClipboardRoot value={value}>
+                <ClipboardIconButton />
+              </ClipboardRoot>
+            </HStack>
+          ),
+        }}
+        lazyMount
+        onOpenChange={() => setOpen(false)}
+        open={open}
+        scrollBehavior="inside"
+        size="lg"
+      >
+        <Text data-testid="xcom-full-value" overflowWrap="anywhere" whiteSpace="pre-wrap">
+          {renderTextWithLinks(value)}
+        </Text>
+      </Modal>
+    </>
+  );
+};
+
 export const XComEntry = ({
   dagId,
   mapIndex,
@@ -139,6 +191,7 @@ export const XComEntry = ({
   const isObjectOrArray = Array.isArray(xcomValue) || (xcomValue !== null && typeof xcomValue === "object");
   const valueFormatted = typeof xcomValue === "string" ? xcomValue : JSON.stringify(xcomValue, undefined, 4);
   const hasNewline = typeof xcomValue === "string" && xcomValue.includes("\n");
+  const showViewFull = typeof xcomValue === "string" && isLongText(xcomValue);
 
   return isLoading ? (
     <Skeleton
@@ -162,6 +215,7 @@ export const XComEntry = ({
           {renderTextWithLinks(valueFormatted)}
         </Text>
       )}
+      {showViewFull ? <XComFullValue value={valueFormatted} /> : undefined}
       {xcomValue === undefined || xcomValue === null ? undefined : (
         <ClipboardRoot value={valueFormatted}>
           <ClipboardIconButton />

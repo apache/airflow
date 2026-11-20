@@ -51,6 +51,27 @@ const renderValue = (value: string) => {
 };
 
 describe("XComEntry", () => {
+  it("opens long values in a dialog from the View full button", async () => {
+    const longValue = Array.from({ length: 20 }, (_, index) => `Line ${String(index + 1)}`).join("\n");
+
+    renderValue(longValue);
+
+    fireEvent.click(await screen.findByRole("button", { name: "xcom.viewFull" }));
+
+    const dialog = await screen.findByRole("dialog", { name: "xcom.value" });
+
+    expect(within(dialog).getByTestId("xcom-full-value").textContent).toBe(longValue);
+    expect(within(dialog).getByRole("button", { name: /copy/iu })).toBeInTheDocument();
+  });
+
+  it("does not show View full for short values", async () => {
+    renderValue("Short value");
+
+    await screen.findByText("Short value");
+
+    expect(screen.queryByRole("button", { name: "xcom.viewFull" })).not.toBeInTheDocument();
+  });
+  
   it.each([
     { detail: "XCom entry was deleted", status: 404 },
     { detail: "Access to this XCom entry is denied", status: 403 },
