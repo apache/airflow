@@ -143,8 +143,9 @@ class TelegramHook(BaseHook):
         """
         kwargs: dict[str, Any] = {
             "parse_mode": telegram.constants.ParseMode.HTML,
-            "disable_web_page_preview": True,
         }
+        if api_params.get("link_preview_options") is None:
+            kwargs["disable_web_page_preview"] = True
         if self.chat_id is not None:
             kwargs["chat_id"] = self.chat_id
         kwargs.update(api_params)
