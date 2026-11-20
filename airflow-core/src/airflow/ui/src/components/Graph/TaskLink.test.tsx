@@ -17,15 +17,19 @@
  * under the License.
  */
 import "@testing-library/jest-dom/vitest";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { BaseWrapper } from "src/utils/Wrapper";
 
 import { TaskLink } from "./TaskLink";
 
 describe("TaskLink", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
   it("removes execution-specific selectors when linking to another aggregate task", () => {
     render(
       <MemoryRouter
@@ -66,5 +70,29 @@ describe("TaskLink", () => {
       "href",
       "/dags/test_dag/tasks/missing_task",
     );
+  });
+
+  it("opens an extra link on Alt+click", () => {
+    vi.stubGlobal("open", vi.fn());
+    render(
+      <MemoryRouter initialEntries={["/dags/test_dag/runs/test_run/tasks/one_try"]}>
+        <Routes>
+          <Route
+            element={
+              <TaskLink
+                extraLinks={[{ name: "Triggered DAG", url: "https://example.com/run" }]}
+                id="one_try"
+                label="one_try"
+              />
+            }
+            path="/dags/:dagId/runs/:runId/tasks/:taskId"
+          />
+        </Routes>
+      </MemoryRouter>,
+      { wrapper: BaseWrapper },
+    );
+
+    fireEvent.click(screen.getByRole("link", { name: "one_try" }), { altKey: true, button: 0 });
+    expect(globalThis.open).toHaveBeenCalledWith("https://example.com/run", "_blank", "noopener");
   });
 });

@@ -1,4 +1,6 @@
 {
+  "altClickExtraLink": "Alt+click to open {{name}}",
+  "altClickExtraLinks": "Alt+click to choose an extra link",
   "backfill": {
     "affected_one": "1 run will be triggered.",
     "affected_other": "{{count, number}} runs will be triggered.",

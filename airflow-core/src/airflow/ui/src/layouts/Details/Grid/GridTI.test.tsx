@@ -17,13 +17,14 @@
  * under the License.
  */
 import "@testing-library/jest-dom/vitest";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { LightGridTaskInstanceSummary } from "openapi/requests/types.gen";
 
 import { TimezoneProvider } from "src/context/timezone";
+import { useTaskInstanceExtraLinks } from "src/hooks/useTaskInstanceExtraLinks";
 import { BaseWrapper } from "src/utils/Wrapper";
 
 import { GridTI } from "./GridTI";
@@ -33,6 +34,9 @@ const colorModeMock = vi.fn<() => { colorMode: "dark" | "light" | undefined }>()
 
 vi.mock("src/context/colorMode", () => ({
   useColorMode: () => colorModeMock(),
+}));
+vi.mock("src/hooks/useTaskInstanceExtraLinks", () => ({
+  useTaskInstanceExtraLinks: vi.fn(() => []),
 }));
 
 const taskInstance: LightGridTaskInstanceSummary = {
@@ -210,6 +214,11 @@ describe("GridTI", () => {
   });
   beforeEach(() => {
     colorModeMock.mockReturnValue({ colorMode: "light" });
+    vi.mocked(useTaskInstanceExtraLinks).mockReturnValue([]);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 
   it("marks the selected task square", () => {
@@ -274,5 +283,27 @@ describe("GridTI", () => {
       "href",
       "/dags/example_dag/tasks/missing_task",
     );
+  });
+
+  it("fetches extra links on hover and opens the only one on Alt+click", () => {
+    vi.mocked(useTaskInstanceExtraLinks).mockReturnValue([
+      { name: "Triggered DAG", url: "https://example.com/run" },
+    ]);
+    vi.stubGlobal("open", vi.fn());
+    renderGridTI(`/dags/example_dag/runs/${SELECTED_RUN_ID}/tasks/selected_task`);
+
+    const link = screen.getByTestId(`grid-${SELECTED_RUN_ID}-selected_task`);
+
+    expect(vi.mocked(useTaskInstanceExtraLinks).mock.lastCall?.[0]).toMatchObject({ enabled: false });
+    fireEvent.mouseEnter(link);
+    expect(vi.mocked(useTaskInstanceExtraLinks).mock.lastCall?.[0]).toMatchObject({
+      dagId: "example_dag",
+      dagRunId: SELECTED_RUN_ID,
+      enabled: true,
+      taskId: "selected_task",
+    });
+
+    fireEvent.click(link, { altKey: true, button: 0 });
+    expect(globalThis.open).toHaveBeenCalledWith("https://example.com/run", "_blank", "noopener");
   });
 });

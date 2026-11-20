@@ -40,6 +40,7 @@ type LightGridTaskInstanceSummaryWithWhen = {
 } & LightGridTaskInstanceSummary;
 
 type Props = {
+  readonly hint?: string;
   readonly loopMaxIterations?: number | null;
   readonly runId?: string | null;
   readonly taskInstance?:
@@ -51,6 +52,7 @@ type Props = {
 
 const TaskInstanceTooltip = ({
   children,
+  hint,
   loopMaxIterations,
   positioning,
   runId,
@@ -61,7 +63,8 @@ const TaskInstanceTooltip = ({
   const { i18n, t: translate } = useTranslation();
   const { formatElapsed, renderDuration } = useDurationFormat();
 
-  const hasTooltip = tooltip !== undefined && tooltip !== null;
+  const hasHint = hint !== undefined && hint !== "";
+  const hasTooltip = (tooltip !== undefined && tooltip !== null) || hasHint;
 
   const childEntries =
     taskInstance !== undefined && "child_states" in taskInstance && taskInstance.child_states !== null
@@ -76,6 +79,7 @@ const TaskInstanceTooltip = ({
       content={
         <VStack align="start" gap={1}>
           {hasTooltip ? <Text fontWeight="bold">{tooltip}</Text> : undefined}
+          {hasHint ? <Text>{hint}</Text> : undefined}
           {taskInstance ? (
             <>
               <Text>

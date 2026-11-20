@@ -16,20 +16,25 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { useState } from "react";
+
 import { Box, Button, Flex, HStack, LinkOverlay, Text, useToken } from "@chakra-ui/react";
 import type { NodeProps, Node as NodeType } from "@xyflow/react";
 import { useTranslation } from "react-i18next";
 import { AiOutlineGroup } from "react-icons/ai";
+import { useParams, useSearchParams } from "react-router-dom";
 
 import { StateBadge } from "src/components/StateBadge";
 import TaskInstanceTooltip from "src/components/TaskInstanceTooltip";
 
 import { TaskIcon } from "src/assets/TaskIcon";
+import { SearchParamsKeys } from "src/constants/searchParams";
 import { useGroups } from "src/context/groups";
+import { useTaskInstanceExtraLinks } from "src/hooks/useTaskInstanceExtraLinks";
 
 import { NodeWrapper } from "./NodeWrapper";
 import { SegmentedStateBar } from "./SegmentedStateBar";
-import { TaskLink } from "./TaskLink";
+import { parseTaskNodeId, TaskLink } from "./TaskLink";
 import { opacityStyle } from "./graphTypes";
 import { readableTextForFill } from "./nodeColors";
 import type { CustomNodeProps } from "./reactflowUtils";
@@ -65,6 +70,9 @@ export const TaskNode = ({
 }: NodeProps<NodeType<CustomNodeProps, "task">>) => {
   const { t: translate } = useTranslation("components");
   const { toggleGroupId } = useGroups();
+  const { dagId: urlDagId = "", runId } = useParams();
+  const [searchParams] = useSearchParams();
+  const [isHovered, setIsHovered] = useState(false);
   // Resolve the fill through Chakra so any token (dotted like "blue.500" or bare like "bg") becomes a
   // valid CSS color for the group color-mix; raw hex/CSS names pass through unchanged.
   const [resolvedFill] = useToken("colors", [uiColor ?? "transparent"]);
@@ -101,6 +109,24 @@ export const TaskNode = ({
   const hasTaskInstance = isGroup
     ? true
     : taskInstance?.dag_version_number !== null && taskInstance?.dag_version_number !== undefined;
+  const { dagId: extractedDagId, taskId: extractedTaskId } = parseTaskNodeId(id);
+  const tryNumberParam = searchParams.get(SearchParamsKeys.TRY_NUMBER);
+
+  const extraLinks = useTaskInstanceExtraLinks({
+    dagId: extractedDagId ?? urlDagId,
+    dagRunId: runId ?? "",
+    enabled: isHovered && !isGroup && hasTaskInstance && runId !== undefined,
+    regionId: taskInstance?.latest_region_id,
+    regionIndex: taskInstance?.latest_region_index,
+    taskId: extractedTaskId ?? id,
+    tryNumber: tryNumberParam === null ? undefined : parseInt(tryNumberParam, 10),
+  });
+  const hint =
+    extraLinks.length === 0
+      ? undefined
+      : extraLinks.length === 1
+        ? translate("altClickExtraLink", { name: extraLinks[0]?.name ?? "" })
+        : translate("altClickExtraLinks");
 
   // Custom colors can mess up the readability of the text, so we calculate a readable foreground color for the node based on the background color.
   // Pass the resolved color so Chakra tokens are measured by their hex rather than skipped.
@@ -124,6 +150,7 @@ export const TaskNode = ({
     <NodeWrapper>
       <Flex alignItems="center" cursor="default" flexDirection="column" {...opacityStyle(isFiltered)}>
         <TaskInstanceTooltip
+          hint={hint}
           openDelay={500}
           positioning={{
             placement: "top-start",
@@ -141,6 +168,8 @@ export const TaskNode = ({
             color={readableFgColor}
             direction="column"
             height={`${height + (isSelected ? 4 : 0)}px`}
+            onMouseEnter={() => setIsHovered(true)}
+            onMouseLeave={() => setIsHovered(false)}
             overflow="hidden"
             position="relative"
             px={isSelected ? 1 : 2}
@@ -152,6 +181,7 @@ export const TaskNode = ({
               <LinkOverlay asChild>
                 <TaskLink
                   childCount={thisChildCount}
+                  extraLinks={extraLinks}
                   hasTaskInstance={hasTaskInstance}
                   id={id}
                   isGroup={isGroup}
