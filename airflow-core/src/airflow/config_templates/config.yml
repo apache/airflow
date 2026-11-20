@@ -2054,7 +2054,7 @@ api:
         filters match anywhere in the name (substring) instead of only at the start (prefix).
         Matching anywhere cannot use database indexes, so it may be slower on large deployments.
         Users can still toggle the mode per search and save their own default in Settings.
-      version_added: 3.5.0
+      version_added: 3.4.1
       type: boolean
       example: ~
       default: "False"
