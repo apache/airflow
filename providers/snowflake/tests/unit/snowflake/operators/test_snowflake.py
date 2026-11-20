@@ -42,6 +42,7 @@ from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.dag import sync_dag_to_db
 from tests_common.test_utils.db import clear_db_dag_bundles, clear_db_dags, clear_db_runs
+from tests_common.test_utils.task_state import get_non_reserved_task_state_writes
 from tests_common.test_utils.taskinstance import create_task_instance
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_3_PLUS, timezone
 
@@ -806,7 +807,7 @@ class TestSnowflakeSqlApiOperatorDurable:
         operator.execute(self._context(task_store))
 
         mock_execute_query.assert_called_once()
-        task_store.set.assert_called_once_with("snowflake_query_ids", ["uuid1"])
+        assert get_non_reserved_task_state_writes(task_store) == [call("snowflake_query_ids", ["uuid1"])]
 
     def test_reconnects_to_running_query_without_resubmitting(
         self, mock_execute_query, mock_get_sql_api_query_status, mock_check_query_output
@@ -820,7 +821,7 @@ class TestSnowflakeSqlApiOperatorDurable:
         operator.execute(self._context(task_store))
 
         mock_execute_query.assert_not_called()
-        task_store.set.assert_not_called()
+        assert get_non_reserved_task_state_writes(task_store) == []
         # execute_query never ran on this hook instance, so nothing else would populate this --
         # OpenLineage's get_openlineage_database_specific_lineage reads hook.query_ids directly.
         assert operator._hook.query_ids == ["uuid1"]
@@ -844,7 +845,7 @@ class TestSnowflakeSqlApiOperatorDurable:
             operator.execute(self._context(task_store))
 
         mock_execute_query.assert_not_called()
-        task_store.set.assert_not_called()
+        assert get_non_reserved_task_state_writes(task_store) == []
         mock_check_query_output.assert_called_once_with(["uuid1", "uuid2"])
         assert operator._hook.query_ids == ["uuid1", "uuid2"]
 
@@ -897,7 +898,7 @@ class TestSnowflakeSqlApiOperatorDurable:
         operator.execute(self._context(task_store))
 
         mock_execute_query.assert_called_once()
-        task_store.set.assert_called_once_with("snowflake_query_ids", ["uuid2"])
+        assert get_non_reserved_task_state_writes(task_store) == [call("snowflake_query_ids", ["uuid2"])]
 
     def test_resubmits_when_stored_query_not_found(
         self, mock_execute_query, mock_get_sql_api_query_status, mock_check_query_output
@@ -917,7 +918,7 @@ class TestSnowflakeSqlApiOperatorDurable:
         operator.execute(self._context(task_store))
 
         mock_execute_query.assert_called_once()
-        task_store.set.assert_called_once_with("snowflake_query_ids", ["uuid2"])
+        assert get_non_reserved_task_state_writes(task_store) == [call("snowflake_query_ids", ["uuid2"])]
 
     def test_durable_false_never_touches_task_state_store(
         self, mock_execute_query, mock_get_sql_api_query_status, mock_check_query_output
@@ -931,7 +932,7 @@ class TestSnowflakeSqlApiOperatorDurable:
 
         mock_execute_query.assert_called_once()
         task_store.get.assert_not_called()
-        task_store.set.assert_not_called()
+        assert get_non_reserved_task_state_writes(task_store) == []
 
     def test_deferrable_unaffected_by_durable(self, mock_execute_query, mock_get_sql_api_query_status):
         operator = self._make_operator(deferrable=True)
@@ -944,7 +945,7 @@ class TestSnowflakeSqlApiOperatorDurable:
 
         assert mock_defer.called
         task_store.get.assert_not_called()
-        task_store.set.assert_not_called()
+        assert get_non_reserved_task_state_writes(task_store) == []
 
     def test_get_job_status_error_takes_priority_over_running(self, mock_get_sql_api_query_status):
         operator = self._make_operator()
