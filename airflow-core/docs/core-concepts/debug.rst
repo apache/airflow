@@ -159,20 +159,25 @@ defined in a secrets backend or in ``AIRFLOW_CONN_*`` and ``AIRFLOW_VAR_*`` envi
 **Admin > Connections** and **Admin > Variables** in the UI only list entries stored in the
 metadata database.
 
-If ``[core] test_connection`` is set to ``Enabled``, ``airflow connections test my_postgres``, or
-**Test Connection** in **Admin > Connections**, checks that Airflow can reach the target system.
+``airflow variables get`` is deprecated in favor of ``airflowctl variables get``, but
+``airflowctl`` reads Variables through the API server, which only sees the metadata database. Use
+the legacy command while you need to see a value that comes from a secrets backend or an
+environment variable.
+
+If ``[core] test_connection`` is set to ``Enabled``, **Test Connection** in **Admin > Connections**
+checks that Airflow can reach the target system.
 
 Looking at past runs
 ''''''''''''''''''''
 
 Comparing a failing run with the last good one narrows down what changed. The Grid view shows the
 state of every task across recent runs, and the **Runs** tab of a Dag lists them with their run
-type and duration. From the CLI:
+type and duration. With ``airflowctl``, after ``airflowctl auth login``:
 
 .. code-block:: bash
 
-  airflow dags list-runs my_dag --state failed --limit 5
-  airflow tasks states-for-dag-run my_dag <run_id>
+  airflowctl dagrun list --dag-id my_dag --state failed --limit 5
+  airflowctl tasks states-for-dag-run my_dag <run_id>
 
 Check whether the failure started with a particular run, a new Dag version or a change in input
 data before changing any code.
@@ -186,12 +191,23 @@ select the task instance and use **Clear Task Instance**. The dialog lets you in
 recomputed, and **Upstream**, **Past** or **Future** task instances when needed. It lists the
 affected tasks before you confirm.
 
-The CLI equivalent clears matching task instances over a date range:
+From the CLI, ``airflowctl tasks clear`` clears the same task instances. It only does a dry run
+unless you pass ``--no-dry-run``, and by default it clears only failed and upstream-failed task
+instances:
 
 .. code-block:: bash
 
-  airflow tasks clear my_dag --task-regex '^load_orders$' --downstream \
-      --start-date 2026-01-01 --end-date 2026-01-02
+  airflowctl tasks clear my_dag --dag-run-id <run_id> --task-ids load_orders \
+      --include-downstream --no-dry-run
+
+Clearing discards the task state store entries of the cleared task instances, in the UI and with
+``airflowctl``, so the next attempt starts over instead of resuming a checkpoint or reconnecting to
+an external job. Pass ``--keep-task-state``, or tick **Keep task state and resume** in the UI, to
+keep them. The deprecated ``airflow tasks clear`` always keeps task state, so it does not behave
+like the UI. See :doc:`dag-run` and :doc:`resumable-tasks`.
+
+Clearing downstream tasks runs them again. Before you clear, check that they are idempotent and
+that running them again is safe for the external systems they write to.
 
 Use **Mark Task Instance as...** instead of clearing when the work was done outside Airflow and you
 only need the state to reflect that.
