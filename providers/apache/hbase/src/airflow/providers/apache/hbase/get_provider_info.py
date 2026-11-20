@@ -33,8 +33,6 @@ def get_provider_info():
                 "how-to-guide": [
                     "/docs/apache-airflow-providers-apache-hbase/operators.rst",
                     "/docs/apache-airflow-providers-apache-hbase/sensors.rst",
-                    "/docs/apache-airflow-providers-apache-hbase/hooks.rst",
-                    "/docs/apache-airflow-providers-apache-hbase/connections.rst",
                 ],
                 "tags": ["apache", "software"],
             }
@@ -75,6 +73,14 @@ def get_provider_info():
             {
                 "hook-class-name": "airflow.providers.apache.hbase.hooks.hbase_cli.HBaseCLIHook",
                 "connection-type": "hbase_cli",
+                "ui-field-behaviour": {
+                    "hidden-fields": ["schema", "port", "login", "password"],
+                    "relabeling": {"host": "HBase Host"},
+                    "placeholders": {
+                        "host": "localhost",
+                        "extra": '{\n  "java_home": "/usr/lib/jvm/java-8-openjdk-amd64",\n  "hbase_home": "/usr/lib/hbase"\n}\n',
+                    },
+                },
             },
         ],
     }
