@@ -26,14 +26,15 @@ agent as function tools.
 Before running:
 
 1. Install the SDK, the OpenAI provider and the provider the bucket needs:
-   ``pip install "openai-agents>=0.20.0" "apache-airflow-providers-openai>=2.2.0"
-   "apache-airflow-providers-amazon[s3fs]"``.
+   ``pip install "openai-agents>=0.20.0" "apache-airflow-providers-openai>=2.2.0" "apache-airflow-providers-amazon[s3fs]"``.
 2. Create an OpenAI connection (``LLM_CONN_ID``, default ``openai_default``) whose
    password is an OpenAI API key. Set its host to the base URL of any other
    OpenAI-compatible endpoint, such as a gateway or a self-hosted server.
 3. Create the two data connections: ``warehouse_agent_reader`` (a ``DbApiHook``
    database, such as Postgres) and ``aws_reports_reader`` (AWS). Give each credentials
    that can read only what the agent needs.
+4. Use Airflow 3.2.1 or later: the task is ``async``. On an earlier Airflow, see
+   the OpenAI Agents SDK guide's fallback for a sync task.
 """
 
 from __future__ import annotations

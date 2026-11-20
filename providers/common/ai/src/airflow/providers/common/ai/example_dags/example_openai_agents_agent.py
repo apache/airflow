@@ -34,6 +34,8 @@ Before running:
    OpenAI-compatible endpoint, such as a gateway or a self-hosted server.
 3. Create a database connection (``DB_CONN_ID``, default ``sql_default``) whose
    hook is a ``DbApiHook`` (e.g. SQLite, Postgres, MySQL).
+4. Use Airflow 3.2.1 or later: the task is ``async``. On an earlier Airflow, see
+   the OpenAI Agents SDK guide's fallback for a sync task.
 """
 
 from __future__ import annotations

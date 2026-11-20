@@ -35,6 +35,8 @@ Before running:
    hook is a ``DbApiHook`` (e.g. SQLite, Postgres, MySQL).
 4. On Airflow before 3.3, set ``[common.ai] durable_cache_path`` to where the journal
    is kept; from 3.3 on it is kept in the task state store.
+5. Use Airflow 3.2.1 or later: the task is ``async``. On an earlier Airflow, see
+   the OpenAI Agents SDK guide's fallback for a sync task.
 """
 
 from __future__ import annotations

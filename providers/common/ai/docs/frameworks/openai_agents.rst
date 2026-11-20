@@ -138,9 +138,22 @@ other settings apply too: ``openai_client_kwargs`` in its extra (such as ``timeo
 See :doc:`apache-airflow-providers-openai:connections`.
 
 The task is ``async`` because ``aget_conn`` is a coroutine, and async tasks need Airflow
-3.2.1 or later. On an earlier Airflow, a sync task can pass
-``AsyncOpenAI(api_key=conn.password, base_url=conn.host or None)`` to the model and run
-the agent with ``Runner.run_sync``, without the connection's other settings.
+3.2.1 or later. On an earlier Airflow, use a sync task: build the client from the
+connection's key and host, pass it to the model as above, and run the agent with
+``Runner.run_sync``. The connection's other settings don't apply then:
+
+.. code-block:: python
+
+    from openai import AsyncOpenAI
+
+    from airflow.providers.common.compat.sdk import BaseHook
+
+    conn = BaseHook.get_connection(LLM_CONN_ID)
+    client = AsyncOpenAI(api_key=conn.password, base_url=conn.host or None)
+
+The OpenAI provider's next release after 2.2.0 adds
+``OpenAIHook(LLM_CONN_ID).get_conn(async_client=True)``, which builds the same client as
+``aget_conn`` from sync code, the connection's other settings included.
 
 The example uses ``OpenAIChatCompletionsModel``, so the connection's host can point at
 a server that implements only the Chat Completions API. Against OpenAI itself,
@@ -576,18 +589,20 @@ What was recorded is deleted when the agent's run succeeds, so clearing the task
 starts over. That happens when ``run_durably`` or ``run_durably_sync`` returns, not when
 the task succeeds: if the task fails after the agent has answered, for example while
 writing the answer somewhere, the retry runs the whole agent again. Write the answer in a
-downstream task, so that a failed write retries on its own. Here ``build_agent()``
-stands for building the agent as the task example does:
+downstream task, so that a failed write retries on its own. Here ``build_agent(client)``
+stands for building the agent on the client as the task example does:
 
 .. code-block:: python
 
-    from airflow.providers.common.ai.durable.openai_agents import run_durably_sync
+    from airflow.providers.common.ai.durable.openai_agents import run_durably
+    from airflow.providers.openai.hooks.openai import OpenAIHook
     from airflow.sdk import ObjectStoragePath, task
 
 
     @task(retries=2)
-    def answer(question: str) -> str:
-        return run_durably_sync(build_agent(), question).final_output
+    async def answer(question: str) -> str:
+        async with await OpenAIHook(LLM_CONN_ID).aget_conn() as client:
+            return (await run_durably(build_agent(client), question)).final_output
 
 
     @task(retries=5)
