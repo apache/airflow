@@ -532,6 +532,11 @@ class BaseExecutor(LoggingMixin):
         """
         return None
 
+    @classmethod
+    def overrides_get_health(cls) -> bool:
+        """Whether this executor class implements :meth:`get_health` itself, rather than inheriting the no-op default."""
+        return cls.get_health is not BaseExecutor.get_health
+
     def heartbeat(self) -> None:
         """Heartbeat sent to trigger new jobs."""
         open_slots = self.parallelism - len(self.running)

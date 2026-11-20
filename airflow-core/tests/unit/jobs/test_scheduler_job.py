@@ -483,13 +483,17 @@ class TestSchedulerJob:
         mock_jwt_generator = MagicMock(spec=JWTGenerator)
         mock_jwt_generator.generate.return_value = "mock-token"
 
-        default_executor = mock.MagicMock(name="DefaultExecutor", slots_available=8, slots_occupied=0)
+        default_executor = mock.MagicMock(
+            spec=BaseExecutor, name="DefaultExecutor", slots_available=8, slots_occupied=0
+        )
         default_executor.name = ExecutorName(alias="default_exec", module_path="default.exec.module.path")
         default_executor.jwt_generator = mock_jwt_generator
         default_executor.team_name = None  # Global executor
         default_executor.sentry_integration = ""
         default_executor._drain_events_with_task_ids.return_value = {}, {}
-        second_executor = mock.MagicMock(name="SeconadaryExecutor", slots_available=8, slots_occupied=0)
+        second_executor = mock.MagicMock(
+            spec=BaseExecutor, name="SeconadaryExecutor", slots_available=8, slots_occupied=0
+        )
         second_executor.name = ExecutorName(alias="secondary_exec", module_path="secondary.exec.module.path")
         second_executor.jwt_generator = mock_jwt_generator
         second_executor.team_name = None  # Global executor

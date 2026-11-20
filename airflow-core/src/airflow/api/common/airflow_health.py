@@ -241,8 +241,6 @@ def _configured_executor_keys() -> set[str]:
     skipped (``validate_teams=False``), the same as ``connections.py`` does, so a database hiccup on
     the first call can't get cached as "no executors".
     """
-    from airflow.executors.base_executor import BaseExecutor
-
     try:
         names = ExecutorLoader.get_executor_names(validate_teams=False)
     except Exception:
@@ -257,7 +255,7 @@ def _configured_executor_keys() -> set[str]:
         except Exception:
             log.warning("Could not import configured executor %s", name.module_path, exc_info=True)
             continue
-        if executor_cls.get_health is not BaseExecutor.get_health:
+        if executor_cls.overrides_get_health():
             keys.add(repr(name))
     return keys
 

@@ -5979,6 +5979,123 @@ export const $EventLogResponse = {
     description: 'Event Log Response.'
 } as const;
 
+export const $ExecutorInfoResponse = {
+    properties: {
+        status: {
+            anyOf: [
+                {
+                    '$ref': '#/components/schemas/HealthStatus'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        latest_executor_heartbeat: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Latest Executor Heartbeat'
+        },
+        detailed_status: {
+            anyOf: [
+                {
+                    '$ref': '#/components/schemas/DetailedHealthStatus'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        instances: {
+            anyOf: [
+                {
+                    items: {
+                        '$ref': '#/components/schemas/ExecutorInstanceInfoResponse'
+                    },
+                    type: 'array'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Instances'
+        }
+    },
+    type: 'object',
+    required: ['status', 'latest_executor_heartbeat', 'detailed_status'],
+    title: 'ExecutorInfoResponse',
+    description: `Executor info serializer for responses.
+
+Only present when at least one configured executor implements a health check; an executor that
+doesn't isn't a gap in coverage, so a deployment where nothing reports simply has no \`\`executor\`\`
+key at all, rather than one that always reads unhealthy.`
+} as const;
+
+export const $ExecutorInstanceInfoResponse = {
+    properties: {
+        hostname: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Hostname'
+        },
+        executor: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Executor'
+        },
+        latest_executor_heartbeat: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Latest Executor Heartbeat'
+        },
+        team_names: {
+            items: {
+                type: 'string'
+            },
+            type: 'array',
+            title: 'Team Names'
+        },
+        health_check_result: {
+            anyOf: [
+                {
+                    '$ref': '#/components/schemas/HealthCheckResult'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        }
+    },
+    type: 'object',
+    required: ['hostname', 'executor', 'latest_executor_heartbeat', 'team_names', 'health_check_result'],
+    title: 'ExecutorInstanceInfoResponse',
+    description: 'Executor instance info serializer for responses.'
+} as const;
+
 export const $ExternalLogUrlResponse = {
     properties: {
         url: {
@@ -6497,6 +6614,19 @@ export const $HTTPValidationError = {
     title: 'HTTPValidationError'
 } as const;
 
+export const $HealthCheckResult = {
+    type: 'string',
+    enum: ['healthy', 'unhealthy', 'unknown'],
+    title: 'HealthCheckResult',
+    description: `Explicit outcome of a component's own last health check.
+
+Separate from whether the Job row itself is alive: a row can be alive (recent heartbeat) while
+this stays UNKNOWN because the check hasn't completed yet, raised, or was never implemented.
+Collapsing all of that into "no heartbeat means unhealthy" makes a real failure indistinguishable
+from "never checked" or "check is hanging", which is why this is a value of its own rather than
+being inferred from heartbeat recency.`
+} as const;
+
 export const $HealthInfoResponse = {
     properties: {
         metadatabase: {
@@ -6512,6 +6642,16 @@ export const $HealthInfoResponse = {
             anyOf: [
                 {
                     '$ref': '#/components/schemas/DagProcessorInfoResponse'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        executor: {
+            anyOf: [
+                {
+                    '$ref': '#/components/schemas/ExecutorInfoResponse'
                 },
                 {
                     type: 'null'
