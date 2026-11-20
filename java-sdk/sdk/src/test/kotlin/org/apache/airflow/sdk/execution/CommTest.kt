@@ -23,9 +23,11 @@ import io.ktor.utils.io.ByteChannel
 import io.ktor.utils.io.exhausted
 import io.ktor.utils.io.readByteArray
 import io.ktor.utils.io.writeByteArray
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.supervisorScope
+import kotlinx.coroutines.withTimeoutOrNull
 import org.apache.airflow.sdk.ApiError
 import org.apache.airflow.sdk.TaskStateStore
 import org.apache.airflow.sdk.execution.comm.GetVariable
@@ -43,8 +45,10 @@ import java.time.Duration
 import java.time.OffsetDateTime
 import java.time.ZoneOffset
 import java.util.UUID
+import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.TimeUnit
+import kotlin.concurrent.thread
 import org.apache.airflow.sdk.Client as PublicClient
 
 fun byteArrayFromHexString(hexString: String): ByteArray =
@@ -328,6 +332,90 @@ class CommsTest {
   private suspend fun ByteChannel.readOneRequest() {
     val prefix = readByteArray(4)
     readByteArray(Frame.parseLengthPrefix(prefix).toInt())
+  }
+
+  @Test
+  @DisplayName("Should deliver a reply while other callers wait for room in LogSender")
+  @Timeout(value = 30, unit = TimeUnit.SECONDS, threadMode = Timeout.ThreadMode.SEPARATE_THREAD)
+  fun deliversReplyWhileOtherCallersWaitForLogRoom() {
+    val savedNamed = Log.namedThresholds
+    // The code that reads replies logs a warning for the stray frame below. The WARNING threshold keeps debug lines
+    // off, so the calling thread logs nothing.
+    Log.namedThresholds = mapOf(CoordinatorComm::class.java.typeName to Level.WARNING)
+    val logs = ByteChannel(autoFlush = true)
+    val waiting = blockLogRoom(logs)
+    val toClient = ByteChannel(autoFlush = true)
+    val fromClient = ByteChannel(autoFlush = true)
+    val comm = CoordinatorComm(toClient, fromClient)
+    try {
+      val result =
+        runBlocking {
+          toClient.writeFrame(responseFrame(99, key = "stray"))
+          toClient.writeFrame(responseFrame(0, key = "return_value"))
+          withTimeoutOrNull(10_000) { comm.communicate<XComResult>(GetVariable().also { it.key = "k" }) }
+        }
+      Assertions.assertEquals("return_value", result?.key, "the reply should arrive although other callers wait for room")
+    } finally {
+      comm.close()
+      releaseLogRoom(logs, waiting)
+      Log.namedThresholds = savedNamed
+    }
+  }
+
+  @Test
+  @DisplayName("Should deliver a reply, and log it at debug level, while other callers wait for room in LogSender")
+  @Timeout(value = 30, unit = TimeUnit.SECONDS, threadMode = Timeout.ThreadMode.SEPARATE_THREAD)
+  fun deliversReplyWithDebugLogWhileOtherCallersWaitForLogRoom() {
+    val savedNamed = Log.namedThresholds
+    Log.namedThresholds = mapOf(CoordinatorComm::class.java.typeName to Level.DEBUG)
+    LogSender.reset()
+    val logs = ByteChannel(autoFlush = true)
+    val toClient = ByteChannel(autoFlush = true)
+    val fromClient = ByteChannel(autoFlush = true)
+    val comm = CoordinatorComm(toClient, fromClient)
+    var waiting: Thread? = null
+    try {
+      val result =
+        runBlocking {
+          val reply = async(Dispatchers.IO) { comm.communicate<XComResult>(GetVariable().also { it.key = "k" }) }
+          // The calling thread logs the request before LogSender has a channel, so that line needs no room.
+          fromClient.readOneRequest()
+          waiting = blockLogRoom(logs)
+          toClient.writeFrame(responseFrame(0, key = "return_value"))
+          withTimeoutOrNull(10_000) { reply.await() }.also { if (it == null) reply.cancel() }
+        }
+      Assertions.assertEquals("return_value", result?.key, "the reply should arrive although other callers wait for room")
+    } finally {
+      comm.close()
+      waiting?.let { releaseLogRoom(logs, it) }
+      Log.namedThresholds = savedNamed
+    }
+  }
+
+  @Test
+  @DisplayName("Should read the first frame, and log it at debug level, while other callers wait for room in LogSender")
+  @Timeout(value = 30, unit = TimeUnit.SECONDS, threadMode = Timeout.ThreadMode.SEPARATE_THREAD)
+  fun readsFirstFrameWithDebugLogWhileOtherCallersWaitForLogRoom() {
+    val savedNamed = Log.namedThresholds
+    Log.namedThresholds = mapOf(CoordinatorComm::class.java.typeName to Level.DEBUG)
+    val logs = ByteChannel(autoFlush = true)
+    val waiting = blockLogRoom(logs)
+    val toClient = ByteChannel(autoFlush = true)
+    val comm = CoordinatorComm(toClient, ByteChannel(autoFlush = true))
+    try {
+      val frame = CompletableFuture<IncomingFrame>()
+      // A separate thread reads the frame, so that the test can fail with its own assertion message if the read waits
+      // for room.
+      thread { frame.complete(runBlocking { comm.readMessage() }) }
+      runBlocking { toClient.writeFrame(responseFrame(7, key = "first")) }
+
+      val read = runCatching { frame.get(10, TimeUnit.SECONDS) }.getOrNull()
+      Assertions.assertEquals(7, read?.id, "the first frame should arrive although other callers wait for room")
+    } finally {
+      comm.close()
+      releaseLogRoom(logs, waiting)
+      Log.namedThresholds = savedNamed
+    }
   }
 
   @Test

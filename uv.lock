@@ -2053,7 +2053,7 @@ requires-dist = [
     { name = "sentry-sdk", marker = "extra == 'sentry'", specifier = ">=2.30.0" },
     { name = "uv", marker = "extra == 'uv'", specifier = ">=0.13.7" },
 ]
-provides-extras = ["all-core", "async", "graphviz", "gunicorn", "kerberos", "memray", "otel", "statsd", "all-task-sdk", "airbyte", "akeyless", "alibaba", "amazon", "anthropic", "apache-arrow", "apache-beam", "apache-cassandra", "apache-drill", "apache-druid", "apache-flink", "apache-hdfs", "apache-hive", "apache-iceberg", "apache-impala", "apache-kafka", "apache-kylin", "apache-livy", "apache-pig", "apache-pinot", "apache-spark", "apache-tinkerpop", "apprise", "arangodb", "asana", "atlassian-jira", "celery", "clickhousedb", "cloudant", "cncf-kubernetes", "cohere", "common-ai", "common-compat", "common-io", "common-messaging", "common-sql", "databricks", "datadog", "dbt-cloud", "dingding", "discord", "docker", "duckdb", "edge3", "elasticsearch", "exasol", "fab", "facebook", "ftp", "git", "github", "google", "grpc", "hashicorp", "huggingface", "http", "ibm-db2", "ibm-mq", "imap", "influxdb", "informatica", "jdbc", "jenkins", "keycloak", "microsoft-azure", "microsoft-mssql", "microsoft-psrp", "microsoft-winrm", "modal", "mongo", "mysql", "neo4j", "odbc", "openai", "openfaas", "openlineage", "opensearch", "opsgenie", "oracle", "pagerduty", "papermill", "pgvector", "pinecone", "postgres", "presto", "qdrant", "redis", "salesforce", "samba", "segment", "sendgrid", "sftp", "singularity", "slack", "smtp", "snowflake", "sqlite", "ssh", "standard", "tableau", "telegram", "teradata", "trino", "vertica", "vespa", "weaviate", "yandex", "ydb", "zendesk", "all", "aiobotocore", "apache-atlas", "apache-webhdfs", "amazon-aws-auth", "cloudpickle", "fab-oauth", "github-enterprise", "google-auth", "ldap", "pandas", "polars", "rabbitmq", "sentry", "s3fs", "uv"]
+provides-extras = ["all-core", "async", "graphviz", "gunicorn", "kerberos", "memray", "otel", "statsd", "all-task-sdk", "airbyte", "akeyless", "alibaba", "amazon", "anthropic", "apache-arrow", "apache-beam", "apache-cassandra", "apache-drill", "apache-druid", "apache-flink", "apache-hdfs", "apache-hive", "apache-iceberg", "apache-impala", "apache-kafka", "apache-kylin", "apache-livy", "apache-pig", "apache-pinot", "apache-spark", "apache-tinkerpop", "apprise", "arangodb", "asana", "atlassian-jira", "celery", "clickhousedb", "cloudant", "cncf-kubernetes", "cohere", "common-ai", "common-compat", "common-io", "common-messaging", "common-sql", "databricks", "datadog", "dbt-cloud", "dingding", "discord", "docker", "duckdb", "edge3", "elasticsearch", "exasol", "fab", "facebook", "ftp", "git", "github", "google", "grpc", "hashicorp", "http", "huggingface", "ibm-db2", "ibm-mq", "imap", "influxdb", "informatica", "jdbc", "jenkins", "keycloak", "microsoft-azure", "microsoft-mssql", "microsoft-psrp", "microsoft-winrm", "modal", "mongo", "mysql", "neo4j", "odbc", "openai", "openfaas", "openlineage", "opensearch", "opsgenie", "oracle", "pagerduty", "papermill", "pgvector", "pinecone", "postgres", "presto", "qdrant", "redis", "salesforce", "samba", "segment", "sendgrid", "sftp", "singularity", "slack", "smtp", "snowflake", "sqlite", "ssh", "standard", "tableau", "telegram", "teradata", "trino", "vertica", "vespa", "weaviate", "yandex", "ydb", "zendesk", "all", "aiobotocore", "apache-atlas", "apache-webhdfs", "amazon-aws-auth", "cloudpickle", "fab-oauth", "github-enterprise", "google-auth", "ldap", "pandas", "polars", "rabbitmq", "sentry", "s3fs", "uv"]
 
 [package.metadata.requires-dev]
 ci-image = [
@@ -2338,7 +2338,7 @@ requires-dist = [
     { name = "asgiref", marker = "python_full_version >= '3.14'", specifier = ">=3.11.1" },
     { name = "attrs", specifier = ">=22.1.0,!=25.2.0" },
     { name = "cachetools", specifier = ">=6.0.0" },
-    { name = "cadwyn", specifier = ">=8.1.0" },
+    { name = "cadwyn", specifier = ">=9.0.0" },
     { name = "colorlog", specifier = ">=6.8.2" },
     { name = "cron-descriptor", specifier = ">=1.2.24" },
     { name = "croniter", specifier = ">=6.2.2" },
@@ -3306,7 +3306,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-amazon"
-version = "9.40.0"
+version = "9.41.0"
 source = { editable = "providers/amazon" }
 dependencies = [
     { name = "apache-airflow" },
@@ -3536,7 +3536,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-anthropic"
-version = "1.2.0"
+version = "1.2.1"
 source = { editable = "providers/anthropic" }
 dependencies = [
     { name = "anthropic" },
@@ -3665,7 +3665,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-apache-beam"
-version = "6.3.1"
+version = "6.3.2"
 source = { editable = "providers/apache/beam" }
 dependencies = [
     { name = "apache-airflow" },
@@ -3718,7 +3718,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-apache-cassandra"
-version = "3.10.1"
+version = "3.10.2"
 source = { editable = "providers/apache/cassandra" }
 dependencies = [
     { name = "apache-airflow" },
@@ -4354,7 +4354,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-apache-spark"
-version = "6.3.4"
+version = "6.3.5"
 source = { editable = "providers/apache/spark" }
 dependencies = [
     { name = "apache-airflow" },
@@ -4607,7 +4607,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-celery"
-version = "4.0.0"
+version = "4.0.1"
 source = { editable = "providers/celery" }
 dependencies = [
     { name = "apache-airflow" },
@@ -4730,7 +4730,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-cncf-kubernetes"
-version = "11.0.0"
+version = "11.1.0"
 source = { editable = "providers/cncf/kubernetes" }
 dependencies = [
     { name = "aiofiles", version = "24.1.0", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version >= '3.11.5' and python_full_version < '3.15') or (python_full_version >= '3.15' and sys_platform != 'win32') or extra != 'extra-34-apache-airflow-providers-common-ai-llamaindex' or extra == 'extra-34-apache-airflow-providers-common-ai-openai'" },
@@ -4819,7 +4819,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-common-ai"
-version = "1.1.0"
+version = "1.2.0"
 source = { editable = "providers/common/ai" }
 dependencies = [
     { name = "apache-airflow" },
@@ -4860,6 +4860,7 @@ git = [
     { name = "apache-airflow-providers-git" },
 ]
 google = [
+    { name = "google-genai" },
     { name = "pydantic-ai-slim", extra = ["google"] },
 ]
 islo = [
@@ -4884,6 +4885,11 @@ modal = [
 openai = [
     { name = "openai", version = "3.46.0", source = { registry = "https://pypi.org/simple" } },
     { name = "pydantic-ai-slim", extra = ["openai"], marker = "extra == 'extra-34-apache-airflow-providers-common-ai-openai'" },
+]
+openai-codex = [
+    { name = "mcp" },
+    { name = "openai-codex" },
+    { name = "uvicorn" },
 ]
 opensandbox = [
     { name = "opensandbox" },
@@ -4927,18 +4933,23 @@ dev = [
     { name = "apache-airflow-task-sdk" },
     { name = "boat-sdk" },
     { name = "claude-agent-sdk" },
+    { name = "google-genai" },
     { name = "grpcio" },
     { name = "islo" },
     { name = "langchain" },
+    { name = "mcp" },
     { name = "openai", version = "2.54.0", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'extra-34-apache-airflow-providers-common-ai-llamaindex'" },
     { name = "openai", version = "3.46.0", source = { registry = "https://pypi.org/simple" }, marker = "extra != 'extra-34-apache-airflow-providers-common-ai-llamaindex' or extra == 'extra-34-apache-airflow-providers-common-ai-openai'" },
+    { name = "openai-codex" },
     { name = "opensandbox" },
     { name = "openshell" },
     { name = "protobuf" },
     { name = "pydantic-ai-harness", extra = ["codemode"] },
     { name = "pydantic-ai-skills" },
     { name = "pydantic-ai-slim", extra = ["mcp"] },
+    { name = "python-docx" },
     { name = "sqlglot" },
+    { name = "uvicorn" },
 ]
 docs = [
     { name = "apache-airflow-devel-common", extra = ["docs"] },
@@ -4946,7 +4957,7 @@ docs = [
 
 [package.metadata]
 requires-dist = [
-    { name = "anthropic", marker = "extra == 'anthropic'", specifier = ">=1.1.0,<2" },
+    { name = "anthropic", marker = "extra == 'anthropic'", specifier = ">=1.15.0,<2" },
     { name = "apache-airflow", editable = "." },
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
     { name = "apache-airflow-providers-common-sql", marker = "extra == 'common-sql'", editable = "providers/common/sql" },
@@ -4960,6 +4971,7 @@ requires-dist = [
     { name = "dataclasses-json", marker = "extra == 'llamaindex'", specifier = ">=0.6.7" },
     { name = "fastavro", marker = "python_full_version >= '3.14' and extra == 'avro'", specifier = ">=1.12.1" },
     { name = "fastavro", marker = "python_full_version < '3.14' and extra == 'avro'", specifier = ">=1.10.0" },
+    { name = "google-genai", marker = "extra == 'google'", specifier = ">=2.30.0" },
     { name = "grpcio", marker = "extra == 'openshell'", specifier = ">=1.78.0" },
     { name = "httpx2", specifier = ">=2.7" },
     { name = "islo", marker = "extra == 'islo'", specifier = ">=0.3.19" },
@@ -4967,8 +4979,10 @@ requires-dist = [
     { name = "llama-index-core", marker = "extra == 'llamaindex'", specifier = ">=0.14.5" },
     { name = "llama-index-embeddings-openai", marker = "extra == 'llamaindex'", specifier = ">=0.6.0" },
     { name = "llama-index-llms-openai", marker = "extra == 'llamaindex'", specifier = ">=0.6.8" },
+    { name = "mcp", marker = "extra == 'openai-codex'", specifier = ">=2.2.0" },
     { name = "modal", marker = "extra == 'modal'", specifier = ">=1.5.2" },
     { name = "openai", marker = "extra == 'openai'", specifier = ">=2.47.0" },
+    { name = "openai-codex", marker = "extra == 'openai-codex'", specifier = ">=0.163.0" },
     { name = "opensandbox", marker = "extra == 'opensandbox'", specifier = ">=1.1.0" },
     { name = "openshell", marker = "extra == 'openshell'", specifier = ">=0.1.2,<0.2" },
     { name = "protobuf", marker = "extra == 'openshell'", specifier = ">=6.31.1" },
@@ -4977,23 +4991,24 @@ requires-dist = [
     { name = "pydantic-ai-harness", extras = ["codemode"], marker = "extra == 'code-mode'", specifier = ">=0.35.0" },
     { name = "pydantic-ai-shields", marker = "extra == 'shields'", specifier = ">=0.3.4" },
     { name = "pydantic-ai-skills", marker = "extra == 'skills'", specifier = ">=1.2.0,<2" },
-    { name = "pydantic-ai-slim", specifier = ">=2.46.0" },
-    { name = "pydantic-ai-slim", extras = ["anthropic"], marker = "extra == 'anthropic'", specifier = ">=2.46.0" },
+    { name = "pydantic-ai-slim", specifier = ">=2.66.0" },
+    { name = "pydantic-ai-slim", extras = ["anthropic"], marker = "extra == 'anthropic'", specifier = ">=2.66.0" },
     { name = "pydantic-ai-slim", extras = ["bedrock"], marker = "extra == 'bedrock'", specifier = ">=2.46.0" },
-    { name = "pydantic-ai-slim", extras = ["google"], marker = "extra == 'google'", specifier = ">=2.46.0" },
+    { name = "pydantic-ai-slim", extras = ["google"], marker = "extra == 'google'", specifier = ">=2.66.0" },
     { name = "pydantic-ai-slim", extras = ["mcp"], marker = "extra == 'mcp'", specifier = ">=2.46.0" },
     { name = "pydantic-ai-slim", extras = ["openai"], marker = "extra == 'openai'", specifier = ">=2.46.0" },
     { name = "pypdf", marker = "extra == 'pdf'", specifier = ">=4.0.0" },
-    { name = "python-docx", marker = "extra == 'docx'", specifier = ">=1.0.0" },
+    { name = "python-docx", marker = "extra == 'docx'", specifier = ">=1.1.2" },
     { name = "sqlglot", marker = "extra == 'sql'", specifier = ">=30.0.0" },
     { name = "structlog", specifier = ">=24.2.0" },
     { name = "typesafe-sdk", marker = "extra == 'typesafe'", specifier = ">=0.6.0" },
+    { name = "uvicorn", marker = "extra == 'openai-codex'", specifier = ">=0.31.1" },
 ]
-provides-extras = ["anthropic", "bedrock", "google", "openai", "typesafe", "mcp", "modal", "opensandbox", "boat", "openshell", "code-mode", "shields", "skills", "islo", "avro", "parquet", "sql", "common-sql", "langchain", "llamaindex", "pdf", "docx", "git", "claude-agent-sdk"]
+provides-extras = ["anthropic", "bedrock", "google", "openai", "typesafe", "mcp", "modal", "opensandbox", "boat", "openshell", "code-mode", "shields", "skills", "islo", "avro", "parquet", "sql", "common-sql", "langchain", "llamaindex", "pdf", "docx", "git", "claude-agent-sdk", "openai-codex"]
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "anthropic", specifier = ">=1.1.0,<2" },
+    { name = "anthropic", specifier = ">=1.15.0,<2" },
     { name = "apache-airflow", editable = "." },
     { name = "apache-airflow-devel-common", editable = "devel-common" },
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
@@ -5005,17 +5020,22 @@ dev = [
     { name = "apache-airflow-task-sdk", editable = "task-sdk" },
     { name = "boat-sdk", specifier = ">=1.9.3" },
     { name = "claude-agent-sdk", specifier = ">=0.2.160" },
+    { name = "google-genai", specifier = ">=2.30.0" },
     { name = "grpcio", specifier = ">=1.78.0" },
     { name = "islo", specifier = ">=0.3.19" },
     { name = "langchain", specifier = ">=1.0.0" },
+    { name = "mcp", specifier = ">=2.2.0" },
     { name = "openai", specifier = ">=2.47.0" },
+    { name = "openai-codex", specifier = ">=0.163.0" },
     { name = "opensandbox", specifier = ">=1.1.0" },
     { name = "openshell", specifier = ">=0.1.2,<0.2" },
     { name = "protobuf", specifier = ">=6.31.1" },
     { name = "pydantic-ai-harness", extras = ["codemode"], specifier = ">=0.35.0" },
     { name = "pydantic-ai-skills", specifier = ">=1.2.0,<2" },
     { name = "pydantic-ai-slim", extras = ["mcp"], specifier = ">=2.46.0" },
+    { name = "python-docx", specifier = ">=1.1.2" },
     { name = "sqlglot", specifier = ">=30.0.0" },
+    { name = "uvicorn", specifier = ">=0.31.1" },
 ]
 docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "devel-common" }]
 
@@ -5141,7 +5161,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-common-messaging"
-version = "2.1.2"
+version = "2.2.0"
 source = { editable = "providers/common/messaging" }
 dependencies = [
     { name = "apache-airflow" },
@@ -5187,7 +5207,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-common-sql"
-version = "3.0.0"
+version = "3.1.0"
 source = { editable = "providers/common/sql" }
 dependencies = [
     { name = "apache-airflow" },
@@ -5288,7 +5308,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-databricks"
-version = "7.24.0"
+version = "7.25.0"
 source = { editable = "providers/databricks" }
 dependencies = [
     { name = "aiohttp" },
@@ -5446,7 +5466,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-dbt-cloud"
-version = "4.11.2"
+version = "4.12.0"
 source = { editable = "providers/dbt/cloud" }
 dependencies = [
     { name = "aiohttp" },
@@ -5655,7 +5675,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-edge3"
-version = "5.1.1"
+version = "5.2.0"
 source = { editable = "providers/edge3" }
 dependencies = [
     { name = "aiofiles", version = "24.1.0", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version >= '3.11.5' and python_full_version < '3.15') or (python_full_version >= '3.15' and sys_platform != 'win32') or extra != 'extra-34-apache-airflow-providers-common-ai-llamaindex' or extra == 'extra-34-apache-airflow-providers-common-ai-openai'" },
@@ -5802,7 +5822,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-fab"
-version = "3.11.0"
+version = "3.11.1"
 source = { editable = "providers/fab" }
 dependencies = [
     { name = "apache-airflow" },
@@ -5925,7 +5945,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-ftp"
-version = "3.16.2"
+version = "3.16.3"
 source = { editable = "providers/ftp" }
 dependencies = [
     { name = "apache-airflow" },
@@ -5969,7 +5989,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-git"
-version = "1.0.1"
+version = "1.1.0"
 source = { editable = "providers/git" }
 dependencies = [
     { name = "apache-airflow" },
@@ -6052,7 +6072,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-google"
-version = "22.9.0"
+version = "23.0.0"
 source = { editable = "providers/google" }
 dependencies = [
     { name = "apache-airflow" },
@@ -6074,7 +6094,6 @@ dependencies = [
     { name = "google-auth-httplib2" },
     { name = "google-cloud-aiplatform" },
     { name = "google-cloud-alloydb" },
-    { name = "google-cloud-automl" },
     { name = "google-cloud-batch" },
     { name = "google-cloud-bigquery" },
     { name = "google-cloud-bigquery-datatransfer" },
@@ -6083,7 +6102,6 @@ dependencies = [
     { name = "google-cloud-build" },
     { name = "google-cloud-compute" },
     { name = "google-cloud-container" },
-    { name = "google-cloud-datacatalog" },
     { name = "google-cloud-dataflow-client" },
     { name = "google-cloud-dataform" },
     { name = "google-cloud-dataplex" },
@@ -6113,7 +6131,6 @@ dependencies = [
     { name = "google-cloud-vision" },
     { name = "google-cloud-workflows" },
     { name = "google-genai" },
-    { name = "grpcio-gcp" },
     { name = "httpx2" },
     { name = "immutabledict" },
     { name = "jsonschema" },
@@ -6281,7 +6298,6 @@ requires-dist = [
     { name = "google-auth-httplib2", specifier = ">=0.0.1" },
     { name = "google-cloud-aiplatform", specifier = ">=1.164.0" },
     { name = "google-cloud-alloydb", specifier = ">=0.9.0" },
-    { name = "google-cloud-automl", specifier = ">=2.19.0" },
     { name = "google-cloud-batch", specifier = ">=0.21.0" },
     { name = "google-cloud-bigquery", specifier = ">=3.41.0" },
     { name = "google-cloud-bigquery-datatransfer", specifier = ">=3.22.0" },
@@ -6291,7 +6307,6 @@ requires-dist = [
     { name = "google-cloud-build", specifier = ">=3.36.0" },
     { name = "google-cloud-compute", specifier = ">=1.47.0" },
     { name = "google-cloud-container", specifier = ">=2.64.0" },
-    { name = "google-cloud-datacatalog", specifier = ">=3.30.0" },
     { name = "google-cloud-dataflow-client", specifier = ">=0.13.0" },
     { name = "google-cloud-dataform", specifier = ">=0.10.0" },
     { name = "google-cloud-dataplex", specifier = ">=2.19.0" },
@@ -6321,7 +6336,6 @@ requires-dist = [
     { name = "google-cloud-vision", specifier = ">=3.14.0" },
     { name = "google-cloud-workflows", specifier = ">=1.22.0" },
     { name = "google-genai", specifier = ">=2.8.0" },
-    { name = "grpcio-gcp", specifier = ">=0.2.2" },
     { name = "httpx2", specifier = ">=2.0.0" },
     { name = "immutabledict", specifier = ">=4.2.0" },
     { name = "jsonschema", specifier = ">=4.19.1" },
@@ -6427,7 +6441,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-hashicorp"
-version = "4.8.4"
+version = "4.8.5"
 source = { editable = "providers/hashicorp" }
 dependencies = [
     { name = "apache-airflow" },
@@ -6536,7 +6550,9 @@ dependencies = [
     { name = "apache-airflow" },
     { name = "apache-airflow-providers-common-compat" },
     { name = "datasets" },
+    { name = "dill" },
     { name = "huggingface-hub" },
+    { name = "multiprocess" },
 ]
 
 [package.dev-dependencies]
@@ -6555,7 +6571,9 @@ requires-dist = [
     { name = "apache-airflow", editable = "." },
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
     { name = "datasets", specifier = ">=5.0.0" },
+    { name = "dill", specifier = ">=0.3.8" },
     { name = "huggingface-hub", specifier = ">=0.24" },
+    { name = "multiprocess", specifier = ">=0.70.16" },
 ]
 
 [package.metadata.requires-dev]
@@ -6909,7 +6927,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-keycloak"
-version = "0.12.0"
+version = "0.13.0"
 source = { editable = "providers/keycloak" }
 dependencies = [
     { name = "apache-airflow" },
@@ -6932,7 +6950,7 @@ docs = [
 requires-dist = [
     { name = "apache-airflow", editable = "." },
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
-    { name = "python-keycloak", specifier = ">=5.0.0" },
+    { name = "python-keycloak", specifier = ">=5.12.0" },
 ]
 
 [package.metadata.requires-dev]
@@ -6946,7 +6964,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-microsoft-azure"
-version = "15.3.1"
+version = "15.4.0"
 source = { editable = "providers/microsoft/azure" }
 dependencies = [
     { name = "adlfs" },
@@ -7218,7 +7236,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-modal"
-version = "0.1.0"
+version = "0.2.0"
 source = { editable = "providers/modal" }
 dependencies = [
     { name = "apache-airflow" },
@@ -7537,7 +7555,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-openlineage"
-version = "2.21.0"
+version = "2.21.1"
 source = { editable = "providers/openlineage" }
 dependencies = [
     { name = "apache-airflow" },
@@ -8468,7 +8486,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-smtp"
-version = "3.2.1"
+version = "3.2.2"
 source = { editable = "providers/smtp" }
 dependencies = [
     { name = "aiosmtplib" },
@@ -8630,7 +8648,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-ssh"
-version = "7.0.2"
+version = "7.0.3"
 source = { editable = "providers/ssh" }
 dependencies = [
     { name = "apache-airflow" },
@@ -8922,7 +8940,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-vertica"
-version = "4.4.1"
+version = "4.4.2"
 source = { editable = "providers/vertica" }
 dependencies = [
     { name = "apache-airflow" },
@@ -11383,7 +11401,7 @@ wheels = [
 
 [[package]]
 name = "cadwyn"
-version = "8.2.0"
+version = "9.0.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "fastapi" },
@@ -11393,9 +11411,9 @@ dependencies = [
     { name = "typing-extensions" },
     { name = "typing-inspection" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/01/6b/62983d663ea924c5e7cfd0657e4bf5939e1a2cc1ba1b60314afb1883c312/cadwyn-8.2.0.tar.gz", hash = "sha256:0da42877e9165690163c369f80f902182394427f07bd1cfa17a4a4afe662cbad", size = 980180, upload-time = "2026-11-01T15:35:33.725Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/bd/2d/74a630944d1e7d912d321a7b5de664571ebb09780a874e15bb329e0b9a55/cadwyn-9.0.0.tar.gz", hash = "sha256:284d93307fe78771bfaeb533018e36e73d0798aa23f201a2520109d505d140e8", size = 1151606, upload-time = "2026-11-08T13:58:20.223Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/de/31/c049d01477c20963d37880c9cfd5e9c7f9812f0c8af3068035cf8b9949e0/cadwyn-8.2.0-py3-none-any.whl", hash = "sha256:c5cf734c9f0524ad4f9e7618389a7c18fa4c7373c753c291c77cab4ef00b16ad", size = 135749, upload-time = "2026-11-01T15:35:35.218Z" },
+    { url = "https://files.pythonhosted.org/packages/57/24/ca33b802cc68ebf7756b8f18913e0aaf68275b05177a66e0269a4e8311c1/cadwyn-9.0.0-py3-none-any.whl", hash = "sha256:1d80dbe7e2d64c679eae38feed740600e01c488224fdcfc51d0017a4ae7cca27", size = 221021, upload-time = "2026-11-08T13:58:18.737Z" },
 ]
 
 [[package]]
@@ -12630,12 +12648,12 @@ http = [
 
 [[package]]
 name = "datasets"
-version = "5.1.0"
+version = "5.2.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "dill" },
     { name = "filelock" },
-    { name = "fsspec", extra = ["http"] },
+    { name = "fsspec" },
     { name = "huggingface-hub" },
     { name = "multiprocess" },
     { name = "numpy" },
@@ -12646,9 +12664,9 @@ dependencies = [
     { name = "tqdm" },
     { name = "xxhash" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/17/e6/b5d8c77f13cc6269660b0f2691e8875777b9d94972e281b7b2c25f25bd9d/datasets-5.1.0.tar.gz", hash = "sha256:1561347daa8841b51351ef2ad1647b4ee4af406852c0f7bd1df587ac1ca7888e", size = 687306, upload-time = "2026-10-05T15:32:32.053Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/2b/fd/7d76cc5023b7cdb01e9ca026675392d2385df9f0b836a50c81123b84c514/datasets-5.2.0.tar.gz", hash = "sha256:f4290d4704dfbc99631a578b56912d66b22def53d3f61d246f6ccc129675490e", size = 695308, upload-time = "2026-11-09T21:37:47.386Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/24/cc/7f624629846c709ef1c68aa61bfb8d0ae2638cbe265104a1c2f7a630949e/datasets-5.1.0-py3-none-any.whl", hash = "sha256:86fd08b280485aab82894d2c81842c4151d93b575efea0054315104cb7bc3cec", size = 604432, upload-time = "2026-10-05T15:32:29.892Z" },
+    { url = "https://files.pythonhosted.org/packages/ae/22/c92c96de701dd7441f553adaaa480801ff3d37575486ef82df651a45f0ec/datasets-5.2.0-py3-none-any.whl", hash = "sha256:4be9e2882caaf5db13eadc39e93f3da2a995187b99acebac1595bf6c58dfa927", size = 608276, upload-time = "2026-11-09T21:37:45.527Z" },
 ]
 
 [[package]]
@@ -13564,16 +13582,11 @@ wheels = [
 
 [[package]]
 name = "fsspec"
-version = "2026.7.0"
+version = "2026.9.0"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/00/78/f34251dadb8f3921264a1d9b8946f5e542014ee2614b285261b4e40e6775/fsspec-2026.7.0.tar.gz", hash = "sha256:c803c40f4cf860b49dea58ee3e1c33cb9c790520e233537e1340049f89b82a88", size = 317040, upload-time = "2026-07-28T16:34:51.052Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/77/cd/9be253869fc42e764de7f3dedd6969af7d44ff9c3375214a3442a6f3fc08/fsspec-2026.9.0.tar.gz", hash = "sha256:0f08147951c8cb31d844c3547d631053b127863b60be04cf06e121333ee0e2fe", size = 333545, upload-time = "2026-09-18T17:50:42.825Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/fd/3c/6a2bf344106328fd04963664a60b9bb6496fc25df8e962fcdc1367285fb9/fsspec-2026.7.0-py3-none-any.whl", hash = "sha256:b57ddbafedfaef7018c1ecab32aa200a9d7ca26b77965f64e48b70061249d279", size = 206583, upload-time = "2026-07-28T16:34:49.538Z" },
-]
-
-[package.optional-dependencies]
-http = [
-    { name = "aiohttp" },
+    { url = "https://files.pythonhosted.org/packages/6c/c0/a98505f18594f1bce828bb159cec0fcf9860562f1a2c85913409fc8f3d9e/fsspec-2026.9.0-py3-none-any.whl", hash = "sha256:8dd6e646e99ea382bd85f97a45e6b526a442d79423a7dc673f1e2756d05fcb5f", size = 221738, upload-time = "2026-09-18T17:50:41.341Z" },
 ]
 
 [[package]]
@@ -13721,7 +13734,7 @@ wheels = [
 
 [[package]]
 name = "gcsfs"
-version = "2026.8.2"
+version = "2026.10.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aiohttp" },
@@ -13733,9 +13746,9 @@ dependencies = [
     { name = "google-cloud-storage-control" },
     { name = "requests" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/dd/c6/9424302a448b9d513c8720fd964ab2ad1262e8db3c7952d74c99f8d947d3/gcsfs-2026.8.2.tar.gz", hash = "sha256:304a5f4ce849a5e1275e427c3ffdbe0951e061cc1aa514b5928dcaf7079419e0", size = 1092682, upload-time = "2026-10-22T06:14:07.248Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/ed/78/e3eeed58d314b3906c36896999b5f15bd1e0669fba7a8d6733aee046234c/gcsfs-2026.10.1.tar.gz", hash = "sha256:ebdd435946894c47b17a2e4ac2d5f2832e8cde520e227db65d9b901c01fd7d28", size = 1118233, upload-time = "2026-10-16T02:07:28.851Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/de/57/40da9a90122b8be8c5dc7ce110f391afae42216cd80eb09a360905a484ba/gcsfs-2026.8.2-py3-none-any.whl", hash = "sha256:a0437729bb36e7640e081b95056b9ec00eb9a7294b5a647eba7a802043c37ed4", size = 93403, upload-time = "2026-10-22T06:14:05.603Z" },
+    { url = "https://files.pythonhosted.org/packages/0f/64/bd0cd661009e1e379a7d5d100f13d40dd0a1a28fa70115931d0e0328f7bd/gcsfs-2026.10.1-py3-none-any.whl", hash = "sha256:037e7e1fa695f12719eeb778be6453085dce0ecd8b17ef1dbeecbbce05fa3b60", size = 88539, upload-time = "2026-10-16T02:07:26.913Z" },
 ]
 
 [[package]]
@@ -14103,22 +14116,6 @@ wheels = [
 ]
 
 [[package]]
-name = "google-cloud-automl"
-version = "2.21.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "google-api-core", extra = ["grpc"] },
-    { name = "google-auth" },
-    { name = "grpcio" },
-    { name = "proto-plus" },
-    { name = "protobuf" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/46/2b/b651ad7bc919a17b3cb09011d720adb7e1f32799f60333fdfc8bdfd0245c/google_cloud_automl-2.21.0.tar.gz", hash = "sha256:1495c9f244194ee3c69e93f2fa489eb9e0fa2fb53bf35bb908d578f3054a2620", size = 390518, upload-time = "2026-10-01T18:14:51.648Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/0a/a2/6bcfd9aa4350b3bd60dc42ad68ec15d7fbe758533c1bff1556b954c2a154/google_cloud_automl-2.21.0-py3-none-any.whl", hash = "sha256:c46386d6a368847654d99c168c6f3c3076a2b3c34c9a00c7bb90cb2bc9cac06c", size = 371131, upload-time = "2026-10-01T18:08:11.154Z" },
-]
-
-[[package]]
 name = "google-cloud-batch"
 version = "0.22.4"
 source = { registry = "https://pypi.org/simple" }
@@ -14266,23 +14263,6 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/55/71/d6081acadf55d4233271c39860f0d140ef61fbdb4bceb2075e9c2905d947/google_cloud_core-2.8.0.tar.gz", hash = "sha256:365f8e4518ae81c8101b8dea5fc1c32a960badedb8b511f19db2843cbbd285d2", size = 36605, upload-time = "2026-09-29T19:25:59.275Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/12/ed/1b09640a565e5d34d4e517463f65a67a11f9dcdeb6b6e8220f2d06aaf489/google_cloud_core-2.8.0-py3-none-any.whl", hash = "sha256:e235b0952f7ffe7b9c71a4cf96b506d9cfb557e22557c412f0df9b7068b5d007", size = 31048, upload-time = "2026-09-29T19:25:35.361Z" },
-]
-
-[[package]]
-name = "google-cloud-datacatalog"
-version = "3.32.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "google-api-core", extra = ["grpc"] },
-    { name = "google-auth" },
-    { name = "grpc-google-iam-v1" },
-    { name = "grpcio" },
-    { name = "proto-plus" },
-    { name = "protobuf" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/7d/6b/7c549aa21faf67b13bf5562ffffed23d2d1fa3d3183677c92a1da6ec6370/google_cloud_datacatalog-3.32.0.tar.gz", hash = "sha256:564f1b13673d701a2960479d86b8505b8c7f99f0f5e925563b45e41627c1aad9", size = 405411, upload-time = "2026-10-01T18:15:58.084Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/a4/9a/12605fd9eee531056612614c20cd8db89e7dbafe0baf7884f741fb4df0c8/google_cloud_datacatalog-3.32.0-py3-none-any.whl", hash = "sha256:f29c42a557ec2b58130f1c272ce3510e7decf52eb37e24be8fa2d8edeb98298e", size = 373306, upload-time = "2026-10-01T18:09:32.844Z" },
 ]
 
 [[package]]
@@ -15173,18 +15153,6 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/16/e1/e334cf7442c01892ed813563b21b2a8ab5b042e34f33ad76cf64526d1de8/grpcio-1.85.1-cp315-cp315-musllinux_1_2_x86_64.whl", hash = "sha256:7bc5de50374416223bc35332aa8185567ec065f86190ff0ca6e13176ed39a3b4", size = 8346563, upload-time = "2026-10-30T16:01:10.394Z" },
     { url = "https://files.pythonhosted.org/packages/66/bb/cf72913ce0baae1fed95445f1ba8ac309184ac16b4f20fb5f88219eff72c/grpcio-1.85.1-cp315-cp315-win32.whl", hash = "sha256:5740aedf1e6acde538d7b80a2507eb6ee0b8983c577a36890d27a0e2b62cc1eb", size = 4853404, upload-time = "2026-10-30T16:01:12.239Z" },
     { url = "https://files.pythonhosted.org/packages/ea/b8/b7cff7b9e1ff7b6a8d36a19ce8b9c575963e71fcbb3878b276cff6748b05/grpcio-1.85.1-cp315-cp315-win_amd64.whl", hash = "sha256:b32f39c56d22d2e8722eececd4376074d94e01595a29f4f944ae0b6cea1caa70", size = 5758584, upload-time = "2026-10-30T16:01:14.325Z" },
-]
-
-[[package]]
-name = "grpcio-gcp"
-version = "0.2.2"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "grpcio" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/3c/a2/69a79b928e4a6abb5979945be9382f8aaf4580a7496ad4389371bbc0c9eb/grpcio-gcp-0.2.2.tar.gz", hash = "sha256:e292605effc7da39b7a8734c719afb12ec4b5362add3528d8afad3aa3aa9057c", size = 13366, upload-time = "2018-09-10T18:27:43.933Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/ba/83/1f1095815be0de19102df41e250ebbd7dae97d7d14e22c18da07ed5ed9d4/grpcio_gcp-0.2.2-py2.py3-none-any.whl", hash = "sha256:1ef8e8531eab11356a3eb4c5b84e79e0d923d6782d19e1b1a45e1cabe4e783d7", size = 9447, upload-time = "2018-09-10T18:27:42.835Z" },
 ]
 
 [[package]]
@@ -19385,6 +19353,35 @@ wheels = [
 ]
 
 [[package]]
+name = "openai-codex"
+version = "0.167.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "openai-codex-cli-bin" },
+    { name = "packaging" },
+    { name = "pydantic" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/7e/d7/da3969d1b6efd7dcac810a06062d02c623429c83a73d1299203b387e59ab/openai_codex-0.167.0.tar.gz", hash = "sha256:6007d9d82b651f81f159a6a652e1c526fb8b3f6a26d4c38cd1fb647e0ec46229", size = 94963, upload-time = "2026-11-06T01:53:38.063Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/8a/8f/7b72095c54899ad980e62b241d92c465c2e36b41fb7261430742b8f589ad/openai_codex-0.167.0-py3-none-any.whl", hash = "sha256:753f17a7ad94720698f7182cc9dbb76906b38d21d728bfa87ac44e110493a815", size = 101500, upload-time = "2026-11-06T01:53:36.442Z" },
+]
+
+[[package]]
+name = "openai-codex-cli-bin"
+version = "0.167.0"
+source = { registry = "https://pypi.org/simple" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/32/7d/a8b20d99b1049d3a3247d45fedbeedbb19b154717769d3c3d6b3bbab0367/openai_codex_cli_bin-0.167.0-py3-none-macosx_10_9_x86_64.whl", hash = "sha256:0d14545d50329d85d70f30a411eff5fa45335b48ec319b3b540ec9ce94c84778", size = 171858811, upload-time = "2026-11-06T01:51:56.897Z" },
+    { url = "https://files.pythonhosted.org/packages/75/f3/7f43b80b1c57bb0786325c921ba38d74931a244eae3c9aad576b399b687d/openai_codex_cli_bin-0.167.0-py3-none-macosx_11_0_arm64.whl", hash = "sha256:b1dc0cb9997f6a69ecabd17968026d295d2d4c8f0ad3af86171401af8c1f52b8", size = 158056877, upload-time = "2026-11-06T01:52:03.709Z" },
+    { url = "https://files.pythonhosted.org/packages/3b/95/5ddd2a31d397b7a40b031e213d1eb24559de3e012844dbf4f1bc224272d6/openai_codex_cli_bin-0.167.0-py3-none-manylinux_2_17_aarch64.whl", hash = "sha256:91c317a33e122f5c836667a02e39401ec683cebff624057448953e0d477b17d7", size = 170989422, upload-time = "2026-11-06T01:52:10.279Z" },
+    { url = "https://files.pythonhosted.org/packages/3a/d4/74c0be75c877b391b2d8ed79fef91e2129d696a1348ebc8e366a31f3f22a/openai_codex_cli_bin-0.167.0-py3-none-manylinux_2_17_x86_64.whl", hash = "sha256:be588b0645c54859f2ae085db06aa7e669ec7e6ecb3f3047f2fe000213e8422e", size = 183159597, upload-time = "2026-11-06T01:52:17.516Z" },
+    { url = "https://files.pythonhosted.org/packages/d4/af/2b32d02818f8281b3cef68bb97f689e148ee939d3d223c1386b7b6f59e52/openai_codex_cli_bin-0.167.0-py3-none-musllinux_1_1_aarch64.whl", hash = "sha256:df2c0ab6d610d8479f7c150e7c2e25e288c7ec165595f692afcde12f629db23e", size = 187857434, upload-time = "2026-11-06T01:52:24.909Z" },
+    { url = "https://files.pythonhosted.org/packages/53/60/8af0b758a46df2532b87e73ab839b2f15edb0da20c52e11b6dc3fd9958b6/openai_codex_cli_bin-0.167.0-py3-none-musllinux_1_1_x86_64.whl", hash = "sha256:7822801a44ba82f253cde5085635e39116d713a0b298c5f7ad678ada1e5db7a3", size = 200187609, upload-time = "2026-11-06T01:52:34.251Z" },
+    { url = "https://files.pythonhosted.org/packages/3b/45/76d887f892c87263ca5574cc27f550aa77534f8b65c8113c3d17250985be/openai_codex_cli_bin-0.167.0-py3-none-win_amd64.whl", hash = "sha256:1367c910a02ce33a4a100681cb8f9c1466bed50534d2f35ea6d70e0c031db17f", size = 193435218, upload-time = "2026-11-06T01:52:43.906Z" },
+    { url = "https://files.pythonhosted.org/packages/60/56/0611da58c26ef602b30154e54cce0fd0cd369f5defc9d4073ed9b8e1405d/openai_codex_cli_bin-0.167.0-py3-none-win_arm64.whl", hash = "sha256:2f13595f5d2130d43397406568a83ba99d36a8a1def1c5492551c0507bb460e3", size = 179126975, upload-time = "2026-11-06T01:52:54.39Z" },
+]
+
+[[package]]
 name = "openapi-schema-validator"
 version = "0.9.0"
 source = { registry = "https://pypi.org/simple" }
@@ -21154,18 +21151,18 @@ wheels = [
 
 [[package]]
 name = "pyathena"
-version = "3.40.0"
+version = "4.2.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "boto3" },
     { name = "botocore" },
     { name = "fsspec" },
-    { name = "python-dateutil" },
     { name = "tenacity" },
+    { name = "tzdata" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/f5/f1/d95dcb3be123d24ff4186d49274b504457a75c615e5b69b0c91f98cba362/pyathena-3.40.0.tar.gz", hash = "sha256:a0b3438e56ea9769d9de45616994d9574e52ce9569f07920d4069fc934512ab1", size = 173906, upload-time = "2026-10-16T15:24:54.896Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/39/16/6a3b9b94ccf12985885709b2fd832335c5e1c27cb61e32156fdc8f077f7f/pyathena-4.2.1.tar.gz", hash = "sha256:9f73e90b355a7ac5cc75b2d615609e52ccff27726be8eadb3c755ff39a92a549", size = 330992, upload-time = "2026-10-23T09:57:17.148Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/6b/81/037695f75380cfcb36392401c9f42bebd868f6f522036b419a88551f66a7/pyathena-3.40.0-py3-none-any.whl", hash = "sha256:128ca4bc9a6081a740ae6e8bdec5d73ea2d6a589b83eeaa4288ade8075bebcc5", size = 236026, upload-time = "2026-10-16T15:24:53.001Z" },
+    { url = "https://files.pythonhosted.org/packages/02/13/7b5fd9908a7e866d86e45e0f5ef25a076a5b712232a89cddf727bca7022e/pyathena-4.2.1-py3-none-any.whl", hash = "sha256:286839797fc6e830c6e080c15eccd4ed63ddefae238b1fb0156ad395c1422153", size = 405045, upload-time = "2026-10-23T09:57:15.201Z" },
 ]
 
 [[package]]
@@ -23564,16 +23561,16 @@ wheels = [
 
 [[package]]
 name = "s3fs"
-version = "2026.7.0"
+version = "2026.9.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aiobotocore" },
     { name = "aiohttp" },
     { name = "fsspec" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/12/60/69fc080b72a32971b2fb5acbc80802b0e876b606f6e27b1689caac4bb57b/s3fs-2026.7.0.tar.gz", hash = "sha256:76b062d1b2bc7bf4bcd9e7d8f1eb2b5dd9d5cee96ce888664c4ddb5f563146bf", size = 87595, upload-time = "2026-07-28T17:14:10.595Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/f7/fe/ab89ab94cc1293849bc1a60876b589007bdd43f59a06ca309e717bd45dc7/s3fs-2026.9.0.tar.gz", hash = "sha256:ec078ff0122d28fd21d36ea4987794e4f42ecd6e8785eeaa083208771c1464e5", size = 89163, upload-time = "2026-09-18T19:02:54.117Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/98/cc/bcde19a37952ecc58e7d9d67ecaa048e1e21b17d014ce0863a6a6101e606/s3fs-2026.7.0-py3-none-any.whl", hash = "sha256:64edf3c01ebffab1eec38ff9c09eefbf86a3db14c87d248f795da0e7b801d698", size = 32659, upload-time = "2026-07-28T17:14:09.497Z" },
+    { url = "https://files.pythonhosted.org/packages/bc/9c/15fb18bd708949dc953fe120be8d3c7a1b1b140c2592a9c81ce7961e9ecf/s3fs-2026.9.0-py3-none-any.whl", hash = "sha256:eb185fd98e20a1c9375087d9b2a6ef506f0cd01ae0c0c94efc79f88403fb81fe", size = 33126, upload-time = "2026-09-18T19:02:52.933Z" },
 ]
 
 [[package]]

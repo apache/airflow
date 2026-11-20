@@ -282,7 +282,7 @@ class TestAgentOperatorValidation:
 
 
 class TestAgentOperatorCoercionOrder:
-    @patch.object(AgentOperator, "build_agent", autospec=True)
+    @patch.object(AgentOperator, "_build_agent", autospec=True)
     def test_unparsable_usage_limits_fails_before_agent_is_built(self, mock_build_agent):
         """Building the agent resolves the connection and every toolset, so an
         uncoercible ``usage_limits`` has to fail ahead of it."""
@@ -1730,6 +1730,15 @@ class TestAgentOperatorBuildAgent:
         create_agent = mock_hook_cls.get_hook.return_value.create_agent
         assert create_agent.call_args.kwargs["instructions"] == "Answer for {{ ds }}."
 
+    def test_build_agent_builds_without_an_approval_context(self):
+        """Only ``execute`` passes the task context, so a durable run pauses for approval only there."""
+        op = AgentOperator(task_id="t", prompt="p", llm_conn_id="my_llm", durable=True)
+
+        with patch.object(AgentOperator, "_build_agent", autospec=True) as mock_build_agent:
+            assert op.build_agent() is mock_build_agent.return_value
+
+        mock_build_agent.assert_called_once_with(op)
+
 
 class TestAgentOperatorCapabilities:
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
@@ -2039,7 +2048,7 @@ class TestAgentOperatorDurable:
         op = AgentOperator(task_id="summarize", prompt="p", llm_conn_id="c", durable=True)
         op.llm_hook = MagicMock(spec=["create_agent"])
 
-        op.build_agent()
+        op._build_agent()
 
         capabilities = op.llm_hook.create_agent.call_args.kwargs["capabilities"]
         durability = [c for c in capabilities if isinstance(c, AirflowDurability)]
@@ -2051,7 +2060,7 @@ class TestAgentOperatorDurable:
         )
         op.llm_hook = MagicMock(spec=["create_agent"])
 
-        op.build_agent()
+        op._build_agent()
 
         capabilities = op.llm_hook.create_agent.call_args.kwargs["capabilities"]
         assert [c.name for c in capabilities if isinstance(c, AirflowDurability)] == ["writer"]
@@ -2060,7 +2069,7 @@ class TestAgentOperatorDurable:
         op = AgentOperator(task_id="t", prompt="p", llm_conn_id="c", cache_prompt=False)
         op.llm_hook = MagicMock(spec=["create_agent"])
 
-        op.build_agent()
+        op._build_agent()
 
         capabilities = op.llm_hook.create_agent.call_args.kwargs["capabilities"]
         assert not [c for c in capabilities if isinstance(c, AirflowDurability)]
@@ -2077,7 +2086,7 @@ class TestAgentOperatorDurable:
         op = AgentOperator(task_id="t", prompt="p", llm_conn_id="c", durable=True, **kwargs)
         op.llm_hook = MagicMock(spec=["create_agent"])
 
-        op.build_agent()
+        op._build_agent()
 
         capabilities = op.llm_hook.create_agent.call_args.kwargs["capabilities"]
         assert isinstance(capabilities[0].toolset, MaskingToolset)
@@ -2280,7 +2289,7 @@ class TestAgentOperatorDurable:
         )
         op.llm_hook = MagicMock(spec=["create_agent"])
 
-        op.build_agent()
+        op._build_agent()
 
         kwargs = op.llm_hook.create_agent.call_args.kwargs
         listed, in_capability = kwargs["toolsets"][0].wrapped, kwargs["capabilities"][0].toolset.wrapped
@@ -2288,7 +2297,10 @@ class TestAgentOperatorDurable:
         assert listed.id is not None
         assert orders.id is None
 
-    def test_durable_fails_a_tool_that_raises_approval_required_with_unsupported_tool_deferral_error(self):
+    @patch("airflow.providers.common.ai.operators.agent.AIRFLOW_V_3_3_PLUS", False)
+    def test_durable_before_airflow_3_3_fails_a_tool_that_raises_approval_required(self):
+        """Approval parks the task in awaiting_input, which Airflow before 3.3 does not have."""
+
         def refund() -> str:
             raise ApprovalRequired
 
@@ -2759,19 +2771,10 @@ class TestAgentOperatorCancellation:
 class TestAgentOperatorHITLArgumentChecks:
     """The order in which __init__ reports conflicting HITL arguments."""
 
-    @pytest.mark.skipif(
-        not AIRFLOW_V_3_1_PLUS, reason="Human in the loop is only compatible with Airflow >= 3.1.0"
-    )
-    def test_durable_with_hitl_review_raises(self):
-        """Durable replay cannot be combined with HITL review."""
-        with pytest.raises(ValueError, match="durable=True and enable_hitl_review"):
-            AgentOperator(task_id="t", prompt="run", llm_conn_id="c", durable=True, enable_hitl_review=True)
-
     @pytest.mark.parametrize(
         "conflicting_kwargs",
         [
             pytest.param({"message_history": []}, id="message_history"),
-            pytest.param({"durable": True}, id="durable"),
         ],
     )
     @patch("airflow.providers.common.ai.operators.agent.AIRFLOW_V_3_1_PLUS", False)
@@ -4235,7 +4238,7 @@ class TestAgentOperatorMasksToolOutput:
         hook = PydanticAIHook(llm_conn_id="c")
         op.llm_hook = hook
         with patch.object(hook, "get_conn", autospec=True, return_value=FunctionModel(_echo_tool_result)):
-            return op.build_agent()
+            return op._build_agent()
 
     def _run(self, op: AgentOperator, storage=None) -> str:
         agent = self._agent(op)
@@ -4399,6 +4402,6 @@ class TestAgentOperatorMasksToolOutput:
         hook = MagicMock(spec=["create_agent"])
         op.llm_hook = hook
 
-        op.build_agent()
+        op._build_agent()
 
         assert hook.create_agent.call_args.kwargs["toolsets"] == [sql]

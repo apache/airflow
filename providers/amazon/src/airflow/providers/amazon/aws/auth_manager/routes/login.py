@@ -38,6 +38,7 @@ from airflow.api_fastapi.app import (
 )
 from airflow.api_fastapi.auth.managers.base_auth_manager import COOKIE_NAME_JWT_TOKEN
 from airflow.api_fastapi.common.router import AirflowRouter
+from airflow.api_fastapi.core_api.security import is_safe_url
 from airflow.providers.amazon.aws.auth_manager.constants import (
     CONF_ALLOW_IDP_INITIATED_LOGIN_KEY,
     CONF_SAML_METADATA_URL_KEY,
@@ -80,6 +81,11 @@ LOGIN_STATE_MAX_AGE = 600
 # One entry per login started and not yet completed, so opening a second tab does not
 # invalidate the first. The cap bounds the cookie; the oldest pending login is dropped.
 MAX_PENDING_LOGINS = 5
+
+# Cap the JSON-encoded length of the redirect URL stored in the pending entry so that
+# 5 pending entries do not push the base64-encoded cookie past the ~4 KB browser limit,
+# even when non-Latin-1 characters expand to \uXXXX escapes.
+MAX_NEXT_URL_JSON_LENGTH = 400
 
 LOGIN_MODE_REDIRECT = "login-redirect"
 LOGIN_MODE_TOKEN = "login-token"
@@ -196,14 +202,22 @@ def _start_login(request: Request, mode: str) -> RedirectResponse:
     callback_url = saml_auth.login(f"{mode}:{nonce}")
     response = RedirectResponse(url=callback_url)
     pending = _read_pending_logins(request)[-(MAX_PENDING_LOGINS - 1) :]
-    pending.append(
-        {
-            "nonce": nonce,
-            "request_id": saml_auth.get_last_request_id(),
-            "mode": mode,
-            "exp": time.time() + LOGIN_STATE_MAX_AGE,
-        }
-    )
+    entry: dict[str, Any] = {
+        "nonce": nonce,
+        "request_id": saml_auth.get_last_request_id(),
+        "mode": mode,
+        "exp": time.time() + LOGIN_STATE_MAX_AGE,
+    }
+    if mode == LOGIN_MODE_REDIRECT:
+        next_url = request.query_params.get("next")
+        if next_url:
+            if len(json.dumps(next_url)) <= MAX_NEXT_URL_JSON_LENGTH and is_safe_url(
+                next_url, request=request
+            ):
+                entry["next"] = next_url
+            else:
+                log.debug("Dropping next URL %r: exceeds maximum length or is unsafe.", next_url)
+    pending.append(entry)
     _write_pending_logins(request, response, pending)
     return response
 
@@ -273,14 +287,16 @@ def login_callback(request: Request):
         username=saml_auth.get_nameid(),
         email=attributes["email"][0] if "email" in attributes else None,
     )
-    url = conf.get("api", "base_url", fallback="/")
+    fallback_url = conf.get("api", "base_url", fallback="/")
+    next_url = matched.get("next") if matched else None
+    redirect_url = next_url or fallback_url
     token = get_auth_manager().generate_jwt(user)
 
     response: Any
     if mode == LOGIN_MODE_REDIRECT:
-        response = RedirectResponse(url=url, status_code=303)
         cookie_path = get_cookie_path()
         secure = _is_secure_request(request)
+        response = RedirectResponse(url=redirect_url, status_code=303)
         # In Airflow 3.1.1 authentication changes, front-end no longer handle the token
         # See https://github.com/apache/airflow/pull/55506
         if AIRFLOW_V_3_1_1_PLUS:

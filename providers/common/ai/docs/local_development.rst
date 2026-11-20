@@ -34,7 +34,7 @@ scheduler, metadata database, or ``airflow db migrate`` is involved:
 
 .. code-block:: bash
 
-    export AIRFLOW_CONN_MY_LLM='{"conn_type": "pydanticai", "password": "sk-...", "extra": {"model": "openai:gpt-5"}}'
+    export AIRFLOW_CONN_MY_LLM='{"conn_type": "pydanticai", "password": "sk-...", "extra": {"model": "openai:gpt-6.1-sol"}}'
     export AIRFLOW_CONN_ORDERS_DB='{"conn_type": "sqlite", "host": "/tmp/orders.db"}'
 
 .. code-block:: python
@@ -131,7 +131,7 @@ key:
 
 .. code-block:: bash
 
-    export AIRFLOW_CONN_MY_LLM='{"conn_type": "pydanticai", "extra": {"model": "openai:gpt-5"}}'
+    export AIRFLOW_CONN_MY_LLM='{"conn_type": "pydanticai", "extra": {"model": "openai:gpt-6.1-sol"}}'
 
 ``dag.test()`` needs a metadata database, so run ``airflow db migrate`` once in the
 test environment. It also looks the Dag up in your Dags folder, so import the Dag
@@ -172,8 +172,21 @@ as written rather than a copy of it:
     report = dataset.evaluate_sync(lambda question: agent.run_sync(question).output)
     report.print()
 
-``build_agent()`` runs outside a task, so templates aren't rendered and a templated
-``system_prompt`` reaches the agent as written. ``@task.llm``, ``LLMOperator`` and
-the other LLM operators have it too; for ``LLMSQLQueryOperator`` and
-``LLMSchemaCompareOperator`` it reads the table schemas, so it needs their database
-connections.
+Run it from your project root with the Dags folder on the import path:
+
+.. code-block:: bash
+
+    PYTHONPATH=dags python evals/eval_orders_report.py
+
+``build_agent()`` runs outside a task, so templates aren't rendered and every
+template field (``system_prompt``, ``llm_conn_id``, ``model_id`` and the rest)
+reaches the agent as written; a templated ``llm_conn_id`` fails at connection
+lookup. For a durable task, the agent has no tool-approval step.
+
+These have ``build_agent()``: ``AgentOperator`` (``@task.agent``), ``LLMOperator``
+(``@task.llm``), ``LLMBranchOperator`` (``@task.llm_branch``),
+``LLMFileAnalysisOperator`` (``@task.llm_file_analysis``), ``LLMSQLQueryOperator``
+(``@task.llm_sql``) and ``LLMSchemaCompareOperator`` (``@task.llm_schema_compare``).
+For the last two it reads the table schemas, so it needs their database connections.
+Mapped tasks aren't covered: ``get_task()`` returns a ``MappedOperator`` for them,
+which has no ``build_agent()``.

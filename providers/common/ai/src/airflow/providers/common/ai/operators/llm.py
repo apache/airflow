@@ -136,7 +136,7 @@ class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin, Usag
 
     :param prompt: The prompt to send to the LLM.
     :param llm_conn_id: Connection ID for the LLM provider.
-    :param model_id: Model identifier (e.g. ``"openai:gpt-5"``).
+    :param model_id: Model identifier (e.g. ``"openai:gpt-6.1-sol"``).
         Overrides the model stored in the connection's extra field.
     :param fallback_conn_ids: Connection IDs to fail over to, in order, when
         the primary provider is unavailable. Overrides the ``fallback_conn_ids``
@@ -396,10 +396,12 @@ class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin, Usag
         ``execute`` runs the agent this returns, so an eval or test can call it on a task from
         a Dag (for example ``dag.get_task("summarize").build_agent()``) to run the same agent,
         with the same connection, model settings, instructions and output type. Each call
-        builds a new agent.
+        builds a new agent. A subclass that builds its agent differently should override
+        this and call it from ``execute``, so both return the same agent.
 
-        Template fields are only rendered during a task run, so outside one a templated
-        ``system_prompt`` is passed to the agent as written.
+        Template fields are only rendered during a task run, so outside one every template
+        field (``system_prompt``, ``llm_conn_id``, ``model_id``, ``model_settings`` and the
+        rest) is used as written.
         """
         return self._create_agent(output_type=self.output_type, instructions=self.system_prompt)
 

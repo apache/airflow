@@ -44,6 +44,7 @@ from airflow.providers.common.ai.operators.llm_schema_compare import (
     SchemaCompareResult,
 )
 from airflow.providers.common.ai.operators.llm_sql import LLMSQLQueryOperator
+from airflow.providers.common.ai.utils.file_analysis import FileAnalysisRequest
 from airflow.providers.common.ai.utils.logging import MODEL_NAME_XCOM_KEY
 from airflow.providers.common.ai.utils.usage_budget import USAGE_BUDGET_KEY
 
@@ -655,23 +656,38 @@ class TestLLMOperatorBuildAgent:
             op.build_agent()
 
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
-    def test_file_analysis_operator_builds_an_agent_with_its_system_prompt(self, mock_hook_cls):
+    @patch(
+        "airflow.providers.common.ai.operators.llm_file_analysis.build_file_analysis_request", autospec=True
+    )
+    def test_file_analysis_operator_runs_the_agent_build_agent_returns(
+        self, mock_build_request, mock_hook_cls, make_mock_run_result
+    ):
+        mock_build_request.return_value = FileAnalysisRequest(
+            user_content="prepared prompt", resolved_paths=["/tmp/app.log"], total_size_bytes=10
+        )
+        create_agent = mock_hook_cls.get_hook.return_value.create_agent
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
+        mock_agent.run_sync.return_value = make_mock_run_result("ok")
+        create_agent.return_value = mock_agent
         op = LLMFileAnalysisOperator(
-            task_id="t", prompt="p", llm_conn_id="my_llm", file_path="/tmp/app.log", output_type=Summary
+            task_id="t", prompt="p", llm_conn_id="my_llm", file_path="/tmp/app.log", system_prompt="Be brief."
         )
 
-        op.build_agent()
+        assert op.build_agent() is mock_agent
+        op.execute(context=_make_context(ti_id="ti-1"))
 
-        kwargs = mock_hook_cls.get_hook.return_value.create_agent.call_args.kwargs
-        assert kwargs["output_type"] is Summary
-        assert kwargs["instructions"] == op._build_system_prompt()
+        built, executed = create_agent.call_args_list
+        assert built == executed
+        assert built.kwargs["instructions"] == op._build_system_prompt()
+        assert "Be brief." in built.kwargs["instructions"]
+        mock_agent.run_sync.assert_called_once()
 
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
     def test_sql_operator_builds_an_agent_with_the_schema_in_its_system_prompt(self, mock_hook_cls):
         op = LLMSQLQueryOperator(task_id="t", prompt="p", llm_conn_id="my_llm")
         schema = "Table: orders\nColumns: id INTEGER"
 
-        with patch.object(LLMSQLQueryOperator, "_get_schema_context", return_value=schema):
+        with patch.object(LLMSQLQueryOperator, "_get_schema_context", autospec=True, return_value=schema):
             op.build_agent()
 
         kwargs = mock_hook_cls.get_hook.return_value.create_agent.call_args.kwargs
@@ -692,7 +708,9 @@ class TestLLMOperatorBuildAgent:
         )
         schema_context = "db_a.orders: id INTEGER\ndb_b.orders: id BIGINT"
 
-        with patch.object(LLMSchemaCompareOperator, "_build_schema_context", return_value=schema_context):
+        with patch.object(
+            LLMSchemaCompareOperator, "_build_schema_context", autospec=True, return_value=schema_context
+        ):
             op.build_agent()
 
         kwargs = mock_hook_cls.get_hook.return_value.create_agent.call_args.kwargs

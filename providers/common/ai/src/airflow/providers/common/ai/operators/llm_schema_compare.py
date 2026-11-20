@@ -98,7 +98,7 @@ class LLMSchemaCompareOperator(LLMOperator):
 
     :param prompt: Instructions for the LLM on what to compare and flag.
     :param llm_conn_id: Connection ID for the LLM provider.
-    :param model_id: Model identifier (e.g. ``"openai:gpt-5"``).
+    :param model_id: Model identifier (e.g. ``"openai:gpt-6.1-sol"``).
     :param fallback_conn_ids: Connection IDs to fail over to, in order, when
         the primary provider is unavailable. Overrides the ``fallback_conn_ids``
         set in the connection's extra field. ``None`` (default) reads the

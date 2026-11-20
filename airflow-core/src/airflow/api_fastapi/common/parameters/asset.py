@@ -17,9 +17,11 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import (
     TYPE_CHECKING,
     Annotated,
+    Any,
 )
 
 from fastapi import Depends, Query
@@ -48,6 +50,7 @@ from airflow.models.asset import (
     AssetEvent,
     AssetModel,
     AssetPartitionDagRun,
+    AssetWatcherModel,
     DagScheduleAssetReference,
     TaskInletAssetReference,
     TaskOutletAssetReference,
@@ -55,9 +58,10 @@ from airflow.models.asset import (
 )
 from airflow.models.dag import DagModel
 from airflow.models.dagrun import DagRun
+from airflow.typing_compat import Self
 
 if TYPE_CHECKING:
-    from sqlalchemy.sql import Select
+    from sqlalchemy.sql import ColumnElement, Select
 
 
 class _DagIdAssetReferenceFilter(BaseParam[list[str]]):
@@ -280,6 +284,55 @@ QueryAssetDagIdPatternSearch = Annotated[
 ]
 
 QueryAssetEventExtraFilter = Annotated[_JsonKVFilter, Depends(json_kv_filter_factory(AssetEvent.extra))]
+
+
+class _TriggerIdFilter(BaseParam[int]):
+    """Filter on the assets a trigger's watchers watch."""
+
+    def __init__(self, attribute: ColumnElement, skip_none: bool = True) -> None:
+        super().__init__(skip_none=skip_none)
+        self.attribute: ColumnElement = attribute
+
+    def to_orm(self, select: Select) -> Select:
+        if self.value is None:
+            return select
+        return select.where(
+            self.attribute.in_(
+                sql_select(AssetWatcherModel.asset_id).where(AssetWatcherModel.trigger_id == self.value)
+            )
+        )
+
+    @classmethod
+    def depends(cls, *args: Any, **kwargs: Any) -> Self:
+        raise NotImplementedError("Use trigger_id_filter_factory instead.")
+
+
+def trigger_id_filter_factory(
+    attribute: ColumnElement, description: str
+) -> Callable[[int | None], _TriggerIdFilter]:
+    def depends_trigger_id(
+        trigger_id: int | None = Query(default=None, description=description),
+    ) -> _TriggerIdFilter:
+        return _TriggerIdFilter(attribute).set_value(trigger_id)
+
+    return depends_trigger_id
+
+
+QueryAssetTriggerIdFilter = Annotated[
+    _TriggerIdFilter,
+    Depends(
+        trigger_id_filter_factory(AssetModel.id, "Return only the assets this trigger's watchers watch.")
+    ),
+]
+
+QueryAssetEventTriggerIdFilter = Annotated[
+    _TriggerIdFilter,
+    Depends(
+        trigger_id_filter_factory(
+            AssetEvent.asset_id, "Return only the events of the assets this trigger's watchers watch."
+        )
+    ),
+]
 
 QueryPartitionedDagRunHasCreatedDagRunIdFilter = Annotated[
     FilterParam[bool | None],

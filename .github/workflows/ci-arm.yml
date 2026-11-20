@@ -60,7 +60,8 @@ jobs:
     name: "Check if the run is needed"
     # A scheduled canary is not needed when the last completed full run of this workflow on the
     # branch tested the same commit and succeeded: it would only repeat that run. A push run tests
-    # the changes since the last successful run of this workflow on the branch, found here.
+    # the changes since the last successful run of this workflow on the branch, found here. Marking
+    # a draft pull request ready is not needed when its head already has a passing `CI passed`.
     # This job runs for every event, with no steps for the others: every other job depends on it
     # through `build-info`, and GitHub skips the whole dependency chain below a skipped job unless
     # each job in it has a status function such as `always()` in its `if:`.
@@ -68,12 +69,41 @@ jobs:
     timeout-minutes: 5
     permissions:
       actions: read
+      checks: read
       contents: read
     outputs:
-      run-needed: ${{ steps.schedule.outputs.run-needed || 'true' }}
+      run-needed: ${{ steps.schedule.outputs.run-needed || steps.ready.outputs.run-needed || 'true' }}
       # Empty in forks, whose pushes selective checks compare against apache/airflow.
       push-base-commit: ${{ steps.push.outputs.push-base-commit }}
     steps:
+      - name: "Check the earlier runs of the pull request's head"
+        if: github.event_name == 'pull_request' && github.event.action == 'ready_for_review'
+        id: ready
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          # Draft pull requests get CI on `opened` and `synchronize`, so marking one ready usually
+          # repeats a run that already passed. Only a job that ran as `CI passed` counts: a gate-only
+          # run, a run skipped here and a cancelled run all succeed under another name of the job,
+          # and they did not test the head. A head whose runs failed, were cancelled or wait for
+          # approval, such as a scheduled CI upgrade pull request's, is tested in full.
+          if ! passed="$(gh api "repos/${REPOSITORY}/commits/${HEAD_SHA}/check-runs" -X GET \
+            -f check_name="CI passed" -f filter=latest -F per_page=100 \
+            --jq '[.check_runs[] | select(.conclusion == "success")][0].html_url // ""')"; then
+            # Fail open: a failed lookup must not skip the run.
+            echo "::warning::Could not check the earlier runs of ${HEAD_SHA}, running CI"
+            passed=""
+          fi
+          if [[ -n "${passed}" ]]; then
+            echo "run-needed=false" >> "${GITHUB_OUTPUT}"
+            echo "The head of the pull request already passed CI: ${passed}" >> "${GITHUB_STEP_SUMMARY}"
+          else
+            echo "run-needed=true" >> "${GITHUB_OUTPUT}"
+          fi
       - name: "Find the last successful run of the branch"
         if: github.event_name == 'push' && github.repository == 'apache/airflow'
         id: push
@@ -269,6 +299,9 @@ jobs:
       use-uv: ${{ steps.selective-checks.outputs.force-pip == 'true' && 'false' || 'true' }}
       upgrade-to-newer-dependencies: ${{ steps.selective-checks.outputs.upgrade-to-newer-dependencies }}
       is-uv-lock-update: ${{ steps.selective-checks.outputs.is-uv-lock-update }}
+      # The base branch commit and merge base that every job of a fork run merges the pushed
+      # commit with, so that it tests what a pull_request run of project CI tests; empty elsewhere.
+      merge-with: ${{ steps.merge-base.outputs.merge-with }}
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
@@ -280,6 +313,62 @@ jobs:
           ref: ${{ github.sha }}
           fetch-depth: 2
           persist-credentials: false
+      - name: "Check clean integration with upstream target branch"
+        id: merge-base
+        if: github.event_name == 'push' && github.repository != 'apache/airflow'
+        shell: bash
+        run: |
+          target_branch=$(grep -E '^AIRFLOW_BRANCH\s*=\s*' dev/breeze/src/airflow_breeze/branch_defaults.py | sed -E 's/.*"([^"]+)".*/\1/' || echo "main")
+          target_branch="${target_branch:-main}"
+          fetched=0
+          for i in 1 2 3; do
+            if git fetch --no-tags --depth=100 https://github.com/apache/airflow.git "${target_branch}:refs/remotes/upstream/${target_branch}"; then
+              fetched=1
+              break
+            fi
+            sleep "$i"
+          done
+          if [ "${fetched}" -eq 1 ] && git rev-parse --verify "refs/remotes/upstream/${target_branch}" >/dev/null 2>&1; then
+            merge_base=$(git merge-base "refs/remotes/upstream/${target_branch}" HEAD 2>/dev/null || true)
+            step=200
+            max_deepen=5
+            iter=0
+            while [ -z "${merge_base}" ] && [ "${iter}" -lt "${max_deepen}" ]; do
+              iter=$((iter + 1))
+              git fetch --deepen="${step}" origin "${GITHUB_REF_NAME:-HEAD}" >/dev/null 2>&1 || true
+              git fetch --deepen="${step}" https://github.com/apache/airflow.git "${target_branch}:refs/remotes/upstream/${target_branch}" >/dev/null 2>&1 || true
+              merge_base=$(git merge-base "refs/remotes/upstream/${target_branch}" HEAD 2>/dev/null || true)
+            done
+            if [ -n "${merge_base}" ]; then
+              conflict=0
+              git merge-tree --write-tree --merge-base "${merge_base}" HEAD "refs/remotes/upstream/${target_branch}" >/dev/null 2>&1 || conflict=$?
+              if [ "${conflict}" -eq 1 ]; then
+                echo "::error::Your branch has merge conflicts with apache/airflow:${target_branch}. Please rebase on upstream/${target_branch} before running fork CI."
+                exit 1
+              elif [ "${conflict}" -gt 1 ]; then
+                echo "::warning::Git merge-tree exited with error code ${conflict} (not a merge conflict). Skipping conflict check."
+              else
+                target_sha=$(git rev-parse "refs/remotes/upstream/${target_branch}")
+                {
+                  echo "merge-with=${target_sha} ${merge_base}"
+                  echo "target-branch=${target_branch}"
+                  echo "target-sha=${target_sha}"
+                  echo "merge-base=${merge_base}"
+                } >> "${GITHUB_OUTPUT}"
+              fi
+            else
+              echo "::warning::Could not find merge-base with upstream/${target_branch} after deepening up to 1000 commits. Skipping conflict check."
+            fi
+          else
+            echo "::warning::Could not fetch upstream/${target_branch} from https://github.com/apache/airflow.git. Skipping conflict check."
+          fi
+      # The fork CI monitor reads from this step's name which merge the run tested.
+      - name: >-
+          Test merged with apache/airflow ${{ steps.merge-base.outputs.target-branch }}@${{
+          steps.merge-base.outputs.target-sha }}, merge base ${{ steps.merge-base.outputs.merge-base }}
+        if: steps.merge-base.outputs.merge-with != ''
+        shell: bash
+        run: echo "The jobs of this run test the pushed commit merged with apache/airflow."
       - name: "Fetch the last tested push commit"
         # Selective checks of a push diff against this commit. A two-commit diff only needs the
         # commit itself, not the history in between; if it cannot be fetched, all tests run.
@@ -380,6 +469,7 @@ jobs:
     needs: [build-info, check-run-needed]
     uses: ./.github/workflows/basic-tests.yml
     with:
+      merge-with: ${{ needs.build-info.outputs.merge-with }}
       newsfragment-pr-number: ${{ needs.build-info.outputs.newsfragment-pr-number }}
       runners: ${{ needs.build-info.outputs.runner-type }}
       run-ui-tests: ${{needs.build-info.outputs.run-ui-tests}}
@@ -410,6 +500,7 @@ jobs:
       # from forks. This is to prevent malicious PRs from creating images in the "apache/airflow" repo.
       packages: write
     with:
+      merge-with: ${{ needs.build-info.outputs.merge-with }}
       runners: ${{ needs.build-info.outputs.runner-type }}
       platform: ${{ needs.build-info.outputs.platform }}
       push-image: "false"
@@ -435,6 +526,7 @@ jobs:
       packages: write
       id-token: write
     with:
+      merge-with: ${{ needs.build-info.outputs.merge-with }}
       runners: ${{ needs.build-info.outputs.runner-type }}
       platform: ${{ needs.build-info.outputs.platform }}
       branch: ${{ needs.build-info.outputs.default-branch }}
@@ -450,6 +542,7 @@ jobs:
     uses: ./.github/workflows/generate-constraints.yml
     if: needs.build-info.outputs.generate-constraints == 'true'
     with:
+      merge-with: ${{ needs.build-info.outputs.merge-with }}
       runners: ${{ needs.build-info.outputs.runner-type }}
       platform: ${{ needs.build-info.outputs.platform }}
       python-versions-list-as-string: ${{ needs.build-info.outputs.python-versions-list-as-string }}
@@ -471,6 +564,7 @@ jobs:
       id-token: write
       contents: read
     with:
+      merge-with: ${{ needs.build-info.outputs.merge-with }}
       newsfragment-pr-number: ${{ needs.build-info.outputs.newsfragment-pr-number }}
       runners: ${{ needs.build-info.outputs.runner-type }}
       platform: ${{ needs.build-info.outputs.platform }}
@@ -516,6 +610,11 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           persist-credentials: false
+      - name: "Merge with the base branch"
+        if: needs.build-info.outputs.merge-with != ''
+        uses: ./.github/actions/merge-with-base
+        with:
+          merge-with: ${{ needs.build-info.outputs.merge-with }}
       - name: "Prepare breeze & CI image: ${{ needs.build-info.outputs.default-python-version }}"
         uses: ./.github/actions/prepare_breeze_and_image
         with:
@@ -558,6 +657,11 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           persist-credentials: false
+      - name: "Merge with the base branch"
+        if: needs.build-info.outputs.merge-with != ''
+        uses: ./.github/actions/merge-with-base
+        with:
+          merge-with: ${{ needs.build-info.outputs.merge-with }}
       - name: "Prepare breeze & CI image: ${{ needs.build-info.outputs.default-python-version }}"
         uses: ./.github/actions/prepare_breeze_and_image
         with:
@@ -593,6 +697,7 @@ jobs:
       needs.build-info.outputs.latest-versions-only != 'true' &&
       needs.build-info.outputs.run-unit-tests == 'true'
     with:
+      merge-with: ${{ needs.build-info.outputs.merge-with }}
       runners: ${{ needs.build-info.outputs.runner-type }}
       platform: ${{ needs.build-info.outputs.platform }}
       canary-run: ${{ needs.build-info.outputs.canary-run }}
@@ -618,6 +723,7 @@ jobs:
       contents: read
       packages: read
     with:
+      merge-with: ${{ needs.build-info.outputs.merge-with }}
       runners: ${{ needs.build-info.outputs.runner-type }}
       platform: ${{ needs.build-info.outputs.platform }}
       helm-test-packages: ${{ needs.build-info.outputs.helm-test-packages }}
@@ -637,6 +743,7 @@ jobs:
       contents: read
       packages: read
     with:
+      merge-with: ${{ needs.build-info.outputs.merge-with }}
       runners: ${{ needs.build-info.outputs.runner-type }}
       platform: ${{ needs.build-info.outputs.platform }}
       default-python-version: "${{ needs.build-info.outputs.default-python-version }}"
@@ -670,6 +777,7 @@ jobs:
       contents: read
       packages: read
     with:
+      merge-with: ${{ needs.build-info.outputs.merge-with }}
       runners: ${{ format(needs.build-info.outputs.in-memory-runner-type, '8+16', '32+128') }}
       platform: ${{ needs.build-info.outputs.platform }}
       backend: "postgres"
@@ -699,6 +807,7 @@ jobs:
       contents: read
       packages: read
     with:
+      merge-with: ${{ needs.build-info.outputs.merge-with }}
       runners: ${{ format(needs.build-info.outputs.in-memory-runner-type, '32+64', '128+256') }}
       platform: ${{ needs.build-info.outputs.platform }}
       backend: "postgres"
@@ -728,6 +837,7 @@ jobs:
       contents: read
       packages: read
     with:
+      merge-with: ${{ needs.build-info.outputs.merge-with }}
       runners: ${{ format(needs.build-info.outputs.in-memory-runner-type, '8+16', '32+128') }}
       platform: ${{ needs.build-info.outputs.platform }}
       backend: "mysql"
@@ -758,6 +868,7 @@ jobs:
       contents: read
       packages: read
     with:
+      merge-with: ${{ needs.build-info.outputs.merge-with }}
       runners: ${{ format(needs.build-info.outputs.in-memory-runner-type, '32+64', '128+256') }}
       platform: ${{ needs.build-info.outputs.platform }}
       backend: "mysql"
@@ -787,6 +898,7 @@ jobs:
       contents: read
       packages: read
     with:
+      merge-with: ${{ needs.build-info.outputs.merge-with }}
       runners: ${{ format(needs.build-info.outputs.in-memory-runner-type, '8+16', '32+128') }}
       platform: ${{ needs.build-info.outputs.platform }}
       backend: "sqlite"
@@ -818,6 +930,7 @@ jobs:
       contents: read
       packages: read
     with:
+      merge-with: ${{ needs.build-info.outputs.merge-with }}
       runners: ${{ format(needs.build-info.outputs.in-memory-runner-type, '32+64', '128+256') }}
       platform: ${{ needs.build-info.outputs.platform }}
       backend: "sqlite"
@@ -849,6 +962,7 @@ jobs:
       contents: read
       packages: read
     with:
+      merge-with: ${{ needs.build-info.outputs.merge-with }}
       runners: ${{ format(needs.build-info.outputs.runner-type, '32+64', '128+256') }}
       platform: ${{ needs.build-info.outputs.platform }}
       backend: "sqlite"
@@ -879,6 +993,7 @@ jobs:
       contents: read
       packages: read
     with:
+      merge-with: ${{ needs.build-info.outputs.merge-with }}
       runners: ${{ format(needs.build-info.outputs.runner-type, '32+64', '128+256') }}
       platform: ${{ needs.build-info.outputs.platform }}
       backend: "sqlite"
@@ -914,6 +1029,7 @@ jobs:
        needs.build-info.outputs.upgrade-to-newer-dependencies != 'false' ||
        needs.build-info.outputs.full-tests-needed == 'true')
     with:
+      merge-with: ${{ needs.build-info.outputs.merge-with }}
       default-branch: ${{ needs.build-info.outputs.default-branch }}
       runners: ${{ needs.build-info.outputs.runner-type }}
       in-memory-runners: ${{ needs.build-info.outputs.in-memory-runner-type }}
@@ -944,6 +1060,7 @@ jobs:
       contents: read
       packages: read
     with:
+      merge-with: ${{ needs.build-info.outputs.merge-with }}
       runners: ${{ needs.build-info.outputs.runner-type }}
       platform: ${{ needs.build-info.outputs.platform }}
       testable-core-integrations: ${{ needs.build-info.outputs.testable-core-integrations }}
@@ -968,6 +1085,7 @@ jobs:
     if: >
       needs.build-info.outputs.run-unit-tests == 'true'
     with:
+      merge-with: ${{ needs.build-info.outputs.merge-with }}
       runners: ${{ format(needs.build-info.outputs.in-memory-runner-type, '8+16', '32+128') }}
       platform: ${{ needs.build-info.outputs.platform }}
       test-name: "LowestDeps"
@@ -998,6 +1116,7 @@ jobs:
       packages: read
     if: needs.build-info.outputs.run-unit-tests == 'true'
     with:
+      merge-with: ${{ needs.build-info.outputs.merge-with }}
       runners: ${{ format(needs.build-info.outputs.runner-type, '32+64', '128+256') }}
       platform: ${{ needs.build-info.outputs.platform }}
       test-name: "LowestDeps"
@@ -1026,6 +1145,7 @@ jobs:
     permissions:
       contents: read
     with:
+      merge-with: ${{ needs.build-info.outputs.merge-with }}
       runners: ${{ needs.build-info.outputs.runner-type }}
       platform: ${{ needs.build-info.outputs.platform }}
       default-python-version: "${{ needs.build-info.outputs.default-python-version }}"
@@ -1043,6 +1163,7 @@ jobs:
       # from forks. This is to prevent malicious PRs from creating images in the "apache/airflow" repo.
       packages: write
     with:
+      merge-with: ${{ needs.build-info.outputs.merge-with }}
       runners: ${{ needs.build-info.outputs.runner-type }}
       platform: ${{ needs.build-info.outputs.platform }}
       build-type: "Regular"
@@ -1066,6 +1187,7 @@ jobs:
     needs: [build-info, build-prod-images, generate-constraints]
     uses: ./.github/workflows/additional-prod-image-tests.yml
     with:
+      merge-with: ${{ needs.build-info.outputs.merge-with }}
       runners: ${{ needs.build-info.outputs.runner-type }}
       platform: ${{ needs.build-info.outputs.platform }}
       default-branch: ${{ needs.build-info.outputs.default-branch }}
@@ -1105,6 +1227,7 @@ jobs:
       contents: read
       packages: read
     with:
+      merge-with: ${{ needs.build-info.outputs.merge-with }}
       runners: ${{ needs.build-info.outputs.runner-type }}
       platform: ${{ needs.build-info.outputs.platform }}
       python-versions-list-as-string: ${{ needs.build-info.outputs.python-versions-list-as-string }}
@@ -1128,6 +1251,7 @@ jobs:
       contents: read
       packages: read
     with:
+      merge-with: ${{ needs.build-info.outputs.merge-with }}
       runners: ${{ format(needs.build-info.outputs.runner-type, '8+16', '32+64') }}
       platform: ${{ needs.build-info.outputs.platform }}
       default-python-version: "${{ needs.build-info.outputs.default-python-version }}"
@@ -1160,6 +1284,11 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           persist-credentials: false
+      - name: "Merge with the base branch"
+        if: needs.build-info.outputs.merge-with != ''
+        uses: ./.github/actions/merge-with-base
+        with:
+          merge-with: ${{ needs.build-info.outputs.merge-with }}
       - name: "RunsOn cost summary"
         uses: ./.github/actions/runs-on-cost-summary
       # keep this in sync with go.mod in go-sdk/
@@ -1209,6 +1338,29 @@ jobs:
         run: |
           go install golang.org/x/vuln/cmd/govulncheck@v1.6.0
           govulncheck ./...
+      # The Go SDK source release ships go-sdk alone, and its tests must pass there. Running them
+      # from a copy outside the repository fails on any test that reads a file outside go-sdk.
+      - name: Run Go tests outside the Airflow repository
+        run: |
+          cp -a go-sdk "${RUNNER_TEMP}/go-sdk"
+          cd "${RUNNER_TEMP}/go-sdk"
+          gotestsum --format github-actions ./...
+      # The steps above use the pinned Go, but users build with newer ones. A new Go can change
+      # standard library behaviour that a test depends on, such as the text of an encoding/json
+      # error in Go 1.27. These steps come last because setup-go puts the new Go first on PATH.
+      # They do not fail the job, so that a new Go release does not break CI on its own.
+      - name: Setup the latest stable Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e  # v7.0.0
+        with:
+          go-version: stable
+          # The pinned Go's setup already restores and saves the module cache.
+          cache: false
+      - name: Run Go tests on the latest stable Go
+        continue-on-error: true
+        working-directory: ./go-sdk
+        run: |
+          go version
+          gotestsum --format github-actions ./...
 
   tests-ts-sdk:
     name: "TypeScript SDK tests"
@@ -1223,6 +1375,11 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           persist-credentials: false
+      - name: "Merge with the base branch"
+        if: needs.build-info.outputs.merge-with != ''
+        uses: ./.github/actions/merge-with-base
+        with:
+          merge-with: ${{ needs.build-info.outputs.merge-with }}
       - name: "RunsOn cost summary"
         uses: ./.github/actions/runs-on-cost-summary
       - name: Setup pnpm
@@ -1265,10 +1422,15 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           persist-credentials: false
+      - name: "Merge with the base branch"
+        if: needs.build-info.outputs.merge-with != ''
+        uses: ./.github/actions/merge-with-base
+        with:
+          merge-with: ${{ needs.build-info.outputs.merge-with }}
       - name: "RunsOn cost summary"
         uses: ./.github/actions/runs-on-cost-summary
       - name: Setup Java
-        uses: actions/setup-java@77dd5b2ce225ea11469928ac317850245a74ae78  # v6.2.0
+        uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880  # v6.3.0
         with:
           distribution: 'temurin'
           java-version: ${{ env.JAVA_VERSION }}
@@ -1295,6 +1457,11 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           persist-credentials: false
+      - name: "Merge with the base branch"
+        if: needs.build-info.outputs.merge-with != ''
+        uses: ./.github/actions/merge-with-base
+        with:
+          merge-with: ${{ needs.build-info.outputs.merge-with }}
       - name: "RunsOn cost summary"
         uses: ./.github/actions/runs-on-cost-summary
       # Serializes the same Dags with Airflow, from airflow-core's sources, to compare them.
@@ -1310,7 +1477,7 @@ jobs:
           cache-dependency-path: go-sdk/go.sum
       - name: Setup Java
         if: matrix.sdk == 'java'
-        uses: actions/setup-java@77dd5b2ce225ea11469928ac317850245a74ae78  # v6.2.0
+        uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880  # v6.3.0
         with:
           distribution: 'temurin'
           java-version: ${{ env.JAVA_VERSION }}
@@ -1351,6 +1518,11 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           persist-credentials: false
+      - name: "Merge with the base branch"
+        if: needs.build-info.outputs.merge-with != ''
+        uses: ./.github/actions/merge-with-base
+        with:
+          merge-with: ${{ needs.build-info.outputs.merge-with }}
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
       - name: "Build Java SDK Javadoc"
@@ -1383,6 +1555,11 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           persist-credentials: false
+      - name: "Merge with the base branch"
+        if: needs.build-info.outputs.merge-with != ''
+        uses: ./.github/actions/merge-with-base
+        with:
+          merge-with: ${{ needs.build-info.outputs.merge-with }}
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
       - name: "Build TypeScript SDK API reference"
@@ -1404,6 +1581,7 @@ jobs:
       contents: read
       packages: read
     with:
+      merge-with: ${{ needs.build-info.outputs.merge-with }}
       runners: ${{ format(needs.build-info.outputs.runner-type, '4+8', '16+32') }}
       platform: ${{ needs.build-info.outputs.platform }}
       default-python-version: "${{ needs.build-info.outputs.default-python-version }}"
@@ -1425,6 +1603,7 @@ jobs:
       contents: read
       packages: read
     with:
+      merge-with: ${{ needs.build-info.outputs.merge-with }}
       runners: ${{ format(needs.build-info.outputs.runner-type, '8+16', '32+64') }}
       platform: ${{ needs.build-info.outputs.platform }}
       default-python-version: "${{ needs.build-info.outputs.default-python-version }}"
@@ -1441,6 +1620,7 @@ jobs:
     permissions:
       contents: read
     with:
+      merge-with: ${{ needs.build-info.outputs.merge-with }}
       runners: ${{ needs.build-info.outputs.runner-type }}
       platform: ${{ needs.build-info.outputs.platform }}
       python-versions: ${{ needs.build-info.outputs.python-versions }}
@@ -1491,6 +1671,7 @@ jobs:
       - tests-with-lowest-direct-resolution-providers
     uses: ./.github/workflows/finalize-tests.yml
     with:
+      merge-with: ${{ needs.build-info.outputs.merge-with }}
       runners: ${{ needs.build-info.outputs.runner-type }}
       platform: ${{ needs.build-info.outputs.platform }}
       python-versions: ${{ needs.build-info.outputs.python-versions }}

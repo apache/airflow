@@ -50,7 +50,7 @@ the model key in the worker's environment and the tools written by hand:
         def check_report() -> str:
             # The key comes from OPENAI_API_KEY in the worker's environment.
             agent = Agent(
-                "openai:gpt-5",
+                "openai:gpt-6.1-sol",
                 instructions=(
                     "You check reports against the warehouse. Read the report files, query "
                     "the orders table, and say whether the numbers agree."
@@ -142,10 +142,11 @@ What a plain task leaves to you
       - :doc:`tool_approval`
     * - A reviewer wants to send an agent's answer back with feedback, several times.
       - ``enable_hitl_review=True`` on ``AgentOperator`` opens a review loop with a chat
-        UI and a REST API. The task holds its worker slot for the whole review.
-        Airflow 3.1 and later. For a single approve or reject of an agent's answer, put
-        the standard provider's ``ApprovalOperator`` after the agent task instead; it
-        waits without a worker slot.
+        UI and a REST API. Airflow 3.1 and later. On Airflow 3.3 and later the task
+        waits for the reviewer without a worker slot; on 3.1 and 3.2 it holds its slot
+        for the whole review. For a single approve or reject with no feedback or
+        regeneration, put the standard provider's ``ApprovalOperator`` after the agent
+        task instead.
       - :doc:`hitl_review`
     * - The agent needs your databases, object storage or an API you already have a
         hook for.
@@ -158,7 +159,7 @@ What a plain task leaves to you
       - ``fallback_conn_ids`` fails over to other connections in order.
       - :doc:`provider_fallback`
     * - Thousands of prompts need an answer, and not within seconds.
-      - The batch operator sends them through the OpenAI or Anthropic batch API at
+      - The batch operator sends them through the OpenAI, Anthropic or Gemini batch API at
         roughly half the per-token cost. A retry re-attaches to the batch already
         submitted if the prompts, model, output schema and connection are unchanged.
         With ``deferrable=True`` the wait does not hold a worker slot.

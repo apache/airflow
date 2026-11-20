@@ -2261,7 +2261,7 @@ class TestTriggerRunner:
     ):
         import json
 
-        from airflow.models.crypto import get_fernet
+        from airflow.crypto import get_fernet
         from airflow.sdk.serde import serialize
 
         SerializedKwargsTrigger.constructed.clear()
@@ -4512,19 +4512,19 @@ class TestTriggerMetrics:
         assert 4 not in jobless_supervisor.trigger_kinds
 
 
-class TestOwnerOfTriggersCreatedWithoutOne:
-    """Rows created by components still on the previous version during a rolling upgrade have no owner."""
+class TestUsedByOfTriggersCreatedWithoutIt:
+    """During a rolling upgrade, components still on the previous version create rows without a used_by_ref."""
 
     @pytest.mark.usefixtures("testing_dag_bundle")
-    def test_the_owner_of_a_deferred_tasks_trigger_is_recorded(self, session, jobless_supervisor):
+    def test_a_deferred_tasks_trigger_records_it_is_used_by_the_task(self, session, jobless_supervisor):
         trigger = Trigger.from_object(SuccessTrigger())
         session.add(trigger)
         session.flush()
-        with DAG(dag_id="owner_dag") as dag:
-            task = PythonOperator(task_id="owner_task", python_callable=print)
-        session.add(DagModel(dag_id="owner_dag", bundle_name="testing"))
+        with DAG(dag_id="used_by_dag") as dag:
+            task = PythonOperator(task_id="used_by_task", python_callable=print)
+        session.add(DagModel(dag_id="used_by_dag", bundle_name="testing"))
         SerializedDagModel.write_dag(LazyDeserializedDAG.from_dag(dag), bundle_name="testing")
-        dag_run = DagRun(dag.dag_id, run_id="owner_run", run_type="manual", run_after=timezone.utcnow())
+        dag_run = DagRun(dag.dag_id, run_id="used_by_run", run_type="manual", run_after=timezone.utcnow())
         ti = create_task_instance(
             task,
             run_id=dag_run.run_id,
@@ -4539,7 +4539,7 @@ class TestOwnerOfTriggersCreatedWithoutOne:
 
         session.expire_all()
         row = session.get(Trigger, trigger.id)
-        assert (row.dag_id, row.owner_ref) == ("owner_dag", {"ti_id": str(ti.id)})
+        assert (row.dag_id, row.used_by_ref) == ("used_by_dag", {"ti_id": str(ti.id)})
 
     @pytest.mark.parametrize(
         ("data", "expected_dag_id"),
@@ -4552,20 +4552,185 @@ class TestOwnerOfTriggersCreatedWithoutOne:
             ),
         ],
     )
-    def test_the_owner_of_a_callbacks_trigger_is_recorded(self, mocker, data, expected_dag_id):
+    def test_a_callbacks_trigger_records_it_is_used_by_the_callback(self, mocker, data, expected_dag_id):
         callback = mocker.Mock(data=data, id=uuid.uuid4())
         callback.get_dag_id.return_value = data.get("dag_id")
         trigger = mocker.Mock(
-            spec=Trigger, owner_ref=None, dag_id=None, task_instance=None, callback=callback
+            spec=Trigger, used_by_ref=None, dag_id=None, task_instance=None, callback=callback
         )
 
-        TriggerRunnerSupervisor._record_missing_owner(trigger)
+        TriggerRunnerSupervisor._record_missing_used_by(trigger)
 
-        assert (trigger.dag_id, trigger.owner_ref) == (expected_dag_id, {"callback_id": str(callback.id)})
+        assert (trigger.dag_id, trigger.used_by_ref) == (expected_dag_id, {"callback_id": str(callback.id)})
 
-    def test_a_recorded_owner_is_kept(self, mocker):
-        trigger = mocker.Mock(spec=Trigger, owner_ref={"ti_id": "x"}, dag_id="d", task_instance=mocker.Mock())
+    def test_a_recorded_used_by_is_kept(self, mocker):
+        trigger = mocker.Mock(
+            spec=Trigger, used_by_ref={"ti_id": "x"}, dag_id="d", task_instance=mocker.Mock()
+        )
 
-        TriggerRunnerSupervisor._record_missing_owner(trigger)
+        TriggerRunnerSupervisor._record_missing_used_by(trigger)
 
-        assert (trigger.dag_id, trigger.owner_ref) == ("d", {"ti_id": "x"})
+        assert (trigger.dag_id, trigger.used_by_ref) == ("d", {"ti_id": "x"})
+
+
+class TestCheckForUnhandledTriggers:
+    """Tests for recovery of triggers the runner has no coroutine for."""
+
+    @pytest.mark.parametrize(
+        ("running_triggers", "running_ids", "expected_after"),
+        [
+            pytest.param({1, 2, 3}, {1, 2, 3}, {1, 2, 3}, id="in-sync"),
+            pytest.param(set(), set(), set(), id="no-triggers"),
+            pytest.param({1, 2, 3}, {1, 2}, {1, 2}, id="one-unhandled"),
+            pytest.param({1, 2, 3}, set(), set(), id="all-unhandled"),
+        ],
+    )
+    def test_unhandled_triggers_are_dropped(
+        self, jobless_supervisor, mocker, running_triggers, running_ids, expected_after
+    ):
+        incr = mocker.patch("airflow.jobs.triggerer_job_runner.stats.incr", autospec=True)
+        jobless_supervisor.running_triggers = set(running_triggers)
+        jobless_supervisor.cancelling_triggers = set(running_triggers)
+
+        jobless_supervisor.check_for_unhandled_triggers(running_ids)
+
+        unhandled = running_triggers - running_ids
+        assert jobless_supervisor.running_triggers == expected_after
+        assert jobless_supervisor.cancelling_triggers == expected_after
+        assert (
+            mocker.call("triggers.state_mismatch", len(unhandled), tags={}) in incr.call_args_list
+        ) is bool(unhandled)
+
+    def test_dropped_trigger_is_recreated_next_loop(self, jobless_supervisor, mocker):
+        """Dropping an unhandled id is what lets update_triggers rebuild its workload."""
+        build = mocker.patch.object(
+            TriggerRunnerSupervisor, "build_trigger_workloads", autospec=True, return_value=[]
+        )
+        jobless_supervisor.running_triggers = {1, 2, 3}
+        # A trigger released to another triggerer stays in running_triggers, so it can turn up
+        # unhandled too, and releasing_triggers also gates re-creation via known_trigger_ids.
+        jobless_supervisor.releasing_triggers = {3}
+
+        jobless_supervisor.check_for_unhandled_triggers({1})
+        jobless_supervisor.update_triggers({1, 2, 3})
+
+        assert build.call_args.args[1] == {2, 3}
+
+    def test_recovered_trigger_log_is_finalized(self, jobless_supervisor, mocker):
+        """Re-creation reuses the log path, so recovery has to upload and close it first."""
+        mocker.patch("airflow.jobs.triggerer_job_runner.stats.incr", autospec=True)
+        factory = MagicMock(spec=TriggerLoggingFactory)
+        jobless_supervisor.logger_cache[42] = factory
+        jobless_supervisor.running_triggers = {42}
+
+        jobless_supervisor.check_for_unhandled_triggers(set())
+
+        factory.upload_to_remote.assert_called_once()
+        factory.close.assert_called_once()
+        assert 42 not in jobless_supervisor.logger_cache
+
+    def test_recovery_survives_a_log_file_that_cannot_be_closed(self, jobless_supervisor, mocker):
+        """An unwritable log file must not strand the remaining ids, nor reach the runner."""
+        incr = mocker.patch("airflow.jobs.triggerer_job_runner.stats.incr", autospec=True)
+        factories = {}
+        for trigger_id in (1, 2):
+            factory = MagicMock(spec=TriggerLoggingFactory)
+            factory.close.side_effect = OSError("no space left on device")
+            factories[trigger_id] = factory
+        jobless_supervisor.logger_cache.update(factories)
+        jobless_supervisor.running_triggers = {1, 2}
+
+        jobless_supervisor.check_for_unhandled_triggers(set())
+
+        assert not jobless_supervisor.logger_cache
+        assert all(factory.close.called for factory in factories.values())
+        assert mocker.call("triggers.state_mismatch", 2, tags={}) in incr.call_args_list
+
+    def test_message_without_running_ids_is_ignored(self, jobless_supervisor):
+        """``None`` means the message carried no information, which must not read as "nothing running"."""
+        jobless_supervisor.running_triggers = {1, 2, 3}
+        jobless_supervisor.cancelling_triggers = {1, 2, 3}
+
+        jobless_supervisor.check_for_unhandled_triggers(None)
+
+        assert jobless_supervisor.running_triggers == {1, 2, 3}
+        assert jobless_supervisor.cancelling_triggers == {1, 2, 3}
+
+    def test_handle_request_checks_before_adding_to_create(self, jobless_supervisor, mocker):
+        """The check fires after finished processing but before to_create is added to running_triggers."""
+        mocker.patch.object(TriggerRunnerSupervisor, "send_msg", autospec=True)
+        jobless_supervisor.running_triggers = {1, 2}
+        jobless_supervisor.creating_triggers.append(
+            mocker.MagicMock(id=3),
+        )
+
+        jobless_supervisor._handle_request(
+            messages.TriggerStateChanges(
+                events=None,
+                failures=None,
+                finished=[1],
+                running_ids={2},
+            ),
+            log=MagicMock(spec=FilteringBoundLogger),
+            req_id=1,
+        )
+
+        assert jobless_supervisor.running_triggers == {2, 3}
+
+    def test_creation_failure_reported_in_finished(self, jobless_supervisor, mocker):
+        """A creation failure appears in both failures and finished, so running_triggers stays in sync."""
+        mocker.patch.object(TriggerRunnerSupervisor, "send_msg", autospec=True)
+        jobless_supervisor.running_triggers = {1, 2, 3}
+
+        jobless_supervisor._handle_request(
+            messages.TriggerStateChanges(
+                events=None,
+                failures=[(3, ["Traceback..."])],
+                finished=[3],
+                running_ids={1, 2},
+            ),
+            log=MagicMock(spec=FilteringBoundLogger),
+            req_id=1,
+        )
+
+        assert 3 not in jobless_supervisor.running_triggers
+
+
+class TestCreationFailureInFinished:
+    """Tests that creation failures (not in self.triggers) are included in finished_ids."""
+
+    def test_creation_failure_included_in_finished(self):
+        runner = TriggerRunner()
+        runner.failed_triggers.append((42, ValueError("bad classpath")))
+
+        msg = runner.process_trigger_events(finished_ids=[10])
+
+        assert msg.finished == [10, 42]
+        assert msg.running_ids == set()
+
+    def test_serialization_failure_not_in_finished(self):
+        runner = TriggerRunner()
+        runner.triggers = {42: {"task": MagicMock(), "is_watcher": False, "name": "t", "events": 0}}
+        runner.failed_triggers.append((42, ValueError("not serializable")))
+
+        msg = runner.process_trigger_events(finished_ids=[])
+
+        assert msg.finished is None
+        assert msg.running_ids == {42}
+
+    def test_failure_already_in_finished_ids_not_duplicated(self):
+        runner = TriggerRunner()
+        runner.failed_triggers.append((42, ValueError("exited without an event")))
+
+        msg = runner.process_trigger_events(finished_ids=[42])
+
+        assert msg.finished == [42]
+
+    def test_caller_finished_ids_not_mutated(self):
+        runner = TriggerRunner()
+        runner.failed_triggers.append((42, ValueError("bad classpath")))
+        finished_ids = [10]
+
+        runner.process_trigger_events(finished_ids=finished_ids)
+
+        assert finished_ids == [10]

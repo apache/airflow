@@ -59,6 +59,9 @@ How the limit works
 * Draft Pull Requests do not count towards the limit yet, because GitHub does not support counting
   them. Once GitHub adds that, we will start counting drafts as well - so do not rely on drafts to
   get around the limit. Keep unfinished work on a branch in your fork instead.
+* Marking a draft ready for review makes it count, so GitHub refuses it while you are at the limit -
+  also when a maintainer tries to do it for you. Close or finish one of your other open Pull
+  Requests first, then mark the draft ready.
 * When you have 5 open Pull Requests, GitHub does not let you open another one. A slot frees up when
   one of your Pull Requests is merged or closed.
 * The limit counts Pull Requests you have open at the same time - there is no limit on how many

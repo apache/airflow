@@ -95,6 +95,7 @@ Guides
     :caption: System tests
 
     System Tests <_api/tests/system/huggingface/index>
+    System Tests Dashboard <https://apache-airflow-huggingface.github.io/hf-airflow-system-tests/>
 
 The system-test DAGs under ``tests/system/huggingface/`` also serve as runnable
 examples and are collected with pytest through Airflow's ``get_test_run(dag)``
@@ -151,7 +152,9 @@ PIP package                                 Version required
 ``apache-airflow``                          ``>=3.0,<4``
 ``apache-airflow-providers-common-compat``  ``>=1.8.0``
 ``datasets``                                ``>=5.0.0``
+``dill``                                    ``>=0.3.8``
 ``huggingface-hub``                         ``>=0.24``
+``multiprocess``                            ``>=0.70.16``
 ==========================================  ==================
 
 Downloading official packages
