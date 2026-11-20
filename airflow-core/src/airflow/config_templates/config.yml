@@ -3027,7 +3027,8 @@ scheduler:
         thread so a slow or unresponsive executor backend cannot delay task scheduling; this setting
         also bounds how long a single check is allowed to take, since each call is given half this
         interval as its timeout. Only meaningful for an executor that overrides ``get_health()``; the
-        default implementation returns ``None`` and nothing is reported for it.
+        default implementation returns ``None`` and nothing is reported for it. Set to 0 to disable
+        the check entirely.
       version_added: 3.5.0
       type: float
       example: ~

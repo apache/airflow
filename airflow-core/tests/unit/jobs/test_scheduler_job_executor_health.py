@@ -120,59 +120,25 @@ def test_touch_executor_heartbeats_moves_the_heartbeat_without_changing_the_resu
     assert second.latest_heartbeat >= first_heartbeat
 
 
-def test_run_executor_health_check_records_healthy(session):
-    executor = _StubExecutor(result=True)
+@pytest.mark.parametrize(
+    ("result", "expected"),
+    [
+        pytest.param(True, HealthCheckResult.HEALTHY, id="healthy"),
+        pytest.param(False, HealthCheckResult.UNHEALTHY, id="unhealthy"),
+        pytest.param(None, HealthCheckResult.UNKNOWN, id="unknown_on_none"),
+        pytest.param(RuntimeError("boom"), HealthCheckResult.UNHEALTHY, id="unhealthy_and_does_not_raise"),
+        pytest.param(NotImplementedError(), HealthCheckResult.UNKNOWN, id="unknown_on_not_implemented"),
+    ],
+)
+def test_run_executor_health_check_records_result(session, result, expected):
+    executor = _StubExecutor(result=result)
     runner = _make_runner(executor, session)
     key = _executor_health_key(executor)
 
     runner._run_executor_health_check(executor, key)
 
     job = _get_executor_job(session, runner.job.id, key)
-    assert job.health_check_result == HealthCheckResult.HEALTHY
-
-
-def test_run_executor_health_check_records_unhealthy(session):
-    executor = _StubExecutor(result=False)
-    runner = _make_runner(executor, session)
-    key = _executor_health_key(executor)
-
-    runner._run_executor_health_check(executor, key)
-
-    job = _get_executor_job(session, runner.job.id, key)
-    assert job.health_check_result == HealthCheckResult.UNHEALTHY
-
-
-def test_run_executor_health_check_records_unknown_on_none(session):
-    executor = _StubExecutor(result=None)
-    runner = _make_runner(executor, session)
-    key = _executor_health_key(executor)
-
-    runner._run_executor_health_check(executor, key)
-
-    job = _get_executor_job(session, runner.job.id, key)
-    assert job.health_check_result == HealthCheckResult.UNKNOWN
-
-
-def test_run_executor_health_check_records_unhealthy_and_does_not_raise_when_get_health_raises(session):
-    executor = _StubExecutor(result=RuntimeError("boom"))
-    runner = _make_runner(executor, session)
-    key = _executor_health_key(executor)
-
-    runner._run_executor_health_check(executor, key)
-
-    job = _get_executor_job(session, runner.job.id, key)
-    assert job.health_check_result == HealthCheckResult.UNHEALTHY
-
-
-def test_run_executor_health_check_records_unknown_when_get_health_raises_not_implemented(session):
-    executor = _StubExecutor(result=NotImplementedError())
-    runner = _make_runner(executor, session)
-    key = _executor_health_key(executor)
-
-    runner._run_executor_health_check(executor, key)
-
-    job = _get_executor_job(session, runner.job.id, key)
-    assert job.health_check_result == HealthCheckResult.UNKNOWN
+    assert job.health_check_result == expected
 
 
 @conf_vars({("scheduler", "executor_health_check_interval"): "10.0"})
