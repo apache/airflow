@@ -64,6 +64,19 @@ event-driven scheduling, then a new trigger must be created.
 This new trigger must inherit ``BaseEventTrigger`` and ensure it properly works with event-driven scheduling.
 It might inherit from the existing trigger as well if both triggers share some common code.
 
+Publishing partitioned asset events
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+To publish an update for a specific asset partition, yield ``AssetTriggerEvent`` with a ``partition_key``::
+
+    from airflow.triggers.base import AssetTriggerEvent
+
+    yield AssetTriggerEvent({"changed": True}, partition_key="2026-10-16")
+
+Airflow uses this key for partition-aware scheduling.
+
+See :ref:`asset-partitions` for configuring downstream consumers.
+
 Sharing one poll across sibling triggers
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -479,6 +492,34 @@ If subscribers repeatedly overflow, there are two ways to address this:
   one subscriber needs to consume events.
 
 Both reduce the mismatch between producer throughput and per-subscriber consume rate.
+
+.. _asset-watcher-logs:
+
+Watcher logs
+~~~~~~~~~~~~
+
+A deferred task's trigger logs to that task try's log, and a callback's trigger to the callback's log. An asset
+watcher has no such log, so its lines go to a file of its own on the triggerer that runs it,
+``triggers/trigger_id=<trigger id>/triggerer_job_id=<triggerer job id>/trigger.log`` under
+``[logging] base_log_folder``. The file lasts as long as the trigger stays on that triggerer, across every
+restart of the watcher, and each line keeps the watcher's ``trigger_id``. With ``[logging] remote_logging``
+on, the remote log handler that uploads task and callback logs also uploads the file when the trigger leaves
+the triggerer (as its next rotated file, since it can come back) or the triggerer stops, and a triggerer that
+starts uploads the files left on its disk by triggerers that died.
+
+``[triggerer] watcher_log_max_bytes`` sets a target size for the file, with one rotated file in a ``rotated``
+directory next to it (with remote logging on, each rotated file is uploaded, as its own
+``rotated/trigger.<n>.log`` with a handler that stores files, such as S3, and tried once more if that fails;
+if both fail, the next rotation deletes it, so lines can be lost while the store is down),
+``[triggerer] watcher_log_max_open_files`` caps how many such files are open at once, and
+``[triggerer] watcher_log_to_stdout`` keeps the watcher's lines in the triggerer's output too, for platforms
+that collect it. A rotation waits for the previous rotated file's upload, so while the remote store is slow or
+unreachable the file can grow past ``watcher_log_max_bytes``. Without remote logging, or with a handler that
+keeps no copy of them (Elasticsearch, OpenSearch), only the most recently written of the files gone triggerers
+left is kept for each watcher, so a watcher normally uses at most four times ``watcher_log_max_bytes`` of one
+disk. None are kept for a trigger that no longer exists, also after its watcher left a running triggerer. A
+full or read-only log disk doesn't stop the triggerer: the lines a trigger's log file can't take go to the
+triggerer's output, with a warning at most once a minute per trigger.
 
 Avoid infinite scheduling
 ~~~~~~~~~~~~~~~~~~~~~~~~~

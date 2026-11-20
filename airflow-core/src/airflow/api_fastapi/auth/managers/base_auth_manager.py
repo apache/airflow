@@ -46,7 +46,7 @@ from airflow.api_fastapi.auth.tokens import (
     get_sig_validation_args,
     get_signing_args,
 )
-from airflow.api_fastapi.common.types import ExtraMenuItem, MenuItem
+from airflow.api_fastapi.common.types import CliLoginMethods, ExtraMenuItem, MenuItem
 from airflow.configuration import conf
 from airflow.exceptions import RemovedInAirflow4Warning
 from airflow.models import Connection, DagModel, Pool, Variable
@@ -147,6 +147,10 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
     def deserialize_user(self, token: dict[str, Any]) -> T:
         """Create a user object from dict."""
 
+    async def deserialize_user_async(self, token: dict[str, Any]) -> T:
+        """Extension point for asynchronously creating a user object from token claims."""
+        return self.deserialize_user(token)
+
     @abstractmethod
     def serialize_user(self, user: T) -> dict[str, Any]:
         """Create a subject and extra claims dict from a user object."""
@@ -168,7 +172,7 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
             raise InvalidTokenError("Token has been revoked")
 
         try:
-            return self.deserialize_user(payload)
+            return await self.deserialize_user_async(payload)
         except (ValueError, KeyError) as e:
             log.error("Couldn't deserialize user from token, JWT token is not valid: %s", e)
             raise InvalidTokenError(str(e))
@@ -236,6 +240,15 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         session.
         """
         return None
+
+    def get_cli_login_methods(self) -> CliLoginMethods:
+        """
+        Return the login methods offered to command-line clients such as airflowctl.
+
+        Clients read them before logging in, so they can tell which flows the server supports.
+        By default, no method is advertised.
+        """
+        return CliLoginMethods()
 
     def refresh_user(self, *, user: T) -> T | None:
         """

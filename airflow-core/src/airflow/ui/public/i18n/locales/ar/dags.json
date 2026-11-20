@@ -6,6 +6,11 @@
       "warning": "سيؤدي هذا إلى إزالة جميع البيانات الوصفية المرتبطة بالDag، بما في ذلك التشغيلات والمهام."
     }
   },
+  "draining": {
+    "badgeTooltip": "سيتوقف هذا Dag بعد انتهاء تشغيلات Dag الجارية.",
+    "label": "قيد التصريف",
+    "tooltip": "جارٍ تصريف {{dagDisplayName}} — سيتوقف بعد انتهاء تشغيلات Dag الجارية. انقر للاستئناف."
+  },
   "favoriteDag": "تفضيل الDag",
   "filters": {
     "allRunTypes": "جميع أنواع التشغيلات",
@@ -15,16 +20,36 @@
       "favorite": "تفضيل",
       "unfavorite": "إلغاء التفضيل"
     },
+    "favoriteState": "حالة التفضيل",
+    "favoriteStatePlaceholder": "اختر حالة التفضيل…",
     "noTimetableTypesFound": "لم يتم العثور على أنواع جداول زمنية",
     "paused": {
       "active": "مفعّل",
       "all": "الكل",
       "paused": "متوقف"
     },
+    "pausedPlaceholder": "اختر حالة الإيقاف…",
+    "pausedState": "حالة الإيقاف",
+    "requiresHitlAction": "يتطلب إجراء HITL",
     "runIdPatternFilter": "بحث تشغيلات الDag",
+    "runState": "حالة التشغيل",
+    "runStatePlaceholder": "اختر حالة التشغيل…",
     "timetableType": "نوع الجدول الزمني"
   },
+  "folders": {
+    "all": "جميع Dags",
+    "empty": "لا توجد مجلدات",
+    "hide": "إخفاء المجلدات",
+    "show": "إظهار المجلدات",
+    "title": "المجلدات"
+  },
   "ownerLink": "رابط المالك لـ{{owner}}",
+  "recentTaskStateCounts": {
+    "description": "حالة المهام من جميع تشغيلات Dag الجارية، أو من أحدث تشغيل إذا لم يكن هناك تشغيل جارٍ. يمكنك إيقاف هذا من إعدادات المستخدم.",
+    "label": "المهام الأخيرة",
+    "loading": "جارٍ تحميل أعداد حالات المهام الأخيرة",
+    "tooltip": "{{state}}: {{formattedCount}} — انقر لتصفية المهام"
+  },
   "runAndTaskActions": {
     "affectedTasks": {
       "noItemsFound": "لم يتم العثور على مهام.",
@@ -64,18 +89,23 @@
         "failed": "اضغط shift+f لتمييز كفاشل",
         "success": "اضغط shift+s لتمييز كناجح"
       },
+      "skippedInfo": "يؤدي تمييز مثيل مهمة كمتجاوز إلى تسجيل أنه لم يُشغَّل عمداً. تظل المهام اللاحقة تُقيَّم وفق قواعد التشغيل الخاصة بها: مع القاعدة الافتراضية \"all_success\" سيتم تجاوزها أيضاً. يمكن تجاوز مثيلات المهام التي لم تبدأ التشغيل فقط، ويتأثر مثيل المهمة هذا فقط.",
       "title": "تمييز {{type}} كـ{{state}}"
     },
     "options": {
       "downstream": "المهام اللاحقة",
       "existingTasks": "مسح المهام الحالية",
       "future": "المستقبل",
+      "keepTaskState": "الاحتفاظ بحالة المهمة والاستئناف",
+      "laterIterations": "التكرارات اللاحقة",
       "onlyFailed": "مسح المهام الفاشلة فقط",
       "past": "الماضي",
       "preventRunningTasks": "منع إعادة التشغيل إذا كانت المهمة قيد التشغيل",
       "queueNew": "إضافة مهام جديدة للانتظار",
       "runOnLatestVersion": "تشغيل بآخر إصدار الحزمة",
-      "upstream": "المهام السابقة"
+      "runOnLatestVersionForced": "يستخدم دائماً آخر إصدار — لا يوجد إصدار سابق للرجوع إليه",
+      "upstream": "المهام السابقة",
+      "wholeExpansion": "التوسيع بالكامل"
     }
   },
   "runStateCounts": {
@@ -83,11 +113,23 @@
     "loading": "جارٍ تحميل أعداد حالات التشغيل",
     "tooltip": "{{state}}: {{formattedCount}} — انقر لتصفية التشغيلات"
   },
+  "schedulingActions": {
+    "cancelDrain": "إلغاء التصريف",
+    "drain": "تصريف ثم إيقاف",
+    "drainPrompt": "يحتوي هذا Dag على تشغيلات Dag قيد التنفيذ. يتيح التصريف إنهاءها قبل إيقاف Dag؛ أما الإيقاف الآن فيوقف الجدولة فوراً دون انتظارها.",
+    "pauseNow": "إيقاف الآن",
+    "pauseSelected": "إيقاف / تصريف"
+  },
+  "schedulingBanner": {
+    "message": "هذا Dag قيد التصريف. سيتوقف بعد انتهاء تشغيلات Dag الجارية."
+  },
   "search": {
     "advanced": "بحث متقدم",
     "clear": " مسح",
+    "dagRuns": "البحث في $t(common:dagRun_other)",
     "dags": "ابحث عن Dags",
     "hotkey": "+K",
+    "mapIndexes": "البحث في $t(common:mapIndex)",
     "tasks": "ابحث عن مهام"
   },
   "sort": {

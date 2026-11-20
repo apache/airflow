@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
 import os
 import re
 from unittest import mock
@@ -370,3 +371,154 @@ class TestResourceLookups:
         sandbox_cls.from_id.assert_called_once_with(
             "sb-123", client=modal_client_cls.from_credentials.return_value
         )
+
+
+class _FakeClient:
+    """A Modal client as the hook's async path sees it: only ``is_closed`` is read."""
+
+    def __init__(self, *credentials: str) -> None:
+        self.credentials = credentials
+        self.closed = False
+
+    def is_closed(self) -> bool:
+        return self.closed
+
+
+class _AioConstructor:
+    """A ``modal.Client`` constructor as async code calls it, through ``.aio``; records the calls."""
+
+    def __init__(self) -> None:
+        self.calls: list[tuple[str, ...]] = []
+
+    async def aio(self, *credentials: str) -> _FakeClient:
+        self.calls.append(credentials)
+        return _FakeClient(*credentials)
+
+
+class _FakeClientClass:
+    def __init__(self) -> None:
+        self.from_credentials = _AioConstructor()
+        self.from_env = _AioConstructor()
+
+
+@pytest.fixture
+def async_client_cls():
+    """Patch ``modal.Client`` with async constructors and start from an empty shared-client cache."""
+    client_cls = _FakeClientClass()
+    with (
+        mock.patch("airflow.providers.modal.hooks.modal.modal.Client", new=client_cls),
+        mock.patch.dict("airflow.providers.modal.hooks.modal._async_clients", clear=True),
+    ):
+        yield client_cls
+
+
+def _async_lookup(*, returns=None, raises=None):
+    """Stand-in for ``get_async_connection``, as the hook module imports it."""
+
+    # The signature at the provider's floor, common-compat 1.12.0, which has no ``hook=``.
+    async def get_async_connection(conn_id):
+        if raises is not None:
+            raise raises
+        return returns
+
+    return mock.patch("airflow.providers.modal.hooks.modal.get_async_connection", new=get_async_connection)
+
+
+@pytest.mark.asyncio
+class TestGetAsyncClient:
+    async def test_connection_tokens_build_a_client_shared_across_hooks(self, async_client_cls):
+        connection = Connection(
+            conn_id="modal_full", conn_type="modal", login=TOKEN_ID, password=TOKEN_SECRET
+        )
+
+        with _async_lookup(returns=connection):
+            first = await ModalHook(modal_conn_id="modal_full").get_async_client()
+            second = await ModalHook(modal_conn_id="modal_full").get_async_client()
+
+        assert first is second
+        assert async_client_cls.from_credentials.calls == [(TOKEN_ID, TOKEN_SECRET)]
+        assert async_client_cls.from_env.calls == []
+
+    async def test_closed_shared_client_is_replaced(self, async_client_cls):
+        connection = Connection(
+            conn_id="modal_full", conn_type="modal", login=TOKEN_ID, password=TOKEN_SECRET
+        )
+
+        with _async_lookup(returns=connection):
+            first = await ModalHook(modal_conn_id="modal_full").get_async_client()
+            first.closed = True
+            second = await ModalHook(modal_conn_id="modal_full").get_async_client()
+
+        assert second is not first
+        assert len(async_client_cls.from_credentials.calls) == 2
+
+    async def test_connection_without_tokens_uses_ambient_client(self, async_client_cls):
+        with _async_lookup(returns=Connection(conn_id="modal_ambient", conn_type="modal")):
+            await ModalHook(modal_conn_id="modal_ambient").get_async_client()
+
+        assert async_client_cls.from_env.calls == [()]
+        assert async_client_cls.from_credentials.calls == []
+
+    async def test_missing_default_connection_falls_back_to_ambient(self, async_client_cls):
+        with _async_lookup(raises=AirflowNotFoundException("nope")):
+            await ModalHook().get_async_client()
+
+        assert async_client_cls.from_env.calls == [()]
+
+    async def test_missing_named_connection_raises(self, async_client_cls):
+        with _async_lookup(raises=AirflowNotFoundException("nope")), pytest.raises(AirflowNotFoundException):
+            await ModalHook(modal_conn_id="modal_typo").get_async_client()
+
+        assert async_client_cls.from_env.calls == []
+
+    async def test_half_filled_connection_raises(self, async_client_cls):
+        connection = Connection(conn_id="modal_half", conn_type="modal", login=TOKEN_ID)
+
+        with _async_lookup(returns=connection), pytest.raises(ModalConnectionError):
+            await ModalHook(modal_conn_id="modal_half").get_async_client()
+
+    async def test_concurrent_callers_share_one_new_client(self, async_client_cls):
+        connection = Connection(
+            conn_id="modal_full", conn_type="modal", login=TOKEN_ID, password=TOKEN_SECRET
+        )
+        constructor = async_client_cls.from_credentials
+        construct = constructor.aio
+
+        async def slow_construct(*credentials):
+            await asyncio.sleep(0.01)
+            return await construct(*credentials)
+
+        constructor.aio = slow_construct
+
+        with _async_lookup(returns=connection):
+            clients = await asyncio.gather(
+                *(ModalHook(modal_conn_id="modal_full").get_async_client() for _ in range(5))
+            )
+
+        assert len({id(client) for client in clients}) == 1
+        assert constructor.calls == [(TOKEN_ID, TOKEN_SECRET)]
+
+    async def test_aget_sandbox_reattaches_through_the_async_client(self, async_client_cls):
+        connection = Connection(
+            conn_id="modal_full", conn_type="modal", login=TOKEN_ID, password=TOKEN_SECRET
+        )
+        reattached: list[tuple[str, object]] = []
+
+        class _FromId:
+            async def aio(self, sandbox_id, *, client):
+                reattached.append((sandbox_id, client))
+                return mock.sentinel.sandbox
+
+        class _SandboxClass:
+            from_id = _FromId()
+
+        with (
+            _async_lookup(returns=connection),
+            mock.patch("airflow.providers.modal.hooks.modal.modal.Sandbox", new=_SandboxClass),
+        ):
+            hook = ModalHook(modal_conn_id="modal_full")
+            sandbox = await hook.aget_sandbox("sb-1")
+            client = await hook.get_async_client()
+
+        assert sandbox is mock.sentinel.sandbox
+        assert reattached == [("sb-1", client)]

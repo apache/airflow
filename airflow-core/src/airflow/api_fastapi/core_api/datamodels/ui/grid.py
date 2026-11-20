@@ -43,6 +43,7 @@ class LightGridTaskInstanceSummary(BaseModel):
     loop_iterations_count: int | None = None
     latest_region_id: UUID | None = None
     latest_region_index: int | None = None
+    retry_at: datetime | None = None
 
 
 class GridTISummaries(BaseModel):

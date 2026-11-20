@@ -127,7 +127,6 @@ export function validateReleaseInputs({ releaseTag, npmTag, currentDistTagVersio
   return {
     version,
     packageName: PACKAGE_NAME,
-    packageFile: `${PACKAGE_NAME}-${version}.tgz`,
   };
 }
 
@@ -141,11 +140,7 @@ function run() {
   if (outputFile === undefined) {
     throw new Error("GITHUB_OUTPUT is required");
   }
-  appendFileSync(
-    outputFile,
-    `version=${result.version}\npackage_name=${result.packageName}\n` +
-      `package_file=${result.packageFile}\n`,
-  );
+  appendFileSync(outputFile, `version=${result.version}\npackage_name=${result.packageName}\n`);
 }
 
 if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href) {

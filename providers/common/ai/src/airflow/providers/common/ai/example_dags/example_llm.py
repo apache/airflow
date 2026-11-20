@@ -98,7 +98,7 @@ example_llm_operator_model_settings()
 def example_llm_decorator():
     @task.llm(llm_conn_id="pydanticai_default", system_prompt="Summarize concisely.")
     def summarize(text: str):
-        return f"Summarize this article: {text}"
+        return "Summarize this article: {{ text }}"
 
     summarize("Apache Airflow is a platform for programmatically authoring...")
 
@@ -117,7 +117,7 @@ def example_llm_decorator_structured():
         output_type=Entities,
     )
     def extract(text: str):
-        return f"Extract entities from: {text}"
+        return "Extract entities from: {{ text }}"
 
     extract("Alice visited Paris and met Bob in London.")
 

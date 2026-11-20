@@ -16,7 +16,10 @@
 # under the License.
 from __future__ import annotations
 
+from unittest import mock
+
 import pytest
+import requests
 
 from airflow_breeze.utils import release_constraints
 
@@ -90,3 +93,65 @@ def test_the_prompt_names_the_stage_the_version_implies(monkeypatch, version, ex
     release_constraints.publish_constraints(version=version, ref="v3-1-stable")
 
     assert expected_stage in prompts[0]
+
+
+@pytest.mark.parametrize(
+    ("override", "expected"),
+    [
+        pytest.param(None, "", id="derive-from-version"),
+        pytest.param(False, "false", id="pin-released-providers"),
+        pytest.param(True, "true", id="force-guard"),
+    ],
+)
+def test_override_is_passed_to_the_workflow_input(triggered, override, expected):
+    release_constraints.publish_constraints(
+        version="3.4.0", ref="v3-4-stable", fail_on_pending_provider_candidates=override
+    )
+
+    assert triggered[0]["fail-on-pending-provider-candidates"] == expected
+
+
+@pytest.mark.parametrize(
+    ("releases", "expected"),
+    [
+        pytest.param({"1.0.0": [{}], "2.0.0rc1": [{}]}, "2.0.0rc1", id="candidate-newest"),
+        pytest.param({"1.0.0rc1": [{}], "1.0.0": [{}]}, "1.0.0", id="candidate-released"),
+        pytest.param({"1.0.0": [{}], "2.0.0rc1": [{"yanked": True}]}, "1.0.0", id="candidate-yanked"),
+        pytest.param({"1.0.0": [{}], "2.0.0": []}, "1.0.0", id="no-files"),
+        pytest.param({"not-a-version": [{}]}, None, id="nothing-usable"),
+    ],
+)
+@mock.patch.object(requests, "get", autospec=True)
+def test_find_newest_published_version(mock_get, releases, expected):
+    mock_get.return_value.status_code = 200
+    mock_get.return_value.json.return_value = {"releases": releases}
+
+    assert release_constraints._find_newest_published_version("apache-airflow-providers-x") == expected
+
+
+@mock.patch.object(requests, "get", autospec=True)
+def test_find_newest_published_version_unpublished(mock_get):
+    mock_get.return_value.status_code = 404
+
+    assert release_constraints._find_newest_published_version("apache-airflow-providers-x") is None
+
+
+@mock.patch("airflow_breeze.utils.provider_dependencies.get_provider_dependencies", autospec=True)
+def test_find_pending_provider_candidates_checks_only_ready_providers(mock_deps, monkeypatch):
+    mock_deps.return_value = {
+        "amazon": {"state": "ready"},
+        "apache.hive": {"state": "ready"},
+        "google": {"state": "ready"},
+        "old": {"state": "suspended"},
+        "new": {"state": "not-ready"},
+    }
+    newest = {
+        "apache-airflow-providers-amazon": "10.0.0rc1",
+        "apache-airflow-providers-apache-hive": "9.0.0",
+        "apache-airflow-providers-google": None,
+    }
+    monkeypatch.setattr(release_constraints, "_find_newest_published_version", newest.__getitem__)
+
+    assert release_constraints.find_pending_provider_candidates() == [
+        ("apache-airflow-providers-amazon", "10.0.0rc1")
+    ]

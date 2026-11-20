@@ -68,13 +68,19 @@ is explainable from a file inside this module and a standalone checkout — a pu
 ASF source release — can regenerate and test without the monorepo around it. `ts-sdk` and `java-sdk`
 vendor theirs the same way.
 
-Two prek hooks split the work that keeps the copies honest. `sync-go-sdk-schemas` copies an original
-over its copy when the two differ and fails, since copying is mechanical; it is a **manual** hook, so
-re-vendoring is a deliberate step here rather than something a change to a Python schema forces on
-whoever made it — which also means nothing announces on its own that a copy has gone stale.
-`check-go-sdk-generated-drift` runs on every commit and regenerates from the copies, failing when the
-committed Go differs, since what to do about a new schema construct — a generator rule, an authoring
-exclusion — is a decision.
+Two prek hooks split the work that keeps the copies honest, and both run on every commit.
+`sync-go-sdk-schemas` copies an original over its copy when the two differ and fails, since copying
+is mechanical. `check-go-sdk-generated-drift` runs after it and regenerates from the copies, failing
+when the committed Go differs, since what to do about a new schema construct — a generator rule, an
+authoring exclusion — is a decision.
+
+Both are triggered by the Python originals as well as the copies, so a schema change made on the
+Python side fails on the commit that made it rather than on whoever next touches this module. That
+check is the only warning there is: a model generated from a stale copy fails at run time by not
+failing — msgpack drops a message field the Go struct does not declare, so the Go side quietly sees
+one field fewer. A release branch is a partial set of cherry-picks, so each commit can pass this
+check on main and still land here in a combination that does not hold; run both hooks over the whole
+tree before tagging a release.
 
 ## Regenerating the coordinator-protocol models
 
@@ -83,8 +89,9 @@ module's vendored copy of the supervisor schema snapshot the Python Task SDK own
 (`task-sdk/src/airflow/sdk/execution_time/schema/schema.json`); do not edit either by hand. To move
 the SDK to a newer schema version:
 
-1. Refresh the copy: `prek run sync-go-sdk-schemas --hook-stage manual`, which overwrites
-   `schema/supervisor-schema.json` from task-sdk's and fails so the change lands in review.
+1. Refresh the copy: `prek run sync-go-sdk-schemas`, which overwrites
+   `schema/supervisor-schema.json` from task-sdk's and fails so the change lands in review. A commit
+   that touches the task-sdk snapshot runs this for you.
 2. Set `SupervisorSchemaVersion` in [`pkg/execution/messages.go`](./pkg/execution/messages.go) to the
    copy's `api_version` date.
 3. Run `just generate-models`, and commit the copy with what it generated.
@@ -95,9 +102,10 @@ drift, so a missed bump is caught by `go test`. A snapshot can also grow a field
 struct does not declare — so the `check-go-sdk-generated-drift` prek hook regenerates them and fails
 when the committed files differ.
 
-[`airflow/enums.go`](./airflow/enums.go) declares the `genmodels.DagRunState` constants again, so that
-a Dag author does not import `genmodels`. `TestDagRunStateMatchesGenmodels` fails when regenerating
-the models adds, renames or removes a `DagRunState` constant. The test keeps failing until
+[`airflow/enums.go`](./airflow/enums.go) declares the `genmodels.DagRunState` and
+`genmodels.DagRunType` constants again, so that a Dag author does not import `genmodels`.
+`TestDagRunStateMatchesGenmodels` and `TestDagRunTypeMatchesGenmodels` fail when regenerating
+the models adds, renames or removes a constant from either enum. The tests keep failing until
 `airflow/enums.go` declares the same constants as `genmodels`.
 
 ## Regenerating the Dag, task and task group specs
@@ -106,8 +114,8 @@ the models adds, renames or removes a `DagRunState` constant. The test keeps fai
 [`airflow/spec.gen.go`](./airflow/spec.gen.go) are generated from `schema/dag-schema.json`, this
 module's vendored copy of airflow-core's Dag serialization schema
 (`airflow-core/src/airflow/serialization/schema.json`), which Python owns; do not edit any of them
-by hand. Refresh the copy with `prek run sync-go-sdk-schemas --hook-stage manual`,
-then run `just generate-specs` after changing the schema or the generator.
+by hand. Refresh the copy with `prek run sync-go-sdk-schemas`, then run `just generate-specs` after
+changing the schema or the generator.
 
 The schema is the serialized shape rather than the authoring one, so
 [`internal/genspec/authoring.go`](./internal/genspec/authoring.go) holds the three tables that turn
@@ -159,20 +167,121 @@ dag.Task(load, airflow.Inputs(transformed, airflow.Literal("s3://bucket/out")))
 
 A literal must be JSON that decodes into its parameter type, and it adds no edge to the Dag.
 
-The `check-go-sdk-serialization-conformance` prek hook builds the Dags of
+The serialization conformance check builds the Dags of
 [`scripts/ci/lang_sdk_serialization/test_dags.yaml`](../scripts/ci/lang_sdk_serialization/test_dags.yaml)
 twice: with this SDK, and with Python and Airflow's own serializer. It loads the Go output with
-Airflow's deserializer and compares the two serializations field by field. Run it from the
-repository root:
+Airflow's deserializer and compares the two serializations field by field. CI runs it in the
+`Lang SDK serialization conformance` job. Run it from the repository root (it needs `go` and `uv`):
 
 ```bash
-prek run check-go-sdk-serialization-conformance --all-files
+python3 scripts/ci/lang_sdk_serialization/check_go_sdk.py
 ```
 
-The hook runs every Dag of the file, including the ones that `requires` a feature that only some SDKs
+The check runs every Dag of the file, including the ones that `requires` a feature that only some SDKs
 have. [`go_native.json`](../airflow-core/tests/unit/dag_processing/lang_sdk_fixtures/go_native.json)
 holds the Go output for the same Dags, so that the Airflow core tests check that Airflow loads it.
 `TestSerializeConformanceDags` says how to rewrite it.
+
+## Calling a release vote
+
+Every release needs a `[VOTE]` on `dev@airflow.apache.org`. The vote is on the
+signed source package in `dist/dev`. Go has no binary artifacts: the module is
+fetched straight from the git tag, so the release candidate is installable for
+testing as soon as `go-sdk/v<VERSION>-rc<N>` is pushed.
+
+Put the signed source package in the dist dev area as
+`go-sdk/<VERSION>-rc<N>/apache-airflow-go-sdk-<VERSION>-src.tar.gz`, with its
+`.asc` signature and `.sha512` checksum.
+
+### Vote email template
+
+```text
+Subject: [VOTE] Release Apache Airflow Go SDK <VERSION> based on <VERSION>-rc<N>
+
+Hi,
+
+I would like to call a vote to release Apache Airflow Go SDK <VERSION>, based
+on release candidate <VERSION>-rc<N>.
+
+Changes since <the last release>: <a one-line description>
+
+The release candidate contains the Go module github.com/apache/airflow/go-sdk.
+
+Git information:
+
+- Tag: go-sdk/v<VERSION>-rc<N>
+- Commit: <full-commit-sha>
+- https://github.com/apache/airflow/releases/tag/go-sdk%2Fv<VERSION>-rc<N>
+
+Source release, signatures and checksums:
+https://dist.apache.org/repos/dist/dev/airflow/go-sdk/<VERSION>-rc<N>/
+
+To try the release candidate in a Go project:
+
+    go get github.com/apache/airflow/go-sdk@v<VERSION>-rc<N>
+
+KEYS file (public keys used to sign the release):
+https://downloads.apache.org/airflow/KEYS
+
+Please review and vote. The vote will remain open for at least 72 hours, until <YYYY-MM-DD HH:MM UTC>, or until the necessary number of binding votes is reached.
+
+[ ] +1 Release this package as Apache Airflow Go SDK <VERSION>
+[ ] +0 No opinion
+[ ] -1 Do not release, because ...
+
+Only votes from Airflow PMC members are binding, but everyone is welcome and encouraged to test the release and vote.
+
+The verification process for PMC members and contributors can be found in:
+https://github.com/apache/airflow/blob/main/dev/README_RELEASE_LANGUAGE_SDKS.md#verify-the-release-candidate-by-pmc-members
+https://github.com/apache/airflow/blob/main/dev/README_RELEASE_LANGUAGE_SDKS.md#verify-the-release-candidate-by-contributors
+
+For more details on ASF release verification, see: https://www.apache.org/info/verification.html
+
+Best,
+<your name>
+```
+
+Pre-send checklist:
+
+* `go list -m github.com/apache/airflow/go-sdk@v<VERSION>-rc<N>` resolves.
+  Run it only after pushing the RC tag (see the warning in
+  [After a successful vote](#after-a-successful-vote)).
+* `Changes since <the last release>` and the vote deadline are filled in.
+* The RC commit passes the
+  [commit check](../dev/README_RELEASE_LANGUAGE_SDKS.md#check-the-release-candidate-commit).
+* Run `grep '<' email.txt` on the rendered email and confirm **no output** —
+  any match means a template placeholder was left unfilled.
+
+### After a successful vote
+
+Follow [After a successful vote](../dev/README_RELEASE_LANGUAGE_SDKS.md#after-a-successful-vote)
+in the shared release doc. Go has no binaries to publish. Its "Publish the
+binaries" step is below.
+
+> [!WARNING]
+> Run these steps only after `go-sdk/v<VERSION>` is pushed to `apache/airflow`.
+> Both ask the Go module proxy for the version, and if it doesn't exist yet the
+> proxy caches the "not found" answer. The release then stays unreachable, on
+> the proxy and on pkg.go.dev, for up to an hour after the tag is pushed.
+
+1. **Warm** the module proxy, so the release is fetchable right away and the
+   proxy records the tag's commit:
+
+   ```bash
+   GOPROXY=https://proxy.golang.org go list -m github.com/apache/airflow/go-sdk@v<VERSION>
+   ```
+
+   It should print `github.com/apache/airflow/go-sdk v<VERSION>`.
+
+2. **Request** the API docs on pkg.go.dev. Open
+   `https://pkg.go.dev/github.com/apache/airflow/go-sdk@v<VERSION>` and, if the
+   version isn't shown yet, click *Request*. Indexing can take a few minutes.
+
+### If the vote fails
+
+Follow [If the vote fails](../dev/README_RELEASE_LANGUAGE_SDKS.md#if-the-vote-fails)
+in the shared release doc. There is nothing Go-specific to undo: the module
+proxy keeps the RC tag, but `go get` only picks a prerelease when asked for it by version.
 
 ## Architectural decisions
 

@@ -19,9 +19,11 @@
 from __future__ import annotations
 
 import time
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
+from weakref import WeakKeyDictionary
 
 import structlog
+from fastapi.routing import iter_route_contexts
 
 from airflow._shared.observability.metrics.stats import Stats
 
@@ -29,6 +31,8 @@ if TYPE_CHECKING:
     from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 logger = structlog.get_logger(logger_name="http.metrics")
+
+_ROUTE_PATHS: WeakKeyDictionary[Any, dict[int, str]] = WeakKeyDictionary()
 
 # `/execution` is the Task SDK execution API, mounted as a sub-app. The middleware runs on the
 # outer app, so a request to it passes through here like any other.
@@ -51,11 +55,28 @@ def _get_method_tag(method: str) -> str:
     return method if method in _SERVED_HTTP_METHODS else _OTHER_HTTP_METHOD
 
 
+def _get_route_paths(app: Any) -> dict[int, str]:
+    """Return the full path of each route in ``app``, keyed by ``id()`` of the route object."""
+    paths = _ROUTE_PATHS.get(app)
+    if paths is None:
+        paths = {}
+        for context in iter_route_contexts(app.routes):
+            if context.path:
+                paths.setdefault(id(context.original_route), context.path)
+        _ROUTE_PATHS[app] = paths
+    return paths
+
+
 def _get_route_template(scope: Scope) -> str:
     # FastAPI's APIRoute.matches() stores the matched route in the scope before the endpoint runs.
     # Requests matching no route (404s, redirects) share one bucket so tag cardinality stays bounded.
-    route_path = getattr(scope.get("route"), "path", None)
+    route = scope.get("route")
+    route_path = getattr(route, "path", None)
     if isinstance(route_path, str) and route_path:
+        # The route in the scope is the one declared on its own router, so its path lacks the
+        # prefixes of the routers it is included through (`/dags` rather than `/api/v2/dags`).
+        if (app := scope.get("app")) is not None:
+            route_path = _get_route_paths(app).get(id(route), route_path)
         # A mounted sub-app declares its routes relative to the mount point, which Starlette keeps
         # in root_path. Without it, `/execution/task-instances/{id}` would be tagged
         # `/task-instances/{id}` and collide with core routes sharing that template.

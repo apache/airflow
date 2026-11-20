@@ -25,12 +25,13 @@ from uuid import UUID
 
 import pytest
 from kubernetes.client import Configuration, models as k8s
-from sqlalchemy import Column, MetaData, Table, text
+from sqlalchemy import Column, MetaData, Table, select, text, update
 from sqlalchemy.dialects import mysql, postgresql, sqlite
-from sqlalchemy.exc import StatementError
+from sqlalchemy.exc import InternalError, OperationalError, StatementError
 from sqlalchemy.schema import CreateTable
 
 from airflow import settings
+from airflow.models.pool import Pool
 from airflow.sdk import DAG
 from airflow.sdk.timezone import utcnow
 from airflow.serialization.enums import DagAttributeTypes, Encoding
@@ -43,7 +44,10 @@ from airflow.utils.sqlalchemy import (
     compact_uuid_default,
     ensure_pod_is_valid_after_unpickling,
     get_dialect_name,
+    is_deadlock_error,
+    is_lock_not_available_error,
     prohibit_commit,
+    with_db_lock_timeout,
     with_row_locks,
 )
 from airflow.utils.state import State
@@ -51,6 +55,7 @@ from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.dag import sync_dag_to_db
+from tests_common.test_utils.db import clear_db_pools
 
 pytestmark = pytest.mark.db_test
 
@@ -523,3 +528,131 @@ class TestCompactUUID:
         )
         ddl = str(CreateTable(table).compile(dialect=mysql.dialect()))
         assert "DEFAULT (UNHEX('0190a1b2c3d47e5f8a9b0c1d2e3f4a5b'))" in ddl
+
+
+class TestIsDeadlockError:
+    @staticmethod
+    def _make_error(orig):
+        return OperationalError("statement", {}, orig)
+
+    @pytest.mark.parametrize(
+        ("orig", "expected"),
+        [
+            pytest.param(
+                mock.Mock(sqlstate=None, pgcode="40P01", args=("deadlock detected",)),
+                True,
+                id="postgres-deadlock",
+            ),
+            pytest.param(
+                mock.Mock(sqlstate=None, pgcode=None, args=(1213, "Deadlock found when trying to get lock")),
+                True,
+                id="mysql-deadlock",
+            ),
+            pytest.param(
+                mock.Mock(sqlstate=None, pgcode="55P03", args=("lock not available",)),
+                False,
+                id="postgres-nowait",
+            ),
+            pytest.param(
+                mock.Mock(sqlstate=None, pgcode=None, args=(1205, "Lock wait timeout exceeded")),
+                False,
+                id="mysql-lock-wait-timeout",
+            ),
+            pytest.param(
+                mock.Mock(sqlstate=None, pgcode=None, args=("connection reset",)),
+                False,
+                id="other-operational",
+            ),
+        ],
+    )
+    def test_is_deadlock_error(self, orig, expected):
+        assert is_deadlock_error(self._make_error(orig)) is expected
+
+    @pytest.mark.parametrize(
+        ("error_name", "expected"),
+        [
+            pytest.param("DeadlockDetected", True, id="psycopg3-deadlock"),
+            pytest.param("LockNotAvailable", False, id="psycopg3-nowait"),
+        ],
+    )
+    def test_is_deadlock_error_psycopg3(self, error_name, expected):
+        errors = pytest.importorskip("psycopg.errors", reason="Test only runs when psycopg v3 is installed.")
+        orig = getattr(errors, error_name)("db error")
+        assert is_deadlock_error(self._make_error(orig)) is expected
+
+    def test_mysql_connector_deadlock(self):
+        # mysql-connector-python raises InternalError for 1213, with a generic sqlstate next to the MySQL code.
+        orig = mock.Mock(
+            spec=["sqlstate", "args"],
+            sqlstate="40001",
+            args=(1213, "1213 (40001): Deadlock found when trying to get lock", "40001"),
+        )
+        assert is_deadlock_error(InternalError("statement", {}, orig)) is True
+
+    def test_dbapi_error_without_orig_is_not_deadlock(self):
+        assert is_deadlock_error(OperationalError("statement", {}, None)) is False
+
+    def test_non_dbapi_error_is_not_deadlock(self):
+        assert is_deadlock_error(RuntimeError("deadlock")) is False
+
+
+def _lock_default_pool_nowait(session):
+    Pool.slots_stats(lock_rows=True, session=session)
+
+
+def _update_default_pool_with_lock_timeout(session):
+    with with_db_lock_timeout(session, lock_timeout=1):
+        session.execute(update(Pool).where(Pool.pool == Pool.DEFAULT_POOL_NAME).values(slots=Pool.slots))
+
+
+class TestIsLockNotAvailableError:
+    @staticmethod
+    def _make_error(orig):
+        return OperationalError("statement", {}, orig)
+
+    @pytest.mark.parametrize(
+        "orig",
+        [
+            pytest.param(
+                mock.Mock(
+                    spec=["sqlstate", "args"], sqlstate="55P03", args=("could not obtain lock on row",)
+                ),
+                id="psycopg3",
+            ),
+            pytest.param(RuntimeError("55P03"), id="scheduler-advisory-lock"),
+        ],
+    )
+    def test_is_lock_not_available_error(self, orig):
+        assert is_lock_not_available_error(self._make_error(orig)) is True
+
+    @pytest.mark.parametrize(
+        ("error_name", "expected"),
+        [
+            pytest.param("LockNotAvailable", True, id="psycopg3-lock-not-available"),
+            pytest.param("DeadlockDetected", False, id="psycopg3-deadlock"),
+        ],
+    )
+    def test_is_lock_not_available_error_psycopg3(self, error_name, expected):
+        errors = pytest.importorskip("psycopg.errors", reason="Test only runs when psycopg v3 is installed.")
+        orig = getattr(errors, error_name)("db error")
+        assert is_lock_not_available_error(self._make_error(orig)) is expected
+
+    def test_error_without_orig_is_not_lock_error(self):
+        assert is_lock_not_available_error(OperationalError("statement", {}, None)) is False
+
+    @pytest.mark.backend("postgres", "mysql")
+    @pytest.mark.parametrize(
+        "lock_default_pool",
+        [
+            pytest.param(_lock_default_pool_nowait, id="scheduler-pool-nowait"),
+            pytest.param(_update_default_pool_with_lock_timeout, id="lock-timeout"),
+        ],
+    )
+    def test_lock_held_by_another_transaction(self, lock_default_pool):
+        clear_db_pools()
+        with Session.session_factory() as holder, Session.session_factory() as waiter:
+            holder.execute(select(Pool.pool).where(Pool.pool == Pool.DEFAULT_POOL_NAME).with_for_update())
+            with pytest.raises(OperationalError) as ctx:
+                lock_default_pool(waiter)
+
+        assert is_lock_not_available_error(ctx.value) is True

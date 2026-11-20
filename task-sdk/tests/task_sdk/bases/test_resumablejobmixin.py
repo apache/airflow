@@ -28,6 +28,7 @@ from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanE
 
 from airflow.sdk import ResumableJobMixin
 from airflow.sdk.bases.operator import BaseOperator
+from airflow.sdk.bases.resumablejobmixin import ResumeDecision
 
 if TYPE_CHECKING:
     from pydantic import JsonValue
@@ -86,14 +87,14 @@ def make_context(task_store: FakeTaskState | None = None) -> dict:
 
 
 class FakeTI:
-    """Minimal stand-in for RuntimeTaskInstance exposing stats_tags with an optional team_name."""
+    """Minimal stand-in for RuntimeTaskInstance exposing stats_tags."""
 
     def __init__(self, team_name: str | None = None):
         self._team_name = team_name
 
     @property
     def stats_tags(self) -> dict[str, str]:
-        tags = {"dag_id": "d", "task_id": "t"}
+        tags = {"dag_id": "d", "task_id": "t", "run_type": "scheduled"}
         if self._team_name:
             tags["team_name"] = self._team_name
         return tags
@@ -159,6 +160,16 @@ class TestRetryWithDifferentJobStatuses:
 
         assert op.submitted_ids == []
         assert op.polled_ids == ["job-001"]
+
+    def test_reconnects_to_stored_id_zero(self):
+        op = ConcreteResumableOperator(task_id="test_task")
+        op._status_map["0"] = "RUNNING"
+        task_state = FakeTaskState({"test_job_id": 0})
+
+        op.execute_resumable(make_context(task_state))
+
+        assert op.submitted_ids == []
+        assert op.polled_ids == ["0"]
 
     def test_returns_result_immediately_without_polling(self):
         op = ConcreteResumableOperator(task_id="test_task")
@@ -251,6 +262,8 @@ class TestExternalIdKey:
 class TestMetrics:
     _PATCH = "airflow.sdk._shared.observability.metrics.stats.incr"
     _TAG = {"operator": "ConcreteResumableOperator"}
+    _TI_TAGS = {"dag_id": "d", "task_id": "t", "run_type": "scheduled"}
+    _FULL_TAGS = {**_TI_TAGS, "team_name": "team_alpha", **_TAG}
 
     def test_fresh_submit_fires_only_fresh_submit_counter(self):
         op = ConcreteResumableOperator(task_id="test_task")
@@ -297,24 +310,49 @@ class TestMetrics:
         assert "resumable_job.fresh_submit" not in called_names
 
     @pytest.mark.parametrize(
-        ("team_name", "expected_tag"),
+        ("stored_status", "expected_names"),
         [
+            pytest.param(None, ["resumable_job.fresh_submit"], id="fresh_submit"),
             pytest.param(
-                "team_alpha",
-                {"operator": "ConcreteResumableOperator", "team_name": "team_alpha"},
-                id="with_team",
+                "RUNNING",
+                ["resumable_job.reconnect_attempt", "resumable_job.reconnect_success"],
+                id="reconnect",
             ),
-            pytest.param(None, {"operator": "ConcreteResumableOperator"}, id="without_team"),
+            pytest.param(
+                "SUCCEEDED",
+                ["resumable_job.reconnect_attempt", "resumable_job.already_succeeded"],
+                id="already_succeeded",
+            ),
+            pytest.param(
+                "FAILED",
+                ["resumable_job.reconnect_attempt", "resumable_job.terminal_resubmit"],
+                id="terminal_resubmit",
+            ),
         ],
     )
-    def test_team_name_added_to_metric_tags(self, team_name, expected_tag):
+    def test_every_counter_carries_task_instance_stats_tags(self, stored_status, expected_names):
         op = ConcreteResumableOperator(task_id="test_task")
-        ctx = make_context(FakeTaskState())
-        ctx["ti"] = FakeTI(team_name)
+        if stored_status is None:
+            task_state = FakeTaskState()
+        else:
+            op._status_map["job-001"] = stored_status
+            task_state = FakeTaskState({"test_job_id": "job-001"})
+        ctx = make_context(task_state)
+        ctx["ti"] = FakeTI("team_alpha")
         mock_incr = MagicMock()
         with patch(self._PATCH, mock_incr):
             op.execute_resumable(ctx)
-        mock_incr.assert_called_once_with("resumable_job.fresh_submit", tags=expected_tag)
+        assert [call.args[0] for call in mock_incr.call_args_list] == expected_names
+        assert all(call.kwargs["tags"] == self._FULL_TAGS for call in mock_incr.call_args_list)
+
+    def test_team_name_omitted_when_task_has_no_team(self):
+        op = ConcreteResumableOperator(task_id="test_task")
+        ctx = make_context(FakeTaskState())
+        ctx["ti"] = FakeTI()
+        mock_incr = MagicMock()
+        with patch(self._PATCH, mock_incr):
+            op.execute_resumable(ctx)
+        mock_incr.assert_called_once_with("resumable_job.fresh_submit", tags={**self._TI_TAGS, **self._TAG})
 
 
 class TestTracing:
@@ -554,3 +592,51 @@ class TestAbstractMethodEnforcement:
         assert partial_cls.__abstractmethods__ == frozenset({missing_method})
         with pytest.raises(TypeError):
             partial_cls(task_id="test_task")
+
+
+class TestGetResumeDecision:
+    @pytest.mark.parametrize(
+        ("stored", "status", "expected"),
+        [
+            (None, None, ResumeDecision("submit")),
+            ("job-001", "RUNNING", ResumeDecision("reconnect", "job-001")),
+            ("job-001", "SUCCEEDED", ResumeDecision("already_succeeded", "job-001")),
+            ("job-001", "FAILED", ResumeDecision("submit")),
+        ],
+    )
+    def test_decides_without_submitting_or_polling(self, stored, status, expected):
+        op = ConcreteResumableOperator(task_id="test_task")
+        if status:
+            op._status_map[stored] = status
+        task_state = FakeTaskState({"test_job_id": stored} if stored else None)
+
+        assert op.get_resume_decision(make_context(task_state)) == expected
+        assert op.submitted_ids == []
+        assert op.polled_ids == []
+
+    def test_submit_without_reading_store_when_not_durable(self):
+        op = ConcreteResumableOperator(task_id="test_task", durable=False)
+        task_state = MagicMock(spec=FakeTaskState)
+
+        assert op.get_resume_decision(make_context(task_state)) == ResumeDecision("submit")
+        task_state.get.assert_not_called()
+
+
+class TestPersistJobId:
+    def test_persisted_id_is_reconnected_on_retry(self):
+        op = ConcreteResumableOperator(task_id="test_task")
+        op._status_map["job-001"] = "RUNNING"
+        task_state = FakeTaskState()
+
+        op.persist_job_id(make_context(task_state), "job-001")
+
+        assert op.get_resume_decision(make_context(task_state)) == ResumeDecision("reconnect", "job-001")
+
+    @pytest.mark.parametrize(("durable", "external_id"), [(False, "job-001"), (True, None)])
+    def test_skips_persist(self, durable, external_id):
+        op = ConcreteResumableOperator(task_id="test_task", durable=durable)
+        task_state = FakeTaskState()
+
+        op.persist_job_id(make_context(task_state), external_id)
+
+        assert task_state._store == {}

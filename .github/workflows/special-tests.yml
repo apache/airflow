@@ -20,8 +20,19 @@ name: Special tests
 on:  # yamllint disable-line rule:truthy
   workflow_call:
     inputs:
+      merge-with:
+        description: >-
+          The base branch commit and merge base to merge the pushed commit with, space-separated;
+          empty outside fork CI runs.
+        required: false
+        default: ""
+        type: string
       runners:
         description: "The array of labels (in json form) determining runners."
+        required: true
+        type: string
+      in-memory-runners:
+        description: "The same as runners, with docker in RAM on self-hosted runners."
         required: true
         type: string
       platform:
@@ -38,6 +49,10 @@ on:  # yamllint disable-line rule:truthy
         type: string
       providers-test-types-list-as-strings-in-json:
         description: "The list of providers test types to run separated by spaces"
+        required: true
+        type: string
+      providers-split-test-types-list-as-strings-in-json:
+        description: "The providers test types for the jobs running them in parallel in the CI image"
         required: true
         type: string
       run-coverage:
@@ -94,7 +109,8 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ inputs.runners }}
+      merge-with: ${{ inputs.merge-with }}
+      runners: ${{ format(inputs.in-memory-runners, '8+16', '32+128') }}
       platform: ${{ inputs.platform }}
       downgrade-sqlalchemy: "true"
       test-name: "MinSQLAlchemy-Postgres"
@@ -119,7 +135,8 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ inputs.runners }}
+      merge-with: ${{ inputs.merge-with }}
+      runners: ${{ format(inputs.in-memory-runners, '32+64', '128+256') }}
       platform: ${{ inputs.platform }}
       downgrade-sqlalchemy: "true"
       test-name: "MinSQLAlchemy-Postgres"
@@ -130,7 +147,7 @@ jobs:
       backend-versions: "['${{ inputs.default-postgres-version }}']"
       excluded-providers-as-string: ${{ inputs.excluded-providers-as-string }}
       excludes: "[]"
-      test-types-as-strings-in-json: ${{ inputs.providers-test-types-list-as-strings-in-json }}
+      test-types-as-strings-in-json: ${{ inputs.providers-split-test-types-list-as-strings-in-json }}
       run-coverage: ${{ inputs.run-coverage }}
       debug-resources: ${{ inputs.debug-resources }}
       skip-providers-tests: ${{ inputs.skip-providers-tests }}
@@ -144,7 +161,8 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ inputs.runners }}
+      merge-with: ${{ inputs.merge-with }}
+      runners: ${{ format(inputs.in-memory-runners, '8+16', '32+128') }}
       platform: ${{ inputs.platform }}
       upgrade-sqlalchemy: "true"
       test-name: "LatestSQLAlchemy-Postgres"
@@ -169,7 +187,8 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ inputs.runners }}
+      merge-with: ${{ inputs.merge-with }}
+      runners: ${{ format(inputs.in-memory-runners, '32+64', '128+256') }}
       platform: ${{ inputs.platform }}
       upgrade-sqlalchemy: "true"
       test-name: "LatestSQLAlchemy-Postgres"
@@ -180,7 +199,7 @@ jobs:
       backend-versions: "['${{ inputs.default-postgres-version }}']"
       excluded-providers-as-string: ${{ inputs.excluded-providers-as-string }}
       excludes: "[]"
-      test-types-as-strings-in-json: ${{ inputs.providers-test-types-list-as-strings-in-json }}
+      test-types-as-strings-in-json: ${{ inputs.providers-split-test-types-list-as-strings-in-json }}
       run-coverage: ${{ inputs.run-coverage }}
       debug-resources: ${{ inputs.debug-resources }}
       skip-providers-tests: ${{ inputs.skip-providers-tests }}
@@ -194,7 +213,8 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ inputs.runners }}
+      merge-with: ${{ inputs.merge-with }}
+      runners: ${{ format(inputs.in-memory-runners, '8+16', '32+128') }}
       platform: ${{ inputs.platform }}
       upgrade-boto: "true"
       test-name: "LatestBoto-Postgres"
@@ -220,7 +240,8 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ inputs.runners }}
+      merge-with: ${{ inputs.merge-with }}
+      runners: ${{ format(inputs.in-memory-runners, '32+64', '128+256') }}
       platform: ${{ inputs.platform }}
       upgrade-boto: "true"
       test-name: "LatestBoto-Postgres"
@@ -231,7 +252,7 @@ jobs:
       backend-versions: "['${{ inputs.default-postgres-version }}']"
       excluded-providers-as-string: ${{ inputs.excluded-providers-as-string }}
       excludes: "[]"
-      test-types-as-strings-in-json: ${{ inputs.providers-test-types-list-as-strings-in-json }}
+      test-types-as-strings-in-json: ${{ inputs.providers-split-test-types-list-as-strings-in-json }}
       include-success-outputs: ${{ inputs.include-success-outputs }}
       run-coverage: ${{ inputs.run-coverage }}
       debug-resources: ${{ inputs.debug-resources }}
@@ -246,7 +267,8 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ inputs.runners }}
+      merge-with: ${{ inputs.merge-with }}
+      runners: ${{ format(inputs.in-memory-runners, '8+16', '32+128') }}
       platform: ${{ inputs.platform }}
       downgrade-pendulum: "true"
       test-name: "Pendulum2-Postgres"
@@ -272,7 +294,8 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ inputs.runners }}
+      merge-with: ${{ inputs.merge-with }}
+      runners: ${{ format(inputs.in-memory-runners, '32+64', '128+256') }}
       platform: ${{ inputs.platform }}
       downgrade-pendulum: "true"
       test-name: "Pendulum2-Postgres"
@@ -283,7 +306,7 @@ jobs:
       backend-versions: "['${{ inputs.default-postgres-version }}']"
       excluded-providers-as-string: ${{ inputs.excluded-providers-as-string }}
       excludes: "[]"
-      test-types-as-strings-in-json: ${{ inputs.providers-test-types-list-as-strings-in-json }}
+      test-types-as-strings-in-json: ${{ inputs.providers-split-test-types-list-as-strings-in-json }}
       include-success-outputs: ${{ inputs.include-success-outputs }}
       run-coverage: ${{ inputs.run-coverage }}
       debug-resources: ${{ inputs.debug-resources }}
@@ -298,7 +321,8 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ inputs.runners }}
+      merge-with: ${{ inputs.merge-with }}
+      runners: ${{ format(inputs.runners, '4+8', '16+32') }}
       platform: ${{ inputs.platform }}
       test-name: "Postgres"
       test-scope: "Quarantined"
@@ -323,7 +347,8 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ inputs.runners }}
+      merge-with: ${{ inputs.merge-with }}
+      runners: ${{ format(inputs.runners, '4+8', '16+32') }}
       platform: ${{ inputs.platform }}
       test-name: "Postgres"
       test-scope: "Quarantined"
@@ -348,7 +373,8 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ inputs.runners }}
+      merge-with: ${{ inputs.merge-with }}
+      runners: ${{ format(inputs.runners, '8+16', '32+64') }}
       platform: ${{ inputs.platform }}
       test-name: "SystemTest"
       test-scope: "System"

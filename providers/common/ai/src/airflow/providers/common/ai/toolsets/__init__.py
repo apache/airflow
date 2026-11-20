@@ -19,7 +19,6 @@
 from __future__ import annotations
 
 from airflow.providers.common.ai.toolsets.hook import HookToolset
-from airflow.providers.common.ai.toolsets.logging import LoggingToolset
 from airflow.providers.common.ai.toolsets.managed_agent import (
     BaseManagedAgentToolset,
     ManagedAgentToolset,
@@ -33,7 +32,6 @@ __all__ = [
     "BaseManagedAgentToolset",
     "DataFusionToolset",
     "HookToolset",
-    "LoggingToolset",
     "MCPToolset",
     "ManagedAgentToolset",
     "ObjectStorageToolset",

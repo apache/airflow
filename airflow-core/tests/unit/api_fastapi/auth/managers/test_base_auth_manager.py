@@ -38,7 +38,7 @@ from airflow.api_fastapi.auth.managers.models.resource_details import (
 )
 from airflow.api_fastapi.auth.middlewares.refresh_token import JWTRefreshMiddleware
 from airflow.api_fastapi.auth.tokens import JWTGenerator, JWTValidator
-from airflow.api_fastapi.common.types import MenuItem
+from airflow.api_fastapi.common.types import CliLoginMethods, MenuItem
 from airflow.api_fastapi.core_api.app import _STATIC_URL_PATH
 from airflow.exceptions import RemovedInAirflow4Warning
 from airflow.models.pool import Pool
@@ -273,6 +273,9 @@ class TestBaseAuthManager:
 
     def test_get_url_logout_return_none(self, auth_manager):
         assert auth_manager.get_url_logout() is None
+
+    def test_get_cli_login_methods_return_empty(self, auth_manager):
+        assert auth_manager.get_cli_login_methods() == CliLoginMethods()
 
     def test_get_extra_menu_items_return_empty_list(self, auth_manager):
         assert auth_manager.get_extra_menu_items(user=BaseAuthManagerUserTest(name="test")) == []

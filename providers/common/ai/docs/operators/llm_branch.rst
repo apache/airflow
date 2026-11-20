@@ -158,12 +158,8 @@ skipped too. Letting ``approval_timeout`` expire fails the task
 (``HITLTimeoutError``) unless ``on_approval_timeout`` answers the review for
 you; a timeout-driven rejection then skips downstream like any other rejection.
 
-``require_approval=True`` requires a string prompt: a decorated callable
-returning a ``Sequence[UserContent]`` raises ``TypeError`` before the LLM
-call.
-
-Apart from ``fail_on_reject`` and ``ignore_downstream_trigger_rules``, which
-are specific to this operator, ``approval_timeout``, ``on_approval_timeout``,
+Apart from ``fail_on_reject``, which defaults to ``False`` here and to ``True``
+on other operators, ``approval_timeout``, ``on_approval_timeout``,
 ``approval_notifiers``, ``approval_assigned_users``, and the rest of the approval
 behaviour are inherited from :ref:`LLMOperator <howto/operator:llm>`.
 
@@ -235,7 +231,8 @@ The decision record
 ^^^^^^^^^^^^^^^^^^^
 
 Whether or not a bar is set, the operator pushes a ``decision`` XCom next to
-its return value (suppressed by ``do_xcom_push=False`` like any other):
+its return value and the run XComs listed under `Logging`_ (suppressed by
+``do_xcom_push=False`` like any other):
 
 .. code-block:: json
 
@@ -303,7 +300,7 @@ Parameters
 - ``prompt``: The prompt to send to the LLM (operator) or the return value of the
   decorated function (decorator).
 - ``llm_conn_id``: Airflow connection ID for the LLM provider.
-- ``model_id``: Model identifier (e.g. ``"openai:gpt-5"``). Overrides the connection's extra field.
+- ``model_id``: Model identifier (e.g. ``"openai:gpt-6.1-sol"``). Overrides the connection's extra field.
 - ``system_prompt``: System-level instructions for the agent. Supports Jinja templating.
 - ``branches``: Optional mapping of downstream task ID to a ``BranchOption`` (a
   description and, optionally, a ``min_confidence`` for that branch) or to a string as
@@ -354,3 +351,6 @@ Logging
 After each LLM call, the operator logs a summary with model name, token usage,
 and request count at INFO level. See :ref:`AgentOperator logging <howto/operator:agent>`
 for details on the log format.
+
+Like :doc:`llm`, the operator also pushes ``usage``, ``run_id`` and the model name to
+XCom, on a failed run too. See :doc:`../observability`.

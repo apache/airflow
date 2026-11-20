@@ -24,14 +24,18 @@ export type JsonValue =
 /**
  * Options for pulling an XCom value.
  *
- * `dagId`, `taskId`, and `runId` default to the running task's context.
- * Pass them only when pulling an XCom value from another task or run.
+ * `dagId`, `taskId`, and `runId` default to the running task's context when
+ * omitted or `null`. Pass them only when pulling an XCom value from another task or run.
+ *
+ * `mapIndex` defaults to the running task's own map index when the target is
+ * the running task, and to the unmapped value for any other task or run. Pass
+ * a number to pick one mapped instance, or `null` for the unmapped one.
  */
 export interface GetXComOpts {
   key: string;
-  dagId?: string;
-  runId?: string;
-  taskId?: string;
+  dagId?: string | null;
+  runId?: string | null;
+  taskId?: string | null;
   mapIndex?: number | null;
   includePriorDates?: boolean;
 }
@@ -39,14 +43,19 @@ export interface GetXComOpts {
 /**
  * Options for pushing an XCom value.
  *
- * `dagId`, `taskId`, and `runId` default to the running task's context.
+ * `dagId`, `taskId`, and `runId` default to the running task's context when
+ * omitted or `null`.
+ *
+ * `mapIndex` defaults to the running task's own map index when the target is
+ * the running task, and to the unmapped value for any other task or run. Pass
+ * a number to pick one mapped instance, or `null` for the unmapped one.
  */
 export interface SetXComOpts {
   key: string;
   value: JsonValue;
-  dagId?: string;
-  runId?: string;
-  taskId?: string;
+  dagId?: string | null;
+  runId?: string | null;
+  taskId?: string | null;
   mapIndex?: number | null;
 }
 
@@ -58,7 +67,7 @@ export interface SetXComOpts {
  * accident (a division by zero, for example) is rejected instead of silently
  * storing a key forever.
  */
-export const NEVER_EXPIRE: unique symbol = Symbol("apache-airflow-ts-sdk/NEVER_EXPIRE");
+export const NEVER_EXPIRE: unique symbol = Symbol("@apache-airflow/ts-sdk/NEVER_EXPIRE");
 
 /** Options for a task state store write. */
 export interface TaskStateStoreSetOpts {

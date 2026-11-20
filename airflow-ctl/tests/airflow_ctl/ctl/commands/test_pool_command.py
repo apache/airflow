@@ -64,6 +64,62 @@ class TestPoolImportCommand:
         with pytest.raises(SystemExit, match="Invalid pool configuration: {'invalid': 'config'}"):
             pool_command.import_(mock.MagicMock(file=invalid_pool, action_on_existing_key="fail"))
 
+    @pytest.mark.parametrize(
+        ("pool_config", "expected_reason"),
+        [
+            (
+                {"name": "bad_pool", "slots": "many"},
+                "slots: Input should be a valid integer, unable to parse string as an integer",
+            ),
+            ({"name": "bad_pool", "slots": -5}, "slots: Input should be greater than or equal to -1"),
+            (
+                {"name": "bad_pool", "slots": 1, "include_deferred": "maybe"},
+                "include_deferred: Input should be a valid boolean, unable to interpret input",
+            ),
+            (
+                {"name": "bad_pool", "slots": "many", "include_deferred": "maybe"},
+                "slots: Input should be a valid integer, unable to parse string as an integer; "
+                "include_deferred: Input should be a valid boolean, unable to interpret input",
+            ),
+            ({"name": None, "slots": 1}, "missing required field(s): name"),
+        ],
+        ids=[
+            "non-integer-slots",
+            "slots-below-minimum",
+            "non-boolean-include-deferred",
+            "non-integer-slots-and-non-boolean-include-deferred",
+            "null-name",
+        ],
+    )
+    def test_import_reports_invalid_pool(self, mock_client, tmp_path, pool_config, expected_reason):
+        """Test that an invalid pool value is reported as a readable error instead of a traceback."""
+        pools_file = tmp_path / "pools.json"
+        pools_file.write_text(json.dumps([pool_config]))
+
+        with pytest.raises(SystemExit) as exc_info:
+            pool_command.import_(mock.MagicMock(file=pools_file, action_on_existing_key="fail"))
+
+        assert (
+            str(exc_info.value) == f"Invalid pool {pool_config['name']!r} in {pools_file}: {expected_reason}"
+        )
+        mock_client.pools.bulk.assert_not_called()
+
+    def test_import_reports_invalid_pool_after_valid_one(self, mock_client, tmp_path):
+        """Test that an invalid pool stops the whole import, so the valid pool before it is not sent."""
+        pools_file = tmp_path / "pools.json"
+        pools_file.write_text(
+            json.dumps([{"name": "good_pool", "slots": 1}, {"name": "bad_pool", "slots": "many"}])
+        )
+
+        with pytest.raises(SystemExit) as exc_info:
+            pool_command.import_(mock.MagicMock(file=pools_file, action_on_existing_key="fail"))
+
+        assert str(exc_info.value) == (
+            f"Invalid pool 'bad_pool' in {pools_file}: "
+            "slots: Input should be a valid integer, unable to parse string as an integer"
+        )
+        mock_client.pools.bulk.assert_not_called()
+
     def test_import_success(self, mock_client, tmp_path, capsys):
         """Test successful pool import."""
         pools_file = tmp_path / "pools.json"
@@ -256,3 +312,36 @@ class TestPoolExportCommand:
 
         with pytest.raises(SystemExit, match="Failed to export pools: API Error"):
             pool_command.export(mock.MagicMock(file=export_file, output="json"))
+
+    def test_export_json_file_path_containing_markup(self, mock_client, tmp_path, capsys):
+        """Test that exporting to a file path containing markup tags does not crash."""
+        markup_dir = tmp_path / "dir["
+        markup_dir.mkdir()
+        export_file = markup_dir / "test].json"
+        mock_pools = mock.MagicMock()
+        mock_pools.pools = [
+            type(
+                "Pool",
+                (),
+                {
+                    "name": "p",
+                    "slots": 1,
+                    "description": "",
+                    "include_deferred": False,
+                    "occupied_slots": 0,
+                    "running_slots": 0,
+                    "queued_slots": 0,
+                    "scheduled_slots": 0,
+                    "open_slots": 1,
+                    "deferred_slots": 0,
+                    "team_name": None,
+                },
+            )()
+        ]
+        mock_pools.total_entries = 1
+        mock_client.pools.list.return_value = mock_pools
+
+        pool_command.export(mock.MagicMock(file=export_file, output="json"))
+
+        out = capsys.readouterr().out.replace("\n", "")
+        assert str(export_file) in out

@@ -22,6 +22,7 @@
     },
     "favoriteState": "Favorite state",
     "favoriteStatePlaceholder": "Select favorite state…",
+    "hasImportErrors": "Has import errors",
     "noTimetableTypesFound": "No timetable types found",
     "paused": {
       "active": "Not paused",
@@ -96,6 +97,7 @@
       "downstream": "Downstream",
       "existingTasks": "Clear existing tasks",
       "future": "Future",
+      "includeDependentDags": "Clear tasks in dependent Dags",
       "keepTaskState": "Keep task state and resume",
       "laterIterations": "Later iterations",
       "onlyFailed": "Clear only failed tasks",

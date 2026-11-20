@@ -220,6 +220,22 @@ MaybeAssetExpression = Annotated[
 ]
 """``AssetExpression | None`` that degrades a legacy/unrecognized stored shape to ``None``."""
 
+
+_maybe_asset_expression_adapter: TypeAdapter[Union[AssetExpression, None]] = TypeAdapter(MaybeAssetExpression)
+
+
+def validate_asset_expression(value: Any) -> AssetExpression | None:
+    """
+    Validate a raw ``asset_expression`` tree into the typed model, the way a response field does.
+
+    A route that rewrites the tree after its response model is built -- redacting the assets the
+    caller may not read, for instance -- must assign the result of this rather than the raw tree.
+    FastAPI does not validate the nested models of an already-built response, so a raw tree would
+    bypass ``MaybeAssetExpression`` and reach the client verbatim, legacy shapes included.
+    """
+    return _maybe_asset_expression_adapter.validate_python(value)
+
+
 # Common Bulk Data Models
 T = TypeVar("T")
 K = TypeVar("K")

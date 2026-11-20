@@ -67,10 +67,11 @@ def test_stand_in_is_used_below_airflow_3_3():
 
 
 class TestStandIn:
-    def test_durable_left_at_default_does_not_warn(self):
+    @pytest.mark.parametrize("durable_kwargs", [{}, {"durable": None}], ids=["omitted", "none"])
+    def test_durable_left_at_default_does_not_warn(self, durable_kwargs):
         with warnings.catch_warnings():
             warnings.simplefilter("error")
-            operator = _JobOperator(task_id="t")
+            operator = _JobOperator(task_id="t", **durable_kwargs)
 
         assert operator.durable is False
         assert operator.base_kwargs == {"task_id": "t"}

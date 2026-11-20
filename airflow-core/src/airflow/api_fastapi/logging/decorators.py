@@ -29,7 +29,7 @@ from pendulum.parsing.exceptions import ParserError
 from sqlalchemy import select
 
 from airflow._shared.secrets_masker import secrets_masker
-from airflow.api_fastapi.common.db.common import SessionDep
+from airflow.api_fastapi.common.db.common import AsyncSessionDep
 from airflow.api_fastapi.core_api.security import GetUserDep
 from airflow.configuration import conf
 from airflow.models import Connection, Log, Pool, Variable
@@ -40,7 +40,7 @@ from airflow.models.team import find_invalid_team_names
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
-    from sqlalchemy.orm import Session
+    from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
 
@@ -157,8 +157,8 @@ def _mask_variable_entity(extra_fields):
     return result
 
 
-def _find_addressed_attempt(
-    path_params: Mapping[str, str], params: Mapping, *, session: Session
+async def _find_addressed_attempt(
+    path_params: Mapping[str, str], params: Mapping, *, session: AsyncSession
 ) -> UUID | None:
     """
     Return the live attempt of the one task instance a request addresses, or None if it names no single one.
@@ -176,11 +176,15 @@ def _find_addressed_attempt(
         region_id=UUID(str(region_id)) if region_id else None,
         region_index=int(region_index) if region_index is not None else None,
     )
-    attempt_ids = session.scalars(
-        select(TaskInstance.id)
-        .where(TaskInstance.dag_id == dag_id, TaskInstance.run_id == run_id, TaskInstance.task_id == task_id)
-        .where(*filters)
-        .limit(2)
+    attempt_ids = (
+        await session.scalars(
+            select(TaskInstance.id)
+            .where(
+                TaskInstance.dag_id == dag_id, TaskInstance.run_id == run_id, TaskInstance.task_id == task_id
+            )
+            .where(*filters)
+            .limit(2)
+        )
     ).all()
     return attempt_ids[0] if len(attempt_ids) == 1 else None
 
@@ -197,7 +201,7 @@ def _mask_xcom_fields(extra_fields):
     return {k: "***" if k == "value" else v for k, v in extra_fields.items()}
 
 
-def _resolve_team_name(params: dict, *, dag_id: str | None, session: Session) -> str | None:
+async def _resolve_team_name(params: dict, *, dag_id: str | None, session: AsyncSession) -> str | None:
     """
     Return the team the audited action belongs to, for the resources that own no Dag.
 
@@ -222,14 +226,16 @@ def _resolve_team_name(params: dict, *, dag_id: str | None, session: Session) ->
         return None
     for param, (team_column, resource_column) in _TEAM_SCOPED_RESOURCES.items():
         if (resource_id := params.get(param)) is not None:
-            return session.scalar(select(team_column).where(resource_column == resource_id))
+            return await session.scalar(select(team_column).where(resource_column == resource_id))
     return None
 
 
 def action_logging(event: str | None = None):
     async def log_action(
         request: Request,
-        session: SessionDep,
+        # Not the route's sync ``SessionDep``: this dependency runs on the event loop, where a sync
+        # pool checkout blocks the requests holding the pooled connections from releasing them.
+        session: AsyncSessionDep,
         user: GetUserDep,
     ):
         """Log user actions."""
@@ -320,7 +326,7 @@ def action_logging(event: str | None = None):
             scope.update(masked_body_json)
         dag_id = scope.get("dag_id")
         try:
-            task_instance_id = _find_addressed_attempt(request.path_params, params, session=session)
+            task_instance_id = await _find_addressed_attempt(request.path_params, params, session=session)
         except (TypeError, ValueError):
             # Malformed coordinates are the route's to reject; the access is still logged.
             task_instance_id = None
@@ -336,7 +342,7 @@ def action_logging(event: str | None = None):
             task_id=scope.get("task_id"),
             dag_id=dag_id,
             run_id=scope.get("run_id") or scope.get("dag_run_id"),
-            team_name=_resolve_team_name(params, dag_id=dag_id, session=session),
+            team_name=await _resolve_team_name(params, dag_id=dag_id, session=session),
         )
 
         if "logical_date" in request.query_params:
@@ -357,6 +363,6 @@ def action_logging(event: str | None = None):
         session.add(log)
         # Explicit commit to persist the access log independently if the path operation fails or not.
         # Also it cannot be deferred to a 'function' scoped dependency because of the `request` parameter.
-        session.commit()
+        await session.commit()
 
     return log_action

@@ -404,13 +404,7 @@ class TestConnection:
     def test_connection_from_uri(self, test_config: UriTestCaseConfig):
         connection = Connection(uri=test_config.test_uri)
         for conn_attr, expected_val in test_config.test_conn_attributes.items():
-            actual_val = getattr(connection, conn_attr)
-            if expected_val is None:
-                assert expected_val is None
-            if isinstance(expected_val, dict):
-                assert expected_val == actual_val
-            else:
-                assert expected_val == actual_val
+            assert getattr(connection, conn_attr) == expected_val
 
         expected_calls = []
         if test_config.test_conn_attributes.get("password"):
@@ -465,11 +459,7 @@ class TestConnection:
         gen_uri = connection.get_uri()
         new_conn = Connection(conn_id="test_conn", uri=gen_uri)
         for conn_attr, expected_val in test_config.test_conn_attributes.items():
-            actual_val = getattr(new_conn, conn_attr)
-            if expected_val is None:
-                assert actual_val is None
-            else:
-                assert actual_val == expected_val
+            assert getattr(new_conn, conn_attr) == expected_val
 
     @pytest.mark.parametrize(
         ("uri", "uri_parts"),

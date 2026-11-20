@@ -403,6 +403,20 @@ describe("Dag", () => {
     expect(dag.taskIds).toEqual([]);
   });
 
+  it.each(["", " "])("rejects the blank queue %j in the Dag spec", (queue) => {
+    expect(() => new Dag("example_dag", { queue })).toThrowError(
+      'queue in the spec for Dag "example_dag" must not be blank',
+    );
+  });
+
+  it.each(["", " "])("rejects the blank queue %j in the task spec", (queue) => {
+    const dag = new Dag("example_dag", { queue: "typescript" });
+    expect(() => dag.task("transform", async () => undefined, { queue })).toThrowError(
+      'queue in the spec for Dag "example_dag" task "transform" must not be blank',
+    );
+    expect(dag.taskIds).toEqual([]);
+  });
+
   it.each([
     ["null", null],
     ["an array", []],

@@ -65,7 +65,7 @@ jobs:
   build-info:
     name: "Build info"
     # No outputs yet at this stage, so the runner has to be hard-coded to a public one.
-    runs-on: ["ubuntu-22.04"]
+    runs-on: ["ubuntu-slim"]
     outputs:
       default-branch: ${{ steps.selective-checks.outputs.default-branch }}
       default-constraints-branch: ${{ steps.selective-checks.outputs.default-constraints-branch }}
@@ -75,15 +75,14 @@ jobs:
       python-versions: ${{ steps.selective-checks.outputs.python-versions }}
       use-uv: ${{ steps.selective-checks.outputs.force-pip == 'true' && 'false' || 'true' }}
     steps:
-      - name: "Cleanup repo"
-        shell: bash
-        run: sudo rm -rf ${GITHUB_WORKSPACE}/*
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           persist-credentials: false
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
+        with:
+          free-space: "false"
       - name: Selective checks
         id: selective-checks
         env:

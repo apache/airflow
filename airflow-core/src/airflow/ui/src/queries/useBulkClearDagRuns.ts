@@ -32,7 +32,7 @@ import type { ClearDagRunsResponse, DAGRunResponse } from "openapi/requests/type
 
 import { toaster } from "src/system-components";
 
-import { gridQueryKeys, tiPerAttemptQueryKeys } from "./gridViewQueryKeys";
+import { dagListQueryKeys, gridQueryKeys, tiPerAttemptQueryKeys } from "./gridViewQueryKeys";
 import { useBulkClearDagRunsDryRunKey } from "./useBulkClearDagRunsDryRun";
 import { useClearDagRunDryRunKey } from "./useClearDagRunDryRun";
 
@@ -42,6 +42,7 @@ type Props = {
 };
 
 export type BulkClearDagRunsOptions = {
+  keepTaskState: boolean;
   note: string | null;
   onlyFailed: boolean;
   onlyNew: boolean;
@@ -62,6 +63,7 @@ export const useBulkClearDagRuns = ({ deselectKeys, onSuccessConfirm }: Props) =
       [useTaskInstanceServiceGetMappedTaskInstanceKey],
       [useBulkClearDagRunsDryRunKey],
       ...tiPerAttemptQueryKeys,
+      ...dagListQueryKeys,
       ...[...dagIds].flatMap((dagId) => [...gridQueryKeys(dagId), [useClearDagRunDryRunKey, dagId]]),
       ...clearedRuns.flatMap((dagRun) => [
         UseDagRunServiceGetDagRunKeyFn({ dagId: dagRun.dag_id, dagRunId: dagRun.dag_run_id }),
@@ -95,6 +97,7 @@ export const useBulkClearDagRuns = ({ deselectKeys, onSuccessConfirm }: Props) =
       requestBody: {
         dag_runs: dagRuns.map((dagRun) => ({ dag_id: dagRun.dag_id, dag_run_id: dagRun.dag_run_id })),
         dry_run: false,
+        keep_task_state: options.keepTaskState,
         note: options.note ?? undefined,
         only_failed: options.onlyFailed,
         only_new: options.onlyNew,

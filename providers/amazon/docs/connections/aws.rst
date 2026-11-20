@@ -298,7 +298,7 @@ This assumes all other Connection fields eg **AWS Access Key ID** or **AWS Secre
           "status_forcelist": [400, 429, 500, 502, 503, 504]
         },
         "log_idp_response":false,
-        "saml_response_xpath":"////INPUT[@NAME='SAMLResponse']/@VALUE",
+        "saml_response_xpath":"////INPUT[@NAME='SAMLResponse']/@VALUE"
       },
       "assume_role_kwargs": { "something":"something" }
     }
@@ -326,6 +326,26 @@ The following settings may be used within the ``assume_role_with_saml`` containe
     - https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_temp_request.html#api_assumerolewithsaml
     - https://pypi.org/project/requests-gssapi/
 
+6. Using S3-compatible storage with virtual-hosted-style addressing
+
+When ``endpoint_url`` is set, ``botocore`` sends path-style requests (``https://s3.example.com/my-bucket/key``).
+If your S3-compatible storage requires virtual-hosted-style requests (``https://my-bucket.s3.example.com/key``),
+set ``addressing_style`` in ``config_kwargs``:
+
+.. code-block:: json
+
+    {
+      "endpoint_url": "https://s3.example.com",
+      "config_kwargs": {
+        "s3": {
+          "addressing_style": "virtual"
+        }
+      }
+    }
+
+.. seealso::
+    - `botocore.config.Config <https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html>`__
+
 
 .. _howto/connection:aws:per-service-configuration:
 
@@ -350,7 +370,7 @@ The precedence rules are as follows:
 .. code-block:: json
 
     {
-      "endpoint_url": "s3.amazonaws.com"
+      "endpoint_url": "s3.amazonaws.com",
       "service_config": {
         "s3": {
           "endpoint_url": "https://s3.eu-west-1.amazonaws.com"

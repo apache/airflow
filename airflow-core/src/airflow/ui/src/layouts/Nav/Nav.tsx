@@ -211,10 +211,11 @@ export const Nav = () => {
         <UserSettingsButton externalViews={userItems} />
         {hasCustomLogo ? (
           <Text asChild color="fg.muted" fontSize="2xs" lineHeight="1" pb={2} textAlign="center">
-            {/* eslint-disable-next-line i18next/no-literal-string -- Trademark must not be translated */}
+            {/* eslint-disable i18next/no-literal-string -- Trademark must not be translated */}
             <a href="https://airflow.apache.org/" rel="noopener noreferrer" target="_blank">
               Apache Airflow®
             </a>
+            {/* eslint-enable i18next/no-literal-string */}
           </Text>
         ) : undefined}
       </Flex>

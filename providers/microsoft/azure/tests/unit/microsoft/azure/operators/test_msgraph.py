@@ -20,26 +20,33 @@ import json
 import locale
 import warnings
 from base64 import b64encode
+from io import BytesIO
 from os.path import dirname
 from typing import Any
 from unittest import mock
 
 import pytest
+from msgraph_core import APIVersion
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
-from airflow.providers.common.compat.sdk import AirflowException, Context, TaskDeferred, timezone
+from airflow.models.trigger import Trigger
+from airflow.providers.common.compat.sdk import DAG, AirflowException, Context, TaskDeferred, timezone
+from airflow.providers.microsoft.azure.exceptions import MSGraphPageNotInTaskStateStoreError
 from airflow.providers.microsoft.azure.operators.msgraph import (
-    COMPLETED_KEY,
-    CURSOR_KEY,
-    PAGE_KEY_PREFIX,
+    _COMPLETED_KEY,
+    _CURSOR_KEY,
+    _PAGE_KEY_PREFIX,
     MSGraphAsyncOperator,
     execute_callable,
 )
+from airflow.providers.microsoft.azure.triggers.msgraph import MSGraphTrigger
 from airflow.triggers.base import TriggerEvent
+from airflow.utils.state import TaskInstanceState
 
 from tests_common.test_utils.file_loading import load_file_from_resources, load_json_from_resources
 from tests_common.test_utils.mock_context import mock_context
-from tests_common.test_utils.operators.run_deferrable import execute_operator
+from tests_common.test_utils.operators.run_deferrable import execute_operator, run_trigger
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_3_PLUS, AIRFLOW_V_3_4_PLUS
 from unit.microsoft.azure.test_utils import (
     mock_json_response,
     mock_response,
@@ -59,7 +66,12 @@ class TaskStateStore:
         return self.values.get(key, default)
 
     def set(self, key, value, *, retention=None):
+        if value is None:
+            raise ValueError("Cannot set value as None")
         self.values[key] = value
+
+    def delete(self, key):
+        self.values.pop(key, None)
 
 
 def users_event(name: str) -> dict[str, Any]:
@@ -75,6 +87,11 @@ def users_operator(**kwargs) -> MSGraphAsyncOperator:
         result_processor=lambda result, **context: result.get("value"),
         **kwargs,
     )
+
+
+def kept_cursor(pages: int = 1) -> dict[str, Any]:
+    """A cursor as this version of the provider keeps it, pointing at the next page."""
+    return {"version": 1, "url": "users/delta()?$skiptoken=abc", "query_parameters": None, "pages": pages}
 
 
 class TestMSGraphAsyncOperator:
@@ -548,6 +565,15 @@ class TestMSGraphAsyncOperator:
             assert len(recorded_warnings) == 0
 
 
+@mock.patch("airflow.providers.microsoft.azure.operators.msgraph.AIRFLOW_V_3_3_PLUS", False)
+def test_durable_below_airflow_3_3_warns_and_is_disabled():
+    with pytest.warns(UserWarning, match="`durable` has no effect on Airflow versions below 3.3"):
+        operator = users_operator(durable=True)
+
+    assert operator.durable is False
+
+
+@pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="The task state store arrived in Airflow 3.3")
 class TestDurableMSGraphAsyncOperator:
     def test_keeps_the_page_and_the_link_to_the_next_one(self):
         operator = users_operator(durable=True)
@@ -559,34 +585,54 @@ class TestDurableMSGraphAsyncOperator:
 
         users = json.loads(users_event("users.json")["response"])
         assert task_state_store.values == {
-            f"{PAGE_KEY_PREFIX}0": users["value"],
-            CURSOR_KEY: {"url": users["@odata.nextLink"], "query_parameters": None, "pages": 1},
+            f"{_PAGE_KEY_PREFIX}0": {"result": users["value"]},
+            _CURSOR_KEY: {
+                "version": 1,
+                "url": users["@odata.nextLink"],
+                "query_parameters": None,
+                "pages": 1,
+            },
         }
         assert exc.value.trigger.url == users["@odata.nextLink"]
         context["ti"].xcom_push.assert_not_called()
 
+    def test_keeps_a_page_whose_result_is_none(self):
+        operator = users_operator(durable=True)
+        task_state_store = TaskStateStore()
+        context = {"ti": mock.MagicMock(), "task_state_store": task_state_store}
+        page_without_value = {
+            "@odata.nextLink": "https://graph.microsoft.com/v1.0/users/delta()?$skiptoken=abc"
+        }
+        event = {"status": "success", "type": "builtins.dict", "response": json.dumps(page_without_value)}
+
+        with pytest.raises(TaskDeferred):
+            operator.execute_complete(context=context, event=event)
+
+        assert task_state_store.values[f"{_PAGE_KEY_PREFIX}0"] == {"result": None}
+
     def test_intermediate_page_reads_only_the_cursor(self):
         operator = users_operator(durable=True)
         task_state_store = TaskStateStore(
-            **{f"{PAGE_KEY_PREFIX}{page}": [{"id": str(page)}] for page in range(3)},
-            **{CURSOR_KEY: {"url": "users/delta()?$skiptoken=abc", "query_parameters": None, "pages": 3}},
+            **{f"{_PAGE_KEY_PREFIX}{page}": {"result": [{"id": str(page)}]} for page in range(3)},
+            **{_CURSOR_KEY: kept_cursor(pages=3)},
         )
         context = {"ti": mock.MagicMock(), "task_state_store": task_state_store}
 
         with pytest.raises(TaskDeferred):
             operator.execute_complete(context=context, event=users_event("users.json"))
 
-        assert task_state_store.reads == [CURSOR_KEY]
-        assert task_state_store.values[CURSOR_KEY]["pages"] == 4
+        assert task_state_store.reads == [_CURSOR_KEY]
+        assert task_state_store.values[_CURSOR_KEY]["pages"] == 4
 
     def test_execute_resumes_at_the_kept_link(self):
         operator = users_operator(durable=True, query_parameters={"$top": 12})
         cursor = {
+            "version": 1,
             "url": "users/delta()?$skiptoken=abc",
             "query_parameters": {"$top": 12, "$skip": 12},
             "pages": 1,
         }
-        context = {"ti": mock.MagicMock(), "task_state_store": TaskStateStore(**{CURSOR_KEY: cursor})}
+        context = {"ti": mock.MagicMock(), "task_state_store": TaskStateStore(**{_CURSOR_KEY: cursor})}
 
         with pytest.raises(TaskDeferred) as exc:
             operator.execute(context)
@@ -603,8 +649,9 @@ class TestDurableMSGraphAsyncOperator:
         last_page = json.loads(users_event("next_users.json")["response"])["value"]
         task_state_store = TaskStateStore(
             **{
-                f"{PAGE_KEY_PREFIX}0": first_page,
-                CURSOR_KEY: {"url": "users/delta()?$skiptoken=abc", "query_parameters": None, "pages": 1},
+                f"{_PAGE_KEY_PREFIX}0": {"result": first_page},
+                _CURSOR_KEY: kept_cursor(),
+                "written_by_the_dag": "kept",
             }
         )
         context = {"ti": mock.MagicMock(), "task_state_store": task_state_store}
@@ -612,7 +659,65 @@ class TestDurableMSGraphAsyncOperator:
         results = operator.execute_complete(context=context, event=users_event("next_users.json"))
 
         assert results == first_page + last_page
-        assert COMPLETED_KEY not in task_state_store.values
+        assert task_state_store.values == {"written_by_the_dag": "kept"}
+
+    def test_page_no_longer_in_the_store_fails_and_removes_the_pages(self):
+        operator = users_operator(durable=True)
+        task_state_store = TaskStateStore(
+            **{
+                f"{_PAGE_KEY_PREFIX}0": {"result": [{"id": "0"}]},
+                _CURSOR_KEY: kept_cursor(pages=2),
+                "written_by_the_dag": "kept",
+            }
+        )
+        context = {"ti": mock.MagicMock(), "task_state_store": task_state_store}
+
+        with pytest.raises(MSGraphPageNotInTaskStateStoreError, match="Page 2 is no longer"):
+            operator.execute_complete(context=context, event=users_event("next_users.json"))
+
+        assert task_state_store.values == {"written_by_the_dag": "kept"}
+
+    @pytest.mark.parametrize(
+        "page",
+        [[{"id": "0"}], {"result": "value", "metadata": "keep"}],
+        ids=["list", "dict_with_a_result_key"],
+    )
+    @pytest.mark.parametrize("event", ["users.json", "next_users.json"], ids=["next_page", "last_page"])
+    def test_pages_kept_by_an_earlier_version_fail_and_are_removed(self, page, event):
+        """15.3.0rc1 kept the pages unwrapped, under a cursor without a version."""
+        operator = users_operator(durable=True)
+        task_state_store = TaskStateStore(
+            **{
+                f"{_PAGE_KEY_PREFIX}0": page,
+                _CURSOR_KEY: {"url": "users/delta()?$skiptoken=abc", "query_parameters": None, "pages": 1},
+                "written_by_the_dag": "kept",
+            }
+        )
+        context = {"ti": mock.MagicMock(), "task_state_store": task_state_store}
+
+        with pytest.raises(MSGraphPageNotInTaskStateStoreError, match="earlier version of the provider"):
+            operator.execute_complete(context=context, event=users_event(event))
+
+        assert task_state_store.values == {"written_by_the_dag": "kept"}
+        context["ti"].xcom_push.assert_not_called()
+
+    def test_execute_removes_the_pages_kept_by_an_earlier_version_and_starts_again(self):
+        operator = users_operator(durable=True)
+        task_state_store = TaskStateStore(
+            **{
+                f"{_PAGE_KEY_PREFIX}0": {"result": "value", "metadata": "keep"},
+                _CURSOR_KEY: {"url": "users/delta()?$skiptoken=abc", "query_parameters": None, "pages": 1},
+                "written_by_the_dag": "kept",
+            }
+        )
+        context = {"ti": mock.MagicMock(), "task_state_store": task_state_store}
+
+        with pytest.raises(TaskDeferred) as exc:
+            operator.execute(context)
+
+        assert exc.value.trigger.url == operator.url
+        assert exc.value.trigger.pagination_link is False
+        assert task_state_store.values == {"written_by_the_dag": "kept"}
 
     def test_keeps_the_result_of_a_request_that_is_not_a_get(self):
         operator = users_operator(durable=True, method="POST", data={"requestBody": "value"})
@@ -621,13 +726,28 @@ class TestDurableMSGraphAsyncOperator:
 
         results = operator.execute_complete(context=context, event=users_event("next_users.json"))
 
-        assert task_state_store.values == {COMPLETED_KEY: {"result": results}}
+        assert task_state_store.values == {_COMPLETED_KEY: {"result": results}}
+
+    def test_keeps_only_the_result_of_a_paginated_request_that_is_not_a_get(self):
+        operator = users_operator(durable=True, method="POST", data={"requestBody": "value"})
+        task_state_store = TaskStateStore(
+            **{
+                f"{_PAGE_KEY_PREFIX}0": {"result": [{"id": "0"}]},
+                _CURSOR_KEY: kept_cursor(),
+            }
+        )
+        context = {"ti": mock.MagicMock(), "task_state_store": task_state_store}
+
+        results = operator.execute_complete(context=context, event=users_event("next_users.json"))
+
+        assert results[0] == {"id": "0"}
+        assert task_state_store.values == {_COMPLETED_KEY: {"result": results}}
 
     def test_execute_returns_the_kept_result_without_sending_the_request_again(self):
         operator = users_operator(durable=True, method="POST", data={"requestBody": "value"})
         context = {
             "ti": mock.MagicMock(),
-            "task_state_store": TaskStateStore(**{COMPLETED_KEY: {"result": [{"id": "1"}]}}),
+            "task_state_store": TaskStateStore(**{_COMPLETED_KEY: {"result": [{"id": "1"}]}}),
         }
 
         with mock.patch.object(operator, "defer") as mock_defer:
@@ -668,3 +788,279 @@ class TestDurableMSGraphAsyncOperator:
         mock_log.return_value.warning.assert_called_once_with(
             "task_state_store not available in context, crash recovery is disabled for this run"
         )
+
+
+@pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="A task starts from the triggerer from Airflow 3.4")
+class TestMSGraphAsyncOperatorStartFromTrigger:
+    def test_start_from_trigger_builds_the_trigger_arguments(self):
+        operator = MSGraphAsyncOperator(
+            task_id="user_messages",
+            conn_id="{{ params.conn_id }}",
+            url="users/{user_id}/messages",
+            response_type="bytes",
+            path_parameters={"user_id": "{{ params.user_id }}"},
+            url_template="{+baseurl}/users/{user_id}/messages{?%24top}",
+            method="POST",
+            query_parameters={"$top": 12},
+            headers={"ConsistencyLevel": "eventual"},
+            data={"subject": "{{ ds }}"},
+            timeout=30,
+            proxies={"https": "http://proxy:3128"},
+            scopes=["https://graph.microsoft.com/.default"],
+            api_version=APIVersion.beta,
+            start_from_trigger=True,
+        )
+
+        assert operator.start_from_trigger is True
+        assert operator.start_trigger_args.trigger_cls == (
+            "airflow.providers.microsoft.azure.triggers.msgraph.MSGraphTrigger"
+        )
+        assert operator.start_trigger_args.next_method == "execute_complete"
+        assert operator.start_trigger_args.next_kwargs is None
+        assert operator.start_trigger_args.timeout is None
+        assert operator.start_trigger_args.trigger_kwargs == {
+            "url": "users/{user_id}/messages",
+            "response_type": "bytes",
+            "path_parameters": {"user_id": "{{ params.user_id }}"},
+            "url_template": "{+baseurl}/users/{user_id}/messages{?%24top}",
+            "method": "POST",
+            "query_parameters": {"$top": 12},
+            "headers": {"ConsistencyLevel": "eventual"},
+            "data": {"subject": "{{ ds }}"},
+            "conn_id": "{{ params.conn_id }}",
+            "timeout": 30,
+            "proxies": {"https": "http://proxy:3128"},
+            "scopes": ["https://graph.microsoft.com/.default"],
+            "api_version": "beta",
+            "serializer": "airflow.providers.microsoft.azure.triggers.msgraph.ResponseSerializer",
+            "pagination_link": False,
+            "rendered": False,
+        }
+        # The enum itself would not survive the serialized Dag, its value does.
+        assert type(operator.start_trigger_args.trigger_kwargs["api_version"]) is str
+
+    def test_start_from_trigger_defers_the_same_trigger_as_execute(self):
+        operator = MSGraphAsyncOperator(
+            task_id="user_messages",
+            conn_id="msgraph_api",
+            url="users/{user_id}/messages",
+            path_parameters={"user_id": "{{ params.user_id }}"},
+            query_parameters={"$top": 12},
+            api_version=APIVersion.beta,
+            start_from_trigger=True,
+        )
+
+        with pytest.raises(TaskDeferred) as deferred:
+            operator.execute(context=Context())
+
+        trigger = MSGraphTrigger(**operator.start_trigger_args.trigger_kwargs)
+
+        trigger_cls, trigger_kwargs = deferred.value.trigger.serialize()
+        # The worker defers its trigger with rendered values, the triggerer renders the start trigger itself.
+        assert trigger_kwargs["rendered"] is True
+        assert trigger.serialize() == (trigger_cls, {**trigger_kwargs, "rendered": False})
+        assert operator.start_trigger_args.next_method == deferred.value.method_name
+
+    @pytest.mark.parametrize(
+        "arguments",
+        [
+            pytest.param(lambda upstream: {"url": upstream.output}, id="xcom-arg"),
+            pytest.param(
+                lambda upstream: {"path_parameters": {"user_id": upstream.output}}, id="nested-xcom-arg"
+            ),
+            pytest.param(
+                lambda upstream: {"query_parameters": {"$select": [upstream.output]}},
+                id="xcom-arg-in-list",
+            ),
+            pytest.param(
+                lambda upstream: {"path_parameters": lambda context, jinja_env: {"user_id": "me"}},
+                id="callable",
+            ),
+            pytest.param(lambda upstream: {"data": BytesIO(b"content")}, id="file-like-object"),
+        ],
+    )
+    def test_start_from_trigger_falls_back_to_the_worker(self, arguments):
+        with DAG(dag_id="msgraph_start_from_trigger", schedule=None):
+            upstream = MSGraphAsyncOperator(task_id="upstream", conn_id="msgraph_api", url="users")
+            operator = MSGraphAsyncOperator(
+                **{
+                    "task_id": "user_messages",
+                    "conn_id": "msgraph_api",
+                    "url": "users/{user_id}/messages",
+                    "start_from_trigger": True,
+                    **arguments(upstream),
+                }
+            )
+
+        assert operator.start_from_trigger is False
+        assert operator.start_trigger_args is None
+
+    @mock.patch("airflow.providers.microsoft.azure.operators.msgraph.AIRFLOW_V_3_4_PLUS", False)
+    def test_start_from_trigger_needs_airflow_3_4(self):
+        # Before 3.4 the XComs of an earlier try are not cleared for a task the scheduler deferred.
+        operator = MSGraphAsyncOperator(
+            task_id="users", conn_id="msgraph_api", url="users", start_from_trigger=True
+        )
+
+        assert operator.start_from_trigger is False
+        assert operator.start_trigger_args is None
+
+    def test_durable_task_starts_on_a_worker(self):
+        operator = MSGraphAsyncOperator(
+            task_id="users", conn_id="msgraph_api", url="users", durable=True, start_from_trigger=True
+        )
+
+        assert operator.start_from_trigger is False
+        assert operator.start_trigger_args is None
+
+    def test_triggers_deferred_by_the_worker_are_not_rendered_again(self):
+        operator = MSGraphAsyncOperator(
+            task_id="users", conn_id="msgraph_api", url="users", start_from_trigger=True
+        )
+
+        with pytest.raises(TaskDeferred) as first_page:
+            operator.execute(context=Context())
+        with pytest.raises(TaskDeferred) as next_page:
+            operator.defer_to_next_link(
+                url="https://graph.microsoft.com/v1.0/users?$skiptoken={{ x }}",
+                query_parameters=None,
+                method_name=operator.execute_complete.__name__,
+            )
+
+        assert first_page.value.trigger.rendered is True
+        assert next_page.value.trigger.rendered is True
+
+    def test_start_trigger_args_are_not_shared_between_tasks(self):
+        users = MSGraphAsyncOperator(
+            task_id="users", conn_id="msgraph_api", url="users", start_from_trigger=True
+        )
+        groups = MSGraphAsyncOperator(
+            task_id="groups", conn_id="msgraph_api", url="groups", start_from_trigger=True
+        )
+        sites = MSGraphAsyncOperator(task_id="sites", conn_id="msgraph_api", url="sites")
+
+        assert users.start_trigger_args is not groups.start_trigger_args
+        assert users.start_trigger_args.trigger_kwargs["url"] == "users"
+        assert groups.start_trigger_args.trigger_kwargs["url"] == "groups"
+        assert sites.start_from_trigger is False
+        assert sites.start_trigger_args is None
+        assert MSGraphAsyncOperator.start_from_trigger is False
+        assert MSGraphAsyncOperator.start_trigger_args is None
+
+    def test_mapped_task_has_no_start_trigger_args(self):
+        with DAG(dag_id="msgraph_start_from_trigger", schedule=None):
+            mapped = MSGraphAsyncOperator.partial(
+                task_id="users", conn_id="msgraph_api", start_from_trigger=True
+            ).expand(url=["users", "groups"])
+
+        # The scheduler cannot expand the arguments of a mapped task, and without them it leaves
+        # the task to a worker.
+        assert mapped.start_trigger_args is None
+
+    @pytest.mark.db_test
+    @pytest.mark.need_serialized_dag
+    def test_scheduler_defers_the_task_to_the_triggerer(self, dag_maker, session):
+        with dag_maker(session=session):
+            users = MSGraphAsyncOperator(
+                task_id="users",
+                conn_id="msgraph_api",
+                url="users/{{ params.user_id }}",
+                query_parameters={"$top": 12},
+                start_from_trigger=True,
+            )
+            MSGraphAsyncOperator(
+                task_id="messages", conn_id="msgraph_api", url=users.output, start_from_trigger=True
+            )
+
+        dag_run = dag_maker.create_dagrun()
+        task_instances = {}
+        for task_id in ("users", "messages"):
+            task_instances[task_id] = dag_run.get_task_instance(task_id, session=session)
+            task_instances[task_id].task = dag_run.dag.get_task(task_id)
+
+        dag_run.schedule_tis(task_instances.values(), session=session)
+
+        assert task_instances["users"].state == TaskInstanceState.DEFERRED
+        assert task_instances["users"].next_method == "execute_complete"
+        assert task_instances["users"].trigger_timeout is None
+        trigger = session.get(Trigger, task_instances["users"].trigger_id)
+        assert trigger.classpath == "airflow.providers.microsoft.azure.triggers.msgraph.MSGraphTrigger"
+        assert trigger.kwargs == users.start_trigger_args.trigger_kwargs
+        # The task which takes its url from an XCom still starts on a worker.
+        session.refresh(task_instances["messages"])
+        assert task_instances["messages"].state == TaskInstanceState.SCHEDULED
+        assert task_instances["messages"].trigger_id is None
+
+    @pytest.mark.db_test
+    def test_triggerer_renders_the_templated_fields(self, create_task_instance):
+        users = load_json_from_resources(dirname(__file__), "..", "resources", "users.json")
+        users.pop("@odata.nextLink")
+        operator = MSGraphAsyncOperator(
+            task_id="user_messages",
+            conn_id="{{ conn_id }}",
+            url="users/{user_id}/messages",
+            path_parameters={"user_id": "{{ user_id }}"},
+            query_parameters={"$top": "{{ top }}"},
+            headers={"ConsistencyLevel": "{{ consistency }}"},
+            start_from_trigger=True,
+        )
+        task_instance = create_task_instance(
+            task=operator, start_from_trigger=True, start_trigger_args=operator.start_trigger_args
+        )
+        trigger = MSGraphTrigger(**operator.start_trigger_args.trigger_kwargs)
+
+        trigger.task_instance = task_instance
+
+        assert trigger.template_fields == MSGraphAsyncOperator.template_fields
+
+        trigger.render_template_fields(
+            context={"conn_id": "msgraph_api", "user_id": "me", "top": 12, "consistency": "eventual"}
+        )
+
+        assert trigger.conn_id == "msgraph_api"
+        assert trigger.path_parameters == {"user_id": "me"}
+        assert trigger.query_parameters == {"$top": "12"}
+        assert trigger.headers == {"ConsistencyLevel": "eventual"}
+
+        with patch_hook_and_request_adapter(mock_json_response(200, users)) as (
+            *_,
+            mock_get_http_response,
+        ):
+            events = run_trigger(trigger)
+
+        request = mock_get_http_response.call_args.args[0]
+
+        assert request.url == "users/me/messages?%24top=12"
+        assert request.headers.try_get("ConsistencyLevel") == {"eventual"}
+        assert events[0].payload["status"] == "success"
+        assert events[0].payload["response"] == json.dumps(users)
+
+    def test_execute_when_started_from_the_trigger(self):
+        users = load_json_from_resources(dirname(__file__), "..", "resources", "users.json")
+        next_users = load_json_from_resources(dirname(__file__), "..", "resources", "next_users.json")
+        response = mock_json_response(200, users, next_users)
+
+        with (
+            patch_hook_and_request_adapter(response) as (*_, mock_get_http_response),
+            mock.patch.object(MSGraphAsyncOperator, "execute", autospec=True) as mock_execute,
+        ):
+            operator = MSGraphAsyncOperator(
+                task_id="users",
+                conn_id="msgraph_api",
+                url="{{ ti.task_id }}",
+                result_processor=lambda result, **context: result.get("value"),
+                start_from_trigger=True,
+            )
+
+            results, events = execute_operator(operator)
+
+        # The first page is requested by the trigger the scheduler created, with the url it rendered
+        # itself, and the worker only takes over from there to follow the pagination.
+        mock_execute.assert_not_called()
+        assert mock_get_http_response.call_args_list[0].args[0].url == "users"
+        assert mock_get_http_response.call_count == 2
+        assert results == users.get("value") + next_users.get("value")
+        assert [event.payload["response"] for event in events] == [
+            json.dumps(users),
+            json.dumps(next_users),
+        ]

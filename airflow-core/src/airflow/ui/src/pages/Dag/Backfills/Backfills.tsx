@@ -49,6 +49,7 @@ import { BackfillDagRunsModal } from "./BackfillDagRunsModal";
 import { BackfillsFilters } from "./BackfillsFilters";
 
 const {
+  ACTIVE: ACTIVE_PARAM,
   COMPLETED_AT_GTE: COMPLETED_AT_GTE_PARAM,
   COMPLETED_AT_LTE: COMPLETED_AT_LTE_PARAM,
   CREATED_AT_GTE: CREATED_AT_GTE_PARAM,
@@ -228,9 +229,12 @@ export const Backfills = () => {
   const durationGte = searchParams.get(DURATION_GTE_PARAM);
   const durationLte = searchParams.get(DURATION_LTE_PARAM);
   const reprocessBehaviorParam = searchParams.get(REPROCESS_BEHAVIOR_PARAM);
+  const activeParam = searchParams.get(ACTIVE_PARAM);
   const reprocessBehavior = isReprocessBehavior(reprocessBehaviorParam) ? reprocessBehaviorParam : undefined;
 
   const { data, error, isLoading } = useBackfillServiceListBackfillsUi({
+    // The backend reads this as "completed_at is null", so only an explicit choice sends it.
+    active: activeParam === null || activeParam === "" ? undefined : activeParam === "true",
     completedAtGte: completedAtGte ?? undefined,
     completedAtLte: completedAtLte ?? undefined,
     createdAtGte: createdAtGte ?? undefined,

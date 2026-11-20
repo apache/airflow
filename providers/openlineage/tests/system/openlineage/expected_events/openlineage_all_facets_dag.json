@@ -1,4 +1,5 @@
 [
+    {"eventType": "START", "job": {"name": "openlineage_all_facets_dag"}},
     {
         "eventType": "START",
         "inputs": [

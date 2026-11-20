@@ -30,6 +30,7 @@
       "firstConfirmMessage_other": "다음 커넥션들을 삭제하려고 합니다:",
       "title": "커넥션 삭제"
     },
+    "duplicate": "커넥션 복제",
     "edit": "커넥션 편집",
     "form": {
       "connectionIdRequired": "커넥션 ID는 필수 항목입니다",
@@ -38,6 +39,7 @@
       "connectionTypeRequired": "커넥션 유형은 필수 항목입니다",
       "extraFieldsJson": "추가 필드 JSON",
       "helperText": "커넥션 유형이 보이지 않나요? 해당 Airflow Provider 패키지가 설치되어 있는지 확인하세요.",
+      "helperTextForDuplicatedRedactedFields": "('***')로 마스킹된 필드는 복사되지 않습니다. 새 커넥션에 직접 입력하세요.",
       "helperTextForRedactedFields": "('***')로 마스킹된 필드는 수정하지 않으면 그대로 유지됩니다.",
       "selectConnectionType": "커넥션 유형 선택",
       "standardFields": "기본 필드"

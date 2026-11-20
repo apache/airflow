@@ -40,12 +40,11 @@ from queue import Empty, Queue
 from typing import TYPE_CHECKING, Any, cast
 from uuid import UUID
 
-from deprecated import deprecated
 from kubernetes.client.rest import ApiException
 from kubernetes.dynamic import DynamicClient
 from sqlalchemy import select
 
-from airflow.exceptions import AirflowConfigException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowConfigException
 from airflow.executors.base_executor import BaseExecutor
 from airflow.providers.cncf.kubernetes.exceptions import PodMutationHookException, PodReconciliationError
 from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_types import (
@@ -1149,28 +1148,6 @@ class KubernetesExecutor(BaseExecutor):
 
             tis_to_flush.extend(_iter_tis_to_flush())
             return tis_to_flush
-
-    @deprecated(
-        reason="Replaced by function `revoke_task`. Upgrade airflow core to make this go away.",
-        category=AirflowProviderDeprecationWarning,
-    )
-    def cleanup_stuck_queued_tasks(self, tis: list[TaskInstance]) -> list[str]:
-        """
-        Handle remnants of tasks that were failed because they were stuck in queued.
-
-        Tasks can get stuck in queued. If such a task is detected, it will be marked
-        as `UP_FOR_RETRY` if the task instance has remaining retries or marked as `FAILED`
-        if it doesn't.
-
-        :param tis: List of Task Instances to clean up
-        :return: List of readable task instances for a warning message
-        """
-        reprs = []
-        for ti in tis:
-            reprs.append(repr(ti))
-            self.revoke_task(ti=ti)
-            self.fail(self.get_task_key(ti) if self.supports_task_instance_uuid else ti.key)
-        return reprs
 
     def revoke_task(self, *, ti: TaskInstance):
         """

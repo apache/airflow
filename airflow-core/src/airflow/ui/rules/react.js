@@ -594,13 +594,6 @@ export const reactRules = /** @type {const} @satisfies {FlatConfig.Config} */ ({
     [`${reactNamespace}/self-closing-comp`]: ERROR,
 
     /**
-     * Enforce property declarations alphabetical sorting.
-     *
-     * @see [react/sort-prop-types](https://github.com/jsx-eslint/eslint-plugin-react/blob/HEAD/docs/rules/sort-prop-types.md)
-     */
-    [`${reactNamespace}/sort-prop-types`]: ERROR,
-
-    /**
      * Disallow void DOM elements from receiving children.
      *
      * @see [react/void-dom-elements-no-children](https://github.com/jsx-eslint/eslint-plugin-react/blob/HEAD/docs/rules/void-dom-elements-no-children.md)

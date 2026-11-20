@@ -1,0 +1,1268 @@
+[
+    {"eventType": "START", "job": {"name": "openlineage_clear_dag"}},
+    {
+        "eventType": "COMPLETE",
+        "job": {"name": "openlineage_clear_dag_dag_run__notrigger"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflowDagRun": {"dagRun": {"clear_number": 1}},
+                "airflowState": {"dagRunState": "success"}
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {"name": "openlineage_clear_dag_dag_run__notrigger"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflowDagRun": {"dagRun": {"clear_number": 2}},
+                "airflowState": {"dagRunState": "success"}
+            }
+        }
+    },
+    {
+        "eventType": "FAIL",
+        "job": {"name": "openlineage_clear_dag_dag_run__notrigger"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflowDagRun": {"dagRun": {"clear_number": 0}},
+                "airflowState": {"dagRunState": "failed"},
+                "errorMessage": {"message": "task_failure"}
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {"name": "openlineage_clear_dag_dag_run__notrigger"},
+        "run": {"runId": "{{ is_uuid(result) }}", "facets": {"airflowDagRun": {"dagRun": {"clear_number": 0}}}}
+    },
+    {
+        "eventType": "START",
+        "job": {"name": "openlineage_clear_dag_dag_run__notrigger"},
+        "run": {"runId": "{{ is_uuid(result) }}", "facets": {"airflowDagRun": {"dagRun": {"clear_number": 1}}}}
+    },
+    {
+        "eventType": "START",
+        "job": {"name": "openlineage_clear_dag_dag_run__notrigger"},
+        "run": {"runId": "{{ is_uuid(result) }}", "facets": {"airflowDagRun": {"dagRun": {"clear_number": 2}}}}
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {"name": "openlineage_clear_dag_dag_run__notrigger.fails_first_run"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 2,
+                        "max_tries": 1,
+                        "state": "success",
+                        "map_index": null
+                    },
+                    "dagRun": {"clear_number": 1}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_clear_dag_dag_run__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {"name": "openlineage_clear_dag_dag_run__notrigger.fails_first_run"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 3,
+                        "max_tries": 2,
+                        "state": "success",
+                        "map_index": null
+                    },
+                    "dagRun": {"clear_number": 2}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_clear_dag_dag_run__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "FAIL",
+        "job": {"name": "openlineage_clear_dag_dag_run__notrigger.fails_first_run"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "failed",
+                        "map_index": null
+                    },
+                    "dagRun": {"clear_number": 0}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_clear_dag_dag_run__notrigger"}
+                },
+                "errorMessage": {"message": "Intentional failure before the clear"}
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {"name": "openlineage_clear_dag_dag_run__notrigger.fails_first_run"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "running",
+                        "map_index": null
+                    },
+                    "dagRun": {"clear_number": 0}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_clear_dag_dag_run__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {"name": "openlineage_clear_dag_dag_run__notrigger.fails_first_run"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 2,
+                        "max_tries": 1,
+                        "state": "running",
+                        "map_index": null
+                    },
+                    "dagRun": {"clear_number": 1}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_clear_dag_dag_run__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {"name": "openlineage_clear_dag_dag_run__notrigger.fails_first_run"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 3,
+                        "max_tries": 2,
+                        "state": "running",
+                        "map_index": null
+                    },
+                    "dagRun": {"clear_number": 2}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_clear_dag_dag_run__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {"name": "openlineage_clear_dag_dag_run__notrigger.first"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "success",
+                        "map_index": null
+                    },
+                    "dagRun": {"clear_number": 0}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_clear_dag_dag_run__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {"name": "openlineage_clear_dag_dag_run__notrigger.first"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 2,
+                        "max_tries": 1,
+                        "state": "success",
+                        "map_index": null
+                    },
+                    "dagRun": {"clear_number": 2}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_clear_dag_dag_run__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {"name": "openlineage_clear_dag_dag_run__notrigger.first"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "running",
+                        "map_index": null
+                    },
+                    "dagRun": {"clear_number": 0}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_clear_dag_dag_run__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {"name": "openlineage_clear_dag_dag_run__notrigger.first"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 2,
+                        "max_tries": 1,
+                        "state": "running",
+                        "map_index": null
+                    },
+                    "dagRun": {"clear_number": 2}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_clear_dag_dag_run__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {"name": "openlineage_clear_dag_dag_run__notrigger.retries_twice"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 3,
+                        "max_tries": 2,
+                        "state": "success",
+                        "map_index": null
+                    },
+                    "dagRun": {"clear_number": 0}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_clear_dag_dag_run__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {"name": "openlineage_clear_dag_dag_run__notrigger.retries_twice"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 4,
+                        "max_tries": 5,
+                        "state": "success",
+                        "map_index": null
+                    },
+                    "dagRun": {"clear_number": 2}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_clear_dag_dag_run__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "FAIL",
+        "job": {"name": "openlineage_clear_dag_dag_run__notrigger.retries_twice"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 2,
+                        "state": "up_for_retry",
+                        "map_index": null
+                    },
+                    "dagRun": {"clear_number": 0}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_clear_dag_dag_run__notrigger"}
+                },
+                "errorMessage": {"message": "Intentional failure of the first two tries"}
+            }
+        }
+    },
+    {
+        "eventType": "FAIL",
+        "job": {"name": "openlineage_clear_dag_dag_run__notrigger.retries_twice"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 2,
+                        "max_tries": 2,
+                        "state": "up_for_retry",
+                        "map_index": null
+                    },
+                    "dagRun": {"clear_number": 0}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_clear_dag_dag_run__notrigger"}
+                },
+                "errorMessage": {"message": "Intentional failure of the first two tries"}
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {"name": "openlineage_clear_dag_dag_run__notrigger.retries_twice"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 2,
+                        "state": "running",
+                        "map_index": null
+                    },
+                    "dagRun": {"clear_number": 0}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_clear_dag_dag_run__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {"name": "openlineage_clear_dag_dag_run__notrigger.retries_twice"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 2,
+                        "max_tries": 2,
+                        "state": "running",
+                        "map_index": null
+                    },
+                    "dagRun": {"clear_number": 0}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_clear_dag_dag_run__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {"name": "openlineage_clear_dag_dag_run__notrigger.retries_twice"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 3,
+                        "max_tries": 2,
+                        "state": "running",
+                        "map_index": null
+                    },
+                    "dagRun": {"clear_number": 0}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_clear_dag_dag_run__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {"name": "openlineage_clear_dag_dag_run__notrigger.retries_twice"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 4,
+                        "max_tries": 5,
+                        "state": "running",
+                        "map_index": null
+                    },
+                    "dagRun": {"clear_number": 2}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_clear_dag_dag_run__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {"name": "openlineage_clear_dag_dag_run__notrigger.second"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "success",
+                        "map_index": null
+                    },
+                    "dagRun": {"clear_number": 0}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_clear_dag_dag_run__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {"name": "openlineage_clear_dag_dag_run__notrigger.second"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 2,
+                        "max_tries": 1,
+                        "state": "success",
+                        "map_index": null
+                    },
+                    "dagRun": {"clear_number": 2}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_clear_dag_dag_run__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {"name": "openlineage_clear_dag_dag_run__notrigger.second"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "running",
+                        "map_index": null
+                    },
+                    "dagRun": {"clear_number": 0}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_clear_dag_dag_run__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {"name": "openlineage_clear_dag_dag_run__notrigger.second"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 2,
+                        "max_tries": 1,
+                        "state": "running",
+                        "map_index": null
+                    },
+                    "dagRun": {"clear_number": 2}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_clear_dag_dag_run__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {"name": "openlineage_clear_dag_tasks__notrigger"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflowDagRun": {"dagRun": {"clear_number": 0}},
+                "airflowState": {"dagRunState": "success"}
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {"name": "openlineage_clear_dag_tasks__notrigger"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflowDagRun": {"dagRun": {"clear_number": 1}},
+                "airflowState": {"dagRunState": "success"}
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {"name": "openlineage_clear_dag_tasks__notrigger"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflowDagRun": {"dagRun": {"clear_number": 2}},
+                "airflowState": {"dagRunState": "success"}
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {"name": "openlineage_clear_dag_tasks__notrigger"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflowDagRun": {"dagRun": {"clear_number": 3}},
+                "airflowState": {"dagRunState": "success"}
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {"name": "openlineage_clear_dag_tasks__notrigger"},
+        "run": {"runId": "{{ is_uuid(result) }}", "facets": {"airflowDagRun": {"dagRun": {"clear_number": 0}}}}
+    },
+    {
+        "eventType": "START",
+        "job": {"name": "openlineage_clear_dag_tasks__notrigger"},
+        "run": {"runId": "{{ is_uuid(result) }}", "facets": {"airflowDagRun": {"dagRun": {"clear_number": 1}}}}
+    },
+    {
+        "eventType": "START",
+        "job": {"name": "openlineage_clear_dag_tasks__notrigger"},
+        "run": {"runId": "{{ is_uuid(result) }}", "facets": {"airflowDagRun": {"dagRun": {"clear_number": 2}}}}
+    },
+    {
+        "eventType": "START",
+        "job": {"name": "openlineage_clear_dag_tasks__notrigger"},
+        "run": {"runId": "{{ is_uuid(result) }}", "facets": {"airflowDagRun": {"dagRun": {"clear_number": 3}}}}
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {"name": "openlineage_clear_dag_tasks__notrigger.group.first"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "success",
+                        "map_index": null
+                    },
+                    "dagRun": {"clear_number": 0}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_clear_dag_tasks__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {"name": "openlineage_clear_dag_tasks__notrigger.group.first"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 2,
+                        "max_tries": 1,
+                        "state": "success",
+                        "map_index": null
+                    },
+                    "dagRun": {"clear_number": 3}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_clear_dag_tasks__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {"name": "openlineage_clear_dag_tasks__notrigger.group.first"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "running",
+                        "map_index": null
+                    },
+                    "dagRun": {"clear_number": 0}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_clear_dag_tasks__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {"name": "openlineage_clear_dag_tasks__notrigger.group.first"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 2,
+                        "max_tries": 1,
+                        "state": "running",
+                        "map_index": null
+                    },
+                    "dagRun": {"clear_number": 3}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_clear_dag_tasks__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {"name": "openlineage_clear_dag_tasks__notrigger.group.second"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "success",
+                        "map_index": null
+                    },
+                    "dagRun": {"clear_number": 0}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_clear_dag_tasks__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {"name": "openlineage_clear_dag_tasks__notrigger.group.second"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 2,
+                        "max_tries": 1,
+                        "state": "success",
+                        "map_index": null
+                    },
+                    "dagRun": {"clear_number": 3}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_clear_dag_tasks__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {"name": "openlineage_clear_dag_tasks__notrigger.group.second"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "running",
+                        "map_index": null
+                    },
+                    "dagRun": {"clear_number": 0}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_clear_dag_tasks__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {"name": "openlineage_clear_dag_tasks__notrigger.group.second"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 2,
+                        "max_tries": 1,
+                        "state": "running",
+                        "map_index": null
+                    },
+                    "dagRun": {"clear_number": 3}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_clear_dag_tasks__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {"name": "openlineage_clear_dag_tasks__notrigger.process"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 1,
+                        "state": "success",
+                        "map_index": 0,
+                        "rendered_map_index": "item-0",
+                        "expanded_ti_count": {
+                            "$optional": "Not on the task instance of older Airflow versions",
+                            "$value": 3
+                        },
+                        "region_index": {
+                            "$optional": "Not on the task instance of older Airflow versions",
+                            "$value": 0
+                        }
+                    },
+                    "dagRun": {"clear_number": 0}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_clear_dag_tasks__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {"name": "openlineage_clear_dag_tasks__notrigger.process"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 2,
+                        "max_tries": 1,
+                        "state": "success",
+                        "map_index": 1,
+                        "rendered_map_index": "item-1",
+                        "expanded_ti_count": {
+                            "$optional": "Not on the task instance of older Airflow versions",
+                            "$value": 3
+                        },
+                        "region_index": {
+                            "$optional": "Not on the task instance of older Airflow versions",
+                            "$value": 1
+                        }
+                    },
+                    "dagRun": {"clear_number": 0}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_clear_dag_tasks__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {"name": "openlineage_clear_dag_tasks__notrigger.process"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 1,
+                        "state": "success",
+                        "map_index": 2,
+                        "rendered_map_index": "item-2",
+                        "expanded_ti_count": {
+                            "$optional": "Not on the task instance of older Airflow versions",
+                            "$value": 3
+                        },
+                        "region_index": {
+                            "$optional": "Not on the task instance of older Airflow versions",
+                            "$value": 2
+                        }
+                    },
+                    "dagRun": {"clear_number": 0}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_clear_dag_tasks__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {"name": "openlineage_clear_dag_tasks__notrigger.process"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 2,
+                        "max_tries": 2,
+                        "state": "success",
+                        "map_index": 2,
+                        "rendered_map_index": "item-2",
+                        "expanded_ti_count": {
+                            "$optional": "Not on the task instance of older Airflow versions",
+                            "$value": 3
+                        },
+                        "region_index": {
+                            "$optional": "Not on the task instance of older Airflow versions",
+                            "$value": 2
+                        }
+                    },
+                    "dagRun": {"clear_number": 1}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_clear_dag_tasks__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {"name": "openlineage_clear_dag_tasks__notrigger.process"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 2,
+                        "max_tries": 2,
+                        "state": "success",
+                        "map_index": 0,
+                        "rendered_map_index": "item-0",
+                        "expanded_ti_count": {
+                            "$optional": "Not on the task instance of older Airflow versions",
+                            "$value": 3
+                        },
+                        "region_index": {
+                            "$optional": "Not on the task instance of older Airflow versions",
+                            "$value": 0
+                        }
+                    },
+                    "dagRun": {"clear_number": 2}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_clear_dag_tasks__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {"name": "openlineage_clear_dag_tasks__notrigger.process"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 3,
+                        "max_tries": 3,
+                        "state": "success",
+                        "map_index": 1,
+                        "rendered_map_index": "item-1",
+                        "expanded_ti_count": {
+                            "$optional": "Not on the task instance of older Airflow versions",
+                            "$value": 3
+                        },
+                        "region_index": {
+                            "$optional": "Not on the task instance of older Airflow versions",
+                            "$value": 1
+                        }
+                    },
+                    "dagRun": {"clear_number": 2}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_clear_dag_tasks__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {"name": "openlineage_clear_dag_tasks__notrigger.process"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 3,
+                        "max_tries": 3,
+                        "state": "success",
+                        "map_index": 2,
+                        "rendered_map_index": "item-2",
+                        "expanded_ti_count": {
+                            "$optional": "Not on the task instance of older Airflow versions",
+                            "$value": 3
+                        },
+                        "region_index": {
+                            "$optional": "Not on the task instance of older Airflow versions",
+                            "$value": 2
+                        }
+                    },
+                    "dagRun": {"clear_number": 2}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_clear_dag_tasks__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "FAIL",
+        "job": {"name": "openlineage_clear_dag_tasks__notrigger.process"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 1,
+                        "state": "up_for_retry",
+                        "map_index": 1,
+                        "rendered_map_index": "item-1",
+                        "expanded_ti_count": {
+                            "$optional": "Not on the task instance of older Airflow versions",
+                            "$value": 3
+                        },
+                        "region_index": {
+                            "$optional": "Not on the task instance of older Airflow versions",
+                            "$value": 1
+                        }
+                    },
+                    "dagRun": {"clear_number": 0}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_clear_dag_tasks__notrigger"}
+                },
+                "errorMessage": {"message": "Intentional failure of the first try of one map index"}
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {"name": "openlineage_clear_dag_tasks__notrigger.process"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 1,
+                        "state": "running",
+                        "map_index": 0,
+                        "expanded_ti_count": {
+                            "$optional": "Not on the task instance of older Airflow versions",
+                            "$value": 3
+                        },
+                        "region_index": {
+                            "$optional": "Not on the task instance of older Airflow versions",
+                            "$value": 0
+                        }
+                    },
+                    "dagRun": {"clear_number": 0}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_clear_dag_tasks__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {"name": "openlineage_clear_dag_tasks__notrigger.process"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 1,
+                        "state": "running",
+                        "map_index": 1,
+                        "expanded_ti_count": {
+                            "$optional": "Not on the task instance of older Airflow versions",
+                            "$value": 3
+                        },
+                        "region_index": {
+                            "$optional": "Not on the task instance of older Airflow versions",
+                            "$value": 1
+                        }
+                    },
+                    "dagRun": {"clear_number": 0}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_clear_dag_tasks__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {"name": "openlineage_clear_dag_tasks__notrigger.process"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 2,
+                        "max_tries": 1,
+                        "state": "running",
+                        "map_index": 1,
+                        "expanded_ti_count": {
+                            "$optional": "Not on the task instance of older Airflow versions",
+                            "$value": 3
+                        },
+                        "region_index": {
+                            "$optional": "Not on the task instance of older Airflow versions",
+                            "$value": 1
+                        }
+                    },
+                    "dagRun": {"clear_number": 0}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_clear_dag_tasks__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {"name": "openlineage_clear_dag_tasks__notrigger.process"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 1,
+                        "state": "running",
+                        "map_index": 2,
+                        "expanded_ti_count": {
+                            "$optional": "Not on the task instance of older Airflow versions",
+                            "$value": 3
+                        },
+                        "region_index": {
+                            "$optional": "Not on the task instance of older Airflow versions",
+                            "$value": 2
+                        }
+                    },
+                    "dagRun": {"clear_number": 0}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_clear_dag_tasks__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {"name": "openlineage_clear_dag_tasks__notrigger.process"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 2,
+                        "max_tries": 2,
+                        "state": "running",
+                        "map_index": 2,
+                        "expanded_ti_count": {
+                            "$optional": "Not on the task instance of older Airflow versions",
+                            "$value": 3
+                        },
+                        "region_index": {
+                            "$optional": "Not on the task instance of older Airflow versions",
+                            "$value": 2
+                        }
+                    },
+                    "dagRun": {"clear_number": 1}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_clear_dag_tasks__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {"name": "openlineage_clear_dag_tasks__notrigger.process"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 2,
+                        "max_tries": 2,
+                        "state": "running",
+                        "map_index": 0,
+                        "expanded_ti_count": {
+                            "$optional": "Not on the task instance of older Airflow versions",
+                            "$value": 3
+                        },
+                        "region_index": {
+                            "$optional": "Not on the task instance of older Airflow versions",
+                            "$value": 0
+                        }
+                    },
+                    "dagRun": {"clear_number": 2}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_clear_dag_tasks__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {"name": "openlineage_clear_dag_tasks__notrigger.process"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 3,
+                        "max_tries": 3,
+                        "state": "running",
+                        "map_index": 1,
+                        "expanded_ti_count": {
+                            "$optional": "Not on the task instance of older Airflow versions",
+                            "$value": 3
+                        },
+                        "region_index": {
+                            "$optional": "Not on the task instance of older Airflow versions",
+                            "$value": 1
+                        }
+                    },
+                    "dagRun": {"clear_number": 2}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_clear_dag_tasks__notrigger"}
+                }
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {"name": "openlineage_clear_dag_tasks__notrigger.process"},
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 3,
+                        "max_tries": 3,
+                        "state": "running",
+                        "map_index": 2,
+                        "expanded_ti_count": {
+                            "$optional": "Not on the task instance of older Airflow versions",
+                            "$value": 3
+                        },
+                        "region_index": {
+                            "$optional": "Not on the task instance of older Airflow versions",
+                            "$value": 2
+                        }
+                    },
+                    "dagRun": {"clear_number": 2}
+                },
+                "parent": {
+                    "run": {"runId": "{{ is_uuid(result) }}"},
+                    "job": {"name": "openlineage_clear_dag_tasks__notrigger"}
+                }
+            }
+        }
+    }
+]

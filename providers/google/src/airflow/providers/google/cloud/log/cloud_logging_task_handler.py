@@ -171,7 +171,15 @@ class CloudLoggingRemoteLogIO(LoggingMixin):
     def processors(self) -> tuple[structlog.typing.Processor, ...]:
         import structlog.stdlib
 
-        from airflow.sdk.log import relative_path_from_logger
+        from airflow.sdk.log import relative_path_from_logger as _relative_path_from_logger
+
+        def relative_path_from_logger(logger) -> Path | None:
+            try:
+                return _relative_path_from_logger(logger)
+            except ValueError:
+                # Skip log files outside ``base_log_folder``, such as a Dag processor log directory
+                # configured elsewhere, as ``upload_to_remote`` does.
+                return None
 
         log_record_factory = getLogRecordFactory()
         _transport = self.transport
@@ -613,7 +621,13 @@ class CloudLoggingTaskHandler(logging.Handler):
         # from ``Handler.close()`` gracefully). Print to stderr as last resort since
         # logging itself may be shutting down.
         try:
-            self.io.transport.flush()
+            # Read the attrs (>=23.2) cached_property slot directly so close() never builds a
+            # transport (and starts its worker thread) during logging.shutdown.
+            try:
+                transport = object.__getattribute__(self.io, "transport")
+            except AttributeError:
+                return
+            transport.flush()
         except Exception as exc:
             print(
                 f"CloudLoggingTaskHandler.close: transport flush failed: {type(exc).__name__}: {exc}",

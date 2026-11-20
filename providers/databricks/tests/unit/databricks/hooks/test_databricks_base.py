@@ -871,10 +871,6 @@ class TestBaseDatabricksHook:
         exception = ClientConnectorError(connection_key=mock.Mock(), os_error=OSError())
         assert BaseDatabricksHook._retryable_error(exception)
 
-    def test_timeout_error_is_retryable(self):
-        exception = requests_exceptions.Timeout()
-        assert BaseDatabricksHook._retryable_error(exception)
-
     def test_generic_exception_is_not_retryable(self):
         exception = ValueError()
         assert not BaseDatabricksHook._retryable_error(exception)

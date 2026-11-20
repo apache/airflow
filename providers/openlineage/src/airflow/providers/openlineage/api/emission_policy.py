@@ -189,7 +189,8 @@ def extend_global_openlineage_emission_policy(
     :param hook_lineage: Whether to use ``HookLineageCollector`` as a fallback.
     :param include_full_task_info: Whether to include the full serialized operator state.
     :param exclude_datasets: Regex patterns matched with ``re.fullmatch`` against
-        ``"<namespace>/<name>"`` of each OpenLineage dataset of the task; matching datasets are
+        ``"<namespace>/<name>"`` of each OpenLineage dataset of the task (without a doubled ``/``
+        when the name starts with one); matching datasets are
         dropped. Replaces, instead of extending, any list from the ``emission_policy`` config,
         including lists set for specific hooks.
     :raises ValueError: If ``exclude_datasets`` is not a list of valid regex patterns.

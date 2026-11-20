@@ -27,6 +27,19 @@
 Changelog
 ---------
 
+6.4.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Pass asset state store accessors to the HttpEventTrigger response check callable (#72287)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``[main] Upgrade important CI environment (#76278)``
+   * ``Remove duplicate HTTP header override test (#75899)``
+
 6.3.0
 .....
 
