@@ -165,7 +165,9 @@ export const ReactPlugin = ({ reactApp }: { readonly reactApp: ReactAppResponse 
   const Plugin = typeof existing === "function" ? (existing as PluginComponentType) : undefined;
 
   return (
-    <PluginBoundary name={reactApp.name}>
+    // The route element stays mounted across Dags, runs and tasks, so a plugin that failed on one
+    // gets another try on the next instead of staying hidden until a full reload.
+    <PluginBoundary name={reactApp.name} resetKey={[assetId, dagId, runId, taskId, mapIndex].join("/")}>
       {Plugin === undefined ? (
         <Suspense fallback={fallback}>
           <LazyPlugin {...pluginProps} />

@@ -22,6 +22,8 @@ type Props = {
   readonly children: ReactNode;
   /** Named in the console message, so the failing plugin is identifiable. */
   readonly name: string;
+  /** A failed plugin renders again when this changes, e.g. on navigating to another Dag. */
+  readonly resetKey?: string;
 };
 
 /**
@@ -51,6 +53,15 @@ export class PluginBoundary extends Component<Props, { hasError: boolean }> {
 
     // eslint-disable-next-line no-console
     console.error(`Plugin "${name}" failed to render`, error, info.componentStack);
+  }
+
+  public componentDidUpdate(prevProps: Props) {
+    const { resetKey } = this.props;
+    const { hasError } = this.state;
+
+    if (hasError && prevProps.resetKey !== resetKey) {
+      this.setState({ hasError: false });
+    }
   }
 
   public render() {

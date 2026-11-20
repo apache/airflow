@@ -256,6 +256,7 @@ const ThrowsInEffect = () => {
 
 describe("ReactPlugin failures", () => {
   afterEach(() => {
+    mockParams = {};
     (globalThis as Record<string, unknown>)[reactApp.name] = undefined;
   });
 
@@ -283,5 +284,26 @@ describe("ReactPlugin failures", () => {
       expect.any(Error),
       expect.any(String),
     );
+  });
+
+  it("renders the plugin again after navigating away from where it failed", () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    mockParams = { dagId: "broken_dag" };
+    (globalThis as Record<string, unknown>)[reactApp.name] = ({ dagId }: PluginProps) => {
+      if (dagId === "broken_dag") {
+        throwPluginError();
+      }
+
+      return <p>Plugin content</p>;
+    };
+
+    const { rerender } = render(<ReactPlugin reactApp={reactApp} />, { wrapper: Wrapper });
+
+    expect(screen.queryByText("Plugin content")).not.toBeInTheDocument();
+
+    mockParams = { dagId: "working_dag" };
+    rerender(<ReactPlugin reactApp={reactApp} />);
+
+    expect(screen.getByText("Plugin content")).toBeInTheDocument();
   });
 });
