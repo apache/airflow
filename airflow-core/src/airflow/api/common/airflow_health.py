@@ -157,7 +157,7 @@ def _live_scheduler_job_ids() -> set[int]:
     return {job.id for job in get_jobs_health(SchedulerJobRunner.job_type) if job.is_alive()}
 
 
-def _live_executor_jobs(jobs: list[Job]) -> list[Job]:
+def _live_executor_jobs(jobs: list[Job], live_scheduler_ids: set[int] | None = None) -> list[Job]:
     """
     Narrow executor rows down to live instances whose owning scheduler is also still alive.
 
@@ -165,8 +165,12 @@ def _live_executor_jobs(jobs: list[Job]) -> list[Job]:
     died (its heartbeat hasn't crossed the staleness threshold yet), so liveness on the row alone
     isn't enough; cross-checking the owner avoids briefly reporting a dead scheduler's executor as
     healthy.
+
+    ``live_scheduler_ids`` lets a caller that already fetched the scheduler jobs (e.g.
+    :func:`get_airflow_health`) pass the result along instead of this re-querying them.
     """
-    live_scheduler_ids = _live_scheduler_job_ids()
+    if live_scheduler_ids is None:
+        live_scheduler_ids = _live_scheduler_job_ids()
     return [job for job in jobs if job.is_alive() and job.owner_job_id in live_scheduler_ids]
 
 
@@ -264,7 +268,9 @@ def _configured_executor_keys() -> set[str]:
     return keys
 
 
-def _executor_detailed_status(jobs: list[Job]) -> DetailedHealthStatus:
+def _executor_detailed_status(
+    jobs: list[Job], live_scheduler_ids: set[int] | None = None
+) -> DetailedHealthStatus:
     """
     Status from configured-executor coverage: each configured executor is its own partition.
 
@@ -272,6 +278,8 @@ def _executor_detailed_status(jobs: list[Job]) -> DetailedHealthStatus:
     another, so coverage is decided per live, currently-owned row rather than by any single row for
     that executor key: one scheduler finding it down is real signal, not noise an unrelated healthy
     row should paper over.
+
+    ``live_scheduler_ids`` is forwarded to :func:`_live_executor_jobs`; see its docstring.
     """
     expected = _configured_executor_keys()
     if not expected:
@@ -280,7 +288,7 @@ def _executor_detailed_status(jobs: list[Job]) -> DetailedHealthStatus:
     covered: set[str] = set()
     unhealthy: set[str] = set()
     seen: set[str] = set()
-    for job in _live_executor_jobs(jobs):
+    for job in _live_executor_jobs(jobs, live_scheduler_ids):
         if not job.executor_class or job.executor_class not in expected:
             continue
         seen.add(job.executor_class)
@@ -340,6 +348,7 @@ def get_airflow_health() -> dict[str, Any]:
     dag_processor_detailed_status = DetailedHealthStatus.DOWN
     executor_detailed_status = DetailedHealthStatus.DOWN
 
+    scheduler_jobs: list[Job] = []
     try:
         scheduler_jobs = get_jobs_health(SchedulerJobRunner.job_type)
         scheduler_status = _legacy_status(scheduler_jobs)
@@ -386,7 +395,10 @@ def get_airflow_health() -> dict[str, Any]:
     if report_executor_health:
         try:
             executor_jobs = get_jobs_health(EXECUTOR_JOB_TYPE)
-            executor_detailed_status = _executor_detailed_status(executor_jobs)
+            # get_airflow_health already fetched scheduler_jobs above; reuse it rather than
+            # re-querying the same rows through _live_scheduler_job_ids().
+            live_scheduler_ids = {job.id for job in scheduler_jobs if job.is_alive()}
+            executor_detailed_status = _executor_detailed_status(executor_jobs, live_scheduler_ids)
             executor_status = (
                 HealthStatus.UNHEALTHY
                 if executor_detailed_status == DetailedHealthStatus.DOWN
@@ -394,7 +406,7 @@ def get_airflow_health() -> dict[str, Any]:
             )
             if executor_jobs and executor_jobs[0].latest_heartbeat:
                 latest_executor_heartbeat = executor_jobs[0].latest_heartbeat.isoformat()
-            if live_executor_jobs := _live_executor_jobs(executor_jobs):
+            if live_executor_jobs := _live_executor_jobs(executor_jobs, live_scheduler_ids):
                 executor_instances = [_executor_instance_health(job) for job in live_executor_jobs]
         except Exception:
             metadatabase_status = HealthStatus.UNHEALTHY
