@@ -27,9 +27,8 @@ from urllib.parse import urlencode
 
 import pytest
 from cachetools import TTLCache
-from flask import Flask, g, session as flask_session
+from flask import g
 from flask_appbuilder.const import AUTH_DB, AUTH_LDAP, AUTH_OAUTH, AUTH_REMOTE_USER
-from flask_login import LoginManager, login_user
 from pydantic import SecretStr
 from sqlalchemy import select, update
 from sqlalchemy.exc import OperationalError, PendingRollbackError
@@ -67,10 +66,7 @@ from airflow.providers.fab.auth_manager.api_fastapi.datamodels.users import User
 from airflow.providers.fab.auth_manager.api_fastapi.services.users import FABAuthManagerUsers
 from airflow.providers.fab.auth_manager.fab_auth_manager import DAG_BUNDLES_ACCESS_VIEW, FabAuthManager
 from airflow.providers.fab.auth_manager.models import User
-from airflow.providers.fab.auth_manager.security_manager.override import (
-    SESSION_TOKEN_GENERATION_KEY,
-    FabAirflowSecurityManagerOverride,
-)
+from airflow.providers.fab.auth_manager.security_manager.override import FabAirflowSecurityManagerOverride
 from airflow.providers.fab.www.security.permissions import (
     ACTION_CAN_ACCESS_MENU,
     ACTION_CAN_CREATE,
@@ -1439,8 +1435,14 @@ class TestTokenGeneration:
 
     # Issuing
 
+    @mock.patch.object(
+        FabAirflowSecurityManagerOverride,
+        "update_user_auth_stat",
+        autospec=True,
+        side_effect=FabAirflowSecurityManagerOverride.update_user_auth_stat,
+    )
     def test_login_racing_password_change_issues_token_for_the_generation_it_read(
-        self, flask_app, auth_manager_with_appbuilder
+        self, mock_update_user_auth_stat, flask_app, auth_manager_with_appbuilder
     ):
         """
         A login that checked the old password issues a token for the generation it read, so a
@@ -1448,24 +1450,17 @@ class TestTokenGeneration:
         """
         user_id = create_user(flask_app, "test_login_race").id
         security_manager = auth_manager_with_appbuilder.security_manager
-        record_login = security_manager.update_user_auth_stat
+        record_login = mock_update_user_auth_stat.side_effect
 
-        def change_password_then_record_login(user, success=True):
+        def change_password_then_record_login(sm, user, success=True):
             with settings.engine.begin() as connection:
                 connection.execute(
                     update(User).where(User.id == user_id).values(token_generation=User.token_generation + 1)
                 )
-            record_login(user, success)
+            record_login(sm, user, success)
 
-        with mock.patch.object(
-            security_manager,
-            "update_user_auth_stat",
-            autospec=True,
-            side_effect=change_password_then_record_login,
-        ):
-            user = security_manager.auth_user_db(
-                "test_login_race", "test_login_race", rotate_session_id=False
-            )
+        mock_update_user_auth_stat.side_effect = change_password_then_record_login
+        user = security_manager.auth_user_db("test_login_race", "test_login_race", rotate_session_id=False)
         token = auth_manager_with_appbuilder.serialize_user(user)
         auth_manager_with_appbuilder.cache.clear()
 
@@ -1744,23 +1739,6 @@ class TestTokenGeneration:
         assert _get_issued_api_token(old_session.get("/login/")) is None
         new_session = client_with_login(app, username="test_session_reset", password="new-password")
         assert _get_issued_api_token(new_session.get("/login/"))
-
-    def test_login_records_token_generation_only_on_the_fab_app(self, flask_app):
-        """
-        A login on the FAB app records the user's ``token_generation`` in its session, while a login
-        on another Flask app in the same process leaves that app's session alone.
-        """
-        user = User(id=1, username="test_login_records_generation", active=True, token_generation=3)
-        other_app = Flask(__name__)
-        other_app.secret_key = "test-secret-key"
-        LoginManager(other_app)
-
-        with flask_app.test_request_context():
-            assert login_user(user)
-            assert flask_session[SESSION_TOKEN_GENERATION_KEY] == 3
-        with other_app.test_request_context():
-            assert login_user(user)
-            assert SESSION_TOKEN_GENERATION_KEY not in flask_session
 
 
 @pytest.mark.db_test

@@ -29,7 +29,9 @@ from flask_login import LoginManager, current_user, login_user
 
 from airflow.providers.fab.www.extensions.init_session import (
     SESSION_LOGIN_TIME_KEY,
+    SESSION_TOKEN_GENERATION_KEY,
     get_remaining_session_lifetime,
+    init_airflow_session_interface,
     init_session_max_lifetime,
 )
 
@@ -155,3 +157,25 @@ def test_remaining_session_lifetime_is_unknown_without_a_login_stamp():
 
     with conf_vars({("fab", "session_max_lifetime_minutes"): "30"}), app.test_request_context():
         assert get_remaining_session_lifetime() is None
+
+
+@conf_vars({("fab", "session_backend"): "securecookie"})
+def test_login_records_token_generation_only_on_the_fab_app():
+    """
+    A login on the FAB app records the user's ``token_generation`` in its session, while a login
+    on another Flask app in the same process leaves that app's session alone.
+    """
+    user = FakeUser()
+    user.token_generation = 3
+    fab_app, other_app = Flask(__name__), Flask(__name__)
+    for app in (fab_app, other_app):
+        app.secret_key = "test-secret-key"
+        LoginManager(app)
+    init_airflow_session_interface(fab_app, db=None)
+
+    with fab_app.test_request_context():
+        assert login_user(user)
+        assert builtin_flask_session[SESSION_TOKEN_GENERATION_KEY] == 3
+    with other_app.test_request_context():
+        assert login_user(user)
+        assert SESSION_TOKEN_GENERATION_KEY not in builtin_flask_session

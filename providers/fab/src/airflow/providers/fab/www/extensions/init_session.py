@@ -32,6 +32,12 @@ from airflow.providers.fab.www.session import (
 log = logging.getLogger(__name__)
 
 SESSION_LOGIN_TIME_KEY = "_login_at"
+# The ``User.token_generation`` a Flask session was created under.
+SESSION_TOKEN_GENERATION_KEY = "_token_generation"
+
+
+def _record_session_token_generation(sender, user, **kwargs) -> None:
+    builtin_flask_session[SESSION_TOKEN_GENERATION_KEY] = user.token_generation
 
 
 def init_airflow_session_interface(app, db):
@@ -70,6 +76,8 @@ def init_airflow_session_interface(app, db):
             f"[fab] session_backend: '{selected_backend}'. Please set "
             "this to either 'database' or 'securecookie'."
         )
+    # Scoped to this app: ``user_logged_in`` is shared by every Flask app in the process.
+    user_logged_in.connect(_record_session_token_generation, sender=app)
 
 
 def get_max_session_lifetime_seconds() -> int:

@@ -61,7 +61,7 @@ from flask_appbuilder.security.views import (
 )
 from flask_babel import lazy_gettext
 from flask_jwt_extended import JWTManager
-from flask_login import LoginManager, user_logged_in
+from flask_login import LoginManager
 from itsdangerous import want_bytes
 from markupsafe import Markup, escape
 from packaging.version import Version
@@ -106,6 +106,7 @@ from airflow.providers.fab.auth_manager.views.user_edit import (
 )
 from airflow.providers.fab.auth_manager.views.user_stats import CustomUserStatsChartView
 from airflow.providers.fab.version_compat import AIRFLOW_V_3_1_PLUS
+from airflow.providers.fab.www.extensions.init_session import SESSION_TOKEN_GENERATION_KEY
 from airflow.providers.fab.www.security import permissions
 from airflow.providers.fab.www.security_manager import AirflowSecurityManagerV2
 from airflow.providers.fab.www.session import AirflowDatabaseSessionInterface
@@ -156,12 +157,6 @@ log = logging.getLogger(__name__)
 # continuously creates new sessions. Such setup should be fixed by reusing sessions or by periodically
 # purging the old sessions by using `airflow db clean` command.
 MAX_NUM_DATABASE_USER_SESSIONS = 50000
-# The ``User.token_generation`` a Flask session was created under.
-SESSION_TOKEN_GENERATION_KEY = "_token_generation"
-
-
-def _record_session_token_generation(sender, user, **kwargs) -> None:
-    session[SESSION_TOKEN_GENERATION_KEY] = user.token_generation
 
 
 class FabException(Exception):
@@ -608,9 +603,6 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         lm.anonymous_user = AnonymousUser
         lm.login_view = "login"
         lm.user_loader(self.load_session_user)
-        # Scoped to this app: ``user_logged_in`` is shared by every Flask app in the process.
-        app = current_app._get_current_object()  # type: ignore[attr-defined]
-        user_logged_in.connect(_record_session_token_generation, sender=app)
         return lm
 
     def create_jwt_manager(self) -> None:
