@@ -20,6 +20,10 @@
 Changelog
 ---------
 
+.. note::
+    This release includes a database migration that adds a ``token_generation`` column to the
+    ``ab_user`` table. Run ``airflow db migrate`` after upgrading the provider.
+
 3.11.1
 ......
 

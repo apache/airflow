@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import asyncio
+import threading
 import time
 from contextlib import ExitStack, asynccontextmanager, contextmanager, nullcontext, suppress
 from itertools import chain
@@ -26,6 +27,7 @@ from unittest.mock import MagicMock, Mock
 from urllib.parse import urlencode
 
 import pytest
+from cachetools import TTLCache
 from flask import Flask, g, session as flask_session
 from flask_appbuilder.const import AUTH_DB, AUTH_LDAP, AUTH_OAUTH, AUTH_REMOTE_USER
 from flask_login import LoginManager, login_user
@@ -46,7 +48,7 @@ from airflow.utils.db import resetdb
 
 from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.config import conf_vars
-from unit.fab.auth_manager.test_utils import create_user, delete_user
+from unit.fab.auth_manager.test_utils import create_role, create_user, delete_user
 from unit.fab.utils import client_with_login
 
 with suppress(ImportError):
@@ -61,6 +63,7 @@ from airflow.providers.common.compat.security.permissions import (
     RESOURCE_ASSET_ALIAS,
     RESOURCE_BACKFILL,
 )
+from airflow.providers.fab.auth_manager.api_fastapi.datamodels.roles import Role as RoleRef
 from airflow.providers.fab.auth_manager.api_fastapi.datamodels.users import UserPatchBody
 from airflow.providers.fab.auth_manager.api_fastapi.services.users import FABAuthManagerUsers
 from airflow.providers.fab.auth_manager.fab_auth_manager import DAG_BUNDLES_ACCESS_VIEW, FabAuthManager
@@ -206,13 +209,28 @@ def _get_stored_token_generation(user_id: int) -> int | None:
         return session.scalar(select(User.token_generation).where(User.id == user_id))
 
 
-@contextmanager
-def _spy_on_user_reads():
-    """Count the database reads of the user, cache misses included."""
-    with mock.patch.object(
-        FabAuthManager, "_fetch_active_user", autospec=True, side_effect=FabAuthManager._fetch_active_user
-    ) as fetch_active_user:
-        yield fetch_active_user
+# Reading a user runs two queries: the user row, then its roles (``lazy="selectin"``).
+QUERIES_PER_USER_READ = 2
+
+
+class _LockCheckingCache(TTLCache):
+    """A ``TTLCache`` that fails any read or write made without holding ``lock``."""
+
+    def __init__(self, lock: threading.Lock):
+        super().__init__(maxsize=1024, ttl=60)
+        self.lock = lock
+
+    def __getitem__(self, key):
+        assert self.lock.locked()
+        return super().__getitem__(key)
+
+    def __setitem__(self, key, value):
+        assert self.lock.locked()
+        super().__setitem__(key, value)
+
+    def __delitem__(self, key):
+        assert self.lock.locked()
+        super().__delitem__(key)
 
 
 def _change_password(auth_manager: FabAuthManager, username: str) -> None:
@@ -526,9 +544,8 @@ class TestFabAuthManager:
         outcome = (
             nullcontext() if accepted else pytest.raises(ValueError, match=ISSUED_BEFORE_PASSWORD_CHANGE)
         )
-        with _spy_on_user_reads() as fetch_active_user, outcome:
+        with assert_queries_count(user_reads * QUERIES_PER_USER_READ), outcome:
             assert auth_manager_with_appbuilder.deserialize_user(token).id == user_id
-        assert fetch_active_user.call_count == user_reads
 
     @pytest.mark.parametrize("token_generation", ["0", 0.0, True, None], ids=["str", "float", "bool", "null"])
     def test_deserialize_user_rejects_non_integer_token_generation(
@@ -577,11 +594,48 @@ class TestFabAuthManager:
         auth_manager_with_appbuilder.deserialize_user(old_token)
         _set_stored_token_generation(user_id, 1)
 
-        with _spy_on_user_reads() as fetch_active_user:
+        with assert_queries_count(QUERIES_PER_USER_READ):
             assert auth_manager_with_appbuilder.deserialize_user(new_token).id == user_id
             with pytest.raises(ValueError, match=ISSUED_BEFORE_PASSWORD_CHANGE):
                 auth_manager_with_appbuilder.deserialize_user(old_token)
-        assert fetch_active_user.call_count == 1
+
+    def test_role_update_applies_at_once(self, flask_app, auth_manager_with_appbuilder):
+        """Roles changed through the users API apply to the next request, not after the cache expires."""
+        user = create_user(flask_app, "test_role_update", role_name="test_role_update_before")
+        create_role(flask_app, "test_role_update_after")
+        token = auth_manager_with_appbuilder.serialize_user(user)
+        auth_manager_with_appbuilder.cache.clear()
+        auth_manager_with_appbuilder.deserialize_user(token)
+
+        FABAuthManagerUsers.update_user(
+            "test_role_update",
+            UserPatchBody(roles=[RoleRef(name="test_role_update_after")]),
+            update_mask="roles",
+        )
+
+        roles = auth_manager_with_appbuilder.deserialize_user(token).roles
+        assert [role.name for role in roles] == ["test_role_update_after"]
+
+    def test_cache_is_accessed_only_under_cache_lock(self, flask_app, auth_manager_with_appbuilder):
+        """
+        Every read and write of the user cache holds ``cache_lock``: caching a user, dropping it for a
+        newer token, and dropping it after a user update.
+        """
+        user_id = create_user(flask_app, "test_cache_lock").id
+        lock = threading.Lock()
+        cache = _LockCheckingCache(lock)
+
+        with (
+            mock.patch.object(FabAuthManager, "cache", cache),
+            mock.patch.object(FabAuthManager, "cache_lock", lock),
+        ):
+            auth_manager_with_appbuilder.deserialize_user({"sub": str(user_id), "token_generation": 0})
+            _set_stored_token_generation(user_id, 1)
+            auth_manager_with_appbuilder.deserialize_user({"sub": str(user_id), "token_generation": 1})
+            assert user_id in cache
+            _change_password(auth_manager_with_appbuilder, "test_cache_lock")
+
+        assert user_id not in cache
 
     def test_failed_reload_does_not_keep_outdated_cached_user(self, flask_app, auth_manager_with_appbuilder):
         """

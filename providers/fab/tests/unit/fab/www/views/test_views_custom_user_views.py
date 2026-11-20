@@ -25,6 +25,7 @@ from flask.sessions import SecureCookieSessionInterface
 from sqlalchemy import delete, func, select
 
 from airflow.api_fastapi.app import get_auth_manager
+from airflow.providers.fab.auth_manager.security_manager.override import FabAirflowSecurityManagerOverride
 from airflow.providers.fab.www import app as application
 from airflow.providers.fab.www.security import permissions
 
@@ -431,19 +432,13 @@ class TestResetUserSessions:
         assert self.get_session_by_id("session_id_1") is not None
         assert self.get_session_by_id("session_id_2") is not None
 
-    @mock.patch("airflow.providers.fab.auth_manager.security_manager.override.flash")
-    @mock.patch(
-        "airflow.providers.fab.auth_manager.security_manager.override.has_request_context", return_value=True
-    )
-    def test_warn_securecookie(self, _mock_has_context, flash_mock):
+    @mock.patch.object(FabAirflowSecurityManagerOverride, "_cli_safe_flash", autospec=True)
+    def test_no_warning_with_securecookie(self, cli_safe_flash):
+        """``load_session_user`` rejects sessions from before the reset, whatever the session backend."""
         self.app.session_interface = SecureCookieSessionInterface()
         with self.app.app_context():
-            self.security_manager.reset_password(self.user_1.id, "new_password")
-        assert flash_mock.called
-        assert (
-            "Since you are using `securecookie` session backend mechanism, we cannot"
-            in flash_mock.call_args[0][0]
-        )
+            assert self.security_manager.reset_password(self.user_1.id, "new_password")
+        cli_safe_flash.assert_not_called()
 
     @mock.patch("airflow.providers.fab.auth_manager.security_manager.override.log")
     @mock.patch(
@@ -467,14 +462,3 @@ class TestResetUserSessions:
         assert self.session.scalar(select(func.count()).select_from(self.model)) == 2
         assert self.get_session_by_id("session_id_1") is not None
         assert self.get_session_by_id("session_id_2") is not None
-
-    @mock.patch("airflow.providers.fab.auth_manager.security_manager.override.log")
-    def test_warn_securecookie_cli(self, log_mock):
-        self.app.session_interface = SecureCookieSessionInterface()
-        with self.app.app_context():
-            self.security_manager.reset_password(self.user_1.id, "new_password")
-        assert log_mock.warning.called
-        assert (
-            "Since you are using `securecookie` session backend mechanism, we cannot"
-            in log_mock.warning.call_args[0][0]
-        )

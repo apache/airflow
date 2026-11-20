@@ -218,6 +218,9 @@ class FabAuthManager(BaseAuthManager[User]):
     # Pop a user only after their change is committed: a request served in between would
     # cache the row as it was before the change.
     cache: TTLCache = TTLCache(maxsize=1024, ttl=CACHE_TTL)
+    # ``TTLCache`` is not thread-safe: requests read it on the event loop, while user updates pop
+    # from it in threadpool and WSGI threads. Hold this lock for every access to ``cache``.
+    cache_lock = threading.Lock()
     _user_fetch_locks: WeakValueDictionary[int, asyncio.Lock] = WeakValueDictionary()
     appbuilder: AirflowAppBuilder | None = None
     flask_app: Flask | None = None
@@ -339,17 +342,15 @@ class FabAuthManager(BaseAuthManager[User]):
         user = self._get_active_user(user_id)
         if token_generation > user.token_generation:
             # The token was issued after a password change that the cached user predates.
-            self.cache.pop(user_id, None)
+            with self.cache_lock:
+                self.cache.pop(user_id, None)
             user = self._get_active_user(user_id)
         if token_generation != user.token_generation:
             raise ValueError(f"Token of user with id {user_id} was issued before their last password change")
         return user
 
-    @cachedmethod(lambda self: self.cache, key=lambda _, user_id: user_id)
+    @cachedmethod(lambda self: self.cache, key=lambda _, user_id: user_id, lock=lambda self: self.cache_lock)
     def _get_active_user(self, user_id: int) -> User:
-        return self._fetch_active_user(user_id)
-
-    def _fetch_active_user(self, user_id: int) -> User:
         def _fetch_user() -> User:
             with create_session() as session:
                 user = session.scalars(select(User).where(User.id == user_id)).one_or_none()
