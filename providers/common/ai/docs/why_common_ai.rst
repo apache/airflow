@@ -50,7 +50,7 @@ the model key in the worker's environment and the tools written by hand:
         def check_report() -> str:
             # The key comes from OPENAI_API_KEY in the worker's environment.
             agent = Agent(
-                "openai:gpt-5",
+                "openai:gpt-6.1-sol",
                 instructions=(
                     "You check reports against the warehouse. Read the report files, query "
                     "the orders table, and say whether the numbers agree."

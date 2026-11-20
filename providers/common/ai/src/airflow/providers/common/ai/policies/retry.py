@@ -421,7 +421,7 @@ class LLMRetryPolicy(_ModelRetryPolicy):
     (if provided) or returns DEFAULT to use the task's standard retry logic.
 
     :param llm_conn_id: Airflow connection ID for the LLM provider.
-    :param model_id: Model identifier override (e.g. ``"openai:gpt-5-mini"``
+    :param model_id: Model identifier override (e.g. ``"openai:gpt-6.1-terra"``
         for cost efficiency). If not set, uses the model from the connection.
     :param instructions: Custom system prompt for classification.
         Defaults to a general-purpose error classifier, :data:`DEFAULT_INSTRUCTIONS`.

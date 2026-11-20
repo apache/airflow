@@ -1,4 +1,3 @@
-
  .. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
@@ -252,6 +251,7 @@ Extra                 Dependencies
 ``docx``              ``python-docx>=1.1.2``
 ``git``               ``apache-airflow-providers-git``
 ``claude-agent-sdk``  ``claude-agent-sdk>=0.2.160``
+``openai-codex``      ``openai-codex>=0.163.0``, ``mcp>=2.2.0``, ``uvicorn>=0.31.1``
 ====================  =======================================================================================================================================
 
 Downloading official packages

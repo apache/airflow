@@ -381,7 +381,7 @@ class AirflowDurability(BaseDurabilityCapability[AgentDepsT]):
         @task(retries=3)
         def research(question: str) -> str:
             agent = Agent(
-                "anthropic:claude-sonnet-4-5",
+                "anthropic:claude-sonnet-5-5",
                 name="researcher",
                 toolsets=[SQLToolset("warehouse")],
                 capabilities=[AirflowDurability()],

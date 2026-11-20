@@ -94,7 +94,7 @@ class LLMBatchOperator(BaseOperator):
     :param llm_conn_id: Connection ID for the LLM provider. Must be a
         ``pydanticai`` connection today.
     :param model_id: Model identifier as ``"<provider>:<model>"`` (e.g.
-        ``"openai:gpt-5"``). Falls back to the connection's Model field, as
+        ``"openai:gpt-6.1-sol"``). Falls back to the connection's Model field, as
         ``LLMOperator`` does. A bare name takes the connection's Default
         Provider, and ``openai-chat:`` selects the OpenAI adapter, which runs the
         batch on the Responses API.

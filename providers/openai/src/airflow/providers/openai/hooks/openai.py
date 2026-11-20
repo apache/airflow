@@ -72,7 +72,7 @@ from airflow.providers.openai.exceptions import (
 #: methods wrapping it warn and point at the Responses and Conversations APIs (``create_response`` /
 #: ``create_conversation``); the removal date is stated once, in the reason string below.
 _ASSISTANTS_DEPRECATION_REASON = (
-    "The OpenAI Assistants API is deprecated and will be removed by OpenAI on 2026-08-26. "
+    "The OpenAI Assistants API is deprecated and was removed by OpenAI on 2026-08-26. "
     "Use the Responses API (create_response) and Conversations API (create_conversation) instead. "
     "See https://platform.openai.com/docs/guides/migrate-to-responses."
 )
@@ -316,7 +316,7 @@ class OpenAIHook(BaseHook):
             | ChatCompletionToolMessageParam
             | ChatCompletionFunctionMessageParam
         ],
-        model: str = "gpt-4o-mini",
+        model: str = "gpt-6-luna",
         **kwargs: Any,
     ) -> list[ChatCompletionMessage]:
         """
@@ -328,7 +328,7 @@ class OpenAIHook(BaseHook):
         response = self.conn.chat.completions.create(model=model, messages=messages, **kwargs)
         return response.choices
 
-    def create_response(self, input: Any, model: str = "gpt-4o-mini", **kwargs: Any) -> Response:
+    def create_response(self, input: Any, model: str = "gpt-6-luna", **kwargs: Any) -> Response:
         """
         Create a model response using the Responses API.
 
@@ -340,7 +340,7 @@ class OpenAIHook(BaseHook):
     def parse_response(
         self,
         input: Any,
-        model: str = "gpt-4o-mini",
+        model: str = "gpt-6-luna",
         *,
         text_format: type[_TextFormatT],
         **kwargs: Any,
@@ -416,7 +416,7 @@ class OpenAIHook(BaseHook):
         return self.conn.conversations.delete(conversation_id)
 
     @deprecated(reason=_ASSISTANTS_DEPRECATION_REASON, category=AirflowProviderDeprecationWarning)
-    def create_assistant(self, model: str = "gpt-4o-mini", **kwargs: Any) -> Assistant:
+    def create_assistant(self, model: str = "gpt-6-luna", **kwargs: Any) -> Assistant:
         """
         Create an OpenAI assistant using the given model.
 

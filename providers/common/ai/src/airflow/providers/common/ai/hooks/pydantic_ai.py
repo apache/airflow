@@ -176,13 +176,13 @@ class PydanticAIHook(BaseHook):
     Connection fields:
         - **password**: API key
         - **host**: Base URL (optional, e.g. ``https://api.openai.com/v1``)
-        - **extra** JSON: ``{"model": "openai:gpt-5",
+        - **extra** JSON: ``{"model": "openai:gpt-6.1-sol",
           "fallback_conn_ids": ["anthropic_prod", "bedrock_dr"]}``; add
           ``"model_provider": "openai-chat"`` to resolve bare model names on this connection
 
     :param llm_conn_id: Airflow connection ID for the LLM provider.
     :param model_id: Model identifier. A name whose segment before the first ``:``
-        is itself a pydantic-ai provider (e.g. ``"openai:gpt-5"``) pins the
+        is itself a pydantic-ai provider (e.g. ``"openai:gpt-6.1-sol"``) pins the
         platform and is used verbatim -- a plain ``:`` alone is not enough, since
         some vendors' native model ids contain one of their own (e.g. Bedrock's
         version-suffixed ``"us.anthropic.claude-opus-4-6-v1:0"``, which is still a
@@ -279,7 +279,7 @@ class PydanticAIHook(BaseHook):
             raise ValueError(
                 f"Connection {conn.conn_id!r} has type {conn.conn_type!r}, but a Pydantic AI hook needs "
                 f"one of {expected_types}. Change the connection type to 'pydanticai', put the API key "
-                "in the API Key field (stored as the password) and the model (e.g. 'openai:gpt-5') in Model."
+                "in the API Key field (stored as the password) and the model (e.g. 'openai:gpt-6.1-sol') in Model."
             )
         # The check above guarantees a ``PydanticAIHook``. Seeding saves the second fetch of
         # this same connection its first ``get_conn`` would make.
@@ -311,7 +311,7 @@ class PydanticAIHook(BaseHook):
             "relabeling": {"password": "API Key"},
             "placeholders": {
                 "host": "https://api.openai.com/v1 (optional, for custom endpoints / Ollama)",
-                "extra": '{"model": "openai:gpt-5"}',
+                "extra": '{"model": "openai:gpt-6.1-sol"}',
             },
         }
 
@@ -736,7 +736,7 @@ class PydanticAIHook(BaseHook):
         ``model`` in ``extra`` uses that instead, but a fallback with none falls
         back to the forwarded name, qualified with *its own* platform prefix.
         Only a *bare* forwarded name is usable this way -- a forwarded name that
-        already pins a platform (e.g. ``"openai:gpt-5"``) names a model of the
+        already pins a platform (e.g. ``"openai:gpt-6.1-sol"``) names a model of the
         primary's provider, not this fallback's, so it is not applied; that
         fallback still raises "no model specified" unless its own ``extra`` sets
         a ``model``. Whether a name already pins a platform is decided by
