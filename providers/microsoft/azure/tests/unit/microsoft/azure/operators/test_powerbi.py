@@ -17,12 +17,13 @@
 
 from __future__ import annotations
 
+import inspect
 from unittest import mock
 from unittest.mock import MagicMock
 
 import pytest
 
-from airflow.providers.common.compat.sdk import AirflowException, BaseHook, TaskDeferred, timezone
+from airflow.providers.common.compat.sdk import DAG, AirflowException, BaseHook, TaskDeferred, timezone
 from airflow.providers.microsoft.azure.hooks.msgraph import KiotaRequestAdapterHook
 from airflow.providers.microsoft.azure.hooks.powerbi import (
     PowerBIDatasetRefreshException,
@@ -35,7 +36,7 @@ from airflow.providers.microsoft.azure.triggers.powerbi import PowerBITrigger
 
 from tests_common.test_utils.operators.run_deferrable import run_trigger
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_3_PLUS
-from unit.microsoft.azure.test_utils import get_airflow_connection
+from unit.microsoft.azure.test_utils import TaskStateStore, get_airflow_connection
 
 DEFAULT_CONNECTION_CLIENT_SECRET = "powerbi_conn_id"
 TASK_ID = "run_powerbi_operator"
@@ -102,19 +103,6 @@ def previous_refresh(status: str) -> dict[str, str]:
         PowerBIDatasetRefreshFields.STATUS.value: status,
         PowerBIDatasetRefreshFields.ERROR.value: "None",
     }
-
-
-class TaskStateStore:
-    """In-memory stand-in for ``context["task_state_store"]``."""
-
-    def __init__(self, **values):
-        self.values = dict(values)
-
-    def get(self, key, default=None):
-        return self.values.get(key, default)
-
-    def set(self, key, value, *, retention=None):
-        self.values[key] = value
 
 
 class TestPowerBIDatasetRefreshOperator:
@@ -508,6 +496,37 @@ class TestPowerBIDatasetRefreshOperator:
         mock_trigger_dataset_refresh.assert_not_awaited()
         mock_cancel_dataset_refresh.assert_not_awaited()
         assert task_state_store.values == {REFRESH_ID_KEY: PREVIOUS_REFRESH_REQUEST_ID}
+
+    def test_durable_is_named_on_init_rather_than_left_to_kwargs(self):
+        """Below 3.3 the compat ResumableJobMixin.__init__ has no `_apply_defaults` wrapper, so
+        `default_args` only reaches `durable` when the operator names it."""
+        init = PowerBIDatasetRefreshOperator.__init__
+        signature = inspect.signature(getattr(init, "__wrapped__", init))
+        assert "durable" in signature.parameters
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="durable is only honoured on Airflow 3.3+")
+    def test_default_args_durable_reaches_operator(self):
+        with DAG(
+            dag_id="test_powerbi_durable_default_args",
+            schedule=None,
+            start_date=DEFAULT_DATE,
+            default_args={"durable": False},
+        ):
+            operator = PowerBIDatasetRefreshOperator(**CONFIG)
+        assert operator.durable is False
+
+    @pytest.mark.skipif(
+        AIRFLOW_V_3_3_PLUS, reason="The compat ResumableJobMixin is only used below Airflow 3.3"
+    )
+    def test_default_args_durable_reaches_compat_mixin_below_3_3(self):
+        with pytest.warns(UserWarning, match="`durable` has no effect on Airflow versions below 3.3"):
+            with DAG(
+                dag_id="test_powerbi_durable_default_args_below_3_3",
+                schedule=None,
+                start_date=DEFAULT_DATE,
+                default_args={"durable": True},
+            ):
+                PowerBIDatasetRefreshOperator(**CONFIG)
 
     @mock.patch.object(PowerBIHook, "trigger_dataset_refresh", return_value=NEW_REFRESH_REQUEST_ID)
     def test_execute_not_durable_defers_to_the_trigger_that_starts_the_refresh(

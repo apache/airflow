@@ -19,21 +19,15 @@ from __future__ import annotations
 
 from datetime import datetime
 from enum import Enum
-from typing import TYPE_CHECKING, Annotated
+from typing import Annotated
 
 from pydantic import StringConstraints, TypeAdapter
-from sqlalchemy import ForeignKeyConstraint, Index, String, Text, delete, select, true
+from sqlalchemy import ForeignKeyConstraint, Index, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from airflow._shared.timezones import timezone
 from airflow.models.base import Base, StringID
-from airflow.models.dag import DagModel
-from airflow.utils.retries import retry_db_transaction
-from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.sqlalchemy import UtcDateTime, get_dialect_name
-
-if TYPE_CHECKING:
-    from sqlalchemy.orm import Session
+from airflow.utils.sqlalchemy import UtcDateTime
 
 WARNING_TYPE_MAX_LENGTH = 50
 
@@ -76,24 +70,6 @@ class DagWarning(Base):
 
     def __hash__(self) -> int:
         return hash((self.dag_id, self.warning_type))
-
-    @classmethod
-    @provide_session
-    @retry_db_transaction
-    def purge_inactive_dag_warnings(cls, *, session: Session = NEW_SESSION) -> None:
-        """
-        Deactivate DagWarning records for inactive dags.
-
-        :return: None
-        """
-        if get_dialect_name(session) == "sqlite":
-            dag_ids_stmt = select(DagModel.dag_id).where(DagModel.is_stale == true())
-            query = delete(cls).where(cls.dag_id.in_(dag_ids_stmt.scalar_subquery()))
-        else:
-            query = delete(cls).where(cls.dag_id == DagModel.dag_id, DagModel.is_stale == true())
-
-        session.execute(query.execution_options(synchronize_session=False))
-        session.commit()
 
 
 class DagWarningType(str, Enum):

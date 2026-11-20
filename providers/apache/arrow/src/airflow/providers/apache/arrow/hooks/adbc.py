@@ -17,17 +17,17 @@
 # under the License.
 from __future__ import annotations
 
-import contextlib
 import pathlib
 import re
 import sys
 from collections.abc import Callable, Iterable, Mapping
 from contextlib import closing
-from functools import cached_property
+from functools import cached_property, partial
 from importlib import resources as importlib_resources
 from typing import TYPE_CHECKING, Any
+from urllib.parse import quote
 
-from adbc_driver_manager.dbapi import Connection, connect
+from adbc_driver_manager.dbapi import Connection, NotSupportedError, connect
 from more_itertools import chunked
 from pyarrow import RecordBatch, Schema, array, schema
 
@@ -78,7 +78,8 @@ class AdbcHook(DbApiHook):
         - Handles dialect-specific connection URIs and driver entrypoints.
         - Integrates with Airflow's connection system (conn_id, extras, etc.).
         - Provides custom placeholder replacement for parameterized SQL queries.
-        - Supports both native Arrow binding and DBAPI ``executemany`` for inserts.
+        - Loads rows with the driver's bulk ingest (``adbc_ingest``, e.g. ``COPY`` on PostgreSQL)
+          by default, or binds them with DBAPI ``executemany`` (``fast_executemany=False``).
         - Exposes configuration via connection extras: driver, entrypoint, db_kwargs, conn_kwargs, dialect.
 
     Connection Extras:
@@ -118,8 +119,14 @@ class AdbcHook(DbApiHook):
     def get_ui_field_behaviour(cls) -> dict[str, Any]:
         """Get custom field behaviour."""
         return {
-            "hidden_fields": ["port", "schema"],
-            "relabeling": {"host": "Connection URL"},
+            "hidden_fields": [],
+            "relabeling": {"host": "Host or URI", "schema": "Database"},
+            "placeholders": {
+                "host": "db.example.com, or postgresql://user:pass@db.example.com:5432/db",
+                "port": "5432",
+                "schema": "db",
+                "extra": '{"dialect": "postgresql"}',
+            },
         }
 
     @cached_property
@@ -149,14 +156,30 @@ class AdbcHook(DbApiHook):
 
     @cached_property
     def uri(self) -> str:
-        host = self.connection.host
-        if host and "::" in str(host):
-            return str(host)
-        uri = self.get_uri()
-        return uri.replace(
-            f"{self.conn_type.lower().replace('_', '-')}://",
-            f"{self.dialect_name.lower().replace('_', '-')}://",
-        )
+        """
+        Return the URI handed to the driver.
+
+        A host that already is a URI or a path (``postgresql://user:pass@host:5432/db``,
+        ``file::memory:``, ``:memory:``, ``/data/app.db``) is passed through unchanged. Otherwise the
+        URI is built as ``<dialect>://login:password@host:port/schema`` from the connection's fields.
+        Airflow's own connection URI is of no use here: its query string carries the extras, which
+        drivers such as libpq refuse as unknown parameters.
+        """
+        host = self.connection.host or ""
+        if "://" in host or "::" in host or host.startswith(("/", ":", "file:")):
+            return host
+        uri = f"{self.dialect_name.lower().replace('_', '-')}://"
+        if self.connection.login:
+            uri += quote(self.connection.login, safe="")
+            if self.connection.password:
+                uri += f":{quote(self.connection.password, safe='')}"
+            uri += "@"
+        uri += host
+        if self.connection.port:
+            uri += f":{self.connection.port}"
+        if self.connection.schema:
+            uri += f"/{quote(self.connection.schema, safe='')}"
+        return uri
 
     @cached_property
     def driver(self) -> str:
@@ -238,34 +261,58 @@ class AdbcHook(DbApiHook):
             schema=schema,
         )
 
-    @classmethod
-    def _execute_executemany(cls, cursor, statement: str, record_batch: RecordBatch) -> None:
-        """
-        Execute a statement using cursor.executemany with a RecordBatch.
-
-        ADBC's executemany() accepts Arrow data directly and routes it through
-        bind_stream internally, making this the Arrow-native fast path.
-        """
-        cursor.executemany(statement, record_batch)
-
     def _resolve_execute_batch(
-        self, cursor, executemany: bool, fast_executemany: bool
-    ) -> Callable[[Cursor, str, RecordBatch], None]:
+        self,
+        cursor: Cursor,
+        *,
+        table_name: str,
+        schema_name: str | None,
+        sql: str,
+        replace: bool,
+        fast_executemany: bool,
+    ) -> Callable[[RecordBatch], object]:
         """
-        Return the batch-execute callable for the given cursor.
+        Return the callable that loads one RecordBatch through ``cursor``.
 
-        ADBC's executemany() natively accepts a RecordBatch, so it is always
-        the fast path.  fast_executemany is passed through to drivers that
-        expose that knob (silently ignored otherwise).
+        With ``fast_executemany`` the batch goes through the driver's bulk ingest
+        (:meth:`adbc_driver_manager.dbapi.Cursor.adbc_ingest`, ``COPY`` on PostgreSQL).
+        Otherwise it is bound to the generated ``INSERT`` statement with
+        ``cursor.executemany``, which most drivers execute once per row.
+        ``replace=True`` always binds, because bulk ingest cannot carry the
+        dialect's conflict clause.
+
+        ``fast_executemany`` is a hint: if the driver does not implement bulk ingest
+        (the first ``adbc_ingest`` call raises ``NotSupportedError``), that batch and
+        all following ones are bound with ``cursor.executemany`` instead.
         """
-        if fast_executemany:
-            with contextlib.suppress(AttributeError):
-                cursor.fast_executemany = True
+        bind = partial(cursor.executemany, sql)
+        if replace or not fast_executemany:
+            if replace and fast_executemany:
+                self.log.debug("Bulk ingest cannot replace rows; binding them to the statement instead")
+            return bind
+
+        self.log.info("Using bulk ingest (adbc_ingest) for conn_id '%s'", self.get_conn_id())
+        ingest = partial(cursor.adbc_ingest, table_name, mode="append", db_schema_name=schema_name)
+        loader: Callable[[RecordBatch], object] | None = None
+
+        def execute_batch(batch: RecordBatch) -> object:
+            nonlocal loader
+            if loader is not None:
+                return loader(batch)
+            try:
+                result = ingest(batch)
+            except NotSupportedError:
                 self.log.info(
-                    "Fast_executemany is enabled for conn_id '%s'!",
+                    "Driver for conn_id '%s' does not support bulk ingest; "
+                    "binding rows with executemany instead",
                     self.get_conn_id(),
                 )
-        return self._execute_executemany
+                loader = bind
+                return bind(batch)
+            loader = ingest
+            return result
+
+        return execute_batch
 
     def insert_rows(
         self,
@@ -276,27 +323,31 @@ class AdbcHook(DbApiHook):
         replace=False,
         *,
         executemany=False,
-        fast_executemany=False,
+        fast_executemany=True,
         autocommit=False,
         **kwargs,
     ):
         """
         Insert a collection of tuples into a table.
 
-        Rows are inserted in chunks, each chunk (of size ``commit_every``) is
-        done in a new transaction.
+        Rows are converted to Arrow ``RecordBatch`` objects and inserted in chunks;
+        each chunk (of size ``commit_every``) is done in a new transaction.
 
-        :param table: Name of the target table
+        :param table: Name of the target table, optionally prefixed with its schema
+            (``schema.table``).
         :param rows: The rows to insert into the table
         :param target_fields: The names of the columns to fill in the table
         :param commit_every: The maximum number of rows to insert in one
             transaction. Set to 0 to insert all rows in one transaction.
-        :param replace: Whether to replace instead of insert
-        :param executemany: If True, all rows are inserted at once in
-            chunks defined by the commit_every parameter. This only works if all rows
-            have same number of column names, but leads to better performance.
-        :param fast_executemany: If True, the `fast_executemany` parameter will be set on the
-            cursor used by `executemany` which leads to better performance, if supported by driver.
+        :param replace: Whether to replace instead of insert. Replacing always binds
+            the rows to the generated statement, because bulk ingest cannot express it.
+        :param executemany: Kept for signature compatibility with
+            :meth:`~airflow.providers.common.sql.hooks.sql.DbApiHook.insert_rows`;
+            rows are always sent as one Arrow batch per chunk.
+        :param fast_executemany: If True (default), load each batch with the driver's
+            bulk ingest (``cursor.adbc_ingest``, ``COPY`` on PostgreSQL). If the driver
+            does not implement bulk ingest, falls back to binding. If False, bind
+            each batch to the ``INSERT`` statement with ``cursor.executemany``.
         :param autocommit: What to set the connection's autocommit setting to
             before executing the query.
         """
@@ -329,12 +380,17 @@ class AdbcHook(DbApiHook):
 
             with closing(conn.cursor()) as cur:
                 execute_batch = self._resolve_execute_batch(
-                    cur, executemany=executemany, fast_executemany=fast_executemany
+                    cur,
+                    table_name=table_name,
+                    schema_name=schema_name,
+                    sql=sql,
+                    replace=replace,
+                    fast_executemany=fast_executemany,
                 )
 
                 for chunked_rows in chunked(rows, commit_every or None):
                     batch = self._to_record_batch(rows=chunked_rows, schema=table_schema)
-                    execute_batch(cur, sql, batch)
+                    execute_batch(batch)
 
                     if not autocommit:
                         conn.commit()

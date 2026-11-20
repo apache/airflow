@@ -29,7 +29,7 @@ import {
 
 import { createErrorToaster } from "src/utils";
 
-import { gridQueryKeys, tiPerAttemptQueryKeys } from "./gridViewQueryKeys";
+import { dagListQueryKeys, gridQueryKeys, tiPerAttemptQueryKeys } from "./gridViewQueryKeys";
 import { useClearDagRunDryRunKey } from "./useClearDagRunDryRun";
 
 export const useClearDagRun = ({
@@ -63,6 +63,7 @@ export const useClearDagRun = ({
       [useClearDagRunDryRunKey, dagId],
       UseGanttServiceGetGanttDataKeyFn({ dagId, runId: dagRunId }),
       ...tiPerAttemptQueryKeys,
+      ...dagListQueryKeys,
     ];
 
     await Promise.all([

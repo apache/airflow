@@ -204,16 +204,16 @@ source code so it stays up to date as endpoints are added or changed.
      - ``PUT``
    * - ``GET``
      - ``/api/v2/dagBundles``
-     - ``DAG``
-     - ``GET``
+     - ``View.DAG_BUNDLES``
+     - ``DAG_BUNDLES``
    * - ``GET``
      - ``/api/v2/dagBundles/{bundle_name}``
-     - ``DAG``
-     - ``GET``
+     - ``View.DAG_BUNDLES``
+     - ``DAG_BUNDLES``
    * - ``GET``
      - ``/api/v2/dagBundles/{bundle_name}/files``
-     - ``DAG``
-     - ``GET``
+     - ``View.DAG_BUNDLES``
+     - ``DAG_BUNDLES``
    * - ``GET``
      - ``/api/v2/dagSources/{dag_id}``
      - ``DAG.CODE``
@@ -590,6 +590,14 @@ source code so it stays up to date as endpoints are added or changed.
      - ``/api/v2/providers/{provider_name}``
      - ``View.PROVIDERS``
      - ``PROVIDERS``
+   * - ``GET``
+     - ``/api/v2/triggers``
+     - ``DAG.TASK_INSTANCE or DAG.RUN or Asset``
+     - ``GET``
+   * - ``GET``
+     - ``/api/v2/triggers/{trigger_id}``
+     - ``DAG.TASK_INSTANCE or DAG.RUN or Asset``
+     - ``GET``
    * - ``GET``
      - ``/api/v2/variables``
      - ``Variable``

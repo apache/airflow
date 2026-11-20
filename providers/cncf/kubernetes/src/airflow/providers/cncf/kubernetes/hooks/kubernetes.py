@@ -263,8 +263,8 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
 
         if num_selected_configuration > 1:
             raise AirflowException(
-                "Invalid connection configuration. Options kube_config_path, "
-                "kube_config, in_cluster, config_dict are mutually exclusive. "
+                "Invalid connection configuration. Options config_file/kube_config_path, "
+                "kube_config, in_cluster, and config_dict are mutually exclusive. "
                 "You can only use one option at a time."
             )
 
@@ -632,13 +632,14 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
         """
         Get job with status of specified name and namespace.
 
+        Reads the Job object rather than the ``jobs/status`` subresource: both return the same ``status``,
+        but RBAC checks subresources separately, so this only needs ``get`` on ``jobs``.
+
         :param job_name: Name of Job to fetch.
         :param namespace: Namespace of the Job.
         :return: Job object
         """
-        return self.batch_v1_client.read_namespaced_job_status(
-            name=job_name, namespace=namespace, pretty=True
-        )
+        return self.batch_v1_client.read_namespaced_job(name=job_name, namespace=namespace, pretty=True)
 
     def wait_until_job_complete(self, job_name: str, namespace: str, job_poll_interval: float = 10) -> V1Job:
         """
@@ -828,7 +829,13 @@ def _split_log_bytes(raw_bytes: bytes) -> list[str]:
 
 
 class AsyncKubernetesHook(KubernetesHook):
-    """Hook to use Kubernetes SDK asynchronously."""
+    """
+    Hook to use Kubernetes SDK asynchronously.
+
+    Non-exec authentication reuses an API client across calls. Call ``await hook.close()``
+    when finished to release its connection pool and SSL context. Pod and job triggers
+    do this in their cleanup methods.
+    """
 
     def __init__(
         self,
@@ -843,12 +850,13 @@ class AsyncKubernetesHook(KubernetesHook):
         self.config_dict = config_dict
         self._extras: dict | None = connection_extras
         self._event_polling_fallback = False
-        self._config_loaded = False
+        self._client_cacheable = False
         # Override the parent's sync-typed client_configuration with the async type.
         self.client_configuration: async_client.Configuration | None = client_configuration
         # Cached result of exec-auth detection. None means not yet detected.
         # This is to optimise and not calling _uses_exec_auth repeatedly on every _load_config() call.
         self._is_exec_auth: bool | None = None
+        self._cached_kube_client: async_client.ApiClient | None = None
 
     def _uses_exec_auth(self, kubeconfig_data: dict, context: str | None = None) -> bool:
         """
@@ -920,19 +928,15 @@ class AsyncKubernetesHook(KubernetesHook):
         """
         Load Kubernetes configuration.
 
-        For static auth (token, certificate), configuration is loaded once per hook instance
-        and cached. For exec-based auth (EKS, GKE), the config is reloaded on every call so
-        that short-lived tokens are always refreshed.
+        Reload credentials on every access while retaining the client for non-exec auth.
+        Exec-based auth continues to use a new client for each access.
         """
         if self.client_configuration is None:
             self.client_configuration = async_client.Configuration()
 
-        if self._config_loaded:
-            return
-
         in_cluster = self._coalesce_param(self.in_cluster, await self._get_field("in_cluster"))
         cluster_context = self._coalesce_param(self.cluster_context, await self._get_field("cluster_context"))
-        kubeconfig_path = await self._get_field("kube_config_path")
+        kubeconfig_path = self._coalesce_param(self.config_file, await self._get_field("kube_config_path"))
         kubeconfig = await self._get_field("kube_config")
 
         num_selected_configuration = sum(
@@ -941,7 +945,7 @@ class AsyncKubernetesHook(KubernetesHook):
 
         if num_selected_configuration > 1:
             raise AirflowException(
-                "Invalid connection configuration. Options kube_config_path, "
+                "Invalid connection configuration. Options config_file/kube_config_path, "
                 "kube_config, in_cluster, and config_dict are mutually exclusive. "
                 "You can only use one option at a time."
             )
@@ -950,7 +954,7 @@ class AsyncKubernetesHook(KubernetesHook):
             self.log.debug(LOADING_KUBE_CONFIG_FILE_RESOURCE.format("within a pod"))
             async_config.load_incluster_config(client_configuration=self.client_configuration)
             self._is_in_cluster = True
-            self._config_loaded = True
+            self._client_cacheable = True
             return
 
         self._is_in_cluster = False
@@ -967,7 +971,7 @@ class AsyncKubernetesHook(KubernetesHook):
                 self._is_exec_auth = self._uses_exec_auth(self.config_dict, context=cluster_context)
 
             if not self._is_exec_auth:
-                self._config_loaded = True
+                self._client_cacheable = True
 
             return
         if kubeconfig_path is not None:
@@ -985,7 +989,7 @@ class AsyncKubernetesHook(KubernetesHook):
                 )
 
             if not self._is_exec_auth:
-                self._config_loaded = True
+                self._client_cacheable = True
 
             return
         if kubeconfig is not None:
@@ -1022,7 +1026,7 @@ class AsyncKubernetesHook(KubernetesHook):
                     )
 
                 if not self._is_exec_auth:
-                    self._config_loaded = True
+                    self._client_cacheable = True
 
             return
         self.log.debug(LOADING_KUBE_CONFIG_FILE_RESOURCE.format("default configuration file"))
@@ -1036,7 +1040,7 @@ class AsyncKubernetesHook(KubernetesHook):
             self._is_exec_auth = await self._default_kubeconfig_uses_exec_auth(cluster_context)
 
         if not self._is_exec_auth:
-            self._config_loaded = True
+            self._client_cacheable = True
 
     async def get_conn_extras(self) -> dict:
         if self._extras is None:
@@ -1067,14 +1071,27 @@ class AsyncKubernetesHook(KubernetesHook):
 
     @contextlib.asynccontextmanager
     async def get_conn(self) -> AsyncGenerator[async_client.ApiClient, None]:
-        kube_client = None
+        await self._load_config()
+        if self._client_cacheable:
+            # Reuse one client per hook: each construction runs ssl.create_default_context()
+            # on the event loop and opens a new connection pool. Owners release it via
+            # close(); triggers do so in cleanup().
+            if self._cached_kube_client is None:
+                self._cached_kube_client = _TimeoutAsyncK8sApiClient(configuration=self.client_configuration)
+            yield self._cached_kube_client
+            return
+        # Exec-based auth is not cacheable: build and close a client per call.
+        kube_client = _TimeoutAsyncK8sApiClient(configuration=self.client_configuration)
         try:
-            await self._load_config()
-            kube_client = _TimeoutAsyncK8sApiClient(configuration=self.client_configuration)
             yield kube_client
         finally:
-            if kube_client is not None:
-                await kube_client.close()
+            await kube_client.close()
+
+    async def close(self) -> None:
+        """Release the cached API client, if any. Safe to call multiple times."""
+        cached, self._cached_kube_client = self._cached_kube_client, None
+        if cached is not None:
+            await cached.close()
 
     @generic_api_retry
     async def get_pod(self, name: str, namespace: str) -> V1Pod:
@@ -1328,12 +1345,14 @@ class AsyncKubernetesHook(KubernetesHook):
         """
         Get job's status object.
 
+        Reads the Job object, see :meth:`KubernetesHook.get_job_status`.
+
         :param name: Name of the pod.
         :param namespace: Name of the pod's namespace.
         """
         async with self.get_conn() as connection:
             v1_api = async_client.BatchV1Api(connection)
-            job: V1Job = await v1_api.read_namespaced_job_status(
+            job: V1Job = await v1_api.read_namespaced_job(
                 name=name,
                 namespace=namespace,
             )

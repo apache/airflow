@@ -66,7 +66,7 @@ Any model identifier accepted by
 works when the provider's chat class accepts ``api_key`` and ``base_url``.
 Common identifiers:
 
-- ``openai:gpt-5``, ``openai:gpt-5-mini`` -- requires ``langchain-openai``
+- ``openai:gpt-6.1-sol``, ``openai:gpt-6.1-terra`` -- requires ``langchain-openai``
 - ``anthropic:claude-sonnet-5`` -- requires ``langchain-anthropic``
 - ``groq:llama-3.3-70b-versatile`` -- requires ``langchain-groq``
 - ``mistralai:mistral-large-latest`` -- requires ``langchain-mistralai``
@@ -133,7 +133,7 @@ The hook reads credentials from the Airflow connection of type ``langchain``:
   ``init_embeddings``).
 - **host** -- Optional base URL (passed as ``base_url``; useful for custom
   OpenAI-compatible endpoints, Ollama, vLLM).
-- **extra** JSON -- ``{"model": "openai:gpt-5", "embed_model": "openai:text-embedding-3-small"}``
+- **extra** JSON -- ``{"model": "openai:gpt-6.1-sol", "embed_model": "openai:text-embedding-3-small"}``
   to set default chat and embedding model identifiers on the connection.
 
 Parameters
@@ -156,7 +156,7 @@ Parameters
        common one-provider case, leave unset and the hook reuses ``llm_conn_id``.
    * - ``llm_model``
      - ``None`` (falls back to ``extra["model"]`` on the connection)
-     - Chat model identifier in ``provider:name`` form, e.g. ``openai:gpt-5``.
+     - Chat model identifier in ``provider:name`` form, e.g. ``openai:gpt-6.1-sol``.
        Only required when calling ``get_chat_model()``.
    * - ``embed_model``
      - ``None`` (falls back to ``extra["embed_model"]`` on the connection)

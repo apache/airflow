@@ -28,10 +28,11 @@ import signal
 import sys
 import threading
 import time
-from collections import deque
+from collections import Counter, deque
 from collections.abc import Callable, Generator, Hashable, Iterable, Iterator
 from contextlib import contextmanager, suppress
 from datetime import datetime
+from pathlib import Path
 from socket import socket
 from traceback import format_exception
 from typing import TYPE_CHECKING, Annotated, Any, BinaryIO, ClassVar, Literal, NamedTuple, TextIO, TypedDict
@@ -61,9 +62,9 @@ from airflow.jobs.base_job_runner import BaseJobRunner
 from airflow.jobs.job import perform_heartbeat
 from airflow.models.dagbag import BatchSerializedDagResolver, DBDagBag
 from airflow.models.task_coordinates import TaskCoordinateResolver
-from airflow.models.trigger import Trigger
+from airflow.models.trigger import RecordedFailure, Trigger, TriggerKind
 from airflow.observability.metrics import stats_utils
-from airflow.sdk.api.datamodels._generated import HITLDetailResponse
+from airflow.sdk._shared.secrets_masker import redact  # noqa: SDK001
 from airflow.sdk.bases.xcom import _current_trigger_ti
 from airflow.sdk.definitions.asset import Asset
 from airflow.sdk.execution_time import supervisor
@@ -92,6 +93,7 @@ from airflow.sdk.execution_time.comms import (
     GetVariable,
     GetVariableKeys,
     GetXCom,
+    HITLDetailResponseResult,
     MaskSecret,
     OKResponse,
     PutVariable,
@@ -107,7 +109,7 @@ from airflow.sdk.execution_time.comms import (
     _new_encoder,
     _RequestFrame,
 )
-from airflow.sdk.execution_time.context import AssetStateStoreAccessors
+from airflow.sdk.execution_time.context import AssetStateStoreAccessors, set_current_team_name
 from airflow.sdk.execution_time.request_handlers import (
     handle_clear_asset_state_store_by_name,
     handle_clear_asset_state_store_by_uri,
@@ -120,6 +122,7 @@ from airflow.sdk.execution_time.request_handlers import (
     handle_get_connection,
     handle_get_dag_run_state,
     handle_get_dr_count,
+    handle_get_hitl_detail_response,
     handle_get_previous_ti,
     handle_get_task_states,
     handle_get_ti_count,
@@ -140,6 +143,17 @@ from airflow.triggers.shared_stream import SharedStreamManager
 from airflow.utils.helpers import prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.log.task_log_address import prepare_task_log_contexts, render_task_log_filename
+from airflow.utils.log.trigger_log import (
+    TRIGGER_LOG_HELD_FILE_NAME,
+    get_trigger_log_relative_path,
+    list_trigger_log_files,
+)
+from airflow.utils.log.watcher_log import (
+    CappedBytesLogger,
+    WatcherLogs,
+    handler_keeps_no_copy,
+    upload_watcher_log_file,
+)
 from airflow.utils.retries import run_with_db_retries
 from airflow.utils.session import create_session, provide_session
 
@@ -316,6 +330,9 @@ class TriggererJobRunner(BaseJobRunner, LoggingMixin):
             # to force-kill here. trigger_runner may be None if start() raised.
             if self.trigger_runner is not None:
                 self.trigger_runner.kill(escalation_delay=10, force=True)
+                # Lines still in the runner's sockets are not read into the files, as draining them hangs
+                # while a trigger's child process keeps writing.
+                self.trigger_runner.close_trigger_log_files()
             self.log.info("Exited trigger loop")
             if _prev_ctx is None:
                 os.environ.pop("_AIRFLOW_PROCESS_CONTEXT", None)
@@ -324,6 +341,91 @@ class TriggererJobRunner(BaseJobRunner, LoggingMixin):
 
 
 log: FilteringBoundLogger = structlog.get_logger(logger_name=__name__)
+
+# Stored on the trigger row and shown by the API to everyone who can see what the trigger is used by; the
+# traceback stays in the logs.
+TRIGGER_ERROR_MAX_LENGTH = 1000
+
+# A trigger that stays up this long after it was last (re-)created has recovered, so one that crashes after
+# running a while is not counted as failing ever since its first crash.
+TRIGGER_RECOVERY_UPTIME = 120.0
+
+
+def format_trigger_error(exc: list[str] | None) -> str:
+    """
+    Return the exception type and message of a trigger failure, redacted and truncated.
+
+    The runner formats the traceback before anything masks it, so it is redacted here with the task SDK
+    masker, which learns the connections and variables the runner fetched, as the task runner does.
+    """
+    if not exc:
+        return "The trigger exited without yielding an event"
+    error = str(redact(exc[-1].strip()))[:TRIGGER_ERROR_MAX_LENGTH]
+    # Escape what a text column refuses (NUL on Postgres, a lone surrogate in UTF-8), as repr() would, so
+    # writing the failure cannot raise out of the triggerer's loop.
+    return error.replace("\x00", "\\x00").encode("utf-8", "backslashreplace").decode("utf-8")
+
+
+@attrs.define
+class _TriggerFailures:
+    consecutive: int = 0
+    # When the trigger was last (re-)created, on the monotonic clock; None until it is running again.
+    started_at: float | None = None
+
+
+@attrs.define
+class TriggerFailureTracker:
+    """
+    Count the failures of each trigger since it last recovered, for the triggers assigned to this triggerer.
+
+    A trigger recovers when it fires an event, or once it has stayed up for ``recovery_uptime`` seconds
+    since it was last (re-)created. Only triggers that failed since they last recovered are tracked.
+    """
+
+    recovery_uptime: float = TRIGGER_RECOVERY_UPTIME
+    failures: dict[int, _TriggerFailures] = attrs.field(factory=dict)
+
+    def consecutive(self, trigger_id: int) -> int:
+        return state.consecutive if (state := self.failures.get(trigger_id)) is not None else 0
+
+    def continue_from(self, trigger_id: int, consecutive_failures: int | None) -> None:
+        """Continue the count recorded on the trigger row, e.g. by the triggerer that ran it before."""
+        if consecutive_failures and trigger_id not in self.failures:
+            self.failures[trigger_id] = _TriggerFailures(consecutive=consecutive_failures)
+
+    def record_failure(self, trigger_id: int, now: float) -> int:
+        """Count a failure and return the trigger's consecutive failures."""
+        state = self.failures.setdefault(trigger_id, _TriggerFailures())
+        if state.started_at is not None and now - state.started_at >= self.recovery_uptime:
+            state.consecutive = 0
+        state.consecutive += 1
+        state.started_at = None
+        return state.consecutive
+
+    def record_success(self, trigger_id: int) -> int:
+        """Forget the failures of a trigger that fired an event; return how many it recovered from."""
+        state = self.failures.pop(trigger_id, None)
+        return state.consecutive if state is not None else 0
+
+    def record_started(self, trigger_ids: Iterable[int], now: float) -> None:
+        for trigger_id in trigger_ids:
+            if (state := self.failures.get(trigger_id)) is not None:
+                state.started_at = now
+
+    def pop_recovered(self, now: float) -> dict[int, int]:
+        """Forget the triggers that stayed up long enough; return the failures each recovered from."""
+        recovered = {
+            trigger_id: state.consecutive
+            for trigger_id, state in self.failures.items()
+            if state.started_at is not None and now - state.started_at >= self.recovery_uptime
+        }
+        for trigger_id in recovered:
+            del self.failures[trigger_id]
+        return recovered
+
+    def forget(self, trigger_ids: Iterable[int]) -> None:
+        for trigger_id in trigger_ids:
+            self.failures.pop(trigger_id, None)
 
 
 class TriggerEventEntry(NamedTuple):
@@ -359,6 +461,8 @@ class messages:
         # Format of list[str] is the exc traceback format
         failures: list[tuple[int, list[str] | None]] | None = None
         finished: list[int] | None = None
+        # Ids the runner has a live coroutine for; None when the message carries no information
+        running_ids: set[int] | None = None
 
     class TriggerStateSync(BaseModel):
         type: Literal["TriggerStateSync"] = "TriggerStateSync"
@@ -372,23 +476,6 @@ class messages:
         # since the previous sync; the runner releases the matching broker
         # advances on receipt.
         events_persisted: list[int] | None = None
-
-
-class HITLDetailResponseResult(HITLDetailResponse):
-    """Response to GetHITLDetailResponse request."""
-
-    type: Literal["HITLDetailResponseResult"] = "HITLDetailResponseResult"
-
-    @classmethod
-    def from_api_response(cls, response: HITLDetailResponse) -> HITLDetailResponseResult:
-        """
-        Create result class from API Response.
-
-        API Response is autogenerated from the API schema, so we need to convert it to Result
-        for communication between the Supervisor and the task process since it needs a
-        discriminator field.
-        """
-        return cls(**response.model_dump(exclude_defaults=True), type="HITLDetailResponseResult")
 
 
 ToTriggerRunner = Annotated[
@@ -453,29 +540,49 @@ class TriggerLoggingFactory:
 
     # Callback triggers have no task instance; ``upload_to_remote`` accepts ``ti=None``.
     ti: RuntimeTI | None = attrs.field(default=None, repr=False)
+    trigger_id: int | None = None
+    # Called when the file cannot be opened or written; the lines then go to the triggerer's output.
+    on_error: Callable[[int | None, OSError], None] | None = attrs.field(default=None, repr=False)
+    to_stdout: bool = False
 
     bound_logger: WrappedLogger = attrs.field(init=False, repr=False)
 
     _filehandle: TextIO | BinaryIO = attrs.field(init=False, repr=False)
 
-    def __call__(self, processors: Iterable[structlog.typing.Processor]) -> WrappedLogger:
-        if hasattr(self, "bound_logger"):
-            return self.bound_logger
+    def __call__(self, processors: Iterable[structlog.typing.Processor]) -> TriggerLoggingFactory:
+        try:
+            self._open(processors)
+        except OSError as e:
+            self._report_error(e)
+        return self
 
-        from airflow.sdk.log import init_log_file
+    def _open(self, processors: Iterable[structlog.typing.Processor]) -> None:
+        if not hasattr(self, "bound_logger"):
+            from airflow.sdk.log import init_log_file
 
-        log_file = init_log_file(self.log_path)
-
-        pretty_logs = False
-        if pretty_logs:
-            self._filehandle = log_file.open("w", buffering=1)
-            underlying_logger: WrappedLogger = structlog.WriteLogger(self._filehandle)
-        else:
-            self._filehandle = log_file.open("wb")
+            self._filehandle = init_log_file(self.log_path).open("wb")
             underlying_logger = structlog.BytesLogger(self._filehandle)
-        logger = structlog.wrap_logger(underlying_logger, processors=processors).bind()
-        self.bound_logger = logger
-        return logger
+            self.bound_logger = structlog.wrap_logger(underlying_logger, processors=processors).bind()
+
+    def log(self, level: int, event: str | None, **kwargs: Any) -> None:
+        """Write a line to the file, and to the triggerer's output with ``to_stdout`` or if that fails."""
+        if not self.log_to_file(level, event, **kwargs) or self.to_stdout:
+            log.log(level, event, trigger_id=self.trigger_id, **kwargs)  # type: ignore[arg-type]
+
+    def log_to_file(self, level: int, event: str | None, **kwargs: Any) -> bool:
+        """Write the line to the file only, and return whether it succeeded."""
+        if not hasattr(self, "bound_logger"):
+            return False
+        try:
+            self.bound_logger.log(level, event, **kwargs)
+        except OSError as e:
+            self._report_error(e)
+            return False
+        return True
+
+    def _report_error(self, error: OSError) -> None:
+        if self.on_error is not None:
+            self.on_error(self.trigger_id, error)
 
     def close(self):
         # Explicitly close the file descriptor.
@@ -490,6 +597,67 @@ class TriggerLoggingFactory:
             return
 
         upload_to_remote(self.bound_logger, self.ti)
+
+
+@attrs.define(kw_only=True)
+class WatcherLoggingFactory(TriggerLoggingFactory):
+    """
+    An asset watcher's own log file on this triggerer, as a watcher has no task log to write to.
+
+    The file is kept and appended to across restarts of the watcher while its trigger is assigned here, and
+    its size on local disk is capped. It is uploaded with the task logs' remote log handler, and every line
+    carries its ``trigger_id``.
+    """
+
+    max_bytes: int = 0
+    to_stdout: bool = True
+    # Called on every line, to cap how many watcher files are open at once.
+    on_write: Callable[[int], None] | None = attrs.field(default=None, repr=False)
+    may_rotate: Callable[[], bool] | None = attrs.field(default=None, repr=False)
+    on_rotate: Callable[[], None] | None = attrs.field(default=None, repr=False)
+
+    def _open(self, processors: Iterable[structlog.typing.Processor]) -> None:
+        if hasattr(self, "bound_logger"):
+            # Reopen before the processors run, as a handler streaming each line drops a closed file's lines.
+            self.bound_logger._logger.ensure_open()
+        else:
+            from airflow.sdk.log import init_log_file  # noqa: SDK001
+
+            underlying_logger = CappedBytesLogger(
+                init_log_file(self.log_path), self.max_bytes, self.may_rotate, self.on_rotate
+            )
+            self.bound_logger = structlog.wrap_logger(underlying_logger, processors=processors).bind(
+                trigger_id=self.trigger_id
+            )
+        if self.on_write is not None and self.trigger_id is not None:
+            self.on_write(self.trigger_id)
+
+    def close(self):
+        if hasattr(self, "bound_logger"):
+            self.bound_logger._logger.close()
+
+    def upload_to_remote(self, *, keep_live: bool = False):
+        """
+        Upload the watcher's files on this triggerer, except the held file, which ``WatcherLogs`` sends.
+
+        With ``keep_live`` the live file is skipped too, as a watcher assigned back here is writing it.
+        """
+        from airflow.sdk.log import load_remote_log_handler  # noqa: SDK001
+
+        if not hasattr(self, "bound_logger") or (handler := load_remote_log_handler()) is None:
+            return
+        # Close first, because remote handlers empty or delete the file after uploading it.
+        self.close()
+        live = self.bound_logger._logger._path
+        stores_files = not handler_keeps_no_copy(handler)
+        # Rotated files come first, because remote handlers append in upload order.
+        for path in list_trigger_log_files(live.parent):
+            if path.name == TRIGGER_LOG_HELD_FILE_NAME or (keep_live and path == live):
+                continue
+            relative_path = (Path(self.log_path).parent / path.relative_to(live.parent)).as_posix()
+            # An empty file sent to a handler that stores files would only re-upload the remote copy.
+            if not stores_files or (path.is_file() and path.stat().st_size):
+                upload_watcher_log_file(handler, relative_path, path)
 
 
 @attrs.define(kw_only=True)
@@ -533,6 +701,15 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
     running_triggers: set[int] = attrs.field(factory=set, init=False)
 
     logger_cache: dict[int, TriggerLoggingFactory] = attrs.field(factory=dict, init=False)
+    watcher_logs: WatcherLogs = attrs.field(
+        default=attrs.Factory(
+            lambda self: WatcherLogs(logger_cache=self.logger_cache, on_error=self._warn_trigger_log_error),
+            takes_self=True,
+        ),
+        init=False,
+    )
+    # When each trigger's log file last failed, so the warning is logged at most once a minute.
+    _trigger_log_errors_at: dict[int, float] = attrs.field(factory=dict, init=False)
 
     # A list of triggers that we have told the async process to cancel. We keep them here until we receive the
     # FinishedTriggers message
@@ -553,6 +730,13 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
 
     # Outbound queue of failed triggers
     failed_triggers: deque[tuple[int, list[str] | None]] = attrs.field(factory=deque, init=False)
+
+    # Failures of the triggers assigned here since each last recovered, recorded on the trigger row.
+    failure_tracker: TriggerFailureTracker = attrs.field(factory=TriggerFailureTracker, init=False)
+    # Triggers that recovered since the last loop; their failure state on the trigger row is cleared.
+    recovered_triggers: set[int] = attrs.field(factory=set, init=False)
+    # TriggerKind value of each trigger assigned here, for the trigger_kind metric tag
+    trigger_kinds: dict[int, str] = attrs.field(factory=dict, init=False)
 
     def is_alive(self) -> bool:
         # Set by `_service_subprocess` in the loop
@@ -630,23 +814,24 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         self._last_runner_comms = time.monotonic()
 
         if isinstance(msg, messages.TriggerStateChanges):
+            # Events before failures: a trigger that fired and then failed starts a new count.
             if msg.events:
                 self.events.extend(msg.events)
+                for entry in msg.events:
+                    self.record_trigger_success(entry.trigger_id)
             if msg.failures:
                 self.failed_triggers.extend(msg.failures)
+                now = time.monotonic()
+                for trigger_id, _ in msg.failures:
+                    self.failure_tracker.record_failure(trigger_id, now)
+                    self.recovered_triggers.discard(trigger_id)
             for id in msg.finished or ():
                 self.running_triggers.discard(id)
                 self.cancelling_triggers.discard(id)
                 self.releasing_triggers.discard(id)
-                if factory := self.logger_cache.pop(id, None):
-                    try:
-                        factory.upload_to_remote()
-                    except Exception:
-                        log.exception("Failed to upload trigger logs to remote", trigger_id=id)
-                    finally:
-                        # Close the FD explicitly even if upload raised, otherwise the file
-                        # handle leaks for every failed upload.
-                        factory.close()
+                self.finalize_trigger_log(id)
+
+            self.check_for_unhandled_triggers(msg.running_ids)
 
             # Drain the persist confirmations accumulated since the last sync.
             events_persisted: list[int] = []
@@ -665,6 +850,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                 workload = self.creating_triggers.popleft()
                 response.to_create.append(workload)
             self.running_triggers.update(m.id for m in response.to_create)
+            self.failure_tracker.record_started((m.id for m in response.to_create), time.monotonic())
             resp = response
 
         elif isinstance(msg, GetConnection):
@@ -703,8 +889,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             )
             resp = HITLDetailResponseResult.from_api_response(response=api_resp)
         elif isinstance(msg, GetHITLDetailResponse):
-            api_resp = self.client.hitl.get_detail_response(ti_id=msg.ti_id)
-            resp = HITLDetailResponseResult.from_api_response(response=api_resp)
+            resp, dump_opts = handle_get_hitl_detail_response(self.client, msg)
         elif isinstance(msg, MaskSecret):
             handle_mask_secret(msg)
         elif isinstance(msg, ClearAssetStateStoreByName):
@@ -734,6 +919,34 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
 
         self.send_msg(resp, request_id=req_id, error=None, **dump_opts)
 
+    def _close_trigger_logger(self, trigger_id: int) -> None:
+        self.watcher_logs.forget_open_file(trigger_id)
+        if not (factory := self.logger_cache.pop(trigger_id, None)):
+            return
+        if self.stop:
+            self.watcher_logs.upload_and_close(trigger_id, factory)
+            return
+        self.watcher_logs.release(trigger_id, factory)
+
+    def _warn_trigger_log_error(self, trigger_id: int | None, error: OSError) -> None:
+        now = time.monotonic()
+        if now - self._trigger_log_errors_at.get(trigger_id or 0, -math.inf) >= 60:
+            self._trigger_log_errors_at[trigger_id or 0] = now
+            log.warning(
+                "Could not write a trigger's log file; its lines go to the triggerer's output meanwhile",
+                trigger_id=trigger_id,
+                error=str(error),
+            )
+
+    def close_trigger_log_files(self) -> None:
+        """Upload and close every watcher log file still open; call only once the runner has exited."""
+        factories = [
+            (trigger_id, self.logger_cache.pop(trigger_id))
+            for trigger_id, factory in list(self.logger_cache.items())
+            if isinstance(factory, WatcherLoggingFactory)
+        ]
+        self.watcher_logs.upload_and_close_all(factories)
+
     def run(self) -> None:
         """Run synchronously and handle all database reads/writes."""
         with self.run_context():
@@ -760,9 +973,11 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         self._service_subprocess(1)
 
         self.handle_events()
+        self.handle_recovered_triggers()
         self.handle_failed_triggers()
         self.clean_unused()
         self.heartbeat()
+        self.watcher_logs.maybe_handle_orphaned_trigger_logs(self.job.id if self.job is not None else None)
 
         self.emit_metrics()
 
@@ -789,6 +1004,8 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
 
     def heartbeat_callback(self, session: Session | None = None) -> None:
         stats.incr("triggerer_heartbeat", 1, 1, tags=prune_dict({"team_name": self.team_name}))
+        # On heartbeat rather than every loop, as thousands of watchers may have left for other triggerers.
+        self.watcher_logs.remove_left()
 
     def load_triggers(self) -> None:
         """Assign triggers to this triggerer and update the runner with the IDs it should run."""
@@ -819,7 +1036,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             if entry.persist_seq is not None:
                 self.persisted_event_seqs.append(entry.persist_seq)
             # Emit stat event
-            stats.incr("triggers.succeeded", tags=prune_dict({"team_name": self.team_name}))
+            stats.incr("triggers.succeeded", tags=self._trigger_kind_tags(entry.trigger_id))
 
     def on_trigger_event(self, trigger_id: int, event: TriggerEvent) -> None:
         """Record that a trigger fired an event."""
@@ -830,6 +1047,51 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         for attempt in run_with_db_retries():
             with attempt, create_session() as session:
                 Trigger.clean_unused(session=session)
+
+    def finalize_trigger_log(self, trigger_id: int) -> None:
+        """
+        Upload and close the log file of a trigger that no longer runs here.
+
+        Every path that drops an id from ``running_triggers`` has to call it: re-creation
+        reuses the log path, so a leftover entry is lost.
+        """
+        # A watcher's file outlives each instance; update_triggers closes it once the trigger leaves, after
+        # the last lines have arrived.
+        if isinstance(self.logger_cache.get(trigger_id), WatcherLoggingFactory):
+            return
+        self._trigger_log_errors_at.pop(trigger_id, None)
+        if factory := self.logger_cache.pop(trigger_id, None):
+            try:
+                factory.upload_to_remote()
+            except Exception:
+                log.exception("Failed to upload trigger logs to remote", trigger_id=trigger_id)
+            finally:
+                # Close the FD explicitly even if upload raised, otherwise the file handle
+                # leaks for every failed upload. close() flushes, so it can raise too.
+                try:
+                    factory.close()
+                except Exception:
+                    log.exception("Failed to close trigger log file", trigger_id=trigger_id)
+
+    def check_for_unhandled_triggers(self, running_ids: set[int] | None) -> None:
+        """
+        Re-create triggers we track as running that the runner has no coroutine for.
+
+        Only valid between finished-removal and to_create-addition in ``_handle_request``, where the
+        two sides agree. Dropping the leftovers lets :meth:`update_triggers` rebuild them.
+        """
+        if running_ids is None:
+            return
+        unhandled = self.running_triggers - running_ids
+        if not unhandled:
+            return
+        log.error("Triggers have no coroutine in the runner; re-creating", trigger_ids=sorted(unhandled))
+        self.running_triggers -= unhandled
+        self.cancelling_triggers -= unhandled
+        self.releasing_triggers -= unhandled
+        for trigger_id in unhandled:
+            self.finalize_trigger_log(trigger_id)
+        stats.incr("triggers.state_mismatch", len(unhandled), tags=prune_dict({"team_name": self.team_name}))
 
     def handle_failed_triggers(self):
         """
@@ -842,12 +1104,50 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             trigger_id, exc = self.failed_triggers.popleft()
             self.on_trigger_failure(trigger_id=trigger_id, exc=exc)
             # Emit stat event
-            stats.incr("triggers.failed", tags=prune_dict({"team_name": self.team_name}))
+            stats.incr("triggers.failed", tags=self._trigger_kind_tags(trigger_id))
+
+    def _trigger_kind_tags(self, trigger_id: int) -> dict[str, str]:
+        return prune_dict({"team_name": self.team_name, "trigger_kind": self.trigger_kinds.get(trigger_id)})
 
     def on_trigger_failure(self, trigger_id: int, exc: list[str] | None) -> None:
-        """Record that a trigger failed."""
+        """Record that a trigger failed, and on its row why, whatever kind of trigger it is."""
+        # A deferred task's trigger fails its task and is not re-created, so it fails once.
+        failure = RecordedFailure(
+            consecutive_failures=self.failure_tracker.consecutive(trigger_id) or 1,
+            error=format_trigger_error(exc),
+        )
         Trigger.submit_failure(
-            trigger_id=trigger_id, exc=exc, triggerer_id=self.job.id if self.job is not None else None
+            trigger_id=trigger_id,
+            exc=exc,
+            triggerer_id=self.job.id if self.job is not None else None,
+            failure=failure,
+        )
+
+    def record_trigger_success(self, trigger_id: int) -> None:
+        if after_failures := self.failure_tracker.record_success(trigger_id):
+            self._mark_recovered(trigger_id, after_failures)
+
+    def _mark_recovered(self, trigger_id: int, after_failures: int) -> None:
+        log.info(
+            "Trigger recovered",
+            trigger_id=trigger_id,
+            trigger_kind=self.trigger_kinds.get(trigger_id),
+            after_failures=after_failures,
+        )
+        self.recovered_triggers.add(trigger_id)
+
+    def handle_recovered_triggers(self) -> None:
+        """Clear the recorded failures of triggers that fired an event or have stayed up long enough."""
+        for trigger_id, after_failures in self.failure_tracker.pop_recovered(time.monotonic()).items():
+            self._mark_recovered(trigger_id, after_failures)
+        if self.recovered_triggers:
+            trigger_ids, self.recovered_triggers = self.recovered_triggers, set()
+            self.on_triggers_recovered(trigger_ids)
+
+    def on_triggers_recovered(self, trigger_ids: set[int]) -> None:
+        """Record that triggers recovered from their failures."""
+        Trigger.clear_recorded_failures(
+            trigger_ids, triggerer_id=self.job.id if self.job is not None else None
         )
 
     def metric_tags(self) -> dict[str, str]:
@@ -882,6 +1182,27 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             capacity_left,
             tags=tags,
         )
+        failing = Counter(self.trigger_kinds.get(trigger_id) for trigger_id in self.failure_tracker.failures)
+        for kind in TriggerKind:
+            stats.gauge("triggers.failing", failing[kind.value], tags={**tags, "trigger_kind": kind.value})
+
+    @staticmethod
+    def _record_missing_used_by(trigger: Trigger) -> None:
+        """
+        Record what a deferred task's or callback's trigger is used by when its row does not say.
+
+        During a rolling upgrade, components still on the previous version keep creating these triggers after
+        ``db migrate`` filled it in for the rows that existed then. Written with the session that builds
+        the workload.
+        """
+        if getattr(trigger, "used_by_ref", None) is not None:
+            return
+        if (ti := trigger.task_instance) is not None:
+            trigger.dag_id, trigger.used_by_ref = ti.dag_id, {"ti_id": str(ti.id)}
+        elif (callback := getattr(trigger, "callback", None)) is not None:
+            dag_run = ((callback.data.get("kwargs") or {}).get("context") or {}).get("dag_run") or {}
+            trigger.dag_id = callback.get_dag_id() or dag_run.get("dag_id")
+            trigger.used_by_ref = {"callback_id": str(callback.id)}
 
     def _create_workload(
         self,
@@ -893,6 +1214,15 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         *,
         serdag_resolver: BatchSerializedDagResolver | None = None,
     ) -> workloads.RunTrigger | None:
+        self._record_missing_used_by(trigger)
+        self.trigger_kinds[trigger.id] = (
+            TriggerKind.TASK
+            if trigger.task_instance is not None
+            else TriggerKind.ASSET_WATCHER
+            if trigger.assets
+            else TriggerKind.CALLBACK
+        ).value
+        self.failure_tracker.continue_from(trigger.id, trigger.consecutive_failures)
         if trigger.task_instance is None:
             watched_assets: dict[str, str] | None = None
 
@@ -910,6 +1240,21 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                 # log file's parent directory after upload, which must not hold other callbacks' logs.
                 self.logger_cache[trigger.id] = TriggerLoggingFactory(
                     log_path=f"triggerer_callbacks/{dag_id}/{run_id}/{callback.id}/callback.log",
+                    trigger_id=trigger.id,
+                    on_error=self._warn_trigger_log_error,
+                )
+            elif trigger.id not in self.logger_cache:
+                # A watcher has no task log, so all of its instances share one file.
+                log_path = get_trigger_log_relative_path(trigger.id, self.job.id if self.job else self.id)
+                self.logger_cache[trigger.id] = WatcherLoggingFactory(
+                    log_path=log_path,
+                    trigger_id=trigger.id,
+                    max_bytes=conf.getint("triggerer", "watcher_log_max_bytes"),
+                    to_stdout=conf.getboolean("triggerer", "watcher_log_to_stdout"),
+                    on_write=self.watcher_logs.note_watcher_log_write,
+                    on_error=self._warn_trigger_log_error,
+                    may_rotate=functools.partial(self.watcher_logs.prepare_rotation, trigger.id),
+                    on_rotate=functools.partial(self.watcher_logs.upload_rotated, trigger.id, log_path),
                 )
 
             return workloads.RunTrigger(
@@ -947,6 +1292,8 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         self.logger_cache[trigger.id] = TriggerLoggingFactory(
             log_path=f"{log_path}.trigger.{log_id}.log",
             ti=ser_ti,  # type: ignore
+            trigger_id=trigger.id,
+            on_error=self._warn_trigger_log_error,
         )
 
         dag_run = trigger.task_instance.get_dagrun(session=session)
@@ -1094,6 +1441,12 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             self.running_triggers - requested_trigger_ids - self.cancelling_triggers - self.releasing_triggers
         )
 
+        for trigger_id in self.trigger_kinds.keys() - requested_trigger_ids - known_trigger_ids:
+            del self.trigger_kinds[trigger_id]
+        self.failure_tracker.forget(
+            self.failure_tracker.failures.keys() - requested_trigger_ids - known_trigger_ids
+        )
+
         if new_trigger_ids:
             workloads_to_create = self.build_trigger_workloads(new_trigger_ids)
 
@@ -1116,6 +1469,11 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                 )
                 self.releasing_triggers.update(assignments)
             self.cancelling_triggers.update(cancel_trigger_ids - assignments.keys())
+
+        for trigger_id in [t for t, f in self.logger_cache.items() if isinstance(f, WatcherLoggingFactory)]:
+            if trigger_id not in requested_trigger_ids and trigger_id not in known_trigger_ids:
+                self._close_trigger_logger(trigger_id)
+                self._trigger_log_errors_at.pop(trigger_id, None)
 
     def _register_pipe_readers(
         self,
@@ -1457,6 +1815,7 @@ class TriggerRunner:
             raise RuntimeError(f"Required first message to be a messages.StartTriggerer, it was {msg}")
 
         self.team_name = msg.team_name
+        set_current_team_name(msg.team_name)
 
         await self.comms_decoder.start_reader()
 
@@ -1634,6 +1993,7 @@ class TriggerRunner:
         # Copy out of our dequeues in threadsafe manner to sync state with parent
         events_to_send: list[TriggerEventEntry] = []
         failures_to_send: list[tuple[int, list[str] | None]] = []
+        finished_to_send = list(finished_ids)
 
         while self.events:
             events_to_send.append(self.events.popleft())
@@ -1642,11 +2002,14 @@ class TriggerRunner:
             trigger_id, exc = self.failed_triggers.popleft()
             tb = format_exception(type(exc), exc, exc.__traceback__) if exc else None
             failures_to_send.append((trigger_id, tb))
+            if trigger_id not in self.triggers and trigger_id not in finished_to_send:
+                finished_to_send.append(trigger_id)
 
         return messages.TriggerStateChanges(
             events=events_to_send if events_to_send else None,
-            finished=finished_ids if finished_ids else None,
+            finished=finished_to_send if finished_to_send else None,
             failures=failures_to_send if failures_to_send else None,
+            running_ids=set(self.triggers),
         )
 
     def sanitize_trigger_events(self, msg: messages.TriggerStateChanges) -> messages.TriggerStateChanges:
@@ -1675,6 +2038,7 @@ class TriggerRunner:
             events=events_to_send if events_to_send else None,
             finished=msg.finished,
             failures=msg.failures,
+            running_ids=msg.running_ids,
         )
 
     async def sync_state_to_supervisor(self, finished_ids: list[int]) -> None:

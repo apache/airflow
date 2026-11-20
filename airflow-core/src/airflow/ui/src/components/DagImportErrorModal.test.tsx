@@ -17,7 +17,7 @@
  * under the License.
  */
 import "@testing-library/jest-dom/vitest";
-import { render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { describe, expect, it, vi } from "vitest";
 
@@ -49,15 +49,24 @@ describe("DagImportErrorModal", () => {
     expect(within(dialog).getByText(/Traceback \(most recent call last\)/u)).toBeInTheDocument();
   });
 
+  it("copies the stack trace, not the file name", async () => {
+    const writeText = vi.fn<(text: string) => Promise<void>>().mockResolvedValue(undefined);
+
+    Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } });
+    render(<DagImportErrorModal importError={importError} onClose={vi.fn()} open />, { wrapper: Wrapper });
+
+    const dialog = screen.getByRole("dialog", { name: "importErrors.dagImportError" });
+
+    fireEvent.click(within(dialog).getByRole("button", { name: /copy/iu }));
+
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith(importError.stack_trace));
+  });
+
   it.each([
     { shown: false, totalEntries: 1 },
     { shown: true, totalEntries: 2 },
   ])("shows the bundle name only with several bundles ($totalEntries)", async ({ shown, totalEntries }) => {
-    server.use(
-      http.get("/api/v2/dagBundles", () =>
-        HttpResponse.json({ dag_bundles: [], total_entries: totalEntries }),
-      ),
-    );
+    server.use(http.get("/ui/dagBundles/count", () => HttpResponse.json({ total_entries: totalEntries })));
 
     render(<DagImportErrorModal importError={importError} onClose={vi.fn()} open />, { wrapper: Wrapper });
 

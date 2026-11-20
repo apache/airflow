@@ -24,6 +24,7 @@ from pathlib import Path
 
 import rich
 from pydantic import ValidationError
+from rich.markup import escape
 
 from airflowctl.api.client import NEW_API_CLIENT, Client, ClientKind, provide_api_client
 from airflowctl.api.datamodels.generated import (
@@ -79,7 +80,7 @@ def export(args, api_client: Client = NEW_API_CLIENT) -> None:
             file_path = Path(args.file)
             with open(file_path, "w") as f:
                 json.dump(pools_list, f, indent=4, sort_keys=True)
-            rich.print(f"Exported {pools_response.total_entries} pool(s) to {args.file}")
+            rich.print(f"Exported {pools_response.total_entries} pool(s) to {escape(str(args.file))}")
         else:
             AirflowConsole().print_as(data=pools_list, output=args.output)
     except Exception as e:

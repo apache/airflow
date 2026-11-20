@@ -102,9 +102,10 @@ drift, so a missed bump is caught by `go test`. A snapshot can also grow a field
 struct does not declare — so the `check-go-sdk-generated-drift` prek hook regenerates them and fails
 when the committed files differ.
 
-[`airflow/enums.go`](./airflow/enums.go) declares the `genmodels.DagRunState` constants again, so that
-a Dag author does not import `genmodels`. `TestDagRunStateMatchesGenmodels` fails when regenerating
-the models adds, renames or removes a `DagRunState` constant. The test keeps failing until
+[`airflow/enums.go`](./airflow/enums.go) declares the `genmodels.DagRunState` and
+`genmodels.DagRunType` constants again, so that a Dag author does not import `genmodels`.
+`TestDagRunStateMatchesGenmodels` and `TestDagRunTypeMatchesGenmodels` fail when regenerating
+the models adds, renames or removes a constant from either enum. The tests keep failing until
 `airflow/enums.go` declares the same constants as `genmodels`.
 
 ## Regenerating the Dag, task and task group specs
@@ -180,6 +181,107 @@ The check runs every Dag of the file, including the ones that `requires` a featu
 have. [`go_native.json`](../airflow-core/tests/unit/dag_processing/lang_sdk_fixtures/go_native.json)
 holds the Go output for the same Dags, so that the Airflow core tests check that Airflow loads it.
 `TestSerializeConformanceDags` says how to rewrite it.
+
+## Calling a release vote
+
+Every release needs a `[VOTE]` on `dev@airflow.apache.org`. The vote is on the
+signed source package in `dist/dev`. Go has no binary artifacts: the module is
+fetched straight from the git tag, so the release candidate is installable for
+testing as soon as `go-sdk/v<VERSION>-rc<N>` is pushed.
+
+Put the signed source package in the dist dev area as
+`go-sdk/<VERSION>-rc<N>/apache-airflow-go-sdk-<VERSION>-src.tar.gz`, with its
+`.asc` signature and `.sha512` checksum.
+
+### Vote email template
+
+```text
+Subject: [VOTE] Release Apache Airflow Go SDK <VERSION> based on <VERSION>-rc<N>
+
+Hi,
+
+I would like to call a vote to release Apache Airflow Go SDK <VERSION>, based
+on release candidate <VERSION>-rc<N>.
+
+Changes since <the last release>: <a one-line description>
+
+The release candidate contains the Go module github.com/apache/airflow/go-sdk.
+
+Git information:
+
+- Tag: go-sdk/v<VERSION>-rc<N>
+- Commit: <full-commit-sha>
+- https://github.com/apache/airflow/releases/tag/go-sdk%2Fv<VERSION>-rc<N>
+
+Source release, signatures and checksums:
+https://dist.apache.org/repos/dist/dev/airflow/go-sdk/<VERSION>-rc<N>/
+
+To try the release candidate in a Go project:
+
+    go get github.com/apache/airflow/go-sdk@v<VERSION>-rc<N>
+
+KEYS file (public keys used to sign the release):
+https://downloads.apache.org/airflow/KEYS
+
+Please review and vote. The vote will remain open for at least 72 hours, until <YYYY-MM-DD HH:MM UTC>, or until the necessary number of binding votes is reached.
+
+[ ] +1 Release this package as Apache Airflow Go SDK <VERSION>
+[ ] +0 No opinion
+[ ] -1 Do not release, because ...
+
+Only votes from Airflow PMC members are binding, but everyone is welcome and encouraged to test the release and vote.
+
+The verification process for PMC members and contributors can be found in:
+https://github.com/apache/airflow/blob/main/dev/README_RELEASE_LANGUAGE_SDKS.md#verify-the-release-candidate-by-pmc-members
+https://github.com/apache/airflow/blob/main/dev/README_RELEASE_LANGUAGE_SDKS.md#verify-the-release-candidate-by-contributors
+
+For more details on ASF release verification, see: https://www.apache.org/info/verification.html
+
+Best,
+<your name>
+```
+
+Pre-send checklist:
+
+* `go list -m github.com/apache/airflow/go-sdk@v<VERSION>-rc<N>` resolves.
+  Run it only after pushing the RC tag (see the warning in
+  [After a successful vote](#after-a-successful-vote)).
+* `Changes since <the last release>` and the vote deadline are filled in.
+* The RC commit passes the
+  [commit check](../dev/README_RELEASE_LANGUAGE_SDKS.md#check-the-release-candidate-commit).
+* Run `grep '<' email.txt` on the rendered email and confirm **no output** —
+  any match means a template placeholder was left unfilled.
+
+### After a successful vote
+
+Follow [After a successful vote](../dev/README_RELEASE_LANGUAGE_SDKS.md#after-a-successful-vote)
+in the shared release doc. Go has no binaries to publish. Its "Publish the
+binaries" step is below.
+
+> [!WARNING]
+> Run these steps only after `go-sdk/v<VERSION>` is pushed to `apache/airflow`.
+> Both ask the Go module proxy for the version, and if it doesn't exist yet the
+> proxy caches the "not found" answer. The release then stays unreachable, on
+> the proxy and on pkg.go.dev, for up to an hour after the tag is pushed.
+
+1. **Warm** the module proxy, so the release is fetchable right away and the
+   proxy records the tag's commit:
+
+   ```bash
+   GOPROXY=https://proxy.golang.org go list -m github.com/apache/airflow/go-sdk@v<VERSION>
+   ```
+
+   It should print `github.com/apache/airflow/go-sdk v<VERSION>`.
+
+2. **Request** the API docs on pkg.go.dev. Open
+   `https://pkg.go.dev/github.com/apache/airflow/go-sdk@v<VERSION>` and, if the
+   version isn't shown yet, click *Request*. Indexing can take a few minutes.
+
+### If the vote fails
+
+Follow [If the vote fails](../dev/README_RELEASE_LANGUAGE_SDKS.md#if-the-vote-fails)
+in the shared release doc. There is nothing Go-specific to undo: the module
+proxy keeps the RC tag, but `go get` only picks a prerelease when asked for it by version.
 
 ## Architectural decisions
 

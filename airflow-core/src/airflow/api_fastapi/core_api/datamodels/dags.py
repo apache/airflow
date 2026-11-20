@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 import inspect
-from collections.abc import Iterable, Mapping
+from collections.abc import Mapping
 from datetime import datetime, timedelta
 from functools import cache
 from typing import TYPE_CHECKING, Any
@@ -190,7 +190,7 @@ class BulkDAGBody(DAGPatchBody):
 class DAGCollectionResponse(BaseModel):
     """Dag Collection serializer for responses."""
 
-    dags: Iterable[DAGResponse]
+    dags: list[DAGResponse]
     total_entries: int
 
 

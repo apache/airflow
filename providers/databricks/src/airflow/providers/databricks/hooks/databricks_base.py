@@ -1388,7 +1388,11 @@ class BaseDatabricksHook(BaseHook):
         except requests_exceptions.HTTPError as e:
             if wrap_http_errors:
                 msg = f"Response: {e.response.content.decode()}, Status Code: {e.response.status_code}"
-                raise DatabricksApiError(msg, http_status_code=e.response.status_code) from e
+                raise DatabricksApiError(
+                    msg,
+                    http_status_code=e.response.status_code,
+                    error_code=self._get_error_code(e) or None,
+                ) from e
             raise
 
     async def _a_do_api_call(self, endpoint_info: tuple[str, str], json: dict[str, Any] | None = None):

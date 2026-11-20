@@ -26,9 +26,9 @@ Writing Dags in YAML
 
 Airflow can build a Dag from a YAML document. One YAML document describes one
 Dag, and the YAML Dag importer turns it into the same Dag structure that Airflow
-runs like any other source. The tasks can be ordinary Airflow operators,
-or a pointer to a task handler implemented in a Language SDK. (Support for the
-Python Task SDK is planned for a future release.)
+runs like any other source. The tasks can be ordinary Airflow operators, or a
+pointer to a task handler implemented in any language with a Task SDK, including
+Python, Java, and more.
 
 A document is declarative. Everything in it is a value, and the shape of each
 value decides what it means.
@@ -37,7 +37,7 @@ The following is an example YAML file defining a Dag:
 
 .. code-block:: yaml
 
-    $schema: https://airflow.apache.org/schemas/dag/2026-10-30.json
+    $schema: https://airflow.apache.org/schemas/dag/2027-02-28.json
     dag_id: daily_report
     schedule: "0 3 * * *"
     start_date: 2024-01-01
@@ -103,7 +103,9 @@ The shape of a document
     Dags. By default (see :ref:`config:core__dag_discovery_safe_mode`), a file
     that does not carry the canonical ``$schema`` URL is skipped, so a mistyped
     URL makes the file disappear the same way. An editor that understands
-    ``$schema`` can offer validation and completion from it.
+    ``$schema`` can offer validation and completion from it. A file pinned to
+    an older published version keeps working; it is migrated to the current
+    format when it is loaded.
 
 Dag-level keys
     Dag attributes sit at the top level, such as ``dag_id``, ``schedule``,
@@ -185,8 +187,8 @@ Values are literal by default
 -----------------------------
 
 A value under ``with:`` (or ``run:``, with the restrictions in `Code tasks`_) is
-taken literally, unless it is a single-key object whose key is a reserved
-``$``-marker. For example, ``"echo foo.sh"`` and ``"{{ not rendered }}"`` are
+taken literally, unless it is an object with a reserved ``$``-marker key. For
+example, ``"echo foo.sh"`` and ``"{{ not rendered }}"`` are
 taken as exactly that string, not a template, even if ``bash_command`` is listed
 on the operator as a template field.
 
@@ -200,10 +202,11 @@ Four markers opt a value into special handling:
 
 ``{$x: id}`` references an upstream output
     The XCom output of an upstream task. ``{$x: extract}`` references
-    ``extract``'s return value, and ``{$x: {task: extract, key: rows}}`` a
-    specific key. Binding a value this way also creates the dependency edge
-    implicitly, so a task that consumes another's output does not need to also
-    list it in ``needs:``. The long form is ``{$xcom: ...}``.
+    ``extract``'s return value, and ``{$x: extract, key: rows}`` a specific
+    key (``key`` defaults to ``return_value``). Binding a value this way also
+    creates the dependency edge implicitly, so a task that consumes another's
+    output does not need to also list it in ``needs:``. The long form is
+    ``{$xcom: ...}``.
 
 ``{$f: path}`` reads a file's contents
     The contents of a file are read and used. The path is resolved against the
@@ -223,6 +226,10 @@ the operator as template-able (listed in ``template_fields``). Using them on any
 other field causes an error. ``$const`` and plain values may be used anywhere.
 For an operator you write yourself, the operator decides which fields may accept
 markers; see `Using your own operators`_.
+
+A marker object has exactly one ``$`` key, whose value is the marker's operand.
+Any options the marker takes are plain keys beside it, like ``key`` on ``$x``.
+A key that is not one of that marker's options causes a parse error.
 
 The ``$`` prefix in mapping keys is reserved for these markers. Prefixing any
 other key with ``$`` causes a parse error. To include a key that must start with
@@ -423,11 +430,12 @@ which holds the code's arguments directly:
         source: {$x: extract}
         factor: 2
 
-A ``run:`` task is executed by a Task SDK runtime, so it must be routed to a
-coordinator. In practice, a ``run:`` task always needs a task-level ``queue:``
-mapped to a coordinator under ``[sdk] queue_to_coordinator``. See
-:doc:`language-sdks/index` for writing the handler and configuring the
-coordinator.
+A ``run:`` task must be accompanied by a task handler implemented by a Task SDK
+that will be executed at runtime. How the handler is implemented is not named by
+the YAML file; it follows the task-level ``queue:``, and then is mapped to the
+appropriate coordinator through ``[sdk] queue_to_coordinator``. For more on
+writing task handlers, see `Task handlers <https://airflow.apache.org/docs/task-sdk/stable/task-handler.html>`__ for Python,
+and :doc:`language-sdks/index` for other languages.
 
 Each argument in ``run:`` is either a JSON-serializable literal, or an upstream
 task's output, in the ``{$x: task}`` form, which also wires the dependency.
@@ -446,9 +454,11 @@ implemented in a future release.
   be scheduled on an asset (see `Scheduling`_).
 * **Task groups.** Tasks cannot be nested into groups (see `Reserved
   arguments`_).
-* **Dynamic task mapping.** There is no equivalent of ``.expand()``.
+* **Mapped tasks.** There is no equivalent of ``.expand()``.
 * **Arguments that must be a Python object.** This particularly affects
-  callbacks (which need a Python function).
+  callbacks (which need a Python function). Note that using ``PythonOperator``
+  is generally not needed in a YAML Dag; implement a Python task handler to use
+  with a ``run:`` task instead (see `Code tasks`_).
 
 A rejected key is reported as an error rather than silently ignored, as is any
 other argument the target operator does not accept.

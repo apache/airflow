@@ -181,8 +181,7 @@ jobs:
           ref: ${{ inputs.checkout-ref }}
           # Tags drive the phantom-version filter in extract_metadata.py
           # (only versions with a real `providers-<id>/<ver>` tag are
-          # treated as released). Without this, the filter silently
-          # falls back to `versions[0]` and ships phantom versions.
+          # treated as released). The live extract step fails if they are missing.
           fetch-tags: true
 
       # A local action is read from the workspace, not from the ref the workflow itself runs from,
@@ -279,6 +278,11 @@ jobs:
           ALLOW_UNRELEASED=""
           if [[ "${DESTINATION}" == "staging" ]]; then
             ALLOW_UNRELEASED="--allow-unreleased"
+          elif [[ -z "$(git tag --list 'providers-*' | head -n 1)" ]]; then
+            # Without tags extract_metadata.py keeps every version in provider.yaml,
+            # which would publish unreleased providers and versions to live.
+            echo "::error::No providers-* tags in the checkout; refusing to publish the live registry."
+            exit 1
           fi
           if [[ -n "${PROVIDER}" ]]; then
             breeze registry extract-data --python "${PYTHON_VERSION}" \
@@ -321,7 +325,7 @@ jobs:
           fi
 
       - name: "Setup pnpm"
-        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413  # v6.1.0
+        uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115  # v6.1.1
         with:
           version: 10
 
