@@ -231,6 +231,10 @@ def _configured_executor_keys() -> set[str]:
     implements a health check should see no ``executor`` block at all in ``/monitor/health``, not an
     ``unhealthy`` one.
 
+    Also empty when ``executor_health_check_interval`` is 0: the scheduler records no ``ExecutorJob``
+    rows in that case either, so nothing would ever cover an expected key and ``/monitor/health`` would
+    report the executor DOWN forever instead of omitting the block.
+
     Cached: this calls :meth:`~airflow.executors.executor_loader.ExecutorLoader.import_executor_cls`,
     which imports every configured executor class, and the configured executors can't change while the
     process runs. Without caching, an API server would redo those imports -- and reproduce any import
@@ -238,6 +242,9 @@ def _configured_executor_keys() -> set[str]:
     skipped (``validate_teams=False``), the same as ``connections.py`` does, so a database hiccup on
     the first call can't get cached as "no executors".
     """
+    if conf.getfloat("scheduler", "executor_health_check_interval", fallback=30.0) <= 0:
+        return set()
+
     try:
         names = ExecutorLoader.get_executor_names(validate_teams=False)
     except Exception:

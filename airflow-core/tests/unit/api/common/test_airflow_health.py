@@ -773,6 +773,22 @@ class TestConfiguredExecutorKeys:
     def test_survives_unreadable_executor_config(self, mock_get_executor_names):
         assert _configured_executor_keys() == set()
 
+    @conf_vars({("scheduler", "executor_health_check_interval"): "0"})
+    @patch("airflow.api.common.airflow_health.ExecutorLoader.import_executor_cls")
+    @patch("airflow.api.common.airflow_health.ExecutorLoader.get_executor_names")
+    def test_empty_when_interval_is_zero(self, mock_get_executor_names, mock_import_executor_cls):
+        """The scheduler records no row for any executor when the check is disabled."""
+        names = [
+            ExecutorName(
+                module_path=f"{_HealthCheckingExecutor.__module__}.{_HealthCheckingExecutor.__qualname__}",
+                alias="Celery",
+            )
+        ]
+        mock_get_executor_names.return_value = names
+        mock_import_executor_cls.return_value = (_HealthCheckingExecutor, None)
+
+        assert _configured_executor_keys() == set()
+
 
 class TestExecutorInstanceHealthDisplayName:
     """The API reports the name the user configured, not the internal executor_class key."""
