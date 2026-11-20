@@ -27,6 +27,17 @@
 Changelog
 ---------
 
+3.2.2
+.....
+
+Misc
+~~~~
+
+* ``Give the SMTP emailer its own defaults for the [smtp] options (#76346)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 3.2.1
 .....
 

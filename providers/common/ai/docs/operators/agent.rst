@@ -350,7 +350,7 @@ When the provider reports cache activity, the task log shows it under the run su
 
 .. code-block:: text
 
-    LLM run complete: model=claude-sonnet-4-5, requests=2, tool_calls=1, input_tokens=..., ...
+    LLM run complete: model=claude-sonnet-5-5, requests=2, tool_calls=1, input_tokens=..., ...
     LLM prompt cache: cache_read_tokens=..., cache_write_tokens=...
 
 ``input_tokens`` includes both counts. With :doc:`../observability` turned on, each
@@ -363,7 +363,7 @@ Parameters
 - ``prompt``: The prompt to send to the agent (operator) or the return value
   of the decorated function (decorator).
 - ``llm_conn_id``: Airflow connection ID for the LLM provider.
-- ``model_id``: Model identifier (e.g. ``"openai:gpt-5"``). Overrides the
+- ``model_id``: Model identifier (e.g. ``"openai:gpt-6.1-sol"``). Overrides the
   connection's extra field.
 - ``system_prompt``: System-level instructions for the agent. Supports Jinja
   templating.
@@ -466,8 +466,9 @@ Parameters
 
 **HITL review parameters**: ``enable_hitl_review``, ``max_hitl_iterations``,
 ``hitl_timeout`` and ``hitl_poll_interval`` turn on and bound the iterative review
-loop, which needs the ``hitl_review`` plugin. :doc:`../hitl_review` documents each
-parameter and the review workflow.
+loop, which needs the ``hitl_review`` plugin. On Airflow 3.3+ the task waits for the
+reviewer in the ``awaiting_input`` state and holds no worker slot. :doc:`../hitl_review`
+documents each parameter and the review workflow.
 
 Logging
 -------
@@ -496,7 +497,7 @@ is logged with model name, token usage, and the full tool call sequence:
 
 .. code-block:: text
 
-    INFO - LLM run complete: model=gpt-5, requests=4, tool_calls=3, input_tokens=2847, output_tokens=512, total_tokens=3359
+    INFO - LLM run complete: model=gpt-6.1-sol, requests=4, tool_calls=3, input_tokens=2847, output_tokens=512, total_tokens=3359
     INFO - Tool call sequence: list_tables -> get_schema -> query
 
 At DEBUG level, the LLM output is also logged (truncated to 500 characters).

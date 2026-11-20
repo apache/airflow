@@ -858,6 +858,46 @@ class TestPydanticAIHookFallback:
 
         assert hook.get_conn() is infer_model_stub.models["openai:gpt-5.6-sol"]
 
+    def test_get_primary_model_skips_the_fallback_chain(self, registry, infer_model_stub):
+        registry.add("primary", extra={"model": "openai:gpt-5.6-sol"})
+        registry.add("second", extra={"model": "anthropic:claude-opus-4-6"})
+        hook = PydanticAIHook(llm_conn_id="primary", fallback_conn_ids=["second"])
+
+        assert isinstance(hook.get_conn(), FallbackModel)
+        assert hook.get_primary_model() is infer_model_stub.models["openai:gpt-5.6-sol"]
+
+    def test_get_primary_model_builds_the_requested_model_on_this_connection(
+        self, registry, infer_model_stub
+    ):
+        registry.add("primary", extra={"model": "openai:gpt-5.6-sol"})
+        hook = PydanticAIHook(llm_conn_id="primary")
+
+        model = hook.get_primary_model("anthropic:claude-opus-4-6")
+
+        assert model is infer_model_stub.models["anthropic:claude-opus-4-6"]
+
+    def test_explicit_credentials_are_logged_once_per_hook_however_many_models_it_builds(
+        self, registry, infer_model_stub, caplog
+    ):
+        registry.add("primary", password="sk-test", extra={"model": "openai:gpt-5.6-sol"})
+        hook = PydanticAIHook(llm_conn_id="primary")
+
+        with caplog.at_level(logging.INFO):
+            hook.get_primary_model()
+            hook.get_primary_model()
+            hook.get_primary_model("openai:gpt-5")
+
+        logged = [r for r in caplog.records if "Using explicit credentials" in r.message]
+        assert [r.levelno for r in logged] == [logging.INFO]
+
+    @pytest.mark.asyncio
+    async def test_aget_primary_model_matches_the_sync_one(self, registry, infer_model_stub):
+        registry.add("primary", extra={"model": "openai:gpt-5.6-sol"})
+        registry.add("second", extra={"model": "anthropic:claude-opus-4-6"})
+        hook = PydanticAIHook(llm_conn_id="primary", fallback_conn_ids=["second"])
+
+        assert await hook.aget_primary_model() is infer_model_stub.models["openai:gpt-5.6-sol"]
+
     def test_param_builds_chain_in_order(self, registry, infer_model_stub):
         registry.add("primary", extra={"model": "openai:gpt-5.6-sol"})
         registry.add("second", extra={"model": "anthropic:claude-opus-4-6"})

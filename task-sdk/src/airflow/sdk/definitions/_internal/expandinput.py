@@ -322,33 +322,14 @@ class DictOfListsExpandInput(ExpandInput):
         """Generate kwargs with values available on parse-time."""
         return ((k, v) for k, v in self.value.items() if _is_parse_time_mappable(v))
 
-    def _get_map_lengths(
-        self, resolved_vals: dict[str, Sized], upstream_map_indexes: dict[str, int]
-    ) -> dict[str, int]:
+    def _get_map_lengths(self, resolved_vals: dict[str, Sized]) -> dict[str, int]:
         """
         Return dict of argument name to map length.
 
-        If any arguments are not known right now (upstream task not finished),
-        they will not be present in the dict.
+        :raises _NotFullyPopulated: if any argument can not be resolved to a
+            sized value.
         """
-
-        # TODO: This initiates one API call for each XComArg. Would it be
-        # more efficient to do one single call and unpack the value here?
-        def _get_length(k: str, v: OperatorExpandArgument) -> int | None:
-            from airflow.sdk.definitions.xcom_arg import XComArg, get_task_map_length
-
-            if isinstance(v, XComArg):
-                return get_task_map_length(v, resolved_vals[k], upstream_map_indexes)
-
-            # Unfortunately a user-defined TypeGuard cannot apply negative type
-            # narrowing. https://github.com/python/typing/discussions/1013
-            if TYPE_CHECKING:
-                assert isinstance(v, Sized)
-            return len(v)
-
-        map_lengths = {
-            k: res for k, v in self.value.items() if v is not None if (res := _get_length(k, v)) is not None
-        }
+        map_lengths = {k: len(v) for k, v in resolved_vals.items()}
         if len(map_lengths) < len(self.value):
             raise _NotFullyPopulated(set(self.value).difference(map_lengths))
         return map_lengths
@@ -392,10 +373,6 @@ class DictOfListsExpandInput(ExpandInput):
         if map_index is None or map_index < 0:
             raise RuntimeError("can't resolve task-mapping argument without expanding")
 
-        # Get pre-computed upstream_map_indexes if available, otherwise default to empty dict.
-        # When empty, individual XComArgs will compute their map_indexes lazily in xcom_arg.py.
-        upstream_map_indexes = getattr(context["ti"], "_upstream_map_indexes", None) or {}
-
         # TODO: This initiates one API call for each XComArg. Would it be
         # more efficient to do one single call and unpack the value here?
 
@@ -405,7 +382,7 @@ class DictOfListsExpandInput(ExpandInput):
 
         sized_resolved = {k: v for k, v in resolved.items() if isinstance(v, Sized)}
 
-        all_lengths = self._get_map_lengths(sized_resolved, upstream_map_indexes)
+        all_lengths = self._get_map_lengths(sized_resolved)
 
         data = {k: self._expand_mapped_field(k, v, map_index, all_lengths) for k, v in resolved.items()}
         literal_keys = {k for k, _ in self._iter_parse_time_resolved_kwargs()}

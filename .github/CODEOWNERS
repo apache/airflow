@@ -16,8 +16,8 @@
 /docs/*.py @potiuk @ashb @gopidesupavan @amoghrajesh @jscheffl @bugraoz93 @jason810496
 
 # API
-/airflow-core/src/airflow/api/ @ephraimbuddy @pierrejeambrun @rawwar @jason810496
-/airflow-core/src/airflow/api_fastapi/ @ephraimbuddy @pierrejeambrun @rawwar @jason810496 @bugraoz93 @shubhamraj-git @choo121600 @henry3260
+/airflow-core/src/airflow/api/ @ephraimbuddy @pierrejeambrun @jason810496
+/airflow-core/src/airflow/api_fastapi/ @ephraimbuddy @pierrejeambrun @jason810496 @bugraoz93 @shubhamraj-git @choo121600 @henry3260
 /airflow-core/src/airflow/api_fastapi/execution_api/ @ashb @amoghrajesh
 
 # Airflow CTL

@@ -18,8 +18,11 @@ from __future__ import annotations
 
 import asyncio
 import datetime
+import inspect
 import os
-from typing import TYPE_CHECKING
+import re
+import sys
+from typing import TYPE_CHECKING, NamedTuple
 from unittest import mock
 
 import pytest
@@ -208,27 +211,48 @@ def deny_dag_edit_access():
         yield mock_is_authorized_dag
 
 
+class EventLoopQuery(NamedTuple):
+    """A sync SQL statement run on the event loop, and the ``async def`` that issued it."""
+
+    statement: str
+    site: str
+
+
+def _get_coroutine_site() -> str:
+    """Return ``<path>:<line> <function>`` of the innermost ``async def`` on the call stack."""
+    frame = sys._getframe(1)
+    while frame is not None:
+        if frame.f_code.co_flags & (inspect.CO_COROUTINE | inspect.CO_ASYNC_GENERATOR):
+            path = re.sub(r"^.*(?:airflow-core/src|site-packages)/", "", frame.f_code.co_filename)
+            return f"{path}:{frame.f_lineno} {frame.f_code.co_name}"
+        frame = frame.f_back
+    return "?"
+
+
 @pytest.fixture
 def event_loop_queries():
     """
-    Collect the SQL statements executed on the event loop thread.
+    Collect the sync SQL statements executed on the event loop thread.
 
     FastAPI serializes responses on the event loop, so a statement collected here blocks the whole
-    API server while it waits for a database connection.
+    API server while it waits for a database connection. ``AsyncSession`` statements are skipped:
+    they run on the loop thread too, but through the async driver, which yields instead of blocking.
     """
-    statements: list[str] = []
+    queries: list[EventLoopQuery] = []
 
     def before_cursor_execute(conn, cursor, statement, parameters, context, executemany):
+        if conn.dialect.is_async:
+            return
         # Only the event loop thread has a running loop; threadpool workers raise here.
         try:
             asyncio.get_running_loop()
         except RuntimeError:
             return
-        statements.append(statement)
+        queries.append(EventLoopQuery(statement, _get_coroutine_site()))
 
     event.listen(Engine, "before_cursor_execute", before_cursor_execute)
     try:
-        yield statements
+        yield queries
     finally:
         event.remove(Engine, "before_cursor_execute", before_cursor_execute)
 

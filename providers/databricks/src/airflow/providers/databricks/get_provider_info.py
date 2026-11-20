@@ -49,6 +49,7 @@ def get_provider_info():
                     "/docs/apache-airflow-providers-databricks/operators/sql_statements.rst",
                     "/docs/apache-airflow-providers-databricks/operators/warehouse.rst",
                     "/docs/apache-airflow-providers-databricks/operators/copy_into.rst",
+                    "/docs/apache-airflow-providers-databricks/operators/delta_table_producer.rst",
                 ],
                 "tags": ["service"],
             },
@@ -86,6 +87,7 @@ def get_provider_info():
                 "integration-name": "Databricks SQL",
                 "python-modules": [
                     "airflow.providers.databricks.operators.databricks_sql",
+                    "airflow.providers.databricks.operators.delta_table",
                     "airflow.providers.databricks.operators.warehouse",
                 ],
             },
