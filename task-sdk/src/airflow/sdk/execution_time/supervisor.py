@@ -2524,7 +2524,7 @@ class ActivitySubprocess(WatchedSubprocess):
 def in_process_api_server():
     from airflow.api_fastapi.execution_api.app import InProcessExecutionAPI
 
-    api = InProcessExecutionAPI()
+    api = InProcessExecutionAPI(serve_while_debugger_paused=True)
     return api
 
 
