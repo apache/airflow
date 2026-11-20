@@ -201,6 +201,156 @@ def mocked_blob_file_system():
             },
         ),
         (
+            # A Data Lake (dfs) endpoint is an endpoint host, but adlfs is a Blob
+            # client: the derived account_host is mapped back to the blob form,
+            # which is the default host here, so no account_host is set.
+            Connection(
+                conn_id="testconn",
+                conn_type="adls",
+                host="testaccountname.dfs.core.windows.net",
+                login="client_id",
+                password="client_secret",
+                extra={
+                    "tenant_id": "tenant_id",
+                },
+            ),
+            {
+                "account_name": "testaccountname",
+                "client_id": "client_id",
+                "client_secret": "client_secret",
+                "tenant_id": "tenant_id",
+            },
+        ),
+        (
+            # Same dfs host, with the account in extras: that account decides the
+            # URL, as on main, so no account_host may be derived from the host.
+            Connection(
+                conn_id="testconn",
+                conn_type="adls",
+                host="testaccountname.dfs.core.windows.net",
+                login="client_id",
+                password="client_secret",
+                extra={
+                    "account_name": "otheraccount",
+                    "tenant_id": "tenant_id",
+                },
+            ),
+            {
+                "account_name": "otheraccount",
+                "client_id": "client_id",
+                "client_secret": "client_secret",
+                "tenant_id": "tenant_id",
+            },
+        ),
+        (
+            # Hostnames are case-insensitive: an uppercase dfs host maps and
+            # compares like the lowercase one, so the account in extras still
+            # decides the URL and no account_host is set.
+            Connection(
+                conn_id="testconn",
+                conn_type="adls",
+                host="TestAccountName.DFS.core.windows.net",
+                login="client_id",
+                password="client_secret",
+                extra={
+                    "account_name": "otheraccount",
+                    "tenant_id": "tenant_id",
+                },
+            ),
+            {
+                "account_name": "otheraccount",
+                "client_id": "client_id",
+                "client_secret": "client_secret",
+                "tenant_id": "tenant_id",
+            },
+        ),
+        (
+            # A custom domain with a dfs label is not an Azure endpoint, so it
+            # is passed on unchanged instead of being mapped to a blob label.
+            Connection(
+                conn_id="testconn",
+                conn_type="wasb",
+                host="testaccountname.dfs.example.com",
+                login="testaccountname",
+                password="account_key",
+            ),
+            {
+                "account_name": "testaccountname",
+                "account_host": "testaccountname.dfs.example.com",
+                "account_key": "account_key",
+            },
+        ),
+        (
+            # Same for a custom domain that reuses the dfs and core labels but
+            # does not end in an Azure suffix: it is not a standard Azure
+            # endpoint, so it is kept as is too.
+            Connection(
+                conn_id="testconn",
+                conn_type="wasb",
+                host="testaccountname.dfs.core.example.com",
+                login="testaccountname",
+                password="account_key",
+            ),
+            {
+                "account_name": "testaccountname",
+                "account_host": "testaccountname.dfs.core.example.com",
+                "account_key": "account_key",
+            },
+        ),
+        (
+            # An explicit port does not stop the mapping: a dfs endpoint with a
+            # port maps to the blob endpoint with the same port, which is then
+            # not the default host and is passed on.
+            Connection(
+                conn_id="testconn",
+                conn_type="wasb",
+                host="https://testaccountname.dfs.core.windows.net:443",
+                login="testaccountname",
+                password="account_key",
+            ),
+            {
+                "account_name": "testaccountname",
+                "account_host": "testaccountname.blob.core.windows.net:443",
+                "account_key": "account_key",
+            },
+        ),
+        (
+            # A dfs endpoint on a sovereign cloud maps to the blob endpoint of
+            # the same cloud, which is not the default host and is passed on.
+            Connection(
+                conn_id="testconn",
+                conn_type="wasb",
+                host="testaccountname.dfs.core.chinacloudapi.cn",
+                login="testaccountname",
+                password="account_key",
+            ),
+            {
+                "account_name": "testaccountname",
+                "account_host": "testaccountname.blob.core.chinacloudapi.cn",
+                "account_key": "account_key",
+            },
+        ),
+        (
+            # A dot in the path does not make the host an endpoint: the hostname
+            # has no dot, so with a tenant id nothing is derived from the
+            # client id login.
+            Connection(
+                conn_id="testconn",
+                conn_type="wasb",
+                host="testaccountID/some.path",
+                login="testclientid",
+                password="testclientsecret",
+                extra={
+                    "tenant_id": "tenant_id",
+                },
+            ),
+            {
+                "client_id": "testclientid",
+                "client_secret": "testclientsecret",
+                "tenant_id": "tenant_id",
+            },
+        ),
+        (
             Connection(
                 conn_id="testconn",
                 conn_type="adls",
@@ -350,6 +500,19 @@ def test_bare_account_name_from_host(host, expected):
             conn_type="wasb",
             host="https://testaccountname.blob.core.windows.net",
             password="testaccountkey",
+        ),
+        # Service principal with a Data Lake endpoint in host: it must build
+        # against the blob endpoint, not the dfs one. The tenant id is a GUID
+        # because the real credential validates its format.
+        Connection(
+            conn_id="testconn",
+            conn_type="adls",
+            host="testaccountname.dfs.core.windows.net",
+            login="client_id",
+            password="client_secret",
+            extra={
+                "tenant_id": "11111111-1111-1111-1111-111111111111",
+            },
         ),
     ],
     indirect=["mocked_connection"],
