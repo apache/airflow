@@ -496,6 +496,12 @@ in its own language they are *not applicable* (``n/a``) rather than unsupported.
 ``dag-args`` (MUST †)
     Dag-level arguments (schedule, tags, default queue, and so on) can be set on a Dag definition.
 
+``timetable`` (MAY †)
+    A Dag definition can be scheduled by a timetable object, such as the equivalents of Python's
+    ``CronTriggerTimetable`` with its own timezone, ``DeltaTriggerTimetable``,
+    ``MultipleCronTriggerTimetable`` or ``EventsTimetable``, not only by a cron expression or preset
+    passed as the schedule (which ``dag-args`` covers).
+
 ``task-args`` (MUST †)
     Task-level arguments (retries, pool, queue, and so on) can be set on a task of a Dag definition.
 
@@ -543,8 +549,14 @@ in its own language they are *not applicable* (``n/a``) rather than unsupported.
 ``human-in-the-loop`` (MAY †)
     A Dag definition can declare a task that waits for human input.
 
+``task-test`` (SHOULD †)
+    A single task of a Dag definition can be run locally without a running Airflow deployment,
+    the equivalent of ``airflow tasks test``. Calling a task function directly from a unit test
+    with a hand-built context does not count on its own.
+
 ``dag-test`` (SHOULD †)
-    A Dag definition can be exercised locally with ``airflow dags test``.
+    A whole Dag definition can be run locally without a running Airflow deployment, the
+    equivalent of ``airflow dags test`` or Python's ``dag.test()``.
 
 ``asset-definition`` (MAY †)
     Assets can be declared in the target language: the equivalents of Python's ``Asset``,

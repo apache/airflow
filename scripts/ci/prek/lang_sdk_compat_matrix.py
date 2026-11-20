@@ -105,6 +105,7 @@ CAPABILITY_DIMENSIONS: list[Capability] = [
     Capability("listeners", "MAY", "runtime", False),
     Capability(DAG_DEFINITION_GATE, "SHOULD", "dag-definition", False),
     Capability("dag-args", "MUST", "dag-definition", True),
+    Capability("timetable", "MAY", "dag-definition", True),
     Capability("task-args", "MUST", "dag-definition", True),
     Capability("dag-params", "MUST", "dag-definition", True),
     Capability("dag-callbacks", "MAY", "dag-definition", True),
@@ -118,6 +119,7 @@ CAPABILITY_DIMENSIONS: list[Capability] = [
     Capability("trigger-dag-run", "MAY", "dag-definition", True),
     Capability("dynamic-dag-generation", "MAY", "dag-definition", True),
     Capability("human-in-the-loop", "MAY", "dag-definition", True),
+    Capability("task-test", "SHOULD", "dag-definition", True),
     Capability("dag-test", "SHOULD", "dag-definition", True),
     Capability("asset-definition", "MAY", "dag-definition", True),
     Capability("asset-scheduling", "MAY", "dag-definition", True),
@@ -163,9 +165,9 @@ class MatrixPart(NamedTuple):
 
 
 class MatrixParts(NamedTuple):
-    common: MatrixPart
     dag_definition: MatrixPart
     stub_task_handler: MatrixPart
+    common: MatrixPart
 
 
 def _build_capability_rows(groups: tuple[Group, ...], mode: Mode | None) -> list[MatrixRow]:
@@ -187,16 +189,6 @@ def build_matrix_parts() -> MatrixParts:
     """Split the dimensions into the parts both renderers publish, in display order."""
     return MatrixParts(
         MatrixPart(
-            "Common to both authoring modes",
-            [
-                MatrixGroup(
-                    "TaskInstance states",
-                    [MatrixRow("state", state, tier, False, None) for state, tier in STATE_DIMENSIONS],
-                ),
-                MatrixGroup("Task runtime", _build_capability_rows(("runtime",), None)),
-            ],
-        ),
-        MatrixPart(
             "Dag definition",
             [
                 MatrixGroup(
@@ -212,6 +204,16 @@ def build_matrix_parts() -> MatrixParts:
                     "Python Dag with stub TaskHandler",
                     _build_capability_rows(("stub-task-handler", "shared"), STUB_TASK_HANDLER_MODE),
                 )
+            ],
+        ),
+        MatrixPart(
+            "Common to both authoring modes",
+            [
+                MatrixGroup("Task runtime", _build_capability_rows(("runtime",), None)),
+                MatrixGroup(
+                    "TaskInstance states",
+                    [MatrixRow("state", state, tier, False, None) for state, tier in STATE_DIMENSIONS],
+                ),
             ],
         ),
     )

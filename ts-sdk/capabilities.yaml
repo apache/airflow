@@ -128,6 +128,9 @@ capabilities:
     supported: true
     since: "3.4.0"
     sdk_version: "1.0.0"
+  timetable:
+    supported: false
+    note: "a schedule is a cron expression or preset only"
   task-args:
     supported: true
     since: "3.4.0"
@@ -181,6 +184,9 @@ capabilities:
     since: "3.4.0"
     sdk_version: "1.0.0"
     note: "approval() / hitl()"
+  task-test:
+    supported: false
+    note: "a bundle's handler can be unit-tested through bundle.getTaskHandler(); airflow tasks test does not take a TypeScript Dag"
   dag-test:
     supported: false
   asset-definition:

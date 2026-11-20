@@ -124,6 +124,9 @@ capabilities:
     supported: true
     since: "3.4.0"
     sdk_version: "1.0.0"
+  timetable:
+    supported: false
+    note: "a schedule is a cron expression or preset only"
   task-args:
     supported: true
     since: "3.4.0"
@@ -174,6 +177,9 @@ capabilities:
     sdk_version: "1.0.0"
   human-in-the-loop:
     supported: false
+  task-test:
+    supported: false
+    note: "a Go task can be unit-tested by calling it with a Context from airflow.NewContext; airflow tasks test does not take a Go Dag"
   dag-test:
     supported: false
   asset-definition:

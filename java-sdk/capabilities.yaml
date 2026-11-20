@@ -121,6 +121,9 @@ capabilities:
     supported: true
     since: "3.4.0"
     sdk_version: "1.0.0"
+  timetable:
+    supported: false
+    note: "a schedule is a cron expression or preset only"
   task-args:
     supported: true
     since: "3.4.0"
@@ -169,6 +172,8 @@ capabilities:
     since: "3.4.0"
     sdk_version: "1.0.0"
   human-in-the-loop:
+    supported: false
+  task-test:
     supported: false
   dag-test:
     supported: false
