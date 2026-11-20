@@ -38,6 +38,8 @@ if AIRFLOW_V_3_3_PLUS:
     from airflow.dag_processing.bundles.base import BundleVersion
 
 if TYPE_CHECKING:
+    from collections.abc import Hashable
+
     from tenacity import RetryCallState
 
 log = structlog.get_logger(__name__)
@@ -509,6 +511,38 @@ class GitDagBundle(BaseDagBundle):
                     raise RuntimeError("Error pulling submodule from repository") from e
 
             self.repo.close()
+
+    @classmethod
+    def source_key(
+        cls,
+        *,
+        repo_url: str | None = None,
+        tracking_ref: str | None = None,
+        subdir: str | None = None,
+        **kwargs,
+    ) -> Hashable | None:
+        if not repo_url or not tracking_ref:
+            return None
+        location = cls._repo_location(repo_url)
+        if location is None:
+            return None
+        return ("git", location, tracking_ref, (subdir or "").strip("/"))
+
+    @staticmethod
+    def _repo_location(url: str) -> str | None:
+        """Boil a remote repository URL down to ``host/path``."""
+        url = url.strip()
+        if "://" in url:
+            parsed = urlparse(url)
+            host, path = parsed.hostname, parsed.path
+        else:
+            head, colon, path = url.partition(":")
+            host = head.rpartition("@")[2] if colon else None
+            if host and len(host) == 1:
+                host = None
+        if not host:
+            return None
+        return f"{host.lower()}/{path.strip('/').removesuffix('.git')}"
 
     @staticmethod
     def _convert_git_ssh_url_to_https(url: str) -> str:
