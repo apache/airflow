@@ -938,15 +938,17 @@ class TestAirflowHealthExecutor:
         assert "executor" not in health_status
 
     @_patch_executor_keys({"Celery"})
-    @_patch_live_scheduler_ids({1})
     @provide_session
-    def test_executor_key_present_and_healthy_when_implemented_and_reporting(
-        self, mock_live_ids, mock_keys, *, session
-    ):
+    def test_executor_key_present_and_healthy_when_implemented_and_reporting(self, mock_keys, *, session):
         heartbeat = timezone.utcnow()
+        scheduler_job = Job(job_type=SchedulerJobRunner.job_type, state=JobState.RUNNING)
+        scheduler_job.latest_heartbeat = heartbeat
+        session.add(scheduler_job)
+        session.commit()
+
         job = Job(job_type=EXECUTOR_JOB_TYPE, state=JobState.RUNNING, executor_class="Celery")
         job.latest_heartbeat = heartbeat
-        job.owner_job_id = 1
+        job.owner_job_id = scheduler_job.id
         job.health_check_result = HealthCheckResult.HEALTHY
         session.add(job)
         session.commit()
@@ -967,16 +969,20 @@ class TestAirflowHealthExecutor:
         ]
 
     @_patch_executor_keys({"Celery"})
-    @_patch_live_scheduler_ids({1})
     @provide_session
     def test_executor_key_unhealthy_when_last_check_failed_despite_live_heartbeat(
-        self, mock_live_ids, mock_keys, *, session
+        self, mock_keys, *, session
     ):
         """A row can be alive (heartbeat moving) while the last real check still failed."""
         heartbeat = timezone.utcnow()
+        scheduler_job = Job(job_type=SchedulerJobRunner.job_type, state=JobState.RUNNING)
+        scheduler_job.latest_heartbeat = heartbeat
+        session.add(scheduler_job)
+        session.commit()
+
         job = Job(job_type=EXECUTOR_JOB_TYPE, state=JobState.RUNNING, executor_class="Celery")
         job.latest_heartbeat = heartbeat
-        job.owner_job_id = 1
+        job.owner_job_id = scheduler_job.id
         job.health_check_result = HealthCheckResult.UNHEALTHY
         session.add(job)
         session.commit()

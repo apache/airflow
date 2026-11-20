@@ -25,9 +25,9 @@ from airflowctl.ctl import cli_parser
 from airflowctl.ctl.commands import jobs_command
 
 
-def _make_jobs(count: int) -> SimpleNamespace:
+def _make_jobs(count: int, job_type: str = "SchedulerJob") -> SimpleNamespace:
     """Build a stand-in for the ``JobCollectionResponse`` of ``count`` already-alive jobs."""
-    return SimpleNamespace(jobs=[SimpleNamespace(id=i) for i in range(count)])
+    return SimpleNamespace(jobs=[SimpleNamespace(id=i, job_type=job_type) for i in range(count)])
 
 
 class TestCliJobsCheck:
@@ -49,6 +49,21 @@ class TestCliJobsCheck:
         jobs_command.check(self.parser.parse_args(argv), api_client=api_client)
 
         assert expected_output in capsys.readouterr().out
+
+    def test_without_job_type_ignores_executor_job_rows(self, capsys):
+        api_client = mock.MagicMock()
+        api_client.jobs.list.return_value = SimpleNamespace(
+            jobs=[
+                SimpleNamespace(id=1, job_type="SchedulerJob"),
+                SimpleNamespace(id=2, job_type="ExecutorJob"),
+            ]
+        )
+
+        jobs_command.check(
+            self.parser.parse_args(["jobs", "check", "--hostname", "HOSTNAME"]), api_client=api_client
+        )
+
+        assert "Found one alive job." in capsys.readouterr().out
 
     @pytest.mark.parametrize(
         ("argv", "local_hostname", "expected_kwargs"),
