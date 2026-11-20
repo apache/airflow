@@ -1275,6 +1275,42 @@ class TestFabAuthManager:
 
         assert results == expected_results
 
+    def test_get_authorized_dag_ids_reads_cached_user_permissions(
+        self, auth_manager_with_appbuilder, flask_app, dag_maker
+    ):
+        for dag_id in ("test_dag1", "test_dag2"):
+            with dag_maker(dag_id):
+                EmptyOperator(task_id="task")
+            if AIRFLOW_V_3_1_PLUS:
+                sync_dag_to_db(dag_maker.dag)
+        dag_maker.session.commit()
+        dag_maker.session.close()
+
+        security_manager = auth_manager_with_appbuilder.security_manager
+        security_manager.sync_perm_for_dag("test_dag1")
+        security_manager.sync_perm_for_dag("test_dag2")
+        user = create_user(
+            flask_app,
+            username="username",
+            role_name="test",
+            permissions=[(ACTION_CAN_READ, "DAG:test_dag1")],
+        )
+        try:
+            # Load the permissions as deserialize_user's cached user would hold them,
+            # then grant another Dag in the DB.
+            user.perms
+            security_manager.add_permission_to_role(
+                security_manager.find_role("test"),
+                security_manager.get_permission(ACTION_CAN_READ, "DAG:test_dag2"),
+            )
+
+            results = auth_manager_with_appbuilder.get_authorized_dag_ids(user=user, method="GET")
+        finally:
+            delete_user(flask_app, "username")
+            delete_role(flask_app, "test")
+
+        assert results == {"test_dag1"}
+
     def test_get_authorized_pools(self, auth_manager):
         session = Mock()
         session.execute.return_value.scalars.return_value.all.return_value = ["pool1", "pool2"]
