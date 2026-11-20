@@ -1469,6 +1469,57 @@ def test_execute_workload_ignores_already_running_task():
             execute_workload_unwrapped(workload_json)
 
 
+def _server_response_error(status_code: int):
+    from airflow.sdk.api.client import ServerResponseError
+
+    return ServerResponseError(
+        "Invalid auth token", request=mock.Mock(), response=mock.Mock(status_code=status_code)
+    )
+
+
+REDELIVERY_CASES = [
+    pytest.param({"redelivered": True}, 403, True, id="redelivered-403-ignored"),
+    pytest.param({"redelivered": False}, 403, False, id="first-delivery-403-raises"),
+    pytest.param(None, 403, False, id="no-delivery-info-403-raises"),
+    pytest.param({"redelivered": True}, 500, False, id="redelivered-500-raises"),
+]
+
+
+@pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="3.3+ path uses BaseExecutor.run_workload")
+@pytest.mark.parametrize(("delivery_info", "status_code", "ignored"), REDELIVERY_CASES)
+def test_execute_workload_redelivered_with_rejected_token(
+    execute_task_workload_json, mock_celery_app, delivery_info, status_code, ignored
+):
+    """A redelivered message whose token the Execution API rejects is a duplicate, not a failure."""
+    from celery.exceptions import Ignore
+
+    from airflow.sdk.api.client import ServerResponseError
+
+    mock_celery_app.current_task.request.delivery_info = delivery_info
+    with mock.patch("airflow.executors.base_executor.BaseExecutor.run_workload") as mock_run_workload:
+        mock_run_workload.side_effect = _server_response_error(status_code)
+        with pytest.raises(Ignore if ignored else ServerResponseError):
+            celery_executor_utils.execute_workload.__wrapped__(execute_task_workload_json)
+
+
+@pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="execute_workload is only used for Airflow 3+")
+@pytest.mark.skipif(AIRFLOW_V_3_3_PLUS, reason="pre-3.3 compatibility path only applies before Airflow 3.3")
+@pytest.mark.parametrize(("delivery_info", "status_code", "ignored"), REDELIVERY_CASES)
+def test_execute_workload_redelivered_with_rejected_token_before_airflow_3_3(
+    execute_task_workload_json, mock_celery_app, delivery_info, status_code, ignored
+):
+    """Same as above, on the pre-3.3 path that calls supervise directly."""
+    from celery.exceptions import Ignore
+
+    from airflow.sdk.api.client import ServerResponseError
+
+    mock_celery_app.current_task.request.delivery_info = delivery_info
+    with mock.patch("airflow.sdk.execution_time.supervisor.supervise") as mock_supervise:
+        mock_supervise.side_effect = _server_response_error(status_code)
+        with pytest.raises(Ignore if ignored else ServerResponseError):
+            celery_executor_utils.execute_workload.__wrapped__(execute_task_workload_json)
+
+
 class TestAmqpsSslConfig:
     """Tests for amqps:// broker URL SSL configuration (Fix for substring match bug)."""
 
