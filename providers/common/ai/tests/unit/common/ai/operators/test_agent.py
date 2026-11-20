@@ -3282,6 +3282,57 @@ class TestAgentOperatorDurableByDefault:
             in caplog.text
         )
 
+    def test_a_capability_pydantic_ai_refuses_after_an_earlier_attempt_ran_a_tool_still_fails(
+        self, task_state_store_accessor, caplog
+    ):
+        """The Dag changed between attempts; running without durable execution would call the tool again."""
+        live = {"model": 0, "tool": 0}
+        fail_after_tool = [True]
+
+        def my_tool() -> str:
+            live["tool"] += 1
+            return "tool-result"
+
+        def attempt(try_number: int, **kwargs: Any) -> None:
+            op = _agent_op(
+                _tool_then_answer(fail_after_tool, live),
+                retries=2,
+                toolsets=[FunctionToolset(tools=[my_tool], id="tools")],
+                **kwargs,
+            )
+            op.execute(context=_durable_context(task_state_store_accessor, try_number=try_number))
+
+        with pytest.raises(RuntimeError, match="transient"):
+            attempt(1)
+        journal = dict(task_state_store_accessor.data)
+
+        with (
+            caplog.at_level(logging.INFO),
+            pytest.raises(UserError, match="contributes durable operations and needs an explicit"),
+        ):
+            attempt(2, capabilities=[IdlessLedger()])
+
+        assert live["tool"] == 1
+        assert "could repeat, so the task fails. Pass durable=False" in caplog.text
+        assert "Durable execution is off" not in caplog.text
+        assert "durable=True" not in caplog.text
+        # Kept, so a retry of the Dag changed back replays it.
+        assert task_state_store_accessor.data == journal
+
+    def test_a_capability_pydantic_ai_refuses_deletes_the_run_id_an_earlier_attempt_left(
+        self, task_state_store_accessor, caplog
+    ):
+        """An earlier attempt that stored its run id and recorded nothing left nothing to repeat."""
+        op = _agent_op(_answer, retries=2, capabilities=[IdlessLedger()])
+        context = _durable_context(task_state_store_accessor, try_number=2)
+        DurableJournal(op._build_durable_storage(context)).get_run_id(default="ti-1")
+
+        with caplog.at_level(logging.INFO):
+            assert op.execute(context=context) == "done"
+
+        assert "Durable execution is off for this task: Capability 'IdlessLedger'" in caplog.text
+        assert not [key for key in task_state_store_accessor.data if key.startswith(DURABLE_KEY_PREFIX)]
+
     def test_a_build_error_unrelated_to_durable_execution_is_not_logged_as_its_reason(
         self, task_state_store_accessor, caplog
     ):

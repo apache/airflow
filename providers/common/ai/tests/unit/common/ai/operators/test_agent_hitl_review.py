@@ -490,6 +490,62 @@ def test_a_resume_the_default_cannot_run_durably_stores_nothing_durable(park, ct
 
 
 @parks
+def test_a_resume_pydantic_ai_refuses_regenerates_and_keeps_the_first_run_for_a_retry(park, ctx, caplog):
+    """The Dag changed while the review waited; the regeneration repeats none of the first run's steps."""
+    writer = _Writer()
+
+    def build_operator(**kwargs: Any) -> AgentOperator:
+        return _operator(writer, output_type=str, retries=2, toolsets=[writer.toolset()], **kwargs)
+
+    first = park(lambda: build_operator().execute(ctx))
+    store = ctx["task_state_store"].data
+    journal = {key: value for key, value in store.items() if key.startswith(DURABLE_KEY_PREFIX)}
+
+    with caplog.at_level(logging.INFO):
+        second = park(
+            lambda: build_operator(capabilities=[IdlessLedger()]).resume_hitl_review(
+                ctx, **first.kwargs, event=_changes("Shorter")
+            )
+        )
+
+    assert (writer.requests, writer.fetches) == (3, 1)
+    assert "Durable execution is off for this task: Capability 'IdlessLedger'" in caplog.text
+    # Kept, so a retry of the Dag changed back replays the first run; under this Dag the retry fails.
+    assert {key: value for key, value in store.items() if key.startswith(DURABLE_KEY_PREFIX)} == journal
+
+    build_operator(capabilities=[IdlessLedger()]).resume_hitl_review(ctx, **second.kwargs, event=APPROVE)
+
+    assert [key for key in store if key.startswith(DURABLE_KEY_PREFIX)] == []
+
+
+@parks
+def test_a_retry_pydantic_ai_refuses_after_a_review_round_fails_without_calling_the_tool_again(
+    park, ctx, caplog
+):
+    """The regeneration ran without durable execution and failed; the retry would run the first run live."""
+    writer = _Writer(fail_on="Shorter")
+
+    def build_operator(**kwargs: Any) -> AgentOperator:
+        return _operator(writer, output_type=str, retries=2, toolsets=[writer.toolset()], **kwargs)
+
+    first = park(lambda: build_operator().execute(ctx))
+    with pytest.raises(RuntimeError, match="model unavailable"):
+        build_operator(capabilities=[IdlessLedger()]).resume_hitl_review(
+            ctx, **first.kwargs, event=_changes("Shorter")
+        )
+    TestDurable._retry(ctx)
+
+    with (
+        caplog.at_level(logging.INFO),
+        pytest.raises(UserError, match="contributes durable operations and needs an explicit"),
+    ):
+        build_operator(capabilities=[IdlessLedger()]).execute(ctx)
+
+    assert writer.fetches == 1
+    assert "could repeat, so the task fails. Pass durable=False" in caplog.text
+
+
+@parks
 def test_a_review_task_pydantic_ai_refuses_once_running_fails_before_the_review(ctx, caplog):
     """Run again without durable execution, it would reach the review, and a resume decides again."""
     op = _operator(retries=2, capabilities=[SelectModel(lambda selection: FunctionModel(_summarizer))])
