@@ -4954,6 +4954,81 @@ class TestHandleRequest:
             **{"retry_reason": None, "loop_decision": None, **extra},
         )
 
+    @pytest.mark.parametrize(
+        "message",
+        [
+            TaskState(state=TaskInstanceState.FAILED, end_date=timezone.parse("2024-10-31T12:00:00Z")),
+            SucceedTask(end_date=timezone.parse("2024-10-31T12:00:00Z")),
+        ],
+        ids=["task_state", "succeed_task"],
+    )
+    def test_loop_decision_reason_is_masked_before_it_is_sent(self, watched_subprocess, mocker, message):
+        """The supervisor masks a gate's reason for a runtime of every language."""
+        watched_subprocess, _ = watched_subprocess
+        mocker.patch(
+            "airflow.sdk.execution_time.supervisor.redact",
+            autospec=True,
+            side_effect=lambda value: value.replace("hunter2", "***"),
+        )
+        decision = LoopDecisionPayload(stop=False, reason="password hunter2 rejected")
+
+        watched_subprocess._send_terminal_state_msg(message.model_copy(update={"loop_decision": decision}))
+
+        method = "finish" if isinstance(message, TaskState) else "succeed"
+        sent = getattr(watched_subprocess.client.task_instances, method).call_args.kwargs["loop_decision"]
+        assert sent == LoopDecisionPayload(stop=False, reason="password *** rejected")
+
+    @pytest.mark.parametrize(
+        ("reason", "sent", "cut_from_bytes"),
+        [
+            pytest.param("a" * 513, "a" * 512, 513, id="over-limit"),
+            pytest.param("\u00e9" * 257, "\u00e9" * 256, 514, id="cut-on-a-character-boundary"),
+            pytest.param("a" * 512, "a" * 512, None, id="at-limit"),
+            pytest.param(None, None, None, id="no-reason"),
+        ],
+    )
+    def test_loop_decision_reason_is_cut_only_over_the_limit(
+        self, watched_subprocess, reason, sent, cut_from_bytes
+    ):
+        """
+        A language SDK runtime is not told the limit, so the supervisor cuts a longer reason to it and
+        warns in the task log. It leaves a reason at the limit, or no reason, as it is.
+        """
+        watched_subprocess, _ = watched_subprocess
+        process_log = watched_subprocess.process_log
+
+        watched_subprocess._send_terminal_state_msg(
+            SucceedTask(
+                end_date=timezone.parse("2024-10-31T12:00:00Z"),
+                loop_decision=LoopDecisionPayload(stop=True, reason=reason),
+            )
+        )
+
+        loop_decision = watched_subprocess.client.task_instances.succeed.call_args.kwargs["loop_decision"]
+        assert loop_decision == LoopDecisionPayload(stop=True, reason=sent)
+        if cut_from_bytes is None:
+            process_log.warning.assert_not_called()
+        else:
+            process_log.warning.assert_called_once_with(
+                "Loop decision reason exceeds the byte limit and is cut to it",
+                reason_bytes=cut_from_bytes,
+                max_reason_bytes=512,
+            )
+
+    @pytest.mark.enable_redact
+    def test_loop_decision_reason_is_masked_before_it_is_cut(self, watched_subprocess):
+        """A secret that crosses the byte limit is masked whole, not cut into an unmasked fragment."""
+        watched_subprocess, _ = watched_subprocess
+        mask_secret("s3cr3t-API-key-value")
+        decision = LoopDecisionPayload(stop=True, reason="x" * 500 + "s3cr3t-API-key-value" + "y" * 20)
+
+        watched_subprocess._send_terminal_state_msg(
+            SucceedTask(end_date=timezone.parse("2024-10-31T12:00:00Z"), loop_decision=decision)
+        )
+
+        sent = watched_subprocess.client.task_instances.succeed.call_args.kwargs["loop_decision"]
+        assert sent == LoopDecisionPayload(stop=True, reason="x" * 500 + "***" + "y" * 9)
+
 
 @pytest.mark.parametrize(
     ("test_method", "excluded_message_types"),
