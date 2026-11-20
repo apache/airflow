@@ -88,7 +88,7 @@ def example_llm_batch_operator():
         requests=[f"Review: {review!r}" for review in REVIEWS],
         result_path=f"{RESULT_ROOT}/classify",
         llm_conn_id="pydanticai_default",
-        model_id="openai:gpt-5-mini",
+        model_id="openai:gpt-6.1-terra",
         system_prompt="Classify the sentiment of this product review.",
         output_type=Sentiment,
         deferrable=True,
@@ -135,7 +135,7 @@ def example_llm_batch_provider_params():
         requests=[f"Review: {review!r}" for review in REVIEWS],
         result_path=f"{RESULT_ROOT}/keywords-openai",
         llm_conn_id="pydanticai_default",
-        model_id="openai:gpt-5-mini",
+        model_id="openai:gpt-6.1-terra",
         system_prompt="Extract up to three keywords from the review.",
         output_type=list[str],
         max_tokens=2048,
@@ -190,7 +190,7 @@ example_llm_batch_gemini()
 def example_llm_batch_per_request_overrides():
     @task.llm_batch(
         llm_conn_id="pydanticai_default",
-        model_id="openai:gpt-4.1-mini",
+        model_id="openai:gpt-6-luna",
         result_path=f"{RESULT_ROOT}/summaries",
         system_prompt="Summarize the review in one short sentence.",
         max_tokens=60,

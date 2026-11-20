@@ -550,7 +550,7 @@ Both policies share every parameter below except ``categories``,
      - Airflow connection ID for the LLM provider.
    * - ``model_id``
      - None
-     - Override the model from the connection (e.g., ``"openai:gpt-5-mini"``).
+     - Override the model from the connection (e.g., ``"openai:gpt-6.1-terra"``).
    * - ``instructions``
      - (built-in)
      - Custom system prompt for error classification. On ``LLMRetryPolicy`` it

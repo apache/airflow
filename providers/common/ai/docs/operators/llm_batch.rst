@@ -94,7 +94,7 @@ Every request gets exactly one JSONL row with the same keys:
 
     {"custom_id": "3f9c...-0", "index": 0, "status": "success",
      "output": {"label": "positive", "confidence": 0.93}, "raw_output": null, "error": null,
-     "model": "gpt-5", "usage": {"input_tokens": 41, "output_tokens": 12}, "finish_reason": "stop"}
+     "model": "gpt-6.1-sol", "usage": {"input_tokens": 41, "output_tokens": 12}, "finish_reason": "stop"}
 
 ``status`` is one of ``success``, ``error``, ``invalid_output``, ``expired``, ``cancelled`` or
 ``missing``. ``output`` is set only for ``success``; ``raw_output`` preserves what the model

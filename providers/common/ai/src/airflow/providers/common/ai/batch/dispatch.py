@@ -17,7 +17,7 @@
 """
 Dispatch from a connection and a ``model_id`` to a :class:`~airflow.providers.common.ai.batch.base.BatchAdapter`.
 
-The ``model_id`` prefix (``"openai"`` in ``"openai:gpt-5"``) selects the adapter,
+The ``model_id`` prefix (``"openai"`` in ``"openai:gpt-6.1-sol"``) selects the adapter,
 because the prefix decides the request shape and the batch API being called.
 The connection type is then checked against the adapter's
 :attr:`~airflow.providers.common.ai.batch.base.BatchAdapter.conn_types`, since
@@ -133,14 +133,14 @@ def split_model_id(model_id: str | None) -> tuple[str, str]:
     """
     if not model_id or ":" not in model_id:
         raise UnsupportedBatchProviderError(
-            "model_id must be written as '<provider>:<model>' (e.g. 'openai:gpt-5') to "
+            "model_id must be written as '<provider>:<model>' (e.g. 'openai:gpt-6.1-sol') to "
             f"select a batch adapter; got {model_id!r}. Set it on the operator or in the "
             "connection's Model field, or set the connection's Default Model Provider."
         )
     prefix, _, bare = model_id.strip().partition(":")
     if not prefix or not bare:
         raise UnsupportedBatchProviderError(
-            f"model_id {model_id!r} must have both a provider prefix and a model name (e.g. 'openai:gpt-5')."
+            f"model_id {model_id!r} must have both a provider prefix and a model name (e.g. 'openai:gpt-6.1-sol')."
         )
     return prefix, bare
 
