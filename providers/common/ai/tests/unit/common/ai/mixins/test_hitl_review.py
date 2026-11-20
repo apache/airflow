@@ -48,6 +48,7 @@ from airflow.providers.common.ai.utils.hitl_review import (
     AgentSessionData,
     HumanActionData,
     SessionStatus,
+    review_text_xcom,
 )
 from airflow.providers.standard.exceptions import (
     HITLRejectException,
@@ -288,7 +289,9 @@ class TestHITLReviewMixin:
         }
         assert "airflow_hitl_review_agent_output_1" in output_pushes
         assert "airflow_hitl_review_agent_output_2" in output_pushes
-        assert output_pushes["airflow_hitl_review_agent_output_2"] == "Revised: Add more detail"
+        assert output_pushes["airflow_hitl_review_agent_output_2"] == review_text_xcom(
+            "Revised: Add more detail", dag_id="test_dag"
+        )
 
     @patch.object(FakeAgenticOperator, "regenerate_with_feedback")
     @patch("airflow.providers.common.ai.mixins.hitl_review.time.sleep", autospec=True)
@@ -611,7 +614,7 @@ class TestParkedReview:
         assert paused.kwargs["state_sha256"] == hashlib.sha256(state.encode()).hexdigest()
         assert ctx["task_state_store"].set.call_args.kwargs["retention"] == timedelta(hours=2, days=1)
         assert AgentSessionData.model_validate(ti.xcoms[XCOM_AGENT_SESSION]).parked is True
-        assert ti.xcoms[f"{XCOM_AGENT_OUTPUT_PREFIX}1"] == "Initial"
+        assert ti.xcoms[f"{XCOM_AGENT_OUTPUT_PREFIX}1"] == review_text_xcom("Initial", dag_id="d")
         ti.xcom_pull.assert_not_called()
         (request,) = self._review_requests(mock_supervisor_comms)
         assert request.ti_id == ti.id
@@ -640,8 +643,8 @@ class TestParkedReview:
         assert resumed.regenerate_calls == [("Shorter", ["prompt"])]
         # Pushed before regenerating, so the plugin refuses a second answer for the round meanwhile.
         assert status_while_regenerating == [SessionStatus.CHANGES_REQUESTED]
-        assert ti.xcoms[f"{XCOM_HUMAN_FEEDBACK_PREFIX}1"] == "Shorter"
-        assert ti.xcoms[f"{XCOM_AGENT_OUTPUT_PREFIX}2"] == "Revised: Shorter"
+        assert ti.xcoms[f"{XCOM_HUMAN_FEEDBACK_PREFIX}1"] == review_text_xcom("Shorter", dag_id="d")
+        assert ti.xcoms[f"{XCOM_AGENT_OUTPUT_PREFIX}2"] == review_text_xcom("Revised: Shorter", dag_id="d")
         assert AgentSessionData.model_validate(ti.xcoms[XCOM_AGENT_SESSION]).iteration == 2
         assert second.kwargs["iteration"] == 2
         assert second.kwargs["deadline"] == first.kwargs["deadline"]

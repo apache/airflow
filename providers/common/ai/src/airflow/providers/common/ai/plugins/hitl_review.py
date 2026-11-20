@@ -64,6 +64,8 @@ if AIRFLOW_V_3_1_PLUS:
         HumanActionType,
         HumanFeedbackRequest,
         SessionStatus,
+        read_review_text_xcom,
+        review_text_xcom,
     )
     from airflow.providers.common.compat.sdk import XCom, timezone
     from airflow.sdk import TaskInstanceState
@@ -129,7 +131,13 @@ if AIRFLOW_V_3_1_PLUS:
         region_id: UUID | None,
         prefix: str,
     ) -> dict[int, Any]:
-        """Read all iteration-keyed XCom entries matching *prefix* (e.g. ``airflow_hitl_review_agent_output_``)."""
+        """
+        Read all iteration-keyed XCom entries matching *prefix* (e.g. ``airflow_hitl_review_agent_output_``).
+
+        Each entry is read through the XCom backend, and its text is taken from what ``review_text_xcom``
+        wrapped for this Dag. Any other value, such as one written before entries were wrapped, is returned
+        as stored: a reference in it may point to another Dag's XCom, so what it resolves to is not shown.
+        """
         if AIRFLOW_V_3_4_PLUS:
             read = XComModel.get_many(
                 run_id=run_id,
@@ -153,7 +161,8 @@ if AIRFLOW_V_3_1_PLUS:
         for row in session.scalars(query):
             suffix = row.key[len(prefix) :]
             if suffix.isdigit():
-                result[int(suffix)] = _load_xcom_value(row)
+                text = read_review_text_xcom(_load_xcom_value(row), dag_id=dag_id)
+                result[int(suffix)] = row.value if text is None else text
         return result
 
     def _write_xcom(
@@ -512,7 +521,10 @@ if AIRFLOW_V_3_1_PLUS:
         iteration = sess_data.iteration
         if action == "changes_requested":
             _write_xcom(
-                session, **coordinates, key=f"{XCOM_HUMAN_FEEDBACK_PREFIX}{iteration}", value=feedback
+                session,
+                **coordinates,
+                key=f"{XCOM_HUMAN_FEEDBACK_PREFIX}{iteration}",
+                value=review_text_xcom(feedback, dag_id=dag_id),
             )
         if not sess_data.parked:
             # A polling task reads the action from this XCom; a parked one gets it on resume.
