@@ -7319,6 +7319,7 @@ class TestDagFileProcessorManagerWithAPIClient:
         assert self._get_connection_bundles(api_requests) == ["bundle_b"]
 
 
+@mock.patch.object(DagFileProcessorManager, "_service_processor_sockets", autospec=True)
 @mock.patch.object(
     DagFileProcessorManager,
     "_find_files_in_bundle",
@@ -7326,7 +7327,7 @@ class TestDagFileProcessorManagerWithAPIClient:
     return_value=DagBundleDiscoveryResult(files=set()),
 )
 @conf_vars({("core", "multi_team"): "True"})
-def test_refresh_reads_one_fresh_catalog_per_pass(find_files, tmp_path):
+def test_refresh_reads_one_fresh_catalog_per_pass(find_files, _sockets, tmp_path):
     client = mock.create_autospec(DagProcessorAPIClient, instance=True)
     manager = DagFileProcessorManager(max_runs=1, api_client=client, bundle_refresh_check_interval=0)
     states = []
@@ -7380,9 +7381,10 @@ def test_refresh_reads_one_fresh_catalog_per_pass(find_files, tmp_path):
 @pytest.mark.parametrize("catalog_failed", [False, True])
 @pytest.mark.parametrize("has_pending_inventory", [False, True])
 @mock.patch("airflow.dag_processing.manager.time", autospec=True)
+@mock.patch.object(DagFileProcessorManager, "_service_processor_sockets", autospec=True)
 @mock.patch.object(DagFileProcessorManager, "_find_files_in_bundle", autospec=True)
 def test_catalog_omission_releases_source_and_allows_recovery(
-    find_files, clock, catalog_failed, has_pending_inventory, tmp_path
+    find_files, _sockets, clock, catalog_failed, has_pending_inventory, tmp_path
 ):
     clock.monotonic.return_value = 100
     (tmp_path / "a.py").touch()

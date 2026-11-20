@@ -48,6 +48,12 @@ def freeze_time(time_machine):
     time_machine.move_to("2026-10-28T12:00:00Z", tick=False)
 
 
+@pytest.fixture(autouse=True)
+def no_socket_servicing(monkeypatch):
+    # ponytail: selector is only set up in run(); these tests call _refresh_dag_bundles directly.
+    monkeypatch.setattr(DagFileProcessorManager, "_service_processor_sockets", lambda self, timeout=1.0: None)
+
+
 def _create_bundle(tmp_path, name):
     bundle = mock.create_autospec(BaseDagBundle, instance=True)
     bundle.name = name
