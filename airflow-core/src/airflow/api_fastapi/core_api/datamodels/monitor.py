@@ -87,13 +87,7 @@ class DagProcessorInfoResponse(BaseInfoResponse):
 
 
 class ExecutorInfoResponse(BaseInfoResponse):
-    """
-    Executor info serializer for responses.
-
-    Only present when at least one configured executor implements a health check; an executor that
-    doesn't isn't a gap in coverage, so a deployment where nothing reports simply has no ``executor``
-    key at all, rather than one that always reads unhealthy.
-    """
+    """Executor info serializer for responses."""
 
     latest_executor_heartbeat: str | None
     detailed_status: DetailedHealthStatus | None

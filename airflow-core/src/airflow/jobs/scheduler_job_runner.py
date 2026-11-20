@@ -467,12 +467,18 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         self._executor_health_check_timeout = self._executor_health_check_interval / 2
 
         # Only executors that override get_health() get a Job row; one with no name has nothing
-        # stable to key its row under.
-        self._executor_health_keys: dict[str, str | None] = {
-            key: executor.team_name
-            for executor in self.executors
-            if executor.overrides_get_health() and (key := _executor_health_key(executor)) is not None
-        }
+        # stable to key its row under. Empty outright when the interval is 0: nothing would ever
+        # get checked, so a row that only ever heartbeats and never reports a result would be
+        # misleading, not useful.
+        self._executor_health_keys: dict[str, str | None] = (
+            {
+                key: executor.team_name
+                for executor in self.executors
+                if executor.overrides_get_health() and (key := _executor_health_key(executor)) is not None
+            }
+            if self._executor_health_check_interval > 0
+            else {}
+        )
 
         if self._enable_tracemalloc:
             import tracemalloc
@@ -513,8 +519,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         """
         for executor in self.executors:
             key = _executor_health_key(executor)
-            if key is None or key not in self._executor_health_keys:
-                # No name, or doesn't override get_health(): there's nothing to check or record.
+            if key not in self._executor_health_keys:
                 continue
             future, started = self._executor_health_check_futures.get(key, (None, 0.0))
             if future is not None and not future.done():
@@ -2427,12 +2432,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     non_fatal=True,
                 )
 
-            if self._executor_health_check_interval > 0:
-                timers.call_regular_interval(
-                    delay=self._executor_health_check_interval,
-                    action=self._check_executor_health,
-                    non_fatal=True,
-                )
+            timers.call_regular_interval(
+                delay=self._executor_health_check_interval,
+                action=self._check_executor_health,
+                non_fatal=True,
+            )
 
         idle_count = 0
 
