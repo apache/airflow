@@ -128,6 +128,7 @@ class InProcessExecutionAPI:
 
     _app: FastAPI | None = None
     triggerer_id: int | None = None
+    serve_while_debugger_paused: bool = False
 
     @cached_property
     def app(self):
@@ -157,6 +158,11 @@ class InProcessExecutionAPI:
         # Own the event loop and thread so the transport controls their lifecycle.
         loop = asyncio.new_event_loop()
         thread = threading.Thread(target=loop.run_forever, name="InProcessExecutionAPI-loop", daemon=True)
+        if self.serve_while_debugger_paused:
+            # pydevd (debugpy, PyCharm) suspends every other thread at a breakpoint, so code paused in
+            # this process could not reach the API. The attribute also stops tracing in this thread:
+            # breakpoints in route code don't stop for requests this instance serves.
+            thread.pydev_do_not_trace = True  # type: ignore[attr-defined]
         thread.start()
 
         app = self.app
