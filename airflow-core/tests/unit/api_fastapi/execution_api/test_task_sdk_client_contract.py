@@ -41,6 +41,7 @@ from airflow.models.xcom import XCOM_RETURN_KEY, XComModelV2
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.sdk.api.datamodels._generated import (
+    AssetResponse,
     AssetStateStoreResponse,
     ConnectionResponse,
     TaskStateStoreResponse,
@@ -50,7 +51,7 @@ from airflow.sdk.api.datamodels._generated import (
     XComSequenceSliceResponse,
 )
 from airflow.sdk.exceptions import ErrorType
-from airflow.sdk.execution_time.comms import ErrorResponse, XComCountResponse
+from airflow.sdk.execution_time.comms import ErrorResponse, OKResponse, XComCountResponse
 from airflow.utils.session import create_session
 
 from tests_common.test_utils.db import clear_db_connections, clear_db_variables
@@ -254,3 +255,55 @@ class TestAssetStateStoreOperations:
         """An asset that doesn't exist reads the same as a missing key."""
         result = task_sdk_client.asset_state_store.get("watermark", **by)
         assert result == ErrorResponse(error=ErrorType.ASSET_STORE_NOT_FOUND, detail={"key": "watermark"})
+
+
+class TestAssetOperations:
+    @pytest.fixture(autouse=True)
+    def asset(self, session):
+        session.execute(delete(AssetModel))
+        asset = AssetModel(name="contract_asset", uri="s3://bucket/contract_asset", group="asset")
+        session.add(asset)
+        session.flush()
+        session.add(AssetActive.for_asset(asset))
+        session.commit()
+        yield asset
+        with create_session() as cleanup:
+            cleanup.execute(delete(AssetModel))
+
+    @pytest.mark.parametrize("by", ["name", "uri"])
+    def test_get(self, task_sdk_client, asset, by):
+        result = task_sdk_client.assets.get(**{by: getattr(asset, by)})
+        assert isinstance(result, AssetResponse)
+        assert result.name == asset.name
+        assert result.uri == asset.uri
+
+    @pytest.mark.parametrize("by", [{"name": "missing"}, {"uri": "s3://bucket/missing"}])
+    def test_get_not_found(self, task_sdk_client, by):
+        result = task_sdk_client.assets.get(**by)
+        assert result == ErrorResponse(error=ErrorType.ASSET_NOT_FOUND, detail=by)
+
+
+class TestDagRunOperations:
+    @pytest.fixture(autouse=True)
+    def dag(self, dag_maker, session):
+        with dag_maker(dag_id="contract_dag", session=session, serialized=True):
+            EmptyOperator(task_id="task1")
+        session.commit()
+
+    def test_trigger_success(self, task_sdk_client):
+        result = task_sdk_client.dag_runs.trigger(dag_id="contract_dag", run_id="new_run")
+        assert result == OKResponse(ok=True)
+
+    def test_trigger_already_exists(self, task_sdk_client):
+        task_sdk_client.dag_runs.trigger(dag_id="contract_dag", run_id="existing_run")
+        result = task_sdk_client.dag_runs.trigger(
+            dag_id="contract_dag", run_id="existing_run", reset_dag_run=False
+        )
+        assert result == ErrorResponse(error=ErrorType.DAGRUN_ALREADY_EXISTS)
+
+    def test_trigger_already_exists_reset(self, task_sdk_client):
+        task_sdk_client.dag_runs.trigger(dag_id="contract_dag", run_id="reset_run")
+        result = task_sdk_client.dag_runs.trigger(
+            dag_id="contract_dag", run_id="reset_run", reset_dag_run=True
+        )
+        assert result == OKResponse(ok=True)
