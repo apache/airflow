@@ -40,7 +40,7 @@ def mocked_blob_file_system():
 
 
 @pytest.mark.parametrize(
-    ("mocked_connection", "expected_options"),
+    ("mocked_connection", "expected_options", "storage_options"),
     [
         (
             Connection(
@@ -51,6 +51,7 @@ def mocked_blob_file_system():
             {
                 "account_name": "testaccountname",
             },
+            None,
         ),
         (
             Connection(
@@ -61,6 +62,7 @@ def mocked_blob_file_system():
             {
                 "account_name": "testaccountname",
             },
+            None,
         ),
         (
             Connection(
@@ -76,6 +78,7 @@ def mocked_blob_file_system():
             {
                 "connection_string": "connection_string",
             },
+            None,
         ),
         (
             Connection(
@@ -106,6 +109,7 @@ def mocked_blob_file_system():
                 "workload_identity_tenant_id": "workload_identity",
                 "anon": False,
             },
+            None,
         ),
         (
             Connection(
@@ -120,6 +124,7 @@ def mocked_blob_file_system():
                 "account_name": "testaccountname",
                 "account_key": "password",
             },
+            None,
         ),
         (
             Connection(
@@ -137,6 +142,7 @@ def mocked_blob_file_system():
                 "account_host": "mystorageaccount.blob.core.mydomain.io",
                 "account_key": "password",
             },
+            None,
         ),
         (
             # Service principal without a host: the login is a client id, so
@@ -158,6 +164,7 @@ def mocked_blob_file_system():
                 "account_name": "actualstorage",
                 "tenant_id": "tenant_id",
             },
+            None,
         ),
         (
             # Same, but with a bare identifier in host: it is not an endpoint,
@@ -179,6 +186,7 @@ def mocked_blob_file_system():
                 "account_name": "actualstorage",
                 "tenant_id": "tenant_id",
             },
+            None,
         ),
         (
             # Service principal with a bare identifier host and no account in
@@ -199,6 +207,7 @@ def mocked_blob_file_system():
                 "client_secret": "testclientsecret",
                 "tenant_id": "tenant_id",
             },
+            None,
         ),
         (
             # A Data Lake (dfs) endpoint is an endpoint host, but adlfs is a Blob
@@ -220,6 +229,7 @@ def mocked_blob_file_system():
                 "client_secret": "client_secret",
                 "tenant_id": "tenant_id",
             },
+            None,
         ),
         (
             # Same dfs host, with the account in extras: that account decides the
@@ -241,6 +251,7 @@ def mocked_blob_file_system():
                 "client_secret": "client_secret",
                 "tenant_id": "tenant_id",
             },
+            None,
         ),
         (
             # Hostnames are case-insensitive: an uppercase dfs host maps and
@@ -263,6 +274,7 @@ def mocked_blob_file_system():
                 "client_secret": "client_secret",
                 "tenant_id": "tenant_id",
             },
+            None,
         ),
         (
             # A custom domain with a dfs label is not an Azure endpoint, so it
@@ -279,6 +291,7 @@ def mocked_blob_file_system():
                 "account_host": "testaccountname.dfs.example.com",
                 "account_key": "account_key",
             },
+            None,
         ),
         (
             # The dfs mapping replaces the ".dfs.core." labels wherever they
@@ -296,6 +309,7 @@ def mocked_blob_file_system():
                 "account_host": "testaccountname.blob.core.example.com",
                 "account_key": "account_key",
             },
+            None,
         ),
         (
             # An explicit port does not stop the mapping: a dfs endpoint with a
@@ -313,6 +327,7 @@ def mocked_blob_file_system():
                 "account_host": "testaccountname.blob.core.windows.net:443",
                 "account_key": "account_key",
             },
+            None,
         ),
         (
             # A dfs endpoint on a sovereign cloud maps to the blob endpoint of
@@ -329,6 +344,7 @@ def mocked_blob_file_system():
                 "account_host": "testaccountname.blob.core.chinacloudapi.cn",
                 "account_key": "account_key",
             },
+            None,
         ),
         (
             # A host with a port and no scheme, on a connection without a
@@ -345,6 +361,7 @@ def mocked_blob_file_system():
                 "account_host": "testaccountname.blob.core.windows.net:443",
                 "account_key": "account_key",
             },
+            None,
         ),
         (
             # On a private-link name the dfs label is not the second label,
@@ -366,6 +383,7 @@ def mocked_blob_file_system():
                 "client_secret": "client_secret",
                 "tenant_id": "tenant_id",
             },
+            None,
         ),
         (
             # A dot in the path does not make the host an endpoint: the hostname
@@ -386,6 +404,7 @@ def mocked_blob_file_system():
                 "client_secret": "testclientsecret",
                 "tenant_id": "tenant_id",
             },
+            None,
         ),
         (
             Connection(
@@ -404,6 +423,7 @@ def mocked_blob_file_system():
                 "client_secret": "client_secret",
                 "tenant_id": "tenant_id",
             },
+            None,
         ),
         (
             # A mixed-case bare host is still an account name; urlparse lowercases it.
@@ -423,6 +443,7 @@ def mocked_blob_file_system():
                 "client_secret": "client_secret",
                 "tenant_id": "tenant_id",
             },
+            None,
         ),
         (
             Connection(
@@ -436,6 +457,7 @@ def mocked_blob_file_system():
                 "account_name": "testaccountname",
                 "account_key": "account_key",
             },
+            None,
         ),
         (
             # Custom domain / private endpoint: adls connections set account_host (a real
@@ -459,6 +481,7 @@ def mocked_blob_file_system():
                 "client_secret": "client_secret",
                 "tenant_id": "tenant_id",
             },
+            None,
         ),
         (
             # No host and no account_name in Extra: get_fs sets no account, so adlfs needs
@@ -478,6 +501,7 @@ def mocked_blob_file_system():
                 "client_secret": "client_secret",
                 "tenant_id": "tenant_id",
             },
+            None,
         ),
         (
             Connection(
@@ -496,12 +520,57 @@ def mocked_blob_file_system():
                 "client_secret": "client_secret",
                 "tenant_id": "tenant_id",
             },
+            None,
+        ),
+        pytest.param(
+            Connection(
+                conn_id="testconn",
+                conn_type="wasb",
+                host="https://testaccountname.blob.core.mydomain.io/",
+                password="password",
+                extra={
+                    "account_name": "extraaccount",
+                    "account_key": "extra_key",
+                    "account_host": "extraaccount.blob.core.mydomain.io",
+                },
+            ),
+            {
+                "account_name": "overrideaccount",
+                "account_key": "override_key",
+                "account_host": "overrideaccount.blob.core.mydomain.io",
+            },
+            {
+                "account_name": "overrideaccount",
+                "account_key": "override_key",
+                "account_host": "overrideaccount.blob.core.mydomain.io",
+            },
+            id="storage-options-override",
+        ),
+        pytest.param(
+            Connection(
+                conn_id="testconn",
+                conn_type="wasb",
+                host="https://testaccountname.blob.core.mydomain.io/",
+                password="password",
+                extra={
+                    "account_name": "extraaccount",
+                    "account_key": "extra_key",
+                    "account_host": "extraaccount.blob.core.mydomain.io",
+                },
+            ),
+            {
+                "account_name": "overrideaccount",
+                "account_key": "extra_key",
+                "account_host": "extraaccount.blob.core.mydomain.io",
+            },
+            {"account_name": "overrideaccount"},
+            id="storage-options-partial-override",
         ),
     ],
     indirect=["mocked_connection"],
 )
-def test_get_fs(mocked_connection, expected_options, mocked_blob_file_system):
-    get_fs(mocked_connection.conn_id)
+def test_get_fs(mocked_connection, expected_options, storage_options, mocked_blob_file_system):
+    get_fs(mocked_connection.conn_id, storage_options=storage_options)
     mocked_blob_file_system.assert_called_once_with(**expected_options)
 
 
