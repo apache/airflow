@@ -45,6 +45,7 @@ from airflow_breeze.utils.path_utils import (
     get_host_id,
     get_isolated_worktree_path,
     get_main_git_dir_for_worktree,
+    is_podman_enabled,
 )
 from airflow_breeze.utils.shared_options import get_dry_run, get_verbose
 from airflow_breeze.utils.visuals import ASCIIART, ASCIIART_STYLE, CHEATSHEET, CHEATSHEET_STYLE
@@ -632,15 +633,25 @@ def check_executable_entrypoint_permissions(quiet: bool = False):
 def perform_environment_checks(quiet: bool = False, *, cleanup_stale_worktrees: bool = True):
     check_docker_is_running()
     container_engine_is_docker = check_container_engine_is_docker(quiet)
-    if not container_engine_is_docker:
+    if container_engine_is_docker:
+        check_docker_version(quiet)
+    elif is_podman_enabled():
+        # Podman's Docker-compatible CLI reports the Podman version, which cannot be compared
+        # with MIN_DOCKER_VERSION.
+        console_print(
+            "[warning]Experimental Podman support is enabled. Docker version check is skipped.[/]\n"
+            "[warning]Report problems in https://github.com/apache/airflow/issues/54894[/]"
+        )
+    else:
         console_print("[error]Unsupported container engine detected.[/]")
         console_print("[error]Install and enable Docker to continue.[/]")
+        console_print(
+            "[info]To try experimental Podman support instead, run: breeze setup config --podman[/]"
+        )
         sys.exit(1)
-    else:
-        check_docker_version(quiet)
-        check_docker_compose_version(quiet)
-        check_windows_filesystem_mount(quiet)
-        check_executable_entrypoint_permissions(quiet)
+    check_docker_compose_version(quiet)
+    check_windows_filesystem_mount(quiet)
+    check_executable_entrypoint_permissions(quiet)
     check_uv_version(quiet)
     if not quiet:
         console_print(f"[success]Host python version is {sys.version}[/]")

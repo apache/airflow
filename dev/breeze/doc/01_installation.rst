@@ -555,6 +555,14 @@ You can also switch off the separate Docker Compose project that Breeze uses for
 ``--no-worktree-isolation`` (see `Stopping the environment <03_developer_tasks.rst#stopping-the-environment>`_).
 The setting applies to every worktree of the checkout.
 
+Breeze stops when it detects Podman instead of Docker. You can switch on experimental Podman support
+with ``--podman``. Breeze then skips the Docker version check, but still runs all its commands through
+the ``docker`` CLI, so Podman must provide it (for example with the ``podman-docker`` package), and
+Docker Compose v2 must be available. Not every Breeze command works with Podman yet - for example
+building the images may fail, because the Dockerfiles need BuildKit. See
+`#54894 <https://github.com/apache/airflow/issues/54894>`_ for progress.
+The setting applies to every worktree of the checkout.
+
 These are all available flags of ``setup config`` command:
 
 .. image:: ./images/output_setup_config.svg

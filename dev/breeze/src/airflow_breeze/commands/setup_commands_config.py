@@ -70,6 +70,7 @@ SETUP_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--asciiart",
                 "--colour",
                 "--worktree-isolation",
+                "--podman",
             ],
         },
     ],

@@ -56,6 +56,7 @@ from airflow_breeze.utils.path_utils import (
     BREEZE_IMAGES_PATH,
     BREEZE_ROOT_PATH,
     BREEZE_SOURCES_PATH,
+    ENABLE_PODMAN_FILE,
     SCRIPTS_CI_DOCKER_COMPOSE_LOCAL_YAML_PATH,
     SUPPRESS_WORKTREE_ISOLATION_FILE,
     WORKTREE_ISOLATION_ENV,
@@ -64,6 +65,7 @@ from airflow_breeze.utils.path_utils import (
     get_shared_build_cache_path,
     get_used_airflow_sources,
     get_used_sources_setup_metadata_hash,
+    is_podman_enabled,
     is_worktree_isolation_enabled,
 )
 from airflow_breeze.utils.recording import generating_command_images
@@ -207,6 +209,12 @@ def version():
     f"Applies to every worktree; the {WORKTREE_ISOLATION_ENV} environment variable overrides it.",
     default=None,
 )
+@click.option(
+    "--podman/--no-podman",
+    help="Enable/disable experimental Podman support. Breeze still calls the docker CLI, so Podman "
+    "must provide it (for example with podman-docker), and docker compose v2 must be available.",
+    default=None,
+)
 def change_config(
     python: str,
     backend: str,
@@ -219,9 +227,10 @@ def change_config(
     asciiart: bool,
     colour: bool,
     worktree_isolation: bool | None,
+    podman: bool | None,
 ):
     """
-    Show/update configuration (Python, Backend, Cheatsheet, ASCIIART, worktree isolation).
+    Show/update configuration (Python, Backend, Cheatsheet, ASCIIART, worktree isolation, Podman).
     """
     asciiart_file = "suppress_asciiart"
     cheatsheet_file = "suppress_cheatsheet"
@@ -258,6 +267,16 @@ def change_config(
             suppress_isolation_file.touch()
             console_print("[info]Disable worktree isolation[/]")
 
+    if podman is not None:
+        enable_podman_file = get_shared_build_cache_path() / ENABLE_PODMAN_FILE
+        if podman:
+            enable_podman_file.parent.mkdir(parents=True, exist_ok=True)
+            enable_podman_file.touch()
+            console_print("[info]Enable experimental Podman support[/]")
+        else:
+            enable_podman_file.unlink(missing_ok=True)
+            console_print("[info]Disable experimental Podman support[/]")
+
     def get_suppress_status(file: str):
         return "disabled" if check_if_cache_exists(file) else "enabled"
 
@@ -281,6 +300,8 @@ def change_config(
     if os.environ.get(WORKTREE_ISOLATION_ENV):
         isolation_status += f" (set by {WORKTREE_ISOLATION_ENV})"
     console_print(f"[info]* Worktree isolation: {isolation_status}[/]")
+    console_print()
+    console_print(f"[info]* Podman: {'enabled' if is_podman_enabled() else 'disabled'}[/]")
     console_print()
 
 

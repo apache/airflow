@@ -1161,3 +1161,49 @@ def test_fix_ownership_using_docker_passes_lowercase_rootless_flag(
     fix_ownership_using_docker()
     docker_command = mock_run_command.call_args[0][0]
     assert expected in docker_command
+
+
+@pytest.mark.parametrize(
+    ("engine_is_docker", "podman_enabled", "expect_exit", "expect_docker_version_check"),
+    [
+        pytest.param(True, False, False, True, id="docker"),
+        pytest.param(True, True, False, True, id="docker-with-podman-setting"),
+        pytest.param(False, True, False, False, id="podman-enabled"),
+        pytest.param(False, False, True, False, id="podman-not-enabled"),
+    ],
+)
+def test_environment_checks_container_engine(
+    engine_is_docker, podman_enabled, expect_exit, expect_docker_version_check
+):
+    with ExitStack() as stack:
+        checks = {
+            name: stack.enter_context(mock.patch.object(docker_command_utils, name, autospec=True))
+            for name in (
+                "check_docker_is_running",
+                "check_docker_version",
+                "check_docker_compose_version",
+                "check_windows_filesystem_mount",
+                "check_executable_entrypoint_permissions",
+                "check_uv_version",
+            )
+        }
+        stack.enter_context(
+            mock.patch.object(
+                docker_command_utils,
+                "check_container_engine_is_docker",
+                autospec=True,
+                return_value=engine_is_docker,
+            )
+        )
+        stack.enter_context(
+            mock.patch.object(
+                docker_command_utils, "is_podman_enabled", autospec=True, return_value=podman_enabled
+            )
+        )
+        if expect_exit:
+            with pytest.raises(SystemExit):
+                docker_command_utils.perform_environment_checks.__wrapped__(cleanup_stale_worktrees=False)
+        else:
+            docker_command_utils.perform_environment_checks.__wrapped__(cleanup_stale_worktrees=False)
+    assert checks["check_docker_version"].called is expect_docker_version_check
+    assert checks["check_docker_compose_version"].called is not expect_exit

@@ -40,8 +40,9 @@ For Breeze (local development):
 
 * `Docker Desktop <https://www.docker.com/products/docker-desktop/>`__
 * `Podman <https://podman.io/>`__ is a license-friendly alternative to Docker Desktop, but it is
-  **not yet fully supported** by Breeze. Breeze will detect Podman and print a warning, and you
-  may run into issues that do not occur with Docker. Docker Desktop is recommended unless you are
+  **not yet fully supported** by Breeze. Breeze stops when it detects Podman unless you switch on
+  experimental support with ``breeze setup config --podman``, and you may run into issues that do
+  not occur with Docker. Docker Desktop is recommended unless you are
   comfortable troubleshooting Podman-specific problems yourself. Track full support in
   `#54894 <https://github.com/apache/airflow/issues/54894>`_.
 * `Docker Compose <https://docs.docker.com/compose/install/>`__
