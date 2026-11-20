@@ -430,6 +430,7 @@ class TestBedrockSensorDeferral:
     async def test_resume_fails_when_trigger_exhausts_attempts(
         self, mock_conn, mock_get_async_conn, success_state
     ):
+        pytest.importorskip("aiobotocore")
         job = {"status": "Submitted"}
         mock_conn.get_model_invocation_job.return_value = job
         client = mock.MagicMock()
