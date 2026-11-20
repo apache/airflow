@@ -337,7 +337,12 @@ def _rejection(api_exception_cls, status=401):
     error.body = b'{"kind":"Status"}'
     if _returns_rejected_responses(api_exception_cls):
         return mock.create_autospec(
-            client.rest.RESTResponse, instance=True, status=status, reason=error.reason, data=error.body
+            client.rest.RESTResponse,
+            instance=True,
+            status=status,
+            reason=error.reason,
+            data=error.body,
+            headers={},
         )
     return error
 
@@ -351,7 +356,13 @@ def _reject(api_exception_cls, status=401):
 
 def _pods_response():
     return mock.create_autospec(
-        client.rest.RESTResponse, instance=True, status=200, data=b'{"items": []}', response=mock.sentinel.raw
+        client.rest.RESTResponse,
+        instance=True,
+        status=200,
+        data=b'{"items": []}',
+        headers={"content-type": "application/json"},
+        response=mock.sentinel.raw,
+        **{"getheader.return_value": "application/json"},
     )
 
 
@@ -369,11 +380,12 @@ def _result_of(pods, api_exception_cls):
     ("unauthorized_responses", "succeeds"),
     [pytest.param(1, True, id="retried-with-new-token"), pytest.param(2, False, id="retried-only-once")],
 )
+@pytest.mark.parametrize("preload_content", [False, True], ids=["raw-response", "deserialized"])
 @pytest.mark.asyncio
 # kubernetes_asyncio loads the CA eagerly and the fake PEM is not loadable.
 @mock.patch.object(_client_factory, "_write_cluster_ca_file", return_value=None)
 async def test_rejected_token_is_replaced_and_request_retried_once(
-    _, mock_aws, factory, api_exception_cls, unauthorized_responses, succeeds
+    _, mock_aws, factory, api_exception_cls, unauthorized_responses, succeeds, preload_content
 ):
     core_v1 = factory()
     mock_aws["fetch_token"].side_effect = ["k8s-aws-v1.token-2", "k8s-aws-v1.token-3"]
@@ -391,16 +403,44 @@ async def test_rejected_token_is_replaced_and_request_retried_once(
 
     with mock.patch.object(core_v1.api_client.rest_client, "request", autospec=True, side_effect=respond):
         try:
-            result = core_v1.list_namespaced_pod("default", _preload_content=False)
+            result = core_v1.list_namespaced_pod("default", _preload_content=preload_content)
             if inspect.isawaitable(result):
                 result = await result
+            if preload_content:
+                result = result.items
         except api_exception_cls as e:
             result = e.status
 
     assert sent_tokens == ["Bearer k8s-aws-v1.token-1", "Bearer k8s-aws-v1.token-2"]
-    assert result == (_result_of(pods, api_exception_cls) if succeeds else 401)
+    expected = [] if preload_content else _result_of(pods, api_exception_cls)
+    assert result == (expected if succeeds else 401)
     if inspect.iscoroutinefunction(core_v1.api_client.close):
         await core_v1.api_client.close()
+
+
+# The generated methods of kubernetes 37 call ``call_api(method, url, header_params, ...)``. Calling it the same
+# way keeps this test failing without the fix whichever client version is installed.
+@mock.patch.object(_client_factory, "_KUBERNETES_MAJOR_VERSION", 37)
+@mock.patch.object(client.ApiClient, "call_api", autospec=True)
+@mock.patch.object(_client_factory, "_write_cluster_ca_file", return_value=None)
+def test_returned_401_is_retried_once_with_the_new_token_in_the_kubernetes_37_call_shape(
+    _, mock_call_api, mock_aws
+):
+    api_client = _get_eks_kube_client().api_client
+    mock_aws["fetch_token"].side_effect = ["k8s-aws-v1.token-2"]
+    # kubernetes 36 has no read(); kubernetes 37 has.
+    rejected = mock.create_autospec(client.rest.RESTResponse, instance=True, status=401, read=mock.Mock())
+    mock_call_api.side_effect = [rejected, mock.sentinel.pods]
+    headers = {"authorization": "Bearer k8s-aws-v1.token-1"}
+
+    result = api_client.call_api(
+        "GET", "https://eks.test/api/v1/pods", headers, None, None, _request_timeout=None
+    )
+
+    assert result is mock.sentinel.pods
+    assert mock_call_api.call_count == 2
+    assert headers["authorization"] == "Bearer k8s-aws-v1.token-2"
+    rejected.read.assert_called_once_with()
 
 
 @pytest.mark.parametrize(
