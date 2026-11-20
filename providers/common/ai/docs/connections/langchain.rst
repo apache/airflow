@@ -41,7 +41,7 @@ Configuring the Connection
 
 Chat Model (Extra field)
     Chat model identifier in ``provider:name`` format, dispatched via
-    ``langchain.chat_models.init_chat_model`` (e.g. ``openai:gpt-5``,
+    ``langchain.chat_models.init_chat_model`` (e.g. ``openai:gpt-6.1-sol``,
     ``anthropic:claude-sonnet-5``). This field appears as a dedicated input
     in the connection form (via ``conn-fields``) and stores its value in
     ``extra["model"]``.
@@ -98,7 +98,7 @@ Examples
     {
         "conn_type": "langchain",
         "password": "sk-...",
-        "extra": "{\"model\": \"openai:gpt-5\", \"embed_model\": \"openai:text-embedding-3-small\"}"
+        "extra": "{\"model\": \"openai:gpt-6.1-sol\", \"embed_model\": \"openai:text-embedding-3-small\"}"
     }
 
 **Anthropic (chat only)**

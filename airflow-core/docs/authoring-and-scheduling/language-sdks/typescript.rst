@@ -306,8 +306,8 @@ to label the branches of ``dag.if`` or ``dag.switch`` (see below):
 Task groups
 ~~~~~~~~~~~
 
-``dag.taskGroup(groupId)`` opens a group with the same ``task`` and ``taskGroup`` methods as the Dag. Every id
-declared in it is prefixed with the group's, as in Python:
+``dag.taskGroup(groupId)`` opens a group with the same ``task``, ``taskGroup``, ``if`` and ``switch`` methods
+as the Dag. Every id declared in it is prefixed with the group's, as in Python:
 
 .. code-block:: typescript
 
@@ -592,11 +592,12 @@ The ``TaskClient``
    * - ``getConnectionOrThrow(connId)``
      - Same, but throws ``ConnectionNotFoundError``, like Python's ``BaseHook.get_connection``.
    * - ``getXCom<T>({ key, ... })``
-     - An XCom value, or ``null`` when it does not exist. ``dagId``, ``runId``, ``taskId`` and ``mapIndex``
-       default to the current task; pass ``taskId`` to read an upstream task's XCom. See
+     - An XCom value, or ``null`` when it does not exist. ``dagId``, ``runId`` and ``taskId`` default to the
+       current task; pass ``taskId`` to read an upstream task's XCom. ``mapIndex`` defaults to the current
+       task's own map index when the target is the current task, and to the unmapped value otherwise. See
        :ref:`typescript-sdk/types`.
    * - ``setXCom({ key, value, ... })``
-     - Publishes an XCom value.
+     - Publishes an XCom value. The target and ``mapIndex`` default the same way as for ``getXCom``.
    * - ``taskStateStore``
      - This task instance's key/value store, with ``get<T>(key)``, ``set(key, value, { retention? })``,
        ``delete(key)`` and ``clear()``. See :ref:`typescript-sdk/task-state-store`.
