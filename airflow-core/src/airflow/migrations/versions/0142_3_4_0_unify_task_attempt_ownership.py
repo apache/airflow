@@ -167,6 +167,29 @@ def _redirect_legacy(table, constraint, target, *, onupdate=None, not_valid=Fals
         )
 
 
+def _history_insert_statement(dialect: str, ti, history_rows, columns: list[str]):
+    """
+    Build the statement that restores archived attempts into ``task_instance``.
+
+    Rows that are already present live must be skipped rather than abort the migration.
+
+    In 3.3.x every attempt of a task shared a single ``task_instance`` row, so all of its
+    ``task_instance_history`` rows carry the same ``task_instance_id``. Since that value becomes
+    the primary key of ``task_instance``, restoring more than one attempt of a task collides on
+    the primary key as well as on ``task_instance_try_key`` -- a statement scoped to the latter
+    alone raises ``UniqueViolation`` instead of skipping, which blocks the upgrade for every
+    deployment that ever retried a task. Leaving the conflict target out covers any unique
+    violation, which is the intended "insert unless it is already there" semantics. SQLite has the
+    same gap: its conflict target named the coordinates and try_number only, so a second attempt of
+    a task fails there too. MySQL is unaffected, because it filters existing rows before inserting.
+    """
+    if dialect == "postgresql":
+        return postgresql.insert(ti).from_select(columns, history_rows).on_conflict_do_nothing()
+    if dialect == "sqlite":
+        return sqlite.insert(ti).from_select(columns, history_rows.where(sa.true())).on_conflict_do_nothing()
+    return ti.insert().from_select(columns, history_rows)
+
+
 def upgrade():
     """Retain attempts and give legacy and new task data immutable UUID owners."""
     _check_source()
@@ -279,21 +302,7 @@ def upgrade():
             "archived_reason",
             "dag_version_id",
         ]
-        if dialect == "postgresql":
-            insert = (
-                postgresql.insert(ti)
-                .from_select(columns, history_rows)
-                .on_conflict_do_nothing(constraint="task_instance_try_key")
-            )
-        elif dialect == "sqlite":
-            insert = (
-                sqlite.insert(ti)
-                .from_select(columns, history_rows.where(sa.true()))
-                .on_conflict_do_nothing(index_elements=[*_COORDINATES, "try_number"])
-            )
-        else:
-            insert = ti.insert().from_select(columns, history_rows)
-        op.execute(insert)
+        op.execute(_history_insert_statement(dialect, ti, history_rows, columns))
         hitl = sa.table("hitl_detail", sa.column("ti_id"), *(sa.column(c) for c in _HITL_COLUMNS))
         hitl_history = sa.table(
             "hitl_detail_history", sa.column("ti_history_id"), *(sa.column(c) for c in _HITL_COLUMNS)
