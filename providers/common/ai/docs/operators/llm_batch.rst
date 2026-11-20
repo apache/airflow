@@ -169,7 +169,9 @@ sampling settings (``temperature``, ``top_p``, ...) and pydantic-ai's ``openai_*
 settings (``openai_reasoning_effort``, ``openai_user``, ...) are typed settings. Every other key
 (``user``, ``metadata``, ...) is an OpenAI Responses field and is merged into the request body as-is.
 Batches use the Responses API, so a Chat Completions key has to be written the Responses way:
-``openai_reasoning_effort``, not ``reasoning_effort``. A setting the Responses API does not support
+``openai_reasoning_effort`` or ``reasoning={"effort": ...}``, not ``reasoning_effort``.
+``reasoning_effort``, ``verbosity`` and ``logprobs`` fail validation before anything is submitted,
+with the setting to use instead. A setting the Responses API does not support
 (``seed``, ``top_k``, ``frequency_penalty``, ``presence_penalty``, ``logit_bias`` and
 ``stop_sequences``) fails validation before anything is submitted, because pydantic-ai would
 otherwise drop it without a warning.

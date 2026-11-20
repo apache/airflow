@@ -42,7 +42,8 @@ Changelog
     ``presence_penalty``, ``logit_bias`` and ``stop_sequences`` on OpenAI) now fails before
     submission, and a key the operator manages (``model``, ``messages``, ``input``, ...) is ignored
     with a warning. A Chat Completions key has to be written the Responses way on OpenAI, for example
-    ``openai_reasoning_effort`` instead of ``reasoning_effort``.
+    ``openai_reasoning_effort`` instead of ``reasoning_effort``; ``reasoning_effort``, ``verbosity``
+    and ``logprobs`` fail before submission with the setting to use.
   - OpenAI batches run on the Responses API (``/v1/responses``) instead of Chat Completions, because
     pydantic-ai batches only its Responses model. An ``openai-chat:`` model id is built as
     ``openai:`` and logged. A gateway that implements batches only for ``/v1/chat/completions`` stops

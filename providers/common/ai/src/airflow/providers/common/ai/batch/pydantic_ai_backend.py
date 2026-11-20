@@ -935,8 +935,9 @@ class OpenAIBatchAdapter(PydanticAIBatchAdapter):
     pydantic-ai batches only its Responses model, so an ``openai-chat:`` model id is built as the
     ``openai:`` model of the same name and logged. Azure OpenAI has no adapter. A batch's group
     includes the model, so every request must use the same one. Raw Responses fields in
-    ``request_params`` (``user``, ``metadata``, ...) go through ``extra_body``; the typed form of
-    a setting is preferred where one exists (``openai_reasoning_effort``, not ``reasoning_effort``).
+    ``request_params`` (``user``, ``metadata``, ...) go through ``extra_body``, so use Responses
+    names: ``openai_reasoning_effort`` or ``reasoning={"effort": ...}``, not ``reasoning_effort``.
+    A Chat Completions parameter that has a Responses equivalent fails before submission.
 
     A batch gateway that implements ``/v1/files`` and ``/v1/batches`` for ``/v1/responses`` works
     through the connection's ``host``; one that implements those only for ``/v1/chat/completions``
@@ -958,12 +959,34 @@ class OpenAIBatchAdapter(PydanticAIBatchAdapter):
         "cancelled": "cancelled",
     }
 
+    #: Chat Completions parameters the Responses API does not take, with the typed setting that
+    #: does the same. Sent as raw fields, they would fail every request of the batch at OpenAI.
+    _CHAT_COMPLETIONS_RENAMES: ClassVar[dict[str, str]] = {
+        "reasoning_effort": "openai_reasoning_effort",
+        "verbosity": "openai_text_verbosity",
+        "logprobs": "openai_logprobs",
+    }
+
     @classmethod
     def _settings_type(cls) -> type:
         # Heavy third-party SDK: importing the OpenAI model module imports ``openai``.
         from pydantic_ai.models.openai import OpenAIResponsesModelSettings
 
         return OpenAIResponsesModelSettings
+
+    def _build_settings(
+        self,
+        model: Model,
+        *layers: Mapping[str, Any] | None,
+        max_tokens: int,
+    ) -> tuple[ModelSettings, set[str]]:
+        for layer in layers:
+            for key in sorted((layer or {}).keys() & self._CHAT_COMPLETIONS_RENAMES.keys()):
+                raise LLMBatchInputError(
+                    f"{key!r} is a Chat Completions parameter, and batches run on the Responses API; "
+                    f"use {self._CHAT_COMPLETIONS_RENAMES[key]!r}."
+                )
+        return super()._build_settings(model, *layers, max_tokens=max_tokens)
 
     @staticmethod
     def _responses_model_id(model_id: str) -> str:

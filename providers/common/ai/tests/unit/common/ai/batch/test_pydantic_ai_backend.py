@@ -1675,6 +1675,26 @@ class TestOpenAIBatches:
         assert fmt["type"] == "json_schema"
         assert fmt["schema"]["properties"].keys() == {"label", "score"}
 
+    @pytest.mark.parametrize(
+        ("key", "value", "renamed"),
+        [
+            ("reasoning_effort", "low", "openai_reasoning_effort"),
+            ("verbosity", "low", "openai_text_verbosity"),
+            ("logprobs", True, "openai_logprobs"),
+        ],
+    )
+    @pytest.mark.parametrize("where", ["request_params", "request"])
+    def test_a_chat_completions_parameter_fails_before_submission_with_its_responses_name(
+        self, key, value, renamed, where
+    ):
+        adapter = OpenAIBatchAdapter(model_id=GPT, model_factory=lambda _id: _gpt())
+        request: dict[str, Any] = {"prompt": "hi", "params": {"user": "u-1"}}
+        request_params: dict[str, Any] = {"temperature": 0.2}
+        (request["params"] if where == "request" else request_params)[key] = value
+
+        with pytest.raises(LLMBatchInputError, match=f"{key!r} is a Chat Completions parameter.*{renamed!r}"):
+            _real_encode(adapter, [request], request_params=request_params)
+
     @pytest.mark.parametrize("key", ["seed", "top_k"])
     def test_a_setting_the_responses_api_would_silently_drop_is_rejected(self, key):
         adapter = OpenAIBatchAdapter(model_id=GPT)
