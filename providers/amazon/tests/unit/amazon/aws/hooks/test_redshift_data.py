@@ -329,10 +329,30 @@ class TestRedshiftDataHook:
             WithEvent=False,
         )
 
+    @pytest.mark.parametrize(
+        ("schema", "expected_schema_filter", "expected_parameters"),
+        [
+            pytest.param(
+                "schema",
+                "kcu.table_schema = :schema",
+                [{"name": "schema", "value": "schema"}, {"name": "table", "value": "table"}],
+                id="schema_given",
+            ),
+            # S3ToRedshiftOperator passes schema=None by default and writes to the bare table name,
+            # which resolves through the search_path. The Data API rejects a None parameter value.
+            pytest.param(
+                None,
+                "kcu.table_schema = current_schema()",
+                [{"name": "table", "value": "table"}],
+                id="schema_none",
+            ),
+        ],
+    )
     @mock.patch("airflow.providers.amazon.aws.hooks.redshift_data.RedshiftDataHook.conn")
-    def test_get_table_primary_key_no_token(self, mock_conn):
+    def test_get_table_primary_key_no_token(
+        self, mock_conn, schema, expected_schema_filter, expected_parameters
+    ):
         table = "table"
-        schema = "schema"
         cluster_identifier = "cluster_identifier"
         db_user = "db_user"
         secret_arn = "secret_arn"
@@ -360,34 +380,15 @@ class TestRedshiftDataHook:
             Sql=mock.ANY,
             ClusterIdentifier=cluster_identifier,
             DbUser=db_user,
-            Parameters=[{"name": "schema", "value": schema}, {"name": "table", "value": table}],
+            Parameters=expected_parameters,
             SecretArn=secret_arn,
             StatementName=statement_name,
             WithEvent=False,
         )
         sql = mock_conn.execute_statement.call_args.kwargs["Sql"]
-        assert "kcu.table_schema = :schema" in sql
+        assert expected_schema_filter in sql
         assert "kcu.table_name = :table" in sql
         mock_conn.get_statement_result.assert_called_once_with(Id=STATEMENT_ID)
-
-    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_data.RedshiftDataHook.conn")
-    def test_get_table_primary_key_schema_none_defaults_to_public(self, mock_conn):
-        mock_conn.execute_statement.return_value = {"Id": STATEMENT_ID}
-        mock_conn.describe_statement.return_value = {"Status": "FINISHED"}
-        mock_conn.get_statement_result.return_value = {
-            "Records": [[{"stringValue": "string"}]],
-        }
-
-        hook = RedshiftDataHook()
-
-        # S3ToRedshiftOperator passes schema=None by default. The Data API rejects a None
-        # parameter value, so the hook falls back to the "public" schema.
-        hook.get_table_primary_key(
-            table="table", database=DATABASE, schema=None, cluster_identifier="cluster_identifier"
-        )
-
-        parameters = mock_conn.execute_statement.call_args.kwargs["Parameters"]
-        assert parameters == [{"name": "schema", "value": "public"}, {"name": "table", "value": "table"}]
 
     @mock.patch("airflow.providers.amazon.aws.hooks.redshift_data.RedshiftDataHook.conn")
     def test_get_table_primary_key_with_token(self, mock_conn):
