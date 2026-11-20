@@ -32,17 +32,8 @@ from airflow.providers.keycloak.auth_manager.constants import (
     COOKIE_NAME_ACCESS_TOKEN,
     COOKIE_NAME_REFRESH_TOKEN,
 )
+from airflow.providers.keycloak.auth_manager.exceptions import AuthManagerRefreshTokenExpiredException
 from airflow.providers.keycloak.version_compat import AIRFLOW_V_3_1_8_PLUS
-
-try:
-    from airflow.api_fastapi.auth.managers.exceptions import AuthManagerRefreshTokenExpiredException
-except ImportError:
-
-    class AuthManagerRefreshTokenExpiredException(Exception):  # type: ignore[no-redef]
-        """In case it is using a version of Airflow without ``AuthManagerRefreshTokenExpiredException``."""
-
-        pass
-
 
 if AIRFLOW_V_3_1_8_PLUS:
     from airflow.api_fastapi.app import get_cookie_path

@@ -34,7 +34,7 @@
     "@7nohe/openapi-react-query-codegen": "^3.0.2",
     "@eslint/compat": "^2.1.1",
     "@eslint/js": "^10.0.1",
-    "@stylistic/eslint-plugin": "^5.10.0",
+    "@stylistic/eslint-plugin": "^6.0.0",
     "@testing-library/jest-dom": "^7.0.1",
     "@testing-library/react": "^16.3.3",
     "@trivago/prettier-plugin-sort-imports": "^6.0.2",

@@ -245,7 +245,14 @@ The following features are supported in the Trigger UI Form:
             * | ``format="date"``: Generate a date-picker
               | with calendar pop-up
             * | ``format="date-time"``: Generate a date and
-              | time-picker with calendar pop-up
+              | time-picker with calendar pop-up. Values should be
+              | RFC 3339 strings with a timezone offset, e.g.
+              | ``2024-01-01T00:00:00+00:00``. Other ISO 8601
+              | date-times are deprecated. Only the Task SDK
+              | warns about them, when it validates the value in
+              | Dag parsing or at task start. The API server and
+              | the scheduler accept them without a warning.
+              | Anything else is rejected.
             * ``format="time"``: Generate a time-picker
             * | ``format="duration"``: Generate a duration
               | input field accepting ISO 8601 duration
@@ -330,11 +337,22 @@ The following features are supported in the Trigger UI Form:
         * - ``object``
           - | Generates a JSON entry field with
             | text validation.
-          - | The HTML form does only validate the syntax of the
-            | JSON input. In order to validate the content for
-            | specific structures take a look to the
-            | `JSON Schema Object details <https://json-schema.org/understanding-json-schema/reference/object.html>`_.
+          - * | The HTML form does only validate the syntax of the
+              | JSON input. In order to validate the content for
+              | specific structures take a look to the
+              | `JSON Schema Object details <https://json-schema.org/understanding-json-schema/reference/object.html>`_.
+            * | ``enum=[{"name": "dev"}, {"name": "prod"}]``:
+              | Generates a drop-down select list of objects;
+              | the selected object is passed as-is.
+            * | ``values_display={json.dumps({"name": "dev"}): "Development"}``:
+              | Labels for object choices are keyed by the
+              | JSON text of the object. Spacing and key
+              | order do not matter, so ``json.dumps()`` of
+              | the enum entry is the easiest way to write
+              | the key.
           - ``Param({"key": "value"}, type=["object", "null"])``
+
+            ``Param({"name": "dev"}, type="object", enum=[{"name": "dev"}, {"name": "prod"}])``
 
         * - ``null``
           - | Specifies that no content is expected.
