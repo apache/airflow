@@ -38,7 +38,8 @@ def _get_base_path():
     path = conf.get(SECTION, "durable_cache_path", fallback="")
     if not path:
         raise ValueError(
-            "durable=True requires [common.ai] durable_cache_path to be set. "
+            "Durable execution on Airflow before 3.3 needs [common.ai] durable_cache_path "
+            "to be set, to say where its journal is kept. "
             "Example: durable_cache_path = file:///tmp/airflow_durable_cache"
         )
     return ObjectStoragePath(path)
@@ -91,10 +92,13 @@ class DurableStorage:
 
         path = self._get_path()
         try:
-            self._cache = json.loads(path.read_text())
+            cache = json.loads(path.read_text())
+            if not isinstance(cache, dict):
+                # JSON that is not an object holds no steps, just like a cut-off file.
+                raise ValueError("the journal file does not hold a JSON object")
         except (FileNotFoundError, OSError, json.JSONDecodeError, ValueError):
-            self._cache = {}
-
+            cache = {}
+        self._cache = cache
         return self._cache
 
     def _write(self, text: str) -> None:
@@ -107,18 +111,27 @@ class DurableStorage:
         """
         Store one journal step and rewrite the journal file.
 
-        :return: ``True`` if the entry was written, ``False`` if it could not be encoded.
+        Best-effort: the save runs after the step already succeeded, so a failed write
+        must not fail the step. It is skipped with a warning, and the step runs again on
+        the next retry.
+
+        :return: ``True`` if the entry was written, ``False`` if it could not be encoded
+            or the write failed.
         """
         cache = self._load_cache()
-        cache[key] = entry
         try:
-            text = json.dumps(cache)
+            text = json.dumps({**cache, key: entry})
         except (TypeError, ValueError):
             # Only this entry is skipped; the rest of the journal is still written.
-            del cache[key]
             log.warning("Durable: could not store step", key=key, exc_info=True)
             return False
-        self._write(text)
+        try:
+            self._write(text)
+        except Exception:
+            # The step already ran, so a failed write must not fail it; it runs again on retry.
+            log.warning("Durable: could not write the journal file", key=key, exc_info=True)
+            return False
+        cache[key] = entry
         return True
 
     def load_step(self, key: str) -> dict[str, Any] | None:

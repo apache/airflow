@@ -40,10 +40,10 @@ Model
 
     Without Default Model Provider (below), the ``provider:`` prefix is required
     here: this generic connection type has no platform of its own (unlike the
-    vendor connection types below), so a bare name (e.g. ``gpt-5`` without
+    vendor connection types below), so a bare name (e.g. ``gpt-6.1-sol`` without
     ``openai:``) raises ``ValueError`` naming this connection.
 
-    Examples: ``openai:gpt-5``, ``anthropic:claude-sonnet-5``,
+    Examples: ``openai:gpt-6.1-sol``, ``anthropic:claude-sonnet-5``,
     ``bedrock:us.anthropic.claude-opus-4-6-v1:0``, ``google:gemini-2.5-flash``
 
     See `Anthropic's models overview <https://platform.claude.com/docs/en/about-claude/models/overview#latest-models-comparison>`__
@@ -61,7 +61,10 @@ API Key (Password field)
     ``GOOGLE_APPLICATION_CREDENTIALS``).
 
 Host (optional)
-    Base URL for the provider's API. Only needed for custom endpoints:
+    Base URL for the provider's API. Only needed for custom endpoints. For ``ollama:``
+    models it can instead come from the ``OLLAMA_BASE_URL`` environment variable;
+    ``openai:`` models, including the Ollama example below that uses
+    ``openai:llama3``, read ``OPENAI_BASE_URL`` instead:
 
     - Ollama: ``http://localhost:11434/v1``
     - vLLM: ``http://localhost:8000/v1``
@@ -76,7 +79,7 @@ Extra (JSON, optional)
 
     .. code-block:: json
 
-        {"model": "openai:gpt-5"}
+        {"model": "openai:gpt-6.1-sol"}
 
     When using the UI, the "Model" field above writes to this same location
     automatically.
@@ -85,11 +88,15 @@ Default Model Provider
     The pydantic-ai provider to prefix a bare model name with, e.g.
     ``openai-chat``. Stored in ``extra["model_provider"]``. With it set, ``model_id``
     and the Model field can name a model the way the endpoint does (e.g.
-    ``claude-sonnet-4-5`` instead of ``openai-chat:claude-sonnet-4-5``). A name
+    ``claude-sonnet-5-5`` instead of ``openai-chat:claude-sonnet-5-5``). A name
     that already starts with a provider pydantic-ai recognizes is used as is.
     An unknown provider raises ``ValueError`` when the model is resolved.
     ``@task.llm_batch`` applies it the same way, and sends ``openai-chat`` models
     to its OpenAI adapter.
+
+    The form suggests common providers as you type. The suggestions are not a full
+    list: any provider the installed pydantic-ai recognizes is accepted, including
+    ones a newer pydantic-ai adds.
 
 Fallback Connections
     Other connection IDs to fail over to, in order, while this provider is
@@ -110,7 +117,7 @@ OpenAI
     {
         "conn_type": "pydanticai",
         "password": "sk-...",
-        "extra": "{\"model\": \"openai:gpt-5\"}"
+        "extra": "{\"model\": \"openai:gpt-6.1-sol\"}"
     }
 
 .. _conn-example-anthropic:
@@ -160,7 +167,7 @@ gateway's own model names:
 
 .. code-block:: python
 
-    @task.llm(llm_conn_id="my_gateway", model_id="claude-sonnet-4-5")
+    @task.llm(llm_conn_id="my_gateway", model_id="claude-sonnet-5-5")
     def summarize(text: str) -> str:
         return f"Summarize: {text}"
 

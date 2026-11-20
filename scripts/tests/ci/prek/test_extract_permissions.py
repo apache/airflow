@@ -290,6 +290,11 @@ class TestBuildResourceLabel:
     def test_view_with_entity(self):
         assert _build_resource_label("requires_access_view", "PLUGINS") == "View.PLUGINS"
 
+    def test_trigger_lists_the_resources_any_of_which_lets_the_caller_in(self):
+        assert (
+            _build_resource_label("requires_access_trigger", None) == "DAG.TASK_INSTANCE or DAG.RUN or Asset"
+        )
+
     def test_unknown_function_falls_back_to_fn_name(self):
         # If a new requires_access_* is added but not yet in the map, the
         # function name is used.  Tests will catch it via the coverage test.
@@ -1039,3 +1044,31 @@ class TestParseFailureIsFatal:
 
         assert fab.main([]) == 1
         assert "[FAIL]" in capsys.readouterr().err
+
+
+class TestFabPermissionOptions:
+    @pytest.mark.parametrize(
+        ("resource", "expected"),
+        [
+            pytest.param("Pool", ("Pools.can_read", "Viewer"), id="one-resource"),
+            pytest.param("Public", ("None", "Public"), id="public"),
+            pytest.param(
+                "DAG.RUN or Asset",
+                ("DAGs.can_read and DAG Runs.can_read, or Assets.can_read", "Viewer"),
+                id="any-of",
+            ),
+        ],
+    )
+    def test_renders_the_permissions_and_minimum_role(self, resource, expected):
+        from fab_permissions_doc import _fab_permission_options
+
+        entry = PermissionEntry(
+            full_path="/api/v2/x",
+            http_method="GET",
+            tag="X",
+            resource=resource,
+            required_permission="GET",
+            source_file="x.py",
+        )
+
+        assert _fab_permission_options(entry) == expected

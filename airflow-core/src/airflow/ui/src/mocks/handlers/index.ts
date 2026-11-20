@@ -26,6 +26,7 @@ import { handlers as dagRunsHandlers } from "./dag_runs";
 import { handlers as dagsHandlers } from "./dags";
 import { handlers as logHandlers } from "./log";
 import { handlers as taskInstancesHandlers } from "./task_instances";
+import { handlers as triggersHandlers } from "./triggers";
 
 export const handlers = [
   ...backfillsHandlers,
@@ -38,4 +39,5 @@ export const handlers = [
   ...adminHandlers,
   ...appHandlers,
   ...taskInstancesHandlers,
+  ...triggersHandlers,
 ];

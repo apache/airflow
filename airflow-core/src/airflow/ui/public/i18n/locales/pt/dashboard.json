@@ -1,6 +1,28 @@
 {
+  "alerts": {
+    "seeLessContext": "Ver menos",
+    "seeMoreContext": "Ver mais",
+    "showMoreAlerts_many": "+{{count, number}} de alertas",
+    "showMoreAlerts_one": "+{{count, number}} alerta",
+    "showMoreAlerts_other": "+{{count, number}} alertas",
+    "showMoreAlerts_zero": "Nenhum alerta"
+  },
+  "deadlines": {
+    "pending": {
+      "empty": "Nenhum prazo iminente",
+      "title": "Iminentes"
+    },
+    "recentlyMissed": {
+      "empty": "Nenhum prazo não cumprido",
+      "title": "Prazos não cumpridos"
+    },
+    "showMore": "Mostrar mais",
+    "title": "Prazos"
+  },
+  "deferredSlotsNotCounted": "Deferidos não contabilizados nos slots: {{count, number}}",
+  "deferredSlotsNotCountedTooltip": "As tarefas deferidas mostradas na barra são contabilizadas nos slots do pool. As tarefas deferidas mostradas abaixo da barra vêm de pools que não contabilizam tarefas deferidas nos slots.",
   "favorite": {
-    "favoriteDags_many": "Primeiros {{count, number}} Dags favoritos",
+    "favoriteDags_many": "Primeiros {{count, number}} de Dags favoritos",
     "favoriteDags_one": "Primeiro {{count, number}} Dag favorito",
     "favoriteDags_other": "Primeiros {{count, number}} Dags favoritos",
     "favoriteDags_zero": "Nenhum Dag favorito",
@@ -10,17 +32,35 @@
   "group": "Grupo",
   "health": {
     "dagProcessor": "Processador de Dag",
+    "degraded": "Degradado",
+    "degradedHint": {
+      "dagProcessor": "Alguns pacotes de Dag configurados não têm um processador de Dag fazendo o parse deles.",
+      "triggerer": "Algumas equipes não têm um disparador executando tarefas deferidas para elas."
+    },
+    "down": "Indisponível",
     "health": "Saúde",
     "healthy": "Saúde",
+    "instances": {
+      "bundles": "Pacotes",
+      "hostname": "Host",
+      "team": "Equipe",
+      "title_many": "{{title}} — {{status}} ({{count, number}} instâncias)",
+      "title_one": "{{title}} — {{status}} ({{count, number}} instância)",
+      "title_other": "{{title}} — {{status}} ({{count, number}} instâncias)",
+      "title_zero": "{{title}} — {{status}} (nenhuma instância)",
+      "unknownHostname": "Host desconhecido"
+    },
     "lastHeartbeat": "Último Heartbeat",
     "metaDatabase": "Base de Dados de Metadados",
     "scheduler": "Agendador",
     "status": "Estado",
     "triggerer": "Disparador",
-    "unhealthy": "Não saudável"
+    "unhealthy": "Não saudável",
+    "unknownStatus": "Desconhecido"
   },
   "history": "Histórico",
   "importErrors": {
+    "bundle": "Pacote",
     "dagImportError_many": "Erros de Importação de Dag",
     "dagImportError_one": "Erro de Importação de Dag",
     "dagImportError_other": "Erros de Importação de Dag",

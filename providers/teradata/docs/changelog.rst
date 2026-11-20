@@ -25,6 +25,19 @@
 Changelog
 ---------
 
+3.7.2
+.....
+
+Misc
+~~~~
+
+* ``Remove unused Teradata operation classifier (#75785)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``[main] Upgrade important CI environment (#76278)``
+   * ``Remove duplicate Teradata suspend-success test (#75881)``
+
 3.7.1
 .....
 

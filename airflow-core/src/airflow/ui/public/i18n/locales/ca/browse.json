@@ -28,10 +28,11 @@
         "lastParsed": "Darrera anàlisi",
         "parseDuration": "Durada de l'anàlisi"
       },
-      "file_one": "Fitxer",
-      "file_other": "Fitxers",
       "importErrorGone": "Aquest error d'importació ja no consta al registre. Probablement s'ha resolt amb una nova anàlisi.",
       "neverParsed": "Mai",
+      "parsedFile_one": "Fitxer analitzat",
+      "parsedFile_other": "Fitxers analitzats",
+      "parsedFilesNote": "Només es mostren els fitxers que defineixen un Dag o que no s'han pogut importar.",
       "showImportError_one": "Veure error",
       "showImportError_other": "Veure {{count, number}} errors"
     },

@@ -26,6 +26,7 @@ from __future__ import annotations
 from datetime import datetime
 
 from airflow import DAG
+from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
 
 try:
@@ -47,7 +48,8 @@ with DAG(
     catchup=False,
     default_args={"retries": 0},
 ) as dag:
-    task_0 = PythonOperator(task_id="task_0", python_callable=lambda: print("task 0"))
+    # Only the upstream of the task groups, its events are not checked: an EmptyOperator never uses a worker slot
+    task_0 = EmptyOperator(task_id="task_0")
 
     with TaskGroup("tg1") as tg1:
         task_1 = PythonOperator(task_id="task_1", python_callable=lambda: print("task 1"))

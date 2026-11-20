@@ -113,16 +113,19 @@ class SnowflakeCortexAgentHook(SnowflakeHook, BaseManagedAgentHook):
     """
     Hook for interacting with Snowflake Cortex Agents.
 
-    Authenticates the same three ways as ``SnowflakeSqlApiHook``, chosen by the connection's
+    Authenticates the same four ways as ``SnowflakeSqlApiHook``, chosen by the connection's
     ``authenticator`` extra:
 
     1. OAuth: set ``authenticator`` to ``oauth`` and configure a refresh token, client
        credentials grant, or ``azure_conn_id``, as on ``SnowflakeHook``.
     2. PAT (Programmatic Access Token): set ``authenticator`` to ``programmatic_access_token``
        and put the PAT value in the connection ``password`` field.
-    3. Key-pair JWT: the default when neither of the above is set. Configure
-       ``private_key_file`` or ``private_key_content`` (optionally with a passphrase in
-       ``password``), as on ``SnowflakeHook``.
+    3. Key-pair JWT: used when neither of the above is set and a private key is configured,
+       taking precedence over WIF. Configure ``private_key_file`` or ``private_key_content``
+       (optionally with a passphrase in ``password``), as on ``SnowflakeHook``.
+    4. Workload Identity Federation (WIF): when no private key is configured, set
+       ``authenticator`` to ``WORKLOAD_IDENTITY`` and ``workload_identity_provider`` to
+       ``AWS``, ``AZURE``, ``GCP`` or ``OIDC``.
 
     The resolved token is cached and renewed the same way as ``SnowflakeSqlApiHook`` -- see
     ``SnowflakeRestTokenProvider``, one instance per hook, so a long-running agent reuses the

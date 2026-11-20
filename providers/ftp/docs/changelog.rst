@@ -27,6 +27,30 @@
 Changelog
 ---------
 
+3.16.3
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix FTP test connection passing without contacting the server (#76355)``
+* ``Return 0 instead of None from FTPHook.get_size for empty files (#76665)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+3.16.2
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Cache FTPS connections only after setup succeeds (#74183)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``[main] Upgrade important CI environment (#76278)``
+
 3.16.1
 ......
 

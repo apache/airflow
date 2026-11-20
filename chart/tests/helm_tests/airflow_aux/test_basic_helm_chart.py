@@ -608,7 +608,12 @@ class TestBaseChartTest:
     def test_priority_classes(self):
         pc = [
             {"name": "class1", "preemptionPolicy": "PreemptLowerPriority", "value": 1000},
-            {"name": "class2", "preemptionPolicy": "Never", "value": 10000},
+            {
+                "name": "class2",
+                "annotations": {"key1": "value1"},
+                "preemptionPolicy": "Never",
+                "value": 10000,
+            },
         ]
         objs = render_chart(
             "my-release",
@@ -625,6 +630,7 @@ class TestBaseChartTest:
             assert objs[i]["preemptionPolicy"] == pc[i]["preemptionPolicy"]
             assert objs[i]["value"] == pc[i]["value"]
             assert objs[i]["description"] == "This priority class will not cause other pods to be preempted."
+        assert objs[1]["metadata"]["annotations"]["key1"] == "value1"
 
     def test_priority_classes_default_preemption(self):
         obj = render_chart(

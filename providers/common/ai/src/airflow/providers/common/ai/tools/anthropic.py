@@ -45,7 +45,7 @@ except ImportError as e:
     raise AirflowOptionalProviderFeatureException(e)
 
 from airflow.providers.common.ai.exceptions import ToolRunnerMaxIterationsError
-from airflow.providers.common.ai.tools import AirflowTool, ToolCallError, collect_tools
+from airflow.providers.common.ai.tools import AirflowTool, ToolCallError, _collect_tools
 from airflow.providers.common.ai.tools._from_toolset import tool_call_scope
 from airflow.providers.common.ai.utils.coroutines import run_coroutine_sync
 from airflow.providers.common.ai.utils.tool_definition import serialize_for_llm
@@ -55,11 +55,19 @@ if TYPE_CHECKING:
     from anthropic.types.beta import BetaMessage
     from anthropic.types.beta.parsed_beta_message import ParsedBetaMessage
 
-    from airflow.providers.common.ai.tools import ToolProvider
+    from airflow.providers.common.ai.tools import ToolSource
 
 log = logging.getLogger(__name__)
 
 __all__ = ["AirflowTools", "AsyncAirflowTools"]
+
+_ASYNC_MCP_HINT = "Convert the server's tools with anthropic.lib.tools.mcp.async_mcp_tool() instead."
+# The SDK's sync mcp_tool() needs an AnyIO worker thread with the session open on its loop,
+# which a sync task does not have.
+_MCP_HINT = (
+    "Run the agent with AsyncAnthropic and AsyncAirflowTools, and convert the server's tools "
+    "with anthropic.lib.tools.mcp.async_mcp_tool(), instead."
+)
 
 # The ``output_format`` a runner parses its final message into.
 _OutputT = TypeVar("_OutputT")
@@ -74,7 +82,9 @@ class AirflowTools:
 
     Pass toolsets that implement
     :class:`~airflow.providers.common.ai.tools.ToolProvider`, such as ``SQLToolset``
-    and ``HookToolset``, or individual
+    and ``HookToolset``, optionally wrapped with ``.filtered()``,
+    ``.prefixed()`` or ``.renamed()`` (a ``.filtered()`` function runs once, when this
+    is built, with ``ctx.deps`` set to ``None``), or individual
     :class:`~airflow.providers.common.ai.tools.AirflowTool` objects. Give :attr:`tools`
     to ``client.beta.messages.tool_runner`` and drive the runner with :meth:`run`:
 
@@ -95,7 +105,7 @@ class AirflowTools:
         )
         message = tools.run(runner)
 
-    Each tool keeps the source tool's name, description and argument schema, and every
+    Each tool keeps its source's name, description and argument schema, and every
     result passes through Airflow's secret masker first. A failure the model can
     correct, such as a query naming a missing column, reaches it as a ``tool_result``
     with ``is_error: true``, counted against the tool's retry limit once per model
@@ -115,9 +125,9 @@ class AirflowTools:
     :param sources: Toolsets and tools to add, in order.
     """
 
-    def __init__(self, *sources: ToolProvider | AirflowTool) -> None:
+    def __init__(self, *sources: ToolSource) -> None:
         self.tools: list[BetaFunctionTool[Callable[..., str]]] = [
-            _sync_tool(tool) for tool in collect_tools(sources)
+            _sync_tool(tool) for tool in _collect_tools(sources, mcp_hint=_MCP_HINT)
         ]
 
     def run(self, runner: BetaToolRunner[_OutputT]) -> ParsedBetaMessage[_OutputT]:
@@ -156,9 +166,9 @@ class AsyncAirflowTools:
     :param sources: Toolsets and tools to add, in order.
     """
 
-    def __init__(self, *sources: ToolProvider | AirflowTool) -> None:
+    def __init__(self, *sources: ToolSource) -> None:
         self.tools: list[BetaAsyncFunctionTool[Callable[..., Coroutine[Any, Any, str]]]] = [
-            _async_tool(tool) for tool in collect_tools(sources)
+            _async_tool(tool) for tool in _collect_tools(sources, mcp_hint=_ASYNC_MCP_HINT)
         ]
 
     async def run(self, runner: BetaAsyncToolRunner[_OutputT]) -> ParsedBetaMessage[_OutputT]:

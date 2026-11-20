@@ -68,7 +68,7 @@ except ImportError:
     # Compatibility for Airflow < 3.1
     from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
-from system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
+from system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder, print_and_delete_log_group_task
 from system.amazon.aws.utils.ec2 import get_default_vpc_id
 
 DAG_ID = "example_dms"
@@ -462,6 +462,19 @@ with DAG(
         },
     )
     # [END howto_operator_dms_create_task]
+    # Kept out of the docs snippet; print_and_delete_log_group_task collects these logs in teardown.
+    create_task.create_task_kwargs["ReplicationTaskSettings"] = json.dumps(
+        {
+            **json.loads(create_task.create_task_kwargs["ReplicationTaskSettings"]),
+            "Logging": {
+                "EnableLogging": True,
+                "LogComponents": [
+                    {"Id": "SOURCE_CAPTURE", "Severity": "LOGGER_SEVERITY_DEBUG"},
+                    {"Id": "TASK_MANAGER", "Severity": "LOGGER_SEVERITY_DEBUG"},
+                ],
+            },
+        }
+    )
 
     task_arn = cast("str", create_task.output)
 
@@ -603,6 +616,8 @@ with DAG(
         # TEST TEARDOWN
         delete_task,
         delete_assets,
+        # Runs after delete_assets removes the replication instance, so DMS has finished shipping the logs.
+        print_and_delete_log_group_task(f"dms-tasks-{dms_replication_instance_name}"),
         delete_db_instance,
         delete_parameter_group,
         delete_security_group(create_sg, security_group_name, security_group),

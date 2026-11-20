@@ -1,19 +1,19 @@
-.. Licensed to the Apache Software Foundation (ASF) under one
-   or more contributor license agreements.  See the NOTICE file
-   distributed with this work for additional information
-   regarding copyright ownership.  The ASF licenses this file
-   to you under the Apache License, Version 2.0 (the
-   "License"); you may not use this file except in compliance
-   with the License.  You may obtain a copy of the License at
+ .. Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
 
-..   http://www.apache.org/licenses/LICENSE-2.0
+ ..   http://www.apache.org/licenses/LICENSE-2.0
 
-.. Unless required by applicable law or agreed to in writing,
-   software distributed under the License is distributed on an
-   "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-   KIND, either express or implied.  See the License for the
-   specific language governing permissions and limitations
-   under the License.
+ .. Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
 
 Snowflake Cortex Agent operators
 ================================
@@ -51,9 +51,14 @@ Authentication
   credentials grant, or ``azure_conn_id``, as on the Snowflake connection generally.
 - **PAT (Programmatic Access Token)**: set ``authenticator`` to ``programmatic_access_token`` and
   put the PAT value in the connection's Password field.
-- **Key-pair JWT**: the default when neither of the above is set. Configure
+- **Key-pair JWT**: used when neither OAuth nor PAT is selected and a private key is configured,
+  taking precedence over WIF. Configure
   ``private_key_file`` or ``private_key_content`` (optionally with a passphrase in Password), and
   set Login to the Snowflake user name the key is registered to.
+- **Workload Identity Federation (WIF)**: when no private key is configured, set
+  ``authenticator`` to ``WORKLOAD_IDENTITY`` and ``workload_identity_provider`` to
+  ``AWS``, ``AZURE``, ``GCP`` or ``OIDC``. See
+  :ref:`Snowflake connection <howto/connection:snowflake>` for prerequisites and host restrictions.
 
 See the :doc:`Snowflake connection </connections/snowflake>` page for the full field reference.
 A hook instance keeps its resolved key-pair JWT and reuses it within its renewal window instead of

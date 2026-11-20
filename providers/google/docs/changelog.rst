@@ -27,10 +27,117 @@
 Changelog
 ---------
 
+23.0.0
+......
+
+.. warning::
+    ``BigQueryGetDataOperator`` no longer accepts ``project_id``, which has been deprecated since
+    19.4.0. Use ``table_project_id`` instead. Dags that still pass ``project_id`` fail at parse time
+    with ``TypeError``.
+
+.. note::
+    The provider no longer installs ``litellm``. It now depends on ``google-cloud-aiplatform`` and the
+    dependencies of its ``evaluation`` extra except ``litellm``, which the extra caps below the fix for
+    a critical advisory. If your tasks call ``vertexai.Client().evals`` with a model that LiteLLM
+    serves, install ``litellm`` yourself; without it those calls raise ``ImportError``.
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Remove deprecated project_id from BigQueryGetDataOperator (#76115)``
+
+Features
+~~~~~~~~
+
+* ``Add Cloud SQL Auth Proxy v2 support to CloudSqlProxyRunner (#73646)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix an issue with getting dataflow_job_id for Dataflow Runner when logging is disabled in Pipeline (#72809)``
+* ``Fix task state lookup for mapped tasks in Google triggers (#76895)``
+* ``Honor cancel_on_kill in deferred GCS to BigQuery loads (#74358)``
+* ``Fix GcpBodyFieldValidator warning on valid version-specific fields (#74930)``
+
+Misc
+~~~~
+
+* ``Raise the minimum versions of google-api-python-client (2.196.0) and 12 google-cloud-* client libraries: bigquery-storage, bigtable, dataplex, kms, orchestration-airflow, os-login, pubsub, secret-manager, spanner, speech, vision and workflows (#76334)``
+* ``Depend on google-cloud-aiplatform without its evaluation extra so litellm is no longer installed (#76503)``
+
+Doc-only
+~~~~~~~~
+
+* ``Fix the GoogleDisplayVideo360Hook.erf_uri docstring (#76701)``
+* ``Fix Google Cloud Workflows docs links to operator and sensor classes (#76667)``
+* ``Clarify Google connection secret settings and retry default (#76622)``
+* ``Document JSON connections in Google Secret Manager backend (#76649)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+22.9.0
+......
+
 .. warning::
     Subclasses of ``CloudLoggingRemoteLogIO`` that override ``prepare_log_filter`` must accept a
     ``log_path`` keyword argument (``log_path: str | None = None``), because ``read`` now passes it.
     With the old ``(self, ti_labels)`` signature every task log read fails with ``TypeError``.
+
+.. note::
+    ``BigQueryStreamingBufferEmptySensor`` now requires ``empty_confirmations`` consecutive empty
+    readings (default 2), which can delay success by up to one ``poke_interval``. With
+    ``mode="reschedule"`` and ``empty_confirmations > 1`` it needs a running triggerer. Set
+    ``empty_confirmations=1`` to keep the worker-only behaviour.
+
+Features
+~~~~~~~~
+
+* ``Add async 'BigQueryAsyncHook.aget_records' and deprecate 'get_records' (#72286)``
+* ``Add query and report inspection operators for Google Bid Manager, fail the report sensor and download operator on a FAILED report, and read all pages in list_queries and list_reports (#71947)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix Google Cloud connection IdP extra request parameters being ignored (#76161)``
+* ``Enforce execution_timeout in deferrable DataprocSubmitJobOperator (#72030)``
+* ``Normalize empty project id in credential config file branch (#73886)``
+* ``Stop BigQueryStreamingBufferEmptySensor reporting empty too early (#69118)``
+* ``Stop Google Cloud Logging handler from starting a thread on close (#75596)``
+* ``Fix BigQueryInsertJobOperator cancellation and links with inferred job locations (#75717)``
+* ``Fix BigQuery durable recovery for regional jobs (#75430)``
+* ``Cancel the BigQuery job when BigQueryToBigQueryOperator is killed (#75101)``
+* ``Prevent Dag processor crashes with Google Cloud Logging when its log directory is outside 'base_log_folder' (#74926)``
+* ``Fix Google Cloud Logging task log reads for runs without a logical date, and for mapped tasks and print() output before Airflow 3.4 (#74923)``
+
+Misc
+~~~~
+
+* ``Raise google-cloud-bigtable minimum to 2.37.0 (#76278)``
+* ``Raise google-api-python-client minimum to 2.195.0 (#75270)``
+* ``Remove types-protobuf from google provider runtime dependencies (#73775)``
+* ``Remove unused Cloud SQL settings version helper (#75789)``
+* ``Remove unused Dataproc job template helper (#75790)``
+* ``Remove unused Cloud SQL OS bitness helper (#75788)``
+* ``Remove unused Dataflow job state checker (#75784)``
+* ``Raise google-cloud-dataproc minimum to 5.32.0 and document High Obtainability (HO) mode clusters (#74753)``
+
+Doc-only
+~~~~~~~~
+
+* ``Document all Google Cloud connection fields (#76160)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add unit tests for PrestoToGCSOperator (#75559)``
+   * ``Add unit tests for Dataproc, GKE and Translate provider links (#75694)``
+   * ``Parametrize GCS-to-GCS wildcard and retention tests. (#76094)``
+   * ``Skip log accumulator disk spill when reading finished task logs (#70671)``
+   * ``Add missing tests for google.cloud.utils BigQuery helpers (#72276) (#72448)``
+   * ``Remove duplicate Calendar-to-GCS transfer test (#75895)``
+   * ``Remove duplicate GCS wildcard transfer test (#75897)``
+   * ``Fix task loop information and tests for OpenLineage provider (#74752)``
+   * ``Allow excluding datasets from OpenLineage events by pattern and hook (#71312)``
 
 22.8.0
 ......

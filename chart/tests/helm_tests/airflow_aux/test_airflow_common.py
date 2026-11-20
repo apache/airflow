@@ -21,6 +21,8 @@ import pytest
 import yaml
 from chart_utils.helm_template_generator import render_chart
 
+METADATA_DB_VARS = {"AIRFLOW__DATABASE__SQL_ALCHEMY_CONN", "AIRFLOW_CONN_AIRFLOW_DB"}
+
 
 class TestAirflowCommon:
     """
@@ -348,10 +350,13 @@ class TestAirflowCommon:
         expected_vars = [
             "AIRFLOW_HOME",
             "AIRFLOW__CORE__FERNET_KEY",
-            "AIRFLOW_CONN_AIRFLOW_DB",
             "AIRFLOW__CELERY__BROKER_URL",
+            "AIRFLOW_CONN_AIRFLOW_DB",
         ]
-        expected_vars_in_worker = ["DUMB_INIT_SETSID"] + expected_vars
+        # Workers only keep sql_alchemy_conn, disabled here, for the default Celery result backend.
+        expected_vars_in_worker = ["DUMB_INIT_SETSID"] + [
+            var for var in expected_vars if var not in METADATA_DB_VARS
+        ]
         for doc in docs:
             component = doc["metadata"]["labels"]["component"]
             variables = expected_vars_in_worker if component == "worker" else expected_vars
@@ -373,24 +378,26 @@ class TestAirflowCommon:
         expected_vars_with_jwt = [
             "AIRFLOW_HOME",
             "AIRFLOW__CORE__FERNET_KEY",
-            "AIRFLOW__DATABASE__SQL_ALCHEMY_CONN",
-            "AIRFLOW_CONN_AIRFLOW_DB",
             "AIRFLOW__API__SECRET_KEY",
             "AIRFLOW__CELERY__BROKER_URL",
+            "AIRFLOW__DATABASE__SQL_ALCHEMY_CONN",
+            "AIRFLOW_CONN_AIRFLOW_DB",
             "AIRFLOW__API_AUTH__JWT_SECRET",
         ]
         expected_vars_no_jwt = [
             "AIRFLOW_HOME",
             "AIRFLOW__CORE__FERNET_KEY",
-            "AIRFLOW__DATABASE__SQL_ALCHEMY_CONN",
-            "AIRFLOW_CONN_AIRFLOW_DB",
             "AIRFLOW__API__SECRET_KEY",
             "AIRFLOW__CELERY__BROKER_URL",
+            "AIRFLOW__DATABASE__SQL_ALCHEMY_CONN",
+            "AIRFLOW_CONN_AIRFLOW_DB",
         ]
         for doc in docs:
             component = doc["metadata"]["labels"]["component"]
             expected = expected_vars_with_jwt if component == "scheduler" else expected_vars_no_jwt
-            expected_in_worker = ["DUMB_INIT_SETSID"] + expected
+            expected_in_worker = ["DUMB_INIT_SETSID"] + [
+                var for var in expected if var != "AIRFLOW_CONN_AIRFLOW_DB"
+            ]
             variables = expected_in_worker if component == "worker" else expected
             assert variables == jmespath.search("spec.template.spec.containers[0].env[*].name", doc), (
                 f"Wrong vars in {component}"
@@ -455,6 +462,176 @@ class TestAirflowCommon:
             )
             assert "AIRFLOW__API_AUTH__JWT_SECRET" not in env_names, f"Wrong vars in {component}"
 
+    def test_worker_keeps_sql_alchemy_conn_for_the_default_result_backend(self):
+        """Celery derives its result backend from sql_alchemy_conn when none is configured."""
+        docs = render_chart(show_only=["templates/workers/worker-deployment.yaml"])
+        names = set(jmespath.search("spec.template.spec.containers[].env[].name", docs[0]) or [])
+        assert names & METADATA_DB_VARS == {"AIRFLOW__DATABASE__SQL_ALCHEMY_CONN"}
+
+    @pytest.mark.parametrize(
+        "values",
+        [
+            pytest.param({"data": {"resultBackendSecretName": "result-backend"}}, id="secret-name"),
+            pytest.param(
+                {
+                    "data": {
+                        "resultBackendConnection": {
+                            "protocol": "postgresql",
+                            "host": "results",
+                            "port": 5432,
+                            "user": "celery",
+                            "pass": "x",
+                            "db": "results",
+                            "sslmode": "disable",
+                        }
+                    }
+                },
+                id="connection",
+            ),
+            pytest.param({"config": {"celery": {"result_backend": "redis://r:6379/1"}}}, id="config"),
+            pytest.param({"config": {"celery": {"result_backend_cmd": "cat /backend"}}}, id="config-cmd"),
+            pytest.param({"config": {"celery": {"result_backend_secret": "backend"}}}, id="config-secret"),
+        ],
+    )
+    def test_metadata_db_env_absent_in_workers_with_a_result_backend(self, values):
+        docs = render_chart(values=values, show_only=["templates/workers/worker-deployment.yaml"])
+        names = set(jmespath.search("spec.template.spec.containers[].env[].name", docs[0]) or [])
+        assert not (names & METADATA_DB_VARS)
+
+    def test_worker_keeps_sql_alchemy_conn_when_the_result_backend_secret_is_not_exposed(self):
+        docs = render_chart(
+            values={
+                "data": {"resultBackendSecretName": "result-backend"},
+                "enableBuiltInSecretEnvVars": {"AIRFLOW__CELERY__RESULT_BACKEND": False},
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+        names = jmespath.search("spec.template.spec.containers[?name=='worker'].env[].name", docs[0])
+        assert "AIRFLOW__DATABASE__SQL_ALCHEMY_CONN" in names
+
+    def test_worker_kerberos_sidecar_has_no_metadata_db_env_with_keda(self):
+        """KEDA reads the worker container's environment only."""
+        docs = render_chart(
+            values={
+                "airflowVersion": "3.4.0",
+                "workers": {"celery": {"keda": {"enabled": True}, "kerberosSidecar": {"enabled": True}}},
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+        names = jmespath.search(
+            "spec.template.spec.initContainers[?name=='worker-kerberos'].env[].name", docs[0]
+        )
+        assert names
+        assert not (set(names) & METADATA_DB_VARS)
+
+    @pytest.mark.parametrize(
+        ("values", "containers"),
+        [
+            pytest.param(
+                {"workers": {"celery": {"kerberosSidecar": {"enabled": True}}}},
+                {"worker-kerberos"},
+                id="default-result-backend",
+            ),
+            pytest.param(
+                {
+                    "data": {"resultBackendSecretName": "result-backend"},
+                    "workers": {"celery": {"kerberosSidecar": {"enabled": True}}},
+                },
+                {"worker", "worker-kerberos"},
+                id="separate-result-backend",
+            ),
+        ],
+    )
+    def test_engine_args_cleared_in_worker_containers_without_the_connection(self, values, containers):
+        """Those containers fall back to SQLite, which rejects engine args meant for the real database."""
+        docs = render_chart(
+            values={
+                **values,
+                "airflowVersion": "3.4.0",
+                "config": {"database": {"sql_alchemy_engine_args": '{"executemany_mode": "values"}'}},
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+        pod_spec = docs[0]["spec"]["template"]["spec"]
+        cleared = {
+            container["name"]
+            for container in pod_spec["containers"] + pod_spec["initContainers"]
+            if {"name": "AIRFLOW__DATABASE__SQL_ALCHEMY_ENGINE_ARGS", "value": "{}"}
+            in container.get("env", [])
+        }
+        assert cleared == containers
+
+    @pytest.mark.parametrize(
+        ("values", "containers"),
+        [
+            pytest.param({}, {"worker-kerberos"}, id="default-result-backend"),
+            pytest.param(
+                {"data": {"resultBackendSecretName": "result-backend"}},
+                {"worker", "worker-kerberos"},
+                id="separate-result-backend",
+            ),
+        ],
+    )
+    def test_migration_check_disabled_in_worker_containers_without_the_connection(self, values, containers):
+        """CLI commands exit on the empty SQLite fallback when they check migrations."""
+        docs = render_chart(
+            values={
+                **values,
+                "airflowVersion": "3.4.0",
+                "workers": {"celery": {"kerberosSidecar": {"enabled": True}}},
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+        pod_spec = docs[0]["spec"]["template"]["spec"]
+        disabled = {
+            container["name"]
+            for container in pod_spec["containers"] + pod_spec["initContainers"]
+            if {"name": "AIRFLOW__DATABASE__CHECK_MIGRATIONS", "value": "False"} in container.get("env", [])
+        }
+        assert disabled == containers
+
+    def test_worker_kerberos_sidecar_keeps_sql_alchemy_conn_before_airflow_3_4(self):
+        """`airflow kerberos` opens the metadata DB at startup there."""
+        docs = render_chart(
+            values={"airflowVersion": "3.3.2", "workers": {"celery": {"kerberosSidecar": {"enabled": True}}}},
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+        names = jmespath.search(
+            "spec.template.spec.initContainers[?name=='worker-kerberos'].env[].name", docs[0]
+        )
+        assert set(names) & METADATA_DB_VARS == {"AIRFLOW__DATABASE__SQL_ALCHEMY_CONN"}
+        assert "AIRFLOW__DATABASE__CHECK_MIGRATIONS" not in names
+
+    def test_api_server_does_not_expose_the_airflow_db_connection(self):
+        """The Execution API answers task connection lookups from the API server's environment."""
+        docs = render_chart(show_only=["templates/api-server/api-server-deployment.yaml"])
+        names = jmespath.search("spec.template.spec.[containers, initContainers][][].env[].name", docs[0])
+        assert "AIRFLOW__DATABASE__SQL_ALCHEMY_CONN" in names
+        assert "AIRFLOW_CONN_AIRFLOW_DB" not in names
+
+    def test_worker_migration_init_container_has_metadata_db_env(self):
+        """The wait-for-migration init container queries the DB."""
+        docs = render_chart(show_only=["templates/workers/worker-deployment.yaml"])
+        assert "AIRFLOW__DATABASE__SQL_ALCHEMY_CONN" in jmespath.search(
+            "spec.template.spec.initContainers[?name=='wait-for-airflow-migrations'].env[].name",
+            docs[0],
+        )
+
+    def test_metadata_db_env_in_all_required_components(self):
+        docs = render_chart(
+            show_only=[
+                "templates/scheduler/scheduler-deployment.yaml",
+                "templates/api-server/api-server-deployment.yaml",
+                "templates/dag-processor/dag-processor-deployment.yaml",
+                "templates/triggerer/triggerer-deployment.yaml",
+            ],
+        )
+        assert docs
+        for doc in docs:
+            component = doc["metadata"]["labels"]["component"]
+            names = jmespath.search("spec.template.spec.containers[0].env[*].name", doc)
+            assert "AIRFLOW__DATABASE__SQL_ALCHEMY_CONN" in names, f"{component} lost its DB connection"
+
     def test_have_all_config_mounts_on_init_containers(self):
         docs = render_chart(
             show_only=[
@@ -474,6 +651,85 @@ class TestAirflowCommon:
         }
         for doc in docs:
             assert expected_mount in jmespath.search("spec.template.spec.initContainers[0].volumeMounts", doc)
+
+    def test_mount_config_as_dir(self):
+        components = [
+            "templates/scheduler/scheduler-deployment.yaml",
+            "templates/workers/worker-deployment.yaml",
+            "templates/api-server/api-server-deployment.yaml",
+            "templates/triggerer/triggerer-deployment.yaml",
+            "templates/dag-processor/dag-processor-deployment.yaml",
+            "templates/flower/flower-deployment.yaml",
+            "templates/cleanup/cleanup-cronjob.yaml",
+            "templates/database-cleanup/database-cleanup-cronjob.yaml",
+            "templates/jobs/migrate-database-job.yaml",
+            "templates/jobs/create-user-job.yaml",
+        ]
+        docs = render_chart(
+            values={
+                "mountConfigAsDir": True,
+                "airflowLocalSettings": "# local settings",
+                "executor": "CeleryExecutor,KubernetesExecutor",
+                "flower": {"enabled": True},
+                "cleanup": {"enabled": True},
+                "databaseCleanup": {"enabled": True},
+            },
+            show_only=components,
+        )
+        dir_mount = {"name": "config", "mountPath": "/opt/airflow/config", "readOnly": True}
+        for doc in docs:
+            pod = "spec.jobTemplate.spec.template.spec" if doc["kind"] == "CronJob" else "spec.template.spec"
+            assert jmespath.search(f"{pod}.containers[0].volumeMounts[?name=='config' && !subPath]", doc) == [
+                dir_mount
+            ]
+            assert (
+                jmespath.search(
+                    f"{pod}.containers[0].volumeMounts[?subPath=='airflow.cfg' || subPath=='airflow_local_settings.py']",
+                    doc,
+                )
+                == []
+            )
+            assert jmespath.search(f"{pod}.containers[0].env[?name=='AIRFLOW_CONFIG'].value", doc) == [
+                "/opt/airflow/config/airflow.cfg"
+            ]
+
+    def test_config_mounted_via_subpath_by_default(self):
+        docs = render_chart(show_only=["templates/scheduler/scheduler-deployment.yaml"])
+        mounts = "spec.template.spec.containers[0].volumeMounts"
+        assert jmespath.search(f"{mounts}[?subPath=='airflow.cfg']", docs[0]) == [
+            {
+                "name": "config",
+                "mountPath": "/opt/airflow/airflow.cfg",
+                "subPath": "airflow.cfg",
+                "readOnly": True,
+            }
+        ]
+        assert jmespath.search(f"{mounts}[?subPath=='airflow_local_settings.py']", docs[0]) == []
+        assert jmespath.search(f"{mounts}[?name=='config' && !subPath]", docs[0]) == []
+        assert jmespath.search("spec.template.spec.containers[0].env[?name=='AIRFLOW_CONFIG']", docs[0]) == []
+
+    def test_local_settings_mounted_via_subpath_when_set(self):
+        docs = render_chart(
+            values={"airflowLocalSettings": "# local settings"},
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+        mounts = "spec.template.spec.containers[0].volumeMounts"
+        assert jmespath.search(f"{mounts}[?subPath=='airflow.cfg']", docs[0]) == [
+            {
+                "name": "config",
+                "mountPath": "/opt/airflow/airflow.cfg",
+                "subPath": "airflow.cfg",
+                "readOnly": True,
+            }
+        ]
+        assert jmespath.search(f"{mounts}[?subPath=='airflow_local_settings.py']", docs[0]) == [
+            {
+                "name": "config",
+                "mountPath": "/opt/airflow/config/airflow_local_settings.py",
+                "subPath": "airflow_local_settings.py",
+                "readOnly": True,
+            }
+        ]
 
     def test_priority_class_name(self):
         docs = render_chart(

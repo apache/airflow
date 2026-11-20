@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+import json
+
 import pytest
 from packaging.version import Version
 
@@ -57,12 +59,12 @@ TEST_COMMANDS = [
     "assets list",
     "assets get 1",
     "assets create-event --asset-id=1",
-    "assets set-state-store 1 test_key test_value",
-    "assets get-state-store 1 test_key",
-    "assets list-state-store 1",
-    "assets delete-state-store 1 test_key",
-    "assets set-state-store 1 clear_key value",
-    "assets clear-state-store 1",
+    "assets state-store set 1 test_key test_value",
+    "assets state-store get 1 test_key",
+    "assets state-store list 1",
+    "assets state-store delete 1 test_key",
+    "assets state-store set 1 clear_key value",
+    "assets state-store clear 1",
     # Backfill commands
     "backfill list example_bash_operator",
     # Config commands
@@ -167,11 +169,7 @@ TEST_COMMANDS = [
 
 # The first Airflow version whose API serves each command, keyed by `_get_command_id`.
 MIN_AIRFLOW_VERSIONS = {
-    "assets set-state-store": Version("3.3.0"),
-    "assets get-state-store": Version("3.3.0"),
-    "assets list-state-store": Version("3.3.0"),
-    "assets delete-state-store": Version("3.3.0"),
-    "assets clear-state-store": Version("3.3.0"),
+    "assets state-store": Version("3.3.0"),
     "taskinstances state-store": Version("3.3.0"),
 }
 
@@ -260,6 +258,22 @@ def test_airflowctl_commands_skip_keyring(
         },
         skip_login=True,
     )
+
+
+def test_backfill_create_dry_run_lists_the_runs_it_would_create(api_token, run_command, tmp_path):
+    # 2024 stays clear of the runs triggered above, which a dry run would leave out.
+    output = run_command(
+        command="backfill create-dry-run --dag-id example_bash_operator "
+        "--from-date 2024-01-01T00:00:00+00:00 --to-date 2024-01-03T00:00:00+00:00 -o json",
+        env_vars={"AIRFLOW_HOME": str(tmp_path), "AIRFLOW_CLI_TOKEN": api_token},
+        skip_login=True,
+    )
+    # A server older than 3.2 omits the partition fields, and that warning precedes the JSON.
+    assert [row["logical_date"] for row in json.loads(output.splitlines()[-1])] == [
+        "2024-01-01T00:00:00Z",
+        "2024-01-02T00:00:00Z",
+        "2024-01-03T00:00:00Z",
+    ]
 
 
 @pytest.mark.parametrize("command", NO_AUTH_TEST_COMMANDS)

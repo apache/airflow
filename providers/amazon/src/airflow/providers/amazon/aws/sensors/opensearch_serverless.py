@@ -19,11 +19,13 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
+from airflow.providers.amazon.aws.exceptions import SensorTriggerFailedError
 from airflow.providers.amazon.aws.hooks.opensearch_serverless import OpenSearchServerlessHook
 from airflow.providers.amazon.aws.sensors.base_aws import AwsBaseSensor
 from airflow.providers.amazon.aws.triggers.opensearch_serverless import (
     OpenSearchServerlessCollectionActiveTrigger,
 )
+from airflow.providers.amazon.aws.utils import validate_execute_complete_event
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 from airflow.providers.common.compat.sdk import AirflowException, conf
 from airflow.utils.helpers import exactly_one
@@ -110,6 +112,12 @@ class OpenSearchServerlessCollectionActiveSensor(AwsBaseSensor[OpenSearchServerl
             return False
         return True
 
+    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
+        validated_event = validate_execute_complete_event(event)
+
+        if validated_event["status"] != "success":
+            raise SensorTriggerFailedError(f"{self.FAILURE_MESSAGE} Trigger event: {validated_event}")
+
     def execute(self, context: Context) -> Any:
         if self.deferrable:
             self.defer(
@@ -123,7 +131,7 @@ class OpenSearchServerlessCollectionActiveSensor(AwsBaseSensor[OpenSearchServerl
                     verify=self.verify,
                     botocore_config=self.botocore_config,
                 ),
-                method_name="poke",
+                method_name="execute_complete",
             )
         else:
             super().execute(context=context)

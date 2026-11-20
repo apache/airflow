@@ -21,6 +21,7 @@ from unittest.mock import Mock, call, patch
 
 import pytest
 
+from airflow.api_fastapi.auth.managers.models.resource_details import AccessView
 from airflow.api_fastapi.common.types import MenuItem
 from airflow.cli import cli_parser
 from airflow.providers.keycloak.auth_manager.cli.commands import (
@@ -43,9 +44,13 @@ from airflow.providers.keycloak.auth_manager.resources import KeycloakResource
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_2_PLUS
 
-EXPECTED_TEAM_MENU_RESOURCES = sorted(["Assets", "Dags", "Docs"])
+# Every team role keeps "Dag Bundles" on Airflow 3.4.0, which has the menu item but not its view.
+DAG_BUNDLES_MENU = (
+    ["Dag Bundles"] if hasattr(MenuItem, "DAG_BUNDLES") and not hasattr(AccessView, "DAG_BUNDLES") else []
+)
+EXPECTED_TEAM_MENU_RESOURCES = sorted(["Assets", "Dags", "Docs", *DAG_BUNDLES_MENU])
 EXPECTED_TEAM_ADMIN_MENU_RESOURCES = sorted(
-    ["Assets", "Connections", "Dags", "Docs", "Pools", "Variables", "XComs"]
+    ["Assets", "Connections", "Dags", "Docs", "Pools", "Variables", "XComs", *DAG_BUNDLES_MENU]
 )
 
 

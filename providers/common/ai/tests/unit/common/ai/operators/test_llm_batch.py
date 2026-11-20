@@ -18,8 +18,11 @@ from __future__ import annotations
 
 import contextlib
 import json
+import logging
 import time
+import uuid
 from collections.abc import Iterator
+from dataclasses import replace
 from datetime import datetime
 from types import SimpleNamespace
 from unittest import mock
@@ -81,6 +84,7 @@ class _FakeAdapter(BatchAdapter):
         self.orphan_recovery_fingerprint: str | None = None
         self.orphan_lookup_error: Exception | None = None
         self.find_orphaned_batch_calls: list[dict] = []
+        self.submit_handle: str | None = None
         self._next_id = 1
 
     def validate_requests(self, requests, *, model, output_spec, **kwargs):
@@ -97,7 +101,7 @@ class _FakeAdapter(BatchAdapter):
                 "input_fingerprint": input_fingerprint,
             }
         )
-        return SubmitResult(batch_id=batch_id, provider_input_ref=None)
+        return SubmitResult(batch_id=batch_id, provider_input_ref=None, handle=self.submit_handle)
 
     def get_batch(self, batch_id):
         if self.get_batch_error is not None:
@@ -164,7 +168,9 @@ def result_path(tmp_path):
     return f"file://{tmp_path.as_posix()}"
 
 
-def _context(*, dag_id="dag", task_id="t", run_id="run_1", map_index=-1, pushed: list | None = None):
+def _context(
+    *, dag_id="dag", task_id="t", run_id="run_1", map_index=-1, pushed: list | None = None, loop=None
+):
     ti = SimpleNamespace(
         dag_id=dag_id,
         task_id=task_id,
@@ -172,7 +178,10 @@ def _context(*, dag_id="dag", task_id="t", run_id="run_1", map_index=-1, pushed:
         map_index=map_index,
         xcom_push=lambda **kw: pushed.append(kw) if pushed is not None else None,
     )
-    return {"task_instance": ti, "ti": ti}
+    context = {"task_instance": ti, "ti": ti}
+    if loop is not None:
+        context["loop"] = loop
+    return context
 
 
 def _connection(*, conn_type: str = "pydanticai", extra: dict | None = None) -> Connection:
@@ -474,9 +483,94 @@ class TestFingerprintMismatchTriggersCancelAndResubmit:
             with pytest.raises(TaskDeferred):
                 _make_operator(result_path=result_path, deferrable=True, llm_conn_id="account_b").execute(ctx)
 
-        build_adapter.assert_any_call("openai", llm_conn_id="account_a")
+        build_adapter.assert_any_call(
+            "openai", llm_conn_id="account_a", model_id="openai:gpt-5", batch_handle=None
+        )
         assert fake_adapter.cancel_calls == ["batch_1"]
         assert len(fake_adapter.submit_calls) == 2
+
+    def test_stale_batch_under_another_model_is_cancelled_through_the_handle_the_adapter_was_built_with(
+        self, fake_adapter, result_path
+    ):
+        fake_adapter.submit_handle = '{"model_name": "gpt-5"}'
+        ctx = _context()
+        with _running(fake_adapter) as build_adapter:
+            with pytest.raises(TaskDeferred):
+                _make_operator(result_path=result_path, deferrable=True, model_id="openai:gpt-5").execute(ctx)
+
+            with pytest.raises(TaskDeferred):
+                _make_operator(
+                    result_path=result_path, deferrable=True, model_id="openai:gpt-5-mini"
+                ).execute(ctx)
+            build_from_connection = dispatch.build_adapter_from_connection
+
+        # One adapter serves the cancel: it carries the recorded handle, whose model the adapter polls and
+        # cancels with, so no second adapter is built for the old model.
+        build_adapter.assert_not_called()
+        assert build_from_connection.call_args.kwargs["batch_handle"] == '{"model_name": "gpt-5"}'
+        assert fake_adapter.cancel_calls == ["batch_1"]
+
+    def test_stale_batch_without_a_recorded_model_is_cancelled_through_the_current_adapter(
+        self, fake_adapter, result_path
+    ):
+        ctx = _context()
+        with _running(fake_adapter) as build_adapter:
+            with pytest.raises(TaskDeferred):
+                _make_operator(result_path=result_path, deferrable=True).execute(ctx)
+            key, _ = LLMBatchOperator._identity(ctx)
+            record = state_module.read_state(ObjectStoragePath(result_path), key)
+            with mock.patch.object(
+                state_module, "read_state", autospec=True, return_value=replace(record, model_id=None)
+            ):
+                with pytest.raises(TaskDeferred):
+                    _make_operator(requests=["changed"], result_path=result_path, deferrable=True).execute(
+                        ctx
+                    )
+
+        build_adapter.assert_not_called()
+        assert fake_adapter.cancel_calls == ["batch_1"]
+
+
+class _FixedWindowAdapter(_FakeAdapter):
+    supports_completion_window = False
+
+
+class TestCompletionWindow:
+    def test_a_non_default_window_is_flagged_as_ignored_by_an_adapter_that_fixes_its_window(
+        self, result_path, caplog
+    ):
+        with _running(_FixedWindowAdapter()), caplog.at_level(logging.WARNING):
+            with pytest.raises(TaskDeferred):
+                _make_operator(result_path=result_path, deferrable=True, completion_window="12h").execute(
+                    _context()
+                )
+
+        assert any("completion_window" in r.getMessage() for r in caplog.records)
+
+    def test_a_non_default_window_is_not_flagged_for_an_adapter_that_honours_it(
+        self, fake_adapter, result_path, caplog
+    ):
+        # Dispatched under a name other than "openai", as a third-party adapter would be: only what the
+        # adapter's class says about the window matters.
+        with _running(fake_adapter), caplog.at_level(logging.WARNING):
+            with pytest.raises(TaskDeferred):
+                _make_operator(
+                    result_path=result_path,
+                    deferrable=True,
+                    model_id="anthropic:claude-sonnet-4-5",
+                    completion_window="12h",
+                ).execute(_context())
+
+        assert not any("completion_window" in r.getMessage() for r in caplog.records)
+
+    def test_the_default_window_is_not_flagged(self, fake_adapter, result_path, caplog):
+        with _running(fake_adapter), caplog.at_level(logging.WARNING):
+            with pytest.raises(TaskDeferred):
+                _make_operator(
+                    result_path=result_path, deferrable=True, model_id="anthropic:claude-sonnet-4-5"
+                ).execute(_context())
+
+        assert not any("completion_window" in r.getMessage() for r in caplog.records)
 
 
 class TestOutputTypeChangeDoesNotReattach:
@@ -539,6 +633,24 @@ class TestEndToEndStructuredBatch:
         assert len(fake_adapter.submit_calls) == 1
         assert second["batch_id"] == first["batch_id"]
         assert second["counts"] == first["counts"]
+
+    def test_loop_iterations_submit_and_land_their_own_batches(self, fake_adapter, result_path):
+        """Each task loop iteration is its own task instance, even when its prompts repeat."""
+        fake_adapter.get_batch_status = "completed"
+        fake_adapter.results = [_success_item(0, "hi")]
+        region_id = uuid.uuid4()
+        with _running(fake_adapter):
+            first = _make_operator(result_path=result_path, deferrable=False).execute(
+                _context(loop=SimpleNamespace(region_id=region_id, index=1))
+            )
+            second = _make_operator(result_path=result_path, deferrable=False).execute(
+                _context(loop=SimpleNamespace(region_id=region_id, index=2))
+            )
+
+        assert len(fake_adapter.submit_calls) == 2
+        assert fake_adapter.cancel_calls == []
+        assert second["batch_id"] != first["batch_id"]
+        assert second["result_uri"] != first["result_uri"]
 
     def test_fail_on_partial_error_raises_after_landing_results_and_a_retry_reattaches(
         self, fake_adapter, result_path
@@ -953,3 +1065,149 @@ class TestBatchIdXcom:
                     _context(pushed=pushed)
                 )
         assert pushed == []
+
+
+class TestProviderHandle:
+    def test_the_submit_handle_is_recorded_and_given_to_the_trigger(self, fake_adapter, result_path):
+        fake_adapter.submit_handle = '{"id": "batch_1"}'
+        ctx = _context()
+        with _running(fake_adapter):
+            with pytest.raises(TaskDeferred) as exc_info:
+                _make_operator(result_path=result_path, deferrable=True).execute(ctx)
+
+        key, _ = LLMBatchOperator._identity(ctx)
+        record = state_module.read_state(ObjectStoragePath(result_path), key)
+        assert record.provider_handle == '{"id": "batch_1"}'
+        assert record.schema_version == state_module.SCHEMA_VERSION
+        assert exc_info.value.trigger.batch_handle == '{"id": "batch_1"}'
+        assert exc_info.value.trigger.model_id == "openai:gpt-5"
+
+    def test_a_reattach_builds_the_adapter_with_the_recorded_handle_and_passes_it_on(
+        self, fake_adapter, result_path
+    ):
+        fake_adapter.submit_handle = '{"id": "batch_1"}'
+        ctx = _context()
+        with _running(fake_adapter):
+            with pytest.raises(TaskDeferred):
+                _make_operator(result_path=result_path, deferrable=True).execute(ctx)
+            dispatch.build_adapter_from_connection.reset_mock()  # patched by _running
+            with pytest.raises(TaskDeferred) as exc_info:
+                _make_operator(result_path=result_path, deferrable=True).execute(ctx)
+            from_connection = dispatch.build_adapter_from_connection
+
+        assert from_connection.call_args.kwargs["batch_handle"] == '{"id": "batch_1"}'
+        assert exc_info.value.trigger.batch_handle == '{"id": "batch_1"}'
+        assert len(fake_adapter.submit_calls) == 1
+
+    def test_landing_rebuilds_the_adapter_from_the_recorded_handle(self, fake_adapter, result_path):
+        fake_adapter.submit_handle = '{"id": "batch_1"}'
+        ctx = _context()
+        with _running(fake_adapter) as build_adapter:
+            with pytest.raises(TaskDeferred):
+                _make_operator(result_path=result_path, deferrable=True).execute(ctx)
+            fake_adapter.results = [_success_item(0, "hi")]
+            _make_operator(result_path=result_path, deferrable=True).execute_complete(
+                ctx, {"status": "success", "batch_id": "batch_1", "counts": None, "message": ""}
+            )
+
+        build_adapter.assert_called_once()
+        _, kwargs = build_adapter.call_args
+        assert kwargs["batch_handle"] == '{"id": "batch_1"}'
+        assert kwargs["model_id"] == "openai:gpt-5"
+        assert kwargs["output_spec"].is_structured is False
+
+
+class TestLegacyStateRecord:
+    def _write_v1_record(self, result_path, ctx, *, batch_id="old_batch"):
+        key, _ = LLMBatchOperator._identity(ctx)
+        record = state_module.BatchStateRecord(
+            schema_version=1,
+            key=key,
+            input_fingerprint=_expected_fingerprint(["hello"]),
+            output_schema_digest="x",
+            intent_at="2020-01-01T00:00:00+00:00",
+            adapter="openai",
+            llm_conn_id="my_openai",
+            model_id="openai:gpt-5",
+            output_type_ref=None,
+            batch_id=batch_id,
+            provider_input_ref=None,
+            request_count=1,
+            submitted_at="2020-01-01T00:00:00+00:00",
+        )
+        state_module._write(ObjectStoragePath(result_path), key, record)
+        return key
+
+    def test_a_v1_batch_re_attaches_with_no_handle_and_its_record_is_left_as_it_was(
+        self, fake_adapter, result_path
+    ):
+        ctx = _context()
+        key = self._write_v1_record(result_path, ctx)
+        with _running(fake_adapter):
+            with pytest.raises(TaskDeferred) as exc_info:
+                _make_operator(result_path=result_path, deferrable=True).execute(ctx)
+
+        assert exc_info.value.trigger.batch_id == "old_batch"
+        assert exc_info.value.trigger.batch_handle is None
+        assert state_module.read_state(ObjectStoragePath(result_path), key).schema_version == 1
+
+
+class TestCancelledIsDecidedAfterLanding:
+    def test_an_ended_batch_with_cancelled_results_is_a_cancellation(self, fake_adapter, result_path):
+        """Anthropic reports a cancelled batch as ended, so the cancelled rows are the only evidence."""
+        cancelled = RawResultItem(
+            custom_id="k-1",
+            index=1,
+            provider_status="cancelled",
+            model=None,
+            usage=None,
+            finish_reason=None,
+            error={
+                "type": "canceled",
+                "message": "batch item canceled",
+                "provider_code": None,
+                "stage": "provider",
+            },
+            raw=None,
+        )
+        fake_adapter.get_batch_status = "completed"
+        fake_adapter.get_batch_counts = None
+        fake_adapter.results = [_success_item(0, "hello", prefix="k"), cancelled]
+        ctx = _context()
+        with _running(fake_adapter):
+            op = _make_operator(requests=["a", "b"], result_path=result_path, deferrable=False)
+            with pytest.raises(LLMBatchCancelledError, match="cancelled before 1 of 2 requests completed"):
+                op.execute(ctx)
+
+        _, key16 = LLMBatchOperator._identity(ctx)
+        rows = [
+            json.loads(line)
+            for line in (ObjectStoragePath(result_path) / f"{key16}.jsonl").read_text().splitlines()
+        ]
+        assert sorted(row["status"] for row in rows) == ["cancelled", "success"]
+        assert _state_files(result_path) == []
+
+    def test_a_completed_batch_missing_a_row_is_not_a_cancellation(self, fake_adapter, result_path):
+        fake_adapter.get_batch_status = "completed"
+        fake_adapter.results = [_success_item(0, "hello", prefix="k")]
+        with _running(fake_adapter):
+            manifest = _make_operator(requests=["a", "b"], result_path=result_path, deferrable=False).execute(
+                _context()
+            )
+
+        assert manifest["counts"]["missing"] == 1
+        assert manifest["terminal_reason"] == "partial"
+        assert _state_files(result_path)
+
+    def test_a_cancelled_event_with_no_counts_treats_unlisted_requests_as_lost(
+        self, fake_adapter, result_path
+    ):
+        fake_adapter.get_batch_status = "cancelled"
+        fake_adapter.get_batch_counts = None
+        fake_adapter.results = [_success_item(0, "hello", prefix="k")]
+        with _running(fake_adapter):
+            with pytest.raises(LLMBatchCancelledError, match="cancelled before 1 of 2 requests completed"):
+                _make_operator(requests=["a", "b"], result_path=result_path, deferrable=False).execute(
+                    _context()
+                )
+        assert _state_files(result_path) == []

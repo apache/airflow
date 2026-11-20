@@ -591,6 +591,14 @@ source code so it stays up to date as endpoints are added or changed.
      - ``View.PROVIDERS``
      - ``PROVIDERS``
    * - ``GET``
+     - ``/api/v2/triggers``
+     - ``DAG.TASK_INSTANCE or DAG.RUN or Asset``
+     - ``GET``
+   * - ``GET``
+     - ``/api/v2/triggers/{trigger_id}``
+     - ``DAG.TASK_INSTANCE or DAG.RUN or Asset``
+     - ``GET``
+   * - ``GET``
      - ``/api/v2/variables``
      - ``Variable``
      - ``GET``

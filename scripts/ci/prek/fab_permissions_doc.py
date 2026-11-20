@@ -40,6 +40,7 @@ from __future__ import annotations
 import ast
 import pathlib
 import sys
+from dataclasses import replace
 
 from extract_permissions import (
     PUBLIC_ROUTES_DIR,
@@ -367,18 +368,23 @@ def _fab_route_entries() -> list[tuple[str, str, str, str]]:
     return rows
 
 
+def _fab_permission_options(entry: PermissionEntry) -> tuple[str, str]:
+    """Render an entry's FAB permissions and minimum role.
+
+    A resource label ``A or B`` (``requires_access_trigger``) is met by the permissions of either one.
+    """
+    options = [fab_permissions_for(replace(entry, resource=r)) for r in entry.resource.split(" or ")]
+    role = min((minimum_role(perms) for perms in options), key=_ROLE_ORDER.index)
+    if len(options) == 1:
+        return ", ".join(options[0]) if options[0] else "None", role
+    return ", or ".join(" and ".join(perms) for perms in options), role
+
+
 def render_rst(entries: list[PermissionEntry]) -> str:
     rows = []
     for entry in sorted(entries):
-        perms = fab_permissions_for(entry)
-        rows.append(
-            (
-                entry.full_path,
-                entry.http_method,
-                ", ".join(perms) if perms else "None",
-                minimum_role(perms),
-            )
-        )
+        perms_text, role = _fab_permission_options(entry)
+        rows.append((entry.full_path, entry.http_method, perms_text, role))
 
     rows.extend(_fab_route_entries())
     rows.sort()

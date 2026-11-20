@@ -49,6 +49,7 @@ from airflowctl.api.datamodels.generated import (
     BulkBodyVariableBody,
     BulkResponse,
     ClearTaskInstancesBody,
+    CliLoginMetadataResponse,
     Config,
     ConnectionBody,
     ConnectionCollectionResponse,
@@ -66,6 +67,7 @@ from airflowctl.api.datamodels.generated import (
     DAGVersionCollectionResponse,
     DagVersionResponse,
     DAGWarningCollectionResponse,
+    DryRunBackfillCollectionResponse,
     ImportErrorCollectionResponse,
     ImportErrorResponse,
     JobCollectionResponse,
@@ -332,20 +334,26 @@ class BaseOperations:
         total_entries = first_pass.total_entries
         # An older server that omits total_entries leaves it None; treat that as "no more
         # pages" rather than raising on the comparison below.
-        if total_entries is None or total_entries < limit:
+        if total_entries is None:
             return first_pass
         found_key = None
         for key, value in first_pass.model_dump().items():
             if key != "total_entries" and isinstance(value, list):
                 found_key = key
                 break
+        if found_key is None:
+            return first_pass
         entry_list = getattr(first_pass, found_key)
-        offset = offset + limit
-        while offset < total_entries:
+        # The server may cap ``limit`` (``api.maximum_page_limit``), so advance by the number of
+        # entries received rather than by the requested limit, or the capped-off entries are skipped.
+        page_size = len(entry_list)
+        offset = offset + page_size
+        while page_size and offset < total_entries:
             self.response = self.client.get(path, params={**shared_params, "offset": offset})
-            entry = validate_response(self.response.content, data_model)
-            offset = offset + limit
-            entry_list.extend(getattr(entry, found_key))
+            page_entries = getattr(validate_response(self.response.content, data_model), found_key)
+            entry_list.extend(page_entries)
+            page_size = len(page_entries)
+            offset = offset + page_size
         return data_model(**{found_key: entry_list, "total_entries": total_entries})
 
 
@@ -361,6 +369,40 @@ class LoginOperations:
         return LoginResponse.model_validate_json(
             self.client.post("/token/cli", json=login.model_dump(mode="json")).content
         )
+
+    def get_cli_login_metadata(self, api_url: str) -> CliLoginMetadataResponse:
+        """Return the login methods the API server offers, or none for servers without CLI login discovery."""
+        try:
+            response = self.client.get(
+                f"{api_url.rstrip('/')}/api/v2/auth/cli/metadata",
+                extensions={"airflowctl_suppress_error_log": True},
+            )
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code != 404:
+                raise
+            return CliLoginMetadataResponse(
+                grant_types_supported=[],
+                code_challenge_methods_supported=[],
+                authorization_endpoint=None,
+                device_authorization_endpoint=None,
+                token_endpoint=None,
+            )
+        return CliLoginMetadataResponse.model_validate_json(response.content)
+
+    def login_with_authorization_code(
+        self, token_url: str, code: str, code_verifier: str, redirect_uri: str
+    ) -> LoginResponse:
+        """Redeem an authorization code from the browser login for a CLI token."""
+        response = self.client.post(
+            token_url,
+            json={
+                "grant_type": "authorization_code",
+                "code": code,
+                "code_verifier": code_verifier,
+                "redirect_uri": redirect_uri,
+            },
+        )
+        return LoginResponse.model_validate_json(response.content)
 
 
 # Operations
@@ -484,13 +526,15 @@ class BackfillOperations(BaseOperations):
         )
         return validate_response(self.response.content, BackfillResponse)
 
-    def create_dry_run(self, backfill: BackfillPostBody) -> BackfillResponse | ServerResponseError:
+    def create_dry_run(
+        self, backfill: BackfillPostBody
+    ) -> DryRunBackfillCollectionResponse | ServerResponseError:
         """Create a dry run backfill."""
         self.response = self.client.post(
             "backfills/dry_run",
             json=backfill.model_dump(mode="json", exclude_none=True, exclude_defaults=True),
         )
-        return validate_response(self.response.content, BackfillResponse)
+        return validate_response(self.response.content, DryRunBackfillCollectionResponse)
 
     def get(self, backfill_id: str) -> BackfillResponse | ServerResponseError:
         """Get a backfill."""
