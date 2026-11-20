@@ -34,8 +34,8 @@ import pytest
 from pydantic_ai import Agent
 from pydantic_ai.capabilities import AbstractCapability
 from pydantic_ai.exceptions import FallbackExceptionGroup, ModelAPIError
-from pydantic_ai.messages import ModelResponse, TextPart, ToolCallPart, ToolReturnPart
-from pydantic_ai.models import Model
+from pydantic_ai.messages import ModelRequest, ModelResponse, TextPart, ToolCallPart, ToolReturnPart
+from pydantic_ai.models import Model, ModelRequestParameters
 from pydantic_ai.models.fallback import FallbackModel
 from pydantic_ai.models.function import FunctionModel
 from pydantic_ai.models.openai import OpenAIChatModel
@@ -43,6 +43,11 @@ from pydantic_ai.models.test import TestModel
 from pydantic_ai.providers import infer_provider_class
 
 from airflow.models.connection import Connection
+from airflow.providers.common.ai.durable.member_stamp import (
+    MemberStampingModel,
+    get_member_conn_id,
+    get_member_model_id,
+)
 from airflow.providers.common.ai.get_provider_info import get_provider_info
 from airflow.providers.common.ai.hooks.pydantic_ai import (
     ModelReadinessBackend,
@@ -62,6 +67,15 @@ from airflow.providers_manager import HookInfo
 # Matches the `google...` provider key pydantic-ai expects before the `:model-name`
 # separator, e.g. "google-cloud" out of "google-cloud:gemini-2.5-flash".
 _GOOGLE_MODEL_PREFIX_RE = re.compile(r"google[\w-]*(?=:)")
+
+
+def get_chain_members(model: FallbackModel) -> list[Model]:
+    """Return the models of a chain with the member-stamping wrapper taken off."""
+    members = []
+    for member in model.models:
+        assert isinstance(member, MemberStampingModel)
+        members.append(member.wrapped)
+    return members
 
 
 def build_backend(*, model_name: str, base_url: str | None) -> ModelReadinessBackend:
@@ -907,11 +921,54 @@ class TestPydanticAIHookFallback:
         model = hook.get_conn()
 
         assert isinstance(model, FallbackModel)
-        assert model.models == [
+        assert get_chain_members(model) == [
             infer_model_stub.models["openai:gpt-5.6-sol"],
             infer_model_stub.models["anthropic:claude-opus-4-6"],
             infer_model_stub.models["groq:llama-4"],
         ]
+
+    @pytest.mark.asyncio
+    async def test_response_is_stamped_with_the_member_that_answered(self, registry, infer_model_stub):
+        def fail(messages, info):
+            raise ModelAPIError("primary", "down")
+
+        def answer(messages, info):
+            return ModelResponse(parts=[TextPart("answered")])
+
+        infer_model_stub.models["openai:gpt-5.6-sol"] = FunctionModel(fail, model_name="primary-model")
+        infer_model_stub.models["anthropic:claude-opus-4-6"] = FunctionModel(
+            answer, model_name="second-model"
+        )
+        registry.add("primary", extra={"model": "openai:gpt-5.6-sol"})
+        registry.add("second", extra={"model": "anthropic:claude-opus-4-6"})
+
+        model = PydanticAIHook(llm_conn_id="primary", fallback_conn_ids=["second"]).get_conn()
+        response = await model.request([ModelRequest.user_text_prompt("go")], None, ModelRequestParameters())
+
+        assert get_member_model_id(response) == "function:second-model"
+        assert get_member_conn_id(response) == "second"
+
+    @pytest.mark.asyncio
+    async def test_two_connections_serving_one_model_each_stamp_their_own_conn_id(
+        self, registry, infer_model_stub
+    ):
+        asked = []
+
+        def fail_then_answer(messages, info):
+            asked.append(info)
+            if len(asked) == 1:
+                raise ModelAPIError("shared", "down")
+            return ModelResponse(parts=[TextPart("answered")])
+
+        infer_model_stub.models["openai:gpt-5.6-sol"] = FunctionModel(fail_then_answer, model_name="shared")
+        registry.add("primary", extra={"model": "openai:gpt-5.6-sol"})
+        registry.add("gateway", extra={"model": "openai:gpt-5.6-sol"})
+
+        model = PydanticAIHook(llm_conn_id="primary", fallback_conn_ids=["gateway"]).get_conn()
+        response = await model.request([ModelRequest.user_text_prompt("go")], None, ModelRequestParameters())
+
+        assert get_member_conn_id(response) == "gateway"
+        assert get_member_model_id(response) == "function:shared"
 
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.FallbackModel", autospec=True)
     def test_chain_pins_fallback_on_to_model_api_error(self, mock_fallback_model, registry, infer_model_stub):
@@ -926,13 +983,14 @@ class TestPydanticAIHookFallback:
 
         PydanticAIHook(llm_conn_id="primary", fallback_conn_ids=["second"]).get_conn()
 
-        assert mock_fallback_model.mock_calls == [
-            call(
-                infer_model_stub.models["openai:gpt-5.6-sol"],
-                infer_model_stub.models["anthropic:claude-opus-4-6"],
-                fallback_on=(ModelAPIError,),
-            )
+        mock_fallback_model.assert_called_once()
+        members = mock_fallback_model.call_args.args
+        kwargs = mock_fallback_model.call_args.kwargs
+        assert [member.wrapped for member in members] == [
+            infer_model_stub.models["openai:gpt-5.6-sol"],
+            infer_model_stub.models["anthropic:claude-opus-4-6"],
         ]
+        assert kwargs == {"fallback_on": (ModelAPIError,)}
 
     def test_chain_from_connection_extra(self, registry, infer_model_stub):
         """A deployment manager can configure failover without touching Dag code."""
@@ -945,7 +1003,7 @@ class TestPydanticAIHookFallback:
         model = PydanticAIHook(llm_conn_id="primary").get_conn()
 
         assert isinstance(model, FallbackModel)
-        assert model.models == [
+        assert get_chain_members(model) == [
             infer_model_stub.models["openai:gpt-5.6-sol"],
             infer_model_stub.models["anthropic:claude-opus-4-6"],
         ]
@@ -961,7 +1019,7 @@ class TestPydanticAIHookFallback:
         model = PydanticAIHook(llm_conn_id="primary", fallback_conn_ids=["second"]).get_conn()
 
         assert isinstance(model, FallbackModel)
-        assert model.models[1] is infer_model_stub.models["anthropic:claude-opus-4-6"]
+        assert get_chain_members(model)[1] is infer_model_stub.models["anthropic:claude-opus-4-6"]
 
     def test_empty_list_param_disables_the_extra_chain(self, registry, infer_model_stub):
         """``[]`` is an explicit opt-out, distinct from ``None`` meaning "read the extra"."""
@@ -998,7 +1056,7 @@ class TestPydanticAIHookFallback:
             model = hook.get_conn()
 
             assert isinstance(model, FallbackModel)
-            assert model.models == [
+            assert get_chain_members(model) == [
                 infer_model_stub.models["openai:gpt-5.6-sol"],
                 infer_model_stub.models["bedrock:us.anthropic.claude-opus-4-5"],
             ]
@@ -1027,7 +1085,7 @@ class TestPydanticAIHookFallback:
         model = hook.get_conn()
 
         assert isinstance(model, FallbackModel)
-        assert model.models == [
+        assert get_chain_members(model) == [
             infer_model_stub.models["azure:gpt-5-nano"],
             infer_model_stub.models["bedrock:gpt-5-nano"],
         ]
@@ -1053,7 +1111,7 @@ class TestPydanticAIHookFallback:
         model = PydanticAIAzureHook(llm_conn_id="primary").get_conn()
 
         assert isinstance(model, FallbackModel)
-        assert model.models == [
+        assert get_chain_members(model) == [
             infer_model_stub.models["azure:gpt-5-nano"],
             infer_model_stub.models["bedrock:gpt-5-nano"],
         ]
@@ -1074,7 +1132,7 @@ class TestPydanticAIHookFallback:
         model = hook.get_conn()
 
         assert isinstance(model, FallbackModel)
-        assert model.models[1] is infer_model_stub.models["bedrock:us.anthropic.claude-opus-4-5"]
+        assert get_chain_members(model)[1] is infer_model_stub.models["bedrock:us.anthropic.claude-opus-4-5"]
 
     def test_prefixed_model_id_not_forwarded_to_fallback(self, registry, infer_model_stub):
         """A prefixed ``model_id`` pins the primary's own platform and is unusable on a fallback."""
@@ -1118,7 +1176,7 @@ class TestPydanticAIHookFallback:
         model = hook.get_conn()
 
         assert isinstance(model, FallbackModel)
-        assert model.models == [
+        assert get_chain_members(model) == [
             infer_model_stub.models["bedrock:us.anthropic.claude-opus-4-6-v1:0"],
             infer_model_stub.models["bedrock:us.anthropic.claude-opus-4-6-v1:0"],
         ]
@@ -1161,7 +1219,7 @@ class TestPydanticAIHookFallback:
         model = PydanticAIHook(llm_conn_id="gateway").get_conn()
 
         assert isinstance(model, FallbackModel)
-        assert model.models == [
+        assert get_chain_members(model) == [
             infer_model_stub.models["openai-chat:claude-sonnet-4-5"],
             infer_model_stub.models["anthropic:claude-sonnet-4-5"],
         ]
@@ -1174,7 +1232,7 @@ class TestPydanticAIHookFallback:
         model = PydanticAIHook(llm_conn_id="gateway", model_id="llama3:70b").get_conn()
 
         assert isinstance(model, FallbackModel)
-        assert model.models == [
+        assert get_chain_members(model) == [
             infer_model_stub.models["openai-chat:llama3:70b"],
             infer_model_stub.models["openai-chat:llama3:70b"],
         ]
@@ -1257,7 +1315,7 @@ class TestPydanticAIHookFallback:
         model = PydanticAIHook(llm_conn_id="primary", fallback_conn_ids=fallback_conn_ids).get_conn()
 
         assert isinstance(model, FallbackModel)
-        assert model.models == [
+        assert get_chain_members(model) == [
             infer_model_stub.models["openai:gpt-5.6-sol"],
             infer_model_stub.models["anthropic:claude-opus-4-6"],
         ]
@@ -1273,7 +1331,7 @@ class TestPydanticAIHookFallback:
         model = PydanticAIHook(llm_conn_id="primary").get_conn()
 
         assert isinstance(model, FallbackModel)
-        assert model.models == [
+        assert get_chain_members(model) == [
             infer_model_stub.models["openai:gpt-5.6-sol"],
             infer_model_stub.models["anthropic:claude-opus-4-6"],
         ]
@@ -1294,7 +1352,7 @@ class TestPydanticAIHookFallback:
         model = PydanticAIHook(llm_conn_id="primary", fallback_conn_ids=["  second  "]).get_conn()
 
         assert isinstance(model, FallbackModel)
-        assert model.models == [
+        assert get_chain_members(model) == [
             infer_model_stub.models["openai:gpt-5.6-sol"],
             infer_model_stub.models["anthropic:claude-opus-4-6"],
         ]
@@ -2784,7 +2842,7 @@ class TestPydanticAIHookAsync:
         model = await PydanticAIHook(llm_conn_id="primary").aget_conn()
 
         assert isinstance(model, FallbackModel)
-        assert model.models == [
+        assert get_chain_members(model) == [
             infer_model_stub.models["openai:gpt-5.6-sol"],
             infer_model_stub.models["anthropic:claude-opus-4-6"],
             infer_model_stub.models["groq:llama-4"],
@@ -3002,8 +3060,8 @@ class TestPydanticAIHookConnectionCache:
         assert isinstance(first_model, FallbackModel)
         assert isinstance(second_model, FallbackModel)
         assert (
-            first_model.models
-            == second_model.models
+            get_chain_members(first_model)
+            == get_chain_members(second_model)
             == [
                 infer_model_stub.models["openai:gpt-5.6-sol"],
                 infer_model_stub.models["anthropic:claude-opus-4-6"],
