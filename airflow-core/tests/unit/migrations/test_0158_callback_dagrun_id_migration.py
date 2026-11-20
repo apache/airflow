@@ -31,6 +31,8 @@ from alembic.operations import Operations
 from sqlalchemy.dialects.postgresql.psycopg import PGDialect_psycopg
 
 from airflow import settings
+from airflow._shared.timezones import timezone
+from airflow.utils.db import downgrade, upgradedb
 
 from tests_common.test_utils.paths import AIRFLOW_CORE_SOURCES_PATH
 
@@ -47,6 +49,12 @@ assert _spec is not None
 _migration = importlib.util.module_from_spec(_spec)
 assert _spec.loader is not None
 _spec.loader.exec_module(_migration)
+
+REVISION = _migration.revision
+PREVIOUS_REVISION = _migration.down_revision
+_DATABASE_CALLBACK_ID = uuid.UUID("00000000-0000-0000-0000-000000001580")
+_DATABASE_DAG_ID = "test_0158_callback_dagrun_id"
+_DATABASE_RUN_ID = "test_0158_callback_dagrun_id_run"
 
 
 def _make_engine():
@@ -207,29 +215,73 @@ def test_offline_migration_emits_callback_data_warning(migration_name, warning):
     assert warning in output.getvalue()
 
 
-@pytest.mark.db_test
-def test_restore_legacy_dagrun_id_with_postgresql_jsonb():
-    if settings.engine.dialect.name != "postgresql":
-        pytest.skip("PostgreSQL JSONB regression test")
+def _delete_database_test_rows(engine) -> None:
+    metadata = sa.MetaData()
+    callback = sa.Table("callback", metadata, autoload_with=engine)
+    dag_run = sa.Table("dag_run", metadata, autoload_with=engine)
+    with engine.begin() as conn:
+        conn.execute(callback.delete().where(callback.c.id == _DATABASE_CALLBACK_ID))
+        conn.execute(dag_run.delete().where(dag_run.c.dag_id == _DATABASE_DAG_ID))
 
-    callback_id = uuid.uuid4()
-    with settings.engine.begin() as conn:
+
+@pytest.fixture
+def database_at_previous_revision():
+    """Move the database to the revision before this migration, then restore the current head."""
+    original_async_conn = settings.SQL_ALCHEMY_CONN_ASYNC
+    settings.SQL_ALCHEMY_CONN_ASYNC = ""
+    settings.dispose_orm(do_log=False)
+    settings.configure_orm(disable_connection_pool=True)
+    try:
+        downgrade(to_revision=PREVIOUS_REVISION)
+        _delete_database_test_rows(settings.engine)
+        yield settings.engine
+    finally:
+        try:
+            upgradedb()
+            _delete_database_test_rows(settings.engine)
+        finally:
+            settings.SQL_ALCHEMY_CONN_ASYNC = original_async_conn
+            settings.reconfigure_orm()
+
+
+@pytest.mark.db_test
+@pytest.mark.backend("postgres", "mysql")
+def test_downgrade_restores_callback_data(database_at_previous_revision):
+    metadata = sa.MetaData()
+    callback = sa.Table("callback", metadata, autoload_with=database_at_previous_revision)
+    dag_run = sa.Table("dag_run", metadata, autoload_with=database_at_previous_revision)
+    with database_at_previous_revision.begin() as conn:
+        dagrun_id = conn.execute(
+            dag_run.insert().values(
+                dag_id=_DATABASE_DAG_ID,
+                run_id=_DATABASE_RUN_ID,
+                run_type="manual",
+                run_after=timezone.utcnow(),
+            )
+        ).inserted_primary_key[0]
         conn.execute(
-            sa.text(
-                "CREATE TEMPORARY TABLE callback "
-                "(id UUID PRIMARY KEY, type TEXT NOT NULL, data JSONB NOT NULL, dagrun_id INTEGER) ON COMMIT DROP"
+            callback.insert().values(
+                id=_DATABASE_CALLBACK_ID,
+                type="executor",
+                fetch_method="import_path",
+                data={"__var": {"path": "callback.path", "dag_run_id": str(dagrun_id)}},
+                state="pending",
+                priority_weight=1,
+                created_at=timezone.utcnow(),
             )
         )
-        conn.execute(
-            sa.text("INSERT INTO callback (id, type, data, dagrun_id) VALUES (:id, 'executor', :data, 1)"),
-            {"id": callback_id, "data": json.dumps({"__var": {"path": "callback.path"}})},
-        )
 
-        _migration._restore_legacy_dagrun_id(conn, batch_size=1)
+    upgradedb(to_revision=REVISION)
+    downgrade(to_revision=PREVIOUS_REVISION)
 
-        assert conn.scalar(sa.text("SELECT data FROM callback WHERE id = :id"), {"id": callback_id}) == {
-            "__var": {"path": "callback.path", "dag_run_id": "1"}
-        }
+    metadata = sa.MetaData()
+    callback = sa.Table("callback", metadata, autoload_with=database_at_previous_revision)
+    with database_at_previous_revision.connect() as conn:
+        data = conn.scalar(sa.select(callback.c.data).where(callback.c.id == _DATABASE_CALLBACK_ID))
+
+    if isinstance(data, str):
+        data = json.loads(data)
+    assert data == {"__var": {"path": "callback.path", "dag_run_id": str(dagrun_id)}}
 
 
 def test_sqlite_upgrade_and_downgrade_preserve_deadline_callback():
