@@ -64,6 +64,7 @@ def _get_sync_token_key(kubernetes_version: str) -> str:
 
 
 _SYNC_TOKEN_KEY = _get_sync_token_key(kubernetes.__version__)
+_KUBERNETES_MAJOR_VERSION = Version(kubernetes.__version__).major
 
 
 class _EksExecutorHook(EksHook):
@@ -87,13 +88,26 @@ class _EksApiClient(client.ApiClient):
         self._expire_token = expire_token
 
     def call_api(self, *args, **kwargs):
+        # kubernetes 37 returns the rejected response here and raises the 401 later, when the caller
+        # deserializes it. Earlier clients raise the 401 from this call.
         try:
-            return super().call_api(*args, **kwargs)
+            response = super().call_api(*args, **kwargs)
+            if not (
+                isinstance(response, client.rest.RESTResponse) and response.status == HTTPStatus.UNAUTHORIZED
+            ):
+                return response
+            # Read the rejected response so its connection returns to the pool before the retry.
+            response.read()
         except client.ApiException as e:
             if e.status != HTTPStatus.UNAUTHORIZED:
                 raise
         log.warning(_TOKEN_REJECTED)
         self._expire_token()
+        if _KUBERNETES_MAJOR_VERSION >= 37:
+            # kubernetes 37 builds the headers before this call, so the retry would send the rejected token.
+            headers = kwargs["header_params"] if "header_params" in kwargs else args[2]
+            bearer = self.configuration.auth_settings()["BearerToken"]
+            headers[bearer["key"]] = bearer["value"]
         return super().call_api(*args, **kwargs)
 
 
