@@ -3892,7 +3892,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-apache-hbase"
-version = "1.1.0"
+version = "1.0.0"
 source = { editable = "providers/apache/hbase" }
 dependencies = [
     { name = "apache-airflow" },
