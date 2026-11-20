@@ -21,6 +21,7 @@ from unittest.mock import Mock, call, patch
 
 import pytest
 
+from airflow.api_fastapi.auth.managers.models.resource_details import AccessView
 from airflow.api_fastapi.common.types import MenuItem
 from airflow.cli import cli_parser
 from airflow.providers.keycloak.auth_manager.cli.commands import (
@@ -42,6 +43,15 @@ from airflow.providers.keycloak.auth_manager.resources import KeycloakResource
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_2_PLUS
+
+# Every team role keeps "Dag Bundles" on Airflow 3.4.0, which has the menu item but not its view.
+DAG_BUNDLES_MENU = (
+    ["Dag Bundles"] if hasattr(MenuItem, "DAG_BUNDLES") and not hasattr(AccessView, "DAG_BUNDLES") else []
+)
+EXPECTED_TEAM_MENU_RESOURCES = sorted(["Assets", "Dags", "Docs", *DAG_BUNDLES_MENU])
+EXPECTED_TEAM_ADMIN_MENU_RESOURCES = sorted(
+    ["Assets", "Connections", "Dags", "Docs", "Pools", "Variables", "XComs", *DAG_BUNDLES_MENU]
+)
 
 
 @pytest.mark.db_test
@@ -342,6 +352,7 @@ class TestCommands:
             {"_id": "r10", "name": "Asset"},
             {"_id": "r11", "name": "AssetAlias"},
             {"_id": "r12", "name": "Configuration"},
+            {"_id": "r13", "name": "AdminView"},
         ]
 
         client.get_clients.return_value = [
@@ -404,6 +415,17 @@ class TestCommands:
                 "decisionStrategy": "UNANIMOUS",
                 "scopes": ["1"],
                 "resources": ["r5"],
+            },
+        )
+        client.create_client_authz_scope_permission.assert_any_call(
+            client_id="test-id",
+            payload={
+                "name": "AdminViewAccess",
+                "type": "scope",
+                "logic": "POSITIVE",
+                "decisionStrategy": "UNANIMOUS",
+                "scopes": ["1"],
+                "resources": ["r13"],
             },
         )
         client.create_client_authz_scope_permission.assert_any_call(
@@ -504,7 +526,7 @@ class TestCommands:
         client.update_client_authz_scope_permission.assert_called_once()
         payload = client.update_client_authz_scope_permission.call_args.kwargs["payload"]
         assert payload["policies"] == ["superadmin-policy"]
-        assert payload["resources"] == ["dag-team-a", "dag-team-b", "asset-global"]
+        assert payload["resources"] == ["dag-global", "dag-team-a", "dag-team-b", "asset-global"]
 
     @patch("airflow.providers.keycloak.auth_manager.cli.commands._attach_policy_to_resource_permission")
     @patch("airflow.providers.keycloak.auth_manager.cli.commands._attach_policy_to_scope_permission")
@@ -695,7 +717,7 @@ class TestCommands:
             permission_name="MenuAccess-team-a",
             policy_name="Allow-Viewer-team-a",
             scope_names=["MENU"],
-            resource_names=["Assets", "Dags", "Docs"],
+            resource_names=EXPECTED_TEAM_MENU_RESOURCES,
             decision_strategy="AFFIRMATIVE",
             _dry_run=False,
         )
@@ -705,7 +727,7 @@ class TestCommands:
             permission_name="MenuAccess-Admin-team-a",
             policy_name="Allow-Admin-team-a",
             scope_names=["MENU"],
-            resource_names=["Assets", "Connections", "Dags", "Docs", "Pools", "Variables", "XComs"],
+            resource_names=EXPECTED_TEAM_ADMIN_MENU_RESOURCES,
             decision_strategy="AFFIRMATIVE",
             _dry_run=False,
         )
@@ -735,22 +757,39 @@ class TestCommands:
             decision_strategy="AFFIRMATIVE",
             _dry_run=False,
         )
+        for role_name in TEAM_ROLE_NAMES:
+            mock_attach_policy.assert_any_call(
+                client,
+                "test-id",
+                permission_name="ViewAccess",
+                policy_name=f"Allow-{role_name}-team-a",
+                scope_names=["GET"],
+                resource_names=["View"],
+                decision_strategy="AFFIRMATIVE",
+                _dry_run=False,
+            )
         mock_attach_policy.assert_any_call(
             client,
             "test-id",
-            permission_name="ViewAccess",
-            policy_name="Allow-Viewer-team-a",
+            permission_name="AdminViewAccess",
+            policy_name="Allow-SuperAdmin",
             scope_names=["GET"],
-            resource_names=["View"],
+            resource_names=["AdminView"],
             decision_strategy="AFFIRMATIVE",
             _dry_run=False,
         )
+        admin_view_policies = [
+            c.kwargs["policy_name"]
+            for c in mock_attach_policy.call_args_list
+            if c.kwargs["permission_name"] == "AdminViewAccess" or "AdminView" in c.kwargs["resource_names"]
+        ]
+        assert admin_view_policies == ["Allow-SuperAdmin"]
         mock_ensure_scope_permission.assert_any_call(
             client,
             "test-id",
             name="MenuAccess-team-a",
             scope_names=["MENU"],
-            resource_names=["Assets", "Dags", "Docs"],
+            resource_names=EXPECTED_TEAM_MENU_RESOURCES,
             decision_strategy="AFFIRMATIVE",
             _dry_run=False,
         )
@@ -759,7 +798,7 @@ class TestCommands:
             "test-id",
             name="MenuAccess-Admin-team-a",
             scope_names=["MENU"],
-            resource_names=["Assets", "Connections", "Dags", "Docs", "Pools", "Variables", "XComs"],
+            resource_names=EXPECTED_TEAM_ADMIN_MENU_RESOURCES,
             decision_strategy="AFFIRMATIVE",
             _dry_run=False,
         )

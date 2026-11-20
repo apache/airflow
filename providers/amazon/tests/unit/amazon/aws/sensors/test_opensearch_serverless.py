@@ -20,11 +20,12 @@ from unittest import mock
 
 import pytest
 
+from airflow.providers.amazon.aws.exceptions import SensorTriggerFailedError
 from airflow.providers.amazon.aws.hooks.opensearch_serverless import OpenSearchServerlessHook
 from airflow.providers.amazon.aws.sensors.opensearch_serverless import (
     OpenSearchServerlessCollectionActiveSensor,
 )
-from airflow.providers.common.compat.sdk import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
 
 
 class TestOpenSearchServerlessCollectionActiveSensor:
@@ -56,6 +57,24 @@ class TestOpenSearchServerlessCollectionActiveSensor:
         assert op.hook._verify is False
         assert op.hook._config is not None
         assert op.hook._config.read_timeout == 42
+
+    def test_deferrable_sensor_forwards_aws_configuration(self):
+        sensor = OpenSearchServerlessCollectionActiveSensor(
+            **self.default_op_kwargs,
+            deferrable=True,
+            aws_conn_id="test_conn",
+            region_name="eu-west-1",
+            verify=False,
+            botocore_config={"read_timeout": 42},
+        )
+
+        with pytest.raises(TaskDeferred) as deferred:
+            sensor.execute(None)
+
+        serialized_kwargs = deferred.value.trigger.serialize()[1]
+        assert serialized_kwargs["region_name"] == "eu-west-1"
+        assert serialized_kwargs["verify"] is False
+        assert serialized_kwargs["botocore_config"] == {"read_timeout": 42}
 
     @pytest.mark.parametrize(
         ("collection_name", "collection_id", "expected_pass"),
@@ -102,3 +121,29 @@ class TestOpenSearchServerlessCollectionActiveSensor:
         sensor = OpenSearchServerlessCollectionActiveSensor(**self.default_op_kwargs, aws_conn_id=None)
         with pytest.raises(AirflowException, match=sensor.FAILURE_MESSAGE):
             sensor.poke({})
+
+    def test_execute_defers_to_execute_complete(self):
+        sensor = OpenSearchServerlessCollectionActiveSensor(**self.default_op_kwargs, deferrable=True)
+
+        with pytest.raises(TaskDeferred) as deferred:
+            sensor.execute({})
+
+        assert deferred.value.method_name == "execute_complete"
+
+    def test_execute_complete_success_event(self):
+        assert (
+            self.sensor.execute_complete(
+                {}, event={"status": "success", "collection_id": "knowledge_base_id"}
+            )
+            is None
+        )
+
+    def test_execute_complete_error_event(self):
+        event = {
+            "status": "error",
+            "message": "Waiter error: max attempts reached",
+            "collection_id": "knowledge_base_id",
+        }
+
+        with pytest.raises(SensorTriggerFailedError, match="max attempts reached"):
+            self.sensor.execute_complete({}, event=event)

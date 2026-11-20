@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
 import itertools
 import json
 import ssl
@@ -364,25 +365,6 @@ class TestDatabricksHook:
         with pytest.raises(ValueError, match="Retry limit must be greater than or equal to 1"):
             DatabricksHook(retry_limit=0)
 
-    def test_do_api_call_retries_with_retryable_error(self):
-        hook = DatabricksHook(retry_args=DEFAULT_RETRY_ARGS)
-
-        for exception in [
-            requests_exceptions.ConnectionError,
-            requests_exceptions.SSLError,
-            requests_exceptions.Timeout,
-            requests_exceptions.ConnectTimeout,
-            requests_exceptions.HTTPError,
-        ]:
-            with mock.patch("airflow.providers.databricks.hooks.databricks_base.requests") as mock_requests:
-                with mock.patch.object(hook.log, "error") as mock_errors:
-                    setup_mock_requests(mock_requests, exception)
-
-                    with pytest.raises(AirflowException):
-                        hook._do_api_call(SUBMIT_RUN_ENDPOINT, {})
-
-                    assert mock_errors.call_count == DEFAULT_RETRY_NUMBER
-
     def test_do_api_call_retries_with_too_many_requests(self):
         hook = DatabricksHook(retry_args=DEFAULT_RETRY_ARGS)
 
@@ -419,6 +401,31 @@ class TestDatabricksHook:
         assert exc_info.value.http_status_code == 404
         # simple backcompat check, so that we do not break existing code that expects AirflowException
         assert isinstance(exc_info.value, AirflowException)
+
+    @pytest.mark.parametrize(
+        ("body", "expected_error_code"),
+        [
+            (
+                {"error_code": "INVALID_PARAMETER_VALUE", "message": "Run 1 does not exist."},
+                "INVALID_PARAMETER_VALUE",
+            ),
+            ({"message": "no code in this body"}, None),
+        ],
+    )
+    @mock.patch("airflow.providers.databricks.hooks.databricks_base.requests")
+    def test_failing_do_api_call_carries_error_code(self, mock_requests, body, expected_error_code):
+        hook = DatabricksHook(retry_args=DEFAULT_RETRY_ARGS)
+        response = mock.MagicMock()
+        response.status_code = 400
+        response.json.return_value = body
+        response.content = json.dumps(body).encode()
+        response.raise_for_status.side_effect = requests_exceptions.HTTPError(response=response)
+        mock_requests.post.side_effect = itertools.repeat(response)
+
+        with pytest.raises(DatabricksApiError) as exc_info:
+            hook._do_api_call(SUBMIT_RUN_ENDPOINT, {})
+
+        assert exc_info.value.error_code == expected_error_code
 
     def test_do_api_call_succeeds_after_retrying(self):
         hook = DatabricksHook(retry_args=DEFAULT_RETRY_ARGS)
@@ -749,6 +756,36 @@ class TestDatabricksHook:
 
         assert len(tasks) == 2
         assert tasks == GET_RUN_RESPONSE["tasks"] * 2
+
+    @mock.patch("airflow.providers.databricks.hooks.databricks_base.requests")
+    def test_get_run_collects_every_page(self, mock_requests):
+        mock_requests.codes.ok = 200
+        mock_requests.get.side_effect = [
+            create_successful_response_mock(
+                {
+                    **GET_RUN_RESPONSE,
+                    "tasks": [{"task_key": "first"}],
+                    "job_clusters": [{"job_cluster_key": "jc_a"}],
+                    "next_page_token": "PAGETOKEN",
+                }
+            ),
+            create_successful_response_mock(
+                {
+                    **GET_RUN_RESPONSE,
+                    "tasks": [{"task_key": "second"}],
+                    "job_clusters": [{"job_cluster_key": "jc_b"}],
+                }
+            ),
+        ]
+
+        run = self.hook.get_run(RUN_ID)
+
+        assert mock_requests.get.call_count == 2
+        assert mock_requests.method_calls[1][2]["params"] == {"run_id": RUN_ID, "page_token": "PAGETOKEN"}
+        assert run["tasks"] == [{"task_key": "first"}, {"task_key": "second"}]
+        assert run["job_clusters"] == [{"job_cluster_key": "jc_a"}, {"job_cluster_key": "jc_b"}]
+        assert "next_page_token" not in run
+        assert run["state"] == GET_RUN_RESPONSE["state"]
 
     @mock.patch("airflow.providers.databricks.hooks.databricks_base.requests")
     def test_cancel_run(self, mock_requests):
@@ -1496,6 +1533,18 @@ class TestDatabricksHookTokenWhenNoHostIsProvidedInExtra(TestDatabricksHookToken
         self.hook = DatabricksHook()
 
 
+_get_connection = DatabricksHook.get_connection
+
+
+def _get_connection_off_the_event_loop(conn_id):
+    """Fail like Airflow 3.0 does when the sync lookup runs on an event loop thread."""
+    try:
+        asyncio.get_running_loop()
+    except RuntimeError:
+        return _get_connection(conn_id)
+    raise RuntimeError("You cannot use AsyncToSync in the same thread as an async event loop")
+
+
 @pytest.mark.db_test
 class TestDatabricksHookConnSettings(TestDatabricksHookToken):
     """
@@ -1537,6 +1586,20 @@ class TestDatabricksHookConnSettings(TestDatabricksHookToken):
 
         assert run_page_url == {"bar": "baz"}
         mock_get.assert_called_once()
+        assert mock_get.call_args.args == (f"http://{HOST}:7908/api/2.1/foo/bar",)
+
+    @pytest.mark.asyncio
+    # Not autospec: an autospecced inherited classmethod gets the hook as ``conn_id`` when called on
+    # an instance. Before Airflow 3.1 there is no ``aget_connection``, and ``get_async_connection``
+    # runs ``get_connection`` in a worker thread instead.
+    @mock.patch.object(DatabricksHook, "get_connection", side_effect=_get_connection_off_the_event_loop)
+    @mock.patch("airflow.providers.databricks.hooks.databricks_base.aiohttp.ClientSession.get")
+    async def test_async_do_api_call_fetches_connection_asynchronously(self, mock_get, mock_get_connection):
+        mock_get.return_value.__aenter__.return_value.json = AsyncMock(return_value={"bar": "baz"})
+        async with self.hook:
+            run_page_url = await self.hook._a_do_api_call(("GET", "2.1/foo/bar"))
+
+        assert run_page_url == {"bar": "baz"}
         assert mock_get.call_args.args == (f"http://{HOST}:7908/api/2.1/foo/bar",)
 
     @pytest.mark.asyncio
@@ -2131,6 +2194,24 @@ class TestDatabricksHookAsyncMethods:
             headers=self.hook.user_agent_header,
             timeout=self.hook.timeout_seconds,
         )
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.databricks.hooks.databricks_base.aiohttp.ClientSession.get")
+    async def test_a_get_run_collects_every_page(self, mock_get):
+        mock_get.return_value.__aenter__.return_value.json = AsyncMock(
+            side_effect=[
+                {**GET_RUN_RESPONSE, "tasks": [{"task_key": "first"}], "next_page_token": "PAGETOKEN"},
+                {**GET_RUN_RESPONSE, "tasks": [{"task_key": "second"}]},
+            ]
+        )
+
+        async with self.hook:
+            run = await self.hook.a_get_run(RUN_ID)
+
+        assert mock_get.call_count == 2
+        assert mock_get.call_args_list[1].kwargs["json"] == {"run_id": RUN_ID, "page_token": "PAGETOKEN"}
+        assert run["tasks"] == [{"task_key": "first"}, {"task_key": "second"}]
+        assert "next_page_token" not in run
 
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.databricks.hooks.databricks_base.aiohttp.ClientSession.get")

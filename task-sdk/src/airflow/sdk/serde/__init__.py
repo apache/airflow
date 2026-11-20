@@ -57,10 +57,9 @@ PYDANTIC_MODEL_QUALNAME = "pydantic.main.BaseModel"
 
 DEFAULT_VERSION = 0
 
-# Signals that this Airflow registers operator-declared deserialization classes
-# from a worker-side walk over the loaded DAG (see the task runner), so operators
-# do not need to register them as an ``__init__`` side effect. Providers probe
-# this to drop their back-compat ``__init__`` registration on new enough cores.
+# Signals that ``apache-airflow-task-sdk`` registers operator-declared deserialization
+# classes during a worker-side walk over the loaded DAG (see the task runner). Providers
+# probe this to drop their back-compat ``__init__`` registration when the SDK supports the walk.
 SUPPORTS_OPERATOR_DESERIALIZATION_WALKER = True
 
 T = TypeVar("T", bool, float, int, dict, list, str, tuple, set)
@@ -140,9 +139,6 @@ def iter_pydantic_models(annotation: Any) -> Iterator[type]:
     stack: list[Any] = [annotation]
     while stack:
         tp = stack.pop()
-        # ``list[A]`` answers ``True`` to ``isinstance(tp, type)`` on 3.10+ yet
-        # carries a non-None ``get_origin``; recurse into its args first so the
-        # container itself is not mistaken for a leaf type.
         origin = get_origin(tp)
         if origin is not None:
             stack.extend(get_args(tp))

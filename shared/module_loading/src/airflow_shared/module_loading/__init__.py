@@ -21,6 +21,7 @@ import functools
 import inspect
 import logging
 import pkgutil
+import re
 import sys
 from collections import defaultdict
 from collections.abc import Callable, Iterator
@@ -30,6 +31,10 @@ from typing import TYPE_CHECKING
 from .dag_file import (
     MODIFIED_DAG_MODULE_NAME as MODIFIED_DAG_MODULE_NAME,
     UNUSUAL_MODULE_PREFIX as UNUSUAL_MODULE_PREFIX,
+    accepts_dag_definition as accepts_dag_definition,
+    get_unique_dag_module_name as get_unique_dag_module_name,
+    might_contain_dag as might_contain_dag,
+    might_contain_dag_via_default_heuristic as might_contain_dag_via_default_heuristic,
 )
 from .file_discovery import (
     find_path_from_directory as find_path_from_directory,
@@ -145,8 +150,6 @@ def is_valid_dotpath(path: str) -> bool:
 
     :param path: String to check
     """
-    import re
-
     if not isinstance(path, str):
         return False
 
@@ -164,10 +167,28 @@ def is_valid_dotpath(path: str) -> bool:
 @functools.cache
 def _get_grouped_entry_points() -> dict[str, list[EPnD]]:
     mapping: dict[str, list[EPnD]] = defaultdict(list)
+    seen_dist_names: set[str] = set()
     for dist in metadata.distributions():
         try:
+            # A distribution is yielded once per sys.path entry it is found on (e.g. RHEL/Fedora
+            # venvs list both lib64/ and lib/ site-packages), possibly in different versions.
+            # Only the first one is importable, so it is the only one whose entry points count.
+            # No public API returns the name without parsing METADATA. _normalized_name is private,
+            # but Python's own importlib.metadata.entry_points() deduplicates on it too, and it comes
+            # from the .dist-info directory name. If it cannot be read, the distribution is still
+            # loaded, only without deduplication. The exception type differs between versions.
+            try:
+                name = dist._normalized_name  # type: ignore[attr-defined]
+            except Exception:
+                name = None
+            if name:
+                if name in seen_dist_names:
+                    continue
+                seen_dist_names.add(name)
             for e in dist.entry_points:
-                mapping[e.group].append((e, dist))
+                # importlib_metadata >= 10 types this as its IDistribution protocol, which older
+                # releases and the stdlib lack; a cast would be redundant on those.
+                mapping[e.group].append((e, dist))  # type: ignore[arg-type]
         except Exception as e:
             log.warning("Error when retrieving package metadata (skipping it): %s, %s", dist, e)
     return mapping
@@ -180,9 +201,8 @@ def entry_points_with_dist(group: str) -> Iterator[EPnD]:
     This is like the ``entry_points()`` function from ``importlib.metadata``,
     except it also returns the distribution the entry point was loaded from.
 
-    Note that this may return multiple distributions to the same package if they
-    are loaded from different ``sys.path`` entries. The caller site should
-    implement appropriate deduplication logic if needed.
+    Like ``entry_points()``, a distribution found on several ``sys.path`` entries
+    is only returned once: the first one found, which is the one that is imported.
 
     :param group: Filter results to only this entrypoint group
     :return: Generator of (EntryPoint, Distribution) objects for the specified groups

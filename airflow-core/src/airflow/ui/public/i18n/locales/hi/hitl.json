@@ -10,8 +10,8 @@
   },
   "requiredAction_one": "आवश्यक क्रिया",
   "requiredAction_other": "आवश्यक क्रियाएं",
-  "requiredActionCount_one": "आवश्यक क्रिया ({{count}})",
-  "requiredActionCount_other": "आवश्यक क्रियाएं ({{count}})",
+  "requiredActionCount_one": "आवश्यक क्रिया ({{count, number}})",
+  "requiredActionCount_other": "आवश्यक क्रियाएं ({{count, number}})",
   "requiredActionState": "आवश्यक क्रिया स्थिति",
   "response": {
     "created": "प्रतिक्रिया बनाई गई ",
@@ -29,10 +29,10 @@
       "selectRequiredAction": "विवरण देखने के लिए एक आवश्यक क्रिया चुनें"
     },
     "list": {
-      "completedRequiredActions": "पूर्ण की गई आवश्यक क्रियाएं ({{count}})",
+      "completedRequiredActions": "पूर्ण की गई आवश्यक क्रियाएं ({{count, number}})",
       "loadError": "आवश्यक क्रियाएं लोड करने में असमर्थ",
       "loadingActions": "आवश्यक क्रियाएं लोड हो रही हैं...",
-      "pendingRequiredActions": "लंबित आवश्यक क्रियाएं ({{count}})"
+      "pendingRequiredActions": "लंबित आवश्यक क्रियाएं ({{count, number}})"
     },
     "openReviewDrawer": "समीक्षा ड्रॉअर खोलें",
     "pageLimitHint": "यहाँ केवल पहली कुछ क्रियाएं दिखाई गई हैं। सभी देखने के लिए \"$t(review.viewAll)\" का उपयोग करें।",

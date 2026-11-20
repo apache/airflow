@@ -49,6 +49,7 @@
   "events": "資源事件",
   "filters": {
     "groupPlaceholder": "搜尋群組",
+    "hasEvents": "含有資源事件",
     "lastEventDateRange": "最後事件時間"
   },
   "group": "群組",

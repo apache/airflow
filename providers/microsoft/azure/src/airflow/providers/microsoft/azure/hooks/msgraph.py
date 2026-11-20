@@ -33,7 +33,7 @@ import re
 import warnings
 from ast import literal_eval
 from base64 import b64encode
-from collections.abc import Callable
+from collections.abc import AsyncIterator, Callable
 from contextlib import suppress
 from email.utils import parseaddr
 from http import HTTPStatus
@@ -41,9 +41,12 @@ from io import BytesIO
 from json import JSONDecodeError
 from pathlib import Path
 from types import TracebackType
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, TypeVar, cast
 from urllib.parse import quote, urljoin, urlparse
 
+# Stays on httpx (not httpx2): the client below is handed to kiota_http, which builds and
+# consumes httpx objects, and the two packages' classes are distinct.
+# Migrate once msgraph-core/kiota_http move to httpx2; tracked at https://github.com/apache/airflow/issues/70522
 import httpx
 from azure.core.credentials_async import AsyncTokenCredential
 from azure.identity.aio import CertificateCredential, ClientSecretCredential
@@ -64,11 +67,11 @@ from msgraph_core import APIVersion, GraphClientFactory
 from msgraph_core._enums import NationalClouds
 
 from airflow.exceptions import AirflowBadRequest, AirflowConfigException, AirflowProviderDeprecationWarning
-from airflow.providers.common.compat.connection import get_async_connection
+from airflow.providers.common.compat.connection import get_async_connection, get_async_extra_dejson
 from airflow.providers.common.compat.sdk import AirflowException, AirflowNotFoundException, BaseHook, redact
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable
+    from collections.abc import Coroutine, Iterable
 
     from azure.core.pipeline.transport._requests_basic import RequestsTransport
     from kiota_abstractions.authentication import BaseBearerTokenAuthenticationProvider
@@ -82,6 +85,8 @@ if TYPE_CHECKING:
     from airflow.providers.common.compat.sdk import Connection
 
 PaginationCallable = Callable[..., tuple[str, dict[str, Any] | None]]
+
+T = TypeVar("T")
 
 
 def execute_callable(func: Callable, *args: Any, **kwargs: Any) -> Any:
@@ -186,7 +191,9 @@ class DefaultResponseHandler(ResponseHandler):
             status_code = HTTPStatus(resp.status_code)
             if status_code == HTTPStatus.BAD_REQUEST:
                 raise AirflowBadRequest(message)
-            if status_code == HTTPStatus.UNAUTHORIZED:
+            if status_code in {HTTPStatus.UNAUTHORIZED, HTTPStatus.FORBIDDEN}:
+                # Power BI reports an expired access token as 403 Forbidden with error code
+                # ``TokenExpired`` rather than 401, so both must evict the cached request adapter.
                 raise PermissionError(message)
             if status_code == HTTPStatus.NOT_FOUND:
                 raise AirflowNotFoundException(message)
@@ -376,12 +383,9 @@ class KiotaRequestAdapterHook(BaseHook):
             return []
         return [host for host in allowed_hosts.split(",") if host]
 
-    def _build_request_adapter(self, connection) -> tuple[str, RequestAdapter]:
+    def _build_request_adapter(self, connection, config: dict[str, Any]) -> tuple[str, RequestAdapter]:
         client_id = connection.login
         client_secret = connection.password
-        # TODO (#54350): do not use connection.extra_dejson until it's fixed in Airflow otherwise expect:
-        #       RuntimeError: You cannot use AsyncToSync in the same thread as an async event loop.
-        config = json.loads(connection.extra) if connection.extra else {}
         api_version = self.get_api_version(config)
         host = self.get_host(connection)  # type: ignore[arg-type]
         base_url = self.get_base_url(host, api_version, config)
@@ -468,7 +472,7 @@ class KiotaRequestAdapterHook(BaseHook):
 
         if not request_adapter:
             connection = self.get_connection(conn_id=self.conn_id)
-            api_version, request_adapter = self._build_request_adapter(connection)
+            api_version, request_adapter = self._build_request_adapter(connection, connection.extra_dejson)
             self.cached_request_adapters[self.conn_id] = (api_version, request_adapter)
         self.api_version = api_version
         return request_adapter
@@ -504,8 +508,15 @@ class KiotaRequestAdapterHook(BaseHook):
 
         if not request_adapter:
             connection = await get_async_connection(conn_id=self.conn_id)
-            api_version, request_adapter = self._build_request_adapter(connection)
-            self.cached_request_adapters[self.conn_id] = (api_version, request_adapter)
+            # Masks the extra's secrets without a synchronous call to the Task SDK on the event loop.
+            config = await get_async_extra_dejson(connection)
+            # Another coroutine may have cached an adapter while this one awaited the connection. Nothing
+            # awaits between this lookup and the write below, so a single adapter is built per connection.
+            api_version, request_adapter = self.cached_request_adapters.get(self.conn_id, (None, None))
+
+            if not request_adapter:
+                api_version, request_adapter = self._build_request_adapter(connection, config)
+                self.cached_request_adapters[self.conn_id] = (api_version, request_adapter)
 
         self.api_version = api_version
         self.allowed_netloc = urlparse(request_adapter.base_url).netloc.lower()
@@ -670,6 +681,60 @@ class KiotaRequestAdapterHook(BaseHook):
                 f"Microsoft Graph endpoints {sorted(allowed_netlocs)}."
             )
 
+    async def iter_paginated_run(
+        self,
+        url: str = "",
+        response_type: str | None = None,
+        path_parameters: dict[str, Any] | None = None,
+        method: str = "GET",
+        query_parameters: dict[str, Any] | None = None,
+        headers: dict[str, str] | None = None,
+        data: dict[str, Any] | str | BytesIO | None = None,
+        pagination_function: PaginationCallable | None = None,
+    ) -> AsyncIterator[Any]:
+        """
+        Yield the pages of a paginated request one at a time.
+
+        The caller handles each page before the next one is requested, so a collection of any size passes
+        through in page-sized steps instead of the single list ``paginated_run`` builds. The next page is
+        resolved by ``pagination_function`` (``default_pagination`` by default: ``@odata.nextLink``, or
+        ``$skip`` on counted queries) and its host is checked with ``assert_allowed_host`` before the page
+        is yielded, so a yielded page is the caller's to change: it is not read again. ``pagination_function``
+        receives the same arguments as in ``paginated_run`` except ``responses``: nothing keeps the pages
+        already yielded.
+        """
+        if pagination_function is None:
+            pagination_function = self.default_pagination
+
+        while url:
+            response = await self.run(
+                url=url,
+                response_type=response_type,
+                path_parameters=path_parameters,
+                method=method,
+                query_parameters=query_parameters,
+                headers=headers,
+                data=data,
+            )
+
+            if not response:
+                return
+
+            url, query_parameters = execute_callable(
+                pagination_function,
+                response=response,
+                url=url,
+                response_type=response_type,
+                path_parameters=path_parameters,
+                method=method,
+                query_parameters=query_parameters,
+                headers=headers,
+                data=data,
+            )
+            await self.assert_allowed_host(url)
+
+            yield response
+
     async def paginated_run(
         self,
         url: str = "",
@@ -680,49 +745,37 @@ class KiotaRequestAdapterHook(BaseHook):
         headers: dict[str, str] | None = None,
         data: dict[str, Any] | str | BytesIO | None = None,
         pagination_function: PaginationCallable | None = None,
-    ):
+    ) -> list[Any]:
+        """
+        Collect the pages of a paginated request in a list.
+
+        The pages come from ``iter_paginated_run``; use that directly when the collection should be handled
+        page by page. ``pagination_function`` additionally receives ``responses``, a callable returning the
+        pages collected so far, the one being paginated included.
+        """
         if pagination_function is None:
             pagination_function = self.default_pagination
 
-        responses: list[dict] = []
+        responses: list[Any] = []
 
-        async def run(
-            url: str = "",
-            query_parameters: dict[str, Any] | None = None,
+        def paginate(response: Any, **kwargs: Any) -> tuple[str, dict[str, Any] | None]:
+            # Called before the page is yielded, so the page is collected here for ``responses`` to include it.
+            responses.append(response)
+            return execute_callable(
+                pagination_function, response=response, responses=lambda: responses, **kwargs
+            )
+
+        async for _ in self.iter_paginated_run(
+            url=url,
+            response_type=response_type,
+            path_parameters=path_parameters,
+            method=method,
+            query_parameters=query_parameters,
+            headers=headers,
+            data=data,
+            pagination_function=paginate,
         ):
-            while url:
-                response = await self.run(
-                    url=url,
-                    response_type=response_type,
-                    path_parameters=path_parameters,
-                    method=method,
-                    query_parameters=query_parameters,
-                    headers=headers,
-                    data=data,
-                )
-
-                if response:
-                    responses.append(response)
-
-                    if pagination_function:
-                        next_url, query_parameters = execute_callable(
-                            pagination_function,
-                            response=response,
-                            url=url,
-                            response_type=response_type,
-                            path_parameters=path_parameters,
-                            method=method,
-                            query_parameters=query_parameters,
-                            headers=headers,
-                            data=data,
-                            responses=lambda: responses,
-                        )
-                        await self.assert_allowed_host(next_url)
-                        url = next_url
-                else:
-                    break
-
-        await run(url=url, query_parameters=query_parameters)
+            pass
 
         return responses
 
@@ -766,6 +819,31 @@ class KiotaRequestAdapterHook(BaseHook):
             access_token_provider = cast("AzureIdentityAccessTokenProvider", provider.access_token_provider)
             credential = cast("CachedAsyncTokenCredential", access_token_provider._credentials)
             await credential._credential.close()
+
+    def run_sync(self, coroutine: Coroutine[Any, Any, T]) -> T:
+        """
+        Run a coroutine of this hook from synchronous code, such as an operator's ``execute``.
+
+        :func:`asyncio.run` tears down the event loop that the cached request adapter is bound to, so
+        the adapter is closed while that loop still runs and the next call builds a new one.
+        """
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError:
+            pass
+        else:
+            coroutine.close()
+            raise RuntimeError(
+                "run_sync cannot be called from a running event loop, await the coroutine instead."
+            )
+
+        async def run_and_close() -> T:
+            try:
+                return await coroutine
+            finally:
+                await self.close()
+
+        return asyncio.run(run_and_close())
 
     def request_information(
         self,

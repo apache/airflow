@@ -16,22 +16,26 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-Airflow System Test DAG that verifies Datastore rollback operators.
+Airflow System Test DAG that verifies Datastore transaction operators.
 """
 
 from __future__ import annotations
 
 import os
 from datetime import datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any, cast
 
 from airflow.models.dag import DAG
+from airflow.providers.google.cloud.hooks.datastore import DatastoreHook
 from airflow.providers.google.cloud.operators.datastore import (
     CloudDatastoreBeginTransactionOperator,
     CloudDatastoreRollbackOperator,
 )
 
 from system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+
+if TYPE_CHECKING:
+    from airflow.sdk import Context
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
@@ -41,6 +45,33 @@ DAG_ID = "datastore_rollback"
 TRANSACTION_OPTIONS: dict[str, Any] = {"readWrite": {}}
 
 
+def begin_transaction_for_rollback(context: Context) -> None:
+    task = cast("CloudDatastoreRollbackOperator", context["task"])
+
+    hook = DatastoreHook(
+        gcp_conn_id=task.gcp_conn_id,
+        impersonation_chain=task.impersonation_chain,
+    )
+
+    task.transaction = hook.begin_transaction(
+        transaction_options=TRANSACTION_OPTIONS,
+        project_id=task.project_id,
+    )
+
+    task.log.info("Created Datastore transaction immediately before rollback")
+
+
+def rollback_after_begin(context: Context, transaction: str) -> None:
+    task = cast("CloudDatastoreBeginTransactionOperator", context["task"])
+
+    hook = DatastoreHook(
+        gcp_conn_id=task.gcp_conn_id,
+        impersonation_chain=task.impersonation_chain,
+    )
+
+    hook.rollback(transaction=transaction, project_id=task.project_id)
+
+
 with DAG(
     DAG_ID,
     schedule="@once",
@@ -48,20 +79,22 @@ with DAG(
     catchup=False,
     tags=["datastore", "example"],
 ) as dag:
-    begin_transaction_to_rollback = CloudDatastoreBeginTransactionOperator(
-        task_id="begin_transaction_to_rollback",
+    begin_transaction = CloudDatastoreBeginTransactionOperator(
+        task_id="begin_transaction",
         transaction_options=TRANSACTION_OPTIONS,
+        project_id=PROJECT_ID,
+        post_execute=rollback_after_begin,
+    )
+
+    rollback_transaction = CloudDatastoreRollbackOperator(
+        task_id="rollback_transaction",
+        transaction="defined_in_begin_transaction_for_rollback",
+        pre_execute=begin_transaction_for_rollback,
         project_id=PROJECT_ID,
     )
 
-    # [START how_to_rollback_transaction]
-    rollback_transaction = CloudDatastoreRollbackOperator(
-        task_id="rollback_transaction",
-        transaction=begin_transaction_to_rollback.output,
-    )
-    # [END how_to_rollback_transaction]
-
-    begin_transaction_to_rollback >> rollback_transaction
+    # Each task owns its transaction so scheduler delays cannot expire a handle between tasks.
+    begin_transaction >> rollback_transaction
 
     from tests_common.test_utils.watcher import watcher
 

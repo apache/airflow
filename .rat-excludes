@@ -14,6 +14,8 @@
 .codespellignorelines
 .eslintignore
 .eslintrc
+.oxfmtrc.json
+.oxlintrc.json
 .prettierignore
 .prettierrc
 .rat-excludes
@@ -137,7 +139,7 @@ tests/*
 scripts/*
 images/*
 dev/*
-.*\.iml
+**/*.iml
 out/*
 airflow-build-dockerfile*
 
@@ -211,10 +213,13 @@ www-hash.txt
 **/.gitattributes
 **/.rat-excludes
 **/.gitignore
+**/.oxfmtrc.json
+**/.oxlintrc.json
 **/.prettierignore
 **/.prettierrc
 **/.airflowignore
 **/.airflowignore_glob
+**/airflowignore_all
 
 
 # Vendor includes
@@ -327,6 +332,9 @@ www-hash.txt
 
 # Vendored-in code
 /src/airflow/providers/google/_vendor/*
+
+# TypeScript bundle golden fixture: its bytes are digest-pinned, so no license header can be added
+/ts-sdk/tests/cli/fixtures/bundle-v1.min.mjs
 
 # Java SDK build outputs
 /java-sdk/bin/*

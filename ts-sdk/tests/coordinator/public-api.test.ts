@@ -18,14 +18,17 @@
  */
 
 import { describe, expect, expectTypeOf, it } from "vitest";
-import type { DagRegistry } from "../../src/sdk/registry.js";
 import * as coordinator from "../../src/coordinator/index.js";
-import { serveDags } from "../../src/coordinator/index.js";
 
 describe("coordinator public API", () => {
-  it("exposes serveDags, not the coordinator itself, from the coordinator subpath", () => {
-    expectTypeOf<typeof serveDags>().toEqualTypeOf<(registry: DagRegistry) => Promise<void>>();
-    expect("startCoordinator" in coordinator).toBe(false);
+  it("names neither the coordinator nor the serve it performs", () => {
+    // A Dag author reaches the runtime through `bundle.serve()`. The subpath
+    // carries only the schema version, so nothing here is an entry point.
+    for (const name of ["startCoordinator", "serveBundle", "serveDags"]) {
+      expect(name in coordinator).toBe(false);
+    }
     expectTypeOf<typeof coordinator>().not.toHaveProperty("startCoordinator");
+    expectTypeOf<typeof coordinator>().not.toHaveProperty("serveBundle");
+    expectTypeOf<typeof coordinator>().toHaveProperty("SUPERVISOR_API_VERSION");
   });
 });

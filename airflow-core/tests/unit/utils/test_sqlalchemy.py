@@ -21,24 +21,33 @@ import datetime
 import pickle
 from copy import deepcopy
 from unittest import mock
+from uuid import UUID
 
 import pytest
 from kubernetes.client import Configuration, models as k8s
-from sqlalchemy import text
-from sqlalchemy.exc import StatementError
+from sqlalchemy import Column, MetaData, Table, select, text, update
+from sqlalchemy.dialects import mysql, postgresql, sqlite
+from sqlalchemy.exc import InternalError, OperationalError, StatementError
+from sqlalchemy.schema import CreateTable
 
 from airflow import settings
+from airflow.models.pool import Pool
 from airflow.sdk import DAG
 from airflow.sdk.timezone import utcnow
 from airflow.serialization.enums import DagAttributeTypes, Encoding
 from airflow.serialization.serialized_objects import BaseSerialization
 from airflow.settings import Session
 from airflow.utils.sqlalchemy import (
+    CompactUUID,
     ExecutorConfigType,
     apply_regex_query_timeout,
+    compact_uuid_default,
     ensure_pod_is_valid_after_unpickling,
     get_dialect_name,
+    is_deadlock_error,
+    is_lock_not_available_error,
     prohibit_commit,
+    with_db_lock_timeout,
     with_row_locks,
 )
 from airflow.utils.state import State
@@ -46,6 +55,7 @@ from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.dag import sync_dag_to_db
+from tests_common.test_utils.db import clear_db_pools
 
 pytestmark = pytest.mark.db_test
 
@@ -213,6 +223,26 @@ class TestSqlAlchemyUtils:
 
             other_session.execute(text("SELECT 1"))
             other_session.commit()
+
+    def test_prohibit_commit_allows_savepoint_release(self):
+        """A SAVEPOINT release (session.begin_nested()) dispatches the same before_commit
+        event as a real commit, but must not trip the guard: it ends neither the outer
+        transaction nor its row locks."""
+        with prohibit_commit(self.session):
+            self.session.execute(text("SELECT 1"))
+            with self.session.begin_nested():
+                self.session.execute(text("SELECT 1"))
+
+            # The guard must still catch a real commit after the savepoint released.
+            with pytest.raises(RuntimeError, match="UNEXPECTED COMMIT"):
+                self.session.commit()
+            self.session.rollback()
+
+            # ...and an explicit commit while still inside an open savepoint.
+            with pytest.raises(RuntimeError, match="UNEXPECTED COMMIT"):
+                with self.session.begin_nested():
+                    self.session.commit()
+            self.session.rollback()
 
     def teardown_method(self):
         self.session.close()
@@ -443,3 +473,186 @@ class TestApplyRegexQueryTimeout:
             with apply_regex_query_timeout(session):
                 pass
         session.execute.assert_not_called()
+
+
+class TestCompactUUID:
+    value = UUID("0190a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b")
+
+    @pytest.mark.parametrize(
+        ("dialect", "expected"),
+        [
+            pytest.param(mysql.dialect(), "BINARY(16)", id="mysql"),
+            pytest.param(sqlite.dialect(), "CHAR(32)", id="sqlite"),
+            pytest.param(postgresql.dialect(), "UUID", id="postgresql"),
+        ],
+    )
+    def test_column_type_per_dialect(self, dialect, expected):
+        assert CompactUUID().compile(dialect=dialect) == expected
+
+    @pytest.mark.parametrize("given", [value, str(value)], ids=["uuid", "str"])
+    def test_mysql_stores_the_sixteen_raw_bytes(self, given):
+        assert CompactUUID().process_bind_param(given, mysql.dialect()) == self.value.bytes
+
+    def test_mysql_reads_the_bytes_back_as_a_uuid(self):
+        assert CompactUUID().process_result_value(self.value.bytes, mysql.dialect()) == self.value
+
+    @pytest.mark.parametrize(
+        "dialect", [sqlite.dialect(), postgresql.dialect()], ids=["sqlite", "postgresql"]
+    )
+    def test_other_dialects_leave_the_value_to_the_uuid_type(self, dialect):
+        assert CompactUUID().process_bind_param(self.value, dialect) == self.value
+        assert CompactUUID().process_result_value(self.value, dialect) == self.value
+
+    def test_none_passes_through(self):
+        assert CompactUUID().process_bind_param(None, mysql.dialect()) is None
+        assert CompactUUID().process_result_value(None, mysql.dialect()) is None
+
+    @pytest.mark.parametrize(
+        ("dialect", "expected"),
+        [
+            pytest.param(mysql.dialect(), "(UNHEX('0190a1b2c3d47e5f8a9b0c1d2e3f4a5b'))", id="mysql"),
+            pytest.param(sqlite.dialect(), "'0190a1b2c3d47e5f8a9b0c1d2e3f4a5b'", id="sqlite"),
+            pytest.param(postgresql.dialect(), "'0190a1b2c3d47e5f8a9b0c1d2e3f4a5b'", id="postgresql"),
+        ],
+    )
+    def test_server_default_per_dialect(self, dialect, expected):
+        assert str(compact_uuid_default(self.value).compile(dialect=dialect)) == expected
+
+    def test_mysql_column_default_is_parenthesized_without_a_server_version(self):
+        table = Table(
+            "t",
+            MetaData(),
+            Column(
+                "region_id", CompactUUID(), nullable=False, server_default=compact_uuid_default(self.value)
+            ),
+        )
+        ddl = str(CreateTable(table).compile(dialect=mysql.dialect()))
+        assert "DEFAULT (UNHEX('0190a1b2c3d47e5f8a9b0c1d2e3f4a5b'))" in ddl
+
+
+class TestIsDeadlockError:
+    @staticmethod
+    def _make_error(orig):
+        return OperationalError("statement", {}, orig)
+
+    @pytest.mark.parametrize(
+        ("orig", "expected"),
+        [
+            pytest.param(
+                mock.Mock(sqlstate=None, pgcode="40P01", args=("deadlock detected",)),
+                True,
+                id="postgres-deadlock",
+            ),
+            pytest.param(
+                mock.Mock(sqlstate=None, pgcode=None, args=(1213, "Deadlock found when trying to get lock")),
+                True,
+                id="mysql-deadlock",
+            ),
+            pytest.param(
+                mock.Mock(sqlstate=None, pgcode="55P03", args=("lock not available",)),
+                False,
+                id="postgres-nowait",
+            ),
+            pytest.param(
+                mock.Mock(sqlstate=None, pgcode=None, args=(1205, "Lock wait timeout exceeded")),
+                False,
+                id="mysql-lock-wait-timeout",
+            ),
+            pytest.param(
+                mock.Mock(sqlstate=None, pgcode=None, args=("connection reset",)),
+                False,
+                id="other-operational",
+            ),
+        ],
+    )
+    def test_is_deadlock_error(self, orig, expected):
+        assert is_deadlock_error(self._make_error(orig)) is expected
+
+    @pytest.mark.parametrize(
+        ("error_name", "expected"),
+        [
+            pytest.param("DeadlockDetected", True, id="psycopg3-deadlock"),
+            pytest.param("LockNotAvailable", False, id="psycopg3-nowait"),
+        ],
+    )
+    def test_is_deadlock_error_psycopg3(self, error_name, expected):
+        errors = pytest.importorskip("psycopg.errors", reason="Test only runs when psycopg v3 is installed.")
+        orig = getattr(errors, error_name)("db error")
+        assert is_deadlock_error(self._make_error(orig)) is expected
+
+    def test_mysql_connector_deadlock(self):
+        # mysql-connector-python raises InternalError for 1213, with a generic sqlstate next to the MySQL code.
+        orig = mock.Mock(
+            spec=["sqlstate", "args"],
+            sqlstate="40001",
+            args=(1213, "1213 (40001): Deadlock found when trying to get lock", "40001"),
+        )
+        assert is_deadlock_error(InternalError("statement", {}, orig)) is True
+
+    def test_dbapi_error_without_orig_is_not_deadlock(self):
+        assert is_deadlock_error(OperationalError("statement", {}, None)) is False
+
+    def test_non_dbapi_error_is_not_deadlock(self):
+        assert is_deadlock_error(RuntimeError("deadlock")) is False
+
+
+def _lock_default_pool_nowait(session):
+    Pool.slots_stats(lock_rows=True, session=session)
+
+
+def _update_default_pool_with_lock_timeout(session):
+    with with_db_lock_timeout(session, lock_timeout=1):
+        session.execute(update(Pool).where(Pool.pool == Pool.DEFAULT_POOL_NAME).values(slots=Pool.slots))
+
+
+class TestIsLockNotAvailableError:
+    @staticmethod
+    def _make_error(orig):
+        return OperationalError("statement", {}, orig)
+
+    @pytest.mark.parametrize(
+        "orig",
+        [
+            pytest.param(
+                mock.Mock(
+                    spec=["sqlstate", "args"], sqlstate="55P03", args=("could not obtain lock on row",)
+                ),
+                id="psycopg3",
+            ),
+            pytest.param(RuntimeError("55P03"), id="scheduler-advisory-lock"),
+        ],
+    )
+    def test_is_lock_not_available_error(self, orig):
+        assert is_lock_not_available_error(self._make_error(orig)) is True
+
+    @pytest.mark.parametrize(
+        ("error_name", "expected"),
+        [
+            pytest.param("LockNotAvailable", True, id="psycopg3-lock-not-available"),
+            pytest.param("DeadlockDetected", False, id="psycopg3-deadlock"),
+        ],
+    )
+    def test_is_lock_not_available_error_psycopg3(self, error_name, expected):
+        errors = pytest.importorskip("psycopg.errors", reason="Test only runs when psycopg v3 is installed.")
+        orig = getattr(errors, error_name)("db error")
+        assert is_lock_not_available_error(self._make_error(orig)) is expected
+
+    def test_error_without_orig_is_not_lock_error(self):
+        assert is_lock_not_available_error(OperationalError("statement", {}, None)) is False
+
+    @pytest.mark.backend("postgres", "mysql")
+    @pytest.mark.parametrize(
+        "lock_default_pool",
+        [
+            pytest.param(_lock_default_pool_nowait, id="scheduler-pool-nowait"),
+            pytest.param(_update_default_pool_with_lock_timeout, id="lock-timeout"),
+        ],
+    )
+    def test_lock_held_by_another_transaction(self, lock_default_pool):
+        clear_db_pools()
+        with Session.session_factory() as holder, Session.session_factory() as waiter:
+            holder.execute(select(Pool.pool).where(Pool.pool == Pool.DEFAULT_POOL_NAME).with_for_update())
+            with pytest.raises(OperationalError) as ctx:
+                lock_default_pool(waiter)
+
+        assert is_lock_not_available_error(ctx.value) is True

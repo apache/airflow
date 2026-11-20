@@ -17,14 +17,16 @@
 
 from __future__ import annotations
 
+import sqlite3
 from contextlib import nullcontext
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING
 from unittest import mock
 
 import pendulum
 import pytest
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
+from sqlalchemy.exc import OperationalError
+from sqlalchemy.orm import Session
 
 from airflow._shared.timezones import timezone
 from airflow.models import DagModel, DagRun, TaskInstance
@@ -41,15 +43,17 @@ from airflow.models.backfill import (
     NoBackfillRunsToCreate,
     ReprocessBehavior,
     _create_backfill,
+    _create_runs_non_partitioned,
+    _create_runs_partitioned,
     _do_dry_run,
     _get_latest_dag_run_row_query,
     _handle_clear_run,
 )
 from airflow.providers.standard.operators.python import PythonOperator
-from airflow.sdk import Asset, CronPartitionTimetable, PartitionedAssetTimetable
+from airflow.sdk import Asset, CronPartitionTimetable, Param, PartitionedAssetTimetable
 from airflow.ti_deps.dep_context import DepContext
 from airflow.timetables.base import DagRunInfo, DataInterval
-from airflow.utils.state import DagRunState, TaskInstanceState
+from airflow.utils.state import DagRunState, DagSchedulingState, TaskInstanceState
 from airflow.utils.strings import get_random_string
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
@@ -59,9 +63,6 @@ from tests_common.test_utils.db import (
     clear_db_runs,
     clear_db_serialized_dags,
 )
-
-if TYPE_CHECKING:
-    from sqlalchemy.orm import Session
 
 pytestmark = [pytest.mark.db_test, pytest.mark.need_serialized_dag]
 
@@ -163,6 +164,126 @@ def test_create_backfill_simple(reverse, existing, dag_maker, session):
     assert backfill_dates == expected_dates
     assert all(x.state == DagRunState.QUEUED for x in dag_runs)
     assert all(x.conf == expected_run_conf for x in dag_runs)
+
+
+@pytest.mark.parametrize(
+    "error",
+    [
+        pytest.param(
+            OperationalError("statement", "params", sqlite3.OperationalError("database is locked")),
+            id="lock-error",
+        ),
+        pytest.param(RuntimeError("run creation failed"), id="other-error"),
+    ],
+)
+@pytest.mark.parametrize("partitioned", [False, True])
+@mock.patch("airflow.models.backfill._create_runs_partitioned", autospec=True)
+@mock.patch("airflow.models.backfill._create_runs_non_partitioned", autospec=True)
+def test_create_backfill_with_drain_dag_leaves_dag_paused_when_run_creation_fails(
+    mock_non_partitioned, mock_partitioned, partitioned, error, dag_maker, session
+):
+    schedule = CronPartitionTimetable("@daily", timezone="UTC") if partitioned else "@daily"
+    with dag_maker(schedule=schedule) as dag:
+        PythonOperator(task_id="hi", python_callable=print)
+    session.execute(update(DagModel).where(DagModel.dag_id == dag.dag_id).values(is_paused=True))
+    session.commit()
+    (mock_partitioned if partitioned else mock_non_partitioned).side_effect = error
+
+    with pytest.raises(type(error)):
+        _create_backfill(
+            dag_id=dag.dag_id,
+            from_date=pendulum.parse("2021-01-01"),
+            to_date=pendulum.parse("2021-01-05"),
+            max_active_runs=2,
+            reverse=False,
+            triggering_user_name="pytest",
+            dag_run_conf=None,
+            drain_dag=True,
+        )
+
+    session.expire_all()
+    assert session.get(DagModel, dag.dag_id).scheduling_state == DagSchedulingState.PAUSED
+
+
+@pytest.mark.parametrize("partitioned", [False, True])
+@mock.patch("airflow.models.dag.DagModel.start_drain", autospec=True)
+def test_create_backfill_cleans_up_created_runs_when_drain_lock_fails(
+    mock_start_drain, partitioned, dag_maker, session
+):
+    schedule = CronPartitionTimetable("@daily", timezone="UTC") if partitioned else "@daily"
+    with dag_maker(schedule=schedule) as dag:
+        PythonOperator(task_id="hi", python_callable=print)
+    session.execute(update(DagModel).where(DagModel.dag_id == dag.dag_id).values(is_paused=True))
+    session.commit()
+
+    def fail_drain(dag_id, *, session):
+        assert session.scalar(select(func.count()).select_from(DagRun).where(DagRun.dag_id == dag_id)) == 5
+        raise OperationalError("statement", "params", sqlite3.OperationalError("database is locked"))
+
+    mock_start_drain.side_effect = fail_drain
+    with pytest.raises(OperationalError):
+        _create_backfill(
+            dag_id=dag.dag_id,
+            from_date=pendulum.parse("2021-01-01"),
+            to_date=pendulum.parse("2021-01-05"),
+            max_active_runs=2,
+            reverse=False,
+            triggering_user_name="pytest",
+            dag_run_conf=None,
+            drain_dag=True,
+        )
+
+    session.expire_all()
+    assert session.get(DagModel, dag.dag_id).scheduling_state == DagSchedulingState.PAUSED
+    assert session.scalar(select(func.count()).select_from(DagRun).where(DagRun.dag_id == dag.dag_id)) == 0
+    assert (
+        session.scalar(select(func.count()).select_from(Backfill).where(Backfill.dag_id == dag.dag_id)) == 0
+    )
+    assert session.scalar(select(func.count()).select_from(BackfillDagRun)) == 0
+
+
+@pytest.mark.parametrize("partitioned", [False, True])
+@mock.patch("airflow.models.backfill._create_runs_partitioned", autospec=True)
+@mock.patch("airflow.models.backfill._create_runs_non_partitioned", autospec=True)
+def test_create_backfill_keeps_dag_row_available_until_runs_are_created(
+    mock_non_partitioned, mock_partitioned, partitioned, dag_maker, session
+):
+    if session.get_bind().dialect.name == "sqlite":
+        pytest.skip("SQLite does not support row locks")
+    schedule = CronPartitionTimetable("@daily", timezone="UTC") if partitioned else "@daily"
+    with dag_maker(schedule=schedule) as dag:
+        PythonOperator(task_id="hi", python_callable=print)
+    session.execute(update(DagModel).where(DagModel.dag_id == dag.dag_id).values(is_paused=True))
+    session.commit()
+    create_runs = _create_runs_partitioned if partitioned else _create_runs_non_partitioned
+
+    def create_runs_with_concurrent_dag_access(**kwargs):
+        create_runs(**kwargs)
+        with Session(session.get_bind()) as concurrent_session:
+            assert (
+                concurrent_session.scalar(
+                    select(DagModel.dag_id).where(DagModel.dag_id == dag.dag_id).with_for_update(nowait=True)
+                )
+                == dag.dag_id
+            )
+
+    (
+        mock_partitioned if partitioned else mock_non_partitioned
+    ).side_effect = create_runs_with_concurrent_dag_access
+    backfill = _create_backfill(
+        dag_id=dag.dag_id,
+        from_date=pendulum.parse("2021-01-01"),
+        to_date=pendulum.parse("2021-01-05"),
+        max_active_runs=2,
+        reverse=False,
+        triggering_user_name="pytest",
+        dag_run_conf=None,
+        drain_dag=True,
+    )
+
+    session.expire_all()
+    assert session.get(DagModel, dag.dag_id).scheduling_state == DagSchedulingState.DRAINING
+    assert session.scalar(select(func.count()).select_from(DagRun).where(DagRun.backfill_id == backfill.id))
 
 
 @pytest.mark.parametrize("run_on_latest_version", [True, False])
@@ -615,7 +736,6 @@ def test_backfill_empty_conf_overrides_existing_dag_run(dag_maker, session):
 
 def test_backfill_rejects_invalid_conf(dag_maker, session):
     """Backfill with invalid conf should fail validation before creating any runs."""
-    from airflow.sdk import Param
 
     with dag_maker(
         schedule="@daily",
@@ -638,9 +758,30 @@ def test_backfill_rejects_invalid_conf(dag_maker, session):
     assert session.scalar(select(DagRun).where(DagRun.dag_id == dag.dag_id)) is None
 
 
+def test_backfill_without_conf_rejects_invalid_stored_default(dag_maker, session):
+    """A stored invalid default must fail validation even when no conf is given, before any row is written."""
+
+    with dag_maker(schedule="@daily") as dag:
+        PythonOperator(task_id="hi", python_callable=print)
+        # Bypass the parse-time check: simulates a Dag serialized before the stricter validation.
+        dag_maker.dag.params["d"] = Param("garbage", type="string", format="date-time")
+
+    with pytest.raises(InvalidBackfillConf, match="Invalid input for param d"):
+        _create_backfill(
+            dag_id=dag.dag_id,
+            from_date=pendulum.parse("2021-01-01"),
+            to_date=pendulum.parse("2021-01-05"),
+            max_active_runs=10,
+            reverse=False,
+            triggering_user_name="pytest",
+            dag_run_conf=None,
+        )
+
+    assert session.scalar(select(Backfill).where(Backfill.dag_id == dag.dag_id)) is None
+
+
 def test_do_dry_run_rejects_invalid_conf(dag_maker, session):
     """Dry run with invalid conf should fail validation."""
-    from airflow.sdk import Param
 
     with dag_maker(
         schedule="@daily",
@@ -1527,3 +1668,9 @@ def test_handle_clear_run_preserves_partition_key(dag_maker, session):
     )
     assert bdr is not None
     assert bdr.partition_key == partition_key
+
+
+@pytest.mark.parametrize("member", [*ReprocessBehavior, *BackfillDagRunExceptionReason])
+def test_enum_str_is_value(member):
+    # DB drivers may bind str-Enum members through str(); mysqlclient>=2.3.1 does.
+    assert str(member) == member.value

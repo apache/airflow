@@ -17,3 +17,5 @@
 
 api-auth-backend/index.rst api-auth-backend/google-openid.rst
 secrets-backends/index.rst secrets-backends/google-cloud-secret-manager-backend.rst
+operators/cloud/stackdriver.rst operators/cloud/cloud_monitoring.rst
+logging/stackdriver.rst logging/cloud_logging.rst

@@ -21,14 +21,6 @@
 Kubernetes Executor
 ===================
 
-.. note::
-
-    As of Airflow 2.7.0, you need to install the ``cncf.kubernetes`` provider package to use
-    this executor. This can done by installing ``apache-airflow-providers-cncf-kubernetes>=7.4.0``
-    or by installing Airflow with the ``cncf.kubernetes`` extras:
-    ``pip install 'apache-airflow[cncf.kubernetes]'``.
-
-
 The Kubernetes executor runs each task instance in its own pod on a Kubernetes cluster.
 
 KubernetesExecutor runs as a process in the Airflow Scheduler. The scheduler itself does
@@ -214,6 +206,50 @@ To get task logs out of the workers, you can:
 
     If you don't enable logging persistence, and if you have not enabled remote logging, logs will be lost after the worker pods shut down.
 
+Connecting each team to its own cluster
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+In a :doc:`multi-team <apache-airflow:core-concepts/multi-team>` deployment, a team's KubernetesExecutor
+reads the settings it connects with from the team's ``[kubernetes_executor]`` config, like every other
+setting: ``in_cluster``, ``config_file``, ``cluster_context``, ``verify_ssl``, ``ssl_ca_cert``,
+``api_client_retry_configuration``, ``client_factory`` and ``async_client_factory``. So each team can run
+its pods on a different cluster. Team config doesn't fall back to the un-prefixed section, so a team that
+connects from outside the cluster has to set ``in_cluster = False`` itself. ``enable_tcp_keepalive`` and
+the ``tcp_keep_*`` settings are only read from the un-prefixed section, and apply to every team's client.
+
+.. code-block:: ini
+
+    [core]
+    multi_team = True
+    executor = LocalExecutor;team_a=KubernetesExecutor;team_b=KubernetesExecutor
+
+    [team_a=kubernetes_executor]
+    in_cluster = False
+    config_file = /opt/airflow/kube/clusters.yaml
+    cluster_context = cluster-a
+    namespace = team-a
+
+    [team_b=kubernetes_executor]
+    in_cluster = False
+    config_file = /opt/airflow/kube/clusters.yaml
+    cluster_context = cluster-b
+    namespace = team-b
+
+A ``client_factory`` or ``async_client_factory`` that takes a ``team_name`` argument is called with the
+team it builds the client for (``None`` for an executor with no team). One that takes no arguments is
+still called without any.
+
+``airflow kubernetes cleanup-pods --team <team>`` connects the way the team's default executor does, or
+the one named with ``--executor``, and cleans up the pods in the team's namespace unless ``--namespace`` is
+given. It refuses a namespace that another team's KubernetesExecutor, or a global one, also uses, since
+it would delete their pods too, unless you pass ``--allow-shared-namespace`` because they run on another
+cluster.
+
+A subclass of KubernetesExecutor that builds its own clients sets the ``client_factory`` and
+``async_client_factory`` class attributes to the import paths of its factories, which are called with
+``team_name``. They take precedence over the config settings of the same name, so a plain
+KubernetesExecutor running alongside the subclass keeps its own client.
+
 
 Comparison with CeleryExecutor
 ------------------------------
@@ -239,11 +275,9 @@ the task will keep running until it completes (or times out, etc). But with Cele
 task will only keep running up until the grace period has elapsed, at which time the task will be terminated.  Another scenario where
 KubernetesExecutor can work well is when your tasks are not very uniform with respect to resource requirements or images.
 
-Finally, note that it does not have to be either-or; with CeleryKubernetesExecutor, it is possible to use both CeleryExecutor and
-KubernetesExecutor simultaneously on the same cluster. CeleryKubernetesExecutor will look at a task's ``queue`` to determine
-whether to run on Celery or Kubernetes.  By default, tasks are sent to Celery workers, but if you want a task to run using KubernetesExecutor,
-you send it to the  ``kubernetes`` queue and it will run in its own pod.  And KubernetesPodOperator can be used
-to similar effect, no matter what executor you are using.
+Finally, note that it does not have to be either-or; using the `Multiple Executors Concurrently feature
+<https://airflow.apache.org/docs/apache-airflow/stable/core-concepts/executor/index.html#using-multiple-executors-concurrently>`_,
+it is possible to use both CeleryExecutor and KubernetesExecutor simultaneously on the same cluster.
 
 Fault Tolerance
 ---------------
@@ -288,3 +322,12 @@ When monitoring the Kubernetes cluster's watcher thread, each event has a monoto
 Every time the executor reads a ``resourceVersion``, the executor stores the latest value in the backend database.
 Because the resourceVersion is stored, the scheduler can restart and continue reading the watcher stream from where it left off.
 Since the tasks are run independently of the executor and report results directly to the database, scheduler failures will not lead to task failures or re-runs.
+
+Task-instance identity
+----------------------
+
+On Airflow versions with UUID executor-key support, task pods carry a ``task_instance_id``
+annotation. Watcher events, adoption and revocation use the submitted attempt's UUID.
+Pre-upgrade task pods can be adopted when their original serialized workload contains
+that UUID. Pods without a recoverable attempt identity are not adopted by a UUID-capable
+executor. Older supported Airflow versions retain coordinate keys and their existing adoption behavior.

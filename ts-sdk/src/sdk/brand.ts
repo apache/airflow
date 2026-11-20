@@ -21,8 +21,8 @@
 //
 // Brands live in the cross-realm symbol registry, which two resolved copies of
 // this package share even though each gets its own class object. That does not
-// make another copy's objects usable — `Dag` and `DagRegistry` read private
-// state keyed to the class that declared it — so callers still guard with
+// make another copy's objects usable, since `Dag` and `Bundle` read private
+// state keyed to the class that declared it, so callers still guard with
 // `instanceof` and use these only to tell the two failures apart.
 
 const PREFIX = "airflow.ts-sdk.";
@@ -40,4 +40,4 @@ export function hasBrand(value: unknown, name: string): boolean {
 
 /** Tail shared by the errors reporting a second resolved copy. */
 export const DUPLICATE_COPY_HINT =
-  "comes from a different copy of apache-airflow-ts-sdk; deduplicate the dependency so one copy is resolved";
+  "comes from a different copy of @apache-airflow/ts-sdk; deduplicate the dependency so one copy is resolved";

@@ -346,7 +346,7 @@ class TestUpdateUserChangedOn:
         assert result is True
         assert user.changed_on is not None
         assert isinstance(user.changed_on, datetime.datetime)
-        assert user.changed_on.tzinfo == datetime.timezone.utc
+        assert user.changed_on.tzinfo == datetime.UTC
         mock_session.merge.assert_called_once_with(user)
         mock_session.commit.assert_called_once()
 
@@ -406,4 +406,4 @@ class TestUpdateUserChangedOn:
 
         assert result is True
         assert user.changed_on is not None
-        assert user.changed_on.tzinfo == datetime.timezone.utc
+        assert user.changed_on.tzinfo == datetime.UTC

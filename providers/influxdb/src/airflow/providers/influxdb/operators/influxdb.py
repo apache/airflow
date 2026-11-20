@@ -40,7 +40,10 @@ class InfluxDBOperator(BaseOperator):
     :param influxdb_conn_id: Reference to :ref:`Influxdb connection id <howto/connection:influxdb>`.
     """
 
-    template_fields: Sequence[str] = ("sql",)
+    template_fields: Sequence[str] = (
+        "sql",
+        "influxdb_conn_id",
+    )
 
     def __init__(
         self,

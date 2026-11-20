@@ -67,6 +67,7 @@ class SmtpNotifier(BaseNotifier):
         "mime_subtype",
         "mime_charset",
         "custom_headers",
+        "smtp_conn_id",
     )
 
     def __init__(

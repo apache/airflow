@@ -16,14 +16,23 @@
 # under the License.
 from __future__ import annotations
 
-from datetime import datetime, timezone
+import json
+from datetime import UTC, datetime
 
 import pytest
+from pydantic import ValidationError
 
-from airflow.api_fastapi.core_api.datamodels.dag_run import BulkDAGRunClearBody, ClearPartitionsBody
+from airflow._shared.serialization import FORBIDDEN_XCOM_KEYS
+from airflow.api_fastapi.core_api.datamodels.assets import MaterializeAssetBody
+from airflow.api_fastapi.core_api.datamodels.backfills import BackfillPostBody
+from airflow.api_fastapi.core_api.datamodels.dag_run import (
+    BulkDAGRunClearBody,
+    ClearPartitionsBody,
+    TriggerDAGRunPostBody,
+)
 
-_DATE_A = datetime(2024, 1, 1, tzinfo=timezone.utc)
-_DATE_B = datetime(2024, 1, 31, tzinfo=timezone.utc)
+_DATE_A = datetime(2024, 1, 1, tzinfo=UTC)
+_DATE_B = datetime(2024, 1, 31, tzinfo=UTC)
 
 # Non-partition selector kwargs differ per model class.
 _NON_PARTITION_KWARGS: dict[type, dict] = {
@@ -67,3 +76,58 @@ class TestDateWindowOrder:
     def test_accepts_start_before_end(self, model_cls):
         body = model_cls(partition_date_start=_DATE_A, partition_date_end=_DATE_B)
         assert body.partition_date_start < body.partition_date_end
+
+
+_CONF_BODIES = [
+    pytest.param(TriggerDAGRunPostBody, "conf", {"logical_date": None}, id="trigger"),
+    pytest.param(MaterializeAssetBody, "conf", {}, id="materialize"),
+    pytest.param(
+        BackfillPostBody,
+        "dag_run_conf",
+        {"dag_id": "dag1", "from_date": _DATE_A, "to_date": _DATE_B},
+        id="backfill",
+    ),
+]
+
+
+@pytest.mark.parametrize(("model_cls", "field", "base_kwargs"), _CONF_BODIES)
+class TestConfReservedKeys:
+    """Dag run conf rejects reserved serialization keys the way XCom values do."""
+
+    @pytest.mark.parametrize("reserved_key", sorted(FORBIDDEN_XCOM_KEYS))
+    def test_rejects_reserved_key_at_top_level(self, model_cls, field, base_kwargs, reserved_key):
+        with pytest.raises(ValidationError, match="reserved serialization keys") as ctx:
+            model_cls(**base_kwargs, **{field: {reserved_key: "x"}})
+        assert reserved_key in str(ctx.value)
+
+    @pytest.mark.parametrize(
+        "conf",
+        [
+            pytest.param(
+                {"a": {"__classname__": "builtins.dict", "__version__": 0, "__data__": {}}},
+                id="current-nested",
+            ),
+            pytest.param({"a": [{"b": {"__type": "datetime", "__var": 0.0}}]}, id="legacy-nested-in-list"),
+        ],
+    )
+    def test_rejects_nested_reserved_keys(self, model_cls, field, base_kwargs, conf):
+        with pytest.raises(ValidationError, match=rf"{field}\.a.* contains reserved serialization keys"):
+            model_cls(**base_kwargs, **{field: conf})
+
+    @pytest.mark.parametrize(
+        "conf",
+        [
+            pytest.param(None, id="none"),
+            pytest.param({}, id="empty"),
+            pytest.param({"env": "dev", "nested": {"type": "x", "var": [1, 2]}}, id="plain"),
+            pytest.param({"a": json.dumps({"safe": "data"})}, id="benign-json-string"),
+            pytest.param({"a": json.dumps({"__type": "datetime", "__var": 0.0})}, id="legacy-in-json-string"),
+            pytest.param(
+                {"a": json.dumps({"b": {"__classname__": "builtins.dict"}})},
+                id="current-nested-in-json-string",
+            ),
+            pytest.param({"a": '{"not valid json'}, id="not-json"),
+        ],
+    )
+    def test_accepts_conf_without_reserved_keys(self, model_cls, field, base_kwargs, conf):
+        assert getattr(model_cls(**base_kwargs, **{field: conf}), field) == conf

@@ -16,25 +16,29 @@
     under the License.
 
 .. _dynamic-task-mapping:
+.. _mapped-tasks:
 
-====================
-Dynamic Task Mapping
-====================
+============
+Mapped tasks
+============
 
-Dynamic Task Mapping allows a way for a workflow to create a number of tasks at runtime based upon current data, rather than the Dag author having to know in advance how many tasks would be needed.
+Task mapping, also called dynamic task mapping, allows a way for a workflow to create a number of tasks at runtime based upon current data, rather than the Dag author having to know in advance how many tasks would be needed.
 
 This is similar to defining your tasks in a for loop, but instead of having the DAG file fetch the data and do that itself, the scheduler can do this based on the output of an upstream task.
-Unlike a Python for-loop executed at DAG parse time, dynamic task mapping defers task creation until runtime, allowing the scheduler to determine the exact number of task instances based on upstream task outputs.
+Unlike a Python for-loop executed at DAG parse time, task mapping defers task creation until runtime, allowing the scheduler to determine the exact number of task instances based on upstream task outputs.
 Right before a mapped task is executed the scheduler will create *n* copies of the task, one for each input.
 
 It is also possible to have a task operate on the collected output of a mapped task, commonly known as map and reduce.
+
+.. seealso::
+   Not sure whether you need mapped tasks or a loop? See :ref:`loops-and-mapped-tasks`.
 
 Simple mapping
 ==============
 
 In its simplest form you can map over a list defined directly in your Dag file using the ``expand()`` function instead of calling your task directly.
 
-If you want to see a simple usage of Dynamic Task Mapping, you can look below:
+If you want to see a simple usage of task mapping, you can look below:
 
 .. exampleinclude:: /../src/airflow/example_dags/example_dynamic_task_mapping.py
     :language: python
@@ -364,7 +368,7 @@ In the above example, task ``convert_to_yaml`` is expanded into two task instanc
 Value references in a task group function
 -----------------------------------------
 
-One important distinction between a task function (``@task``) and a task *group* function (``@task_group``) is, since a task group does not have an associated worker, code in a task group function cannot resolve arguments passed into it; the real value and is only resolved when the reference is passed into a task.
+One important distinction between a task function (``@task``) and a task *group* function (``@task_group``) is, since a task group does not have an associated worker, code in a task group function cannot resolve arguments passed into it; the real value is only resolved when the reference is passed into a task.
 
 For example, this code will *not* work:
 
@@ -388,7 +392,7 @@ For example, this code will *not* work:
 
 When code in ``my_task_group`` is executed, ``value`` would still only be a reference, not the real value, so the ``if not value`` branch will not work as you likely want. However, if you pass that reference into a task, it will become resolved when the task is executed, and the three ``my_task`` instances will therefore receive 1, 2, and 3, respectively.
 
-It is, therefore, important to remember that, if you intend to perform any logic to a value passed into a task group function, you must always use a task to run the logic, such as  ``@task.branch`` (or ``BranchPythonOperator``) for conditions, and task mapping methods for loops.
+It is, therefore, important to remember that, if you intend to perform any logic on a value passed into a task group function, you must always use a task to run the logic, such as ``@task.branch`` (or ``BranchPythonOperator``) for conditions, and ``expand()`` to iterate over values. To repeat a group of tasks, see :ref:`loops-and-mapped-tasks`.
 
 .. note:: Task-mapping in a mapped task group is not permitted
 
@@ -530,6 +534,7 @@ There are a couple of things to note:
 
 #. The callable argument of :func:`map()` (``create_copy_kwargs`` in the example) **must not** be a task, but a plain Python function. The transformation is as a part of the "pre-processing" of the downstream task (i.e. ``copy_files``), not a standalone task in the Dag.
 #. The callable always take exactly one positional argument. This function is called for each item in the iterable used for task-mapping, similar to how Python's built-in :func:`map()` works.
+#. If the upstream value is a dict, the callable receives each item as a ``(key, value)`` tuple.
 #. Since the callable is executed as a part of the downstream task, you can use any existing techniques to write the task function. To mark a component as skipped, for example, you should raise ``AirflowSkipException``. Note that returning ``None`` **does not** work here.
 
 Combining upstream data (aka "zipping")
@@ -648,8 +653,8 @@ Placing limits on mapped tasks
 
 There are two limits that you can place on a task:
 
-  #. the number of mapped task instances can be created as the result of expansion.
-  #. The number of the mapped task can run at once.
+  #. the number of mapped task instances that can be created as the result of expansion.
+  #. The number of the mapped task instances that can run at once.
 
 - **Limiting number of mapped task**
 

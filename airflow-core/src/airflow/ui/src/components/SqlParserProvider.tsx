@@ -35,9 +35,5 @@ export const SqlParserProvider = ({ children }: { readonly children: ReactNode }
       .finally(() => setIsReady(true));
   }, []);
 
-  if (!isReady) {
-    return undefined;
-  }
-
-  return children;
+  return isReady ? children : undefined;
 };

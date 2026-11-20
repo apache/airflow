@@ -1,5 +1,5 @@
 {
-  "assetSchedule": "{{count}} из {{total}} активов обновлены",
+  "assetSchedule": "{{count, number}} из {{total, number}} активов обновлены",
   "dagActions": {
     "delete": {
       "button": "Удалить Dag",
@@ -10,13 +10,11 @@
   "filters": {
     "allRunTypes": "Все типы запусков",
     "allStates": "Все состояния",
-    "anyRunState": "Любой запуск",
     "favorite": {
       "all": "Все",
       "favorite": "Избранные",
       "unfavorite": "Не избранные"
     },
-    "lastRunState": "Последний запуск",
     "paused": {
       "active": "Активные",
       "all": "Все",
@@ -28,7 +26,7 @@
   "runAndTaskActions": {
     "affectedTasks": {
       "noItemsFound": "Задачи не найдены.",
-      "title": "Затронутые задачи: {{count}}"
+      "title": "Затронутые задачи: {{count, number}}"
     },
     "clear": {
       "button": "Очистить {{type}}",

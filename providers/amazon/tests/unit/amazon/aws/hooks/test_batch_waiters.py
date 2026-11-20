@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import inspect
 import itertools
-import time
 from unittest import mock
 
 import boto3
@@ -152,9 +151,9 @@ class TestBatchWaiters:
         batch_log_fetcher = mock.Mock(spec=AwsTaskLogFetcher)
         mock_get_batch_log_fetcher = mock.Mock(return_value=batch_log_fetcher)
 
-        thread_start = mock.Mock(side_effect=lambda: time.sleep(2))
-        thread_stop = mock.Mock(side_effect=lambda: time.sleep(2))
-        thread_join = mock.Mock(side_effect=lambda: time.sleep(2))
+        thread_start = mock.Mock()
+        thread_stop = mock.Mock()
+        thread_join = mock.Mock()
 
         with (
             mock.patch.object(self.batch_waiters, "get_waiter") as mock_get_waiter,

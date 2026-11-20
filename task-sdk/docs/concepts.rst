@@ -1,19 +1,19 @@
-.. Licensed to the Apache Software Foundation (ASF) under one
-   or more contributor license agreements.  See the NOTICE file
-   distributed with this work for additional information
-   regarding copyright ownership.  The ASF licenses this file
-   to you under the Apache License, Version 2.0 (the
-   "License"); you may not use this file except in compliance
-   with the License.  You may obtain a copy of the License at
+ .. Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
 
-..   http://www.apache.org/licenses/LICENSE-2.0
+ ..   http://www.apache.org/licenses/LICENSE-2.0
 
-.. Unless required by applicable law or agreed to in writing,
-   software distributed under the License is distributed on an
-   "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-   KIND, either express or implied.  See the License for the
-   specific language governing permissions and limitations
-   under the License.
+ .. Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
 
 Concepts
 ========
@@ -45,7 +45,7 @@ Understanding the task lifecycle helps Dag authors write more effective tasks an
   - ``task_reschedule_count``: Number of times this task has been rescheduled
   - ``variables``: List of Airflow variables accessible to the task instance
   - ``connections``: List of Airflow connections accessible to the task instance
-  - ``upstream_map_indexes``: Mapping of upstream task IDs to their map indexes for dynamic task mapping scenarios
+  - ``upstream_map_indexes``: Mapping of upstream task IDs to their map indexes for task mapping scenarios
   - ``next_method``: Method name to call when resuming from a deferred state (set when task resumes from a trigger)
   - ``next_kwargs``: Arguments to pass to the ``next_method`` (can be encrypted for sensitive data)
   - ``xcom_keys_to_clear``: List of XCom keys that need to be cleared and purged by the worker

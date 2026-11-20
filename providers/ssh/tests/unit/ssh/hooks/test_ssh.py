@@ -18,9 +18,14 @@
 from __future__ import annotations
 
 import json
+import os
 import random
+import resource
+import selectors
+import socket
 import string
 import textwrap
+import threading
 from io import StringIO
 from unittest import mock
 
@@ -101,6 +106,87 @@ TEST_ENCRYPTED_PRIVATE_KEY = generate_key_string(pkey=TEST_PKEY, passphrase=PASS
 TEST_DISABLED_ALGORITHMS = {"pubkeys": ["rsa-sha2-256", "rsa-sha2-512"]}
 
 TEST_CIPHERS = ["aes128-ctr", "aes192-ctr", "aes256-ctr"]
+
+
+class _ExecServer(paramiko.ServerInterface):
+    """Answers every exec request with stdout, stderr and exit status 3, then closes the channel."""
+
+    def get_allowed_auths(self, username):
+        return "password"
+
+    def check_auth_password(self, username, password):
+        return paramiko.AUTH_SUCCESSFUL
+
+    def check_channel_request(self, kind, chanid):
+        return paramiko.OPEN_SUCCEEDED
+
+    def check_channel_exec_request(self, channel, command):
+        def respond():
+            # Give the client time to see the exec request succeed before the channel closes.
+            threading.Event().wait(0.2)
+            channel.sendall(b"out-1\n")
+            channel.sendall_stderr(b"err-1\n")
+            channel.sendall(b"out-2\n")
+            channel.send_exit_status(3)
+            channel.close()
+
+        threading.Thread(target=respond, daemon=True).start()
+        return True
+
+
+@pytest.fixture
+def in_process_ssh_client():
+    """Yield an SSH client connected to an in-process paramiko server over a loopback socket."""
+    listener = socket.socket()
+    listener.bind(("127.0.0.1", 0))
+    listener.listen(1)
+    port = listener.getsockname()[1]
+    host_key = paramiko.ECDSAKey.generate()
+    transports = []
+
+    def serve():
+        sock, _ = listener.accept()
+        transport = paramiko.Transport(sock)
+        transport.add_server_key(host_key)
+        transport.start_server(server=_ExecServer())
+        transports.append(transport)
+
+    server_thread = threading.Thread(target=serve, daemon=True)
+    server_thread.start()
+    client = paramiko.SSHClient()
+    # Trust exactly the server's key; any other key is rejected by the default policy.
+    client.get_host_keys().add(f"[127.0.0.1]:{port}", host_key.get_name(), host_key)
+    client.connect(
+        "127.0.0.1",
+        port=port,
+        username="user",
+        password="password",
+        look_for_keys=False,
+        allow_agent=False,
+    )
+    yield client
+    client.close()
+    server_thread.join(timeout=10)
+    for transport in transports:
+        transport.close()
+    listener.close()
+
+
+@pytest.fixture
+def over_1024_open_fds():
+    """Hold enough descriptors that new ones are numbered above select()'s FD_SETSIZE of 1024."""
+    count = 1100
+    soft, hard = resource.getrlimit(resource.RLIMIT_NOFILE)
+    if soft < count + 256:
+        if hard != resource.RLIM_INFINITY and hard < count + 256:
+            pytest.skip(f"RLIMIT_NOFILE hard limit {hard} is too low to open {count} descriptors")
+        resource.setrlimit(resource.RLIMIT_NOFILE, (count + 256, hard))
+    fds = [os.open(os.devnull, os.O_RDONLY) for _ in range(count)]
+    assert max(fds) > 1024
+    yield
+    for fd in fds:
+        os.close(fd)
+    resource.setrlimit(resource.RLIMIT_NOFILE, (soft, hard))
 
 
 class TestSSHHook:
@@ -481,25 +567,25 @@ class TestSSHHook:
             )
 
     def test_ssh_connection(self):
-        hook = SSHHook(ssh_conn_id="ssh_default")
+        hook = SSHHook(ssh_conn_id="ssh_default", no_host_key_check=True)
         with hook.get_conn() as client:
             (_, stdout, _) = client.exec_command("ls")
             assert stdout.read() is not None
 
     def test_ssh_connection_no_connection_id(self):
-        hook = SSHHook(remote_host="localhost")
+        hook = SSHHook(remote_host="localhost", no_host_key_check=True)
         assert hook.ssh_conn_id is None
         with hook.get_conn() as client:
             (_, stdout, _) = client.exec_command("ls")
             assert stdout.read() is not None
 
     def test_ssh_connection_old_cm(self):
-        with SSHHook(ssh_conn_id="ssh_default").get_conn() as client:
+        with SSHHook(ssh_conn_id="ssh_default", no_host_key_check=True).get_conn() as client:
             (_, stdout, _) = client.exec_command("ls")
             assert stdout.read() is not None
 
     def test_tunnel(self):
-        hook = SSHHook(ssh_conn_id="ssh_default")
+        hook = SSHHook(ssh_conn_id="ssh_default", no_host_key_check=True)
 
         import socket
         import subprocess
@@ -712,6 +798,54 @@ class TestSSHHook:
             assert ssh_client.return_value.connect.called is True
             assert ssh_client.return_value.set_missing_host_key_policy.called is True
 
+    def test_constructor_no_host_key_check_overrides_unrelated_extras(self):
+        """An explicit constructor value survives a connection whose extras omit host key settings."""
+        hook = SSHHook(ssh_conn_id=self.CONN_SSH_WITH_PRIVATE_KEY_EXTRA, no_host_key_check=True)
+        assert hook.no_host_key_check is True
+
+    @mock.patch("airflow.providers.ssh.hooks.ssh.SSHHook.get_connection")
+    def test_constructor_no_host_key_check_overrides_empty_extras(self, get_connection):
+        """An empty ``extra`` must not discard the constructor value."""
+        get_connection.return_value = Connection(
+            conn_id="ssh_empty_extra", host="localhost", conn_type="ssh", extra="{}"
+        )
+        hook = SSHHook(ssh_conn_id="ssh_empty_extra", no_host_key_check=True)
+        assert hook.no_host_key_check is True
+
+    def test_constructor_no_host_key_check_overrides_connection_extra(self):
+        """The constructor wins over a connection extra that sets the opposite value."""
+        hook = SSHHook(ssh_conn_id=self.CONN_SSH_WITH_EXTRA, no_host_key_check=False)
+        assert hook.no_host_key_check is False
+
+    def test_constructor_no_host_key_check_false_resolves_conflicting_extras(self):
+        """An explicit ``False`` makes a connection setting both ``host_key`` and the skip flag usable."""
+        hook = SSHHook(
+            ssh_conn_id=self.CONN_SSH_WITH_HOST_KEY_AND_NO_HOST_KEY_CHECK_TRUE, no_host_key_check=False
+        )
+        assert hook.no_host_key_check is False
+        assert hook.host_key is not None
+
+    def test_constructor_no_host_key_check_true_rejects_connection_host_key(self):
+        """Skipping the check is rejected whichever source asks for it while a host key is configured."""
+        with pytest.raises(ValueError, match="Must check host key when provided"):
+            SSHHook(
+                ssh_conn_id=self.CONN_SSH_WITH_HOST_KEY_AND_NO_HOST_KEY_CHECK_FALSE, no_host_key_check=True
+            )
+
+    @mock.patch("airflow.providers.ssh.hooks.ssh.paramiko.SSHClient")
+    def test_no_host_key_check_defaults_to_false(self, ssh_client):
+        """A connection that does not set ``no_host_key_check`` still verifies the host key."""
+        hook = SSHHook(ssh_conn_id=self.CONN_SSH_WITH_NO_EXTRA)
+        assert hook.no_host_key_check is False
+        with hook.get_conn():
+            assert ssh_client.return_value.load_system_host_keys.called is True
+            installed = [
+                call.args[0]
+                for call in ssh_client.return_value.set_missing_host_key_policy.call_args_list
+                if call.args
+            ]
+            assert not any(isinstance(policy, paramiko.AutoAddPolicy) for policy in installed)
+
     @mock.patch("airflow.providers.ssh.hooks.ssh.paramiko.SSHClient")
     def test_conn_retry_attempts_defaults_to_three(self, ssh_client):
         hook = SSHHook(ssh_conn_id="ssh_default")
@@ -898,6 +1032,7 @@ class TestSSHHook:
     def test_exec_ssh_client_command(self):
         hook = SSHHook(
             ssh_conn_id="ssh_default",
+            no_host_key_check=True,
             conn_timeout=30,
             banner_timeout=100,
         )
@@ -914,6 +1049,7 @@ class TestSSHHook:
     def test_command_timeout_success(self):
         hook = SSHHook(
             ssh_conn_id="ssh_default",
+            no_host_key_check=True,
             conn_timeout=30,
             cmd_timeout=2,
             banner_timeout=100,
@@ -953,13 +1089,17 @@ class TestSSHHook:
         mock_client = mock.MagicMock(spec=paramiko.SSHClient)
         mock_client.exec_command.return_value = (mock_stdin, mock_stdout, mock_stderr)
 
-        def fake_select(rlist, wlist, xlist, timeout=None):
-            assert timeout == pytest.approx(0.001), f"Expected cmd_timeout passed to select, got {timeout}"
-            return [], [], []
+        mock_selector = mock.create_autospec(selectors.BaseSelector, instance=True)
+        mock_selector.__enter__.return_value = mock_selector
+        mock_selector.select.return_value = []
 
-        with mock.patch("airflow.providers.ssh.hooks.ssh.select", side_effect=fake_select):
+        with mock.patch(
+            "airflow.providers.ssh.hooks.ssh.selectors.DefaultSelector", return_value=mock_selector
+        ):
             with pytest.raises(AirflowException, match="SSH command timed out"):
                 hook.exec_ssh_client_command(mock_client, "sleep 1", False, None)
+
+        assert mock_selector.select.call_args_list == [mock.call(pytest.approx(0.001))]
 
         assert mock_client.exec_command.call_args_list == [
             mock.call(command="sleep 1", get_pty=False, timeout=0.001, environment=None)
@@ -971,9 +1111,18 @@ class TestSSHHook:
         assert mock.call() in mock_stdout.close.call_args_list
         assert mock.call() in mock_stderr.close.call_args_list
 
+    @pytest.mark.usefixtures("over_1024_open_fds")
+    def test_exec_ssh_client_command_with_descriptors_above_fd_setsize(self, in_process_ssh_client):
+        hook = SSHHook(remote_host="localhost", cmd_timeout=10)
+
+        ret = hook.exec_ssh_client_command(in_process_ssh_client, "anything", False, None)
+
+        assert ret == (3, b"out-1\nout-2\n", b"err-1\n")
+
     def test_command_timeout_not_set(self, monkeypatch):
         hook = SSHHook(
             ssh_conn_id="ssh_default",
+            no_host_key_check=True,
             conn_timeout=30,
             cmd_timeout=None,
             banner_timeout=100,
@@ -1030,7 +1179,7 @@ class TestSSHHook:
                 assert ssh_mock.return_value.load_host_keys.called is False
 
     def test_connection_success(self):
-        hook = SSHHook(ssh_conn_id="ssh_default")
+        hook = SSHHook(ssh_conn_id="ssh_default", no_host_key_check=True)
         status, msg = hook.test_connection()
         assert status is True
         assert msg == "Connection successfully tested"
@@ -1043,14 +1192,14 @@ class TestSSHHook:
         assert msg == "Test failure case"
 
     def test_ssh_connection_client_is_reused_if_open(self):
-        hook = SSHHook(ssh_conn_id="ssh_default")
+        hook = SSHHook(ssh_conn_id="ssh_default", no_host_key_check=True)
         client1 = hook.get_conn()
         client2 = hook.get_conn()
         assert client1 is client2
         assert client2.get_transport().is_active()
 
     def test_ssh_connection_client_is_recreated_if_closed(self):
-        hook = SSHHook(ssh_conn_id="ssh_default")
+        hook = SSHHook(ssh_conn_id="ssh_default", no_host_key_check=True)
         client1 = hook.get_conn()
         client1.close()
         client2 = hook.get_conn()
@@ -1058,7 +1207,7 @@ class TestSSHHook:
         assert client2.get_transport().is_active()
 
     def test_ssh_connection_client_is_recreated_if_transport_closed(self):
-        hook = SSHHook(ssh_conn_id="ssh_default")
+        hook = SSHHook(ssh_conn_id="ssh_default", no_host_key_check=True)
         client1 = hook.get_conn()
         client1.get_transport().close()
         client2 = hook.get_conn()

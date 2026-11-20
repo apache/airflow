@@ -312,23 +312,34 @@ class DagTaskDetector:
 
     def is_dag_constructor(self, node: ast.Call) -> bool:
         """Check if a call is a Dag constructor."""
-        # to handle use case "from airflow import sdk" and "with sdk.DAG()"
-        if isinstance(node.func, ast.Attribute) and isinstance(node.func.value, ast.Name):
-            if node.func.value.id in self.from_imports:
-                module, original = self.from_imports[node.func.value.id]
-                if (module == "airflow" or module.startswith("airflow.")) and node.func.attr in (
-                    "DAG",
-                    "dag",
-                ):
-                    return True
+        # The Dag file is not imported yet, so there is no object to test — only names and its imports.
+        # A *DAG/*Dag suffix counts on its own, so a subclass named anything else is missed.
+        # Lowercase "dag" is an ordinary word and needs an import — and only a plain name can
+        # be an imported one, since "from airflow import DAG as D" says nothing about config.D().
+        func = node.func
 
-        # to handle use case "from airflow import DAG" form or "from airflow.decorator import dag"
-        if isinstance(node.func, ast.Name) and node.func.id in self.from_imports:
-            module, original = self.from_imports[node.func.id]
-            if (module == "airflow" or module.startswith("airflow.")) and original in ("DAG", "dag"):
-                return True
+        # DAG(...), TeamDAG(...), an alias like D(...), or the @dag(...) decorator
+        if isinstance(func, ast.Name):
+            if func.id in self.from_imports:
+                module, original = self.from_imports[func.id]
+                if self._is_airflow_module(module) and original in ("DAG", "dag"):
+                    return True
+            return func.id.endswith(("DAG", "Dag"))
+
+        # sdk.DAG(...), airflow.sdk.DAG(...), or the @sdk.dag(...) decorator
+        if isinstance(func, ast.Attribute):
+            if func.attr == "dag" and isinstance(func.value, ast.Name):
+                owner = self.from_imports.get(func.value.id)
+                if owner and self._is_airflow_module(owner[0]):
+                    return True
+            return func.attr.endswith(("DAG", "Dag"))
 
         return False
+
+    @staticmethod
+    def _is_airflow_module(module: str) -> bool:
+        """Check whether a module path is "airflow" or anything under it."""
+        return module == "airflow" or module.startswith("airflow.")
 
     def is_task_constructor(self, node: ast.Call) -> bool:
         """
@@ -507,13 +518,14 @@ class AirflowRuntimeVaryingValueChecker(ast.NodeVisitor):
                     if item.optional_vars and isinstance(item.optional_vars, ast.Name):
                         self._register_dag_instances([item.optional_vars])
 
+        already_in_dag_context = self.dag_detector.is_in_dag_context
         if is_with_dag_context:
             self.dag_detector.enter_dag_context()
 
         for body in node.body:
             self.visit(body)
 
-        if is_with_dag_context:
+        if is_with_dag_context and not already_in_dag_context:
             self.dag_detector.exit_dag_context()
 
     def visit_FunctionDef(self, node: ast.FunctionDef):

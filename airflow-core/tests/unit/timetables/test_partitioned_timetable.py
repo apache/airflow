@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Iterable
-from contextlib import ExitStack
+from contextlib import ExitStack, nullcontext
 from typing import TYPE_CHECKING
 from unittest import mock
 
@@ -26,7 +26,7 @@ import pendulum
 import pytest
 
 from airflow._shared.module_loading import qualname
-from airflow.exceptions import InvalidPartitionKeyError
+from airflow.exceptions import AirflowTimetableInvalid, InvalidPartitionKeyError
 from airflow.partition_mappers.base import RollupMapper
 from airflow.partition_mappers.identity import IdentityMapper as IdentityMapper
 from airflow.partition_mappers.temporal import StartOfDayMapper
@@ -36,6 +36,8 @@ from airflow.serialization.definitions.assets import SerializedAsset
 from airflow.serialization.encoders import ensure_serialized_asset
 from airflow.serialization.enums import DagAttributeTypes
 from airflow.timetables.simple import PartitionedAssetTimetable
+
+from tests_common.test_utils.config import conf_vars
 
 if TYPE_CHECKING:
     from airflow.partition_mappers.base import PartitionMapper
@@ -194,6 +196,7 @@ class TestPartitionedAssetTimetable:
             assets=ser_asset, partition_mapper_config={ser_asset: IdentityMapper()}
         )
         assert timetable.serialize() == {
+            "batch_asset_events": False,
             "asset_condition": {
                 "__type": DagAttributeTypes.ASSET,
                 "name": "test",
@@ -225,6 +228,7 @@ class TestPartitionedAssetTimetable:
     def test_deserialize(self):
         timetable = PartitionedAssetTimetable.deserialize(
             {
+                "batch_asset_events": True,
                 "asset_condition": {
                     "__type": DagAttributeTypes.ASSET,
                     "name": "test",
@@ -257,6 +261,52 @@ class TestPartitionedAssetTimetable:
         assert timetable.asset_condition == ser_asset
         assert isinstance(timetable.default_partition_mapper, IdentityMapper)
         assert isinstance(timetable.partition_mapper_config[ser_asset], IdentityMapper)
+        assert timetable.batch_asset_events is True
+
+    def test_serialize_deserialize_batch_asset_events_false(self):
+        """Serialize/deserialize round-trip preserves batch_asset_events=False."""
+        ser_asset = ensure_serialized_asset(Asset("test"))
+        timetable = PartitionedAssetTimetable(
+            assets=ser_asset,
+            partition_mapper_config={ser_asset: IdentityMapper()},
+            batch_asset_events=False,
+        )
+        serialized = timetable.serialize()
+        assert serialized["batch_asset_events"] is False
+
+        deserialized = PartitionedAssetTimetable.deserialize(serialized)
+        assert deserialized.batch_asset_events is False
+
+    @pytest.mark.parametrize("batch_asset_events", [False, True])
+    @pytest.mark.parametrize("use_default_mapper", [False, True])
+    def test_rollup_requires_batching(self, batch_asset_events, use_default_mapper):
+        asset = ensure_serialized_asset(Asset("test"))
+        mapper = RollupMapper(upstream_mapper=StartOfDayMapper(), window=DayWindow())
+        kwargs = (
+            {"default_partition_mapper": mapper}
+            if use_default_mapper
+            else {"partition_mapper_config": {asset: mapper}}
+        )
+        timetable = PartitionedAssetTimetable(assets=asset, batch_asset_events=batch_asset_events, **kwargs)
+        expected = (
+            nullcontext() if batch_asset_events else pytest.raises(AirflowTimetableInvalid, match="rollups")
+        )
+        with expected:
+            timetable.validate()
+
+    @pytest.mark.parametrize("use_default_mapper", [False, True])
+    def test_rollup_defaults_to_batching(self, use_default_mapper):
+        asset = ensure_serialized_asset(Asset("test"))
+        mapper = RollupMapper(upstream_mapper=StartOfDayMapper(), window=DayWindow())
+        kwargs = (
+            {"default_partition_mapper": mapper}
+            if use_default_mapper
+            else {"partition_mapper_config": {asset: mapper}}
+        )
+        with conf_vars({("scheduler", "batch_asset_events"): "False"}):
+            timetable = PartitionedAssetTimetable(assets=asset, **kwargs)
+        assert timetable.batch_asset_events is True
+        timetable.validate()
 
     @pytest.mark.parametrize(
         "asset_like",

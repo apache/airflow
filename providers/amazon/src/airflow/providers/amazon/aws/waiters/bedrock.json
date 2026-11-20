@@ -187,7 +187,7 @@
                     "matcher": "path",
                     "argument": "status",
                     "expected": "InProgress",
-                    "state": "retry"
+                    "state": "success"
                 },
                 {
                     "matcher": "path",
@@ -200,6 +200,49 @@
                     "argument": "status",
                     "expected": "Scheduled",
                     "state": "success"
+                }
+            ]
+        },
+        "guardrail_ready": {
+            "delay": 2,
+            "maxAttempts": 60,
+            "operation": "GetGuardrail",
+            "acceptors": [
+                {
+                    "matcher": "path",
+                    "argument": "status",
+                    "expected": "READY",
+                    "state": "success"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "status",
+                    "expected": "CREATING",
+                    "state": "retry"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "status",
+                    "expected": "UPDATING",
+                    "state": "retry"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "status",
+                    "expected": "VERSIONING",
+                    "state": "retry"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "status",
+                    "expected": "FAILED",
+                    "state": "failure"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "status",
+                    "expected": "DELETING",
+                    "state": "failure"
                 }
             ]
         }

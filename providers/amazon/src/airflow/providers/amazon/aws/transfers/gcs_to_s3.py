@@ -26,7 +26,8 @@ from typing import TYPE_CHECKING
 from packaging.version import Version
 
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
-from airflow.providers.common.compat.sdk import AirflowException, BaseOperator
+from airflow.providers.amazon.aws.utils.transfer import strip_overlapping_folder_markers
+from airflow.providers.common.compat.sdk import BaseOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 
 if TYPE_CHECKING:
@@ -99,6 +100,8 @@ class GCSToS3Operator(BaseOperator):
         "google_impersonation_chain",
         "gcp_user_project",
         "match_glob",
+        "gcp_conn_id",
+        "dest_aws_conn_id",
     )
     ui_color = "#f0eee4"
 
@@ -146,10 +149,8 @@ class GCSToS3Operator(BaseOperator):
                 self.__is_match_glob_supported = False
         except ImportError:  # __version__ was added in 10.1.0, so this means it's < 10.3.0
             self.__is_match_glob_supported = False
-        if not self.__is_match_glob_supported and match_glob:
-            raise AirflowException(
-                "The 'match_glob' parameter requires 'apache-airflow-providers-google>=10.3.0'."
-            )
+        if not self.__is_match_glob_supported and match_glob is not None:
+            raise ValueError("The 'match_glob' parameter requires 'apache-airflow-providers-google>=10.3.0'.")
         self.match_glob = match_glob
         self.gcp_user_project = gcp_user_project
 
@@ -163,29 +164,6 @@ class GCSToS3Operator(BaseOperator):
         if self.flatten_structure:
             return os.path.basename(file_path)
         return file_path
-
-    @staticmethod
-    def _strip_overlapping_folder_markers(keys: list[str]) -> tuple[list[str], list[str]]:
-        """
-        Drop trailing-slash keys that are strict prefixes of other listed keys.
-
-        Treated as directory markers. A lone trailing-slash key with no overlap
-        (e.g. ``lonely/``) is preserved, and a non-slash key that happens to be a
-        strict prefix of another (e.g. ``abc`` of ``abcdef``) is also preserved.
-        Returns ``(kept, dropped)``.
-        """
-        if not keys:
-            return [], []
-        ordered = sorted(set(keys))
-        kept: list[str] = []
-        dropped: list[str] = []
-        for current, nxt in zip(ordered, ordered[1:]):
-            if current.endswith("/") and nxt.startswith(current):
-                dropped.append(current)
-            else:
-                kept.append(current)
-        kept.append(ordered[-1])
-        return kept, dropped
 
     def execute(self, context: Context) -> list[str]:
         # list all files in an Google Cloud Storage bucket
@@ -210,7 +188,7 @@ class GCSToS3Operator(BaseOperator):
 
         gcs_files = gcs_hook.list(**list_kwargs)  # type: ignore
 
-        gcs_files, dropped_keys = self._strip_overlapping_folder_markers(gcs_files)
+        gcs_files, dropped_keys = strip_overlapping_folder_markers(gcs_files)
         if self.flatten_structure:
             # A kept marker like lonely/ has no basename, so flattening would hit the destination prefix.
             dropped_keys += [file for file in gcs_files if not self._transform_file_path(file)]

@@ -20,6 +20,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import re
@@ -70,6 +71,7 @@ from airflow.providers.google.cloud.utils.bigquery import bq_cast
 from airflow.providers.google.cloud.utils.credentials_provider import _get_scopes
 from airflow.providers.google.cloud.utils.lineage import send_hook_lineage_for_bq_job
 from airflow.providers.google.common.consts import CLIENT_INFO
+from airflow.providers.google.common.deprecated import deprecated
 from airflow.providers.google.common.hooks.base_google import (
     _UNSET,
     PROVIDE_PROJECT_ID,
@@ -101,7 +103,11 @@ BIGQUERY_LEGACY_SQL_DEFAULT_WARNING = (
     "or set `use_legacy_sql=False` to use GoogleSQL."
 )
 
-BigQueryJob = CopyJob | QueryJob | LoadJob | ExtractJob
+if TYPE_CHECKING:
+    BigQueryJob = CopyJob | QueryJob | LoadJob | ExtractJob
+else:
+    # Mocked google libs during docs build break the union, but the name must exist for runtime importers.
+    BigQueryJob = Any
 
 _ROUTINE_WRITABLE_PROPERTIES: tuple[str, ...] = (
     "type_",
@@ -509,11 +515,18 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             Note that if `retry` is specified, the timeout applies to each individual attempt.
         """
         _table_resource: dict[str, Any] = {}
-        if isinstance(table_resource, Table):
-            _table_resource = Table.from_api_repr(table_resource)  # type: ignore
+        if isinstance(table_resource, (Table, TableReference, TableListItem)):
+            _table_resource = table_resource.to_api_repr()
+            if isinstance(table_resource, TableReference):
+                # A bare TableReference serializes to a flat dict without the
+                # "tableReference" wrapper expected by the API resource.
+                _table_resource = {"tableReference": _table_resource}
         if schema_fields:
             _table_resource["schema"] = {"fields": schema_fields}
-        table_resource_final = {**table_resource, **_table_resource}  # type: ignore
+        if isinstance(table_resource, dict):
+            table_resource_final = {**table_resource, **_table_resource}
+        else:
+            table_resource_final = _table_resource
         table_resource = self._resolve_table_reference(
             table_resource=table_resource_final,
             project_id=project_id,
@@ -2437,7 +2450,11 @@ class BigQueryAsyncHook(GoogleBaseAsyncHook):
                 self.log.error("Failed to cancel BigQuery job %s: %s", job_id, str(e))
                 raise
 
-    # TODO: Convert get_records into an async method
+    @deprecated(
+        planned_removal_date="April 30, 2027",
+        use_instead="airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.aget_records",
+        category=AirflowProviderDeprecationWarning,
+    )
     def get_records(
         self,
         query_results: dict[str, Any],
@@ -2460,6 +2477,44 @@ class BigQueryAsyncHook(GoogleBaseAsyncHook):
             fields_names = [field["name"] for field in fields]
             col_types = [field["type"] for field in fields]
             for dict_row in rows:
+                typed_row = [bq_cast(vs["v"], col_type) for vs, col_type in zip(dict_row["f"], col_types)]
+                if as_dict:
+                    typed_row_dict = dict(zip(fields_names, typed_row))
+                    buffer.append(typed_row_dict)
+                else:
+                    buffer.append(typed_row)
+        return buffer
+
+    async def aget_records(
+        self,
+        query_results: dict[str, Any],
+        as_dict: bool = False,
+        selected_fields: str | list[str] | None = None,
+        yield_frequency: int = 1000,
+    ) -> list[Any]:
+        """
+        Convert a response from BigQuery to records asynchronously.
+
+        Periodically yields control back to the event loop when processing large
+        result sets to prevent blocking the Triggerer event loop.
+
+        :param query_results: the results from a SQL query
+        :param as_dict: if True returns the result as a list of dictionaries, otherwise as list of lists.
+        :param selected_fields:
+        :param yield_frequency: number of rows processed before yielding to the asyncio event loop.
+            Set to 0 to disable yielding.
+        """
+        if isinstance(selected_fields, str):
+            selected_fields = selected_fields.split(",")
+        buffer: list[Any] = []
+        if rows := query_results.get("rows"):
+            fields = query_results["schema"]["fields"]
+            fields = [field for field in fields if not selected_fields or field["name"] in selected_fields]
+            fields_names = [field["name"] for field in fields]
+            col_types = [field["type"] for field in fields]
+            for i, dict_row in enumerate(rows):
+                if yield_frequency > 0 and i > 0 and i % yield_frequency == 0:
+                    await asyncio.sleep(0)
                 typed_row = [bq_cast(vs["v"], col_type) for vs, col_type in zip(dict_row["f"], col_types)]
                 if as_dict:
                     typed_row_dict = dict(zip(fields_names, typed_row))

@@ -58,7 +58,14 @@ class HiveToMySqlOperator(BaseOperator):
     :param hive_conf:
     """
 
-    template_fields: Sequence[str] = ("sql", "mysql_table", "mysql_preoperator", "mysql_postoperator")
+    template_fields: Sequence[str] = (
+        "sql",
+        "mysql_table",
+        "mysql_preoperator",
+        "mysql_postoperator",
+        "hiveserver2_conn_id",
+        "mysql_conn_id",
+    )
     template_ext: Sequence[str] = (".sql",)
     template_fields_renderers = {
         "sql": "hql",

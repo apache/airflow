@@ -67,7 +67,7 @@ class ManagedKafkaTokenProvider:
             dict(
                 exp=credentials.expiry.timestamp(),
                 iss="Google",
-                iat=datetime.datetime.now(datetime.timezone.utc).timestamp(),
+                iat=datetime.datetime.now(datetime.UTC).timestamp(),
                 scope="kafka",
                 sub=credentials.service_account_email,
             )
@@ -88,8 +88,8 @@ class ManagedKafkaTokenProvider:
     def confluent_token(self):
         credentials = self._valid_credentials()
 
-        utc_expiry = credentials.expiry.replace(tzinfo=datetime.timezone.utc)
-        expiry_seconds = (utc_expiry - datetime.datetime.now(datetime.timezone.utc)).total_seconds()
+        utc_expiry = credentials.expiry.replace(tzinfo=datetime.UTC)
+        expiry_seconds = (utc_expiry - datetime.datetime.now(datetime.UTC)).total_seconds()
 
         return self._get_kafka_access_token(credentials), time.time() + expiry_seconds
 

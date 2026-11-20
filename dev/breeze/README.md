@@ -40,7 +40,8 @@ out, in [editable/development mode](https://packaging.python.org/en/latest/guide
 
 The recommended way to make `breeze` available is to install a small **shim script** at
 `~/.local/bin/breeze` that runs breeze from the `dev/breeze` folder of the *current* git
-worktree via `uvx`. This avoids a single global install and means each git worktree
+worktree via `uv run --locked`, with every dependency pinned by the committed
+`dev/breeze/uv.lock`. This avoids a single global install and means each git worktree
 (including ephemeral worktrees used by coding agents) gets its own breeze, tied to that
 worktree's sources. Because the shim is a real file on `PATH`, subprocesses (pre-commit
 hooks, CI scripts, dev tools) see it just like a `uv tool`-installed binary. See
@@ -84,12 +85,12 @@ else
     exit 1
 fi
 exec env AIRFLOW_ROOT_PATH="${breeze_root}" SKIP_BREEZE_SELF_UPGRADE_CHECK=1 \
-    uvx --from "${breeze_root}/dev/breeze" --quiet breeze "$@"
+    uv run --project "${breeze_root}/dev/breeze" --locked --quiet breeze "$@"
 ```
 
 Then `breeze` invoked from any Airflow checkout uses that checkout's source, and from
 anywhere else it uses `$AIRFLOW_REPO_ROOT` or the baked-in fallback. The first call in a
-fresh worktree pays a one-time `uvx` resolve/install; subsequent calls hit the cache.
+fresh worktree pays a one-time sync of `dev/breeze/.venv`; subsequent calls reuse it.
 
 The legacy global-install path (`uv tool install -e ./dev/breeze --force` or
 `pipx install -e ./dev/breeze --force`) still works for users who explicitly want a single

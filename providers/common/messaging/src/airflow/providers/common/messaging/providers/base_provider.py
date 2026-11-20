@@ -16,19 +16,24 @@
 # under the License.
 from __future__ import annotations
 
-from abc import abstractmethod
+from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from airflow.triggers.base import BaseEventTrigger
 
 
-class BaseMessageQueueProvider:
+class BaseMessageQueueProvider(ABC):
     """
     Base class defining a provider supported by operators/triggers of common-messaging provider.
 
     To add a new provider supported by the provider, create a new class extending this base class and add it
     to ``MESSAGE_QUEUE_PROVIDERS``.
+
+    Providers can support two dispatch paths: scheme-based matching (set ``scheme``) and
+    queue-URI-based matching (override ``queue_matches``, and ``trigger_kwargs`` when the
+    trigger needs parameters derived from the queue URI). ``trigger_class`` is required in
+    both cases.
     """
 
     scheme: str | None = None
@@ -44,25 +49,31 @@ class BaseMessageQueueProvider:
         """
         return self.scheme == scheme
 
-    @abstractmethod
     def queue_matches(self, queue: str) -> bool:
         """
         Return whether a given queue (string) matches a specific provider's pattern.
 
-        This function must be as specific as possible to avoid collision with other providers.
-        Functions in this provider should NOT overlap with each other in their matching criteria.
+        Providers that only support scheme-based dispatch keep this default, which matches
+        nothing. Override it to support queue-URI-based dispatch; the implementation must be
+        as specific as possible to avoid collision with other providers. Functions in this
+        provider should NOT overlap with each other in their matching criteria.
 
         :param queue: The queue identifier
         """
+        return False
 
     @abstractmethod
     def trigger_class(self) -> type[BaseEventTrigger]:
         """Trigger class to use when ``queue_matches`` returns True."""
 
-    @abstractmethod
     def trigger_kwargs(self, queue: str, **kwargs) -> dict:
         """
-        Parameters passed to the instance of ``trigger_class``.
+        Parameters passed to the instance of ``trigger_class`` on queue-URI-based dispatch.
+
+        Providers that only support scheme-based dispatch keep this default. Override it
+        together with ``queue_matches`` when the trigger needs parameters derived from the
+        queue URI.
 
         :param queue: The queue identifier
         """
+        return {}

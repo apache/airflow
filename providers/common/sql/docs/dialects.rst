@@ -25,7 +25,7 @@ and the :class:`~airflow.providers.jdbc.hooks.jdbc.JdbcHook` are generic hooks w
 database that has a driver for it, it needed an abstraction layer which allows us to run specialized queries
 depending of the database to which we connect and that's why dialects where introduced.
 
-The default :class:`~airflow.providers.common.sql.dialects.dialect.Dialect` class has following operations
+The default :class:`~airflow.providers.common.sql.dialects.dialect.Dialect` class has the following operations
 available which underneath use SQLAlchemy to execute, but can be overloaded with specialized implementations
 per database:
 
@@ -45,11 +45,13 @@ At the moment there are only 3 dialects available:
 - ``mssql`` :class:`~airflow.providers.microsoft.mssql.dialects.mssql.MsSqlDialect` specialized for Microsoft SQL Server;
 - ``postgresql`` :class:`~airflow.providers.postgres.dialects.postgres.PostgresDialect` specialized for PostgreSQL;
 
-The dialect to be used will be derived from the connection string, which sometimes won't be possible.  There is always
-the possibility to specify the dialect name through the extra options of the connection:
+The dialect is derived from the connection URI. ODBC and JDBC connections have no database in their connection type, so
+set the ``sqlalchemy_scheme`` extra to name it, for example ``mssql+pyodbc``. The dialect is the part before the
+``+``. The ``dialect`` extra is read only when neither the URI nor ``sqlalchemy_scheme`` gives a dialect, as with a JDBC
+connection whose ``host`` holds a ``jdbc:`` URL:
 
 .. code-block::
 
-  dialect_name: 'mssql'
+  dialect: 'mssql'
 
 If a specific dialect isn't available for a database, the default one will be used, same when a non-existing dialect name is specified.

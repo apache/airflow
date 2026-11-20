@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
 import json
 from functools import cache
 from typing import TYPE_CHECKING
@@ -24,6 +25,7 @@ from urllib.parse import quote, urlsplit
 import fsspec.utils
 
 from airflow.providers.common.compat.sdk import conf
+from airflow.providers.common.io.version_compat import AIRFLOW_V_3_4_PLUS
 
 if TYPE_CHECKING:
     from datetime import datetime
@@ -32,11 +34,15 @@ if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
     from sqlalchemy.orm import Session
 
+    from airflow.sdk.state import StoreScope
+
 
 from airflow.sdk import ObjectStoragePath
-from airflow.sdk._shared.state import AssetScope, BaseStoreBackend, StoreScope, TaskScope
+from airflow.sdk.state import AssetScope, BaseStoreBackend, TaskScope
 
 SECTION = "common.io"
+
+_WRITE_CHUNK_CHARS = 1024 * 1024
 
 
 @cache
@@ -76,16 +82,16 @@ def _sanitise_segment(value: str) -> str:
     return quote(value, safe="")
 
 
+def _build_task_prefix(scope: TaskScope) -> ObjectStoragePath:
+    prefix = _get_base_path() / _sanitise_segment(scope.dag_id) / _sanitise_segment(scope.run_id)
+    if AIRFLOW_V_3_4_PLUS and scope.region_id.int:
+        prefix /= f"region={scope.region_id}"
+    return prefix / _sanitise_segment(scope.task_id)
+
+
 def _build_task_path(scope: TaskScope, key: str) -> ObjectStoragePath:
     suffix = _get_compression_suffix()
-    return (
-        _get_base_path()
-        / _sanitise_segment(scope.dag_id)
-        / _sanitise_segment(scope.run_id)
-        / _sanitise_segment(scope.task_id)
-        / str(scope.map_index)
-        / f"{_sanitise_segment(key)}{suffix}"
-    )
+    return _build_task_prefix(scope) / str(scope.map_index) / f"{_sanitise_segment(key)}{suffix}"
 
 
 def _build_asset_path(scope: AssetScope, key: str) -> ObjectStoragePath:
@@ -98,7 +104,10 @@ def _write_to_object_storage(path: ObjectStoragePath, value: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     compression = _get_compression()
     with path.open(mode="wb", compression=compression) as f:
-        f.write(value.encode("utf-8"))
+        # Encode slice by slice instead of making a full bytes copy of the string. Buffered
+        # filesystems such as s3fs copy each write into an upload buffer that they flush per block.
+        for start in range(0, len(value), _WRITE_CHUNK_CHARS):
+            f.write(value[start : start + _WRITE_CHUNK_CHARS].encode("utf-8"))
 
 
 def _read_from_object_storage(path: ObjectStoragePath) -> str | None:
@@ -160,23 +169,12 @@ class StateStoreObjectStorageBackend(BaseStoreBackend):
     ) -> None:
         match scope:
             case TaskScope():
+                prefix = _build_task_prefix(scope)
                 if all_map_indices:
-                    prefix = (
-                        _get_base_path()
-                        / _sanitise_segment(scope.dag_id)
-                        / _sanitise_segment(scope.run_id)
-                        / _sanitise_segment(scope.task_id)
-                    )
                     for p in prefix.glob("*/*"):
                         p.unlink(missing_ok=True)
                 else:
-                    prefix = (
-                        _get_base_path()
-                        / _sanitise_segment(scope.dag_id)
-                        / _sanitise_segment(scope.run_id)
-                        / _sanitise_segment(scope.task_id)
-                        / str(scope.map_index)
-                    )
+                    prefix /= str(scope.map_index)
                     for p in prefix.glob("*"):
                         p.unlink(missing_ok=True)
             case AssetScope():
@@ -187,8 +185,11 @@ class StateStoreObjectStorageBackend(BaseStoreBackend):
             case _:
                 raise TypeError(f"Unknown scope type: {type(scope)}")
 
+    # fsspec is synchronous even for filesystems whose transport is async underneath, so the
+    # a-prefixed methods offload to a worker thread to keep the caller's event loop free.
+    # ``session`` is unused throughout: this backend never touches the metastore.
     async def aget(self, scope: StoreScope, key: str, *, session: AsyncSession | None = None) -> str | None:
-        raise NotImplementedError
+        return await asyncio.to_thread(self.get, scope, key)
 
     async def aset(
         self,
@@ -199,19 +200,20 @@ class StateStoreObjectStorageBackend(BaseStoreBackend):
         expires_at: datetime | None = None,
         session: AsyncSession | None = None,
     ) -> None:
-        raise NotImplementedError
+        await asyncio.to_thread(self.set, scope, key, value, expires_at=expires_at)
 
     async def adelete(self, scope: StoreScope, key: str, *, session: AsyncSession | None = None) -> None:
-        raise NotImplementedError
+        await asyncio.to_thread(self.delete, scope, key)
 
     async def aclear(
         self, scope: StoreScope, *, all_map_indices: bool = False, session: AsyncSession | None = None
     ) -> None:
-        raise NotImplementedError
+        await asyncio.to_thread(self.clear, scope, all_map_indices=all_map_indices)
 
     def serialize_task_state_store_to_ref(self, *, value: JsonValue, key: str, scope: TaskScope) -> str:
         serialized = json.dumps(value)
-        if len(serialized.encode()) < _get_threshold():
+        # json.dumps escapes non-ASCII characters, so the string's length is its size in bytes.
+        if len(serialized) < _get_threshold():
             return serialized
         path = _build_task_path(scope, key)
         _write_to_object_storage(path, serialized)
@@ -229,7 +231,8 @@ class StateStoreObjectStorageBackend(BaseStoreBackend):
 
     def serialize_asset_state_store_to_ref(self, *, value: JsonValue, key: str, scope: AssetScope) -> str:
         serialized = json.dumps(value)
-        if len(serialized.encode()) < _get_threshold():
+        # json.dumps escapes non-ASCII characters, so the string's length is its size in bytes.
+        if len(serialized) < _get_threshold():
             return serialized
         path = _build_asset_path(scope, key)
         _write_to_object_storage(path, serialized)

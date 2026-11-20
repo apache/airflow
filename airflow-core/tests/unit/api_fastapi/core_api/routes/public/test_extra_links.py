@@ -17,18 +17,33 @@
 from __future__ import annotations
 
 import pytest
+from sqlalchemy import select, update
 
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.common.dagbag import dag_bag_from_app
 from airflow.api_fastapi.core_api.datamodels.extra_links import ExtraLinkCollectionResponse
+from airflow.models.dag import DagModel
 from airflow.models.dagbag import DBDagBag
+from airflow.models.dagbundle import DagBundleModel
+from airflow.models.dynamic_region import DynamicRegion
+from airflow.models.taskinstance import TaskInstance
+from airflow.models.team import Team
 from airflow.models.xcom import XComModel as XCom
 from airflow.plugins_manager import AirflowPlugin
+from airflow.sdk import task_group
+from airflow.sdk.definitions._internal.loop import create_loop
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests_common.test_utils.compat import BaseOperatorLink
-from tests_common.test_utils.db import clear_db_dags, clear_db_runs, clear_db_xcom
+from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.db import (
+    clear_db_dag_bundles,
+    clear_db_dags,
+    clear_db_runs,
+    clear_db_teams,
+    clear_db_xcom,
+)
 from tests_common.test_utils.mock_operators import CustomOperator
 
 pytestmark = pytest.mark.db_test
@@ -70,6 +85,143 @@ class TryNumberLink(BaseOperatorLink):
 class TryNumberPlugin(AirflowPlugin):
     name = "try_number_plugin"
     operator_extra_links = [TryNumberLink()]
+
+
+@pytest.mark.mock_plugin_manager(plugins=[TryNumberPlugin])
+@pytest.mark.parametrize("retained", [False, True])
+@pytest.mark.parametrize("unversioned", [False, True])
+def test_links_select_loop_execution_without_requiring_live_history(
+    test_client, dag_maker, session, retained, unversioned
+):
+    @task_group
+    def body():
+        CustomOperator(task_id="work", bash_command="echo test")
+
+    with dag_maker(serialized=True) as dag:
+        loop = create_loop(body, max_iterations=4)
+    run = dag_maker.create_dagrun()
+    region = session.scalar(select(DynamicRegion).where(DynamicRegion.node_id == loop.group_id))
+    later = TaskInstance(
+        task=dag.get_task("body.work"),
+        run_id=run.run_id,
+        dag_version_id=None if unversioned else run.created_dag_version_id,
+        region_id=region.id,
+        region_index=2,
+    )
+    later.try_number = 2
+    later.state = "success"
+    session.add(later)
+    session.flush()
+    if retained:
+        later.archive(reason="superseded", session=session)
+    if unversioned:
+        run.created_dag_version_id = None
+    session.commit()
+
+    if not unversioned:
+        with dag_maker(dag_id=run.dag_id, serialized=True, session=session):
+            CustomOperator(task_id="replacement", bash_command="echo changed")
+        session.commit()
+
+    url = f"/dags/{run.dag_id}/dagRuns/{run.run_id}/taskInstances/body.work/links"
+    response = test_client.get(url, params={"region_id": str(region.id), "region_index": 2, "try_number": 2})
+    assert response.status_code == 200, response.text
+    assert response.json()["extra_links"]["Try Number"] == "https://example.com/logs?try_number=2"
+    assert test_client.get(url, params={"region_index": 2}).status_code == 400
+
+
+@pytest.mark.parametrize("mapped", [False, True])
+def test_serialized_links_read_xcom_from_selected_region(test_client, dag_maker, session, mapped):
+    @task_group
+    def body():
+        if mapped:
+            CustomOperator.partial(task_id="work").expand(bash_command=["echo first", "echo second"])
+        else:
+            CustomOperator(task_id="work", bash_command="echo test")
+
+    with dag_maker(serialized=True) as dag:
+        create_loop(body, max_iterations=4)
+    run = dag_maker.create_dagrun()
+    sibling = next(ti for ti in run.task_instances if ti.task_id == "body.work" and ti.region_index == 1)
+    source_region = session.get(DynamicRegion, sibling.region_id)
+    selected_region = DynamicRegion(
+        dag_id=run.dag_id,
+        run_id=run.run_id,
+        node_id=source_region.node_id,
+        parent_region_id=source_region.parent_region_id,
+        parent_region_index=source_region.parent_region_index,
+        forked_from_region_id=sibling.region_id,
+        resumes_from_index=sibling.region_index,
+    )
+    session.add(selected_region)
+    session.flush()
+    selected = TaskInstance(
+        task=dag.get_task("body.work"),
+        run_id=run.run_id,
+        dag_version_id=run.created_dag_version_id,
+        region_id=selected_region.id,
+        region_index=sibling.region_index,
+    )
+    session.add(selected)
+    session.flush()
+    for ti, value in ((sibling, "sibling"), (selected, "selected")):
+        XCom.set(
+            key="_link_CustomOpLink",
+            value=f"https://example.com/{value}-execution",
+            dag_id=ti.dag_id,
+            task_id=ti.task_id,
+            run_id=ti.run_id,
+            map_index=ti.region_index,
+            region_id=ti.region_id,
+            session=session,
+        )
+    session.commit()
+    response = test_client.get(
+        f"/dags/{run.dag_id}/dagRuns/{run.run_id}/taskInstances/body.work/links",
+        params={"region_id": str(selected.region_id), "region_index": selected.region_index},
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["extra_links"]["Google Custom"] == "https://example.com/selected-execution"
+
+
+class TeamALink(BaseOperatorLink):
+    name = "Team A"
+
+    def get_link(self, operator, ti_key):
+        return "https://team-a.example.com"
+
+
+class EveryoneLink(BaseOperatorLink):
+    name = "Everyone"
+
+    def get_link(self, operator, ti_key):
+        return "https://example.com/everyone"
+
+
+class ImpersonatingLink(BaseOperatorLink):
+    """Shares a name with ``CustomOperator``'s own ``CustomOpLink``."""
+
+    name = "Google Custom"
+
+    def get_link(self, operator, ti_key):
+        return "https://team-a.example.com/impersonated"
+
+
+class TeamAPlugin(AirflowPlugin):
+    name = "team_a_plugin"
+    team_name = "team-a"
+    global_operator_extra_links = [TeamALink()]
+
+
+class GlobalLinkPlugin(AirflowPlugin):
+    name = "global_link_plugin"
+    global_operator_extra_links = [EveryoneLink()]
+
+
+class TeamANameCollisionPlugin(AirflowPlugin):
+    name = "team_a_name_collision_plugin"
+    team_name = "team-a"
+    global_operator_extra_links = [ImpersonatingLink()]
 
 
 @pytest.mark.mock_plugin_manager(plugins=[])
@@ -266,6 +418,13 @@ class TestGetExtraLinks:
         )
 
     def test_should_respond_200_mapped_task_instance(self, test_client, session):
+        region_id = session.scalar(
+            select(DynamicRegion.id).where(
+                DynamicRegion.dag_id == self.dag_id,
+                DynamicRegion.run_id == self.dag_run_id,
+                DynamicRegion.node_id == self.task_mapped,
+            )
+        )
         for map_index, value in enumerate(["TEST_LINK_VALUE_1", "TEST_LINK_VALUE_2"]):
             XCom.set(
                 key="search_query",
@@ -274,6 +433,7 @@ class TestGetExtraLinks:
                 dag_id=self.dag_id,
                 run_id=self.dag_run_id,
                 map_index=map_index,
+                region_id=region_id,
             )
             XCom.set(
                 key="_link_CustomOpLink",
@@ -282,6 +442,7 @@ class TestGetExtraLinks:
                 dag_id=self.dag_id,
                 run_id=self.dag_run_id,
                 map_index=map_index,
+                region_id=region_id,
             )
             session.commit()
             response = test_client.get(
@@ -317,7 +478,7 @@ class TestGetExtraLinks:
             params={"map_index": 4},
         )
         assert response.status_code == 404
-        assert response.json() == {"detail": "TaskInstance not found"}
+        assert response.json() == {"detail": "Task instance not found for selected coordinates"}
 
     def test_should_not_deserialize_ill_formatted_links(self, test_client, session):
         import json
@@ -353,13 +514,15 @@ class TestGetExtraLinks:
         assert json.loads(link_value) == payload
 
     @pytest.mark.mock_plugin_manager(plugins=[TryNumberPlugin])
-    def test_should_use_try_number_when_specified(self, test_client, session):
-        from uuid import uuid4
-
+    @pytest.mark.parametrize(
+        ("requested_try", "expected_try"),
+        [(1, 1), (2, 2), (None, 2)],
+        ids=["historical", "current", "default"],
+    )
+    def test_should_use_selected_try_number(self, test_client, session, requested_try, expected_try):
         from sqlalchemy.sql import select
 
         from airflow.models.taskinstance import TaskInstance
-        from airflow.models.taskinstancehistory import TaskInstanceHistory
 
         ti = session.scalar(
             select(TaskInstance).where(
@@ -370,28 +533,23 @@ class TestGetExtraLinks:
             )
         )
         assert ti is not None
-        original_try_number = ti.try_number
-
-        # Create a TIH record for a past try (try_number must differ from live TI).
-        # Use a new UUID as the PK to avoid a primary-key conflict with the live TI.
-        tih = TaskInstanceHistory(ti)
-        tih.task_instance_id = uuid4()
-        tih.try_number = original_try_number + 1
-        session.add(tih)
+        ti.try_number = 1
+        ti.state = "success"
+        successor = ti.prepare_db_for_next_try(session=session)
         session.commit()
+        current_id = successor.id
 
         response = test_client.get(
             f"/dags/{self.dag_id}/dagRuns/{self.dag_run_id}/taskInstances/{self.task_single_link}/links",
-            params={"try_number": original_try_number + 1},
+            params={} if requested_try is None else {"try_number": requested_try},
         )
         assert response.status_code == 200
-        assert (
-            response.json()["extra_links"]["Try Number"]
-            == f"https://example.com/logs?try_number={original_try_number + 1}"
+        assert response.json()["extra_links"]["Try Number"] == (
+            f"https://example.com/logs?try_number={expected_try}"
         )
 
         # Verify the live TI try_number was NOT modified
-        session.expire(ti)
+        session.expire(successor)
         ti = session.scalar(
             select(TaskInstance).where(
                 TaskInstance.dag_id == self.dag_id,
@@ -401,7 +559,8 @@ class TestGetExtraLinks:
             )
         )
         assert ti is not None
-        assert ti.try_number == original_try_number
+        assert ti.try_number == 2
+        assert ti.id == current_id
 
     @pytest.mark.mock_plugin_manager(plugins=[TryNumberPlugin])
     def test_should_respond_404_for_nonexistent_try_number(self, test_client):
@@ -410,3 +569,111 @@ class TestGetExtraLinks:
             params={"try_number": 99999},
         )
         assert response.status_code == 404
+
+
+class TestGetExtraLinksTeamFiltering:
+    dag_id = "TEST_TEAM_LINKS_DAG"
+    dag_run_id = "TEST_TEAM_LINKS_RUN"
+    task_id = "TEST_TEAM_LINKS_TASK"
+    bundle_name = "team-links-bundle"
+    default_time = timezone.datetime(2020, 1, 1)
+
+    @staticmethod
+    def _clear_db():
+        clear_db_dags()
+        clear_db_runs()
+        clear_db_xcom()
+        clear_db_dag_bundles()
+        clear_db_teams()
+
+    @pytest.fixture(autouse=True)
+    def setup(self, test_client, dag_maker, session) -> None:
+        self._clear_db()
+
+        with dag_maker(
+            dag_id=self.dag_id,
+            schedule=None,
+            default_args={"start_date": self.default_time},
+            serialized=True,
+        ):
+            CustomOperator(task_id=self.task_id, bash_command="TEST_LINK_VALUE")
+
+        dag_maker.create_dagrun(
+            run_id=self.dag_run_id,
+            logical_date=self.default_time,
+            run_type=DagRunType.MANUAL,
+            state=DagRunState.SUCCESS,
+            data_interval=(timezone.datetime(2020, 1, 1), timezone.datetime(2020, 1, 2)),
+            run_after=timezone.datetime(2020, 1, 2),
+            triggered_by=DagRunTriggeredByType.TEST,
+        )
+
+        test_client.app.dependency_overrides[dag_bag_from_app] = lambda: DBDagBag()
+
+    def teardown_method(self) -> None:
+        self._clear_db()
+
+    def _assign_dag_to_team(self, session, team_name: str | None) -> None:
+        """Point the Dag's bundle at a bundle owned by ``team_name``, or by no team."""
+        bundle = DagBundleModel(name=self.bundle_name)
+        if team_name is not None:
+            bundle.teams.append(Team(name=team_name))
+        session.add(bundle)
+        session.flush()
+        session.execute(
+            update(DagModel).where(DagModel.dag_id == self.dag_id).values(bundle_name=self.bundle_name)
+        )
+        session.commit()
+
+    def _get_link_names(self, test_client) -> set[str]:
+        response = test_client.get(
+            f"/dags/{self.dag_id}/dagRuns/{self.dag_run_id}/taskInstances/{self.task_id}/links",
+        )
+        assert response.status_code == 200
+        return set(response.json()["extra_links"])
+
+    @pytest.mark.parametrize(
+        ("multi_team", "dag_team", "expected_links"),
+        [
+            pytest.param(
+                "True",
+                "team-a",
+                {"Google Custom", "Everyone", "Team A"},
+                id="owning-team-sees-its-own-link",
+            ),
+            pytest.param("True", "team-b", {"Google Custom", "Everyone"}, id="other-team-does-not-see-it"),
+            pytest.param("True", None, {"Google Custom", "Everyone"}, id="teamless-dag-does-not-see-it"),
+            pytest.param(
+                "False",
+                "team-b",
+                {"Google Custom", "Everyone", "Team A"},
+                id="unfiltered-when-multi-team-off",
+            ),
+        ],
+    )
+    @pytest.mark.mock_plugin_manager(plugins=[TeamAPlugin, GlobalLinkPlugin])
+    def test_team_scoped_links_filtered_by_dag_team(
+        self, test_client, session, multi_team, dag_team, expected_links
+    ):
+        """``Google Custom`` is the operator's own link and ``Everyone`` a global plugin's, so both
+        stay visible throughout; only ``Team A`` is team-scoped."""
+        with conf_vars({("core", "multi_team"): multi_team}):
+            self._assign_dag_to_team(session, dag_team)
+
+            assert self._get_link_names(test_client) == expected_links
+
+    @pytest.mark.parametrize("dag_team", ["team-a", "team-b"])
+    @pytest.mark.mock_plugin_manager(plugins=[TeamANameCollisionPlugin])
+    def test_operator_link_survives_a_team_plugin_reusing_its_name(self, test_client, session, dag_team):
+        """A team plugin registering an existing link *name* must not make the operator's own link
+        team-scoped, which is why ownership is tracked per link class rather than per name."""
+        with conf_vars({("core", "multi_team"): "True"}):
+            self._assign_dag_to_team(session, dag_team)
+
+            response = test_client.get(
+                f"/dags/{self.dag_id}/dagRuns/{self.dag_run_id}/taskInstances/{self.task_id}/links",
+            )
+            assert response.status_code == 200
+            extra_links = response.json()["extra_links"]
+            assert set(extra_links) == {"Google Custom"}
+            assert extra_links["Google Custom"] != "https://team-a.example.com/impersonated"

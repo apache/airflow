@@ -18,6 +18,8 @@ from __future__ import annotations
 
 from unittest import mock
 
+import pytest
+
 from airflow.providers.google.firebase.operators.firestore import CloudFirestoreExportDatabaseOperator
 
 TEST_OUTPUT_URI_PREFIX: str = "gs://example-bucket/path"
@@ -42,3 +44,18 @@ class TestCloudFirestoreExportDatabaseOperator:
         mock_firestore_hook.return_value.export_documents.assert_called_once_with(
             body=EXPORT_DOCUMENT_BODY, database_id="(default)", project_id=TEST_PROJECT_ID
         )
+
+    @mock.patch("airflow.providers.google.firebase.operators.firestore.CloudFirestoreHook")
+    def test_empty_body_fails_at_execute_time(self, mock_firestore_hook):
+        op = CloudFirestoreExportDatabaseOperator(
+            task_id="test-task",
+            body="{{ var.value.export_body }}",
+            gcp_conn_id="google_cloud_default",
+            project_id=TEST_PROJECT_ID,
+        )
+        # Template rendering replaces the Jinja expression with the resolved value before execute.
+        op.body = None
+
+        with pytest.raises(ValueError, match="The required parameter 'body' is missing"):
+            op.execute(mock.MagicMock())
+        mock_firestore_hook.return_value.export_documents.assert_not_called()

@@ -1,0 +1,48 @@
+{
+    "version": 2,
+    "waiters": {
+        "ingestion_complete": {
+            "delay": 30,
+            "maxAttempts": 60,
+            "operation": "DescribeIngestion",
+            "acceptors": [
+                {
+                    "matcher": "path",
+                    "argument": "Ingestion.IngestionStatus",
+                    "expected": "INITIALIZED",
+                    "state": "retry"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "Ingestion.IngestionStatus",
+                    "expected": "QUEUED",
+                    "state": "retry"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "Ingestion.IngestionStatus",
+                    "expected": "RUNNING",
+                    "state": "retry"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "Ingestion.IngestionStatus",
+                    "expected": "COMPLETED",
+                    "state": "success"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "Ingestion.IngestionStatus",
+                    "expected": "FAILED",
+                    "state": "failure"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "Ingestion.IngestionStatus",
+                    "expected": "CANCELLED",
+                    "state": "failure"
+                }
+            ]
+        }
+    }
+}

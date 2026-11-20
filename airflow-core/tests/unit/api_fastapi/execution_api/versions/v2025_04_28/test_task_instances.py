@@ -96,3 +96,5 @@ class TestTIUpdateState:
         assert result["task_reschedule_count"] == 0
         assert result["max_tries"] == 0
         assert result["should_retry"] is False
+        # Added in 2026-10-30; older clients must not see it.
+        assert "multi_team" not in result

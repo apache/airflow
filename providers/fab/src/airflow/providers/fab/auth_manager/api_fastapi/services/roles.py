@@ -34,6 +34,7 @@ from airflow.providers.fab.auth_manager.api_fastapi.datamodels.roles import (
 from airflow.providers.fab.auth_manager.api_fastapi.sorting import build_ordering
 from airflow.providers.fab.auth_manager.models import Permission, Role
 from airflow.providers.fab.www.utils import get_fab_auth_manager
+from airflow.utils.session import create_session
 
 if TYPE_CHECKING:
     from airflow.providers.fab.auth_manager.security_manager.override import FabAirflowSecurityManagerOverride
@@ -87,20 +88,18 @@ class FABAuthManagerRoles:
 
     @classmethod
     def get_roles(cls, *, order_by: str, limit: int, offset: int) -> RoleCollectionResponse:
-        security_manager = get_fab_auth_manager().security_manager
-        session = security_manager.session
+        with create_session(scoped=False) as session:
+            total_entries = session.scalars(select(func.count(Role.id))).one()
 
-        total_entries = session.scalars(select(func.count(Role.id))).one()
+            ordering = build_ordering(order_by, allowed={"name": Role.name, "role_id": Role.id})
 
-        ordering = build_ordering(order_by, allowed={"name": Role.name, "role_id": Role.id})
+            stmt = select(Role).order_by(ordering).offset(offset).limit(limit)
+            roles = session.scalars(stmt).unique().all()
 
-        stmt = select(Role).order_by(ordering).offset(offset).limit(limit)
-        roles = session.scalars(stmt).unique().all()
-
-        return RoleCollectionResponse(
-            roles=[RoleResponse.model_validate(r) for r in roles],
-            total_entries=total_entries,
-        )
+            return RoleCollectionResponse(
+                roles=[RoleResponse.model_validate(r) for r in roles],
+                total_entries=total_entries,
+            )
 
     @classmethod
     def delete_role(cls, name: str) -> None:
@@ -156,14 +155,30 @@ class FABAuthManagerRoles:
             fields_to_update &= normalized_fields
 
         update_data = RoleResponse.model_validate(existing)
+        permissions = body.permissions or []
+        target_pairs = {(ar.action.name, ar.resource.name) for ar in permissions}
         if "permissions" in fields_to_update:
-            cls._replace_role_permissions(security_manager, existing, body.permissions or [])
-            update_data.permissions = body.permissions or []
-        if "name" in fields_to_update:
+            cls._check_action_and_resource(security_manager, list(target_pairs))
+
+        # Rename before touching permissions: each permission change is committed on its own,
+        # so a rename rejected afterwards would leave the role half-updated.
+        if "name" in fields_to_update and body.name != existing.name:
+            conflict = security_manager.find_role(name=body.name)
+            if conflict and conflict.id != existing.id:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail=f"Role with name {body.name!r} already exists",
+                )
+            if security_manager.update_role(role_id=existing.id, name=body.name) is None:
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="Role was not renamed due to an unexpected error.",
+                )
             update_data.name = body.name
 
-        if update_data.name != existing.name:
-            security_manager.update_role(role_id=existing.id, name=update_data.name)
+        if "permissions" in fields_to_update:
+            cls._replace_role_permissions(security_manager, existing, target_pairs)
+            update_data.permissions = permissions
         return update_data
 
     @classmethod
@@ -171,18 +186,15 @@ class FABAuthManagerRoles:
         cls,
         security_manager: FabAirflowSecurityManagerOverride,
         role: Role,
-        permissions: list[ActionResource],
+        target_pairs: set[tuple[str, str]],
     ) -> None:
         """
-        Make the role's permissions match `permissions` exactly.
+        Make the role's permissions match the `(action, resource)` pairs in `target_pairs` exactly.
 
         Unlike the additive sync used on role creation, a PATCH that touches the permission
         set must also revoke permissions currently on the role that are absent from the
         request -- otherwise permissions could be added but never removed via the API.
         """
-        target_pairs = {(ar.action.name, ar.resource.name) for ar in permissions}
-        cls._check_action_and_resource(security_manager, list(target_pairs))
-
         current_permissions = {(p.action.name, p.resource.name): p for p in role.permissions}
 
         for action_name, resource_name in target_pairs - current_permissions.keys():
@@ -196,31 +208,30 @@ class FABAuthManagerRoles:
 
     @classmethod
     def get_permissions(cls, *, order_by: str, limit: int, offset: int) -> PermissionCollectionResponse:
-        security_manager = get_fab_auth_manager().security_manager
-        session = security_manager.session
-        total_entries = session.scalars(select(func.count(Permission.id))).one()
-        ordering = build_ordering(
-            order_by,
-            allowed={
-                "id": Permission.id,
-                "action_id": Permission.action_id,
-                "resource_id": Permission.resource_id,
-            },
-        )
-        query = (
-            select(Permission)
-            .options(joinedload(Permission.action), joinedload(Permission.resource))
-            .order_by(ordering)
-            .offset(offset)
-            .limit(limit)
-        )
-        permissions = session.scalars(query).all()
-        return PermissionCollectionResponse(
-            permissions=[
-                ActionResource(
-                    action=ActionModel(name=p.action.name), resource=ResourceModel(name=p.resource.name)
-                )
-                for p in permissions
-            ],
-            total_entries=total_entries,
-        )
+        with create_session(scoped=False) as session:
+            total_entries = session.scalars(select(func.count(Permission.id))).one()
+            ordering = build_ordering(
+                order_by,
+                allowed={
+                    "id": Permission.id,
+                    "action_id": Permission.action_id,
+                    "resource_id": Permission.resource_id,
+                },
+            )
+            query = (
+                select(Permission)
+                .options(joinedload(Permission.action), joinedload(Permission.resource))
+                .order_by(ordering)
+                .offset(offset)
+                .limit(limit)
+            )
+            permissions = session.scalars(query).all()
+            return PermissionCollectionResponse(
+                permissions=[
+                    ActionResource(
+                        action=ActionModel(name=p.action.name), resource=ResourceModel(name=p.resource.name)
+                    )
+                    for p in permissions
+                ],
+                total_entries=total_entries,
+            )

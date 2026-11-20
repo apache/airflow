@@ -78,8 +78,14 @@ class MultiResourceUserMixin:
     def show(self, pk):
         pk = self._deserialize_pk_if_composite(pk)
         widgets = self._show(pk)
-        widgets["show"].template_args["actions"].pop("userinfoedit", None)
-        widgets["show"].template_args["actions"].pop("resetmypassword", None)
+        # ``template_args["actions"]`` is the view's shared ``self.actions`` dict, never mutate it.
+        # userinfo and the action endpoints read from it too.
+        show_args = widgets["show"].template_args
+        show_args["actions"] = {
+            name: action
+            for name, action in show_args["actions"].items()
+            if name not in ("userinfoedit", "resetmypassword")
+        }
         return self.render_template(
             self.show_template,
             pk=pk,
@@ -204,3 +210,23 @@ class CustomUserDBModelView(MultiResourceUserMixin, UserDBModelView):
         permissions.ACTION_CAN_EDIT,
         permissions.ACTION_CAN_DELETE,
     ]
+
+    edit_template = "appbuilder/general/model/user_edit.html"
+
+    @expose("/edit/<pk>", methods=["GET", "POST"])
+    @has_access
+    def edit(self, pk):
+        pk = self._deserialize_pk_if_composite(pk)
+        widgets = self._edit(pk)
+        if not widgets:
+            return self.post_edit_redirect()
+        return self.render_template(
+            self.edit_template,
+            title=self.edit_title,
+            widgets=widgets,
+            related_views=self._related_views,
+            # Surface the same "Reset Password" action already available on the Show User view.
+            actions={"resetpasswords": self.actions.get("resetpasswords")},
+            pk=pk,
+            modelview_name=self.__class__.__name__,
+        )

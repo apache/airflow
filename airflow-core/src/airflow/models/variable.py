@@ -20,7 +20,6 @@ from __future__ import annotations
 import contextlib
 import json
 import logging
-import sys
 import warnings
 from typing import TYPE_CHECKING, Any
 
@@ -28,11 +27,12 @@ from sqlalchemy import Boolean, ForeignKey, Integer, String, Text, delete, or_, 
 from sqlalchemy.dialects.mysql import MEDIUMTEXT
 from sqlalchemy.orm import Mapped, declared_attr, mapped_column, reconstructor, synonym
 
-from airflow._shared.secrets_backend.base import call_secrets_backend_method
+from airflow._shared.secrets_backend.base import accepts_kwarg, call_secrets_backend_method
 from airflow._shared.secrets_masker import mask_secret
 from airflow.configuration import conf, ensure_secrets_loaded
+from airflow.crypto import get_fernet
 from airflow.models.base import ID_LEN, Base
-from airflow.models.crypto import get_fernet
+from airflow.process_context import should_use_task_sdk_api_path
 
 # AirflowSecretsBackendAccessDenied was added to task-sdk in 1.2.2. When
 # airflow-core is installed alongside an older published task-sdk (e.g. 1.2.1 or earlier),
@@ -126,7 +126,15 @@ class Variable(Base, LoggingMixin):
         return synonym("_val", descriptor=property(cls.get_val, cls.set_val))
 
     @classmethod
-    def setdefault(cls, key, default, description=None, deserialize_json=False):
+    def setdefault(
+        cls,
+        key: str,
+        default: Any,
+        description: str | None = None,
+        deserialize_json: bool = False,
+        *,
+        session: Session | None = None,
+    ) -> Any:
         """
         Return the current value for a key or store the default value and return it.
 
@@ -138,13 +146,19 @@ class Variable(Base, LoggingMixin):
         :param description: Default value to set Description of the Variable
         :param deserialize_json: Store this as a JSON encoded value in the DB
             and un-encode it when retrieving a value
-        :param session: Session
+        :param session: Existing SQLAlchemy Session. Callers holding an open transaction must pass it.
         :return: Mixed
         """
-        obj = Variable.get(key, default_var=None, deserialize_json=deserialize_json)
+        obj = Variable.get(key, default_var=None, deserialize_json=deserialize_json, session=session)
         if obj is None:
             if default is not None:
-                Variable.set(key=key, value=default, description=description, serialize_json=deserialize_json)
+                Variable.set(
+                    key=key,
+                    value=default,
+                    description=description,
+                    serialize_json=deserialize_json,
+                    session=session,
+                )
                 return default
             raise ValueError("Default Value must be set")
         return obj
@@ -156,6 +170,8 @@ class Variable(Base, LoggingMixin):
         default_var: Any = __NO_DEFAULT_SENTINEL,
         deserialize_json: bool = False,
         team_name: str | None = None,
+        *,
+        session: Session | None = None,
     ) -> Any:
         """
         Get a value for an Airflow Variable Key.
@@ -164,6 +180,7 @@ class Variable(Base, LoggingMixin):
         :param default_var: Default value of the Variable if the Variable doesn't exist
         :param deserialize_json: Deserialize the value to a Python dict
         :param team_name: Team name associated to the task trying to access the variable (if any)
+        :param session: Existing SQLAlchemy Session. Callers holding an open transaction must pass it.
         """
         # TODO: This is not the best way of having compat, but it's "better than erroring" for now. This still
         # means SQLA etc is loaded, but we can't avoid that unless/until we add import shims as a big
@@ -171,7 +188,12 @@ class Variable(Base, LoggingMixin):
 
         # If this is set it means we are in some kind of execution context (Task, Dag Parse or Triggerer perhaps)
         # and should use the Task SDK API server path
-        if hasattr(sys.modules.get("airflow.sdk.execution_time.task_runner"), "SUPERVISOR_COMMS"):
+        if should_use_task_sdk_api_path():
+            if session is not None:
+                raise ValueError(
+                    "Variable.get() cannot use a metadata database session from an execution context; "
+                    "reads there go through the Execution API. Use airflow.sdk.Variable.get() instead."
+                )
             warnings.warn(
                 "Using Variable.get from `airflow.models` is deprecated."
                 "Please use `get` on Variable from sdk(`airflow.sdk.Variable`) instead",
@@ -192,7 +214,7 @@ class Variable(Base, LoggingMixin):
                 "Multi-team mode is not configured in the Airflow environment but the task trying to access the variable belongs to a team"
             )
 
-        var_val = Variable.get_variable_from_secrets(key=key, team_name=team_name)
+        var_val = Variable.get_variable_from_secrets(key=key, team_name=team_name, session=session)
         if var_val is None:
             if default_var is not cls.__NO_DEFAULT_SENTINEL:
                 return default_var
@@ -233,7 +255,7 @@ class Variable(Base, LoggingMixin):
 
         # If this is set it means we are in some kind of execution context (Task, Dag Parse or Triggerer perhaps)
         # and should use the Task SDK API server path
-        if hasattr(sys.modules.get("airflow.sdk.execution_time.task_runner"), "SUPERVISOR_COMMS"):
+        if should_use_task_sdk_api_path():
             warnings.warn(
                 "Using Variable.set from `airflow.models` is deprecated."
                 "Please use `set` on Variable from sdk(`airflow.sdk.Variable`) instead",
@@ -320,7 +342,7 @@ class Variable(Base, LoggingMixin):
 
         # If this is set it means are in some kind of execution context (Task, Dag Parse or Triggerer perhaps)
         # and should use the Task SDK API server path
-        if hasattr(sys.modules.get("airflow.sdk.execution_time.task_runner"), "SUPERVISOR_COMMS"):
+        if should_use_task_sdk_api_path():
             warnings.warn(
                 "Using Variable.update from `airflow.models` is deprecated."
                 "Please use `set` on Variable from sdk(`airflow.sdk.Variable`) instead as it is an upsert.",
@@ -344,7 +366,7 @@ class Variable(Base, LoggingMixin):
 
         Variable.check_for_write_conflict(key=key, team_name=team_name)
 
-        if Variable.get_variable_from_secrets(key=key, team_name=team_name) is None:
+        if Variable.get_variable_from_secrets(key=key, team_name=team_name, session=session) is None:
             raise KeyError(f"Variable {key} does not exist")
 
         ctx: contextlib.AbstractContextManager
@@ -386,7 +408,7 @@ class Variable(Base, LoggingMixin):
 
         # If this is set it means are in some kind of execution context (Task, Dag Parse or Triggerer perhaps)
         # and should use the Task SDK API server path
-        if hasattr(sys.modules.get("airflow.sdk.execution_time.task_runner"), "SUPERVISOR_COMMS"):
+        if should_use_task_sdk_api_path():
             warnings.warn(
                 "Using Variable.delete from `airflow.models` is deprecated."
                 "Please use `delete` on Variable from sdk(`airflow.sdk.Variable`) instead",
@@ -469,12 +491,18 @@ class Variable(Base, LoggingMixin):
         return None
 
     @staticmethod
-    def get_variable_from_secrets(key: str, team_name: str | None = None) -> str | None:
+    def get_variable_from_secrets(
+        key: str, team_name: str | None = None, *, session: Session | None = None
+    ) -> str | None:
         """
         Get Airflow Variable by iterating over all Secret Backends.
 
         :param key: Variable Key
         :param team_name: Team name associated to the task trying to access the variable (if any)
+        :param session: Existing session to reuse for the metadata database lookup. Callers that
+            already hold a transaction must pass it, otherwise ``MetastoreBackend`` opens the same
+            scoped session and commits it, which detaches the caller's objects and is rejected
+            outright under ``prohibit_commit``.
         :return: Variable Value
         """
         from airflow.sdk import SecretCache
@@ -489,9 +517,23 @@ class Variable(Base, LoggingMixin):
         var_val = None
         # iterate over backends if not in cache (or expired)
         for secrets_backend in ensure_secrets_loaded():
+            # Only the metastore Variable backend touches the metadata database, so it is the only
+            # one offered a session, and only when its own override accepts one.  A subclass that
+            # overrides get_variable without the parameter raises TypeError, which the handler
+            # below swallows into a false "not found" that then gets cached.
+            session_kwargs: dict[str, Session] = {}
+            if (
+                session is not None
+                and isinstance(secrets_backend, MetastoreBackend)
+                and accepts_kwarg(secrets_backend.get_variable, "session")
+            ):
+                session_kwargs["session"] = session
             try:
                 var_val = call_secrets_backend_method(
-                    secrets_backend.get_variable, team_name=team_name, key=key
+                    secrets_backend.get_variable,
+                    team_name=team_name,
+                    key=key,
+                    **session_kwargs,
                 )
                 if var_val is not None:
                     break

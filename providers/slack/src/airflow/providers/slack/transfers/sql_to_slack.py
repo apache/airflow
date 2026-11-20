@@ -70,6 +70,8 @@ class SqlToSlackApiFileOperator(BaseSqlToSlackOperator):
         "slack_filename",
         "slack_initial_comment",
         "slack_title",
+        "slack_conn_id",
+        "sql_conn_id",
     )
     template_ext: Sequence[str] = (".sql", ".jinja", ".j2")
     template_fields_renderers = {"sql": "sql", "slack_message": "jinja"}

@@ -29,10 +29,8 @@ _IMPORT_MAP: dict[str, str | tuple[str, ...]] = {
     # Re-export from sdk (which handles Airflow 2.x/3.x fallbacks)
     "BaseBranchOperator": "airflow.providers.common.compat.sdk",
     "BaseOperator": "airflow.providers.common.compat.sdk",
-    "BaseAsyncOperator": "airflow.providers.common.compat.sdk",
     "BranchMixIn": "airflow.providers.common.compat.sdk",
     "get_current_context": "airflow.providers.common.compat.sdk",
-    "is_async_callable": "airflow.providers.common.compat.sdk",
     # Standard provider items with direct fallbacks
     "PythonOperator": ("airflow.providers.standard.operators.python", "airflow.operators.python"),
     "ShortCircuitOperator": ("airflow.providers.standard.operators.python", "airflow.operators.python"),
@@ -78,4 +76,6 @@ else:
 
 __getattr__ = create_module_getattr(import_map=_IMPORT_MAP)
 
-__all__ = sorted(_IMPORT_MAP.keys())
+# BaseAsyncOperator and is_async_callable are bound above by the version gate, so they never route
+# through _IMPORT_MAP. They are added here to keep them part of the public surface.
+__all__ = sorted([*_IMPORT_MAP, "BaseAsyncOperator", "is_async_callable"])

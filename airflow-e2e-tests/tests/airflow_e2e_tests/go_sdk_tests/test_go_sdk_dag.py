@@ -68,7 +68,7 @@ from __future__ import annotations
 import re
 import time
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
@@ -126,7 +126,7 @@ def completed_run() -> _CompletedRun:
     in this module inspects the resulting states, XComs, and logs.
     """
     client = AirflowClient()
-    resp = client.trigger_dag(_DAG_ID, json={"logical_date": datetime.now(timezone.utc).isoformat()})
+    resp = client.trigger_dag(_DAG_ID, json={"logical_date": datetime.now(UTC).isoformat()})
     run_id = resp["dag_run_id"]
     state = client.wait_for_dag_run(dag_id=_DAG_ID, run_id=run_id, timeout=_GO_TASK_TIMEOUT)
     ti_resp = client.get_task_instances(dag_id=_DAG_ID, run_id=run_id)

@@ -165,6 +165,28 @@ class TestCloudBuildOperator:
             expected_body = {"steps": [{"name": "ubuntu", "args": ["echo", "Hello {{ params.name }}!"]}]}
             assert expected_body == operator.build
 
+    def test_init_does_not_duplicate_build(self):
+        build_path = "path/to/build.json"
+        operator = CloudBuildCreateBuildOperator(build=build_path, task_id="task-id")
+        assert operator.build == build_path
+        # Any second attribute referencing the same object would be a copy prepare_template()
+        # could read instead of self.build, whatever it is named.
+        assert [name for name, value in vars(operator).items() if value is build_path] == ["build"]
+
+    def test_prepare_template_second_call_is_no_op(self, tmp_path):
+        expected_body = {"steps": [{"name": "ubuntu", "args": ["echo", "Hello {{ params.name }}!"]}]}
+        build_file = tmp_path / "build.json"
+        build_file.write_text(json.dumps(expected_body))
+
+        operator = CloudBuildCreateBuildOperator(build=str(build_file), task_id="task-id")
+        operator.prepare_template()
+        assert expected_body == operator.build
+
+        build_file.unlink()
+
+        operator.prepare_template()
+        assert expected_body == operator.build
+
     @mock.patch(CLOUD_BUILD_HOOK_PATH)
     def test_create_build_trigger(self, mock_hook):
         mock_hook.return_value.create_build_trigger.return_value = BuildTrigger()

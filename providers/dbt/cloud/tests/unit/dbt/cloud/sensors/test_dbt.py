@@ -22,8 +22,13 @@ from unittest.mock import patch
 import pytest
 
 from airflow.models.connection import Connection
-from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
-from airflow.providers.dbt.cloud.hooks.dbt import DbtCloudHook, DbtCloudJobRunException, DbtCloudJobRunStatus
+from airflow.providers.common.compat.sdk import TaskDeferred
+from airflow.providers.dbt.cloud.hooks.dbt import (
+    DbtCloudHook,
+    DbtCloudJobRunException,
+    DbtCloudJobRunStatus,
+    DbtCloudTriggerEventException,
+)
 from airflow.providers.dbt.cloud.sensors.dbt import DbtCloudJobRunSensor
 from airflow.providers.dbt.cloud.triggers.dbt import DbtCloudRunJobTrigger
 
@@ -87,8 +92,11 @@ class TestDbtCloudJobRunSensor:
             (30, "exception"),  # CANCELLED
         ],
     )
+    @patch.object(DbtCloudHook, "log_job_run_failure_details")
     @patch.object(DbtCloudHook, "get_job_run_status")
-    def test_poke_with_exception(self, mock_job_run_status, job_run_status, expected_poke_result):
+    def test_poke_with_exception(
+        self, mock_job_run_status, mock_log_failure_details, job_run_status, expected_poke_result
+    ):
         mock_job_run_status.return_value = job_run_status
 
         # The sensor should fail if the job run status is 20 (aka Error) or 30 (aka Cancelled).
@@ -99,6 +107,8 @@ class TestDbtCloudJobRunSensor:
 
         with pytest.raises(DbtCloudJobRunException, match=error_message):
             self.sensor.poke({})
+
+        mock_log_failure_details.assert_called_once_with(run_id=RUN_ID, account_id=ACCOUNT_ID)
 
     @mock.patch("airflow.providers.dbt.cloud.sensors.dbt.DbtCloudHook")
     @mock.patch("airflow.providers.dbt.cloud.sensors.dbt.DbtCloudJobRunSensor.defer")
@@ -151,10 +161,11 @@ class TestDbtCloudJobRunSensor:
         [
             ("cancelled", "Job run 1234 has been cancelled."),
             ("error", "Job run 1234 has failed."),
+            ("timeout", "Job run 1234 has timed out."),
         ],
     )
     def test_execute_complete_failure(self, mock_status, mock_message):
-        """Assert execute_complete method to raise exception on the cancelled and error status"""
+        """Assert execute_complete method to raise exception on the cancelled, error, and timeout status"""
         task = DbtCloudJobRunSensor(
             dbt_cloud_conn_id=self.CONN_ID,
             task_id=self.TASK_ID,
@@ -162,7 +173,30 @@ class TestDbtCloudJobRunSensor:
             timeout=self.TIMEOUT,
             deferrable=True,
         )
-        with pytest.raises(AirflowException):
+        with pytest.raises(DbtCloudJobRunException, match=mock_message):
             task.execute_complete(
                 context={}, event={"status": mock_status, "message": mock_message, "run_id": self.DBT_RUN_ID}
             )
+
+    @pytest.mark.parametrize(
+        ("event", "match"),
+        [
+            pytest.param(None, "event is None", id="none"),
+            pytest.param(
+                {"status": "rescheduling", "message": "m", "run_id": 1234},
+                "Unexpected trigger event status",
+                id="unknown-status",
+            ),
+        ],
+    )
+    def test_execute_complete_invalid_event_raises(self, event, match):
+        """Assert execute_complete raises instead of silently succeeding on a malformed event"""
+        task = DbtCloudJobRunSensor(
+            dbt_cloud_conn_id=self.CONN_ID,
+            task_id=self.TASK_ID,
+            run_id=self.DBT_RUN_ID,
+            timeout=self.TIMEOUT,
+            deferrable=True,
+        )
+        with pytest.raises(DbtCloudTriggerEventException, match=match):
+            task.execute_complete(context={}, event=event)

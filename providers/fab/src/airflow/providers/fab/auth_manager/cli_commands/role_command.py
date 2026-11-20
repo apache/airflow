@@ -204,29 +204,44 @@ def roles_import(args):
     with get_application_builder() as appbuilder:
         existing_roles = [role.name for role in appbuilder.sm.get_all_roles()]
         roles_to_import = [role_dict for role_dict in role_list if role_dict["name"] not in existing_roles]
+        # Each permission is committed as it is added, so check every name before the first write;
+        # otherwise a failure leaves a partial role that a later import skips as already existing.
+        permission_entries = [
+            role_dict
+            for role_dict in roles_to_import
+            if role_dict.get("action") and role_dict.get("resource")
+        ]
+        unknown_resources = [
+            name
+            for name in dict.fromkeys(role_dict["resource"] for role_dict in permission_entries)
+            if not appbuilder.sm.get_resource(name)
+        ]
+        unknown_actions = [
+            name
+            for name in dict.fromkeys(
+                action for role_dict in permission_entries for action in role_dict["action"].split(",")
+            )
+            if not appbuilder.sm.get_action(name)
+        ]
+        if unknown_resources or unknown_actions:
+            for name in unknown_resources:
+                print(f"Resource named '{name}' does not exist")
+            for name in unknown_actions:
+                print(f"Action named '{name}' does not exist")
+            print("No roles were imported")
+            exit(1)
         for role_dict in roles_to_import:
-            if role_dict["name"] not in appbuilder.sm.get_all_roles():
-                if role_dict["action"] == "" or role_dict["resource"] == "":
-                    appbuilder.sm.add_role(role_dict["name"])
-                else:
-                    appbuilder.sm.add_role(role_dict["name"])
-                    role_args = Namespace(
-                        subcommand="add-perms",
-                        role=[role_dict["name"]],
-                        resource=[role_dict["resource"]],
-                        action=role_dict["action"].split(","),
-                    )
-                __roles_add_or_remove_permissions(role_args)
-
-            if role_dict["name"] in appbuilder.sm.get_all_roles():
-                if role_dict["action"] == "" or role_dict["resource"] == "":
-                    pass
-                else:
-                    role_args = Namespace(
-                        subcommand="add-perms",
-                        role=[role_dict["name"]],
-                        resource=[role_dict["resource"]],
-                        action=role_dict["action"].split(","),
-                    )
-                __roles_add_or_remove_permissions(role_args)
+            # ``roles_export`` emits one entry per (role, resource) pair, so a role name
+            # repeats across entries; ``add_role`` returns the existing role after the first.
+            appbuilder.sm.add_role(role_dict["name"])
+            if not role_dict.get("action") or not role_dict.get("resource"):
+                continue
+            __roles_add_or_remove_permissions(
+                Namespace(
+                    subcommand="add-perms",
+                    role=[role_dict["name"]],
+                    resource=[role_dict["resource"]],
+                    action=role_dict["action"].split(","),
+                )
+            )
         print("roles and permissions successfully imported")

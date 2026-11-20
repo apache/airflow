@@ -83,7 +83,7 @@ class MySqlToHiveOperator(BaseOperator):
     :param tblproperties: TBLPROPERTIES of the hive table being created
     """
 
-    template_fields: Sequence[str] = ("sql", "partition", "hive_table")
+    template_fields: Sequence[str] = ("sql", "partition", "hive_table", "mysql_conn_id", "hive_cli_conn_id")
     template_ext: Sequence[str] = (".sql",)
     template_fields_renderers = {"sql": "mysql"}
     ui_color = "#a0e08c"

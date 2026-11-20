@@ -144,12 +144,8 @@ def get_most_impactful_change(changes: list[TypeOfChange]):
     return max(changes, key=lambda change: precedence_order[change])
 
 
-def format_message_for_classification(message):
-    find_pr = re.search(r"#(\d+)", message)
-    if find_pr:
-        num = find_pr.group(1)
-        message = re.sub(r"#(\d+)", f"https://github.com/apache/airflow/pull/{num}", message)
-    return message
+def format_message_for_classification(message: str) -> str:
+    return re.sub(r"#(\d+)", r"https://github.com/apache/airflow/pull/\1", message)
 
 
 class ClassifiedChanges:
@@ -1175,9 +1171,14 @@ def _generate_new_changelog(
                 "has first release. Not updating the changelog.[/]"
             )
             return
-        new_changes = [
-            change for change in changes[0] if change.pr and "(#" + change.pr + ")" not in current_changelog
-        ]
+        # Entries may reference several PRs at once, e.g. ``(#123, #456)``. Only bracketed
+        # reference groups count: prose like ``(continuation of #123)`` does not list a PR.
+        existing_prs = {
+            pr
+            for group in re.findall(r"\(((?:#\d+, )*#\d+)\)", current_changelog)
+            for pr in group.replace("#", "").split(", ")
+        }
+        new_changes = [change for change in changes[0] if change.pr and change.pr not in existing_prs]
         if not new_changes:
             console_print(
                 f"[success]The provider {package_id} changelog for `{latest_version}` "

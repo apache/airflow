@@ -21,6 +21,7 @@ import logging
 from unittest import mock
 
 import pytest
+from aiohttp import ClientResponseError
 from requests.exceptions import HTTPError
 
 from airflow.providers.google.cloud.hooks.datafusion import DataFusionAsyncHook, DataFusionHook
@@ -589,6 +590,39 @@ class TestDataFusionHook:
         )
 
     @pytest.mark.parametrize(
+        "error",
+        [
+            pytest.param(HTTPError("Retrieving a pipeline state failed with code 404"), id="404"),
+            pytest.param(KeyError("status"), id="missing-status"),
+        ],
+    )
+    @mock.patch(HOOK_STR.format("time.sleep"))
+    @mock.patch(HOOK_STR.format("DataFusionHook.get_pipeline_workflow"))
+    def test_wait_for_pipeline_state_keeps_polling_until_pipeline_is_visible(
+        self, mock_get_pipeline_workflow, mock_sleep, error, hook
+    ):
+        """A run that is not visible in the system yet must not fail the task."""
+        mock_get_pipeline_workflow.side_effect = [error, {"status": "COMPLETED"}]
+
+        hook.wait_for_pipeline_state(
+            pipeline_name=PIPELINE_NAME, pipeline_id=PIPELINE_ID, instance_url=INSTANCE_URL
+        )
+
+        assert mock_get_pipeline_workflow.call_count == 2
+
+    @mock.patch(HOOK_STR.format("time.sleep"))
+    @mock.patch(HOOK_STR.format("DataFusionHook.get_pipeline_workflow"))
+    def test_wait_for_pipeline_state_raises_on_failure_state(
+        self, mock_get_pipeline_workflow, mock_sleep, hook
+    ):
+        mock_get_pipeline_workflow.return_value = {"status": "FAILED"}
+
+        with pytest.raises(ValueError, match=r"Pipeline shrubberyPipeline state FAILED is not one of"):
+            hook.wait_for_pipeline_state(
+                pipeline_name=PIPELINE_NAME, pipeline_id=PIPELINE_ID, instance_url=INSTANCE_URL
+            )
+
+    @pytest.mark.parametrize(
         ("pipeline_type", "expected_program_type"),
         [
             (DataFusionPipelineType.BATCH, "workflows"),
@@ -612,6 +646,43 @@ class TestDataFusionHook:
 
 
 class TestDataFusionHookAsynch:
+    @pytest.mark.asyncio
+    @mock.patch(HOOK_STR.format("asyncio.sleep"), new_callable=mock.AsyncMock)
+    @mock.patch(HOOK_STR.format("AioSession"))
+    @mock.patch(HOOK_STR.format("Token"))
+    async def test_get_link_retries_after_404(self, mock_token, mock_aio_session, mock_sleep, hook_async):
+        mock_token.return_value.__aenter__.return_value.get = mock.AsyncMock(return_value="token")
+        response = MockAiohttpClientResponse(payload={"status": "RUNNING"})
+        mock_aio_session.return_value.get = mock.AsyncMock(
+            side_effect=[
+                ClientResponseError(request_info=mock.Mock(), history=(), status=404),
+                response,
+            ]
+        )
+
+        result = await hook_async._get_link(url=CONSTRUCTED_PIPELINE_URL, session=session)
+
+        assert result is response
+        assert mock_aio_session.return_value.get.await_count == 2
+        mock_sleep.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    @mock.patch(HOOK_STR.format("asyncio.sleep"), new_callable=mock.AsyncMock)
+    @mock.patch(HOOK_STR.format("AioSession"))
+    @mock.patch(HOOK_STR.format("Token"))
+    async def test_get_link_propagates_non_404_error(
+        self, mock_token, mock_aio_session, mock_sleep, hook_async
+    ):
+        mock_token.return_value.__aenter__.return_value.get = mock.AsyncMock(return_value="token")
+        error = ClientResponseError(request_info=mock.Mock(), history=(), status=500)
+        mock_aio_session.return_value.get = mock.AsyncMock(side_effect=error)
+
+        with pytest.raises(ClientResponseError) as ctx:
+            await hook_async._get_link(url=CONSTRUCTED_PIPELINE_URL, session=session)
+
+        assert ctx.value is error
+        mock_sleep.assert_not_awaited()
+
     @pytest.mark.asyncio
     @mock.patch(HOOK_STR.format("DataFusionAsyncHook._get_link"))
     async def test_async_get_pipeline_should_execute_successfully(self, mocked_link, hook_async):

@@ -76,9 +76,7 @@ export const parseStreamingLogContent = (
   }
 
   // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-  if (typeof data === "object" && data !== null) {
-    return [data] as unknown as TaskInstancesLogResponse["content"];
-  }
-
-  return [];
+  return typeof data === "object" && data !== null
+    ? ([data] as unknown as TaskInstancesLogResponse["content"])
+    : [];
 };

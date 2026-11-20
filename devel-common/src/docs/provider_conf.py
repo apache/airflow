@@ -293,7 +293,12 @@ autoapi_dirs = [BASE_PROVIDER_SRC_PATH.as_posix()]
 autoapi_ignore = BASIC_AUTOAPI_IGNORE_PATTERNS
 
 autoapi_log = logging.getLogger("sphinx.autoapi.mappers.base")
-autoapi_log.addFilter(filter_autoapi_ignore_entries)
+# One process builds several packages in a row and re-imports this module each time, so guard
+# against stacking the same filter on the (process-wide) logger.
+if not any(
+    getattr(f, "__name__", None) == filter_autoapi_ignore_entries.__name__ for f in autoapi_log.filters
+):
+    autoapi_log.addFilter(filter_autoapi_ignore_entries)
 
 autoapi_python_use_implicit_namespaces = True
 

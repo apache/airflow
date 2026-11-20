@@ -35,7 +35,7 @@ from airflow.providers.amazon.aws.utils import (
     is_resource_in_use_error,
 )
 
-DT = datetime.datetime(2000, 1, 1, tzinfo=datetime.timezone.utc)
+DT = datetime.datetime(2000, 1, 1, tzinfo=datetime.UTC)
 EPOCH = 946_684_800
 
 

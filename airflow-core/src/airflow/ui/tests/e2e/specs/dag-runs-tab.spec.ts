@@ -21,43 +21,21 @@ import { expect, test } from "tests/e2e/fixtures";
 test.describe("Dag Runs Tab", () => {
   test.setTimeout(60_000);
 
-  test("navigate to Dag detail page and click Runs tab", async ({ dagRunsTabPage, successAndFailedRuns }) => {
+  test("navigate to the Runs tab and display run details", async ({
+    dagRunsTabPage,
+    successAndFailedRuns,
+  }) => {
     await dagRunsTabPage.navigateToDag(successAndFailedRuns.dagId);
     await dagRunsTabPage.clickRunsTab();
 
     await expect(dagRunsTabPage.page).toHaveURL(/.*\/dags\/[^/]+\/runs/);
-  });
-
-  test("verify run details display correctly", async ({ dagRunsTabPage, successAndFailedRuns }) => {
-    await dagRunsTabPage.navigateToDag(successAndFailedRuns.dagId);
-    await dagRunsTabPage.clickRunsTab();
     await dagRunsTabPage.verifyRunDetailsDisplay();
-  });
-
-  test("verify runs exist in table", async ({ dagRunsTabPage, successAndFailedRuns }) => {
-    await dagRunsTabPage.navigateToDag(successAndFailedRuns.dagId);
-    await dagRunsTabPage.clickRunsTab();
-    await dagRunsTabPage.verifyRunsExist();
   });
 
   test("click on a run and verify run details page", async ({ dagRunsTabPage, successAndFailedRuns }) => {
     await dagRunsTabPage.navigateToDag(successAndFailedRuns.dagId);
     await dagRunsTabPage.clickRunsTab();
     await dagRunsTabPage.clickRunAndVerifyDetails();
-  });
-
-  test("filter runs by success state", async ({ dagRunsTabPage, successAndFailedRuns }) => {
-    await dagRunsTabPage.navigateToDag(successAndFailedRuns.dagId);
-    await dagRunsTabPage.clickRunsTab();
-    await dagRunsTabPage.filterByState("success");
-    await dagRunsTabPage.verifyFilteredByState("success");
-  });
-
-  test("filter runs by failed state", async ({ dagRunsTabPage, successAndFailedRuns }) => {
-    await dagRunsTabPage.navigateToDag(successAndFailedRuns.dagId);
-    await dagRunsTabPage.clickRunsTab();
-    await dagRunsTabPage.filterByState("failed");
-    await dagRunsTabPage.verifyFilteredByState("failed");
   });
 
   test("search for dag run by run ID pattern", async ({ dagRunsTabPage, successAndFailedRuns }) => {

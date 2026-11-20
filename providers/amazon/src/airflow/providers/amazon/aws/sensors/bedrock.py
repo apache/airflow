@@ -21,6 +21,7 @@ import abc
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any, TypeVar
 
+from airflow.providers.amazon.aws.exceptions import SensorTriggerFailedError
 from airflow.providers.amazon.aws.hooks.bedrock import BedrockAgentHook, BedrockHook
 from airflow.providers.amazon.aws.sensors.base_aws import AwsBaseSensor
 from airflow.providers.amazon.aws.triggers.bedrock import (
@@ -31,6 +32,7 @@ from airflow.providers.amazon.aws.triggers.bedrock import (
     BedrockKnowledgeBaseActiveTrigger,
     BedrockProvisionModelThroughputCompletedTrigger,
 )
+from airflow.providers.amazon.aws.utils import validate_execute_complete_event
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 from airflow.providers.common.compat.sdk import AirflowException, conf
 
@@ -82,6 +84,12 @@ class BedrockBaseSensor(AwsBaseSensor[_GenericBedrockHook]):
             raise AirflowException(f"{self.FAILURE_MESSAGE}{self._failure_reason_suffix()}")
 
         return state not in self.INTERMEDIATE_STATES
+
+    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
+        validated_event = validate_execute_complete_event(event)
+
+        if validated_event["status"] != "success":
+            raise SensorTriggerFailedError(f"{self.FAILURE_MESSAGE} Trigger event: {validated_event}")
 
     def _failure_reason_suffix(self) -> str:
         """Assemble failure reasons if any are provided."""
@@ -158,8 +166,11 @@ class BedrockCustomizeModelCompletedSensor(BedrockBaseSensor[BedrockHook]):
                     waiter_delay=int(self.poke_interval),
                     waiter_max_attempts=self.max_retries,
                     aws_conn_id=self.aws_conn_id,
+                    region_name=self.region_name,
+                    verify=self.verify,
+                    botocore_config=self.botocore_config,
                 ),
-                method_name="poke",
+                method_name="execute_complete",
             )
         else:
             super().execute(context=context)
@@ -228,8 +239,11 @@ class BedrockProvisionModelThroughputCompletedSensor(BedrockBaseSensor[BedrockHo
                     waiter_delay=int(self.poke_interval),
                     waiter_max_attempts=self.max_retries,
                     aws_conn_id=self.aws_conn_id,
+                    region_name=self.region_name,
+                    verify=self.verify,
+                    botocore_config=self.botocore_config,
                 ),
-                method_name="poke",
+                method_name="execute_complete",
             )
         else:
             super().execute(context=context)
@@ -297,8 +311,11 @@ class BedrockKnowledgeBaseActiveSensor(BedrockBaseSensor[BedrockAgentHook]):
                     waiter_delay=int(self.poke_interval),
                     waiter_max_attempts=self.max_retries,
                     aws_conn_id=self.aws_conn_id,
+                    region_name=self.region_name,
+                    verify=self.verify,
+                    botocore_config=self.botocore_config,
                 ),
-                method_name="poke",
+                method_name="execute_complete",
             )
         else:
             super().execute(context=context)
@@ -386,8 +403,11 @@ class BedrockIngestionJobSensor(BedrockBaseSensor[BedrockAgentHook]):
                     waiter_delay=int(self.poke_interval),
                     waiter_max_attempts=self.max_retries,
                     aws_conn_id=self.aws_conn_id,
+                    region_name=self.region_name,
+                    verify=self.verify,
+                    botocore_config=self.botocore_config,
                 ),
-                method_name="poke",
+                method_name="execute_complete",
             )
         else:
             super().execute(context=context)
@@ -428,6 +448,7 @@ class BedrockBatchInferenceSensor(BedrockBaseSensor[BedrockHook]):
         Bedrock adds batch inference jobs to a queue, and they may take some time to complete.
         If you want to wait for the job to complete, use TargetState.COMPLETED, but if you only want
         to wait until the service confirms that the job is in the queue, use TargetState.SCHEDULED.
+        TargetState.SCHEDULED also succeeds if the job has already moved past Scheduled.
 
         The normal successful progression of states is:
             Submitted > Validating > Scheduled > InProgress > PartiallyCompleted > Completed
@@ -462,25 +483,25 @@ class BedrockBatchInferenceSensor(BedrockBaseSensor[BedrockHook]):
         self.success_state = success_state
 
         base_success_states: tuple[str, ...] = ("Completed",)
-        base_intermediate_states: tuple[str, ...] = ("Submitted", "InProgress", "Stopping", "Validating")
-        scheduled_state = ("Scheduled",)
+        base_intermediate_states: tuple[str, ...] = ("Submitted", "Stopping", "Validating")
+        scheduled_states = ("Scheduled", "InProgress")
         self.trigger_class: type[BedrockBaseBatchInferenceTrigger]
 
         if self.success_state == BedrockBatchInferenceSensor.SuccessState.COMPLETED:
-            intermediate_states = base_intermediate_states + scheduled_state
+            intermediate_states = base_intermediate_states + scheduled_states
             success_states = base_success_states
             self.trigger_class = BedrockBatchInferenceCompletedTrigger
         elif self.success_state == BedrockBatchInferenceSensor.SuccessState.SCHEDULED:
             intermediate_states = base_intermediate_states
-            success_states = base_success_states + scheduled_state
+            success_states = base_success_states + scheduled_states
             self.trigger_class = BedrockBatchInferenceScheduledTrigger
         else:
             raise ValueError(
                 "Success states for BedrockBatchInferenceSensor must be set using a BedrockBatchInferenceSensor.SuccessState"
             )
 
-        BedrockBatchInferenceSensor.INTERMEDIATE_STATES = intermediate_states or base_intermediate_states
-        BedrockBatchInferenceSensor.SUCCESS_STATES = success_states or base_success_states
+        self.INTERMEDIATE_STATES = intermediate_states
+        self.SUCCESS_STATES = success_states
 
     def get_state(self) -> str:
         return self.hook.conn.get_model_invocation_job(jobIdentifier=self.job_arn)["status"]
@@ -493,8 +514,11 @@ class BedrockBatchInferenceSensor(BedrockBaseSensor[BedrockHook]):
                     waiter_delay=int(self.poke_interval),
                     waiter_max_attempts=self.max_retries,
                     aws_conn_id=self.aws_conn_id,
+                    region_name=self.region_name,
+                    verify=self.verify,
+                    botocore_config=self.botocore_config,
                 ),
-                method_name="poke",
+                method_name="execute_complete",
             )
         else:
             super().execute(context=context)

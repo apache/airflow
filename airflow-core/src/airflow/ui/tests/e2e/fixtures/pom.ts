@@ -30,9 +30,9 @@ import { AssetListPage } from "../pages/AssetListPage";
 import { BackfillPage } from "../pages/BackfillPage";
 import { ConfigurationPage } from "../pages/ConfigurationPage";
 import { ConnectionsPage } from "../pages/ConnectionsPage";
+import { DagBundlesPage } from "../pages/DagBundlesPage";
 import { DagCalendarTab } from "../pages/DagCalendarTab";
 import { DagCodePage } from "../pages/DagCodePage";
-import { DagDetailPage } from "../pages/DagDetailPage";
 import { DagRunPage } from "../pages/DagRunPage";
 import { DagRunsPage } from "../pages/DagRunsPage";
 import { DagRunsTabPage } from "../pages/DagRunsTabPage";
@@ -46,6 +46,7 @@ import { ProvidersPage } from "../pages/ProvidersPage";
 import { RequiredActionsPage } from "../pages/RequiredActionsPage";
 import { TaskInstancePage } from "../pages/TaskInstancePage";
 import { TaskInstancesPage } from "../pages/TaskInstancesPage";
+import { TriggersPage } from "../pages/TriggersPage";
 import { VariablePage } from "../pages/VariablePage";
 import { XComsPage } from "../pages/XComsPage";
 
@@ -59,9 +60,9 @@ export type PomFixtures = {
   backfillPage: BackfillPage;
   configurationPage: ConfigurationPage;
   connectionsPage: ConnectionsPage;
+  dagBundlesPage: DagBundlesPage;
   dagCalendarTab: DagCalendarTab;
   dagCodePage: DagCodePage;
-  dagDetailPage: DagDetailPage;
   dagRunPage: DagRunPage;
   dagRunsPage: DagRunsPage;
   dagRunsTabPage: DagRunsTabPage;
@@ -75,6 +76,7 @@ export type PomFixtures = {
   requiredActionsPage: RequiredActionsPage;
   taskInstancePage: TaskInstancePage;
   taskInstancesPage: TaskInstancesPage;
+  triggersPage: TriggersPage;
   variablePage: VariablePage;
   xcomsPage: XComsPage;
 };
@@ -108,14 +110,14 @@ export const test = base.extend<PomFixtures, PomWorkerFixtures>({
   connectionsPage: async ({ page }, use) => {
     await use(new ConnectionsPage(page));
   },
+  dagBundlesPage: async ({ page }, use) => {
+    await use(new DagBundlesPage(page));
+  },
   dagCalendarTab: async ({ page }, use) => {
     await use(new DagCalendarTab(page));
   },
   dagCodePage: async ({ page }, use) => {
     await use(new DagCodePage(page));
-  },
-  dagDetailPage: async ({ page }, use) => {
-    await use(new DagDetailPage(page));
   },
   dagRunPage: async ({ page }, use) => {
     await use(new DagRunPage(page));
@@ -155,6 +157,9 @@ export const test = base.extend<PomFixtures, PomWorkerFixtures>({
   },
   taskInstancesPage: async ({ page }, use) => {
     await use(new TaskInstancesPage(page));
+  },
+  triggersPage: async ({ page }, use) => {
+    await use(new TriggersPage(page));
   },
   variablePage: async ({ page }, use) => {
     await use(new VariablePage(page));

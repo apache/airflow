@@ -35,7 +35,10 @@ from airflow.sdk.bases.operator import (
     cross_downstream as cross_downstream,
 )
 from airflow.sdk.bases.operatorlink import BaseOperatorLink as BaseOperatorLink
-from airflow.sdk.bases.resumablejobmixin import ResumableJobMixin as ResumableJobMixin
+from airflow.sdk.bases.resumablejobmixin import (
+    ResumableJobMixin as ResumableJobMixin,
+    ResumeDecision as ResumeDecision,
+)
 from airflow.sdk.bases.sensor import (
     BaseSensorOperator as BaseSensorOperator,
     PokeReturnValue as PokeReturnValue,
@@ -56,6 +59,8 @@ from airflow.sdk.definitions.asset.metadata import Metadata as Metadata
 from airflow.sdk.definitions.callback import AsyncCallback, SyncCallback
 from airflow.sdk.definitions.connection import Connection as Connection
 from airflow.sdk.definitions.context import (
+    CallbackMeta as CallbackMeta,
+    CallbackSource as CallbackSource,
     Context as Context,
     get_current_context as get_current_context,
     get_parsing_context as get_parsing_context,
@@ -70,6 +75,8 @@ from airflow.sdk.definitions.decorators import (
 )
 from airflow.sdk.definitions.decorators.task_group import task_group as task_group
 from airflow.sdk.definitions.edges import EdgeModifier as EdgeModifier, Label as Label
+from airflow.sdk.definitions.external_clear import ExternalClearTarget as ExternalClearTarget
+from airflow.sdk.definitions.loop import LoopDecision as LoopDecision
 from airflow.sdk.definitions.param import Param as Param
 from airflow.sdk.definitions.partition_mappers.allowed_key import AllowedKeyMapper
 from airflow.sdk.definitions.partition_mappers.base import PartitionMapper, RollupMapper
@@ -102,16 +109,20 @@ from airflow.sdk.definitions.partition_mappers.window import (
     YearWindow,
 )
 from airflow.sdk.definitions.retry_policy import (
+    ChainRetryPolicy as ChainRetryPolicy,
     ExceptionRetryPolicy as ExceptionRetryPolicy,
     RetryAction as RetryAction,
     RetryDecision as RetryDecision,
     RetryPolicy as RetryPolicy,
     RetryRule as RetryRule,
 )
+from airflow.sdk.definitions.task_handlers.registry import task_handler as task_handler
 from airflow.sdk.definitions.taskgroup import TaskGroup as TaskGroup
 from airflow.sdk.definitions.template import literal as literal
 from airflow.sdk.definitions.timetables.assets import (
+    AssetAndTimeSchedule,
     AssetOrTimeSchedule,
+    AssetTriggeredTimetable,
     PartitionedAssetTimetable,
     PartitionedAtRuntime,
 )
@@ -142,8 +153,10 @@ __all__ = [
     "AssetAccessControl",
     "AssetAlias",
     "AssetAll",
+    "AssetAndTimeSchedule",
     "AssetAny",
     "AssetOrTimeSchedule",
+    "AssetTriggeredTimetable",
     "AssetWatcher",
     "AsyncCallback",
     "BaseAsyncOperator",
@@ -156,6 +169,7 @@ __all__ = [
     "BaseXCom",
     "BranchMixIn",
     "ChainMapper",
+    "ChainRetryPolicy",
     "Connection",
     "Context",
     "CronDataIntervalTimetable",
@@ -171,11 +185,13 @@ __all__ = [
     "EdgeModifier",
     "EventsTimetable",
     "ExceptionRetryPolicy",
+    "ExternalClearTarget",
     "FanOutMapper",
     "FixedKeyMapper",
     "HourWindow",
     "IdentityMapper",
     "Label",
+    "LoopDecision",
     "Metadata",
     "MinimumCount",
     "MonthWindow",
@@ -194,6 +210,7 @@ __all__ = [
     "RetryPolicy",
     "RetryRule",
     "ResumableJobMixin",
+    "ResumeDecision",
     "RollupMapper",
     "SecretCache",
     "SegmentWindow",
@@ -228,6 +245,7 @@ __all__ = [
     "setup",
     "task",
     "task_group",
+    "task_handler",
     "teardown",
     "conf",
 ]

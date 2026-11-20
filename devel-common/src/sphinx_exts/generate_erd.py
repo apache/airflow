@@ -17,7 +17,8 @@
 """Sphinx extension to generate Airflow database ERD diagrams at doc build time.
 
 Detects which package is being built via the ``AIRFLOW_PACKAGE_NAME`` environment
-variable and generates the appropriate ERD:
+variable and generates the appropriate ERD as Mermaid ER-diagram markup, consumed
+by the ``.. mermaid::`` directive from ``sphinxcontrib-mermaid``:
 
 * ``apache-airflow`` — core Airflow models only
 * ``apache-airflow-providers-fab`` — FAB auth-manager models only
@@ -27,31 +28,23 @@ variable and generates the appropriate ERD:
 from __future__ import annotations
 
 import os
-import shutil
-import sys
 from pathlib import Path
 
 from sphinx.util import logging
 
 log = logging.getLogger(__name__)
 
-PLACEHOLDER_SVG = """\
-<?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" width="800" height="100">
-  <rect width="800" height="100" fill="#fff3cd" stroke="#ffc107" stroke-width="2" rx="8"/>
-  <text x="400" y="40" text-anchor="middle" font-family="sans-serif" font-size="16" fill="#856404">
-    ERD diagram not generated: eralchemy or graphviz system package is not available.
-  </text>
-  <text x="400" y="70" text-anchor="middle" font-family="sans-serif" font-size="14" fill="#856404">
-    Install graphviz (e.g. "brew install graphviz") and eralchemy, then rebuild the docs.
-  </text>
-</svg>
+PLACEHOLDER_MERMAID = """\
+erDiagram
+  ERD_NOT_GENERATED {
+    string reason "eralchemy is not available"
+  }
 """
 
 
-def _write_placeholder(svg_path: str) -> None:
-    """Write a placeholder SVG so the doc build does not break with a missing image."""
-    Path(svg_path).write_text(PLACEHOLDER_SVG)
+def _write_placeholder(mmd_path: str) -> None:
+    """Write placeholder Mermaid markup so the doc build does not break with missing content."""
+    Path(mmd_path).write_text(PLACEHOLDER_MERMAID)
 
 
 def _collect_core_metadata():
@@ -102,14 +95,14 @@ def _collect_edge3_metadata():
 
 # Map package names to their metadata collector and output filename.
 _PACKAGE_ERD_CONFIG: dict[str, tuple] = {
-    "apache-airflow": (_collect_core_metadata, "airflow_erd.svg"),
-    "apache-airflow-providers-fab": (_collect_fab_metadata, "fab_erd.svg"),
-    "apache-airflow-providers-edge3": (_collect_edge3_metadata, "edge3_erd.svg"),
+    "apache-airflow": (_collect_core_metadata, "airflow_erd.mmd"),
+    "apache-airflow-providers-fab": (_collect_fab_metadata, "fab_erd.mmd"),
+    "apache-airflow-providers-edge3": (_collect_edge3_metadata, "edge3_erd.mmd"),
 }
 
 
 def builder_inited(app):
-    """Generate the ERD diagram SVG from SQLAlchemy metadata during doc build."""
+    """Generate the ERD diagram Mermaid markup from SQLAlchemy metadata during doc build."""
     package_name = os.environ.get("AIRFLOW_PACKAGE_NAME", "")
     config = _PACKAGE_ERD_CONFIG.get(package_name)
     if config is None:
@@ -119,52 +112,35 @@ def builder_inited(app):
 
     src_dir = app.srcdir
     img_dir = os.path.join(src_dir, "img")
-    svg_path = os.path.join(img_dir, filename)
+    mmd_path = os.path.join(img_dir, filename)
 
     os.makedirs(img_dir, exist_ok=True)
 
     try:
-        from eralchemy import render_er
+        from eralchemy.main import _intermediary_to_mermaid_er, all_to_intermediary, filter_resources
     except ImportError:
         log.warning("eralchemy is not installed, skipping ERD diagram generation")
-        _write_placeholder(svg_path)
+        _write_placeholder(mmd_path)
         return
 
-    # eralchemy needs either pygraphviz or graphviz Python package, and both need
-    # the graphviz system package (the ``dot`` binary) to render SVG output.
-    if not shutil.which("dot"):
-        hint = (
-            "On macOS, install it with: brew install graphviz"
-            if sys.platform == "darwin"
-            else "Install graphviz via your system package manager."
-        )
-        log.warning(
-            "graphviz system package is not installed — the 'dot' command is not on PATH. "
-            "Skipping ERD diagram generation. %s",
-            hint,
-        )
-        _write_placeholder(svg_path)
-        return
-
-    log.info("Generating ERD diagram for %s at %s", package_name, svg_path)
+    log.info("Generating ERD diagram for %s at %s", package_name, mmd_path)
 
     try:
         metadata = collector()
     except ImportError:
         log.warning("Could not import models for %s, skipping ERD generation", package_name)
-        _write_placeholder(svg_path)
+        _write_placeholder(mmd_path)
         return
 
-    render_er(
-        metadata,
-        svg_path,
-        exclude_tables=["sqlite_sequence"],
+    # Bypass eralchemy's `render_er`/`intermediary_to_mermaid_er`: those wrap the markup in an
+    # HTML comment plus a `mermaid.ink` image link, meant for GitHub-flavored markdown READMEs.
+    # The `.. mermaid::` Sphinx directive needs the raw `erDiagram ...` markup instead.
+    tables, relationships = all_to_intermediary(metadata)
+    tables, relationships = filter_resources(
+        tables, relationships, exclude_tables=["sqlite_sequence"], sort_mode="alphabetical"
     )
-
-    if not os.path.exists(svg_path):
-        log.warning("ERD diagram was not generated (eralchemy/graphviz error), writing placeholder")
-        _write_placeholder(svg_path)
-        return
+    markup = _intermediary_to_mermaid_er(tables, relationships)
+    Path(mmd_path).write_text(markup)
 
     log.info("ERD diagram generated successfully")
 

@@ -199,7 +199,10 @@ class StepFunctionGetExecutionOutputOperator(AwsBaseOperator[StepFunctionHook]):
         if "output" in execution_status:
             response = json.loads(execution_status["output"])
         elif "error" in execution_status:
-            response = json.loads(execution_status["error"])
+            try:
+                response = json.loads(execution_status["error"])
+            except json.JSONDecodeError:
+                response = execution_status["error"]
 
         self.log.info("Got State Machine Execution output for %s", self.execution_arn)
 

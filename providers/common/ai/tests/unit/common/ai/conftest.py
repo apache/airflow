@@ -16,9 +16,53 @@
 # under the License.
 from __future__ import annotations
 
+from typing import Any
 from unittest.mock import MagicMock
+from uuid import uuid4
 
 import pytest
+from pydantic_ai.messages import ModelResponse
+from pydantic_ai.usage import RunUsage
+
+from airflow.providers.common.ai.utils.logging import MODEL_NAME_XCOM_KEY
+from airflow.providers.common.ai.utils.usage_budget import TaskStateStoreUsageBudget
+
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_3_PLUS
+
+if AIRFLOW_V_3_1_PLUS:
+    from airflow.sdk._shared.secrets_masker import reset_secrets_masker
+    from airflow.sdk.log import mask_secret
+
+if AIRFLOW_V_3_3_PLUS:
+    from airflow.sdk.exceptions import TaskAwaitingInput
+
+REGISTERED_SECRET = "db-password-91c3"
+
+
+@pytest.fixture
+def register_secret():
+    """
+    Return a function that registers a secret with Airflow's secret masker for one test.
+
+    The test also needs ``@pytest.mark.enable_redact``, since masking is otherwise stubbed out
+    in unit tests.
+    """
+    if not AIRFLOW_V_3_1_PLUS:
+        pytest.skip("Registering a secret in a unit test needs the Task SDK masker of Airflow 3.1+")
+    reset_secrets_masker()
+
+    def register(secret: str) -> str:
+        mask_secret(secret)
+        return secret
+
+    yield register
+    reset_secrets_masker()
+
+
+@pytest.fixture
+def registered_secret(register_secret):
+    """Register ``REGISTERED_SECRET`` with Airflow's secret masker for one test."""
+    return register_secret(REGISTERED_SECRET)
 
 
 @pytest.fixture(autouse=True)
@@ -31,15 +75,186 @@ def isolate_hook_lineage_collector(hook_lineage_collector):
     return None
 
 
-def make_mock_run_result(output):
-    """Create a mock AgentRunResult compatible with log_run_summary.
+@pytest.fixture
+def make_mock_run_result():
+    """Factory fixture creating a mock AgentRunResult compatible with log_run_summary.
 
-    Returns a MagicMock with .output, .usage, .response, and .all_messages()
-    configured so that log_run_summary can read them without error.
+    Returns a callable that builds a MagicMock with .output, .usage, .response,
+    and .all_messages() configured so that log_run_summary can read them without
+    error.
+
+    ``cost`` defaults to ``None`` and must be set explicitly -- a MagicMock
+    attribute left unconfigured returns a new (truthy, ``is not None``)
+    MagicMock, which would silently push every caller through
+    ``log_run_summary``'s cost-logging branch.
     """
-    mock_result = MagicMock()
-    mock_result.output = output
-    mock_result.usage = MagicMock(requests=1, tool_calls=0, input_tokens=0, output_tokens=0, total_tokens=0)
-    mock_result.response = MagicMock(model_name="test-model")
-    mock_result.all_messages.return_value = []
-    return mock_result
+
+    def _make(output, *, cost=None):
+        mock_result = MagicMock()
+        mock_result.output = output
+        mock_result.usage = MagicMock(
+            spec=RunUsage,
+            requests=1,
+            tool_calls=0,
+            input_tokens=0,
+            output_tokens=0,
+            total_tokens=0,
+            cache_read_tokens=0,
+            cache_write_tokens=0,
+            cost=cost,
+        )
+        mock_result.response = MagicMock(model_name="test-model")
+        mock_result.all_messages.return_value = []
+        return mock_result
+
+    return _make
+
+
+@pytest.fixture
+def reporting_task_instance():
+    """A task instance with id ``ti-1``, specced to what a run reads off it or pushes to."""
+    return MagicMock(
+        spec=["id", "dag_id", "task_id", "run_id", "try_number", "map_index", "xcom_push"],
+        id="ti-1",
+        dag_id="dag",
+        task_id="test",
+        run_id="run",
+        try_number=1,
+        map_index=-1,
+    )
+
+
+@pytest.fixture
+def make_reporting_agent(make_mock_run_result):
+    """Factory fixture creating a mock agent whose run spends a known usage, as ``(agent, expected_pushes)``.
+
+    ``expected_pushes`` maps each XCom key the run must report (``usage``, ``run_id``, and the
+    model name unless ``model_name`` is ``None``) to its value, for a task instance with id ``ti-1``.
+    """
+
+    def _make(output, *, model_name):
+        result = make_mock_run_result(output)
+        result.response = ModelResponse(parts=[], model_name=model_name)
+
+        def _run_sync(*args, **kwargs):
+            # A real run updates the ``usage=`` object it is called with, which is what gets pushed,
+            # and reports back the ``run_id=`` it is called with.
+            kwargs["usage"].incr(RunUsage(requests=1, input_tokens=10, output_tokens=5))
+            result.run_id = kwargs["run_id"]
+            return result
+
+        agent = MagicMock(spec=["run_sync", "instrument"])
+        agent.run_sync.side_effect = _run_sync
+        expected_pushes = {
+            "usage": {
+                "requests": 1,
+                "input_tokens": 10,
+                "output_tokens": 5,
+                "total_tokens": 15,
+                "tool_calls": 0,
+                "cache_read_tokens": 0,
+                "cache_write_tokens": 0,
+                "cost": None,
+            },
+            "run_id": "ti-1",
+        }
+        if model_name is not None:
+            expected_pushes[MODEL_NAME_XCOM_KEY] = model_name
+        return agent, expected_pushes
+
+    return _make
+
+
+@pytest.fixture
+def task_state_store_accessor():
+    """A ``MagicMock(spec=TaskStateStoreAccessor)`` backed by a plain dict.
+
+    For a test that engages the usage budget (``usage_limits`` set, Airflow >= 3.3): a
+    bare ``MagicMock()``'s ``.get()`` returns a non-``None``, non-dict value, which trips
+    ``TaskStateStoreUsageBudget.load()``'s malformed-record ``ValueError``.
+
+    ``TaskStateStoreAccessor`` doesn't exist below Airflow 3.3, so fall back to a plain
+    method-name spec there to keep the fixture usable by tests that never touch the store.
+    """
+    try:
+        from airflow.sdk.execution_time.context import TaskStateStoreAccessor
+    except ImportError:
+        spec = ["get", "set", "delete"]
+    else:
+        spec = TaskStateStoreAccessor
+
+    store = {}
+    accessor = MagicMock(spec=spec)
+    accessor.get.side_effect = lambda key, default=None: store.get(key, default)
+    accessor.set.side_effect = lambda key, value, retention=None: store.__setitem__(key, value)
+    accessor.delete.side_effect = lambda key: store.pop(key, None)
+    # What the store holds, for a test that checks which keys are left.
+    accessor.data = store
+    return accessor
+
+
+@pytest.fixture
+def seed_usage_budget():
+    """Return a function that writes an earlier attempt's cumulative usage into a task state store."""
+
+    def seed(accessor, *, max_tries=0, **usage_fields):
+        TaskStateStoreUsageBudget(accessor, max_tries=max_tries).save(RunUsage(**usage_fields))
+
+    return seed
+
+
+@pytest.fixture
+def usage_budget_context(task_state_store_accessor):
+    """A context carrying what the usage budget reads: a ``task_instance`` and the task state store."""
+    ti = MagicMock(spec=["id", "max_tries"])
+    ti.id = uuid4()
+    ti.max_tries = 0
+    return {"task_instance": ti, "task_state_store": task_state_store_accessor}
+
+
+@pytest.fixture
+def xcom_backed_ti() -> Any:
+    """
+    A task instance whose XCom pushes can be pulled back, as they are when a task resumes in the same try.
+
+    The pushed values are in its ``xcoms`` dict.
+    """
+    xcoms: dict[str, Any] = {}
+    ti = MagicMock(
+        spec=[
+            "id",
+            "dag_id",
+            "task_id",
+            "run_id",
+            "map_index",
+            "try_number",
+            "max_tries",
+            "xcom_push",
+            "xcom_pull",
+        ]
+    )
+    ti.configure_mock(
+        id=uuid4(), dag_id="d", task_id="t", run_id="r", map_index=-1, try_number=1, max_tries=0
+    )
+    ti.xcom_push.side_effect = lambda key, value: xcoms.__setitem__(key, value)
+    ti.xcom_pull.side_effect = lambda key, task_ids=None, map_indexes=None: xcoms.get(key)
+    ti.xcoms = xcoms
+    return ti
+
+
+@pytest.fixture
+def review_context(xcom_backed_ti, task_state_store_accessor, mock_supervisor_comms) -> Any:
+    """A context for a HITL review that parks: the task instance, its task state store, and supervisor comms."""
+    return {"task_instance": xcom_backed_ti, "task_state_store": task_state_store_accessor}
+
+
+@pytest.fixture
+def park():
+    """Return a function that runs a call expected to park the task and returns the ``TaskAwaitingInput``."""
+
+    def _park(call):
+        with pytest.raises(TaskAwaitingInput) as exc:
+            call()
+        return exc.value
+
+    return _park

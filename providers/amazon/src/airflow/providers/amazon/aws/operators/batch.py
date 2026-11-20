@@ -28,7 +28,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from datetime import timedelta
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from airflow.providers.amazon.aws.hooks.batch_client import BatchClientHook
 from airflow.providers.amazon.aws.links.batch import (
@@ -43,15 +43,18 @@ from airflow.providers.amazon.aws.triggers.batch import (
     BatchJobTrigger,
 )
 from airflow.providers.amazon.aws.utils import trim_none_values, validate_execute_complete_event
+from airflow.providers.amazon.aws.utils.deferral import should_defer
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 from airflow.providers.amazon.aws.utils.task_log_fetcher import AwsTaskLogFetcher
-from airflow.providers.common.compat.sdk import AirflowException, conf
+from airflow.providers.common.compat.sdk import AirflowException, ResumableJobMixin, conf
 
 if TYPE_CHECKING:
+    from pydantic import JsonValue
+
     from airflow.sdk import Context
 
 
-class BatchOperator(AwsBaseOperator[BatchClientHook]):
+class BatchOperator(ResumableJobMixin, AwsBaseOperator[BatchClientHook]):
     """
     Execute a job on AWS Batch.
 
@@ -92,12 +95,16 @@ class BatchOperator(AwsBaseOperator[BatchClientHook]):
     :param tags: collection of tags to apply to the AWS Batch job submission
         if None, no tags are submitted
     :param deferrable: Run operator in the deferrable mode.
+        Deferring when ``wait_for_completion`` is False is deprecated; from the next major release
+        this has no effect when ``wait_for_completion`` is False.
     :param awslogs_enabled: Specifies whether logs from CloudWatch
         should be printed or not, False.
         If it is an array job, only the logs of the first task will be printed.
     :param awslogs_fetch_interval: The interval with which cloudwatch logs are to be fetched, 30 sec.
     :param poll_interval: (Deferrable mode only) Time in seconds to wait between polling.
     :param submit_job_timeout: Execution timeout in seconds for submitted batch job.
+    :param durable: If True (default), a retry reconnects to the job submitted by the previous try
+        instead of submitting a new one. Synchronous mode only; requires Airflow 3.3+.
 
     .. note::
         Any custom waiters must return a waiter for these calls:
@@ -109,6 +116,7 @@ class BatchOperator(AwsBaseOperator[BatchClientHook]):
     """
 
     aws_hook_class = BatchClientHook
+    external_id_key = "batch_job_id"
 
     ui_color = "#c3dae0"
     arn: str | None = None
@@ -172,8 +180,11 @@ class BatchOperator(AwsBaseOperator[BatchClientHook]):
         awslogs_enabled: bool = False,
         awslogs_fetch_interval: timedelta = timedelta(seconds=30),
         submit_job_timeout: int | None = None,
+        durable: bool | None = None,
         **kwargs,
     ) -> None:
+        if durable is not None:
+            kwargs["durable"] = durable
         super().__init__(**kwargs)
         self.job_id = job_id
         self.job_name = job_name
@@ -217,9 +228,8 @@ class BatchOperator(AwsBaseOperator[BatchClientHook]):
         :raises ValueError: if job_id is not found
         :raises AirflowException: if job submission fails or job ends in failure state
         """
-        self.submit_job(context)
-
-        if self.deferrable:
+        if should_defer(deferrable=self.deferrable, wait_for_completion=self.wait_for_completion):
+            self.submit_job(context)
             if not self.job_id:
                 raise ValueError("AWS Batch job - job_id was not found")
 
@@ -253,9 +263,7 @@ class BatchOperator(AwsBaseOperator[BatchClientHook]):
 
             raise AirflowException(f"Unexpected status: {job_status}")
 
-        if self.wait_for_completion:
-            self.monitor_job(context)
-
+        self.execute_resumable(context)
         return self.job_id
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> str:
@@ -299,7 +307,7 @@ class BatchOperator(AwsBaseOperator[BatchClientHook]):
         response = self.hook.client.terminate_job(jobId=self.job_id, reason="Task killed by the user")
         self.log.info("AWS Batch job (%s) terminated: %s", self.job_id, response)
 
-    def submit_job(self, context: Context):
+    def submit_job(self, context: Context) -> str:
         """
         Submit an AWS Batch job.
 
@@ -353,6 +361,45 @@ class BatchOperator(AwsBaseOperator[BatchClientHook]):
 
         self.job_id = response["jobId"]
         self.log.info("AWS Batch job (%s) started: %s", self.job_id, response)
+        self._persist_job_details_link(context)
+        return self.job_id
+
+    def get_job_status(self, external_id: JsonValue, context: Context) -> str:
+        jobs = self.hook.client.describe_jobs(jobs=[cast("str", external_id)])["jobs"]
+        return jobs[0]["status"] if jobs else "NOT_FOUND"
+
+    def is_job_active(self, status: str) -> bool:
+        return status in self.hook.INTERMEDIATE_STATES
+
+    def is_job_succeeded(self, status: str) -> bool:
+        return status == self.hook.SUCCESS_STATE
+
+    def poll_until_complete(self, external_id: JsonValue, context: Context) -> None:
+        self._attach_to_job(external_id, context)
+        if self.wait_for_completion:
+            self.monitor_job(context)
+
+    def get_job_result(self, external_id: JsonValue, context: Context) -> str | None:
+        # Not attached yet only when the stored job already succeeded, so monitor_job never ran.
+        if external_id is not None and self.job_id != external_id:
+            self._attach_to_job(external_id, context)
+            self._persist_links(context)
+            self._persist_cloudwatch_link(context)
+        return self.job_id
+
+    def _attach_to_job(self, external_id: JsonValue, context: Context) -> None:
+        # None comes from subclasses whose submit_job override predates it returning the job id;
+        # they still set self.job_id, so keep it.
+        if external_id is None:
+            if self.durable:
+                self.log.warning("submit_job returned no job id, so a retry will submit a new job")
+            return
+        if self.job_id == external_id:
+            return
+        self.job_id = cast("str", external_id)
+        self._persist_job_details_link(context)
+
+    def _persist_job_details_link(self, context: Context) -> None:
         BatchJobDetailsLink.persist(
             context=context,
             operator=self,

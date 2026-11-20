@@ -45,7 +45,11 @@ class TestStateStoreCleanCommand:
 
             backend.cleanup.assert_called_once_with()
 
-    def test_dry_run_does_not_call_backend(self, capsys):
+    @pytest.mark.parametrize(
+        ("expired", "expected"),
+        [([], "Nothing to delete"), ([("dag", "run", "task", 4, "key")], "region_index 4")],
+    )
+    def test_dry_run_does_not_call_backend(self, capsys, expired, expected):
         args = Namespace(dry_run=True, verbose=False)
         backend = MetastoreBackend()
         with (
@@ -54,12 +58,12 @@ class TestStateStoreCleanCommand:
                 return_value=backend,
                 autospec=True,
             ),
-            patch.object(backend, "_summary_dry_run", return_value={"expired": []}, autospec=True),
+            patch.object(backend, "_summary_dry_run", return_value={"expired": expired}, autospec=True),
         ):
             clean_state_store(args)
 
             captured = capsys.readouterr()
-            assert "Nothing to delete" in captured.out
+            assert expected in captured.out
 
     def test_custom_backend_is_skipped(self, capsys):
         # Custom (non-metastore) backends are intentionally skipped; cleanup() must not run.

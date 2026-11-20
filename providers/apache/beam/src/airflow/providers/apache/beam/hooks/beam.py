@@ -142,8 +142,8 @@ def process_fd(
     func_log = fd_to_log[fd]
 
     for line_raw in iter(fd.readline, b""):
-        line = line_raw.decode()
-        if process_line_callback:
+        line = line_raw.decode(errors="replace")
+        if process_line_callback and line.endswith("\n"):
             process_line_callback(line)
         func_log(line.rstrip("\n"))
         if is_dataflow_job_id_exist_callback and is_dataflow_job_id_exist_callback():
@@ -156,6 +156,7 @@ def run_beam_command(
     process_line_callback: Callable[[str], None] | None = None,
     working_directory: str | None = None,
     is_dataflow_job_id_exist_callback: Callable[[], bool] | None = None,
+    check_job_id_by_name_callback: Callable[[], bool] | None = None,
 ) -> None:
     """
     Run pipeline command in subprocess.
@@ -176,13 +177,25 @@ def run_beam_command(
         stderr=subprocess.PIPE,
         close_fds=True,
     )
+
+    if (
+        (is_dataflow_job_id_exist_callback or check_job_id_by_name_callback)
+        and hasattr(os, "set_blocking")
+        and proc.stdout
+        and proc.stderr
+    ):
+        os.set_blocking(proc.stdout.fileno(), False)
+        os.set_blocking(proc.stderr.fileno(), False)
+
     # Waits for Apache Beam pipeline to complete.
     log.info("Start waiting for Apache Beam process to complete.")
     reads = [fd for fd in (proc.stderr, proc.stdout) if fd is not None]
     while True:
         # Wait for at least one available fd.
         readable_fds, _, _ = select.select(reads, [], [], 5)
-        if readable_fds is None:
+        if not readable_fds:
+            if check_job_id_by_name_callback and check_job_id_by_name_callback():
+                return
             log.info("Waiting for Apache Beam process to complete.")
             continue
 
@@ -202,6 +215,11 @@ def run_beam_command(
 
     if proc.returncode != 0:
         raise AirflowException(f"Apache Beam process failed with return code {proc.returncode}")
+
+    if check_job_id_by_name_callback and not (
+        is_dataflow_job_id_exist_callback and is_dataflow_job_id_exist_callback()
+    ):
+        check_job_id_by_name_callback()
 
 
 class BeamHook(BaseHook):
@@ -228,6 +246,7 @@ class BeamHook(BaseHook):
         process_line_callback: Callable[[str], None] | None = None,
         working_directory: str | None = None,
         is_dataflow_job_id_exist_callback: Callable[[], bool] | None = None,
+        check_job_id_by_name_callback: Callable[[], bool] | None = None,
     ) -> None:
         cmd = [*command_prefix, f"--runner={self.runner}"]
         if variables:
@@ -238,6 +257,7 @@ class BeamHook(BaseHook):
             working_directory=working_directory,
             log=self.log,
             is_dataflow_job_id_exist_callback=is_dataflow_job_id_exist_callback,
+            check_job_id_by_name_callback=check_job_id_by_name_callback,
         )
 
     def start_python_pipeline(
@@ -250,6 +270,7 @@ class BeamHook(BaseHook):
         py_system_site_packages: bool = False,
         process_line_callback: Callable[[str], None] | None = None,
         is_dataflow_job_id_exist_callback: Callable[[], bool] | None = None,
+        check_job_id_by_name_callback: Callable[[], bool] | None = None,
     ):
         """
         Start Apache Beam python pipeline.
@@ -319,6 +340,7 @@ class BeamHook(BaseHook):
                 command_prefix=command_prefix,
                 process_line_callback=process_line_callback,
                 is_dataflow_job_id_exist_callback=is_dataflow_job_id_exist_callback,
+                check_job_id_by_name_callback=check_job_id_by_name_callback,
             )
 
     def start_java_pipeline(
@@ -328,6 +350,7 @@ class BeamHook(BaseHook):
         job_class: str | None = None,
         process_line_callback: Callable[[str], None] | None = None,
         is_dataflow_job_id_exist_callback: Callable[[], bool] | None = None,
+        check_job_id_by_name_callback: Callable[[], bool] | None = None,
     ) -> None:
         """
         Start Apache Beam Java pipeline.
@@ -347,6 +370,7 @@ class BeamHook(BaseHook):
             command_prefix=command_prefix,
             process_line_callback=process_line_callback,
             is_dataflow_job_id_exist_callback=is_dataflow_job_id_exist_callback,
+            check_job_id_by_name_callback=check_job_id_by_name_callback,
         )
 
     def start_go_pipeline(
@@ -469,19 +493,28 @@ class BeamAsyncHook(BeamHook):
 
     @staticmethod
     async def _beam_version(py_interpreter: str) -> str:
-        version_script_cmd = shlex.join([py_interpreter, "-c", _APACHE_BEAM_VERSION_SCRIPT])
-        proc = await asyncio.create_subprocess_shell(
-            version_script_cmd,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-        )
-        stdout, stderr = await proc.communicate()
-        if proc.returncode != 0:
+        start_error: OSError | None = None
+        returncode: int | None
+        try:
+            proc = await asyncio.create_subprocess_exec(
+                py_interpreter,
+                "-c",
+                _APACHE_BEAM_VERSION_SCRIPT,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+        except OSError as e:
+            start_error = e
+            stdout, stderr, returncode = b"", str(e).encode(), 1
+        else:
+            stdout, stderr = await proc.communicate()
+            returncode = proc.returncode
+        if returncode != 0:
             msg = (
-                f"Unable to retrieve Apache Beam version, return code {proc.returncode}."
+                f"Unable to retrieve Apache Beam version, return code {returncode}."
                 f"\nstdout: {stdout.decode()}\nstderr: {stderr.decode()}"
             )
-            raise AirflowException(msg)
+            raise AirflowException(msg) from start_error
         return stdout.decode().strip()
 
     async def start_python_pipeline_async(
@@ -627,16 +660,12 @@ class BeamAsyncHook(BeamHook):
         :param process_line_callback: Optional callback which can be used to process
             stdout and stderr to detect job id
         """
-        cmd_str_representation = " ".join(shlex.quote(c) for c in cmd)
-        log.info("Running command: %s", cmd_str_representation)
+        log.info("Running command: %s", " ".join(shlex.quote(c) for c in cmd))
 
-        # Creating a separate asynchronous process
-        process = await asyncio.create_subprocess_shell(
-            cmd_str_representation,
-            shell=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            close_fds=True,
+        process = await asyncio.create_subprocess_exec(
+            *cmd,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
             cwd=working_directory,
         )
         # Waits for Apache Beam pipeline to complete.

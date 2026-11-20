@@ -21,7 +21,7 @@ from collections.abc import Callable, Sequence
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any
 
-from airflow.providers.common.compat.sdk import AirflowException, BaseSensorOperator, conf
+from airflow.providers.common.compat.sdk import AirflowException, BaseSensorOperator, conf, determine_kwargs
 from airflow.providers.http.hooks.http import HttpHook
 from airflow.providers.http.triggers.http import HttpSensorTrigger
 
@@ -61,7 +61,7 @@ class HttpSensor(BaseSensorOperator):
         :ref:`howto/operator:HttpSensor`
 
     :param http_conn_id: The :ref:`http connection<howto/connection:http>` to run the
-        sensor against
+        sensor against. (templated)
     :param method: The HTTP request method to use
     :param endpoint: The relative part of the full url
     :param request_params: The parameters to be added to the GET url
@@ -84,7 +84,7 @@ class HttpSensor(BaseSensorOperator):
         default is ``False``
     """
 
-    template_fields: Sequence[str] = ("endpoint", "request_params", "headers")
+    template_fields: Sequence[str] = ("endpoint", "request_params", "headers", "http_conn_id")
 
     def __init__(
         self,
@@ -124,8 +124,6 @@ class HttpSensor(BaseSensorOperator):
         self.request_kwargs = request_kwargs or {}
 
     def poke(self, context: Context) -> bool | PokeReturnValue:
-        from airflow.utils.operator_helpers import determine_kwargs
-
         hook = HttpHook(
             method=self.method,
             http_conn_id=self.http_conn_id,

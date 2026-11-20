@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import sqlite3
 from typing import Annotated, NoReturn
 
 from fastapi import Depends, HTTPException, status
@@ -26,6 +27,8 @@ from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import joinedload
 
 from airflow._shared.timezones import timezone
+from airflow.api_fastapi.app import get_auth_manager
+from airflow.api_fastapi.auth.managers.models.resource_details import DagDetails
 from airflow.api_fastapi.common.dagbag import resolve_run_on_latest_version
 from airflow.api_fastapi.common.db.common import (
     SessionDep,
@@ -51,7 +54,7 @@ from airflow.api_fastapi.core_api.security import (
 )
 from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.exceptions import DagNotFound, DagRunTypeNotAllowed
-from airflow.models import DagRun
+from airflow.models import DagModel, DagRun
 from airflow.models.backfill import (
     AlreadyRunningBackfill,
     Backfill,
@@ -76,13 +79,13 @@ def _raise_locked_response_or_reraise(e: OperationalError, action: str) -> NoRet
     """Map a database lock OperationalError to HTTP 503, or re-raise if not a lock error."""
     if not is_lock_not_available_error(e):
         raise
-    raise HTTPException(
-        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-        detail=(
-            f"Database is locked. Backfill {action} is not supported on SQLite "
-            "under concurrent access. Please use PostgreSQL or MySQL."
-        ),
+    detail = (
+        f"Backfill {action} could not acquire a database lock because another transaction holds it. "
+        "Retry the request."
     )
+    if isinstance(e.orig, sqlite3.OperationalError):
+        detail += " SQLite does not support concurrent writers; use PostgreSQL or MySQL."
+    raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=detail)
 
 
 @backfills_router.get(
@@ -302,6 +305,18 @@ def create_backfill(
         session,
         fallback=True,
     )
+    if backfill_request.drain_dag and not get_auth_manager().is_authorized_dag(
+        method="PUT",
+        details=DagDetails(
+            id=backfill_request.dag_id,
+            team_name=DagModel.get_team_name(backfill_request.dag_id, session=session),
+        ),
+        user=user,
+    ):
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN,
+            f"Draining requires permission to edit Dag: {backfill_request.dag_id}",
+        )
     try:
         backfill_obj = _create_backfill(
             dag_id=backfill_request.dag_id,
@@ -313,6 +328,7 @@ def create_backfill(
             triggering_user_name=user.get_display_name(),
             reprocess_behavior=backfill_request.reprocess_behavior,
             run_on_latest_version=resolved_run_on_latest,
+            drain_dag=backfill_request.drain_dag,
         )
         return BackfillResponse.model_validate(backfill_obj)
     except OperationalError as e:

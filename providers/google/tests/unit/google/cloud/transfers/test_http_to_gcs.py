@@ -19,6 +19,8 @@ from __future__ import annotations
 
 from unittest import mock
 
+import pytest
+
 from airflow.providers.google.cloud.transfers.http_to_gcs import HttpToGCSOperator
 
 TASK_ID = "test-http-to-gcs-operator"
@@ -125,3 +127,23 @@ class TestHttpToGCSOperator:
 
         expected_uris = f"gs://{TEST_BUCKET}/{DESTINATION_PATH_FILE}"
         assert result == [expected_uris]
+
+    @pytest.mark.parametrize("log_response", [True, False])
+    @mock.patch("airflow.providers.google.cloud.transfers.http_to_gcs.GCSHook")
+    @mock.patch("airflow.providers.google.cloud.transfers.http_to_gcs.HttpHook")
+    def test_execute_logs_response_only_when_requested(self, http_hook, gcs_hook, log_response):
+        http_hook.return_value.run.return_value.text = "response body"
+        task = HttpToGCSOperator(
+            task_id=TASK_ID,
+            http_conn_id=HTTP_CONN_ID,
+            endpoint=ENDPOINT,
+            object_name=DESTINATION_PATH_FILE,
+            bucket_name=TEST_BUCKET,
+            gcp_conn_id=GCP_CONN_ID,
+            log_response=log_response,
+        )
+
+        with mock.patch.object(task.log, "info") as mock_info:
+            task.execute(None)
+
+        assert (mock.call("response body") in mock_info.call_args_list) is log_response

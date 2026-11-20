@@ -1,4 +1,4 @@
-.. Licensed to the Apache Software Foundation (ASF) under one
+ .. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
     regarding copyright ownership.  The ASF licenses this file
@@ -122,12 +122,9 @@ Base URL
     Default value is None.
 
 
-.. raw:: html
-
-  <div align="center" style="padding-bottom:10px">
-    <img src="images/msgraph.png"
-         alt="Microsoft Graph API connection form">
-  </div>
+.. image:: images/msgraph.png
+    :alt: Microsoft Graph API connection form
+    :align: center
 
 
 .. spelling:word-list::

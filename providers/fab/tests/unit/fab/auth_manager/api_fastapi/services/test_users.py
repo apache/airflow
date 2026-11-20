@@ -17,10 +17,11 @@
 from __future__ import annotations
 
 import types
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, call, patch
 
 import pytest
 from fastapi import HTTPException
+from pydantic import SecretStr
 
 from airflow.providers.fab.auth_manager.api_fastapi.datamodels.roles import Role
 from airflow.providers.fab.auth_manager.api_fastapi.services.users import FABAuthManagerUsers
@@ -47,6 +48,7 @@ def security_manager():
 
 def _make_user_obj(
     *,
+    id: int = 1,
     username: str,
     email: str,
     first_name: str,
@@ -56,6 +58,7 @@ def _make_user_obj(
 ):
     role_objs = [types.SimpleNamespace(name=r) for r in (roles or [])]
     return types.SimpleNamespace(
+        id=id,
         username=username,
         email=email,
         first_name=first_name,
@@ -240,8 +243,9 @@ class TestUsersService:
 
     @patch("airflow.providers.fab.auth_manager.api_fastapi.services.users.build_ordering")
     @patch("airflow.providers.fab.auth_manager.api_fastapi.services.users.select")
+    @patch("airflow.providers.fab.auth_manager.api_fastapi.services.users.create_session")
     def test_get_users_success(
-        self, mock_select, mock_build_ordering, get_fab_auth_manager, fab_auth_manager, security_manager
+        self, mock_create_session, mock_select, mock_build_ordering, get_fab_auth_manager
     ):
         user1 = _make_user_obj(
             username="alice", email="alice@example.com", first_name="Alice", last_name="Liddell"
@@ -251,9 +255,7 @@ class TestUsersService:
         mock_session = MagicMock()
         mock_session.scalars.return_value.one.return_value = 2
         mock_session.scalars.return_value.unique.return_value.all.return_value = [user1, user2]
-        security_manager.session = mock_session
-        fab_auth_manager.security_manager = security_manager
-        get_fab_auth_manager.return_value = fab_auth_manager
+        mock_create_session.return_value.__enter__.return_value = mock_session
 
         mock_build_ordering.return_value = "ordering"
 
@@ -263,11 +265,13 @@ class TestUsersService:
         assert len(out.users) == 2
         assert out.users[0].username == "alice"
         assert out.users[1].username == "bob"
+        mock_create_session.assert_called_once_with(scoped=False)
+        mock_create_session.return_value.__exit__.assert_called_once_with(None, None, None)
 
     @patch("airflow.providers.fab.auth_manager.api_fastapi.services.users.build_ordering")
-    def test_get_users_invalid_order_by(
-        self, mock_build_ordering, get_fab_auth_manager, fab_auth_manager, security_manager
-    ):
+    @patch("airflow.providers.fab.auth_manager.api_fastapi.services.users.create_session")
+    def test_get_users_invalid_order_by(self, mock_create_session, mock_build_ordering, get_fab_auth_manager):
+        mock_create_session.return_value.__enter__.return_value = MagicMock()
         mock_build_ordering.side_effect = HTTPException(
             status_code=400,
             detail="Ordering with 'invalid' is disallowed or the attribute does not exist on the model",
@@ -278,6 +282,8 @@ class TestUsersService:
         with pytest.raises(HTTPException) as ex:
             FABAuthManagerUsers.get_users(order_by="invalid", limit=10, offset=0)
         assert ex.value.status_code == 400
+        mock_create_session.assert_called_once_with(scoped=False)
+        mock_create_session.return_value.__exit__.assert_called_once()
 
     def test_update_user_success(self, get_fab_auth_manager, fab_auth_manager, security_manager):
         user_obj = _make_user_obj(
@@ -305,6 +311,136 @@ class TestUsersService:
         assert out.last_name == "Updated"
         security_manager.update_user.assert_called_once()
 
+    def test_update_user_password_invalidates_existing_sessions(
+        self, get_fab_auth_manager, fab_auth_manager, security_manager
+    ):
+        """Changing a password through the user API must end the old sessions.
+
+        A session captured before the change otherwise keeps authenticating as this
+        user, so the password change does not evict whoever holds it. `reset_password`
+        already invalidates; going through this API must not silently skip it.
+        """
+        user_obj = _make_user_obj(
+            username="alice",
+            email="alice@example.com",
+            first_name="Alice",
+            last_name="Liddell",
+            roles=["User"],
+        )
+        security_manager.find_user.return_value = user_obj
+        fab_auth_manager.security_manager = security_manager
+        get_fab_auth_manager.return_value = fab_auth_manager
+
+        patch_body = types.SimpleNamespace(
+            username=None,
+            email=None,
+            first_name=None,
+            last_name=None,
+            roles=None,
+            password=SecretStr("new-password"),
+        )
+
+        FABAuthManagerUsers.update_user("alice", patch_body, update_mask="password")
+
+        security_manager.reset_user_sessions.assert_called_once_with(user_obj)
+        # Ordered *after* persistence: invalidating first would evict the user even when
+        # the password update then fails.
+        assert security_manager.mock_calls.index(
+            call.update_user(user_obj)
+        ) < security_manager.mock_calls.index(call.reset_user_sessions(user_obj))
+
+    def test_update_user_without_password_does_not_touch_sessions(
+        self, get_fab_auth_manager, fab_auth_manager, security_manager
+    ):
+        """An unrelated field change must not log the user out."""
+        user_obj = _make_user_obj(
+            username="alice",
+            email="alice@example.com",
+            first_name="Alice",
+            last_name="Liddell",
+            roles=["User"],
+        )
+        security_manager.find_user.return_value = user_obj
+        fab_auth_manager.security_manager = security_manager
+        get_fab_auth_manager.return_value = fab_auth_manager
+
+        patch_body = types.SimpleNamespace(
+            username=None,
+            email=None,
+            first_name=None,
+            last_name="Updated",
+            roles=None,
+            password=None,
+        )
+
+        FABAuthManagerUsers.update_user("alice", patch_body, update_mask="last_name")
+
+        security_manager.reset_user_sessions.assert_not_called()
+
+    def test_update_user_password_outside_the_mask_does_not_invalidate(
+        self, get_fab_auth_manager, fab_auth_manager, security_manager
+    ):
+        """A password present in the body but excluded by the mask is not applied."""
+        user_obj = _make_user_obj(
+            username="alice",
+            email="alice@example.com",
+            first_name="Alice",
+            last_name="Liddell",
+            roles=["User"],
+        )
+        security_manager.find_user.return_value = user_obj
+        fab_auth_manager.security_manager = security_manager
+        get_fab_auth_manager.return_value = fab_auth_manager
+
+        patch_body = types.SimpleNamespace(
+            username=None,
+            email=None,
+            first_name=None,
+            last_name="Updated",
+            roles=None,
+            password=SecretStr("new-password"),
+        )
+
+        FABAuthManagerUsers.update_user("alice", patch_body, update_mask="last_name")
+
+        security_manager.reset_user_sessions.assert_not_called()
+
+    def test_update_user_failed_persistence_does_not_evict_the_user(
+        self, get_fab_auth_manager, fab_auth_manager, security_manager
+    ):
+        """A password change that does not persist must not log the user out.
+
+        `update_user` rolls back and returns False on failure. Invalidating first would
+        leave the old password working *and* the user evicted, with the API reporting
+        success.
+        """
+        user_obj = _make_user_obj(
+            username="alice",
+            email="alice@example.com",
+            first_name="Alice",
+            last_name="Liddell",
+            roles=["User"],
+        )
+        security_manager.find_user.return_value = user_obj
+        security_manager.update_user.return_value = False
+        fab_auth_manager.security_manager = security_manager
+        get_fab_auth_manager.return_value = fab_auth_manager
+
+        patch_body = types.SimpleNamespace(
+            username=None,
+            email=None,
+            first_name=None,
+            last_name=None,
+            roles=None,
+            password=SecretStr("new-password"),
+        )
+
+        with pytest.raises(HTTPException) as exc:
+            FABAuthManagerUsers.update_user("alice", patch_body, update_mask="password")
+
+        assert exc.value.status_code == 500
+        security_manager.reset_user_sessions.assert_not_called()
+
     def test_update_user_not_found(self, get_fab_auth_manager, fab_auth_manager, security_manager):
         security_manager.find_user.return_value = None
         fab_auth_manager.security_manager = security_manager
@@ -331,7 +467,10 @@ class TestUsersService:
             last_name="Liddell",
         )
 
-        security_manager.find_user.side_effect = [user_obj, object()]
+        other_user = _make_user_obj(
+            id=2, username="bob", email="bob@example.com", first_name="Bob", last_name="Builder"
+        )
+        security_manager.find_user.side_effect = [user_obj, other_user]
         fab_auth_manager.security_manager = security_manager
         get_fab_auth_manager.return_value = fab_auth_manager
 
@@ -356,7 +495,10 @@ class TestUsersService:
             first_name="Alice",
             last_name="Liddell",
         )
-        security_manager.find_user.side_effect = [user_obj, object()]
+        other_user = _make_user_obj(
+            id=2, username="bob", email="taken@example.com", first_name="Bob", last_name="Builder"
+        )
+        security_manager.find_user.side_effect = [user_obj, other_user]
         fab_auth_manager.security_manager = security_manager
         get_fab_auth_manager.return_value = fab_auth_manager
 
@@ -373,6 +515,108 @@ class TestUsersService:
             FABAuthManagerUsers.update_user("alice", patch_body)
         assert ex.value.status_code == 409
         assert "email" in ex.value.detail
+
+    @pytest.mark.parametrize(
+        ("field", "value"),
+        [
+            pytest.param("username", "Alice", id="username-differs-in-case-only"),
+            pytest.param("email", "Alice@Example.com", id="email-differs-in-case-only"),
+        ],
+    )
+    def test_update_user_lookup_returning_the_same_user_is_not_a_conflict(
+        self, get_fab_auth_manager, fab_auth_manager, security_manager, field, value
+    ):
+        user_obj = _make_user_obj(
+            username="alice",
+            email="alice@example.com",
+            first_name="Alice",
+            last_name="Liddell",
+        )
+        security_manager.find_user.return_value = user_obj
+        fab_auth_manager.security_manager = security_manager
+        get_fab_auth_manager.return_value = fab_auth_manager
+
+        patch_body = types.SimpleNamespace(
+            username=None,
+            email=None,
+            first_name=None,
+            last_name=None,
+            roles=None,
+            password=None,
+        )
+        setattr(patch_body, field, value)
+
+        out = FABAuthManagerUsers.update_user("alice", patch_body)
+
+        assert getattr(out, field) == value
+        security_manager.update_user.assert_called_once_with(user_obj)
+        security_manager.find_user.assert_any_call(**{field: value})
+
+    def test_update_user_ignores_conflicts_outside_the_update_mask(
+        self, get_fab_auth_manager, fab_auth_manager, security_manager
+    ):
+        user_obj = _make_user_obj(
+            username="alice",
+            email="alice@example.com",
+            first_name="Alice",
+            last_name="Liddell",
+        )
+        other_user = _make_user_obj(
+            id=2, username="bob", email="taken@example.com", first_name="Bob", last_name="Builder"
+        )
+        security_manager.find_user.side_effect = lambda username=None, email=None: (
+            user_obj if username == "alice" else other_user
+        )
+        fab_auth_manager.security_manager = security_manager
+        get_fab_auth_manager.return_value = fab_auth_manager
+
+        patch_body = types.SimpleNamespace(
+            username="bob",
+            email="taken@example.com",
+            first_name="Alicia",
+            last_name=None,
+            roles=None,
+            password=None,
+        )
+
+        out = FABAuthManagerUsers.update_user("alice", patch_body, update_mask="first_name")
+
+        assert out.first_name == "Alicia"
+        assert out.username == "alice"
+        assert out.email == "alice@example.com"
+        security_manager.find_user.assert_called_once_with(username="alice")
+
+    def test_update_user_rejects_unknown_update_mask_before_checking_conflicts(
+        self, get_fab_auth_manager, fab_auth_manager, security_manager
+    ):
+        user_obj = _make_user_obj(
+            username="alice",
+            email="alice@example.com",
+            first_name="Alice",
+            last_name="Liddell",
+        )
+        other_user = _make_user_obj(
+            id=2, username="bob", email="taken@example.com", first_name="Bob", last_name="Builder"
+        )
+        security_manager.find_user.side_effect = lambda username=None, email=None: (
+            user_obj if username == "alice" else other_user
+        )
+        fab_auth_manager.security_manager = security_manager
+        get_fab_auth_manager.return_value = fab_auth_manager
+
+        patch_body = types.SimpleNamespace(
+            username="bob",
+            email=None,
+            first_name=None,
+            last_name=None,
+            roles=None,
+            password=None,
+        )
+
+        with pytest.raises(HTTPException) as ex:
+            FABAuthManagerUsers.update_user("alice", patch_body, update_mask="nickname")
+        assert ex.value.status_code == 400
+        security_manager.find_user.assert_called_once_with(username="alice")
 
     def test_update_user_unknown_update_mask(self, get_fab_auth_manager, fab_auth_manager, security_manager):
         user_obj = _make_user_obj(
@@ -422,14 +666,12 @@ class TestUsersService:
             password=password_mock,
         )
 
-        with patch(
-            "airflow.providers.fab.auth_manager.api_fastapi.services.users.generate_password_hash"
-        ) as mock_hash:
-            mock_hash.return_value = "hashed_password"
-            FABAuthManagerUsers.update_user("alice", patch_body, update_mask="password")
+        security_manager._hash_password.return_value = "hashed_password"
+        FABAuthManagerUsers.update_user("alice", patch_body, update_mask="password")
 
         password_mock.get_secret_value.assert_called_once()
-        mock_hash.assert_called_once_with("newpassword")
+        security_manager._hash_password.assert_called_once_with("newpassword")
+        assert user_obj.password == "hashed_password"
 
     # delete_user tests
 

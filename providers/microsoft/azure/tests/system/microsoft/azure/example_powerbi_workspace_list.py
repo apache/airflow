@@ -33,7 +33,7 @@ from airflow.providers.microsoft.azure.operators.powerbi import PowerBIWorkspace
 DAG_ID = "example_powerbi_workspace_list"
 CONN_ID = "powerbi_default"
 
-# Before running this system test, you should set following environment variables:
+# Before running this system test, you should set the following environment variables:
 CLIENT_ID = os.environ.get("CLIENT_ID", None)
 CLIENT_SECRET = os.environ.get("CLIENT_SECRET", None)
 TENANT_ID = os.environ.get("TENANT_ID", None)

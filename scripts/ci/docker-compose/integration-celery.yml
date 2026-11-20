@@ -20,6 +20,9 @@ services:
     container_name: rabbitmq
     image: rabbitmq:3.7
     labels:
+      org.apache.airflow.breeze: "true"
+      org.apache.airflow.breeze.worktree: "${BREEZE_WORKTREE_PATH:-}"
+      org.apache.airflow.breeze.host: "${BREEZE_HOST_ID:-}"
       breeze.description: "Integration required for Celery executor tests."
     volumes:
       - rabbitmq-db-volume:/var/lib/rabbitmq
@@ -30,6 +33,7 @@ services:
       interval: 5s
       timeout: 30s
       start_period: 30s
+      start_interval: 1s
       retries: 50
     restart: "on-failure"
   redis:
@@ -49,4 +53,12 @@ services:
 
 volumes:
   rabbitmq-db-volume:
+    labels:
+      org.apache.airflow.breeze: "true"
+      org.apache.airflow.breeze.worktree: "${BREEZE_WORKTREE_PATH:-}"
+      org.apache.airflow.breeze.host: "${BREEZE_HOST_ID:-}"
   redis-db-volume:
+    labels:
+      org.apache.airflow.breeze: "true"
+      org.apache.airflow.breeze.worktree: "${BREEZE_WORKTREE_PATH:-}"
+      org.apache.airflow.breeze.host: "${BREEZE_HOST_ID:-}"

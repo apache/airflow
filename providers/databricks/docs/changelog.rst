@@ -26,6 +26,171 @@
 Changelog
 ---------
 
+7.25.0
+......
+
+.. note::
+    On Airflow 3.3 and later, ``DatabricksNotebookOperator`` and ``DatabricksTaskOperator`` are durable
+    by default: a retry reconnects to the Databricks run the previous try submitted instead of
+    submitting a new one, and returns without resubmitting when that run has already succeeded. Set
+    ``durable=False`` to submit a new run on every try. Below Airflow 3.3 nothing changes.
+
+Features
+~~~~~~~~
+
+* ``Add a Delta table version producer for externally written tables (#76156)``
+* ``Support durable execution in DatabricksNotebookOperator and DatabricksTaskOperator (#76295)``
+* ``Add a Databricks toolset for Unity Gateway MCP Services (#74198)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Prevent Databricks task failure after successful repair (#76904)``
+* ``Resubmit lost Databricks runs instead of failing every retry (#76718)``
+* ``Sanitize error message in DatabricksExecutionTrigger (#70385)``
+
+Doc-only
+~~~~~~~~
+
+* ``Fix Databricks retry parameter names in deferrable-mode docs (#76744)``
+* ``Document supported 'databricks_retry_args' usage for deferrable Databricks operators (#68017)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+7.24.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add Databricks agent invocation operator and hook (#74386)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``[main] Upgrade important CI environment (#76278)``
+   * ``Remove empty Databricks mixin test placeholders (#75893)``
+   * ``Remove duplicate Databricks timeout retry test (#75891)``
+   * ``Remove duplicate Databricks retry test (#75889)``
+
+7.23.0
+......
+
+.. note::
+
+    **Significant change: OpenLineage query lineage events**
+
+    The ``openlineage`` extra now requires ``apache-airflow-providers-openlineage>=2.16.0``
+    instead of ``>=2.3.0``. Query lineage emission requires OpenLineage provider 2.16.0
+    or later; with an older version it is skipped and only a log message is written.
+    Users on OpenLineage provider 2.5.0 through 2.15.x must upgrade to retain query lineage.
+
+    Query lineage now uses the OpenLineage public API. The ``jobType.integration`` job facet
+    value changes from ``DATABRICKS`` to ``AIRFLOW``, and query errors use the
+    ``errorMessage`` run facet instead of ``error``. Update lineage consumers that filter on
+    the previous integration value or read the previous error facet. OpenLineage supplies
+    the ``jobType`` facet, which can no longer be overridden through ``additional_job_facets``.
+    Per-query job names remain ``<dag_id>.<task_id>.query.<counter>``.
+
+Features
+~~~~~~~~
+
+* ``Snowflake, Databricks: emit query lineage via OpenLineage public API (#73655)``
+
+Misc
+~~~~
+
+* ``Use one ResumableJobMixin fallback from common.compat in providers (#74673)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+7.22.0
+......
+
+Features
+~~~~~~~~
+
+* ``Notify downstream Dags when COPY INTO writes a Unity (Databricks) table (#74191)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix AsyncToSync error in Databricks deferrable operators on Airflow 3.0 (#74406)``
+
+Misc
+~~~~
+
+* ``Drop support for Python 3.10 (#74157)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix Databricks async connection test on Airflow before 3.1 (#74427)``
+   * ``Update provider READMEs for the Python 3.11 baseline (#74158)``
+   * ``Apply ruff Python 3.11 fixes to providers (#74155)``
+   * ``[main] Upgrade important CI environment (#73629)``
+
+7.21.0
+......
+
+Features
+~~~~~~~~
+
+* ``Template every connection id accepted by provider operators (#73286)``
+* ``Add environments and trigger named parameters to Databricks operators (#72505)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Skip Dag params with no value when forwarding them to Databricks (#71782)``
+
+Doc-only
+~~~~~~~~
+
+* ``Fix grammar in the Databricks submit-run guide and operator docstring (#73145)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Revert "[main] Upgrade important CI environment (#73308)" (#73621)``
+   * ``[main] Upgrade important CI environment (#73308)``
+
+7.20.0
+.......
+
+.. warning::
+  ``DatabricksSQLStatementsSensor`` now rejects the combination of ``statement`` and
+  ``statement_id`` when the Dag is parsed rather than when the task runs, and the check is
+  ``is not None``, so an empty string counts as provided. ``statement="SELECT 1"`` together
+  with ``statement_id=""`` — or with a ``statement_id`` template that renders to ``None``
+  under ``render_template_as_native_obj=True`` — ran the statement in 7.19.0 and now raises
+  at Dag parse time. Pass exactly one of the two and omit the other entirely instead of
+  passing an empty value. The argument-validation errors in this sensor are also now
+  ``ValueError`` rather than ``AirflowException``.
+
+Features
+~~~~~~~~
+
+* ``Propagate OpenLineage context to Databricks job runs (#72643)``
+* ``Add performance_target to Databricks RunNow and CreateJobs operators (#72148)``
+* ``Add deferrable mode to Databricks SQL warehouse operators (#71752)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Report a retried Databricks task once, from its last attempt (#72313)``
+* ``Fix Databricks hook dropping tasks beyond the first page of a run (#72304)``
+* ``Validate DatabricksSQLStatementsSensor exclusivity at __init__ (#70831)``
+
+Misc
+~~~~
+
+* ``Use non-deprecated user_agent_entry param in DatabricksSqlHook (#72103)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Warn about the DatabricksSQLStatementsSensor exclusivity tightening (#72761)``
+   * ``Use common.compat.sdk for the remaining provider timezone imports (#71209)``
+
 7.19.0
 ......
 

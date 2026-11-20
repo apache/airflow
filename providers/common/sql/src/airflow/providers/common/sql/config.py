@@ -47,7 +47,17 @@ class StorageType(str, Enum):
     """Storage types for Data Fusion."""
 
     S3 = "s3"
+    GCS = "gcs"
+    AZURE = "azure"
     LOCAL = "local"
+
+
+STORAGE_TYPE_SCHEMES: dict[StorageType, tuple[str, ...]] = {
+    StorageType.S3: ("s3://",),
+    StorageType.GCS: ("gs://",),
+    StorageType.AZURE: ("az://", "abfs://", "abfss://"),
+    StorageType.LOCAL: ("file://",),
+}
 
 
 @dataclass
@@ -61,6 +71,9 @@ class DataSourceConfig:
     **Catalog-managed formats** (iceberg, and in the future delta, etc.) do not
     require ``uri`` or ``storage_type``; they use ``conn_id`` and format-specific
     keys in ``options`` (e.g. ``catalog_table_name`` for Iceberg).
+
+    **Plain database tables** (neither ``uri`` nor ``format`` set) are not
+    object-store backed either; ``storage_type`` stays ``None`` and is not inferred.
 
     :param conn_id: The connection ID to use for accessing the data source.
     :param uri: The URI of the data source (e.g., file path, S3 bucket, etc.).
@@ -88,22 +101,28 @@ class DataSourceConfig:
         return bool(self.format and self.format.lower() in TABLE_PROVIDERS)
 
     def __post_init__(self):
+        if not self.table_name or not self.table_name.strip():
+            raise ValueError("Table name must be provided for storage type")
+
         if self.is_table_provider:
             if self.db_name is None:
                 raise ValueError(f"Database name must be provided for table providers {TABLE_PROVIDERS}")
             return
 
+        if not self.format and not self.uri:
+            # Plain database table: no object store involved, so storage_type stays unset.
+            return
+
+        if not self.uri:
+            raise ValueError("URI must be provided when format is set")
+
         if self.storage_type is None:
             self.storage_type = self._extract_storage_type
-
-        if self.storage_type is not None and (not self.table_name or not self.table_name.strip()):
-            raise ValueError("Table name must be provided for storage type")
 
     @property
     def _extract_storage_type(self) -> StorageType | None:
         """Extract storage type."""
-        if self.uri.startswith("s3://"):
-            return StorageType.S3
-        if self.uri.startswith("file://"):
-            return StorageType.LOCAL
+        for storage_type, schemes in STORAGE_TYPE_SCHEMES.items():
+            if self.uri.startswith(schemes):
+                return storage_type
         raise ValueError(f"Unsupported storage type for URI: {self.uri}")

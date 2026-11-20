@@ -25,7 +25,8 @@ from unittest import mock
 import pendulum
 import pytest
 
-from airflow.sdk import TaskInstanceState, TriggerRule
+from airflow.providers.standard.operators.empty import EmptyOperator
+from airflow.sdk import ExceptionRetryPolicy, TaskInstanceState, TriggerRule
 from airflow.sdk.bases.operator import BaseOperator
 from airflow.sdk.bases.xcom import BaseXCom
 from airflow.sdk.definitions.dag import DAG
@@ -116,6 +117,63 @@ def test_task_mapping_override_default_args():
     assert mapped.start_date == pendulum.instance(default_args["start_date"])
     # owner should be equal to Airflow default owner (airflow) because it is not provided at all
     assert mapped.owner == "airflow"
+
+
+def test_mapped_task_preserves_custom_base_operator_default():
+    retry_policy = ExceptionRetryPolicy(rules=[])
+
+    class CustomRetryOperator(BaseOperator):
+        def __init__(self, *, value: str, retry_policy=retry_policy, **kwargs):
+            super().__init__(retry_policy=retry_policy, **kwargs)
+            self.value = value
+
+        def execute(self, context):
+            pass
+
+    direct = CustomRetryOperator(task_id="direct", value="direct")
+    mapped = CustomRetryOperator.partial(task_id="mapped").expand(value=["mapped"])
+    unmapped = mapped.unmap({"value": "mapped"})
+
+    assert direct.retry_policy is retry_policy
+    assert mapped.partial_kwargs["retry_policy"] is retry_policy
+    assert mapped.partial_kwargs["inlets"] == []
+    assert unmapped.retry_policy is retry_policy
+
+
+class _ItemEmptyOperator(EmptyOperator):
+    def __init__(self, *, item=None, **kwargs):
+        super().__init__(**kwargs)
+        self.item = item
+
+
+class _RunsOnWorkerEmptyOperator(_ItemEmptyOperator):
+    inherits_from_empty_operator = False
+
+
+class _ReportsClearTargetEmptyOperator(_ItemEmptyOperator):
+    def get_external_clear_target(self, context):
+        return None
+
+
+class _ItemMockOperator(MockOperator):
+    def __init__(self, *, item=None, **kwargs):
+        super().__init__(**kwargs)
+        self.item = item
+
+
+@pytest.mark.parametrize(
+    ("operator_class", "expected"),
+    [
+        pytest.param(_ItemEmptyOperator, True, id="empty-subclass"),
+        pytest.param(_RunsOnWorkerEmptyOperator, False, id="empty-subclass-opted-out"),
+        pytest.param(_ReportsClearTargetEmptyOperator, False, id="empty-subclass-reports-clear-target"),
+        pytest.param(_ItemMockOperator, False, id="not-empty"),
+    ],
+)
+def test_mapped_operator_reads_inherits_from_empty_operator(operator_class, expected):
+    mapped = operator_class.partial(task_id="t").expand(item=[1, 2])
+
+    assert mapped.inherits_from_empty_operator is expected
 
 
 def test_map_unknown_arg_raises():

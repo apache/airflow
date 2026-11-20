@@ -16,11 +16,15 @@
 # under the License.
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from sqlalchemy import inspect
 from sqlalchemy.orm.attributes import set_committed_value
 
 from airflow.api_fastapi.core_api.datamodels.event_logs import EventLogResponse
-from airflow.models import Log
+
+if TYPE_CHECKING:
+    from airflow.models import Log
 
 
 def event_log_to_response(event_log: Log) -> EventLogResponse:
@@ -33,8 +37,10 @@ def event_log_to_response(event_log: Log) -> EventLogResponse:
     # Null relationships that weren't eager-loaded so model validation cannot trigger a lazy load
     # (N+1) while resolving dag_display_name / task_display_name.
     unloaded: set[str] = inspect(event_log).unloaded
-    for relationship_name in ("dag_model", "task_instance"):
+    for relationship_name in ("dag_model", "task_instance", "coordinate_task_instance"):
         if relationship_name in unloaded:
             set_committed_value(event_log, relationship_name, None)
+    if event_log.task_instance is None and event_log.coordinate_task_instance is not None:
+        set_committed_value(event_log, "task_instance", event_log.coordinate_task_instance)
 
     return EventLogResponse.model_validate(event_log)

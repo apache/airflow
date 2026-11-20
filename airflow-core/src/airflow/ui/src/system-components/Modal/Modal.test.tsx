@@ -102,9 +102,34 @@ describe("Modal", () => {
     expect([...(footer?.querySelectorAll("button") ?? [])].map((button) => button.textContent)).toStrictEqual(
       ["Save", "modal.cancel"],
     );
-    expect(globalThis.getComputedStyle(footer?.firstElementChild as HTMLElement).flexDirection).toBe(
-      "row-reverse",
+    // ``row-reverse`` sits on the group holding the actions, not the footer's own first child:
+    // the footer leads with the options group, which is left-aligned and empty here.
+    const actionsGroup = screen.getByRole("button", { name: "Save" }).parentElement;
+
+    expect(globalThis.getComputedStyle(actionsGroup as HTMLElement).flexDirection).toBe("row-reverse");
+  });
+
+  it("puts footerOptions at the left of the footer, ahead of the actions", () => {
+    render(
+      <Modal
+        footerActions={<Button>Save</Button>}
+        footerOptions={<span>Keep state</span>}
+        open
+        title="Modal Heading"
+      >
+        Lorem Ipsum Content
+      </Modal>,
+      { wrapper: BaseWrapper },
     );
+
+    const option = screen.getByText("Keep state");
+
+    // Compared against the Save button rather than the footer's first child, which wraps both
+    // groups and would contain the option whichever order they were in.
+    const save = screen.getByRole("button", { name: "Save" });
+
+    // eslint-disable-next-line no-bitwise
+    expect(option.compareDocumentPosition(save) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   it("lets headerProps and bodyProps children override the defaults", () => {

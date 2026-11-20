@@ -17,8 +17,20 @@
 # under the License.
 from __future__ import annotations
 
+import re
+from typing import Any
+
 from airflow.providers.common.compat.sdk import AirflowException, XComArg
 from airflow.providers.databricks.hooks.databricks import DatabricksHook, RunState
+
+_JSONB_INVALID_CHARS = re.compile(r"[\x00\ud800-\udfff]")
+
+
+def make_jsonb_safe(error: Any) -> Any:
+    """Strip characters that cannot be stored in a Postgres ``jsonb`` column from error text."""
+    if isinstance(error, str):
+        return _JSONB_INVALID_CHARS.sub("", error)
+    return error
 
 
 def normalise_json_content(content, json_path: str = "json") -> str | bool | list | dict | XComArg:
@@ -53,6 +65,26 @@ def normalise_json_content(content, json_path: str = "json") -> str | bool | lis
     raise AirflowException(msg)
 
 
+def _latest_attempts(tasks: list[dict]) -> list[dict]:
+    """
+    Keep only the most recent attempt of each task.
+
+    A run carries one entry per task *attempt*, so a retried task appears several times: reporting
+    every entry both duplicates a single failure and counts a task that only failed before its
+    retry succeeded.
+
+    :param tasks: Task entries of a run, as returned by the Databricks API
+    :return: One entry per ``task_key``, the one with the highest ``attempt_number``
+    """
+    latest: dict[str, dict] = {}
+    for task in tasks:
+        task_key = task["task_key"]
+        previous = latest.get(task_key)
+        if previous is None or task.get("attempt_number", 0) >= previous.get("attempt_number", 0):
+            latest[task_key] = task
+    return list(latest.values())
+
+
 def extract_failed_task_errors(
     hook: DatabricksHook, run_info: dict, run_state: RunState
 ) -> list[dict[str, str | int]]:
@@ -66,7 +98,7 @@ def extract_failed_task_errors(
     """
     failed_tasks = []
     if run_state.result_state == "FAILED":
-        for task in run_info.get("tasks", []):
+        for task in _latest_attempts(run_info.get("tasks", [])):
             if task.get("state", {}).get("result_state", "") == "FAILED":
                 task_run_id = task["run_id"]
                 task_key = task["task_key"]
@@ -75,7 +107,9 @@ def extract_failed_task_errors(
                     error = run_output["error"]
                 else:
                     error = run_state.state_message
-                failed_tasks.append({"task_key": task_key, "run_id": task_run_id, "error": error})
+                failed_tasks.append(
+                    {"task_key": task_key, "run_id": task_run_id, "error": make_jsonb_safe(error)}
+                )
     return failed_tasks
 
 
@@ -92,7 +126,7 @@ async def extract_failed_task_errors_async(
     """
     failed_tasks = []
     if run_state.result_state == "FAILED":
-        for task in run_info.get("tasks", []):
+        for task in _latest_attempts(run_info.get("tasks", [])):
             if task.get("state", {}).get("result_state", "") == "FAILED":
                 task_run_id = task["run_id"]
                 task_key = task["task_key"]
@@ -101,7 +135,9 @@ async def extract_failed_task_errors_async(
                     error = run_output["error"]
                 else:
                     error = run_state.state_message
-                failed_tasks.append({"task_key": task_key, "run_id": task_run_id, "error": error})
+                failed_tasks.append(
+                    {"task_key": task_key, "run_id": task_run_id, "error": make_jsonb_safe(error)}
+                )
     return failed_tasks
 
 

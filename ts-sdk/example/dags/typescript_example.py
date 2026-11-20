@@ -33,11 +33,26 @@ def build_message(): ...
 def read_connection(): ...
 
 
+@task.stub(queue="typescript")
+def write_and_delete_variable(): ...
+
+
+@task.stub(queue="typescript")
+def write_and_read_task_state(): ...
+
+
+@task.stub(queue="typescript")
+def clear_task_state(): ...
+
+
 @dag(dag_id="typescript_example", schedule=None, catchup=False, tags=["typescript", "example"])
 def typescript_example():
     start = python_start()
     message = build_message()
     read_connection()
+    write_and_delete_variable()
+    write_and_read_task_state()
+    clear_task_state()
 
     start >> message
 

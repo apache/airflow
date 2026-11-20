@@ -48,7 +48,7 @@ class CohereRerankOperator(BaseOperator):
     :param request_options: Request-specific configuration passed to the Cohere client.
     """
 
-    template_fields: Sequence[str] = ("query", "documents", "top_n", "max_tokens_per_doc")
+    template_fields: Sequence[str] = ("query", "documents", "top_n", "max_tokens_per_doc", "conn_id")
     template_fields_renderers = {"documents": "json"}
 
     def __init__(

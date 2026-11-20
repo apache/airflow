@@ -34,6 +34,10 @@ from airflow.providers.fab.auth_manager.api_fastapi.datamodels.roles import (
 from airflow.providers.fab.auth_manager.api_fastapi.services.roles import (
     FABAuthManagerRoles,
 )
+from airflow.providers.fab.auth_manager.cli_commands.utils import get_application_builder
+from airflow.providers.fab.auth_manager.fab_auth_manager import FabAuthManager
+
+from tests_common.test_utils.config import conf_vars
 
 
 @pytest.fixture
@@ -186,7 +190,8 @@ class TestRolesService:
     # GET /roles
 
     @patch("airflow.providers.fab.auth_manager.api_fastapi.services.roles.build_ordering")
-    def test_get_roles_happy_path(self, build_ordering, get_fab_auth_manager):
+    @patch("airflow.providers.fab.auth_manager.api_fastapi.services.roles.create_session")
+    def test_get_roles_happy_path(self, create_session, build_ordering, get_fab_auth_manager):
         role1 = _make_role_obj("viewer", [("can_read", "DAG")])
         role2 = _make_role_obj("admin", [("can_read", "DAG")])
         fake_roles_result = _FakeScalarRoles([role1, role2])
@@ -196,10 +201,7 @@ class TestRolesService:
             _FakeScalarCount(2),
             fake_roles_result,
         ]
-
-        fab_auth_manager = MagicMock()
-        fab_auth_manager.security_manager = MagicMock(session=session)
-        get_fab_auth_manager.return_value = fab_auth_manager
+        create_session.return_value.__enter__.return_value = session
 
         build_ordering.return_value = column("name").desc()
 
@@ -215,19 +217,23 @@ class TestRolesService:
         assert set(kwargs["allowed"].keys()) == {"name", "role_id"}
 
         assert session.scalars.call_count == 2
+        create_session.assert_called_once_with(scoped=False)
+        create_session.return_value.__exit__.assert_called_once_with(None, None, None)
 
     @patch("airflow.providers.fab.auth_manager.api_fastapi.services.roles.build_ordering")
-    def test_get_roles_invalid_order_by_bubbles_400(self, build_ordering, get_fab_auth_manager):
-        session = MagicMock()
-        fab_auth_manager = MagicMock()
-        fab_auth_manager.security_manager = MagicMock(session=session)
-        get_fab_auth_manager.return_value = fab_auth_manager
+    @patch("airflow.providers.fab.auth_manager.api_fastapi.services.roles.create_session")
+    def test_get_roles_invalid_order_by_bubbles_400(
+        self, create_session, build_ordering, get_fab_auth_manager
+    ):
+        create_session.return_value.__enter__.return_value = MagicMock()
 
         build_ordering.side_effect = HTTPException(status_code=400, detail="disallowed")
 
         with pytest.raises(HTTPException) as ex:
             FABAuthManagerRoles.get_roles(order_by="nope", limit=10, offset=0)
         assert ex.value.status_code == 400
+        create_session.assert_called_once_with(scoped=False)
+        create_session.return_value.__exit__.assert_called_once()
 
     # DELETE /roles/{name}
 
@@ -274,26 +280,38 @@ class TestRolesService:
 
     # PATCH /roles/{name}
 
-    def test_patch_role_rename_success(self, get_fab_auth_manager, fab_auth_manager, security_manager):
+    @pytest.mark.parametrize(
+        ("new_name", "new_name_resolves_to_self"),
+        [
+            pytest.param("editor", False, id="new-name-unused"),
+            # A case-insensitive collation (e.g. MySQL) finds the role being renamed itself.
+            pytest.param("Viewer", True, id="case-only-rename"),
+        ],
+    )
+    def test_patch_role_rename_success(
+        self, get_fab_auth_manager, new_name, new_name_resolves_to_self, fab_auth_manager, security_manager
+    ):
         role = _make_role_obj("viewer", [("can_edit", "DAG")])
-        security_manager.find_role.return_value = role
+        security_manager.find_role.side_effect = lambda name: (
+            role if name == "viewer" or new_name_resolves_to_self else None
+        )
         security_manager.get_permission.return_value = types.SimpleNamespace(
             action=types.SimpleNamespace(name="can_edit"), resource=types.SimpleNamespace(name="DAG")
         )
         fab_auth_manager.security_manager = security_manager
         get_fab_auth_manager.return_value = fab_auth_manager
-        body = _make_role_body("editor", [("can_edit", "DAG")])
+        body = _make_role_body(new_name, [("can_edit", "DAG")])
 
         out = FABAuthManagerRoles.patch_role(body=body, name="viewer")
 
-        assert out.name == "editor"
+        assert out.name == new_name
         assert out.permissions
         assert out.permissions[0].action.name == "can_edit"
         assert out.permissions[0].resource.name == "DAG"
         # The permission set is unchanged, so nothing should be added or removed.
         security_manager.add_permission_to_role.assert_not_called()
         security_manager.remove_permission_from_role.assert_not_called()
-        security_manager.update_role.assert_called_once_with(role_id=role.id, name="editor")
+        security_manager.update_role.assert_called_once_with(role_id=role.id, name=new_name)
 
     def test_patch_role_adds_missing_permission(
         self, get_fab_auth_manager, fab_auth_manager, security_manager
@@ -494,7 +512,43 @@ class TestRolesService:
             FABAuthManagerRoles.patch_role(body=body, name="viewer")
         assert ex.value.status_code == 404
 
-    def test_get_permissions_success(self, get_fab_auth_manager):
+    def test_patch_role_rename_to_existing_name_conflicts(
+        self, get_fab_auth_manager, fab_auth_manager, security_manager
+    ):
+        role = _make_role_obj("viewer", [("can_read", "DAG")])
+        other = types.SimpleNamespace(id=2, name="editor", permissions=[])
+        security_manager.find_role.side_effect = lambda name: {"viewer": role, "editor": other}.get(name)
+        fab_auth_manager.security_manager = security_manager
+        get_fab_auth_manager.return_value = fab_auth_manager
+        body = _make_role_body("editor", [("can_edit", "DAG")])
+
+        with pytest.raises(HTTPException) as ex:
+            FABAuthManagerRoles.patch_role(body=body, name="viewer")
+
+        assert ex.value.status_code == 409
+        security_manager.update_role.assert_not_called()
+        security_manager.add_permission_to_role.assert_not_called()
+        security_manager.remove_permission_from_role.assert_not_called()
+
+    def test_patch_role_rename_failure_returns_500_and_leaves_permissions_untouched(
+        self, get_fab_auth_manager, fab_auth_manager, security_manager
+    ):
+        role = _make_role_obj("viewer", [("can_read", "DAG")])
+        security_manager.find_role.side_effect = lambda name: {"viewer": role}.get(name)
+        security_manager.update_role.return_value = None
+        fab_auth_manager.security_manager = security_manager
+        get_fab_auth_manager.return_value = fab_auth_manager
+        body = _make_role_body("editor", [("can_edit", "DAG")])
+
+        with pytest.raises(HTTPException) as ex:
+            FABAuthManagerRoles.patch_role(body=body, name="viewer")
+
+        assert ex.value.status_code == 500
+        security_manager.add_permission_to_role.assert_not_called()
+        security_manager.remove_permission_from_role.assert_not_called()
+
+    @patch("airflow.providers.fab.auth_manager.api_fastapi.services.roles.create_session")
+    def test_get_permissions_success(self, create_session, get_fab_auth_manager):
         session = MagicMock()
         perm_obj = types.SimpleNamespace(
             action=types.SimpleNamespace(name="can_read"),
@@ -504,9 +558,7 @@ class TestRolesService:
             types.SimpleNamespace(one=lambda: 1),
             types.SimpleNamespace(all=lambda: [perm_obj]),
         ]
-        fab_auth_manager = MagicMock()
-        fab_auth_manager.security_manager = MagicMock(session=session)
-        get_fab_auth_manager.return_value = fab_auth_manager
+        create_session.return_value.__enter__.return_value = session
 
         out = FABAuthManagerRoles.get_permissions(order_by="id", limit=10, offset=0)
         assert isinstance(out, PermissionCollectionResponse)
@@ -515,22 +567,26 @@ class TestRolesService:
         assert out.permissions[0] == ActionResource(
             action=Action(name="can_read"), resource=Resource(name="DAG")
         )
+        create_session.assert_called_once_with(scoped=False)
+        create_session.return_value.__exit__.assert_called_once_with(None, None, None)
 
-    def test_get_permissions_empty(self, get_fab_auth_manager):
+    @patch("airflow.providers.fab.auth_manager.api_fastapi.services.roles.create_session")
+    def test_get_permissions_empty(self, create_session, get_fab_auth_manager):
         session = MagicMock()
         session.scalars.side_effect = [
             types.SimpleNamespace(one=lambda: 0),
             types.SimpleNamespace(all=lambda: []),
         ]
-        fab_auth_manager = MagicMock()
-        fab_auth_manager.security_manager = MagicMock(session=session)
-        get_fab_auth_manager.return_value = fab_auth_manager
+        create_session.return_value.__enter__.return_value = session
 
         out = FABAuthManagerRoles.get_permissions(order_by="id", limit=10, offset=0)
         assert out.total_entries == 0
         assert out.permissions == []
+        create_session.assert_called_once_with(scoped=False)
+        create_session.return_value.__exit__.assert_called_once_with(None, None, None)
 
-    def test_get_permissions_with_multiple(self, get_fab_auth_manager):
+    @patch("airflow.providers.fab.auth_manager.api_fastapi.services.roles.create_session")
+    def test_get_permissions_with_multiple(self, create_session, get_fab_auth_manager):
         session = MagicMock()
         perm_objs = [
             types.SimpleNamespace(
@@ -546,9 +602,7 @@ class TestRolesService:
             types.SimpleNamespace(one=lambda: 2),
             types.SimpleNamespace(all=lambda: perm_objs),
         ]
-        fab_auth_manager = MagicMock()
-        fab_auth_manager.security_manager = MagicMock(session=session)
-        get_fab_auth_manager.return_value = fab_auth_manager
+        create_session.return_value.__enter__.return_value = session
 
         out = FABAuthManagerRoles.get_permissions(order_by="id", limit=10, offset=0)
         assert isinstance(out, PermissionCollectionResponse)
@@ -560,9 +614,12 @@ class TestRolesService:
         assert out.permissions[1] == ActionResource(
             action=Action(name="can_edit"), resource=Resource(name="DAG")
         )
+        create_session.assert_called_once_with(scoped=False)
+        create_session.return_value.__exit__.assert_called_once_with(None, None, None)
 
     @patch("airflow.providers.fab.auth_manager.api_fastapi.services.roles.build_ordering")
-    def test_get_permissions_ordering_happy_path(self, build_ordering, get_fab_auth_manager):
+    @patch("airflow.providers.fab.auth_manager.api_fastapi.services.roles.create_session")
+    def test_get_permissions_ordering_happy_path(self, create_session, build_ordering, get_fab_auth_manager):
         perm_obj = types.SimpleNamespace(
             action=types.SimpleNamespace(name="can_read"),
             resource=types.SimpleNamespace(name="DAG"),
@@ -572,9 +629,7 @@ class TestRolesService:
             types.SimpleNamespace(one=lambda: 1),
             types.SimpleNamespace(all=lambda: [perm_obj]),
         ]
-        fab_auth_manager = MagicMock()
-        fab_auth_manager.security_manager = MagicMock(session=session)
-        get_fab_auth_manager.return_value = fab_auth_manager
+        create_session.return_value.__enter__.return_value = session
 
         build_ordering.return_value = column("id").desc()
 
@@ -587,16 +642,86 @@ class TestRolesService:
         args, kwargs = build_ordering.call_args
         assert args[0] == "-id"
         assert set(kwargs["allowed"].keys()) == {"id", "action_id", "resource_id"}
+        create_session.assert_called_once_with(scoped=False)
+        create_session.return_value.__exit__.assert_called_once_with(None, None, None)
 
     @patch("airflow.providers.fab.auth_manager.api_fastapi.services.roles.build_ordering")
-    def test_get_permissions_invalid_order_by_bubbles_400(self, build_ordering, get_fab_auth_manager):
+    @patch("airflow.providers.fab.auth_manager.api_fastapi.services.roles.create_session")
+    def test_get_permissions_invalid_order_by_bubbles_400(
+        self, create_session, build_ordering, get_fab_auth_manager
+    ):
         session = MagicMock()
-        fab_auth_manager = MagicMock()
-        fab_auth_manager.security_manager = MagicMock(session=session)
-        get_fab_auth_manager.return_value = fab_auth_manager
+        create_session.return_value.__enter__.return_value = session
 
         build_ordering.side_effect = HTTPException(status_code=400, detail="disallowed")
 
         with pytest.raises(HTTPException) as ex:
             FABAuthManagerRoles.get_permissions(order_by="nope", limit=10, offset=0)
         assert ex.value.status_code == 400
+        create_session.assert_called_once_with(scoped=False)
+        create_session.return_value.__exit__.assert_called_once()
+
+
+@pytest.mark.db_test
+class TestPatchRoleWithDatabase:
+    ROLE_A = "FakeTeamA"
+    ROLE_B = "FakeTeamB"
+    ACTION = "fake_can_read"
+    RESOURCE_A = "FakeResourceA"
+    RESOURCE_B = "FakeResourceB"
+
+    @pytest.fixture
+    def db_security_manager(self):
+        with (
+            conf_vars(
+                {
+                    (
+                        "core",
+                        "auth_manager",
+                    ): "airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager",
+                    ("fab", "UPDATE_FAB_PERMS"): "False",
+                }
+            ),
+            get_application_builder() as appbuilder,
+        ):
+            sm = appbuilder.sm
+            self._cleanup(sm)
+            yield sm
+            sm.session.rollback()
+            self._cleanup(sm)
+
+    def _cleanup(self, sm):
+        for role_name in (self.ROLE_A, self.ROLE_B):
+            if sm.find_role(role_name):
+                sm.delete_role(role_name)
+        # delete_permission also drops the action once no permission uses it.
+        for resource_name in (self.RESOURCE_A, self.RESOURCE_B):
+            sm.delete_permission(self.ACTION, resource_name)
+            if resource := sm.get_resource(resource_name):
+                sm.session.delete(resource)
+        sm.session.commit()
+
+    @patch(
+        "airflow.providers.fab.auth_manager.api_fastapi.services.roles.get_fab_auth_manager", autospec=True
+    )
+    def test_rename_to_existing_role_leaves_both_roles_unchanged(
+        self, get_fab_auth_manager, db_security_manager
+    ):
+        sm = db_security_manager
+        get_fab_auth_manager.return_value = MagicMock(spec=FabAuthManager, security_manager=sm)
+        role_a = sm.add_role(self.ROLE_A)
+        sm.add_permission_to_role(role_a, sm.create_permission(self.ACTION, self.RESOURCE_A))
+        sm.add_role(self.ROLE_B)
+        sm.create_permission(self.ACTION, self.RESOURCE_B)
+        body = _make_role_body(self.ROLE_B, [(self.ACTION, self.RESOURCE_B)])
+
+        with pytest.raises(HTTPException) as ex:
+            FABAuthManagerRoles.patch_role(body=body, name=self.ROLE_A)
+
+        assert ex.value.status_code == 409
+        sm.session.expire_all()
+        role_a = sm.find_role(self.ROLE_A)
+        assert {(p.action.name, p.resource.name) for p in role_a.permissions} == {
+            (self.ACTION, self.RESOURCE_A)
+        }
+        assert sm.find_role(self.ROLE_B).permissions == []

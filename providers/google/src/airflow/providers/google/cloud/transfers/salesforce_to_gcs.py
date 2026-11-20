@@ -63,6 +63,8 @@ class SalesforceToGcsOperator(BaseOperator):
         "query",
         "bucket_name",
         "object_name",
+        "salesforce_conn_id",
+        "gcp_conn_id",
     )
     template_ext: Sequence[str] = (".sql",)
     template_fields_renderers = {"sql": "sql"}
@@ -103,7 +105,7 @@ class SalesforceToGcsOperator(BaseOperator):
                 FutureWarning,
                 stacklevel=2,
             )
-            unwrap_single = True
+            self.unwrap_single = True
         else:
             self.unwrap_single = unwrap_single
 

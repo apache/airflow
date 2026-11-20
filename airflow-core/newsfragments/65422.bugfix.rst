@@ -1,1 +1,0 @@
-Fix scheduler crash on asset-triggered DagRuns by eager-loading ``AssetEvent.source_aliases`` in ``SchedulerJobRunner.process_executor_events``.

@@ -126,11 +126,9 @@ The meaning of the different connection types in the diagrams below is as follow
 * **black dashed lines** represent control flow of workers by the *scheduler* (via executor)
 * **black solid lines** represent accessing the UI to manage execution of the workflows
 * **red dashed lines** represent accessing the *metadata database*
+* **green solid lines** represent *workers* communicating with the *API server* through the *Execution API*
 
 .. _overview-basic-airflow-architecture:
-
-..
-  TODO AIP-72: These diagrams need to be updated to reflect AF3 changes like bundles, required Dag processor, execution api, etc.
 
 Basic Airflow deployment
 ........................
@@ -169,6 +167,7 @@ In a distributed deployment, the *workers* get a specific *Dag bundle* version d
 Typical ways to
 configure DAG bundle backends are described in :doc:`/administration-and-deployment/dag-bundles`.
 Helm chart is one of the ways how to deploy Airflow in K8S cluster.
+
 .. image:: ../img/diagram_distributed_airflow_architecture.png
 
 .. _overview-separate-dag-processing-airflow-architecture:

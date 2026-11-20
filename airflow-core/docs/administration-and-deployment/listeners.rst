@@ -34,7 +34,7 @@ Lifecycle Events
 - ``on_starting``
 - ``before_stopping``
 
-Lifecycle events allow you to react to start and stop events for an Airflow ``Job``, like  ``SchedulerJob``.
+Lifecycle events allow you to react to start and stop events for an Airflow ``Job``, like ``SchedulerJob``.
 
 DagRun State Change Events
 --------------------------
@@ -96,19 +96,6 @@ of a :class:`~airflow.sdk.execution_time.task_runner.RuntimeTaskInstance` instan
     :start-after: [START howto_listen_ti_failure_task]
     :end-before: [END howto_listen_ti_failure_task]
 
-- ``on_task_instance_up_for_retry``
-
-Fired when a task instance is set to ``UP_FOR_RETRY`` after a failure, i.e. it still has retries
-left. This fires in addition to ``on_task_instance_failed`` (which continues to fire for both the
-retry and terminal-failure cases, unchanged, for backward compatibility) — use this hook instead
-of filtering ``on_task_instance_failed`` by ``task_instance.state`` if you only care about a
-task's automatic retries, or only its terminal failures.
-
-.. exampleinclude:: /../src/airflow/example_dags/plugins/event_listener.py
-    :language: python
-    :start-after: [START howto_listen_ti_up_for_retry_task]
-    :end-before: [END howto_listen_ti_up_for_retry_task]
-
 - ``on_task_instance_skipped``
 
 .. exampleinclude:: /../src/airflow/example_dags/plugins/event_listener.py
@@ -132,7 +119,20 @@ Dag Import Error Events
 - ``on_new_dag_import_error``
 - ``on_existing_dag_import_error``
 
-Dag import error events occur when Dag processor finds import error in the Dag code and update the metadata database table.
+Dag import error events occur when Dag processor finds an import error in the Dag code and updates the metadata database table.
+
+``filename`` is the absolute path of the file on the Dag processor. When the Dag processor publishes its
+results through the Execution API, these events fire on the API server, which does not have the processor's
+bundles, so ``filename`` is the path relative to the bundle root instead. Both hooks also receive
+``bundle_name`` and ``relative_fileloc`` to identify the source consistently in either mode. Existing
+listeners that accept only ``filename`` and ``stacktrace`` continue to work; new listeners can accept
+the bundle identity arguments without relying on the form of ``filename``.
+
+``bundle_name`` and ``relative_fileloc`` were added in Airflow 3.5.0. Earlier versions raise
+``PluginValidationError`` while loading a listener whose hook accepts them, and then load no plugin
+listeners at all. Giving them default values does not help: pluggy never passes an argument that has
+a default, so the listener would never receive them. A listener that must also load on earlier versions
+should accept only ``filename`` and ``stacktrace``.
 
 
 |experimental|
@@ -219,6 +219,4 @@ List of changes in the listener interfaces since 2.8.0 when they were introduced
 |                 | ``on_task_instance_success``               | ``task_instance`` object is now an instance of ``RuntimeTaskInstance`` when on worker and ``TaskInstance`` when on API server |
 +-----------------+--------------------------------------------+-------------------------------------------------------------------------------------------------------------------------------+
 | 3.2.0           | ``on_task_instance_skipped``               | New listener method added to the interface                                                                                    |
-+-----------------+--------------------------------------------+-------------------------------------------------------------------------------------------------------------------------------+
-| 3.4.0           | ``on_task_instance_up_for_retry``          | New listener method added to the interface                                                                                    |
 +-----------------+--------------------------------------------+-------------------------------------------------------------------------------------------------------------------------------+

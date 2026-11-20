@@ -21,7 +21,7 @@ import json
 import logging
 import os
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from fnmatch import fnmatch
 from functools import lru_cache
 from typing import TYPE_CHECKING, Any
@@ -41,7 +41,7 @@ if TYPE_CHECKING:
 log = logging.getLogger(__name__)
 
 CONFIG_SECTION = "kafka_event_producer"
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 
 @lru_cache(maxsize=1)
@@ -275,7 +275,12 @@ def _on_delivery(err, _msg) -> None:
 
 
 def _now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
+
+
+def _format_datetime(value: datetime | None) -> str | None:
+    # isoformat() keeps the RFC 3339 "T" form so consumers can validate the field as a standard date-time.
+    return value.isoformat() if value else None
 
 
 # DagRun
@@ -299,9 +304,9 @@ def _get_dr_payload(dag_run, msg) -> dict[str, Any]:
         "dag_id": getattr(dag_run, "dag_id", None),
         "run_id": getattr(dag_run, "run_id", None),
         "run_type": str(getattr(dag_run, "run_type", "") or ""),
-        "logical_date": str(getattr(dag_run, "logical_date", "") or ""),
-        "start_date": str(getattr(dag_run, "start_date", "") or ""),
-        "end_date": str(getattr(dag_run, "end_date", "") or ""),
+        "logical_date": _format_datetime(getattr(dag_run, "logical_date", None)),
+        "start_date": _format_datetime(getattr(dag_run, "start_date", None)),
+        "end_date": _format_datetime(getattr(dag_run, "end_date", None)),
         "msg": msg or "",
     }
 

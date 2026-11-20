@@ -125,6 +125,26 @@ class TestKiotaRequestAdapterHook:
             assert actual.base_url == "https://graph.microsoft.com/v1.0/"
 
     @pytest.mark.asyncio
+    async def test_get_async_conn_builds_one_adapter_for_concurrent_callers(self):
+        """Hooks awaiting the same connection for the first time at once share a single request adapter."""
+        with (
+            patch_hook(),
+            patch.object(
+                KiotaRequestAdapterHook,
+                "_build_request_adapter",
+                autospec=True,
+                side_effect=KiotaRequestAdapterHook._build_request_adapter,
+            ) as mock_build_request_adapter,
+        ):
+            adapters = await asyncio.gather(
+                *(KiotaRequestAdapterHook(conn_id="msgraph_api").get_async_conn() for _ in range(5))
+            )
+
+        mock_build_request_adapter.assert_called_once()
+        assert all(adapter is adapters[0] for adapter in adapters)
+        assert KiotaRequestAdapterHook.cached_request_adapters["msgraph_api"][1] is adapters[0]
+
+    @pytest.mark.asyncio
     async def test_get_async_conn_with_custom_base_url(self):
         with patch_hook(
             side_effect=lambda conn_id: get_airflow_connection(
@@ -505,6 +525,154 @@ class TestKiotaRequestAdapterHook:
             assert mock_get_http_response.call_count == 1
 
     @pytest.mark.asyncio
+    async def test_paginated_run_hands_the_pages_collected_so_far_to_the_pagination_function(self):
+        users = load_json_from_resources(dirname(__file__), "..", "resources", "users.json")
+        next_users = load_json_from_resources(dirname(__file__), "..", "resources", "next_users.json")
+        response = mock_json_response(200, users, next_users)
+        collected: list[list] = []
+
+        def pagination_function(response, responses):
+            collected.append(list(responses()))
+            return response.get("@odata.nextLink"), None
+
+        with patch_hook_and_request_adapter(response):
+            hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
+
+            actual = await hook.paginated_run(url="users", pagination_function=pagination_function)
+
+        assert actual == [users, next_users]
+        assert collected == [[users], [users, next_users]]
+
+    @pytest.mark.asyncio
+    async def test_iter_paginated_run(self):
+        users = load_json_from_resources(dirname(__file__), "..", "resources", "users.json")
+        next_users = load_json_from_resources(dirname(__file__), "..", "resources", "next_users.json")
+        response = mock_json_response(200, users, next_users)
+
+        with patch_hook_and_request_adapter(response):
+            hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
+
+            actual = [page async for page in hook.iter_paginated_run(url="users")]
+
+            assert actual == [users, next_users]
+
+    @pytest.mark.asyncio
+    async def test_iter_paginated_run_requests_the_next_page_only_when_asked(self):
+        users = load_json_from_resources(dirname(__file__), "..", "resources", "users.json")
+        next_users = load_json_from_resources(dirname(__file__), "..", "resources", "next_users.json")
+        response = mock_json_response(200, users, next_users)
+
+        with patch_hook_and_request_adapter(response) as mocks:
+            mock_get_http_response = mocks[-1]
+            hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
+            pages = hook.iter_paginated_run(url="users")
+
+            assert await anext(pages) == users
+            assert mock_get_http_response.call_count == 1
+
+            assert await anext(pages) == next_users
+            assert mock_get_http_response.call_count == 2
+
+            await pages.aclose()
+
+    @pytest.mark.asyncio
+    async def test_iter_paginated_run_stops_on_an_empty_response(self):
+        users = load_json_from_resources(dirname(__file__), "..", "resources", "users.json")
+        response = mock_json_response(200, users, None)
+
+        with patch_hook_and_request_adapter(response) as mocks:
+            mock_get_http_response = mocks[-1]
+            hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
+
+            actual = [page async for page in hook.iter_paginated_run(url="users")]
+
+            assert actual == [users]
+            assert mock_get_http_response.call_count == 2
+
+    @pytest.mark.asyncio
+    async def test_iter_paginated_run_refuses_cross_host_next_link(self):
+        first_page = {
+            "@odata.nextLink": "https://attacker.example/v1.0/users?$skiptoken=steal",
+            "value": [{"id": "1"}],
+        }
+        response = mock_json_response(200, first_page)
+
+        with patch_hook_and_request_adapter(response) as mocks:
+            mock_get_http_response = mocks[-1]
+            hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
+
+            with pytest.raises(ValueError, match="attacker.example"):
+                [page async for page in hook.iter_paginated_run(url="users")]
+
+            # The off-host pagination link is refused before it is fetched, so the bearer
+            # token is never sent to the attacker host.
+            assert mock_get_http_response.call_count == 1
+
+    @pytest.mark.asyncio
+    async def test_iter_paginated_run_does_not_read_a_yielded_page_again(self):
+        first_page = {"@odata.count": 4, "value": [{"id": "1"}, {"id": "2"}]}
+        second_page = {"@odata.count": 4, "value": [{"id": "3"}, {"id": "4"}]}
+        response = mock_json_response(200, first_page, second_page, None)
+
+        with patch_hook_and_request_adapter(response) as mocks:
+            mock_get_http_response = mocks[-1]
+            hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
+            ids = []
+
+            async for page in hook.iter_paginated_run(url="users", query_parameters={"$top": 2}):
+                # The consumer owns the page once it is yielded: emptying it must not end the pagination,
+                # which ``default_pagination`` decides from ``value`` and ``@odata.count``.
+                ids.extend(item["id"] for item in page.pop("value"))
+
+            assert ids == ["1", "2", "3", "4"]
+            assert mock_get_http_response.call_count == 3
+
+    @pytest.mark.asyncio
+    async def test_iter_paginated_run_with_a_custom_pagination_function(self):
+        users = load_json_from_resources(dirname(__file__), "..", "resources", "users.json")
+        response = mock_json_response(200, users, users)
+        seen: list[tuple[str, dict | None]] = []
+
+        def skip_once(response, url, query_parameters):
+            seen.append((url, query_parameters))
+            if query_parameters and query_parameters.get("$skip"):
+                return None, query_parameters
+            return url, {"$top": 1, "$skip": 1}
+
+        with patch_hook_and_request_adapter(response) as mocks:
+            mock_get_http_response = mocks[-1]
+            hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
+
+            actual = [
+                page
+                async for page in hook.iter_paginated_run(
+                    url="users", query_parameters={"$top": 1}, pagination_function=skip_once
+                )
+            ]
+
+            assert actual == [users, users]
+            assert seen == [("users", {"$top": 1}), ("users", {"$top": 1, "$skip": 1})]
+            assert mock_get_http_response.call_count == 2
+
+    @pytest.mark.asyncio
+    async def test_iter_paginated_run_does_not_pass_responses_to_the_pagination_function(self):
+        users = load_json_from_resources(dirname(__file__), "..", "resources", "users.json")
+
+        def needs_responses(response, responses):
+            return None, None
+
+        with patch_hook_and_request_adapter(mock_json_response(200, users)):
+            hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
+
+            with pytest.raises(TypeError, match="responses"):
+                [
+                    page
+                    async for page in hook.iter_paginated_run(
+                        url="users", pagination_function=needs_responses
+                    )
+                ]
+
+    @pytest.mark.asyncio
     async def test_assert_allowed_host_refuses_another_host(self):
         with patch_hook_and_request_adapter(mock_json_response(200, {})):
             hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
@@ -530,6 +698,23 @@ class TestKiotaRequestAdapterHook:
             hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
 
             await hook.assert_allowed_host("https://other.example/v1.0/users")
+
+    @pytest.mark.asyncio
+    async def test_get_async_conn_reads_the_extra_with_get_async_extra_dejson(self):
+        """The extra comes from the async compat helper, which masks its secrets off the sync Task SDK path."""
+        with (
+            patch_hook(),
+            patch(
+                "airflow.providers.microsoft.azure.hooks.msgraph.get_async_extra_dejson",
+                new_callable=AsyncMock,
+                side_effect=lambda connection: json.loads(connection.extra),
+            ) as mock_get_async_extra_dejson,
+        ):
+            hook = KiotaRequestAdapterHook(conn_id="msgraph_async_extra")
+            await hook.get_async_conn()
+
+        mock_get_async_extra_dejson.assert_awaited_once()
+        assert mock_get_async_extra_dejson.await_args.args[0].conn_id == "msgraph_async_extra"
 
     @pytest.mark.asyncio
     async def test_build_request_adapter_masks_secrets(self):
@@ -624,8 +809,8 @@ class TestKiotaRequestAdapterHook:
             .issuer_name(name)
             .public_key(private_key.public_key())
             .serial_number(x509.random_serial_number())
-            .not_valid_before(datetime.datetime.now(datetime.timezone.utc))
-            .not_valid_after(datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(days=1))
+            .not_valid_before(datetime.datetime.now(datetime.UTC))
+            .not_valid_after(datetime.datetime.now(datetime.UTC) + datetime.timedelta(days=1))
             .sign(private_key, hashes.SHA256())
         )
         pem = private_key.private_bytes(
@@ -745,8 +930,20 @@ class TestKiotaRequestAdapterHook:
             credential.close.assert_awaited_once()
 
     @pytest.mark.asyncio
-    async def test_send_request_invalidates_cache_and_raises_on_unauthorized(self):
-        """send_request evicts the cached adapter, closes it, and re-raises when Microsoft Graph returns 401."""
+    @pytest.mark.parametrize(
+        "error",
+        [
+            pytest.param("401 Unauthorized", id="unauthorized"),
+            pytest.param("403 Forbidden: TokenExpired", id="forbidden-token-expired"),
+        ],
+    )
+    async def test_send_request_invalidates_cache_and_raises_on_permission_error(self, error: str):
+        """
+        send_request evicts the cached adapter, closes it, and re-raises when the API rejects the token.
+
+        Microsoft Graph reports an expired token as 401, Power BI as 403 with error code TokenExpired;
+        the response handler maps both to PermissionError.
+        """
         with patch_hook():
             hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
 
@@ -754,15 +951,13 @@ class TestKiotaRequestAdapterHook:
             adapter._http_client = Mock(spec=AsyncClient, is_closed=False)
             adapter._authentication_provider = mock_authentication_provider(closed=False)
             adapter.base_url = "https://graph.microsoft.com/v1.0"
-            adapter.send_no_response_content_async = AsyncMock(
-                side_effect=PermissionError("401 Unauthorized")
-            )
-            hook.cached_request_adapters[hook.conn_id] = (hook.api_version, adapter)
+            adapter.send_no_response_content_async = AsyncMock(side_effect=PermissionError(error))
+            hook.cached_request_adapters[hook.conn_id] = ("v1.0", adapter)
 
             access_token_provider = adapter._authentication_provider.access_token_provider
             credential = access_token_provider._credentials._credential
 
-            with pytest.raises(PermissionError, match="401 Unauthorized"):
+            with pytest.raises(PermissionError, match=error):
                 await hook.run(url="users")
 
             adapter.send_no_response_content_async.assert_called_once()
@@ -799,6 +994,35 @@ class TestKiotaRequestAdapterHook:
             await hook.close()
 
             assert hook.conn_id not in hook.cached_request_adapters
+
+    def test_run_sync_returns_result_and_closes_cached_adapter(self):
+        """run_sync closes the adapter before asyncio.run tears down the loop it is bound to."""
+        with patch_hook():
+            hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
+
+            adapter = Mock(spec=HttpxRequestAdapter)
+            adapter._http_client = Mock(spec=AsyncClient, is_closed=False)
+            adapter._authentication_provider = mock_authentication_provider(closed=False)
+            hook.cached_request_adapters[hook.conn_id] = (hook.api_version, adapter)
+
+            async def request():
+                return "response"
+
+            assert hook.run_sync(request()) == "response"
+            adapter._http_client.aclose.assert_awaited_once()
+            assert hook.conn_id not in hook.cached_request_adapters
+
+    @pytest.mark.asyncio
+    async def test_run_sync_refuses_a_running_event_loop(self):
+        with patch_hook():
+            hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
+            request = AsyncMock(return_value="response")
+            coroutine = request()
+
+            with pytest.raises(RuntimeError, match="cannot be called from a running event loop"):
+                hook.run_sync(coroutine)
+
+            assert coroutine.cr_frame is None
 
     def test_allowed_hosts_is_empty_list_when_not_configured(self):
         """An unset allowed_hosts/authority must yield []."""
@@ -951,6 +1175,21 @@ class TestResponseHandler:
 
         with pytest.raises(PermissionError):
             asyncio.run(DefaultResponseHandler().handle_response_async(response, None))
+
+    def test_handle_response_async_when_forbidden(self):
+        """Power BI reports an expired access token as 403 Forbidden with error code TokenExpired."""
+        body = {
+            "error": {
+                "code": "TokenExpired",
+                "message": "Access token has expired, resubmit with a new access token",
+            }
+        }
+        response = mock_json_response(403, body)
+
+        with pytest.raises(PermissionError) as exc_info:
+            asyncio.run(DefaultResponseHandler().handle_response_async(response, None))
+
+        assert exc_info.value.args == (body,)
 
     def test_handle_response_async_when_not_found(self):
         response = mock_json_response(404, {})

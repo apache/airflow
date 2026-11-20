@@ -24,6 +24,7 @@ import pytest
 import requests
 from authlib.jose import JsonWebKey, jwt as authlib_jwt
 from authlib.jose.errors import InvalidClaimError
+from flask import Flask
 from flask_appbuilder import const
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -58,6 +59,24 @@ def _create_azure_jwt(
     token = authlib_jwt.encode(
         {"alg": "RS256", "kid": kid},
         {"iss": iss, "aud": aud, "tid": tid, "oid": oid},
+        key,
+    )
+    return token.decode("utf-8") if isinstance(token, bytes) else token
+
+
+AUTHENTIK_ISSUER = "https://authentik.example.com/application/o/airflow/"
+
+
+def _create_authentik_jwt(
+    key,
+    iss=AUTHENTIK_ISSUER,
+    aud=CLIENT_ID,
+    sub="user-sub",
+    kid="test-kid",
+) -> str:
+    token = authlib_jwt.encode(
+        {"alg": "RS256", "kid": kid},
+        {"iss": iss, "aud": aud, "sub": sub},
         key,
     )
     return token.decode("utf-8") if isinstance(token, bytes) else token
@@ -170,6 +189,166 @@ class TestFabAirflowSecurityManagerOverride:
         assert result is existing_role
         assert mock_session.rollback.called
         assert mock_log.error.call_count == 0
+
+    @mock.patch("airflow.providers.fab.auth_manager.security_manager.override.log")
+    def test_add_user_returns_none_when_commit_fails(self, mock_log):
+        sm = EmptySecurityManager()
+        sm._hash_password = Mock(return_value="hashed")
+
+        mock_session = Mock(spec=Session)
+        mock_session.commit.side_effect = IntegrityError("stmt", {}, Exception("Duplicate entry"))
+
+        with mock.patch.object(EmptySecurityManager, "session", mock_session):
+            result = sm.add_user("alice", "Alice", "Smith", "alice@example.com", password="secret")
+
+        assert result is None
+        mock_session.rollback.assert_called_once()
+        mock_log.error.assert_called_once()
+
+    @pytest.mark.parametrize(
+        ("commit_fails", "found_is_active", "expected", "logs_parallel_login"),
+        [
+            pytest.param(False, None, "created", False, id="created"),
+            pytest.param(True, None, None, False, id="insert-failed"),
+            pytest.param(True, True, "found", True, id="parallel-login-active-user"),
+            pytest.param(True, False, None, True, id="parallel-login-inactive-user"),
+        ],
+    )
+    @mock.patch("airflow.providers.fab.auth_manager.security_manager.override.log")
+    def test_register_user_on_login(
+        self, mock_log, commit_fails, found_is_active, expected, logs_parallel_login
+    ):
+        found = None if found_is_active is None else Mock(spec=User, is_active=found_is_active)
+        sm = EmptySecurityManager()
+        sm.find_user = Mock(return_value=found)
+        sm._hash_password = Mock(return_value="hashed")
+
+        mock_session = Mock(spec=Session)
+        if commit_fails:
+            mock_session.commit.side_effect = IntegrityError("stmt", {}, Exception("Duplicate entry"))
+
+        with mock.patch.object(EmptySecurityManager, "session", mock_session):
+            result = sm._register_user_on_login(
+                username="alice", first_name="Alice", last_name="Smith", email="alice@example.com", role=None
+            )
+
+        if expected == "created":
+            assert isinstance(result, User)
+            assert result.username == "alice"
+            sm.find_user.assert_not_called()
+        elif expected == "found":
+            assert result is found
+        else:
+            assert result is None
+        parallel_login_log = call("User %s was registered by a parallel login, using that user", "alice")
+        assert (parallel_login_log in mock_log.info.call_args_list) is logs_parallel_login
+
+    @pytest.mark.parametrize("registered", [True, False])
+    @mock.patch.object(EmptySecurityManager, "_register_user_on_login", autospec=True)
+    @mock.patch.object(
+        EmptySecurityManager, "auth_user_registration", new_callable=mock.PropertyMock, return_value=True
+    )
+    def test_auth_user_oauth_registers_new_user(self, _, mock_register, registered):
+        user = Mock(spec=User, is_active=True)
+        mock_register.return_value = user if registered else None
+        sm = EmptySecurityManager()
+        sm.find_user = Mock(return_value=None)
+        sm._oauth_calculate_user_roles = Mock(return_value=[])
+        sm._rotate_session_id = Mock()
+        sm.update_user_auth_stat = Mock()
+
+        result = sm.auth_user_oauth({"username": "alice", "email": "alice@example.com"})
+
+        mock_register.assert_called_once_with(
+            sm, username="alice", first_name="", last_name="", email="alice@example.com", role=[]
+        )
+        assert result is (user if registered else None)
+        assert sm.update_user_auth_stat.called is registered
+
+    @pytest.mark.parametrize("registered", [True, False])
+    @mock.patch.object(EmptySecurityManager, "_register_user_on_login", autospec=True)
+    @mock.patch.object(
+        EmptySecurityManager,
+        "auth_user_registration_role",
+        new_callable=mock.PropertyMock,
+        return_value="User",
+    )
+    @mock.patch.object(
+        EmptySecurityManager, "auth_user_registration", new_callable=mock.PropertyMock, return_value=True
+    )
+    def test_auth_user_remote_user_registers_new_user(self, _, __, mock_register, registered):
+        user = Mock(spec=User, is_active=True)
+        mock_register.return_value = user if registered else None
+        sm = EmptySecurityManager()
+        sm.find_user = Mock(return_value=None)
+        sm.find_role = Mock(return_value=None)
+        sm._rotate_session_id = Mock()
+        sm.update_user_auth_stat = Mock()
+
+        result = sm.auth_user_remote_user("alice")
+
+        mock_register.assert_called_once_with(
+            sm, username="alice", first_name="alice", last_name="-", email="alice@email.notfound", role=None
+        )
+        assert result is (user if registered else None)
+        assert sm.update_user_auth_stat.called is registered
+
+    @pytest.mark.parametrize("registered", [True, False])
+    @mock.patch.object(EmptySecurityManager, "_register_user_on_login", autospec=True)
+    def test_auth_user_ldap_registers_new_user(self, mock_register, registered):
+        user = Mock(spec=User, is_active=True)
+        mock_register.return_value = user if registered else None
+        sm = EmptySecurityManager()
+        sm.find_user = Mock(return_value=None)
+        sm._ldap_bind = Mock(return_value=True)
+        sm._search_ldap = Mock(
+            return_value=(
+                "uid=alice,dc=example,dc=org",
+                {"givenName": [b"Alice"], "sn": [b"Smith"], "mail": [b"alice@example.org"]},
+            )
+        )
+        sm._ldap_calculate_user_roles = Mock(return_value=[])
+        sm._rotate_session_id = Mock()
+        sm.update_user_auth_stat = Mock()
+        sm._reset_user_permissions_cache = Mock()
+
+        # python-ldap is an optional dependency, so stub the module auth_user_ldap imports
+        mock_ldap = mock.MagicMock()
+        mock_ldap.LDAPError = type("LDAPError", (Exception,), {})
+
+        app = Flask(__name__)
+        app.config.update(
+            AUTH_LDAP_TLS_CACERTDIR=None,
+            AUTH_LDAP_TLS_CACERTFILE=None,
+            AUTH_LDAP_TLS_CERTFILE=None,
+            AUTH_LDAP_TLS_KEYFILE=None,
+            AUTH_LDAP_ALLOW_SELF_SIGNED=False,
+            AUTH_LDAP_TLS_DEMAND=False,
+            AUTH_LDAP_SERVER="ldap://localhost",
+            AUTH_LDAP_USE_TLS=False,
+            AUTH_LDAP_BIND_USER=None,
+            AUTH_LDAP_SEARCH="dc=example,dc=org",
+            AUTH_LDAP_APPEND_DOMAIN=None,
+            AUTH_LDAP_USERNAME_FORMAT=None,
+            AUTH_LDAP_FIRSTNAME_FIELD="givenName",
+            AUTH_LDAP_LASTNAME_FIELD="sn",
+            AUTH_LDAP_EMAIL_FIELD="mail",
+            AUTH_USER_REGISTRATION=True,
+            AUTH_ROLES_SYNC_AT_LOGIN=False,
+        )
+
+        with (
+            app.app_context(),
+            mock.patch.dict("sys.modules", {"ldap": mock_ldap, "ldap.filter": mock_ldap.filter}),
+            mock.patch.object(EmptySecurityManager, "session", Mock(spec=Session)),
+        ):
+            result = sm.auth_user_ldap("alice", "secret")
+
+        mock_register.assert_called_once_with(
+            sm, username="alice", first_name="Alice", last_name="Smith", email="alice@example.org", role=[]
+        )
+        assert result is (user if registered else None)
+        assert sm.update_user_auth_stat.called is registered
 
     @mock.patch("airflow.providers.fab.auth_manager.security_manager.override.log")
     def test_create_action_returns_existing_on_concurrent_insert(self, mock_log):
@@ -1059,6 +1238,137 @@ class TestFabAirflowSecurityManagerOverride:
         ):
             with pytest.raises(InvalidClaimError, match="invalid_claim: Invalid claim 'aud'"):
                 sm._decode_and_validate_azure_jwt(id_token)
+
+    def _authentik_security_manager(self):
+        sm = EmptySecurityManager()
+        sm.oauth_remotes = {
+            "authentik": SimpleNamespace(
+                client_kwargs={},
+                client_id=CLIENT_ID,
+                server_metadata={
+                    "jwks_uri": "https://authentik.example.com/application/o/airflow/jwks/",
+                    "issuer": AUTHENTIK_ISSUER,
+                },
+            )
+        }
+        return sm
+
+    def test_get_authentik_token_info_accepts_a_token_for_this_application(self):
+        """A correctly-addressed token still authenticates."""
+        key = JsonWebKey.generate_key("RSA", 2048, options={"kid": "test-kid"}, is_private=True)
+        public_key = key.as_dict(is_private=False, kid="test-kid")
+        id_token = _create_authentik_jwt(key=key)
+
+        sm = self._authentik_security_manager()
+        with mock.patch.object(
+            EmptySecurityManager,
+            "_get_authentik_jwks",
+            autospec=True,
+            return_value={"keys": [public_key]},
+        ):
+            claims = sm._get_authentik_token_info(id_token)
+
+        assert claims["aud"] == CLIENT_ID
+        assert claims["iss"] == AUTHENTIK_ISSUER
+
+    def test_get_authentik_token_info_rejects_audience_mismatch(self):
+        """A token the same provider minted for another application is rejected.
+
+        The provider signs every application's tokens with one key set, so a valid
+        signature does not establish that the token was addressed to Airflow.
+        """
+        key = JsonWebKey.generate_key("RSA", 2048, options={"kid": "test-kid"}, is_private=True)
+        public_key = key.as_dict(is_private=False, kid="test-kid")
+        id_token = _create_authentik_jwt(key=key, aud="some-other-application")
+
+        sm = self._authentik_security_manager()
+        with mock.patch.object(
+            EmptySecurityManager,
+            "_get_authentik_jwks",
+            autospec=True,
+            return_value={"keys": [public_key]},
+        ):
+            with pytest.raises(InvalidClaimError, match="invalid_claim: Invalid claim 'aud'"):
+                sm._get_authentik_token_info(id_token)
+
+    def test_get_authentik_token_info_rejects_issuer_mismatch(self):
+        """A token from a different provider is rejected even if its signature verifies."""
+        key = JsonWebKey.generate_key("RSA", 2048, options={"kid": "test-kid"}, is_private=True)
+        public_key = key.as_dict(is_private=False, kid="test-kid")
+        id_token = _create_authentik_jwt(key=key, iss="https://evil.example.com/application/o/x/")
+
+        sm = self._authentik_security_manager()
+        with mock.patch.object(
+            EmptySecurityManager,
+            "_get_authentik_jwks",
+            autospec=True,
+            return_value={"keys": [public_key]},
+        ):
+            with pytest.raises(InvalidClaimError, match="invalid_claim: Invalid claim 'iss'"):
+                sm._get_authentik_token_info(id_token)
+
+    def test_get_authentik_token_info_fails_closed_without_an_issuer(self):
+        """No discoverable issuer is refused outright rather than downgraded.
+
+        Falling back to an audience-only check would still accept a token minted by an
+        untrusted issuer whenever the configured key set signs for more than one, so the
+        token this asserts on carries the *correct* audience and a *wrong* issuer -- the
+        exact shape an audience-only fallback would let through.
+        """
+        key = JsonWebKey.generate_key("RSA", 2048, options={"kid": "test-kid"}, is_private=True)
+        public_key = key.as_dict(is_private=False, kid="test-kid")
+        id_token = _create_authentik_jwt(key=key, iss="https://evil.example.com/application/o/x/")
+
+        sm = self._authentik_security_manager()
+        sm.oauth_remotes["authentik"].server_metadata.pop("issuer")
+
+        with mock.patch.object(
+            EmptySecurityManager,
+            "_get_authentik_jwks",
+            autospec=True,
+            return_value={"keys": [public_key]},
+        ):
+            with pytest.raises(FabException, match="no issuer is available"):
+                sm._get_authentik_token_info(id_token)
+
+    def test_get_authentik_token_info_accepts_a_configured_issuer_override(self):
+        """A manually configured issuer restores verification when metadata lacks one."""
+        key = JsonWebKey.generate_key("RSA", 2048, options={"kid": "test-kid"}, is_private=True)
+        public_key = key.as_dict(is_private=False, kid="test-kid")
+        id_token = _create_authentik_jwt(key=key)
+
+        sm = self._authentik_security_manager()
+        sm.oauth_remotes["authentik"].server_metadata.pop("issuer")
+        sm.oauth_remotes["authentik"].client_kwargs["issuer"] = AUTHENTIK_ISSUER
+
+        with mock.patch.object(
+            EmptySecurityManager,
+            "_get_authentik_jwks",
+            autospec=True,
+            return_value={"keys": [public_key]},
+        ):
+            claims = sm._get_authentik_token_info(id_token)
+
+        assert claims["iss"] == AUTHENTIK_ISSUER
+
+    def test_get_authentik_token_info_override_still_rejects_a_foreign_issuer(self):
+        """The override pins the issuer; it does not merely satisfy the presence check."""
+        key = JsonWebKey.generate_key("RSA", 2048, options={"kid": "test-kid"}, is_private=True)
+        public_key = key.as_dict(is_private=False, kid="test-kid")
+        id_token = _create_authentik_jwt(key=key, iss="https://evil.example.com/application/o/x/")
+
+        sm = self._authentik_security_manager()
+        sm.oauth_remotes["authentik"].server_metadata.pop("issuer")
+        sm.oauth_remotes["authentik"].client_kwargs["issuer"] = AUTHENTIK_ISSUER
+
+        with mock.patch.object(
+            EmptySecurityManager,
+            "_get_authentik_jwks",
+            autospec=True,
+            return_value={"keys": [public_key]},
+        ):
+            with pytest.raises(InvalidClaimError, match="invalid_claim: Invalid claim 'iss'"):
+                sm._get_authentik_token_info(id_token)
 
     @pytest.mark.parametrize(
         ("response_kwargs", "request_side_effect", "error_match"),

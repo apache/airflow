@@ -97,6 +97,7 @@ class S3ToDynamoDBOperator(BaseOperator):
         "billing_mode",
         "import_table_kwargs",
         "import_table_creation_kwargs",
+        "aws_conn_id",
     )
     ui_color = "#e2e8f0"
 

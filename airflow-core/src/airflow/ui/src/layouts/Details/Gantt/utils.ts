@@ -26,7 +26,8 @@ import type { GridTask } from "src/layouts/Details/Grid/utils";
 
 import { SearchParamsKeys } from "src/constants/searchParams";
 import { isStatePending } from "src/utils";
-import { renderDuration } from "src/utils/datetimeUtils";
+import { getDurationTickStep, renderDuration } from "src/utils/datetimeUtils";
+import { stripExecutionParams } from "src/utils/executionParams";
 import { buildTaskInstanceUrl } from "src/utils/links";
 
 export type GanttDataItem = {
@@ -34,13 +35,18 @@ export type GanttDataItem = {
   end_when?: string | null;
   isGroup?: boolean | null;
   isMapped?: boolean | null;
+  loopIteration?: GanttTaskInstance["loop_iteration"];
+  mapIndex?: number;
   /** Source try times for tooltips (matches TaskInstance `*_when` fields). */
   queued_when?: string | null;
+  regionId?: string;
+  regionIndex?: number;
   scheduled_when?: string | null;
   /** Actual task execution start_date — consistent across all segments of the same try. */
   start_when?: string | null;
   state?: TaskInstanceState | null;
   taskId: string;
+  taskInstanceId?: string;
   tryNumber?: number;
   /** [startMs, endMs] as Unix millisecond timestamps — pre-parsed to avoid repeated `new Date()` in render loops. */
   x: [number, number];
@@ -50,8 +56,8 @@ export type GanttDataItem = {
 type GanttSegmentLinkParams = {
   dagId: string;
   item: GanttDataItem;
-  /** Precomputed map from taskId → max try number; build once with `buildMaxTryByTaskId`. */
-  maxTryByTaskId: Map<string, number>;
+  /** Precomputed map from `getGanttTryKey` → max try number; build once with `buildMaxTryByKey`. */
+  maxTryByKey: Map<string, number>;
   /** `location.pathname` — hoisted out of the segment loop so it is read once per render. */
   pathname: string;
   runId: string;
@@ -142,7 +148,12 @@ export const transformGanttData = ({
             const effectiveEndDate =
               endDate ?? (hasTaskRunning && startDate !== null ? new Date().toISOString() : null);
 
-            const tryWhenForTooltip = {
+            const tryMetadata = {
+              loopIteration: tryRow.loop_iteration,
+              mapIndex: tryRow.map_index,
+              regionId: tryRow.region_id,
+              regionIndex: tryRow.region_index,
+              taskInstanceId: tryRow.id,
               ...(scheduledMs === undefined ? {} : { scheduled_when: scheduledDttm }),
               ...(queuedMs === undefined ? {} : { queued_when: queuedDttm }),
               ...(startDate === null ? {} : { start_when: startDate }),
@@ -170,7 +181,7 @@ export const transformGanttData = ({
                   state: "scheduled",
                   taskId: tryRow.task_id,
                   tryNumber: tryRow.try_number,
-                  ...tryWhenForTooltip,
+                  ...tryMetadata,
                   x: [scheduledMs, scheduledEndMs],
                   y: tryRow.task_display_name,
                 });
@@ -187,7 +198,7 @@ export const transformGanttData = ({
                   state: "queued",
                   taskId: tryRow.task_id,
                   tryNumber: tryRow.try_number,
-                  ...tryWhenForTooltip,
+                  ...tryMetadata,
                   x: [queuedMs, queueEndMs],
                   y: tryRow.task_display_name,
                 });
@@ -204,7 +215,7 @@ export const transformGanttData = ({
                 state: tryRow.state,
                 taskId: tryRow.task_id,
                 tryNumber: tryRow.try_number,
-                ...tryWhenForTooltip,
+                ...tryMetadata,
                 x: [startMs, execEndMs],
                 y: tryRow.task_display_name,
               });
@@ -284,17 +295,20 @@ export const computeGanttTimeRangeMs = ({
   };
 };
 
+const getGanttTryKey = ({ mapIndex, regionId, regionIndex, taskId }: GanttDataItem) =>
+  `${taskId}:${regionId ?? ""}:${regionIndex ?? -1}:${mapIndex ?? -1}`;
+
 /**
- * Precompute the maximum try number for each task in O(n).
+ * Precompute the maximum try number for each task and region in O(n).
  * Pass the result to `getGanttSegmentTo` to avoid an O(n) scan per segment.
  */
-export const buildMaxTryByTaskId = (ganttItems: Array<GanttDataItem>): Map<string, number> => {
+export const buildMaxTryByKey = (ganttItems: Array<GanttDataItem>): Map<string, number> => {
   const map = new Map<string, number>();
 
   for (const item of ganttItems) {
-    const current = map.get(item.taskId) ?? 0;
+    const key = getGanttTryKey(item);
 
-    map.set(item.taskId, Math.max(current, item.tryNumber ?? 1));
+    map.set(key, Math.max(map.get(key) ?? 0, item.tryNumber ?? 1));
   }
 
   return map;
@@ -303,7 +317,7 @@ export const buildMaxTryByTaskId = (ganttItems: Array<GanttDataItem>): Map<strin
 export const getGanttSegmentTo = ({
   dagId,
   item,
-  maxTryByTaskId,
+  maxTryByKey,
   pathname,
   runId,
   searchParams: baseSearchParams,
@@ -323,15 +337,25 @@ export const getGanttSegmentTo = ({
     taskId,
   });
 
-  // Clone the pre-parsed params so mutations don't leak across segments.
-  const searchParams = new URLSearchParams(baseSearchParams);
-  const maxTryForTask = maxTryByTaskId.get(taskId) ?? 1;
-  const isOlderTry = tryNumber !== undefined && tryNumber < maxTryForTask;
+  const searchParams = stripExecutionParams(baseSearchParams);
 
-  if (isOlderTry) {
-    searchParams.set(SearchParamsKeys.TRY_NUMBER, tryNumber.toString());
+  if (item.regionId !== undefined && item.regionIndex !== undefined) {
+    searchParams.set(SearchParamsKeys.REGION_ID, item.regionId);
+    searchParams.set(SearchParamsKeys.REGION_INDEX, item.regionIndex.toString());
+  }
+
+  // The coordinate addresses the row; the loop and pass are what the breadcrumb and the filter
+  // read, so a bar carries both and clicking one lands on the pass it was drawn for.
+  if (item.loopIteration !== null && item.loopIteration !== undefined) {
+    searchParams.set(SearchParamsKeys.LOOP_ID, item.loopIteration.loop_id);
+    searchParams.set(SearchParamsKeys.ITERATION, item.loopIteration.iteration.toString());
   } else {
-    searchParams.delete(SearchParamsKeys.TRY_NUMBER);
+    searchParams.delete(SearchParamsKeys.LOOP_ID);
+    searchParams.delete(SearchParamsKeys.ITERATION);
+  }
+
+  if (tryNumber !== undefined && tryNumber < (maxTryByKey.get(getGanttTryKey(item)) ?? 1)) {
+    searchParams.set(SearchParamsKeys.TRY_NUMBER, tryNumber.toString());
   }
 
   return {
@@ -352,36 +376,44 @@ export type GanttAxisTick = {
 };
 
 /** Elapsed time from the chart origin (`minMs`), formatted like grid duration labels (no wall-clock). */
-const formatElapsedMsForGanttAxis = (elapsedMs: number): string => {
+const formatElapsedMsForGanttAxis = (elapsedMs: number, locale?: string): string => {
   const seconds = Math.max(0, elapsedMs / 1000);
 
-  if (seconds <= 0.01) {
-    return "00:00:00";
-  }
-
-  return renderDuration(seconds, false) ?? "00:00:00";
+  return renderDuration(seconds, locale) ?? "0s";
 };
 
 export const buildGanttTimeAxisTicks = (
   minMs: number,
   maxMs: number,
-  tickCount: number = GANTT_TIME_AXIS_TICK_COUNT,
+  { locale, tickCount = GANTT_TIME_AXIS_TICK_COUNT }: { locale?: string; tickCount?: number } = {},
 ): Array<GanttAxisTick> => {
   const spanMs = Math.max(1, maxMs - minMs);
   const denominator = Math.max(1, tickCount - 1);
   const lastIndex = tickCount - 1;
   const ticks: Array<GanttAxisTick> = [];
+  // Snap to the units people count in, the way the Chart.js duration axes do. Evenly dividing the
+  // raw span reads fine at truncated whole seconds but not at this precision: a 7s span became
+  // "0s | 1.17s | 2.33s | 3.5s". The last tick keeps the true span so the axis still ends at it.
+  const stepMs = getDurationTickStep(spanMs / 1000, denominator) * 1000;
 
   for (let tickIndex = 0; tickIndex < tickCount; tickIndex += 1) {
-    const elapsedMs = (tickIndex / denominator) * spanMs;
+    // A snapped step overshoots a short span, so stop at the first tick that reaches it rather than
+    // clamping the remaining ones onto the span: identical ticks stack gridlines and labels on top
+    // of each other at the right edge.
+    const isLastTick = tickIndex === lastIndex || (tickIndex > 0 && tickIndex * stepMs >= spanMs);
+    const elapsedMs = tickCount > 1 && isLastTick ? spanMs : tickIndex * stepMs;
     const labelAlign: GanttAxisTickLabelAlign =
-      tickCount === 1 ? "left" : tickIndex === 0 ? "left" : tickIndex === lastIndex ? "right" : "center";
+      tickCount === 1 || tickIndex === 0 ? "left" : isLastTick ? "right" : "center";
 
     ticks.push({
-      label: formatElapsedMsForGanttAxis(elapsedMs),
+      label: formatElapsedMsForGanttAxis(elapsedMs, locale),
       labelAlign,
-      leftPct: (tickIndex / denominator) * 100,
+      leftPct: (elapsedMs / spanMs) * 100,
     });
+
+    if (isLastTick) {
+      break;
+    }
   }
 
   return ticks;

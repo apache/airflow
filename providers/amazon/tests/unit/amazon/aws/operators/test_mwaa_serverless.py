@@ -34,6 +34,7 @@ from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 
 WORKFLOW_ARN = "arn:aws:mwaa-serverless:us-east-1:123456789012:workflow/test-workflow"
 RUN_ID = "run-abc123"
+ENVIRONMENT_VARIABLES = {"ENV": "prod", "LOG_LEVEL": "INFO"}
 
 
 class TestMwaaServerlessStartWorkflowRunOperator:
@@ -88,7 +89,28 @@ class TestMwaaServerlessStartWorkflowRunOperator:
 WORKFLOW_NAME = "test-workflow"
 WORKFLOW_ARN = "arn:aws:mwaa-serverless:us-east-1:123456789012:workflow/test-workflow"
 S3_LOCATION = {"Bucket": "test-bucket", "ObjectKey": "workflow.yaml"}
+CODE = {"S3Location": {"Bucket": "test-bucket", "ObjectKey": "code/my_package.zip"}}
 ROLE_ARN = "arn:aws:iam::123456789012:role/test-role"
+CREATE_WORKFLOW_KWARGS = {
+    "NetworkConfiguration": {
+        "SubnetIds": ["subnet-0123456789abcdef0", "subnet-0fedcba9876543210"],
+        "SecurityGroupIds": ["sg-0123456789abcdef0"],
+    },
+    "LoggingConfiguration": {"LogGroupName": "/aws/mwaa-serverless/test-workflow"},
+    "EncryptionConfiguration": {"Type": "AWS_MANAGED_KEY"},
+    "EngineVersion": 1,
+    "TriggerMode": "manual_only",
+    "ClientToken": "test-client-token",
+}
+UPDATE_WORKFLOW_KWARGS = {
+    "NetworkConfiguration": {
+        "SubnetIds": ["subnet-0123456789abcdef0", "subnet-0fedcba9876543210"],
+        "SecurityGroupIds": ["sg-0123456789abcdef0"],
+    },
+    "LoggingConfiguration": {"LogGroupName": "/aws/mwaa-serverless/test-workflow"},
+    "EngineVersion": 1,
+    "TriggerMode": "manual_only",
+}
 
 
 class TestMwaaServerlessCreateWorkflowOperator:
@@ -156,6 +178,73 @@ class TestMwaaServerlessCreateWorkflowOperator:
         with pytest.raises(ClientError, match="ConflictException"):
             op.execute({})
 
+    @mock.patch.object(AwsBaseHook, "conn", new_callable=mock.PropertyMock)
+    def test_execute_with_code_version_id(self, mock_conn):
+        code = {"S3Location": {**CODE["S3Location"], "VersionId": "abc123"}}
+        op = MwaaServerlessCreateWorkflowOperator(
+            task_id="create_workflow",
+            workflow_name=WORKFLOW_NAME,
+            definition_s3_location=S3_LOCATION,
+            code=code,
+            role_arn=ROLE_ARN,
+        )
+        mock_client = mock.MagicMock()
+        mock_client.create_workflow.return_value = {"WorkflowArn": WORKFLOW_ARN}
+        mock_conn.return_value = mock_client
+
+        result = op.execute({})
+
+        mock_client.create_workflow.assert_called_once_with(
+            Name=WORKFLOW_NAME, DefinitionS3Location=S3_LOCATION, Code=code, RoleArn=ROLE_ARN
+        )
+        assert result == WORKFLOW_ARN
+
+    @mock.patch.object(AwsBaseHook, "conn", new_callable=mock.PropertyMock)
+    def test_execute_with_create_workflow_kwargs(self, mock_conn):
+        op = MwaaServerlessCreateWorkflowOperator(
+            task_id="create_workflow",
+            workflow_name=WORKFLOW_NAME,
+            definition_s3_location=S3_LOCATION,
+            role_arn=ROLE_ARN,
+            create_workflow_kwargs=CREATE_WORKFLOW_KWARGS,
+        )
+        mock_client = mock.MagicMock()
+        mock_client.create_workflow.return_value = {"WorkflowArn": WORKFLOW_ARN}
+        mock_conn.return_value = mock_client
+
+        result = op.execute({})
+
+        mock_client.create_workflow.assert_called_once_with(
+            Name=WORKFLOW_NAME,
+            DefinitionS3Location=S3_LOCATION,
+            RoleArn=ROLE_ARN,
+            **CREATE_WORKFLOW_KWARGS,
+        )
+        assert result == WORKFLOW_ARN
+
+    @mock.patch.object(AwsBaseHook, "conn", new_callable=mock.PropertyMock)
+    def test_execute_with_environment_variables(self, mock_conn):
+        op = MwaaServerlessCreateWorkflowOperator(
+            task_id="create_workflow",
+            workflow_name=WORKFLOW_NAME,
+            definition_s3_location=S3_LOCATION,
+            role_arn=ROLE_ARN,
+            environment_variables=ENVIRONMENT_VARIABLES,
+        )
+        mock_client = mock.MagicMock()
+        mock_client.create_workflow.return_value = {"WorkflowArn": WORKFLOW_ARN}
+        mock_conn.return_value = mock_client
+
+        result = op.execute({})
+
+        mock_client.create_workflow.assert_called_once_with(
+            Name=WORKFLOW_NAME,
+            DefinitionS3Location=S3_LOCATION,
+            RoleArn=ROLE_ARN,
+            Environment={"Variables": ENVIRONMENT_VARIABLES},
+        )
+        assert result == WORKFLOW_ARN
+
     def test_template_fields(self):
         validate_template_fields(self.operator)
 
@@ -216,6 +305,34 @@ class TestMwaaServerlessUpdateWorkflowOperator:
         assert result == WORKFLOW_ARN
 
     @mock.patch.object(AwsBaseHook, "conn", new_callable=mock.PropertyMock)
+    @pytest.mark.parametrize("environment_variables", [ENVIRONMENT_VARIABLES, {}])
+    def test_execute_with_environment_variables(self, mock_conn, environment_variables):
+        op = MwaaServerlessUpdateWorkflowOperator(
+            task_id="update_workflow",
+            workflow_arn=WORKFLOW_ARN,
+            definition_s3_location=S3_LOCATION,
+            role_arn=ROLE_ARN,
+            environment_variables=environment_variables,
+        )
+        mock_client = mock.MagicMock()
+        mock_client.update_workflow.return_value = {
+            "WorkflowArn": WORKFLOW_ARN,
+            "WorkflowVersion": "ghi789",
+            "ModifiedAt": "2026-05-12T00:00:00Z",
+        }
+        mock_conn.return_value = mock_client
+
+        result = op.execute({})
+
+        mock_client.update_workflow.assert_called_once_with(
+            WorkflowArn=WORKFLOW_ARN,
+            DefinitionS3Location=S3_LOCATION,
+            RoleArn=ROLE_ARN,
+            Environment={"Variables": environment_variables},
+        )
+        assert result == WORKFLOW_ARN
+
+    @mock.patch.object(AwsBaseHook, "conn", new_callable=mock.PropertyMock)
     def test_execute_not_found(self, mock_conn):
         mock_client = mock.MagicMock()
         mock_client.update_workflow.side_effect = ClientError(
@@ -225,6 +342,60 @@ class TestMwaaServerlessUpdateWorkflowOperator:
 
         with pytest.raises(ClientError):
             self.operator.execute({})
+
+    @mock.patch.object(AwsBaseHook, "conn", new_callable=mock.PropertyMock)
+    def test_execute_with_code(self, mock_conn):
+        op = MwaaServerlessUpdateWorkflowOperator(
+            task_id="update_workflow",
+            workflow_arn=WORKFLOW_ARN,
+            definition_s3_location=S3_LOCATION,
+            code=CODE,
+            role_arn=ROLE_ARN,
+        )
+        mock_client = mock.MagicMock()
+        mock_client.update_workflow.return_value = {
+            "WorkflowArn": WORKFLOW_ARN,
+            "WorkflowVersion": "abc123",
+            "ModifiedAt": "2026-05-12T00:00:00Z",
+        }
+        mock_conn.return_value = mock_client
+
+        result = op.execute({})
+
+        mock_client.update_workflow.assert_called_once_with(
+            WorkflowArn=WORKFLOW_ARN,
+            DefinitionS3Location=S3_LOCATION,
+            Code=CODE,
+            RoleArn=ROLE_ARN,
+        )
+        assert result == WORKFLOW_ARN
+
+    @mock.patch.object(AwsBaseHook, "conn", new_callable=mock.PropertyMock)
+    def test_execute_with_update_workflow_kwargs(self, mock_conn):
+        op = MwaaServerlessUpdateWorkflowOperator(
+            task_id="update_workflow",
+            workflow_arn=WORKFLOW_ARN,
+            definition_s3_location=S3_LOCATION,
+            role_arn=ROLE_ARN,
+            update_workflow_kwargs=UPDATE_WORKFLOW_KWARGS,
+        )
+        mock_client = mock.MagicMock()
+        mock_client.update_workflow.return_value = {
+            "WorkflowArn": WORKFLOW_ARN,
+            "WorkflowVersion": "abc123",
+            "ModifiedAt": "2026-05-12T00:00:00Z",
+        }
+        mock_conn.return_value = mock_client
+
+        result = op.execute({})
+
+        mock_client.update_workflow.assert_called_once_with(
+            WorkflowArn=WORKFLOW_ARN,
+            DefinitionS3Location=S3_LOCATION,
+            RoleArn=ROLE_ARN,
+            **UPDATE_WORKFLOW_KWARGS,
+        )
+        assert result == WORKFLOW_ARN
 
     def test_template_fields(self):
         validate_template_fields(self.operator)

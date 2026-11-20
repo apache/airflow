@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import base64
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
@@ -131,7 +131,7 @@ class TestCursorPagination:
     def test_apply_cursor_filter_ascending(self):
         sp = self._make_sort_param_with_resolved_columns(["start_date"])
         values = [
-            datetime(2024, 1, 15, 10, 0, 0, tzinfo=timezone.utc),
+            datetime(2024, 1, 15, 10, 0, 0, tzinfo=UTC),
             uuid.UUID("019462ab-1234-5678-9abc-def012345678"),
         ]
         token = _msgpack_cursor_token(values)
@@ -143,7 +143,7 @@ class TestCursorPagination:
     def test_apply_cursor_filter_descending(self):
         sp = self._make_sort_param_with_resolved_columns(["-start_date"])
         values = [
-            datetime(2024, 1, 15, 10, 0, 0, tzinfo=timezone.utc),
+            datetime(2024, 1, 15, 10, 0, 0, tzinfo=UTC),
             uuid.UUID("019462ab-1234-5678-9abc-def012345678"),
         ]
         token = _msgpack_cursor_token(values)

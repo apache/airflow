@@ -34,7 +34,7 @@ class EcsTaskFailToStart(Exception):
 
     def __reduce__(self):
         """Return ECSTask state and its message."""
-        return EcsTaskFailToStart, (self.message)
+        return EcsTaskFailToStart, (self.message,)
 
 
 class EcsOperatorError(Exception):
@@ -86,6 +86,10 @@ class GlueJobRunStoppedError(AirflowException):
     """Raised when a Glue job run finishes in a state that is not a real success."""
 
 
+class GlueJobRunStopTimeoutError(AirflowException):
+    """Raised when a previous Glue job run does not reach a terminal state after being stopped."""
+
+
 class DataSyncTaskNotFoundError(AirflowException):
     """Raised when a DataSync task could not be identified or created for the requested locations."""
 
@@ -115,8 +119,21 @@ class WaiterTerminalFailure(AirflowException):
 
     def __init__(self, message: str, last_response: dict[str, Any]):
         super().__init__(message)
+        self.message = message
         self.last_response = last_response
+
+    def __reduce__(self):
+        """Return the waiter failure state as its message and the last waiter response."""
+        return WaiterTerminalFailure, (self.message, self.last_response)
 
 
 class WaiterMaxAttemptsError(AirflowException):
     """Raised when an AWS waiter exhausts its configured attempts."""
+
+
+class WaiterNoCredentialsError(WaiterMaxAttemptsError):
+    """Raised when an AWS waiter exhausts all attempts due to missing credentials."""
+
+
+class SensorTriggerFailedError(AirflowException):
+    """Raised when the trigger a deferred sensor was waiting on reports a failure."""

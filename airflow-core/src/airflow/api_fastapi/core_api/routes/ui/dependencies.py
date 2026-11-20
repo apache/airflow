@@ -22,13 +22,20 @@ from typing import Literal
 from fastapi import Depends, status
 from fastapi.exceptions import HTTPException
 
-from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
+from airflow.api_fastapi.auth.managers.models.resource_details import AssetDetails, DagAccessEntity
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.ui.common import BaseGraphResponse
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
-from airflow.api_fastapi.core_api.security import ReadableDagsFilterDep, requires_access_dag
+from airflow.api_fastapi.core_api.security import (
+    AuthManagerDep,
+    GetUserDep,
+    ReadableAssetsFilterDep,
+    ReadableDagsFilterDep,
+    requires_access_dag,
+)
 from airflow.api_fastapi.core_api.services.ui.dependencies import (
+    add_asset_watcher_nodes,
     extract_single_connected_component,
     get_data_dependencies,
     get_scheduling_dependencies,
@@ -50,10 +57,20 @@ dependencies_router = AirflowRouter(tags=["Dependencies"])
 def get_dependencies(
     session: SessionDep,
     readable_dags_filter: ReadableDagsFilterDep,
+    readable_assets_filter: ReadableAssetsFilterDep,
+    user: GetUserDep,
+    auth_manager: AuthManagerDep,
     node_id: str | None = None,
     dependency_type: Literal["scheduling", "data"] = "scheduling",
 ) -> BaseGraphResponse:
     """Dependencies graph."""
+    # Watchers show on the assets GET /triggers shows them on, gated the same way, but from this request's
+    # readable assets: its trigger filter would look up every readable Dag and asset a second time.
+    watcher_asset_ids = (
+        (readable_assets_filter.value or set())
+        if auth_manager.is_authorized_asset(method="GET", details=AssetDetails(id=None), user=user)
+        else set()
+    )
     if dependency_type == "data":
         if node_id is None or not node_id.startswith("asset:"):
             raise HTTPException(
@@ -65,12 +82,23 @@ def get_dependencies(
         except ValueError:
             raise HTTPException(status.HTTP_400_BAD_REQUEST, f"Invalid asset node_id: {node_id}")
 
-        data = get_data_dependencies(asset_id, session, readable_dags_filter.value)
+        data = get_data_dependencies(
+            asset_id,
+            session,
+            readable_dag_ids=readable_dags_filter.value,
+            readable_asset_ids=readable_assets_filter.value or set(),
+        )
         if not data["nodes"]:
             raise HTTPException(status.HTTP_404_NOT_FOUND, f"Asset with id {asset_id} was not found")
-        return BaseGraphResponse(**data)
+        return BaseGraphResponse(
+            **add_asset_watcher_nodes(data, readable_asset_ids=watcher_asset_ids, session=session)
+        )
 
-    data = get_scheduling_dependencies(readable_dags_filter.value, session)
+    data = get_scheduling_dependencies(
+        session,
+        readable_dag_ids=readable_dags_filter.value,
+        readable_asset_ids=readable_assets_filter.value or set(),
+    )
 
     if node_id is not None:
         try:
@@ -78,4 +106,7 @@ def get_dependencies(
         except ValueError as e:
             raise HTTPException(status.HTTP_404_NOT_FOUND, str(e))
 
-    return BaseGraphResponse(**data)
+    # Added after the component is picked, so a Dag's graph looks up only the watchers of its own assets.
+    return BaseGraphResponse(
+        **add_asset_watcher_nodes(data, readable_asset_ids=watcher_asset_ids, session=session)
+    )

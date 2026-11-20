@@ -78,7 +78,9 @@ from airflow.sdk.api.datamodels._generated import (
     DagRun,
     DagRunStateResponse,
     HITLDetailRequest,
+    HITLDetailResponse,
     InactiveAssetsResponse,
+    LoopDecisionPayload,
     PreviousTIResponse,
     PrevSuccessfulDagRunResponse,
     TaskBreadcrumbsResponse,
@@ -116,13 +118,21 @@ _trace_propagator = TraceContextTextMapPropagator()
 if TYPE_CHECKING:
     from structlog.typing import FilteringBoundLogger as Logger
 
+    from airflow.sdk.api.client import ServerResponseError
+
 SendMsgType = TypeVar("SendMsgType", bound=BaseModel)
 ReceiveMsgType = TypeVar("ReceiveMsgType", bound=BaseModel)
 
 
 class DeadlockImminentError(BaseException):
     """
-    Raised when ``send()`` is called from the event loop thread while ``asend()`` holds the lock.
+    Raised when ``send()`` is called from the event loop thread while an ``asend()`` is in flight.
+
+    An in-flight ``asend()`` holds (or is waiting to take) the channel's thread lock and can only
+    release it once its event loop runs again. That loop runs on the calling thread, so a blocking
+    ``send()`` there can never be satisfied: the loop cannot run while the thread is blocked. This
+    holds whether the loop is currently running (a sync SDK call from inside a coroutine) or paused
+    between two ``run_until_complete`` calls (a sync SDK call from the code that drives the loop).
 
     Inherits from :class:`BaseException` so it escapes ``contextlib.suppress(Exception)``
     and always surfaces to the caller.
@@ -136,9 +146,11 @@ class DeadlockImminentError(BaseException):
     def __str__(self) -> str:
         return (
             f"comms.send() called from the event loop thread for message '{self.msg_type}' "
-            "— deadlock is imminent (asend() is concurrently in-flight). "
+            "— deadlock is imminent (asend() is concurrently in-flight and can only complete once "
+            "the event loop runs again on this thread). "
             "Likely cause: BaseHook.get_hook() or BaseHook.get_connection() was called "
-            "from inside an async task. "
+            "from inside an async task, or a synchronous SDK call was made from the thread driving "
+            "the event loop while it was paused between two run_until_complete() calls. "
             "Use the async equivalents instead: "
             "await BaseHook.aget_hook() or await BaseHook.aget_connection()."
             f"\nOffending call stack:\n{self.stack}"
@@ -200,6 +212,11 @@ class _RequestFrame(_FrameMixin, msgspec.Struct, array_like=True, frozen=True, o
     calls, so that server-side spans (e.g. POST /xcoms/…) appear as children of the correct task span
     rather than under the supervisor's own span.
     """
+    ti_id: UUID | None = None
+    """Id of the task instance whose trigger made this request, set only by the triggerer's trigger runner.
+
+    The supervisor forwards it so the API can act as that task instance.
+    """
 
 
 class _ResponseFrame(_FrameMixin, msgspec.Struct, array_like=True, frozen=True, omit_defaults=True):  # type: ignore[call-arg]
@@ -247,13 +264,37 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
                 return bool(asyncio.get_running_loop())
         return False
 
+    @property
+    def _asend_in_flight_on_this_thread(self) -> bool:
+        """
+        Whether an ``asend()`` coroutine of a loop that runs on the current thread is in flight.
+
+        ``asend()`` holds ``_async_lock`` for its whole duration, from before it takes
+        ``_thread_lock`` (in an executor thread) until after it releases it, so the async lock
+        being held is the reliable signal that the thread lock is, or is about to be, held by a
+        coroutine. Such a coroutine only makes progress when its loop runs, and that loop runs on
+        this thread. This is thread-scoped on purpose: a loop running on *another* thread keeps
+        going while this one blocks, so ``send()`` from there can safely wait for the lock.
+        """
+        return threading.get_ident() == self._loop_thread_id and self._async_lock.locked()
+
     def send(self, msg: SendMsgType) -> ReceiveMsgType | None:
         """Send a request to the parent and block until the response is received."""
         frame_bytes = self._make_frame(msg).as_bytes()
 
-        # When called from the event loop thread, use non-blocking acquire to detect
-        # an imminent deadlock: an asend() coroutine currently holds _thread_lock and
-        # is waiting for the event loop to complete its I/O.
+        # An asend() in flight on this thread's loop can only release _thread_lock once that loop
+        # runs again, and the loop cannot run while this thread blocks in send(). Raise instead of
+        # blocking. This covers the loop being paused between two run_until_complete() calls, where
+        # the running-loop check below does not apply: asyncio.get_running_loop() raises, so send()
+        # would otherwise fall through to a blocking acquire and freeze the process with every
+        # thread idle (seen with a sync XCom read pulling the next iterated sub-task's input while a
+        # sub-task's asend() was parked mid-I/O).
+        if self._asend_in_flight_on_this_thread:
+            raise DeadlockImminentError(msg)
+
+        # When called from the event loop thread while the loop is running, use non-blocking
+        # acquire to detect an imminent deadlock: an asend() coroutine currently holds
+        # _thread_lock and is waiting for the event loop to complete its I/O.
         if not self._thread_lock.acquire(blocking=not self._is_on_loop_thread):
             raise DeadlockImminentError(msg)
         try:
@@ -768,6 +809,18 @@ class ErrorResponse(BaseModel):
     detail: dict | None = None
     type: Literal["ErrorResponse"] = "ErrorResponse"
 
+    @classmethod
+    def from_server_error(cls, error: ServerResponseError) -> ErrorResponse:
+        """Build the response that tells a task the API server rejected its request."""
+        return cls(
+            error=ErrorType.API_SERVER_ERROR,
+            detail={
+                "status_code": error.response.status_code,
+                "message": str(error),
+                "detail": error.response.json(),
+            },
+        )
+
 
 class OKResponse(BaseModel):
     ok: bool
@@ -800,6 +853,17 @@ class HITLDetailRequestResult(HITLDetailRequest):
         required for the tagged union deserialization.
         """
         return cls(**hitl_request.model_dump(exclude_defaults=True), type="HITLDetailRequestResult")
+
+
+class HITLDetailResponseResult(HITLDetailResponse):
+    """Response to GetHITLDetailResponse request."""
+
+    type: Literal["HITLDetailResponseResult"] = "HITLDetailResponseResult"
+
+    @classmethod
+    def from_api_response(cls, response: HITLDetailResponse) -> HITLDetailResponseResult:
+        """Add the discriminator field the tagged union needs to the HITLDetailResponse API response."""
+        return cls(**response.model_dump(exclude_defaults=True), type="HITLDetailResponseResult")
 
 
 class DagResult(DagResponse):
@@ -846,6 +910,7 @@ ToTask = Annotated[
     | InactiveAssetsResult
     | CreateHITLDetailPayload
     | HITLDetailRequestResult
+    | HITLDetailResponseResult
     | OKResponse
     | PreviousDagRunResult,
     Field(discriminator="type"),
@@ -869,6 +934,8 @@ class TaskState(BaseModel):
     end_date: datetime | None = None
     type: Literal["TaskState"] = "TaskState"
     rendered_map_index: str | None = None
+    retry_reason: str | None = None
+    loop_decision: LoopDecisionPayload | None = None
 
 
 class SucceedTask(TISuccessStatePayload):
@@ -908,6 +975,7 @@ class SkipDownstreamTasks(TISkippedDownstreamTasksStatePayload):
 
 
 class GetXCom(BaseModel):
+    previous_iteration: bool = False
     key: str
     dag_id: str
     run_id: str
@@ -920,6 +988,7 @@ class GetXCom(BaseModel):
 class GetXComCount(BaseModel):
     """Get the number of (mapped) XCom values available."""
 
+    previous_iteration: bool = False
     key: str
     dag_id: str
     run_id: str
@@ -928,6 +997,7 @@ class GetXComCount(BaseModel):
 
 
 class GetXComSequenceItem(BaseModel):
+    previous_iteration: bool = False
     key: str
     dag_id: str
     run_id: str
@@ -937,6 +1007,7 @@ class GetXComSequenceItem(BaseModel):
 
 
 class GetXComSequenceSlice(BaseModel):
+    previous_iteration: bool = False
     key: str
     dag_id: str
     run_id: str
@@ -958,6 +1029,11 @@ class SetXCom(BaseModel):
     dag_result: bool = False
     mapped_length: int | None = None
     type: Literal["SetXCom"] = "SetXCom"
+
+    @property
+    def resolved_map_index(self) -> int:
+        """The map index, or -1 when the task is not mapped."""
+        return -1 if self.map_index is None else self.map_index
 
 
 class DeleteXCom(BaseModel):
@@ -1061,7 +1137,7 @@ class GetVariableKeys(BaseModel):
 
 class PutVariable(BaseModel):
     key: str
-    value: str | None
+    value: str
     description: str | None
     type: Literal["PutVariable"] = "PutVariable"
 
@@ -1092,6 +1168,13 @@ class SetRenderedMapIndex(BaseModel):
     type: Literal["SetRenderedMapIndex"] = "SetRenderedMapIndex"
 
 
+class SetExecutionTimeout(BaseModel):
+    """Tell the supervisor the task's ``execution_timeout`` so it can enforce it from outside the task process."""
+
+    timeout_seconds: Annotated[float, Field(gt=0)]
+    type: Literal["SetExecutionTimeout"] = "SetExecutionTimeout"
+
+
 class TriggerDagRun(TriggerDAGRunPayload):
     dag_id: str
     run_id: Annotated[str, Field(title="Dag Run Id")]
@@ -1108,6 +1191,12 @@ class GetDagRunState(BaseModel):
     dag_id: str
     run_id: str
     type: Literal["GetDagRunState"] = "GetDagRunState"
+
+
+class UpdateDagRunNote(BaseModel):
+    ti_id: UUID
+    note: str | None
+    type: Literal["UpdateDagRunNote"] = "UpdateDagRunNote"
 
 
 class GetPreviousDagRun(BaseModel):
@@ -1295,10 +1384,12 @@ ToSupervisor = Annotated[
     | SetTaskStateStore
     | SetXCom
     | SkipDownstreamTasks
+    | SetExecutionTimeout
     | SucceedTask
     | ValidateInletsAndOutlets
     | TaskState
     | TriggerDagRun
+    | UpdateDagRunNote
     | DeleteVariable
     | ResendLoggingFD
     | CreateHITLDetailPayload

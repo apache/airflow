@@ -23,14 +23,17 @@ import sys
 from unittest.mock import ANY, Mock, patch
 
 import pytest
+from sqlalchemy import delete, func, select
 from sqlalchemy.exc import OperationalError
 
 from airflow._shared.timezones import timezone
 from airflow.jobs.job import Job, health_check_threshold, most_recent_job, perform_heartbeat, run_job
+from airflow.models.team import JobTeam, Team
 from airflow.utils.session import create_session
 from airflow.utils.state import State
 
 from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.db import clear_db_jobs
 from unit.listeners import lifecycle_listener
 from unit.utils.test_helpers import MockJobRunner, SchedulerJobRunner, TriggererJobRunner
 
@@ -212,6 +215,34 @@ class TestJob:
         job.latest_heartbeat = timezone.utcnow() - datetime.timedelta(seconds=10)
         assert job.is_alive() is False, "Completed jobs even with recent heartbeat should not be alive"
 
+    def test_is_alive_clause_matches_is_alive(self, session):
+        clear_db_jobs()
+        core_types = ("SchedulerJob", "TriggererJob", "DagProcessorJob")
+        now = timezone.utcnow()
+        for job_type in core_types:
+            threshold = health_check_threshold(job_type, 0)
+            for state in (State.RUNNING, State.SUCCESS, State.FAILED, State.RESTARTING):
+                for age in (None, 0, threshold - 1, threshold + 1, 86400):
+                    session.add(
+                        Job(
+                            job_type=job_type,
+                            state=state,
+                            hostname=f"{job_type}|{state}|{age}",
+                            latest_heartbeat=None if age is None else now - datetime.timedelta(seconds=age),
+                        )
+                    )
+        session.commit()
+
+        jobs = session.scalars(select(Job)).all()
+        alive_in_sql = {
+            job.hostname for job in session.scalars(select(Job).where(Job.is_alive_clause(core_types)))
+        }
+
+        assert alive_in_sql == {job.hostname for job in jobs if job.is_alive()}
+        assert alive_in_sql, "the scenarios must include live jobs"
+        assert len(alive_in_sql) < len(jobs)
+        clear_db_jobs()
+
     @patch("airflow.jobs.job.create_session")
     def test_heartbeat_failed(self, mock_create_session, caplog):
         when = timezone.utcnow() - datetime.timedelta(seconds=60)
@@ -278,3 +309,68 @@ class TestJob:
 
     def test_health_check_threshold_unknown_job_uses_heartrate_fallback(self):
         assert health_check_threshold("UnknownJob", 30) == 30 * 2.1
+
+
+class TestJobTeams:
+    @pytest.fixture
+    def teams(self, session):
+        names = ["team-b", "team-a"]
+        session.add_all(Team(name=name) for name in names)
+        session.commit()
+        yield names
+        session.execute(delete(JobTeam))
+        session.execute(delete(Team).where(Team.name.in_(names)))
+        session.commit()
+
+    def test_no_teams_by_default(self, session):
+        job = Job()
+        session.add(job)
+        session.commit()
+
+        assert job.team_names == []
+
+    def test_multiple_teams_round_trip_sorted(self, session, teams):
+        job = Job(team_names=teams)
+        session.add(job)
+        session.commit()
+        session.expunge(job)
+
+        assert session.get(Job, job.id).team_names == ["team-a", "team-b"]
+
+    def test_repeated_team_name_is_stored_once(self, session, teams):
+        job = Job(team_names=["team-a", "team-a"])
+        session.add(job)
+        session.commit()
+
+        assert job.team_names == ["team-a"]
+        assert session.scalar(select(func.count()).select_from(JobTeam)) == 1
+
+    def test_reassigning_teams_replaces_the_previous_ones(self, session, teams):
+        job = Job(team_names=["team-a"])
+        session.add(job)
+        session.commit()
+
+        job.team_names = ["team-b"]
+        session.commit()
+
+        assert job.team_names == ["team-b"]
+        assert session.scalars(select(JobTeam.team_name)).all() == ["team-b"]
+
+    def test_teams_survive_the_heartbeat_merge(self, session, teams):
+        """``prepare_for_execution`` detaches the Job, so the heartbeat merge must not duplicate links."""
+        job = Job(team_names=teams)
+        job.prepare_for_execution()
+        job.heartbeat(heartbeat_callback=Mock())
+
+        assert session.scalar(select(func.count()).select_from(JobTeam)) == 2
+        assert session.get(Job, job.id).team_names == ["team-a", "team-b"]
+
+    def test_deleting_a_job_removes_its_team_links(self, session, teams):
+        job = Job(team_names=teams)
+        session.add(job)
+        session.commit()
+
+        session.delete(job)
+        session.commit()
+
+        assert session.scalar(select(func.count()).select_from(JobTeam)) == 0

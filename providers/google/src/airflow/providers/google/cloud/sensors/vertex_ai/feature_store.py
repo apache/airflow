@@ -42,7 +42,7 @@ class FeatureViewSyncSensor(BaseSensorOperator):
         credentials.
     """
 
-    template_fields: Sequence[str] = ("location", "feature_view_sync_name")
+    template_fields: Sequence[str] = ("location", "feature_view_sync_name", "gcp_conn_id")
     ui_color = "#f0eee4"
 
     def __init__(

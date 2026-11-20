@@ -71,6 +71,19 @@ SPARK_VERSIONS_ENDPOINT = ("GET", "2.1/clusters/spark-versions")
 SQL_STATEMENTS_ENDPOINT = "2.0/sql/statements"
 SQL_WAREHOUSES_ENDPOINT = "2.0/sql/warehouses"
 
+# ``2.2/jobs/runs/get`` returns at most 100 entries of these nested arrays per page and hands back a
+# ``next_page_token`` for the rest, while repeating every other field on each page. The order of the
+# entries is not the order they were declared in, so a truncated response drops an arbitrary subset.
+PAGINATED_RUN_FIELDS = ("tasks", "job_clusters")
+
+
+def _merge_run_page(run: dict[str, Any], page: dict[str, Any]) -> None:
+    """Append the paginated arrays of ``page`` to those already collected in ``run``."""
+    for field in PAGINATED_RUN_FIELDS:
+        entries = page.get(field)
+        if entries:
+            run[field] = [*run.get(field, []), *entries]
+
 
 class RunLifeCycleState(Enum):
     """
@@ -593,45 +606,39 @@ class DatabricksHook(BaseDatabricksHook):
         :param run_id: id of the run
         :return: A list of tasks
         """
-        has_more = True
-        all_tasks = []
-        page_token = ""
-        json: dict[str, Any] = {"run_id": run_id}
-
-        while has_more:
-            if page_token:
-                json = {**json, "page_token": page_token}
-            response = self._do_api_call(GET_RUN_ENDPOINT, json)
-            tasks = response.get("tasks", [])
-            all_tasks += tasks
-            if "next_page_token" in response:
-                page_token = response["next_page_token"]
-            else:
-                has_more = False
-
-        return all_tasks
+        return self.get_run(run_id).get("tasks", [])
 
     def get_run(self, run_id: int) -> dict[str, Any]:
         """
         Retrieve run information.
 
         :param run_id: id of the run
-        :return: state of the run
+        :return: state of the run, with every page of the paginated arrays collected
         """
-        json = {"run_id": run_id}
-        response = self._do_api_call(GET_RUN_ENDPOINT, json)
-        return response
+        json: dict[str, Any] = {"run_id": run_id}
+        run = self._do_api_call(GET_RUN_ENDPOINT, json)
+        page_token = run.pop("next_page_token", None)
+        while page_token:
+            page = self._do_api_call(GET_RUN_ENDPOINT, {**json, "page_token": page_token})
+            _merge_run_page(run, page)
+            page_token = page.get("next_page_token")
+        return run
 
     async def a_get_run(self, run_id: int) -> dict[str, Any]:
         """
         Async version of `get_run`.
 
         :param run_id: id of the run
-        :return: state of the run
+        :return: state of the run, with every page of the paginated arrays collected
         """
-        json = {"run_id": run_id}
-        response = await self._a_do_api_call(GET_RUN_ENDPOINT, json)
-        return response
+        json: dict[str, Any] = {"run_id": run_id}
+        run = await self._a_do_api_call(GET_RUN_ENDPOINT, json)
+        page_token = run.pop("next_page_token", None)
+        while page_token:
+            page = await self._a_do_api_call(GET_RUN_ENDPOINT, {**json, "page_token": page_token})
+            _merge_run_page(run, page)
+            page_token = page.get("next_page_token")
+        return run
 
     def get_run_state_str(self, run_id: int) -> str:
         """

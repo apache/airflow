@@ -137,7 +137,7 @@ class TestGetHealth(TestMonitorEndpoint):
         assert body["triggerer"]["status"] == HEALTHY
 
     @mock.patch("airflow.api_fastapi.core_api.routes.public.monitor.get_airflow_health")
-    def test_health_includes_instance_team_name_and_bundle_names(self, mock_get_airflow_health, test_client):
+    def test_health_includes_instance_team_names_and_bundle_names(self, mock_get_airflow_health, test_client):
         mock_get_airflow_health.return_value = {
             "metadatabase": {"status": HEALTHY},
             "scheduler": {
@@ -161,7 +161,7 @@ class TestGetHealth(TestMonitorEndpoint):
                         "status": HEALTHY,
                         "hostname": "triggerer-1",
                         "latest_triggerer_heartbeat": "2024-11-23T11:09:15.815483+00:00",
-                        "team_name": "team-a",
+                        "team_names": ["team-a"],
                     }
                 ],
             },
@@ -184,7 +184,7 @@ class TestGetHealth(TestMonitorEndpoint):
 
         assert response.status_code == 200
         body = response.json()
-        assert body["triggerer"]["instances"][0]["team_name"] == "team-a"
+        assert body["triggerer"]["instances"][0]["team_names"] == ["team-a"]
         assert body["dag_processor"]["instances"][0]["bundle_names"] == ["bundle-a"]
         assert body["scheduler"]["instances"][0]["hostname"] == "scheduler-1"
 

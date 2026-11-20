@@ -23,12 +23,10 @@ from __future__ import annotations
 
 import os
 from datetime import datetime
-from typing import Any
 
 from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.datastore import (
     CloudDatastoreAllocateIdsOperator,
-    CloudDatastoreBeginTransactionOperator,
     CloudDatastoreRunQueryOperator,
 )
 
@@ -46,9 +44,6 @@ KEYS = [
     }
 ]
 
-TRANSACTION_OPTIONS: dict[str, Any] = {"readWrite": {}}
-
-
 with DAG(
     DAG_ID,
     schedule="@once",
@@ -60,16 +55,9 @@ with DAG(
         task_id="allocate_ids", partial_keys=KEYS, project_id=PROJECT_ID
     )
 
-    begin_transaction_query = CloudDatastoreBeginTransactionOperator(
-        task_id="begin_transaction_query",
-        transaction_options=TRANSACTION_OPTIONS,
-        project_id=PROJECT_ID,
-    )
-
     # [START how_to_query_def]
     QUERY = {
         "partitionId": {"projectId": PROJECT_ID, "namespaceId": "query"},
-        "readOptions": {"transaction": begin_transaction_query.output},
         "query": {},
     }
     # [END how_to_query_def]
@@ -78,7 +66,7 @@ with DAG(
     run_query = CloudDatastoreRunQueryOperator(task_id="run_query", body=QUERY, project_id=PROJECT_ID)
     # [END how_to_run_query]
 
-    allocate_ids >> begin_transaction_query >> run_query
+    allocate_ids >> run_query
 
     from tests_common.test_utils.watcher import watcher
 

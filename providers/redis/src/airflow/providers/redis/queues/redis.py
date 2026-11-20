@@ -33,26 +33,9 @@ class RedisPubSubMessageQueueProvider(BaseMessageQueueProvider):
     """
     Configuration for Redis integration with common-messaging.
 
-    [START redis_message_queue_provider_description]
-
-    * It uses ``redis+pubsub`` as scheme for identifying Redis queues.
-    * For parameter definitions take a look at :class:`~airflow.providers.redis.triggers.redis_await_message.AwaitMessageTrigger`.
-
-    .. code-block:: python
-
-        from airflow.providers.common.messaging.triggers.msg_queue import MessageQueueTrigger
-        from airflow.sdk import Asset, AssetWatcher
-
-        trigger = MessageQueueTrigger(
-            scheme="redis+pubsub",
-            # Additional Redis AwaitMessageTrigger parameters as needed
-            channels=["my_channel"],
-            redis_conn_id="redis_default",
-        )
-
-        asset = Asset("redis_queue_asset", watchers=[AssetWatcher(name="redis_watcher", trigger=trigger)])
-
-    [END redis_message_queue_provider_description]
+    Dispatches ``scheme="redis+pubsub"`` to
+    :class:`~airflow.providers.redis.triggers.redis_await_message.AwaitMessageTrigger`,
+    which also defines the accepted parameters.
     """
 
     scheme = "redis+pubsub"

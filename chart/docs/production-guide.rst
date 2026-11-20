@@ -49,7 +49,7 @@ To provide the database credentials to Airflow, you have 2 options - in your val
 Values file
 ^^^^^^^^^^^
 
-This is the simpler options, as the chart will create a Kubernetes Secret for you. However, keep in mind your credentials will be in your values file.
+This is the simpler option, as the chart will create a Kubernetes Secret for you. However, keep in mind your credentials will be in your values file.
 
 .. code-block:: yaml
    :caption: values.yaml
@@ -103,6 +103,24 @@ Similarly, ``resultBackendSecretKey`` and ``brokerUrlSecretKey`` configure the k
 used with ``resultBackendSecretName`` and ``brokerUrlSecretName``. All of these default to
 ``connection`` and only apply when the corresponding secret name is provided.
 
+Keeping database credentials away from Celery workers
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Task code runs on Celery workers, so anything in the worker's environment is readable by it. Celery
+workers need the metadata database only as the default Celery result backend, and they keep
+``AIRFLOW__DATABASE__SQL_ALCHEMY_CONN`` for that reason. To remove it, give Celery a separate result
+backend with ``data.resultBackendConnection``, ``data.resultBackendSecretName`` or
+``config.celery.result_backend``. A backend in the same database needs its own database user, limited to the
+Celery result tables, or the workers still hold the metadata database credentials. A backend set any other
+way, such as ``env`` or ``secret``, is not detected and the worker keeps the connection. A separate result
+backend needs ``apache-airflow-providers-celery`` 3.12.4 or newer. KEDA reads the
+connection from the worker's environment, so workers scaled by it always keep the credentials.
+
+Containers without the connection fall back to SQLite, and engine arguments that SQLite does not accept make
+Airflow fail at import. The chart clears ``sql_alchemy_engine_args`` there when it is set through
+``config.database``, so set it that way rather than through ``env``: Kerberos sidecars have no environment of
+their own to override it in.
+
 .. _production-guide:pgbouncer:
 
 Metadata DB Cleanup
@@ -128,8 +146,8 @@ If you are using PostgreSQL as your database, you will likely want to enable `Pg
 Due to distributed nature of Airflow, it can open a lot of database connections. Using a connection pooler can significantly
 reduce the number of open connections on the database.
 
-Database credentials stored Values file
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Database credentials stored in Values file
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. code-block:: yaml
    :caption: values.yaml
@@ -138,8 +156,8 @@ Database credentials stored Values file
      enabled: true
 
 
-Database credentials stored Kubernetes Secret
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Database credentials stored in Kubernetes Secret
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The default connection string in this case will not work. You need to modify accordingly the Kubernetes secret:
 
@@ -401,7 +419,7 @@ Typical scenarios where you would like to use your custom image are adding:
 * custom tools needed in your deployment.
 
 See :ref:`Extending Airflow Image <quick-start:extending-airflow-image>` and/or
-`Building the image <https://airflow.apache.org/docs/docker-stack/build.html>`_ for more
+`Building your image <https://airflow.apache.org/docs/docker-stack/build.html>`_ for more
 details on how you can extend, customize and test the modifications of Airflow image.
 
 Managing Dag Files
@@ -633,7 +651,7 @@ Security Context
 Constraints
 ^^^^^^^^^^^
 
-A ``Security Context Constraint`` (SCC) is a OpenShift construct that works as a RBAC rule. However, it targets Pods instead of users.
+A ``Security Context Constraint`` (SCC) is an OpenShift construct that works as an RBAC rule. However, it targets Pods instead of users.
 When defining a SCC, one can control actions and resources a POD can perform or access during startup and runtime.
 
 The SCCs are split into different levels or categories with the ``restricted`` SCC being the default one assigned to Pods.

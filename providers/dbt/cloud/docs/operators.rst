@@ -87,6 +87,58 @@ by providing the ``project_name``, ``environment_name``, and ``job_name``.
 Please note that it will only work if the above three parameters uniquely identify a job in your account
 (i.e. you cannot have two jobs with the same name in the same project and environment).
 
+Durable execution
+"""""""""""""""""
+
+On Airflow 3.3 and later, when ``wait_for_termination`` is True, the operator stores the dbt Cloud run
+id in the :doc:`task state store <apache-airflow:core-concepts/task-state-store>` before it waits. If
+the worker dies and the task retries, the operator checks that run instead of triggering a new one:
+
+* If the run is still queued, starting or running, the operator waits on it again, in deferrable mode
+  too.
+* If the run succeeded, the operator returns its run id without triggering anything.
+* If the run errored, was cancelled or no longer exists, the operator triggers a new run as before,
+  which respects ``retry_from_failure``.
+
+The run id is saved right after the run is triggered. If the worker dies between the two, the retry
+finds nothing and triggers a second run. On reconnect, ``timeout`` starts counting again from zero.
+
+Clearing the task instance from the UI or the REST API discards the stored run id by default, so the
+next try triggers a new run. This is what you want after fixing upstream data. To keep the stored run
+id instead, tick "keep task state" in the clear dialog or pass ``keep_task_state=true`` to the clear
+endpoint. The next try then treats the stored run like a retry does.
+
+Before Airflow 3.5, clearing the whole Dag run, marking a task as success or failed, and
+``airflow tasks clear`` / ``airflow dags clear`` keep the stored run id. So if you clear the whole Dag
+run after fixing upstream data, a task whose run succeeded returns without running dbt again. Clear
+the task instance itself instead. From Airflow 3.5, every way of clearing discards the stored run id
+by default.
+
+Clearing a task that is waiting on the worker cancels its run first, so the next try triggers a new
+run either way. Only a deferred task's run keeps going. See
+:ref:`apache-airflow:concepts-resumable-tasks` for details.
+
+Below Airflow 3.3 the operator always triggers a new run on retry. Set ``durable=False`` to get that
+behavior on any version:
+
+.. code-block:: python
+
+    DbtCloudRunJobOperator(task_id="run_job", job_id=48617, durable=False)
+
+Linking dbt Cloud runs to the triggering Airflow task
+""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+Setting ``openlineage_inject_parent_job_info`` to True replaces the triggered run's ``cause`` field
+with the Airflow task's OpenLineage parent (and root) run identifiers as JSON. A consumer that reads
+dbt Cloud runs can then parse this JSON and attach a ``ParentRunFacet``, linking the dbt Cloud run back
+to the Airflow task that triggered it. This overwrites the ``trigger_reason``.
+
+The parameter defaults to the ``openlineage.spark_inject_parent_job_info`` configuration value. Because
+the dbt Cloud ``cause`` has a length limit, the injected payload is trimmed to fit: the essential
+``parent`` link is always kept, the ``root`` block is dropped if the two together do not fit, and if
+even the parent identifiers alone do not fit, injection is skipped and the original ``cause`` is left
+unchanged.
+
 .. exampleinclude:: /../tests/system/dbt/cloud/example_dbt_cloud.py
     :language: python
     :dedent: 4

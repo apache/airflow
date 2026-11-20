@@ -176,6 +176,8 @@ class HttpToGCSOperator(BaseOperator):
         response = self.http_hook.run(
             endpoint=self.endpoint, data=self.data, headers=self.headers, extra_options=self.extra_options
         )
+        if self.log_response:
+            self.log.info(response.text)
 
         self.log.info("Uploading to GCS")
         self.gcs_hook.upload(

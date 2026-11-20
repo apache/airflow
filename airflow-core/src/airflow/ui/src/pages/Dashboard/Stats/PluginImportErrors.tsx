@@ -22,16 +22,17 @@ import { LuPlug } from "react-icons/lu";
 
 import { usePluginServiceImportErrors } from "openapi/queries";
 
-import { ErrorAlert, type ExpandedApiError } from "src/components/ErrorAlert";
 import { StateBadge } from "src/components/StateBadge";
 import { StatsCard } from "src/components/StatsCard";
+
+import { formatNumber } from "src/utils";
 
 import { PluginImportErrorsModal } from "./PluginImportErrorsModal";
 
 export const PluginImportErrors = ({ iconOnly = false }: { readonly iconOnly?: boolean }) => {
   const { onClose, onOpen, open } = useDisclosure();
   const { i18n, t: translate } = useTranslation("admin");
-  const { data, error, isLoading } = usePluginServiceImportErrors();
+  const { data, isLoading } = usePluginServiceImportErrors();
 
   const isRTL = i18n.dir() === "rtl";
 
@@ -42,17 +43,12 @@ export const PluginImportErrors = ({ iconOnly = false }: { readonly iconOnly?: b
     return <Skeleton height="9" width="225px" />;
   }
 
-  if (Boolean(error) && (error as ExpandedApiError).status === 403) {
-    return undefined;
-  }
-
   if (importErrorsCount === 0) {
     return undefined;
   }
 
   return (
     <Box alignItems="center" display="flex">
-      <ErrorAlert error={error} />
       {iconOnly ? (
         <StateBadge
           as={Button}
@@ -62,7 +58,7 @@ export const PluginImportErrors = ({ iconOnly = false }: { readonly iconOnly?: b
           title={translate("plugins.importError", { count: importErrorsCount })}
         >
           <LuPlug size={8} />
-          {importErrorsCount}
+          {formatNumber(importErrorsCount, i18n.language)}
         </StateBadge>
       ) : (
         <StatsCard

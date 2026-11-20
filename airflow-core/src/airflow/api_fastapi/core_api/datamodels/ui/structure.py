@@ -37,6 +37,10 @@ class NodeResponse(BaseNodeResponse):
 
     children: list[NodeResponse] | None = None
     is_mapped: bool | None = None
+    is_loop: bool | None = None
+    loop_max_iterations: int | None = None
+    loop_exit_task_id: str | None = None
+    loop_exit_criteria_doc: str | None = None
     tooltip: str | None = None
     setup_teardown_type: Literal["setup", "teardown"] | None = None
     operator: str | None = None

@@ -38,6 +38,7 @@ import { Box, Text } from "@chakra-ui/react";
 import dayjs from "dayjs";
 import isSameOrBefore from "dayjs/plugin/isSameOrBefore";
 import { useTranslation } from "react-i18next";
+import { useParams } from "react-router-dom";
 
 import type { CalendarTimeRangeResponse } from "openapi/requests/types.gen";
 
@@ -67,6 +68,7 @@ export const HourlyCalendarView = ({
   viewMode = "total",
 }: Props) => {
   const { t: translate } = useTranslation("dag");
+  const { dagId = "" } = useParams();
   const hourlyData = generateHourlyCalendarData(data, {
     deadlineMap,
     selectedMonth,
@@ -173,7 +175,15 @@ export const HourlyCalendarView = ({
                 const hourData = day.hours.find((hourItem) => hourItem.hour === hour);
 
                 if (!hourData) {
-                  const emptyCounts = { failed: 0, planned: 0, queued: 0, running: 0, success: 0, total: 0 };
+                  const emptyCounts = {
+                    backfill: 0,
+                    failed: 0,
+                    planned: 0,
+                    queued: 0,
+                    running: 0,
+                    success: 0,
+                    total: 0,
+                  };
                   const emptyData = {
                     counts: emptyCounts,
                     date: `${dayjs(day.day).format("MMM DD")}, ${hour.toString().padStart(2, "0")}:00`,
@@ -184,6 +194,7 @@ export const HourlyCalendarView = ({
                     <CalendarCell
                       backgroundColor={scale.getColor(emptyCounts)}
                       cellData={emptyData}
+                      dagId={dagId}
                       index={index}
                       key={`${day.day}-${hour}`}
                       viewMode={viewMode}
@@ -200,6 +211,7 @@ export const HourlyCalendarView = ({
                   <CalendarCell
                     backgroundColor={scale.getColor(hourData.counts)}
                     cellData={formattedHourData}
+                    dagId={dagId}
                     index={index}
                     key={`${day.day}-${hour}`}
                     viewMode={viewMode}

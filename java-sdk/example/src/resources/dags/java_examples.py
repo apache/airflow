@@ -34,15 +34,24 @@ def extract(): ...
 
 
 @task.stub(queue="java")
-def transform(): ...
+def transform(extracted): ...
 
 
 @task.stub(queue="java", retries=1, retry_delay=timedelta(seconds=5))
-def load(): ...
+def load(transformed): ...
 
 
 @task.stub(queue="java")
 def concurrent(): ...
+
+
+# Keyword arguments bind to the public fields of the Java task's TaskInput.
+@task.stub(queue="java")
+def report(run_label, transformed): ...
+
+
+@task.stub(queue="java")
+def summarize(region_code, transformed): ...
 
 
 @task.stub(queue="java")
@@ -50,11 +59,11 @@ def produce_number(): ...
 
 
 @task.stub(queue="java")
-def widen_to_long(): ...
+def widen_to_long(value): ...
 
 
 @task.stub(queue="java")
-def widen_to_double(): ...
+def widen_to_double(value): ...
 
 
 @task.stub(queue="java")
@@ -62,7 +71,7 @@ def produce_nothing(): ...
 
 
 @task.stub(queue="java")
-def consume_nullable(): ...
+def consume_nullable(value): ...
 
 
 @task.stub(queue="java")
@@ -70,7 +79,11 @@ def produce_fraction(): ...
 
 
 @task.stub(queue="java")
-def consume_float(): ...
+def consume_float(value): ...
+
+
+@task.stub(queue="java")
+def consume_double_list(values): ...
 
 
 @task()
@@ -80,29 +93,34 @@ def python_task_2(transformed):
     print(transformed)
 
 
-@dag(dag_id="java_interface_example")
-def java_interface_example():
-    transformed = transform()
-    python_task_1() >> extract() >> transformed
+@dag(dag_id="java_task_handler_interface_example")
+def java_task_handler_interface_example():
+    extracted = extract()
+    python_task_1() >> extracted
+    transformed = transform(extracted)
     python_task_2(transformed)
+    summarize(region_code="emea", transformed=transformed)
 
 
-@dag(dag_id="java_annotation_example")
-def java_annotation_example():
-    transformed = transform()
-    python_task_1() >> extract() >> transformed
+@dag(dag_id="java_task_handler_annotation_example")
+def java_task_handler_annotation_example():
+    extracted = extract()
+    python_task_1() >> extracted
+    transformed = transform(extracted)
     python_task_2(transformed)
-    transformed >> load()
+    load(transformed)
+    report(run_label="nightly", transformed=transformed)
     concurrent()
 
 
-@dag(dag_id="java_xcom_casting_example")
-def java_xcom_casting_example():
-    produce_number() >> widen_to_long() >> widen_to_double()
-    produce_nothing() >> consume_nullable()
-    produce_fraction() >> consume_float()
+@dag(dag_id="java_task_handler_xcom_casting_example")
+def java_task_handler_xcom_casting_example():
+    widen_to_double(widen_to_long(produce_number()))
+    consume_nullable(produce_nothing())
+    consume_float(produce_fraction())
+    consume_double_list([1, 2])
 
 
-java_interface_example()
-java_annotation_example()
-java_xcom_casting_example()
+java_task_handler_interface_example()
+java_task_handler_annotation_example()
+java_task_handler_xcom_casting_example()

@@ -25,6 +25,7 @@ This module contains Google PubSub operators.
 
 from __future__ import annotations
 
+import warnings
 from collections.abc import Callable, Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
@@ -42,12 +43,16 @@ from google.cloud.pubsub_v1.types import (
     SchemaSettings,
 )
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.compat.sdk import AirflowException, conf
 from airflow.providers.google.cloud.hooks.pubsub import PubSubHook
 from airflow.providers.google.cloud.links.pubsub import PubSubSubscriptionLink, PubSubTopicLink
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 from airflow.providers.google.cloud.triggers.pubsub import PubsubPullTrigger
-from airflow.providers.google.common.consts import GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME
+from airflow.providers.google.common.consts import (
+    GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME,
+    PUBSUB_RETURN_IMMEDIATELY_DEPRECATION_MESSAGE,
+)
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 
 if TYPE_CHECKING:
@@ -129,6 +134,7 @@ class PubSubCreateTopicOperator(GoogleCloudBaseOperator):
         "project_id",
         "topic",
         "impersonation_chain",
+        "gcp_conn_id",
     )
     ui_color = "#0273d4"
     operator_extra_links = (PubSubTopicLink(),)
@@ -315,6 +321,7 @@ class PubSubCreateSubscriptionOperator(GoogleCloudBaseOperator):
         "subscription",
         "subscription_project_id",
         "impersonation_chain",
+        "gcp_conn_id",
     )
     ui_color = "#0273d4"
     operator_extra_links = (PubSubSubscriptionLink(),)
@@ -482,6 +489,7 @@ class PubSubDeleteTopicOperator(GoogleCloudBaseOperator):
         "project_id",
         "topic",
         "impersonation_chain",
+        "gcp_conn_id",
     )
     ui_color = "#cb4335"
 
@@ -583,6 +591,7 @@ class PubSubDeleteSubscriptionOperator(GoogleCloudBaseOperator):
         "project_id",
         "subscription",
         "impersonation_chain",
+        "gcp_conn_id",
     )
     ui_color = "#cb4335"
 
@@ -704,6 +713,7 @@ class PubSubPublishMessageOperator(GoogleCloudBaseOperator):
         "enable_message_ordering",
         "enable_open_telemetry_tracing",
         "impersonation_chain",
+        "gcp_conn_id",
     )
     ui_color = "#0273d4"
 
@@ -756,9 +766,16 @@ class PubSubPullOperator(GoogleCloudBaseOperator):
     """
     Pulls messages from a PubSub subscription and passes them through XCom.
 
-    If the queue is empty, returns empty list - never waits for messages.
-    If you do need to wait, please use :class:`airflow.providers.google.cloud.sensors.PubSubPullSensor`
-    instead.
+    In non-deferrable mode, ``return_immediately=True`` returns an empty list when the
+    queue is empty; ``return_immediately=False`` makes the Pub/Sub API block for a bounded,
+    server-side period for at least one message instead, occupying the worker slot for that
+    duration. In deferrable mode the operator always waits for at least one message no matter how
+    ``return_immediately`` is set:
+    :class:`~airflow.providers.google.cloud.triggers.pubsub.PubsubPullTrigger` re-pulls every
+    ``poll_interval`` until messages arrive — nothing in the operator bounds that wait — and
+    ``return_immediately`` only controls whether each individual pull long-polls. For the
+    poke-based equivalent of this waiting behavior, see
+    :class:`~airflow.providers.google.cloud.sensors.pubsub.PubSubPullSensor`.
 
     .. seealso::
         For more information on how to use this operator and the PubSubPullSensor, take a look at the guide:
@@ -799,12 +816,19 @@ class PubSubPullOperator(GoogleCloudBaseOperator):
     :param deferrable: If True, run the task in the deferrable mode.
     :param poll_interval: Time (seconds) to wait between two consecutive calls to check the job.
         The default is 300 seconds.
+    :param return_immediately: Defaults to True, which uses the deprecated Pub/Sub
+        ``returnImmediately`` Pull option and can return zero messages even if there are
+        messages in the backlog. If set to False, the system will instead wait (for a bounded
+        amount of time) until at least one message is available, rather than returning no
+        messages. The default will change to False in the first Google provider major release
+        after March 31, 2027.
     """
 
     template_fields: Sequence[str] = (
         "project_id",
         "subscription",
         "impersonation_chain",
+        "gcp_conn_id",
     )
 
     def __init__(
@@ -819,6 +843,7 @@ class PubSubPullOperator(GoogleCloudBaseOperator):
         impersonation_chain: str | Sequence[str] | None = None,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         poll_interval: int = 300,
+        return_immediately: bool | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -831,6 +856,14 @@ class PubSubPullOperator(GoogleCloudBaseOperator):
         self.impersonation_chain = impersonation_chain
         self.deferrable = deferrable
         self.poll_interval = poll_interval
+        if return_immediately is None:
+            warnings.warn(
+                PUBSUB_RETURN_IMMEDIATELY_DEPRECATION_MESSAGE,
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
+            return_immediately = True
+        self.return_immediately = return_immediately
 
     def execute(self, context: Context) -> list:
         if self.deferrable:
@@ -843,6 +876,7 @@ class PubSubPullOperator(GoogleCloudBaseOperator):
                     gcp_conn_id=self.gcp_conn_id,
                     poke_interval=self.poll_interval,
                     impersonation_chain=self.impersonation_chain,
+                    return_immediately=self.return_immediately,
                 ),
                 method_name=GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME,
             )
@@ -855,7 +889,7 @@ class PubSubPullOperator(GoogleCloudBaseOperator):
             project_id=self.project_id,
             subscription=self.subscription,
             max_messages=self.max_messages,
-            return_immediately=True,
+            return_immediately=self.return_immediately,
         )
 
         handle_messages = self.messages_callback or self._default_message_callback

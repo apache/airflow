@@ -38,6 +38,7 @@ from airflow.providers.anthropic.hooks.anthropic import (
     SessionPollResult,
     SessionStatus,
     _create_session_error,
+    _is_permanent_poll_error,
     build_budget,
     evaluate_session_state,
     validate_execute_complete_event,
@@ -45,7 +46,7 @@ from airflow.providers.anthropic.hooks.anthropic import (
 
 pytest.importorskip("anthropic")
 
-from anthropic import BadRequestError
+from anthropic import APIStatusError, AsyncAnthropic, BadRequestError, WorkloadIdentityCredentials
 from anthropic.types import BetaMonetaryAmount
 from anthropic.types.beta import BetaManagedAgentsServerToolUsage, BetaManagedAgentsSessionUsage
 from anthropic.types.beta.beta_managed_agents_cache_creation_usage import (
@@ -762,6 +763,69 @@ class TestAnthropicHookGetConn:
         )
         mock_anthropic.assert_called_once_with(credentials=mock_wic.return_value, base_url=None)
 
+    @pytest.mark.parametrize("service_account_id", [None, ""])
+    @mock.patch(f"{HOOK_PATH}.Anthropic")
+    @mock.patch(f"{HOOK_PATH}.IdentityTokenFile")
+    @mock.patch(f"{HOOK_PATH}.WorkloadIdentityCredentials")
+    @mock.patch.object(AnthropicHook, "get_connection")
+    def test_workload_identity_federation_service_account_is_optional(
+        self, mock_get_connection, mock_wic, mock_itf, mock_anthropic, service_account_id
+    ):
+        workload_identity = {
+            "identity_token_file": "/var/run/secrets/anthropic.com/token",
+            "federation_rule_id": "fdrl_x",
+            "organization_id": "org_x",
+        }
+        if service_account_id is not None:
+            workload_identity["service_account_id"] = service_account_id
+        mock_get_connection.return_value = _conn(
+            password=None,
+            extra={"workload_identity": workload_identity},
+        )
+
+        AnthropicHook().get_conn()
+
+        mock_wic.assert_called_once_with(
+            identity_token_provider=mock_itf.return_value,
+            federation_rule_id="fdrl_x",
+            organization_id="org_x",
+        )
+        mock_anthropic.assert_called_once_with(credentials=mock_wic.return_value, base_url=None)
+
+    @pytest.mark.parametrize(
+        ("missing_field", "missing_value"),
+        [
+            pytest.param(field, value, id=f"{field}-{'absent' if value is None else 'empty'}")
+            for field in (
+                "identity_token_file",
+                "federation_rule_id",
+                "organization_id",
+            )
+            for value in (None, "")
+        ],
+    )
+    @mock.patch.object(AnthropicHook, "get_connection")
+    def test_workload_identity_federation_requires_fields(
+        self, mock_get_connection, missing_field, missing_value
+    ):
+        workload_identity = {
+            "identity_token_file": "/var/run/secrets/anthropic.com/token",
+            "federation_rule_id": "fdrl_x",
+            "organization_id": "org_x",
+            "service_account_id": "svac_x",
+        }
+        if missing_value is None:
+            workload_identity.pop(missing_field)
+        else:
+            workload_identity[missing_field] = missing_value
+        mock_get_connection.return_value = _conn(
+            password=None,
+            extra={"workload_identity": workload_identity},
+        )
+
+        with pytest.raises(AnthropicError, match=missing_field):
+            AnthropicHook().get_conn()
+
     @mock.patch(f"{HOOK_PATH}.Anthropic")
     @mock.patch.object(AnthropicHook, "get_connection")
     def test_no_key_lets_sdk_resolve_credentials(self, mock_get_connection, mock_anthropic):
@@ -770,6 +834,145 @@ class TestAnthropicHookGetConn:
         mock_get_connection.return_value = _conn(password=None)
         AnthropicHook().get_conn()
         mock_anthropic.assert_called_once_with(base_url=None)
+
+
+WIF_EXTRA = {
+    "workload_identity": {
+        "identity_token_file": "/var/run/secrets/anthropic.com/token",
+        "federation_rule_id": "fdrl_x",
+        "organization_id": "org_x",
+        "service_account_id": "svac_x",
+    }
+}
+
+
+@pytest.mark.asyncio
+@mock.patch.object(AnthropicHook, "get_connection", autospec=True)
+@mock.patch(f"{HOOK_PATH}.get_async_connection", autospec=True)
+class TestAnthropicHookGetAsyncConn:
+    @pytest.mark.parametrize(
+        ("password", "host", "extra", "async_name", "sync_name", "expected_kwargs"),
+        [
+            pytest.param(
+                "sk-ant",
+                "https://gw.example",
+                {},
+                "AsyncAnthropic",
+                "Anthropic",
+                {"api_key": "sk-ant", "base_url": "https://gw.example"},
+                id="anthropic",
+            ),
+            pytest.param(
+                "from-password",
+                None,
+                {"anthropic_client_kwargs": {"api_key": "from-extra", "max_retries": 5}},
+                "AsyncAnthropic",
+                "Anthropic",
+                {"api_key": "from-extra", "base_url": None, "max_retries": 5},
+                id="anthropic-client-kwargs",
+            ),
+            pytest.param(
+                None,
+                None,
+                {},
+                "AsyncAnthropic",
+                "Anthropic",
+                {"base_url": None},
+                id="anthropic-sdk-resolves-credentials",
+            ),
+            pytest.param(
+                None,
+                None,
+                {"platform": "bedrock", "aws_region": "us-east-1"},
+                "AsyncAnthropicBedrock",
+                "AnthropicBedrock",
+                {"aws_region": "us-east-1"},
+                id="bedrock",
+            ),
+            pytest.param(
+                None,
+                None,
+                {"platform": "vertex", "project_id": "p1", "region": "us-central1"},
+                "AsyncAnthropicVertex",
+                "AnthropicVertex",
+                {"project_id": "p1", "region": "us-central1"},
+                id="vertex",
+            ),
+            pytest.param(
+                None,
+                None,
+                {"platform": "AWS", "aws_region": "us-east-1"},
+                "AsyncAnthropicAWS",
+                "AnthropicAWS",
+                {"aws_region": "us-east-1"},
+                id="aws",
+            ),
+            pytest.param(
+                "azkey",
+                None,
+                {"platform": "foundry", "resource": "r1"},
+                "AsyncAnthropicFoundry",
+                "AnthropicFoundry",
+                {"api_key": "azkey", "resource": "r1"},
+                id="foundry",
+            ),
+        ],
+    )
+    async def test_builds_the_async_client_for_each_platform(
+        self,
+        mock_get_async_connection,
+        mock_get_connection,
+        password,
+        host,
+        extra,
+        async_name,
+        sync_name,
+        expected_kwargs,
+    ):
+        mock_get_async_connection.return_value = _conn(password=password, host=host, extra=extra)
+
+        with (
+            mock.patch(f"{HOOK_PATH}.{async_name}", autospec=True) as mock_async_client,
+            mock.patch(f"{HOOK_PATH}.{sync_name}", autospec=True) as mock_sync_client,
+        ):
+            client = await AnthropicHook().get_async_conn()
+
+        mock_async_client.assert_called_once_with(**expected_kwargs)
+        assert client is mock_async_client.return_value
+        mock_sync_client.assert_not_called()
+        mock_get_connection.assert_not_called()
+
+    async def test_looks_up_the_connection_once_and_asynchronously(
+        self, mock_get_async_connection, mock_get_connection
+    ):
+        mock_get_async_connection.return_value = _conn(extra={"model": "claude-from-conn"})
+        hook = AnthropicHook(conn_id="my_anthropic")
+
+        with mock.patch(f"{HOOK_PATH}.AsyncAnthropic", autospec=True):
+            await hook.get_async_conn()
+            await hook.get_async_conn()
+
+        # Through the hook, so a subclass's own connection lookup is honoured.
+        mock_get_async_connection.assert_awaited_once_with("my_anthropic", hook=hook)
+        # Later reads, such as the model default, use the same connection.
+        assert hook.default_model == "claude-from-conn"
+        mock_get_connection.assert_not_called()
+
+    async def test_async_client_accepts_the_workload_identity_credential(
+        self, mock_get_async_connection, mock_get_connection
+    ):
+        # Unmocked SDK classes: the async client takes the same synchronous WIF credential
+        # the sync client does (the SDK runs its token exchange in a worker thread). Building
+        # the client reads no token file and exchanges nothing, so no file or network is needed.
+        mock_get_async_connection.return_value = _conn(password=None, extra=WIF_EXTRA)
+
+        client = await AnthropicHook().get_async_conn()
+
+        try:
+            assert isinstance(client, AsyncAnthropic)
+            assert isinstance(client.credentials, WorkloadIdentityCredentials)
+        finally:
+            await client.close()
 
 
 class TestAnthropicHookFeatures:
@@ -853,6 +1056,38 @@ class TestAnthropicHookFeatures:
             hook.count_tokens([{"role": "user", "content": "x"}])
 
 
+def _api_status_error(status_code: int, headers: dict[str, str] | None = None) -> APIStatusError:
+    # ``APIStatusError`` reads only these response attributes, so no HTTP library is needed.
+    response = SimpleNamespace(status_code=status_code, headers=headers or {}, request=None)
+    return APIStatusError(f"HTTP {status_code}", response=response, body=None)  # type: ignore[arg-type]
+
+
+class TestIsPermanentPollError:
+    @pytest.mark.parametrize(
+        ("error", "permanent"),
+        [
+            pytest.param(_api_status_error(400), True, id="400"),
+            pytest.param(_api_status_error(401), True, id="401"),
+            pytest.param(_api_status_error(403), True, id="403"),
+            pytest.param(_api_status_error(404), True, id="404"),
+            pytest.param(_api_status_error(408), False, id="408-request-timeout"),
+            pytest.param(_api_status_error(409), False, id="409-lock-timeout"),
+            pytest.param(_api_status_error(429), False, id="429-rate-limit"),
+            pytest.param(_api_status_error(500), False, id="500"),
+            pytest.param(_api_status_error(529), False, id="529-overloaded"),
+            pytest.param(
+                _api_status_error(400, {"x-should-retry": "true"}), False, id="header-overrides-400"
+            ),
+            pytest.param(
+                _api_status_error(503, {"x-should-retry": "false"}), True, id="header-overrides-503"
+            ),
+            pytest.param(RuntimeError("connection reset"), False, id="no-http-status"),
+        ],
+    )
+    def test_matches_the_sdk_retry_rule(self, error, permanent):
+        assert _is_permanent_poll_error(error) is permanent
+
+
 class TestWaitForBatch:
     def _batch(self, status):
         batch = mock.MagicMock()
@@ -897,6 +1132,17 @@ class TestWaitForBatch:
         with pytest.raises(RuntimeError, match="persistent"):
             AnthropicHook().wait_for_batch("batch_1", wait_seconds=0.01)
         assert mock_get_batch.call_count == MAX_CONSECUTIVE_POLL_FAILURES
+
+    @mock.patch(f"{HOOK_PATH}.time.sleep", autospec=True)
+    @mock.patch.object(AnthropicHook, "get_batch", autospec=True)
+    @mock.patch.object(AnthropicHook, "get_connection", autospec=True)
+    def test_raises_permanent_api_error_without_retry(self, mock_get_connection, mock_get_batch, mock_sleep):
+        mock_get_connection.return_value = _conn()
+        mock_get_batch.side_effect = _api_status_error(404)
+        with pytest.raises(APIStatusError, match="HTTP 404"):
+            AnthropicHook().wait_for_batch("batch_1", wait_seconds=0.01)
+        assert mock_get_batch.call_count == 1
+        mock_sleep.assert_not_called()
 
 
 class TestTestConnection:

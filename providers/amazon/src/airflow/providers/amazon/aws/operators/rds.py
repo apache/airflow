@@ -30,6 +30,7 @@ from airflow.providers.amazon.aws.triggers.rds import (
     RdsDbStoppedTrigger,
 )
 from airflow.providers.amazon.aws.utils import validate_execute_complete_event
+from airflow.providers.amazon.aws.utils.deferral import should_defer
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 from airflow.providers.amazon.aws.utils.rds import RdsDbType
 from airflow.providers.amazon.aws.utils.tags import format_tags
@@ -596,7 +597,9 @@ class RdsCreateDbInstanceOperator(RdsBaseOperator):
     :param waiter_delay: Time (in seconds) to wait between two consecutive calls to check DB instance state
     :param waiter_max_attempts: The maximum number of attempts to check DB instance state
     :param deferrable: If True, the operator will wait asynchronously for the DB instance to be created.
-        This implies waiting for completion. This mode requires aiobotocore module to be installed.
+        Deferring when ``wait_for_completion`` is False is deprecated; from the next major release
+        this has no effect when ``wait_for_completion`` is False.
+        This mode requires aiobotocore module to be installed.
         (default: False)
     :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
     :param verify: Whether or not to verify SSL certificates. See:
@@ -628,7 +631,7 @@ class RdsCreateDbInstanceOperator(RdsBaseOperator):
         self.db_instance_class = db_instance_class
         self.engine = engine
         self.rds_kwargs = rds_kwargs or {}
-        self.wait_for_completion = False if deferrable else wait_for_completion
+        self.wait_for_completion = wait_for_completion
         self.deferrable = deferrable
         self.waiter_delay = waiter_delay
         self.waiter_max_attempts = waiter_max_attempts
@@ -642,13 +645,15 @@ class RdsCreateDbInstanceOperator(RdsBaseOperator):
             Engine=self.engine,
             **self.rds_kwargs,
         )
-        if self.deferrable:
+        if should_defer(deferrable=self.deferrable, wait_for_completion=self.wait_for_completion):
             self.defer(
                 trigger=RdsDbAvailableTrigger(
                     db_identifier=self.db_instance_identifier,
                     waiter_delay=self.waiter_delay,
                     waiter_max_attempts=self.waiter_max_attempts,
                     aws_conn_id=self.aws_conn_id,
+                    verify=self.verify,
+                    botocore_config=self.botocore_config,
                     region_name=self.region_name,
                     # ignoring type because create_db_instance is a dict
                     response=create_db_instance,  # type: ignore[arg-type]
@@ -658,7 +663,7 @@ class RdsCreateDbInstanceOperator(RdsBaseOperator):
                 timeout=timedelta(seconds=self.waiter_delay * self.waiter_max_attempts),
             )
 
-        if self.wait_for_completion:
+        elif self.wait_for_completion:
             waiter = self.hook.conn.get_waiter("db_instance_available")
             wait(
                 waiter=waiter,
@@ -695,7 +700,9 @@ class RdsDeleteDbInstanceOperator(RdsBaseOperator):
     :param waiter_delay: Time (in seconds) to wait between two consecutive calls to check DB instance state
     :param waiter_max_attempts: The maximum number of attempts to check DB instance state
     :param deferrable: If True, the operator will wait asynchronously for the DB instance to be created.
-        This implies waiting for completion. This mode requires aiobotocore module to be installed.
+        Deferring when ``wait_for_completion`` is False is deprecated; from the next major release
+        this has no effect when ``wait_for_completion`` is False.
+        This mode requires aiobotocore module to be installed.
         (default: False)
     :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
     :param verify: Whether or not to verify SSL certificates. See:
@@ -720,7 +727,7 @@ class RdsDeleteDbInstanceOperator(RdsBaseOperator):
         super().__init__(**kwargs)
         self.db_instance_identifier = db_instance_identifier
         self.rds_kwargs = rds_kwargs or {}
-        self.wait_for_completion = False if deferrable else wait_for_completion
+        self.wait_for_completion = wait_for_completion
         self.deferrable = deferrable
         self.waiter_delay = waiter_delay
         self.waiter_max_attempts = waiter_max_attempts
@@ -732,13 +739,15 @@ class RdsDeleteDbInstanceOperator(RdsBaseOperator):
             DBInstanceIdentifier=self.db_instance_identifier,
             **self.rds_kwargs,
         )
-        if self.deferrable:
+        if should_defer(deferrable=self.deferrable, wait_for_completion=self.wait_for_completion):
             self.defer(
                 trigger=RdsDbDeletedTrigger(
                     db_identifier=self.db_instance_identifier,
                     waiter_delay=self.waiter_delay,
                     waiter_max_attempts=self.waiter_max_attempts,
                     aws_conn_id=self.aws_conn_id,
+                    verify=self.verify,
+                    botocore_config=self.botocore_config,
                     region_name=self.region_name,
                     # ignoring type because delete_db_instance is a dict
                     response=delete_db_instance,  # type: ignore[arg-type]
@@ -748,7 +757,7 @@ class RdsDeleteDbInstanceOperator(RdsBaseOperator):
                 timeout=timedelta(seconds=self.waiter_delay * self.waiter_max_attempts),
             )
 
-        if self.wait_for_completion:
+        elif self.wait_for_completion:
             waiter = self.hook.conn.get_waiter("db_instance_deleted")
             wait(
                 waiter=waiter,
@@ -784,7 +793,9 @@ class RdsStartDbOperator(RdsBaseOperator):
     :param waiter_delay: Time (in seconds) to wait between two consecutive calls to check DB instance state
     :param waiter_max_attempts: The maximum number of attempts to check DB instance state
     :param deferrable: If True, the operator will wait asynchronously for the DB instance to be created.
-        This implies waiting for completion. This mode requires aiobotocore module to be installed.
+        Deferring when ``wait_for_completion`` is False is deprecated; from the next major release
+        this has no effect when ``wait_for_completion`` is False.
+        This mode requires aiobotocore module to be installed.
     :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
     :param verify: Whether or not to verify SSL certificates. See:
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
@@ -816,13 +827,15 @@ class RdsStartDbOperator(RdsBaseOperator):
     def execute(self, context: Context) -> str:
         self.db_type = RdsDbType(self.db_type)
         start_db_response: dict[str, Any] = self._start_db()
-        if self.deferrable:
+        if should_defer(deferrable=self.deferrable, wait_for_completion=self.wait_for_completion):
             self.defer(
                 trigger=RdsDbAvailableTrigger(
                     db_identifier=self.db_identifier,
                     waiter_delay=self.waiter_delay,
                     waiter_max_attempts=self.waiter_max_attempts,
                     aws_conn_id=self.aws_conn_id,
+                    verify=self.verify,
+                    botocore_config=self.botocore_config,
                     region_name=self.region_name,
                     response=start_db_response,
                     db_type=self.db_type,
@@ -886,7 +899,9 @@ class RdsStopDbOperator(RdsBaseOperator):
     :param waiter_delay: Time (in seconds) to wait between two consecutive calls to check DB instance state
     :param waiter_max_attempts: The maximum number of attempts to check DB instance state
     :param deferrable: If True, the operator will wait asynchronously for the DB instance to be created.
-        This implies waiting for completion. This mode requires aiobotocore module to be installed.
+        Deferring when ``wait_for_completion`` is False is deprecated; from the next major release
+        this has no effect when ``wait_for_completion`` is False.
+        This mode requires aiobotocore module to be installed.
     :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
     :param verify: Whether or not to verify SSL certificates. See:
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
@@ -920,13 +935,15 @@ class RdsStopDbOperator(RdsBaseOperator):
     def execute(self, context: Context) -> str:
         self.db_type = RdsDbType(self.db_type)
         stop_db_response: dict[str, Any] = self._stop_db()
-        if self.deferrable:
+        if should_defer(deferrable=self.deferrable, wait_for_completion=self.wait_for_completion):
             self.defer(
                 trigger=RdsDbStoppedTrigger(
                     db_identifier=self.db_identifier,
                     waiter_delay=self.waiter_delay,
                     waiter_max_attempts=self.waiter_max_attempts,
                     aws_conn_id=self.aws_conn_id,
+                    verify=self.verify,
+                    botocore_config=self.botocore_config,
                     region_name=self.region_name,
                     response=stop_db_response,
                     db_type=self.db_type,

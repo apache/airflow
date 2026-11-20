@@ -19,7 +19,7 @@ SQL Injection
 =============
 
 Previously, Airflow issued CVE like `CVE-2025-27018 SQL injection in MySQL provider core function <https://www.cve.org/CVERecord?id=CVE-2025-27018/>`_.
-The CVE were about the ability to inject SQL without considering the actor performing it.
+The CVE was about the ability to inject SQL without considering the actor performing it.
 Airflow will no longer issue CVE for cases of SQL Injection unless the reporter can demonstrate a scenario of exploitation.
 For example, if in a security report the only actor that can operate the injection is Actor who has access to Dags folder the report will be rejected.
 When submitting a security report of SQL injection the reporter must explain who is the user that can utilize the injection and how the user gained access to be able to perform it.

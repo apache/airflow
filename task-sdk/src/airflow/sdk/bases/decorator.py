@@ -45,6 +45,7 @@ from airflow.sdk.definitions._internal.expandinput import (
     ListOfDictsExpandInput,
     is_mappable,
 )
+from airflow.sdk.definitions._internal.loop import LoopTaskGroup, check_dag_result_outside_loop
 from airflow.sdk.definitions._internal.types import NOTSET
 from airflow.sdk.definitions.asset import Asset
 from airflow.sdk.definitions.context import KNOWN_CONTEXT_KEYS
@@ -65,6 +66,14 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.dag import DAG
     from airflow.sdk.definitions.mappedoperator import ValidationSource
     from airflow.sdk.definitions.taskgroup import TaskGroup
+
+
+def _context_keys_for_task_group(task_group: TaskGroup | None) -> set[str]:
+    while task_group is not None:
+        if isinstance(task_group, LoopTaskGroup):
+            return KNOWN_CONTEXT_KEYS | {"loop"}
+        task_group = task_group.parent_group
+    return KNOWN_CONTEXT_KEYS
 
 
 class ExpandableFactory(Protocol):
@@ -331,19 +340,24 @@ class DecoratedOperator(BaseOperator):
         # since values for those will be provided when the task is run. Since
         # we're not actually running the function, None is good enough here.
         signature = inspect.signature(python_callable)
+        task_group = kwargs.get("task_group") or TaskGroupContext.get_current(kwargs.get("dag"))
+        context_keys = _context_keys_for_task_group(task_group)
+        if "loop" in context_keys and (parameter := signature.parameters.get("loop")) is not None:
+            if parameter.kind != inspect.Parameter.KEYWORD_ONLY:
+                raise ValueError("The loop context parameter must be keyword-only")
 
         # Don't allow context argument defaults other than None to avoid ambiguities.
         faulty_parameters = [
             param.name
             for param in signature.parameters.values()
-            if param.name in KNOWN_CONTEXT_KEYS and param.default not in (None, inspect.Parameter.empty)
+            if param.name in context_keys and param.default not in (None, inspect.Parameter.empty)
         ]
         if faulty_parameters:
             message = f"Context key parameter {faulty_parameters[0]} can't have a default other than None"
             raise ValueError(message)
 
         parameters = [
-            param.replace(default=None) if param.name in KNOWN_CONTEXT_KEYS else param
+            param.replace(default=None) if param.name in context_keys else param
             for param in signature.parameters.values()
         ]
 
@@ -367,7 +381,7 @@ class DecoratedOperator(BaseOperator):
                     and param.default == inspect.Parameter.empty
                 ):
                     new_parameters.append(param.replace(default=None))
-                    if param.name not in KNOWN_CONTEXT_KEYS:
+                    if param.name not in context_keys:
                         injected_for_ordering.add(param.name)
                 else:
                     new_parameters.append(param)
@@ -562,16 +576,21 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
         op.is_setup = self.is_setup
         op.is_teardown = self.is_teardown
         op.on_failure_fail_dagrun = on_failure_fail_dagrun
+        if self.returns_dag_result:
+            check_dag_result_outside_loop(op)
         op.returns_dag_result = self.returns_dag_result
         op_doc_attrs = [op.doc, op.doc_json, op.doc_md, op.doc_rst, op.doc_yaml]
         # Set the task's doc_md to the function's docstring if it exists and no other doc* args are set.
+        # cleandoc strips the leading indentation the docstring inherits from the nested function so it
+        # renders as Markdown rather than an indented code block.
         if self.function.__doc__ and not any(op_doc_attrs):
-            op.doc_md = self.function.__doc__
+            op.doc_md = inspect.cleandoc(self.function.__doc__)
         return XComArg(op)
 
     def _validate_arg_names(self, func: ValidationSource, kwargs: dict[str, Any]):
         # Ensure that context variables are not shadowed.
-        context_keys_being_mapped = KNOWN_CONTEXT_KEYS.intersection(kwargs)
+        task_group = self.kwargs.get("task_group") or TaskGroupContext.get_current(self.kwargs.get("dag"))
+        context_keys_being_mapped = _context_keys_for_task_group(task_group).intersection(kwargs)
         if len(context_keys_being_mapped) == 1:
             (name,) = context_keys_being_mapped
             raise ValueError(f"cannot call {func}() on task context variable {name!r}")
@@ -727,6 +746,8 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
             start_from_trigger=self.operator_class.start_from_trigger,
             returns_dag_result=self.returns_dag_result,
         )
+        if self.returns_dag_result:
+            check_dag_result_outside_loop(operator)
         return XComArg(operator=operator)
 
     def partial(self, **kwargs: Any) -> _TaskDecorator[FParams, FReturn, OperatorSubclass]:

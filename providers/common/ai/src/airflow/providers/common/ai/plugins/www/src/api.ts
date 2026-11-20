@@ -17,6 +17,7 @@
  * under the License.
  */
 
+import { regionQuery, type TaskRegion } from "./region.ts";
 import type { SessionResponse } from "src/types/feedback";
 
 function getBase(): string {
@@ -29,13 +30,14 @@ function getBase(): string {
 
 const BASE = getBase();
 
-function buildQs(dagId: string, runId: string, taskId: string, mapIndex: number): string {
-  return (
+function buildQs(dagId: string, runId: string, taskId: string, mapIndex: number, region?: TaskRegion): string {
+  const query = (
     `dag_id=${encodeURIComponent(dagId)}` +
     `&run_id=${encodeURIComponent(runId)}` +
     `&task_id=${encodeURIComponent(taskId)}` +
     `&map_index=${mapIndex}`
   );
+  return `${query}${regionQuery(region)}`;
 }
 
 export class ApiError extends Error {
@@ -70,8 +72,8 @@ async function apiFetch<T>(
   return res.json() as Promise<T>;
 }
 
-export function createApi(dagId: string, runId: string, taskId: string, mapIndex: number) {
-  const qs = buildQs(dagId, runId, taskId, mapIndex);
+export function createApi(dagId: string, runId: string, taskId: string, mapIndex: number, region?: TaskRegion) {
+  const qs = buildQs(dagId, runId, taskId, mapIndex, region);
 
   return {
     fetchSession: () =>

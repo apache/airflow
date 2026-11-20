@@ -1,0 +1,14 @@
+Deadline alert callbacks are validated at Dag parse time, and numeric intervals are deprecated
+
+``DeadlineAlert`` now refuses a ``callback`` that is not exactly ``AsyncCallback`` or
+``SyncCallback``, so a subclass fails when the Dag is parsed rather than when the scheduler
+reads it back.  The scheduler decodes stored callbacks by exact class name so no class
+named by a Dag author is imported or instantiated there, which means a subclass could be
+written and then never read.
+
+Passing a number as the ``interval`` is deprecated and now emits ``RemovedInAirflow4Warning``.
+It is still accepted and taken as a count of seconds, but the supported types are ``timedelta``
+and ``VariableInterval``.  A ``timedelta`` subclass such as ``pendulum.duration(...)`` is
+accepted and normalized to a plain ``timedelta``, where previously it passed validation and
+then failed during serialization.  ``interval=True`` is refused, because ``bool`` is an ``int``
+subclass and would otherwise be taken as one second.

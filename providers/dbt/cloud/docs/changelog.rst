@@ -28,6 +28,102 @@
 Changelog
 ---------
 
+4.12.0
+......
+
+.. note::
+    On Airflow 3.3 and later, ``DbtCloudRunJobOperator`` is durable by default when
+    ``wait_for_termination`` is True: a retry reconnects to the dbt Cloud run the previous try
+    triggered instead of triggering a new one. Before Airflow 3.5, clearing the whole Dag run keeps
+    the stored run id, so a task whose run succeeded does not run dbt again. Clear the task instance
+    instead, or set ``durable=False`` to trigger a new run on every try. Below Airflow 3.3 nothing
+    changes.
+
+Features
+~~~~~~~~
+
+* ``Support durable execution for dbt cloud job runs (#76918)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+4.11.2
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Apply timeout_seconds and connection proxies to dbt Cloud sync requests (#74684)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``[main] Upgrade important CI environment (#76278)``
+   * ``Fix task loop information and tests for OpenLineage provider (#74752)``
+
+4.11.1
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``dbt Cloud: emit OpenLineage events via the OpenLineage public API (#74754)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+4.11.0
+......
+
+Features
+~~~~~~~~
+
+* ``Apply hook_params to deferred dbt Cloud job runs (#74199, #74489)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Add validate trigger events in dbt cloud deferrable tasks (#69739)``
+
+Misc
+~~~~
+
+* ``Drop support for Python 3.10 (#74157)``
+
+Doc-only
+~~~~~~~~
+
+* ``Update provider READMEs for the Python 3.11 baseline (#74158)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare providers release 2026-10-06 (#74429)``
+   * ``[main] Upgrade important CI environment (#73629)``
+
+4.10.0
+......
+
+Features
+~~~~~~~~
+
+* ``Template every connection id accepted by provider operators (#73286)``
+* ``Link dbt Cloud runs to the triggering Airflow task via OpenLineage (#70131)``
+* ``Surface dbt Cloud failure details in Airflow task logs (#70171)``
+
+Doc-only
+~~~~~~~~
+
+* ``Fix typo in dbt cloud hook docstring (#71971)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Revert "[main] Upgrade important CI environment (#73308)" (#73621)``
+   * ``[main] Upgrade important CI environment (#73308)``
+   * ``Remove real sleeps from slow provider unit tests (#73478)``
+   * ``Prepare providers release 2026-09-09 (#72834)``
+   * ``Prepare providers release 2026-08-18 (#71794)``
+   * ``Adopt flit 4 as the provider distribution build backend (#71186)``
+   * ``Update changelog with better wording (#71161)``
+
 4.9.3
 .....
 

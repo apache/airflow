@@ -85,6 +85,7 @@ with DAG(
         ack_messages=True,
         project_id=PROJECT_ID,
         subscription=subscription,
+        return_immediately=False,
     )
     # [END howto_operator_gcp_pubsub_pull_message_with_sensor]
 
@@ -94,11 +95,15 @@ with DAG(
 
     # [START howto_operator_gcp_pubsub_pull_message_with_operator]
 
+    # return_immediately=False makes this pull block for a bounded, server-side period, holding the
+    # worker slot; pass return_immediately=True explicitly if the task should return an empty list
+    # instead of waiting.
     pull_messages_operator = PubSubPullOperator(
         task_id="pull_messages_operator",
         ack_messages=True,
         project_id=PROJECT_ID,
         subscription=subscription,
+        return_immediately=False,
     )
     # [END howto_operator_gcp_pubsub_pull_message_with_operator]
 

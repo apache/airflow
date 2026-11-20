@@ -37,7 +37,8 @@ from airflow_breeze.global_constants import MOUNT_SELECTED
 from airflow_breeze.params.shell_params import ShellParams
 from airflow_breeze.utils.console import Output, console_print
 from airflow_breeze.utils.docker_command_utils import execute_command_in_shell
-from airflow_breeze.utils.github import download_constraints_file
+from airflow_breeze.utils.github import download_constraints_file, get_branch_commit
+from airflow_breeze.utils.packages import load_pyproject_toml
 from airflow_breeze.utils.parallel import get_temp_file_name
 from airflow_breeze.utils.path_utils import AIRFLOW_ROOT_PATH
 from airflow_breeze.utils.shared_options import get_verbose
@@ -82,6 +83,15 @@ def is_valid_version(version_str: str, latest_version: Version) -> bool:
             and not parsed_version.is_devrelease
             and parsed_version <= latest_version
         )
+    except version.InvalidVersion:
+        return False
+
+
+def is_newer_version(candidate: str, reference: str) -> bool:
+    from packaging import version
+
+    try:
+        return version.parse(candidate) > version.parse(reference)
     except version.InvalidVersion:
         return False
 
@@ -185,14 +195,13 @@ def should_show_package(releases, latest_version, constraints_date, mode, is_lat
     return True
 
 
-def get_latest_version_with_cooldown(releases: dict[str, Any], cooldown_days: int) -> str | None:
-    """Find the latest non-prerelease version whose release date is outside the cooldown period.
+def get_latest_version_with_cooldown(releases: dict[str, Any], cutoff: datetime | None) -> str | None:
+    """Find the latest non-prerelease version uploaded no later than ``cutoff`` (any time if None).
 
     Returns the version string, or None if no version qualifies.
     """
     from packaging import version
 
-    cutoff = datetime.now() - timedelta(days=cooldown_days)
     candidates: list[tuple[version.Version, str]] = []
     for v, release_files in releases.items():
         if not release_files:
@@ -211,12 +220,52 @@ def get_latest_version_with_cooldown(releases: dict[str, Any], cooldown_days: in
             ).replace(tzinfo=None)
         except (KeyError, IndexError, ValueError):
             continue
-        if upload_time <= cutoff:
+        if cutoff is None or upload_time <= cutoff:
             candidates.append((parsed_v, v))
     if not candidates:
         return None
     candidates.sort(key=lambda x: x[0], reverse=True)
     return candidates[0][1]
+
+
+def load_cooldown_overrides() -> dict[str, bool | str]:
+    """Per-package ``exclude-newer-package`` entries of the root pyproject.toml, by canonical name.
+
+    The constraints are resolved under these rules (Airflow's own distributions are exempt from
+    the cooldown, a few packages have a moved cutoff), so "latest" has to be read under the same
+    rules or the check flags pins that resolved exactly as configured.
+    """
+    from packaging.utils import canonicalize_name
+
+    tool_uv = load_pyproject_toml(AIRFLOW_ROOT_PATH / "pyproject.toml").get("tool", {}).get("uv", {})
+    return {
+        canonicalize_name(name): value for name, value in tool_uv.get("exclude-newer-package", {}).items()
+    }
+
+
+_DURATION_RE = re.compile(r"^\s*(\d+(?:\.\d+)?)\s*(minute|hour|day)s?\s*$")
+
+
+def get_release_cutoff(pkg: str, cooldown_days: int, overrides: dict[str, bool | str]) -> datetime | None:
+    """Return the newest upload time still eligible as ``latest`` for ``pkg``, None for no limit.
+
+    Mirrors the ``exclude-newer-package`` values uv accepts: ``false`` lifts the cooldown, a
+    timestamp fixes the cutoff, a duration such as ``"12 hours"`` replaces the window.
+    """
+    from packaging.utils import canonicalize_name
+
+    override = overrides.get(canonicalize_name(pkg))
+    if override is False:
+        return None
+    if isinstance(override, str):
+        if match := _DURATION_RE.match(override):
+            amount, unit = float(match.group(1)), match.group(2)
+            return datetime.now() - timedelta(**{f"{unit}s": amount})
+        try:
+            return datetime.fromisoformat(override.replace("Z", "+00:00")).replace(tzinfo=None)
+        except ValueError:
+            console_print(f"[yellow]Ignoring unparsable exclude-newer-package value for {pkg}: {override}[/]")
+    return datetime.now() - timedelta(days=cooldown_days)
 
 
 def get_first_newer_release_date_str(releases, current_version):
@@ -253,6 +302,20 @@ def get_first_newer_release_date_str(releases, current_version):
         return None
 
 
+def save_constraints(constraints: str, constraints_commit: str | None, directory: Path) -> None:
+    """Keep the checked constraints for a later report. Failing to keep them never fails the check."""
+    if not constraints_commit:
+        console_print("[warning]Constraints not saved: the constraints commit could not be read.[/]")
+        return
+    try:
+        directory.mkdir(parents=True, exist_ok=True)
+        (directory / "constraints.txt").write_text(constraints)
+        # Written last, so that its presence means the copy is complete.
+        (directory / "constraints-commit.txt").write_text(f"{constraints_commit}\n")
+    except OSError as e:
+        console_print(f"[warning]Constraints not saved to {directory}: {e}[/]")
+
+
 def constraints_version_check(
     python: str,
     airflow_constraints_mode: str,
@@ -262,20 +325,39 @@ def constraints_version_check(
     github_token: str | None = None,
     github_repository: str | None = None,
     cooldown_days: int = 4,
+    constraints_file: Path | None = None,
+    save_constraints_to: Path | None = None,
 ):
     console_print(f"[bold cyan]Python version:[/] [white]{python}[/]")
     console_print(f"[bold cyan]Constraints mode:[/] [white]{airflow_constraints_mode}[/]")
-    console_print(f"[bold cyan]Cooldown period:[/] [white]{cooldown_days} days[/]\n")
-    with tempfile.TemporaryDirectory() as temp_dir:
-        constraints_file = Path(temp_dir) / "constraints.txt"
-        download_constraints_file(
-            constraints_reference=DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH,
-            python_version=python,
-            airflow_constraints_mode=airflow_constraints_mode,
-            github_token=github_token,
-            output_file=constraints_file,
-        )
+    cooldown_overrides = load_cooldown_overrides()
+    exempt_count = sum(1 for value in cooldown_overrides.values() if value is False)
+    console_print(
+        f"[bold cyan]Cooldown period:[/] [white]{cooldown_days} days[/] "
+        f"[white]({exempt_count} distributions exempt via exclude-newer-package)[/]\n"
+    )
+    if constraints_file is not None:
         lines = constraints_file.read_text().splitlines()
+    else:
+        # A saved copy records its commit, so the branch is resolved first and downloaded at that commit.
+        constraints_commit = (
+            get_branch_commit(DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH, github_token)
+            if save_constraints_to
+            else None
+        )
+        with tempfile.TemporaryDirectory() as temp_dir:
+            downloaded_file = Path(temp_dir) / "constraints.txt"
+            download_constraints_file(
+                constraints_reference=constraints_commit or DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH,
+                python_version=python,
+                airflow_constraints_mode=airflow_constraints_mode,
+                github_token=github_token,
+                output_file=downloaded_file,
+            )
+            constraints = downloaded_file.read_text()
+        if save_constraints_to:
+            save_constraints(constraints, constraints_commit, save_constraints_to)
+        lines = constraints.splitlines()
     constraints_date = parse_constraints_generation_date(lines)
     if constraints_date:
         console_print(
@@ -302,6 +384,7 @@ def constraints_version_check(
         airflow_constraints_mode=airflow_constraints_mode,
         github_repository=github_repository,
         cooldown_days=cooldown_days,
+        cooldown_overrides=cooldown_overrides,
     )
 
     print_table_footer(
@@ -445,6 +528,7 @@ def process_packages(
     airflow_constraints_mode: str,
     github_repository: str | None,
     cooldown_days: int = 4,
+    cooldown_overrides: dict[str, bool | str] | None = None,
 ) -> tuple[int, int, list[str], dict[str, int]]:
     def fetch_pypi_data(pkg: str) -> dict:
         pypi_url = f"https://pypi.org/pypi/{pkg}/json"
@@ -472,8 +556,13 @@ def process_packages(
         try:
             data = fetch_pypi_data(pkg)
             releases = data["releases"]
-            latest_version_with_cooldown = get_latest_version_with_cooldown(releases, cooldown_days)
+            cutoff = get_release_cutoff(pkg, cooldown_days, cooldown_overrides or {})
+            latest_version_with_cooldown = get_latest_version_with_cooldown(releases, cutoff)
             latest_version = latest_version_with_cooldown or data["info"]["version"]
+            if is_newer_version(pinned_version, latest_version):
+                # The pin can still be ahead of `latest` (an override dropped after the constraints
+                # resolved with it): nothing to upgrade to, so nothing to explain.
+                latest_version = pinned_version
             latest_release_date = get_release_dates(releases, latest_version)
             constraint_release_date = get_release_dates(releases, pinned_version)
             is_latest_version = pinned_version == latest_version
@@ -491,7 +580,7 @@ def process_packages(
                     format_str=format_str,
                     is_latest_version=is_latest_version,
                     versions_behind_str=versions_behind_str,
-                    cooldown_days=cooldown_days,
+                    cooldown_days=0 if cutoff is None else cooldown_days,
                 )
                 status_counts[status_category] += 1
                 if not is_latest_version:
@@ -743,12 +832,18 @@ def explain_package_upgrade(
     explanation = (
         f"[bold blue]\n--- Explaining for {pkg} (current: {pinned_version}, latest: {latest_version}) ---[/]"
     )
-    with preserve_files(AIRFLOW_ROOT_PATH / "pyproject.toml", AIRFLOW_ROOT_PATH / "uv.lock"):
-        from packaging.utils import canonicalize_name
+    # Breeze limits startup imports; packaging is needed only when explaining a package.
+    from packaging.utils import canonicalize_name
 
+    canonical_pkg = str(canonicalize_name(pkg))
+    baseline_version = baseline_versions.get(canonical_pkg)
+    if baseline_version == latest_version:
+        return explanation + (
+            f"\n[bold green]Package {pkg} already resolves to {latest_version} under "
+            f"--resolution highest. The constraints file appears to be stale.[/]"
+        )
+    with preserve_files(AIRFLOW_ROOT_PATH / "pyproject.toml", AIRFLOW_ROOT_PATH / "uv.lock"):
         airflow_pyproject = AIRFLOW_ROOT_PATH / "pyproject.toml"
-        canonical_pkg = str(canonicalize_name(pkg))
-        baseline_version = baseline_versions.get(canonical_pkg)
 
         update_pyproject_dependency(airflow_pyproject, pkg, latest_version, python_version)
         if get_verbose():
@@ -789,11 +884,6 @@ def explain_package_upgrade(
                 f"\n[bold yellow]uv sync succeeded but the resolved package versions could not "
                 f"be read (empty freeze output), so the upgrade of {pkg} to {latest_version} "
                 f"could not be classified.[/]"
-            )
-        elif baseline_version == latest_version:
-            explanation += (
-                f"\n[bold green]Package {pkg} already resolves to {latest_version} under "
-                f"--resolution highest. The constraints file appears to be stale.[/]"
             )
         elif resolved_version != latest_version:
             explanation += (

@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useRef } from "react";
+import { useRef, type ReactNode } from "react";
 
 import { Box, createListCollection } from "@chakra-ui/react";
 
@@ -26,7 +26,7 @@ import { FilterPill } from "../FilterPill";
 import type { FilterConfig, FilterPluginProps } from "../types";
 
 type SelectOption = {
-  label: string;
+  label: ReactNode;
   value: string;
 };
 
@@ -46,19 +46,14 @@ export const SelectFilter = ({ filter, onChange, onRemove }: FilterPluginProps) 
 
     hasJustSelected.current = true;
     onChange(newValue);
-
-    // Trigger blur to close the editing mode after selection
-    setTimeout(() => {
-      const activeElement = document.activeElement as HTMLElement;
-
-      activeElement.blur();
-    }, 0);
   };
 
   const hasValue = filter.value !== null && filter.value !== undefined && filter.value !== "";
   const displayValue = config.options.find(
     (option) => option.value === (typeof filter.value === "string" ? filter.value : ""),
   )?.label;
+  // Chakra line-clamps value text by default, which clips padded elements such as state badges.
+  const hasRichDisplayValue = displayValue !== undefined && typeof displayValue !== "string";
 
   return (
     <FilterPill
@@ -105,12 +100,16 @@ export const SelectFilter = ({ filter, onChange, onRemove }: FilterPluginProps) 
             // open straight onto the options instead of making the user click again.
             defaultOpen={!hasValue}
             h="full"
-            // Dismissing the menu hands focus back to the trigger inside the pill, so no blur
-            // fires and the pill would stay in edit mode. A close that follows a selection is
-            // left alone: the blur that selection triggers collapses the pill instead.
+            // Closing the menu hands focus back to the trigger inside the pill, so no blur fires
+            // and the pill would stay in edit mode. A close that follows a selection waits a tick,
+            // so the pill sees the chosen value instead of dropping the filter as abandoned.
             onOpenChange={({ open }) => {
-              if (!open && !hasJustSelected.current) {
-                onRequestClose();
+              if (!open) {
+                if (hasJustSelected.current) {
+                  setTimeout(onRequestClose, 0);
+                } else {
+                  onRequestClose();
+                }
               }
               hasJustSelected.current = false;
             }}
@@ -118,7 +117,11 @@ export const SelectFilter = ({ filter, onChange, onRemove }: FilterPluginProps) 
             value={hasValue && typeof filter.value === "string" ? [filter.value] : []}
           >
             <Select.Trigger dataTestId={`${filter.config.key}-filter`} triggerProps={{ border: "none" }}>
-              <Select.ValueText placeholder={filter.config.placeholder} />
+              <Select.ValueText
+                lineClamp={hasRichDisplayValue ? "none" : undefined}
+                overflow={hasRichDisplayValue ? "visible" : undefined}
+                placeholder={filter.config.placeholder}
+              />
             </Select.Trigger>
             <Select.Content>
               {config.options.map((option) => (

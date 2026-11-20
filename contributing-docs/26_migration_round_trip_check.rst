@@ -47,8 +47,8 @@ it manually:
 
 CI runs it automatically on any pull request whose changed files
 include ``airflow-core/src/airflow/migrations/`` — the dedicated
-``Migration round-trip check`` job in ``.github/workflows/ci-amd-arm.yml``
-is gated on the ``has-migrations`` selective-checks output.
+``Migration round-trip check`` job in ``.github/workflows/ci-amd.yml`` and
+``.github/workflows/ci-arm.yml`` is gated on the ``has-migrations`` selective-checks output.
 
 
 Convention: ``disable_sqlite_fkeys`` placement

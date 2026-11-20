@@ -30,10 +30,18 @@ const browsers = { chromium, firefox, webkit };
  * Authenticate once before all tests and save state for reuse
  */
 async function globalSetup(config: FullConfig) {
-  const [firstProject] = config.projects as [FullConfig["projects"][number]];
-  const baseURL = firstProject.use.baseURL ?? testConfig.connection.baseUrl;
+  // `config.projects` lists every project even when `--project` narrows the run, and only the
+  // selected browser may be installed, so log in with the browser named in TEST_BROWSER.
+  const setupProject =
+    config.projects.find((project) => project.name === process.env.TEST_BROWSER) ?? config.projects[0];
+
+  if (setupProject === undefined) {
+    throw new Error("No Playwright projects are configured");
+  }
+
+  const baseURL = setupProject.use.baseURL ?? testConfig.connection.baseUrl;
   const { password, username } = testConfig.credentials;
-  const browserName = firstProject.name as keyof typeof browsers;
+  const browserName = setupProject.name as keyof typeof browsers;
   const browserType = browsers[browserName];
 
   const authDir = path.dirname(AUTH_FILE);

@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 # /// script
-# requires-python = ">=3.10,<3.11"
+# requires-python = ">=3.11,<3.12"
 # dependencies = [
 #   "jsonschema>=3.2.0,<5.0",
 #   "pyyaml>=6.0.3",
@@ -136,7 +136,7 @@ def _process_files(validator, file_paths: list[str]):
         print("Processing file: ", input_path)
         instance = load_file(input_path)
         for error in validator.iter_errors(instance):
-            print(error)
+            print(f"{error.message} of {'.'.join(error.path)!r} object")
             exit_code = 1
     return exit_code
 

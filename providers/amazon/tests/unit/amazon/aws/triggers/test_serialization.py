@@ -38,6 +38,7 @@ from airflow.providers.amazon.aws.triggers.emr import (
     EmrServerlessCancelJobsTrigger,
     EmrServerlessCreateApplicationTrigger,
     EmrServerlessDeleteApplicationTrigger,
+    EmrServerlessJobSensorTrigger,
     EmrServerlessStartApplicationTrigger,
     EmrServerlessStartJobTrigger,
     EmrServerlessStopApplicationTrigger,
@@ -249,6 +250,14 @@ class TestTriggersSerialization:
                 aws_conn_id=AWS_CONN_ID,
                 waiter_delay=WAITER_DELAY,
                 waiter_max_attempts=MAX_ATTEMPTS,
+            ),
+            EmrServerlessJobSensorTrigger(
+                application_id=TEST_APPLICATION_ID,
+                job_run_id=TEST_JOB_ID,
+                target_states={"RUNNING", "SUCCESS"},
+                waiter_delay=WAITER_DELAY,
+                aws_conn_id=AWS_CONN_ID,
+                region_name=AWS_REGION,
             ),
             EmrServerlessStartJobTrigger(
                 application_id=TEST_APPLICATION_ID,

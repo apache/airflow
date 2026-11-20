@@ -118,7 +118,7 @@ In the case above, these are the ways you could import the python files:
 
 You can see the ``.airflowignore`` file at the root of your folder. This is a file that you can put in your
 ``dags`` folder to tell Airflow which files from the folder should be ignored when the Airflow
-scheduler looks for Dags. It should contain either regular expressions (the default) or glob expressions
+scheduler looks for Dags. It should contain either glob expressions (the default) or regular expressions
 for the paths that should be ignored. You do not need to have that file in any other folder in
 ``PYTHONPATH`` (and also you can only keep shared code in the other folders, not the actual Dags).
 
@@ -229,7 +229,7 @@ You should import such shared Dags using full path (starting from the directory 
    from my_company.my_custom_dags.base_dag import BaseDag  # This is cool
 
 The relative imports are counter-intuitive, and depending on how you start your python code, they can behave
-differently. In Airflow the same Dag file might be parsed in different contexts (by schedulers, by workers
+differently. In Airflow the same Dag file might be parsed in different contexts (by the Dag processor, by workers
 or during tests) and in those cases, relative imports might behave differently. Always use full
 python package paths when you import anything in Airflow Dags, this will save you a lot of troubles.
 You can read more about relative import caveats in
@@ -379,7 +379,7 @@ The popular choices are setuptools, poetry, hatch, flit.
 
     mkdir airflow_operators
 
-3. Create the file ``__init__.py`` inside the package and add following code:
+3. Create a file called ``__init__.py`` inside the package and add the following code:
 
 .. code-block:: python
 

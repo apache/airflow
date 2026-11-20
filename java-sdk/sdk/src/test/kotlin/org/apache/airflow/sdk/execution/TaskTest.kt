@@ -21,10 +21,16 @@ package org.apache.airflow.sdk.execution
 
 import org.apache.airflow.sdk.Bundle
 import org.apache.airflow.sdk.Client
+import org.apache.airflow.sdk.ConditionTask
 import org.apache.airflow.sdk.Context
 import org.apache.airflow.sdk.DagDef
+import org.apache.airflow.sdk.PlainCheckingTask
+import org.apache.airflow.sdk.PlainWaitingTask
+import org.apache.airflow.sdk.StoppableTask
+import org.apache.airflow.sdk.SwitchTask
 import org.apache.airflow.sdk.Task
 import org.apache.airflow.sdk.TaskDef
+import org.apache.airflow.sdk.TriggerDagRun
 import org.apache.airflow.sdk.execution.comm.BundleInfo
 import org.apache.airflow.sdk.execution.comm.DagRun
 import org.apache.airflow.sdk.execution.comm.RetryTask
@@ -36,10 +42,14 @@ import org.apache.airflow.sdk.execution.comm.TaskState
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.Timeout
+import sun.misc.Signal
 import java.io.ByteArrayOutputStream
 import java.io.PrintStream
 import java.time.OffsetDateTime
 import java.util.UUID
+import java.util.concurrent.CancellationException
+import java.util.concurrent.TimeUnit
 
 class TaskTest {
   @Test
@@ -49,6 +59,27 @@ class TaskTest {
 
     Assertions.assertInstanceOf(SucceedTask::class.java, result)
   }
+
+  @Test
+  @DisplayName("Should return failed when a task throws CancellationException, as a future it waits for does")
+  fun shouldReturnFailedWhenTaskThrowsCancellationException() {
+    val result = runTask(bundleWith("cancelled", CancelledTask::class.java), startupDetails(taskId = "cancelled"), noOpClient())
+
+    Assertions.assertInstanceOf(TaskState::class.java, result)
+    Assertions.assertEquals(TaskState.State.FAILED, (result as TaskState).state)
+  }
+
+  @Test
+  @DisplayName("Should leave signals alone when a stoppable task runs without a server")
+  @Timeout(value = 60, unit = TimeUnit.SECONDS)
+  fun shouldLeaveSignalsAloneWithoutServer() =
+    withSignalRecorder("TERM") { recorded ->
+      val result = runTask(bundleWith("stoppable", StoppableSuccessTask::class.java), startupDetails(taskId = "stoppable"), noOpClient())
+
+      Assertions.assertInstanceOf(SucceedTask::class.java, result)
+      Signal.raise(Signal("TERM"))
+      Assertions.assertEquals(listOf("SIGTERM"), pollSignals(recorded, 1), "running the task should not leave a trap open")
+    }
 
   @Test
   @DisplayName("Should return removed when task is missing")
@@ -169,6 +200,191 @@ class TaskTest {
     }
   }
 
+  @Test
+  @DisplayName("Should fail a plain task that checks for a stop request, without a retry even if should_retry is true")
+  fun shouldReturnFailedWithoutRetryWhenPlainTaskChecksForStopRequest() {
+    for (taskClass in listOf(PlainCheckingTask::class.java, PlainWaitingTask::class.java)) {
+      val details = startupDetails(taskId = "checking")
+      details.tiContext?.shouldRetry = true
+      val result = Cancellation().use { TaskRunner.runTask(bundleWith("checking", taskClass), details, noOpClient(), it) }
+
+      Assertions.assertInstanceOf(TaskState::class.java, result) { "unexpected result for ${taskClass.simpleName}: $result" }
+      Assertions.assertEquals(TaskState.State.FAILED, (result as TaskState).state)
+    }
+  }
+
+  @Test
+  @DisplayName("Should thread the task definition into the execution context")
+  fun shouldThreadTaskDefIntoContext() {
+    val result =
+      runTask(
+        bundleWith("asserting", TaskDefAssertingTask::class.java),
+        startupDetails(taskId = "asserting"),
+        noOpClient(),
+      )
+
+    Assertions.assertInstanceOf(SucceedTask::class.java, result)
+  }
+
+  @Test
+  @DisplayName("Should push a condition's result and skip the side it did not take")
+  fun shouldSkipTheSideNotTaken() {
+    TestCondition.decision = true
+    val transport = RecordingTransport()
+
+    val result =
+      runTask(conditionBundle(withElse = true), startupDetails(taskId = "gate"), Client(startupDetails("gate"), transport))
+
+    Assertions.assertInstanceOf(SucceedTask::class.java, result)
+    Assertions.assertEquals(listOf("report_empty"), transport.skipped)
+    Assertions.assertEquals(
+      listOf("skipmixin_key" to mapOf("skipped" to listOf("report_empty")), "return_value" to true),
+      transport.xComs,
+    )
+    Assertions.assertEquals(
+      listOf("xcom:skipmixin_key", "skip:[report_empty]", "xcom:return_value"),
+      transport.events,
+    )
+  }
+
+  @Test
+  @DisplayName("Should skip the then side when a condition does not hold")
+  fun shouldSkipThenSideWhenConditionIsFalse() {
+    TestCondition.decision = false
+    val transport = RecordingTransport()
+
+    runTask(conditionBundle(withElse = true), startupDetails(taskId = "gate"), Client(startupDetails("gate"), transport))
+
+    Assertions.assertEquals(listOf("load"), transport.skipped)
+    Assertions.assertEquals(false, transport.xComs.last().second)
+    Assertions.assertEquals(listOf("xcom:skipmixin_key", "skip:[load]", "xcom:return_value"), transport.events)
+  }
+
+  @Test
+  @DisplayName("Should skip nothing when a one-sided condition holds")
+  fun shouldSkipNothingWhenOneSidedConditionHolds() {
+    TestCondition.decision = true
+    val transport = RecordingTransport()
+
+    runTask(conditionBundle(withElse = false), startupDetails(taskId = "gate"), Client(startupDetails("gate"), transport))
+
+    Assertions.assertEquals(emptyList<String>(), transport.skipped)
+    Assertions.assertEquals(listOf("return_value" to true), transport.xComs)
+    Assertions.assertEquals(listOf("xcom:return_value"), transport.events)
+  }
+
+  @Test
+  @DisplayName("Should fail a condition that throws, without pushing or skipping anything")
+  fun shouldFailConditionThatThrows() {
+    TestCondition.decision = null
+    val transport = RecordingTransport()
+
+    val result =
+      runTask(conditionBundle(withElse = true), startupDetails(taskId = "gate"), Client(startupDetails("gate"), transport))
+
+    Assertions.assertInstanceOf(TaskState::class.java, result)
+    Assertions.assertEquals(TaskState.State.FAILED, (result as TaskState).state)
+    Assertions.assertEquals(emptyList<String>(), transport.skipped)
+    Assertions.assertEquals(emptyList<Pair<String, Any>>(), transport.xComs)
+  }
+
+  @Test
+  @DisplayName("Should push the case a switch chose and skip every other one")
+  fun shouldSkipTheCasesNotChosen() {
+    TestSwitch.choice = HandleLongTask::class.java
+    val transport = RecordingTransport()
+
+    val result = runTask(switchBundle(), startupDetails(taskId = "pick"), Client(startupDetails("pick"), transport))
+
+    Assertions.assertInstanceOf(SucceedTask::class.java, result)
+    Assertions.assertEquals(listOf("handle_short"), transport.skipped)
+    Assertions.assertEquals(
+      listOf("skipmixin_key" to mapOf("skipped" to listOf("handle_short")), "return_value" to "handle_long"),
+      transport.xComs,
+    )
+  }
+
+  @Test
+  @DisplayName("Should fail a switch that chose a task it cannot run")
+  fun shouldFailSwitchThatChoseAnUnknownCase() {
+    TestSwitch.choice = SuccessTask::class.java
+    val transport = RecordingTransport()
+
+    val result = runTask(switchBundle(), startupDetails(taskId = "pick"), Client(startupDetails("pick"), transport))
+
+    Assertions.assertInstanceOf(TaskState::class.java, result)
+    Assertions.assertEquals(TaskState.State.FAILED, (result as TaskState).state)
+    Assertions.assertEquals(emptyList<String>(), transport.skipped)
+    Assertions.assertEquals(emptyList<Pair<String, Any>>(), transport.xComs)
+  }
+
+  @Test
+  @DisplayName("Should fail a generated switch that chose a task of the Dag that is not one of its cases")
+  fun shouldFailGeneratedSwitchThatChoseANonCase() {
+    val dag = DagDef("test_dag")
+    val long = dag.task<Unit>("handle_long", HandleLongTask::class.java)
+    val short = dag.task<Unit>("handle_short", HandleShortTask::class.java)
+    dag.task<Unit>("unlisted", UnlistedTask::class.java)
+    dag.Switch("pick", TestGeneratedSwitch::class.java).Case(long).Case(short)
+    val transport = RecordingTransport()
+
+    val result = runTask(Bundle(listOf(dag)), startupDetails(taskId = "pick"), Client(startupDetails("pick"), transport))
+
+    Assertions.assertInstanceOf(TaskState::class.java, result)
+    Assertions.assertEquals(TaskState.State.FAILED, (result as TaskState).state)
+    Assertions.assertEquals(emptyList<String>(), transport.skipped)
+    Assertions.assertEquals(emptyList<Pair<String, Any>>(), transport.xComs)
+  }
+
+  @Test
+  @DisplayName("Should run a trigger task itself and push the ID of the run it started")
+  fun shouldRunTriggerTask() {
+    val transport = RecordingTransport()
+
+    val result = runTask(triggerBundle(), startupDetails(taskId = "trigger"), Client(startupDetails("trigger"), transport))
+
+    Assertions.assertInstanceOf(SucceedTask::class.java, result)
+    Assertions.assertEquals(listOf("downstream"), transport.triggered)
+    Assertions.assertTrue("trigger_run_id" in transport.xComs.map { it.first }) { "pushed: ${transport.xComs}" }
+  }
+
+  @Test
+  @DisplayName("Should fail a trigger task whose client throws, including when the client throws CancellationException")
+  fun shouldFailTriggerTaskWhenClientThrows() {
+    for (failure in listOf(IllegalStateException("boom"), CancellationException("the request was cancelled"))) {
+      val transport = RecordingTransport().also { it.triggerFailure = failure }
+
+      val result = runTask(triggerBundle(), startupDetails(taskId = "trigger"), Client(startupDetails("trigger"), transport))
+
+      Assertions.assertInstanceOf(TaskState::class.java, result, failure.javaClass.simpleName)
+      Assertions.assertEquals(TaskState.State.FAILED, (result as TaskState).state, failure.javaClass.simpleName)
+      Assertions.assertFalse("trigger_run_id" in transport.xComs.map { it.first }, failure.javaClass.simpleName)
+    }
+  }
+
+  private fun triggerBundle(): Bundle {
+    val dag = DagDef("test_dag")
+    dag.task("trigger", TriggerDagRun("downstream"))
+    return Bundle(listOf(dag))
+  }
+
+  private fun switchBundle(): Bundle {
+    val dag = DagDef("test_dag")
+    val long = dag.task<Unit>("handle_long", HandleLongTask::class.java)
+    val short = dag.task<Unit>("handle_short", HandleShortTask::class.java)
+    dag.Switch("pick", TestSwitch::class.java).Case(long).Case(short)
+    return Bundle(listOf(dag))
+  }
+
+  private fun conditionBundle(withElse: Boolean): Bundle {
+    val dag = DagDef("test_dag")
+    val load = dag.task<Unit>("load", SuccessTask::class.java)
+    val reportEmpty = dag.task<Unit>("report_empty", SuccessTask::class.java)
+    val condition = dag.If("gate", TestCondition::class.java).Then(load)
+    if (withElse) condition.Else(reportEmpty)
+    return Bundle(listOf(dag))
+  }
+
   private fun bundleWith(
     taskId: String,
     taskClass: Class<out Task>,
@@ -214,6 +430,14 @@ class TaskTest {
 
         override fun getVariable(key: String) = throw UnsupportedOperationException("not used in test")
 
+        override fun setVariable(
+          key: String,
+          value: String,
+          description: String?,
+        ): Unit = throw UnsupportedOperationException("not used in test")
+
+        override fun deleteVariable(key: String): Unit = throw UnsupportedOperationException("not used in test")
+
         override fun getXCom(
           key: String,
           dagId: String,
@@ -231,8 +455,186 @@ class TaskTest {
           runId: String,
           mapIndex: Int,
         ): Unit = throw UnsupportedOperationException("not used in test")
+
+        override fun getTaskStateStore(
+          tiId: UUID,
+          key: String,
+        ) = throw UnsupportedOperationException("not used in test")
+
+        override fun setTaskStateStore(
+          tiId: UUID,
+          key: String,
+          value: Any,
+          expiresAt: OffsetDateTime?,
+        ): Unit = throw UnsupportedOperationException("not used in test")
+
+        override fun deleteTaskStateStore(
+          tiId: UUID,
+          key: String,
+        ): Unit = throw UnsupportedOperationException("not used in test")
+
+        override fun clearTaskStateStore(tiId: UUID): Unit = throw UnsupportedOperationException("not used in test")
+
+        override fun skipDownstreamTasks(taskIds: List<String>): Unit = throw UnsupportedOperationException("not used in test")
+
+        override fun triggerDagRun(
+          dagId: String,
+          runId: String,
+          logicalDate: OffsetDateTime?,
+          runAfter: OffsetDateTime?,
+          conf: Map<String, Any?>?,
+          resetDagRun: Boolean,
+          note: String?,
+        ): Boolean = throw UnsupportedOperationException("not used in test")
+
+        override fun getDagRunState(
+          dagId: String,
+          runId: String,
+        ): String = throw UnsupportedOperationException("not used in test")
+
+        override fun isDagPaused(dagId: String): Boolean = throw UnsupportedOperationException("not used in test")
       },
     )
+
+  /** Decides what [decision] holds; a null one throws, standing for a condition body that fails. */
+  class TestCondition : ConditionTask {
+    override fun decide(
+      context: Context,
+      client: Client,
+    ): Boolean = decision ?: throw IllegalStateException("boom")
+
+    companion object {
+      var decision: Boolean? = true
+    }
+  }
+
+  class HandleLongTask : Task {
+    override fun execute(
+      context: Context,
+      client: Client,
+    ) = Unit
+  }
+
+  class HandleShortTask : Task {
+    override fun execute(
+      context: Context,
+      client: Client,
+    ) = Unit
+  }
+
+  /** Chooses whatever [choice] holds, so a test can drive it to a case or past one. */
+  class TestSwitch : SwitchTask {
+    override fun choose(
+      context: Context,
+      client: Client,
+    ): Class<out Task> = choice
+
+    companion object {
+      var choice: Class<out Task> = HandleLongTask::class.java
+    }
+  }
+
+  class UnlistedTask : Task {
+    override fun execute(
+      context: Context,
+      client: Client,
+    ) = Unit
+  }
+
+  /** The shape the annotation processor generates: it returns the class of a task, here one that is no case. */
+  class TestGeneratedSwitch : SwitchTask {
+    override fun choose(
+      context: Context,
+      client: Client,
+    ): Class<out Task> = UnlistedTask::class.java
+  }
+
+  /** Records what a deciding task pushed and asked to skip, and the order of the two. */
+  private class RecordingTransport : org.apache.airflow.sdk.execution.Client {
+    val xComs = mutableListOf<Pair<String, Any>>()
+    val skipped = mutableListOf<String>()
+    val events = mutableListOf<String>()
+    val triggered = mutableListOf<String>()
+    var triggerFailure: Throwable? = null
+
+    override fun setXCom(
+      key: String,
+      value: Any,
+      dagId: String,
+      taskId: String,
+      runId: String,
+      mapIndex: Int,
+    ) {
+      xComs += key to value
+      events += "xcom:$key"
+    }
+
+    override fun skipDownstreamTasks(taskIds: List<String>) {
+      skipped += taskIds
+      events += "skip:$taskIds"
+    }
+
+    override fun getConnection(id: String) = throw UnsupportedOperationException("not used in test")
+
+    override fun getVariable(key: String) = throw UnsupportedOperationException("not used in test")
+
+    override fun setVariable(
+      key: String,
+      value: String,
+      description: String?,
+    ): Unit = throw UnsupportedOperationException("not used in test")
+
+    override fun deleteVariable(key: String): Unit = throw UnsupportedOperationException("not used in test")
+
+    override fun getXCom(
+      key: String,
+      dagId: String,
+      taskId: String,
+      runId: String,
+      mapIndex: Int?,
+      includePriorDates: Boolean,
+    ) = throw UnsupportedOperationException("not used in test")
+
+    override fun getTaskStateStore(
+      tiId: UUID,
+      key: String,
+    ) = throw UnsupportedOperationException("not used in test")
+
+    override fun setTaskStateStore(
+      tiId: UUID,
+      key: String,
+      value: Any,
+      expiresAt: OffsetDateTime?,
+    ): Unit = throw UnsupportedOperationException("not used in test")
+
+    override fun deleteTaskStateStore(
+      tiId: UUID,
+      key: String,
+    ): Unit = throw UnsupportedOperationException("not used in test")
+
+    override fun clearTaskStateStore(tiId: UUID): Unit = throw UnsupportedOperationException("not used in test")
+
+    override fun triggerDagRun(
+      dagId: String,
+      runId: String,
+      logicalDate: OffsetDateTime?,
+      runAfter: OffsetDateTime?,
+      conf: Map<String, Any?>?,
+      resetDagRun: Boolean,
+      note: String?,
+    ): Boolean {
+      triggered += dagId
+      triggerFailure?.let { throw it }
+      return false
+    }
+
+    override fun getDagRunState(
+      dagId: String,
+      runId: String,
+    ): String = throw UnsupportedOperationException("not used in test")
+
+    override fun isDagPaused(dagId: String): Boolean = throw UnsupportedOperationException("not used in test")
+  }
 
   class SuccessTask : Task {
     override fun execute(
@@ -240,6 +642,23 @@ class TaskTest {
       client: Client,
     ) {
     }
+  }
+
+  class StoppableSuccessTask : StoppableTask {
+    override fun execute(
+      context: Context,
+      client: Client,
+    ) {
+    }
+
+    override fun onKill(context: Context) = Unit
+  }
+
+  class CancelledTask : Task {
+    override fun execute(
+      context: Context,
+      client: Client,
+    ): Unit = throw CancellationException("the future this task waits for was cancelled")
   }
 
   class FailingTask : Task {
@@ -289,5 +708,16 @@ class TaskTest {
       context: Context,
       client: Client,
     ): Unit = throw IllegalStateException("should not be reachable")
+  }
+
+  class TaskDefAssertingTask : Task {
+    override fun execute(
+      context: Context,
+      client: Client,
+    ) {
+      check(context.taskDef?.id == context.ti.taskId) {
+        "expected the runner to thread the task definition into the context"
+      }
+    }
   }
 }

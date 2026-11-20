@@ -30,6 +30,6 @@ Here is the current database schema diagram for the FAB auth manager provider ta
    when dealing with problems with migrations. See also :doc:`migrations-ref` for
    list of detailed database migrations.
 
-.. This image is automatically generated during documentation build by the ``generate_erd`` Sphinx extension.
+.. This diagram is automatically generated during documentation build by the ``generate_erd`` Sphinx extension.
 
-.. image:: img/fab_erd.svg
+.. mermaid:: img/fab_erd.mmd

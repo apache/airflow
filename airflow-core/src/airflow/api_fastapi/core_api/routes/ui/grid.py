@@ -18,19 +18,20 @@
 from __future__ import annotations
 
 from collections.abc import Generator, Iterable
+from itertools import chain
 from typing import TYPE_CHECKING, Annotated, Any
 from uuid import UUID
 
 import structlog
 from fastapi import Depends, HTTPException, Query, status
 from fastapi.responses import StreamingResponse
-from sqlalchemy import exists, select
+from sqlalchemy import exists, func, or_, select
 from sqlalchemy.orm import Session, joinedload, load_only
 
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
 from airflow.api_fastapi.common.dagbag import DagBagDep
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
-from airflow.api_fastapi.common.db.dag_runs import attach_dag_versions_to_runs
+from airflow.api_fastapi.common.db.dag_runs import attach_dag_versions_to_runs, is_filtered_existing_run
 from airflow.api_fastapi.common.parameters import (
     QueryDagRunRunTypesFilter,
     QueryDagRunStateFilter,
@@ -55,6 +56,9 @@ from airflow.api_fastapi.core_api.datamodels.ui.common import (
 )
 from airflow.api_fastapi.core_api.datamodels.ui.grid import (
     GridTISummaries,
+    LoopHistoryResponse,
+    LoopRunSummary,
+    LoopSummaryResponse,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import requires_access_dag
@@ -63,6 +67,9 @@ from airflow.api_fastapi.core_api.services.ui.grid import (
     _find_aggregates,
     _get_aggs_for_node,
     _merge_node_dicts,
+    load_loop_run_inputs,
+    loop_run_summaries,
+    summarize_loop_run,
 )
 from airflow.api_fastapi.core_api.services.ui.task_group import (
     get_task_group_children_getter,
@@ -71,10 +78,13 @@ from airflow.api_fastapi.core_api.services.ui.task_group import (
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun, DagRunNote
 from airflow.models.deadline import Deadline
+from airflow.models.dynamic_region import DynamicRegion, loop_position
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance, TaskInstanceNote
+from airflow.serialization.definitions.taskgroup import SerializedLoopTaskGroup
 from airflow.utils.helpers import chunks
 from airflow.utils.session import create_session
+from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
     from airflow.models.dagbag import DBDagBag
@@ -411,10 +421,66 @@ def _build_ti_summaries(
     dag_bag: DBDagBag,
 ) -> dict[str, Any] | None:
     ti_details: dict[str, GridNodeAgg] = {}
-    dag_version_id = None
-    for ti in task_instances:
-        # this is a simplification - we account for structure based on the first task
-        dag_version_id = dag_version_id or ti.dag_version_id
+    rows = iter(task_instances)
+    first = next(rows, None)
+    if first is None:
+        return None
+    dag_version_id = (
+        getattr(first, "structure_version_id", None)
+        or first.dag_version_id
+        or session.scalar(
+            select(TaskInstance.dag_version_id)
+            .where(
+                TaskInstance.dag_id == dag_id,
+                TaskInstance.run_id == run_id,
+                TaskInstance.dag_version_id.is_not(None),
+            )
+            .limit(1)
+        )
+    )
+    serdag = _get_serdag(dag_bag, dag_id, dag_version_id, session)
+    if TYPE_CHECKING:
+        assert serdag
+    loop_ids = {
+        group.node_id
+        for group in serdag.task_group.get_task_group_dict().values()
+        if isinstance(group, SerializedLoopTaskGroup)
+    }
+    regions = DynamicRegion.load_for_run(dag_id, run_id, session=session) if loop_ids else {}
+    streamed = chain([first], rows)
+    # Only a Dag with loops needs two passes over the rows, one to find each invocation's newest
+    # iteration and one to build the summaries. Without loops the stream is consumed once, so a
+    # run of any size is not held in memory to learn that none of it was looped.
+    positions_by_ti: Iterable[tuple[TaskInstance, dict[str, tuple[UUID, int]]]]
+    if loop_ids:
+        positions_by_ti = [
+            (
+                ti,
+                {
+                    loop_id: position
+                    for loop_id in loop_ids
+                    if (position := loop_position(regions, ti.region_id, ti.region_index, loop_id))
+                    is not None
+                },
+            )
+            for ti in streamed
+        ]
+    else:
+        positions_by_ti = ((ti, {}) for ti in streamed)
+    # A looped task has one row per iteration. Counting them all would report the work done
+    # across the whole loop rather than the state the task is in, so the state counts come from
+    # the newest iteration of each invocation. Every iteration still feeds loop_iterations,
+    # which is what reports how many ran.
+    latest_iteration: dict[tuple[str, str, UUID], int] = {}
+    # Guarded because without loops ``positions_by_ti`` streams: walking it here would leave
+    # nothing for the summaries below, and there is no iteration to find anyway.
+    if loop_ids:
+        for ti, positions in positions_by_ti:
+            for loop_id, (family_id, iteration) in positions.items():
+                key = (ti.task_id, loop_id, family_id)
+                if iteration > latest_iteration.get(key, -1):
+                    latest_iteration[key] = iteration
+    for ti, positions in positions_by_ti:
         summary = ti_details.get(ti.task_id)
         if summary is None:
             summary = ti_details[ti.task_id] = GridNodeAgg()
@@ -424,13 +490,14 @@ def _build_ti_summaries(
             end_date=ti.end_date,
             dag_version_number=getattr(ti, "version_number", None),
             has_note=bool(getattr(ti, "has_note", False)),
+            loop_positions=positions,
+            region=(ti.region_id, ti.region_index) if positions else None,
+            is_latest_pass=all(
+                iteration == latest_iteration[(ti.task_id, loop_id, family_id)]
+                for loop_id, (family_id, iteration) in positions.items()
+            ),
+            retry_at=getattr(ti, "retry_at", None),
         )
-    if not ti_details:
-        return None
-
-    serdag = _get_serdag(dag_bag, dag_id, dag_version_id, session)
-    if TYPE_CHECKING:
-        assert serdag
 
     def get_node_summaries() -> Iterable[dict[str, Any]]:
         yielded_task_ids: set[str] = set()
@@ -498,6 +565,10 @@ def _build_ti_summaries(
 def get_grid_ti_summaries_stream(
     dag_id: str,
     dag_bag: DagBagDep,
+    start_date_range: Annotated[
+        RangeFilter, Depends(datetime_range_filter_factory("start_date", TaskInstance))
+    ],
+    end_date_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("end_date", TaskInstance))],
     run_ids: Annotated[list[str] | None, Query()] = None,
 ) -> StreamingResponse:
     """
@@ -511,6 +582,7 @@ def get_grid_ti_summaries_stream(
     (keyed by ``dag_version_id``), which avoids repeated deserialization across
     runs of the same version *and* across requests.
     """
+    has_date_filter = start_date_range.is_active() or end_date_range.is_active()
 
     def _generate() -> Generator[str, None, None]:
         # Each iteration opens and closes its own DB session so the connection is
@@ -527,15 +599,30 @@ def get_grid_ti_summaries_stream(
 
         for run_id in run_ids or []:
             with create_session(scoped=False) as session:
-                tis = session.execute(
+                query = (
                     select(
                         TaskInstance.task_id,
+                        TaskInstance.region_id,
+                        TaskInstance.region_index,
                         TaskInstance.state,
                         TaskInstance.dag_version_id,
                         TaskInstance.start_date,
                         TaskInstance.end_date,
+                        TaskInstance.retry_at,
                         DagVersion.version_number,
                         has_note_subq,
+                        select(TaskInstance.dag_version_id)
+                        .join(DagVersion, TaskInstance.dag_version_id == DagVersion.id)
+                        .where(
+                            TaskInstance.dag_id == dag_id,
+                            TaskInstance.run_id == run_id,
+                            TaskInstance.working_set.is_(True),
+                        )
+                        .order_by(DagVersion.version_number.desc())
+                        .limit(1)
+                        .correlate(None)
+                        .scalar_subquery()
+                        .label("structure_version_id"),
                     )
                     .outerjoin(DagVersion, TaskInstance.dag_version_id == DagVersion.id)
                     .where(TaskInstance.dag_id == dag_id)
@@ -543,6 +630,37 @@ def get_grid_ti_summaries_stream(
                     .order_by(TaskInstance.task_id)
                     .execution_options(yield_per=1000)
                 )
+                if has_date_filter:
+                    query = query.where(
+                        or_(
+                            TaskInstance.state != TaskInstanceState.UP_FOR_RETRY, TaskInstance.state.is_(None)
+                        )
+                    ).execution_options(include_all_attempts=True)
+                query = start_date_range.to_orm(query)
+                query = end_date_range.to_orm(query)
+                if has_date_filter:
+                    coordinate = (TaskInstance.task_id, TaskInstance.region_id, TaskInstance.region_index)
+                    attempts = (
+                        query.with_only_columns(
+                            *(c for c in query.selected_columns if c.key not in {"start_date", "end_date"}),
+                            func.min(TaskInstance.start_date)
+                            .over(partition_by=coordinate)
+                            .label("start_date"),
+                            func.max(TaskInstance.end_date).over(partition_by=coordinate).label("end_date"),
+                            func.row_number()
+                            .over(partition_by=coordinate, order_by=TaskInstance.try_number.desc())
+                            .label("attempt_rank"),
+                        )
+                        .order_by(None)
+                        .subquery()
+                    )
+                    query = (
+                        select(attempts)
+                        .where(attempts.c.attempt_rank == 1)
+                        .order_by(attempts.c.task_id)
+                        .execution_options(include_all_attempts=True, yield_per=1000)
+                    )
+                tis = session.execute(query)
                 summary = _build_ti_summaries(
                     dag_id,
                     run_id,
@@ -550,8 +668,86 @@ def get_grid_ti_summaries_stream(
                     session,
                     dag_bag=dag_bag,
                 )
-            if summary is None:
-                continue
+                if summary is None:
+                    if not is_filtered_existing_run(
+                        dag_id, run_id, has_filter=has_date_filter, session=session
+                    ):
+                        continue
+                    summary = {"run_id": run_id, "dag_id": dag_id, "task_instances": []}
             yield GridTISummaries.model_validate(summary).model_dump_json() + "\n"
 
     return StreamingResponse(content=_generate(), media_type="application/x-ndjson")
+
+
+@grid_router.get(
+    "/loop/{dag_id}/{run_id}/{group_id}",
+    responses=create_openapi_http_exception_doc([404, 422]),
+    dependencies=[
+        Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.TASK_INSTANCE)),
+        Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.RUN)),
+    ],
+)
+def get_loop_summary(
+    dag_id: str,
+    run_id: str,
+    group_id: str,
+    dag_bag: DagBagDep,
+    session: SessionDep,
+    loop_region_id: UUID | None = None,
+) -> LoopSummaryResponse:
+    """Summarize one loop invocation from the run's live task instances."""
+    run = session.scalar(select(DagRun).where(DagRun.dag_id == dag_id, DagRun.run_id == run_id))
+    if run is None:
+        raise HTTPException(404, "DAG run not found")
+    return loop_run_summaries(run, group_id, session=session, dag_bag=dag_bag, loop_region_id=loop_region_id)[
+        0
+    ]
+
+
+@grid_router.get(
+    "/loop-history/{dag_id}/{group_id}",
+    responses=create_openapi_http_exception_doc([404]),
+    dependencies=[
+        Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.TASK_INSTANCE)),
+        Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.RUN)),
+    ],
+)
+def get_loop_history(
+    dag_id: str,
+    group_id: str,
+    dag_bag: DagBagDep,
+    session: SessionDep,
+    limit: Annotated[int, Query(ge=1, le=100)] = 14,
+) -> LoopHistoryResponse:
+    """Show loop invocations from recent runs, oldest first."""
+    runs = session.scalars(
+        select(DagRun)
+        .where(DagRun.dag_id == dag_id)
+        .order_by(DagRun.run_after.desc(), DagRun.id.desc())
+        .limit(limit)
+    ).all()
+    inputs = load_loop_run_inputs(runs, group_id, session=session, dag_bag=dag_bag)
+    history = []
+    for run in reversed(runs):
+        try:
+            summaries = summarize_loop_run(inputs[run.run_id], group_id)
+        except HTTPException as error:
+            if error.status_code in (404, 422):
+                continue
+            raise
+        for summary in summaries:
+            history.append(
+                LoopRunSummary(
+                    run_id=run.run_id,
+                    run_after=run.run_after,
+                    logical_date=run.logical_date,
+                    max_iterations=summary.max_iterations,
+                    iterations_ran=summary.iterations_ran,
+                    status=summary.status,
+                    reason=summary.reason,
+                    loop_region_id=summary.loop_region_id,
+                )
+            )
+    if runs and not history:
+        raise HTTPException(404, "Loop not found in recent DAG runs")
+    return LoopHistoryResponse(dag_id=dag_id, group_id=group_id, runs=history)

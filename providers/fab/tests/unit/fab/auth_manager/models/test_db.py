@@ -21,11 +21,13 @@ from unittest import mock
 
 import pytest
 import sqlalchemy as sa
+from alembic import command
 from alembic.autogenerate import compare_metadata
 from alembic.migration import MigrationContext
 from sqlalchemy import MetaData
 
 import airflow.providers.fab as provider_fab
+from airflow import settings
 from airflow.settings import engine
 from airflow.utils.db import (
     compare_server_default,
@@ -33,6 +35,16 @@ from airflow.utils.db import (
 )
 
 pytestmark = [pytest.mark.db_test]
+
+
+def _email_unique_constraint_names(bind) -> list[str]:
+    return sorted(
+        uq["name"]
+        for uq in sa.inspect(bind).get_unique_constraints("ab_register_user")
+        if "email" in uq["column_names"]
+    )
+
+
 try:
     from airflow.providers.fab.auth_manager.models.db import FABDBManager
 
@@ -117,6 +129,46 @@ try:
             ):
                 with pytest.raises(SystemExit, match="Offline migration not supported for SQLite"):
                     FABDBManager(session).upgradedb(from_revision=None, to_revision=None, show_sql_only=True)
+
+        @pytest.mark.parametrize(
+            ("direction", "revision_range", "expected_statements"),
+            [
+                (
+                    "upgrade",
+                    "6709f7a774b9:02ca36b0235b",
+                    (
+                        "CREATE PROCEDURE CreateIdxPermissionViewId()",
+                        "CREATE PROCEDURE CreateIdxRoleId()",
+                        "CREATE PROCEDURE DropEmailUqIfExists()",
+                        "UPDATE alembic_version_fab SET version_num='02ca36b0235b'",
+                    ),
+                ),
+                (
+                    "downgrade",
+                    "02ca36b0235b:6709f7a774b9",
+                    (
+                        "CREATE PROCEDURE DropUniqueIfExists()",
+                        "CREATE PROCEDURE DropIndexIfExists()",
+                        "UPDATE alembic_version_fab SET version_num='6709f7a774b9'",
+                    ),
+                ),
+            ],
+        )
+        @mock.patch("airflow.settings.SQL_ALCHEMY_CONN", "mysql+pymysql://user:pass@host/airflow")
+        def test_offline_mysql_sql_generation(
+            self, session, capsys, direction, revision_range, expected_statements
+        ):
+            # Offline mode hands the migration a MockConnection rather than None, so every
+            # introspection has to be gated on the context's as_sql flag or it raises
+            # NoInspectionAvailable and no script is produced at all. The version stamp is
+            # emitted last, so asserting it proves the whole revision ran.
+            config = FABDBManager(session=session).get_alembic_config()
+
+            getattr(command, direction)(config, revision_range, sql=True)
+
+            script = capsys.readouterr().out
+            for statement in expected_statements:
+                assert statement in script
 
         @mock.patch("alembic.command.upgrade")
         @mock.patch.object(FABDBManager, "create_db_from_orm")
@@ -288,6 +340,56 @@ try:
                 assert "ab_user_role_role_id_fkey" in user_role_fk_names
                 assert "ab_user_role_user_id_fkey" in user_role_fk_names
             finally:
+                current_revision = manager.get_current_revision()
+                if original_revision and current_revision != original_revision:
+                    manager.upgradedb(to_revision=original_revision)
+
+        @pytest.mark.backend("mysql")
+        def test_upgradedb_and_downgrade_mysql_run_under_pymysql(self, session):
+            # pymysql leaves CLIENT_MULTI_STATEMENTS off (mysqlclient, which CI uses, turns it
+            # on), so the server rejects any revision that packs several statements into one
+            # op.execute(). Drive the revision over a pymysql connection to keep it split.
+            pytest.importorskip("pymysql")
+
+            manager = FABDBManager(session=session)
+            original_revision = manager.get_current_revision()
+            pymysql_url = sa.engine.make_url(settings.SQL_ALCHEMY_CONN).set(drivername="mysql+pymysql")
+            pymysql_engine = sa.create_engine(pymysql_url)
+
+            try:
+                manager.downgrade(to_revision="6709f7a774b9")
+
+                # An Airflow 2.x database reaches this revision with FAB's own unique index on
+                # email, named after the column. That is what the revision has to find and drop.
+                with pymysql_engine.begin() as setup:
+                    for name in _email_unique_constraint_names(setup):
+                        setup.execute(sa.text(f"ALTER TABLE `ab_register_user` DROP INDEX `{name}`"))
+                    setup.execute(sa.text("ALTER TABLE `ab_register_user` ADD UNIQUE KEY `email` (`email`)"))
+
+                config = manager.get_alembic_config()
+                with pymysql_engine.connect() as connection:
+                    config.attributes["connection"] = connection
+                    assert connection.dialect.driver == "pymysql"
+
+                    command.upgrade(config, revision="02ca36b0235b")
+                    assert _email_unique_constraint_names(connection) == ["ab_register_user_email_uq"]
+
+                    command.downgrade(config, revision="6709f7a774b9")
+                    assert _email_unique_constraint_names(connection) == []
+                    index_names = {
+                        index["name"]
+                        for index in sa.inspect(connection).get_indexes("ab_permission_view_role")
+                    }
+                    assert "idx_permission_view_id" not in index_names
+                    assert "idx_role_id" not in index_names
+
+                    # The downgrade left no unique constraint on email at all, so this second
+                    # upgrade runs the drops against objects that are already gone — the state a
+                    # database is in after the revision failed part-way through.
+                    command.upgrade(config, revision="02ca36b0235b")
+                    assert _email_unique_constraint_names(connection) == ["ab_register_user_email_uq"]
+            finally:
+                pymysql_engine.dispose()
                 current_revision = manager.get_current_revision()
                 if original_revision and current_revision != original_revision:
                     manager.upgradedb(to_revision=original_revision)

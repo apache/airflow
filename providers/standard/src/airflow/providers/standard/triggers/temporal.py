@@ -31,31 +31,57 @@ class DateTimeTrigger(BaseTrigger):
     """
     Trigger based on a datetime.
 
-    A trigger that fires exactly once, at the given datetime, give or take
-    a few seconds.
-
-    The provided datetime MUST be in UTC.
+    Pass either ``moment`` (a tz-aware datetime) or ``target_time`` (a string, possibly a Jinja
+    template, or a datetime). With ``start_from_trigger``, the operator lists ``target_time`` in its
+    own ``template_fields`` and puts it in ``start_trigger_args.trigger_kwargs``, so the triggerer
+    renders it in place before ``run()``; it is then parsed into ``moment`` on first use.
 
     :param moment: when to yield event
+    :param target_time: raw (possibly templated) datetime string, an alternative to ``moment``
     :param end_from_trigger: whether the trigger should mark the task successful after time condition
         reached or resume the task after time condition reached.
     """
 
-    def __init__(self, moment: datetime.datetime, *, end_from_trigger: bool = False) -> None:
+    def __init__(
+        self,
+        moment: datetime.datetime | None = None,
+        *,
+        target_time: datetime.datetime | str | None = None,
+        end_from_trigger: bool = False,
+    ) -> None:
         super().__init__()
-        if not isinstance(moment, datetime.datetime):
-            raise TypeError(f"Expected datetime.datetime type for moment. Got {type(moment)}")
-        # Make sure it's in UTC
-        if moment.tzinfo is None:
-            raise ValueError("You cannot pass naive datetimes")
-        self.moment: pendulum.DateTime = timezone.convert_to_utc(moment)
+        if (moment is None) == (target_time is None):
+            raise TypeError("DateTimeTrigger requires exactly one of 'moment' or 'target_time'")
+        self.target_time = target_time
+        self._moment: pendulum.DateTime | None = None
+        if moment is not None:
+            if not isinstance(moment, datetime.datetime):
+                raise TypeError(f"Expected datetime.datetime type for moment. Got {type(moment)}")
+            # Make sure it's in UTC
+            if moment.tzinfo is None:
+                raise ValueError("You cannot pass naive datetimes")
+            self._moment = timezone.convert_to_utc(moment)
         self.end_from_trigger = end_from_trigger
 
+    @property
+    def moment(self) -> pendulum.DateTime:
+        if self._moment is None:
+            # Resolved lazily: by now the triggerer has rendered target_time in place.
+            target_time: Any = self.target_time
+            if isinstance(target_time, datetime.datetime):
+                target_time = target_time.isoformat()
+            if not isinstance(target_time, str) or not target_time:
+                raise TypeError("DateTimeTrigger has neither a 'moment' nor a usable 'target_time'")
+            self._moment = timezone.convert_to_utc(timezone.parse(target_time))
+        return self._moment
+
     def serialize(self) -> tuple[str, dict[str, Any]]:
-        return (
-            "airflow.providers.standard.triggers.temporal.DateTimeTrigger",
-            {"moment": self.moment, "end_from_trigger": self.end_from_trigger},
-        )
+        if self._moment is None:
+            kwargs: dict[str, Any] = {"target_time": self.target_time}
+        else:
+            kwargs = {"moment": self._moment}
+        kwargs["end_from_trigger"] = self.end_from_trigger
+        return ("airflow.providers.standard.triggers.temporal.DateTimeTrigger", kwargs)
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
         """

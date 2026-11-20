@@ -27,6 +27,185 @@
 Changelog
 ---------
 
+15.4.0
+......
+
+.. note::
+
+    On Airflow 3.3 and later, ``AzureDataFactoryRunPipelineOperator`` is durable by default: a retry
+    reconnects to the stored pipeline run instead of starting a new one, and returns without running the
+    pipeline again when that run has succeeded. On Airflow 3.3 and 3.4, clearing the whole Dag run keeps the
+    stored run id, so a task whose run succeeded does not re-run the pipeline. Clear the task instance
+    instead, or set ``durable=False`` to start a new run on every try. Below Airflow 3.3 nothing changes.
+
+Features
+~~~~~~~~
+
+* ``Add durable execution to AzureDataFactoryRunPipelineOperator (#77162)``
+* ``Let MSGraphAsyncOperator and MSGraphSensor start from the triggerer (#53009)``
+* ``Add iter_paginated_run to KiotaRequestAdapterHook (#75649)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Make durable flag reach default_args in PowerBIDatasetRefreshOperator (#76793)``
+* ``Fix S3ToAzureBlobStorageOperator failing on S3 folder markers (#76408)``
+* ``Write container logs to the task log in deferrable AzureContainerInstancesOperator (#76330)``
+
+Misc
+~~~~
+
+* ``Mark MSGraphAsyncOperator as durable capable (#76576)``
+
+Doc-only
+~~~~~~~~
+
+* ``Document JSON connections in Azure Key Vault backend (#76650)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+15.3.1
+......
+
+.. note::
+
+    ``S3ToAzureBlobStorageOperator`` now verifies S3 TLS certificates by default: ``s3_verify`` defaults
+    to ``None``, deferring to the connection and botocore default. Pass ``s3_verify=False`` to keep the
+    previous behaviour.
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Verify S3 TLS certificates by default in S3ToAzureBlobStorageOperator (#76222)``
+
+Misc
+~~~~
+
+* ``Raise azure-batch minimum to 15.1.0 and azure-mgmt-compute minimum to 38.0.0 (#75270)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``[main] Upgrade important CI environment (#76278)``
+   * ``Skip log accumulator disk spill when reading finished task logs (#70671)``
+
+15.3.0
+......
+
+.. note::
+
+    On Airflow 3.3 and later, ``PowerBIDatasetRefreshOperator`` resumes an existing refresh
+    by default. Durable execution starts refreshes on the worker, so workers need access
+    to the Power BI service. Set ``durable=False`` to preserve triggerer-only access:
+    the trigger starts a fresh refresh on each try and cancels it after polling errors.
+    On Airflow versions before 3.3, durable execution is disabled and this triggerer-only
+    behavior is preserved automatically. ``MSGraphAsyncOperator`` recovery remains opt-in
+    with ``durable=True`` and requires Airflow 3.3 or later.
+
+Features
+~~~~~~~~
+
+* ``Add AzureAISearchHook to the Microsoft Azure provider (#74290)``
+* ``Make the PowerBI refresh and MSGraph operators durable (#74675, #75272)``
+* ``Add WasbDagBundle to load Dags from Azure Blob Storage (#67016)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix MSGraphSensor timeout being reset on every re-defer (#75774)``
+* ``Detect when enhanced Power BI refreshes finish or fail (#74600)``
+
+Misc
+~~~~
+
+* ``Require azure-keyvault-secrets 4.11.0 or newer (#73822)``
+* ``Accept optional task instances in Azure Blob remote-log type hints (#73580)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare providers release 2026-10-20 (#75209)``
+
+15.2.1
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Read the msgraph connection extra with get_async_extra_dejson (#74161)``
+
+Misc
+~~~~
+
+* ``Drop support for Python 3.10 (#74157)``
+* ``Cap microsoft-kiota-http below 1.13 in the Microsoft Azure provider (#74090)``
+* ``Support azure-datalake-store 1.x in AzureDataLakeHook (#73819)``
+
+Doc-only
+~~~~~~~~
+
+* ``Update provider READMEs for the Python 3.11 baseline (#74158)``
+* ``Fix connection screenshots missing from the msgraph and IBM MQ docs (#74287)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Apply ruff Python 3.11 fixes to providers (#74155)``
+   * ``Remove provider tests that restate 'template_fields' and other class constants (#74359)``
+   * ``[main] Upgrade important CI environment (#73629)``
+
+15.2.0
+......
+
+Features
+~~~~~~~~
+
+* ``Template every connection id accepted by provider operators (#73286)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Invalidate cached Microsoft Graph request adapter on 403 Forbidden (#73601)``
+* ``Contain remote log upload paths within base_log_folder (#72162)``
+
+Doc-only
+~~~~~~~~
+
+* ``Keep message queue provider doc markers out of class docstrings (#73588)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Revert "[main] Upgrade important CI environment (#73308)" (#73621)``
+   * ``[main] Upgrade important CI environment (#73308)``
+   * ``Remove real sleeps from slow provider unit tests (#73478)``
+   * ``Remove newsfragments for changes already shipped in released versions (#73300)``
+   * ``Fix grammar typos (#73145)``
+
+15.1.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add support for sending emails through Microsoft Graph (#71565)``
+* ``Add Azure Analysis Services model refresh support (#71350)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Keep MSGraph pagination offset across paginated pages (#71986)``
+* ``Invalidate cached Microsoft Graph request adapter on 401 Unauthorized (#72688)``
+* ``Avoid extra_dejson in ADF and Synapse async hooks (#72130)``
+* ``Restrict MSGraph deferrable pagination to the configured host (#71842)``
+
+Misc
+~~~~
+
+* ``Depend on ''httpx2'' instead of ''httpx'' (#72111)``
+* ``Replace generic AirflowException in AzureBatchOperator input validation (#71981)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Sync connection UI metadata in provider.yaml with hook definitions (#72087)``
+
 15.0.1
 ......
 

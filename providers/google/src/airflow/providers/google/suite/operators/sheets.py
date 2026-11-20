@@ -56,6 +56,7 @@ class GoogleSheetsCreateSpreadsheetOperator(BaseOperator):
         "spreadsheet",
         "impersonation_chain",
         "drive_id",
+        "gcp_conn_id",
     )
 
     def __init__(

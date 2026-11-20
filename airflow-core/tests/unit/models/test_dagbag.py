@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import math
+import re
 import time
 from concurrent.futures import ThreadPoolExecutor
 from unittest.mock import MagicMock, patch
@@ -36,6 +37,7 @@ from airflow.serialization.serialized_objects import LazyDeserializedDAG, Serial
 from airflow.utils.session import create_session
 
 from tests_common.test_utils import db
+from tests_common.test_utils.config import conf_vars
 
 pytestmark = pytest.mark.db_test
 
@@ -315,6 +317,61 @@ class TestDBDagBagCache:
         from airflow.api_fastapi.common.dagbag import create_dag_bag
 
         assert create_dag_bag()._stats_prefix == "api_server.dag_bag"
+
+    @pytest.mark.parametrize(
+        ("cache_size", "cache_ttl", "expected_bag_type", "expected_cache_type", "expected_maxsize"),
+        [
+            pytest.param(None, None, CachedDBDagBag, LRUCache, 512, id="defaults_bounded_lru"),
+            pytest.param("1024", "0", CachedDBDagBag, LRUCache, 1024, id="size_only_lru"),
+            pytest.param("1024", "3600", CachedDBDagBag, TTLCache, 1024, id="size_and_ttl"),
+            pytest.param("0", "3600", CachedDBDagBag, TTLCache, math.inf, id="ttl_only_uncapped"),
+            pytest.param("0", "0", CachedDBDagBag, dict, None, id="both_zero_no_eviction"),
+        ],
+    )
+    def test_scheduler_cache_follows_its_config(
+        self, cache_size, cache_ttl, expected_bag_type, expected_cache_type, expected_maxsize
+    ):
+        from airflow.jobs.scheduler_job_runner import _create_scheduler_dag_bag
+
+        overrides = {}
+        if cache_size is not None:
+            overrides[("scheduler", "dag_cache_size")] = cache_size
+        if cache_ttl is not None:
+            overrides[("scheduler", "dag_cache_ttl")] = cache_ttl
+
+        with conf_vars(overrides):
+            dag_bag = _create_scheduler_dag_bag()
+
+        assert type(dag_bag) is expected_bag_type
+        assert isinstance(dag_bag._dags, expected_cache_type)
+        if expected_maxsize is not None:
+            assert dag_bag._dags.maxsize == expected_maxsize
+
+    @pytest.mark.parametrize(
+        ("cache_size", "cache_ttl", "expected_message"),
+        [
+            pytest.param(
+                "-1",
+                "0",
+                "[scheduler] dag_cache_size must be greater than or equal to 0",
+                id="negative_size",
+            ),
+            pytest.param(
+                "512",
+                "-1",
+                "[scheduler] dag_cache_ttl must be greater than or equal to 0",
+                id="negative_ttl",
+            ),
+        ],
+    )
+    def test_scheduler_cache_rejects_negative_config(self, cache_size, cache_ttl, expected_message):
+        from airflow.jobs.scheduler_job_runner import _create_scheduler_dag_bag
+
+        with conf_vars(
+            {("scheduler", "dag_cache_size"): cache_size, ("scheduler", "dag_cache_ttl"): cache_ttl}
+        ):
+            with pytest.raises(ValueError, match=re.escape(expected_message)):
+                _create_scheduler_dag_bag()
 
     def test_cached_bag_requires_non_empty_stats_prefix(self):
         """A cache with no namespace to report under must fail at wiring time, not mid-request."""

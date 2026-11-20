@@ -51,10 +51,11 @@ func newRootCmd() *cobra.Command {
 		Use:   "airflow-go-pack [package]",
 		Short: "Build a self-contained Airflow bundle from a Go package",
 		Long: `airflow-go-pack builds a Go bundle binary, queries it for its DAG/task
-identity via --airflow-metadata, and appends the source plus an
+identity via --airflow-metadata, and appends the source files plus an
 airflow-metadata.yaml manifest plus an AFBNDL01 trailer to the
-executable. The result is a single self-contained file that drops into
-[executable] bundles_folder.
+executable. The source files are the entrypoint (the file with func main)
+and the file that declares each Dag built with airflow.Dag. The result is a
+single self-contained file that drops into [executable] bundles_folder.
 
 By default the packer builds the package in the current directory. Pass
 a different package as the positional argument; pass extra go build
@@ -121,7 +122,7 @@ Examples:
 
 	root.Flags().StringVar(&opts.source, "source",
 		"",
-		"path to the DAG source file (defaults to the file in the target package containing func main)")
+		"path to the entrypoint source file (defaults to the file in the target package containing func main)")
 	root.Flags().StringVar(&opts.executable, "executable",
 		"",
 		"pack a pre-built executable instead of running go build")
