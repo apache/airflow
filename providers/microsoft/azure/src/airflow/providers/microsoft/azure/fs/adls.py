@@ -48,7 +48,7 @@ def _bare_account_name_from_host(host: str | None) -> str | None:
     # the check case-insensitive (Azure account names are lowercase anyway). The dot guard
     # keeps full endpoints like "acct.dfs.core.windows.net" out of the account_name path.
     hostname = _hostname_from_host(host)
-    if hostname and "." not in hostname and hostname == host.lower():
+    if hostname and "." not in hostname and host is not None and hostname == host.lower():
         return hostname
     return None
 
