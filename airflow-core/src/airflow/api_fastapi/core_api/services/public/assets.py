@@ -19,13 +19,23 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
+from sqlalchemy.orm import joinedload
+
 from airflow.api_fastapi.common.db.assets import resolve_triggering_event_refs
 from airflow.api_fastapi.core_api.datamodels.assets import AssetEventResponse
+from airflow.models.asset import AssetEvent
+from airflow.models.taskinstance import TaskInstance
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
+    from sqlalchemy.orm.strategy_options import _AbstractLoad
 
-    from airflow.models.asset import AssetEvent
+
+def load_source_region() -> _AbstractLoad:
+    """Load the source task instance's coordinates that ``AssetEventResponse`` reports, in the same query."""
+    return joinedload(AssetEvent.source_task_instance).load_only(
+        TaskInstance.region_id, TaskInstance.region_index
+    )
 
 
 def serialize_asset_events(

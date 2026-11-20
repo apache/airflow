@@ -213,6 +213,14 @@ class AssetEventResponse(BaseModel):
     source_run_id: str | None = None
     source_map_index: int
     source_task_instance_id: UUID | None = None
+    # The source task instance's coordinates, needed to address it when it ran inside a task loop or
+    # a mapped expansion. None when the event has no source task instance or it no longer exists.
+    source_region_id: UUID | None = Field(
+        validation_alias=AliasPath("source_task_instance", "region_id"), default=None
+    )
+    source_region_index: int | None = Field(
+        validation_alias=AliasPath("source_task_instance", "region_index"), default=None
+    )
     created_dagruns: list[DagRunAssetReference]
     timestamp: datetime
     partition_key: str | None = None
