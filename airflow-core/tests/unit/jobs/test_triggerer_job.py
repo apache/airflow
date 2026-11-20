@@ -2999,6 +2999,27 @@ class TestWatcherLogFile(WatcherLogFileHelpers):
         for factory in factories.values():
             factory.close.assert_called_once()
 
+    def test_recovery_is_written_to_the_watchers_file(self, jobless_supervisor, tmp_path, cap_structlog):
+        with conf_vars({("logging", "base_log_folder"): str(tmp_path)}):
+            jobless_supervisor.logger_cache[5] = WatcherLoggingFactory(
+                log_path=get_trigger_log_relative_path(5, 1), trigger_id=5, to_stdout=True
+            )
+            jobless_supervisor.trigger_kinds[5] = "asset_watcher"
+
+            jobless_supervisor.failure_tracker.record_failure(5, now=0)
+            jobless_supervisor.record_trigger_success(5)
+            jobless_supervisor.close_trigger_log_files()
+
+        line = json.loads((tmp_path / get_trigger_log_relative_path(5, 1)).read_text())
+        assert {k: line[k] for k in ("event", "trigger_id", "trigger_kind", "after_failures")} == {
+            "event": "Trigger recovered",
+            "trigger_id": 5,
+            "trigger_kind": "asset_watcher",
+            "after_failures": 1,
+        }
+        # Once on stdout, from the triggerer's own logger.
+        assert [e["event"] for e in cap_structlog].count("Trigger recovered") == 1
+
 
 class TestTriggerRunner:
     @pytest.mark.asyncio

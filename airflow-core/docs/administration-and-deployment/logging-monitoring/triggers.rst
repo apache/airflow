@@ -121,3 +121,45 @@ Metrics and logs
 ``triggers.failed`` and ``triggers.succeeded`` are tagged with ``trigger_kind``, and the ``triggers.failing``
 gauge counts, per triggerer and ``trigger_kind``, the triggers that are failing. When a failing trigger
 recovers, the triggerer logs ``Trigger recovered`` with its ``trigger_id`` and ``after_failures``.
+
+Logs
+----
+
+``GET /api/v2/triggers/{trigger_id}/logs?tail_lines=200`` returns a trigger's latest lines, in JSON or, with
+``Accept: application/x-ndjson``, as NDJSON, in the same shape as task logs:
+
+* for a deferred task's trigger, the trigger part of that task try's log, ``<try log>.trigger.<triggerer job
+  id>.log``;
+* for a callback's trigger, the callback's log;
+* for an asset watcher, its own files from every triggerer that ran it (see
+  :ref:`asset-watcher-logs`), which also get the triggerer's ``Trigger recovered`` line for it.
+
+Each is read live from the trigger's triggerer through its log server, from remote logging, and from the API
+server's own log folder, and merged in time order. The owner's log stays the place to read a task's or callback's
+whole story.
+
+Reading a trigger's logs needs the trigger to be visible, by the rules above for its kind, and task log access
+to the Dag of its task instance or callback. An asset watcher's logs need read access to one of its assets and
+task log access to a Dag scheduled on it (directly or on ``Asset.ref(name=...)`` / ``Asset.ref(uri=...)`` of
+it), in the trigger's team. A trigger you can see but whose logs you can't read returns 403.
+
+Limits:
+
+* On handlers that upload files (S3, GCS, Azure Blob Storage), each rotated part of a watcher's file is uploaded
+  once the file reaches ``[triggerer] watcher_log_max_bytes``, but the current part is uploaded only when the
+  watcher leaves its triggerer or the triggerer stops. Until then it is read live.
+* After a triggerer is killed, the lines it had not uploaded yet stay on its disk until a triggerer starts on the
+  same disk, which uploads them. On a disk that does not outlive the triggerer they are lost, apart from the
+  standard output copy.
+* Lines are kept per trigger id, so a new trigger (see `Identity`_) starts a new history.
+* A watcher's files are read newest first: its current triggerer, then the at most 50 that heartbeat last
+  since the trigger was created. Reading stops once ``tail_lines`` lines are found and the next triggerer stopped
+  before the oldest of them, or after 64 MiB; the sources then say so. Files of triggerer jobs that ``airflow db
+  clean`` removed are read only if none of its triggerers is left. After a remote read fails, older
+  triggerers' files are read only live and locally.
+* To read watcher files back from remote storage, a remote log handler that stores files has to treat a path
+  ending in ``/`` as a prefix. S3 and GCS do. A handler that streams each line (CloudWatch) keeps one stream per
+  triggerer, read by its name, so it needs no listing permission. Elasticsearch, OpenSearch and Cloud Logging key
+  logs by task instance and don't return watcher logs.
+* With CloudWatch, a read makes one or two calls per triggerer that ran while the trigger existed (at most 50),
+  and the Logs tab reads again on every refresh.

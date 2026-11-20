@@ -103,6 +103,7 @@ const loadTaskInstances = lazyRoute(() => import("src/pages/TaskInstances"), "Ta
 const loadTaskStateStore = lazyRoute(() => import("src/pages/TaskStateStore"), "TaskStateStore");
 const loadTrigger = lazyRoute(() => import("src/pages/Trigger"), "Trigger");
 const loadTriggerDetails = lazyRoute(() => import("src/pages/Trigger"), "Details");
+const loadTriggerLogs = lazyRoute(() => import("src/pages/Trigger"), "Logs");
 const loadTriggerUsedBy = lazyRoute(() => import("src/pages/Trigger"), "UsedBy");
 const loadTriggers = lazyRoute(() => import("src/pages/Triggers"), "Triggers");
 const loadVariables = lazyRoute(() => import("src/pages/Variables"), "Variables");
@@ -271,6 +272,7 @@ export const routerConfig = [
       {
         children: [
           { index: true, lazy: loadTriggerDetails },
+          { lazy: loadTriggerLogs, path: "logs" },
           { lazy: loadTriggerUsedBy, path: "used_by" },
         ],
         lazy: loadTrigger,

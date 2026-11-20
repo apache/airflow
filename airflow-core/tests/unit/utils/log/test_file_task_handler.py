@@ -20,7 +20,7 @@ from __future__ import annotations
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-from airflow.utils.log.file_task_handler import FileTaskHandler
+from airflow.utils.log.file_task_handler import FileTaskHandler, fetch_logs_from_service
 from airflow.utils.state import TaskInstanceState
 
 from tests_common.test_utils.file_task_handler import convert_list_to_stream, extract_events
@@ -37,7 +37,7 @@ class TestFileTaskHandlerLogServer:
         self.ti.triggerer_job = None
         self.ti.task = None
 
-    @patch("airflow.utils.log.file_task_handler._fetch_logs_from_service")
+    @patch("airflow.utils.log.file_task_handler.fetch_logs_from_service")
     @patch.object(FileTaskHandler, "_get_log_retrieval_url")
     @patch.object(FileTaskHandler, "_read_from_local")
     def test_404_falls_back_to_local_when_available(self, mock_read_local, mock_get_url, mock_fetch):
@@ -57,7 +57,7 @@ class TestFileTaskHandlerLogServer:
         assert streams == [mock_stream]
         mock_read_local.assert_called_once_with(Path("/tmp/test_logs", "dag/run/task/1.log"))
 
-    @patch("airflow.utils.log.file_task_handler._fetch_logs_from_service")
+    @patch("airflow.utils.log.file_task_handler.fetch_logs_from_service")
     @patch.object(FileTaskHandler, "_get_log_retrieval_url")
     @patch.object(FileTaskHandler, "_read_from_local")
     def test_404_shows_clear_message_when_no_local_fallback(self, mock_read_local, mock_get_url, mock_fetch):
@@ -78,7 +78,7 @@ class TestFileTaskHandlerLogServer:
         assert "remote logging" in sources[0]
         assert streams == []
 
-    @patch("airflow.utils.log.file_task_handler._fetch_logs_from_service")
+    @patch("airflow.utils.log.file_task_handler.fetch_logs_from_service")
     @patch.object(FileTaskHandler, "_get_log_retrieval_url")
     def test_403_shows_secret_key_message(self, mock_get_url, mock_fetch):
         """When log server returns 403, show secret key configuration message."""
@@ -94,7 +94,7 @@ class TestFileTaskHandlerLogServer:
         assert "secret_key" in sources[0]
         assert streams == []
 
-    @patch("airflow.utils.log.file_task_handler._fetch_logs_from_service")
+    @patch("airflow.utils.log.file_task_handler.fetch_logs_from_service")
     @patch.object(FileTaskHandler, "_get_log_retrieval_url")
     def test_read_from_logs_server_no_hostname(self, mock_get_url, mock_fetch):
         """When hostname is missing, show a clear message instead of attempting log server fetch."""
@@ -108,7 +108,7 @@ class TestFileTaskHandlerLogServer:
         assert streams == []
         mock_fetch.assert_not_called()
 
-    @patch("airflow.utils.log.file_task_handler._fetch_logs_from_service")
+    @patch("airflow.utils.log.file_task_handler.fetch_logs_from_service")
     @patch.object(FileTaskHandler, "_get_log_retrieval_url")
     def test_read_from_logs_server_no_hostname_triggerer(self, mock_get_url, mock_fetch):
         """When hostname is missing for triggerer, show a clear message instead of attempting log server fetch."""
@@ -294,3 +294,12 @@ class TestFileTaskHandlerExecutorLogs:
             "legacy log",
         ]
         assert metadata == {"end_of_log": False, "log_pos": 1}
+
+
+@patch("requests.get", autospec=True)
+def test_fetch_logs_from_service_sends_extra_headers(requests_get):
+    fetch_logs_from_service("http://h:8794/log/f.log", "f.log", headers={"Range": "bytes=-100"})
+
+    headers = requests_get.call_args.kwargs["headers"]
+    assert headers["Range"] == "bytes=-100"
+    assert headers["Authorization"]
