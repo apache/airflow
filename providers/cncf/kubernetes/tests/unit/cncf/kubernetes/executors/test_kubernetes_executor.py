@@ -969,7 +969,10 @@ class TestKubernetesExecutor:
         template_file = data_file("pods/generator_base_with_secrets.yaml").as_posix()
         # A mock kube_client that throws errors when making a pod
         mock_kube_client = mock.patch("kubernetes.client.CoreV1Api", autospec=True)
-        mock_kube_client.create_namespaced_pod = mock.MagicMock(side_effect=ApiException(http_resp=response))  # type: ignore[attr-defined]
+        api_exception = ApiException(http_resp=response)
+        # kubernetes 37 only keeps bytes bodies from ``http_resp``; the parametrized bodies are str.
+        api_exception.body = response.data
+        mock_kube_client.create_namespaced_pod = mock.MagicMock(side_effect=api_exception)  # type: ignore[attr-defined]
         mock_get_kube_client.return_value = mock_kube_client
         mock_api_client = mock.MagicMock()
         mock_api_client.sanitize_for_serialization.return_value = {}
@@ -1911,12 +1914,17 @@ class TestKubernetesExecutor:
                 assert task.pod_template_file == executor_template_file
 
                 self.kubernetes_executor.kube_scheduler.run_next(task)
-                mock_run_pod_async.assert_called_once_with(
+                mock_run_pod_async.assert_called_once()
+                (actual_pod,) = mock_run_pod_async.call_args.args
+                # Pydantic models in kubernetes>=37 reject ``mock.ANY``, so take the generated values from the call.
+                assert actual_pod.metadata.name
+                assert actual_pod.metadata.labels["airflow_version"]
+                assert actual_pod == (
                     k8s.V1Pod(
                         api_version="v1",
                         kind="Pod",
                         metadata=k8s.V1ObjectMeta(
-                            name=mock.ANY,
+                            name=actual_pod.metadata.name,
                             namespace="default",
                             annotations={
                                 "dag_id": "dag",
@@ -1926,7 +1934,7 @@ class TestKubernetesExecutor:
                             },
                             labels={
                                 "airflow-worker": "5",
-                                "airflow_version": mock.ANY,
+                                "airflow_version": actual_pod.metadata.labels["airflow_version"],
                                 "dag_id": "dag",
                                 "run_id": "run_id",
                                 "kubernetes_executor": "True",
@@ -3207,15 +3215,15 @@ class TestKubernetesExecutor:
                             "dag_id": "test_cleanup_stuck_queued_tasks",
                             "task_id": "bash",
                             "run_id": "test",
-                            "try_number": 0,
+                            "try_number": "0",
                         },
                         labels={
                             "role": "airflow-worker",
                             "dag_id": "test_cleanup_stuck_queued_tasks",
                             "task_id": "bash",
-                            "airflow-worker": 123,
+                            "airflow-worker": "123",
                             "run_id": "test",
-                            "try_number": 0,
+                            "try_number": "0",
                         },
                     ),
                     status=k8s.V1PodStatus(phase="Pending"),
@@ -3359,8 +3367,7 @@ class TestKubernetesExecutor:
         """Reading a running task's logs must not spawn a ``multiprocessing.Manager``."""
         mock_kube_client = mock_get_kube_client.return_value
         mock_kube_client.read_namespaced_pod_log.return_value = [b"a_"]
-        mock_pod = mock.Mock(spec=k8s.V1Pod)
-        mock_pod.metadata.name = "x"
+        mock_pod = k8s.V1Pod(metadata=k8s.V1ObjectMeta(name="x"))
         mock_kube_client.list_namespaced_pod.return_value.items = [mock_pod]
         ti = create_task_instance_of_operator(EmptyOperator, dag_id="test_k8s_log_dag", task_id="test_task")
 
@@ -3471,17 +3478,18 @@ class TestKubernetesJobWatcher:
             "InvalidImageName",
         ]
         self.kube_client = mock.MagicMock()
-        self.core_annotations = {
+        pod_annotations = {
             "dag_id": "dag",
             "task_id": "task",
             "run_id": "run_id",
             "try_number": "1",
-            LOGICAL_DATE_KEY: None,
         }
+        # The watcher reports a missing logical date as None; a pod model cannot carry a None annotation.
+        self.core_annotations = {**pod_annotations, LOGICAL_DATE_KEY: None}
         self.pod = k8s.V1Pod(
             metadata=k8s.V1ObjectMeta(
                 name="foo",
-                annotations={"airflow-worker": "bar", **self.core_annotations},
+                annotations={"airflow-worker": "bar", **pod_annotations},
                 namespace="airflow",
                 resource_version="456",
                 labels={},

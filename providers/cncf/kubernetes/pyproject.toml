@@ -84,8 +84,8 @@ dependencies = [
     # removed in 2.6.0 `getheaders()` call (instead of `headers` property.
     # Tracked in https://github.com/kubernetes-client/python/issues/2477
     "urllib3>=2.1.0,!=2.6.0",
-    # the version is limited to the next MAJOR version and should by synced with the kubernetes version
-    "kubernetes_asyncio>=32.0.0,<38.0.0",
+    # kubernetes_asyncio has no 37.x release yet. Raise this limit when it has one and the provider is tested with it.
+    "kubernetes_asyncio>=32.0.0,<37.0.0",
 ]
 
 [dependency-groups]

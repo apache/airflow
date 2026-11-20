@@ -31,7 +31,7 @@ import os
 import re
 import warnings
 from functools import reduce
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from dateutil import parser
 from kubernetes.client import Configuration, models as k8s
@@ -144,6 +144,30 @@ def label_safe_datestring_to_datetime(string: str) -> datetime.datetime:
     :return: datetime.datetime object
     """
     return parser.parse(string.replace("_plus_", "+").replace("_", ":"))
+
+
+def _coerce_str_fields(value: Any, type_name: str) -> Any:
+    """
+    Convert scalars to ``str`` where the model declares ``str``; client 37 no longer does this.
+
+    Type names in ``openapi_types`` are lowercase on client 36 (``list[X]``) and capitalised on client 37
+    (``List[X]``).
+    """
+    if value is None:
+        return None
+    if type_name == "str":
+        return value if isinstance(value, (str, dict, list)) else str(value)
+    if m := re.fullmatch(r"list\[(.+)\]", type_name, re.IGNORECASE):
+        return [_coerce_str_fields(v, m[1]) for v in value] if isinstance(value, list) else value
+    if m := re.fullmatch(r"dict\[str, (.+)\]", type_name, re.IGNORECASE):
+        return (
+            {k: _coerce_str_fields(v, m[1]) for k, v in value.items()} if isinstance(value, dict) else value
+        )
+    model = getattr(k8s, type_name, None)
+    if model is None or not isinstance(value, dict):
+        return value
+    types_by_key = {model.attribute_map[attr]: t for attr, t in model.openapi_types.items()}
+    return {k: _coerce_str_fields(v, types_by_key.get(k, "object")) for k, v in value.items()}
 
 
 class PodGenerator:
@@ -577,7 +601,9 @@ class PodGenerator:
         :return: De-serialized k8s.V1Pod
         """
         api_client = ApiClient(configuration=Configuration())
-        return api_client._ApiClient__deserialize_model(pod_dict, k8s.V1Pod)
+        return api_client._ApiClient__deserialize_model(
+            _coerce_str_fields(pod_dict or {}, "V1Pod"), k8s.V1Pod
+        )
 
 
 def merge_objects(base_obj, client_obj):

@@ -107,11 +107,11 @@ class TestPodGenerator:
 
         self.resources = k8s.V1ResourceRequirements(
             requests={
-                "cpu": 1,
+                "cpu": "1",
                 "memory": "1Gi",
                 "ephemeral-storage": "2Gi",
             },
-            limits={"cpu": 2, "memory": "2Gi", "ephemeral-storage": "4Gi", "nvidia.com/gpu": 1},
+            limits={"cpu": "2", "memory": "2Gi", "ephemeral-storage": "4Gi", "nvidia.com/gpu": "1"},
         )
 
         self.k8s_client = ApiClient()
@@ -160,7 +160,7 @@ class TestPodGenerator:
                     fs_group=2000,
                     run_as_user=1000,
                 ),
-                host_network=True,
+                host_network=False,
                 image_pull_secrets=[
                     k8s.V1LocalObjectReference(name="pull_secret_a"),
                     k8s.V1LocalObjectReference(name="pull_secret_b"),
@@ -489,8 +489,7 @@ class TestPodGenerator:
         template_file = data_file("pods/generator_base_with_secrets.yaml").as_posix()
         worker_config = PodGenerator.deserialize_model_file(template_file)
         mock_rand_str.return_value = self.rand_str
-        executor_config = MagicMock()
-        executor_config.side_effect = AttributeError("error")
+        executor_config = MagicMock(spec=[])
 
         with pytest.raises(PodReconciliationError):
             PodGenerator.construct_pod(
@@ -722,9 +721,50 @@ class TestPodGenerator:
         pod = PodGenerator.deserialize_model_dict(pod_dict)
 
         assert isinstance(pod, k8s.V1Pod)
-        pickle.dumps(pod)
-        assert pod.local_vars_configuration.refresh_api_key_hook is None
-        assert pod.spec.containers[0].local_vars_configuration.refresh_api_key_hook is None
+        assert pickle.loads(pickle.dumps(pod)) == pod
+
+    @pytest.mark.parametrize(
+        ("pod_dict", "get_actual", "expected"),
+        [
+            pytest.param(
+                {"metadata": {"labels": {"tier": 1}}},
+                lambda pod: pod.metadata.labels,
+                {"tier": "1"},
+                id="label-int",
+            ),
+            pytest.param(
+                {"spec": {"containers": [{"name": "base", "env": [{"name": "WORKERS", "value": 4}]}]}},
+                lambda pod: pod.spec.containers[0].env[0].value,
+                "4",
+                id="env-value-int",
+            ),
+            pytest.param(
+                {
+                    "spec": {
+                        "containers": [
+                            {
+                                "name": "base",
+                                "resources": {
+                                    "limits": {"cpu": 1, "memory": "1Gi"},
+                                    "requests": {"cpu": 0.5},
+                                },
+                            }
+                        ]
+                    }
+                },
+                lambda pod: (
+                    pod.spec.containers[0].resources.limits,
+                    pod.spec.containers[0].resources.requests,
+                ),
+                ({"cpu": "1", "memory": "1Gi"}, {"cpu": "0.5"}),
+                id="resources-int-and-float",
+            ),
+        ],
+    )
+    def test_deserialize_model_dict_converts_scalars_to_declared_strings(
+        self, pod_dict, get_actual, expected
+    ):
+        assert get_actual(PodGenerator.deserialize_model_dict(pod_dict)) == expected
 
     @pytest.mark.parametrize(
         "input",

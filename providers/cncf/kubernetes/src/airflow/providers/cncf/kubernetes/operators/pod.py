@@ -1700,7 +1700,7 @@ class KubernetesPodOperator(BaseOperator):
             spec=k8s.V1PodSpec(
                 runtime_class_name=self.runtime_class_name,
                 node_selector=self.node_selector,
-                affinity=self.affinity,
+                affinity=self.affinity or None,
                 tolerations=self.tolerations,
                 init_containers=self.init_containers,
                 host_aliases=self.host_aliases,
@@ -1716,7 +1716,7 @@ class KubernetesPodOperator(BaseOperator):
                         args=self.arguments,
                         env=self.env_vars,
                         env_from=env_from,
-                        security_context=self.container_security_context,
+                        security_context=self.container_security_context or None,
                         termination_message_policy=self.termination_message_policy,
                     )
                 ],
@@ -1726,7 +1726,7 @@ class KubernetesPodOperator(BaseOperator):
                 host_network=self.hostnetwork,
                 hostname=self.hostname,
                 subdomain=self.subdomain,
-                security_context=self.security_context,
+                security_context=self.security_context or None,
                 dns_policy=self.dnspolicy,
                 dns_config=self.dns_config,
                 scheduler_name=self.schedulername,

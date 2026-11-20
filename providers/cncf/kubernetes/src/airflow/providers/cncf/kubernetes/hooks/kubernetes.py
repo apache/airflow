@@ -586,7 +586,7 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
         :param namespace: Deployment namespace
         """
         return self.apps_v1_client.read_namespaced_deployment_status(
-            name=name, namespace=namespace, pretty=True, **kwargs
+            name=name, namespace=namespace, pretty="true", **kwargs
         )
 
     @generic_api_retry
@@ -625,7 +625,7 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
         :param namespace: Namespace of the Job.
         :return: Job object
         """
-        return self.batch_v1_client.read_namespaced_job(name=job_name, namespace=namespace, pretty=True)
+        return self.batch_v1_client.read_namespaced_job(name=job_name, namespace=namespace, pretty="true")
 
     @generic_api_retry
     def get_job_status(self, job_name: str, namespace: str) -> V1Job:
@@ -639,7 +639,7 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
         :param namespace: Namespace of the Job.
         :return: Job object
         """
-        return self.batch_v1_client.read_namespaced_job(name=job_name, namespace=namespace, pretty=True)
+        return self.batch_v1_client.read_namespaced_job(name=job_name, namespace=namespace, pretty="true")
 
     def wait_until_job_complete(self, job_name: str, namespace: str, job_poll_interval: float = 10) -> V1Job:
         """
@@ -665,7 +665,7 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
 
         :return: V1JobList object
         """
-        return self.batch_v1_client.list_job_for_all_namespaces(pretty=True)
+        return self.batch_v1_client.list_job_for_all_namespaces(pretty="true")
 
     @generic_api_retry
     def list_jobs_from_namespace(self, namespace: str) -> V1JobList:
@@ -675,7 +675,7 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
         :param namespace: Namespace of the Job.
         :return: V1JobList object
         """
-        return self.batch_v1_client.list_namespaced_job(namespace=namespace, pretty=True)
+        return self.batch_v1_client.list_namespaced_job(namespace=namespace, pretty="true")
 
     def is_job_complete(self, job: V1Job) -> bool:
         """

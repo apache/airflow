@@ -119,7 +119,7 @@ PIP package                                 Version required
 ``cryptography``                            ``>=44.0.3``
 ``kubernetes``                              ``>=36.0.1,<38.0.0``
 ``urllib3``                                 ``>=2.1.0,!=2.6.0``
-``kubernetes_asyncio``                      ``>=32.0.0,<38.0.0``
+``kubernetes_asyncio``                      ``>=32.0.0,<37.0.0``
 ==========================================  ======================================
 
 Downloading official packages

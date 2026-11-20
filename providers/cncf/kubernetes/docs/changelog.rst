@@ -27,6 +27,27 @@
 Changelog
 ---------
 
+.. note::
+    The provider now accepts version 37 of the ``kubernetes`` client. That version checks the
+    Kubernetes models that you create in your Dag files, for example in ``pod_override`` or in the
+    arguments of ``KubernetesPodOperator``:
+
+    * A field that holds text must get a string. Write
+      ``k8s.V1ResourceRequirements(limits={"cpu": "1"})``, not ``limits={"cpu": 1}``.
+    * You must give the fields by name. Write ``k8s.V1EnvVar(name="A", value="b")``, not
+      ``k8s.V1EnvVar("A", "b")``.
+
+    Pod template files, job template files, ``pod_template_dict``, the ``affinity`` and
+    ``tolerations`` dictionaries, and the XCom sidecar resources of the connection can keep numbers
+    in text fields. The provider changes those numbers
+    to strings, as version 36 of the client did. The opposite does not work with version 37: a field
+    that holds a number or a boolean does not accept a string. Write ``runAsUser: 1000``, not
+    ``runAsUser: "1000"``, and ``hostNetwork: true``, not ``hostNetwork: "true"``.
+
+    With version 37 of the client, earlier versions of the Amazon provider have an EKS executor that
+    does not get a new token after the cluster rejects the current one. If you use that executor,
+    upgrade the Amazon provider together with this provider, or stay on version 36 of the client.
+
 11.1.0
 ......
 
