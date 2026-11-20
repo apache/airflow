@@ -105,7 +105,7 @@ def test_local_refresh_attaches_claim_after_new_inventory_without_invalidating_a
     create.return_value = new
     manager._start_new_processes()
 
-    create.assert_called_once_with(manager, file, source=source)
+    create.assert_called_once_with(manager, file, source=source, team_name=None)
     assert claim.attempt_id == new.id
 
 
@@ -217,7 +217,7 @@ def test_callbacks_run_while_priority_parse_waits_for_new_inventory(create, api_
     manager._callback_to_execute[callback_file].append(request)
     manager._add_files_to_queue([callback_file], mode="front")
 
-    def create_process(_, file, *, source):
+    def create_process(_, file, *, source, team_name):
         manager._callback_to_execute.pop(file)
         processor = mock.create_autospec(DagFileProcessorProcess, instance=True)
         processor.id = uuid7()
@@ -228,7 +228,7 @@ def test_callbacks_run_while_priority_parse_waits_for_new_inventory(create, api_
     manager._start_new_processes()
 
     create.assert_called_once_with(
-        manager, callback_file, source=DagParseSource.for_callback(callback_version)
+        manager, callback_file, source=DagParseSource.for_callback(callback_version), team_name=None
     )
     assert get_api_work_source(manager)._priority_claims[work.id, work.claim_id].attempt_id is None
     manager._processors.pop(callback_file)
@@ -263,7 +263,7 @@ def test_callback_for_removed_file_does_not_restore_acknowledged_priority_reques
     assert get_api_work_source(manager)._pending_work_acks == [("priority", work)]
     assert file in manager._file_queue
 
-    def create_process(_, file, *, source):
+    def create_process(_, file, *, source, team_name):
         manager._callback_to_execute.pop(file)
         processor = mock.create_autospec(DagFileProcessorProcess, instance=True)
         processor.id = uuid7()
@@ -278,7 +278,9 @@ def test_callback_for_removed_file_does_not_restore_acknowledged_priority_reques
 
     create.side_effect = create_process
     if callback_already_running:
-        manager._processors[file] = manager._create_process(file, source=DagParseSource.for_callback(None))
+        manager._processors[file] = manager._create_process(
+            file, source=DagParseSource.for_callback(None), team_name=None
+        )
     manager._start_new_processes()
     assert not manager._priority_files
     assert not manager._files_awaiting_source
@@ -287,7 +289,7 @@ def test_callback_for_removed_file_does_not_restore_acknowledged_priority_reques
     manager.work_source.flush()
     manager._start_new_processes()
 
-    create.assert_called_once_with(manager, file, source=DagParseSource.for_callback(None))
+    create.assert_called_once_with(manager, file, source=DagParseSource.for_callback(None), team_name=None)
     client.acknowledge_work.assert_called_once_with("priority", work)
     assert not manager._priority_files
     assert not manager._files_awaiting_source
@@ -333,7 +335,7 @@ def test_failed_fetch_parks_priority_work_until_new_inventory_without_starving_r
     manager._refresh_dag_bundles(known_files)
     manager._add_files_to_queue([healthy_file], mode="back")
 
-    def create_process(_, file, *, source):
+    def create_process(_, file, *, source, team_name):
         processor = mock.create_autospec(DagFileProcessorProcess, instance=True)
         processor.id = uuid7()
         processor.had_callbacks = False
@@ -348,7 +350,9 @@ def test_failed_fetch_parks_priority_work_until_new_inventory_without_starving_r
 
     manager._start_new_processes()
 
-    create.assert_called_once_with(manager, healthy_file, source=manager._bundle_parse_sources[bundle.name])
+    create.assert_called_once_with(
+        manager, healthy_file, source=manager._bundle_parse_sources[bundle.name], team_name=None
+    )
     assert file in manager._files_awaiting_source
     assert file not in manager._file_queue
     assert manager._bundle_parse_sources[bundle.name].refresh_generation == 4

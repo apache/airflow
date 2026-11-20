@@ -971,6 +971,23 @@
           "title": "Callback Requests",
           "type": "array"
         },
+        "callbacks_require_ack": {
+          "default": false,
+          "title": "Callbacks Require Ack",
+          "type": "boolean"
+        },
+        "team_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Team Name"
+        },
         "type": {
           "const": "DagFileParseRequest",
           "default": "DagFileParseRequest",

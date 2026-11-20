@@ -41,9 +41,7 @@ from airflow.callbacks.callback_requests import (
 )
 from airflow.configuration import conf
 from airflow.dag_processing.bundles.base import BundleVersionLock
-from airflow.dag_processing.bundles.manager import get_configured_bundle_team_names
 from airflow.dag_processing.dagbag import BundleDagBag, DagBag, LangSDKSerializedDAG
-from airflow.models.dag import DagModel
 from airflow.sdk.exceptions import TaskNotFound
 from airflow.sdk.execution_time import supervisor, task_runner
 from airflow.sdk.execution_time.comms import (
@@ -131,6 +129,8 @@ class DagFileParseRequest(BaseModel):
     """Bundle name for team-specific executor validation."""
 
     callback_requests: list[CallbackRequest] = Field(default_factory=list)
+    callbacks_require_ack: bool = False
+    team_name: str | None = None
     type: Literal["DagFileParseRequest"] = "DagFileParseRequest"
 
 
@@ -273,14 +273,14 @@ def _parse_file(msg: DagFileParseRequest, log: FilteringBoundLogger) -> DagFileP
 
     if msg.callback_requests:
         targets_loaded = any(_is_callback_target_loaded(bag, request) for request in msg.callback_requests)
-        if targets_loaded and conf.getboolean("dag_processor", "use_execution_api"):
+        if targets_loaded and msg.callbacks_require_ack:
             # Wait for the manager to record this before any callback can produce side effects.
             cast("CommsDecoder[ToDagProcessor, ToManager]", task_runner.SUPERVISOR_COMMS).send(
                 DagCallbacksStarted()
             )
         # If the request is for callback, we shouldn't serialize the Dags
-        _execute_callbacks(bag, msg.callback_requests, log)
-        if not targets_loaded and _has_api_request_failed():
+        _execute_callbacks(bag, msg.callback_requests, log, team_name=msg.team_name)
+        if msg.callbacks_require_ack and not targets_loaded and _has_api_request_failed():
             sys.exit(_CALLBACK_TARGETS_MISSING_EXIT_CODE)
         return None
 
@@ -368,8 +368,6 @@ def _get_dag_with_task(
 
 
 def _has_api_request_failed() -> bool:
-    if not conf.getboolean("dag_processor", "use_execution_api"):
-        return False
     comms_decoder = getattr(task_runner, "SUPERVISOR_COMMS", None)
     return isinstance(comms_decoder, CommsDecoder) and (
         comms_decoder.has_pending_requests or comms_decoder.has_api_errors
@@ -389,7 +387,11 @@ def _is_callback_target_loaded(dagbag: DagBag, request: CallbackRequest) -> bool
 
 
 def _execute_callbacks(
-    dagbag: DagBag, callback_requests: list[CallbackRequest], log: FilteringBoundLogger
+    dagbag: DagBag,
+    callback_requests: list[CallbackRequest],
+    log: FilteringBoundLogger,
+    *,
+    team_name: str | None = None,
 ) -> None:
     for request in callback_requests:
         if isinstance(request, (TaskCallbackRequest, EmailRequest)):
@@ -415,14 +417,16 @@ def _execute_callbacks(
                 if isinstance(request, TaskCallbackRequest):
                     _execute_task_callbacks(dagbag, request, log)
                 elif isinstance(request, DagCallbackRequest):
-                    _execute_dag_callbacks(dagbag, request, log)
+                    _execute_dag_callbacks(dagbag, request, log, team_name=team_name)
                 elif isinstance(request, EmailRequest):
                     _execute_email_callbacks(dagbag, request, log)
         except Exception:
             log.exception("Failed to execute callback request", request=request_json, **log_extra)
 
 
-def _execute_dag_callbacks(dagbag: DagBag, request: DagCallbackRequest, log: FilteringBoundLogger) -> None:
+def _execute_dag_callbacks(
+    dagbag: DagBag, request: DagCallbackRequest, log: FilteringBoundLogger, *, team_name: str | None = None
+) -> None:
     from airflow.sdk.api.datamodels._generated import TIRunContext
     from airflow.sdk.definitions.context import CallbackMeta, CallbackSource  # noqa: SDK001
 
@@ -478,20 +482,7 @@ def _execute_dag_callbacks(dagbag: DagBag, request: DagCallbackRequest, log: Fil
             log.exception("Callback failed", dag_id=request.dag_id)
             stats.incr(
                 "dag.callback_exceptions",
-                tags=prune_dict(
-                    {
-                        "dag_id": request.dag_id,
-                        "team_name": (
-                            (
-                                get_configured_bundle_team_names().get(request.bundle_name)
-                                if conf.getboolean("dag_processor", "use_execution_api", fallback=False)
-                                else DagModel.get_team_name(request.dag_id)
-                            )
-                            if conf.getboolean("core", "multi_team")
-                            else None
-                        ),
-                    }
-                ),
+                tags=prune_dict({"dag_id": request.dag_id, "team_name": team_name}),
             )
 
 
@@ -876,6 +867,8 @@ class DagFileProcessorProcess(BaseDagFileProcessorProcess):
         bundle_name: str,
         dag_file_rel_path: str,
         callbacks: list[CallbackRequest],
+        callbacks_require_ack: bool = False,
+        team_name: str | None = None,
         target: Callable[[], None] = _parse_file_entrypoint,
         client: Client,
         **kwargs,
@@ -903,20 +896,13 @@ class DagFileProcessorProcess(BaseDagFileProcessorProcess):
             **kwargs,
         )
         proc.had_callbacks = bool(callbacks)  # Track if this process had callbacks
-        proc._on_child_started(callbacks, path, bundle_path, bundle_name)
-        return proc
-
-    def _on_child_started(
-        self,
-        callbacks: list[CallbackRequest],
-        path: str | os.PathLike[str],
-        bundle_path: Path,
-        bundle_name: str,
-    ) -> None:
         msg = DagFileParseRequest(
             file=os.fspath(path),
             bundle_path=bundle_path,
             bundle_name=bundle_name,
             callback_requests=callbacks,
+            callbacks_require_ack=callbacks_require_ack,
+            team_name=team_name,
         )
-        self.send_msg(msg, request_id=0)
+        proc.send_msg(msg, request_id=0)
+        return proc

@@ -100,6 +100,7 @@ from airflow.sdk.execution_time.comms import (
     XComResult,
     XComSequenceSliceResult,
 )
+from airflow.sdk.execution_time.schema import get_schema_version_migrator
 from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
 from airflow.sdk.importers import DagSourceCode
 from airflow.serialization.serialized_objects import DagSerialization
@@ -262,7 +263,7 @@ class TestDagFileProcessor:
             ),
         ],
     )
-    @conf_vars({("dag_processor", "use_execution_api"): "True"})
+    @conf_vars({("dag_processor", "use_execution_api"): "False"})
     def test_callback_process_reports_missing_targets_only_after_api_failure(
         self, tmp_path: pathlib.Path, variable_response, targets_missing
     ):
@@ -279,6 +280,7 @@ class TestDagFileProcessor:
             bundle_path=tmp_path,
             bundle_name="testing",
             dag_file_rel_path=str(path.relative_to(tmp_path)),
+            callbacks_require_ack=True,
             callbacks=[
                 DagCallbackRequest(
                     filepath=str(path.relative_to(tmp_path)),
@@ -686,6 +688,8 @@ def test_parse_file_entrypoint_parses_dag_callbacks(mocker):
     msg = decoder._get_response()
     assert isinstance(msg, DagFileParseRequest)
     assert msg.file == "/files/dags/wait.py"
+    assert msg.callbacks_require_ack is False
+    assert msg.team_name is None
     assert msg.callback_requests == [
         DagCallbackRequest(
             filepath="wait.py",
@@ -697,6 +701,23 @@ def test_parse_file_entrypoint_parses_dag_callbacks(mocker):
             bundle_version=None,
         )
     ]
+
+
+def test_parse_request_callback_fields_follow_supervisor_version():
+    request = DagFileParseRequest(
+        file="a.py",
+        bundle_path=".",
+        bundle_name="testing",
+        callbacks_require_ack=True,
+        team_name="team_alpha",
+    )
+    migrator = get_schema_version_migrator()
+    older = migrator.downgrade(request, "2026-10-30").model_dump()
+    current = migrator.downgrade(request, "2027-02-28").model_dump()
+    assert "callbacks_require_ack" not in older
+    assert "team_name" not in older
+    assert current["callbacks_require_ack"] is True
+    assert current["team_name"] == "team_alpha"
 
 
 def test_parse_file_with_dag_callbacks(spy_agency):
@@ -809,7 +830,7 @@ def _make_callback_request(dag_id: str, task_id: str | None) -> CallbackRequest:
         pytest.param([], [("a", None)], False, False, [], id="no-api-request-failed"),
     ],
 )
-@conf_vars({("dag_processor", "use_execution_api"): "True"})
+@conf_vars({("dag_processor", "use_execution_api"): "False"})
 def test_parse_file_exits_when_no_callback_target_loaded_after_api_failure(
     spy_agency, monkeypatch, loaded_dag_ids, targets, api_request_failed, exits, expected_calls
 ):
@@ -832,6 +853,7 @@ def test_parse_file_exits_when_no_callback_target_loaded_after_api_failure(
         file="A",
         bundle_path="test",
         bundle_name="testing",
+        callbacks_require_ack=True,
         callback_requests=[_make_callback_request(dag_id, task_id) for dag_id, task_id in targets],
     )
 
@@ -849,7 +871,7 @@ def test_parse_file_exits_when_no_callback_target_loaded_after_api_failure(
 
 
 @pytest.mark.parametrize("acknowledged", [False, True])
-@conf_vars({("dag_processor", "use_execution_api"): "True"})
+@conf_vars({("dag_processor", "use_execution_api"): "False"})
 @patch("airflow.dag_processing.processor._execute_callbacks", autospec=True)
 @patch("airflow.dag_processing.processor.BundleDagBag", autospec=True)
 def test_callbacks_wait_for_start_acknowledgment(dagbag, execute, monkeypatch, acknowledged):
@@ -858,6 +880,7 @@ def test_callbacks_wait_for_start_acknowledgment(dagbag, execute, monkeypatch, a
         file="A",
         bundle_path="test",
         bundle_name="testing",
+        callbacks_require_ack=True,
         callback_requests=[_make_callback_request("a", None)],
     )
     child, parent = socketpair()
@@ -881,7 +904,9 @@ def test_callbacks_wait_for_start_acknowledgment(dagbag, execute, monkeypatch, a
             )
             if acknowledged:
                 assert result.result(timeout=2) is None
-                execute.assert_called_once_with(dagbag.return_value, request.callback_requests, ANY)
+                execute.assert_called_once_with(
+                    dagbag.return_value, request.callback_requests, ANY, team_name=None
+                )
             else:
                 with pytest.raises(AirflowRuntimeError):
                     result.result(timeout=2)
@@ -905,6 +930,7 @@ def test_callback_import_timeout_with_unanswered_api_request_requests_redelivery
         file=str(dag_file),
         bundle_path=str(tmp_path),
         bundle_name="testing",
+        callbacks_require_ack=api_mode,
         callback_requests=[
             DagCallbackRequest(
                 filepath=dag_file.name,
@@ -924,7 +950,7 @@ def test_callback_import_timeout_with_unanswered_api_request_requests_redelivery
             {
                 ("core", "dagbag_import_timeout"): "0.1",
                 ("core", "load_examples"): "False",
-                ("dag_processor", "use_execution_api"): str(api_mode),
+                ("dag_processor", "use_execution_api"): str(not api_mode),
             }
         ),
     ):
@@ -1186,7 +1212,7 @@ class TestExecuteCallbacks:
         mock_lock.assert_called_once_with(bundle_name="testing", bundle_version="some_commit_hash")
         mock_lock.return_value.__enter__.assert_called_once()
         mock_lock.return_value.__exit__.assert_called_once()
-        mock_execute.assert_called_once_with(dagbag, callbacks[0], log)
+        mock_execute.assert_called_once_with(dagbag, callbacks[0], log, team_name=None)
 
     def test_execute_callbacks_continues_after_failed_request(self, spy_agency):
         """A request for a removed Dag must not abort the remaining requests in the batch."""
@@ -3054,105 +3080,37 @@ class TestBaseDagFileProcessorProcess:
         mock_cleanup.assert_called_once_with(proc)
 
 
-class TestMultiTeamCallbackMetrics:
-    """Tests for team_name tag on dag.callback_exceptions in multi-team mode."""
+@pytest.mark.parametrize("team_name", ["team_alpha", None])
+@conf_vars({("dag_processor", "use_execution_api"): "True", ("core", "multi_team"): "False"})
+@patch("airflow.dag_processing.processor.stats.incr", autospec=True)
+def test_callback_exception_uses_team_from_parse_request(mock_incr, spy_agency, monkeypatch, team_name):
+    def failing_callback(context):
+        raise RuntimeError("boom")
 
-    @pytest.mark.parametrize("api_mode", [False, True], ids=["database", "api"])
-    @conf_vars(
-        {
-            ("core", "multi_team"): "true",
-            ("dag_processor", "dag_bundle_config_list"): json.dumps(
-                [
-                    {
-                        "name": "testing",
-                        "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
-                        "kwargs": {},
-                        "team_name": "configured_team",
-                    }
-                ]
-            ),
-        }
+    dag = DAG("test_dag", on_failure_callback=failing_callback)
+
+    def collect_dags(self, *args, **kwargs):
+        self.dags[dag.dag_id] = dag
+
+    spy_agency.spy_on(DagBag.collect_dags, call_fake=collect_dags, owner=DagBag)
+    decoder = MagicMock(spec=CommsDecoder)
+    monkeypatch.setattr(task_runner, "SUPERVISOR_COMMS", decoder, raising=False)
+    request = DagFileParseRequest(
+        file="A",
+        bundle_path="test",
+        bundle_name="testing",
+        team_name=team_name,
+        callbacks_require_ack=False,
+        callback_requests=[_make_callback_request(dag.dag_id, None)],
     )
-    @patch(
-        "airflow.dag_processing.processor.DagModel.get_team_name", autospec=True, return_value="team_alpha"
-    )
-    @patch("airflow.dag_processing.processor.stats.incr", autospec=True)
-    def test_callback_exception_includes_team_name(self, mock_incr, mock_get_team_name, spy_agency, api_mode):
-        def failing_callback(context):
-            raise RuntimeError("boom")
 
-        with DAG(dag_id="test_dag", on_failure_callback=failing_callback) as dag:
-            BaseOperator(task_id="test_task")
+    _parse_file(request, log=structlog.get_logger())
 
-        @spy_agency.spy_for(DagBag.collect_dags, owner=DagBag)
-        def fake_collect_dags(self, *args, **kwargs):
-            self.dags[dag.dag_id] = dag
-
-        dagbag = DagBag()
-        dagbag.collect_dags()
-
-        request = DagCallbackRequest(
-            filepath="test.py",
-            dag_id="test_dag",
-            run_id="test_run",
-            bundle_name="testing",
-            bundle_version=None,
-            is_failure_callback=True,
-            msg="Test failure",
-        )
-
-        log = structlog.get_logger()
-        if api_mode:
-            mock_get_team_name.side_effect = AssertionError("API mode must not query the metadata database")
-        with conf_vars({("dag_processor", "use_execution_api"): str(api_mode)}):
-            _execute_dag_callbacks(dagbag, request, log)
-
-        if api_mode:
-            mock_get_team_name.assert_not_called()
-        else:
-            mock_get_team_name.assert_called_once_with("test_dag")
-        mock_incr.assert_called_once_with(
-            "dag.callback_exceptions",
-            tags={"dag_id": "test_dag", "team_name": "configured_team" if api_mode else "team_alpha"},
-        )
-
-    @conf_vars({("core", "multi_team"): "false"})
-    @patch("airflow.dag_processing.processor.DagModel.get_team_name")
-    @patch("airflow.dag_processing.processor.stats.incr")
-    def test_callback_exception_omits_team_name_when_not_multi_team(
-        self, mock_incr, mock_get_team_name, spy_agency
-    ):
-        def failing_callback(context):
-            raise RuntimeError("boom")
-
-        with DAG(dag_id="test_dag", on_failure_callback=failing_callback) as dag:
-            BaseOperator(task_id="test_task")
-
-        @spy_agency.spy_for(DagBag.collect_dags, owner=DagBag)
-        def fake_collect_dags(self, *args, **kwargs):
-            self.dags[dag.dag_id] = dag
-
-        dagbag = DagBag()
-        dagbag.collect_dags()
-
-        request = DagCallbackRequest(
-            filepath="test.py",
-            dag_id="test_dag",
-            run_id="test_run",
-            bundle_name="testing",
-            bundle_version=None,
-            is_failure_callback=True,
-            msg="Test failure",
-        )
-
-        log = structlog.get_logger()
-        _execute_dag_callbacks(dagbag, request, log)
-
-        mock_get_team_name.assert_not_called()
-        mock_incr.assert_called_once_with(
-            "dag.callback_exceptions",
-            tags={"dag_id": "test_dag"},
-        )
+    decoder.send.assert_not_called()
+    tags = {"dag_id": dag.dag_id}
+    if team_name is not None:
+        tags["team_name"] = team_name
+    mock_incr.assert_called_once_with("dag.callback_exceptions", tags=tags)
 
 
 @pytest.mark.parametrize(

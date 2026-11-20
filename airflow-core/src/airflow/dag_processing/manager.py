@@ -132,6 +132,7 @@ _API_SEND_BUDGET_SECONDS = 1.0
 _MAX_REJECTION_REASON_LENGTH = 1024
 _REJECTED_CONTENT_REASONS = frozenset({"dag_owned_by_another_bundle", "plugin_not_granted"})
 _SOCKET_HEARTBEAT_INTERVAL_SECONDS = 1.0
+_BUSY_QUEUE_RESCAN_INTERVAL_SECONDS = 5.0
 
 
 def _is_rejected_content(status_code: int, reason: str | None) -> bool:
@@ -332,6 +333,7 @@ class DagFileProcessorManager(LoggingMixin):
     """An overridable heartbeat called once every time around the loop"""
 
     _file_queue: OrderedDict[DagFileInfo, None] = attrs.field(factory=OrderedDict, init=False)
+    _next_busy_queue_scan: float = attrs.field(default=0, init=False)
     _priority_files: set[DagFileInfo] = attrs.field(factory=set, init=False)
     _files_awaiting_source: dict[DagFileInfo, None] = attrs.field(factory=dict, init=False)
     """Files deferred while other bundles continue to refill the dispatch queue."""
@@ -760,13 +762,7 @@ class DagFileProcessorManager(LoggingMixin):
             self._collect_results()
             self._refresh_dag_bundles(known_files=known_files)
 
-            if not any(
-                file not in self._processors and file not in self._pending_publications
-                for file in self._file_queue
-            ):
-                # Busy requested files stay queued; they must not prevent other bundles from filling
-                # spare slots once the ordinary batch has drained.
-                self.prepare_file_queue(known_files=known_files)
+            self._refill_file_queue(known_files)
 
             self._start_new_processes()
 
@@ -786,6 +782,7 @@ class DagFileProcessorManager(LoggingMixin):
             self.print_stats(known_files=known_files)
 
             if self.max_runs_reached():
+                self._emit_parse_cycle_metrics_if_due()
                 self.log.info(
                     "Exiting dag parsing loop as all files have been processed %s times", self.max_runs
                 )
@@ -2399,7 +2396,7 @@ class DagFileProcessorManager(LoggingMixin):
         return client
 
     def _create_process(
-        self, dag_file: DagFileInfo, *, source: DagParseSource
+        self, dag_file: DagFileInfo, *, source: DagParseSource, team_name: str | None
     ) -> BaseDagFileProcessorProcess:
         process_id = uuid7()
 
@@ -2430,6 +2427,8 @@ class DagFileProcessorManager(LoggingMixin):
             bundle_name=dag_file.bundle_name,
             dag_file_rel_path=str(dag_file.rel_path),
             callbacks=callback_to_execute_for_file,
+            callbacks_require_ack=self.api_client is not None,
+            team_name=team_name,
             selector=self.selector,
             logger=logger,
             logger_filehandle=logger_filehandle,
@@ -2506,7 +2505,8 @@ class DagFileProcessorManager(LoggingMixin):
             if source is None:
                 self._files_awaiting_source[file] = None
                 continue
-            processor = self._create_process(file, source=source)
+            team_name = bundle_to_team.get(file.bundle_name)
+            processor = self._create_process(file, source=source, team_name=team_name)
             self._dispatch_sequence += 1
             processor.dispatch_sequence = self._dispatch_sequence
             if processor.had_callbacks:
@@ -2523,7 +2523,7 @@ class DagFileProcessorManager(LoggingMixin):
                         "file_path": file.normalized_file_path_for_stats,
                         "bundle_name": normalize_name_for_stats(file.bundle_name),
                         "action": "start",
-                        "team_name": bundle_to_team.get(file.bundle_name),
+                        "team_name": team_name,
                     }
                 ),
             )
@@ -2651,23 +2651,48 @@ class DagFileProcessorManager(LoggingMixin):
             return True
         return False
 
-    def prepare_file_queue(self, known_files: dict[str, set[DagFileInfo]]):
-        """Queue eligible ordinary parses while preserving pending requests."""
-        file_stats_by_presence_key = self._resolve_stats_by_presence_key()
+    def _refill_file_queue(self, known_files: dict[str, set[DagFileInfo]]) -> None:
+        self._emit_parse_cycle_metrics_if_due()
+        if len(self._processors) + len(self._pending_publications) >= self._parallelism:
+            return
+        if not self._file_queue:
+            self._next_busy_queue_scan = 0
+            self.prepare_file_queue(known_files=known_files)
+            return
+        if time.monotonic() < self._next_busy_queue_scan or any(
+            file not in self._processors and file not in self._pending_publications
+            for file in self._file_queue
+        ):
+            return
+
+        # Busy requests stay queued. Look for work in other bundles, but avoid stat-ing the
+        # entire inventory every loop when none of it can run.
+        queued_before = len(self._file_queue)
+        self.prepare_file_queue(known_files=known_files)
+        if len(self._file_queue) == queued_before:
+            self._next_busy_queue_scan = time.monotonic() + _BUSY_QUEUE_RESCAN_INTERVAL_SECONDS
+
+    def _emit_parse_cycle_metrics_if_due(self) -> None:
+        if self._parsing_start_time is None or self._file_queue:
+            return
         # A refresh drain belongs to this cycle; an outage must not suppress other bundles' metrics.
         pending_refresh_bundles = self._bundles_waiting_for_refresh | (
             self._force_refresh_bundles - self._bundles_needing_refresh
         )
-        awaiting_dispatch = any(
+        if any(
             file.bundle_name in pending_refresh_bundles or self._get_dispatch_source(file) is not None
             for file in self._files_awaiting_source
+        ):
+            return
+        emit_metrics(
+            parse_time=time.perf_counter() - self._parsing_start_time,
+            dag_file_stats=list(self._resolve_stats_by_presence_key().values()),
         )
-        if self._parsing_start_time is not None and not self._file_queue and not awaiting_dispatch:
-            emit_metrics(
-                parse_time=time.perf_counter() - self._parsing_start_time,
-                dag_file_stats=list(file_stats_by_presence_key.values()),
-            )
-            self._parsing_start_time = None
+        self._parsing_start_time = None
+
+    def prepare_file_queue(self, known_files: dict[str, set[DagFileInfo]]):
+        """Queue eligible ordinary parses while preserving pending requests."""
+        file_stats_by_presence_key = self._resolve_stats_by_presence_key()
 
         # If the file path is already being processed, or if a file was
         # processed recently, wait until the next batch

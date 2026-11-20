@@ -408,7 +408,7 @@ def test_queued_callback_preserves_db_priority_request_behind_running_parse(crea
     )
     manager._add_callback_to_queue(request)
 
-    def create_process(_, file, *, source):
+    def create_process(_, file, *, source, team_name):
         process = mock.create_autospec(DagFileProcessorProcess, instance=True)
         process.id = uuid7()
         process.had_callbacks = bool(manager._callback_to_execute.pop(file, []))
@@ -501,7 +501,7 @@ def test_failed_bundle_claims_allow_healthy_priority_work_then_resume(
         client.claim_work.assert_called_with("priority", [ready.name], 1)
     assert len(get_api_work_source(manager)._priority_claims) == 3
 
-    def create_process(_, file, *, source):
+    def create_process(_, file, *, source, team_name):
         process = mock.create_autospec(DagFileProcessorProcess, instance=True)
         process.id = uuid7()
         process.had_callbacks = False
@@ -636,7 +636,7 @@ def test_priority_claims_on_an_archive_with_a_dropped_member_are_settled(
     else:
         client.acknowledge_work.assert_not_called()
 
-    def create_process(_, file, *, source):
+    def create_process(_, file, *, source, team_name):
         processor = mock.create_autospec(DagFileProcessorProcess, instance=True)
         processor.id = uuid7()
         processor.pid = 123

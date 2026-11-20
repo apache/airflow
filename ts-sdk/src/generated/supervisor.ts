@@ -287,6 +287,8 @@ export type Msg2 = string | null;
 export type EmailType = "failure" | "retry";
 export type Type15 = "EmailRequest";
 export type CallbackRequests = (DagCallbackRequest | TaskCallbackRequest | EmailRequest)[];
+export type CallbacksRequireAck = boolean;
+export type TeamName1 = string | null;
 export type Type16 = "DagFileParseRequest";
 export type Fileloc = string;
 export type LastLoaded = string | null;
@@ -325,7 +327,7 @@ export type ConsumedAssetEvents1 = AssetEventDagRunReference[];
 export type PartitionKey4 = string | null;
 export type PartitionDate1 = string | null;
 export type Note1 = string | null;
-export type TeamName1 = string | null;
+export type TeamName2 = string | null;
 export type Type19 = "DagRunResult";
 export type Type20 = "DagRunStateResult";
 export type State2 = "deferred";
@@ -1052,6 +1054,8 @@ export interface DagFileParseRequest {
   bundle_path: BundlePath;
   bundle_name: BundleName1;
   callback_requests?: CallbackRequests;
+  callbacks_require_ack?: CallbacksRequireAck;
+  team_name?: TeamName1;
   type?: Type16;
 }
 /**
@@ -1258,7 +1262,7 @@ export interface DagRunResult {
   partition_key: PartitionKey4;
   partition_date?: PartitionDate1;
   note?: Note1;
-  team_name?: TeamName1;
+  team_name?: TeamName2;
   type?: Type19;
 }
 /**

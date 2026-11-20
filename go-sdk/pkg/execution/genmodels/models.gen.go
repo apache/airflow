@@ -401,8 +401,15 @@ type DagFileParseRequest struct {
 	// CallbackRequests corresponds to the JSON schema field "callback_requests".
 	CallbackRequests []interface{} `msgpack:"callback_requests,omitempty"`
 
+	// CallbacksRequireAck corresponds to the JSON schema field
+	// "callbacks_require_ack".
+	CallbacksRequireAck bool `msgpack:"callbacks_require_ack,omitempty"`
+
 	// File corresponds to the JSON schema field "file".
 	File string `msgpack:"file"`
+
+	// TeamName corresponds to the JSON schema field "team_name".
+	TeamName interface{} `msgpack:"team_name,omitempty"`
 
 	// Type corresponds to the JSON schema field "type".
 	Type string `msgpack:"type,omitempty"`
@@ -1891,40 +1898,23 @@ type TaskInstance struct {
 	TryNumber int `msgpack:"try_number"`
 }
 
-type Warnings []interface{}
-
-type TriggerKwargs map[string]interface{}
-
-type VersionData map[string]interface{}
-
 type TaskInstanceState string
 
 const TaskInstanceStateAwaitingInput TaskInstanceState = "awaiting_input"
 const TaskInstanceStateDeferred TaskInstanceState = "deferred"
+const TaskInstanceStateFailed TaskInstanceState = "failed"
+const TaskInstanceStateQueued TaskInstanceState = "queued"
+const TaskInstanceStateRemoved TaskInstanceState = "removed"
+const TaskInstanceStateRestarting TaskInstanceState = "restarting"
+const TaskInstanceStateRunning TaskInstanceState = "running"
+const TaskInstanceStateScheduled TaskInstanceState = "scheduled"
 const TaskInstanceStateSkipped TaskInstanceState = "skipped"
-const TaskInstanceStateUpstreamFailed TaskInstanceState = "upstream_failed"
+const TaskInstanceStateSuccess TaskInstanceState = "success"
 const TaskInstanceStateUpForReschedule TaskInstanceState = "up_for_reschedule"
 const TaskInstanceStateUpForRetry TaskInstanceState = "up_for_retry"
-
-const TaskInstanceStateFailed TaskInstanceState = "failed"
-const TaskInstanceStateRestarting TaskInstanceState = "restarting"
-const TaskInstanceStateSuccess TaskInstanceState = "success"
-const TaskInstanceStateRunning TaskInstanceState = "running"
+const TaskInstanceStateUpstreamFailed TaskInstanceState = "upstream_failed"
 
 type TaskOutlets []AssetProfile
-
-const TaskInstanceStateQueued TaskInstanceState = "queued"
-const TaskInstanceStateScheduled TaskInstanceState = "scheduled"
-const TaskInstanceStateRemoved TaskInstanceState = "removed"
-
-// Variable schema for responses with fields that are needed for Runtime.
-type VariableResponse struct {
-	// Key corresponds to the JSON schema field "key".
-	Key string `msgpack:"key"`
-
-	// Value corresponds to the JSON schema field "value".
-	Value string `msgpack:"value"`
-}
 
 // Response containing the first reschedule date for a task instance.
 type TaskRescheduleStartDate struct {
@@ -1934,12 +1924,6 @@ type TaskRescheduleStartDate struct {
 	// Type corresponds to the JSON schema field "type".
 	Type string `msgpack:"type,omitempty"`
 }
-
-type TaskStateState string
-
-const TaskStateStateFailed TaskStateState = "failed"
-const TaskStateStateSkipped TaskStateState = "skipped"
-const TaskStateStateRemoved TaskStateState = "removed"
 
 // Update a task's state.
 //
@@ -1967,6 +1951,12 @@ type TaskState struct {
 	Type string `msgpack:"type,omitempty"`
 }
 
+type TaskStateState string
+
+const TaskStateStateFailed TaskStateState = "failed"
+const TaskStateStateRemoved TaskStateState = "removed"
+const TaskStateStateSkipped TaskStateState = "skipped"
+
 // Response to GetTaskStateStore; wraps the generated API response for supervisor
 // to worker comms.
 type TaskStateStoreResult struct {
@@ -1977,6 +1967,19 @@ type TaskStateStoreResult struct {
 	Value interface{} `msgpack:"value"`
 }
 
+// Variable schema for responses with fields that are needed for Runtime.
+type VariableResponse struct {
+	// Key corresponds to the JSON schema field "key".
+	Key string `msgpack:"key"`
+
+	// Value corresponds to the JSON schema field "value".
+	Value string `msgpack:"value"`
+}
+
+type TriggerKwargs map[string]interface{}
+
+type Warnings []interface{}
+
 type TaskStates map[string]interface{}
 
 type TaskStatesResult struct {
@@ -1986,6 +1989,8 @@ type TaskStatesResult struct {
 	// Type corresponds to the JSON schema field "type".
 	Type string `msgpack:"type,omitempty"`
 }
+
+type VersionData map[string]interface{}
 
 type TriggerDagRun struct {
 	// Conf corresponds to the JSON schema field "conf".
