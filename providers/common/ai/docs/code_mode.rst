@@ -98,6 +98,9 @@ Code mode turns off :doc:`tool_approval`. A tool that needs
 approval and is called from ``run_code`` does not run: the model gets an error back and may
 carry on without it, so the task can still succeed. To keep such a tool out of ``run_code``,
 list the other tools in ``CodeMode(tools=[...])``; called directly, it fails the task.
+The same goes for any exception a tool raises from inside ``run_code``: the model gets it
+back as an error to work around, so a ``SQLToolset`` call that cannot reach its database
+does not fail the task as it does when called directly.
 
 Importing ``CodeMode`` in the Dag file loads pydantic-ai-harness and Monty each time the file is
 parsed. Keep code mode agents in their own Dag file if the rest of the file does not need them.

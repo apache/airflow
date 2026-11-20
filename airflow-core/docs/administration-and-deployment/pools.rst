@@ -39,11 +39,13 @@ Tasks can then be associated with one of the existing pools by using the ``pool`
 
 
 Tasks will be scheduled as usual while the slots fill up. The number of slots occupied by a task can be configured by
-``pool_slots`` (see section below). Once capacity is reached, runnable tasks get queued and their state will show as such in the UI.
-As slots free up, queued tasks start running based on the :ref:`concepts:priority-weight` of the task and its
+``pool_slots`` (see section below). Once capacity is reached, runnable tasks stay in the ``scheduled`` state.
+As slots free up, they get queued based on the :ref:`concepts:priority-weight` of the task and its
 descendants.
 
-Note that if tasks are not given a pool, they are assigned to a default pool ``default_pool``, which is
+A pool with ``-1`` slots is unlimited, and a pool with ``0`` slots keeps its tasks in the ``scheduled`` state.
+
+Note that if tasks are not given a pool (or ``pool=None``), they are assigned to a default pool ``default_pool``, which is
 initialized with 128 slots and can be modified through the UI or CLI (but cannot be removed).
 
 Using multiple pool slots

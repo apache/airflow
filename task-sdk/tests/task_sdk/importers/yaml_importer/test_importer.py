@@ -34,7 +34,7 @@ from airflow.sdk.importers import ZipMemberDagDefinition
 from airflow.sdk.importers.base import FilesystemDagDefinition
 from airflow.sdk.importers.yaml_importer.importer import YamlDagImporter
 
-HEAD_SCHEMA = "https://airflow.apache.org/schemas/dag/2026-10-30.json"
+HEAD_SCHEMA = "https://airflow.apache.org/schemas/dag/2027-02-28.json"
 
 
 class _RecordingOperator(BaseOperator):
@@ -304,7 +304,7 @@ def test_import_keyed_xcom_on_uses_task(mock_bundle):
         "dag.yaml",
         _doc(f"""
             - {{id: a, uses: {OP}, with: {{payload: x}}}}
-            - {{id: b, uses: {OP}, with: {{payload: {{$x: {{task: a, key: out}}}}}}}}
+            - {{id: b, uses: {OP}, with: {{payload: {{$x: a, key: out}}}}}}
         """),
     )
     result = YamlDagImporter().import_definition(definition, bundle=mock_bundle)
@@ -577,12 +577,12 @@ def test_import_run_rejects_keyed_xcom(mock_bundle):
         "dag.yaml",
         _doc("""
             - {id: a, run: {}}
-            - {id: b, run: {v: {$x: {task: a, key: k}}}}
+            - {id: b, run: {v: {$x: a, key: k}}}
         """),
     )
     result = YamlDagImporter().import_definition(definition, bundle=mock_bundle)
     assert not result.dags
-    assert any("keyed XCom" in e.message for e in result.errors)
+    assert any("non-return-value XCom" in e.message for e in result.errors)
 
 
 def test_import_run_task_rejects_with(mock_bundle):

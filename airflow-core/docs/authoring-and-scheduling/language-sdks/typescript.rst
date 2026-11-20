@@ -32,7 +32,7 @@ Node.js. There are two ways to use it:
 
 Both use the same task API and the same build tool, and one bundle can serve both.
 
-The SDK is the ``@apache-airflow/ts-sdk`` npm package (ESM-only). It is in **beta**, and its API may change.
+The SDK is the ``@apache-airflow/ts-sdk`` npm package (ESM-only). Its API may change.
 
 .. warning::
 
@@ -306,8 +306,8 @@ to label the branches of ``dag.if`` or ``dag.switch`` (see below):
 Task groups
 ~~~~~~~~~~~
 
-``dag.taskGroup(groupId)`` opens a group with the same ``task`` and ``taskGroup`` methods as the Dag. Every id
-declared in it is prefixed with the group's, as in Python:
+``dag.taskGroup(groupId)`` opens a group with the same ``task``, ``taskGroup``, ``if`` and ``switch`` methods
+as the Dag. Every id declared in it is prefixed with the group's, as in Python:
 
 .. code-block:: typescript
 
@@ -552,9 +552,10 @@ Two functions give it what it needs while it runs:
      - Returns
    * - ``getContext()``
      - The task's context (a ``TaskContext``): ``dagId``, ``taskId`` (including any task group prefix),
-       ``runId``, ``tryNumber``, ``mapIndex`` (``-1`` for an unmapped task), and ``signal``, an ``AbortSignal``
-       that fires when Airflow stops the task. Pass ``signal`` to ``fetch()``, timers, or any other API that
-       accepts one, so the task can stop cleanly.
+       ``runId``, ``tryNumber``, ``mapIndex`` (``-1`` for an unmapped task), ``conf`` (the Dag run's
+       conf, ``{}`` when the run has none), and ``signal``, an ``AbortSignal`` that fires when Airflow stops the task.
+       Pass ``signal`` to ``fetch()``, timers, or any other API that accepts one, so the task can stop cleanly.
+       ``getContext<T>()`` types ``conf`` as ``T``, as ``getXCom<T>`` does for an XCom value.
    * - ``getClient()``
      - A ``TaskClient`` for Airflow Variables, Connections, XComs and the task state store.
 
@@ -591,11 +592,12 @@ The ``TaskClient``
    * - ``getConnectionOrThrow(connId)``
      - Same, but throws ``ConnectionNotFoundError``, like Python's ``BaseHook.get_connection``.
    * - ``getXCom<T>({ key, ... })``
-     - An XCom value, or ``null`` when it does not exist. ``dagId``, ``runId``, ``taskId`` and ``mapIndex``
-       default to the current task; pass ``taskId`` to read an upstream task's XCom. See
+     - An XCom value, or ``null`` when it does not exist. ``dagId``, ``runId`` and ``taskId`` default to the
+       current task; pass ``taskId`` to read an upstream task's XCom. ``mapIndex`` defaults to the current
+       task's own map index when the target is the current task, and to the unmapped value otherwise. See
        :ref:`typescript-sdk/types`.
    * - ``setXCom({ key, value, ... })``
-     - Publishes an XCom value.
+     - Publishes an XCom value. The target and ``mapIndex`` default the same way as for ``getXCom``.
    * - ``taskStateStore``
      - This task instance's key/value store, with ``get<T>(key)``, ``set(key, value, { retention? })``,
        ``delete(key)`` and ``clear()``. See :ref:`typescript-sdk/task-state-store`.
@@ -891,6 +893,6 @@ Limitations
   run when the Dag processor reads them.
 * **Some CLI commands do not take a Dag declared in TypeScript.** ``airflow dags test``, ``tasks test`` and
   ``tasks render`` refuse it, and ``airflow dags reserialize`` skips it.
-* **Beta.** The API may change in incompatible ways between releases.
+* **Experimental.** The API may change in incompatible ways between releases.
 * **One Node.js process per task instance.** Tasks cannot share in-process state; use XComs or an external
   store.

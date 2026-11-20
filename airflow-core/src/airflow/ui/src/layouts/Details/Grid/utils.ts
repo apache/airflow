@@ -18,14 +18,13 @@
  */
 import type { GridNodeResponse, NodeResponse } from "openapi/requests/types.gen";
 
+import { TASK_NAME_COLUMN_MIN_WIDTH_PX } from "./constants";
+
 export type GridTask = {
   depth: number;
   isGroup?: boolean;
   isOpen?: boolean;
 } & GridNodeResponse;
-
-/** Minimum width for the task-name column (matches prior `minWidth="200px"`). */
-const TASK_NAME_COLUMN_MIN_WIDTH_PX = 200;
 
 /**
  * Chakra `rem` is typically 16px. Must match TaskNames `indent(depth)`:

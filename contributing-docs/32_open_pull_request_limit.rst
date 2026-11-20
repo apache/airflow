@@ -59,6 +59,9 @@ How the limit works
 * Draft Pull Requests do not count towards the limit yet, because GitHub does not support counting
   them. Once GitHub adds that, we will start counting drafts as well - so do not rely on drafts to
   get around the limit. Keep unfinished work on a branch in your fork instead.
+* Marking a draft ready for review makes it count, so GitHub refuses it while you are at the limit -
+  also when a maintainer tries to do it for you. Close or finish one of your other open Pull
+  Requests first, then mark the draft ready.
 * When you have 5 open Pull Requests, GitHub does not let you open another one. A slot frees up when
   one of your Pull Requests is merged or closed.
 * The limit counts Pull Requests you have open at the same time - there is no limit on how many
@@ -157,12 +160,11 @@ where they were, and the Pull Request keeps its whole review history.
 Exceptions
 ----------
 
-GitHub supports a bypass list of users who are exempt from the limit. Support for configuring it
-through ``.asf.yaml`` is being added in
-`apache/infrastructure-asfyaml#135 <https://github.com/apache/infrastructure-asfyaml/pull/135>`__.
-Until it is available, there are no exceptions. Once it is, maintainers may add contributors to the
-list where it makes sense - for example to let someone open an urgent fix while they are at the
-limit. If you think you need an exception, ask on the ``dev@airflow.apache.org`` mailing list.
+Users listed under ``bypass_users`` in ``.asf.yaml`` are exempt from the limit. The list currently
+holds the participants of the fork CI pilot (the ``[pilot]`` section of ``.github/fork-ci-gate.toml``),
+because the CI of their Pull Requests runs in their own forks. Maintainers may add other contributors
+where it makes sense - for example to let someone open an urgent fix while they are at the limit. If
+you think you need an exception, ask on the ``dev@airflow.apache.org`` mailing list.
 
 If you believe the limit was applied to you in error - for example your Pull Requests were closed by
 mistake - the appeal channel is the PMC private list; see the

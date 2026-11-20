@@ -23,7 +23,7 @@
 DatabricksSubmitRunOperator
 ===========================
 
-Use the :class:`~airflow.providers.databricks.operators.DatabricksSubmitRunOperator` to submit
+Use the :class:`~airflow.providers.databricks.operators.databricks.DatabricksSubmitRunOperator` to submit
 a new Databricks job via Databricks `api/2.2/jobs/runs/submit <https://docs.databricks.com/dev-tools/api/latest/jobs.html#operation/JobsRunsSubmit>`_ API endpoint.
 
 
@@ -205,21 +205,49 @@ earlier Airflow versions the flag is a no-op and the operator always submits a f
 run on retry, exactly as before. If the task state store is unavailable at runtime, the
 operator logs that crash recovery is disabled and behaves the same way.
 
-Like the persisted state itself, the stored run id isn't deleted automatically, that only happens
-when someone runs ``airflow state-store clean``. If a task's ``retry_delay`` is longer than
-``[state_store] default_retention_days`` (30 days by default) and cleanup runs in between, the
-run id won't be there for the next retry, and the operator will submit a fresh run instead of
-reconnecting. Avoid running cleanup on a schedule shorter than your longest ``retry_delay``.
+``[state_store] default_retention_days`` (30 days by default) is stamped on the run id when it is
+stored, so a retry that comes later than that finds nothing and submits a fresh run instead of
+reconnecting, whatever schedule ``airflow state-store clean`` runs on. Size that setting against
+your longest ``retry_delay``.
 
-Clearing a task is treated the same as a retry, which matters specifically for a task whose run
-already succeeded: clearing does not delete the stored run id, so the next attempt reads it back
-and returns immediately without submitting a new run. See
-:doc:`apache-airflow:core-concepts/resumable-tasks` for why, and for the
-``[state_store] clear_on_success`` setting that restores "clearing always resubmits."
+Clearing a task instance from the UI or the REST API (so ``airflowctl`` too) deletes the stored run
+id by default from Airflow 3.4. Every other clear, such as ``airflow tasks clear`` or clearing a
+whole Dag run, does so from Airflow 3.5. To keep it, tick **Keep task state and resume** in the
+Clear dialog, or send ``"keep_task_state": true`` in the request. The **Keep task state on clear**
+UI setting ticks that box by default. From Airflow 3.5, ``airflow tasks clear --keep-task-state``
+keeps it too. The next attempt then reads the stored run id back. In synchronous mode, what the next
+attempt does depends on the state of the Databricks run at that point:
 
-This is most reliable for deferred tasks (``deferrable=True``); clearing a task that's actively
-polling synchronously can cancel the run via ``on_kill`` before the next attempt gets a chance to
-reconnect -- see :doc:`apache-airflow:core-concepts/resumable-tasks` for why.
+.. list-table::
+   :header-rows: 1
+   :widths: 20 40 40
+
+   * - Run state
+     - Default clear
+     - Clear that keeps task state
+   * - Still running (the task had already failed, or its worker died)
+     - Submits a new run. The first one keeps running.
+     - Reconnects to the running run.
+   * - Succeeded
+     - Submits a new run.
+     - Returns right away without submitting another one.
+   * - Failed or canceled
+     - Submits a new run.
+     - Submits a new run.
+
+With ``deferrable=True``, the operator does not store the run id, so the next attempt submits a new
+run whether or not task state was kept.
+
+With ``[state_store] clear_on_success`` on, the stored run id is deleted when the task succeeds, so
+clearing a succeeded task submits again even when task state is kept.
+
+Keep task state when a run is still running and nothing about the code or inputs changed, so
+you don't pay for two. This assumes the run survives the clear; keeping task state does not
+prevent cancellation via ``on_kill``. See :doc:`apache-airflow:core-concepts/resumable-tasks`
+for the ways of clearing.
+
+Clearing a task that is still running cancels the run via ``on_kill``, also when the task is
+deferred (Airflow 3.3+), so the next attempt finds it canceled.
 
 To opt out and always submit a fresh run on retry, set ``durable=False``:
 
@@ -244,6 +272,45 @@ operator always submits a fresh run on retry, exactly as before this feature exi
 DatabricksSubmitRunDeferrableOperator
 =====================================
 
-Deferrable version of the :class:`~airflow.providers.databricks.operators.DatabricksSubmitRunOperator` operator.
+Deferrable version of the :class:`~airflow.providers.databricks.operators.databricks.DatabricksSubmitRunOperator` operator.
 
 It allows to utilize Airflow workers more effectively using `new functionality introduced in Airflow 2.2.0 <https://airflow.apache.org/docs/apache-airflow/2.2.0/concepts/deferring.html#triggering-deferral>`_
+
+.. _howto/operator:DatabricksSubmitRunOperator:retry-args:
+
+Retry args in deferrable mode
+-----------------------------
+
+When ``deferrable=True``, the ``databricks_retry_args`` dictionary is serialized across the
+trigger boundary and must contain only values that Airflow serde can serialize. Primitive
+values such as ``int``, ``float``, ``str``, ``bool``, ``None``, ``dict``, and ``list`` are
+the common safe choices.
+
+For controlling attempt count and delay in deferrable mode, leave
+``databricks_retry_args`` unset and use the dedicated operator parameters
+``databricks_retry_limit`` and ``databricks_retry_delay``. When ``databricks_retry_args`` is
+set, these dedicated parameters are ignored for the hook retry policy.
+
+Serialization validation only verifies that values can cross the trigger boundary; it does
+not verify that the supplied keys and values are valid or meaningful ``tenacity.Retrying``
+keyword arguments. Custom tenacity strategy objects (``stop``, ``wait``, ``before``, etc.)
+require callable objects, which are not serialization-safe in deferrable mode. The hook always
+replaces supplied ``retry`` and ``after`` values, so setting them has no effect in either mode.
+
+**Not supported** in deferrable mode (will raise ``ValueError`` when the task defers; the
+Databricks run has already been submitted at that point):
+
+.. code-block:: python
+
+    from tenacity import stop_after_attempt, wait_incrementing
+
+    # Tenacity strategy objects — NOT serializable
+    databricks_retry_args = {"stop": stop_after_attempt(3)}
+    databricks_retry_args = {"wait": wait_incrementing(start=30, increment=30)}
+
+If you need custom ``stop`` or ``wait`` strategies, use the non-deferrable
+:class:`~airflow.providers.databricks.operators.databricks.DatabricksSubmitRunOperator` (``deferrable=False``).
+Setting non-empty ``databricks_retry_args`` replaces the hook's default retry policy rather
+than merging with it, so supply both ``stop`` and ``wait``. Otherwise, Tenacity defaults to
+``stop_never`` and ``wait_none()``, which retries persistently retryable API errors forever
+without backoff.

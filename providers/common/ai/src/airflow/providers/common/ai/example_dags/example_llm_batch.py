@@ -88,7 +88,7 @@ def example_llm_batch_operator():
         requests=[f"Review: {review!r}" for review in REVIEWS],
         result_path=f"{RESULT_ROOT}/classify",
         llm_conn_id="pydanticai_default",
-        model_id="openai:gpt-5-mini",
+        model_id="openai:gpt-6.1-terra",
         system_prompt="Classify the sentiment of this product review.",
         output_type=Sentiment,
         deferrable=True,
@@ -126,16 +126,16 @@ example_llm_batch_decorator()
 # [START howto_operator_llm_batch_provider_params]
 @dag(tags=["example"])
 def example_llm_batch_provider_params():
-    # ``request_params`` is merged into every request body as-is, so any parameter
-    # the provider's chat endpoint accepts can go here: OpenAI chat-completions keys
-    # for an ``openai:`` model, Anthropic Messages keys for an ``anthropic:`` model.
-    # ``max_tokens`` is translated per provider (``max_completion_tokens`` on OpenAI).
+    # For an ``openai:`` model ``request_params`` is merged into every request body as-is
+    # (OpenAI chat-completions keys). For an ``anthropic:`` model, sampling settings such as
+    # ``temperature`` are typed settings and Messages fields such as ``metadata`` are merged
+    # into the body. ``max_tokens`` is translated per provider (``max_completion_tokens`` on OpenAI).
     LLMBatchOperator(
         task_id="extract_keywords_openai",
         requests=[f"Review: {review!r}" for review in REVIEWS],
         result_path=f"{RESULT_ROOT}/keywords-openai",
         llm_conn_id="pydanticai_default",
-        model_id="openai:gpt-5-mini",
+        model_id="openai:gpt-6.1-terra",
         system_prompt="Extract up to three keywords from the review.",
         output_type=list[str],
         max_tokens=2048,
@@ -162,12 +162,35 @@ def example_llm_batch_provider_params():
 example_llm_batch_provider_params()
 
 
+# [START howto_operator_llm_batch_gemini]
+@dag(tags=["example"])
+def example_llm_batch_gemini():
+    # A ``google:`` model id selects the Gemini Developer API; the connection's API Key is a
+    # Gemini API key. Gemini batch accepts typed settings only in ``request_params``.
+    LLMBatchOperator(
+        task_id="extract_keywords_gemini",
+        requests=[f"Review: {review!r}" for review in REVIEWS],
+        result_path=f"{RESULT_ROOT}/keywords-gemini",
+        llm_conn_id="pydanticai_default",
+        model_id="google:gemini-2.5-flash",
+        system_prompt="Extract up to three keywords from the review.",
+        output_type=list[str],
+        request_params={"temperature": 0.2},
+        deferrable=True,
+    )
+
+
+# [END howto_operator_llm_batch_gemini]
+
+example_llm_batch_gemini()
+
+
 # [START howto_operator_llm_batch_per_request]
 @dag(tags=["example"])
 def example_llm_batch_per_request_overrides():
     @task.llm_batch(
         llm_conn_id="pydanticai_default",
-        model_id="openai:gpt-4.1-mini",
+        model_id="openai:gpt-6-luna",
         result_path=f"{RESULT_ROOT}/summaries",
         system_prompt="Summarize the review in one short sentence.",
         max_tokens=60,

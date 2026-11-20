@@ -22,6 +22,7 @@ from __future__ import annotations
 import atexit
 import contextlib
 import functools
+import importlib.util
 import io
 import logging
 import math
@@ -647,7 +648,7 @@ def _should_use_exec() -> bool:
     return sys.platform in _FORK_EXEC_PLATFORMS
 
 
-def _task_process_uses_exec() -> bool:
+def task_process_uses_exec() -> bool:
     """
     Whether the task process should ``exec`` a fresh interpreter after the fork.
 
@@ -1179,8 +1180,21 @@ class WatchedSubprocess:
 
             try:
                 msg = self.decoder.validate_python(self._deserialize_request(request.body))
-            except Exception:
+            except Exception as e:
                 log.exception("Unable to decode message", body=request.body)
+                with suppress(Exception):
+                    self.send_msg(
+                        msg=None,
+                        error=ErrorResponse(
+                            error=ErrorType.GENERIC_ERROR,
+                            detail={
+                                "status_code": None,
+                                "message": f"Unable to decode message: {e}",
+                                "exception_type": type(e).__name__,
+                            },
+                        ),
+                        request_id=request.id,
+                    )
                 continue
 
             # Restore the task runner's trace context so that any outbound HTTP calls made while
@@ -1193,27 +1207,11 @@ class WatchedSubprocess:
                 with self._request_scope(request):
                     self._handle_request(msg, log, request.id)
             except ServerResponseError as e:
-                error_details = e.response.json() if e.response else None
-                log.error(
-                    "API server error",
-                    status_code=e.response.status_code,
-                    detail=error_details,
-                    message=str(e),
-                )
+                error = ErrorResponse.from_server_error(e)
+                log.error("API server error", **(error.detail or {}))
 
                 # Send error response back to task so that the error appears in the task logs
-                self.send_msg(
-                    msg=None,
-                    error=ErrorResponse(
-                        error=ErrorType.API_SERVER_ERROR,
-                        detail={
-                            "status_code": e.response.status_code,
-                            "message": str(e),
-                            "detail": error_details,
-                        },
-                    ),
-                    request_id=request.id,
-                )
+                self.send_msg(msg=None, error=error, request_id=request.id)
             except Exception as e:
                 # Generic exception handling so a transient network error (httpx2.ConnectError /
                 # httpx2.TimeoutException) or any other exception
@@ -1711,7 +1709,7 @@ class ActivitySubprocess(WatchedSubprocess):
         # fork+exec where the platform needs it (macOS) or the deployment opted in.
         # Tests override `target` with a local stub to exercise the base
         # infrastructure; keep bare fork for those.
-        use_exec = target is _subprocess_main and _task_process_uses_exec()
+        use_exec = target is _subprocess_main and task_process_uses_exec()
         if target is _subprocess_main and not use_exec:
             _import_task_runner_before_fork()
         proc: Self = super().start(
@@ -1888,6 +1886,7 @@ class ActivitySubprocess(WatchedSubprocess):
                     outlet_events=msg.outlet_events,
                     rendered_map_index=self._rendered_map_index,
                     loop_decision=msg.loop_decision,
+                    external_clear_target=msg.external_clear_target,
                 )
             elif isinstance(msg, RetryTask):
                 self.client.task_instances.retry(
@@ -2525,7 +2524,7 @@ class ActivitySubprocess(WatchedSubprocess):
 def in_process_api_server():
     from airflow.api_fastapi.execution_api.app import InProcessExecutionAPI
 
-    api = InProcessExecutionAPI()
+    api = InProcessExecutionAPI(serve_while_debugger_paused=True)
     return api
 
 
@@ -2547,6 +2546,17 @@ to the socket.
 """
 
 
+@functools.cache
+def _has_per_request_server_context() -> bool:
+    """
+    Whether the installed airflow-core has ``airflow.process_context``.
+
+    An older core decides from the presence of ``task_runner.SUPERVISOR_COMMS`` alone, so the
+    attribute has to go while a request is served there.
+    """
+    return importlib.util.find_spec("airflow.process_context") is not None
+
+
 @attrs.define(kw_only=True)
 class InProcessSupervisorComms:
     """In-process communication handler that returns each response directly to its caller."""
@@ -2555,13 +2565,25 @@ class InProcessSupervisorComms:
     supervisor: InProcessTestSupervisor
 
     def send(self, msg: BaseModel) -> BaseModel | None:
-        """Send a request to the supervisor and return its response."""
+        """
+        Send a request to the supervisor and return its response.
+
+        Safe to call from several threads: each call gets its own response sink, and the comms are
+        hidden from the code serving the request only (``task_runner.hide_supervisor_comms``). With an
+        airflow-core from before ``airflow.process_context`` they are removed for the whole process
+        instead, as before, so there only one thread of a task may make SDK calls at a time.
+        """
+        from airflow.sdk.execution_time.task_runner import hide_supervisor_comms
+
         self.log.debug("Sending request", msg=msg)
+        hidden_comms = (
+            hide_supervisor_comms() if _has_per_request_server_context() else set_supervisor_comms(None)
+        )
 
         responses: deque[BaseModel | None] = deque()
         token = _IN_PROCESS_RESPONSE_SINK.set(responses)
         try:
-            with set_supervisor_comms(None):
+            with hidden_comms:
                 self.supervisor._handle_request(msg, log, 0)  # type: ignore[arg-type]
         finally:
             _IN_PROCESS_RESPONSE_SINK.reset(token)
@@ -2797,9 +2819,10 @@ def set_supervisor_comms(temp_comms):
     by injecting a test Comms implementation (e.g. `InProcessSupervisorComms`)
     in place of the real inter-process communication layer.
 
-    Some parts of the code (e.g. models.Variable.get) check for the presence
-    of `task_runner.SUPERVISOR_COMMS` to determine if the code is running in a Task SDK execution context.
-    This override ensures those code paths behave correctly during in-process tests.
+    Some parts of the code (e.g. models.Variable.get) ask `task_runner.get_supervisor_comms()`, in
+    airflow-core through `airflow.process_context.should_use_task_sdk_api_path()`, to determine if the code
+    is running in a Task SDK execution context. That reads the comms set here, so this override ensures
+    those code paths behave correctly during in-process tests.
     """
     from airflow.sdk.execution_time import task_runner
 

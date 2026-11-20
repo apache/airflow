@@ -504,6 +504,7 @@ function buildContext(details: StartupDetails, signal: AbortSignal): TaskContext
     runId: details.ti.run_id,
     tryNumber: details.ti.try_number,
     mapIndex: details.ti.map_index ?? -1,
+    conf: (details.ti_context.dag_run?.conf ?? {}) as TaskContext["conf"],
     signal,
   };
 }

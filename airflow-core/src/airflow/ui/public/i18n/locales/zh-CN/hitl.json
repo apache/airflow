@@ -21,6 +21,7 @@
     "received": "收到响应的时间：",
     "respond": "发送响应",
     "responded_by_user_name": "响应者（用户名称）",
+    "selectAtLeastOne": "请至少选择一个选项",
     "success": "任务 {{taskId}} 响应成功",
     "title": "人类参与流程任务实例 - {{taskId}}"
   },

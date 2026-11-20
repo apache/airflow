@@ -70,7 +70,7 @@ from airflow.models.log import Log
 from airflow.models.task_coordinates import LOOP_GATE_OPERATOR, TaskCoordinateResolver
 from airflow.models.task_state_store import TaskStateStoreModel
 from airflow.models.taskinstance import TaskInstance, clear_loop_task_instances, clear_task_instances
-from airflow.models.xcom import XComModel, XComModelV2
+from airflow.models.xcom import EXTERNAL_CLEAR_TARGET_XCOM_KEY, XComModel, XComModelV2
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.sdk import Asset, TaskGroup, TriggerRule, task, task_group
@@ -4021,7 +4021,7 @@ class TestTIUpdateState:
                 assert t[0].queue == "default"
             else:
                 assert t[0].queue is None
-            assert (t[0].dag_id, t[0].owner_ref) == (ti.dag_id, {"ti_id": str(ti.id)})
+            assert (t[0].dag_id, t[0].used_by_ref) == (ti.dag_id, {"ti_id": str(ti.id)})
 
     @staticmethod
     def _defer_ti_in_team_bundle(client, session, create_task_instance):
@@ -4828,6 +4828,36 @@ class TestTIUpdateState:
         ti1 = session.get(TaskInstance, ti1.id)
         assert ti1.state == State.FAILED
 
+    def test_ti_update_state_to_failed_with_fail_fast_and_task_removed_from_dag(
+        self, client, session, dag_maker
+    ):
+        dag_id = "test_dag_with_fail_fast_task_removed"
+        with dag_maker(dag_id=dag_id, fail_fast=True, serialized=True):
+            EmptyOperator(task_id="boom")
+            EmptyOperator(task_id="victim")
+
+        dr = dag_maker.create_dagrun()
+        boom = dr.get_task_instance(task_id="boom", session=session)
+        boom.state = TaskInstanceState.RUNNING
+        boom.start_date = DEFAULT_START_DATE
+        victim = dr.get_task_instance(task_id="victim", session=session)
+        victim.state = TaskInstanceState.RUNNING
+        session.commit()
+
+        # Re-parse without "victim"; the unversioned run resolves to this latest version.
+        with dag_maker(dag_id=dag_id, fail_fast=True, serialized=True):
+            EmptyOperator(task_id="boom")
+
+        response = client.patch(
+            f"/execution/task-instances/{boom.id}/state",
+            json={"state": TerminalTIState.FAILED, "end_date": DEFAULT_END_DATE.isoformat()},
+        )
+
+        assert response.status_code == 204
+        session.expire_all()
+        assert session.get(TaskInstance, boom.id).state == TaskInstanceState.FAILED
+        assert session.get(TaskInstance, victim.id).state == TaskInstanceState.RUNNING
+
     def test_ti_update_state_reschedule_mysql_limit_triggers_fail_fast(
         self, client, session, dag_maker, time_machine
     ):
@@ -4987,6 +5017,61 @@ class TestTIUpdateState:
         assert session.scalars(
             select(TaskStateStoreModel).where(TaskStateStoreModel.task_id == ti.task_id)
         ).all()
+
+    def test_ti_update_state_to_success_records_the_external_clear_target(
+        self, client, session, create_task_instance
+    ):
+        ti = create_task_instance(task_id="mark", start_date=DEFAULT_START_DATE, state=State.RUNNING)
+        session.commit()
+        target = {
+            "dag_id": "child",
+            "task_id": "wait",
+            "logical_date": "2026-10-01T00:00:00Z",
+            "recursion_depth": 3,
+        }
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/state",
+            json={
+                "state": "success",
+                "end_date": DEFAULT_END_DATE.isoformat(),
+                "external_clear_target": target,
+            },
+        )
+
+        assert response.status_code == 204
+        session.expire_all()
+        stored = session.scalars(
+            select(XComModelV2.value).where(
+                XComModelV2.task_instance_id == ti.id, XComModelV2.key == EXTERNAL_CLEAR_TARGET_XCOM_KEY
+            )
+        ).one()
+        assert XComModel.deserialize_value_primitives(SimpleNamespace(value=stored)) == target
+
+    def test_ti_update_state_to_success_rejects_a_naive_external_clear_target_date(
+        self, client, session, create_task_instance
+    ):
+        ti = create_task_instance(task_id="mark", start_date=DEFAULT_START_DATE, state=State.RUNNING)
+        session.commit()
+        target = {
+            "dag_id": "child",
+            "task_id": "wait",
+            "logical_date": "2026-10-01T00:00:00",
+            "recursion_depth": 1,
+        }
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/state",
+            json={
+                "state": "success",
+                "end_date": DEFAULT_END_DATE.isoformat(),
+                "external_clear_target": target,
+            },
+        )
+
+        assert response.status_code == 422
+        session.expire_all()
+        assert session.get(TaskInstance, ti.id).state == State.RUNNING
 
 
 class TestTISkipDownstream:
