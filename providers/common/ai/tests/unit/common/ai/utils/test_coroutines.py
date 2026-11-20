@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import asyncio
+import os
 import threading
 from contextvars import ContextVar
 
@@ -90,6 +91,23 @@ class TestRunCoroutineOnThreadLoop:
         asyncio.run(asyncio.sleep(0))
 
         assert run_coroutine_on_thread_loop(_get_running_loop()) is first
+
+    @pytest.mark.skipif(not hasattr(os, "fork"), reason="needs os.fork")
+    def test_a_forked_child_does_not_reuse_the_parents_loop(self):
+        # Python 3.11 keeps the parent's loop as the child's current loop; 3.12+ clears it.
+        parent_loop = run_coroutine_on_thread_loop(_get_running_loop())
+        read_end, write_end = os.pipe()
+        pid = os.fork()
+        if pid == 0:
+            try:
+                child_loop = run_coroutine_on_thread_loop(_get_running_loop())
+                os.write(write_end, b"same" if child_loop is parent_loop else b"new")
+            finally:
+                os._exit(0)
+        os.close(write_end)
+        os.waitpid(pid, 0)
+        with os.fdopen(read_end, "rb") as reader:
+            assert reader.read() == b"new"
 
     def test_replaces_a_closed_current_loop(self):
         closed = asyncio.new_event_loop()
