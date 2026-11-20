@@ -27,7 +27,7 @@ from typing import TYPE_CHECKING, Any
 from urllib.parse import urlencode, urljoin
 from weakref import WeakValueDictionary
 
-from cachetools import TTLCache, cachedmethod
+from cachetools import TTLCache
 from fastapi import FastAPI
 from fastapi.middleware.wsgi import WSGIMiddleware
 from flask import current_app, g
@@ -333,24 +333,43 @@ class FabAuthManager(BaseAuthManager[User]):
             raise ValueError(f"User with id {user_id} is not active")
         return user
 
-    def deserialize_user(self, token: dict[str, Any]) -> User:
-        user_id = int(token["sub"])
+    @staticmethod
+    def _get_token_generation(token: dict[str, Any]) -> int:
         # Tokens issued before the claim existed count as the initial generation.
         token_generation = token.get(TOKEN_GENERATION_CLAIM, 0)
         if type(token_generation) is not int:
-            raise ValueError(f"Token of user with id {user_id} has an invalid {TOKEN_GENERATION_CLAIM} claim")
-        user = self._get_active_user(user_id)
-        if token_generation > user.token_generation:
-            # The token was issued after a password change that the cached user predates.
+            raise ValueError(
+                f"Token of user with id {token['sub']} has an invalid {TOKEN_GENERATION_CLAIM} claim"
+            )
+        return token_generation
+
+    def _get_cached_user(self, user_id: int, token_generation: int) -> User | None:
+        """
+        Return the cached user, unless the token is newer than it.
+
+        A newer token was issued after a password change that the cached user predates, so the
+        cached user is dropped: it must not match tokens from before the change either.
+        """
+        with self.cache_lock:
+            user = self.cache.get(user_id)
+            if user is not None and user.token_generation < token_generation:
+                del self.cache[user_id]
+                return None
+        return user
+
+    def deserialize_user(self, token: dict[str, Any]) -> User:
+        user_id = int(token["sub"])
+        token_generation = self._get_token_generation(token)
+        user = self._get_cached_user(user_id, token_generation)
+        if user is None:
+            user = self._load_active_user(user_id)
             with self.cache_lock:
-                self.cache.pop(user_id, None)
-            user = self._get_active_user(user_id)
+                self.cache[user_id] = user
         if token_generation != user.token_generation:
             raise ValueError(f"Token of user with id {user_id} was issued before their last password change")
         return user
 
-    @cachedmethod(lambda self: self.cache, key=lambda _, user_id: user_id, lock=lambda self: self.cache_lock)
-    def _get_active_user(self, user_id: int) -> User:
+    def _load_active_user(self, user_id: int) -> User:
         def _fetch_user() -> User:
             with create_session() as session:
                 user = session.scalars(select(User).where(User.id == user_id)).one_or_none()
@@ -380,24 +399,21 @@ class FabAuthManager(BaseAuthManager[User]):
             return self.deserialize_user(token)
 
         user_id = int(token["sub"])
-        try:
-            return self.cache[user_id]
-        except KeyError:
-            pass
-
-        lock = self._user_fetch_locks.setdefault(user_id, asyncio.Lock())
-        async with lock:
-            try:
-                return self.cache[user_id]
-            except KeyError:
-                pass
-
-            async with create_session_async() as session:
-                user = (await session.scalars(select(User).where(User.id == user_id))).one_or_none()
-                user = self._validate_user(user, token["sub"])
-
-            self.cache[user_id] = user
-            return user
+        token_generation = self._get_token_generation(token)
+        user = self._get_cached_user(user_id, token_generation)
+        if user is None:
+            lock = self._user_fetch_locks.setdefault(user_id, asyncio.Lock())
+            async with lock:
+                user = self._get_cached_user(user_id, token_generation)
+                if user is None:
+                    async with create_session_async() as session:
+                        user = (await session.scalars(select(User).where(User.id == user_id))).one_or_none()
+                        user = self._validate_user(user, token["sub"])
+                    with self.cache_lock:
+                        self.cache[user_id] = user
+        if token_generation != user.token_generation:
+            raise ValueError(f"Token of user with id {user_id} was issued before their last password change")
+        return user
 
     def serialize_user(self, user: User) -> dict[str, Any]:
         return {"sub": str(user.id), TOKEN_GENERATION_CLAIM: user.token_generation}
