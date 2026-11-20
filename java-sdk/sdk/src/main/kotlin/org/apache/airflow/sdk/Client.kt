@@ -190,10 +190,12 @@ class Client internal constructor(
    * @param key XCom key; defaults to [XCOM_RETURN_KEY].
    * @param value Value to push. Must be JSON-serializable; `null` stores a null
    *    XCom. The SDK rejects byte arrays, so encode binary data as a string
-   *    first, for example with Base64.
+   *    first, for example with Base64. Objects are encoded with Jackson and the
+   *    Jackson modules in the bundle, so Scala values need `jackson-module-scala`.
    * @throws ApiError if the API call fails.
    * @throws IllegalArgumentException if [value] is or contains a type that the
-   *    SDK cannot send, such as a byte array.
+   *    SDK cannot send, such as a byte array or an object with no properties to
+   *    encode.
    */
   @JvmOverloads fun setXCom(
     key: String = XCOM_RETURN_KEY,
@@ -282,11 +284,12 @@ class TaskStateStore internal constructor(
    * Stores [value] under [key], replacing any existing value.
    *
    * @param key State key.
-   * @param value Value to store. Must be JSON-serializable.
+   * @param value Value to store, encoded as for [setXCom][Client.setXCom].
    * @param retention How long to keep the key. Must be positive, or
    *   [NEVER_EXPIRE]; `null` uses `[state_store] default_retention_days`.
-   * @throws IllegalArgumentException if [retention] is zero or negative, or the
-   *   default retention from the environment is not a non-negative integer.
+   * @throws IllegalArgumentException if [value] cannot be sent, if [retention] is
+   *   zero or negative, or if the default retention from the environment is not a
+   *   non-negative integer.
    * @throws IllegalStateException if [retention] is `null` and the coordinator
    *   did not pass `[state_store] default_retention_days` to the JVM.
    * @throws ApiError if the API call fails.

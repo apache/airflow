@@ -712,6 +712,8 @@ The ``Client``
        ``null``. See the API reference. For the Java types values arrive as, see :ref:`java-sdk/types`.
    * - ``setXCom(value)`` / ``setXCom(key, value)``
      - Publishes an XCom value. The value must be JSON-serializable; ``null`` stores a null XCom.
+       Objects are encoded with Jackson and the Jackson modules in the bundle; an object with no
+       properties to encode raises ``IllegalArgumentException`` instead of being stored as ``{}``.
    * - ``getTaskStateStore()``
      - This task instance's key/value store, with ``get``, ``set``, ``delete`` and ``clear``. See
        :ref:`java-sdk/task-state-store`.
@@ -955,6 +957,12 @@ XComs are stored as JSON, so a value read with ``getXCom`` arrives as the matchi
    * - ``dict``
      - object
      - ``Map<String, Object>``
+
+``setXCom`` and the task-state store encode any other object with Jackson, using every Jackson module
+in the bundle. A Java bean, record or Kotlin data class becomes a JSON object of its properties. Scala
+collections, ``Option`` and case classes need ``jackson-module-scala`` on the classpath (Spark bundles
+already include it); without it, Jackson stores them as their bean properties. An object with no
+properties to encode fails the call with ``IllegalArgumentException``.
 
 A typed parameter receives the type it declares, so a ``double`` parameter accepts an integer and
 ``List<Double>`` holds ``Double`` elements. Use ``String`` rather than ``char``: a ``char`` parameter fails on a string
