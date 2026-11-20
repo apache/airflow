@@ -101,7 +101,9 @@ def _get_thread_event_loop() -> asyncio.AbstractEventLoop:
             loop = asyncio.get_event_loop()
         except RuntimeError:
             loop = None
-    if loop is None or loop.is_closed():
+    # Python 3.11 leaves the parent's loop current in a forked child (3.12+ clears it), and
+    # its selector is shared with the parent, so a child never uses the loop its parent kept.
+    if loop is None or loop.is_closed() or (loop is _kept.loop and _kept.pid != os.getpid()):
         # asyncio.run(), run_coroutine_sync() included, unsets the current loop when it
         # finishes. Put back the loop the last call kept, unless it belongs to the process
         # this one was forked from.
