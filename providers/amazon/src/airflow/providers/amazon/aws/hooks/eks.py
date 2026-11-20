@@ -32,7 +32,6 @@ from functools import partial
 from botocore.exceptions import ClientError
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
-from airflow.providers.amazon.aws.hooks.sts import StsHook
 from airflow.utils import yaml
 
 DEFAULT_PAGINATION_TOKEN = ""
@@ -669,10 +668,17 @@ class EksHook(AwsBaseHook):
         cluster_cert = cluster["cluster"]["certificateAuthority"]["data"]
         cluster_ep = cluster["cluster"]["endpoint"]
 
-        # EKS needs the regional STS endpoint, which botocore uses by default since 1.40. Do not set
-        # AWS_STS_REGIONAL_ENDPOINTS here: the environment is shared by every trigger in the triggerer.
-        sts_endpoint = StsHook(region_name=session.region_name).conn_client_meta.endpoint_url
-        sts_url = f"{sts_endpoint}/?Action=GetCallerIdentity&Version=2011-06-15"
+        # eks_get_token signs the URL with the cluster region, which the global STS endpoint rejects outside
+        # us-east-1, so force the regional endpoint on this session even if the user configured "legacy".
+        # Not through the environment variable: the environment is shared by every trigger in the triggerer.
+        session._session.set_config_variable("sts_regional_endpoints", "regional")
+        sts_client = session.client(
+            "sts",
+            endpoint_url=self.conn_config.get_service_endpoint_url("sts"),
+            config=self.config,
+            verify=self.verify,
+        )
+        sts_url = f"{sts_client.meta.endpoint_url}/?Action=GetCallerIdentity&Version=2011-06-15"
 
         cluster_config = {
             "apiVersion": "v1",
