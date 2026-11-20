@@ -358,19 +358,19 @@ class TestDagProcessorDetailedStatus:
             pytest.param([], DetailedHealthStatus.DOWN, id="no_processor_at_all"),
         ],
     )
-    def test_bundle_coverage(self, jobs, expected):
-        with _patch_bundles(self.BUNDLES):
-            assert _dag_processor_detailed_status(jobs) == expected
+    @_patch_bundles(BUNDLES)
+    def test_bundle_coverage(self, mock_bundles, jobs, expected):
+        assert _dag_processor_detailed_status(jobs) == expected
 
-    def test_restarted_processor_leaves_the_component_healthy(self):
+    @_patch_bundles(BUNDLES)
+    def test_restarted_processor_leaves_the_component_healthy(self, mock_bundles):
         """A hard-killed replica keeps an unfinished job row; its replacement must still read healthy."""
         jobs = [
             _processor(alive=True, bundle_names=["bundle-a", "bundle-b"]),
             _processor(alive=False, bundle_names=["bundle-a", "bundle-b"]),
         ]
 
-        with _patch_bundles(self.BUNDLES):
-            assert _dag_processor_detailed_status(jobs) == DetailedHealthStatus.HEALTHY
+        assert _dag_processor_detailed_status(jobs) == DetailedHealthStatus.HEALTHY
 
     @pytest.mark.parametrize(
         ("jobs", "expected"),
@@ -387,9 +387,9 @@ class TestDagProcessorDetailedStatus:
             ),
         ],
     )
-    def test_falls_back_to_liveness_without_configured_bundles(self, jobs, expected):
-        with _patch_bundles({}):
-            assert _dag_processor_detailed_status(jobs) == expected
+    @_patch_bundles({})
+    def test_falls_back_to_liveness_without_configured_bundles(self, mock_bundles, jobs, expected):
+        assert _dag_processor_detailed_status(jobs) == expected
 
 
 class TestTriggererDetailedStatus:
@@ -438,18 +438,20 @@ class TestTriggererDetailedStatus:
             pytest.param([], DetailedHealthStatus.DOWN, id="no_triggerer_at_all"),
         ],
     )
-    def test_team_coverage(self, jobs, expected):
-        with conf_vars({("core", "multi_team"): "True"}), _patch_bundles(self.BUNDLES):
-            assert _triggerer_detailed_status(jobs) == expected
+    @conf_vars({("core", "multi_team"): "True"})
+    @_patch_bundles(BUNDLES)
+    def test_team_coverage(self, mock_bundles, jobs, expected):
+        assert _triggerer_detailed_status(jobs) == expected
 
-    def test_restarted_triggerer_leaves_the_component_healthy(self):
+    @conf_vars({("core", "multi_team"): "True"})
+    @_patch_bundles({"bundle-a": "team-a"})
+    def test_restarted_triggerer_leaves_the_component_healthy(self, mock_bundles):
         jobs = [
             _triggerer(alive=True, team_name="team-a"),
             _triggerer(alive=False, team_name="team-a"),
         ]
 
-        with conf_vars({("core", "multi_team"): "True"}), _patch_bundles({"bundle-a": "team-a"}):
-            assert _triggerer_detailed_status(jobs) == DetailedHealthStatus.HEALTHY
+        assert _triggerer_detailed_status(jobs) == DetailedHealthStatus.HEALTHY
 
     @pytest.mark.parametrize(
         ("jobs", "expected"),
@@ -466,16 +468,18 @@ class TestTriggererDetailedStatus:
             ),
         ],
     )
-    def test_ignores_teams_without_multi_team(self, jobs, expected):
-        with conf_vars({("core", "multi_team"): "False"}), _patch_bundles(self.BUNDLES):
-            assert _triggerer_detailed_status(jobs) == expected
+    @conf_vars({("core", "multi_team"): "False"})
+    @_patch_bundles(BUNDLES)
+    def test_ignores_teams_without_multi_team(self, mock_bundles, jobs, expected):
+        assert _triggerer_detailed_status(jobs) == expected
 
-    def test_falls_back_to_liveness_without_configured_bundles(self):
-        with conf_vars({("core", "multi_team"): "True"}), _patch_bundles({}):
-            assert (
-                _triggerer_detailed_status([_triggerer(alive=True, team_name="team-a")])
-                == DetailedHealthStatus.HEALTHY
-            )
+    @conf_vars({("core", "multi_team"): "True"})
+    @_patch_bundles({})
+    def test_falls_back_to_liveness_without_configured_bundles(self, mock_bundles):
+        assert (
+            _triggerer_detailed_status([_triggerer(alive=True, team_name="team-a")])
+            == DetailedHealthStatus.HEALTHY
+        )
 
 
 @conf_vars({("dag_processor", "dag_bundle_config_list"): "not json"})
@@ -856,45 +860,50 @@ class TestExecutorDetailedStatus:
         with _patch_executor_keys(keys), _patch_live_scheduler_ids({1}):
             assert _executor_detailed_status(jobs) == expected
 
-    def test_restart_while_another_scheduler_already_reports_healthy(self):
+    @_patch_executor_keys({"Celery"})
+    @_patch_live_scheduler_ids({1, 2})
+    def test_restart_while_another_scheduler_already_reports_healthy(self, mock_live_ids, mock_keys):
         jobs = [
             _executor(alive=True, healthy=None, executor="Celery", owner_job_id=1),
             _executor(alive=True, healthy=True, executor="Celery", owner_job_id=2),
         ]
-        with _patch_executor_keys({"Celery"}), _patch_live_scheduler_ids({1, 2}):
-            assert _executor_detailed_status(jobs) == DetailedHealthStatus.HEALTHY
+        assert _executor_detailed_status(jobs) == DetailedHealthStatus.HEALTHY
 
-    def test_unknown_does_not_mask_a_real_unhealthy_report(self):
+    @_patch_executor_keys({"Celery"})
+    @_patch_live_scheduler_ids({1, 2})
+    def test_unknown_does_not_mask_a_real_unhealthy_report(self, mock_live_ids, mock_keys):
         jobs = [
             _executor(alive=True, healthy=None, executor="Celery", owner_job_id=1),
             _executor(alive=True, healthy=False, executor="Celery", owner_job_id=2),
         ]
-        with _patch_executor_keys({"Celery"}), _patch_live_scheduler_ids({1, 2}):
-            assert _executor_detailed_status(jobs) == DetailedHealthStatus.DOWN
+        assert _executor_detailed_status(jobs) == DetailedHealthStatus.DOWN
 
-    def test_restarted_executor_leaves_the_component_healthy(self):
+    @_patch_executor_keys({"Celery"})
+    @_patch_live_scheduler_ids({1})
+    def test_restarted_executor_leaves_the_component_healthy(self, mock_live_ids, mock_keys):
         """A hard-killed replica leaves its row behind; a fresh one taking over must still read healthy."""
         jobs = [
             _executor(alive=True, executor="Celery"),
             _executor(alive=False, executor="Celery"),
         ]
-        with _patch_executor_keys({"Celery"}), _patch_live_scheduler_ids({1}):
-            assert _executor_detailed_status(jobs) == DetailedHealthStatus.HEALTHY
+        assert _executor_detailed_status(jobs) == DetailedHealthStatus.HEALTHY
 
-    def test_one_scheduler_reporting_unhealthy_is_not_masked_by_another(self):
+    @_patch_executor_keys({"Celery"})
+    @_patch_live_scheduler_ids({1, 2})
+    def test_one_scheduler_reporting_unhealthy_is_not_masked_by_another(self, mock_live_ids, mock_keys):
         """Two schedulers checking the same broker: one healthy row must not hide another's failure."""
         jobs = [
             _executor(alive=True, healthy=True, executor="Celery", owner_job_id=1),
             _executor(alive=True, healthy=False, executor="Celery", owner_job_id=2),
         ]
-        with _patch_executor_keys({"Celery"}), _patch_live_scheduler_ids({1, 2}):
-            assert _executor_detailed_status(jobs) == DetailedHealthStatus.DOWN
+        assert _executor_detailed_status(jobs) == DetailedHealthStatus.DOWN
 
-    def test_row_left_behind_by_crashed_scheduler_is_ignored(self):
+    @_patch_executor_keys({"Celery"})
+    @_patch_live_scheduler_ids({1})
+    def test_row_left_behind_by_crashed_scheduler_is_ignored(self, mock_live_ids, mock_keys):
         """A row can still look alive right after its scheduler died; it must not count as coverage."""
         jobs = [_executor(alive=True, healthy=True, executor="Celery", owner_job_id=2)]
-        with _patch_executor_keys({"Celery"}), _patch_live_scheduler_ids({1}):
-            assert _executor_detailed_status(jobs) == DetailedHealthStatus.DOWN
+        assert _executor_detailed_status(jobs) == DetailedHealthStatus.DOWN
 
 
 class TestAirflowHealthExecutor:
@@ -912,8 +921,12 @@ class TestAirflowHealthExecutor:
 
         assert "executor" not in health_status
 
+    @_patch_executor_keys({"Celery"})
+    @_patch_live_scheduler_ids({1})
     @provide_session
-    def test_executor_key_present_and_healthy_when_implemented_and_reporting(self, *, session):
+    def test_executor_key_present_and_healthy_when_implemented_and_reporting(
+        self, mock_live_ids, mock_keys, *, session
+    ):
         heartbeat = timezone.utcnow()
         job = Job(job_type=EXECUTOR_JOB_TYPE, state=JobState.RUNNING, executor_class="Celery")
         job.latest_heartbeat = heartbeat
@@ -922,8 +935,7 @@ class TestAirflowHealthExecutor:
         session.add(job)
         session.commit()
 
-        with _patch_executor_keys({"Celery"}), _patch_live_scheduler_ids({1}):
-            health_status = get_airflow_health()
+        health_status = get_airflow_health()
 
         assert health_status["executor"]["status"] == HealthStatus.HEALTHY
         assert health_status["executor"]["detailed_status"] == DetailedHealthStatus.HEALTHY
@@ -938,8 +950,12 @@ class TestAirflowHealthExecutor:
             }
         ]
 
+    @_patch_executor_keys({"Celery"})
+    @_patch_live_scheduler_ids({1})
     @provide_session
-    def test_executor_key_unhealthy_when_last_check_failed_despite_live_heartbeat(self, *, session):
+    def test_executor_key_unhealthy_when_last_check_failed_despite_live_heartbeat(
+        self, mock_live_ids, mock_keys, *, session
+    ):
         """A row can be alive (heartbeat moving) while the last real check still failed."""
         heartbeat = timezone.utcnow()
         job = Job(job_type=EXECUTOR_JOB_TYPE, state=JobState.RUNNING, executor_class="Celery")
@@ -949,16 +965,15 @@ class TestAirflowHealthExecutor:
         session.add(job)
         session.commit()
 
-        with _patch_executor_keys({"Celery"}), _patch_live_scheduler_ids({1}):
-            health_status = get_airflow_health()
+        health_status = get_airflow_health()
 
         assert health_status["executor"]["status"] == HealthStatus.UNHEALTHY
         assert health_status["executor"]["detailed_status"] == DetailedHealthStatus.DOWN
 
-    def test_executor_key_present_and_down_when_implemented_but_never_reported(self):
+    @_patch_executor_keys({"Celery"})
+    def test_executor_key_present_and_down_when_implemented_but_never_reported(self, mock_keys):
         """Implemented but never seen a healthy check: a real outage, correctly reported, not omitted."""
-        with _patch_executor_keys({"Celery"}):
-            health_status = get_airflow_health()
+        health_status = get_airflow_health()
 
         assert health_status["executor"]["status"] == HealthStatus.UNHEALTHY
         assert health_status["executor"]["detailed_status"] == DetailedHealthStatus.DOWN

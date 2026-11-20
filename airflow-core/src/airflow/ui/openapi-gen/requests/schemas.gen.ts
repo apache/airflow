@@ -6030,11 +6030,7 @@ export const $ExecutorInfoResponse = {
     type: 'object',
     required: ['status', 'latest_executor_heartbeat', 'detailed_status'],
     title: 'ExecutorInfoResponse',
-    description: `Executor info serializer for responses.
-
-Only present when at least one configured executor implements a health check; an executor that
-doesn't isn't a gap in coverage, so a deployment where nothing reports simply has no \`\`executor\`\`
-key at all, rather than one that always reads unhealthy.`
+    description: 'Executor info serializer for responses.'
 } as const;
 
 export const $ExecutorInstanceInfoResponse = {
