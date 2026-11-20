@@ -76,7 +76,7 @@ def delete_from_yaml(
     yaml_objects=None,
     verbose: bool = False,
     namespace: str = "default",
-    body: dict | None = None,
+    body: dict | client.V1DeleteOptions | None = None,
     **kwargs,
 ):
     for yml_document in yaml_objects:
@@ -97,7 +97,7 @@ def _delete_from_yaml_single_item(
     yml_document: dict,
     verbose: bool = False,
     namespace: str = "default",
-    body: dict | None = None,
+    body: dict | client.V1DeleteOptions | None = None,
     **kwargs,
 ):
     if body is None:

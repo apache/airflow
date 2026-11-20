@@ -23,7 +23,7 @@ import logging
 import socket
 import warnings
 from collections.abc import Callable
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from urllib.parse import parse_qs, urlsplit
 
 import urllib3.util
@@ -137,7 +137,8 @@ try:
 except ImportError as e:
     # We need an exception class to be able to use it in ``except`` elsewhere
     # in the code base
-    ApiException = BaseException
+    if not TYPE_CHECKING:
+        ApiException = BaseException
     has_kubernetes = False
     _import_err = e
 

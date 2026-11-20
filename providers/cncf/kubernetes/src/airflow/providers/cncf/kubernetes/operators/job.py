@@ -26,7 +26,7 @@ import sys
 import warnings
 from collections.abc import Sequence
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any, Literal, cast
 
 from kubernetes.client import BatchV1Api, Configuration, models as k8s
 from kubernetes.client.api_client import ApiClient
@@ -216,14 +216,15 @@ class KubernetesJobOperator(KubernetesPodOperator):
             job_request_obj=self.job_request_obj
         )
 
+        job_metadata = cast("k8s.V1ObjectMeta", self.job.metadata)
         ti = context["ti"]
-        ti.xcom_push(key="job_name", value=self.job.metadata.name)
-        ti.xcom_push(key="job_namespace", value=self.job.metadata.namespace)
+        ti.xcom_push(key="job_name", value=job_metadata.name)
+        ti.xcom_push(key="job_namespace", value=job_metadata.namespace)
 
         try:
             if self.wait_until_job_complete:
                 self.pods: Sequence[k8s.V1Pod] = self.get_pods(
-                    pod_request_obj=self.pod_request_obj, context=context
+                    pod_request_obj=cast("k8s.V1Pod", self.pod_request_obj), context=context
                 )
 
                 if self.deferrable:
@@ -245,8 +246,8 @@ class KubernetesJobOperator(KubernetesPodOperator):
                         # fail loudly when the sidecar cannot be killed rather than hang.
                         xcom_result.append(self.extract_xcom(pod=pod, ignore_kill_failure=False))
                 self.job = self.hook.wait_until_job_complete(
-                    job_name=self.job.metadata.name,
-                    namespace=self.job.metadata.namespace,
+                    job_name=cast("str", job_metadata.name),
+                    namespace=cast("str", job_metadata.namespace),
                     job_poll_interval=self.job_poll_interval,
                 )
                 if self.get_logs:
@@ -260,8 +261,9 @@ class KubernetesJobOperator(KubernetesPodOperator):
             ti.xcom_push(key="job", value=self.job.to_dict())
             if self.wait_until_job_complete:
                 if error_message := self.hook.is_job_failed(job=self.job):
+                    job_metadata = cast("k8s.V1ObjectMeta", self.job.metadata)
                     raise AirflowException(
-                        f"Kubernetes job '{self.job.metadata.name}' is failed with error '{error_message}'"
+                        f"Kubernetes job '{job_metadata.name}' is failed with error '{error_message}'"
                     )
                 if self.do_xcom_push:
                     return xcom_result[0] if self.unwrap_single and len(xcom_result) == 1 else xcom_result
@@ -390,9 +392,10 @@ class KubernetesJobOperator(KubernetesPodOperator):
         self._killed = True
         if self.job:
             job = self.job
-            kwargs = {
-                "name": job.metadata.name,
-                "namespace": job.metadata.namespace,
+            job_metadata = cast("k8s.V1ObjectMeta", job.metadata)
+            kwargs: dict[str, Any] = {
+                "name": job_metadata.name,
+                "namespace": job_metadata.namespace,
                 "propagation_policy": self.on_kill_propagation_policy,
             }
             if self.termination_grace_period is not None:
@@ -543,26 +546,27 @@ class KubernetesJobOperator(KubernetesPodOperator):
         )
 
         job = self.reconcile_jobs(job_template, job)
+        job_metadata = cast("k8s.V1ObjectMeta", job.metadata)
 
         # Account for job name prefix when generating/truncating the name
         max_base_length = POD_NAME_MAX_LENGTH - len(JOB_NAME_PREFIX)
 
-        if not job.metadata.name:
-            job.metadata.name = create_unique_id(
+        if not job_metadata.name:
+            job_metadata.name = create_unique_id(
                 task_id=self.task_id, unique=self.random_name_suffix, max_length=max_base_length
             )
         elif self.random_name_suffix:
             # user has supplied job name, we're just adding suffix
-            job.metadata.name = add_unique_suffix(name=job.metadata.name, max_len=max_base_length)
+            job_metadata.name = add_unique_suffix(name=job_metadata.name, max_len=max_base_length)
 
-        job.metadata.name = f"{JOB_NAME_PREFIX}{job.metadata.name}"
+        job_metadata.name = f"{JOB_NAME_PREFIX}{job_metadata.name}"
 
-        if not job.metadata.namespace:
+        if not job_metadata.namespace:
             hook_namespace = self.hook.get_namespace()
             job_namespace = self.namespace or hook_namespace or self._incluster_namespace or "default"
-            job.metadata.namespace = job_namespace
+            job_metadata.namespace = job_namespace
 
-        self.log.info("Building job %s ", job.metadata.name)
+        self.log.info("Building job %s ", job_metadata.name)
 
         return job
 
@@ -632,12 +636,13 @@ class KubernetesJobOperator(KubernetesPodOperator):
         label_selector = self._build_find_pod_label_selector(context, exclude_checked=exclude_checked)
         pod_list: Sequence[k8s.V1Pod] = []
         retry_number: int = 0
+        pod_metadata = cast("k8s.V1ObjectMeta", pod_request_obj.metadata)
 
         while retry_number <= self.discover_pods_retry_number:
             if len(pod_list) == self.parallelism:
                 break
             pod_list = self.client.list_namespaced_pod(
-                namespace=pod_request_obj.metadata.namespace,
+                namespace=cast("str", pod_metadata.namespace),
                 label_selector=label_selector,
             ).items
             retry_number += 1

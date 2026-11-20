@@ -27,6 +27,7 @@ def _base_pod() -> k8s.V1Pod:
 
 
 def _sidecar_of(pod: k8s.V1Pod) -> k8s.V1Container:
+    assert pod.spec is not None
     return next(c for c in pod.spec.containers if c.name == PodDefaults.SIDECAR_CONTAINER_NAME)
 
 

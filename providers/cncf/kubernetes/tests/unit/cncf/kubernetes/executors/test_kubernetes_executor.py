@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import logging
 import random
 import re
 import string
@@ -57,6 +58,7 @@ from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils impor
     AirflowKubernetesScheduler,
     KubernetesJobWatcher,
     ResourceVersion,
+    collect_pod_failure_details,
     get_base_pod_from_template,
 )
 from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
@@ -96,6 +98,33 @@ if AIRFLOW_V_3_0_PLUS:
     LOGICAL_DATE_KEY = "logical_date"
 else:
     LOGICAL_DATE_KEY = "execution_date"
+
+
+def test_collect_pod_failure_details_skips_containers_without_state():
+    pod = k8s.V1Pod(
+        status=k8s.V1PodStatus(
+            phase="Failed",
+            container_statuses=[
+                k8s.V1ContainerStatus(
+                    name="pending", image="image", image_id="id", ready=False, restart_count=0
+                ),
+                k8s.V1ContainerStatus(
+                    name="failed",
+                    image="image",
+                    image_id="id",
+                    ready=False,
+                    restart_count=0,
+                    state=k8s.V1ContainerState(terminated=k8s.V1ContainerStateTerminated(exit_code=42)),
+                ),
+            ],
+        )
+    )
+
+    details = collect_pod_failure_details(pod, logging.getLogger(__name__))
+
+    assert details is not None
+    assert details["container_name"] == "failed"
+    assert details["exit_code"] == 42
 
 
 class TestAirflowKubernetesScheduler:
