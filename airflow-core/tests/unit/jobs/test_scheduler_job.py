@@ -447,7 +447,7 @@ def _is_waiting_for_lock(waiter_id: int, blocker_id: int) -> bool:
 
 def _queue_and_enqueue(runner: SchedulerJobRunner, session: Session) -> int:
     """Queue task instances and enqueue their workloads in one transaction, without the commit in between."""
-    queued_tis = runner._critical_section_queue_task_instances(session=session)
+    queued_tis, _ = runner._critical_section_queue_task_instances(session=session)
     runner._enqueue_workloads(queued_tis, session=session)
     return len(queued_tis)
 
@@ -2639,7 +2639,7 @@ class TestSchedulerJob:
             executor.slots_available = 0
             executor.slots_occupied = self.job_runner._parallelism
 
-        assert self.job_runner._do_scheduling(session) == 0
+        assert self.job_runner._do_scheduling(session) == 1
 
         states = session.execute(
             select(TaskInstance.task_id, TaskInstance.state).where(
@@ -2673,7 +2673,7 @@ class TestSchedulerJob:
         self.job_runner = SchedulerJobRunner(job=scheduler_job)
         mock_executor.slots_occupied = self.job_runner._parallelism - free_executor_slots
 
-        assert self.job_runner._critical_section_queue_task_instances(session=session) == []
+        assert self.job_runner._critical_section_queue_task_instances(session=session) == ([], 0)
 
         if expected_max_tis is None:
             mock_acquire_pool_capacity.assert_not_called()
@@ -5528,7 +5528,7 @@ class TestSchedulerJob:
         session.add(job)
         session.commit()
         self.job_runner = SchedulerJobRunner(job=job, executors=[self.null_exec])
-        queued_tis = self.job_runner._critical_section_queue_task_instances(session=session)
+        queued_tis, _ = self.job_runner._critical_section_queue_task_instances(session=session)
         session.commit()
         guard = mock.create_autospec(CommitProhibitorGuard, instance=True)
 
@@ -5556,7 +5556,7 @@ class TestSchedulerJob:
         session.add(job)
         session.commit()
         self.job_runner = SchedulerJobRunner(job=job, executors=[self.null_exec])
-        queued_tis = self.job_runner._critical_section_queue_task_instances(session=session)
+        queued_tis, _ = self.job_runner._critical_section_queue_task_instances(session=session)
         session.commit()
         mysql = get_dialect_name(session) == "mysql"
 
