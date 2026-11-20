@@ -249,7 +249,7 @@ class TestAssetManager:
                     other.close()
             return result
 
-        with mock.patch.object(session, "scalars", side_effect=_lookup_then_create_alias):
+        with mock.patch.object(session, "scalars", side_effect=_lookup_then_create_alias, autospec=True):
             AssetManager._add_asset_alias_association(["race_alias"], asset, session=session)
         session.flush()
 

@@ -4522,7 +4522,7 @@ def test_register_asset_changes_in_db_alias_asset_created_concurrently(dag_maker
     real_register = asset_manager.register_asset_change
     calls = 0
 
-    def _lookup_misses_once(**kwargs):
+    def _register_after_asset_appears(**kwargs):
         nonlocal calls
         calls += 1
         if calls == 1:
@@ -4531,7 +4531,9 @@ def test_register_asset_changes_in_db_alias_asset_created_concurrently(dag_maker
             return None
         return real_register(**kwargs)
 
-    with mock.patch.object(asset_manager, "register_asset_change", side_effect=_lookup_misses_once):
+    with mock.patch.object(
+        asset_manager, "register_asset_change", side_effect=_register_after_asset_appears, autospec=True
+    ):
         TaskInstance.register_asset_changes_in_db(
             ti=ti,
             task_outlets=[AssetProfile(name="race_alias", type="AssetAlias")],
