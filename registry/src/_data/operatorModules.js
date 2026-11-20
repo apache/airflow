@@ -17,12 +17,15 @@
  * under the License.
  */
 
-// Groups every module across all providers for the /operators/ page.
+// Groups the modules you put in a Dag, across all providers, for the /operators/ page.
+// Hooks, triggers and the other types stay on the provider pages.
 const providersData = require("./providers.json");
 const modulesData = require("./modules.json");
 
+const TASK_TYPES = new Set(["operator", "sensor", "transfer", "decorator"]);
+
 module.exports = function () {
-  const modules = modulesData.modules;
+  const modules = modulesData.modules.filter((m) => TASK_TYPES.has(m.type));
 
   const groupsById = new Map();
   for (const provider of providersData.providers) {

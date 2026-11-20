@@ -9,20 +9,19 @@ eleventyExcludeFromCollections: true
   <meta charset="utf-8">
   <title>Redirecting to Operators</title>
   <script>
-    // On the old page, capability=all meant durable or deferrable, and every type was shown.
+    // On the old page, capability=all meant durable or deferrable.
     (function() {
       const params = new URLSearchParams(window.location.search);
       if (!params.get('capability') || params.get('capability') === 'all') {
         params.set('capability', 'durable-or-deferrable');
       }
-      if (!params.get('type')) params.set('type', 'all');
       window.location.replace('{{ base }}?' + params.toString() + window.location.hash);
     })();
   </script>
-  <meta http-equiv="refresh" content="0; url={{ base }}?capability=durable-or-deferrable&type=all">
+  <meta http-equiv="refresh" content="0; url={{ base }}">
   <link rel="canonical" href="https://airflow.apache.org/registry/operators/">
 </head>
 <body>
-  <p>This page moved to <a href="{{ base }}?capability=durable-or-deferrable&type=all">Operators</a>.</p>
+  <p>This page moved to <a href="{{ base }}?capability=durable-or-deferrable">Operators</a>.</p>
 </body>
 </html>

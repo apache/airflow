@@ -1,7 +1,7 @@
 ---
 layout: base.njk
 title: Operators
-description: Operators, hooks, sensors, triggers and other modules across all Airflow providers, filterable by durable and deferrable support
+description: Operators, sensors, transfers and decorators across all Airflow providers, filterable by durable and deferrable support
 mainClass: operators-page
 ---
 
@@ -10,7 +10,7 @@ mainClass: operators-page
 <div class="container">
   <header class="page-header">
     <h1>Operators</h1>
-    <p>{{ counts.all }} operators, hooks, sensors, triggers and other modules across {{ operatorModules.groups.length }} providers. Filter by type, provider, or durable and deferrable support.</p>
+    <p>{{ counts.all }} operators, sensors, transfers and decorators across {{ operatorModules.groups.length }} providers. Filter by type, provider, or durable and deferrable support. Hooks, triggers and the other module types are on each provider's page.</p>
   </header>
 
   <dl class="capabilities">
@@ -47,7 +47,7 @@ mainClass: operators-page
       <select id="operator-provider-filter">
         <option value="all">All providers</option>
         {% for group in operatorModules.groups %}
-        <option value="{{ group.id }}">{{ group.name }} ({{ group.modules.length }})</option>
+        <option value="{{ group.id }}" data-label="{{ group.name }}">{{ group.name }} ({{ group.modules.length }})</option>
         {% endfor %}
       </select>
     </div>
@@ -57,7 +57,7 @@ mainClass: operators-page
       <select id="operator-type-filter">
         <option value="all">All types</option>
         {% for t in types | sortTypesByCount(operatorModules.typeCounts) %}
-        <option value="{{ t.id }}">{{ t.label }} ({{ t.count }})</option>
+        <option value="{{ t.id }}" data-label="{{ t.label }}">{{ t.label }} ({{ t.count }})</option>
         {% endfor %}
       </select>
     </div>
