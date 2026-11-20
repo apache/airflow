@@ -42,6 +42,7 @@ from airflow_breeze.utils.docker_command_utils import (
     enter_shell,
     fix_ownership_using_docker,
     get_images_to_pull,
+    is_docker_restricted,
     prepare_docker_build_command,
     pull_images_with_retries,
 )
@@ -1161,3 +1162,49 @@ def test_fix_ownership_using_docker_passes_lowercase_rootless_flag(
     fix_ownership_using_docker()
     docker_command = mock_run_command.call_args[0][0]
     assert expected in docker_command
+
+
+@pytest.mark.parametrize(
+    ("override", "docker_host", "expected"),
+    [
+        (None, "unix:///home/user/airflow/.apache-magpie-local/run/docker.sock", True),
+        (None, "unix:///var/run/docker.sock", False),
+        (None, None, False),
+        ("false", "unix:///home/user/airflow/.apache-magpie-local/run/docker.sock", False),
+        ("true", None, True),
+    ],
+)
+def test_is_docker_restricted(monkeypatch, override, docker_host, expected):
+    for name, value in (("BREEZE_RESTRICTED_DOCKER", override), ("DOCKER_HOST", docker_host)):
+        if value is None:
+            monkeypatch.delenv(name, raising=False)
+        else:
+            monkeypatch.setenv(name, value)
+    assert is_docker_restricted() is expected
+
+
+@mock.patch("airflow_breeze.utils.docker_command_utils.run_command")
+@mock.patch(
+    "airflow_breeze.utils.docker_command_utils.get_main_git_dir_for_worktree",
+    return_value=Path("/main/.git"),
+)
+@mock.patch("airflow_breeze.utils.docker_command_utils.get_host_group_id", return_value=1000)
+@mock.patch("airflow_breeze.utils.docker_command_utils.get_host_user_id", return_value=1000)
+@mock.patch("airflow_breeze.utils.docker_command_utils.get_host_os", return_value="linux")
+@mock.patch("airflow_breeze.utils.docker_command_utils.is_docker_rootless", return_value=False)
+@pytest.mark.parametrize(("restricted", "expected_mounted"), [("true", False), ("false", True)])
+def test_fix_ownership_using_docker_mounts_main_git_dir_only_when_unrestricted(
+    _mock_is_docker_rootless,
+    _mock_get_host_os,
+    _mock_get_host_user_id,
+    _mock_get_host_group_id,
+    _mock_get_main_git_dir,
+    mock_run_command,
+    monkeypatch,
+    restricted,
+    expected_mounted,
+):
+    monkeypatch.setenv("BREEZE_RESTRICTED_DOCKER", restricted)
+    fix_ownership_using_docker()
+    docker_command = mock_run_command.call_args[0][0]
+    assert ("/main/.git:/main/.git:ro" in docker_command) is expected_mounted

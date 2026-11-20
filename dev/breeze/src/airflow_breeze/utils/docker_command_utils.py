@@ -754,7 +754,7 @@ def fix_ownership_using_docker(quiet: bool = True):
         f"{AIRFLOW_ROOT_PATH}:/opt/airflow/",
     ]
     main_git_directory = get_main_git_dir_for_worktree()
-    if main_git_directory:
+    if main_git_directory and not is_docker_restricted():
         cmd.extend(["-v", f"{main_git_directory}:{main_git_directory}:ro"])
     cmd.extend(
         [
@@ -1380,6 +1380,21 @@ def is_docker_rootless() -> bool:
         # we ignore if docker is missing
         pass
     return False
+
+
+def is_docker_restricted() -> bool:
+    """
+    Tell whether the Docker daemon is reached through a proxy that enforces a policy.
+
+    The Apache Magpie container gateway, which agent sandboxes put in front of the daemon, refuses
+    added capabilities, bind mounts from outside the checkout, the Docker socket itself, volumes
+    that it did not create and writable mounts of agent configuration. Breeze leaves those out
+    when it runs through such a proxy. ``BREEZE_RESTRICTED_DOCKER`` overrides the detection.
+    """
+    override = os.environ.get("BREEZE_RESTRICTED_DOCKER")
+    if override is not None:
+        return override.lower() == "true"
+    return ".apache-magpie-local" in Path(os.environ.get("DOCKER_HOST", "")).parts
 
 
 def check_airflow_cache_builder_configured():

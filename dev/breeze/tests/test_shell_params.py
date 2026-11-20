@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import hashlib
 import os
+from pathlib import Path
 from unittest.mock import patch
 
 import click
@@ -33,11 +34,14 @@ from airflow_breeze.global_constants import MOUNT_SELECTED, PYCACHE_PREFIX_IN_CO
 from airflow_breeze.params.shell_params import ShellParams
 from airflow_breeze.utils.path_utils import (
     SCRIPTS_CI_DOCKER_COMPOSE_BASE_PATH,
+    SCRIPTS_CI_DOCKER_COMPOSE_DOCKER_SOCKET_PATH,
+    SCRIPTS_CI_DOCKER_COMPOSE_HOST_ACCESS_PATH,
     SCRIPTS_CI_DOCKER_COMPOSE_LOCAL_YAML_PATH,
     SCRIPTS_CI_DOCKER_COMPOSE_MOUNT_SPHINX_AIRFLOW_THEME_PATH,
     SCRIPTS_CI_DOCKER_COMPOSE_MOUNT_UV_LOCK_PATH,
     SCRIPTS_CI_DOCKER_COMPOSE_PATH,
     SCRIPTS_CI_DOCKER_COMPOSE_PYCACHE_PATH,
+    SCRIPTS_CI_DOCKER_COMPOSE_RESTRICTED_DOCKER_PATH,
 )
 
 console = Console(width=400, color_system="standard")
@@ -444,3 +448,39 @@ def test_clone_with_test_runs_only_its_own_test_type():
     assert clone.test_type == "Providers[amazon:hooks]"
     assert clone.parallel_test_types_list == []
     assert shell_params.parallel_test_types_list == ["Providers[amazon:hooks]", "Providers[amazon:other]"]
+
+
+@patch("airflow_breeze.params.shell_params.get_main_git_dir_for_worktree", return_value=Path("/main/.git"))
+@pytest.mark.parametrize("restricted", [True, False])
+def test_restricted_docker_leaves_out_what_the_daemon_refuses(_mock_main_git_dir, monkeypatch, restricted):
+    monkeypatch.setenv("BREEZE_RESTRICTED_DOCKER", str(restricted).lower())
+    shell_params = ShellParams(
+        docker_host=None, mount_sources=MOUNT_SELECTED, include_mypy_volume=True, include_pycache_volume=True
+    )
+    shell_params.rootless_docker = False
+    compose_files = shell_params.compose_file.split(os.pathsep)
+    refused = [
+        SCRIPTS_CI_DOCKER_COMPOSE_HOST_ACCESS_PATH,
+        SCRIPTS_CI_DOCKER_COMPOSE_DOCKER_SOCKET_PATH,
+        SCRIPTS_CI_DOCKER_COMPOSE_PATH / "_generated_git_worktree_mount.yml",
+        SCRIPTS_CI_DOCKER_COMPOSE_PATH / "mypy.yml",
+        SCRIPTS_CI_DOCKER_COMPOSE_PYCACHE_PATH,
+    ]
+    assert [str(path) in compose_files for path in refused] == [not restricted] * len(refused)
+    assert (str(SCRIPTS_CI_DOCKER_COMPOSE_RESTRICTED_DOCKER_PATH) in compose_files) is restricted
+    assert shell_params.env_variables_for_docker_commands["PYTHONPYCACHEPREFIX"] == (
+        "" if restricted else PYCACHE_PREFIX_IN_CONTAINER
+    )
+
+
+def test_restricted_docker_compose_file_overrides_a_mount_of_local_yml():
+    local_volumes = yaml.safe_load(SCRIPTS_CI_DOCKER_COMPOSE_LOCAL_YAML_PATH.read_text())["services"][
+        "airflow"
+    ]["volumes"]
+    restricted_volumes = yaml.safe_load(SCRIPTS_CI_DOCKER_COMPOSE_RESTRICTED_DOCKER_PATH.read_text())[
+        "services"
+    ]["airflow"]["volumes"]
+    for volume in restricted_volumes:
+        assert volume["read_only"] is True
+        writable = {key: value for key, value in volume.items() if key != "read_only"}
+        assert writable in local_volumes

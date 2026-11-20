@@ -61,6 +61,23 @@ with ``--builder``. For example:
     # or:
     breeze --builder=default --python 3.11 --backend mysql --mysql-version 8.0
 
+Running Breeze behind a restricted Docker daemon
+------------------------------------------------
+
+An agent sandbox can put a policy-enforcing proxy in front of the Docker daemon. The Apache Magpie
+container gateway is one: it refuses added capabilities, bind mounts from outside the checkout, the
+Docker socket itself, volumes that it did not create, and writable mounts of agent configuration.
+Breeze detects that gateway from ``DOCKER_HOST`` and then leaves out:
+
+* the ``SYS_PTRACE`` capability and the ``/dev/urandom`` mount (``host-access.yml``),
+* the Docker socket, so Docker cannot be used from inside the container,
+* the main git directory of a worktree, so ``git`` does not work inside the container there,
+* the shared ``mypy`` and ``__pycache__`` cache volumes.
+
+It also mounts ``.github`` read-only. Set ``BREEZE_RESTRICTED_DOCKER`` to ``true`` or ``false`` to
+override the detection. Building the CI image does not work through the gateway, which refuses
+BuildKit sessions: build the image from a terminal that reaches the daemon directly.
+
 The choices you make are persisted in the ``./.build/`` cache directory so that next time when you use the
 ``breeze`` script, it could use the values that were used previously. This way you do not have to specify
 them when you run the script. You can delete the ``.build/`` directory in case you want to restore the

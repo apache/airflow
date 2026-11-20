@@ -75,6 +75,12 @@ def unset_github_repository(monkeypatch):
     monkeypatch.delenv("GITHUB_REPOSITORY", raising=False)
 
 
+@pytest.fixture(autouse=True)
+def unrestricted_docker(monkeypatch):
+    # A sandboxed agent session points DOCKER_HOST at a container gateway, which breeze detects.
+    monkeypatch.setenv("BREEZE_RESTRICTED_DOCKER", "false")
+
+
 @pytest.fixture
 def make_worktree(tmp_path):
     """Create a linked git worktree whose ``.git`` file points at an existing gitdir."""
