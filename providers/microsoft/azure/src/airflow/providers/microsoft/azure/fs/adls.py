@@ -80,18 +80,24 @@ def get_fs(conn_id: str | None, storage_options: dict[str, Any] | None = None) -
         # adlfs has no account_url parameter and would silently drop it; it reads
         # account_name and builds the URL from account_host, so derive both from
         # the account URL. Only an endpoint host (one with a dot) supplies an
-        # account_host: a bare identifier is not an endpoint, and for those
-        # parse_blob_account_url builds the URL from the login. A bare login is
-        # the account name (wasb shared key), but with a tenant id the login is a
-        # service principal client id, so without an endpoint host nothing is
-        # derived and adlfs falls back to account_name from extras or the
-        # AZURE_STORAGE_ACCOUNT_NAME env var.
+        # account_host, and only when it is not the default blob host, which
+        # adlfs already defaults to: a bare identifier is not an endpoint, and
+        # for those parse_blob_account_url builds the URL from the login. A bare
+        # login is the account name (wasb shared key), but with a tenant id the
+        # login is a service principal client id, so without an endpoint host
+        # nothing is derived and adlfs falls back to account_name from extras
+        # or the AZURE_STORAGE_ACCOUNT_NAME env var.
         host_is_endpoint = bool(conn.host) and "." in conn.host.split("://")[-1]
         if host_is_endpoint or (conn.login and not tenant_id):
             account_url = urlparse(parse_blob_account_url(conn.host, conn.login))
-            if account_url.hostname:
-                options["account_name"] = account_url.hostname.split(".")[0]
-            if host_is_endpoint and account_url.netloc:
+            derived_account_name = account_url.hostname.split(".")[0] if account_url.hostname else None
+            if derived_account_name:
+                options["account_name"] = derived_account_name
+            if (
+                host_is_endpoint
+                and account_url.netloc
+                and account_url.netloc != f"{derived_account_name}.blob.core.windows.net"
+            ):
                 options["account_host"] = account_url.netloc
     # Otherwise (adls + no host + a tenant_id) no account is set here: adlfs needs it from
     # ``account_name`` in Extra or the AZURE_STORAGE_ACCOUNT_NAME environment variable.

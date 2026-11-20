@@ -50,7 +50,6 @@ def mocked_blob_file_system():
             ),
             {
                 "account_name": "testaccountname",
-                "account_host": "testaccountname.blob.core.windows.net",
             },
         ),
         (
