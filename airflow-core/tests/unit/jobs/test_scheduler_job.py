@@ -41,7 +41,7 @@ import pytest
 import time_machine
 from sqlalchemy import Delete, delete, event as sa_event, func, inspect, select, text, update
 from sqlalchemy.dialects import mysql
-from sqlalchemy.exc import IntegrityError, InvalidRequestError
+from sqlalchemy.exc import IntegrityError, InvalidRequestError, OperationalError
 from sqlalchemy.orm import joinedload
 
 from airflow import settings
@@ -165,7 +165,7 @@ from airflow.timetables.simple import (
     PartitionedAssetTimetable as CorePartitionedAssetTimetable,
     PartitionedAtRuntime,
 )
-from airflow.triggers.base import AssetTriggerEvent, TriggerEvent
+from airflow.triggers.base import AssetTriggerEvent, StartTriggerArgs, TriggerEvent
 from airflow.utils.event_scheduler import EventScheduler
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.sqlalchemy import CommitProhibitorGuard, with_row_locks
@@ -362,6 +362,16 @@ def _clean_db():
     clear_db_deadline()
     clear_db_callbacks()
     clear_db_triggers()
+
+
+def make_start_from_trigger_task(task_id: str, **kwargs) -> MockOperator:
+    task = MockOperator(task_id=task_id, **kwargs)
+    task.start_from_trigger = True
+    task.start_trigger_args = StartTriggerArgs(
+        trigger_cls="airflow.triggers.testing.SuccessTrigger",
+        next_method="execute_complete",
+    )
+    return task
 
 
 def make_pool_stats(
@@ -2427,6 +2437,353 @@ class TestSchedulerJob:
         assert tis[2].key in res_keys
         assert tis[3].key in res_keys
         session.rollback()
+
+    @pytest.mark.parametrize(
+        ("include_deferred", "expected_states_after_second_pass"),
+        [
+            pytest.param(
+                True,
+                [TaskInstanceState.DEFERRED, TaskInstanceState.SCHEDULED],
+                id="deferred-task-keeps-the-slot",
+            ),
+            pytest.param(
+                False,
+                [TaskInstanceState.DEFERRED, TaskInstanceState.DEFERRED],
+                id="deferral-releases-the-slot",
+            ),
+        ],
+    )
+    def test_find_executable_task_instances_pool_defers_start_from_trigger(
+        self, dag_maker, session, include_deferred, expected_states_after_second_pass
+    ):
+        with dag_maker(dag_id="test_start_from_trigger_pool", session=session):
+            for task_id in ("task_1", "task_2"):
+                make_start_from_trigger_task(task_id, pool="a")
+        self.job_runner = SchedulerJobRunner(job=Job())
+
+        dr = dag_maker.create_dagrun()
+        for ti in dr.task_instances:
+            ti.state = TaskInstanceState.SCHEDULED
+        session.add(Pool(pool="a", slots=1, description="", include_deferred=include_deferred))
+        session.flush()
+
+        # The first pass defers one task with the only slot; the second shows whether that task still holds it.
+        states_after_each_pass = []
+        for _ in range(2):
+            pools, max_tis, starved_pools = self.job_runner._acquire_pool_capacity(32, session=session)
+            queued_tis = self.job_runner._select_task_instances_to_queue(
+                max_tis, pools, starved_pools, session=session
+            )
+            session.flush()
+            assert queued_tis == []
+            states_after_each_pass.append(sorted(ti.state for ti in dr.get_task_instances(session=session)))
+
+        assert states_after_each_pass == [
+            [TaskInstanceState.DEFERRED, TaskInstanceState.SCHEDULED],
+            expected_states_after_second_pass,
+        ]
+
+    def test_find_executable_task_instances_queues_start_from_trigger_resumed_by_trigger(
+        self, dag_maker, session
+    ):
+        with dag_maker(dag_id="test_start_from_trigger_resumed", session=session):
+            make_start_from_trigger_task("task")
+        self.job_runner = SchedulerJobRunner(job=Job())
+
+        dr = dag_maker.create_dagrun()
+        ti = dr.get_task_instance("task", session=session)
+        ti.state = TaskInstanceState.SCHEDULED
+        ti.next_method = "execute_complete"
+        session.flush()
+
+        pools, max_tis, starved_pools = self.job_runner._acquire_pool_capacity(32, session=session)
+        queued_tis = self.job_runner._select_task_instances_to_queue(
+            max_tis, pools, starved_pools, session=session
+        )
+
+        assert [queued_ti.key for queued_ti in queued_tis] == [ti.key]
+
+    def test_select_task_instances_to_queue_defers_start_from_trigger_within_max_active_tis_per_dag(
+        self, dag_maker, session
+    ):
+        with dag_maker(dag_id="test_start_from_trigger_max_active_tis_per_dag", session=session):
+            make_start_from_trigger_task("task", max_active_tis_per_dag=1)
+        self.job_runner = SchedulerJobRunner(job=Job())
+        dr1 = dag_maker.create_dagrun()
+        dr2 = dag_maker.create_dagrun_after(dr1, run_type=DagRunType.SCHEDULED)
+        for dr in (dr1, dr2):
+            dr.get_task_instance("task", session=session).state = TaskInstanceState.SCHEDULED
+        session.flush()
+
+        self.job_runner._select_task_instances_to_queue(32, make_pool_stats(), set(), session=session)
+        session.flush()
+        session.expire_all()
+
+        states = sorted(ti.state for dr in (dr1, dr2) for ti in dr.get_task_instances(session=session))
+        assert states == [TaskInstanceState.DEFERRED, TaskInstanceState.SCHEDULED]
+
+    def test_select_task_instances_to_queue_defers_start_from_trigger_within_max_active_tis_per_dagrun(
+        self, dag_maker, session
+    ):
+        class StartFromTriggerOperator(MockOperator):
+            start_from_trigger = True
+            start_trigger_args = StartTriggerArgs(
+                trigger_cls="airflow.triggers.testing.SuccessTrigger",
+                next_method="execute_complete",
+            )
+
+        with dag_maker(dag_id="test_start_from_trigger_max_active_tis_per_dagrun", session=session):
+            StartFromTriggerOperator.partial(task_id="task", max_active_tis_per_dagrun=1).expand(arg1=[1, 2])
+        self.job_runner = SchedulerJobRunner(job=Job())
+        dr = dag_maker.create_dagrun()
+        for ti in dr.get_task_instances(session=session):
+            ti.state = TaskInstanceState.SCHEDULED
+        session.flush()
+
+        self.job_runner._select_task_instances_to_queue(32, make_pool_stats(), set(), session=session)
+        session.flush()
+        session.expire_all()
+
+        assert sorted(ti.state for ti in dr.get_task_instances(session=session)) == [
+            TaskInstanceState.DEFERRED,
+            TaskInstanceState.SCHEDULED,
+        ]
+
+    def test_select_task_instances_to_queue_defers_start_from_trigger_past_executor_slots(
+        self, dag_maker, session
+    ):
+        with dag_maker(dag_id="test_start_from_trigger_executor_slots", session=session):
+            for task_id, priority_weight in (("queued", 4), ("no_slot_1", 3), ("no_slot_2", 2)):
+                EmptyOperator(task_id=task_id, priority_weight=priority_weight)
+            make_start_from_trigger_task("deferred", priority_weight=1)
+        self.job_runner = SchedulerJobRunner(job=Job())
+        dr = dag_maker.create_dagrun()
+        for ti in dr.task_instances:
+            ti.state = TaskInstanceState.SCHEDULED
+        session.flush()
+
+        # The first query only returns the two TIs with the highest priority. Once the executor slot is
+        # taken, the next query must skip the other TIs to queue to find the one to defer.
+        queued_tis = self.job_runner._select_task_instances_to_queue(
+            2, make_pool_stats(), set(), max_tis_to_queue=1, session=session
+        )
+        session.flush()
+        session.expire_all()
+
+        assert [ti.task_id for ti in queued_tis] == ["queued"]
+        assert {ti.task_id: ti.state for ti in dr.get_task_instances(session=session)} == {
+            "queued": TaskInstanceState.QUEUED,
+            "no_slot_1": TaskInstanceState.SCHEDULED,
+            "no_slot_2": TaskInstanceState.SCHEDULED,
+            "deferred": TaskInstanceState.DEFERRED,
+        }
+
+    @conf_vars({("scheduler", "use_job_schedule"): "False"})
+    def test_do_scheduling_defers_start_from_trigger_when_executors_are_full(
+        self, dag_maker, mock_executor, session
+    ):
+        with dag_maker(dag_id="test_start_from_trigger_executors_full", session=session):
+            EmptyOperator(task_id="queued")
+            make_start_from_trigger_task("deferred")
+        self.job_runner = SchedulerJobRunner(job=Job())
+        dr = dag_maker.create_dagrun()
+        run_id = dr.run_id
+        for ti in dr.task_instances:
+            ti.state = TaskInstanceState.SCHEDULED
+        session.flush()
+        for executor in self.job_runner.executors:
+            executor.slots_available = 0
+            executor.slots_occupied = self.job_runner._parallelism
+
+        assert self.job_runner._do_scheduling(session) == 0
+
+        states = session.execute(
+            select(TaskInstance.task_id, TaskInstance.state).where(
+                TaskInstance.dag_id == "test_start_from_trigger_executors_full", TaskInstance.run_id == run_id
+            )
+        ).all()
+        assert dict(states) == {"queued": TaskInstanceState.SCHEDULED, "deferred": TaskInstanceState.DEFERRED}
+
+    @pytest.mark.parametrize(
+        ("free_executor_slots", "expected_max_tis"),
+        [
+            pytest.param(0, None, id="executors-full"),
+            pytest.param(2, 2, id="executors-nearly-full"),
+        ],
+    )
+    @mock.patch.object(
+        SchedulerJobRunner, "_acquire_pool_capacity", autospec=True, return_value=({}, 0, set())
+    )
+    @mock.patch.object(SchedulerJobRunner, "_has_tis_to_defer", autospec=True, return_value=False)
+    def test_critical_section_without_tis_to_defer_is_limited_by_executor_slots(
+        self,
+        mock_has_tis_to_defer,
+        mock_acquire_pool_capacity,
+        mock_executor,
+        session,
+        free_executor_slots,
+        expected_max_tis,
+    ):
+        scheduler_job = Job()
+        scheduler_job.max_tis_per_query = 16
+        self.job_runner = SchedulerJobRunner(job=scheduler_job)
+        mock_executor.slots_occupied = self.job_runner._parallelism - free_executor_slots
+
+        assert self.job_runner._critical_section_enqueue_task_instances(session) == 0
+
+        if expected_max_tis is None:
+            mock_acquire_pool_capacity.assert_not_called()
+        else:
+            mock_acquire_pool_capacity.assert_called_once_with(
+                self.job_runner, expected_max_tis, session=session
+            )
+
+    @pytest.mark.parametrize(
+        ("next_method", "is_paused", "dag_run_state", "expected"),
+        [
+            pytest.param(None, False, DagRunState.RUNNING, True, id="waits-for-deferral"),
+            pytest.param("execute_complete", False, DagRunState.RUNNING, False, id="resumed-by-trigger"),
+            pytest.param(None, True, DagRunState.RUNNING, False, id="paused-dag"),
+            pytest.param(None, False, DagRunState.QUEUED, False, id="dag-run-not-running"),
+        ],
+    )
+    def test_has_tis_to_defer(self, dag_maker, session, next_method, is_paused, dag_run_state, expected):
+        with dag_maker(dag_id="test_has_tis_to_defer", session=session):
+            EmptyOperator(task_id="queued")
+            make_start_from_trigger_task("deferred")
+        dr = dag_maker.create_dagrun(state=dag_run_state)
+        for ti in dr.task_instances:
+            ti.state = TaskInstanceState.SCHEDULED
+        ti = dr.get_task_instance("deferred", session=session)
+        ti.next_method = next_method
+        ti.dag_model.is_paused = is_paused
+        session.flush()
+
+        assert SchedulerJobRunner(job=Job())._has_tis_to_defer(session=session) is expected
+
+    @mock.patch.object(TaskInstance, "defer_task", autospec=True)
+    def test_defer_tis_to_triggerer_keeps_a_failed_ti_scheduled(self, mock_defer_task, dag_maker, session):
+        def defer_task(ti, *, team_name, session):
+            ti.state = TaskInstanceState.DEFERRED
+            session.flush()
+            if ti.task_id == "broken":
+                raise RuntimeError("Cannot create the trigger")
+            return True
+
+        mock_defer_task.side_effect = defer_task
+        with dag_maker(dag_id="test_defer_tis_to_triggerer_failure", session=session):
+            make_start_from_trigger_task("broken")
+            make_start_from_trigger_task("deferred")
+        self.job_runner = SchedulerJobRunner(job=Job())
+        dr = dag_maker.create_dagrun()
+        tis = sorted(dr.task_instances, key=lambda ti: ti.task_id)
+        for ti in tis:
+            ti.state = TaskInstanceState.SCHEDULED
+        session.flush()
+
+        self.job_runner._defer_tis_to_triggerer(tis, session=session)
+        session.flush()
+        session.expire_all()
+
+        assert {ti.task_id: ti.state for ti in dr.get_task_instances(session=session)} == {
+            "broken": TaskInstanceState.SCHEDULED,
+            "deferred": TaskInstanceState.DEFERRED,
+        }
+
+    @mock.patch.object(
+        TaskInstance,
+        "defer_task",
+        autospec=True,
+        side_effect=OperationalError("any_statement", "any_params", Exception("any_orig")),
+    )
+    def test_defer_tis_to_triggerer_raises_db_errors(self, mock_defer_task, dag_maker, session):
+        with dag_maker(dag_id="test_defer_tis_to_triggerer_db_error", session=session):
+            make_start_from_trigger_task("task")
+        self.job_runner = SchedulerJobRunner(job=Job())
+        dr = dag_maker.create_dagrun()
+        ti = dr.get_task_instance("task", session=session)
+        ti.state = TaskInstanceState.SCHEDULED
+        session.flush()
+
+        with pytest.raises(OperationalError):
+            self.job_runner._defer_tis_to_triggerer([ti], session=session)
+
+    def test_defer_tis_to_triggerer_leaves_a_task_no_longer_started_from_trigger_to_queue(
+        self, dag_maker, session
+    ):
+        with dag_maker(dag_id="test_defer_tis_to_triggerer_changed_task", session=session):
+            EmptyOperator(task_id="task")
+        self.job_runner = SchedulerJobRunner(job=Job())
+        dr = dag_maker.create_dagrun()
+        ti = dr.get_task_instance("task", session=session)
+        ti.state = TaskInstanceState.SCHEDULED
+        # The TI was created from a Dag version where the task started from the triggerer.
+        ti.start_from_trigger = True
+        session.flush()
+
+        self.job_runner._defer_tis_to_triggerer([ti], session=session)
+        session.flush()
+        session.expire_all()
+
+        ti = dr.get_task_instance("task", session=session)
+        assert (ti.state, ti.start_from_trigger, ti.trigger_id) == (TaskInstanceState.SCHEDULED, False, None)
+
+    @mock.patch.object(CachedDBDagBag, "get_dag_for_run", autospec=True, return_value=None)
+    def test_defer_tis_to_triggerer_keeps_the_ti_to_defer_when_its_dag_is_not_found(
+        self, mock_get_dag_for_run, dag_maker, session
+    ):
+        with dag_maker(dag_id="test_defer_tis_to_triggerer_dag_not_found", session=session):
+            make_start_from_trigger_task("task")
+        self.job_runner = SchedulerJobRunner(job=Job())
+        dr = dag_maker.create_dagrun()
+        ti = dr.get_task_instance("task", session=session)
+        ti.state = TaskInstanceState.SCHEDULED
+        session.flush()
+
+        self.job_runner._defer_tis_to_triggerer([ti], session=session)
+        session.flush()
+        session.expire_all()
+
+        ti = dr.get_task_instance("task", session=session)
+        assert (ti.state, ti.start_from_trigger, ti.trigger_id) == (TaskInstanceState.SCHEDULED, True, None)
+
+    @pytest.mark.parametrize(
+        ("cached_team_names", "expected_team_name", "expect_team_lookup"),
+        [
+            pytest.param({"test_defer_tis_to_triggerer_team": "team_a"}, "team_a", False, id="cached"),
+            pytest.param({}, "team_b", True, id="cache-lookup-failed"),
+        ],
+    )
+    @conf_vars({("core", "multi_team"): "true"})
+    @mock.patch.object(DagModel, "get_team_name", autospec=True, return_value="team_b")
+    @mock.patch.object(SchedulerJobRunner, "_get_team_names_for_dag_ids", autospec=True)
+    def test_defer_tis_to_triggerer_uses_the_cached_team_name(
+        self,
+        mock_get_team_names_for_dag_ids,
+        mock_get_team_name,
+        dag_maker,
+        session,
+        cached_team_names,
+        expected_team_name,
+        expect_team_lookup,
+    ):
+        mock_get_team_names_for_dag_ids.return_value = cached_team_names
+        clear_db_teams()
+        session.add_all([Team(name="team_a"), Team(name="team_b")])
+        with dag_maker(dag_id="test_defer_tis_to_triggerer_team", session=session):
+            make_start_from_trigger_task("task")
+        self.job_runner = SchedulerJobRunner(job=Job())
+        dr = dag_maker.create_dagrun()
+        ti = dr.get_task_instance("task", session=session)
+        ti.state = TaskInstanceState.SCHEDULED
+        session.flush()
+
+        self.job_runner._defer_tis_to_triggerer([ti], session=session)
+        session.flush()
+
+        assert ti.state == TaskInstanceState.DEFERRED
+        assert session.get(Trigger, ti.trigger_id).team_name == expected_team_name
+        assert mock_get_team_name.called is expect_team_lookup
 
     @conf_vars({("core", "multi_team"): "true"})
     def test_find_executable_task_instances_pool_team_enforcement(self, dag_maker, session):

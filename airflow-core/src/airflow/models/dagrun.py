@@ -98,7 +98,7 @@ from airflow.models.dynamic_region import (
     DynamicRegion,
     public_region_filter,
 )
-from airflow.models.taskinstance import TaskInstance as TI, _add_and_prime_mapped_ti
+from airflow.models.taskinstance import TaskInstance as TI, _add_and_prime_mapped_ti, is_started_from_trigger
 from airflow.models.tasklog import LogTemplate
 from airflow.sdk.definitions.context import CallbackMeta, CallbackSource  # noqa: SDK001
 from airflow.serialization.definitions.deadline import SerializedReferenceModels
@@ -2879,18 +2879,17 @@ class DagRun(Base, LoggingMixin):
         debug_try_number_check = self.log.isEnabledFor(logging.DEBUG)
         expected_try_number_by_ti_id: dict[UUID, tuple[int, int, str | None]] = {}
         for ti in schedulable_tis:
+            if TYPE_CHECKING:
+                assert ti.task
             if ti.state == TaskInstanceState.UP_FOR_RETRY:
-                if TYPE_CHECKING:
-                    assert ti.task
                 ti.refresh_from_task(ti.task, dag_run=self)
+            # Rows written before the column existed, or before a Dag version change, may be stale.
+            ti.start_from_trigger = is_started_from_trigger(ti.task)
             if not ti.is_schedulable:
                 empty_ti_ids.append(ti.id)
-            # The defer_task method will check "start_trigger_args" to see whether the operator
-            # start execution from triggerer. If so, we'll also check "start_from_trigger"
-            # to see whether this feature is turned on and defer this task.
-            # If not, we'll add this "ti" into "schedulable_ti_ids" and later
-            # execute it to run in the worker.
-            elif not ti.defer_task(session=session):
+            # Tasks with start_from_trigger are scheduled too: the scheduler defers them instead of queuing
+            # them, once their pool and concurrency limits allow it.
+            else:
                 schedulable_ti_ids.append(ti.id)
                 if debug_try_number_check:
                     expected_try_number_by_ti_id[ti.id] = (

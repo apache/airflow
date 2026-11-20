@@ -125,6 +125,7 @@ from airflow.models.task_state_store import TaskStateStoreModel
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.xcom import XCOM_RETURN_KEY, LazyXComPrimitivesSelectSequence, LazyXComSelectSequence
+from airflow.serialization.definitions.notset import NOTSET, ArgNotSet
 from airflow.serialization.enums import stringify_encoding_keys
 from airflow.settings import task_instance_mutation_hook
 from airflow.task.priority_strategy import validate_and_load_priority_weight_strategy
@@ -1094,6 +1095,11 @@ def _resolve_stored_index(map_index: int | None, region_index: int | None) -> in
     return map_index if map_index is not None else -1
 
 
+def is_started_from_trigger(task: Operator) -> bool:
+    """Return whether the scheduler defers ``task`` to the triggerer at start, instead of queuing it."""
+    return task.start_from_trigger is True and task.start_trigger_args is not None
+
+
 def uuid7() -> UUID:
     """Generate a new UUID7."""
     return uuid6.uuid7()
@@ -1204,6 +1210,10 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
     # to a new Dag version without being refreshed from its task keeps the value it was created with,
     # which fails closed: a task that has become a stub loses its arg_bindings rather than running wrong.
     is_stub: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    # Denormalized from the task so the scheduler can find the TIs it defers to the triggerer at start
+    # without loading the serialized Dag. schedule_tis refreshes it from the task each time the TI is
+    # scheduled, so only a TI already SCHEDULED when the column was added keeps null and runs on an executor.
+    start_from_trigger: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
     queued_dttm: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
     scheduled_dttm: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
     queued_by_job_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
@@ -1452,6 +1462,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
             "operator": task.task_type,
             "custom_operator_name": getattr(task, "operator_name", None),
             "is_stub": task.is_stub,
+            "start_from_trigger": is_started_from_trigger(task),
             "region_index": region_index,
             "region_id": region_id,
             "_task_display_property_value": task.task_display_name,
@@ -1649,6 +1660,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         op_name = getattr(task, "operator_name", None)
         self.custom_operator_name = op_name if isinstance(op_name, str) else ""
         self.is_stub = task.is_stub
+        self.start_from_trigger = is_started_from_trigger(task)
         # Re-apply cluster policy here so that task default do not overload previous data
         task_instance_mutation_hook(self, dag_run=dag_run)
 
@@ -2745,10 +2757,13 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
     #       the side effect is the changes done to the task instance aren't picked up by the scheduler and
     #       thus the task instance isn't processed until the scheduler is restarted.
     @provide_session
-    def defer_task(self, *, session: Session = NEW_SESSION) -> bool:
+    def defer_task(
+        self, *, team_name: str | None | ArgNotSet = NOTSET, session: Session = NEW_SESSION
+    ) -> bool:
         """
         Mark the task as deferred and sets up the trigger that is needed to resume it when TaskDeferred is raised.
 
+        :param team_name: the team of the Dag, looked up when not given and multi-team is enabled.
         :meta: private
         """
         from airflow.models.trigger import Trigger
@@ -2767,11 +2782,12 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
             else:
                 self.trigger_timeout = None
 
-            team_name: str | None = None
-            if conf.getboolean("core", "multi_team"):
-                from airflow.models.dag import DagModel
+            if isinstance(team_name, ArgNotSet):
+                team_name = None
+                if conf.getboolean("core", "multi_team"):
+                    from airflow.models.dag import DagModel
 
-                team_name = DagModel.get_team_name(self.dag_id, session=session)
+                    team_name = DagModel.get_team_name(self.dag_id, session=session)
 
             trigger_row = Trigger(
                 classpath=start_trigger_args.trigger_cls,
@@ -2789,10 +2805,6 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
             # Keep an eye on the logic in `check_and_change_state_before_execution()`
             # depending on self.next_method semantics
             self.state = TaskInstanceState.DEFERRED
-            # A start_from_trigger retry skips schedule_tis' UPDATE, so clear here too.
-            self.retry_reason = None
-            self.retry_delay_override = None
-            self.retry_at = None
             self.trigger_id = trigger_row.id
             self.next_method = start_trigger_args.next_method
             self.next_kwargs = stringify_encoding_keys(start_trigger_args.next_kwargs or {})

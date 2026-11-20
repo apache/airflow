@@ -127,8 +127,6 @@ Keep the following in mind when you enable it:
 * The templated fields of the first request are rendered by the triggerer, which does not know the
   ``user_defined_macros`` and ``user_defined_filters`` of the Dag and always renders strings, also when
   ``render_template_as_native_obj`` is set.
-* The task goes straight from scheduled to deferred, so the first request does not wait for a pool
-  slot or for a worker.
 
 Cross-References
 ----------------
