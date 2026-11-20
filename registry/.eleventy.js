@@ -131,6 +131,11 @@ module.exports = function(eleventyConfig) {
     return collectExternalServices(provider);
   });
 
+  // Connection types that declare at least one external service, unchanged.
+  eleventyConfig.addFilter("getExternalServiceConnections", (conns) =>
+    (conns || []).filter((conn) => conn.external_services && conn.external_services.length > 0),
+  );
+
   // Groups a provider's uri_schemes by the Airflow feature that routes them to
   // the provider. Listing only registered schemes per feature avoids a matrix
   // whose empty cells read as "unsupported" when the feature just doesn't apply

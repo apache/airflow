@@ -1075,6 +1075,7 @@ class SnowflakeHook(DbApiHook):
         from snowflake.connector import util_text
 
         self.query_ids = []
+        self.descriptions = []
 
         if isinstance(sql, str):
             if split_statements:

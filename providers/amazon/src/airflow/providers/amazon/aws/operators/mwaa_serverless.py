@@ -103,6 +103,10 @@ class MwaaServerlessCreateWorkflowOperator(AwsBaseOperator[AwsBaseHook]):
         optionally ``VersionId``. (templated)
     :param role_arn: The execution role ARN. (templated)
     :param description: Optional description. (templated)
+    :param environment_variables: Optional mapping of environment variable names to values
+        to set for tasks in the workflow. Sent to the API as ``Environment.Variables``.
+        If not specified, the workflow has no environment variables. Requires
+        ``botocore>=1.43.124``. (templated)
     :param tags: Optional tags dict.
     :param create_workflow_kwargs: Optional parameters to pass to the ``CreateWorkflow`` API for
         inputs this operator does not expose, such as ``NetworkConfiguration``,
@@ -119,11 +123,13 @@ class MwaaServerlessCreateWorkflowOperator(AwsBaseOperator[AwsBaseHook]):
         "code",
         "role_arn",
         "description",
+        "environment_variables",
         "create_workflow_kwargs",
     )
     template_fields_renderers = {
         "definition_s3_location": "json",
         "code": "json",
+        "environment_variables": "json",
         "create_workflow_kwargs": "json",
     }
 
@@ -135,6 +141,7 @@ class MwaaServerlessCreateWorkflowOperator(AwsBaseOperator[AwsBaseHook]):
         code: dict[str, Any] | None = None,
         role_arn: str,
         description: str | None = None,
+        environment_variables: dict[str, str] | None = None,
         tags: dict[str, str] | None = None,
         create_workflow_kwargs: dict[str, Any] | None = None,
         if_exists: Literal["fail", "skip"] = "skip",
@@ -146,6 +153,7 @@ class MwaaServerlessCreateWorkflowOperator(AwsBaseOperator[AwsBaseHook]):
         self.code = code
         self.role_arn = role_arn
         self.description = description
+        self.environment_variables = environment_variables
         self.tags = tags
         self.create_workflow_kwargs = create_workflow_kwargs or {}
         self.if_exists = if_exists
@@ -166,6 +174,8 @@ class MwaaServerlessCreateWorkflowOperator(AwsBaseOperator[AwsBaseHook]):
                 "Tags": self.tags,
             }
         )
+        if self.environment_variables is not None:
+            kwargs["Environment"] = {"Variables": self.environment_variables}
         try:
             response = self.hook.conn.create_workflow(**kwargs, **self.create_workflow_kwargs)
             workflow_arn = response["WorkflowArn"]
@@ -200,6 +210,11 @@ class MwaaServerlessUpdateWorkflowOperator(AwsBaseOperator[AwsBaseHook]):
         optionally ``VersionId``. (templated)
     :param role_arn: The execution role ARN. (templated)
     :param description: Optional updated description. (templated)
+    :param environment_variables: Optional mapping of environment variable names to values
+        to set for tasks in the workflow. Sent to the API as ``Environment.Variables``.
+        The variables specified replace all existing environment variables of the workflow;
+        if not specified, the updated workflow has no environment variables. Requires
+        ``botocore>=1.43.124``. (templated)
     :param update_workflow_kwargs: Optional parameters to pass to the ``UpdateWorkflow`` API for
         inputs this operator does not expose, such as ``NetworkConfiguration``,
         ``LoggingConfiguration``, ``EngineVersion`` and ``TriggerMode``. (templated)
@@ -212,11 +227,13 @@ class MwaaServerlessUpdateWorkflowOperator(AwsBaseOperator[AwsBaseHook]):
         "code",
         "role_arn",
         "description",
+        "environment_variables",
         "update_workflow_kwargs",
     )
     template_fields_renderers = {
         "definition_s3_location": "json",
         "code": "json",
+        "environment_variables": "json",
         "update_workflow_kwargs": "json",
     }
 
@@ -228,6 +245,7 @@ class MwaaServerlessUpdateWorkflowOperator(AwsBaseOperator[AwsBaseHook]):
         code: dict[str, Any] | None = None,
         role_arn: str,
         description: str | None = None,
+        environment_variables: dict[str, str] | None = None,
         update_workflow_kwargs: dict[str, Any] | None = None,
         **kwargs,
     ) -> None:
@@ -237,6 +255,7 @@ class MwaaServerlessUpdateWorkflowOperator(AwsBaseOperator[AwsBaseHook]):
         self.code = code
         self.role_arn = role_arn
         self.description = description
+        self.environment_variables = environment_variables
         self.update_workflow_kwargs = update_workflow_kwargs or {}
 
     @property
@@ -254,6 +273,8 @@ class MwaaServerlessUpdateWorkflowOperator(AwsBaseOperator[AwsBaseHook]):
                 "Description": self.description,
             }
         )
+        if self.environment_variables is not None:
+            kwargs["Environment"] = {"Variables": self.environment_variables}
         response = self.hook.conn.update_workflow(**kwargs, **self.update_workflow_kwargs)
         workflow_arn = response["WorkflowArn"]
         self.log.info("Workflow %s updated to version %s", workflow_arn, response.get("WorkflowVersion"))

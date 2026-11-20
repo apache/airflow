@@ -26,6 +26,24 @@
 Changelog
 ---------
 
+3.10.2
+......
+
+.. note::
+  The provider now supports Python 3.14. On 3.14 it requires ``cassandra-driver>=3.30.1``: 3.30.0 was
+  the first release to ship cp314 wheels, and the absence of a driver whose C extension built on 3.14
+  was why the provider was excluded from it. Python 3.11-3.13 keep the driver minimums they already
+  resolved, so nothing is forced to upgrade there.
+
+Misc
+~~~~
+
+* ``Support Python 3.14 in the Apache Cassandra provider (#74696)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``[main] Upgrade important CI environment (#76278)``
+
 3.10.1
 ......
 

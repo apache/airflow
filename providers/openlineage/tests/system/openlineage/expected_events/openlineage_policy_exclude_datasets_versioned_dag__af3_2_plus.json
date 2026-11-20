@@ -1,0 +1,201 @@
+[
+    {
+        "eventType": "START",
+        "job": {
+            "name": "openlineage_policy_exclude_datasets_versioned_dag",
+            "facets": {
+                "airflow": {
+                    "tasks": {
+                        "t_skipped_emit_off": {
+                            "emits_ol_events": "{{ result == false }}"
+                        },
+                        "t_skipped_full_info": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "t_runtime_outlets": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "t_collector_cap": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "t_skipped": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "check_events": {
+                            "emits_ol_events": "{{ result == true }}"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "inputs": [
+            {
+                "namespace": "file://host1",
+                "name": "/keep_declared_in.txt"
+            }
+        ],
+        "outputs": [
+            {
+                "namespace": "file://host1",
+                "name": "/keep_declared_out.txt"
+            }
+        ],
+        "job": {
+            "name": "openlineage_policy_exclude_datasets_versioned_dag.t_runtime_outlets"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "inputs": [
+            {
+                "namespace": "file://host1",
+                "name": "/keep_declared_in.txt"
+            }
+        ],
+        "outputs": [
+            {
+                "namespace": "file://host1",
+                "name": "/keep_declared_out.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/keep_out.txt"
+            }
+        ],
+        "job": {
+            "name": "openlineage_policy_exclude_datasets_versioned_dag.t_runtime_outlets"
+        }
+    },
+    {
+        "eventType": "START",
+        "inputs": [],
+        "outputs": [],
+        "job": {
+            "name": "openlineage_policy_exclude_datasets_versioned_dag.t_collector_cap"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "inputs": "{{ result | length == 62 and result[0].name == '/cap_keep_06_in.txt' and (result | last).name == '/cap_keep_67_in.txt' }}",
+        "outputs": "{{ result | length == 62 and result[0].name == '/cap_keep_06_out.txt' and (result | last).name == '/cap_keep_67_out.txt' }}",
+        "job": {
+            "name": "openlineage_policy_exclude_datasets_versioned_dag.t_collector_cap"
+        }
+    },
+    {
+        "eventType": "START",
+        "inputs": [
+            {
+                "namespace": "file://host1",
+                "name": "/keep_in.txt"
+            }
+        ],
+        "outputs": [
+            {
+                "namespace": "file://host1",
+                "name": "/keep_out.txt"
+            }
+        ],
+        "job": {
+            "name": "openlineage_policy_exclude_datasets_versioned_dag.t_skipped"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "inputs": [
+            {
+                "namespace": "file://host1",
+                "name": "/keep_in.txt"
+            }
+        ],
+        "outputs": [
+            {
+                "namespace": "file://host1",
+                "name": "/keep_out.txt"
+            }
+        ],
+        "job": {
+            "name": "openlineage_policy_exclude_datasets_versioned_dag.t_skipped"
+        }
+    },
+    {
+        "$absent": "the task was skipped",
+        "eventType": "FAIL",
+        "job": {
+            "name": "openlineage_policy_exclude_datasets_versioned_dag.t_skipped"
+        }
+    },
+    {
+        "$absent": "conf emit false on a skipped task",
+        "eventType": "START",
+        "job": {
+            "name": "openlineage_policy_exclude_datasets_versioned_dag.t_skipped_emit_off"
+        }
+    },
+    {
+        "$absent": "conf emit false on a skipped task",
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "openlineage_policy_exclude_datasets_versioned_dag.t_skipped_emit_off"
+        }
+    },
+    {
+        "$absent": "conf emit false on a skipped task",
+        "eventType": "FAIL",
+        "job": {
+            "name": "openlineage_policy_exclude_datasets_versioned_dag.t_skipped_emit_off"
+        }
+    },
+    {
+        "eventType": "START",
+        "run": {
+            "facets": {
+                "airflow": {
+                    "task": {
+                        "bash_command": "exit 99"
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_policy_exclude_datasets_versioned_dag.t_skipped_full_info",
+            "facets": {
+                "sourceCode": {
+                    "language": "bash",
+                    "sourceCode": "exit 99"
+                }
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "run": {
+            "facets": {
+                "airflow": {
+                    "task": {
+                        "bash_command": "exit 99"
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_policy_exclude_datasets_versioned_dag.t_skipped_full_info",
+            "facets": {
+                "sourceCode": {
+                    "language": "bash",
+                    "sourceCode": "exit 99"
+                }
+            }
+        }
+    },
+    {
+        "eventType": "FAIL",
+        "job": {
+            "name": "openlineage_policy_exclude_datasets_versioned_dag.t_skipped_full_info"
+        },
+        "$absent": "the task was skipped"
+    }
+]

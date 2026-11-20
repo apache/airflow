@@ -20,6 +20,7 @@ import ast
 import difflib
 import itertools
 import json
+import math
 import os
 import re
 import sys
@@ -34,6 +35,7 @@ from typing import Any, TypeVar
 from airflow_breeze.branch_defaults import AIRFLOW_BRANCH, DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
 from airflow_breeze.global_constants import (
     ALL_PYTHON_MAJOR_MINOR_VERSIONS,
+    ALL_TEST_TYPE,
     APACHE_AIRFLOW_GITHUB_REPOSITORY,
     CI_AMD_PLATFORM,
     CI_ARM_PLATFORM,
@@ -51,8 +53,11 @@ from airflow_breeze.global_constants import (
     HELM_VERSION,
     JAVA_SDK_VERSION,
     KIND_VERSION,
+    LOW_DEP_TEST_TYPES_PER_JOB_ON_RUNS_ON,
     NUMBER_OF_CORE_SLICES,
+    NUMBER_OF_CORE_SLICES_ON_RUNS_ON,
     NUMBER_OF_LOW_DEP_SLICES,
+    PROVIDER_TEST_SPLITS,
     PROVIDERS_COMPATIBILITY_TESTS_MATRIX,
     PUBLIC_AMD_RUNNERS,
     PUBLIC_ARM_RUNNERS,
@@ -72,12 +77,14 @@ from airflow_breeze.global_constants import (
     all_helm_test_packages,
     all_selective_core_test_types,
     get_airflow_version,
+    get_provider_split_test_types,
     providers_test_type,
 )
 from airflow_breeze.utils.console import console_print, get_console
 from airflow_breeze.utils.exclude_from_matrix import excluded_combos
 from airflow_breeze.utils.fork_compare import get_upstream_file
 from airflow_breeze.utils.functools_cache import clearable_cache
+from airflow_breeze.utils.import_graph import find_reachable_providers
 from airflow_breeze.utils.kubernetes_utils import get_kubernetes_python_combos
 from airflow_breeze.utils.packages import get_available_distributions, get_suspended_provider_ids
 from airflow_breeze.utils.path_utils import (
@@ -95,6 +102,7 @@ DEFAULT_VERSIONS_ONLY_LABEL = "default versions only"
 DISABLE_IMAGE_CACHE_LABEL = "disable image cache"
 FORCE_PIP_LABEL = "force pip"
 FULL_TESTS_NEEDED_LABEL = "full tests needed"
+IMPORT_GRAPH_NARROWING_LABEL = "import graph narrowing"
 INCLUDE_SUCCESS_OUTPUTS_LABEL = "include success outputs"
 LATEST_VERSIONS_ONLY_LABEL = "latest versions only"
 NON_COMMITTER_BUILD_LABEL = "non committer build"
@@ -147,9 +155,11 @@ class FileGroupForCi(Enum):
     TASK_SDK_INTEGRATION_TEST_FILES = auto()
     AGENT_FRAMEWORK_FILES = auto()
     GO_SDK_FILES = auto()
+    GO_SDK_CONFORMANCE_FILES = auto()
     JAVA_SDK_FILES = auto()
     JAVA_SDK_CONFORMANCE_FILES = auto()
     TS_SDK_FILES = auto()
+    TS_SDK_CONFORMANCE_FILES = auto()
     TS_SDK_DOCS_FILES = auto()
     AIRFLOW_CTL_FILES = auto()
     AIRFLOW_CTL_INTEGRATION_TEST_FILES = auto()
@@ -164,6 +174,8 @@ class FileGroupForCi(Enum):
     OPENLINEAGE_E2E_FILES = auto()
     OPENLINEAGE_E2E_COMPAT_FILES = auto()
     TS_SDK_E2E_FILES = auto()
+    YAML_DAG_E2E_FILES = auto()
+    LANG_SDK_XCOM_E2E_FILES = auto()
     ALL_PYPROJECT_TOML_FILES = auto()
     ALL_PYTHON_FILES = auto()
     ALL_SOURCE_FILES = auto()
@@ -186,9 +198,15 @@ class FileGroupForCi(Enum):
     SCRIPTS_FILES = auto()
     UV_LOCK_FILE = auto()
     PREK_FILES = auto()
+    OS_DEPENDENCIES_FILES = auto()
     KERBEROS_FILES = auto()
     OTEL_FILES = auto()
     CELERY_FILES = auto()
+    IMAGE_BUILD_FILES = auto()
+    DOCS_PUBLISH_FILES = auto()
+    SHARED_DISTRIBUTION_FILES = auto()
+    UI_I18N_FILES = auto()
+    COMPAT_TESTS_HIDDEN_FILES = auto()
 
 
 class AllProvidersSentinel:
@@ -217,6 +235,23 @@ LANG_SDK_NATIVE_DAG_PARSING_FILES = (
     r"^task-sdk/src/airflow/sdk/importers/.*",
 )
 
+# What every language SDK's serialization conformance check compares the SDK against: Airflow's
+# serializer and schema, and the shared harness. They do not force full_tests_needed, so each SDK's
+# conformance group lists them next to the SDK's own files.
+LANG_SDK_CONFORMANCE_SHARED_FILES = (
+    r"^airflow-core/src/airflow/serialization/serialized_objects\.py$",
+    r"^airflow-core/src/airflow/serialization/schema\.json$",
+    r"^scripts/ci/lang_sdk_serialization/.*",
+)
+
+# Where Breeze reads the version of each distribution: its tests and the published-docs version check.
+VERSION_FILES = (
+    r"^airflow-core/src/airflow/__init__\.py$",
+    r"^task-sdk/src/airflow/sdk/__init__\.py$",
+    r"^airflow-ctl/src/airflowctl/__init__\.py$",
+    r"^chart/Chart\.yaml$",
+)
+
 CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
     {
         FileGroupForCi.ENVIRONMENT_FILES: [
@@ -227,7 +262,8 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
             r"^\.github/workflows/(?!("
             r"asf-allowlist-check|automatic-backport|backport-cli|ci-duration-monitor|ci-notification|"
             r"codeql-analysis|e2e-flaky-tests-report|milestone-tag-assistant|notify-uv-lock-conflicts|"
-            r"publish-docs-to-s3|recheck-old-bug-report|scheduled-verify-release-calendar|stale"
+            r"publish-docs-to-s3|recheck-old-bug-report|scheduled-verify-improvement-proposals-wiki|"
+            r"scheduled-verify-release-calendar|stale"
             r")\.yml$)",
             r"^dev/breeze/src",
             r"^dev/breeze/pyproject\.toml",
@@ -324,6 +360,28 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
             r"^task-sdk/src/airflow/sdk/coordinators/_subprocess\.py$",
             r"^task-sdk/src/airflow/sdk/coordinators/node/.*",
             *LANG_SDK_NATIVE_DAG_PARSING_FILES,
+        ],
+        FileGroupForCi.YAML_DAG_E2E_FILES: [
+            r"^airflow-e2e-tests/tests/airflow_e2e_tests/yaml_dag_tests/.*",
+            r"^airflow-e2e-tests/yaml-dags/.*",
+            r"^airflow-e2e-tests/docker/yaml-dag\.yml$",
+            # The mode runs the Dag's one code task on the Go example bundle, so the handler
+            # it registers counts, but the rest of the Go SDK is the go_sdk mode's business.
+            r"^go-sdk/example/bundle/yamldag/.*",
+            r"^go-sdk/example/bundle/main\.go$",
+            r"^task-sdk/src/airflow/sdk/coordinators/_subprocess\.py$",
+            r"^task-sdk/src/airflow/sdk/coordinators/executable/.*",
+            *LANG_SDK_NATIVE_DAG_PARSING_FILES,
+        ],
+        FileGroupForCi.LANG_SDK_XCOM_E2E_FILES: [
+            # The coordinator-side backend, the base XCom class it calls, the object storage backend,
+            # and the mode's own compose override and tests. The language SDKs themselves are the
+            # business of their own e2e modes.
+            r"^task-sdk/src/airflow/sdk/coordinators/_xcom_backend\.py$",
+            r"^task-sdk/src/airflow/sdk/bases/xcom\.py$",
+            r"^providers/common/io/src/airflow/providers/common/io/xcom/.*",
+            r"^airflow-e2e-tests/docker/lang-sdk-xcom-object-storage\.yml$",
+            r"^airflow-e2e-tests/tests/airflow_e2e_tests/lang_sdk_xcom_object_storage_tests/.*",
         ],
         FileGroupForCi.PYTHON_PRODUCTION_FILES: [
             # Production Python source the runtime ships — excludes tests, docs,
@@ -538,6 +596,12 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
             # everything else (go.mod, go.sum, build config) must trigger the unit tests.
             r"^go-sdk/(?!.*\.md$).*",
         ],
+        FileGroupForCi.GO_SDK_CONFORMANCE_FILES: [
+            # The Go SDK, plus what its serialization conformance check compares it against:
+            # Airflow's serializer and schema, and the shared harness.
+            r"^go-sdk/(?!.*\.md$).*",
+            *LANG_SDK_CONFORMANCE_SHARED_FILES,
+        ],
         FileGroupForCi.JAVA_SDK_FILES: [
             # `.md` excluded — doc-only edits do not affect the Gradle build.
             r"^java-sdk/(?!.*\.md$).*",
@@ -546,9 +610,7 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
             # The Java SDK, plus what its serialization conformance check compares it against:
             # Airflow's serializer and schema, and the shared harness.
             r"^java-sdk/(?!.*\.md$).*",
-            r"^airflow-core/src/airflow/serialization/serialized_objects\.py$",
-            r"^airflow-core/src/airflow/serialization/schema\.json$",
-            r"^scripts/ci/lang_sdk_serialization/.*",
+            *LANG_SDK_CONFORMANCE_SHARED_FILES,
         ],
         FileGroupForCi.TS_SDK_DOCS_FILES: [
             # TypeDoc renders the reference from the SDK sources and category entry points,
@@ -567,6 +629,12 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
             # supervisor schema or the unit tests. `ts-sdk/docs/` is excluded too — it is the
             # docs toolchain's own package, with its own tests that vitest does not run.
             r"^ts-sdk/(?!api-docs/)(?!docs/)(?!.*\.md$).*",
+        ],
+        FileGroupForCi.TS_SDK_CONFORMANCE_FILES: [
+            # The TS SDK, plus what its serialization conformance check compares it against:
+            # Airflow's serializer and schema, and the shared harness.
+            r"^ts-sdk/(?!api-docs/)(?!docs/)(?!.*\.md$).*",
+            *LANG_SDK_CONFORMANCE_SHARED_FILES,
         ],
         FileGroupForCi.ASSET_FILES: [
             r"^airflow-core/src/airflow/assets/",
@@ -600,6 +668,13 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
         FileGroupForCi.PREK_FILES: [
             r"^scripts/ci/prek",
         ],
+        # The inputs install_os_dependencies.sh hashes into its marker, apart from the build args.
+        FileGroupForCi.OS_DEPENDENCIES_FILES: [
+            r"^scripts/docker/install_os_dependencies\.sh$",
+            r"^scripts/docker/common\.sh$",
+            r"^scripts/docker/install_(mysql|mssql|postgres)\.sh$",
+            r"^scripts/docker/keys/",
+        ],
         FileGroupForCi.UV_LOCK_FILE: [
             r"^uv\.lock$",
         ],
@@ -619,6 +694,58 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
             # Core executor sources - redis is celery's broker/result backend, so the
             # core "redis" integration is exercised when the executor framework changes.
             r"^airflow-core/src/airflow/executors/.*",
+        ],
+        # The CI image is built from these before the sources are copied in; any other change reuses the
+        # cached layers, so the build-time check has nothing new to measure. Breeze's FILES_FOR_REBUILD_CHECK
+        # are these or ENVIRONMENT_FILES. The build first regenerates the provider dependencies with the
+        # prek script, which is not an ENVIRONMENT_FILES match.
+        FileGroupForCi.IMAGE_BUILD_FILES: [
+            r"^scripts/ci/prek/(common_prek_utils|update_providers_dependencies)\.py$",
+            r"^Dockerfile",
+            r"^\.dockerignore$",
+            r"^scripts/docker/",
+            r".*hatch_build\.py$",
+            r"^generated/",
+            r"^uv\.lock$",
+            r".*pyproject\.toml$",
+        ],
+        # What publishing the built docs and validating their versions depends on. A docstring change
+        # rebuilds the docs but cannot change what is published.
+        FileGroupForCi.DOCS_PUBLISH_FILES: [
+            r"^docs/",
+            r"^.*/docs/",
+            r"^providers-summary-docs/",
+            r"^docker-stack-docs/",
+            r".*/provider\.yaml$",
+            r".*/changelog\.rst$",
+            r"^RELEASE_NOTES\.rst$",
+            r"^chart/RELEASE_NOTES\.rst$",
+            r".*pyproject\.toml$",
+            r"^devel-common/src/sphinx_exts/",
+            *VERSION_FILES,
+        ],
+        # The shared distributions' tests install devel-common as their test dependency, and with it the
+        # local apache-airflow-mypy distribution in dev/mypy.
+        FileGroupForCi.SHARED_DISTRIBUTION_FILES: [
+            r"^shared/",
+            r"^devel-common/",
+            r"^dev/mypy/",
+            r"^pyproject\.toml$",
+            r"^uv\.lock$",
+        ],
+        FileGroupForCi.UI_I18N_FILES: [
+            r"^airflow-core/src/airflow/ui/public/i18n/",
+        ],
+        # The provider compatibility tests install the released Airflow and Task SDK from PyPI and run with
+        # the two source trees hidden (scripts/ci/docker-compose/remove-sources.yml). They do not collect the
+        # Task SDK tests or read these docs. On the host, Breeze reads the version files and non-Python files
+        # of the source trees, and prek reads any nested config, so the docs match by document type only.
+        FileGroupForCi.COMPAT_TESTS_HIDDEN_FILES: [
+            r"^airflow-core/src/(?!airflow/__init__\.py$).*\.py$",
+            r"^task-sdk/src/(?!airflow/sdk/__init__\.py$).*\.py$",
+            r"^task-sdk/tests/.*\.py$",
+            r"^(airflow-core|task-sdk)/docs/.*\.(rst|md|txt|png|gif|svg|jpe?g|puml|md5sum|csv)$",
+            r"^airflow-core/newsfragments/[^/]+\.rst$",
         ],
     }
 )
@@ -877,11 +1004,13 @@ def _get_test_type_description(provider_test_types: list[str]) -> str:
         first_provider = first_provider.replace("Providers[", "").replace("]", "")
     if last_provider.startswith("Providers["):
         last_provider = last_provider.replace("Providers[", "").replace("]", "")
-    return (
+    description = (
         f"{first_provider[:13]}...{last_provider[:13]}"
         if first_provider != last_provider
         else (first_provider[:29])
     )
+    # The description ends up in artifact names (via JOB_ID), which must not contain ":".
+    return description.replace(":", "-")
 
 
 def _get_test_list_as_json(list_of_list_of_types: list[list[str]]) -> list[dict[str, str]] | None:
@@ -1090,6 +1219,21 @@ class SelectiveChecks:
 
     def _get_previous_file_content(self, path: str) -> str | None:
         if self._fork_merge_base:
+            commit_check = run_command(
+                ["git", "cat-file", "-e", f"{self._fork_merge_base}^{{commit}}"],
+                capture_output=True,
+                cwd=AIRFLOW_ROOT_PATH,
+                check=False,
+            )
+            if commit_check.returncode == 0:
+                result = run_command(
+                    ["git", "show", f"{self._fork_merge_base}:{path}"],
+                    capture_output=True,
+                    text=True,
+                    cwd=AIRFLOW_ROOT_PATH,
+                    check=False,
+                )
+                return result.stdout if result.returncode == 0 else None
             return get_upstream_file(path=path, ref=self._fork_merge_base)
         result = run_command(
             ["git", "show", f"{self._commit_ref}^:{path}"],
@@ -1441,6 +1585,16 @@ class SelectiveChecks:
 
     @cached_property
     @_scoped_to_component_branch
+    def run_yaml_dag_e2e_tests(self) -> bool:
+        return self._should_be_run(FileGroupForCi.YAML_DAG_E2E_FILES)
+
+    @cached_property
+    @_scoped_to_component_branch
+    def run_lang_sdk_xcom_e2e_tests(self) -> bool:
+        return self._should_be_run(FileGroupForCi.LANG_SDK_XCOM_E2E_FILES)
+
+    @cached_property
+    @_scoped_to_component_branch
     def run_openlineage_e2e_tests(self) -> bool:
         return self._should_be_run(FileGroupForCi.OPENLINEAGE_E2E_FILES)
 
@@ -1509,6 +1663,19 @@ class SelectiveChecks:
     @_scoped_to_component_branch
     def run_ts_sdk_docs(self) -> bool:
         return self._should_be_run(FileGroupForCi.TS_SDK_DOCS_FILES)
+
+    @cached_property
+    def lang_sdk_conformance_sdks(self) -> str:
+        """JSON list of the language SDKs whose serialization conformance check runs, as the matrix of its job."""
+        # No component branch runs it, as for the outputs scoped with _scoped_to_component_branch.
+        if self._component_branch is not None:
+            return json.dumps([])
+        groups = {
+            "go": FileGroupForCi.GO_SDK_CONFORMANCE_FILES,
+            "java": FileGroupForCi.JAVA_SDK_CONFORMANCE_FILES,
+            "ts": FileGroupForCi.TS_SDK_CONFORMANCE_FILES,
+        }
+        return json.dumps([sdk for sdk, group in groups.items() if self._should_be_run(group)])
 
     @cached_property
     @_scoped_to_component_branch
@@ -1623,9 +1790,26 @@ class SelectiveChecks:
     @cached_property
     @_scoped_to_component_branch
     def run_generic_basic_tests(self) -> bool:
-        """The basic tests of Airflow itself that run for every change: the standalone Airflow and the
-        shared distributions."""
+        """The standalone Airflow test, which runs for every change."""
         return True
+
+    @cached_property
+    @_scoped_to_component_branch
+    def run_shared_distributions_tests(self) -> bool:
+        return self._should_be_run(FileGroupForCi.SHARED_DISTRIBUTION_FILES)
+
+    @cached_property
+    @_scoped_to_component_branch
+    def run_translation_check(self) -> bool:
+        return self._should_be_run(FileGroupForCi.UI_I18N_FILES)
+
+    @cached_property
+    def run_image_build_time_check(self) -> bool:
+        return self.ci_image_build and self._should_be_run(FileGroupForCi.IMAGE_BUILD_FILES)
+
+    @cached_property
+    def run_docs_publish(self) -> bool:
+        return self.docs_build and self._should_be_run(FileGroupForCi.DOCS_PUBLISH_FILES)
 
     @cached_property
     @_scoped_to_component_branch
@@ -1658,6 +1842,8 @@ class SelectiveChecks:
             or self.run_openlineage_e2e_tests
             or self.run_openlineage_e2e_compat_tests
             or self.run_ts_sdk_e2e_tests
+            or self.run_yaml_dag_e2e_tests
+            or self.run_lang_sdk_xcom_e2e_tests
             or self.run_ui_e2e_tests
         )
 
@@ -1782,11 +1968,13 @@ class SelectiveChecks:
                 candidate_test_types.add("Providers")
         elif affected_providers:
             suspended = set(get_suspended_provider_ids())
-            providers_to_test = [p for p in affected_providers if p not in suspended]
+            providers_to_test = self._narrow_providers_by_import_graph(
+                [p for p in affected_providers if p not in suspended]
+            )
             if split_to_individual_providers:
                 for provider in providers_to_test:
                     candidate_test_types.add(f"Providers[{provider}]")
-            else:
+            elif providers_to_test:
                 providers_to_test = self._add_providers_sharing_test_process_state(
                     providers_to_test, changed_providers=self._find_changed_providers(), suspended=suspended
                 )
@@ -1795,6 +1983,33 @@ class SelectiveChecks:
         console_print("[warning]Selected providers test type candidates to run:[/]")
         console_print(sorted_candidate_test_types)
         return sorted_candidate_test_types
+
+    @cached_property
+    def _import_graph_narrowing_enabled(self) -> bool:
+        # Pushes to main stay coarse, so what a narrowed PR misses still fails before the next canary.
+        return self._is_pull_request_like() and (
+            IMPORT_GRAPH_NARROWING_LABEL in self._pr_labels
+            or os.environ.get("IMPORT_GRAPH_NARROWING", "").casefold() == "true"
+        )
+
+    def _narrow_providers_by_import_graph(self, providers: list[str]) -> list[str]:
+        """
+        Drop the upstream and downstream providers whose tests cannot import any changed file.
+
+        Off by default: the providers the import graph would drop are only printed (shadow mode), so
+        the gap can be measured from the build-info logs before the label or variable turns it on.
+        """
+        changed = self._find_changed_providers()
+        reachable = find_reachable_providers(AIRFLOW_ROOT_PATH, self._files, set(providers) - changed)
+        if reachable is None:
+            console_print("[info]Import graph narrowing: a changed file can be imported dynamically.[/]")
+            return providers
+        dropped = sorted(p for p in providers if p not in changed and p not in reachable)
+        if not self._import_graph_narrowing_enabled:
+            console_print(f"[info]Import graph narrowing (shadow mode) would drop providers: {dropped}[/]")
+            return providers
+        console_print(f"[info]Import graph narrowing dropped providers: {dropped}[/]")
+        return [p for p in providers if p not in dropped]
 
     def _find_changed_providers(self) -> set[str]:
         """Providers whose own files changed, without their upstream and downstream dependents."""
@@ -1870,9 +2085,10 @@ class SelectiveChecks:
         if not self.run_unit_tests:
             return None
         current_test_types = sorted(set(self._get_core_test_types_to_run()))
-        if len(current_test_types) <= NUMBER_OF_CORE_SLICES:
+        number_of_slices = NUMBER_OF_CORE_SLICES_ON_RUNS_ON if self._is_on_runs_on else NUMBER_OF_CORE_SLICES
+        if len(current_test_types) <= number_of_slices:
             return json.dumps(_get_test_list_as_json([current_test_types]))
-        list_of_list_of_types = _split_list(current_test_types, NUMBER_OF_CORE_SLICES)
+        list_of_list_of_types = _split_list(current_test_types, number_of_slices)
         return json.dumps(_get_test_list_as_json(list_of_list_of_types))
 
     @cached_property
@@ -1922,10 +2138,7 @@ class SelectiveChecks:
             if kept:
                 current_test_types.add(f"Providers[{','.join(kept)}]")
 
-    @cached_property
-    def providers_test_types_list_as_strings_in_json(self) -> str:
-        if not self.run_unit_tests:
-            return "[]"
+    def _get_providers_test_types_for_branch(self) -> set[str]:
         current_test_types = set(self._get_providers_test_types_to_run())
         if self._default_branch != "main":
             test_types_to_remove: set[str] = set()
@@ -1937,7 +2150,41 @@ class SelectiveChecks:
                     )
                     test_types_to_remove.add(test_type)
             current_test_types = current_test_types - test_types_to_remove
+        return current_test_types
+
+    @cached_property
+    def providers_test_types_list_as_strings_in_json(self) -> str:
+        if not self.run_unit_tests:
+            return "[]"
+        current_test_types = self._get_providers_test_types_for_branch()
         self._extract_long_provider_tests(current_test_types)
+        self._filter_platform_excluded_test_types(current_test_types)
+        return json.dumps(_get_test_list_as_json([sorted(current_test_types)]))
+
+    @cached_property
+    def providers_split_test_types_list_as_strings_in_json(self) -> str:
+        """Provider test types for the jobs running them in parallel in the CI image.
+
+        On RunsOn every provider (and every part of a split provider) is a test type of its own, in one
+        job: one serial pytest per provider keeps the 32 CPUs of the runner busy, where grouped providers
+        would leave the job waiting on the large "all other providers" group. The compatibility tests keep
+        the grouped list, as each of their test types installs an Airflow version first.
+        """
+        if not self.run_unit_tests:
+            return "[]"
+        if self._is_on_runs_on and self._get_providers_test_types_for_branch():
+            return json.dumps(_get_test_list_as_json([sorted(self._get_individual_providers_list())]))
+        return self.providers_test_types_list_as_strings_in_json
+
+    @cached_property
+    def providers_xdist_test_types_list_as_strings_in_json(self) -> str:
+        """Provider test types for the xdist jobs, which run them all in one pytest, so none is split out."""
+        if not self.run_unit_tests:
+            return "[]"
+        current_test_types = self._get_providers_test_types_for_branch()
+        if "Providers" in current_test_types and self._platform_excluded_providers:
+            current_test_types.remove("Providers")
+            current_test_types.add(f"Providers[-{','.join(sorted(self._platform_excluded_providers))}]")
         self._filter_platform_excluded_test_types(current_test_types)
         return json.dumps(_get_test_list_as_json([sorted(current_test_types)]))
 
@@ -1949,6 +2196,12 @@ class SelectiveChecks:
                 {f"Providers[{provider}]" for provider in get_available_distributions(include_not_ready=True)}
             )
         self._filter_platform_excluded_test_types(current_test_types)
+        if not self._is_on_runs_on:
+            return current_test_types
+        for provider_id in PROVIDER_TEST_SPLITS:
+            if f"Providers[{provider_id}]" in current_test_types:
+                current_test_types.remove(f"Providers[{provider_id}]")
+                current_test_types.update(get_provider_split_test_types(provider_id))
         return current_test_types
 
     @cached_property
@@ -1959,11 +2212,14 @@ class SelectiveChecks:
         current_test_types = sorted(self._get_individual_providers_list())
         if not current_test_types:
             return None
-        # We are hard-coding the number of lists as reasonable starting point to split the
-        # list of test types - and we can modify it in the future
-        if len(current_test_types) < NUMBER_OF_LOW_DEP_SLICES:
+        number_of_slices = (
+            math.ceil(len(current_test_types) / LOW_DEP_TEST_TYPES_PER_JOB_ON_RUNS_ON)
+            if self._is_on_runs_on
+            else NUMBER_OF_LOW_DEP_SLICES
+        )
+        if len(current_test_types) < number_of_slices:
             return json.dumps(_get_test_list_as_json([current_test_types]))
-        list_of_list_of_types = _split_list(current_test_types, NUMBER_OF_LOW_DEP_SLICES)
+        list_of_list_of_types = _split_list(current_test_types, number_of_slices)
         return json.dumps(_get_test_list_as_json(list_of_list_of_types))
 
     @cached_property
@@ -2052,6 +2308,24 @@ class SelectiveChecks:
         return False
 
     @cached_property
+    def generate_pypi_constraints(self) -> bool:
+        # Without a dependency or tooling change this resolution only reports on the state of PyPI,
+        # which the canary runs cover. Their dependency report and `update-constraints` read its output.
+        if not self.ci_image_build:
+            return False
+        return (
+            self.upgrade_to_newer_dependencies
+            or self.is_uv_lock_update
+            or self.full_tests_needed
+            or self._is_canary_run()
+        )
+
+    @cached_property
+    def generate_constraints(self) -> bool:
+        # The PROD image build reads the source-providers constraints the job always generates.
+        return self.generate_pypi_constraints or self.prod_image_build
+
+    @cached_property
     def docs_list_as_string(self) -> str | None:
         _ALL_DOCS_LIST = ""
         if not self.docs_build:
@@ -2073,7 +2347,15 @@ class SelectiveChecks:
         ):
             return _ALL_DOCS_LIST
         packages = []
-        if any(file.startswith(("airflow-core/src/airflow/", "airflow-core/docs/")) for file in self._files):
+        # Core and Task SDK release together, so either side's docs may link to a page in the
+        # other that is not published yet. Building both resolves those links locally.
+        core_or_task_sdk_changed = any(
+            file.startswith(
+                ("airflow-core/src/airflow/", "airflow-core/docs/", "task-sdk/src/", "task-sdk/docs/")
+            )
+            for file in self._files
+        )
+        if core_or_task_sdk_changed:
             packages.append("apache-airflow")
         if any(file.startswith("providers-summary-docs/") for file in self._files):
             packages.append("apache-airflow-providers")
@@ -2081,7 +2363,7 @@ class SelectiveChecks:
             packages.append("helm-chart")
         if any(file.startswith("docker-stack-docs") for file in self._files):
             packages.append("docker-stack")
-        if any(file.startswith("task-sdk/src/") for file in self._files):
+        if core_or_task_sdk_changed:
             packages.append("task-sdk")
         if any(file.startswith("airflow-ctl/") for file in self._files):
             packages.append("apache-airflow-ctl")
@@ -2144,14 +2426,10 @@ class SelectiveChecks:
             # depend on that resolution.
             prek_hooks_to_skip.add("regenerate-java-sdk-verification-metadata")
         if not self._matching_files(FileGroupForCi.JAVA_SDK_CONFORMANCE_FILES, CI_FILE_GROUP_MATCHES):
-            # This hook compiles the Java SDK with Gradle and resolves its dependencies from Maven
-            # Central. Skip it unless a java-sdk file, Airflow's serializer or schema, or the shared
-            # harness changed. Those last do not force full_tests_needed, so they need their own group.
-            prek_hooks_to_skip.add("check-java-sdk-serialization-conformance")
-            # sync-java-sdk-dag-schema runs the Gradle wrapper too. This hook is skipped together
-            # with the conformance check, not with ktlint, because JAVA_SDK_CONFORMANCE_FILES
-            # includes airflow-core's schema.json. A PR that changes only schema.json can leave
-            # the Java SDK's copy of the schema out of date, and this hook detects the outdated copy.
+            # sync-java-sdk-dag-schema runs the Gradle wrapper too. This hook is skipped with
+            # JAVA_SDK_CONFORMANCE_FILES, not with ktlint, because that group includes airflow-core's
+            # schema.json. A PR that changes only schema.json can leave the Java SDK's copy of the
+            # schema out of date, and this hook detects the outdated copy.
             prek_hooks_to_skip.add("sync-java-sdk-dag-schema")
         if not self._matching_files(FileGroupForCi.TS_SDK_FILES, CI_FILE_GROUP_MATCHES):
             # This hook regenerates ts-sdk/src/generated/supervisor.ts from the vendored schema
@@ -2246,7 +2524,21 @@ class SelectiveChecks:
         return self.docker_cache == "disabled"
 
     @cached_property
+    def use_pinned_os_deps_images(self) -> bool:
+        # Only the label - not the DOCKER_CACHE=disabled retry of a failed image build - asks for the OS
+        # dependencies to be installed from scratch rather than taken from the pinned images.
+        if DISABLE_IMAGE_CACHE_LABEL in self._pr_labels:
+            return False
+        # Reinstalling on top of a pinned image exercises additions only: a package or client the change
+        # drops stays installed from the pinned layer, so the change is tested from the base image.
+        return not self._matching_files(FileGroupForCi.OS_DEPENDENCIES_FILES, CI_FILE_GROUP_MATCHES)
+
+    @cached_property
     def helm_test_packages(self) -> str:
+        # A Helm test package takes about a minute under xdist on a RunsOn runner, against two to three
+        # minutes of preparing the image, so RunsOn runs all of them in one job.
+        if self._is_on_runs_on:
+            return json.dumps([ALL_TEST_TYPE])
         return json.dumps(all_helm_test_packages())
 
     @cached_property
@@ -2322,16 +2614,17 @@ class SelectiveChecks:
         return json.dumps([template.format(run_id=run_id)])
 
     @cached_property
+    def _is_on_runs_on(self) -> bool:
+        # Reuses the routing decision of runner_type, which may have asked the GitHub API.
+        return self.runner_type not in (PUBLIC_AMD_RUNNERS, PUBLIC_ARM_RUNNERS)
+
+    @cached_property
     def in_memory_runner_type(self) -> str:
         """Runner labels like ``runner_type``, with docker on a RAM disk when the run is on RunsOn.
 
         The repository variable ``USE_IN_MEMORY_DOCKER=false`` keeps docker on disk.
         """
-        # Reuses the routing decision of runner_type, which may have asked the GitHub API.
-        if (
-            self.runner_type in (PUBLIC_AMD_RUNNERS, PUBLIC_ARM_RUNNERS)
-            or os.environ.get("USE_IN_MEMORY_DOCKER", "").casefold() == "false"
-        ):
+        if not self._is_on_runs_on or os.environ.get("USE_IN_MEMORY_DOCKER", "").casefold() == "false":
             return self.runner_type
         template = (
             RUNS_ON_ARM_IN_MEMORY_RUNNER_TEMPLATE
@@ -2447,6 +2740,24 @@ class SelectiveChecks:
     @_scoped_to_component_branch
     def has_migrations(self) -> bool:
         return any([file.startswith("airflow-core/src/airflow/migrations/") for file in self._files])
+
+    @cached_property
+    @_scoped_to_component_branch
+    def run_providers_compatibility_tests(self) -> bool:
+        """False when every changed file is hidden from the provider compatibility tests.
+
+        A Task SDK change selects all providers, but the compatibility tests run them against released
+        Airflow and Task SDK distributions, so the result cannot differ from the last canary run.
+        """
+        if self.full_tests_needed or self.upgrade_to_newer_dependencies:
+            return True
+        hidden_files = self._matching_files(FileGroupForCi.COMPAT_TESTS_HIDDEN_FILES, CI_FILE_GROUP_MATCHES)
+        if self._files and set(hidden_files) == set(self._files):
+            console_print(
+                "[warning]Provider compatibility tests skipped: every changed file is hidden from them[/]"
+            )
+            return False
+        return True
 
     @cached_property
     def providers_compatibility_tests_matrix(self) -> str:

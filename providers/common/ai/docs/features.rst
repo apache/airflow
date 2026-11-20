@@ -58,7 +58,7 @@ Run a model or an agent
      - Compares table schemas across databases and files and grades each mismatch.
      - ``common.sql``; for files, ``apache-airflow-providers-common-sql[datafusion]``
    * - :doc:`@task.llm_batch <operators/llm_batch>`
-     - Sends many prompts through the OpenAI or Anthropic batch API at about half the
+     - Sends many prompts through the OpenAI, Anthropic or Gemini batch API at about half the
        per-token price.
      - None
    * - :doc:`Document and RAG pipelines <rag_pipelines>`
@@ -87,8 +87,7 @@ Choose a model
      - Uses a model that cannot write text, such as TypeSafe's hosted Jev or Ollama's
        decision models, to answer a typed question with one value from a set you
        define, plus a confidence.
-     - Jev: ``typesafe``, and install ``pydantic-ai-slim`` 2.45+; others: install
-       ``pydantic-ai-slim`` 2.53+
+     - Jev: ``typesafe``; others: install ``pydantic-ai-slim`` 2.53+
    * - :doc:`LlamaIndex models <hooks/llamaindex>`
      - Builds LlamaIndex language and embedding models from a connection.
      - ``llamaindex``, and install the vendor's package for vendors other than OpenAI
@@ -247,8 +246,8 @@ Recover from failures
 Bring your own agent
 --------------------
 
-The Strands, ADK, Anthropic SDK, OpenAI Agents SDK, Claude Agent SDK and other-framework
-routes get every toolset except
+The Strands, ADK, Anthropic SDK, OpenAI Agents SDK, Claude Agent SDK, OpenAI Codex SDK and
+other-framework routes get every toolset except
 ``MCPToolset`` and ``AgentSkillsToolset``.
 
 .. list-table::
@@ -279,6 +278,10 @@ routes get every toolset except
      - Gives the Claude Agent SDK's agent loop the toolsets through an in-process MCP
        server.
      - ``claude-agent-sdk``
+   * - :doc:`OpenAI Codex SDK <frameworks/openai_codex>`
+     - Gives the OpenAI Codex SDK's agent loop the toolsets through an MCP server on
+       ``127.0.0.1``.
+     - ``openai-codex``
    * - :doc:`LangChain <hooks/langchain>`
      - Builds LangChain chat and embedding models from a connection, and
        :doc:`turns a toolset into LangChain tools <toolsets/langchain>`.
@@ -302,8 +305,8 @@ See what ran
      - Exports model and tool calls as OpenTelemetry spans.
      - None
    * - :ref:`AI Model tab <howto/observability:model-tab>`
-     - Shows the model on the task instance page of ``@task.llm`` and ``@task.agent``
-       tasks, and their token counts and an estimated cost.
+     - Shows the model on the task instance page of ``@task.agent`` and every ``@task.llm*``
+       task except ``@task.llm_batch``, and their token counts and an estimated cost.
      - None
 
 .. toctree::

@@ -22,6 +22,7 @@
     },
     "favoriteState": "最愛狀態",
     "favoriteStatePlaceholder": "選擇最愛狀態…",
+    "hasImportErrors": "有匯入錯誤",
     "noTimetableTypesFound": "找不到排程規則類型",
     "paused": {
       "active": "啟用中",

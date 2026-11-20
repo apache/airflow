@@ -944,9 +944,16 @@ class TestAwsAuthManager:
 
         assert auth_manager.filter_authorized_assets(assets=[], user=test_user, method="GET") == set()
 
-    def test_get_url_login(self, auth_manager):
-        result = auth_manager.get_url_login()
-        assert result == f"{AUTH_MANAGER_FASTAPI_APP_PREFIX}/login"
+    @pytest.mark.parametrize(
+        ("kwargs", "expected"),
+        [
+            ({}, f"{AUTH_MANAGER_FASTAPI_APP_PREFIX}/login"),
+            ({"next_url": "/dags/my_dag"}, f"{AUTH_MANAGER_FASTAPI_APP_PREFIX}/login?next=%2Fdags%2Fmy_dag"),
+        ],
+    )
+    def test_get_url_login(self, auth_manager, kwargs, expected):
+        result = auth_manager.get_url_login(**kwargs)
+        assert result == expected
 
     def test_get_cli_commands_return_cli_commands(self, auth_manager):
         assert len(auth_manager.get_cli_commands()) > 0

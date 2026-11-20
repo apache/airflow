@@ -22,6 +22,11 @@ inputs:
   python-version:
     description: 'Python version to use'
     default: "3.11"
+  free-space:
+    description: >-
+      Whether to free disk space on the runner. It needs swap control and docker, which the ubuntu-slim
+      container runner does not have, so jobs on ubuntu-slim pass "false".
+    default: "true"
 outputs:
   host-python-version:
     description: Python version used in host
@@ -55,6 +60,7 @@ runs:
       env:
         PYTHON_VERSION: "${{ inputs.python-version }}"
     - name: "Free space"
+      if: inputs.free-space == 'true'
       shell: bash
       run: breeze ci free-space
       env:

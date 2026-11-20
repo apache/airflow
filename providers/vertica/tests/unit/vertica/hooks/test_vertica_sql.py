@@ -23,7 +23,10 @@ from unittest import mock
 from unittest.mock import MagicMock, PropertyMock, patch
 
 import pytest
-from sqlalchemy.engine import Engine
+import vertica_python
+from sqlalchemy.dialects import registry
+from sqlalchemy.engine import make_url
+from sqlalchemy.engine.default import DefaultDialect
 
 from airflow.models import Connection
 from airflow.providers.common.compat.sdk import AirflowException
@@ -77,13 +80,15 @@ def mock_cursor(mock_get_conn):
     cursor.fetchall.return_value = [("1", "row1")]
     cursor.description = get_cursor_descriptions(["id", "value"])
     cursor.nextset.side_effect = [False]
+    # The hook drains each result set with fetchone() until it returns None.
+    cursor.fetchone.return_value = None
     mock_get_conn.return_value.cursor.return_value = cursor
     return cursor
 
 
 def test_sqlalchemy_url_property(vertica_hook):
     url = vertica_hook.sqlalchemy_url.render_as_string(hide_password=False)
-    expected_url = f"vertica-python://{USER}:{PASSWORD}@{HOST}:{PORT}/{DATABASE}"
+    expected_url = f"vertica+vertica_python://{USER}:{PASSWORD}@{HOST}:{PORT}/{DATABASE}"
     assert url.startswith(expected_url)
 
 
@@ -149,10 +154,17 @@ def test_vertica_run_queries(
 ):
     if split_statements:
         mock_cursor.fetchall.side_effect = cursor_results
-        mock_cursor.nextset.side_effect = [True] * (len(cursor_results) - 1) + [False]
     else:
         mock_cursor.fetchall.return_value = cursor_results
-        mock_cursor.nextset.side_effect = lambda: False
+    # Like on a real Vertica, each executed SQL string produces one result set per statement, and
+    # the hook moves through all of them with nextset().
+    result_sets_per_execute = [
+        len([statement for statement in sql_call.split(";") if statement.strip()])
+        for sql_call in expected_calls
+    ]
+    mock_cursor.nextset.side_effect = [
+        has_next for count in result_sets_per_execute for has_next in [True] * (count - 1) + [False]
+    ]
 
     result = vertica_hook.run(
         sql,
@@ -163,13 +175,15 @@ def test_vertica_run_queries(
 
     expected_mock_calls = [mock.call(sql_call) for sql_call in expected_calls]
     mock_cursor.execute.assert_has_calls(expected_mock_calls)
+    assert mock_cursor.nextset.call_count == sum(result_sets_per_execute)
     assert [SerializableRow(*row) for row in result] == expected_result
 
 
 def test_run_with_multiple_statements(vertica_hook, mock_cursor):
     mock_cursor.fetchall.side_effect = [[(1,)], [(2,)]]
-
-    mock_cursor.nextset.side_effect = [True, False]
+    # Statements are split, so each execute() produces a single result set.
+    mock_cursor.nextset.side_effect = None
+    mock_cursor.nextset.return_value = False
 
     sql = "SELECT 1; SELECT 2;"
 
@@ -189,34 +203,69 @@ def test_get_uri(vertica_hook):
     """
     Test that the get_uri() method returns the correct connection string.
     """
-    assert vertica_hook.get_uri() == "vertica-python://user:pass@vertica.cloud.com:5433/test_db"
+    assert vertica_hook.get_uri() == "vertica+vertica_python://user:pass@vertica.cloud.com:5433/test_db"
 
 
-def test_get_sqlalchemy_engine(vertica_hook):
+class StubVerticaDialect(DefaultDialect):
+    """Stand-in for a Vertica SQLAlchemy dialect package, registered under the same name they use."""
+
+    name = "vertica"
+    driver = "vertica_python"
+    supports_statement_cache = True
+
+    @classmethod
+    def import_dbapi(cls):
+        return vertica_python
+
+    @classmethod
+    def dbapi(cls):
+        # SQLAlchemy < 2.0 calls dbapi() instead of import_dbapi(); SQLAlchemy 2 uses import_dbapi() when defined.
+        return cls.import_dbapi()
+
+
+@pytest.fixture
+def vertica_dialect_registered():
     """
-    Test that the get_sqlalchemy_engine() method returns a valid SQLAlchemy engine.
+    Register a dialect as ``vertica.vertica_python``, the name Vertica dialects register.
+
+    ``vertica-sqlalchemy-dialect``, ``sqlalchemy-vertica`` and ``sqlalchemy-vertica-python`` all
+    declare the ``sqlalchemy.dialects`` entry point ``vertica.vertica_python``.
     """
+    name = "vertica.vertica_python"
+    previous = registry.impls.get(name)
+    registry.register(name, __name__, "StubVerticaDialect")
+    yield
+    if previous is None:
+        registry.impls.pop(name, None)
+    else:
+        registry.impls[name] = previous
 
-    with patch("airflow.providers.common.sql.hooks.sql.create_engine") as mock_create_engine:
-        mock_engine = MagicMock(spec=Engine)
-        mock_create_engine.return_value = mock_engine
 
-        engine = vertica_hook.get_sqlalchemy_engine()
+def test_get_uri_can_be_parsed_by_sqlalchemy(vertica_hook):
+    """Regression: the URI used to have the scheme "vertica-python", which make_url cannot parse."""
+    url = make_url(vertica_hook.get_uri())
+    assert url.drivername == "vertica+vertica_python"
+    assert url.host == HOST
+    assert url.database == DATABASE
 
-        assert engine is mock_engine
 
-        mock_create_engine.assert_called_once()
-        call_args = mock_create_engine.call_args[1]
-        assert "url" in call_args
+@pytest.mark.usefixtures("vertica_dialect_registered")
+def test_get_sqlalchemy_engine_resolves_vertica_dialect(vertica_hook):
+    """Regression: the engine is created through the registered Vertica dialect, without mocking."""
+    engine = vertica_hook.get_sqlalchemy_engine()
+    assert isinstance(engine.dialect, StubVerticaDialect)
+    assert engine.url.drivername == "vertica+vertica_python"
+    assert engine.url.username == USER
+    assert engine.url.password == PASSWORD
+    assert engine.url.host == HOST
+    assert engine.url.port == PORT
+    assert engine.url.database == DATABASE
 
-        actual_url = call_args["url"]
 
-        assert actual_url.drivername == "vertica-python"
-        assert actual_url.username == "user"
-        assert actual_url.password == "pass"
-        assert actual_url.host == "vertica.cloud.com"
-        assert actual_url.port == 5433
-        assert actual_url.database == "test_db"
+@pytest.mark.usefixtures("vertica_dialect_registered")
+def test_dialect_name_is_vertica(vertica_hook):
+    """Regression: dialect_name fell back to "default" because get_uri() could not be parsed."""
+    assert vertica_hook.dialect_name == "vertica"
 
 
 @pytest.mark.parametrize("sql", ["", "\n", " "])

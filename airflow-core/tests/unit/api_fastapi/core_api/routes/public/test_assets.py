@@ -40,19 +40,24 @@ from airflow.models.asset import (
     AssetDagRunQueue,
     AssetEvent,
     AssetModel,
+    AssetPartitionDagRun,
     AssetWatcherModel,
     DagScheduleAssetReference,
+    PartitionedAssetKeyLog,
     TaskInletAssetReference,
     TaskOutletAssetReference,
 )
 from airflow.models.base import ID_LEN
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagrun import DagRun
+from airflow.models.dynamic_region import DynamicRegion
 from airflow.models.serialized_dag import SerializedDagModel
+from airflow.models.taskinstance import TaskInstance
 from airflow.models.team import Team
 from airflow.models.trigger import Trigger
 from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.sdk import Asset
+from airflow.sdk import Asset, task_group
+from airflow.sdk.definitions._internal.loop import create_loop
 from airflow.timetables.simple import PartitionedAtRuntime
 from airflow.timetables.trigger import CronPartitionTimetable
 from airflow.utils.session import provide_session
@@ -69,6 +74,7 @@ from tests_common.test_utils.db import (
     clear_db_logs,
     clear_db_runs,
     clear_db_teams,
+    clear_db_triggers,
 )
 from tests_common.test_utils.format_datetime import from_datetime_to_zulu_without_ms
 from tests_common.test_utils.logs import check_last_log
@@ -298,12 +304,6 @@ def _create_assets_events_with_sensitive_extra(session, num: int = 2) -> None:
     session.commit()
 
 
-def _create_provided_asset_event(session, asset_event: AssetEvent) -> None:
-    _ensure_source_dag(session)
-    session.add(asset_event)
-    session.commit()
-
-
 def _create_dag_run(session, num: int = 2):
     _ensure_source_dag(session)
     dag_runs = [
@@ -333,6 +333,20 @@ def _create_asset_dag_run(session, num: int = 2):
     session.commit()
 
 
+def _watch_assets(session, watched: dict[str, list[int]]) -> dict[str, int]:
+    """Create a trigger for each name, watching the assets with these ids; return the triggers' ids."""
+    triggers = {name: Trigger(classpath=name, kwargs={}) for name in watched}
+    session.add_all(triggers.values())
+    session.flush()
+    session.add_all(
+        AssetWatcherModel(name=f"{name}_{asset_id}", asset_id=asset_id, trigger_id=triggers[name].id)
+        for name, asset_ids in watched.items()
+        for asset_id in asset_ids
+    )
+    session.commit()
+    return {name: trigger.id for name, trigger in triggers.items()}
+
+
 class TestAssets:
     @pytest.fixture
     def time_freezer(self) -> Generator:
@@ -353,6 +367,7 @@ class TestAssets:
         yield
 
         clear_db_assets()
+        clear_db_triggers()
         clear_db_runs()
         clear_db_dags()
         clear_db_teams()
@@ -382,10 +397,6 @@ class TestAssets:
     @provide_session
     def create_assets_events_with_sensitive_extra(self, num: int = 2, *, session):
         _create_assets_events_with_sensitive_extra(session=session, num=num)
-
-    @provide_session
-    def create_provided_asset_event(self, asset_event: AssetEvent, *, session):
-        _create_provided_asset_event(session=session, asset_event=asset_event)
 
     @provide_session
     def create_dag_run(self, num: int = 2, *, session):
@@ -469,6 +480,26 @@ class TestGetAssets(TestAssets):
         # The count must be scoped too, so the existence of hidden assets does not leak.
         assert body["total_entries"] == 2
 
+    @mock.patch(
+        "airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager.get_authorized_assets"
+    )
+    def test_filter_by_trigger_id_returns_the_readable_assets_its_watchers_watch(
+        self, mock_get_authorized_assets, test_client, session
+    ):
+        self.create_assets(session=session, num=4)
+        trigger_ids = _watch_assets(session, {"shared": [1, 2, 3], "other": [4]})
+        mock_get_authorized_assets.return_value = {1, 2, 4}
+
+        def assets(trigger_id):
+            response = test_client.get("/assets", params={"trigger_id": trigger_id})
+            assert response.status_code == 200
+            body = response.json()
+            return [asset["id"] for asset in body["assets"]], body["total_entries"]
+
+        assert assets(trigger_ids["shared"]) == ([1, 2], 2)
+        assert assets(trigger_ids["other"]) == ([4], 1)
+        assert assets(trigger_ids["other"] + 1) == ([], 0)
+
     @mock.patch("airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager.get_authorized_dag_ids")
     def test_should_return_only_references_of_readable_dags(
         self, mock_get_authorized_dag_ids, test_client, session
@@ -522,6 +553,7 @@ class TestGetAssets(TestAssets):
                             "name": "watcher_1",
                             "trigger_id": asset1.watchers[0].trigger_id,
                             "created_date": tz_datetime_format,
+                            "status": "pending",
                         }
                     ],
                     "last_asset_event": {"id": None, "timestamp": None},
@@ -543,6 +575,7 @@ class TestGetAssets(TestAssets):
                             "name": "watcher_2",
                             "trigger_id": asset2.watchers[0].trigger_id,
                             "created_date": tz_datetime_format,
+                            "status": "pending",
                         }
                     ],
                     "last_asset_event": {"id": None, "timestamp": None},
@@ -1111,6 +1144,46 @@ class TestGetAssetEventsPerDagScoping(TestAssets):
         assert [event["id"] for event in body["asset_events"]] == [2, 4]
         assert body["total_entries"] == 2
 
+    @pytest.mark.parametrize(
+        ("readable_dags", "expected_run_dags"),
+        [
+            pytest.param({"dag_a"}, ["dag_a"], id="one-readable-consumer-dag"),
+            pytest.param({"dag_a", "dag_b"}, ["dag_a", "dag_b"], id="both-consumer-dags-readable"),
+            pytest.param(set(), [], id="no-readable-consumer-dags"),
+        ],
+    )
+    @mock.patch("airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager.get_authorized_dag_ids")
+    def test_endpoint_returns_only_created_dagruns_of_readable_dags(
+        self, mock_get_authorized_dag_ids, test_client, session, readable_dags, expected_run_dags
+    ):
+        """The Dag runs an event created are narrowed to the Dags the caller may read."""
+        mock_get_authorized_dag_ids.return_value = readable_dags
+        _ensure_dags(session, "dag_a", "dag_b")
+        self.create_assets(session=session, num=1)
+        # No source Dag, so the event itself is visible to every caller.
+        event = AssetEvent(id=1, asset_id=1, extra={}, timestamp=DEFAULT_DATE)
+        session.add(event)
+        session.flush()
+        for dag_id in ("dag_a", "dag_b"):
+            dag_run = DagRun(
+                dag_id=dag_id,
+                run_id=f"{dag_id}_run",
+                run_type=DagRunType.ASSET_TRIGGERED,
+                logical_date=DEFAULT_DATE,
+                start_date=DEFAULT_DATE,
+                data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+                state=DagRunState.SUCCESS,
+            )
+            dag_run.consumed_asset_events.append(event)
+            session.add(dag_run)
+        session.commit()
+
+        response = test_client.get("/assets/events")
+
+        assert response.status_code == 200
+        [returned_event] = response.json()["asset_events"]
+        assert sorted(run["dag_id"] for run in returned_event["created_dagruns"]) == expected_run_dags
+
 
 class TestGetAssetEvents(TestAssets):
     @pytest.mark.parametrize("unknown", [False, True])
@@ -1166,6 +1239,49 @@ class TestGetAssetEvents(TestAssets):
         assert response.status_code == 200, response.text
         assert [row["source_task_instance_id"] for row in response.json()["asset_events"]] == [None]
 
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_reports_the_source_task_instance_region(self, test_client, dag_maker, session):
+        """An event emitted inside a task loop carries the region the UI needs to link to its iteration."""
+
+        @task_group
+        def body():
+            EmptyOperator(task_id="produce")
+
+        with dag_maker("loop_producer", serialized=True):
+            loop = create_loop(body, max_iterations=3)
+        run = dag_maker.create_dagrun(run_id="loop_run")
+        region = session.scalar(select(DynamicRegion).where(DynamicRegion.node_id == loop.group_id))
+        source = TaskInstance(
+            task=dag_maker.dag.get_task("body.produce"),
+            run_id=run.run_id,
+            dag_version_id=run.created_dag_version_id,
+            region_id=region.id,
+            region_index=2,
+        )
+        session.add(source)
+        session.flush()
+        (asset,) = _create_assets(session, num=1)
+        session.add(
+            AssetEvent(
+                asset_id=asset.id,
+                source_dag_id=run.dag_id,
+                source_run_id=run.run_id,
+                source_task_id="body.produce",
+                source_map_index=-1,
+                source_task_instance_id=source.id,
+                timestamp=DEFAULT_DATE,
+            )
+        )
+        session.commit()
+
+        response = test_client.get("/assets/events")
+
+        assert response.status_code == 200, response.text
+        (event,) = response.json()["asset_events"]
+        assert event["source_task_instance_id"] == str(source.id)
+        assert event["source_region_id"] == str(region.id)
+        assert event["source_region_index"] == 2
+
     def test_should_respond_200(self, test_client, session):
         asset1, asset2 = self.create_assets(session=session)
         self.create_assets_events(session=session)
@@ -1196,6 +1312,8 @@ class TestGetAssetEvents(TestAssets):
                     "source_run_id": "source_run_id_1",
                     "source_map_index": -1,
                     "source_task_instance_id": None,
+                    "source_region_id": None,
+                    "source_region_index": None,
                     "created_dagruns": [
                         {
                             "run_id": "source_run_id_1",
@@ -1225,6 +1343,8 @@ class TestGetAssetEvents(TestAssets):
                     "source_run_id": "source_run_id_2",
                     "source_map_index": -1,
                     "source_task_instance_id": None,
+                    "source_region_id": None,
+                    "source_region_index": None,
                     "created_dagruns": [
                         {
                             "run_id": "source_run_id_2",
@@ -1278,7 +1398,7 @@ class TestGetAssetEvents(TestAssets):
 
     def test_should_return_created_dag_run_without_start_date(self, test_client, session):
         self.create_assets(num=1, session=session)
-        _ensure_dags(session, "producer_dag")
+        _ensure_dags(session, "producer_dag", "consumer_dag")
         asset_event = AssetEvent(
             asset_id=1,
             source_dag_id="producer_dag",
@@ -1325,6 +1445,8 @@ class TestGetAssetEvents(TestAssets):
             ({"name_prefix_pattern": "simple1"}, 1),
             ({"name_prefix_pattern": "simple"}, 2),
             ({"name_prefix_pattern": "nonexistent"}, 0),
+            ({"name_prefix_pattern": "~"}, 2),
+            ({"name_pattern": ""}, 2),
         ],
     )
     @provide_session
@@ -1336,6 +1458,27 @@ class TestGetAssetEvents(TestAssets):
         response = test_client.get("/assets/events", params=params)
         assert response.status_code == 200
         assert response.json()["total_entries"] == total_entries
+
+    @provide_session
+    def test_filter_by_trigger_id_pages_the_events_of_its_watched_assets(self, test_client, *, session):
+        # However many assets a trigger watches, the request names only the trigger.
+        self.create_assets(num=3)
+        session.add_all(
+            AssetEvent(id=i, asset_id=asset_id, timestamp=DEFAULT_DATE + timedelta(days=i))
+            for i, asset_id in enumerate([1, 1, 1, 2, 2, 3], start=1)
+        )
+        trigger_ids = _watch_assets(session, {"shared": [1, 2], "other": [3]})
+
+        def events(trigger_id, **params):
+            response = test_client.get("/assets/events", params={"trigger_id": trigger_id, **params})
+            assert response.status_code == 200
+            body = response.json()
+            return [event["id"] for event in body["asset_events"]], body["total_entries"]
+
+        assert events(trigger_ids["shared"], offset=2, limit=2) == ([3, 4], 5)
+        assert events(trigger_ids["shared"], order_by="-timestamp", offset=1, limit=3) == ([4, 3, 2], 5)
+        assert events(trigger_ids["other"]) == ([6], 1)
+        assert events(trigger_ids["other"] + 1) == ([], 0)
 
     @pytest.mark.parametrize(
         ("params", "expected_ids"),
@@ -1443,6 +1586,8 @@ class TestGetAssetEvents(TestAssets):
                     "source_run_id": "source_run_id_1",
                     "source_map_index": -1,
                     "source_task_instance_id": None,
+                    "source_region_id": None,
+                    "source_region_index": None,
                     "created_dagruns": [
                         {
                             "run_id": "source_run_id_1",
@@ -1472,6 +1617,8 @@ class TestGetAssetEvents(TestAssets):
                     "source_run_id": "source_run_id_2",
                     "source_map_index": -1,
                     "source_task_instance_id": None,
+                    "source_region_id": None,
+                    "source_region_index": None,
                     "created_dagruns": [
                         {
                             "run_id": "source_run_id_2",
@@ -1897,6 +2044,7 @@ class TestGetAssetEndpoint(TestAssets):
                     "name": "watcher_1",
                     "trigger_id": asset.watchers[0].trigger_id,
                     "created_date": tz_datetime_format,
+                    "status": "pending",
                 }
             ],
             "last_asset_event": {"id": None, "timestamp": None},
@@ -1984,6 +2132,13 @@ class TestQueuedEventEndpoint(TestAssets):
         session.add(adrq)
         session.commit()
         return adrq
+
+    @staticmethod
+    def _authorized_dag_ids_by_method(*, readable: set[str], editable: set[str]):
+        def get_authorized_dag_ids(*, user, method="GET", **kwargs):
+            return set(editable) if method == "PUT" else set(readable)
+
+        return get_authorized_dag_ids
 
 
 class TestGetDagAssetQueuedEvents(TestQueuedEventEndpoint):
@@ -2170,6 +2325,446 @@ class TestDeleteDagDatasetQueuedEvents(TestQueuedEventEndpoint):
         assert response.json()["detail"] == "Queue event with dag_id: `dag` was not found"
 
 
+class TestDeletePartitionedQueuedEvents(TestQueuedEventEndpoint):
+    @pytest.fixture(autouse=True)
+    def clear_partitioned_queue(self, session):
+        session.execute(delete(PartitionedAssetKeyLog))
+        session.execute(delete(AssetPartitionDagRun))
+        session.commit()
+        yield
+        session.execute(delete(PartitionedAssetKeyLog))
+        session.execute(delete(AssetPartitionDagRun))
+        session.commit()
+
+    @staticmethod
+    def _queue_partition(
+        session,
+        *,
+        dag_id: str,
+        partition_key: str,
+        source_keys_by_asset_id: dict[int, list[str]],
+        created_dag_run_id: int | None = None,
+    ) -> AssetPartitionDagRun:
+        apdr = AssetPartitionDagRun(
+            target_dag_id=dag_id, partition_key=partition_key, created_dag_run_id=created_dag_run_id
+        )
+        session.add(apdr)
+        session.flush()
+        for asset_id, source_keys in source_keys_by_asset_id.items():
+            for source_key in source_keys:
+                event = AssetEvent(asset_id=asset_id, partition_key=source_key, timestamp=timezone.utcnow())
+                session.add(event)
+                session.flush()
+                session.add(
+                    PartitionedAssetKeyLog(
+                        asset_id=asset_id,
+                        asset_event_id=event.id,
+                        asset_partition_dag_run_id=apdr.id,
+                        source_partition_key=source_key,
+                        target_dag_id=dag_id,
+                        target_partition_key=partition_key,
+                    )
+                )
+        session.commit()
+        return apdr
+
+    @staticmethod
+    def _remaining(session) -> tuple[set[tuple[str, int | None]], set[tuple[int, int, str]]]:
+        session.expire_all()
+        apdrs = {
+            (apdr.partition_key, apdr.created_dag_run_id)
+            for apdr in session.scalars(select(AssetPartitionDagRun))
+        }
+        pakls = {
+            (pakl.asset_partition_dag_run_id, pakl.asset_id, pakl.source_partition_key)
+            for pakl in session.scalars(select(PartitionedAssetKeyLog))
+        }
+        return apdrs, pakls
+
+    def test_dag_endpoint_deletes_only_pending_partition_with_matching_key(
+        self, test_client, session, create_dummy_dag
+    ):
+        dag, _ = create_dummy_dag()
+        dag_run_id = session.scalar(select(DagRun.id).where(DagRun.dag_id == dag.dag_id))
+        asset_1, asset_2 = self.create_assets(session=session, num=2)
+        self._create_asset_dag_run_queues(dag.dag_id, asset_1.id, session)
+        self._queue_partition(
+            session,
+            dag_id=dag.dag_id,
+            partition_key="2026-09-02",
+            source_keys_by_asset_id={asset_1.id: ["2026-09-02"], asset_2.id: ["2026-09-02"]},
+        )
+        other = self._queue_partition(
+            session,
+            dag_id=dag.dag_id,
+            partition_key="2026-09-03",
+            source_keys_by_asset_id={asset_1.id: ["2026-09-03"]},
+        )
+        self._queue_partition(
+            session,
+            dag_id=dag.dag_id,
+            partition_key="2026-09-02",
+            source_keys_by_asset_id={},
+            created_dag_run_id=dag_run_id,
+        )
+
+        response = test_client.delete(
+            f"/dags/{dag.dag_id}/assets/queuedEvents", params={"partition_key": "2026-09-02"}
+        )
+
+        assert response.status_code == 204
+        apdrs, pakls = self._remaining(session)
+        assert apdrs == {("2026-09-03", None), ("2026-09-02", dag_run_id)}
+        assert pakls == {(other.id, asset_1.id, "2026-09-03")}
+        # Queued events of non-partitioned assets are left alone when a partition key is given.
+        assert len(session.scalars(select(AssetDagRunQueue)).all()) == 1
+        check_last_log(session, dag_id=dag.dag_id, event="delete_dag_asset_queued_events", logical_date=None)
+
+    @pytest.mark.parametrize(
+        "path_template",
+        [
+            pytest.param("/assets/{asset_id}/queuedEvents", id="asset"),
+            pytest.param("/dags/{dag_id}/assets/{asset_id}/queuedEvents", id="dag-asset"),
+        ],
+    )
+    def test_asset_endpoints_keep_partition_pending_until_no_asset_remains(
+        self, test_client, session, create_dummy_dag, path_template
+    ):
+        dag, _ = create_dummy_dag()
+        asset_1, asset_2 = self.create_assets(session=session, num=2)
+        apdr = self._queue_partition(
+            session,
+            dag_id=dag.dag_id,
+            partition_key="2026-09-02",
+            source_keys_by_asset_id={asset_1.id: ["2026-09-02"], asset_2.id: ["2026-09-02"]},
+        )
+
+        response = test_client.delete(
+            path_template.format(dag_id=dag.dag_id, asset_id=asset_1.id),
+            params={"partition_key": "2026-09-02"},
+        )
+
+        assert response.status_code == 204
+        apdrs, pakls = self._remaining(session)
+        assert apdrs == {("2026-09-02", None)}
+        assert pakls == {(apdr.id, asset_2.id, "2026-09-02")}
+
+        response = test_client.delete(
+            path_template.format(dag_id=dag.dag_id, asset_id=asset_2.id),
+            params={"partition_key": "2026-09-02"},
+        )
+
+        assert response.status_code == 204
+        assert self._remaining(session) == (set(), set())
+
+    @pytest.mark.parametrize(
+        "path_template",
+        [
+            pytest.param("/assets/{asset_id}/queuedEvents", id="asset"),
+            pytest.param("/dags/{dag_id}/assets/queuedEvents", id="dag"),
+            pytest.param("/dags/{dag_id}/assets/{asset_id}/queuedEvents", id="dag-asset"),
+        ],
+    )
+    def test_partition_key_matches_asset_event_partition_key_not_dag_run_partition_key(
+        self, test_client, session, create_dummy_dag, path_template
+    ):
+        dag, _ = create_dummy_dag()
+        (asset,) = self.create_assets(session=session, num=1)
+        apdr = self._queue_partition(
+            session,
+            dag_id=dag.dag_id,
+            partition_key="2026-09-02",
+            source_keys_by_asset_id={asset.id: ["2026-09-02T00", "2026-09-02T01"]},
+        )
+        path = path_template.format(dag_id=dag.dag_id, asset_id=asset.id)
+
+        response = test_client.delete(path, params={"partition_key": "2026-09-02"})
+        assert response.status_code == 404
+        assert len(self._remaining(session)[1]) == 2
+
+        response = test_client.delete(path, params={"partition_key": "2026-09-02T00"})
+        assert response.status_code == 204
+        assert self._remaining(session) == (
+            {("2026-09-02", None)},
+            {(apdr.id, asset.id, "2026-09-02T01")},
+        )
+
+        response = test_client.delete(path, params={"partition_key": "2026-09-02T01"})
+        assert response.status_code == 204
+        assert self._remaining(session) == (set(), set())
+
+    @pytest.mark.parametrize(
+        "path_template",
+        [
+            pytest.param("/dags/{dag_id}/assets/queuedEvents", id="dag"),
+            pytest.param("/dags/{dag_id}/assets/{asset_id}/queuedEvents", id="dag-asset"),
+        ],
+    )
+    def test_dag_endpoints_only_delete_events_queued_for_that_dag(
+        self, test_client, session, create_dummy_dag, path_template
+    ):
+        create_dummy_dag()
+        (asset,) = self.create_assets(session=session, num=1)
+        self._queue_partition(
+            session,
+            dag_id="dag",
+            partition_key="2026-09-02",
+            source_keys_by_asset_id={asset.id: ["2026-09-02"]},
+        )
+        other = self._queue_partition(
+            session,
+            dag_id="other_dag",
+            partition_key="2026-09-02",
+            source_keys_by_asset_id={asset.id: ["2026-09-02"]},
+        )
+        self._queue_partition(
+            session, dag_id="other_dag", partition_key="2026-09-03", source_keys_by_asset_id={}
+        )
+
+        with mock.patch.object(
+            BaseAuthManager, "get_authorized_dag_ids", autospec=True, return_value={"dag", "other_dag"}
+        ):
+            response = test_client.delete(
+                path_template.format(dag_id="dag", asset_id=asset.id),
+                params={"partition_key": "2026-09-02"},
+            )
+
+        assert response.status_code == 204
+        session.expire_all()
+        assert {
+            (apdr.target_dag_id, apdr.partition_key) for apdr in session.scalars(select(AssetPartitionDagRun))
+        } == {("other_dag", "2026-09-02"), ("other_dag", "2026-09-03")}
+        assert set(session.scalars(select(PartitionedAssetKeyLog.asset_partition_dag_run_id))) == {other.id}
+
+    def test_keeps_empty_pending_partitions_the_call_did_not_clear(
+        self, test_client, session, create_dummy_dag
+    ):
+        create_dummy_dag()
+        (asset,) = self.create_assets(session=session, num=1)
+        self._queue_partition(
+            session,
+            dag_id="dag",
+            partition_key="2026-09-02",
+            source_keys_by_asset_id={asset.id: ["2026-09-02"]},
+        )
+        # Pending and already empty before the call, for another Dag and another key.
+        self._queue_partition(
+            session, dag_id="other_dag", partition_key="2026-09-03", source_keys_by_asset_id={}
+        )
+
+        with mock.patch.object(
+            BaseAuthManager, "get_authorized_dag_ids", autospec=True, return_value={"dag", "other_dag"}
+        ):
+            response = test_client.delete(
+                f"/assets/{asset.id}/queuedEvents", params={"partition_key": "2026-09-02"}
+            )
+
+        assert response.status_code == 204
+        session.expire_all()
+        assert {
+            (apdr.target_dag_id, apdr.partition_key) for apdr in session.scalars(select(AssetPartitionDagRun))
+        } == {("other_dag", "2026-09-03")}
+
+    @pytest.mark.parametrize(
+        ("editable_dags", "expected_status", "expected_remaining_dag_ids"),
+        [
+            pytest.param({"dag", "hidden_dag"}, 204, set(), id="both-dags-editable"),
+            pytest.param({"dag"}, 204, {"hidden_dag"}, id="one-dag-editable"),
+            pytest.param(set(), 404, {"dag", "hidden_dag"}, id="no-dag-editable"),
+        ],
+    )
+    def test_only_deletes_events_queued_for_editable_dags(
+        self,
+        test_client,
+        session,
+        create_dummy_dag,
+        editable_dags,
+        expected_status,
+        expected_remaining_dag_ids,
+    ):
+        """Being able to read a Dag is not enough: this route deletes only what the user may edit."""
+        create_dummy_dag()
+        (asset,) = self.create_assets(session=session, num=1)
+        for dag_id in ("dag", "hidden_dag"):
+            self._queue_partition(
+                session,
+                dag_id=dag_id,
+                partition_key="2026-09-02",
+                source_keys_by_asset_id={asset.id: ["2026-09-02"]},
+            )
+
+        with mock.patch.object(
+            BaseAuthManager,
+            "get_authorized_dag_ids",
+            side_effect=self._authorized_dag_ids_by_method(
+                readable={"dag", "hidden_dag"}, editable=editable_dags
+            ),
+        ):
+            response = test_client.delete(
+                f"/assets/{asset.id}/queuedEvents", params={"partition_key": "2026-09-02"}
+            )
+
+        assert response.status_code == expected_status
+        session.expire_all()
+        assert set(session.scalars(select(AssetPartitionDagRun.target_dag_id))) == expected_remaining_dag_ids
+        assert (
+            set(session.scalars(select(PartitionedAssetKeyLog.target_dag_id))) == expected_remaining_dag_ids
+        )
+
+    def test_before_only_deletes_older_events(self, test_client, session, create_dummy_dag):
+        dag, _ = create_dummy_dag()
+        (asset,) = self.create_assets(session=session, num=1)
+        with time_machine.travel(DEFAULT_DATE, tick=False):
+            apdr = self._queue_partition(
+                session,
+                dag_id=dag.dag_id,
+                partition_key="us",
+                source_keys_by_asset_id={asset.id: ["us"]},
+            )
+        with time_machine.travel(DEFAULT_DATE + timedelta(hours=2), tick=False):
+            newer = AssetEvent(asset_id=asset.id, partition_key="us", timestamp=timezone.utcnow())
+            session.add(newer)
+            session.flush()
+            session.add(
+                PartitionedAssetKeyLog(
+                    asset_id=asset.id,
+                    asset_event_id=newer.id,
+                    asset_partition_dag_run_id=apdr.id,
+                    source_partition_key="us",
+                    target_dag_id=dag.dag_id,
+                    target_partition_key="us",
+                )
+            )
+            session.commit()
+
+        response = test_client.delete(
+            f"/assets/{asset.id}/queuedEvents",
+            params={
+                "partition_key": "us",
+                "before": from_datetime_to_zulu_without_ms(DEFAULT_DATE + timedelta(hours=1)),
+            },
+        )
+
+        assert response.status_code == 204
+        apdrs, _ = self._remaining(session)
+        assert apdrs == {("us", None)}
+        assert session.scalars(select(PartitionedAssetKeyLog.asset_event_id)).all() == [newer.id]
+
+    @pytest.mark.parametrize(
+        ("path_template", "expected_detail"),
+        [
+            pytest.param(
+                "/assets/{asset_id}/queuedEvents",
+                "Queue event with asset_id: `{asset_id}` and partition_key: `2026-09-02` was not found",
+                id="asset",
+            ),
+            pytest.param(
+                "/dags/{dag_id}/assets/queuedEvents",
+                "Queue event with dag_id: `{dag_id}` and partition_key: `2026-09-02` was not found",
+                id="dag",
+            ),
+            pytest.param(
+                "/dags/{dag_id}/assets/{asset_id}/queuedEvents",
+                "Queued event with dag_id: `{dag_id}` and asset_id: `{asset_id}` and partition_key: `2026-09-02` was not found",
+                id="dag-asset",
+            ),
+        ],
+    )
+    def test_should_respond_404_when_partition_already_created_dag_run(
+        self, test_client, session, create_dummy_dag, path_template, expected_detail
+    ):
+        dag, _ = create_dummy_dag()
+        dag_run_id = session.scalar(select(DagRun.id).where(DagRun.dag_id == dag.dag_id))
+        (asset,) = self.create_assets(session=session, num=1)
+        self._create_asset_dag_run_queues(dag.dag_id, asset.id, session)
+        self._queue_partition(
+            session,
+            dag_id=dag.dag_id,
+            partition_key="2026-09-02",
+            source_keys_by_asset_id={asset.id: ["2026-09-02"]},
+            created_dag_run_id=dag_run_id,
+        )
+
+        response = test_client.delete(
+            path_template.format(dag_id=dag.dag_id, asset_id=asset.id),
+            params={"partition_key": "2026-09-02"},
+        )
+
+        assert response.status_code == 404
+        assert response.json()["detail"] == expected_detail.format(dag_id=dag.dag_id, asset_id=asset.id)
+        assert len(self._remaining(session)[1]) == 1
+        assert len(session.scalars(select(AssetDagRunQueue)).all()) == 1
+
+    def test_should_respond_404_for_events_of_deleted_dag_run(self, test_client, session, create_dummy_dag):
+        dag, _ = create_dummy_dag()
+        dag_run = session.scalar(select(DagRun).where(DagRun.dag_id == dag.dag_id))
+        (asset,) = self.create_assets(session=session, num=1)
+        self._queue_partition(
+            session,
+            dag_id=dag.dag_id,
+            partition_key="2026-09-02",
+            source_keys_by_asset_id={asset.id: ["2026-09-02"]},
+            created_dag_run_id=dag_run.id,
+        )
+        session.delete(dag_run)
+        session.commit()
+        apdrs, pakls = self._remaining(session)
+        assert apdrs == set()
+        assert len(pakls) == 1
+
+        response = test_client.delete(
+            f"/assets/{asset.id}/queuedEvents", params={"partition_key": "2026-09-02"}
+        )
+
+        assert response.status_code == 404
+        assert len(self._remaining(session)[1]) == 1
+
+    def test_delete_does_not_read_back_deleted_row_keys(self, test_client, session, create_dummy_dag):
+        from sqlalchemy import event
+
+        import airflow.settings
+
+        dag, _ = create_dummy_dag()
+        (asset,) = self.create_assets(session=session, num=1)
+        self._queue_partition(
+            session,
+            dag_id=dag.dag_id,
+            partition_key="2026-09-02",
+            source_keys_by_asset_id={asset.id: ["2026-09-02"]},
+        )
+
+        executed_statements: list[str] = []
+
+        def capture(_conn, _cursor, statement, _parameters, _context, _executemany):
+            executed_statements.append(" ".join(statement.split()).upper())
+
+        event.listen(airflow.settings.engine, "before_cursor_execute", capture)
+        try:
+            response = test_client.delete(
+                f"/dags/{dag.dag_id}/assets/{asset.id}/queuedEvents",
+                params={"partition_key": "2026-09-02"},
+            )
+        finally:
+            event.remove(airflow.settings.engine, "before_cursor_execute", capture)
+
+        assert response.status_code == 204
+        deletes = [s for s in executed_statements if s.startswith("DELETE")]
+        assert len(deletes) == 2
+        assert [s for s in deletes if "RETURNING" in s] == [], "DELETE must not read back deleted keys"
+        partition_selects = [
+            s for s in executed_statements if s.startswith("SELECT") and "PARTITIONED_ASSET_KEY_LOG" in s
+        ]
+        # Collecting the partitions to clear is the one read of the queued events, and it
+        # projects their ``AssetPartitionDagRun`` id rather than the keys being deleted.
+        assert len(partition_selects) == 1
+        assert partition_selects[0].startswith("SELECT ASSET_PARTITION_DAG_RUN.ID")
+        assert executed_statements.index(partition_selects[0]) < executed_statements.index(deletes[0])
+        after_first_delete = executed_statements[executed_statements.index(deletes[0]) :]
+        assert [s for s in after_first_delete if s.startswith("SELECT")] == [], (
+            "No SELECT may follow a DELETE to read back the keys it removed"
+        )
+
+
 class TestPostAssetEvents(TestAssets):
     @pytest.mark.usefixtures("time_freezer")
     def test_should_respond_200(self, test_client, session):
@@ -2189,6 +2784,8 @@ class TestPostAssetEvents(TestAssets):
             "source_run_id": None,
             "source_map_index": -1,
             "source_task_instance_id": None,
+            "source_region_id": None,
+            "source_region_index": None,
             "created_dagruns": [],
             "timestamp": from_datetime_to_zulu_without_ms(DEFAULT_DATE),
             "partition_key": None,
@@ -2289,6 +2886,8 @@ class TestPostAssetEvents(TestAssets):
             "source_run_id": None,
             "source_map_index": -1,
             "source_task_instance_id": None,
+            "source_region_id": None,
+            "source_region_index": None,
             "created_dagruns": [],
             "timestamp": from_datetime_to_zulu_without_ms(DEFAULT_DATE),
             "partition_key": None,
@@ -2341,6 +2940,7 @@ class TestPostAssetEventsTeamResolution(TestAssets):
             extra={"from_rest_api": True},
             source_map_index=-1,
             source_task_instance_id=None,
+            source_task_instance=None,
             timestamp=DEFAULT_DATE,
             source_task_id=None,
             source_dag_id=None,
@@ -2944,13 +3544,6 @@ class TestDeleteAssetQueuedEvents(TestQueuedEventEndpoint):
             session.add(AssetDagRunQueue(target_dag_id=dag_id, asset_id=asset.id, asset_event_id=event.id))
         session.commit()
         return asset
-
-    @staticmethod
-    def _authorized_dag_ids_by_method(*, readable: set[str], editable: set[str]):
-        def get_authorized_dag_ids(*, user, method="GET", **kwargs):
-            return set(editable) if method == "PUT" else set(readable)
-
-        return get_authorized_dag_ids
 
     @pytest.mark.parametrize("query_string", ["", "?dag_id=dag_a"], ids=["no-dag-id", "editable-dag-id"])
     def test_deletes_only_queued_events_of_editable_dags(self, test_client, session, query_string):

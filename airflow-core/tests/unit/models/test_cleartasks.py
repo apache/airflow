@@ -28,6 +28,7 @@ from sqlalchemy import delete, event, func, select, update
 from sqlalchemy.orm import Session
 from sqlalchemy.sql import Select
 
+from airflow._shared.state import TaskScope
 from airflow.api_fastapi.core_api.datamodels.task_instances import PatchTaskInstanceBody
 from airflow.api_fastapi.core_api.services.public.dag_run import perform_clear_dag_run
 from airflow.api_fastapi.core_api.services.public.task_instances import _patch_selected_task_state
@@ -39,6 +40,7 @@ from airflow.models.dagbag import DBDagBag
 from airflow.models.dagrun import DagRun, clear_partition_runs
 from airflow.models.dynamic_region import DynamicRegion
 from airflow.models.serialized_dag import SerializedDagModel
+from airflow.models.task_state_store import TaskStateStoreModel
 from airflow.models.taskinstance import (
     LoopClearScope,
     TaskInstance,
@@ -57,6 +59,7 @@ from airflow.sdk import task, task_group
 from airflow.sdk.definitions._internal.loop import create_loop
 from airflow.serialization.definitions.dag import SerializedDAG
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
+from airflow.state.metastore import MetastoreBackend
 from airflow.ti_deps.deps.not_in_retry_period_dep import NotInRetryPeriodDep
 from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState, State, TaskInstanceState
@@ -65,6 +68,7 @@ from airflow.utils.types import DagRunTriggeredByType, DagRunType
 from tests_common.test_utils import db
 from tests_common.test_utils.asserts import count_queries
 from tests_common.test_utils.dag import sync_dag_to_db
+from tests_common.test_utils.mapping import push_mapped_length
 from tests_common.test_utils.mock_operators import MockOperator
 from tests_common.test_utils.taskinstance import run_task_instance
 from unit.models import DEFAULT_DATE
@@ -589,6 +593,56 @@ class TestClearTasks:
         assert (ti1.state, ti1.try_number, ti1.working_set) == (TaskInstanceState.SUCCESS, 1, None)
         assert (successors["0"].state, successors["0"].try_number, successors["0"].max_tries) == (None, 2, 1)
         assert (successors["1"].state, successors["1"].try_number, successors["1"].max_tries) == (None, 2, 3)
+
+    @pytest.mark.parametrize("keep_task_state", [False, True])
+    def test_clear_task_instances_task_state(self, dag_maker, session, keep_task_state):
+        with dag_maker("test_clear_task_instances_task_state", session=session):
+            EmptyOperator(task_id="cleared")
+            EmptyOperator(task_id="untouched")
+        dr = dag_maker.create_dagrun(state=State.FAILED)
+        for ti in dr.task_instances:
+            MetastoreBackend().set(
+                TaskScope(dag_id=ti.dag_id, run_id=ti.run_id, task_id=ti.task_id, map_index=ti.map_index),
+                "job_id",
+                "app_1234",
+                session=session,
+            )
+        session.flush()
+
+        clear_task_instances(
+            [dr.get_task_instance("cleared", session=session)],
+            session=session,
+            keep_task_state=keep_task_state,
+        )
+
+        remaining = session.scalars(
+            select(TaskStateStoreModel.task_id).where(TaskStateStoreModel.run_id == dr.run_id)
+        ).all()
+        assert sorted(remaining) == (["cleared", "untouched"] if keep_task_state else ["untouched"])
+
+    @mock.patch("airflow.models.taskinstance._TASK_STATE_DISCARD_BATCH_SIZE", 1)
+    def test_clear_task_instances_discards_task_state_in_batches(self, dag_maker, session):
+        with dag_maker("test_clear_task_instances_discards_in_batches", session=session):
+            for task_id in ("a", "b", "untouched"):
+                EmptyOperator(task_id=task_id)
+        dr = dag_maker.create_dagrun(state=State.FAILED)
+        for ti in dr.task_instances:
+            MetastoreBackend().set(
+                TaskScope(dag_id=ti.dag_id, run_id=ti.run_id, task_id=ti.task_id, map_index=ti.map_index),
+                "job_id",
+                "app_1234",
+                session=session,
+            )
+        session.flush()
+
+        clear_task_instances(
+            [dr.get_task_instance(task_id, session=session) for task_id in ("a", "b")], session=session
+        )
+
+        remaining = session.scalars(
+            select(TaskStateStoreModel.task_id).where(TaskStateStoreModel.run_id == dr.run_id)
+        ).all()
+        assert remaining == ["untouched"]
 
     def test_clear_task_instances_external_executor_id(self, dag_maker):
         with dag_maker(
@@ -1577,6 +1631,82 @@ class TestClearTasks:
         assert {ti.state for ti in current_tis} == ({None} if mapped_count else {TaskInstanceState.SKIPPED})
         assert attempt.working_set is None
         assert attempt.dag_version_id == old_version_id
+
+    @pytest.mark.parametrize("dr_state", [DagRunState.SUCCESS, DagRunState.RUNNING])
+    @pytest.mark.parametrize("new_length", [1, 3])
+    def test_clear_latest_with_producer_keeps_mapped_task_for_revision(
+        self, dag_maker, session, dr_state, new_length
+    ):
+        with dag_maker("test_clear_latest_mapped", bundle_version="v1", session=session):
+            size = EmptyOperator(task_id="size")
+            MockOperator.partial(task_id="mapped").expand(arg1=size.output)
+        dr = dag_maker.create_dagrun(state=dr_state)
+        size_ti = dr.get_task_instance("size", session=session)
+        size_ti.state = TaskInstanceState.SUCCESS
+        push_mapped_length(size_ti, [1, 2], session=session)
+        dr.task_instance_scheduling_decisions(session=session)
+        for ti in dr.get_task_instances(session=session):
+            ti.state = TaskInstanceState.SUCCESS
+        session.flush()
+
+        with dag_maker("test_clear_latest_mapped", bundle_version="v2", session=session):
+            size = EmptyOperator(task_id="size")
+            MockOperator.partial(task_id="mapped").expand(arg1=size.output)
+            EmptyOperator(task_id="added")
+
+        clear_task_instances(dr.get_task_instances(session=session), session, run_on_latest_version=True)
+
+        mapped_states = {
+            ti.map_index: ti.state for ti in dr.get_task_instances(session=session) if ti.task_id == "mapped"
+        }
+        assert mapped_states == {0: None, 1: None}
+
+        size_ti = dr.get_task_instance("size", session=session)
+        size_ti.state = TaskInstanceState.SUCCESS
+        push_mapped_length(size_ti, list(range(new_length)), session=session)
+        decision = dr.task_instance_scheduling_decisions(session=session)
+
+        schedulable = sorted(ti.map_index for ti in decision.schedulable_tis if ti.task_id == "mapped")
+        assert schedulable == list(range(new_length))
+
+    @pytest.mark.parametrize(("new_length", "expected_schedulable"), [(1, []), (3, [1, 2])])
+    def test_clear_latest_producer_restores_removed_mapped_tis(
+        self, dag_maker, session, new_length, expected_schedulable
+    ):
+        with dag_maker("test_clear_latest_restore", bundle_version="v1", session=session):
+            size = EmptyOperator(task_id="size")
+            MockOperator.partial(task_id="mapped").expand(arg1=size.output)
+        dr = dag_maker.create_dagrun(state=DagRunState.RUNNING)
+        size_ti = dr.get_task_instance("size", session=session)
+        size_ti.state = TaskInstanceState.SUCCESS
+        push_mapped_length(size_ti, [1, 2, 3], session=session)
+        dr.task_instance_scheduling_decisions(session=session)
+        # As left by an earlier producer re-run that shrank the mapping to one.
+        for ti in dr.get_task_instances(session=session):
+            ti.state = TaskInstanceState.REMOVED if ti.map_index > 0 else TaskInstanceState.SUCCESS
+        session.flush()
+
+        with dag_maker("test_clear_latest_restore", bundle_version="v2", session=session):
+            size = EmptyOperator(task_id="size")
+            MockOperator.partial(task_id="mapped").expand(arg1=size.output)
+            EmptyOperator(task_id="added")
+
+        clear_task_instances(
+            [dr.get_task_instance("size", session=session)], session, run_on_latest_version=True
+        )
+
+        mapped_states = {
+            ti.map_index: ti.state for ti in dr.get_task_instances(session=session) if ti.task_id == "mapped"
+        }
+        assert mapped_states == {0: TaskInstanceState.SUCCESS, 1: None, 2: None}
+
+        size_ti = dr.get_task_instance("size", session=session)
+        size_ti.state = TaskInstanceState.SUCCESS
+        push_mapped_length(size_ti, list(range(new_length)), session=session)
+        decision = dr.task_instance_scheduling_decisions(session=session)
+
+        schedulable = sorted(ti.map_index for ti in decision.schedulable_tis if ti.task_id == "mapped")
+        assert schedulable == expected_schedulable
 
     def test_complete_restart_uses_latest_version_for_unpinned_run(self, dag_maker, session):
         with dag_maker("test_restart_unpinned", session=session):

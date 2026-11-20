@@ -28,8 +28,8 @@ from collections.abc import Callable, Collection, Mapping, Sequence
 from typing import TYPE_CHECKING, Any, ClassVar
 
 from airflow.providers.common.ai.operators.agent import AgentOperator
+from airflow.providers.common.ai.utils.prompt import call_arguments
 from airflow.providers.common.ai.utils.validation import (
-    reject_sequence_with_unsupported_feature,
     validate_prompt,
 )
 from airflow.providers.common.compat.sdk import (
@@ -91,14 +91,12 @@ class _AgentDecoratedOperator(DecoratedOperator, AgentOperator):
         self.prompt = self.python_callable(*self.op_args, **kwargs)
 
         validate_prompt(self.prompt, decorator_name="@task.agent")
-        reject_sequence_with_unsupported_feature(
-            self.prompt,
-            decorator_name="@task.agent",
-            feature_name="enable_hitl_review",
-            feature_enabled=self.enable_hitl_review,
-        )
 
-        self.render_template_fields(context)
+        # Render only the prompt the callable returned. The other template fields were already
+        # rendered before execute().
+        # The arguments of the call, positional ones too, can be referenced by name in the prompt.
+        context_merge(context, call_arguments(self.python_callable, self.op_args, self.op_kwargs))
+        self.prompt = self.render_template(self.prompt, context)
         return AgentOperator.execute(self, context)
 
 
@@ -121,7 +119,7 @@ def agent_task(
             toolsets=[SQLToolset(db_conn_id="postgres_default")],
         )
         def analyze(question: str):
-            return f"Answer: {question}"
+            return "Answer: {{ question }}"
 
     :param python_callable: Function to decorate.
     """

@@ -84,7 +84,9 @@ What each tool does
 ``AirflowTools`` accepts any toolset that implements
 :class:`~airflow.providers.common.ai.tools.ToolProvider`, and individual
 :class:`~airflow.providers.common.ai.tools.AirflowTool` objects. ``MCPToolset`` is the
-exception; give the runner the MCP server through the SDK instead. Each tool:
+exception; run the agent with ``AsyncAnthropic`` and
+:class:`~airflow.providers.common.ai.tools.anthropic.AsyncAirflowTools`, and convert the MCP
+server's tools with the SDK's ``anthropic.lib.tools.mcp.async_mcp_tool()`` instead. Each tool:
 
 - Keeps the toolset tool's name, description and argument schema.
 - Runs through the toolset, so connection resolution, SQL validation,

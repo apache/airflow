@@ -38,7 +38,7 @@ def _make_compare_result():
 
 
 def _make_mock_agent(output: SchemaCompareResult, make_mock_run_result):
-    mock_agent = MagicMock(spec=["run_sync"])
+    mock_agent = MagicMock(spec=["run_sync", "instrument"])
     mock_agent.run_sync.return_value = make_mock_run_result(output)
     return mock_agent
 
@@ -152,3 +152,25 @@ class TestLLMSchemaCompareDecoratedOperator:
         op.execute(context={"task_instance": MagicMock()})
 
         assert op.prompt == "Compare schemas for production environment"
+
+    @patch(
+        "airflow.providers.common.ai.operators.llm_schema_compare.LLMSchemaCompareOperator.execute",
+        autospec=True,
+    )
+    def test_execute_renders_only_the_returned_prompt(self, mock_execute):
+        """Fields rendered before execute() are not rendered again; only the returned value is."""
+        op = _LLMSchemaCompareDecoratedOperator(
+            task_id="test",
+            python_callable=lambda: "Summarize {{ topic }}",
+            llm_conn_id="my_llm",
+            system_prompt="{{ note }}",
+            db_conn_ids=["postgres_default", "snowflake_default"],
+            table_names=["test_table"],
+        )
+        context = {"topic": "logs", "note": "{{ other }}", "other": "rendered twice"}
+
+        op.render_template_fields(context)
+        op.execute(context=context)
+
+        assert op.prompt == "Summarize logs"
+        assert op.system_prompt == "{{ other }}"

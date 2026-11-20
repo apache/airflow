@@ -31,7 +31,6 @@ from airflow.listeners.listener import get_listener_manager
 from airflow.listeners.types import AssetEvent as ListenerAssetEvent
 from airflow.models.asset import (
     AssetAliasModel,
-    AssetDagRunQueue,
     AssetEvent,
     AssetModel,
     AssetPartitionDagRun,
@@ -42,12 +41,12 @@ from airflow.models.asset import (
     PartitionedAssetKeyLog,
     TaskOutletAssetReference,
     asset_alias_asset_event_association_table,
+    insert_asset_dag_run_queue_rows,
 )
 from airflow.models.log import Log
 from airflow.timetables.base import compute_rollup_fingerprint
 from airflow.utils.helpers import is_container, prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.sqlalchemy import get_dialect_name
 
 if TYPE_CHECKING:
     from datetime import datetime
@@ -66,6 +65,7 @@ if TYPE_CHECKING:
 log = structlog.get_logger(__name__)
 
 _APDR_GET_OR_CREATE_ATTEMPTS = 2
+_ALIAS_ASSOCIATION_ATTEMPTS = 2
 
 
 class AssetManager(LoggingMixin):
@@ -113,16 +113,29 @@ class AssetManager(LoggingMixin):
         *,
         session: Session,
     ) -> None:
-        already_related = {m.name for m in asset_model.aliases}
-        existing_aliases = {
-            m.name: m
-            for m in session.scalars(select(AssetAliasModel).where(AssetAliasModel.name.in_(alias_names)))
-        }
-        asset_model.aliases.extend(
-            existing_aliases.get(name, AssetAliasModel(name=name))
-            for name in alias_names
-            if name not in already_related
-        )
+        # Tolerate a concurrent writer linking the same alias.
+        for attempt in range(1, _ALIAS_ASSOCIATION_ATTEMPTS + 1):
+            already_related = {m.name for m in asset_model.aliases}
+            missing = [name for name in alias_names if name not in already_related]
+            if not missing:
+                return
+            existing_aliases = {
+                m.name: m
+                for m in session.scalars(select(AssetAliasModel).where(AssetAliasModel.name.in_(missing)))
+            }
+            try:
+                with session.begin_nested():
+                    asset_model.aliases.extend(
+                        existing_aliases.get(name, AssetAliasModel(name=name)) for name in missing
+                    )
+            except exc.IntegrityError:
+                if attempt == _ALIAS_ASSOCIATION_ATTEMPTS:
+                    raise
+                cls.logger().debug(
+                    "Another process linked aliases %s to asset %s first; retrying",
+                    missing,
+                    asset_model.uri,
+                )
 
     @classmethod
     def _filter_dags_by_team(
@@ -840,29 +853,7 @@ class AssetManager(LoggingMixin):
             {"asset_id": asset_id, "target_dag_id": dag.dag_id, "asset_event_id": event.id}
             for dag in dags_to_queue
         ]
-
-        if (dialect_name := get_dialect_name(session)) == "mysql":
-            from sqlalchemy.dialects.mysql import insert as my_insert
-
-            session.execute(
-                # The on-dup update a no-op since we are always working on ADRQs
-                # for the asset. It may not hold if you change e.g. ADRQ schema.
-                my_insert(AssetDagRunQueue).on_duplicate_key_update(asset_id=AssetDagRunQueue.asset_id),
-                values,
-            )
-            return
-
-        if dialect_name == "postgresql":
-            from sqlalchemy.dialects.postgresql import insert
-        else:
-            from sqlalchemy.dialects.sqlite import insert  # type: ignore[assignment]
-
-        session.execute(
-            insert(AssetDagRunQueue).on_conflict_do_nothing(
-                index_elements=["target_dag_id", "asset_event_id"]
-            ),
-            values,
-        )
+        insert_asset_dag_run_queue_rows(values, session=session)
 
 
 def resolve_asset_manager() -> AssetManager:

@@ -1554,6 +1554,13 @@ def get_provider_info():
                         "example": "3",
                         "default": "3",
                     },
+                    "run_task_concurrency": {
+                        "description": "The maximum number of ECS RunTask calls the ECS Executor makes in parallel. With 1, tasks are\nlaunched one at a time and the scheduler loop waits for each call. With more, the calls run in\nbackground threads and the scheduler loop does not wait for them.\n",
+                        "version_added": "9.40.0",
+                        "type": "integer",
+                        "example": "16",
+                        "default": "1",
+                    },
                     "run_task_kwargs": {
                         "description": "A JSON string containing arguments to provide the ECS `run_task` API (see url above).\n",
                         "version_added": "8.10",

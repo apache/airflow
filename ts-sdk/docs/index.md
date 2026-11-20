@@ -22,22 +22,22 @@
 Write Apache Airflow Dags in TypeScript, and run them on Node.js.
 
 > **Note**
-> This package is **1.0.0-beta1**: the API may change, it requires **Node 22+**, and
-> it is **ESM-only**.
+> Language SDK support is **experimental**: the API may change. The package requires
+> **Node 22+** and is **ESM-only**.
 
 ## Quick Start
 
-Install the beta package from npm, and `esbuild` to build the bundle:
+Install the package from npm, and `esbuild` to build the bundle:
 
 ```bash
-npm install apache-airflow-ts-sdk@1.0.0-beta1
+npm install @apache-airflow/ts-sdk@1.0.0
 npm install --save-dev esbuild
 ```
 
 Declare a Dag in `src/main.ts`. Calling a task names its inputs, which is how the tasks depend on each other:
 
 ```ts
-import { Bundle, Dag } from "apache-airflow-ts-sdk";
+import { Bundle, Dag } from "@apache-airflow/ts-sdk";
 
 const dag = new Dag("ts_hello", { schedule: "@daily", queue: "typescript" });
 

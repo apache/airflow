@@ -17,8 +17,8 @@
 
 .. _howto/sandbox:
 
-Sandboxed execution for agents
-==============================
+Sandboxes
+=========
 
 .. note::
 
@@ -146,7 +146,7 @@ Pages in this section
     :maxdepth: 1
 
     Configuration and lifecycle <configuration>
-    Backends <backends>
+    Backends <backends/index>
 
 .. _sandbox-quick-start:
 

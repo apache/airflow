@@ -4,11 +4,11 @@ airflow-core/src/airflow/cli/cli_parser.py::1
 airflow-core/src/airflow/cli/commands/dag_command.py::3
 airflow-core/src/airflow/cli/commands/db_command.py::1
 airflow-core/src/airflow/config_templates/airflow_local_settings.py::1
+airflow-core/src/airflow/crypto.py::1
 airflow-core/src/airflow/dag_processing/dagbag.py::1
 airflow-core/src/airflow/jobs/base_job_runner.py::1
 airflow-core/src/airflow/jobs/job.py::1
 airflow-core/src/airflow/models/connection.py::4
-airflow-core/src/airflow/models/crypto.py::1
 airflow-core/src/airflow/models/dagrun.py::2
 airflow-core/src/airflow/models/pool.py::2
 airflow-core/src/airflow/secrets/local_filesystem.py::4
@@ -310,7 +310,7 @@ providers/google/src/airflow/providers/google/firebase/hooks/firestore.py::1
 providers/google/src/airflow/providers/google/leveldb/hooks/leveldb.py::4
 providers/google/src/airflow/providers/google/marketing_platform/hooks/campaign_manager.py::2
 providers/google/src/airflow/providers/google/marketing_platform/hooks/search_ads.py::1
-providers/google/src/airflow/providers/google/marketing_platform/operators/bid_manager.py::3
+providers/google/src/airflow/providers/google/marketing_platform/operators/bid_manager.py::2
 providers/google/src/airflow/providers/google/marketing_platform/sensors/display_video.py::1
 providers/google/src/airflow/providers/google/suite/hooks/calendar.py::1
 providers/google/src/airflow/providers/google/suite/hooks/sheets.py::1

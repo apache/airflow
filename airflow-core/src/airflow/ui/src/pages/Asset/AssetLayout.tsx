@@ -21,7 +21,7 @@ import { useState } from "react";
 import { Box, Code, HStack, Text } from "@chakra-ui/react";
 import { useReactFlow } from "@xyflow/react";
 import { useTranslation } from "react-i18next";
-import { MdOutlineStorage, MdTimeline } from "react-icons/md";
+import { MdOutlineStorage, MdOutlineViewModule, MdTimeline } from "react-icons/md";
 import { Group, Panel, Separator, useDefaultLayout } from "react-resizable-panels";
 import { Outlet, useParams } from "react-router-dom";
 
@@ -66,6 +66,7 @@ export const AssetLayout = () => {
 
   const tabs = [
     { icon: <MdTimeline />, label: translate("assets:events"), value: "" },
+    { icon: <MdOutlineViewModule />, label: translate("common:partition_other"), value: "partitions" },
     {
       icon: <MdOutlineStorage />,
       label: translate("assets:assetStateStore.title"),
@@ -134,6 +135,9 @@ export const AssetLayout = () => {
               display="flex"
               flexDirection="column"
               gap={3}
+              height="100%"
+              minH={0}
+              minW={0}
               paddingInlineStart={2} // not 3 because the transparent resize handle is 1 unit wide
             >
               <Header asset={asset} />

@@ -27,7 +27,12 @@ import attrs
 from sqlalchemy import select
 
 from airflow._shared.timezones import timezone
-from airflow.models.deadline import _get_evaluation_kwargs, classproperty
+from airflow.models.deadline import (
+    DAGRUN_CREATED_TIMING,
+    DAGRUN_QUEUED_TIMING,
+    _get_evaluation_kwargs,
+    classproperty,
+)
 from airflow.models.variable import Variable
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import provide_session
@@ -97,6 +102,8 @@ class SerializedReferenceModels:
     class SerializedBaseDeadlineReference(LoggingMixin, ABC):
         """Base class for all serialized Deadline implementations."""
 
+        evaluation_timing: str = DAGRUN_CREATED_TIMING
+
         @classproperty
         def reference_name(cls: Any) -> str:
             return cls.__name__
@@ -160,6 +167,8 @@ class SerializedReferenceModels:
 
     class DagRunQueuedAtDeadline(SerializedBaseDeadlineReference):
         """A deadline that returns when a DagRun was queued."""
+
+        evaluation_timing: str = DAGRUN_QUEUED_TIMING
 
         def _evaluate_with(self, *, session: Session, dagrun: DeadlineDagRunProtocol) -> datetime | None:
             return dagrun.queued_at
@@ -261,6 +270,7 @@ class SerializedReferenceModels:
 
         def __init__(self, inner_ref):
             self.inner_ref = inner_ref
+            self.evaluation_timing = getattr(inner_ref, "evaluation_timing", DAGRUN_CREATED_TIMING)
 
         @property
         def reference_name(self) -> str:

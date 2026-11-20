@@ -19,12 +19,17 @@
 import type { PropsWithChildren } from "react";
 
 import "@testing-library/jest-dom/vitest";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { MemoryRouter, Route, Routes, useLocation, useMatches } from "react-router-dom";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { http, HttpResponse } from "msw";
+import { MemoryRouter, Route, Routes, matchRoutes, useLocation, useMatches } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { DagRunService, DagService, TaskInstanceService } from "openapi/requests/services.gen";
+import { DagRunService, DagService, GridService, TaskInstanceService } from "openapi/requests/services.gen";
 
+import { StateIcon } from "src/components/StateIcon";
+
+import { server } from "src/mocks/server";
+import { routerConfig } from "src/router";
 import { BaseWrapper } from "src/utils/Wrapper";
 
 import { DagBreadcrumb } from "./DagBreadcrumb";
@@ -48,6 +53,13 @@ const LOOP_PASSES = [
 // Most levels have no loop in scope; the loop tests opt in by setting this.
 let mockLoopOptions: Array<unknown> = [];
 
+// Empty unless a test gives the run on screen some task instance states.
+let mockSummaries = new Map<string, unknown>();
+
+vi.mock("src/queries/useGridTISummaries.ts", () => ({
+  useGridTiSummariesStream: () => ({ summariesByRunId: mockSummaries }),
+}));
+
 vi.mock("src/queries/useLoopFilterOptions", async (importOriginal) => {
   const original = await importOriginal();
 
@@ -57,7 +69,51 @@ vi.mock("src/queries/useLoopFilterOptions", async (importOriginal) => {
 // The msw dag-details handler is pinned to this dag id.
 const DAG_ID = "tutorial_taskflow_api";
 
-const LocationProbe = () => <div data-testid="location-pathname">{useLocation().pathname}</div>;
+const leadsToErrorPage = (href: string) => matchRoutes(routerConfig, href)?.at(-1)?.route.path === "*";
+
+const LocationProbe = () => {
+  const { pathname, search } = useLocation();
+
+  return (
+    <>
+      <div data-testid="location-pathname">{pathname}</div>
+      <div data-testid="location-search">{search}</div>
+    </>
+  );
+};
+
+const TASK_PATH = `/dags/${DAG_ID}/runs/run_1/tasks/task_1`;
+const TASK_ROUTE = "/dags/:dagId/runs/:runId/tasks/:taskId";
+
+// What the grid structure says, which is the only source that marks a mapped group's tasks mapped.
+const STRUCTURE = [
+  { children: null, id: "task_1", is_mapped: false, label: "task_1" },
+  { children: null, id: "load_orders", is_mapped: false, label: "Load orders" },
+  { children: null, id: "load_users", is_mapped: true, label: "Load users" },
+  {
+    children: [{ children: null, id: "per_region.fetch", is_mapped: true, label: "Fetch region" }],
+    id: "per_region",
+    is_mapped: true,
+    label: "per_region",
+  },
+  {
+    children: [{ children: null, id: "accumulate.increment", is_mapped: false, label: "Increment counter" }],
+    id: "accumulate",
+    is_loop: true,
+    is_mapped: false,
+    label: "accumulate",
+  },
+];
+
+const buildRunSummaries = (taskInstances: Array<Record<string, unknown>>) =>
+  new Map<string, unknown>([["run_1", { dag_id: DAG_ID, run_id: "run_1", task_instances: taskInstances }]]);
+
+/** Opens the task switcher and waits for its list, returning the option named `name`. */
+const openTaskSearch = async (name: RegExp = /Load orders/u) => {
+  fireEvent.click(await screen.findByTestId("switch-task"));
+
+  return screen.findByRole("option", { name });
+};
 
 const createWrapper =
   (path: string, route: string) =>
@@ -80,7 +136,10 @@ const createWrapper =
   );
 
 beforeEach(() => {
+  server.use(http.get("/ui/grid/structure/:dagId", () => HttpResponse.json(STRUCTURE)));
   mockLoopOptions = [];
+  mockSummaries = new Map();
+  localStorage.clear();
   vi.mocked(useMatches).mockReturnValue([]);
 });
 
@@ -212,6 +271,157 @@ describe("DagBreadcrumb", () => {
     );
   });
 
+  it("loads nothing for the task switcher until it is opened", async () => {
+    const getDagStructure = vi.spyOn(GridService, "getDagStructure");
+
+    render(<DagBreadcrumb />, { wrapper: createWrapper(TASK_PATH, TASK_ROUTE) });
+
+    // The task level's own crumb resolves through a request too, so once it shows its name the
+    // page has had every chance to ask for the switcher's list.
+    await screen.findByTestId("switch-task");
+    await screen.findByText("task_1");
+
+    expect(getDagStructure).not.toHaveBeenCalled();
+
+    await openTaskSearch();
+
+    expect(getDagStructure).toHaveBeenCalledTimes(1);
+  });
+
+  it("names the task level as the current page when it is the last one", async () => {
+    render(<DagBreadcrumb />, { wrapper: createWrapper(TASK_PATH, TASK_ROUTE) });
+
+    await screen.findByTestId("switch-task");
+
+    expect(screen.getByText("task_1").closest("[aria-current='page']")).not.toBeNull();
+  });
+
+  it("switches task by display name prefix, keeping the run and the tab", async () => {
+    render(<DagBreadcrumb />, {
+      wrapper: createWrapper(`${TASK_PATH}/xcom`, `${TASK_ROUTE}/*`),
+    });
+
+    await openTaskSearch();
+    fireEvent.change(screen.getByRole("combobox"), { target: { value: "LOAD O" } });
+
+    expect(screen.queryByRole("option", { name: /Load users/u })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("option", { name: /Load orders/u }));
+
+    await waitFor(() =>
+      expect(screen.getByTestId("location-pathname")).toHaveTextContent(
+        `/dags/${DAG_ID}/runs/run_1/tasks/load_orders/xcom`,
+      ),
+    );
+  });
+
+  it("matches a task's display name or group anywhere once the toggle is on", async () => {
+    render(<DagBreadcrumb />, { wrapper: createWrapper(TASK_PATH, TASK_ROUTE) });
+
+    await openTaskSearch();
+    fireEvent.change(screen.getByRole("combobox"), { target: { value: "region" } });
+
+    expect(screen.queryByRole("option")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId("advanced-search-toggle"));
+
+    // "per_region" is the group, so its task is found by either its own name or the group's.
+    expect(await screen.findByRole("option", { name: /Fetch region/u })).toHaveTextContent("per_region");
+  });
+
+  it("sends a task inside a mapped group to its expanded instances", async () => {
+    render(<DagBreadcrumb />, { wrapper: createWrapper(TASK_PATH, `${TASK_ROUTE}/*`) });
+
+    await openTaskSearch();
+    fireEvent.click(screen.getByRole("option", { name: /Fetch region/u }));
+
+    await waitFor(() =>
+      expect(screen.getByTestId("location-pathname")).toHaveTextContent(
+        `/dags/${DAG_ID}/runs/run_1/tasks/per_region.fetch/mapped`,
+      ),
+    );
+  });
+
+  it("lands a task inside a loop on its newest pass", async () => {
+    mockSummaries = buildRunSummaries([
+      { state: "success", task_id: "task_1" },
+      {
+        latest_region_id: "region-1",
+        latest_region_index: 2,
+        state: "success",
+        task_id: "accumulate.increment",
+      },
+    ]);
+    render(<DagBreadcrumb />, {
+      wrapper: createWrapper(`${TASK_PATH}?try_number=2&dag_run_state=failed`, `${TASK_ROUTE}/*`),
+    });
+
+    await openTaskSearch(/Increment counter/u);
+    fireEvent.click(screen.getByRole("option", { name: /Increment counter/u }));
+
+    await waitFor(() =>
+      expect(screen.getByTestId("location-pathname")).toHaveTextContent(
+        `/dags/${DAG_ID}/runs/run_1/tasks/accumulate.increment`,
+      ),
+    );
+    const search = new URLSearchParams(screen.getByTestId("location-search").textContent);
+
+    expect(search.get("region_id")).toBe("region-1");
+    expect(search.get("region_index")).toBe("2");
+    // The try belonged to the task being left; the other filters still apply.
+    expect(search.get("try_number")).toBeNull();
+    expect(search.get("dag_run_state")).toBe("failed");
+  });
+
+  it("lists only the run's tasks, each with its state in that run", async () => {
+    mockSummaries = buildRunSummaries([
+      { state: "failed", task_id: "load_orders" },
+      { state: "success", task_id: "load_users" },
+    ]);
+    render(<DagBreadcrumb />, { wrapper: createWrapper(TASK_PATH, TASK_ROUTE) });
+
+    const option = await openTaskSearch();
+    const { container: failedIcon } = render(<StateIcon state="failed" />);
+
+    expect(within(option).getByTestId("state-badge").innerHTML).toBe(failedIcon.innerHTML);
+    // A task the run has no instance of, such as one added in a later Dag version, would open a 404.
+    expect(screen.queryByRole("option", { name: /Increment counter/u })).not.toBeInTheDocument();
+  });
+
+  it("ignores another Dag's run that shares the run id", async () => {
+    mockSummaries = new Map([
+      [
+        "run_1",
+        {
+          dag_id: "other_dag",
+          run_id: "run_1",
+          task_instances: [{ state: "failed", task_id: "load_orders" }],
+        },
+      ],
+    ]);
+    render(<DagBreadcrumb />, { wrapper: createWrapper(TASK_PATH, TASK_ROUTE) });
+
+    const option = await openTaskSearch();
+
+    expect(within(option).queryByTestId("state-badge")).not.toBeInTheDocument();
+  });
+
+  it("switches task across runs on a task page with no run, keeping the tab", async () => {
+    render(<DagBreadcrumb />, {
+      wrapper: createWrapper(`/dags/${DAG_ID}/tasks/task_1/events`, "/dags/:dagId/tasks/:taskId/*"),
+    });
+
+    const option = await openTaskSearch();
+
+    expect(within(option).queryByTestId("state-badge")).not.toBeInTheDocument();
+    fireEvent.click(option);
+
+    await waitFor(() =>
+      expect(screen.getByTestId("location-pathname")).toHaveTextContent(
+        `/dags/${DAG_ID}/tasks/load_orders/events`,
+      ),
+    );
+  });
+
   it("offers the instance search at the map index level", async () => {
     render(<DagBreadcrumb />, {
       wrapper: createWrapper(
@@ -266,6 +476,22 @@ describe("DagBreadcrumb", () => {
     // and the trip would drop the region the url carries.
     expect(screen.queryByRole("link", { name: /mapIndex/u })).not.toBeInTheDocument();
     expect(screen.getByText("0")).toBeInTheDocument();
+  });
+
+  it("never links a looped group page's levels to a missing page", async () => {
+    mockLoopOptions = LOOP_PASSES;
+    render(<DagBreadcrumb />, {
+      wrapper: createWrapper(
+        `/dags/${DAG_ID}/runs/run_1/tasks/group/batch`,
+        "/dags/:dagId/runs/:runId/tasks/group/:groupId",
+      ),
+    });
+
+    await screen.findByTestId("switch-iteration");
+
+    for (const link of screen.getAllByRole("link")) {
+      expect(leadsToErrorPage(link.getAttribute("href") ?? "")).toBe(false);
+    }
   });
 
   it("resolves the task instance by the region coordinates in the URL", async () => {

@@ -17,6 +17,8 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Generator
+from contextlib import contextmanager
 from typing import Any
 
 from fastapi import Body, HTTPException, Request, status
@@ -67,6 +69,33 @@ def _get_flask_app():
     return auth_manager.flask_app
 
 
+@contextmanager
+def _release_scoped_session() -> Generator[None, None, None]:
+    """
+    Remove the thread-local ``settings.Session`` when a sync FAB route returns.
+
+    FastAPI runs sync route handlers on a threadpool thread. The FAB security manager reads and
+    writes through ``settings.Session``, a ``scoped_session`` keyed by thread, so the session it
+    opens stays bound to that worker thread. ``cleanup_session_middleware`` calls
+    ``Session.remove()`` on the event-loop thread and never reaches it: the transaction opened by
+    a read such as ``find_user`` or ``find_role`` is never ended, the backend stays
+    ``idle in transaction`` and the connection is never returned to the pool. Once every worker
+    thread holds one, the pool is exhausted and the API server stops answering.
+
+    Removing the session here runs in the handler's own thread, after the response model is built.
+    """
+    try:
+        yield
+    finally:
+        from airflow import settings
+
+        if settings.Session is not None:
+            try:
+                settings.Session.remove()
+            except Exception:
+                log.warning("Failed to remove the scoped session after a FAB API call", exc_info=True)
+
+
 @auth_router.post(
     "/token",
     response_model=LoginResponse,
@@ -75,7 +104,7 @@ def _get_flask_app():
 )
 def create_token(request: Request, body: dict[str, Any] = Body(...)) -> LoginResponse:
     """Generate a new API token."""
-    with _get_flask_app().app_context():
+    with _get_flask_app().app_context(), _release_scoped_session():
         return FABAuthManagerLogin.create_token(headers=dict(request.headers), body=body)
 
 
@@ -87,7 +116,7 @@ def create_token(request: Request, body: dict[str, Any] = Body(...)) -> LoginRes
 )
 def create_token_cli(request: Request, body: dict[str, Any] = Body(...)) -> LoginResponse:
     """Generate a new CLI API token."""
-    with _get_flask_app().app_context():
+    with _get_flask_app().app_context(), _release_scoped_session():
         return FABAuthManagerLogin.create_token(
             headers=dict(request.headers),
             body=body,
@@ -101,7 +130,7 @@ def create_token_cli(request: Request, body: dict[str, Any] = Body(...)) -> Logi
 )
 def logout(request: Request) -> RedirectResponse:
     """Clear session cookies and redirect to the login page."""
-    with _get_flask_app().app_context():
+    with _get_flask_app().app_context(), _release_scoped_session():
         login_url = get_auth_manager().get_url_login()
         secure = request.base_url.scheme == "https" or bool(conf.get("api", "ssl_cert", fallback=""))
         cookie_path = get_cookie_path()

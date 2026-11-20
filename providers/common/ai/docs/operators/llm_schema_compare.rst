@@ -184,7 +184,7 @@ Parameters
 
 - ``prompt``: Instructions for the LLM on what to compare and flag.
 - ``llm_conn_id``: Airflow connection ID for the LLM provider.
-- ``model_id``: Model identifier (e.g. ``"openai:gpt-5"``). Overrides the
+- ``model_id``: Model identifier (e.g. ``"openai:gpt-6.1-sol"``). Overrides the
   connection's extra field.
 - ``system_prompt``: Instructions included in the LLM system prompt. Defaults to
   ``DEFAULT_SYSTEM_PROMPT`` which contains cross-system type equivalences and
@@ -227,3 +227,6 @@ Logging
 After each LLM call, the operator logs a summary with model name, token usage,
 and request count at INFO level. See :ref:`AgentOperator logging <howto/operator:agent>`
 for details on the log format.
+
+Like :doc:`llm`, the operator also pushes ``usage``, ``run_id`` and the model name to
+XCom, on a failed run too. See :doc:`../observability`.

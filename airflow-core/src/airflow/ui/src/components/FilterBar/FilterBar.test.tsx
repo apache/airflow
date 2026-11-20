@@ -145,6 +145,26 @@ describe("FilterBar select filters", () => {
     expect(valueText).not.toBeNull();
     expect(globalThis.getComputedStyle(valueText as HTMLElement).overflow).toBe("visible");
   });
+
+  it("collapses the pill after a selection even when focus stays inside it", async () => {
+    // WebKit hands focus back to the select trigger, so blurring the active element leaves the pill open.
+    const blur = vi.spyOn(HTMLElement.prototype, "blur").mockImplementation(() => undefined);
+    const selectConfig: FilterConfig = {
+      key: "state",
+      label: "State",
+      options: [{ label: "Failed", value: "failed" }],
+      type: "select",
+    };
+
+    render(<FilterBar configs={[selectConfig]} onFiltersChange={vi.fn()} />, { wrapper });
+
+    fireEvent.click(screen.getByTestId("add-filter-button"));
+    fireEvent.click(await screen.findByTestId("add-filter-state"));
+    fireEvent.click(await screen.findByTestId("state-filter-failed"));
+
+    await waitFor(() => expect(screen.getByTestId("state-pill")).toBeInTheDocument());
+    blur.mockRestore();
+  });
 });
 
 describe("FilterBar multiselect filters", () => {
@@ -162,6 +182,61 @@ describe("FilterBar multiselect filters", () => {
 
     expect(pill).toHaveTextContent("alpha");
     expect(pill).toHaveTextContent("beta");
+  });
+
+  it("shows each value by its option label", () => {
+    const kindConfig: FilterConfig = {
+      key: "kind",
+      label: "Kind",
+      options: [
+        { label: "Asset Watcher", value: "asset_watcher" },
+        { label: "Task", value: "task" },
+      ],
+      type: "multiselect",
+    };
+
+    render(
+      <FilterBar
+        configs={[kindConfig]}
+        initialValues={{ kind: ["asset_watcher"] }}
+        onFiltersChange={vi.fn()}
+      />,
+      { wrapper },
+    );
+
+    expect(screen.getByTestId("kind-pill")).toHaveTextContent("Asset Watcher");
+    expect(screen.getByTestId("kind-pill")).not.toHaveTextContent("asset_watcher");
+  });
+
+  it("draws rich option labels, such as state badges, in the menu and the pill", async () => {
+    const statusConfig: FilterConfig = {
+      key: "status",
+      label: "Status",
+      options: [
+        { label: <StateBadge state="failed">Failing</StateBadge>, value: "failing" },
+        { label: <StateBadge state="running">Running</StateBadge>, value: "running" },
+      ],
+      type: "multiselect",
+    };
+    const { unmount } = render(
+      <FilterBar
+        configs={[statusConfig]}
+        initialValues={{ status: ["failing"] }}
+        onFiltersChange={vi.fn()}
+      />,
+      { wrapper },
+    );
+
+    expect(within(screen.getByTestId("status-pill")).getByTestId("state-badge")).toHaveTextContent("Failing");
+    unmount();
+
+    render(<FilterBar configs={[statusConfig]} onFiltersChange={vi.fn()} />, { wrapper });
+    fireEvent.click(screen.getByTestId("add-filter-button"));
+    fireEvent.click(await screen.findByTestId("add-filter-status"));
+
+    expect(
+      within(await screen.findByRole("option", { name: "Running" })).getByTestId("state-badge"),
+    ).toBeVisible();
   });
 
   it("does not render a pill for an empty array", () => {
@@ -292,5 +367,50 @@ describe("FilterBar URL synchronization", () => {
     rerender(<FilterBar configs={configs} initialValues={{}} onFiltersChange={vi.fn()} />);
 
     await waitFor(() => expect(screen.queryByTestId("dag_id-pill")).not.toBeInTheDocument());
+  });
+});
+
+describe("FilterBar reset", () => {
+  it("shows Reset for an external filter even with no pills", () => {
+    render(
+      <FilterBar
+        configs={[booleanConfig]}
+        hasExternalFilters
+        onFiltersChange={vi.fn()}
+        showPresetFilters={false}
+      />,
+      { wrapper },
+    );
+
+    expect(screen.getByRole("button", { name: "common:reset" })).toBeInTheDocument();
+  });
+
+  it("hides Reset with no pills and no external filter", () => {
+    render(<FilterBar configs={[booleanConfig]} onFiltersChange={vi.fn()} showPresetFilters={false} />, {
+      wrapper,
+    });
+
+    expect(screen.queryByRole("button", { name: "common:reset" })).not.toBeInTheDocument();
+  });
+
+  it("calls onReset instead of onFiltersChange when given", () => {
+    const onFiltersChange = vi.fn();
+    const onReset = vi.fn();
+
+    render(
+      <FilterBar
+        configs={[booleanConfig]}
+        initialValues={{ needs_review: "true" }}
+        onFiltersChange={onFiltersChange}
+        onReset={onReset}
+        showPresetFilters={false}
+      />,
+      { wrapper },
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "common:reset" }));
+
+    expect(onReset).toHaveBeenCalledOnce();
+    expect(onFiltersChange).not.toHaveBeenCalled();
   });
 });

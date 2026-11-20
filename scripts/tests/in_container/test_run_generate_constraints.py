@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -73,6 +74,47 @@ class TestReadProviderVersionsFromConstraints:
         }
 
 
+class TestFindPreReleaseProviderPins:
+    def test_returns_only_the_providers_pinned_at_a_pre_release(self, tmp_path):
+        constraints = tmp_path / "constraints.txt"
+        constraints.write_text(
+            "opentelemetry-exporter-prometheus==0.65b0\n"
+            "apache-airflow-providers-amazon==9.39.0\n"
+            "apache-airflow-providers-common-ai==1.1.0rc1\n"
+            "apache-airflow-providers-openlineage==2.21.0b1\n"
+            "apache-airflow-providers-broken==not-a-version\n"
+        )
+
+        assert m.find_pre_release_provider_pins(constraints) == {
+            "apache-airflow-providers-common-ai": "1.1.0rc1",
+            "apache-airflow-providers-openlineage": "2.21.0b1",
+        }
+
+    def test_missing_baseline_has_no_pins(self, tmp_path):
+        assert m.find_pre_release_provider_pins(tmp_path / "missing.txt") == {}
+
+
+class TestCheckBaselinePreReleasesUnchanged:
+    def test_passes_when_the_baseline_candidates_did_not_change(self, tmp_path):
+        latest = tmp_path / "latest.txt"
+        latest.write_text(
+            "apache-airflow-providers-common-ai==1.1.0rc1\napache-airflow-providers-amazon==9.0.1\n"
+        )
+
+        m.check_baseline_pre_releases_unchanged(
+            _config(latest, tmp_path / "current.txt"), {"apache-airflow-providers-common-ai": "1.1.0rc1"}
+        )
+
+    def test_fails_when_a_candidate_was_published_during_the_generation(self, tmp_path):
+        latest = tmp_path / "latest.txt"
+        latest.write_text("apache-airflow-providers-common-ai==1.1.0rc1\n")
+
+        with pytest.raises(SystemExit) as exc_info:
+            m.check_baseline_pre_releases_unchanged(_config(latest, tmp_path / "current.txt"), {})
+
+        assert exc_info.value.code == 1
+
+
 class TestCheckProvidersNotDowngraded:
     def test_exits_and_writes_slack_payload_when_a_provider_is_downgraded(self, tmp_path, monkeypatch):
         monkeypatch.delenv("SLACK_CHANNEL", raising=False)
@@ -112,6 +154,16 @@ class TestCheckProvidersNotDowngraded:
         current.write_text("apache-airflow-providers-amazon==7.5.0\n")
 
         m.check_providers_not_downgraded(_config(latest, current, allow_pre_releases=True))
+
+        assert not (tmp_path / "provider-downgrade-slack-message.json").exists()
+
+    def test_a_candidate_in_the_baseline_is_not_a_downgrade(self, tmp_path):
+        latest = tmp_path / "latest.txt"
+        current = tmp_path / "current.txt"
+        latest.write_text("apache-airflow-providers-common-ai==1.1.0rc1\n")
+        current.write_text("apache-airflow-providers-common-ai==1.0.0\n")
+
+        m.check_providers_not_downgraded(_config(latest, current))
 
         assert not (tmp_path / "provider-downgrade-slack-message.json").exists()
 
@@ -219,6 +271,40 @@ class TestFindNewestVersionInPypi:
 
         assert newest == expected
 
+    @pytest.mark.parametrize(
+        "releases, expected",
+        [
+            pytest.param(
+                {"1.0.0": [_file()], "1.1.0rc1": [_file()]},
+                "1.1.0rc1",
+                id="candidate-the-baseline-pins-is-kept",
+            ),
+            pytest.param(
+                {"1.0.0": [_file()], "1.1.0rc1": [_file()], "1.1.0rc2": [_file()]},
+                "1.1.0rc1",
+                id="other-candidates-stay-ignored",
+            ),
+            pytest.param(
+                {"1.0.0": [_file()], "1.1.0rc1": [_file()], "1.1.0": [_file()]},
+                "1.1.0",
+                id="released-candidate-gives-way-to-its-release",
+            ),
+            pytest.param(
+                {"1.0.0": [_file()], "1.1.0rc1": [_file(yanked=True)]},
+                "1.0.0",
+                id="yanked-candidate-is-dropped",
+            ),
+        ],
+    )
+    def test_keeps_the_candidate_the_baseline_pins(self, monkeypatch, releases, expected):
+        monkeypatch.setattr(m.requests, "get", lambda url, timeout: _FakeResponse({"releases": releases}))
+
+        newest = m.find_newest_version_in_pypi(
+            "apache-airflow-providers-common-ai", "3.11", False, kept_pre_release="1.1.0rc1"
+        )
+
+        assert newest == expected
+
     def test_unpublished_distribution_is_unpinned(self, monkeypatch):
         monkeypatch.setattr(m.requests, "get", lambda url, timeout: _FakeResponse({}, status_code=404))
 
@@ -244,7 +330,9 @@ class TestBuildPinnedProviderRequirements:
             "apache-airflow-providers-brand-new": None,
         }
         monkeypatch.setattr(
-            m, "find_newest_version_in_pypi", lambda dist, python_version, allow_pre_releases: newest[dist]
+            m,
+            "find_newest_version_in_pypi",
+            lambda dist, python_version, allow_pre_releases, kept_pre_release: newest[dist],
         )
 
         assert m.build_pinned_provider_requirements("3.11", True) == [
@@ -261,7 +349,7 @@ class TestBuildPinnedProviderRequirements:
             seen_for_distributions.append(python_version)
             return ["apache-airflow-providers-amazon"]
 
-        def fake_lookup(distribution, python_version, allow_pre_releases):
+        def fake_lookup(distribution, python_version, allow_pre_releases, kept_pre_release):
             seen_for_lookup.append((python_version, allow_pre_releases))
             return "9.0.0"
 
@@ -272,6 +360,81 @@ class TestBuildPinnedProviderRequirements:
 
         assert seen_for_distributions == ["3.14"]
         assert seen_for_lookup == [("3.14", False)]
+
+    def test_baseline_candidates_reach_the_lookup_of_their_provider(self, monkeypatch):
+        seen: dict[str, str | None] = {}
+
+        def fake_lookup(distribution, python_version, allow_pre_releases, kept_pre_release):
+            seen[distribution] = kept_pre_release
+            return kept_pre_release or "9.0.0"
+
+        monkeypatch.setattr(
+            m,
+            "get_all_active_provider_distributions",
+            lambda python_version=None: [
+                "apache-airflow-providers-amazon",
+                "apache-airflow-providers-common-ai",
+            ],
+        )
+        monkeypatch.setattr(m, "find_newest_version_in_pypi", fake_lookup)
+
+        pins = m.build_pinned_provider_requirements(
+            "3.11", False, kept_pre_releases={"apache-airflow-providers-common-ai": "1.1.0rc1"}
+        )
+
+        assert seen == {
+            "apache-airflow-providers-amazon": None,
+            "apache-airflow-providers-common-ai": "1.1.0rc1",
+        }
+        assert pins == [
+            "apache-airflow-providers-amazon==9.0.0",
+            "apache-airflow-providers-common-ai==1.1.0rc1",
+        ]
+
+    def test_final_release_fails_on_a_candidate_neither_released_nor_yanked(self, monkeypatch, capsys):
+        seen_allow_pre_releases: list[bool] = []
+        newest = {
+            "apache-airflow-providers-amazon": "9.39.0",
+            "apache-airflow-providers-common-ai": "1.1.0rc1",
+            "apache-airflow-providers-microsoft-azure": "15.3.0rc1",
+        }
+
+        def fake_lookup(distribution, python_version, allow_pre_releases, kept_pre_release):
+            seen_allow_pre_releases.append(allow_pre_releases)
+            return newest[distribution]
+
+        monkeypatch.setattr(
+            m, "get_all_active_provider_distributions", lambda python_version=None: list(newest)
+        )
+        monkeypatch.setattr(m, "find_newest_version_in_pypi", fake_lookup)
+
+        with pytest.raises(SystemExit) as exc_info:
+            m.build_pinned_provider_requirements("3.11", False, fail_on_pending_candidates=True)
+
+        assert exc_info.value.code == 1
+        assert set(seen_allow_pre_releases) == {True}
+        output = re.sub(r"\x1b\[[0-9;]*m", "", capsys.readouterr().out)
+        assert "apache-airflow-providers-common-ai==1.1.0rc1" in output
+        assert "apache-airflow-providers-microsoft-azure==15.3.0rc1" in output
+        assert "apache-airflow-providers-amazon" not in output
+        assert "release it" in output
+        assert "yank it" in output
+
+    def test_final_release_passes_once_every_candidate_is_released_or_yanked(self, monkeypatch):
+        monkeypatch.setattr(
+            m,
+            "get_all_active_provider_distributions",
+            lambda python_version=None: ["apache-airflow-providers-common-ai"],
+        )
+        monkeypatch.setattr(
+            m,
+            "find_newest_version_in_pypi",
+            lambda dist, python_version, allow_pre_releases, kept_pre_release: "1.1.0",
+        )
+
+        assert m.build_pinned_provider_requirements("3.11", False, fail_on_pending_candidates=True) == [
+            "apache-airflow-providers-common-ai==1.1.0"
+        ]
 
 
 class TestDownloadLatestConstraintFile:

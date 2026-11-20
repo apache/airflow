@@ -50,6 +50,7 @@
   "dagBundle_other": "Dag Bundles",
   "dagDetails": {
     "activeRuns": "Exécutions actives",
+    "bundleVersion": "Version du bundle",
     "catchup": "Rattrapage",
     "dagRunTimeout": "Délai d'exécution du Dag",
     "defaultArgs": "Arguments par défaut",
@@ -124,6 +125,7 @@
     "home": "Accueil",
     "invalidUrl": "Page introuvable. Veuillez vérifier l'URL et réessayer.",
     "notFound": "Page introuvable",
+    "reload": "Recharger la page",
     "title": "Erreur"
   },
   "errors": {
@@ -146,18 +148,25 @@
     "all": "Tous",
     "and": "Et",
     "any": "N'importe lequel",
+    "hiddenAsset": "Asset masqué",
     "or": "Ou"
   },
   "filter": "Filtre",
   "filters": {
     "addFilter": "Ajouter un filtre",
+    "allIterations": "Toutes",
     "completedAt": "Terminé le",
     "date": "Date",
     "durationFrom": "Durée à partir de",
     "durationTo": "Durée jusqu'à",
     "endTime": "Heure de fin",
+    "iteration": "Itération",
     "logicalDateFrom": "Date logique de début",
     "logicalDateTo": "Date logique de fin",
+    "loop": "Boucle",
+    "loopAllIterations": "{{loop}} toutes",
+    "loopIteration": "{{loop}} {{index}}",
+    "loopPlaceholder": "Sélectionner une boucle",
     "maxActiveRunsFrom": "Runs actifs max. de",
     "maxActiveRunsTo": "Runs actifs max. à",
     "removeFilter": "Retirer le filtre",
@@ -167,6 +176,7 @@
     "selectDateRange": "Sélectionner une plage de dates",
     "selectDateTime": "Sélectionner la date et l'heure",
     "startTime": "Heure de début",
+    "switchIteration": "Changer d'itération",
     "time": "Heure"
   },
   "fullscreen": {
@@ -175,6 +185,7 @@
   "generateToken": "Générer un jeton",
   "includedIn": "Inclus dans",
   "key": "Clé",
+  "loading": "Chargement…",
   "logLevel": {
     "hide": "Masquer les niveaux de journalisation",
     "hotkey": "l",
@@ -219,6 +230,10 @@
     "write": "Écrire"
   },
   "overallStatus": "Statut global",
+  "pagination": {
+    "nextPage": "Page suivante",
+    "previousPage": "Page précédente"
+  },
   "partition_many": "Partitions",
   "partition_one": "Partition",
   "partition_other": "Partitions",
@@ -268,7 +283,8 @@
   "search": {
     "advanced": {
       "description": "Correspond n'importe où dans la valeur (recherche par sous-chaîne). Plus lent sur les grands déploiements car cela ne peut pas utiliser l'index B-tree par défaut. Consultez la section de la documentation sur les index de métadonnées personnalisés pour plus de détails.",
-      "title": "Correspondance n'importe où"
+      "title": "Correspondance n'importe où",
+      "toggleLabel": "Activer/désactiver la recherche n'importe où"
     }
   },
   "security": {
@@ -299,6 +315,13 @@
         "label": "Sélection par défaut pour l'effacement de tâche"
       },
       "title": "Effacement"
+    },
+    "dagsList": {
+      "recentTasks": {
+        "helper": "Afficher les états récents des tâches de chaque Dag dans la liste des Dags. Désactivez cette option pour ne pas les charger, ce qui peut aider sur les déploiements comportant de nombreux Dags.",
+        "label": "Afficher les tâches récentes"
+      },
+      "title": "Liste des Dags"
     },
     "description": "Ces préférences sont enregistrées uniquement dans ce navigateur et s'appliquent à toute l'application.",
     "general": {
@@ -375,10 +398,12 @@
       "scrollBottom": "Défiler vers le bas",
       "scrollTop": "Défiler vers le haut",
       "searchDags": "Rechercher des $t(dag_other)",
+      "selectGridCellRange": "Sélectionner une plage d'$t(taskInstance_other) ou de $t(taskGroup_other)",
       "showHelp": "Afficher $t(shortcuts.title)",
       "toggleExpand": "Développer ou réduire tous les groupes",
       "toggleFullscreen": "Basculer le plein écran",
       "toggleGraphGrid": "Basculer entre la vue graphe et grille",
+      "toggleGridCellSelection": "Ajouter ou retirer une $t(taskInstance_one) ou un $t(taskGroup_one) de la sélection",
       "toggleLogLevel": "Afficher/masquer les niveaux de journalisation",
       "toggleSource": "Basculer la source",
       "toggleTaskGroup": "Développer ou réduire $t(taskGroup_one)",
@@ -411,6 +436,7 @@
     "no_status": "Aucun statut",
     "none": "Aucun statut",
     "open": "Ouvert",
+    "pending": "En attente",
     "planned": "Planifié",
     "queued": "En file",
     "removed": "Supprimé",
@@ -424,6 +450,8 @@
     "upstream_failed": "Échec en amont"
   },
   "switchDag": "Changer de $t(dag_one)",
+  "switchDagRun": "Changer d'$t(dagRun_one)",
+  "switchMapIndex": "Changer de $t(mapIndex)",
   "table": {
     "completedAt": "Terminé à",
     "createdAt": "Créé à",
@@ -472,6 +500,9 @@
     "executorConfig": "Configuration de l'exécuteur",
     "hostname": "Nom d'hôte",
     "id": "ID",
+    "iteration": "Itération",
+    "loopDecision": "Décision",
+    "loopIterations": "Itérations exécutées",
     "maxTries": "Essais max.",
     "pid": "PID",
     "pool": "Pool",
@@ -480,6 +511,7 @@
     "queue": "File",
     "queuedWhen": "Mis en file à",
     "renderedMapIndex": "Map Index rendu",
+    "retryAt": "Nouvelle tentative à",
     "scheduledWhen": "Planifié à",
     "stateReason": "Raison de l'état",
     "stateReasonSummary": {

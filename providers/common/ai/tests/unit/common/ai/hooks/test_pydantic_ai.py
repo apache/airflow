@@ -27,8 +27,9 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from contextvars import ContextVar
 from pathlib import Path
-from unittest.mock import MagicMock, call, patch
+from unittest.mock import MagicMock, call, create_autospec, patch
 
+import httpx2
 import pytest
 from pydantic_ai import Agent
 from pydantic_ai.capabilities import AbstractCapability
@@ -37,12 +38,14 @@ from pydantic_ai.messages import ModelResponse, TextPart, ToolCallPart, ToolRetu
 from pydantic_ai.models import Model
 from pydantic_ai.models.fallback import FallbackModel
 from pydantic_ai.models.function import FunctionModel
+from pydantic_ai.models.openai import OpenAIChatModel
 from pydantic_ai.models.test import TestModel
 from pydantic_ai.providers import infer_provider_class
 
 from airflow.models.connection import Connection
 from airflow.providers.common.ai.get_provider_info import get_provider_info
 from airflow.providers.common.ai.hooks.pydantic_ai import (
+    ModelReadinessBackend,
     PydanticAIAzureHook,
     PydanticAIBedrockHook,
     PydanticAIHook,
@@ -59,6 +62,10 @@ from airflow.providers_manager import HookInfo
 # Matches the `google...` provider key pydantic-ai expects before the `:model-name`
 # separator, e.g. "google-cloud" out of "google-cloud:gemini-2.5-flash".
 _GOOGLE_MODEL_PREFIX_RE = re.compile(r"google[\w-]*(?=:)")
+
+
+def build_backend(*, model_name: str, base_url: str | None) -> ModelReadinessBackend:
+    raise NotImplementedError
 
 
 def _assert_prefix_is_known_provider(prefix: str) -> None:
@@ -737,6 +744,111 @@ class TestPydanticAIHookModelProviderResolution:
         assert "openi" in str(exc_info.value)
         assert "openi:gpt-5" in str(exc_info.value)
 
+    @pytest.mark.parametrize(
+        ("model_id", "extra_model"),
+        [
+            pytest.param(None, "claude-sonnet-4-5", id="model-in-extra"),
+            pytest.param("claude-sonnet-4-5", None, id="model-id-param"),
+        ],
+    )
+    def test_generic_connection_provider_extra_qualifies_bare_name(
+        self, registry, infer_model_stub, model_id, extra_model
+    ):
+        """The extra's ``model_provider`` gives the generic connection type a platform for bare names."""
+        extra = {"model_provider": "openai-chat"}
+        if extra_model:
+            extra["model"] = extra_model
+        registry.add("gateway", extra=extra)
+        hook = PydanticAIHook(llm_conn_id="gateway", model_id=model_id)
+
+        assert hook.get_conn() is infer_model_stub.models["openai-chat:claude-sonnet-4-5"]
+
+    def test_generic_connection_provider_extra_leaves_prefixed_name_alone(self, registry, infer_model_stub):
+        """A name already pinning a recognized provider wins over the extra's default."""
+        registry.add(
+            "gateway", extra={"model_provider": "openai-chat", "model": "anthropic:claude-sonnet-4-5"}
+        )
+        hook = PydanticAIHook(llm_conn_id="gateway")
+
+        assert hook.get_conn() is infer_model_stub.models["anthropic:claude-sonnet-4-5"]
+
+    def test_generic_connection_provider_extra_name_tag_does_not_warn(
+        self, registry, infer_model_stub, caplog
+    ):
+        """Behind a gateway, Ollama-style ``name:tag`` ids are the normal spelling, not a typo."""
+        registry.add("gateway", extra={"model_provider": "openai-chat", "model": "llama3:70b"})
+        hook = PydanticAIHook(llm_conn_id="gateway")
+
+        with caplog.at_level(logging.WARNING):
+            model = hook.get_conn()
+
+        assert model is infer_model_stub.models["openai-chat:llama3:70b"]
+        assert not any("typo" in r.message for r in caplog.records)
+
+    def test_generic_connection_provider_extra_builds_the_gateway_model(self):
+        """The documented gateway connection yields a Chat Completions model aimed at its host."""
+        conn = Connection(
+            conn_id="gateway",
+            conn_type="pydanticai",
+            password="gateway-key",
+            host="https://llm-gateway.example.com/v1",
+            extra=json.dumps({"model_provider": "openai-chat"}),
+        )
+        hook = PydanticAIHook(llm_conn_id="gateway", model_id="claude-sonnet-4-5")
+
+        with patch.object(hook, "get_connection", autospec=True, return_value=conn):
+            model = hook.get_conn()
+
+        assert isinstance(model, OpenAIChatModel)
+        assert model.model_name == "claude-sonnet-4-5"
+        assert model.base_url.rstrip("/") == "https://llm-gateway.example.com/v1"
+
+    @pytest.mark.parametrize(
+        ("provider", "model"),
+        [
+            pytest.param("opneai-chat", "gpt-5", id="typo-bare-model"),
+            pytest.param("opneai-chat", "openai:gpt-5", id="typo-prefixed-model"),
+            pytest.param(["openai-chat"], "gpt-5", id="not-a-string"),
+        ],
+    )
+    def test_generic_connection_unknown_provider_extra_raises(
+        self, registry, infer_model_stub, provider, model
+    ):
+        """A bad ``model_provider`` fails at resolve time even when the model name would not need it."""
+        registry.add("gateway", extra={"model_provider": provider, "model": model})
+        hook = PydanticAIHook(llm_conn_id="gateway")
+
+        with pytest.raises(
+            ValueError,
+            match=re.escape(
+                f"Connection 'gateway' sets 'model_provider' to {provider!r}, which is not a provider"
+            ),
+        ):
+            hook.get_conn()
+
+    @pytest.mark.parametrize("provider", [pytest.param(None, id="null"), pytest.param("", id="empty")])
+    def test_generic_connection_without_provider_extra_raises(self, registry, infer_model_stub, provider):
+        """An unset or blank ``model_provider`` (the form can save either) leaves the error pointing at the fix."""
+        registry.add("primary", extra={"model": "gpt-4", "model_provider": provider})
+        hook = PydanticAIHook(llm_conn_id="primary")
+
+        with pytest.raises(ValueError, match="has no default model provider") as exc_info:
+            hook.get_conn()
+
+        assert "set a default 'model_provider' in the connection's extra" in str(exc_info.value)
+
+    def test_vendor_connection_ignores_provider_extra(self, registry, infer_model_stub):
+        """A vendor type's credential fields only fit its own platform, so its class attribute wins."""
+        registry.add(
+            "primary",
+            conn_type="pydanticai_azure",
+            hook_class=PydanticAIAzureHook,
+            extra={"model": "gpt-5", "model_provider": "openai-chat"},
+        )
+        hook = PydanticAIAzureHook(llm_conn_id="primary")
+
+        assert hook.get_conn() is infer_model_stub.models["azure:gpt-5"]
+
 
 class TestPydanticAIHookFallback:
     def test_no_fallback_returns_the_bare_model(self, registry, infer_model_stub):
@@ -745,6 +857,46 @@ class TestPydanticAIHookFallback:
         hook = PydanticAIHook(llm_conn_id="primary")
 
         assert hook.get_conn() is infer_model_stub.models["openai:gpt-5.6-sol"]
+
+    def test_get_primary_model_skips_the_fallback_chain(self, registry, infer_model_stub):
+        registry.add("primary", extra={"model": "openai:gpt-5.6-sol"})
+        registry.add("second", extra={"model": "anthropic:claude-opus-4-6"})
+        hook = PydanticAIHook(llm_conn_id="primary", fallback_conn_ids=["second"])
+
+        assert isinstance(hook.get_conn(), FallbackModel)
+        assert hook.get_primary_model() is infer_model_stub.models["openai:gpt-5.6-sol"]
+
+    def test_get_primary_model_builds_the_requested_model_on_this_connection(
+        self, registry, infer_model_stub
+    ):
+        registry.add("primary", extra={"model": "openai:gpt-5.6-sol"})
+        hook = PydanticAIHook(llm_conn_id="primary")
+
+        model = hook.get_primary_model("anthropic:claude-opus-4-6")
+
+        assert model is infer_model_stub.models["anthropic:claude-opus-4-6"]
+
+    def test_explicit_credentials_are_logged_once_per_hook_however_many_models_it_builds(
+        self, registry, infer_model_stub, caplog
+    ):
+        registry.add("primary", password="sk-test", extra={"model": "openai:gpt-5.6-sol"})
+        hook = PydanticAIHook(llm_conn_id="primary")
+
+        with caplog.at_level(logging.INFO):
+            hook.get_primary_model()
+            hook.get_primary_model()
+            hook.get_primary_model("openai:gpt-5")
+
+        logged = [r for r in caplog.records if "Using explicit credentials" in r.message]
+        assert [r.levelno for r in logged] == [logging.INFO]
+
+    @pytest.mark.asyncio
+    async def test_aget_primary_model_matches_the_sync_one(self, registry, infer_model_stub):
+        registry.add("primary", extra={"model": "openai:gpt-5.6-sol"})
+        registry.add("second", extra={"model": "anthropic:claude-opus-4-6"})
+        hook = PydanticAIHook(llm_conn_id="primary", fallback_conn_ids=["second"])
+
+        assert await hook.aget_primary_model() is infer_model_stub.models["openai:gpt-5.6-sol"]
 
     def test_param_builds_chain_in_order(self, registry, infer_model_stub):
         registry.add("primary", extra={"model": "openai:gpt-5.6-sol"})
@@ -938,7 +1090,7 @@ class TestPydanticAIHookFallback:
         native vendor id is never valid on another platform -- it must not be forwarded there.
 
         Mutation canary: dropping the ``":" not in forwarded_model_id or forwarded_model_provider
-        == self.model_provider`` gate (reverting to just ``not _has_recognized_provider_prefix``)
+        == model_provider`` gate (reverting to just ``not _has_recognized_provider_prefix``)
         makes the Bedrock id forward to the Azure fallback and this raise never fires --
         ``pytest.raises`` would report no exception raised.
         """
@@ -993,6 +1145,47 @@ class TestPydanticAIHookFallback:
 
         assert "openai_dr" in str(exc_info.value)
         assert "claude-opus-4-5" in str(exc_info.value)
+
+    def test_bare_name_forwarded_to_generic_fallback_with_provider_extra(self, registry, infer_model_stub):
+        """A forwarded bare name is qualified with the fallback's own ``model_provider``, not the primary's."""
+        registry.add(
+            "gateway",
+            extra={
+                "model_provider": "openai-chat",
+                "model": "claude-sonnet-4-5",
+                "fallback_conn_ids": ["anthropic"],
+            },
+        )
+        registry.add("anthropic", extra={"model_provider": "anthropic"})
+
+        model = PydanticAIHook(llm_conn_id="gateway").get_conn()
+
+        assert isinstance(model, FallbackModel)
+        assert model.models == [
+            infer_model_stub.models["openai-chat:claude-sonnet-4-5"],
+            infer_model_stub.models["anthropic:claude-sonnet-4-5"],
+        ]
+
+    def test_colon_bearing_bare_name_forwarded_within_same_provider_extra(self, registry, infer_model_stub):
+        """The embedded-colon forwarding gate treats a generic connection's ``model_provider`` extra as its platform."""
+        registry.add("gateway", extra={"model_provider": "openai-chat", "fallback_conn_ids": ["second"]})
+        registry.add("second", extra={"model_provider": "openai-chat"})
+
+        model = PydanticAIHook(llm_conn_id="gateway", model_id="llama3:70b").get_conn()
+
+        assert isinstance(model, FallbackModel)
+        assert model.models == [
+            infer_model_stub.models["openai-chat:llama3:70b"],
+            infer_model_stub.models["openai-chat:llama3:70b"],
+        ]
+
+    def test_colon_bearing_bare_name_not_forwarded_across_provider_extras(self, registry, infer_model_stub):
+        registry.add("gateway", extra={"model_provider": "openai-chat", "fallback_conn_ids": ["second"]})
+        registry.add("second", extra={"model_provider": "anthropic"})
+
+        hook = PydanticAIHook(llm_conn_id="gateway", model_id="llama3:70b")
+        with pytest.raises(ValueError, match="No model specified for connection 'second'"):
+            hook.get_conn()
 
     def test_non_pydanticai_fallback_raises(self, registry, infer_model_stub):
         """``Connection.get_hook`` dispatches on conn_type alone and can return anything."""
@@ -1683,6 +1876,202 @@ class TestPydanticAIHookTestConnection:
         assert "unexpected keyword argument 'api_key'" in message
 
 
+class TestPydanticAIHookEnsureModelReady:
+    _HOOK_MODULE = "airflow.providers.common.ai.hooks.pydantic_ai"
+
+    @staticmethod
+    def _build_hook(
+        *,
+        model_id: str | None = "ollama:llama3",
+        host: str | None = "http://ollama:11434/v1",
+        extra: dict | None = None,
+        **hook_kwargs,
+    ) -> tuple[PydanticAIHook, Connection]:
+        hook = PydanticAIHook(llm_conn_id="local_conn", model_id=model_id, **hook_kwargs)
+        conn = Connection(
+            conn_id="local_conn",
+            conn_type="pydanticai",
+            host=host,
+            extra=json.dumps(extra) if extra else None,
+        )
+        return hook, conn
+
+    @patch(f"{_HOOK_MODULE}.OllamaBackend", autospec=True)
+    def test_builds_backend_from_host_and_unprefixed_model_name(self, mock_backend_cls):
+        hook, conn = self._build_hook()
+
+        with patch.object(hook, "get_connection", return_value=conn):
+            hook.ensure_model_ready()
+
+        mock_backend_cls.assert_called_once_with("http://ollama:11434/v1", "llama3")
+
+    @pytest.mark.parametrize(
+        ("model_id", "expected_name"),
+        [
+            ("ollama:library/llama3", "library/llama3"),
+            ("ollama:llama3:70b", "llama3:70b"),
+            ("ollama:hf.co/org/model:q4", "hf.co/org/model:q4"),
+        ],
+    )
+    @patch(f"{_HOOK_MODULE}.OllamaBackend", autospec=True)
+    def test_unprefixed_name_splits_on_the_first_colon_only(self, mock_backend_cls, model_id, expected_name):
+        hook, conn = self._build_hook(model_id=model_id)
+
+        with patch.object(hook, "get_connection", return_value=conn):
+            hook.ensure_model_ready()
+
+        mock_backend_cls.assert_called_once_with("http://ollama:11434/v1", expected_name)
+
+    @patch(f"{_HOOK_MODULE}.OllamaBackend", autospec=True)
+    def test_load_is_called_once_with_the_given_timeout(self, mock_backend_cls):
+        hook, conn = self._build_hook()
+
+        with patch.object(hook, "get_connection", return_value=conn):
+            hook.ensure_model_ready(timeout=60.0)
+
+        mock_backend_cls.return_value.load.assert_called_once_with(timeout=60.0)
+
+    @pytest.mark.parametrize("model_id", ["openai:gpt-5", "anthropic:claude-opus-4-6"])
+    @patch(f"{_HOOK_MODULE}.OllamaBackend", autospec=True)
+    def test_non_ollama_prefix_raises_not_implemented_pointing_at_backend_factory(
+        self, mock_backend_cls, model_id
+    ):
+        hook, conn = self._build_hook(model_id=model_id)
+
+        with patch.object(hook, "get_connection", return_value=conn):
+            with pytest.raises(NotImplementedError, match=r"backend_factory=.*OllamaBackend"):
+                hook.ensure_model_ready()
+
+        mock_backend_cls.assert_not_called()
+
+    @pytest.mark.parametrize(
+        ("model_id", "expected_name"),
+        [
+            ("openai:llama3", "llama3"),
+            ("ollama:llama3:70b", "llama3:70b"),
+            ("openai:hf.co/org/model:q4", "hf.co/org/model:q4"),
+        ],
+    )
+    @patch(f"{_HOOK_MODULE}.OllamaBackend", autospec=True)
+    def test_backend_factory_gets_unprefixed_model_name_and_connection_host(
+        self, mock_ollama_cls, model_id, expected_name
+    ):
+        stub = create_autospec(ModelReadinessBackend, instance=True)
+        factory = create_autospec(build_backend, return_value=stub)
+        hook, conn = self._build_hook(model_id=model_id)
+
+        with patch.object(hook, "get_connection", return_value=conn):
+            hook.ensure_model_ready(timeout=60.0, backend_factory=factory)
+
+        factory.assert_called_once_with(model_name=expected_name, base_url="http://ollama:11434/v1")
+        stub.load.assert_called_once_with(timeout=60.0)
+        mock_ollama_cls.assert_not_called()
+
+    @patch(f"{_HOOK_MODULE}.OllamaBackend", autospec=True)
+    def test_backend_factory_skips_the_host_check(self, mock_ollama_cls):
+        stub = create_autospec(ModelReadinessBackend, instance=True)
+        factory = create_autospec(build_backend, return_value=stub)
+        hook, conn = self._build_hook(host=None)
+
+        with patch.object(hook, "get_connection", return_value=conn):
+            hook.ensure_model_ready(backend_factory=factory)
+
+        factory.assert_called_once_with(model_name="llama3", base_url=None)
+        stub.load.assert_called_once()
+        mock_ollama_cls.assert_not_called()
+
+    @pytest.mark.parametrize(
+        "extra",
+        [
+            {"model": "ollama:llama3"},
+            {"model": "llama3", "model_provider": "ollama"},
+        ],
+        ids=["prefixed-model-in-extra", "bare-model-with-model-provider-in-extra"],
+    )
+    @patch(f"{_HOOK_MODULE}.OllamaBackend", autospec=True)
+    def test_model_configured_only_on_the_connection(self, mock_backend_cls, extra):
+        hook, conn = self._build_hook(model_id=None, extra=extra)
+
+        with patch.object(hook, "get_connection", return_value=conn):
+            hook.ensure_model_ready()
+
+        mock_backend_cls.assert_called_once_with("http://ollama:11434/v1", "llama3")
+
+    @pytest.mark.parametrize("host", [None, ""])
+    @patch(f"{_HOOK_MODULE}.OllamaBackend", autospec=True)
+    def test_missing_host_passes_none_base_url_to_ollama_backend(self, mock_backend_cls, monkeypatch, host):
+        monkeypatch.setenv("OLLAMA_BASE_URL", "http://env-ollama:11434/v1")
+        hook, conn = self._build_hook(host=host)
+
+        with patch.object(hook, "get_connection", return_value=conn):
+            hook.ensure_model_ready()
+
+        mock_backend_cls.assert_called_once_with(None, "llama3")
+
+    @patch(f"{_HOOK_MODULE}.OllamaBackend", autospec=True)
+    def test_connection_host_wins_over_ollama_base_url_env(self, mock_backend_cls, monkeypatch):
+        monkeypatch.setenv("OLLAMA_BASE_URL", "http://env-ollama:11434/v1")
+        hook, conn = self._build_hook()
+
+        with patch.object(hook, "get_connection", return_value=conn):
+            hook.ensure_model_ready()
+
+        mock_backend_cls.assert_called_once_with("http://ollama:11434/v1", "llama3")
+
+    def test_missing_model_raises_value_error(self):
+        hook, conn = self._build_hook(model_id=None)
+
+        with patch.object(hook, "get_connection", return_value=conn):
+            with pytest.raises(ValueError, match="No model specified"):
+                hook.ensure_model_ready()
+
+    @pytest.mark.parametrize(
+        ("kwargs", "match"),
+        [
+            ({"timeout": 0}, r"got 0\."),
+            ({"timeout": -1.0}, r"got -1\.0\."),
+            ({"timeout": float("nan")}, r"got nan\."),
+            ({"timeout": float("inf")}, r"got inf\."),
+        ],
+    )
+    @patch(f"{_HOOK_MODULE}.OllamaBackend", autospec=True)
+    def test_non_positive_arguments_raise_value_error(self, mock_backend_cls, kwargs, match):
+        hook, conn = self._build_hook()
+
+        with patch.object(hook, "get_connection", return_value=conn):
+            with pytest.raises(ValueError, match=match):
+                hook.ensure_model_ready(**kwargs)
+
+        mock_backend_cls.assert_not_called()
+
+    @patch(f"{_HOOK_MODULE}.OllamaBackend", autospec=True)
+    def test_only_the_primary_connection_is_read_when_fallbacks_are_configured(self, mock_backend_cls):
+        hook, conn = self._build_hook(fallback_conn_ids=["fallback_conn"])
+
+        with patch.object(hook, "get_connection", autospec=True, return_value=conn) as mock_get_connection:
+            hook.ensure_model_ready()
+
+        mock_get_connection.assert_called_once_with("local_conn")
+
+    @pytest.mark.parametrize(
+        "error",
+        [
+            httpx2.ConnectError("refused"),
+            httpx2.HTTPStatusError("busy", request=MagicMock(), response=httpx2.Response(503)),
+            TimeoutError("slow"),
+        ],
+        ids=["connect-error", "http-503", "request-timeout"],
+    )
+    @patch(f"{_HOOK_MODULE}.OllamaBackend", autospec=True)
+    def test_load_errors_are_raised_as_is(self, mock_backend_cls, error):
+        mock_backend_cls.return_value.load.side_effect = error
+        hook, conn = self._build_hook()
+
+        with patch.object(hook, "get_connection", return_value=conn):
+            with pytest.raises(type(error)):
+                hook.ensure_model_ready()
+
+
 # ---------------------------------------------------------------------------
 # Subclass hook tests
 # ---------------------------------------------------------------------------
@@ -2177,6 +2566,19 @@ class TestPydanticAIVertexHook:
         description = vertex_conn_fields["model"]["description"]
         prefix = _extract_google_cloud_prefix(description)
         _assert_prefix_is_known_provider(prefix)
+
+    def test_conn_fields_default_provider_example_and_suggestions_are_valid_providers(self):
+        """Drift tripwire for the Default Model Provider description example and form suggestions."""
+        connection_types = get_provider_info()["connection-types"]
+        generic_conn_fields = next(
+            c["conn-fields"] for c in connection_types if c["connection-type"] == "pydanticai"
+        )
+        field = generic_conn_fields["model_provider"]
+        example = re.search(r"\(e\.g\. ([a-z0-9-]+)\)", field["description"])
+        assert example is not None, field["description"]
+        assert field["schema"]["examples"]
+        for provider in [example.group(1), *field["schema"]["examples"]]:
+            _assert_prefix_is_known_provider(provider)
 
     def test_conn_types_ui_field_behaviour_placeholder_prefix_is_valid_provider(self):
         """

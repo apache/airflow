@@ -17,13 +17,15 @@
  * under the License.
  */
 
-import { Badge, Box, Flex, HStack, Heading, SimpleGrid, Spinner, Text } from "@chakra-ui/react";
+import { Badge, Box, Code, Flex, HStack, Heading, List, SimpleGrid, Spinner, Text } from "@chakra-ui/react";
 import type { FC, ReactNode } from "react";
 import { LuInfo } from "react-icons/lu";
 
 import { NoModelInfo } from "src/components/NoModelInfo";
+import { SkillsSection } from "src/components/SkillsSection";
 import { Tooltip } from "src/components/Tooltip";
 import { useModelInfo } from "src/hooks/useModelInfo";
+import { isOffloaded } from "src/model-api";
 import type { TaskRegion } from "src/region";
 
 interface ModelPanelProps {
@@ -86,15 +88,21 @@ export const ModelLoading: FC = () => (
 );
 
 export const ModelPanel: FC<ModelPanelProps> = ({ dagId, runId, taskId, mapIndex, region }) => {
-  const { modelName, usage, loading, error } = useModelInfo(dagId, runId, taskId, mapIndex, region);
+  const { modelName, usage, skills, loading, error } = useModelInfo(dagId, runId, taskId, mapIndex, region);
 
   if (loading) {
     return <ModelLoading />;
   }
 
-  if (!modelName && !usage) {
+  if (!modelName && !usage && !skills) {
     return <NoModelInfo error={error} />;
   }
+
+  const offloaded = [
+    { label: "Model name", value: modelName },
+    { label: "Usage", value: usage },
+    { label: "Skills", value: skills },
+  ].flatMap(({ label, value }) => (isOffloaded(value) ? [{ label, reference: value.reference }] : []));
 
   return (
     <Box p={2}>
@@ -125,13 +133,28 @@ export const ModelPanel: FC<ModelPanelProps> = ({ dagId, runId, taskId, mapIndex
         </Box>
       )}
 
-      {modelName && (
+      {offloaded.length > 0 && (
+        <Box bg="bg.subtle" borderRadius="lg" borderWidth="1px" fontSize="sm" mb={4} p={3}>
+          <Text mb={1}>
+            The XCom backend keeps these values in external storage, which this tab cannot read:
+          </Text>
+          <List.Root ps={5}>
+            {offloaded.map(({ label, reference }) => (
+              <List.Item key={label}>
+                {label}: <Code fontSize="xs">{reference}</Code>
+              </List.Item>
+            ))}
+          </List.Root>
+        </Box>
+      )}
+
+      {modelName && !isOffloaded(modelName) && (
         <Badge borderRadius="full" colorPalette="brand" fontSize="sm" mb={5} px={3} py={1}>
           {modelName}
         </Badge>
       )}
 
-      {usage && (
+      {usage && !isOffloaded(usage) && (
         <SimpleGrid columns={2} gap={4} maxW="640px">
           <StatBox label="Requests" value={usage.requests} />
           <StatBox label="Tool calls" value={usage.tool_calls} />
@@ -141,6 +164,8 @@ export const ModelPanel: FC<ModelPanelProps> = ({ dagId, runId, taskId, mapIndex
           <StatBox label="Cost" tooltip={COST_TOOLTIP} value={formatCost(usage.cost)} />
         </SimpleGrid>
       )}
+
+      {skills && !isOffloaded(skills) && <SkillsSection skills={skills} />}
     </Box>
   );
 };

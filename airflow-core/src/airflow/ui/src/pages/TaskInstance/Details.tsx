@@ -252,6 +252,14 @@ export const Details = () => {
               <Time datetime={tryInstance?.end_date} />
             </Table.Cell>
           </Table.Row>
+          {Boolean(tryInstance?.retry_at) ? (
+            <Table.Row>
+              <Table.Cell>{translate("taskInstance.retryAt")}</Table.Cell>
+              <Table.Cell>
+                <Time datetime={tryInstance?.retry_at} />
+              </Table.Cell>
+            </Table.Row>
+          ) : undefined}
           <Table.Row>
             <Table.Cell>{translate("taskInstance.dagVersion")}</Table.Cell>
             <Table.Cell>

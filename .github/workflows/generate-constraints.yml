@@ -20,6 +20,13 @@ name: Generate constraints
 on:  # yamllint disable-line rule:truthy
   workflow_call:
     inputs:
+      merge-with:
+        description: >-
+          The base branch commit and merge base to merge the pushed commit with, space-separated;
+          empty outside fork CI runs.
+        required: false
+        default: ""
+        type: string
       runners:
         description: "The array of labels (in json form) determining runners."
         required: true
@@ -50,6 +57,14 @@ on:  # yamllint disable-line rule:truthy
           constraints are cut for a release candidate, whose providers are on PyPI only as rc
           versions. Scoped to apache-airflow-providers-* - no other package can resolve to a
           pre-release.
+        required: false
+        default: "false"
+        type: string
+      fail-on-pending-provider-candidates:
+        description: >
+          Fail the PyPI constraints when a provider's newest version is a release candidate that was
+          neither released nor yanked (true/false). Set when constraints are cut for a final release,
+          which must not pin a candidate nor silently pass over one.
         required: false
         default: "false"
         type: string
@@ -108,6 +123,11 @@ jobs:
         with:
           ref: ${{ inputs.checkout-ref }}
           persist-credentials: false
+      - name: "Merge with the base branch"
+        if: inputs.checkout-ref == '' && inputs.merge-with != ''
+        uses: ./.github/actions/merge-with-base
+        with:
+          merge-with: ${{ inputs.merge-with }}
       - name: "Prepare breeze & CI image: ${{ matrix.python-version }}"
         uses: ./.github/actions/prepare_breeze_and_image
         with:
@@ -123,6 +143,8 @@ jobs:
         with:
           platform: ${{ inputs.platform }}
           save-cache: false
+          # The hatch_build.py files of the fab, edge3 and common.ai providers run these hooks.
+          hooks: compile-fab-assets compile-edge-assets compile-common-ai-provider-assets
       # Resolves the providers from the sources in this checkout. Skipped for a release, which
       # ships only the PyPI constraints and must not have a source tree answer for a provider.
       - name: "Source constraints"
@@ -168,9 +190,12 @@ jobs:
           # both paths set it would make it unclear which one is in force. Empty on a normal run,
           # so the unquoted expansion below contributes no argument at all.
           PRE_RELEASE_FLAG: ${{ inputs.allow-pre-releases == 'true' && '--allow-pre-releases' || '' }}
+          PENDING_CANDIDATES_FLAG: >-
+            ${{ inputs.fail-on-pending-provider-candidates == 'true'
+            && '--fail-on-pending-provider-candidates' || '' }}
         run: |
           breeze release-management generate-constraints --airflow-constraints-mode constraints \
-            --answer yes --python "${PYTHON_VERSION}" ${PRE_RELEASE_FLAG}
+            --answer yes --python "${PYTHON_VERSION}" ${PRE_RELEASE_FLAG} ${PENDING_CANDIDATES_FLAG}
         if: inputs.generate-pypi-constraints == 'true'
       - name: "Check for provider downgrade alert"
         id: downgrade-alert
@@ -191,6 +216,7 @@ jobs:
         if: always() && steps.downgrade-alert.outputs.notify == 'true'
         uses: slackapi/slack-github-action@dcb1066f776dd043e64d0e8ba94ca15cc7e1875d  # v4.0.0
         with:
+          method: chat.postMessage
           token: ${{ secrets.SLACK_BOT_TOKEN }}
           payload-file-path: ${{ steps.downgrade-alert.outputs.message-file }}
       - name: "Upload constraint artifacts"

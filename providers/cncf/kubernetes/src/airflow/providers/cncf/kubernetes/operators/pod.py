@@ -1168,10 +1168,13 @@ class KubernetesPodOperator(BaseOperator):
                 pod_namespace,
                 pod_name,
             )
-            if event["status"] == "success":
-                # Trigger already observed the pod completed successfully;
-                # logs/XCom are unrecoverable but the task itself succeeded.
+            if event["status"] == "success" and not self.do_xcom_push:
+                # Trigger already observed the pod completed successfully and no
+                # XCom was expected; logs are unrecoverable but the task itself succeeded.
                 return
+            # The pod (and its XCom sidecar) is gone. When XCom was expected, silently
+            # succeeding would mark the task SUCCESS with no return_value XCom, breaking
+            # downstream tasks. Fail instead so retries recreate the pod and its result.
             raise PodNotFoundException(
                 f"Pod {pod_namespace}/{pod_name} not found after resuming from deferral"
             ) from e
@@ -1180,6 +1183,19 @@ class KubernetesPodOperator(BaseOperator):
             # Defensive: get_pod is documented to raise on missing pods, but
             # keep this for any subclass override that returns None instead.
             raise PodNotFoundException("Could not find pod after resuming from deferral")
+
+        # Must stay ahead of the re-defer branch below so every resume is observable,
+        # including the ones that defer again (``_redefer_count``) -- those carry the
+        # only record of why the trigger reported an error for a still-live pod.
+        for callback in self.callbacks:
+            callback.on_operator_resuming(
+                pod=self.pod,
+                event=event,
+                client=self.client,
+                mode=ExecutionMode.SYNC,
+                context=context,
+                operator=self,
+            )
 
         follow = self.logging_interval is None
         last_log_time = event.get("last_log_time")
@@ -1475,7 +1491,10 @@ class KubernetesPodOperator(BaseOperator):
             pod_reason = getattr(remote_pod.status, "reason", None)
             self.log.info("Pod phase: %s, reason: %s", pod_phase, pod_reason)
 
-            container_statuses = getattr(remote_pod.status, "container_statuses", None) or []
+            container_statuses = [
+                *(getattr(remote_pod.status, "init_container_statuses", None) or []),
+                *(getattr(remote_pod.status, "container_statuses", None) or []),
+            ]
             for status in container_statuses:
                 name = status.name
                 state = status.state

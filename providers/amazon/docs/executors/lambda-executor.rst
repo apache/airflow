@@ -1,4 +1,4 @@
-.. Licensed to the Apache Software Foundation (ASF) under one
+ .. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
     regarding copyright ownership.  The ASF licenses this file
@@ -357,7 +357,7 @@ Finally create the function:
   :end-before: .. END SQL_ALCHEMY_CONN
 
 
-- ``AIRFLOW__LAMBDA_EXECUTOR__QUEUE_URL``, with the value being the URL of the SQS queue created above.
+- ``AIRFLOW__AWS_LAMBDA_EXECUTOR__QUEUE_URL``, with the value being the URL of the SQS queue created above.
 
 7. Add other configuration as necessary for Airflow generally (see `here <https://airflow.apache.org/docs/apache-airflow/stable/configurations-ref.html>`__), the Lambda executor (see :ref:`here <lambda_config-options>`) or for remote logging (see :ref:`here <lamba_logging>`). Note that any configuration changes should be made across the entire Airflow environment to keep configuration consistent.
 

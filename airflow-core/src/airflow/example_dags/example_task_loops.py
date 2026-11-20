@@ -40,7 +40,9 @@ def refine_estimate():
     def accurate_enough(*, loop):
         error = loop.result["error"]
         threshold = 0.000001
-        return LoopDecision(stop=error < threshold, reason=f"error {error:.2g}, needs < {threshold:g}")
+        if error < threshold:
+            return LoopDecision(stop=True, reason=f"converged with error {error:.2g}")
+        return LoopDecision(stop=False, reason=f"error {error:.2g}, needs < {threshold:g}")
 
     @task
     def finished():

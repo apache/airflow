@@ -181,6 +181,9 @@ dags:
   "variable_write_dag":
     tasks:
       - "write_and_delete_variable"
+  "yaml_s3_roundtrip":
+    tasks:
+      - "summarize"
 `
 	assert.Equal(t, expectedManifest, string(metadata))
 

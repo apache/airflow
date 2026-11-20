@@ -113,8 +113,10 @@
     "noTryNumber": "無嘗試次數",
     "search": {
       "matchCount": "{{total, number}} 中第 {{current, number}} 筆",
+      "nextMatch": "下一筆符合結果",
       "noMatches": "無符合結果",
-      "placeholder": "搜尋日誌..."
+      "placeholder": "搜尋日誌...",
+      "previousMatch": "上一筆符合結果"
     },
     "settings": "日誌設定",
     "tryNotStarted": "此次嘗試尚未開始。",

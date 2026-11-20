@@ -81,6 +81,7 @@ CI_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "options": [
                 "--target-branch",
                 "--create-pr",
+                "--push-to-target-branch",
                 "--draft",
                 "--switch-to-base",
                 "--airflow-site",
@@ -96,6 +97,7 @@ CI_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--update-chart-dependencies",
                 "--upgrade-important-versions",
                 "--upgrade-dependency-floors",
+                "--mirror-base-images",
                 "--update-uv-lock",
                 "--k8s-schema-sync",
             ],
