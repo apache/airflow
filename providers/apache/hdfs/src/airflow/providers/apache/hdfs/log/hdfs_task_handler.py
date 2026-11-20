@@ -27,6 +27,7 @@ from typing import TYPE_CHECKING
 from urllib.parse import urlsplit
 
 import attrs
+from hdfs import HdfsError
 
 from airflow.providers.apache.hdfs.hooks.webhdfs import WebHDFSHook
 from airflow.providers.common.compat.sdk import conf
@@ -93,14 +94,32 @@ class HdfsRemoteLogIO(LoggingMixin):  # noqa: D101
         return WebHDFSHook(webhdfs_conn_id=conf.get("logging", "REMOTE_LOG_CONN_ID"))
 
     def read(self, relative_path: str, ti: RuntimeTI | None) -> tuple[LogSourceInfo, LogMessages]:
-        logs = []
         messages = []
         file_path = os.path.join(self.remote_base, relative_path)
-        if self.hook.check_for_path(file_path):
-            logs.append(self.hook.read_file(file_path).decode("utf-8"))
-        else:
+        # Every file the path is a prefix of, such as ``<task log>.trigger.<triggerer job id>.log``.
+        directory, name = os.path.split(file_path)
+        try:
+            paths = sorted(self._list_files(directory, name))
+        except HdfsError:
+            # The directory does not exist, or cannot be listed.
+            paths = [file_path] if self.hook.check_for_path(file_path) else []
+        logs = [self.hook.read_file(path).decode("utf-8") for path in paths]
+        if not paths:
             messages.append(f"No logs found on hdfs for ti={ti}")
         return messages, logs
+
+    def _list_files(self, directory: str, prefix: str) -> list[str]:
+        """Return the files in ``directory`` whose name starts with ``prefix``, recursing into subdirectories."""
+        files = []
+        for child, status in self.hook.get_conn().list(directory, status=True):
+            if not child.startswith(prefix):
+                continue
+            path = os.path.join(directory, child)
+            if status.get("type") == "DIRECTORY":
+                files.extend(self._list_files(path, ""))
+            else:
+                files.append(path)
+        return files
 
 
 class HdfsTaskHandler(FileTaskHandler, LoggingMixin):

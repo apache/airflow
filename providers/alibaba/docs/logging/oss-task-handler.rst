@@ -40,3 +40,7 @@ To enable this feature, ``airflow.cfg`` must be configured as follows:
     remote_log_conn_id = oss_default
 
 In the above example, Airflow will try to use ``OSSHook('oss_default')``.
+
+Reading logs needs the ``oss:ListObjects`` permission on the bucket, besides ``oss:GetObject``.
+The trigger of a deferred task writes to its own object beside the task's log, and Airflow finds it by listing
+the objects that start with the task's log name. Without the permission, Airflow reads the task's log alone.

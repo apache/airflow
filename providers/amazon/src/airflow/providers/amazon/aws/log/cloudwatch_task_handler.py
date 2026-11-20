@@ -23,7 +23,9 @@ import inspect
 import json
 import logging
 import os
+import random
 import shutil
+import time
 from collections.abc import Generator
 from datetime import UTC, date, datetime, timedelta
 from functools import cached_property
@@ -33,15 +35,23 @@ from urllib.parse import urlsplit
 
 import attrs
 import watchtower
-from botocore.exceptions import ClientError
+from botocore.exceptions import (
+    BotoCoreError,
+    ClientError,
+    ConnectionError as BotoConnectionError,
+    HTTPClientError,
+)
 
 from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
 from airflow.providers.amazon.aws.utils import datetime_to_epoch_utc_ms
 from airflow.providers.common.compat.sdk import conf
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
+    from queue import Queue
+
     import structlog.typing
 
     from airflow.models.taskinstance import TaskInstance
@@ -54,6 +64,130 @@ if TYPE_CHECKING:
         RawLogStream,
         StreamingLogResponse,
     )
+
+
+class _CloudWatchLogHandler(watchtower.CloudWatchLogHandler):
+    """
+    watchtower's handler, which can also flush a single stream, and doesn't wait on a stream still being created.
+
+    watchtower's ``flush`` and ``close`` wait up to ``FLUSH_TIMEOUT`` on each stream in turn, also on one whose
+    sender is retrying CreateLogStream in ``creator``, and fail when another thread opens a stream meanwhile.
+    """
+
+    NUDGE_S = 5.0
+    creator: _LogStreamCreator | None = None
+    _nudged_at = float("-inf")
+
+    def flush(self) -> None:
+        if not self.shutting_down:
+            self._send_queued(list(self.queues.items()), self.FLUSH)
+
+    def close(self) -> None:
+        if not self.shutting_down:
+            self.shutting_down = True
+            self._send_queued(list(self.queues.items()), self.END)
+        logging.Handler.close(self)
+
+    def flush_stream(self, stream_name: str) -> None:
+        """
+        Send the stream's queued records, as ``flush`` does for every stream.
+
+        At most every ``NUDGE_S``, the other streams are told to send theirs too, unwaited: watchtower sends a
+        stream only every ``send_interval``, and what it still holds is lost if the process dies.
+        """
+        if self.shutting_down:
+            return
+        if (now := time.monotonic()) - self._nudged_at >= self.NUDGE_S:
+            self._nudged_at = now
+            for name, q in list(self.queues.items()):
+                if name != stream_name:
+                    q.put(self.FLUSH)
+        if (stream := self.queues.get(stream_name)) is not None:
+            self._send_queued([(stream_name, stream)], self.FLUSH)
+
+    def _send_queued(self, queues: list[tuple[str, Queue]], marker: object) -> None:
+        self.addFilter(watchtower._boto_filter)
+        for _, q in queues:
+            q.put(marker)
+        for name, q in queues:
+            self._wait_until_sent(name, q)
+
+    def _wait_until_sent(self, stream_name: str, q: Queue) -> None:
+        waiting = self.creator.waiting if self.creator is not None else set()
+        key = (self.log_group_name, stream_name)
+        end = time.monotonic() + self.FLUSH_TIMEOUT
+        with q.all_tasks_done:
+            # In slices, so a sender that starts waiting in the creator meanwhile ends this wait too.
+            while not q.all_tasks_done.wait_for(
+                lambda: q.unfinished_tasks == 0 or key in waiting,
+                timeout=min(1.0, max(0.0, end - time.monotonic())),
+            ):
+                if time.monotonic() >= end:
+                    break
+
+
+class _LogStreamCreator:
+    """
+    Create each log stream before its first PutLogEvents, retrying transient failures.
+
+    watchtower creates a stream only after a put to it fails, and while it does, the handler drops every
+    record, of every stream. Retrying here holds only that stream's sender thread.
+    """
+
+    DEADLINE_S = 900.0
+    _THROTTLED = frozenset({"ThrottlingException", "LimitExceededException", "ServiceUnavailableException"})
+
+    def __init__(self, client) -> None:
+        self.client = client
+        self.created: set[tuple[str, str]] = set()
+        # Streams a sender thread is waiting to create: a flush does not wait for them.
+        self.waiting: set[tuple[str, str]] = set()
+
+    def register(self) -> None:
+        service = self.client.meta.service_model.service_id.hyphenize()
+        self.client.meta.events.register(
+            f"before-parameter-build.{service}.PutLogEvents",
+            self,
+            unique_id=f"airflow-create-log-stream-{id(self)}",
+        )
+
+    def __call__(self, params, **kwargs) -> None:
+        key = (params["logGroupName"], params["logStreamName"])
+        if key in self.created:
+            return
+        self.waiting.add(key)
+        try:
+            if self.create_log_stream(*key):
+                self.created.add(key)
+        finally:
+            self.waiting.discard(key)
+
+    def create_log_stream(self, log_group: str, log_stream: str) -> bool:
+        deadline = time.monotonic() + self.DEADLINE_S
+        delay = 0.5
+        while True:
+            try:
+                self.client.create_log_stream(logGroupName=log_group, logStreamName=log_stream)
+                return True
+            except ClientError as e:
+                code = e.response.get("Error", {}).get("Code")
+                if code == "ResourceAlreadyExistsException":
+                    return True
+                status = e.response.get("ResponseMetadata", {}).get("HTTPStatusCode") or 0
+                if code not in self._THROTTLED and status not in (408, 429) and status < 500:
+                    return False  # left to watchtower's own attempts
+            except (BotoConnectionError, HTTPClientError):
+                pass  # a timed-out or dropped call is retried like throttling
+            if time.monotonic() + delay > deadline:
+                return False
+            time.sleep(delay * random.uniform(0.5, 1.5))
+            delay = min(delay * 2, 10.0)
+
+
+# Core's layout for a trigger's own logs, repeated because older Airflow versions don't define it.
+TRIGGER_LOG_PREFIX = "triggers/trigger_id="
+# GetLogEvents returns at most this many events per call.
+_GET_LOG_EVENTS_MAX_LIMIT = 10_000
 
 
 def json_serialize_legacy(value: Any) -> str | None:
@@ -91,21 +225,40 @@ class CloudWatchRemoteLogIO(LoggingMixin):  # noqa: D101
     delete_local_copy: bool = True
 
     log_group_arn: str
+    # Log group, in the same region, for the streams under ``TRIGGER_LOG_PREFIX``.
+    trigger_log_group_arn: str | None = None
     log_stream_name: str = ""
     log_group: str = attrs.field(init=False, repr=False)
+    trigger_log_group: str | None = attrs.field(init=False, repr=False)
     region_name: str = attrs.field(init=False, repr=False)
-    _cached_handler: watchtower.CloudWatchLogHandler | None = attrs.field(
-        init=False, default=None, repr=False
-    )
+    _cached_handler: _CloudWatchLogHandler | None = attrs.field(init=False, default=None, repr=False)
+    _cached_trigger_handler: _CloudWatchLogHandler | None = attrs.field(init=False, default=None, repr=False)
     _closed: bool = attrs.field(init=False, default=False, repr=False)
 
     @log_group.default
     def _(self):
         return self.log_group_arn.split(":")[6]
 
+    @trigger_log_group.default
+    def _(self):
+        return self.trigger_log_group_arn.split(":")[6] if self.trigger_log_group_arn else None
+
     @region_name.default
     def _(self):
         return self.log_group_arn.split(":")[3]
+
+    def __attrs_post_init__(self):
+        if self.trigger_log_group_arn and self.trigger_log_group_arn.split(":")[3] != self.region_name:
+            raise ValueError(
+                f"trigger_log_group_arn {self.trigger_log_group_arn!r} must be in the region of "
+                f"log_group_arn {self.log_group_arn!r}"
+            )
+
+    def _get_log_group(self, stream_name: str) -> str:
+        """Return the log group of a stream: the trigger log group, if set, for a trigger's own streams."""
+        if self.trigger_log_group and stream_name.startswith(TRIGGER_LOG_PREFIX):
+            return self.trigger_log_group
+        return self.log_group
 
     @classmethod
     def from_config(cls) -> CloudWatchRemoteLogIO:
@@ -148,15 +301,23 @@ class CloudWatchRemoteLogIO(LoggingMixin):  # noqa: D101
             aws_conn_id=conf.get("logging", "remote_log_conn_id"), region_name=self.region_name
         )
 
-    def _build_handler(self) -> watchtower.CloudWatchLogHandler:
+    @cached_property
+    def _log_stream_creator(self) -> _LogStreamCreator:
+        creator = _LogStreamCreator(self.hook.get_conn())
+        creator.register()
+        return creator
+
+    def _build_handler(self, log_group: str | None = None) -> _CloudWatchLogHandler:
         _json_serialize = conf.getimport("aws", "cloudwatch_task_handler_json_serializer", fallback=None)
-        return watchtower.CloudWatchLogHandler(
-            log_group_name=self.log_group,
+        handler = _CloudWatchLogHandler(
+            log_group_name=log_group or self.log_group,
             log_stream_name=self.log_stream_name,
             use_queues=True,
-            boto3_client=self.hook.get_conn(),
+            boto3_client=self._log_stream_creator.client,
             json_serialize_default=_json_serialize or json_serialize_legacy,
         )
+        handler.creator = self._log_stream_creator
+        return handler
 
     @property
     def handler(self) -> watchtower.CloudWatchLogHandler:
@@ -171,6 +332,16 @@ class CloudWatchRemoteLogIO(LoggingMixin):  # noqa: D101
         if self._cached_handler is None or (not self._closed and self._cached_handler.shutting_down):
             self._cached_handler = self._build_handler()
         return self._cached_handler
+
+    def _get_handler(self, stream_name: str) -> watchtower.CloudWatchLogHandler:
+        """Return the streaming handler of the stream's log group, rebuilt as ``handler`` is."""
+        if self._get_log_group(stream_name) == self.log_group:
+            return self.handler
+        if self._cached_trigger_handler is None or (
+            not self._closed and self._cached_trigger_handler.shutting_down
+        ):
+            self._cached_trigger_handler = self._build_handler(self.trigger_log_group)
+        return self._cached_trigger_handler
 
     @cached_property
     def processors(self) -> tuple[structlog.typing.Processor, ...]:
@@ -195,13 +366,14 @@ class CloudWatchRemoteLogIO(LoggingMixin):  # noqa: D101
         def proc(logger: structlog.typing.WrappedLogger, method_name: str, event: structlog.typing.EventDict):
             if not logger or not (stream_name := relative_path_from_logger(logger)):
                 return event
-            # Resolve the handler on every record: configure_logging() may have
-            # closed the one built above, in which case ``handler`` rebuilds it.
-            handler = self.handler
             # We can't set the log stream name in the above init handler because
             # the log path isn't known at that stage.
             # Instead, we should always rely on the path (log stream name) provided by the logger.
-            handler.log_stream_name = stream_name.as_posix().replace(":", "_")
+            log_stream_name = stream_name.as_posix().replace(":", "_")
+            # Resolve the handler on every record: configure_logging() may have
+            # closed the one built above, in which case ``handler`` rebuilds it.
+            handler = self._get_handler(log_stream_name)
+            handler.log_stream_name = log_stream_name
             name = event.get("logger_name") or event.get("logger", "")
             level = structlog.stdlib.NAME_TO_LEVEL.get(method_name.lower(), logging.INFO)
             msg = copy.copy(event)
@@ -221,25 +393,27 @@ class CloudWatchRemoteLogIO(LoggingMixin):  # noqa: D101
 
         return (proc,)
 
-    def close(self):
+    def close(self, stream_name: str | None = None):
         """
-        Flush pending events one last time and mark the IO closed.
+        Flush the pending events of ``stream_name``, or of every stream, and mark the IO closed.
 
         Only ever called from :meth:`upload`. Mark the IO closed first so ``handler`` stops
         rebuilding: a record arriving after teardown must be dropped, not revive a fresh
         handler. Read the cached handler directly so we never build one just to flush it.
         """
         self._closed = True
-        handler = self._cached_handler
-        if handler is None or handler.shutting_down:
-            return
-
-        handler.flush()
+        for handler in (self._cached_handler, self._cached_trigger_handler):
+            if handler is None or handler.shutting_down:
+                continue
+            if stream_name is None:
+                handler.flush()
+            else:
+                handler.flush_stream(stream_name)
 
     def upload(self, path: os.PathLike | str, ti: RuntimeTI | None = None) -> None:
         """Upload the given log path to the remote storage."""
-        # No batch upload — logs stream in real-time. Flush pending events and clean up.
-        self.close()
+        # No batch upload — logs stream in real-time. Flush the stream's pending events and clean up.
+        self.close(Path(path).as_posix().replace(":", "_"))
         if self.delete_local_copy:
             base = self.base_log_folder.resolve()
             raw = Path(path)
@@ -265,21 +439,53 @@ class CloudWatchRemoteLogIO(LoggingMixin):  # noqa: D101
 
         return messages, str_logs
 
-    def stream(self, relative_path: str, ti: RuntimeTI | None) -> StreamingLogResponse:
-        logs: list[RawLogStream] = []
-        messages = [
-            f"Reading remote log from Cloudwatch log_group: {self.log_group} log_stream: {relative_path}"
-        ]
+    def stream(
+        self, relative_path: str, ti: RuntimeTI | None, *, tail_lines: int | None = None
+    ) -> StreamingLogResponse:
+        """
+        Read every stream the path is a prefix of, such as ``<task log>.trigger.<triggerer job id>.log``.
+
+        With ``tail_lines``, read only the last ``tail_lines`` events of each stream, from its end.
+        """
+        messages: list[str] = []
         try:
-            gen: RawLogStream = (
-                self._parse_log_event_as_dumped_json(event)
-                for event in self.get_cloudwatch_logs(relative_path, ti)
+            names = self._list_log_stream_names(relative_path)
+        except (ClientError, BotoCoreError) as e:
+            if relative_path.endswith("/"):
+                # Read as a stream name, a directory would give a "No log stream found" notice as a log line.
+                raise
+            messages.append(f"Could not list Cloudwatch log streams under {relative_path}: {e}")
+            names = [relative_path]
+        if not names:
+            if relative_path.endswith("/"):
+                return messages, []
+            names = [relative_path]
+        if getattr(ti, "state", None) == TaskInstanceState.DEFERRED and (
+            job := getattr(ti, "triggerer_job", None)
+        ):
+            # FileTaskHandler reads this stream live; reading it here too would show each line twice.
+            live = FileTaskHandler.add_triggerer_suffix(relative_path, job_id=job.id).replace(":", "_")
+            names = [name for name in names if name != live]
+        logs: list[RawLogStream] = []
+        for name in names:
+            messages.append(
+                f"Reading remote log from Cloudwatch log_group: {self._get_log_group(name)} log_stream: {name}"
             )
-            logs = [gen]
-        except Exception as e:
-            messages.append(str(e))
+            events = (
+                self.get_cloudwatch_logs(name, ti)
+                if tail_lines is None
+                else self.get_cloudwatch_logs_tail(name, ti, tail_lines=tail_lines)
+            )
+            logs.append(self._parse_log_event_as_dumped_json(event) for event in events)
 
         return messages, logs
+
+    def _list_log_stream_names(self, prefix: str) -> list[str]:
+        paginator = self.hook.conn.get_paginator("describe_log_streams")
+        pages = paginator.paginate(
+            logGroupName=self._get_log_group(prefix), logStreamNamePrefix=prefix.replace(":", "_")
+        )
+        return [log_stream["logStreamName"] for page in pages for log_stream in page["logStreams"]]
 
     def get_cloudwatch_logs(
         self, stream_name: str, task_instance: RuntimeTI | None
@@ -292,15 +498,10 @@ class CloudWatchRemoteLogIO(LoggingMixin):  # noqa: D101
         :return: string of all logs from the given log stream
         """
         stream_name = stream_name.replace(":", "_")
-        # If there is an end_date to the task instance, fetch logs until that date + 30 seconds
-        # 30 seconds is an arbitrary buffer so that we don't miss any logs that were emitted
-        end_time = (
-            None
-            if (end_date := getattr(task_instance, "end_date", None)) is None
-            else datetime_to_epoch_utc_ms(end_date + timedelta(seconds=30))
-        )
+        end_time = self._get_end_time(task_instance)
+        log_group = self._get_log_group(stream_name)
         events = self.hook.get_log_events(
-            log_group=self.log_group,
+            log_group=log_group,
             log_stream_name=stream_name,
             end_time=end_time,
         )
@@ -309,24 +510,78 @@ class CloudWatchRemoteLogIO(LoggingMixin):  # noqa: D101
             try:
                 yield from events
             except ClientError as e:
-                # A missing log stream means no logs were written for this stream
-                # (e.g. the task logged to stdout instead of remote storage, or has
-                # not produced any logs). Surface a hint instead of a 500 error, and
-                # instead of an empty view that looks like remote logging silently failed.
                 if e.response.get("Error", {}).get("Code") != "ResourceNotFoundException":
                     raise
-                notice_ts = end_time or datetime_to_epoch_utc_ms(datetime.now(tz=UTC))
-                yield {
-                    "timestamp": notice_ts,
-                    "ingestionTime": notice_ts,
-                    "message": (
-                        f"No log stream found in CloudWatch (log_group={self.log_group}, "
-                        f"log_stream={stream_name}). The task may have logged to stdout only, "
-                        f"not produced any logs yet, or remote logging may be misconfigured."
-                    ),
-                }
+                yield self._build_missing_stream_notice(log_group, stream_name, end_time)
 
         return _iter_events()
+
+    def get_cloudwatch_logs_tail(
+        self, stream_name: str, task_instance: RuntimeTI | None, *, tail_lines: int
+    ) -> Generator[CloudWatchLogEvent, None, None]:
+        """
+        Return the last ``tail_lines`` events of the given log stream, oldest first, read from its end.
+
+        Lazy, like :meth:`get_cloudwatch_logs`: the calls are made, and fail, when the events are read.
+        """
+        stream_name = stream_name.replace(":", "_")
+        end_time = self._get_end_time(task_instance)
+        log_group = self._get_log_group(stream_name)
+
+        def _iter_events() -> Generator[CloudWatchLogEvent, None, None]:
+            pages: list[list[CloudWatchLogEvent]] = []
+            found = 0
+            token: str | None = None
+            try:
+                while found < tail_lines:
+                    response = self.hook.conn.get_log_events(
+                        logGroupName=log_group,
+                        logStreamName=stream_name,
+                        startFromHead=False,
+                        limit=min(tail_lines - found, _GET_LOG_EVENTS_MAX_LIMIT),
+                        **({"endTime": end_time} if end_time is not None else {}),
+                        **({"nextToken": token} if token is not None else {}),
+                    )
+                    pages.append(response["events"])
+                    found += len(response["events"])
+                    # The same token back means the head of the stream was reached.
+                    if response.get("nextBackwardToken") in (None, token):
+                        break
+                    token = response["nextBackwardToken"]
+            except ClientError as e:
+                if e.response.get("Error", {}).get("Code") != "ResourceNotFoundException":
+                    raise
+                yield self._build_missing_stream_notice(log_group, stream_name, end_time)
+                return
+            # Each page is oldest first, and older than the one before it.
+            events = [event for page in reversed(pages) for event in page]
+            yield from events[-tail_lines:]
+
+        return _iter_events()
+
+    @staticmethod
+    def _get_end_time(task_instance: RuntimeTI | None) -> int | None:
+        # If there is an end_date to the task instance, fetch logs until that date + 30 seconds
+        # 30 seconds is an arbitrary buffer so that we don't miss any logs that were emitted
+        if (end_date := getattr(task_instance, "end_date", None)) is None:
+            return None
+        return datetime_to_epoch_utc_ms(end_date + timedelta(seconds=30))
+
+    @staticmethod
+    def _build_missing_stream_notice(
+        log_group: str, stream_name: str, end_time: int | None
+    ) -> CloudWatchLogEvent:
+        # A hint instead of a 500 error, or an empty view that looks like remote logging silently failed.
+        notice_ts = end_time or datetime_to_epoch_utc_ms(datetime.now(tz=UTC))
+        return {
+            "timestamp": notice_ts,
+            "ingestionTime": notice_ts,
+            "message": (
+                f"No log stream found in CloudWatch (log_group={log_group}, "
+                f"log_stream={stream_name}). The task may have logged to stdout only, "
+                f"not produced any logs yet, or remote logging may be misconfigured."
+            ),
+        }
 
     def _parse_log_event_as_dumped_json(self, event: CloudWatchLogEvent) -> str:
         event_dt = datetime.fromtimestamp(event["timestamp"] / 1000.0, tz=UTC).isoformat()
@@ -425,8 +680,6 @@ class CloudwatchTaskHandler(FileTaskHandler, LoggingMixin):
         self, task_instance, try_number, metadata=None
     ) -> tuple[LogSourceInfo, LogMessages]:
         stream_name = self._render_filename(task_instance, try_number)
-        messages, logs = self.io.read(stream_name, task_instance)
-
         messages = [
             f"Reading remote log from Cloudwatch log_group: {self.io.log_group} log_stream: {stream_name}"
         ]
