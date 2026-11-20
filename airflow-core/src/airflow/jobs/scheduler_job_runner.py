@@ -45,6 +45,7 @@ from sqlalchemy import (
     func,
     insert,
     inspect,
+    literal,
     or_,
     select,
     text,
@@ -94,6 +95,7 @@ from airflow.models.asset import (
     TaskInletAssetReference,
     TaskOutletAssetReference,
     alias_association_table,
+    association_table,
     build_consumed_by_dag_clause,
     insert_asset_dag_run_queue_rows,
 )
@@ -346,6 +348,53 @@ def _build_scheduled_asset_event_clause(dag_id: str) -> ColumnElement[bool]:
             AssetAliasModel.scheduled_dags.any(DagScheduleAssetAliasReference.dag_id == dag_id)
         ),
     )
+
+
+def _associate_asset_events_with_dag_run(
+    *, dag_run: DagRun, asset_event_ids_select: Select[tuple[int]], session: Session
+) -> int:
+    """Associate selected asset events with a Dag run without loading them, returning the row count."""
+    selected_event_ids = asset_event_ids_select.subquery()
+    result = session.execute(
+        insert(association_table).from_select(
+            ["dag_run_id", "event_id"], select(literal(dag_run.id), selected_event_ids.c.event_id)
+        ),
+        # SQLAlchemy only keeps rowcount for UPDATE/DELETE by default; PostgreSQL reports -1 for this INSERT without it.
+        execution_options={"preserve_rowcount": True},
+    )
+    # The Core insert bypasses the ORM collection, which create_dagrun left as a loaded empty list.
+    session.expire(dag_run, ["consumed_asset_events"])
+    return cast("CursorResult", result).rowcount
+
+
+def _build_consumable_asset_event_clause(
+    dag: SerializedDAG, *, locked_records: Iterable[AssetDagRunQueue]
+) -> ColumnElement[bool]:
+    """
+    Match unconsumed events referenced by a Dag's locked ADRQ rows.
+
+    ADRQ rows are matched up to the largest event ID in *locked_records*.
+    This does not exclude every event queued after the rows were locked.
+    With catchup, events are also matched by asset regardless of ID, and
+    event IDs are not assigned in commit order. Concurrent schedulers can't
+    consume this Dag's events since the Dag's own row is locked.
+    """
+    event_predicate: ColumnElement[bool] = (
+        select(AssetDagRunQueue.asset_event_id)
+        .where(
+            AssetDagRunQueue.target_dag_id == dag.dag_id,
+            AssetDagRunQueue.asset_event_id == AssetEvent.id,
+            AssetDagRunQueue.asset_event_id <= max(record.asset_event_id for record in locked_records),
+        )
+        .exists()
+    )
+    if dag.catchup:
+        event_predicate |= _build_scheduled_asset_event_clause(dag.dag_id)
+    return and_(event_predicate, ~build_consumed_by_dag_clause(dag.dag_id, AssetEvent.id))
+
+
+def _has_default_asset_event_grouping(timetable: Timetable) -> bool:
+    return type(timetable).group_asset_events is Timetable.group_asset_events
 
 
 def _get_current_dr_task_concurrency(states: Iterable[TaskInstanceState]) -> Subquery:
@@ -3023,13 +3072,14 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 # A stored Dag can hold a default that became invalid after an upgrade, until re-parsed.
                 self.log.exception("Failed creating DagRun", dag_id=apdr.target_dag_id)
                 continue
-            asset_events = session.scalars(
-                select(AssetEvent).where(
+            _associate_asset_events_with_dag_run(
+                dag_run=dag_run,
+                asset_event_ids_select=select(AssetEvent.id.label("event_id")).where(
                     PartitionedAssetKeyLog.asset_partition_dag_run_id == apdr.id,
                     PartitionedAssetKeyLog.asset_event_id == AssetEvent.id,
-                )
+                ),
+                session=session,
             )
-            dag_run.consumed_asset_events.extend(asset_events)
             session.flush()
             apdr.created_dag_run_id = dag_run.id
             session.flush()
@@ -3189,9 +3239,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 # a later loop retries it.
                 if (gate := self._collect_gated_asset_events(dag=serdag, session=session)) is None:
                     continue
-                gated_locked_records, gated_asset_events = gate
+                gated_locked_records, gated_asset_event_ids = gate
             else:
-                gated_locked_records, gated_asset_events = None, ()
+                gated_locked_records, gated_asset_event_ids = None, None
 
             try:
                 next_info = serdag.timetable.next_run_info_from_dag_model(dag_model=dag_model)
@@ -3226,9 +3276,13 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     session=session,
                     active_non_backfill_runs=active_runs_of_dags[dag_model.dag_id],
                 )
-                if gated_locked_records is not None:
-                    created_run.consumed_asset_events.extend(gated_asset_events)
-                    session.flush()  # Make consumed events visible to ADRQ cleanup.
+                if gated_asset_event_ids is not None:
+                    if TYPE_CHECKING:
+                        assert gated_locked_records is not None
+                    _associate_asset_events_with_dag_run(
+                        dag_run=created_run, asset_event_ids_select=gated_asset_event_ids, session=session
+                    )
+                    session.flush()
                     self._delete_consumed_asset_records(
                         serdag,
                         locked_records=gated_locked_records,
@@ -3251,12 +3305,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
     def _collect_gated_asset_events(
         self, *, dag: SerializedDAG, session: Session
-    ) -> tuple[Sequence[AssetDagRunQueue], Sequence[AssetEvent]] | None:
+    ) -> tuple[Sequence[AssetDagRunQueue], Select[tuple[int]]] | None:
         """
         Check an asset-gated Dag's asset condition and collect what a new run consumes.
 
-        Returns the locked ADRQ rows, and the event objects consumed by the new
-        run. *None* is returned when the condition is not satisfied by the queued
+        Returns the locked ADRQ rows, and a select of the event IDs the new run
+        consumes. *None* is returned when the condition is not satisfied by the queued
         asset events, in which case no run should be created yet.
         """
         records = self._lock_queued_asset_records(dag_id=dag.dag_id, session=session)
@@ -3265,7 +3319,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         if not self._is_asset_condition_met(dag, locked_records=records, session=session):
             self._delete_consumed_asset_records(dag, locked_records=records, session=session)
             return None
-        return records, self._select_consumed_asset_events(dag, locked_records=records, session=session)
+        return records, (
+            select(AssetEvent.id.label("event_id"))
+            .where(_build_consumable_asset_event_clause(dag, locked_records=records))
+            .order_by(AssetEvent.timestamp.asc(), AssetEvent.id.asc())
+        )
 
     def _lock_queued_asset_records(self, *, dag_id: str, session: Session) -> Sequence[AssetDagRunQueue]:
         """Lock and return the Dag's queued asset (ADRQ) rows, skipping rows another scheduler holds."""
@@ -3318,29 +3376,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         limit: int | None = None,
         session: Session,
     ) -> Sequence[AssetEvent]:
-        """
-        Select unconsumed events referenced by a Dag's locked ADRQ rows.
-
-        ADRQ rows are matched up to the largest event ID in *locked_records*.
-        This does not exclude every event queued after the rows were locked.
-        With catchup, events are also matched by asset regardless of ID, and
-        event IDs are not assigned in commit order. Concurrent schedulers can't
-        consume this Dag's events since the Dag's own row is locked.
-        """
-        event_predicate: ColumnElement[bool] = (
-            select(AssetDagRunQueue.asset_event_id)
-            .where(
-                AssetDagRunQueue.target_dag_id == dag.dag_id,
-                AssetDagRunQueue.asset_event_id == AssetEvent.id,
-                AssetDagRunQueue.asset_event_id <= max(record.asset_event_id for record in locked_records),
-            )
-            .exists()
-        )
-        if dag.catchup:
-            event_predicate |= _build_scheduled_asset_event_clause(dag.dag_id)
+        """Select unconsumed events referenced by a Dag's locked ADRQ rows, see the clause builder."""
         return session.scalars(
             select(AssetEvent)
-            .where(event_predicate, ~build_consumed_by_dag_clause(dag.dag_id, AssetEvent.id))
+            .where(_build_consumable_asset_event_clause(dag, locked_records=locked_records))
             .order_by(AssetEvent.timestamp.asc(), AssetEvent.id.asc())
             .limit(limit)
         ).all()
@@ -3429,6 +3468,23 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 if run_limit <= 0:
                     continue
 
+            team_name = (
+                self._get_team_names_for_dag_ids([dag.dag_id], session).get(dag.dag_id)
+                if self._multi_team
+                else None
+            )
+            if dag.timetable.batch_asset_events and _has_default_asset_event_grouping(dag.timetable):
+                try:
+                    if self._create_batched_asset_triggered_dag_run(
+                        dag, locked_records=queued_adrqs, team_name=team_name, session=session
+                    ):
+                        remaining_runs -= 1
+                except ParamValidationError:
+                    self.log.exception("Failed creating DagRun", dag_id=dag.dag_id)
+                    continue
+                self._delete_consumed_asset_records(dag, locked_records=queued_adrqs, session=session)
+                continue
+
             asset_events = self._select_consumed_asset_events(
                 dag,
                 locked_records=queued_adrqs,
@@ -3443,11 +3499,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 dag.dag_id,
                 len(queued_adrqs),
                 triggered_date,
-            )
-            team_name = (
-                self._get_team_names_for_dag_ids([dag.dag_id], session).get(dag.dag_id)
-                if self._multi_team
-                else None
             )
             try:
                 for run_after, events in dag.timetable.group_asset_events(asset_events, triggered_date):
@@ -3484,6 +3535,71 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 # Historical events may have no ADRQ row. Queue the next ones so
                 # the Dag is selected again until the backlog drains.
                 self._queue_next_backlog_events(dag_id=dag.dag_id, session=session)
+
+    def _create_batched_asset_triggered_dag_run(
+        self,
+        dag: SerializedDAG,
+        *,
+        locked_records: Sequence[AssetDagRunQueue],
+        team_name: str | None,
+        session: Session,
+    ) -> bool:
+        """
+        Create one Dag run consuming every consumable asset event, without loading the events.
+
+        Returns whether a run was created.
+        """
+        cte = (
+            select(AssetEvent.id.label("event_id"), AssetEvent.timestamp.label("timestamp"))
+            .where(_build_consumable_asset_event_clause(dag, locked_records=locked_records))
+            .cte()
+        )
+        triggered_date, max_selected_event_id = session.execute(
+            select(func.max(cte.c.timestamp), func.max(cte.c.event_id))
+        ).one()
+        if triggered_date is None or max_selected_event_id is None:
+            return False
+        triggered_date = timezone.coerce_datetime(triggered_date)
+        self.log.debug(
+            "Creating asset-triggered DagRun for '%s': %d queued assets, triggered_date=%s",
+            dag.dag_id,
+            len(locked_records),
+            triggered_date,
+        )
+        dag_run = dag.create_dagrun(
+            run_id=DagRun.generate_run_id(
+                run_type=DagRunType.ASSET_TRIGGERED, logical_date=None, run_after=triggered_date
+            ),
+            logical_date=None,
+            data_interval=None,
+            run_after=triggered_date,
+            run_type=DagRunType.ASSET_TRIGGERED,
+            triggered_by=DagRunTriggeredByType.ASSET,
+            state=DagRunState.QUEUED,
+            creating_job_id=self.job.id,
+            session=session,
+        )
+        stats.incr("asset.triggered_dagruns", tags=prune_dict({"team_name": team_name}))
+        consumed = _associate_asset_events_with_dag_run(
+            dag_run=dag_run,
+            asset_event_ids_select=select(cte.c.event_id)
+            .where(
+                # The CTE is evaluated again here, so events committed since the aggregate can match too.
+                # The bounds keep every consumed event within run_after and the aggregate's max ID;
+                # later ones wait for the next run.
+                cte.c.timestamp <= triggered_date,
+                cte.c.event_id <= max_selected_event_id,
+            )
+            .order_by(cte.c.timestamp.asc(), cte.c.event_id.asc()),
+            session=session,
+        )
+        self.log.info(
+            "Created asset-triggered DagRun for '%s': run_id=%s, consumed %d asset events",
+            dag.dag_id,
+            dag_run.run_id,
+            consumed,
+        )
+        return True
 
     def _queue_next_backlog_events(self, *, dag_id: str, session: Session) -> None:
         """
