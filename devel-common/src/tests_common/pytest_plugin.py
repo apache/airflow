@@ -207,7 +207,8 @@ else:
 # End of copied code from breeze
 
 os.environ["AIRFLOW__CORE__ALLOWED_DESERIALIZATION_CLASSES"] = "airflow.*\nunit.*\n"
-os.environ["AIRFLOW__CORE__PLUGINS_FOLDER"] = os.fspath(AIRFLOW_CORE_TESTS_PATH / "unit" / "plugins")
+if "--system" not in sys.argv:
+    os.environ["AIRFLOW__CORE__PLUGINS_FOLDER"] = os.fspath(AIRFLOW_CORE_TESTS_PATH / "unit" / "plugins")
 
 IS_MOCK_PLUGINS_MANAGER = bool(
     os.environ.get("_AIRFLOW_SKIP_DB_TESTS", "false") == "true" and importlib.util.find_spec("airflow")
