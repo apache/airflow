@@ -25,15 +25,17 @@ import sys
 import tempfile
 from types import SimpleNamespace
 from typing import Any
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, create_autospec, patch
 from urllib.parse import urlparse
 
 import httpx
+import keyring
 import pytest
 import structlog.testing
 import tenacity
 import time_machine
 from httpx import URL
+from keyring.errors import KeyringLocked
 from tenacity import stop_after_attempt, wait_none
 
 from airflowctl.api.client import (
@@ -254,6 +256,30 @@ class TestClient:
         client.refresh_base_url(base_url=base_url, kind=client_kind)
         assert client.base_url == URL(expected_base_url)
 
+    @pytest.mark.parametrize(
+        ("client_kind", "expected_authorization"),
+        [
+            pytest.param(ClientKind.CLI, "Bearer STORED_TOKEN", id="cli"),
+            pytest.param(ClientKind.AUTH, None, id="auth"),
+        ],
+    )
+    def test_authorization_header_by_kind(self, client_kind, expected_authorization):
+        requests: list[httpx.Request] = []
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            requests.append(request)
+            return httpx.Response(201, json={})
+
+        client = Client(
+            base_url="http://other-server",
+            token="STORED_TOKEN",
+            kind=client_kind,
+            transport=httpx.MockTransport(handle_request),
+        )
+        client.post("token/cli", json={})
+
+        assert requests[0].headers.get("Authorization") == expected_authorization
+
 
 class TestRequestRetries:
     @pytest.fixture(autouse=True)
@@ -390,9 +416,111 @@ class TestCredentials:
             credentials = Credentials(client_kind=cli_client, api_token="TEST_TOKEN").load()
             assert json.load(f) == {
                 "api_url": credentials.api_url,
+                "token_in_keyring": False,
             }
         mock_keyring.set_password.assert_not_called()
         mock_keyring.get_password.assert_not_called()
+
+    @pytest.fixture
+    def keyring_store(self, monkeypatch, tmp_path):
+        monkeypatch.setenv("AIRFLOW_HOME", str(tmp_path))
+        stored: dict[tuple[str, str], str] = {}
+        mock_keyring = create_autospec(keyring)
+        mock_keyring.set_password.side_effect = lambda service, username, token: stored.update(
+            {(service, username): token}
+        )
+        mock_keyring.get_password.side_effect = lambda service, username: stored.get((service, username))
+        monkeypatch.setattr("airflowctl.api.client.keyring", mock_keyring)
+        return mock_keyring
+
+    @pytest.mark.parametrize(
+        ("skip_keyring", "debug_mode", "expected"),
+        [
+            pytest.param(False, False, True, id="keyring"),
+            pytest.param(True, False, False, id="skip-keyring"),
+            pytest.param(True, True, True, id="skip-keyring-in-debug-mode"),
+        ],
+    )
+    def test_save_returns_whether_token_is_stored(
+        self, keyring_store, monkeypatch, skip_keyring, debug_mode, expected
+    ):
+        if debug_mode:
+            monkeypatch.setenv("AIRFLOW_CLI_DEBUG_MODE", "true")
+
+        credentials = Credentials(api_url="http://localhost:8080", api_token="TOKEN", api_environment="prod")
+
+        assert credentials.save(skip_keyring=skip_keyring) is expected
+
+    def test_save_skip_keyring_does_not_reuse_token_of_earlier_login(self, keyring_store):
+        Credentials(api_url="http://old:8080", api_token="OLD_TOKEN", api_environment="prod").save()
+        Credentials(api_url="http://new:8080", api_token="NEW_TOKEN", api_environment="prod").save(
+            skip_keyring=True
+        )
+
+        credentials = Credentials(client_kind=ClientKind.CLI, api_environment="prod").load()
+        assert (credentials.api_url, credentials.api_token) == ("http://new:8080", None)
+
+    def test_save_in_debug_mode_does_not_reuse_token_of_earlier_login(self, keyring_store, monkeypatch):
+        Credentials(api_url="http://old:8080", api_token="OLD_TOKEN", api_environment="prod").save()
+        monkeypatch.setenv("AIRFLOW_CLI_DEBUG_MODE", "true")
+        Credentials(api_url="http://new:8080", api_token="NEW_TOKEN", api_environment="prod").save()
+        monkeypatch.delenv("AIRFLOW_CLI_DEBUG_MODE")
+
+        credentials = Credentials(client_kind=ClientKind.CLI, api_environment="prod").load()
+        assert (credentials.api_url, credentials.api_token) == ("http://new:8080", None)
+
+    def test_save_in_debug_mode_failing_to_write_token_does_not_reuse_debug_token_of_earlier_login(
+        self, keyring_store, monkeypatch
+    ):
+        monkeypatch.setenv("AIRFLOW_CLI_DEBUG_MODE", "true")
+        Credentials(api_url="http://old:8080", api_token="OLD_TOKEN", api_environment="prod").save()
+
+        def open_failing_for_debug_file(file, mode="r", *args, **kwargs):
+            if os.path.basename(file) == "debug_creds_prod.json" and mode == "w":
+                raise PermissionError(file)
+            return open(file, mode, *args, **kwargs)
+
+        monkeypatch.setattr("airflowctl.api.client.open", open_failing_for_debug_file, raising=False)
+        with pytest.raises(PermissionError):
+            Credentials(api_url="http://new:8080", api_token="NEW_TOKEN", api_environment="prod").save()
+        monkeypatch.delattr("airflowctl.api.client.open")
+
+        with pytest.raises(AirflowCtlCredentialNotFoundException, match="Debug credentials file not found"):
+            Credentials(client_kind=ClientKind.CLI, api_environment="prod").load()
+
+    @pytest.mark.parametrize("skip_keyring", [False, True])
+    def test_save_outside_debug_mode_does_not_reuse_debug_token_of_earlier_login(
+        self, keyring_store, skip_keyring, monkeypatch
+    ):
+        monkeypatch.setenv("AIRFLOW_CLI_DEBUG_MODE", "true")
+        Credentials(api_url="http://old:8080", api_token="OLD_TOKEN", api_environment="prod").save()
+        monkeypatch.delenv("AIRFLOW_CLI_DEBUG_MODE")
+        Credentials(api_url="http://new:8080", api_token="NEW_TOKEN", api_environment="prod").save(
+            skip_keyring=skip_keyring
+        )
+        monkeypatch.setenv("AIRFLOW_CLI_DEBUG_MODE", "true")
+
+        with pytest.raises(AirflowCtlCredentialNotFoundException, match="Debug credentials file not found"):
+            Credentials(client_kind=ClientKind.CLI, api_environment="prod").load()
+
+    @pytest.mark.parametrize(
+        "error",
+        [
+            pytest.param(ValueError("Incorrect Password"), id="wrong-keyring-password"),
+            pytest.param(KeyringLocked("Can't store password on keychain"), id="locked-keychain"),
+        ],
+    )
+    def test_save_failing_to_store_token_does_not_reuse_token_of_earlier_login(self, keyring_store, error):
+        Credentials(api_url="http://old:8080", api_token="OLD_TOKEN", api_environment="prod").save()
+        keyring_store.set_password.side_effect = error
+
+        with pytest.raises(AirflowCtlKeyringException) as excinfo:
+            Credentials(api_url="http://new:8080", api_token="NEW_TOKEN", api_environment="prod").save()
+
+        assert excinfo.value.__cause__ is error
+
+        credentials = Credentials(client_kind=ClientKind.CLI, api_environment="prod").load()
+        assert (credentials.api_url, credentials.api_token) == ("http://new:8080", None)
 
     @patch.dict(os.environ, {"AIRFLOW_CLI_ENVIRONMENT": "TEST_LOAD"})
     @patch.dict(os.environ, {"AIRFLOW_CLI_TOKEN": "TEST_TOKEN"})
@@ -549,6 +677,21 @@ class TestCredentials:
 
         with pytest.raises(AirflowCtlCredentialInvalidException, match="is not a JSON object"):
             Credentials(client_kind=ClientKind.CLI).load()
+
+    @patch("airflowctl.api.client.keyring", autospec=True)
+    def test_load_auth_kind_skips_a_locked_keyring(self, mock_keyring, monkeypatch, tmp_path):
+        """`auth login` sends no token, so a locked keyring must not stop it before it starts."""
+        monkeypatch.setenv("AIRFLOW_HOME", str(tmp_path))
+        monkeypatch.setenv("AIRFLOW_CLI_ENVIRONMENT", "TEST_LOCKED_KEYRING")
+        (tmp_path / "TEST_LOCKED_KEYRING.json").write_text(
+            json.dumps({"api_url": "http://x"}), encoding="utf-8"
+        )
+        mock_keyring.get_password.side_effect = KeyringLocked("Keyring is locked")
+
+        credentials = Credentials(client_kind=ClientKind.AUTH).load()
+
+        assert (credentials.api_url, credentials.api_token) == ("http://x", None)
+        mock_keyring.get_password.assert_not_called()
 
     def test_load_tolerates_an_unusable_file_for_auth_login(self, monkeypatch, tmp_path):
         """`auth login` is the recovery the error recommends, so it must survive an unusable file."""

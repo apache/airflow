@@ -66,7 +66,7 @@ class MCPHook(BaseHook):
 
     :param mcp_conn_id: Airflow connection ID for the MCP server.
     :param tool_prefix: Optional prefix prepended to tool names
-        (e.g. ``"weather"`` → ``"weather_get_forecast"``).
+        (e.g. ``"weather"`` → ``"weather_get_forecast"``). Defaults to ``""`` (no prefix).
     :param token_provider: Optional zero-argument callable returning a bearer
         token string. When set, it overrides the connection ``password`` for the
         ``Authorization`` header on HTTP/SSE transports. Called once, the first
@@ -88,7 +88,7 @@ class MCPHook(BaseHook):
     def __init__(
         self,
         mcp_conn_id: str = default_conn_name,
-        tool_prefix: str | None = None,
+        tool_prefix: str = "",
         *,
         token_provider: Callable[[], str] | None = None,
         env_provider: Callable[[], dict[str, str]] | None = None,

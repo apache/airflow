@@ -69,6 +69,7 @@ WORKFLOW_RUN_PARAMETERS["breeze workflow-run release-constraints"] = [
             "--version",
             "--ref",
             "--workflow-branch",
+            "--fail-on-pending-provider-candidates",
         ],
     },
 ]
@@ -93,6 +94,7 @@ WORKFLOW_RUN_PARAMETERS["breeze workflow-run mirror-base-images"] = [
         "name": "Mirror flags",
         "options": [
             "--trigger-upgrade-check",
+            "--build-os-deps-images",
         ],
     },
 ]

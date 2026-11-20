@@ -29,6 +29,7 @@ import { getPluginIconSrc } from "src/utils/pluginIcon";
 type TabPlugin = {
   icon: ReactNode;
   label: string;
+  showIconWithLabel: boolean;
   value: string;
 };
 
@@ -45,6 +46,7 @@ export const usePluginTabs = (destination: string): Array<TabPlugin> => {
     .filter((view) => Boolean(view.url_route))
     .map((view) => {
       const iconSrc = getPluginIconSrc(view, colorMode);
+      const hasIconInEveryTheme = Boolean(view.icon);
 
       const icon =
         iconSrc === undefined ? (
@@ -56,6 +58,7 @@ export const usePluginTabs = (destination: string): Array<TabPlugin> => {
       return {
         icon,
         label: view.name,
+        showIconWithLabel: view.show_icon_with_label === true && hasIconInEveryTheme,
         value: `plugin/${view.url_route}`,
       };
     });

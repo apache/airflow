@@ -26,3 +26,20 @@ export interface UsageInfo {
   tool_calls: number;
   cost: string | null;
 }
+
+/** Where a skill was loaded from: a local path, or a path inside a Git repository at a commit. */
+export interface SkillSource {
+  path: string;
+  repo_url?: string;
+  branch?: string | null;
+  commit?: string | null;
+}
+
+/** One entry of the skills XCom pushed by AgentSkillsToolset (see toolsets/skills.py). */
+export interface SkillInfo {
+  name: string;
+  description: string | null;
+  source: SkillSource;
+  /** How many times the agent called each skill tool for this skill, e.g. `{ load_skill: 1 }`. */
+  calls: Record<string, number>;
+}

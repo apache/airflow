@@ -34,6 +34,7 @@ from airflow.api_fastapi.execution_api.security import (
     ExecutionAPIRoute,
     ExecutionOrDagParseToken,
     ExecutionOrProcessorSecretsToken,
+    allow_non_ti_writer,
     get_team_name_dep,
 )
 from airflow.models.variable import Variable
@@ -147,6 +148,7 @@ def get_variable(
         status.HTTP_403_FORBIDDEN: {"description": "The caller does not have access to the variable"},
     },
 )
+@allow_non_ti_writer
 def put_variable(
     variable_key: Annotated[str, Path(min_length=1)],
     body: VariablePostBody,
@@ -167,6 +169,7 @@ def put_variable(
         status.HTTP_403_FORBIDDEN: {"description": "The caller does not have access to the variable"},
     },
 )
+@allow_non_ti_writer
 def delete_variable(
     variable_key: Annotated[str, Path(min_length=1)],
     team_name: Annotated[str | None, Depends(get_team_name_dep)],

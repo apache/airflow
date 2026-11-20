@@ -152,6 +152,7 @@ def perform_clear_dag_run(
     run_on_latest_version: bool | None,
     note: str | None,
     user: BaseUser,
+    keep_task_state: bool = False,
 ) -> DagRun:
     resolved_run_on_latest = resolve_run_on_latest_version(run_on_latest_version, dag_id, session)
     dag.clear(
@@ -160,6 +161,7 @@ def perform_clear_dag_run(
         only_new=only_new,
         only_failed=only_failed,
         run_on_latest_version=resolved_run_on_latest,
+        keep_task_state=keep_task_state,
         session=session,
     )
     dag_run_cleared = session.scalar(select(DagRun).where(DagRun.id == dag_run.id))
@@ -488,9 +490,11 @@ class BulkDagRunService(BulkService[BulkDAGRunBody]):
                 dag_run = dag_run_map[key]
                 if entity.state is not None:
                     dag = get_dag_for_run(self.dag_bag, dag_run, session=self.session)
-                    patch_dag_run_state(dag=dag, dag_run=dag_run, state=entity.state, session=self.session)
+                # Apply "note" before "state" so listeners fired inside patch_dag_run_state() see the updated note.
                 if entity.note is not None:
                     patch_dag_run_note(dag_run=dag_run, note=entity.note, user_id=self.user.get_id())
+                if entity.state is not None:
+                    patch_dag_run_state(dag=dag, dag_run=dag_run, state=entity.state, session=self.session)
                 results.success.append(f"{dag_id}.{run_id}")
         except HTTPException as e:
             results.errors.append({"error": f"{e.detail}", "status_code": e.status_code})

@@ -88,7 +88,7 @@ func NewCoordinatorClient(comm *CoordinatorComm, tiID string) *CoordinatorClient
 // supervisor always passes the setting, so an absent or malformed value is a
 // misconfiguration and fails the write rather than silently retaining the key
 // for a period nobody configured.
-func resolveDefaultExpiry(now time.Time) (any, error) {
+func resolveDefaultExpiry(now time.Time) (*genmodels.Time, error) {
 	raw, ok := os.LookupEnv(defaultRetentionDaysEnv)
 	if !ok {
 		return nil, fmt.Errorf(
@@ -117,7 +117,7 @@ func resolveDefaultExpiry(now time.Time) (any, error) {
 			"state_store",
 		)
 	}
-	return expiry, nil
+	return genmodels.TimePtr(expiry), nil
 }
 
 // parseRetentionDays accepts "7.0" because Python's getint does.
@@ -168,29 +168,11 @@ func (c *CoordinatorClient) GetVariable(ctx context.Context, key string) (string
 		return "", fmt.Errorf("decoding variable result: %w", err)
 	}
 
-	if result.Value == nil {
-		return "", fmt.Errorf("%w: %q", sdk.VariableNotFound, key)
-	}
-
 	// TODO: register secret-named variables with a SecretsMasker so the
 	// returned value is automatically redacted from subsequent task logs,
 	// matching Python's airflow.models.variable.Variable.get behaviour.
 
-	switch v := result.Value.(type) {
-	case string:
-		return v, nil
-	default:
-		// Airflow Variables are stored as strings, but the supervisor
-		// decodes msgpack into native Go types — a supervisor that
-		// returns a list/map/number means the caller stored JSON.
-		// Re-encode it so UnmarshalJSONVariable still works uniformly
-		// across HTTP and coordinator modes.
-		b, err := json.Marshal(v)
-		if err != nil {
-			return "", fmt.Errorf("marshaling variable value: %w", err)
-		}
-		return string(b), nil
-	}
+	return result.Value, nil
 }
 
 // UnmarshalJSONVariable gets a variable and unmarshals its JSON value.
@@ -316,16 +298,22 @@ func (c *CoordinatorClient) PushXCom(
 	key string,
 	value any,
 ) error {
+	// Unlike a task state value, nil is allowed: it is pushed as JSON null.
+	encoded, _, err := validateJSONRepresentable(value)
+	if err != nil {
+		return fmt.Errorf("cannot push XCom %q: %w", key, err)
+	}
+
 	msg := genmodels.SetXCom{
 		Key:    key,
-		Value:  value,
+		Value:  encoded,
 		DagID:  ti.DagID,
 		TaskID: ti.TaskID,
 		RunID:  ti.RunID,
 	}
 	msg.MapIndex = omittedMapIndex(ti.MapIndex)
 
-	_, err := c.comm.Communicate(ctx, msg)
+	_, err = c.comm.Communicate(ctx, msg)
 	return err
 }
 
@@ -469,8 +457,14 @@ func (s taskStateStore) Set(
 
 	// The caller's value is checked first so a misconfigured deployment cannot
 	// mask a programming error in the task.
-	if err := validateJSONRepresentable(value); err != nil {
+	encoded, isNull, err := validateJSONRepresentable(value)
+	if err != nil {
 		return fmt.Errorf("cannot set task state key %q: %w", key, err)
+	}
+	// Checked after encoding: a typed nil such as a nil *string is not == nil,
+	// yet it still encodes to null, which the Execution API rejects.
+	if isNull {
+		return fmt.Errorf("cannot set task state key %q: value must not be nil", key)
 	}
 
 	expiry, err := resolveExpiry(options.Retention, time.Now())
@@ -481,7 +475,7 @@ func (s taskStateStore) Set(
 	_, err = s.client.comm.Communicate(ctx, genmodels.SetTaskStateStore{
 		TIID:      s.client.tiID,
 		Key:       key,
-		Value:     value,
+		Value:     encoded,
 		ExpiresAt: expiry,
 	})
 	return err
@@ -508,7 +502,7 @@ func (s taskStateStore) Clear(ctx context.Context) error {
 
 // resolveExpiry turns a retention into the wire expires_at. A nil retention -
 // no sdk.WithRetention - follows the deployment default.
-func resolveExpiry(retention *time.Duration, now time.Time) (any, error) {
+func resolveExpiry(retention *time.Duration, now time.Time) (*genmodels.Time, error) {
 	if retention == nil {
 		return resolveDefaultExpiry(now)
 	}
@@ -523,33 +517,56 @@ func resolveExpiry(retention *time.Duration, now time.Time) (any, error) {
 			r,
 		)
 	default:
-		return now.UTC().Add(r), nil
+		return genmodels.TimePtr(now.UTC().Add(r)), nil
 	}
 }
 
 // validateJSONRepresentable checks what the frame encoder actually emits, not
 // the Go value: a reflection walk has to mirror the encoder's field rules (tags,
 // "-", omitempty, embedding, marshalers) and misjudges values wherever it drifts.
-func validateJSONRepresentable(value any) error {
+// On success it returns the encoded bytes, so the caller sends them instead of
+// encoding the value a second time, and whether the value encodes to null.
+func validateJSONRepresentable(value any) (msgpack.RawMessage, bool, error) {
 	var buf bytes.Buffer
 	if err := newFrameEncoder(&buf).Encode(value); err != nil {
-		return fmt.Errorf("%T is not JSON representable: %w", value, err)
+		return nil, false, fmt.Errorf("%T is not JSON representable: %w", value, err)
 	}
-	dec := msgpack.NewDecoder(&buf)
-	// The default map decoder fails opaquely on non-string keys.
-	dec.SetMapDecoder(func(d *msgpack.Decoder) (any, error) {
-		return d.DecodeUntypedMap()
-	})
+	encoded := msgpack.RawMessage(buf.Bytes())
+	// Decoded from its own reader so encoded keeps the whole payload.
+	dec := msgpack.NewDecoder(bytes.NewReader(encoded))
+	dec.SetMapDecoder(decodeStringKeyedMap)
 	decoded, err := dec.DecodeInterface()
 	if err != nil {
-		return fmt.Errorf("%T is not JSON representable: %w", value, err)
+		return nil, false, fmt.Errorf("%T is not JSON representable: %w", value, err)
 	}
-	// Checked after decoding: a typed nil such as a nil *string is not == nil,
-	// yet it still encodes to null, which the Execution API rejects.
-	if decoded == nil {
-		return errors.New("value must not be nil")
+	if err := validateDecodedValue(decoded); err != nil {
+		return nil, false, err
 	}
-	return validateDecodedValue(decoded)
+	return encoded, decoded == nil, nil
+}
+
+// decodeStringKeyedMap replaces msgpack's default map decoder, which panics on
+// a uuid.UUID key.
+func decodeStringKeyedMap(d *msgpack.Decoder) (any, error) {
+	n, err := d.DecodeMapLen()
+	if err != nil || n == -1 {
+		return nil, err
+	}
+	m := make(map[string]any, n)
+	for range n {
+		k, err := d.DecodeInterface()
+		if err != nil {
+			return nil, err
+		}
+		key, ok := k.(string)
+		if !ok {
+			return nil, fmt.Errorf("map keys must be strings, got %T", k)
+		}
+		if m[key], err = d.DecodeInterface(); err != nil {
+			return nil, err
+		}
+	}
+	return m, nil
 }
 
 func validateDecodedValue(v any) error {
@@ -578,11 +595,8 @@ func validateDecodedValue(v any) error {
 			}
 		}
 		return nil
-	case map[any]any:
-		for k, elem := range v {
-			if _, ok := k.(string); !ok {
-				return fmt.Errorf("map keys must be strings, got %T", k)
-			}
+	case map[string]any:
+		for _, elem := range v {
 			if err := validateDecodedValue(elem); err != nil {
 				return err
 			}

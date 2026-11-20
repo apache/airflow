@@ -51,7 +51,7 @@ For an agent you build yourself, pass the capability to any pydantic-ai ``Agent`
     from airflow.providers.common.ai.toolsets.sql import SQLToolset
 
     agent = Agent(
-        "openai:gpt-5",
+        "openai:gpt-6.1-sol",
         toolsets=[SQLToolset(db_conn_id="my_db")],
         capabilities=[ToolLoggingCapability()],
     )

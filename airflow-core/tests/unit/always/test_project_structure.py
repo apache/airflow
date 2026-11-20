@@ -72,7 +72,6 @@ class TestProjectStructure:
             "providers/celery/tests/unit/celery/executors/test_celery_executor_utils.py",
             "providers/cncf/kubernetes/tests/unit/cncf/kubernetes/executors/test_kubernetes_executor_utils.py",
             "providers/cncf/kubernetes/tests/unit/cncf/kubernetes/test_exceptions.py",
-            "providers/cncf/kubernetes/tests/unit/cncf/kubernetes/test_kube_config.py",
             "providers/cncf/kubernetes/tests/unit/cncf/kubernetes/test_python_kubernetes_script.py",
             "providers/cncf/kubernetes/tests/unit/cncf/kubernetes/utils/test_delete_from.py",
             "providers/common/compat/tests/unit/common/compat/standard/test_utils.py",
@@ -87,9 +86,6 @@ class TestProjectStructure:
             "providers/fab/tests/unit/fab/www/test_security_appless.py",
             "providers/fab/tests/unit/fab/www/test_security_manager.py",
             "providers/fab/tests/unit/fab/www/test_session.py",
-            "providers/google/tests/unit/google/cloud/links/test_dataproc.py",
-            "providers/google/tests/unit/google/cloud/links/test_kubernetes_engine.py",
-            "providers/google/tests/unit/google/cloud/links/test_translate.py",
             "providers/google/tests/unit/google/cloud/operators/vertex_ai/test_auto_ml.py",
             "providers/google/tests/unit/google/cloud/operators/vertex_ai/test_batch_prediction_job.py",
             "providers/google/tests/unit/google/cloud/operators/vertex_ai/test_custom_job.py",
@@ -100,9 +96,7 @@ class TestProjectStructure:
             "providers/google/tests/unit/google/cloud/operators/vertex_ai/test_pipeline_job.py",
             "providers/google/tests/unit/google/cloud/sensors/vertex_ai/test_feature_store.py",
             "providers/google/tests/unit/google/cloud/transfers/test_bigquery_to_sql.py",
-            "providers/google/tests/unit/google/cloud/transfers/test_presto_to_gcs.py",
             "providers/microsoft/azure/tests/unit/microsoft/azure/operators/test_adls.py",
-            "providers/snowflake/tests/unit/snowflake/triggers/test_snowflake_trigger.py",
         ]
         # Deliberately untested: link modules whose tests would only assert constants.
         # Remove an entry once its module gains logic worth testing.

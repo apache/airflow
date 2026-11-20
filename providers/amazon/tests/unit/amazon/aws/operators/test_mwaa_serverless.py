@@ -34,6 +34,7 @@ from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 
 WORKFLOW_ARN = "arn:aws:mwaa-serverless:us-east-1:123456789012:workflow/test-workflow"
 RUN_ID = "run-abc123"
+ENVIRONMENT_VARIABLES = {"ENV": "prod", "LOG_LEVEL": "INFO"}
 
 
 class TestMwaaServerlessStartWorkflowRunOperator:
@@ -221,6 +222,29 @@ class TestMwaaServerlessCreateWorkflowOperator:
         )
         assert result == WORKFLOW_ARN
 
+    @mock.patch.object(AwsBaseHook, "conn", new_callable=mock.PropertyMock)
+    def test_execute_with_environment_variables(self, mock_conn):
+        op = MwaaServerlessCreateWorkflowOperator(
+            task_id="create_workflow",
+            workflow_name=WORKFLOW_NAME,
+            definition_s3_location=S3_LOCATION,
+            role_arn=ROLE_ARN,
+            environment_variables=ENVIRONMENT_VARIABLES,
+        )
+        mock_client = mock.MagicMock()
+        mock_client.create_workflow.return_value = {"WorkflowArn": WORKFLOW_ARN}
+        mock_conn.return_value = mock_client
+
+        result = op.execute({})
+
+        mock_client.create_workflow.assert_called_once_with(
+            Name=WORKFLOW_NAME,
+            DefinitionS3Location=S3_LOCATION,
+            RoleArn=ROLE_ARN,
+            Environment={"Variables": ENVIRONMENT_VARIABLES},
+        )
+        assert result == WORKFLOW_ARN
+
     def test_template_fields(self):
         validate_template_fields(self.operator)
 
@@ -277,6 +301,34 @@ class TestMwaaServerlessUpdateWorkflowOperator:
             DefinitionS3Location=S3_LOCATION,
             RoleArn=ROLE_ARN,
             Description="Updated workflow",
+        )
+        assert result == WORKFLOW_ARN
+
+    @mock.patch.object(AwsBaseHook, "conn", new_callable=mock.PropertyMock)
+    @pytest.mark.parametrize("environment_variables", [ENVIRONMENT_VARIABLES, {}])
+    def test_execute_with_environment_variables(self, mock_conn, environment_variables):
+        op = MwaaServerlessUpdateWorkflowOperator(
+            task_id="update_workflow",
+            workflow_arn=WORKFLOW_ARN,
+            definition_s3_location=S3_LOCATION,
+            role_arn=ROLE_ARN,
+            environment_variables=environment_variables,
+        )
+        mock_client = mock.MagicMock()
+        mock_client.update_workflow.return_value = {
+            "WorkflowArn": WORKFLOW_ARN,
+            "WorkflowVersion": "ghi789",
+            "ModifiedAt": "2026-05-12T00:00:00Z",
+        }
+        mock_conn.return_value = mock_client
+
+        result = op.execute({})
+
+        mock_client.update_workflow.assert_called_once_with(
+            WorkflowArn=WORKFLOW_ARN,
+            DefinitionS3Location=S3_LOCATION,
+            RoleArn=ROLE_ARN,
+            Environment={"Variables": environment_variables},
         )
         assert result == WORKFLOW_ARN
 

@@ -26,7 +26,7 @@
 
 import { existsSync, readFileSync } from "node:fs";
 
-import { Dag } from "apache-airflow-ts-sdk";
+import { Dag } from "@apache-airflow/ts-sdk";
 import { load } from "js-yaml";
 
 interface DagsFile {

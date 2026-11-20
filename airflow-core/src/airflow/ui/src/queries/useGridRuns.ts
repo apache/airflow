@@ -25,25 +25,34 @@ import { SearchParamsKeys } from "src/constants/searchParams";
 import { useAdvancedSearchArg } from "src/hooks/useAdvancedSearch";
 import { isStatePending, useAutoRefresh } from "src/utils";
 
-export const useGridRuns = ({
-  dagRunState,
-  limit,
-  offset,
-  runAfterGte,
-  runAfterLte,
-  runIdPattern,
-  runType,
-  triggeringUser,
-}: {
-  dagRunState?: DagRunState | undefined;
-  limit: number;
-  offset?: number;
-  runAfterGte?: string;
-  runAfterLte?: string;
-  runIdPattern?: string | undefined;
-  runType?: DagRunType | undefined;
-  triggeringUser?: string | undefined;
-}) => {
+export const useGridRuns = (
+  {
+    dagRunState,
+    limit,
+    offset,
+    runAfterGte,
+    runAfterLte,
+    runIdPattern,
+    runType,
+    triggeringUser,
+  }: {
+    dagRunState?: DagRunState | undefined;
+    limit: number;
+    offset?: number;
+    runAfterGte?: string;
+    runAfterLte?: string;
+    runIdPattern?: string | undefined;
+    runType?: DagRunType | undefined;
+    triggeringUser?: string | undefined;
+  },
+  {
+    autoRefresh = true,
+    enabled = true,
+  }: {
+    autoRefresh?: boolean;
+    enabled?: boolean;
+  } = {},
+) => {
   const { dagId = "" } = useParams();
 
   const refetchInterval = useAutoRefresh({ dagId });
@@ -81,9 +90,10 @@ export const useGridRuns = ({
     },
     undefined,
     {
+      enabled,
       placeholderData: (prev) => prev,
       refetchInterval: (query) =>
-        query.state.data?.some((run) => isStatePending(run.state)) && refetchInterval,
+        autoRefresh && query.state.data?.some((run) => isStatePending(run.state)) && refetchInterval,
     },
   );
 

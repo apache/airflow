@@ -113,8 +113,10 @@
     "noTryNumber": "Keine Versuchsnummer",
     "search": {
       "matchCount": "{{current, number}} von {{total, number}}",
+      "nextMatch": "Nächster Treffer",
       "noMatches": "Keine Treffer",
-      "placeholder": "Protokolle durchsuchen..."
+      "placeholder": "Protokolle durchsuchen...",
+      "previousMatch": "Voriger Treffer"
     },
     "settings": "Protokoll-Ansicht",
     "tryNotStarted": "Dieser Versuch ist nicht gestartet.",

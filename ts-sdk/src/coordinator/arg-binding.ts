@@ -152,7 +152,7 @@ function checkBindable(binding: TaskArgBinding): void {
   const kind: unknown = (binding as { kind?: unknown }).kind;
   throw new Error(
     `Task argument "${name}" has binding kind ${JSON.stringify(kind)}, which this version ` +
-      "of apache-airflow-ts-sdk cannot bind; upgrade it to match this Airflow release",
+      "of @apache-airflow/ts-sdk cannot bind; upgrade it to match this Airflow release",
   );
 }
 

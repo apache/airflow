@@ -27,6 +27,26 @@
 Changelog
 ---------
 
+3.0.0
+.....
+
+.. note::
+  The Kafka event producer plugin now publishes messages with ``schema_version`` 2. The ``logical_date``,
+  ``start_date`` and ``end_date`` fields of Dag run events are formatted with ``datetime.isoformat()``,
+  for example ``2026-10-30T14:40:05.123456+00:00``, instead of ``str()``, which separated the date and
+  the time with a space. A missing date is now published as ``null`` instead of an empty string. Update
+  consumers that parse these fields with a fixed pattern or check for ``""``. A JSON Schema definition
+  that accepts the new values is ``{"type": ["string", "null"], "format": "date-time"}``.
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Use standard iso format for dates in the Kafka EventProducer plugin messages (#76052)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``[main] Upgrade important CI environment (#76278)``
+
 2.1.0
 .....
 

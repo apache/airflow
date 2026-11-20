@@ -34,7 +34,7 @@ try:
 except ImportError as e:
     raise AirflowOptionalProviderFeatureException(e)
 
-from airflow.providers.common.ai.batch.state import compute_identity_key
+from airflow.providers.common.ai.batch.state import compute_identity_key_for_context
 from airflow.providers.common.ai.utils.coroutines import run_coroutine_sync
 from airflow.providers.common.ai.utils.task_logger import get_task_logger
 from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_3_PLUS
@@ -110,10 +110,12 @@ def invoke_durably(
         twice when the saved state is from a different prompt.
     :param prompt: The prompt for the agent; ignored when resuming.
     :param session_id: Names the agent's saved state. Defaults to an id derived from the
-        task instance (Dag id, run id, task id and map index), the same on every try. Pass
-        a distinct one for each agent when a task runs more than one; it must stay the same
-        across tries, and when ``storage`` is shared across Dag runs it must differ between
-        them.
+        task instance (Dag id, run id, task id and map index, plus the loop trajectory and
+        iteration inside a task loop), the same on every try. Pass a distinct one for each
+        agent when a task runs more than one; it must stay the same across tries, and when
+        ``storage`` is shared across Dag runs or loop iterations it must differ between
+        them, for example by including ``context["loop"].region_id`` and
+        ``context["loop"].index`` inside a task loop.
     :param storage: Where the agent's state is saved. Defaults to the task instance's task
         state store, on Airflow 3.3 and later; on older versions pass a Strands storage such
         as ``S3Storage``.
@@ -132,15 +134,9 @@ def invoke_durably(
             )
         storage = TaskStateStoreStorage(context["task_state_store"])
     if session_id is None:
-        ti = context["ti"]
         # A hash: short (task state store keys are at most 512 characters) and free of the
         # characters Strands refuses in a session id, whatever the Dag, run and task ids hold.
-        session_id = compute_identity_key(
-            dag_id=ti.dag_id,
-            task_id=ti.task_id,
-            run_id=ti.run_id,
-            map_index=ti.map_index if ti.map_index is not None else -1,
-        )
+        session_id = compute_identity_key_for_context(context)
     prompt_fingerprint = _build_fingerprint(prompt)
 
     session_manager, agent = _build_agent(agent_factory, session_id, storage)

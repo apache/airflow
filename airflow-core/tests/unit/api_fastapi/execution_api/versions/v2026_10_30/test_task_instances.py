@@ -17,7 +17,6 @@
 
 from __future__ import annotations
 
-from datetime import timedelta
 from uuid import uuid4
 
 import pytest
@@ -54,7 +53,6 @@ def test_task_coordinate_schema_by_version(client, version):
     assert ("region_index" in previous) == (version == "2026-10-30")
     context = response.json()["components"]["schemas"]["TIRunContext"]["properties"]
     assert ("loop" in context) == (version == "2026-10-30")
-    assert ("execution_timeout" in context) == (version == "2026-10-30")
 
 
 @pytest.mark.parametrize(
@@ -287,38 +285,6 @@ class TestArgBindingsFieldBackwardCompat:
                 "from_default": True,
             },
         ]
-
-
-class TestExecutionTimeoutBackwardCompat:
-    def setup_method(self):
-        clear_db_runs()
-
-    def teardown_method(self):
-        clear_db_runs()
-
-    @pytest.fixture
-    def stub_ti(self, dag_maker):
-        with dag_maker("test_execution_timeout_compat_dag", serialized=True):
-
-            @task.stub(execution_timeout=timedelta(seconds=90))
-            def sleeper(): ...
-
-            sleeper()
-
-        (ti,) = dag_maker.create_dagrun().get_task_instances()
-        ti.set_state(State.QUEUED)
-        dag_maker.session.flush()
-        return ti
-
-    def test_old_version_strips_execution_timeout(self, old_ver_client, stub_ti):
-        response = old_ver_client.patch(f"/execution/task-instances/{stub_ti.id}/run", json=RUN_PATCH_BODY)
-        assert response.status_code == 200
-        assert "execution_timeout" not in response.json()
-
-    def test_head_version_includes_execution_timeout(self, client, stub_ti):
-        response = client.patch(f"/execution/task-instances/{stub_ti.id}/run", json=RUN_PATCH_BODY)
-        assert response.status_code == 200
-        assert response.json()["execution_timeout"] == 90.0
 
 
 @pytest.fixture

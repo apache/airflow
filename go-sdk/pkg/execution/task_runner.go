@@ -34,11 +34,13 @@ import (
 // RunTask executes a task based on StartupDetails received from the supervisor.
 //
 // It looks up the task in the bundle, creates a CoordinatorClient for SDK
-// calls, deletes the XComs that ti_context.xcom_keys_to_clear lists, executes
-// the task, and returns the terminal body to ship as the final response frame:
+// calls, deletes the XComs that ti_context.xcom_keys_to_clear lists, sends the
+// supervisor the task's execution_timeout, executes the task, and returns the
+// terminal body to ship as the final response frame:
 // one of genmodels.SucceedTask, TaskState, RetryTask, or DeferTask. A task from airflow.TriggerDagRun
 // is the only one that defers, and RunTask runs it without a Go function. When RunTask cannot
-// delete an XCom, or arg_bindings is invalid, the task fails without running.
+// delete an XCom, cannot resolve the execution_timeout, finds it has already elapsed, or
+// arg_bindings is invalid, the task fails without running.
 //
 // The supervisor owns the Execution-API state transitions, so the runtime only
 // invokes the user's task function and returns its terminal response.
@@ -60,7 +62,7 @@ func RunTask(
 		)
 		return genmodels.TaskState{
 			State:   genmodels.TaskStateStateRemoved,
-			EndDate: time.Now().UTC(),
+			EndDate: genmodels.TimePtr(time.Now().UTC()),
 		}
 	}
 
@@ -74,15 +76,22 @@ func RunTask(
 	// live task context.
 	ti := taskInstanceOf(details)
 	dagRun := details.TIContext.DagRun
+	var conf map[string]any
+	if dagRun.Conf != nil {
+		conf = *dagRun.Conf
+	}
 	runtimeContext := sdk.NewTIRunContext(
 		context.Background(),
 		ti,
 		sdk.DagRun{
 			DagID:             details.TI.DagID,
 			RunID:             details.TI.RunID,
-			LogicalDate:       ifaceTimePtr(dagRun.LogicalDate),
-			DataIntervalStart: ifaceTimePtr(dagRun.DataIntervalStart),
-			DataIntervalEnd:   ifaceTimePtr(dagRun.DataIntervalEnd),
+			LogicalDate:       (*time.Time)(dagRun.LogicalDate),
+			DataIntervalStart: (*time.Time)(dagRun.DataIntervalStart),
+			DataIntervalEnd:   (*time.Time)(dagRun.DataIntervalEnd),
+			RunAfter:          time.Time(dagRun.RunAfter),
+			RunType:           dagRun.RunType,
+			Conf:              conf,
 		},
 	)
 
@@ -105,6 +114,19 @@ func RunTask(
 			)
 			return failTask(details.TIContext.ShouldRetry, err)
 		}
+	}
+
+	timeoutSeconds, err := resolveExecutionTimeout(details.TIContext.ExecutionTimeout)
+	if err == nil && timeoutSeconds != nil {
+		err = client.setExecutionTimeout(ctx, *timeoutSeconds)
+	}
+	if err != nil {
+		logger.Error("Unable to apply execution_timeout",
+			"dag_id", details.TI.DagID,
+			"task_id", details.TI.TaskID,
+			"error", err,
+		)
+		return failTask(details.TIContext.ShouldRetry, err)
 	}
 
 	// The runtime runs a TriggerDagRun task itself. It has no Go function to bind arguments to.
@@ -140,13 +162,13 @@ func taskInstanceOf(details *genmodels.StartupDetails) sdk.TaskInstance {
 func failTask(shouldRetry bool, err error) any {
 	if shouldRetry {
 		return genmodels.RetryTask{
-			EndDate:     time.Now().UTC(),
+			EndDate:     genmodels.Time(time.Now().UTC()),
 			RetryReason: err.Error(),
 		}
 	}
 	return genmodels.TaskState{
 		State:   genmodels.TaskStateStateFailed,
-		EndDate: time.Now().UTC(),
+		EndDate: genmodels.TimePtr(time.Now().UTC()),
 	}
 }
 
@@ -263,13 +285,13 @@ func executeTask(
 			)
 			if shouldRetry {
 				result = genmodels.RetryTask{
-					EndDate:     time.Now().UTC(),
+					EndDate:     genmodels.Time(time.Now().UTC()),
 					RetryReason: fmt.Sprintf("panic: %v", r),
 				}
 			} else {
 				result = genmodels.TaskState{
 					State:   genmodels.TaskStateStateFailed,
-					EndDate: time.Now().UTC(),
+					EndDate: genmodels.TimePtr(time.Now().UTC()),
 				}
 			}
 		}
@@ -282,13 +304,13 @@ func executeTask(
 		// UP_FOR_RETRY via RetryTask; otherwise it terminates as FAILED.
 		if shouldRetry {
 			return genmodels.RetryTask{
-				EndDate:     time.Now().UTC(),
+				EndDate:     genmodels.Time(time.Now().UTC()),
 				RetryReason: err.Error(),
 			}
 		}
 		return genmodels.TaskState{
 			State:   genmodels.TaskStateStateFailed,
-			EndDate: time.Now().UTC(),
+			EndDate: genmodels.TimePtr(time.Now().UTC()),
 		}
 	}
 
@@ -301,7 +323,7 @@ func executeTask(
 // empty collections rather than None.
 func succeedTask() genmodels.SucceedTask {
 	return genmodels.SucceedTask{
-		EndDate:      time.Now().UTC(),
+		EndDate:      genmodels.Time(time.Now().UTC()),
 		TaskOutlets:  &genmodels.TaskOutlets{},
 		OutletEvents: &genmodels.OutletEvents{},
 	}

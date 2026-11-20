@@ -96,6 +96,10 @@ def _log_cache_and_cost(logger: Logger | logging.Logger, usage: RunUsage) -> Non
 # name" entry in docs/observability.rst for exactly which operators publish it.
 MODEL_NAME_XCOM_KEY = "__AIRFLOW__COMMON_AI_MODEL_NAME__"
 
+# Skills an AgentSkillsToolset offered the agent, where each came from, and which skill tools
+# the agent called for it. Read by the AI Model tab. See the "Skills" entry in docs/observability.rst.
+SKILLS_XCOM_KEY = "__AIRFLOW__COMMON_AI_SKILLS__"
+
 
 def format_usage_for_xcom(usage: RunUsage) -> dict[str, Any]:
     """Build the XCom ``usage`` payload -- shared by the success and failure paths."""

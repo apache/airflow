@@ -84,7 +84,7 @@ class TestS3ToAzureBlobStorageOperator:
         assert operator.blob_name is None
         assert not operator.create_container  # Should be false (match default value in constructor)
         assert operator.replace
-        assert not operator.s3_verify  # Should be false (match default value in constructor)
+        assert operator.s3_verify is None  # Defer to the connection / botocore default
         assert operator.s3_extra_args == {}
         assert operator.wasb_extra_args == {}
 
@@ -115,7 +115,7 @@ class TestS3ToAzureBlobStorageOperator:
         assert sorted(uploaded_files) == sorted(MOCK_FILES)
 
         # Using the default connection ID, along with the default value of verify (for the S3 hook)
-        s3_mock_hook.assert_called_once_with(aws_conn_id="aws_default", verify=False)
+        s3_mock_hook.assert_called_once_with(aws_conn_id="aws_default", verify=None)
         wasb_mock_hook.assert_called_once_with(wasb_conn_id="wasb_default")
 
     # There are a number of very similar tests that use the same mocking, and for the most part, the same
@@ -231,6 +231,65 @@ class TestS3ToAzureBlobStorageOperator:
         # Azure blob
         with pytest.raises(TooManyFilesToMoveException):
             operator.get_files_to_move()
+
+    @pytest.mark.parametrize(
+        ("keys", "expected_kept", "expected_dropped"),
+        [
+            ([], [], []),
+            (["a"], ["a"], []),
+            (["a", "b"], ["a", "b"], []),
+            (["a", "ax"], ["a", "ax"], []),
+            (["abc", "abcdef"], ["abc", "abcdef"], []),
+            (["foo/", "foo/bar.txt"], ["foo/bar.txt"], ["foo/"]),
+            (
+                ["data/", "data/sub/", "data/sub/file.txt"],
+                ["data/sub/file.txt"],
+                ["data/", "data/sub/"],
+            ),
+            (["lonely/"], ["lonely/"], []),
+            (["lonely/", "report.csv"], ["lonely/", "report.csv"], []),
+        ],
+    )
+    def test_strip_overlapping_folder_markers(self, keys, expected_kept, expected_dropped):
+        kept, dropped = S3ToAzureBlobStorageOperator._strip_overlapping_folder_markers(keys)
+        assert kept == expected_kept
+        assert dropped == expected_dropped
+
+    @mock.patch("airflow.providers.microsoft.azure.transfers.s3_to_wasb.S3Hook")
+    @mock.patch("airflow.providers.microsoft.azure.transfers.s3_to_wasb.WasbHook")
+    @pytest.mark.parametrize(
+        ("s3_keys", "blob_name", "returned_files"),
+        [
+            pytest.param(
+                [f"{PREFIX}/", f"{PREFIX}/src/", f"{PREFIX}/src/file.txt", f"{PREFIX}/lonely/"],
+                None,
+                ["lonely/", "src/file.txt"],
+                id="overlapping_markers",
+            ),
+            pytest.param([f"{PREFIX}/"], None, [], id="empty_prefix_marker"),
+            pytest.param(
+                [f"{PREFIX}/", f"{PREFIX}/TEST1.csv"],
+                "TEST/TEST1.csv",
+                ["TEST1.csv"],
+                id="marker_not_counted_for_blob_name",
+            ),
+        ],
+    )
+    def test_get_files_to_move__skips_folder_markers(
+        self, wasb_mock_hook, s3_mock_hook, s3_keys, blob_name, returned_files
+    ):
+        s3_mock_hook.return_value.list_keys.return_value = s3_keys
+
+        operator = S3ToAzureBlobStorageOperator(
+            task_id=TASK_ID,
+            s3_bucket=S3_BUCKET,
+            s3_prefix=PREFIX,
+            container_name=CONTAINER_NAME,
+            blob_prefix=PREFIX,
+            blob_name=blob_name,
+            replace=True,
+        )
+        assert operator.get_files_to_move() == returned_files
 
     @mock.patch("airflow.providers.microsoft.azure.transfers.s3_to_wasb.S3Hook")
     @mock.patch("airflow.providers.microsoft.azure.transfers.s3_to_wasb.WasbHook")

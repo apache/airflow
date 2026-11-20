@@ -312,3 +312,36 @@ class TestPoolExportCommand:
 
         with pytest.raises(SystemExit, match="Failed to export pools: API Error"):
             pool_command.export(mock.MagicMock(file=export_file, output="json"))
+
+    def test_export_json_file_path_containing_markup(self, mock_client, tmp_path, capsys):
+        """Test that exporting to a file path containing markup tags does not crash."""
+        markup_dir = tmp_path / "dir["
+        markup_dir.mkdir()
+        export_file = markup_dir / "test].json"
+        mock_pools = mock.MagicMock()
+        mock_pools.pools = [
+            type(
+                "Pool",
+                (),
+                {
+                    "name": "p",
+                    "slots": 1,
+                    "description": "",
+                    "include_deferred": False,
+                    "occupied_slots": 0,
+                    "running_slots": 0,
+                    "queued_slots": 0,
+                    "scheduled_slots": 0,
+                    "open_slots": 1,
+                    "deferred_slots": 0,
+                    "team_name": None,
+                },
+            )()
+        ]
+        mock_pools.total_entries = 1
+        mock_client.pools.list.return_value = mock_pools
+
+        pool_command.export(mock.MagicMock(file=export_file, output="json"))
+
+        out = capsys.readouterr().out.replace("\n", "")
+        assert str(export_file) in out

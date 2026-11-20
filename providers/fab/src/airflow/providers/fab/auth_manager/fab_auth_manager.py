@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
 import logging
 import threading
 import warnings
@@ -24,14 +25,15 @@ from contextlib import suppress
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 from urllib.parse import urlencode, urljoin
+from weakref import WeakValueDictionary
 
 from cachetools import TTLCache, cachedmethod
 from fastapi import FastAPI
 from fastapi.middleware.wsgi import WSGIMiddleware
 from flask import current_app, g
-from flask_appbuilder.const import AUTH_LDAP
+from flask_appbuilder.const import AUTH_DB, AUTH_LDAP
 from sqlalchemy import select
-from sqlalchemy.exc import NoResultFound, SQLAlchemyError
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, joinedload
 
 from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX
@@ -76,6 +78,7 @@ from airflow.providers.fab.www.security.permissions import (
     RESOURCE_CONFIG,
     RESOURCE_CONNECTION,
     RESOURCE_DAG,
+    RESOURCE_DAG_BUNDLE,
     RESOURCE_DAG_CODE,
     RESOURCE_DAG_DEPENDENCIES,
     RESOURCE_DAG_PREFIX,
@@ -99,7 +102,7 @@ from airflow.providers.fab.www.security.permissions import (
 )
 from airflow.providers.fab.www.security_appless import ApplessAirflowSecurityManager
 from airflow.providers.fab.www.utils import get_fab_action_from_method_map
-from airflow.utils.session import NEW_SESSION, create_session, provide_session
+from airflow.utils.session import NEW_SESSION, create_session, create_session_async, provide_session
 
 if TYPE_CHECKING:
     from flask import Flask
@@ -192,12 +195,14 @@ if AIRFLOW_V_3_1_PLUS:
 if hasattr(MenuItem, "DEADLINES"):
     _MAP_MENU_ITEM_TO_FAB_RESOURCE_TYPE[MenuItem.DEADLINES] = RESOURCE_DAG_RUN
 
-# Dag bundle visibility rides on Dag access -- a bundle is shown to a user who can read a Dag that
-# came from it -- so the menu entry is gated the same way the Dags entry is. Without a mapping the
-# lookup below falls back to the raw enum value as a resource name, and unlike "Jobs" or "Providers"
-# (whose enum values happen to equal an existing FAB resource) no "Dag Bundles" resource exists, so
-# the entry would silently vanish for every FAB deployment.
-if hasattr(MenuItem, "DAG_BUNDLES"):
+# The Dag bundles menu item first ships in Airflow 3.4.0 and its view in 3.4.1, newer than this
+# provider's minimum Airflow. Unmapped, the view is denied to every role. Airflow 3.4.0 shows the
+# bundles to anyone who can read a Dag in them, so there the menu entry stays on Dag access.
+DAG_BUNDLES_ACCESS_VIEW: AccessView | None = getattr(AccessView, "DAG_BUNDLES", None)
+if DAG_BUNDLES_ACCESS_VIEW is not None:
+    _MAP_ACCESS_VIEW_TO_FAB_RESOURCE_TYPE[DAG_BUNDLES_ACCESS_VIEW] = RESOURCE_DAG_BUNDLE
+    _MAP_MENU_ITEM_TO_FAB_RESOURCE_TYPE[MenuItem.DAG_BUNDLES] = RESOURCE_DAG_BUNDLE
+elif hasattr(MenuItem, "DAG_BUNDLES"):
     _MAP_MENU_ITEM_TO_FAB_RESOURCE_TYPE[MenuItem.DAG_BUNDLES] = RESOURCE_DAG
 
 
@@ -209,6 +214,7 @@ class FabAuthManager(BaseAuthManager[User]):
     """
 
     cache: TTLCache = TTLCache(maxsize=1024, ttl=CACHE_TTL)
+    _user_fetch_locks: WeakValueDictionary[int, asyncio.Lock] = WeakValueDictionary()
     appbuilder: AirflowAppBuilder | None = None
     flask_app: Flask | None = None
     _flask_app_lock = threading.Lock()
@@ -307,24 +313,27 @@ class FabAuthManager(BaseAuthManager[User]):
     def session(self):
         return self.appbuilder.session
 
+    @staticmethod
+    def _validate_user(user: User | None, user_id: str) -> User:
+        if user is None:
+            raise ValueError(f"User with id {user_id} not found")
+        # A token stays syntactically valid until it expires, so the account it
+        # names has to be re-checked on every request rather than trusted from
+        # the signature alone. ``is_active`` reads the nullable ``active``
+        # column, and a null is treated as inactive here for the same reason it
+        # is on the password path in ``auth_user_db``.
+        if not user.is_active:
+            raise ValueError(f"User with id {user_id} is not active")
+        return user
+
     @cachedmethod(lambda self: self.cache, key=lambda _, token: int(token["sub"]))
     def deserialize_user(self, token: dict[str, Any]) -> User:
         user_id = int(token["sub"])
 
         def _fetch_user() -> User:
             with create_session() as session:
-                try:
-                    user = session.scalars(select(User).where(User.id == user_id)).one()
-                except NoResultFound:
-                    raise ValueError(f"User with id {token['sub']} not found")
-                # A token stays syntactically valid until it expires, so the account it
-                # names has to be re-checked on every request rather than trusted from
-                # the signature alone. ``is_active`` reads the nullable ``active``
-                # column, and a null is treated as inactive here for the same reason it
-                # is on the password path in ``auth_user_db``.
-                if not user.is_active:
-                    raise ValueError(f"User with id {token['sub']} is not active")
-                return user
+                user = session.scalars(select(User).where(User.id == user_id)).one_or_none()
+                return self._validate_user(user, token["sub"])
 
         try:
             return _fetch_user()
@@ -341,6 +350,33 @@ class FabAuthManager(BaseAuthManager[User]):
                 with suppress(Exception):
                     self.session.remove()
                 raise
+
+    async def deserialize_user_async(self, token: dict[str, Any]) -> User:
+        """Deserialize a user for FastAPI JWT authentication without blocking its event loop."""
+        # Preserve legacy synchronous overrides while the default FAB implementation uses async lookup below.
+        deserialize_user_owner = next(cls for cls in type(self).__mro__ if "deserialize_user" in cls.__dict__)
+        if deserialize_user_owner is not FabAuthManager:
+            return self.deserialize_user(token)
+
+        user_id = int(token["sub"])
+        try:
+            return self.cache[user_id]
+        except KeyError:
+            pass
+
+        lock = self._user_fetch_locks.setdefault(user_id, asyncio.Lock())
+        async with lock:
+            try:
+                return self.cache[user_id]
+            except KeyError:
+                pass
+
+            async with create_session_async() as session:
+                user = (await session.scalars(select(User).where(User.id == user_id))).one_or_none()
+                user = self._validate_user(user, token["sub"])
+
+            self.cache[user_id] = user
+            return user
 
     def serialize_user(self, user: User) -> dict[str, Any]:
         return {"sub": str(user.id)}
@@ -413,27 +449,32 @@ class FabAuthManager(BaseAuthManager[User]):
         """
         Create a new token from a payload.
 
-        By default, it uses basic authentication (username and password).
+        By default, it uses basic authentication (username and password), checked against the
+        configured ``AUTH_TYPE``. Tokens are only issued for ``AUTH_DB`` and ``AUTH_LDAP``.
         Override this method to use a different authentication method (e.g. oauth).
 
         :param headers: request headers
         :param body: request body
         """
-        if not body.get("username") or not body.get("password"):
+        username = body.get("username")
+        password = body.get("password")
+        # Treat a password made only of NUL bytes as empty, as Flask-AppBuilder's login API does.
+        if (
+            not isinstance(username, str)
+            or not isinstance(password, str)
+            or not username
+            or not password.strip("\x00")
+        ):
             raise ValueError("Username and password must be provided")
 
-        user: User | None = None
-
-        if self.security_manager.auth_type == AUTH_LDAP:
-            user = self.security_manager.auth_user_ldap(
-                body["username"], body["password"], rotate_session_id=False
-            )
-        if user is None:
-            user = self.security_manager.auth_user_db(
-                body["username"], body["password"], rotate_session_id=False
-            )
-
-        return user
+        # Only check the password against the configured authentication type. Other types (OAuth,
+        # remote user, ...) do not authenticate with a username and password, so no token is issued.
+        auth_type = self.security_manager.auth_type
+        if auth_type == AUTH_LDAP:
+            return self.security_manager.auth_user_ldap(username, password, rotate_session_id=False)
+        if auth_type == AUTH_DB:
+            return self.security_manager.auth_user_db(username, password, rotate_session_id=False)
+        return None
 
     def is_authorized_configuration(
         self,

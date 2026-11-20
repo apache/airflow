@@ -23,7 +23,7 @@
 // ../dags. The coordinator locates this bundle by dag_id, so only the TypeScript tasks
 // are registered here.
 
-import { Bundle, getClient, TaskHandler } from "apache-airflow-ts-sdk";
+import { Bundle, getClient, TaskHandler } from "@apache-airflow/ts-sdk";
 
 const MIXED_LANGUAGE_DAG_ID = "lang_sdk_mixed_language";
 

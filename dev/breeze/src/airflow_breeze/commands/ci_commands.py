@@ -334,9 +334,10 @@ def selective_check(
         labels = tuple(ast.literal_eval(pr_labels)) if pr_labels else ()
         fork_owner = github_repository.split("/")[0]
         if fork_push and github_context_dict.get("ref_name"):
-            labels = get_fork_pull_request_labels(
+            fetched_labels = get_fork_pull_request_labels(
                 fork_owner=fork_owner, branch=github_context_dict["ref_name"], base=default_branch
             )
+            labels = tuple(sorted(set(labels) | set(fetched_labels)))
         if fork_push and commit_ref is not None:
             fork_changes = get_fork_changes(fork_owner=fork_owner, sha=commit_ref, base=default_branch)
             changed_files = fork_changes.files
@@ -766,6 +767,7 @@ def mirror_base_images_before_upgrade(target_branch: str, github_token: str | No
         hint="Or skip it with --no-mirror-base-images.",
         # The mirror would otherwise start a second main upgrade next to this one.
         trigger_upgrade_check=target_branch != "main",
+        build_os_deps_images=False,
     )
 
 
@@ -1808,15 +1810,18 @@ def audit(fix: bool):
     import yaml
     from rich.table import Table
 
-    from airflow_breeze.utils.ci_audit import CheckStatus, run_audit, run_tool
+    from airflow_breeze.utils.ci_audit import CheckStatus, find_idle_fork_workflows, run_audit, run_tool
     from airflow_breeze.utils.fork_ci_gate import load_config
 
     asf_yaml = yaml.safe_load((AIRFLOW_ROOT_PATH / ".asf.yaml").read_text())
     collaborators = frozenset((asf_yaml.get("github") or {}).get("collaborators") or [])
     config = load_config(AIRFLOW_ROOT_PATH / ".github" / "fork-ci-gate.toml")
+    idle_workflows = find_idle_fork_workflows(AIRFLOW_ROOT_PATH / ".github" / "workflows")
 
     def report():
-        results = run_audit(run=run_tool, config=config, collaborators=collaborators)
+        results = run_audit(
+            run=run_tool, config=config, collaborators=collaborators, idle_workflows=idle_workflows
+        )
         table = Table(title="Fork CI setup")
         for column in ("#", "Check", "Status", "Finding", "Fix"):
             table.add_column(column)

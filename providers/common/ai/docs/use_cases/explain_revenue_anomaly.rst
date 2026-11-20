@@ -71,8 +71,12 @@ Adapting it
 
 * Trigger it from a data-quality check that fires when the move exceeds your threshold, so
   the agent runs only on days that need explaining.
-* Swap ``ModalSandboxBackend`` for ``SbxSandboxBackend`` to run locally; the same file has
-  that variant (see :doc:`../sandbox/backends`).
+* To run it on a laptop, use ``SbxSandboxBackend`` in place of ``ModalSandboxBackend``. It
+  takes an image name rather than a ``modal.Image``, so pass one that already has pandas, and
+  ``cpus`` rather than ``cpu``. Run ``sbx policy init deny-all`` on the host and pass
+  ``host_network_policy="deny-all"``, or it refuses the spec's ``block_network=True``.
+  :doc:`../sandbox/backends/sbx` covers the setup, and the
+  :ref:`Quick start <sandbox-quick-start>` has a Dag on the local backend.
 * Add an :doc:`../approval_gates` step before the finding reaches the finance channel.
 * Widen ``allowed_tables`` only as far as the question needs. The limit is what makes the
   agent safe to run unattended.
