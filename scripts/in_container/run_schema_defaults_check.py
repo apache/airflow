@@ -172,6 +172,7 @@ def compare_operator_defaults() -> list[str]:
                 "_task_display_name",
                 "_is_mapped",
                 "_is_sensor",
+                "_is_durable",
             }
             if field_name not in schema_only_fields:
                 errors.append(

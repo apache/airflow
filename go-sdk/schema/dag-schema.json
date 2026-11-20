@@ -357,6 +357,7 @@
         "_needs_expansion": { "type": "boolean"},
         "_is_mapped": { "const": true, "$comment": "only present when True", "default": false },
         "_is_sensor": { "const": true, "$comment": "only present when True", "default": false },
+        "_is_durable": { "const": true, "$comment": "only present when True", "default": false },
         "partial_kwargs": { "type": "object" },
         "_disallow_kwargs_override": { "type": "boolean"},
         "_expand_input_attr": { "type": "string" },

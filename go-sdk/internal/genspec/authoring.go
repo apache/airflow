@@ -146,6 +146,7 @@ var taskShape = authoringShape{
 		"_needs_expansion":              "derived from whether the task is mapped",
 		"_is_mapped":                    "derived from whether the task is mapped",
 		"_is_sensor":                    "derived from the task's own kind",
+		"_is_durable":                   "set by Python's ResumableJobMixin, which a Go task has no equivalent of",
 		"_disallow_kwargs_override":     "a mapped-task serialization detail",
 		"_expand_input_attr":            "a mapped-task serialization detail",
 		"_arg_bindings":                 "the bindings airflow.Inputs records",
