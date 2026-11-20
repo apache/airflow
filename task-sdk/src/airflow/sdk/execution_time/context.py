@@ -101,6 +101,7 @@ if TYPE_CHECKING:
     from airflow.sdk.bases.operator import BaseOperator
     from airflow.sdk.definitions.connection import Connection
     from airflow.sdk.definitions.context import Context
+    from airflow.sdk.definitions.dag import DAG
     from airflow.sdk.execution_time.comms import (
         AssetEventDagRunReferenceResult,
         AssetEventResult,
@@ -111,7 +112,7 @@ if TYPE_CHECKING:
         ReceiveMsgType,
     )
     from airflow.sdk.state import BaseStoreBackend
-    from airflow.sdk.types import OutletEventAccessorsProtocol
+    from airflow.sdk.types import DagRunProtocol, OutletEventAccessorsProtocol
 
 
 DEFAULT_FORMAT_PREFIX = "airflow.ctx."
@@ -1793,3 +1794,125 @@ def context_get_outlet_events(context: Context) -> OutletEventAccessorsProtocol:
     except KeyError:
         outlet_events = context["outlet_events"] = OutletEventAccessors()
     return outlet_events
+
+
+def build_dag_run_context(
+    dag_run: DagRunProtocol, dag: DAG | None = None, *, multi_team: bool = False
+) -> Context:
+    """
+    Build the part of a task's template context that comes from its Dag run.
+
+    ``RuntimeTaskInstance.get_template_context`` adds the task keys to it, and deadline callbacks,
+    which have a Dag run but no task, use it as their context. With ``dag``, it also has ``dag``
+    and the Dag's ``params`` with the Dag run's ``conf`` applied.
+    """
+    from airflow.sdk.definitions.param import process_params
+    from airflow.sdk.execution_time.comms import AssetEventDagRunReferenceResult
+    from airflow.sdk.plugins_manager import integrate_macros_plugins
+    from airflow.sdk.timezone import coerce_datetime
+
+    integrate_macros_plugins()
+
+    context: Context = {
+        "dag_run": dag_run,
+        "run_id": dag_run.run_id,
+        "partition_key": dag_run.partition_key,
+        "partition_date": coerce_datetime(dag_run.partition_date),
+        "triggering_asset_events": TriggeringAssetEventsAccessor.build(
+            AssetEventDagRunReferenceResult.from_asset_event_dag_run_reference(event)
+            for event in dag_run.consumed_asset_events
+        ),
+        "macros": MacrosAccessor(team_name=getattr(dag_run, "team_name", None), multi_team=multi_team),
+        "var": {
+            "json": VariableAccessor(deserialize_json=True),
+            "value": VariableAccessor(deserialize_json=False),
+        },
+        "conn": ConnectionAccessor(),
+    }
+
+    if logical_date := coerce_datetime(dag_run.logical_date):
+        ds = logical_date.strftime("%Y-%m-%d")
+        ts = logical_date.isoformat()
+        # logical_date and data_interval either coexist or be None together
+        context.update(
+            {
+                "logical_date": logical_date,
+                "ds": ds,
+                "ds_nodash": ds.replace("-", ""),
+                "ts": ts,
+                "ts_nodash": logical_date.strftime("%Y%m%dT%H%M%S"),
+                "ts_nodash_with_tz": ts.replace("-", "").replace(":", ""),
+                "data_interval_end": coerce_datetime(dag_run.data_interval_end),
+                "data_interval_start": coerce_datetime(dag_run.data_interval_start),
+            }
+        )
+
+    if dag is not None:
+        context["dag"] = dag
+        context["params"] = process_params(dag, None, dag_run.conf, suppress_exception=False)
+
+    return context
+
+
+def build_deadline_callback_context(
+    dag_run: DagRunProtocol,
+    dag: DAG | None = None,
+    *,
+    deadline_id: str | None,
+    deadline_time: str | datetime | None,
+    multi_team: bool = False,
+) -> Context:
+    """
+    Build the context of a deadline callback: a task's context without the task keys.
+
+    ``deadline_time`` is stored as an ISO string so it can travel in the workload JSON, and is turned
+    back into an aware datetime here, so callbacks and templates get the same type as ``logical_date``.
+    """
+    from airflow.sdk.definitions.context import CallbackMeta, CallbackSource
+    from airflow.sdk.timezone import coerce_datetime
+
+    context = build_dag_run_context(dag_run, dag, multi_team=multi_team)
+    context["callback"] = CallbackMeta(source=CallbackSource.DEADLINE)
+    if deadline_id:
+        if isinstance(deadline_time, str):
+            deadline_time = datetime.fromisoformat(deadline_time)
+        context["deadline"] = {"id": deadline_id, "deadline_time": coerce_datetime(deadline_time)}
+    return context
+
+
+def render_callback_kwargs(kwargs: dict[str, Any], context: Mapping[str, Any]) -> dict[str, Any]:
+    """
+    Render the kwargs of a function callback the way ``PythonOperator`` renders ``op_kwargs``.
+
+    Every value is rendered, nested ones included, with the template environment of
+    ``context["dag"]``, so ``StrictUndefined`` and the Dag's macros and filters apply. A value that
+    fails to render is passed on unrendered and a warning is logged, so a bad template does not
+    stop the callback. The ``context`` key is left as it is.
+    """
+    from airflow.sdk.definitions._internal.templater import Templater
+
+    class _CallbackKwargsTemplater(Templater):
+        template_fields = ()
+        template_ext = ()
+
+        def __init__(self, render_template_as_native_obj: bool):
+            # Read by Templater._should_render_native(), as on an operator.
+            self.render_template_as_native_obj = render_template_as_native_obj
+
+    dag = context.get("dag")
+    templater = _CallbackKwargsTemplater(bool(getattr(dag, "render_template_as_native_obj", False)))
+    jinja_env = templater.get_template_env(dag=dag)
+
+    rendered = dict(kwargs)
+    for key, value in kwargs.items():
+        if key == "context":
+            continue
+        try:
+            rendered[key] = templater.render_template(value, context, jinja_env)  # type: ignore[arg-type]
+        except Exception as e:
+            log.warning(
+                "Could not render the template in callback kwarg, passing it unrendered",
+                kwarg=key,
+                error=f"{type(e).__name__}: {e}",
+            )
+    return rendered

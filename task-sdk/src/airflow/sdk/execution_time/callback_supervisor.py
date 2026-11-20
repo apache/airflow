@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+import inspect
 import os
 import signal
 import sys
@@ -36,8 +37,10 @@ from airflow.sdk._shared.module_loading import UNUSUAL_MODULE_PREFIX, accepts_co
 from airflow.sdk.api.datamodels._generated import CallbackTerminalState
 from airflow.sdk.exceptions import ErrorType
 from airflow.sdk.execution_time.comms import (
+    DagRunResult,
     ErrorResponse,
     GetConnection,
+    GetDagRun,
     GetVariable,
     GetVariableKeys,
     GetXCom,
@@ -66,6 +69,7 @@ if TYPE_CHECKING:
     from structlog.typing import FilteringBoundLogger
 
     from airflow.sdk.api.client import Client
+    from airflow.sdk.definitions.dag import DAG
 
     # Core (airflow.executors.workloads.base.BundleInfo) and SDK (airflow.sdk.api.datamodels._generated.BundleInfo)
     # are structurally identical, but MyPy treats them as different types. This Protocol makes MyPy happy.
@@ -82,9 +86,9 @@ log: FilteringBoundLogger = structlog.get_logger(logger_name="callback_superviso
 
 # The set of messages that a callback subprocess can send to the supervisor.
 # This is a minimal subset of ToSupervisor: read-only access to Connections,
-# Variables, and XCom values, plus MaskSecret for the secrets masker.
+# Variables, XCom values and the callback's Dag run, plus MaskSecret for the secrets masker.
 CallbackToSupervisor = Annotated[
-    GetConnection | GetVariable | GetVariableKeys | GetXCom | MaskSecret,
+    GetConnection | GetDagRun | GetVariable | GetVariableKeys | GetXCom | MaskSecret,
     Field(discriminator="type"),
 ]
 
@@ -93,14 +97,19 @@ def _add_xcom_pull_to_context(callback_kwargs: dict) -> None:
     """
     Add an ``xcom_pull`` helper bound to the callback's Dag run to its context.
 
-    Callbacks have no task instance, so the helper takes ``dag_id`` and ``dag_run_id`` from the
+    Callbacks have no task instance, so the helper takes the Dag and run ids from the
     ``dag_run`` in the context and the callback only names the task to pull from.
     """
     context = callback_kwargs.get("context")
     if not isinstance(context, dict):
         return
     dag_run = context.get("dag_run")
-    if not isinstance(dag_run, dict) or not dag_run.get("dag_id") or not dag_run.get("dag_run_id"):
+    if isinstance(dag_run, dict):
+        # The Dag run snapshot stored with callbacks queued before the context was built at runtime.
+        dag_id, run_id = dag_run.get("dag_id"), dag_run.get("dag_run_id")
+    else:
+        dag_id, run_id = getattr(dag_run, "dag_id", None), getattr(dag_run, "run_id", None)
+    if not dag_id or not run_id:
         log.warning("Callback context has no Dag run, so xcom_pull is not available")
         return
 
@@ -111,8 +120,8 @@ def _add_xcom_pull_to_context(callback_kwargs: dict) -> None:
 
         value = XCom.get_one(
             key=key,
-            dag_id=dag_run["dag_id"],
-            run_id=dag_run["dag_run_id"],
+            dag_id=dag_id,
+            run_id=run_id,
             task_id=task_id,
             map_index=map_index,
         )
@@ -149,6 +158,7 @@ def execute_callback(
     bundle_path: os.PathLike[str] | None,
     log,
     callback_kwargs_encoding: str | None = None,
+    render_kwargs: bool = False,
 ) -> tuple[bool, str | None]:
     """
     Execute a callback function by importing and calling it, returning the success state.
@@ -170,6 +180,9 @@ def execute_callback(
     :param bundle_path: Path to the bundle file.
     :param log: Logger instance for recording execution.
     :param callback_kwargs_encoding: How ``callback_kwargs`` is encoded, see :func:`decode_callback_kwargs`.
+    :param render_kwargs: Render the kwargs of a function callback with ``callback_kwargs["context"]``,
+        see :func:`~airflow.sdk.execution_time.context.render_callback_kwargs`. Classes such as
+        notifiers render their own template fields, so their kwargs are passed as they are.
     :return: Tuple of (success: bool, error_message: str | None)
     """
     if not callback_path:
@@ -181,7 +194,10 @@ def execute_callback(
         module_path, function_name = callback_path.rsplit(".", 1)
         # If the callback is defined within the Dag module, the module path is modified during DAG serialization.
         # Attempt to import it using the path of the Dag file.
-        if module_path.startswith(UNUSUAL_MODULE_PREFIX):
+        if module_path.startswith(UNUSUAL_MODULE_PREFIX) and module_path in sys.modules:
+            # Already imported when the Dag file was parsed for the context; don't run it twice.
+            module = sys.modules[module_path]
+        elif module_path.startswith(UNUSUAL_MODULE_PREFIX):
             if not dag_rel_path:
                 return False, "Dag relative path not found."
             if not bundle_path:
@@ -198,6 +214,10 @@ def execute_callback(
             module = import_module(module_path)
         callback_callable = getattr(module, function_name)
         callback_kwargs = decode_callback_kwargs(callback_kwargs, callback_kwargs_encoding)
+        if render_kwargs and not inspect.isclass(callback_callable):
+            from airflow.sdk.execution_time.context import render_callback_kwargs
+
+            callback_kwargs = render_callback_kwargs(callback_kwargs, callback_kwargs["context"])
 
         log.debug("Executing callback", callback_path=callback_path, callback_kwargs=callback_kwargs)
 
@@ -236,6 +256,42 @@ def execute_callback(
         return False, error_msg
 
 
+def _parse_callback_dag(
+    dag_id: str,
+    dag_rel_path: os.PathLike[str] | None,
+    bundle_path: str | None,
+    bundle_info: _BundleInfoLike | None,
+    log,
+) -> DAG | None:
+    """
+    Parse the Dag of a callback from its file, the way ``task_runner.parse`` does for a task.
+
+    The callback still runs without it, but then its context has no ``dag`` or ``params`` and its
+    kwargs are rendered with the default template environment.
+    """
+    from airflow.dag_processing.dagbag import BundleDagBag
+    from airflow.sdk.definitions.dag import DAG as SdkDag
+
+    if not bundle_path or not dag_rel_path:
+        log.warning("No Dag bundle for the callback, so its context has no Dag", dag_id=dag_id)
+        return None
+    try:
+        bag = BundleDagBag(
+            dag_folder=os.fspath(Path(bundle_path, dag_rel_path)),
+            safe_mode=False,
+            load_op_links=False,
+            bundle_path=Path(bundle_path),
+            bundle_name=bundle_info.name if bundle_info else None,
+        )
+    except Exception:
+        log.warning("Could not parse the Dag file of the callback", dag_id=dag_id, exc_info=True)
+        return None
+    if not isinstance(dag := bag.dags.get(dag_id), SdkDag):
+        log.warning("Dag not found in its file, so the callback context has no Dag", dag_id=dag_id)
+        return None
+    return dag
+
+
 @attrs.define(kw_only=True)
 class CallbackSubprocess(WatchedSubprocess):
     """
@@ -263,6 +319,10 @@ class CallbackSubprocess(WatchedSubprocess):
         callback_kwargs: dict,
         callback_kwargs_encoding: str | None = None,
         dag_rel_path: os.PathLike[str],
+        dag_id: str | None = None,
+        run_id: str | None = None,
+        deadline_id: str | None = None,
+        deadline_time: str | None = None,
         bundle_info: _BundleInfoLike | None = None,
         client: Client,
         logger: FilteringBoundLogger | None = None,
@@ -306,14 +366,40 @@ class CallbackSubprocess(WatchedSubprocess):
                         exc_info=True,
                     )
 
-            _add_xcom_pull_to_context(callback_kwargs)
+            kwargs = callback_kwargs
+            if dag_id and run_id:
+                from airflow.sdk.configuration import conf
+                from airflow.sdk.execution_time.context import build_deadline_callback_context
+
+                # Build the context from the Dag run as it is now, as the triggerer does for async callbacks.
+                try:
+                    dag_run = task_runner.SUPERVISOR_COMMS.send(GetDagRun(dag_id=dag_id, run_id=run_id))
+                    if not isinstance(dag_run, DagRunResult):
+                        raise TypeError(f"Unexpected response type {type(dag_run).__name__}")
+                except Exception:
+                    _log.exception(
+                        "Could not fetch the Dag run for the callback context", dag_id=dag_id, run_id=run_id
+                    )
+                    sys.exit(1)
+                context = build_deadline_callback_context(
+                    dag_run,
+                    _parse_callback_dag(dag_id, dag_rel_path, bundle_path, bundle_info, _log),
+                    deadline_id=deadline_id,
+                    deadline_time=deadline_time,
+                    multi_team=conf.getboolean("core", "multi_team", fallback=False),
+                )
+                kwargs = {**callback_kwargs, "context": context}
+
+            # Before rendering, so templates can use it too.
+            _add_xcom_pull_to_context(kwargs)
             success, error_msg = execute_callback(
                 callback_path=callback_path,
-                callback_kwargs=callback_kwargs,
+                callback_kwargs=kwargs,
                 dag_rel_path=dag_rel_path,
                 bundle_path=bundle_path,
                 log=_log,
                 callback_kwargs_encoding=callback_kwargs_encoding,
+                render_kwargs=bool(dag_id and run_id),
             )
             if not success:
                 _log.error("Callback failed", error=error_msg)
@@ -424,6 +510,8 @@ class CallbackSubprocess(WatchedSubprocess):
 
         if isinstance(msg, GetConnection):
             resp, dump_opts = handle_get_connection(self.client, msg)
+        elif isinstance(msg, GetDagRun):
+            resp = DagRunResult.from_api_response(self.client.dag_runs.get_detail(msg.dag_id, msg.run_id))
         elif isinstance(msg, GetVariable):
             resp, dump_opts = handle_get_variable(self.client, msg)
         elif isinstance(msg, GetVariableKeys):
@@ -469,6 +557,10 @@ def supervise_callback(
     callback_kwargs: dict,
     dag_rel_path: os.PathLike[str],
     callback_kwargs_encoding: str | None = None,
+    dag_id: str | None = None,
+    run_id: str | None = None,
+    deadline_id: str | None = None,
+    deadline_time: str | None = None,
     log_path: str | None = None,
     bundle_info: _BundleInfoLike | None = None,
     token: str = "",
@@ -483,6 +575,10 @@ def supervise_callback(
     :param callback_kwargs: Keyword arguments to pass to the callback.
     :param dag_rel_path: Relative path to the DAG file.
     :param callback_kwargs_encoding: How ``callback_kwargs`` is encoded, see :func:`decode_callback_kwargs`.
+    :param dag_id: Dag ID of the Dag run the callback context is built from.
+    :param run_id: Run ID of the Dag run the callback context is built from.
+    :param deadline_id: Deadline ID exposed as ``context["deadline"]["id"]``.
+    :param deadline_time: Deadline time exposed as ``context["deadline"]["deadline_time"]``.
     :param log_path: Path to write logs, if required.
     :param bundle_info: When provided, the bundle's path is added to sys.path so callbacks in Dag Bundles are importable.
     :param token: Authentication token for the API client.
@@ -519,6 +615,10 @@ def supervise_callback(
                 callback_kwargs=callback_kwargs,
                 callback_kwargs_encoding=callback_kwargs_encoding,
                 dag_rel_path=dag_rel_path,
+                dag_id=dag_id,
+                run_id=run_id,
+                deadline_id=deadline_id,
+                deadline_time=deadline_time,
                 bundle_info=bundle_info,
                 client=client,
                 logger=logger,

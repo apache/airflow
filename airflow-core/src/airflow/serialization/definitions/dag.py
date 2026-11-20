@@ -72,6 +72,7 @@ if TYPE_CHECKING:
     from typing import Any, Literal
     from uuid import UUID
 
+    import jinja2
     from pendulum.tz.timezone import FixedTimezone, Timezone
     from pydantic import NonNegativeInt
     from sqlalchemy.orm import Session
@@ -310,6 +311,17 @@ class SerializedDAG:
         if task_id in self.task_dict:
             return self.task_dict[task_id]
         raise TaskNotFound(f"Task {task_id} not found")
+
+    def get_template_env(self, *, force_sandboxed: bool = False) -> jinja2.Environment:
+        """
+        Build a Jinja2 environment from what the serialized Dag keeps.
+
+        User-defined macros and filters, ``template_undefined`` and ``jinja_environment_kwargs`` are not
+        serialized, so they are not in it, and it uses ``StrictUndefined``, the Dag default.
+        """
+        from airflow.sdk.definitions._internal.templater import create_template_env  # noqa: SDK001
+
+        return create_template_env(native=self.render_template_as_native_obj and not force_sandboxed)
 
     def __getitem__(self, node_id: str) -> SerializedOperator | SerializedTaskGroup:
         """Return a task or task group by its fully-qualified ID."""
