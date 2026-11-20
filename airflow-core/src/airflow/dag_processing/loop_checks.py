@@ -27,7 +27,7 @@ from collections.abc import Iterable
 from typing import TYPE_CHECKING, Any
 
 from airflow._shared.dagnode.cycle import detect_cycle
-from airflow.models.task_coordinates import LOOP_GATE_OPERATOR, enclosing_loop
+from airflow.models.task_coordinates import LOOP_GATE_OPERATOR, enclosing_loop, enclosing_loop_of_group
 from airflow.serialization.definitions.mappedoperator import SerializedMappedOperator
 from airflow.serialization.definitions.taskgroup import SerializedLoopTaskGroup, SerializedMappedTaskGroup
 from airflow.serialization.enums import Encoding
@@ -139,14 +139,6 @@ def _check_loop(
     return members
 
 
-def _find_loop(group: SerializedTaskGroup | None) -> SerializedLoopTaskGroup | None:
-    while group is not None:
-        if isinstance(group, SerializedLoopTaskGroup):
-            return group
-        group = group.parent_group
-    return None
-
-
 # TODO: Share these loop checks between Python and language SDK Dags;
 # tracked at https://github.com/apache/airflow/issues/76903
 def _check_expansions_over_loop_tasks(dag: SerializedDAG, groups: Iterable[SerializedTaskGroup]) -> None:
@@ -157,7 +149,7 @@ def _check_expansions_over_loop_tasks(dag: SerializedDAG, groups: Iterable[Seria
         if isinstance(task, SerializedMappedOperator)
     ]
     consumers.extend(
-        (group.group_id, _find_loop(group), group.iter_mapped_dependencies())
+        (group.group_id, enclosing_loop_of_group(group), group.iter_mapped_dependencies())
         for group in groups
         if isinstance(group, SerializedMappedTaskGroup)
     )

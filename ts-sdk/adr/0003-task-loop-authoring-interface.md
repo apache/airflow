@@ -183,6 +183,8 @@ interface LoopContext {
 - **The gate is an ordinary task.** `LoopOptions` extends `TaskSpec`, so `queue` and `retries` land on
   it, and its id defaults to the handler's function name under the group's prefix. A fixed-count loop
   has no handler to take a name from, so its gate is `__loop_gate`, as Python's is.
+  It serializes as `LoopGateOperator`, the type core finds gates by, and the Dag processor rejects a
+  gate serialized under any other type.
 - **The body's single leaf is checked twice**: by the SDK when the Dag is read, for the faster
   message, and by the Dag processor, which decides (ADR-0017 decision 3). A nested loop and a loop
   inside a mapped task group are rejected the same way.
