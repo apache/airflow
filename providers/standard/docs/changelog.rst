@@ -35,8 +35,8 @@
 Changelog
 ---------
 
-2.0.0
-.....
+1.22.0
+......
 
 .. note::
   ``@task.bash`` now renders only the command returned by the decorated function inside
@@ -44,31 +44,27 @@ Changelog
   rendered once before ``execute()``, as for ``BashOperator``, and are no longer rendered a
   second time.
 
-.. warning::
-  The deprecated ``TimeDeltaSensorAsync`` class has been removed. Use ``TimeDeltaSensor(..., deferrable=True)`` instead.
-  On Airflow 3.0.x, the bundled ``example_time_delta_sensor_async`` example Dag imports this
-  class, so it fails to import when ``[core] load_examples`` is on. Upgrade to Airflow 3.1 or turn
-  off ``load_examples``.
-
-Breaking changes
-~~~~~~~~~~~~~~~~
-
-* ``Remove deprecated TimeDeltaSensorAsync (#76131)``
-
 Features
 ~~~~~~~~
 
+* ``Restore clearing 'ExternalTaskMarker' targets in other Dags on Airflow 3.5+ (#75874)``
 * ``Add AssetEventSensor to standard provider (#70225)``
 * ``Allow asking for human input from inside a Python task on Airflow 3.4+ (#75358)``
 
 Bug Fixes
 ~~~~~~~~~
 
+* ``Fix ExternalTaskSensor link pointing to the wrong external Dag run (#74528)``
 * ``Render only the returned value in TaskFlow decorators that template it (#76244)``
 * ``Propagate OpenLineage parent and root job types to triggered Dags (#75303)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix TimeSensor test failing when host time zone is ahead of UTC (#76901)``
+   * ``Prepare amazon provider RC2 for 2026-11-10 (#76789)``
+   * ``Revert "Remove deprecated TimeDeltaSensorAsync (#76131)" (#76732)``
+   * ``Remove deprecated TimeDeltaSensorAsync (#76131)``
+   * ``Prepare providers release 2026-11-03 (#76490)``
    * ``[main] Upgrade important CI environment (#76278)``
 
 1.21.0

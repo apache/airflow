@@ -27,11 +27,54 @@
 Changelog
 ---------
 
+23.0.0
+......
+
+.. warning::
+    ``BigQueryGetDataOperator`` no longer accepts ``project_id``, which has been deprecated since
+    19.4.0. Use ``table_project_id`` instead. Dags that still pass ``project_id`` fail at parse time
+    with ``TypeError``.
+
 .. note::
     The provider no longer installs ``litellm``. It now depends on ``google-cloud-aiplatform`` and the
     dependencies of its ``evaluation`` extra except ``litellm``, which the extra caps below the fix for
     a critical advisory. If your tasks call ``vertexai.Client().evals`` with a model that LiteLLM
     serves, install ``litellm`` yourself; without it those calls raise ``ImportError``.
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Remove deprecated project_id from BigQueryGetDataOperator (#76115)``
+
+Features
+~~~~~~~~
+
+* ``Add Cloud SQL Auth Proxy v2 support to CloudSqlProxyRunner (#73646)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix an issue with getting dataflow_job_id for Dataflow Runner when logging is disabled in Pipeline (#72809)``
+* ``Fix task state lookup for mapped tasks in Google triggers (#76895)``
+* ``Honor cancel_on_kill in deferred GCS to BigQuery loads (#74358)``
+* ``Fix GcpBodyFieldValidator warning on valid version-specific fields (#74930)``
+
+Misc
+~~~~
+
+* ``Raise the minimum versions of google-api-python-client (2.196.0) and 12 google-cloud-* client libraries: bigquery-storage, bigtable, dataplex, kms, orchestration-airflow, os-login, pubsub, secret-manager, spanner, speech, vision and workflows (#76334)``
+* ``Depend on google-cloud-aiplatform without its evaluation extra so litellm is no longer installed (#76503)``
+
+Doc-only
+~~~~~~~~
+
+* ``Fix the GoogleDisplayVideo360Hook.erf_uri docstring (#76701)``
+* ``Fix Google Cloud Workflows docs links to operator and sensor classes (#76667)``
+* ``Clarify Google connection secret settings and retry default (#76622)``
+* ``Document JSON connections in Google Secret Manager backend (#76649)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
 
 22.9.0
 ......

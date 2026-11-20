@@ -118,6 +118,8 @@ _trace_propagator = TraceContextTextMapPropagator()
 if TYPE_CHECKING:
     from structlog.typing import FilteringBoundLogger as Logger
 
+    from airflow.sdk.api.client import ServerResponseError
+
 SendMsgType = TypeVar("SendMsgType", bound=BaseModel)
 ReceiveMsgType = TypeVar("ReceiveMsgType", bound=BaseModel)
 
@@ -807,6 +809,18 @@ class ErrorResponse(BaseModel):
     detail: dict | None = None
     type: Literal["ErrorResponse"] = "ErrorResponse"
 
+    @classmethod
+    def from_server_error(cls, error: ServerResponseError) -> ErrorResponse:
+        """Build the response that tells a task the API server rejected its request."""
+        return cls(
+            error=ErrorType.API_SERVER_ERROR,
+            detail={
+                "status_code": error.response.status_code,
+                "message": str(error),
+                "detail": error.response.json(),
+            },
+        )
+
 
 class OKResponse(BaseModel):
     ok: bool
@@ -1016,6 +1030,11 @@ class SetXCom(BaseModel):
     mapped_length: int | None = None
     type: Literal["SetXCom"] = "SetXCom"
 
+    @property
+    def resolved_map_index(self) -> int:
+        """The map index, or -1 when the task is not mapped."""
+        return -1 if self.map_index is None else self.map_index
+
 
 class DeleteXCom(BaseModel):
     key: str
@@ -1118,7 +1137,7 @@ class GetVariableKeys(BaseModel):
 
 class PutVariable(BaseModel):
     key: str
-    value: str | None
+    value: str
     description: str | None
     type: Literal["PutVariable"] = "PutVariable"
 

@@ -26,6 +26,56 @@ Changelog
 ---------
 
 .. note::
+  ``@task.llm_batch`` now runs Anthropic batches through pydantic-ai's ``Model.batch_*`` methods and
+  adds a Gemini adapter (``google:<model>``, Gemini Developer API only; a Vertex ``google-cloud:``
+  model id is refused with the fix in the message). This raises the ``pydantic-ai-slim`` floor to
+  2.66.0 and the ``anthropic`` extra's ``anthropic`` floor to 1.15.0, and adds ``google-genai`` to the
+  ``google`` extra.
+
+  What changes for an existing Anthropic task:
+
+  - ``request_params`` and a request's ``params`` keep working. The sampling settings (``temperature``,
+    ``top_p``, ``top_k``, ``stop_sequences``) and ``anthropic_*`` settings are typed, and every other
+    key is still sent as a Messages field. A setting the model would silently drop, such as ``seed``,
+    now fails before submission, and a key the operator manages (``model``, ``messages``, ...) is
+    ignored with a warning.
+  - Structured output uses the model's native JSON-schema output instead of a forced tool call, except
+    for models without it and for schemas Anthropic's strict mode refuses (more than 24 optional fields,
+    more than 16 union-typed fields, or a recursive type), which still go through a forced tool call.
+  - Creating a batch is not retried by the SDK: pydantic-ai sends it with ``max_retries=0`` because
+    creating a batch is not idempotent, where the earlier adapter used the SDK's default of two retries.
+    A 429 or 529 on create now fails the attempt, so it costs an Airflow task retry, or raises
+    ``LLMBatchOrphanedIntentError`` with ``on_orphaned_intent='fail'``.
+  - A cancelled batch is recognized from its landed results, because Anthropic reports it as ended.
+  - The state file records pydantic-ai's batch handle (state version 2). A batch that an earlier
+    version of this provider submitted and is still running is re-attached; its state file is left as it is. An
+    outdated batch from an earlier version that was recorded under a different connection cannot be
+    cancelled automatically; the task log says so, and the batch can be cancelled at the provider.
+  - Anthropic results are streamed, so landing a batch holds only a small buffer of responses in
+    memory. Gemini results are still read through pydantic-ai, which downloads a batch's results in
+    one call, so a Gemini batch holds all of its response bodies in memory at once. Rows are still written one at a time. For a large Gemini batch,
+    size workers for it or split the input across mapped task instances with ``.expand()``.
+  - A task that was deferred by an earlier version of this provider and is still waiting when you
+    upgrade cannot poll its batch: the trigger reports an error naming the cause, and the task's retry
+    re-attaches to the batch.
+  - ``completion_window`` is ignored by Anthropic and Gemini, and a value other than ``"24h"`` now logs a
+    warning.
+
+  A ``BatchAdapter`` written for the earlier contract keeps working: the new members have defaults.
+
+1.2.0
+.....
+
+.. note::
+  When every connection of a ``fallback_conn_ids`` chain fails, ``LLMOperator`` and ``AgentOperator``
+  now raise ``airflow.providers.common.ai.fallback_exceptions.FallbackChainExhaustedError`` instead of
+  pydantic-ai's ``FallbackExceptionGroup``. It subclasses ``FallbackExceptionGroup``, so ``except``
+  clauses and ``RetryRule(exception=FallbackExceptionGroup)`` keep matching, and ``__cause__`` is the
+  group the chain raised. ``LLMRetryPolicy`` and ``ClassifierRetryPolicy`` now also match their
+  ``fallback_rules`` against the last connection's error, and show the model each connection's error
+  and how many durable journal steps the attempt replayed and recorded.
+
+.. note::
   ``@task.llm``, ``@task.agent``, ``@task.llm_sql``, ``@task.llm_branch``,
   ``@task.llm_file_analysis`` and ``@task.llm_schema_compare`` now render only the prompt returned
   by the decorated function inside ``execute()``. Their other template fields (``system_prompt``,
@@ -33,6 +83,109 @@ Changelog
   rendered a second time. The returned prompt is still rendered as a Jinja template, and every
   argument the task is called with, positional ones included, can be referenced in it by name;
   see the ``@task.llm`` documentation for how to include text from function arguments in it.
+
+.. note::
+  ``run_durably()`` and ``run_durably_sync()`` for the OpenAI Agents SDK no longer return a run
+  that stopped for a tool call that needs approval (``needs_approval``, or ``require_approval`` on
+  an MCP server). On Airflow 3.4+ with a standard provider that has ``request_input()``, a
+  ``@task`` or ``PythonOperator`` pauses in Required Actions and the run resumes with the
+  reviewer's answer; otherwise the task fails with ``UnsupportedToolDeferralError``. Earlier
+  versions returned the stopped run with its ``result.interruptions``. Code that approved them
+  with ``result.to_state()`` and ``state.approve()`` after ``run_durably_sync()`` should call
+  ``Runner.run`` and handle ``result.interruptions`` itself.
+
+.. note::
+  **Significant change: output serialization of the LLM operators**
+
+  ``LLMOperator``, ``@task.llm`` and ``LLMFileAnalysisOperator`` now push a model as a
+  JSON-compatible dict, where 1.1.0 pushed it as a model instance, in these cases:
+
+  * On Airflow 3.3 and later, the model is itself the output, ``serialize_output`` is not set,
+    and ``output_type`` is one the worker cannot register a class for (a list of output types
+    such as ``[Summary, int]``, an output marker, an output function, a ``TypeAliasType`` or a
+    ``NewType``).
+  * On Airflow 3.3 and later, the model is inside a list, tuple, set or dict in the output and
+    the worker cannot register its class, whether or not ``serialize_output`` is set.
+  * On Airflow < 3.3, the model is inside a list, tuple, set or dict in the output, whatever the
+    ``output_type`` (for example ``list[MyModel]``).
+
+  When a model inside a list, tuple, set or dict is dumped, the whole output is dumped with
+  it, so a tuple in the output arrives as a list and a ``date`` next to the model arrives as a
+  string. A downstream task indexes the dict (``result["field"]``) instead of using attribute
+  access. As in 1.1.0, a model that is itself the output is dumped with ``model_dump()`` when
+  ``serialize_output=True`` is set or on Airflow < 3.3.
+
+  ``AgentOperator`` and ``@task.agent`` already pushed these models as dicts in 1.1.0.
+  Compared with 1.1.0, when they dump to JSON values, a model that sets
+  ``serialize_by_alias=True`` now arrives with its field names (``full_name``, not
+  ``fullName``), a tuple in the output arrives as a list, and a ``date`` next to the model
+  arrives as a string. A model inside a set is now dumped too, and the set arrives as a list.
+  A model that is itself the output and is dumped with ``model_dump()`` keeps its aliases, as
+  in 1.1.0. See :ref:`When a model arrives as a dict <structured-output-dict-shape>`.
+
+.. note::
+  **Signature change: MCP ``tool_prefix``**
+
+  The ``tool_prefix`` parameter of ``MCPHook`` and ``MCPToolset`` now defaults to ``""`` and is
+  typed ``str``; in 1.1.0 it defaulted to ``None`` and was typed ``str | None``. This changes
+  only the signature and the annotated type, not the behaviour.
+
+Features
+~~~~~~~~
+
+* ``Show common.ai retry policies why each fallback connection failed (#76999)``
+* ``Let SQLToolset agents see table comments and search large schemas; the sql extra now needs common-sql 3.1.0 (#76799)``
+* ``Park HITL reviews between rounds and let durable agent tasks use them (#76916)``
+* ``Let durable agent tasks pause for tool approval (#76882)``
+* ``Let durable agent tasks use toolsets without an id (#76877)``
+* ``Let durable agent tasks run chosen tools on every attempt instead of replaying them; raise pydantic-ai-slim minimum to 2.46.0 (#76864)``
+* ``Push LLM operator models as dicts where the worker cannot register their class, and add tool_prefix to SQLToolset and DataFusionToolset (#74695)``
+* ``Accept '.filtered()', '.prefixed()' and '.renamed()' toolsets in the agent framework adapters (#76752)``
+* ``Pause an OpenAI Agents SDK durable run for tool approval in Required Actions, and fail the task where that is not available (#76785, #76786)``
+* ``Add Ollama model readiness check to PydanticAIHook (#75369)``
+* ``Support multimodal prompts with enable_hitl_review in AgentOperator (#74389)``
+* ``Support fail_on_reject on every LLM approval operator (#74493)``
+* ``Suggest common model providers in the pydanticai connection form (#76053)``
+* ``Show which skills an agent was offered and used in the AI Model tab (#76309, #76541)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fail the attempt when 'SQLToolset' cannot reach its database (#76783)``
+* ``Fix durable agent retries replaying the same failing tool call on every attempt (#76862)``
+* ``Stop ObjectStorage journal write failures from failing durable tasks (#75916)``
+* ``Fix durable agent tasks failing when a tool returns bytes (#76861)``
+* ``Count replayed tool errors against the retry limit in OpenAI Agents durable runs (#76790)``
+* ``Stop durable agent tasks failing when pydantic-ai 2.66 cannot fingerprint a tool return (#76334)``
+* ``Parse HookToolset :param descriptions by indentation (#76701)``
+* ``Say in the AI Model tab which values are kept in external storage (#76747)``
+* ``Keep SQL deep scan on for custom read-only allowed_types (#76688)``
+* ``Keep CSV quoting in LLMFileAnalysisOperator sample rows (#76389)``
+* ``Keep parallel tool results replayable across retries in OpenAI Agents durable runs (#76015)``
+* ``Key LLM batch and durable Strands state on the task loop iteration (#76201)``
+* ``Render only the returned value in TaskFlow decorators that template it (#76244)``
+
+Misc
+~~~~
+
+* ``Reduce task state store calls made by durable agent tasks (#76863)``
+* ``Name the caller's own MCP client and durable setup in Common AI errors (#76495)``
+
+Doc-only
+~~~~~~~~
+
+* ``Correct what clearing a durable agent task replays in common.ai docs (#76860)``
+* ``Correct sbx swap guidance in Common AI sandbox docs (#76879)``
+* ``Split the Common AI sandbox backends page into one page per backend (#76853)``
+* ``Document that the llamaindex and openai extras cannot be installed together (#76503)``
+* ``Add a review loop example Dag for task loops (#76435)``
+* ``Rewrite the OpenAI Agents SDK guide to stand on its own (#76340)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Keep common.ai tripwires and module_loading types working after dependency upgrades (#76715)``
+   * ``Stop pydantic-ai providers that models cannot use from failing the common.ai vendor check (#76312)``
+   * ``[main] Upgrade important CI environment (#76278)``
 
 1.1.0
 .....

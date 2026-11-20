@@ -17,6 +17,82 @@
  under the License.
  -->
 
+# v3.4.0
+
+## New Features:
+
+- Let plugins add their own actions to Dag, run and task instance rows (#75427)
+- Add an API endpoint comparing two stored Dag versions (#73322)
+- Allow filtering the Dag runs list by Dag tags (#70861)
+- Add a draining state for graceful Dag pausing (#72407)
+- Add bulk pause, drain and unpause actions to the Dags list (#73055)
+- Add a Dag bundle detail endpoint listing the files in a bundle (#73009)
+- Add an `is_scheduled` filter to the REST API (#72029)
+- Add an API endpoint for backfill Dag run entries (#67381)
+- Add a bundle-version parameter to the Dag run trigger endpoint (#61550)
+- Add an exact-match `uri` filter to `GET /assets` (#69489)
+- Add `partition_key` and `partition_key_regexp_pattern` filters for asset events (#64610)
+- Add extra-field filtering for asset events (#64611)
+- Add filters and pagination to the jobs list (#68616)
+- Add an Asset Tab plugin (#69986)
+- Add React plugin support to Dag and task overviews (#69992)
+- Add `owner_display_name` substring and prefix filters to the Dag list (#70583)
+- Add a team column and filter to the Dag run and task instance lists (#70241)
+- Add a team column and filter to the jobs list (#73295)
+- Add a team column and filter to the XComs list (#72158)
+- Add a team column and filter to the audit log (#71916)
+- Add a team filter to the Human-in-the-loop task instances listing (#73726)
+- Add Task Loops: expose loop iterations and outcomes via `loop_id`/`iteration` filters and a `LoopIterationResponse` (#74354)
+- Read current task executions by exact loop region (`region_id`/`region_index`) and try (#74350)
+- Clear selected task-loop work and regenerate only what was replaced (#74349)
+- Describe a task at a specific Dag version via the task endpoint (#74365)
+- Filter task instances by `loop_id` and a single loop pass (#74931)
+
+## Improvements:
+
+- Expose the retry deadline on task instances and reset run fields when a retry starts (#76028)
+- Surface the retry-policy decision on task instances (#73030)
+- Attribute log, asset-event and asset-state writes to the task attempt (#74347)
+- Expose an `in_loop` flag on task instances (#74352)
+- Give every mapped expansion a loop region, including a `409` on region conflicts (#74346)
+- Let loop gates record human-readable decisions (#74932)
+- Number task loop iterations from one instead of zero (#75260)
+- Deprecate cyclic TaskGroup dependencies, adding a `task group cycle` Dag warning (#73746)
+- Scope plugin views on any entity field, not a fixed criteria set (#74278)
+- Allow scoping plugin tabs to specific Dags and tasks (#69148)
+- Add a `team_name` attribute to plugins for multi-team (#69502)
+- Allow a Job to be associated with several teams (#73561)
+- Expand the health endpoint reporting (#70416)
+- Add `source_reference` and `language` to the warning, import-error and Dag source models (#72474)
+- Add a `duplicate dag id` Dag warning type (#68791)
+- Show Dag bundle versions and refresh times (#72909)
+- Show the owning team in asset dependencies (#71446)
+- Show the owning team on Dag, Dag run and task instance detail responses (#70312)
+- Add `owner_display_name` to the audit log (#68833)
+- Return a `file_token` on Dag import errors for requesting a reparse (#72896)
+- Allow explicit runs to drain a paused Dag (#73763)
+- Type `asset_expression` in the REST API so consumers need not cast through unknown (#67725)
+- Document HTTP statuses that route helpers raise (#74027)
+- Keep OpenAPI error responses in sync with the statuses routes raise (#71647)
+- Document favorite Dag's 409 and return a readable conflict message (#73411)
+- Make `latest_dag_version` a required field on the Dag details response (#74247)
+
+## Bug Fixes:
+
+- Clear retry-policy state when a task instance is cleared (#75646)
+- Reject non-positive `max_active_runs` when creating a backfill (#75320)
+- Reject blank pool names and variable keys in the REST API (#75258)
+- Fix HTTP 500 when ordering the Dag list by state or start date (#75148)
+- Refuse a Human-in-the-loop response for a request the task has since replaced (#74982)
+- Filter the jobs `is_alive` check in SQL so pagination stays correct (#73684)
+- Discard a task instance's stored task-state values when it is cleared (#72100)
+- Clear all task instances in a task group, not just the first page (#73547)
+- Require a request body on the asset materialize endpoint (#73328)
+- Hide unreadable assets in the asset expression served by `next_run_assets` (#72864)
+- Stop reporting components as degraded after an instance restart (#73222)
+- Return asset events for Dag runs without a start date (#71379)
+- Fix the Dag detail HTTP 500 for Dags without a `fileloc` (#69110)
+
 # v3.3.2
 
 ## Improvements:

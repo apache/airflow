@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 
 import { Box, HStack, Text } from "@chakra-ui/react";
 import { CreatableSelect, Select as ReactSelect, type SelectInstance } from "chakra-react-select";
@@ -32,7 +32,7 @@ import { useMatchMode } from "src/hooks/useMatchMode";
 import { FilterPill } from "../FilterPill";
 import type { FilterPluginProps } from "../types";
 
-type SelectOption = { label: string; value: string };
+type SelectOption = { label: string; node?: ReactNode; value: string };
 
 // Wider than the single-value editors, which sit at 180–330px: this one holds a row of chips,
 // and a narrow control stacks them vertically instead. The match-mode toggle needs its own room
@@ -72,6 +72,11 @@ export const MultiSelectPill = ({
   const showAdvancedToggle = filter.config.supportsAdvancedSearch === true;
   const isAdvanced = showAdvancedToggle && advanced.enabled;
   const selectRef = useRef<SelectInstance<SelectOption, true> | null>(null);
+  // Options whose label differs from their value (an enum shown translated) read by label; async
+  // options that are not loaded right now fall back to the raw value.
+  const chosen = values.map(
+    (value) => options.find((option) => option.value === value) ?? { label: value, value },
+  );
 
   // The editor only mounts when editing begins, so the caret belongs in the select from the
   // start. This runs a frame late on purpose: FilterPill focuses its wrapper on the same tick,
@@ -94,7 +99,9 @@ export const MultiSelectPill = ({
               {`(${mode})`}
             </Box>
           ) : undefined}
-          {values.map((value) => value).join(", ")}
+          {chosen.some(({ node }) => node !== undefined)
+            ? chosen.map(({ label, node, value }) => <span key={value}>{node ?? label}</span>)
+            : chosen.map(({ label }) => label).join(", ")}
         </HStack>
       }
       filter={filter}
@@ -167,6 +174,7 @@ export const MultiSelectPill = ({
               // for the next one instead of making the user reopen it each time.
               closeMenuOnSelect={false}
               defaultMenuIsOpen={values.length === 0}
+              formatOptionLabel={({ label, node }) => node ?? label}
               isClearable
               isMulti
               // The pill clips its own corners, and the table header it sits in scrolls, so an
@@ -183,7 +191,7 @@ export const MultiSelectPill = ({
               // menuPortal is a react-select style, not a chakraStyles one; the portalled menu
               // needs to clear the sticky table header.
               styles={{ menuPortal: (base) => ({ ...base, zIndex: 1500 }) }}
-              value={values.map((value) => ({ label: value, value }))}
+              value={chosen}
             />
           </Box>
           {showAdvancedToggle ? (

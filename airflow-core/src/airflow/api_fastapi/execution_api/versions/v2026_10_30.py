@@ -82,7 +82,14 @@ class IdentifyArchivedTaskStateUpdates(VersionChangeWithSideEffects):
     clients keep each endpoint's own response.
     """
 
-    description = inspect.cleandoc(__doc__)
+    description = inspect.cleandoc(__doc__) if __doc__ is not None else None
+    instructions_to_migrate_to_previous_version = ()
+
+
+class ReturnNotFoundForMissingDagRun(VersionChangeWithSideEffects):
+    """Return 404 when a task state write cannot find its DagRun."""
+
+    description = __doc__
     instructions_to_migrate_to_previous_version = ()
 
 

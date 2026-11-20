@@ -16,12 +16,13 @@ import * as Common from "./common";
 * @param data.uriPattern Case-insensitive substring match (SQL `ILIKE`). Slower than `uri_prefix_pattern` on large tables — see "Filtering with pattern parameters".
 * @param data.uriPrefixPattern Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
 * @param data.dagIds
+* @param data.triggerId Return only the assets this trigger's watchers watch.
 * @param data.onlyActive
 * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, name, uri, created_at, updated_at`
 * @returns AssetCollectionResponse Successful Response
 * @throws ApiError
 */
-export const prefetchUseAssetServiceGetAssets = (queryClient: QueryClient, { dagIds, limit, namePattern, namePrefixPattern, offset, onlyActive, orderBy, uri, uriPattern, uriPrefixPattern }: {
+export const prefetchUseAssetServiceGetAssets = (queryClient: QueryClient, { dagIds, limit, namePattern, namePrefixPattern, offset, onlyActive, orderBy, triggerId, uri, uriPattern, uriPrefixPattern }: {
   dagIds?: string[];
   limit?: number;
   namePattern?: string;
@@ -29,10 +30,11 @@ export const prefetchUseAssetServiceGetAssets = (queryClient: QueryClient, { dag
   offset?: number;
   onlyActive?: boolean;
   orderBy?: string[];
+  triggerId?: number;
   uri?: string[];
   uriPattern?: string;
   uriPrefixPattern?: string;
-} = {}) => queryClient.prefetchQuery({ queryKey: Common.UseAssetServiceGetAssetsKeyFn({ dagIds, limit, namePattern, namePrefixPattern, offset, onlyActive, orderBy, uri, uriPattern, uriPrefixPattern }), queryFn: () => AssetService.getAssets({ dagIds, limit, namePattern, namePrefixPattern, offset, onlyActive, orderBy, uri, uriPattern, uriPrefixPattern }) });
+} = {}) => queryClient.prefetchQuery({ queryKey: Common.UseAssetServiceGetAssetsKeyFn({ dagIds, limit, namePattern, namePrefixPattern, offset, onlyActive, orderBy, triggerId, uri, uriPattern, uriPrefixPattern }), queryFn: () => AssetService.getAssets({ dagIds, limit, namePattern, namePrefixPattern, offset, onlyActive, orderBy, triggerId, uri, uriPattern, uriPrefixPattern }) });
 /**
 * Get Asset Aliases
 * Get asset aliases.
@@ -71,6 +73,7 @@ export const prefetchUseAssetServiceGetAssetAlias = (queryClient: QueryClient, {
 * @param data.offset
 * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `source_task_id, source_dag_id, source_run_id, source_map_index, timestamp`
 * @param data.assetId
+* @param data.triggerId Return only the events of the assets this trigger's watchers watch.
 * @param data.sourceDagId
 * @param data.sourceTaskId
 * @param data.sourceTaskInstanceId
@@ -88,7 +91,7 @@ export const prefetchUseAssetServiceGetAssetAlias = (queryClient: QueryClient, {
 * @returns AssetEventCollectionResponse Successful Response
 * @throws ApiError
 */
-export const prefetchUseAssetServiceGetAssetEvents = (queryClient: QueryClient, { assetId, extra, limit, namePattern, namePrefixPattern, offset, orderBy, partitionKey, partitionKeyRegexpPattern, sourceDagId, sourceMapIndex, sourceRunId, sourceTaskId, sourceTaskInstanceId, timestampGt, timestampGte, timestampLt, timestampLte }: {
+export const prefetchUseAssetServiceGetAssetEvents = (queryClient: QueryClient, { assetId, extra, limit, namePattern, namePrefixPattern, offset, orderBy, partitionKey, partitionKeyRegexpPattern, sourceDagId, sourceMapIndex, sourceRunId, sourceTaskId, sourceTaskInstanceId, timestampGt, timestampGte, timestampLt, timestampLte, triggerId }: {
   assetId?: number;
   extra?: string[];
   limit?: number;
@@ -107,7 +110,8 @@ export const prefetchUseAssetServiceGetAssetEvents = (queryClient: QueryClient, 
   timestampGte?: string;
   timestampLt?: string;
   timestampLte?: string;
-} = {}) => queryClient.prefetchQuery({ queryKey: Common.UseAssetServiceGetAssetEventsKeyFn({ assetId, extra, limit, namePattern, namePrefixPattern, offset, orderBy, partitionKey, partitionKeyRegexpPattern, sourceDagId, sourceMapIndex, sourceRunId, sourceTaskId, sourceTaskInstanceId, timestampGt, timestampGte, timestampLt, timestampLte }), queryFn: () => AssetService.getAssetEvents({ assetId, extra, limit, namePattern, namePrefixPattern, offset, orderBy, partitionKey, partitionKeyRegexpPattern, sourceDagId, sourceMapIndex, sourceRunId, sourceTaskId, sourceTaskInstanceId, timestampGt, timestampGte, timestampLt, timestampLte }) });
+  triggerId?: number;
+} = {}) => queryClient.prefetchQuery({ queryKey: Common.UseAssetServiceGetAssetEventsKeyFn({ assetId, extra, limit, namePattern, namePrefixPattern, offset, orderBy, partitionKey, partitionKeyRegexpPattern, sourceDagId, sourceMapIndex, sourceRunId, sourceTaskId, sourceTaskInstanceId, timestampGt, timestampGte, timestampLt, timestampLte, triggerId }), queryFn: () => AssetService.getAssetEvents({ assetId, extra, limit, namePattern, namePrefixPattern, offset, orderBy, partitionKey, partitionKeyRegexpPattern, sourceDagId, sourceMapIndex, sourceRunId, sourceTaskId, sourceTaskInstanceId, timestampGt, timestampGte, timestampLt, timestampLte, triggerId }) });
 /**
 * Get Asset Queued Events
 * Get queued asset events for an asset.
@@ -213,6 +217,27 @@ export const prefetchUseAssetServiceGetAssetsUi = (queryClient: QueryClient, { d
 export const prefetchUseAssetServiceNextRunAssets = (queryClient: QueryClient, { dagId }: {
   dagId: string;
 }) => queryClient.prefetchQuery({ queryKey: Common.UseAssetServiceNextRunAssetsKeyFn({ dagId }), queryFn: () => AssetService.nextRunAssets({ dagId }) });
+/**
+* Get Asset Partitions
+* Return the partition keys of an asset with the status of each.
+* @param data The data for the request.
+* @param data.assetId
+* @param data.status
+* @param data.partitionKeyPattern
+* @param data.orderBy
+* @param data.limit
+* @param data.offset
+* @returns AssetPartitionCollectionResponse Successful Response
+* @throws ApiError
+*/
+export const prefetchUseAssetServiceGetAssetPartitions = (queryClient: QueryClient, { assetId, limit, offset, orderBy, partitionKeyPattern, status }: {
+  assetId: number;
+  limit?: number;
+  offset?: number;
+  orderBy?: string;
+  partitionKeyPattern?: string;
+  status?: ("materialized" | "in_progress" | "failed")[];
+}) => queryClient.prefetchQuery({ queryKey: Common.UseAssetServiceGetAssetPartitionsKeyFn({ assetId, limit, offset, orderBy, partitionKeyPattern, status }), queryFn: () => AssetService.getAssetPartitions({ assetId, limit, offset, orderBy, partitionKeyPattern, status }) });
 /**
 * List Backfills
 * @param data The data for the request.
@@ -1975,7 +2000,7 @@ export const prefetchUseXcomServiceGetXcomEntry = (queryClient: QueryClient, { d
 * @param data.mapIndex
 * @param data.regionId
 * @param data.regionIndex
-* @param data.excludeInternalKeys Leave out XComs whose keys Airflow reserves for itself, such as loop decision reasons.
+* @param data.excludeInternalKeys Leave out XComs whose keys Airflow reserves for itself, such as loop decision reasons and cross-Dag clear targets.
 * @param data.limit
 * @param data.offset
 * @param data.xcomKeyPattern Case-insensitive substring match (SQL `ILIKE`). Slower than `xcom_key_prefix_pattern` on large tables — see "Filtering with pattern parameters".
@@ -2067,8 +2092,8 @@ export const prefetchUseTaskServiceGetTask = (queryClient: QueryClient, { dagId,
 * Get Triggers
 * Get the triggers the caller can see, of every kind, and how each is doing.
 *
-* A trigger is visible to whoever can see its owner: the task instance or Dag run of its Dag, or an asset
-* one of its watchers watches.
+* A trigger is visible to whoever can see what it is used by: the task instance or Dag run of its Dag, or
+* an asset one of its watchers watches.
 * @param data The data for the request.
 * @param data.limit
 * @param data.offset
@@ -2078,21 +2103,23 @@ export const prefetchUseTaskServiceGetTask = (queryClient: QueryClient, { dagId,
 * @param data.triggererHostname Return only the triggers assigned to the triggerer on this host.
 * @param data.dagId Return only the triggers of this Dag's task instances and callbacks.
 * @param data.assetId Return only the triggers of this asset's watchers.
+* @param data.scheduledDagId Return only the triggers of watchers on assets this Dag is scheduled on, directly or by an asset name or URI reference.
 * @param data.teams Return only the triggers of these teams.
 * @returns TriggerCollectionResponse Successful Response
 * @throws ApiError
 */
-export const prefetchUseTriggerServiceGetTriggers = (queryClient: QueryClient, { assetId, dagId, kind, limit, offset, orderBy, status, teams, triggererHostname }: {
+export const prefetchUseTriggerServiceGetTriggers = (queryClient: QueryClient, { assetId, dagId, kind, limit, offset, orderBy, scheduledDagId, status, teams, triggererHostname }: {
   assetId?: number;
   dagId?: string;
   kind?: TriggerKind[];
   limit?: number;
   offset?: number;
   orderBy?: string[];
+  scheduledDagId?: string;
   status?: TriggerStatus[];
   teams?: string[];
   triggererHostname?: string;
-} = {}) => queryClient.prefetchQuery({ queryKey: Common.UseTriggerServiceGetTriggersKeyFn({ assetId, dagId, kind, limit, offset, orderBy, status, teams, triggererHostname }), queryFn: () => TriggerService.getTriggers({ assetId, dagId, kind, limit, offset, orderBy, status, teams, triggererHostname }) });
+} = {}) => queryClient.prefetchQuery({ queryKey: Common.UseTriggerServiceGetTriggersKeyFn({ assetId, dagId, kind, limit, offset, orderBy, scheduledDagId, status, teams, triggererHostname }), queryFn: () => TriggerService.getTriggers({ assetId, dagId, kind, limit, offset, orderBy, scheduledDagId, status, teams, triggererHostname }) });
 /**
 * Get Trigger
 * Get a trigger, who it runs for, and how it is doing.
@@ -2504,13 +2531,29 @@ export const prefetchUseGridServiceGetGridRuns = (queryClient: QueryClient, { da
 * @param data The data for the request.
 * @param data.dagId
 * @param data.runIds
+* @param data.startDateGte
+* @param data.startDateGt
+* @param data.startDateLte
+* @param data.startDateLt
+* @param data.endDateGte
+* @param data.endDateGt
+* @param data.endDateLte
+* @param data.endDateLt
 * @returns string NDJSON stream — one ``GridTISummaries`` JSON object per line, one per Dag run
 * @throws ApiError
 */
-export const prefetchUseGridServiceGetGridTiSummariesStream = (queryClient: QueryClient, { dagId, runIds }: {
+export const prefetchUseGridServiceGetGridTiSummariesStream = (queryClient: QueryClient, { dagId, endDateGt, endDateGte, endDateLt, endDateLte, runIds, startDateGt, startDateGte, startDateLt, startDateLte }: {
   dagId: string;
+  endDateGt?: string;
+  endDateGte?: string;
+  endDateLt?: string;
+  endDateLte?: string;
   runIds?: string[];
-}) => queryClient.prefetchQuery({ queryKey: Common.UseGridServiceGetGridTiSummariesStreamKeyFn({ dagId, runIds }), queryFn: () => GridService.getGridTiSummariesStream({ dagId, runIds }) });
+  startDateGt?: string;
+  startDateGte?: string;
+  startDateLt?: string;
+  startDateLte?: string;
+}) => queryClient.prefetchQuery({ queryKey: Common.UseGridServiceGetGridTiSummariesStreamKeyFn({ dagId, endDateGt, endDateGte, endDateLt, endDateLte, runIds, startDateGt, startDateGte, startDateLt, startDateLte }), queryFn: () => GridService.getGridTiSummariesStream({ dagId, endDateGt, endDateGte, endDateLt, endDateLte, runIds, startDateGt, startDateGte, startDateLt, startDateLte }) });
 /**
 * Get Loop Summary
 * Summarize one loop invocation from the run's live task instances.

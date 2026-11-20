@@ -43,6 +43,14 @@ on:  # yamllint disable-line rule:truthy
         description: "Ref the constraints are resolved from, e.g. v3-3-stable or the release tag"
         required: true
         type: string
+      fail-on-pending-provider-candidates:
+        description: >-
+          Override the final-release guard. Empty derives it from the version (a final fails when a
+          provider's newest PyPI version is a pending rc; a pre-release does not). Set to 'false' to
+          pin the currently-released providers and proceed through an overlapping provider wave.
+        required: false
+        default: ""
+        type: string
 permissions:
   contents: read
 concurrency:
@@ -187,9 +195,13 @@ jobs:
       # the constraints, which is exactly the version the release needed pinned.
       pypi-providers-only: "true"
       allow-pre-releases: ${{ needs.build-info.outputs.allow-pre-releases }}
-      # A final must not be cut while a provider candidate is still neither released nor yanked.
+      # A final must not be cut while a provider candidate is still neither released nor yanked -
+      # unless the release manager overrides it to pin the currently-released providers instead (for
+      # a final that deliberately ships past an overlapping, independent provider wave).
       fail-on-pending-provider-candidates: >-
-        ${{ needs.build-info.outputs.allow-pre-releases == 'true' && 'false' || 'true' }}
+        ${{ inputs.fail-on-pending-provider-candidates != ''
+        && inputs.fail-on-pending-provider-candidates
+        || (needs.build-info.outputs.allow-pre-releases == 'true' && 'false' || 'true') }}
       debug-resources: "false"
       checkout-ref: ${{ inputs.ref }}
       use-uv: "true"

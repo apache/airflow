@@ -215,6 +215,7 @@ type TaskRef struct {
 //   - the TaskSpec sets TriggerRule to a value that is not a TriggerRule constant
 //   - the TaskSpec sets WeightRule to a value that is not a WeightRule constant
 //   - the year of the StartDate or the EndDate of the TaskSpec in UTC is not from 1 to 9999
+//   - the TaskSpec sets PriorityWeight outside the 32-bit range, from -2147483648 to 2147483647
 //   - the inputs passed to Inputs do not match the parameters of fn after the Context
 //   - the task_id, with the group_ids that prefix it, is longer than 250 characters, or holds a
 //     character other than a letter, a digit, an underscore, a dash or a dot, as Python's

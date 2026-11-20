@@ -62,7 +62,7 @@ def openai_batch_chat_completions():
             url: Literal["/v1/chat/completions"]
             body: RequestBody
 
-        model = "gpt-4o-mini"
+        model = "gpt-6-luna"
         max_tokens = 1000
         hook = OpenAIHook(conn_id=OPENAI_CONN_ID)
         with tempfile.NamedTemporaryFile(mode="w", delete=False) as file:
