@@ -421,6 +421,61 @@ class TestAssetModelOperation:
         assert triggers[0].team_name == expected
 
     @pytest.mark.usefixtures("testing_dag_bundle")
+    @conf_vars({("core", "multi_team"): "True"})
+    def test_add_asset_trigger_references_does_not_share_triggers_across_teams(self, dag_maker, session):
+        """
+        With multi-team on, two teams declaring an identical watcher on the same asset
+        must each get their own trigger, so each team's triggerer runs its own copy (#76992).
+        """
+        from airflow.models.team import Team
+
+        for name in ("team_a", "team_b"):
+            if not session.scalar(select(Team).where(Team.name == name)):
+                session.add(Team(name=name))
+        session.flush()
+
+        def make_dag(dag_id):
+            asset = Asset(
+                "shared_team_asset",
+                watchers=[AssetWatcher(name="watcher", trigger=FileDeleteTrigger(filepath="/tmp/shared"))],
+            )
+            with dag_maker(dag_id=dag_id, schedule=[asset]) as dag:
+                EmptyOperator(task_id="t")
+            dags = {dag.dag_id: LazyDeserializedDAG.from_dag(dag)}
+            orm_dags = DagModelOperation(dags, "testing", None).add_dags(session=session)
+            orm_dags[dag.dag_id].is_stale = False
+            orm_dags[dag.dag_id].is_paused = False
+            session.flush()
+            asset_op = AssetModelOperation.collect(dags)
+            orm_assets = asset_op.sync_assets(session=session)
+            session.flush()
+            asset_op.add_dag_asset_references(orm_dags, orm_assets, session=session)
+            asset_op.activate_assets_if_possible(orm_assets.values(), session=session)
+            session.flush()
+            return asset_op, orm_assets
+
+        asset_op_a, orm_assets_a = make_dag("team_a_dag")
+        asset_op_b, orm_assets_b = make_dag("team_b_dag")
+
+        # Clear any triggers created by dag_maker's bulk_write_to_db
+        session.execute(delete(Trigger))
+        for asset_model in {**orm_assets_a, **orm_assets_b}.values():
+            asset_model.watchers = []
+        session.flush()
+
+        # Each team's parse registers the same watcher on the same asset
+        asset_op_a.add_asset_trigger_references(orm_assets_a, team_name="team_a", session=session)
+        session.flush()
+        asset_op_b.add_asset_trigger_references(orm_assets_b, team_name="team_b", session=session)
+        session.flush()
+
+        triggers = session.scalars(select(Trigger)).all()
+        assert {trigger.team_name for trigger in triggers} == {"team_a", "team_b"}
+        assert len(triggers) == 2
+        asset_model = session.scalars(select(AssetModel).where(AssetModel.name == "shared_team_asset")).one()
+        assert len(asset_model.watchers) == 2
+
+    @pytest.mark.usefixtures("testing_dag_bundle")
     @pytest.mark.parametrize(
         ("queue", "expected"),
         [pytest.param("my_q", "my_q", id="has-queue"), pytest.param(None, None, id="no-queue")],
