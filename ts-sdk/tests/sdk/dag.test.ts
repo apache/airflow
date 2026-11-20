@@ -17,6 +17,9 @@
  * under the License.
  */
 
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, it, expect } from "vitest";
 import {
   Dag,
@@ -26,6 +29,8 @@ import {
   getDagTaskInputs,
   getDagTaskRecords,
   Label,
+  TRIGGER_RULES,
+  WEIGHT_RULES,
   type DagSpec,
   type TaskRef,
   type TaskSpec,
@@ -415,6 +420,49 @@ describe("Dag", () => {
       'queue in the spec for Dag "example_dag" task "transform" must not be blank',
     );
     expect(dag.taskIds).toEqual([]);
+  });
+
+  it.each(["all_sucess", "ALL_SUCCESS", ""])(
+    "rejects the unknown trigger rule %j",
+    (triggerRule) => {
+      const dag = new Dag("example_dag");
+      expect(() => dag.task("transform", async () => undefined, { triggerRule })).toThrowError(
+        `triggerRule in the spec for Dag "example_dag" task "transform" is ${JSON.stringify(triggerRule)}; ` +
+          "use one of all_success,",
+      );
+      expect(dag.taskIds).toEqual([]);
+    },
+  );
+
+  it.each(["upwards", "Upstream", ""])("rejects the unknown weight rule %j", (weightRule) => {
+    const dag = new Dag("example_dag");
+    expect(() => dag.task("transform", async () => undefined, { weightRule })).toThrowError(
+      `weightRule in the spec for Dag "example_dag" task "transform" is ${JSON.stringify(weightRule)}; ` +
+        "use one of downstream, upstream, absolute,",
+    );
+    expect(dag.taskIds).toEqual([]);
+  });
+
+  it("accepts every trigger rule and weight rule, and a plugin's weight rule import path", () => {
+    const dag = new Dag("example_dag");
+    for (const triggerRule of TRIGGER_RULES)
+      dag.task(`t_${triggerRule}`, async () => undefined, { triggerRule });
+    for (const weightRule of [...WEIGHT_RULES, "my_plugin.strategies.DecreasingPriorityStrategy"]) {
+      dag.task(`w_${weightRule.replaceAll(".", "_")}`, async () => undefined, { weightRule });
+    }
+    expect(dag.taskIds).toHaveLength(TRIGGER_RULES.size + WEIGHT_RULES.size + 1);
+  });
+
+  it.each([
+    ["trigger_rule.py", TRIGGER_RULES],
+    ["weight_rule.py", WEIGHT_RULES],
+  ])("matches the values of Airflow's %s", (file, rules) => {
+    const source = readFileSync(
+      join(dirname(fileURLToPath(import.meta.url)), "../../../airflow-core/src/airflow/task", file),
+      "utf8",
+    );
+    const values = [...source.matchAll(/^ {4}[A-Z_]+ = "([a-z_]+)"$/gm)].map((match) => match[1]);
+    expect(new Set(values)).toEqual(rules);
   });
 
   it.each([
