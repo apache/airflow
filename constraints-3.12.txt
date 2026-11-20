@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-11-19T21:53:29.138860
+# This constraints file was automatically generated on 2026-11-20T09:01:21.793415
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -252,7 +252,7 @@ bcrypt==5.0.0
 beartype==0.22.9
 beautifulsoup4==4.15.0
 billiard==4.3.2
-bitarray==3.12.3
+bitarray==3.12.4
 black==26.10.1
 bleach==6.4.0
 blinker==1.9.0
@@ -318,7 +318,7 @@ facebook_business==26.0.4
 fastapi-cli==0.0.34
 fastapi==0.163.1
 fastavro==1.13.1
-fastcore==2.2.41
+fastcore==2.2.44
 fasteners==0.20
 fastjsonschema==2.22.3
 fastuuid==0.14.0
@@ -414,12 +414,12 @@ hdfs==2.7.3
 hf-xet==1.8.0
 hmsclient==0.1.1
 hpack==4.2.0
-httpcore2==2.16.0
+httpcore2==2.16.1
 httpcore==1.0.9
 httplib2==0.32.1
 httpr==0.7.8
 httptools==0.9.0
-httpx2==2.16.0
+httpx2==2.16.1
 httpx==0.28.1
 huggingface_hub==2.4.0
 humanize==4.17.0
@@ -633,7 +633,7 @@ pywinrm==0.5.0
 pyzmq==27.3.0
 qdrant-client==1.20.0
 ray==2.60.0
-reactivex==6.1.0
+reactivex==6.1.1
 redis==8.1.0
 redshift_connector==2.2.0
 referencing==0.37.0
@@ -663,7 +663,7 @@ sentry-sdk==2.75.0
 setproctitle==1.3.8
 setuptools==84.2.1
 shellingham==1.5.4
-simple-salesforce==1.12.10
+simple-salesforce==1.12.11
 six==1.17.0
 slack_sdk==3.47.0
 smart_open==9.0.4
