@@ -52,7 +52,7 @@ from airflow.sdk.api.client import Client
 from airflow.sdk.api.datamodels._generated import VariableResponse
 from airflow.sdk.exceptions import AirflowRuntimeError
 from airflow.sdk.execution_time import supervisor
-from airflow.sdk.execution_time.comms import GetVariable, MaskSecret, _RequestFrame
+from airflow.sdk.execution_time.comms import GetVariable, MaskSecret, XComResult, _RequestFrame
 from airflow.sdk.execution_time.supervisor import PsutilTracker
 from airflow.sdk.importers import DagSourceCode
 from airflow.serialization.serialized_objects import DagSerialization, LazyDeserializedDAG
@@ -677,6 +677,17 @@ def _make_process(**kwargs) -> LangSDKDagFileProcessorProcess:
         ),
         **kwargs,
     )
+
+
+@pytest.mark.parametrize("schema_version", [None, "2026-06-16"], ids=["unversioned", "versioned"])
+@pytest.mark.parametrize("value", [-(2**63) - 1, 2**64], ids=["negative", "positive"])
+def test_rejects_large_integers_without_writing_to_runtime(schema_version, value):
+    proc = _make_process(subprocess_schema_version=schema_version)
+
+    with pytest.raises(OverflowError, match="can't serialize ints"):
+        proc.send_msg(XComResult(key="large", value=value), request_id=0)
+
+    proc.stdin.sendall.assert_not_called()
 
 
 def test_a_dag_source_that_cannot_be_read_is_a_placeholder():

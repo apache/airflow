@@ -35,6 +35,7 @@ from airflow.sdk.execution_time.comms import (
     SetXCom,
     StartupDetails,
     VariableResult,
+    XComResult,
     _RequestFrame,
     _ResponseFrame,
 )
@@ -78,6 +79,49 @@ class TestCommsModels:
 
 class TestCommsDecoder:
     """Test the communication between the subprocess and the "supervisor"."""
+
+    def test_unknown_extension_does_not_alias_receive_buffer(self, socket_pair):
+        reader, _ = socket_pair
+        frame = _ResponseFrame(id=1, body={"extension": msgspec.msgpack.Ext(1, b"abc")})
+        receive_buffer = bytearray(msgspec.msgpack.encode(frame))
+        decoded = CommsDecoder(socket=reader).resp_decoder.decode(receive_buffer)
+
+        offset = receive_buffer.index(b"abc")
+        receive_buffer[offset : offset + 3] = b"XYZ"
+
+        extension = decoded.body["extension"]
+        assert extension.code == 1
+        assert bytes(extension.data) == b"abc"
+
+    @pytest.mark.parametrize(
+        "value",
+        [-(2**63), 2**64 - 1, -(2**63) - 1, 2**64, -(2**4096), 2**4096, str(2**64)],
+        ids=[
+            "min-int64",
+            "max-uint64",
+            "negative",
+            "positive",
+            "huge-negative",
+            "huge-positive",
+            "large-number-string",
+        ],
+    )
+    def test_receive_large_integers(self, socket_pair, value):
+        reader, writer = socket_pair
+        payload = {"nested": [value, {"value": value}], "string": str(value), "bool": True}
+        message = XComResult(key="large", value=payload)
+        writer.sendall(_ResponseFrame(id=0, body=message.model_dump()).as_bytes())
+
+        received = CommsDecoder(socket=reader)._get_response()
+
+        assert isinstance(received, XComResult)
+        assert received.value == payload
+        assert type(received.value["nested"][0]) is type(value)
+        assert type(received.value["bool"]) is bool
+
+    def test_large_integer_extension_can_be_disabled(self):
+        with pytest.raises(OverflowError, match="can't serialize ints"):
+            _ResponseFrame(id=0, body={"value": 2**64}).as_bytes(allow_large_ints=False)
 
     @pytest.mark.usefixtures("disable_capturing")
     @pytest.mark.parametrize(
