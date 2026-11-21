@@ -52,6 +52,7 @@ from airflow.api_fastapi.execution_api.security import (
     require_task_token,
 )
 from airflow.api_fastapi.execution_api.versions.v2026_10_30 import IdentifyArchivedTaskStateUpdates
+from airflow.api_fastapi.execution_api.versions.v2027_02_28 import ResolveOmittedXComMapIndexByTaskDefinition
 from airflow.exceptions import TaskNotFound
 from airflow.models.dagrun import DagRun
 from airflow.models.dynamic_region import (
@@ -161,6 +162,20 @@ router = APIRouter(
 log = logging.getLogger(__name__)
 
 
+def _get_resolver(dag_bag: DagBagDep, session: SessionDep) -> TaskCoordinateResolver:
+    return TaskCoordinateResolver(dag_bag, session)
+
+
+_ResolverDep = Annotated[TaskCoordinateResolver, Depends(_get_resolver)]
+
+
+def _get_calling_ti(token: ExecutionToken, *, session: Session) -> TaskInstance | None:
+    """Return the task instance making the request, or None for a caller that is not a task."""
+    if token.claims.scope != "execution":
+        return None
+    return session.get(TaskInstance, token.id)
+
+
 @attrs.frozen
 class _XComRead:
     """The XCom rows a read selects, and whether they are the executions of a loop task seen from outside it."""
@@ -184,13 +199,13 @@ def _build_xcom_read(
     run_id: str,
     task_id: str,
     key: str,
-    session: Session,
-    dag_bag: DBDagBag,
+    resolver: TaskCoordinateResolver,
     token: ExecutionToken,
     map_index: int | None = None,
     include_prior_dates: bool = False,
     previous_iteration: bool = False,
     sequence: bool = False,
+    session: Session,
 ) -> _XComRead:
     """
     Select the XCom rows of the producers visible to the calling task instance.
@@ -198,7 +213,6 @@ def _build_xcom_read(
     A ``sequence`` read returns several values in order. When it targets a loop task from outside that
     loop, it covers every iteration of the task rather than the one a caller inside the loop would see.
     """
-    resolver = TaskCoordinateResolver(dag_bag, session)
     read = partial(
         XComModel.get_many,
         dag_ids=dag_id,
@@ -214,7 +228,7 @@ def _build_xcom_read(
             dag_id, None if include_prior_dates else run_id, task_id
         ):
             return _XComRead(read(region_id=SENTINEL_REGION_ID, map_indexes=map_index))
-        caller = session.get(TaskInstance, token.id) if token.claims.scope == "execution" else None
+        caller = _get_calling_ti(token, session=session)
         if include_prior_dates:
             task = None
             if session.scalar(select(DagRun.id).where(DagRun.dag_id == dag_id, DagRun.run_id == run_id)):
@@ -357,7 +371,7 @@ def get_mapped_xcom_by_index(
     key: Annotated[str, Path(min_length=1)],
     offset: int,
     session: SessionDep,
-    dag_bag: DagBagDep,
+    resolver: _ResolverDep,
     previous_iteration: bool = False,
     token: ExecutionToken = _TriggerAwareToken,
 ) -> XComSequenceIndexResponse:
@@ -367,7 +381,7 @@ def get_mapped_xcom_by_index(
         task_id=task_id,
         key=key,
         session=session,
-        dag_bag=dag_bag,
+        resolver=resolver,
         token=token,
         previous_iteration=previous_iteration,
         sequence=True,
@@ -398,50 +412,21 @@ def _get_sliced_query_or_empty(query: Select, low: int, high: int) -> Select:
     return query.slice(low, high)
 
 
-@router.get(
-    "/{dag_id}/{run_id}/{task_id}/{key:path}/slice",
-    dependencies=[ExecutionOrDagParseToken, DagInGrantedBundle],
-    responses=create_openapi_http_exception_doc(
-        [
-            (status.HTTP_400_BAD_REQUEST, "The request selects an invalid combination of producers"),
-            (status.HTTP_409_CONFLICT, "Several live task instances produce the requested value"),
-        ]
-    ),
-    description="Get XCom values from a mapped task by sequence slice",
-)
-def get_mapped_xcom_by_slice(
-    dag_id: str,
-    run_id: str,
-    task_id: str,
-    key: Annotated[str, Path(min_length=1)],
-    params: Annotated[GetXComSliceFilterParams, Query()],
-    session: SessionDep,
-    dag_bag: DagBagDep,
-    token: ExecutionToken = _TriggerAwareToken,
-) -> XComSequenceSliceResponse:
-    xcom_read = _build_xcom_read(
-        dag_id=dag_id,
-        run_id=run_id,
-        task_id=task_id,
-        key=key,
-        session=session,
-        dag_bag=dag_bag,
-        token=token,
-        include_prior_dates=params.include_prior_dates,
-        previous_iteration=params.previous_iteration,
-        sequence=True,
-    )
+def _read_xcom_slice(
+    xcom_read: _XComRead, *, start: int | None, stop: int | None, step: int | None, session: Session
+) -> list[JsonValue]:
+    """Read the values of a sequence read in its order, sliced like a Python sequence."""
     entity = xcom_entity(xcom_read.statement)
     query = xcom_read.statement.order_by(None)
     ascending, descending = xcom_read.get_order(entity), xcom_read.get_order(entity, descending=True)
 
-    step = params.step or 1
+    step = step or 1
 
     # We want to optimize negative slicing (e.g. seq[-10:]) by not doing an
     # additional COUNT query if possible. This is possible unless both start and
     # stop are explicitly given and have different signs.
-    if (start := params.start) is None:
-        if (stop := params.stop) is None:
+    if start is None:
+        if stop is None:
             if step >= 0:
                 query = query.order_by(*ascending)
             else:
@@ -462,7 +447,7 @@ def get_mapped_xcom_by_slice(
                 query = query.offset(-stop)
     elif start >= 0:
         query = query.order_by(*ascending)
-        if (stop := params.stop) is None:
+        if stop is None:
             if step >= 0:
                 query = query.offset(start)
             else:
@@ -477,7 +462,7 @@ def get_mapped_xcom_by_slice(
     else:
         query = query.order_by(*descending)
         step = -step
-        if (stop := params.stop) is None:
+        if stop is None:
             if step > 0:
                 query = query.offset(-start - 1)
             else:
@@ -493,6 +478,45 @@ def get_mapped_xcom_by_slice(
     values = [row.value for row in session.execute(query.with_only_columns(entity.value)).all()]
     if step != 1:
         values = values[::step]
+    return values
+
+
+@router.get(
+    "/{dag_id}/{run_id}/{task_id}/{key:path}/slice",
+    dependencies=[ExecutionOrDagParseToken, DagInGrantedBundle],
+    responses=create_openapi_http_exception_doc(
+        [
+            (status.HTTP_400_BAD_REQUEST, "The request selects an invalid combination of producers"),
+            (status.HTTP_409_CONFLICT, "Several live task instances produce the requested value"),
+        ]
+    ),
+    description="Get XCom values from a mapped task by sequence slice",
+)
+def get_mapped_xcom_by_slice(
+    dag_id: str,
+    run_id: str,
+    task_id: str,
+    key: Annotated[str, Path(min_length=1)],
+    params: Annotated[GetXComSliceFilterParams, Query()],
+    session: SessionDep,
+    resolver: _ResolverDep,
+    token: ExecutionToken = _TriggerAwareToken,
+) -> XComSequenceSliceResponse:
+    xcom_read = _build_xcom_read(
+        dag_id=dag_id,
+        run_id=run_id,
+        task_id=task_id,
+        key=key,
+        session=session,
+        resolver=resolver,
+        token=token,
+        include_prior_dates=params.include_prior_dates,
+        previous_iteration=params.previous_iteration,
+        sequence=True,
+    )
+    values = _read_xcom_slice(
+        xcom_read, start=params.start, stop=params.stop, step=params.step, session=session
+    )
     return XComSequenceSliceResponse(values)
 
 
@@ -525,7 +549,7 @@ def head_xcom(
     key: str,
     response: Response,
     session: SessionDep,
-    dag_bag: DagBagDep,
+    resolver: _ResolverDep,
     map_index: Annotated[int | None, Query()] = None,
     previous_iteration: bool = False,
     token: ExecutionToken = _TriggerAwareToken,
@@ -543,7 +567,7 @@ def head_xcom(
         task_id=task_id,
         key=key,
         session=session,
-        dag_bag=dag_bag,
+        resolver=resolver,
         token=token,
         previous_iteration=previous_iteration,
         sequence=True,
@@ -552,6 +576,41 @@ def head_xcom(
     # Tell the caller how many items in this query. We define a custom range unit (HTTP spec only defines
     # "bytes" but we can add our own)
     response.headers["Content-Range"] = f"map_indexes {count}"
+
+
+def _resolve_omitted_map_index(
+    *,
+    dag_id: str,
+    run_id: str,
+    task_id: str,
+    params: GetXcomFilterParams,
+    resolver: TaskCoordinateResolver,
+    caller: TaskInstance | None,
+) -> int | None:
+    """
+    Return the map index to read for an omitted one, or None for every instance.
+
+    The producing task's definition in the Dag version its run uses decides: a
+    mapped operator, or a task in a mapped task group, is mapped however many
+    instances it expanded to. A caller in the same run reads by its own Dag
+    version, as reads of a given map index do. A task that cannot be found
+    reads -1, so the read reports it as not found.
+    """
+    if params.offset is not None:
+        return -1  # None reads a mapped task's list.
+    if not ResolveOmittedXComMapIndexByTaskDefinition.is_applied:
+        return -1
+    if caller is not None and (caller.dag_id, caller.run_id) == (dag_id, run_id):
+        dag_version_id = caller.dag_version_id
+    else:
+        dag_version_id = None
+    try:
+        task = resolver.get_task(dag_id, run_id, task_id, dag_version_id=dag_version_id)
+    except AmbiguousProducerError as error:
+        raise HTTPException(status.HTTP_409_CONFLICT, str(error)) from error
+    except (TaskNotFound, ValueError):
+        return -1
+    return None if task.get_needs_expansion() else -1
 
 
 @router.get(
@@ -570,12 +629,23 @@ def get_xcom(
     run_id: str,
     task_id: str,
     key: Annotated[str, Path(min_length=1)],
-    session: SessionDep,
     params: Annotated[GetXcomFilterParams, Query()],
-    dag_bag: DagBagDep,
+    session: SessionDep,
+    resolver: _ResolverDep,
     token: ExecutionToken = _TriggerAwareToken,
 ) -> XComResponse:
     """Get an Airflow XCom from database - not other XCom Backends."""
+    if params.map_index is not None:
+        map_index: int | None = params.map_index
+    else:
+        map_index = _resolve_omitted_map_index(
+            dag_id=dag_id,
+            run_id=run_id,
+            task_id=task_id,
+            params=params,
+            resolver=resolver,
+            caller=_get_calling_ti(token, session=session),
+        )
     owner = None
     if token.claims.scope == "execution":
         owner = session.execute(
@@ -585,7 +655,7 @@ def get_xcom(
                 TaskInstance.dag_id == dag_id,
                 TaskInstance.run_id == run_id,
                 TaskInstance.task_id == task_id,
-                *build_coordinate_filters(TaskInstance, map_index=params.map_index),
+                *build_coordinate_filters(TaskInstance, map_index=map_index),
             )
             .limit(1)
             .execution_options(include_all_attempts=True)
@@ -608,15 +678,30 @@ def get_xcom(
                 ),
             },
         )
+    if map_index is None:
+        mapped_read = _build_xcom_read(
+            dag_id=dag_id,
+            run_id=run_id,
+            task_id=task_id,
+            key=key,
+            session=session,
+            resolver=resolver,
+            token=token,
+            include_prior_dates=params.include_prior_dates,
+            previous_iteration=params.previous_iteration,
+            sequence=True,
+        )
+        values = _read_xcom_slice(mapped_read, start=None, stop=None, step=None, session=session)
+        return XComResponse(key=key, value=values)
     xcom_read = _build_xcom_read(
         dag_id=dag_id,
         run_id=run_id,
         task_id=task_id,
         key=key,
         session=session,
-        dag_bag=dag_bag,
+        resolver=resolver,
         token=token,
-        map_index=params.map_index if params.offset is None else None,
+        map_index=map_index if params.offset is None else None,
         include_prior_dates=params.include_prior_dates,
         previous_iteration=params.previous_iteration,
         sequence=params.offset is not None,
@@ -641,7 +726,7 @@ def get_xcom(
     if (result := session.scalars(xcom_query.limit(1)).first()) is None:
         if params.offset is None:
             message = (
-                f"XCom with {key=} map_index={params.map_index} not found for "
+                f"XCom with {key=} {map_index=} not found for "
                 f"task {task_id!r} in DAG run {run_id!r} of {dag_id!r}"
             )
         else:
@@ -843,8 +928,8 @@ def _find_writer_id(
     run_id: str,
     task_id: str,
     map_index: int,
-    session: Session,
     dag_bag: DBDagBag,
+    session: Session,
 ) -> UUID | None:
     """Resolve the task instance a write targets with the rule reads use, working from the caller."""
     caller = session.get(TaskInstance, token.id, execution_options={"include_all_attempts": True})

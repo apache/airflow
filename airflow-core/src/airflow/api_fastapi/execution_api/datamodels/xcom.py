@@ -43,7 +43,14 @@ class GetXComSliceFilterParams(BaseModel):
 class GetXcomFilterParams(BaseModel):
     """Class to house the params that can optionally be set for Get XCom."""
 
-    map_index: int = -1
+    map_index: int | None = None
+    """
+    Map index of the producing task instance.
+
+    Omitted, the read depends on how the producing task is defined in the Dag. An unmapped task
+    returns its value (map index -1). A mapped task returns the values of all its instances as a
+    list, the same values the slice endpoint returns.
+    """
     include_prior_dates: bool = False
     offset: int | None = None
     previous_iteration: bool = False
