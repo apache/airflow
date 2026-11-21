@@ -28,7 +28,32 @@ MERMAID_CLI_VERSION="11.17.0"
 # Debian's chromium is used instead of the browser puppeteer would download. fonts-liberation gives
 # mermaid Liberation Sans, which has Arial's metrics, to measure its labels with.
 apt-get update -qq
-apt-get install -y -qq --no-install-recommends chromium fonts-liberation > /dev/null
+
+# Match the libx11-6 version required by the candidate libx11-xcb1 package.
+# This avoids dependency conflicts with the version already installed in the CI image.
+LIBX11_XCB1_VERSION="$(
+    apt-cache policy libx11-xcb1 |
+    awk '/Candidate:/ {print $2; exit}'
+)"
+
+if [[ -z "${LIBX11_XCB1_VERSION}" || "${LIBX11_XCB1_VERSION}" == "(none)" ]]; then
+    echo "Could not determine the candidate version of libx11-xcb1" >&2
+    exit 1
+fi
+
+LIBX11_VERSION="$(
+    apt-cache show "libx11-xcb1=${LIBX11_XCB1_VERSION}" |
+    sed -n 's/^Depends:.*libx11-6 (= \([^)]*\)).*/\1/p' |
+    head -1
+)"
+
+if [[ -z "${LIBX11_VERSION}" ]]; then
+    echo "Could not determine the required libx11-6 version" >&2
+    exit 1
+fi
+
+apt-get install -y -qq --allow-downgrades --no-install-recommends \
+    chromium fonts-liberation "libx11-6=${LIBX11_VERSION}" > /dev/null
 rm -rf /var/lib/apt/lists/*
 
 # The same supply-chain rules ts-sdk applies through pnpm: no dependency lifecycle scripts, and no
