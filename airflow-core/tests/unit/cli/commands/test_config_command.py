@@ -721,6 +721,23 @@ class TestCliConfigUpdate:
         backup_content = open(backup_path).read()
         assert "backup_config" in backup_content, "Backup file should contain the original content."
 
+    @pytest.mark.parametrize("option", ["local_task_job_heartbeat_sec", "task_instance_heartbeat_sec"])
+    def test_update_config_fix_removes_task_heartbeat_options(self, option, tmp_path, monkeypatch, capsys):
+        cfg_file = tmp_path / "airflow.cfg"
+        cfg_file.write_text(f"[scheduler]\n{option} = 10\n")
+        monkeypatch.setattr(config_command, "AIRFLOW_CONFIG", str(cfg_file))
+        monkeypatch.setattr(
+            conf, "as_dict", lambda *args, **kwargs: {"scheduler": {option: ("10", "airflow.cfg")}}
+        )
+        monkeypatch.setattr(conf, "write_custom_config", lambda file, **kwargs: file.write(""))
+
+        args = cli_parser.get_parser().parse_args(["config", "update", "--fix", "--all-recommendations"])
+        config_command.update_config(args)
+
+        output = capsys.readouterr().out
+        assert f"Removed 'scheduler/{option}' from configuration." in output
+        assert "Renamed" not in output
+
     @pytest.mark.parametrize(
         ("flag", "present_key", "absent_key"),
         [
