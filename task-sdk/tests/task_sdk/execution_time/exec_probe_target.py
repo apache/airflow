@@ -28,3 +28,9 @@ def exec_probe_main() -> None:
     CommsDecoder()._get_response()
     print("exec-probe-ok")
     sys.stdout.flush()
+
+
+def callback_exec_probe(value: str) -> None:
+    """Report that a callback ran after the fresh interpreter received its startup message."""
+    print(f"callback-exec-{value}")
+    sys.stdout.flush()
