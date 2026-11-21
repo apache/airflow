@@ -64,6 +64,17 @@ describe("TaskInstanceTooltip", () => {
     expect(screen.queryByRole("tooltip")).toBeNull();
   });
 
+  it("shows the hint when one is provided", () => {
+    render(
+      <TaskInstanceTooltip hint="altClickExtraLink" open>
+        <span>trigger</span>
+      </TaskInstanceTooltip>,
+      { wrapper: Wrapper },
+    );
+
+    expect(screen.getByText("altClickExtraLink")).toBeInTheDocument();
+  });
+
   it("shows state and dates for LightGridTaskInstanceSummary with both dates", () => {
     const taskInstance: LightGridTaskInstanceSummary = {
       child_states: null,

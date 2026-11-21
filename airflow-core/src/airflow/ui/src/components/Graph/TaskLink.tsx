@@ -20,13 +20,24 @@ import { forwardRef } from "react";
 
 import { useParams, useSearchParams, Link as RouterLink } from "react-router-dom";
 
+import { AltClickExtraLinks } from "src/components/AltClickExtraLinks";
 import { TaskName, type TaskNameProps } from "src/components/TaskName";
 
+import type { ExtraLink } from "src/hooks/useTaskInstanceExtraLinks";
 import { taskNodeSeparator } from "src/utils/assetGraph";
 import { setExecutionCoordinates, stripExecutionParams } from "src/utils/executionParams";
 
+const NO_EXTRA_LINKS: ReadonlyArray<ExtraLink> = [];
+
+export const parseTaskNodeId = (compositeId: string) => {
+  const match = new RegExp(`^task:(?<dagId>.*?)${taskNodeSeparator}(?<taskId>.+)$`, "u").exec(compositeId);
+
+  return match ? { dagId: match[1], taskId: match[2] } : { dagId: undefined, taskId: undefined };
+};
+
 type Props = {
   readonly dagId?: string;
+  readonly extraLinks?: ReadonlyArray<ExtraLink>;
   readonly hasTaskInstance?: boolean;
   readonly id: string;
   // A task inside a loop has one row per pass, so a link with no coordinate is ambiguous and
@@ -36,20 +47,23 @@ type Props = {
 } & TaskNameProps;
 
 export const TaskLink = forwardRef<HTMLAnchorElement, Props>(
-  ({ hasTaskInstance = true, id, isGroup, isMapped, latestRegionId, latestRegionIndex, ...rest }, ref) => {
+  (
+    {
+      extraLinks = NO_EXTRA_LINKS,
+      hasTaskInstance = true,
+      id,
+      isGroup,
+      isMapped,
+      latestRegionId,
+      latestRegionIndex,
+      ...rest
+    },
+    ref,
+  ) => {
     const { dagId: urlDagId = "", groupId, runId, taskId: urlTaskId } = useParams();
     const [searchParams] = useSearchParams();
 
-    // Extract dagId and taskId from composite ID
-    const parseCompositeId = (compositeId: string) => {
-      const match = new RegExp(`^task:(?<dagId>.*?)${taskNodeSeparator}(?<taskId>.+)$`, "u").exec(
-        compositeId,
-      );
-
-      return match ? { dagId: match[1], taskId: match[2] } : { dagId: undefined, taskId: undefined };
-    };
-
-    const { dagId: extractedDagId, taskId: extractedTaskId } = parseCompositeId(id);
+    const { dagId: extractedDagId, taskId: extractedTaskId } = parseTaskNodeId(id);
     const dagId = extractedDagId ?? urlDagId;
     const taskId = extractedTaskId ?? id;
 
@@ -62,21 +76,21 @@ export const TaskLink = forwardRef<HTMLAnchorElement, Props>(
       : includeRun && urlTaskId === taskId
         ? ""
         : `/tasks/${taskId}${isMapped && urlTaskId !== taskId && includeRun ? "/mapped" : ""}`;
+    const taskTarget = {
+      pathname: basePath + taskPath,
+      search: setExecutionCoordinates(
+        stripExecutionParams(searchParams),
+        latestRegionId,
+        latestRegionIndex,
+      ).toString(),
+    };
 
     return (
-      <RouterLink
-        ref={ref}
-        to={{
-          pathname: basePath + taskPath,
-          search: setExecutionCoordinates(
-            stripExecutionParams(searchParams),
-            latestRegionId,
-            latestRegionIndex,
-          ).toString(),
-        }}
-      >
-        <TaskName isGroup={isGroup} isMapped={isMapped} {...rest} />
-      </RouterLink>
+      <AltClickExtraLinks links={extraLinks} navigateTo={taskTarget}>
+        <RouterLink ref={ref} to={taskTarget}>
+          <TaskName isGroup={isGroup} isMapped={isMapped} {...rest} />
+        </RouterLink>
+      </AltClickExtraLinks>
     );
   },
 );
