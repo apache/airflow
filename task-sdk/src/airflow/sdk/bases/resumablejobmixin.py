@@ -36,7 +36,7 @@ tracer = trace.get_tracer(__name__)
 class ResumeDecision(NamedTuple):
     """Result of :meth:`ResumableJobMixin.get_resume_decision`."""
 
-    action: Literal["reconnect", "already_succeeded", "submit"]
+    action: Literal["reconnect", "already_succeeded", "resumed", "submit"]
     external_id: JsonValue | None = None
 
 
@@ -104,9 +104,10 @@ class ResumableJobMixin(ABC):
     # operators that are BaseOperator subclasses. That is a runtime MRO guarantee not visible in the static
     # type signature here and hence we need the type ignore.
     @BaseOperatorMeta._apply_defaults  # type: ignore[type-var]
-    def __init__(self, *, durable: bool = True, **kwargs: Any) -> None:
+    def __init__(self, *, durable: bool = True, resume_on_retry: bool = True, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self.durable = durable
+        self.resume_on_retry = resume_on_retry
 
     def execute_resumable(self, context: Context) -> Any:
         """
@@ -115,9 +116,11 @@ class ResumableJobMixin(ABC):
         On initial run: submits the job, persists the external ID to task_state_store, then polls.
 
         Behaviour on retry:
+
         - On retry with active job: skips submission, reconnects to the running job.
         - On retry with succeeded job: skips submission and polling, returns result immediately.
-        - On retry with failed job: falls through and resubmits fresh.
+        - On retry with failed job: if ``resume_on_retry`` is set, asks ``resume_failed_job`` to resume
+          it, and resubmits fresh if it returns ``None`` or raises. Otherwise resubmits fresh.
 
         Known limitation: there is a small window between ``submit_job`` returning and
         ``task_state_store.set`` completing. If the worker dies in that gap, the next retry still
@@ -135,6 +138,9 @@ class ResumableJobMixin(ABC):
             return self.poll_until_complete(decision.external_id, context)
         if decision.action == "already_succeeded":
             return self.get_job_result(decision.external_id, context)
+        if decision.action == "resumed":
+            self.poll_until_complete(decision.external_id, context)
+            return self.get_job_result(decision.external_id, context)
 
         external_id = self.submit_job(context)
         self.persist_job_id(context, external_id)
@@ -145,7 +151,9 @@ class ResumableJobMixin(ABC):
         """
         Decide whether to reconnect to the stored job, take its result, or submit a new one.
 
-        Never submits or polls, so a deferrable operator can call it before ``defer()``.
+        Never submits or polls, so a deferrable operator can call it before ``defer()``. The one
+        exception is ``"resumed"``: with ``resume_on_retry`` set and a failed stored job, it calls
+        ``resume_failed_job``, so the caller must poll the returned ID instead of submitting.
         """
         if not self.durable:
             return ResumeDecision("submit")
@@ -201,6 +209,22 @@ class ResumableJobMixin(ABC):
                 )
                 return ResumeDecision("already_succeeded", external_id)
 
+            if self.resume_on_retry:
+                resumed_id = self._resume_failed_job_safely(external_id, status, context)
+                if resumed_id is not None:
+                    span.set_attribute("resumable.decision", "resume_failed")
+                    stats.incr("resumable_job.resume_failed", tags=stats_tags)
+                    self.log.info(
+                        "Resuming failed job from where it stopped",
+                        external_id_key=self.external_id_key,
+                        external_id=external_id,
+                        resumed_id=resumed_id,
+                        status=status,
+                    )
+                    if resumed_id != external_id:
+                        task_state_store.set(self.external_id_key, resumed_id)
+                    return ResumeDecision("resumed", resumed_id)
+
             span.set_attribute("resumable.decision", "terminal_resubmit")
             stats.incr("resumable_job.terminal_resubmit", tags=stats_tags)
             self.log.warning(
@@ -224,6 +248,32 @@ class ResumableJobMixin(ABC):
             external_id_key=self.external_id_key,
             external_id=external_id,
         )
+
+    def resume_failed_job(self, external_id: JsonValue, status: str, context: Context) -> JsonValue | None:
+        """
+        Ask the external system to resume a failed job from where it stopped, instead of starting over.
+
+        Called on a retry when the stored job is in a terminal failed state. Return the ID to poll,
+        which may be the same ID (for example a Databricks run repaired in place) or a new one. Return
+        ``None`` to submit a fresh job, which is the default.
+
+        Only called when ``resume_on_retry`` is set. A cleared task reaches it only when the clear kept
+        task state, because clearing otherwise discards the stored ID.
+        """
+        return None
+
+    def _resume_failed_job_safely(self, external_id: JsonValue, status: str, context: Context) -> JsonValue:
+        try:
+            return self.resume_failed_job(external_id, status, context)
+        except Exception:
+            # A failed resume must never leave a retry worse off than resubmitting.
+            self.log.warning(
+                "Could not resume failed job, resubmitting fresh",
+                external_id_key=self.external_id_key,
+                external_id=external_id,
+                exc_info=True,
+            )
+            return None
 
     @abstractmethod
     def submit_job(self, context: Context) -> JsonValue:
