@@ -187,6 +187,17 @@ sent to the server at connection start.
     :end-before: [END postgres_sql_execute_query_operator_howto_guide_get_birth_date]
 
 
+Cancelling the running statement when the task is killed
+--------------------------------------------------------
+
+When the task instance is killed while a statement is still running, because it was marked as failed or its
+``execution_timeout`` elapsed, SQLExecuteQueryOperator cancels the statement on the server, unless
+``cancel_on_kill`` is ``False``. With ``psycopg`` (psycopg3) nothing else is needed. psycopg2 waits for the
+statement inside libpq, where Python cannot run the signal handlers that cancel it, so while a statement runs in
+the main thread of the task, PostgresHook installs a wait callback based on ``psycopg2.extras.wait_select``,
+which waits in Python instead. The wait callback is not installed when ``cancel_on_kill`` is ``False``, or when
+another wait callback (for example one for gevent) is already set.
+
 The complete Postgres Operator Dag
 ----------------------------------
 

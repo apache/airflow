@@ -503,6 +503,11 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
     :param requires_result_fetch: (optional) if True, ensures that query results are fetched before
         completing execution. If `do_xcom_push` is True, results are fetched automatically,
         making this parameter redundant.  (default: False).
+    :param cancel_on_kill: (optional) if True, the SQL statement that is still running when the task
+        instance is killed is cancelled on the database. Set it to False to let the statement run to
+        completion instead. When the ``execution_timeout`` elapses, the cursor and the connection are still
+        closed as the timeout propagates, and some drivers stop the statement at that point anyway (e.g.
+        ``trino`` cancels the query when the cursor is closed). (default: True).
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -534,6 +539,7 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
         return_last: bool = True,
         show_return_value_in_logs: bool = False,
         requires_result_fetch: bool = False,
+        cancel_on_kill: bool = True,
         **kwargs,
     ) -> None:
         super().__init__(conn_id=conn_id, database=database, **kwargs)
@@ -546,6 +552,7 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
         self.return_last = return_last
         self.show_return_value_in_logs = show_return_value_in_logs
         self.requires_result_fetch = requires_result_fetch
+        self.cancel_on_kill = cancel_on_kill
 
     def _process_output(
         self, results: list[Any], descriptions: list[Sequence[Sequence] | None]
@@ -576,6 +583,8 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
     def execute(self, context):
         self.log.info("Executing: %s", self.sql)
         hook = self.get_db_hook()
+        # The hook cancels a statement interrupted by the ``execution_timeout`` itself, before ``on_kill``
+        hook.cancel_on_interrupt = self.cancel_on_kill
         if self.split_statements is not None:
             extra_kwargs = {"split_statements": self.split_statements}
         else:
@@ -600,6 +609,32 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
         result = self._process_output(output, hook.descriptions)
         self.log.info("result: %s", result)
         return result
+
+    def on_kill(self) -> None:
+        """
+        Cancel the SQL statement that is still running when the task instance is killed.
+
+        Airflow calls this method from the ``SIGTERM`` handler of the task process, i.e. while ``execute``
+        may still be waiting in the database driver for the statement to finish (with drivers that return to
+        Python to handle signals during a statement, see ``DbApiHook.cancel_query``). Cancellation is
+        delegated to :meth:`~airflow.providers.common.sql.hooks.sql.DbApiHook.cancel_query`, so every
+        database hook can use the mechanism its driver offers. It is best effort and never raises. A
+        statement interrupted by the ``execution_timeout`` of the task is already cancelled by the hook
+        before this method is called.
+        """
+        if not self.cancel_on_kill:
+            return
+        # Only the hook that ``execute`` ran on holds the running statement. ``get_db_hook()`` could build a
+        # new hook here, with a connection lookup inside the signal handler, that has nothing to cancel.
+        hook = self.__dict__.get("_hook")
+        if hook is None:
+            self.log.info("Task instance is being killed before a SQL statement was run, nothing to cancel")
+            return
+        self.log.info("Task instance is being killed, cancelling the running SQL statement if there is one")
+        try:
+            hook.cancel_query()
+        except Exception:
+            self.log.exception("Failed to cancel the running SQL statement")
 
     def prepare_template(self) -> None:
         """Parse template file for attribute parameters."""
