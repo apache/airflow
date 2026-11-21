@@ -474,6 +474,55 @@ def test_duplicate_group_id():
                 _ = EmptyOperator(task_id="upstream_join_id")
 
 
+@pytest.mark.parametrize(
+    ("existing_group_ids", "parent_ids", "expected_group_ids"),
+    [
+        pytest.param(
+            [],
+            ["outer"],
+            ["outer.inner", "outer.inner__1", "outer.inner__2"],
+            id="one_parent",
+        ),
+        pytest.param(
+            [],
+            ["outer", "middle"],
+            ["outer.middle.inner", "outer.middle.inner__1", "outer.middle.inner__2"],
+            id="two_parents",
+        ),
+        pytest.param(
+            ["inner__7"],
+            ["outer"],
+            ["outer.inner", "outer.inner__1", "outer.inner__2"],
+            id="same_name_outside_parent_is_not_counted",
+        ),
+        pytest.param(
+            ["outer-inner__7"],
+            ["outer"],
+            ["outer.inner", "outer.inner__1", "outer.inner__2"],
+            id="dot_in_prefix_is_matched_literally",
+        ),
+    ],
+)
+def test_repeated_task_group_in_parent_gets_next_suffix(existing_group_ids, parent_ids, expected_group_ids):
+    @task_group_decorator
+    def inner():
+        EmptyOperator(task_id="work")
+
+    with DAG("test_repeated_task_group_in_parent", schedule=None, start_date=DEFAULT_DATE) as dag:
+        for group_id in existing_group_ids:
+            TaskGroup(group_id)
+
+        parent = dag.task_group
+        for parent_id in parent_ids:
+            parent = TaskGroup(parent_id, parent_group=parent)
+
+        with parent:
+            for _ in expected_group_ids:
+                inner()
+
+    assert list(parent.children) == expected_group_ids
+
+
 def test_task_without_dag():
     """
     Test that if a task doesn't have a DAG when it's being set as the relative of another task which
