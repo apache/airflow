@@ -254,7 +254,10 @@ TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
     "breeze testing providers-integration-tests": [
         TEST_OPTIONS_DB,
         TEST_ENVIRONMENT_DB,
-        INTEGRATION_TESTS,
+        {
+            **INTEGRATION_TESTS,
+            "options": [*INTEGRATION_TESTS["options"], "--elasticsearch-version", "--opensearch-version"],
+        },
         TEST_ADVANCED_FLAGS,
     ],
     "breeze testing system-tests": [

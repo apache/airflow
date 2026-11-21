@@ -301,6 +301,7 @@ representative examples (file → effect):
 | `core_api/openapi/_private_ui.yaml` (UI-only spec)     | UI compile/lint prek hooks, **no full matrix**                       | matches `UI OpenAPI files`; the UI codegen input must be type-checked, but the public contract is unchanged |
 | `chart/templates/...yaml` (on `main`)                  | `run_helm_tests` (+ PROD image)                                      | matches `HELM_FILES`; Helm tests only on `main` |
 | `task-sdk/.../task_runner.py` or `airflow-core/tests/integration/otel/...` | the `otel` core integration                       | matches `OTEL_FILES`; the otel integration tests assert the span hierarchy task_runner emits |
+| `providers/elasticsearch/pyproject.toml` (+ `uv.lock`) | the `elasticsearch` integration, once per server version             | a provider's `pyproject.toml` / `provider.yaml` runs its owning integration even though no unit tests run; versions come from `PROVIDERS_INTEGRATION_SERVER_VERSIONS` |
 | `airflow-core/src/airflow/ui/...tsx` only              | `run_ui_tests`, **no** unit tests                                    | "only new-UI files" short-circuit skips Python unit tests |
 
 The "complexity" you feel reading the code is just *many* such rules stacked up — each one on its own
@@ -838,6 +839,7 @@ GitHub Actions to pass the list of parameters to a command to execute
 | sqlite-exclude                                          | Which versions of Sqlite to exclude for tests as JSON array                                             | []                                       |      |
 | testable-core-integrations                              | List of core integrations that are testable in the build as JSON array                                  | \['celery', 'kerberos'\]                 |      |
 | testable-providers-integrations                         | List of core integrations that are testable in the build as JSON array                                  | \['mongo', 'kafka'\]                     |      |
+| testable-providers-integrations-matrix                  | Matrix entries for the providers integration jobs: one per integration, and one per server version for integrations in `PROVIDERS_INTEGRATION_SERVER_VERSIONS` (elasticsearch, opensearch) | \[{}\]                                   |      |
 | upgrade-to-newer-dependencies                           | Whether the image build should attempt to upgrade all dependencies (true/false or commit hash); false when no CI image is built | false                                    |      |
 | use-pinned-os-deps-images                               | Whether the CI and PROD image builds start from the pinned OS-dependencies images; false with the `disable image cache` label or a changed OS-dependencies script | true                                     |      |
 
