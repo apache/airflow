@@ -1,0 +1,3 @@
+Task failure and retry emails now use the sender set on the SMTP connection.
+
+``email_on_failure`` and ``email_on_retry`` passed ``[email] from_email`` (or ``airflow@airflow``) to ``SmtpNotifier``, so the ``from_email`` extra of the SMTP connection was ignored. ``SmtpNotifier`` now resolves the sender itself: an explicitly passed ``from_email``, then the connection's ``from_email`` extra, then the ``[email] from_email`` configuration. If none of the three is set it raises instead of sending from ``airflow@airflow``; for task emails that error is logged and the task is unaffected.
