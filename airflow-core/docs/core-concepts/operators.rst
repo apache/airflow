@@ -88,6 +88,7 @@ The ``context`` parameter is an Airflow's ``Context`` object that provides runti
 
 For a complete list of available context variables see :ref:`Templates reference <templates:variables>`.
 
+
 .. code-block:: python
 
     from typing import TYPE_CHECKING
@@ -316,14 +317,17 @@ Alternatively, Jinja can also be instructed to render a native Python object. Th
 Reserved params keyword
 -----------------------
 
-In Apache Airflow 2.2.0 ``params`` variable is used during Dag serialization. Please do not use that name in third party operators.
-If you upgrade your environment and get the following error:
+In Apache Airflow 2.2.0, the ``params`` variable is used during DAG
+serialization. Avoid using ``params`` as a variable name in third-party
+operators.
+
+If you upgrade your Airflow environment and encounter the following error:
 
 .. code-block::
 
     AttributeError: 'str' object has no attribute '__module__'
 
-change name from ``params`` in your operators.
+rename the ``params`` variable in your operator to avoid the conflict.
 
 Templating Conflicts with f-strings
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -355,33 +359,58 @@ This ensures the f-string processing results in a string containing the literal 
 Pre- and post-execute methods
 -----------------------------
 
-The ``pre_execute`` and ``post_execute`` methods are called before and after the operator is executed, respectively.
+The :meth:`~airflow.sdk.bases.operator.BaseOperator.pre_execute` and
+:meth:`~airflow.sdk.bases.operator.BaseOperator.post_execute` methods allow
+operators to perform actions immediately before and after task execution,
+respectively.
 
-For example, you can use the ``pre_execute`` method to elegantly determine if a task should be executed or not:
+The ``pre_execute`` method is called before the operator's ``execute`` method.
+It receives the task execution context as its ``context`` parameter. You can
+use it to perform checks or prepare resources before the task runs.
+
+The ``post_execute`` method is called after the operator's ``execute`` method.
+It receives the task execution context and the result returned by ``execute``
+through its ``result`` parameter. You can use it to process the result or
+clean up temporary resources.
+
+For example, you can use ``pre_execute`` to determine whether a task should
+be skipped:
 
 .. code-block:: python
 
+    from typing import Any
+
+    from airflow.exceptions import AirflowSkipException
+    from airflow.sdk import Variable, task
+
+
     def _check_skipped(context: Any) -> None:
         """
-        Check if a given task instance should be skipped if the `tasks_to_skip` Airflow Variable is a list that contains the task id.
+        Check if a task instance should be skipped when its task ID is
+        included in the tasks_to_skip Airflow Variable.
         """
         tasks_to_skip = Variable.get("tasks_to_skip", deserialize_json=True)
-        if context["task"].task_id in on_ice:
-            raise AirflowSkipException("Task instance configured to be skipped by `tasks_to_skip` variable.")
+        if context["task"].task_id in tasks_to_skip:
+            raise AirflowSkipException(
+                "Task instance configured to be skipped by tasks_to_skip variable."
+            )
 
 
     @task(pre_execute=_check_skipped)
     def test():
         """
-        This task will be skipped if the `tasks_to_skip` Airflow Variable is set and contains the task id.
+        This task will be skipped if the tasks_to_skip Airflow Variable
+        contains its task ID.
         """
         ...
 
-``post_execute`` can be used to clean up a temporary file or directory that was created by the operator.
-
-The ``pre_execute`` and ``post_execute`` methods include the task instance's context as a parameter.
+``post_execute`` can be used to process the result of a task or clean up
+temporary files and directories created during execution.
 
 Difference between pre-/post-execute and setup/teardown
 -------------------------------------------------------
 
-The ``pre_execute`` and ``post_execute`` methods are called before and after the operator is executed at the individual task instance level. Setup and teardown are special tasks that are used to before setup or cleanup operations before and after multiple task instances are executed within a Dag run.
+The ``pre_execute`` and ``post_execute`` methods are called before and after
+an operator is executed for an individual task instance. Setup and teardown
+are special tasks used to perform setup and cleanup operations before and
+after multiple task instances are executed within a DAG run.
