@@ -1621,11 +1621,26 @@ export type DryRunBackfillResponse = {
 };
 
 /**
- * Event Log Collection Response.
+ * Event Log collection response supporting both offset and cursor pagination.
  */
 export type EventLogCollectionResponse = {
     event_logs: Array<EventLogResponse>;
+    /**
+     * Number of matching items. For offset pagination this is the exact total. For cursor pagination it is capped at ``total_entries_limit``; a value equal to that limit means at least that many items match.
+     */
     total_entries: number;
+    /**
+     * Cap applied to ``total_entries`` under cursor pagination. ``null`` for offset pagination, where ``total_entries`` is exact.
+     */
+    total_entries_limit?: number | null;
+    /**
+     * Token pointing to the next page. Populated for cursor pagination, ``null`` when using offset pagination or when there is no next page.
+     */
+    next_cursor?: string | null;
+    /**
+     * Token pointing to the previous page. Populated for cursor pagination, ``null`` when using offset pagination or when on the first page.
+     */
+    previous_cursor?: string | null;
 };
 
 /**
@@ -2978,6 +2993,49 @@ export type XComUpdateBody = {
 };
 
 /**
+ * Partition keys of an asset with their status.
+ */
+export type AssetPartitionCollectionResponse = {
+    partitions: Array<AssetPartitionResponse>;
+    total_entries: number;
+    status_counts: AssetPartitionStatusCounts;
+};
+
+/**
+ * The latest run of a producing Dag for one partition key.
+ */
+export type AssetPartitionProducerRunResponse = {
+    dag_id: string;
+    run_id: string;
+    state: DagRunState;
+    start_date: string | null;
+    end_date: string | null;
+};
+
+/**
+ * Status of one partition key of an asset.
+ */
+export type AssetPartitionResponse = {
+    partition_key: string;
+    status: 'materialized' | 'in_progress' | 'failed';
+    last_event_id: number | null;
+    last_event_timestamp: string | null;
+    last_producer_run: AssetPartitionProducerRunResponse | null;
+    consumer_runs: Array<DagRunAssetReference>;
+};
+
+export type status = 'materialized' | 'in_progress' | 'failed';
+
+/**
+ * Number of partition keys per status.
+ */
+export type AssetPartitionStatusCounts = {
+    materialized?: number;
+    in_progress?: number;
+    failed?: number;
+};
+
+/**
  * Authenticated user information serializer for responses.
  */
 export type AuthenticatedMeResponse = {
@@ -3572,7 +3630,7 @@ export type LoopRunSummary = {
     loop_region_id?: string | null;
 };
 
-export type status = 'running' | 'stopped_early' | 'ran_to_cap' | 'failed' | 'skipped' | 'removed';
+export type status2 = 'running' | 'stopped_early' | 'ran_to_cap' | 'failed' | 'skipped' | 'removed';
 
 /**
  * Runtime state of one loop invocation.
@@ -4061,6 +4119,17 @@ export type NextRunAssetsData = {
 };
 
 export type NextRunAssetsResponse2 = NextRunAssetsResponse;
+
+export type GetAssetPartitionsData = {
+    assetId: number;
+    limit?: number;
+    offset?: number;
+    orderBy?: string;
+    partitionKeyPattern?: string | null;
+    status?: Array<('materialized' | 'in_progress' | 'failed')> | null;
+};
+
+export type GetAssetPartitionsResponse = AssetPartitionCollectionResponse;
 
 export type ListBackfillsData = {
     dagId: string;
@@ -4775,6 +4844,10 @@ export type GetEventLogResponse = EventLogResponse;
 export type GetEventLogsData = {
     after?: string | null;
     before?: string | null;
+    /**
+     * Cursor for keyset-based pagination. Pass an empty string for the first page, then use ``next_cursor`` from the response. When ``cursor`` is provided, ``offset`` is ignored.
+     */
+    cursor?: string | null;
     dagId?: string | null;
     /**
      * Case-insensitive substring match (SQL `ILIKE`). Slower than `dag_id_prefix_pattern` on large tables — see "Filtering with pattern parameters".
@@ -6508,6 +6581,29 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: NextRunAssetsResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/ui/assets/{asset_id}/partitions': {
+        get: {
+            req: GetAssetPartitionsData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: AssetPartitionCollectionResponse;
+                /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
                 /**
                  * Not Found
                  */

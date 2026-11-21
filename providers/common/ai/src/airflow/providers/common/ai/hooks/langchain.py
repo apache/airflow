@@ -48,7 +48,7 @@ class LangChainHook(BaseHook):
       embedding-model vendor based on the model identifier.
 
     Both identifiers use the ``provider:name`` format
-    (e.g. ``"openai:gpt-5"``, ``"openai:text-embedding-3-small"``). The hook
+    (e.g. ``"openai:gpt-6.1-sol"``, ``"openai:text-embedding-3-small"``). The hook
     forwards the connection's password as ``api_key`` and its host as
     ``base_url``, so any provider whose LangChain class accepts those two
     keyword arguments works (OpenAI, Anthropic, Groq, Mistral AI, Ollama,
@@ -59,7 +59,7 @@ class LangChainHook(BaseHook):
 
     * **password**: API key passed as ``api_key=`` to the model constructor.
     * **host**: Optional base URL passed as ``base_url=`` (custom endpoints, Ollama, vLLM).
-    * **extra** JSON: ``{"model": "openai:gpt-5", "embed_model": "openai:text-embedding-3-small"}``
+    * **extra** JSON: ``{"model": "openai:gpt-6.1-sol", "embed_model": "openai:text-embedding-3-small"}``
       -- default chat and embedding model identifiers.
 
     :param llm_conn_id: Airflow connection ID for the LLM provider. Falls back
@@ -69,7 +69,7 @@ class LangChainHook(BaseHook):
         the common case of one provider for both chat and embeddings stays a
         single hook instance.
     :param llm_model: Chat model identifier in ``provider:name`` format
-        (e.g. ``"openai:gpt-5"``, ``"anthropic:claude-sonnet-5"``).
+        (e.g. ``"openai:gpt-6.1-sol"``, ``"anthropic:claude-sonnet-5"``).
         Overrides ``extra["model"]`` on the connection. Passing it positionally
         (1.0.0 order: ``llm_model, embed_model``) is deprecated.
     :param embed_model: Embedding model identifier in ``provider:name`` format
@@ -144,7 +144,7 @@ class LangChainHook(BaseHook):
             "relabeling": {"password": "API Key"},
             "placeholders": {
                 "host": "https://api.openai.com/v1 (optional, for custom endpoints / Ollama)",
-                "extra": '{"model": "openai:gpt-5", "embed_model": "openai:text-embedding-3-small"}',
+                "extra": '{"model": "openai:gpt-6.1-sol", "embed_model": "openai:text-embedding-3-small"}',
             },
         }
 

@@ -119,7 +119,7 @@ def llm_batch_task(
 
         @task.llm_batch(
             llm_conn_id="pydanticai_default",
-            model_id="openai:gpt-5",
+            model_id="openai:gpt-6.1-sol",
             result_path="s3://bucket/prefix/{{ run_id }}",
         )
         def build_prompts(rows: list[str]) -> list[str]:
@@ -129,7 +129,7 @@ def llm_batch_task(
 
         @task.llm_batch(
             llm_conn_id="pydanticai_default",
-            model_id="openai:gpt-5",
+            model_id="openai:gpt-6.1-sol",
             result_path="s3://bucket/prefix/{{ run_id }}",
             output_type=Diagnosis,
         )

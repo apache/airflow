@@ -945,6 +945,8 @@ banned-module-level-imports = ["numpy", "pandas", "polars"]
 "airflow.AirflowException".msg = "Use airflow.exceptions.AirflowException instead."
 
 # Deprecated imports
+"airflow.utils.operator_helpers.KeywordParameters".msg = "Use airflow.providers.common.compat.sdk.KeywordParameters or airflow.sdk.bases.decorator.KeywordParameters"
+"airflow.utils.operator_helpers.determine_kwargs".msg = "Use airflow.providers.common.compat.sdk.determine_kwargs or airflow.sdk.bases.decorator.determine_kwargs"
 "airflow.models.errors.ImportError".msg = "Use airflow.models.errors.ParseImportError"
 "airflow.models.ImportError".msg = "Use airflow.models.errors.ParseImportError"
 
@@ -1032,6 +1034,7 @@ filterwarnings = [
     # Avoid building cartesian product which might impact performance
     "error:SELECT statement has a cartesian product between FROM:sqlalchemy.exc.SAWarning:airflow",
     'error:Coercing Subquery object into a select\(\) for use in IN\(\):sqlalchemy.exc.SAWarning:airflow',
+    'error:implicitly coercing SELECT object to scalar subquery:sqlalchemy.exc.SAWarning:airflow',
     'error:Class.*will not make use of SQL compilation caching',
     "ignore::DeprecationWarning:flask_appbuilder.filemanager",
     "ignore::DeprecationWarning:flask_appbuilder.widgets",

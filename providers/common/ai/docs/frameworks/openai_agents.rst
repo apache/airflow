@@ -89,7 +89,7 @@ Then build the agent as you would without Airflow, with the toolset's tools in
 
     agent = Agent(
         name="analyst",
-        model="gpt-5-mini",
+        model="gpt-6.1-terra",
         instructions="Use list_tables, get_schema and query to answer.",
         tools=AirflowTools(SQLToolset(db_conn_id="crm")),
     )
@@ -335,7 +335,7 @@ destroys the sandbox when the block ends. A call outside the block fails with
     from airflow.providers.common.ai.toolsets import SandboxToolset
 
     with SandboxToolset(ModalSandboxBackend()) as sandbox:
-        agent = Agent(name="coder", model="gpt-5-mini", tools=AirflowTools(sandbox))
+        agent = Agent(name="coder", model="gpt-6.1-terra", tools=AirflowTools(sandbox))
         answer = Runner.run_sync(agent, "Plot last month's signups.").final_output
 
 See :ref:`sandbox-other-frameworks` for the backends and what the sandbox contains.
@@ -432,7 +432,7 @@ next to the toolsets:
         function=lookup_customer,
     )
     warehouse = SQLToolset(db_conn_id="warehouse")
-    agent = Agent(name="support", model="gpt-5-mini", tools=AirflowTools(warehouse, lookup))
+    agent = Agent(name="support", model="gpt-6.1-terra", tools=AirflowTools(warehouse, lookup))
 
 Return ``ToolResult(content=..., is_error=True)`` for a failure the model can correct,
 and raise for anything else. An ``AirflowTool`` you build has no retry limit of its own,
@@ -457,12 +457,12 @@ pass ``failure_error_function=None``:
 
     analyst = Agent(
         name="analyst",
-        model="gpt-5-mini",
+        model="gpt-6.1-terra",
         tools=AirflowTools(SQLToolset(db_conn_id="warehouse")),
     )
     lead = Agent(
         name="lead",
-        model="gpt-5-mini",
+        model="gpt-6.1-terra",
         tools=[analyst.as_tool("ask_analyst", "Ask the SQL analyst.", failure_error_function=None)],
     )
 
@@ -705,10 +705,9 @@ Things to know:
   a ``session``, when the call is made by an agent used through ``as_tool`` or reached
   through ``handoff()``, or when the approval is for a hosted MCP tool
   (``HostedMCPTool``). After you remove the approval requirement, clearing the task with
-  its task state kept (``keep_task_state``, or clearing the whole Dag run) replays the turns
-  before that call and asks the model again from there, so a tool call made in that same
-  answer runs again if the model asks for it. A clear that discards the task state starts
-  the agent over.
+  its task state kept replays the turns before that call and asks the model again from
+  there, so a tool call made in that same answer runs again if the model asks for it. A
+  clear that discards the task state starts the agent over (see :ref:`durable-clear`).
 - Every pause carries the answers the task has received so far, so keep the approvals one
   run asks for to a handful.
 
