@@ -94,6 +94,8 @@ BIGQUERY_LEGACY_SQL_DEFAULT_WARNING = (
 
 LABEL_REGEX = re.compile(r"^[\w-]{0,63}$")
 
+_RESULT_POLL_TIMEOUT = 120.0
+
 
 def _resolve_use_legacy_sql(use_legacy_sql: bool | ArgNotSet) -> bool:
     if is_arg_set(use_legacy_sql):
@@ -2653,7 +2655,18 @@ class BigQueryInsertJobOperator(
         # self._job is set by whichever of submit_job / get_job_status last obtained it,
         # never fetched again here, since neither of those calls skip setting it.
         job = self._job
-        job.result(timeout=self.result_timeout, retry=self.result_retry)
+        if self.result_timeout is not None:
+            job.result(timeout=self.result_timeout, retry=self.result_retry)
+        else:
+            # ``timeout=None`` removes python-bigquery's request timeout, so a ``getQueryResults``
+            # response that never arrives blocks the task forever. Wait in bounded slices instead.
+            # https://github.com/googleapis/google-cloud-python/issues/18857
+            while True:
+                try:
+                    job.result(timeout=_RESULT_POLL_TIMEOUT, retry=self.result_retry)
+                    break
+                except TimeoutError:
+                    continue
         self._handle_job_error(job)
 
     def get_job_result(self, external_id: JsonValue, context: Any) -> None:
