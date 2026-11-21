@@ -45,9 +45,10 @@ from airflow.models.dag_version import DagVersion
 from airflow.models.dagbag import DBDagBag
 from airflow.models.dynamic_region import SENTINEL_REGION_ID, DynamicRegion
 from airflow.models.serialized_dag import SerializedDagModel
+from airflow.models.xcom import EXTERNAL_CLEAR_TARGET_XCOM_KEY, XComModel
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.python import PythonOperator
-from airflow.sdk import DAG as SdkDAG, BaseOperator, task_group
+from airflow.sdk import DAG as SdkDAG, BaseOperator, ExternalClearTarget, task_group
 from airflow.sdk.definitions._internal.loop import create_loop
 from airflow.serialization.serialized_objects import DagSerialization, LazyDeserializedDAG
 from airflow.utils.session import create_session
@@ -57,6 +58,7 @@ from airflow.utils.types import DagRunTriggeredByType, DagRunType
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.dag import sync_dag_to_db
 from tests_common.test_utils.db import clear_db_runs, parse_and_sync_to_db
+from tests_common.test_utils.mock_operators import MockOperator
 from unit.dag_processing.fake_lang_sdk import fake_coordinator, write_native_file
 
 if TYPE_CHECKING:
@@ -841,7 +843,9 @@ class TestCliTasks:
         self, mock_clear_dags, capsys, extra_args, clear_dags_result, expected_stdout
     ):
         mock_clear_dags.return_value = clear_dags_result
-        args = self.parser.parse_args(["tasks", "clear", "example_bash_operator", *extra_args])
+        args = self.parser.parse_args(
+            ["tasks", "clear", "example_bash_operator", "--exclude-dependent-dags", *extra_args]
+        )
         task_command.task_clear(args)
 
         assert capsys.readouterr().out == expected_stdout
@@ -902,6 +906,110 @@ def test_cli_list_tasks_of_a_native_dag(mock_manager, mock_run, tmp_path):
         task_command.task_list(args)
 
     assert stdout.getvalue().splitlines()[-2:] == ["extract", "load"]
+
+
+class TestTaskClearDependentDags:
+    LOGICAL_DATE = timezone.datetime(2026, 10, 1)
+
+    @pytest.fixture(autouse=True)
+    def _clean(self):
+        clear_db_runs()
+        yield
+        clear_db_runs()
+
+    @pytest.fixture
+    def linked_runs(self, dag_maker, session):
+        """A parent run whose ``mark`` recorded a target in a child run: ``wait >> load``."""
+        with dag_maker("child", serialized=True):
+            MockOperator(task_id="wait") >> MockOperator(task_id="load")
+        child_run = dag_maker.create_dagrun(logical_date=self.LOGICAL_DATE, state=State.SUCCESS)
+        with dag_maker("parent", serialized=True):
+            MockOperator(task_id="mark")
+        parent_run = dag_maker.create_dagrun(logical_date=self.LOGICAL_DATE, state=State.SUCCESS)
+        for ti in [
+            *child_run.get_task_instances(session=session),
+            *parent_run.get_task_instances(session=session),
+        ]:
+            ti.state = State.SUCCESS
+        XComModel.set_for_attempt(
+            task_instance_id=parent_run.get_task_instance("mark", session=session).id,
+            key=EXTERNAL_CLEAR_TARGET_XCOM_KEY,
+            value=ExternalClearTarget(
+                dag_id="child", task_id="wait", logical_date=self.LOGICAL_DATE
+            ).serialize(),
+            session=session,
+        )
+        session.commit()
+        return parent_run, child_run
+
+    @staticmethod
+    def _states(session):
+        session.expire_all()
+        return {
+            (ti.dag_id, ti.task_id): ti.state
+            for ti in session.scalars(
+                select(TaskInstance).where(TaskInstance.dag_id.in_(["parent", "child"]))
+            )
+        }
+
+    @pytest.mark.parametrize(
+        ("extra_args", "child_state"),
+        [
+            pytest.param([], None, id="follows-targets"),
+            pytest.param(["--exclude-dependent-dags"], State.SUCCESS, id="opt-out"),
+        ],
+    )
+    def test_clears_the_tasks_the_cleared_tasks_point_at(self, linked_runs, session, extra_args, child_state):
+        args = cli_parser.get_parser().parse_args(["tasks", "clear", "parent", "--yes", *extra_args])
+
+        task_command.task_clear(args)
+
+        assert self._states(session) == {
+            ("parent", "mark"): None,
+            ("child", "wait"): child_state,
+            ("child", "load"): child_state,
+        }
+
+    def test_the_prompt_lists_the_dependent_dag_tasks(self, linked_runs, session):
+        args = cli_parser.get_parser().parse_args(["tasks", "clear", "parent"])
+
+        with mock.patch("airflow.cli.commands.task_command.ask_yesno", return_value=False) as ask:
+            task_command.task_clear(args)
+
+        (question,) = ask.call_args.args
+        assert question.startswith("You are about to delete these 3 tasks:")
+        assert set(self._states(session).values()) == {State.SUCCESS}
+
+    def test_reports_targets_deeper_than_the_recursion_depth(self, linked_runs, dag_maker, session):
+        parent_run, child_run = linked_runs
+        with dag_maker("grandchild", serialized=True):
+            MockOperator(task_id="wait")
+        dag_maker.create_dagrun(logical_date=self.LOGICAL_DATE)
+        for ti, target in (
+            (
+                child_run.get_task_instance("load", session=session),
+                ExternalClearTarget(dag_id="grandchild", task_id="wait", logical_date=self.LOGICAL_DATE),
+            ),
+            (
+                parent_run.get_task_instance("mark", session=session),
+                ExternalClearTarget(
+                    dag_id="child", task_id="wait", logical_date=self.LOGICAL_DATE, recursion_depth=1
+                ),
+            ),
+        ):
+            XComModel.set_for_attempt(
+                task_instance_id=ti.id,
+                key=EXTERNAL_CLEAR_TARGET_XCOM_KEY,
+                value=target.serialize(),
+                session=session,
+            )
+        session.commit()
+        args = cli_parser.get_parser().parse_args(["tasks", "clear", "parent", "--yes"])
+
+        with pytest.raises(SystemExit, match="more than 1 levels"):
+            task_command.task_clear(args)
+
+        assert self._states(session)["parent", "mark"] == State.SUCCESS
 
 
 class TestLogsfromTaskRunCommand:

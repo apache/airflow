@@ -74,6 +74,7 @@ if TYPE_CHECKING:
 
     from sqlalchemy.orm.session import Session
 
+    from airflow.api_fastapi.core_api.services.public.task_instances import DependentClear
     from airflow.dag_processing.dagbag import BaggedDAG
     from airflow.sdk import Context
     from airflow.sdk.types import Operator as SdkOperator
@@ -615,7 +616,10 @@ def task_clear(args) -> None:
                     include_upstream=args.upstream,
                 )
 
-    if not args.yes:
+    dependent_clears: list[DependentClear] = []
+    # The targets in other Dags are read from the selected tasks, so they are looked up before
+    # anything is cleared.
+    if not args.yes or not args.exclude_dependent_dags:
         tis = SerializedDAG.clear_dags(
             dags,
             start_date=args.start_date,
@@ -627,7 +631,14 @@ def task_clear(args) -> None:
         if not tis:
             print("Nothing to clear.")
             return
-        if not ask_yesno(f"You are about to delete these {len(tis)} tasks:\n{tis}\n\nAre you sure? [y/n]"):
+        if not args.exclude_dependent_dags:
+            dependent_clears = _find_dependent_clears(
+                tis, only_failed=args.only_failed, only_running=args.only_running
+            )
+            tis = [*tis, *(ti for clear in dependent_clears for ti in clear.task_instances)]
+        if not args.yes and not ask_yesno(
+            f"You are about to delete these {len(tis)} tasks:\n{tis}\n\nAre you sure? [y/n]"
+        ):
             print("Cancelled, nothing was cleared.")
             return
 
@@ -641,3 +652,39 @@ def task_clear(args) -> None:
     )
     if not cleared:
         print("Nothing to clear.")
+    if dependent_clears:
+        with create_session() as session:
+            for clear in dependent_clears:
+                clear.dag.clear(
+                    task_ids=sorted(clear.task_ids),
+                    run_id=clear.run_id,
+                    only_failed=args.only_failed,
+                    only_running=args.only_running,
+                    exclude_task_ids=clear.exclude_task_ids,
+                    keep_task_state=args.keep_task_state,
+                    session=session,
+                )
+
+
+def _find_dependent_clears(
+    tis: list[TaskInstance], *, only_failed: bool, only_running: bool
+) -> list[DependentClear]:
+    """Find what the REST API and the UI would also clear in other Dags for these task instances."""
+    from airflow.api_fastapi.core_api.services.public.task_instances import (
+        ExternalClearDepthExceeded,
+        find_dependent_clears,
+    )
+
+    with create_session() as session:
+        try:
+            return find_dependent_clears(
+                tis,
+                dag_bag=DBDagBag(),
+                # The CLI works on the database directly and has no user to check Dag access for.
+                can_clear=lambda dag_id: True,
+                only_failed=only_failed,
+                only_running=only_running,
+                session=session,
+            )
+        except ExternalClearDepthExceeded as e:
+            raise SystemExit(str(e))

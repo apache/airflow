@@ -274,6 +274,9 @@ You can also clear the task through CLI using ``airflowctl tasks clear``, or the
         --end-date END_DATE
 
 For the specified ``dag_id`` and time interval, the command clears all instances of the tasks matching the regex.
+It also clears the tasks in other Dags that the cleared tasks point at, for example with an
+``ExternalTaskMarker``, and their downstream tasks. Pass ``--exclude-dependent-dags`` to keep the
+clear inside the selected Dags.
 For more options, you can check the help of the `clear command <../cli-and-env-variables-ref.html#clear>`_ :
 
 .. code-block:: bash
