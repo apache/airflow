@@ -16,10 +16,31 @@
 # under the License.
 from __future__ import annotations
 
-import pytest
-from pydantic import ValidationError
+from datetime import datetime
 
-from airflow.api_fastapi.common.types import OklchColor, Theme, ThemeColors
+import pytest
+from pydantic import JsonValue, TypeAdapter, ValidationError, create_model
+
+from airflow.api_fastapi.common.types import DecodedJsonValue, OklchColor, Theme, ThemeColors
+
+
+class TestDecodedJsonValue:
+    @pytest.mark.parametrize("value", [[1, "two", None], {"a": [1.5, {"b": True}]}])
+    def test_validation_returns_decoded_containers_unchanged(self, value):
+        assert TypeAdapter(DecodedJsonValue).validate_python(value) is value
+
+    @pytest.mark.filterwarnings("error:Pydantic serializer warnings:UserWarning")
+    def test_serialization_skips_the_json_value_checks(self):
+        # Plain JsonValue gives the same output, but warns that a datetime is none of its members.
+        assert TypeAdapter(DecodedJsonValue).dump_python({"at": datetime(2026, 1, 1)}, mode="json") == {
+            "at": "2026-01-01T00:00:00"
+        }
+
+    @pytest.mark.parametrize("mode", ["validation", "serialization"])
+    def test_model_field_publishes_the_json_value_schema(self, mode):
+        decoded = create_model("Model", value=(DecodedJsonValue, ...)).model_json_schema(mode=mode)
+        plain = create_model("Model", value=(JsonValue, ...)).model_json_schema(mode=mode)
+        assert decoded == plain
 
 
 class TestOklchColor:
