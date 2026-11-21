@@ -680,8 +680,8 @@ class FabAuthManager(BaseAuthManager[User]):
         fab_action = get_fab_action_from_method_map().get(method)
         resources = set()
         for action, resource in self._get_user_permissions(user):
-            if action == fab_action and resource.startswith(permissions.RESOURCE_DAG_PREFIX):
-                resources.add(resource[len(permissions.RESOURCE_DAG_PREFIX) :])
+            if action == fab_action and resource.startswith(RESOURCE_DAG_PREFIX):
+                resources.add(resource[len(RESOURCE_DAG_PREFIX) :])
         return set(session.scalars(select(DagModel.dag_id).where(DagModel.dag_id.in_(resources))))
 
     @provide_session
