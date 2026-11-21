@@ -82,6 +82,8 @@ if TYPE_CHECKING:
     from typing import TypeAlias
 
     from dateutil.relativedelta import relativedelta
+    from sqlalchemy import Select
+    from sqlalchemy.ext.asyncio import AsyncSession
     from sqlalchemy.orm.state import InstanceState
     from sqlalchemy.sql.elements import ColumnElement
 
@@ -896,17 +898,34 @@ class DagModel(Base):
         )
 
     @staticmethod
-    @cached(_team_name_cache, key=lambda dag_id, **_: dag_id, lock=_team_name_cache_lock)
-    @provide_session
-    def get_team_name(dag_id: str, *, session: Session = NEW_SESSION) -> str | None:
-        """Return the team name associated to a Dag or None if it is not owned by a specific team."""
-        stmt = (
+    def _build_team_name_query(dag_id: str) -> Select[tuple[str]]:
+        return (
             select(Team.name)
             .join(DagBundleModel.teams)
             .join(DagModel, DagModel.bundle_name == DagBundleModel.name)
             .where(DagModel.dag_id == dag_id)
         )
-        return session.scalar(stmt)
+
+    @staticmethod
+    @cached(_team_name_cache, key=lambda dag_id, **_: dag_id, lock=_team_name_cache_lock)
+    @provide_session
+    def get_team_name(dag_id: str, *, session: Session = NEW_SESSION) -> str | None:
+        """Return the team name associated to a Dag or None if it is not owned by a specific team."""
+        return session.scalar(DagModel._build_team_name_query(dag_id))
+
+    @staticmethod
+    async def get_team_name_async(dag_id: str, *, session: AsyncSession) -> str | None:
+        """Return the team name of a Dag like :meth:`get_team_name`, sharing its cache."""
+        # The lock is a threading.Lock: held across the await, it would deadlock the next coroutine
+        # on this event loop that looks up a team name.
+        with _team_name_cache_lock:
+            try:
+                return _team_name_cache[dag_id]
+            except KeyError:
+                pass
+        team_name = await session.scalar(DagModel._build_team_name_query(dag_id))
+        with _team_name_cache_lock:
+            return _team_name_cache.setdefault(dag_id, team_name)
 
     @staticmethod
     @provide_session
