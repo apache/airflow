@@ -143,7 +143,7 @@ repos:
         name: Add license for all Python files
         env:
           PYTHONPYCACHEPREFIX: .build/pycache
-        exclude: ^\.github/.*$|^.*/_vendor/.*$|^airflow-ctl/.*/.*generated\.py$
+        exclude: ^\.github/.*$|^.*/_vendor/.*$|^airflow-ctl/.*/.*generated\.py$|^providers/apache/hbase/src/airflow/providers/apache/hbase/hbase_thrift2_generated/
         files: \.py$|\.pyi$
         args:
           - --comment-style
@@ -1248,6 +1248,7 @@ repos:
           ^providers/.*/get_provider_info\.py$|
           ^providers/.*/provider\.yaml$|
           ^providers/apache/cassandra/src/airflow/providers/apache/cassandra/hooks/cassandra\.py$|
+          ^providers/apache/hbase/src/airflow/providers/apache/hbase/hbase_thrift2_generated/|
           ^providers/apache/hdfs/docs/connections\.rst$|
           ^providers/apache/hive/src/airflow/providers/apache/hive/operators/hive_stats\.py$|
           ^providers/apache/hive/src/airflow/providers/apache/hive/transfers/vertica_to_hive\.py$|

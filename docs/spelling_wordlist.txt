@@ -64,6 +64,7 @@ allowlists
 allUsers
 alphanumerics
 amazonaws
+amd
 amqp
 analyse
 Analytics
@@ -228,6 +229,7 @@ busybox
 bytestring
 cacert
 Cadwyn
+caf
 callables
 callsite
 camelCase
@@ -609,6 +611,7 @@ EmrAddSteps
 EmrCreateJobFlow
 enableAutoScale
 enablement
+Enalbe
 encodable
 encryptor
 endian
@@ -815,6 +818,7 @@ Hashicorp
 hashicorp
 hashlib
 hasn
+hbase
 HCatalog
 hdd
 hdfs
@@ -1531,6 +1535,7 @@ responder
 reStructuredText
 resultset
 resumable
+retrun
 retryable
 Reusability
 rfc

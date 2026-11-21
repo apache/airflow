@@ -322,6 +322,7 @@ www-hash.txt
 
 # Generated files
 *generated.*
+/providers/apache/hbase/src/airflow/providers/apache/hbase/hbase_thrift2_generated/*
 /src/airflow/providers/keycloak/auth_manager/openapi/v2-keycloak-auth-manager-generated.yaml
 /src/airflow/providers/edge3/plugins/www/*
 /src/airflow/providers/edge3/worker_api/v2-edge-generated.yaml
