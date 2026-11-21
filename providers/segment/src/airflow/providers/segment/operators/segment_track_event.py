@@ -70,4 +70,4 @@ class SegmentTrackEventOperator(BaseOperator):
             self.properties,
         )
 
-        hook.track(user_id=self.user_id, event=self.event, properties=self.properties)  # type: ignore
+        hook.get_conn().track(user_id=self.user_id, event=self.event, properties=self.properties)
