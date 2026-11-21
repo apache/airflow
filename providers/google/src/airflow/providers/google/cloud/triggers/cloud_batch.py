@@ -20,12 +20,36 @@ import asyncio
 from collections.abc import AsyncIterator, Sequence
 from typing import Any
 
+from google.api_core.exceptions import (
+    Aborted,
+    DeadlineExceeded,
+    GatewayTimeout,
+    InternalServerError,
+    ResourceExhausted,
+    RetryError,
+    ServiceUnavailable,
+)
 from google.cloud.batch_v1 import Job, JobStatus
 
 from airflow.providers.google.cloud.hooks.cloud_batch import CloudBatchAsyncHook
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 DEFAULT_BATCH_LOCATION = "us-central1"
+
+# gRPC errors that indicate a transient failure of the Cloud Batch API rather than a terminal
+# state of the job. The default retry of ``BatchServiceAsyncClient.get_job`` only covers
+# ServiceUnavailable, so the others would otherwise fail the deferred task while the job keeps
+# running, and the task-level retry would submit the job again.
+_RETRYABLE_GRPC_EXCEPTIONS = (
+    ServiceUnavailable,  # 503 / UNAVAILABLE
+    InternalServerError,  # 500 / INTERNAL
+    DeadlineExceeded,  # 504 / DEADLINE_EXCEEDED
+    GatewayTimeout,  # 504 / gateway timeout
+    ResourceExhausted,  # 429 / RESOURCE_EXHAUSTED
+    Aborted,  # ABORTED
+    # get_job's default retry wraps a ServiceUnavailable that outlasts its 60s deadline in RetryError.
+    RetryError,
+)
 
 
 class CloudBatchJobFinishedTrigger(BaseTrigger):
@@ -98,7 +122,20 @@ class CloudBatchJobFinishedTrigger(BaseTrigger):
         hook = self._get_async_hook()
         try:
             while timeout is None or timeout > 0:
-                job: Job = await hook.get_batch_job(job_name=self.job_name)
+                try:
+                    job: Job = await hook.get_batch_job(job_name=self.job_name)
+                except _RETRYABLE_GRPC_EXCEPTIONS as e:
+                    self.log.warning(
+                        "Transient error from Cloud Batch get_job (%s). Retrying... (%s)",
+                        type(e).__name__,
+                        e,
+                    )
+                    if timeout is not None:
+                        timeout -= self.polling_period_seconds
+
+                    if timeout is None or timeout > 0:
+                        await asyncio.sleep(self.polling_period_seconds)
+                    continue
 
                 status: JobStatus.State = job.status.state
                 if status == JobStatus.State.SUCCEEDED:
