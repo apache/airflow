@@ -241,7 +241,9 @@ However, you can also look at other non-performance-related scheduler configurat
 - :ref:`config:scheduler__max_dagruns_per_loop_to_schedule`
 
   How many DagRuns should a scheduler examine (and lock) when scheduling
-  and queuing tasks. Increasing this limit will allow more throughput for
+  and queuing tasks. The scheduler also examines up to this many more
+  running DagRuns that have a task instance finished since they were last
+  examined. Increasing this limit will allow more throughput for
   smaller Dags but will likely slow down throughput for larger (>500
   tasks for example) Dags. Setting this too high when using multiple
   schedulers could also lead to one scheduler taking all the Dag runs
