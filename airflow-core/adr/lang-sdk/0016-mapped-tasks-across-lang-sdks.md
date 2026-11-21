@@ -198,21 +198,16 @@ the call does not set it through `partial()` or `expand()`. `"default": null` is
 or its equivalent in the runtime's language, not a missing default: a parameter that defaults to
 `None` is common in Python. So a writer emits `default` whenever the server may read it, `null`
 included, a reader tells the two cases apart by the key and not by its value, and anything that
-reads and rewrites an entry keeps the key's presence. For a stub paired with a task handler, only
-the stub's default counts. One declared only in the handler does not, even where the two are written
-in the same language, because the stub is the signature the call is checked against. A Dag
-definition's own task has no stub, so its handler is the signature and its defaults apply, which the
-`kwargs` entry below relies on.
+reads and rewrites an entry keeps the key's presence. Which signature's default counts is in
+*Which signature a call is checked against* below.
 
 `expand_kwargs()` is the one form that needs every parameter's real name when the Dag is written,
 because each instance's dict is matched against `name` by key. A stub always has them. A Dag
 definition's own task may not: a TypeScript handler's argument type is erased, so a call whose dicts
 come from an upstream names no keys. Such a task writes a single `kwargs` entry in place of a `param`
 per expanded parameter. The server still picks this index's dict, and the runtime spreads it into the
-handler's arguments beside the `partial()` ones. A key the dict leaves out takes the handler's own
-default; a key `partial()` also sets fails the instance, as Python's `mapping already partial` does;
-and a key the handler does not take is passed on with the rest, since the runtime has no parameter
-list to check it against. A runtime that binds by position cannot spread a dict either, so an SDK
+handler's arguments beside the `partial()` ones. Its keys follow *Which signature a call is
+checked against* below, with the handler as the signature. A runtime that binds by position cannot spread a dict either, so an SDK
 that writes synthetic names, as Go writes `arg0`, `arg1`, … since a Go function keeps no parameter
 names at run time, offers `expandKwargs` only for a handler whose names it can read, such as the
 fields of a struct argument.
@@ -240,6 +235,22 @@ the same mapped group is `sequence`, that producer being expanded itself, and th
 to this index's row. A runtime never sees `xcom` or `tuple` either: the supervisor reads them and sends a `literal`.
 
 With no `_arg_bindings` at all, a stub task keeps its older behaviour of ignoring call arguments.
+
+#### Which signature a call is checked against
+
+A stub task's call is checked against the stub, even where its task handler is written in the same
+language, so only the stub's defaults count; one declared only in the handler does not. A Dag
+definition's own task has no stub, so its handler is the signature and its defaults apply.
+
+Under `expand_kwargs()`, that signature decides each key of an instance's dict:
+
+- A key the dict leaves out takes its `partial()` value or the signature's default, and fails the
+  instance with neither, as a missing argument does in Python.
+- A key `partial()` also sets fails the instance, as Python's `mapping already partial` does.
+- A key the signature does not take fails the instance. For a stub, the supervisor checks the dict
+  against the stub's parameters, the names of the bindings that carry `kwarg`. With `spread`, the
+  key is passed on with the rest, for the handler's runtime to reject as far as it can, since it
+  has no parameter list to check against.
 
 ## What the Execution API sends
 
@@ -338,7 +349,7 @@ Before the runtime starts, the supervisor turns every binding into what the runt
 | `literal` | passes it on | `literal` |
 | `xcom` | GETs the row through the XCom backend, then takes `element_index` when set | `literal` |
 | `tuple` | reads every part and puts them in one array, in zip order | `literal` |
-| any of these with `kwarg`, no `apply_map` | then takes that key, else reads `fallback`; with neither, fails the task | `literal` |
+| any of these with `kwarg`, no `apply_map` | then takes that key, else reads `fallback`; with neither, fails the task. Fails the task on a key of the dict that no `kwarg` binding names | `literal` |
 | any of these with `apply_map` | reads the value and any `fallback`, and leaves the callables and `kwarg` to the runtime | `literal`, with `apply_map` |
 | `sequence` | passes it on | `sequence` |
 
@@ -439,7 +450,7 @@ What the server sends for each authoring form, and what the runtime receives aft
 |---|---|---|
 | `.expand({ row: ["a", "b"] })` | `literal`, `value` already the element | that `literal` |
 | `.expand({ row: rows })` | `xcom`, `task_id`, `element_index=i` | `literal`: element `i` of the row |
-| `.expand({ row: mappedUpstream })` | `xcom`, `task_id`, `map_index=i` | `literal`: that row |
+| `.expand({ row: mappedUpstream })` | `xcom`, `task_id`, and the `map_index` of the producer's `i`-th non-null row in map-index order | `literal`: that row |
 | `.expand({ a: …, b: … })` | one binding per argument, each with its own coordinate | one `literal` per argument |
 | `.partial({ region: … })` | `literal`, or `xcom` with no index | the same value at every index |
 | `.expandKwargs(rows)` | per parameter: `xcom` with `element_index=i`, `kwarg` and `fallback` | `literal`: that key of element `i`, else the fallback |
@@ -452,8 +463,8 @@ What the server sends for each authoring form, and what the runtime receives aft
 
 An element of a dict is its `(key, value)` pair in the stored value's order, the pair a Python task reading the same XCom gets.
 A runtime receives it as a two-item array, such as `["uk", 3]`.
-With `.expandKwargs(…)`, a parameter missing from this index's dict takes its `partial()` value or its default, and fails the task with neither, as a missing argument does in Python.
-With `spread`, a key missing from the dict is left to the handler's own default.
+A mapped producer's null result gives the consumer no instance, so instance `i` reads the producer's `i`-th non-null row in map-index order rather than producer map index `i`, as Python's lazy sequence does. A Python producer writes no row for `None`; a null row a language-SDK producer stores, which [#77281](https://github.com/apache/airflow/pull/77281) allows, is left out by the sequence reads, as its follow-up "Nulls in mapped results" proposes.
+With `.expandKwargs(…)`, each key of this index's dict follows *Which signature a call is checked against*.
 
 A Dag definition and a Python Dag with stub TaskHandler differ only in who applies `map()` callables.
 
