@@ -279,6 +279,13 @@ def get_provider_info():
             "celery_broker_transport_options": {
                 "description": "This section is for specifying options which can be passed to the\nunderlying celery broker transport. See:\nhttps://docs.celeryq.dev/en/latest/userguide/configuration.html#std:setting-broker_transport_options\n",
                 "options": {
+                    "global_keyprefix": {
+                        "description": "The global key prefix to use for all keys in the broker. This is useful when using a shared broker\nwith multiple Airflow instances to avoid key collisions. This option is only supported for Redis\ncelery brokers.\nSee:\nhttps://docs.celeryq.dev/projects/kombu/en/stable/reference/kombu.transport.redis.html#kombu.transport.redis.Transport.Channel.global_keyprefix\n",
+                        "version_added": None,
+                        "type": "string",
+                        "example": "airflow:",
+                        "default": None,
+                    },
                     "visibility_timeout": {
                         "description": "The visibility timeout defines the number of seconds to wait for the worker\nto acknowledge the task before the message is redelivered to another worker.\nIf not set, Airflow defaults to 86400 seconds (24 hours) for Redis and SQS brokers.\nTasks running longer than this value will be terminated and redelivered.\nMake sure to increase the visibility timeout to match the time of the longest\ntask you're planning to run.\nvisibility_timeout is only supported for Redis and SQS celery brokers.\nSee:\nhttps://docs.celeryq.dev/en/stable/getting-started/backends-and-brokers/redis.html#visibility-timeout\n",
                         "version_added": None,
@@ -311,6 +318,13 @@ def get_provider_info():
                         "version_added": "3.24.0",
                         "type": "string",
                         "example": '{"MessageSystemAttributeNames": ["SenderId", "SentTimestamp"]}',
+                        "default": None,
+                    },
+                    "global_keyprefix": {
+                        "description": "The global key prefix to use for all keys in the broker. This is useful when using a shared broker\nwith multiple Airflow instances to avoid key collisions. This option is only supported for Redis\ncelery brokers.\nSee:\nhttps://docs.celeryq.dev/projects/kombu/en/stable/reference/kombu.transport.redis.html#kombu.transport.redis.Transport.Channel.global_keyprefix\n",
+                        "version_added": None,
+                        "type": "string",
+                        "example": "airflow:",
                         "default": None,
                     },
                     "kafka_admin_config": {
