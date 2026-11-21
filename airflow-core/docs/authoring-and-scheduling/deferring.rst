@@ -288,6 +288,8 @@ Below is an outline of how you can achieve this.
             )
 
 
+.. _deferring/start_from_trigger:
+
 Triggering Deferral from Task Start
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -300,6 +302,22 @@ If you want to defer your task directly to the triggerer without going into the 
 * ``next_method``: The method name on your operator that you want Airflow to call when it resumes.
 * ``next_kwargs``: Additional keyword arguments to pass to the ``next_method`` when it is called.
 * ``timeout``: (Optional) A timedelta that specifies a timeout after which this deferral will fail, and fail the task instance. Defaults to ``None``, which means no timeout.
+
+The scheduler defers these tasks in the same step where it queues other tasks, so pool slots,
+``max_active_tasks``, ``max_active_tis_per_dag`` and ``max_active_tis_per_dagrun`` must allow it.
+They do not need an executor slot, so they are deferred even when the executors are full. Like other
+tasks, a task is ``SCHEDULED`` first and stays ``SCHEDULED`` until these limits allow it.
+
+.. note::
+
+    A task needs a free slot in its pool to be deferred, even when the pool has ``include_deferred=False``.
+    With ``include_deferred=False`` the slot is released as soon as the task is deferred, so the pool only
+    limits how many tasks are deferred at a time, not how many run in the triggerer. To limit how many of
+    these tasks run in the triggerer at once, set ``include_deferred=True`` on the pool.
+
+    Deferred tasks do not count towards ``max_active_tasks`` either, so it only limits how many of these
+    tasks are deferred at a time. ``max_active_tis_per_dag`` and ``max_active_tis_per_dagrun`` count
+    deferred tasks, so they limit how many of these tasks run in the triggerer at once.
 
 In the sensor part, we'll need to provide the path to ``TimeDeltaTrigger`` as ``trigger_cls``.
 
