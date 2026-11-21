@@ -1,0 +1,1 @@
+Fix ``relativedelta`` serialization dropping absolute fields set to 0, such as ``hour=0``, so schedules that snap to midnight keep doing so after the Dag is serialized.
