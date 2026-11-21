@@ -293,10 +293,18 @@ class AirflowDocsBuilder:
             self.log_build_warning_filename.as_posix(),
             "-D",
             f"airflow_spelling_output={self.spelling_output_file.as_posix()}",
-            # documentation source files
-            self._src_dir.as_posix(),
-            self._build_dir.as_posix(),  # path to output directory
         ]
+        if self.is_autobuild:
+            theme_watch_dir = Path("/opt/sphinx_airflow_theme/sphinx_airflow_theme")
+            if theme_watch_dir.is_dir():
+                build_cmd.extend(["--watch", theme_watch_dir.as_posix()])
+        build_cmd.extend(
+            [
+                # documentation source files
+                self._src_dir.as_posix(),
+                self._build_dir.as_posix(),  # path to output directory
+            ]
+        )
         if os.environ.get("CI", "") != "true" and verbose:
             console.print("[yellow]Command to run:[/] ", " ".join([shlex.quote(arg) for arg in build_cmd]))
         if verbose:

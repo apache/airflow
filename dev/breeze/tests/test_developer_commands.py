@@ -184,6 +184,13 @@ class TestBuildDocsSphinxAirflowTheme:
         shell_params = docker_mocks["execute_command_in_shell"].call_args.args[0]
         assert shell_params.sphinx_airflow_theme_path == (str(tmp_path / "theme") if pass_option else "")
 
+    def test_autobuild_flag_is_forwarded_to_docs_builder(self, runner, docker_mocks):
+        result = runner.invoke(build_docs, ["--autobuild", "apache-airflow"], catch_exceptions=False)
+
+        assert result.exit_code == 0
+        command = docker_mocks["execute_command_in_shell"].call_args.kwargs["command"]
+        assert "--autobuild" in command
+
     def test_theme_without_generated_assets_is_rejected(self, runner, docker_mocks, tmp_path):
         theme_checkout = tmp_path / "airflow-site"
         (theme_checkout / "sphinx_airflow_theme").mkdir(parents=True)
