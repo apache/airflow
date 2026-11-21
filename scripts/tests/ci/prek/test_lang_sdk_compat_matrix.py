@@ -241,13 +241,28 @@ class TestRenderMarkdownTable:
             assert f"| capability: `{cap.name}` |" in rendered
         assert "supervisor schema: 2026-06-16" in rendered
 
+    def test_parts_render_dag_definition_first_and_states_last(self):
+        parts = matrix.build_matrix_parts()
+
+        assert [part.title for part in parts] == [
+            "Dag definition",
+            "Python Dag with stub TaskHandler",
+            "Common to both authoring modes",
+        ]
+        assert [group.label for group in parts.common.groups] == ["Task runtime", "TaskInstance states"]
+
+    def test_dag_definition_has_timetable_and_local_testing_rows(self):
+        rows = {row.name: row for row in matrix.build_matrix_parts().dag_definition.groups[0].rows}
+
+        assert {"timetable", "task-test", "dag-test"} <= rows.keys()
+        assert all(rows[name].gated for name in ("timetable", "task-test", "dag-test"))
+
     def test_parts_split_dimensions_by_authoring_mode(self):
-        common, dag_definition, stub_task_handler = matrix.build_matrix_parts()
+        dag_definition, stub_task_handler, common = matrix.build_matrix_parts()
         dag_definition_names = [row.name for row in dag_definition.groups[0].rows]
         stub_names = [row.name for row in stub_task_handler.groups[0].rows]
 
-        assert [group.label for group in common.groups] == ["TaskInstance states", "Task runtime"]
-        assert "object-store" in [row.name for row in common.groups[1].rows]
+        assert "object-store" in [row.name for row in common.groups[0].rows]
         assert dag_definition_names[0] == matrix.DAG_DEFINITION_GATE
         assert stub_names == [
             "mixed-lang-stub-target",

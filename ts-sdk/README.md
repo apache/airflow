@@ -92,11 +92,15 @@ See [`example/`](https://github.com/apache/airflow/tree/main/ts-sdk/example) for
 
 ## Compatibility matrix
 
-Which Airflow TaskInstance states and capabilities this SDK supports. This table is generated from
-[`capabilities.yaml`](https://github.com/apache/airflow/blob/main/ts-sdk/capabilities.yaml);
-the conformance dimensions are defined in the
-[Language SDK conformance spec](https://github.com/apache/airflow/blob/main/contributing-docs/30_new_language_sdk.rst).
-Do not edit the table by hand. Update the manifest and run the `update-ts-sdk-readme-matrix` prek hook.
+Which features the TypeScript SDK supports, and the Airflow and SDK versions that first shipped each one.
+The minimum Airflow version applies to the current SDK release, so a feature's "Since (Airflow)"
+can be earlier.
+
+<!--
+Generated from capabilities.yaml by the update-ts-sdk-readme-matrix prek hook: edit the manifest, not the table.
+The conformance dimensions and tiers are defined in
+contributing-docs/30_new_language_sdk.rst ("Conformance").
+-->
 
 <!-- BEGIN AUTO-GENERATED LANG-SDK COMPAT MATRIX -->
 
@@ -104,15 +108,36 @@ Do not edit the table by hand. Update the manifest and run the `update-ts-sdk-re
 
 | Dimension | Tier | Supported | Since (Airflow) | Since (SDK) | Notes |
 |---|---|---|---|---|---|
-| **TaskInstance states** |  |  |  |  |  |
-| state: `success` | MUST | ✓ | 3.4.0 | 1.0.0 |  |
-| state: `failed` | MUST | ✓ | 3.4.0 | 1.0.0 |  |
-| state: `up_for_retry` | MUST | ✓ | 3.4.0 | 1.0.0 | RetryTask |
-| state: `skipped` | SHOULD | ✓ | 3.4.0 | 1.0.0 | triggerDagRun with skipWhenAlreadyExists only |
-| state: `deferred` | MAY | ✓ | 3.4.0 | 1.0.0 | triggerDagRun with deferrable only |
-| state: `up_for_reschedule` | MAY | ✗ | – | – | runtime does not emit RescheduleTask yet |
-| state: `awaiting_input` | MAY | ✓ | 3.4.0 | 1.0.0 | approval() / hitl() in a Dag definition |
-| state: `removed` | MAY | ✓ | 3.4.0 | 1.0.0 |  |
+| **Dag definition** |  |  |  |  |  |
+| capability: `dag-definition-authoring` | SHOULD | ✓ | 3.4.0 | 1.0.0 | new Dag |
+| capability: `dag-args` | MUST † | ✓ | 3.4.0 | 1.0.0 |  |
+| capability: `timetable` | MAY † | ✗ | – | – | a schedule is a cron expression or preset only |
+| capability: `task-args` | MUST † | ✓ | 3.4.0 | 1.0.0 |  |
+| capability: `dag-params` | MUST † | ✗ | – | – |  |
+| capability: `dag-callbacks` | MAY † | ✗ | – | – |  |
+| capability: `explicit-dependencies` | MUST † | ✓ | 3.4.0 | 1.0.0 | before / after |
+| capability: `edge-labels` | MAY † | ✓ | 3.4.0 | 1.0.0 | label(task, text) |
+| capability: `taskflow-dependencies` | MUST † | ✓ | 3.4.0 | 1.0.0 |  |
+| capability: `task-group` | MAY † | ✓ | 3.4.0 | 1.0.0 | dag.taskGroup |
+| capability: `task-loops` | MAY † | ✗ | – | – |  |
+| capability: `if-else-branching` | SHOULD † | ✓ | 3.4.0 | 1.0.0 | dag.if |
+| capability: `switch-case-branching` | SHOULD † | ✓ | 3.4.0 | 1.0.0 | dag.switch |
+| capability: `trigger-dag-run` | MAY † | ✓ | 3.4.0 | 1.0.0 | triggerDagRun |
+| capability: `dynamic-dag-generation` | MAY † | ✓ | 3.4.0 | 1.0.0 |  |
+| capability: `human-in-the-loop` | MAY † | ✓ | 3.4.0 | 1.0.0 | approval() / hitl() |
+| capability: `task-test` | SHOULD † | ✗ | – | – | a bundle's handler can be unit-tested through bundle.getTaskHandler(); airflow tasks test does not take a TypeScript Dag |
+| capability: `dag-test` | SHOULD † | ✗ | – | – |  |
+| capability: `asset-definition` | MAY † | ✗ | – | – |  |
+| capability: `asset-scheduling` | MAY † | ✗ | – | – |  |
+| capability: `mapped-tasks` | MAY † | ✗ | – | – |  |
+| capability: `asset-inlets-outlets` | MAY † | ✗ | – | – |  |
+| capability: `task-callbacks` | MAY † | ✗ | – | – | no SDK-defined task callbacks |
+| **Python Dag with stub TaskHandler** |  |  |  |  |  |
+| capability: `mixed-lang-stub-target` | MUST | ✓ | 3.4.0 | 1.0.0 | @task.stub |
+| capability: `taskflow-binding` | MUST | ✓ | 3.4.0 | 1.0.0 | mapped stubs excluded |
+| capability: `mapped-tasks` | MAY | ✗ | – | – | Airflow does not bind arguments to mapped stubs yet |
+| capability: `asset-inlets-outlets` | MAY | ✗ | – | – | runtime does not report task outlets yet |
+| capability: `task-callbacks` | MAY | ✗ | – | – | a Python-declared task callback does not run for a stub task |
 | **Task runtime** |  |  |  |  |  |
 | capability: `task-logging` | MUST | ✓ | 3.4.0 | 1.0.0 | structured records over the log socket |
 | capability: `xcom-read-write` | MUST | ✓ | 3.4.0 | 1.0.0 | getXCom / setXCom |
@@ -127,34 +152,15 @@ Do not edit the table by hand. Update the manifest and run the `update-ts-sdk-re
 | capability: `asset-event-read` | MAY | ✗ | – | – | no task-facing asset-event API yet |
 | capability: `object-store` | MAY | ✗ | – | – | no object-storage API yet |
 | capability: `listeners` | MAY | ✗ | – | – | no hook into the Python listener API, so a task emits no OpenLineage facets of its own |
-| **Dag definition** |  |  |  |  |  |
-| capability: `dag-definition-authoring` | SHOULD | ✓ | 3.4.0 | 1.0.0 | new Dag |
-| capability: `dag-args` | MUST † | ✓ | 3.4.0 | 1.0.0 |  |
-| capability: `task-args` | MUST † | ✓ | 3.4.0 | 1.0.0 |  |
-| capability: `dag-params` | MUST † | ✗ | – | – |  |
-| capability: `dag-callbacks` | MAY † | ✗ | – | – |  |
-| capability: `explicit-dependencies` | MUST † | ✓ | 3.4.0 | 1.0.0 | before / after |
-| capability: `edge-labels` | MAY † | ✓ | 3.4.0 | 1.0.0 | label(task, text) |
-| capability: `taskflow-dependencies` | MUST † | ✓ | 3.4.0 | 1.0.0 |  |
-| capability: `task-group` | MAY † | ✓ | 3.4.0 | 1.0.0 | dag.taskGroup |
-| capability: `task-loops` | MAY † | ✗ | – | – |  |
-| capability: `if-else-branching` | SHOULD † | ✓ | 3.4.0 | 1.0.0 | dag.if |
-| capability: `switch-case-branching` | SHOULD † | ✓ | 3.4.0 | 1.0.0 | dag.switch |
-| capability: `trigger-dag-run` | MAY † | ✓ | 3.4.0 | 1.0.0 | triggerDagRun |
-| capability: `dynamic-dag-generation` | MAY † | ✓ | 3.4.0 | 1.0.0 |  |
-| capability: `human-in-the-loop` | MAY † | ✓ | 3.4.0 | 1.0.0 | approval() / hitl() |
-| capability: `dag-test` | SHOULD † | ✗ | – | – |  |
-| capability: `asset-definition` | MAY † | ✗ | – | – |  |
-| capability: `asset-scheduling` | MAY † | ✗ | – | – |  |
-| capability: `mapped-tasks` | MAY † | ✗ | – | – |  |
-| capability: `asset-inlets-outlets` | MAY † | ✗ | – | – |  |
-| capability: `task-callbacks` | MAY † | ✗ | – | – | no SDK-defined task callbacks |
-| **Python Dag with stub TaskHandler** |  |  |  |  |  |
-| capability: `mixed-lang-stub-target` | MUST | ✓ | 3.4.0 | 1.0.0 | @task.stub |
-| capability: `taskflow-binding` | MUST | ✓ | 3.4.0 | 1.0.0 | mapped stubs excluded |
-| capability: `mapped-tasks` | MAY | ✗ | – | – | Airflow does not bind arguments to mapped stubs yet |
-| capability: `asset-inlets-outlets` | MAY | ✗ | – | – | runtime does not report task outlets yet |
-| capability: `task-callbacks` | MAY | ✗ | – | – | a Python-declared task callback does not run for a stub task |
+| **TaskInstance states** |  |  |  |  |  |
+| state: `success` | MUST | ✓ | 3.4.0 | 1.0.0 |  |
+| state: `failed` | MUST | ✓ | 3.4.0 | 1.0.0 |  |
+| state: `up_for_retry` | MUST | ✓ | 3.4.0 | 1.0.0 | RetryTask |
+| state: `skipped` | SHOULD | ✓ | 3.4.0 | 1.0.0 | triggerDagRun with skipWhenAlreadyExists only |
+| state: `deferred` | MAY | ✓ | 3.4.0 | 1.0.0 | triggerDagRun with deferrable only |
+| state: `up_for_reschedule` | MAY | ✗ | – | – | runtime does not emit RescheduleTask yet |
+| state: `awaiting_input` | MAY | ✓ | 3.4.0 | 1.0.0 | approval() / hitl() in a Dag definition |
+| state: `removed` | MAY | ✓ | 3.4.0 | 1.0.0 |  |
 
 *Marks: ✓ supported · ✗ not supported · n/a not applicable. A tier marked † applies only when `dag-definition-authoring` is supported.*
 

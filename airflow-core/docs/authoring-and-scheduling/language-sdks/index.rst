@@ -445,10 +445,15 @@ Compatibility matrix
 --------------------
 
 Language SDKs mature independently, so they do not all support the same features yet. The tables below show
-what each Language SDK supports: the features common to both authoring modes, the features of a
-:ref:`Dag definition <language-sdks/dag-definition>`, and the features of a
-:ref:`Python Dag with stub TaskHandler <language-sdks/stub-taskhandler>`. A supported feature shows the SDK
-release that shipped it. See the legend below the tables for what each mark means.
+the minimum Airflow version of each Language SDK, then what it supports in a
+:ref:`Dag definition <language-sdks/dag-definition>`, in a
+:ref:`Python Dag with stub TaskHandler <language-sdks/stub-taskhandler>`, and in both. A supported feature
+shows the SDK release that shipped it.
+
+..
+   Generated from each SDK's capabilities.yaml by the update-lang-sdk-central-matrix prek hook: edit the
+   manifests, not the tables. The dimensions and tiers are defined in
+   contributing-docs/30_new_language_sdk.rst ("Conformance").
 
 .. BEGIN AUTO-GENERATED LANG-SDK COMPAT MATRIX
 
@@ -469,6 +474,136 @@ release that shipped it. See the legend below the tables for what each mark mean
      - 2027-02-28
      - 2027-02-28
 
+.. list-table:: Dag definition
+   :header-rows: 1
+   :widths: 30 15 15 15
+
+   * - Dimension
+     - Go
+     - Java
+     - TypeScript
+   * - ``dag-definition-authoring`` (SHOULD)
+     - ✓ 1.0.0
+     - ✓ 1.0.0
+     - ✓ 1.0.0
+   * - ``dag-args`` (MUST †)
+     - ✓ 1.0.0
+     - ✓ 1.0.0
+     - ✓ 1.0.0
+   * - ``timetable`` (MAY †)
+     - ✗
+     - ✗
+     - ✗
+   * - ``task-args`` (MUST †)
+     - ✓ 1.0.0
+     - ✓ 1.0.0
+     - ✓ 1.0.0
+   * - ``dag-params`` (MUST †)
+     - ✗
+     - ✗
+     - ✗
+   * - ``dag-callbacks`` (MAY †)
+     - ✗
+     - ✗
+     - ✗
+   * - ``explicit-dependencies`` (MUST †)
+     - ✓ 1.0.0
+     - ✓ 1.0.0
+     - ✓ 1.0.0
+   * - ``edge-labels`` (MAY †)
+     - ✓ 1.0.0
+     - ✓ 1.0.0
+     - ✓ 1.0.0
+   * - ``taskflow-dependencies`` (MUST †)
+     - ✓ 1.0.0
+     - ✓ 1.0.0
+     - ✓ 1.0.0
+   * - ``task-group`` (MAY †)
+     - ✓ 1.0.0
+     - ✓ 1.0.0
+     - ✓ 1.0.0
+   * - ``task-loops`` (MAY †)
+     - ✗
+     - ✗
+     - ✗
+   * - ``if-else-branching`` (SHOULD †)
+     - ✓ 1.0.0
+     - ✓ 1.0.0
+     - ✓ 1.0.0
+   * - ``switch-case-branching`` (SHOULD †)
+     - ✓ 1.0.0
+     - ✓ 1.0.0
+     - ✓ 1.0.0
+   * - ``trigger-dag-run`` (MAY †)
+     - ✓ 1.0.0
+     - ✓ 1.0.0
+     - ✓ 1.0.0
+   * - ``dynamic-dag-generation`` (MAY †)
+     - ✓ 1.0.0
+     - ✓ 1.0.0
+     - ✓ 1.0.0
+   * - ``human-in-the-loop`` (MAY †)
+     - ✗
+     - ✗
+     - ✓ 1.0.0
+   * - ``task-test`` (SHOULD †)
+     - ✗
+     - ✗
+     - ✗
+   * - ``dag-test`` (SHOULD †)
+     - ✗
+     - ✗
+     - ✗
+   * - ``asset-definition`` (MAY †)
+     - ✗
+     - ✗
+     - ✗
+   * - ``asset-scheduling`` (MAY †)
+     - ✗
+     - ✗
+     - ✗
+   * - ``mapped-tasks`` (MAY †)
+     - ✗
+     - ✗
+     - ✗
+   * - ``asset-inlets-outlets`` (MAY †)
+     - ✗
+     - ✗
+     - ✗
+   * - ``task-callbacks`` (MAY †)
+     - ✗
+     - ✗
+     - ✗
+
+.. list-table:: Python Dag with stub TaskHandler
+   :header-rows: 1
+   :widths: 30 15 15 15
+
+   * - Dimension
+     - Go
+     - Java
+     - TypeScript
+   * - ``mixed-lang-stub-target`` (MUST)
+     - ✓ 1.0.0
+     - ✓ 1.0.0
+     - ✓ 1.0.0
+   * - ``taskflow-binding`` (MUST)
+     - ✓ 1.0.0
+     - ✓ 1.0.0
+     - ✓ 1.0.0
+   * - ``mapped-tasks`` (MAY)
+     - ✗
+     - ✗
+     - ✗
+   * - ``asset-inlets-outlets`` (MAY)
+     - ✗
+     - ✗
+     - ✗
+   * - ``task-callbacks`` (MAY)
+     - ✗
+     - ✗
+     - ✗
+
 .. list-table:: Common to both authoring modes
    :header-rows: 1
    :widths: 30 15 15 15
@@ -477,42 +612,6 @@ release that shipped it. See the legend below the tables for what each mark mean
      - Go
      - Java
      - TypeScript
-   * - **TaskInstance states**
-     -
-     -
-     -
-   * - ``success`` (MUST)
-     - ✓ 1.0.0
-     - ✓ 1.0.0
-     - ✓ 1.0.0
-   * - ``failed`` (MUST)
-     - ✓ 1.0.0
-     - ✓ 1.0.0
-     - ✓ 1.0.0
-   * - ``up_for_retry`` (MUST)
-     - ✓ 1.0.0
-     - ✓ 1.0.0
-     - ✓ 1.0.0
-   * - ``skipped`` (SHOULD)
-     - ✓ 1.0.0
-     - ✓ 1.0.0
-     - ✓ 1.0.0
-   * - ``deferred`` (MAY)
-     - ✓ 1.0.0
-     - ✓ 1.0.0
-     - ✓ 1.0.0
-   * - ``up_for_reschedule`` (MAY)
-     - ✗
-     - ✗
-     - ✗
-   * - ``awaiting_input`` (MAY)
-     - ✗
-     - ✗
-     - ✓ 1.0.0
-   * - ``removed`` (MAY)
-     - ✓ 1.0.0
-     - ✓ 1.0.0
-     - ✓ 1.0.0
    * - **Task runtime**
      -
      -
@@ -569,128 +668,42 @@ release that shipped it. See the legend below the tables for what each mark mean
      - ✗
      - ✗
      - ✗
-
-.. list-table:: Dag definition
-   :header-rows: 1
-   :widths: 30 15 15 15
-
-   * - Dimension
-     - Go
-     - Java
-     - TypeScript
-   * - ``dag-definition-authoring`` (SHOULD)
+   * - **TaskInstance states**
+     -
+     -
+     -
+   * - ``success`` (MUST)
      - ✓ 1.0.0
      - ✓ 1.0.0
      - ✓ 1.0.0
-   * - ``dag-args`` (MUST †)
+   * - ``failed`` (MUST)
      - ✓ 1.0.0
      - ✓ 1.0.0
      - ✓ 1.0.0
-   * - ``task-args`` (MUST †)
+   * - ``up_for_retry`` (MUST)
      - ✓ 1.0.0
      - ✓ 1.0.0
      - ✓ 1.0.0
-   * - ``dag-params`` (MUST †)
+   * - ``skipped`` (SHOULD)
+     - ✓ 1.0.0
+     - ✓ 1.0.0
+     - ✓ 1.0.0
+   * - ``deferred`` (MAY)
+     - ✓ 1.0.0
+     - ✓ 1.0.0
+     - ✓ 1.0.0
+   * - ``up_for_reschedule`` (MAY)
      - ✗
      - ✗
      - ✗
-   * - ``dag-callbacks`` (MAY †)
-     - ✗
-     - ✗
-     - ✗
-   * - ``explicit-dependencies`` (MUST †)
-     - ✓ 1.0.0
-     - ✓ 1.0.0
-     - ✓ 1.0.0
-   * - ``edge-labels`` (MAY †)
-     - ✓ 1.0.0
-     - ✓ 1.0.0
-     - ✓ 1.0.0
-   * - ``taskflow-dependencies`` (MUST †)
-     - ✓ 1.0.0
-     - ✓ 1.0.0
-     - ✓ 1.0.0
-   * - ``task-group`` (MAY †)
-     - ✓ 1.0.0
-     - ✓ 1.0.0
-     - ✓ 1.0.0
-   * - ``task-loops`` (MAY †)
-     - ✗
-     - ✗
-     - ✗
-   * - ``if-else-branching`` (SHOULD †)
-     - ✓ 1.0.0
-     - ✓ 1.0.0
-     - ✓ 1.0.0
-   * - ``switch-case-branching`` (SHOULD †)
-     - ✓ 1.0.0
-     - ✓ 1.0.0
-     - ✓ 1.0.0
-   * - ``trigger-dag-run`` (MAY †)
-     - ✓ 1.0.0
-     - ✓ 1.0.0
-     - ✓ 1.0.0
-   * - ``dynamic-dag-generation`` (MAY †)
-     - ✓ 1.0.0
-     - ✓ 1.0.0
-     - ✓ 1.0.0
-   * - ``human-in-the-loop`` (MAY †)
+   * - ``awaiting_input`` (MAY)
      - ✗
      - ✗
      - ✓ 1.0.0
-   * - ``dag-test`` (SHOULD †)
-     - ✗
-     - ✗
-     - ✗
-   * - ``asset-definition`` (MAY †)
-     - ✗
-     - ✗
-     - ✗
-   * - ``asset-scheduling`` (MAY †)
-     - ✗
-     - ✗
-     - ✗
-   * - ``mapped-tasks`` (MAY †)
-     - ✗
-     - ✗
-     - ✗
-   * - ``asset-inlets-outlets`` (MAY †)
-     - ✗
-     - ✗
-     - ✗
-   * - ``task-callbacks`` (MAY †)
-     - ✗
-     - ✗
-     - ✗
-
-.. list-table:: Python Dag with stub TaskHandler
-   :header-rows: 1
-   :widths: 30 15 15 15
-
-   * - Dimension
-     - Go
-     - Java
-     - TypeScript
-   * - ``mixed-lang-stub-target`` (MUST)
+   * - ``removed`` (MAY)
      - ✓ 1.0.0
      - ✓ 1.0.0
      - ✓ 1.0.0
-   * - ``taskflow-binding`` (MUST)
-     - ✓ 1.0.0
-     - ✓ 1.0.0
-     - ✓ 1.0.0
-   * - ``mapped-tasks`` (MAY)
-     - ✗
-     - ✗
-     - ✗
-   * - ``asset-inlets-outlets`` (MAY)
-     - ✗
-     - ✗
-     - ✗
-   * - ``task-callbacks`` (MAY)
-     - ✗
-     - ✗
-     - ✗
 
 *Marks:* ``✓`` supported (with the SDK release that shipped it, when known) · ``✗`` not supported · ``n/a`` not applicable · ``n/p`` not published. A tier marked ``†`` applies only when ``dag-definition-authoring`` is supported.
 
