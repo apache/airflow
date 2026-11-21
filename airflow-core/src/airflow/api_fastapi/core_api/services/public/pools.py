@@ -75,6 +75,8 @@ def update_orm_from_pydantic(
             )
     else:
         fields_to_update = patch_body.model_fields_set
+        if update_mask:
+            fields_to_update = fields_to_update.intersection(update_mask)
         try:
             # Dump with both input + output aliases handled
             body_dict = patch_body.model_dump(
@@ -85,6 +87,14 @@ def update_orm_from_pydantic(
             # Normalize keys for BasePool (expects "pool")
             if "name" in body_dict and "pool" not in body_dict:
                 body_dict["pool"] = body_dict.pop("name")
+
+            if update_mask:
+                # Unmasked fields keep their stored values, which BasePool would otherwise report as missing
+                body_dict = {
+                    "pool": pool.pool,
+                    "slots": pool.slots,
+                    "include_deferred": pool.include_deferred,
+                } | body_dict
 
             BasePool.model_validate(body_dict)
 
