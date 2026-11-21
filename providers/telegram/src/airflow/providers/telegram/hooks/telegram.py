@@ -25,7 +25,7 @@ from typing import Any
 import telegram
 import tenacity
 
-from airflow.providers.common.compat.sdk import AirflowException, BaseHook
+from airflow.providers.common.compat.sdk import BaseHook
 
 
 class TelegramHook(BaseHook):
@@ -107,11 +107,11 @@ class TelegramHook(BaseHook):
             conn = self.get_connection(telegram_conn_id)
 
             if not conn.password:
-                raise AirflowException("Missing token(password) in Telegram connection")
+                raise ValueError("Missing token(password) in Telegram connection")
 
             return conn.password
 
-        raise AirflowException("Cannot get token: No valid Telegram connection supplied.")
+        raise ValueError("Cannot get token: No valid Telegram connection supplied.")
 
     def __get_chat_id(self, chat_id: str | None, telegram_conn_id: str | None) -> str | None:
         """
@@ -150,10 +150,10 @@ class TelegramHook(BaseHook):
         kwargs.update(api_params)
 
         if "text" not in kwargs or kwargs["text"] is None:
-            raise AirflowException("'text' must be provided for telegram message")
+            raise ValueError("'text' must be provided for telegram message")
 
         if kwargs.get("chat_id") is None:
-            raise AirflowException("'chat_id' must be provided for telegram message")
+            raise ValueError("'chat_id' must be provided for telegram message")
 
         response = asyncio.run(self.connection.send_message(**kwargs))
         self.log.debug(response)
@@ -176,14 +176,12 @@ class TelegramHook(BaseHook):
         kwargs.update(api_params)
 
         if "file" not in kwargs or kwargs["file"] is None:
-            raise AirflowException(
-                "'file' parameter must be provided for sending a Telegram document message"
-            )
+            raise ValueError("'file' parameter must be provided for sending a Telegram document message")
 
         kwargs["document"] = kwargs.pop("file")  # rename 'file' to 'document'
 
         if kwargs.get("chat_id") is None:
-            raise AirflowException("'chat_id' must be provided for telegram document message")
+            raise ValueError("'chat_id' must be provided for telegram document message")
 
         response = asyncio.run(self.connection.send_document(**kwargs))
         self.log.debug(response)
