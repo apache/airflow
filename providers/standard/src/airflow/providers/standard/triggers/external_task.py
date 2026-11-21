@@ -124,7 +124,10 @@ class WorkflowTrigger(BaseTrigger):
                     return
             allowed_count = await get_count_func(self.allowed_states)
 
-            if allowed_count == len(run_id_or_dates):
+            expected_count = len(run_id_or_dates)
+            if AIRFLOW_V_3_0_PLUS and self.external_task_ids:
+                expected_count *= len(self.external_task_ids)
+            if allowed_count == expected_count:
                 yield TriggerEvent({"status": "success"})
                 return
             self.log.info("Sleeping for %s seconds", self.poke_interval)
@@ -142,7 +145,7 @@ class WorkflowTrigger(BaseTrigger):
                 run_ids=self.run_ids,
                 states=list(states) if states else None,
             )
-            return int(count / len(self.external_task_ids))
+            return count
         if self.external_task_group_id:
             run_id_task_state_map = await sync_to_async(RuntimeTaskInstance.get_task_states)(
                 dag_id=self.external_dag_id,
