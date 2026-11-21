@@ -21,6 +21,7 @@ import os
 import socket
 import subprocess
 import time
+import uuid
 from typing import TYPE_CHECKING, Any
 
 import pytest
@@ -41,6 +42,7 @@ from tests_common.test_utils.integration_setup import (
 from tests_common.test_utils.otel_utils import (
     dump_airflow_metadata_db,
     extract_metrics_from_output,
+    process_collector_metrics,
 )
 
 if TYPE_CHECKING:
@@ -111,22 +113,16 @@ def print_ti_output_for_dag_run(dag_id: str, run_id: str):
                 print("\n===== END =====\n")
 
 
+def read_metrics_from_collector(service_name: str) -> dict[str, list[float]]:
+    """Fetch the metrics the collector exposes for ``service_name`` and build a dictionary with them."""
+    collector_metrics = requests.get("http://breeze-otel-collector:8889/metrics", timeout=10).text
+    return process_collector_metrics(collector_metrics, service_name)
+
+
 @pytest.mark.integration("otel")
 @pytest.mark.backend("postgres")
-class TestOtelIntegration:
-    """
-    This test is using a ConsoleSpanExporter so that it can capture
-    the spans from the stdout and run assertions on them.
-
-    It can also be used with otel and jaeger for manual testing.
-    To export the spans to otel and visualize them with jaeger,
-    - start breeze with '--integration otel'
-    - run on the shell 'export use_otel=true'
-    - run the test
-    - check 'http://localhost:26686/'
-
-    To get a db dump on the stdout, run 'export log_level=debug'.
-    """
+class OtelIntegrationBase:
+    """Environment shared by the metrics and traces integration tests."""
 
     test_dir = os.path.dirname(os.path.abspath(__file__))
     dag_folder = os.path.join(test_dir, "dags")
@@ -151,9 +147,7 @@ class TestOtelIntegration:
         # secret; otherwise each generates its own random key and token verification fails.
         os.environ["AIRFLOW__API_AUTH__JWT_SECRET"] = "test-secret-key-for-testing"
         os.environ["AIRFLOW__API_AUTH__JWT_ISSUER"] = "airflow"
-        os.environ["AIRFLOW__TRACES__OTEL_ON"] = "True"
         os.environ["OTEL_EXPORTER_OTLP_PROTOCOL"] = "http/protobuf"
-        os.environ["OTEL_EXPORTER_OTLP_TRACES_ENDPOINT"] = "http://breeze-otel-collector:4318/v1/traces"
 
         os.environ["AIRFLOW__SCHEDULER__STANDALONE_DAG_PROCESSOR"] = "False"
         os.environ["AIRFLOW__SCHEDULER__PROCESSOR_POLL_INTERVAL"] = "2"
@@ -185,12 +179,27 @@ class TestOtelIntegration:
 
         cls.dags = serialize_and_get_dags(dag_folder=cls.dag_folder)
 
-    def dag_execution_for_testing_metrics(self, capfd):
-        # Metrics.
+    def _get_ti(self, dag_id: str, run_id: str, task_id: str) -> Any | None:
+        with create_session() as session:
+            ti = session.scalar(
+                select(TaskInstance).where(
+                    TaskInstance.task_id == task_id,
+                    TaskInstance.dag_id == dag_id,
+                    TaskInstance.run_id == run_id,
+                )
+            )
+        return ti
+
+
+class TestOtelMetrics(OtelIntegrationBase):
+    @classmethod
+    def setup_class(cls):
+        super().setup_class()
         os.environ["AIRFLOW__METRICS__OTEL_ON"] = "True"
         os.environ["OTEL_EXPORTER_OTLP_METRICS_ENDPOINT"] = "http://breeze-otel-collector:4318/v1/metrics"
         os.environ["OTEL_METRIC_EXPORT_INTERVAL"] = "5000"
 
+    def dag_execution_for_testing_metrics(self, capfd):
         if self.use_otel != "true":
             os.environ["OTEL_METRICS_EXPORTER"] = "console"
 
@@ -243,17 +252,6 @@ class TestOtelIntegration:
 
         out, _err = capfd.readouterr()
         return out, dag
-
-    def _get_ti(self, dag_id: str, run_id: str, task_id: str) -> Any | None:
-        with create_session() as session:
-            ti = session.scalar(
-                select(TaskInstance).where(
-                    TaskInstance.task_id == task_id,
-                    TaskInstance.dag_id == dag_id,
-                    TaskInstance.run_id == run_id,
-                )
-            )
-        return ti
 
     # 160s = 10s startup + 90s dag-run wait + 10s post-run sleep + 30s shutdown grace + 20s CI buffer
     @pytest.mark.execution_timeout(160)
@@ -310,6 +308,70 @@ class TestOtelIntegration:
             metrics_dict = extract_metrics_from_output(output_lines)
 
             assert set(metrics_to_check).issubset(metrics_dict.keys())
+
+    @pytest.mark.execution_timeout(160)
+    def test_task_metrics_accumulate_across_runs(self):
+        """
+        Task metrics accumulate in a long-lived process instead of resetting with every task.
+
+        Each run increments ``ti_successes`` once. Without accumulation, every export reports
+        1 and the counter never grows.
+        """
+        # It's set to console by the other metrics tests.
+        os.environ.pop("OTEL_METRICS_EXPORTER", None)
+        # The collector keeps series from earlier runs for a few minutes. Assigning a unique service name
+        # makes sure that each set of metrics is fresh and belongs only to this test.
+        previous_service_name = os.environ.get("OTEL_SERVICE_NAME")
+        service_name = f"metrics-test-{uuid.uuid4().hex[:8]}"
+        os.environ["OTEL_SERVICE_NAME"] = service_name
+
+        dag_id = "otel_test_dag"
+        scheduler_process = apiserver_process = None
+        try:
+            scheduler_process, apiserver_process = start_scheduler()
+            run_ids = [unpause_trigger_dag_and_get_run_id(dag_id=dag_id) for _ in range(2)]
+            for run_id in run_ids:
+                state = wait_for_dag_run(dag_id=dag_id, run_id=run_id, max_wait_time=90)
+                assert state == State.SUCCESS, f"Dag run {run_id} did not complete. Final state: {state}."
+            # Metrics export asynchronously on OTEL_METRIC_EXPORT_INTERVAL,
+            # wait one interval plus some extra seconds to be sure.
+            time.sleep(10)
+        finally:
+            terminate_process(scheduler_process)
+            terminate_process(apiserver_process)
+            if previous_service_name is None:
+                os.environ.pop("OTEL_SERVICE_NAME", None)
+            else:
+                os.environ["OTEL_SERVICE_NAME"] = previous_service_name
+
+        metrics = read_metrics_from_collector(service_name)
+        ti_successes_metric = metrics["airflow_ti_successes_total"]
+        assert ti_successes_metric, f"The collector exposes no ti_successes series for job={service_name}"
+        assert max(ti_successes_metric) > 1, (
+            f"ti_successes never grew past 1, the collector values are {ti_successes_metric}"
+        )
+
+
+class TestOtelTraces(OtelIntegrationBase):
+    """
+    This test is using a ConsoleSpanExporter so that it can capture
+    the spans from the stdout and run assertions on them.
+
+    It can also be used with otel and jaeger for manual testing.
+    To export the spans to otel and visualize them with jaeger,
+    - start breeze with '--integration otel'
+    - run on the shell 'export use_otel=true'
+    - run the test
+    - check 'http://localhost:26686/'
+
+    To get a db dump on the stdout, run 'export log_level=debug'.
+    """
+
+    @classmethod
+    def setup_class(cls):
+        super().setup_class()
+        os.environ["AIRFLOW__TRACES__OTEL_ON"] = "True"
+        os.environ["OTEL_EXPORTER_OTLP_TRACES_ENDPOINT"] = "http://breeze-otel-collector:4318/v1/traces"
 
     @pytest.mark.execution_timeout(160)
     @pytest.mark.parametrize(

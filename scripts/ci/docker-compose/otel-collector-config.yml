@@ -26,6 +26,10 @@ receivers:
 
 processors:
   batch:
+  # Short-lived processes such as task runners export delta values. Convert the values back
+  # to cumulative to avoid issues with backends that don't support delta values natively.
+  deltatocumulative:
+    max_stale: 168h  # 1 week
 
 exporters:
   otlp/jaeger:
@@ -49,5 +53,5 @@ service:
 
     metrics:
       receivers: [otlp]
-      processors: [batch]
+      processors: [deltatocumulative, batch]
       exporters: [debug, prometheus]
