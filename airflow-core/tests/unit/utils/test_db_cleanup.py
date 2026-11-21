@@ -50,6 +50,7 @@ from sqlalchemy.orm import Session
 from airflow import DAG, settings
 from airflow._shared.timezones import timezone
 from airflow.exceptions import AirflowException
+from airflow.executors.workloads.callback import CallbackFetchMethod
 from airflow.models import DagModel, DagRun, TaskInstance
 from airflow.models.asset import (
     AssetAliasModel,
@@ -60,6 +61,7 @@ from airflow.models.asset import (
     asset_alias_asset_event_association_table,
     association_table,
 )
+from airflow.models.callback import ExecutorCallback
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.deadline import Deadline
@@ -70,7 +72,7 @@ from airflow.models.taskinstance import LegacyTaskDataOwner
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.xcom import XComModel, XComModelV1, XComModelV2
 from airflow.providers.standard.operators.python import PythonOperator
-from airflow.sdk.definitions.callback import AsyncCallback
+from airflow.sdk.definitions.callback import AsyncCallback, SyncCallback
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
 from airflow.utils.db_cleanup import (
     ARCHIVE_TABLE_PREFIX,
@@ -91,6 +93,7 @@ from airflow.utils.db_cleanup import (
 )
 from airflow.utils.session import create_session
 from airflow.utils.sqlalchemy import CompactUUID
+from airflow.utils.state import CallbackState
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.attempt_ownership import (
@@ -128,6 +131,10 @@ def capture_sql_statements(session):
         yield statements
     finally:
         event.remove(bind, "before_cursor_execute", capture)
+
+
+def execute_cleanup_callback():
+    pass
 
 
 @pytest.fixture(autouse=True)
@@ -480,7 +487,7 @@ class TestDBCleanup:
         [
             (
                 "dag_run",
-                {"dag_run", "task_instance"},  # Only these are populated
+                {"callback", "dag_run", "task_instance"},  # Only these are populated
             ),
         ],
     )
@@ -501,6 +508,16 @@ class TestDBCleanup:
         clean_before_date = base_date.add(days=10)
 
         with create_session() as session:
+            dag_run = session.scalar(select(DagRun).order_by(DagRun.id).limit(1))
+            callback = ExecutorCallback(
+                SyncCallback(execute_cleanup_callback), fetch_method=CallbackFetchMethod.IMPORT_PATH
+            )
+            callback.created_at = base_date
+            callback.dagrun_id = dag_run.id
+            callback.state = CallbackState.SUCCESS
+            session.add(callback)
+            session.flush()
+
             run_cleanup(
                 clean_before_timestamp=clean_before_date,
                 table_names=[table_name],
@@ -519,6 +536,48 @@ class TestDBCleanup:
             assert expected_archived <= actual_archived, (
                 f"Expected archive tables not found: {expected_archived - actual_archived}"
             )
+            callback_archive = next(
+                name for name in archive_tables if name.startswith(f"{ARCHIVE_TABLE_PREFIX}callback__")
+            )
+            assert session.scalar(text(f"SELECT COUNT(*) FROM {callback_archive}")) == 1
+
+    def test_dag_run_cleanup_archives_active_and_recent_callbacks(self):
+        base_date = pendulum.datetime(2022, 1, 1, tz="UTC")
+        clean_before_date = base_date.add(days=10)
+        create_tis(base_date=base_date, num_tis=1, run_type=DagRunType.MANUAL)
+
+        with create_session() as session:
+            dag_run = session.scalar(select(DagRun))
+            for state, created_at in (
+                (CallbackState.PENDING, base_date),
+                (CallbackState.SUCCESS, clean_before_date),
+            ):
+                callback = ExecutorCallback(
+                    SyncCallback(execute_cleanup_callback), fetch_method=CallbackFetchMethod.IMPORT_PATH
+                )
+                callback.created_at = created_at
+                callback.dagrun_id = dag_run.id
+                callback.state = state
+                session.add(callback)
+            session.flush()
+
+            run_cleanup(
+                clean_before_timestamp=clean_before_date,
+                table_names=["dag_run"],
+                dry_run=False,
+                confirm=False,
+                session=session,
+            )
+
+            archive_tables = {
+                name
+                for name in inspect(session.bind).get_table_names()
+                if name.startswith(f"{ARCHIVE_TABLE_PREFIX}callback__")
+            }
+            assert len(archive_tables) == 1
+            callback_archive = archive_tables.pop()
+            assert session.scalar(text(f"SELECT COUNT(*) FROM {callback_archive}")) == 2
+            assert session.scalar(text("SELECT COUNT(*) FROM callback")) == 0
 
     @pytest.mark.parametrize(
         ("dag_ids", "exclude_dag_ids", "expected_remaining_dag_ids"),
@@ -2335,6 +2394,14 @@ class TestCallbackCleanupConfig:
         selected, _ = _effective_table_names(table_names=["callback"])
         assert selected == ["deadline", "callback"]
 
+    def test_callback_cleanup_is_scoped_through_its_dag_run(self):
+        config = config_dict["callback"]
+
+        assert "dagrun_id" in config.extra_columns
+        assert config.dag_id_scope == _IndirectDagScope(
+            fk_column="dagrun_id", referenced_table="dag_run", preserve_nulls_when_excluding=True
+        )
+
 
 @pytest.mark.db_test
 class TestCallbackCleanup:
@@ -2471,6 +2538,51 @@ class TestCallbackCleanup:
 
         with create_session() as session:
             assert self._count_callbacks(session, callback_id) == 1
+
+    def test_excluding_a_dag_keeps_callbacks_with_unknown_ownership(self, dag_maker):
+        from airflow.models.callback import Callback
+
+        old = pendulum.now(tz="UTC").subtract(days=30)
+        cutoff = pendulum.now(tz="UTC").subtract(days=1)
+        with dag_maker("test_db_clean_excluded_callback_dag"):
+            pass
+        excluded_dag_run = dag_maker.create_dagrun()
+        with dag_maker("test_db_clean_other_callback_dag"):
+            pass
+        other_dag_run = dag_maker.create_dagrun()
+
+        with create_session() as session:
+            excluded_callback_id = self._add_callback(session, "success", old)
+            other_callback_id = self._add_callback(session, "success", old)
+            unknown_callback_id = self._add_callback(session, "success", old)
+            session.execute(
+                Callback.__table__.update()
+                .where(Callback.id == excluded_callback_id)
+                .values(dagrun_id=excluded_dag_run.id)
+            )
+            session.execute(
+                Callback.__table__.update()
+                .where(Callback.id == other_callback_id)
+                .values(dagrun_id=other_dag_run.id)
+            )
+            session.commit()
+
+        with create_session() as session:
+            _cleanup_table(
+                **config_dict["callback"].__dict__,
+                clean_before_timestamp=cutoff,
+                exclude_dag_ids=[excluded_dag_run.dag_id],
+                dry_run=False,
+                verbose=False,
+                confirm=False,
+                skip_archive=True,
+                session=session,
+            )
+
+        with create_session() as session:
+            assert self._count_callbacks(session, excluded_callback_id) == 1
+            assert self._count_callbacks(session, unknown_callback_id) == 1
+            assert self._count_callbacks(session, other_callback_id) == 0
 
     def test_finished_callbacks_are_archived_not_just_deleted(self):
         """Archiving is the default path, so the purged rows must be recoverable."""

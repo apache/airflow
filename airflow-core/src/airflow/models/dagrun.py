@@ -455,6 +455,14 @@ class DagRun(Base, LoggingMixin):
         cascade="all, delete, delete-orphan",
     )
 
+    callbacks = relationship(
+        "Callback",
+        back_populates="dag_run",
+        uselist=True,
+        cascade="all, delete",
+        passive_deletes=True,
+    )
+
     created_dag_version = relationship("DagVersion", uselist=False, passive_deletes=True)
     """
     The dag version that was active when the dag run was created, if available.

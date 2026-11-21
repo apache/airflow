@@ -179,6 +179,7 @@ class Deadline(Base):
         self.callback = Callback.create_from_sdk_def(
             callback_def=callback, prefix=CALLBACK_METRICS_PREFIX, dag_id=dag_id
         )
+        self.callback.dagrun_id = dagrun_id
         self.callback.bundle_name = bundle_name
         self.deadline_alert_id = deadline_alert_id
 
@@ -327,9 +328,9 @@ class Deadline(Base):
         elif isinstance(self.callback, ExecutorCallback):
             data = callback_data_with_context()
             data["deadline_id"] = str(self.id)
-            data["dag_run_id"] = str(self.dagrun.id)
             data["dag_id"] = self.dagrun.dag_id
             self.callback.data = data
+            self.callback.dagrun_id = self.dagrun.id
 
             self.callback.state = CallbackState.PENDING
             session.add(self.callback)
