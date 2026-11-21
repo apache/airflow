@@ -67,10 +67,12 @@ try:
         """
         Wrapper around kubernetes sync ApiClient to set default timeout.
 
-        When *disable_verify_ssl* is True the TLS certificate check is turned off, and when
-        *enable_tcp_keepalive* is True TCP keepalive is enabled, on the *configuration*
+        When *disable_verify_ssl* is True the TLS certificate check is turned off, when
+        *enable_tcp_keepalive* is True TCP keepalive is enabled, and when *ssl_ca_cert*
+        is set it is used as the CA bundle for TLS verification, on the *configuration*
         that is passed (or on a fresh default copy) so that callers do not need to repeat
-        this logic at every call-site.
+        this logic at every call-site. Applying the CA here, after any kubeconfig loading,
+        keeps it from being overwritten by the kubeconfig loader.
         """
 
         def __init__(
@@ -79,14 +81,17 @@ try:
             *,
             disable_verify_ssl: bool = False,
             enable_tcp_keepalive: bool = False,
+            ssl_ca_cert: str | None = None,
         ) -> None:
-            if disable_verify_ssl or enable_tcp_keepalive:
+            if disable_verify_ssl or enable_tcp_keepalive or ssl_ca_cert:
                 if configuration is None:
                     configuration = client.Configuration.get_default_copy()
                 if disable_verify_ssl:
                     configuration.verify_ssl = False
                 if enable_tcp_keepalive:
                     configure_tcp_keepalive(configuration)
+                if ssl_ca_cert:
+                    configuration.ssl_ca_cert = ssl_ca_cert
             super().__init__(configuration=configuration)
 
         def call_api(self, *args: Any, **kwargs: Any) -> Any:
