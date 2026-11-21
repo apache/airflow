@@ -268,12 +268,7 @@ class DagBuilder:
 
         This looks up the upstream operator among the already-built ones.
         """
-        target = ref.target
-        if isinstance(target, str):
-            return XComArg(self._operators[target])
-        if target.key is None:
-            return XComArg(self._operators[target.task])
-        return XComArg(self._operators[target.task], key=target.key)
+        return XComArg(self._operators[ref.target], key=ref.key)
 
     def read_file(self, path: str) -> str:
         """Read a ``$f`` at build time, relative to the document."""

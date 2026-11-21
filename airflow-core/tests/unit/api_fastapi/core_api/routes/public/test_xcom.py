@@ -35,7 +35,7 @@ from airflow.models.dagrun import DagRun
 from airflow.models.dynamic_region import DynamicRegion
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.team import Team
-from airflow.models.xcom import XCOM_RETURN_KEY, XComModel, xcom_entity
+from airflow.models.xcom import EXTERNAL_CLEAR_TARGET_XCOM_KEY, XCOM_RETURN_KEY, XComModel, xcom_entity
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk import DAG, Asset, AssetAlias, task_group
 from airflow.sdk.bases.xcom import BaseXCom
@@ -623,6 +623,7 @@ class TestGetXComEntries(TestXComEndpoint):
                     f"{TEST_XCOM_KEY}-0",
                     f"{TEST_XCOM_KEY}-1",
                     "_airflow_loop_decision_reason",
+                    EXTERNAL_CLEAR_TARGET_XCOM_KEY,
                     "xairflowxloopx",
                 ],
             ),
@@ -632,7 +633,7 @@ class TestGetXComEntries(TestXComEndpoint):
     )
     def test_exclude_internal_keys(self, test_client, exclude_internal_keys, expected_keys):
         self._create_xcom_entries(TEST_DAG_ID, run_id, logical_date_parsed, TEST_TASK_ID)
-        for key in ("_airflow_loop_decision_reason", "xairflowxloopx"):
+        for key in ("_airflow_loop_decision_reason", EXTERNAL_CLEAR_TARGET_XCOM_KEY, "xairflowxloopx"):
             XComModel.set(
                 key=key, value="v", run_id=run_id, task_id=TEST_TASK_ID, dag_id=TEST_DAG_ID, map_index=-1
             )
@@ -1078,6 +1079,15 @@ class TestCreateXComEntry(TestXComEndpoint):
                 "Reserved loop XCom key",
                 id="reserved-loop-key",
             ),
+            pytest.param(
+                TEST_DAG_ID,
+                TEST_TASK_ID,
+                run_id,
+                XComCreateBody(key=EXTERNAL_CLEAR_TARGET_XCOM_KEY, value={"dag_id": "other"}),
+                400,
+                "Reserved XCom key",
+                id="reserved-external-clear-target-key",
+            ),
         ],
     )
     def test_create_xcom_entry(
@@ -1335,6 +1345,13 @@ class TestPatchXComEntry(TestXComEndpoint):
                 400,
                 "Reserved loop XCom key",
                 id="reserved-loop-key",
+            ),
+            pytest.param(
+                EXTERNAL_CLEAR_TARGET_XCOM_KEY,
+                {"value": {"dag_id": "other"}},
+                400,
+                "Reserved XCom key",
+                id="reserved-external-clear-target-key",
             ),
         ],
     )

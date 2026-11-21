@@ -117,6 +117,19 @@ def _broker_transport_options(broker_url: str, conf: AirflowSDKConfigParser | An
     return broker_transport_options
 
 
+def _apply_default_postgres_driver(result_backend: str) -> str:
+    """
+    Give a driverless ``db+postgresql://`` result backend Airflow's default sync Postgres driver.
+
+    SQLAlchemy before 2.1 picks psycopg2 for a driverless URL, while Airflow defaults to psycopg (v3);
+    fall back to psycopg2 without psycopg/SQLAlchemy 2.0, matching PostgresHook's USE_PSYCOPG3 gating.
+    """
+    if not result_backend.startswith("db+postgresql://"):
+        return result_backend
+    driver = "psycopg" if _USE_PSYCOPG3 else "psycopg2"
+    return result_backend.replace("db+postgresql://", f"db+postgresql+{driver}://", 1)
+
+
 def _get_database_engine_options(result_backend: str, options: dict[str, Any]) -> dict[str, Any]:
     if not result_backend.startswith("db+"):
         return options
@@ -157,14 +170,8 @@ def get_default_celery_config(team_conf: AirflowSDKConfigParser | Any) -> dict[s
         result_backend = team_conf.get_mandatory_value("celery", "RESULT_BACKEND")
     else:
         log.debug("Value for celery result_backend not found. Using sql_alchemy_conn with db+ prefix.")
-        sql_alchemy_conn = team_conf.get("database", "SQL_ALCHEMY_CONN")
-        # Airflow's sync metadata-database driver default is psycopg (v3); mirror that explicitly
-        # for driverless PostgreSQL URLs instead of relying on SQLAlchemy's own default. Fall back to
-        # psycopg2 when psycopg/SQLAlchemy 2.0 aren't both available, matching PostgresHook's own
-        # USE_PSYCOPG3 gating so this doesn't break environments still on the older combination.
-        target_scheme = "postgresql+psycopg://" if _USE_PSYCOPG3 else "postgresql+psycopg2://"
-        sql_alchemy_conn = sql_alchemy_conn.replace("postgresql://", target_scheme, 1)
-        result_backend = f"db+{sql_alchemy_conn}"
+        result_backend = f"db+{team_conf.get('database', 'SQL_ALCHEMY_CONN')}"
+    result_backend = _apply_default_postgres_driver(result_backend)
 
     # Handle result backend transport options (for Redis Sentinel support)
     result_backend_transport_options: dict = (

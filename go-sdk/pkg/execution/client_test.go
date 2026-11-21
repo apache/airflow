@@ -544,16 +544,24 @@ func TestResolveDefaultExpiry(t *testing.T) {
 		name    string
 		env     string
 		unset   bool
-		want    any
+		want    *genmodels.Time
 		wantErr string
 		// The timestamp only wraps for day counts that need a 64-bit int.
 		needs64BitInt bool
 	}{
 		{name: "unset is an error", unset: true, wantErr: "is not set"},
-		{name: "honours supervisor value", env: "7", want: now.UTC().AddDate(0, 0, 7)},
+		{
+			name: "honours supervisor value",
+			env:  "7",
+			want: genmodels.TimePtr(now.UTC().AddDate(0, 0, 7)),
+		},
 		{name: "zero days never expires", env: "0", want: nil},
 		// Python's config parser accepts a whole-number float spelling.
-		{name: "whole float accepted", env: "7.0", want: now.UTC().AddDate(0, 0, 7)},
+		{
+			name: "whole float accepted",
+			env:  "7.0",
+			want: genmodels.TimePtr(now.UTC().AddDate(0, 0, 7)),
+		},
 		{name: "unparsable is an error", env: "abc", wantErr: "failed to convert value to int"},
 		// conf.get returns "" for an empty setting, which must not read as unset.
 		{name: "empty is an error", env: "", wantErr: "failed to convert value to int"},
@@ -595,10 +603,6 @@ func TestResolveDefaultExpiry(t *testing.T) {
 				return
 			}
 			require.NoError(t, err)
-			if tc.want == nil {
-				assert.Nil(t, got, "a nil expiry must be untyped so msgpack encodes null")
-				return
-			}
 			assert.Equal(t, tc.want, got)
 		})
 	}
@@ -1277,7 +1281,7 @@ func TestCoordinatorClientTriggerDagRun(t *testing.T) {
 				genmodels.TriggerDagRun{
 					DagID:       "downstream",
 					RunID:       "run_1",
-					LogicalDate: logicalDate,
+					LogicalDate: genmodels.TimePtr(logicalDate),
 					Conf:        &genmodels.Conf{"k": "v"},
 				},
 			)

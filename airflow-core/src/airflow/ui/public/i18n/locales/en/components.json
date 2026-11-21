@@ -61,6 +61,7 @@
   "dagWarnings": {
     "error_one": "1 Error",
     "errorAndWarning": "1 Error and {{warningText}}",
+    "failingWatcher": "Watcher {{watcherName}} on {{assetName}} is failing",
     "types": {
       "asset conflict": "Asset conflict",
       "duplicate dag id": "Duplicate Dag ID",
@@ -68,6 +69,7 @@
       "runtime varying value": "Runtime-varying value",
       "task group cycle": "Task group cycle"
     },
+    "viewTrigger": "View trigger",
     "warning_one": "1 Warning",
     "warning_other": "{{count, number}} Warnings"
   },
