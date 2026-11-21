@@ -97,6 +97,7 @@
       "downstream": "Downstream",
       "existingTasks": "Wis bestaande taken",
       "future": "Toekomst",
+      "includeDependentDags": "Wis taken in afhankelijke Dags",
       "keepTaskState": "Behoud taakstatus en hervat",
       "laterIterations": "Latere iteraties",
       "onlyFailed": "Wis enkel mislukte taken",

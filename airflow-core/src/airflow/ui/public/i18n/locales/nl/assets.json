@@ -55,6 +55,15 @@
   "group": "Groep",
   "lastAssetEvent": "Laatste Asset Event",
   "name": "Naam",
+  "partitions": {
+    "consumerRuns": "Consumerende Dag Runs",
+    "consumerRunsHelp": "Dag Runs die het laatste Asset Event van de partitie hebben verwerkt",
+    "lastProducerRun": "Laatste Producer Run",
+    "status": {
+      "in_progress": "In uitvoering",
+      "materialized": "Gerealiseerd"
+    }
+  },
   "producingTasks": "Producerende taken",
   "scheduledDags": "Geplande Dags",
   "scheduling": "Scheduling",
@@ -62,5 +71,9 @@
   "taskDependencies": "Taak afhankelijkheden",
   "watcher_one": "Watcher",
   "watcher_other": "Watchers",
+  "watcherFailing_one": "Watcher faalt",
+  "watcherFailing_other": "Watchers falen",
+  "watcherOrphaned_one": "Verweesde Watcher",
+  "watcherOrphaned_other": "Verweesde Watchers",
   "watchers": "Watchers"
 }

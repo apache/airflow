@@ -28,11 +28,12 @@
         "lastParsed": "Laatst geparsd",
         "parseDuration": "Parse duur"
       },
-      "file_one": "Bestand",
-      "file_other": "Bestanden",
       "importErrorForbidden": "Je hebt geen rechten om deze importfout te bekijken.",
       "importErrorGone": "Deze importfout wordt niet langer geregistreerd. Waarschijnlijk is het opgelost door een herparsing.",
       "neverParsed": "Nooit",
+      "parsedFile_one": "Geparseerd bestand",
+      "parsedFile_other": "Geparseerde bestanden",
+      "parsedFilesNote": "Alleen bestanden die een Dag definiëren of waarvan importeren is mislukt, worden weergegeven.",
       "showImportError_one": "Bekijk {{count, number}} fout",
       "showImportError_other": "Bekijk {{count, number}} fouten"
     },
@@ -58,6 +59,48 @@
       }
     },
     "title": "Deadlines"
+  },
+  "triggers": {
+    "columns": {
+      "dagsAffected": "Beïnvloede Dags",
+      "failures": "Mislukkingen",
+      "kind": "Soort",
+      "lastError": "Laatste fout",
+      "lastEvent": "Laatste Event",
+      "status": "Status",
+      "triggerer": "Triggerer",
+      "usedBy": "Gebruikt door"
+    },
+    "detail": {
+      "firstFailedAt": "Faalt sinds",
+      "lastFailedAt": "Laatst mislukt op",
+      "noReadableScheduledDags": "Geen leesbare Dags",
+      "scheduledDags": "Geplande Dags"
+    },
+    "filters": {
+      "triggererHostname": "Triggerer-hostnaam"
+    },
+    "forbidden": {
+      "description": "Triggers zijn zichtbaar voor iedereen die kan zien waarvoor ze worden uitgevoerd: de Taak Instances of Dag Runs van een Dag, of een Asset die ze volgen. Je hebt geen toegang tot deze.",
+      "title": "Geen triggers om weer te geven"
+    },
+    "kind": {
+      "asset_watcher": "Asset Watcher",
+      "callback": "Callback",
+      "task": "Taak"
+    },
+    "notFound": {
+      "backToList": "Terug naar Triggers",
+      "description": "Triggers worden verwijderd zodra ze afgaan of zodra hetgeen waarvoor ze worden uitgevoerd klaar is. Deze is dus waarschijnlijk al afgerond.",
+      "title": "Deze trigger bestaat niet meer"
+    },
+    "status": {
+      "failing": "Mislukt",
+      "orphaned": "Verweesd"
+    },
+    "statusHint": {
+      "orphaned": "De Triggerer is gestopt. De trigger wacht tot een andere Triggerer deze overneemt."
+    }
   },
   "xcom": {
     "add": {

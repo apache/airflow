@@ -55,6 +55,7 @@
   "history": "Geschiedenis",
   "importErrors": {
     "bundle": "Bundel",
+    "copyStackTrace": "Kopieer stacktrace",
     "dagImportError_one": "Dag leesfout",
     "dagImportError_other": "Dag leesfouten",
     "searchByFile": "Zoek op bestand",
@@ -72,6 +73,7 @@
   "stats": {
     "activeDags": "Actieve Dags",
     "failedDags": "Mislukte Dags",
+    "failingTriggers": "Falende Triggers",
     "queuedDags": "Dags in de wachtrij",
     "requiredActions": "Vereiste acties",
     "runningDags": "Lopende Dags",
