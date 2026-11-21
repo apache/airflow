@@ -376,6 +376,56 @@ Exactly one case runs, and there is no default: a decider that returns anything 
 returned and what it could have returned. To run several tasks together on one outcome, put them behind a
 single task, or give each its own ``dag.if``.
 
+Task loops
+~~~~~~~~~~
+
+``loop`` runs a task group again and again, up to ``maxIterations``, until its handler says stop. The handler
+runs after every iteration as the loop's gate task, and ``getLoop()`` gives a task its iteration and the
+previous iteration's result:
+
+.. code-block:: typescript
+
+    import { getLoop, type LoopDecision, type XComSequence } from "@apache-airflow/ts-sdk";
+
+    type Metrics = { estimate: number; error: number };
+
+    const refine = dag.taskGroup("refine");
+
+    const improve = refine.task("improve", async () => {
+      const loop = await getLoop();
+      const estimate = loop.getPrevious<Metrics>()?.estimate ?? 1.0;
+      return (estimate + 2.0 / estimate) / 2.0;
+    });
+    const evaluate = refine.task("evaluate", ({ estimate }: { estimate: number }) => ({
+      estimate,
+      error: Math.abs(estimate * estimate - 2),
+    }));
+
+    async function accurateEnough({ result }: { result: Metrics }): Promise<LoopDecision> {
+      return { stop: result.error < 1e-6, reason: `error ${result.error.toExponential(1)}` };
+    }
+
+    const report = dag.task("report", async ({ history }: { history: XComSequence<Metrics> }) => {
+      console.log(`settled after ${await history.length()} iterations`);
+    });
+    const cleanup = dag.task("cleanup", () => {});
+
+    const estimate = improve();
+    const evaluated = evaluate({ estimate });
+    const refinement = refine.loop(accurateEnough, { result: evaluated }, { maxIterations: 10 });
+
+    report({ history: refinement.all(evaluated) });   // every iteration's Metrics, as an XComSequence
+    refinement.before(cleanup());                     // after the whole loop
+
+Without a handler, ``poll.loop({ maxIterations: 3 })`` runs the group a fixed number of times. A task outside
+the loop reads a body task's output through the loop's ``all()``, which gives every iteration's value as an
+``XComSequence``. See :ref:`loops-and-mapped-tasks` for when to use a loop. The API reference for
+`loop <https://airflow.apache.org/docs/ts-sdk/stable/module/authoring/taskgroupref/#loop>`__,
+`LoopRef <https://airflow.apache.org/docs/ts-sdk/stable/module/authoring/loopref/>`__,
+`getLoop <https://airflow.apache.org/docs/ts-sdk/stable/module/authoring/getloop/>`__ and
+`XComSequence <https://airflow.apache.org/docs/ts-sdk/stable/module/authoring/xcomsequence/>`__ lists the rules
+a loop follows.
+
 Triggering another Dag
 ~~~~~~~~~~~~~~~~~~~~~~
 
@@ -893,6 +943,10 @@ Limitations
   run when the Dag processor reads them.
 * **Some CLI commands do not take a Dag declared in TypeScript.** ``airflow dags test``, ``tasks test`` and
   ``tasks render`` refuse it, and ``airflow dags reserialize`` skips it.
+* **An XCom read cannot return every iteration of a loop.** From outside a loop, the ``TaskHandler`` of a
+  Python Dag's stub task and ``getClient().getXCom()`` in any TypeScript task fail on a loop task's XCom, since
+  the runtime has no way to ask for every iteration. Read the loop's output in a Python task, or declare the
+  Dag in TypeScript and pass the loop's ``all()`` as an input.
 * **Experimental.** The API may change in incompatible ways between releases.
 * **One Node.js process per task instance.** Tasks cannot share in-process state; use XComs or an external
   store.

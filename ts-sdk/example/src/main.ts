@@ -27,6 +27,7 @@
 import { Bundle, getClient, getContext, NEVER_EXPIRE, TaskHandler } from "@apache-airflow/ts-sdk";
 
 import { loadDynamicDags } from "./dynamic.js";
+import { dag as loopDag } from "./loop.js";
 import { dag as nativeDag } from "./native.js";
 import { buildSummaryMessage, report, summarize } from "./taskflow.js";
 
@@ -110,11 +111,13 @@ export async function readConnection() {
 // is bound to and never by the task_id alone.
 //
 // One bundle serves both authoring modes: handlers for the Dags a Python file declares, and the
-// natively declared Dag from `native.ts`, whose graph this side owns outright. It also serves the
-// native Dags `dynamic.ts` generates from a YAML file next to the bundle, when there is one.
+// natively declared Dags from `native.ts` and `loop.ts`, whose graphs this side owns outright. It
+// also serves the native Dags `dynamic.ts` generates from a YAML file next to the bundle, when there
+// is one.
 const bundle = new Bundle();
 bundle.register(
   nativeDag,
+  loopDag,
   ...loadDynamicDags(),
   new TaskHandler("typescript_example", "build_message", buildMessage),
   new TaskHandler("typescript_example", "read_connection", readConnection),

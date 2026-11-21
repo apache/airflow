@@ -42,6 +42,12 @@
 # - literal_inputs: a task's `literals` are values that follow the results of its `upstream` tasks
 #   as the arguments of the task. They add no edge. compare.py does not compare how a task takes its
 #   arguments, so the Dag shows only that no edge comes of a literal and that Airflow loads it.
+# - loops: an entry of `loops` makes the group it names a task loop of `max_iterations`. `until`
+#   names the gate task the loop gets, which decides whether another iteration follows; without
+#   it the loop runs a fixed count. A gate name that a task already has is numbered as
+#   get_unique_task_id numbers it. A loop is made after the `upstream` edges are drawn and before
+#   the `order_edges`, as an author draws edges from a loop once it exists. A task outside a loop may
+#   list a task of the loop in its `upstream`; it then runs after the loop's gate.
 dags:
   # No schedule and no options: NullTimetable plus the fields Python always emits.
   - dag_id: conformance_minimal
@@ -330,3 +336,96 @@ dags:
           - s3://bucket/out
           - {limit: 10, ratio: 0.5, tags: [a, null], nested: {enabled: true}}
           - null
+
+  # refine_estimate of example_task_loops.py: a loop whose gate decides, with a task after the loop.
+  - dag_id: conformance_loop_until
+    requires: [loops]
+    groups: [refine]
+    loops:
+      - group: refine
+        max_iterations: 10
+        until: accurate_enough
+    tasks:
+      - task_id: improve
+        group: refine
+      - task_id: evaluate
+        group: refine
+        upstream: [refine.improve]
+      - task_id: finished
+    order_edges:
+      - [refine, finished]
+
+  # fixed_task_loop of example_task_loops.py: a loop that runs a fixed count, with no gate handler.
+  - dag_id: conformance_loop_count
+    requires: [loops]
+    groups: [accumulate]
+    loops:
+      - group: accumulate
+        max_iterations: 3
+    tasks:
+      - task_id: increment
+        group: accumulate
+
+  # A task outside a loop that reads body tasks, the terminal one and another: both edges leave from
+  # the gate instead.
+  - dag_id: conformance_loop_data_edge
+    requires: [loops]
+    groups: [refine]
+    loops:
+      - group: refine
+        max_iterations: 5
+        until: accurate_enough
+    tasks:
+      - task_id: improve
+        group: refine
+      - task_id: evaluate
+        group: refine
+        upstream: [refine.improve]
+      - task_id: report
+        upstream: [refine.improve, refine.evaluate]
+      - task_id: finished
+        upstream: [report]
+
+  # A gate whose name a task of its loop already has is numbered as get_unique_task_id numbers it. The
+  # refine gate is check__2, since the body holds check and check__1; the poll gate is __loop_gate__1.
+  - dag_id: conformance_loop_gate_collision
+    requires: [loops]
+    groups: [refine, poll]
+    loops:
+      - group: refine
+        max_iterations: 4
+        until: check
+      - group: poll
+        max_iterations: 2
+    tasks:
+      - task_id: check
+        group: refine
+      - task_id: check__1
+        group: refine
+        upstream: [refine.check]
+      - task_id: __loop_gate
+        group: poll
+
+  # Loops in a plain group, one holding a plain group. The group's leaves include a loop's gate and
+  # never a body task, and summarize, which reads a task of the wait loop, runs after its gate.
+  - dag_id: conformance_loop_in_group
+    requires: [loops]
+    groups: [outer, outer.poll, outer.wait, outer.wait.sub]
+    loops:
+      - group: outer.poll
+        max_iterations: 3
+      - group: outer.wait
+        max_iterations: 2
+    tasks:
+      - task_id: prepare
+        group: outer
+      - task_id: check
+        group: outer.poll
+      - task_id: probe
+        group: outer.wait.sub
+      - task_id: summarize
+        group: outer
+        upstream: [outer.wait.sub.probe]
+      - task_id: finished
+    order_edges:
+      - [outer, finished]

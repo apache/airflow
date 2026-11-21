@@ -31,6 +31,9 @@ import {
 } from "../generated/dag-schema-fields.js";
 import { brand, DUPLICATE_COPY_HINT, hasBrand } from "./brand.js";
 import type { JsonValue } from "./client-types.js";
+import { buildDagGraph } from "./dag-graph.js";
+import type { UntilCallable } from "./loop.js";
+import type { XComSequence } from "./xcom-sequence.js";
 import { getCurrentModuleSource } from "./module-source.js";
 import { isOperator, isOwnOperator, type Operator } from "./operator.js";
 import { getClient, type TaskFunction } from "./task.js";
@@ -252,8 +255,108 @@ export interface TaskGroupRef extends Node {
     handler: (args: TArgs) => TaskRef | Promise<TaskRef>,
     ...args: DeciderArgs<NoInfer<TArgs>>
   ): Branch;
+  /**
+   * Run this group again and again, `maxIterations` times at most, as a task loop.
+   *
+   * With no handler the loop runs exactly `maxIterations` times. With one, `until` runs after
+   * every iteration as the loop's gate task and decides whether another follows; it reads what
+   * the body produced through `inputs`, wired as a task's own inputs are.
+   *
+   * ```ts
+   * const refine = dag.taskGroup("refine");
+   * const evaluated = evaluate({ estimate: improve() });
+   * refine.loop(accurateEnough, { result: evaluated }, { maxIterations: 10 });
+   *
+   * poll.loop({ maxIterations: 3 }); // a fixed count, with no handler
+   * ```
+   *
+   * The gate is an ordinary task of the group, named after `until`, or `__loop_gate` when there is
+   * no handler. If a task already has that name, the gate gets a `__1` style suffix, as in Python.
+   * A body task declared after `loop()` that takes the gate's name moves the gate on, as if the body
+   * had come first. `options` also takes the gate's {@link TaskSpec}, such as `taskId` and
+   * `retries`, but not `triggerRule`, `dependsOnPast`, `startDate` or `endDate`, which would change
+   * when the gate runs. A handler that still says to continue at `maxIterations` fails the gate,
+   * without a retry.
+   *
+   * The body has to end in one task, the terminal task, whose result is the iteration's answer and
+   * what {@link LoopContext.getPrevious} reads. Inside the loop a body task's reference reads that
+   * iteration's value. A task outside the loop reads every iteration's value through
+   * {@link LoopRef.all}, and runs after the last iteration; the bare reference is rejected there
+   * when the Dag is read. Order the whole loop against other tasks through the {@link LoopRef} this
+   * returns: an order-only edge from a body task to a task outside the loop is rejected too, since it
+   * would follow one iteration. A loop cannot be nested in another. Call it once per group, after or
+   * before filling the group.
+   */
+  loop(options: LoopOptions): LoopRef;
+  /**
+   * Run this group as a task loop whose gate is the handler `until`. It runs after every iteration
+   * and returns a boolean or a {@link LoopDecision}; `inputs` wires its own data as a task's inputs
+   * are wired, and `options` takes `maxIterations` and the gate's {@link TaskSpec}.
+   *
+   * ```ts
+   * refine.loop(accurateEnough, { result: evaluated }, { maxIterations: 10 });
+   * ```
+   *
+   * The gate's name, the body's terminal task, how a task outside the loop reads the body and how
+   * to order the loop are the rules of `loop(options)`.
+   */
+  loop<TArgs extends object>(
+    until: UntilCallable<TArgs>,
+    // NoInfer keeps TArgs coming from the handler alone, so inputs is checked key by key against
+    // it rather than widening it, as dag.if takes its inputs.
+    inputs: TaskInputs<NoInfer<TArgs>>,
+    options: LoopOptions,
+  ): LoopRef;
   before(...downstream: readonly Node[]): TaskGroupRef;
   after(...upstream: readonly Node[]): TaskGroupRef;
+}
+
+/** Options of a loop, the trailing argument of `loop()`: the bound, and the gate task's own spec. */
+export interface LoopOptions extends Omit<
+  TaskSpec,
+  "triggerRule" | "dependsOnPast" | "startDate" | "endDate"
+> {
+  /**
+   * The most iterations the loop runs, a positive integer. A loop with an `until` handler fails,
+   * without a retry, when the handler still says to continue at this iteration.
+   */
+  readonly maxIterations: number;
+}
+
+/** The {@link TaskSpec} fields a loop's gate rejects: each would change when the gate runs. */
+const LOOP_GATE_REJECTED_OPTIONS = [
+  "triggerRule",
+  "dependsOnPast",
+  "startDate",
+  "endDate",
+] as const satisfies readonly Exclude<keyof TaskSpec, keyof LoopOptions>[];
+
+/**
+ * A task group that runs as a loop, returned by {@link TaskGroupRef.loop}.
+ *
+ * Its edges order the whole loop: a task after it waits for the last iteration, and one before it
+ * runs once before the first.
+ */
+export interface LoopRef extends Node {
+  /** Group ID of the loop, including any enclosing group's prefix. */
+  readonly groupId: string;
+  /**
+   * Every iteration's value of `task`, in iteration order: what a task outside the loop reads.
+   *
+   * ```ts
+   * const loop = refine.loop(accurateEnough, { result: evaluated }, { maxIterations: 10 });
+   * report({ history: loop.all(evaluated) }); // XComSequence<Metrics>
+   * ```
+   *
+   * The reading task runs after the last iteration. The reference it returns cannot be ordered:
+   * order the whole loop through the {@link LoopRef} instead.
+   *
+   * @throws when `task` is not a task of this loop, or when the returned reference is used with
+   * `before()`, `after()`, `Label.of(...).on()`, `then()` or `case()`.
+   */
+  all<TReturn>(task: TaskRef<TReturn>): TaskRef<XComSequence<TReturn>>;
+  before(...downstream: readonly Node[]): LoopRef;
+  after(...upstream: readonly Node[]): LoopRef;
 }
 
 /** Options of a task group, the trailing argument of `taskGroup()`. */
@@ -347,7 +450,12 @@ export function isTaskRef(value: unknown): value is TaskRef {
   return hasBrand(value, "TaskRef");
 }
 
-const conditionTasks = new WeakMap<object, TaskRef>();
+// What a placed construct stands for at either end of an edge: a condition or branch its deciding
+// task, a loop its group.
+const conditionTasks = new WeakMap<object, Node>();
+
+// Each reference a loop's `all()` returned, to the body task whose every iteration it reads.
+const allIterationReads = new WeakMap<object, TaskRef>();
 
 const labelledNodes = new WeakMap<
   object,
@@ -357,6 +465,16 @@ const labelledNodes = new WeakMap<
 function resolveNode(node: Node): Node {
   if (typeof node !== "object" || node === null) return node;
   return conditionTasks.get(node) ?? node;
+}
+
+/** `use` is the call that was given `node`, such as `before() or after()`. */
+function rejectAllIterations(node: unknown, use: string): void {
+  if (typeof node !== "object" || node === null || !allIterationReads.has(node)) return;
+  const { dagId, taskId } = node as TaskRef;
+  throw new Error(
+    `The all() of "${taskId}" of Dag "${dagId}" cannot be used with ${use}. Order the whole ` +
+      "loop through the reference loop() returned",
+  );
 }
 
 /**
@@ -419,6 +537,7 @@ export class Label {
   on(node: Node, ...more: readonly Node[]): Node {
     const text = this.#text;
     const nodes = [node, ...more].flatMap((each) => {
+      rejectAllIterations(each, "Label.of(...).on()");
       // Labelling a labelled node again replaces its label.
       const labelled = labelledNodes.get(each);
       if (labelled !== undefined) return labelled.nodes;
@@ -608,7 +727,32 @@ export type TaskRecord = {
   readonly spec: TaskSpec;
   /** Whether this task decides which of its downstream tasks to skip. */
   readonly canSkipDownstream?: boolean;
+  /** Set on the gate task of a loop: the loop it decides for. */
+  readonly loopGate?: LoopGate;
 } & TaskBody;
+
+/** Which loop a gate task decides for. */
+export interface LoopGate {
+  /** Group ID of the loop, a key of {@link getDagLoops}. */
+  readonly groupId: string;
+}
+
+/** Internal: one loop of a Dag, keyed by its group. */
+export interface LoopRecord {
+  /** Group ID of the loop, including any enclosing group's prefix. */
+  readonly groupId: string;
+  readonly maxIterations: number;
+  /** Whether the gate runs an `until` handler; without one the loop runs a fixed count. */
+  readonly hasUntil: boolean;
+  /** The task that runs after each iteration and decides whether another follows. */
+  readonly gateTaskId: string;
+}
+
+/** What the gate of a loop with no handler is called, as Python names it. */
+const DEFAULT_LOOP_GATE_ID = "__loop_gate";
+
+/** The names Python's `create_loop` gives a gate: an ASCII identifier, or its fallback. */
+const LOOP_GATE_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
 /** What a task runs: the author's handler, or an operator the runtime runs. */
 type TaskBody =
@@ -660,6 +804,7 @@ let orderEdgesOf: (dag: Dag) => readonly OrderEdge[];
 let labellingsOf: (dag: Dag) => readonly EdgeLabelling[];
 let definedInOf: (dag: Dag) => string | undefined;
 let groupsOf: (dag: Dag) => ReadonlyMap<string, TaskGroupRecord>;
+let loopsOf: (dag: Dag) => ReadonlyMap<string, LoopRecord>;
 let finalizeOf: (dag: Dag) => void;
 
 /** Internal: whether `value` is a Dag built by any copy of this package. */
@@ -709,6 +854,13 @@ export class Dag {
   // The one reference each group was handed out as, so an edge endpoint can be
   // checked by identity the way a task's is.
   readonly #groupRefs = new Map<string, TaskGroupRef>();
+  // Keyed by the loop's group ID.
+  readonly #loops = new Map<string, LoopRecord>();
+  // The name each loop's gate took from its handler, by group ID. A gate whose author gave a taskId
+  // is not here, since that id is used as it is.
+  readonly #gateNames = new Map<string, string>();
+  // Each body task's reference to the one a loop's all() returned for it.
+  readonly #allIterationRefs = new WeakMap<TaskRef, TaskRef>();
   #finalized = false;
 
   static {
@@ -718,6 +870,7 @@ export class Dag {
     labellingsOf = (dag) => [...dag.#labellings];
     definedInOf = (dag) => dag.#definedIn;
     groupsOf = (dag) => dag.#groups;
+    loopsOf = (dag) => dag.#loops;
     finalizeOf = (dag) => dag.#finalize();
   }
 
@@ -853,6 +1006,7 @@ export class Dag {
         );
       }
       this.#rejectLabel(target, `The "${side}" branch of "${taskId}"`, taskId);
+      rejectAllIterations(target, "then() or else()");
       const taskRef = resolveNode(target) as TaskRef;
       this.#validateOwnNode(taskRef, `the "${side}" branch of "${taskId}"`);
       if (!isTaskRef(taskRef)) {
@@ -967,6 +1121,7 @@ export class Dag {
       taskId,
       case: (taskRef) => {
         this.#rejectLabel(taskRef, `A case of "${taskId}"`, taskId);
+        rejectAllIterations(taskRef, "case()");
         this.#validateOwnNode(taskRef, `a case of "${taskId}"`);
         if (!isTaskRef(taskRef)) {
           throw new Error(
@@ -1100,6 +1255,7 @@ export class Dag {
           `${operator.executionTimeoutAlternative} instead`,
       );
     }
+    this.#moveGateOff(groupId, taskId);
     this.#reserveNodeId(taskId, "Task");
     const task = this.#createTaskRef(taskId);
     if (groupId !== undefined) this.#groups.get(groupId)!.taskIds.push(taskId);
@@ -1272,6 +1428,7 @@ export class Dag {
         this.#placeCondition(`taskGroup("${groupId}").if`, groupId, handler, args),
       switch: (handler: (args: never) => TaskRef | Promise<TaskRef>, ...args: readonly unknown[]) =>
         this.#placeBranch(`taskGroup("${groupId}").switch`, groupId, handler, args),
+      loop: (...args: readonly unknown[]) => this.#placeLoop(group, args),
       before: (...downstream) => {
         for (const other of downstream) this.#addOrderEdge(group, other, "before");
         return group;
@@ -1283,6 +1440,260 @@ export class Dag {
     } as TaskGroupRef;
     brand(group, "TaskGroupRef");
     return Object.freeze(group);
+  }
+
+  #placeLoop(group: TaskGroupRef, args: readonly unknown[]): LoopRef {
+    const { groupId } = group;
+    const label = `Loop "${groupId}" of Dag "${this.dagId}"`;
+    if (this.#finalized) {
+      throw new Error(
+        `${label} was declared after the Dag was read; declare every loop while the module is ` +
+          "loading",
+      );
+    }
+    if (this.#loops.has(groupId)) {
+      throw new Error(`${label} was already declared; call loop() once per task group`);
+    }
+    const [first] = args;
+    const until = typeof first === "function" ? (first as UntilCallable<never>) : undefined;
+    const expected = until === undefined ? 1 : 3;
+    // TypeScript already says so, but from plain JavaScript a dropped argument would leave the
+    // gate without the inputs or the bound it was meant to have.
+    if (args.length !== expected) {
+      throw new Error(
+        until === undefined
+          ? `${label} takes either loop({ maxIterations }) or loop(until, inputs, ` +
+              `{ maxIterations }), not ${args.length} arguments of which the first is ` +
+              describeValue(first)
+          : `${label} takes loop(until, inputs, { maxIterations }), not ${args.length} arguments`,
+      );
+    }
+    const options: unknown = args[expected - 1];
+    if (!isPlainRecord(options)) {
+      throw new Error(`The options of ${label} must be an object holding maxIterations`);
+    }
+    const { maxIterations, ...gateSpec } = options;
+    if (
+      typeof maxIterations !== "number" ||
+      !Number.isSafeInteger(maxIterations) ||
+      maxIterations <= 0
+    ) {
+      throw new Error(
+        `maxIterations of ${label} must be a positive integer, not ${describeValue(maxIterations)}`,
+      );
+    }
+    for (const key of LOOP_GATE_REJECTED_OPTIONS) {
+      if (gateSpec[key] !== undefined) {
+        throw new Error(
+          `The options of ${label} cannot set ${key}: it would change when the gate runs, and the ` +
+            "gate has to run after every iteration",
+        );
+      }
+    }
+    // The gate is named after its handler, as a task is, and Python's fallback stands in for a
+    // handler that has no name Airflow accepts, or for no handler at all. A `taskId` the author
+    // gave is used as it is, so a clash with it is theirs to fix.
+    const named = readFunctionName(until);
+    const gateName =
+      named !== undefined && LOOP_GATE_NAME.test(named) ? named : DEFAULT_LOOP_GATE_ID;
+    const gateId =
+      typeof gateSpec["taskId"] === "string" ? undefined : this.#getUniqueGateId(groupId, gateName);
+    const handler = until ?? (async () => undefined);
+    const factory = (
+      gateId === undefined
+        ? this.#addTask(groupId, handler, gateSpec as TaskOptions)
+        : this.#addTask(groupId, gateId, handler, gateSpec as TaskOptions)
+    ) as (inputs?: unknown) => TaskRef;
+    const gate = until === undefined ? factory() : factory(args[1]);
+    const record = this.#tasks.get(gate.taskId)!;
+    this.#tasks.set(gate.taskId, { ...record, loopGate: { groupId } });
+    if (gateId !== undefined) this.#gateNames.set(groupId, gateName);
+    this.#loops.set(
+      groupId,
+      Object.freeze({
+        groupId,
+        maxIterations,
+        hasUntil: until !== undefined,
+        gateTaskId: gate.taskId,
+      }),
+    );
+    const placed: LoopRef = {
+      dagId: this.dagId,
+      groupId,
+      all: <TReturn>(task: TaskRef<TReturn>) =>
+        this.#readAllIterations(groupId, task) as TaskRef<XComSequence<TReturn>>,
+      before: (...downstream) => {
+        group.before(...downstream);
+        return placed;
+      },
+      after: (...upstream) => {
+        group.after(...upstream);
+        return placed;
+      },
+    };
+    conditionTasks.set(placed, group);
+    return Object.freeze(placed);
+  }
+
+  /**
+   * `taskId`, or `taskId__N` with N one past the highest in use when a task of `groupId` already
+   * has it, as Python's `get_unique_task_id` names the gate of a loop.
+   */
+  #getUniqueGateId(groupId: string, taskId: string): string {
+    const taken = [...this.#tasks.keys()];
+    const fullId = this.#childId(groupId, taskId);
+    if (!taken.includes(fullId)) return taskId;
+    const numbered = /__\d+$/;
+    const stem = fullId.replace(numbered, "");
+    const numbers = taken.flatMap((id) => {
+      const rest = id.startsWith(`${stem}__`) ? id.slice(stem.length + 2) : "";
+      return /^\d+$/.test(rest) ? [Number(rest)] : [];
+    });
+    return `${taskId.replace(numbered, "")}__${Math.max(0, ...numbers) + 1}`;
+  }
+
+  /**
+   * Move a gate named after its handler off `taskId`, an id a body task declared after `loop()` is
+   * about to take. Python picks the gate's id once the body exists, so the gate gets the id it
+   * would have had if the body had been declared first.
+   */
+  #moveGateOff(groupId: string | undefined, taskId: string): void {
+    if (groupId === undefined) return;
+    for (const [loopId, gateName] of this.#gateNames) {
+      const loop = this.#loops.get(loopId)!;
+      const inLoop = groupId === loopId || this.#findEnclosingLoop(groupId) === loopId;
+      if (loop.gateTaskId !== taskId || !inLoop) continue;
+      const movedTo = this.#childId(loopId, this.#getUniqueGateId(loopId, gateName));
+      try {
+        this.#reserveNodeId(movedTo, "Task");
+      } catch (error) {
+        throw new Error(
+          `The gate of Loop "${loopId}" was moved to "${movedTo}" because a body task took its ID ` +
+            `"${taskId}": ${error instanceof Error ? error.message : String(error)}`,
+          { cause: error },
+        );
+      }
+      renameKey(this.#tasks, taskId, movedTo, (record) => ({
+        ...record,
+        task: this.#createTaskRef(movedTo),
+      }));
+      renameKey(this.#inputs, taskId, movedTo);
+      const gateGroup = this.#groups.get(loopId)!;
+      gateGroup.taskIds[gateGroup.taskIds.indexOf(taskId)] = movedTo;
+      this.#loops.set(loopId, Object.freeze({ ...loop, gateTaskId: movedTo }));
+      return;
+    }
+  }
+
+  /** The loop holding `nodeId`, a task or a group nested in the loop, if any. */
+  #findEnclosingLoop(nodeId: string): string | undefined {
+    if (this.#loops.size === 0) return undefined;
+    let groupId = this.#groups.has(nodeId)
+      ? this.#groups.get(nodeId)!.parentGroupId
+      : this.#findTaskGroupId(nodeId);
+    while (groupId !== undefined) {
+      if (this.#loops.has(groupId)) return groupId;
+      groupId = this.#groups.get(groupId)!.parentGroupId;
+    }
+    return undefined;
+  }
+
+  #findTaskGroupId(taskId: string): string | undefined {
+    for (const group of this.#groups.values()) {
+      if (group.taskIds.includes(taskId)) return group.groupId;
+    }
+    return undefined;
+  }
+
+  #checkLoops(): void {
+    this.#checkLoopReads();
+    if (this.#loops.size === 0) return;
+    for (const { groupId } of this.#loops.values()) {
+      const outer = this.#findEnclosingLoop(groupId);
+      if (outer !== undefined) {
+        throw new Error(
+          `Loop "${groupId}" of Dag "${this.dagId}" is inside loop "${outer}"; ` +
+            "a loop cannot be nested in another",
+        );
+      }
+    }
+    for (const { upstream, downstream } of this.#orderEdges.values()) {
+      const loop = this.#findEnclosingLoop(upstream);
+      if (loop === undefined || this.#findEnclosingLoop(downstream) === loop) continue;
+      throw new Error(
+        `"${upstream}" of Dag "${this.dagId}" is in loop "${loop}", so an edge from it to ` +
+          `"${downstream}" would run "${downstream}" after one iteration rather than after the ` +
+          `loop; order the loop itself through the reference loop() returned for "${loop}"`,
+      );
+    }
+    const { loopTerminals, downstreamTaskIds } = buildDagGraph(this);
+    for (const { groupId, gateTaskId } of this.#loops.values()) {
+      const found = loopTerminals.get(groupId) ?? [];
+      if (found.length !== 1) {
+        throw new Error(
+          `The body of loop "${groupId}" of Dag "${this.dagId}" has to end in exactly one task, ` +
+            "whose result is the iteration's answer, but " +
+            (found.length === 0
+              ? this.#describeEmptyEnd(groupId, gateTaskId, downstreamTaskIds)
+              : `${found.map((id) => `"${id}"`).join(", ")} all end it`),
+        );
+      }
+    }
+    for (const { groupId, gateTaskId } of this.#loops.values()) {
+      const cycle = findCycleThrough(downstreamTaskIds, gateTaskId);
+      if (cycle !== undefined) {
+        throw new Error(
+          `Loop "${groupId}" of Dag "${this.dagId}" would wait for itself: ${formatPath(cycle)}. ` +
+            "A task downstream of the loop runs after its last iteration, so no body task can " +
+            "depend on it",
+        );
+      }
+    }
+  }
+
+  /** Why a loop body has no task that ends it: it holds none, or its tasks wait for each other. */
+  #describeEmptyEnd(
+    groupId: string,
+    gateTaskId: string,
+    downstreamTaskIds: ReadonlyMap<string, ReadonlySet<string>>,
+  ): string {
+    const cycle = [...this.#tasks.keys()]
+      .filter((id) => id !== gateTaskId && this.#findEnclosingLoop(id) === groupId)
+      .map((id) => findCycleThrough(downstreamTaskIds, id))
+      .find((path) => path !== undefined);
+    return cycle === undefined
+      ? "it holds no task"
+      : `its tasks wait for each other: ${formatPath(cycle)}`;
+  }
+
+  /**
+   * Reject a read of a loop task that core cannot serve: one iteration's value from outside the loop,
+   * where only every iteration's is served, and every iteration's value from inside the loop.
+   */
+  #checkLoopReads(): void {
+    for (const [taskId, inputs] of this.#inputs) {
+      const ownLoop = this.#findEnclosingLoop(taskId);
+      for (const [name, value] of Object.entries(inputs)) {
+        if (!isTaskRef(value)) continue;
+        const producer = value.taskId;
+        const loop = this.#findEnclosingLoop(producer);
+        const label = `Input "${name}" of task "${taskId}" of Dag "${this.dagId}"`;
+        if (allIterationReads.has(value)) {
+          if (loop === ownLoop) {
+            throw new Error(
+              `${label} reads every iteration of "${producer}" with all() from inside loop ` +
+                `"${loop}", where a task reads one iteration's value; pass the reference itself`,
+            );
+          }
+        } else if (loop !== undefined && loop !== ownLoop) {
+          throw new Error(
+            `${label} takes "${producer}", a task of loop "${loop}", from outside that loop, ` +
+              "where only every iteration's value can be read; read it with all() on the " +
+              `reference loop() returned for "${loop}"`,
+          );
+        }
+      }
+    }
   }
 
   #createTaskRef(taskId: string): TaskRef {
@@ -1300,6 +1711,35 @@ export class Dag {
     };
     brand(task, "TaskRef");
     return Object.freeze(task);
+  }
+
+  /** The reference that reads every iteration of `task`, a task of loop `loopId`: one per task. */
+  #readAllIterations(loopId: string, task: unknown): TaskRef {
+    const label = `all() of loop "${loopId}" of Dag "${this.dagId}"`;
+    if (!isTaskRef(task) || allIterationReads.has(task)) {
+      throw new Error(`${label} takes a task reference, not ${describeValue(task)}`);
+    }
+    if (task.dagId !== this.dagId || this.#findEnclosingLoop(task.taskId) !== loopId) {
+      throw new Error(`${label} takes a task of the loop, and "${task.taskId}" is not one`);
+    }
+    const cached = this.#allIterationRefs.get(task);
+    if (cached !== undefined) return cached;
+    const every: TaskRef = {
+      dagId: this.dagId,
+      taskId: task.taskId,
+      before: (...downstream) => {
+        for (const other of downstream) this.#addOrderEdge(every, other, "before");
+        return every;
+      },
+      after: (...upstream) => {
+        for (const other of upstream) this.#addOrderEdge(other, every, "after");
+        return every;
+      },
+    };
+    brand(every, "TaskRef");
+    allIterationReads.set(every, task);
+    this.#allIterationRefs.set(task, Object.freeze(every));
+    return every;
   }
 
   #addOrderEdge(upstreamNode: Node, downstreamNode: Node, verb: "before" | "after"): void {
@@ -1324,6 +1764,9 @@ export class Dag {
     downstreamNode: Node,
     verb: "before" | "after",
   ): readonly [string, string] {
+    // An edge on it would order the body task, which runs once per iteration, not the whole loop.
+    rejectAllIterations(upstreamNode, "before() or after()");
+    rejectAllIterations(downstreamNode, "before() or after()");
     const upstream = resolveNode(upstreamNode);
     const downstream = resolveNode(downstreamNode);
     if (this.#finalized) {
@@ -1490,7 +1933,7 @@ export class Dag {
       // Identity, not just the ID pair: two Dag objects can carry the same
       // dagId, and a second resolved copy of this package brands its own
       // references, so matching IDs do not make a reference this Dag handed out.
-      if (upstream.task !== value) {
+      if (upstream.task !== (allIterationReads.get(value) ?? value)) {
         throw new Error(
           `Input "${key}" of task "${taskId}" was not returned by this Dag's "${value.taskId}"; ` +
             `it comes from another Dag object with the same ID, or ${DUPLICATE_COPY_HINT}`,
@@ -1526,6 +1969,7 @@ export class Dag {
         );
       }
     }
+    this.#checkLoops();
     // Last, so a Dag that failed the check reports that same failure again
     // rather than reporting itself as already read.
     this.#finalized = true;
@@ -1540,6 +1984,48 @@ const TASK_ID_CHARACTERS = /^[\p{L}\p{N}_.-]+$/u;
 // since the dot is what joins it to what it holds.
 const GROUP_ID_CHARACTERS = /^[\p{L}\p{N}_-]+$/u;
 const GROUP_ID_MAX_LENGTH = 200;
+
+function formatPath(path: readonly string[]): string {
+  return path.map((id) => `"${id}"`).join(" -> ");
+}
+
+/** Rename `from` to `to` in `map`, keeping its place in the insertion order. */
+function renameKey<V>(
+  map: Map<string, V>,
+  from: string,
+  to: string,
+  update?: (value: V) => V,
+): void {
+  const entries = [...map].map(([key, value]): [string, V] =>
+    key === from ? [to, update === undefined ? value : update(value)] : [key, value],
+  );
+  map.clear();
+  for (const [key, value] of entries) map.set(key, value);
+}
+
+/** The shortest path along `edges` from `start` back to `start`, or `undefined` when there is none. */
+function findCycleThrough(
+  edges: ReadonlyMap<string, ReadonlySet<string>>,
+  start: string,
+): string[] | undefined {
+  const parent = new Map<string, string>();
+  const queue = [start];
+  for (let i = 0; i < queue.length; i += 1) {
+    const task = queue[i]!;
+    for (const next of edges.get(task) ?? []) {
+      if (next === start) {
+        const path = [task];
+        while (path[0] !== start) path.unshift(parent.get(path[0]!)!);
+        return [...path, start];
+      }
+      if (!parent.has(next)) {
+        parent.set(next, task);
+        queue.push(next);
+      }
+    }
+  }
+  return undefined;
+}
 
 /** A value as an error message names it: its type, or the literal when short. */
 function describeValue(value: unknown): string {
@@ -1589,6 +2075,19 @@ function rejectBlankQueue(queue: unknown, owner: string): void {
  */
 export function getDagTaskRecords(dag: Dag): ReadonlyMap<string, TaskRecord> {
   return taskRecordsOf(dag);
+}
+
+/** Internal: every loop of a Dag, keyed by the full ID of its group. */
+export function getDagLoops(dag: Dag): ReadonlyMap<string, LoopRecord> {
+  return loopsOf(dag);
+}
+
+/** Internal: the arguments of task `taskId` that read every iteration of a loop task, by name. */
+export function getAllIterationsArgNames(dag: Dag, taskId: string): ReadonlySet<string> {
+  const inputs = inputsOf(dag).get(taskId) ?? {};
+  return new Set(
+    Object.keys(inputs).filter((name) => allIterationReads.has(inputs[name] as object)),
+  );
 }
 
 /** Internal: every task group of a Dag, keyed by full group ID. */

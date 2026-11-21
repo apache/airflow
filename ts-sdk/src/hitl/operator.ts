@@ -33,7 +33,6 @@ import type { JsonValue } from "../sdk/client-types.js";
 import { isPlainRecord, type Dag } from "../sdk/dag.js";
 import { getDagDownstreamTaskIds } from "../sdk/dag-graph.js";
 import { brandOperator, type OperatorContext, type OperatorOutcome } from "../sdk/operator.js";
-import { runInTaskScope } from "../sdk/task.js";
 import type { HITLResult, HITLTask, HITLTaskFields, HITLText, HITLUser } from "./spec.js";
 
 export const APPROVE = "Approve";
@@ -68,7 +67,7 @@ async function executeHITL(task: HITLTask<never>, op: OperatorContext): Promise<
   // XComs still being there.
   const args = await op.resolveArgs(task.argNames);
   const render = (text: HITLText<never, string | null>) =>
-    runInTaskScope({ ctx, client }, () => renderText(text, args));
+    op.runInScope(() => renderText(text, args));
   const subject = await render(task.subject);
   const body = task.body === undefined ? null : await render(task.body);
   if (typeof subject !== "string" || subject.length === 0) {
