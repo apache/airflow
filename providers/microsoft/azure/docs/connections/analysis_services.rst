@@ -43,20 +43,35 @@ Region Endpoint
 
 Client ID
     Specify the Microsoft Entra service principal application (client) ID in ``login``.
+    Leave both Client ID and Client Secret empty to use ``DefaultAzureCredential``.
 
 Client Secret
-    Specify the service principal client secret in ``password``.
+    Specify the service principal client secret in ``password`` when using client-secret authentication.
 
 Tenant ID
-    Specify the Microsoft Entra tenant ID in the ``tenantId`` extra field.
+    Specify the Microsoft Entra tenant ID in the ``tenantId`` extra field when using client-secret authentication.
+
+Managed Identity Client ID
+    Optionally specify ``managed_identity_client_id`` in extras, together with
+    ``workload_identity_tenant_id``, to configure ``DefaultAzureCredential``.
+
+Workload Identity Tenant ID
+    Optionally specify ``workload_identity_tenant_id`` in extras, together with
+    ``managed_identity_client_id``, to configure ``DefaultAzureCredential``.
 
 Azure Analysis Services currently requires the service principal to be a server administrator for
 asynchronous refresh REST API calls. Add it to the server administrator role using the format
 ``app:<client-id>@<tenant-id>``. See `Add a service principal to the server administrator role
 <https://learn.microsoft.com/en-us/analysis-services/azure-analysis-services/analysis-services-addservprinc-admins>`__.
 
-This connection supports service principal client-secret authentication. Managed identity authentication is
-not supported because Azure Analysis Services does not support managed identities for these operations.
+When both Client ID and Client Secret are empty, the hook uses the asynchronous
+``DefaultAzureCredential`` chain, including environment, workload identity, and managed identity
+credentials. You can configure these through the Azure Identity environment variables, or supply both
+identity extra fields above. Setting only one of Client ID or Client Secret is an error; incomplete
+client-secret credentials do not fall back to another identity.
+
+The selected identity must still be authorized to use the Azure Analysis Services refresh API;
+obtaining a token does not grant server administrator access.
 
 .. spelling:word-list::
 
