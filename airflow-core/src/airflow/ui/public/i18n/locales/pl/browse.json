@@ -66,6 +66,48 @@
     },
     "title": "Terminy"
   },
+  "triggers": {
+    "columns": {
+      "dagsAffected": "Dotknięte Dagi",
+      "failures": "Błędy",
+      "kind": "Rodzaj",
+      "lastError": "Ostatni błąd",
+      "lastEvent": "Ostatnie zdarzenie",
+      "status": "Stan",
+      "triggerer": "Triggerer",
+      "usedBy": "Używany przez"
+    },
+    "detail": {
+      "firstFailedAt": "Błędy od",
+      "lastFailedAt": "Czas ostatniego błędu",
+      "noReadableScheduledDags": "Brak takich, do których masz dostęp",
+      "scheduledDags": "Zaplanowane Dagi"
+    },
+    "filters": {
+      "triggererHostname": "Nazwa hosta triggerera"
+    },
+    "forbidden": {
+      "description": "Wyzwalacze są widoczne dla każdego, kto może zobaczyć to, dla czego działają: instancje zadań lub wykonania Daga albo obserwowany przez nie zasób. Nie masz dostępu do żadnego z nich.",
+      "title": "Brak wyzwalaczy do wyświetlenia"
+    },
+    "kind": {
+      "asset_watcher": "Watcher zasobu",
+      "callback": "Wywołanie zwrotne",
+      "task": "Zadanie"
+    },
+    "notFound": {
+      "backToList": "Wróć do wyzwalaczy",
+      "description": "Wyzwalacze są usuwane, gdy zostaną wyzwolone lub gdy zakończy się to, dla czego działają, więc ten najprawdopodobniej już się zakończył.",
+      "title": "Ten wyzwalacz już nie istnieje"
+    },
+    "status": {
+      "failing": "Z błędami",
+      "orphaned": "Osierocony"
+    },
+    "statusHint": {
+      "orphaned": "Jego triggerer został zatrzymany. Czeka, aż przejmie go inny triggerer."
+    }
+  },
   "xcom": {
     "add": {
       "error": "Nie udało się dodać XCom",

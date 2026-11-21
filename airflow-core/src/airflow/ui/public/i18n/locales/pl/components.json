@@ -65,6 +65,7 @@
   "dagWarnings": {
     "error_one": "1 błąd",
     "errorAndWarning": "1 błąd i {{warningText}}",
+    "failingWatcher": "Watcher {{watcherName}} dla {{assetName}} zgłasza błędy",
     "types": {
       "asset conflict": "Konflikt zasobu",
       "duplicate dag id": "Zduplikowany Dag ID",
@@ -72,6 +73,7 @@
       "runtime varying value": "Wartość zmienna w czasie wykonania",
       "task group cycle": "Cykl w grupie zadań"
     },
+    "viewTrigger": "Pokaż wyzwalacz",
     "warning_few": "{{count, number}} ostrzeżenia",
     "warning_many": "{{count, number}} ostrzeżeń",
     "warning_one": "1 ostrzeżenie",
