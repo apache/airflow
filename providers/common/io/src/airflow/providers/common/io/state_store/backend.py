@@ -210,11 +210,14 @@ class StateStoreObjectStorageBackend(BaseStoreBackend):
     ) -> None:
         await asyncio.to_thread(self.clear, scope, all_map_indices=all_map_indices)
 
-    def serialize_task_state_store_to_ref(self, *, value: JsonValue, key: str, scope: TaskScope) -> str:
+    def serialize_task_state_store_to_ref(
+        self, *, value: JsonValue, key: str, scope: TaskScope
+    ) -> str | None:
         serialized = json.dumps(value)
         # json.dumps escapes non-ASCII characters, so the string's length is its size in bytes.
         if len(serialized) < _get_threshold():
-            return serialized
+            # Not `return None`: older Task SDKs wrap every return value, so use the installed default.
+            return super().serialize_task_state_store_to_ref(value=value, key=key, scope=scope)
         path = _build_task_path(scope, key)
         _write_to_object_storage(path, serialized)
         return str(path)
@@ -229,11 +232,14 @@ class StateStoreObjectStorageBackend(BaseStoreBackend):
             return None
         return json.loads(stored)
 
-    def serialize_asset_state_store_to_ref(self, *, value: JsonValue, key: str, scope: AssetScope) -> str:
+    def serialize_asset_state_store_to_ref(
+        self, *, value: JsonValue, key: str, scope: AssetScope
+    ) -> str | None:
         serialized = json.dumps(value)
         # json.dumps escapes non-ASCII characters, so the string's length is its size in bytes.
         if len(serialized) < _get_threshold():
-            return serialized
+            # Not `return None`: older Task SDKs wrap every return value, so use the installed default.
+            return super().serialize_asset_state_store_to_ref(value=value, key=key, scope=scope)
         path = _build_asset_path(scope, key)
         _write_to_object_storage(path, serialized)
         return str(path)
