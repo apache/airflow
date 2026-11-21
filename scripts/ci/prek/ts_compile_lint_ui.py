@@ -82,7 +82,9 @@ if __name__ == "__main__":
         run_command(["pnpm", "codegen"], cwd=dir)
     if all_non_yaml_files:
         if all_eslint_files:
-            run_command(["pnpm", "oxlint", "--fix", *all_eslint_files], cwd=dir)
+            run_command(
+                ["pnpm", "oxlint", "--fix", "--no-error-on-unmatched-pattern", *all_eslint_files], cwd=dir
+            )
             run_command(["pnpm", "eslint", "--fix", *all_eslint_files], cwd=dir)
         run_command(
             ["pnpm", "oxfmt", "--write", "--no-error-on-unmatched-pattern", *all_non_yaml_files], cwd=dir

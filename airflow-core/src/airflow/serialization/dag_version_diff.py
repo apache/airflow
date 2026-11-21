@@ -197,6 +197,7 @@ _DIFF_V1_PUBLIC_TASK_FIELDS = frozenset(
         "_can_skip_downstream",
         "_disallow_kwargs_override",
         "_expand_input_attr",
+        "_is_durable",
         "_is_empty",
         "_is_mapped",
         "_is_sensor",

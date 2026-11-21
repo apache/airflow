@@ -104,6 +104,7 @@ class SerializedMappedOperator(DAGNode):
     ui_color: str
     ui_fgcolor: str
     _is_empty: bool = attrs.field(alias="is_empty", init=False, default=False)
+    _is_durable: bool = attrs.field(alias="is_durable", init=False, default=False)
     _can_skip_downstream: bool = attrs.field(alias="can_skip_downstream")
     _is_sensor: bool = attrs.field(alias="is_sensor", default=False)
     is_stub: bool = attrs.field(init=False, default=False)
@@ -188,6 +189,10 @@ class SerializedMappedOperator(DAGNode):
     def inherits_from_empty_operator(self) -> bool:
         """Implementing an empty Operator."""
         return self._is_empty
+
+    @property
+    def is_durable(self) -> bool:
+        return self._is_durable
 
     @property
     def inherits_from_skipmixin(self) -> bool:

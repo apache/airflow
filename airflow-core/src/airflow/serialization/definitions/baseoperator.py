@@ -67,6 +67,7 @@ class SerializedBaseOperator(DAGNode):
     """
 
     _can_skip_downstream: bool
+    _is_durable: bool = False
     _is_empty: bool
     _arg_bindings: list[dict[str, Any]] | None = None
     _external_clear_target: dict[str, Any] | None = None
@@ -297,6 +298,10 @@ class SerializedBaseOperator(DAGNode):
     @property
     def inherits_from_empty_operator(self) -> bool:
         return self._is_empty
+
+    @property
+    def is_durable(self) -> bool:
+        return self._is_durable
 
     @property
     def inherits_from_skipmixin(self) -> bool:

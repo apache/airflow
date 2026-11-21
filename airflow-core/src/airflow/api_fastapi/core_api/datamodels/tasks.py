@@ -81,6 +81,7 @@ class TaskResponse(BaseModel):
     params: abc.MutableMapping | None
     class_ref: dict | None
     is_mapped: bool | None
+    is_durable: bool
 
     @model_validator(mode="before")
     @classmethod

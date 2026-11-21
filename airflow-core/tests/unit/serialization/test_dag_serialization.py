@@ -78,6 +78,7 @@ from airflow.sdk import (
 )
 from airflow.sdk.bases.decorator import DecoratedOperator
 from airflow.sdk.bases.operator import OPERATOR_DEFAULTS, BaseOperator
+from airflow.sdk.bases.resumablejobmixin import ResumableJobMixin
 from airflow.sdk.definitions._internal.expandinput import EXPAND_INPUT_EMPTY
 from airflow.sdk.definitions._internal.loop import create_loop
 from airflow.sdk.definitions.deadline import AsyncCallback, DeadlineAlert, DeadlineReference
@@ -137,6 +138,30 @@ from unit.models import TEST_DAGS_FOLDER
 
 if TYPE_CHECKING:
     from airflow.sdk.definitions.context import Context
+
+
+class DurableOperator(ResumableJobMixin, BaseOperator):
+    def __init__(self, *, job_id=None, **kwargs):
+        super().__init__(**kwargs)
+        self.job_id = job_id
+
+    def submit_job(self, context):
+        return "job"
+
+    def get_job_status(self, external_id, context):
+        return "RUNNING"
+
+    def is_job_active(self, status):
+        return True
+
+    def is_job_succeeded(self, status):
+        return False
+
+    def poll_until_complete(self, external_id, context):
+        pass
+
+    def get_job_result(self, external_id, context):
+        return None
 
 
 def _operator_equal(a, b):
@@ -2459,6 +2484,48 @@ class TestStringifiedDAGs:
         serialized_op = OperatorSerialization.deserialize_operator(blob)
         assert serialized_op.reschedule == (mode == "reschedule")
         assert ReadyToRescheduleDep in [type(d) for d in serialized_op.deps]
+
+    @pytest.mark.parametrize(
+        ("operator_kwargs", "dag_default_args", "mapped", "expected"),
+        [
+            pytest.param({}, {}, False, True, id="durable"),
+            pytest.param({"durable": False}, {}, False, False, id="durable_disabled"),
+            pytest.param({}, {}, True, True, id="mapped_durable"),
+            pytest.param({"durable": False}, {}, True, False, id="mapped_durable_disabled"),
+            pytest.param({}, {"durable": False}, True, False, id="mapped_durable_disabled_by_default_args"),
+        ],
+    )
+    def test_serialize_is_durable(self, operator_kwargs, dag_default_args, mapped, expected):
+        with DAG("durable_dag", schedule=None, default_args=dag_default_args):
+            if mapped:
+                op = DurableOperator.partial(task_id="durable", **operator_kwargs).expand(job_id=[1, 2])
+            else:
+                op = DurableOperator(task_id="durable", **operator_kwargs)
+
+        if mapped:
+            blob = OperatorSerialization.serialize_mapped_operator(op)
+        else:
+            blob = OperatorSerialization.serialize_operator(op)
+
+        assert blob.get("_is_durable", False) is expected
+        assert OperatorSerialization.deserialize_operator(blob).is_durable is expected
+
+    @pytest.mark.parametrize(
+        ("durable", "expected"),
+        [
+            pytest.param(None, False, id="no_durable_flag"),
+            pytest.param(True, True, id="durable_without_mixin"),
+        ],
+    )
+    def test_serialize_is_durable_without_mixin(self, durable, expected):
+        op = BaseOperator(task_id="regular")
+        if durable is not None:
+            op.durable = durable
+
+        blob = OperatorSerialization.serialize_operator(op)
+
+        assert blob.get("_is_durable", False) is expected
+        assert OperatorSerialization.deserialize_operator(blob).is_durable is expected
 
     @pytest.mark.parametrize("mode", ["poke", "reschedule"])
     def test_serialize_mapped_sensor_has_reschedule_dep(self, mode):
