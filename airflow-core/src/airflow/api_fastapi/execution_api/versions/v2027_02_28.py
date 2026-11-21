@@ -27,7 +27,15 @@ from cadwyn import (
     schema,
 )
 
-from airflow.api_fastapi.execution_api.datamodels.taskinstance import TIRunContext, TISuccessStatePayload
+from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
+    TIAwaitingInputStatePayload,
+    TIDeferredStatePayload,
+    TIRescheduleStatePayload,
+    TIRetryStatePayload,
+    TIRunContext,
+    TISuccessStatePayload,
+    TITargetStatePayload,
+)
 from airflow.api_fastapi.execution_api.datamodels.variable import VariablePostBody, VariableResponse
 
 
@@ -102,4 +110,25 @@ class AddCallbackStateEndpoint(VersionChange):
 
     instructions_to_migrate_to_previous_version = (
         endpoint("/callbacks/{callback_id}/state", ["PATCH"]).didnt_exist,
+    )
+
+
+class AddStateUpdateSenderFields(VersionChange):
+    """Add the sender ``hostname`` and ``pid`` to task instance state updates."""
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (
+        schema(TISuccessStatePayload).field("hostname").didnt_exist,
+        schema(TISuccessStatePayload).field("pid").didnt_exist,
+        schema(TIDeferredStatePayload).field("hostname").didnt_exist,
+        schema(TIDeferredStatePayload).field("pid").didnt_exist,
+        schema(TIRescheduleStatePayload).field("hostname").didnt_exist,
+        schema(TIRescheduleStatePayload).field("pid").didnt_exist,
+        schema(TIAwaitingInputStatePayload).field("hostname").didnt_exist,
+        schema(TIAwaitingInputStatePayload).field("pid").didnt_exist,
+        schema(TIRetryStatePayload).field("hostname").didnt_exist,
+        schema(TIRetryStatePayload).field("pid").didnt_exist,
+        schema(TITargetStatePayload).field("hostname").didnt_exist,
+        schema(TITargetStatePayload).field("pid").didnt_exist,
     )

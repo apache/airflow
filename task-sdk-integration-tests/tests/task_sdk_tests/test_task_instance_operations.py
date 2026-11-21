@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import requests
 
+from airflow.sdk.api import client as sdk_client_module
 from airflow.sdk.api.datamodels._generated import (
     InactiveAssetsResponse,
     PrevSuccessfulDagRunResponse,
@@ -154,8 +155,6 @@ def test_ti_heartbeat(sdk_client, task_instance_id, core_api_headers, dag_info, 
     assert worker_pid is not None
 
     # Patch get_hostname to return the worker's hostname
-    from airflow.sdk.api import client as sdk_client_module
-
     monkeypatch.setattr(sdk_client_module, "get_hostname", lambda: worker_hostname)
 
     console.print("[yellow]Sending heartbeat with worker's PID/hostname...")
@@ -172,13 +171,29 @@ def test_ti_heartbeat(sdk_client, task_instance_id, core_api_headers, dag_info, 
     console.print("[green]✅ Heartbeat test passed!")
 
 
-def test_ti_state_transitions(sdk_client, task_instance_id):
+def test_ti_state_transitions(sdk_client, task_instance_id, core_api_headers, dag_info, monkeypatch):
     """
     Test task instance state transition to terminal state.
+
+    The server rejects a state update that carries another worker's hostname and PID, so this
+    test sends the hostname and PID of the worker running the task, read from the Core API.
     """
+    ti_url = (
+        f"http://localhost:8080/api/v2/dags/{dag_info['dag_id']}/"
+        f"dagRuns/{dag_info['dag_run_id']}/taskInstances/long_running_task/tries/1"
+    )
+    ti_response = requests.get(ti_url, headers=core_api_headers, timeout=10)
+    ti_response.raise_for_status()
+    ti_data = ti_response.json()
+    monkeypatch.setattr(sdk_client_module, "get_hostname", lambda: ti_data["hostname"])
+
     console.print("[yellow]Testing state transition: RUNNING → FAILED...")
     sdk_client.task_instances.finish(
-        id=task_instance_id, state=TerminalStateNonSuccess.FAILED, when=utcnow(), rendered_map_index="-1"
+        id=task_instance_id,
+        state=TerminalStateNonSuccess.FAILED,
+        when=utcnow(),
+        rendered_map_index="-1",
+        pid=ti_data["pid"],
     )
 
     console.print(" State: FAILED (Terminal) ".center(72, "="))
