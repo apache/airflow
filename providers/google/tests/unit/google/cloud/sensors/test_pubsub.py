@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import warnings
+from datetime import UTC, datetime
 from typing import Any
 from unittest import mock
 
@@ -27,8 +28,11 @@ from google.cloud.pubsub_v1.types import ReceivedMessage
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
-from airflow.providers.google.cloud.sensors.pubsub import PubSubPullSensor
-from airflow.providers.google.cloud.triggers.pubsub import PubsubPullTrigger
+from airflow.providers.google.cloud.sensors.pubsub import PubSubPullSensor, PubSubSubscriptionDeliveredSensor
+from airflow.providers.google.cloud.triggers.pubsub import (
+    PubsubPullTrigger,
+    PubSubSubscriptionDeliveredTrigger,
+)
 
 TASK_ID = "test-task-id"
 TEST_PROJECT = "test-project"
@@ -282,3 +286,61 @@ class TestPubSubPullSensor:
                 subscription=TEST_SUBSCRIPTION,
                 return_immediately=return_immediately,
             )
+
+
+PUBLISHED_BEFORE = datetime(2026, 11, 2, 10, 0, tzinfo=UTC)
+
+
+def _make_delivered_sensor(**overrides):
+    kwargs = {
+        "task_id": TASK_ID,
+        "project_id": TEST_PROJECT,
+        "subscription": TEST_SUBSCRIPTION,
+        "published_before": "2026-11-02T10:00:00+00:00",
+    }
+    kwargs.update(overrides)
+    return PubSubSubscriptionDeliveredSensor(**kwargs)
+
+
+class TestPubSubSubscriptionDeliveredSensor:
+    @pytest.mark.parametrize(
+        "published_before",
+        [
+            pytest.param("2026-11-02T10:00:00+00:00", id="aware-string"),
+            pytest.param("2026-11-02 10:00:00", id="naive-string-treated-as-utc"),
+            pytest.param(PUBLISHED_BEFORE, id="datetime"),
+        ],
+    )
+    @mock.patch("airflow.providers.google.cloud.sensors.pubsub.PubSubHook")
+    def test_poke(self, mock_hook, published_before):
+        mock_hook.return_value.are_messages_delivered.return_value = True
+
+        assert _make_delivered_sensor(published_before=published_before).poke({}) is True
+
+        mock_hook.return_value.are_messages_delivered.assert_called_once_with(
+            subscription=TEST_SUBSCRIPTION, published_before=PUBLISHED_BEFORE, project_id=TEST_PROJECT
+        )
+
+    @mock.patch("airflow.providers.google.cloud.sensors.pubsub.PubSubHook")
+    def test_execute_defers_when_not_delivered(self, mock_hook):
+        mock_hook.return_value.are_messages_delivered.return_value = False
+
+        with pytest.raises(TaskDeferred) as exc:
+            _make_delivered_sensor(deferrable=True, poke_interval=90).execute({})
+
+        trigger = exc.value.trigger
+        assert isinstance(trigger, PubSubSubscriptionDeliveredTrigger)
+        assert trigger.published_before == "2026-11-02T10:00:00+00:00"
+        assert trigger.poll_interval == 90
+
+    @mock.patch("airflow.providers.google.cloud.sensors.pubsub.PubSubHook")
+    @mock.patch("airflow.providers.google.cloud.sensors.pubsub.PubSubSubscriptionDeliveredSensor.defer")
+    def test_execute_does_not_defer_when_delivered(self, mock_defer, mock_hook):
+        mock_hook.return_value.are_messages_delivered.return_value = True
+
+        _make_delivered_sensor(deferrable=True).execute({})
+
+        mock_defer.assert_not_called()
+
+    def test_execute_complete_success(self):
+        assert _make_delivered_sensor().execute_complete({}, {"status": "success", "message": "ok"}) == "ok"
