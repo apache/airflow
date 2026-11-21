@@ -158,7 +158,7 @@ log = structlog.get_logger(__name__)
 DIFF_SCHEMA_VERSION = 1
 DEFAULT_MAX_CHANGES = 500
 MAX_ALLOWED_CHANGES = 5000
-SUPPORTED_SERIALIZED_DAG_SCHEMA_VERSIONS = frozenset((1, 2, 3))
+SUPPORTED_SERIALIZED_DAG_SCHEMA_VERSIONS = frozenset((1, 2, 3, 4))
 
 DiffCategory = Literal[
     "asset",
@@ -580,6 +580,8 @@ def _canonicalize_payload_v1(data: dict[str, Any]) -> dict[str, Any]:
         DagSerialization.conversion_v2_to_v3(payload)
     elif version == 2:
         DagSerialization.conversion_v2_to_v3(payload)
+    elif version == 3:
+        DagSerialization.conversion_v3_to_v4(payload)
     if not isinstance(payload.get("dag"), Mapping):
         raise ValueError("missing dag object")
     dag_defaults = {

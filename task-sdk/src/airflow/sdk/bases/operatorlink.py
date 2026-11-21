@@ -55,12 +55,66 @@ class BaseOperatorLink(metaclass=ABCMeta):
         """
         return f"_link_{self.__class__.__name__}"
 
-    @abstractmethod
+    @property
+    def static_url(self) -> str | None:
+        """
+        Constant URL for this link, when it does not depend on the task run.
+
+        Links that override this property don't need an XCom entry: the URL is
+        carried through DAG serialization and rendered directly by the API
+        server, even for task instances that never pushed it via ``get_link()``.
+
+        Defaults to ``None``, meaning the link is resolved dynamically through
+        :meth:`get_link` and stored in XComs as before. Set it (instead of
+        overriding :meth:`get_link`) for links whose URL is always the same.
+        """
+        return None
+
     def get_link(self, operator: BaseOperator, *, ti_key: TaskInstanceKey) -> str:
         """
         Link to external system.
+
+        Subclasses whose URL does not depend on the task run may override
+        :attr:`static_url` instead of this method and skip the XCom round-trip.
 
         :param operator: The Airflow operator object this link is associated to.
         :param ti_key: TaskInstance ID to return link for.
         :return: link to external system
         """
+        if self.static_url is not None:
+            return self.static_url
+        raise NotImplementedError(
+            f"Operator link {type(self).__name__} must override get_link() or static_url to provide a URL"
+        )
+
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+
+        def _overridden(attr: str) -> bool:
+            return any(attr in c.__dict__ for c in cls.__mro__ if c is not BaseOperatorLink)
+
+        # ``name`` is the only @abstractmethod. A class stays abstract exactly
+        # when some abstract member of the MRO is not overridden by a concrete
+        # member below it — deliberate intermediate bases rely on that, and
+        # ABCMeta computes ``__abstractmethods__`` only after
+        # ``__init_subclass__`` runs, so abstractness is re-derived here.
+        abstract_names = {
+            attr
+            for c in cls.__mro__
+            for attr, member in c.__dict__.items()
+            if getattr(member, "__isabstractmethod__", False)
+        }
+        concrete_chain_names = {
+            attr
+            for c in cls.__mro__
+            if c not in (BaseOperatorLink, object)
+            for attr, member in c.__dict__.items()
+            if not getattr(member, "__isabstractmethod__", False)
+        }
+        if abstract_names - concrete_chain_names:
+            return
+        if not (_overridden("get_link") or _overridden("static_url")):
+            raise TypeError(
+                f"Operator link {cls.__name__} must override get_link() or static_url; "
+                "inheriting both defers the failure to link-resolution time, after the task has run"
+            )

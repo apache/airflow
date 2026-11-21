@@ -24,7 +24,7 @@ from sqlalchemy.engine import Result
 from sqlalchemy.orm import Session
 
 from airflow.models.taskinstancekey import TaskInstanceKey
-from airflow.serialization.definitions.operatorlink import XComOperatorLink
+from airflow.serialization.definitions.operatorlink import StaticOperatorLink, XComOperatorLink
 
 
 @mock.patch("airflow.serialization.definitions.operatorlink.create_session", autospec=True)
@@ -62,3 +62,11 @@ def test_operator_link_renders_airflow_class_payload(create_session, serde_deser
 
     assert link.get_link(None, ti_key=ti_key) == "AssetAlias(name='x', group='asset')"
     serde_deserialize.assert_not_called()
+
+
+def test_static_operator_link_returns_url_without_xcom():
+    """A static link returns its constant URL without touching the database."""
+    link = StaticOperatorLink(name="Docs", static_url="https://example.com/docs")
+    ti_key = TaskInstanceKey(dag_id="example", task_id="task", run_id="run", try_number=1, map_index=-1)
+
+    assert link.get_link(None, ti_key=ti_key) == "https://example.com/docs"

@@ -78,6 +78,7 @@ from airflow.sdk import (
 )
 from airflow.sdk.bases.decorator import DecoratedOperator
 from airflow.sdk.bases.operator import OPERATOR_DEFAULTS, BaseOperator
+from airflow.sdk.bases.operatorlink import BaseOperatorLink
 from airflow.sdk.definitions._internal.expandinput import EXPAND_INPUT_EMPTY
 from airflow.sdk.definitions._internal.loop import create_loop
 from airflow.sdk.definitions.deadline import AsyncCallback, DeadlineAlert, DeadlineReference
@@ -89,7 +90,7 @@ from airflow.serialization.definitions.baseoperator import SerializedBaseOperato
 from airflow.serialization.definitions.dag import SerializedDAG
 from airflow.serialization.definitions.mappedoperator import SerializedMappedOperator
 from airflow.serialization.definitions.notset import NOTSET
-from airflow.serialization.definitions.operatorlink import XComOperatorLink
+from airflow.serialization.definitions.operatorlink import StaticOperatorLink, XComOperatorLink
 from airflow.serialization.definitions.param import SerializedParam
 from airflow.serialization.definitions.xcom_arg import SchedulerPlainXComArg
 from airflow.serialization.encoders import ensure_serialized_asset
@@ -203,7 +204,7 @@ executor_config_pod = k8s.V1Pod(
 TYPE = Encoding.TYPE
 VAR = Encoding.VAR
 serialized_simple_dag_ground_truth = {
-    "__version": 3,
+    "__version": 4,
     "dag": {
         "default_args": {
             "__type": "dict",
@@ -1474,6 +1475,47 @@ class TestStringifiedDAGs:
 
             link = simple_task.get_extra_links(ti, GoogleLink.name)
             assert link == "https://www.google.com"
+
+    def test_static_operator_extra_link_roundtrip(self, dag_maker):
+        """
+        Static operator links are serialized with their URL and render without XCom.
+
+        A link class overriding ``static_url`` does not need an XCom entry: the URL
+        survives serialization and is returned directly by the deserialized task,
+        while dynamic links keep their XCom-key encoding.
+        """
+        test_date = timezone.DateTime(2019, 8, 1, tzinfo=timezone.utc)
+
+        class StaticDocsLink(BaseOperatorLink):
+            name = "static_docs"
+
+            @property
+            def static_url(self) -> str:
+                return "https://docs.example.com/static"
+
+        class StaticLinkOperator(BaseOperator):
+            operator_extra_links = (StaticDocsLink(),)
+
+            def execute(self, context):
+                pass
+
+        with dag_maker(dag_id="static_link_dag", start_date=test_date) as dag:
+            StaticLinkOperator(task_id="static_task")
+
+        serialized_dag = DagSerialization.to_dict(dag)
+        encoded_links = serialized_dag["dag"]["tasks"][0]["__var"]["_operator_extra_links"]
+        assert encoded_links == {"static_docs": {"static_url": "https://docs.example.com/static"}}
+
+        deserialized_dag = DagSerialization.from_dict(serialized_dag)
+        task = deserialized_dag.task_dict["static_task"]
+        assert "static_docs" in task.extra_links
+        static_link = task.operator_extra_link_dict["static_docs"]
+        assert isinstance(static_link, StaticOperatorLink)
+
+        dr = dag_maker.create_dagrun(logical_date=test_date)
+        (ti,) = dr.task_instances
+        # No XCom entries are written or needed to render a static link.
+        assert task.get_extra_links(ti, "static_docs") == "https://docs.example.com/static"
 
     class ClassWithCustomAttributes:
         """
