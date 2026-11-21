@@ -471,7 +471,9 @@ class SnowflakeSqlApiOperator(ResumableJobMixin, SQLExecuteQueryOperator):
             if statement_status.get("status") == "success":
                 succeeded_query_ids.append(query_id)
             else:
-                raise RuntimeError(f"{statement_status.get('status')}: {statement_status.get('message')}")
+                raise RuntimeError(
+                    self._statement_error(query_id, statement_status.get("message"), self.query_ids)
+                )
 
         if len(self.query_ids) == len(succeeded_query_ids):
             self.log.info("%s completed successfully.", self.task_id)
@@ -489,6 +491,10 @@ class SnowflakeSqlApiOperator(ResumableJobMixin, SQLExecuteQueryOperator):
             ),
             method_name="execute_complete",
         )
+
+    def _statement_error(self, query_id: str, message: str | None, query_ids: list[str] | None) -> str:
+        sql = self.sql if isinstance(self.sql, str) else None
+        return self._hook.format_statement_error(message, query_id=query_id, sql=sql, query_ids=query_ids)
 
     def poll_on_queries(self):
         """Poll on requested queries."""
@@ -566,8 +572,14 @@ class SnowflakeSqlApiOperator(ResumableJobMixin, SQLExecuteQueryOperator):
             context["ti"].xcom_push(key="query_ids", value=self.query_ids)
         while True:
             statement_status = self.poll_on_queries()
-            if statement_status["error"]:
-                raise RuntimeError(str(statement_status["error"]))
+            if errors := statement_status["error"]:
+                raise RuntimeError(
+                    "\n".join(
+                        self._statement_error(query_id, errors[query_id].get("message"), self.query_ids)
+                        for query_id in self.query_ids
+                        if query_id in errors
+                    )
+                )
             if not statement_status["running"]:
                 break
         # On reconnect, the mixin calls poll_until_complete alone -- get_job_result is never
@@ -598,7 +610,14 @@ class SnowflakeSqlApiOperator(ResumableJobMixin, SQLExecuteQueryOperator):
         """
         if event:
             if "status" in event and event["status"] == "error":
-                msg = f"{event['status']}: {event['message']}"
+                if query_id := event.get("query_id"):
+                    # A resumed task is a fresh instance, so the handles come from the event.
+                    query_ids = cast("list[str] | None", event.get("statement_query_ids"))
+                    msg = self._statement_error(
+                        cast("str", query_id), cast("str | None", event.get("message")), query_ids
+                    )
+                else:
+                    msg = f"{event['status']}: {event['message']}"
                 raise RuntimeError(msg)
             if "status" in event and event["status"] == "success":
                 self.query_ids = cast("list[str]", event["statement_query_ids"])
