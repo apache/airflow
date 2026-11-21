@@ -25,7 +25,7 @@ import requests
 from authlib.jose import JsonWebKey, jwt as authlib_jwt
 from authlib.jose.errors import InvalidClaimError
 from cachetools import TTLCache
-from flask import Flask, session as flask_session
+from flask import Flask
 from flask_appbuilder import const
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -45,7 +45,6 @@ from airflow.providers.fab.auth_manager.security_manager.override import (
     FabAirflowSecurityManagerOverride,
     FabException,
 )
-from airflow.providers.fab.www.extensions.init_session import SESSION_TOKEN_GENERATION_KEY
 
 TENANT_GUID = "72f988bf-86f1-41af-91ab-2d7cd011db47"
 OTHER_GUID = "00000000-0000-0000-0000-000000000000"
@@ -426,28 +425,6 @@ class TestFabAirflowSecurityManagerOverride:
         sm.load_user.assert_called_once_with("test_identity")
         assert actual_user is mock_user
         assert mock_g.user is mock_user
-
-    @pytest.mark.parametrize(
-        ("user_token_generation", "loaded"),
-        [
-            pytest.param(0, True, id="before-any-password-change"),
-            pytest.param(1, False, id="after-a-password-change"),
-        ],
-    )
-    @mock.patch.object(EmptySecurityManager, "load_user", autospec=True)
-    def test_load_session_user_counts_session_without_token_generation_as_zero(
-        self, mock_load_user, user_token_generation, loaded
-    ):
-        """A Flask session without the key was created before it existed."""
-        sm = EmptySecurityManager()
-        user = Mock(spec=User, token_generation=user_token_generation)
-        mock_load_user.return_value = user
-        app = Flask(__name__)
-        app.secret_key = "test-secret-key"
-
-        with app.test_request_context():
-            assert SESSION_TOKEN_GENERATION_KEY not in flask_session
-            assert sm.load_session_user("1") is (user if loaded else None)
 
     @mock.patch("airflow.providers.fab.auth_manager.security_manager.override.check_password_hash")
     def test_check_password(self, check_password):

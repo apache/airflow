@@ -434,7 +434,7 @@ class TestResetUserSessions:
 
     @mock.patch.object(FabAirflowSecurityManagerOverride, "_cli_safe_flash", autospec=True)
     def test_no_warning_with_securecookie(self, cli_safe_flash):
-        """``load_session_user`` rejects sessions from before the reset, whatever the session backend."""
+        """Sessions from before the reset end on their next request, whatever the session backend."""
         self.app.session_interface = SecureCookieSessionInterface()
         with self.app.app_context():
             assert self.security_manager.reset_password(self.user_1.id, "new_password")

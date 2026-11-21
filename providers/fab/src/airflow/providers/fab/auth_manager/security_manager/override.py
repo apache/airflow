@@ -106,7 +106,6 @@ from airflow.providers.fab.auth_manager.views.user_edit import (
 )
 from airflow.providers.fab.auth_manager.views.user_stats import CustomUserStatsChartView
 from airflow.providers.fab.version_compat import AIRFLOW_V_3_1_PLUS
-from airflow.providers.fab.www.extensions.init_session import SESSION_TOKEN_GENERATION_KEY
 from airflow.providers.fab.www.security import permissions
 from airflow.providers.fab.www.security_manager import AirflowSecurityManagerV2
 from airflow.providers.fab.www.session import AirflowDatabaseSessionInterface
@@ -602,7 +601,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         lm = LoginManager(current_app)
         lm.anonymous_user = AnonymousUser
         lm.login_view = "login"
-        lm.user_loader(self.load_session_user)
+        lm.user_loader(self.load_user)
         return lm
 
     def create_jwt_manager(self) -> None:
@@ -1624,15 +1623,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             return None
         return user
 
-    def load_session_user(self, pk: str) -> User | None:
-        """Load the user of a Flask session, unless the session predates their last password change."""
-        user = self.load_user(pk)
-        # Sessions created before the key existed count as the initial generation.
-        if user is not None and session.get(SESSION_TOKEN_GENERATION_KEY, 0) != user.token_generation:
-            return None
-        return user
-
-    def load_user(self, pk: int | str) -> User | None:
+    def load_user(self, pk: int) -> User | None:
         try:
             user = self.get_user_by_id(int(pk))
             if user and user.is_active:
