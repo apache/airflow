@@ -165,8 +165,8 @@ Advanced
 
 When creating a table, you can specify the optional ``initial_split_keys`` and ``column_families``.
 Please refer to the Python Client for Google Cloud Bigtable documentation
-`for Table <https://googleapis.github.io/google-cloud-python/latest/bigtable/table.html>`_ and `for Column
-Families <https://googleapis.github.io/google-cloud-python/latest/bigtable/column-family.html>`_.
+`for Table <https://cloud.google.com/python/docs/reference/bigtable/latest/table>`_ and `for Column
+Families <https://cloud.google.com/python/docs/reference/bigtable/latest/column-family>`_.
 
 .. _howto/operator:BigtableDeleteTableOperator:
 
@@ -227,5 +227,5 @@ Reference
 
 For further information, look at:
 
-* `Client Library Documentation <https://googleapis.github.io/google-cloud-python/latest/bigtable/index.html>`__
+* `Client Library Documentation <https://cloud.google.com/python/docs/reference/bigtable/latest>`__
 * `Product Documentation <https://cloud.google.com/bigtable/docs/>`__

@@ -193,13 +193,13 @@ def get_provider_info():
                     "relabeling": {"password": "API Key"},
                     "placeholders": {
                         "host": "https://api.openai.com/v1 (optional, for custom endpoints / Ollama)",
-                        "extra": '{"model": "openai:gpt-5"}',
+                        "extra": '{"model": "openai:gpt-6.1-sol"}',
                     },
                 },
                 "conn-fields": {
                     "model": {
                         "label": "Model",
-                        "description": "Model as provider:name (e.g. openai:gpt-5), or bare with a Default Model Provider",
+                        "description": "Model as provider:name (e.g. openai:gpt-6.1-sol), or bare with a Default Model Provider",
                         "schema": {"type": ["string", "null"]},
                     },
                     "model_provider": {
@@ -431,13 +431,13 @@ def get_provider_info():
                     "relabeling": {"password": "API Key"},
                     "placeholders": {
                         "host": "https://api.openai.com/v1 (optional, for custom endpoints / Ollama)",
-                        "extra": '{"model": "openai:gpt-5", "embed_model": "openai:text-embedding-3-small"}',
+                        "extra": '{"model": "openai:gpt-6.1-sol", "embed_model": "openai:text-embedding-3-small"}',
                     },
                 },
                 "conn-fields": {
                     "model": {
                         "label": "Chat Model",
-                        "description": "Chat model in provider:name format dispatched via langchain.chat_models.init_chat_model (e.g. openai:gpt-5, anthropic:claude-sonnet-5).\n",
+                        "description": "Chat model in provider:name format dispatched via langchain.chat_models.init_chat_model (e.g. openai:gpt-6.1-sol, anthropic:claude-sonnet-5).\n",
                         "schema": {"type": ["string", "null"]},
                     },
                     "embed_model": {
@@ -457,7 +457,7 @@ def get_provider_info():
                     "relabeling": {"password": "API Key"},
                     "placeholders": {
                         "host": "https://api.openai.com/v1 (optional, for an OpenAI-compatible proxy)",
-                        "extra": '{"embed_model": "text-embedding-3-small", "llm_model": "gpt-5"}',
+                        "extra": '{"embed_model": "text-embedding-3-small", "llm_model": "gpt-6.1-sol"}',
                     },
                 },
                 "conn-fields": {
@@ -468,7 +468,7 @@ def get_provider_info():
                     },
                     "llm_model": {
                         "label": "LLM Model",
-                        "description": "Default LlamaIndex LLM model name (e.g. gpt-5). The OpenAI default; for other vendors pass a pre-built LLM instance to the operator.\n",
+                        "description": "Default LlamaIndex LLM model name (e.g. gpt-6.1-sol). The OpenAI default; for other vendors pass a pre-built LLM instance to the operator.\n",
                         "schema": {"type": ["string", "null"]},
                     },
                 },

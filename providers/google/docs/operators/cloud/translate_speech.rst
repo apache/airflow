@@ -39,7 +39,7 @@ Arguments
 Config and audio arguments need to be dicts or objects of corresponding classes from
 ``google.cloud.speech_v1.types`` module.
 
-for more information, see: https://googleapis.github.io/google-cloud-python/latest/speech/gapic/v1/api.html#google.cloud.speech_v1.SpeechClient.recognize
+for more information, see: https://cloud.google.com/python/docs/reference/speech/latest/google.cloud.speech_v1.services.speech.SpeechClient#google_cloud_speech_v1_services_speech_SpeechClient_recognize
 
 Arguments for translation need to be specified.
 
@@ -72,7 +72,7 @@ Reference
 
 For further information, look at:
 
-* `Google Cloud Translate - Client Library Documentation <https://googleapis.github.io/google-cloud-python/latest/translate/index.html>`__
+* `Google Cloud Translate - Client Library Documentation <https://cloud.google.com/python/docs/reference/translate/latest>`__
 * `Google Cloud Translate - Product Documentation <https://cloud.google.com/translate/docs/>`__
-* `Google Cloud Speech - Client Library Documentation <https://googleapis.github.io/google-cloud-python/latest/speech/>`__
+* `Google Cloud Speech - Client Library Documentation <https://cloud.google.com/python/docs/reference/speech/latest>`__
 * `Google Cloud Speech - Product Documentation <https://cloud.google.com/speech/>`__

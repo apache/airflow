@@ -1,4 +1,3 @@
-
  .. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
@@ -103,7 +102,7 @@ PIP package                                 Version required
 ==========================================  ==================
 ``apache-airflow``                          ``>=3.0.0``
 ``apache-airflow-providers-common-compat``  ``>=1.18.0``
-``python-keycloak``                         ``>=5.0.0``
+``python-keycloak``                         ``>=5.12.0``
 ==========================================  ==================
 
 Downloading official packages

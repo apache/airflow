@@ -510,8 +510,13 @@ class KiotaRequestAdapterHook(BaseHook):
             connection = await get_async_connection(conn_id=self.conn_id)
             # Masks the extra's secrets without a synchronous call to the Task SDK on the event loop.
             config = await get_async_extra_dejson(connection)
-            api_version, request_adapter = self._build_request_adapter(connection, config)
-            self.cached_request_adapters[self.conn_id] = (api_version, request_adapter)
+            # Another coroutine may have cached an adapter while this one awaited the connection. Nothing
+            # awaits between this lookup and the write below, so a single adapter is built per connection.
+            api_version, request_adapter = self.cached_request_adapters.get(self.conn_id, (None, None))
+
+            if not request_adapter:
+                api_version, request_adapter = self._build_request_adapter(connection, config)
+                self.cached_request_adapters[self.conn_id] = (api_version, request_adapter)
 
         self.api_version = api_version
         self.allowed_netloc = urlparse(request_adapter.base_url).netloc.lower()
