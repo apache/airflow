@@ -391,6 +391,25 @@ class TestHttpSensorAsync:
 
         assert isinstance(exc.value.trigger, HttpSensorTrigger), "Trigger is not a HttpTrigger"
 
+    @mock.patch(
+        "airflow.providers.http.sensors.http.HttpSensor.poke",
+        return_value=False,
+    )
+    def test_deferred_trigger_keeps_response_error_codes_allowlist(self, mock_poke):
+        """The deferred trigger gets the same allowlist the sensor uses while poking."""
+        task = HttpSensor(
+            task_id="run_now",
+            endpoint="test-endpoint",
+            deferrable=True,
+            response_error_codes_allowlist=["404", "503"],
+        )
+
+        with pytest.raises(TaskDeferred) as exc:
+            task.execute({})
+
+        assert exc.value.trigger.response_error_codes_allowlist == ("404", "503")
+        assert exc.value.trigger.serialize()[1]["response_error_codes_allowlist"] == ("404", "503")
+
     @mock.patch("airflow.providers.http.sensors.http.HttpSensor.defer")
     @mock.patch(
         "airflow.sdk.bases.sensor.BaseSensorOperator.execute"
