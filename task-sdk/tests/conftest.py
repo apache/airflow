@@ -51,8 +51,6 @@ def pytest_addhooks(pluginmanager: pytest.PytestPluginManager):
 
 @pytest.hookimpl(tryfirst=True)
 def pytest_configure(config: pytest.Config) -> None:
-    config.inicfg["airflow_deprecations_ignore"] = []
-
     # Always skip looking for tests in these folders!
     config.addinivalue_line("norecursedirs", "tests/test_dags")
 

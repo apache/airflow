@@ -20,13 +20,9 @@ from __future__ import annotations
 import os
 from collections.abc import Sequence
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 import pytest
 import yaml
-
-if TYPE_CHECKING:
-    from _pytest.config.findpaths import ConfigValue
 
 
 class ForbiddenWarningsPlugin:
@@ -35,17 +31,13 @@ class ForbiddenWarningsPlugin:
     node_key: str = "forbidden_warnings_node"
     deprecations_ignore: Sequence[str | os.PathLike]
 
-    def __init__(self, config: pytest.Config, forbidden_warnings: tuple[str, ...]):
-        # Set by a pytest_configure hook in conftest
-        deprecations_ignore_config: ConfigValue = config.inicfg["airflow_deprecations_ignore"]
-        if isinstance(deprecations_ignore_config.value, (str, os.PathLike)):
-            self.deprecations_ignore = [deprecations_ignore_config.value]
-        elif isinstance(deprecations_ignore_config.value, list):
-            self.deprecations_ignore = deprecations_ignore_config.value
-        else:
-            raise TypeError(
-                f"Invalid type for airflow_deprecations_ignore: {type(deprecations_ignore_config.value)}"
-            )
+    def __init__(
+        self,
+        config: pytest.Config,
+        forbidden_warnings: tuple[str, ...],
+        deprecations_ignore: Sequence[str | os.PathLike],
+    ):
+        self.deprecations_ignore = deprecations_ignore
 
         excluded_cases = {
             "tests/integration/",
