@@ -59,9 +59,11 @@ type LatestRunInfo = {
 
 export const Header = ({
   dag,
+  error,
   latestRunInfo,
 }: {
   readonly dag?: DAGDetailsResponse;
+  readonly error?: unknown;
   readonly latestRunInfo?: LatestRunInfo;
 }) => {
   const { i18n, t: translate } = useTranslation(["common", "dag"]);
@@ -183,6 +185,8 @@ export const Header = ({
           </>
         )
       }
+      error={error}
+      errorClosable
       icon={<DagIcon />}
       stats={stats}
       statusBadge={<BackfillInProgressBadge dagId={dagId ?? ""} />}

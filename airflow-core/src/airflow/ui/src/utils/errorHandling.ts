@@ -46,6 +46,16 @@ export const getErrorStatus = (error: unknown): number | undefined => {
   return errorObj.status ?? errorObj.response?.status;
 };
 
+/**
+ * Whether a list inside a Dag detail level should account for this failure itself.
+ *
+ * A 404 on a list scoped to a run or a task means the level it belongs to is missing, and that
+ * level's header already says so — repeating it above the list's own empty state says nothing
+ * new. Any other failure is the list's own, and nothing else reports it.
+ */
+export const shouldListReportError = (error: unknown, isScopedToDagLevel: boolean): boolean =>
+  !(isScopedToDagLevel && getErrorStatus(error) === 404);
+
 type ApiErrorWithBody = {
   body?: HTTPExceptionResponse | HTTPValidationError;
 } & Partial<ApiError>;
