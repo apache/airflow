@@ -339,3 +339,34 @@ class TestJenkinsOperator:
 
         assert mock_request.method == "POST"
         assert mock_request.url == "http://apache.org"
+
+    @pytest.mark.parametrize(
+        ("parameters", "expected"),
+        [
+            pytest.param(
+                '{"dry_run": true, "notify": false}',
+                {"dry_run": "true", "notify": "false"},
+                id="json booleans sent as lowercase strings",
+            ),
+            pytest.param(
+                '{"dry_run": true, "optional": null}', {"dry_run": "true"}, id="json null omits the parameter"
+            ),
+            pytest.param(
+                '{"branch": "main", "retries": 3}', {"branch": "main", "retries": 3}, id="json other values"
+            ),
+            pytest.param("{'dry_run': True}", {"dry_run": True}, id="python literals"),
+        ],
+    )
+    @patch("airflow.providers.jenkins.operators.jenkins_job_trigger.jenkins_request_with_headers")
+    def test_build_job_parses_string_parameters(self, mock_make_request, parameters, expected):
+        jenkins_mock = Mock(spec=jenkins.Jenkins, auth="secret", timeout=2)
+        operator = JenkinsJobTriggerOperator(
+            dag=None,
+            task_id="build_job_test",
+            job_name="a_job_on_jenkins",
+            jenkins_connection_id="fake_jenkins_connection",
+        )
+
+        operator.build_job(jenkins_mock, parameters)
+
+        jenkins_mock.build_job_url.assert_called_once_with("a_job_on_jenkins", expected, None)
