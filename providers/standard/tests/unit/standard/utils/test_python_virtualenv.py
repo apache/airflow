@@ -17,16 +17,65 @@
 # under the License.
 from __future__ import annotations
 
+import signal
+import subprocess
+import sys
+import time
 from pathlib import Path
 from textwrap import dedent
 from unittest import mock
 
 import pytest
 
-from airflow.providers.standard.utils.python_virtualenv import _generate_pip_conf, _use_uv, prepare_virtualenv
+from airflow.providers.standard.utils.python_virtualenv import (
+    _execute_in_subprocess,
+    _generate_pip_conf,
+    _use_uv,
+    prepare_virtualenv,
+)
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.version_compat import remove_task_decorator
+
+_REAL_POPEN = subprocess.Popen
+
+
+class _Interrupted(Exception):
+    pass
+
+
+def _raise_interrupted(signum, frame):
+    raise _Interrupted
+
+
+class TestExecuteInSubprocess:
+    @pytest.mark.skipif(not hasattr(signal, "setitimer"), reason="needs SIGALRM")
+    @mock.patch("airflow.providers.standard.utils.python_virtualenv.subprocess.Popen", autospec=True)
+    def test_interrupt_kills_running_child(self, mock_popen):
+        procs: list[subprocess.Popen] = []
+
+        def _spawn(*args, **kwargs):
+            procs.append(_REAL_POPEN(*args, **kwargs))
+            return procs[-1]
+
+        mock_popen.side_effect = _spawn
+        # execution_timeout is delivered as an exception raised by a SIGALRM handler while
+        # the parent is blocked reading the child's output.
+        child_sleep = 20
+        original_handler = signal.signal(signal.SIGALRM, _raise_interrupted)
+        signal.setitimer(signal.ITIMER_REAL, 0.5)
+        start = time.monotonic()
+        try:
+            with pytest.raises(_Interrupted):
+                _execute_in_subprocess([sys.executable, "-c", f"import time; time.sleep({child_sleep})"])
+        finally:
+            signal.setitimer(signal.ITIMER_REAL, 0)
+            signal.signal(signal.SIGALRM, original_handler)
+        elapsed = time.monotonic() - start
+
+        (proc,) = procs
+        assert proc.returncode == -signal.SIGKILL
+        assert elapsed < child_sleep / 2
 
 
 class TestPrepareVirtualenv:
