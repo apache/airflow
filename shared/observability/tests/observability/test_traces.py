@@ -17,6 +17,10 @@
 # under the License.
 from __future__ import annotations
 
+import os
+import subprocess
+import sys
+
 import pytest
 from opentelemetry import context, trace
 from opentelemetry.sdk.trace import TracerProvider
@@ -360,3 +364,68 @@ class TestGetTaskSpanDetailLevel:
 
         span = trace.get_current_span(ctx)
         assert get_task_span_detail_level(span) == 3
+
+
+FORK_AFTER_EXECUTOR_SCRIPT = """
+import os
+import signal
+import sys
+from configparser import ConfigParser
+
+from opentelemetry import trace
+
+from airflow_shared.observability.traces import configure_otel
+
+conf = ConfigParser()
+conf.read_dict({"traces": {"otel_on": "True", "otel_service": "my-service"}})
+assert "concurrent.futures.thread" not in sys.modules
+configure_otel(conf)
+
+# Imported only now: the ordering bug needs concurrent.futures.thread to be first imported after
+# configure_otel, as it is in a real process where the first executor use comes later.
+from concurrent.futures import ThreadPoolExecutor
+
+with ThreadPoolExecutor(max_workers=1) as executor:
+    executor.submit(int).result()
+
+pid = os.fork()
+if pid == 0:
+    os._exit(0)
+
+
+def kill_deadlocked_child(signum, frame):
+    os.kill(pid, signal.SIGKILL)
+    os.waitpid(pid, 0)
+    sys.exit("forked child deadlocked")
+
+
+signal.signal(signal.SIGALRM, kill_deadlocked_child)
+signal.alarm(10)
+os.waitpid(pid, 0)
+print(trace.get_tracer_provider().resource.attributes["service.name"])
+"""
+
+
+class TestConfigureOtelServiceName:
+    def test_fork_after_executor_use_does_not_deadlock(self, monkeypatch):
+        """
+        Fork after ``configure_otel`` with the deprecated ``otel_service`` and an executor used.
+
+        A static ``Resource`` made the provider register its at-fork hook before
+        ``concurrent.futures.thread`` registered its own, so in the child the provider hook ran first
+        and waited on a lock that the second hook releases. pytest has already imported
+        ``concurrent.futures.thread``, so this needs a fresh interpreter.
+        """
+        monkeypatch.setenv("OTEL_TRACES_EXPORTER", "console")
+
+        proc = subprocess.run(
+            [sys.executable, "-c", FORK_AFTER_EXECUTOR_SCRIPT],
+            check=False,
+            env=os.environ.copy(),
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+
+        assert proc.returncode == 0, f"Process failed\nstdout:\n{proc.stdout}\nstderr:\n{proc.stderr}"
+        assert proc.stdout.strip() == "my-service"
