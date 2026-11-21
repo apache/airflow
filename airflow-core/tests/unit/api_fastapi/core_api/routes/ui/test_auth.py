@@ -22,6 +22,7 @@ import pytest
 
 from airflow.api_fastapi.auth.managers.simple.simple_auth_manager import SimpleAuthManager
 from airflow.api_fastapi.common.types import ExtraMenuItem, MenuItem
+from airflow.configuration import conf
 from airflow.models.team import Team
 
 from tests_common.test_utils.config import conf_vars
@@ -152,6 +153,23 @@ class TestGenerateToken:
         assert response.status_code == 200
         data = response.json()
         assert data["token_type"] == "api"
+
+    @pytest.mark.parametrize(
+        ("token_type", "expiration_option"),
+        [("api", "jwt_expiration_time"), ("cli", "jwt_cli_expiration_time")],
+    )
+    @mock.patch.object(SimpleAuthManager, "generate_api_jwt", autospec=True, return_value="api_jwt")
+    def test_token_is_the_one_for_the_authorization_header(
+        self, mock_generate_api_jwt, test_client, token_type, expiration_option
+    ):
+        """The token is not sent with the session cookies, so it is the auth manager's API token."""
+        response = test_client.post("/auth/token", json={"token_type": token_type})
+
+        assert response.status_code == 200
+        assert response.json()["access_token"] == "api_jwt"
+        mock_generate_api_jwt.assert_called_once_with(
+            mock.ANY, mock.ANY, expiration_time_in_seconds=conf.getint("api_auth", expiration_option)
+        )
 
     def test_unauthenticated_request(self, unauthenticated_test_client):
         """Test that unauthenticated requests are rejected."""
