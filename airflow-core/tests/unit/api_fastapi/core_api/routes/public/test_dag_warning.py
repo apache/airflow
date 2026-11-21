@@ -116,7 +116,7 @@ class TestGetDagWarnings:
         response_json = response.json()
         assert response.status_code == 422
         assert response_json["detail"][0]["msg"] == (
-            "Input should be 'asset conflict', 'duplicate dag id', 'non-existent pool', "
+            "Input should be 'asset conflict', 'asset partition pending', 'duplicate dag id', 'non-existent pool', "
             "'runtime varying value' or 'task group cycle'"
         )
 
@@ -138,3 +138,25 @@ class TestGetDagWarnings:
         assert response_json["total_entries"] == 1
         assert response_json["dag_warnings"][0]["warning_type"] == "yaml:schema_violation"
         assert response_json["dag_warnings"][0]["message"] == "importer message"
+
+    def test_get_pending_partition_warnings_for_one_dag(self, test_client, session):
+        session.add_all(
+            [
+                DagWarning(DAG1_ID, "asset partition pending", "First Dag is waiting for asset inputs"),
+                DagWarning(DAG2_ID, "asset partition pending", "Second Dag is waiting for asset inputs"),
+            ]
+        )
+        session.commit()
+
+        response = test_client.get(
+            "/dagWarnings", params={"dag_id": DAG1_ID, "warning_type": "asset partition pending"}
+        )
+
+        assert response.status_code == 200
+        body = response.json()
+        assert body["total_entries"] == 1
+        [warning] = body["dag_warnings"]
+        assert warning["dag_id"] == DAG1_ID
+        assert warning["dag_display_name"] == DAG1_DISPLAY_NAME
+        assert warning["warning_type"] == "asset partition pending"
+        assert warning["message"] == "First Dag is waiting for asset inputs"

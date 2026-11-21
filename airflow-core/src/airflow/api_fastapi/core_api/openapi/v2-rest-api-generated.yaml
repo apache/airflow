@@ -16720,6 +16720,7 @@ components:
       type: string
       enum:
       - asset conflict
+      - asset partition pending
       - duplicate dag id
       - non-existent pool
       - runtime varying value
