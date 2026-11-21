@@ -569,3 +569,40 @@ class TestXComObjectStorageBackend:
             deserialized_data = XCom.deserialize_value(mock_xcom_ser)
 
             assert deserialized_data == expected_value
+
+    @pytest.mark.parametrize("path", ["", "relative/xcom", "/abs/xcom"])
+    def test_serialize_value_rejects_a_path_without_a_scheme(self, path):
+        with conf_vars(
+            {
+                ("common.io", "xcom_objectstorage_path"): path,
+                ("common.io", "xcom_objectstorage_threshold"): "0",
+            }
+        ):
+            with pytest.raises(ValueError, match="xcom_objectstorage_path must be a URL with a scheme"):
+                XComObjectStorageBackend.serialize_value("value")
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="store_value is called from Airflow 3.4")
+    @pytest.mark.parametrize("path", ["", "relative/xcom", "/abs/xcom"])
+    def test_store_value_rejects_a_path_without_a_scheme(self, path):
+        coordinate = XComCoordinate("dag", "run", "task", uuid.uuid4())
+        with conf_vars(
+            {
+                ("common.io", "xcom_objectstorage_path"): path,
+                ("common.io", "xcom_objectstorage_threshold"): "0",
+            }
+        ):
+            with pytest.raises(ValueError, match="xcom_objectstorage_path must be a URL with a scheme"):
+                XComObjectStorageBackend.store_value(coordinate, "key", "value")
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="store_value is called from Airflow 3.4")
+    def test_store_value_without_a_path_keeps_values_in_the_database_when_nothing_is_offloaded(self):
+        coordinate = XComCoordinate("dag", "run", "task", uuid.uuid4())
+        with conf_vars(
+            {
+                ("common.io", "xcom_objectstorage_path"): "",
+                ("common.io", "xcom_objectstorage_threshold"): "-1",
+            }
+        ):
+            stored = XComObjectStorageBackend.store_value(coordinate, "key", "value")
+
+            assert XComObjectStorageBackend.load_value(stored) == "value"
