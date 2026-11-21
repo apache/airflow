@@ -180,9 +180,7 @@ apache-airflow-shared-template-rendering = false
 apache-airflow-shared-timezones = false
 apache-airflow-task-sdk = false
 apache-airflow-task-sdk-integration-tests = false
-google-cloud-aiplatform = "2026-08-13T00:00:00Z"
 pip = false
-pypdf = "2026-10-29T00:00:00Z"
 uv = false
 
 [manifest]
