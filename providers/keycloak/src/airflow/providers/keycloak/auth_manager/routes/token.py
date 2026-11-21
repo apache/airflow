@@ -25,10 +25,12 @@ from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.providers.common.compat.sdk import conf
 from airflow.providers.keycloak.auth_manager.datamodels.token import (
+    DeviceAuthorizationResponse,
     TokenBody,
     TokenCliBody,
     TokenResponse,
 )
+from airflow.providers.keycloak.auth_manager.services.token import start_device_authorization
 
 log = logging.getLogger(__name__)
 token_router = AirflowRouter(tags=["KeycloakAuthManagerToken"])
@@ -60,3 +62,18 @@ def create_token_cli(body: TokenCliBody) -> TokenResponse:
         expiration_time_in_seconds=int(conf.getint("api_auth", "jwt_cli_expiration_time"))
     )
     return TokenResponse(access_token=token)
+
+
+@token_router.post(
+    "/token/cli/device",
+    responses=create_openapi_http_exception_doc(
+        [
+            status.HTTP_400_BAD_REQUEST,
+            status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status.HTTP_503_SERVICE_UNAVAILABLE,
+        ]
+    ),
+)
+def create_device_authorization_cli() -> DeviceAuthorizationResponse:
+    """Start the device code login of a command-line client."""
+    return DeviceAuthorizationResponse.model_validate(start_device_authorization())
