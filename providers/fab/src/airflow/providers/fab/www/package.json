@@ -65,7 +65,7 @@
     "jquery-ui": "^1.14.2",
     "moment-timezone": "^0.6.6"
   },
-  "packageManager": "pnpm@10.28.1",
+  "packageManager": "pnpm@10.34.9",
   "pnpm": {
     "minimumReleaseAge": 5760,
     "onlyBuiltDependencies": [],
