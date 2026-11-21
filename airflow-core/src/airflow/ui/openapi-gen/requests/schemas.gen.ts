@@ -3371,6 +3371,11 @@ export const $DAGDetailsResponse = {
             type: 'boolean',
             title: 'Timetable Partitioned'
         },
+        timetable_partitioned_at_runtime: {
+            type: 'boolean',
+            title: 'Timetable Partitioned At Runtime',
+            default: false
+        },
         timetable_periodic: {
             type: 'boolean',
             title: 'Timetable Periodic'
@@ -3688,6 +3693,18 @@ export const $DAGDetailsResponse = {
                 }
             ]
         },
+        suggested_partition_key: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Suggested Partition Key',
+            description: 'Partition key suggested for a manual trigger of this Dag. Computed only by the Dag details endpoint; null when the timetable offers no suggestion.'
+        },
         is_backfillable: {
             type: 'boolean',
             title: 'Is Backfillable',
@@ -3883,6 +3900,11 @@ export const $DAGResponse = {
         timetable_partitioned: {
             type: 'boolean',
             title: 'Timetable Partitioned'
+        },
+        timetable_partitioned_at_runtime: {
+            type: 'boolean',
+            title: 'Timetable Partitioned At Runtime',
+            default: false
         },
         timetable_periodic: {
             type: 'boolean',
@@ -12624,6 +12646,11 @@ export const $DAGWithLatestDagRunsResponse = {
         timetable_partitioned: {
             type: 'boolean',
             title: 'Timetable Partitioned'
+        },
+        timetable_partitioned_at_runtime: {
+            type: 'boolean',
+            title: 'Timetable Partitioned At Runtime',
+            default: false
         },
         timetable_periodic: {
             type: 'boolean',

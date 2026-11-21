@@ -407,6 +407,7 @@ def _get_dagbag_dag_details(dag: BaggedDAG) -> dict:
         "timetable_summary": core_timetable.summary,
         "timetable_description": core_timetable.description,
         "timetable_partitioned": core_timetable.partitioned,
+        "timetable_partitioned_at_runtime": core_timetable.partitioned_at_runtime,
         "timetable_periodic": core_timetable.periodic,
         "tags": dag.tags,
         "max_active_tasks": dag.max_active_tasks,

@@ -28,19 +28,7 @@ import { server } from "src/mocks/server";
 import { Wrapper } from "src/utils/Wrapper";
 
 import TriggerDAGForm from "./TriggerDAGForm";
-
-const dagParams = vi.hoisted(() => ({
-  paramsDict: {
-    message: {
-      description: "Message",
-      schema: {
-        title: "Message",
-        type: "string",
-      },
-      value: "Hello",
-    },
-  },
-}));
+import { dagParams } from "./TriggerDAGForm.testUtils";
 
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
@@ -132,6 +120,7 @@ describe("TriggerDAGForm", () => {
           error={undefined}
           hasSchedule={false}
           isPartitioned={false}
+          isPartitionedAtRuntime={false}
           isPaused
           isPending={false}
           onSubmitTrigger={onSubmitTrigger}
@@ -167,6 +156,7 @@ describe("TriggerDAGForm", () => {
         error={undefined}
         hasSchedule={false}
         isPartitioned={false}
+        isPartitionedAtRuntime={false}
         isPaused={false}
         isPending={false}
         onSubmitTrigger={vi.fn()}
@@ -209,6 +199,7 @@ describe("TriggerDAGForm", () => {
           error={undefined}
           hasSchedule={false}
           isPartitioned={false}
+          isPartitionedAtRuntime={false}
           isPaused={false}
           isPending={false}
           onSubmitTrigger={vi.fn()}
@@ -230,6 +221,7 @@ describe("TriggerDAGForm", () => {
         error={undefined}
         hasSchedule={false}
         isPartitioned={false}
+        isPartitionedAtRuntime={false}
         isPaused={false}
         isPending={false}
         onSubmitTrigger={vi.fn()}
@@ -261,6 +253,7 @@ describe("TriggerDAGForm", () => {
         error={undefined}
         hasSchedule={false}
         isPartitioned={false}
+        isPartitionedAtRuntime={false}
         isPaused={false}
         isPending={false}
         onSubmitTrigger={vi.fn()}
@@ -305,6 +298,7 @@ describe("TriggerDAGForm", () => {
         error={undefined}
         hasSchedule={false}
         isPartitioned={false}
+        isPartitionedAtRuntime={false}
         isPaused={false}
         isPending={false}
         onSubmitTrigger={vi.fn()}
@@ -324,6 +318,7 @@ describe("TriggerDAGForm", () => {
         error={undefined}
         hasSchedule={false}
         isPartitioned
+        isPartitionedAtRuntime={false}
         isPaused={false}
         isPending={false}
         onSubmitTrigger={vi.fn()}
@@ -343,6 +338,7 @@ describe("TriggerDAGForm", () => {
         error={undefined}
         hasSchedule={false}
         isPartitioned={false}
+        isPartitionedAtRuntime={false}
         isPaused={false}
         isPending={false}
         onSubmitTrigger={vi.fn()}
@@ -382,6 +378,7 @@ describe("TriggerDAGForm", () => {
         error={undefined}
         hasSchedule={false}
         isPartitioned={false}
+        isPartitionedAtRuntime={false}
         isPaused={false}
         isPending={false}
         onSubmitTrigger={vi.fn()}
@@ -416,6 +413,7 @@ describe("TriggerDAGForm", () => {
         error={undefined}
         hasSchedule={false}
         isPartitioned={false}
+        isPartitionedAtRuntime={false}
         isPaused={false}
         isPending={false}
         onSubmitTrigger={vi.fn()}

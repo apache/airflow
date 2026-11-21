@@ -28,6 +28,7 @@ from pendulum.tz.timezone import FixedTimezone, Timezone
 from pydantic import (
     AliasGenerator,
     ConfigDict,
+    Field,
     computed_field,
     field_serializer,
     field_validator,
@@ -98,6 +99,7 @@ class DAGResponse(BaseModel):
     timetable_summary: str | None
     timetable_description: str | None
     timetable_partitioned: bool
+    timetable_partitioned_at_runtime: bool = False
     timetable_periodic: bool
     tags: list[DagTagResponse]
     max_active_tasks: int
@@ -228,6 +230,13 @@ class DAGDetailsResponse(DAGResponse):
     active_runs_count: int = 0
     team_name: str | None = None
     latest_dag_version: DagVersionResponse | None
+    suggested_partition_key: str | None = Field(
+        default=None,
+        description=(
+            "Partition key suggested for a manual trigger of this Dag. "
+            "Computed only by the Dag details endpoint; null when the timetable offers no suggestion."
+        ),
+    )
 
     @field_validator("timezone", mode="before")
     @classmethod
