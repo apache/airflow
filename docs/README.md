@@ -84,7 +84,7 @@ We have two S3 buckets where we can publish the documentation generated from the
 Note that those S3 buckets are not served directly to Apache Server, but they are served via Cloudfront
 in order to provide caching and automated resolution of folders into index.html files.
 
-Our CloudFront distributions are:
+Our Cloudfront distributions are:
 
 * Live CloudFront url: https://d7fnmbhf26p21.cloudfront.net
 * Staging CloudFront url: https://d3a2du7x0n8ydr.cloudfront.net
@@ -280,7 +280,7 @@ running publishing.
 
 This is done using breeze. You also need to have AWS CLI installed and configured credentials to be able
 to upload files to S3. You can get credentials from one of the admins of Airflow's AWS account. The
-region to set for AWS is `us-east-2`.
+AWS region to use is `us-east-2`.
 
 Note that it is advised to add `--dry-run` if you just want to see what would happen. Also, you can use
 the `s3://staging-docs-airflow-apache-org/docs/` bucket to test the publishing using staging site.
@@ -302,7 +302,7 @@ you to publish documentation without having S3 credentials.
 
 The process is as follows:
 
-1. Run `Sync s3 to GitHub` workflow in `apache-airflow-site-archive` repository. This will download the
+1. Run `Sync S3 to GitHub` workflow in `apache-airflow-site-archive` repository. This will download the
    latest version of the documentation from S3 to `airflow-site-archive` repository (this should normally not
    be needed, if automated synchronization works).
 2. Checkout the `apache-airflow-site-archive` repository and create a branch for your changes.
