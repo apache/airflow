@@ -568,9 +568,11 @@ downstream task receives. An uncaught exception or a rejected promise fails the 
 has retries.
 
 When a task's ``executionTimeout`` passes, ``signal`` is aborted with a ``TaskTimeoutError`` as its ``reason``. The
-handler then has up to 30 seconds to clean up before the task fails with the timeout, and retries if it has retries,
-even if the handler returns. The process then exits, so any work still running stops with it. A handler that never yields to the event loop, such as one stuck in a synchronous loop,
-cannot see the signal; Airflow stops its process ``killed_task_cleanup_time`` after the timeout.
+handler then has until Airflow sends SIGTERM, ``killed_task_cleanup_time`` after the timeout, to finish. When it
+finishes, or at the SIGTERM, the task fails with the timeout, even if the handler returned a value, and retries if it
+has retries. The process then exits, so any work still running stops with it. A handler that never yields to the
+event loop, such as one stuck in a synchronous loop, cannot see the signal or the SIGTERM; Airflow kills its process
+``killed_task_cleanup_time`` after the SIGTERM.
 
 The ``TaskClient``
 ~~~~~~~~~~~~~~~~~~

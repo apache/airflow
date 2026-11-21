@@ -51,28 +51,23 @@ export interface ExecutionTimeout {
    * Wait for the task, which is already running; the timeout counts from here.
    *
    * At the timeout {@link signal} is aborted, so a task passing it to its work
-   * stops there. The task then has the cleanup time to finish; what it returns
-   * or throws by then is ignored, so a task that times out never succeeds. A
-   * task that ignores the signal is not waited for longer: the timeout is
-   * reported, and the runtime then ends the process.
+   * stops there. The task then has until the supervisor's SIGTERM, which comes
+   * `killed_task_cleanup_time` after the timeout, to finish; what it returns or
+   * throws by then is ignored, so a task that times out never succeeds. At the
+   * SIGTERM the timeout is reported, and the runtime then ends the process.
    */
   wait<T>(running: Promise<T>): Promise<T>;
 }
 
-/** How long {@link ExecutionTimeout.wait} waits for a task after its timeout. */
-export interface ExecutionTimeoutOptions {
-  /** How long the task has to finish after the timeout. */
-  readonly cleanupMs: number;
-  /**
-   * Ends that wait early: the runtime's signal, which the supervisor's SIGTERM
-   * aborts when its own deadline comes first.
-   */
-  readonly stopWaiting: AbortSignal;
-}
-
+/**
+ * `stopWaiting` ends the wait after the timeout: the runtime's signal, which the
+ * supervisor's SIGTERM aborts. `SetExecutionTimeout` starts the supervisor's
+ * deadline when this timeout starts, so the SIGTERM comes exactly
+ * `killed_task_cleanup_time` after it, the cleanup time a Python task gets.
+ */
 export function createExecutionTimeout(
   seconds: number,
-  { cleanupMs, stopWaiting }: ExecutionTimeoutOptions,
+  stopWaiting: AbortSignal,
 ): ExecutionTimeout {
   const controller = new AbortController();
   return {
@@ -99,15 +94,12 @@ export function createExecutionTimeout(
 
       const error = new TaskTimeoutError(seconds);
       controller.abort(error);
-      // Until the task finishes, its cleanup time runs out, or the supervisor's
-      // SIGTERM arrives, whichever comes first.
+      // Until the task finishes or the supervisor's SIGTERM arrives.
       await new Promise<void>((resolve) => {
         const done = () => {
-          clearTimeout(cleanupTimer);
           stopWaiting.removeEventListener("abort", done);
           resolve();
         };
-        const cleanupTimer = setTimeout(done, cleanupMs);
         stopWaiting.addEventListener("abort", done);
         if (stopWaiting.aborted) done();
         running.then(done, done);

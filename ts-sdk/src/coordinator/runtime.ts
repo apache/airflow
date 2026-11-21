@@ -389,13 +389,7 @@ async function handleTask(
   }
 
   const timeoutSeconds = executionTimeoutOf(details.ti_context);
-  const timeout =
-    timeoutSeconds === null
-      ? null
-      : createExecutionTimeout(timeoutSeconds, {
-          cleanupMs: ABORT_GRACE_PERIOD_MS,
-          stopWaiting: signal,
-        });
+  const timeout = timeoutSeconds === null ? null : createExecutionTimeout(timeoutSeconds, signal);
   // The task sees one signal: aborted by SIGTERM/SIGINT, or at its timeout.
   const ctx = buildContext(details, timeout ? AbortSignal.any([signal, timeout.signal]) : signal);
   const client = createCoordinatorClient(comm, ctx, ti.id, clientLogs);

@@ -38,12 +38,8 @@ function untilAborted<T>(signal: AbortSignal, onAbort: () => T): Promise<T> {
   });
 }
 
-function timeoutOf(
-  seconds: number,
-  cleanupMs: number,
-  stopWaiting: AbortSignal = new AbortController().signal,
-) {
-  return createExecutionTimeout(seconds, { cleanupMs, stopWaiting });
+function timeoutOf(seconds: number, stopWaiting: AbortSignal = new AbortController().signal) {
+  return createExecutionTimeout(seconds, stopWaiting);
 }
 
 describe("executionTimeoutOf", () => {
@@ -65,21 +61,21 @@ describe("createExecutionTimeout", () => {
   });
 
   it("returns what the task returns when it finishes in time", async () => {
-    const timeout = timeoutOf(5, 1000);
+    const timeout = timeoutOf(5);
 
     await expect(timeout.wait(Promise.resolve(42))).resolves.toBe(42);
     expect(timeout.signal.aborted).toBe(false);
   });
 
   it("passes the task's own failure through", async () => {
-    const timeout = timeoutOf(5, 1000);
+    const timeout = timeoutOf(5);
 
     await expect(timeout.wait(Promise.reject(new Error("boom")))).rejects.toThrow("boom");
     expect(timeout.signal.aborted).toBe(false);
   });
 
   it("aborts with TaskTimeoutError at the timeout and fails once the task has cleaned up", async () => {
-    const timeout = timeoutOf(0.05, 5000);
+    const timeout = timeoutOf(0.05);
     let cleanedUp = false;
 
     const outcome = timeout.wait(
@@ -97,24 +93,31 @@ describe("createExecutionTimeout", () => {
   });
 
   it("fails with the timeout even when the task returns after being aborted", async () => {
-    const timeout = timeoutOf(0.05, 5000);
+    const timeout = timeoutOf(0.05);
 
     const outcome = timeout.wait(untilAborted(timeout.signal, () => "done anyway"));
 
     await expect(outcome).rejects.toBeInstanceOf(TaskTimeoutError);
   });
 
-  it("waits for a task that ignores the signal only for the cleanup time", async () => {
-    const timeout = timeoutOf(0.05, 100);
-    const started = Date.now();
+  it("waits for a task that ignores the signal until Airflow's SIGTERM", async () => {
+    const airflowStop = new AbortController();
+    const timeout = timeoutOf(0.05, airflowStop.signal);
+    let settled = false;
 
-    await expect(timeout.wait(sleep(10_000))).rejects.toBeInstanceOf(TaskTimeoutError);
-    expect(Date.now() - started).toBeLessThan(2000);
+    const outcome = timeout.wait(new Promise<never>(() => {}));
+    void outcome.catch(() => (settled = true));
+    await sleep(300);
+    expect(timeout.signal.aborted).toBe(true);
+    expect(settled).toBe(false);
+
+    airflowStop.abort(new Error("Task aborted by SIGTERM"));
+    await expect(outcome).rejects.toBeInstanceOf(TaskTimeoutError);
   });
 
   it("stops waiting for cleanup when Airflow stops the task", async () => {
     const airflowStop = new AbortController();
-    const timeout = timeoutOf(0.05, 10_000, airflowStop.signal);
+    const timeout = timeoutOf(0.05, airflowStop.signal);
     const started = Date.now();
 
     const outcome = timeout.wait(sleep(10_000));
@@ -127,7 +130,8 @@ describe("createExecutionTimeout", () => {
   it("enforces a timeout too long for one timer", async () => {
     vi.useFakeTimers();
     const timeoutMs = 30 * 24 * 3600 * 1000;
-    const timeout = timeoutOf(timeoutMs / 1000, 1000);
+    const airflowStop = new AbortController();
+    const timeout = timeoutOf(timeoutMs / 1000, airflowStop.signal);
 
     const outcome = timeout.wait(new Promise<never>(() => {}));
     const failed = expect(outcome).rejects.toBeInstanceOf(TaskTimeoutError);
@@ -135,7 +139,7 @@ describe("createExecutionTimeout", () => {
     expect(timeout.signal.aborted).toBe(false);
     await vi.advanceTimersByTimeAsync(1);
     expect(timeout.signal.aborted).toBe(true);
-    await vi.advanceTimersByTimeAsync(1000);
+    airflowStop.abort(new Error("Task aborted by SIGTERM"));
     await failed;
   });
 });

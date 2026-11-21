@@ -56,8 +56,9 @@ export interface TaskContext<TConf = Readonly<Record<string, JsonValue>>> {
  * The task ran past its `executionTimeout`.
  *
  * It is the `reason` of `getContext().signal` at the timeout, so work given
- * the signal rejects with it. The task then has up to 30 seconds to clean up
- * before it fails, and retries if it has retries.
+ * the signal rejects with it. The task then has until Airflow sends SIGTERM,
+ * `killed_task_cleanup_time` after the timeout, to clean up before it fails,
+ * and retries if it has retries.
  */
 export class TaskTimeoutError extends Error {
   constructor(public readonly timeoutSeconds: number) {
