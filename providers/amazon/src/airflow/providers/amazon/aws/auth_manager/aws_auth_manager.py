@@ -89,7 +89,7 @@ class AwsAuthManager(BaseAuthManager[AwsAuthManagerUser]):
 
     def deserialize_user(self, token: dict[str, Any]) -> AwsAuthManagerUser:
         return AwsAuthManagerUser(
-            user_id=token.pop("sub"),
+            user_id=token["sub"],
             groups=token.get("groups", []),
             username=token.get("username"),
             email=token.get("email"),
