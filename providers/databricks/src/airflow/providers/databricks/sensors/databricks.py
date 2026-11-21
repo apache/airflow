@@ -114,6 +114,12 @@ class DatabricksSQLStatementsSensor(DatabricksSQLStatementsMixin, BaseSensorOper
         # provision error and is checked there instead.
         if not self.statement and not self.statement_id:
             raise ValueError("One of either statement or statement_id must be provided.")
+        if not self.statement_id and self.wait_for_termination and not self.deferrable and self.reschedule:
+            # Each reschedule runs execute() again in a new process, which would submit the statement again.
+            raise ValueError(
+                "mode='reschedule' would submit the statement again on every reschedule. Use "
+                "mode='poke', deferrable=True, or pass the statement_id of a submitted statement."
+            )
         if not self.statement_id:
             # Otherwise, we'll go ahead and "submit" the statement
             tags = build_query_tags(context, self.query_tags, self.include_airflow_query_tags)
@@ -144,6 +150,8 @@ class DatabricksSQLStatementsSensor(DatabricksSQLStatementsMixin, BaseSensorOper
 
         if self.deferrable:
             self._handle_deferrable_execution(defer_method_name=DEFER_METHOD_NAME)  # type: ignore[misc]
+            return None
+        return super().execute(context)
 
     def poke(self, context: Context):
         """
@@ -162,5 +170,5 @@ class DatabricksSQLStatementsSensor(DatabricksSQLStatementsMixin, BaseSensorOper
             self.log.info("SQL Statement with ID %s completed successfully.", self.statement_id)
             return True
         raise AirflowException(
-            f"SQL Statement with ID {statement_state} failed with error: {statement_state.error_message}"
+            f"SQL Statement with ID {self.statement_id} failed with error: {statement_state.error_message}"
         )
