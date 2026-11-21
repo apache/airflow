@@ -20,7 +20,15 @@ import uuid
 from datetime import UTC, datetime, timedelta
 from unittest.mock import MagicMock, patch
 
+import pytest
+import time_machine
+from sqlalchemy import event, select
+
+from airflow import settings
 from airflow.models.revoked_token import RevokedToken
+
+from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.db import clear_db_revoked_tokens
 
 
 class TestRevokedTokenModel:
@@ -101,3 +109,41 @@ class TestRevokedTokenCleanup:
             mock_session.execute.assert_not_called()
         finally:
             RevokedToken._last_cleanup_time = original_last_cleanup
+
+
+@pytest.mark.db_test
+@pytest.mark.asyncio
+class TestRevokedTokenAsync:
+    @pytest.fixture(autouse=True)
+    def cleanup_revoked_tokens(self):
+        with conf_vars({("api_auth", "jwt_expiration_time"): "3600"}):
+            clear_db_revoked_tokens()
+            yield
+            clear_db_revoked_tokens()
+
+    @pytest.mark.parametrize("cleanup_due", [False, True])
+    @pytest.mark.parametrize(("jti", "expected"), [("revoked-jti", True), ("unknown-jti", False)])
+    @patch("airflow.models.revoked_token.time.monotonic", autospec=True)
+    @patch.object(RevokedToken, "_last_cleanup_time", 0.0)
+    @time_machine.travel("2026-11-01T00:00:00Z", tick=False)
+    async def test_is_revoked_async(self, mock_monotonic, session, cleanup_due, jti, expected):
+        mock_monotonic.return_value = 8000.0 if cleanup_due else 1.0
+        session.add_all(
+            [
+                RevokedToken(jti="revoked-jti", exp=datetime(2026, 11, 2, tzinfo=UTC)),
+                RevokedToken(jti="expired-jti", exp=datetime(2026, 10, 31, tzinfo=UTC)),
+            ]
+        )
+        session.commit()
+
+        def reject_sync_query(*args):
+            pytest.fail("Token revocation must use the async engine")
+
+        event.listen(settings.engine, "before_cursor_execute", reject_sync_query)
+        try:
+            assert await RevokedToken.is_revoked_async(jti) is expected
+        finally:
+            event.remove(settings.engine, "before_cursor_execute", reject_sync_query)
+
+        remaining_jtis = set(session.scalars(select(RevokedToken.jti)))
+        assert remaining_jtis == ({"revoked-jti"} if cleanup_due else {"revoked-jti", "expired-jti"})
