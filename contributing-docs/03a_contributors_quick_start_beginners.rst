@@ -98,9 +98,10 @@ Run these commands from the root of your cloned Airflow repository:
     uv run dev/ide_setup/setup_vscode.py
 
 .. note::
-   Airflow does not support Python 3.15 yet. If your default Python is 3.15 (or an existing ``.venv``
-   was created with it), ``setup_idea.py`` may fail while building dependencies such as ``pyodbc``,
-   because no prebuilt wheels exist for 3.15. Pass a supported version (3.11–3.14) explicitly:
+   If your default Python is newer than the versions Airflow supports (or an existing ``.venv``
+   was created with it), ``setup_idea.py`` may fail while building dependencies such as ``pyodbc``
+   that have no prebuilt wheels for it. ``setup_idea.py`` prints the supported versions when it
+   starts. Pass one of them explicitly, for example:
 
    .. code-block:: bash
 
