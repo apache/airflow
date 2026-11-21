@@ -78,6 +78,9 @@ versions:
   - 1.0.1
   - 1.0.0
 
+excluded-python-versions:
+  - "3.15"
+
 integrations:
   - integration-name: Salesforce
     external-doc-url: https://www.salesforce.com/

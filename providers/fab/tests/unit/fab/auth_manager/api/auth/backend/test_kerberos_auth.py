@@ -16,7 +16,11 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.providers.fab.auth_manager.api.auth.backend.kerberos_auth import init_app
+from tests_common.test_utils.markers import skip_module_on_python_315_without
+
+skip_module_on_python_315_without("kerberos")
+
+from airflow.providers.fab.auth_manager.api.auth.backend.kerberos_auth import init_app  # noqa: E402
 
 
 class TestKerberosAuth:

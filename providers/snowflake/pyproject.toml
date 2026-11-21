@@ -49,6 +49,7 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
+    "Programming Language :: Python :: 3.15",
     "Topic :: System :: Monitoring",
 ]
 requires-python = ">=3.11"
@@ -58,6 +59,8 @@ requires-python = ">=3.11"
 # Make sure to run ``prek update-providers-dependencies --all-files``
 # After you modify the dependencies, and rebuild your Breeze CI image with ``breeze ci-image build``
 dependencies = [
+    "aiohttp>=3.14.0",
+    "aiohttp>=3.14.5; python_version >= '3.15'",
     "apache-airflow>=2.11.0",
     "apache-airflow-providers-common-compat>=1.23.0",
     "apache-airflow-providers-common-sql>=1.32.0",
@@ -76,6 +79,7 @@ dependencies = [
     # 3.17.0 is the first version with Workload Identity Federation (WORKLOAD_IDENTITY authenticator).
     "snowflake-connector-python>=3.17.0",
     "snowflake-connector-python>=5.1.0; python_version >= '3.14'",
+    "snowflake-connector-python>=5.2.0; python_version >= '3.15'",
     "snowflake-sqlalchemy>=1.7.0",
     "snowflake-sqlalchemy>=2.1.0; python_version >= '3.14'",
     # Snowpark requires connector<5, so on Python < 3.14 the dialect stays on snowflake-sqlalchemy 1.x,
@@ -94,10 +98,10 @@ dependencies = [
 # Any change in the dependencies is preserved when the file is regenerated
 [project.optional-dependencies]
 "common.ai" = [
-    "apache-airflow-providers-common-ai[openai]>=1.0.0",
+    "apache-airflow-providers-common-ai[openai]>=1.0.0; python_version != \"3.15\"",
 ]
 "microsoft.azure" = [
-    "apache-airflow-providers-microsoft-azure>=12.8.0"
+    "apache-airflow-providers-microsoft-azure>=12.8.0; python_version != \"3.15\""
 ]
 "openlineage" = [
     "apache-airflow-providers-openlineage>=2.16.0"
@@ -108,10 +112,10 @@ dev = [
     "apache-airflow",
     "apache-airflow-task-sdk",
     "apache-airflow-devel-common",
-    "apache-airflow-providers-common-ai",
+    "apache-airflow-providers-common-ai; python_version != \"3.15\"",
     "apache-airflow-providers-common-compat",
     "apache-airflow-providers-common-sql",
-    "apache-airflow-providers-microsoft-azure",
+    "apache-airflow-providers-microsoft-azure; python_version != \"3.15\"",
     "apache-airflow-providers-openlineage",
     # Additional devel dependencies (do not remove this line and add extra development dependencies)
     "boto3>=1.41.0",
