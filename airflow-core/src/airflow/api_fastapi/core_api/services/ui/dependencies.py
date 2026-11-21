@@ -22,9 +22,11 @@ from typing import TYPE_CHECKING
 
 import structlog
 from sqlalchemy import select
+from sqlalchemy.orm import contains_eager, defer
 
-from airflow.models.asset import AssetModel
+from airflow.models.asset import AssetModel, AssetWatcherModel
 from airflow.models.dag import DagModel
+from airflow.models.trigger import Trigger
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -220,6 +222,53 @@ def hide_unreadable_assets(
             if edge["source_id"] not in hidden and edge["target_id"] not in hidden
         ],
     }
+
+
+def add_asset_watcher_nodes(
+    graph: dict[str, list[dict]], *, readable_asset_ids: set[int], session: Session
+) -> dict[str, list[dict]]:
+    """
+    Add a node for each watcher of the graph's assets, upstream of its asset, with its trigger's status.
+
+    A watcher is shown on the assets GET /triggers would show its trigger for. A trigger shared by
+    watchers on several assets gets a node per watcher, so it does not join their graphs.
+    """
+    asset_ids = {
+        int(node["id"].removeprefix("asset:"))
+        for node in graph["nodes"]
+        if node["type"] == "asset" and _is_readable_asset_node(node["id"], readable_asset_ids)
+    }
+    if not asset_ids:
+        return graph
+    # Every asset here is readable, so GET /triggers shows each of these triggers that runs for no task or
+    # callback: the readable Dags it would also bind are not needed.
+    watchers = session.execute(
+        select(AssetWatcherModel.asset_id, AssetWatcherModel.name, Trigger)
+        .join(AssetWatcherModel.trigger)
+        .outerjoin(Trigger.triggerer_job)
+        .where(
+            AssetWatcherModel.asset_id.in_(asset_ids),
+            Trigger.used_by_ref["ti_id"].as_string().is_(None),
+            Trigger.used_by_ref["callback_id"].as_string().is_(None),
+        )
+        .options(defer(Trigger.encrypted_kwargs), contains_eager(Trigger.triggerer_job))
+        .order_by(AssetWatcherModel.asset_id, AssetWatcherModel.name, Trigger.id)
+    )
+    nodes = list(graph["nodes"])
+    edges = list(graph["edges"])
+    for asset_id, name, trigger in watchers:
+        node_id = f"asset-watcher:{asset_id}:{trigger.id}"
+        nodes.append(
+            {
+                "id": node_id,
+                "label": name,
+                "type": "asset-watcher",
+                "trigger_id": trigger.id,
+                "trigger_status": trigger.status(),
+            }
+        )
+        edges.append({"source_id": node_id, "target_id": f"asset:{asset_id}"})
+    return {"nodes": nodes, "edges": edges}
 
 
 def get_scheduling_dependencies(

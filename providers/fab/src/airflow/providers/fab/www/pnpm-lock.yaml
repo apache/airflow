@@ -40,7 +40,7 @@ importers:
         version: 8.1.2
       '@babel/eslint-parser':
         specifier: ^8.1.2
-        version: 8.1.2(@babel/core@8.1.2)(eslint@10.14.0)
+        version: 8.1.2(@babel/core@8.1.2)(eslint@10.15.0)
       '@babel/plugin-transform-runtime':
         specifier: ^8.1.2
         version: 8.1.2(@babel/core@8.1.2)
@@ -60,8 +60,8 @@ importers:
         specifier: ^8.0.0
         version: 8.0.0(webpack@5.112.2)
       eslint:
-        specifier: ^10.14.0
-        version: 10.14.0
+        specifier: ^10.15.0
+        version: 10.15.0
       file-loader:
         specifier: ^6.2.0
         version: 6.2.0(webpack@5.112.2)
@@ -654,12 +654,12 @@ packages:
     peerDependencies:
       eslint: ^6.0.0 || ^7.0.0 || >=8.0.0
 
-  '@eslint-community/regexpp@4.12.2':
-    resolution: {integrity: sha512-EriSTlt5OC9/7SXkRSCAhfSxxoSUgBm33OH+IkwbdpgoqsSsUg7y3uh+IICI/Qg4BBWr3U2i39RpmycbxMq4ew==}
+  '@eslint-community/regexpp@4.12.3':
+    resolution: {integrity: sha512-R76UKbvsqI68DJJVTVyqFKqU98CN4+B+acxNfEA2IFarSzP0SjtKf/3+fFiXzTyv5Fj3PxLkGHe2wnVWWMxobQ==}
     engines: {node: ^12.0.0 || ^14.0.0 || >=16.0.0}
 
-  '@eslint/config-array@0.23.5':
-    resolution: {integrity: sha512-Y3kKLvC1dvTOT+oGlqNQ1XLqK6D1HU2YXPc52NmAlJZbMMWDzGYXMiPRJ8TYD39muD/OTjlZmNJ4ib7dvSrMBA==}
+  '@eslint/config-array@0.23.6':
+    resolution: {integrity: sha512-WrTH7nioI9QPY4NZGnsywmecswJdgeq4BCM76qok9VgjTO29ZgUzUvcuJLVPYVQM4uDbaPBU0M33R9DIxI8X3w==}
     engines: {node: ^20.19.0 || ^22.13.0 || >=24}
 
   '@eslint/config-helpers@0.7.0':
@@ -697,6 +697,9 @@ packages:
   '@humanwhocodes/retry@0.4.3':
     resolution: {integrity: sha512-bV0Tgo9K4hfPCek+aMAn81RppFKv2ySDQeMoSZuvTASywNTnVJCArCZE2FWqpvIatKu7VMRLWlR1EazvVhDyhQ==}
     engines: {node: '>=18.18'}
+
+  '@isaacs/nonrecursive-glob-match@1.1.0':
+    resolution: {integrity: sha512-GPm/Dbvk5RLmhRnxXIa7nTpK0xtl4E0wj0MslsuNiJ1FIROU+2+9lgUC/dgF7Ey4QCWhfEsgxilMRMCdHPfDfw==}
 
   '@jest/pattern@30.0.1':
     resolution: {integrity: sha512-gWp7NfQW27LaBQz3TITS8L7ZCQ0TLvtmI//4OwlQRx4rnWxcPNIYjxZpDcN4+UlGxgm3jS5QPz8IPTCkb59wZA==}
@@ -931,8 +934,8 @@ packages:
   boolbase@1.0.0:
     resolution: {integrity: sha512-JZOSA7Mo9sNGB8+UjSgzdLtokWAky1zbztM3WRLCbZ70/3cTANmQmOdR7y2g+J0e2WXywy1yS468tY+IruqEww==}
 
-  brace-expansion@5.0.12:
-    resolution: {integrity: sha512-YovQ3rzhaLMIrDjNDMkNS01tea93qhEhG5xy8f6+R0l+dw3Ki+5sCoIoI942iuLZTHWogWktgwVDhU09iNEimQ==}
+  brace-expansion@5.0.13:
+    resolution: {integrity: sha512-Vh3dmFbc4wZeox7M9I/0L9GfFd83Su4+yCck/OF9Gi/P/dAHn0RT7X4K9R7gMNMhDck3DvhR6QXsnQdjjgwNvQ==}
     engines: {node: 20 || >=22}
 
   browserslist@4.29.4:
@@ -1186,8 +1189,8 @@ packages:
     resolution: {integrity: sha512-tD40eHxA35h0PEIZNeIjkHoDR4YjjJp34biM0mDvplBe//mB+IHCqHDGV7pxF+7MklTvighcCPPZC7ynWyjdTA==}
     engines: {node: ^20.19.0 || ^22.13.0 || >=24}
 
-  eslint@10.14.0:
-    resolution: {integrity: sha512-T0pNsxkb9IKmtQjhpK3d7nWOpFv+YHuMbTJnSVMoQblF0onvXfErrtp4V1jHtsQPan7dKaGVD0q1WCXnzMF31A==}
+  eslint@10.15.0:
+    resolution: {integrity: sha512-+5Wg4p+ze3sG1WErYgUO/3H1IQIfFBymVUA0Fo/XTeBOLS6UQIUekpSJ8sdRkn7O7wjh84b55w/roqavH2aScg==}
     engines: {node: ^20.19.0 || ^22.13.0 || >=24}
     hasBin: true
     peerDependencies:
@@ -1454,9 +1457,9 @@ packages:
     peerDependencies:
       webpack: ^5.0.0
 
-  minimatch@10.2.6:
-    resolution: {integrity: sha512-vpLQEs+VLCr1nU0BXS07maYoFwlDAH0gngQuuttxIwutDFEMHq2blX+8vpgxDdK3J1PwjCJiep77OitTZ4Ll1A==}
-    engines: {node: 18 || 20 || >=22}
+  minimatch@11.0.8:
+    resolution: {integrity: sha512-nFQuYSTVrGvysVBps5Ih+0BdnYFN/Cj3C816r6+p7yK+FHrVLGE4O4N9AFwykrlNlvM2HYt+Rad1Uiro6h88Ig==}
+    engines: {node: 20 || >=22}
 
   minimizer-webpack-plugin@5.13.1:
     resolution: {integrity: sha512-1mhAfvachWYYOm8tpmany5NLuvP+F2wxZWBSX8DC0uFS2wJpM9q3rWgN9wBooAH9d5V12wX0BjyJe4fMjHMarQ==}
@@ -2190,10 +2193,10 @@ snapshots:
       obug: 3.0.0
       verkit: 0.5.0
 
-  '@babel/eslint-parser@8.1.2(@babel/core@8.1.2)(eslint@10.14.0)':
+  '@babel/eslint-parser@8.1.2(@babel/core@8.1.2)(eslint@10.15.0)':
     dependencies:
       '@babel/core': 8.1.2
-      eslint: 10.14.0
+      eslint: 10.15.0
       eslint-scope: 9.1.2
       eslint-visitor-keys: 5.0.1
       verkit: 0.5.0
@@ -2781,18 +2784,18 @@ snapshots:
 
   '@discoveryjs/json-ext@1.1.0': {}
 
-  '@eslint-community/eslint-utils@4.10.1(eslint@10.14.0)':
+  '@eslint-community/eslint-utils@4.10.1(eslint@10.15.0)':
     dependencies:
-      eslint: 10.14.0
+      eslint: 10.15.0
       eslint-visitor-keys: 3.4.3
 
-  '@eslint-community/regexpp@4.12.2': {}
+  '@eslint-community/regexpp@4.12.3': {}
 
-  '@eslint/config-array@0.23.5':
+  '@eslint/config-array@0.23.6':
     dependencies:
       '@eslint/object-schema': 3.0.5
       debug: 4.4.3
-      minimatch: 10.2.6
+      minimatch: 11.0.8
     transitivePeerDependencies:
       - supports-color
 
@@ -2826,6 +2829,8 @@ snapshots:
   '@humanwhocodes/module-importer@1.0.1': {}
 
   '@humanwhocodes/retry@0.4.3': {}
+
+  '@isaacs/nonrecursive-glob-match@1.1.0': {}
 
   '@jest/pattern@30.0.1':
     dependencies:
@@ -3068,7 +3073,7 @@ snapshots:
 
   boolbase@1.0.0: {}
 
-  brace-expansion@5.0.12:
+  brace-expansion@5.0.13:
     dependencies:
       balanced-match: 4.0.4
 
@@ -3323,11 +3328,11 @@ snapshots:
 
   eslint-visitor-keys@5.0.1: {}
 
-  eslint@10.14.0:
+  eslint@10.15.0:
     dependencies:
-      '@eslint-community/eslint-utils': 4.10.1(eslint@10.14.0)
-      '@eslint-community/regexpp': 4.12.2
-      '@eslint/config-array': 0.23.5
+      '@eslint-community/eslint-utils': 4.10.1(eslint@10.15.0)
+      '@eslint-community/regexpp': 4.12.3
+      '@eslint/config-array': 0.23.6
       '@eslint/config-helpers': 0.7.0
       '@eslint/core': 1.2.1
       '@eslint/plugin-kit': 0.7.3
@@ -3352,7 +3357,7 @@ snapshots:
       imurmurhash: 0.1.4
       is-glob: 4.0.3
       json-stable-stringify-without-jsonify: 1.0.1
-      minimatch: 10.2.6
+      minimatch: 11.0.8
       natural-compare: 1.4.0
       optionator: 0.9.4
     transitivePeerDependencies:
@@ -3567,9 +3572,10 @@ snapshots:
       tapable: 2.3.2
       webpack: 5.112.2(postcss@8.5.32)(webpack-cli@7.3.1)
 
-  minimatch@10.2.6:
+  minimatch@11.0.8:
     dependencies:
-      brace-expansion: 5.0.12
+      '@isaacs/nonrecursive-glob-match': 1.1.0
+      brace-expansion: 5.0.13
 
   minimizer-webpack-plugin@5.13.1(postcss@8.5.32)(webpack@5.112.2):
     dependencies:
