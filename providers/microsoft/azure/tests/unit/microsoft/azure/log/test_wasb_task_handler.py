@@ -25,6 +25,7 @@ from unittest import mock
 
 import pytest
 from azure.common import AzureHttpError
+from azure.core.exceptions import HttpResponseError
 
 from airflow.providers.common.compat.sdk import timezone
 from airflow.providers.microsoft.azure.hooks.wasb import WasbHook
@@ -314,22 +315,18 @@ class TestWasbTaskHandler:
         assert rec.exc_info is not None
 
     @mock.patch("airflow.providers.microsoft.azure.hooks.wasb.WasbHook")
-    @mock.patch.object(WasbRemoteLogIO, "wasb_read")
-    @mock.patch.object(WasbRemoteLogIO, "wasb_log_exists")
-    def test_write_log(self, mock_log_exists, mock_wasb_read, mock_hook):
-        mock_log_exists.return_value = True
-        mock_wasb_read.return_value = ""
+    def test_write_log(self, mock_hook):
+        mock_hook.return_value.check_for_blob.return_value = True
+        mock_hook.return_value.read_file.return_value = ""
         self.wasb_task_handler.io.write("text", self.remote_log_location)
         mock_hook.return_value.load_string.assert_called_once_with(
             "text", self.container_name, self.remote_log_location, overwrite=True
         )
 
     @mock.patch("airflow.providers.microsoft.azure.hooks.wasb.WasbHook")
-    @mock.patch.object(WasbRemoteLogIO, "wasb_read")
-    @mock.patch.object(WasbRemoteLogIO, "wasb_log_exists")
-    def test_write_on_existing_log(self, mock_log_exists, mock_wasb_read, mock_hook):
-        mock_log_exists.return_value = True
-        mock_wasb_read.return_value = "old log"
+    def test_write_on_existing_log(self, mock_hook):
+        mock_hook.return_value.check_for_blob.return_value = True
+        mock_hook.return_value.read_file.return_value = "old log"
         self.wasb_task_handler.io.write("text", self.remote_log_location)
         mock_hook.return_value.load_string.assert_called_once_with(
             "old log\ntext",
@@ -339,13 +336,9 @@ class TestWasbTaskHandler:
         )
 
     @mock.patch("airflow.providers.microsoft.azure.hooks.wasb.WasbHook")
-    @mock.patch.object(WasbRemoteLogIO, "wasb_read")
-    @mock.patch.object(WasbRemoteLogIO, "wasb_log_exists")
-    def test_write_on_existing_log_already_newline_terminated(
-        self, mock_log_exists, mock_wasb_read, mock_hook
-    ):
-        mock_log_exists.return_value = True
-        mock_wasb_read.return_value = "old log\n"
+    def test_write_on_existing_log_already_newline_terminated(self, mock_hook):
+        mock_hook.return_value.check_for_blob.return_value = True
+        mock_hook.return_value.read_file.return_value = "old log\n"
         self.wasb_task_handler.io.write("text", self.remote_log_location)
         mock_hook.return_value.load_string.assert_called_once_with(
             "old log\ntext",
@@ -353,6 +346,84 @@ class TestWasbTaskHandler:
             self.remote_log_location,
             overwrite=True,
         )
+
+    @pytest.mark.parametrize(
+        "failing_call",
+        [
+            pytest.param("check_for_blob", id="existence-check-fails"),
+            pytest.param("read_file", id="read-fails"),
+        ],
+    )
+    @mock.patch("airflow.providers.microsoft.azure.hooks.wasb.WasbHook")
+    def test_write_refuses_to_overwrite_when_existing_log_cannot_be_read(
+        self, mock_hook, failing_call, caplog
+    ):
+        """A failed read of the existing log must not be uploaded over as if the log were empty."""
+        mock_hook.return_value.check_for_blob.return_value = True
+        mock_hook.return_value.read_file.return_value = "old log\n"
+        getattr(mock_hook.return_value, failing_call).side_effect = HttpResponseError(
+            message="Operation could not be completed within the specified time. ErrorCode:ServerBusy"
+        )
+
+        with caplog.at_level(logging.WARNING):
+            assert self.wasb_task_handler.io.write("text", self.remote_log_location) is False
+
+        mock_hook.return_value.load_string.assert_not_called()
+        assert (
+            "Refusing to overwrite remote log remote/log/location/1.log: could not read existing content"
+            in caplog.text
+        )
+        assert "ServerBusy" in caplog.text
+
+    @mock.patch("airflow.providers.microsoft.azure.hooks.wasb.WasbHook")
+    def test_write_when_remote_log_does_not_exist(self, mock_hook):
+        mock_hook.return_value.check_for_blob.return_value = False
+
+        assert self.wasb_task_handler.io.write("text", self.remote_log_location) is True
+
+        mock_hook.return_value.read_file.assert_not_called()
+        mock_hook.return_value.load_string.assert_called_once_with(
+            "text", self.container_name, self.remote_log_location, overwrite=True
+        )
+
+    def test_upload_keeps_remote_and_local_log_when_existing_log_cannot_be_read(self, tmp_path):
+        """A transient read failure leaves both copies intact, and the next upload appends everything."""
+        blobs: dict[str, str] = {}
+        fail_reads = {"enabled": False}
+
+        class FakeHook:
+            def check_for_blob(self, container, blob_name, **kwargs):
+                return blob_name in blobs
+
+            def read_file(self, container, blob_name, **kwargs):
+                if fail_reads["enabled"]:
+                    raise HttpResponseError(message="ErrorCode:ServerBusy")
+                return blobs[blob_name]
+
+            def load_string(self, string_data, container, blob_name, **kwargs):
+                blobs[blob_name] = string_data
+
+        io = WasbRemoteLogIO(
+            remote_base="remote/log/location",
+            base_log_folder=str(tmp_path),
+            delete_local_copy=False,
+            wasb_container=self.container_name,
+        )
+        io.hook = FakeHook()
+        remote_key = "remote/log/location/attempt=1.log"
+        local_log = tmp_path / "attempt=1.log"
+
+        for cycle in range(1, 5):
+            fail_reads["enabled"] = cycle == 3
+            with open(local_log, "a") as f:
+                f.write(f"cycle {cycle}\n")
+            io.upload("attempt=1.log")
+            if cycle == 3:
+                assert blobs[remote_key] == "cycle 1\ncycle 2\n"
+                assert local_log.read_text() == "cycle 3\n"
+
+        assert blobs[remote_key] == "cycle 1\ncycle 2\ncycle 3\ncycle 4\n"
+        assert local_log.read_text() == ""
 
     def test_upload_repeated_appends_no_duplication(self, tmp_path):
         """Each execution lifecycle of one attempt appends to the same local log and uploads it."""
