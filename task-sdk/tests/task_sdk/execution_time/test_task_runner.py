@@ -138,6 +138,7 @@ from airflow.sdk.execution_time.comms import (
     GetDRCount,
     GetPreviousDagRun,
     GetPreviousTI,
+    GetTaskRescheduleStartDate,
     GetTaskStates,
     GetTaskStateStore,
     GetTICount,
@@ -4009,6 +4010,52 @@ class TestRuntimeTaskInstance:
 
         context = runtime_ti.get_template_context()
         assert runtime_ti.get_first_reschedule_date(context=context) == first_reschedule_date
+        mock_supervisor_comms.send.assert_not_called()
+
+    @pytest.mark.parametrize("task_reschedule_count", [0, 2])
+    def test_get_first_reschedule_date_on_retry_counts_earlier_tries(
+        self, create_runtime_ti, mock_supervisor_comms, task_reschedule_count
+    ):
+        """A retry asks for the date since the first try, whatever this try has done so far."""
+        task = BaseOperator(task_id="hello", retries=2)
+        runtime_ti = create_runtime_ti(
+            task=task, try_number=2, max_tries=2, task_reschedule_count=task_reschedule_count
+        )
+        if task_reschedule_count:
+            # The date the server sent is of this try only, so it must not be used.
+            runtime_ti._ti_context_from_server.first_task_reschedule_start_date = timezone.datetime(
+                2025, 1, 2
+            )
+        mock_supervisor_comms.send.return_value = TaskRescheduleStartDate(
+            start_date=timezone.datetime(2025, 1, 1)
+        )
+
+        context = runtime_ti.get_template_context()
+        assert runtime_ti.get_first_reschedule_date(context=context) == timezone.datetime(2025, 1, 1)
+        mock_supervisor_comms.send.assert_called_once_with(
+            msg=GetTaskRescheduleStartDate(ti_id=runtime_ti.id, try_number=1)
+        )
+
+    def test_get_first_reschedule_date_starts_again_after_clear(
+        self, create_runtime_ti, mock_supervisor_comms
+    ):
+        """Clearing moves max_tries on, so the first try after a clear does not look further back."""
+        task = BaseOperator(task_id="hello", retries=2)
+        runtime_ti = create_runtime_ti(task=task, try_number=3, max_tries=4, task_reschedule_count=0)
+
+        context = runtime_ti.get_template_context()
+        assert runtime_ti.get_first_reschedule_date(context=context) is None
+        mock_supervisor_comms.send.assert_not_called()
+
+    def test_get_first_reschedule_date_of_this_try_ignores_earlier_tries(
+        self, create_runtime_ti, mock_supervisor_comms
+    ):
+        """The reschedule limits of a retry policy count per try, so a retry starts them afresh."""
+        task = BaseOperator(task_id="hello", retries=2)
+        runtime_ti = create_runtime_ti(task=task, try_number=2, max_tries=2, task_reschedule_count=0)
+
+        context = runtime_ti.get_template_context()
+        assert runtime_ti._get_first_reschedule_date_of_this_try(context) is None
         mock_supervisor_comms.send.assert_not_called()
 
     def test_get_ti_count(self, mock_supervisor_comms):
