@@ -264,3 +264,42 @@ class LLMBatchStateReadError(LLMBatchJobError):
     blip resolves on its own); a task that fails with this error should be
     retried, not have its state file deleted.
     """
+
+
+class OCRError(Exception):
+    """
+    Raised when an OCR service refuses or fails a document.
+
+    Sending the same document again repeats the error. ``status`` holds the HTTP status of the
+    answer, or None.
+    """
+
+    def __init__(self, message: str, status: int | None = None) -> None:
+        super().__init__(message)
+        self.status = status
+
+
+class OCRBusyError(OCRError):
+    """
+    Raised when an OCR service is throttling or failing for now (429, 5xx).
+
+    Worth sending again later. ``retry_after`` holds the seconds its answer asked to wait
+    (``Retry-After``), or None.
+    """
+
+    def __init__(self, message: str, status: int | None = None, retry_after: float | None = None) -> None:
+        super().__init__(message, status=status)
+        self.retry_after = retry_after
+
+
+class OCRTimeoutError(OCRBusyError):
+    """
+    Raised when an OCR service does not answer a request in time.
+
+    Busy, with one more thing known: a smaller document may get through, so ``LLMOCROperator``
+    sends the part again as two halves before it gives up.
+    """
+
+
+class UnsupportedOCRProviderError(ValueError):
+    """Raised when no OCR adapter serves a ``model_id`` prefix or accepts a connection type."""
