@@ -43,6 +43,69 @@ This sensor can also be used in deferrable mode
     :start-after: [START howto_operator_http_http_sensor_check_deferrable]
     :end-before: [END howto_operator_http_http_sensor_check_deferrable]
 
+.. _howto/operator:RemoteExternalTaskSensor:
+
+RemoteExternalTaskSensor
+------------------------
+
+Use the :class:`~airflow.providers.http.sensors.remote_external_task.RemoteExternalTaskSensor` to wait for a DAG,
+or tasks of a DAG, in **another** Airflow instance, for example one run by another team.
+:class:`~airflow.providers.standard.sensors.external_task.ExternalTaskSensor` only sees DAGs of the Airflow it
+runs in; this sensor reads the states from the REST API of the remote Airflow instead. It takes the same
+arguments as ``ExternalTaskSensor`` (``external_task_id``, ``external_task_ids``, ``allowed_states``,
+``failed_states``, ``skipped_states``, ``execution_delta``, ``execution_date_fn``, ``check_existence``,
+``soft_fail``) plus:
+
+* ``http_conn_id``: an :ref:`HTTP connection <howto/connection:http>` with the host (and port) of the remote
+  Airflow API server or webserver, and optionally a login and password.
+* ``api_version``: ``"v2"`` (default) for a remote Airflow 3, ``"v1"`` for a remote Airflow 2.
+  With ``"v2"`` the login and password are exchanged for an access token at ``/auth/token`` on every poke;
+  with ``"v1"`` they are sent with basic authentication. The user only needs read access to DAGs,
+  DAG runs and task instances.
+
+The sensor needs the ``standard`` provider: ``pip install 'apache-airflow-providers-http[standard]'``.
+
+The remote DAG run is matched by its logical date (``execution_date`` in Airflow 2). For the same cron
+schedule the dates of the two instances may differ: by default, Airflow 2 sets the logical date of a run to
+the start of its data interval, while Airflow 3 sets it to the time the run is scheduled. Use
+``execution_delta`` or ``execution_date_fn`` to point at the right remote run. For example, an Airflow 3
+DAG scheduled at ``0 5 * * *`` waiting for an Airflow 2 DAG scheduled at ``0 3 * * *``: the run of
+November 17 at 05:00 needs the remote run with the logical date November 16 at 03:00.
+
+.. code-block:: python
+
+    from datetime import timedelta
+
+    from airflow.providers.http.sensors.remote_external_task import RemoteExternalTaskSensor
+
+    wait_for_partner_load = RemoteExternalTaskSensor(
+        task_id="wait_for_partner_load",
+        http_conn_id="partner_airflow",
+        api_version="v1",
+        external_dag_id="partner_daily_load",
+        external_task_ids=["load_group.load_orders", "build_mart"],
+        execution_delta=timedelta(days=1, hours=2),
+        failed_states=["failed"],
+        check_existence=True,
+        mode="reschedule",
+        poke_interval=300,
+        timeout=6 * 60 * 60,
+    )
+
+In Airflow 3 a manually triggered DAG run may have no logical date (when none is given in the trigger
+form or API call). Such a run cannot be matched by its logical date, so the sensor does not see it; the date
+in its run id (``manual__<date>``) is the time it was triggered, not its logical date. This is the same for
+``ExternalTaskSensor``. Also note that in Airflow 3 a run whose logical date is in the future does not start
+before that time.
+
+Tasks in a task group are referred to by their full id, with the group id before a dot. Waiting for a whole
+task group (``external_task_group_id``) is not supported yet. Deferrable mode is not supported yet either:
+with ``deferrable=True`` (also when it comes from ``[operators] default_deferrable``) the sensor warns and
+runs as a regular sensor.
+
+Set ``check_existence=True`` if the DAG id may be mistyped: otherwise a DAG that does not exist in the remote
+Airflow looks the same as a run that has not finished yet, and the sensor waits until the timeout.
+
 .. _howto/operator:HttpOperator:
 
 HttpOperator

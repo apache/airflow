@@ -1004,7 +1004,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "providers/http/tests/file.py",
                 ),
                 {
-                    "selected-providers-list-as-string": "amazon apache.livy atlassian.jira common.compat dbt.cloud dingding discord google http informatica pagerduty",
+                    "selected-providers-list-as-string": "amazon apache.livy atlassian.jira common.compat dbt.cloud dingding discord google http informatica pagerduty standard",
                     "all-python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
                     "all-python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
                     "python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
@@ -1024,8 +1024,8 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "providers-test-types-list-as-strings-in-json": json.dumps(
                         [
                             {
-                                "description": "amazon...google",
-                                "test_types": "Providers[amazon] Providers[apache.livy,atlassian.jira,cncf.kubernetes,common.compat,dbt.cloud,dingding,discord,http,informatica,pagerduty] Providers[google]",
+                                "description": "amazon...standard",
+                                "test_types": "Providers[amazon] Providers[apache.livy,atlassian.jira,cncf.kubernetes,common.compat,dbt.cloud,dingding,discord,http,informatica,pagerduty] Providers[google] Providers[standard]",
                             }
                         ]
                     ),
@@ -1036,20 +1036,20 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                                 "test_types": "Providers[amazon] Providers[apache.livy] Providers[atlassian.jira]",
                             },
                             {
-                                "description": "common.compat...dbt.cloud",
-                                "test_types": "Providers[common.compat] Providers[dbt.cloud]",
+                                "description": "common.compat...dingding",
+                                "test_types": "Providers[common.compat] Providers[dbt.cloud] Providers[dingding]",
                             },
                             {
-                                "description": "dingding...discord",
-                                "test_types": "Providers[dingding] Providers[discord]",
+                                "description": "discord...google",
+                                "test_types": "Providers[discord] Providers[google]",
                             },
                             {
-                                "description": "google...http",
-                                "test_types": "Providers[google] Providers[http]",
+                                "description": "http...informatica",
+                                "test_types": "Providers[http] Providers[informatica]",
                             },
                             {
-                                "description": "informatica...pagerduty",
-                                "test_types": "Providers[informatica] Providers[pagerduty]",
+                                "description": "pagerduty...standard",
+                                "test_types": "Providers[pagerduty] Providers[standard]",
                             },
                         ]
                     ),

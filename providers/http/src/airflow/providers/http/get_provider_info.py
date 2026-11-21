@@ -44,7 +44,10 @@ def get_provider_info():
         "sensors": [
             {
                 "integration-name": "Hypertext Transfer Protocol (HTTP)",
-                "python-modules": ["airflow.providers.http.sensors.http"],
+                "python-modules": [
+                    "airflow.providers.http.sensors.http",
+                    "airflow.providers.http.sensors.remote_external_task",
+                ],
             }
         ],
         "hooks": [
