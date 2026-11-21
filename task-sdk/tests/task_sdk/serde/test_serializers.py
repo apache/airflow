@@ -747,6 +747,38 @@ class TestSerializers:
         assert isinstance(deserialized, uuid.UUID)
         assert uuid_value == deserialized
 
+    @pytest.mark.parametrize(
+        ("klass", "newer_version", "data", "msg"),
+        [
+            pytest.param(
+                uuid.UUID,
+                2,
+                "12345678-1234-5678-1234-567812345678",
+                r"serialized 2 of uuid\.UUID > 1",
+                id="uuid",
+            ),
+            pytest.param(
+                datetime.timedelta,
+                3,
+                60.0,
+                r"serialized 3 of datetime\.timedelta > 2",
+                id="timedelta",
+            ),
+            pytest.param(
+                datetime.date,
+                3,
+                "2024-01-01",
+                r"serialized 3 of datetime\.date > 2",
+                id="date",
+            ),
+        ],
+    )
+    def test_deserialize_rejects_payload_from_newer_version(self, klass, newer_version, data, msg):
+        """A registered serializer must refuse a payload written by a newer version."""
+        payload = {CLASSNAME: qualname(klass), VERSION: newer_version, DATA: data}
+        with pytest.raises(TypeError, match=msg):
+            deserialize(payload)
+
     def test_serde_serialize_recursion_limit(self):
         depth = MAX_RECURSION_DEPTH
         with pytest.raises(RecursionError, match="maximum recursion depth reached for serialization"):
