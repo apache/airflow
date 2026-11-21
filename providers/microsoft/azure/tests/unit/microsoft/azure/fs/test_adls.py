@@ -281,9 +281,9 @@ def mocked_blob_file_system():
             },
         ),
         (
-            # Same for a custom domain that reuses the dfs and core labels but
-            # does not end in an Azure suffix: it is not a standard Azure
-            # endpoint, so it is kept as is too.
+            # The dfs mapping replaces the ".dfs.core." labels wherever they
+            # appear and does not depend on the cloud suffix, so a host on a
+            # cloud outside the well-known set maps to its blob form too.
             Connection(
                 conn_id="testconn",
                 conn_type="wasb",
@@ -293,7 +293,7 @@ def mocked_blob_file_system():
             ),
             {
                 "account_name": "testaccountname",
-                "account_host": "testaccountname.dfs.core.example.com",
+                "account_host": "testaccountname.blob.core.example.com",
                 "account_key": "account_key",
             },
         ),
@@ -328,6 +328,43 @@ def mocked_blob_file_system():
                 "account_name": "testaccountname",
                 "account_host": "testaccountname.blob.core.chinacloudapi.cn",
                 "account_key": "account_key",
+            },
+        ),
+        (
+            # A host with a port and no scheme, on a connection without a
+            # login: the account comes from the host itself, not from the
+            # account URL parse_blob_account_url builds from the login.
+            Connection(
+                conn_id="testconn",
+                conn_type="wasb",
+                host="testaccountname.blob.core.windows.net:443",
+                password="account_key",
+            ),
+            {
+                "account_name": "testaccountname",
+                "account_host": "testaccountname.blob.core.windows.net:443",
+                "account_key": "account_key",
+            },
+        ),
+        (
+            # On a private-link name the dfs label is not the second label,
+            # but the endpoint still maps back to its blob form.
+            Connection(
+                conn_id="testconn",
+                conn_type="adls",
+                host="testaccountname.privatelink.dfs.core.windows.net",
+                login="client_id",
+                password="client_secret",
+                extra={
+                    "tenant_id": "tenant_id",
+                },
+            ),
+            {
+                "account_name": "testaccountname",
+                "account_host": "testaccountname.privatelink.blob.core.windows.net",
+                "client_id": "client_id",
+                "client_secret": "client_secret",
+                "tenant_id": "tenant_id",
             },
         ),
         (
