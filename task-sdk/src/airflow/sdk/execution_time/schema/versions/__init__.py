@@ -44,6 +44,7 @@ def get_bundle() -> VersionBundle:
         AddFirstTaskRescheduleStartDateToSupervisorTIRunContext,
         AddLoopRuntime,
         AddRegionCoordinatesToSupervisorTaskInstance,
+        AddRegionToGetXCom,
         AddRetryReasonToTaskState,
     )
     from airflow.sdk.execution_time.schema.versions.v2027_02_28 import (
@@ -70,6 +71,7 @@ def get_bundle() -> VersionBundle:
             AddDagDefinitionsToDagFileParsingResult,
             AddRegionCoordinatesToSupervisorTaskInstance,
             AddFirstTaskRescheduleStartDateToSupervisorTIRunContext,
+            AddRegionToGetXCom,
             AddExpandedTICountToSupervisorTIRunContext,
         ),
         Version("2026-06-16"),

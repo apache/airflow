@@ -75,6 +75,7 @@ from airflow.api_fastapi.execution_api.versions.v2027_02_28 import (
     AddExternalClearTargetField,
     MakeVariableValueNonNullable,
 )
+from airflow.api_fastapi.execution_api.versions.v2027_02_28_xcom_params import AddRegionToXComFilterParams
 
 bundle = VersionBundle(
     HeadVersion(),
@@ -85,6 +86,7 @@ bundle = VersionBundle(
         AddExternalClearTargetField,
         MakeVariableValueNonNullable,
         AddCallbackStateEndpoint,
+        AddRegionToXComFilterParams,
     ),
     Version(
         "2026-10-30",

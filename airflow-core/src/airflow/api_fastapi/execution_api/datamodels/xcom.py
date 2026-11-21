@@ -17,6 +17,8 @@
 
 from __future__ import annotations
 
+from uuid import UUID
+
 from pydantic import JsonValue, RootModel
 
 from airflow.api_fastapi.core_api.base import BaseModel
@@ -47,6 +49,9 @@ class GetXcomFilterParams(BaseModel):
     include_prior_dates: bool = False
     offset: int | None = None
     previous_iteration: bool = False
+    # The producer's region and pass, named explicitly instead of resolved from the reader's.
+    region_id: UUID | None = None
+    region_index: int | None = None
 
 
 class XComSequenceIndexResponse(RootModel):
