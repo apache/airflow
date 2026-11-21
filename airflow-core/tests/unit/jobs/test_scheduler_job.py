@@ -204,6 +204,8 @@ from unit.models import TEST_DAGS_FOLDER
 if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session
 
+    from airflow.models.taskinstancekey import TaskInstanceKey
+
     from tests_common.pytest_plugin import DagMaker
 
 pytestmark = pytest.mark.db_test
@@ -244,6 +246,28 @@ def _attempt_states(ti, session):
         .order_by(TaskInstance.try_number)
     )
     return [(attempt.try_number, attempt.state, attempt.working_set) for attempt in attempts]
+
+
+@contextlib.contextmanager
+def _delete_running_ti_after_commit(session: Session, dag_id: str) -> Iterator[list[TaskInstanceKey]]:
+    """Delete the Dag's running task instance from another session once ``session`` first commits."""
+    deleted: list[TaskInstanceKey] = []
+
+    def _listener(_session: Session) -> None:
+        if deleted:
+            return
+        with create_session(scoped=False) as other:
+            running = other.scalars(
+                select(TaskInstance).where(TaskInstance.dag_id == dag_id, TaskInstance.state == State.RUNNING)
+            ).one()
+            deleted.append(running.key)
+            other.delete(running)
+
+    sa_event.listen(session, "after_commit", _listener)
+    try:
+        yield deleted
+    finally:
+        sa_event.remove(session, "after_commit", _listener)
 
 
 @pytest.fixture(scope="class")
@@ -1497,6 +1521,71 @@ class TestSchedulerJob:
             session.scalars(select(TaskInstance.state).where(TaskInstance.dag_id == dr.dag_id))
         )
         assert live_states == [State.SUCCESS, State.UP_FOR_RETRY]
+
+    @pytest.mark.parametrize(
+        ("retries", "handled_state"),
+        [
+            pytest.param(0, State.FAILED, id="no_retries"),
+            pytest.param(1, State.UP_FOR_RETRY, id="retries_left"),
+        ],
+    )
+    def test_process_executor_events_skips_failure_of_deleted_task_instance(
+        self, dag_maker, session, caplog, retries, handled_state
+    ):
+        """A row deleted after an earlier failure in the batch commits must not stop the scheduler."""
+        with dag_maker(dag_id="executor_event_deleted_ti"):
+            EmptyOperator(task_id="first", retries=retries)
+            EmptyOperator(task_id="second", retries=retries)
+        dr = dag_maker.create_dagrun()
+        executor = MockExecutor(do_update=False)
+        scheduler_job = Job()
+        session.add(scheduler_job)
+        session.flush()
+        self.job_runner = SchedulerJobRunner(scheduler_job, executors=[executor])
+        for ti in dr.task_instances:
+            ti.state = State.RUNNING
+            ti.try_number = 1
+            ti.queued_by_job_id = scheduler_job.id
+            executor.event_buffer[TaskInstanceUuid(ti.id)] = State.FAILED, None
+        session.commit()
+
+        with _delete_running_ti_after_commit(session, dr.dag_id) as deleted:
+            self.job_runner._process_executor_events(executor=executor, session=session)
+        session.commit()
+
+        session.expire_all()
+        live_states = session.scalars(select(TaskInstance.state).where(TaskInstance.dag_id == dr.dag_id))
+        assert list(live_states) == [handled_state]
+        assert {
+            "event": "Task instance no longer exists, skipping its failure handling",
+            "task_instance_key": deleted[0],
+        } in caplog
+
+    def test_purge_task_instances_without_heartbeats_skips_deleted_task_instance(self, dag_maker, session):
+        """A row deleted after an earlier heartbeat-timeout failure commits must not stop the scheduler."""
+        with dag_maker(dag_id="heartbeat_timeout_deleted_ti"):
+            EmptyOperator(task_id="first")
+            EmptyOperator(task_id="second")
+        dr = dag_maker.create_dagrun()
+        scheduler_job = Job()
+        session.add(scheduler_job)
+        session.flush()
+        self.job_runner = SchedulerJobRunner(scheduler_job, executors=[MockExecutor(do_update=False)])
+        for ti in dr.task_instances:
+            ti.state = State.RUNNING
+            ti.queued_by_job_id = scheduler_job.id
+            ti.last_heartbeat_at = DEFAULT_DATE
+        session.commit()
+
+        with _delete_running_ti_after_commit(session, dr.dag_id):
+            self.job_runner._purge_task_instances_without_heartbeats(
+                self.job_runner._find_task_instances_without_heartbeats(session=session), session=session
+            )
+        session.commit()
+
+        session.expire_all()
+        live_states = session.scalars(select(TaskInstance.state).where(TaskInstance.dag_id == dr.dag_id))
+        assert list(live_states) == [State.FAILED]
 
     @mock.patch("airflow.jobs.scheduler_job_runner.TaskCallbackRequest")
     def test_process_executor_events_callback_for_removed_mapped_task(
