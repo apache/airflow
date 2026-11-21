@@ -3951,7 +3951,6 @@ dependencies = [
     { name = "apache-airflow-providers-common-compat" },
     { name = "apache-airflow-providers-common-sql" },
     { name = "hmsclient" },
-    { name = "jmespath" },
     { name = "pandas" },
     { name = "pyhive", extra = ["hive-pure-sasl"] },
 ]
@@ -4016,7 +4015,6 @@ requires-dist = [
     { name = "apache-airflow-providers-samba", marker = "extra == 'samba'", editable = "providers/samba" },
     { name = "apache-airflow-providers-vertica", marker = "extra == 'vertica'", editable = "providers/vertica" },
     { name = "hmsclient", specifier = ">=0.1.0" },
-    { name = "jmespath", specifier = ">=0.7.0" },
     { name = "kerberos", marker = "sys_platform != 'win32' and extra == 'gssapi'", specifier = ">=1.3.0" },
     { name = "pandas", marker = "python_full_version < '3.13'", specifier = ">=2.1.2" },
     { name = "pandas", marker = "python_full_version == '3.13.*'", specifier = ">=2.2.3" },
@@ -6417,7 +6415,6 @@ dependencies = [
     { name = "apache-airflow" },
     { name = "apache-airflow-providers-common-compat" },
     { name = "google-auth" },
-    { name = "google-auth-httplib2" },
     { name = "grpcio" },
 ]
 
@@ -6437,7 +6434,6 @@ requires-dist = [
     { name = "apache-airflow", editable = "." },
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
     { name = "google-auth", specifier = ">=1.0.0,<3.0.0" },
-    { name = "google-auth-httplib2", specifier = ">=0.0.1" },
     { name = "grpcio", specifier = ">=1.59.0" },
 ]
 
@@ -6606,7 +6602,6 @@ dependencies = [
     { name = "apache-airflow-providers-common-sql" },
     { name = "ibm-db", marker = "platform_machine != 'aarch64'" },
     { name = "ibm-db-sa", marker = "platform_machine != 'aarch64'" },
-    { name = "methodtools" },
 ]
 
 [package.optional-dependencies]
@@ -6633,7 +6628,6 @@ requires-dist = [
     { name = "apache-airflow-providers-openlineage", marker = "extra == 'openlineage'", editable = "providers/openlineage" },
     { name = "ibm-db", marker = "platform_machine != 'aarch64'", specifier = ">=3.2.0" },
     { name = "ibm-db-sa", marker = "platform_machine != 'aarch64'", specifier = ">=0.4.0" },
-    { name = "methodtools", specifier = ">=0.4.7" },
 ]
 provides-extras = ["openlineage"]
 
@@ -6742,7 +6736,6 @@ dependencies = [
     { name = "influxdb-client" },
     { name = "influxdb3-python" },
     { name = "pandas" },
-    { name = "requests" },
 ]
 
 [package.dev-dependencies]
@@ -6765,7 +6758,6 @@ requires-dist = [
     { name = "pandas", marker = "python_full_version < '3.13'", specifier = ">=2.1.2" },
     { name = "pandas", marker = "python_full_version == '3.13.*'", specifier = ">=2.2.3" },
     { name = "pandas", marker = "python_full_version >= '3.14'", specifier = ">=2.3.3" },
-    { name = "requests", specifier = ">=2.32.0,<3" },
 ]
 
 [package.metadata.requires-dev]
@@ -6986,6 +6978,7 @@ dependencies = [
     { name = "azure-ai-projects", version = "2.4.0", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'extra-34-apache-airflow-providers-common-ai-llamaindex'" },
     { name = "azure-ai-projects", version = "2.10.0", source = { registry = "https://pypi.org/simple" }, marker = "extra != 'extra-34-apache-airflow-providers-common-ai-llamaindex' or extra == 'extra-34-apache-airflow-providers-common-ai-openai'" },
     { name = "azure-batch" },
+    { name = "azure-common" },
     { name = "azure-cosmos" },
     { name = "azure-datalake-store" },
     { name = "azure-identity" },
@@ -6996,8 +6989,6 @@ dependencies = [
     { name = "azure-mgmt-containerregistry" },
     { name = "azure-mgmt-cosmosdb" },
     { name = "azure-mgmt-datafactory" },
-    { name = "azure-mgmt-datalake-store" },
-    { name = "azure-mgmt-resource" },
     { name = "azure-mgmt-storage" },
     { name = "azure-search-documents" },
     { name = "azure-servicebus" },
@@ -7011,9 +7002,9 @@ dependencies = [
     { name = "microsoft-kiota-http" },
     { name = "microsoft-kiota-serialization-json" },
     { name = "microsoft-kiota-serialization-text" },
-    { name = "msal-extensions" },
     { name = "msgraph-core" },
     { name = "msgraphfs" },
+    { name = "msrestazure" },
 ]
 
 [package.optional-dependencies]
@@ -7069,6 +7060,7 @@ requires-dist = [
     { name = "apache-airflow-providers-sftp", marker = "extra == 'sftp'", editable = "providers/sftp" },
     { name = "azure-ai-projects", specifier = ">=2.2.0" },
     { name = "azure-batch", specifier = ">=15.1.0" },
+    { name = "azure-common", specifier = ">=1.1.28" },
     { name = "azure-cosmos", specifier = ">=4.15.0" },
     { name = "azure-datalake-store", specifier = ">=1.0.1" },
     { name = "azure-identity", specifier = ">=1.25.3" },
@@ -7079,8 +7071,6 @@ requires-dist = [
     { name = "azure-mgmt-containerregistry", specifier = ">=15.0.0" },
     { name = "azure-mgmt-cosmosdb", specifier = ">=9.9.0" },
     { name = "azure-mgmt-datafactory", specifier = ">=10.0.0" },
-    { name = "azure-mgmt-datalake-store", specifier = ">=0.5.0" },
-    { name = "azure-mgmt-resource", specifier = ">=25.0.0" },
     { name = "azure-mgmt-storage", specifier = ">=24.0.1" },
     { name = "azure-search-documents", specifier = ">=11.6.0,!=12.0.0" },
     { name = "azure-servicebus", specifier = ">=7.14.3" },
@@ -7094,9 +7084,9 @@ requires-dist = [
     { name = "microsoft-kiota-http", specifier = ">=1.9.4,<1.13.0" },
     { name = "microsoft-kiota-serialization-json", specifier = ">=1.9.4" },
     { name = "microsoft-kiota-serialization-text", specifier = ">=1.9.4" },
-    { name = "msal-extensions", specifier = ">=1.3.0" },
     { name = "msgraph-core", specifier = ">=1.3.3" },
     { name = "msgraphfs", specifier = ">=0.3.0" },
+    { name = "msrestazure", specifier = ">=0.6.4.post1" },
 ]
 provides-extras = ["amazon", "oracle", "sftp", "common-messaging", "google", "openlineage"]
 
@@ -8461,7 +8451,6 @@ dependencies = [
     { name = "apache-airflow" },
     { name = "apache-airflow-providers-common-compat" },
     { name = "apache-airflow-providers-common-sql" },
-    { name = "asgiref" },
     { name = "slack-sdk" },
 ]
 
@@ -8485,8 +8474,6 @@ requires-dist = [
     { name = "apache-airflow", editable = "." },
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
     { name = "apache-airflow-providers-common-sql", editable = "providers/common/sql" },
-    { name = "asgiref", marker = "python_full_version < '3.14'", specifier = ">=2.3.0" },
-    { name = "asgiref", marker = "python_full_version >= '3.14'", specifier = ">=3.11.1" },
     { name = "slack-sdk", specifier = ">=3.36.0" },
 ]
 
@@ -10781,58 +10768,6 @@ wheels = [
 ]
 
 [[package]]
-name = "azure-mgmt-datalake-nspkg"
-version = "3.0.1"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "azure-mgmt-nspkg" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/8e/0c/7b705f7c4a41bfeb0b6f3557f227c71aa3fa71555ed76ae934aa7db4b13e/azure-mgmt-datalake-nspkg-3.0.1.zip", hash = "sha256:deb192ba422f8b3ec272ce4e88736796f216f28ea5b03f28331d784b7a3f4880", size = 5750, upload-time = "2018-10-17T18:02:04.895Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/48/3d/c65a520d93448923a96784582a0deafaae096cb37b444ae5d63b57f0562d/azure_mgmt_datalake_nspkg-3.0.1-py3-none-any.whl", hash = "sha256:2ac6fa13c55b87112199c5fb03a3098cefebed5f44ac34ab3d39b399951b22c4", size = 1702, upload-time = "2018-10-17T18:02:03.717Z" },
-]
-
-[[package]]
-name = "azure-mgmt-datalake-store"
-version = "0.5.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "azure-common" },
-    { name = "azure-mgmt-datalake-nspkg" },
-    { name = "msrestazure" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/00/13/037f0128bdfcd47253f69a3b4ca6a7ff7b673b35832bc48f7c74df24a9be/azure-mgmt-datalake-store-0.5.0.zip", hash = "sha256:9376d35495661d19f8acc5604f67b0bc59493b1835bbc480f9a1952f90017a4c", size = 101342, upload-time = "2018-06-14T20:57:07.149Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/ff/ac/5685cd06dc8b245bb6b894815764a14bd62245ba4579b45148682f510fdd/azure_mgmt_datalake_store-0.5.0-py2.py3-none-any.whl", hash = "sha256:2af98236cd7eaa439b239bf761338c866996ce82e9c129b204e8851e5dc095dd", size = 88683, upload-time = "2018-06-14T20:57:06.132Z" },
-]
-
-[[package]]
-name = "azure-mgmt-nspkg"
-version = "3.0.2"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "azure-nspkg" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/c4/d4/a9a140ee15abd8b0a542c0d31b7212acf173582c10323b09380c79a1178b/azure-mgmt-nspkg-3.0.2.zip", hash = "sha256:8b2287f671529505b296005e6de9150b074344c2c7d1c805b3f053d081d58c52", size = 5090, upload-time = "2018-10-02T22:49:14.92Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/b3/c2/af4b47845f27dc7d206ed4908b9e580f8bc94a4b2f3956a0d87c40719d90/azure_mgmt_nspkg-3.0.2-py3-none-any.whl", hash = "sha256:d638ea5fda3ed323db943feb29acaa200f5d8ff092078bf8d29d4a2f8ed16999", size = 1620, upload-time = "2018-10-02T22:49:13.772Z" },
-]
-
-[[package]]
-name = "azure-mgmt-resource"
-version = "26.0.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "azure-mgmt-core" },
-    { name = "isodate" },
-    { name = "typing-extensions" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/61/e1/c6196381cc6bb3eff9e24f5bf31b7fd962651ddbd6120bc2a4c482a7af16/azure_mgmt_resource-26.0.0.tar.gz", hash = "sha256:54227c5db06d3be4dd4b77ad885b273e9eb2606d1de653c5b534066cfbb60c0c", size = 117372, upload-time = "2026-06-24T09:48:29.546Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/e6/6e/3e776a0817ebe3558fbd8d3f98b1bd8fa75a46596e5cf9bb4377960c4611/azure_mgmt_resource-26.0.0-py3-none-any.whl", hash = "sha256:ef36559a4c0843b4272aa584efb455c686e4c3f6357421b38c82f405c01a9a9f", size = 102492, upload-time = "2026-06-24T09:48:30.854Z" },
-]
-
-[[package]]
 name = "azure-mgmt-storage"
 version = "25.3.0"
 source = { registry = "https://pypi.org/simple" }
@@ -10844,15 +10779,6 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/8b/8c/fab588ef865839d8e4e14118142433dca61190161c2a860b7d072c5f28ab/azure_mgmt_storage-25.3.0.tar.gz", hash = "sha256:bc4fe1ea26f8c58bf9ca6b365095cfd326d65cefa135dd5f29e09353cb6313ec", size = 343883, upload-time = "2026-10-16T20:44:58.721Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/5b/ca/134c184afb8719ac7fc9ba55fc3a48bd110dd4daa6bb1f37e5ccd3272242/azure_mgmt_storage-25.3.0-py3-none-any.whl", hash = "sha256:cb26707847202a4eb34d6d4ba621d9f4d0b322b2af1565da6109d2a1ec161b8e", size = 294353, upload-time = "2026-10-16T20:45:00.281Z" },
-]
-
-[[package]]
-name = "azure-nspkg"
-version = "3.0.2"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/39/31/b24f494eca22e0389ac2e81b1b734453f187b69c95f039aa202f6f798b84/azure-nspkg-3.0.2.zip", hash = "sha256:e7d3cea6af63e667d87ba1ca4f8cd7cb4dfca678e4c55fc1cedb320760e39dd0", size = 4372, upload-time = "2018-10-02T22:48:45.999Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/c4/0c/c562be95a9a2ed52454f598571cf300b1114d0db2aa27f5b8ed3bb9cd0c0/azure_nspkg-3.0.2-py3-none-any.whl", hash = "sha256:31a060caca00ed1ebd369fc7fe01a56768c927e404ebc92268f4d9d636435e28", size = 1530, upload-time = "2018-10-02T22:48:44.806Z" },
 ]
 
 [[package]]
