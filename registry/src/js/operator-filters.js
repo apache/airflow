@@ -17,41 +17,71 @@
  * under the License.
  */
 
-// Filters for the /durable/ page. State lives in the query string
-// (?capability=deferrable&provider=amazon&type=sensor&q=glue) so a filtered
+// Filters for the /operators/ page. State lives in the query string
+// (?capability=durable&provider=amazon&type=sensor&q=glue) so a filtered
 // view can be shared.
 (function() {
-  const searchInput = document.getElementById('durable-search');
+  const searchInput = document.getElementById('operator-search');
   const capabilityButtons = document.querySelectorAll('.capability-btn');
-  const providerSelect = document.getElementById('durable-provider-filter');
-  const typeSelect = document.getElementById('durable-type-filter');
-  const status = document.getElementById('durable-status');
-  const emptyState = document.getElementById('durable-empty');
-  const groups = document.querySelectorAll('.durable-page .provider-group');
+  const providerSelect = document.getElementById('operator-provider-filter');
+  const typeSelect = document.getElementById('operator-type-filter');
+  const status = document.getElementById('operator-status');
+  const emptyState = document.getElementById('operator-empty');
+  const groups = document.querySelectorAll('.operators-page .provider-group');
 
   if (!searchInput || !providerSelect || !typeSelect) return;
 
-  const state = { capability: 'all', provider: 'all', type: 'all', q: '' };
+  const defaults = { capability: 'all', provider: 'all', type: 'all', q: '' };
+  const state = { ...defaults };
   let debounceTimer;
 
-  function matches(item) {
+  function hasCapability(item, capability) {
+    const durable = item.dataset.durable === 'true';
+    const deferrable = item.dataset.deferrable === 'true';
+    return capability === 'all' ||
+      (capability === 'durable-or-deferrable' && (durable || deferrable)) ||
+      (capability === 'durable' && durable) ||
+      (capability === 'deferrable' && deferrable);
+  }
+
+  function matchesSearch(item) {
     const search = state.q.toLowerCase();
-    const capability =
-      state.capability === 'all' ||
-      (state.capability === 'durable' && item.dataset.durable === 'true') ||
-      (state.capability === 'deferrable' && item.dataset.deferrable === 'true');
-    return capability &&
-      (state.type === 'all' || item.dataset.type === state.type) &&
-      (!search || item.dataset.name.includes(search));
+    return !search || item.dataset.name.includes(search);
+  }
+
+  // Each control counts what it would show if picked, so it applies every filter but its own.
+  function relabel(select, counts) {
+    select.querySelectorAll('option[data-label]').forEach(option => {
+      option.textContent = option.dataset.label + ' (' + (counts[option.value] || 0) + ')';
+    });
   }
 
   function apply() {
     let visible = 0;
+    const capabilityCounts = {};
+    const providerCounts = {};
+    const typeCounts = {};
+    capabilityButtons.forEach(btn => { capabilityCounts[btn.dataset.capability] = 0; });
     groups.forEach(group => {
-      const inProvider = state.provider === 'all' || group.dataset.provider === state.provider;
+      const provider = group.dataset.provider;
+      const inProvider = state.provider === 'all' || provider === state.provider;
       let groupVisible = 0;
       group.querySelectorAll('.module').forEach(item => {
-        const show = inProvider && matches(item);
+        if (!matchesSearch(item)) {
+          item.style.display = 'none';
+          return;
+        }
+        const type = item.dataset.type;
+        const inType = state.type === 'all' || type === state.type;
+        const inCapability = hasCapability(item, state.capability);
+        if (inProvider && inType) {
+          Object.keys(capabilityCounts).forEach(c => {
+            if (hasCapability(item, c)) capabilityCounts[c]++;
+          });
+        }
+        if (inType && inCapability) providerCounts[provider] = (providerCounts[provider] || 0) + 1;
+        if (inProvider && inCapability) typeCounts[type] = (typeCounts[type] || 0) + 1;
+        const show = inProvider && inType && inCapability;
         item.style.display = show ? '' : 'none';
         if (show) groupVisible++;
       });
@@ -59,6 +89,11 @@
       group.querySelector('h2 .count').textContent = groupVisible;
       visible += groupVisible;
     });
+    capabilityButtons.forEach(btn => {
+      btn.querySelector('.count').textContent = capabilityCounts[btn.dataset.capability];
+    });
+    relabel(providerSelect, providerCounts);
+    relabel(typeSelect, typeCounts);
     emptyState.hidden = visible !== 0;
     status.textContent = visible + ' module' + (visible === 1 ? '' : 's');
     updateURL();
@@ -76,7 +111,7 @@
   function updateURL() {
     const params = new URLSearchParams();
     Object.entries(state).forEach(([key, value]) => {
-      if (value && value !== 'all') params.set(key, value);
+      if (value !== defaults[key]) params.set(key, value);
     });
     const qs = params.toString();
     history.replaceState(null, '', window.location.pathname + (qs ? '?' + qs : ''));
@@ -97,7 +132,7 @@
       setCapability(capability);
     }
     state.provider = selectFromURL(providerSelect, params.get('provider'));
-    state.type = selectFromURL(typeSelect, params.get('type'));
+    state.type = selectFromURL(typeSelect, params.get('type') || defaults.type);
     state.q = (params.get('q') || '').trim();
     searchInput.value = state.q;
   }
