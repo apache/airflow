@@ -10643,6 +10643,44 @@ class TestSchedulerJob:
         (scheduled_run,) = DagRun.find(dag_id=dag.dag_id, run_type=DagRunType.SCHEDULED, session=session)
         assert scheduled_run.state == State.SUCCESS
 
+    def test_update_dagrun_state_for_paused_dag_survives_failed_flush(self, dag_maker, session, caplog):
+        """A failed flush, as when a concurrent clear re-keys a task instance, must not escape the sweep."""
+        with dag_maker("testdag") as dag:
+            EmptyOperator(task_id="task1")
+
+        scheduled_run = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
+        scheduled_run.last_scheduling_decision = datetime.datetime.now(timezone.utc) - timedelta(minutes=1)
+        scheduled_run.get_task_instances(session=session)[0].set_state(
+            TaskInstanceState.RUNNING, session=session
+        )
+        DagModel.get_dagmodel(dag.dag_id, session=session).is_paused = True
+        session.commit()
+        run_id = scheduled_run.id
+
+        def update_state_after_concurrent_clear(dag_run, *, session, execute_callbacks=True):
+            ti = dag_run.get_task_instances(session=session)[0]
+            # What a clear committing between the sweep's read and its flush leaves behind:
+            # prepare_db_for_next_try gives the row a new primary key.
+            table = TaskInstance.__table__
+            session.execute(update(table).where(table.c.id == ti.id).values(id=uuid4()))
+            ti.state = TaskInstanceState.UPSTREAM_FAILED
+            session.flush()
+            return [], None
+
+        self.job_runner = SchedulerJobRunner(job=Job(), executors=[self.null_exec])
+        # No session is passed, so @provide_session commits on return, as it does on the scheduler's timer.
+        with (
+            mock.patch.object(DagRun, "update_state", update_state_after_concurrent_clear),
+            caplog.at_level(logging.ERROR, logger="airflow.jobs.scheduler_job_runner"),
+        ):
+            self.job_runner._update_dag_run_state_for_paused_dags()
+
+        assert {
+            "event": re.compile("^Failed to update dag run state for paused dags"),
+            "log_level": "error",
+        } in caplog
+        assert session.scalar(select(DagRun.state).where(DagRun.id == run_id)) == DagRunState.RUNNING
+
     def test_update_dagrun_state_for_paused_dag_not_for_backfill(self, dag_maker, session):
         """Test that the _update_dagrun_state_for_paused_dag does not affect backfilled dagruns"""
         with dag_maker("testdag") as dag:
