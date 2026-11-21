@@ -270,6 +270,7 @@ class AdbcHook(DbApiHook):
         sql: str,
         replace: bool,
         fast_executemany: bool,
+        matches_table_columns: bool,
     ) -> Callable[[RecordBatch], object]:
         """
         Return the callable that loads one RecordBatch through ``cursor``.
@@ -279,7 +280,9 @@ class AdbcHook(DbApiHook):
         Otherwise it is bound to the generated ``INSERT`` statement with
         ``cursor.executemany``, which most drivers execute once per row.
         ``replace=True`` always binds, because bulk ingest cannot carry the
-        dialect's conflict clause.
+        dialect's conflict clause. A batch that does not hold every table column
+        in table order also binds, because some drivers, such as DuckDB's, match
+        ingested columns by position rather than by name.
 
         ``fast_executemany`` is a hint: if the driver does not implement bulk ingest
         (the first ``adbc_ingest`` call raises ``NotSupportedError``), that batch and
@@ -289,6 +292,11 @@ class AdbcHook(DbApiHook):
         if replace or not fast_executemany:
             if replace and fast_executemany:
                 self.log.debug("Bulk ingest cannot replace rows; binding them to the statement instead")
+            return bind
+        if not matches_table_columns:
+            self.log.debug(
+                "Bulk ingest needs every table column in table order; binding rows to the statement instead"
+            )
             return bind
 
         self.log.info("Using bulk ingest (adbc_ingest) for conn_id '%s'", self.get_conn_id())
@@ -346,8 +354,10 @@ class AdbcHook(DbApiHook):
             rows are always sent as one Arrow batch per chunk.
         :param fast_executemany: If True (default), load each batch with the driver's
             bulk ingest (``cursor.adbc_ingest``, ``COPY`` on PostgreSQL). If the driver
-            does not implement bulk ingest, falls back to binding. If False, bind
-            each batch to the ``INSERT`` statement with ``cursor.executemany``.
+            does not implement bulk ingest, falls back to binding. Bulk ingest is
+            only used when ``target_fields`` is omitted or lists every table column in
+            table order; otherwise each batch is bound. If False, bind each batch to
+            the ``INSERT`` statement with ``cursor.executemany``.
         :param autocommit: What to set the connection's autocommit setting to
             before executing the query.
         """
@@ -361,8 +371,9 @@ class AdbcHook(DbApiHook):
                 db_schema_filter=schema_name,
             )
 
+            table_columns = table_schema.names
             if not target_fields:
-                target_fields = table_schema.names
+                target_fields = table_columns
             else:
                 fields = {field.name: field for field in table_schema}
                 table_schema = schema([fields[name] for name in target_fields])
@@ -386,6 +397,7 @@ class AdbcHook(DbApiHook):
                     sql=sql,
                     replace=replace,
                     fast_executemany=fast_executemany,
+                    matches_table_columns=list(target_fields) == table_columns,
                 )
 
                 for chunked_rows in chunked(rows, commit_every or None):
