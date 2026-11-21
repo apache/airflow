@@ -14,9 +14,10 @@ info:
     \ (prefer it at scale); there ``%`` and ``_`` are literal and trailing non-alphanumeric\
     \ characters are stripped so the range scan stays index-compatible under locale-aware\
     \ collations (e.g. ``test_`` matches values starting with ``test``, and ``s3://``\
-    \ matches ``s3``). In both, ``|`` means OR (e.g. ``dag1|dag2``) and ``~`` matches\
-    \ everything. Regular expressions are not supported by these parameters; regex-capable\
-    \ endpoints expose a separate parameter."
+    \ matches ``s3``). A term ending in a non-ASCII character has no upper range bound,\
+    \ so it may scan most of the table. In both, ``|`` means OR (e.g. ``dag1|dag2``)\
+    \ and ``~`` matches everything. Regular expressions are not supported by these\
+    \ parameters; regex-capable endpoints expose a separate parameter."
   version: '2'
 paths:
   /ui/auth/menus:
