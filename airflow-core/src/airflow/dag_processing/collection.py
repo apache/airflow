@@ -55,7 +55,11 @@ from airflow.models.dag import DagModel, DagOwnerAttributes, DagTag
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagrun import DagRun
-from airflow.models.dagwarning import DagWarning, DagWarningType
+from airflow.models.dagwarning import (
+    PARSE_FAILURE_WARNING_TYPE,
+    DagWarning,
+    DagWarningType,
+)
 from airflow.models.errors import ParseImportError
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.trigger import Trigger
@@ -471,6 +475,61 @@ def _update_dag_warnings(
         session.merge(warning_to_add)
 
 
+def build_dag_parse_failure_warnings(
+    bundle_name: str, warnings_by_rel_path: dict[str, list]
+) -> list[DagWarning]:
+    return [
+        DagWarning(
+            dag_id=record.dag_id,
+            warning_type=record.warning_type,
+            message=record.message,
+            bundle_name=bundle_name,
+            filename=rel_path,
+        )
+        for rel_path, records in warnings_by_rel_path.items()
+        for record in records
+    ]
+
+
+def _update_file_scoped_parse_failure_warnings(
+    files_parsed: set[tuple[str, str]],
+    parse_failure_warnings: Iterable[DagWarning],
+    *,
+    session: Session,
+) -> None:
+    if files_parsed:
+        session.execute(
+            delete(DagWarning).where(
+                tuple_(DagWarning.bundle_name, DagWarning.filename).in_(files_parsed),
+                DagWarning.warning_type == PARSE_FAILURE_WARNING_TYPE,
+            )
+        )
+    for warning in parse_failure_warnings:
+        session.merge(warning)
+
+
+def clear_orphaned_file_scoped_parse_failure_warnings(
+    bundle_name: str,
+    observed_filelocs: set[str],
+    session: Session,
+) -> None:
+    """Remove parse-failure warnings for files that no longer exist in the bundle."""
+    try:
+        warnings = session.scalars(
+            select(DagWarning)
+            .where(
+                DagWarning.bundle_name == bundle_name,
+                DagWarning.warning_type == PARSE_FAILURE_WARNING_TYPE,
+            )
+            .options(load_only(DagWarning.filename))
+        )
+        for warning in warnings:
+            if warning.filename not in observed_filelocs:
+                session.delete(warning)
+    except Exception:
+        log.exception("Error removing old parse-failure DAG warnings")
+
+
 def _update_import_errors(
     files_parsed: set[tuple[str, str]],
     import_errors: dict[tuple[str, str], str],
@@ -741,6 +800,7 @@ def update_dag_parsing_results_in_db(
     parse_duration: float | None,
     warnings: set[DagWarning],
     *,
+    parse_failure_warnings: Iterable[DagWarning] | None = None,
     session: Session,
     atomic: bool = False,
     enforce_bundle_ownership: bool = False,
@@ -882,6 +942,15 @@ def update_dag_parsing_results_in_db(
         if atomic:
             raise
         log.exception("Error logging DAG warnings.")
+
+    try:
+        _update_file_scoped_parse_failure_warnings(
+            files_parsed if files_parsed is not None else set(),
+            parse_failure_warnings or (),
+            session=session,
+        )
+    except Exception:
+        log.exception("Error logging Dag parse failure warnings.")
 
     session.flush()
 

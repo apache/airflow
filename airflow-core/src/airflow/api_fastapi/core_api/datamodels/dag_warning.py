@@ -20,10 +20,8 @@ from __future__ import annotations
 from collections.abc import Iterable
 from datetime import datetime
 
-from pydantic import AliasPath, Field
-
 from airflow.api_fastapi.core_api.base import BaseModel
-from airflow.models.dagwarning import DagWarningTypeValue
+from airflow.models.dagwarning import DagWarning, DagWarningTypeValue
 
 
 class DAGWarningResponse(BaseModel):
@@ -33,7 +31,20 @@ class DAGWarningResponse(BaseModel):
     warning_type: DagWarningTypeValue
     message: str
     timestamp: datetime
-    dag_display_name: str = Field(validation_alias=AliasPath("dag_model", "dag_display_name"))
+    dag_display_name: str
+
+    @classmethod
+    def from_dag_warning(cls, warning: DagWarning) -> DAGWarningResponse:
+        display_name = warning.dag_id
+        if warning.dag_model is not None:
+            display_name = warning.dag_model.dag_display_name
+        return cls(
+            dag_id=warning.dag_id,
+            warning_type=warning.warning_type,
+            message=warning.message,
+            timestamp=warning.timestamp,
+            dag_display_name=display_name,
+        )
 
 
 class DAGWarningCollectionResponse(BaseModel):

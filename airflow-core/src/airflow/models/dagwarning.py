@@ -19,17 +19,24 @@ from __future__ import annotations
 
 from datetime import datetime
 from enum import Enum
-from typing import Annotated
+from typing import TYPE_CHECKING, Annotated
 
 from pydantic import StringConstraints, TypeAdapter
-from sqlalchemy import ForeignKeyConstraint, Index, String, Text
+from sqlalchemy import Index, String, Text, delete, select, true
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from airflow._shared.timezones import timezone
 from airflow.models.base import Base, StringID
-from airflow.utils.sqlalchemy import UtcDateTime
+from airflow.models.dag import DagModel
+from airflow.utils.retries import retry_db_transaction
+from airflow.utils.session import NEW_SESSION, provide_session
+from airflow.utils.sqlalchemy import UtcDateTime, get_dialect_name
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
 
 WARNING_TYPE_MAX_LENGTH = 50
+PARSE_FAILURE_WARNING_TYPE = "user:dynamic_dag_failure"
 
 
 class DagWarning(Base):
@@ -45,31 +52,66 @@ class DagWarning(Base):
     warning_type: Mapped[str] = mapped_column(String(WARNING_TYPE_MAX_LENGTH), primary_key=True)
     message: Mapped[str] = mapped_column(Text, nullable=False)
     timestamp: Mapped[datetime] = mapped_column(UtcDateTime, nullable=False, default=timezone.utcnow)
+    bundle_name: Mapped[str | None] = mapped_column(StringID(), nullable=True)
+    filename: Mapped[str | None] = mapped_column(String(1024), nullable=True)
 
-    dag_model = relationship("DagModel", viewonly=True, lazy="selectin")
+    dag_model = relationship(
+        "DagModel",
+        viewonly=True,
+        lazy="selectin",
+        primaryjoin="foreign(DagWarning.dag_id) == DagModel.dag_id",
+    )
 
     __tablename__ = "dag_warning"
     __table_args__ = (
-        ForeignKeyConstraint(
-            ("dag_id",),
-            ["dag.dag_id"],
-            name="dcw_dag_id_fkey",
-            ondelete="CASCADE",
-        ),
-        Index("idx_dag_warning_dag_id", dag_id),
+        Index("idx_dag_warning_dag_id", "dag_id"),
+        Index("idx_dag_warning_bundle_filename", "bundle_name", "filename"),
     )
 
-    def __init__(self, dag_id: str, warning_type: str, message: str, **kwargs):
+    def __init__(
+        self,
+        dag_id: str,
+        warning_type: str,
+        message: str,
+        *,
+        bundle_name: str | None = None,
+        filename: str | None = None,
+        **kwargs,
+    ):
         super().__init__(**kwargs)
         self.dag_id = dag_id
         self.warning_type = get_warning_type_value(warning_type)
         self.message = message
+        self.bundle_name = bundle_name
+        self.filename = filename
 
     def __eq__(self, other) -> bool:
         return self.dag_id == other.dag_id and self.warning_type == other.warning_type
 
     def __hash__(self) -> int:
         return hash((self.dag_id, self.warning_type))
+
+    @classmethod
+    @provide_session
+    @retry_db_transaction
+    def purge_inactive_dag_warnings(cls, *, session: Session = NEW_SESSION) -> None:
+        """
+        Deactivate DagWarning records for inactive dags.
+
+        :return: None
+        """
+        if get_dialect_name(session) == "sqlite":
+            dag_ids_stmt = select(DagModel.dag_id).where(DagModel.is_stale == true())
+            query = delete(cls).where(
+                cls.dag_id.in_(dag_ids_stmt.scalar_subquery()), cls.bundle_name.is_(None)
+            )
+        else:
+            query = delete(cls).where(
+                cls.dag_id == DagModel.dag_id, DagModel.is_stale == true(), cls.bundle_name.is_(None)
+            )
+
+        session.execute(query.execution_options(synchronize_session=False))
+        session.commit()
 
 
 class DagWarningType(str, Enum):

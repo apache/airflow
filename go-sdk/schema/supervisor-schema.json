@@ -1022,6 +1022,14 @@
           "title": "Parsed Definitions",
           "type": "array"
         },
+        "parse_warnings": {
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "Parse Warnings",
+          "type": "array"
+        },
         "dag_source_codes": {
           "additionalProperties": {
             "$ref": "#/$defs/DagSourceCode"

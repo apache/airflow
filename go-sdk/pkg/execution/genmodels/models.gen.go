@@ -416,6 +416,9 @@ type DagFileParsingResult struct {
 	// ImportErrors corresponds to the JSON schema field "import_errors".
 	ImportErrors *ImportErrors `msgpack:"import_errors,omitempty"`
 
+	// ParseWarnings corresponds to the JSON schema field "parse_warnings".
+	ParseWarnings []DagFileParsingResultParseWarningsElem `msgpack:"parse_warnings,omitempty"`
+
 	// ParsedDefinitions corresponds to the JSON schema field "parsed_definitions".
 	ParsedDefinitions []string `msgpack:"parsed_definitions,omitempty"`
 
@@ -428,6 +431,8 @@ type DagFileParsingResult struct {
 	// Warnings corresponds to the JSON schema field "warnings".
 	Warnings *Warnings `msgpack:"warnings,omitempty"`
 }
+
+type DagFileParsingResultParseWarningsElem map[string]interface{}
 
 type DagResult struct {
 	// BundleName corresponds to the JSON schema field "bundle_name".
@@ -1890,25 +1895,25 @@ type TriggerKwargs map[string]interface{}
 
 type VersionData map[string]interface{}
 
+type TaskInstanceState string
+
 const TaskInstanceStateAwaitingInput TaskInstanceState = "awaiting_input"
 const TaskInstanceStateDeferred TaskInstanceState = "deferred"
 const TaskInstanceStateSkipped TaskInstanceState = "skipped"
 const TaskInstanceStateUpstreamFailed TaskInstanceState = "upstream_failed"
 const TaskInstanceStateUpForReschedule TaskInstanceState = "up_for_reschedule"
 const TaskInstanceStateUpForRetry TaskInstanceState = "up_for_retry"
-const TaskInstanceStateFailed TaskInstanceState = "failed"
 
+const TaskInstanceStateFailed TaskInstanceState = "failed"
 const TaskInstanceStateRestarting TaskInstanceState = "restarting"
 const TaskInstanceStateSuccess TaskInstanceState = "success"
 const TaskInstanceStateRunning TaskInstanceState = "running"
-const TaskInstanceStateQueued TaskInstanceState = "queued"
 
 type TaskOutlets []AssetProfile
 
+const TaskInstanceStateQueued TaskInstanceState = "queued"
 const TaskInstanceStateScheduled TaskInstanceState = "scheduled"
 const TaskInstanceStateRemoved TaskInstanceState = "removed"
-
-type TaskInstanceState string
 
 // Variable schema for responses with fields that are needed for Runtime.
 type VariableResponse struct {

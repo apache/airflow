@@ -53,6 +53,7 @@ vi.mock("src/utils", () => ({
   useAutoRefresh: () => false,
 }));
 vi.mock("./DagImportErrors", () => ({ DagImportErrors: () => null }));
+vi.mock("./ParseFailureWarnings", () => ({ ParseFailureWarnings: () => null }));
 vi.mock("./FailingTriggers", () => ({ FailingTriggers: () => null }));
 vi.mock("./PluginImportErrors", () => ({ PluginImportErrors: () => null }));
 
