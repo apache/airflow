@@ -24,7 +24,7 @@ license = "Apache-2.0"
 license-files = ["LICENSE", "NOTICE"]
 # Supporting new Python releases typically takes 4-7 months due to all our provider dependencies.
 # We proactively limit the version to allow time for all dependencies to update.
-requires-python = ">=3.11,!=3.16"
+requires-python = ">=3.11,!=3.16.*"
 
 authors = [
     {name="Apache Software Foundation", email="dev@airflow.apache.org"},

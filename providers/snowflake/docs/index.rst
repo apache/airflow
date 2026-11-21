@@ -117,6 +117,7 @@ PIP package                                 Version required
 ``pyOpenSSL``                               ``>=22.1.0``
 ``snowflake-connector-python``              ``>=3.17.0``
 ``snowflake-connector-python``              ``>=5.1.0; python_version >= "3.14"``
+``snowflake-connector-python``              ``>=5.2.0; python_version >= "3.15"``
 ``snowflake-sqlalchemy``                    ``>=1.7.0``
 ``snowflake-sqlalchemy``                    ``>=2.1.0; python_version >= "3.14"``
 ``sqlalchemy``                              ``>=1.4.54,<2.1; python_version < "3.14"``

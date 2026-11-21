@@ -40,7 +40,7 @@ license-files = ["LICENSE", "NOTICE"]
 # We proactively exclude the next major version to avoid dependency conflicts, then test it and
 # bump the upper binding once ready. Providers that don't support it yet are marked with
 # != constraint - until they support it - which also excludes resolving uv workspace dependencies.
-requires-python = ">=3.11,!=3.16"
+requires-python = ">=3.11,!=3.16.*"
 authors = [
     { name = "Apache Software Foundation", email = "dev@airflow.apache.org" },
 ]

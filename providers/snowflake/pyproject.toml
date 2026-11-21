@@ -79,6 +79,7 @@ dependencies = [
     # 3.17.0 is the first version with Workload Identity Federation (WORKLOAD_IDENTITY authenticator).
     "snowflake-connector-python>=3.17.0",
     "snowflake-connector-python>=5.1.0; python_version >= '3.14'",
+    "snowflake-connector-python>=5.2.0; python_version >= '3.15'",
     "snowflake-sqlalchemy>=1.7.0",
     "snowflake-sqlalchemy>=2.1.0; python_version >= '3.14'",
     # Snowpark requires connector<5, so on Python < 3.14 the dialect stays on snowflake-sqlalchemy 1.x,
