@@ -391,9 +391,7 @@ be skipped:
         """
         tasks_to_skip = Variable.get("tasks_to_skip", deserialize_json=True)
         if context["task"].task_id in tasks_to_skip:
-            raise AirflowSkipException(
-                "Task instance configured to be skipped by tasks_to_skip variable."
-            )
+            raise AirflowSkipException("Task instance configured to be skipped by tasks_to_skip variable.")
 
 
     @task(pre_execute=_check_skipped)
