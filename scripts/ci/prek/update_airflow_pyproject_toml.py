@@ -246,6 +246,24 @@ def get_exclusion_marker(provider_dependencies: dict[str, Any]) -> str:
     return ""
 
 
+def build_provider_dependency_entries(
+    provider_id: str,
+    distribution_name: str,
+    min_provider_version: Version | None,
+    comment: str,
+    exclusion_marker: str,
+) -> tuple[str, str]:
+    """Return the provider's own extra and its line in the ``all`` extra, both carrying the marker."""
+    if min_provider_version:
+        requirement = f"{distribution_name}>={min_provider_version}{exclusion_marker}"
+        return (
+            f'"{provider_id}" = [\n    "{requirement}"{comment}\n]\n',
+            f'    "{requirement}",{comment}\n',
+        )
+    requirement = f"{distribution_name}{exclusion_marker}"
+    return f'"{provider_id}" = [\n    "{requirement}"\n]\n', f'    "{requirement}",\n'
+
+
 if __name__ == "__main__":
     console.print("[bright_blue]Updating min-provider versions in apache-airflow\n")
     all_providers_metadata = json.loads(PROVIDER_METADATA_FILE_PATH.read_text())
@@ -278,16 +296,11 @@ if __name__ == "__main__":
         min_provider_version, comment = find_min_provider_version(provider_id, all_providers_metadata)
         exclusion_marker = get_exclusion_marker(all_providers_dependencies.get(provider_id, {}))
 
-        if min_provider_version:
-            all_provider_lines.append(
-                f'    "{distribution_name}>={min_provider_version}{exclusion_marker}",{comment}\n'
-            )
-            all_optional_dependencies.append(
-                f'"{provider_id}" = [\n    "{distribution_name}>={min_provider_version}{exclusion_marker}"{comment}\n]\n'
-            )
-        else:
-            all_optional_dependencies.append(f'"{provider_id}" = [\n    "{distribution_name}"\n]\n')
-            all_provider_lines.append(f'    "{distribution_name}",\n')
+        provider_extra, all_provider_line = build_provider_dependency_entries(
+            provider_id, distribution_name, min_provider_version, comment, exclusion_marker
+        )
+        all_optional_dependencies.append(provider_extra)
+        all_provider_lines.append(all_provider_line)
     all_optional_dependencies.append('"all" = [\n')
     optional_apache_airflow_dependencies = get_optional_dependencies(AIRFLOW_PYPROJECT_TOML_FILE)
     # Filtered against every provider id rather than against `all_providers`: a provider left out of
