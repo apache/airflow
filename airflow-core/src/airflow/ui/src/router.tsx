@@ -29,6 +29,12 @@ import { BaseLayout } from "src/layouts/BaseLayout";
 import { ErrorPage } from "src/pages/Error";
 
 import { TabEntity, TabName, TaskInstanceTab } from "src/constants/tab";
+import {
+  createDagLoader,
+  createDashboardLoader,
+  createRunLoader,
+  createTaskLogsLoader,
+} from "src/queries/routePrefetch";
 import { loadRouteModule } from "src/utils/routeModule";
 
 import { client } from "./queryClient";
@@ -153,8 +159,17 @@ const pluginRoute = {
 };
 
 export const taskInstanceRoutes = [
-  { index: true, lazy: loadTaskInstanceDefaultTab, path: undefined },
-  { lazy: loadLogs, path: TaskInstanceTab.Logs },
+  {
+    index: true,
+    lazy: loadTaskInstanceDefaultTab,
+    loader: createTaskLogsLoader(client, { isDefaultTab: true }),
+    path: undefined,
+  },
+  {
+    lazy: loadLogs,
+    loader: createTaskLogsLoader(client, { isDefaultTab: false }),
+    path: TaskInstanceTab.Logs,
+  },
   { lazy: loadEvents, path: TaskInstanceTab.Events },
   { lazy: loadXCom, path: TaskInstanceTab.XCom },
   { lazy: loadTaskStateStore, path: TaskInstanceTab.TaskStateStore },
@@ -173,9 +188,11 @@ export const routerConfig = [
       {
         index: true,
         lazy: loadLandingPage,
+        loader: createDashboardLoader(client, { isLandingPage: true }),
       },
       {
         lazy: loadDashboard,
+        loader: createDashboardLoader(client, { isLandingPage: false }),
         path: "home",
       },
       {
@@ -311,6 +328,7 @@ export const routerConfig = [
           pluginRoute,
         ],
         lazy: loadDag,
+        loader: createDagLoader(client),
         path: "dags/:dagId",
       },
       {
@@ -327,11 +345,13 @@ export const routerConfig = [
           pluginRoute,
         ],
         lazy: loadRun,
+        loader: createRunLoader(client),
         path: "dags/:dagId/runs/:runId",
       },
       {
         children: taskInstanceRoutes,
         lazy: loadTaskInstance,
+        loader: createRunLoader(client),
         path: "dags/:dagId/runs/:runId/tasks/:taskId",
       },
       {
@@ -363,6 +383,7 @@ export const routerConfig = [
       {
         children: taskInstanceRoutes,
         lazy: loadTaskInstance,
+        loader: createRunLoader(client),
         path: "dags/:dagId/runs/:runId/tasks/:taskId/mapped/:mapIndex",
       },
       {

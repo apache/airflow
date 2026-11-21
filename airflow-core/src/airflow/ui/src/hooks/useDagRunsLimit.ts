@@ -21,9 +21,9 @@ import { SearchParamsKeys } from "src/constants/searchParams";
 
 import { useUrlOrStoredState } from "./useUrlOrStoredState";
 
-const DEFAULT_LIMIT = 10;
+export const DEFAULT_LIMIT = 10;
 
-const readLimitParam = (params: URLSearchParams) => {
+export const readLimitParam = (params: URLSearchParams) => {
   const limitParam = params.get(SearchParamsKeys.LIMIT);
 
   return limitParam === null ? undefined : Number(limitParam);
