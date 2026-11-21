@@ -5538,6 +5538,74 @@ class TestTIHealthEndpoint:
         session.refresh(ti)
         assert ti.last_heartbeat_at == time_now.add(minutes=10)
 
+    @pytest.mark.parametrize(
+        ("write_interval", "scheduler_timeout", "stored_offset", "elapsed_seconds", "expect_write"),
+        [
+            pytest.param(30, 300, 0, 5, False, id="within_interval_skips_write"),
+            pytest.param(30, 300, 0, 30, True, id="at_interval_writes"),
+            pytest.param(0, 300, 0, 1, True, id="zero_interval_always_writes"),
+            pytest.param(30, 300, None, 1, True, id="null_stored_heartbeat_writes"),
+            pytest.param(30, 300, 20, 1, True, id="future_stored_heartbeat_writes"),
+            pytest.param(30, 20, 0, 11, True, id="interval_capped_at_half_scheduler_timeout"),
+        ],
+    )
+    def test_ti_heartbeat_write_is_throttled(
+        self,
+        client,
+        session,
+        create_task_instance,
+        monkeypatch,
+        time_machine,
+        write_interval,
+        scheduler_timeout,
+        stored_offset,
+        elapsed_seconds,
+        expect_write,
+    ):
+        """A heartbeat newer than ``[execution_api] heartbeat_write_interval`` must not rewrite the row."""
+        time_now = timezone.parse("2024-10-31T12:00:00Z")
+        time_machine.move_to(time_now, tick=False)
+
+        stored = None if stored_offset is None else time_now.add(seconds=stored_offset)
+        ti = create_task_instance(
+            task_id="test_ti_heartbeat_write_is_throttled",
+            state=State.RUNNING,
+            hostname="random-hostname",
+            pid=1547,
+            last_heartbeat_at=stored,
+            session=session,
+        )
+        session.commit()
+
+        new_time = time_now.add(seconds=elapsed_seconds)
+        time_machine.move_to(new_time, tick=False)
+
+        original_execute = Session.execute
+        task_instance_updates = []
+
+        def counting_execute(session_obj, statement, *args, **kwargs):
+            if _is_task_instance_update(statement):
+                task_instance_updates.append(statement)
+            return original_execute(session_obj, statement, *args, **kwargs)
+
+        monkeypatch.setattr(Session, "execute", counting_execute)
+
+        with conf_vars(
+            {
+                ("execution_api", "heartbeat_write_interval"): str(write_interval),
+                ("scheduler", "task_instance_heartbeat_timeout"): str(scheduler_timeout),
+            }
+        ):
+            response = client.put(
+                f"/execution/task-instances/{ti.id}/heartbeat",
+                json={"hostname": "random-hostname", "pid": 1547},
+            )
+
+        assert response.status_code == 204
+        assert len(task_instance_updates) == (1 if expect_write else 0)
+        session.refresh(ti)
+        assert ti.last_heartbeat_at == (new_time if expect_write else stored)
+
     def test_ti_heartbeat_fast_path_skips_fallback(
         self, client, session, create_task_instance, monkeypatch, time_machine
     ):
