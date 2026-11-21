@@ -17,13 +17,14 @@
 from __future__ import annotations
 
 from json import JSONDecodeError
-from unittest.mock import ANY, AsyncMock, Mock, patch
+from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 from fastapi import HTTPException, Request
 from itsdangerous import URLSafeSerializer
 from jwt import ExpiredSignatureError, InvalidTokenError
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 
 from airflow import settings
@@ -903,16 +904,17 @@ class TestFastApiSecurity:
         fastapi_request.body = AsyncMock(return_value=b"{}")
         fastapi_request.json = AsyncMock(return_value={})
         user = Mock()
+        session = Mock(spec=AsyncSession)
 
         with conf_vars({("core", "multi_team"): "True"}):
-            await requires_access_connection("GET")(fastapi_request, user)
+            await requires_access_connection("GET")(fastapi_request, user, session)
 
         auth_manager.is_authorized_connection.assert_called_once_with(
             method="GET",
             details=ConnectionDetails(conn_id="conn_id", team_name=team_name),
             user=user,
         )
-        mock_get_team_name.assert_called_once_with("conn_id", session=ANY)
+        mock_get_team_name.assert_called_once_with("conn_id", session=session)
 
     @pytest.mark.db_test
     @patch.object(Team, "get_name_if_exists_async")
@@ -930,16 +932,17 @@ class TestFastApiSecurity:
         fastapi_request.body = AsyncMock(return_value=b"{}")
         fastapi_request.json = AsyncMock(return_value={"team_name": "team1"})
         user = Mock()
+        session = Mock(spec=AsyncSession)
 
         with conf_vars({("core", "multi_team"): "True"}):
-            await requires_access_connection("POST")(fastapi_request, user)
+            await requires_access_connection("POST")(fastapi_request, user, session)
 
         auth_manager.is_authorized_connection.assert_called_once_with(
             method="POST",
             details=ConnectionDetails(conn_id=None, team_name="team1"),
             user=user,
         )
-        mock_get_name_if_exists.assert_called_once_with("team1", session=ANY)
+        mock_get_name_if_exists.assert_called_once_with("team1", session=session)
 
     @pytest.mark.db_test
     @patch.object(Team, "get_name_if_exists_async")
@@ -959,9 +962,10 @@ class TestFastApiSecurity:
         fastapi_request.body = AsyncMock(return_value=b"{}")
         fastapi_request.json = AsyncMock(return_value={"team_name": "new-team"})
         user = Mock()
+        session = Mock(spec=AsyncSession)
 
         with conf_vars({("core", "multi_team"): "True"}):
-            await requires_access_connection("PUT")(fastapi_request, user)
+            await requires_access_connection("PUT")(fastapi_request, user, session)
 
         assert auth_manager.is_authorized_connection.call_count == 2
         auth_manager.is_authorized_connection.assert_any_call(
@@ -988,10 +992,11 @@ class TestFastApiSecurity:
         fastapi_request.body = AsyncMock(return_value=b"{}")
         fastapi_request.json = AsyncMock(return_value={"team_name": "nonexistent"})
         user = Mock()
+        session = Mock(spec=AsyncSession)
 
         with conf_vars({("core", "multi_team"): "True"}):
             with pytest.raises(HTTPException) as exc_info:
-                await requires_access_connection("POST")(fastapi_request, user)
+                await requires_access_connection("POST")(fastapi_request, user, session)
 
         assert exc_info.value.status_code == 400
         assert "nonexistent" in exc_info.value.detail
@@ -1014,10 +1019,11 @@ class TestFastApiSecurity:
         fastapi_request.body = AsyncMock(return_value=b"{}")
         fastapi_request.json = AsyncMock(side_effect=JSONDecodeError("expecting value", "", 0))
         user = Mock()
+        session = Mock(spec=AsyncSession)
 
         with conf_vars({("core", "multi_team"): "True"}):
             with pytest.raises(HTTPException) as exc_info:
-                await requires_access_connection(method)(fastapi_request, user)
+                await requires_access_connection(method)(fastapi_request, user, session)
 
         assert exc_info.value.status_code == 400
         auth_manager.is_authorized_connection.assert_not_called()
@@ -1049,10 +1055,11 @@ class TestFastApiSecurity:
         fastapi_request.body = AsyncMock(return_value=b"<unparsable>")
         fastapi_request.json = AsyncMock(side_effect=parse_error)
         user = Mock()
+        session = Mock(spec=AsyncSession)
 
         with conf_vars({("core", "multi_team"): "True"}):
             with pytest.raises(HTTPException) as exc_info:
-                await requires_access_connection(method)(fastapi_request, user)
+                await requires_access_connection(method)(fastapi_request, user, session)
 
         assert exc_info.value.status_code == 400
         auth_manager.is_authorized_connection.assert_not_called()
@@ -1075,9 +1082,10 @@ class TestFastApiSecurity:
         fastapi_request.body = AsyncMock(return_value=b"")
         fastapi_request.json = AsyncMock(return_value={})
         user = Mock()
+        session = Mock(spec=AsyncSession)
 
         with conf_vars({("core", "multi_team"): "True"}):
-            await requires_access_connection("POST")(fastapi_request, user)
+            await requires_access_connection("POST")(fastapi_request, user, session)
 
         fastapi_request.json.assert_not_called()
         auth_manager.is_authorized_connection.assert_called_once()
@@ -1107,10 +1115,11 @@ class TestFastApiSecurity:
         fastapi_request.body = AsyncMock(return_value=b"{}")
         fastapi_request.json = AsyncMock(return_value={"team_name": bad_team_name})
         user = Mock()
+        session = Mock(spec=AsyncSession)
 
         with conf_vars({("core", "multi_team"): "True"}):
             with pytest.raises(HTTPException) as exc_info:
-                await requires_access_connection(method)(fastapi_request, user)
+                await requires_access_connection(method)(fastapi_request, user, session)
 
         assert exc_info.value.status_code == 400
         assert "team_name" in exc_info.value.detail
@@ -1230,16 +1239,17 @@ class TestFastApiSecurity:
         fastapi_request.body = AsyncMock(return_value=b"{}")
         fastapi_request.json = AsyncMock(return_value={})
         user = Mock()
+        session = Mock(spec=AsyncSession)
 
         with conf_vars({("core", "multi_team"): "True"}):
-            await requires_access_variable("GET")(fastapi_request, user)
+            await requires_access_variable("GET")(fastapi_request, user, session)
 
         auth_manager.is_authorized_variable.assert_called_once_with(
             method="GET",
             details=VariableDetails(key="var_key", team_name=team_name),
             user=user,
         )
-        mock_get_team_name.assert_called_once_with("var_key", session=ANY)
+        mock_get_team_name.assert_called_once_with("var_key", session=session)
 
     @pytest.mark.db_test
     @patch.object(Team, "get_name_if_exists_async")
@@ -1257,16 +1267,17 @@ class TestFastApiSecurity:
         fastapi_request.body = AsyncMock(return_value=b"{}")
         fastapi_request.json = AsyncMock(return_value={"team_name": "team1"})
         user = Mock()
+        session = Mock(spec=AsyncSession)
 
         with conf_vars({("core", "multi_team"): "True"}):
-            await requires_access_variable("POST")(fastapi_request, user)
+            await requires_access_variable("POST")(fastapi_request, user, session)
 
         auth_manager.is_authorized_variable.assert_called_once_with(
             method="POST",
             details=VariableDetails(key=None, team_name="team1"),
             user=user,
         )
-        mock_get_name_if_exists.assert_called_once_with("team1", session=ANY)
+        mock_get_name_if_exists.assert_called_once_with("team1", session=session)
 
     @pytest.mark.db_test
     @patch.object(Team, "get_name_if_exists_async")
@@ -1286,9 +1297,10 @@ class TestFastApiSecurity:
         fastapi_request.body = AsyncMock(return_value=b"{}")
         fastapi_request.json = AsyncMock(return_value={"team_name": "new-team"})
         user = Mock()
+        session = Mock(spec=AsyncSession)
 
         with conf_vars({("core", "multi_team"): "True"}):
-            await requires_access_variable("PUT")(fastapi_request, user)
+            await requires_access_variable("PUT")(fastapi_request, user, session)
 
         assert auth_manager.is_authorized_variable.call_count == 2
         auth_manager.is_authorized_variable.assert_any_call(
@@ -1315,10 +1327,11 @@ class TestFastApiSecurity:
         fastapi_request.body = AsyncMock(return_value=b"{}")
         fastapi_request.json = AsyncMock(return_value={"team_name": "nonexistent"})
         user = Mock()
+        session = Mock(spec=AsyncSession)
 
         with conf_vars({("core", "multi_team"): "True"}):
             with pytest.raises(HTTPException) as exc_info:
-                await requires_access_variable("POST")(fastapi_request, user)
+                await requires_access_variable("POST")(fastapi_request, user, session)
 
         assert exc_info.value.status_code == 400
         assert "nonexistent" in exc_info.value.detail
@@ -1410,16 +1423,17 @@ class TestFastApiSecurity:
         fastapi_request.body = AsyncMock(return_value=b"{}")
         fastapi_request.json = AsyncMock(return_value={})
         user = Mock()
+        session = Mock(spec=AsyncSession)
 
         with conf_vars({("core", "multi_team"): "True"}):
-            await requires_access_pool("GET")(fastapi_request, user)
+            await requires_access_pool("GET")(fastapi_request, user, session)
 
         auth_manager.is_authorized_pool.assert_called_once_with(
             method="GET",
             details=PoolDetails(name="pool", team_name=team_name),
             user=user,
         )
-        mock_get_team_name.assert_called_once_with("pool", session=ANY)
+        mock_get_team_name.assert_called_once_with("pool", session=session)
 
     @pytest.mark.db_test
     @patch.object(Team, "get_name_if_exists_async")
@@ -1435,16 +1449,17 @@ class TestFastApiSecurity:
         fastapi_request.body = AsyncMock(return_value=b"{}")
         fastapi_request.json = AsyncMock(return_value={"team_name": "team1"})
         user = Mock()
+        session = Mock(spec=AsyncSession)
 
         with conf_vars({("core", "multi_team"): "True"}):
-            await requires_access_pool("POST")(fastapi_request, user)
+            await requires_access_pool("POST")(fastapi_request, user, session)
 
         auth_manager.is_authorized_pool.assert_called_once_with(
             method="POST",
             details=PoolDetails(name=None, team_name="team1"),
             user=user,
         )
-        mock_get_name_if_exists.assert_called_once_with("team1", session=ANY)
+        mock_get_name_if_exists.assert_called_once_with("team1", session=session)
 
     @pytest.mark.db_test
     @patch.object(Team, "get_name_if_exists_async")
@@ -1464,9 +1479,10 @@ class TestFastApiSecurity:
         fastapi_request.body = AsyncMock(return_value=b"{}")
         fastapi_request.json = AsyncMock(return_value={"team_name": "new-team"})
         user = Mock()
+        session = Mock(spec=AsyncSession)
 
         with conf_vars({("core", "multi_team"): "True"}):
-            await requires_access_pool("PUT")(fastapi_request, user)
+            await requires_access_pool("PUT")(fastapi_request, user, session)
 
         assert auth_manager.is_authorized_pool.call_count == 2
         auth_manager.is_authorized_pool.assert_any_call(
@@ -1493,10 +1509,11 @@ class TestFastApiSecurity:
         fastapi_request.body = AsyncMock(return_value=b"{}")
         fastapi_request.json = AsyncMock(return_value={"team_name": "nonexistent"})
         user = Mock()
+        session = Mock(spec=AsyncSession)
 
         with conf_vars({("core", "multi_team"): "True"}):
             with pytest.raises(HTTPException) as exc_info:
-                await requires_access_pool("POST")(fastapi_request, user)
+                await requires_access_pool("POST")(fastapi_request, user, session)
 
         assert exc_info.value.status_code == 400
         assert "nonexistent" in exc_info.value.detail
