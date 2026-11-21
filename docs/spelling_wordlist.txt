@@ -1237,6 +1237,7 @@ objectstorage
 observability
 Obtainability
 obtainability
+oci
 od
 OData
 odbc
@@ -1278,6 +1279,7 @@ optimizationObjective
 OptIn
 optionality
 ora
+oraclecloud
 oracledb
 orchestrator
 orm
