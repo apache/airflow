@@ -171,6 +171,19 @@ async def get_user(
     return await resolve_user_from_token(request.cookies.get(COOKIE_NAME_JWT_TOKEN))
 
 
+async def get_optional_user(
+    request: Request,
+    bearer_credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
+) -> BaseUser | None:
+    """Return the authenticated user, or ``None`` when the request is unauthenticated."""
+    try:
+        return await get_user(request, _oauth_token=None, bearer_credentials=bearer_credentials)
+    except HTTPException as error:
+        if error.status_code not in {status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN}:
+            raise
+        return None
+
+
 def collect_request_tokens(
     request: Request,
     bearer_credentials: HTTPAuthorizationCredentials | None,
