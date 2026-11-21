@@ -1256,6 +1256,7 @@ class EksPodOperator(KubernetesPodOperator):
             last_log_time=last_log_time,
             logging_interval=self.logging_interval,
             trigger_kwargs=self.trigger_kwargs,
+            log_events_on_startup=self.log_events_on_startup,
         )
         container_state = trigger.define_container_state(self.pod) if self.pod else None
         if context and (
