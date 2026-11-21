@@ -369,6 +369,38 @@ class TestPostConnection(TestConnectionEndpoint):
         }
 
     @pytest.mark.parametrize(
+        "invalid_port",
+        [-1, 65536, 100000],
+    )
+    def test_post_should_respond_422_for_invalid_port(self, test_client, invalid_port):
+        response = test_client.post(
+            "/connections",
+            json={
+                "connection_id": f"test_invalid_port_{invalid_port}",
+                "conn_type": TEST_CONN_TYPE,
+                "port": invalid_port,
+            },
+        )
+        assert response.status_code == 422
+        assert any(err["loc"] == ["body", "port"] for err in response.json()["detail"])
+
+    @pytest.mark.parametrize(
+        "valid_port",
+        [0, 80, 5432, 65535],
+    )
+    def test_post_should_accept_valid_port(self, test_client, valid_port):
+        response = test_client.post(
+            "/connections",
+            json={
+                "connection_id": f"test_valid_port_{valid_port}",
+                "conn_type": TEST_CONN_TYPE,
+                "port": valid_port,
+            },
+        )
+        assert response.status_code == 201
+        assert response.json()["port"] == valid_port
+
+    @pytest.mark.parametrize(
         "body",
         [
             [{"connection_id": TEST_CONN_ID, "conn_type": TEST_CONN_TYPE}],
