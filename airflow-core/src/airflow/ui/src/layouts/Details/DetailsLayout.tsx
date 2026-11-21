@@ -38,12 +38,13 @@ import { TogglePause } from "src/components/TogglePause";
 import { TriggerDAGButton } from "src/components/TriggerDag/TriggerDAGButton";
 
 import type { DagView } from "src/constants/dagView";
-import { DEFAULT_DAG_VIEW_KEY } from "src/constants/localStorage";
+import { dagViewKey } from "src/constants/localStorage";
 import { usePersistentSearchParamKeys } from "src/constants/persistentSearchParams";
 import { SearchParamsKeys } from "src/constants/searchParams";
 import { VersionIndicatorOptions } from "src/constants/showVersionIndicatorOptions";
 import { GroupsProvider } from "src/context/groups";
 import { useDagRunsLimit } from "src/hooks/useDagRunsLimit";
+import { useDefaultDagView } from "src/hooks/useUserSettings";
 import { useGridRuns } from "src/queries/useGridRuns.ts";
 import { useAutoRefresh, useContainerWidth } from "src/utils";
 
@@ -102,10 +103,12 @@ export const DetailsLayout = ({ children, error, isLoading, outletContext, tabs 
     { enabled: dag?.scheduling_state === "active" },
   );
   const { limit: storedLimit, setLimit } = useDagRunsLimit(dagId);
-  const [dagView, setDagView] = useLocalStorage<DagView>(DEFAULT_DAG_VIEW_KEY, "grid");
+  const [defaultDagView] = useDefaultDagView();
+  const [dagView, setDagView] = useLocalStorage<DagView>(dagViewKey(dagId), defaultDagView);
+  const effectiveDagView = !Boolean(runId) && dagView === "gantt" ? "grid" : dagView;
   const panelButtonsRef = useRef<HTMLDivElement>(null);
   const panelButtonsWidth = useContainerWidth(panelButtonsRef);
-  const limit = getEffectiveLimit(storedLimit, panelButtonsWidth, dagView === "gantt");
+  const limit = getEffectiveLimit(storedLimit, panelButtonsWidth, effectiveDagView === "gantt");
   const panelGroupRef = useGroupRef();
   // Root for the delegated grid/gantt crosshair-hover handler (covers both the
   // grid and the gantt so their shared row highlight stays in sync, with no
@@ -153,14 +156,6 @@ export const DetailsLayout = ({ children, error, isLoading, outletContext, tabs 
   // Only LTE is needed directly: ceiling logic and jump-to-latest both touch it.
   // GTE and the filter params (state, run_type, triggering_user) are managed by GridFilters/FilterBar.
   const setRunAfterLte = (value: string | undefined) => setParam(SearchParamsKeys.RUN_AFTER_LTE, value);
-
-  // Reset to grid when there is no runId. Remove this when we do gantt averages.
-  useEffect(() => {
-    if (!Boolean(runId) && dagView === "gantt") {
-      setDagView("grid");
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [runId, dagView]);
 
   // Transient pagination offset — reset whenever the user changes filters
   const [offset, setOffset] = useState(0);
@@ -232,9 +227,9 @@ export const DetailsLayout = ({ children, error, isLoading, outletContext, tabs 
   const direction = i18n.dir();
   const sharedGridGanttScrollRef = useRef<HTMLDivElement | null>(null);
   // Treat "gantt" as "grid" for panel layout persistence so switching between them doesn't reset sizes.
-  const panelViewKey = dagView === "gantt" ? "grid" : dagView;
-  const minSize = dagView === "gantt" && Boolean(runId) ? 35 : 6;
-  const defaultSize = Math.max(dagView === "graph" ? 70 : 20, minSize);
+  const panelViewKey = effectiveDagView === "gantt" ? "grid" : effectiveDagView;
+  const minSize = effectiveDagView === "gantt" && Boolean(runId) ? 35 : 6;
+  const defaultSize = Math.max(effectiveDagView === "graph" ? 70 : 20, minSize);
   const { defaultLayout, onLayoutChanged } = useDefaultLayout({ id: `${panelViewKey}-${direction}` });
 
   return (
@@ -313,7 +308,7 @@ export const DetailsLayout = ({ children, error, isLoading, outletContext, tabs 
           >
             <Panel defaultSize={defaultSize} id="main-panel" minSize={minSize}>
               <Flex
-                bg={dagView === "graph" ? undefined : "bg.muted"}
+                bg={effectiveDagView === "graph" ? undefined : "bg.muted"}
                 borderColor="bg.muted"
                 borderRadius="md"
                 borderWidth="2px"
@@ -325,14 +320,14 @@ export const DetailsLayout = ({ children, error, isLoading, outletContext, tabs 
                 <Box
                   left={0}
                   p={2}
-                  position={dagView === "graph" ? "absolute" : undefined}
+                  position={effectiveDagView === "graph" ? "absolute" : undefined}
                   ref={panelButtonsRef}
                   right={0}
                   top={0}
                 >
                   <PanelButtons
                     containerWidth={panelButtonsWidth}
-                    dagView={dagView}
+                    dagView={effectiveDagView}
                     limit={limit}
                     panelGroupRef={panelGroupRef}
                     setDagView={setDagView}
@@ -342,9 +337,9 @@ export const DetailsLayout = ({ children, error, isLoading, outletContext, tabs 
                   />
                 </Box>
                 <Box flex={1} minH={0} overflow="hidden" ref={gridHoverRootRef}>
-                  {dagView === "graph" ? (
+                  {effectiveDagView === "graph" ? (
                     <Graph />
-                  ) : dagView === "gantt" && Boolean(runId) ? (
+                  ) : effectiveDagView === "gantt" && Boolean(runId) ? (
                     <SharedScrollBox scrollRef={sharedGridGanttScrollRef}>
                       <Flex
                         alignItems="flex-start"
@@ -446,7 +441,7 @@ export const DetailsLayout = ({ children, error, isLoading, outletContext, tabs 
                   </Box>
                 </Separator>
 
-                <Panel defaultSize={dagView === "graph" ? 30 : 80} id="details-panel" minSize={20}>
+                <Panel defaultSize={effectiveDagView === "graph" ? 30 : 80} id="details-panel" minSize={20}>
                   <Box
                     display="flex"
                     flexDirection="column"
