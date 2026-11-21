@@ -1082,6 +1082,7 @@ class SelectiveChecks:
         "_fork_push",
         "_fork_changes_truncated",
         "_fork_merge_base",
+        "_push_base_commit",
     }
 
     def __init__(
@@ -1100,6 +1101,7 @@ class SelectiveChecks:
         fork_push: bool = False,
         fork_changes_truncated: bool = False,
         fork_merge_base: str | None = None,
+        push_base_commit: str | None = None,
     ):
         """
         :param fork_push: the push happened in a contributor fork (AIP-120); ``files`` are the
@@ -1137,6 +1139,7 @@ class SelectiveChecks:
         self._fork_push = fork_push
         self._fork_changes_truncated = fork_changes_truncated
         self._fork_merge_base = fork_merge_base
+        self._push_base_commit = push_base_commit
         self._new_toml: dict[str, Any] = {}
         self._old_toml: dict[str, Any] = {}
 
@@ -1790,8 +1793,8 @@ class SelectiveChecks:
     @cached_property
     @_scoped_to_component_branch
     def run_generic_basic_tests(self) -> bool:
-        """The standalone Airflow test, which runs for every change."""
-        return True
+        """The standalone Airflow test, run alongside unit tests."""
+        return self.run_unit_tests and not self.only_text_non_doc_files_changed
 
     @cached_property
     @_scoped_to_component_branch
@@ -2740,6 +2743,25 @@ class SelectiveChecks:
     @_scoped_to_component_branch
     def has_migrations(self) -> bool:
         return any([file.startswith("airflow-core/src/airflow/migrations/") for file in self._files])
+
+    @cached_property
+    def has_added_or_renamed_files(self) -> bool:
+        if self._commit_ref is None:
+            return True
+        base: str
+        if self._fork_push:
+            if self._fork_changes_truncated or not self._fork_merge_base:
+                return True
+            base = self._fork_merge_base
+        elif self._selective_tests_on_push and self._github_event == GithubEvents.PUSH:
+            if not self._push_base_commit:
+                return True
+            base = self._push_base_commit
+        else:
+            base = f"{self._commit_ref}^"
+        cmd = ["git", "diff", "--name-only", "--diff-filter=A", "--no-renames", base, self._commit_ref]
+        result = run_command(cmd, check=False, capture_output=True, text=True)
+        return result.returncode != 0 or bool(result.stdout.strip())
 
     @cached_property
     @_scoped_to_component_branch

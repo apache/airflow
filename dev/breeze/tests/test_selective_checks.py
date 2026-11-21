@@ -6488,3 +6488,80 @@ def test_provider_compatibility_tests_skip_only_changes_hidden_from_them(
     )
     assert checks.skip_providers_tests is False
     assert checks.run_providers_compatibility_tests is expected
+
+
+@pytest.mark.parametrize(
+    ("files", "expected"),
+    [
+        pytest.param(
+            ("README.md",),
+            False,
+            id="markdown-only-skips-generic-basic-tests",
+        ),
+        pytest.param(
+            ("docs/apache-airflow/index.rst",),
+            False,
+            id="docs-only-skips-generic-basic-tests",
+        ),
+        pytest.param(
+            ("airflow-core/src/airflow/models/dag.py",),
+            True,
+            id="core-code-runs-generic-basic-tests",
+        ),
+    ],
+)
+def test_run_generic_basic_tests_gating(files: tuple[str, ...], expected: bool):
+    checks = SelectiveChecks(
+        files=files,
+        commit_ref=NEUTRAL_COMMIT,
+        github_event=GithubEvents.PULL_REQUEST,
+        default_branch="main",
+    )
+    assert checks.run_generic_basic_tests is expected
+
+
+@pytest.mark.parametrize(
+    ("commit_ref", "returncode", "stdout", "fork_push", "fork_merge_base", "expected", "expected_base"),
+    [
+        pytest.param(None, 0, "", False, None, True, None, id="commit-ref-none-returns-true"),
+        pytest.param(
+            "head-sha", 0, "added_file.py\n", False, None, True, "head-sha^", id="added-file-returns-true"
+        ),
+        pytest.param("head-sha", 0, "", False, None, False, "head-sha^", id="modified-only-returns-false"),
+        pytest.param("head-sha", 1, "", False, None, True, "head-sha^", id="nonzero-exit-returns-true"),
+        pytest.param(
+            "head-sha",
+            0,
+            "new.py\n",
+            True,
+            "merge-base-sha",
+            True,
+            "merge-base-sha",
+            id="fork-push-uses-merge-base",
+        ),
+    ],
+)
+@patch("airflow_breeze.utils.selective_checks.run_command", autospec=True)
+def test_has_added_or_renamed_files(
+    mock_run_command, commit_ref, returncode, stdout, fork_push, fork_merge_base, expected, expected_base
+):
+    mock_run_command.return_value = subprocess.CompletedProcess(
+        args=[], returncode=returncode, stdout=stdout, stderr=""
+    )
+    checks = SelectiveChecks(
+        files=("airflow-core/src/airflow/models/dag.py",),
+        commit_ref=commit_ref,
+        fork_push=fork_push,
+        fork_merge_base=fork_merge_base,
+        default_branch="main",
+    )
+    assert checks.has_added_or_renamed_files is expected
+    if commit_ref is not None:
+        mock_run_command.assert_called_once_with(
+            ["git", "diff", "--name-only", "--diff-filter=A", "--no-renames", expected_base, commit_ref],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+    else:
+        mock_run_command.assert_not_called()

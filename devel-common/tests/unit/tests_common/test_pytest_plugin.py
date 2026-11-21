@@ -461,3 +461,108 @@ class TestInitializeAirflowDb:
             f"Unable to re-initialize the SQLite test DB. Remove `{sqlite_db_file}` and rerun pytest."
         )
         assert isinstance(exc_info.value.__cause__, SQLAlchemyError)
+
+
+class _DummyMarker:
+    def __init__(self, name: str) -> None:
+        self.name = name
+
+
+class _DummyItem:
+    def __init__(self, name: str, markers: tuple[_DummyMarker, ...] = ()) -> None:
+        self.name = name
+        self._markers = markers
+
+    def get_closest_marker(self, name: str) -> _DummyMarker | None:
+        for m in self._markers:
+            if m.name == name:
+                return m
+        return None
+
+    def iter_markers(self, name: str | None = None):
+        for m in self._markers:
+            if name is None or m.name == name:
+                yield m
+
+
+class _DummyHook:
+    def __init__(self) -> None:
+        self.deselected: list[Any] = []
+
+    def pytest_deselected(self, items: list[Any]) -> None:
+        self.deselected.extend(items)
+
+
+class _DummyConfig:
+    def __init__(self, dist: str = "load", numprocesses: int | None = 2, **options: Any) -> None:
+        self.option = types.SimpleNamespace(dist=dist, numprocesses=numprocesses, **options)
+        self.hook = _DummyHook()
+
+
+class TestCollectionModifyItems:
+    @pytest.mark.parametrize(
+        ("dist", "numprocesses", "flags", "expected_names", "expected_deselected_count"),
+        [
+            pytest.param(
+                "no",
+                None,
+                {"include_quarantined": False, "include_long_running": False, "system": False},
+                ["test_normal", "test_quarantined", "test_system", "test_long"],
+                0,
+                id="non-distributed-preserves-all-for-runtime-skip",
+            ),
+            pytest.param(
+                "load",
+                2,
+                {"include_quarantined": False, "include_long_running": False, "system": False},
+                ["test_normal"],
+                3,
+                id="distributed-deselects-all-when-flags-disabled",
+            ),
+            pytest.param(
+                "load",
+                2,
+                {"include_quarantined": True, "include_long_running": False, "system": False},
+                ["test_normal", "test_quarantined"],
+                2,
+                id="distributed-quarantined-flag-preserves-quarantined",
+            ),
+            pytest.param(
+                "load",
+                2,
+                {"include_quarantined": False, "include_long_running": True, "system": False},
+                ["test_normal", "test_long"],
+                2,
+                id="distributed-long-running-flag-preserves-long-running",
+            ),
+            pytest.param(
+                "load",
+                2,
+                {"include_quarantined": False, "include_long_running": False, "system": True},
+                ["test_normal", "test_system"],
+                2,
+                id="distributed-system-flag-preserves-system",
+            ),
+            pytest.param(
+                "load",
+                2,
+                {"include_quarantined": True, "include_long_running": True, "system": True},
+                ["test_normal", "test_quarantined", "test_system", "test_long"],
+                0,
+                id="distributed-all-flags-enabled",
+            ),
+        ],
+    )
+    def test_collection_modifyitems_distributed_gating(
+        self, dist, numprocesses, flags, expected_names, expected_deselected_count
+    ):
+        items = [
+            _DummyItem("test_normal"),
+            _DummyItem("test_quarantined", (_DummyMarker("quarantined"),)),
+            _DummyItem("test_system", (_DummyMarker("system"),)),
+            _DummyItem("test_long", (_DummyMarker("long_running"),)),
+        ]
+        config = _DummyConfig(dist=dist, numprocesses=numprocesses, **flags)
+        pytest_plugin.pytest_collection_modifyitems(config, items)
+        assert [item.name for item in items] == expected_names
+        assert len(config.hook.deselected) == expected_deselected_count

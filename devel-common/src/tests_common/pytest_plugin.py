@@ -890,23 +890,44 @@ def _is_db_test(item) -> bool:
     return False
 
 
-def pytest_collection_modifyitems(config, items):
-    """Deselect DB/non-DB tests early so pytest-xdist workers never receive them.
+def _is_distributed_run(config) -> bool:
+    return (
+        getattr(config.option, "dist", "no") != "no"
+        or bool(getattr(config.option, "numprocesses", None))
+        or hasattr(config, "workerinput")
+    )
 
-    Previously these tests were skipped at runtime via pytest_runtest_setup, which
-    still required every xdist worker to import the test modules. With thousands of
-    DB tests being skipped in non-DB runs, this caused excessive memory usage — enough
-    to OOM on Python 3.14 CI runners. Deselecting during collection avoids distributing
-    these items to workers entirely.
+
+def pytest_collection_modifyitems(config, items):
+    """Deselect DB/non-DB tests, and quarantined/long-running/system tests during distributed runs.
+
+    Deselecting early prevents pytest-xdist workers from importing test modules that will not
+    be executed, avoiding worker memory bloat on CI runners. During non-distributed runs,
+    quarantined, long-running, and system tests remain selected so pytest_runtest_setup can
+    report actionable skip reasons to developers.
     """
-    if not skip_db_tests and not run_db_tests_only:
-        return
+    include_quarantined = getattr(config.option, "include_quarantined", False)
+    include_long_running = getattr(config.option, "include_long_running", False)
+    system = getattr(config.option, "system", False)
+    is_distributed = _is_distributed_run(config)
 
     selected = []
     deselected = []
     for item in items:
         is_db = _is_db_test(item)
-        if (skip_db_tests and is_db) or (run_db_tests_only and not is_db):
+        should_deselect = (
+            (skip_db_tests and is_db)
+            or (run_db_tests_only and not is_db)
+            or (
+                is_distributed
+                and (
+                    (not include_quarantined and item.get_closest_marker("quarantined"))
+                    or (not include_long_running and item.get_closest_marker("long_running"))
+                    or (not system and item.get_closest_marker("system"))
+                )
+            )
+        )
+        if should_deselect:
             deselected.append(item)
         else:
             selected.append(item)

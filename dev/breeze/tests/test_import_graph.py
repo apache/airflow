@@ -120,3 +120,22 @@ def repo(tmp_path):
 )
 def test_find_reachable_providers(repo, changed, expected):
     assert find_reachable_providers(repo, (changed,), {"beta", "gamma"}) == expected
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        (".hooks.base", True),
+        ("..hooks.base", True),
+        ("...models", True),
+        ("..hooks.base:MyClass", True),
+        ("..", False),
+        ("...", False),
+        (".123", False),
+        ("hooks.base", False),
+    ],
+)
+def test_relative_dotted_name_pattern(value, expected):
+    from airflow_breeze.utils.import_graph import RELATIVE_DOTTED_NAME
+
+    assert bool(RELATIVE_DOTTED_NAME.match(value)) is expected
