@@ -64,6 +64,7 @@ from docs.utils.conf_constants import (
     get_intersphinx_mapping,
     get_rst_epilogue,
 )
+from docs.utils.example_source import example_source_ref
 from sphinx_exts.provider_yaml_utils import load_package_data
 
 PACKAGE_NAME = os.environ.get("AIRFLOW_PACKAGE_NAME", "")
@@ -146,6 +147,36 @@ extensions.extend(
         "generate_erd",
     ]
 )
+
+# Providers that publish a Markdown copy of every page plus llms.txt for LLMs and coding agents.
+PROVIDER_PACKAGES_WITH_LLMS_TXT = [
+    "apache-airflow-providers-common-ai",
+]
+
+
+if PACKAGE_NAME in PROVIDER_PACKAGES_WITH_LLMS_TXT:
+    extensions.append("airflow_llms_txt")
+    llms_txt_site_url = f"https://airflow.apache.org/docs/{PACKAGE_NAME}/{PACKAGE_VERSION}/"
+    _release_tag = f"providers-{PACKAGE_ID.replace('.', '-')}/{PACKAGE_VERSION}"
+    llms_txt_source_url = f"https://github.com/apache/airflow/blob/{example_source_ref(_release_tag)}/"
+    llms_txt_release_source_url = f"https://github.com/apache/airflow/blob/{_release_tag}/"
+    llms_txt_repo_root = AIRFLOW_REPO_ROOT_PATH.as_posix()
+    llms_txt_intro = (
+        f"Install with `pip install {PACKAGE_NAME}`. This index covers version {PACKAGE_VERSION}. "
+        "Each link is a Markdown copy of a docs page; drop the trailing `.md` for the HTML page. "
+        "Code samples are excerpts of example Dags, and each one links to the full file."
+    )
+    llms_txt_root_description = "Package overview, its requirements and what each optional extra installs."
+    # Long or generic pages an agent rarely needs first.
+    llms_txt_optional_docs = ["_api/**", "changelog", "security", "installing-providers-from-sources"]
+    # Not useful to an agent at all; their Markdown copies are still published.
+    llms_txt_skip_docs = ["_api/tests/**", "commits"]
+    llms_txt_nested_enabled = False
+    # One Markdown copy per page, ``page.html.md``: what llms.txt and ``rel=alternate`` link to.
+    llms_txt_suffix_mode = "append"
+    # Run the Markdown build after the HTML build, not alongside it: both run autoapi, which
+    # rewrites the ``_api`` sources in place while the other build may be reading them.
+    llms_txt_build_parallel = False
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
