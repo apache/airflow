@@ -232,17 +232,19 @@ Tasks specified inside a Dag are also instantiated into
 A Dag run will have a start date when it starts, and end date when it ends.
 This period describes the time when the Dag actually 'ran.' Aside from the Dag
 run's start and end date, there is another date called *logical date*
-(formally known as execution date), which describes the intended time a
-Dag run is scheduled or triggered. The reason why this is called
-*logical* is because of the abstract nature of it having multiple meanings,
-depending on the context of the Dag run itself.
+(formerly known as execution date). It identifies the run and places it on the
+Dag's logical timeline; it does not control when the run starts, which is
+governed by ``run_after``. The reason why this is called *logical* is because
+of the abstract nature of it having multiple meanings, depending on the context
+of the Dag run itself.
 
-For example, if a Dag run is manually triggered by the user, its logical date would be the
-date and time of which the Dag run was triggered, and the value should be equal
-to Dag run's start date. However, when the Dag is being automatically scheduled, with certain
-schedule interval put in place, the logical date is going to indicate the time
-at which it marks the start of the data interval, where the Dag run's start
-date would then be the logical date + scheduled interval.
+For example, if a Dag run is manually triggered by the user, its logical date
+defaults to the date and time at which the Dag run was triggered, but the user
+may set it to any date, past or future. When the Dag is being automatically
+scheduled by a timetable, the logical date is the start of the run's data
+interval. For a trigger timetable that is the trigger time itself. For a
+data-interval timetable the run is created after the interval ends, so it
+becomes eligible to start one schedule period after the logical date.
 
 .. tip::
 
