@@ -201,8 +201,10 @@ def _convert_str_to_tuple(val: str | Iterable[str] | None) -> Iterable[str] | No
     return val
 
 
-def _convert_tags(tags: Collection[str] | None) -> MutableSet[str]:
-    return set(tags or [])
+def _convert_tags(tags: str | Collection[str] | None) -> MutableSet[str]:
+    if not tags:
+        return set()
+    return {tags} if isinstance(tags, str) else set(tags)
 
 
 def _convert_access_control(access_control):
@@ -220,14 +222,14 @@ def _convert_access_control(access_control):
 
 
 def _convert_allowed_run_types(
-    val: DagRunType | Collection[DagRunType] | None,
+    val: DagRunType | str | Collection[DagRunType | str] | None,
 ) -> frozenset[DagRunType] | None:
     """Convert allowed_run_types parameter to a frozenset of DagRunType values."""
-    if val is None:
+    if not val:
         return None
     from airflow.sdk.api.datamodels._generated import DagRunType
 
-    if isinstance(val, enum.Enum):
+    if isinstance(val, str | enum.Enum):
         val = [val]
     return frozenset(DagRunType(v) if not isinstance(v, DagRunType) else v for v in val)
 
@@ -431,7 +433,7 @@ class DAG:
     :param render_template_as_native_obj: If True, uses a Jinja ``NativeEnvironment``
         to render templates as native Python types. If False, a Jinja
         ``Environment`` is used to render templates as string values.
-    :param tags: List of tags to help filtering Dags in the UI.
+    :param tags: List of tags to help filtering Dags in the UI. A single string is treated as one tag.
     :param owner_links: Dict of owners and their links, that will be clickable on the Dags view UI.
         Can be used as an HTTP link (for example the link to your Slack channel), or a mailto link.
         e.g: ``{"dag_owner": "https://airflow.apache.org/"}``
@@ -441,6 +443,8 @@ class DAG:
         An exception will be thrown if any task in a fail stop dag has a non default trigger rule.
     :param allowed_run_types: An optional list or single DagRunType specifying which run types are
         permitted for this dag. When set, the scheduler and API will only allow runs of the specified types.
+        Each run type can also be given as its string value, such as ``"manual"``. An empty value means
+        no restriction, the same as ``None``.
     :param dag_display_name: The display name of the Dag which appears on the UI.
     :param rerun_with_latest_version: If True, cleared or rerun tasks will use the latest
         available bundle version. If False, they use the original bundle version. If None
@@ -551,7 +555,7 @@ class DAG:
     owner_links: dict[str, str] = attrs.field(factory=dict)
     auto_register: bool = attrs.field(default=True, converter=bool)
     fail_fast: bool = attrs.field(default=False, converter=bool)
-    allowed_run_types: DagRunType | Collection[DagRunType] | None = attrs.field(
+    allowed_run_types: DagRunType | str | Collection[DagRunType | str] | None = attrs.field(
         default=None, converter=_convert_allowed_run_types
     )
     dag_display_name: str = attrs.field(
@@ -1681,7 +1685,7 @@ if TYPE_CHECKING:
         owner_links: dict[str, str] | None = None,
         auto_register: bool = True,
         fail_fast: bool = False,
-        allowed_run_types: DagRunType | Collection[DagRunType] | None = None,
+        allowed_run_types: DagRunType | str | Collection[DagRunType | str] | None = None,
         dag_display_name: str | None = None,
         disable_bundle_versioning: bool = False,
         rerun_with_latest_version: bool | None = None,
