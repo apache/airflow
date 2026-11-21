@@ -50,4 +50,5 @@ def get_otel_logger() -> SafeOtelLogger:
         metrics_block_list=conf.get("metrics", "metrics_block_list", fallback=None),
         stat_name_handler=conf.getimport("metrics", "stat_name_handler", fallback=None),
         statsd_influxdb_enabled=conf.getboolean("metrics", "statsd_influxdb_enabled", fallback=False),
+        path=conf.get("metrics", "otel_path", fallback="/v1/metrics"),
     )
