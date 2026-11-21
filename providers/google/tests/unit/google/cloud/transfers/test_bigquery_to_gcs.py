@@ -17,10 +17,12 @@
 # under the License.
 from __future__ import annotations
 
+import functools
 from unittest import mock
 from unittest.mock import MagicMock
 
 import pytest
+from google.cloud.bigquery import DatasetReference, TableReference
 from google.cloud.bigquery.retry import DEFAULT_RETRY
 from google.cloud.bigquery.table import Table
 
@@ -37,6 +39,7 @@ from airflow.providers.common.compat.openlineage.facet import (
     SymlinksDatasetFacet,
 )
 from airflow.providers.common.compat.sdk import TaskDeferred
+from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
 from airflow.providers.google.cloud.transfers.bigquery_to_gcs import BigQueryToGCSOperator
 from airflow.providers.google.cloud.triggers.bigquery import BigQueryInsertJobTrigger
 
@@ -372,6 +375,45 @@ class TestBigQueryToGCSOperator:
             name=source_project_dataset_table,
             facets=expected_input_dataset_facets,
         )
+
+    @pytest.mark.parametrize(
+        "source_project_dataset_table",
+        (
+            pytest.param(f"{PROJECT_ID}:{TEST_DATASET}.{TEST_TABLE_ID}", id="legacy-colon"),
+            pytest.param(f"{PROJECT_ID}.{TEST_DATASET}.{TEST_TABLE_ID}", id="standard-dot"),
+            pytest.param(f"{TEST_DATASET}.{TEST_TABLE_ID}", id="default-project"),
+        ),
+    )
+    @mock.patch("airflow.providers.google.cloud.transfers.bigquery_to_gcs.BigQueryHook")
+    def test_get_openlineage_facets_on_complete_resolves_source_table(
+        self, mock_hook, source_project_dataset_table
+    ):
+        real_job_id = "123456_hash"
+
+        mock_hook.return_value.insert_job.return_value = MagicMock(job_id=real_job_id, error_result=False)
+        mock_hook.return_value.project_id = PROJECT_ID
+        # Parse the table name for real, the BigQuery client only understands the dotted form.
+        mock_hook.return_value.split_tablename.side_effect = functools.partial(
+            BigQueryHook.split_tablename, mock_hook.return_value
+        )
+        mock_hook.return_value.get_client.return_value.get_table.return_value = TEST_TABLE
+
+        operator = BigQueryToGCSOperator(
+            project_id=JOB_PROJECT_ID,
+            task_id=TASK_ID,
+            source_project_dataset_table=source_project_dataset_table,
+            destination_cloud_storage_uris=["gs://bucket/file"],
+        )
+        operator.execute(context=mock.MagicMock())
+
+        lineage = operator.get_openlineage_facets_on_complete(None)
+        mock_hook.return_value.get_client.return_value.get_table.assert_called_once_with(
+            TableReference(DatasetReference(PROJECT_ID, TEST_DATASET), TEST_TABLE_ID)
+        )
+        assert lineage.inputs[0].name == f"{PROJECT_ID}.{TEST_DATASET}.{TEST_TABLE_ID}"
+        assert lineage.run_facets == {
+            "externalQuery": ExternalQueryRunFacet(externalQueryId=real_job_id, source="bigquery")
+        }
 
     @mock.patch("airflow.providers.google.cloud.transfers.bigquery_to_gcs.BigQueryHook")
     def test_get_openlineage_facets_on_complete_bq_dataset_empty_table(self, mock_hook):
