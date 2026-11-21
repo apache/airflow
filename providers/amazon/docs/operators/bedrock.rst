@@ -220,7 +220,9 @@ Create an Amazon Bedrock Knowledge Base
 To create an Amazon Bedrock Knowledge Base, you can use
 :class:`~airflow.providers.amazon.aws.operators.bedrock.BedrockCreateKnowledgeBaseOperator`.
 
-For more information on which models support embedding data into a vector store, see
+By default, the operator creates a vector knowledge base backed by a self-managed vector store,
+configured with ``embedding_model_arn`` and ``storage_config``. For more information on which
+models support embedding data into a vector store, see
 https://docs.aws.amazon.com/bedrock/latest/userguide/knowledge-base-supported.html
 
 .. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_bedrock_retrieve_and_generate.py
@@ -228,6 +230,30 @@ https://docs.aws.amazon.com/bedrock/latest/userguide/knowledge-base-supported.ht
     :dedent: 4
     :start-after: [START howto_operator_bedrock_create_knowledge_base]
     :end-before: [END howto_operator_bedrock_create_knowledge_base]
+
+
+Other types of knowledge bases can be created by passing the ``knowledgeBaseConfiguration`` of
+the API through ``knowledge_base_config``. For the expected structure of each type, see
+https://docs.aws.amazon.com/boto3/latest/reference/services/bedrock-agent/client/create_knowledge_base.html
+
+For example, a managed knowledge base, where Amazon Bedrock owns the vector store, the ingestion
+pipeline and the retrieval infrastructure, needs neither ``embedding_model_arn`` nor
+``storage_config``:
+
+.. code-block:: python
+
+    create_managed_knowledge_base = BedrockCreateKnowledgeBaseOperator(
+        task_id="create_managed_knowledge_base",
+        name="my-managed-knowledge-base",
+        role_arn=role_arn,
+        knowledge_base_config={
+            "type": "MANAGED",
+            "managedKnowledgeBaseConfiguration": {"embeddingModelType": "MANAGED"},
+        },
+    )
+
+For more information on managed knowledge bases, see
+https://docs.aws.amazon.com/bedrock/latest/userguide/kb-build-managed.html
 
 .. _howto/operator:BedrockDeleteKnowledgeBase:
 
