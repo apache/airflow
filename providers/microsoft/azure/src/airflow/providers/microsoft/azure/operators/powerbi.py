@@ -87,6 +87,9 @@ class PowerBIDatasetRefreshOperator(ResumableJobMixin, BaseOperator):
         refresh status.
     :param request_body: Additional arguments to pass to the request body, as described in https://learn.microsoft.com/en-us/rest/api/power-bi/datasets/refresh-dataset-in-group#request-body.
     :param wait_for_completion: If True, wait for the dataset refresh to complete. If False, trigger the refresh and return immediately without waiting.
+    :param wait_for_current_refresh: If True, wait for a refresh that is already in progress on the
+        dataset, such as one started manually in Power BI, to finish before starting a new one. The
+        wait counts towards ``timeout``. Default is False.
     :param deferrable: This parameter is deprecated and no longer has any effect. The operator now always
         uses deferrable execution.
     :param durable: Start the refresh from the worker and reconnect to it on a retry instead of starting
@@ -118,6 +121,7 @@ class PowerBIDatasetRefreshOperator(ResumableJobMixin, BaseOperator):
         check_interval: int = 60,
         request_body: dict[str, Any] | None = None,
         wait_for_completion: bool = True,
+        wait_for_current_refresh: bool = False,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         durable: bool | None = None,
         **kwargs,
@@ -133,6 +137,7 @@ class PowerBIDatasetRefreshOperator(ResumableJobMixin, BaseOperator):
         self.dataset_id = dataset_id
         self.group_id = group_id
         self.wait_for_completion = wait_for_completion
+        self.wait_for_current_refresh = wait_for_current_refresh
         self.conn_id = conn_id
         self.timeout = timeout
         self.check_interval = check_interval
@@ -151,6 +156,8 @@ class PowerBIDatasetRefreshOperator(ResumableJobMixin, BaseOperator):
         if not self.durable:
             # As in earlier versions of this provider: the trigger starts the refresh, so only the
             # triggerer talks to Power BI, and every try starts a new refresh.
+            if self.wait_for_current_refresh:
+                self._wait_for_current_refresh()
             self.defer(
                 trigger=PowerBITrigger(
                     conn_id=self.conn_id,
@@ -168,6 +175,8 @@ class PowerBIDatasetRefreshOperator(ResumableJobMixin, BaseOperator):
         return self.execute_resumable(context)
 
     def submit_job(self, context: Context) -> str:
+        if self.wait_for_current_refresh:
+            self._wait_for_current_refresh()
         dataset_refresh_id = self.hook.run_sync(
             self.hook.trigger_dataset_refresh(
                 dataset_id=self.dataset_id,
@@ -179,6 +188,44 @@ class PowerBIDatasetRefreshOperator(ResumableJobMixin, BaseOperator):
             raise PowerBIDatasetRefreshException("Failed to trigger the dataset refresh.")
         self.log.info("Triggered dataset refresh %s", dataset_refresh_id)
         return dataset_refresh_id
+
+    def _wait_for_current_refresh(self) -> None:
+        """Defer until a refresh that is already in progress finishes, if there is one."""
+        current_refresh_id = self._get_current_refresh_id()
+        if current_refresh_id is None:
+            return
+        self.log.info(
+            "Dataset refresh %s is already in progress, waiting for it to finish before starting a new one",
+            current_refresh_id,
+        )
+        self.defer(
+            trigger=PowerBITrigger(
+                conn_id=self.conn_id,
+                group_id=self.group_id,
+                dataset_id=self.dataset_id,
+                dataset_refresh_id=current_refresh_id,
+                timeout=self.timeout,
+                proxies=self.proxies,
+                api_version=self.api_version,
+                check_interval=self.check_interval,
+                wait_for_termination=True,
+                # This refresh was not started by the task, so polling must not cancel it.
+                cancel_on_error=False,
+            ),
+            method_name=self.handle_current_refresh_finished.__name__,
+        )
+
+    def _get_current_refresh_id(self) -> str | None:
+        refresh_histories = self.hook.run_sync(
+            self.hook.get_refresh_history(dataset_id=self.dataset_id, group_id=self.group_id)
+        )
+        for refresh_details in refresh_histories:
+            if (
+                refresh_details[PowerBIDatasetRefreshFields.STATUS.value]
+                == PowerBIDatasetRefreshStatus.IN_PROGRESS
+            ):
+                return refresh_details[PowerBIDatasetRefreshFields.REQUEST_ID.value]
+        return None
 
     def get_job_status(self, external_id: JsonValue, context: Context) -> str:
         refresh_histories = self.hook.run_sync(
@@ -291,6 +338,35 @@ class PowerBIDatasetRefreshOperator(ResumableJobMixin, BaseOperator):
             ),
             method_name=self.execute_complete.__name__,
         )
+
+    def handle_current_refresh_finished(self, context: Context, event: dict[str, str] | None) -> None:
+        """
+        Resume after the refresh that was already in progress reached a terminal state.
+
+        :param context: Airflow context dictionary
+        :param event: Event dict from trigger with status and dataset_refresh_status
+        """
+        if not event:
+            raise PowerBIDatasetRefreshException(
+                "No event received while waiting for the dataset refresh that was already in progress."
+            )
+
+        dataset_refresh_status = event.get("dataset_refresh_status")
+        if (
+            event["status"] == "error"
+            and dataset_refresh_status not in PowerBIDatasetRefreshStatus.FAILURE_STATUSES
+        ):
+            # The wait timed out or polling failed, so that refresh may still be running.
+            raise PowerBIDatasetRefreshException(event["message"])
+
+        # The refresh may have failed, but it is over, which is all this task needs before it can
+        # start its own.
+        self.log.info(
+            "Dataset refresh %s finished with status %s, starting a new refresh",
+            event.get("dataset_refresh_id"),
+            dataset_refresh_status,
+        )
+        self.execute(context)
 
     def execute_complete(self, context: Context, event: dict[str, str]) -> None:
         """
