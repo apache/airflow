@@ -52,8 +52,7 @@ func TestCapitalizationsMatchTheGenerateDirective(t *testing.T) {
 	assert.Equal(t, capitalizations, flags)
 }
 
-func TestEmitFieldsWritesTheKeyAndDefaultOfEachField(t *testing.T) {
-	// readSchema decodes a number as a json.Number, which a plain Unmarshal does not.
+func TestEmitFieldsWritesTheKeyOfEachField(t *testing.T) {
 	raw := `{"definitions": {"operator": {"title": "TaskSpec", "properties": {
 		"retry_delay": {"default": 300.0},
 		"retries": {"default": 0},
@@ -74,10 +73,10 @@ func TestEmitFieldsWritesTheKeyAndDefaultOfEachField(t *testing.T) {
 	assert.Contains(t, got, "var taskSpecFields = map[string]schemaField{")
 	for _, entry := range []string{
 		`"DocMD":`, `{key: "doc_md"}`,
-		`{key: "retry_delay", schemaDefault: 300.0}`,
-		`{key: "retries", schemaDefault: 0}`,
-		`{key: "do_xcom_push", schemaDefault: true}`,
-		`{key: "owner", schemaDefault: "airflow"}`,
+		`{key: "retry_delay"}`,
+		`{key: "retries"}`,
+		`{key: "do_xcom_push"}`,
+		`{key: "owner"}`,
 		`{key: "queue"}`,
 	} {
 		assert.Contains(t, got, entry)
@@ -94,10 +93,6 @@ func TestEmitFieldsRejects(t *testing.T) {
 		"two properties with one field name": {
 			`{"definitions": {"dag": {"title": "DagSpec", "properties": {"doc_md": {}, "doc-md": {}}}}}`,
 			"both become the field DocMD",
-		},
-		"a default that is not a scalar": {
-			`{"definitions": {"dag": {"title": "DagSpec", "properties": {"tags": {"default": []}}}}}`,
-			"the table cannot hold",
 		},
 	} {
 		t.Run(name, func(t *testing.T) {
@@ -122,5 +117,5 @@ func TestEmitFieldsReadsTheShapedCoreSchema(t *testing.T) {
 		assert.Contains(t, got, "var "+table+" = ")
 	}
 	assert.Contains(t, got, `"RetryDelay"`)
-	assert.Contains(t, got, "schemaDefault: 300.0")
+	assert.Contains(t, got, `{key: "retry_delay"}`)
 }

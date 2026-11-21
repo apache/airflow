@@ -24,7 +24,6 @@ import (
 	"fmt"
 	"go/format"
 	"slices"
-	"strconv"
 	"strings"
 	"unicode"
 )
@@ -60,14 +59,10 @@ func capitalize(part string) string {
 // fieldEntry is one property of a spec definition, as the generated table holds it.
 type fieldEntry struct {
 	name, key string
-	// schemaDefault is the Go literal of the default of the property, or empty when the
-	// schema declares none.
-	schemaDefault string
 }
 
-// emitFields returns the Go source of the tables of schema defaults, one for each
-// definition of doc. doc is the schema that shapeForAuthoring and normalize wrote, so each
-// definition has the title of its struct and holds the properties that become its fields.
+// emitFields returns a Go table mapping each spec field to its serialized key. The schema
+// has already been shaped for authoring and normalized before this function is called.
 // A table is keyed by the name of the struct field, as go-jsonschema writes it.
 func emitFields(doc map[string]any) ([]byte, error) {
 	definitions, ok := doc["definitions"].(map[string]any)
@@ -91,17 +86,13 @@ func emitFields(doc map[string]any) ([]byte, error) {
 		}
 		fmt.Fprintf(
 			&body,
-			"\n// %s holds the key and the schema default of each field of %s.\nvar %s = map[string]schemaField{\n",
+			"\n// %s maps each field of %s to its serialized key.\nvar %s = map[string]schemaField{\n",
 			tableName(title),
 			title,
 			tableName(title),
 		)
 		for _, field := range fields {
-			fmt.Fprintf(&body, "\t%q: {key: %q", field.name, field.key)
-			if field.schemaDefault != "" {
-				fmt.Fprintf(&body, ", schemaDefault: %s", field.schemaDefault)
-			}
-			body.WriteString("},\n")
+			fmt.Fprintf(&body, "\t%q: {key: %q},\n", field.name, field.key)
 		}
 		body.WriteString("}\n")
 	}
@@ -125,45 +116,8 @@ func getFieldEntries(definition string, properties map[string]any) ([]fieldEntry
 			)
 		}
 		byName[name] = key
-		node, _ := properties[key].(map[string]any)
-		literal, err := defaultLiteral(node["default"])
-		if err != nil {
-			return nil, fmt.Errorf("definitions/%s/properties/%s: %w", definition, key, err)
-		}
-		fields = append(fields, fieldEntry{name: name, key: key, schemaDefault: literal})
+		fields = append(fields, fieldEntry{name: name, key: key})
 	}
 	slices.SortFunc(fields, func(a, b fieldEntry) int { return cmp.Compare(a.name, b.name) })
 	return fields, nil
-}
-
-// defaultLiteral returns the Go literal of a schema default. A number that the schema
-// writes with a fraction or an exponent stays a float64, such as retry_delay's 300.0, and
-// any other number is an int, because readSchema decodes a number as a json.Number. A null
-// default says the property has none, as an absent one does.
-func defaultLiteral(value any) (string, error) {
-	switch value := value.(type) {
-	case nil:
-		return "", nil
-	case bool:
-		return strconv.FormatBool(value), nil
-	case string:
-		return strconv.Quote(value), nil
-	case json.Number:
-		if strings.ContainsAny(value.String(), ".eE") {
-			number, err := value.Float64()
-			if err != nil {
-				return "", err
-			}
-			literal := strconv.FormatFloat(number, 'f', -1, 64)
-			if !strings.Contains(literal, ".") {
-				literal += ".0"
-			}
-			return literal, nil
-		}
-		if _, err := value.Int64(); err != nil {
-			return "", err
-		}
-		return value.String(), nil
-	}
-	return "", fmt.Errorf("the default %v is a %T, which the table cannot hold", value, value)
 }

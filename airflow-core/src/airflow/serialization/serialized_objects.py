@@ -2153,12 +2153,12 @@ class DagSerialization(BaseSerialization):
     @classmethod
     def fill_config_defaults(cls, serialized_obj: dict[str, Any]) -> None:
         """
-        Fill in the Dag settings a serialized Dag leaves unset from the Airflow config, as a Python Dag does.
+        Fill in config-backed defaults omitted by a Lang-SDK Dag.
 
-        A Lang-SDK runtime cannot read the Airflow config, so it leaves ``max_active_tasks``,
-        ``max_active_runs``, ``max_consecutive_failed_dag_runs``, ``catchup``,
-        ``disable_bundle_versioning`` and the tasks' default ``execution_timeout`` out unless the Dag
-        sets them. A value the Dag sets is kept. *serialized_obj* is changed in place.
+        Language SDKs cannot read Airflow's config, so core fills missing Dag settings and
+        adds task defaults to ``client_defaults.tasks``. Values already supplied by the
+        payload take precedence.
+        *serialized_obj* is changed in place.
         """
         dag = serialized_obj.get("dag")
         if not isinstance(dag, dict):
@@ -2178,10 +2178,15 @@ class DagSerialization(BaseSerialization):
         ):
             if key not in dag:
                 dag[key] = get(section, option)
-        if (execution_timeout := conf.gettimedelta("core", "default_task_execution_timeout")) is not None:
-            task_defaults = serialized_obj.setdefault("client_defaults", {}).setdefault("tasks", {})
-            task_defaults.setdefault("execution_timeout", execution_timeout.total_seconds())
+        task_defaults = OperatorSerialization.generate_client_defaults().copy()
+        if (execution_timeout := conf.gettimedelta("core", "default_task_execution_timeout")) is None:
+            task_defaults.pop("execution_timeout", None)
+        else:
+            task_defaults["execution_timeout"] = execution_timeout.total_seconds()
 
+        client_defaults = serialized_obj.setdefault("client_defaults", {}).setdefault("tasks", {})
+        for key, value in task_defaults.items():
+            client_defaults.setdefault(key, value)
     @classmethod
     def validate_serialized_dag(cls, serialized_obj: dict[str, Any]) -> SerializedDAG:
         """

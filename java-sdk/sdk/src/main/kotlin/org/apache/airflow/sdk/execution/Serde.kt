@@ -19,7 +19,6 @@
 
 package org.apache.airflow.sdk.execution
 
-import com.fasterxml.jackson.databind.ObjectMapper
 import org.apache.airflow.sdk.Bundle
 import org.apache.airflow.sdk.DagDef
 import org.apache.airflow.sdk.EdgeLabel
@@ -32,8 +31,6 @@ import org.apache.airflow.sdk.TaskGroupRef
 import org.apache.airflow.sdk.TaskRef
 import org.apache.airflow.sdk.TriggerDagRun
 import org.apache.airflow.sdk.execution.comm.DagFileParseRequest
-import org.apache.airflow.sdk.internal.Field
-import org.apache.airflow.sdk.internal.SchemaFields
 import java.nio.file.InvalidPathException
 import java.nio.file.Paths
 import java.time.Duration
@@ -43,8 +40,6 @@ import java.time.OffsetDateTime
 // Serializes Dags to Airflow DagSerialization v3 JSON, mirroring the TypeScript
 // SDK's serde (ts-sdk/src/coordinator/serde.ts), which in turn matches Python's
 // DagSerialization output.
-
-private val defaultsMapper = ObjectMapper()
 
 // Python drops both unless the operator names an email recipient. A Java task
 // has no email field to name one, so they are never written.
@@ -157,14 +152,13 @@ private fun serializeTask(
   // The worker picks a runtime by queue, so a trigger task takes the Dag's queue too.
   val config =
     if (dagQueue == null || "queue" in def.configValues) def.configValues else def.configValues + ("queue" to dagQueue)
-  // Emit only config entries that differ from their schema default, mirroring
-  // Python BaseSerialization's "omit hard-coded default" behavior, which the Go
-  // and TypeScript SDKs mirror too. Operator fields are stored unwrapped, so the
-  // __type encoding is stripped. If core grows a task-level fill_config_defaults,
-  // every SDK has to keep explicitly set values instead, or an explicit retries=0
-  // reads as unset and picks up the configured default.
+  // Preserve every task config entry explicitly set by the Dag author, even
+  // when it equals the schema default. Core fills omitted config-backed fields
+  // from its own config; dropping an explicit default here would let that fill
+  // override the author's value. Operator fields are stored unwrapped, so strip
+  // the __type encoding.
   config.forEach { (key, value) ->
-    if (key !in OMITTED_TASK_KEYS && !matchesSchemaDefault(SchemaFields.TASK[key], value)) {
+    if (key !in OMITTED_TASK_KEYS) {
       data[key] = unwrapTypeEncoding(serializeValue(value))
     }
   }
@@ -604,22 +598,6 @@ internal fun unwrapTypeEncoding(value: Any?): Any? {
   val map = value as? Map<*, *> ?: return value
   if ("__type" !in map) return value
   return if ("__var" in map) map["__var"] else value
-}
-
-/** Whether a config value equals the schema default and can be omitted. */
-private fun matchesSchemaDefault(
-  field: Field?,
-  value: Any,
-): Boolean {
-  val defaultJson = field?.defaultJson ?: return false
-  val node = defaultsMapper.readTree(defaultJson)
-  return when (value) {
-    is String -> node.isTextual && node.asText() == value
-    is Boolean -> node.isBoolean && node.asBoolean() == value
-    is Number -> node.isNumber && node.asDouble() == value.toDouble()
-    is Duration -> node.isNumber && node.asDouble() == value.toNanos() / 1e9
-    else -> false
-  }
 }
 
 private fun computeRelativeFileloc(
