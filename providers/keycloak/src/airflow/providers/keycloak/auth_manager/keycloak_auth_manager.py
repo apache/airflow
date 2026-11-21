@@ -62,6 +62,7 @@ from airflow.providers.common.compat.sdk import AirflowException, conf
 from airflow.providers.keycloak.auth_manager.cache import single_flight
 from airflow.providers.keycloak.auth_manager.constants import (
     CONF_CLI_AUTHORIZATION_CODE_ENABLED_KEY,
+    CONF_CLI_DEVICE_CODE_ENABLED_KEY,
     CONF_CLIENT_ID_KEY,
     CONF_CLIENT_SECRET_KEY,
     CONF_REALM_KEY,
@@ -70,6 +71,7 @@ from airflow.providers.keycloak.auth_manager.constants import (
     CONF_SECTION_NAME,
     CONF_SERVER_URL_KEY,
     CONF_TEAM_LEVEL_AUTHORIZATION_KEY,
+    DEVICE_CODE_GRANT_TYPE,
 )
 from airflow.providers.keycloak.auth_manager.resources import KeycloakResource
 from airflow.providers.keycloak.auth_manager.user import KeycloakAuthManagerUser
@@ -120,6 +122,10 @@ TEAM_SCOPED_RESOURCES = frozenset(
 
 def is_cli_authorization_code_enabled() -> bool:
     return conf.getboolean(CONF_SECTION_NAME, CONF_CLI_AUTHORIZATION_CODE_ENABLED_KEY, fallback=False)
+
+
+def is_cli_device_code_enabled() -> bool:
+    return conf.getboolean(CONF_SECTION_NAME, CONF_CLI_DEVICE_CODE_ENABLED_KEY, fallback=False)
 
 
 class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
@@ -242,16 +248,17 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
 
     def get_cli_login_methods(self) -> CliLoginMethods:
         token_endpoint = f"{AUTH_MANAGER_FASTAPI_APP_PREFIX}/token/cli"
-        if not is_cli_authorization_code_enabled():
-            return CliLoginMethods(
-                grant_types_supported=["password", "refresh_token"], token_endpoint=token_endpoint
-            )
-        return CliLoginMethods(
-            grant_types_supported=["password", "refresh_token", "authorization_code"],
-            code_challenge_methods_supported=["S256"],
-            authorization_endpoint=f"{AUTH_MANAGER_FASTAPI_APP_PREFIX}/login/cli",
-            token_endpoint=token_endpoint,
+        methods = CliLoginMethods(
+            grant_types_supported=["password", "refresh_token"], token_endpoint=token_endpoint
         )
+        if is_cli_authorization_code_enabled():
+            methods.grant_types_supported.append("authorization_code")
+            methods.code_challenge_methods_supported = ["S256"]
+            methods.authorization_endpoint = f"{AUTH_MANAGER_FASTAPI_APP_PREFIX}/login/cli"
+        if is_cli_device_code_enabled():
+            methods.grant_types_supported.append(DEVICE_CODE_GRANT_TYPE)
+            methods.device_authorization_endpoint = f"{token_endpoint}/device"
+        return methods
 
     def refresh_user(self, *, user: KeycloakAuthManagerUser | None) -> KeycloakAuthManagerUser | None:
         # According to RFC6749 section 4.4.3, a refresh token should not be included when using
