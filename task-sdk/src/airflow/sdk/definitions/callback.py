@@ -132,14 +132,19 @@ class Callback(ABC):
         return self.serialize() == other.serialize()
 
     def __hash__(self):
-        serialized = self.serialize()
-        hashable_items = []
-        for k, v in serialized.items():
-            if isinstance(v, dict):
-                hashable_items.append((k, tuple(sorted(v.items()))))
-            else:
-                hashable_items.append((k, v))
-        return hash(tuple(sorted(hashable_items)))
+        # ``kwargs`` may hold nested dicts/lists, so freeze them recursively. Hashing the frozen
+        # values (not a JSON dump) keeps values that ``__eq__`` treats as equal, like 30 and 30.0,
+        # on the same hash.
+        def freeze(value):
+            if isinstance(value, dict):
+                return frozenset((k, freeze(v)) for k, v in value.items())
+            if isinstance(value, (list, tuple)):
+                return tuple(freeze(v) for v in value)
+            if isinstance(value, (set, frozenset)):
+                return frozenset(freeze(v) for v in value)
+            return value
+
+        return hash(freeze(self.serialize()))
 
 
 class AsyncCallback(Callback):
