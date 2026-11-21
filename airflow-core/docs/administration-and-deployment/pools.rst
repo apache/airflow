@@ -41,7 +41,7 @@ Tasks can then be associated with one of the existing pools by using the ``pool`
 Tasks will be scheduled as usual while the slots fill up. The number of slots occupied by a task can be configured by
 ``pool_slots`` (see section below). Once capacity is reached, runnable tasks stay in the ``scheduled`` state.
 As slots free up, they get queued based on the :ref:`concepts:priority-weight` of the task and its
-descendants. Tasks resuming after being deferred go first.
+descendants.
 
 A pool with ``-1`` slots is unlimited, and a pool with ``0`` slots keeps its tasks in the ``scheduled`` state.
 

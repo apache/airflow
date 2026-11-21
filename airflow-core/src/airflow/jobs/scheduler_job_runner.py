@@ -1123,7 +1123,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         """
         dr_task_concurrency_subquery = _get_current_dr_task_concurrency(states=EXECUTION_STATES)
         # Tasks resuming on a worker (next_method set: after a trigger fired, failed or timed out, or after
-        # human input) go first, whatever their priority_weight: finishing them frees their slots sooner.
+        # human input) go first, whatever their priority_weight.
         is_not_resumed = TI.next_method.is_(None)
 
         query = (
