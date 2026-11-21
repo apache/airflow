@@ -98,3 +98,13 @@ def test_lazy_imports_match_public_api():
     extra = actual - expected - ignore
     assert not missing, f"__lazy_imports missing entries for: {sorted(missing)}"
     assert not extra, f"__lazy_imports has unexpected entries: {sorted(extra)}"
+
+
+def test_airflow_sdk_dir_lists_lazy_imports():
+    """
+    Ensure that dir() exposes the lazy imports so REPLs, IDEs and tooling can discover the public API.
+    """
+    sdk = importlib.import_module("airflow.sdk")
+    lazy = getattr(sdk, "__lazy_imports", {})
+    missing = set(lazy) - set(dir(sdk))
+    assert not missing, f"lazy imports missing from dir(): {sorted(missing)}"
