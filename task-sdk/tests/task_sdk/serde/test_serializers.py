@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import datetime
 import decimal
+import json
 import uuid
 from importlib import metadata
 from typing import ClassVar
@@ -187,6 +188,35 @@ class TestSerializers:
     )
     def test_encode_decimal(self, expr, expected):
         assert deserialize(serialize(decimal.Decimal(expr))) == decimal.Decimal(expected)
+
+    @pytest.mark.parametrize(
+        "expr",
+        [
+            "1234567890.123456789012345678",
+            "0.30000000000000000001",
+            "-98765432109876543210.5",
+            "1.10",
+            "1E-30",
+        ],
+    )
+    def test_encode_decimal_keeps_exact_value(self, expr):
+        value = decimal.Decimal(expr)
+        result = deserialize(serialize(value))
+        assert isinstance(result, decimal.Decimal)
+        assert result.as_tuple() == value.as_tuple()
+
+    @pytest.mark.parametrize("expr", ["NaN", "Infinity", "-Infinity"])
+    def test_encode_decimal_special_values(self, expr):
+        value = decimal.Decimal(expr)
+        encoded = serialize(value)
+        # The payload has to stay valid JSON, so no float NaN or Infinity.
+        json.loads(json.dumps(encoded, allow_nan=False))
+        assert deserialize(encoded).as_tuple() == value.as_tuple()
+
+    def test_decode_decimal_float_payload(self):
+        """Payloads written before decimals were stored as strings still deserialize."""
+        encoded = {CLASSNAME: "decimal.Decimal", VERSION: 1, DATA: 12.34}
+        assert deserialize(encoded) == decimal.Decimal("12.34")
 
     def test_encode_k8s_v1pod(self):
         pod = k8s.V1Pod(
