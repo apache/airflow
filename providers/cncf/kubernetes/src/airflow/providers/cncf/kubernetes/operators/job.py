@@ -40,7 +40,7 @@ from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
     create_unique_id,
 )
 from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
-from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator, merge_objects
+from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator, _coerce_str_fields, merge_objects
 from airflow.providers.cncf.kubernetes.triggers.job import KubernetesJobTrigger
 from airflow.providers.cncf.kubernetes.utils.pod_manager import EMPTY_XCOM_RESULT, OnKillAction
 from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_1_PLUS
@@ -384,7 +384,7 @@ class KubernetesJobOperator(KubernetesPodOperator):
             log.warning("Template file %s does not exist", path)
 
         api_client = ApiClient(configuration=Configuration())
-        return api_client._ApiClient__deserialize_model(job, k8s.V1Job)
+        return api_client._ApiClient__deserialize_model(_coerce_str_fields(job or {}, "V1Job"), k8s.V1Job)
 
     def on_kill(self) -> None:
         self._killed = True

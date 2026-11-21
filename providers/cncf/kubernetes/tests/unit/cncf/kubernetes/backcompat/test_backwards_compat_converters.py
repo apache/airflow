@@ -20,7 +20,7 @@ import pickle
 from unittest.mock import Mock, patch
 
 import pytest
-from kubernetes.client import Configuration, models as k8s
+from kubernetes.client import ApiClient, Configuration, models as k8s
 
 from airflow.providers.cncf.kubernetes.backcompat.backwards_compat_converters import (
     _convert_from_dict,
@@ -121,9 +121,40 @@ def test_convert_from_dict_is_picklable_in_cluster(monkeypatch):
     result = _convert_from_dict({"name": "vol", "emptyDir": {}}, k8s.V1Volume)
 
     assert isinstance(result, k8s.V1Volume)
-    pickle.dumps(result)
-    assert result.local_vars_configuration.refresh_api_key_hook is None
-    assert result.empty_dir.local_vars_configuration.refresh_api_key_hook is None
+    assert pickle.loads(pickle.dumps(result)) == result
+
+
+@pytest.mark.parametrize(
+    ("convert", "value", "get_actual", "expected"),
+    [
+        pytest.param(
+            convert_affinity,
+            {
+                "nodeAffinity": {
+                    "requiredDuringSchedulingIgnoredDuringExecution": {
+                        "nodeSelectorTerms": [
+                            {"matchExpressions": [{"key": "k", "operator": "In", "values": [1, 2]}]}
+                        ]
+                    }
+                }
+            },
+            lambda affinity: ApiClient().sanitize_for_serialization(affinity)["nodeAffinity"][
+                "requiredDuringSchedulingIgnoredDuringExecution"
+            ]["nodeSelectorTerms"][0]["matchExpressions"][0]["values"],
+            ["1", "2"],
+            id="affinity-values-int",
+        ),
+        pytest.param(
+            convert_toleration,
+            {"key": "k", "operator": "Equal", "value": 1},
+            lambda toleration: toleration.value,
+            "1",
+            id="toleration-value-int",
+        ),
+    ],
+)
+def test_convert_from_dict_converts_scalars_to_declared_strings(convert, value, get_actual, expected):
+    assert get_actual(convert(value)) == expected
 
 
 # testcase of convert_volume() function

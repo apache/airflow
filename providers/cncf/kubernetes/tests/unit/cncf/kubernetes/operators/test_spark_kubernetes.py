@@ -30,7 +30,7 @@ import pendulum
 import pytest
 import pytest_asyncio
 import yaml
-from kubernetes.client import models as k8s
+from kubernetes.client import CustomObjectsApi, models as k8s
 
 from airflow import DAG
 from airflow.models import Connection, DagRun, TaskInstance
@@ -256,6 +256,14 @@ def create_context(task):
     }
 
 
+def set_created_spark_object():
+    """Make the patched ``create_namespaced_custom_object`` return a real dict for the launcher to read."""
+    CustomObjectsApi.create_namespaced_custom_object.return_value = {
+        "metadata": {"name": "spark-job"},
+        "spec": {"driver": {"labels": {}}},
+    }
+
+
 @patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.fetch_requested_container_logs")
 @patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.await_pod_completion")
 @patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.create_pod")
@@ -298,6 +306,7 @@ class TestSparkKubernetesOperatorCreateApplication:
             reattach_on_restart=False,  # Disable reattach for application creation tests
         )
         context = create_context(op)
+        set_created_spark_object()
         op.execute(context)
         return op
 
@@ -566,6 +575,7 @@ class TestSparkKubernetesOperator:
             reattach_on_restart=False,  # Disable reattach for basic tests
         )
         context = create_context(op)
+        set_created_spark_object()
         op.execute(context)
         return op
 
@@ -838,6 +848,7 @@ class TestSparkKubernetesOperator:
             get_logs=True,
         )
         context = create_context(op)
+        set_created_spark_object()
         op.execute(context)
         label_selector = op._build_find_pod_label_selector(context) + ",spark-role=driver"
         op.find_spark_job(context)
@@ -875,6 +886,7 @@ class TestSparkKubernetesOperator:
             reattach_on_restart=True,
         )
         context = create_context(op)
+        set_created_spark_object()
         op.execute(context)
 
         task_context_labels = op._get_ti_pod_labels(context)
@@ -1232,6 +1244,7 @@ class TestSparkKubernetesOperator:
         context = create_context(op)
         mock_execute_async = mocker.patch.object(op, "execute_async")
 
+        set_created_spark_object()
         result = op.execute(context)
 
         mock_execute_async.assert_called_once_with(context)
@@ -1263,6 +1276,7 @@ class TestSparkKubernetesOperator:
         )
         context = create_context(op)
 
+        set_created_spark_object()
         op.execute(context)
 
         mock_parent_execute.assert_called_once_with(context)
@@ -1301,6 +1315,7 @@ class TestSparkKubernetesOperator:
         # data to any module first imported during execute(), such as the metrics registry.
         mocker.patch("airflow.providers.cncf.kubernetes.operators.pod.open", mock_file, create=True)
 
+        set_created_spark_object()
         with pytest.raises(TaskDeferred) as exc:
             op.execute(context)
 

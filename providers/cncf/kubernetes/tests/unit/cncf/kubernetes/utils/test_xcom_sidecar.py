@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 import pytest
-from kubernetes.client import models as k8s
+from kubernetes.client import ApiClient, models as k8s
 
 from airflow.providers.cncf.kubernetes.utils.xcom_sidecar import PodDefaults, add_xcom_sidecar
 
@@ -53,7 +53,29 @@ def _sidecar_of(pod: k8s.V1Pod) -> k8s.V1Container:
 )
 def test_add_xcom_sidecar_sets_security_context(security_context):
     pod = add_xcom_sidecar(_base_pod(), sidecar_container_security_context=security_context)
-    assert _sidecar_of(pod).security_context == security_context
+    sanitize = ApiClient().sanitize_for_serialization
+    assert sanitize(_sidecar_of(pod).security_context) == sanitize(security_context)
+
+
+@pytest.mark.parametrize(
+    "resources",
+    [
+        pytest.param(
+            {"limits": {"cpu": 1, "memory": "64Mi"}, "requests": {"cpu": 0.5}},
+            id="numeric-dict",
+        ),
+        pytest.param(
+            k8s.V1ResourceRequirements(limits={"cpu": "1", "memory": "64Mi"}, requests={"cpu": "0.5"}),
+            id="model",
+        ),
+    ],
+)
+def test_add_xcom_sidecar_sets_resources_as_strings(resources):
+    pod = add_xcom_sidecar(_base_pod(), sidecar_container_resources=resources)
+    assert ApiClient().sanitize_for_serialization(_sidecar_of(pod).resources) == {
+        "limits": {"cpu": "1", "memory": "64Mi"},
+        "requests": {"cpu": "0.5"},
+    }
 
 
 def test_add_xcom_sidecar_without_security_context():
@@ -63,7 +85,7 @@ def test_add_xcom_sidecar_without_security_context():
 
 def test_add_xcom_sidecar_empty_security_context():
     pod = add_xcom_sidecar(_base_pod(), sidecar_container_security_context={})
-    assert _sidecar_of(pod).security_context == {}
+    assert ApiClient().sanitize_for_serialization(_sidecar_of(pod).security_context) == {}
 
 
 def test_add_xcom_sidecar_does_not_mutate_shared_default():

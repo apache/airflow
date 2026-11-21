@@ -33,7 +33,13 @@ import kubernetes
 import pytest
 import pytest_asyncio
 import yaml
-from kubernetes.client import V1Deployment, V1DeploymentStatus
+from kubernetes.client import (
+    V1Deployment,
+    V1DeploymentSpec,
+    V1DeploymentStatus,
+    V1LabelSelector,
+    V1PodTemplateSpec,
+)
 from kubernetes.client.rest import ApiException
 from kubernetes.config import ConfigException
 from kubernetes_asyncio import client as async_client
@@ -74,18 +80,26 @@ POLL_INTERVAL = 100
 YAML_URL = "https://test-yaml-url.com"
 
 NOT_READY_DEPLOYMENT = V1Deployment(
+    spec=V1DeploymentSpec(
+        selector=V1LabelSelector(),
+        template=V1PodTemplateSpec(),
+    ),
     status=V1DeploymentStatus(
         observed_generation=1,
         ready_replicas=None,
         replicas=None,
         unavailable_replicas=1,
         updated_replicas=None,
-    )
+    ),
 )
 READY_DEPLOYMENT = V1Deployment(
+    spec=V1DeploymentSpec(
+        selector=V1LabelSelector(),
+        template=V1PodTemplateSpec(),
+    ),
     status=V1DeploymentStatus(
         observed_generation=1, ready_replicas=1, replicas=1, unavailable_replicas=None, updated_replicas=1
-    )
+    ),
 )
 DEPLOYMENT_NAME = "test-deployment-name"
 
@@ -710,7 +724,7 @@ class TestKubernetesHook:
         job_actual = hook.get_job_status(job_name=JOB_NAME, namespace=NAMESPACE)
 
         mock_client.read_namespaced_job.assert_called_once_with(
-            name=JOB_NAME, namespace=NAMESPACE, pretty=True
+            name=JOB_NAME, namespace=NAMESPACE, pretty="true"
         )
         assert job_actual == job_expected
 

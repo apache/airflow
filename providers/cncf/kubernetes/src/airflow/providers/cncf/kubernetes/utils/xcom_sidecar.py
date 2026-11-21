@@ -22,6 +22,8 @@ import copy
 
 from kubernetes.client import models as k8s
 
+from airflow.providers.cncf.kubernetes.pod_generator import _coerce_str_fields
+
 # Pinned alpine version for the xcom sidecar default. Pinning (rather than
 # using the implicit `:latest`) makes kubelet's default imagePullPolicy
 # `IfNotPresent` instead of `Always`, so a node that has the image cached
@@ -69,7 +71,7 @@ def add_xcom_sidecar(
     sidecar = copy.deepcopy(PodDefaults.SIDECAR_CONTAINER)
     sidecar.image = sidecar_container_image or PodDefaults.SIDECAR_CONTAINER.image
     if sidecar_container_resources:
-        sidecar.resources = sidecar_container_resources
+        sidecar.resources = _coerce_str_fields(sidecar_container_resources, "V1ResourceRequirements")
     if sidecar_container_security_context is not None:
         sidecar.security_context = sidecar_container_security_context
     pod_cp.spec.containers.append(sidecar)

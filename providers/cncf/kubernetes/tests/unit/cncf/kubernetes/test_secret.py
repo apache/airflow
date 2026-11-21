@@ -160,7 +160,7 @@ class TestSecret:
                         ],
                     },
                 ],
-                "hostNetwork": True,
+                "hostNetwork": False,
                 "imagePullSecrets": [{"name": "pull_secret_a"}, {"name": "pull_secret_b"}],
                 "securityContext": {"fsGroup": 2000, "runAsUser": 1000},
                 "volumes": [
