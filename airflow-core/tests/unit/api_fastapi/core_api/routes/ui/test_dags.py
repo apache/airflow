@@ -41,7 +41,7 @@ from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
-from tests_common.test_utils.asserts import count_queries
+from tests_common.test_utils.asserts import capture_orm_selects, count_queries
 from unit.api_fastapi.core_api.routes.public.test_dags import (
     DAG1_ID,
     DAG2_ID,
@@ -504,6 +504,19 @@ class TestGetDagRuns(TestPublicDagEndpoint):
             "This is subject 0",
             "This is subject 2",
         ]
+
+    def test_pending_actions_load_relationships_in_one_query(self, test_client: TestClient, setup_hitl_data):
+        """Notes and Dag versions of pending actions should be loaded together, not one query per task instance."""
+        # setup_hitl_data creates 3 pending actions
+        with (
+            capture_orm_selects("task_instance_note") as note_queries,
+            capture_orm_selects("dag_version") as version_queries,
+        ):
+            response = test_client.get("/dags", params={"has_pending_actions": True})
+        assert response.status_code == 200
+
+        assert len(note_queries) <= 1, f"Expected 1 note query, got {len(note_queries)}"
+        assert len(version_queries) <= 1, f"Expected 1 dag_version query, got {len(version_queries)}"
 
     def test_should_response_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.get("/dags", params={})
