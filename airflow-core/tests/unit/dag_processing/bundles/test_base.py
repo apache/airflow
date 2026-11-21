@@ -25,6 +25,7 @@ from datetime import timedelta
 from pathlib import Path
 from unittest.mock import call, patch
 
+import pendulum
 import pytest
 import time_machine
 
@@ -255,6 +256,13 @@ class FakeBundle(BaseDagBundle):
     def refresh(self) -> None: ...
 
 
+def parse_like_old_pendulum(val):
+    # pendulum < 3.3 raises a plain ValueError instead of ParserError for an empty string
+    if not val:
+        raise ValueError("year 0 is out of range")
+    return pendulum.parser.parse(val)
+
+
 class TestBundleUsageTrackingManager:
     @pytest.mark.parametrize(
         ("threshold_hours", "min_versions", "when_hours", "expected_remaining"),
@@ -310,6 +318,34 @@ class TestBundleUsageTrackingManager:
                 assert len(lock_files) == expected_remaining
                 bundle_folders = list(b.versions_dir.iterdir())
                 assert len(bundle_folders) == expected_remaining
+
+    @conf_vars(
+        {
+            ("dag_processor", "stale_bundle_cleanup_age_threshold"): "0",
+            ("dag_processor", "stale_bundle_cleanup_min_versions"): "0",
+        }
+    )
+    @patch(
+        "airflow.dag_processing.bundles.base.pendulum.parse",
+        autospec=True,
+        side_effect=parse_like_old_pendulum,
+    )
+    @patch("airflow.dag_processing.bundles.base.get_bundle_tracking_dir")
+    def test_that_empty_tracking_file_is_skipped(self, mock_get_dir, mock_parse, tmp_path):
+        """An empty tracking file (read mid-write) must not stop other stale versions from being removed."""
+        bundle_tracking_dir = tmp_path / "_tracking"
+        bundle_tracking_dir.mkdir()
+        mock_get_dir.return_value = bundle_tracking_dir
+        bundle_name = "abc"
+        for version, content in [("old", "2020-01-01T00:00:00+00:00"), ("new", "")]:
+            FakeBundle(version=version, name=bundle_name).path.mkdir(parents=True)
+            (bundle_tracking_dir / version).write_text(content)
+
+        BundleUsageTrackingManager().remove_stale_bundle_versions_for_bundle(bundle_name=bundle_name)
+
+        assert [f.name for f in bundle_tracking_dir.iterdir()] == ["new"]
+        versions_dir = FakeBundle(version="new", name=bundle_name).versions_dir
+        assert [f.name for f in versions_dir.iterdir()] == ["new"]
 
 
 class TestBundleVersion:
