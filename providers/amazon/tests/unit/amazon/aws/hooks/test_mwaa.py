@@ -205,6 +205,37 @@ class TestMwaaHook:
         assert caught_error.value == error
         mock_error_log.assert_called_once_with(example_responses["failure"]["RestApiResponse"])
 
+    @pytest.mark.parametrize(
+        "error_body",
+        [
+            pytest.param(b"<html><body>502 Bad Gateway</body></html>", id="html_body"),
+            pytest.param(b"", id="empty_body"),
+        ],
+    )
+    @mock.patch.object(MwaaHook, "_get_session_conn")
+    def test_invoke_rest_api_using_local_session_token_failure_non_json_body(
+        self, mock_get_session_conn, error_body
+    ):
+        response = requests.Response()
+        response.status_code = 502
+        response.url = f"https://{HOSTNAME}/api/v1{PATH}"
+        response._content = error_body
+
+        mock_session = mock.MagicMock(spec=requests.Session)
+        mock_session.request.return_value = response
+        mock_get_session_conn.return_value = (mock_session, HOSTNAME, None)
+
+        mock_error_log = mock.MagicMock()
+        self.hook.log.error = mock_error_log
+
+        with pytest.raises(requests.HTTPError) as caught_error:
+            self.hook.invoke_rest_api(
+                env_name=ENV_NAME, path=PATH, method=METHOD, generate_local_token=True, airflow_version=2
+            )
+
+        assert caught_error.value.response.status_code == 502
+        mock_error_log.assert_called_once_with(error_body.decode())
+
     @mock.patch("airflow.providers.amazon.aws.hooks.mwaa.requests.Session")
     def test_get_session_conn_airflow2(self, mock_create_session, mock_conn):
         token = "token"
