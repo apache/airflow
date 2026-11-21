@@ -32,6 +32,7 @@ from airflow.sdk.definitions.dag import DAG
 from airflow.sdk.exceptions import (
     AirflowException,
     AirflowFailException,
+    AirflowNotFoundException,
     AirflowRescheduleException,
     AirflowSensorTimeout,
     AirflowSkipException,
@@ -691,14 +692,16 @@ class TestAsyncSensor:
     @pytest.mark.parametrize(
         ("soft_fail", "expected_exception"),
         [
-            (True, AirflowSkipException),
+            (True, AirflowException),
             (False, AirflowException),
         ],
     )
     def test_fail_after_resuming_deferred_sensor(self, soft_fail, expected_exception):
         async_sensor = DummyAsyncSensor(task_id="dummy_async_sensor", soft_fail=soft_fail)
-        with pytest.raises(expected_exception):
+        with pytest.raises(expected_exception) as exc_info:
             async_sensor.resume_execution("execute_complete", None, {})
+
+        assert type(exc_info.value) is expected_exception
 
     @pytest.mark.parametrize(
         ("soft_fail", "expected_exception"),
@@ -730,14 +733,13 @@ class TestAsyncSensor:
     @pytest.mark.parametrize(
         ("soft_fail", "expected_exception"),
         [
-            (True, AirflowSkipException),
+            (True, TaskDeferralError),
             (False, TaskDeferralError),
         ],
     )
     def test_trigger_failure_after_resuming_deferred_sensor_with_soft_fail(
         self, soft_fail, expected_exception
     ):
-        """Test that deferrable sensors with soft_fail skip on trigger failure instead of failing."""
         async_sensor = DummyAsyncSensor(task_id="dummy_async_sensor", soft_fail=soft_fail)
         with pytest.raises(expected_exception):
             async_sensor.resume_execution(
@@ -755,3 +757,42 @@ class TestAsyncSensor:
                 next_kwargs={"error": TriggerFailureReason.TRIGGER_FAILURE},
                 context={},
             )
+
+    def test_soft_fail_preserves_resource_error_on_resume(self):
+        class MissingResourceSensor(DummyAsyncSensor):
+            def execute_complete(self, context, event=None):
+                raise AirflowNotFoundException("Required resource is missing")
+
+        sensor = MissingResourceSensor(
+            task_id="missing_resource",
+            soft_fail=True,
+        )
+
+        with pytest.raises(
+            AirflowNotFoundException,
+            match="Required resource is missing",
+        ):
+            sensor.resume_execution("execute_complete", None, {})
+
+    @pytest.mark.parametrize(
+        ("soft_fail", "never_fail"),
+        [
+            (True, False),
+            (False, True),
+        ],
+    )
+    def test_failure_flags_skip_task_timeout_on_resume(self, soft_fail, never_fail):
+        class TaskTimeoutSensor(DummyAsyncSensor):
+            def execute_complete(self, context, event=None):
+                raise AirflowTaskTimeout("Task execution time out")
+
+        sensor = TaskTimeoutSensor(
+            task_id="task_timeout",
+            soft_fail=soft_fail,
+            never_fail=never_fail,
+        )
+
+        with pytest.raises(AirflowSkipException) as exc_info:
+            sensor.resume_execution("execute_complete", None, {})
+
+        assert isinstance(exc_info.value.__cause__, AirflowTaskTimeout)
