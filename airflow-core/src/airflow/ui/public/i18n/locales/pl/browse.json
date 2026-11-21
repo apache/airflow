@@ -68,7 +68,7 @@
   },
   "triggers": {
     "columns": {
-      "dagsAffected": "Dotknięte Dagi",
+      "dagsAffected": "Dagi, których dotyczy",
       "failures": "Błędy",
       "kind": "Rodzaj",
       "lastError": "Ostatni błąd",
