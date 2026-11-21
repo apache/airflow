@@ -57,6 +57,17 @@ Furthermore, you can use an external file to execute the SQL commands. Script fo
     :start-after: [START howto_operator_sqlite_external_file]
     :end-before: [END howto_operator_sqlite_external_file]
 
+Interrupting the running statement when the task is killed
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+When the task instance is killed while a statement is still running, because it was marked as failed or its
+``execution_timeout`` elapsed, SQLExecuteQueryOperator interrupts the statement with
+``sqlite3.Connection.interrupt()``, unless ``cancel_on_kill`` is ``False``. ``sqlite3`` does not return to Python
+while a statement runs, so SqliteHook registers a progress handler (``SqliteHook.progress_handler_interval``,
+100,000 SQLite instructions by default) that lets the signal handlers of the task run during statements executed
+in the main thread of the task. While such a statement runs, errors raised in other callbacks registered on the
+connection, such as user-defined functions, are reported through ``sys.unraisablehook``.
+
 Reference
 ^^^^^^^^^
 For further information, look at:
