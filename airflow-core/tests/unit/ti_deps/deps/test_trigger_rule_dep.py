@@ -734,6 +734,40 @@ class TestTriggerRuleDep:
                 expected_reason="requires all upstream tasks to have succeeded, but found 1",
             )
 
+    @pytest.mark.parametrize(
+        ("past_depends_met", "expected_ti_state", "expected_reason"),
+        [
+            pytest.param(None, None, "Task should be skipped but the past depends are not met", id="unmet"),
+            pytest.param(
+                True, SKIPPED, "requires all upstream tasks to have succeeded, but found 1", id="met"
+            ),
+        ],
+    )
+    def test_all_success_tr_skip_waits_when_the_task_asks(
+        self, session, get_task_instance, past_depends_met, expected_ti_state, expected_reason
+    ):
+        """The task's own wait_for_past_depends_before_skipping holds the skip like the context flag does."""
+        ti = get_task_instance(
+            TriggerRule.ALL_SUCCESS,
+            success=1,
+            skipped=1,
+            failed=0,
+            removed=0,
+            upstream_failed=0,
+            done=2,
+            normal_tasks=["FakeTaskID", "OtherFakeTaskID"],
+        )
+        ti.task.wait_for_past_depends_before_skipping = True
+        xcom_mock = Mock(return_value=past_depends_met)
+        with mock.patch("airflow.models.taskinstance.TaskInstance.xcom_pull", xcom_mock):
+            _test_trigger_rule(
+                ti=ti,
+                session=session,
+                flag_upstream_failed=True,
+                expected_ti_state=expected_ti_state,
+                expected_reason=expected_reason,
+            )
+
     @pytest.mark.parametrize("flag_upstream_failed", [True, False])
     def test_none_failed_tr_success(self, session, get_task_instance, flag_upstream_failed):
         """
@@ -2353,6 +2387,38 @@ def test_wait_for_past_depends_before_skipping_reads_stored_value(
             ),
         )
     m.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    ("past_depends_met", "expected_ti_state", "expect_failure"),
+    [pytest.param(None, None, True, id="unmet"), pytest.param(True, SKIPPED, False, id="met")],
+)
+def test_setup_constraint_waits_when_the_task_asks(
+    session, get_task_instance, past_depends_met, expected_ti_state, expect_failure
+):
+    """Setup task with a skipped upstream task: the task's own flag holds the skip like the context flag does."""
+    ti = get_task_instance(
+        trigger_rule=TriggerRule.ALL_DONE,
+        success=1,
+        skipped=1,
+        failed=0,
+        removed=0,
+        upstream_failed=0,
+        done=2,
+        setup_tasks=["FakeTaskID", "OtherFakeTaskID"],
+    )
+    ti.task.wait_for_past_depends_before_skipping = True
+    xcom_mock = Mock(return_value=past_depends_met)
+    with mock.patch("airflow.models.taskinstance.TaskInstance.xcom_pull", xcom_mock):
+        _test_trigger_rule(
+            ti=ti,
+            session=session,
+            flag_upstream_failed=True,
+            expected_ti_state=expected_ti_state,
+            expected_reason=(
+                "Task should be skipped but the past depends are not met" if expect_failure else ""
+            ),
+        )
 
 
 @pytest.mark.parametrize(("flag_upstream_failed", "expected_ti_state"), [(True, SKIPPED), (False, None)])
