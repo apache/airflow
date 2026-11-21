@@ -26,6 +26,11 @@
 Changelog
 ---------
 
+.. note::
+  The OSS log reader now lists the objects that start with a task's log, to show a deferred task's trigger
+  logs after it finishes. Reading logs needs the ``oss:ListObjects`` permission on the bucket; without it,
+  a task's log is read alone.
+
 4.0.0
 .....
 

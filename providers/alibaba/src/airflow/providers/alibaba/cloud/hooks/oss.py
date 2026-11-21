@@ -365,6 +365,19 @@ class OSSHook(BaseHook):
             self.log.error(e)
             raise AirflowException(f"Errors when check bucket object existence: {key}")
 
+    @provide_bucket_name
+    def list_keys(self, bucket_name: str | None = None, prefix: str = "") -> list[str]:
+        """
+        List the keys of the objects whose key starts with the given prefix.
+
+        :param bucket_name: the name of the bucket
+        :param prefix: the start of the keys
+        """
+        self.log.info("Listing oss bucket %s keys under %s ...", bucket_name, prefix)
+        paginator = self._get_client().list_objects_v2_paginator()
+        request = oss.ListObjectsV2Request(bucket=bucket_name, prefix=prefix)
+        return [obj.key for page in paginator.iter_page(request) for obj in page.contents or []]
+
     def get_credential(self) -> oss.credentials.StaticCredentialsProvider:
         extra_config = self.oss_conn.extra_dejson
         auth_type = extra_config.get("auth_type", None)

@@ -36,3 +36,19 @@ To enable this feature, ``airflow.cfg`` must be configured as follows:
     remote_log_conn_id = MyCloudwatchConn
 
 In the above example, Airflow will try to use ``AwsLogsHook('MyCloudwatchConn')``.
+
+Reading logs needs the ``logs:DescribeLogStreams`` permission on the log group, besides ``logs:GetLogEvents``.
+The trigger of a deferred task writes to its own log stream, and Airflow finds it by listing the streams that
+start with the task's log name. Without the permission, Airflow reads the task's own stream alone.
+
+On Airflow versions that write asset watcher logs, a watcher's logs go under ``triggers/trigger_id=<id>/``.
+To keep them out of the task log group, set ``trigger_log_group_arn`` to another log group in the same region:
+
+.. code-block:: ini
+
+    [logging]
+    remote_task_handler_kwargs = {"trigger_log_group_arn": "arn:aws:logs:<region name>:<account id>:log-group:<trigger group name>"}
+
+The connection needs ``logs:CreateLogStream``, ``logs:PutLogEvents``, ``logs:GetLogEvents`` and
+``logs:DescribeLogStreams`` on that log group, ``logs:DescribeLogGroups`` to find it, and ``logs:CreateLogGroup``
+if Airflow should create it.
