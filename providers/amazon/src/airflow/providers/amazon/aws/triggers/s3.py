@@ -168,6 +168,7 @@ class S3KeysUnchangedTrigger(BaseTrigger):
     :param allow_delete: Should this sensor consider objects being deleted
     :param aws_conn_id: reference to the s3 connection
     :param last_activity_time: last modified or last active time
+    :param polling_period_seconds: Seconds to wait between two checks of the bucket.
     :param verify: Whether or not to verify SSL certificates for S3 connection.
         By default SSL certificates are verified.
     :param hook_params: params for hook its optional
@@ -187,6 +188,7 @@ class S3KeysUnchangedTrigger(BaseTrigger):
         region_name: str | None = None,
         verify: bool | str | None = None,
         botocore_config: dict | None = None,
+        polling_period_seconds: float = 60,
         **hook_params: Any,
     ):
         super().__init__()
@@ -203,7 +205,7 @@ class S3KeysUnchangedTrigger(BaseTrigger):
         self.allow_delete = allow_delete
         self.aws_conn_id = aws_conn_id
         self.last_activity_time = last_activity_time
-        self.polling_period_seconds = 0
+        self.polling_period_seconds = polling_period_seconds
         self.region_name = region_name
         self.verify = verify
         self.botocore_config = botocore_config
