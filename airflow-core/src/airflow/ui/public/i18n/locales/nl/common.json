@@ -31,6 +31,7 @@
     "deadlines": "Deadlines",
     "jobs": "Jobs",
     "requiredActions": "Vereiste acties",
+    "triggers": "Triggers",
     "xcoms": "XComs"
   },
   "collapseAllExtra": "All extra JSON inklappen",
@@ -118,6 +119,7 @@
     "home": "Home",
     "invalidUrl": "Pagina niet gevonden. Controleer de URL en probeer het opnieuw.",
     "notFound": "Pagina niet gevonden",
+    "reload": "Pagina vernieuwen",
     "title": "Fout"
   },
   "errors": {
@@ -196,6 +198,7 @@
     },
     "save": "Opslaan"
   },
+  "moreTabs": "Meer",
   "nav": {
     "admin": "Beheer",
     "assets": "Assets",
@@ -259,6 +262,7 @@
     "asset_triggered": "Asset Triggered",
     "backfill": "Backfill",
     "manual": "Handmatig",
+    "operator_triggered": "Door Operator getriggerd",
     "scheduled": "Gepland"
   },
   "scroll": {
@@ -438,6 +442,7 @@
   "switchDag": "Wissel $t(dag_one)",
   "switchDagRun": "Wissel $t(dagRun_one)",
   "switchMapIndex": "Wissel $t(mapIndex)",
+  "switchTask": "Wissel $t(task_one)",
   "table": {
     "completedAt": "Voltooid op",
     "createdAt": "Aangemaakt op",
@@ -608,6 +613,8 @@
     "tokenShownOnce": "Dit token wordt slechts één keer weergegeven. Kopieer het nu."
   },
   "total": "Totaal {{state}}",
+  "trigger_one": "Trigger",
+  "trigger_other": "Triggers",
   "triggered": "Getriggerd",
   "tryNumber": "Poging nummer",
   "unpause": "Hervatten",
