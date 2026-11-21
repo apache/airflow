@@ -290,6 +290,49 @@ class TestAwsLambdaExecutor:
         assert len(mock_executor.pending_workloads) == 1
         assert mock_executor.pending_workloads[0].queue == "fast-queue"
 
+    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="Test requires Airflow 3.3+")
+    def test_task_sdk_connection_test(self, mock_executor):
+        from airflow.executors.workloads import TestConnection
+
+        workload = TestConnection(
+            connection_test_id=uuid4(),
+            connection_id="test_conn",
+            timeout=60,
+            queue="ct-queue",
+            token="test_token",
+        )
+        key = workload.key
+        if AIRFLOW_V_3_4_PLUS:
+            from airflow.executors.workloads.base import WorkloadType
+
+            queued = mock_executor.executor_queues[WorkloadType.TEST_CONNECTION]
+        else:
+            queued = mock_executor.queued_connection_tests
+
+        mock_executor.queue_workload(workload, mock.Mock())
+
+        assert queued[key] is workload
+        assert len(mock_executor.pending_workloads) == 0
+        mock_executor._process_workloads([workload])
+        assert key not in queued
+        assert key in mock_executor.running
+        assert len(mock_executor.pending_workloads) == 1
+        assert mock_executor.pending_workloads[0].queue == "ct-queue"
+        assert mock_executor.pending_workloads[0].command == [
+            "python",
+            "-m",
+            "airflow.sdk.execution_time.execute_workload",
+            "--json-string",
+            workload.model_dump_json(),
+        ]
+
+        mock_executor.attempt_workload_runs()
+
+        mock_executor.lambda_client.invoke.assert_called_once()
+        payload = json.loads(mock_executor.lambda_client.invoke.call_args.kwargs["Payload"])
+        assert payload["task_key"] == str(key)
+        assert mock_executor.running_workloads[str(key)] == key
+
     @mock.patch.object(lambda_executor, "calculate_next_attempt_delay", return_value=dt.timedelta(seconds=0))
     def test_success_execute_api_exception(self, mock_backoff, mock_executor, mock_cmd, mock_airflow_key):
         """Test what happens when Lambda throws an initial exception on invoke, but ultimately passes on retries."""
