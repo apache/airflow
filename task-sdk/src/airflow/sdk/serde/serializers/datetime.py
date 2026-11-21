@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from airflow.sdk._shared.timezones.timezone import parse_timezone
+from airflow.sdk._shared.timezones.timezone import make_aware, make_naive, parse_timezone
 from airflow.sdk.module_loading import qualname
 from airflow.sdk.serde.serializers.timezone import (
     deserialize as deserialize_timezone,
@@ -31,7 +31,7 @@ if TYPE_CHECKING:
 
     from airflow.sdk.serde import U
 
-__version__ = 2
+__version__ = 3
 
 serializers = [
     "datetime.date",
@@ -52,9 +52,17 @@ def serialize(o: object) -> tuple[U, str, int, bool]:
     if isinstance(o, datetime):
         qn = qualname(o)
 
-        tz = serialize_timezone(o.tzinfo) if o.tzinfo else None
+        if o.tzinfo is None:
+            # Anchor naive datetimes to the configured default timezone instead of the
+            # writer's OS local timezone, so the stored epoch is writer-independent.
+            # ``tz`` stays empty so the value still deserializes as naive.
+            ts = make_aware(o).timestamp()
+            tz = None
+        else:
+            ts = o.timestamp()
+            tz = serialize_timezone(o.tzinfo)
 
-        return {TIMESTAMP: o.timestamp(), TIMEZONE: tz}, qn, __version__, True
+        return {TIMESTAMP: ts, TIMEZONE: tz}, qn, __version__, True
 
     if isinstance(o, date):
         return o.isoformat(), qualname(o), __version__, True
@@ -93,6 +101,14 @@ def deserialize(cls: type, version: int, data: dict | str) -> datetime.date | da
             )
 
     if cls is datetime.datetime and isinstance(data, dict):
+        if tz is None:
+            ts = float(data[TIMESTAMP])
+            if version >= 3:
+                # v3+: the epoch was anchored to the configured default timezone on write.
+                return make_naive(datetime.datetime.fromtimestamp(ts, tz=datetime.timezone.utc))
+            # v1/v2: the epoch was captured in the writer's OS local timezone; keep the
+            # legacy read so in-flight payloads don't silently shift during rolling upgrades.
+            return datetime.datetime.fromtimestamp(ts)
         return datetime.datetime.fromtimestamp(float(data[TIMESTAMP]), tz=tz)
 
     if cls is datetime.datetime and isinstance(data, int | float):
