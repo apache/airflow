@@ -90,6 +90,10 @@ dataset-uris:
     to_openlineage_converter: airflow.providers.common.io.assets.file.convert_asset_to_openlineage
     factory: airflow.providers.common.io.assets.file.create_asset
 
+plugins:
+  - name: common_io
+    plugin-class: airflow.providers.common.io.plugins.common_io.CommonIOPlugin
+
 config:
   common.io:
     description: Common IO configuration section
