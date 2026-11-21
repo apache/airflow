@@ -305,6 +305,9 @@ class TestBeamRunPythonPipelineOperator:
         start_python_dataflow.
         """
         gcs_provide_file = gcs_hook.return_value.provide_file
+        beam_hook_mock.return_value.start_python_pipeline.side_effect = lambda **kwargs: kwargs[
+            "on_dataflow_job_id_found_callback"
+        ]()
         op = BeamRunPythonPipelineOperator(
             dataflow_config={
                 "impersonation_chain": TEST_IMPERSONATION_ACCOUNT,
@@ -356,6 +359,7 @@ class TestBeamRunPythonPipelineOperator:
             process_line_callback=mock.ANY,
             is_dataflow_job_id_exist_callback=mock.ANY,
             check_job_id_by_name_callback=mock.ANY,
+            on_dataflow_job_id_found_callback=mock.ANY,
         )
 
     @mock.patch(BEAM_OPERATOR_PATH.format("DataflowJobLink.persist"))
@@ -546,6 +550,9 @@ class TestBeamRunJavaPipelineOperator:
         )
         gcs_provide_file = gcs_hook.return_value.provide_file
         dataflow_hook_mock.return_value.is_job_dataflow_running.return_value = False
+        beam_hook_mock.return_value.start_java_pipeline.side_effect = lambda **kwargs: kwargs[
+            "on_dataflow_job_id_found_callback"
+        ]()
 
         op.execute({})
 
@@ -583,6 +590,7 @@ class TestBeamRunJavaPipelineOperator:
             process_line_callback=mock.ANY,
             is_dataflow_job_id_exist_callback=mock.ANY,
             check_job_id_by_name_callback=mock.ANY,
+            on_dataflow_job_id_found_callback=mock.ANY,
         )
 
     @mock.patch(BEAM_OPERATOR_PATH.format("DataflowJobLink.persist"))
@@ -1093,6 +1101,9 @@ class TestBeamRunPythonPipelineOperatorAsync:
     @mock.patch(BEAM_OPERATOR_PATH.format("GCSHook"))
     def test_exec_dataflow_runner(self, gcs_hook_mock, dataflow_hook_mock, beam_hook_mock):
         """Test the Dataflow hook and the deferral trigger both receive the dataflow_config args."""
+        beam_hook_mock.return_value.start_python_pipeline.side_effect = lambda **kwargs: kwargs[
+            "on_dataflow_job_id_found_callback"
+        ]()
         dataflow_config = DataflowConfiguration(
             impersonation_chain=TEST_IMPERSONATION_ACCOUNT, poll_sleep=TEST_POLL_SLEEP
         )
@@ -1154,7 +1165,10 @@ class TestBeamRunPythonPipelineOperatorAsync:
     @mock.patch(BEAM_OPERATOR_PATH.format("BeamHook"))
     @mock.patch(BEAM_OPERATOR_PATH.format("GCSHook"))
     @mock.patch(BEAM_OPERATOR_PATH.format("DataflowHook"))
-    def test_on_kill_dataflow_runner(self, dataflow_hook_mock, _, __, ___):
+    def test_on_kill_dataflow_runner(self, dataflow_hook_mock, _, beam_hook_mock, ___):
+        beam_hook_mock.return_value.start_python_pipeline.side_effect = lambda **kwargs: kwargs[
+            "on_dataflow_job_id_found_callback"
+        ]()
         op = BeamRunPythonPipelineOperator(runner="DataflowRunner", **self.default_op_kwargs)
         op._dataflow_job_id = JOB_ID
         dataflow_cancel_job = dataflow_hook_mock.return_value.cancel_job
@@ -1168,7 +1182,10 @@ class TestBeamRunPythonPipelineOperatorAsync:
     @mock.patch(BEAM_OPERATOR_PATH.format("BeamHook"))
     @mock.patch(BEAM_OPERATOR_PATH.format("DataflowHook"))
     @mock.patch(BEAM_OPERATOR_PATH.format("GCSHook"))
-    def test_on_kill_direct_runner(self, _, dataflow_mock, __):
+    def test_on_kill_direct_runner(self, _, dataflow_mock, beam_hook_mock):
+        beam_hook_mock.return_value.start_python_pipeline.side_effect = lambda **kwargs: kwargs[
+            "on_dataflow_job_id_found_callback"
+        ]()
         dataflow_cancel_job = dataflow_mock.return_value.cancel_job
         op = BeamRunPythonPipelineOperator(runner="DataflowRunner", **self.default_op_kwargs)
         op._dataflow_job_id = JOB_ID
@@ -1246,6 +1263,9 @@ class TestBeamRunJavaPipelineOperatorAsync:
     @mock.patch(BEAM_OPERATOR_PATH.format("GCSHook"))
     def test_exec_dataflow_runner(self, gcs_hook_mock, dataflow_hook_mock, beam_hook_mock):
         """Test the Dataflow hook and the deferral trigger both receive the dataflow_config args."""
+        beam_hook_mock.return_value.start_java_pipeline.side_effect = lambda **kwargs: kwargs[
+            "on_dataflow_job_id_found_callback"
+        ]()
         dataflow_config = DataflowConfiguration(
             impersonation_chain=TEST_IMPERSONATION_ACCOUNT, poll_sleep=TEST_POLL_SLEEP
         )
@@ -1305,7 +1325,10 @@ class TestBeamRunJavaPipelineOperatorAsync:
     @mock.patch(BEAM_OPERATOR_PATH.format("BeamHook"))
     @mock.patch(BEAM_OPERATOR_PATH.format("GCSHook"))
     @mock.patch(BEAM_OPERATOR_PATH.format("DataflowHook"))
-    def test_on_kill_dataflow_runner(self, dataflow_hook_mock, _, __, ___):
+    def test_on_kill_dataflow_runner(self, dataflow_hook_mock, _, beam_hook_mock, ___):
+        beam_hook_mock.return_value.start_java_pipeline.side_effect = lambda **kwargs: kwargs[
+            "on_dataflow_job_id_found_callback"
+        ]()
         dataflow_hook_mock.return_value.is_job_dataflow_running.return_value = False
         dataflow_cancel_job = dataflow_hook_mock.return_value.cancel_job
         op = BeamRunJavaPipelineOperator(runner="DataflowRunner", **self.default_op_kwargs)
