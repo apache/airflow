@@ -518,6 +518,7 @@ class _SharedStreamGroup:
         trigger_class: type[BaseEventTrigger],
         kwargs: dict[str, Any],
         on_poll_terminate: Callable[[_SharedStreamGroup], None],
+        on_seq_resolved: Callable[[int], None],
         max_subscriber_queue: int,
         ack_timeout: float,
         cohort_grace_period: float = 0.0,
@@ -529,6 +530,7 @@ class _SharedStreamGroup:
         self.kwargs = kwargs
         self.log = log
         self._on_poll_terminate = on_poll_terminate
+        self._on_seq_resolved = on_seq_resolved
         self._max_subscriber_queue = max_subscriber_queue
         self._ack_timeout = ack_timeout
         self._cohort_grace_period = cohort_grace_period
@@ -547,8 +549,10 @@ class _SharedStreamGroup:
         # keyed by the lane each event's producer assigned at fan-out.
         self._lane_queues: dict[Hashable, deque[int]] = {}
         # seq -> (event_id, trigger_id) for trigger events awaiting persist
-        # confirmation; entries are removed on confirmation or when the
-        # owning binding resolves (late confirmations then no-op).
+        # confirmation; entries are removed on confirmation, when the owning
+        # binding resolves (late confirmations then no-op), or at poll
+        # teardown. Every removal must be reported through on_seq_resolved;
+        # the manager's seq -> owner map relies on it to stay bounded.
         self._seq_index: dict[int, tuple[int, int]] = {}
         # Per subscriber: the event id whose binding window is currently
         # open — trigger events the subscriber emits now bind to this event.
@@ -797,6 +801,11 @@ class _SharedStreamGroup:
                 # _fail_group is idempotent — if the advance pump already
                 # broadcast (advance failure path), this is a no-op.
                 self._fail_group(terminal_exc)
+            # Every path reaching here has already evicted the group, so these
+            # seqs can no longer be confirmed.
+            for seq in self._seq_index:
+                self._on_seq_resolved(seq)
+            self._seq_index.clear()
             # End of synchronous section; yields are safe from here on.
             if cancelled_ack_task is not None:
                 with suppress(asyncio.CancelledError):
@@ -843,6 +852,7 @@ class _SharedStreamGroup:
         if binding is not None:
             for seq in binding.unconfirmed_seqs:
                 self._seq_index.pop(seq, None)
+                self._on_seq_resolved(seq)
         if resolution == "acked":
             entry.acked += 1
         elif resolution == "rejected":
@@ -929,14 +939,15 @@ class _SharedStreamGroup:
         """
         Record persist confirmations for trigger event seqs bound in this group.
 
-        Seqs that are not (or no longer) in ``_seq_index`` — another group's
-        seqs, or bindings that already resolved through timeout / overflow —
-        are ignored.
+        Seqs that are not (or no longer) in ``_seq_index`` — seqs this group
+        never drew, or bindings that already resolved through timeout /
+        overflow — are ignored.
         """
         for seq in seqs:
             bound = self._seq_index.pop(seq, None)
             if bound is None:
                 continue
+            self._on_seq_resolved(seq)
             event_id, trigger_id = bound
             entry = self._outstanding.get(event_id)
             if entry is None:
@@ -1208,6 +1219,9 @@ class SharedStreamManager:
         # Allocator for trigger-event persist-confirmation seqs; unique per
         # manager (= per runner process), shared across groups. Gaps are fine.
         self._seq_counter: Iterator[int] = itertools.count()
+        # seq -> key of the group that drew it; entries leave through the
+        # groups' on_seq_resolved callback.
+        self._seq_owner: dict[int, Hashable] = {}
 
     def subscribe(
         self,
@@ -1232,6 +1246,7 @@ class SharedStreamManager:
                 trigger_class=type(trigger),
                 kwargs=kwargs,
                 on_poll_terminate=self._handle_poll_terminate,
+                on_seq_resolved=self._discard_seq_owner,
                 max_subscriber_queue=self._max_subscriber_queue,
                 ack_timeout=self._ack_timeout,
                 cohort_grace_period=self._cohort_grace_period,
@@ -1256,21 +1271,26 @@ class SharedStreamManager:
         """
         if (group := self._groups.get(key)) is None:
             return None
-        return group.bind_pending_event(trigger_id=trigger_id, seq_counter=self._seq_counter)
+        seq = group.bind_pending_event(trigger_id=trigger_id, seq_counter=self._seq_counter)
+        if seq is not None:
+            self._seq_owner[seq] = key
+        return seq
 
     def confirm_persisted(self, seqs: Iterable[int]) -> None:
         """
         Record that the trigger events behind ``seqs`` were persisted.
 
-        Broadcast to every live group; each group resolves the sequence
-        numbers it owns and ignores the rest. Sequence numbers whose binding
-        already resolved (timeout, overflow) or whose group has stopped
-        are ignored.
+        Each seq is routed to the group that drew it. Sequence numbers whose
+        binding already resolved (timeout, overflow) or whose group has
+        stopped are ignored.
         """
-        # Materialize so a one-shot iterator is not exhausted by the first group.
-        seq_list = list(seqs)
-        for group in self._groups.values():
-            group.confirm_persisted(seq_list)
+        seqs_by_key: dict[Hashable, list[int]] = {}
+        for seq in seqs:
+            if (key := self._seq_owner.get(seq)) is not None:
+                seqs_by_key.setdefault(key, []).append(seq)
+        for key, owned_seqs in seqs_by_key.items():
+            if (group := self._groups.get(key)) is not None:
+                group.confirm_persisted(owned_seqs)
 
     async def unsubscribe(self, trigger_id: int, key: Hashable) -> None:
         """
@@ -1310,3 +1330,7 @@ class SharedStreamManager:
         """
         if self._groups.get(group.key) is group:
             del self._groups[group.key]
+
+    def _discard_seq_owner(self, seq: int) -> None:
+        """Idempotent: ``_resolve_subscriber`` can report a seq again after the poll-teardown sweep."""
+        self._seq_owner.pop(seq, None)
