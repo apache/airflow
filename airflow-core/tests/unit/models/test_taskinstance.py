@@ -59,6 +59,7 @@ from airflow.models.asset import (
     AssetPartitionDagRun,
     PartitionedAssetKeyLog,
 )
+from airflow.models.callback import Callback
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbag import DBDagBag
 from airflow.models.dagrun import DagRun
@@ -5063,6 +5064,83 @@ def test_clear_task_instances_recalculates_dagrun_queued_deadlines(dag_maker, se
             assert deadline.deadline_time == expected_time
 
     assert recalculated_count == 2
+
+
+@pytest.mark.parametrize(
+    ("run_state", "missed", "should_remove"),
+    [
+        pytest.param(DagRunState.FAILED, False, True, id="failed-unmissed"),
+        pytest.param(DagRunState.SUCCESS, False, True, id="successful-unmissed"),
+        pytest.param(DagRunState.RUNNING, False, False, id="running-unmissed"),
+        pytest.param(DagRunState.FAILED, True, False, id="failed-missed"),
+    ],
+)
+def test_clear_task_instances_removes_stale_start_date_deadlines(
+    dag_maker, session, run_state, missed, should_remove
+):
+    with dag_maker(
+        dag_id="test_clear_start_date_deadlines",
+        session=session,
+    ):
+        EmptyOperator(task_id="task_1")
+
+    dag_run = dag_maker.create_dagrun()
+    ti = dag_run.get_task_instance("task_1", session=session)
+    ti.set_state(TaskInstanceState.FAILED, session=session)
+
+    original_start_date = timezone.utcnow() - datetime.timedelta(minutes=10)
+    dag_run.start_date = original_start_date
+    dag_run.state = run_state
+
+    serialized_dag_id = session.scalar(
+        select(SerializedDagModel.id).where(
+            SerializedDagModel.dag_version_id == dag_run.created_dag_version_id
+        )
+    )
+    assert serialized_dag_id is not None
+
+    interval = datetime.timedelta(minutes=30)
+    deadline_alert = DeadlineAlertModel(
+        serialized_dag_id=serialized_dag_id,
+        reference=DeadlineReference.DAGRUN_START_DATE.serialize_reference(),
+        interval=serialize(interval),
+        callback_def=serialize(AsyncCallback(empty_callback_for_deadline)),
+    )
+    session.add(deadline_alert)
+    session.flush()
+
+    original_deadline_time = original_start_date + interval
+    deadline = Deadline(
+        dagrun_id=dag_run.id,
+        deadline_alert_id=deadline_alert.id,
+        deadline_time=original_deadline_time,
+        callback=AsyncCallback(empty_callback_for_deadline),
+        dag_id=dag_run.dag_id,
+    )
+    deadline.missed = missed
+    session.add(deadline)
+    session.flush()
+
+    deadline_id = deadline.id
+    callback_id = deadline.callback_id
+
+    clear_task_instances([ti], session)
+    session.flush()
+    session.refresh(dag_run)
+
+    deadlines = session.scalars(select(Deadline).where(Deadline.dagrun_id == dag_run.id)).all()
+    callback_ids = session.scalars(select(Callback.id).where(Callback.id == callback_id)).all()
+
+    if should_remove:
+        assert dag_run.state == DagRunState.QUEUED
+        assert dag_run.start_date is None
+        assert deadlines == []
+        assert callback_ids == []
+    else:
+        assert [record.id for record in deadlines] == [deadline_id]
+        assert deadlines[0].deadline_time == original_deadline_time
+        assert deadlines[0].missed == missed
+        assert callback_ids == [callback_id]
 
 
 def test_clear_task_instances_skips_deadline_with_unresolvable_interval(dag_maker, session):
