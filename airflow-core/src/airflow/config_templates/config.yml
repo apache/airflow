@@ -2386,7 +2386,9 @@ api_auth:
 
         Can be a local file path (without the ``file://`` prefix) or an http or https URL.
 
-        If a remote URL is given it will be polled periodically for changes.
+        The key set is reloaded periodically, see :ref:`config:api_auth__trusted_jwks_refresh_interval`.
+        A token signed with a key that is not in the key set also triggers an immediate reload, so a
+        signing key rotation at the issuer is picked up without a restart.
 
         Mutually exclusive with ``jwt_secret``.
 
@@ -2395,6 +2397,36 @@ api_auth:
         generation is in this list.
       default: ~
       example: '"/path/to/public-jwks.json" or "https://my-issuer/.well-known/jwks.json"'
+      type: string
+    trusted_jwks_refresh_interval:
+      version_added: 3.5.0
+      description: |
+        Number of seconds after which the ``trusted_jwks_url`` key set is reloaded, for a local file
+        as well as a remote URL. A reload that fails or yields no usable keys keeps the key set that
+        was loaded before.
+      default: "3600"
+      example: ~
+      type: integer
+    trusted_jwks_refresh_retry_interval:
+      version_added: 3.5.0
+      description: |
+        Minimum number of seconds between two reloads of the ``trusted_jwks_url`` key set. This limits
+        the reloads that tokens with an unknown key ID can trigger.
+      default: "10"
+      example: ~
+      type: integer
+    trusted_jwks_default_algorithm:
+      version_added: 3.5.0
+      description: |
+        Signing algorithm assigned to ``trusted_jwks_url`` keys that are published without an ``alg``
+        field. Keys that carry an ``alg`` keep it.
+
+        Without it such keys get a default from their key type (``RS256`` for RSA keys), so tokens the
+        issuer signs with another algorithm, for example ``RS512``, are rejected.
+
+        An algorithm PyJWT does not support, or ``none``, is rejected as a configuration error.
+      default: ~
+      example: "RS512"
       type: string
     jwt_issuer:
       version_added: 3.0.0
