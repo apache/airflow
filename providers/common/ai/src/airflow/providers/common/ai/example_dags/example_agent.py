@@ -191,6 +191,41 @@ if SQLToolset is not None:
     example_agent_decorator()
 
 
+# [START howto_decorator_agent_callbacks]
+@dag(tags=["example"])
+def example_agent_decorator_callbacks():
+    def answer_of_ticket(output: str, ticket: dict) -> dict:
+        """Return the answer with the ticket it is for."""
+        return {"ticket_id": ticket["id"], "answer": output}
+
+    def no_answer_when_refused(error: Exception, ticket: dict) -> str:
+        """Go on without an answer for a ticket the model refuses; fail on anything else."""
+        if getattr(error, "status_code", None) == 400:
+            return ""
+        raise error
+
+    @task.agent(
+        llm_conn_id="pydanticai_default",
+        system_prompt="You are a support engineer. Suggest a reply to the ticket.",
+        output_processor=answer_of_ticket,
+        error_handler=no_answer_when_refused,
+    )
+    def suggest_reply(ticket: dict):
+        return f"Ticket: {ticket['text']}"
+
+    suggest_reply.expand(
+        ticket=[
+            {"id": 1, "text": "I cannot log in."},
+            {"id": 2, "text": "My invoice is wrong."},
+        ]
+    )
+
+
+# [END howto_decorator_agent_callbacks]
+
+example_agent_decorator_callbacks()
+
+
 # ---------------------------------------------------------------------------
 # 4. Structured output — agent returns a Pydantic model
 # ---------------------------------------------------------------------------
