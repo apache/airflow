@@ -31,6 +31,7 @@ import DeleteRunButton from "src/pages/DagRuns/DeleteRunButton";
 import { ClearRunButton } from "src/components/Clear";
 import { DagVersion } from "src/components/DagVersion";
 import { HeaderCard } from "src/components/HeaderCard";
+import type { SkeletonStat } from "src/components/HeaderCardSkeleton";
 import { LimitedItemsList } from "src/components/LimitedItemsList";
 import { MarkRunAsButton } from "src/components/MarkAs";
 import { NeedsReviewButtonWithModal } from "src/components/NeedsReviewButton";
@@ -50,7 +51,32 @@ import { hasDagRunConfig, useDurationFormat } from "src/utils";
 
 import { DeadlineStatus } from "./DeadlineStatus";
 
-export const Header = ({ dagRun }: { readonly dagRun: DAGRunResponse }) => {
+/**
+ * Widths for the loading card, mirroring the stats below.
+ *
+ * Several of those are conditional, so this is the common set rather than an exact count; keep it
+ * in step when one is added or removed, since nothing enforces it.
+ */
+export const RUN_STAT_SKELETON: ReadonlyArray<SkeletonStat> = [
+  { labelWidth: 72, valueWidth: 130 },
+  { labelWidth: 56, valueWidth: 60 },
+  { labelWidth: 48, valueWidth: 130 },
+  { labelWidth: 44, valueWidth: 130 },
+  { labelWidth: 56, valueWidth: 56 },
+  { labelWidth: 80, valueWidth: 40 },
+];
+
+/**
+ * The card when the run itself could not be loaded.
+ *
+ * Nothing about the run is in hand, so the identity comes from the URL — the same fallback
+ * `pages/Dag/Header.tsx` uses for a Dag that has not loaded.
+ */
+export const HeaderError = ({ error, runId }: { readonly error?: unknown; readonly runId: string }) => (
+  <HeaderCard error={error} icon={<FiBarChart />} stats={[]} title={runId} type="dagRun" />
+);
+
+export const Header = ({ dagRun, error }: { readonly dagRun: DAGRunResponse; readonly error?: unknown }) => {
   // The grid's bulk actions replace these while task instances are selected there.
   const hasGridSelection = useHasGridSelection();
   const { t: translate } = useTranslation();
@@ -86,6 +112,8 @@ export const Header = ({ dagRun }: { readonly dagRun: DAGRunResponse }) => {
             />
           </>
         }
+        error={error}
+        errorClosable
         icon={<FiBarChart />}
         state={dagRun.state}
         stats={[

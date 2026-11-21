@@ -17,7 +17,6 @@
  * under the License.
  */
 import { Heading } from "@chakra-ui/react";
-import { ReactFlowProvider } from "@xyflow/react";
 import { useTranslation } from "react-i18next";
 import { FiCode, FiDatabase, FiUser } from "react-icons/fi";
 import {
@@ -31,8 +30,10 @@ import {
 import { PiBracketsCurlyBold } from "react-icons/pi";
 import { Navigate, useLocation, useParams, useSearchParams } from "react-router-dom";
 
-import { DetailsLayout } from "src/layouts/Details/DetailsLayout";
+import { DetailsPanel } from "src/layouts/Details/DetailsPanel";
 import type { NavTab } from "src/layouts/Details/NavTabs";
+
+import { HeaderCardSkeleton } from "src/components/HeaderCardSkeleton";
 
 import { SearchParamsKeys } from "src/constants/searchParams";
 import { useHITLReviewTabs } from "src/hooks/useHITLReviewTabs";
@@ -43,11 +44,11 @@ import { useTaskInstanceCoordinates } from "src/hooks/useTaskInstanceCoordinates
 import { useTaskInstanceView } from "src/hooks/useTaskInstanceView";
 import { useDefaultTaskInstanceTab } from "src/hooks/useUserSettings";
 import { useGridTiSummariesStream } from "src/queries/useGridTISummaries.ts";
-import { isStatePending, useAutoRefresh, useDocumentTitle } from "src/utils";
+import { isStatePending, useAutoRefresh, useDocumentTitle, useStickyError } from "src/utils";
 import { getDefaultTaskInstanceTabPath, getTaskInstanceLink } from "src/utils/links";
 import { isLoopTaskInstance } from "src/utils/loopTaskInstance";
 
-import { Header, HistoryHeader } from "./Header";
+import { Header, HeaderError, HistoryHeader, TASK_INSTANCE_STAT_SKELETON } from "./Header";
 
 export const TaskInstance = () => {
   const { t: translate } = useTranslation(["dag", "common", "hitl"]);
@@ -58,6 +59,11 @@ export const TaskInstance = () => {
   const isResolvingCoordinate = useResolvePassCoordinate();
   const { error, historical, historicalTaskInstance, isLoading, liveTaskInstance, taskInstance } =
     useTaskInstanceView();
+  const shownError = useStickyError(
+    error,
+    taskInstance !== undefined,
+    [dagId, runId, taskId, mapIndex, coordinates.regionId, coordinates.regionIndex].join("/"),
+  );
   const regional = liveTaskInstance !== undefined && isLoopTaskInstance(liveTaskInstance);
   const tryNumber = searchParams.get(SearchParamsKeys.TRY_NUMBER);
   const coordinateSearch = new URLSearchParams();
@@ -175,24 +181,29 @@ export const TaskInstance = () => {
   }
 
   return (
-    <ReactFlowProvider>
-      {/* Held rather than rendered empty: a looped task instance cannot be asked for without a
-          coordinate, so the children must not run their queries until the pass resolves. */}
-      <DetailsLayout error={error} isLoading={isLoading || isResolvingCoordinate} tabs={displayTabs}>
-        {taskInstance === undefined ? (
-          isLoading ? undefined : (
-            <Heading p={2} size="lg">
-              {translate("common:noItemsFound", { modelName: translate("common:taskInstance_one") })}
-            </Heading>
-          )
-        ) : historicalTaskInstance === undefined ? (
-          liveTaskInstance === undefined ? undefined : (
-            <Header taskInstance={liveTaskInstance} />
-          )
+    <DetailsPanel tabs={displayTabs}>
+      {taskInstance === undefined ? (
+        // The failure is tested first and read through useStickyError: a refetch of an instance
+        // that never loaded clears the error and reports itself as pending again. The heading
+        // below says "no such instance", which a failed fetch has not established.
+        Boolean(shownError) ? (
+          <HeaderError error={shownError} taskId={taskId} />
+        ) : isLoading || isResolvingCoordinate ? (
+          // A looped task instance cannot be asked for until its pass resolves into a
+          // coordinate, so that lookup is still loading rather than an instance that is missing.
+          <HeaderCardSkeleton stats={TASK_INSTANCE_STAT_SKELETON} type="taskInstance" />
         ) : (
-          <HistoryHeader taskInstance={historicalTaskInstance} />
-        )}
-      </DetailsLayout>
-    </ReactFlowProvider>
+          <Heading p={2} size="lg">
+            {translate("common:noItemsFound", { modelName: translate("common:taskInstance_one") })}
+          </Heading>
+        )
+      ) : historicalTaskInstance === undefined ? (
+        liveTaskInstance === undefined ? undefined : (
+          <Header error={shownError} taskInstance={liveTaskInstance} />
+        )
+      ) : (
+        <HistoryHeader error={shownError} taskInstance={historicalTaskInstance} />
+      )}
+    </DetailsPanel>
   );
 };
