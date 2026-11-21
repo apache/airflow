@@ -1957,6 +1957,24 @@ class TestDagDetails(TestDagEndpoint):
         assert response.status_code == 200
         assert response.json()["dag_id"] == deadline_dag_id
 
+    @pytest.mark.parametrize(
+        ("tz", "expected"),
+        [
+            (pendulum.timezone("America/New_York"), "America/New_York"),
+            (pendulum.fixed_timezone(5 * 3600), "+05:00"),
+        ],
+    )
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    @_ALWAYS_RESERIALIZE
+    def test_dag_details_returns_dag_timezone(self, dag_maker, test_client, tz, expected):
+        with dag_maker("test_details_timezone", schedule=None, start_date=datetime(2021, 6, 15, tzinfo=tz)):
+            EmptyOperator(task_id="task1")
+        dag_maker.sync_dagbag_to_db()
+
+        response = test_client.get("/dags/test_details_timezone/details")
+        assert response.status_code == 200
+        assert response.json()["timezone"] == expected
+
 
 class TestGetDag(TestDagEndpoint):
     """Unit tests for Get DAG."""
