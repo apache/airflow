@@ -27,13 +27,19 @@ from airflow.api.common.airflow_health import (
     DetailedHealthStatus,
     HealthStatus,
     _configured_bundle_teams,
+    _configured_executor_keys,
+    _configured_executor_names,
     _dag_processor_detailed_status,
+    _executor_detailed_status,
+    _executor_instance_health,
     _triggerer_detailed_status,
     get_airflow_health,
     get_jobs_health,
 )
+from airflow.executors.base_executor import BaseExecutor
+from airflow.executors.executor_utils import ExecutorName
 from airflow.jobs.dag_processor_job_runner import DagProcessorJobRunner
-from airflow.jobs.job import Job, JobState, health_check_threshold
+from airflow.jobs.job import EXECUTOR_JOB_TYPE, HealthCheckResult, Job, JobState, health_check_threshold
 from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
 from airflow.jobs.triggerer_job_runner import TriggererJobRunner
 from airflow.utils.session import provide_session
@@ -352,19 +358,19 @@ class TestDagProcessorDetailedStatus:
             pytest.param([], DetailedHealthStatus.DOWN, id="no_processor_at_all"),
         ],
     )
-    def test_bundle_coverage(self, jobs, expected):
-        with _patch_bundles(self.BUNDLES):
-            assert _dag_processor_detailed_status(jobs) == expected
+    @_patch_bundles(BUNDLES)
+    def test_bundle_coverage(self, mock_bundles, jobs, expected):
+        assert _dag_processor_detailed_status(jobs) == expected
 
-    def test_restarted_processor_leaves_the_component_healthy(self):
+    @_patch_bundles(BUNDLES)
+    def test_restarted_processor_leaves_the_component_healthy(self, mock_bundles):
         """A hard-killed replica keeps an unfinished job row; its replacement must still read healthy."""
         jobs = [
             _processor(alive=True, bundle_names=["bundle-a", "bundle-b"]),
             _processor(alive=False, bundle_names=["bundle-a", "bundle-b"]),
         ]
 
-        with _patch_bundles(self.BUNDLES):
-            assert _dag_processor_detailed_status(jobs) == DetailedHealthStatus.HEALTHY
+        assert _dag_processor_detailed_status(jobs) == DetailedHealthStatus.HEALTHY
 
     @pytest.mark.parametrize(
         ("jobs", "expected"),
@@ -381,9 +387,9 @@ class TestDagProcessorDetailedStatus:
             ),
         ],
     )
-    def test_falls_back_to_liveness_without_configured_bundles(self, jobs, expected):
-        with _patch_bundles({}):
-            assert _dag_processor_detailed_status(jobs) == expected
+    @_patch_bundles({})
+    def test_falls_back_to_liveness_without_configured_bundles(self, mock_bundles, jobs, expected):
+        assert _dag_processor_detailed_status(jobs) == expected
 
 
 class TestTriggererDetailedStatus:
@@ -432,18 +438,20 @@ class TestTriggererDetailedStatus:
             pytest.param([], DetailedHealthStatus.DOWN, id="no_triggerer_at_all"),
         ],
     )
-    def test_team_coverage(self, jobs, expected):
-        with conf_vars({("core", "multi_team"): "True"}), _patch_bundles(self.BUNDLES):
-            assert _triggerer_detailed_status(jobs) == expected
+    @conf_vars({("core", "multi_team"): "True"})
+    @_patch_bundles(BUNDLES)
+    def test_team_coverage(self, mock_bundles, jobs, expected):
+        assert _triggerer_detailed_status(jobs) == expected
 
-    def test_restarted_triggerer_leaves_the_component_healthy(self):
+    @conf_vars({("core", "multi_team"): "True"})
+    @_patch_bundles({"bundle-a": "team-a"})
+    def test_restarted_triggerer_leaves_the_component_healthy(self, mock_bundles):
         jobs = [
             _triggerer(alive=True, team_name="team-a"),
             _triggerer(alive=False, team_name="team-a"),
         ]
 
-        with conf_vars({("core", "multi_team"): "True"}), _patch_bundles({"bundle-a": "team-a"}):
-            assert _triggerer_detailed_status(jobs) == DetailedHealthStatus.HEALTHY
+        assert _triggerer_detailed_status(jobs) == DetailedHealthStatus.HEALTHY
 
     @pytest.mark.parametrize(
         ("jobs", "expected"),
@@ -460,16 +468,18 @@ class TestTriggererDetailedStatus:
             ),
         ],
     )
-    def test_ignores_teams_without_multi_team(self, jobs, expected):
-        with conf_vars({("core", "multi_team"): "False"}), _patch_bundles(self.BUNDLES):
-            assert _triggerer_detailed_status(jobs) == expected
+    @conf_vars({("core", "multi_team"): "False"})
+    @_patch_bundles(BUNDLES)
+    def test_ignores_teams_without_multi_team(self, mock_bundles, jobs, expected):
+        assert _triggerer_detailed_status(jobs) == expected
 
-    def test_falls_back_to_liveness_without_configured_bundles(self):
-        with conf_vars({("core", "multi_team"): "True"}), _patch_bundles({}):
-            assert (
-                _triggerer_detailed_status([_triggerer(alive=True, team_name="team-a")])
-                == DetailedHealthStatus.HEALTHY
-            )
+    @conf_vars({("core", "multi_team"): "True"})
+    @_patch_bundles({})
+    def test_falls_back_to_liveness_without_configured_bundles(self, mock_bundles):
+        assert (
+            _triggerer_detailed_status([_triggerer(alive=True, team_name="team-a")])
+            == DetailedHealthStatus.HEALTHY
+        )
 
 
 @conf_vars({("dag_processor", "dag_bundle_config_list"): "not json"})
@@ -529,7 +539,7 @@ class TestAirflowHealthFromDb:
         _create_job(session, other_runner, hostname="other-component", heartbeat=now)
         session.commit()
 
-        jobs = get_jobs_health(runner_class, session=session)
+        jobs = get_jobs_health(runner_class.job_type, session=session)
 
         expected = ["live-newer", "live-older"]
         if latest_failed:
@@ -542,7 +552,7 @@ class TestAirflowHealthFromDb:
         _create_job(session, SchedulerJobRunner, hostname="no-heartbeat-2", heartbeat=None)
         session.commit()
 
-        jobs = get_jobs_health(SchedulerJobRunner, session=session)
+        jobs = get_jobs_health(SchedulerJobRunner.job_type, session=session)
 
         assert len(jobs) == 1
         assert jobs[0].latest_heartbeat is None
@@ -621,7 +631,7 @@ class TestAirflowHealthFromDb:
         _create_job(session, SchedulerJobRunner, hostname="stale-3", heartbeat=third)
         session.commit()
 
-        jobs = get_jobs_health(SchedulerJobRunner, session=session)
+        jobs = get_jobs_health(SchedulerJobRunner.job_type, session=session)
         assert [job.hostname for job in jobs] == ["stale-1"]
 
         health_status = get_airflow_health()
@@ -663,3 +673,330 @@ class TestAirflowHealthFromDb:
             },
         ]
         assert health_status["triggerer"]["latest_triggerer_heartbeat"] == alive_heartbeat.isoformat()
+
+
+# -- Executor health: no configured executor overrides get_health() by default, so these tests patch
+# -- _configured_executor_keys directly rather than relying on a real executor class, exactly as the
+# -- bundle/team partition tests above patch _configured_bundle_teams.
+
+
+def _executor(
+    *,
+    alive: bool,
+    healthy: bool | None = True,
+    team_name: str | None = None,
+    executor: str | None = None,
+    owner_job_id: int = 1,
+) -> MagicMock:
+    job = _mock_job(
+        hostname=f"host-{owner_job_id}",
+        heartbeat=datetime(2024, 2, 1),
+        alive=alive,
+        team_names=[team_name] if team_name else [],
+    )
+    job.executor_class = executor or f"executor-{team_name}-{'alive' if alive else 'stale'}"
+    job.owner_job_id = owner_job_id
+    if healthy is None:
+        job.health_check_result = HealthCheckResult.UNKNOWN
+    else:
+        job.health_check_result = HealthCheckResult.HEALTHY if healthy else HealthCheckResult.UNHEALTHY
+    return job
+
+
+def _patch_executor_keys(keys: set[str]):
+    return patch("airflow.api.common.airflow_health._configured_executor_keys", return_value=keys)
+
+
+def _patch_live_scheduler_ids(ids: set[int]):
+    """Patch which owning-scheduler ids count as alive, standing in for a real SchedulerJob query."""
+    return patch("airflow.api.common.airflow_health._live_scheduler_job_ids", return_value=ids)
+
+
+class _HealthCheckingExecutor(BaseExecutor):
+    """A stand-in for a concrete executor (e.g. Celery) that has implemented get_health()."""
+
+    def get_health(self, timeout: float) -> bool | None:
+        return True
+
+
+class TestConfiguredExecutorKeys:
+    """``_configured_executor_keys`` only counts an executor that actually implements get_health()."""
+
+    @pytest.fixture(autouse=True)
+    def clear_executor_caches(self):
+        _configured_executor_keys.cache_clear()
+        _configured_executor_names.cache_clear()
+        yield
+        _configured_executor_keys.cache_clear()
+        _configured_executor_names.cache_clear()
+
+    @patch("airflow.api.common.airflow_health.ExecutorLoader.get_executor_names")
+    def test_empty_when_no_executor_overrides_get_health(self, mock_get_executor_names):
+        mock_get_executor_names.return_value = [
+            ExecutorName(module_path="airflow.executors.local_executor.LocalExecutor", alias="Local")
+        ]
+        assert _configured_executor_keys() == set()
+
+    @patch("airflow.api.common.airflow_health.ExecutorLoader.import_executor_cls")
+    @patch("airflow.api.common.airflow_health.ExecutorLoader.get_executor_names")
+    def test_includes_an_executor_that_overrides_get_health(
+        self, mock_get_executor_names, mock_import_executor_cls
+    ):
+        names = [
+            ExecutorName(
+                module_path=f"{_HealthCheckingExecutor.__module__}.{_HealthCheckingExecutor.__qualname__}",
+                alias="Celery",
+            )
+        ]
+        mock_get_executor_names.return_value = names
+        mock_import_executor_cls.return_value = (_HealthCheckingExecutor, None)
+
+        assert _configured_executor_keys() == {repr(names[0])}
+
+    @patch("airflow.api.common.airflow_health.ExecutorLoader.import_executor_cls")
+    @patch("airflow.api.common.airflow_health.ExecutorLoader.get_executor_names")
+    def test_module_path_configured_executor_has_no_alias_but_still_matches(
+        self, mock_get_executor_names, mock_import_executor_cls
+    ):
+        """The key must agree with the scheduler side even when the executor has no alias at all."""
+        names = [
+            ExecutorName(
+                module_path=f"{_HealthCheckingExecutor.__module__}.{_HealthCheckingExecutor.__qualname__}",
+            )
+        ]
+        mock_get_executor_names.return_value = names
+        mock_import_executor_cls.return_value = (_HealthCheckingExecutor, None)
+
+        assert _configured_executor_keys() == {repr(names[0])}
+
+    @patch("airflow.api.common.airflow_health.ExecutorLoader.get_executor_names", side_effect=Exception)
+    def test_survives_unreadable_executor_config(self, mock_get_executor_names):
+        assert _configured_executor_keys() == set()
+
+    @conf_vars({("scheduler", "executor_health_check_interval"): "0"})
+    @patch("airflow.api.common.airflow_health.ExecutorLoader.import_executor_cls")
+    @patch("airflow.api.common.airflow_health.ExecutorLoader.get_executor_names")
+    def test_empty_when_interval_is_zero(self, mock_get_executor_names, mock_import_executor_cls):
+        """The scheduler records no row for any executor when the check is disabled."""
+        names = [
+            ExecutorName(
+                module_path=f"{_HealthCheckingExecutor.__module__}.{_HealthCheckingExecutor.__qualname__}",
+                alias="Celery",
+            )
+        ]
+        mock_get_executor_names.return_value = names
+        mock_import_executor_cls.return_value = (_HealthCheckingExecutor, None)
+
+        assert _configured_executor_keys() == set()
+
+
+class TestExecutorInstanceHealthDisplayName:
+    """The API reports the name the user configured, not the internal executor_class key."""
+
+    @pytest.fixture(autouse=True)
+    def clear_executor_caches(self):
+        _configured_executor_names.cache_clear()
+        yield
+        _configured_executor_names.cache_clear()
+
+    @patch("airflow.api.common.airflow_health.ExecutorLoader.get_executor_names")
+    def test_reports_alias_when_the_key_matches_a_configured_executor(self, mock_get_executor_names):
+        name = ExecutorName(
+            module_path=f"{_HealthCheckingExecutor.__module__}.{_HealthCheckingExecutor.__qualname__}",
+            alias="Celery",
+        )
+        job = _executor(alive=True, executor=repr(name))
+        mock_get_executor_names.return_value = [name]
+
+        instance = _executor_instance_health(job)
+
+        assert instance["executor"] == "Celery"
+
+    @patch("airflow.api.common.airflow_health.ExecutorLoader.get_executor_names")
+    def test_reports_module_path_when_the_configured_executor_has_no_alias(self, mock_get_executor_names):
+        name = ExecutorName(
+            module_path=f"{_HealthCheckingExecutor.__module__}.{_HealthCheckingExecutor.__qualname__}",
+        )
+        job = _executor(alive=True, executor=repr(name))
+        mock_get_executor_names.return_value = [name]
+
+        instance = _executor_instance_health(job)
+
+        assert instance["executor"] == name.module_path
+
+    @patch("airflow.api.common.airflow_health.ExecutorLoader.get_executor_names", return_value=[])
+    def test_falls_back_to_the_raw_key_when_nothing_configured_matches(self, mock_get_executor_names):
+        job = _executor(alive=True, executor=":SomeExecutor:")
+
+        instance = _executor_instance_health(job)
+
+        assert instance["executor"] == ":SomeExecutor:"
+
+
+class TestExecutorDetailedStatus:
+    """Each executor that implements a health check is its own coverage partition."""
+
+    @pytest.mark.parametrize(
+        ("keys", "jobs", "expected"),
+        [
+            pytest.param(
+                {"Celery"},
+                [_executor(alive=True, executor="Celery")],
+                DetailedHealthStatus.HEALTHY,
+                id="the_only_configured_executor_is_alive",
+            ),
+            pytest.param(
+                {"Celery", "Kubernetes"},
+                [_executor(alive=True, executor="Celery"), _executor(alive=True, executor="Kubernetes")],
+                DetailedHealthStatus.HEALTHY,
+                id="both_configured_executors_are_alive",
+            ),
+            pytest.param(
+                {"Celery", "Kubernetes"},
+                [_executor(alive=True, executor="Celery")],
+                DetailedHealthStatus.DEGRADED,
+                id="one_of_two_configured_executors_reports",
+            ),
+            pytest.param(
+                {"Celery"},
+                [_executor(alive=False, executor="Celery")],
+                DetailedHealthStatus.DOWN,
+                id="the_only_configured_executor_is_stale",
+            ),
+            pytest.param({"Celery"}, [], DetailedHealthStatus.DOWN, id="no_executor_has_ever_reported"),
+            pytest.param(
+                {"Celery"},
+                [_executor(alive=True, healthy=None, executor="Celery")],
+                DetailedHealthStatus.HEALTHY,
+                id="first_check_still_pending_is_not_a_coverage_gap",
+            ),
+        ],
+    )
+    def test_coverage(self, keys, jobs, expected):
+        with _patch_executor_keys(keys), _patch_live_scheduler_ids({1}):
+            assert _executor_detailed_status(jobs) == expected
+
+    @_patch_executor_keys({"Celery"})
+    @_patch_live_scheduler_ids({1, 2})
+    def test_restart_while_another_scheduler_already_reports_healthy(self, mock_live_ids, mock_keys):
+        jobs = [
+            _executor(alive=True, healthy=None, executor="Celery", owner_job_id=1),
+            _executor(alive=True, healthy=True, executor="Celery", owner_job_id=2),
+        ]
+        assert _executor_detailed_status(jobs) == DetailedHealthStatus.HEALTHY
+
+    @_patch_executor_keys({"Celery"})
+    @_patch_live_scheduler_ids({1, 2})
+    def test_unknown_does_not_mask_a_real_unhealthy_report(self, mock_live_ids, mock_keys):
+        jobs = [
+            _executor(alive=True, healthy=None, executor="Celery", owner_job_id=1),
+            _executor(alive=True, healthy=False, executor="Celery", owner_job_id=2),
+        ]
+        assert _executor_detailed_status(jobs) == DetailedHealthStatus.DOWN
+
+    @_patch_executor_keys({"Celery"})
+    @_patch_live_scheduler_ids({1})
+    def test_restarted_executor_leaves_the_component_healthy(self, mock_live_ids, mock_keys):
+        """A hard-killed replica leaves its row behind; a fresh one taking over must still read healthy."""
+        jobs = [
+            _executor(alive=True, executor="Celery"),
+            _executor(alive=False, executor="Celery"),
+        ]
+        assert _executor_detailed_status(jobs) == DetailedHealthStatus.HEALTHY
+
+    @_patch_executor_keys({"Celery"})
+    @_patch_live_scheduler_ids({1, 2})
+    def test_one_scheduler_reporting_unhealthy_is_not_masked_by_another(self, mock_live_ids, mock_keys):
+        """Two schedulers checking the same broker: one healthy row must not hide another's failure."""
+        jobs = [
+            _executor(alive=True, healthy=True, executor="Celery", owner_job_id=1),
+            _executor(alive=True, healthy=False, executor="Celery", owner_job_id=2),
+        ]
+        assert _executor_detailed_status(jobs) == DetailedHealthStatus.DOWN
+
+    @_patch_executor_keys({"Celery"})
+    @_patch_live_scheduler_ids({1})
+    def test_row_left_behind_by_crashed_scheduler_is_ignored(self, mock_live_ids, mock_keys):
+        """A row can still look alive right after its scheduler died; it must not count as coverage."""
+        jobs = [_executor(alive=True, healthy=True, executor="Celery", owner_job_id=2)]
+        assert _executor_detailed_status(jobs) == DetailedHealthStatus.DOWN
+
+
+class TestAirflowHealthExecutor:
+    @pytest.fixture(autouse=True)
+    def cleanup_jobs(self):
+        clear_db_jobs()
+        _configured_executor_names.cache_clear()
+        yield
+        clear_db_jobs()
+        _configured_executor_names.cache_clear()
+
+    def test_executor_key_omitted_when_nothing_implements_get_health(self):
+        """The default, unmodified state: no executor overrides get_health, so there's no false alarm."""
+        health_status = get_airflow_health()
+
+        assert "executor" not in health_status
+
+    @_patch_executor_keys({"Celery"})
+    @provide_session
+    def test_executor_key_present_and_healthy_when_implemented_and_reporting(self, mock_keys, *, session):
+        heartbeat = timezone.utcnow()
+        scheduler_job = Job(job_type=SchedulerJobRunner.job_type, state=JobState.RUNNING)
+        scheduler_job.latest_heartbeat = heartbeat
+        session.add(scheduler_job)
+        session.commit()
+
+        job = Job(job_type=EXECUTOR_JOB_TYPE, state=JobState.RUNNING, executor_class="Celery")
+        job.latest_heartbeat = heartbeat
+        job.owner_job_id = scheduler_job.id
+        job.health_check_result = HealthCheckResult.HEALTHY
+        session.add(job)
+        session.commit()
+
+        health_status = get_airflow_health()
+
+        assert health_status["executor"]["status"] == HealthStatus.HEALTHY
+        assert health_status["executor"]["detailed_status"] == DetailedHealthStatus.HEALTHY
+        assert health_status["executor"]["latest_executor_heartbeat"] == heartbeat.isoformat()
+        assert health_status["executor"]["instances"] == [
+            {
+                "hostname": job.hostname,
+                "executor": "Celery",
+                "latest_executor_heartbeat": heartbeat.isoformat(),
+                "team_names": [],
+                "health_check_result": HealthCheckResult.HEALTHY,
+            }
+        ]
+
+    @_patch_executor_keys({"Celery"})
+    @provide_session
+    def test_executor_key_unhealthy_when_last_check_failed_despite_live_heartbeat(
+        self, mock_keys, *, session
+    ):
+        """A row can be alive (heartbeat moving) while the last real check still failed."""
+        heartbeat = timezone.utcnow()
+        scheduler_job = Job(job_type=SchedulerJobRunner.job_type, state=JobState.RUNNING)
+        scheduler_job.latest_heartbeat = heartbeat
+        session.add(scheduler_job)
+        session.commit()
+
+        job = Job(job_type=EXECUTOR_JOB_TYPE, state=JobState.RUNNING, executor_class="Celery")
+        job.latest_heartbeat = heartbeat
+        job.owner_job_id = scheduler_job.id
+        job.health_check_result = HealthCheckResult.UNHEALTHY
+        session.add(job)
+        session.commit()
+
+        health_status = get_airflow_health()
+
+        assert health_status["executor"]["status"] == HealthStatus.UNHEALTHY
+        assert health_status["executor"]["detailed_status"] == DetailedHealthStatus.DOWN
+
+    @_patch_executor_keys({"Celery"})
+    def test_executor_key_present_and_down_when_implemented_but_never_reported(self, mock_keys):
+        """Implemented but never seen a healthy check: a real outage, correctly reported, not omitted."""
+        health_status = get_airflow_health()
+
+        assert health_status["executor"]["status"] == HealthStatus.UNHEALTHY
+        assert health_status["executor"]["detailed_status"] == DetailedHealthStatus.DOWN
+        assert health_status["executor"]["instances"] is None
