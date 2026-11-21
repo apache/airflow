@@ -674,7 +674,9 @@ class EksHook(AwsBaseHook):
         session._session.set_config_variable("sts_regional_endpoints", "regional")
         sts_client = session.client(
             "sts",
-            endpoint_url=self.conn_config.get_service_endpoint_url("sts"),
+            # Not get_service_endpoint_url: it falls back to the connection-wide endpoint_url, which on an
+            # EKS connection is an EKS endpoint, and EKS rejects tokens signed for a non-STS host.
+            endpoint_url=self.conn_config.get_service_config("sts").get("endpoint_url"),
             config=self.config,
             verify=self.verify,
         )
