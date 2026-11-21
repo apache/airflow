@@ -158,8 +158,8 @@ skipped too. Letting ``approval_timeout`` expire fails the task
 (``HITLTimeoutError``) unless ``on_approval_timeout`` answers the review for
 you; a timeout-driven rejection then skips downstream like any other rejection.
 
-Apart from ``fail_on_reject`` and ``ignore_downstream_trigger_rules``, which
-are specific to this operator, ``approval_timeout``, ``on_approval_timeout``,
+Apart from ``fail_on_reject``, which defaults to ``False`` here and to ``True``
+on other operators, ``approval_timeout``, ``on_approval_timeout``,
 ``approval_notifiers``, ``approval_assigned_users``, and the rest of the approval
 behaviour are inherited from :ref:`LLMOperator <howto/operator:llm>`.
 
@@ -300,7 +300,7 @@ Parameters
 - ``prompt``: The prompt to send to the LLM (operator) or the return value of the
   decorated function (decorator).
 - ``llm_conn_id``: Airflow connection ID for the LLM provider.
-- ``model_id``: Model identifier (e.g. ``"openai:gpt-5"``). Overrides the connection's extra field.
+- ``model_id``: Model identifier (e.g. ``"openai:gpt-6.1-sol"``). Overrides the connection's extra field.
 - ``system_prompt``: System-level instructions for the agent. Supports Jinja templating.
 - ``branches``: Optional mapping of downstream task ID to a ``BranchOption`` (a
   description and, optionally, a ``min_confidence`` for that branch) or to a string as

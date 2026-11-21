@@ -30,9 +30,12 @@ import io.ktor.network.sockets.openReadChannel
 import io.ktor.network.sockets.openWriteChannel
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeoutOrNull
+import org.apache.airflow.sdk.execution.Cancellation
 import org.apache.airflow.sdk.execution.CoordinatorComm
 import org.apache.airflow.sdk.execution.LogSender
 import org.apache.airflow.sdk.execution.Logger
@@ -42,8 +45,24 @@ import org.apache.airflow.sdk.execution.comm.StartupDetails
 import org.apache.airflow.sdk.execution.parseDags
 import org.apache.airflow.sdk.execution.runTask
 import java.io.File
+import java.time.Duration
 import kotlin.text.substringAfterLast
 import kotlin.text.substringBeforeLast
+
+/**
+ * Writes the queued log lines before the JVM exits, then waits up to [timeout] for the socket to close.
+ * If no line goes out for [timeout], gives up on the lines and skips that wait.
+ */
+internal fun sendQueuedLogs(
+  close: () -> Unit,
+  closed: Job,
+  timeout: Duration,
+) {
+  val written = LogSender.detachAndFlush(timeout)
+  close()
+  // Skip the wait after giving up: Ktor retries the write while nothing reads, so the socket never closes.
+  if (written) runBlocking { withTimeoutOrNull(timeout.toMillis()) { closed.join() } }
+}
 
 private class Args(
   parser: ArgParser,
@@ -177,10 +196,14 @@ internal class SourceDescriber(
 }
 
 /** Serves task-execution requests over the coordinator's [comm] and [logs] sockets. */
-class CoordinatorServer(
+class CoordinatorServer internal constructor(
   private val comm: InetSocketAddress,
   private val logs: InetSocketAddress,
+  private val logFlushTimeout: Duration,
 ) : Server() {
+  // Long enough to outlast a pause in the supervisor's log reads, such as a slow request to the API server.
+  constructor(comm: InetSocketAddress, logs: InetSocketAddress) : this(comm, logs, Duration.ofSeconds(30))
+
   private val logger = Logger(CoordinatorServer::class)
 
   override suspend fun serveAsync(bundle: Bundle) {
@@ -210,7 +233,19 @@ class CoordinatorServer(
           aSocket(selector).tcp().connect(logs).use { socket ->
             logger.debug("Connected logs", mapOf("addr" to logs))
             LogSender.configure(socket.openWriteChannel(autoFlush = true))
-            deferral.await()
+            val hook = Thread({ sendQueuedLogs(socket::close, socket.socketContext, logFlushTimeout) }, "Airflow log flush")
+            Runtime.getRuntime().addShutdownHook(hook)
+            try {
+              deferral.await()
+            } finally {
+              // The use block closes the socket even when serving fails, so flush while it is still open.
+              sendQueuedLogs(socket::close, socket.socketContext, logFlushTimeout)
+              try {
+                Runtime.getRuntime().removeShutdownHook(hook)
+              } catch (e: IllegalStateException) {
+                // The JVM has started shutting down, so it has already started the hook.
+              }
+            }
           }
         }
       }
@@ -235,8 +270,16 @@ class CoordinatorServer(
     startup: StartupDetails,
     coordinator: CoordinatorComm,
   ) {
-    val result = runTask(bundle, startup, coordinator)
-    coordinator.communicate<Unit>(result)
+    // Keep the signal trap open until the result is sent, so a first signal cannot stop the JVM before then.
+    Cancellation().use { cancellation ->
+      val result = runTask(bundle, startup, coordinator, cancellation)
+      cancellation.finish()
+      // A leftover interrupt on this thread makes runBlocking in serve throw before the result is acknowledged.
+      if (Thread.interrupted()) {
+        logger.info("Cleared the interrupt flag that the task left on its thread, so the SDK can report the result")
+      }
+      coordinator.communicate<Unit>(result)
+    }
   }
 
   private suspend fun parseDagsAndReport(

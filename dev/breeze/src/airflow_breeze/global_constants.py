@@ -81,7 +81,7 @@ APACHE_AIRFLOW_GITHUB_REPOSITORY = "apache/airflow"
 ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS = ["3.11", "3.12", "3.13", "3.14"]
 DEFAULT_PYTHON_MAJOR_MINOR_VERSION = ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS[0]
 DEFAULT_PYTHON_MAJOR_MINOR_VERSION_FOR_IMAGES = (
-    "3.13"  # "highest complete" python version (where all providers are included)
+    "3.14"  # "highest complete" python version (where all providers are included)
 )
 
 ALLOWED_ARCHITECTURES = [Architecture.X86_64, Architecture.ARM]
@@ -328,8 +328,8 @@ if MYSQL_INNOVATION_RELEASE:
 
 ALLOWED_INSTALL_MYSQL_CLIENT_TYPES = ["mariadb"]
 
-PIP_VERSION = "26.2.2"
-UV_VERSION = "0.13.6"
+PIP_VERSION = "26.3"
+UV_VERSION = "0.13.7"
 
 # packages that providers docs
 REGULAR_DOC_PACKAGES = [
@@ -571,8 +571,8 @@ PRODUCTION_IMAGE = False
 ALL_PYTHON_MAJOR_MINOR_VERSIONS = ["3.11", "3.12", "3.13", "3.14"]
 CURRENT_PYTHON_MAJOR_MINOR_VERSIONS = ALL_PYTHON_MAJOR_MINOR_VERSIONS
 # All versions we can run against (Need to include versions for main branch and the current release branch)
-ALLOWED_POSTGRES_VERSIONS = ["13", "14", "15", "16", "17", "18"]
-CURRENT_POSTGRES_VERSIONS = ["14", "15", "16", "17", "18"]
+ALLOWED_POSTGRES_VERSIONS = ["14", "15", "16", "17", "18"]
+CURRENT_POSTGRES_VERSIONS = ["15", "16", "17", "18"]
 DEFAULT_POSTGRES_VERSION = CURRENT_POSTGRES_VERSIONS[0]
 
 USE_MYSQL_INNOVATION_RELEASE = True
@@ -915,7 +915,7 @@ PROVIDERS_COMPATIBILITY_TESTS_MATRIX: list[dict[str, str | list[str]]] = [
     {
         "python-version": "3.11",
         "airflow-version": "2.11.1",
-        "remove-providers": "anthropic common.messaging common.dataquality edge3 fab git keycloak informatica modal opensearch",
+        "remove-providers": "anthropic common.messaging common.dataquality edge3 fab git huggingface keycloak informatica modal opensearch",
         "run-unit-tests": "true",
     },
     {
@@ -939,6 +939,12 @@ PROVIDERS_COMPATIBILITY_TESTS_MATRIX: list[dict[str, str | list[str]]] = [
     {
         "python-version": "3.11",
         "airflow-version": "3.3.2",
+        "remove-providers": "",
+        "run-unit-tests": "true",
+    },
+    {
+        "python-version": "3.11",
+        "airflow-version": "3.4.0",
         "remove-providers": "",
         "run-unit-tests": "true",
     },

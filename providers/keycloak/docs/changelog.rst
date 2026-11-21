@@ -25,6 +25,26 @@
 Changelog
 ---------
 
+0.13.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add team-level authorization to Keycloak auth manager list filters (#77007)``
+* ``Redirect to the requested page after Keycloak login (#76362)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix 500 from the Keycloak auth manager when a browser session has no Keycloak tokens (#76353)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+0.12.0
+......
+
 .. note::
     Airflow 3.4.1 adds a Dag bundles view, which in multi-team mode is checked against the
     ``AdminView`` resource, so only ``SuperAdmin`` holds it. Multi-team deployments must upgrade this
@@ -33,6 +53,23 @@ Changelog
     Multi-team deployments upgrading from Airflow 3.4.0 must also re-run
     ``airflow keycloak-auth-manager create-team`` for each team, which removes the Dag bundles menu
     entry that team roles can no longer open.
+
+Features
+~~~~~~~~
+
+* ``Restrict the Dag bundles view to SuperAdmin in multi-team mode on Airflow 3.4.1+ (#76329)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Keep the Dag bundles menu entry for team roles on Airflow 3.4.0 (#76474)``
+* ``Make refresh_token optional in Keycloak login and token services (#75871)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Clarify Dag bundle permission upgrade notes (#76499)``
+   * ``[main] Upgrade important CI environment (#76278)``
+   * ``Remove duplicate Keycloak token-binding test (#75882)``
 
 0.11.2
 ......

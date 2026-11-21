@@ -323,5 +323,5 @@ Reference
 
 For further information, look at:
 
-* `Client Library Documentation <https://googleapis.github.io/google-cloud-python/latest/storage/index.html>`__
+* `Client Library Documentation <https://cloud.google.com/python/docs/reference/storage/latest>`__
 * `Product Documentation <https://cloud.google.com/storage/docs/>`__

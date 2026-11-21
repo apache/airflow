@@ -91,6 +91,10 @@ of a :class:`~airflow.sdk.execution_time.task_runner.RuntimeTaskInstance` instan
 
 - ``on_task_instance_failed``
 
+This event also occurs for an attempt that will be retried. In that case ``task_instance.state`` is
+``UP_FOR_RETRY``; it is ``FAILED`` when the task instance will not be retried. A listener that should only
+react to final failures can check ``task_instance.state``.
+
 .. exampleinclude:: /../src/airflow/example_dags/plugins/event_listener.py
     :language: python
     :start-after: [START howto_listen_ti_failure_task]
@@ -120,6 +124,19 @@ Dag Import Error Events
 - ``on_existing_dag_import_error``
 
 Dag import error events occur when Dag processor finds an import error in the Dag code and updates the metadata database table.
+
+``filename`` is the absolute path of the file on the Dag processor. When the Dag processor publishes its
+results through the Execution API, these events fire on the API server, which does not have the processor's
+bundles, so ``filename`` is the path relative to the bundle root instead. Both hooks also receive
+``bundle_name`` and ``relative_fileloc`` to identify the source consistently in either mode. Existing
+listeners that accept only ``filename`` and ``stacktrace`` continue to work; new listeners can accept
+the bundle identity arguments without relying on the form of ``filename``.
+
+``bundle_name`` and ``relative_fileloc`` were added in Airflow 3.5.0. Earlier versions raise
+``PluginValidationError`` while loading a listener whose hook accepts them, and then load no plugin
+listeners at all. Giving them default values does not help: pluggy never passes an argument that has
+a default, so the listener would never receive them. A listener that must also load on earlier versions
+should accept only ``filename`` and ``stacktrace``.
 
 
 |experimental|

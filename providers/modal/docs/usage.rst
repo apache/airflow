@@ -20,11 +20,11 @@
 Using Modal from Airflow
 ========================
 
-This provider ships a hook, not operators. A task gets a
-:class:`~airflow.providers.modal.hooks.modal.ModalHook`, asks it for a handle to a deployed
-function, class or sandbox, and then uses the Modal SDK on that handle exactly as it would
-outside Airflow. What the hook adds is that every handle carries the connection's credentials
-and environment.
+A task gets a :class:`~airflow.providers.modal.hooks.modal.ModalHook`, asks it for a handle to a
+deployed function, class or sandbox, and then uses the Modal SDK on that handle exactly as it
+would outside Airflow. What the hook adds is that every handle carries the connection's
+credentials and environment. To run a function's body on Modal without deploying it first, use
+``@task.modal`` instead; see :ref:`howto/decorator:modal`.
 
 Invoking a deployed function
 ----------------------------
@@ -150,7 +150,8 @@ Execution semantics
 What this provider does not do yet
 ----------------------------------
 
-* No operators, sensors or deferrable triggers; blocking calls in a ``@task`` are the pattern.
+* No operators or sensors for deployed functions; blocking calls in a ``@task`` are the
+  pattern. ``@task.modal`` (:ref:`howto/decorator:modal`) is the one deferrable path.
 * No executor. Tasks run on Airflow workers and call out to Modal; they do not run inside Modal.
 * Token authentication only. Modal's OAuth client credentials are not modeled on the
   connection.

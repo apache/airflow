@@ -57,10 +57,7 @@ const computeSectionErrors = (
   const errors = new Map<string, boolean>();
 
   Object.values(params).forEach((element) => {
-    if (
-      isRequired(element) &&
-      (element.value === null || element.value === undefined || element.value === "")
-    ) {
+    if (isRequired(element) && (element.value === null || element.value === "")) {
       errors.set(element.schema.section ?? defaultSection, true);
     }
   });

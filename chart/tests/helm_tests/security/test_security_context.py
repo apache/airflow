@@ -166,6 +166,7 @@ class TestSecurityContext:
                 "executor": "CeleryExecutor,KubernetesExecutor",
                 "cleanup": {"enabled": True},
                 "flower": {"enabled": True},
+                "otelCollector": {"tracesEnabled": True},
                 "pgbouncer": {"enabled": True},
             },
             show_only=[
@@ -176,6 +177,7 @@ class TestSecurityContext:
                 "templates/jobs/create-user-job.yaml",
                 "templates/jobs/migrate-database-job.yaml",
                 "templates/triggerer/triggerer-deployment.yaml",
+                "templates/otel-collector/otel-collector-deployment.yaml",
                 "templates/pgbouncer/pgbouncer-deployment.yaml",
                 "templates/statsd/statsd-deployment.yaml",
                 "templates/redis/redis-statefulset.yaml",
@@ -189,18 +191,19 @@ class TestSecurityContext:
             "spec.jobTemplate.spec.template.spec.securityContext", docs[0]
         )
 
-        for doc in docs[1:-3]:
+        for doc in docs[1:-4]:
             assert ctx_value_container == jmespath.search(
                 "spec.template.spec.containers[0].securityContext", doc
             )
             assert ctx_value_pod == jmespath.search("spec.template.spec.securityContext", doc)
 
-        # Global security context is not propagated to pgbouncer, redis and statsd, so we test default value
+        # Global security context is not propagated to otel collector, pgbouncer, redis and statsd,
+        # so we test default value
         default_ctx_value_container = {"allowPrivilegeEscalation": False, "capabilities": {"drop": ["ALL"]}}
         default_ctx_value_pod_pgbouncer = {"runAsUser": 65534}
         default_ctx_value_pod_statsd = {"runAsUser": 65534}
         default_ctx_value_pod_redis = {"runAsUser": 0}
-        for doc in docs[-3:]:
+        for doc in docs[-4:]:
             assert default_ctx_value_container == jmespath.search(
                 "spec.template.spec.containers[0].securityContext", doc
             )
@@ -227,6 +230,7 @@ class TestSecurityContext:
                 "apiServer": security_context,
                 "workers": {"celery": security_context},
                 "flower": {"enabled": True, **security_context},
+                "otelCollector": {"tracesEnabled": True, **security_context},
                 "statsd": security_context,
                 "createUserJob": security_context,
                 "migrateDatabaseJob": security_context,
@@ -241,6 +245,7 @@ class TestSecurityContext:
                 "templates/api-server/api-server-deployment.yaml",
                 "templates/dag-processor/dag-processor-deployment.yaml",
                 "templates/workers/worker-deployment.yaml",
+                "templates/otel-collector/otel-collector-deployment.yaml",
                 "templates/statsd/statsd-deployment.yaml",
                 "templates/jobs/create-user-job.yaml",
                 "templates/jobs/migrate-database-job.yaml",
@@ -408,6 +413,7 @@ class TestSecurityContext:
             values={
                 "securityContexts": {"disableDefaults": True},
                 "flower": {"enabled": True},
+                "otelCollector": {"tracesEnabled": True},
                 "pgbouncer": {"enabled": True},
                 "statsd": {"enabled": True},
             },
@@ -423,10 +429,12 @@ class TestSecurityContext:
                 "templates/pgbouncer/pgbouncer-deployment.yaml",
                 "templates/statsd/statsd-deployment.yaml",
                 "templates/redis/redis-statefulset.yaml",
+                "templates/otel-collector/otel-collector-deployment.yaml",
             ],
         )
 
-        assert all(v is None for v in jmespath.search("[].spec.template.spec.securityContext", docs))
+        assert all(v is None for v in jmespath.search("[].spec.template.spec.securityContext", docs[:-1]))
+        assert jmespath.search("spec.template.spec.securityContext", docs[-1]) == {}
         assert all(
             v is None for v in jmespath.search("[].spec.template.spec.containers[0].securityContext", docs)
         )

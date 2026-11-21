@@ -96,7 +96,7 @@ class LLMSchemaCompareOperator(LLMOperator):
 
     :param prompt: Instructions for the LLM on what to compare and flag.
     :param llm_conn_id: Connection ID for the LLM provider.
-    :param model_id: Model identifier (e.g. ``"openai:gpt-5"``).
+    :param model_id: Model identifier (e.g. ``"openai:gpt-6.1-sol"``).
     :param fallback_conn_ids: Connection IDs to fail over to, in order, when
         the primary provider is unavailable. Overrides the ``fallback_conn_ids``
         set in the connection's extra field. ``None`` (default) reads the
@@ -127,7 +127,8 @@ class LLMSchemaCompareOperator(LLMOperator):
     Human-in-the-Loop approval parameters are inherited from
     :class:`~airflow.providers.common.ai.operators.llm.LLMOperator`
     (``require_approval``, ``approval_timeout``, ``on_approval_timeout``,
-    ``allow_modifications``, ``approval_notifiers``, ``approval_assigned_users``).
+    ``allow_modifications``, ``approval_notifiers``, ``approval_assigned_users``,
+    ``fail_on_reject``, ``ignore_downstream_trigger_rules``).
     The task pauses after the comparison and only returns the result once a
     reviewer approves. The review body shows the compatibility verdict, a
     mismatch severity summary, and the full result JSON.

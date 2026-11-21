@@ -125,6 +125,7 @@
     "home": "Inicio",
     "invalidUrl": "Página no encontrada. Verifica la URL e inténtalo de nuevo.",
     "notFound": "Página No Encontrada",
+    "reload": "Recargar la página",
     "title": "Error"
   },
   "errors": {
@@ -229,6 +230,10 @@
     "write": "Escribir"
   },
   "overallStatus": "Estado General",
+  "pagination": {
+    "nextPage": "Página siguiente",
+    "previousPage": "Página anterior"
+  },
   "partition_many": "Particiones",
   "partition_one": "Partición",
   "partition_other": "Particiones",
@@ -278,7 +283,8 @@
   "search": {
     "advanced": {
       "description": "Coincide en cualquier parte del valor (búsqueda por subcadena). Más lento en despliegues grandes porque no puede usar el índice B-tree predeterminado. Consulta la sección de documentación sobre índices de metadata personalizados para más detalles.",
-      "title": "Coincidir en Cualquier Parte"
+      "title": "Coincidir en Cualquier Parte",
+      "toggleLabel": "Alternar búsqueda en cualquier parte"
     }
   },
   "security": {

@@ -28,6 +28,7 @@
         "lastParsed": "Dernière analyse",
         "parseDuration": "Durée d'analyse"
       },
+      "importErrorForbidden": "Vous n'avez pas l'autorisation de lire cette erreur d'import.",
       "importErrorGone": "Cette erreur d'import n'est plus enregistrée. Elle a probablement été corrigée par une nouvelle analyse.",
       "neverParsed": "Jamais",
       "parsedFile_many": "Fichiers analysés",
@@ -73,6 +74,7 @@
     "columns": {
       "dag": "Dag",
       "key": "Clé",
+      "timestamp": "Horodatage",
       "value": "Valeur"
     },
     "delete": {
