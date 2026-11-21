@@ -83,6 +83,41 @@ is manually ingested. The cleanup step is also skipped, making the intermediate 
       print(f"Intermediate csv: {run.get_task_instance('collect_stats').xcom_pull(task_ids='collect_stats')}")
 
 
+Debugging a Dag run in the Airflow UI
+-------------------------------------
+
+For failures that only appear in a deployed environment, inspect a real Dag run
+before reproducing the problem locally. In the Airflow UI, open the Dag and
+select the unexpected Dag run. The Grid view shows task instance states.
+
+1. Select the failing task instance and open its **Logs**. Look for the first
+   relevant exception, not only the final retry or failure message.
+2. Open the task instance **Details** and compare its run, attempt, and context
+   with a successful run.
+3. Inspect the task instance's **XCom** entries if it passes values to downstream
+   tasks. A missing XCom may indicate that the upstream task did not complete.
+   XCom is intended for small values, not large datasets or secrets.
+4. After correcting the cause, clear the affected task instance to schedule
+   another attempt. Review the selected upstream and downstream tasks first.
+
+.. warning::
+
+   Clearing tasks can repeat external side effects such as sending messages,
+   writing records, or triggering remote jobs. Prefer an isolated test
+   environment for non-idempotent tasks. Do not log secrets or put them in XCom.
+
+If the task succeeds on retry, compare the new logs and XCom values with the
+original attempt. A local test may not reproduce scheduler, worker, credentials,
+or network failures because its execution environment differs.
+
+Debugging an individual task
+----------------------------
+
+To investigate a single task, inspect its logs and XCom values in the UI, and
+clear only the affected task if a retry is safe. For code-level investigation,
+use a small local Dag test or unit-test the operator's callable. Verify that
+task parameters and connections match the environment where the issue occurred.
+
 Debugging Airflow Dags on the command line
 ------------------------------------------
 
