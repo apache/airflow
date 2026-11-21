@@ -207,6 +207,9 @@ else:
 # End of copied code from breeze
 
 os.environ["AIRFLOW__CORE__ALLOWED_DESERIALIZATION_CLASSES"] = "airflow.*\nunit.*\n"
+# Unit-test plugins register ClassBasedListener, which breaks on system-test task instances.
+# Check sys.argv before pytest parses options, and pass the result via env for xdist workers,
+# since config.option.system is not available this early.
 run_system_tests = "--system" in sys.argv or os.environ.get("_AIRFLOW_SYSTEM_TESTS") == "true"
 if run_system_tests:
     os.environ["_AIRFLOW_SYSTEM_TESTS"] = "true"
