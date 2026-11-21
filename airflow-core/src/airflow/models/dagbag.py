@@ -36,7 +36,7 @@ from airflow.models.base import Base, StringID
 from airflow.models.dag_version import DagVersion
 
 if TYPE_CHECKING:
-    from collections.abc import Generator
+    from collections.abc import Callable, Generator
 
     from sqlalchemy.orm import Session
 
@@ -193,27 +193,30 @@ class DBDagBag:
         return count
 
     @staticmethod
-    def _version_from_dag_run(dag_run: DagRun, *, session: Session) -> UUID | None:
+    def _resolve_version_for_run(
+        dag_run: DagRun, *, get_latest_version_id: Callable[[str], UUID | None]
+    ) -> UUID | None:
+        """Take the latest-version lookup as a callable, so callers resolving many runs can memoize it."""
         # A run with no version of its own can only resolve to the latest. Runs carried over from
         # Airflow 2 are like this, as are runs whose version `airflow db clean` has since deleted --
         # the latter keep their bundle version, so they would otherwise resolve to nothing at all.
         if not dag_run.bundle_version or not dag_run.created_dag_version_id:
-            if dag_version := DagVersion.get_latest_version(dag_id=dag_run.dag_id, session=session):
-                return dag_version.id
+            if (latest_version_id := get_latest_version_id(dag_run.dag_id)) is not None:
+                return latest_version_id
 
         return dag_run.created_dag_version_id
+
+    @staticmethod
+    def _version_from_dag_run(dag_run: DagRun, *, session: Session) -> UUID | None:
+        def get_latest_version_id(dag_id: str) -> UUID | None:
+            dag_version = DagVersion.get_latest_version(dag_id=dag_id, session=session)
+            return dag_version.id if dag_version else None
+
+        return DBDagBag._resolve_version_for_run(dag_run, get_latest_version_id=get_latest_version_id)
 
     def get_dag_for_run(self, dag_run: DagRun, session: Session) -> SerializedDAG | None:
         if version_id := self._version_from_dag_run(dag_run=dag_run, session=session):
             return self._get_dag(version_id=version_id, session=session)
-        return None
-
-    def get_serialized_dag_model_for_run(
-        self, dag_run: DagRun, *, session: Session
-    ) -> SerializedDagModel | None:
-        """Return the SerializedDagModel for the dag version this dag run resolves to."""
-        if version_id := self._version_from_dag_run(dag_run=dag_run, session=session):
-            return self.get_serialized_dag_model(version_id=version_id, session=session)
         return None
 
     def iter_all_latest_version_dags(self, *, session: Session) -> Generator[SerializedDAG, None, None]:
@@ -287,6 +290,55 @@ class CachedDBDagBag(DBDagBag):
         with self._lock:
             size = len(self._dags)
         stats.gauge(f"{self._stats_prefix}.cache_size", size, rate=rate)
+
+
+class BatchSerializedDagResolver:
+    """
+    Memoize Dag version resolution and serialized Dag loading for one batch of lookups.
+
+    Entries are never revalidated: a Dag's latest version is read once, and a version found missing
+    or rewritten in place mid-batch is not re-read, so use a new instance per batch.
+
+    :meta private:
+    """
+
+    def __init__(self, dag_bag: DBDagBag) -> None:
+        self._dag_bag = dag_bag
+        self._latest_version_ids: dict[str, UUID | None] = {}
+        self._serdags: dict[UUID, tuple[SerializedDagModel, SerializedDAG] | None] = {}
+
+    def _get_latest_version_id(self, dag_id: str, *, session: Session) -> UUID | None:
+        if dag_id not in self._latest_version_ids:
+            dag_version = DagVersion.get_latest_version(dag_id=dag_id, session=session)
+            self._latest_version_ids[dag_id] = dag_version.id if dag_version else None
+        return self._latest_version_ids[dag_id]
+
+    def _get_serdag(
+        self, version_id: UUID, *, session: Session
+    ) -> tuple[SerializedDagModel, SerializedDAG] | None:
+        if version_id not in self._serdags:
+            model = self._dag_bag.get_serialized_dag_model(version_id=version_id, session=session)
+            self._serdags[version_id] = (model, model.dag) if model is not None else None
+        return self._serdags[version_id]
+
+    def resolve(
+        self, dag_run: DagRun, *, fallback_version_id: UUID, session: Session
+    ) -> tuple[SerializedDagModel, SerializedDAG] | None:
+        """
+        Return the serialized Dag model and its deserialized Dag for ``dag_run``.
+
+        Falls back to ``fallback_version_id`` when the run's version has no serialized Dag.
+        """
+        version_id = DBDagBag._resolve_version_for_run(
+            dag_run,
+            get_latest_version_id=lambda dag_id: self._get_latest_version_id(dag_id, session=session),
+        )
+        resolved = None
+        if version_id is not None:
+            resolved = self._get_serdag(version_id, session=session)
+        if resolved is None:
+            resolved = self._get_serdag(fallback_version_id, session=session)
+        return resolved
 
 
 def generate_md5_hash(context):
