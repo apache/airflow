@@ -167,7 +167,9 @@ def decode_asset_like(var: dict[str, Any]) -> SerializedAssetBase:
         case DAT.ASSET_ALL:
             return SerializedAssetAll([decode_asset_like(x) for x in var["objects"]])
         case DAT.ASSET_ANY:
-            return SerializedAssetAny([decode_asset_like(x) for x in var["objects"]])
+            return SerializedAssetAny(
+                [decode_asset_like(x) for x in var["objects"]], consume=var.get("consume", "all")
+            )
         case DAT.ASSET_ALIAS:
             return SerializedAssetAlias(name=var["name"], group=var["group"])
         case DAT.ASSET_REF:

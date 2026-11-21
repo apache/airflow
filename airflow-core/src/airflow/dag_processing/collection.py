@@ -1065,9 +1065,9 @@ class DagModelOperation(NamedTuple):
                 if key == {"all"}:
                     # e.g., {"all": [{"asset": {"name": ..., "uri": ...}}]}
                     expaned_expr = {"all": expand_composite_asset_expr(expr["all"])}
-                elif key == {"any"}:
-                    # e.g., {"any": [{"asset": {"name": ..., "uri": ...}}]}
-                    expaned_expr = {"any": expand_composite_asset_expr(expr["any"])}
+                elif "any" in key:
+                    # e.g., {"any": [{"asset": {"name": ..., "uri": ...}}], "consume": "branch"}
+                    expaned_expr = {**expr, "any": expand_composite_asset_expr(expr["any"])}
                 elif key == {"asset"}:
                     # e.g., {"asset": {"name": ..., "uri": ...}}
                     expaned_expr = {"asset": expand_asset_obj_expr(expr["asset"])}

@@ -136,7 +136,9 @@ from airflow.sdk import (
     DAG,
     Asset,
     AssetAlias,
+    AssetAll,
     AssetAndTimeSchedule,
+    AssetAny,
     AssetWatcher,
     CronPartitionTimetable,
     CronTriggerTimetable,
@@ -7630,6 +7632,52 @@ class TestSchedulerJob:
 
         # We do not create a new DagRun since the ADRQ has already been consumed
         assert session.scalars(select(DagRun).where(DagRun.dag_id == dag_model.dag_id)).one_or_none() is None
+
+    @pytest.mark.need_serialized_dag
+    @pytest.mark.parametrize(
+        ("consume", "expected_consumed", "expected_queued"),
+        [
+            pytest.param("branch", {"c", "d"}, {"a"}, id="branch"),
+            pytest.param("all", {"a", "c", "d"}, set(), id="all"),
+        ],
+    )
+    def test_create_dag_runs_asset_triggered_consume_branch(
+        self, session: Session, dag_maker, consume, expected_consumed, expected_queued
+    ):
+        assets = {name: Asset(f"asset-consume-{name}") for name in "abcd"}
+        schedule = AssetAny(
+            AssetAll(assets["a"], assets["b"]), AssetAll(assets["c"], assets["d"]), consume=consume
+        )
+        with dag_maker(dag_id="asset-consume-branch", schedule=schedule, session=session):
+            pass
+        dag_model = dag_maker.dag_model
+        asset_ids = {
+            name: session.scalar(select(AssetModel.id).where(AssetModel.uri == asset.name))
+            for name, asset in assets.items()
+        }
+        events = {}
+        for name in "acd":
+            event = AssetEvent(asset_id=asset_ids[name], timestamp=timezone.utcnow())
+            session.add(event)
+            session.flush()
+            events[name] = event
+            session.add(
+                AssetDagRunQueue(
+                    asset_id=asset_ids[name], target_dag_id=dag_model.dag_id, asset_event_id=event.id
+                )
+            )
+        session.flush()
+
+        self.job_runner = SchedulerJobRunner(job=Job(), executors=[MockExecutor(do_update=False)])
+        self.job_runner._create_dag_runs_asset_triggered(dag_models=[dag_model], session=session)
+
+        runs = session.scalars(select(DagRun).where(DagRun.dag_id == dag_model.dag_id)).all()
+        assert len(runs) == 1
+        assert {e.id for e in runs[0].consumed_asset_events} == {events[n].id for n in expected_consumed}
+        queued = session.scalars(
+            select(AssetDagRunQueue.asset_id).where(AssetDagRunQueue.target_dag_id == dag_model.dag_id)
+        ).all()
+        assert set(queued) == {asset_ids[n] for n in expected_queued}
 
     @pytest.mark.need_serialized_dag
     @pytest.mark.parametrize(
