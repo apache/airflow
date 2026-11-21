@@ -1150,6 +1150,7 @@ export class Dag {
       spec[key] = value[key];
     }
     rejectBlankQueue(spec["queue"], `Dag "${this.dagId}" task "${taskId}"`);
+    rejectUnknownRules(spec, `Dag "${this.dagId}" task "${taskId}"`);
     return spec as TaskSpec;
   }
 
@@ -1578,6 +1579,50 @@ function validateDagSpec(dagId: string, spec: DagSpec): void {
 function rejectBlankQueue(queue: unknown, owner: string): void {
   if (typeof queue === "string" && queue.trim() === "") {
     throw new Error(`queue in the spec for ${owner} must not be blank`);
+  }
+}
+
+// The Dag schema types trigger_rule and weight_rule as plain strings, so these mirror
+// airflow/task/trigger_rule.py and weight_rule.py; dag.test.ts checks they still match.
+export const TRIGGER_RULES: ReadonlySet<string> = new Set([
+  "all_success",
+  "all_failed",
+  "all_done",
+  "all_done_min_one_success",
+  "all_done_setup_success",
+  "one_success",
+  "one_failed",
+  "one_done",
+  "none_failed",
+  "none_skipped",
+  "always",
+  "none_failed_min_one_success",
+  "all_skipped",
+]);
+export const WEIGHT_RULES: ReadonlySet<string> = new Set(["downstream", "upstream", "absolute"]);
+
+// Airflow accepts an unknown rule when the Dag is saved: a trigger rule then leaves the task
+// never running and a weight rule fails every run of the Dag. A value that is not a string is
+// left to the serializer, which rejects it.
+function rejectUnknownRules(spec: Record<string, unknown>, owner: string): void {
+  const triggerRule = spec["triggerRule"];
+  if (typeof triggerRule === "string" && !TRIGGER_RULES.has(triggerRule)) {
+    throw new Error(
+      `triggerRule in the spec for ${owner} is ${JSON.stringify(triggerRule)}; ` +
+        `use one of ${[...TRIGGER_RULES].join(", ")}`,
+    );
+  }
+  const weightRule = spec["weightRule"];
+  // A dotted value is the import path of a PriorityWeightStrategy class registered by a plugin.
+  if (
+    typeof weightRule === "string" &&
+    !WEIGHT_RULES.has(weightRule) &&
+    !weightRule.includes(".")
+  ) {
+    throw new Error(
+      `weightRule in the spec for ${owner} is ${JSON.stringify(weightRule)}; use one of ` +
+        `${[...WEIGHT_RULES].join(", ")}, or the import path of a registered priority weight strategy`,
+    );
   }
 }
 
