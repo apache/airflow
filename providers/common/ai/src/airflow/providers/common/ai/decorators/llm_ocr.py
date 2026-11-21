@@ -22,6 +22,7 @@ The user writes a function that **returns the document to read**; the task retur
 
 from __future__ import annotations
 
+import asyncio
 import inspect
 from collections.abc import Callable, Collection, Mapping, Sequence
 from typing import TYPE_CHECKING, Any, ClassVar
@@ -35,6 +36,7 @@ from airflow.providers.common.compat.sdk import (
     determine_kwargs,
     task_decorator_factory,
 )
+from airflow.providers.common.compat.standard.operators import is_async_callable
 
 if TYPE_CHECKING:
     from airflow.sdk import Context
@@ -45,8 +47,8 @@ class _LLMOCRDecoratedOperator(DecoratedOperator, LLMOCROperator):
     Wraps a callable that returns the document to read.
 
     The user function is called at execution time and returns the document, as bytes or as their
-    base64 string; an ``async def`` function is awaited, so it can download the document on the
-    task's event loop. All other parameters (``llm_conn_id``, ``model_id``,
+    base64 string. An ``async def`` function is awaited, so it can download the document on the
+    task's event loop; a synchronous one runs in a worker thread. All other parameters (``llm_conn_id``, ``model_id``,
     ``pages_per_request``, ...) are passed through to
     :class:`~airflow.providers.common.ai.operators.llm_ocr.LLMOCROperator`.
 
@@ -55,13 +57,14 @@ class _LLMOCRDecoratedOperator(DecoratedOperator, LLMOCROperator):
     :param op_kwargs: Keyword arguments for the callable.
     :param output_processor: Called with the pages and the arguments of the callable it names
         (``document``, ``ti``, ...); what it returns is the task's result. For a task that must
-        return more than the pages, such as which document they belong to. It runs on the
-        event loop: no I/O in it.
+        return more than the pages, such as which document they belong to.
     """
 
-    template_fields: Sequence[str] = (
-        *DecoratedOperator.template_fields,
-        *LLMOCROperator.template_fields,
+    # The document comes from the callable when the task runs: there is nothing to render.
+    template_fields: Sequence[str] = tuple(
+        field
+        for field in (*DecoratedOperator.template_fields, *LLMOCROperator.template_fields)
+        if field != "source_bytes"
     )
     template_fields_renderers: ClassVar[dict[str, str]] = {
         **DecoratedOperator.template_fields_renderers,
@@ -93,9 +96,11 @@ class _LLMOCRDecoratedOperator(DecoratedOperator, LLMOCROperator):
         # The arguments by name, the positional ones too: output_processor asks for them by name.
         arguments = inspect.signature(self.python_callable).bind(*self.op_args, **kwargs).arguments
 
-        source = self.python_callable(*self.op_args, **kwargs)
-        if inspect.isawaitable(source):
-            source = await source
+        if is_async_callable(self.python_callable):
+            source = await self.python_callable(*self.op_args, **kwargs)
+        else:
+            # Off the event loop: a synchronous callable may read a file or call a hook.
+            source = await asyncio.to_thread(self.python_callable, *self.op_args, **kwargs)
         if not isinstance(source, (bytes, str)) or not source:
             raise TypeError(
                 "The @task.llm_ocr callable must return the document as non-empty bytes or their "
@@ -107,7 +112,10 @@ class _LLMOCRDecoratedOperator(DecoratedOperator, LLMOCROperator):
         if self.output_processor is None:
             return pages
         context_merge(context, arguments)
-        return self.output_processor(pages, **determine_kwargs(self.output_processor, (pages,), context))
+        # Off the event loop, as the callable is: it is the author's code.
+        return await asyncio.to_thread(
+            self.output_processor, pages, **determine_kwargs(self.output_processor, (pages,), context)
+        )
 
 
 def llm_ocr_task(

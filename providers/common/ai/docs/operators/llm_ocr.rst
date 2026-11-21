@@ -47,8 +47,8 @@ Basic usage
 -----------
 
 Pass the document as ``source_bytes``: bytes, or their base64 string as an XCom carries them.
-``source_bytes`` is not a template field because Jinja would render ``bytes`` as their ``repr``
-text.
+``source_bytes`` is a template field, so the output of an upstream task is resolved when the
+task runs.
 
 .. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_llm_ocr.py
     :language: python
@@ -60,7 +60,7 @@ text.
 
 The decorated function returns the document; the task returns its pages. The function can be
 ``async def``: it then downloads the document on the task's event loop and the document never
-goes through an XCom.
+goes through an XCom. A synchronous function runs in a worker thread.
 
 ``output_processor`` is called with the pages and the arguments of the function it names, and
 what it returns is the task's result. Use it when the task must say which document its pages

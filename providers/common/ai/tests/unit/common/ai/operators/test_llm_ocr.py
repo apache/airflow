@@ -61,6 +61,8 @@ class TwoPageAdapter(OCRAdapter):
     requests = 0
     #: Raised by the request for the part that starts at this page width.
     fails_at: dict[int, Exception] = {}
+    #: Raised at once, before the request awaits anything, for the part that starts at this width.
+    fails_at_once: dict[int, Exception] = {}
     #: Requests of more pages than this are not answered in time.
     answers_up_to_pages = 99
     schemas: list = []
@@ -72,6 +74,8 @@ class TwoPageAdapter(OCRAdapter):
         widths = [int(page.mediabox.width) for page in pypdf.PdfReader(io.BytesIO(document)).pages]
         cls.schemas.append(image_annotation_schema)
         cls.requests += 1
+        if widths[0] in cls.fails_at_once:
+            raise cls.fails_at_once[widths[0]]
         if len(widths) > cls.answers_up_to_pages:
             raise OCRTimeoutError("no answer in time")
         cls.in_flight += 1
@@ -101,6 +105,7 @@ def _adapters(monkeypatch):
         for name, value in (("in_flight", 0), ("most_in_flight", 0), ("requests", 0)):
             monkeypatch.setattr(adapter, name, value)
         monkeypatch.setattr(adapter, "fails_at", {})
+        monkeypatch.setattr(adapter, "fails_at_once", {})
         monkeypatch.setattr(adapter, "answers_up_to_pages", 99)
         monkeypatch.setattr(adapter, "schemas", [])
 
@@ -116,7 +121,18 @@ def run(**kwargs) -> list[dict]:
 
 class TestLLMOCROperator:
     def test_template_fields(self):
-        assert LLMOCROperator.template_fields == ("llm_conn_id", "model_id", "file_name")
+        assert LLMOCROperator.template_fields == ("source_bytes", "llm_conn_id", "model_id", "file_name")
+
+    def test_bytes_are_left_as_they_are_when_the_fields_are_rendered(self):
+        document = make_pdf(1)
+        task = LLMOCROperator(
+            task_id="ocr", source_bytes=document, llm_conn_id="ocr", model_id="{{ model }}:model"
+        )
+
+        task.render_template_fields({"model": "two"})
+
+        assert task.source_bytes is document
+        assert task.model_id == "two:model"
 
     def test_a_large_document_is_cut_and_its_pages_come_back_in_document_order(self):
         pages = run(source_bytes=make_pdf(5), file_name="rules.pdf")
@@ -190,6 +206,28 @@ class TestLLMOCROperator:
         assert TwoPageAdapter.requests == 4
         assert [page["text"] for page in pages] == ["page 100", "page 101", "page 102"]
         assert [page["metadata"]["page_number"] for page in pages] == [1, 2, 3]
+
+    def test_a_part_is_halved_again_until_single_pages_are_read(self):
+        TwoPageAdapter.answers_up_to_pages = 1
+
+        pages = run(source_bytes=make_pdf(7), model_id="unlimited:model")
+
+        # 7 pages time out, then 4 + 3, then 2 + 2 + 2 + 1: only the 7 single pages are read.
+        assert [page["text"] for page in pages] == [f"page {width}" for width in range(100, 107)]
+
+    def test_every_other_failed_part_is_logged_when_the_first_one_fails_the_task(self, caplog):
+        # Both fail before they await anything, so the second has failed before the first cancels it.
+        TwoPageAdapter.fails_at_once = {
+            100: OCRBusyError("first", status=429),
+            102: OCRBusyError("second", status=503),
+        }
+
+        with pytest.raises(OCRBusyError, match="first"), caplog.at_level("ERROR"):
+            run(source_bytes=make_pdf(4))
+
+        assert [message for message in caplog.messages if "Another part failed too" in message] == [
+            "Another part failed too: OCRBusyError('second')"
+        ]
 
     def test_a_single_page_not_read_in_time_fails_the_task_as_a_timeout(self):
         TwoPageAdapter.answers_up_to_pages = 0

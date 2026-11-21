@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import threading
 from unittest.mock import patch
 
 import pytest
@@ -64,6 +65,26 @@ def run(python_callable, **kwargs) -> object:
 class TestLLMOCRDecoratedOperator:
     def test_custom_operator_name(self):
         assert _LLMOCRDecoratedOperator.custom_operator_name == "@task.llm_ocr"
+
+    def test_the_document_is_not_a_template_field(self):
+        assert "source_bytes" not in _LLMOCRDecoratedOperator.template_fields
+        assert {"op_args", "op_kwargs", "llm_conn_id", "model_id"} <= set(
+            _LLMOCRDecoratedOperator.template_fields
+        )
+
+    def test_a_synchronous_function_and_the_output_processor_run_off_the_event_loop(self):
+        threads = {}
+
+        def document() -> bytes:
+            threads["callable"] = threading.current_thread()
+            return b"one"
+
+        def processor(pages: list[dict]) -> int:
+            threads["processor"] = threading.current_thread()
+            return len(pages)
+
+        assert run(document, output_processor=processor) == 1
+        assert threading.main_thread() not in threads.values()
 
     def test_the_decorator_builds_a_decorated_ocr_task(self):
         @llm_ocr_task(llm_conn_id="ocr", model_id="lines:model")

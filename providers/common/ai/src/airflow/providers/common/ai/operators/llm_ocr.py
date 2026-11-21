@@ -60,7 +60,7 @@ class LLMOCROperator(BaseAsyncOperator):
     Requires Airflow 3.2 or later: the requests run on the worker's event loop.
 
     :param source_bytes: The document: bytes, or their base64 string as an XCom carries them.
-        Not a template field: Jinja would render bytes as their ``repr`` text.
+        A template field, so the output of an upstream task is resolved; bytes are not rendered.
     :param llm_conn_id: The connection of the OCR service.
     :param model_id: ``"<provider>:<model>"``; the provider selects the adapter.
     :param file_name: Name of the document, for the pages' metadata.
@@ -72,7 +72,7 @@ class LLMOCROperator(BaseAsyncOperator):
         the annotations come back in the pages' ``metadata["images"]``.
     """
 
-    template_fields: Sequence[str] = ("llm_conn_id", "model_id", "file_name")
+    template_fields: Sequence[str] = ("source_bytes", "llm_conn_id", "model_id", "file_name")
 
     def __init__(
         self,
@@ -151,33 +151,43 @@ class LLMOCROperator(BaseAsyncOperator):
         in_flight = asyncio.Semaphore(self.max_concurrency)
 
         async def read(part: bytes) -> list[OCRResult]:
-            try:
-                async with in_flight:
-                    return [
-                        await adapter.ocr(
-                            part,
-                            include_images=self.include_images,
-                            image_annotation_schema=self.image_annotation_schema,
+            """Read one part; what is not read in time is halved until it is, or is one page."""
+            results: list[OCRResult] = []
+            pending = [part]
+            while pending:
+                current = pending.pop(0)
+                try:
+                    async with in_flight:
+                        results.append(
+                            await adapter.ocr(
+                                current,
+                                include_images=self.include_images,
+                                image_annotation_schema=self.image_annotation_schema,
+                            )
                         )
-                    ]
-            except OCRTimeoutError:
-                # Imported here: only a part that timed out needs pypdf, the ``pdf`` extra.
-                from airflow.providers.common.ai.ocr.pdf import halve_pdf
+                except OCRTimeoutError:
+                    # Imported here: only a part that timed out needs pypdf, the ``pdf`` extra.
+                    from airflow.providers.common.ai.ocr.pdf import halve_pdf
 
-                halves = await asyncio.to_thread(halve_pdf, part)
-                if len(halves) == 1:
-                    raise
-                self.log.warning(
-                    "A part of %d bytes was not read in time, sending it again as two halves", len(part)
-                )
-                return [result for half in halves for result in await read(half)]
+                    halves = await asyncio.to_thread(halve_pdf, current)
+                    if len(halves) == 1:
+                        raise
+                    self.log.warning(
+                        "A part of %d bytes was not read in time, sending it again as two halves",
+                        len(current),
+                    )
+                    pending[:0] = halves
+            return results
 
         try:
             async with asyncio.TaskGroup() as group:
                 requests = [group.create_task(read(part)) for part in parts]
         except* Exception as failed:
             # One error tells a retry policy what happened; the group wraps even a single one.
-            raise failed.exceptions[0] from None
+            first, *others = failed.exceptions
+            for other in others:
+                self.log.error("Another part failed too: %r", other)
+            raise first from None
         return [result for request in requests for result in request.result()]
 
     def _build_pages(self, results: list[OCRResult]) -> list[dict[str, Any]]:
