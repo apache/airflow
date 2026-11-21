@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-11-21T00:25:58.837523
+# This constraints file was automatically generated on 2026-11-21T12:00:00.144717
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -36,7 +36,7 @@ PyNaCl==1.6.2
 PyYAML==6.0.3
 Pygments==2.21.0
 SQLAlchemy-Utils==0.43.0
-SQLAlchemy==2.0.57
+SQLAlchemy==2.1.8
 SecretStorage==3.5.0
 Sphinx==9.2.0
 WTForms==3.3.2
