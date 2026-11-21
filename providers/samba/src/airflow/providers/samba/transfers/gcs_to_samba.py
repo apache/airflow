@@ -184,7 +184,15 @@ class GCSToSambaOperator(BaseOperator):
         # crafted object name cannot resolve a write target outside the configured directory.
         resolved = os.path.normpath(os.path.join(self.destination_path, source_object))
         base = os.path.normpath(self.destination_path)
-        if resolved != base and not resolved.startswith(base + os.sep):
+        if base == os.curdir:
+            # The share root given as a relative path: anything not climbing out of it is in-bounds.
+            escapes = (
+                os.path.isabs(resolved) or resolved == os.pardir or resolved.startswith(os.pardir + os.sep)
+            )
+        else:
+            # ``rstrip`` keeps a root ``base`` ("/") from turning into the prefix "//".
+            escapes = resolved != base and not resolved.startswith(base.rstrip(os.sep) + os.sep)
+        if escapes:
             raise ValueError(
                 f"Resolved destination path {resolved!r} is outside the configured "
                 f"destination_path {base!r}; refusing to write outside it."
