@@ -41,6 +41,20 @@ SSO_METADATA = {
     "device_authorization_endpoint": None,
     "token_endpoint": "/auth/token/cli",
 }
+DEVICE_CODE_METADATA = {
+    "grant_types_supported": ["password", "refresh_token", "urn:ietf:params:oauth:grant-type:device_code"],
+    "code_challenge_methods_supported": [],
+    "authorization_endpoint": None,
+    "device_authorization_endpoint": "/auth/token/cli/device",
+    "token_endpoint": "/auth/token/cli",
+}
+DEVICE_AUTHORIZATION = {
+    "device_code": "device-code",
+    "user_code": "WDJB-MJHT",
+    "verification_uri": "https://idp.example.com/device",
+    "expires_in": 600,
+    "interval": 5,
+}
 AUTHORIZATION_CODE = AuthorizationCode(
     code="code", code_verifier="verifier", redirect_uri="http://127.0.0.1:1234/callback"
 )
@@ -53,6 +67,28 @@ def _make_sso_api_client(metadata: dict) -> Client:
         assert str(request.url) == "http://localhost:8080/auth/token/cli"
         assert json.loads(request.content)["code_verifier"] == "verifier"
         return httpx.Response(201, json={"access_token": "SSO_TOKEN"})
+
+    return Client(
+        base_url="test://server",
+        transport=httpx.MockTransport(handle_request),
+        token="",
+        kind=ClientKind.AUTH,
+    )
+
+
+def _make_device_code_api_client(metadata: dict, token_requests: list[dict]) -> Client:
+    """Return a client whose token endpoint answers ``authorization_pending`` once, then a token."""
+
+    def handle_request(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/api/v2/auth/cli/metadata":
+            return httpx.Response(200, json=metadata)
+        if str(request.url) == "http://localhost:8080/auth/token/cli/device":
+            return httpx.Response(200, json=DEVICE_AUTHORIZATION)
+        assert str(request.url) == "http://localhost:8080/auth/token/cli"
+        token_requests.append(json.loads(request.content))
+        if len(token_requests) == 1:
+            return httpx.Response(400, json={"detail": "authorization_pending"})
+        return httpx.Response(201, json={"access_token": "DEVICE_TOKEN"})
 
     return Client(
         base_url="test://server",
@@ -521,16 +557,19 @@ class TestCliAuthCommands:
 
         mock_get_authorization_code.assert_not_called()
 
+    @pytest.mark.parametrize("sso_flag", ["--sso", "--device-code"])
     @pytest.mark.parametrize(
         "extra_args",
         [["--username", "user"], ["--password", "pass"], ["--api-token", "token"]],
     )
     @patch("airflowctl.ctl.commands.auth_command.get_authorization_code", autospec=True)
-    def test_login_with_sso_incompatible_args(self, mock_get_authorization_code, extra_args, capsys):
+    def test_login_with_sso_incompatible_args(
+        self, mock_get_authorization_code, extra_args, sso_flag, capsys
+    ):
         with pytest.raises(SystemExit):
             auth_command.login(
                 self.parser.parse_args(
-                    ["auth", "login", "--api-url", "http://localhost:8080", "--sso", *extra_args]
+                    ["auth", "login", "--api-url", "http://localhost:8080", sso_flag, *extra_args]
                 ),
                 api_client=_make_sso_api_client(SSO_METADATA),
             )
@@ -538,15 +577,18 @@ class TestCliAuthCommands:
         mock_get_authorization_code.assert_not_called()
         captured = capsys.readouterr()
         assert captured.out == ""
-        assert "--sso is not compatible" in captured.err
+        assert f"{sso_flag} is not compatible" in captured.err
 
+    @pytest.mark.parametrize("sso_flag", ["--sso", "--device-code"])
     @pytest.mark.parametrize("extra_args", [["--username", "user"], ["--password", "pass"]])
     @patch("airflowctl.ctl.commands.auth_command.get_authorization_code", autospec=True)
-    def test_get_token_with_sso_incompatible_args(self, mock_get_authorization_code, extra_args, capsys):
+    def test_get_token_with_sso_incompatible_args(
+        self, mock_get_authorization_code, extra_args, sso_flag, capsys
+    ):
         with pytest.raises(SystemExit):
             auth_command.get_token(
                 self.parser.parse_args(
-                    ["auth", "token", "--api-url", "http://localhost:8080", "--sso", *extra_args]
+                    ["auth", "token", "--api-url", "http://localhost:8080", sso_flag, *extra_args]
                 ),
                 api_client=_make_sso_api_client(SSO_METADATA),
             )
@@ -554,7 +596,7 @@ class TestCliAuthCommands:
         mock_get_authorization_code.assert_not_called()
         captured = capsys.readouterr()
         assert captured.out == ""
-        assert "--sso is not compatible" in captured.err
+        assert f"{sso_flag} is not compatible" in captured.err
 
     @pytest.mark.parametrize(
         ("command", "subcommand"),
@@ -598,11 +640,16 @@ class TestCliAuthCommands:
         ],
     )
     @pytest.mark.parametrize(
-        "extra_args",
-        [pytest.param(["--no-browser"], id="no-browser"), pytest.param(["--timeout", "30"], id="timeout")],
+        ("extra_args", "message"),
+        [
+            pytest.param(["--no-browser"], "--no-browser can only be used with --sso.", id="no-browser"),
+            pytest.param(
+                ["--timeout", "30"], "--timeout can only be used with --sso or --device-code.", id="timeout"
+            ),
+        ],
     )
     @patch("airflowctl.api.client.keyring")
-    def test_sso_only_args_without_sso(self, mock_keyring, command, args, extra_args, capsys):
+    def test_sso_only_args_without_sso(self, mock_keyring, command, args, extra_args, message, capsys):
         api_client = mock.MagicMock()
 
         with pytest.raises(SystemExit):
@@ -615,7 +662,132 @@ class TestCliAuthCommands:
         mock_keyring.set_password.assert_not_called()
         captured = capsys.readouterr()
         assert captured.out == ""
-        assert "--no-browser and --timeout can only be used with --sso" in captured.err
+        assert message in captured.err
+
+    @patch("airflowctl.ctl.utils.device_login.time.sleep", autospec=True)
+    @patch("airflowctl.api.client.keyring")
+    def test_login_with_device_code(self, mock_keyring, mock_sleep, monkeypatch, tmp_path, capsys):
+        monkeypatch.setenv("AIRFLOW_HOME", str(tmp_path))
+        mock_keyring.get_password.return_value = None
+        token_requests: list[dict] = []
+
+        auth_command.login(
+            self.parser.parse_args(["auth", "login", "--api-url", "http://localhost:8080", "--device-code"]),
+            api_client=_make_device_code_api_client(DEVICE_CODE_METADATA, token_requests),
+        )
+
+        assert (
+            token_requests
+            == [{"grant_type": "urn:ietf:params:oauth:grant-type:device_code", "device_code": "device-code"}]
+            * 2
+        )
+        mock_keyring.set_password.assert_called_once_with(
+            "airflowctl", "api_token_production", "DEVICE_TOKEN"
+        )
+        captured = capsys.readouterr()
+        assert "https://idp.example.com/device and enter the code: WDJB-MJHT" in captured.err
+        assert "Login successful" in captured.out
+
+    @pytest.mark.parametrize(
+        "sso_flags",
+        [
+            pytest.param(["--device-code"], id="device-code"),
+            pytest.param(["--sso", "--device-code"], id="sso"),
+        ],
+    )
+    @patch("airflowctl.ctl.utils.device_login.time.sleep", autospec=True)
+    def test_get_token_with_device_code(self, mock_sleep, sso_flags, capsys):
+        auth_command.get_token(
+            self.parser.parse_args(["auth", "token", "--api-url", "http://localhost:8080", *sso_flags]),
+            api_client=_make_device_code_api_client(DEVICE_CODE_METADATA, []),
+        )
+
+        captured = capsys.readouterr()
+        assert captured.out == "DEVICE_TOKEN\n"
+        assert "WDJB-MJHT" in captured.err
+
+    @pytest.mark.parametrize(
+        ("extra_args", "expected_timeout"),
+        [([], auth_command.DEFAULT_SSO_TIMEOUT), (["--timeout", "30"], 30)],
+    )
+    @patch("airflowctl.ctl.commands.auth_command.wait_for_device_token", autospec=True)
+    def test_device_code_timeout(self, mock_wait_for_device_token, extra_args, expected_timeout):
+        mock_wait_for_device_token.return_value = "DEVICE_TOKEN"
+
+        auth_command.get_token(
+            self.parser.parse_args(
+                ["auth", "token", "--api-url", "http://localhost:8080", "--device-code", *extra_args]
+            ),
+            api_client=_make_device_code_api_client(DEVICE_CODE_METADATA, []),
+        )
+
+        assert mock_wait_for_device_token.call_args.kwargs["timeout"] == expected_timeout
+
+    @pytest.mark.parametrize(
+        "metadata",
+        [
+            pytest.param({**DEVICE_CODE_METADATA, "grant_types_supported": ["password"]}, id="no-grant"),
+            pytest.param({**DEVICE_CODE_METADATA, "device_authorization_endpoint": None}, id="no-endpoint"),
+            pytest.param({**DEVICE_CODE_METADATA, "token_endpoint": None}, id="no-token-endpoint"),
+            pytest.param(
+                {**DEVICE_CODE_METADATA, "device_authorization_endpoint": "https://evil.example.com/device"},
+                id="foreign-device-endpoint",
+            ),
+            pytest.param(SSO_METADATA, id="browser-only"),
+        ],
+    )
+    def test_device_code_not_offered(self, metadata, capsys):
+        token_requests: list[dict] = []
+
+        with pytest.raises(SystemExit):
+            auth_command.login(
+                self.parser.parse_args(
+                    ["auth", "login", "--api-url", "http://localhost:8080", "--device-code"]
+                ),
+                api_client=_make_device_code_api_client(metadata, token_requests),
+            )
+
+        assert token_requests == []
+        assert "WDJB-MJHT" not in capsys.readouterr().err
+
+    @patch("airflowctl.ctl.commands.auth_command.get_authorization_code", autospec=True)
+    def test_browser_login_not_offered_suggests_device_code(self, mock_get_authorization_code, capsys):
+        with pytest.raises(SystemExit):
+            auth_command.login(
+                self.parser.parse_args(["auth", "login", "--api-url", "http://localhost:8080", "--sso"]),
+                api_client=_make_device_code_api_client(DEVICE_CODE_METADATA, []),
+            )
+
+        mock_get_authorization_code.assert_not_called()
+        # rich wraps long lines.
+        assert "Use --device-code" in " ".join(capsys.readouterr().err.split())
+
+    @pytest.mark.parametrize(
+        ("command", "subcommand"),
+        [pytest.param(auth_command.login, "login", id="login"), (auth_command.get_token, "token")],
+    )
+    def test_device_code_with_no_browser(self, command, subcommand, capsys):
+        token_requests: list[dict] = []
+
+        with pytest.raises(SystemExit):
+            command(
+                self.parser.parse_args(
+                    [
+                        "auth",
+                        subcommand,
+                        "--api-url",
+                        "http://localhost:8080",
+                        "--device-code",
+                        "--no-browser",
+                    ]
+                ),
+                api_client=_make_device_code_api_client(DEVICE_CODE_METADATA, token_requests),
+            )
+
+        assert token_requests == []
+        captured = capsys.readouterr()
+        assert captured.out == ""
+        assert "--no-browser is not compatible with --device-code" in captured.err
 
 
 class TestCliAuthToken:

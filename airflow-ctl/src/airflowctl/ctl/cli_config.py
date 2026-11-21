@@ -371,7 +371,18 @@ ARG_AUTH_NO_BROWSER = Arg(
     action="store_true",
     help=(
         "With --sso, print the login URL instead of opening a browser. "
-        "The browser must run on this machine, because the login redirects to 127.0.0.1"
+        "The browser must run on this machine, because the login redirects to 127.0.0.1; "
+        "use --device-code otherwise"
+    ),
+)
+ARG_AUTH_DEVICE_CODE = Arg(
+    flags=("--device-code",),
+    dest="device_code",
+    default=False,
+    action="store_true",
+    help=(
+        "Log in with the identity provider of the API server by entering a code on any device, "
+        "instead of with a browser on this machine as --sso does, for example over SSH or in a container"
     ),
 )
 ARG_AUTH_TIMEOUT = Arg(
@@ -379,7 +390,7 @@ ARG_AUTH_TIMEOUT = Arg(
     type=positive_finite_float,
     default=None,
     dest="timeout",
-    help="With --sso, seconds to wait for the browser login to complete (default: 300)",
+    help="With --sso or --device-code, seconds to wait for the login to complete (default: 300)",
 )
 
 # Dag Commands Args
@@ -1280,7 +1291,8 @@ AUTH_COMMANDS = (
             "Log in to the Airflow API server and store the credentials for the selected environment. "
             "Pass --api-token (or set AIRFLOW_CLI_TOKEN), or --username and --password; "
             "missing credentials are prompted for when running in a terminal. "
-            "Pass --sso to log in through the browser when the API server offers it."
+            "Pass --sso to log in through the browser when the API server offers it, "
+            "or --device-code to log in with a code on another device instead."
         ),
         func=lazy_load_command("airflowctl.ctl.commands.auth_command.login"),
         args=(
@@ -1291,6 +1303,7 @@ AUTH_COMMANDS = (
             ARG_AUTH_SKIP_KEYRING,
             ARG_AUTH_SSO,
             ARG_AUTH_NO_BROWSER,
+            ARG_AUTH_DEVICE_CODE,
             ARG_AUTH_TIMEOUT,
         ),
     ),
@@ -1305,7 +1318,8 @@ AUTH_COMMANDS = (
         name="token",
         help="Generate and print a JWT token for the given credentials",
         description=(
-            "Authenticate with username and password, or through the browser with --sso, "
+            "Authenticate with username and password, or through the identity provider with --sso "
+            "or --device-code, "
             "and print the access token to stdout. "
             "Username and password are prompted interactively if not provided. "
             "In non-interactive runs, pass --username and either pass --password "
@@ -1318,6 +1332,7 @@ AUTH_COMMANDS = (
             ARG_AUTH_PASSWORD,
             ARG_AUTH_SSO,
             ARG_AUTH_NO_BROWSER,
+            ARG_AUTH_DEVICE_CODE,
             ARG_AUTH_TIMEOUT,
         ),
     ),

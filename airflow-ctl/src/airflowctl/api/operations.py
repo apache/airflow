@@ -101,6 +101,7 @@ from airflowctl.api.datamodels.generated import (
     XComResponseNative,
     XComUpdateBody,
 )
+from airflowctl.ctl.utils.device_login import DEVICE_CODE_GRANT_TYPE, DeviceAuthorization
 from airflowctl.exceptions import AirflowCtlConnectionException
 
 if TYPE_CHECKING:
@@ -401,6 +402,20 @@ class LoginOperations:
                 "code_verifier": code_verifier,
                 "redirect_uri": redirect_uri,
             },
+        )
+        return LoginResponse.model_validate_json(response.content)
+
+    def start_device_authorization(self, device_authorization_url: str) -> DeviceAuthorization:
+        """Start a device code login and return the code the user must approve."""
+        return DeviceAuthorization.model_validate_json(self.client.post(device_authorization_url).content)
+
+    def login_with_device_code(self, token_url: str, device_code: str) -> LoginResponse:
+        """Redeem an approved device code for a CLI token."""
+        response = self.client.post(
+            token_url,
+            json={"grant_type": DEVICE_CODE_GRANT_TYPE, "device_code": device_code},
+            # Polling gets a 400 until the user approves the login.
+            extensions={"airflowctl_suppress_error_log": True},
         )
         return LoginResponse.model_validate_json(response.content)
 

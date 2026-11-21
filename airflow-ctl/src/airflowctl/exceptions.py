@@ -52,3 +52,7 @@ class AirflowCtlKeyringException(AirflowCtlException):
 
 class AirflowCtlBrowserLoginException(AirflowCtlException):
     """Raise when the browser login of ``auth login --sso`` cannot complete."""
+
+
+class AirflowCtlDeviceCodeLoginException(AirflowCtlException):
+    """Raise when the device code login of ``auth login --device-code`` cannot complete."""

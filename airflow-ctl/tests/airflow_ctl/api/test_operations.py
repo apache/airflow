@@ -26,6 +26,7 @@ from unittest.mock import Mock, patch
 
 import httpx
 import pytest
+import structlog
 from pydantic import BaseModel, RootModel, ValidationError
 
 import airflowctl.api.datamodels.generated as generated_datamodels
@@ -3075,6 +3076,56 @@ class TestAuthOperations:
 
         assert response.access_token == "TOKEN"
         assert outcomes == []
+
+    def test_start_device_authorization(self):
+        authorization = {
+            "device_code": "device-code",
+            "user_code": "WDJB-MJHT",
+            "verification_uri": "https://idp.example.com/device",
+            "verification_uri_complete": None,
+            "expires_in": 600,
+            "interval": 5,
+        }
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.method == "POST"
+            assert str(request.url) == "http://server/auth/token/cli/device"
+            return httpx.Response(200, json=authorization)
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request), kind=ClientKind.AUTH)
+
+        response = client.login.start_device_authorization("http://server/auth/token/cli/device")
+
+        assert response.model_dump() == authorization
+
+    def test_login_with_device_code(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert str(request.url) == "http://server/auth/token/cli"
+            assert json.loads(request.content) == {
+                "grant_type": "urn:ietf:params:oauth:grant-type:device_code",
+                "device_code": "device-code",
+            }
+            return httpx.Response(201, json={"access_token": "TOKEN"})
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request), kind=ClientKind.AUTH)
+
+        response = client.login.login_with_device_code("http://server/auth/token/cli", "device-code")
+
+        assert response.access_token == "TOKEN"
+
+    @patch("airflowctl.api.client.log", spec=structlog.stdlib.BoundLogger)
+    def test_login_with_device_code_pending_is_not_logged(self, mock_log):
+        client = make_api_client(
+            transport=httpx.MockTransport(
+                lambda request: httpx.Response(400, json={"detail": "authorization_pending"})
+            ),
+            kind=ClientKind.AUTH,
+        )
+
+        with pytest.raises(ServerResponseError):
+            client.login.login_with_device_code("http://server/auth/token/cli", "device-code")
+
+        mock_log.warning.assert_not_called()
 
     def test_login_with_authorization_code_is_not_retried(self):
         requests = []
