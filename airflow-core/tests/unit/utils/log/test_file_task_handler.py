@@ -20,7 +20,13 @@ from __future__ import annotations
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-from airflow.utils.log.file_task_handler import FileTaskHandler
+import pytest
+
+from airflow.utils.log.file_task_handler import (
+    FileTaskHandler,
+    LogType,
+    _fetch_logs_from_service,
+)
 from airflow.utils.state import TaskInstanceState
 
 from tests_common.test_utils.file_task_handler import convert_list_to_stream, extract_events
@@ -124,6 +130,50 @@ class TestFileTaskHandlerLogServer:
         assert "trigger" in sources[0]
         assert streams == []
         mock_fetch.assert_not_called()
+
+
+class TestLogRetrievalUrlHostname:
+    """The log server hostname comes from the worker over the Execution API and must not carry URL syntax."""
+
+    def setup_method(self):
+        self.handler = FileTaskHandler(base_log_folder="/tmp/test_logs")
+        self.ti = MagicMock()
+        self.ti.triggerer_job = None
+
+    @pytest.mark.parametrize(
+        "hostname",
+        [
+            "worker-1@evil.example",
+            "evil.example/log",
+            "http://evil.example",
+            "worker-1:9/../",
+            "worker-1?x=1",
+            "worker-1#frag",
+            "worker-1 evil.example",
+            "worker-1\nevil.example",
+        ],
+    )
+    def test_get_log_retrieval_url_rejects_unsafe_hostname(self, hostname):
+        self.ti.hostname = hostname
+        assert self.handler._get_log_retrieval_url(
+            self.ti, "dag/run/task/1.log", log_type=LogType.WORKER
+        ) == (None, None)
+
+    @pytest.mark.parametrize("hostname", ["worker-1", "worker-1.example.com", "10.0.0.5"])
+    def test_get_log_retrieval_url_allows_valid_hostname(self, hostname):
+        self.ti.hostname = hostname
+        url, rel_path = self.handler._get_log_retrieval_url(
+            self.ti, "dag/run/task/1.log", log_type=LogType.WORKER
+        )
+        assert url is not None
+        assert url.startswith(f"http://{hostname}:")
+        assert url.endswith("/log/dag/run/task/1.log")
+        assert rel_path == "dag/run/task/1.log"
+
+    @patch("requests.get")
+    def test_fetch_logs_from_service_does_not_follow_redirects(self, mock_get):
+        _fetch_logs_from_service("http://worker-1:8793/log/dag/run/task/1.log", "dag/run/task/1.log")
+        assert mock_get.call_args.kwargs["allow_redirects"] is False
 
 
 class TestFileTaskHandlerReadFromLocal:
