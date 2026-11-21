@@ -35,10 +35,12 @@ from opentelemetry import trace
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 from pydantic import BaseModel, JsonValue
 from tenacity import (
+    Retrying,
     before_log,
     retry,
     retry_if_exception,
     stop_after_attempt,
+    stop_after_delay,
     wait_random_exponential,
 )
 from uuid6 import uuid7
@@ -116,6 +118,8 @@ from airflow.sdk.execution_time.comms import (
 if TYPE_CHECKING:
     from datetime import datetime
     from typing import ParamSpec
+
+    from tenacity.stop import stop_base
 
     P = ParamSpec("P")
     T = TypeVar("T")
@@ -1203,8 +1207,44 @@ class CallbackOperations:
         self.client = client
 
     def run(self, callback_id: uuid.UUID) -> None:
-        """Exchange the single-use callback token for an execution token."""
-        self.client.patch(f"callbacks/{callback_id}/run")
+        """
+        Exchange the single-use callback token for an execution token.
+
+        The server uses up the token on the first request it handles, and a retry after that gets a 409.
+        So give a slow server longer to answer, and keep retrying for longer while it is down.
+        """
+        reached_server = False
+
+        def before_sleep(retry_state) -> None:
+            # Only an attempt that may have reached the server can have used the token.
+            nonlocal reached_server
+            if not isinstance(retry_state.outcome.exception(), (httpx2.ConnectError, httpx2.ConnectTimeout)):
+                reached_server = True
+            _log_and_trace_retry(retry_state)
+
+        retrying = Retrying(
+            retry=retry_if_exception(_should_retry_api_request),
+            stop=_callback_run_stop(),
+            wait=wait_random_exponential(min=API_RETRY_WAIT_MIN, max=API_RETRY_WAIT_MAX),
+            before_sleep=before_sleep,
+            reraise=True,
+        )
+        try:
+            retrying(
+                self.client.request,
+                "PATCH",
+                f"callbacks/{callback_id}/run",
+                retry=False,
+                timeout=httpx2.Timeout(API_TIMEOUT, read=API_CALLBACK_RUN_READ_TIMEOUT),
+            )
+        except httpx2.HTTPStatusError as e:
+            if e.response.status_code == HTTPStatus.CONFLICT and reached_server:
+                log.error(
+                    "Callback token already used, possibly by an earlier attempt of this exchange",
+                    callback_id=callback_id,
+                    attempts=retrying.statistics["attempt_number"],
+                )
+            raise
 
     def finish(self, callback_id: uuid.UUID, state: CallbackTerminalState, output: str | None = None) -> None:
         """Report the terminal state of a callback to the API server."""
@@ -1256,9 +1296,16 @@ API_RETRY_WAIT_MAX = conf.getfloat("workers", "execution_api_retry_wait_max")
 API_SSL_CERT_PATH = conf.get("api", "ssl_cert")
 API_SSL_CA_FILE_PATH = conf.get("api", "ssl_ca_file", fallback=None)
 API_TIMEOUT = conf.getfloat("workers", "execution_api_timeout")
+# The callback token exchange waits for one answer as long as the usual retries would wait on timeouts.
+API_CALLBACK_RUN_READ_TIMEOUT = API_TIMEOUT * max(API_RETRIES, 1)
 API_CLIENT_SSL_CERT = conf.get("api", "client_ssl_cert", fallback=None)
 API_CLIENT_SSL_KEY = conf.get("api", "client_ssl_key", fallback=None)
 API_CLIENT_USE_PUBLIC_CERTS = conf.getboolean("api", "client_use_public_certs", fallback=True)
+
+
+def _callback_run_stop() -> stop_base:
+    """Make at least the usual number of attempts, and keep going while the server is down."""
+    return stop_after_attempt(API_RETRIES) & stop_after_delay(API_RETRY_WAIT_MAX)
 
 
 def _should_retry_api_request(exception: BaseException) -> bool:
