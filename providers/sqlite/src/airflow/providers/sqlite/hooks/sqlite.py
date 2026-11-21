@@ -18,8 +18,10 @@
 from __future__ import annotations
 
 import sqlite3
+from typing import Any
 from urllib.parse import unquote
 
+from airflow.models import Connection
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 
 
@@ -30,6 +32,20 @@ class SqliteHook(DbApiHook):
     default_conn_name = "sqlite_default"
     conn_type = "sqlite"
     hook_name = "Sqlite"
+
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
+        """Return custom UI field behaviour for SQLite connection."""
+        return {
+            "hidden_fields": ["port", "login", "password"],
+            "relabeling": {
+                "host": "File path",
+            },
+            "placeholders": {
+                "host": "/path/to/database.db (leave empty or use :memory: for an in-memory database)",
+                "extra": '{"mode": "ro"}',
+            },
+        }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -47,6 +63,14 @@ class SqliteHook(DbApiHook):
     def get_uri(self) -> str:
         """Override DbApiHook get_uri method for get_sqlalchemy_engine()."""
         airflow_conn = self.get_connection(self.get_conn_id())
+        if airflow_conn.login or airflow_conn.password or airflow_conn.port:
+            airflow_conn = Connection(
+                conn_id=airflow_conn.conn_id,
+                conn_type=airflow_conn.conn_type,
+                host=airflow_conn.host,
+                schema=airflow_conn.schema,
+                extra=airflow_conn.extra,
+            )
         airflow_uri = unquote(airflow_conn.get_uri())
         # For sqlite, there is no schema in the connection URI. So we need to drop the trailing slash.
         airflow_sqlite_uri = airflow_uri.replace("/?", "?")
