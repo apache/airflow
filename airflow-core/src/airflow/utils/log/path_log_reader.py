@@ -60,7 +60,7 @@ def read_logs_at_path(relative_path: str) -> Generator[StructuredLogMessage, Non
         sources, log_streams = _read_remote_logs(relative_path)
 
     if not log_streams:
-        local_sources, log_streams = _read_local_logs(relative_path)
+        local_sources, log_streams = read_local_logs(relative_path)
         sources = [*sources, *local_sources]
 
     if not log_streams:
@@ -92,7 +92,7 @@ def _read_remote_logs(relative_path: str) -> StreamingLogResponse:
     return sources, [_get_compatible_log_stream(logs)]
 
 
-def _read_local_logs(relative_path: str) -> StreamingLogResponse:
+def read_local_logs(relative_path: str) -> StreamingLogResponse:
     """Read with the task handler's symlink-safe local reader."""
     base_log_folder = os.path.realpath(conf.get("logging", "base_log_folder"))
     return FileTaskHandler(base_log_folder)._read_from_local(Path(base_log_folder, relative_path))

@@ -772,6 +772,10 @@ Stable API Permissions
      - GET
      - DAGs.can_read and DAG Runs.can_read and Task Instances.can_read, or DAGs.can_read and DAG Runs.can_read, or Assets.can_read
      - Viewer
+   * - ``/api/v2/triggers/{trigger_id}/logs``
+     - GET
+     - DAGs.can_read and DAG Runs.can_read and Task Instances.can_read, or DAGs.can_read and DAG Runs.can_read, or Assets.can_read
+     - Viewer
    * - ``/api/v2/variables``
      - GET
      - Variables.can_read

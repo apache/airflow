@@ -1254,6 +1254,15 @@ class PermittedTriggerFilter(OrmClause[None]):
             )
         )
 
+    def permits(self, trigger: Trigger) -> bool:
+        """Whether :meth:`to_orm` keeps the trigger; needs its ``asset_watchers`` loaded."""
+        used_by_ref = trigger.used_by_ref or {}
+        if used_by_ref.get("ti_id") is not None:
+            return trigger.dag_id in self.task_dag_ids
+        if used_by_ref.get("callback_id") is not None:
+            return trigger.dag_id in self.callback_dag_ids
+        return any(watcher.asset_id in self.asset_ids for watcher in trigger.asset_watchers)
+
 
 def readable_triggers_filter(user: GetUserDep, auth_manager: AuthManagerDep) -> PermittedTriggerFilter:
     # Checked without a Dag id, then narrowed to the readable Dags, as GET /dags/~/dagRuns/~/taskInstances does.

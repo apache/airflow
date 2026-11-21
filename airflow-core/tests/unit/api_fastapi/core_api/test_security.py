@@ -47,6 +47,7 @@ from airflow.api_fastapi.core_api.datamodels.variables import VariableBody
 from airflow.api_fastapi.core_api.security import (
     PermittedAssetEventByAssetFilter,
     PermittedAssetFilter,
+    PermittedTriggerFilter,
     _build_dag_run_access_requests,
     get_user,
     is_safe_url,
@@ -65,10 +66,11 @@ from airflow.api_fastapi.core_api.security import (
     resolve_user_from_token,
 )
 from airflow.models import Connection, Pool, Variable
-from airflow.models.asset import AssetEvent, AssetModel
+from airflow.models.asset import AssetEvent, AssetModel, AssetWatcherModel
 from airflow.models.dag import DagModel
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.team import Team
+from airflow.models.trigger import Trigger
 
 from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.config import conf_vars
@@ -1788,3 +1790,31 @@ class TestAuthManagerDependency:
         assert auth_manager is not None
         assert hasattr(auth_manager, "get_url_login")
         assert hasattr(auth_manager, "get_url_logout")
+
+
+@pytest.mark.parametrize(
+    ("used_by_ref", "dag_id", "watched", "expected"),
+    [
+        pytest.param({"ti_id": "ti"}, "task_dag", [1], True, id="task-trigger-of-a-readable-dag"),
+        pytest.param({"ti_id": "ti"}, "other", [1], False, id="task-trigger-not-through-its-asset"),
+        pytest.param({"callback_id": "cb"}, "callback_dag", [], True, id="callback-of-a-readable-dag"),
+        pytest.param({"callback_id": "cb"}, "task_dag", [], False, id="callback-by-the-callback-rule"),
+        pytest.param(None, None, [2, 1], True, id="watcher-of-a-readable-asset"),
+        pytest.param(None, None, [2], False, id="watcher-of-another-asset"),
+    ],
+)
+def test_permitted_trigger_filter_permits_each_kind_by_its_own_rule(used_by_ref, dag_id, watched, expected):
+    trigger = Mock(
+        spec=Trigger,
+        used_by_ref=used_by_ref,
+        dag_id=dag_id,
+        asset_watchers=[Mock(spec=AssetWatcherModel, asset_id=asset_id) for asset_id in watched],
+    )
+    readable = PermittedTriggerFilter(
+        task_dag_ids={"task_dag"},
+        callback_dag_ids={"callback_dag"},
+        asset_ids={1},
+        can_read_what_uses_triggers=True,
+    )
+
+    assert readable.permits(trigger) is expected

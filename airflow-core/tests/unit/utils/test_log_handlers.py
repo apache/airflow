@@ -54,13 +54,13 @@ from airflow.utils.log.file_task_handler import (
     StructuredLogMessage,
     _add_log_from_parsed_log_streams_to_heap,
     _create_sort_key,
-    _fetch_logs_from_service,
     _flush_logs_out_of_heap,
     _interleave_logs,
     _is_logs_stream_like,
     _is_sort_key_with_default_timestamp,
-    _log_stream_to_parsed_log_stream,
     _stream_lines_by_chunk,
+    fetch_logs_from_service,
+    log_stream_to_parsed_log_stream,
 )
 from airflow.utils.log.log_stream_accumulator import LogStreamAccumulator
 from airflow.utils.log.logging_mixin import set_context
@@ -1219,7 +1219,7 @@ def test__stream_lines_by_chunk_error_handling(seekable, closed, unexpected_exce
 
 
 def test__log_stream_to_parsed_log_stream():
-    parsed_log_stream = _log_stream_to_parsed_log_stream(io.StringIO(log_sample))
+    parsed_log_stream = log_stream_to_parsed_log_stream(io.StringIO(log_sample))
 
     actual_timestamps = []
     last_idx = -1
@@ -1678,7 +1678,7 @@ def test_fetch_logs_from_service_with_not_matched_no_proxy(mock_send, monkeypatc
     response.status_code = HTTPStatus.OK
     mock_send.return_value = response
 
-    _fetch_logs_from_service(log_url, log_location)
+    fetch_logs_from_service(log_url, log_location)
 
     mock_send.assert_called()
     _, kwargs = mock_send.call_args
@@ -1697,7 +1697,7 @@ def test_fetch_logs_from_service_with_cidr_no_proxy(mock_send, monkeypatch):
     response.status_code = HTTPStatus.OK
     mock_send.return_value = response
 
-    _fetch_logs_from_service(log_url, log_location)
+    fetch_logs_from_service(log_url, log_location)
 
     mock_send.assert_called()
     _, kwargs = mock_send.call_args

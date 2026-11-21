@@ -25,7 +25,11 @@ import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 import innerText from "react-innertext";
 
-import { useDeadlinesServiceGetCallbackLogs, useTaskInstanceServiceGetLog } from "openapi/queries";
+import {
+  useDeadlinesServiceGetCallbackLogs,
+  useTaskInstanceServiceGetLog,
+  useTriggerServiceGetTriggerLogs,
+} from "openapi/queries";
 import type {
   StructuredLogMessage,
   TaskInstanceResponse,
@@ -402,6 +406,33 @@ export const useCallbackLogs = ({ callbackId, dagId, dagRunId, ...displayOptions
     dagId,
     dagRunId,
   });
+
+  const parsedData = parseLogs({
+    data: parseStreamingLogContent(data),
+    ...displayOptions,
+    translate,
+    tryNumber: 1,
+  });
+  const searchableText = getSearchableText(parsedData.parsedLogs);
+
+  return { parsedData: { ...parsedData, searchableText }, ...rest, fetchedData: data };
+};
+
+type TriggerLogsProps = { triggerId: number } & Omit<
+  Props,
+  "accept" | "dagId" | "historical" | "limit" | "taskInstance" | "tryNumber"
+>;
+
+export const useTriggerLogs = ({ triggerId, ...displayOptions }: TriggerLogsProps) => {
+  const { t: translate } = useTranslation();
+  const refetchInterval = useAutoRefresh({});
+
+  // A live trigger keeps logging; stop on an error, such as the 404 once it has finished.
+  const { data, ...rest } = useTriggerServiceGetTriggerLogs(
+    { accept: "application/x-ndjson", triggerId },
+    undefined,
+    { refetchInterval: ({ state }) => state.status !== "error" && refetchInterval },
+  );
 
   const parsedData = parseLogs({
     data: parseStreamingLogContent(data),
