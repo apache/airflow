@@ -70,10 +70,8 @@ CI run in GitHub Actions. This is a powerful tool that allows to
 reproduce CI failures locally, enter the images and fix them much
 faster.
 
-Note that this currently only works for AMD machines, not for ARM machines, but
-this will change soon.
-
-To load the image from specific PR, you can use the following command:
+To load the image from a specific PR, you can use the following command. It uses the latest CI run of
+the head commit of the PR:
 
 ```bash
 breeze ci-image load --from-pr 12345 --python 3.11 --github-token <your_github_token>
@@ -85,6 +83,18 @@ you can use the following command, find the run id from GitHub action runs.
 ```bash
 breeze ci-image load --from-run 12538475388 --python 3.11 --github-token <your_github_token>
 ```
+
+Note the limits of loading an image from a CI run or a PR:
+
+- An image stays available for 2 days after its run.
+- CI builds only `linux/amd64` images for pull requests, and `--platform` defaults to the platform of
+  your machine. On an ARM machine, add `--platform linux/amd64` to load the image of a pull request.
+  Docker can run that image on an ARM machine only under emulation.
+- Breeze cannot load an image from a run on our self-hosted RunsOn runners: canary runs, release branch
+  runs and runs for pull requests from a branch of `apache/airflow`
+  ([all the cases](04_selective_checks.md#self-hosted-runson-vs-public-runners)). Each of those runs saves
+  its image in an S3 cache, and its artifact holds only the digest of the image. To get that image, check
+  out the commit of the run and build it as described below.
 
 After you load the image, you can reproduce the very exact environment that was used in the CI run by
 entering breeze container without mounting your local sources:

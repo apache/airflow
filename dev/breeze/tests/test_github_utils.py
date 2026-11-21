@@ -16,12 +16,21 @@
 # under the License.
 from __future__ import annotations
 
+import io
+import json
 import subprocess
+import tempfile
+import zipfile
 from unittest import mock
 
 import pytest
+import requests
+import yaml
 
 from airflow_breeze.utils.github import (
+    PR_IMAGES_WORKFLOW,
+    download_artifact_from_pr,
+    download_artifact_from_run_id,
     download_constraints_file,
     download_file_from_github,
     env_without_github_tokens,
@@ -30,11 +39,52 @@ from airflow_breeze.utils.github import (
     retrieve_github_token,
     run_gh_command,
 )
+from airflow_breeze.utils.path_utils import AIRFLOW_ROOT_PATH
 from airflow_breeze.utils.shared_options import set_dry_run
+
+IMAGE_PREFIX = "ci-image-save-v3-linux_amd64-3.11"
+IMAGE_ARTIFACT = f"{IMAGE_PREFIX}-74488_merge"
+PR_URL = "https://api.github.com/repos/apache/airflow/pulls/74488"
+WORKFLOW_RUNS_URL = "https://api.github.com/repos/apache/airflow/actions/workflows/ci-amd.yml/runs"
+ARTIFACTS_URL = "https://api.github.com/repos/apache/airflow/actions/runs/123/artifacts?per_page=100"
+ZIP_URL = "https://api.github.com/repos/apache/airflow/actions/artifacts/1/zip"
 
 
 def _completed_process(returncode: int, stdout: str = "") -> subprocess.CompletedProcess[str]:
     return subprocess.CompletedProcess(args=["gh"], returncode=returncode, stdout=stdout, stderr="")
+
+
+def make_response(
+    body: dict | bytes = b"", status_code: int = 200, next_url: str | None = None
+) -> requests.Response:
+    response = requests.Response()
+    response.status_code = status_code
+    response.raw = io.BytesIO(json.dumps(body).encode() if isinstance(body, dict) else body)
+    if next_url:
+        response.headers["Link"] = f'<{next_url}>; rel="next"'
+    return response
+
+
+def make_artifacts_response(*names: str, next_url: str | None = None) -> requests.Response:
+    artifacts = [{"name": name, "archive_download_url": ZIP_URL} for name in names]
+    return make_response({"artifacts": artifacts}, next_url=next_url)
+
+
+def make_zip_response(*members: str) -> requests.Response:
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w") as archive:
+        for member in members:
+            archive.writestr(member, f"content of {member}")
+    return make_response(buffer.getvalue())
+
+
+def answer_github_requests(mock_get, responses: dict[str, requests.Response]) -> None:
+    """Answer each request by its URL. A request for a URL without an answer fails the test with a KeyError."""
+    mock_get.side_effect = lambda _session, url, **_: responses[url]
+
+
+def get_printed_text(mock_console_print) -> str:
+    return "\n".join(call.args[0] for call in mock_console_print.call_args_list)
 
 
 def test_env_without_github_tokens_removes_ambient_token_vars(monkeypatch):
@@ -263,3 +313,183 @@ def test_other_files_are_still_downloaded_from_apache_airflow(mock_get, monkeypa
     assert mock_get.call_args.args[0] == (
         "https://api.github.com/repos/apache/airflow/contents/airflow-core/src/airflow/ui/package.json?ref=3.1.0"
     )
+
+
+@pytest.mark.parametrize(
+    "member",
+    [
+        pytest.param("ci-image-save-v3-linux_amd64-custom-3.11.tar", id="same-name-as-the-output-file"),
+        pytest.param("ci-image-save-v3-linux_amd64-3.11.tar", id="other-name-than-the-output-file"),
+    ],
+)
+@mock.patch("requests.Session.get", autospec=True)
+def test_download_artifact_from_run_id_stores_the_image_at_the_output_file(
+    mock_get, member, tmp_path, monkeypatch
+):
+    answer_github_requests(
+        mock_get,
+        {ARTIFACTS_URL: make_artifacts_response(IMAGE_ARTIFACT), ZIP_URL: make_zip_response(member)},
+    )
+    output_file = tmp_path / "images" / "ci-image-save-v3-linux_amd64-custom-3.11.tar"
+    # --image-file-dir and the temp dir can be on different disks, and os.replace fails in that case.
+    monkeypatch.setattr(tempfile, "tempdir", str(tmp_path / "missing-temp-dir"))
+
+    download_artifact_from_run_id("123", IMAGE_PREFIX, output_file, "apache/airflow", "token")
+
+    assert output_file.read_text() == f"content of {member}"
+    assert list(output_file.parent.iterdir()) == [output_file]
+
+
+@mock.patch("requests.Session.get", autospec=True)
+def test_download_artifact_from_run_id_reads_all_pages_of_artifacts(mock_get, tmp_path):
+    second_page_url = f"{ARTIFACTS_URL}&page=2"
+    answer_github_requests(
+        mock_get,
+        {
+            ARTIFACTS_URL: make_artifacts_response("test-results", next_url=second_page_url),
+            second_page_url: make_artifacts_response(IMAGE_ARTIFACT),
+            ZIP_URL: make_zip_response("image.tar"),
+        },
+    )
+    output_file = tmp_path / "image.tar"
+
+    download_artifact_from_run_id("123", IMAGE_PREFIX, output_file, "apache/airflow", "token")
+
+    assert output_file.exists()
+
+
+@mock.patch("airflow_breeze.utils.github.console_print", autospec=True)
+@mock.patch("requests.Session.get", autospec=True)
+def test_download_artifact_from_run_id_explains_a_digest_of_a_runson_run(
+    mock_get, mock_console_print, tmp_path
+):
+    digest_artifact = f"{IMAGE_PREFIX}-s3-76225_merge"
+    answer_github_requests(
+        mock_get,
+        {ARTIFACTS_URL: make_artifacts_response(digest_artifact), ZIP_URL: make_zip_response("sha256")},
+    )
+    output_file = tmp_path / "image.tar"
+
+    with pytest.raises(SystemExit) as exit_info:
+        download_artifact_from_run_id("123", IMAGE_PREFIX, output_file, "apache/airflow", "token")
+
+    assert exit_info.value.code == 1
+    printed = get_printed_text(mock_console_print)
+    assert f"Artifact {digest_artifact} of run 123 holds no image" in printed
+    assert "RunsOn" in printed
+    assert list(tmp_path.iterdir()) == []
+
+
+@pytest.mark.parametrize(
+    ("artifacts", "expected_listing"),
+    [
+        pytest.param(
+            ["test-results", "ci-image-save-v3-linux_amd64-3.12-74488_merge"],
+            "Image artifacts of this run: ci-image-save-v3-linux_amd64-3.12-74488_merge.",
+            id="image-of-another-python-version",
+        ),
+        pytest.param(["test-results"], None, id="no-image-at-all"),
+    ],
+)
+@mock.patch("airflow_breeze.utils.github.console_print", autospec=True)
+@mock.patch("requests.Session.get", autospec=True)
+def test_download_artifact_from_run_id_exits_when_no_artifact_matches(
+    mock_get, mock_console_print, artifacts, expected_listing, tmp_path
+):
+    answer_github_requests(mock_get, {ARTIFACTS_URL: make_artifacts_response(*artifacts)})
+
+    with pytest.raises(SystemExit) as exit_info:
+        download_artifact_from_run_id("123", IMAGE_PREFIX, tmp_path / "image.tar", "apache/airflow", "token")
+
+    assert exit_info.value.code == 1
+    printed = get_printed_text(mock_console_print)
+    assert f"Run 123 has no artifact for {IMAGE_PREFIX}" in printed
+    if expected_listing:
+        assert expected_listing in printed
+    else:
+        assert "Image artifacts of this run" not in printed
+
+
+@mock.patch("requests.Session.get", autospec=True)
+def test_download_artifact_from_pr_uses_the_latest_run_of_the_head_commit(mock_get, tmp_path):
+    answer_github_requests(
+        mock_get,
+        {
+            PR_URL: make_response({"head": {"sha": "abc123", "ref": "main"}}),
+            WORKFLOW_RUNS_URL: make_response(
+                {
+                    "workflow_runs": [
+                        {"id": 122, "created_at": "2026-11-01T10:00:00Z"},
+                        {"id": 123, "created_at": "2026-11-02T10:00:00Z"},
+                        {"id": 121, "created_at": "2026-10-31T10:00:00Z"},
+                    ]
+                }
+            ),
+            ARTIFACTS_URL: make_artifacts_response(IMAGE_ARTIFACT),
+            ZIP_URL: make_zip_response("image.tar"),
+        },
+    )
+    output_file = tmp_path / "image.tar"
+
+    download_artifact_from_pr("#74488", IMAGE_PREFIX, output_file, "apache/airflow", "token")
+
+    assert output_file.exists()
+    runs_request = next(call for call in mock_get.call_args_list if call.args[1] == WORKFLOW_RUNS_URL)
+    assert runs_request.kwargs["params"] == {"event": "pull_request", "head_sha": "abc123"}
+
+
+@mock.patch("airflow_breeze.utils.github.console_print", autospec=True)
+@mock.patch("requests.Session.get", autospec=True)
+def test_download_artifact_from_pr_exits_when_the_head_commit_has_no_run(
+    mock_get, mock_console_print, tmp_path
+):
+    answer_github_requests(
+        mock_get,
+        {
+            PR_URL: make_response({"head": {"sha": "abc123", "ref": "main"}}),
+            WORKFLOW_RUNS_URL: make_response({"workflow_runs": []}),
+        },
+    )
+
+    with pytest.raises(SystemExit) as exit_info:
+        download_artifact_from_pr("74488", IMAGE_PREFIX, tmp_path / "image.tar", "apache/airflow", "token")
+
+    assert exit_info.value.code == 1
+    assert f"PR 74488 has no {PR_IMAGES_WORKFLOW} run for its head commit abc123" in get_printed_text(
+        mock_console_print
+    )
+
+
+@mock.patch("airflow_breeze.utils.github.console_print", autospec=True)
+@mock.patch("requests.Session.get", autospec=True)
+def test_download_artifact_from_pr_prints_why_workflow_runs_cannot_be_read(
+    mock_get, mock_console_print, tmp_path
+):
+    answer_github_requests(
+        mock_get,
+        {
+            PR_URL: make_response({"head": {"sha": "abc123", "ref": "main"}}),
+            WORKFLOW_RUNS_URL: make_response(b"Bad credentials", status_code=401),
+        },
+    )
+
+    with pytest.raises(SystemExit) as exit_info:
+        download_artifact_from_pr("74488", IMAGE_PREFIX, tmp_path / "image.tar", "apache/airflow", "token")
+
+    assert exit_info.value.code == 1
+    assert "status code 401: Bad credentials" in get_printed_text(mock_console_print)
+
+
+def test_pr_images_workflow_is_the_workflow_that_builds_images_for_pull_requests():
+    workflows_building_images_for_prs = []
+    for path in (AIRFLOW_ROOT_PATH / ".github" / "workflows").glob("*.yml"):
+        workflow = yaml.safe_load(path.read_text())
+        # YAML reads an unquoted `on` key as the boolean true.
+        triggers = workflow[True] if True in workflow else workflow["on"]
+        jobs = workflow["jobs"].values()
+        if "pull_request" in triggers and any(
+            job.get("uses", "").endswith("-image-build.yml") for job in jobs
+        ):
+            workflows_building_images_for_prs.append(path.name)
+
+    assert workflows_building_images_for_prs == [PR_IMAGES_WORKFLOW]
