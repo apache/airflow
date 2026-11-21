@@ -23,49 +23,32 @@ from airflow_google_provider_resource_cleanup.helpers import curl, get_resource_
 API_BASE = "https://dataform.googleapis.com/v1/"
 
 
-async def _delete_dataform_workflow_invocation(resource: dict, log_prefix: str):
+async def _delete_dataform_resource(resource: dict, log_prefix: str):
     name = get_resource_path(resource)
-    url_delete = f"{API_BASE}{name}"
-    await curl(url_delete, log_prefix)
-
-
-async def _delete_dataform_workspace(resource: dict, log_prefix: str):
-    name = get_resource_path(resource)
-    url_delete = f"{API_BASE}{name}"
-    await curl(url_delete, log_prefix)
-
-
-async def _delete_dataform_workflow_config(resource: dict, log_prefix: str):
-    name = get_resource_path(resource)
-    url_delete = f"{API_BASE}{name}"
-    await curl(url_delete, log_prefix)
-
-
-async def _delete_dataform_release_config(resource: dict, log_prefix: str):
-    name = get_resource_path(resource)
-    url_delete = f"{API_BASE}{name}"
-    await curl(url_delete, log_prefix)
+    await curl(f"{API_BASE}{name}", log_prefix=log_prefix)
 
 
 async def _delete_dataform_repository(resource: dict, log_prefix: str):
     name = get_resource_path(resource)
-    url_delete = f"{API_BASE}{name}"
-    await curl(url_delete, log_prefix)
+    await curl(f"{API_BASE}{name}?force=true", log_prefix=log_prefix)
 
 
 class DataformDeleteHandler(BaseDeleteHandler):
+    SEMAPHORE_COUNT = 1
+    SLEEP_AFTER_EACH_REQUEST = 1
+
     DELETERS = {
-        "dataform.googleapis.com/Workspace": _delete_dataform_workspace,
-        "dataform.googleapis.com/WorkflowInvocation": _delete_dataform_workflow_invocation,
-        "dataform.googleapis.com/WorkflowConfig": _delete_dataform_workflow_config,
-        "dataform.googleapis.com/ReleaseConfig": _delete_dataform_release_config,
+        "dataform.googleapis.com/Workspace": _delete_dataform_resource,
+        "dataform.googleapis.com/WorkflowInvocation": _delete_dataform_resource,
+        "dataform.googleapis.com/WorkflowConfig": _delete_dataform_resource,
+        "dataform.googleapis.com/ReleaseConfig": _delete_dataform_resource,
         "dataform.googleapis.com/Repository": _delete_dataform_repository,
     }
 
     DELETION_ORDER = [
         "dataform.googleapis.com/WorkflowInvocation",
-        "dataform.googleapis.com/Workspace",
-        "dataform.googleapis.com/ReleaseConfig",
         "dataform.googleapis.com/WorkflowConfig",
+        "dataform.googleapis.com/ReleaseConfig",
+        "dataform.googleapis.com/Workspace",
         "dataform.googleapis.com/Repository",
     ]
