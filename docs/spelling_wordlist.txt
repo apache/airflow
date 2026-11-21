@@ -942,6 +942,7 @@ iteratively
 iTerm
 iterm
 itertools
+ivf
 Jaeger
 Jarek
 JavaCoordinator
@@ -1203,6 +1204,7 @@ NetworkPolicy
 newsfragments
 NFS
 nginx
+nin
 nobr
 nodash
 Nodegroup
