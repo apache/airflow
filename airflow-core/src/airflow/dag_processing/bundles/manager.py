@@ -379,8 +379,8 @@ class DagBundlesManager(LoggingMixin):
         for source, names in bundles_by_source.items():
             if len(names) > 1:
                 self.log.warning(
-                    "DAG bundles %s read the same source (%s). Each file is parsed once per bundle "
-                    "and DAG ownership keeps switching between them. Configure this source in one bundle only.",
+                    "Dag bundles %s read the same source (%s). Each file is parsed once per bundle "
+                    "and Dag ownership keeps switching between them. Configure this source in one bundle only.",
                     ", ".join(names),
                     source,
                 )

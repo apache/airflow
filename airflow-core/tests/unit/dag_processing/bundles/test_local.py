@@ -19,6 +19,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from airflow import settings
 from airflow.dag_processing.bundles.local import LocalDagBundle
 
 from tests_common.test_utils.config import conf_vars
@@ -48,3 +49,7 @@ class TestLocalDagBundle:
         key = LocalDagBundle.source_key(path=str(tmp_path))
         assert key == LocalDagBundle.source_key(path=f"{tmp_path}/")
         assert key != LocalDagBundle.source_key(path=str(tmp_path / "other"))
+
+    def test_source_key_none_when_no_path(self, monkeypatch):
+        monkeypatch.setattr(settings, "DAGS_FOLDER", None, raising=False)
+        assert LocalDagBundle.source_key(path=None) is None

@@ -530,7 +530,6 @@ class GitDagBundle(BaseDagBundle):
 
     @staticmethod
     def _repo_location(url: str) -> str | None:
-        """Boil a remote repository URL down to ``host/path``."""
         url = url.strip()
         if "://" in url:
             parsed = urlparse(url)
@@ -542,7 +541,10 @@ class GitDagBundle(BaseDagBundle):
                 host = None
         if not host:
             return None
-        return f"{host.lower()}/{path.strip('/').removesuffix('.git')}"
+        clean_path = path.strip("/")
+        if clean_path.endswith(".git"):
+            clean_path = clean_path[:-4]
+        return f"{host.lower()}/{clean_path.lower()}"
 
     @staticmethod
     def _convert_git_ssh_url_to_https(url: str) -> str:

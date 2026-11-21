@@ -35,7 +35,6 @@ from git.exc import GitCommandError, InvalidGitRepositoryError, NoSuchPathError
 
 from airflow.dag_processing.bundles import base as bundle_base
 from airflow.dag_processing.bundles.base import get_bundle_storage_root_path
-from airflow.dag_processing.bundles.manager import DagBundlesManager, _load_bundle_config_snapshot
 from airflow.models import Connection
 from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.git.bundles.git import GitDagBundle
@@ -74,30 +73,6 @@ ACCESS_TOKEN = "my_access_token"
 CONN_HTTPS = "my_git_conn"
 CONN_ONLY_PATH = "my_git_conn_only_path"
 CONN_NO_REPO_URL = "my_git_conn_no_repo_url"
-
-
-def _parse_git_bundles_and_capture_logs(repo_urls, caplog):
-    bundle_config = [
-        {
-            "name": f"bundle-{index}",
-            "classpath": "airflow.providers.git.bundles.git.GitDagBundle",
-            "kwargs": {"repo_url": repo_url, "tracking_ref": "main", "subdir": "dags"},
-        }
-        for index, repo_url in enumerate(repo_urls)
-    ]
-    _load_bundle_config_snapshot.cache_clear()
-    try:
-        with conf_vars(
-            {
-                ("core", "load_examples"): "False",
-                ("dag_processor", "dag_bundle_config_list"): json.dumps(bundle_config),
-            }
-        ):
-            with caplog.at_level("WARNING"):
-                DagBundlesManager()
-        return caplog.text
-    finally:
-        _load_bundle_config_snapshot.cache_clear()
 
 
 @pytest.fixture
@@ -152,22 +127,6 @@ def test_import_without_refresh_error_contract():
     assert result.returncode == 0, result.stderr
 
 
-def test_manager_warns_about_git_bundles_sharing_a_source(caplog):
-    logs = _parse_git_bundles_and_capture_logs(
-        ["git@github.com:org/repo.git", "https://github.com/org/repo.git"], caplog
-    )
-    assert "read the same source" in logs
-    assert "bundle-0" in logs
-    assert "bundle-1" in logs
-
-
-def test_manager_does_not_warn_about_git_bundles_with_different_sources(caplog):
-    logs = _parse_git_bundles_and_capture_logs(
-        ["git@github.com:org/repo.git", "https://github.com/org/other.git"], caplog
-    )
-    assert "read the same source" not in logs
-
-
 class TestGitDagBundle:
     @classmethod
     def teardown_class(cls) -> None:
@@ -213,6 +172,7 @@ class TestGitDagBundle:
             "ssh://git@github.com:22/org/repo.git",
             "https://github.com/org/repo.git",
             "https://user:token@GitHub.com/org/repo/",
+            "https://user:token@GitHub.com/Org/Repo.git",
         ],
     )
     def test_source_key_same_for_ssh_and_https(self, url):

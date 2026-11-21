@@ -53,7 +53,10 @@ class LocalDagBundle(BaseDagBundle):
 
     @classmethod
     def source_key(cls, *, path: str | None = None, **kwargs) -> Hashable | None:
-        return ("local", os.path.realpath(path or settings.DAGS_FOLDER))
+        target = path or getattr(settings, "DAGS_FOLDER", None)
+        if not target:
+            return None
+        return ("local", os.path.normcase(os.path.realpath(os.path.abspath(target))))
 
     @property
     def path(self) -> Path:
