@@ -1,0 +1,78 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+---
+name: Delete retired image packages
+# Run by hand after a branch or Python version is retired: deletes the CI and PROD image packages
+# of every branch and Python version not listed to keep. Only the workflow token can delete the
+# packages, which are linked to this repository. See "Deleting images of retired branches and
+# Python versions" in dev/breeze/doc/ci/02_images.md.
+on:  # yamllint disable-line rule:truthy
+  workflow_dispatch:
+    inputs:
+      keep-branches:
+        description: "Space-separated branches whose images are kept"
+        type: string
+        default: "main v3-4-test"
+      keep-python:
+        description: "Space-separated Python versions whose images are kept"
+        type: string
+        default: "3.11 3.12 3.13 3.14"
+      only:
+        description: "Space-separated globs to delete only some packages, e.g. 'airflow/v2-*' (empty: all)"
+        type: string
+        default: ""
+      parallel:
+        description: "Deletions to run at once"
+        type: string
+        default: "4"
+      dry-run:
+        description: "Only list what would be deleted"
+        type: boolean
+        default: true
+permissions:
+  contents: read
+concurrency:
+  group: delete-retired-image-packages
+  cancel-in-progress: false
+jobs:
+  delete:
+    name: "Delete retired image packages"
+    runs-on: ["ubuntu-slim"]
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+    if: github.repository == 'apache/airflow'
+    steps:
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - name: "Delete retired image packages"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          KEEP_BRANCHES: ${{ inputs.keep-branches }}
+          KEEP_PYTHON: ${{ inputs.keep-python }}
+          ONLY: ${{ inputs.only }}
+          PARALLEL: ${{ inputs.parallel }}
+          DRY_RUN: ${{ inputs.dry-run && '--dry-run' || '' }}
+        run: >
+          python3 scripts/ci/delete_retired_image_packages.py
+          --keep-branches "${KEEP_BRANCHES}" --keep-python "${KEEP_PYTHON}"
+          --only "${ONLY}" --parallel "${PARALLEL}" ${DRY_RUN}

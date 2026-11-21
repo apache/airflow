@@ -1107,6 +1107,20 @@ repos:
         language: python
         files: ^airflow-core/docs/installation/prerequisites\.rst$|^README\.md$|^dev/breeze/src/airflow_breeze/global_constants\.py$|^scripts/ci/prek/update_tested_versions\.py$|^scripts/ci/prek/common_prek_utils\.py$
         pass_filenames: false
+      - id: update-retired-image-packages-defaults
+        name: Update the kept branches and Python versions of the retired image packages workflow
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
+        entry: ./scripts/ci/prek/update_retired_image_packages_defaults.py
+        language: python
+        files: >
+          (?x)
+          ^\.github/workflows/delete-retired-image-packages\.yml$|
+          ^\.github/workflows/scheduled-upgrade-check-.*\.yml$|
+          ^dev/breeze/src/airflow_breeze/global_constants\.py$|
+          ^scripts/ci/prek/update_retired_image_packages_defaults\.py$|
+          ^scripts/ci/prek/common_prek_utils\.py$
+        pass_filenames: false
       - id: check-revision-heads-map
         name: Check that the REVISION_HEADS_MAP is up-to-date
         env:
