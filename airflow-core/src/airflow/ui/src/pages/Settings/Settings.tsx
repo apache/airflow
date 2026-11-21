@@ -25,12 +25,14 @@ import { Select, SegmentedControl, Switch } from "src/system-components";
 
 import type { Direction } from "src/components/Graph/DirectionDropdown";
 
+import type { DagView } from "src/constants/dagView";
 import type { DefaultTaskInstanceTab } from "src/constants/tab";
 import {
   useClearKeepTaskStateDefault,
   useClearPreventRunningTaskDefault,
   useClearRunDefaultOptions,
   useClearTaskInstanceDefaultOptions,
+  useDefaultDagView,
   useDefaultGraphDirection,
   useDefaultLandingPage,
   useDefaultMatchAnywhere,
@@ -182,8 +184,15 @@ export const Settings = () => {
   const [markTaskOptions, setMarkTaskOptions] = useMarkTaskInstanceDefaultOptions();
   const [defaultTaskInstanceTab, setDefaultTaskInstanceTab] = useDefaultTaskInstanceTab();
   const [defaultLandingPage, setDefaultLandingPage] = useDefaultLandingPage();
+  const [defaultDagView, setDefaultDagView] = useDefaultDagView();
   const [matchAnywhere, setMatchAnywhere] = useDefaultMatchAnywhere();
   const [showRecentTasks, setShowRecentTasks] = useShowDagsListRecentTasks();
+
+  const dagViewOptions: Array<SelectOption<DagView>> = [
+    { label: translate("settings.dagView.defaultView.options.grid"), value: "grid" },
+    { label: translate("settings.dagView.defaultView.options.graph"), value: "graph" },
+    { label: translate("settings.dagView.defaultView.options.gantt"), value: "gantt" },
+  ];
 
   const taskInstanceTabOptions: Array<SelectOption<DefaultTaskInstanceTab>> = [
     { label: translate("dag:tabs.logs"), value: "logs" },
@@ -265,6 +274,16 @@ export const Settings = () => {
             }
             helper={translate("settings.dagsList.recentTasks.helper")}
             label={translate("settings.dagsList.recentTasks.label")}
+          />
+        </Section>
+        <Section title={translate("settings.dagView.title")}>
+          <SelectSetting
+            helper={translate("settings.dagView.defaultView.helper")}
+            label={translate("settings.dagView.defaultView.label")}
+            onChange={setDefaultDagView}
+            options={dagViewOptions}
+            testId="default-dag-view"
+            value={defaultDagView}
           />
         </Section>
         <Section title={translate("settings.graph.title")}>

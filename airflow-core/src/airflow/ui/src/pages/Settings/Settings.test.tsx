@@ -26,6 +26,7 @@ import {
   CLEAR_KEEP_TASK_STATE_KEY,
   CLEAR_PREVENT_RUNNING_TASK_KEY,
   DAGS_LIST_SHOW_RECENT_TASKS_KEY,
+  DEFAULT_DAG_VIEW_KEY,
   DEFAULT_GRAPH_DIRECTION_KEY,
   DEFAULT_MATCH_ANYWHERE_KEY,
   DEFAULT_TASK_GROUPS_EXPANDED_KEY,
@@ -57,6 +58,14 @@ beforeAll(async () => {
             dagsList: {
               recentTasks: { helper: "helper", label: "Show recent tasks" },
               title: "Dags List",
+            },
+            dagView: {
+              defaultView: {
+                helper: "helper",
+                label: "Default Dag view",
+                options: { gantt: "GANTT-OPT", graph: "GRAPH-OPT", grid: "GRID-OPT" },
+              },
+              title: "Dag View",
             },
             description: "browser only",
             general: {
@@ -137,6 +146,7 @@ describe("Settings page", () => {
     // Selects and the switch expose test ids.
     for (const testId of [
       "default-landing-page",
+      "default-dag-view",
       "default-graph-direction",
       "default-task-instance-tab",
       "clear-prevent-running-task",
@@ -164,10 +174,12 @@ describe("Settings page", () => {
 
     localStorage.setItem(DEFAULT_TASK_INSTANCE_TAB_KEY, JSON.stringify("details"));
     localStorage.setItem(DEFAULT_LANDING_PAGE_KEY, JSON.stringify("dashboard"));
+    localStorage.setItem(DEFAULT_DAG_VIEW_KEY, JSON.stringify("graph"));
 
     render(<Settings />, { wrapper: BaseWrapper });
 
     expect(screen.getByTestId("default-landing-page")).toHaveTextContent("DASHBOARD-OPT");
+    expect(screen.getByTestId("default-dag-view")).toHaveTextContent("GRAPH-OPT");
     expect(screen.getByTestId("default-graph-direction")).toHaveTextContent("DOWN-LABEL");
     expect(screen.getByTestId("default-task-instance-tab")).toHaveTextContent("DETAILS-TAB");
     expect(screen.getByTestId("clear-prevent-running-task")).toHaveAttribute("data-state", "unchecked");
@@ -212,5 +224,12 @@ describe("Dags list recent tasks setting", () => {
     unmount();
     render(<Settings />, { wrapper: BaseWrapper });
     expect(screen.getByTestId("dags-list-show-recent-tasks")).toHaveAttribute("data-state", "unchecked");
+  });
+});
+
+describe("default dag view setting", () => {
+  it("defaults to grid and reflects stored selection", () => {
+    render(<Settings />, { wrapper: BaseWrapper });
+    expect(screen.getByTestId("default-dag-view")).toHaveTextContent("GRID-OPT");
   });
 });
