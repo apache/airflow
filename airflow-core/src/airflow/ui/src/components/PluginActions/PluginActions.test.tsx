@@ -31,7 +31,7 @@ import { Wrapper } from "src/utils/Wrapper";
 import type { AppliesToContext } from "src/utils/pluginAppliesTo";
 
 import { PluginActions } from "./PluginActions";
-import { PluginActionsProvider } from "./PluginActionsContext";
+import { PluginActionsProvider } from "./PluginActionsProvider";
 import type { PluginActionEntity, PluginActionProps, PluginActionResponse } from "./types";
 
 // Deferred so a test can inspect the row mid-load; resolved by `finishLoad` below.
@@ -52,7 +52,7 @@ const loadPluginMock = vi.fn(
 // Stands in for a bundle: the loader hands back a component, which the action renders
 // directly, so what the test reads here is exactly what a real plugin would receive. The
 // promise stays pending until `finishLoad`, which is what lets a test look at the row mid-load.
-vi.mock("src/pages/ReactPlugin", () => ({
+vi.mock("src/pages/loadPlugin", () => ({
   loadPlugin: (reactApp: { bundle_url: string; name: string }) =>
     loadPluginMock(reactApp).then(() => ({
       default: ({ dagId, onClose, open, runId, taskId }: PluginActionProps) => {

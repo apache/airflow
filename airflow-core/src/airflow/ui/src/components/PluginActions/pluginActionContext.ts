@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import type { PluginProps } from "src/pages/ReactPlugin";
+import type { PluginProps } from "src/pages/loadPlugin";
 
 import type { AppliesToContext } from "src/utils/pluginAppliesTo";
 import type { PluginTemplateTokens } from "src/utils/pluginTemplate";

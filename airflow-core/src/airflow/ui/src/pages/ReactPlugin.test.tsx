@@ -31,7 +31,8 @@ import type {
 
 import { Wrapper } from "src/utils/Wrapper";
 
-import { loadPlugin, ReactPlugin, type PluginProps } from "./ReactPlugin";
+import { ReactPlugin } from "./ReactPlugin";
+import { loadPlugin, type PluginProps } from "./loadPlugin";
 
 const mockAsset = { id: 1, name: "my_asset", uri: "s3://bucket/key" } as AssetResponse;
 const mockDag = { dag_display_name: "My Dag", dag_id: "my_dag" } as DAGDetailsResponse;

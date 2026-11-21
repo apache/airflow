@@ -16,9 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { createContext, useContext } from "react";
 
-/** Rule will show a warning. */
-export const WARN = 1;
+import type { PluginActionsForDestination } from "src/hooks/usePluginActions";
 
-/** Rule will show an error. */
-export const ERROR = 2;
+// Frozen at module level so a table rendered outside a provider keeps a stable identity.
+const NO_ACTIONS: PluginActionsForDestination = { actions: [], routeContext: { isLoading: false } };
+
+export const PluginActionsContext = createContext<PluginActionsForDestination>(NO_ACTIONS);
+
+export const usePluginActionsContext = (): PluginActionsForDestination => useContext(PluginActionsContext);

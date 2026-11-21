@@ -20,7 +20,7 @@ import { describe, expect, it } from "vitest";
 
 import { $DagRunType } from "openapi/requests/schemas.gen";
 
-import { RUN_TYPE_LEGEND_ORDER } from "./RunTypeLegend";
+import { RUN_TYPE_LEGEND_ORDER } from "./runTypeLegendOrder";
 
 describe("RunTypeLegend", () => {
   it("explains every run type the API can return", () => {

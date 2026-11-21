@@ -16,14 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { createContext, useContext, type ReactNode } from "react";
+import type { ReactNode } from "react";
 
 import type { PluginActionsForDestination } from "src/hooks/usePluginActions";
 
-// Frozen at module level so a table rendered outside a provider keeps a stable identity.
-const NO_ACTIONS: PluginActionsForDestination = { actions: [], routeContext: { isLoading: false } };
-
-const PluginActionsContext = createContext<PluginActionsForDestination>(NO_ACTIONS);
+import { PluginActionsContext } from "./PluginActionsContext";
 
 /**
  * Carries a table's plugin actions to its row cells.
@@ -41,5 +38,3 @@ export const PluginActionsProvider = ({
   readonly children: ReactNode;
   readonly value: PluginActionsForDestination;
 }) => <PluginActionsContext.Provider value={value}>{children}</PluginActionsContext.Provider>;
-
-export const usePluginActionsContext = (): PluginActionsForDestination => useContext(PluginActionsContext);

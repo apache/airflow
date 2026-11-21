@@ -23,7 +23,8 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type * as ColorMode from "src/context/colorMode";
 import { server } from "src/mocks/server";
-import { AppWrapper, preloadAppRoutes } from "src/utils/AppWrapper";
+import { AppWrapper } from "src/utils/AppWrapper";
+import { preloadAppRoutes } from "src/utils/preloadAppRoutes";
 
 beforeAll(() => preloadAppRoutes(["/xcoms"]));
 

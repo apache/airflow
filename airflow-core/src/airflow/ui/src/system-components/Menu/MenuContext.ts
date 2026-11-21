@@ -16,30 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { createContext } from "react";
 
-declare module "eslint-plugin-local-patch" {
-  import type { FlatConfig } from "@typescript-eslint/utils/ts-eslint";
+export type MenuContextValue = {
+  readonly tooltipLabel?: string;
+  readonly triggerId?: string;
+};
 
-  /**
-   * @deprecated This type was patched because it's currently broken.
-   */
-  const plugin: FlatConfig.Plugin;
-
-  export default plugin;
-}
-
-declare module "eslint-plugin-jsx-a11y" {
-  export { default } from "eslint-plugin-local-patch";
-}
-
-declare module "eslint-plugin-react" {
-  export { default } from "eslint-plugin-local-patch";
-}
-
-declare module "eslint-plugin-react-hooks" {
-  export { default } from "eslint-plugin-local-patch";
-}
-
-declare module "eslint-plugin-react-refresh" {
-  export { default } from "eslint-plugin-local-patch";
-}
+export const MenuContext = createContext<MenuContextValue>({});

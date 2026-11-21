@@ -29,15 +29,16 @@ import { ActionBar, IconButton, Tooltip } from "src/system-components";
 import { DagsLayout } from "src/layouts/DagsLayout";
 
 import { DataTable } from "src/components/DataTable";
+import { SelectionProvider } from "src/components/DataTable/RowSelection";
 import type { CardDef } from "src/components/DataTable/types";
-import { SelectionProvider, useRowSelection } from "src/components/DataTable/useRowSelection";
+import { useRowSelection } from "src/components/DataTable/useRowSelection";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import {
   pausedStateFromSearchParams,
   pausedStateToQuery,
 } from "src/components/FilterBar/filters/pausedStateParams";
-import { PluginActionsProvider } from "src/components/PluginActions/PluginActionsContext";
+import { PluginActionsProvider } from "src/components/PluginActions/PluginActionsProvider";
 import { SearchBar } from "src/components/SearchBar";
 
 import { DAGS_LIST_DISPLAY_KEY, DAGS_LIST_SHOW_FOLDERS_KEY } from "src/constants/localStorage";
@@ -57,9 +58,11 @@ import BulkUnpauseDagsButton from "./BulkUnpauseDagsButton";
 import { DagCard } from "./DagCard";
 import { DagFolderTree, type FolderSelection } from "./DagFolderTree";
 import { DagsFilters } from "./DagsFilters";
-import { createColumns, getRowKey } from "./DagsListColumns";
-import { DagsListCountsProvider, useDagsListCounts, type RunStateCounts } from "./DagsListCountsContext";
+import { createColumns } from "./DagsListColumns";
+import { useDagsListCounts, type RunStateCounts } from "./DagsListCountsContext";
+import { DagsListCountsProvider } from "./DagsListCountsProvider";
 import { SortSelect } from "./SortSelect";
+import { getRowKey } from "./dagsListRowKey";
 import { MAX_RECENT_RUNS } from "./recentRunsLayout";
 import { usePausedDefault } from "./usePausedDefault";
 

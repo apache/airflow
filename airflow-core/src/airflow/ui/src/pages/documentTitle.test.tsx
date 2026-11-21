@@ -19,7 +19,8 @@
 import { render, waitFor } from "@testing-library/react";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { AppWrapper, preloadAppRoutes } from "src/utils/AppWrapper";
+import { AppWrapper } from "src/utils/AppWrapper";
+import { preloadAppRoutes } from "src/utils/preloadAppRoutes";
 
 // The detail pages open a task-instance summaries stream that would otherwise stay active when the
 // tiny title-only assertion resolves and the tree unmounts. Stub it so no stream is left open.
