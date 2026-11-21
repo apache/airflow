@@ -831,6 +831,7 @@ class TestDataflowJobStatusTrigger:
             {
                 "project_id": PROJECT_ID,
                 "job_id": JOB_ID,
+                "job_name": None,
                 "expected_statuses": {JobState.JOB_STATE_DONE, JobState.JOB_STATE_FAILED},
                 "location": LOCATION,
                 "gcp_conn_id": GCP_CONN_ID,
@@ -942,6 +943,59 @@ class TestDataflowJobStatusTrigger:
         )
         actual_event = await dataflow_job_status_trigger.run().asend(None)
         assert expected_event == actual_event
+
+    @pytest.mark.parametrize(
+        ("job_state", "expected_status"),
+        [
+            pytest.param(JobState.JOB_STATE_DONE, "success", id="expected_state"),
+            pytest.param(JobState.JOB_STATE_CANCELLED, "error", id="terminal_state"),
+        ],
+    )
+    @pytest.mark.asyncio
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.dataflow.AsyncDataflowHook.get_latest_job_by_name",
+        autospec=True,
+    )
+    async def test_run_with_job_name(self, mock_get_latest_job, job_state, expected_status):
+        mock_get_latest_job.return_value = Job(id=JOB_ID, current_state=job_state)
+        trigger = DataflowJobStatusTrigger(
+            job_id=None,
+            job_name="test-job-name",
+            expected_statuses={JobState.JOB_STATE_DONE.name},
+            project_id=PROJECT_ID,
+            location=LOCATION,
+        )
+
+        actual_event = await trigger.run().asend(None)
+
+        assert actual_event.payload["status"] == expected_status
+        assert f"Job with id '{JOB_ID}'" in actual_event.payload["message"]
+        mock_get_latest_job.assert_awaited_once_with(
+            mock.ANY, job_name="test-job-name", project_id=PROJECT_ID, location=LOCATION
+        )
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.google.cloud.triggers.dataflow.asyncio.sleep", autospec=True)
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.dataflow.AsyncDataflowHook.get_latest_job_by_name",
+        autospec=True,
+    )
+    async def test_run_with_job_name_waits_until_job_exists(self, mock_get_latest_job, mock_sleep):
+        mock_get_latest_job.side_effect = [None, Job(id=JOB_ID, current_state=JobState.JOB_STATE_DONE)]
+        trigger = DataflowJobStatusTrigger(
+            job_id=None,
+            job_name="test-job-name",
+            expected_statuses={JobState.JOB_STATE_DONE.name},
+            project_id=PROJECT_ID,
+            location=LOCATION,
+            poll_sleep=POLL_SLEEP,
+        )
+
+        actual_event = await trigger.run().asend(None)
+
+        assert actual_event.payload["status"] == "success"
+        mock_sleep.assert_awaited_once_with(POLL_SLEEP)
+        assert mock_get_latest_job.await_count == 2
 
 
 class TestDataflowStartYamlJobTrigger:
