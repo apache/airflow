@@ -148,6 +148,10 @@ class LocalExecutor(BaseExecutor):
         super().__init__(*args, **kwargs)
         self._worker_tasks: dict[int, WorkloadKey] = {}
         self._dispatch_counts: dict[WorkloadKey, int] = {}
+        self._unstarted_workloads: dict[WorkloadKey, list[ExecutorWorkload]] = {}
+        # Workers whose death cannot leave the current activity queue's read lock held: they were reading
+        # a replaced queue, or were terminated while running a workload.
+        self._retired_workers: set[int] = set()
 
         # Resolve the start method at instantiation, not at import: the component CLI entry may have
         # set it via [<component>]/[core] mp_start_method before the executor is created.
@@ -173,6 +177,8 @@ class LocalExecutor(BaseExecutor):
         self.workers = {}
         self._worker_tasks.clear()
         self._dispatch_counts.clear()
+        self._unstarted_workloads.clear()
+        self._retired_workers.clear()
 
         # Mypy sees this value as `SynchronizedBase[c_uint]`, but that isn't the right runtime type behaviour
         # (it looks like an int to python)
@@ -186,20 +192,9 @@ class LocalExecutor(BaseExecutor):
 
     def _check_workers(self):
         self._read_results()
-        # Reap any dead workers
-        to_remove = set()
-        for pid, proc in self.workers.items():
-            if not proc.is_alive():
-                self._read_results()
-                # A worker killed between dequeue and START has no entry here; the scheduler's
-                # stuck-in-queued handling releases that workload through revoke_task.
-                if (key := self._worker_tasks.pop(pid, None)) is not None:
-                    self._finish_dispatch(key, state_class_for_key(key).FAILED)
-                to_remove.add(pid)
-                proc.close()
-
-        if to_remove:
-            self.workers = {pid: proc for pid, proc in self.workers.items() if pid not in to_remove}
+        self._kill_idle_retired_workers()
+        if self._reap_dead_workers():
+            self._replace_activity_queue()
 
         with self._unread_messages:
             num_outstanding = self._unread_messages.value
@@ -221,6 +216,79 @@ class LocalExecutor(BaseExecutor):
                 # This only creates one worker, which is fine as we call this directly after putting a message on
                 # activity_queue in execute_async when using spawn in multiprocessing
                 self._spawn_worker()
+
+    def _reap_dead_workers(self) -> bool:
+        """Reap dead workers and return whether one may have died holding the activity queue's read lock."""
+        lost_read_lock = False
+        to_remove = set()
+        for pid, proc in self.workers.items():
+            if not proc.is_alive():
+                self._read_results()
+                if (key := self._worker_tasks.pop(pid, None)) is not None:
+                    self._finish_dispatch(key, state_class_for_key(key).FAILED)
+                elif pid not in self._retired_workers:
+                    # An idle worker blocks in activity_queue.get() while holding the queue's read lock, and
+                    # nothing releases that lock when the worker is killed, so no other worker could ever read
+                    # from the queue again.
+                    lost_read_lock = True
+                self._retired_workers.discard(pid)
+                to_remove.add(pid)
+                proc.close()
+
+        if to_remove:
+            self.workers = {pid: proc for pid, proc in self.workers.items() if pid not in to_remove}
+        return lost_read_lock
+
+    def _replace_activity_queue(self) -> None:
+        """Move the workloads no worker has started to a new activity queue read by new workers."""
+        self.log.warning(
+            "A LocalExecutor worker died without running a workload and may have held the activity "
+            "queue's read lock. Replacing the activity queue and its idle workers."
+        )
+        old_queue = self.activity_queue
+        self.activity_queue = SimpleQueue()
+        self._retired_workers.update(self.workers)
+        # Holding the old read lock stops busy workers from reading the old queue once they finish, which would
+        # run a workload moved to the new queue a second time. If the lock is taken, its holder is either dead
+        # or a worker that has finished its workload, and those are killed below.
+        old_queue._rlock.acquire(block=False)  # type: ignore[attr-defined]
+        self._read_results()
+        self._kill_idle_retired_workers()
+        self._reap_dead_workers()
+        # Only the read end: a put blocked on the old pipe may still be using the write end, which is closed
+        # when the old queue is garbage collected.
+        old_queue._reader.close()  # type: ignore[attr-defined]
+
+        workloads = [workload for pending in self._unstarted_workloads.values() for workload in pending]
+        with self._unread_messages:
+            self._unread_messages.value = len(workloads)
+        if not workloads:
+            return
+        # Start the readers first: a put that fills the new queue's pipe blocks until a worker reads from it.
+        num_workers = self.parallelism - len(self.workers)
+        if self.is_mp_using_fork:
+            self._spawn_workers_with_gc_freeze(num_workers)
+        else:
+            for _ in range(min(num_workers, len(workloads))):
+                self._spawn_worker()
+        new_queue = self.activity_queue
+        for workload in workloads:
+            if (put_error := self._put_workload(workload)) is not None:
+                raise put_error
+            if self.activity_queue is not new_queue:
+                # Replaced again while the put was blocked, which moved the rest of these workloads too.
+                return
+
+    def _kill_idle_retired_workers(self) -> None:
+        idle = [
+            proc
+            for pid, proc in self.workers.items()
+            if pid in self._retired_workers and pid not in self._worker_tasks
+        ]
+        for proc in idle:
+            proc.kill()
+        for proc in idle:
+            proc.join(timeout=0.2)
 
     def _spawn_worker(self):
         p = multiprocessing.Process(
@@ -270,6 +338,10 @@ class LocalExecutor(BaseExecutor):
                     continue
                 if state is None or state == "running":
                     self._worker_tasks[pid] = key
+                    if pending := self._unstarted_workloads.get(key):
+                        pending.pop(0)
+                        if not pending:
+                            del self._unstarted_workloads[key]
                     if state is not None:
                         self.change_state(key, state, remove_running=False)
                 elif self._worker_tasks.get(pid) == key:
@@ -288,9 +360,9 @@ class LocalExecutor(BaseExecutor):
         # We can't tell which proc will pick which close message up, so we send all the messages, and then
         # wait on all the procs
 
-        for proc in self.workers.values():
+        for pid, proc in self.workers.items():
             # Send the shutdown message once for each alive worker
-            if proc.is_alive():
+            if proc.is_alive() and pid not in self._retired_workers:
                 self.activity_queue.put(None)
 
         # To prevent deadlock, we should consume results from result_queue while waiting for processes to join.
@@ -300,6 +372,7 @@ class LocalExecutor(BaseExecutor):
             for proc in self.workers.values():
                 while proc.is_alive():
                     self._read_results()
+                    self._kill_idle_retired_workers()
                     proc.join(timeout=0.05)
         except (KeyboardInterrupt, SystemExit):
             self.log.error("KeyboardInterrupt received during shutdown. Force terminating workers.")
@@ -345,6 +418,8 @@ class LocalExecutor(BaseExecutor):
             # that are not running yet.
             self.running.add(key)
             self._dispatch_counts[key] = self._dispatch_counts.get(key, 0) + 1
+            # Copied because the caller may change the workload's DTO after it is sent.
+            self._unstarted_workloads.setdefault(key, []).append(workload.model_copy(deep=True))
             # Counted before the put so a worker taking the message never decrements below zero, and so
             # _check_workers sees it as outstanding while the put is blocked.
             with self._unread_messages:
@@ -358,6 +433,10 @@ class LocalExecutor(BaseExecutor):
     def _undo_dispatch(self, key: WorkloadKey, workload: ExecutorWorkload) -> None:
         """Reverse the bookkeeping of a workload whose put failed, leaving it queued as it was before."""
         self.executor_queues[workload.type][key] = workload
+        if pending := self._unstarted_workloads.get(key):
+            pending.pop()
+            if not pending:
+                del self._unstarted_workloads[key]
         remaining = self._dispatch_counts.pop(key, 1) - 1
         if remaining > 0:
             self._dispatch_counts[key] = remaining
@@ -376,11 +455,12 @@ class LocalExecutor(BaseExecutor):
 
         :return: the error the put itself raised, in which case the workload was not sent.
         """
+        queue = self.activity_queue
         put_errors: list[BaseException] = []
 
         def _put() -> None:
             try:
-                self.activity_queue.put(workload)
+                queue.put(workload)
             except BaseException as e:
                 put_errors.append(e)
 
@@ -394,13 +474,22 @@ class LocalExecutor(BaseExecutor):
                     # spawned or replaced after the batch: with spawn there are none before the first one,
                     # and each call starts just one, so a single busy worker must not stop the rest.
                     self._check_workers()
+                    if self.activity_queue is not queue:
+                        # The queue was replaced, which put this workload on the new queue with the other
+                        # unstarted ones. Nothing reads the old queue any more, so the pending write is left
+                        # to fail once the last worker reading it is gone.
+                        return None
                 self._read_results()
                 putter.join(timeout=0.05)
         except BaseException:
             # end() sends a shutdown message on the same pipe for each live worker, so an interruption
             # (SIGTERM raises SystemExit here) must not leave this writer blocked behind a full result
             # pipe. Without a live worker nothing can take the pending write, and end() sends nothing.
-            while putter.is_alive() and any(proc.is_alive() for proc in self.workers.values()):
+            while (
+                putter.is_alive()
+                and self.activity_queue is queue
+                and any(proc.is_alive() for proc in self.workers.values())
+            ):
                 self._read_results()
                 putter.join(timeout=0.05)
             raise
@@ -415,6 +504,7 @@ class LocalExecutor(BaseExecutor):
 
     def _forget_workload(self, key: WorkloadKey) -> None:
         self._dispatch_counts.pop(key, None)
+        self._unstarted_workloads.pop(key, None)
         self._worker_tasks = {
             pid: task_key for pid, task_key in self._worker_tasks.items() if task_key != key
         }
@@ -433,6 +523,7 @@ class LocalExecutor(BaseExecutor):
         self.executor_queues[WorkloadType.EXECUTE_TASK].pop(key, None)
         for pid, task_key in self._worker_tasks.items():
             if task_key == key:
+                self._retired_workers.add(pid)
                 self._terminate_worker_process(self.workers[pid])
         self._forget_workload(key)
         self.running.discard(key)
