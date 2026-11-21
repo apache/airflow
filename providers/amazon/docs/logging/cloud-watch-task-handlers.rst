@@ -36,3 +36,15 @@ To enable this feature, ``airflow.cfg`` must be configured as follows:
     remote_log_conn_id = MyCloudwatchConn
 
 In the above example, Airflow will try to use ``AwsLogsHook('MyCloudwatchConn')``.
+
+By default, each CloudWatch log handler checks that the log group exists, with a ``DescribeLogGroups`` call, and
+creates it if it doesn't. If the log group is managed elsewhere, for example by infrastructure as code, turn this off
+with the ``[aws] cloudwatch_task_handler_create_log_group`` option, so the handlers skip both calls:
+
+.. code-block:: ini
+
+    [aws]
+    cloudwatch_task_handler_create_log_group = False
+
+The same value can also be supplied through ``[logging] remote_task_handler_kwargs``, for example
+``{"create_log_group": false}``.

@@ -126,6 +126,32 @@ class TestCloudWatchRemoteLogIOFromConfig:
         assert subject.delete_local_copy is False
         assert not hasattr(subject, "max_bytes")
 
+    @conf_vars(
+        {
+            ("logging", "remote_base_log_folder"): (
+                "cloudwatch://arn:aws:logs:us-west-2:123456789098:log-group:log_group_name"
+            ),
+            ("logging", "remote_task_handler_kwargs"): '{"create_log_group": false}',
+        }
+    )
+    def test_from_config_applies_create_log_group(self):
+        subject = CloudWatchRemoteLogIO.from_config()
+
+        assert subject.create_log_group is False
+
+    @conf_vars(
+        {
+            ("logging", "remote_base_log_folder"): (
+                "cloudwatch://arn:aws:logs:us-west-2:123456789098:log-group:log_group_name"
+            ),
+            ("aws", "cloudwatch_task_handler_create_log_group"): "False",
+        }
+    )
+    def test_from_config_reads_create_log_group_option(self):
+        subject = CloudWatchRemoteLogIO.from_config()
+
+        assert subject.create_log_group is False
+
     @conf_vars({("logging", "remote_task_handler_kwargs"): '["not", "a", "dict"]'})
     def test_from_config_rejects_non_dict_remote_task_handler_kwargs(self):
         with pytest.raises(ValueError, match="remote_task_handler_kwargs"):
@@ -388,6 +414,18 @@ class TestCloudRemoteLogIO:
                 '{"foo": "bar", "event": "Hi", "level": "info", "timestamp": "2025-03-27T21:58:01.002000+00:00"}\n'
             ]
 
+    def test_handler_skips_log_group_creation_when_disabled(self):
+        subject = CloudWatchRemoteLogIO(
+            base_log_folder=self.local_log_location,
+            log_group_arn=f"arn:aws:logs:{self.region_name}:11111111:log-group:managed_elsewhere",
+            create_log_group=False,
+        )
+
+        with mock.patch.object(CloudWatchLogHandler, "_ensure_log_group", autospec=True) as ensure_log_group:
+            assert isinstance(subject.handler, CloudWatchLogHandler)
+
+        ensure_log_group.assert_not_called()
+
     def test_handler_not_rebuilt_after_close(self):
         # Once the IO has been closed, a closed handler must NOT be rebuilt: a record arriving
         # after teardown should be dropped silently rather than spin up an orphan handler and its
@@ -477,6 +515,24 @@ class TestCloudwatchTaskHandler:
 
     def test_hook(self):
         assert isinstance(self.cloudwatch_task_handler.hook, AwsLogsHook)
+
+    def test_create_log_group_passed_to_io(self):
+        handler = CloudwatchTaskHandler(
+            self.local_log_location,
+            f"arn:aws:logs:{self.region_name}:11111111:log-group:{self.remote_log_group}",
+            create_log_group=False,
+        )
+
+        assert handler.io.create_log_group is False
+
+    @conf_vars({("aws", "cloudwatch_task_handler_create_log_group"): "False"})
+    def test_create_log_group_option_passed_to_io(self):
+        handler = CloudwatchTaskHandler(
+            self.local_log_location,
+            f"arn:aws:logs:{self.region_name}:11111111:log-group:{self.remote_log_group}",
+        )
+
+        assert handler.io.create_log_group is False
 
     def test_handler(self):
         self.cloudwatch_task_handler.set_context(self.ti)
