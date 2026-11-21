@@ -52,6 +52,7 @@ configuring an Airflow environment.
     connection
     variable
     setup-and-teardown
+    task-group
     run-behind-proxy
     run-with-systemd
     define-extra-link
