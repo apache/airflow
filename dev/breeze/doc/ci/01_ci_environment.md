@@ -79,6 +79,37 @@ The latest GitHub registry cache is kept as `:cache-linux-amd64` and
 metadata and cache for all segments in the image,
 and cache is kept separately for different platforms.
 
+Next to it, every cache push also writes a keyed tag,
+`:cache-linux-<arch>-<dependency key>`. The key is a hash of the inputs of the
+image's expensive dependency layers: `uv.lock`, every `pyproject.toml`,
+`Dockerfile.ci` and the scripts it runs. `breeze ci-image build` computes the
+key of the checkout it runs in and passes `--cache-from` for the keyed tag
+first and the shared tag second. A checkout whose inputs were ever pushed,
+an older commit or a release-branch worktree included, so gets a full cache
+hit even after the shared tag has moved on. The key only names the cache to
+look up: BuildKit still checks every layer, so a stale or wrong key costs a
+cache miss, never a wrong layer.
+
+Keyed cache is pushed:
+
+* by every cache push (the canary, `refresh-image-registry-cache.yml`) - with the shared tag,
+* by `refresh-image-cache-on-dependency-change.yml`, right after a push to `main` that changes
+  the dependency inputs, so a merged dependency upgrade does not leave everyone building
+  dependencies from scratch until the next canary,
+* by the `push-keyed-image-cache` job of a pull request from a branch of `apache/airflow` that
+  changes the dependency inputs (for example the automated CI environment upgrade), with
+  `breeze ci-image build --prepare-buildx-cache --keyed-cache-only`. It builds without
+  upgrading dependencies, as `main` will after the merge, skips a key already in the registry,
+  and never moves the shared cache or `latest` tags. Pull requests from forks never push.
+
+`cleanup-keyed-image-cache.yml` deletes keyed tags not pushed for 30 days.
+`cleanup-old-image-versions.yml` slowly deletes, a few hundred per run, the untagged
+image versions older than 30 days that every push leaves behind, keeping the
+manifests that tagged images list.
+
+Pushing two caches in one build needs BuildKit 0.11, so `breeze` refuses to build
+an image with docker buildx older than 0.10.
+
 The `latest` images of CI and PROD are `amd64` only images for CI,
 because there is no easy way to push multiplatform images without
 merging the manifests, and it is not really needed nor used for cache.
@@ -91,6 +122,7 @@ When you are running the CI jobs in GitHub Actions, GITHUB_TOKEN is set automati
 by the actions. This is used only in the `canary` runs that have "write" access
 to the repository.
 
+The same token pushes the keyed cache of pull requests from `apache/airflow` branches.
 No `write` access is needed (nor possible) by Pull Requests coming from the forks,
 since we are only using "GitHub Artifacts" for cache source in those runs.
 

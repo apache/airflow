@@ -178,6 +178,13 @@ option_prepare_buildx_cache = click.option(
     is_flag=True,
     envvar="PREPARE_BUILDX_CACHE",
 )
+option_keyed_cache_only = click.option(
+    "--keyed-cache-only",
+    help="With --prepare-buildx-cache, only push the cache tagged with this checkout's dependency key, "
+    "skipping it when the registry already has it, and leave the shared cache tag alone.",
+    is_flag=True,
+    envvar="KEYED_CACHE_ONLY",
+)
 option_pull = click.option(
     "--pull",
     help="Pull image is missing before attempting to verify it.",

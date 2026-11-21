@@ -307,7 +307,9 @@ jobs:
       arm-runners: ${{ steps.selective-checks.outputs.arm-runners }}
       basic-checks-only: ${{ steps.selective-checks.outputs.basic-checks-only }}
       canary-run: ${{ steps.source-run-info.outputs.canary-run }}
+      ci-image-cache-python-versions: ${{ steps.selective-checks.outputs.ci-image-cache-python-versions }}
       ci-image-build: ${{ steps.selective-checks.outputs.ci-image-build }}
+      ci-image-dependencies-changed: ${{ steps.selective-checks.outputs.ci-image-dependencies-changed }}
       core-test-types-list-as-strings-in-json: >-
         ${{ steps.selective-checks.outputs.core-test-types-list-as-strings-in-json }}
       debug-resources: ${{ steps.selective-checks.outputs.debug-resources }}
@@ -639,6 +641,47 @@ jobs:
       use-pinned-os-deps-images: ${{ needs.build-info.outputs.use-pinned-os-deps-images }}
       disable-airflow-repo-cache: ${{ needs.build-info.outputs.disable-airflow-repo-cache }}
     if: needs.build-info.outputs.ci-image-build == 'true'
+
+  push-keyed-image-cache:
+    # A pull request from a branch of apache/airflow that changes the inputs of the CI image's
+    # dependency layers pushes the cache for them under its dependency key, so the cache is in the
+    # registry by the time the change merges and `breeze ci-image build` finds it for any checkout
+    # with the same inputs. Built without upgrading dependencies, as on main after the merge, and
+    # skipped when the key is already pushed. It never moves the shared cache or `latest` tags.
+    name: "Push keyed image cache ${{ matrix.platform }}"
+    needs: [build-info]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: "linux/amd64"
+            runners: '["ubuntu-22.04"]'
+          - platform: "linux/arm64"
+            runners: '["ubuntu-22.04-arm"]'
+    uses: ./.github/workflows/push-image-cache.yml
+    permissions:
+      contents: read
+      # Granted only for pull requests whose head is in apache/airflow; fork pull requests never run it.
+      packages: write
+    with:
+      runners: ${{ matrix.runners }}
+      platform: ${{ matrix.platform }}
+      cache-type: "Keyed"
+      include-prod-images: "false"
+      push-latest-images: "false"
+      keyed-cache-only: "true"
+      python-versions: ${{ needs.build-info.outputs.ci-image-cache-python-versions }}
+      branch: ${{ needs.build-info.outputs.default-branch }}
+      constraints-branch: ${{ needs.build-info.outputs.default-constraints-branch }}
+      use-uv: ${{ needs.build-info.outputs.use-uv }}
+      include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
+      docker-cache: ${{ needs.build-info.outputs.docker-cache }}
+      disable-airflow-repo-cache: ${{ needs.build-info.outputs.disable-airflow-repo-cache }}
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.repository == 'apache/airflow' &&
+      github.event.pull_request.head.repo.full_name == 'apache/airflow' &&
+      needs.build-info.outputs.ci-image-dependencies-changed == 'true'
 
   additional-ci-image-checks:
     name: "Additional CI image checks"
@@ -1836,6 +1879,7 @@ jobs:
       - migration-round-trip
       - mypy-providers
       - providers
+      - push-keyed-image-cache
       - tests-agent-frameworks
       - tests-airflow-ctl
       - tests-go-sdk
@@ -1905,6 +1949,7 @@ jobs:
       - migration-round-trip
       - mypy-providers
       - providers
+      - push-keyed-image-cache
       - tests-agent-frameworks
       - tests-airflow-ctl
       - tests-go-sdk

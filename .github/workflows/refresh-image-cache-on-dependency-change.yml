@@ -1,0 +1,48 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+---
+name: Refresh image cache on dependency change
+# `main` is not built on push -- its registry cache is otherwise refreshed only by the canary, twice
+# a day. A merged change to the inputs of the CI image's dependency layers (a dependency upgrade,
+# most often) would leave every local `breeze ci-image build` installing all dependencies from
+# scratch until then. This refreshes the shared and the keyed cache right after such a merge.
+# The paths are the `CI_IMAGE_DEPENDENCY_FILES` group of selective checks.
+on:  # yamllint disable-line rule:truthy
+  push:
+    branches:
+      - main
+    paths:
+      - "uv.lock"
+      - "**/pyproject.toml"
+      - "Dockerfile.ci"
+      - ".dockerignore"
+      - "scripts/docker/**"
+      - "dev/breeze/src/airflow_breeze/files/hardened_*_digests.json"
+permissions:
+  contents: read
+jobs:
+  refresh-image-cache:
+    name: "Refresh image cache"
+    uses: ./.github/workflows/refresh-image-registry-cache.yml
+    permissions:
+      contents: read
+      # Only granted for pushes to apache/airflow's `main`, never for forks.
+      packages: write
+    with:
+      platform: "both"
+    if: github.repository == 'apache/airflow'

@@ -1,0 +1,65 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+---
+name: Clean up old image versions
+# Deletes, a few hundred per run from one package in turn, the untagged CI and PROD image versions
+# older than 30 days that no tag references. Small, spaced-out runs keep it far below the API rate
+# limit of the workflow token. Most of a run is reading, anonymously from the registry, what each
+# of the package's tags references: about 40 minutes for 18k tags. See
+# scripts/ci/cleanup_old_image_versions.py.
+on:  # yamllint disable-line rule:truthy
+  schedule:
+    - cron: '41 */6 * * *'
+  workflow_dispatch:
+    inputs:
+      dry-run:
+        description: "Only list what would be deleted"
+        type: boolean
+        default: true
+      max-deletions:
+        description: "Stop after this many deletions"
+        type: string
+        default: "300"
+permissions:
+  contents: read
+concurrency:
+  group: cleanup-old-image-versions
+  cancel-in-progress: false
+jobs:
+  cleanup:
+    name: "Clean up old image versions"
+    runs-on: ["ubuntu-slim"]
+    timeout-minutes: 90
+    permissions:
+      contents: read
+      packages: write
+    if: github.repository == 'apache/airflow'
+    steps:
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - name: "Delete old untagged image versions"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry-run && '--dry-run' || '' }}
+          MAX_DELETIONS: ${{ inputs.max-deletions || '300' }}
+        run: >
+          python3 scripts/ci/cleanup_old_image_versions.py
+          --days 30 --max-deletions "${MAX_DELETIONS}" --pause 3 ${DRY_RUN}

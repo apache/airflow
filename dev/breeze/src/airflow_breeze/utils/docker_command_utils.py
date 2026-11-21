@@ -64,6 +64,7 @@ from airflow_breeze.global_constants import (
     DOCKER_DEFAULT_PLATFORM,
     KNOWN_DOCKER_COMPOSE_PROJECT_NAMES,
     KNOWN_DOCKER_COMPOSE_PROJECT_PREFIXES,
+    MIN_BUILDX_VERSION,
     MIN_DOCKER_COMPOSE_VERSION,
     MIN_DOCKER_VERSION,
 )
@@ -278,6 +279,36 @@ You can find installation instructions here: https://docs.docker.com/engine/inst
                 sys.exit(1)
 
 
+def check_buildx_version(quiet: bool = False):
+    """Exit when docker buildx, which builds the images, is missing or older than MIN_BUILDX_VERSION."""
+    result = run_command(
+        ["docker", "buildx", "version"],
+        no_output_dump_on_exception=True,
+        capture_output=True,
+        text=True,
+        check=False,
+        dry_run_override=False,
+    )
+    match = re.search(r"buildx\s+v?(\d+\.\d+\.\d+)", result.stdout) if result.returncode == 0 else None
+    if not match:
+        console_print(
+            "[error]Docker buildx is needed to build images, but `docker buildx version` did not report "
+            f"a version.[/]\n[warning]Install buildx {MIN_BUILDX_VERSION} or newer: "
+            "https://docs.docker.com/build/concepts/overview/#install-buildx[/]"
+        )
+        sys.exit(1)
+    buildx_version = match.group(1)
+    if not compare_version(buildx_version, MIN_BUILDX_VERSION):
+        console_print(
+            f"[error]Your version of docker buildx is too old: {buildx_version}.[/]\n"
+            f"[warning]Please upgrade to at least {MIN_BUILDX_VERSION}: "
+            "https://docs.docker.com/build/concepts/overview/#install-buildx[/]"
+        )
+        sys.exit(1)
+    if not quiet:
+        console_print(f"[success]Good version of docker buildx: {buildx_version}.[/]")
+
+
 def check_container_engine_is_docker(quiet: bool = False) -> bool:
     """Checks if the container engine is Docker or podman."""
     response = run_command(
@@ -430,10 +461,23 @@ def prepare_docker_build_cache_command(
         ["-f", "Dockerfile" if isinstance(image_params, BuildProdParams) else "Dockerfile.ci"]
     )
     final_command.extend(["--platform", image_params.platform])
-    final_command.extend(
-        [f"--cache-to=type=registry,ref={image_params.get_cache(image_params.platform)},mode=max"]
-    )
+    cache_refs = [] if image_params.keyed_cache_only else [image_params.get_cache(image_params.platform)]
+    keyed_cache = image_params.get_keyed_cache(image_params.platform)
+    if keyed_cache:
+        cache_refs.append(keyed_cache)
+    final_command.extend(f"--cache-to=type=registry,ref={ref},mode=max" for ref in cache_refs)
     return final_command
+
+
+def is_registry_cache_present(cache_ref: str) -> bool:
+    result = run_command(
+        ["docker", "buildx", "imagetools", "inspect", cache_ref],
+        capture_output=True,
+        text=True,
+        check=False,
+        dry_run_override=False,
+    )
+    return result.returncode == 0
 
 
 def prepare_base_build_command(image_params: CommonBuildParams) -> list[str]:
@@ -520,6 +564,18 @@ def build_cache(image_params: CommonBuildParams, output: Output | None) -> RunCo
         # override the platform in the copied params to only be single platform per run
         # as a workaround to https://github.com/docker/buildx/issues/1044
         platform_image_params.platform = build_platform
+        if platform_image_params.keyed_cache_only:
+            keyed_cache = platform_image_params.get_keyed_cache(build_platform)
+            if not keyed_cache:
+                get_console(output=output).print(
+                    "[error]No cache key for this checkout - cannot push keyed cache only.[/]"
+                )
+                return CompletedProcess(args=[], returncode=1)
+            if is_registry_cache_present(keyed_cache):
+                get_console(output=output).print(
+                    f"[info]Cache {keyed_cache} is already in the registry - skipping.[/]"
+                )
+                continue
         cmd = prepare_docker_build_cache_command(image_params=platform_image_params)
         build_command_result = run_command(
             cmd,
@@ -629,7 +685,9 @@ def check_executable_entrypoint_permissions(quiet: bool = False):
 
 
 @lru_cache
-def perform_environment_checks(quiet: bool = False, *, cleanup_stale_worktrees: bool = True):
+def perform_environment_checks(
+    quiet: bool = False, *, cleanup_stale_worktrees: bool = True, building_images: bool = False
+):
     check_docker_is_running()
     container_engine_is_docker = check_container_engine_is_docker(quiet)
     if not container_engine_is_docker:
@@ -639,6 +697,8 @@ def perform_environment_checks(quiet: bool = False, *, cleanup_stale_worktrees: 
     else:
         check_docker_version(quiet)
         check_docker_compose_version(quiet)
+        if building_images:
+            check_buildx_version(quiet)
         check_windows_filesystem_mount(quiet)
         check_executable_entrypoint_permissions(quiet)
     check_uv_version(quiet)

@@ -1,0 +1,223 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+from __future__ import annotations
+
+import importlib.util
+import sys
+from datetime import UTC, datetime
+from pathlib import Path
+
+import pytest
+
+MODULE_PATH = Path(__file__).resolve().parents[3] / "scripts" / "ci" / "cleanup_old_image_versions.py"
+CUTOFF = datetime(2026, 10, 16, tzinfo=UTC)
+OLD = "2026-09-01T00:00:00Z"
+RECENT = "2026-11-01T00:00:00Z"
+
+
+@pytest.fixture
+def cleanup():
+    module_name = "test_cleanup_old_image_versions_module"
+    sys.modules.pop(module_name, None)
+    spec = importlib.util.spec_from_file_location(module_name, MODULE_PATH)
+    assert spec is not None
+    assert spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[module_name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+def _version(digest: str, created_at: str, tags: list[str] | None = None) -> dict:
+    return {"name": digest, "created_at": created_at, "metadata": {"container": {"tags": tags or []}}}
+
+
+def _page(*middle: dict) -> list[dict]:
+    """A page, newest first, whose edge versions are far from the versions under test."""
+    return [
+        _version("sha256:newest-edge", "2026-09-20T00:00:00Z"),
+        *middle,
+        _version("sha256:oldest-edge", "2026-08-01T00:00:00Z"),
+    ]
+
+
+@pytest.mark.parametrize(
+    ("version", "deletable"),
+    [
+        pytest.param(_version("sha256:old", OLD), True, id="old-untagged"),
+        pytest.param(_version("sha256:recent", RECENT), False, id="recent-untagged"),
+        pytest.param(_version("sha256:tagged", OLD, ["latest"]), False, id="old-tagged"),
+        pytest.param(_version("sha256:kept", OLD), False, id="old-referenced-by-a-long-lived-tag"),
+    ],
+)
+def test_find_deletable_versions(cleanup, version, deletable):
+    deletable_names = {
+        v["name"] for v in cleanup.find_deletable_versions(_page(version), {"sha256:kept"}, CUTOFF)
+    }
+
+    assert (version["name"] in deletable_names) is deletable
+
+
+def test_find_deletable_versions_keeps_untagged_pushed_with_a_tagged_version(cleanup):
+    page = _page(
+        _version("sha256:commit-image", "2026-09-01T00:00:30Z", ["0123456789abcdef0123456789abcdef01234567"]),
+        _version("sha256:its-platform-manifest", "2026-09-01T00:00:10Z"),
+        _version("sha256:unrelated", "2026-09-01T01:00:00Z"),
+    )
+
+    assert [v["name"] for v in cleanup.find_deletable_versions(page, set(), CUTOFF)] == ["sha256:unrelated"]
+
+
+def test_find_deletable_versions_keeps_versions_near_the_page_edges(cleanup):
+    page = [
+        _version("sha256:edge", OLD),
+        _version("sha256:near-edge", "2026-09-01T00:01:00Z"),
+        _version("sha256:middle", "2026-08-20T00:00:00Z"),
+        _version("sha256:last-edge", "2026-08-01T00:00:00Z"),
+    ]
+
+    assert [v["name"] for v in cleanup.find_deletable_versions(page, set(), CUTOFF)] == ["sha256:middle"]
+
+
+def _pages() -> dict[int, list[dict]]:
+    return {
+        1: [_version("sha256:new-1", RECENT), _version("sha256:new-2", RECENT)],
+        2: [
+            _version("sha256:p2-edge", "2026-10-01T00:00:00Z"),
+            _version("sha256:p2-a", "2026-09-20T00:00:00Z"),
+            _version("sha256:p2-kept", "2026-09-15T00:00:00Z"),
+            _version("sha256:p2-b", "2026-09-10T00:00:00Z"),
+            _version("sha256:p2-last", "2026-09-05T00:00:00Z"),
+        ],
+        # Only an edge version, which is never deleted: the walk must go on to page 2.
+        3: [_version("sha256:p3-only", "2026-08-01T00:00:00Z")],
+    }
+
+
+def test_select_versions_to_delete_walks_past_pages_without_candidates(cleanup):
+    pages = _pages()
+    fetched: list[int] = []
+    keep_loads: list[int] = []
+
+    def fetch_page(page: int) -> list[dict]:
+        fetched.append(page)
+        return pages.get(page, [])
+
+    def load_keep() -> set[str]:
+        keep_loads.append(1)
+        return {"sha256:p2-kept"}
+
+    selected = cleanup.select_versions_to_delete(fetch_page, 3, load_keep, CUTOFF, budget=10)
+
+    assert [v["name"] for v in selected] == ["sha256:p2-a", "sha256:p2-b"]
+    assert fetched == [3, 2, 1]
+    assert keep_loads == [1]
+
+
+def test_select_versions_to_delete_stops_at_budget(cleanup):
+    pages = _pages()
+
+    selected = cleanup.select_versions_to_delete(pages.get, 3, set, CUTOFF, budget=1)
+
+    assert [v["name"] for v in selected] == ["sha256:p2-a"]
+
+
+def test_select_versions_to_delete_does_not_load_tags_without_candidates(cleanup):
+    pages = {1: [_version("sha256:new", RECENT)]}
+
+    def load_keep() -> set[str]:
+        raise AssertionError("tags loaded without a candidate")
+
+    assert cleanup.select_versions_to_delete(pages.get, 1, load_keep, CUTOFF, budget=10) == []
+
+
+def test_find_deletable_versions_takes_keyed_cache_only_versions(cleanup):
+    keyed = _version("sha256:keyed", OLD, ["cache-linux-amd64-0123456789abcdef"])
+    shared_too = _version(
+        "sha256:shared", "2026-08-20T00:00:00Z", ["cache-linux-amd64-0123456789abcdef", "cache-linux-amd64"]
+    )
+
+    deletable = cleanup.find_deletable_versions(_page(keyed, shared_too), set(), CUTOFF)
+
+    assert [v["name"] for v in deletable] == ["sha256:keyed"]
+
+
+class _FakeRegistry:
+    """Two pages of tags; the commit-tagged index, on the second page, lists an old manifest."""
+
+    def __init__(self, image: str):
+        self.image = image
+
+    def get(self, path: str, accept: str = "application/json"):
+        pages: dict[str, tuple[dict, str]] = {
+            f"/v2/{self.image}/tags/list?n=1000": (
+                {"tags": ["latest", "cache-linux-amd64-0123456789abcdef"]},
+                f'</v2/{self.image}/tags/list?n=1000&last=latest>; rel="next"',
+            ),
+            f"/v2/{self.image}/tags/list?n=1000&last=latest": ({"tags": ["0123abcd4567ef89"]}, ""),
+        }
+        if path in pages:
+            listing, link = pages[path]
+            return listing, None, link
+        manifests: dict[str, tuple[dict, str]] = {
+            "latest": ({}, "sha256:latest"),
+            "0123abcd4567ef89": (
+                {"manifests": [{"digest": "sha256:old-platform-manifest"}]},
+                "sha256:commit-index",
+            ),
+        }
+        tag = path.rsplit("/", 1)[1]
+        if tag not in manifests:
+            raise AssertionError(f"unexpected manifest read: {tag}")
+        body, digest = manifests[tag]
+        return body, digest, ""
+
+
+def test_collect_keep_set_protects_manifests_listed_by_commit_tags(cleanup, monkeypatch):
+    monkeypatch.setattr(cleanup, "_Registry", _FakeRegistry)
+
+    keep = cleanup.collect_keep_set("apache/airflow/main/ci/python3.11")
+
+    assert keep == {"sha256:latest", "sha256:commit-index", "sha256:old-platform-manifest"}
+    old_manifest = _version("sha256:old-platform-manifest", "2026-08-20T00:00:00Z")
+    assert cleanup.find_deletable_versions(_page(old_manifest), keep, CUTOFF) == []
+
+
+def test_get_referenced_digests_lists_index_children(cleanup):
+    index = {
+        "mediaType": "application/vnd.oci.image.index.v1+json",
+        "manifests": [{"digest": "sha256:amd64"}, {"digest": "sha256:attestation"}],
+    }
+
+    assert cleanup.get_referenced_digests(index) == {"sha256:amd64", "sha256:attestation"}
+
+
+def test_get_referenced_digests_of_single_manifest_is_empty(cleanup):
+    assert cleanup.get_referenced_digests({"layers": [{"digest": "sha256:layer"}]}) == set()
+
+
+@pytest.mark.parametrize(
+    ("package", "matches"),
+    [
+        pytest.param("airflow/main/ci/python3.11", True, id="ci"),
+        pytest.param("airflow/v2-11-test/prod/python3.10", True, id="prod"),
+        pytest.param("airflow/main/ci/python3.11/extra", False, id="nested"),
+        pytest.param("airflow-site/main/ci/python3.11", False, id="other-repo"),
+    ],
+)
+def test_image_package_pattern(cleanup, package, matches):
+    assert bool(cleanup.get_image_package_pattern("airflow").match(package)) is matches

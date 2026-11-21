@@ -23,6 +23,7 @@ from pathlib import Path
 from airflow_breeze.branch_defaults import DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
 from airflow_breeze.global_constants import ALL_PYTHON_VERSION_TO_PATCHLEVEL_VERSION
 from airflow_breeze.params.common_build_params import CommonBuildParams
+from airflow_breeze.utils.md5_build_check import calculate_ci_image_cache_key
 from airflow_breeze.utils.path_utils import BUILD_CACHE_PATH
 
 
@@ -50,6 +51,12 @@ class BuildCiParams(CommonBuildParams):
     @property
     def image_type(self) -> str:
         return "CI"
+
+    def get_keyed_cache(self, single_platform: str) -> str | None:
+        cache_key = calculate_ci_image_cache_key()
+        if not cache_key:
+            return None
+        return f"{self.get_cache(single_platform)}-{cache_key}"
 
     @property
     def md5sum_cache_dir(self) -> Path:

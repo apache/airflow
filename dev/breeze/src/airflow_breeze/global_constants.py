@@ -866,6 +866,10 @@ ISSUE_ID = ""
 NUM_RUNS = ""
 
 MIN_DOCKER_VERSION = "25.0.0"
+# The CI image cache push writes the shared and the keyed cache with two `--cache-to` in one build,
+# which BuildKit supports since v0.11 (moby/buildkit#3024); buildx 0.10 is the release built on it.
+# The daemon's own BuildKit is covered by MIN_DOCKER_VERSION.
+MIN_BUILDX_VERSION = "0.10.0"
 MIN_DOCKER_COMPOSE_VERSION = "2.20.2"
 MIN_GH_VERSION = "2.70.0"
 
