@@ -148,6 +148,16 @@ rules above apply to them, and of the rules below only the 24-hour window does: 
 approved even when several open PRs share the head commit, or when the runs started before the PR
 was opened, retargeted or relabelled.
 
+The runs of a PR whose head commit a maintainer approved are approved whatever the PR changes, as
+for a trusted stakeholder. The reviewer's latest verdict on the PR must be an `APPROVED` review of
+that exact commit (a later `CHANGES_REQUESTED` or a dismissal withdraws it, a comment does not), and
+the reviewer must have `write` or `admin` permission on the repository, as read from
+`GET /repos/apache/airflow/collaborators/<login>/permission`; collaborators granted triage in
+`.asf.yaml` have `read` and do not count. A maintainer who approved the exact commit has reviewed
+every change in it, CI changes included, which is what approving its runs by hand asks of them. A
+commit that is the head of several open PRs is still left for a maintainer, and only runs started
+after the PR was opened and after its base branch last changed are approved.
+
 Only runs created in the last 24 hours (`--max-run-age-hours`) are considered, so the workflow never
 approves a backlog of older waiting runs at once; those stay with maintainers. A commit that is the
 head of several open PRs is never approved automatically, because its runs cannot be told apart by

@@ -55,6 +55,7 @@ from airflow_breeze.utils.workflow_run_approval import (
     decide_for_pull_request,
     escape_markdown,
     fetch_merge_commit,
+    find_head_approver,
     get_changed_files,
     process_waiting_runs,
     write_step_summary,
@@ -1497,3 +1498,99 @@ def test_decide_for_pull_request_gates_an_older_pilot_pull_request_from_joining(
         mock_decide_approval.assert_not_called()
     else:
         assert decision is mock_decide_approval.return_value
+
+
+def _review(login, state, commit_id="aaa"):
+    return {"user": {"login": login}, "state": state, "commit_id": commit_id}
+
+
+PERMISSIONS = {"committer": "write", "admin": "admin", "triager": "read", "other-committer": "write"}
+
+
+@pytest.mark.parametrize(
+    ("reviews", "expected"),
+    [
+        pytest.param([_review("committer", "APPROVED")], "committer", id="approved-head"),
+        pytest.param([_review("admin", "APPROVED")], "admin", id="admin"),
+        pytest.param([_review("committer", "APPROVED", commit_id="old")], None, id="approved-earlier-commit"),
+        pytest.param(
+            [_review("committer", "APPROVED"), _review("committer", "CHANGES_REQUESTED")],
+            None,
+            id="changes-requested-after",
+        ),
+        pytest.param(
+            [_review("committer", "APPROVED"), _review("committer", "COMMENTED")],
+            "committer",
+            id="comment-after-keeps-approval",
+        ),
+        pytest.param([_review("committer", "DISMISSED")], None, id="dismissed"),
+        pytest.param([_review("triager", "APPROVED")], None, id="no-write-access"),
+        pytest.param(
+            [_review("triager", "APPROVED"), _review("other-committer", "APPROVED")],
+            "other-committer",
+            id="one-of-several-reviewers",
+        ),
+        pytest.param([{"user": None, "state": "APPROVED", "commit_id": "aaa"}], None, id="deleted-user"),
+        pytest.param([], None, id="no-reviews"),
+    ],
+)
+def test_find_head_approver(reviews, expected):
+    api = mock.MagicMock(spec=GitHubApi)
+    api.get_reviews.return_value = reviews
+    api.get_permission.side_effect = lambda login: PERMISSIONS[login]
+
+    assert find_head_approver(api, _pr(10, "aaa")) == expected
+    api.get_reviews.assert_called_once_with(10)
+
+
+@mock.patch(f"{MODULE}.decide_for_pull_request", autospec=True)
+def test_process_waiting_runs_approves_runs_of_a_head_commit_a_maintainer_approved(mock_decide):
+    api = _api_with_prs([_pr(10, "aaa", labels=(NEED_WORKFLOW_APPROVAL_LABEL,))], [_run(1, "aaa")])
+    api.get_reviews.return_value = [_review("committer", "APPROVED")]
+    api.get_permission.return_value = "write"
+
+    (result,) = process_waiting_runs(api, created_since=CREATED_SINCE)
+
+    assert result.decision.approve is True
+    assert result.decision.reasons == ["committer, a maintainer, approved its head commit"]
+    mock_decide.assert_not_called()
+    api.approve_run.assert_called_once_with(1)
+    api.remove_label.assert_called_once_with(10, NEED_WORKFLOW_APPROVAL_LABEL)
+
+
+@mock.patch(f"{MODULE}.decide_for_pull_request", autospec=True)
+def test_process_waiting_runs_does_not_approve_a_shared_head_commit_a_maintainer_approved(mock_decide):
+    api = _api_with_prs([_pr(10, "aaa"), _pr(11, "aaa")], [_run(1, "aaa")])
+    api.get_reviews.return_value = [_review("committer", "APPROVED")]
+    api.get_permission.return_value = "write"
+
+    results = process_waiting_runs(api, created_since=CREATED_SINCE)
+
+    assert all(not result.decision.approve for result in results)
+    api.approve_run.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    ("status_code", "payload", "expected"),
+    [
+        pytest.param(200, {"permission": "write"}, "write", id="write"),
+        pytest.param(200, {"permission": "read"}, "read", id="read"),
+        pytest.param(404, {}, "none", id="not-a-collaborator"),
+    ],
+)
+def test_get_permission(status_code, payload, expected):
+    api = GitHubApi(github_repository="apache/airflow", github_token="token", report_only=False)
+    with mock.patch.object(api, "_session", autospec=True) as session:
+        session.get.return_value.status_code = status_code
+        session.get.return_value.json.return_value = payload
+        assert api.get_permission("someone") == expected
+
+    assert session.get.call_args.args[0].endswith("/repos/apache/airflow/collaborators/someone/permission")
+
+
+def test_get_reviews_lists_the_pull_request_reviews():
+    api = GitHubApi(github_repository="apache/airflow", github_token="token", report_only=False)
+    with mock.patch.object(api, "_get_paginated", autospec=True, return_value=[]) as get_paginated:
+        assert api.get_reviews(10) == []
+
+    get_paginated.assert_called_once_with("pulls/10/reviews?per_page=100")
