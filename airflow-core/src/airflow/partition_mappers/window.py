@@ -79,6 +79,44 @@ def _build_directional_steps(
     return (step(base, i) for i in range(count))
 
 
+def _validate_step(window_cls: type[Window], step: timedelta | None) -> timedelta | None:
+    """
+    Return *step* if *window_cls* can enumerate its period in increments of *step*.
+
+    Only windows with a fixed-length ``period`` accept a step; calendar windows
+    (month, quarter, year) have periods of varying length. The step must be a
+    whole number of seconds that divides the period evenly, so every period
+    yields the same number of members and none straddles a period boundary.
+    """
+    if step is None:
+        return None
+    if window_cls.period is None:
+        raise TypeError(f"{window_cls.__name__} does not support 'step'; its period has no fixed length.")
+    if not isinstance(step, timedelta):
+        raise TypeError(f"{window_cls.__name__} 'step' must be a timedelta, got {type(step).__name__!r}.")
+    if step <= timedelta(0) or step % timedelta(seconds=1):
+        raise ValueError(
+            f"{window_cls.__name__} 'step' must be a positive whole number of seconds, got {step}."
+        )
+    if window_cls.period % step:
+        raise ValueError(
+            f"{window_cls.__name__} 'step' must divide its period ({window_cls.period}) evenly, got {step}."
+        )
+    return step
+
+
+def _build_fixed_period_steps(
+    window: Window, period_start: datetime, default_step: timedelta
+) -> Iterable[datetime]:
+    """Enumerate the members of a fixed-length period, ``window.step`` apart (``default_step`` if unset)."""
+    if TYPE_CHECKING:
+        assert window.period is not None
+    step = window.step or default_step
+    return _build_directional_steps(
+        period_start, window.period // step, lambda s, i: s + step * i, window.direction
+    )
+
+
 class Window(ABC):
     """
     Describes a rollup window: which decoded upstream items make up one decoded downstream period.
@@ -121,30 +159,50 @@ class Window(ABC):
     #: but the window needs a different type. Temporal windows declare ``datetime``.
     expected_decoded_type: ClassVar[type] = str
 
-    def __init__(self, *, direction: Window.Direction = Direction.FORWARD) -> None:
+    #: Length of one downstream period for windows that accept ``step``;
+    #: ``None`` for windows whose period length varies (month, quarter, year).
+    period: ClassVar[timedelta | None] = None
+
+    def __init__(
+        self, *, direction: Window.Direction = Direction.FORWARD, step: timedelta | None = None
+    ) -> None:
         self.direction = self.Direction(direction)
+        self.step = _validate_step(type(self), step)
 
     @abstractmethod
     def to_upstream(self, decoded_downstream: Any) -> Iterable[Any]:
         """Yield each decoded upstream item composing *decoded_downstream*."""
 
     def serialize(self) -> dict[str, Any]:
-        return {"direction": self.direction.value}
+        data: dict[str, Any] = {"direction": self.direction.value}
+        # Omitted when unset so Dags without a step keep their existing rollup fingerprint.
+        if self.step is not None:
+            data["step"] = int(self.step.total_seconds())
+        return data
 
     @classmethod
     def deserialize(cls, data: dict[str, Any]) -> Window:
-        return cls(direction=cls.Direction(data["direction"]))
+        step = data.get("step")
+        return cls(
+            direction=cls.Direction(data["direction"]),
+            step=None if step is None else timedelta(seconds=step),
+        )
 
 
 class HourWindow(Window):
-    """Sixty consecutive minute period-starts making up one hour."""
+    """
+    Consecutive period-starts making up one hour: sixty minutes, or ``step`` apart when set.
+
+    ``HourWindow(step=timedelta(minutes=5))`` yields the twelve five-minute
+    period-starts of the hour, matching a producer that emits one key per
+    five-minute batch.
+    """
 
     expected_decoded_type: ClassVar[type] = datetime
+    period: ClassVar[timedelta | None] = timedelta(hours=1)
 
     def to_upstream(self, period_start: datetime) -> Iterable[datetime]:
-        return _build_directional_steps(
-            period_start, 60, lambda s, i: s + timedelta(minutes=i), self.direction
-        )
+        return _build_fixed_period_steps(self, period_start, timedelta(minutes=1))
 
 
 class DayWindow(Window):
@@ -179,22 +237,26 @@ class DayWindow(Window):
 
         The same 24-hour-stride assumption applies to ``DayWindow(direction=Window.Direction.BACKWARD)``:
         the 24 members are enumerated as naive hourly steps ending at the anchor, not as
-        a step back to the "previous calendar day" in local time.
+        a step back to the "previous calendar day" in local time. A ``step``
+        (e.g. ``DayWindow(step=timedelta(minutes=5))`` for 288 members) follows
+        the same naive stride.
     """
 
     expected_decoded_type: ClassVar[type] = datetime
+    period: ClassVar[timedelta | None] = timedelta(days=1)
 
     def to_upstream(self, period_start: datetime) -> Iterable[datetime]:
-        return _build_directional_steps(period_start, 24, lambda s, i: s + timedelta(hours=i), self.direction)
+        return _build_fixed_period_steps(self, period_start, timedelta(hours=1))
 
 
 class WeekWindow(Window):
-    """Seven consecutive daily period-starts making up one week."""
+    """Consecutive period-starts making up one week: seven days, or ``step`` apart when set."""
 
     expected_decoded_type: ClassVar[type] = datetime
+    period: ClassVar[timedelta | None] = timedelta(weeks=1)
 
     def to_upstream(self, period_start: datetime) -> Iterable[datetime]:
-        return _build_directional_steps(period_start, 7, lambda s, i: s + timedelta(days=i), self.direction)
+        return _build_fixed_period_steps(self, period_start, timedelta(days=1))
 
 
 class MonthWindow(Window):
