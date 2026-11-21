@@ -73,7 +73,7 @@ class EC2Hook(AwsBaseHook):
 
     def __init__(self, api_type="resource_type", *args, **kwargs) -> None:
         if api_type not in self.API_TYPES:
-            raise AirflowException("api_type can only be one of %s", self.API_TYPES)
+            raise AirflowException(f"api_type can only be one of {self.API_TYPES}")
 
         kwargs[api_type] = "ec2"
 
