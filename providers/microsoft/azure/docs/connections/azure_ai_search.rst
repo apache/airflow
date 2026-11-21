@@ -66,6 +66,11 @@ Azure Tenant ID (optional)
 Default Index (optional)
     Specify the ``index`` the hook works on when it is given none.
 
+API Version (optional)
+    Specify the ``api_version`` of the search service's REST API to call. Left out, the SDK calls its own default
+    version. An `index alias <https://learn.microsoft.com/en-us/azure/search/search-how-to-alias>`__ is only
+    resolved on preview versions.
+
 Batch Size (optional)
     Specify the ``batch_size``: the number of documents the hook sends per write request, from 1 to 1000 (the default).
 

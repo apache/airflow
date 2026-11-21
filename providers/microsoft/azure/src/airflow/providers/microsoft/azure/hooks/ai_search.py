@@ -85,6 +85,10 @@ class AzureAISearchHook(BaseHook):
     :param batch_size: Documents per write request, at most 1000 (the limit of the service). Overrides
         the ``batch_size`` connection extra. Lower it for large documents: the service also refuses a
         request over about 16 MB.
+    :param api_version: The REST API version of the service to call. Overrides the ``api_version``
+        connection extra; when neither is set, the SDK calls its own default version. The service
+        resolves an `index alias <https://learn.microsoft.com/en-us/azure/search/search-how-to-alias>`__
+        only on preview versions and answers that the index was not found on a stable one.
     """
 
     conn_name_attr = "azure_ai_search_conn_id"
@@ -101,10 +105,12 @@ class AzureAISearchHook(BaseHook):
         azure_ai_search_conn_id: str = default_conn_name,
         index: str | None = None,
         batch_size: int | None = None,
+        api_version: str | None = None,
     ) -> None:
         super().__init__()
         self.conn_id = azure_ai_search_conn_id
         self.index = index
+        self.api_version = api_version
         # Checked here, so that a wrong value fails when the Dag builds the hook.
         self.batch_size = None if batch_size is None else self._valid_batch_size(batch_size, "batch_size")
         # Resolved from the hook or the connection each time a client is built.
@@ -123,6 +129,7 @@ class AzureAISearchHook(BaseHook):
         return {
             "tenantId": StringField(lazy_gettext("Azure Tenant ID"), widget=BS3TextFieldWidget()),
             "index": StringField(lazy_gettext("Default Index"), widget=BS3TextFieldWidget()),
+            "api_version": StringField(lazy_gettext("API Version"), widget=BS3TextFieldWidget()),
             "batch_size": IntegerField(
                 lazy_gettext("Batch Size"),
                 widget=BS3TextFieldWidget(),
@@ -146,6 +153,7 @@ class AzureAISearchHook(BaseHook):
                 "password": "secret (service principal), or an API key when no client_id is set",
                 "tenantId": "tenantId (service principal only)",
                 "index": "index used when the hook is given none",
+                "api_version": "REST API version to call (default the SDK's own)",
                 "batch_size": "documents per write request, 1 to 1000 (default 1000)",
             },
         }
@@ -219,9 +227,12 @@ class AzureAISearchHook(BaseHook):
         else:
             self._batch_size = self.MAX_BATCH_SIZE
 
+        api_version = self.api_version or self._get_field(extras, "api_version")
+        # Only when asked for: without it the SDK calls the version it was written for.
+        client_kwargs = {"api_version": api_version} if api_version else {}
         credential = self._get_credential(conn, extras)
         try:
-            async with SearchClient(endpoint, self._index, credential) as client:
+            async with SearchClient(endpoint, self._index, credential, **client_kwargs) as client:
                 yield client
         finally:
             # The token credentials hold their own HTTP session, the key credential has none.

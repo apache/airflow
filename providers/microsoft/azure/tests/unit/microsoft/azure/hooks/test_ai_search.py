@@ -54,10 +54,11 @@ class FakeResults:
 class FakeSearchClient:
     """Stands for the SDK's async ``SearchClient`` and records how the hook builds and uses it."""
 
-    def __init__(self, endpoint, index_name, credential, documents=(), reject=()) -> None:
+    def __init__(self, endpoint, index_name, credential, documents=(), reject=(), **kwargs) -> None:
         self.endpoint = endpoint
         self.index_name = index_name
         self.credential = credential
+        self.kwargs = kwargs
         self.documents = list(documents)
         self.reject = set(reject)
         self.searches: list[dict] = []
@@ -123,8 +124,8 @@ def search_service():
         kwargs.setdefault("extra", {"index": "idx"})
         mock_get_connection.return_value = Connection(conn_id=CONN_ID, conn_type="azure_ai_search", **kwargs)
 
-    def client(*args):
-        fake = FakeSearchClient(*args, documents=service.documents, reject=service.reject)
+    def client(*args, **kwargs):
+        fake = FakeSearchClient(*args, documents=service.documents, reject=service.reject, **kwargs)
         service.clients.append(fake)
         return fake
 
@@ -145,6 +146,7 @@ class TestAzureAISearchHook:
         assert set(widgets) == {
             "tenantId",
             "index",
+            "api_version",
             "batch_size",
             "managed_identity_client_id",
             "workload_identity_tenant_id",
@@ -187,6 +189,39 @@ class TestAzureAISearchHookAsync:
         await AzureAISearchHook(CONN_ID).count()
 
         assert search_service.clients[0].endpoint == ENDPOINT
+
+    async def test_client_uses_the_api_version_of_the_sdk_when_none_is_given(self, search_service):
+        await AzureAISearchHook(CONN_ID).count()
+
+        assert search_service.clients[0].kwargs == {}
+
+    @pytest.mark.parametrize(
+        ("extra", "api_version", "expected"),
+        [
+            pytest.param({"index": "idx"}, "2025-05-01-preview", "2025-05-01-preview", id="hook"),
+            pytest.param({"index": "idx", "api_version": "2024-07-01"}, None, "2024-07-01", id="extra"),
+            pytest.param(
+                {"index": "idx", "api_version": "2024-07-01"},
+                "2025-05-01-preview",
+                "2025-05-01-preview",
+                id="hook-overrides-extra",
+            ),
+            pytest.param({"index": "idx", "api_version": ""}, "2024-07-01", "2024-07-01", id="empty-extra"),
+        ],
+    )
+    async def test_api_version_from_the_hook_or_the_extra(self, search_service, extra, api_version, expected):
+        search_service.set_connection(password="api-key", extra=extra)
+
+        await AzureAISearchHook(CONN_ID, api_version=api_version).count()
+
+        assert search_service.clients[0].kwargs == {"api_version": expected}
+
+    async def test_empty_api_version_in_the_extra_is_left_to_the_sdk(self, search_service):
+        search_service.set_connection(password="api-key", extra={"index": "idx", "api_version": ""})
+
+        await AzureAISearchHook(CONN_ID).count()
+
+        assert search_service.clients[0].kwargs == {}
 
     async def test_index_from_the_extra(self, search_service):
         await AzureAISearchHook(CONN_ID).count()
