@@ -19,6 +19,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from airflow.callbacks.callback_requests import DagCallbackRequest
+
 if TYPE_CHECKING:
     from collections.abc import Callable, Collection, Sequence
     from uuid import UUID
@@ -28,10 +30,15 @@ if TYPE_CHECKING:
     from airflow.dag_processing.manager import DagFileInfo
 
 
+def get_callback_target(request: CallbackRequest) -> str:
+    if isinstance(request, DagCallbackRequest):
+        return f"dag_id={request.dag_id} run_id={request.run_id}"
+    ti = request.ti
+    return f"dag_id={ti.dag_id} run_id={ti.run_id} task_id={ti.task_id}"
+
+
 class RequestedWorkSource:
     """Supply requested parses and callbacks, and track their delivery lifecycle."""
-
-    requires_acknowledgment = False
 
     def claim_priority_files(
         self,
@@ -56,6 +63,10 @@ class RequestedWorkSource:
         Callback completion must not release priority claims. Ordinary parses finish only after
         publication reaches a terminal outcome or the parse fails without producing a result.
         """
+
+    def callbacks_interrupted(self, attempt_id: UUID) -> bool:
+        """Retry interrupted callbacks and return whether any were retained for another attempt."""
+        return False
 
     def flush(self, *, deadline: float | None = None) -> None:
         """Deliver pending acknowledgments within the supplied time budget."""
@@ -106,8 +117,10 @@ class RequestedWorkSource:
         sequence: int,
         files: Collection[str],
         failed_sources: Collection[str],
-    ) -> None:
-        """Reconcile priority requests against the bundle's accepted inventory."""
+        parse_files: Collection[DagFileInfo] = (),
+    ) -> list[DagFileInfo]:
+        """Reconcile claims with accepted inventory and return physical files needing priority parses."""
+        return []
 
     def bundle_unusable(self, bundle_name: str, *, active_attempts: Collection[UUID]) -> None:
         """Finish requests for an unusable bundle unless their attempts are still active."""

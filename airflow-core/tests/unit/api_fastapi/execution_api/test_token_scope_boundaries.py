@@ -105,6 +105,8 @@ DAG_PROCESSOR_MESSAGE_ROUTES: dict[str, str | None] = {
     # Published by the manager through its own endpoint, not forwarded as a runtime request.
     "DagFileParsingResult": None,
     "MaskSecret": None,
+    # Answered by the manager, which only records that the parse process is starting its callbacks.
+    "DagCallbacksStarted": None,
     # Bound to a task instance the processor does not have. The supervisor sends the parse process id,
     # which matches no task instance, so the answer is always empty and needs no request.
     "GetPrevSuccessfulDagRun": None,

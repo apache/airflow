@@ -41,6 +41,7 @@ from airflow.dag_processing.manager import (
 from airflow.dag_processing.processor import DagParseSource
 
 from tests_common.test_utils.config import conf_vars
+from unit.dag_processing.requested_work_helpers import create_manager
 
 
 @pytest.fixture(autouse=True)
@@ -86,7 +87,7 @@ def test_slow_inventory_sends_yield_and_rotate_to_later_bundles(find_files, cloc
     clock.monotonic.return_value = 100.0
     bundles = [_create_bundle(tmp_path, name) for name in ("a", "b", "c")]
     client = _create_client(bundles)
-    manager = DagFileProcessorManager(max_runs=-1, api_client=client, bundle_refresh_check_interval=5)
+    manager = create_manager(max_runs=-1, api_client=client, bundle_refresh_check_interval=5)
     manager._dag_bundles = bundles
     original_bodies = {}
     if already_pending:
@@ -130,7 +131,7 @@ def test_rejected_inventory_waits_before_refresh_and_recovers(find_files, clock,
     client = _create_client([bundle])
     state = client.get_bundles.return_value[0]
     state.last_refreshed = timezone.utcnow()
-    manager = DagFileProcessorManager(max_runs=-1, api_client=client, bundle_refresh_check_interval=5)
+    manager = create_manager(max_runs=-1, api_client=client, bundle_refresh_check_interval=5)
     manager._dag_bundles = [bundle]
     manager._bundle_versions[bundle.name] = "previous"
     manager._bundle_parse_sources[bundle.name] = DagParseSource(bundle_revision=state.revision)
@@ -219,7 +220,7 @@ def test_failed_listing_retries_with_backoff_and_resets_after_success(find_files
     client.publish_inventory.side_effect = lambda bundle_name, body: DagBundleInventoryResponse(
         attempt_id=body.attempt_id, accepted_at=timezone.utcnow(), revision=uuid7()
     )
-    manager = DagFileProcessorManager(max_runs=-1, api_client=client, bundle_refresh_check_interval=5)
+    manager = create_manager(max_runs=-1, api_client=client, bundle_refresh_check_interval=5)
     manager._dag_bundles = [bundle]
     dag_file = DagFileInfo(bundle_name=bundle.name, rel_path=Path("dag.py"), bundle_path=tmp_path)
     dag_file.absolute_path.touch()
@@ -276,7 +277,7 @@ def test_invalid_inventory_paths_do_not_pause_valid_sources(
     bundle = _create_bundle(tmp_path, "testing")
     client = _create_client([bundle])
     client.get_bundles.return_value[0].last_refreshed = timezone.utcnow()
-    manager = DagFileProcessorManager(max_runs=-1, api_client=client, bundle_refresh_check_interval=5)
+    manager = create_manager(max_runs=-1, api_client=client, bundle_refresh_check_interval=5)
     manager._dag_bundles = [bundle]
     manager.request_bundle_refresh(bundle.name)
     valid_file = DagFileInfo(bundle_name=bundle.name, rel_path=Path("valid.py"), bundle_path=tmp_path)
@@ -342,7 +343,7 @@ def test_missing_catalog_bundle_warns_once_until_it_reappears(
     bundle = _create_bundle(tmp_path, "testing")
     client = _create_client([bundle])
     catalog = client.get_bundles.return_value
-    manager = DagFileProcessorManager(max_runs=-1, api_client=client, bundle_refresh_check_interval=5)
+    manager = create_manager(max_runs=-1, api_client=client, bundle_refresh_check_interval=5)
     manager._dag_bundles = [bundle]
     manager._bundle_versions[bundle.name] = None
     manager._bundle_parse_sources[bundle.name] = DagParseSource(bundle_revision=catalog[0].revision)
@@ -398,7 +399,7 @@ def test_unchanged_versioned_bundle_refresh_publishes_an_inventory(find_files, u
     client.publish_inventory.side_effect = lambda bundle_name, body: DagBundleInventoryResponse(
         attempt_id=body.attempt_id, accepted_at=timezone.utcnow(), revision=receipt_revision
     )
-    manager = DagFileProcessorManager(max_runs=-1, api_client=client, bundle_refresh_check_interval=5)
+    manager = create_manager(max_runs=-1, api_client=client, bundle_refresh_check_interval=5)
     manager._dag_bundles = [bundle]
     manager._bundle_versions[bundle.name] = "v1"
     manager._bundle_parse_sources[bundle.name] = DagParseSource(
@@ -426,7 +427,7 @@ def test_requested_refresh_of_a_blocked_bundle_waits_for_the_periodic_catalog_re
     clock.monotonic.return_value = 100.0
     bundle = _create_bundle(tmp_path, "testing")
     client = _create_client([bundle])
-    manager = DagFileProcessorManager(max_runs=-1, api_client=client, bundle_refresh_check_interval=5)
+    manager = create_manager(max_runs=-1, api_client=client, bundle_refresh_check_interval=5)
     manager._dag_bundles = [bundle]
     if blocked_by == "inventory_cooldown":
         manager._bundle_inventory_retry_times[bundle.name] = 1000.0

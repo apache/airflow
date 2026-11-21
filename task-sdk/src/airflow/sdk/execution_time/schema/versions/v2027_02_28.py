@@ -22,6 +22,8 @@ New bodies in this version:
 
 - ``HITLDetailResponseResult``: the supervisor's reply when a running task reads its own
   Human-in-the-loop response.
+- ``DagCallbacksStarted``: a parsed callback batch notifies the manager before execution
+  and waits for acknowledgment, allowing timeouts before the start is recorded to be retried safely.
 """
 
 from __future__ import annotations
@@ -36,9 +38,21 @@ from cadwyn import (
     schema,
 )
 
+from airflow.dag_processing.processor import DagFileParseRequest  # noqa: SDK002
 from airflow.sdk.api.datamodels._generated import TIRunContext, TISuccessStatePayload, VariableResponse
 from airflow.sdk.exceptions import ErrorType
 from airflow.sdk.execution_time.comms import ErrorResponse, PutVariable
+
+
+class AddCallbackContextToDagFileParseRequest(VersionChange):
+    """Carry the manager's callback acknowledgment policy and bundle team to the parse child."""
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (
+        schema(DagFileParseRequest).field("callbacks_require_ack").didnt_exist,
+        schema(DagFileParseRequest).field("team_name").didnt_exist,
+    )
 
 
 class AddExecutionTimeoutToSupervisorTIRunContext(VersionChange):

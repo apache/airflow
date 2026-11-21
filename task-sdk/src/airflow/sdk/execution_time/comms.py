@@ -251,6 +251,18 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
     _thread_lock: threading.Lock = attrs.field(factory=threading.Lock, repr=False)
     _async_lock: asyncio.Lock = attrs.field(factory=asyncio.Lock, repr=False)
     _loop_thread_id: int | None = attrs.field(default=None, repr=False, init=False)
+    _pending_request_ids: set[int] = attrs.field(factory=set, repr=False, init=False)
+    _received_api_error: bool = attrs.field(default=False, repr=False, init=False)
+
+    @property
+    def has_pending_requests(self) -> bool:
+        """Whether requests await matching responses, including requests interrupted while waiting."""
+        return bool(self._pending_request_ids)
+
+    @property
+    def has_api_errors(self) -> bool:
+        """Whether this decoder has received an API_SERVER_ERROR, even if later requests succeed."""
+        return self._received_api_error
 
     def _make_frame(self, msg: SendMsgType) -> _RequestFrame:
         carrier: dict[str, str] = {}
@@ -280,7 +292,8 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
 
     def send(self, msg: SendMsgType) -> ReceiveMsgType | None:
         """Send a request to the parent and block until the response is received."""
-        frame_bytes = self._make_frame(msg).as_bytes()
+        request_frame = self._make_frame(msg)
+        frame_bytes = request_frame.as_bytes()
 
         # An asend() in flight on this thread's loop can only release _thread_lock once that loop
         # runs again, and the loop cannot run while this thread blocks in send(). Raise instead of
@@ -298,6 +311,7 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
         if not self._thread_lock.acquire(blocking=not self._is_on_loop_thread):
             raise DeadlockImminentError(msg)
         try:
+            self._pending_request_ids.add(request_frame.id)
             self.socket.sendall(frame_bytes)
             if isinstance(msg, ResendLoggingFD):
                 if recv_fds is None:
@@ -325,7 +339,8 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
         """
         self._loop_thread_id = threading.get_ident()
 
-        frame_bytes = self._make_frame(msg).as_bytes()
+        request_frame = self._make_frame(msg)
+        frame_bytes = request_frame.as_bytes()
 
         async with self._async_lock:
             # Acquire the threading lock without blocking the event loop
@@ -333,6 +348,7 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
             await loop.run_in_executor(None, self._thread_lock.acquire)
             try:
                 # Async write to socket
+                self._pending_request_ids.add(request_frame.id)
                 await loop.sock_sendall(self.socket, frame_bytes)
 
                 if isinstance(msg, ResendLoggingFD):
@@ -403,8 +419,12 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
     def _from_frame(self, frame) -> ReceiveMsgType | None:
         from airflow.sdk.exceptions import AirflowRuntimeError
 
+        # Another response must not hide a request interrupted while waiting for its own response.
+        self._pending_request_ids.discard(frame.id)
         if frame.error is not None:
             err = self.err_decoder.validate_python(frame.error)
+            if err.error == ErrorType.API_SERVER_ERROR:
+                self._received_api_error = True
             raise AirflowRuntimeError(error=err)
 
         if frame.body is None:

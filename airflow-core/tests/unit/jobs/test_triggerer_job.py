@@ -5153,6 +5153,48 @@ async def test_all_send_paths_concurrent(decoder_pair):
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("cancel_request", [False, True])
+@pytest.mark.execution_timeout(15)
+async def test_request_stays_pending_until_matching_response(decoder_pair, cancel_request, caplog):
+    decoder, server_sock = decoder_pair
+    server_sock.settimeout(2)
+    assert not decoder.has_pending_requests
+
+    request = messages.TriggerStateChanges(events=None, finished=[1], failures=None)
+    first_task = asyncio.create_task(decoder.asend(request))
+    first_frame = await asyncio.to_thread(_read_frame_sync, server_sock)
+    try:
+        assert decoder.has_pending_requests
+        if cancel_request:
+            first_task.cancel()
+            with pytest.raises(asyncio.CancelledError):
+                await first_task
+            assert decoder.has_pending_requests
+
+        second_task = asyncio.create_task(decoder.asend(request))
+        second_frame = await asyncio.to_thread(_read_frame_sync, server_sock)
+        server_sock.sendall(_ResponseFrame(id=second_frame.id).as_bytes())
+        await second_task
+        assert decoder.has_pending_requests
+
+        server_sock.sendall(_ResponseFrame(id=first_frame.id).as_bytes())
+        if cancel_request:
+            # A later reply confirms the reader has consumed the cancelled request's reply too.
+            barrier_task = asyncio.create_task(decoder.asend(request))
+            barrier_frame = await asyncio.to_thread(_read_frame_sync, server_sock)
+            server_sock.sendall(_ResponseFrame(id=barrier_frame.id).as_bytes())
+            await barrier_task
+        else:
+            await first_task
+        assert not decoder.has_pending_requests
+        assert "Got response for unknown request frame" not in caplog
+    finally:
+        first_task.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await first_task
+
+
+@pytest.mark.asyncio
 async def test_connection_close_cancels_pending(decoder_pair):
     """When the connection closes while asend() is awaiting, the future is cancelled."""
     decoder, server_sock = decoder_pair
@@ -5160,12 +5202,15 @@ async def test_connection_close_cancels_pending(decoder_pair):
     task = asyncio.create_task(
         decoder.asend(messages.TriggerStateChanges(events=None, finished=[1], failures=None))
     )
-    await asyncio.sleep(0)
+    server_sock.settimeout(2)
+    await asyncio.to_thread(_read_frame_sync, server_sock)
+    assert decoder.has_pending_requests
 
     server_sock.close()
 
     with pytest.raises((asyncio.CancelledError, Exception)):
         await asyncio.wait_for(task, timeout=5)
+    assert decoder.has_pending_requests
 
 
 @pytest.mark.asyncio

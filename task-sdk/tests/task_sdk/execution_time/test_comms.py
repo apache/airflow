@@ -20,16 +20,19 @@ from __future__ import annotations
 import asyncio
 import threading
 import uuid
+from unittest.mock import patch
 
 import msgspec
 import pytest
 import structlog
 
 from airflow.sdk import timezone
+from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
 from airflow.sdk.execution_time.comms import (
     BundleInfo,
     CommsDecoder,
     DeadlockImminentError,
+    ErrorResponse,
     GetVariable,
     MaskSecret,
     SetXCom,
@@ -78,6 +81,117 @@ class TestCommsModels:
 
 class TestCommsDecoder:
     """Test the communication between the subprocess and the "supervisor"."""
+
+    @pytest.mark.parametrize(
+        "send",
+        [lambda decoder, msg: decoder.send(msg), lambda decoder, msg: asyncio.run(decoder.asend(msg))],
+        ids=["send", "asend"],
+    )
+    @pytest.mark.parametrize("error", [None, ErrorType.API_SERVER_ERROR, ErrorType.GENERIC_ERROR])
+    def test_request_status_after_response(self, socket_pair, send, error):
+        reader, writer = socket_pair
+        decoder = CommsDecoder(socket=reader)
+        assert not decoder.has_pending_requests
+        assert not decoder.has_api_errors
+        writer.sendall(
+            _ResponseFrame(id=0, error=ErrorResponse(error=error).model_dump() if error else None).as_bytes()
+        )
+
+        if error:
+            with pytest.raises(AirflowRuntimeError):
+                send(decoder, GetVariable(key="key"))
+        else:
+            send(decoder, GetVariable(key="key"))
+
+        assert not decoder.has_pending_requests
+        assert decoder.has_api_errors is (error == ErrorType.API_SERVER_ERROR)
+        writer.sendall(_ResponseFrame(id=1).as_bytes())
+        send(decoder, GetVariable(key="other"))
+        assert not decoder.has_pending_requests
+        assert decoder.has_api_errors is (error == ErrorType.API_SERVER_ERROR)
+
+    @pytest.mark.parametrize(
+        "send",
+        [lambda decoder, msg: decoder.send(msg), lambda decoder, msg: asyncio.run(decoder.asend(msg))],
+        ids=["send", "asend"],
+    )
+    @patch.object(
+        CommsDecoder,
+        "_read_frame",
+        autospec=True,
+        side_effect=[TimeoutError("interrupted"), _ResponseFrame(id=1), _ResponseFrame(id=0)],
+    )
+    def test_interrupted_request_stays_pending_until_matching_response(self, read_frame, socket_pair, send):
+        reader, _ = socket_pair
+        decoder = CommsDecoder(socket=reader)
+
+        with pytest.raises(TimeoutError, match="interrupted"):
+            send(decoder, GetVariable(key="key"))
+        assert decoder.has_pending_requests
+        assert not decoder.has_api_errors
+
+        send(decoder, GetVariable(key="other"))
+        assert decoder.has_pending_requests
+        decoder._get_response()
+        assert not decoder.has_pending_requests
+        assert not decoder.has_api_errors
+
+    @pytest.mark.parametrize(
+        "send",
+        [lambda decoder, msg: decoder.send(msg), lambda decoder, msg: asyncio.run(decoder.asend(msg))],
+        ids=["send", "asend"],
+    )
+    @patch.object(_RequestFrame, "as_bytes", autospec=True, side_effect=ValueError("encoding failed"))
+    def test_encoding_failure_does_not_leave_pending_request(self, as_bytes, socket_pair, send):
+        reader, _ = socket_pair
+        decoder = CommsDecoder(socket=reader)
+        with pytest.raises(ValueError, match="encoding failed"):
+            send(decoder, GetVariable(key="key"))
+        assert not decoder.has_pending_requests
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("lock_name", ["_async_lock", "_thread_lock"])
+    async def test_rejected_send_does_not_leave_pending_request(self, socket_pair, lock_name):
+        reader, writer = socket_pair
+        decoder = CommsDecoder(socket=reader)
+        decoder._loop_thread_id = threading.get_ident()
+        lock = getattr(decoder, lock_name)
+        if lock_name == "_async_lock":
+            await lock.acquire()
+        else:
+            lock.acquire()
+        try:
+            with pytest.raises(DeadlockImminentError):
+                decoder.send(GetVariable(key="rejected"))
+        finally:
+            lock.release()
+        assert not decoder.has_pending_requests
+
+        writer.sendall(_ResponseFrame(id=1).as_bytes())
+        decoder.send(GetVariable(key="successful"))
+        assert not decoder.has_pending_requests
+
+    @pytest.mark.asyncio
+    async def test_cancelled_queued_send_does_not_leave_pending_request(self, socket_pair):
+        reader, writer = socket_pair
+        decoder = CommsDecoder(socket=reader)
+        started = asyncio.Event()
+
+        async def send_while_locked():
+            started.set()
+            await decoder.asend(GetVariable(key="cancelled"))
+
+        async with decoder._async_lock:
+            task = asyncio.create_task(send_while_locked())
+            await asyncio.wait_for(started.wait(), timeout=2)
+            task.cancel()
+            with pytest.raises(asyncio.CancelledError):
+                await task
+        assert not decoder.has_pending_requests
+
+        writer.sendall(_ResponseFrame(id=1).as_bytes())
+        await decoder.asend(GetVariable(key="successful"))
+        assert not decoder.has_pending_requests
 
     @pytest.mark.usefixtures("disable_capturing")
     @pytest.mark.parametrize(

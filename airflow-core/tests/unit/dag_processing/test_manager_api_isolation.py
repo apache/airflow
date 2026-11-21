@@ -41,6 +41,7 @@ from airflow.dag_processing.bundles.manager import _load_bundle_config_snapshot
 from airflow.dag_processing.manager import DagFileProcessorManager
 
 from tests_common.test_utils.config import conf_vars
+from unit.dag_processing.requested_work_helpers import create_manager
 
 
 def _create_client(*bundle_names: str):
@@ -82,7 +83,7 @@ def database_calls(monkeypatch):
 
 @mock.patch.object(DagFileProcessorManager, "deactivate_stale_dags", autospec=True)
 def test_stale_dag_scan_does_not_deactivate_dags(deactivate):
-    manager = DagFileProcessorManager(max_runs=1, api_client=_create_client(), parsing_cleanup_interval=0)
+    manager = create_manager(max_runs=1, api_client=_create_client(), parsing_cleanup_interval=0)
 
     manager._scan_stale_dags()
 
@@ -93,7 +94,7 @@ def test_stale_dag_scan_does_not_deactivate_dags(deactivate):
 def test_unreadable_catalog_does_not_read_bundle_state_or_refresh(get_bundle_state):
     client = _create_client()
     client.get_bundles.side_effect = httpx2.ConnectError("API unavailable")
-    manager = DagFileProcessorManager(max_runs=1, api_client=client, bundle_refresh_check_interval=0)
+    manager = create_manager(max_runs=1, api_client=client, bundle_refresh_check_interval=0)
     bundle = _create_bundle("testing")
     manager._dag_bundles = [bundle]
 
@@ -113,7 +114,7 @@ def test_unreadable_catalog_does_not_read_bundle_state_or_refresh(get_bundle_sta
 @mock.patch("airflow.dag_processing.manager.DagBundlesManager", autospec=True)
 def test_sync_bundles_checks_provisioning_without_writing_bundles(bundles_manager, provisioned, expectation):
     client = _create_client(*provisioned)
-    manager = DagFileProcessorManager(max_runs=1, api_client=client, bundle_names_to_parse=["a", "b"])
+    manager = create_manager(max_runs=1, api_client=client, bundle_names_to_parse=["a", "b"])
 
     with expectation:
         manager.sync_bundles()
@@ -124,7 +125,7 @@ def test_sync_bundles_checks_provisioning_without_writing_bundles(bundles_manage
 
 @mock.patch("airflow.dag_processing.manager.BundleUsageTrackingManager", autospec=True)
 def test_stale_bundle_version_cleanup_is_scoped_to_loaded_versioned_bundles(tracking_manager):
-    manager = DagFileProcessorManager(max_runs=1, api_client=_create_client())
+    manager = create_manager(max_runs=1, api_client=_create_client())
     manager._dag_bundles = [_create_bundle("versioned", supports_versioning=True), _create_bundle("plain")]
 
     manager.cleanup_stale_bundle_versions()
@@ -185,7 +186,7 @@ def test_parsing_loop_publishes_through_the_api_without_database_calls(
         }
     ):
         _load_bundle_config_snapshot.cache_clear()
-        manager = DagFileProcessorManager(
+        manager = create_manager(
             max_runs=1, api_client=client, parsing_cleanup_interval=0, stale_bundle_cleanup_interval=1
         )
         try:
