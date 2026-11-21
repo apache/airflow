@@ -29,6 +29,13 @@ Accepted
 > responsible only for *task execution*, not for DAG parsing. This document is retained for
 > future reference if language-native DAG parsing is revisited in a follow-up AIP (likely after
 > [AIP-85](https://cwiki.apache.org/confluence/x/_Q7OEg) stabilises).
+>
+> **Process model under revision:** the parse process model below — the manager resolving a
+> processor target and forking a `DagFileProcessorProcess`, with any language runtime started
+> inside that child — is proposed to be superseded by
+> [`dag-processing/ADR-0001`](../dag-processing/0001-dag-importer-process-model.md), which moves
+> that choice to the Dag importer. The parse request, result and bridge shapes described here are
+> unaffected.
 
 ## Context
 
