@@ -72,6 +72,7 @@ if TYPE_CHECKING:
     from typing import Any, Literal
     from uuid import UUID
 
+    import jinja2
     from pendulum.tz.timezone import FixedTimezone, Timezone
     from pydantic import NonNegativeInt
     from sqlalchemy.orm import Session
@@ -144,6 +145,10 @@ class SerializedDAG:
     start_date: datetime.datetime | None = None
     tags: set[str] = attrs.field(factory=set)
     template_searchpath: tuple[str, ...] | None = None
+    # Only JSON-safe primitives from user_defined_macros are carried here.
+    # Callables are intentionally dropped at serialization time because the
+    # triggerer cannot reconstruct them from stored JSON.
+    user_defined_macros: dict | None = None
 
     # These are set dynamically during deserialization.
     task_dict: dict[str, SerializedOperator] = attrs.field(init=False)
@@ -185,6 +190,15 @@ class SerializedDAG:
         self._timetable = value
         self._encoded_timetable = None
 
+    def get_template_env(self, *, force_sandboxed: bool = False) -> jinja2.Environment:
+        """Build a Jinja2 environment from the JSON-safe primitives stored at serialization time."""
+        from airflow.sdk.definitions._internal.templater import create_template_env
+
+        return create_template_env(
+            native=self.render_template_as_native_obj and not force_sandboxed,
+            user_defined_macros=self.user_defined_macros,
+        )
+
     @classmethod
     def get_serialized_fields(cls) -> frozenset[str]:
         return frozenset(
@@ -218,6 +232,7 @@ class SerializedDAG:
                 "timetable",
                 "timezone",
                 "bundle_name",
+                "user_defined_macros",
             }
         )
 
