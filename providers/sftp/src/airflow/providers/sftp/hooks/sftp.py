@@ -1338,7 +1338,9 @@ class SFTPHookAsync(BaseHook):
     def _mod_time_to_utc(mod_time: int | float | str) -> datetime.datetime:
         """Convert a modification time, either an epoch timestamp or ``%Y%m%d%H%M%S`` string, to UTC."""
         if not isinstance(mod_time, str):
-            mod_time = datetime.datetime.fromtimestamp(float(mod_time)).strftime("%Y%m%d%H%M%S")
+            return datetime.datetime.fromtimestamp(float(mod_time), tz=timezone.utc).replace(microsecond=0)
+        # Legacy strings still need a timezone-safe hook interface:
+        # https://github.com/apache/airflow/issues/73382
         return timezone.convert_to_utc(datetime.datetime.strptime(mod_time, "%Y%m%d%H%M%S"))
 
     @handle_connection_management
