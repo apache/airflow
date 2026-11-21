@@ -126,10 +126,9 @@ example_llm_batch_decorator()
 # [START howto_operator_llm_batch_provider_params]
 @dag(tags=["example"])
 def example_llm_batch_provider_params():
-    # For an ``openai:`` model ``request_params`` is merged into every request body as-is
-    # (OpenAI chat-completions keys). For an ``anthropic:`` model, sampling settings such as
-    # ``temperature`` are typed settings and Messages fields such as ``metadata`` are merged
-    # into the body. ``max_tokens`` is translated per provider (``max_completion_tokens`` on OpenAI).
+    # Sampling settings such as ``temperature`` and ``openai_*`` / ``anthropic_*`` settings are typed
+    # settings. Any other key is a raw request field: ``user`` goes into the OpenAI Responses body and
+    # ``metadata`` into the Anthropic Messages body. ``max_tokens`` is translated per provider.
     LLMBatchOperator(
         task_id="extract_keywords_openai",
         requests=[f"Review: {review!r}" for review in REVIEWS],
@@ -139,7 +138,7 @@ def example_llm_batch_provider_params():
         system_prompt="Extract up to three keywords from the review.",
         output_type=list[str],
         max_tokens=2048,
-        request_params={"reasoning_effort": "low", "user": "reviews-pipeline"},
+        request_params={"openai_reasoning_effort": "low", "user": "reviews-pipeline"},
         fail_on_partial_error=True,
         deferrable=True,
     )
