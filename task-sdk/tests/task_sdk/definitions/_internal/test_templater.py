@@ -17,6 +17,8 @@
 
 from __future__ import annotations
 
+import os
+import zipfile
 from datetime import UTC, datetime
 from unittest.mock import MagicMock, NonCallableMagicMock
 
@@ -24,7 +26,12 @@ import jinja2
 import pytest
 
 from airflow.sdk import DAG, ObjectStoragePath
-from airflow.sdk.definitions._internal.templater import LiteralValue, SandboxedEnvironment, Templater
+from airflow.sdk.definitions._internal.templater import (
+    LiteralValue,
+    SandboxedEnvironment,
+    Templater,
+    create_template_env,
+)
 
 
 class TestTemplater:
@@ -298,6 +305,37 @@ class TestTemplater:
         templater._do_render_template_fields(parent, ["items"], context, jinja_env, set())
 
         assert parent.items == ["first", "second"]
+
+    @pytest.mark.parametrize(
+        ("archive_name", "searchpath_parts", "template_name"),
+        [
+            pytest.param("dags.zip", (), "sql/query.sql", id="archive"),
+            pytest.param("dags.zip", ("sql",), "query.sql", id="directory-in-archive"),
+            pytest.param("dags.zip", ("pkg", "..", "sql"), "query.sql", id="parent-segment-in-archive"),
+            pytest.param("DAGS.ZIP", (), "sql/query.sql", id="uppercase-extension"),
+        ],
+    )
+    def test_loads_template_from_zip(self, tmp_path, archive_name, searchpath_parts, template_name):
+        archive = tmp_path / archive_name
+        with zipfile.ZipFile(archive, "w") as zf:
+            zf.writestr("sql/query.sql", "SELECT {{ x }}")
+
+        env = create_template_env(searchpath=[os.path.join(archive, *searchpath_parts)])
+
+        assert env.get_template(template_name).render(x=1) == "SELECT 1"
+
+    def test_loads_templates_from_zip_and_directory_search_paths(self, tmp_path):
+        archive = tmp_path / "dags.zip"
+        with zipfile.ZipFile(archive, "w") as zf:
+            zf.writestr("from_zip.sql", "from zip")
+        directory = tmp_path / "templates"
+        directory.mkdir()
+        (directory / "from_dir.sql").write_text("from directory")
+
+        env = create_template_env(searchpath=[str(archive), str(directory)])
+
+        assert env.get_template("from_zip.sql").render() == "from zip"
+        assert env.get_template("from_dir.sql").render() == "from directory"
 
 
 @pytest.fixture
