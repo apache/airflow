@@ -183,6 +183,42 @@ class TestSetupTearDownTask:
         assert teardown_task.on_failure_fail_dagrun is on_failure_fail_dagrun
         assert len(dag.task_group.children) == 1
 
+    @pytest.mark.parametrize("on_success_succeed_dagrun", [True, False])
+    def test_teardown_task_decorators_works_with_on_success_succeed_dagrun(self, on_success_succeed_dagrun):
+        @teardown(on_failure_fail_dagrun=True, on_success_succeed_dagrun=on_success_succeed_dagrun)
+        def mytask():
+            print("I am a teardown task")
+
+        with DAG("test_teardown_task_decorators_works_with_on_success_succeed_dagrun") as dag:
+            mytask()
+        teardown_task = dag.task_group.children["mytask"]
+        assert teardown_task.is_teardown
+        assert teardown_task.on_success_succeed_dagrun is on_success_succeed_dagrun
+
+    def test_on_success_succeed_dagrun_defaults_to_true(self):
+        @teardown
+        def mytask():
+            print("I am a teardown task")
+
+        with DAG("test_on_success_succeed_dagrun_defaults_to_true") as dag:
+            mytask()
+        assert dag.task_group.children["mytask"].on_success_succeed_dagrun is True
+
+    @pytest.mark.parametrize("on_success_succeed_dagrun", [True, False])
+    def test_classic_teardown_task_works_with_on_success_succeed_dagrun(self, on_success_succeed_dagrun):
+        with DAG("test_classic_teardown_task_works_with_on_success_succeed_dagrun") as dag:
+            BashOperator(task_id="mytask", bash_command="echo hi").as_teardown(
+                on_failure_fail_dagrun=True, on_success_succeed_dagrun=on_success_succeed_dagrun
+            )
+        teardown_task = dag.task_group.children["mytask"]
+        assert teardown_task.on_success_succeed_dagrun is on_success_succeed_dagrun
+
+    def test_on_success_succeed_dagrun_false_requires_teardown(self):
+        with DAG("test_on_success_succeed_dagrun_false_requires_teardown"):
+            op = BashOperator(task_id="mytask", bash_command="echo hi")
+        with pytest.raises(ValueError, match="not a teardown task"):
+            op.on_success_succeed_dagrun = False
+
     def test_setup_task_can_be_overridden(self):
         @setup
         def mytask():

@@ -146,6 +146,21 @@ Continuing with the example above, if you want the run's success to depend on ``
 
   create_cluster >> run_query >> delete_cluster.as_teardown(setups=create_cluster, on_failure_fail_dagrun=True)
 
+With ``on_failure_fail_dagrun=True`` the teardown alone decides the Dag run state: if ``run_query`` fails but
+``delete_cluster`` succeeds, the run is marked successful. To also keep failures of the tasks before the
+teardown, set ``on_success_succeed_dagrun=False``. The run then fails when the teardown fails **or** when any
+task before it failed, and succeeds only when both succeed:
+
+.. code-block:: python
+
+  (
+      create_cluster
+      >> run_query
+      >> delete_cluster.as_teardown(
+          setups=create_cluster, on_failure_fail_dagrun=True, on_success_succeed_dagrun=False
+      )
+  )
+
 Authoring with task groups
 """"""""""""""""""""""""""
 
