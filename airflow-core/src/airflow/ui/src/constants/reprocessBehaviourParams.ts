@@ -21,9 +21,11 @@ import type { ReprocessBehavior } from "openapi/requests/types.gen";
 import { isOneOf } from "src/utils";
 
 export const reprocessBehaviors = [
-  { label: "components:backfill.missingRuns", value: "none" },
-  { label: "components:backfill.missingAndErroredRuns", value: "failed" },
-  { label: "components:backfill.allRuns", value: "completed" },
-] as const satisfies ReadonlyArray<{ label: string; value: ReprocessBehavior }>;
+  { label: "components:backfill.missingRuns", taskLevel: false, value: "none" },
+  { label: "components:backfill.missingAndErroredRuns", taskLevel: false, value: "failed" },
+  { label: "components:backfill.allRuns", taskLevel: false, value: "completed" },
+  { label: "components:backfill.failedTasksOnly", taskLevel: true, value: "failed_tasks" },
+  { label: "components:backfill.newTasksOnly", taskLevel: true, value: "new_tasks" },
+] as const satisfies ReadonlyArray<{ label: string; taskLevel: boolean; value: ReprocessBehavior }>;
 
 export const isReprocessBehavior = isOneOf(reprocessBehaviors.map((behavior) => behavior.value));
