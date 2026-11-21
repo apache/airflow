@@ -57,6 +57,7 @@ BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
 DATASET_NAME = f"dataset_{DAG_ID}_{ENV_ID}".replace("-", "_")
 
 EXPORT_DESTINATION_URL = f"gs://{BUCKET_NAME}/namespace"
+EXPORT_DEFERRABLE_DESTINATION_URL = f"gs://{BUCKET_NAME}/namespace_deferrable"
 EXPORT_COLLECTION_ID = f"collection_{DAG_ID}_{ENV_ID}".replace("-", "_")
 EXTERNAL_TABLE_SOURCE_URI = (
     f"{EXPORT_DESTINATION_URL}/all_namespaces/kind_{EXPORT_COLLECTION_ID}"
@@ -108,6 +109,14 @@ with DAG(
         body={"outputUriPrefix": EXPORT_DESTINATION_URL, "collectionIds": [EXPORT_COLLECTION_ID]},
     )
     # [END howto_operator_export_database_to_gcs]
+    # [START howto_operator_export_database_to_gcs_deferrable]
+    export_database_to_gcs_deferrable = CloudFirestoreExportDatabaseOperator(
+        task_id="export_database_to_gcs_deferrable",
+        project_id=PROJECT_ID,
+        body={"outputUriPrefix": EXPORT_DEFERRABLE_DESTINATION_URL, "collectionIds": [EXPORT_COLLECTION_ID]},
+        deferrable=True,
+    )
+    # [END howto_operator_export_database_to_gcs_deferrable]
     # [START howto_operator_create_external_table_multiple_types]
     create_external_table_multiple_types = BigQueryCreateTableOperator(
         task_id="create_external_table",
@@ -164,6 +173,7 @@ with DAG(
         >> commit_task
         # TEST BODY
         >> export_database_to_gcs
+        >> export_database_to_gcs_deferrable
         >> create_external_table_multiple_types
         >> read_data_from_gcs_multiple_types
         # TEST TEARDOWN

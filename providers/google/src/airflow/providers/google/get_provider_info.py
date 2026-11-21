@@ -1162,6 +1162,10 @@ def get_provider_info():
                 "integration-name": "Google Cloud Generative AI",
                 "python-modules": ["airflow.providers.google.cloud.triggers.gen_ai"],
             },
+            {
+                "integration-name": "Google Cloud Firestore",
+                "python-modules": ["airflow.providers.google.firebase.triggers.firestore"],
+            },
         ],
         "transfers": [
             {
