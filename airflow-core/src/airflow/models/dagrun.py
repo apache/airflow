@@ -2372,6 +2372,11 @@ class DagRun(Base, LoggingMixin):
 
         tis = self.get_task_instances(session=session)
         expanded_task_ids = {ti.task_id for ti in tis if ti.region_index >= 0}
+        # The instance that stands for a mapped task when its map resolves to no values.
+        lowest_indexes: dict[tuple[str, UUID], int] = {}
+        for ti in tis:
+            key = (ti.task_id, ti.region_id)
+            lowest_indexes[key] = min(ti.region_index, lowest_indexes.get(key, ti.region_index))
         coordinates = TaskCoordinateResolver.for_dag(dag, session)
 
         # check for removed or restored tasks
@@ -2415,6 +2420,13 @@ class DagRun(Base, LoggingMixin):
                     pass
                 else:
                     # Upstreams finished, check there aren't any extras
+                    if total_length == 0 and ti.region_index == lowest_indexes[ti.task_id, ti.region_id]:
+                        # A map with no values leaves one skipped instance, as the first expansion
+                        # does, so that downstream trigger rules see a skipped upstream.
+                        if ti.state != TaskInstanceState.SKIPPED:
+                            self.log.debug("Skipping task '%s' as it is now mapped to no values", ti)
+                            ti.state = TaskInstanceState.SKIPPED
+                        continue
                     if ti.region_index >= total_length:
                         self.log.debug(
                             "Removing task '%s' as the map_index is longer than the resolved mapping list (%d)",
@@ -2790,6 +2802,23 @@ class DagRun(Base, LoggingMixin):
         existing_indexes = set(query)
 
         removed_indexes = existing_indexes.difference(range(total_length))
+        if total_length == 0 and existing_indexes:
+            # A map with no values leaves one skipped instance, as the first expansion does, so
+            # that downstream trigger rules see a skipped upstream.
+            skipped_index = min(existing_indexes)
+            removed_indexes.discard(skipped_index)
+            session.execute(
+                update(TI)
+                .where(
+                    TI.dag_id == self.dag_id,
+                    TI.task_id == task.task_id,
+                    TI.run_id == self.run_id,
+                    TI.region_index == skipped_index,
+                    TI.region_id == region_id,
+                )
+                .values(state=TaskInstanceState.SKIPPED)
+            )
+            session.flush()
         if removed_indexes:
             session.execute(
                 update(TI)

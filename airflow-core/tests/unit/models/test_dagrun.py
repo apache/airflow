@@ -3486,10 +3486,76 @@ def test_calls_to_verify_integrity_with_mapped_task_zero_length_at_runtime(dag_m
         dr.verify_integrity(dag_version_id=dag_version.id, session=session)
     indices = session.execute(query).all()
     assert indices == [
-        (0, TaskInstanceState.REMOVED),
+        (0, TaskInstanceState.SKIPPED),
         (1, TaskInstanceState.REMOVED),
         (2, TaskInstanceState.REMOVED),
     ]
+
+
+@pytest.mark.parametrize(
+    ("trigger_rule", "expected_after"),
+    [
+        (TriggerRule.ALL_SUCCESS, TaskInstanceState.SKIPPED),
+        (TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS, TaskInstanceState.SKIPPED),
+        (TriggerRule.ALL_DONE, TaskInstanceState.SUCCESS),
+    ],
+)
+@pytest.mark.parametrize("rerun", [False, True], ids=["fresh-run", "re-run"])
+def test_mapped_task_mapped_to_zero_is_skipped_on_rerun_too(
+    dag_maker, session, trigger_rule, expected_after, rerun
+):
+    """A mapped task whose map becomes empty on a re-run ends like one that was empty from the start."""
+    with dag_maker(session=session) as dag:
+
+        @task
+        def size(): ...
+
+        @task
+        def mapped(arg): ...
+
+        @task(trigger_rule=trigger_rule)
+        def after(): ...
+
+        mapped.expand(arg=size()) >> after()
+
+    dr: DagRun = dag_maker.create_dagrun()
+
+    def run_to_the_end(values):
+        # A pass that only skips or removes instances returns nothing to run, so keep going.
+        for _ in range(6):
+            for ti in dr.task_instance_scheduling_decisions(session=session).schedulable_tis:
+                if ti.task_id == "size":
+                    push_mapped_length(ti, values, session=session)
+                ti.state = TaskInstanceState.SUCCESS
+            session.flush()
+        return [
+            (task_id, state)
+            for task_id, state in session.execute(
+                select(TI.task_id, TI.state)
+                .where(TI.dag_id == dr.dag_id, TI.run_id == dr.run_id, TI.task_id != "size")
+                .order_by(TI.task_id.desc(), TI.map_index)
+            )
+        ]
+
+    if rerun:
+        assert run_to_the_end([1, 2]) == [
+            ("mapped", TaskInstanceState.SUCCESS),
+            ("mapped", TaskInstanceState.SUCCESS),
+            ("after", TaskInstanceState.SUCCESS),
+        ]
+        dag.clear()
+        session.expire_all()
+
+    states = run_to_the_end([])
+
+    assert states[0] == ("mapped", TaskInstanceState.SKIPPED)
+    assert states[1:-1] == [("mapped", TaskInstanceState.REMOVED)] * (1 if rerun else 0)
+    assert states[-1] == ("after", expected_after)
+
+    # Verifying the run again must not turn the skipped instance into a removed one.
+    dr.verify_integrity(dag_version_id=DagVersion.get_latest_version(dag.dag_id).id, session=session)
+    session.flush()
+    assert run_to_the_end([])[0] == ("mapped", TaskInstanceState.SKIPPED)
 
 
 def test_mapped_mixed_literal_not_expanded_at_create(dag_maker, session):
