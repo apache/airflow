@@ -43,6 +43,7 @@ vi.mock("src/queries/useLogs", () => ({
     parsedData: { parsedLogs: [], searchableText: [], sources: [] },
   })),
 }));
+vi.mock("./DurableBanner", () => ({ DurableBanner: () => undefined }));
 vi.mock("./TaskLogContent", () => ({ TaskLogContent: () => <div data-testid="log-content" /> }));
 vi.mock("./TaskLogHeader", () => ({
   TaskLogHeader: ({ onSelectTryNumber }: TaskLogHeaderProps) => (

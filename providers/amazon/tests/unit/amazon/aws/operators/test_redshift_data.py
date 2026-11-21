@@ -31,6 +31,7 @@ from airflow.providers.amazon.aws.operators.redshift_data import (
 from airflow.providers.amazon.aws.triggers.redshift_data import RedshiftDataTrigger
 from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
 
+from tests_common.test_utils.task_state import get_non_reserved_task_state_writes
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_3_PLUS
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 
@@ -568,7 +569,9 @@ class TestRedshiftDataOperatorDurable:
         operator.execute(self._context(task_store))
 
         mock_exec_query.assert_called_once()
-        task_store.set.assert_called_once_with("redshift_statement_id", STATEMENT_ID)
+        assert get_non_reserved_task_state_writes(task_store) == [
+            mock.call("redshift_statement_id", STATEMENT_ID)
+        ]
 
     @mock.patch("airflow.providers.amazon.aws.hooks.redshift_data.RedshiftDataHook.execute_query")
     @mock.patch("airflow.providers.amazon.aws.hooks.redshift_data.RedshiftDataHook.conn")
@@ -587,7 +590,7 @@ class TestRedshiftDataOperatorDurable:
         result = operator.execute(self._context(task_store))
 
         mock_exec_query.assert_not_called()
-        task_store.set.assert_not_called()
+        assert get_non_reserved_task_state_writes(task_store) == []
         assert result == [STATEMENT_ID]
 
     @mock.patch("airflow.providers.amazon.aws.hooks.redshift_data.RedshiftDataHook.execute_query")
@@ -622,7 +625,9 @@ class TestRedshiftDataOperatorDurable:
         result = operator.execute(self._context(task_store))
 
         mock_exec_query.assert_called_once()
-        task_store.set.assert_called_once_with("redshift_statement_id", NEW_STATEMENT_ID)
+        assert get_non_reserved_task_state_writes(task_store) == [
+            mock.call("redshift_statement_id", NEW_STATEMENT_ID)
+        ]
         assert result == [NEW_STATEMENT_ID]
 
     @mock.patch("airflow.providers.amazon.aws.hooks.redshift_data.RedshiftDataHook.execute_query")
@@ -641,7 +646,9 @@ class TestRedshiftDataOperatorDurable:
         result = operator.execute(self._context(task_store))
 
         mock_exec_query.assert_called_once()
-        task_store.set.assert_called_once_with("redshift_statement_id", NEW_STATEMENT_ID)
+        assert get_non_reserved_task_state_writes(task_store) == [
+            mock.call("redshift_statement_id", NEW_STATEMENT_ID)
+        ]
         assert result == [NEW_STATEMENT_ID]
 
     @mock.patch("airflow.providers.amazon.aws.hooks.redshift_data.RedshiftDataHook.execute_query")
@@ -656,7 +663,7 @@ class TestRedshiftDataOperatorDurable:
 
         mock_exec_query.assert_called_once()
         task_store.get.assert_not_called()
-        task_store.set.assert_not_called()
+        assert get_non_reserved_task_state_writes(task_store) == []
 
     @mock.patch("airflow.providers.amazon.aws.operators.redshift_data.RedshiftDataOperator.defer")
     @mock.patch("airflow.providers.amazon.aws.hooks.redshift_data.RedshiftDataHook.execute_query")
@@ -671,7 +678,7 @@ class TestRedshiftDataOperatorDurable:
 
         assert mock_defer.called
         task_store.get.assert_not_called()
-        task_store.set.assert_not_called()
+        assert get_non_reserved_task_state_writes(task_store) == []
 
     @mock.patch("airflow.providers.amazon.aws.hooks.redshift_data.RedshiftDataHook.execute_query")
     @mock.patch("airflow.providers.amazon.aws.hooks.redshift_data.RedshiftDataHook.conn")

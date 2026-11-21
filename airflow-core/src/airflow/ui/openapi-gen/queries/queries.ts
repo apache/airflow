@@ -1,7 +1,7 @@
 // generated with @7nohe/openapi-react-query-codegen@1.6.2 
 
 import { UseMutationOptions, UseQueryOptions, useMutation, useQuery } from "@tanstack/react-query";
-import { AssetService, AssetStateStoreService, AuthLinksService, BackfillService, CalendarService, ConfigService, ConnectionService, DagBundleService, DagParsingService, DagRunService, DagService, DagSourceService, DagStatsService, DagVersionService, DagWarningService, DashboardService, DeadlinesService, DependenciesService, EventLogService, ExperimentalService, ExtraLinksService, GanttService, GridService, ImportErrorService, JobService, LoginService, MonitorService, PartitionedDagRunService, PluginService, PoolService, ProviderService, StructureService, TaskInstanceService, TaskService, TaskStateStoreService, TeamsService, TriggerService, VariableService, VersionService, XcomService } from "../requests/services.gen";
+import { AssetService, AssetStateStoreService, AuthLinksService, BackfillService, CalendarService, ConfigService, ConnectionService, DagBundleService, DagParsingService, DagRunService, DagService, DagSourceService, DagStatsService, DagVersionService, DagWarningService, DashboardService, DeadlinesService, DependenciesService, DurableExecutionService, EventLogService, ExperimentalService, ExtraLinksService, GanttService, GridService, ImportErrorService, JobService, LoginService, MonitorService, PartitionedDagRunService, PluginService, PoolService, ProviderService, StructureService, TaskInstanceService, TaskService, TaskStateStoreService, TeamsService, TriggerService, VariableService, VersionService, XcomService } from "../requests/services.gen";
 import { AssetStateStoreBody, BackfillPostBody, BulkBody_BulkDAGBody_, BulkBody_BulkDAGRunBody_, BulkBody_BulkTaskInstanceBody_, BulkBody_ConnectionBody_, BulkBody_PoolBody_, BulkBody_VariableBody_, BulkDAGRunClearBody, ClearPartitionsBody, ClearTaskInstancesBody, ConnectionBody, ConnectionTestRequestBody, CreateAssetEventsBody, DAGPatchBody, DAGRunClearBody, DAGRunPatchBody, DAGRunsBatchBody, DagRunState, DagSchedulingState, GenerateTokenBody, MaterializeAssetBody, PatchTaskInstanceBody, PoolBody, PoolPatchBody, ReprocessBehavior, TaskInstancesBatchBody, TaskStateStoreBody, TaskStateStorePatchBody, TriggerDAGRunPostBody, TriggerKind, TriggerStatus, UpdateHITLDetailPayload, VariableBody, XComCreateBody, XComUpdateBody } from "../requests/types.gen";
 import * as Common from "./common";
 /**
@@ -1931,6 +1931,7 @@ export const useAssetStateStoreServiceGetAssetStateStore = <TData = Common.Asset
 * @param data.dagId
 * @param data.dagRunId
 * @param data.taskId
+* @param data.includeReserved Include keys starting with ``__airflow_``, which Airflow writes.
 * @param data.mapIndex
 * @param data.regionId
 * @param data.regionIndex
@@ -1939,16 +1940,17 @@ export const useAssetStateStoreServiceGetAssetStateStore = <TData = Common.Asset
 * @returns TaskStateStoreCollectionResponse Successful Response
 * @throws ApiError
 */
-export const useTaskStateStoreServiceListTaskStateStore = <TData = Common.TaskStateStoreServiceListTaskStateStoreDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, dagRunId, limit, mapIndex, offset, regionId, regionIndex, taskId }: {
+export const useTaskStateStoreServiceListTaskStateStore = <TData = Common.TaskStateStoreServiceListTaskStateStoreDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, dagRunId, includeReserved, limit, mapIndex, offset, regionId, regionIndex, taskId }: {
   dagId: string;
   dagRunId: string;
+  includeReserved?: boolean;
   limit?: number;
   mapIndex?: number;
   offset?: number;
   regionId?: string;
   regionIndex?: number;
   taskId: string;
-}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseTaskStateStoreServiceListTaskStateStoreKeyFn({ dagId, dagRunId, limit, mapIndex, offset, regionId, regionIndex, taskId }, queryKey), queryFn: () => TaskStateStoreService.listTaskStateStore({ dagId, dagRunId, limit, mapIndex, offset, regionId, regionIndex, taskId }) as TData, ...options });
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseTaskStateStoreServiceListTaskStateStoreKeyFn({ dagId, dagRunId, includeReserved, limit, mapIndex, offset, regionId, regionIndex, taskId }, queryKey), queryFn: () => TaskStateStoreService.listTaskStateStore({ dagId, dagRunId, includeReserved, limit, mapIndex, offset, regionId, regionIndex, taskId }) as TData, ...options });
 /**
 * Get Task State Store
 * Get a single task state store entry.
@@ -2426,6 +2428,27 @@ export const useDeadlinesServiceGetCallbackLogs = <TData = Common.DeadlinesServi
   dagId: string;
   dagRunId: string;
 }, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseDeadlinesServiceGetCallbackLogsKeyFn({ accept, callbackId, dagId, dagRunId }, queryKey), queryFn: () => DeadlinesService.getCallbackLogs({ accept, callbackId, dagId, dagRunId }) as TData, ...options });
+/**
+* Get Durable Execution
+* Get the durable execution history of a task instance; empty when the task is not durable.
+* @param data The data for the request.
+* @param data.dagId
+* @param data.dagRunId
+* @param data.taskId
+* @param data.mapIndex
+* @param data.regionId
+* @param data.regionIndex
+* @returns DurableExecutionResponse Successful Response
+* @throws ApiError
+*/
+export const useDurableExecutionServiceGetDurableExecution = <TData = Common.DurableExecutionServiceGetDurableExecutionDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, dagRunId, mapIndex, regionId, regionIndex, taskId }: {
+  dagId: string;
+  dagRunId: string;
+  mapIndex?: number;
+  regionId?: string;
+  regionIndex?: number;
+  taskId: string;
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseDurableExecutionServiceGetDurableExecutionKeyFn({ dagId, dagRunId, mapIndex, regionId, regionIndex, taskId }, queryKey), queryFn: () => DurableExecutionService.getDurableExecution({ dagId, dagRunId, mapIndex, regionId, regionIndex, taskId }) as TData, ...options });
 /**
 * Structure Data
 * Get Structure Data.

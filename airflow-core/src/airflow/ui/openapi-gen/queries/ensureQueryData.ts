@@ -1,7 +1,7 @@
 // generated with @7nohe/openapi-react-query-codegen@1.6.2 
 
 import { type QueryClient } from "@tanstack/react-query";
-import { AssetService, AssetStateStoreService, AuthLinksService, BackfillService, CalendarService, ConfigService, ConnectionService, DagBundleService, DagRunService, DagService, DagSourceService, DagStatsService, DagVersionService, DagWarningService, DashboardService, DeadlinesService, DependenciesService, EventLogService, ExperimentalService, ExtraLinksService, GanttService, GridService, ImportErrorService, JobService, LoginService, MonitorService, PartitionedDagRunService, PluginService, PoolService, ProviderService, StructureService, TaskInstanceService, TaskService, TaskStateStoreService, TeamsService, TriggerService, VariableService, VersionService, XcomService } from "../requests/services.gen";
+import { AssetService, AssetStateStoreService, AuthLinksService, BackfillService, CalendarService, ConfigService, ConnectionService, DagBundleService, DagRunService, DagService, DagSourceService, DagStatsService, DagVersionService, DagWarningService, DashboardService, DeadlinesService, DependenciesService, DurableExecutionService, EventLogService, ExperimentalService, ExtraLinksService, GanttService, GridService, ImportErrorService, JobService, LoginService, MonitorService, PartitionedDagRunService, PluginService, PoolService, ProviderService, StructureService, TaskInstanceService, TaskService, TaskStateStoreService, TeamsService, TriggerService, VariableService, VersionService, XcomService } from "../requests/services.gen";
 import { DagRunState, DagSchedulingState, ReprocessBehavior, TriggerKind, TriggerStatus } from "../requests/types.gen";
 import * as Common from "./common";
 /**
@@ -1931,6 +1931,7 @@ export const ensureUseAssetStateStoreServiceGetAssetStateStoreData = (queryClien
 * @param data.dagId
 * @param data.dagRunId
 * @param data.taskId
+* @param data.includeReserved Include keys starting with ``__airflow_``, which Airflow writes.
 * @param data.mapIndex
 * @param data.regionId
 * @param data.regionIndex
@@ -1939,16 +1940,17 @@ export const ensureUseAssetStateStoreServiceGetAssetStateStoreData = (queryClien
 * @returns TaskStateStoreCollectionResponse Successful Response
 * @throws ApiError
 */
-export const ensureUseTaskStateStoreServiceListTaskStateStoreData = (queryClient: QueryClient, { dagId, dagRunId, limit, mapIndex, offset, regionId, regionIndex, taskId }: {
+export const ensureUseTaskStateStoreServiceListTaskStateStoreData = (queryClient: QueryClient, { dagId, dagRunId, includeReserved, limit, mapIndex, offset, regionId, regionIndex, taskId }: {
   dagId: string;
   dagRunId: string;
+  includeReserved?: boolean;
   limit?: number;
   mapIndex?: number;
   offset?: number;
   regionId?: string;
   regionIndex?: number;
   taskId: string;
-}) => queryClient.ensureQueryData({ queryKey: Common.UseTaskStateStoreServiceListTaskStateStoreKeyFn({ dagId, dagRunId, limit, mapIndex, offset, regionId, regionIndex, taskId }), queryFn: () => TaskStateStoreService.listTaskStateStore({ dagId, dagRunId, limit, mapIndex, offset, regionId, regionIndex, taskId }) });
+}) => queryClient.ensureQueryData({ queryKey: Common.UseTaskStateStoreServiceListTaskStateStoreKeyFn({ dagId, dagRunId, includeReserved, limit, mapIndex, offset, regionId, regionIndex, taskId }), queryFn: () => TaskStateStoreService.listTaskStateStore({ dagId, dagRunId, includeReserved, limit, mapIndex, offset, regionId, regionIndex, taskId }) });
 /**
 * Get Task State Store
 * Get a single task state store entry.
@@ -2426,6 +2428,27 @@ export const ensureUseDeadlinesServiceGetCallbackLogsData = (queryClient: QueryC
   dagId: string;
   dagRunId: string;
 }) => queryClient.ensureQueryData({ queryKey: Common.UseDeadlinesServiceGetCallbackLogsKeyFn({ accept, callbackId, dagId, dagRunId }), queryFn: () => DeadlinesService.getCallbackLogs({ accept, callbackId, dagId, dagRunId }) });
+/**
+* Get Durable Execution
+* Get the durable execution history of a task instance; empty when the task is not durable.
+* @param data The data for the request.
+* @param data.dagId
+* @param data.dagRunId
+* @param data.taskId
+* @param data.mapIndex
+* @param data.regionId
+* @param data.regionIndex
+* @returns DurableExecutionResponse Successful Response
+* @throws ApiError
+*/
+export const ensureUseDurableExecutionServiceGetDurableExecutionData = (queryClient: QueryClient, { dagId, dagRunId, mapIndex, regionId, regionIndex, taskId }: {
+  dagId: string;
+  dagRunId: string;
+  mapIndex?: number;
+  regionId?: string;
+  regionIndex?: number;
+  taskId: string;
+}) => queryClient.ensureQueryData({ queryKey: Common.UseDurableExecutionServiceGetDurableExecutionKeyFn({ dagId, dagRunId, mapIndex, regionId, regionIndex, taskId }), queryFn: () => DurableExecutionService.getDurableExecution({ dagId, dagRunId, mapIndex, regionId, regionIndex, taskId }) });
 /**
 * Structure Data
 * Get Structure Data.

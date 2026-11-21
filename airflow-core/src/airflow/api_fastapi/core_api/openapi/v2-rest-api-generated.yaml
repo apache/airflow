@@ -6573,6 +6573,15 @@ paths:
         schema:
           type: string
           title: Task Id
+      - name: include_reserved
+        in: query
+        required: false
+        schema:
+          type: boolean
+          description: Include keys starting with ``__airflow_``, which Airflow writes.
+          default: false
+          title: Include Reserved
+        description: Include keys starting with ``__airflow_``, which Airflow writes.
       - name: map_index
         in: query
         required: false
