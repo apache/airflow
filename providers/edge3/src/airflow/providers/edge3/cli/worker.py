@@ -698,9 +698,8 @@ class EdgeWorker:
         logger.info("Received job: %s", edge_job.identifier)
 
         workload: ExecuteTypeBody = edge_job.command
-        if TYPE_CHECKING:
-            assert workload.log_path  # We need to assume this is defined in here
-        logfile = Path(self.base_log_folder, workload.log_path)
+        log_path = getattr(workload, "log_path", None) or f"{edge_job.dag_id}/{edge_job.task_id}.log"
+        logfile = Path(self.base_log_folder, log_path)
         job = self._launch_job(edge_job, workload, logfile)
         self.jobs.append(job)
         try:
@@ -734,18 +733,19 @@ class EdgeWorker:
                 logger.error("Job failed: %s with:\n%s", job.edge_job.identifier, ex_txt)
 
                 # Push it upwards to logs for better diagnostic as well
-                try:
-                    await logs_push(
-                        task=job.edge_job.key,
-                        log_chunk_time=timezone.utcnow(),
-                        log_chunk_data=f"Error executing job:\n{ex_txt}",
-                        task_instance_id=job.edge_job.task_instance_id,
-                    )
-                except Exception:
-                    logger.exception(
-                        "Failed to push the error message of %s to the central site.",
-                        job.edge_job.identifier,
-                    )
+                if getattr(job.edge_job.command, "log_path", None):
+                    try:
+                        await logs_push(
+                            task=job.edge_job.key,
+                            log_chunk_time=timezone.utcnow(),
+                            log_chunk_data=f"Error executing job:\n{ex_txt}",
+                            task_instance_id=job.edge_job.task_instance_id,
+                        )
+                    except Exception:
+                        logger.exception(
+                            "Failed to push the error message of %s to the central site.",
+                            job.edge_job.identifier,
+                        )
                 await jobs_set_state(
                     job.edge_job.key, TaskInstanceState.FAILED, task_instance_id=job.edge_job.task_instance_id
                 )
