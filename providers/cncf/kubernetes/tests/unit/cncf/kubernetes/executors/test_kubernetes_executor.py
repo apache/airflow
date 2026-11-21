@@ -27,7 +27,7 @@ from uuid import uuid4
 
 import pytest
 import yaml
-from aiohttp import ClientConnectionError
+from aiohttp import ClientConnectionError, ClientPayloadError
 from kubernetes.client import ApiClient, CoreV1Api, models as k8s
 from kubernetes.client.rest import ApiException
 from kubernetes.dynamic.resource import ResourceInstance
@@ -1237,6 +1237,7 @@ class TestKubernetesExecutor:
                 True,
                 id="client connect retries exhausted (requeued)",
             ),
+            pytest.param(TimeoutError("timed out"), 1, True, id="bare TimeoutError (requeued)"),
             pytest.param(
                 ProtocolError("Connection aborted."), 0, False, id="connection reset, retries off (failed)"
             ),
@@ -1550,25 +1551,31 @@ class TestKubernetesExecutor:
     @pytest.mark.skipif(
         AirflowKubernetesScheduler is None, reason="kubernetes python package is not installed"
     )
+    @pytest.mark.parametrize(
+        "exc",
+        [
+            pytest.param(ClientConnectionError("Cannot connect to host"), id="connection_refused"),
+            pytest.param(ClientPayloadError("Response payload is not completed"), id="truncated_payload"),
+            pytest.param(TimeoutError(), id="request_timeout"),
+        ],
+    )
     @mock.patch(
         "airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils._get_executor_async_kube_client",
         new_callable=mock.AsyncMock,
     )
     @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.KubernetesJobWatcher")
     @mock.patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
-    def test_async_pod_creation_requeues_on_connection_error(
-        self, mock_get_kube_client, mock_kubernetes_job_watcher, mock_get_async_client, data_file
+    def test_async_pod_creation_requeues_on_transient_error(
+        self, mock_get_kube_client, mock_kubernetes_job_watcher, mock_get_async_client, exc, data_file
     ):
-        """A connection error from the async (aiohttp) client requeues the task via the shared handler."""
+        """A transient error from the async (aiohttp) client requeues the task via the shared handler."""
         template_file = data_file("pods/generator_base_with_secrets.yaml").as_posix()
         mock_kube_client = mock.MagicMock()
         mock_kube_client.api_client.sanitize_for_serialization.return_value = {}
         mock_get_kube_client.return_value = mock_kube_client
 
         mock_async_api = mock.MagicMock()
-        mock_async_api.create_namespaced_pod = mock.AsyncMock(
-            side_effect=ClientConnectionError("Cannot connect to host")
-        )
+        mock_async_api.create_namespaced_pod = mock.AsyncMock(side_effect=exc)
         mock_async_api.api_client.close = mock.AsyncMock()
         mock_get_async_client.return_value = mock_async_api
 
@@ -1590,7 +1597,6 @@ class TestKubernetesExecutor:
                 )
                 executor.sync()
                 assert mock_async_api.create_namespaced_pod.await_count == 1
-                # Connection error is transient -> requeued (not failed).
                 assert not executor.task_queue.empty()
             finally:
                 executor.end()
