@@ -43,6 +43,8 @@ except ImportError:
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
+IS_COMPOSER = bool(os.environ.get("COMPOSER_ENVIRONMENT", ""))
+NETWORK = (os.environ.get("GOOGLE_PROVIDER_NETWORK") or "default") if not IS_COMPOSER else "default"
 DAG_ID = "managed_kafka_cluster_operations"
 LOCATION = "us-central1"
 
@@ -51,7 +53,7 @@ CLUSTER_CONF = {
     "gcp_config": {
         "access_config": {
             "network_configs": [
-                {"subnet": f"projects/{PROJECT_ID}/regions/{LOCATION}/subnetworks/default"},
+                {"subnet": f"projects/{PROJECT_ID}/regions/{LOCATION}/subnetworks/{NETWORK}"},
             ],
         },
     },

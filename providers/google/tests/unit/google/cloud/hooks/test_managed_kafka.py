@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import datetime
 from unittest import mock
 
 from google.api_core.gapic_v1.method import DEFAULT
@@ -394,3 +395,19 @@ class TestManagedKafkaWithDefaultProjectIdHook:
         mock_client.return_value.cluster_path.assert_called_once_with(
             TEST_PROJECT_ID, TEST_LOCATION, TEST_CLUSTER_ID
         )
+
+    @mock.patch(MANAGED_KAFKA_STRING.format("ManagedKafkaHook.get_credentials"))
+    def test_get_confluent_token_with_valid_credentials(self, mock_get_credentials) -> None:
+        mock_credentials = mock.MagicMock()
+        mock_credentials.valid = True
+        mock_credentials.token = "test-token"
+        mock_credentials.service_account_email = "test@example.com"
+        mock_credentials.expiry = datetime.datetime(2030, 1, 1, tzinfo=datetime.UTC)
+        mock_get_credentials.return_value = mock_credentials
+
+        token, expiry = self.hook.get_confluent_token(config_str="")
+
+        assert isinstance(token, str)
+        assert token.count(".") == 2
+        assert expiry > 0
+        mock_credentials.refresh.assert_not_called()

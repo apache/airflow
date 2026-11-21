@@ -60,7 +60,7 @@ class ManagedKafkaTokenProvider:
     def _valid_credentials(self):
         if not self._credentials.valid:
             self._credentials.refresh(google_requests.Request())
-            return self._credentials
+        return self._credentials
 
     def _get_jwt(self, credentials):
         return json.dumps(
