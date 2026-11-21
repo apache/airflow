@@ -19,7 +19,8 @@ from __future__ import annotations
 
 import os
 import shutil
-from datetime import timedelta
+from datetime import datetime, timedelta
+from unittest import mock
 
 import time_machine
 
@@ -88,6 +89,43 @@ class TestFileProcessorHandler:
             assert os.path.islink(link)
             assert os.path.basename(os.path.realpath(link)) == date2
             assert os.path.exists(os.path.join(link, "log2"))
+
+    @mock.patch.object(FileProcessorHandler, "_symlink_latest_log_directory", autospec=True)
+    def test_symlink_refreshed_once_per_day(self, mock_symlink):
+        with time_machine.travel("2025-12-31 10:00:00+00:00", tick=False):
+            handler = FileProcessorHandler(
+                base_log_folder=self.base_log_folder, filename_template=self.filename
+            )
+            handler.dag_dir = self.dag_dir
+            mock_symlink.reset_mock()
+
+        with time_machine.travel("2025-12-31 23:59:59+00:00", tick=False):
+            handler.set_context(filename=os.path.join(self.dag_dir, "log1"))
+            handler.set_context(filename=os.path.join(self.dag_dir, "log2"))
+        mock_symlink.assert_not_called()
+
+        with time_machine.travel("2026-01-01 00:00:00+00:00", tick=False):
+            handler.set_context(filename=os.path.join(self.dag_dir, "log3"))
+            handler.set_context(filename=os.path.join(self.dag_dir, "log4"))
+        mock_symlink.assert_called_once()
+
+    def test_symlink_refreshed_when_set_context_straddles_midnight(self):
+        with time_machine.travel("2026-01-01 10:00:00+00:00", tick=False):
+            handler = FileProcessorHandler(
+                base_log_folder=self.base_log_folder, filename_template=self.filename
+            )
+            handler.dag_dir = self.dag_dir
+
+        start = datetime.fromisoformat("2026-01-01T23:59:59+00:00")
+        ticks = (start + timedelta(seconds=n) for n in range(10))
+        with mock.patch.object(timezone, "utcnow", side_effect=ticks):
+            handler.set_context(filename=os.path.join(self.dag_dir, "log1"))
+
+        with time_machine.travel("2026-01-02 12:00:00+00:00", tick=False):
+            handler.set_context(filename=os.path.join(self.dag_dir, "log2"))
+
+        link = os.path.join(self.base_log_folder, "latest")
+        assert os.path.basename(os.path.realpath(link)) == "2026-01-02"
 
     def test_symlink_latest_log_directory_exists(self):
         handler = FileProcessorHandler(base_log_folder=self.base_log_folder, filename_template=self.filename)
