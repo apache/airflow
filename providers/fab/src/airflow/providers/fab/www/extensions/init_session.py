@@ -32,6 +32,8 @@ from airflow.providers.fab.www.session import (
 log = logging.getLogger(__name__)
 
 SESSION_LOGIN_TIME_KEY = "_login_at"
+# The ``User.token_generation`` a Flask session was created under.
+SESSION_TOKEN_GENERATION_KEY = "_token_generation"
 
 
 def init_airflow_session_interface(app, db):
@@ -121,3 +123,22 @@ def init_session_max_lifetime(app):
             # crossed the deadline is itself unauthenticated.
             logout_user()
             builtin_flask_session.pop(SESSION_LOGIN_TIME_KEY, None)
+
+
+def _record_session_token_generation(sender, user, **kwargs) -> None:
+    builtin_flask_session[SESSION_TOKEN_GENERATION_KEY] = user.token_generation
+
+
+def _end_session_from_before_password_change() -> None:
+    # Sessions created before the key existed count as the initial generation.
+    if current_user.is_authenticated and (
+        builtin_flask_session.get(SESSION_TOKEN_GENERATION_KEY, 0) != current_user.token_generation
+    ):
+        logout_user()
+
+
+def init_session_token_generation(app):
+    """End sessions created before their user's last password change."""
+    # Scoped to this app: ``user_logged_in`` is shared by every Flask app in the process.
+    user_logged_in.connect(_record_session_token_generation, sender=app)
+    app.before_request(_end_session_from_before_password_change)
