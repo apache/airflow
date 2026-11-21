@@ -17,24 +17,12 @@
 # under the License.
 from __future__ import annotations
 
-import datetime
-
 from airflow_google_provider_resource_cleanup.handlers._base import BaseDeleteHandler
 from airflow_google_provider_resource_cleanup.helpers import get_resource_path, run_command_async
-
-DAYS_PROTECTED = 2  # days of protection for composer env.
-# e.g. if composer env was created more than 2 days before now it will be deleted else skipped
 
 
 async def _delete_composer_environment(resource: dict, log_prefix: str):
     name = get_resource_path(resource)
-    create_time = datetime.datetime.fromisoformat(resource["createTime"].replace("Z", "+00:00"))
-    age = datetime.datetime.now(datetime.UTC) - create_time
-    if not age > datetime.timedelta(days=DAYS_PROTECTED):
-        print(
-            f"Composer env with name: {name} was skipped because it is protected for {DAYS_PROTECTED} days."
-        )
-        return False
     cmd = f"gcloud composer environments delete {name} --location={resource['location']} --quiet"
     await run_command_async(cmd, log_prefix)
 
