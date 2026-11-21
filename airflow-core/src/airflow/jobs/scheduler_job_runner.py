@@ -1122,6 +1122,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         changes between construction and execution are naturally ignored.
         """
         dr_task_concurrency_subquery = _get_current_dr_task_concurrency(states=EXECUTION_STATES)
+        # Tasks resuming on a worker (next_method set: after a trigger fired, failed or timed out, or after
+        # human input) go first, whatever their priority_weight.
+        is_not_resumed = TI.next_method.is_(None)
 
         query = (
             select(TI)
@@ -1141,7 +1144,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 isouter=True,
             )
             .where(func.coalesce(dr_task_concurrency_subquery.c.task_per_dr_count, 0) < DM.max_active_tasks)
-            .order_by(-TI.priority_weight, DR.logical_date, TI.region_index)
+            .order_by(is_not_resumed, -TI.priority_weight, DR.logical_date, TI.region_index)
         )
 
         # Starvation filters should be applied before computing the row_num based on the
@@ -1173,11 +1176,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 func.row_number()
                 .over(
                     partition_by=[TI.dag_id, TI.run_id],
-                    order_by=[-TI.priority_weight, DR.logical_date, TI.region_index],
+                    order_by=[is_not_resumed, -TI.priority_weight, DR.logical_date, TI.region_index],
                 )
                 .label("row_num"),
                 DM.max_active_tasks.label("dr_max_active_tasks"),
                 # Create columns for the order_by checks here for sqlite.
+                is_not_resumed.label("is_not_resumed_for_ordering"),
                 TI.priority_weight.label("priority_weight_for_ordering"),
                 DR.logical_date.label("logical_date_for_ordering"),
                 TI.region_index.label("region_index_for_ordering"),
@@ -1195,6 +1199,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             .where(ranked_query.c.row_num <= ranked_query.c.dr_max_active_tasks)
             # Add the order_by columns from the ranked query for sqlite.
             .order_by(
+                ranked_query.c.is_not_resumed_for_ordering,
                 -ranked_query.c.priority_weight_for_ordering,
                 ranked_query.c.logical_date_for_ordering,
                 ranked_query.c.region_index_for_ordering,
