@@ -25,8 +25,9 @@ from unittest.mock import patch
 import pytest
 
 from airflow.models import DAG
-from airflow.providers.common.compat.sdk import AirflowException, timezone
+from airflow.providers.common.compat.sdk import AirflowException, AirflowSensorTimeout, TaskDeferred, timezone
 from airflow.providers.databricks.sensors.databricks_sql import DatabricksSqlSensor
+from airflow.providers.databricks.triggers.databricks import DatabricksSqlSensorTrigger
 
 TASK_ID = "db-sensor"
 DEFAULT_CONN_ID = "databricks_default"
@@ -169,3 +170,73 @@ class TestDatabricksSqlSensor:
             sensor.poke(context=mock_context)
 
         assert sensor.hook.query_tags["airflow_dag_id"] == "overridden"
+
+    def test_deferrable_default(self):
+        sensor = self._make_sensor()
+        assert sensor.deferrable is False
+
+    def test_custom_handler_rejected_in_deferrable_mode(self):
+        def custom_handler(cur):
+            return cur.fetchall()
+
+        with pytest.raises(
+            ValueError, match="DatabricksSqlSensor does not support custom 'handler' when 'deferrable=True'."
+        ):
+            self._make_sensor(deferrable=True, handler=custom_handler)
+
+    def test_execute_non_deferrable(self):
+        sensor = self._make_sensor(deferrable=False)
+        with patch.object(DatabricksSqlSensor, "poke", return_value=True) as mock_poke:
+            sensor.execute({})
+            mock_poke.assert_called_once()
+
+    def test_execute_deferrable_already_ready(self):
+        sensor = self._make_sensor(deferrable=True)
+        with patch.object(DatabricksSqlSensor, "poke", return_value=True) as mock_poke:
+            # Should return immediately and not defer
+            sensor.execute({})
+            mock_poke.assert_called_once()
+
+    def test_execute_deferrable_defers(self):
+        sensor = self._make_sensor(
+            deferrable=True,
+            timeout=120,
+            poke_interval=15,
+            query_tags={"env": "prod"},
+            include_airflow_query_tags=False,
+        )
+        with patch.object(DatabricksSqlSensor, "poke", return_value=False):
+            with pytest.raises(TaskDeferred) as exc:
+                sensor.execute({})
+
+        assert isinstance(exc.value.trigger, DatabricksSqlSensorTrigger)
+        assert exc.value.method_name == "execute_complete"
+        assert exc.value.timeout == timedelta(seconds=120)
+        assert exc.value.trigger.sql == DEFAULT_SQL
+        assert exc.value.trigger.poke_interval == 15
+        assert exc.value.trigger.timeout == 120
+        assert exc.value.trigger.query_tags == {"env": "prod"}
+        assert exc.value.trigger.sql_warehouse_name == DEFAULT_SQL_WAREHOUSE
+
+    def test_execute_complete_success(self):
+        sensor = self._make_sensor(deferrable=True)
+        # Should complete cleanly without exception
+        sensor.execute_complete(context={}, event={"status": "success"})
+
+    def test_execute_complete_error(self):
+        sensor = self._make_sensor(deferrable=True)
+        with pytest.raises(AirflowException, match="Database connection lost"):
+            sensor.execute_complete(context={}, event={"status": "error", "message": "Database connection lost"})
+
+    def test_execute_complete_timeout(self):
+        sensor = self._make_sensor(deferrable=True, timeout=60)
+        with pytest.raises(AirflowSensorTimeout, match="Sensor has timed out"):
+            sensor.execute_complete(
+                context={}, event={"status": "timeout", "message": "Sensor has timed out after 60 seconds."}
+            )
+
+    def test_execute_complete_none_event(self):
+        sensor = self._make_sensor(deferrable=True)
+        with pytest.raises(AirflowException, match="Trigger yielded no event"):
+            sensor.execute_complete(context={}, event=None)
+
