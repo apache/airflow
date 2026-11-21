@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-11-20T09:03:05.993205
+# This constraints file was automatically generated on 2026-11-21T00:32:35.155942
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -31,7 +31,7 @@
 # pip install "apache-airflow==X.Y.Z" "snowflake-connector-python[pandas]=N.M.O"
 #
 APScheduler==3.11.3
-Authlib==1.9.6
+Authlib==1.9.8
 Deprecated==3.0.1
 Events==0.5
 Flask-JWT-Extended==4.7.4
@@ -47,7 +47,7 @@ Jinja2==3.1.6
 Mako==1.4.3
 Markdown==3.11.3
 MarkupSafe==3.0.4
-PyAthena==4.2.1
+PyAthena==4.3.0
 PyGithub==2.10.0
 PyHive==0.7.0
 PyJWT==2.15.1
@@ -57,7 +57,7 @@ PyYAML-ft==8.0.0
 PyYAML==6.0.3
 Pygments==2.21.0
 SQLAlchemy-Utils==0.43.0
-SQLAlchemy==2.0.57
+SQLAlchemy==2.0.58
 SecretStorage==3.5.0
 WTForms==3.3.2
 Werkzeug==3.1.9
@@ -77,7 +77,7 @@ aiosignal==1.4.0
 aiosmtplib==5.1.3
 aiosqlite==0.22.1
 airbyte-api==1.0.1
-akeyless==5.0.40
+akeyless==5.0.41
 alembic==1.20.1
 alibabacloud-adb20211201==4.6.0
 alibabacloud-credentials-api==1.0.1
@@ -91,7 +91,7 @@ amqp==5.4.2
 annotated-doc==0.0.6
 annotated-types==0.8.0
 ansicolors==1.1.8
-anthropic==2.8.0
+anthropic==2.9.0
 anyio==4.16.0
 apache-airflow-providers-airbyte==6.2.0
 apache-airflow-providers-akeyless==0.3.2
@@ -201,7 +201,7 @@ apache-airflow-providers-weaviate==3.5.1
 apache-airflow-providers-yandex==5.0.0
 apache-airflow-providers-ydb==2.6.1
 apache-airflow-providers-zendesk==4.12.1
-apache-beam==2.78.0rc3
+apache-beam==2.78.0rc4
 apispec==6.10.1
 apprise==2.2.0
 argcomplete==3.7.2
@@ -259,7 +259,7 @@ boto3==1.43.117
 botocore==1.43.117
 cachelib==0.17.2
 cachetools==8.0.0
-cadwyn==9.0.0
+cadwyn==9.0.1
 capi_param_builder_python==1.3.2
 cassandra-driver==3.30.1
 cattrs==26.2.1
@@ -274,7 +274,7 @@ click-didyoumean==0.3.1
 click-plugins==1.1.1.2
 click-repl==0.4.1
 click==8.5.1
-clickhouse-connect==1.12.0
+clickhouse-connect==1.13.0
 cloudpickle==3.1.1
 cohere==7.3.1
 colorama==0.4.6
@@ -283,7 +283,7 @@ colorlog==6.12.0
 comm==0.2.3
 confluent-kafka==2.16.1
 crcmod-plus==2.3.6
-cron_descriptor==2.2.1
+cron_descriptor==2.3.1
 croniter==7.0.0
 cryptography==50.0.2
 curlify==3.0.0
@@ -413,12 +413,12 @@ hdfs==2.7.3
 hf-xet==1.8.0
 hmsclient==0.1.1
 hpack==4.2.0
-httpcore2==2.16.1
+httpcore2==2.16.2
 httpcore==1.0.9
 httplib2==0.32.1
 httpr==0.7.8
 httptools==0.9.0
-httpx2==2.16.1
+httpx2==2.16.2
 httpx==0.28.1
 huggingface_hub==2.4.0
 humanize==4.17.0
@@ -599,7 +599,7 @@ pydantic==2.14.3
 pydantic_core==2.50.4
 pydata-google-auth==1.9.1
 pydruid==0.6.9
-pyexasol==4.0.0
+pyexasol==4.1.0
 pygtrie==2.6.2
 pyiceberg==0.12.0
 pykerberos==1.2.4
@@ -621,8 +621,8 @@ python-http-client==3.3.7
 python-jenkins==1.8.3
 python-keycloak==7.1.1
 python-ldap==3.4.8
-python-multipart==0.0.33
-python-slugify==9.1.3
+python-multipart==0.0.34
+python-slugify==9.2.0
 python-telegram-bot==22.8
 pytokens==0.4.1
 pytz==2026.6
@@ -677,7 +677,7 @@ spython==0.3.14
 sqlalchemy-bigquery==1.18.0
 sqlalchemy-spanner==1.21.0
 sqlalchemy_drill==1.1.10
-sqlglot==30.31.0
+sqlglot==30.32.0
 sqlparse==0.6.1
 stack-data==0.6.3
 starlette==1.10.0
@@ -690,7 +690,7 @@ synchronicity==0.12.7
 tableauserverclient==0.42
 tabulate==0.10.0
 tenacity==9.1.4
-teradatasql==20.0.0.75
+teradatasql==20.0.0.76
 teradatasqlalchemy==20.0.0.9
 termcolor==3.3.0
 text-unidecode==1.3
@@ -741,7 +741,7 @@ wrapt==2.5.2
 xmltodict==1.0.4
 xxhash==4.1.0
 yandex-query-client==0.1.4
-yandexcloud==0.415.0
+yandexcloud==0.416.0
 yarl==1.25.1
 ydb-dbapi==0.1.24
 ydb==3.35.0
