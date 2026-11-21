@@ -19,7 +19,8 @@
 from __future__ import annotations
 
 import json
-from typing import TYPE_CHECKING, Any
+import uuid
+from typing import TYPE_CHECKING, Any, cast
 from urllib.parse import quote_plus
 
 from airflow.providers.common.sql.hooks.sql import DbApiHook
@@ -84,6 +85,49 @@ def _build_client_name(custom: str | None = None) -> str:
     return name
 
 
+def _uses_session_per_connection(client_kwargs: dict[str, Any]) -> bool:
+    """
+    Return whether :meth:`ClickHouseHook.get_conn` should open a session per connection.
+
+    False if ``autogenerate_session_id`` or ``session_id`` is set, or sessions are off globally.
+    """
+    if "autogenerate_session_id" in client_kwargs or client_kwargs.get("session_id"):
+        return False
+    if "session_id" in (client_kwargs.get("settings") or {}):
+        return False
+    from clickhouse_connect import common
+
+    return bool(common.get_setting("autogenerate_session_id"))
+
+
+class _SessionBoundClient:
+    """
+    Proxy over the shared client that runs every call in one ClickHouse session.
+
+    ``session_id`` is added to each call's ``settings`` (passed by keyword, as the DB-API
+    cursor does), so the shared client itself is never modified.
+    """
+
+    def __init__(self, client: clickhouse_connect.driver.client.Client, session_id: str) -> None:
+        self._client = client
+        self._session_id = session_id
+
+    def _with_session(self, kwargs: dict[str, Any]) -> dict[str, Any]:
+        return {**kwargs, "settings": {"session_id": self._session_id, **(kwargs.get("settings") or {})}}
+
+    def query(self, *args: Any, **kwargs: Any) -> Any:
+        return self._client.query(*args, **self._with_session(kwargs))
+
+    def command(self, *args: Any, **kwargs: Any) -> Any:
+        return self._client.command(*args, **self._with_session(kwargs))
+
+    def insert(self, *args: Any, **kwargs: Any) -> Any:
+        return self._client.insert(*args, **self._with_session(kwargs))
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self._client, name)
+
+
 class ClickHouseConnection:
     """
     Minimal DB-API 2.0 connection adapter wrapping a ``clickhouse_connect`` Client.
@@ -98,21 +142,31 @@ class ClickHouseConnection:
     the ``autocommit`` attribute is always ``True``.  ``DbApiHook.run()`` checks
     ``conn.autocommit`` via :meth:`ClickHouseHook.get_autocommit` and skips the
     ``conn.commit()`` call when it is truthy.
+
+    With ``session_id``, all statements on this connection share that ClickHouse session.
     """
 
     # Signals to DbApiHook.get_autocommit() that no explicit commit is needed.
     autocommit: bool = True
 
-    def __init__(self, client: clickhouse_connect.driver.client.Client) -> None:
+    def __init__(
+        self,
+        client: clickhouse_connect.driver.client.Client,
+        session_id: str | None = None,
+    ) -> None:
         self._client = client
+        self._session_id = session_id
 
     def cursor(self) -> ClickHouseDbApiCursor:
         from clickhouse_connect.dbapi.cursor import Cursor
 
-        return Cursor(self._client)
+        if self._session_id is None:
+            return Cursor(self._client)
+        session_client = _SessionBoundClient(self._client, self._session_id)
+        return Cursor(cast("clickhouse_connect.driver.client.Client", session_client))
 
     def close(self) -> None:
-        self._client.close()
+        """No-op: the wrapped client is owned/reused by ClickHouseHook; use ClickHouseHook.close()."""
 
     def commit(self) -> None:
         pass  # ClickHouse has no multi-statement transactions
@@ -130,6 +184,16 @@ class ClickHouseHook(DbApiHook):
     :class:`~airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator`
     features work out of the box (templating, ``handler``, ``split_statements``,
     etc.).
+
+    The client is created lazily on first use and reused for the lifetime of the
+    hook instance (see :meth:`get_client`). Call :meth:`close` when done, or use the
+    hook as a context manager (``with ClickHouseHook(...) as hook:``).
+
+    Each :meth:`get_conn` connection runs in its own ClickHouse session, so temporary tables
+    and ``SET`` statements carry over between the statements of one ``run()``. The shared
+    client from :meth:`get_client` has no session. Set ``autogenerate_session_id`` in
+    ``client_kwargs`` to change this: ``True`` uses one session for every call (not
+    thread-safe), ``False`` turns sessions off.
 
     :param database: Optional database name.  Overrides the ``schema`` field of the
         Airflow connection.  Useful when one connection points to a ClickHouse cluster
@@ -185,6 +249,8 @@ class ClickHouseHook(DbApiHook):
         self.database = database
         self.session_settings: dict[str, Any] = session_settings or {}
         self.client_kwargs: dict[str, Any] = client_kwargs or {}
+        self._client: clickhouse_connect.driver.client.Client | None = None
+        self._session_per_connection: bool = True
 
     def _get_client_kwargs(self) -> dict[str, Any]:
         """
@@ -211,6 +277,8 @@ class ClickHouseHook(DbApiHook):
         ``session_settings`` from ``extra`` and from the constructor ``session_settings``
         argument are **merged**, with the constructor argument taking precedence on
         conflicting keys.
+
+        ``autogenerate_session_id`` defaults to ``False`` unless overridden via ``client_kwargs``.
         """
         conn = self.get_connection(self.get_conn_id())
         extra: dict[str, Any] = conn.extra_dejson
@@ -267,26 +335,38 @@ class ClickHouseHook(DbApiHook):
         if merged:
             kwargs["settings"] = merged
 
+        # One session cannot run concurrent queries, so the shared client gets none unless
+        # the caller opts in; get_conn() opens a session per connection instead.
+        self._session_per_connection = _uses_session_per_connection(kwargs)
+        kwargs.setdefault("autogenerate_session_id", False)
+
         return kwargs
 
     def get_conn(self) -> ClickHouseConnection:
-        """Return a DB-API 2.0 compatible connection backed by ``clickhouse_connect``."""
-        import clickhouse_connect
-
-        client = clickhouse_connect.get_client(**self._get_client_kwargs())
-        return ClickHouseConnection(client)
+        """Return a DB-API 2.0 connection on the shared client, in a new ClickHouse session by default."""
+        client = self.get_client()
+        session_id = str(uuid.uuid4()) if self._session_per_connection else None
+        return ClickHouseConnection(client, session_id=session_id)
 
     def get_client(self) -> clickhouse_connect.driver.client.Client:
-        """
-        Return the raw ``clickhouse_connect`` Client for ClickHouse-specific operations.
+        """Return the shared ``clickhouse_connect`` Client, creating it lazily on first use."""
+        if self._client is None:
+            import clickhouse_connect
 
-        Use this for bulk inserts, streaming queries, or any operation that
-        benefits from the native ``clickhouse_connect`` API rather than DB-API
-        cursors.  The caller is responsible for closing the client.
-        """
-        import clickhouse_connect
+            self._client = clickhouse_connect.get_client(**self._get_client_kwargs())
+        return self._client
 
-        return clickhouse_connect.get_client(**self._get_client_kwargs())
+    def close(self) -> None:
+        """Close the shared ``clickhouse_connect`` client, if one was created, and release its pool."""
+        if self._client is not None:
+            self._client.close()
+            self._client = None
+
+    def __enter__(self) -> ClickHouseHook:
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
+        self.close()
 
     def bulk_insert_rows(
         self,
@@ -306,6 +386,8 @@ class ClickHouseHook(DbApiHook):
         insert context is created once and reused across chunks to avoid a
         repeated ``DESCRIBE TABLE`` round-trip per batch.
 
+        Uses the hook's shared client (see :meth:`get_client`); not closed here.
+
         :param table: Target table name.
         :param rows: List of row tuples to insert.
         :param column_names: Column names matching each position in the row tuples.
@@ -319,16 +401,13 @@ class ClickHouseHook(DbApiHook):
             return
 
         client = self.get_client()
-        try:
-            if batch_size is None:
-                client.insert(table, rows, column_names=column_names)
-            else:
-                ctx = client.create_insert_context(table, column_names=column_names)
-                for i in range(0, len(rows), batch_size):
-                    client.insert(data=rows[i : i + batch_size], context=ctx)
-            self.log.info("Inserted %d rows into %s", len(rows), table)
-        finally:
-            client.close()
+        if batch_size is None:
+            client.insert(table, rows, column_names=column_names)
+        else:
+            ctx = client.create_insert_context(table, column_names=column_names)
+            for i in range(0, len(rows), batch_size):
+                client.insert(data=rows[i : i + batch_size], context=ctx)
+        self.log.info("Inserted %d rows into %s", len(rows), table)
 
     def get_uri(self) -> str:
         """
