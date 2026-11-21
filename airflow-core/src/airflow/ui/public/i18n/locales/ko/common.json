@@ -31,6 +31,7 @@
     "deadlines": "데드라인",
     "jobs": "잡",
     "requiredActions": "필수 작업",
+    "triggers": "트리거들",
     "xcoms": "XComs"
   },
   "collapseAllExtra": "모든 추가 JSON 접기",
