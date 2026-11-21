@@ -262,3 +262,59 @@ in your private GitHub repo.
 
 You should take this a step further and set ``dags.gitSync.knownHosts``, so you are not susceptible to man-in-the-middle
 attacks. This process is documented in the :ref:`production guide <production-guide:knownhosts>`.
+
+Running a separate Dag processor per Dag bundle
+-----------------------------------------------
+
+Use ``dagProcessor.sets`` to run several Dag processors, for example one per Dag bundle,
+so each can have its own replicas, resources, node selectors or tolerations. Define all
+bundles once in ``dagProcessor.dagBundleConfigList`` and select the bundles a set parses with
+``bundleNames``. Each set inherits the ``dagProcessor`` settings and can override them, and
+creates its own Deployment (and PodDisruptionBudget when enabled) named
+``<release>-dag-processor-<set name>``. Set names must be unique, valid DNS-1123 labels and cannot be
+``default``; the chart fails to render otherwise.
+
+.. note::
+
+   When ``dagProcessor.sets`` is not empty, the default Dag processor is not created unless you set
+   ``dagProcessor.enableDefault: true`` explicitly. The default Dag processor parses **all** bundles
+   (unless ``bundleNames`` is set on it), so enabling it next to sets that select bundles makes those
+   bundles be parsed twice.
+
+.. code-block:: yaml
+   :caption: values.yaml
+
+   dagProcessor:
+     dagBundleConfigList:
+       - name: bundle1
+         classpath: "airflow.providers.git.bundles.git.GitDagBundle"
+         kwargs:
+           git_conn_id: "GITHUB__repo1"
+       - name: bundle2
+         classpath: "airflow.providers.git.bundles.git.GitDagBundle"
+         kwargs:
+           git_conn_id: "GITHUB__repo2"
+     sets:
+       - name: bundle1
+         bundleNames: ["bundle1"]
+         replicas: 3
+       - name: bundle2
+         bundleNames: ["bundle2"]
+
+The default ``dagProcessor.args`` passes the bundle selection as ``--bundle-name`` flags. Without
+``bundleNames`` a Dag processor parses all bundles. If you set custom ``command`` or ``args``, they are used
+as they are, so pass the flags yourself; the chart fails to render when ``bundleNames`` is set but
+``args`` does not contain a ``--bundle-name`` flag for each bundle.
+
+A bundle can be selected by more than one set, for example while you move it from one set to another. It is
+then parsed by each of them, and ``helm install`` and ``helm upgrade`` print a warning that names the bundle
+and the sets (the warning is not shown by ``helm template``).
+
+A set that overrides ``serviceAccount`` gets that ServiceAccount created, and sets that use the same
+ServiceAccount name share one object, so their ``serviceAccount`` settings must match. With
+``rbac.createSCCRoleBinding`` the OpenShift SCC role binding includes the ServiceAccount of every Dag processor
+Deployment.
+
+A PodDisruptionBudget selects the Pods of a single Deployment. When the default Dag processor and sets with
+their own PodDisruptionBudget run together, the default PodDisruptionBudget leaves out those sets, so a Pod is
+never selected by two budgets.
