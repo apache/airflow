@@ -32,6 +32,7 @@ import pytest
 from airflow.configuration import (
     AirflowConfigException,
     AirflowConfigParser,
+    _show_airflow_deprecation_warnings,
     conf,
     ensure_secrets_loaded,
     expand_env_var,
@@ -42,6 +43,7 @@ from airflow.configuration import (
     run_command,
     write_default_airflow_configuration_if_needed,
 )
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers_manager import ProvidersManager
 from airflow.sdk.execution_time.secrets import DEFAULT_SECRETS_SEARCH_PATH_WORKERS
 
@@ -1884,6 +1886,23 @@ sql_alchemy_conn=sqlite://test
                 "key_with_both_deprecation",
             ]:
                 assert not airflow_cfg.has_option("test_deprecated_section", deprecated_key)
+
+
+def test_provider_deprecation_warning_attributed_to_user_code_is_shown():
+    with warnings.catch_warnings(record=True) as captured:
+        warnings.resetwarnings()
+        # Python's default for code outside ``__main__``.
+        warnings.simplefilter("ignore", DeprecationWarning)
+        _show_airflow_deprecation_warnings()
+        warnings.warn_explicit(
+            "deprecated",
+            AirflowProviderDeprecationWarning,
+            filename="/dags/my_dag.py",
+            lineno=1,
+            module="unusual_prefix_0123_my_dag",
+        )
+
+    assert [w.category for w in captured] == [AirflowProviderDeprecationWarning]
 
 
 @skip_if_force_lowest_dependencies_marker
