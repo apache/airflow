@@ -459,7 +459,7 @@ class GenAIGeminiCreateBatchJobOperator(GoogleCloudBaseOperator):
     :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
     :param location: Required. The ID of the Google Cloud location that the service belongs to.
     :param model: Required. The name of the publisher model to use for Batch job.
-    :param gemini_api_key: Required. Key to interact with Gemini Batch API.
+    :param gemini_api_key: Optional. Key to interact with the Gemini Developer API.
     :param input_source: Required. Source of requests, could be inline requests or file name.
     :param results_folder: Optional. Path to a folder on local machine where file with results will be saved.
     :param create_batch_job_config: Optional. Config for batch job creation.
@@ -477,6 +477,9 @@ class GenAIGeminiCreateBatchJobOperator(GoogleCloudBaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
     :param deferrable: Optional. Run operator in the deferrable mode.
+    :param use_vertex_ai: Optional. Use Gemini on Vertex AI instead of the Gemini Developer API. When True,
+        ``gcp_conn_id`` is used for authentication instead of ``gemini_api_key``, ``location`` selects the
+        global, multi-regional or regional endpoint, and ``input_source`` must be a ``gs://`` or ``bq://`` URI.
     """
 
     template_fields: Sequence[str] = (
@@ -497,7 +500,7 @@ class GenAIGeminiCreateBatchJobOperator(GoogleCloudBaseOperator):
         location: str,
         model: str,
         input_source: list | str,
-        gemini_api_key: str,
+        gemini_api_key: str | None = None,
         create_batch_job_config: CreateBatchJobConfig | dict | None = None,
         results_folder: str | None = None,
         gcp_conn_id: str = "google_cloud_default",
@@ -506,6 +509,7 @@ class GenAIGeminiCreateBatchJobOperator(GoogleCloudBaseOperator):
         wait_until_complete: bool = False,
         polling_interval: int = 30,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        use_vertex_ai: bool = False,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -523,6 +527,7 @@ class GenAIGeminiCreateBatchJobOperator(GoogleCloudBaseOperator):
         self.polling_interval = polling_interval
         self.results_folder = results_folder
         self.deferrable = deferrable
+        self.use_vertex_ai = use_vertex_ai
 
     def _wait_until_complete(self, job, polling_interval: int = 30):
         try:
@@ -575,6 +580,10 @@ class GenAIGeminiCreateBatchJobOperator(GoogleCloudBaseOperator):
             with open(path_to_file, "w") as file_with_results:
                 file_with_results.writelines(file_content.splitlines(True))
             results = path_to_file
+        elif job.dest and job.dest.gcs_uri:
+            results = job.dest.gcs_uri
+        elif job.dest and job.dest.bigquery_uri:
+            results = job.dest.bigquery_uri
 
         return results
 
@@ -584,9 +593,26 @@ class GenAIGeminiCreateBatchJobOperator(GoogleCloudBaseOperator):
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
             gemini_api_key=self.gemini_api_key,
+            use_vertex_ai=self.use_vertex_ai,
+            project_id=self.project_id,
+            location=self.location,
         )
 
+    def _validate_mode_params(self) -> None:
+        if not self.use_vertex_ai:
+            if not self.gemini_api_key:
+                raise ValueError("gemini_api_key is required when use_vertex_ai is False")
+            return
+        if not isinstance(self.input_source, str) or not self.input_source.startswith(("gs://", "bq://")):
+            raise ValueError(
+                "When use_vertex_ai is True, input_source must be a Cloud Storage (gs://) or BigQuery (bq://) URI"
+            )
+        if self.results_folder:
+            raise ValueError("results_folder is not supported when use_vertex_ai is True")
+
     def execute(self, context: Context):
+        self._validate_mode_params()
+
         if self.retrieve_result and not (self.wait_until_complete or self.deferrable):
             raise AirflowException(
                 "Retrieving results is possible only if wait_until_complete set to True or in deferrable mode"
@@ -611,6 +637,7 @@ class GenAIGeminiCreateBatchJobOperator(GoogleCloudBaseOperator):
                     retrieve_result=self.retrieve_result,
                     polling_interval=self.polling_interval,
                     results_folder=self.results_folder,
+                    use_vertex_ai=self.use_vertex_ai,
                 ),
                 method_name="execute_complete",
             )
@@ -653,7 +680,8 @@ class GenAIGeminiGetBatchJobOperator(GoogleCloudBaseOperator):
     :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
     :param location: Required. The ID of the Google Cloud location that the service belongs to.
     :param model: Required. The name of the publisher model to use for Batch job.
-    :param gemini_api_key: Required. Key to interact with Gemini Batch API.
+    :param gemini_api_key: Optional. Key to interact with the Gemini Developer API. Required when
+        ``use_vertex_ai`` is False.
     :param job_name: Required. Name of the batch job.
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
     :param impersonation_chain: Optional service account to impersonate using short-term
@@ -664,6 +692,9 @@ class GenAIGeminiGetBatchJobOperator(GoogleCloudBaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+    :param use_vertex_ai: Optional. Use Gemini on Vertex AI instead of the Gemini Developer API, for
+        batch jobs created with ``use_vertex_ai=True``. ``gcp_conn_id`` is then used for
+        authentication and ``location`` must be the location of the batch job.
     """
 
     template_fields = (
@@ -681,9 +712,10 @@ class GenAIGeminiGetBatchJobOperator(GoogleCloudBaseOperator):
         project_id: str,
         location: str,
         job_name: str,
-        gemini_api_key: str,
+        gemini_api_key: str | None = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
+        use_vertex_ai: bool = False,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -694,12 +726,18 @@ class GenAIGeminiGetBatchJobOperator(GoogleCloudBaseOperator):
         self.impersonation_chain = impersonation_chain
         self.job_name = job_name
         self.gemini_api_key = gemini_api_key
+        self.use_vertex_ai = use_vertex_ai
 
     def execute(self, context: Context):
+        if not self.use_vertex_ai and not self.gemini_api_key:
+            raise ValueError("gemini_api_key is required when use_vertex_ai is False")
         self.hook = GenAIGeminiAPIHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
             gemini_api_key=self.gemini_api_key,
+            use_vertex_ai=self.use_vertex_ai,
+            project_id=self.project_id,
+            location=self.location,
         )
 
         try:
@@ -718,7 +756,8 @@ class GenAIGeminiListBatchJobsOperator(GoogleCloudBaseOperator):
     :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
     :param location: Required. The ID of the Google Cloud location that the service belongs to.
     :param model: Required. The name of the publisher model to use for Batch job.
-    :param gemini_api_key: Required. Key to interact with Gemini Batch API.
+    :param gemini_api_key: Optional. Key to interact with the Gemini Developer API. Required when
+        ``use_vertex_ai`` is False.
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -728,6 +767,9 @@ class GenAIGeminiListBatchJobsOperator(GoogleCloudBaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+    :param use_vertex_ai: Optional. Use Gemini on Vertex AI instead of the Gemini Developer API, for
+        batch jobs created with ``use_vertex_ai=True``. ``gcp_conn_id`` is then used for
+        authentication and ``location`` must be the location of the batch job.
     """
 
     template_fields = (
@@ -744,10 +786,11 @@ class GenAIGeminiListBatchJobsOperator(GoogleCloudBaseOperator):
         *,
         project_id: str,
         location: str,
-        gemini_api_key: str,
+        gemini_api_key: str | None = None,
         list_batch_jobs_config: ListBatchJobsConfig | dict | None = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
+        use_vertex_ai: bool = False,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -758,12 +801,18 @@ class GenAIGeminiListBatchJobsOperator(GoogleCloudBaseOperator):
         self.impersonation_chain = impersonation_chain
         self.list_batch_jobs_config = list_batch_jobs_config
         self.gemini_api_key = gemini_api_key
+        self.use_vertex_ai = use_vertex_ai
 
     def execute(self, context: Context):
+        if not self.use_vertex_ai and not self.gemini_api_key:
+            raise ValueError("gemini_api_key is required when use_vertex_ai is False")
         self.hook = GenAIGeminiAPIHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
             gemini_api_key=self.gemini_api_key,
+            use_vertex_ai=self.use_vertex_ai,
+            project_id=self.project_id,
+            location=self.location,
         )
 
         jobs_list = self.hook.list_batch_jobs(list_batch_jobs_config=self.list_batch_jobs_config)
@@ -793,7 +842,8 @@ class GenAIGeminiDeleteBatchJobOperator(GoogleCloudBaseOperator):
     :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
     :param location: Required. The ID of the Google Cloud location that the service belongs to.
     :param model: Required. The name of the publisher model to use for Batch job.
-    :param gemini_api_key: Required. Key to interact with Gemini Batch API.
+    :param gemini_api_key: Optional. Key to interact with the Gemini Developer API. Required when
+        ``use_vertex_ai`` is False.
     :param job_name: Required. Name of the batch job.
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
     :param impersonation_chain: Optional service account to impersonate using short-term
@@ -804,6 +854,9 @@ class GenAIGeminiDeleteBatchJobOperator(GoogleCloudBaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+    :param use_vertex_ai: Optional. Use Gemini on Vertex AI instead of the Gemini Developer API, for
+        batch jobs created with ``use_vertex_ai=True``. ``gcp_conn_id`` is then used for
+        authentication and ``location`` must be the location of the batch job.
     """
 
     template_fields = (
@@ -821,9 +874,10 @@ class GenAIGeminiDeleteBatchJobOperator(GoogleCloudBaseOperator):
         project_id: str,
         location: str,
         job_name: str,
-        gemini_api_key: str,
+        gemini_api_key: str | None = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
+        use_vertex_ai: bool = False,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -834,12 +888,18 @@ class GenAIGeminiDeleteBatchJobOperator(GoogleCloudBaseOperator):
         self.impersonation_chain = impersonation_chain
         self.job_name = job_name
         self.gemini_api_key = gemini_api_key
+        self.use_vertex_ai = use_vertex_ai
 
     def execute(self, context: Context):
+        if not self.use_vertex_ai and not self.gemini_api_key:
+            raise ValueError("gemini_api_key is required when use_vertex_ai is False")
         self.hook = GenAIGeminiAPIHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
             gemini_api_key=self.gemini_api_key,
+            use_vertex_ai=self.use_vertex_ai,
+            project_id=self.project_id,
+            location=self.location,
         )
 
         try:
@@ -864,7 +924,8 @@ class GenAIGeminiCancelBatchJobOperator(GoogleCloudBaseOperator):
     :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
     :param location: Required. The ID of the Google Cloud location that the service belongs to.
     :param model: Required. The name of the publisher model to use for Batch job.
-    :param gemini_api_key: Required. Key to interact with Gemini Batch API.
+    :param gemini_api_key: Optional. Key to interact with the Gemini Developer API. Required when
+        ``use_vertex_ai`` is False.
     :param job_name: Required. Name of the batch job.
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
     :param impersonation_chain: Optional service account to impersonate using short-term
@@ -875,6 +936,9 @@ class GenAIGeminiCancelBatchJobOperator(GoogleCloudBaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+    :param use_vertex_ai: Optional. Use Gemini on Vertex AI instead of the Gemini Developer API, for
+        batch jobs created with ``use_vertex_ai=True``. ``gcp_conn_id`` is then used for
+        authentication and ``location`` must be the location of the batch job.
     """
 
     template_fields = (
@@ -892,9 +956,10 @@ class GenAIGeminiCancelBatchJobOperator(GoogleCloudBaseOperator):
         project_id: str,
         location: str,
         job_name: str,
-        gemini_api_key: str,
+        gemini_api_key: str | None = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
+        use_vertex_ai: bool = False,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -905,12 +970,18 @@ class GenAIGeminiCancelBatchJobOperator(GoogleCloudBaseOperator):
         self.impersonation_chain = impersonation_chain
         self.job_name = job_name
         self.gemini_api_key = gemini_api_key
+        self.use_vertex_ai = use_vertex_ai
 
     def execute(self, context: Context):
+        if not self.use_vertex_ai and not self.gemini_api_key:
+            raise ValueError("gemini_api_key is required when use_vertex_ai is False")
         self.hook = GenAIGeminiAPIHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
             gemini_api_key=self.gemini_api_key,
+            use_vertex_ai=self.use_vertex_ai,
+            project_id=self.project_id,
+            location=self.location,
         )
         self.log.info("Cancelling job with name %s ...", self.job_name)
 

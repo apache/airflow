@@ -55,6 +55,8 @@ except ImportError:
     # Compatibility for Airflow < 3.1
     from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
+from system.google.cloud.gen_ai import llm_models
+
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
 DAG_ID = "vertex_ai_batch_prediction_operations"
@@ -95,6 +97,12 @@ COLUMN_SPECS = {
 BIGQUERY_SOURCE = "bq://airflow-system-tests-resources.vertex_ai_training_dataset.data"
 GCS_DESTINATION_PREFIX = f"gs://{DATA_SAMPLE_GCS_BUCKET_NAME}/output"
 MODEL_PARAMETERS: dict[str, str] = {}
+
+# Newer Gemini models are served only from the global and multi-regional endpoints.
+GEMINI_LOCATION = "global"
+GEMINI_MODEL_NAME = f"publishers/google/models/{llm_models.get_default_gemini_model()}"
+GEMINI_GCS_SOURCE = "gs://cloud-samples-data/batch/prompt_for_batch_gemini_predict.jsonl"
+GEMINI_GCS_DESTINATION_PREFIX = f"gs://{DATA_SAMPLE_GCS_BUCKET_NAME}/output-gemini"
 
 
 with DAG(
@@ -172,6 +180,19 @@ with DAG(
     )
     # [END how_to_cloud_vertex_ai_create_batch_prediction_job_operator_def]
 
+    # [START how_to_cloud_vertex_ai_create_batch_prediction_job_operator_global]
+    create_batch_prediction_job_gemini = CreateBatchPredictionJobOperator(
+        task_id="create_batch_prediction_job_gemini",
+        job_display_name=f"gemini_{JOB_DISPLAY_NAME}",
+        model_name=GEMINI_MODEL_NAME,
+        gcs_source=GEMINI_GCS_SOURCE,
+        gcs_destination_prefix=GEMINI_GCS_DESTINATION_PREFIX,
+        region=GEMINI_LOCATION,
+        project_id=PROJECT_ID,
+        deferrable=True,
+    )
+    # [END how_to_cloud_vertex_ai_create_batch_prediction_job_operator_global]
+
     # [START how_to_cloud_vertex_ai_list_batch_prediction_job_operator]
     list_batch_prediction_job = ListBatchPredictionJobsOperator(
         task_id="list_batch_prediction_jobs",
@@ -194,6 +215,14 @@ with DAG(
         task_id="delete_batch_prediction_job_def",
         batch_prediction_job_id=create_batch_prediction_job_def.output["batch_prediction_job_id"],
         region=REGION,
+        project_id=PROJECT_ID,
+        trigger_rule=TriggerRule.ALL_DONE,
+    )
+
+    delete_batch_prediction_job_gemini = DeleteBatchPredictionJobOperator(
+        task_id="delete_batch_prediction_job_gemini",
+        batch_prediction_job_id=create_batch_prediction_job_gemini.output["batch_prediction_job_id"],
+        region=GEMINI_LOCATION,
         project_id=PROJECT_ID,
         trigger_rule=TriggerRule.ALL_DONE,
     )
@@ -225,10 +254,10 @@ with DAG(
         >> create_forecast_dataset
         >> create_auto_ml_forecasting_training_job
         # TEST BODY
-        >> [create_batch_prediction_job, create_batch_prediction_job_def]
+        >> [create_batch_prediction_job, create_batch_prediction_job_def, create_batch_prediction_job_gemini]
         >> list_batch_prediction_job
         # TEST TEARDOWN
-        >> [delete_batch_prediction_job, delete_batch_prediction_job_def]
+        >> [delete_batch_prediction_job, delete_batch_prediction_job_def, delete_batch_prediction_job_gemini]
         >> delete_auto_ml_forecasting_training_job
         >> delete_forecast_dataset
         >> delete_bucket
