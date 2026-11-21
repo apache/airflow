@@ -42,6 +42,7 @@ from airflow.api_fastapi.core_api.app import (
 from airflow.api_fastapi.execution_api.app import create_task_execution_api_app
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
+from airflow.listeners.listener import get_listener_manager
 from airflow.observability.metrics import stats_utils
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 
@@ -121,6 +122,10 @@ def _initialize_api_server_stats() -> None:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     _initialize_api_server_stats()
+    try:
+        get_listener_manager().hook.on_starting(component=app)
+    except Exception:
+        log.exception("Error calling listener on_starting hook")
     async with AsyncExitStack() as stack:
         stack.push_async_callback(settings.dispose_async_engine)
         for route in app.routes:
@@ -129,7 +134,13 @@ async def lifespan(app: FastAPI):
                     route.app.router.lifespan_context(route.app),
                 )
         app.state.lifespan_called = True
-        yield
+        try:
+            yield
+        finally:
+            try:
+                get_listener_manager().hook.before_stopping(component=app)
+            except Exception:
+                log.exception("Error calling listener before_stopping hook")
 
 
 @providers_configuration_loaded

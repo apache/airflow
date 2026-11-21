@@ -1,0 +1,3 @@
+The FastAPI API server now notifies listener plugins via ``on_starting`` and ``before_stopping``
+
+The API server's lifespan now triggers ``on_starting(component=app)`` on startup and ``before_stopping(component=app)`` on shutdown for registered listener plugins. Third-party listeners implementing these hooks must ensure they do not assume the ``component`` argument is always an Airflow ``Job`` instance.
