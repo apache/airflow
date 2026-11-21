@@ -31,6 +31,7 @@
     "deadlines": "Fristen",
     "jobs": "Jobs",
     "requiredActions": "Erforderliche Interaktionen",
+    "triggers": "Auslösende",
     "xcoms": "Task Kommunikation (XComs)"
   },
   "collapseAllExtra": "Alle JSON Details ausblenden",
@@ -261,6 +262,7 @@
     "asset_triggered": "Durch Datenset (Asset) ausgelöst",
     "backfill": "Nachträglich Aufgefüllt",
     "manual": "Manuell",
+    "operator_triggered": "Von einer Aufgabe Ausgelöst",
     "scheduled": "Geplant"
   },
   "scroll": {
@@ -440,6 +442,7 @@
   "switchDag": "Wechsel zu $t(dag_one)",
   "switchDagRun": "Wechsel zu $t(dagRun_one)",
   "switchMapIndex": "Zu $t(mapIndex) wechseln",
+  "switchTask": "Wechseln zu $t(task_one)",
   "table": {
     "completedAt": "Abgeschlossen um",
     "createdAt": "Erstellt um",
@@ -610,6 +613,8 @@
     "tokenShownOnce": "Dieser Token wird nur einmal angezeigt. Kopieren Sie ihn jetzt."
   },
   "total": "Gesamt {{state}}",
+  "trigger_one": "Benachrichtigung",
+  "trigger_other": "Benachrichtigungen",
   "triggered": "Ausgelöst",
   "tryNumber": "Versuch Nummer",
   "unpause": "Fortsetzen",

@@ -55,6 +55,15 @@
   "group": "Gruppe",
   "lastAssetEvent": "Letztes Ereignis zu Datenset (Asset)",
   "name": "Name",
+  "partitions": {
+    "consumerRuns": "Abhängige Läufe",
+    "consumerRunsHelp": "DAG Läufe die eine Benachrichtigung erhalten haben",
+    "lastProducerRun": "Letzter Lauf des Aufrufenden DAG ",
+    "status": {
+      "in_progress": "Laufend",
+      "materialized": "Materialisiert"
+    }
+  },
   "producingTasks": "Produzierende Tasks",
   "scheduledDags": "Geplante Dags",
   "scheduling": "Planend",
@@ -62,5 +71,9 @@
   "taskDependencies": "Task Abhängigkeiten",
   "watcher_one": "Überwachung",
   "watcher_other": "Überwachungen",
+  "watcherFailing_one": "Benachrichtigung fehlgeschlagen",
+  "watcherFailing_other": "Benachrichtigungen fehlgeschlagen",
+  "watcherOrphaned_one": "Benachrichtigung verwaist",
+  "watcherOrphaned_other": "Benachrichtigungen verwaist",
   "watchers": "Überwachungen"
 }

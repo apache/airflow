@@ -60,6 +60,48 @@
     },
     "title": "Fristen"
   },
+  "triggers": {
+    "columns": {
+      "dagsAffected": "DAGs betroffen",
+      "failures": "Fehlgschlagen",
+      "kind": "Typ",
+      "lastError": "Letzter Fehler",
+      "lastEvent": "Letzte Benachrichtigung",
+      "status": "Status",
+      "triggerer": "Auslösender",
+      "usedBy": "Benutzt von"
+    },
+    "detail": {
+      "firstFailedAt": "Fehlgeschlagener Teil",
+      "lastFailedAt": "Zuletzt Fehlgeschlagen um",
+      "noReadableScheduledDags": "Keiner kann Lesen",
+      "scheduledDags": "Geplante DAG Läufe"
+    },
+    "filters": {
+      "triggererHostname": "Benachrichtigender Hostname"
+    },
+    "forbidden": {
+      "description": "Benachrichtigungen werden Angezeigt für was sie ausgelöst wurden: Aufgaben von DAGs, DAG Läufe oder ein Bestand auf die sie schauen. Sie können keine sehen.",
+      "title": "Keine Benachrichtigungen zu zeigen"
+    },
+    "kind": {
+      "asset_watcher": "Bestandsbenachrichtigung",
+      "callback": "Rückmeldung",
+      "task": "Aufgabe"
+    },
+    "notFound": {
+      "backToList": "Zurück zu Benachrichtigungen",
+      "description": "Benachrichtigungen werden entfernt sobald sie ausgelöst wurden oder wenn der Fakt erledigt ist, dieser Fakt ist vermutlich abgeschlossen.",
+      "title": "Diese Benachrichtigung existiert nicht mehr"
+    },
+    "status": {
+      "failing": "Fehlgeschlagen",
+      "orphaned": "Verwaist"
+    },
+    "statusHint": {
+      "orphaned": "Benachrichtigung angehalten. Er wartet auf eine andere Benachrichtigung und Fortzusetzen."
+    }
+  },
   "xcom": {
     "add": {
       "error": "Fehler beim Hinzufügen von Task Kommunikation (XCom)",
