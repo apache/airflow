@@ -1230,12 +1230,12 @@ class PermittedTriggerFilter:
         self.asset_ids = asset_ids
         self.can_read_what_uses_triggers = can_read_what_uses_triggers
 
-    def allows(self, *, dag_id: str | None, owner_ref: dict | None, watched_asset_ids: set[int]) -> bool:
+    def allows(self, *, dag_id: str | None, used_by_ref: dict | None, watched_asset_ids: set[int]) -> bool:
         """Check trigger ownership permissions without expanding SQL IN lists."""
-        owner_ref = owner_ref or {}
-        if owner_ref.get("ti_id") is not None:
+        used_by_ref = used_by_ref or {}
+        if used_by_ref.get("ti_id") is not None:
             return dag_id in self.task_dag_ids
-        if owner_ref.get("callback_id") is not None:
+        if used_by_ref.get("callback_id") is not None:
             return dag_id in self.callback_dag_ids
         return bool(watched_asset_ids & self.asset_ids)
 

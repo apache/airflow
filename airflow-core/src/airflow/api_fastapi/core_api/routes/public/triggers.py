@@ -17,6 +17,8 @@
 from __future__ import annotations
 
 from collections import defaultdict
+from itertools import groupby
+from operator import itemgetter
 from typing import TYPE_CHECKING, Annotated
 
 from fastapi import Depends, HTTPException, status
@@ -272,6 +274,7 @@ def get_triggers(
         filters=filters,
     )
     candidates = order_by.to_orm(candidates)
+    candidates = candidates.order_by(Trigger.id)
 
     candidate_rows = session.execute(candidates)
 
@@ -280,40 +283,27 @@ def get_triggers(
     page_offset = offset.value or 0
     page_limit = limit.value
 
-    current_id = None
-    current_dag_id = None
-    current_owner_ref = None
-    current_assets = set()
+    for candidate_id, group in groupby(candidate_rows, key=itemgetter(0)):
+        rows = iter(group)
+        _, candidate_dag_id, used_by_ref, first_asset_id = next(rows)
 
-    def include_candidate():
-        nonlocal total_entries
-        if current_id is None:
-            return
+        watched_asset_ids = set()
+        if first_asset_id is not None:
+            watched_asset_ids.add(first_asset_id)
+
+        watched_asset_ids.update(asset_id for _, _, _, asset_id in rows if asset_id is not None)
 
         if not readable_triggers_filter.allows(
-            dag_id=current_dag_id,
-            owner_ref=current_owner_ref,
-            watched_asset_ids=current_assets,
+            dag_id=candidate_dag_id,
+            used_by_ref=used_by_ref,
+            watched_asset_ids=watched_asset_ids,
         ):
-            return
+            continue
 
         if total_entries >= page_offset and (page_limit is None or len(visible_ids) < page_limit):
-            visible_ids.append(current_id)
+            visible_ids.append(candidate_id)
 
         total_entries += 1
-
-    for candidate_id, candidate_dag_id, owner_ref, watched_asset_id in candidate_rows:
-        if candidate_id != current_id:
-            include_candidate()
-            current_id = candidate_id
-            current_dag_id = candidate_dag_id
-            current_owner_ref = owner_ref
-            current_assets = set()
-
-        if watched_asset_id is not None:
-            current_assets.add(watched_asset_id)
-
-    include_candidate()
 
     if visible_ids:
         triggers_by_id = {
@@ -372,7 +362,7 @@ def get_trigger(
         watched_asset_ids = {watcher.asset_id for watcher in trigger.asset_watchers}
         if not readable_triggers_filter.allows(
             dag_id=trigger.dag_id,
-            owner_ref=trigger.owner_ref,
+            used_by_ref=trigger.used_by_ref,
             watched_asset_ids=watched_asset_ids,
         ):
             trigger = None

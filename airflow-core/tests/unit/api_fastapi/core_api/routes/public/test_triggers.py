@@ -400,11 +400,12 @@ class TestGetTriggers:
         assert response.status_code == 200
         assert sorted(_name(t) for t in response.json()["triggers"]) == expected
 
-    def test_pagination_counts_multi_watcher_trigger_once(self, test_client, session, triggers):
+    @pytest.mark.parametrize("order_by", ["id", "-id", "created_date", "-created_date"])
+    def test_pagination_counts_multi_watcher_trigger_once(self, test_client, session, triggers, order_by):
         _watcher(session, "second_failing", triggers["failing"])
         session.commit()
 
-        response = test_client.get("/triggers", params={"order_by": "id"})
+        response = test_client.get("/triggers", params={"order_by": order_by})
         assert response.status_code == 200
         expected_ids = [trigger["id"] for trigger in response.json()["triggers"]]
         assert response.json()["total_entries"] == 5
@@ -414,7 +415,7 @@ class TestGetTriggers:
         for offset in range(5):
             page = test_client.get(
                 "/triggers",
-                params={"order_by": "id", "limit": 1, "offset": offset},
+                params={"order_by": order_by, "limit": 1, "offset": offset},
             )
             assert page.status_code == 200
             assert page.json()["total_entries"] == 5
@@ -459,6 +460,47 @@ class TestGetTriggers:
         assert last_page.status_code == 200
         assert last_page.json()["triggers"] == []
         assert last_page.json()["total_entries"] == len(visible_ids)
+
+    @mock.patch(f"{SIMPLE_AUTH}.get_authorized_assets", autospec=True)
+    @mock.patch(f"{BASE_AUTH}.get_authorized_dag_ids", autospec=True)
+    def test_pagination_skips_hidden_task_callback_and_watcher_triggers(
+        self, mock_dag_ids, mock_assets, test_client, triggers
+    ):
+        mock_dag_ids.return_value = {"dag_sensor"}
+        mock_assets.return_value = {triggers["failing_asset"].id}
+
+        expected_ids = {
+            triggers["sensor"].id,
+            triggers["callback"].trigger.id,
+            triggers["failing"].id,
+        }
+
+        for order_by in ("id", "-id", "created_date", "-created_date"):
+            response = test_client.get("/triggers", params={"order_by": order_by})
+            assert response.status_code == 200
+            body = response.json()
+            ids = [item["id"] for item in body["triggers"]]
+
+            assert set(ids) == expected_ids
+            assert len(ids) == len(expected_ids)
+            assert body["total_entries"] == len(expected_ids)
+
+            paged_ids = []
+            for offset in range(len(expected_ids) + 1):
+                page = test_client.get(
+                    "/triggers",
+                    params={"order_by": order_by, "limit": 1, "offset": offset},
+                )
+                assert page.status_code == 200
+                assert page.json()["total_entries"] == len(expected_ids)
+                page_ids = [item["id"] for item in page.json()["triggers"]]
+                if offset < len(expected_ids):
+                    assert len(page_ids) == 1
+                else:
+                    assert page_ids == []
+                paged_ids.extend(page_ids)
+
+            assert paged_ids == ids
 
     def test_filter_by_asset(self, test_client, triggers):
         response = test_client.get("/triggers", params={"asset_id": triggers["pending_asset"].id})
