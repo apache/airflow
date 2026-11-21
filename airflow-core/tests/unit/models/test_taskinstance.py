@@ -4570,10 +4570,6 @@ class TestMappedTaskInstanceReceiveValue:
         )
         assert {"foo_0", "foo_1", "return_value_0", "return_value_1"} <= keys
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="dag.test()'s in-process supervisor is not safe to call from several threads until apache/airflow#74074",
-    )
     def test_iterate_concurrent_sync_indexed_tasks_share_the_in_process_supervisor(self, dag_maker, session):
         """
         Under the in-process supervisor (dag.test(), dag_maker) sync indexed tasks make SDK calls from worker
@@ -4611,10 +4607,6 @@ class TestMappedTaskInstanceReceiveValue:
         assert {f"return_value_{i}" for i in range(8)} <= keys
         assert {f"k{n}_{i}" for n in range(5) for i in range(8)} <= keys
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="dag.test()'s in-process supervisor is not safe to call from several threads until apache/airflow#74074",
-    )
     def test_iterate_concurrent_sync_indexed_tasks_read_variables_while_a_sibling_is_served(
         self, dag_maker, session
     ):
