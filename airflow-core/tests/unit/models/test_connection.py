@@ -30,6 +30,8 @@ from airflow.models import Connection
 from airflow.process_context import force_server_context
 from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
 from airflow.sdk.execution_time.comms import ErrorResponse
+from airflow.secrets.metastore import MetastoreBackend
+from airflow.utils.sqlalchemy import prohibit_commit
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_connections
@@ -38,6 +40,23 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from airflow.models.team import Team
+
+
+class _SessionUnawareMetastoreBackend(MetastoreBackend):
+    def get_connection(self, conn_id: str, team_name: str | None = None) -> Connection | None:  # type: ignore[override]
+        return Connection(conn_id=conn_id, conn_type="http")
+
+
+class _SessionAwareMetastoreBackend(MetastoreBackend):
+    def __init__(self):
+        super().__init__()
+        self.received_session: Session | None = None
+
+    def get_connection(
+        self, conn_id: str, team_name: str | None = None, *, session: Session | None = None
+    ) -> Connection | None:
+        self.received_session = session
+        return Connection(conn_id=conn_id, conn_type="http")
 
 
 class TestConnection:
@@ -644,6 +663,80 @@ class TestConnection:
         # Verify the backends were called
         mock_env_backend.assert_called_once_with(conn_id="test_conn", team_name=testing_team.name)
         mock_db_backend.assert_called_once_with(conn_id="test_conn", team_name=testing_team.name)
+
+    @mock.patch.dict(sys.modules, {"airflow.sdk.execution_time.task_runner": None})
+    @mock.patch("airflow.sdk.Connection")
+    @mock.patch("airflow.secrets.environment_variables.EnvironmentVariablesBackend.get_connection")
+    @mock.patch("airflow.secrets.metastore.MetastoreBackend.get_connection")
+    def test_get_connection_from_secrets_forwards_session(
+        self, mock_db_backend, mock_env_backend, mock_task_sdk_connection
+    ):
+        mock_env_backend.return_value = None
+        mock_db_backend.return_value = Connection(conn_id="test_conn", conn_type="test")
+        mock_session = mock.MagicMock()
+
+        result = Connection.get_connection_from_secrets("test_conn", session=mock_session)
+
+        assert result.conn_id == "test_conn"
+        mock_env_backend.assert_called_once_with(conn_id="test_conn", team_name=None)
+        mock_db_backend.assert_called_once_with(conn_id="test_conn", team_name=None, session=mock_session)
+
+    @mock.patch.dict(sys.modules, {"airflow.sdk.execution_time.task_runner": None})
+    @mock.patch("airflow.configuration.ensure_secrets_loaded")
+    def test_get_connection_from_secrets_omits_session_for_unaware_backend(self, mock_ensure_secrets):
+        mock_ensure_secrets.return_value = [_SessionUnawareMetastoreBackend()]
+        mock_session = mock.MagicMock()
+
+        result = Connection.get_connection_from_secrets("test_conn", session=mock_session)
+        assert result.conn_id == "test_conn"
+
+    @mock.patch.dict(sys.modules, {"airflow.sdk.execution_time.task_runner": None})
+    @mock.patch("airflow.configuration.ensure_secrets_loaded")
+    def test_get_connection_from_secrets_forwards_session_to_aware_backend(self, mock_ensure_secrets):
+        backend = _SessionAwareMetastoreBackend()
+        mock_ensure_secrets.return_value = [backend]
+        mock_session = mock.MagicMock()
+
+        result = Connection.get_connection_from_secrets("test_conn", session=mock_session)
+        assert result.conn_id == "test_conn"
+        assert backend.received_session is mock_session
+
+    def test_get_connection_from_secrets_rejects_session_in_execution_context(self):
+        task_runner = mock.Mock(SUPERVISOR_COMMS=mock.Mock())
+        with (
+            mock.patch.dict(sys.modules, {"airflow.sdk.execution_time.task_runner": task_runner}),
+            pytest.raises(ValueError, match="cannot use a metadata database session"),
+        ):
+            Connection.get_connection_from_secrets("test_conn", session=mock.Mock())
+
+    @pytest.mark.db_test
+    def test_get_connection_from_secrets_under_prohibit_commit(self, session: Session):
+        clear_db_connections()
+        conn = Connection(conn_id="test_prohibit_commit_conn", conn_type="http")
+        session.add(conn)
+        session.commit()
+        from airflow.sdk import SecretCache
+
+        SecretCache.reset()
+
+        with prohibit_commit(session):
+            result = Connection.get_connection_from_secrets("test_prohibit_commit_conn", session=session)
+            assert result.conn_id == "test_prohibit_commit_conn"
+
+        clear_db_connections()
+
+    @pytest.mark.db_test
+    def test_get_connection_from_secrets_reads_uncommitted_row_in_session(self, session: Session):
+        clear_db_connections()
+        conn = Connection(conn_id="test_uncommitted_conn", conn_type="http")
+        session.add(conn)
+        session.flush()
+
+        with prohibit_commit(session):
+            result = Connection.get_connection_from_secrets("test_uncommitted_conn", session=session)
+            assert result.conn_id == "test_uncommitted_conn"
+
+        clear_db_connections()
 
     @pytest.mark.db_test
     def test_get_team_name(self, testing_team: Team, session: Session):
