@@ -204,16 +204,9 @@ def get_json_error(response: httpx2.Response):
 
 
 def raise_on_4xx_5xx(response: httpx2.Response):
-    return get_json_error(response) or response.raise_for_status()
-
-
-# Py 3.11+ version
-def raise_on_4xx_5xx_with_note(response: httpx2.Response):
     try:
         return get_json_error(response) or response.raise_for_status()
     except httpx2.HTTPStatusError as e:
-        if TYPE_CHECKING:
-            assert hasattr(e, "add_note")
         e.add_note(
             f"Correlation-id={response.headers.get('correlation-id', None) or response.request.headers.get('correlation-id', 'no-correlation-id')}"
         )
@@ -224,11 +217,6 @@ def raise_on_4xx_5xx_with_note(response: httpx2.Response):
         if detail is not None:
             e.add_note(f"Server error detail: {detail!r}")
         raise
-
-
-if hasattr(BaseException, "add_note"):
-    # Py 3.11+
-    raise_on_4xx_5xx = raise_on_4xx_5xx_with_note
 
 
 def add_correlation_id(request: httpx2.Request):
