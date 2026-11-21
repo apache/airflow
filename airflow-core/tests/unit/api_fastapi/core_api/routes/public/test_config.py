@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import os
 import textwrap
 from collections.abc import Generator
 from unittest.mock import patch
@@ -498,49 +499,36 @@ class TestGetConfigValue(TestConfigEndpoint):
 
 SECTION_SECRETS = "secrets"
 SECTION_WORKERS = "workers"
+# The section an AIRFLOW__TEAM_A___SECRETS__BACKEND_KWARG__SECRET_ID variable is reported under.
+SECTION_TEAM_ENV_VAR = "team_a"
 PER_KEY_OPTION_SECRETS = "backend_kwarg__secret_id"
 PER_KEY_OPTION_WORKERS = "secrets_backend_kwarg__secret_id"
+PER_KEY_OPTION_TEAM_SECRETS = "_secrets__backend_kwarg__secret_id"
 PER_KEY_VALUE = "vault-role-id-or-secret-id-material"
 
 
-class TestPerKeyBackendKwargMasking(TestConfigEndpoint):
-    """Synthetic per-key secrets-backend-kwarg options (e.g.
-    ``AIRFLOW__SECRETS__BACKEND_KWARG__SECRET_ID``) materialised by
-    ``conf.as_dict`` carry the same Vault / role_id / secret_id material as
-    the registered ``backend_kwargs`` option. The Config API must redact them
-    on the way out when ``display_sensitive=False``."""
+class TestPerKeyBackendKwargMasking:
+    """Per-key secrets-backend-kwarg options (e.g. ``AIRFLOW__SECRETS__BACKEND_KWARG__SECRET_ID``)
+    reported by ``conf.as_dict`` carry the same Vault / role_id / secret_id material as the
+    registered ``backend_kwargs`` option, under their base and their team scoped spellings alike.
+    The Config API must redact all of them."""
 
     @pytest.fixture(autouse=True)
     def setup_per_key(self) -> Generator[None, None, None]:
-        per_key_dict = {
-            SECTION_CORE: {OPTION_KEY_PARALLELISM: OPTION_VALUE_PARALLELISM},
-            SECTION_SECRETS: {PER_KEY_OPTION_SECRETS: PER_KEY_VALUE},
-            SECTION_WORKERS: {PER_KEY_OPTION_WORKERS: PER_KEY_VALUE},
-        }
-
-        def _mock_conf_as_dict(display_sensitive: bool, **_):
-            return {section: options.copy() for section, options in per_key_dict.items()}
-
-        def _mock_has_option(section: str, option: str) -> bool:
-            return option in per_key_dict.get(section, {})
-
         with (
             conf_vars(AIRFLOW_CONFIG_ENABLE_EXPOSE_CONFIG),
-            patch(
-                "airflow.api_fastapi.core_api.routes.public.config.conf.as_dict",
-                new=_mock_conf_as_dict,
-            ),
-            patch(
-                "airflow.api_fastapi.core_api.routes.public.config.conf.has_option",
-                new=_mock_has_option,
+            patch.dict(
+                os.environ,
+                {
+                    "AIRFLOW__SECRETS__BACKEND_KWARG__SECRET_ID": PER_KEY_VALUE,
+                    "AIRFLOW__WORKERS__SECRETS_BACKEND_KWARG__SECRET_ID": PER_KEY_VALUE,
+                    "AIRFLOW__TEAM_A___SECRETS__BACKEND_KWARG__SECRET_ID": PER_KEY_VALUE,
+                },
             ),
         ):
             yield
 
     def test_get_config_masks_per_key_secrets_backend_kwargs(self, test_client):
-        """``GET /config`` must redact synthetic per-key options under both
-        the ``secrets`` and ``workers`` sections when
-        ``display_sensitive=False`` (the API-server default)."""
         response = test_client.get("/config", headers=HEADERS_JSON)
         assert response.status_code == 200
 
@@ -549,16 +537,19 @@ class TestPerKeyBackendKwargMasking(TestConfigEndpoint):
         }
         assert sections[SECTION_SECRETS][PER_KEY_OPTION_SECRETS] == OPTION_VALUE_SENSITIVE_HIDDEN
         assert sections[SECTION_WORKERS][PER_KEY_OPTION_WORKERS] == OPTION_VALUE_SENSITIVE_HIDDEN
-        # Non-sensitive option in the same response must remain untouched.
-        assert sections[SECTION_CORE][OPTION_KEY_PARALLELISM] == OPTION_VALUE_PARALLELISM
+        assert sections[SECTION_TEAM_ENV_VAR][PER_KEY_OPTION_TEAM_SECRETS] == OPTION_VALUE_SENSITIVE_HIDDEN
+        assert PER_KEY_VALUE not in response.text
 
-    def test_get_config_value_masks_per_key_secrets_backend_kwarg(self, test_client):
-        """``GET /config/section/{section}/option/{option}`` must redact a
-        per-key synthetic option the same way the section-dump does."""
-        response = test_client.get(
-            f"/config/section/{SECTION_SECRETS}/option/{PER_KEY_OPTION_SECRETS}",
-            headers=HEADERS_JSON,
-        )
+    @pytest.mark.parametrize(
+        ("section", "option"),
+        [
+            pytest.param(SECTION_SECRETS, PER_KEY_OPTION_SECRETS, id="secrets"),
+            pytest.param(SECTION_WORKERS, PER_KEY_OPTION_WORKERS, id="workers"),
+            pytest.param(SECTION_TEAM_ENV_VAR, PER_KEY_OPTION_TEAM_SECRETS, id="team_scoped_env_var"),
+        ],
+    )
+    def test_get_config_value_masks_per_key_secrets_backend_kwarg(self, test_client, section, option):
+        response = test_client.get(f"/config/section/{section}/option/{option}", headers=HEADERS_JSON)
         assert response.status_code == 200
         assert response.json()["sections"][0]["options"][0]["value"] == OPTION_VALUE_SENSITIVE_HIDDEN
 
