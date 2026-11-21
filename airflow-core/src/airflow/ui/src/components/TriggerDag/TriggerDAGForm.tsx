@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { Button, Box, Spacer, HStack, Field, Stack, Text, VStack } from "@chakra-ui/react";
 import dayjs from "dayjs";
@@ -65,6 +65,7 @@ type TriggerDAGFormProps = {
         runId: string;
       }
     | undefined;
+  readonly suggestedPartitionKey?: string | null | undefined;
 };
 
 const DAG_DATE_FORMAT = `${DATE_FORMAT} HH:mm z`;
@@ -81,6 +82,7 @@ const TriggerDAGForm = ({
   onSubmitTrigger,
   open,
   prefillConfig,
+  suggestedPartitionKey,
 }: TriggerDAGFormProps) => {
   const { t: translate } = useTranslation(["common", "components"]);
   const [errors, setErrors] = useState<{ conf?: string; date?: unknown }>({});
@@ -93,7 +95,7 @@ const TriggerDAGForm = ({
   const [hasAppliedPrefill, setHasAppliedPrefill] = useState(false);
   const { mutate: togglePause } = useTogglePause({ dagId });
 
-  const { control, handleSubmit, reset, watch } = useForm<DagRunTriggerParams>({
+  const { control, handleSubmit, reset, setValue, watch } = useForm<DagRunTriggerParams>({
     defaultValues: {
       conf,
       dagRunId: "",
@@ -104,9 +106,25 @@ const TriggerDAGForm = ({
       // For partitioned Dags, logical date is not applicable.
       logicalDate: isPartitioned ? "" : dayjs().format(DEFAULT_DATETIME_FORMAT),
       note: "",
-      partitionKey: undefined,
+      partitionKey: suggestedPartitionKey ?? undefined,
     },
   });
+
+  // A ref rather than RHF's dirtyFields: reset(updater) makes the current values the new defaults
+  // and clears dirty state, so dirtyFields forgets an edit as soon as the conf changes.
+  const userEditedPartitionKeyRef = useRef(false);
+  // The suggestion last written into the field by the form itself; "" once the user edits the field.
+  // State, not a ref, because the "suggested value" helper text is derived from it.
+  const [appliedSuggestion, setAppliedSuggestion] = useState(suggestedPartitionKey ?? "");
+  // Read by the prefill effect, which must not depend on the suggestion: a new suggestion would
+  // otherwise reset the whole form and discard what the user typed.
+  const latestSuggestionRef = useRef(suggestedPartitionKey);
+
+  // Must be declared before the prefill effect: effects of one commit run in declaration order, and
+  // the prefill effect has to read the suggestion of this commit.
+  useEffect(() => {
+    latestSuggestionRef.current = suggestedPartitionKey;
+  }, [suggestedPartitionKey]);
 
   // Push a conf into the param store. Seed the initial params only once they are available,
   // but always push the conf so a run's configuration propagates even
@@ -139,10 +157,12 @@ const TriggerDAGForm = ({
   // Pre-fill form when prefillConfig is provided. This runs on open, before any user input, so
   // the whole form is reset. Only 'conf' is copied from the prior run; its runId and logicalDate
   // are deliberately dropped, because POST /dagRuns rejects a run whose id or logical date
-  // already exists with 409 Conflict.
+  // already exists with 409 Conflict. The partition key is dropped for the same reason and
+  // seeded from the current suggestion instead.
   useEffect(() => {
     if (prefillConfig && open) {
       const confString = prefillConfig.conf ? JSON.stringify(prefillConfig.conf, undefined, 2) : "";
+      const latestSuggestion = latestSuggestionRef.current ?? "";
 
       reset({
         conf: confString,
@@ -152,16 +172,39 @@ const TriggerDAGForm = ({
         dataIntervalStart: "",
         logicalDate: isPartitioned ? "" : dayjs().format(DEFAULT_DATETIME_FORMAT),
         note: "",
-        partitionKey: undefined,
+        partitionKey: latestSuggestion,
       });
+      // The reset discards the user's partition key too, so the field follows the suggestion again.
+      userEditedPartitionKeyRef.current = false;
+      setAppliedSuggestion(latestSuggestion);
       if (confString) {
         syncConfToStore(confString);
       }
       setHasAppliedPrefill(true);
     } else if (!open) {
       setHasAppliedPrefill(false);
+      userEditedPartitionKeyRef.current = false;
+      setAppliedSuggestion("");
     }
   }, [prefillConfig, open, isPartitioned, reset, syncConfToStore]);
+
+  // The suggestion is computed per request, so it can arrive late or change while the form is open.
+  // Follow it until the user edits the field; clearing the field counts as an edit.
+  useEffect(() => {
+    if (!open || !isPartitioned || userEditedPartitionKeyRef.current || suggestedPartitionKey === undefined) {
+      return;
+    }
+    // A null suggestion means "none": the field is emptied.
+    const suggestion = suggestedPartitionKey ?? "";
+
+    setAppliedSuggestion(suggestion);
+    setValue("partitionKey", suggestion);
+  }, [open, isPartitioned, setValue, suggestedPartitionKey]);
+
+  const onPartitionKeyEdit = useCallback(() => {
+    userEditedPartitionKeyRef.current = true;
+    setAppliedSuggestion("");
+  }, []);
 
   // Automatically reset form when conf is fetched (only if no prefillConfig)
   useEffect(() => {
@@ -173,6 +216,8 @@ const TriggerDAGForm = ({
   const resetDateError = () => setErrors((prev) => ({ ...prev, date: undefined }));
 
   const logicalDate = watch("logicalDate");
+  const partitionKey = watch("partitionKey");
+  const isSuggestedValue = Boolean(partitionKey) && partitionKey === appliedSuggestion;
   const startDate = dagDetails?.start_date ?? undefined;
   const endDate = dagDetails?.end_date ?? undefined;
   const formatDagDate = (date: string) => formatDate(date, selectedTimezone, DAG_DATE_FORMAT);
@@ -329,7 +374,12 @@ const TriggerDAGForm = ({
           setErrors={setErrors}
           setFormError={setFormError}
         >
-          <TriggerDAGAdvancedOptions control={control} isPartitioned={isPartitioned} />
+          <TriggerDAGAdvancedOptions
+            control={control}
+            isPartitioned={isPartitioned}
+            isSuggestedValue={isSuggestedValue}
+            onPartitionKeyEdit={onPartitionKeyEdit}
+          />
         </ConfigForm>
       </VStack>
       <Box as="footer" display="flex" justifyContent="flex-end" mt={4}>

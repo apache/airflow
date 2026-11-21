@@ -28,19 +28,7 @@ import { server } from "src/mocks/server";
 import { Wrapper } from "src/utils/Wrapper";
 
 import TriggerDAGForm from "./TriggerDAGForm";
-
-const dagParams = vi.hoisted(() => ({
-  paramsDict: {
-    message: {
-      description: "Message",
-      schema: {
-        title: "Message",
-        type: "string",
-      },
-      value: "Hello",
-    },
-  },
-}));
+import { dagParams } from "./TriggerDAGForm.testUtils";
 
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
