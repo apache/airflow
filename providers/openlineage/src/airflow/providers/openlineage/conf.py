@@ -164,6 +164,12 @@ def dag_state_change_process_pool_size() -> int:
 
 
 @cache
+def asset_watcher_event_queue_size() -> int:
+    """[openlineage] asset_watcher_event_queue_size."""
+    return conf.getint(_CONFIG_SECTION, "asset_watcher_event_queue_size", fallback="100")
+
+
+@cache
 def execution_timeout() -> int:
     """[openlineage] execution_timeout."""
     return conf.getint(_CONFIG_SECTION, "execution_timeout", fallback="10")
