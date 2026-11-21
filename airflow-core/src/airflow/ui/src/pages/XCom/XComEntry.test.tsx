@@ -40,14 +40,7 @@ afterEach(() => vi.restoreAllMocks());
 const renderValue = (value: string) => {
   server.use(http.get(entryUrl, () => HttpResponse.json({ key: "return_value", value })));
 
-  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-
-  render(
-    <QueryClientProvider client={queryClient}>
-      <XComEntry {...entryProps} xcomKey="return_value" />
-    </QueryClientProvider>,
-    { wrapper: Wrapper },
-  );
+  render(<XComEntry {...entryProps} xcomKey="return_value" />, { wrapper: Wrapper });
 };
 
 describe("XComEntry", () => {
@@ -64,13 +57,11 @@ describe("XComEntry", () => {
       ),
     );
 
-    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-
     render(
-      <QueryClientProvider client={queryClient}>
+      <>
         <XComEntry {...entryProps} xcomKey="failed_entry" />
         <XComEntry {...entryProps} xcomKey="healthy_entry" />
-      </QueryClientProvider>,
+      </>,
       { wrapper: Wrapper },
     );
 
@@ -96,14 +87,7 @@ describe("XComEntry", () => {
       http.get(entryUrl, () => HttpResponse.json({ detail: "XCom entry was deleted" }, { status: 404 })),
     );
 
-    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-
-    render(
-      <QueryClientProvider client={queryClient}>
-        <XComEntry {...entryProps} xcomKey="failed_entry" />
-      </QueryClientProvider>,
-      { wrapper: Wrapper },
-    );
+    render(<XComEntry {...entryProps} xcomKey="failed_entry" />, { wrapper: Wrapper });
 
     fireEvent.click(await screen.findByRole("button", { name: `${errorTitle} 404` }));
 
@@ -185,14 +169,7 @@ describe("XComEntry", () => {
       ),
     );
 
-    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-
-    render(
-      <QueryClientProvider client={queryClient}>
-        <XComEntry {...entryProps} xcomKey="failed_entry" />
-      </QueryClientProvider>,
-      { wrapper: Wrapper },
-    );
+    render(<XComEntry {...entryProps} xcomKey="failed_entry" />, { wrapper: Wrapper });
 
     fireEvent.click(await screen.findByRole("button", { name: `${errorTitle} 422` }));
 
@@ -204,14 +181,7 @@ describe("XComEntry", () => {
   it("shows a network error without an HTTP status or copy button", async () => {
     server.use(http.get(entryUrl, () => HttpResponse.error()));
 
-    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-
-    render(
-      <QueryClientProvider client={queryClient}>
-        <XComEntry {...entryProps} xcomKey="failed_entry" />
-      </QueryClientProvider>,
-      { wrapper: Wrapper },
-    );
+    render(<XComEntry {...entryProps} xcomKey="failed_entry" />, { wrapper: Wrapper });
 
     const trigger = await screen.findByRole("button", { name: errorTitle });
 

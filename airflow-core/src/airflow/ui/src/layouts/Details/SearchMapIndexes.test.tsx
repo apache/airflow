@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import "@testing-library/jest-dom/vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -28,6 +27,7 @@ import { BaseWrapper } from "src/utils/Wrapper";
 import type { MapIndexSearchOption } from "src/utils/option";
 
 import { SearchMapIndexes } from "./SearchMapIndexes";
+import { typeSearch } from "./typeSearch.testUtils";
 
 vi.mock("chakra-react-select", () => ({
   Select: ({
@@ -103,7 +103,9 @@ const renderSearch = (initialEntry: string, route: string) =>
 const MAPPED_ROUTE = "/dags/:dagId/runs/:runId/tasks/:taskId/mapped/:mapIndex";
 
 describe("SearchMapIndexes", () => {
-  afterEach(() => vi.restoreAllMocks());
+  afterEach(() => {
+    vi.useRealTimers();
+  });
 
   it("names each instance by its rendered map index, with its state", () => {
     renderSearch("/dags/my_dag/runs/run_1/tasks/task_1/mapped/2", MAPPED_ROUTE);
@@ -166,7 +168,7 @@ describe("SearchMapIndexes", () => {
 
     renderSearch("/dags/my_dag/runs/run_1/tasks/task_1/mapped/2", MAPPED_ROUTE);
 
-    fireEvent.change(screen.getByLabelText("Search"), { target: { value: "alpha" } });
+    typeSearch("alpha");
 
     await waitFor(() =>
       expect(getMapped).toHaveBeenCalledWith(
@@ -194,7 +196,7 @@ describe("SearchMapIndexes", () => {
 
     renderSearch("/dags/my_dag/runs/run_1/tasks/task_1/mapped/2", MAPPED_ROUTE);
 
-    fireEvent.change(screen.getByLabelText("Search"), { target: { value: "alpha" } });
+    typeSearch("alpha");
 
     expect(await screen.findByRole("button", { name: "alpha (running)" })).toBeInTheDocument();
   });

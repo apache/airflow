@@ -17,7 +17,7 @@
  * under the License.
  */
 import "@testing-library/jest-dom/vitest";
-import { cleanup } from "@testing-library/react";
+import { cleanup, configure } from "@testing-library/react";
 import type { SetupServer } from "msw/node";
 import { beforeEach, afterEach, vi } from "vitest";
 
@@ -72,6 +72,10 @@ vi.mock("chart.js", () => ({
   Title: vi.fn(),
   Tooltip: vi.fn(),
 }));
+
+// A page can need several requests and renders before it settles, which a loaded CI runner can take
+// more than the default second to do. A test that fails waits longer before reporting it.
+configure({ asyncUtilTimeout: 3000 });
 
 // Listen at import time rather than in beforeAll: modules such as src/i18n/config send requests
 // while the test file is still being imported.

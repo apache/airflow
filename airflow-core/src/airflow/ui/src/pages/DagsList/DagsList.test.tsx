@@ -19,7 +19,7 @@
 import "@testing-library/jest-dom/vitest";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { delay, http, HttpResponse } from "msw";
-import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { DagSchedulingState } from "openapi/requests/types.gen";
 
@@ -28,7 +28,7 @@ import { failedDag, pausedDag, successDag } from "src/mocks/handlers/dags";
 import { server } from "src/mocks/server";
 import { AppWrapper, preloadAppRoutes } from "src/utils/AppWrapper";
 
-beforeAll(() => preloadAppRoutes(["/dags"]));
+await preloadAppRoutes(["/dags"]);
 
 afterEach(() => {
   localStorage.clear();
@@ -448,10 +448,8 @@ const serveRefreshingDagsList = () => {
   return async () => {
     const next = String(countsResponses + 1);
 
-    await waitFor(
-      () =>
-        expect(screen.getByTestId(`run-state-count-running-${runningDag.dag_id}`)).toHaveTextContent(next),
-      { timeout: 3000 },
+    await waitFor(() =>
+      expect(screen.getByTestId(`run-state-count-running-${runningDag.dag_id}`)).toHaveTextContent(next),
     );
   };
 };

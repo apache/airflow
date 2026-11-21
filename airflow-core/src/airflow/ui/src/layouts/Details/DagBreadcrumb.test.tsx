@@ -193,7 +193,7 @@ describe("DagBreadcrumb", () => {
 
     fireEvent.click(await screen.findByTestId("switch-dag"));
 
-    const option = await screen.findByText(`${DAG_ID}_success`, undefined, { timeout: 3000 });
+    const option = await screen.findByText(`${DAG_ID}_success`);
 
     fireEvent.click(option);
 
@@ -262,7 +262,7 @@ describe("DagBreadcrumb", () => {
 
     fireEvent.click(await screen.findByTestId("switch-dag-run"));
 
-    fireEvent.click(await screen.findByText("run_in_range", undefined, { timeout: 3000 }));
+    fireEvent.click(await screen.findByText("run_in_range"));
 
     await waitFor(() =>
       expect(screen.getByTestId("location-pathname")).toHaveTextContent(

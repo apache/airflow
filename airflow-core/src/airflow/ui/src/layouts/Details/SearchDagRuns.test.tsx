@@ -27,6 +27,7 @@ import { BaseWrapper } from "src/utils/Wrapper";
 import type { DagRunSearchOption } from "src/utils/option";
 
 import { SearchDagRuns } from "./SearchDagRuns";
+import { typeSearch } from "./typeSearch.testUtils";
 
 // Stands in for the real combo box: it lists whatever the panel was handed without a search, and
 // offers one button that runs a search, which is the split this component is built around.
@@ -123,7 +124,7 @@ describe("SearchDagRuns", () => {
   });
 
   afterEach(() => {
-    vi.restoreAllMocks();
+    vi.useRealTimers();
   });
 
   it("lists the runs it was handed, by run id and state, without asking for any", () => {
@@ -137,7 +138,7 @@ describe("SearchDagRuns", () => {
   it("reaches past the listed runs when searched", async () => {
     renderSearch("/dags/my_dag/runs/run_1", "/dags/:dagId/runs/:runId");
 
-    fireEvent.change(screen.getByLabelText("Search"), { target: { value: "older" } });
+    typeSearch("older");
 
     await waitFor(() =>
       expect(DagRunService.getDagRuns).toHaveBeenCalledWith(

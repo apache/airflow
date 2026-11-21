@@ -19,14 +19,14 @@
 import "@testing-library/jest-dom/vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
-import { beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 
 import { server } from "src/mocks/server";
 import { AppWrapper, preloadAppRoutes } from "src/utils/AppWrapper";
 
 const hitlRequests: Array<{ dagId: string; dagRunId: string }> = [];
 
-beforeAll(() => preloadAppRoutes(["/dags/tutorial_taskflow_api/required_actions"]));
+await preloadAppRoutes(["/dags/tutorial_taskflow_api/required_actions"]);
 
 beforeEach(() => {
   server.use(

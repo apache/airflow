@@ -16,47 +16,25 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { ChakraProvider, defaultSystem } from "@chakra-ui/react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import "@testing-library/jest-dom/vitest";
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
-import { createMemoryRouter, RouterProvider } from "react-router-dom";
-import { beforeAll, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
-import { TimezoneProvider } from "src/context/timezone";
 import { alsoWatching, triggers } from "src/mocks/handlers/triggers";
 import { server } from "src/mocks/server";
-import { routerConfig } from "src/router";
-import { preloadAppRoutes } from "src/utils/AppWrapper";
+import { AppWrapper, preloadAppRoutes } from "src/utils/AppWrapper";
 
-beforeAll(() => preloadAppRoutes(["/triggers"]));
+await preloadAppRoutes(["/triggers"]);
 
-const renderAt = (path: string) =>
-  render(
-    <ChakraProvider value={defaultSystem}>
-      <QueryClientProvider
-        client={new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } })}
-      >
-        <TimezoneProvider>
-          <RouterProvider
-            router={createMemoryRouter(
-              routerConfig.map((route) => ({ ...route, loader: undefined })),
-              { initialEntries: [path] },
-            )}
-          />
-        </TimezoneProvider>
-      </QueryClientProvider>
-    </ChakraProvider>,
-  );
+const renderAt = (path: string) => render(<AppWrapper initialEntries={[path]} />);
 
 // Tests render i18n keys: the msw handlers serve empty translation bundles.
 describe("Triggers list", () => {
   it("shows every kind with its status and a link to what it runs for", async () => {
     renderAt("/triggers");
 
-    // The first render loads the lazy page modules; under a full parallel run that takes over a second.
-    const taskLink = await screen.findByRole("link", { name: "deferring_dag / wait" }, { timeout: 5000 });
+    const taskLink = await screen.findByRole("link", { name: "deferring_dag / wait" });
 
     expect(taskLink).toHaveAttribute("href", "/dags/deferring_dag/runs/manual_run/tasks/wait");
     expect(screen.getByRole("link", { name: "deadline_dag / scheduled_run" })).toHaveAttribute(
@@ -88,7 +66,7 @@ describe("Triggers list", () => {
     );
     renderAt("/triggers");
 
-    const watcherRow = await screen.findByRole("row", { name: /^3\b/u }, { timeout: 5000 });
+    const watcherRow = await screen.findByRole("row", { name: /^3\b/u });
     const taskRow = screen.getByRole("row", { name: /^1\b/u });
     const column = screen
       .getAllByRole("columnheader")
@@ -114,9 +92,7 @@ describe("Triggers list", () => {
     vi.useFakeTimers({ now: new Date("2026-10-01T03:04:00Z"), toFake: ["Date"] });
     renderAt("/triggers");
 
-    expect(await screen.findByTestId("trigger-last-failed", undefined, { timeout: 5000 })).toHaveTextContent(
-      "3 hours ago",
-    );
+    expect(await screen.findByTestId("trigger-last-failed")).toHaveTextContent("3 hours ago");
     vi.useRealTimers();
   });
 
