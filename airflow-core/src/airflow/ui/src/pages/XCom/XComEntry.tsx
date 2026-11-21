@@ -18,14 +18,15 @@
  */
 import { useState } from "react";
 
-import { Skeleton, Button, HStack, Heading, Text, Link } from "@chakra-ui/react";
+import { Skeleton, Button, HStack, Heading, Text, Link, useDisclosure } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiAlertCircle } from "react-icons/fi";
+import { MdOutlineOpenInFull } from "react-icons/md";
 
 import { useXcomServiceGetXcomEntry } from "openapi/queries";
 import type { XComResponseNative } from "openapi/requests/types.gen";
 
-import { ClipboardIconButton, ClipboardRoot, Dialog, Modal } from "src/system-components";
+import { ClipboardIconButton, ClipboardRoot, Dialog, IconButton, Modal } from "src/system-components";
 
 import { ErrorAlert, type ExpandedApiError } from "src/components/ErrorAlert";
 import { ErrorModal } from "src/components/ErrorModal";
@@ -114,22 +115,20 @@ const XComError = ({ error }: { readonly error: unknown }) => {
 };
 
 const XComFullValue = ({ value }: { readonly value: string }) => {
-  const { t: translate } = useTranslation("browse");
-  const [open, setOpen] = useState(false);
+  const { t: translate } = useTranslation(["browse", "common"]);
+  const { onClose, onOpen, open } = useDisclosure();
 
   return (
     <>
-      <Button
+      <IconButton
         aria-haspopup="dialog"
+        aria-label={translate("common:expand.expand")}
         data-testid="xcom-view-full"
-        fontSize="sm"
-        onClick={() => setOpen(true)}
-        px={0}
-        size="xs"
-        variant="plain"
+        label={translate("common:expand.expand")}
+        onClick={onOpen}
       >
-        {translate("xcom.viewFull")}
-      </Button>
+        <MdOutlineOpenInFull />
+      </IconButton>
       <Modal
         bodyProps={{ overflowWrap: "anywhere" }}
         contentProps={{ padding: 4 }}
@@ -146,10 +145,11 @@ const XComFullValue = ({ value }: { readonly value: string }) => {
           ),
         }}
         lazyMount
-        onOpenChange={() => setOpen(false)}
+        onOpenChange={onClose}
         open={open}
         scrollBehavior="inside"
-        size="lg"
+        size="full"
+        unmountOnExit
       >
         <Text data-testid="xcom-full-value" overflowWrap="anywhere" whiteSpace="pre-wrap">
           {renderTextWithLinks(value)}

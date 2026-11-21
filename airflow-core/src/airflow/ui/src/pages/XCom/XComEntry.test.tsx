@@ -56,7 +56,7 @@ describe("XComEntry", () => {
 
     renderValue(longValue);
 
-    fireEvent.click(await screen.findByRole("button", { name: "xcom.viewFull" }));
+    fireEvent.click(await screen.findByTestId("xcom-view-full"));
 
     const dialog = await screen.findByRole("dialog", { name: "xcom.value" });
 
@@ -69,9 +69,9 @@ describe("XComEntry", () => {
 
     await screen.findByText("Short value");
 
-    expect(screen.queryByRole("button", { name: "xcom.viewFull" })).not.toBeInTheDocument();
+    expect(screen.queryByTestId("xcom-view-full")).not.toBeInTheDocument();
   });
-  
+
   it.each([
     { detail: "XCom entry was deleted", status: 404 },
     { detail: "Access to this XCom entry is denied", status: 403 },
