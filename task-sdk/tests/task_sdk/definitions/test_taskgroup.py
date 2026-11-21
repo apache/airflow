@@ -215,6 +215,109 @@ def test_build_task_group():
     assert group34.group_id == "group234.group34"
 
 
+def test_task_group_retries():
+    """TaskGroup accepts a ``retries`` count for retrying the group as a unit; it defaults to 0."""
+    logical_date = pendulum.parse("20200101")
+    with DAG("test_task_group_retries", schedule=None, start_date=logical_date):
+        with TaskGroup("g", retries=3) as g:
+            EmptyOperator(task_id="t")
+        with TaskGroup("plain") as plain:
+            EmptyOperator(task_id="t2")
+
+    assert g.retries == 3
+    assert plain.retries == 0
+
+
+@pytest.mark.parametrize("retries", [-1, True])
+def test_task_group_rejects_invalid_retries(retries):
+    with DAG("test_task_group_invalid_retries", schedule=None):
+        with pytest.raises(ValueError, match="retries must be a non-negative integer"):
+            TaskGroup("g", retries=retries)
+
+
+def _mapped_group_with_retries():
+    @task_group_decorator(retries=2)
+    def grp(x):
+        EmptyOperator(task_id="inner")
+
+    grp.expand(x=[1, 2])
+
+
+def _group_with_retries_in_mapped_group():
+    @task_group_decorator
+    def outer(x):
+        with TaskGroup("g", retries=2):
+            EmptyOperator(task_id="inner")
+
+    outer.expand(x=[1, 2])
+
+
+def _looped_group_with_retries():
+    @task_group_decorator(retries=2)
+    def body():
+        return task_decorator(lambda: 1, task_id="work")()
+
+    body.loop(max_iterations=2)
+
+
+def _group_with_retries_in_loop():
+    @task_group_decorator
+    def body():
+        with TaskGroup("g", retries=2):
+            work = task_decorator(lambda: 1, task_id="work")()
+        return work
+
+    body.loop(max_iterations=2)
+
+
+def _loop_in_group_with_retries():
+    with TaskGroup("g", retries=2):
+
+        @task_group_decorator
+        def body():
+            return task_decorator(lambda: 1, task_id="work")()
+
+        body.loop(max_iterations=2)
+
+
+def _group_with_retries_and_teardown():
+    with TaskGroup("g", retries=2):
+        create = EmptyOperator(task_id="create").as_setup()
+        create >> EmptyOperator(task_id="work") >> EmptyOperator(task_id="delete").as_teardown(setups=create)
+
+
+@pytest.mark.parametrize(
+    ("build", "match"),
+    [
+        pytest.param(
+            _mapped_group_with_retries, "is or is inside a mapped task group or a loop", id="mapped"
+        ),
+        pytest.param(_group_with_retries_in_mapped_group, "is or is inside a mapped", id="in-mapped"),
+        pytest.param(_looped_group_with_retries, "is or is inside a mapped task group or a loop", id="loop"),
+        pytest.param(
+            _group_with_retries_in_loop, "is or is inside a mapped task group or a loop", id="in-loop"
+        ),
+        pytest.param(_loop_in_group_with_retries, "contains loop 'g.body'", id="contains-loop"),
+        pytest.param(_group_with_retries_and_teardown, "contains setup or teardown task", id="teardown"),
+    ],
+)
+def test_task_group_retries_rejected_where_group_cannot_be_retried(build, match):
+    with DAG("test_task_group_retries_rejected", schedule=None) as dag:
+        build()
+
+    with pytest.raises(ValueError, match=match):
+        dag.validate()
+
+
+def test_nested_task_groups_with_retries_are_valid():
+    with DAG("test_nested_task_group_retries", schedule=None) as dag:
+        with TaskGroup("outer", retries=1):
+            with TaskGroup("inner", retries=2):
+                EmptyOperator(task_id="t")
+
+    dag.validate()
+
+
 def test_build_task_group_with_prefix():
     """
     Tests that prefix_group_id turns on/off prefixing of task_id with group_id.

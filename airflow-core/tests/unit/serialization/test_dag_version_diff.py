@@ -1254,6 +1254,32 @@ def test_build_diff_classifies_loop_bound_changes_as_execution(include_values):
         assert "secret_" not in json.dumps(result)
 
 
+@pytest.mark.parametrize("include_values", [False, True])
+def test_build_diff_classifies_task_group_retries_changes_as_execution(include_values):
+    payloads = []
+    for retries in (1, 3):
+        with DAG("task_group_diff", schedule=None) as dag:
+            with TaskGroup(group_id="secret_group", retries=retries):
+                BashOperator(task_id="secret_task", bash_command="echo hello")
+        payloads.append(DagSerialization.to_dict(dag))
+
+    result = build_serialized_dag_diff(
+        base_data=payloads[0], target_data=payloads[1], include_values=include_values
+    )
+
+    group_changes = [change for change in result["changes"] if change["path"].startswith("/dag/task_group/")]
+    assert len(group_changes) == 1
+    change = group_changes[0]
+    group_id = "secret_group" if include_values else "*"
+    assert change["path"] == f"/dag/task_group/children/{group_id}/1/retries"
+    assert change["category"] == "task"
+    assert change["impact"] == "execution"
+    if include_values:
+        assert (change["before_value"], change["after_value"]) == (1, 3)
+    else:
+        assert "secret_" not in json.dumps(result)
+
+
 @pytest.mark.parametrize("operation", ["added", "removed"])
 @pytest.mark.parametrize("include_values", [False, True])
 def test_build_diff_redacts_task_group_membership_changes(operation, include_values):
