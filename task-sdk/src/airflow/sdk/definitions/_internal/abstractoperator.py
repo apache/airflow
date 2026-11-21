@@ -307,6 +307,16 @@ class AbstractOperator(Templater, DAGNode):
             if self.node_id in child.upstream_task_ids:
                 yield child
 
+    def iter_expansion_sources(self) -> Iterator[AbstractOperator]:
+        """
+        Return the upstream tasks whose output this task runs once per item of.
+
+        Nothing for a plain task. A mapped task runs over its mapped dependencies, and an iterated
+        task over the upstream tasks of the input it iterates, which the scheduler does not count.
+        The loop check refuses either from outside the loop of such an upstream task.
+        """
+        return iter(())
+
     def iter_mapped_dependants(self) -> Iterator[MappedOperator | MappedTaskGroup]:
         """
         Return mapped nodes that depend on the current task the expansion.
