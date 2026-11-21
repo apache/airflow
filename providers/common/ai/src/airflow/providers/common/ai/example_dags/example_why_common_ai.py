@@ -43,9 +43,9 @@ def example_why_common_ai():
             SQLToolset(db_conn_id="warehouse", allowed_tables=["orders"]),
             ObjectStorageToolset("s3://acme-reports/finance/", conn_id="aws_default"),
         ],
+        # On Airflow 3.3+ a task that can retry is durable by default: a retry replays
+        # the model and tool calls that already finished.
         retries=2,
-        # A retry replays the model and tool calls that already finished.
-        durable=True,
         # On Airflow 3.3+ one total covers every attempt of the task instance.
         usage_limits={"request_limit": 30, "total_tokens_limit": 200_000},
     )
