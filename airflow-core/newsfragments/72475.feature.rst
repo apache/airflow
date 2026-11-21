@@ -1,0 +1,1 @@
+Add opt-in deterministic jitter (``seed``/``max_jitter``) to all cron-based timetables (``CronTriggerTimetable``, ``CronDataIntervalTimetable``, ``MultipleCronTriggerTimetable``, ``CronPartitionTimetable``) to spread out Dags that share a cron expression.
