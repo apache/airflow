@@ -17,12 +17,58 @@
  under the License.
  -->
 
-# Override: release-verify-rc — optional contributor check of your own changes
+# Override: release-verify-rc — SVN check, and optional contributor check of your own changes
 
 ## What this overrides
 
-Adds an **optional** step to the `release-verify-rc` skill for Airflow provider
-waves: after (or instead of) the artefact checks, verify that every change the
+Adds two steps to the `release-verify-rc` skill for Airflow provider waves:
+
+- **Step 1a, required:** the SVN check from
+  [`README_RELEASE_PROVIDERS.md` § SVN check](../dev/README_RELEASE_PROVIDERS.md#svn-check).
+  It is part of the PASS / FAIL verdict.
+- **Steps A–D, optional:** check the changes you wrote yourself.
+
+## Step 1a — SVN check against the vote (required)
+
+Run it right after Step 1, on every providers wave, ad-hoc waves included.
+Step 1 matches the staged files against globs. That cannot show that each
+provider in the vote has its sdist and wheel. A provider missing from staging,
+or staged under the wrong version, passes Steps 1–3. Only this check catches
+that. An Airflow PMC verification without it is incomplete.
+
+1. Write the PyPI RC links from the `[VOTE]` email into `files/packages.txt`,
+   one per line, e.g.
+   `https://pypi.org/project/apache-airflow-providers-amazon/9.40.0rc2/`.
+   Take them from the email, not from the staging folder: the point is to
+   compare the two. If providers were excluded later in the thread, drop them
+   and say so in the report.
+2. `breeze release-management check-release-files providers` needs the
+   staging folder at `<svn-root>/providers/<YYYY-MM-DD>`. Step 1's `svn export`
+   copy works if you export it to that path or symlink it there.
+3. Run, from the Airflow checkout:
+
+   ```bash
+   breeze release-management check-release-files providers \
+     --release-date <YYYY-MM-DD> --packages-file files/packages.txt \
+     --path-to-airflow-svn <svn-root>
+   ```
+
+4. `PASS` when it prints `All expected files are present!` and exits 0.
+   `FAIL` when it exits 1. Report every file it lists as `MISSING`. It checks
+   the source tarball, plus the sdist and wheel of every package in
+   `packages.txt`, each with its `.asc` and `.sha512`.
+5. It does not flag extras. List the staged sdists and wheels that match no
+   package in `packages.txt` as `WARN` for the release manager to explain.
+6. It also writes `Dockerfile.pmc`, which installs every RC from PyPI. Give the
+   user the `docker build` / `docker run` commands it prints, for the
+   installation check. Do not run them yourself.
+
+Report Step 1a as its own row next to Step 1, with the command's output.
+A `FAIL` here is final, like a Step 1 `FAIL`.
+
+## Steps A–D — optional contributor check of your own changes
+
+After (or instead of) the artefact checks, verify that every change the
 person running the skill authored is in the release candidate, and let them test
 those changes against the RC distributions running in Breeze. Run it when the user
 asks to "check my changes in the RC", "test my changes in the providers release",
