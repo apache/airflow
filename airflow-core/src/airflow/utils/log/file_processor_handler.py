@@ -59,12 +59,12 @@ class FileProcessorHandler(logging.Handler):
 
         :param filename: filename in which the dag is located
         """
+        current_date = timezone.utcnow().date()
         local_loc = self._init_file(filename)
         self.handler = NonCachingFileHandler(local_loc)
         self.handler.setFormatter(self.formatter)
         self.handler.setLevel(self.level)
 
-        current_date = timezone.utcnow().date()
         if self._cur_date < current_date:
             self._symlink_latest_log_directory()
             self._cur_date = current_date
