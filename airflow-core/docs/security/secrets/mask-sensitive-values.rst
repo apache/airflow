@@ -35,6 +35,18 @@ a formatter such as ``pprint`` splits a multi-line string into separate string l
 Kubernetes pod spec is printed. Lines shorter than :ref:`config:logging__min_length_masked_secret` are not masked
 on their own.
 
+A value that contains spaces or special characters is also masked when a formatter prints it differently from how it
+was registered. ``pprint`` splits a string that does not fit the line width at its spaces into adjacent string
+literals, and ``repr`` and ``pprint`` print backslashes, mixed quote kinds and non-printable characters as escape
+sequences. Airflow matches these printed forms too. A few forms are not matched, so such a value can still appear in
+your logs when it is printed this way:
+
+* A value with leading or trailing whitespace that ``pprint`` splits.
+* A value with both quote kinds in different words when ``pprint`` splits it, because ``pprint`` escapes quotes per
+  piece.
+* The lines of a multi-line value that contain special characters or that are long enough for ``pprint`` to split
+  further, because each line is masked as plain text only.
+
 This also applies to a Connection's extra field that is stored as pretty-printed, multi-line JSON: each eligible
 line of it, such as ``"timeout": 30,``, is replaced with ``***`` in your logs, including in unrelated text.
 Compact, single-line JSON does not have this effect, but saving the connection in the UI formats extra with

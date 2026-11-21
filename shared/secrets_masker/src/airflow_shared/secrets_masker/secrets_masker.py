@@ -105,6 +105,20 @@ SECRETS_TO_SKIP_MASKING = {"airflow"}
 _CAMEL_LOWER_UPPER_RE = re.compile(r"([a-z0-9])([A-Z])")
 _CAMEL_ACRONYM_RE = re.compile(r"([A-Z]+)([A-Z][a-z])")
 _NON_WORD_RE = re.compile(r"\W+")
+# ``pprint`` wraps a long string at whitespace into adjacent literals (``'abc ' 'def'``), so a space in a secret
+# can be followed by a closing quote, a line break and an opening quote. ``repr`` prints whitespace other than
+# the plain space as an escape sequence, which is what the separator has to match besides real whitespace:
+#   ``\t``, ``\r``    tab, carriage return
+#   ``\xNN``          vertical tab, form feed, U+001C-U+001F, U+0085, U+00A0 (no-break space)
+#   ``\uNNNN``        U+1680, U+2000-U+200A, U+2028, U+2029, U+202F, U+205F, U+3000
+# The escaped ``\n`` is left out: ``pprint`` output of a multi-line secret is masked line by line, see
+# ``_adaptations``. A real line break is matched by ``\s``.
+_WRAPPED_SPACE_PATTERN = r"""(?:\s|\\[tr]|\\x[0-9a-f]{2}|\\u[0-9a-f]{4})+(?:['"]\s+['"])?"""
+
+
+def _get_pattern_length(pattern: str) -> int:
+    """Return the length of ``pattern`` counting a wrapped-space separator as the escaped space it stands for."""
+    return len(pattern.replace(_WRAPPED_SPACE_PATTERN, r"\ "))
 
 
 def should_hide_value_for_key(name):
@@ -598,6 +612,11 @@ class SecretsMasker(logging.Filter):
         if lines != [secret]:
             yield from map(str.strip, lines)
 
+        # ``repr`` and ``pprint`` print backslashes, mixed quotes and non-printable characters escaped.
+        printed = repr(secret)[1:-1]
+        if printed != secret:
+            yield printed
+
         if self.secret_mask_adapter:
             # This can return an iterable of secrets to mask OR a single secret as a string
             secret_or_secrets = self.secret_mask_adapter(secret)
@@ -661,10 +680,19 @@ class SecretsMasker(logging.Filter):
                     if pattern not in self.patterns and (not name or self.should_hide_value_for_key(name)):
                         self.patterns.add(pattern)
                         new_mask = True
+            words = secret.split()
+            if len(words) > 1 and (not name or self.should_hide_value_for_key(name)):
+                # ``pprint`` prints each wrapped piece through ``repr``.
+                wrapped_pattern = _WRAPPED_SPACE_PATTERN.join(re.escape(repr(word)[1:-1]) for word in words)
+                if wrapped_pattern not in self.patterns:
+                    self.patterns.add(wrapped_pattern)
+                    new_mask = True
             if new_mask:
                 # Regex alternation takes the first alternative that matches, not the longest, so
                 # longer secrets must come first or a secret that is a prefix of another leaves its tail.
-                self.replacer = re.compile("|".join(sorted(self.patterns, key=len, reverse=True)))
+                self.replacer = re.compile(
+                    "|".join(sorted(self.patterns, key=_get_pattern_length, reverse=True))
+                )
 
         elif isinstance(secret, collections.abc.Iterable):
             for v in secret:
