@@ -1251,6 +1251,7 @@ ol
 Ollama
 onboarded
 onboarding
+OneLake
 OnFailure
 Oozie
 OPA
