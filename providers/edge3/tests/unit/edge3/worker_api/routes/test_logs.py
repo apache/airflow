@@ -22,10 +22,12 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pytest
-from fastapi import HTTPException
+from fastapi import FastAPI, HTTPException
+from fastapi.testclient import TestClient
 from sqlalchemy import delete, select
 
-from airflow.providers.common.compat.sdk import timezone
+from airflow.api_fastapi.auth.tokens import JWTGenerator
+from airflow.providers.common.compat.sdk import conf, timezone
 from airflow.providers.edge3.models.edge_job import EdgeJobModel
 from airflow.providers.edge3.models.edge_logs import EdgeLogsModel
 from airflow.providers.edge3.models.types import (
@@ -34,8 +36,9 @@ from airflow.providers.edge3.models.types import (
     EXECUTE_CALLBACK_TAG,
     build_callback_run_id,
 )
+from airflow.providers.edge3.worker_api.auth import jwt_validator
 from airflow.providers.edge3.worker_api.datamodels import PushLogsBody
-from airflow.providers.edge3.worker_api.routes.logs import _logfile_path, logfile_path, push_logs
+from airflow.providers.edge3.worker_api.routes.logs import _logfile_path, logfile_path, logs_router, push_logs
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils.session import create_session
 from airflow.utils.state import TaskInstanceState
@@ -54,6 +57,7 @@ TASK_ID = "my_task"
 RUN_ID = "manual__2024-11-24"
 CALLBACK_ID = "12345678-1234-5678-1234-567812345678"
 CALLBACK_LOG_PATH = f"executor_callbacks/{DAG_ID}/{RUN_ID}/{CALLBACK_ID}"
+UNKNOWN_TI_ID = "0198f1d2-3c4b-7a5e-8f60-123456789abc"
 
 
 class TestLogsApiRoutes:
@@ -71,6 +75,100 @@ class TestLogsApiRoutes:
         assert p
         assert str(Path(f"dag_id={DAG_ID}") / f"run_id={RUN_ID}" / f"task_id={TASK_ID}" / "attempt=1") in p
         assert "-1" not in Path(p).parts
+
+    @pytest.mark.parametrize("method", ["GET", "POST"])
+    @pytest.mark.parametrize(
+        ("task_id", "sent_ti_id", "stored_ti_id"),
+        [
+            pytest.param("nonexistent_task", None, None, id="unknown-task"),
+            pytest.param(
+                TASK_ID,
+                UNKNOWN_TI_ID,
+                None,
+                id="unknown-sent-task-instance-id",
+                marks=pytest.mark.skipif(
+                    not AIRFLOW_V_3_4_PLUS, reason="Task instance ids are sent only on Airflow 3.4+"
+                ),
+            ),
+            pytest.param(
+                "nonexistent_task",
+                None,
+                UNKNOWN_TI_ID,
+                id="unknown-stored-task-instance-id",
+                marks=pytest.mark.skipif(
+                    not AIRFLOW_V_3_4_PLUS, reason="Task instance ids are stored only on Airflow 3.4+"
+                ),
+            ),
+        ],
+    )
+    @conf_vars({("api_auth", "jwt_secret"): "edge-log-test-secret"})
+    def test_missing_ti_returns_404(
+        self,
+        method: str,
+        task_id: str,
+        sent_ti_id: str | None,
+        stored_ti_id: str | None,
+        session: Session,
+    ) -> None:
+        if stored_ti_id:
+            session.add(
+                EdgeJobModel(
+                    dag_id=DAG_ID,
+                    task_id=task_id,
+                    run_id=RUN_ID,
+                    map_index=-1,
+                    try_number=1,
+                    state="running",
+                    queue="default",
+                    concurrency_slots=1,
+                    command="",
+                    task_instance_id=stored_ti_id,
+                )
+            )
+            session.commit()
+        route_prefix = "logs/logfile_path" if method == "GET" else "logs/push"
+        route = f"{route_prefix}/{DAG_ID}/{task_id}/{RUN_ID}/1/-1"
+        params = {"task_instance_id": sent_ti_id} if method == "GET" and sent_ti_id else None
+        body: dict[str, str] | None = None
+        if method == "POST":
+            body = {
+                "log_chunk_data": "This is Lorem Ipsum log data",
+                "log_chunk_time": "2024-11-24T00:00:00Z",
+            }
+            if sent_ti_id:
+                body["task_instance_id"] = sent_ti_id
+        app = FastAPI()
+        app.include_router(logs_router, prefix="/edge_worker/v1")
+        token = JWTGenerator(
+            secret_key=conf.get("api_auth", "jwt_secret"),
+            valid_for=60,
+            audience="api",
+        ).generate(extras={"method": route})
+        jwt_validator.cache_clear()
+        _logfile_path.cache_clear()
+        try:
+            with TestClient(app, raise_server_exceptions=False) as client:
+                response = client.request(
+                    method=method,
+                    url=f"/edge_worker/v1/{route}",
+                    headers={"Authorization": token},
+                    params=params,
+                    json=body,
+                )
+        finally:
+            jwt_validator.cache_clear()
+            _logfile_path.cache_clear()
+            session.execute(delete(EdgeJobModel))
+            session.commit()
+
+        missing_ti_id = sent_ti_id or stored_ti_id
+        expected_detail = (
+            f"TaskInstance not found for dag_id={DAG_ID}, task_id={task_id}, run_id={RUN_ID}, map_index=-1"
+        )
+        if missing_ti_id:
+            expected_detail += f", task_instance_id={missing_ti_id}"
+        assert response.status_code == 404
+        assert response.json() == {"detail": expected_detail}
 
     @pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="Loop passes require Airflow 3.4+")
     def test_logfile_path_of_a_loop_pass_is_resolved_through_its_edge_job(self, dag_maker, session: Session):
