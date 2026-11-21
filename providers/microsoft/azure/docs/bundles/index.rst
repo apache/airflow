@@ -26,7 +26,9 @@ WasbDagBundle
 
 Use the :class:`~airflow.providers.microsoft.azure.bundles.wasb.WasbDagBundle` to configure an Azure Blob
 Storage bundle in your Airflow's ``[dag_processor] dag_bundle_config_list``. The bundle does not support
-versioning; tasks always use the latest blobs synced to the local bundle directory.
+versioning; tasks always use the latest blobs synced to the local bundle directory. This class stages
+every blob under ``prefix``. To stage from one ``.tar.gz`` blob, use
+:class:`~airflow.providers.microsoft.azure.bundles.wasb.WasbArchiveDagBundle`.
 
 Example of using the WasbDagBundle:
 
@@ -78,3 +80,45 @@ Reusing the Connection in Dags
 
 You can use the same ``wasb`` Connection ID in ``wasb_conn_id`` for the bundle and for operators or sensors
 that use ``WasbHook``.
+
+WasbArchiveDagBundle
+=====================
+
+Use :class:`~airflow.providers.microsoft.azure.bundles.wasb.WasbArchiveDagBundle` when the Dags are published
+as one ``.tar.gz`` blob. :class:`~airflow.providers.microsoft.azure.bundles.wasb.WasbDagBundle` downloads
+every blob under ``prefix`` one at a time. Each blob costs a full request round-trip, so bundles made of
+many small files can take a long time to stage — a cost paid by every component that stages the bundle,
+which with ephemeral workers (e.g. KubernetesExecutor task pods) means on every task start.
+
+``WasbArchiveDagBundle`` stages the bundle from the ``archive_blob`` blob: one properties read to detect
+changes (unchanged archives are not re-downloaded), one download to fetch it, then a local unpack and a swap
+into place. The archive is the only source of the Dags. Configure this class instead of ``WasbDagBundle``.
+It takes ``archive_blob`` and does not take ``prefix``. Authentication, permissions, and networking are the
+same as for ``WasbDagBundle``.
+
+Archive mode requires Python 3.11.4 or later, because unpacking uses ``tarfile`` ``filter="data"``
+(added in that release). Constructing ``WasbArchiveDagBundle`` on an older interpreter raises
+``RuntimeError``.
+
+.. code-block:: bash
+
+    export AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST='[
+     {
+         "name": "my-wasb-dags",
+         "classpath": "airflow.providers.microsoft.azure.bundles.wasb.WasbArchiveDagBundle",
+         "kwargs": {
+             "wasb_conn_id": "wasb_default",
+             "container_name": "airflow-dags",
+             "archive_blob": "bundle-archives/dags.tar.gz",
+             "refresh_interval": 60
+         }
+     }
+    ]'
+
+Publishing the archive is the responsibility of your deployment process. Members are extracted relative to
+the bundle root, so pack the contents of the Dags directory rather than the directory itself — for example:
+
+.. code-block:: bash
+
+    tar -C ./dags -czf dags.tar.gz .
+    az storage blob upload --container-name airflow-dags --name bundle-archives/dags.tar.gz --file dags.tar.gz --overwrite
