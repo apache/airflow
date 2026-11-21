@@ -207,6 +207,11 @@ if TYPE_CHECKING:
 log = logging.getLogger(__name__)
 TI_ID = uuid7()
 
+requires_posix_process = pytest.mark.skipif(
+    sys.platform == "win32",
+    reason="Exercises os.fork/os.posix_spawn/os.setpgid/os.killpg or signal.SIGKILL, which Windows lacks",
+)
+
 
 def lineno():
     """Returns the current line number in our program."""
@@ -831,6 +836,7 @@ class TestWatchedSubprocess:
         captured = capfd.readouterr()
         assert "On kill hook called!" in captured.out
 
+    @requires_posix_process
     def test_subprocess_sigkilled(self, client_with_ti_start):
         main_pid = os.getpid()
 
@@ -1803,6 +1809,7 @@ class TestWatchedSubprocess:
         mock_kill.assert_not_called()
         proc.process_log.error.assert_not_called()
 
+    @requires_posix_process
     @pytest.mark.parametrize(
         ("stops_on_sigterm", "expected_exit_code"),
         [
@@ -1865,6 +1872,7 @@ class TestWatchedSubprocess:
             "loc": mocker.ANY,
         } in captured_logs
 
+    @requires_posix_process
     @pytest.mark.parametrize(
         ("signal_to_raise", "log_pattern", "level"),
         (
@@ -1958,6 +1966,7 @@ class TestWatchedSubprocess:
         proc.selector.close.assert_called_once()
         proc.stdin.close.assert_called_once()
 
+    @requires_posix_process
     def test_task_runner_starts_in_new_process_group(self, client_with_ti_start):
         """Regression test for #65505: the task-runner child must be placed in
         its own process group (PGID == its PID) so kill() can reach
@@ -2005,6 +2014,7 @@ class TestWatchedSubprocess:
             proc.kill(signal.SIGKILL, force=True)
             proc.wait()
 
+    @requires_posix_process
     def test_child_keeps_supervisor_process_group_by_default(self):
         """Subprocess types that don't opt in to new_process_group (DAG
         processor, triggerer, callbacks) must keep the supervisor's process
@@ -2024,6 +2034,7 @@ class TestWatchedSubprocess:
             proc.kill(signal.SIGKILL, force=True)
 
 
+@requires_posix_process
 class TestWatchedSubprocessKill:
     @pytest.fixture
     def mock_process(self, mocker):
@@ -6503,6 +6514,7 @@ class TestResolveChildTarget:
             supervisor.WatchedSubprocess.start(target=lambda: None, use_exec=True)
 
 
+@requires_posix_process
 class TestStartUsesPosixSpawn:
     """use_exec=True goes through os.posix_spawn, never os.fork -- that's the whole point."""
 
