@@ -37,6 +37,7 @@
     "deadlines": "Terminy",
     "jobs": "Zadania",
     "requiredActions": "Wymagane akcje",
+    "triggers": "Wyzwalacze",
     "xcoms": "XComy"
   },
   "collapseAllExtra": "Zwiń wszystkie dodatkowe dane JSON",
@@ -213,6 +214,7 @@
     },
     "save": "Zapisz"
   },
+  "moreTabs": "Więcej",
   "nav": {
     "admin": "Admin",
     "assets": "Zasoby",
@@ -282,6 +284,7 @@
     "asset_triggered": "Uruchomiony przez zasób",
     "backfill": "Wypełnienie wsteczne",
     "manual": "Ręcznie",
+    "operator_triggered": "Uruchomiony przez operator",
     "scheduled": "Według harmonogramu"
   },
   "scroll": {
@@ -465,6 +468,7 @@
   "switchDag": "Przełącz $t(dag_one)",
   "switchDagRun": "Przełącz wykonanie",
   "switchMapIndex": "Przełącz indeks mapowania",
+  "switchTask": "Przełącz $t(task_one)",
   "table": {
     "completedAt": "Zakończono o",
     "createdAt": "Utworzono o",
@@ -645,6 +649,10 @@
     "tokenShownOnce": "Ten token zostanie wyświetlony tylko raz. Skopiuj go teraz."
   },
   "total": "Wszystkie {{state}}",
+  "trigger_few": "Wyzwalacze",
+  "trigger_many": "Wyzwalaczy",
+  "trigger_one": "Wyzwalacz",
+  "trigger_other": "Wyzwalacze",
   "triggered": "Uruchomiony",
   "tryNumber": "Numer próby",
   "unpause": "Wznów",

@@ -97,6 +97,7 @@
       "downstream": "Zadania podrzędne",
       "existingTasks": "Wyczyść istniejące zadania",
       "future": "Przyszłe zadania",
+      "includeDependentDags": "Wyczyść zadania w zależnych Dagach",
       "keepTaskState": "Zachowaj stan zadania i wznów",
       "laterIterations": "Późniejsze iteracje",
       "onlyFailed": "Wyczyść tylko nieudane zadania",

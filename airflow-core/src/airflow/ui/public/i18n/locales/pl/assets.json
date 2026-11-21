@@ -61,6 +61,15 @@
   "group": "Grupa",
   "lastAssetEvent": "Ostatnie zdarzenie zasobu",
   "name": "Nazwa",
+  "partitions": {
+    "consumerRuns": "Wykonania konsumentów",
+    "consumerRunsHelp": "Wykonania Dagów, które skonsumowały ostatnie zdarzenie zasobu w tej partycji",
+    "lastProducerRun": "Ostatnie wykonanie producenta",
+    "status": {
+      "in_progress": "W toku",
+      "materialized": "Zmaterializowana"
+    }
+  },
   "producingTasks": "Zadania produkujące",
   "scheduledDags": "Zaplanowane Dagi",
   "scheduling": "Planowanie",
@@ -70,5 +79,13 @@
   "watcher_many": "Watcherów",
   "watcher_one": "Watcher",
   "watcher_other": "Watchery",
+  "watcherFailing_few": "Watchery z błędami",
+  "watcherFailing_many": "Watcherów z błędami",
+  "watcherFailing_one": "Watcher z błędami",
+  "watcherFailing_other": "Watchery z błędami",
+  "watcherOrphaned_few": "Osierocone watchery",
+  "watcherOrphaned_many": "Osieroconych watcherów",
+  "watcherOrphaned_one": "Osierocony watcher",
+  "watcherOrphaned_other": "Osierocone watchery",
   "watchers": "Watchery"
 }

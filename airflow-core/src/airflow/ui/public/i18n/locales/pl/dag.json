@@ -93,6 +93,10 @@
     "upcomingCount_other": "{{count, number}} nadchodzących terminów"
   },
   "extraLinks": "Dodatkowe linki",
+  "failingWatcherTriggers_few": "{{count, number}} wyzwalacze watcherów z błędami",
+  "failingWatcherTriggers_many": "{{count, number}} wyzwalaczy watcherów z błędami",
+  "failingWatcherTriggers_one": "{{count, number}} wyzwalacz watchera z błędami",
+  "failingWatcherTriggers_other": "{{count, number}} wyzwalaczy watcherów z błędami",
   "grid": {
     "buttons": {
       "newerRuns": "Nowsze wykonania",
