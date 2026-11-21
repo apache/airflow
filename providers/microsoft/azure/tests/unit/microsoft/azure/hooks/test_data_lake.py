@@ -23,7 +23,14 @@ from unittest.mock import PropertyMock
 
 import pytest
 from azure.core.pipeline.policies._universal import ProxyPolicy
+from azure.identity.aio import ClientSecretCredential as AsyncClientSecretCredential
+from azure.storage.filedatalake import FileSystemClient
 from azure.storage.filedatalake._models import FileSystemProperties
+from azure.storage.filedatalake.aio import (
+    DataLakeFileClient as AsyncDataLakeFileClient,
+    DataLakeServiceClient as AsyncDataLakeServiceClient,
+    FileSystemClient as AsyncFileSystemClient,
+)
 
 from airflow.models import Connection
 from airflow.providers.microsoft.azure.hooks.data_lake import AzureDataLakeStorageV2Hook
@@ -317,6 +324,145 @@ class TestAzureDataLakeStorageV2Hook:
         assert conn.credential._client_credential == "secret"
         assert self.find_policy(conn, ProxyPolicy) is not None
         assert self.find_policy(conn, ProxyPolicy).proxies["https"] == "https://proxy:80"
+
+    @mock.patch(f"{MODULE}.AzureDataLakeStorageV2Hook.get_file_system")
+    def test_load_bytes(self, mock_get_file_system):
+        mock_get_file_system.return_value = mock.create_autospec(FileSystemClient, instance=True)
+        hook = AzureDataLakeStorageV2Hook(adls_conn_id=self.conn_id)
+
+        hook.load_bytes(self.file_system_name, "dir/file.jsonl", b"data", overwrite=True)
+
+        mock_get_file_system.assert_called_once_with(self.file_system_name)
+        file_system = mock_get_file_system.return_value
+        file_system.get_file_client.assert_called_once_with("dir/file.jsonl")
+        file_system.get_file_client.return_value.upload_data.assert_called_once_with(b"data", overwrite=True)
+
+    @staticmethod
+    def async_service_client():
+        """An async DataLakeServiceClient mock whose file client records the upload."""
+        client = mock.create_autospec(AsyncDataLakeServiceClient, instance=True)
+        client.__aenter__.return_value = client
+        file_system = mock.create_autospec(AsyncFileSystemClient, instance=True)
+        file_system.get_file_client.return_value = mock.create_autospec(
+            AsyncDataLakeFileClient, instance=True
+        )
+        client.get_file_system_client.return_value = file_system
+        return client
+
+    async def run_aload_bytes(self, connection: Connection):
+        """Run aload_bytes() against ``connection``; return the client class and credential class mocks."""
+        client = self.async_service_client()
+        client_cls = mock.create_autospec(AsyncDataLakeServiceClient, return_value=client)
+        client_cls.from_connection_string.return_value = client
+        credential_cls = mock.create_autospec(AsyncClientSecretCredential)
+        client.credential = credential_cls.return_value
+
+        async def get_connection(conn_id):
+            return connection
+
+        async def get_extra_dejson(conn):
+            return conn.extra_dejson
+
+        with (
+            mock.patch(f"{MODULE}.get_async_connection", side_effect=get_connection),
+            mock.patch(f"{MODULE}.get_async_extra_dejson", side_effect=get_extra_dejson),
+            mock.patch(f"{MODULE}.AsyncDataLakeServiceClient", new=client_cls),
+            mock.patch(f"{MODULE}.AsyncClientSecretCredential", new=credential_cls),
+            mock.patch(
+                f"{MODULE}.AzureDataLakeStorageV2Hook.get_conn", side_effect=AssertionError("sync client")
+            ),
+        ):
+            hook = AzureDataLakeStorageV2Hook(adls_conn_id=self.conn_id)
+            await hook.aload_bytes(self.file_system_name, "dir/file.jsonl", b"data", overwrite=True)
+        return client_cls, credential_cls, client
+
+    @pytest.mark.asyncio
+    async def test_aload_bytes_with_a_service_principal(self):
+        connection = Connection(
+            conn_id=self.conn_id,
+            conn_type="adls",
+            login="client_id",
+            password="secret",
+            extra={
+                "tenant_id": "tenant-id",
+                "proxies": {"https": "https://proxy:80"},
+                "account_url": "https://onelake.dfs.fabric.microsoft.com",
+            },
+        )
+
+        client_cls, credential_cls, client = await self.run_aload_bytes(connection)
+
+        credential_cls.assert_called_once_with(
+            tenant_id="tenant-id",
+            client_id="client_id",
+            client_secret="secret",
+            proxies={"https": "https://proxy:80"},
+        )
+        assert client_cls.call_args.kwargs["account_url"] == "https://onelake.dfs.fabric.microsoft.com"
+        assert client_cls.call_args.kwargs["credential"] is credential_cls.return_value
+        client.get_file_system_client.assert_called_once_with(self.file_system_name)
+        file_client = client.get_file_system_client.return_value.get_file_client.return_value
+        client.get_file_system_client.return_value.get_file_client.assert_called_once_with("dir/file.jsonl")
+        file_client.upload_data.assert_awaited_once_with(b"data", overwrite=True)
+        client.__aexit__.assert_awaited_once()
+        credential_cls.return_value.close.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_aload_bytes_with_a_connection_string(self):
+        connection = Connection(
+            conn_id=self.conn_id,
+            conn_type="adls",
+            extra={"connection_string": "DefaultEndpointsProtocol=https;AccountName=account"},
+        )
+
+        client_cls, credential_cls, _ = await self.run_aload_bytes(connection)
+
+        client_cls.from_connection_string.assert_called_once()
+        assert client_cls.from_connection_string.call_args.args[0].startswith("DefaultEndpointsProtocol")
+        credential_cls.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_aload_bytes_with_an_account_key(self):
+        connection = Connection(conn_id=self.conn_id, conn_type="adls", host="account", password="key")
+
+        client_cls, credential_cls, _ = await self.run_aload_bytes(connection)
+
+        assert client_cls.call_args.kwargs["account_url"] == "https://account.dfs.core.windows.net"
+        assert client_cls.call_args.kwargs["credential"] == "key"
+        credential_cls.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_get_async_conn_with_a_service_principal(self):
+        connection = Connection(
+            conn_id=self.conn_id,
+            conn_type="adls",
+            login="client_id",
+            password="secret",
+            extra={
+                "tenant_id": "tenant-id",
+                "proxies": {"https": "https://proxy:80"},
+                "account_url": "https://onelake.dfs.fabric.microsoft.com",
+            },
+        )
+
+        async def get_connection(conn_id):
+            return connection
+
+        async def get_extra_dejson(conn):
+            return conn.extra_dejson
+
+        with (
+            mock.patch(f"{MODULE}.get_async_connection", side_effect=get_connection),
+            mock.patch(f"{MODULE}.get_async_extra_dejson", side_effect=get_extra_dejson),
+        ):
+            client = await AzureDataLakeStorageV2Hook(adls_conn_id=self.conn_id).get_async_conn()
+
+        async with client:
+            assert isinstance(client, AsyncDataLakeServiceClient)
+            assert client.url == "https://onelake.dfs.fabric.microsoft.com/"
+            assert isinstance(client.credential, AsyncClientSecretCredential)
+            assert client.credential._client_id == "client_id"
+        await client.credential.close()
 
     def find_policy(self, conn, policy_type):
         policies = conn.credential._client._pipeline._impl_policies
