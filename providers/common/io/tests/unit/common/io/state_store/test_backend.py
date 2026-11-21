@@ -389,6 +389,16 @@ class TestStateStoreObjectStorageBackend:
             with pytest.raises(ValueError, match="must be non-negative"):
                 backend._get_threshold()
 
+    @pytest.mark.parametrize("path", ["", "relative/state", "/abs/state"])
+    def test_serialize_rejects_a_path_without_a_scheme(self, task_scope, path):
+        with conf_vars({("common.io", "state_store_objectstorage_path"): path}):
+            with pytest.raises(
+                ValueError, match="state_store_objectstorage_path must be a URL with a scheme"
+            ):
+                StateStoreObjectStorageBackend().serialize_task_state_store_to_ref(
+                    value={"k": "v"}, key="key", scope=task_scope
+                )
+
     @pytest.mark.asyncio
     async def test_aset_and_aget_task(self, store, task_scope):
         await store.aset(task_scope, "k", "hello")
