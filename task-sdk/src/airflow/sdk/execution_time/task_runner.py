@@ -144,7 +144,6 @@ from airflow.sdk.execution_time.comms import (
 )
 from airflow.sdk.execution_time.context import (
     _CURRENT_TEAM_NAME_ENV_VAR,
-    AssetStateStoreAccessors,
     ConnectionAccessor,
     InletEventsAccessors,
     MacrosAccessor,
@@ -153,8 +152,10 @@ from airflow.sdk.execution_time.context import (
     TriggeringAssetEventsAccessor,
     VariableAccessor,
     _get_worker_state_store_backend,
+    build_state_store_stats_tags,
     context_get_outlet_events,
     context_to_airflow_vars,
+    create_asset_state_store,
     get_previous_dagrun_success,
     set_current_context,
     set_current_team_name,
@@ -353,7 +354,6 @@ class RuntimeTaskInstance(TaskInstance):
         # Cache the context object, which ensures that all calls to get_template_context
         # are operating on the same context object.
         if self._cached_template_context is None:
-            state_store_stats_tags = {**self.stats_tags, "operator": self.task.task_type}
             self._cached_template_context = {
                 # From the Task Execution interface
                 "dag": self.task.dag,
@@ -377,7 +377,7 @@ class RuntimeTaskInstance(TaskInstance):
                 "conn": ConnectionAccessor(),
                 "task_state_store": TaskStateStoreAccessor(
                     ti_id=self.id,
-                    stats_tags=state_store_stats_tags,
+                    stats_tags=build_state_store_stats_tags(self),
                     scope=TaskScope(
                         dag_id=self.dag_id,
                         run_id=self.run_id,
@@ -387,14 +387,8 @@ class RuntimeTaskInstance(TaskInstance):
                     ),
                 ),
             }
-            _asset_types = (Asset, AssetNameRef, AssetUriRef, AssetAlias)
-            if any(isinstance(i, _asset_types) for i in self.task.inlets + self.task.outlets):
-                self._cached_template_context["asset_state_store"] = AssetStateStoreAccessors(
-                    self.task.inlets, self.task.outlets, stats_tags=state_store_stats_tags
-                )
-                # AssetAlias inlets are resolved to their concrete assets at context build time via
-                # GetAssetsByAlias comms. If an alias maps to no active assets, it doesn't contribute to
-                # asset_state. AssetAlias outlets are skipped downstream in context.py
+            if (asset_state_store := create_asset_state_store(self)) is not None:
+                self._cached_template_context["asset_state_store"] = asset_state_store
         if TYPE_CHECKING:
             assert self._cached_template_context is not None
         if from_server:
@@ -1542,6 +1536,12 @@ def _prepare(ti: RuntimeTaskInstance, log: Logger, context: Context) -> ToSuperv
 
     jinja_env = ti.task.dag.get_template_env()
     ti.render_templates(context=context, jinja_env=jinja_env)
+
+    # Build the asset lookups now. This makes sync supervisor calls, which may
+    # deadlock if they are first made from async task code instead.
+    context["inlet_events"].build_lookups()
+    if (asset_state_store := context.get("asset_state_store")) is not None:
+        asset_state_store.build_lookups()
 
     if rendered_fields := _serialize_rendered_fields(ti.task):
         # so that we do not call the API unnecessarily
