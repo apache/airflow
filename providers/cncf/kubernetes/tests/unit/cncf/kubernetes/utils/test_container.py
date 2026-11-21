@@ -20,8 +20,10 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import pytest
+from kubernetes.client import models as k8s
 
 from airflow.providers.cncf.kubernetes.utils.container import (
+    container_is_in_spec,
     container_is_running,
     container_is_succeeded,
     container_is_terminated,
@@ -170,3 +172,25 @@ def test_container_is_succeeded(remote_pod, result):
     an object `e` such that `e.status.container_statuses` is None, and so on.  This test
     verifies the expected behavior."""
     assert container_is_succeeded(remote_pod, "base") is result
+
+
+@pytest.mark.parametrize(
+    ("pod", "expected"),
+    [
+        pytest.param(
+            k8s.V1Pod(spec=k8s.V1PodSpec(containers=[k8s.V1Container(name="base")])),
+            True,
+            id="declared",
+        ),
+        pytest.param(
+            k8s.V1Pod(spec=k8s.V1PodSpec(containers=[k8s.V1Container(name="sidecar")])),
+            False,
+            id="not-declared",
+        ),
+        pytest.param(k8s.V1Pod(spec=None), True, id="spec-unavailable"),
+        pytest.param(k8s.V1Pod(spec=k8s.V1PodSpec(containers=[])), True, id="no-container-listed"),
+        pytest.param(None, True, id="pod-unavailable"),
+    ],
+)
+def test_container_is_in_spec(pod, expected):
+    assert container_is_in_spec(pod, "base") is expected
