@@ -31,7 +31,7 @@ import {
   type SelectValueChangeDetails,
 } from "@chakra-ui/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useUiServiceWorker } from "openapi/queries";
+import { useWorker } from "openapi/queries";
 import type { EdgeWorkerState, Worker } from "openapi/requests/types.gen";
 import { Link } from "react-router-dom";
 import { LuExternalLink } from "react-icons/lu";
@@ -54,11 +54,13 @@ export const WorkerPage = () => {
 
   const hasFilteredState = filteredState.length > 0;
 
-  const { data, error, refetch } = useUiServiceWorker(
+  const { data, error, refetch } = useWorker(
     {
-      queueNamePattern: queueNamePattern || undefined,
-      state: hasFilteredState ? (filteredState as EdgeWorkerState[]) : undefined,
-      workerNamePattern: workerNamePattern || undefined,
+      query: {
+        queue_name_pattern: queueNamePattern || undefined,
+        state: hasFilteredState ? (filteredState as EdgeWorkerState[]) : undefined,
+        worker_name_pattern: workerNamePattern || undefined,
+      },
     },
     undefined,
     {
