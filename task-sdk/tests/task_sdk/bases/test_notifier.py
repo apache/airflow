@@ -45,6 +45,19 @@ class MockNotifier(BaseNotifier):
         pass
 
 
+class MockSerializedDag:
+    """
+    Stand-in for the ``SerializedDAG`` passed to Dag callbacks under ``airflow dags test``.
+
+    It exposes the serialized Dag attributes that notifier rendering touches
+    (``dag_id`` and ``render_template_as_native_obj``), but -- like the real
+    ``SerializedDAG`` -- it has no ``get_template_env`` method.
+    """
+
+    dag_id = "serialized_dag"
+    render_template_as_native_obj = False
+
+
 class TestBaseNotifier:
     def test_render_message_with_message(self):
         with DAG("test_render_message_with_message") as dag:
@@ -97,3 +110,25 @@ class TestBaseNotifier:
             }
         )
         assert notifier.message == "task: some_task"
+
+    def test_render_template_fields_with_serialized_dag(self):
+        dag = MockSerializedDag()
+        assert not hasattr(dag, "get_template_env")
+        notifier = MockNotifier(message="Hello {{ dag.dag_id }}")
+        context: Context = {"dag": dag}
+        notifier.render_template_fields(context)
+        assert notifier.message == "Hello serialized_dag"
+
+    def test_notifier_call_with_serialized_dag_and_no_template_fields(self):
+        class BareNotifier(BaseNotifier):
+            template_fields = ()
+            template_ext = ()
+
+            def notify(self, context: Context) -> None:
+                pass
+
+        notifier = BareNotifier()
+        notifier.notify = MagicMock()
+        context: Context = {"dag": MockSerializedDag()}
+        notifier(context)
+        notifier.notify.assert_called_once()
