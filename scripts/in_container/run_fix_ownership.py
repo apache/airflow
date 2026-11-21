@@ -58,7 +58,11 @@ def change_ownership_of_files(path: Path) -> None:
                     f"folders: {set(original_dirs) - set(dirs)}"
                 )
         for dir_name in dirs:
-            os.chown(Path(root) / dir_name, int(host_user_id), int(host_group_id), follow_symlinks=False)
+            directory = Path(root) / dir_name
+            # A restricted Docker daemon mounts some directories read-only, where chown fails
+            # even when it changes nothing. The container cannot create files there either.
+            if directory.lstat().st_uid == root_uid:
+                os.chown(directory, int(host_user_id), int(host_group_id), follow_symlinks=False)
         for name in files:
             file = Path(root) / name
             try:
