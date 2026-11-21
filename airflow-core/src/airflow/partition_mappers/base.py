@@ -70,6 +70,16 @@ class PartitionMapper(ABC):
     def to_downstream(self, key: str) -> str | Iterable[str]:
         """Return the target key that the given source partition key maps to."""
 
+    def to_rollup_downstream(self, key: str) -> str | Iterable[str]:
+        """
+        Return the target key for *key* when this mapper feeds a :class:`RollupMapper`.
+
+        Default is :meth:`to_downstream`. Override to reject keys that
+        :meth:`to_downstream` accepts but :class:`RollupMapper.to_upstream` would
+        never produce, so they fail visibly instead of holding the Dag run forever.
+        """
+        return self.to_downstream(key)
+
     def decode_downstream(self, downstream_key: str) -> Any:
         """
         Recover the canonical decoded form of *downstream_key*.
@@ -186,7 +196,7 @@ class RollupMapper(PartitionMapper):
         self.wait_policy = wait_policy
 
     def to_downstream(self, key: str) -> str | Iterable[str]:
-        return self.upstream_mapper.to_downstream(key)
+        return self.upstream_mapper.to_rollup_downstream(key)
 
     def to_upstream(self, downstream_key: str) -> frozenset[str]:
         """Return the complete set of upstream partition keys required for *downstream_key*."""
