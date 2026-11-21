@@ -108,6 +108,7 @@ class TestBigQueryToBigQueryOperator:
             },
             job_id=mock_hook.return_value.generate_job_id.return_value,
             project_id=mock_hook.return_value.project_id,
+            nowait=True,
         )
 
     @mock.patch(BQ_HOOK_PATH)
@@ -150,6 +151,7 @@ class TestBigQueryToBigQueryOperator:
             },
             job_id=mock_hook.return_value.generate_job_id.return_value,
             project_id=mock_hook.return_value.project_id,
+            nowait=True,
         )
 
     @mock.patch(BQ_HOOK_PATH)
@@ -180,6 +182,7 @@ class TestBigQueryToBigQueryOperator:
 
         mock_hook.return_value.split_tablename.side_effect = split_tablename_side_effect
         mock_hook.return_value.generate_job_id.return_value = "real_job_id"
+        mock_hook.return_value.insert_job.return_value.location = "US"
         operator.execute(context=mock.MagicMock())
 
         operator.on_kill()
@@ -190,6 +193,26 @@ class TestBigQueryToBigQueryOperator:
             )
         else:
             mock_hook.return_value.cancel_job.assert_not_called()
+
+    @mock.patch(BQ_HOOK_PATH)
+    def test_on_kill_while_waiting_cancels_the_job_at_its_location(self, mock_hook):
+        operator = BigQueryToBigQueryOperator(
+            task_id=TASK_ID,
+            source_project_dataset_tables=SOURCE_PROJECT_DATASET_TABLE,
+            destination_project_dataset_table=DESTINATION_PROJECT_DATASET_TABLE,
+            project_id=TEST_GCP_PROJECT_ID,
+        )
+        mock_hook.return_value.split_tablename.side_effect = split_tablename_side_effect
+        mock_hook.return_value.generate_job_id.return_value = "real_job_id"
+        job = mock_hook.return_value.insert_job.return_value
+        job.location = "asia-northeast3"
+        job.result.side_effect = lambda *args, **kwargs: operator.on_kill()
+
+        operator.execute(context=mock.MagicMock())
+
+        mock_hook.return_value.cancel_job.assert_called_once_with(
+            job_id="real_job_id", project_id=TEST_GCP_PROJECT_ID, location="asia-northeast3"
+        )
 
     @mock.patch(BQ_HOOK_PATH)
     def test_get_openlineage_facets_on_complete_single_source_table(self, mock_hook):
