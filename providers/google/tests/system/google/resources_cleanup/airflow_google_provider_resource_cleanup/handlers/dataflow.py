@@ -17,26 +17,52 @@
 # under the License.
 from __future__ import annotations
 
-from airflow_google_provider_resource_cleanup.handlers._base import BaseDeleteHandler
-from airflow_google_provider_resource_cleanup.helpers import get_resource_path, run_command_async
+import subprocess
 
-FINISHED_JOB_STATUSES = ["JOB_STATE_CANCELLED", "JOB_STATE_DRAINED", "JOB_STATE_DONE", "JOB_STATE_FAILED"]
+from airflow_google_provider_resource_cleanup.handlers._base import BaseDeleteHandler
+from airflow_google_provider_resource_cleanup.helpers import curl, get_resource_path, run_command_async
+
+FINISHED_JOB_STATUSES = [
+    "JOB_STATE_CANCELLED",
+    "JOB_STATE_DRAINED",
+    "JOB_STATE_DONE",
+    "JOB_STATE_FAILED",
+    "JOB_STATE_UPDATED",
+]
+
+
+async def _archive_dataflow_job(resource: dict, log_prefix: str):
+    job_path = get_resource_path(resource)
+    url = (
+        f"https://dataflow.googleapis.com/v1b3/{job_path}/"
+        "?updateMask=job_metadata.user_display_properties.archived"
+    )
+    await curl(
+        url,
+        log_prefix=log_prefix,
+        method="PUT",
+        data={"jobMetadata": {"userDisplayProperties": {"archived": "true"}}},
+    )
 
 
 async def _delete_dataflow_job(resource: dict, log_prefix: str):
     state = resource.get("state")
     location = resource.get("location")
     job_id = get_resource_path(resource).split("/")[-1]
-    cmd_archive = f"gcloud dataflow jobs archive {job_id} --region={location} --quiet"
     if state in FINISHED_JOB_STATUSES:
-        await run_command_async(cmd_archive, log_prefix)
+        await _archive_dataflow_job(resource, log_prefix)
         return
-    cmd_delete = f"gcloud dataflow jobs cancel {job_id} --region={location} --force --quiet"
-    full_cmd = cmd_delete + " && " + cmd_archive
-    await run_command_async(full_cmd, log_prefix)
+
+    cmd = f"gcloud dataflow jobs cancel {job_id} --region={location} --quiet"
+    return_code = await run_command_async(cmd, log_prefix)
+    if return_code:
+        raise subprocess.CalledProcessError(return_code, cmd)
 
 
 class DataflowDeleteHandler(BaseDeleteHandler):
+    SEMAPHORE_COUNT = 1
+    SLEEP_AFTER_EACH_REQUEST = 1
+
     DELETERS = {"dataflow.googleapis.com/Job": _delete_dataflow_job}
 
     DELETION_ORDER = [
