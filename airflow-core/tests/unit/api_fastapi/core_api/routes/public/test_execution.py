@@ -113,7 +113,7 @@ def test_loop_repeated_selective_clears_archive_only_replaced_task_instances(
         session.commit()
         for _ in range(20):
             session.expire_all()
-            runnable, _ = run.update_state(session=session)
+            runnable, _, _ = run.update_state(session=session)
             if run.state != DagRunState.RUNNING:
                 assert run.state == DagRunState.SUCCESS
                 return

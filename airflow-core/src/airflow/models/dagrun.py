@@ -219,6 +219,7 @@ class TISchedulingDecision(NamedTuple):
     changed_tis: bool
     unfinished_tis: list[TI]
     finished_tis: list[SchedulingTI]
+    retry_timeout_expired_tis: list[TI]
 
 
 def _default_run_after(ctx):
@@ -1384,16 +1385,19 @@ class DagRun(Base, LoggingMixin):
 
     @provide_session
     def update_state(
-        self, *, session: Session = NEW_SESSION, execute_callbacks: bool = True
-    ) -> tuple[list[TI], DagCallbackRequest | None]:
+        self,
+        *,
+        session: Session = NEW_SESSION,
+        execute_callbacks: bool = True,
+    ) -> tuple[list[TI], DagCallbackRequest | None, list[TI]]:
         """
         Determine the overall state of the DagRun based on the state of its TaskInstances.
 
         :param session: Sqlalchemy ORM Session
         :param execute_callbacks: Should dag callbacks (success/failure, SLA etc.) be invoked
             directly (default: true) or recorded as a pending request in the ``returned_callback`` property
-        :return: Tuple containing tis that can be scheduled in the current loop & `returned_callback` that
-            needs to be executed
+        :return: Tuple containing tis that can be scheduled in the current loop, `returned_callback` that
+            needs to be executed, and tis failed because their retry window expired
         """
         # Callback to execute in case of Task Failures
         callback: DagCallbackRequest | None = None
@@ -1584,10 +1588,14 @@ class DagRun(Base, LoggingMixin):
         session.merge(self)
         # We do not flush here for performance reasons(It increases queries count by +20)
 
-        return schedulable_tis, callback
+        return schedulable_tis, callback, info.retry_timeout_expired_tis
 
     @provide_session
-    def task_instance_scheduling_decisions(self, *, session: Session = NEW_SESSION) -> TISchedulingDecision:
+    def task_instance_scheduling_decisions(
+        self,
+        *,
+        session: Session = NEW_SESSION,
+    ) -> TISchedulingDecision:
         # Fetch finished task instances as lightweight read-only rows and only the
         # unfinished ones as full ORM objects. Scheduling only reads finished ones, so
         # hydrating them is pure overhead.
@@ -1667,6 +1675,29 @@ class DagRun(Base, LoggingMixin):
         unfinished_tis = list(_filter_tis_and_exclude_removed(dag, unfinished_tis))
         finished_tis: list[SchedulingTI] = list(_build_finished_tis(dag, finished_rows))
 
+        retry_timeout_expired = False
+        retry_timeout_expired_tis: list[TI] = []
+        now = timezone.utcnow()
+        for ti in unfinished_tis:
+            if ti.state not in {
+                TaskInstanceState.UP_FOR_RETRY,
+                TaskInstanceState.SCHEDULED,
+                TaskInstanceState.QUEUED,
+            }:
+                continue
+            if ti.retry_timeout_deadline is None:
+                if ti.task.retry_timeout is None:
+                    continue
+                failed_at = ti.end_date
+                if failed_at is None and ti.try_number > 1:
+                    failed_at = ti._get_previous_attempt_end_date(session=session)
+                if failed_at is None:
+                    continue
+                ti.retry_timeout_deadline = failed_at + ti.task.retry_timeout
+            if ti.retry_timeout_deadline <= now and ti.set_state(TaskInstanceState.FAILED, session=session):
+                retry_timeout_expired = True
+                retry_timeout_expired_tis.append(ti)
+
         if unfinished_tis:
             schedulable_tis = [ut for ut in unfinished_tis if ut.state in SCHEDULEABLE_STATES]
             self.log.debug("number of scheduleable tasks for %s: %s task(s)", self, len(schedulable_tis))
@@ -1675,6 +1706,7 @@ class DagRun(Base, LoggingMixin):
                 finished_tis,
                 session=session,
             )
+            changed_tis |= retry_timeout_expired
 
             # During expansion, we may change some tis into non-schedulable
             # states, so we need to re-compute.
@@ -1694,6 +1726,7 @@ class DagRun(Base, LoggingMixin):
             changed_tis=changed_tis,
             unfinished_tis=unfinished_tis,
             finished_tis=finished_tis,
+            retry_timeout_expired_tis=retry_timeout_expired_tis,
         )
 
     def notify_dagrun_state_changed(self, msg: str):

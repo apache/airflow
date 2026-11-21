@@ -822,7 +822,7 @@ class TestDagRun:
 
         dag_run = self.create_dag_run(dag=dag, task_states=initial_task_states, session=session)
         with mock.patch.object(dag_run, "execute_dag_callbacks") as execute_dag_callbacks:
-            _, callback = dag_run.update_state()
+            _, callback, _ = dag_run.update_state()
         assert execute_dag_callbacks.mock_calls == [
             mock.call(dag=dag, success=True, relevant_ti=ANY, reason="success", session=ANY)
         ]
@@ -860,7 +860,7 @@ class TestDagRun:
 
         dag_run = self.create_dag_run(dag=dag, task_states=initial_task_states, session=session)
         with mock.patch.object(dag_run, "execute_dag_callbacks") as execute_dag_callbacks:
-            _, callback = dag_run.update_state()
+            _, callback, _ = dag_run.update_state()
         assert execute_dag_callbacks.mock_calls == [
             mock.call(dag=dag, success=False, relevant_ti=ANY, reason="task_failure", session=ANY)
         ]
@@ -906,7 +906,7 @@ class TestDagRun:
         serialized_dag = dr.get_dag()
 
         with mock.patch.object(dr, "execute_dag_callbacks") as execute_dag_callbacks:
-            _, callback = dr.update_state(execute_callbacks=True)
+            _, callback, _ = dr.update_state(execute_callbacks=True)
         assert execute_dag_callbacks.mock_calls == [
             mock.call(
                 dag=serialized_dag,
@@ -954,7 +954,7 @@ class TestDagRun:
         }
 
         dag_run = self.create_dag_run(scheduler_dag, task_states=initial_task_states, session=session)
-        _, _ = dag_run.update_state(execute_callbacks=True)
+        _, _, _ = dag_run.update_state(execute_callbacks=True)
         task = dag_run.get_task_instances()[0]
 
         assert task.state == TaskInstanceState.SKIPPED
@@ -992,7 +992,7 @@ class TestDagRun:
         dag_run = self.create_dag_run(dag=dag, task_states=initial_task_states, session=session)
         dag_run.dag_model = dm
 
-        _, callback = dag_run.update_state(execute_callbacks=False)
+        _, callback, _ = dag_run.update_state(execute_callbacks=False)
         assert dag_run.state == DagRunState.SUCCESS
         # Callbacks are not added until handle_callback = False is passed to dag_run.update_state()
         assert callback == DagCallbackRequest(
@@ -1040,7 +1040,7 @@ class TestDagRun:
         dag_run = self.create_dag_run(dag=dag, task_states=initial_task_states, session=session)
         dag_run.dag_model = dm
 
-        _, callback = dag_run.update_state(execute_callbacks=False)
+        _, callback, _ = dag_run.update_state(execute_callbacks=False)
         assert dag_run.state == DagRunState.FAILED
         # Callbacks are not added until handle_callback = False is passed to dag_run.update_state()
 
@@ -1989,7 +1989,7 @@ class TestDagRun:
         dag_run.dag = scheduler_dag
 
         with mock.patch.object(dag_run, "execute_dag_callbacks") as execute_dag_callbacks:
-            _, callback = dag_run.update_state()
+            _, callback, _ = dag_run.update_state()
         assert execute_dag_callbacks.mock_calls == [
             mock.call(dag=scheduler_dag, success=True, relevant_ti=ANY, reason="success", session=ANY)
         ]
@@ -3662,7 +3662,7 @@ def test_mapped_task_upstream_failed(dag_maker, session, trigger_rule):
     make_list_ti.state = TaskInstanceState.FAILED
     session.flush()
 
-    tis, _ = dr.update_state(execute_callbacks=False, session=session)
+    tis, _, _ = dr.update_state(execute_callbacks=False, session=session)
     assert tis == []
     tis = sorted(dr.task_instances, key=lambda ti: ti.task_id)
 
@@ -3672,7 +3672,7 @@ def test_mapped_task_upstream_failed(dag_maker, session, trigger_rule):
     ]
     # Bug/possible source of optimization: The DR isn't marked as failed until
     # in the loop that marks the last task as UPSTREAM_FAILED
-    tis, _ = dr.update_state(execute_callbacks=False, session=session)
+    tis, _, _ = dr.update_state(execute_callbacks=False, session=session)
     assert tis == []
     assert dr.state == DagRunState.FAILED
 
@@ -4470,7 +4470,7 @@ def test_schedulable_task_exist_when_rerun_removed_upstream_mapped_task(session,
             session.merge(ti)
     session.commit()
     # The Upstream is done with 2 removed tis and 3 success tis
-    (tis, _) = dr.update_state()
+    (tis, _, _) = dr.update_state()
     assert len(tis) == 3
     assert dr.state != DagRunState.FAILED
 
@@ -7017,3 +7017,106 @@ def test_task_instance_scheduling_decisions_skips_retry_not_yet_due(mock_deps_me
     assert decision.schedulable_tis == []
     mock_deps_met.assert_not_called()
     assert successor.retry_at == ti.end_date + datetime.timedelta(minutes=10)
+
+
+@time_machine.travel("2026-10-29 12:00:00+00:00", tick=False)
+def test_retry_timeout_expires_retry_from_first_failed_attempt(dag_maker, session):
+    with dag_maker(session=session):
+        EmptyOperator(
+            task_id="retrying",
+            retries=2,
+            retry_timeout=datetime.timedelta(minutes=5),
+        )
+    dr = dag_maker.create_dagrun(session=session)
+    ti = dr.get_task_instance("retrying", session=session)
+    ti.state = TaskInstanceState.UP_FOR_RETRY
+    ti.try_number = 1
+    failed_at = timezone.utcnow() - datetime.timedelta(minutes=6)
+    ti.end_date = failed_at
+    ti.task = None
+    successor = ti.prepare_db_for_next_try(session)
+    session.flush()
+
+    decision = dr.task_instance_scheduling_decisions(session=session)
+
+    assert successor.state == TaskInstanceState.FAILED
+    assert successor.retry_timeout_deadline == failed_at + datetime.timedelta(minutes=5)
+    assert successor not in decision.schedulable_tis
+
+
+@pytest.mark.parametrize("state", [TaskInstanceState.SCHEDULED, TaskInstanceState.QUEUED])
+@time_machine.travel("2026-10-29 12:00:00+00:00", tick=False)
+def test_retry_timeout_expires_before_scheduled_retry_starts(dag_maker, session, state):
+    with dag_maker(session=session):
+        EmptyOperator(
+            task_id="retrying",
+            retries=2,
+            retry_timeout=datetime.timedelta(minutes=5),
+        )
+    dr = dag_maker.create_dagrun(session=session)
+    ti = dr.get_task_instance("retrying", session=session)
+    ti.state = state
+    ti.try_number = 2
+    ti.retry_timeout_deadline = timezone.utcnow() - datetime.timedelta(minutes=1)
+    session.flush()
+
+    decision = dr.task_instance_scheduling_decisions(session=session)
+
+    assert ti.state == TaskInstanceState.FAILED
+    assert ti not in decision.schedulable_tis
+    assert decision.retry_timeout_expired_tis == [ti]
+    assert decision.changed_tis
+
+
+@time_machine.travel("2026-10-29 12:00:00+00:00", tick=False)
+def test_retry_timeout_expired_tis_returned_when_callbacks_are_enabled(dag_maker, session):
+    with dag_maker(session=session):
+        EmptyOperator(task_id="retrying", retries=2, retry_timeout=datetime.timedelta(minutes=5))
+    dr = dag_maker.create_dagrun(session=session)
+    ti = dr.get_task_instance("retrying", session=session)
+    ti.state = TaskInstanceState.UP_FOR_RETRY
+    ti.try_number = 2
+    ti.retry_timeout_deadline = timezone.utcnow() - datetime.timedelta(minutes=1)
+    session.flush()
+
+    _, _, expired_tis = dr.update_state(execute_callbacks=True, session=session)
+
+    assert expired_tis == [ti]
+
+
+@time_machine.travel("2026-10-29 12:00:00+00:00", tick=False)
+def test_retry_timeout_does_not_start_before_first_failure(dag_maker, session):
+    with dag_maker(session=session):
+        EmptyOperator(
+            task_id="retrying",
+            retries=2,
+            retry_timeout=datetime.timedelta(minutes=5),
+        )
+    dr = dag_maker.create_dagrun(session=session)
+    ti = dr.get_task_instance("retrying", session=session)
+    ti.state = TaskInstanceState.SCHEDULED
+    session.flush()
+
+    dr.task_instance_scheduling_decisions(session=session)
+
+    assert ti.retry_timeout_deadline is None
+
+
+@time_machine.travel("2026-10-29 12:00:00+00:00", tick=False)
+def test_retry_timeout_does_not_stop_running_attempt(dag_maker, session):
+    with dag_maker(session=session):
+        EmptyOperator(
+            task_id="retrying",
+            retries=2,
+            retry_timeout=datetime.timedelta(minutes=5),
+        )
+    dr = dag_maker.create_dagrun(session=session)
+    ti = dr.get_task_instance("retrying", session=session)
+    ti.state = TaskInstanceState.RUNNING
+    ti.try_number = 2
+    ti.retry_timeout_deadline = timezone.utcnow() - datetime.timedelta(minutes=1)
+    session.flush()
+
+    dr.task_instance_scheduling_decisions(session=session)
+
+    assert ti.state == TaskInstanceState.RUNNING

@@ -2025,7 +2025,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 dag = self.scheduler_dag_bag.get_dag_for_run(dag_run=dag_run, session=session)
                 if dag is not None:
                     dag_run.dag = dag
-                    _, callback_to_run = dag_run.update_state(execute_callbacks=False, session=session)
+                    _, callback_to_run, _ = dag_run.update_state(execute_callbacks=False, session=session)
                     if callback_to_run:
                         self._send_dag_callbacks_to_processor(dag, callback_to_run)
         except Exception as e:  # should not fail the scheduler
@@ -3518,7 +3518,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         dag_run.scheduled_by_job_id = self.job.id
 
         # TODO[HA]: Rename update_state -> schedule_dag_run, ?? something else?
-        schedulable_tis, callback_to_run = dag_run.update_state(session=session, execute_callbacks=False)
+        schedulable_tis, callback_to_run, retry_timeout_expired_tis = dag_run.update_state(
+            session=session,
+            execute_callbacks=False,
+        )
+        if retry_timeout_expired_tis:
+            self._send_retry_timeout_callbacks(retry_timeout_expired_tis, session=session)
 
         if dag_run.state in State.finished_dr_states and dag_run.run_type != DagRunType.BACKFILL_JOB:
             self._set_exceeds_max_active_runs(dag_model=dag_model, session=session)
@@ -3589,6 +3594,61 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             self.executor.send_callback(callback)
         else:
             self.log.debug("callback is empty")
+
+    def _send_retry_timeout_callbacks(self, tis: list[TaskInstance], *, session: Session) -> None:
+        coordinates = TaskCoordinateResolver(self.scheduler_dag_bag, session)
+        for executor, expired_tis in self._executor_to_workloads(tis, session).items():
+            for ti in expired_tis:
+                task = ti.task
+                if task is None:
+                    continue
+                send_failure_callback = task.has_on_failure_callback
+                send_failure_email = task.email and task.email_on_failure
+                if not send_failure_callback and not send_failure_email:
+                    continue
+                if not _ensure_ti_has_dag_version_id(ti, session, self.log):
+                    continue
+
+                bundle_name, bundle_version, version_data = _resolve_ti_callback_bundle_info(ti)
+                runtime_ti = task_instance_to_runtime(
+                    ti, model=TIDataModel, map_index=coordinates.public_map_index(ti)
+                )
+                context_from_server = TIRunContext(
+                    dag_run=DRDataModel.model_validate(ti.dag_run, from_attributes=True),
+                    max_tries=ti.max_tries,
+                    variables=[],
+                    connections=[],
+                    xcom_keys_to_clear=[],
+                )
+                msg = "Task retry timeout expired before the retry started."
+
+                if send_failure_callback:
+                    executor.send_callback(
+                        TaskCallbackRequest(
+                            filepath=ti.dag_model.relative_fileloc or "",
+                            bundle_name=bundle_name,
+                            bundle_version=bundle_version,
+                            version_data=version_data,
+                            ti=runtime_ti,
+                            msg=msg,
+                            task_callback_type=TaskInstanceState.FAILED,
+                            context_from_server=context_from_server,
+                        )
+                    )
+
+                if send_failure_email:
+                    executor.send_callback(
+                        EmailRequest(
+                            filepath=ti.dag_model.relative_fileloc or "",
+                            bundle_name=bundle_name,
+                            bundle_version=bundle_version,
+                            version_data=version_data,
+                            ti=runtime_ti,
+                            msg=msg,
+                            email_type="failure",
+                            context_from_server=context_from_server,
+                        )
+                    )
 
     @provide_session
     def _handle_tasks_stuck_in_queued(self, *, session: Session = NEW_SESSION) -> None:

@@ -180,6 +180,7 @@ var taskShape = authoringShape{
 		"end_date":                  {goType: "time.Time", imports: []string{"time"}},
 		"execution_timeout":         {goType: "time.Duration", imports: []string{"time"}},
 		"retry_delay":               {goType: "time.Duration", imports: []string{"time"}},
+		"retry_timeout":             {goType: "time.Duration", imports: []string{"time"}},
 		"max_retry_delay":           {goType: "time.Duration", imports: []string{"time"}},
 		"retries":                   {goType: "int"},
 		"pool_slots":                {goType: "int"},
