@@ -54,12 +54,27 @@ class TestChainMapper:
                 "2024-03-15",
                 datetime(2024, 3, 15, 0, 0, 0, tzinfo=UTC),
             ),
-            # Last mapper non-temporal → no anchor.
-            (ChainMapper(StartOfDayMapper(), IdentityMapper()), "anything", None),
+            # A trailing identity preserves the prior mapper's temporal key and anchor.
+            (
+                ChainMapper(StartOfDayMapper(), IdentityMapper()),
+                "2024-03-15",
+                datetime(2024, 3, 15, 0, 0, 0, tzinfo=UTC),
+            ),
         ],
     )
-    def test_to_partition_date_delegates_to_last_mapper(self, chain, downstream_key, expected):
+    def test_to_partition_date_uses_effective_mapper(self, chain, downstream_key, expected):
         assert chain.to_partition_date(downstream_key) == expected
+
+    @pytest.mark.parametrize(
+        "chain",
+        [
+            ChainMapper(StartOfDayMapper(), IdentityMapper()),
+            ChainMapper(StartOfHourMapper(), StartOfDayMapper()),
+        ],
+    )
+    def test_to_partition_date_preserves_invalid_key_error(self, chain):
+        with pytest.raises(ValueError, match="does not match format"):
+            chain.to_partition_date("anything")
 
     def test_to_downstream_invalid_non_iterable_return(self):
         sm = ChainMapper(IdentityMapper(), _InvalidReturnMapper())
