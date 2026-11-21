@@ -232,6 +232,7 @@ class TestConnections:
             "extra": {"timeout": 30, "verify": False},
         }
 
+
     def test_as_json(self):
         """Test that as_json returns valid JSON string without conn_id."""
         connection = Connection(
@@ -249,6 +250,11 @@ class TestConnections:
         assert result["conn_type"] == "postgres"
         assert result["host"] == "localhost"
         assert result["port"] == 5432
+
+    @pytest.mark.parametrize("port", [-1, 65536])
+    def test_rejects_invalid_port_values(self, port):
+        with pytest.raises(ValueError):
+            Connection(conn_id="test_conn", conn_type="http", port=port)
 
     def test_from_json(self):
         """Test that from_json creates Connection with type normalization."""
