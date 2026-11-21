@@ -58,6 +58,7 @@ def _mask_uri_credentials(uri: str) -> str:
     Examples::
 
         postgresql://user:pass@host:5432/db -> postgresql://***:***@host:5432/db
+        ssh://git@host:22/repo -> ssh://***@host:22/repo
         mysql://host/db -> mysql://host/db  (no credentials to mask)
     """
     if not uri:
@@ -69,8 +70,17 @@ def _mask_uri_credentials(uri: str) -> str:
             return SENSITIVE_PLACEHOLDER
 
         if "@" in parsed.netloc:
-            _creds, host_port = parsed.netloc.split("@", 1)
-            masked_netloc = f"{SENSITIVE_PLACEHOLDER}:{SENSITIVE_PLACEHOLDER}@{host_port}"
+            _creds, host_port = parsed.netloc.rsplit("@", 1)
+            if not _creds:
+                return uri
+            user, sep, password = _creds.partition(":")
+            if sep:
+                masked_user = SENSITIVE_PLACEHOLDER if user else ""
+                masked_pass = SENSITIVE_PLACEHOLDER if password else ""
+                masked_creds = f"{masked_user}:{masked_pass}"
+            else:
+                masked_creds = SENSITIVE_PLACEHOLDER
+            masked_netloc = f"{masked_creds}@{host_port}"
             return urlunsplit((parsed.scheme, masked_netloc, parsed.path, parsed.query, parsed.fragment))
         return uri
     except Exception:
