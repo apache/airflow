@@ -64,8 +64,10 @@ if AIRFLOW_V_3_1_PLUS:
         HumanActionType,
         HumanFeedbackRequest,
         SessionStatus,
+        read_review_text_xcom,
+        review_text_xcom,
     )
-    from airflow.providers.common.compat.sdk import timezone
+    from airflow.providers.common.compat.sdk import XCom, timezone
     from airflow.sdk import TaskInstanceState
     from airflow.utils.session import create_session
 
@@ -86,6 +88,11 @@ if AIRFLOW_V_3_1_PLUS:
 
     SessionDep = Annotated[Session, Depends(_get_session)]
 
+    def _load_xcom_value(row: XComModel) -> Any:
+        """Resolve an XCom row through the configured XCom backend, the way workers read it."""
+        # Where it exists, ``_load`` prefers a backend's ``load_value`` over ``deserialize_value``.
+        return getattr(XCom, "_load", XCom.deserialize_value)(row)
+
     def _read_xcom(
         session: Session,
         *,
@@ -96,7 +103,7 @@ if AIRFLOW_V_3_1_PLUS:
         region_id: UUID | None,
         key: str,
     ):
-        """Read a single XCom value from the database."""
+        """Read a single XCom value through the configured XCom backend."""
         scope: dict[str, Any] = (
             {"region_id": region_id, "include_node_regions": False} if AIRFLOW_V_3_4_PLUS else {}
         )
@@ -112,7 +119,7 @@ if AIRFLOW_V_3_1_PLUS:
         row = session.scalars(read).first()
         if row is None:
             return None
-        return row.value
+        return _load_xcom_value(row)
 
     def _read_xcom_by_prefix(
         session: Session,
@@ -124,7 +131,13 @@ if AIRFLOW_V_3_1_PLUS:
         region_id: UUID | None,
         prefix: str,
     ) -> dict[int, Any]:
-        """Read all iteration-keyed XCom entries matching *prefix* (e.g. ``airflow_hitl_review_agent_output_``)."""
+        """
+        Read all iteration-keyed XCom entries matching *prefix* (e.g. ``airflow_hitl_review_agent_output_``).
+
+        Each entry is read through the XCom backend, and its text is taken from what ``review_text_xcom``
+        wrapped for this Dag. Any other value, such as one written before entries were wrapped, is returned
+        as stored: a reference in it may point to another Dag's XCom, so what it resolves to is not shown.
+        """
         if AIRFLOW_V_3_4_PLUS:
             read = XComModel.get_many(
                 run_id=run_id,
@@ -135,9 +148,9 @@ if AIRFLOW_V_3_1_PLUS:
                 include_node_regions=False,
             )
             entity = read.column_descriptions[0]["entity"]
-            query = read.with_only_columns(entity.key, entity.value).where(entity.key.like(f"{prefix}%"))
+            query = read.where(entity.key.like(f"{prefix}%"))
         else:
-            query = select(XComModel.key, XComModel.value).where(
+            query = select(XComModel).where(
                 XComModel.dag_id == dag_id,
                 XComModel.run_id == run_id,
                 XComModel.task_id == task_id,
@@ -145,10 +158,11 @@ if AIRFLOW_V_3_1_PLUS:
                 XComModel.key.like(f"{prefix}%"),
             )
         result: dict[int, Any] = {}
-        for key, value in session.execute(query).all():
-            suffix = key[len(prefix) :]
+        for row in session.scalars(query):
+            suffix = row.key[len(prefix) :]
             if suffix.isdigit():
-                result[int(suffix)] = value
+                text = read_review_text_xcom(_load_xcom_value(row), dag_id=dag_id)
+                result[int(suffix)] = row.value if text is None else text
         return result
 
     def _write_xcom(
@@ -393,7 +407,7 @@ if AIRFLOW_V_3_1_PLUS:
         response_model=HITLReviewResponse,
         dependencies=[Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.HITL_DETAIL))],
     )
-    async def find_session(
+    def find_session(
         db: SessionDep,
         dag_id: str,
         task_id: str,
@@ -507,7 +521,10 @@ if AIRFLOW_V_3_1_PLUS:
         iteration = sess_data.iteration
         if action == "changes_requested":
             _write_xcom(
-                session, **coordinates, key=f"{XCOM_HUMAN_FEEDBACK_PREFIX}{iteration}", value=feedback
+                session,
+                **coordinates,
+                key=f"{XCOM_HUMAN_FEEDBACK_PREFIX}{iteration}",
+                value=review_text_xcom(feedback, dag_id=dag_id),
             )
         if not sess_data.parked:
             # A polling task reads the action from this XCom; a parked one gets it on resume.
