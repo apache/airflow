@@ -103,3 +103,13 @@ class AddCallbackStateEndpoint(VersionChange):
     instructions_to_migrate_to_previous_version = (
         endpoint("/callbacks/{callback_id}/state", ["PATCH"]).didnt_exist,
     )
+
+
+class AddXComKeysEndpoint(VersionChange):
+    """Add the ``POST xcoms/{dag_id}/{run_id}/{task_id}`` endpoint that fetches several XCom values by key in one query."""
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (
+        endpoint("/xcoms/{dag_id}/{run_id}/{task_id}", ["POST"]).didnt_exist,
+    )
