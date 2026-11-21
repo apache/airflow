@@ -1875,3 +1875,22 @@ def test_deadline_callback_rejects_field_belonging_to_the_other_subclass(callbac
 
     with pytest.raises(ValueError, match=f"Unexpected deadline callback fields: {foreign_field}"):
         BaseSerialization.deserialize(serialized)
+
+
+@pytest.mark.parametrize("run_type_filter", [None, ["scheduled"], ["scheduled", "manual"]])
+def test_deadline_run_types_serialization(run_type_filter):
+    alert = DeadlineAlert(
+        reference=DeadlineReference.DAGRUN_QUEUED_AT,
+        interval=timedelta(hours=1),
+        callback=AsyncCallback(empty_callback_for_deadline),
+        run_type_filter=run_type_filter,
+    )
+    encoded = BaseSerialization.serialize(alert)
+    assert encoded[Encoding.VAR]["run_type_filter"] == (
+        None if run_type_filter is None else sorted(run_type_filter)
+    )
+    decoded = BaseSerialization.deserialize(encoded)
+    assert decoded.run_type_filter == (None if run_type_filter is None else frozenset(run_type_filter))
+    if run_type_filter is None:
+        del encoded[Encoding.VAR]["run_type_filter"]
+        assert BaseSerialization.deserialize(encoded).run_type_filter is None

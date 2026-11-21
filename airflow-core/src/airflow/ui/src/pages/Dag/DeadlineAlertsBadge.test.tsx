@@ -31,7 +31,11 @@ vi.mock("react-i18next", () => ({
   useTranslation: () => ({
     i18n: { language: "en" },
     // eslint-disable-next-line id-length
-    t: (key: string, options?: { interval?: string; reference?: string }) => {
+    t: (key: string, options?: { interval?: string; reference?: string; runTypes?: string }) => {
+      if (options?.runTypes !== undefined) {
+        return `${key}:${options.runTypes}`;
+      }
+
       if (options?.reference === undefined) {
         return key;
       }
@@ -63,6 +67,7 @@ const baseAlert: DeadlineAlertResponse = {
   interval: null,
   name: null,
   reference_type: "DagRunLogicalDateDeadline",
+  run_type_filter: null,
 };
 
 const REFERENCE = "deadlineAlerts.referenceType.DagRunLogicalDateDeadline";
@@ -88,4 +93,35 @@ describe("DeadlineAlertsBadge", () => {
       expect(screen.queryByText(absent)).not.toBeInTheDocument();
     },
   );
+  it.each([
+    { expected: "deadlineAlerts.appliesTo:common:runTypes.scheduled", filter: ["scheduled"] },
+    {
+      expected: "deadlineAlerts.appliesTo:common:runTypes.scheduled, common:runTypes.manual",
+      filter: ["scheduled", "manual"],
+    },
+  ] satisfies Array<{ expected: string; filter: DeadlineAlertResponse["run_type_filter"] }>)(
+    "shows the configured scope as $expected",
+    async ({ expected, filter }) => {
+      vi.mocked(useDeadlinesServiceGetDagDeadlineAlerts).mockReturnValue({
+        data: { deadline_alerts: [{ ...baseAlert, run_type_filter: filter }], total_entries: 1 },
+      } as ReturnType<typeof useDeadlinesServiceGetDagDeadlineAlerts>);
+
+      render(<DeadlineAlertsBadge dagId="test_dag" />, { wrapper: Wrapper });
+      fireEvent.click(screen.getByRole("button"));
+
+      expect(await screen.findByText(expected)).toBeInTheDocument();
+    },
+  );
+
+  it("omits the scope when run_type_filter is null", async () => {
+    vi.mocked(useDeadlinesServiceGetDagDeadlineAlerts).mockReturnValue({
+      data: { deadline_alerts: [baseAlert], total_entries: 1 },
+    } as ReturnType<typeof useDeadlinesServiceGetDagDeadlineAlerts>);
+
+    render(<DeadlineAlertsBadge dagId="test_dag" />, { wrapper: Wrapper });
+    fireEvent.click(screen.getByRole("button"));
+
+    expect(await screen.findByText(DYNAMIC_RULE)).toBeInTheDocument();
+    expect(screen.queryByText(/deadlineAlerts\.appliesTo/u)).not.toBeInTheDocument();
+  });
 });

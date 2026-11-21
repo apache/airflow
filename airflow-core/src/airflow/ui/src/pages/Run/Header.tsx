@@ -21,7 +21,7 @@ import { useTranslation } from "react-i18next";
 import { FiBarChart } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
 
-import { useDeadlinesServiceGetDagDeadlineAlerts } from "openapi/queries";
+import { useDeadlinesServiceGetDeadlines } from "openapi/queries";
 import type { DAGRunResponse } from "openapi/requests/types.gen";
 
 import { RouterLink } from "src/system-components";
@@ -63,8 +63,22 @@ export const Header = ({ dagRun }: { readonly dagRun: DAGRunResponse }) => {
   const dagId = dagRun.dag_id;
   const dagRunId = dagRun.dag_run_id;
 
-  const { data: alertData } = useDeadlinesServiceGetDagDeadlineAlerts({ dagId });
-  const hasDeadlineAlerts = (alertData?.total_entries ?? 0) > 0;
+  const deadlineQuery = {
+    dagId,
+    dagRunId,
+    includeAlerts: true,
+    limit: 10,
+    orderBy: ["deadline_time"],
+  };
+  // Reprocessing can change the run type without changing the run ID.
+  const { data: deadlineData } = useDeadlinesServiceGetDeadlines(deadlineQuery, [
+    deadlineQuery,
+    dagRun.run_type,
+  ]);
+  const hasDeadlineAlerts =
+    deadlineData !== undefined &&
+    (deadlineData.total_entries > 0 ||
+      (deadlineData.deadline_alerts ?? []).some((alert) => alert.is_applicable));
 
   return (
     <Box display="flex" flexDirection="column" gap={2}>
@@ -168,7 +182,14 @@ export const Header = ({ dagRun }: { readonly dagRun: DAGRunResponse }) => {
             ? [
                 {
                   label: translate("dag:deadlineStatus.label"),
-                  value: <DeadlineStatus dagId={dagId} dagRunId={dagRunId} endDate={dagRun.end_date} />,
+                  value: (
+                    <DeadlineStatus
+                      dagId={dagId}
+                      dagRunId={dagRunId}
+                      deadlineData={deadlineData}
+                      endDate={dagRun.end_date}
+                    />
+                  ),
                 },
               ]
             : []),
