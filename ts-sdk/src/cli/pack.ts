@@ -25,8 +25,17 @@
 // bundle's own Dag registry and schema version, never from a hand-written sidecar.
 
 import { execFileSync } from "node:child_process";
-import { readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import {
+  closeSync,
+  mkdtempSync,
+  openSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { readFile as readFileAsync } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import path from "node:path";
 
 import {
@@ -45,6 +54,7 @@ const BUNDLE_FILENAME = "bundle.min.mjs";
 const STAGING_FILENAME = "bundle.pack-staging.mjs";
 const MANIFEST_TIMEOUT_MS = 60_000;
 const MANIFEST_MAX_BUFFER_BYTES = 64 * 1024 * 1024;
+const STDERR_TAIL_CHARS = 2000; // stderr opens with the whole minified line
 const ESM_REQUIRE_BANNER =
   'import{createRequire as __airflowCreateRequire}from"node:module";' +
   "const require=__airflowCreateRequire(import.meta.url);";
@@ -115,24 +125,39 @@ function readSdkVersion(): string {
 }
 
 function readBundleManifest(bundlePath: string): BundleManifest {
+  // On macOS Node writes a piped stderr asynchronously, so output past the 64 KiB pipe buffer is
+  // lost when the bundle exits, and Node prints the whole minified line before the error.
+  // Writes to a file are synchronous.
+  const stderrDir = mkdtempSync(path.join(tmpdir(), "airflow-ts-pack-"));
+  const stderrPath = path.join(stderrDir, "stderr");
+  const stderrFd = openSync(stderrPath, "w");
   let stdout: string;
   try {
     stdout = execFileSync(process.execPath, [bundlePath, AIRFLOW_METADATA_FLAG], {
       encoding: "utf-8",
+      stdio: ["pipe", "pipe", stderrFd],
       timeout: MANIFEST_TIMEOUT_MS,
       maxBuffer: MANIFEST_MAX_BUFFER_BYTES,
     });
+    // Still pass on what a working bundle logs, such as warnings from user code.
+    const logged = readFileSync(stderrPath, "utf-8");
+    if (logged) process.stderr.write(logged);
   } catch (error) {
-    const stderr = (error as { stderr?: string }).stderr ?? "";
+    const stderr = readFileSync(stderrPath, "utf-8");
     const reported = stderr
       .split("\n")
       .reverse()
       .find((line) => /^\w*Error: /.test(line.trim()))
       ?.trim();
     throw new Error(
-      reported ?? `Running the bundle with ${AIRFLOW_METADATA_FLAG} failed: ${String(error)}`,
+      reported ??
+        `Running the bundle with ${AIRFLOW_METADATA_FLAG} failed: ${String(error)}\n` +
+          stderr.trimEnd().slice(-STDERR_TAIL_CHARS),
       { cause: error },
     );
+  } finally {
+    closeSync(stderrFd);
+    rmSync(stderrDir, { recursive: true, force: true });
   }
 
   // Import-time logging from user code lands on stdout too; pick the sentinel line.
