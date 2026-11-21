@@ -29,6 +29,7 @@ import selectors
 import signal
 import sys
 import time
+import traceback
 from collections import Counter, OrderedDict, defaultdict, deque
 from contextlib import AbstractContextManager, nullcontext
 from copy import deepcopy
@@ -43,7 +44,7 @@ import attrs
 import httpx2
 import structlog
 from pydantic import ValidationError
-from sqlalchemy import select, update
+from sqlalchemy import delete, select, update
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import load_only
 from tabulate import tabulate
@@ -1235,6 +1236,8 @@ class DagFileProcessorManager(LoggingMixin):
                         any_refreshed = True
                     except Exception as e:
                         self.log.exception("Error initializing bundle %s: %s", bundle.name, e)
+                        if self.api_client is None:
+                            self._record_bundle_refresh_error(bundle.name, traceback.format_exc())
                         self._bundles_needing_refresh.add(bundle.name)
                         continue
                 try:
@@ -1296,6 +1299,8 @@ class DagFileProcessorManager(LoggingMixin):
                     any_refreshed = True
                 except Exception as error:
                     self.log.exception("Error refreshing bundle %s", bundle.name)
+                    if self.api_client is None:
+                        self._record_bundle_refresh_error(bundle.name, traceback.format_exc())
                     source_unchanged = not bundle.refresh_changes_source or (
                         isinstance(error, DagBundleRefreshError) and error.source_unchanged
                     )
@@ -1351,6 +1356,7 @@ class DagFileProcessorManager(LoggingMixin):
                             bundle.name,
                             version_after_refresh,
                         )
+                        self._clear_bundle_refresh_error(bundle.name)
                         try:
                             self.update_bundle_state(bundle.name, last_refreshed=now, version=None)
                         except Exception:
@@ -1367,6 +1373,9 @@ class DagFileProcessorManager(LoggingMixin):
                     # Keep the bundle's known files and Dags, and leave its version unadvanced so the
                     # next refresh lists it again.
                     self.log.exception("Error listing Dag definitions in bundle %s", bundle.name)
+                    if self.api_client is None:
+                        self._record_bundle_refresh_error(bundle.name, traceback.format_exc())
+                        self._bundle_versions.pop(bundle.name, None)
                     if self.api_client is not None:
                         self._discard_unusable_bundle_source(bundle.name)
                         self._delay_bundle_listing_retry(bundle.name, check_started_at=now_seconds)
@@ -1374,6 +1383,8 @@ class DagFileProcessorManager(LoggingMixin):
                         self._delay_draining_refresh_retry(bundle, known_files.get(bundle.name, ()))
                     continue
                 self._bundle_listing_retry_delays.pop(bundle.name, None)
+                if self.api_client is None:
+                    self._clear_bundle_refresh_error(bundle.name)
 
                 if self.api_client is not None:
                     discovery = self._filter_api_discovery_result(bundle.name, discovery)
@@ -1578,6 +1589,90 @@ class DagFileProcessorManager(LoggingMixin):
                     session.delete(error)
         except Exception:
             self.log.exception("Error removing old import errors")
+
+    def _record_bundle_refresh_error(
+        self,
+        bundle_name: str,
+        stacktrace: str,
+        *,
+        session: Session | None = None,
+    ) -> None:
+        if self.api_client is not None:
+            return
+        if session is None:
+            with create_session() as session:
+                self._record_bundle_refresh_error(bundle_name, stacktrace, session=session)
+            return
+        now = timezone.utcnow()
+        try:
+            existing = session.scalar(
+                select(ParseImportError).where(
+                    ParseImportError.bundle_name == bundle_name,
+                    ParseImportError.filename == bundle_name,
+                )
+            )
+            if existing is not None:
+                existing.stacktrace = stacktrace
+                existing.timestamp = now
+                target_error = existing
+            else:
+                target_error = ParseImportError(
+                    bundle_name=bundle_name,
+                    filename=bundle_name,
+                    source_reference=".",
+                    timestamp=now,
+                    stacktrace=stacktrace,
+                )
+                session.add(target_error)
+
+            try:
+                from airflow.listeners.listener import get_listener_manager
+
+                listener_manager = get_listener_manager()
+                try:
+                    file_path = target_error.full_file_path()
+                except Exception:
+                    file_path = bundle_name
+                if existing is not None:
+                    listener_manager.hook.on_existing_dag_import_error(
+                        filename=file_path,
+                        stacktrace=stacktrace,
+                        bundle_name=bundle_name,
+                        relative_fileloc=bundle_name,
+                    )
+                else:
+                    listener_manager.hook.on_new_dag_import_error(
+                        filename=file_path,
+                        stacktrace=stacktrace,
+                        bundle_name=bundle_name,
+                        relative_fileloc=bundle_name,
+                    )
+            except Exception:
+                self.log.exception("Error calling import error listener for bundle %s", bundle_name)
+        except Exception:
+            self.log.exception("Error recording import error for bundle %s", bundle_name)
+
+    def _clear_bundle_refresh_error(
+        self,
+        bundle_name: str,
+        *,
+        session: Session | None = None,
+    ) -> None:
+        if self.api_client is not None:
+            return
+        if session is None:
+            with create_session() as session:
+                self._clear_bundle_refresh_error(bundle_name, session=session)
+            return
+        try:
+            session.execute(
+                delete(ParseImportError).where(
+                    ParseImportError.bundle_name == bundle_name,
+                    ParseImportError.filename == bundle_name,
+                )
+            )
+        except Exception:
+            self.log.exception("Error clearing refresh import error for bundle %s", bundle_name)
 
     def _log_file_processing_stats(self, known_files: dict[str, set[DagFileInfo]]):
         """
