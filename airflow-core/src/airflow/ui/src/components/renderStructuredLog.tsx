@@ -116,7 +116,15 @@ const sourceFields = ["logger", "chan", "lineno", "filename", "loc"];
 
 // Fields bound once per task-instance process via bind_contextvars — identical on every log line,
 // so we strip them from per-line rendering and show them once as a preamble instead.
-export const tiContextFields = ["ti_id", "dag_id", "task_id", "run_id", "try_number", "map_index"];
+export const tiContextFields = [
+  "ti_id",
+  "dag_id",
+  "task_id",
+  "run_id",
+  "try_number",
+  "map_index",
+  "dag_tags",
+];
 
 export const renderTIContextPreamble = (
   context: Record<string, unknown>,
@@ -167,15 +175,23 @@ const extractFromStructuredDatum = (
 export const extractTIContext = (
   data: TaskInstancesLogResponse["content"],
 ): Record<string, unknown> | undefined => {
+  const merged: Record<string, unknown> = {};
+
+  // dag_tags is bound after the TI identity fields, so they can first appear on different records.
   for (const datum of data) {
     const ctx = extractFromStructuredDatum(datum);
 
     if (ctx !== undefined) {
-      return ctx;
+      for (const [field, value] of Object.entries(ctx)) {
+        merged[field] ??= value;
+      }
+      if (Object.keys(merged).length === tiContextFields.length) {
+        break;
+      }
     }
   }
 
-  return undefined;
+  return Object.keys(merged).length > 0 ? merged : undefined;
 };
 
 const renderStructuredLogImpl = ({
