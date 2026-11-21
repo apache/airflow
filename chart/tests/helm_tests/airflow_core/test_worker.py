@@ -139,6 +139,76 @@ class TestWorker:
             "whenDeleted": "Delete",
         }
 
+    @pytest.mark.parametrize(
+        ("worker_image", "expected"),
+        [
+            ({"repository": "worker-repo"}, ["worker-repo:global-tag", "IfNotPresent"]),
+            ({"tag": "worker-tag"}, ["global-repo:worker-tag", "IfNotPresent"]),
+            ({"digest": "sha256:worker"}, ["global-repo@sha256:worker", "IfNotPresent"]),
+            ({"pullPolicy": "Always"}, ["global-repo@sha256:global", "Always"]),
+        ],
+    )
+    def test_worker_image(self, worker_image, expected):
+        docs = render_chart(
+            values={
+                "images": {
+                    "airflow": {"repository": "global-repo", "tag": "global-tag", "digest": "sha256:global"}
+                },
+                "workers": {"celery": {"image": worker_image}},
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        assert (
+            jmespath.search(
+                "spec.template.spec.containers[?name=='worker'] | [0].[image, imagePullPolicy]", docs[0]
+            )
+            == expected
+        )
+
+    @pytest.mark.parametrize(
+        ("worker_image", "expected"),
+        [
+            ({"repository": "worker-repo"}, "worker-repo:default-tag"),
+            ({"tag": "worker-tag"}, "default-repo:worker-tag"),
+        ],
+    )
+    def test_worker_image_falls_back_to_chart_defaults(self, worker_image, expected):
+        docs = render_chart(
+            values={
+                "defaultAirflowRepository": "default-repo",
+                "defaultAirflowTag": "default-tag",
+                "defaultAirflowDigest": "sha256:default",
+                "workers": {"celery": {"image": worker_image}},
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        assert (
+            jmespath.search("spec.template.spec.containers[?name=='worker'] | [0].image", docs[0]) == expected
+        )
+
+    def test_worker_image_only_applies_to_worker_container(self):
+        docs = render_chart(
+            values={
+                "images": {"airflow": {"repository": "global-repo", "tag": "global-tag"}},
+                "workers": {
+                    "celery": {
+                        "image": {"repository": "worker-repo", "pullPolicy": "Always"},
+                        "kerberosSidecar": {"enabled": True},
+                    }
+                },
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        containers = jmespath.search("spec.template.spec.[initContainers, containers][]", docs[0])
+        images = {
+            container["name"]: (container["image"], container["imagePullPolicy"]) for container in containers
+        }
+        assert images.pop("worker") == ("worker-repo:global-tag", "Always")
+        assert set(images.values()) == {("global-repo:global-tag", "IfNotPresent")}
+
     def test_disable_wait_for_migration(self):
         docs = render_chart(
             values={"workers": {"celery": {"waitForMigrations": {"enabled": False}}}},

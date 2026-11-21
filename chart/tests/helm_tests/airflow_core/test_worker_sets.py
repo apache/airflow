@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import jmespath
 import pytest
-from chart_utils.helm_template_generator import render_chart
+from chart_utils.helm_template_generator import HelmFailedError, render_chart
 
 
 class TestWorkerSets:
@@ -156,6 +156,44 @@ class TestWorkerSets:
         assert jmespath.search("spec.template.spec.containers[?name=='worker'] | [0].args", docs[0]) == [
             "test"
         ]
+
+    def test_overwrite_image(self):
+        docs = render_chart(
+            name="test",
+            values={
+                "images": {"airflow": {"tag": "global-tag"}},
+                "workers": {
+                    "celery": {
+                        "image": {
+                            "repository": "celery-repo",
+                            "digest": "sha256:celery",
+                            "pullPolicy": "Always",
+                        },
+                        "sets": [{"name": "set1", "image": {"repository": "set-repo"}}],
+                    }
+                },
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        images = {
+            doc["metadata"]["name"]: jmespath.search(
+                "spec.template.spec.containers[?name=='worker'] | [0].[image, imagePullPolicy]", doc
+            )
+            for doc in docs
+        }
+        assert images == {
+            "test-worker": ["celery-repo@sha256:celery", "Always"],
+            "test-worker-set1": ["set-repo:global-tag", "IfNotPresent"],
+        }
+
+    @pytest.mark.parametrize("image", [{"tag": 3.2}, {"pullPolicy": "always"}, {"repo": "set-repo"}])
+    def test_invalid_set_image_is_rejected(self, image):
+        with pytest.raises(HelmFailedError):
+            render_chart(
+                values={"workers": {"celery": {"sets": [{"name": "set1", "image": image}]}}},
+                show_only=["templates/workers/worker-deployment.yaml"],
+            )
 
     def test_disable_livenessprobe(self):
         docs = render_chart(

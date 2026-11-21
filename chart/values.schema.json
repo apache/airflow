@@ -1687,6 +1687,10 @@
                             "default": null,
                             "x-docsSection": "Kubernetes"
                         },
+                        "image": {
+                            "description": "Image for the Airflow Celery worker container. Unset fields fall back to ``images.airflow`` and then to the ``defaultAirflow*`` values, except the digest: neither ``images.airflow.digest`` nor ``defaultAirflowDigest`` is used once ``repository``, ``tag`` or ``digest`` is set here. The other containers in the worker pod keep their usual images.",
+                            "$ref": "#/definitions/celeryWorkerImage"
+                        },
                         "command": {
                             "description": "Command to use when running Airflow Celery workers (templated).",
                             "type": [
@@ -1814,7 +1818,13 @@
                             "default": [],
                             "items": {
                                 "type": "object",
-                                "additionalProperties": {}
+                                "additionalProperties": {},
+                                "properties": {
+                                    "image": {
+                                        "description": "Image for the Airflow Celery worker container of this set. Replaces ``workers.celery.image`` as a whole.",
+                                        "$ref": "#/definitions/celeryWorkerImage"
+                                    }
+                                }
                             }
                         },
                         "securityContexts": {
@@ -10071,6 +10081,50 @@
         }
     },
     "definitions": {
+        "celeryWorkerImage": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "repository": {
+                    "description": "The Airflow Celery worker image repository.",
+                    "type": [
+                        "null",
+                        "string"
+                    ],
+                    "default": null
+                },
+                "tag": {
+                    "description": "The Airflow Celery worker image tag.",
+                    "type": [
+                        "null",
+                        "string"
+                    ],
+                    "default": null
+                },
+                "digest": {
+                    "description": "The Airflow Celery worker image digest. If set, it will override the tag.",
+                    "type": [
+                        "null",
+                        "string"
+                    ],
+                    "default": null
+                },
+                "pullPolicy": {
+                    "description": "The Airflow Celery worker image pull policy.",
+                    "type": [
+                        "null",
+                        "string"
+                    ],
+                    "enum": [
+                        "Always",
+                        "Never",
+                        "IfNotPresent",
+                        null
+                    ],
+                    "default": null
+                }
+            }
+        },
         "httpRoute": {
             "type": "object",
             "additionalProperties": false,
