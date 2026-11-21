@@ -12078,6 +12078,11 @@ export const $CalendarTimeRangeCollectionResponse = {
             },
             type: 'array',
             title: 'Dag Runs'
+        },
+        planned_runs_capped: {
+            type: 'boolean',
+            title: 'Planned Runs Capped',
+            default: false
         }
     },
     type: 'object',

@@ -17,10 +17,11 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import pendulum
 import pytest
+import time_machine
 from sqlalchemy.orm import Session
 
 from airflow._shared.timezones import timezone
@@ -80,6 +81,7 @@ class TestCalendar:
                 {},
                 {
                     "total_entries": 5,
+                    "planned_runs_capped": False,
                     "dag_runs": [
                         {"date": "2025-01-01T00:00:00Z", "state": "failed", "count": 1, "is_backfill": False},
                         {
@@ -113,6 +115,7 @@ class TestCalendar:
                 {"logical_date_gte": "2025-01-01T00:00:00Z", "logical_date_lte": "2025-01-01T23:23:59Z"},
                 {
                     "total_entries": 2,
+                    "planned_runs_capped": False,
                     "dag_runs": [
                         {"date": "2025-01-01T00:00:00Z", "state": "failed", "count": 1, "is_backfill": False},
                         {
@@ -128,6 +131,7 @@ class TestCalendar:
                 {"logical_date_gte": "2025-01-02T00:00:00Z", "logical_date_lte": "2025-01-02T23:23:59Z"},
                 {
                     "total_entries": 2,
+                    "planned_runs_capped": False,
                     "dag_runs": [
                         {
                             "date": "2025-01-02T00:00:00Z",
@@ -162,6 +166,7 @@ class TestCalendar:
                 {"granularity": "hourly"},
                 {
                     "total_entries": 6,
+                    "planned_runs_capped": False,
                     "dag_runs": [
                         {"date": "2025-01-01T00:00:00Z", "state": "failed", "count": 1, "is_backfill": False},
                         {
@@ -205,6 +210,7 @@ class TestCalendar:
                 },
                 {
                     "total_entries": 2,
+                    "planned_runs_capped": False,
                     "dag_runs": [
                         {
                             "date": "2025-01-02T00:00:00Z",
@@ -231,6 +237,7 @@ class TestCalendar:
                 },
                 {
                     "total_entries": 0,
+                    "planned_runs_capped": False,
                     "dag_runs": [],
                 },
             ),
@@ -244,6 +251,7 @@ class TestCalendar:
                 },
                 {
                     "total_entries": 2,
+                    "planned_runs_capped": False,
                     "dag_runs": [
                         {
                             "date": "2025-01-02T00:00:00Z",
@@ -452,6 +460,7 @@ class TestPartitionedCalendar:
                 {},
                 {
                     "total_entries": 4,
+                    "planned_runs_capped": False,
                     "dag_runs": [
                         {
                             "date": "2025-01-01T00:00:00Z",
@@ -479,6 +488,7 @@ class TestPartitionedCalendar:
                 {"partition_date_gte": "2025-01-02T00:00:00Z", "partition_date_lte": "2025-01-03T23:59:59Z"},
                 {
                     "total_entries": 2,
+                    "planned_runs_capped": False,
                     "dag_runs": [
                         {"date": "2025-01-02T00:00:00Z", "state": "failed", "count": 1, "is_backfill": False},
                         {
@@ -494,6 +504,7 @@ class TestPartitionedCalendar:
                 {"logical_date_gte": "2025-01-01T00:00:00Z", "logical_date_lte": "2025-01-04T23:59:59Z"},
                 {
                     "total_entries": 1,
+                    "planned_runs_capped": False,
                     "dag_runs": [
                         {
                             "date": "2025-01-04T00:00:00Z",
@@ -520,6 +531,7 @@ class TestPartitionedCalendar:
                 {"granularity": "hourly"},
                 {
                     "total_entries": 4,
+                    "planned_runs_capped": False,
                     "dag_runs": [
                         {
                             "date": "2025-01-01T00:00:00Z",
@@ -551,6 +563,7 @@ class TestPartitionedCalendar:
                 },
                 {
                     "total_entries": 1,
+                    "planned_runs_capped": False,
                     "dag_runs": [
                         {
                             "date": "2025-01-01T00:00:00Z",
@@ -572,18 +585,18 @@ class TestPartitionedCalendar:
 
 
 class TestCalendarPlannedRunsCap:
-    """A high-frequency cron must stop at MAX_PLANNED_RUNS instead of iterating to the year boundary."""
+    """A high-frequency schedule must stop at MAX_PLANNED_RUNS instead of iterating to the year boundary."""
 
     DAG_NAME = "test_minutely_dag"
 
-    @pytest.fixture(autouse=True)
+    @pytest.fixture(autouse=True, params=["* * * * *", timedelta(minutes=1)], ids=["cron", "timedelta"])
     @provide_session
-    def setup_dag_runs(self, dag_maker, *, session: Session = NEW_SESSION) -> None:
+    def setup_dag_runs(self, request, dag_maker, *, session: Session = NEW_SESSION) -> None:
         clear_db_runs()
         clear_db_dags()
         with dag_maker(
             self.DAG_NAME,
-            schedule="* * * * *",
+            schedule=request.param,
             start_date=datetime(2025, 6, 1),
             catchup=False,
             serialized=True,
@@ -602,11 +615,16 @@ class TestCalendarPlannedRunsCap:
         clear_db_runs()
         clear_db_dags()
 
-    def test_planned_runs_capped_for_high_frequency_cron(self, test_client):
+    # The generic-timetable path plans from "now" when catchup is disabled, so pin the
+    # clock to the year the fixture's Dag run lives in.
+    @time_machine.travel("2025-06-02T00:00:00+00:00", tick=False)
+    def test_planned_runs_capped_for_high_frequency_schedule(self, test_client):
         response = test_client.get(f"/calendar/{self.DAG_NAME}")
         assert response.status_code == 200
-        planned = [r for r in response.json()["dag_runs"] if r["state"] == "planned"]
+        body = response.json()
+        planned = [r for r in body["dag_runs"] if r["state"] == "planned"]
         assert sum(r["count"] for r in planned) == CalendarService.MAX_PLANNED_RUNS
+        assert body["planned_runs_capped"] is True
 
 
 class TestCalendarBackfill:
