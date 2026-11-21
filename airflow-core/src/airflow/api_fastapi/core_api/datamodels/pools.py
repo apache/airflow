@@ -26,13 +26,14 @@ from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
 from airflow.configuration import conf
 
 
-def _call_function(function: Callable[[], int]) -> int:
+def _call_function(function: Callable[[], int] | int) -> int:
     """
-    Call the given function.
+    Call the given function, or return the value as is if it is not callable.
 
-    Used for the BeforeValidator to get the actual values from the bound method.
+    Validating an ORM ``Pool`` passes the bound slot methods, which query in a new session each. Callers
+    validating many pools pass precomputed counts instead.
     """
-    return function()
+    return function() if callable(function) else function
 
 
 PoolSlots = Annotated[
