@@ -30,6 +30,7 @@ from airflow.models import Connection
 from airflow.process_context import force_server_context
 from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
 from airflow.sdk.execution_time.comms import ErrorResponse
+from airflow.utils.session import create_session_async
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_connections
@@ -654,6 +655,19 @@ class TestConnection:
         session.flush()
 
         assert Connection.get_team_name("test_conn", session=session) == "testing"
+        clear_db_connections()
+
+    @pytest.mark.db_test
+    @pytest.mark.asyncio
+    async def test_get_team_name_async(self, testing_team: Team, session: Session):
+        clear_db_connections()
+
+        session.add(Connection(conn_id="test_conn", conn_type="test_type", team_name=testing_team.name))
+        session.commit()
+
+        async with create_session_async() as async_session:
+            assert await Connection.get_team_name_async("test_conn", session=async_session) == "testing"
+            assert await Connection.get_team_name_async("missing", session=async_session) is None
         clear_db_connections()
 
     @pytest.mark.db_test
