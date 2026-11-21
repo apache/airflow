@@ -526,6 +526,9 @@ class TestDag:
         pytest.param("max_consecutive_failed_dag_runs", "not_an_int", id="max_consecutive_failed_dag_runs"),
         pytest.param("dagrun_timeout", "not_an_int", id="dagrun_timeout"),
         pytest.param("max_active_runs", "not_an_int", id="max_active_runs"),
+        pytest.param("catchup", "false", id="catchup"),
+        pytest.param("is_paused_upon_creation", "false", id="is_paused_upon_creation"),
+        pytest.param("disable_bundle_versioning", "false", id="disable_bundle_versioning"),
     ],
 )
 def test_invalid_type_for_args(attr: str, value: Any):
