@@ -25,6 +25,7 @@ from airflow.api_fastapi.auth.managers.models.resource_details import AccessView
 from airflow.api_fastapi.common.types import MenuItem
 from airflow.cli import cli_parser
 from airflow.providers.keycloak.auth_manager.cli.commands import (
+    READ_ONLY_ROLE_NAME,
     SUPER_ADMIN_ROLE_NAME,
     TEAM_ROLE_NAMES,
     TEAM_SCOPED_RESOURCE_NAMES,
@@ -462,9 +463,10 @@ class TestCommands:
             skip_exists=True,
         )
 
+    @patch("airflow.providers.keycloak.auth_manager.cli.commands._get_policy_id")
     @patch("airflow.providers.keycloak.auth_manager.cli.commands._get_permission_policy_ids")
     def test_update_read_only_permission_resources_excludes_team_resources(
-        self, mock_get_permission_policy_ids
+        self, mock_get_permission_policy_ids, mock_get_policy_id
     ):
         client = Mock()
         client.get_client_authz_permissions.return_value = [{"id": "readonly-id", "name": "ReadOnly"}]
@@ -482,6 +484,7 @@ class TestCommands:
             {"_id": "asset-global", "name": "Asset"},
         ]
         mock_get_permission_policy_ids.return_value = ["viewer-policy", "admin-policy"]
+        mock_get_policy_id.return_value = "global-readonly-policy"
 
         _update_read_only_permission_resources(client, "test-id")
 
@@ -495,8 +498,14 @@ class TestCommands:
                 "logic": "POSITIVE",
                 "decisionStrategy": "AFFIRMATIVE",
                 "scopes": ["scope-get", "scope-list", "scope-menu"],
-                "resources": ["dag-global", "variable-global", "asset-global"],
-                "policies": ["viewer-policy", "admin-policy"],
+                "resources": [
+                    "dag-global",
+                    "dag-team-a",
+                    "variable-global",
+                    "variable-team-a",
+                    "asset-global",
+                ],
+                "policies": ["viewer-policy", "admin-policy", "global-readonly-policy"],
             },
         )
 
@@ -558,7 +567,7 @@ class TestCommands:
         with conf_vars({("keycloak_auth_manager", "client_id"): "test_client_id"}):
             create_permissions_command(self.arg_parser.parse_args(params))
 
-        for role_name in (*TEAM_ROLE_NAMES, SUPER_ADMIN_ROLE_NAME):
+        for role_name in (*TEAM_ROLE_NAMES, READ_ONLY_ROLE_NAME, SUPER_ADMIN_ROLE_NAME):
             mock_ensure_role_policy.assert_any_call(client, "test-id", role_name, _dry_run=False)
 
         mock_create_permissions.assert_called_once_with(client, "test-id", teams=[], _dry_run=False)
@@ -757,6 +766,32 @@ class TestCommands:
             decision_strategy="AFFIRMATIVE",
             _dry_run=False,
         )
+        mock_attach_policy.assert_any_call(
+            client,
+            "test-id",
+            permission_name="ReadOnly",
+            policy_name="Allow-GlobalReadOnly",
+            scope_names=["GET", "LIST", "MENU"],
+            resource_names=[
+                "Connection:team-a",
+                "Dag:team-a",
+                "Pool:team-a",
+                "Team:team-a",
+                "Variable:team-a",
+            ],
+            decision_strategy="AFFIRMATIVE",
+            _dry_run=False,
+        )
+        mock_attach_policy.assert_any_call(
+            client,
+            "test-id",
+            permission_name="MenuAccess",
+            policy_name="Allow-GlobalReadOnly",
+            scope_names=["MENU"],
+            resource_names=[item.value for item in sorted(MenuItem, key=lambda item: item.value)],
+            decision_strategy="AFFIRMATIVE",
+            _dry_run=False,
+        )
         for role_name in TEAM_ROLE_NAMES:
             mock_attach_policy.assert_any_call(
                 client,
@@ -778,12 +813,22 @@ class TestCommands:
             decision_strategy="AFFIRMATIVE",
             _dry_run=False,
         )
+        mock_attach_policy.assert_any_call(
+            client,
+            "test-id",
+            permission_name="AdminViewAccess",
+            policy_name="Allow-GlobalReadOnly",
+            scope_names=["GET"],
+            resource_names=["AdminView"],
+            decision_strategy="AFFIRMATIVE",
+            _dry_run=False,
+        )
         admin_view_policies = [
             c.kwargs["policy_name"]
             for c in mock_attach_policy.call_args_list
             if c.kwargs["permission_name"] == "AdminViewAccess" or "AdminView" in c.kwargs["resource_names"]
         ]
-        assert admin_view_policies == ["Allow-SuperAdmin"]
+        assert admin_view_policies == ["Allow-SuperAdmin", "Allow-GlobalReadOnly"]
         mock_ensure_scope_permission.assert_any_call(
             client,
             "test-id",
