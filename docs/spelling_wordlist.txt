@@ -1579,6 +1579,7 @@ sanitization
 sas
 Sasl
 sasl
+sbt
 sbx
 scala
 scalability

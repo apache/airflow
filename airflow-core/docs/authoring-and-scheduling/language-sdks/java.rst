@@ -199,6 +199,8 @@ A Dag can be declared in two styles, and each section below shows both:
 * **Interface.** Each task is a class implementing ``Task``, and a ``DagDef`` object registers the tasks and
   their dependencies. It needs no annotation processor.
 
+A Scala project should use the interface style; see :ref:`java-sdk/scala`.
+
 Tasks and their inputs
 ~~~~~~~~~~~~~~~~~~~~~~
 
@@ -963,6 +965,8 @@ longer than one character.
 Building a bundle
 -----------------
 
+Gradle and Maven recipes follow. An sbt build is in :ref:`java-sdk/scala`.
+
 .. _java-sdk/build/gradle:
 
 Gradle
@@ -1085,6 +1089,215 @@ add ``src/main/resources/META-INF/airflow/sources.json`` naming it, and point th
     </build>
 
     <Airflow-Java-SDK-Sources>META-INF/airflow/sources.json</Airflow-Java-SDK-Sources>
+
+.. _java-sdk/scala:
+
+Using the Java SDK from Scala
+-----------------------------
+
+The SDK targets the JVM, so you can implement tasks and declare Dags in Scala.
+``java-sdk/scala_spark_example`` in the Airflow repository is a Gradle example that
+runs Apache Spark from Scala task handlers. This section covers the Scala call
+site, including a thin-bundle build with sbt.
+
+Authoring
+~~~~~~~~~
+
+Use the interface style from :ref:`java-sdk/dag-definition`. Implement ``Task``,
+declare a Dag with ``DagDef``, and register it with ``Bundle.register``. A public
+Scala class has the no-argument constructor the runtime uses to construct a
+``Task``. ``config`` keys that take a Java ``Iterable``, such as ``tags``, need
+``.asJava``.
+
+.. code-block:: scala
+
+    package com.mycompany.airflow.hello
+
+    import org.apache.airflow.sdk.{Bundle, Client, Context, DagDef, Server, Task}
+
+    import scala.jdk.CollectionConverters._
+
+    class Extract extends Task {
+      override def execute(context: Context, client: Client): Unit =
+        client.setXCom(java.lang.Long.valueOf(42L))
+    }
+
+    class Report extends Task {
+      override def execute(context: Context, client: Client): Unit = {
+        val rows = client.getXCom("extract").asInstanceOf[Number].longValue()
+        println(s"extracted $rows rows")
+      }
+    }
+
+    object HelloScala {
+      def build(): DagDef = {
+        val dag = new DagDef("scala_hello")
+          .config("schedule", "@daily")
+          .config("queue", "java")
+          .config("tags", Seq("scala", "hello").asJava)
+        val extract = dag.task("extract", classOf[Extract])
+        val report = dag.task("report", classOf[Report])
+        report.after(extract)
+        dag
+      }
+    }
+
+    object Main {
+      def main(args: Array[String]): Unit =
+        Server.create(args).serve(new Bundle().register(HelloScala.build()))
+    }
+
+For a Python Dag with :func:`@task.stub <airflow.sdk.task.stub>`, register each
+handler class by Dag id and task id, as the Gradle example does:
+
+.. code-block:: scala
+
+    new Bundle().register("etl", "score", classOf[Score])
+
+The annotation style (``@Airflow.Dag``, ``@Airflow.Task``, ``@Airflow.Deps``)
+relies on a ``javac`` annotation processor that generates types such as
+``HelloDagDeps``. ``scalac`` does not run that processor, so a wiring class that
+extends the generated interface does not compile. ``@Airflow.TaskHandler`` can be
+attached to a Scala method, but without the processor the SDK does not generate
+the registrar that wires it, so register the task class yourself.
+
+These examples compile on Scala 2.13 and Scala 3.
+
+``TaskInput``
+~~~~~~~~~~~~~
+
+``TaskInput`` needs a public no-argument constructor
+and public non-final fields, so write the input class in Java and implement
+``InputTask`` in Scala:
+
+.. code-block:: java
+
+    package com.mycompany.airflow.hello;
+
+    import org.apache.airflow.sdk.TaskInput;
+
+    public class ScoreInput implements TaskInput {
+      public String region;
+      public double threshold;
+    }
+
+.. code-block:: scala
+
+    import org.apache.airflow.sdk.{Client, Context, InputTask}
+
+    import scala.jdk.CollectionConverters._
+
+    class Score extends InputTask[ScoreInput] {
+      override def execute(context: Context, client: Client, input: ScoreInput): Unit = {
+        val summary = Map("region" -> input.region, "threshold" -> input.threshold).asJava
+        client.setXCom(summary)
+      }
+    }
+
+A Scala class with ``var`` fields compiles, but ``Bundle.register`` fails
+because those fields are private on the JVM:
+
+.. code-block:: text
+
+    TaskInput field ScalaVarInput.query must be public and non-final so the SDK can assign its binding
+
+A case class fails earlier, even when its parameters have defaults:
+
+.. code-block:: text
+
+    TaskInput class CaseInput needs a public no-argument constructor
+
+XCom values
+~~~~~~~~~~~
+
+``setXCom`` stores a JSON value. Pass boxed numbers, ``String``, or a
+``java.util.Map`` / ``java.util.Collection``. Convert Scala collections with
+``.asJava`` from ``scala.jdk.CollectionConverters``, as in the ``Score`` example
+above. A Scala ``Map``, ``Seq``, ``Option`` or case class is rejected with
+``IllegalArgumentException`` rather than being stored as bean properties or as
+``{}``; convert a case class to a ``java.util.Map`` or list.
+
+Building a thin bundle with sbt
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+sbt does not apply the Gradle plugin. A thin bundle works like the Maven thin
+JAR: set ``Main-Class`` on the application JAR, and copy the runtime JARs next
+to it. The supervisor schema version is then read from the ``airflow-sdk`` JAR,
+as in the :ref:`Maven recipe <java-sdk/build/maven>`.
+
+.. code-block:: scala
+
+    ThisBuild / scalaVersion := "2.13.18"
+
+    // Set this to a release from Maven Central:
+    // https://central.sonatype.com/artifact/org.apache.airflow/airflow-sdk
+    val airflowSdkVersion = "<version>"
+    val bundleMainClass = "com.mycompany.airflow.hello.Main"
+
+    lazy val bundle = taskKey[File]("Write a thin Java SDK bundle directory")
+
+    lazy val root = (project in file("."))
+      .settings(
+        name := "hello-scala",
+        javacOptions ++= Seq("--release", "17"),
+        scalacOptions ++= Seq("-release", "17"),
+        libraryDependencies += "org.apache.airflow" % "airflow-sdk" % airflowSdkVersion,
+        Compile / mainClass := Some(bundleMainClass),
+        Compile / packageBin / packageOptions += Package.ManifestAttributes(
+          "Main-Class" -> bundleMainClass
+        ),
+        bundle := {
+          val out = target.value / "bundle"
+          IO.delete(out)
+          IO.createDirectory(out)
+          val app = (Compile / packageBin).value
+          IO.copyFile(app, out / app.getName)
+          (Runtime / fullClasspathAsJars).value
+            .map(_.data)
+            .filter(j => j.getName.endsWith(".jar") && j != app)
+            .foreach(j => IO.copyFile(j, out / j.getName))
+          out
+        },
+      )
+
+``sbt bundle`` writes ``target/bundle/``. Deploy that directory as in
+:ref:`java-sdk/native-dag-parsing`. When other JARs in the bundle also set
+``Main-Class`` — Spark's dependencies do — set the coordinator's ``main_class``
+to the bundle entry point (see :ref:`java-sdk/coordinator-config`):
+
+.. code-block:: ini
+
+    [sdk]
+    coordinators = {
+      "java": {
+        "classpath": "airflow.sdk.coordinators.java.JavaCoordinator",
+        "kwargs": {"main_class": "com.mycompany.airflow.hello.Main"}
+      }
+    }
+    queue_to_coordinator = {"java": "java"}
+
+A fat JAR must set the ``Airflow-Supervisor-Schema-Version`` manifest attribute
+itself, as the Maven shade recipe does. A thin bundle should not, because the
+attribute is already on the ``airflow-sdk`` JAR.
+
+If the project also depends on Apache Spark, or on any other library that pins
+``jackson-module-scala``, align that module to the ``jackson-databind`` version
+``airflow-sdk`` uses. Gradle often does this through Jackson's published
+platform metadata; sbt and Maven do not. ``airflow-sdk`` 1.0.0 pulls in
+``jackson-databind`` 2.22.2:
+
+.. code-block:: scala
+
+    dependencyOverrides +=
+      "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.22.2"
+
+See `#66329 <https://github.com/apache/airflow/issues/66329>`__ for the broader
+classpath-conflict discussion. If you also use ``airflow-sdk-log4j2`` next to
+Spark, align ``log4j-api`` and ``log4j-core`` the same way to the version that
+module declares. The Gradle example does this with
+``platform("org.apache.logging.log4j:log4j-bom:2.26.1")``. For Spark's
+``--add-opens`` list and a dedicated coordinator queue, see
+``java-sdk/scala_spark_example/README.md``.
 
 Deploying
 ---------
