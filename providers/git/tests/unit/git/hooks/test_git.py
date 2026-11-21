@@ -22,6 +22,7 @@ import contextlib
 import http.server
 import os
 import pathlib
+import re
 import shlex
 import socketserver
 import subprocess
@@ -70,8 +71,8 @@ CONN_APP_INVALID_INSTALLATION_ID = "git_app_invalid_installation_id"
 
 
 @contextlib.contextmanager
-def recording_git_server():
-    """Serve 401s on loopback, recording every credential git sends."""
+def recording_git_server(status: int = 401):
+    """Serve ``status`` on loopback, recording every credential git sends."""
     received: list[str] = []
 
     class Unauthorized(http.server.BaseHTTPRequestHandler):
@@ -79,8 +80,9 @@ def recording_git_server():
             header = self.headers.get("Authorization")
             if header and header.startswith("Basic "):
                 received.append(base64.b64decode(header[6:]).decode())
-            self.send_response(401)
-            self.send_header("WWW-Authenticate", 'Basic realm="git"')
+            self.send_response(status)
+            if status == 401:
+                self.send_header("WWW-Authenticate", 'Basic realm="git"')
             self.send_header("Content-Length", "0")
             self.end_headers()
 
@@ -100,6 +102,12 @@ def helper_path_from(config_value: str) -> str:
     """Undo the ``!<quoted path>`` form git needs, the way a shell would."""
     assert config_value.startswith("!")
     return shlex.split(config_value[1:])[0]
+
+
+def git_version() -> tuple[int, int]:
+    output = subprocess.run(["git", "--version"], capture_output=True, text=True, check=True).stdout
+    major, minor = re.findall(r"\d+", output)[:2]
+    return int(major), int(minor)
 
 
 def git_ls_remote(url: str, env: dict[str, str]) -> None:
@@ -780,6 +788,140 @@ class TestGitHook:
         with hook.configure_hook_env():
             assert "GIT_CONFIG_COUNT" not in hook.env
             assert "AIRFLOW_GIT_TOKEN" not in hook.env
+
+    @pytest.mark.parametrize(
+        ("git_config", "expected"),
+        [
+            pytest.param(
+                {"http.https://github.com/.proactiveAuth": "basic"},
+                [("http.https://github.com/.proactiveAuth", "basic")],
+                id="string",
+            ),
+            pytest.param(
+                {"http.sslVerify": False, "http.postBuffer": 524288000},
+                [("http.sslVerify", "false"), ("http.postBuffer", "524288000")],
+                id="bool-and-int",
+            ),
+        ],
+    )
+    def test_git_config_env_and_cleanup(self, git_config, expected, create_connection_without_db):
+        create_connection_without_db(
+            Connection(
+                conn_id="git_config_extra",
+                host=AIRFLOW_HTTPS_URL,
+                conn_type="git",
+                extra={"git_config": git_config},
+            )
+        )
+        hook = GitHook(git_conn_id="git_config_extra")
+
+        with mock.patch.dict(os.environ, clear=False):
+            os.environ.pop("GIT_CONFIG_COUNT", None)
+            with hook.configure_hook_env():
+                assert hook.env["GIT_CONFIG_COUNT"] == os.environ["GIT_CONFIG_COUNT"] == str(len(expected))
+                for index, (key, value) in enumerate(expected):
+                    assert hook.env[f"GIT_CONFIG_KEY_{index}"] == key
+                    assert hook.env[f"GIT_CONFIG_VALUE_{index}"] == value
+
+            assert "GIT_CONFIG_COUNT" not in os.environ
+        assert "GIT_CONFIG_COUNT" not in hook.env
+
+    def test_git_config_goes_after_existing_entries_and_before_the_credential_helper(
+        self, create_connection_without_db
+    ):
+        create_connection_without_db(
+            Connection(
+                conn_id="git_config_with_token",
+                host=AIRFLOW_HTTPS_URL,
+                password=ACCESS_TOKEN,
+                conn_type="git",
+                extra={"git_config": {"http.https://github.com/.proactiveAuth": "basic"}},
+            )
+        )
+        hook = GitHook(git_conn_id="git_config_with_token")
+        deployment = {
+            "GIT_CONFIG_COUNT": "1",
+            "GIT_CONFIG_KEY_0": "core.autocrlf",
+            "GIT_CONFIG_VALUE_0": "false",
+        }
+
+        with mock.patch.dict(os.environ, deployment, clear=False):
+            with hook.configure_hook_env():
+                assert os.environ["GIT_CONFIG_COUNT"] == "4"
+                assert [os.environ[f"GIT_CONFIG_KEY_{index}"] for index in range(4)] == [
+                    "core.autocrlf",
+                    "http.https://github.com/.proactiveAuth",
+                    "credential.https://github.com.helper",
+                    "credential.https://github.com.helper",
+                ]
+                assert os.environ["GIT_CONFIG_VALUE_1"] == "basic"
+
+            assert os.environ["GIT_CONFIG_COUNT"] == "1"
+            assert "GIT_CONFIG_KEY_1" not in os.environ
+
+    @pytest.mark.parametrize(
+        "git_config",
+        [
+            pytest.param(["http.sslVerify=false"], id="not-an-object"),
+            pytest.param({"http.extraHeader": ["a", "b"]}, id="list-value"),
+            pytest.param({"http.sslVerify": None}, id="null-value"),
+        ],
+    )
+    def test_invalid_git_config_raises(self, git_config, create_connection_without_db):
+        create_connection_without_db(
+            Connection(
+                conn_id="git_config_invalid",
+                host=AIRFLOW_HTTPS_URL,
+                conn_type="git",
+                extra={"git_config": git_config},
+            )
+        )
+
+        with pytest.raises(ValueError, match="git_config"):
+            GitHook(git_conn_id="git_config_invalid")
+
+    def test_git_reads_the_git_config_extra(self, create_connection_without_db):
+        create_connection_without_db(
+            Connection(
+                conn_id="git_config_read",
+                host=AIRFLOW_HTTPS_URL,
+                conn_type="git",
+                extra={"git_config": {"airflow.test": "seen"}},
+            )
+        )
+        hook = GitHook(git_conn_id="git_config_read")
+
+        with hook.configure_hook_env():
+            result = subprocess.run(
+                ["git", "config", "--get", "airflow.test"],
+                capture_output=True,
+                text=True,
+                check=False,
+                env={**os.environ, **hook.env},
+            )
+
+        assert result.stdout.strip() == "seen"
+
+    @pytest.mark.skipif(git_version() < (2, 46), reason="http.proactiveAuth needs git 2.46 or higher")
+    def test_proactive_auth_sends_the_token_to_a_server_that_never_asks(self, create_connection_without_db):
+        """A public repository never answers 401, so git only sends the token when told to."""
+        with recording_git_server(status=404) as (port, received):
+            create_connection_without_db(
+                Connection(
+                    conn_id="git_proactive_auth",
+                    host=f"http://127.0.0.1:{port}/repo.git",
+                    password=ACCESS_TOKEN,
+                    conn_type="git",
+                    extra={"git_config": {f"http.http://127.0.0.1:{port}/.proactiveAuth": "basic"}},
+                )
+            )
+            hook = GitHook(git_conn_id="git_proactive_auth")
+
+            with hook.configure_hook_env():
+                git_ls_remote(str(hook.repo_url), hook.env)
+
+        assert received
+        assert set(received) == {f"user:{ACCESS_TOKEN}"}
 
     def test_passphrase_askpass_script_is_executable(self, create_connection_without_db):
         """ssh must be able to exec the helper: it has to be closed before it runs (ETXTBSY on Linux)."""
