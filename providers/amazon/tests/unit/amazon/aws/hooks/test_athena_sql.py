@@ -182,6 +182,33 @@ class TestAthenaSQLHookConn:
         assert hook._region_name == "us-west-2"
         assert hook._config is not None
 
+    @pytest.mark.parametrize("aws_conn_id", [None, ""])
+    @mock.patch(
+        "airflow.providers.amazon.aws.hooks.athena_sql.AthenaSQLHook.get_connection",
+        spec=True,
+    )
+    def test_conn_config_without_aws_connection(self, mock_get_connection, aws_conn_id):
+        hook = AthenaSQLHook(
+            athena_conn_id=AWS_ATHENA_CONN_ID,
+            aws_conn_id=aws_conn_id,
+        )
+
+        conn = Connection(
+            conn_type="athena",
+            schema=SCHEMA_NAME,
+            extra={"work_group": WORK_GROUP, "region_name": REGION_NAME},
+        )
+
+        mock_get_connection.return_value = conn
+
+        conn_config = hook.conn_config
+
+        assert conn_config.schema == SCHEMA_NAME
+        assert conn_config.region_name == REGION_NAME
+        assert conn_config.extra_dejson.get("work_group") == WORK_GROUP
+
+        mock_get_connection.assert_called_once_with(AWS_ATHENA_CONN_ID)
+
 
 class TestAthenaSQLHookOpenLineage:
     """Static tests for the OpenLineage methods on AthenaSQLHook."""
