@@ -697,7 +697,7 @@ class EmrServerlessStartJobTrigger(AwsBaseWaiterTrigger):
                     )
             raise
         except Exception as e:
-            yield TriggerEvent({"status": "failure", "message": str(e)})
+            yield TriggerEvent({"status": "failure", "message": str(e), self.return_key: self.return_value})
 
     async def on_kill(self) -> None:
         """
