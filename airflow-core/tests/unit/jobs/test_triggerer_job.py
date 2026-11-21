@@ -69,6 +69,7 @@ from airflow.executors.workloads.trigger import RunTrigger
 from airflow.jobs.job import Job
 from airflow.jobs.triggerer_job_runner import (
     _REASSIGNED_CANCEL_MSG,
+    _TIMEOUT_CANCEL_MSG,
     _USER_ACTION_CANCEL_MSG,
     TRIGGER_RECOVERY_UPTIME,
     ToTriggerRunner,
@@ -1459,10 +1460,12 @@ async def test_trigger_lifecycle(session, supervisor_builder):
 
         await runner.sync_state_to_supervisor(finished_ids=[])
         await runner.cancel_triggers()
+        assert runner.cancel_requested == {trigger_orm.id}
         # Wait for the trigger coroutine itself to unwind, not for the clock
         await asyncio.wait([task])
         finished_ids = await runner.cleanup_finished_triggers()
         assert finished_ids == [trigger_orm.id]
+        assert runner.cancel_requested == set()
         await runner.sync_state_to_supervisor(finished_ids=finished_ids)
 
         assert supervisor.running_triggers == set()
@@ -3152,121 +3155,140 @@ class TestTriggerRunner:
                     1, mock_trigger, timeout_after=timezone.utcnow() - datetime.timedelta(hours=1)
                 )
             )
-        assert {"event": "Trigger cancelled due to timeout", "log_level": "error"} in cap_structlog
 
-    def test_run_trigger_calls_on_kill_for_user_action(self, session, cap_structlog) -> None:
-        """on_kill() is called when CancelledError carries the user-action sentinel."""
+    @pytest.mark.parametrize(
+        ("cancel_message", "expected_hook"),
+        [
+            pytest.param(_USER_ACTION_CANCEL_MSG, "on_kill", id="user_action"),
+            pytest.param(_TIMEOUT_CANCEL_MSG, "on_timeout", id="execution_timeout"),
+            pytest.param(_REASSIGNED_CANCEL_MSG, None, id="reassigned"),
+            pytest.param(None, None, id="unspecified"),
+        ],
+    )
+    def test_run_trigger_cancellation_hooks(self, session, cancel_message, expected_hook):
         trigger_runner = TriggerRunner()
         trigger_runner.triggers = {
-            1: {"task": MagicMock(spec=asyncio.Task), "is_watcher": False, "name": "mock_name", "events": 0}
+            1: {
+                "task": MagicMock(spec=asyncio.Task),
+                "is_watcher": False,
+                "name": "mock_name",
+                "events": 0,
+            }
         }
+
         mock_trigger = MagicMock(spec=BaseTrigger)
-        mock_trigger.run.side_effect = asyncio.CancelledError(_USER_ACTION_CANCEL_MSG)
+        mock_trigger.run.side_effect = (
+            asyncio.CancelledError(cancel_message) if cancel_message is not None else asyncio.CancelledError()
+        )
         mock_trigger.task_instance = MagicMock()
         mock_trigger.task_instance.map_index = -1
         mock_trigger.on_kill = AsyncMock()
+        mock_trigger.on_timeout = AsyncMock()
+        mock_trigger.cleanup = AsyncMock()
 
         with pytest.raises(asyncio.CancelledError):
             asyncio.run(trigger_runner.run_trigger(1, mock_trigger))
 
-        mock_trigger.on_kill.assert_awaited_once()
-        assert {
-            "event": "Trigger cancelled by user action, invoking on_kill",
-            "log_level": "info",
-            "name": "mock_name",
-        } in cap_structlog
+        for hook_name in ("on_kill", "on_timeout"):
+            hook = getattr(mock_trigger, hook_name)
+            if hook_name == expected_hook:
+                hook.assert_awaited_once()
+            else:
+                hook.assert_not_awaited()
 
-    def test_run_trigger_skips_on_kill_without_user_action_message(self, session) -> None:
-        """on_kill() is not called when CancelledError has no user-action sentinel (shutdown/EOF)."""
-        trigger_runner = TriggerRunner()
-        trigger_runner.triggers = {
-            1: {"task": MagicMock(spec=asyncio.Task), "is_watcher": False, "name": "mock_name", "events": 0}
-        }
-        mock_trigger = MagicMock(spec=BaseTrigger)
-        mock_trigger.run.side_effect = asyncio.CancelledError()
-        mock_trigger.task_instance = MagicMock()
-        mock_trigger.task_instance.map_index = -1
-        mock_trigger.on_kill = AsyncMock()
-
-        with pytest.raises(asyncio.CancelledError):
-            asyncio.run(trigger_runner.run_trigger(1, mock_trigger))
-
-        mock_trigger.on_kill.assert_not_called()
-
-    def test_run_trigger_skips_on_kill_when_trigger_reassigned(self, session, cap_structlog) -> None:
-        """on_kill() is not called when the trigger was handed to another triggerer."""
-        trigger_runner = TriggerRunner()
-        trigger_runner.triggers = {
-            1: {"task": MagicMock(spec=asyncio.Task), "is_watcher": False, "name": "mock_name", "events": 0}
-        }
-        mock_trigger = MagicMock(spec=BaseTrigger)
-        mock_trigger.run.side_effect = asyncio.CancelledError(_REASSIGNED_CANCEL_MSG)
-        mock_trigger.task_instance = MagicMock()
-        mock_trigger.task_instance.map_index = -1
-        mock_trigger.on_kill = AsyncMock()
-
-        with pytest.raises(asyncio.CancelledError):
-            asyncio.run(trigger_runner.run_trigger(1, mock_trigger))
-
-        mock_trigger.on_kill.assert_not_called()
-        assert {
-            "event": "Trigger reassigned to another triggerer, dropping it without on_kill",
-            "log_level": "info",
-            "name": "mock_name",
-        } in cap_structlog
+        mock_trigger.cleanup.assert_awaited_once()
 
     @pytest.mark.asyncio
-    async def test_cancel_triggers_uses_distinct_messages_for_user_action_and_reassignment(self) -> None:
+    async def test_cancel_triggers_uses_distinct_cancellation_messages(self) -> None:
         trigger_runner = TriggerRunner()
         user_task = MagicMock(spec=asyncio.Task)
         reassigned_task = MagicMock(spec=asyncio.Task)
+        timeout_task = MagicMock(spec=asyncio.Task)
+
         trigger_runner.triggers = {
             1: {"task": user_task, "is_watcher": False, "name": "user", "events": 0},
             2: {"task": reassigned_task, "is_watcher": False, "name": "moved", "events": 0},
+            3: {"task": timeout_task, "is_watcher": False, "name": "timeout", "events": 0},
         }
-        trigger_runner.to_cancel.append(1)
-        trigger_runner.to_release.append(2)
-        # An id the runner no longer knows about is ignored on both queues.
-        trigger_runner.to_cancel.append(3)
-        trigger_runner.to_release.append(4)
+
+        trigger_runner.to_cancel.extend([1, 4])
+        trigger_runner.to_release.extend([2, 5])
+        trigger_runner.to_timeout.extend([3, 6])
 
         await trigger_runner.cancel_triggers()
 
         user_task.cancel.assert_called_once_with(_USER_ACTION_CANCEL_MSG)
         reassigned_task.cancel.assert_called_once_with(_REASSIGNED_CANCEL_MSG)
+        timeout_task.cancel.assert_called_once_with(_TIMEOUT_CANCEL_MSG)
+
         assert not trigger_runner.to_cancel
         assert not trigger_runner.to_release
+        assert not trigger_runner.to_timeout
 
     @pytest.mark.asyncio
-    async def test_sync_state_to_supervisor_queues_released_triggers(self) -> None:
+    async def test_cancel_triggers_does_not_cancel_same_trigger_twice(self) -> None:
+        """Repeated timeout notifications must not interrupt on_timeout()."""
+        trigger_runner = TriggerRunner()
+        task = MagicMock(spec=asyncio.Task)
+        trigger_runner.triggers = {1: {"task": task, "is_watcher": False, "name": "timeout", "events": 0}}
+
+        trigger_runner.to_timeout.append(1)
+        await trigger_runner.cancel_triggers()
+
+        trigger_runner.to_timeout.append(1)
+        await trigger_runner.cancel_triggers()
+
+        task.cancel.assert_called_once_with(_TIMEOUT_CANCEL_MSG)
+        assert trigger_runner.cancel_requested == {1}
+        assert not trigger_runner.to_timeout
+
+    @pytest.mark.asyncio
+    async def test_sync_state_to_supervisor_queues_cancellation_reasons(self) -> None:
         trigger_runner = TriggerRunner()
         trigger_runner.comms_decoder = AsyncMock(spec=TriggerCommsDecoder)
         trigger_runner.comms_decoder.asend.return_value = messages.TriggerStateSync(
-            to_create=[], to_cancel={1}, to_release={2}
+            to_create=[],
+            to_cancel={1},
+            to_release={2},
+            to_timeout={3},
         )
 
         await trigger_runner.sync_state_to_supervisor([])
 
         assert list(trigger_runner.to_cancel) == [1]
         assert list(trigger_runner.to_release) == [2]
+        assert list(trigger_runner.to_timeout) == [3]
 
-    def test_run_trigger_on_kill_exception_does_not_swallow_cancelled_error(self, session) -> None:
-        """CancelledError propagates even if on_kill() raises."""
+    @pytest.mark.parametrize(
+        ("cancel_message", "hook_name"),
+        [
+            pytest.param(_USER_ACTION_CANCEL_MSG, "on_kill", id="on_kill"),
+            pytest.param(_TIMEOUT_CANCEL_MSG, "on_timeout", id="on_timeout"),
+        ],
+    )
+    def test_run_trigger_cancellation_hook_exception_does_not_swallow_cancelled_error(
+        self, session, cancel_message, hook_name
+    ) -> None:
+        """CancelledError propagates even if the cancellation hook raises."""
         trigger_runner = TriggerRunner()
         trigger_runner.triggers = {
             1: {"task": MagicMock(spec=asyncio.Task), "is_watcher": False, "name": "mock_name", "events": 0}
         }
+
         mock_trigger = MagicMock(spec=BaseTrigger)
-        mock_trigger.run.side_effect = asyncio.CancelledError(_USER_ACTION_CANCEL_MSG)
+        mock_trigger.run.side_effect = asyncio.CancelledError(cancel_message)
         mock_trigger.task_instance = MagicMock()
         mock_trigger.task_instance.map_index = -1
-        mock_trigger.on_kill = AsyncMock(side_effect=RuntimeError("external API down"))
+        mock_trigger.on_kill = AsyncMock()
+        mock_trigger.on_timeout = AsyncMock()
         mock_trigger.cleanup = AsyncMock()
+
+        getattr(mock_trigger, hook_name).side_effect = RuntimeError("external API down")
 
         with pytest.raises(asyncio.CancelledError):
             asyncio.run(trigger_runner.run_trigger(1, mock_trigger))
 
-        mock_trigger.on_kill.assert_awaited_once()
+        getattr(mock_trigger, hook_name).assert_awaited_once()
         mock_trigger.cleanup.assert_awaited_once()
 
     def test_run_trigger_routes_shared_stream_trigger_through_manager(self, session) -> None:
@@ -3463,21 +3485,35 @@ class TestTriggerRunner:
         asyncio.run(_drive())
         assert advanced == ([] if commit_fails else ["receipt-handle-1"])
 
-    def test_run_trigger_on_kill_timeout_does_not_block_cleanup(self, session) -> None:
-        """A hanging on_kill() is interrupted after the timeout and cleanup still runs."""
+    @pytest.mark.parametrize(
+        ("cancel_message", "hook_name"),
+        [
+            pytest.param(_USER_ACTION_CANCEL_MSG, "on_kill", id="on_kill"),
+            pytest.param(_TIMEOUT_CANCEL_MSG, "on_timeout", id="on_timeout"),
+        ],
+    )
+    def test_run_trigger_cancellation_hook_timeout_does_not_block_cleanup(
+        self, session, cancel_message, hook_name
+    ):
         trigger_runner = TriggerRunner()
         trigger_runner.triggers = {
-            1: {"task": MagicMock(spec=asyncio.Task), "is_watcher": False, "name": "mock_name", "events": 0}
+            1: {
+                "task": MagicMock(spec=asyncio.Task),
+                "is_watcher": False,
+                "name": "mock_name",
+                "events": 0,
+            }
         }
+
         mock_trigger = MagicMock(spec=BaseTrigger)
-        mock_trigger.run.side_effect = asyncio.CancelledError(_USER_ACTION_CANCEL_MSG)
+        mock_trigger.run.side_effect = asyncio.CancelledError(cancel_message)
         mock_trigger.task_instance = MagicMock()
         mock_trigger.task_instance.map_index = -1
 
-        async def hanging_on_kill():
+        async def hanging_hook():
             await asyncio.sleep(9999)
 
-        mock_trigger.on_kill = hanging_on_kill
+        setattr(mock_trigger, hook_name, hanging_hook)
         mock_trigger.cleanup = AsyncMock()
 
         with patch("airflow.jobs.triggerer_job_runner._ON_CANCEL_TIMEOUT", 0.01):
@@ -4721,6 +4757,33 @@ def test_load_triggers_cancels_deleted_trigger_as_user_action(session, superviso
     assert supervisor.releasing_triggers == set()
 
 
+def test_load_triggers_marks_execution_timeout(session, supervisor_builder):
+    """Timed-out triggers are not treated as user cancellations or reassignments."""
+    trigger = TimeDeltaTrigger(datetime.timedelta(days=7))
+    _, _, trigger_orm, _ = create_trigger_in_db(session, trigger)
+
+    supervisor = supervisor_builder()
+    supervisor.running_triggers = {trigger_orm.id}
+    supervisor.cancelling_triggers = {trigger_orm.id}
+    supervisor.releasing_triggers = {trigger_orm.id}
+
+    session.execute(
+        update(Trigger)
+        .where(Trigger.id == trigger_orm.id)
+        .values(
+            triggerer_id=supervisor.job.id,
+            cancel_reason="execution_timeout",
+        )
+    )
+    session.flush()
+
+    supervisor.load_triggers()
+
+    assert supervisor.timing_out_triggers == {trigger_orm.id}
+    assert supervisor.cancelling_triggers == set()
+    assert supervisor.releasing_triggers == set()
+
+
 def test_update_triggers_splits_cancel_set_by_row_existence(supervisor_builder, mocker):
     supervisor = supervisor_builder()
     supervisor.running_triggers = {1, 2, 3}
@@ -4739,13 +4802,15 @@ def test_update_triggers_splits_cancel_set_by_row_existence(supervisor_builder, 
     fetch_assignments.assert_called_once()
 
 
-def test_state_sync_sends_released_triggers_separately_from_cancels(supervisor_builder, mocker):
+def test_state_sync_sends_cancellation_reasons_separately(supervisor_builder, mocker):
     supervisor = supervisor_builder()
     send_msg = mocker.patch.object(TriggerRunnerSupervisor, "send_msg", autospec=True)
     log = MagicMock(spec=FilteringBoundLogger)
-    supervisor.running_triggers = {1, 2}
+
+    supervisor.running_triggers = {1, 2, 3}
     supervisor.cancelling_triggers = {1}
     supervisor.releasing_triggers = {2}
+    supervisor.timing_out_triggers = {3}
 
     supervisor._handle_request(messages.TriggerStateChanges(), log=log, req_id=1)
 
@@ -4753,11 +4818,17 @@ def test_state_sync_sends_released_triggers_separately_from_cancels(supervisor_b
     assert isinstance(resp, messages.TriggerStateSync)
     assert resp.to_cancel == {1}
     assert resp.to_release == {2}
+    assert resp.to_timeout == {3}
 
-    # The runner reporting them finished clears both tracking sets.
-    supervisor._handle_request(messages.TriggerStateChanges(finished=[1, 2]), log=log, req_id=2)
+    supervisor._handle_request(
+        messages.TriggerStateChanges(finished=[1, 2, 3]),
+        log=log,
+        req_id=2,
+    )
+
     assert supervisor.cancelling_triggers == set()
     assert supervisor.releasing_triggers == set()
+    assert supervisor.timing_out_triggers == set()
     assert supervisor.running_triggers == set()
 
 
@@ -6067,12 +6138,14 @@ class TestCheckForUnhandledTriggers:
         incr = mocker.patch("airflow.jobs.triggerer_job_runner.stats.incr", autospec=True)
         jobless_supervisor.running_triggers = set(running_triggers)
         jobless_supervisor.cancelling_triggers = set(running_triggers)
+        jobless_supervisor.timing_out_triggers = set(running_triggers)
 
         jobless_supervisor.check_for_unhandled_triggers(running_ids)
 
         unhandled = running_triggers - running_ids
         assert jobless_supervisor.running_triggers == expected_after
         assert jobless_supervisor.cancelling_triggers == expected_after
+        assert jobless_supervisor.timing_out_triggers == expected_after
         assert (
             mocker.call("triggers.state_mismatch", len(unhandled), tags={}) in incr.call_args_list
         ) is bool(unhandled)

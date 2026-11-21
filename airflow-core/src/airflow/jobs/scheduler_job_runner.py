@@ -120,7 +120,13 @@ from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.task_coordinates import LOOP_GATE_OPERATOR, TaskCoordinateResolver
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.team import JobTeam, Team
-from airflow.models.trigger import TRIGGER_FAIL_REPR, Trigger, TriggerFailureReason, handle_event_submit
+from airflow.models.trigger import (
+    TRIGGER_FAIL_REPR,
+    Trigger,
+    TriggerCancelReason,
+    TriggerFailureReason,
+    handle_event_submit,
+)
 from airflow.observability.metrics import stats_utils
 from airflow.partition_mappers.base import is_rollup
 from airflow.serialization.definitions.assets import SerializedAssetUniqueKey
@@ -4266,26 +4272,51 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
     def check_trigger_timeouts(
         self, max_retries: int = MAX_DB_RETRIES, *, session: Session = NEW_SESSION
     ) -> None:
-        """Mark any "deferred" task as failed if the trigger or execution timeout has passed."""
+        """Fail deferred tasks whose trigger timeout has passed."""
         for attempt in run_with_db_retries(max_retries, logger=self.log):
             with attempt:
-                result = session.execute(
-                    update(TI)
+                now = timezone.utcnow()
+                query = (
+                    select(TI)
                     .where(
                         TI.state == TaskInstanceState.DEFERRED,
-                        TI.trigger_timeout < timezone.utcnow(),
+                        TI.trigger_timeout < now,
                     )
-                    .values(
-                        state=TaskInstanceState.SCHEDULED,
-                        next_method=TRIGGER_FAIL_REPR,
-                        next_kwargs={"error": TriggerFailureReason.TRIGGER_TIMEOUT},
-                        scheduled_dttm=timezone.utcnow(),
-                        trigger_id=None,
-                    )
+                    .limit(100)
                 )
-                num_timed_out_tasks = getattr(result, "rowcount", 0)
-                if num_timed_out_tasks:
-                    self.log.info("Timed out %i deferred tasks without fired triggers", num_timed_out_tasks)
+                query = with_row_locks(query, of=TI, session=session, skip_locked=True)
+                timed_out_tis = session.scalars(query).all()
+
+                if not timed_out_tis:
+                    return
+
+                trigger_ids = {ti.trigger_id for ti in timed_out_tis if ti.trigger_id is not None}
+
+                for ti in timed_out_tis:
+                    ti.state = TaskInstanceState.SCHEDULED
+                    ti.next_method = TRIGGER_FAIL_REPR
+                    ti.next_kwargs = {"error": TriggerFailureReason.TRIGGER_TIMEOUT}
+                    ti.scheduled_dttm = now
+                    ti.trigger_id = None
+
+                session.flush()
+
+                if trigger_ids:
+                    session.execute(
+                        update(Trigger)
+                        .where(
+                            Trigger.id.in_(trigger_ids),
+                            ~Trigger.task_instance.has(),
+                            ~Trigger.assets.any(),
+                            ~Trigger.callback.has(),
+                        )
+                        .values(cancel_reason=TriggerCancelReason.EXECUTION_TIMEOUT)
+                    )
+
+                self.log.info(
+                    "Timed out %i deferred tasks without fired triggers",
+                    len(timed_out_tis),
+                )
 
     @provide_session
     def check_awaiting_input_timeouts(
