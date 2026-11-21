@@ -239,7 +239,7 @@ Re-run Tasks
 Some of the tasks can fail during the scheduled run. Once you have fixed
 the errors after going through the logs, you can re-run the tasks by clearing them for the
 scheduled date. Clearing a task instance creates a record of the task instance.
-The ``try_number`` of the current task instance is incremented, the ``max_tries`` set to ``0`` and the state set to ``None``, which causes the task to re-run.
+The ``try_number`` of the current task instance is incremented, ``max_tries`` is raised so that the task gets its full number of retries again, and the state is set to ``None``, which causes the task to re-run.
 
 An experimental feature in Airflow 3.1.0 allows you to clear the task instances and re-run with the latest bundle version.
 
