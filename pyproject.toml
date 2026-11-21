@@ -589,7 +589,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-amazon[s3fs]",
 ]
 "uv" = [
-    "uv>=0.13.7",
+    "uv>=0.13.9",
 ]
 
 [project.urls]
