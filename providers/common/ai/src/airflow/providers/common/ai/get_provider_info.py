@@ -142,6 +142,20 @@ def get_provider_info():
                         "example": "False",
                         "default": "False",
                     },
+                    "emit_usage_metrics": {
+                        "description": "Emit Airflow task metrics (Stats) for live LLM token usage and cost.\n\n"
+                                       "When enabled, each task attempt aggregates its usage per model and emits\n"
+                                       "``common_ai.llm_requests``, ``common_ai.llm_input_tokens``,\n"
+                                       "``common_ai.llm_output_tokens`` and, when a price is known,\n"
+                                       "``common_ai.llm_cost``. Metrics carry only ``provider`` and ``model``\n"
+                                       "tags to keep StatsD cardinality bounded.\n\n"
+                                       "Off by default. Cached and replayed responses from durable execution are\n"
+                                       "not counted; only live model traffic is reported.\n",
+                        "version_added": "0.5.0",
+                        "type": "boolean",
+                        "example": "False",
+                        "default": "False",
+                    },
                 },
             }
         },

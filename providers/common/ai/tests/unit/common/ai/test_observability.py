@@ -248,3 +248,22 @@ class TestStampIdentityOnAgentSpans:
         assert isinstance(agent1.instrument.tracer, observability._IdentityTracer)
         assert agent1.instrument.tracer._tracer is original_tracer
         assert agent2.instrument.tracer._tracer is original_tracer
+
+
+
+@patch.object(observability, "_usage_metrics_enabled", return_value=False)
+def test_emit_usage_metrics_disabled(_):
+    with patch("airflow.providers.common.compat.sdk.Stats") as stats:
+        observability.emit_usage_metrics(model="gpt-4o", requests=1, input_tokens=10)
+    stats.incr.assert_not_called()
+
+
+@patch.object(observability, "_usage_metrics_enabled", return_value=True)
+def test_emit_usage_metrics_enabled(_):
+    with patch("airflow.providers.common.compat.sdk.Stats") as stats:
+        observability.emit_usage_metrics(
+            model="gpt-4o", provider="openai", requests=2,
+            input_tokens=100, output_tokens=50, cost=0.01,
+        )
+    assert stats.incr.call_count == 4
+    stats.incr.assert_any_call("common_ai.llm_requests", 2, tags={"model": "gpt-4o", "provider": "openai"})
