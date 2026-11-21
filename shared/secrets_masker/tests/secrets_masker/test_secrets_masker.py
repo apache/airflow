@@ -33,6 +33,7 @@ from airflow_shared.secrets_masker.secrets_masker import (
     DEFAULT_SENSITIVE_FIELDS,
     RedactedIO,
     SecretsMasker,
+    UnsafeMaskedSecretMergeError,
     mask_secret,
     redact,
     reset_secrets_masker,
@@ -1454,6 +1455,106 @@ class TestMixedDataScenarios:
 class TestSecretsMaskerMerge:
     """Test the merge functionality for restoring original values from redacted data."""
 
+    def test_merge_list_deletion_does_not_reassign_secret(self):
+        original = {
+            "users": [
+                {"name": "alice", "password": "A-secret"},
+                {"name": "bob", "password": "B-secret"},
+            ]
+        }
+
+        redacted = self.masker.redact(original)
+        edited = {"users": [user for user in redacted["users"] if user["name"] != "alice"]}
+
+        with pytest.raises(
+            UnsafeMaskedSecretMergeError,
+            match="Cannot safely restore masked secrets",
+        ):
+            self.masker.merge(edited, original)
+
+    def test_merge_list_reordering_does_not_swap_secrets(self):
+        original = {
+            "users": [
+                {"name": "alice", "password": "A-secret"},
+                {"name": "bob", "password": "B-secret"},
+            ]
+        }
+
+        redacted = self.masker.redact(original)
+        edited = {"users": list(reversed(redacted["users"]))}
+
+        with pytest.raises(
+            UnsafeMaskedSecretMergeError,
+            match="Cannot safely restore masked secrets",
+        ):
+            self.masker.merge(edited, original)
+
+    def test_merge_list_insertion_does_not_inherit_secret(self):
+        original = {
+            "users": [
+                {"name": "alice", "password": "A-secret"},
+                {"name": "bob", "password": "B-secret"},
+            ]
+        }
+
+        redacted = self.masker.redact(original)
+        edited = {
+            "users": [
+                {"name": "charlie", "password": "***"},
+                *redacted["users"],
+            ]
+        }
+
+        with pytest.raises(
+            UnsafeMaskedSecretMergeError,
+            match="Cannot safely restore masked secrets",
+        ):
+            self.masker.merge(edited, original)
+
+    def test_merge_list_append_preserves_existing_secret(self):
+        original = {"users": [{"name": "alice", "password": "A-secret"}]}
+        edited = {
+            "users": [
+                {"name": "alice", "password": "***"},
+                {"name": "bob", "password": "B-new"},
+            ]
+        }
+
+        assert self.masker.merge(edited, original) == {
+            "users": [
+                {"name": "alice", "password": "A-secret"},
+                {"name": "bob", "password": "B-new"},
+            ]
+        }
+
+    def test_merge_list_indistinguishable_records_rejected(self):
+        original = {
+            "users": [
+                {"role": "admin", "password": "Alice-secret"},
+                {"role": "admin", "password": "Bob-secret"},
+            ]
+        }
+        edited = {
+            "users": [
+                {"role": "admin", "password": "***"},
+                {"role": "admin", "password": "***"},
+            ]
+        }
+
+        # The records have no distinguishable non-sensitive identity.
+        # Restoring by position could assign a secret to the wrong record.
+        with pytest.raises(UnsafeMaskedSecretMergeError):
+            self.masker.merge(edited, original)
+
+    def test_merge_list_non_sensitive_field_update(self):
+        original = {"users": [{"name": "alice", "role": "reader", "password": "A-secret"}]}
+        edited = {"users": [{"name": "alice", "role": "admin", "password": "***"}]}
+
+        # Without a guaranteed element identity, a changed record with a
+        # masked password cannot be safely matched to its original.
+        with pytest.raises(UnsafeMaskedSecretMergeError):
+            self.masker.merge(edited, original)
+
     def setup_method(self):
         self.masker = SecretsMasker()
         configure_secrets_masker_for_test(self.masker)
@@ -1834,3 +1935,34 @@ class TestKubernetesImportAvoidance:
         # Should be redacted since "password" is a sensitive field name
         assert redacted["value"] == "***"
         assert redacted["name"] == "password"
+
+
+def test_merge_rejects_nested_record_deletion_with_masked_secrets():
+    import pytest
+
+    from airflow_shared.secrets_masker import (
+        SecretsMasker,
+        UnsafeMaskedSecretMergeError,
+    )
+
+    masker = SecretsMasker()
+    configure_secrets_masker_for_test(masker, sensitive_fields=["password"])
+    assert masker.should_hide_value_for_key("password")
+    old = {
+        "groups": [
+            [
+                {"name": "alice", "password": "alice-secret"},
+                {"name": "bob", "password": "bob-secret"},
+            ]
+        ]
+    }
+    new = {
+        "groups": [
+            [
+                {"name": "bob", "password": "***"},
+            ]
+        ]
+    }
+
+    with pytest.raises(UnsafeMaskedSecretMergeError):
+        masker.merge(new, old)
