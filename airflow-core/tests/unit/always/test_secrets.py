@@ -21,7 +21,9 @@ from unittest import mock
 
 import pytest
 
+from airflow import configuration
 from airflow.configuration import ensure_secrets_loaded, initialize_secrets_backends
+from airflow.exceptions import AirflowConfigException
 from airflow.models import Connection, Variable
 from airflow.sdk import SecretCache
 from airflow.sdk.exceptions import AirflowNotFoundException
@@ -116,6 +118,143 @@ class TestConnectionsFromSecrets:
     def test_connection_env_var_do_not_access_team_specific(self):
         with pytest.raises(AirflowNotFoundException, match=r"The conn_id `_team___test_mysql` isn't defined"):
             Connection.get_connection_from_secrets(conn_id="_team___test_mysql")
+
+    @conf_vars(
+        {
+            (
+                "secrets",
+                "backend",
+            ): "airflow.providers.amazon.aws.secrets.systems_manager.SystemsManagerParameterStoreBackend",
+            ("secrets", "backend_kwargs"): '{"connections_prefix": "/airflow", "profile_name": null}',
+            ("secrets", "backends_order"): "custom,environment_variable,metastore",
+        }
+    )
+    def test_backends_order(self):
+        backends = ensure_secrets_loaded()
+        backend_classes = [backend.__class__.__name__ for backend in backends]
+        assert backend_classes == [
+            "SystemsManagerParameterStoreBackend",
+            "EnvironmentVariablesBackend",
+            "MetastoreBackend",
+        ]
+
+    @pytest.mark.parametrize(
+        ("backends_order", "expected_backends_order"),
+        [
+            pytest.param(
+                "custom,environment_variable,execution_api",
+                [
+                    "SystemsManagerParameterStoreBackend",
+                    "EnvironmentVariablesBackend",
+                    "ExecutionAPISecretsBackend",
+                ],
+            ),
+            pytest.param(
+                "environment_variable,execution_api,custom",
+                [
+                    "EnvironmentVariablesBackend",
+                    "ExecutionAPISecretsBackend",
+                    "SystemsManagerParameterStoreBackend",
+                ],
+            ),
+            pytest.param(
+                "execution_api,environment_variable,custom",
+                [
+                    "ExecutionAPISecretsBackend",
+                    "EnvironmentVariablesBackend",
+                    "SystemsManagerParameterStoreBackend",
+                ],
+            ),
+        ],
+    )
+    def test_workers_backends_order_param(self, backends_order, expected_backends_order):
+        with conf_vars(
+            {
+                (
+                    "workers",
+                    "secrets_backend",
+                ): "airflow.providers.amazon.aws.secrets.systems_manager.SystemsManagerParameterStoreBackend",
+                (
+                    "workers",
+                    "secrets_backend_kwargs",
+                ): '{"connections_prefix": "/airflow", "profile_name": null}',
+                ("workers", "backends_order"): backends_order,
+            }
+        ):
+            backends = ensure_secrets_loaded(
+                default_backends=[
+                    "airflow.secrets.environment_variables.EnvironmentVariablesBackend",
+                    "airflow.sdk.execution_time.secrets.execution_api.ExecutionAPISecretsBackend",
+                ]
+            )
+            backend_classes = [backend.__class__.__name__ for backend in backends]
+            assert backend_classes == expected_backends_order
+
+    @pytest.mark.parametrize(
+        "backends_order",
+        [
+            pytest.param("custom,metastore", id="no_environment_variable_backend"),
+            pytest.param("environment_variable", id="no_metastore_backend"),
+            pytest.param("metastore,environment_variable,unsupported", id="unsupported_backend"),
+        ],
+    )
+    def test_backends_order_invalid_cases(self, backends_order):
+        with conf_vars({("secrets", "backends_order"): backends_order}):
+            with pytest.raises(AirflowConfigException):
+                ensure_secrets_loaded()
+
+    @pytest.mark.parametrize(
+        ("backends_order", "exc_msg"),
+        [
+            pytest.param(
+                "custom,environment_variable",
+                "The configuration option [workers]backends_order is misconfigured. The following backend types are missing: ['execution_api']",
+                id="no_execution_api_backend",
+            ),
+            pytest.param(
+                "execution_api",
+                "The configuration option [workers]backends_order is misconfigured. The following backend types are missing: ['environment_variable']",
+                id="no_environment_variable_backend",
+            ),
+            pytest.param(
+                "custom",
+                "The configuration option [workers]backends_order is misconfigured. The following backend types are missing: ['environment_variable', 'execution_api']",
+                id="no_environment_variable_and_execution_api_backend",
+            ),
+            pytest.param(
+                "execution_api,environment_variable,unsupported",
+                "The configuration option [workers]backends_order is misconfigured. The following backend types are unsupported: ['unsupported']",
+                id="unsupported_backend",
+            ),
+        ],
+    )
+    def test_workers_backends_order_invalid_cases(self, backends_order, exc_msg):
+        with conf_vars({("workers", "backends_order"): backends_order}):
+            with pytest.raises(AirflowConfigException) as exc_info:
+                ensure_secrets_loaded(
+                    default_backends=[
+                        "airflow.secrets.environment_variables.EnvironmentVariablesBackend",
+                        "airflow.sdk.execution_time.secrets.execution_api.ExecutionAPISecretsBackend",
+                    ]
+                )
+            assert exc_info.value.args[0] == exc_msg
+
+    def test_secrets_backend_list_lazy_initialization(self):
+        assert "secrets_backend_list" not in configuration.__dict__
+        try:
+            with conf_vars({("secrets", "backends_order"): "environment_variable,metastor"}):
+                assert configuration.conf.get("secrets", "backends_order") == "environment_variable,metastor"
+                with pytest.raises(AirflowConfigException):
+                    _ = configuration.secrets_backend_list
+
+            backends = configuration.secrets_backend_list
+            assert "secrets_backend_list" in configuration.__dict__
+            assert len(backends) == 2
+
+            with pytest.raises(AttributeError):
+                _ = configuration.non_existent_attribute
+        finally:
+            configuration.__dict__.pop("secrets_backend_list", None)
 
 
 @pytest.mark.db_test

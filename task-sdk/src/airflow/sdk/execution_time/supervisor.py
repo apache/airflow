@@ -64,6 +64,7 @@ import psutil
 import structlog
 from pydantic import BaseModel, TypeAdapter
 
+from airflow.sdk._shared.configuration import secrets_backends
 from airflow.sdk._shared.logging.structlog import reconfigure_logger
 from airflow.sdk._shared.secrets_masker import redact
 from airflow.sdk.api.client import Client, ServerResponseError
@@ -3070,7 +3071,7 @@ def ensure_secrets_backend_loaded() -> list[BaseSecretsBackend]:
     # 3. Fallback for unknown contexts (supervisor, etc.)
     # Only env vars + external backends from config, no MetastoreBackend, no ExecutionAPISecretsBackend
     fallback_backends = [
-        "airflow.secrets.environment_variables.EnvironmentVariablesBackend",
+        secrets_backends.ENVIRONMENT_VARIABLE_BACKEND_PATH,
     ]
     return ensure_secrets_loaded(default_backends=fallback_backends)
 

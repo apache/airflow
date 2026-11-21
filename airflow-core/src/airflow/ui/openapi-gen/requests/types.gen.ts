@@ -3133,6 +3133,7 @@ export type ConfigResponse = {
     theme: Theme | null;
     multi_team: boolean;
     rerun_with_latest_version?: boolean | null;
+    backends_order: string;
 };
 
 /**
