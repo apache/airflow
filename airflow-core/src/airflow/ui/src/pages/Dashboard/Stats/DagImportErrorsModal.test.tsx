@@ -56,4 +56,22 @@ describe("DagImportErrorsModal", () => {
 
     await waitFor(() => expect(writeText).toHaveBeenCalledWith(importError.stack_trace));
   });
+
+  it.each([
+    ["my-bundle", "my-bundle"],
+    [undefined, null],
+  ])("requests import errors scoped to bundle %s", async (bundleName, expectedParam) => {
+    const requestedBundles: Array<string | null> = [];
+
+    server.use(
+      http.get("/api/v2/importErrors", ({ request }) => {
+        requestedBundles.push(new URL(request.url).searchParams.get("bundle_name"));
+
+        return HttpResponse.json({ import_errors: [], total_entries: 0 });
+      }),
+    );
+    render(<DagImportErrorsModal bundleName={bundleName} onClose={vi.fn()} open />, { wrapper: Wrapper });
+
+    await waitFor(() => expect(requestedBundles).toEqual([expectedParam]));
+  });
 });

@@ -143,6 +143,7 @@ from airflow.sdk.execution_time.comms import (
     ValidateInletsAndOutlets,
 )
 from airflow.sdk.execution_time.context import (
+    _CURRENT_TEAM_NAME_ENV_VAR,
     AssetStateStoreAccessors,
     ConnectionAccessor,
     InletEventsAccessors,
@@ -156,6 +157,7 @@ from airflow.sdk.execution_time.context import (
     context_to_airflow_vars,
     get_previous_dagrun_success,
     set_current_context,
+    set_current_team_name,
 )
 from airflow.sdk.execution_time.email_backend import (
     _DEFAULT_EMAIL_BACKEND,
@@ -449,11 +451,6 @@ class RuntimeTaskInstance(TaskInstance):
                         ),
                     }
                 )
-
-            # Backward compatibility: old servers may still send upstream_map_indexes
-            upstream_map_indexes = getattr(from_server, "upstream_map_indexes", None)
-            if upstream_map_indexes is not None:
-                setattr(self, "_upstream_map_indexes", upstream_map_indexes)
 
         return self._cached_template_context
 
@@ -1245,6 +1242,34 @@ def parse(what: StartupDetails, log: Logger) -> RuntimeTaskInstance:
 #   accessible wherever needed during task execution without modifying every layer of the call stack.
 SUPERVISOR_COMMS: CommsDecoder[ToTask, ToSupervisor]
 
+# True while code serves an in-process supervisor request (dag.test()). That code acts as
+# the server side, so get_supervisor_comms() returns None there. Other task threads are unaffected.
+_supervisor_comms_hidden: contextvars.ContextVar[bool] = contextvars.ContextVar(
+    "_supervisor_comms_hidden", default=False
+)
+
+
+def get_supervisor_comms() -> CommsDecoder[ToTask, ToSupervisor] | None:
+    """
+    Return the comms to the supervisor, or ``None``.
+
+    ``None`` outside a task execution context and inside :func:`hide_supervisor_comms`. Code that
+    decides whether it runs inside a task should ask this instead of checking for ``SUPERVISOR_COMMS``.
+    """
+    if _supervisor_comms_hidden.get():
+        return None
+    return globals().get("SUPERVISOR_COMMS")
+
+
+@contextmanager
+def hide_supervisor_comms() -> Iterator[None]:
+    """Hide the comms from the code run inside this block, and only from it."""
+    token = _supervisor_comms_hidden.set(True)
+    try:
+        yield
+    finally:
+        _supervisor_comms_hidden.reset(token)
+
 
 # State machine!
 # 1. Start up (receive details from supervisor)
@@ -1304,6 +1329,8 @@ def startup(msg: StartupDetails) -> tuple[RuntimeTaskInstance, Context, Logger]:
         get_listener_manager().hook.on_starting(component=TaskRunnerMarker())
     except Exception:
         log.exception("error calling listener")
+
+    set_current_team_name(msg.ti_context.dag_run.team_name)
 
     with _airflow_parsing_context_manager(dag_id=msg.ti.dag_id, task_id=msg.ti.task_id):
         ti = parse(msg, log)
@@ -2770,6 +2797,8 @@ def reinit_supervisor_comms() -> None:
     can continue to access variables etc.
     """
     import socket
+
+    set_current_team_name(os.environ.get(_CURRENT_TEAM_NAME_ENV_VAR))
 
     if "SUPERVISOR_COMMS" not in globals():
         global SUPERVISOR_COMMS

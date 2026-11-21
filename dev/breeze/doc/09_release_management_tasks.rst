@@ -358,17 +358,15 @@ Adding git tags for providers
 """""""""""""""""""""""""""""
 
 This command can be utilized to manage git tags for providers within the Airflow remote repository during provider releases.
-Sometimes in cases when there is a connectivity issue to GitHub, it might be possible that local tags get created and lead to annoying errors.
-The default behaviour would be to clean such local tags up.
-
-The flag ``--clean-tags`` can be used to delete the local tags.
-
-However, If you want to disable this behaviour, set the envvar CLEAN_LOCAL_TAGS to false or use the
-``--no-clean-tags`` flag.
+By default (``--clean-tags``), the command recreates tags that already exist and force-pushes them, so
+you can re-run it after a failed push. Don't re-run it after a successful push: it would replace every
+published tag with a new tag object and change the tag dates that the provider metadata uses as release
+dates. Pass ``--no-clean-tags`` (or set ``CLEAN_TAGS=false``) to make it stop at the first tag that already
+exists locally.
 
 .. code-block:: bash
 
-     breeze release-management tag-providers
+     breeze release-management tag-providers --release-date YYYY-MM-DD
 
 These are all of the available flags for the ``tag-providers`` command:
 

@@ -136,7 +136,7 @@ then you will want to turn catchup off, which is the default setting or can be d
 
     """
     Code that goes along with the Airflow tutorial located at:
-    https://github.com/apache/airflow/blob/main/airflow/example_dags/tutorial.py
+    https://github.com/apache/airflow/blob/main/airflow-core/src/airflow/example_dags/tutorial.py
     """
 
     from airflow.sdk import DAG
@@ -258,13 +258,13 @@ There are multiple options you can select to re-run -
   discarding them, so the next attempt resumes from a checkpoint or reconnects to an external job
   instead of starting over. See :doc:`resumable-tasks` for details.
 
-Clearing an individual task instance discards its task state store entries by default, so the next
+Clearing a task instance or a Dag run discards task state store entries by default, so the next
 attempt starts from the beginning instead of resuming a checkpoint or reconnecting to an external
 job. See :doc:`resumable-tasks` for when to keep it instead.
 
-You can also clear the task through CLI using ``airflowctl tasks clear``, which discards task state
-the same way and accepts ``--keep-task-state`` to opt back in. The legacy, deprecated
-``airflow tasks clear`` command below always keeps task state:
+You can also clear the task through CLI using ``airflowctl tasks clear``, or the deprecated
+``airflow tasks clear`` command below. Both discard task state the same way and accept
+``--keep-task-state`` to opt back in:
 
 .. code-block:: bash
 
@@ -345,6 +345,12 @@ Example of a parameterized Dag:
 
 
 **Note**: The parameters from ``dag_run.conf`` can only be used in a template field of an operator.
+
+.. note::
+
+   ``dag_run.conf`` is meant for small metadata, such as a path, a table name, or an identifier. The entire value is stored in
+   the metadata database and sent to every task worker process on startup. Avoid putting large payloads in it. Use a
+   reference instead, and have the task read the actual data from external storage.
 
 Wait for a Dag Run
 ------------------

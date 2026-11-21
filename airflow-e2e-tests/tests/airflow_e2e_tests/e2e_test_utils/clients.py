@@ -249,6 +249,14 @@ class AirflowClient:
             endpoint=f"dags/{dag_id}/dagRuns/{run_id}/taskInstances",
         )
 
+    def set_task_instance_state(self, dag_id: str, run_id: str, task_id: str, state: str):
+        """Set the state of a task instance, as marking it in the UI does."""
+        return self._make_request(
+            method="PATCH",
+            endpoint=f"dags/{dag_id}/dagRuns/{run_id}/taskInstances/{task_id}",
+            json={"new_state": state},
+        )
+
     def get_hitl_detail(self, dag_id: str, run_id: str, task_id: str, map_index: int = -1):
         """Get the Human-in-the-loop request of a task instance."""
         return self._make_request(
@@ -297,6 +305,20 @@ class AirflowClient:
         if task_id is not None:
             params["task_id"] = task_id
         return self._make_request(method="GET", endpoint="eventLogs", params=params)["event_logs"]
+
+    def clear_task_instances(self, dag_id: str, run_id: str, **options):
+        """
+        Clear task instances of a Dag run and queue the Dag run again.
+
+        By default the endpoint turns on ``dry_run`` and ``only_failed``. With these defaults it only lists
+        the failed task instances that a clear would select. This method turns both options off and clears
+        the selected task instances in any state.
+        """
+        return self._make_request(
+            method="POST",
+            endpoint=f"dags/{dag_id}/clearTaskInstances",
+            json={"dag_run_id": run_id, "dry_run": False, "only_failed": False, **options},
+        )
 
 
 class TaskSDKClient:

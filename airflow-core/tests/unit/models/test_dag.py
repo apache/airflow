@@ -23,6 +23,7 @@ import os
 import pickle
 import re
 import time
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import nullcontext
 from datetime import timedelta
 from pathlib import Path
@@ -68,6 +69,8 @@ from airflow.models.hitl import HITLDetail
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance as TI
 from airflow.models.trigger import handle_event_submit
+from airflow.models.variable import Variable
+from airflow.models.xcom import XComModel
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
@@ -77,6 +80,7 @@ from airflow.sdk import (
     CronPartitionTimetable,
     PartitionedAtRuntime,
     TaskGroup,
+    Variable as SdkVariable,
     setup,
     task as task_decorator,
     task_group,
@@ -1945,6 +1949,64 @@ class TestDag:
 
         dag.test()
         mock_object.assert_called_with("output of first task")
+
+    def test_dag_test_threads_of_a_task_push_and_read_xcoms(self, testing_dag_bundle, session):
+        """A task's own threads make SDK calls while others are served: each gets its own answer."""
+        dag = DAG(dag_id="test_dag_test_xcoms_from_threads", schedule=None, start_date=DEFAULT_DATE)
+
+        @task_decorator
+        def produce(ti=None):
+            def work(x):
+                for n in range(5):
+                    ti.xcom_push(key=f"k{n}_{x}", value=x)
+                    assert ti.xcom_pull(task_ids="produce", key=f"k{n}_{x}") == x
+                return x
+
+            with ThreadPoolExecutor(max_workers=4) as pool:
+                return sorted(pool.map(work, range(8)))
+
+        with dag:
+            produce()
+        sync_dag_to_db(dag)
+
+        dr = dag.test()
+
+        assert dr.state == DagRunState.SUCCESS
+        keys = set(
+            session.scalars(
+                select(XComModel.key).where(XComModel.dag_id == dag.dag_id, XComModel.run_id == dr.run_id)
+            )
+        )
+        assert {f"k{n}_{x}" for n in range(5) for x in range(8)} <= keys
+
+    def test_dag_test_threads_of_a_task_read_variables_while_another_is_served(
+        self, testing_dag_bundle, session
+    ):
+        """
+        A Variable lookup must not miss while another thread's request is served: hiding the comms
+        from the whole process sent it to the fallback secrets backends, which do not have a
+        Variable stored in the metadata database.
+        """
+        Variable.set(key="in_process_db_variable", value="v", session=session)
+        session.commit()
+        dag = DAG(dag_id="test_dag_test_variables_from_threads", schedule=None, start_date=DEFAULT_DATE)
+
+        @task_decorator
+        def read(ti=None):
+            def work(x):
+                for _ in range(25):
+                    assert SdkVariable.get("in_process_db_variable") == "v"
+                    ti.xcom_push(key=f"k_{x}", value=x)
+                return x
+
+            with ThreadPoolExecutor(max_workers=4) as pool:
+                return sorted(pool.map(work, range(8)))
+
+        with dag:
+            read()
+        sync_dag_to_db(dag)
+
+        assert dag.test().state == DagRunState.SUCCESS
 
     @pytest.mark.parametrize("callback_error", [None, RuntimeError])
     def test_dag_test_retry_callback_keeps_attempt_live(self, testing_dag_bundle, callback_error):
