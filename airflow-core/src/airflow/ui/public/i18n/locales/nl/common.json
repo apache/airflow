@@ -118,6 +118,7 @@
     "home": "Home",
     "invalidUrl": "Pagina niet gevonden. Controleer de URL en probeer het opnieuw.",
     "notFound": "Pagina niet gevonden",
+    "reload": "Pagina herladen",
     "title": "Fout"
   },
   "errors": {
