@@ -425,6 +425,38 @@ class TestBuildFileAnalysisRequest:
 
         assert f"Header: name, note\nSample rows:\nSmith, {expected_row}" in request.user_content
 
+    @pytest.mark.parametrize(
+        ("filename", "content", "expected"),
+        [
+            pytest.param("people.csv", "name,city\nSmith,Oslo\n", "Header: name, city\n", id="csv"),
+            pytest.param("people.json", '[{"name": "Smith"}]', '[\n  {\n    "name": "Smith"', id="json"),
+            pytest.param("notes.txt", "first line", "\nfirst line", id="txt"),
+        ],
+    )
+    @pytest.mark.parametrize("encoding", ["utf-8-sig", "utf-16"])
+    def test_byte_order_mark_is_not_part_of_the_content(
+        self, tmp_path, filename, content, expected, encoding
+    ):
+        # Excel's "CSV UTF-8" and Windows PowerShell's UTF-8 files start with a byte order mark.
+        # Windows PowerShell 5.1 ``>`` and ``Out-File`` write UTF-16LE with a byte order mark.
+        path = tmp_path / filename
+        path.write_text(content, encoding=encoding)
+
+        request = build_file_analysis_request(
+            file_path=str(path),
+            file_conn_id=None,
+            prompt="Analyze",
+            multi_modal=False,
+            max_files=1,
+            max_file_size_bytes=1024,
+            max_total_size_bytes=1024,
+            max_text_chars=500,
+            sample_rows=10,
+        )
+
+        assert expected in request.user_content
+        assert "\ufeff" not in request.user_content
+
 
 class TestFileAnalysisHelpers:
     @pytest.mark.parametrize(
