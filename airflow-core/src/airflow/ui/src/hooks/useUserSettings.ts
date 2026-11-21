@@ -20,12 +20,14 @@ import { useLocalStorage } from "usehooks-ts";
 
 import type { Direction } from "src/components/Graph/DirectionDropdown";
 
+import type { DagView } from "src/constants/dagView";
 import {
   CLEAR_KEEP_TASK_STATE_KEY,
   CLEAR_PREVENT_RUNNING_TASK_KEY,
   CLEAR_RUN_DEFAULT_OPTIONS_KEY,
   CLEAR_TASK_INSTANCE_DEFAULT_OPTIONS_KEY,
   DAGS_LIST_SHOW_RECENT_TASKS_KEY,
+  DEFAULT_DAG_VIEW_KEY,
   DEFAULT_GRAPH_DIRECTION_KEY,
   DEFAULT_MATCH_ANYWHERE_KEY,
   DEFAULT_TASK_GROUPS_EXPANDED_KEY,
@@ -87,3 +89,6 @@ export const useDefaultLandingPage = () =>
 /** Whether the Dags list shows recent tasks; off also skips fetching them. */
 export const useShowDagsListRecentTasks = () =>
   useLocalStorage<boolean>(DAGS_LIST_SHOW_RECENT_TASKS_KEY, true);
+
+/** View shown by default when opening a Dag: grid, graph, or gantt. */
+export const useDefaultDagView = () => useLocalStorage<DagView>(DEFAULT_DAG_VIEW_KEY, "grid");

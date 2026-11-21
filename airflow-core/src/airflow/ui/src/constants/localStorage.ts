@@ -43,6 +43,7 @@ export const DAGS_LIST_SHOW_RECENT_TASKS_KEY = "dags_list_show_recent_tasks";
 
 // Dag-scoped keys
 export const dagRunsLimitKey = (dagId: string) => `dag_runs_limit-${dagId}`;
+export const dagViewKey = (dagId: string) => `dag_view-${dagId}`;
 export const directionKey = (dagId: string) => `direction-${dagId}`;
 export const openGroupsKey = (dagId: string) => `${dagId}/open-groups`;
 export const allGroupsKey = (dagId: string) => `${dagId}/all-groups`;

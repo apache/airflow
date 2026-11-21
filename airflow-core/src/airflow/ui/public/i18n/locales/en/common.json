@@ -315,6 +315,18 @@
       },
       "title": "Dags List"
     },
+    "dagView": {
+      "defaultView": {
+        "helper": "View shown by default when you open a Dag.",
+        "label": "Default Dag view",
+        "options": {
+          "gantt": "Gantt",
+          "graph": "Graph",
+          "grid": "Grid"
+        }
+      },
+      "title": "Dag View"
+    },
     "description": "These preferences are saved in this browser only and apply across the whole app.",
     "general": {
       "landingPage": {
