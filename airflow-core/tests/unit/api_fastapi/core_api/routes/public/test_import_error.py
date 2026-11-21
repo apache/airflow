@@ -24,7 +24,7 @@ import pytest
 from sqlalchemy import delete, update
 
 from airflow.api_fastapi.auth.managers.models.resource_details import AccessView, DagDetails
-from airflow.api_fastapi.core_api.routes.public.import_error import REDACTED_STACKTRACE
+from airflow.api_fastapi.core_api.security import REDACTED_FILE_CONTENT
 from airflow.models import DagModel
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.errors import ParseImportError
@@ -1155,7 +1155,7 @@ class TestImportErrorFileAuthorization:
         body = response.json()
         mixed_entries = [err for err in body["import_errors"] if err["filename"] == self.MIXED_FILE_RELATIVE]
         assert len(mixed_entries) == 1
-        assert mixed_entries[0]["stack_trace"] == REDACTED_STACKTRACE
+        assert mixed_entries[0]["stack_trace"] == REDACTED_FILE_CONTENT
 
     @pytest.mark.parametrize(
         ("can_view_all_import_errors", "expected_total_entries", "expected_stacktraces"),
