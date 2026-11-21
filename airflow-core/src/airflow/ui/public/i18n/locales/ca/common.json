@@ -31,6 +31,7 @@
     "deadlines": "Terminis",
     "jobs": "Processos",
     "requiredActions": "Accions requerides",
+    "triggers": "Triggers",
     "xcoms": "XComs"
   },
   "collapseAllExtra": "Col·lapsar tots els camps extra json",
@@ -44,6 +45,7 @@
   "dagBundle_other": "Col·leccions de Dags",
   "dagDetails": {
     "activeRuns": "Execucions actives",
+    "bundleVersion": "Versió de la col·lecció",
     "catchup": "Recuperar (catchup)",
     "dagRunTimeout": "Temps d'espera de l'execució del Dag",
     "defaultArgs": "Arguments per defecte",
@@ -117,6 +119,7 @@
     "home": "Inici",
     "invalidUrl": "Pàgina no trobada. Si us plau, comprova la URL i torna-ho a provar.",
     "notFound": "Pàgina no trobada",
+    "reload": "Tornar a carregar la pàgina",
     "title": "Error"
   },
   "errors": {
@@ -138,18 +141,25 @@
     "all": "Tots",
     "and": "I",
     "any": "Qualsevol",
+    "hiddenAsset": "Asset ocult",
     "or": "O"
   },
   "filter": "Filtre",
   "filters": {
     "addFilter": "Afegir filtre",
+    "allIterations": "Totes",
     "completedAt": "Completat a",
     "date": "Data",
     "durationFrom": "Duració Des de",
     "durationTo": "Duració Fins a",
     "endTime": "Hora de finalització",
+    "iteration": "Iteració",
     "logicalDateFrom": "Data Lògica Des de",
     "logicalDateTo": "Data Lògica Fins a",
+    "loop": "Bucle",
+    "loopAllIterations": "{{loop}} (totes les iteracions)",
+    "loopIteration": "{{loop}} {{index}}",
+    "loopPlaceholder": "Seleccioneu un bucle",
     "maxActiveRunsFrom": "Màxim d'execucions actives des de",
     "maxActiveRunsTo": "Màxim d'execucions actives fins a",
     "removeFilter": "Eliminar filtre",
@@ -159,6 +169,7 @@
     "selectDateRange": "Seleccionar interval de dates",
     "selectDateTime": "Seleccionar data i hora",
     "startTime": "Hora d'inici",
+    "switchIteration": "Canviar d'iteració",
     "time": "Hora"
   },
   "fullscreen": {
@@ -167,6 +178,7 @@
   "generateToken": "Generar token",
   "includedIn": "Inclòs a",
   "key": "Clau",
+  "loading": "S'està carregant…",
   "logLevel": {
     "hide": "Amagar nivells de registre",
     "hotkey": "l",
@@ -186,6 +198,7 @@
     },
     "save": "Desar"
   },
+  "moreTabs": "Més",
   "nav": {
     "admin": "Configuració",
     "assets": "Assets",
@@ -211,6 +224,10 @@
     "write": "Escriure"
   },
   "overallStatus": "Estat general",
+  "pagination": {
+    "nextPage": "Pàgina següent",
+    "previousPage": "Pàgina anterior"
+  },
   "partition_one": "Partició",
   "partition_other": "Particions",
   "partitionedDagRun_one": "Execució de Dag particionada",
@@ -245,6 +262,7 @@
     "asset_triggered": "Executat per Asset",
     "backfill": "Reomplir",
     "manual": "Manual",
+    "operator_triggered": "Executat per un operador",
     "scheduled": "Programat"
   },
   "scroll": {
@@ -257,7 +275,8 @@
   "search": {
     "advanced": {
       "description": "Coincidir en qualsevol lloc del valor (recerca de subcadena). Més lent en instàncies grans perquè no pot utilitzar l'índex B-tree predeterminat. Més detalls a la secció de documentació sobre índexs de metadades personalitzats.",
-      "title": "Coincidir en qualsevol lloc"
+      "title": "Coincidir en qualsevol lloc",
+      "toggleLabel": "Alternar la cerca de coincidències en qualsevol posició"
     }
   },
   "security": {
@@ -288,6 +307,13 @@
         "label": "Selecció predeterminada per rellançar tasques"
       },
       "title": "Rellançament"
+    },
+    "dagsList": {
+      "recentTasks": {
+        "helper": "Mostra l'estat de les tasques recents de cada Dag a la llista de Dags. Desactiveu aquesta opció per evitar carregar-les. Això pot millorar el rendiment en desplegaments amb molts Dags.",
+        "label": "Mostrar les tasques recents"
+      },
+      "title": "Llista de Dags"
     },
     "description": "Aquestes preferències només es desen en aquest navegador i s'apliquen a tota l'aplicació.",
     "general": {
@@ -364,10 +390,12 @@
       "scrollBottom": "Desplaçar-se fins al final",
       "scrollTop": "Desplaçar-se fins al principi",
       "searchDags": "Cercar $t(dag_other)",
+      "selectGridCellRange": "Seleccionar un interval de $t(taskInstance_other) o de $t(taskGroup_other)",
       "showHelp": "Mostrar $t(shortcuts.title)",
       "toggleExpand": "Expandir o col·lapsar tots els grups",
       "toggleFullscreen": "Alternar la pantalla completa",
       "toggleGraphGrid": "Alternar entre la vista de gràfic i de graella",
+      "toggleGridCellSelection": "Afegir o treure un element de la selecció ($t(taskInstance_one) o $t(taskGroup_one))",
       "toggleLogLevel": "Alternar nivells de registre",
       "toggleSource": "Alternar el codi font",
       "toggleTaskGroup": "Expandir o col·lapsar $t(taskGroup_one)",
@@ -398,6 +426,7 @@
     "no_status": "Sense estat",
     "none": "Sense estat",
     "open": "Obert",
+    "pending": "Pendent",
     "planned": "Planificat",
     "queued": "En cua",
     "removed": "Eliminat",
@@ -411,6 +440,9 @@
     "upstream_failed": "Fallit aigües amunt"
   },
   "switchDag": "Canviar a $t(dag_one)",
+  "switchDagRun": "Canviar a $t(dagRun_one)",
+  "switchMapIndex": "Canviar a $t(mapIndex)",
+  "switchTask": "Canviar a $t(task_one)",
   "table": {
     "completedAt": "Completat a",
     "createdAt": "Creat a",
@@ -456,6 +488,9 @@
     "executorConfig": "Configuració de l'executor",
     "hostname": "Nom del Host",
     "id": "ID",
+    "iteration": "Iteració",
+    "loopDecision": "Decisió",
+    "loopIterations": "Iteracions executades",
     "maxTries": "Màxim de reintents",
     "pid": "PID",
     "pool": "Pool",
@@ -464,6 +499,7 @@
     "queue": "Cua",
     "queuedWhen": "Enviat a cua a les",
     "renderedMapIndex": "Índex del mapa renderitzat",
+    "retryAt": "Hora del reintent",
     "scheduledWhen": "Programat a les",
     "stateReason": "Motiu de l'estat",
     "stateReasonSummary": {
@@ -577,6 +613,8 @@
     "tokenShownOnce": "Aquest token només es mostrarà una vegada. Copieu-lo ara."
   },
   "total": "Total {{state}}",
+  "trigger_one": "Trigger",
+  "trigger_other": "Triggers",
   "triggered": "Executat",
   "tryNumber": "Número d'intent",
   "unpause": "Reprendre",
