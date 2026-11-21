@@ -1796,6 +1796,57 @@ def fork_ci_reconcile(
             f.write(get_ga_output("has-alerts", has_alerts) + "\n")
 
 
+def _move_pull_request(move, pr_number: int, github_repository: str) -> None:
+    from airflow_breeze.utils.fork_ci_github import GitHubClient, GitHubError
+    from airflow_breeze.utils.shared_options import get_dry_run
+
+    try:
+        done = move(GitHubClient(github_repository, dry_run=get_dry_run()), pr_number)
+    except (GitHubError, ValueError) as e:
+        console_print(f"[error]#{pr_number}: {e}[/]")
+        sys.exit(1)
+    for action in done or ["nothing to change"]:
+        console_print(f"[info]#{pr_number}: {action}[/]")
+
+
+@ci_group.command(
+    name="use-project-ci",
+    help="Move a pull request to project CI (AIP-120): withhold its fork CI `CI passed`, label it "
+    "`use project ci` and close and reopen it to start project CI.",
+)
+@click.argument("pr_number", type=int)
+@click.option(
+    "--restart/--no-restart",
+    default=True,
+    show_default=True,
+    help="Close and reopen the pull request to start project CI, which the label does not. Without "
+    "it, project CI runs on the author's next push.",
+)
+@option_github_repository
+@option_verbose
+@option_dry_run
+def use_project_ci(pr_number: int, restart: bool, github_repository: str):
+    import functools
+
+    from airflow_breeze.utils.fork_ci_pr_move import move_to_project_ci
+
+    _move_pull_request(functools.partial(move_to_project_ci, restart=restart), pr_number, github_repository)
+
+
+@ci_group.command(
+    name="use-fork-ci",
+    help="Move a pull request to fork CI (AIP-120): label it `use fork ci` instead of `use project ci`.",
+)
+@click.argument("pr_number", type=int)
+@option_github_repository
+@option_verbose
+@option_dry_run
+def use_fork_ci(pr_number: int, github_repository: str):
+    from airflow_breeze.utils.fork_ci_pr_move import move_to_fork_ci
+
+    _move_pull_request(move_to_fork_ci, pr_number, github_repository)
+
+
 @ci_group.command(
     name="audit",
     help="Check that your checkout and fork are set up for fork CI (AIP-120), and offer the fixes.",

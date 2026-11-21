@@ -217,6 +217,43 @@ These are all available flags of ``approve-workflow-runs`` command:
   :width: 100%
   :alt: Breeze ci approve-workflow-runs
 
+Moving a pull request between project CI and fork CI
+----------------------------------------------------
+
+A maintainer moves a single pull request to project CI with the ``use project ci`` label, and back
+to fork CI with ``use fork ci`` (AIP-120). The fork CI monitor reacts to the labels only on its next
+run, so a fork ``CI passed`` success posted before ``use project ci`` was added still lets the pull
+request merge until then, and the label alone does not start project CI. ``use-project-ci`` does both
+in order, with your own ``gh`` credentials: it sets a fork ``CI passed`` success on the head commit
+to ``pending`` first, then adds ``use project ci`` (removing ``use fork ci``), and closes and reopens
+the pull request to start project CI (``--no-restart`` leaves that to the author's next push). A
+``CI passed`` success that project CI earned is kept.
+
+.. code-block:: bash
+
+    breeze ci use-project-ci 12345
+
+These are all available flags of ``use-project-ci`` command:
+
+.. image:: ./images/output_ci_use-project-ci.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_ci_use-project-ci.svg
+  :width: 100%
+  :alt: Breeze ci use-project-ci
+
+``use-fork-ci`` labels the pull request ``use fork ci`` instead of ``use project ci``. The monitor
+gates it on its next run, and fork CI runs on the author's next push to their fork.
+
+.. code-block:: bash
+
+    breeze ci use-fork-ci 12345
+
+These are all available flags of ``use-fork-ci`` command:
+
+.. image:: ./images/output_ci_use-fork-ci.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_ci_use-fork-ci.svg
+  :width: 100%
+  :alt: Breeze ci use-fork-ci
+
 -----
 
 Next step: Follow the `Release management tasks <09_release_management_tasks.rst>`_ guide to learn how

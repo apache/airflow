@@ -307,3 +307,21 @@ def test_does_not_shrink_run_job_pages_for_errors_other_than_server_errors(mock_
     with pytest.raises(GitHubError, match="HTTP 404"):
         GitHubClient().get_run_jobs("someone/airflow", 7)
     mock_run.assert_called_once()
+
+
+@mock.patch("airflow_breeze.utils.fork_ci_github.subprocess.run", autospec=True)
+def test_reopen(mock_run):
+    mock_run.return_value = _completed()
+
+    GitHubClient().reopen(1)
+
+    assert mock_run.call_args.args[0] == [
+        "gh",
+        "api",
+        "-X",
+        "PATCH",
+        "repos/apache/airflow/pulls/1",
+        "--input",
+        "-",
+    ]
+    assert json.loads(mock_run.call_args.kwargs["input"]) == {"state": "open"}

@@ -27,6 +27,8 @@ CI_COMMANDS: dict[str, str | list[str]] = {
         "upgrade",
         "set-milestone",
         "fork-ci-reconcile",
+        "use-project-ci",
+        "use-fork-ci",
         "audit",
         "approve-workflow-runs",
     ],
@@ -131,6 +133,23 @@ CI_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--reported-file",
                 "--draft-changes-file",
                 "--run-url",
+                "--github-repository",
+            ],
+        },
+    ],
+    "breeze ci use-project-ci": [
+        {
+            "name": "Use project CI flags",
+            "options": [
+                "--restart",
+                "--github-repository",
+            ],
+        },
+    ],
+    "breeze ci use-fork-ci": [
+        {
+            "name": "Use fork CI flags",
+            "options": [
                 "--github-repository",
             ],
         },
