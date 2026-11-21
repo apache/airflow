@@ -19,7 +19,13 @@ from __future__ import annotations
 
 import pytest
 
-from airflow.sdk.definitions.context import get_current_context
+from airflow.sdk.definitions.context import context_merge, get_current_context
+
+
+def test_context_merge_updates_empty_dict_in_place():
+    context: dict = {}
+    context_merge(context, {"a": 1}, templates_dict={"b": 2})
+    assert context == {"a": 1, "templates_dict": {"b": 2}}
 
 
 class TestCurrentContext:
