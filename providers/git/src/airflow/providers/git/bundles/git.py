@@ -541,10 +541,7 @@ class GitDagBundle(BaseDagBundle):
                 host = None
         if not host:
             return None
-        clean_path = path.strip("/")
-        if clean_path.endswith(".git"):
-            clean_path = clean_path[:-4]
-        return f"{host.lower()}/{clean_path.lower()}"
+        return f"{host.lower()}/{path.strip('/').lower().removesuffix('.git')}"
 
     @staticmethod
     def _convert_git_ssh_url_to_https(url: str) -> str:
