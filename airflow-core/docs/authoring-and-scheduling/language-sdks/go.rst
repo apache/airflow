@@ -601,11 +601,13 @@ retries, which makes it a good place to record an external job id or a checkpoin
         return waitForSparkJob(actx, jobID)
     }
 
-The store has ``Get``, ``UnmarshalJSONValue`` (decodes an object or array into a pointer), ``Set``, ``Delete``
+The store has ``Get``, ``UnmarshalJSONValue`` (decodes the value into a pointer), ``Set``, ``Delete``
 and ``Clear``.
 
-* A value must be JSON, and not ``nil``. A ``time.Time``, a non-finite float or a ``[]byte`` is refused before it
-  is sent, so store a time as ``value.Format(time.RFC3339)``.
+* A value must be JSON, and not ``nil``. It is stored as ``encoding/json`` writes it, so a ``time.Time`` becomes
+  an RFC 3339 string and a ``[]byte`` a base64 string, and ``UnmarshalJSONValue`` reads them back. A
+  whole-number float such as ``5.0`` is stored as the integer ``5``, so ``Get`` returns it as an ``int64``. A
+  non-finite float is refused before it is sent.
 * ``Set`` without options keeps the key for ``[state_store] default_retention_days``.
   ``sdk.WithRetention(d)`` keeps it for a positive ``time.Duration``, and ``sdk.NeverExpire`` keeps it forever.
 * ``[workers] state_store_backend`` is not used from Go tasks, so values are always stored in the database. A

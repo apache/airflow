@@ -20,11 +20,15 @@ package execution
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"math"
+	"math/big"
 	"os"
+	"reflect"
 	"strconv"
 	"testing"
 	"time"
@@ -33,6 +37,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/apache/airflow/go-sdk/pkg/binding"
 	"github.com/apache/airflow/go-sdk/pkg/execution/genmodels"
 	"github.com/apache/airflow/go-sdk/sdk"
 )
@@ -407,17 +412,14 @@ func TestCoordinatorClientPushXComRejectsNonJSONValues(t *testing.T) {
 		wantErr string
 	}{
 		{
-			name:    "datetime",
-			value:   time.Date(2026, 5, 15, 0, 0, 0, 0, time.UTC),
-			wantErr: "time.Time is not JSON representable",
+			name:    "NaN",
+			value:   math.NaN(),
+			wantErr: "float64 is not JSON representable: json: unsupported value: NaN",
 		},
-		{name: "uuid", value: uuid.New(), wantErr: "[]byte is not JSON representable"},
-		{name: "byte slice", value: []byte("raw"), wantErr: "[]byte is not JSON representable"},
 		{
-			// Regression: a key that decodes to a slice used to panic the decoder.
-			name:    "uuid map key",
-			value:   map[uuid.UUID]string{uuid.New(): "a"},
-			wantErr: "map keys must be strings",
+			name:    "integer past 64 bits",
+			value:   new(big.Int).Lsh(big.NewInt(1), 64),
+			wantErr: "the integer at value is 18446744073709551616, which does not fit in 64 bits",
 		},
 	}
 
@@ -469,6 +471,150 @@ func TestCoordinatorClientPushXComAllowsNil(t *testing.T) {
 			sentMap := rawToMap(t, sent.Body)
 			require.Contains(t, sentMap, "value")
 			assert.Nil(t, sentMap["value"])
+		})
+	}
+}
+
+type roundTripStatus int
+
+func (roundTripStatus) MarshalJSON() ([]byte, error) {
+	return json.Marshal("ok")
+}
+
+func (s *roundTripStatus) UnmarshalJSON(b []byte) error {
+	var name string
+	if err := json.Unmarshal(b, &name); err != nil {
+		return err
+	}
+	if name != "ok" {
+		return fmt.Errorf("unknown status %q", name)
+	}
+	*s = 0
+	return nil
+}
+
+type roundTripStringID struct {
+	ID int64 `json:"id,string"`
+}
+
+type roundTripMarshaler struct {
+	Status roundTripStatus `json:"status"`
+}
+
+// A value a task returns must decode into the same Go type in a downstream
+// task. Argument binding decodes with encoding/json, so the pushed value has to
+// follow encoding/json's rules, not only its field names.
+func TestCoordinatorClientPushXComRoundTripsThroughBinding(t *testing.T) {
+	tests := []struct {
+		name  string
+		value any
+	}{
+		{name: "json string option", value: roundTripStringID{ID: 123}},
+		{name: "json marshaler", value: roundTripMarshaler{Status: 0}},
+		{name: "datetime", value: time.Date(2026, 5, 15, 0, 0, 0, 0, time.UTC)},
+		{name: "uuid", value: uuid.MustParse(testTIID)},
+		{name: "byte slice", value: []byte("raw")},
+		{name: "uuid map key", value: map[uuid.UUID]string{uuid.MustParse(testTIID): "a"}},
+		{name: "integer past 2^53", value: int64(1<<53 + 1)},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			responsePayload := encodeResponseFrame(t, 0, map[string]any{"type": "OKResponse"}, nil)
+			var responseBuf bytes.Buffer
+			require.NoError(t, writeFrame(&responseBuf, responsePayload))
+
+			var requestBuf bytes.Buffer
+			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+			client := NewCoordinatorClient(
+				NewCoordinatorComm(&responseBuf, &requestBuf, logger), testTIID,
+			)
+			ti := sdk.TaskInstance{DagID: "d", RunID: "r", TaskID: "t"}
+
+			require.NoError(t, client.PushXCom(context.Background(), ti, "return_value", tc.value))
+
+			sent, err := readFrame(&requestBuf)
+			require.NoError(t, err)
+			pushed := rawToMap(t, sent.Body)["value"]
+
+			got, err := binding.DecodeLiteral(pushed, reflect.TypeOf(tc.value))
+
+			require.NoError(t, err)
+			assert.Equal(t, tc.value, got.Interface())
+		})
+	}
+}
+
+// JSON text does not say whether a number was a float, so a float64 with no
+// fractional part is read back as an integer.
+func TestEncodeJSONValueStoresWholeFloatAsInteger(t *testing.T) {
+	encoded, isNull, err := encodeJSONValue(5.0)
+	require.NoError(t, err)
+	assert.False(t, isNull)
+
+	var got any
+	require.NoError(t, unmarshalNormalized(encoded, &got))
+	assert.Equal(t, int64(5), got)
+}
+
+func TestEncodeJSONValueSortsMapKeys(t *testing.T) {
+	value := map[string]int{"a": 1, "b": 2, "c": 3, "d": 4, "e": 5, "f": 6, "g": 7, "h": 8}
+
+	first, _, err := encodeJSONValue(value)
+	require.NoError(t, err)
+
+	for range 50 {
+		again, _, err := encodeJSONValue(value)
+		require.NoError(t, err)
+		require.Equal(t, first, again)
+	}
+}
+
+func TestTaskStateStoreSetRoundTripsThroughUnmarshalJSONValue(t *testing.T) {
+	t.Setenv(defaultRetentionDaysEnv, "30")
+
+	tests := []struct {
+		name  string
+		value any
+	}{
+		{name: "json string option", value: roundTripStringID{ID: 123}},
+		{name: "json marshaler", value: roundTripMarshaler{Status: 0}},
+		{name: "datetime", value: time.Date(2026, 5, 15, 0, 0, 0, 0, time.UTC)},
+		{name: "byte slice", value: []byte("raw")},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			var setResponse bytes.Buffer
+			require.NoError(t, writeFrame(&setResponse, encodeResponseFrame(t, 0, nil, nil)))
+			var requestBuf bytes.Buffer
+			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+			writer := NewCoordinatorClient(
+				NewCoordinatorComm(&setResponse, &requestBuf, logger), testTIID,
+			)
+			require.NoError(
+				t,
+				writer.TaskStateStore().Set(context.Background(), "job_id", tc.value),
+			)
+
+			sent, err := readFrame(&requestBuf)
+			require.NoError(t, err)
+			stored := rawToMap(t, sent.Body)["value"]
+
+			var getResponse bytes.Buffer
+			require.NoError(t, writeFrame(&getResponse, encodeResponseFrame(t, 0, map[string]any{
+				"type":  "TaskStateStoreResult",
+				"value": stored,
+			}, nil)))
+			reader := NewCoordinatorClient(
+				NewCoordinatorComm(&getResponse, io.Discard, logger), testTIID,
+			)
+
+			got := reflect.New(reflect.TypeOf(tc.value))
+			require.NoError(t, reader.TaskStateStore().UnmarshalJSONValue(
+				context.Background(), "job_id", got.Interface(),
+			))
+			assert.Equal(t, tc.value, got.Elem().Interface())
 		})
 	}
 }
@@ -624,32 +770,14 @@ func TestTaskStateStoreSetRejectsMisconfiguredRetention(t *testing.T) {
 	assert.Zero(t, requestBuf.Len(), "a rejected write must not reach the supervisor")
 }
 
-// Mirrors Python's test_set_datetime_raises_validation_error.
 func TestTaskStateStoreSetRejectsNonJSONValues(t *testing.T) {
 	tests := []struct {
 		name    string
 		value   any
 		wantErr string
 	}{
-		{
-			name:    "datetime",
-			value:   time.Date(2026, 5, 15, 0, 0, 0, 0, time.UTC),
-			wantErr: "time.Time is not JSON representable",
-		},
-		{
-			name:    "datetime nested in a map",
-			value:   map[string]any{"watermark": time.Date(2026, 5, 15, 0, 0, 0, 0, time.UTC)},
-			wantErr: "time.Time is not JSON representable",
-		},
-		{name: "NaN", value: math.NaN(), wantErr: "finite number"},
-		{name: "Inf", value: math.Inf(1), wantErr: "finite number"},
-		{name: "byte slice", value: []byte("raw"), wantErr: "[]byte is not JSON representable"},
-		{name: "byte array", value: [16]byte{}, wantErr: "[]byte is not JSON representable"},
-		{
-			name:    "non-string map key",
-			value:   map[int]string{1: "a"},
-			wantErr: "map keys must be strings",
-		},
+		{name: "NaN", value: math.NaN(), wantErr: "json: unsupported value: NaN"},
+		{name: "Inf", value: math.Inf(1), wantErr: "json: unsupported value: +Inf"},
 	}
 
 	for _, tc := range tests {
@@ -673,8 +801,8 @@ func TestTaskStateStoreSetAcceptsJSONShapes(t *testing.T) {
 	t.Setenv(defaultRetentionDaysEnv, "30")
 
 	type checkpoint struct {
-		Processed int      `msgpack:"processed"`
-		Cursors   []string `msgpack:"cursors"`
+		Processed int      `json:"processed"`
+		Cursors   []string `json:"cursors"`
 	}
 	type skippedTime struct {
 		When time.Time `json:"-"`
@@ -685,6 +813,9 @@ func TestTaskStateStoreSetAcceptsJSONShapes(t *testing.T) {
 		"struct skipping time.Time": skippedTime{When: time.Now(), Name: "x"},
 		"nested":                    map[string]any{"rows": []any{1, "two", 3.5, true, nil}},
 		"scalar":                    "plain",
+		"time.Time":                 time.Date(2026, 5, 15, 0, 0, 0, 0, time.UTC),
+		"byte slice":                []byte("raw"),
+		"int map key":               map[int]string{1: "a"},
 	}
 
 	for name, value := range values {
