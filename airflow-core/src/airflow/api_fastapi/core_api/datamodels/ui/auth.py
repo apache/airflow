@@ -37,6 +37,7 @@ class AuthenticatedMeResponse(BaseModel):
 
     id: str
     username: str
+    display_name: str = Field(description="Human-readable name of the user, as returned by the auth manager.")
     teams: list[str] | None = Field(
         default=None,
         description="Teams the user has access to. Null when the environment does not run in multi-team mode.",
