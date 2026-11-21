@@ -2665,6 +2665,10 @@
                                                 "$ref": "#/definitions/io.k8s.api.core.v1.ConfigMapKeySelector",
                                                 "description": "Selects a key of a ConfigMap."
                                             },
+                                            "fieldRef": {
+                                                "$ref": "#/definitions/io.k8s.api.core.v1.ObjectFieldSelector",
+                                                "description": "Selects a field of the pod."
+                                            },
                                             "secretKeyRef": {
                                                 "$ref": "#/definitions/io.k8s.api.core.v1.SecretKeySelector",
                                                 "description": "Selects a key of a secret in the pod's namespace"
@@ -2674,6 +2678,11 @@
                                             {
                                                 "required": [
                                                     "configMapKeyRef"
+                                                ]
+                                            },
+                                            {
+                                                "required": [
+                                                    "fieldRef"
                                                 ]
                                             },
                                             {
@@ -3158,6 +3167,10 @@
                                                 "$ref": "#/definitions/io.k8s.api.core.v1.ConfigMapKeySelector",
                                                 "description": "Selects a key of a ConfigMap."
                                             },
+                                            "fieldRef": {
+                                                "$ref": "#/definitions/io.k8s.api.core.v1.ObjectFieldSelector",
+                                                "description": "Selects a field of the pod."
+                                            },
                                             "secretKeyRef": {
                                                 "$ref": "#/definitions/io.k8s.api.core.v1.SecretKeySelector",
                                                 "description": "Selects a key of a secret in the pod's namespace"
@@ -3167,6 +3180,11 @@
                                             {
                                                 "required": [
                                                     "configMapKeyRef"
+                                                ]
+                                            },
+                                            {
+                                                "required": [
+                                                    "fieldRef"
                                                 ]
                                             },
                                             {

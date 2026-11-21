@@ -1117,6 +1117,12 @@ capabilities:
       configMapKeyRef:
         name: {{ $config.valueFrom.configMapKeyRef.name }}
         key: {{ $config.valueFrom.configMapKeyRef.key }}
+      {{- else if $config.valueFrom.fieldRef }}
+      fieldRef:
+        fieldPath: {{ $config.valueFrom.fieldRef.fieldPath | quote }}
+        {{- with $config.valueFrom.fieldRef.apiVersion }}
+        apiVersion: {{ . | quote }}
+        {{- end }}
       {{- end }}
     {{- end }}
   {{- end }}
