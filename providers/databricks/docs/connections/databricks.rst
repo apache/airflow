@@ -54,6 +54,11 @@ There are several ways to connect to Databricks using Airflow.
    Kubernetes and supports both account-wide and service-principal federation policies. Like the Kubernetes method, no long-lived secret is stored in the connection.
 8. Using AWS IAM `OIDC token federation <https://docs.databricks.com/aws/en/dev-tools/auth/provider-aws-iam>`__ (applicable when Airflow runs with AWS credentials)
    i.e. mint an AWS-signed OIDC JWT via AWS STS ``GetWebIdentityToken`` and exchange it for a Databricks OAuth token. Stores no secrets; requires the provider's ``amazon`` extra.
+9. Using a Google-signed OpenID Connect ID token (only on Databricks on Google Cloud)
+   i.e. obtain a Google ID token at runtime from the default Google credentials (for example
+   ``GOOGLE_APPLICATION_CREDENTIALS``), optionally impersonating a service account that is
+   mapped into Databricks, and use it directly as the Bearer token for Databricks API calls.
+   Requires the provider's ``google`` extra.
 
 Default Connection IDs
 ----------------------
@@ -136,6 +141,28 @@ Extra (optional)
     * ``azure_resource_id``: optional Resource ID of the Azure Databricks workspace (required if managed identity isn't
       a user inside workspace)
     * ``azure_managed_identity_client_id``: optional client ID of the user-assigned managed identity. This parameter is only required if you're using a user-assigned managed identity. If not specified, the hook will attempt to authenticate using a system-assigned managed identity.
+
+    Following parameters are necessary if using authentication with a Google-signed OpenID Connect ID token
+    (requires the ``google`` extra, ``pip install apache-airflow-providers-databricks[google]``):
+
+    * ``use_google_id_token``: required boolean flag to specify that a Google ID token should be used
+    * ``google_id_token_audience``: required audience (``aud`` claim) of the ID token, as configured for
+      the Google identity that is mapped into Databricks
+    * ``google_impersonated_service_account``: optional email of the Google service account to
+      impersonate. The default credentials (for example the service account configured through
+      ``GOOGLE_APPLICATION_CREDENTIALS``) must be allowed to impersonate it. If not specified, the ID
+      token is fetched for the default credentials themselves.
+
+    The token is fetched at runtime and cached until shortly before it expires; no Google secret or
+    token is stored in the connection.
+
+    .. code-block:: json
+
+        {
+          "use_google_id_token": true,
+          "google_id_token_audience": "<audience configured for the Databricks-mapped Google identity>",
+          "google_impersonated_service_account": "databricks@<project>.iam.gserviceaccount.com"
+        }
 
     The following parameter enables *OIDC token federation with a supplied token provider* (an alternative to
     the Kubernetes method below that works in any environment, not only Kubernetes):
