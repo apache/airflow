@@ -549,10 +549,6 @@ class ProvidersManager(LoggingMixin):
     @provider_info_cache("list")
     def initialize_providers_list(self):
         """Lazy initialization of providers list."""
-        # Local source folders are loaded first. They should take precedence over the package ones for
-        # Development purpose. In production provider.yaml files are not present in the 'airflow" directory
-        # So there is no risk we are going to override package provider accidentally. This can only happen
-        # in case of local development
         discover_all_providers_from_packages(
             self._provider_dict, self._provider_schema_validator, provider_incompatibility_reason
         )
