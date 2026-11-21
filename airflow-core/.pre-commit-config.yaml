@@ -242,7 +242,7 @@ repos:
         name: Compile / format / lint UI
         env:
           PYTHONPYCACHEPREFIX: .build/pycache
-        description: TS types generation / oxlint / ESLint / Oxfmt new UI files
+        description: TS types generation / oxlint / Oxfmt new UI files
         language: node
         files: |
           (?x)

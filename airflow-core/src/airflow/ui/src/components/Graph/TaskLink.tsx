@@ -35,19 +35,17 @@ type Props = {
   readonly latestRegionIndex?: number | null;
 } & TaskNameProps;
 
+// Extract dagId and taskId from composite ID
+const parseCompositeId = (compositeId: string) => {
+  const match = new RegExp(`^task:(?<dagId>.*?)${taskNodeSeparator}(?<taskId>.+)$`, "u").exec(compositeId);
+
+  return match ? { dagId: match[1], taskId: match[2] } : { dagId: undefined, taskId: undefined };
+};
+
 export const TaskLink = forwardRef<HTMLAnchorElement, Props>(
   ({ hasTaskInstance = true, id, isGroup, isMapped, latestRegionId, latestRegionIndex, ...rest }, ref) => {
     const { dagId: urlDagId = "", groupId, runId, taskId: urlTaskId } = useParams();
     const [searchParams] = useSearchParams();
-
-    // Extract dagId and taskId from composite ID
-    const parseCompositeId = (compositeId: string) => {
-      const match = new RegExp(`^task:(?<dagId>.*?)${taskNodeSeparator}(?<taskId>.+)$`, "u").exec(
-        compositeId,
-      );
-
-      return match ? { dagId: match[1], taskId: match[2] } : { dagId: undefined, taskId: undefined };
-    };
 
     const { dagId: extractedDagId, taskId: extractedTaskId } = parseCompositeId(id);
     const dagId = extractedDagId ?? urlDagId;

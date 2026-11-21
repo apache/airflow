@@ -30,14 +30,5 @@ export const reasonSentence = (
     taskId: summary.reason_task_id,
   };
 
-  switch (summary.reason) {
-    case "cap_reached":
-      return translate("loop.reason.cap_reached", options);
-    case "iteration_failed":
-      return translate("loop.reason.iteration_failed", options);
-    case null:
-    case undefined:
-    default:
-      return translate(`loop.reason.${summary.status}`, options);
-  }
+  return translate(`loop.reason.${summary.reason ?? summary.status}`, options);
 };

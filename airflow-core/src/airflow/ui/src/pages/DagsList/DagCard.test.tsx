@@ -357,13 +357,13 @@ describe("DagCard", () => {
     renderCard(mockDag);
 
     const recentRuns = screen.getAllByTestId("recent-run");
-    const tooltipOwners = new Set(recentRuns.map((run) => run.getAttribute("data-ownedby")));
+    const tooltipOwners = new Set(recentRuns.map((run) => run.dataset.ownedby));
     const secondRecentRun = recentRuns.at(1);
 
     try {
       expect(recentRuns).toHaveLength(mockDag.latest_dag_runs.length);
       expect(tooltipOwners.size).toBe(1);
-      expect(tooltipOwners.has(null)).toBe(false);
+      expect(tooltipOwners.has(undefined)).toBe(false);
       expect(secondRecentRun).toBeDefined();
 
       if (secondRecentRun === undefined) {

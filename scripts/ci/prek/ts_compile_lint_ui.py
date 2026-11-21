@@ -47,7 +47,7 @@ if __name__ == "__main__":
     ]
     all_non_yaml_files = [file for file in files if not file.endswith(".yaml")]
     print("All non-YAML files:", all_non_yaml_files)
-    all_eslint_files = [file for file in files if file.endswith((".js", ".ts", ".tsx"))]
+    all_lint_files = [file for file in files if file.endswith((".js", ".ts", ".tsx"))]
     all_ts_files = [file for file in files if file.endswith(".ts") or file.endswith(".tsx")]
     if all_ts_files:
         all_ts_files.append("src/vite-env.d.ts")
@@ -81,9 +81,8 @@ if __name__ == "__main__":
     if any("/openapi/" in file for file in original_files):
         run_command(["pnpm", "codegen"], cwd=dir)
     if all_non_yaml_files:
-        if all_eslint_files:
-            run_command(["pnpm", "oxlint", "--fix", *all_eslint_files], cwd=dir)
-            run_command(["pnpm", "eslint", "--fix", *all_eslint_files], cwd=dir)
+        if all_lint_files:
+            run_command(["pnpm", "oxlint", "--fix", *all_lint_files], cwd=dir)
         run_command(
             ["pnpm", "oxfmt", "--write", "--no-error-on-unmatched-pattern", *all_non_yaml_files], cwd=dir
         )
