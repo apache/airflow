@@ -604,9 +604,10 @@ model — Airflow does not enforce these natively.
    For higher security, pass sensitive configuration values via environment variables rather than
    configuration files. Environment variables are inherently safer than configuration files in
    Airflow's worker processes because of a built-in protection: on Linux, the supervisor process
-   calls ``prctl(PR_SET_DUMPABLE, 0)`` before forking the task process; a bare-forked child inherits
-   the flag, and a child started through ``exec`` restores it in its bootstrap, before importing
-   Airflow, because ``execve`` resets it (``kernel.yama.ptrace_scope >= 1`` covers ``/proc/<pid>/mem``
+   calls ``prctl(PR_SET_DUMPABLE, 0)`` before starting the task process; a bare-forked child inherits
+   the flag, and a child started in a fresh interpreter with ``os.posix_spawn`` restores it in its
+   bootstrap, before importing Airflow, because the ``execve`` inside the spawn resets it
+   (``kernel.yama.ptrace_scope >= 1`` covers ``/proc/<pid>/mem``
    and ``ptrace`` attach for the remaining interpreter-start window). This marks both processes as
    non-dumpable, which prevents same-UID sibling
    processes from reading ``/proc/<pid>/environ``, ``/proc/<pid>/mem``, or attaching via
