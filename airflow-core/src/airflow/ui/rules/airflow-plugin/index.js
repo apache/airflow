@@ -18,7 +18,7 @@
  */
 
 /**
- * Airflow UI lint rules, in the plugin shape both ESLint and oxlint (`jsPlugins`) load.
+ * Airflow UI lint rules, loaded by oxlint through `jsPlugins`.
  */
 import { noReactNamespaceTypes } from "./no-react-namespace-types.js";
 
