@@ -109,6 +109,11 @@ opens outbound access. Backends differ in what they can enforce:
      - No
      - No
      - Yes
+   * - boxd
+     - Yes
+     - Yes; plain HTTP to a listed host too
+     - Yes, public IPv4; HTTP and HTTPS by hostname only
+     - Yes
 
 A setting the backend cannot enforce fails the task on the agent's first tool call,
 when the toolset creates the sandbox, and the message says what to change. A bare
@@ -142,7 +147,8 @@ shares a TLS endpoint with a listed one can be reached. Without
 What each backend enforces, and how, is under
 :ref:`Modal <sandbox-backend-modal>`, :ref:`OpenSandbox <sandbox-backend-opensandbox>`,
 :ref:`OpenShell <sandbox-backend-openshell>`, :ref:`Boat <sandbox-backend-boat>`,
-:ref:`Islo <sandbox-backend-islo>` and :ref:`sbx <sandbox-backend-sbx>`.
+:ref:`Islo <sandbox-backend-islo>`, :ref:`boxd <sandbox-backend-boxd>` and
+:ref:`sbx <sandbox-backend-sbx>`.
 
 Install packages
 ----------------
@@ -249,7 +255,7 @@ the task and return only the result.
 
 ``SandboxSpec`` is not templated, and it is built when the Dag file is parsed. To pass
 a secret from a connection or a secrets backend, create the sandbox in a task, where
-the lookup runs at run time, and attach the agent to it, which needs Modal
+the lookup runs at run time, and attach the agent to it, which needs Modal or boxd
 (:ref:`sandbox-attach`). Where you can, use the secret in that task to fetch the data,
 write the data into the sandbox, and give the sandbox no secret at all.
 
@@ -368,8 +374,8 @@ the input in. ``analyse`` attaches, and the toolset leaves the sandbox running w
 the run ends. ``collect`` runs whatever happened to the agent, reads the report out
 and deletes the sandbox.
 
-Only Modal supports this. On any other backend, ``attach_to`` fails when the Dag is
-parsed:
+Only Modal and boxd support this. On any other backend, ``attach_to`` fails when the
+Dag is parsed:
 
 .. code-block:: text
 
@@ -399,6 +405,11 @@ The sandbox lives for the provisioning backend's ``sandbox_timeout``, counted fr
     this sandbox later, but this backend has idle_timeout=300, which would reclaim it
     while it waits between tasks. Leave idle_timeout unset on the backend that
     provisions a sandbox for attaching, and size sandbox_timeout to cover the wait.
+
+On boxd the lifetime is the provisioning backend's ``delete_after``, and there is no
+idle timeout to leave unset: a machine that goes to standby between tasks wakes on
+the next command. The owner and holder are machine labels, which anyone with an API
+key of the organization can change.
 
 The toolset never deletes an attached sandbox, so give the task that does a
 ``trigger_rule=TriggerRule.ALL_DONE``. If it reads the file and then fails to delete
