@@ -30,6 +30,7 @@ import type {
 } from "../sdk/client-types.js";
 import { NEVER_EXPIRE } from "../sdk/client-types.js";
 import { ConnectionNotFoundError, VariableNotFoundError } from "../sdk/client.js";
+import { toPlainJson } from "../sdk/plain-json.js";
 import type {
   GetVariable,
   PutVariable,
@@ -309,7 +310,7 @@ export function createCoordinatorClient(
         type: "SetTaskStateStore",
         ti_id: tiId,
         key,
-        value,
+        value: toPlainJson(value, `task state store value for "${key}"`),
         expires_at: resolveExpiresAt(opts.retention),
       };
       await rpc("SetTaskStateStore", "OKResponse", msg, () => undefined, "throw");
@@ -403,7 +404,7 @@ export function createCoordinatorClient(
       const msg: SetXCom = {
         type: "SetXCom",
         ...resolveXComTarget(opts, ctx),
-        value: opts.value,
+        value: toPlainJson(opts.value, `XCom "${opts.key}"`),
       };
       await rpc("SetXCom", null, msg, () => undefined, "throw");
     },
