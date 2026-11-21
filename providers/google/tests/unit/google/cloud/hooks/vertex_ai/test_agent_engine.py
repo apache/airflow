@@ -93,7 +93,8 @@ class TestAgentEngineHookWithDefaultProjectId:
     )
     def test_get_api_endpoint(self, location, is_default_universe, expected):
         self.hook.is_default_universe = mock.create_autospec(
-            AgentEngineHook.is_default_universe, return_value=is_default_universe
+            self.hook.is_default_universe,
+            return_value=is_default_universe,
         )
 
         assert self.hook._get_api_endpoint(location=location) == expected

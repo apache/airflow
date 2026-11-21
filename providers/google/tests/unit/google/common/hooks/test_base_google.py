@@ -421,6 +421,37 @@ class TestGoogleBaseHook:
         )
         assert result == ("CREDENTIALS", "PROJECT_ID")
 
+    @pytest.mark.parametrize(
+        ("domain", "expected"),
+        [
+            ("googleapis.com", True),
+            ("universe-a.example", False),
+        ],
+    )
+    def test_is_default_universe_uses_connection_extra(self, monkeypatch, domain, expected):
+        monkeypatch.setenv("GOOGLE_CLOUD_UNIVERSE_DOMAIN", "env.example")
+        self.instance.extras = {"universe_domain": domain}
+
+        assert self.instance.is_default_universe() is expected
+
+    @pytest.mark.parametrize(
+        ("domain", "expected_endpoint", "expected_universe"),
+        [
+            ("googleapis.com", "override.example", None),
+            ("universe-a.example", None, "universe-a.example"),
+        ],
+    )
+    def test_endpoint_override_respects_connection_universe(
+        self, monkeypatch, domain, expected_endpoint, expected_universe
+    ):
+        monkeypatch.setenv("GOOGLE_CLOUD_UNIVERSE_DOMAIN", "env.example")
+        self.instance.extras = {"universe_domain": domain}
+
+        options = self.instance.get_client_options(api_endpoint_override="override.example")
+
+        assert options.api_endpoint == expected_endpoint
+        assert options.universe_domain == expected_universe
+
     @mock.patch("requests.post")
     @mock.patch(MODULE_NAME + ".get_credentials_and_project_id")
     def test_connection_success(self, mock_get_creds_and_proj_id, requests_post):
@@ -911,6 +942,78 @@ class TestGoogleBaseHook:
             assert isinstance(client_options, ClientOptions)
             assert client_options.universe_domain is None
             assert client_options.api_endpoint is None
+
+    @pytest.mark.parametrize(
+        ("extras", "env_value", "expected"),
+        [
+            (
+                {"universe_domain": "universe-a.example"},
+                None,
+                "universe-a.example",
+            ),
+            (
+                {"universe_domain": "universe-a.example"},
+                "env.example",
+                "universe-a.example",
+            ),
+            (
+                {"universe_domain": "googleapis.com"},
+                "env.example",
+                "googleapis.com",
+            ),
+            ({}, "env.example", "env.example"),
+            ({"universe_domain": None}, "env.example", "env.example"),
+            ({"universe_domain": ""}, "env.example", "env.example"),
+            ({}, None, None),
+            ({"universe_domain": ""}, "", None),
+        ],
+    )
+    def test_get_client_options_universe_from_connection(self, monkeypatch, extras, env_value, expected):
+        self.instance.extras = extras
+
+        if env_value is None:
+            monkeypatch.delenv("GOOGLE_CLOUD_UNIVERSE_DOMAIN", raising=False)
+        else:
+            monkeypatch.setenv("GOOGLE_CLOUD_UNIVERSE_DOMAIN", env_value)
+
+        options = self.instance.get_client_options()
+
+        assert options.universe_domain == expected
+
+    def test_get_client_options_keeps_connection_universes_independent(self, monkeypatch):
+        monkeypatch.setenv("GOOGLE_CLOUD_UNIVERSE_DOMAIN", "env.example")
+
+        connection_a = mock.Mock()
+        connection_a.extra_dejson = {
+            "universe_domain": "universe-a.example",
+        }
+
+        connection_b = mock.Mock()
+        connection_b.extra_dejson = {
+            "universe_domain": "universe-b.example",
+        }
+
+        connections = {
+            "universe_demo_a": connection_a,
+            "universe_demo_b": connection_b,
+        }
+
+        with mock.patch.object(
+            hook.GoogleBaseHook,
+            "get_connection",
+            side_effect=lambda conn_id: connections[conn_id],
+        ):
+            hook_a = hook.GoogleBaseHook(gcp_conn_id="universe_demo_a")
+            hook_b = hook.GoogleBaseHook(gcp_conn_id="universe_demo_b")
+
+            options_a = hook_a.get_client_options()
+            options_b = hook_b.get_client_options()
+            options_a_again = hook_a.get_client_options()
+
+        assert options_a.universe_domain == "universe-a.example"
+        assert options_b.universe_domain == "universe-b.example"
+        assert options_a_again.universe_domain == "universe-a.example"
+        assert os.environ["GOOGLE_CLOUD_UNIVERSE_DOMAIN"] == "env.example"
 
     def test_get_client_options_with_global_universe_domain(self):
         env_value = "test_universe_domain"
