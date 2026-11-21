@@ -1537,9 +1537,11 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
 
             if trigger_id := event.pop("trigger_id", None):
                 log = get_logger(trigger_id)
-                event["trigger_id"] = trigger_id
                 if watched_assets := self.watched_assets.get(trigger_id):
                     event["watched_assets"] = watched_assets
+                if log is fallback_log:
+                    # No log file for this trigger, so the id has to go to the triggerer's output.
+                    event["trigger_id"] = trigger_id
             else:
                 # Log message about the TriggerRunner itself -- just output it
                 log = fallback_log
@@ -1867,7 +1869,12 @@ class TriggerRunner:
                 trigger_class = self.get_trigger_by_classpath(workload.classpath)
             except BaseException as e:
                 # Either the trigger code or the path to it is bad. Fail the trigger.
-                self.log.error("Trigger failed to load code", error=e, classpath=workload.classpath, trigger_id=trigger_id)
+                self.log.error(
+                    "Trigger failed to load code",
+                    error=e,
+                    classpath=workload.classpath,
+                    trigger_id=trigger_id,
+                )
                 self.failed_triggers.append((trigger_id, e))
                 continue
 
@@ -2232,7 +2239,10 @@ class TriggerRunner:
                         await asyncio.wait_for(trigger.on_kill(), timeout=_ON_CANCEL_TIMEOUT)
                     except TimeoutError:
                         await self.log.awarning(
-                            "on_kill() timed out", timeout=_ON_CANCEL_TIMEOUT, name=name, trigger_id=trigger_id
+                            "on_kill() timed out",
+                            timeout=_ON_CANCEL_TIMEOUT,
+                            name=name,
+                            trigger_id=trigger_id,
                         )
                     except asyncio.CancelledError:
                         # on_kill() was itself cancelled (e.g. triggerer shutting down

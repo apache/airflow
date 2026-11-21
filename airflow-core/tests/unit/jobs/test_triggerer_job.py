@@ -1155,6 +1155,32 @@ def test_process_log_messages_adds_trigger_id_and_watched_assets(jobless_supervi
     assert kwargs["watched_assets"] == {"my_asset": "s3://bucket/key"}
 
 
+def test_process_log_messages_leaves_trigger_id_to_the_trigger_log_factory(jobless_supervisor, mocker):
+    """A line with a log file gets its trigger_id from the factory, not passed along twice."""
+    import json
+
+    import structlog
+
+    fallback = mocker.Mock()
+    trigger_log = mocker.Mock()
+    jobless_supervisor.logger_cache[42] = mocker.Mock(return_value=trigger_log)
+    jobless_supervisor.watched_assets[42] = {"my_asset": "s3://bucket/key"}
+
+    mocker.patch("airflow.sdk.log.configure_logging")
+    mocker.patch("airflow.sdk.log.logging_processors", return_value=[])
+    mocker.patch.object(structlog, "get_logger", return_value=fallback)
+
+    gen = jobless_supervisor._process_log_messages_from_subprocess()
+    next(gen)  # prime the generator
+    gen.send(json.dumps({"trigger_id": 42, "level": "info", "event": "watcher poll"}).encode())
+
+    fallback.log.assert_not_called()
+    trigger_log.log.assert_called_once()
+    _, kwargs = trigger_log.log.call_args
+    assert "trigger_id" not in kwargs
+    assert kwargs["watched_assets"] == {"my_asset": "s3://bucket/key"}
+
+
 def test_run_trigger_workload_includes_watched_assets_field():
     """RunTrigger workload should accept and store watched_assets."""
     workload = RunTrigger(
