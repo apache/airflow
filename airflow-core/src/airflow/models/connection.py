@@ -202,7 +202,7 @@ class Connection(Base, FernetFieldsMixin, LoggingMixin):
 
         if self.password:
             mask_secret(self.password)
-            mask_secret(quote(self.password))
+            mask_secret(quote(self.password, safe=""))
         self.team_name = team_name
 
     @staticmethod
@@ -255,7 +255,7 @@ class Connection(Base, FernetFieldsMixin, LoggingMixin):
     def on_db_load(self):
         if self.password:
             mask_secret(self.password)
-            mask_secret(quote(self.password))
+            mask_secret(quote(self.password, safe=""))
 
     @staticmethod
     def _normalize_conn_type(conn_type):

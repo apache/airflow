@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import json
+from unittest import mock
 from unittest.mock import MagicMock
 
 import httpx2
@@ -24,7 +25,7 @@ import pytest
 from task_sdk import make_client
 
 from airflow.sdk.api import client as sdk_client
-from airflow.sdk.api.datamodels._generated import AssetStateStoreResponse
+from airflow.sdk.api.datamodels._generated import AssetStateStoreResponse, ConnectionResponse
 from airflow.sdk.exceptions import ErrorType
 from airflow.sdk.execution_time.comms import (
     AssetStateStoreResult,
@@ -35,6 +36,7 @@ from airflow.sdk.execution_time.comms import (
     ErrorResponse,
     GetAssetStateStoreByName,
     GetAssetStateStoreByUri,
+    GetConnection,
     GetXCom,
     GetXComCount,
     GetXComSequenceItem,
@@ -49,6 +51,7 @@ from airflow.sdk.execution_time.request_handlers import (
     handle_delete_asset_state_store_by_uri,
     handle_get_asset_state_store_by_name,
     handle_get_asset_state_store_by_uri,
+    handle_get_connection,
     handle_get_xcom,
     handle_get_xcom_count,
     handle_get_xcom_sequence_item,
@@ -216,3 +219,22 @@ def test_asset_store_delegates_to_client(client, handler, msg, call_kwargs, meth
     getattr(client.asset_state_store, method).assert_called_once_with(**call_kwargs)
     assert result is None
     assert dump_opts == {}
+
+
+def test_get_connection_masks_raw_and_url_encoded_password(client):
+    client.connections.get.return_value = ConnectionResponse(
+        conn_id="c",
+        conn_type="azure",
+        host=None,
+        schema=None,
+        login=None,
+        password="s3cr3t/+x",
+        port=None,
+        extra=None,
+    )
+
+    with mock.patch("airflow.sdk.execution_time.request_handlers.mask_secret") as mock_mask_secret:
+        handle_get_connection(client, GetConnection(conn_id="c"))
+
+    mock_mask_secret.assert_any_call("s3cr3t/+x")
+    mock_mask_secret.assert_any_call("s3cr3t%2F%2Bx")
