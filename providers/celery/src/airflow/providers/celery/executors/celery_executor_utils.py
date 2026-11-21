@@ -33,6 +33,7 @@ import traceback
 from collections.abc import Collection, Mapping, MutableMapping, Sequence
 from concurrent.futures import ProcessPoolExecutor
 from functools import cache
+from http import HTTPStatus
 from importlib import import_module
 from typing import TYPE_CHECKING, Any
 
@@ -237,6 +238,23 @@ def on_celery_worker_ready(*args, **kwargs):
     gc.unfreeze()
 
 
+def _is_redelivered_with_rejected_token(exc: BaseException) -> bool:
+    """
+    Whether this is a redelivered message whose token the Execution API rejected.
+
+    The token is minted when the task is queued and is never refreshed in the message, so a copy
+    redelivered after it expires gets a 403 before the API can answer 409 "already running". That
+    copy can never run the task, so treat it as a duplicate. A task whose original worker is gone
+    is still caught by the scheduler's heartbeat and queued timeouts.
+    """
+    from airflow.sdk.api.client import ServerResponseError
+
+    if not isinstance(exc, ServerResponseError) or exc.response.status_code != HTTPStatus.FORBIDDEN:
+        return False
+    delivery_info = app.current_task.request.delivery_info or {}
+    return bool(delivery_info.get("redelivered"))
+
+
 # Once Celery 5.5 is out of beta, we can pass `pydantic=True` to the decorator and it will handle the validation
 # and deserialization for us.
 @app.task(name="execute_workload")
@@ -273,6 +291,9 @@ def execute_workload(input: str) -> None:
             # delivery. Without this, the broker redelivering the message (e.g. after a
             # visibility timeout) would cause Celery to mark the task as failed, even though
             # the original worker is still executing it successfully.
+            raise Ignore()
+        if _is_redelivered_with_rejected_token(e):
+            log.warning("[%s] Ignoring redelivered message, its token was rejected: %s", celery_task_id, e)
             raise Ignore()
         raise
 
@@ -337,6 +358,9 @@ def _execute_workload_pre_3_3(input: str) -> None:
                 # visibility timeout) would cause Celery to mark the task as failed, even though
                 # the original worker is still executing it successfully.
                 raise Ignore()
+        if _is_redelivered_with_rejected_token(e):
+            log.warning("[%s] Ignoring redelivered message, its token was rejected: %s", celery_task_id, e)
+            raise Ignore()
         raise
 
 
