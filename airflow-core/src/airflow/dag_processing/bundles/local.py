@@ -17,10 +17,15 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from airflow import settings
 from airflow.dag_processing.bundles.base import BaseDagBundle
+
+if TYPE_CHECKING:
+    from collections.abc import Hashable
 
 
 class LocalDagBundle(BaseDagBundle):
@@ -45,6 +50,10 @@ class LocalDagBundle(BaseDagBundle):
 
     def refresh(self) -> None:
         """Nothing to refresh - it's just a local directory."""
+
+    @classmethod
+    def source_key(cls, *, path: str | None = None, **kwargs) -> Hashable | None:
+        return ("local", os.path.realpath(path or settings.DAGS_FOLDER))
 
     @property
     def path(self) -> Path:

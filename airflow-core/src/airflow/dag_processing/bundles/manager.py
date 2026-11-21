@@ -41,7 +41,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Collection, Iterable
+    from collections.abc import Callable, Collection, Hashable, Iterable
     from contextlib import AbstractContextManager
 
     from sqlalchemy.engine import CursorResult
@@ -359,6 +359,31 @@ class DagBundlesManager(LoggingMixin):
                 team_name=bundle_config.team_name,
             )
         self.log.info("DAG bundles loaded: %s", ", ".join(self._bundle_config.keys()))
+        self._warn_about_shared_sources()
+
+    def _warn_about_shared_sources(self) -> None:
+        """Log a warning when several configured bundles read the same files."""
+        bundles_by_source: defaultdict[Hashable, list[str]] = defaultdict(list)
+        for name, config in self._bundle_config.items():
+            get_key = getattr(config.bundle_class, "source_key", None)
+            if get_key is None:
+                continue
+            try:
+                key = get_key(**config.kwargs)
+            except Exception:
+                self.log.debug("Could not work out the source of bundle %s", name, exc_info=True)
+                continue
+            if key is not None:
+                bundles_by_source[key].append(name)
+
+        for source, names in bundles_by_source.items():
+            if len(names) > 1:
+                self.log.warning(
+                    "Dag bundles %s read the same source (%s). Each file is parsed once per bundle "
+                    "and Dag ownership keeps switching between them. Configure this source in one bundle only.",
+                    ", ".join(names),
+                    source,
+                )
 
     @provide_session
     def sync_bundles_to_db(self, *, deactivate_missing: bool = True, session: Session = NEW_SESSION) -> None:

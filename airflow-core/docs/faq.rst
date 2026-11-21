@@ -435,6 +435,7 @@ appears for both the old and new paths and then clears on its own once the old f
 
 If the warning does not clear, two files with the same ``dag_id`` genuinely coexist. Which one "wins" is
 not guaranteed to stay stable across parses, so rename one of them to give each Dag a unique ``dag_id``.
+If every Dag has this warning, check whether multiple bundles are configured to read the same source.
 
 
 Dag construction
