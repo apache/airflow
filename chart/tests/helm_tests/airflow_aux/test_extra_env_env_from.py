@@ -78,6 +78,11 @@ class TestExtraEnvEnvFrom:
     def setup_class(cls) -> None:
         values_str = textwrap.dedent(
             """
+            createUserJob:
+              enabled: true
+              defaultUser:
+                username: admin
+                password: admin
             databaseCleanup:
               enabled: true
               applyCustomEnv: true
