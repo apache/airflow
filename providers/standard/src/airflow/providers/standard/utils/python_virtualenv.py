@@ -154,13 +154,19 @@ def _execute_in_subprocess(cmd: list[str], cwd: str | None = None, env: dict[str
         cwd=cwd,
         env=env,
     ) as proc:
-        log.info("Output:")
-        if proc.stdout:
-            with proc.stdout:
-                for line in iter(proc.stdout.readline, b""):
-                    log.info("%s", line.decode().rstrip())
+        try:
+            log.info("Output:")
+            if proc.stdout:
+                with proc.stdout:
+                    for line in iter(proc.stdout.readline, b""):
+                        log.info("%s", line.decode().rstrip())
 
-        exit_code = proc.wait()
+            exit_code = proc.wait()
+        except BaseException:
+            # Popen.__exit__ waits for the child without killing it, so an exception raised
+            # here (e.g. AirflowTaskTimeout from SIGALRM) would be held until the child exits.
+            proc.kill()
+            raise
     if exit_code != 0:
         raise subprocess.CalledProcessError(exit_code, cmd)
 
