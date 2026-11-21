@@ -1020,6 +1020,23 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
         }
         return PydanticAIHook.get_hook(self.llm_conn_id, hook_params=hook_params)
 
+    def build_agent(self) -> Agent[object, Any]:
+        """
+        Build the pydantic-ai Agent this task runs, from the operator's config.
+
+        An eval or test can call this on a task from a Dag (for example
+        ``dag.get_task("triage").build_agent()``) to run the same agent as ``execute``, with
+        the same connection, instructions, toolsets and capabilities. Each call builds a new
+        agent. A subclass that changes how the agent is built should override
+        ``_build_agent``, which both this and ``execute`` call.
+
+        Template fields are only rendered during a task run, so outside one every template
+        field (``system_prompt``, ``llm_conn_id``, ``model_id`` and the rest) is used as
+        written. For a durable task, the returned agent has no tool-approval step: a run can
+        only pause for approval inside ``execute``.
+        """
+        return self._build_agent()
+
     def _build_agent(self, *, approval_context: Context | None = None) -> Agent[object, Any]:
         """
         Build and return a pydantic-ai Agent from the operator's config.

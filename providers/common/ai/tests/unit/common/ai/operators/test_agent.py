@@ -1680,6 +1680,66 @@ def harness_without_code_mode_extra(monkeypatch):
     monkeypatch.delitem(sys.modules, "pydantic_ai_harness.code_mode", raising=False)
 
 
+class TestAgentOperatorBuildAgent:
+    """``build_agent()`` returns the agent ``execute`` runs, so an eval can run a task's own agent."""
+
+    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
+    def test_execute_runs_an_agent_built_the_same_way(self, mock_hook_cls, make_mock_run_result):
+        create_agent = mock_hook_cls.get_hook.return_value.create_agent
+        mock_agent = _make_mock_agent("ok", make_mock_run_result)
+        create_agent.return_value = mock_agent
+        op = AgentOperator(
+            task_id="t",
+            prompt="p",
+            llm_conn_id="my_llm",
+            system_prompt="Be brief.",
+            toolsets=[FunctionToolset(id="tools")],
+            cache_prompt=False,
+            enable_tool_logging=False,
+        )
+
+        assert op.build_agent() is mock_agent
+        op.execute(context=_make_context())
+
+        built, executed = create_agent.call_args_list
+        assert built == executed
+        assert built.kwargs["instructions"] == "Be brief."
+        assert [ts.wrapped.id for ts in built.kwargs["toolsets"]] == ["tools"]
+        mock_agent.run_sync.assert_called_once()
+
+    @pytest.mark.parametrize("form", ["operator", "decorator"])
+    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
+    def test_build_agent_on_a_task_from_a_dag_passes_a_templated_system_prompt_as_written(
+        self, mock_hook_cls, form
+    ):
+        with DAG("d", schedule=None) as dag:
+            if form == "operator":
+                AgentOperator(
+                    task_id="ask", prompt="p", llm_conn_id="my_llm", system_prompt="Answer for {{ ds }}."
+                )
+            else:
+
+                @task.agent(llm_conn_id="my_llm", system_prompt="Answer for {{ ds }}.")
+                def ask() -> str:
+                    return "p"
+
+                ask()
+
+        dag.get_task("ask").build_agent()
+
+        create_agent = mock_hook_cls.get_hook.return_value.create_agent
+        assert create_agent.call_args.kwargs["instructions"] == "Answer for {{ ds }}."
+
+    def test_build_agent_builds_without_an_approval_context(self):
+        """Only ``execute`` passes the task context, so a durable run pauses for approval only there."""
+        op = AgentOperator(task_id="t", prompt="p", llm_conn_id="my_llm", durable=True)
+
+        with patch.object(AgentOperator, "_build_agent", autospec=True) as mock_build_agent:
+            assert op.build_agent() is mock_build_agent.return_value
+
+        mock_build_agent.assert_called_once_with(op)
+
+
 class TestAgentOperatorCapabilities:
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
     def test_capabilities_are_passed_to_the_agent_in_order(self, mock_hook_cls, make_mock_run_result):
