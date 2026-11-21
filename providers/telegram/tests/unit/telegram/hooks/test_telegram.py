@@ -64,6 +64,13 @@ class TestTelegramHook:
             )
         )
 
+    def test_explicit_link_preview_options(self):
+        hook = TelegramHook(chat_id="123")
+        options = telegram.LinkPreviewOptions(prefer_large_media=True)
+        with mock.patch.object(telegram.Bot, "_send_message", new_callable=mock.AsyncMock) as send:
+            hook.send_message({"text": "https://example.org", "link_preview_options": options})
+        assert send.await_args.kwargs["link_preview_options"] == options
+
     def test_should_use_default_connection(self):
         hook = TelegramHook()
 
