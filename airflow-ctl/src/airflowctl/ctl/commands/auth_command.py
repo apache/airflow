@@ -23,6 +23,7 @@ import glob
 import json
 import os
 import sys
+from typing import TYPE_CHECKING
 
 import keyring
 import rich
@@ -43,38 +44,92 @@ from airflowctl.api.client import (
 from airflowctl.api.datamodels.auth_generated import LoginBody
 from airflowctl.ctl.console_formatting import AirflowConsole
 from airflowctl.ctl.utils.browser_login import get_authorization_code, resolve_endpoint
+from airflowctl.ctl.utils.device_login import DEVICE_CODE_GRANT_TYPE, show_device_code, wait_for_device_token
 from airflowctl.exceptions import (
     AirflowCtlBrowserLoginException,
     AirflowCtlCredentialInvalidException,
+    AirflowCtlDeviceCodeLoginException,
     AirflowCtlKeyringException,
 )
+
+if TYPE_CHECKING:
+    from airflowctl.api.datamodels.generated import CliLoginMetadataResponse
 
 DEFAULT_SSO_TIMEOUT = 300
 
 
 def _exit_on_sso_only_args(args) -> None:
-    if not args.sso and (args.no_browser or args.timeout is not None):
-        rich.print("[red]--no-browser and --timeout can only be used with --sso.", file=sys.stderr)
+    if args.no_browser and args.device_code:
+        rich.print("[red]--no-browser is not compatible with --device-code.", file=sys.stderr)
+        sys.exit(1)
+    if args.no_browser and not args.sso:
+        rich.print("[red]--no-browser can only be used with --sso.", file=sys.stderr)
+        sys.exit(1)
+    if args.timeout is not None and not (args.sso or args.device_code):
+        rich.print("[red]--timeout can only be used with --sso or --device-code.", file=sys.stderr)
         sys.exit(1)
 
 
-def _get_token_with_browser(args, api_client: Client, api_url: str) -> str:
-    """Log in through the browser and return the CLI token, if the API server offers it."""
+def _get_sso_flag(args) -> str:
+    return "--device-code" if args.device_code else "--sso"
+
+
+def _get_sso_token(args, api_client: Client, api_url: str) -> str:
+    """Log in with the identity provider of the API server and return the CLI token."""
     metadata = api_client.login.get_cli_login_metadata(api_url)
+    timeout = DEFAULT_SSO_TIMEOUT if args.timeout is None else args.timeout
+    if args.device_code:
+        return _get_token_with_device_code(metadata, api_client, api_url, timeout)
+    return _get_token_with_browser(args, metadata, api_client, api_url, timeout)
+
+
+def _get_token_with_device_code(
+    metadata: CliLoginMetadataResponse, api_client: Client, api_url: str, timeout: float
+) -> str:
+    if (
+        DEVICE_CODE_GRANT_TYPE not in metadata.grant_types_supported
+        or not metadata.device_authorization_endpoint
+        or not metadata.token_endpoint
+    ):
+        raise AirflowCtlDeviceCodeLoginException(
+            f"{api_url} does not offer device code login (--device-code)."
+        )
+
+    device_authorization_url = resolve_endpoint(api_url, metadata.device_authorization_endpoint)
+    token_url = resolve_endpoint(api_url, metadata.token_endpoint)
+    authorization = api_client.login.start_device_authorization(device_authorization_url)
+    show_device_code(authorization)
+    return wait_for_device_token(
+        authorization=authorization,
+        request_token=lambda: (
+            api_client.login.login_with_device_code(token_url, authorization.device_code).access_token
+        ),
+        timeout=timeout,
+    )
+
+
+def _get_token_with_browser(
+    args, metadata: CliLoginMetadataResponse, api_client: Client, api_url: str, timeout: float
+) -> str:
     if (
         "authorization_code" not in metadata.grant_types_supported
         or "S256" not in metadata.code_challenge_methods_supported
         or not metadata.authorization_endpoint
         or not metadata.token_endpoint
     ):
-        raise AirflowCtlBrowserLoginException(f"{api_url} does not offer browser login (--sso).")
+        hint = (
+            " Use --device-code to log in with a code instead."
+            if DEVICE_CODE_GRANT_TYPE in metadata.grant_types_supported
+            else ""
+        )
+        raise AirflowCtlBrowserLoginException(f"{api_url} does not offer browser login (--sso).{hint}")
 
     authorization_url = resolve_endpoint(api_url, metadata.authorization_endpoint)
     token_url = resolve_endpoint(api_url, metadata.token_endpoint)
     authorization_code = get_authorization_code(
         authorization_url=authorization_url,
         open_browser=not args.no_browser,
-        timeout=DEFAULT_SSO_TIMEOUT if args.timeout is None else args.timeout,
+        timeout=timeout,
     )
     return api_client.login.login_with_authorization_code(
         token_url,
@@ -95,14 +150,15 @@ def login(args, api_client=NEW_API_CLIENT) -> None:
     token = args.api_token or os.environ.get("AIRFLOW_CLI_TOKEN")
 
     _exit_on_sso_only_args(args)
-    if args.sso:
+    if args.sso or args.device_code:
         if args.api_token or username or password:
             rich.print(
-                "[red]--sso is not compatible with --api-token, --username or --password.", file=sys.stderr
+                f"[red]{_get_sso_flag(args)} is not compatible with --api-token, --username or --password.",
+                file=sys.stderr,
             )
             sys.exit(1)
         try:
-            api_token = _get_token_with_browser(args, api_client, api_url)
+            api_token = _get_sso_token(args, api_client, api_url)
         except Exception as e:
             rich.print(f"[red]Login failed: {escape(str(e))}", file=sys.stderr)
             sys.exit(1)
@@ -199,12 +255,15 @@ def get_token(args, api_client=NEW_API_CLIENT) -> None:
     api_url = args.api_url or get_default_api_url()
 
     _exit_on_sso_only_args(args)
-    if args.sso:
+    if args.sso or args.device_code:
         if args.username or args.password:
-            rich.print("[red]--sso is not compatible with --username or --password.", file=sys.stderr)
+            rich.print(
+                f"[red]{_get_sso_flag(args)} is not compatible with --username or --password.",
+                file=sys.stderr,
+            )
             sys.exit(1)
         try:
-            print(_get_token_with_browser(args, api_client, api_url))
+            print(_get_sso_token(args, api_client, api_url))
         except Exception as e:
             rich.print(f"[red]Token generation failed: {escape(str(e))}[/red]", file=sys.stderr)
             sys.exit(1)
