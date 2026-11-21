@@ -47,7 +47,7 @@ from airflow.dag_processing.lang_sdk_processor import (
 from airflow.dag_processing.processor import DagFileParseRequest, DagFileParsingResult
 from airflow.exceptions import UnknownExecutorException
 from airflow.executors.executor_loader import ExecutorLoader
-from airflow.sdk import DAG, BaseOperator, task
+from airflow.sdk import DAG, BaseOperator, TaskGroup, task
 from airflow.sdk.api.client import Client
 from airflow.sdk.api.datamodels._generated import VariableResponse
 from airflow.sdk.exceptions import AirflowRuntimeError
@@ -840,6 +840,91 @@ def test_a_dag_with_an_unavailable_executor_is_an_import_error(mock_lookup):
         "which is not available. Make sure it is listed in your [core] executor configuration, or update "
         "the task's executor to use one of the configured executors."
     }
+
+
+def _serialize_grouped_dag(dag_id: str) -> LazyDeserializedDAG:
+    with DAG(dag_id, schedule=None) as dag:
+        with TaskGroup("trans_form-1"):
+            BaseOperator(task_id="ex_tract.v2-x")
+    return LazyDeserializedDAG(data=DagSerialization.to_dict(dag))
+
+
+def _set_dag_id(data: dict, dag_id: str) -> None:
+    data["dag"]["dag_id"] = dag_id
+
+
+def _set_task_id(data: dict, task_id: str) -> None:
+    [task] = data["dag"]["tasks"]
+    task["__var"]["task_id"] = task_id
+    # A nested group is serialized as a ["taskgroup", {...}] pair under its label.
+    data["dag"]["task_group"]["children"]["trans_form-1"][1]["children"] = {task_id: ["operator", task_id]}
+
+
+def _set_group_id(data: dict, group_id: str) -> None:
+    data["dag"]["task_group"]["children"]["trans_form-1"][1]["_group_id"] = group_id
+
+
+@pytest.mark.parametrize(
+    ("set_id", "value", "error"),
+    [
+        pytest.param(
+            _set_dag_id,
+            "d" * 251,
+            f"Dag id {'d' * 251!r} is 251 characters long; at most 250 are allowed",
+            id="dag-id-too-long",
+        ),
+        pytest.param(
+            _set_dag_id,
+            "has space",
+            "Dag id 'has space' has to be made of alphanumeric characters, dashes, dots and underscores "
+            "exclusively",
+            id="dag-id-other-characters",
+        ),
+        pytest.param(
+            _set_task_id,
+            "t" * 251,
+            f"Dag 'broken_dag' task id {'t' * 251!r} is 251 characters long; at most 250 are allowed",
+            id="task-id-too-long",
+        ),
+        pytest.param(
+            _set_task_id,
+            "has space",
+            "Dag 'broken_dag' task id 'has space' has to be made of alphanumeric characters, dashes, dots "
+            "and underscores exclusively",
+            id="task-id-other-characters",
+        ),
+        pytest.param(
+            _set_group_id,
+            "g" * 201,
+            f"Dag 'broken_dag' task group id {'g' * 201!r} is 201 characters long; at most 200 are allowed",
+            id="task-group-id-too-long",
+        ),
+        pytest.param(
+            _set_group_id,
+            "with.dot",
+            "Dag 'broken_dag' task group id 'with.dot' has to be made of alphanumeric characters, dashes "
+            "and underscores exclusively",
+            id="task-group-id-other-characters",
+        ),
+    ],
+)
+def test_a_dag_with_an_id_the_sdk_rejects_is_an_import_error(set_id, value, error):
+    broken = _serialize_grouped_dag("broken_dag")
+    set_id(broken.data, value)
+    proc = _make_process()
+
+    proc._handle_request(
+        DagFileParsingResult(
+            fileloc="/b/dag.native",
+            serialized_dags=[broken, _serialize_grouped_dag("checked.dag-2")],
+        ),
+        MagicMock(),
+        1,
+    )
+
+    # The Dag that is kept has every kind of character the SDK accepts in its ids.
+    assert [dag.dag_id for dag in proc.parsing_result.serialized_dags] == ["checked.dag-2"]
+    assert proc.parsing_result.import_errors == {"dag.native": f"Cannot load the serialized Dag: {error}"}
 
 
 @conf_vars({("core", "multi_team"): "True"})
