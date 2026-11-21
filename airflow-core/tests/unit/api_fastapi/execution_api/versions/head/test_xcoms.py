@@ -813,6 +813,37 @@ def test_loop_prior_dates_for_unknown_target_run_falls_through_to_plain_read(cli
     assert response.status_code == 404
 
 
+def test_cross_dag_prior_dates_are_bounded_by_the_caller_run(client, dag_maker, session, authenticate_as):
+    with dag_maker(dag_id="upstream"):
+        EmptyOperator(task_id="producer")
+    earlier_run = dag_maker.create_dagrun(
+        run_id="earlier", logical_date=timezone.parse("2024-01-01T00:00:00Z")
+    )
+    later_run = dag_maker.create_dagrun(run_id="later", logical_date=timezone.parse("2024-01-03T00:00:00Z"))
+
+    with dag_maker(dag_id="downstream"):
+        EmptyOperator(task_id="consumer")
+    caller_run = dag_maker.create_dagrun(run_id="caller", logical_date=timezone.parse("2024-01-02T00:00:00Z"))
+
+    session.add_all(
+        [
+            XComModelV2(
+                key="key", value="earlier", task_instance_id=earlier_run.get_task_instance("producer").id
+            ),
+            XComModelV2(
+                key="key", value="later", task_instance_id=later_run.get_task_instance("producer").id
+            ),
+        ]
+    )
+    session.commit()
+    authenticate_as(caller_run.get_task_instance("consumer"))
+
+    base = f"/execution/xcoms/upstream/{caller_run.run_id}/producer/key"
+    params = {"include_prior_dates": True}
+    assert client.get(base, params=params).json() == {"key": "key", "value": "earlier"}
+    assert client.get(f"{base}/slice", params=params).json() == ["earlier"]
+
+
 @pytest.fixture
 def single_pass_loop(dag_maker, session, authenticate_as):
     @task_group
