@@ -18,6 +18,7 @@ from __future__ import annotations
 
 from .secrets_masker import (
     DEFAULT_SENSITIVE_FIELDS,
+    MaskedValueMergeError,
     Redactable,
     Redacted,
     RedactedIO,
@@ -39,6 +40,7 @@ __all__ = [
     "_is_v1_env_var",
     "RedactedIO",
     "merge",
+    "MaskedValueMergeError",
     "should_hide_value_for_key",
     "_secrets_masker",
     "DEFAULT_SENSITIVE_FIELDS",

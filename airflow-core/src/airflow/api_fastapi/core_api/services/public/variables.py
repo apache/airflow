@@ -25,7 +25,7 @@ from fastapi.exceptions import RequestValidationError
 from pydantic import ValidationError
 from sqlalchemy import select
 
-from airflow._shared.secrets_masker import merge
+from airflow._shared.secrets_masker import MaskedValueMergeError, merge
 from airflow.api_fastapi.core_api.datamodels.common import (
     BulkActionNotOnExistence,
     BulkActionOnExistence,
@@ -80,7 +80,10 @@ def update_orm_from_pydantic(
         except json.JSONDecodeError:
             merged_value = merge(patch_body.value, old_value, old_variable.key)
         else:
-            merged = merge(new_obj, old_obj, old_variable.key)
+            try:
+                merged = merge(new_obj, old_obj, old_variable.key)
+            except MaskedValueMergeError as e:
+                raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e))
             # Keep the caller's formatting when there was nothing to restore. indent=2 matches VariableBody.
             merged_value = patch_body.value if merged == new_obj else json.dumps(merged, indent=2)
         patch_body = patch_body.model_copy(update={"value": merged_value})

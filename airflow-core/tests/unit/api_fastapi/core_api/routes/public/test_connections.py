@@ -69,6 +69,11 @@ TEST_CONN_LOGIN_2 = "some_login_b"
 TEST_CONN_ID_3 = "test_connection_id_3"
 TEST_CONN_TYPE_3 = "test_type_3"
 
+UNPLACED_USERS_MASK_ERROR = (
+    'Cannot tell which stored item the masked values in "users" belong to after this edit. '
+    "Re-enter those values to save this change."
+)
+
 
 @provide_session
 def _create_connection(team_name: str | None = None, *, session: Session = NEW_SESSION) -> None:
@@ -1093,6 +1098,34 @@ class TestPatchConnection(TestConnectionEndpoint):
         assert json.loads(response.json()["extra"]) == {"config": "***"}
         get_response = test_client.get(f"/connections/{TEST_CONN_ID}")
         assert json.loads(get_response.json()["extra"]) == {"config": "***"}
+
+    @pytest.mark.enable_redact
+    def test_patch_rejects_extra_masked_values_that_cannot_be_placed(self, test_client, session):
+        stored = {
+            "users": [{"name": "alice", "password": "A-secret"}, {"name": "bob", "password": "B-secret"}]
+        }
+        session.add(Connection(conn_id=TEST_CONN_ID, conn_type=TEST_CONN_TYPE, extra=json.dumps(stored)))
+        session.commit()
+        extra = json.loads(test_client.get(f"/connections/{TEST_CONN_ID}").json()["extra"])
+        del extra["users"][0]
+        extra["users"][0]["name"] = "bob2"
+
+        response = test_client.patch(
+            f"/connections/{TEST_CONN_ID}",
+            json={
+                "connection_id": TEST_CONN_ID,
+                "conn_type": TEST_CONN_TYPE,
+                "host": "new-host",
+                "extra": json.dumps(extra),
+            },
+        )
+
+        assert response.status_code == 400
+        assert response.json()["detail"] == UNPLACED_USERS_MASK_ERROR
+        session.expire_all()
+        db_conn = session.scalar(select(Connection).filter_by(conn_id=TEST_CONN_ID))
+        assert json.loads(db_conn.extra) == stored
+        assert db_conn.host is None
 
     def test_patch_with_update_mask_validates_extra_as_json(self, test_client):
         """When update_mask includes 'extra', the extra field validator should still reject invalid JSON."""
@@ -2392,6 +2425,35 @@ class TestBulkConnections(TestConnectionEndpoint):
             service.handle_bulk_update(request.actions[0], results)
 
         assert sorted(results.success) == [TEST_CONN_ID, TEST_CONN_ID_2]
+
+    @pytest.mark.enable_redact
+    def test_bulk_update_rejects_extra_masked_values_without_saving_other_fields(self, test_client, session):
+        stored = {
+            "users": [{"name": "alice", "password": "A-secret"}, {"name": "bob", "password": "B-secret"}]
+        }
+        session.add(Connection(conn_id=TEST_CONN_ID, conn_type=TEST_CONN_TYPE, extra=json.dumps(stored)))
+        session.commit()
+        extra = json.loads(test_client.get(f"/connections/{TEST_CONN_ID}").json()["extra"])
+        del extra["users"][0]
+        extra["users"][0]["name"] = "bob2"
+        entity = {
+            "connection_id": TEST_CONN_ID,
+            "conn_type": TEST_CONN_TYPE,
+            "host": "new-host",
+            "extra": json.dumps(extra),
+        }
+
+        response = test_client.patch(
+            "/connections", json={"actions": [{"action": "update", "entities": [entity]}]}
+        )
+
+        assert response.json()["update"]["errors"] == [
+            {"error": UNPLACED_USERS_MASK_ERROR, "status_code": 400}
+        ]
+        session.expire_all()
+        db_conn = session.scalar(select(Connection).filter_by(conn_id=TEST_CONN_ID))
+        assert json.loads(db_conn.extra) == stored
+        assert db_conn.host is None
 
     def test_bulk_delete_avoids_n_plus_one_queries(self, session):
         self.create_connections()
