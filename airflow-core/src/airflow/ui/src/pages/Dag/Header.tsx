@@ -16,14 +16,14 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Link, Text } from "@chakra-ui/react";
+import { HStack, Link, Text } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiBookOpen } from "react-icons/fi";
 import { useParams } from "react-router-dom";
 
 import type { DAGDetailsResponse, DagRunState } from "openapi/requests/types.gen";
 
-import { RouterLink } from "src/system-components";
+import { RouterLink, Tooltip } from "src/system-components";
 
 import { BackfillInProgressBadge } from "src/components/BackfillInProgressBadge";
 import { DeleteDagButton } from "src/components/DagActions/DeleteDagButton";
@@ -72,6 +72,12 @@ export const Header = ({
   const pluginActions = usePluginActions("dag");
   const isStale = dag?.is_stale;
   const dagVersion = dag?.latest_dag_version;
+  const bundleVersion = dagVersion?.bundle_version;
+  const isSha =
+    typeof bundleVersion === "string" &&
+    (bundleVersion.length === 40 || bundleVersion.length === 64) &&
+    !/[^\da-f]/iu.test(bundleVersion);
+  const displayedBundleVersion = isSha ? bundleVersion.slice(0, 7) : bundleVersion;
 
   const nextRunStat = isStale
     ? []
@@ -146,32 +152,43 @@ export const Header = ({
     },
     {
       label: translate("dagDetails.latestDagVersion"),
-      value: <DagVersion version={dag?.latest_dag_version} />,
+      value: (
+        <HStack alignItems="baseline" gap={2}>
+          <DagVersion version={dagVersion} />
+          {dagVersion !== undefined &&
+          dagVersion !== null &&
+          bundleVersion !== null &&
+          bundleVersion !== undefined ? (
+            <Tooltip content={bundleVersion} disabled={!isSha} portalled>
+              {dagVersion.bundle_url === null ? (
+                <Text
+                  as="span"
+                  fontFamily="mono"
+                  maxW="20ch"
+                  overflowWrap="anywhere"
+                  tabIndex={isSha ? 0 : undefined}
+                >
+                  {displayedBundleVersion}
+                </Text>
+              ) : (
+                <Link
+                  color="fg.info"
+                  display="inline"
+                  fontFamily="mono"
+                  href={dagVersion.bundle_url}
+                  maxW="20ch"
+                  overflowWrap="anywhere"
+                  rel="noopener noreferrer"
+                  target="_blank"
+                >
+                  {displayedBundleVersion}
+                </Link>
+              )}
+            </Tooltip>
+          ) : undefined}
+        </HStack>
+      ),
     },
-    ...(dagVersion !== undefined && dagVersion !== null && dagVersion.bundle_version !== null
-      ? [
-          {
-            label: translate("dagDetails.bundleVersion"),
-            value: (
-              <Text fontFamily="mono" maxW="20ch" overflowWrap="anywhere">
-                {dagVersion.bundle_url === null ? (
-                  dagVersion.bundle_version
-                ) : (
-                  <Link
-                    color="fg.info"
-                    display="inline"
-                    href={dagVersion.bundle_url}
-                    rel="noopener noreferrer"
-                    target="_blank"
-                  >
-                    {dagVersion.bundle_version}
-                  </Link>
-                )}
-              </Text>
-            ),
-          },
-        ]
-      : []),
   ];
 
   return (
