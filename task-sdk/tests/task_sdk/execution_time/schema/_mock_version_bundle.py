@@ -40,7 +40,7 @@ from __future__ import annotations
 
 from typing import Literal
 
-from cadwyn import (
+from cadwyn_core import (
     HeadVersion,
     Version,
     VersionBundle,
