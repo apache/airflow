@@ -110,8 +110,9 @@ EVAL_FULL=1 prek run run-skill-eval --hook-stage manual --all-files
 MODEL=claude-haiku-4-5-20251001 prek run run-skill-eval --hook-stage manual --all-files
 
 # Test a skill alongside AGENTS.md (not combinable with EVAL_FULL — the
-# baseline arm has no skill, so the skill-used assertion would always fail):
-SKILL_NAME=airflow-contribution prek run run-skill-eval --hook-stage manual --all-files
+# baseline arm has no skill, so the skill-used assertion would always fail).
+# A skill with its own suite runs that suite (see "Skill cases"):
+SKILL_NAME=airflow-pr-draft-summary prek run run-skill-eval --hook-stage manual --all-files
 
 # View results in browser (Ctrl-C to stop the server):
 prek run view-skill-eval --hook-stage manual --all-files
@@ -158,6 +159,24 @@ create a new one — no config changes needed.
 The agent returns structured JSON (`{should_create, type, rationale}`).
 Use `output.should_create` directly in assertions.
 
+### Skill cases
+
+A skill gets its own suite in `skills/<skill-name>/`, named after its
+directory in `.agents/skills/`:
+
+```text
+skills/airflow-pr-draft-summary/
+├── cases/*.yaml          # same format as above
+├── output-schema.json    # JSON schema the agent's answer must follow
+└── last-eval-hash.txt    # written by the run, like the top-level one
+```
+
+A skill's answers rarely fit the newsfragment schema, so each suite
+brings its own, and its assertions read that schema's fields (for
+example `output.title`). `SKILL_NAME=<skill-name>` runs only that
+suite's cases, and every case also checks that the skill was used.
+Without a suite, `SKILL_NAME` runs the `cases/*.yaml` above.
+
 ## How it works
 
 1. Creates git worktrees — one with `main`'s AGENTS.md, one with
@@ -184,7 +203,14 @@ updated hash file together with your change.
   until the eval is re-run.
 - Can't run the eval (no Claude subscription or API key)? Ask a
   maintainer to run it and push the updated hash file to your PR branch.
-- `SKILL.md` files are not covered by the gate yet — there are no skill
-  cases, so a hash over them would prove nothing. Extend
-  `compute_guidance_hash` in `scripts/ci/prek/check_eval_hash.py` when
-  per-skill cases land.
+- A skill with a suite is gated the same way, by its own
+  `skills/<skill-name>/last-eval-hash.txt` over its `SKILL.md`, output
+  schema and cases. Changing any of them needs a
+  `SKILL_NAME=<skill-name>` run. A run tests one skill, so each suite
+  records its own hash, and `AGENTS.md` is left out of it: the
+  top-level hash already covers it.
+- Skills without a suite are not gated: with no cases, a hash over
+  them would prove nothing.
+- Run the eval on Linux or macOS. The hash is over file bytes, so a
+  Windows checkout with CRLF line endings records a hash CI never
+  matches.
