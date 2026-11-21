@@ -192,16 +192,14 @@ func (f *taskFunction) call(
 		if err != nil {
 			return err
 		}
-		rv := reflect.ValueOf(value)
-		if rv.Kind() != reflect.Ptr || !rv.IsNil() {
-			if err := pushReturnValue(ctx, value, sdkClient); err != nil {
-				return err
-			}
+		if err := pushReturnValue(ctx, value, sdkClient); err != nil {
+			return err
 		}
 		return branch.skipDownstream(ctx, sdkClient, skipped, logger)
 	}
-	// If there are two results, convert the first only if it's not a nil pointer
-	if len(retValues) > 1 && (retValues[0].Kind() != reflect.Ptr || !retValues[0].IsNil()) {
+	// A function that returns only an error has no result to push. Any other result is pushed, so a
+	// nil pointer or nil interface stores null.
+	if len(retValues) > 1 {
 		return pushReturnValue(ctx, retValues[0].Interface(), sdkClient)
 	}
 	return nil

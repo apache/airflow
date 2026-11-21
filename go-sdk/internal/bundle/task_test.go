@@ -316,7 +316,8 @@ func (s *TaskSuite) TestBranchFunctionPushesTheValueAndSkipsTheTasksThatDecideRe
 	}, client.calls)
 }
 
-func (s *TaskSuite) TestBranchFunctionPushesNoNilPointer() {
+// The decider's choice is pushed even when it is nil, which stores null.
+func (s *TaskSuite) TestBranchFunctionPushesANilPointer() {
 	task, err := NewPositionalBranchFunction(
 		func(contexttest.Context) (bool, error) { return true, nil },
 		func(any) (any, []string, error) { return (*int)(nil), []string{"load"}, nil },
@@ -327,6 +328,7 @@ func (s *TaskSuite) TestBranchFunctionPushesNoNilPointer() {
 	s.Require().NoError(runTask(task, client, true, true))
 
 	s.Equal([]string{
+		"PushXCom decide return_value <nil>",
 		"PushXCom decide skipmixin_key map[skipped:[load]]",
 		"SkipDownstreamTasks [load]",
 	}, client.calls)
@@ -479,8 +481,28 @@ func (s *TaskSuite) TestPushesTheReturnValue() {
 	s.Equal([]string{"PushXCom decide return_value 7"}, client.calls)
 }
 
-func (s *TaskSuite) TestPushesNoNilPointer() {
-	task, err := NewTaskFunction(func(contexttest.Context) (*int, error) { return nil, nil })
+// A function that declares a result pushes it even when it is nil, which stores null.
+func (s *TaskSuite) TestPushesANilResult() {
+	cases := map[string]any{
+		"nil pointer":   func(contexttest.Context) (*int, error) { return nil, nil },
+		"nil interface": func(contexttest.Context) (any, error) { return nil, nil },
+	}
+	for name, fn := range cases {
+		s.Run(name, func() {
+			task, err := NewTaskFunction(fn)
+			s.Require().NoError(err)
+
+			client := &recordingClient{}
+			s.Require().NoError(runTask(task, client, true, false))
+
+			s.Equal([]string{"PushXCom decide return_value <nil>"}, client.calls)
+		})
+	}
+}
+
+// A function that returns only an error has no result, so it pushes nothing.
+func (s *TaskSuite) TestErrorOnlyFunctionPushesNothing() {
+	task, err := NewTaskFunction(func(contexttest.Context) error { return nil })
 	s.Require().NoError(err)
 
 	client := &recordingClient{}

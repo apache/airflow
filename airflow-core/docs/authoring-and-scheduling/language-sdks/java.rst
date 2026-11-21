@@ -682,8 +682,8 @@ position, and the SDK passes them in. A ``Task`` class receives both in ``execut
 running task, such as ``context.ti.taskId``, ``context.ti.tryNumber`` and ``context.dagRun.logicalDate``.
 
 A value a method returns, or a ``Task`` class passes to ``client.setXCom``, becomes the task's ``return_value``
-XCom, and is what a downstream task receives. An uncaught exception fails the task, and retries it if the task
-has retries.
+XCom, and is what a downstream task receives. A ``void`` method pushes nothing. An uncaught exception fails
+the task, and retries it if the task has retries.
 
 The ``Client``
 ~~~~~~~~~~~~~~
