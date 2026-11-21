@@ -663,3 +663,120 @@ class TestEdgeModifierBuilding:
         group2 << Label("label group1 <=> group2") << group1
 
         compare_dag_edges(dag_edges(dag), multiple_taskgroups_dag_expected_edges)
+
+
+class TestEdgeModifierTaskInGroup:
+    """
+    Tests that a labeled edge between a task inside a TaskGroup and a task outside
+    of it connects only those tasks, exactly like the unlabeled edge (or the
+    equivalent ``set_downstream(..., Label(...))`` spelling) does.
+
+    See https://github.com/apache/airflow/issues/76170
+    """
+
+    def test_shift_from_task_in_group_to_outside_task(self, test_taskgroup_dag):
+        """`task_in_group >> Label("x") >> outside_task` depends only on that task."""
+        dag, group, (op1, op2, op3, op4) = test_taskgroup_dag
+        op2 >> Label("rows") >> op4
+
+        assert op4.upstream_task_ids == {op2.node_id}
+        assert dag.get_edge_info(op2.task_id, op4.task_id) == {"label": "rows"}
+        assert not any(
+            edge.get("target_id") == op4.node_id and edge.get("source_id") != op2.node_id
+            for edge in dag_edges(dag)
+        )
+
+    def test_shift_from_outside_task_to_task_in_group(self, test_taskgroup_dag):
+        """`task_in_group << Label("x") << outside_task` has only that task as upstream."""
+        dag, group, (op1, op2, op3, op4) = test_taskgroup_dag
+        op2 << Label("rows") << op4
+
+        assert op2.upstream_task_ids == {op4.node_id}
+        assert op3.upstream_task_ids == set()
+        assert dag.get_edge_info(op4.task_id, op2.task_id) == {"label": "rows"}
+
+    def test_set_downstream_with_label_from_task_in_group(self, test_taskgroup_dag):
+        """`task_in_group.set_downstream(outside_task, Label("x"))` matches the `>>` spelling."""
+        dag, group, (op1, op2, op3, op4) = test_taskgroup_dag
+        op2.set_downstream(op4, Label("rows"))
+
+        assert op4.upstream_task_ids == {op2.node_id}
+        assert dag.get_edge_info(op2.task_id, op4.task_id) == {"label": "rows"}
+
+    def test_shift_between_tasks_in_different_groups(self, test_multiple_taskgroups_dag):
+        """A labeled edge between tasks of two different groups stays task-level."""
+        (
+            dag,
+            group1,
+            group2,
+            group3,
+            (
+                group1_emp1,
+                group1_emp2,
+                group1_emp3,
+                group2_emp1,
+                group2_emp2,
+                group2_emp3,
+                group2_op1,
+                group2_op2,
+                group3_emp1,
+                group3_emp2,
+                group3_emp3,
+                emp_in1,
+                emp_in2,
+                emp_in3,
+                emp_in4,
+                emp_out1,
+                emp_out2,
+                emp_out3,
+                emp_out4,
+                op_in1,
+                op_out1,
+            ),
+        ) = test_multiple_taskgroups_dag
+        group1_emp1 >> Label("label") >> group2_emp1
+
+        assert group2_emp1.upstream_task_ids == {group1_emp1.node_id}
+        assert dag.get_edge_info(group1_emp1.task_id, group2_emp1.task_id) == {"label": "label"}
+
+    def test_label_between_task_groups_still_uses_join_ids(self, test_multiple_taskgroups_dag):
+        """An explicit labeled edge between two TaskGroups keeps the group-level wiring."""
+        (
+            dag,
+            group1,
+            group2,
+            group3,
+            (
+                group1_emp1,
+                group1_emp2,
+                group1_emp3,
+                group2_emp1,
+                group2_emp2,
+                group2_emp3,
+                group2_op1,
+                group2_op2,
+                group3_emp1,
+                group3_emp2,
+                group3_emp3,
+                emp_in1,
+                emp_in2,
+                emp_in3,
+                emp_in4,
+                emp_out1,
+                emp_out2,
+                emp_out3,
+                emp_out4,
+                op_in1,
+                op_out1,
+            ),
+        ) = test_multiple_taskgroups_dag
+        group1 >> Label("label group1 <=> group2") >> group2
+
+        assert {
+            "label": "label group1 <=> group2",
+            "source_id": "group1.downstream_join_id",
+            "target_id": "group2.upstream_join_id",
+        } in dag_edges(dag)
+        assert dag.get_edge_info("group1.downstream_join_id", "group2.upstream_join_id") == {
+            "label": "label group1 <=> group2"
+        }
