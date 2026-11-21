@@ -22,6 +22,7 @@
     },
     "favoriteState": "Estat de favorit",
     "favoriteStatePlaceholder": "Seleccionar l'estat de favorit…",
+    "hasImportErrors": "Té errors d'importació",
     "noTimetableTypesFound": "No s'han trobat tipus de calendari",
     "paused": {
       "active": "Actius",
@@ -44,6 +45,12 @@
     "title": "Carpetes"
   },
   "ownerLink": "Enllaç del propietari {{owner}}",
+  "recentTaskStateCounts": {
+    "description": "Estat de les tasques de totes les execucions actives del Dag. Si no n'hi ha cap, es mostra l'estat de les tasques de la darrera execució. Podeu desactivar aquesta opció a la configuració d'usuari.",
+    "label": "Tasques recents",
+    "loading": "S'està carregant el recompte de tasques recents per estat",
+    "tooltip": "{{state}}: {{formattedCount}} — feu clic per filtrar les tasques"
+  },
   "runAndTaskActions": {
     "affectedTasks": {
       "noItemsFound": "No s'han trobat tasques.",
@@ -83,20 +90,24 @@
         "failed": "Prem shift+f per a marcar com a fallit",
         "success": "Prem shift+s per a marcar com a exitós"
       },
+      "skippedInfo": "Marcar una instància de tasca com a saltada deixa constància que s'ha decidit no executar-la. Les tasques aigües avall continuen subjectes a les seves regles d'execució. Amb la regla predeterminada «all_success», també se saltaran. Només es poden saltar les instàncies de tasca que encara no s'han començat a executar. L'acció només afecta aquesta instància.",
       "title": "Marcar {{type}} com a {{state}}"
     },
     "options": {
       "downstream": "Aigües avall",
       "existingTasks": "Rellançar tasques existents",
       "future": "Futur",
+      "includeDependentDags": "Rellançar les tasques dels Dags dependents",
       "keepTaskState": "Conservar l'estat de la tasca i reprendre",
+      "laterIterations": "Iteracions posteriors",
       "onlyFailed": "Rellançar només tasques fallides",
       "past": "Passat",
       "preventRunningTasks": "Evitar rellançar tasques en execució",
       "queueNew": "Afegir noves tasques a la cua",
       "runOnLatestVersion": "Executar amb la última versió de la col·lecció",
       "runOnLatestVersionForced": "Sempre utilitza la versió més recent: no hi ha cap versió anterior a la qual tornar",
-      "upstream": "Aigües amunt"
+      "upstream": "Aigües amunt",
+      "wholeExpansion": "Tota l'expansió"
     }
   },
   "runStateCounts": {
@@ -117,8 +128,10 @@
   "search": {
     "advanced": "Cerca avançada",
     "clear": "Netejar cerca",
+    "dagRuns": "Cercar $t(common:dagRun_other)",
     "dags": "Cercar Dags",
     "hotkey": "+K",
+    "mapIndexes": "Cercar $t(common:mapIndex)",
     "tasks": "Cercar Tasques"
   },
   "sort": {
