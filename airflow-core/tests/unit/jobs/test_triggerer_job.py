@@ -19,16 +19,22 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import copy
 import datetime
+import errno
 import itertools
+import json
+import logging
 import os
 import random
 import selectors
+import shutil
 import threading
 import time
 import typing
 import uuid
 from collections.abc import AsyncIterator
+from pathlib import Path
 from socket import socket, socketpair
 from typing import Any, ClassVar
 from unittest import mock
@@ -49,9 +55,11 @@ from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapProp
 from pydantic import TypeAdapter
 from sqlalchemy import create_engine, delete, event, func, select, text, update
 from sqlalchemy.exc import OperationalError
+from sqlalchemy.orm import Session
 from sqlalchemy.pool import NullPool
 from structlog.typing import FilteringBoundLogger
 
+from airflow import settings
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.execution_api.in_process import TRIGGER_TI_ID_HEADER
 from airflow.executors import workloads
@@ -71,6 +79,7 @@ from airflow.jobs.triggerer_job_runner import (
     TriggerLoggingFactory,
     TriggerRunner,
     TriggerRunnerSupervisor,
+    WatcherLoggingFactory,
     _make_trigger_span,
     format_trigger_error,
     messages,
@@ -117,6 +126,8 @@ from airflow.sdk.execution_time.comms import (
     _ResponseFrame,
 )
 from airflow.sdk.execution_time.context import AssetStateStoreAccessors
+from airflow.sdk.log import init_log_file as create_log_file
+from airflow.sdk.types import RuntimeTaskInstanceProtocol
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
 from airflow.triggers.base import (
     AssetTriggerEvent,
@@ -129,6 +140,8 @@ from airflow.triggers.base import (
 )
 from airflow.triggers.shared_stream import SharedStreamProducer
 from airflow.triggers.testing import FailureTrigger, SuccessTrigger
+from airflow.utils.log.trigger_log import get_trigger_log_dir, get_trigger_log_relative_path
+from airflow.utils.log.watcher_log import WatcherLogs
 from airflow.utils.state import State, TaskInstanceState
 from airflow.utils.types import DagRunType
 
@@ -145,6 +158,7 @@ from tests_common.test_utils.db import (
     clear_db_xcom,
 )
 from tests_common.test_utils.taskinstance import create_task_instance
+from unit.utils.log.test_watcher_log import WatcherLogFileHelpers
 
 pytestmark = pytest.mark.db_test
 
@@ -1545,6 +1559,1447 @@ def test_trigger_logger_fd_closed_when_upload_to_remote_raises(jobless_superviso
     assert 42 not in jobless_supervisor.running_triggers
 
 
+class TestWatcherLogFile(WatcherLogFileHelpers):
+    @staticmethod
+    def _watcher_trigger(mocker, trigger_id):
+        asset = mocker.Mock(uri="s3://bucket/orders")
+        asset.name = "orders"
+        watcher = mocker.Mock(asset=asset)
+        watcher.name = "new_files"
+        return mocker.Mock(
+            spec=Trigger,
+            id=trigger_id,
+            classpath="some.path.Trigger",
+            encrypted_kwargs="",
+            task_instance=None,
+            callback=None,
+            assets=[asset],
+            asset_watchers=[watcher],
+        )
+
+    @staticmethod
+    def _create(supervisor, trigger, mocker):
+        supervisor._create_workload(
+            trigger=trigger,
+            dag_bag=mocker.Mock(spec=DBDagBag),
+            render_log_fname=mocker.Mock(spec=lambda **kwargs: ""),
+            session=mocker.Mock(spec=Session),
+        )
+
+    @staticmethod
+    def _capped(tmp_path):
+        return conf_vars(
+            {("logging", "base_log_folder"): str(tmp_path), ("triggerer", "watcher_log_max_bytes"): "400"}
+        )
+
+    @staticmethod
+    def _release(supervisor, trigger_id=42):
+        """Release the watcher's file and wait for its upload."""
+        supervisor._close_trigger_logger(trigger_id)
+        supervisor.watcher_logs._upload_pool.shutdown(wait=True)
+        supervisor.watcher_logs._upload_pool = None
+
+    @staticmethod
+    def _add_rows(session, *hours_ago, triggers=0):
+        """Add triggerer jobs that last heartbeat ``hours_ago`` (0: alive), then ``triggers`` triggers."""
+        now = timezone.utcnow()
+        rows = [
+            Job(job_type="TriggererJob", state="running", latest_heartbeat=now - datetime.timedelta(hours=h))
+            for h in hours_ago
+        ]
+        rows += [
+            Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={}) for _ in range(triggers)
+        ]
+        session.add_all(rows)
+        session.flush()
+        return rows
+
+    @staticmethod
+    def _scan(supervisor, tmp_path):
+        with conf_vars({("logging", "base_log_folder"): str(tmp_path)}):
+            supervisor.watcher_logs.handle_orphaned_trigger_logs(supervisor.job.id)
+
+    @conf_vars({("triggerer", "watcher_log_max_bytes"): "1234"})
+    def test_one_file_per_assignment_and_triggerer(self, jobless_supervisor, mocker):
+        trigger = self._watcher_trigger(mocker, 42)
+
+        self._create(jobless_supervisor, trigger, mocker)
+        factory = jobless_supervisor.logger_cache[42]
+        # A restarted instance (e.g. an SQS-style watcher after each event) keeps writing the same file.
+        self._create(jobless_supervisor, trigger, mocker)
+
+        assert isinstance(factory, WatcherLoggingFactory)
+        assert (
+            factory.log_path == f"triggers/trigger_id=42/triggerer_job_id={jobless_supervisor.id}/trigger.log"
+        )
+        assert (factory.trigger_id, factory.max_bytes) == (42, 1234)
+        assert jobless_supervisor.logger_cache[42] is factory
+
+    def test_a_callback_trigger_logs_to_the_callback_log_only(self, jobless_supervisor, mocker):
+        trigger = self._watcher_trigger(mocker, 42)
+        trigger.assets = []
+        trigger.callback = mocker.Mock(data={"dag_id": "d"}, id=uuid.uuid4())
+
+        self._create(jobless_supervisor, trigger, mocker)
+
+        factory = jobless_supervisor.logger_cache[42]
+        assert not isinstance(factory, WatcherLoggingFactory)
+        assert factory.log_path == f"triggerer_callbacks/d/unknown/{trigger.callback.id}/callback.log"
+
+    @pytest.mark.parametrize(
+        "changes",
+        [
+            pytest.param(
+                messages.TriggerStateChanges(events=None, finished=[42], running_ids=set()), id="finished"
+            ),
+            pytest.param(
+                messages.TriggerStateChanges(events=None, running_ids=set()), id="lost-by-the-runner"
+            ),
+        ],
+    )
+    def test_file_is_kept_across_instance_restarts(self, jobless_supervisor, mocker, changes):
+        factory = mocker.MagicMock(spec=WatcherLoggingFactory)
+        jobless_supervisor.logger_cache[42] = factory
+        jobless_supervisor.running_triggers.add(42)
+        mocker.patch.object(TriggerRunnerSupervisor, "build_trigger_workloads", return_value=[])
+
+        jobless_supervisor._handle_request(changes, log=mocker.Mock(spec=FilteringBoundLogger), req_id=0)
+        jobless_supervisor.update_triggers({42})
+
+        factory.close.assert_not_called()
+        assert jobless_supervisor.logger_cache[42] is factory
+
+    @pytest.mark.parametrize(
+        ("assignments", "queue"),
+        [
+            pytest.param({42: 7}, "releasing_triggers", id="moved"),
+            pytest.param({}, "cancelling_triggers", id="gone"),
+        ],
+    )
+    def test_file_is_closed_one_loop_after_the_trigger_left(
+        self, jobless_supervisor, mocker, assignments, queue
+    ):
+        factory = mocker.MagicMock(spec=WatcherLoggingFactory)
+        jobless_supervisor.logger_cache[42] = factory
+        jobless_supervisor.running_triggers.add(42)
+        mocker.patch.object(TriggerRunnerSupervisor, "fetch_trigger_assignments", return_value=assignments)
+        log = mocker.Mock(spec=FilteringBoundLogger)
+
+        jobless_supervisor.update_triggers(set())
+        assert 42 in getattr(jobless_supervisor, queue)
+        # Still open: the instance's last lines (on_kill, cleanup) are still to come on the log socket.
+        jobless_supervisor._handle_request(messages.TriggerStateChanges(finished=[42]), log=log, req_id=0)
+        factory.close.assert_not_called()
+
+        jobless_supervisor.update_triggers(set())
+        jobless_supervisor.watcher_logs._upload_pool.shutdown(wait=True)
+
+        factory.upload_to_remote.assert_called_once()
+        factory.close.assert_called()
+        assert 42 not in jobless_supervisor.logger_cache
+
+    def test_close_trigger_log_files_uploads_only_watcher_logs(self, jobless_supervisor, mocker):
+        own_file = mocker.MagicMock(spec=WatcherLoggingFactory)
+        task_log = mocker.MagicMock(spec=TriggerLoggingFactory)
+        jobless_supervisor.logger_cache.update({2: own_file, 3: task_log})
+
+        jobless_supervisor.close_trigger_log_files()
+
+        own_file.upload_to_remote.assert_called_once()
+        task_log.upload_to_remote.assert_not_called()
+        assert jobless_supervisor.logger_cache == {3: task_log}
+
+    def test_with_remote_logging_every_rotated_file_is_uploaded(self, jobless_supervisor, mocker, tmp_path):
+        # A watcher stays on one triggerer for days: a rotated file replaced before it is uploaded is lost.
+        store = self.S3RemoteLogIO(tmp_path)
+        mocker.patch("airflow.sdk.log.load_remote_log_handler", return_value=store)
+        with conf_vars(
+            {("logging", "base_log_folder"): str(tmp_path), ("triggerer", "watcher_log_max_bytes"): "200"}
+        ):
+            self._create(jobless_supervisor, self._watcher_trigger(mocker, 42), mocker)
+            factory = jobless_supervisor.logger_cache.pop(42)
+            logger = factory(self._processors())
+            for n in range(50):
+                logger.log(logging.INFO, "line", n=n)
+            jobless_supervisor.watcher_logs.upload_and_close(42, factory)
+
+        assert store.lines() == list(range(50))
+
+    def _log(self, supervisor, trigger_id, numbers):
+        logger = supervisor.logger_cache[trigger_id](self._processors())
+        for n in numbers:
+            logger.log(logging.INFO, "line", n=n)
+            if (upload := supervisor.watcher_logs._pending_rotated_uploads.get(trigger_id)) is not None:
+                upload.result()  # each rotation once the file is full, not held off by the previous upload
+
+    def _log_until_rotated(self, supervisor, uploads, start=0, trigger_id=42):
+        """Log until the next rotated file is uploaded (``uploads`` counts the uploads); return the last number."""
+        before = uploads()
+        for n in itertools.count(start):
+            self._log(supervisor, trigger_id, [n])
+            if uploads() > before:
+                return n
+
+    def _run(self, supervisor, store, mocker, tmp_path, numbers=None, trigger_id=42, release=False):
+        """Log ``numbers`` (or until the first rotation) on a new watcher file, then stop, or ``release`` it."""
+        mocker.patch("airflow.sdk.log.load_remote_log_handler", return_value=store)
+        with self._capped(tmp_path):
+            self._create(supervisor, self._watcher_trigger(mocker, trigger_id), mocker)
+            if numbers is None:
+                self._log_until_rotated(supervisor, lambda: store.attempts, trigger_id=trigger_id)
+            else:
+                self._log(supervisor, trigger_id, numbers)
+            if release:
+                self._release(supervisor, trigger_id)
+            else:
+                supervisor.watcher_logs.upload_and_close(trigger_id, supervisor.logger_cache.pop(trigger_id))
+
+    def test_each_rotated_file_is_its_own_remote_object(self, jobless_supervisor, mocker, tmp_path):
+        # S3, GCS and WASB append by downloading the object: to one object, each rotation would move all before it.
+        store = self._Store(tmp_path)
+        self._run(jobless_supervisor, store, mocker, tmp_path, range(200))
+
+        job_dir = get_trigger_log_dir(42, jobless_supervisor.id)
+        parts = [path for path, _, _ in store.uploads if path != f"{job_dir}/trigger.log"]
+        assert len(parts) >= 8
+        assert parts == [f"{job_dir}/rotated/trigger.{n:06d}.log" for n in range(1, len(parts) + 1)]
+        assert store.lines() == list(range(200))
+        assert [downloaded for _, _, downloaded in store.uploads] == [0] * len(store.uploads)
+        assert max(size for _, size, _ in store.uploads) < 400 + 100
+
+    def test_a_replacing_store_loses_no_lines(self, jobless_supervisor, mocker, tmp_path):
+        # HDFS replaces the object: to one object, each rotation would replace the one before it.
+        store = self.HdfsRemoteLogIO(tmp_path)
+        self._run(jobless_supervisor, store, mocker, tmp_path, range(200))
+
+        assert store.replaced == []
+        assert store.lines() == list(range(200))
+
+    @pytest.mark.parametrize(
+        ("store_class", "failure"),
+        [
+            ("S3RemoteLogIO", "quiet_failures"),
+            ("OldS3RemoteLogIO", "quiet_failures"),
+            ("HdfsRemoteLogIO", "raised_failures"),
+            ("OSSRemoteLogIO", "quiet_failures"),
+            ("OSSRemoteLogIO", "raised_failures"),
+            ("CustomRemoteLogIO", "quiet_failures"),
+        ],
+    )
+    def test_a_rotated_file_whose_upload_failed_is_sent_again_before_it_is_replaced(
+        self, jobless_supervisor, mocker, tmp_path, store_class, failure
+    ):
+        store = getattr(self, store_class)(tmp_path)
+        setattr(store, failure, 1)
+        self._run(jobless_supervisor, store, mocker, tmp_path, range(200))
+
+        parts = [path for path, _, _ in store.uploads if "/rotated/" in path]
+        assert store.attempts == len(store.uploads) + 1  # the failed one sent once more, no other
+        if store_class != "HdfsRemoteLogIO":  # HDFS keeps its copy: sent again, unchanged
+            assert len(parts) == len(set(parts))
+        assert store.replaced == []
+        assert store.lines() == list(range(200))
+
+    @pytest.mark.parametrize(
+        "store_class", ["HdfsRemoteLogIO", "OSSRemoteLogIO", "CustomRemoteLogIO", "OldS3RemoteLogIO"]
+    )
+    def test_a_store_that_keeps_the_file_gets_each_part_once(
+        self, jobless_supervisor, mocker, tmp_path, store_class
+    ):
+        # These keep a file they stored, and some append, so sending it again could store it twice.
+        store = getattr(self, store_class)(tmp_path)
+        mocker.patch("airflow.sdk.log.load_remote_log_handler", return_value=store)
+        with self._capped(tmp_path):
+            self._create(jobless_supervisor, self._watcher_trigger(mocker, 42), mocker)
+            self._log(jobless_supervisor, 42, range(200))
+
+        parts = [path for path, _, _ in store.uploads]
+        assert len(parts) >= 8
+        assert len(parts) == len(set(parts))
+        assert len(store.lines()) == len(set(store.lines()))
+
+    @pytest.mark.parametrize("store_class", ["HdfsRemoteLogIO", "CustomRemoteLogIO"])
+    def test_a_store_that_keeps_the_file_gets_each_released_part_once(
+        self, jobless_supervisor, mocker, tmp_path, store_class
+    ):
+        # Released again and again before the file is full: no rotation comes to remove the parts stored.
+        store = getattr(self, store_class)(tmp_path)
+        for start in range(0, 15, 3):
+            self._run(jobless_supervisor, store, mocker, tmp_path, range(start, start + 3), release=True)
+
+        parts = [path for path, _, _ in store.uploads]
+        assert len(parts) == len(set(parts)) == 5
+        assert store.lines() == list(range(15))
+        rotated = tmp_path / get_trigger_log_dir(42, jobless_supervisor.id) / "rotated"
+        assert list(rotated.iterdir()) == []
+
+    def test_a_store_that_stays_down_keeps_one_rotated_file(self, jobless_supervisor, mocker, tmp_path):
+        store = self._Store(tmp_path)
+        store.down = True
+        mocker.patch("airflow.sdk.log.load_remote_log_handler", return_value=store)
+        with self._capped(tmp_path):
+            self._create(jobless_supervisor, self._watcher_trigger(mocker, 42), mocker)
+            self._log(jobless_supervisor, 42, range(200))
+
+        rotated = list((tmp_path / f"{get_trigger_log_dir(42, jobless_supervisor.id)}/rotated").iterdir())
+        assert len(rotated) == 1
+        assert rotated[0].stat().st_size < 400 + 100
+
+    def test_empty_files_are_not_uploaded_to_a_store(self, jobless_supervisor, mocker, tmp_path):
+        # Released right after a rotation: the rotated file was emptied by its upload, the live file is empty.
+        store = self._Store(tmp_path)
+        self._run(jobless_supervisor, store, mocker, tmp_path)
+
+        assert [(path.rsplit("/", 1)[-1], bool(size)) for path, size, _ in store.uploads] == [
+            ("trigger.000001.log", True)
+        ]
+
+    def test_a_watcher_back_on_the_same_triggerer_keeps_its_earlier_lines(
+        self, jobless_supervisor, mocker, tmp_path
+    ):
+        # HDFS replaces the object, and with delete_local_logs the watcher's next file here starts empty.
+        store = self.HdfsRemoteLogIO(tmp_path, delete_local_copy=True)
+        self._run(jobless_supervisor, store, mocker, tmp_path, range(5), release=True)
+        self._run(jobless_supervisor, store, mocker, tmp_path, range(5, 10), release=True)
+
+        assert store.replaced == []
+        assert store.lines() == list(range(10))
+
+    @pytest.mark.parametrize("released_again", [False, True], ids=["rotates", "released-again"])
+    @pytest.mark.parametrize("delete_local_copy", [False, True])
+    @pytest.mark.parametrize(
+        ("store_class", "failure"),
+        [
+            ("HdfsRemoteLogIO", "raised_failures"),
+            ("S3RemoteLogIO", "quiet_failures"),
+            ("OSSRemoteLogIO", "quiet_failures"),
+            ("OSSRemoteLogIO", "raised_failures"),
+        ],
+    )
+    def test_a_released_file_whose_upload_failed_is_sent_again_by_a_watcher_back_here(
+        self, jobless_supervisor, mocker, tmp_path, store_class, failure, delete_local_copy, released_again
+    ):
+        # Released while the store fails, then back here: it rotates, or is released again, before its directory
+        # is uploaded again. With delete_local_logs, sending it again removes the rotated files' directory.
+        store = getattr(self, store_class)(tmp_path, delete_local_copy=delete_local_copy)
+        mocker.patch("airflow.sdk.log.load_remote_log_handler", return_value=store)
+        with self._capped(tmp_path):
+            self._create(jobless_supervisor, self._watcher_trigger(mocker, 42), mocker)
+            self._log(jobless_supervisor, 42, range(2))
+            setattr(store, failure, 1)
+            self._release(jobless_supervisor)
+        last = 5 if released_again else 30
+        self._run(jobless_supervisor, store, mocker, tmp_path, range(2, last), release=released_again)
+
+        assert store.lines() == list(range(last))
+
+    _FAILING_STORES = [
+        ("S3RemoteLogIO", "quiet_failures"),
+        ("GCSRemoteLogIO", "quiet_failures"),
+        ("WasbRemoteLogIO", "quiet_failures"),
+        ("HdfsRemoteLogIO", "raised_failures"),
+        ("OSSRemoteLogIO", "quiet_failures"),
+    ]
+
+    @pytest.mark.parametrize("released_again", [False, True], ids=["stopped", "released-again"])
+    @pytest.mark.parametrize(("store_class", "failure"), _FAILING_STORES)
+    def test_two_releases_during_a_store_outage_lose_no_lines_with_delete_local_logs(
+        self, jobless_supervisor, mocker, tmp_path, store_class, failure, released_again
+    ):
+        # Each failed release upload leaves its part in the rotated directory: the first upload that goes through
+        # removes that directory, with any other part in it.
+        store = getattr(self, store_class)(tmp_path, delete_local_copy=True)
+        setattr(store, failure, 1000)
+        self._run(jobless_supervisor, store, mocker, tmp_path, range(3), release=True)
+        self._run(jobless_supervisor, store, mocker, tmp_path, range(3, 6), release=True)
+        setattr(store, failure, 0)
+        self._run(jobless_supervisor, store, mocker, tmp_path, range(6, 9), release=released_again)
+
+        assert store.lines() == list(range(9))
+
+    @pytest.mark.parametrize(("store_class", "failure"), _FAILING_STORES)
+    def test_a_part_left_unsent_at_a_stop_is_not_removed_by_the_live_files_upload(
+        self, jobless_supervisor, mocker, tmp_path, store_class, failure
+    ):
+        # With delete_local_logs, storing the live file removes its directory, and the rotated one in it.
+        store = getattr(self, store_class)(tmp_path, delete_local_copy=True)
+        mocker.patch("airflow.sdk.log.load_remote_log_handler", return_value=store)
+        with self._capped(tmp_path):
+            self._create(jobless_supervisor, self._watcher_trigger(mocker, 42), mocker)
+            last = self._log_until_rotated(jobless_supervisor, lambda: store.attempts)
+            last = self._log_until_rotated(jobless_supervisor, lambda: store.attempts, last + 1)
+            setattr(store, failure, 2)  # part 3, at its rotation and again at the stop
+            last = self._log_until_rotated(jobless_supervisor, lambda: store.attempts, last + 1)
+            self._log(jobless_supervisor, 42, [last + 1])
+            jobless_supervisor.watcher_logs.upload_and_close(42, jobless_supervisor.logger_cache.pop(42))
+
+        job_dir = tmp_path / get_trigger_log_dir(42, jobless_supervisor.id)
+        local = [
+            json.loads(line)["n"]
+            for f in sorted(job_dir.rglob("*.log"))
+            for line in f.read_text().splitlines()
+        ]
+        assert (job_dir / "rotated/trigger.000003.log").exists()
+        assert sorted(store.lines() + local) == list(range(last + 2))  # the rest for the next start
+
+    def test_a_held_append_that_runs_out_of_space_is_cut_back(self, jobless_supervisor, mocker, tmp_path):
+        # Released again before the held file was taken: the live file keeps every line a cut copy added.
+        store = self.S3RemoteLogIO(tmp_path)
+        job_dir = get_trigger_log_dir(42, jobless_supervisor.id)
+        held = "".join(f'{{"n": {n}}}\n' for n in range(3))
+        self._write(tmp_path, f"{job_dir}/trigger.held.log", held)
+
+        def copy_part(source, target, length=0):
+            data = source.read()
+            target.write(data[: len(data) // 2])
+            raise OSError(errno.ENOSPC, "No space left on device")
+
+        copy = mocker.patch.object(shutil, "copyfileobj", autospec=True, side_effect=copy_part)
+        store.quiet_failures = 1000
+        self._run(jobless_supervisor, store, mocker, tmp_path, range(3, 6), release=True)
+        mocker.stop(copy)
+
+        assert copy.call_count == 1
+        assert (tmp_path / f"{job_dir}/rotated/trigger.000001.log").read_text() == held
+        store.quiet_failures = 0
+        self._run(jobless_supervisor, store, mocker, tmp_path, range(6, 8))
+        assert store.lines() == list(range(8))
+
+    def test_an_appending_store_that_keeps_the_file_gets_each_line_once(
+        self, jobless_supervisor, mocker, tmp_path
+    ):
+        # OSS appends and keeps the file: a rotated file sent when it rotates is still there at the release.
+        store = self.OSSRemoteLogIO(tmp_path)
+        self._run(jobless_supervisor, store, mocker, tmp_path, range(200), release=True)
+        self._run(jobless_supervisor, store, mocker, tmp_path, range(200, 300))
+
+        assert store.lines() == list(range(300))
+
+    def test_an_appending_store_gets_a_part_once_when_it_cannot_be_emptied(
+        self, jobless_supervisor, mocker, tmp_path
+    ):
+        # Stored, then emptying it fails: removed instead, as sent again it would be stored twice.
+        store = self.OSSRemoteLogIO(tmp_path)
+        truncate = os.truncate
+        failed = []
+
+        def truncate_part(path, length):
+            if Path(path).name == "trigger.000002.log" and not failed:
+                failed.append(path)
+                raise PermissionError(errno.EACCES, "Permission denied")
+            return truncate(path, length)
+
+        mocker.patch.object(os, "truncate", autospec=True, side_effect=truncate_part)
+        self._run(jobless_supervisor, store, mocker, tmp_path, range(200))
+
+        assert failed
+        assert store.lines() == list(range(200))
+
+    def test_an_appending_store_gets_each_line_once_from_a_watcher_back_after_its_release_upload(
+        self, jobless_supervisor, mocker, tmp_path
+    ):
+        # Without delete_local_logs, OSS keeps the released file: the new file must not start with its lines.
+        store = self.OSSRemoteLogIO(tmp_path)
+        mocker.patch("airflow.sdk.log.load_remote_log_handler", return_value=store)
+        trigger = self._watcher_trigger(mocker, 42)
+        factories = []
+        with conf_vars({("logging", "base_log_folder"): str(tmp_path)}):
+            for numbers in (range(5), range(5, 10)):
+                self._create(jobless_supervisor, trigger, mocker)
+                factories.append(jobless_supervisor.logger_cache[42])
+                self._log(jobless_supervisor, 42, numbers)
+                self._release(jobless_supervisor)
+
+        assert factories[0] is not factories[1]
+        assert store.lines() == list(range(10))
+
+    @pytest.mark.parametrize("failed", [False, True], ids=["stored", "failed-to-write"])
+    def test_files_an_appending_store_got_at_a_stop_are_sent_once_by_the_next_start(
+        self, supervisor_builder, session, mocker, tmp_path, failed
+    ):
+        # Stored: not sent again. A failed write keeps the file for the next start.
+        (stopped,) = self._add_rows(session, 1)
+        store = self.OSSRemoteLogIO(tmp_path)
+        mocker.patch("airflow.sdk.log.load_remote_log_handler", return_value=store)
+        with self._capped(tmp_path):
+            old = supervisor_builder(job=stopped)
+            self._create(old, self._watcher_trigger(mocker, 42), mocker)
+            self._log(old, 42, range(101))  # 100 end on a rotation: an empty live file
+            store.down = failed
+            old.close_trigger_log_files()
+            assert bool((tmp_path / get_trigger_log_relative_path(42, stopped.id)).stat().st_size) is failed
+            store.down = False
+            own = supervisor_builder()
+            own.watcher_logs.handle_orphaned_trigger_logs(own.job.id)
+
+        assert store.lines() == list(range(101))
+
+    def test_an_orphan_pickup_does_not_overwrite_earlier_parts(
+        self, supervisor_builder, session, mocker, tmp_path
+    ):
+        (dead_job,) = self._add_rows(session, 1)
+        dead = supervisor_builder(job=dead_job)
+        store = self.HdfsRemoteLogIO(tmp_path)
+        mocker.patch("airflow.sdk.log.load_remote_log_handler", return_value=store)
+        with self._capped(tmp_path):
+            self._create(dead, self._watcher_trigger(mocker, 42), mocker)
+            self._log(dead, 42, range(100))
+            store.down = True  # then killed, its last rotated file not uploaded
+            last = self._log_until_rotated(dead, lambda: store.attempts, start=100)
+            self._log(dead, 42, range(last + 1, last + 4))
+            store.down = False
+            own = supervisor_builder()
+            own.watcher_logs.handle_orphaned_trigger_logs(own.job.id)
+
+        assert store.replaced == []
+        assert store.lines() == list(range(last + 4))
+
+    @pytest.mark.parametrize("delete_local_copy", [False, True])
+    def test_a_streaming_handler_gets_the_same_uploads_as_before(
+        self, jobless_supervisor, mocker, tmp_path, delete_local_copy
+    ):
+        # CloudWatch and Cloud Logging send each line as it is logged; upload only flushes. Never copied:
+        # their handler holds the stream's queue and thread.
+        handler = mocker.Mock(
+            spec=["processors", "upload", "delete_local_copy"],
+            processors=(object(),),
+            delete_local_copy=delete_local_copy,
+        )
+        mocker.patch("airflow.sdk.log.load_remote_log_handler", return_value=handler)
+        copies = mocker.spy(copy, "copy")
+        with self._capped(tmp_path):
+            self._create(jobless_supervisor, self._watcher_trigger(mocker, 42), mocker)
+            self._log_until_rotated(jobless_supervisor, lambda: handler.upload.call_count)
+            jobless_supervisor.watcher_logs.upload_and_close(42, jobless_supervisor.logger_cache.pop(42))
+
+        job_dir = get_trigger_log_dir(42, jobless_supervisor.id)
+        assert [c.args[0] for c in handler.upload.call_args_list] == [
+            f"{job_dir}/rotated/trigger.log",
+            f"{job_dir}/rotated/trigger.log",
+            f"{job_dir}/trigger.log",
+        ]
+        copies.assert_not_called()
+
+    def test_a_rotation_only_queues_its_upload(self, jobless_supervisor, mocker, tmp_path):
+        # The line that rotated the file was read from the runner's log socket: nothing more is done there.
+        store = self._Store(tmp_path)
+        threads = []
+
+        def load_remote_log_handler():
+            threads.append(threading.current_thread().name)
+            return store
+
+        mocker.patch("airflow.sdk.log.load_remote_log_handler", side_effect=load_remote_log_handler)
+        with self._capped(tmp_path):
+            self._create(jobless_supervisor, self._watcher_trigger(mocker, 42), mocker)
+            self._log(jobless_supervisor, 42, range(100))
+
+        assert len(threads) >= 4
+        assert all(name.startswith("trigger-log-rotated") for name in threads)
+        job_dir = get_trigger_log_dir(42, jobless_supervisor.id)
+        assert [path for path, _, _ in store.uploads] == [
+            f"{job_dir}/rotated/trigger.{n:06d}.log" for n in range(1, len(threads) + 1)
+        ]
+
+    def test_at_most_max_open_files_stay_open(self, jobless_supervisor, mocker, tmp_path):
+        mocker.patch("airflow.sdk.log.configure_logging")
+        jobless_supervisor.watcher_logs.watcher_log_max_open_files = 2
+        with conf_vars({("logging", "base_log_folder"): str(tmp_path)}):
+            for trigger_id in (1, 2, 3):
+                jobless_supervisor.logger_cache[trigger_id] = WatcherLoggingFactory(
+                    log_path=get_trigger_log_relative_path(trigger_id, 5),
+                    trigger_id=trigger_id,
+                    to_stdout=False,
+                    on_write=jobless_supervisor.watcher_logs.note_watcher_log_write,
+                )
+            gen = jobless_supervisor._process_log_messages_from_subprocess()
+            next(gen)
+            # 1 is written again before 3 arrives, so 2 is the least recently written.
+            for trigger_id in (1, 2, 1, 3):
+                gen.send(
+                    msgspec.json.encode(
+                        {"event": f"from {trigger_id}", "level": "info", "trigger_id": trigger_id}
+                    )
+                )
+
+            def is_open(trigger_id):
+                return not jobless_supervisor.logger_cache[trigger_id].bound_logger._logger._file.closed
+
+            assert [is_open(t) for t in (1, 2, 3)] == [True, False, True]
+            assert list(jobless_supervisor.watcher_logs._open_watcher_logs) == [1, 3]
+            jobless_supervisor.close_trigger_log_files()
+
+        assert [
+            [
+                json.loads(line)["event"]
+                for line in (tmp_path / get_trigger_log_relative_path(t, 5)).read_text().splitlines()
+            ]
+            for t in (1, 2, 3)
+        ] == [["from 1", "from 1"], ["from 2"], ["from 3"]]
+        assert jobless_supervisor.watcher_logs._open_watcher_logs == {}
+
+    @pytest.mark.parametrize("to_stdout", [True, False])
+    def test_watcher_lines_go_to_their_file_and_to_stdout_with_trigger_id(
+        self, jobless_supervisor, mocker, tmp_path, cap_structlog, to_stdout
+    ):
+        mocker.patch("airflow.sdk.log.configure_logging")
+        with conf_vars({("logging", "base_log_folder"): str(tmp_path)}):
+            jobless_supervisor.logger_cache[5] = WatcherLoggingFactory(
+                log_path=get_trigger_log_relative_path(5, 1), trigger_id=5, to_stdout=to_stdout
+            )
+            gen = jobless_supervisor._process_log_messages_from_subprocess()
+            next(gen)
+            gen.send(msgspec.json.encode({"event": "poll 1", "level": "info", "trigger_id": 5}))
+            jobless_supervisor.close_trigger_log_files()
+
+        line = json.loads((tmp_path / get_trigger_log_relative_path(5, 1)).read_text())
+        assert (line["event"], line["trigger_id"]) == ("poll 1", 5)
+        assert ({"event": "poll 1", "trigger_id": 5} in cap_structlog) is to_stdout
+
+    def test_task_and_callback_trigger_lines_go_to_their_owners_log_only(
+        self, jobless_supervisor, mocker, cap_structlog
+    ):
+        mocker.patch("airflow.sdk.log.configure_logging")
+        mocker.patch("airflow.sdk.log.logging_processors")
+        task_logger = mocker.Mock(spec=FilteringBoundLogger)
+        jobless_supervisor.logger_cache[5] = mocker.MagicMock(
+            spec=TriggerLoggingFactory, return_value=task_logger
+        )
+
+        gen = jobless_supervisor._process_log_messages_from_subprocess()
+        next(gen)
+        gen.send(msgspec.json.encode({"event": "sleeping", "level": "info", "trigger_id": 5}))
+
+        task_logger.log.assert_called_once_with(20, "sleeping")
+        assert "sleeping" not in [e["event"] for e in cap_structlog]
+
+    def test_execute_closes_trigger_files_after_the_runner_exits(self, mocker, session):
+        supervisor = mocker.MagicMock(spec=TriggerRunnerSupervisor, _exit_code=0)
+        mocker.patch.object(TriggerRunnerSupervisor, "start", return_value=supervisor)
+        mocker.patch("airflow.jobs.triggerer_job_runner.stats.initialize")
+        job = Job()
+        session.add(job)
+        session.flush()
+        job_runner = TriggererJobRunner(job)
+        mocker.patch.object(job_runner, "register_signals")
+
+        job_runner._execute()
+
+        assert [c[0] for c in supervisor.method_calls if c[0] in ("kill", "close_trigger_log_files")] == [
+            "kill",
+            "close_trigger_log_files",
+        ]
+
+    def test_orphaned_files_of_triggerers_that_are_not_alive_are_uploaded(
+        self, supervisor_builder, session, mocker, tmp_path
+    ):
+        own = supervisor_builder()
+        alive, dead = self._add_rows(session, 0, 1)
+        gone = dead.id + 100  # deleted from the job table, e.g. by ``airflow db clean``
+        for path in (
+            f"{get_trigger_log_dir(1, dead.id)}/rotated/trigger.log",
+            get_trigger_log_relative_path(1, dead.id),
+            get_trigger_log_relative_path(3, gone),
+            get_trigger_log_relative_path(1, alive.id),
+            get_trigger_log_relative_path(1, own.job.id),
+            get_trigger_log_relative_path(1, uuid.uuid4()),  # a triggerer without a job
+        ):
+            self._write(tmp_path, path)
+        self._write(tmp_path, get_trigger_log_relative_path(2, dead.id), "")  # already uploaded and emptied
+        store = self.S3RemoteLogIO(tmp_path)
+        mocker.patch("airflow.sdk.log.load_remote_log_handler", return_value=store)
+
+        self._scan(own, tmp_path)
+
+        uploads = [path for path, _, _ in store.uploads]
+        assert sorted(uploads) == sorted(
+            [
+                f"{get_trigger_log_dir(1, dead.id)}/rotated/trigger.log",
+                get_trigger_log_relative_path(1, dead.id),
+                get_trigger_log_relative_path(3, gone),
+            ]
+        )
+        assert uploads.index(f"{get_trigger_log_dir(1, dead.id)}/rotated/trigger.log") < uploads.index(
+            get_trigger_log_relative_path(1, dead.id)
+        )
+
+    def test_a_file_a_killed_triggerer_held_is_uploaded_by_the_next_start(
+        self, supervisor_builder, session, mocker, tmp_path
+    ):
+        # Killed after a release held the live file and the watcher came back: with delete_local_logs, the
+        # live file's upload removes the directory the held file is in.
+        own = supervisor_builder()
+        (dead,) = self._add_rows(session, 1)
+        job_dir, live = get_trigger_log_dir(1, dead.id), get_trigger_log_relative_path(1, dead.id)
+        self._write(tmp_path, f"{job_dir}/trigger.held.log", '{"n": 0}\n')
+        self._write(tmp_path, live, '{"n": 1}\n')
+        store = self.S3RemoteLogIO(tmp_path, delete_local_copy=True)
+        mocker.patch("airflow.sdk.log.load_remote_log_handler", return_value=store)
+
+        self._scan(own, tmp_path)
+
+        assert [path for path, _, _ in store.uploads] == [f"{job_dir}/rotated/trigger.held.log", live]
+        assert store.lines() == [0, 1]
+
+    @pytest.mark.parametrize(("store_class", "failure"), _FAILING_STORES)
+    def test_a_held_file_a_start_failed_to_upload_is_not_removed_by_the_next(
+        self, supervisor_builder, session, mocker, tmp_path, store_class, failure
+    ):
+        # With delete_local_logs, the next start's upload of the part a failed upload left removes its directory.
+        own = supervisor_builder()
+        (dead,) = self._add_rows(session, 1)
+        job_dir, live = get_trigger_log_dir(1, dead.id), get_trigger_log_relative_path(1, dead.id)
+        self._write(tmp_path, f"{job_dir}/rotated/trigger.000001.log", '{"n": 0}\n')
+        self._write(tmp_path, f"{job_dir}/trigger.held.log", '{"n": 1}\n')
+        self._write(tmp_path, live, '{"n": 2}\n')
+        store = getattr(self, store_class)(tmp_path, delete_local_copy=True)
+        mocker.patch("airflow.sdk.log.load_remote_log_handler", return_value=store)
+        setattr(store, failure, 1000)
+        self._scan(own, tmp_path)
+        setattr(store, failure, 0)
+        self._scan(own, tmp_path)
+
+        assert store.lines() == [0, 1, 2]
+
+    @pytest.mark.parametrize(("store_class", "failure"), _FAILING_STORES)
+    def test_a_part_a_start_failed_to_upload_is_not_removed_by_the_live_files_upload(
+        self, supervisor_builder, session, mocker, tmp_path, store_class, failure
+    ):
+        own = supervisor_builder()
+        (dead,) = self._add_rows(session, 1)
+        job_dir, live = get_trigger_log_dir(1, dead.id), get_trigger_log_relative_path(1, dead.id)
+        self._write(tmp_path, f"{job_dir}/rotated/trigger.000003.log", '{"n": 0}\n')
+        self._write(tmp_path, live, '{"n": 1}\n')
+        store = getattr(self, store_class)(tmp_path, delete_local_copy=True)
+        mocker.patch("airflow.sdk.log.load_remote_log_handler", return_value=store)
+        setattr(store, failure, 1)
+        self._scan(own, tmp_path)
+        self._scan(own, tmp_path)
+
+        assert store.lines() == [0, 1]
+
+    @pytest.mark.parametrize("remote", [True, False], ids=["remote", "local"])
+    def test_task_logs_of_a_dag_called_triggers_are_not_taken_for_orphans(
+        self, supervisor_builder, session, mocker, tmp_path, remote
+    ):
+        own = supervisor_builder()
+        (dead,) = self._add_rows(session, 1)
+        # Dag "triggers", run "1234", try 2, with log_filename_template
+        # "{{ ti.dag_id }}/{{ ti.run_id }}/{{ try_number }}/{{ ti.task_id }}.log".
+        task_log = tmp_path / "triggers/1234/2/watch.log"
+        orphan = tmp_path / get_trigger_log_relative_path(1, dead.id)
+        for path in (task_log, orphan):
+            path.parent.mkdir(parents=True)
+            path.write_text('{"n": 0}\n')
+        store = self.S3RemoteLogIO(tmp_path) if remote else None
+        mocker.patch("airflow.sdk.log.load_remote_log_handler", return_value=store)
+
+        self._scan(own, tmp_path)
+
+        if store is not None:
+            assert [path for path, _, _ in store.uploads] == [orphan.relative_to(tmp_path).as_posix()]
+        assert task_log.read_text() == '{"n": 0}\n'
+        assert not orphan.parent.exists()
+
+    def test_orphans_are_looked_for_at_start_and_once_more_after_the_health_threshold(
+        self, jobless_supervisor, mocker
+    ):
+        clock = mocker.patch("airflow.utils.log.watcher_log.time.monotonic", return_value=1000.0)
+        upload = mocker.patch.object(WatcherLogs, "handle_orphaned_trigger_logs", autospec=True)
+
+        with conf_vars({("triggerer", "triggerer_health_check_threshold"): "30"}):
+            for now in (1000.0, 1010.0, 1031.0, 1100.0):
+                clock.return_value = now
+                jobless_supervisor.watcher_logs.maybe_handle_orphaned_trigger_logs(None)
+                if jobless_supervisor.watcher_logs._orphan_scan_thread is not None:
+                    jobless_supervisor.watcher_logs._orphan_scan_thread.join()
+
+        assert upload.call_count == 2
+
+    @pytest.mark.parametrize("to_stdout", [True, False])
+    def test_a_full_disk_does_not_stop_the_triggerer(
+        self, jobless_supervisor, mocker, tmp_path, cap_structlog, to_stdout
+    ):
+        mocker.patch("airflow.sdk.log.configure_logging")
+        with conf_vars({("logging", "base_log_folder"): str(tmp_path)}):
+            jobless_supervisor.logger_cache[5] = WatcherLoggingFactory(
+                log_path=get_trigger_log_relative_path(5, 1),
+                trigger_id=5,
+                to_stdout=to_stdout,
+                on_error=jobless_supervisor._warn_trigger_log_error,
+            )
+            gen = jobless_supervisor._process_log_messages_from_subprocess()
+            next(gen)
+            gen.send(msgspec.json.encode({"event": "poll 1", "level": "info", "trigger_id": 5}))
+            underlying = jobless_supervisor.logger_cache[5].bound_logger._logger
+            # The disk fills up: every write fails, also after the file is reopened.
+            full = mocker.MagicMock(
+                closed=False, **{"write.side_effect": OSError(28, "No space left on device")}
+            )
+            full.close.side_effect = lambda: setattr(full, "closed", True)
+            mocker.patch("pathlib.Path.open", return_value=full)
+            underlying._file, underlying._write = full, full.write
+            for n in (2, 3):
+                gen.send(msgspec.json.encode({"event": f"poll {n}", "level": "info", "trigger_id": 5}))
+            jobless_supervisor.close_trigger_log_files()
+
+        events = [e["event"] for e in cap_structlog]
+        # Every line still reaches the triggerer's output, once, and the failure is reported once.
+        assert [events.count(f"poll {n}") for n in (1, 2, 3)] == [int(to_stdout), 1, 1]
+        assert (
+            events.count(
+                "Could not write a trigger's log file; its lines go to the triggerer's output meanwhile"
+            )
+            == 1
+        )
+        assert full.closed
+
+    def test_a_log_folder_that_cannot_be_created_does_not_stop_the_triggerer(
+        self, jobless_supervisor, mocker, tmp_path, cap_structlog
+    ):
+        mocker.patch("airflow.sdk.log.configure_logging")
+        (tmp_path / "triggers").write_text("a file where the folder should be")
+        with conf_vars({("logging", "base_log_folder"): str(tmp_path)}):
+            jobless_supervisor.logger_cache[5] = WatcherLoggingFactory(
+                log_path=get_trigger_log_relative_path(5, 1), trigger_id=5, to_stdout=False
+            )
+            gen = jobless_supervisor._process_log_messages_from_subprocess()
+            next(gen)
+            gen.send(msgspec.json.encode({"event": "poll 1", "level": "info", "trigger_id": 5}))
+
+        assert {"event": "poll 1", "trigger_id": 5} in cap_structlog
+
+    def test_a_failed_flush_on_close_does_not_stop_the_triggerer(
+        self, jobless_supervisor, mocker, cap_structlog
+    ):
+        own_file = mocker.MagicMock(spec=WatcherLoggingFactory)
+        own_file.close.side_effect = OSError(28, "No space left on device")
+        jobless_supervisor.logger_cache[3] = own_file
+
+        jobless_supervisor.close_trigger_log_files()
+
+        assert {"trigger_id": 3, "error": "[Errno 28] No space left on device"} in cap_structlog
+        assert jobless_supervisor.logger_cache == {}
+
+    @mock.patch("airflow.jobs.triggerer_job_runner.time.monotonic")
+    def test_a_log_file_error_is_reported_at_most_once_a_minute(
+        self, clock, jobless_supervisor, cap_structlog
+    ):
+        for now in (100.0, 130.0, 161.0):
+            clock.return_value = now
+            jobless_supervisor._warn_trigger_log_error(5, OSError(28, "No space left on device"))
+
+        assert [e.get("trigger_id") for e in cap_structlog if e.get("error")] == [5, 5]
+
+    def test_a_finished_trigger_forgets_its_last_log_file_error(self, jobless_supervisor, mocker):
+        jobless_supervisor.logger_cache[5] = mocker.MagicMock(spec=TriggerLoggingFactory)
+        jobless_supervisor._warn_trigger_log_error(5, OSError(28, "No space left on device"))
+
+        jobless_supervisor.finalize_trigger_log(5)
+
+        assert 5 not in jobless_supervisor._trigger_log_errors_at
+
+    @pytest.mark.parametrize(
+        "error",
+        [OSError(28, "No space left on device"), OSError(24, "Too many open files")],
+        ids=["write", "open"],
+    )
+    def test_a_task_trigger_log_that_cannot_be_written_does_not_stop_the_triggerer(
+        self, jobless_supervisor, mocker, tmp_path, cap_structlog, error
+    ):
+        mocker.patch("airflow.sdk.log.configure_logging")
+        with conf_vars({("logging", "base_log_folder"): str(tmp_path)}):
+            factory = TriggerLoggingFactory(
+                log_path="dag_id=d/attempt=1.log.trigger.1.log",
+                ti=mocker.Mock(spec=RuntimeTaskInstanceProtocol),
+                trigger_id=5,
+                on_error=jobless_supervisor._warn_trigger_log_error,
+            )
+            jobless_supervisor.logger_cache[5] = factory
+            gen = jobless_supervisor._process_log_messages_from_subprocess()
+            next(gen)
+            if error.errno == 24:
+                mocker.patch("pathlib.Path.open", side_effect=error)
+            else:
+                gen.send(msgspec.json.encode({"event": "poll 1", "level": "info", "trigger_id": 5}))
+                mocker.patch.object(factory.bound_logger._logger, "_write", side_effect=error)
+            gen.send(msgspec.json.encode({"event": "poll 2", "level": "info", "trigger_id": 5}))
+            gen.send(msgspec.json.encode({"event": "poll 3", "level": "info", "trigger_id": 5}))
+
+        assert {"event": "poll 2", "trigger_id": 5} in cap_structlog
+        assert {"event": "poll 3", "trigger_id": 5} in cap_structlog
+        assert {"trigger_id": 5, "error": str(error)} in cap_structlog
+
+    def test_without_remote_logging_only_the_newest_files_of_dead_triggerers_are_kept(
+        self, supervisor_builder, session, mocker, tmp_path
+    ):
+        own = supervisor_builder()
+        alive, older, newer, one, two = self._add_rows(session, 0, 2, 1, triggers=2)
+        paths = [
+            get_trigger_log_relative_path(one.id, older.id),
+            f"{get_trigger_log_dir(one.id, older.id)}/rotated/trigger.log",
+            get_trigger_log_relative_path(one.id, newer.id),
+            get_trigger_log_relative_path(two.id, older.id),
+            get_trigger_log_relative_path(one.id, alive.id),
+            get_trigger_log_relative_path(one.id, own.job.id),
+            get_trigger_log_relative_path(one.id, uuid.uuid4()),
+        ]
+        for path in paths:
+            self._write(tmp_path, path)
+        mocker.patch("airflow.sdk.log.load_remote_log_handler", return_value=None)
+
+        self._scan(own, tmp_path)
+
+        assert [p for p in paths if (tmp_path / p).exists()] == paths[2:]
+
+    def test_without_remote_logging_the_most_recently_written_files_are_kept(
+        self, supervisor_builder, session, mocker, tmp_path
+    ):
+        # On a log folder the triggerers share, an older triggerer took the watcher over when a newer one
+        # died, and wrote its newest lines.
+        own = supervisor_builder()
+        older, newer, trigger = self._add_rows(session, 2, 1, triggers=1)
+        for job, written in ((older, time.time()), (newer, time.time() - 3600)):
+            self._write(tmp_path, get_trigger_log_relative_path(trigger.id, job.id), mtime=written)
+        mocker.patch("airflow.sdk.log.load_remote_log_handler", return_value=None)
+
+        self._scan(own, tmp_path)
+
+        assert [
+            p.relative_to(tmp_path).as_posix() for p in (tmp_path / get_trigger_log_dir(trigger.id)).iterdir()
+        ] == [get_trigger_log_dir(trigger.id, older.id)]
+
+    @pytest.mark.parametrize("removed", ["file", "directory"])
+    def test_without_remote_logging_files_removed_while_scanned_do_not_end_the_scan(
+        self, supervisor_builder, session, mocker, tmp_path, removed
+    ):
+        # Nothing is claimed without remote logging: a triggerer starting too may remove what this one scans.
+        own = supervisor_builder()
+        older, newer, trigger = self._add_rows(session, 2, 1, triggers=1)
+        paths = [get_trigger_log_relative_path(trigger.id, job.id) for job in (older, newer)]
+        for n, path in enumerate(paths):
+            self._write(tmp_path, path, mtime=time.time() - 3600 + n)
+        removing = tmp_path / paths[0]
+        if removed == "file":
+            is_file = Path.is_file
+
+            def removed_after_is_file(path):
+                found = is_file(path)
+                if path == removing:
+                    path.unlink()
+                return found
+
+            mocker.patch.object(Path, "is_file", autospec=True, side_effect=removed_after_is_file)
+        else:
+            rglob = Path.rglob
+
+            def removed_while_walked(path, pattern):
+                if path == removing.parent:
+                    raise FileNotFoundError(errno.ENOENT, "No such file or directory")  # as rglob on 3.11
+                yield from rglob(path, pattern)
+
+            mocker.patch.object(Path, "rglob", autospec=True, side_effect=removed_while_walked)
+        mocker.patch("airflow.sdk.log.load_remote_log_handler", return_value=None)
+
+        self._scan(own, tmp_path)
+
+        assert [p for p in paths if (tmp_path / p).exists()] == [paths[1]]
+        assert not removing.parent.exists()
+
+    def test_without_remote_logging_nothing_is_kept_of_triggers_that_no_longer_exist(
+        self, supervisor_builder, session, mocker, tmp_path
+    ):
+        own = supervisor_builder()
+        alive, older, newer = self._add_rows(session, 0, 2, 1)
+        # Ids no trigger row has, e.g. of a watcher whose kwargs changed.
+        gone, gone_with_live = (max(session.scalars(select(Trigger.id)), default=0) + n for n in (1000, 1001))
+        paths = [
+            get_trigger_log_relative_path(gone, older.id),
+            get_trigger_log_relative_path(gone, newer.id),
+            f"{get_trigger_log_dir(gone, newer.id)}/rotated/trigger.log",
+            get_trigger_log_relative_path(gone_with_live, newer.id),
+            get_trigger_log_relative_path(gone_with_live, alive.id),
+        ]
+        for path in paths:
+            self._write(tmp_path, path)
+        mocker.patch("airflow.sdk.log.load_remote_log_handler", return_value=None)
+        mocker.patch("airflow.utils.log.watcher_log._TRIGGER_ID_QUERY_CHUNK_SIZE", 1)
+
+        self._scan(own, tmp_path)
+
+        # A live triggerer's file is never touched, even for a trigger that is gone.
+        assert [p for p in paths if (tmp_path / p).exists()] == [paths[4]]
+        assert not (tmp_path / get_trigger_log_dir(gone)).exists()
+
+    @pytest.mark.parametrize(
+        "attributes",
+        [
+            pytest.param({"processors": (), "log_id_template": "{dag_id}"}, id="task-logs-only"),
+            pytest.param({"processors": (lambda logger, name, event: event,)}, id="streams-each-line"),
+        ],
+    )
+    def test_files_a_remote_handler_keeps_are_removed_as_without_remote_logging(
+        self, supervisor_builder, session, mocker, tmp_path, attributes
+    ):
+        # A handler that takes only task logs, or has each line already, keeps no copy of a watcher's file.
+        own = supervisor_builder()
+        older, newer, trigger = self._add_rows(session, 2, 1, triggers=1)
+        gone = trigger.id + 1000
+        paths = [
+            get_trigger_log_relative_path(trigger.id, older.id),
+            get_trigger_log_relative_path(trigger.id, newer.id),
+            get_trigger_log_relative_path(gone, newer.id),
+        ]
+        for n, path in enumerate(paths):
+            self._write(tmp_path, path, mtime=time.time() - 3600 + n)
+        handler = mocker.Mock(
+            spec=["upload", "base_log_folder", "delete_local_copy", *attributes],
+            base_log_folder=tmp_path,
+            delete_local_copy=False,
+            **attributes,
+        )
+        handler.upload.side_effect = lambda path, ti: (tmp_path / path).read_text()
+        mocker.patch("airflow.sdk.log.load_remote_log_handler", return_value=handler)
+
+        self._scan(own, tmp_path)
+
+        assert sorted(c.args[0] for c in handler.upload.call_args_list) == sorted(paths)
+        assert [p for p in paths if (tmp_path / p).exists()] == [paths[1]]
+        assert not list(tmp_path.glob("triggers/*/*/.uploading"))
+
+    def test_files_a_failed_upload_left_are_kept_for_a_later_start(
+        self, supervisor_builder, session, mocker, tmp_path
+    ):
+        # S3, GCS and WASB log a failed upload and leave the file as it was: it is not a handler without a copy.
+        own = supervisor_builder()
+        older, newer, trigger = self._add_rows(session, 2, 1, triggers=1)
+        paths = [get_trigger_log_relative_path(trigger.id, job.id) for job in (older, newer)]
+        for n, path in enumerate(paths):
+            self._write(tmp_path, path, mtime=time.time() - 3600 + n)
+        store = self.S3RemoteLogIO(tmp_path)
+        store.quiet_failures = len(paths)
+        mocker.patch("airflow.sdk.log.load_remote_log_handler", return_value=store)
+
+        self._scan(own, tmp_path)
+
+        assert store.attempts == len(paths)
+        assert [p for p in paths if (tmp_path / p).exists()] == paths
+
+    @pytest.mark.parametrize(
+        "store_class", ["HdfsRemoteLogIO", "OSSRemoteLogIO", "CustomRemoteLogIO", "OldS3RemoteLogIO"]
+    )
+    def test_files_a_store_keeps_after_uploading_them_are_uploaded_once(
+        self, supervisor_builder, session, mocker, tmp_path, store_class
+    ):
+        # HDFS and OSS keep the file they stored unless delete_local_logs is on, and OSS appends.
+        (dead,) = self._add_rows(session, 1)
+        paths = [
+            f"{get_trigger_log_dir(1, dead.id)}/rotated/trigger.000003.log",
+            get_trigger_log_relative_path(1, dead.id),
+        ]
+        for n, path in enumerate(paths):
+            self._write(tmp_path, path, json.dumps({"n": n}) + "\n")
+        store = getattr(self, store_class)(tmp_path)
+        mocker.patch("airflow.sdk.log.load_remote_log_handler", return_value=store)
+        own = supervisor_builder()
+
+        for _ in range(2):  # a triggerer scans at start and once more
+            self._scan(own, tmp_path)
+
+        assert sorted(path for path, _, _ in store.uploads) == sorted(paths)
+        assert store.lines() == list(range(len(paths)))
+        assert not (tmp_path / get_trigger_log_dir(1)).exists()
+
+    def test_uploaded_files_of_dead_triggerers_leave_no_directories(
+        self, supervisor_builder, session, mocker, tmp_path
+    ):
+        # Without delete_local_logs, S3, GCS and WASB empty the file they uploaded and leave its directory.
+        own = supervisor_builder()
+        alive, dead = self._add_rows(session, 0, 1)
+        for path in (
+            f"{get_trigger_log_dir(1, dead.id)}/rotated/trigger.000003.log",
+            get_trigger_log_relative_path(1, dead.id),
+            get_trigger_log_relative_path(2, dead.id),
+            get_trigger_log_relative_path(2, alive.id),
+            get_trigger_log_relative_path(3, own.job.id),
+        ):
+            self._write(tmp_path, path, '{"n": 0}\n')
+        self._write(tmp_path, get_trigger_log_relative_path(4, dead.id), "")  # emptied by an earlier start
+        store = self._Store(tmp_path)
+        mocker.patch("airflow.sdk.log.load_remote_log_handler", return_value=store)
+
+        self._scan(own, tmp_path)
+
+        assert len(store.lines()) == 3
+        assert sorted(p.relative_to(tmp_path).as_posix() for p in tmp_path.glob("triggers/*/*")) == sorted(
+            [get_trigger_log_dir(2, alive.id), get_trigger_log_dir(3, own.job.id)]
+        )
+        assert sorted(p.relative_to(tmp_path).as_posix() for p in tmp_path.glob("triggers/*")) == [
+            get_trigger_log_dir(2),
+            get_trigger_log_dir(3),
+        ]
+
+    def test_files_another_triggerer_is_uploading_are_skipped(
+        self, supervisor_builder, session, mocker, tmp_path
+    ):
+        # Triggerers that start together on a shared log folder see the same dead triggerer's files.
+        own = supervisor_builder()
+        (dead,) = self._add_rows(session, 1)
+        for trigger_id in (1, 2, 3):
+            self._write(tmp_path, get_trigger_log_relative_path(trigger_id, dead.id))
+        # Trigger 2's files are being uploaded by another triggerer; trigger 3's claim was left by one that
+        # died while uploading.
+        (tmp_path / f"{get_trigger_log_dir(2, dead.id)}/.uploading").touch()
+        self._write(tmp_path, f"{get_trigger_log_dir(3, dead.id)}/.uploading", "", mtime=time.time() - 3600)
+        store = self.S3RemoteLogIO(tmp_path)
+        mocker.patch("airflow.sdk.log.load_remote_log_handler", return_value=store)
+
+        self._scan(own, tmp_path)
+
+        assert sorted(path for path, _, _ in store.uploads) == [
+            get_trigger_log_relative_path(1, dead.id),
+            get_trigger_log_relative_path(3, dead.id),
+        ]
+        assert [p.relative_to(tmp_path).as_posix() for p in tmp_path.glob("triggers/*/*/.uploading")] == [
+            f"{get_trigger_log_dir(2, dead.id)}/.uploading"
+        ]
+
+    def test_files_a_stopped_scan_left_claimed_are_uploaded_once_the_claim_is_stale(
+        self, supervisor_builder, session, mocker, tmp_path
+    ):
+        # Stopped mid-scan, its container restarted at once: both scans of the new triggerer see the claim.
+        own = supervisor_builder()
+        (dead,) = self._add_rows(session, 1)
+        self._write(tmp_path, get_trigger_log_relative_path(1, dead.id), '{"n": 0}\n')
+        claim = tmp_path / f"{get_trigger_log_dir(1, dead.id)}/.uploading"
+        claim.touch()
+        store = self.S3RemoteLogIO(tmp_path)
+        mocker.patch("airflow.sdk.log.load_remote_log_handler", return_value=store)
+        clock = mocker.patch("airflow.utils.log.watcher_log.time.monotonic", return_value=1000.0)
+        watcher_logs = own.watcher_logs
+
+        with conf_vars(
+            {
+                ("logging", "base_log_folder"): str(tmp_path),
+                ("triggerer", "triggerer_health_check_threshold"): "30",
+            }
+        ):
+            for now in (1000.0, 1031.0, 1700.0):
+                if now == 1700.0:
+                    os.utime(claim, (time.time() - 601, time.time() - 601))
+                clock.return_value = now
+                watcher_logs.maybe_handle_orphaned_trigger_logs(own.job.id)
+                if watcher_logs._orphan_scan_thread is not None:
+                    watcher_logs._orphan_scan_thread.join()
+                assert store.lines() == ([0] if now == 1700.0 else [])
+
+    def test_orphans_are_uploaded_off_the_main_loop(self, jobless_supervisor, mocker):
+        # Thousands of files left by a killed triggerer are thousands of uploads, each a timeout while the
+        # store is unreachable: meanwhile the main loop must still heartbeat and handle events.
+        ran_in = []
+        done = threading.Event()
+
+        def scan(own_job_id):
+            ran_in.append(threading.current_thread())
+            done.set()
+
+        mocker.patch.object(WatcherLogs, "handle_orphaned_trigger_logs", side_effect=scan)
+
+        jobless_supervisor.watcher_logs.maybe_handle_orphaned_trigger_logs(None)
+
+        assert done.wait(5)
+        assert ran_in != [threading.current_thread()]
+
+    def test_released_watchers_files_are_uploaded_off_the_main_loop(self, jobless_supervisor, mocker):
+        # A triggerer whose watchers were taken over (after losing the database for a while) releases them
+        # all at once.
+        release = threading.Event()
+        factory = mocker.MagicMock(spec=WatcherLoggingFactory)
+        factory.upload_to_remote.side_effect = lambda **_: release.wait(5)
+        jobless_supervisor.logger_cache[42] = factory
+
+        jobless_supervisor._close_trigger_logger(42)
+
+        factory.close.assert_not_called()  # still uploading
+        release.set()
+        jobless_supervisor.watcher_logs._upload_pool.shutdown(wait=True)
+        factory.close.assert_called_once()
+
+    def test_a_release_stored_while_the_upload_before_it_is_forgotten_is_kept(
+        self, jobless_supervisor, mocker
+    ):
+        # An upload is forgotten on its own thread, maybe as the main thread stores the next release.
+        watcher_logs, main = jobless_supervisor.watcher_logs, threading.current_thread()
+        in_forget, stored, popped = threading.Event(), threading.Event(), threading.Event()
+
+        class Releases(dict):
+            def get(self, key, default=None):
+                found = super().get(key, default)
+                if threading.current_thread() is not main:
+                    in_forget.set()
+                    stored.wait(0.5)  # for the main thread to store the next release meanwhile
+                return found
+
+            def __setitem__(self, key, value):
+                super().__setitem__(key, value)
+                stored.set()
+
+            def pop(self, key, default=None):
+                found = super().pop(key, default)
+                popped.set()
+                return found
+
+        watcher_logs._releases = Releases()
+        mocker.patch("airflow.sdk.log.load_remote_log_handler", return_value=None)
+        gates = [threading.Event(), threading.Event()]
+        uploads = iter(gates)
+        mocker.patch.object(
+            WatcherLogs, "_upload_released", autospec=True, side_effect=lambda *_: next(uploads).wait(5)
+        )
+        first, second = (mocker.MagicMock(spec=WatcherLoggingFactory) for _ in range(2))
+
+        watcher_logs.release(42, first)
+        stored.clear()
+        gates[0].set()
+        assert in_forget.wait(5)
+        watcher_logs.release(42, second)
+        assert popped.wait(5)
+
+        assert watcher_logs._releases[42].factory is second
+        gates[1].set()
+        watcher_logs._upload_pool.shutdown(wait=True)
+
+    @pytest.mark.parametrize("delete_local_copy", [False, True])
+    def test_a_watcher_back_while_a_streaming_handler_flushes_starts_at_once(
+        self, jobless_supervisor, mocker, tmp_path, delete_local_copy
+    ):
+        # CloudWatch has each line already: its upload flushes, then with delete_local_logs removes the
+        # directory of the file it sent, the held one's, not the live one's.
+        streamed, started, release = [], threading.Event(), threading.Event()
+
+        def stream(logger, method_name, event):
+            streamed.append((os.path.relpath(logger._file.name, tmp_path), event["n"]))
+            return event
+
+        def upload(path, ti):
+            started.set()
+            release.wait(5)
+            if delete_local_copy:
+                shutil.rmtree((tmp_path / path).parent, ignore_errors=True)
+
+        handler = mocker.Mock(spec=["processors", "upload"], processors=(stream,))
+        handler.upload.side_effect = upload
+        mocker.patch("airflow.sdk.log.load_remote_log_handler", return_value=handler)
+        trigger, processors = self._watcher_trigger(mocker, 42), [stream, *self._processors()]
+        live = get_trigger_log_relative_path(42, jobless_supervisor.id)
+        with conf_vars({("logging", "base_log_folder"): str(tmp_path)}):
+            self._create(jobless_supervisor, trigger, mocker)
+            for n in range(5):
+                jobless_supervisor.logger_cache[42](processors).log(logging.INFO, "line", n=n)
+            jobless_supervisor._close_trigger_logger(42)
+            assert started.wait(5)
+
+            self._create(jobless_supervisor, trigger, mocker)
+            assert 42 in jobless_supervisor.logger_cache
+            for n in range(5, 10):
+                jobless_supervisor.logger_cache[42](processors).log(logging.INFO, "line", n=n)
+            release.set()
+            jobless_supervisor.watcher_logs._upload_pool.shutdown(wait=True)
+            for n in range(10, 15):
+                jobless_supervisor.logger_cache[42](processors).log(logging.INFO, "line", n=n)
+
+        assert streamed == [(live, n) for n in range(15)]
+        lines = (tmp_path / live).read_text().splitlines()
+        assert [json.loads(line)["n"] for line in lines] == list(range(5, 15))
+
+    def test_a_streaming_handlers_upload_never_removes_a_live_file_being_opened(
+        self, jobless_supervisor, mocker, tmp_path
+    ):
+        # With delete_local_logs, removed between its creation and its opening, its line would only go to the
+        # triggerer's output.
+        streamed, created, removed = [], threading.Event(), threading.Event()
+
+        def upload(path, ti):
+            created.wait(5)
+            shutil.rmtree((tmp_path / path).parent, ignore_errors=True)
+            removed.set()
+
+        def init_log_file(path):
+            new = create_log_file(path)  # the directories and the file
+            created.set()
+            removed.wait(5)
+            return new
+
+        handler = mocker.Mock(
+            spec=["processors", "upload"],
+            processors=(lambda logger, name, event: streamed.append(event["n"]) or event,),
+        )
+        handler.upload.side_effect = upload
+        mocker.patch("airflow.sdk.log.load_remote_log_handler", return_value=handler)
+        trigger, processors = self._watcher_trigger(mocker, 42), [*handler.processors, *self._processors()]
+        with conf_vars({("logging", "base_log_folder"): str(tmp_path)}):
+            self._create(jobless_supervisor, trigger, mocker)
+            jobless_supervisor.logger_cache[42](processors).log(logging.INFO, "line", n=0)
+            mocker.patch("airflow.sdk.log.init_log_file", side_effect=init_log_file)
+            jobless_supervisor._close_trigger_logger(42)
+            self._create(jobless_supervisor, trigger, mocker)
+            for n in range(1, 4):
+                jobless_supervisor.logger_cache[42](processors).log(logging.INFO, "line", n=n)
+            jobless_supervisor.watcher_logs._upload_pool.shutdown(wait=True)
+
+        assert removed.is_set()
+        assert streamed == [0, 1, 2, 3]
+
+    @pytest.mark.parametrize("delete_local_copy", [False, True])
+    def test_a_watcher_back_while_an_older_rotated_file_uploads_starts_at_once(
+        self, jobless_supervisor, mocker, tmp_path, delete_local_copy
+    ):
+        # The release waits for that upload, minutes with an unreachable store: its file is held meanwhile.
+        started, release = threading.Event(), threading.Event()
+        store = self.S3RemoteLogIO(tmp_path, delete_local_copy=delete_local_copy)
+        store_upload = store.upload
+
+        def slow_upload(path, ti):
+            if not started.is_set():
+                started.set()
+                release.wait(5)
+            store_upload(path, ti)
+
+        store.upload = slow_upload
+        mocker.patch("airflow.sdk.log.load_remote_log_handler", return_value=store)
+        trigger, n = self._watcher_trigger(mocker, 42), 0
+        with self._capped(tmp_path):
+            self._create(jobless_supervisor, trigger, mocker)
+            logger = jobless_supervisor.logger_cache[42](self._processors())
+            while 42 not in jobless_supervisor.watcher_logs._pending_rotated_uploads:
+                logger.log(logging.INFO, "line", n=n)
+                n += 1
+            assert started.wait(5)
+            for n in range(n, n + 3):
+                logger.log(logging.INFO, "line", n=n)
+            jobless_supervisor._close_trigger_logger(42)
+
+            for _ in range(2):  # released again while the first one waits: one held file, sent once
+                self._create(jobless_supervisor, trigger, mocker)
+                assert 42 in jobless_supervisor.logger_cache
+                logger = jobless_supervisor.logger_cache[42](self._processors())
+                for n in range(n + 1, n + 21):
+                    logger.log(logging.INFO, "line", n=n)
+                jobless_supervisor._close_trigger_logger(42)
+            release.set()
+            jobless_supervisor.watcher_logs._upload_pool.shutdown(wait=True)
+
+        assert store.lines() == list(range(n + 1))
+
+    def test_a_watcher_back_while_its_file_uploads_starts_at_once_on_a_new_file(
+        self, jobless_supervisor, mocker, tmp_path
+    ):
+        # Minutes per upload with an unreachable store: the released file is moved aside before it is sent.
+        started, release = threading.Event(), threading.Event()
+        store = self.S3RemoteLogIO(tmp_path)
+        store_upload = store.upload
+
+        def slow_upload(path, ti):
+            started.set()
+            release.wait(5)
+            store_upload(path, ti)
+
+        store.upload = slow_upload
+        mocker.patch("airflow.sdk.log.load_remote_log_handler", return_value=store)
+        trigger = self._watcher_trigger(mocker, 42)
+        with self._capped(tmp_path):
+            self._create(jobless_supervisor, trigger, mocker)
+            self._log(jobless_supervisor, 42, range(5))
+            jobless_supervisor._close_trigger_logger(42)
+            assert started.wait(5)
+
+            self._create(jobless_supervisor, trigger, mocker)
+            assert 42 in jobless_supervisor.logger_cache
+            # Past the size cap: it rotates only once the released file is uploaded.
+            self._log(jobless_supervisor, 42, range(5, 50))
+            release.set()
+            jobless_supervisor.watcher_logs.upload_and_close(42, jobless_supervisor.logger_cache.pop(42))
+
+        assert store.lines() == list(range(50))
+
+    @pytest.mark.parametrize("store", [None, "s3", "failed-upload"])
+    @pytest.mark.parametrize("moved", [False, True], ids=["gone", "moved-then-gone"])
+    def test_files_of_a_watcher_that_left_are_removed_once_its_trigger_no_longer_exists(
+        self, supervisor_builder, session, mocker, tmp_path, store, moved
+    ):
+        # Only a triggerer that starts looks for other files to remove, and never at its own.
+        remote = {"s3": self.S3RemoteLogIO, "failed-upload": self.HdfsRemoteLogIO}.get(store)
+        if remote is not None:
+            remote = remote(tmp_path)
+            remote.raised_failures = int(store == "failed-upload")
+        mocker.patch("airflow.sdk.log.load_remote_log_handler", return_value=remote)
+        supervisor = supervisor_builder()
+        trigger = Trigger(classpath="some.path.Trigger", kwargs={})
+        trigger.triggerer_id = supervisor.job.id + 1
+        session.add(trigger)
+        session.commit()
+        trigger_dir = tmp_path / get_trigger_log_dir(trigger.id)
+        with conf_vars({("logging", "base_log_folder"): str(tmp_path)}):
+            self._create(supervisor, self._watcher_trigger(mocker, trigger.id), mocker)
+            self._log(supervisor, trigger.id, range(3))
+            if not moved:
+                session.delete(trigger)
+                session.commit()
+            supervisor.update_triggers(set())
+            supervisor.watcher_logs._upload_pool.shutdown(wait=True)
+            if moved:
+                supervisor.heartbeat_callback()
+                assert trigger_dir.exists()
+                session.delete(trigger)
+                session.commit()
+            supervisor.heartbeat_callback()
+
+        assert trigger_dir.exists() is (store == "failed-upload")
+        if store == "s3":
+            assert remote.lines() == list(range(3))
+
+    def test_watchers_that_left_are_looked_up_once_a_heartbeat_in_chunks(
+        self, supervisor_builder, mocker, tmp_path
+    ):
+        # Thousands of watchers can have been handed off to other triggerers: not in the query of every loop.
+        mocker.patch.object(Trigger, "assign_unassigned")
+        mocker.patch.object(TriggerRunnerSupervisor, "update_triggers")
+        supervisor = supervisor_builder()
+        left = {10**9 + n: get_trigger_log_relative_path(10**9 + n, supervisor.job.id) for n in range(1200)}
+        supervisor.watcher_logs._left.update(left)
+        bound = []
+
+        def count_bound(conn, cursor, statement, parameters, context, executemany):
+            bound.append(len(parameters or ()))
+
+        event.listen(settings.engine, "before_cursor_execute", count_bound)
+        try:
+            with conf_vars({("logging", "base_log_folder"): str(tmp_path)}):
+                supervisor.load_triggers()
+                in_loop, bound[:] = list(bound), []
+                supervisor.heartbeat_callback()
+        finally:
+            event.remove(settings.engine, "before_cursor_execute", count_bound)
+
+        assert max(in_loop) < 100
+        assert sorted(n for n in bound if n >= 100) == [200, 500, 500]
+        assert supervisor.watcher_logs._left == {}
+
+    def test_open_files_are_uploaded_side_by_side_at_stop(self, jobless_supervisor, mocker):
+        # One after the other, thousands of watchers' files take longer than a container's stop timeout.
+        both = threading.Barrier(2, timeout=5)
+        factories = {t: mocker.MagicMock(spec=WatcherLoggingFactory) for t in (1, 2)}
+        for factory in factories.values():
+            factory.upload_to_remote.side_effect = lambda **_: both.wait()
+        jobless_supervisor.logger_cache.update(factories)
+
+        jobless_supervisor.close_trigger_log_files()
+
+        assert not both.broken
+        for factory in factories.values():
+            factory.close.assert_called_once()
+
+
 class TestTriggerRunner:
     @pytest.mark.asyncio
     @mock.patch("airflow.jobs.triggerer_job_runner.set_current_team_name", autospec=True)
@@ -2261,7 +3716,7 @@ class TestTriggerRunner:
     ):
         import json
 
-        from airflow.models.crypto import get_fernet
+        from airflow.crypto import get_fernet
         from airflow.sdk.serde import serialize
 
         SerializedKwargsTrigger.constructed.clear()
@@ -4512,19 +5967,19 @@ class TestTriggerMetrics:
         assert 4 not in jobless_supervisor.trigger_kinds
 
 
-class TestOwnerOfTriggersCreatedWithoutOne:
-    """Rows created by components still on the previous version during a rolling upgrade have no owner."""
+class TestUsedByOfTriggersCreatedWithoutIt:
+    """During a rolling upgrade, components still on the previous version create rows without a used_by_ref."""
 
     @pytest.mark.usefixtures("testing_dag_bundle")
-    def test_the_owner_of_a_deferred_tasks_trigger_is_recorded(self, session, jobless_supervisor):
+    def test_a_deferred_tasks_trigger_records_it_is_used_by_the_task(self, session, jobless_supervisor):
         trigger = Trigger.from_object(SuccessTrigger())
         session.add(trigger)
         session.flush()
-        with DAG(dag_id="owner_dag") as dag:
-            task = PythonOperator(task_id="owner_task", python_callable=print)
-        session.add(DagModel(dag_id="owner_dag", bundle_name="testing"))
+        with DAG(dag_id="used_by_dag") as dag:
+            task = PythonOperator(task_id="used_by_task", python_callable=print)
+        session.add(DagModel(dag_id="used_by_dag", bundle_name="testing"))
         SerializedDagModel.write_dag(LazyDeserializedDAG.from_dag(dag), bundle_name="testing")
-        dag_run = DagRun(dag.dag_id, run_id="owner_run", run_type="manual", run_after=timezone.utcnow())
+        dag_run = DagRun(dag.dag_id, run_id="used_by_run", run_type="manual", run_after=timezone.utcnow())
         ti = create_task_instance(
             task,
             run_id=dag_run.run_id,
@@ -4539,7 +5994,7 @@ class TestOwnerOfTriggersCreatedWithoutOne:
 
         session.expire_all()
         row = session.get(Trigger, trigger.id)
-        assert (row.dag_id, row.owner_ref) == ("owner_dag", {"ti_id": str(ti.id)})
+        assert (row.dag_id, row.used_by_ref) == ("used_by_dag", {"ti_id": str(ti.id)})
 
     @pytest.mark.parametrize(
         ("data", "expected_dag_id"),
@@ -4552,23 +6007,25 @@ class TestOwnerOfTriggersCreatedWithoutOne:
             ),
         ],
     )
-    def test_the_owner_of_a_callbacks_trigger_is_recorded(self, mocker, data, expected_dag_id):
+    def test_a_callbacks_trigger_records_it_is_used_by_the_callback(self, mocker, data, expected_dag_id):
         callback = mocker.Mock(data=data, id=uuid.uuid4())
         callback.get_dag_id.return_value = data.get("dag_id")
         trigger = mocker.Mock(
-            spec=Trigger, owner_ref=None, dag_id=None, task_instance=None, callback=callback
+            spec=Trigger, used_by_ref=None, dag_id=None, task_instance=None, callback=callback
         )
 
-        TriggerRunnerSupervisor._record_missing_owner(trigger)
+        TriggerRunnerSupervisor._record_missing_used_by(trigger)
 
-        assert (trigger.dag_id, trigger.owner_ref) == (expected_dag_id, {"callback_id": str(callback.id)})
+        assert (trigger.dag_id, trigger.used_by_ref) == (expected_dag_id, {"callback_id": str(callback.id)})
 
-    def test_a_recorded_owner_is_kept(self, mocker):
-        trigger = mocker.Mock(spec=Trigger, owner_ref={"ti_id": "x"}, dag_id="d", task_instance=mocker.Mock())
+    def test_a_recorded_used_by_is_kept(self, mocker):
+        trigger = mocker.Mock(
+            spec=Trigger, used_by_ref={"ti_id": "x"}, dag_id="d", task_instance=mocker.Mock()
+        )
 
-        TriggerRunnerSupervisor._record_missing_owner(trigger)
+        TriggerRunnerSupervisor._record_missing_used_by(trigger)
 
-        assert (trigger.dag_id, trigger.owner_ref) == ("d", {"ti_id": "x"})
+        assert (trigger.dag_id, trigger.used_by_ref) == ("d", {"ti_id": "x"})
 
 
 class TestCheckForUnhandledTriggers:

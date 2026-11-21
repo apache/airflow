@@ -59,6 +59,13 @@ on:  # yamllint disable-line rule:truthy
 
   workflow_call:
     inputs:
+      merge-with:
+        description: >-
+          The base branch commit and merge base to merge the pushed commit with, space-separated;
+          empty outside fork CI runs.
+        required: false
+        default: ""
+        type: string
       workflow-name:
         description: "Name of the test"
         type: string
@@ -112,6 +119,11 @@ jobs:
         with:
           fetch-depth: 2
           persist-credentials: false
+      - name: "Merge with the base branch"
+        if: inputs.merge-with != ''
+        uses: ./.github/actions/merge-with-base
+        with:
+          merge-with: ${{ inputs.merge-with }}
       - name: "Prepare breeze & PROD image: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
         uses: ./.github/actions/prepare_breeze_and_image
         with:
@@ -137,7 +149,7 @@ jobs:
       # arch-specific auto-provisioned JDKs (the example pins a Java 11 toolchain).
       - name: "Setup Java for the Java SDK build"
         if: inputs.e2e_test_mode == 'java_sdk' || inputs.e2e_test_mode == 'lang_sdk_xcom_object_storage'
-        uses: actions/setup-java@77dd5b2ce225ea11469928ac317850245a74ae78  # v6.2.0
+        uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880  # v6.3.0
         with:
           distribution: 'temurin'
           java-version: ${{ inputs.java-sdk-version }}

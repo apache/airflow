@@ -300,7 +300,7 @@ Parameters
 - ``prompt``: The prompt to send to the LLM (operator) or the return value of the
   decorated function (decorator).
 - ``llm_conn_id``: Airflow connection ID for the LLM provider.
-- ``model_id``: Model identifier (e.g. ``"openai:gpt-5"``). Overrides the connection's extra field.
+- ``model_id``: Model identifier (e.g. ``"openai:gpt-6.1-sol"``). Overrides the connection's extra field.
 - ``system_prompt``: System-level instructions for the agent. Supports Jinja templating.
 - ``branches``: Optional mapping of downstream task ID to a ``BranchOption`` (a
   description and, optionally, a ``min_confidence`` for that branch) or to a string as

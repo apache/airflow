@@ -55,6 +55,7 @@
   "history": "History",
   "importErrors": {
     "bundle": "Bundle",
+    "copyStackTrace": "Copy stack trace",
     "dagImportError_one": "Dag Import Error",
     "dagImportError_other": "Dag Import Errors",
     "searchByFile": "Search by file",
@@ -72,8 +73,7 @@
   "stats": {
     "activeDags": "Active Dags",
     "failedDags": "Failed Dags",
-    "parseFailureWarnings_one": "Dag load warning",
-    "parseFailureWarnings_other": "Dag load warnings",
+    "failingTriggers": "Failing Triggers",
     "queuedDags": "Queued Dags",
     "requiredActions": "Required Actions",
     "runningDags": "Running Dags",

@@ -41,7 +41,11 @@ from airflow.models.dynamic_region import (
 )
 from airflow.models.taskinstance import TaskInstance
 from airflow.serialization.definitions.mappedoperator import is_mapped
-from airflow.serialization.definitions.taskgroup import SerializedLoopTaskGroup, SerializedMappedTaskGroup
+from airflow.serialization.definitions.taskgroup import (
+    SerializedLoopTaskGroup,
+    SerializedMappedTaskGroup,
+    SerializedTaskGroup,
+)
 from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
@@ -129,7 +133,10 @@ class SchedulingTI(TaskCoordinate, Protocol):
 
 
 def enclosing_loop(task: SerializedOperator) -> SerializedLoopTaskGroup | None:
-    group = task.task_group
+    return enclosing_loop_of_group(task.task_group)
+
+
+def enclosing_loop_of_group(group: SerializedTaskGroup | None) -> SerializedLoopTaskGroup | None:
     while group is not None:
         if isinstance(group, SerializedLoopTaskGroup):
             return group

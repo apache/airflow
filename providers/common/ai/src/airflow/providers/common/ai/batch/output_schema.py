@@ -127,10 +127,15 @@ def build_output_spec(output_type: type) -> OutputSpec:
 
     wrapped = json_schema.get("type") != "object"
     if wrapped:
+        # ``$ref``s resolve against the document root, so the definitions move up with the wrapper.
+        definitions: dict[str, Any] = {
+            key: json_schema.pop(key) for key in ("$defs", "definitions") if key in json_schema
+        }
         json_schema = {
             "type": "object",
             "properties": {"response": json_schema},
             "required": ["response"],
+            **definitions,
         }
     schema_name = _normalize_schema_name(getattr(output_type, "__name__", ""))
     return OutputSpec(
