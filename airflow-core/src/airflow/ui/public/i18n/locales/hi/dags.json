@@ -22,6 +22,7 @@
     },
     "favoriteState": "पसंदीदा स्थिति",
     "favoriteStatePlaceholder": "पसंदीदा स्थिति चुनें…",
+    "hasImportErrors": "आयात त्रुटियां हैं",
     "noTimetableTypesFound": "कोई टाइमटेबल प्रकार नहीं मिला",
     "paused": {
       "active": "सक्रिय",

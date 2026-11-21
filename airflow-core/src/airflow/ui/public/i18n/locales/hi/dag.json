@@ -113,8 +113,10 @@
     "noTryNumber": "कोई प्रयास संख्या नहीं",
     "search": {
       "matchCount": "{{total, number}} में से {{current, number}}",
+      "nextMatch": "अगला मिलान",
       "noMatches": "कोई मिलान नहीं",
-      "placeholder": "लॉग खोजें..."
+      "placeholder": "लॉग खोजें...",
+      "previousMatch": "पिछला मिलान"
     },
     "settings": "लॉग सेटिंग्स",
     "tryNotStarted": "यह प्रयास अभी तक शुरू नहीं हुआ है।",
@@ -346,6 +348,10 @@
       "changed": "बदला गया",
       "removed": "हटाया गया"
     },
+    "pathOccurrences_one": "{{count, number}} परिवर्तन इस पथ को साझा करता है",
+    "pathOccurrences_other": "{{count, number}} परिवर्तन इस पथ को साझा करते हैं",
+    "pathOccurrencesAtLeast_one": "कम से कम {{count, number}} परिवर्तन इस पथ को साझा करता है",
+    "pathOccurrencesAtLeast_other": "कम से कम {{count, number}} परिवर्तन इस पथ को साझा करते हैं",
     "record_one": "रिकॉर्ड",
     "record_other": "रिकॉर्ड्स",
     "schemaChange": "सीरियलाइज़्ड स्कीमा {{baseSchema}} → {{targetSchema}}",
