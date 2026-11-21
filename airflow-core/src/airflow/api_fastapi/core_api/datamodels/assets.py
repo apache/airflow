@@ -271,6 +271,13 @@ class CreateAssetEventsBody(StrictBaseModel):
     # pattern (not strip_whitespace) so the value isn't mutated — must stay byte-identical to what
     # `_validate_outlet_event_partition_keys` in the Execution API accepts for the same raw input.
     partition_key: Annotated[str, StringConstraints(pattern=r"\S", max_length=ID_LEN)] | None = None
+    consumer_dag_id: Annotated[str, StringConstraints(pattern=r"\S", max_length=ID_LEN)] | None = Field(
+        default=None,
+        description=(
+            "Limit immediate queueing to this eligible consumer Dag. The event remains in asset history "
+            "and listeners are still notified. Omit to queue all eligible consumers."
+        ),
+    )
     extra: dict = Field(default_factory=dict)
     access_control: AssetEventAccessControl | None = None
 

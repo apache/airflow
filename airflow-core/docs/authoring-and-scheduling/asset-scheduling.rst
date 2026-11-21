@@ -322,6 +322,53 @@ These records are called *queued asset events*.
 
 For details on usage and parameters, see :doc:`Airflow API </stable-rest-api-ref>`.
 
+Publishing an event for one consumer
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+To queue an asset event for one consumer, include ``consumer_dag_id`` in the body of
+``POST /api/v2/assets/events``:
+
+.. code-block:: json
+
+    {
+      "asset_id": 42,
+      "partition_key": "k",
+      "consumer_dag_id": "target"
+    }
+
+Omitting ``consumer_dag_id`` keeps the usual fan-out to eligible consumers. Supplying it
+limits queueing to the selected Dag; it does not override access controls, asset-team
+restrictions, paused or draining Dags, or partition mapper rules.
+The caller needs permission to create asset events and to create runs for the selected Dag.
+
+This request creates a **new asset event**, with a new identity and timestamp. The event
+remains in global asset history, and the usual asset listeners and metrics still run.
+The option does not attach an old event to a consumer or backfill historical inputs.
+As an API-produced event, it does not preserve the original task/run provenance or carry
+the producer's ``partition_date``; the consumer's mapper can still derive partition dates.
+
+For example, suppose a ``PartitionedAssetTimetable`` consumer changes from ``A`` to
+``A & B``, using identity mappers. B has already published partition ``k`` before the
+consumer starts depending on it. After the new Dag definition is parsed and serialized,
+A publishes ``k``, leaving the consumer waiting for B. Publish B/``k`` with
+``consumer_dag_id`` set to that consumer to supply the missing input without queueing
+another event for other B consumers. The old B event is not consumed retroactively.
+
+If pending progress was created under the **old** dependency or mapper definition,
+clear its queued inputs before republishing. For identity mappings, the Dag-scoped
+request is:
+
+.. code-block:: text
+
+    DELETE /api/v2/dags/target/assets/queuedEvents?partition_key=k
+
+The filter matches the **source event's partition key**, which may differ from the
+consumer's partition key. With other mappings, clear all contributing source keys for
+the affected pending progress; a source key can feed several target partitions. Then
+publish scoped events for every required input under the new definition. Clearing only
+some inputs retains the remaining pending progress. Neither this recovery procedure nor
+changing the Dag definition automatically restores historical events.
+
 Pull-based scheduling (Asset Watchers)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
