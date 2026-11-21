@@ -136,6 +136,20 @@ class TestSortParam:
         assert [name for name, _, _ in param.get_resolved_columns()] == ["position", "id"]
         assert param.row_value(SimpleNamespace(position=5, id=4), "position") == 5
 
+    @pytest.mark.parametrize(
+        ("order_by", "reversed_", "expected"),
+        [
+            (["-run_after"], False, "ORDER BY dag_run.dag_id DESC, dag_run.run_after DESC, dag_run.id DESC"),
+            (["run_after"], False, "ORDER BY dag_run.dag_id ASC, dag_run.run_after ASC, dag_run.id ASC"),
+            (["-run_after"], True, "ORDER BY dag_run.dag_id ASC, dag_run.run_after ASC, dag_run.id ASC"),
+        ],
+    )
+    def test_lead_with_orders_by_the_column_first_in_the_first_direction(self, order_by, reversed_, expected):
+        param = SortParam(["run_after"], DagRun).set_value(order_by).lead_with(DagRun.dag_id)
+
+        assert expected in str(param.to_orm(select(DagRun), reversed=reversed_))
+        assert [name for name, _, _ in param.get_resolved_columns()] == ["run_after", "id"]
+
     def test_sort_param_max_number_of_filers(self):
         param = SortParam([], None, None)
         n_filters = param.MAX_SORT_PARAMS + 1

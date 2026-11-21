@@ -31,6 +31,9 @@ from airflow.models.dagrun import DagRun
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
+    from sqlalchemy.sql import Select
+
+    from airflow.api_fastapi.common.parameters import SortParam
 
 # Use the hybrid_property for dag_display_name so the CASE WHEN fallback to dag_id
 # is applied when dag_display_name is NULL.  Using __table__.c would return raw NULLs
@@ -87,3 +90,11 @@ def is_filtered_existing_run(dag_id: str, run_id: str, *, has_filter: bool, sess
         and session.scalar(select(DagRun.run_id).where(DagRun.dag_id == dag_id, DagRun.run_id == run_id))
         is not None
     )
+
+
+def filter_runs_of_dag(statement: Select, order_by: SortParam, *, dag_id: str) -> Select:
+    """Filter statement to the runs of *dag_id*, reading a ``run_after`` sort from idx_dag_run_dag_id_run_after."""
+    if order_by.get_resolved_columns()[0][0] == "run_after":
+        order_by.lead_with(DagRun.dag_id)
+        return statement.where(DagRun.match_dag_id(dag_id))
+    return statement.where(DagRun.dag_id == dag_id)
