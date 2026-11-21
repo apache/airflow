@@ -769,6 +769,55 @@ def test_operator_mapped_task_group_receives_value(create_runtime_ti, mock_super
     assert results == expected_values
 
 
+@pytest.mark.parametrize(
+    "mapping",
+    [
+        pytest.param("expand", id="expand-literal"),
+        pytest.param("expand_kwargs", id="expand_kwargs-xcom"),
+    ],
+)
+def test_mapped_task_group_argument_formatted_into_templated_field(
+    create_runtime_ti, mock_supervisor_comms, mapping
+):
+    """An f-string built from a mapped task group argument renders to the real value (#50631)."""
+    from airflow.sdk import task_group
+
+    partitions = [
+        {"project": "my_project", "dataset": "dataset_0"},
+        {"project": "my_project", "dataset": "dataset_1"},
+    ]
+
+    with DAG("test") as dag:
+
+        @dag.task
+        def generate_partitions():
+            return partitions
+
+        @task_group
+        def group(project, dataset):
+            MockOperator(task_id="op", arg1=f"echo {project}.{dataset}")
+
+        if mapping == "expand":
+            group.expand(project=["my_project"], dataset=["dataset_0", "dataset_1"])
+        else:
+            group.expand_kwargs(generate_partitions())
+
+    def mock_comms_response(msg):
+        if isinstance(msg, GetXCom) and msg.task_id == "generate_partitions":
+            return XComResult(key=BaseXCom.XCOM_RETURN_KEY, value=partitions)
+        return mock.DEFAULT
+
+    mock_supervisor_comms.send.side_effect = mock_comms_response
+
+    rendered = []
+    for map_index in range(2):
+        ti = create_runtime_ti(task=dag.get_task("group.op").prepare_for_execution(), map_index=map_index)
+        ti.task.render_template_fields(ti.get_template_context())
+        rendered.append(ti.task.arg1)
+
+    assert rendered == ["echo my_project.dataset_0", "echo my_project.dataset_1"]
+
+
 def test_mapped_xcom_push_skipped_tasks(create_runtime_ti, mock_supervisor_comms):
     from airflow.sdk import task_group
 
