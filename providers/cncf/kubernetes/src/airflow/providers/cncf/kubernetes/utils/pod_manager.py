@@ -362,7 +362,7 @@ class PodLogsConsumer:
 
     @staticmethod
     def _save_incomplete_log_item(sub_chunk: bytes):
-        return [sub_chunk] if [sub_chunk] else []
+        return [sub_chunk] if sub_chunk else []
 
     def logs_available(self):
         remote_pod = self.read_pod()
@@ -625,8 +625,12 @@ class PodManager(LoggingMixin):
                                     ] = last_captured_timestamp
                                 message_to_log = message
                                 message_timestamp = line_timestamp
-                        else:  # continuation of the previous log line
+                        elif message_to_log:  # continuation of the previous log line
                             message_to_log = f"{message_to_log}\n{message}"
+                        elif stripped := message.rstrip("\n"):
+                            # ``parse_log_line`` hands back an unparsable line unstripped.
+                            # Deliberately unlike ``AsyncPodManager``, which drops it.
+                            message_to_log = stripped
                 finally:
                     # log the last line and update the last_captured_timestamp
                     if message_to_log is not None:
