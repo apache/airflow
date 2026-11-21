@@ -28,6 +28,7 @@ import org.apache.airflow.sdk.execution.comm.TIRunContext
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.Timeout
+import java.math.BigInteger
 import java.time.Duration
 import java.time.LocalDate
 import java.time.OffsetDateTime
@@ -129,6 +130,17 @@ private class PinnedConf {
   @JvmField
   @JsonProperty("target-table")
   var table: String? = null
+}
+
+private class ArgNameConf {
+  @JvmField
+  @ArgName("target-table")
+  var table: String? = null
+}
+
+private class Holder<T> {
+  @JvmField
+  var item: T? = null
 }
 
 private class GetterOnlyTables {
@@ -348,6 +360,68 @@ class ContextTest {
   }
 
   @Test
+  fun getConfMatchesKeysToNamesFromArgNameAsWritten() {
+    Assertions.assertEquals("sales", dagRunWithConf(mapOf("target-table" to "sales")).getConf(ArgNameConf::class.java).table)
+
+    listOf("table", "TARGET-TABLE").forEach { key ->
+      Assertions.assertNull(dagRunWithConf(mapOf(key to "sales")).getConf(ArgNameConf::class.java).table)
+    }
+  }
+
+  @Test
+  fun getConfReadsIntoANewMapThatTheTaskCanChange() {
+    val dagRun = dagRunWithConf(mapOf("target_table" to "sales"))
+
+    @Suppress("UNCHECKED_CAST")
+    val copy = dagRun.getConf(MutableMap::class.java) as MutableMap<String, Any?>
+    copy["target_table"] = "orders"
+
+    Assertions.assertEquals("sales", dagRun.conf["target_table"])
+  }
+
+  @Test
+  fun getConfReadsIntoAGenericType() {
+    val conf = dagRunWithConf(mapOf("Sales_Key" to mapOf("table_name" to "sales")))
+
+    val tables = conf.getConf(object : TypeRef<Map<String, EtlTable>>() {})
+
+    Assertions.assertEquals(setOf("Sales_Key"), tables.keys)
+    Assertions.assertEquals("sales", tables.getValue("Sales_Key").tableName)
+  }
+
+  @Test
+  fun getConfKeepsTheTypeArgumentsApartForOneGenericClass() {
+    val tableHolder =
+      dagRunWithConf(mapOf("item" to mapOf("table_name" to "sales"))).getConf(object : TypeRef<Holder<EtlTable>>() {})
+    val sourceHolder =
+      dagRunWithConf(mapOf("item" to mapOf("bucket_name" to "raw"))).getConf(object : TypeRef<Holder<EtlSource>>() {})
+
+    Assertions.assertEquals("sales", tableHolder.item?.tableName)
+    Assertions.assertEquals("raw", sourceHolder.item?.bucketName)
+  }
+
+  @Test
+  fun getConfJsonWritesTheConfAsJson() {
+    val conf =
+      linkedMapOf(
+        "target_table" to "sales",
+        "limit" to 5L,
+        "ratio" to 1.5,
+        "big" to BigInteger("18446744073709551616"),
+        "dry_run" to true,
+        "note" to null,
+        "tables" to listOf(mapOf("Table_Name" to "orders")),
+      )
+
+    Assertions.assertEquals(
+      """{"target_table":"sales","limit":5,"ratio":1.5,"big":18446744073709551616,"dry_run":true,"note":null,""" +
+        """"tables":[{"Table_Name":"orders"}]}""",
+      dagRunWithConf(conf).getConfJson(),
+    )
+    Assertions.assertEquals("{}", dagRunWithConf(emptyMap()).getConfJson())
+  }
+
+  @Test
   fun getConfRejectsNullElementsOnlyForPrimitiveArrays() {
     Assertions.assertEquals(
       listOf(1, null),
@@ -387,7 +461,7 @@ class ContextTest {
       }
 
     Assertions.assertEquals(
-      "Dag run conf keys 'target_table' and 'TargetTable' both match field EtlConf.targetTable when case and " +
+      "Keys 'target_table' and 'TargetTable' of the Dag run conf both match field EtlConf.targetTable when case and " +
         "underscores are ignored, so the SDK cannot tell which one to use. Name the field exactly as the key " +
         "it should take.",
       error.message,
@@ -405,7 +479,7 @@ class ContextTest {
         }
 
       Assertions.assertEquals(
-        "Dag run conf key '$key' is null, but field EtlConf.limit has a primitive type that cannot be null. " +
+        "Key '$key' of the Dag run conf is null, but field EtlConf.limit has a primitive type that cannot be null. " +
           "Declare a boxed type (e.g. Integer instead of int) to receive null.",
         error.message,
       )
@@ -421,7 +495,7 @@ class ContextTest {
 
     Assertions.assertEquals(
       "Fields FoldClash.targetTable and FoldClash.targettable differ only in case or underscores, so the SDK " +
-        "cannot tell which one a Dag run conf key should go to. Rename one of them.",
+        "cannot tell which one a key should go to. Rename one of them.",
       error.message,
     )
   }

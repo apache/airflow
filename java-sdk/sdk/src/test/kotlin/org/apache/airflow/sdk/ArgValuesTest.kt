@@ -133,6 +133,17 @@ internal class ArgValuesTest {
   }
 
   @Test
+  @DisplayName("Should match a camelCase field of a wired input to a snake_case key through the fold")
+  fun shouldFoldSnakeCaseKeyOfWiredInput() {
+    val (client, _) = clientWith(null)
+    val context = contextWiredWith(listOf(Arg.lit(mapOf("region_code" to "emea"))))
+
+    val input = ArgValues.bindInput(context, client, FoldedInput::class.java)
+
+    assertEquals("emea", input.regionCode)
+  }
+
+  @Test
   @DisplayName("Should match a camelCase field to a snake_case argument through the fold")
   fun shouldFoldSnakeCaseArgument() {
     val input = bind(FoldedInput::class.java, listOf(literal("region_code", "emea")))

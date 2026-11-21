@@ -17,12 +17,8 @@
  * under the License.
  */
 
-@file:Suppress("PLATFORM_CLASS_MAPPED_TO_KOTLIN")
-
 package org.apache.airflow.sdk.internal
 
-import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.databind.json.JsonMapper
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -60,7 +56,6 @@ import java.lang.reflect.Type
  * the task still runs on what it can bind.
  */
 object ArgValues {
-  private val mapper: ObjectMapper = JsonMapper.builder().build().findAndRegisterModules()
   private val logger = Logger(ArgValues::class)
 
   /**
@@ -334,19 +329,7 @@ object ArgValues {
   internal fun decode(
     value: Any?,
     type: Type,
-  ): Any? {
-    if (value == null) return null
-    if (type is Class<*>) {
-      if (type.isInstance(value)) return value
-      // The msgpack decoder yields Long for wire integers and Double for wire
-      // floats, so widen numerics via Number instead of casting.
-      if (value is Number) numberConverter(type)?.let { return it(value) }
-    }
-    // Structured wire values (maps, lists) convert into the declared POJO or
-    // collection type; unknown fields fail the task, mirroring the Go SDK's
-    // strict decode of task inputs.
-    return mapper.convertValue(value, mapper.constructType(type))
-  }
+  ): Any? = bindArgument(value, type)
 
   /**
    * The run's bindings, addressable by the exact argument name and by the
@@ -404,15 +387,4 @@ object ArgValues {
     /** Every argument name the call site passed, captured defaults included. */
     fun passed(): List<String> = bindings.map { it.name }
   }
-
-  private fun numberConverter(type: Class<*>): ((Number) -> Any)? =
-    when (type) {
-      java.lang.Byte::class.java -> { n -> n.toByte() }
-      java.lang.Short::class.java -> { n -> n.toShort() }
-      java.lang.Integer::class.java -> { n -> n.toInt() }
-      java.lang.Long::class.java -> { n -> n.toLong() }
-      java.lang.Float::class.java -> { n -> n.toFloat() }
-      java.lang.Double::class.java -> { n -> n.toDouble() }
-      else -> null
-    }
 }

@@ -23,6 +23,7 @@ import org.apache.airflow.sdk.Arg
 import org.apache.airflow.sdk.Client
 import org.apache.airflow.sdk.Context
 import org.apache.airflow.sdk.MissingXComException
+import org.apache.airflow.sdk.TypeRef
 import org.apache.airflow.sdk.execution.ArgBinding
 import java.lang.reflect.Type
 
