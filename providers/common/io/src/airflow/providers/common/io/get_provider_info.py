@@ -85,7 +85,7 @@ def get_provider_info():
                         "default": "",
                     },
                     "state_store_objectstorage_path": {
-                        "description": "Base path on object storage for the task/asset state store backend, in URL format.\nWhen set, StateStoreObjectStorageBackend will persist task and asset state under this\nprefix, organized as <dag_id>/<run_id>/[region=<region_id>/]<task_id>/<region_index>/<key>\nfor tasks and assets/<asset_identifier>/<key> for assets.\n",
+                        "description": "Base path on object storage for the task/asset state store backend, in URL format.\nWhen set, StateStoreObjectStorageBackend will persist task and asset state under this\nprefix, organized as <dag_id>/<run_id>/[region=<region_id>/]<task_id>/<region_index>/<key>\nfor tasks and assets/<asset_identifier>/<key> for assets.\nMust include a URL scheme; use ``file:///path/to/task-state`` for local storage.\n",
                         "version_added": "1.8.0",
                         "type": "string",
                         "example": "s3://conn_id@bucket/task-state/",

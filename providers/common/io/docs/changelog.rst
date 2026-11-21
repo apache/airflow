@@ -25,6 +25,12 @@
 Changelog
 ---------
 
+.. note::
+    ``StateStoreObjectStorageBackend`` now raises ``ValueError`` when ``[common.io] state_store_objectstorage_path``
+    has no URL scheme (for example ``/tmp/task-state``). Before, large values were written but reading them back
+    failed with ``JSONDecodeError``. Set the path to a URL such as ``s3://conn_id@bucket/task-state``, or
+    ``file:///path/to/task-state`` for local storage.
+
 1.11.1
 ......
 
