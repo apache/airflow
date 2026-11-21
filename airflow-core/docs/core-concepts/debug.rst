@@ -112,3 +112,56 @@ Run ``python -m pdb <path to Dag file>.py`` for an interactive debugging experie
       dag.test()
 
 2. Run / debug the Dag file.
+
+
+Real-world debugging strategies
+-------------------------------
+
+``dag.test()`` and pdb are excellent for failing fast in a single process. In shared
+scheduler environments (staging or production-like), teams usually debug against a real
+Dag run: inspect what a task wrote, re-run one task after a fix, and compare logs across
+tries. The workflows below complement the local approaches above.
+
+Inspect task results and XComs after a run
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+1. Trigger the Dag (UI **Trigger DAG**, or ``airflow dags trigger <dag_id>``).
+2. Open the Grid / Graph view for that Dag run and select the task instance of interest.
+3. Use **XCom** (or the task details panel) to confirm the values the task pushed. If a
+   downstream task fails with missing or unexpected data, start here before changing code.
+4. Open **Log** for the same task instance and search for the operator's own error lines —
+   provider hooks often bury the actionable message after a stack of Airflow internals.
+
+When you already have a ``DagRun`` object from ``dag.test()``, you can also pull XComs in
+Python (as in the ``mark_success_pattern`` example above) without opening the UI.
+
+Re-run a single task from the UI
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+After you change Dag or operator code (and the scheduler has picked up the new version):
+
+1. Open the failed (or suspicious) task instance in the UI.
+2. Clear or mark the task for re-run according to your Airflow version (**Clear** /
+   **Run** actions on the task instance). Prefer clearing only that task and its
+   downstream dependents when you need to re-validate the rest of the path.
+3. Watch the new try's log and XComs. If the task succeeds in isolation but fails when
+   scheduled normally, compare ``logical_date``, mapped index, and pool/slot availability.
+
+This loop — fix, deploy/sync Dag code, re-run one task — is the usual enterprise debug
+cycle when full ``dag.test()`` cannot recreate production connections or data volumes.
+
+Compare tries and isolate environment issues
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+* **Same task, multiple tries:** open each try's log. Failures that disappear on retry
+  often point to transient external systems; failures that always fail at the same line
+  point to code or bad input XComs.
+* **Connections and Variables:** confirm the connection ID used by the operator matches
+  what you edited in Admin → Connections. A local ``dag.test()`` may use different
+  connection defaults than the worker.
+* **Keep the blast radius small:** when testing in a shared environment, use a dedicated
+  Dag id or pause sibling Dags so a debug run does not enqueue unrelated work.
+
+These strategies do not replace unit tests or ``dag.test()``. Use local serialized runs to
+fail fast, then use UI re-runs and XCom/log inspection to validate behaviour against real
+executors, queues, and external systems.
