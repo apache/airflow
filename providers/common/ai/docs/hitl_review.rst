@@ -29,6 +29,9 @@ while it waits.
 
 This document describes the architecture, workflow, API, XCom schema, and usage.
 
+``enable_hitl_review=True`` is not supported with an ``async def`` ``@task.agent`` function
+(:ref:`howto/operator:agent-async`).
+
 Overview
 --------
 
