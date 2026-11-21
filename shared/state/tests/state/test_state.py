@@ -16,6 +16,10 @@
 # under the License.
 from __future__ import annotations
 
+import json
+import threading
+from json import loads
+from unittest import mock
 from uuid import UUID, uuid4
 
 import pytest
@@ -253,3 +257,25 @@ class TestBaseStoreBackendGetValue:
         backend = _StoredValueBackend(stored)
 
         assert await backend.aget_value(AssetScope(name="asset"), "key") == expected
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("stored", ['{"a": [1]}', "invalid"])
+    @mock.patch("airflow_shared.state.json.loads", autospec=True)
+    async def test_aget_value_decodes_off_the_event_loop(self, mock_loads, stored):
+        backend = _StoredValueBackend(stored)
+        loop_thread = threading.get_ident()
+        decode_threads = []
+
+        def decode(value):
+            decode_threads.append(threading.get_ident())
+            return loads(value)
+
+        mock_loads.side_effect = decode
+        if stored == "invalid":
+            with pytest.raises(json.JSONDecodeError):
+                await backend.aget_value(AssetScope(name="asset"), "key")
+        else:
+            assert await backend.aget_value(AssetScope(name="asset"), "key") == {"a": [1]}
+
+        assert len(decode_threads) == 1
+        assert decode_threads[0] != loop_thread

@@ -21,6 +21,7 @@ from unittest import mock
 import pytest
 
 from airflow.exceptions import DagRunNotFound
+from airflow.state import get_state_backend
 
 pytestmark = pytest.mark.db_test
 
@@ -37,7 +38,9 @@ def test_missing_dagrun_response_by_version(
     mock_get_backend, client, create_task_instance, monkeypatch, version, expected_status
 ):
     ti = create_task_instance()
-    mock_get_backend.return_value.set.side_effect = DagRunNotFound("DagRun not found")
+    backend = mock.create_autospec(get_state_backend(), instance=True)
+    backend.aset.side_effect = DagRunNotFound("DagRun not found")
+    mock_get_backend.return_value = backend
     client.headers["Airflow-API-Version"] = version
     monkeypatch.setattr(client._transport, "raise_server_exceptions", False)
 
