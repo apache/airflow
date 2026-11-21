@@ -230,6 +230,33 @@ def test_partial_on_invalid_pool_slots_raises() -> None:
         MockOperator.partial(task_id="pool_slots_test", pool="test", pool_slots="a").expand(arg1=[1, 2, 3])
 
 
+def test_expand_rejects_pool() -> None:
+    with pytest.raises(TypeError, match="unmappable or already specified argument: pool"):
+        MockOperator.partial(task_id="a").expand(pool=["p1", "p2"])
+
+
+def test_expand_kwargs_rejects_pool_on_unmap() -> None:
+    mapped = MockOperator.partial(task_id="a").expand_kwargs([{"pool": "p1"}])
+    with pytest.raises(TypeError, match="unmappable or already specified argument: pool"):
+        mapped.unmap({"pool": "p1"})
+
+
+def test_partial_pool_none_uses_default_pool() -> None:
+    mapped = MockOperator.partial(task_id="a", pool=None).expand(arg1=[1])
+    assert mapped.pool == "default_pool"
+
+
+def test_task_decorator_pool_none_uses_default_pool() -> None:
+    with DAG("test", schedule=None) as dag:
+
+        @dag.task
+        def show(number): ...
+
+        show.override(pool=None).expand(number=[1])
+
+    assert dag.get_task("show").pool == "default_pool"
+
+
 def test_mapped_task_applies_default_args_classic():
     with DAG(
         dag_id="test",
