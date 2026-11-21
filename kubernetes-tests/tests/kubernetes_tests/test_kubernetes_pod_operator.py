@@ -47,6 +47,7 @@ from airflow.version import version as airflow_version
 from kubernetes_tests.test_base import BaseK8STest, StringContainingId
 
 from tests_common.test_utils.taskinstance import create_task_instance
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_4_PLUS
 
 HOOK_CLASS = "airflow.providers.cncf.kubernetes.operators.pod.KubernetesHook"
 POD_MANAGER_CLASS = "airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager"
@@ -131,6 +132,7 @@ class TestKubernetesPodOperatorSystem:
                     "dag_id": "dag",
                     "task_id": ANY,
                     "try_number": "1",
+                    **({"ti_id": ANY} if AIRFLOW_V_3_4_PLUS else {}),
                 },
             },
             "spec": {
@@ -798,6 +800,7 @@ class TestKubernetesPodOperatorSystem:
             "kubernetes_pod_operator": "True",
             "task_id": mock.ANY,
             "try_number": "1",
+            **({"ti_id": mock.ANY} if AIRFLOW_V_3_4_PLUS else {}),
         }
         assert k.pod.spec.containers[0].env == [k8s.V1EnvVar(name="env_name", value="value")]
         assert result == {"hello": "world"}
@@ -839,6 +842,7 @@ class TestKubernetesPodOperatorSystem:
             "kubernetes_pod_operator": "True",
             "task_id": mock.ANY,
             "try_number": "1",
+            **({"ti_id": mock.ANY} if AIRFLOW_V_3_4_PLUS else {}),
         }
         assert k.pod.spec.containers[0].env == [k8s.V1EnvVar(name="env_name", value="value")]
         assert result == {"hello": "world"}
@@ -884,6 +888,7 @@ class TestKubernetesPodOperatorSystem:
             "kubernetes_pod_operator": "True",
             "task_id": mock.ANY,
             "try_number": "1",
+            **({"ti_id": mock.ANY} if AIRFLOW_V_3_4_PLUS else {}),
         }
         assert k.pod.spec.containers[0].env == [k8s.V1EnvVar(name="env_name", value="value")]
         assert result == {"hello": "world"}
@@ -1017,6 +1022,7 @@ class TestKubernetesPodOperatorSystem:
                     "kubernetes_pod_operator": "True",
                     "task_id": mock.ANY,
                     "try_number": "1",
+                    **({"ti_id": mock.ANY} if AIRFLOW_V_3_4_PLUS else {}),
                 },
                 "name": "memory-demo",
                 "namespace": "mem-example",
