@@ -60,6 +60,48 @@
     },
     "title": "데드라인"
   },
+  "triggers": {
+    "columns": {
+      "dagsAffected": "영향받는 Dags",
+      "failures": "실패 횟수",
+      "kind": "유형",
+      "lastError": "마지막 오류",
+      "lastEvent": "마지막 이벤트",
+      "status": "상태",
+      "triggerer": "트리거러",
+      "usedBy": "사용처"
+    },
+    "detail": {
+      "firstFailedAt": "실패 시작 시각",
+      "lastFailedAt": "마지막 실패 시각",
+      "noReadableScheduledDags": "읽을 수 있는 Dag가 없습니다",
+      "scheduledDags": "스케줄 된 Dags"
+    },
+    "filters": {
+      "triggererHostname": "트리거러 호스트 이름"
+    },
+    "forbidden": {
+      "description": "트리거는 그 트리거가 실행되는 대상, 즉 Dag의 태스크 인스턴스나 Dag 실행, 또는 감시하는 에셋을 볼 수 있는 사용자에게만 표시됩니다. 이 중 볼 수 있는 항목이 없습니다.",
+      "title": "표시할 트리거가 없습니다"
+    },
+    "kind": {
+      "asset_watcher": "에셋 Watcher",
+      "callback": "콜백",
+      "task": "태스크"
+    },
+    "notFound": {
+      "backToList": "트리거 목록으로 돌아가기",
+      "description": "트리거는 이벤트를 발생시키거나 실행 대상이 끝나면 삭제되므로, 이 트리거는 이미 끝났을 가능성이 높습니다.",
+      "title": "이 트리거는 더 이상 존재하지 않습니다"
+    },
+    "status": {
+      "failing": "실패 중",
+      "orphaned": "재할당 대기 중"
+    },
+    "statusHint": {
+      "orphaned": "이 트리거를 실행하던 트리거러가 중지되었습니다. 다른 트리거러가 넘겨받기를 기다리는 중입니다."
+    }
+  },
   "xcom": {
     "add": {
       "error": "XCom 추가에 실패하였습니다.",
