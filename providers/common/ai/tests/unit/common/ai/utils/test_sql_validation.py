@@ -466,12 +466,17 @@ class TestCollectTableReferences:
         scan = collect_table_references(parse_sql(sql, dialect="snowflake"))
         assert scan.unverifiable_sources
 
-    def test_flags_table_shorthand_as_unverifiable(self):
-        """The TABLE <name> shorthand is mis-parsed by sqlglot, so reject it."""
+    def test_table_shorthand_never_hides_its_table(self):
+        """
+        ``TABLE <name>`` must never reach a table unseen.
+
+        sqlglot < 30.31 mis-parses the shorthand, so it is flagged as unverifiable; newer
+        sqlglot expands it to ``SELECT * FROM <name>``, so the table is reported instead.
+        """
         scan = collect_table_references(
             parse_sql("TABLE secret UNION SELECT * FROM orders", dialect="postgres")
         )
-        assert scan.unverifiable_sources
+        assert scan.unverifiable_sources or "secret" in {t for _, _, t in scan.tables}
 
     @pytest.mark.parametrize(
         "sql",

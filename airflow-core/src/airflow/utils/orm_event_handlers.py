@@ -21,6 +21,7 @@ import logging
 import os
 import time
 import traceback
+import weakref
 from uuid import uuid4
 
 from sqlalchemy import event, exc
@@ -28,6 +29,33 @@ from sqlalchemy import event, exc
 from airflow.configuration import conf
 
 log = logging.getLogger(__name__)
+
+
+class _StrSubclassEncoders(dict):
+    """
+    mysqlclient encoder map that binds ``str`` subclasses by their string value.
+
+    Since mysqlclient 2.3.1, ``Connection.literal`` only treats exact ``str`` as a string and
+    escapes anything else through this map, falling back to ``str(o)`` for unknown types. For
+    ``(str, Enum)`` values such as ``TaskInstanceState.FAILED`` that is the member name
+    (``"TaskInstanceState.FAILED"``), not the value (``"failed"``).
+    """
+
+    def __init__(self, dbapi_connection):
+        super().__init__(dbapi_connection.encoders)
+        self._connection = weakref.ref(dbapi_connection)
+
+    def __missing__(self, key):
+        if not (isinstance(key, type) and issubclass(key, str)):
+            raise KeyError(key)
+        self[key] = self._encode_by_value
+        return self._encode_by_value
+
+    def _encode_by_value(self, value, _encoders):
+        connection = self._connection()
+        if connection is None:
+            raise ReferenceError("The MySQL connection was garbage collected")
+        return connection.string_literal(str.__str__(value).encode(connection.encoding))
 
 
 def setup_event_handlers(engine):
@@ -55,6 +83,12 @@ def setup_event_handlers(engine):
             cursor = dbapi_connection.cursor()
             cursor.execute("SET time_zone = '+00:00'")
             cursor.close()
+
+        if engine.dialect.driver == "mysqldb":
+
+            @event.listens_for(engine, "connect")
+            def encode_str_subclasses_by_value(dbapi_connection, connection_record):
+                dbapi_connection.encoders = _StrSubclassEncoders(dbapi_connection)
 
     @event.listens_for(engine, "checkout")
     def checkout(dbapi_connection, connection_record, connection_proxy):
