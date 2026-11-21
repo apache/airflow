@@ -86,3 +86,35 @@ class BaseOperatorLink(metaclass=ABCMeta):
         raise NotImplementedError(
             f"Operator link {type(self).__name__} must override get_link() or static_url to provide a URL"
         )
+
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+
+        def _overridden(attr: str) -> bool:
+            return any(attr in c.__dict__ for c in cls.__mro__ if c is not BaseOperatorLink)
+
+        # ``name`` is the only @abstractmethod. A class stays abstract exactly
+        # when some abstract member of the MRO is not overridden by a concrete
+        # member below it — deliberate intermediate bases rely on that, and
+        # ABCMeta computes ``__abstractmethods__`` only after
+        # ``__init_subclass__`` runs, so abstractness is re-derived here.
+        abstract_names = {
+            attr
+            for c in cls.__mro__
+            for attr, member in c.__dict__.items()
+            if getattr(member, "__isabstractmethod__", False)
+        }
+        concrete_chain_names = {
+            attr
+            for c in cls.__mro__
+            if c not in (BaseOperatorLink, object)
+            for attr, member in c.__dict__.items()
+            if not getattr(member, "__isabstractmethod__", False)
+        }
+        if abstract_names - concrete_chain_names:
+            return
+        if not (_overridden("get_link") or _overridden("static_url")):
+            raise TypeError(
+                f"Operator link {cls.__name__} must override get_link() or static_url; "
+                "inheriting both defers the failure to link-resolution time, after the task has run"
+            )

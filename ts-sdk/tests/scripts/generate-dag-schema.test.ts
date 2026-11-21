@@ -365,7 +365,7 @@ describe("the emitted module", () => {
   });
 
   it("pins the serialization version the schema cannot express", () => {
-    expect(SERIALIZATION_VERSION).toBe(3);
+    expect(SERIALIZATION_VERSION).toBe(4);
   });
 });
 
