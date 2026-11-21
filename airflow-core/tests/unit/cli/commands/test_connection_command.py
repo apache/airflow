@@ -1132,15 +1132,22 @@ class TestCliTestConnections:
             connection_command.connections_test(self.parser.parse_args(["connections", "test", conn_id]))
             assert "Connection success!" in stdout.getvalue()
 
-    def test_cli_connections_test_fail(self, mocker, stdout_capture):
+    @pytest.mark.parametrize(
+        "fail_message",
+        [
+            "Failed.",
+            "Failed: [/error] [red]unmatched[/red] tag",
+        ],
+    )
+    def test_cli_connections_test_fail(self, mocker, stdout_capture, fail_message):
         mocker.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
         mock_test_conn = mocker.patch("airflow.providers.http.hooks.http.HttpHook.test_connection")
         conn_id = "http_default"
-        mock_test_conn.return_value = False, "Failed."
+        mock_test_conn.return_value = False, fail_message
         with stdout_capture as stdout, pytest.raises(SystemExit) as exc_info:
             connection_command.connections_test(self.parser.parse_args(["connections", "test", conn_id]))
         assert exc_info.value.code == 1
-        assert "Connection failed!\nFailed.\n\n" in stdout.getvalue()
+        assert f"Connection failed!\n{fail_message}\n\n" in stdout.getvalue()
 
     def test_cli_connections_test_missing_conn(self, mocker, stdout_capture):
         mocker.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
