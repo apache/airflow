@@ -1905,6 +1905,14 @@ repos:
         language: python
         pass_filenames: true
         files: ^(airflow-core|providers)/.*\.py$|^scripts/ci/prek/known_provide_session_positional\.txt$|^scripts/ci/prek/check_provide_session_kwargs\.py$
+      - id: check-no-new-unspecced-mocks
+        name: Check that no new mocks without spec/autospec are added to tests
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
+        entry: ./scripts/ci/prek/check_unspecced_mocks.py
+        language: python
+        pass_filenames: true
+        files: ^(airflow-core|airflow-ctl|airflow-ctl-tests|airflow-e2e-tests|chart|dev|devel-common|docker-tests|kubernetes-tests|performance|providers|scripts|shared|task-sdk|task-sdk-integration-tests)/(.*/)?tests/.*\.py$
       - id: check-no-new-airflow-core-utils-modules
         name: Check that no new modules are added under airflow-core/src/airflow/utils
         env:
